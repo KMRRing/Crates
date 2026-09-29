@@ -39,6 +39,12 @@
           ".read": "auth != null",
           ".write": "auth != null && $code.matches(/^[A-Z]{4}$/)"
         }
+      },
+      "runs": {
+        "$code": {
+          ".read": "auth != null",
+          ".write": "auth != null && $code.matches(/^[A-Z]{8}$/)"
+        }
       }
     }
   }

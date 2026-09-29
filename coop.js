@@ -9,6 +9,7 @@
 // to each other yourselves.
 import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings } from "./core.js";
 import { generate, generateSplit, encode, decode, describe, hintFor, classify } from "./gen.js";
+import { getSync } from "./net.js";
 import * as view from "./view.js";
 
 const LIVES = 4;          // team pool per board
@@ -21,12 +22,6 @@ export const MODES = {
   hidden: { label: "Hidden", blurb: "You each see eight; every crate needs both of you." },
 };
 
-let syncPromise = null;
-function getSync() {
-  if (window.__cratesSync) return Promise.resolve(window.__cratesSync);   // test harness
-  syncPromise = syncPromise || import("./sync.js").then(m => m.connect());
-  return syncPromise;
-}
 
 const newCode = () => Array.from({ length: 4 }, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("");
 

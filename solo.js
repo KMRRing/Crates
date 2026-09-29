@@ -1,7 +1,9 @@
-// Solo play: generated boards, progress in this browser's localStorage.
+// Solo play: generated boards, progress in this browser's localStorage, and optionally synced to a run
+// that other devices follow (run.js).
 import { BANK, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { emptyDeck, cleanDeck, learnFromBoard, deckStats, REVIEW_GAP } from "./learn.js";
+import { createRun, cleanCode, validCode } from "./run.js";
 import * as view from "./view.js";
 
 const MAX_MISTAKES = 4;
@@ -9,18 +11,29 @@ const CLUES = 4;          // per board
 const STORE_KEY = "crates:v2";
 const RECENT_ANSWERS = 16, RECENT_WORDS = 120, HISTORY = 60;
 
+/** Fills in anything missing from a stored run (old saves, or a run arriving from another device). */
+function normalise(raw) {
+  const s = raw && typeof raw === "object" ? raw : {};
+  s.settings = cleanSettings(s.settings);
+  s.pool = s.pool || "mixed";
+  s.n = s.n || 0;
+  s.history = s.history || [];
+  s.recentA = s.recentA || [];
+  s.recentW = s.recentW || [];
+  s.learning = s.learning === true;
+  s.deck = cleanDeck(s.deck);
+  return s;
+}
+
+const syncError = e => (/permission/i.test(String(e?.message || e))
+  ? "Syncing isn't switched on in Firebase yet" : "Couldn't reach the sync server");
+
 export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
-  const store = (() => {
-    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
-  })();
-  store.settings = cleanSettings(store.settings);
-  store.pool = store.pool || "mixed";
-  store.n = store.n || 0;
-  store.history = store.history || [];
-  store.recentA = store.recentA || [];
-  store.recentW = store.recentW || [];
-  store.learning = store.learning === true;
-  store.deck = cleanDeck(store.deck);
+  const store = normalise((() => {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; }
+  })());
+  let active = false;           // solo is on screen (not a together game)
+  const run = createRun({ snapshot: () => store, adopt: adoptRun, notice: msg => view.toast(msg, 3500) });
 
   // Playing time. The clock runs while a board is open and pauses only on an explicit sign the page
   // was put away (hidden, or left). It never trusts a one-off read of document.visibilityState: some
@@ -36,16 +49,21 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     run() { this.book(); if (this.from === null && store.cur && !store.cur.done) this.from = Date.now(); },
     pause() { this.book(); this.from = null; },
   };
-  const persist = () => {
+  const persistLocal = () => {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* private mode */ }
   };
+  const persist = () => { persistLocal(); run.changed(); };
   const save = () => { clock.book(); persist(); };
-  const putAway = () => { clock.pause(); persist(); };
-  document.addEventListener("visibilitychange", () => (document.hidden ? putAway() : clock.run()));
+  const putAway = () => {
+    if (active) { clock.pause(); persist(); }
+    run.flush();
+  };
+  const wake = () => { if (active) clock.run(); };
+  document.addEventListener("visibilitychange", () => (document.hidden ? putAway() : wake()));
   window.addEventListener("pagehide", putAway);
-  window.addEventListener("pageshow", () => clock.run());
-  document.addEventListener("pointerdown", () => clock.run(), true);
-  document.addEventListener("keydown", () => clock.run(), true);
+  window.addEventListener("pageshow", wake);
+  document.addEventListener("pointerdown", wake, true);
+  document.addEventListener("keydown", wake, true);
 
   let board, info, selected = new Set(), pendingGroup = null;
   let clueShown = null;         // word whose clue is on show
@@ -131,6 +149,45 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     };
   }
   const draw = () => view.render(vm());
+
+  /** Another device moved the run on: take its whole state over. */
+  function adoptRun(data) {
+    clock.pause();
+    const next = normalise(data);
+    for (const k of Object.keys(store)) delete store[k];
+    Object.assign(store, next);
+    persistLocal();
+    if (!active) return;
+    setPoolParam(store.pool);
+    if (store.cur && decode(store.cur.code)) load(); else fresh();
+    view.toast("Caught up with your other device", 2500);
+    if (view.menuTag() === "solo") handlers.menu();
+  }
+
+  const runLink = code => `${location.origin}${location.pathname}?run=${code}`;
+
+  async function syncRun() {
+    view.toast("Setting up sync…", 3000);
+    try {
+      const code = await run.create();
+      view.toast(code ? `Synced as ${code}` : "Couldn't set up sync, try again", 3000);
+    } catch (e) { console.error(e); view.toast(syncError(e), 4500); }
+    if (view.menuTag() === "solo") handlers.menu();
+  }
+
+  async function joinRun(raw) {
+    const code = cleanCode(raw);
+    if (!validCode(code)) { view.toast("That code doesn't look right: it's 8 letters", 2500); return; }
+    if (code === run.code()) { view.toast("This device already follows that run", 2200); return; }
+    const progress = store.history.length > 0 || (store.cur && store.cur.guesses.length > 0);
+    if (progress && !confirm("Switch this device to the synced run? Its own progress here will be replaced.")) return;
+    view.toast("Fetching your run…", 3000);
+    try {
+      const ok = await run.join(code);
+      view.toast(ok ? `This device now follows run ${code}` : "No run with that code", 3000);
+    } catch (e) { console.error(e); view.toast(syncError(e), 4500); }
+    if (view.menuTag() === "solo") handlers.menu();
+  }
 
   function end() {
     const g = game();
@@ -328,13 +385,57 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
           stats.textContent = `${done} played · average ${(total / done).toFixed(1)} of 8 · ${perfect} perfect`;
           body.appendChild(stats);
         }
-      });
+
+        // ---- carry this run over to other devices ----
+        const add = (tag, cls, text, parent = body) => {
+          const e = document.createElement(tag);
+          if (cls) e.className = cls;
+          if (text != null) e.textContent = text;
+          parent.appendChild(e);
+          return e;
+        };
+        add("h3", null, "Your other devices");
+        const code = run.code();
+        if (code) {
+          add("p", "stats", `This run is synced as ${code}: the board you're on, your history, settings and learning. Open the link on your other device to carry on there.`);
+          add("p", "room-link", runLink(code));
+          const row = add("div", "controls");
+          add("button", "btn", "Copy link", row).addEventListener("click", async () => {
+            view.toast(await view.copyText(runLink(code)) ? "Link copied" : runLink(code), 2500);
+          });
+          if (navigator.share) {
+            add("button", "btn", "Share link", row).addEventListener("click", async () => {
+              try { await navigator.share({ title: "My Crates run", url: runLink(code) }); } catch { /* dismissed */ }
+            });
+          }
+          add("button", "link", "Stop syncing on this device").addEventListener("click", () => {
+            run.unlink();
+            view.toast("This device keeps its own copy and stops syncing", 2500);
+            handlers.menu();
+          });
+        } else {
+          add("p", "stats", "Carry this run over to your phone or computer: the board you're on, your history, settings and learning.");
+          add("button", "btn primary wide", "Sync this run").addEventListener("click", syncRun);
+          const row = add("form", "join-run");
+          const input = add("input", null, null, row);
+          input.placeholder = "Code from other device";
+          input.autocapitalize = "characters";
+          input.autocomplete = "off";
+          input.spellcheck = false;
+          add("button", "btn", "Join", row).type = "submit";
+          row.addEventListener("submit", e => { e.preventDefault(); joinRun(input.value); });
+        }
+      }, "solo");
     },
   };
 
+  let following = false;
   return {
     settings: () => store.settings,
-    start(pool, code) {
+    /** runCode: from a ?run= link opened on this device. */
+    start(pool, code, runCode) {
+      active = true;
+      if (!following) { following = true; run.start(); }
       if (pool) { store.pool = pool; save(); }
       setPoolParam(store.pool);
       view.bind(handlers);
@@ -343,7 +444,14 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
       if (shared) begin(shared, code.trim().toLowerCase());
       else if (store.cur && decode(store.cur.code)) load();
       else fresh();
+      if (runCode) joinRun(runCode);
     },
-    stop() {},
+    /** A together game takes the screen: stop the clock, keep the run as it is. */
+    suspend() {
+      if (!active) return;
+      clock.pause();
+      persist();
+      active = false;
+    },
   };
 }

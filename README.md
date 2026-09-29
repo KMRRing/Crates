@@ -32,6 +32,9 @@ Settings → Learning mode → On. The game keeps a card for every clue, and the
 - Pick Countries, Commodities or Mixed in the top bar. Recent boards in the menu can be replayed. Progress stays in the browser.
 - Copy result puts your score, time, lives and clues used, the guess grid and a link to the same board on the clipboard. Time only runs while the board is on screen.
 
+## Your run on several devices
+Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. "Stop syncing on this device" keeps a local copy and lets go of the run.
+
 ## Together
 Menu → Play together or Play hidden → send the link. Your partner opens it and joins. The team shares 4 lives and 4 clues per board.
 
@@ -50,10 +53,11 @@ One rule runs through both modes: you never see the result of your own action, y
 - `?cat=countries`, `?cat=commodities` or `?cat=mixed` opens straight into that pool.
 - `?b=CODE` opens one specific board. Shared results include this link.
 - `?room=ABCD` joins a game together.
+- `?run=ABCDEFGH` makes this device follow a synced solo run.
 
 ## Setup for Together mode (once)
-Together mode uses the same Firebase project as CroatiaQuiz (croatiabio). Its database rules need the `crates` block:
+Together mode and synced runs use the same Firebase project as CroatiaQuiz (croatiabio). Its database rules need the `crates` block (games rooms and synced runs):
 Firebase console → Realtime Database → Rules → replace with the contents of `firebase-rules.json` → Publish.
 
 ## Files
-`bank.js` is the word bank as base64-encoded JSON, so answers aren't visible at a glance. It is append-only: board codes point at answer and word positions, so words are only ever added at the end of an answer and answers at the end of the bank. `gen.js` builds and checks boards, including the split boards for hidden mode. `tests/fake-sync.js` stands in for Firebase in local two-tab tests.
+`bank.js` is the word bank as base64-encoded JSON, so answers aren't visible at a glance. It is append-only: board codes point at answer and word positions, so words are only ever added at the end of an answer and answers at the end of the bank. `gen.js` builds and checks boards, including the split boards for hidden mode. `run.js` keeps a solo run in step across devices; `net.js` loads the Firebase connection when either needs it. `tests/fake-sync.js` stands in for Firebase in local two-tab tests.
