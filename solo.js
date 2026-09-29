@@ -22,19 +22,30 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   store.learning = store.learning === true;
   store.deck = cleanDeck(store.deck);
 
-  // Playing time counts only while the page is visible and the board is still open.
-  let clockFrom = null;
-  function tick() {
-    const g = store.cur;
-    if (clockFrom !== null && g && !g.done) g.ms = (g.ms || 0) + Date.now() - clockFrom;
-    clockFrom = g && !g.done && document.visibilityState === "visible" ? Date.now() : null;
-  }
-  const save = () => {
-    tick();
+  // Playing time. The clock runs while a board is open and pauses only on an explicit sign the page
+  // was put away (hidden, or left). It never trusts a one-off read of document.visibilityState: some
+  // iPhone browsers report "hidden" for a page you're looking at. Any tap restarts a paused clock.
+  const clock = {
+    from: null,                                   // start of the current stretch; null = paused
+    book() {                                      // add the stretch so far to the open board
+      const g = store.cur;
+      if (this.from === null) return;
+      if (g && !g.done) g.ms = (g.ms || 0) + Math.max(0, Date.now() - this.from);
+      this.from = Date.now();
+    },
+    run() { this.book(); if (this.from === null && store.cur && !store.cur.done) this.from = Date.now(); },
+    pause() { this.book(); this.from = null; },
+  };
+  const persist = () => {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* private mode */ }
   };
-  document.addEventListener("visibilitychange", save);
-  window.addEventListener("pagehide", save);
+  const save = () => { clock.book(); persist(); };
+  const putAway = () => { clock.pause(); persist(); };
+  document.addEventListener("visibilitychange", () => (document.hidden ? putAway() : clock.run()));
+  window.addEventListener("pagehide", putAway);
+  window.addEventListener("pageshow", () => clock.run());
+  document.addEventListener("pointerdown", () => clock.run(), true);
+  document.addEventListener("keydown", () => clock.run(), true);
 
   let board, info, selected = new Set(), pendingGroup = null;
   const game = () => store.cur;
@@ -42,8 +53,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   const score = g => g.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
   function begin(b, code) {
-    tick();                 // book the time so far to the board being left
-    clockFrom = null;
+    clock.pause();          // book the time so far to the board being left
     store.n += 1;
     store.cur = {
       code: code || encode(b), n: store.n, order: shuffled(describe(b).flatMap(g => g.words)),
@@ -73,7 +83,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     board = decode(game().code);
     if (!board) { store.cur = null; fresh(); return; }
     info = describe(board);
-    tick();                 // start the clock on a resumed board
+    clock.run();            // start, or resume, this board's clock
     selected.clear();
     pendingGroup = null;
     setBoardParam(null);
@@ -118,9 +128,8 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
 
   function end() {
     const g = game();
-    tick();
+    clock.pause();
     g.done = true;
-    clockFrom = null;
     if (g.learn && store.learning) g.tags = learnFromBoard(store.deck, board, g);
     store.history = [{ n: g.n, code: g.code, cat: board.cat, pts: score(g), won: g.found.length === 4,
       mistakes: g.mistakes, clues: g.revealed.length, ms: g.ms }, ...store.history].slice(0, HISTORY);
