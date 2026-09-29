@@ -191,7 +191,6 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     let status = "";
     if (!partner) status = "Waiting for your partner to join. Send the link from the menu.";
     else if (b.pending) status = b.pending.namer === uid ? "" : `${nameOf(b.pending.namer)} is naming the crate${b.pending.by === uid ? " you found" : ""}…`;
-    else if (hidden() && !b.done && (mySel.size || partnerSel.length)) status = `Picked: ${mySel.size} yours · ${partnerSel.length} ${nameOf(partner)}'s`;
 
     const picks = mySel.size + (hidden() ? partnerSel.length : 0);
     const pts = boardScore(b);

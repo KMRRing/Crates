@@ -71,7 +71,8 @@ button, input { font: inherit; color: inherit; }
 
 .brief { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: 1rem 0 1rem; }
 .coop .brief { flex-direction: column; align-items: stretch; gap: .6rem; }
-.status { margin: -.3rem 0 .8rem; font-weight: 650; color: var(--ink); }
+/* Under the grid, so a message appearing never moves the tiles. */
+.status { margin: .7rem 0 0; font-weight: 650; color: var(--ink); text-align: center; }
 .brief p { margin: 0; color: var(--ink-soft); max-width: 23rem; font-size: 1rem; }
 .mode-note { display: block; margin-top: .3rem; font-size: .85rem; font-weight: 700; color: var(--learn); }
 .players { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex: none; }
