@@ -83,13 +83,15 @@ export function render(vm) {
 
   el.pNum.textContent = vm.label;
   renderPool(vm);
-  el.brief.textContent = vm.brief || `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
+  // vm.brief: null = the standard line, "" = none
+  el.brief.textContent = vm.brief ?? `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
   if (vm.modeNote) {
     const m = document.createElement("span");
     m.className = "mode-note";
     m.textContent = vm.modeNote;
     el.brief.appendChild(m);
   }
+  el.brief.hidden = !el.brief.textContent;
   if (vm.category) el.nameLabel.textContent = `Which ${NOUN[vm.category]} links these four?`;
   renderPlayers(vm);
   el.status.textContent = vm.status || "";

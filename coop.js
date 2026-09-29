@@ -210,7 +210,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     const pts = boardScore(b);
     return {
       mode: "coop", category: board.cat, pool: room.pool, label: b.n, boardKey: `${b.code}#${b.n}`,
-      brief: hidden() ? `Your eight words are open, your partner's are sealed. Every crate holds words from both of you: find them and name the ${board.cat === "country" ? "country" : "commodity"} behind each.` : null,
+      brief: hidden() ? "" : null,           // hidden mode shows no description
       groupsInfo: info, solved, cells, clue, players: players(),
       team: { lives: b.lives, maxLives: LIVES, clues: b.clues, maxClues: CLUES },
       pending: b.pending ? { g: b.pending.g, mine: b.pending.namer === uid } : null,
