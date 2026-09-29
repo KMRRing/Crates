@@ -1,5 +1,5 @@
 // Solo play: generated boards, progress in this browser's localStorage.
-import { BANK, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings } from "./core.js";
+import { BANK, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify } from "./gen.js";
 import * as view from "./view.js";
 
@@ -18,9 +18,20 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   store.history = store.history || [];
   store.recentA = store.recentA || [];
   store.recentW = store.recentW || [];
+
+  // Playing time counts only while the page is visible and the board is still open.
+  let clockFrom = null;
+  function tick() {
+    const g = store.cur;
+    if (clockFrom !== null && g && !g.done) g.ms = (g.ms || 0) + Date.now() - clockFrom;
+    clockFrom = g && !g.done && document.visibilityState === "visible" ? Date.now() : null;
+  }
   const save = () => {
+    tick();
     try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch { /* private mode */ }
   };
+  document.addEventListener("visibilitychange", save);
+  window.addEventListener("pagehide", save);
 
   let board, info, selected = new Set(), pendingGroup = null;
   const game = () => store.cur;
@@ -28,10 +39,12 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   const score = g => g.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
   function begin(b, code) {
+    tick();                 // book the time so far to the board being left
+    clockFrom = null;
     store.n += 1;
     store.cur = {
       code: code || encode(b), n: store.n, order: shuffled(describe(b).flatMap(g => g.words)),
-      found: [], mistakes: 0, guesses: [], tried: [], revealed: [], done: false,
+      found: [], mistakes: 0, guesses: [], tried: [], revealed: [], done: false, ms: 0,
     };
     b.groups.forEach(g => {
       store.recentA = [g.a, ...store.recentA.filter(a => a !== g.a)].slice(0, RECENT_ANSWERS);
@@ -54,6 +67,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     board = decode(game().code);
     if (!board) { store.cur = null; fresh(); return; }
     info = describe(board);
+    tick();                 // start the clock on a resumed board
     selected.clear();
     pendingGroup = null;
     setBoardParam(null);
@@ -67,11 +81,10 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     if (g.done) info.forEach(gr => gr.words.forEach(w => taken.add(w)));
     const solved = g.found.map(f => ({ ...f }));
     if (g.done) info.forEach((_, i) => { if (!solved.some(r => r.g === i)) solved.push({ g: i, missed: true }); });
-    const pts = score(g);
-    const n = g.revealed.length;
-    const cluesNote = n ? ` · ${n} clue${n === 1 ? "" : "s"}` : "";
+    const pts = score(g), won = g.found.length === 4, time = formatTime(g.ms || 0);
     const rows = g.guesses.map(ls => ls.map(l => SQUARES[l]).join("")).join("\n");
     const names = g.found.map(f => f.named ? "✓" : "½").join("");
+    const used = `Lives used ${g.mistakes}/${MAX_MISTAKES} · Clues used ${g.revealed.length}/${CLUES}`;
     const link = `${location.origin}${location.pathname}?b=${g.code}`;
     return {
       mode: "solo", category: board.cat, pool: store.pool, label: g.n, boardKey: g.code,
@@ -84,20 +97,23 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       pending: pendingGroup !== null ? { g: pendingGroup, mine: true } : null,
       canSubmit: selected.size === 4 && !g.done && pendingGroup === null,
       done: g.done,
-      resultLine: (g.found.length === 4
-        ? `${pts} of 8 · ${g.mistakes} mistake${g.mistakes === 1 ? "" : "s"}`
-        : `Out of lives · ${pts} of 8`) + cluesNote,
+      resultLine: `${won ? "" : "Out of lives · "}${pts} of 8 in ${time}`,
+      subLine: used,
       shareGrid: rows + (names ? `\n${names}` : ""),
-      shareText: `Crates · ${PLURAL[board.cat]} · ${pts}/8${cluesNote}\n${rows}${names ? `\n${names}` : ""}\nSame board: ${link}`,
+      shareText: [`Crates · ${PLURAL[board.cat]}`, `${won ? "" : "Out of lives · "}${pts}/8 in ${time}`, used,
+        rows, ...(names ? [`Named ${names}`] : []), link].join("\n"),
       canShare: true, canNext: true, nextLabel: "Next board",
     };
   }
   const draw = () => view.render(vm());
 
-  function finish() {
+  function end() {
     const g = game();
+    tick();
+    g.done = true;
+    clockFrom = null;
     store.history = [{ n: g.n, code: g.code, cat: board.cat, pts: score(g), won: g.found.length === 4,
-      mistakes: g.mistakes, clues: g.revealed.length }, ...store.history].slice(0, HISTORY);
+      mistakes: g.mistakes, clues: g.revealed.length, ms: g.ms }, ...store.history].slice(0, HISTORY);
   }
 
   function settingsSheet() {
@@ -147,10 +163,9 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       }
       g.mistakes++;
       if (g.mistakes >= MAX_MISTAKES) {
-        g.done = true;
+        end();
         selected.clear();
         view.showClue(null);
-        finish();
         view.toast("Out of lives", 2500);
       } else {
         view.toast(r.res === "one" ? "One away" : "Not a crate", 1800);
@@ -167,7 +182,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       const named = guess !== null && nameMatches(guess, ans);
       g.found.push({ g: pendingGroup, named, guess: named ? null : (guess || null) });
       pendingGroup = null;
-      if (g.found.length === 4) { g.done = true; finish(); }
+      if (g.found.length === 4) end();
       save();
       view.showClue(null);
       view.toast(named ? `${ans.name}, full marks` : `It was ${ans.name}, half marks`, 2200);
@@ -177,11 +192,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     shuffle() { game().order = shuffled(game().order); save(); draw(); },
     next() { fresh(); },
     async share() {
-      const t = vm().shareText;
-      try {
-        if (navigator.share) await navigator.share({ text: t });
-        else { await navigator.clipboard.writeText(t); view.toast("Copied", 1500); }
-      } catch { /* share sheet dismissed */ }
+      view.toast(await view.copyText(vm().shareText) ? "Result copied" : "Couldn't copy", 1600);
     },
     pool(value) {
       store.pool = value;
@@ -224,7 +235,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
           const b = document.createElement("button");
           b.innerHTML = "<span></span><span class=\"st\"></span>";
           b.firstChild.textContent = `No. ${r.n}  ${PLURAL[r.cat]}`;
-          b.lastChild.textContent = r.won ? `${r.pts}/8` : `out · ${r.pts}/8`;
+          b.lastChild.textContent = `${r.won ? "" : "out · "}${r.pts}/8${r.ms ? ` · ${formatTime(r.ms)}` : ""}`;
           b.title = "Replay this board";
           b.addEventListener("click", () => { close(); const d = decode(r.code); if (d) begin(d, r.code); });
           li.appendChild(b);

@@ -124,7 +124,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
       feed: b.guesses.map(g => ({ by: nameOf(g.by), slot: slotOf(g.by), words: g.words, res: g.res })),
       done: b.done,
       resultLine: b.won ? `Solved together · ${pts} of 8` : `Out of lives · ${pts} of 8`,
-      sessionLine: `This session: ${room.tally.maps} board${room.tally.maps === 1 ? "" : "s"} · ${room.tally.points} points`,
+      subLine: `This session: ${room.tally.maps} board${room.tally.maps === 1 ? "" : "s"} · ${room.tally.points} points`,
       canShare: false, canNext: true, nextLabel: "Next board",
     };
   }
@@ -291,14 +291,14 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
         send.addEventListener("click", async () => {
           try {
             if (navigator.share) await navigator.share({ title: "Crates", text: "Play Crates with me", url: link() });
-            else { await navigator.clipboard.writeText(link()); view.toast("Link copied", 1500); }
+            else if (await view.copyText(link())) view.toast("Link copied", 1500);
           } catch { /* share sheet dismissed */ }
         });
         const copy = document.createElement("button");
         copy.className = "btn";
         copy.textContent = "Copy link";
         copy.addEventListener("click", async () => {
-          try { await navigator.clipboard.writeText(link()); view.toast("Link copied", 1500); } catch { view.toast(link(), 6000); }
+          if (await view.copyText(link())) view.toast("Link copied", 1500); else view.toast(link(), 6000);
         });
         const settingsBtn = document.createElement("button");
         settingsBtn.className = "btn";

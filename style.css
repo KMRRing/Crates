@@ -171,7 +171,7 @@ button, input { font: inherit; color: inherit; }
 .btn:disabled { opacity: .35; cursor: default; }
 
 .result { margin-top: 1rem; text-align: center; }
-.session-line { color: var(--ink-soft); margin: -.2rem 0 .7rem; }
+.sub-line { color: var(--ink-soft); margin: -.2rem 0 .7rem; }
 .feed { list-style: none; padding: 0; margin: 1.1rem 0 0; display: grid; gap: 4px; }
 .guess { display: grid; grid-template-columns: auto auto 1fr; gap: .15rem .6rem; align-items: baseline;
   padding: .45rem .6rem; border-radius: 6px; background: var(--sheet); font-size: .92rem; }

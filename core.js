@@ -100,6 +100,13 @@ export function shuffled(list, rng = Math.random) {
   return a;
 }
 
+/** 272000 → "4:32", 3723000 → "1:02:03". */
+export function formatTime(ms) {
+  const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  const ss = String(s % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
 export const wordsKey = words => words.slice().sort().join("|");
 
 /** Realtime Database drops empty arrays and may hand arrays back as keyed objects. */

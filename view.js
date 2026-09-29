@@ -7,7 +7,7 @@ const el = {
   brief: $("brief"), players: $("players"), status: $("status"),
   solved: $("solved"), grid: $("grid"), clue: $("clue"), toast: $("toast"),
   controls: $("controls"), submit: $("submitBtn"), shuffle: $("shuffleBtn"), clear: $("clearBtn"),
-  feed: $("feed"), result: $("result"), resultLine: $("resultLine"), sessionLine: $("sessionLine"),
+  feed: $("feed"), result: $("result"), resultLine: $("resultLine"), subLine: $("subLine"),
   shareGrid: $("shareGrid"), share: $("shareBtn"), next: $("nextBtn"),
   nameDlg: $("nameDlg"), nameForm: $("nameForm"), nameWords: $("nameWords"),
   nameLabel: $("nameLabel"), nameInput: $("nameInput"), skip: $("skipBtn"),
@@ -95,8 +95,8 @@ export function render(vm) {
   el.result.hidden = !vm.done;
   if (vm.done) {
     el.resultLine.textContent = vm.resultLine;
-    el.sessionLine.textContent = vm.sessionLine || "";
-    el.sessionLine.hidden = !vm.sessionLine;
+    el.subLine.textContent = vm.subLine || "";
+    el.subLine.hidden = !vm.subLine;
     el.shareGrid.textContent = vm.shareGrid || "";
     el.shareGrid.hidden = !vm.shareGrid;
     el.share.hidden = !vm.canShare;
@@ -276,6 +276,25 @@ export function openMenu(build) {
   if (!el.menuDlg.open) el.menuDlg.showModal();
 }
 export const closeMenu = () => el.menuDlg.open && el.menuDlg.close();
+
+/** Copies to the clipboard; falls back to a hidden text box where the clipboard API is refused. */
+export async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const box = document.createElement("textarea");
+    box.value = text;
+    box.setAttribute("readonly", "");
+    box.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+    document.body.appendChild(box);
+    box.select();
+    box.setSelectionRange(0, text.length);
+    const ok = document.execCommand("copy");
+    box.remove();
+    return ok;
+  }
+}
 
 // ---------- "who are you" sheet ----------
 export function askWho(defaultName = "") {
