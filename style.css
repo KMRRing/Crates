@@ -43,6 +43,11 @@ button, input { font: inherit; color: inherit; }
   font-size: 1.75rem; font-weight: 800; font-stretch: 100%; letter-spacing: -.02em; line-height: 1;
 }
 .mark-icon { width: 1.35rem; height: 1.35rem; }
+.top-right { display: flex; align-items: center; gap: .45rem; }
+.cat {
+  display: inline-flex; align-items: center; min-height: 36px; padding: .3rem .75rem; border-radius: 6px;
+  background: var(--ink); color: var(--yard); font-weight: 700; font-stretch: 87.5%;
+}
 .pick {
   background: none; border: 1.5px solid var(--ink-soft); border-radius: 6px;
   padding: .3rem .7rem; font-weight: 600; cursor: pointer; min-height: 36px;

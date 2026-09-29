@@ -4,15 +4,16 @@
   const PUZZLES = JSON.parse(new TextDecoder().decode(
     Uint8Array.from(atob(window.CRATES_DATA), c => c.charCodeAt(0))));
   const MAX_MISTAKES = 4;
-  const MAX_CLUES = 2;
+  const MAX_CLUES = 3;
   const STORE_KEY = "crates:v1";
   const SQUARES = ["🟨", "🟩", "🟦", "🟥"];
   const NOUN = { country: "country", commodity: "commodity" };
+  const PLURAL = { country: "Countries", commodity: "Commodities" };
 
   const $ = id => document.getElementById(id);
   const el = {
     grid: $("grid"), solved: $("solved"), toast: $("toast"), clue: $("clue"),
-    lives: $("lives"), clueDots: $("clueDots"), brief: $("brief"), pNum: $("pNum"),
+    cat: $("cat"), lives: $("lives"), clueDots: $("clueDots"), brief: $("brief"), pNum: $("pNum"),
     controls: $("controls"), submit: $("submitBtn"), shuffle: $("shuffleBtn"), clear: $("clearBtn"),
     result: $("result"), resultLine: $("resultLine"), shareGrid: $("shareGrid"),
     share: $("shareBtn"), next: $("nextBtn"),
@@ -109,6 +110,7 @@
   function render(fresh = false) {
     const p = puzzle();
     el.pNum.textContent = idx + 1;
+    el.cat.textContent = PLURAL[p.category];
     el.brief.textContent = `Sort the sixteen into four crates and name the ${NOUN[p.category]} behind each.`;
     el.nameLabel.textContent = `Which ${NOUN[p.category]} links these four?`;
     renderMeters();
@@ -361,7 +363,7 @@
       const li = document.createElement("li");
       const b = document.createElement("button");
       b.innerHTML = "<span></span><span class=\"st\"></span>";
-      b.firstChild.textContent = `No. ${k + 1}  ${p.category === "country" ? "Countries" : "Commodities"}`;
+      b.firstChild.textContent = `No. ${k + 1}  ${PLURAL[p.category]}`;
       b.lastChild.textContent = st;
       if (k === idx) b.classList.add("cur");
       b.addEventListener("click", () => { el.pickDlg.close(); open(k); });
