@@ -67,6 +67,10 @@ export function showClue(word, text) {
   el.clue.hidden = false;
 }
 
+// A life: filled while you have it, outlined once lost.
+const HEART_PATH = "M12 20.5C12 20.5 3 14.8 3 8.9 3 6.1 5.1 4 7.7 4c1.8 0 3.4 1 4.3 2.6C12.9 5 14.5 4 16.3 4 18.9 4 21 6.1 21 8.9c0 5.9-9 11.6-9 11.6z";
+const heart = on => `<svg class="${on ? "on" : ""}" viewBox="1.5 2.5 21 19.5" aria-hidden="true"><path d="${HEART_PATH}"/></svg>`;
+
 // ---------- render ----------
 export function render(vm) {
   current = vm;
@@ -126,11 +130,7 @@ function renderPlayers(vm) {
     const lives = document.createElement("span");
     lives.className = "lives";
     lives.setAttribute("aria-label", `${pl.lives} of ${pl.maxLives} lives`);
-    for (let i = 0; i < pl.maxLives; i++) {
-      const b = document.createElement("i");
-      if (i < pl.lives) b.className = "on";
-      lives.appendChild(b);
-    }
+    lives.innerHTML = Array.from({ length: pl.maxLives }, (_, i) => heart(i < pl.lives)).join("");
     const dots = document.createElement("span");
     dots.className = "clue-dots";
     dots.setAttribute("aria-label", `${pl.clues} clues`);

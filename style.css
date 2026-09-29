@@ -73,20 +73,24 @@ button, input { font: inherit; color: inherit; }
 .brief p { margin: 0; color: var(--ink-soft); max-width: 23rem; font-size: 1rem; }
 .players { display: grid; gap: 6px; justify-items: end; flex: none; }
 .pl { display: flex; align-items: center; gap: 8px; }
-.pl .lives { margin-right: 2px; }
 .players:not(.duo) .pl { flex-direction: column; align-items: flex-end; gap: 6px; }
-.players.duo { justify-items: stretch; }
+/* Together: one shared grid (name | hearts | clues) so both players' marks line up whatever the names. */
+.players.duo { grid-template-columns: repeat(3, max-content); column-gap: 10px; row-gap: 6px; justify-content: start; justify-items: start; align-items: center; }
+.players.duo .pl { display: contents; }
+.players.duo .pl.waiting { display: block; grid-column: 1 / -1; }
 .pl-name { font-weight: 700; font-stretch: 87.5%; font-size: .9rem; min-width: 4.5rem; display: flex; align-items: center; gap: 5px; }
 .pl-name::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--p0); flex: none; }
 .pl.s1 .pl-name::before { background: var(--p1); }
 .pl.away .pl-name { opacity: .55; }
 .pl.waiting { color: var(--ink-soft); font-size: .88rem; }
+/* Hearts and clue marks share one 14px grid so their columns line up. */
 .lives, .clue-dots { display: flex; gap: 5px; }
-.lives i { width: 12px; height: 12px; border-radius: 2px; border: 1.5px solid var(--ink-soft); display: block; }
-.lives i.on { background: var(--ink); border-color: var(--ink); }
+.lives svg, .clue-dots i { width: 14px; height: 14px; flex: none; display: block; box-sizing: border-box; }
+.lives svg { fill: none; stroke: var(--ink-soft); stroke-width: 2.2; stroke-linejoin: round; }
+.lives svg.on { fill: var(--ink); stroke: var(--ink); }
 .clue-dots i {
-  width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--ink-soft);
-  display: grid; place-items: center; font-style: normal; font-size: .62rem; font-weight: 800; color: var(--ink-soft);
+  border-radius: 50%; border: 1.5px solid var(--ink-soft); display: grid; place-items: center;
+  font-style: normal; font-size: 8.5px; font-weight: 800; line-height: 1; color: var(--ink-soft);
 }
 .clue-dots i.on { background: var(--ink); border-color: var(--ink); color: var(--yard); }
 
