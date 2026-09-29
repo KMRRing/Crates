@@ -1,5 +1,5 @@
 // Builds boards from the word bank: four answers, four words each, exactly one solution.
-import { BANK, norm, shuffled } from "./core.js";
+import { BANK, ENTRIES, cardKey, norm, shuffled } from "./core.js";
 
 const DIFF_WEIGHT = { easy: [3, 1, 0.2], mixed: [1, 1, 1], hard: [0.3, 1, 2.5] };
 const MAX_HERRINGS = 2;        // words on a board that also fit another crate on it
@@ -62,23 +62,27 @@ function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1, c
 }
 
 function learnWeight(learn, a, i) {
-  const c = learn?.cards[wordKey(a, i)];
+  const c = learn?.cards[cardKey(a, i)];
   if (!c) return 1;
   if (c.s === "w") return c.d <= learn.t ? DUE : NOT_YET;
   return LEARN_WEIGHT[c.s] ?? 1;
 }
 
-/** Missed words that are due, grouped by answer, most overdue first: the crates this board revisits. */
+/** Missed clues that are due, grouped by answer, most overdue first: the crates this board revisits. */
 function reviewPlan(pool, settings, learn, rng) {
+  const usable = ([a, i]) => (pool === "mixed" || BANK[a].cat === pool) && !settings.off.includes(BANK[a].group)
+    && wordWeight(BANK[a].words[i], settings) > 0;
   const due = new Map();
   for (const [key, c] of Object.entries(learn.cards)) {
     if (c.s !== "w" || c.d > learn.t) continue;
-    const [a, i] = key.split(".").map(Number);
-    const ans = BANK[a];
-    if (!ans?.words[i] || (pool !== "mixed" && ans.cat !== pool) || settings.off.includes(ans.group)
-      || !(wordWeight(ans.words[i], settings) > 0)) continue;
+    const entries = (ENTRIES.get(key) || []).filter(usable);
+    if (!entries.length) continue;
+    // A clue that belongs to several answers comes back under a different one when it can.
+    const elsewhere = entries.filter(([a]) => a !== c.a);
+    const from = elsewhere.length ? elsewhere : entries;
+    const [a, i] = from[Math.floor(rng() * from.length)];
     if (!due.has(a)) due.set(a, []);
-    due.get(a).push({ i, d: c.d });
+    due.get(a).push({ i, d: c.d, key });
   }
   if (!due.size) return null;
   const order = shuffled([...due], rng).map(([a, list]) => ({ a, list: list.sort((x, y) => x.d - y.d) }))
@@ -88,7 +92,7 @@ function reviewPlan(pool, settings, learn, rng) {
   const backlog = mine.reduce((n, o) => n + o.list.length, 0);
   const room = backlog >= 12 ? 4 : backlog >= 7 ? 3 : 2;
   // Words missed on the same board come back on different boards, so they don't meet again.
-  const neighbours = o => new Set(o.list.flatMap(x => learn.cards[wordKey(o.a, x.i)].c || []));
+  const neighbours = o => new Set(o.list.flatMap(x => learn.cards[x.key].c || []));
   const reviews = [];
   for (const o of mine) {
     if (reviews.length === room) break;
@@ -130,7 +134,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
   const recentAs = new Set(recentA), recentWs = new Set(recentW);
   const plan = learn && reviewPlan(pool, settings, learn, rng);
   const cats = plan ? [plan.cat] : pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
-  const unseenShare = a => BANK[a].words.filter((w, i) => !learn.cards[wordKey(a, i)]).length / BANK[a].words.length;
+  const unseenShare = a => BANK[a].words.filter((w, i) => !learn.cards[cardKey(a, i)]).length / BANK[a].words.length;
   for (const cat of cats) {
     const answers = eligibleAnswers(cat, settings);
     if (answers.length < 4) continue;
@@ -138,7 +142,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
       // If the reviews won't fit on a valid board, revisit fewer of them at once.
       const reviews = plan ? plan.reviews.slice(0, Math.max(0, plan.reviews.length - Math.floor(attempt / 120))) : [];
       const chosen = reviews.map(r => r.a);
-      const oldNeighbours = new Set(reviews.flatMap(r => r.list.flatMap(x => learn.cards[wordKey(r.a, x.i)].c || [])));
+      const oldNeighbours = new Set(reviews.flatMap(r => r.list.flatMap(x => learn.cards[x.key].c || [])));
       const rest = answers.filter(a => !chosen.includes(a));
       const weights = rest.map(a => (recentAs.has(a) ? RECENT_DAMPING : 1)
         * (oldNeighbours.has(a) ? NEIGHBOUR_DAMPING : 1) * (learn ? 0.4 + unseenShare(a) : 1));
@@ -155,9 +159,11 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
         let w;
         if (review) {
           // at most two missed words at a time, so there are always new companions beside them
-          const forced = review.list.slice(0, 2).map(x => x.i);
-          const oldMates = new Set(forced.flatMap(i => learn.cards[wordKey(a, i)].m || []));
-          w = sampleWords(a, settings, banned, rng, { forced, mult: i => mult(i) * (oldMates.has(i) ? MATE_DAMPING : 1) });
+          const due = review.list.slice(0, 2);
+          const oldMates = new Set(due.flatMap(x => learn.cards[x.key].m || []));
+          w = sampleWords(a, settings, banned, rng, {
+            forced: due.map(x => x.i), mult: i => mult(i) * (oldMates.has(cardKey(a, i)) ? MATE_DAMPING : 1),
+          });
         } else {
           w = sampleWords(a, settings, banned, rng, { mult });
         }

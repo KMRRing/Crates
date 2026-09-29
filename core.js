@@ -111,6 +111,16 @@ export function formatTime(ms) {
 
 export const wordsKey = words => words.slice().sort().join("|");
 
+/** A learning card is about a clue, not one bank entry: the same text under two answers is one card. */
+export const cardKey = (a, i) => `${BANK[a].cat}:${norm(BANK[a].words[i].w)}`;
+/** cardKey → every bank entry [answer, word] that carries that clue. */
+export const ENTRIES = new Map();
+BANK.forEach((ans, a) => ans.words.forEach((w, i) => {
+  const k = cardKey(a, i);
+  if (!ENTRIES.has(k)) ENTRIES.set(k, []);
+  ENTRIES.get(k).push([a, i]);
+}));
+
 /** Realtime Database drops empty arrays and may hand arrays back as keyed objects. */
 export function arr(x) {
   if (Array.isArray(x)) return x.filter(v => v != null);

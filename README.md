@@ -17,12 +17,12 @@ Menu (No. button) → Settings. They apply from the next board.
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.
 
 ## Learning mode (solo)
-Settings → Learning mode → On. The game then keeps a card for every word you meet:
-- A word counts as missed if its crate was never found or never named, if you opened its clue, or if a "one away" guess put it in the wrong crate or left it out of its own crate. Words in a plain miss get no verdict either way.
-- A missed word comes back 3 to 8 boards later, in its own answer's crate but next to companions it wasn't missed with, and on a board without the crates it was missed next to. At most two missed words share a crate, so there are always new clues beside them.
-- A word you get right retires to the bottom of the deck and only reappears once fresher words run out.
-- Unseen words are preferred, so you work through the whole bank.
-- Solved crates flag words "↻ back soon" or "✓ learned". Progress stays in the browser; Settings has a reset.
+Settings → Learning mode → On. The game keeps a card for every clue, and the question for each clue is: did you tie it to its answer?
+- Yes: its crate was found and named, or a "one away" guess put it among the three that belonged together (in a one-away with Matches, Rotten eggs and Gunpowder, those three count as known even if the Sulphur crate is never found).
+- No: it was the odd one out or the one left out in a "one away", you opened its clue, its crate was found but not named, or its crate was never found and nothing showed you placed it. A clue in a plain miss (two and two, or worse) proves nothing either way.
+- A missed clue comes back 3 to 8 boards later, next to companions it wasn't missed with and on a board without the crates it was missed next to. At most two missed clues share a crate. If the clue belongs to more than one answer (Carbon: Coal and Graphite), it comes back under a different one.
+- A clue you get right retires to the bottom of the deck and only reappears once fresher clues run out. Unseen clues are preferred, so you work through the whole bank.
+- Solved crates flag clues "↻ back soon" or "✓ learned". Progress stays in the browser; Settings has a reset.
 
 ## Solo
 - Four lives and four clues per board. "One away" means three of your four belong together.
