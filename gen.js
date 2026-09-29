@@ -1,5 +1,5 @@
 // Builds boards from the word bank: four answers, four words each, exactly one solution.
-import { BANK, ENTRIES, cardKey, norm, shuffled } from "./core.js";
+import { BANK, PAIRS, cardKey, norm, shuffled } from "./core.js";
 
 const DIFF_WEIGHT = { easy: [3, 1, 0.2], mixed: [1, 1, 1], hard: [0.3, 1, 2.5] };
 const MAX_HERRINGS = 2;        // words on a board that also fit another crate on it
@@ -68,38 +68,39 @@ function learnWeight(learn, a, i) {
   return LEARN_WEIGHT[c.s] ?? 1;
 }
 
-/** Missed clues that are due, grouped by answer, most overdue first: the crates this board revisits. */
+/** Missed clue-answer pairs that are due, grouped by answer, most overdue first: the crates this board revisits. */
 function reviewPlan(pool, settings, learn, rng) {
-  const usable = ([a, i]) => (pool === "mixed" || BANK[a].cat === pool) && !settings.off.includes(BANK[a].group)
-    && wordWeight(BANK[a].words[i], settings) > 0;
   const due = new Map();
   for (const [key, c] of Object.entries(learn.cards)) {
     if (c.s !== "w" || c.d > learn.t) continue;
-    const entries = (ENTRIES.get(key) || []).filter(usable);
-    if (!entries.length) continue;
-    // A clue that belongs to several answers comes back under a different one when it can.
-    const elsewhere = entries.filter(([a]) => a !== c.a);
-    const from = elsewhere.length ? elsewhere : entries;
-    const [a, i] = from[Math.floor(rng() * from.length)];
+    const pair = PAIRS.get(key);
+    if (!pair) continue;
+    const [a, i] = pair;
+    if ((pool !== "mixed" && BANK[a].cat !== pool) || settings.off.includes(BANK[a].group)
+      || !(wordWeight(BANK[a].words[i], settings) > 0)) continue;
     if (!due.has(a)) due.set(a, []);
     due.get(a).push({ i, d: c.d, key });
   }
   if (!due.size) return null;
   const order = shuffled([...due], rng).map(([a, list]) => ({ a, list: list.sort((x, y) => x.d - y.d) }))
     .sort((x, y) => x.list[0].d - y.list[0].d);
-  const cat = BANK[order[0].a].cat;
+  // In a mixed pool, deal the category with more words waiting (the most overdue breaks a tie).
+  const waiting = c => order.filter(o => BANK[o.a].cat === c).reduce((n, o) => n + o.list.length, 0);
+  const first = BANK[order[0].a].cat, other = first === "country" ? "commodity" : "country";
+  const cat = waiting(other) > waiting(first) ? other : first;
   const mine = order.filter(o => BANK[o.a].cat === cat);
   const backlog = mine.reduce((n, o) => n + o.list.length, 0);
-  const room = backlog >= 12 ? 4 : backlog >= 7 ? 3 : 2;
-  // Words missed on the same board come back on different boards, so they don't meet again.
+  const room = 4;                        // every crate on the board can revisit something if enough is due
+  // Words missed on the same board come back on different boards, so they don't meet again,
+  // unless so many are waiting that keeping them apart would push them past their slot.
   const neighbours = o => new Set(o.list.flatMap(x => learn.cards[x.key].c || []));
   const reviews = [];
   for (const o of mine) {
     if (reviews.length === room) break;
-    if (reviews.some(r => neighbours(r).has(o.a) || neighbours(o).has(r.a))) continue;
+    if (backlog < 10 && reviews.some(r => neighbours(r).has(o.a) || neighbours(o).has(r.a))) continue;
     reviews.push(o);
   }
-  return { cat, reviews };
+  return { cat, reviews, backlog };
 }
 
 /** Number of ways to fill four crates of four, given each word's own crate plus its also-fits. */
@@ -158,8 +159,8 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
         const review = reviews.find(r => r.a === a);
         let w;
         if (review) {
-          // at most two missed words at a time, so there are always new companions beside them
-          const due = review.list.slice(0, 2);
+          // two missed words at a time (three when many are waiting), so there are always new companions
+          const due = review.list.slice(0, plan.backlog >= 10 ? 3 : 2);
           const oldMates = new Set(due.flatMap(x => learn.cards[x.key].m || []));
           w = sampleWords(a, settings, banned, rng, {
             forced: due.map(x => x.i), mult: i => mult(i) * (oldMates.has(cardKey(a, i)) ? MATE_DAMPING : 1),

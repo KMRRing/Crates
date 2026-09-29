@@ -1,10 +1,9 @@
-// Learning mode: remembers, clue by clue, whether you knew what it points to. A missed clue comes back
-// a few boards later in a new crate, with new companions, and under a different answer when the clue
-// belongs to more than one. A clue you place correctly retires to the bottom of the deck.
-// Cards are keyed by the clue itself (cardKey), so the same text under two answers is one card.
-// Card states: "w" weak (due again at board d; missed under answer a, next to answers c, beside
-// clues m), "n" seen without a clear signal, "k" known.
-import { BANK, ENTRIES, cardKey } from "./core.js";
+// Learning mode: one card per clue-answer pair (Copper→Chile and Copper→Zambia are learned separately),
+// remembering whether you tied that clue to that answer. A missed pair comes back a few boards later in
+// a new crate, with new companions; a pair you place correctly retires to the bottom of the deck.
+// Card states: "w" weak (due again at board d; missed next to answers c, beside pairs m),
+// "n" seen without a clear signal, "k" known.
+import { BANK, PAIRS, cardKey, norm } from "./core.js";
 import { groupIndexOf } from "./gen.js";
 
 export const REVIEW_GAP = [3, 8];            // boards until a missed clue comes back
@@ -12,19 +11,35 @@ export const TAG = { fail: "↻ back soon", learned: "✓ learned" };
 
 export const emptyDeck = () => ({ t: 0, cards: {} });
 
+/** Old card keys → today's pair keys. Cards were once keyed "answer.word", then "category:clue". */
+function migrateKey(key, card) {
+  const pos = /^(\d+)\.(\d+)$/.exec(key);
+  if (pos) return BANK[+pos[1]]?.words[+pos[2]] ? [[+pos[1], +pos[2]]] : [];
+  const clue = /^(country|commodity):(.+)$/.exec(key);
+  if (!clue) return null;
+  // only onto pairs that existed back then (and, for a miss, the answer it was missed under)
+  const found = [];
+  BANK.forEach((ans, a) => ans.words.forEach((w, i) => {
+    if (ans.cat === clue[1] && norm(w.w) === clue[2] && !w.since && (card.a == null || card.a === a)) found.push([a, i]);
+  }));
+  return found;
+}
+
 export function cleanDeck(d) {
   if (!(d && typeof d === "object" && Number.isFinite(d.t) && d.cards && typeof d.cards === "object")) return emptyDeck();
-  // Cards used to be keyed by bank position ("answer.word"); move them onto the clue itself.
   const rank = { w: 3, n: 2, k: 1 };
   for (const [key, card] of Object.entries(d.cards)) {
-    const m = /^(\d+)\.(\d+)$/.exec(key);
-    if (!m) continue;
+    const targets = migrateKey(key, card);
+    if (!targets) continue;
     delete d.cards[key];
-    const a = Number(m[1]), i = Number(m[2]);
-    if (!BANK[a]?.words[i]) continue;
-    const k = cardKey(a, i);
-    const next = { ...card, a: card.a ?? a, m: (card.m || []).map(x => (typeof x === "number" ? cardKey(a, x) : x)) };
-    if (!d.cards[k] || rank[next.s] > rank[d.cards[k].s]) d.cards[k] = next;
+    for (const [a, i] of targets) {
+      const mates = (card.m || []).map(x => (typeof x === "number" ? cardKey(a, x)
+        : /^(country|commodity):/.test(x) ? `${a}|${x.split(":").slice(1).join(":")}` : x));
+      const { a: _, ...rest } = card;
+      const next = { ...rest, m: mates };
+      const k = cardKey(a, i);
+      if (!d.cards[k] || rank[next.s] > rank[d.cards[k].s]) d.cards[k] = next;
+    }
   }
   return d;
 }
@@ -72,13 +87,13 @@ export function learnFromBoard(deck, board, game, rng = Math.random) {
     const mates = g.w.filter(x => x !== wi).map(x => cardKey(g.a, x));
     const v = verdictOf(w, gi);
     if (v === "fail") {
-      deck.cards[key] = { s: "w", d: deck.t + gap(rng), a: g.a, c: context, m: mates, f: tally.f + 1, p: tally.p };
+      deck.cards[key] = { s: "w", d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
       tags[w] = TAG.fail;
     } else if (v === "pass") {
       deck.cards[key] = { s: "k", f: tally.f, p: tally.p + 1 };
       if (prev?.s === "w") tags[w] = TAG.learned;
     } else if (prev?.s === "w") {                       // still unproven: try again in a new setting
-      deck.cards[key] = { ...prev, d: deck.t + gap(rng), a: g.a, c: context, m: mates };
+      deck.cards[key] = { ...prev, d: deck.t + gap(rng), c: context, m: mates };
     } else {
       deck.cards[key] = { s: "n", ...tally };
     }
@@ -91,6 +106,6 @@ export function deckStats(deck) {
   for (const c of Object.values(deck.cards)) {
     if (c.s === "w") s.review++; else if (c.s === "k") s.learned++; else s.seen++;
   }
-  s.unseen = ENTRIES.size - s.review - s.learned - s.seen;
+  s.unseen = PAIRS.size - s.review - s.learned - s.seen;
   return s;
 }

@@ -5,7 +5,7 @@ Sixteen words, four hidden crates. Group the four words that belong together, th
 Play: https://kmrring.github.io/Crates/ (on iPhone: Share → Add to Home Screen)
 
 ## Boards
-Every board is drawn fresh from a word bank: 45 countries and 44 commodities, each with a set of clue words (about 1,300 in all). Every word carries one or more topics, a difficulty from 1 to 3, and a list of other answers it could also fit. The generator picks four answers, then four words each, and only keeps a board that has exactly one solution. At most two words per board are red herrings (they also fit another crate on the board). Crates are coloured yellow to red by the average difficulty of their words.
+Every board is drawn fresh from a word bank: 45 countries and 44 commodities. Clues and answers map many-to-many: Copper points to Chile, Peru, Zambia and five more; the Nile to Egypt and Ethiopia. Each clue-answer pair has its own explanation and its own difficulty from 1 to 3, because the link is easy for some answers and hard for others (about 1,860 pairs over 1,300 clues). Clues also carry topics. The generator picks four answers, then four clues each, and only keeps a board that has exactly one solution given every answer each clue points to. At most two clues per board are red herrings (they also point to another crate on the board). Crates are coloured yellow to red by the average difficulty of their clues.
 
 ## Settings
 Menu (No. button) → Settings. They apply from the next board.
@@ -17,20 +17,12 @@ Menu (No. button) → Settings. They apply from the next board.
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.
 
 ## Learning mode (solo)
-Settings → Learning mode → On. The game keeps a card for every clue, and the question for each clue is: did you tie it to its answer?
+Settings → Learning mode → On. Every clue-answer pair is its own card: knowing that Copper points to Chile doesn't mark Copper→Zambia as known. For each pair on a board the question is: did you tie that clue to that answer?
 - Yes: its crate was found and named, or a "one away" guess put it among the three that belonged together (in a one-away with Matches, Rotten eggs and Gunpowder, those three count as known even if the Sulphur crate is never found).
-- No: it was the odd one out or the one left out in a "one away", you opened its clue, its crate was found but not named, or its crate was never found and nothing showed you placed it. A clue in a plain miss (two and two, or worse) proves nothing either way.
-- A missed clue comes back 3 to 8 boards later, next to companions it wasn't missed with and on a board without the crates it was missed next to. At most two missed clues share a crate. If the clue belongs to more than one answer (Carbon: Coal and Graphite), it comes back under a different one.
-- A clue you get right retires to the bottom of the deck and only reappears once fresher clues run out. Unseen clues are preferred, so you work through the whole bank.
-- Solved crates flag clues "↻ back soon" or "✓ learned". Progress stays in the browser; Settings has a reset.
-
-## Solo
-- Four lives and four clues per board. "One away" means three of your four belong together.
-- Tap a word, then the ? on its corner to spend a clue. The clue gives the word's explanation and its crate's colour (yellow easiest, red hardest), so two opened clues tell you whether those words share a crate. An opened clue can be reread any time.
-- A crate is worth 2 points: 1 for finding it, 1 for naming it. A wrong name or a skip keeps the half.
-- Tap a solved crate to see why each word belongs, and which words were red herrings.
-- Pick Countries, Commodities or Mixed in the top bar. Recent boards in the menu can be replayed. Progress stays in the browser.
-- Copy result puts your score, time, lives and clues used, the guess grid and a link to the same board on the clipboard. Time only runs while the board is on screen.
+- No: it was the odd one out or the one left out in a "one away", you opened its clue, its crate was found but not named, or its crate was never found and nothing showed you placed it. A pair in a plain miss (two and two, or worse) proves nothing either way.
+- A missed pair comes back 3 to 8 boards later in a crate of the same answer, next to companions it wasn't missed with, and usually on a board without the crates it was missed next to. In a Mixed pool, pairs of the other category wait for a board of their own kind, so they can take a little longer.
+- A pair you get right retires to the bottom of the deck. Unseen pairs are preferred, so the same clue turns up under its other answers as you go.
+- Solved crates flag clues "↻ back soon" or "✓ learned". Progress stays in the browser (or follows a synced run); Settings has a reset.
 
 ## Your run on several devices
 Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. "Stop syncing on this device" keeps a local copy and lets go of the run.

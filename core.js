@@ -2,10 +2,14 @@
 const RAW = JSON.parse(new TextDecoder().decode(
   Uint8Array.from(atob(window.CRATES_BANK), c => c.charCodeAt(0))));
 
-/** BANK[i] = { name, cat, group, aliases, words: [{ w, hint, topics, d, alt }] } — indices are stable. */
+/**
+ * BANK[i] = { name, cat, group, aliases, words: [{ w, hint, topics, d, alt, since }] } — indices are stable.
+ * Each word is one clue-answer pair with its own hint and difficulty; alt lists the other answers that
+ * carry the same clue (the mapping is many-to-many); since = the batch that added the pair (0 = original).
+ */
 export const BANK = RAW.map(a => ({
   name: a.n, cat: a.c, group: a.g, aliases: a.a,
-  words: a.w.map(([w, hint, topics, d, alt]) => ({ w, hint, topics, d, alt })),
+  words: a.w.map(([w, hint, topics, d, alt, since = 0]) => ({ w, hint, topics, d, alt, since })),
 }));
 
 export const NOUN = { country: "country", commodity: "commodity" };
@@ -109,15 +113,11 @@ export function formatTime(ms) {
 
 export const wordsKey = words => words.slice().sort().join("|");
 
-/** A learning card is about a clue, not one bank entry: the same text under two answers is one card. */
-export const cardKey = (a, i) => `${BANK[a].cat}:${norm(BANK[a].words[i].w)}`;
-/** cardKey → every bank entry [answer, word] that carries that clue. */
-export const ENTRIES = new Map();
-BANK.forEach((ans, a) => ans.words.forEach((w, i) => {
-  const k = cardKey(a, i);
-  if (!ENTRIES.has(k)) ENTRIES.set(k, []);
-  ENTRIES.get(k).push([a, i]);
-}));
+/** A learning card is one clue-answer pair: Copper→Chile and Copper→Zambia are learned separately. */
+export const cardKey = (a, i) => `${a}|${norm(BANK[a].words[i].w)}`;
+/** cardKey → [answer, word] in the bank. */
+export const PAIRS = new Map();
+BANK.forEach((ans, a) => ans.words.forEach((w, i) => PAIRS.set(cardKey(a, i), [a, i])));
 
 /** Realtime Database drops empty arrays and may hand arrays back as keyed objects. */
 export function arr(x) {
