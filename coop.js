@@ -4,8 +4,7 @@ import { generate, encode, decode, describe, hintFor, classify } from "./gen.js"
 import * as view from "./view.js";
 
 const LIVES = 2;          // per player, per board
-const START_CLUES = 2;    // per player on joining
-const MAX_CLUES = 3;      // clues carry over; +1 per new board up to this cap
+const CLUES = 2;          // per player, per board; unused clues don't carry over
 const RECENT_ANSWERS = 16;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const roomPath = code => `crates/rooms/${code}`;
@@ -33,7 +32,10 @@ function newBoard(room, n) {
 function tidy(room) {
   if (!room || !room.board) return null;
   room.players = room.players || {};
-  for (const pl of Object.values(room.players)) pl.sel = arr(pl.sel);
+  for (const pl of Object.values(room.players)) {
+    pl.sel = arr(pl.sel);
+    pl.clues = Math.min(Number.isFinite(pl.clues) ? pl.clues : CLUES, CLUES);
+  }
   const b = room.board;
   b.order = arr(b.order); b.found = arr(b.found);
   b.guesses = arr(b.guesses).map(g => ({ ...g, words: arr(g.words), lv: arr(g.lv) }));
@@ -101,7 +103,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
     });
 
     const players = Object.entries(room.players)
-      .map(([id, pl]) => ({ ...pl, me: id === uid, maxLives: LIVES, maxClues: MAX_CLUES }))
+      .map(([id, pl]) => ({ ...pl, me: id === uid, maxLives: LIVES, maxClues: CLUES }))
       .sort((a, c) => a.slot - c.slot);
 
     let status = "";
@@ -139,7 +141,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
     if (!board) { view.toast("This board doesn't exist in your version, reload the page", 4000); return; }
 
     if (b.n !== seen.n) {                       // a new board started
-      if (seen.n) view.toast(`New board · you have ${me().clues} clue${me().clues === 1 ? "" : "s"}`, 2200);
+      if (seen.n) view.toast(`New board · ${CLUES} clues each`, 2200);
       seen = { n: b.n, guesses: b.guesses.length, found: b.found.length };
       mySel = new Set(me().sel);
       view.showClue(null);
@@ -256,7 +258,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
         cur.board = newBoard(cur, n + 1);
         for (const pl of Object.values(cur.players)) {
           pl.lives = LIVES;
-          pl.clues = Math.min(MAX_CLUES, pl.clues + 1);
+          pl.clues = CLUES;
           pl.sel = [];
         }
         return cur;
@@ -359,7 +361,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
       for (let attempt = 0; attempt < 6; attempt++) {
         const c = newCode();
         const room0 = { v: 2, owner: uid, created: Date.now(), pool, settings: cleanSettings(settings), recentA: [],
-          players: { [uid]: { name, slot: 0, lives: LIVES, clues: START_CLUES, sel: [], online: true } },
+          players: { [uid]: { name, slot: 0, lives: LIVES, clues: CLUES, sel: [], online: true } },
           tally: { maps: 0, points: 0 } };
         room0.board = newBoard(room0, 1);
         const r = await sync.tx(roomPath(c), cur => (cur === null ? room0 : undefined));
@@ -390,7 +392,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
         if (t.players[uid]) { t.players[uid].name = name; return t; }
         const slots = Object.values(t.players).map(pl => pl.slot);
         if (slots.length >= 2) { full = true; return undefined; }
-        t.players[uid] = { name, slot: slots.includes(0) ? 1 : 0, lives: LIVES, clues: START_CLUES, sel: [], online: true };
+        t.players[uid] = { name, slot: slots.includes(0) ? 1 : 0, lives: LIVES, clues: CLUES, sel: [], online: true };
         return t;
       });
       if (!r.committed || !r.value) {

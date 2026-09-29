@@ -4,7 +4,7 @@ import { generate, encode, decode, describe, hintFor, classify } from "./gen.js"
 import * as view from "./view.js";
 
 const MAX_MISTAKES = 4;
-const MAX_CLUES = 3;
+const CLUES = 4;          // per board
 const STORE_KEY = "crates:v2";
 const RECENT_ANSWERS = 16, RECENT_WORDS = 120, HISTORY = 60;
 
@@ -24,7 +24,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
 
   let board, info, selected = new Set(), pendingGroup = null;
   const game = () => store.cur;
-  const cluesLeft = () => MAX_CLUES - game().revealed.length;
+  const cluesLeft = () => CLUES - game().revealed.length;
   const score = g => g.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
   function begin(b, code) {
@@ -80,7 +80,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       revealed: new Map(g.revealed.map(w => [w, 0])),
       myClues: cluesLeft(),
       players: [{ slot: 0, me: true, name: "", lives: MAX_MISTAKES - g.mistakes, maxLives: MAX_MISTAKES,
-        clues: cluesLeft(), maxClues: MAX_CLUES }],
+        clues: cluesLeft(), maxClues: CLUES }],
       pending: pendingGroup !== null ? { g: pendingGroup, mine: true } : null,
       canSubmit: selected.size === 4 && !g.done && pendingGroup === null,
       done: g.done,

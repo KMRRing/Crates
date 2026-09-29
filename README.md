@@ -17,7 +17,7 @@ Menu (No. button) → Settings. They apply from the next board.
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.
 
 ## Solo
-- Four lives and three clues per board. "One away" means three of your four belong together.
+- Four lives and four clues per board. "One away" means three of your four belong together.
 - Tap a word, then the ? on its corner to spend a clue. An opened clue keeps its ? and can be reread any time.
 - A crate is worth 2 points: 1 for finding it, 1 for naming it. A wrong name or a skip keeps the half.
 - Tap a solved crate to see why each word belongs, and which words were red herrings.
@@ -26,8 +26,8 @@ If the settings are too narrow to build a board, that board falls back to Balanc
 ## Together
 - Menu → Play together → send the link. Your partner opens it and joins.
 - The settings of whoever started the game apply to both; only they can change them.
-- Each player has 2 lives per board; the board is lost when both are out.
-- Each player starts with 2 clues and gains 1 per new board, up to 3. Opened clues show for both.
+- Each player has 2 lives and 2 clues per board; the board is lost when both are out of lives.
+- Clues refresh with every board; unused ones don't carry over. Opened clues show for both.
 - You see each other's picks live (coloured ring and initial), and every locked-in guess appears for both with its result.
 
 ## Links
