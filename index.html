@@ -25,18 +25,20 @@
       </svg>Crates
     </h1>
     <div class="top-right">
-      <span id="cat" class="cat"></span>
-      <button id="pickBtn" class="pick" aria-haspopup="dialog">No. <span id="pNum">1</span></button>
+      <select id="pool" class="pool" aria-label="Puzzle type">
+        <option value="mixed">Mixed</option>
+        <option value="country">Countries</option>
+        <option value="commodity">Commodities</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">No. <span id="pNum">1</span></button>
     </div>
   </header>
 
   <div class="brief">
     <p id="brief"></p>
-    <div class="meters">
-      <div class="meter" aria-label="Mistakes left"><span id="lives" class="lives"></span></div>
-      <div class="meter" aria-label="Clues left"><span id="clueDots" class="clue-dots"></span></div>
-    </div>
+    <div id="players" class="players" aria-label="Lives and clues"></div>
   </div>
+  <p id="status" class="status" aria-live="polite" hidden></p>
 
   <section id="solved" class="solved" aria-live="polite"></section>
   <section id="grid" class="grid" aria-label="Words"></section>
@@ -51,12 +53,15 @@
 
   <section id="result" class="result" hidden>
     <p id="resultLine" class="result-line"></p>
+    <p id="sessionLine" class="session-line" hidden></p>
     <pre id="shareGrid" class="share-grid"></pre>
     <div class="controls">
       <button id="shareBtn" class="btn">Copy result</button>
       <button id="nextBtn" class="btn primary">Next puzzle</button>
     </div>
   </section>
+
+  <ol id="feed" class="feed" aria-label="Guesses this puzzle" hidden></ol>
 </div>
 
 <dialog id="nameDlg" class="sheet">
@@ -71,17 +76,25 @@
   </form>
 </dialog>
 
-<dialog id="pickDlg" class="sheet">
+<dialog id="menuDlg" class="sheet">
   <div class="pick-head">
-    <h2>Puzzles</h2>
-    <button id="pickClose" class="btn">Close</button>
+    <h2>Crates</h2>
+    <button id="menuClose" class="btn">Close</button>
   </div>
-  <ol id="pickList" class="pick-list"></ol>
-  <p id="stats" class="stats"></p>
-  <button id="resetBtn" class="link">Reset this puzzle</button>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="whoDlg" class="sheet">
+  <form id="whoForm" method="dialog">
+    <label for="whoInput">Your name, as your partner will see it</label>
+    <input id="whoInput" autocomplete="nickname" autocapitalize="words" spellcheck="false" enterkeyhint="done" maxlength="16">
+    <div class="controls">
+      <button type="submit" class="btn primary">Continue</button>
+    </div>
+  </form>
 </dialog>
 
 <script src="data.js"></script>
-<script src="app.js"></script>
+<script type="module" src="app.js"></script>
 </body>
 </html>
