@@ -11,7 +11,7 @@ Every board is drawn fresh from a word bank: 45 countries and 44 commodities. Cl
 Menu (No. button) → Settings. They apply from the next board.
 - Preset: Trader, Balanced or Culture night.
 - Difficulty: Easy, Mixed or Hard.
-- Topics: each of the 17 topics (Finance included) Off, Less, Normal or More.
+- Topics: each of the 17 topics Off, Less, Normal or More. Money & economy is what an informed newspaper reader knows (currencies, central banks, household-name banks and indices, famous crises, sovereign funds); Finance is what someone working in markets knows (benchmarks and crude grades, bond markets, trading jargon, rogue traders and blow-ups). Benchmarks also carry their sector topic, so TTF comes up under Energy as well.
 - Regions and sectors: switch whole groups of answers on or off (for example only European countries, or no chemicals).
 
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.

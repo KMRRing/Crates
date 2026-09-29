@@ -19,7 +19,7 @@ export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss", hid
 
 export const TOPICS = [
   ["geo", "Geography"], ["nat", "Nature"], ["nrg", "Energy"], ["met", "Metals & mining"],
-  ["agr", "Agriculture"], ["food", "Food & drink"], ["mkt", "Markets & money"], ["fin", "Finance"], ["trade", "Trade & shipping"],
+  ["agr", "Agriculture"], ["food", "Food & drink"], ["mkt", "Money & economy"], ["fin", "Finance"], ["trade", "Trade & shipping"],
   ["co", "Companies & brands"], ["pol", "Policy & institutions"], ["hist", "History"], ["cult", "Culture & arts"],
   ["sport", "Sport"], ["ppl", "People"], ["sci", "Science & tech"], ["lang", "Language & names"],
 ];
