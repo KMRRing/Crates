@@ -5,7 +5,8 @@
 // Clues come from a shared pool of four per board. In shared mode your partner reads the clue you
 // open (description and crate colour). In hidden mode you spend clues on tiles that are sealed on
 // your screen, and you see that tile's description and crate colour yourself; its owner only sees
-// that a clue was used on it. Sealed tiles carry no labels: you point them out to each other.
+// that a clue was used on it. The clue's ? takes the crate colour. Sealed tiles carry no labels: you
+// point them out to each other.
 import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings } from "./core.js";
 import { generate, generateSplit, encode, decode, describe, hintFor, classify } from "./gen.js";
 import { getSync } from "./net.js";
@@ -164,16 +165,16 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     const cells = b.order.filter(w => !taken.has(w)).map(w => {
       const sealed = !mine(w);
       const clue = b.revealed.find(r => r.w === w);
-      let badge = null, tint = null;
+      let badge = null;
       if (!hidden()) {
         if (clue) badge = clue.by === uid ? { kind: "used" } : { kind: "open", level: level.get(w) };
         else if (mySel.has(w) && !b.done && partner) badge = { kind: b.clues > 0 ? "offer" : "spent" };
       } else if (sealed) {
-        if (clue) { badge = { kind: "open", level: level.get(w) }; tint = level.get(w); }
+        if (clue) badge = { kind: "open", level: level.get(w) };
         else if (peek === w && !b.done) badge = { kind: b.clues > 0 ? "offer" : "spent" };
       } else if (clue) badge = { kind: "used" };
       const psel = partnerSel.includes(w) ? [{ slot: slotOf(partner), name: nameOf(partner) }] : [];
-      return { id: w, text: sealed ? "" : w, sealed, peek: sealed && peek === w && !clue, sel: mySel.has(w), psel, badge, tint };
+      return { id: w, text: sealed ? "" : w, sealed, peek: sealed && peek === w && !clue, sel: mySel.has(w), psel, badge };
     });
 
     let clue = null;

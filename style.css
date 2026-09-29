@@ -111,16 +111,14 @@ button, input { font: inherit; color: inherit; }
 .grid.shake .tile[aria-pressed="true"] { animation: shake .35s; }
 @keyframes shake { 25% { transform: translateX(-5px);} 75% { transform: translateX(5px);} }
 
-.cell.psel .tile { box-shadow: inset 0 0 0 3px var(--p0); }
-.cell.psel.ps1 .tile { box-shadow: inset 0 0 0 3px var(--p1); }
-.cell.sel.psel .tile { box-shadow: inset 0 0 0 3px var(--p0), inset 0 0 0 5px var(--yard); }
-.cell.sel.psel.ps1 .tile { box-shadow: inset 0 0 0 3px var(--p1), inset 0 0 0 5px var(--yard); }
+/* Your partner's picks look exactly like yours (no player colours: those read as crate colours).
+   Where you both see the same tiles, a small initial says whose pick it is. */
+.cell.psel .tile { background: var(--ink); color: var(--yard); }
 .ptag {
   position: absolute; left: 5px; bottom: 5px; width: 17px; height: 17px; border-radius: 50%;
-  display: grid; place-items: center; font-size: .65rem; font-weight: 800; color: #fff;
-  background: var(--p0); pointer-events: none;
+  display: grid; place-items: center; font-size: .65rem; font-weight: 800;
+  background: var(--yard); color: var(--ink); pointer-events: none;
 }
-.cell.ps1 .ptag { background: var(--p1); }
 .hint {
   position: absolute; top: 0; right: 0; width: 30px; height: 30px; padding: 0; border: 0;
   background: none; cursor: pointer; display: grid; place-items: center; z-index: 1;
@@ -131,14 +129,15 @@ button, input { font: inherit; color: inherit; }
   font-size: .7rem; font-weight: 800; line-height: 1;
   background: var(--ply-ink); color: var(--ply);
 }
-.cell.sel .hint span { background: var(--yard); color: var(--ink); }
+.cell.sel .hint span, .cell.psel .hint span { background: var(--yard); color: var(--ink); }
 .hint.spent span { opacity: .35; }
 /* An opened clue wears its crate's colour; "used" = you opened it and only your partner can read it. */
-.hint.lv0 span { background: var(--c0); color: var(--on-c0); }
-.hint.lv1 span { background: var(--c1); color: var(--on-c); }
-.hint.lv2 span { background: var(--c2); color: var(--on-c); }
-.hint.lv3 span { background: var(--c3); color: var(--on-c); }
-.hint.lv0 span, .hint.lv1 span, .hint.lv2 span, .hint.lv3 span { box-shadow: 0 0 0 1.5px var(--yard); }
+/* (.cell raises these above the picked-tile colours, so the crate colour always shows) */
+.cell .hint.lv0 span { background: var(--c0); color: var(--on-c0); }
+.cell .hint.lv1 span { background: var(--c1); color: var(--on-c); }
+.cell .hint.lv2 span { background: var(--c2); color: var(--on-c); }
+.cell .hint.lv3 span { background: var(--c3); color: var(--on-c); }
+.cell .hint[class*="lv"] span { box-shadow: 0 0 0 1.5px var(--yard); }
 .hint.used span { background: none; color: var(--ply-ink); border: 1.5px dashed currentColor; }
 /* Hidden mode: the sealed tile you've tapped, with a clue on offer. */
 .cell.peek .tile { outline: 2.5px solid var(--ink); outline-offset: -2.5px; }
@@ -147,10 +146,6 @@ button, input { font: inherit; color: inherit; }
 .tile.sealed {
   background: repeating-linear-gradient(135deg, var(--ply) 0 8px, color-mix(in srgb, var(--ply) 80%, var(--ply-ink)) 8px 9px);
 }
-.tile.sealed.lv0 { background: var(--c0); color: var(--on-c0); }
-.tile.sealed.lv1 { background: var(--c1); color: var(--on-c); }
-.tile.sealed.lv2 { background: var(--c2); color: var(--on-c); }
-.tile.sealed.lv3 { background: var(--c3); color: var(--on-c); }
 
 .clue {
   margin: .8rem 0 0; padding: .6rem .8rem; border-radius: 6px;

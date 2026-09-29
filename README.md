@@ -39,7 +39,7 @@ One rule runs through both modes: you never see the result of your own action, y
 
 **Hidden** — each of you sees only your own eight words; your partner's show as blank sealed tiles, and it's up to you to describe which one you mean. Both screens lay the tiles out identically. Every crate holds one to three words from each side, so a crate always needs picks from both of you.
 - Before the first board you each set up your own side: your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared and set by whoever started the game. The board is dealt once you've both pressed Ready.
-- Clues come from the shared pool of four and are spent on tiles that are sealed on your screen: tap one, then its ?. You see that tile's explanation and crate colour (the tile takes the colour); your partner, who can see the word, only sees that a clue was used on it. The rest is up to the two of you.
+- Clues come from the shared pool of four and are spent on tiles that are sealed on your screen: tap one, then its ?. You see that tile's explanation and crate colour (its ? takes the colour); your partner, who can see the word, only sees that a clue was used on it. The rest is up to the two of you.
 
 ## Links
 - `?cat=countries`, `?cat=commodities` or `?cat=mixed` opens straight into that pool.

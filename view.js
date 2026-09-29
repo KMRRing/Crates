@@ -213,16 +213,16 @@ const BADGE_LABEL = {
   offer: "Use a clue on this tile", spent: "No clues left", open: "Show the clue", used: "A clue was used on this word",
 };
 
-/** cells: [{ id, text, sealed, peek, sel, psel: [{ slot, name }], badge: { kind, level } | null, tint }] */
+/** cells: [{ id, text, sealed, peek, sel, psel: [{ slot, name }], badge: { kind, level } | null }] */
 function renderGrid(vm) {
   el.grid.innerHTML = "";
   vm.cells.forEach(c => {
     const partners = c.psel || [];
     const cell = document.createElement("div");
-    cell.className = "cell" + (c.sel ? " sel" : "") + (c.peek ? " peek" : "") + (partners.length ? ` psel ps${partners[0].slot}` : "");
+    cell.className = "cell" + (c.sel ? " sel" : "") + (c.peek ? " peek" : "") + (partners.length ? " psel" : "");
 
     const tile = document.createElement("button");
-    tile.className = "tile" + (c.sealed ? " sealed" : "") + (c.tint != null ? ` lv${c.tint}` : "");
+    tile.className = "tile" + (c.sealed ? " sealed" : "");
     tile.textContent = c.text;
     tile.setAttribute("aria-pressed", String(!!c.sel));
     if (c.sealed) tile.setAttribute("aria-label", "Your partner's tile");
@@ -230,7 +230,7 @@ function renderGrid(vm) {
     tile.addEventListener("click", () => handlers.toggle?.(c.id));
     cell.appendChild(tile);
 
-    if (partners.length) {
+    if (partners.length && !c.sealed) {       // a sealed tile can only be your partner's pick
       const tag = document.createElement("span");
       tag.className = "ptag";
       tag.textContent = partners[0].name.slice(0, 1).toUpperCase();
