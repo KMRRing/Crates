@@ -210,18 +210,16 @@ function renderSolved(vm) {
 }
 
 const BADGE_LABEL = {
-  offer: "Use a clue on this word", spent: "No clues left", open: "Show the clue",
-  used: "Your partner can read this clue", ask: "Your partner asks for this clue: reveal it",
-  asked: "Waiting for your partner to reveal it", colour: "Its crate colour, from the clue",
+  offer: "Use a clue on this tile", spent: "No clues left", open: "Show the clue", used: "A clue was used on this word",
 };
 
-/** cells: [{ id, text, sealed, sel, psel: [{ slot, name }], badge: { kind, level } | null, tint }] */
+/** cells: [{ id, text, sealed, peek, sel, psel: [{ slot, name }], badge: { kind, level } | null, tint }] */
 function renderGrid(vm) {
   el.grid.innerHTML = "";
   vm.cells.forEach(c => {
     const partners = c.psel || [];
     const cell = document.createElement("div");
-    cell.className = "cell" + (c.sel ? " sel" : "") + (partners.length ? ` psel ps${partners[0].slot}` : "");
+    cell.className = "cell" + (c.sel ? " sel" : "") + (c.peek ? " peek" : "") + (partners.length ? ` psel ps${partners[0].slot}` : "");
 
     const tile = document.createElement("button");
     tile.className = "tile" + (c.sealed ? " sealed" : "") + (c.tint != null ? ` lv${c.tint}` : "");

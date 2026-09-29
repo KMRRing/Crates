@@ -139,10 +139,8 @@ button, input { font: inherit; color: inherit; }
 .hint.lv3 span { background: var(--c3); color: var(--on-c); }
 .hint.lv0 span, .hint.lv1 span, .hint.lv2 span, .hint.lv3 span { box-shadow: 0 0 0 1.5px var(--yard); }
 .hint.used span { background: none; color: var(--ply-ink); border: 1.5px dashed currentColor; }
-.hint.ask span, .hint.asked span { animation: ask 1.1s ease-in-out infinite alternate; }
-.hint.ask span { background: var(--p1); color: #fff; }
-.hint.asked span { background: none; border: 1.5px solid currentColor; color: var(--ink-soft); }
-@keyframes ask { to { transform: scale(1.18); } }
+/* Hidden mode: the sealed tile you've tapped, with a clue on offer. */
+.cell.peek .tile { outline: 2.5px solid var(--ink); outline-offset: -2.5px; }
 
 /* Hidden mode: your partner's tiles are sealed and unlabelled. */
 .tile.sealed {
