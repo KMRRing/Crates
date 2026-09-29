@@ -5,13 +5,13 @@ Sixteen words, four hidden crates. Group the four words that belong together, th
 Play: https://kmrring.github.io/Crates/ (on iPhone: Share → Add to Home Screen)
 
 ## Boards
-Every board is drawn fresh from a word bank: 44 countries and 44 commodities, each with a set of clue words. Every word carries one or more topics, a difficulty from 1 to 3, and a list of other answers it could also fit. The generator picks four answers, then four words each, and only keeps a board that has exactly one solution. At most two words per board are red herrings (they also fit another crate on the board). Crates are coloured yellow to red by the average difficulty of their words.
+Every board is drawn fresh from a word bank: 45 countries and 44 commodities, each with a set of clue words (about 1,300 in all). Every word carries one or more topics, a difficulty from 1 to 3, and a list of other answers it could also fit. The generator picks four answers, then four words each, and only keeps a board that has exactly one solution. At most two words per board are red herrings (they also fit another crate on the board). Crates are coloured yellow to red by the average difficulty of their words.
 
 ## Settings
 Menu (No. button) → Settings. They apply from the next board.
 - Preset: Trader, Balanced or Culture night.
 - Difficulty: Easy, Mixed or Hard.
-- Topics: each of the 16 topics Off, Less, Normal or More.
+- Topics: each of the 17 topics (Finance included) Off, Less, Normal or More.
 - Regions and sectors: switch whole groups of answers on or off (for example only European countries, or no chemicals).
 
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.

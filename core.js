@@ -15,7 +15,7 @@ export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss", hid
 
 export const TOPICS = [
   ["geo", "Geography"], ["nat", "Nature"], ["nrg", "Energy"], ["met", "Metals & mining"],
-  ["agr", "Agriculture"], ["food", "Food & drink"], ["mkt", "Markets & money"], ["trade", "Trade & shipping"],
+  ["agr", "Agriculture"], ["food", "Food & drink"], ["mkt", "Markets & money"], ["fin", "Finance"], ["trade", "Trade & shipping"],
   ["co", "Companies & brands"], ["pol", "Policy & institutions"], ["hist", "History"], ["cult", "Culture & arts"],
   ["sport", "Sport"], ["ppl", "People"], ["sci", "Science & tech"], ["lang", "Language & names"],
 ];
@@ -27,9 +27,9 @@ export const GROUPS = {
 
 const all = w => Object.fromEntries(TOPICS.map(([k]) => [k, w]));
 export const PRESETS = {
-  trader: { label: "Trader", topics: { ...all(0.5), nrg: 2, met: 2, agr: 2, mkt: 2, trade: 2, co: 2, pol: 1, sci: 1, geo: 1, lang: 1 } },
+  trader: { label: "Trader", topics: { ...all(0.5), nrg: 2, met: 2, agr: 2, mkt: 2, fin: 2, trade: 2, co: 2, pol: 1, sci: 1, geo: 1, lang: 1 } },
   balanced: { label: "Balanced", topics: all(1) },
-  culture: { label: "Culture night", topics: { ...all(1), cult: 2, food: 2, sport: 2, ppl: 2, hist: 2, nat: 2, mkt: 0.5, nrg: 0.5, met: 0.5, trade: 0.5, sci: 0.5, pol: 0.5 } },
+  culture: { label: "Culture night", topics: { ...all(1), cult: 2, food: 2, sport: 2, ppl: 2, hist: 2, nat: 2, mkt: 0.5, fin: 0.5, nrg: 0.5, met: 0.5, trade: 0.5, sci: 0.5, pol: 0.5 } },
 };
 
 export function defaultSettings() {
