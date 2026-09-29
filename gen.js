@@ -37,8 +37,8 @@ function eligibleAnswers(cat, settings) {
   });
 }
 
-/** Four words for one crate: any forced ones first, the rest drawn by weight, spreading topics. */
-function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1 } = {}) {
+/** Words for one crate (four, or count): any forced ones first, the rest drawn by weight, spreading topics. */
+function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1, count = 4 } = {}) {
   const words = BANK[ai].words;
   if (forced.some(i => banned.has(norm(words[i].w)))) return null;
   const out = [...forced], cands = [], weights = [];
@@ -50,7 +50,7 @@ function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1 } 
     if (words[j].topics.some(t => words[i].topics.includes(t))) weights[n] *= SAME_TOPIC_DAMPING;
   });
   out.forEach(spread);
-  while (out.length < 4) {
+  while (out.length < count) {
     const k = pick(cands, weights, rng);
     if (k < 0) return null;
     const i = cands[k];
@@ -173,6 +173,56 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
     }
   }
   return learn ? generate({ pool, settings, recentA, recentW, rng }) : null;
+}
+
+// ---------- hidden mode: each player holds eight of the sixteen ----------
+/** How many of each crate's four words the first player holds: 1-3 each, eight in total. */
+const SPLITS = [];
+for (let a = 1; a <= 3; a++) for (let b = 1; b <= 3; b++) for (let c = 1; c <= 3; c++) {
+  const d = 8 - a - b - c;
+  if (d >= 1 && d <= 3) SPLITS.push([a, b, c, d]);
+}
+
+/**
+ * Every crate takes 1-3 words from each side, each side drawn with that player's own topics and
+ * difficulty; which answers can appear (pool, regions, sectors) is shared. Returns the board plus
+ * sides[g][k] = 0 or 1, the player slot holding each word.
+ */
+export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.random }) {
+  const recentAs = new Set(recentA);
+  const settings = sides.map(s => ({ ...s, off }));
+  const cats = pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
+  for (const cat of cats) {
+    const answers = BANK.map((a, i) => i).filter(i => BANK[i].cat === cat && !off.includes(BANK[i].group)
+      && settings.every(s => BANK[i].words.filter(w => wordWeight(w, s) > 0).length >= 3));
+    if (answers.length < 4) continue;
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const chosen = [], rest = answers.slice(), weights = rest.map(a => (recentAs.has(a) ? RECENT_DAMPING : 1));
+      while (chosen.length < 4) {
+        const k = pick(rest, weights, rng);
+        chosen.push(rest[k]); rest.splice(k, 1); weights.splice(k, 1);
+      }
+      const split = SPLITS[Math.floor(rng() * SPLITS.length)];
+      const banned = new Set(chosen.flatMap(a => [BANK[a].name, ...BANK[a].aliases].map(norm)));
+      const groups = [], owners = [];
+      for (const [n, a] of chosen.entries()) {
+        const w = [], who = [];
+        for (const [slot, count] of [[0, split[n]], [1, 4 - split[n]]]) {
+          const got = sampleWords(a, settings[slot], banned, rng, { count });
+          if (!got) break;
+          got.forEach(i => { banned.add(norm(BANK[a].words[i].w)); w.push(i); who.push(slot); });
+        }
+        if (w.length < 4) break;
+        groups.push({ a, w });
+        owners.push(who);
+      }
+      if (groups.length < 4) continue;
+      const herrings = groups.reduce((s, g) => s + g.w.filter(i => BANK[g.a].words[i].alt.some(x => chosen.includes(x))).length, 0);
+      if (herrings > MAX_HERRINGS || countSolutions(groups) !== 1) continue;
+      return { cat, groups: withLevels(groups), sides: owners };
+    }
+  }
+  return null;
 }
 
 // ---------- board codes: "a.w.w.w.w-…" in base36, positions in the append-only bank ----------

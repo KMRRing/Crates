@@ -1,13 +1,24 @@
-// Playing together: one shared room in Firebase Realtime Database, two players.
-import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings } from "./core.js";
-import { generate, encode, decode, describe, hintFor, classify } from "./gen.js";
+// Playing together: one room in Firebase Realtime Database, two players, two modes.
+//   shared: both of you see all sixteen words.
+//   hidden: each of you sees only your own eight; every crate holds words from both sides.
+// One rule runs through both: you never see the result of your own action, your partner does.
+// Your wrong guess shows them how close it was, your clue shows them its description and crate
+// colour, and a crate you find is theirs to name. In hidden mode clues work the other way round:
+// you ask about a tile sealed on your screen, its owner reveals it and reads the description out,
+// and its crate colour appears on your sealed tile.
+import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings, coordOf } from "./core.js";
+import { generate, generateSplit, encode, decode, describe, hintFor, classify } from "./gen.js";
 import * as view from "./view.js";
 
-const LIVES = 2;          // per player, per board
-const CLUES = 2;          // per player, per board; unused clues don't carry over
+const LIVES = 4;          // team pool per board
+const CLUES = 4;          // team pool per board; unused clues don't carry over
 const RECENT_ANSWERS = 16;
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const roomPath = code => `crates/rooms/${code}`;
+export const MODES = {
+  shared: { label: "Together", blurb: "Both of you see all sixteen words." },
+  hidden: { label: "Hidden", blurb: "You each see eight; every crate needs both of you." },
+};
 
 let syncPromise = null;
 function getSync() {
@@ -18,53 +29,95 @@ function getSync() {
 
 const newCode = () => Array.from({ length: 4 }, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("");
 
-/** A fresh board for the room, drawn with the room's pool and settings. */
+/** A fresh board from the room's pool and settings; in hidden mode each side uses its own player's. */
 function newBoard(room, n) {
-  const settings = cleanSettings(room.settings);
-  const b = generate({ pool: room.pool, settings, recentA: arr(room.recentA) })
-    || generate({ pool: room.pool, settings: defaultSettings(), recentA: arr(room.recentA) });
-  room.recentA = [...b.groups.map(g => g.a), ...arr(room.recentA)].filter((a, i, all) => all.indexOf(a) === i).slice(0, RECENT_ANSWERS);
-  return { n, code: encode(b), order: shuffled(describe(b).flatMap(g => g.words)),
-    found: [], guesses: [], revealed: [], pending: null, done: false, won: false };
+  const recentA = arr(room.recentA);
+  const shared = cleanSettings(room.settings);
+  let b, fellBack = false;
+  if (room.mode === "hidden") {
+    const sides = [0, 1].map(slot => cleanSettings(Object.values(room.players).find(p => p.slot === slot)?.settings));
+    b = generateSplit({ pool: room.pool, sides, off: shared.off, recentA });
+    if (!b) { fellBack = true; b = generateSplit({ pool: room.pool, sides: [defaultSettings(), defaultSettings()], recentA }); }
+  } else {
+    b = generate({ pool: room.pool, settings: shared, recentA });
+    if (!b) { fellBack = true; b = generate({ pool: room.pool, settings: defaultSettings(), recentA }); }
+  }
+  room.recentA = [...b.groups.map(g => g.a), ...recentA].filter((a, i, all) => all.indexOf(a) === i).slice(0, RECENT_ANSWERS);
+  return {
+    n, code: encode(b), sides: b.sides ? b.sides.flat().join("") : null, order: shuffled(describe(b).flatMap(g => g.words)),
+    found: [], guesses: [], revealed: [], asks: [], pending: null, done: false, won: false,
+    lives: LIVES, clues: CLUES, fellBack,
+  };
 }
 
 /** Normalise a room snapshot: Realtime Database drops empty arrays and nulls. */
 function tidy(room) {
-  if (!room || !room.board) return null;
-  room.players = room.players || {};
+  if (!room || room.v !== 3 || !room.players) return null;
   for (const pl of Object.values(room.players)) {
     pl.sel = arr(pl.sel);
-    pl.clues = Math.min(Number.isFinite(pl.clues) ? pl.clues : CLUES, CLUES);
+    pl.settings = cleanSettings(pl.settings);
+    pl.ready = pl.ready === true;
   }
-  const b = room.board;
-  b.order = arr(b.order); b.found = arr(b.found);
-  b.guesses = arr(b.guesses).map(g => ({ ...g, words: arr(g.words), lv: arr(g.lv) }));
-  b.revealed = arr(b.revealed); b.pending = b.pending || null;
-  room.recentA = arr(room.recentA);
   room.settings = cleanSettings(room.settings);
+  room.recentA = arr(room.recentA);
   room.tally = room.tally || { maps: 0, points: 0 };
+  const b = room.board;
+  if (b) {
+    b.order = arr(b.order); b.found = arr(b.found);
+    b.guesses = arr(b.guesses).map(g => ({ ...g, words: arr(g.words), lv: arr(g.lv) }));
+    b.revealed = arr(b.revealed); b.asks = arr(b.asks);
+    b.pending = b.pending || null; b.sides = b.sides || null;
+  }
   return room;
 }
 const boardScore = b => b.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
-export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
+export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) {
   let sync, code, room, unwatch, uid;
   let mySel = new Set();
-  let seen = { n: 0, guesses: 0, found: 0 };
+  let seen = null;              // what this screen has already announced: { n, guesses, found, revealed, asks }
+  let clueShown = null;         // word whose clue is on show
+  let lobbyPrompted = false;    // the setup sheet opens by itself once per game
   let menuOnFirstSnapshot = false;
-  let decoded = { code: null, board: null, info: null };
+  let decoded = { code: null };
 
   const me = () => room?.players?.[uid];
-  const nameOf = id => room.players[id]?.name || "Partner";
+  const partnerId = () => Object.keys(room.players).find(id => id !== uid) || null;
+  const nameOf = id => room.players[id]?.name || "your partner";
   const slotOf = id => room.players[id]?.slot ?? 0;
+  const hidden = () => room.mode === "hidden";
   const link = () => `${location.origin}${location.pathname}?room=${code}`;
-  const current = () => {
-    if (decoded.code !== room.board.code) {
-      const board = decode(room.board.code);
-      decoded = { code: room.board.code, board, info: board && describe(board) };
+
+  /** The decoded board, plus each word's crate colour and (hidden mode) which player holds it. */
+  function current() {
+    const b = room.board;
+    if (decoded.code !== b.code || decoded.sides !== b.sides) {
+      const board = decode(b.code), level = new Map(), side = new Map();
+      if (board) {
+        let k = 0;
+        board.groups.forEach(g => g.w.forEach(i => {
+          const w = BANK[g.a].words[i].w;
+          level.set(w, g.level);
+          if (b.sides) side.set(w, Number(b.sides[k]));
+          k++;
+        }));
+      }
+      decoded = { code: b.code, sides: b.sides, board, info: board && describe(board), level, side };
     }
     return decoded;
-  };
+  }
+  const mine = w => !hidden() || current().side.get(w) === me().slot;     // on my side of a hidden board
+  function takenSet() {
+    const b = room.board, { info } = current();
+    const t = new Set(b.found.flatMap(f => info[f.g].words));
+    if (b.done) info.forEach(g => g.words.forEach(w => t.add(w)));
+    return t;
+  }
+  /** "B2" = column B, row 2 of the grid as it stands now. Both screens lay tiles out identically. */
+  function coord(w) {
+    const taken = takenSet();
+    return coordOf(room.board.order.filter(x => !taken.has(x)).indexOf(w));
+  }
 
   // ---------- transactions ----------
   async function change(fn) {
@@ -80,85 +133,147 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
     return { committed: r.committed, note };
   }
 
-  function endIfOut(r) {
-    const everyone = Object.values(r.players);
-    if (everyone.length && everyone.every(pl => pl.lives <= 0)) {
-      r.board.done = true; r.board.won = false;
-      r.tally.maps += 1; r.tally.points += boardScore(r.board);
-    }
+  // ---------- view model ----------
+  function players() {
+    return Object.entries(room.players)
+      .map(([id, pl]) => ({ slot: pl.slot, name: pl.name, me: id === uid, online: pl.online, ready: !room.board && pl.ready }))
+      .sort((a, c) => a.slot - c.slot);
   }
 
-  // ---------- view model ----------
+  function lobbyVm() {
+    const partner = partnerId();
+    let status = "Set up your side in the menu, then press Ready.";
+    if (!partner) status = "Waiting for your partner to join. Send the link from the menu.";
+    else if (me().ready) status = room.players[partner].ready ? "Dealing…" : `Waiting for ${nameOf(partner)} to get ready.`;
+    return {
+      mode: "coop", category: null, pool: room.pool, label: "–", boardKey: "lobby",
+      brief: "Hidden game: you each set up your own side, and your settings shape only the eight words dealt to you. The first board is dealt once you're both ready.",
+      players: players(), team: null, status, groupsInfo: [], solved: [], cells: [], clue: null, feed: [],
+      pending: null, hideControls: true, done: false,
+    };
+  }
+
   function vm() {
-    const b = room.board, { board, info } = current(), mine = me();
-    const taken = new Set(b.found.flatMap(f => info[f.g].words));
-    if (b.done) info.forEach(gr => gr.words.forEach(w => taken.add(w)));
-    const solved = b.found.map(f => ({ ...f, by: nameOf(f.by) }));
+    if (!room.board) return lobbyVm();
+    const b = room.board, { board, info, level } = current();
+    const taken = takenSet();
+    const partner = partnerId();
+    const partnerSel = partner ? room.players[partner].sel.filter(w => !taken.has(w)) : [];
+    const shown = w => mine(w) || taken.has(w);
+
+    const solved = b.found.map(f => ({ ...f, by: nameOf(f.namer) }));
     if (b.done) info.forEach((_, g) => { if (!solved.some(r => r.g === g)) solved.push({ g, missed: true }); });
 
-    const partnerSel = new Map();
-    Object.entries(room.players).forEach(([id, pl]) => {
-      if (id === uid) return;
-      pl.sel.forEach(w => { if (!taken.has(w)) partnerSel.set(w, [...(partnerSel.get(w) || []), { slot: pl.slot, name: pl.name }]); });
+    const cells = b.order.filter(w => !taken.has(w)).map(w => {
+      const sealed = !mine(w);
+      const clue = b.revealed.find(r => r.w === w);
+      const ask = b.asks.find(a => a.w === w);
+      let badge = null, tint = null;
+      if (!hidden()) {
+        if (clue) badge = clue.by === uid ? { kind: "used" } : { kind: "open", level: level.get(w) };
+        else if (mySel.has(w) && !b.done && partner) badge = { kind: b.clues > 0 ? "offer" : "spent" };
+      } else if (sealed) {
+        if (clue) { badge = { kind: "colour", level: level.get(w) }; tint = level.get(w); }
+        else if (ask?.by === uid) badge = { kind: "asked" };
+      } else if (clue) badge = { kind: "open", level: null };
+      else if (ask) badge = { kind: "ask" };
+      const psel = partnerSel.includes(w) ? [{ slot: slotOf(partner), name: nameOf(partner) }] : [];
+      return { id: w, text: sealed ? coord(w) : w, sealed, coord: hidden() ? coord(w) : null, sel: mySel.has(w), psel, badge, tint };
     });
 
-    const players = Object.entries(room.players)
-      .map(([id, pl]) => ({ ...pl, me: id === uid, maxLives: LIVES, maxClues: CLUES }))
-      .sort((a, c) => a.slot - c.slot);
+    let clue = null;
+    const shownClue = clueShown && b.revealed.find(r => r.w === clueShown);
+    if (shownClue && !taken.has(shownClue.w)) {
+      const w = shownClue.w;
+      if (!hidden() && shownClue.by !== uid) {
+        clue = { label: w, text: hintFor(board, w), level: level.get(w), note: `${nameOf(shownClue.by)} opened this clue for you to read.` };
+      } else if (hidden() && mine(w)) {
+        clue = { label: `${coord(w)} · ${w}`, text: hintFor(board, w), level: null,
+          note: `${nameOf(shownClue.by)} asked for this one: read out the description, not the word.` };
+      }
+    }
 
     let status = "";
-    if (b.pending && b.pending.by !== uid) status = `${nameOf(b.pending.by)} found a crate and is naming it…`;
-    else if (!b.done && mine.lives <= 0) status = "You're out of lives. Your picks still show on your partner's screen.";
+    if (!partner) status = "Waiting for your partner to join. Send the link from the menu.";
+    else if (b.pending) status = b.pending.namer === uid ? "" : `${nameOf(b.pending.namer)} is naming the crate${b.pending.by === uid ? " you found" : ""}…`;
+    else if (hidden() && !b.done && (mySel.size || partnerSel.length)) status = `Picked: ${mySel.size} yours · ${partnerSel.length} ${nameOf(partner)}'s`;
 
+    const picks = mySel.size + (hidden() ? partnerSel.length : 0);
     const pts = boardScore(b);
     return {
       mode: "coop", category: board.cat, pool: room.pool, label: b.n, boardKey: `${b.code}#${b.n}`,
-      groupsInfo: info, order: b.order, taken, solved, mySel, partnerSel,
-      revealed: new Map(b.revealed.map(r => [r.w, slotOf(r.by)])),
-      myClues: mine.clues,
-      players,
-      pending: b.pending ? { g: b.pending.g, mine: b.pending.by === uid } : null,
+      brief: hidden() ? `Your eight words are open, your partner's are sealed. Every crate holds words from both of you: find them and name the ${board.cat === "country" ? "country" : "commodity"} behind each.` : null,
+      groupsInfo: info, solved, cells, clue, players: players(),
+      team: { lives: b.lives, maxLives: LIVES, clues: b.clues, maxClues: CLUES },
+      pending: b.pending ? { g: b.pending.g, mine: b.pending.namer === uid } : null,
       status,
-      canSubmit: mySel.size === 4 && !b.done && !b.pending && mine.lives > 0,
-      submitLabel: mine.lives > 0 ? "Submit" : "No lives",
-      feed: b.guesses.map(g => ({ by: nameOf(g.by), slot: slotOf(g.by), words: g.words, res: g.res })),
+      canSubmit: !!partner && picks === 4 && !b.done && !b.pending && b.lives > 0,
+      feed: b.guesses.map(g => ({
+        by: nameOf(g.by), slot: slotOf(g.by),
+        words: g.words.map(w => (shown(w) ? w : coord(w))).join(", "),
+        res: g.by === uid && g.res !== "right" ? "hidden" : g.res,
+      })),
       done: b.done,
       resultLine: b.won ? `Solved together · ${pts} of 8` : `Out of lives · ${pts} of 8`,
       subLine: `This session: ${room.tally.maps} board${room.tally.maps === 1 ? "" : "s"} · ${room.tally.points} points`,
       canShare: false, canNext: true, nextLabel: "Next board",
     };
   }
-  const draw = () => room && me() && current().board && view.render(vm());
+  const draw = () => room && me() && (!room.board || current().board) && view.render(vm());
 
   // ---------- incoming changes ----------
+  function announce(b) {
+    const { info } = current(), partner = partnerId();
+    b.guesses.slice(seen.guesses).forEach(g => {
+      if (g.res === "right") return;
+      if (g.by === uid) view.toast(partner ? `Wrong. ${nameOf(partner)} saw how close it was.` : "Wrong", 2600);
+      else view.toast(`${nameOf(g.by)}: ${RESULT_LABEL[g.res].toLowerCase()}`, 2400);
+    });
+    b.found.slice(seen.found).forEach(f => {
+      const ans = info[f.g].answer, who = f.namer === uid ? "You" : nameOf(f.namer);
+      view.toast(f.named ? `${who} named ${ans}` : `${ans}: half marks`, 2400);
+    });
+    b.revealed.slice(seen.revealed).forEach(r => {
+      if (!hidden()) {
+        if (r.by === uid) view.toast(`Clue sent: only ${nameOf(partner)} can read it`, 2400);
+        else { clueShown = r.w; view.toast(`${nameOf(r.by)} opened a clue for you`, 2400); }
+      } else if (!mine(r.w)) {
+        view.toast(`${nameOf(partner)} revealed ${coord(r.w)}: its colour is on your tile`, 2600);
+      }
+    });
+    b.asks.filter(a => a.by !== uid && !seen.askKeys.has(a.w))
+      .forEach(a => view.toast(`${nameOf(a.by)} asks for the clue on ${coord(a.w)}`, 2600));
+    if (b.done && !seen.done && !b.won) view.toast("Out of lives", 2500);
+  }
+
   function onRoom(val) {
     if (!val) { view.toast("That game has ended", 3000); leave(); return; }
     const t = tidy(val);
     if (!t) { view.toast("That game is from an older version, start a new one", 3500); leave(); return; }
     room = t;
     if (!me()) { view.toast("You're no longer in this game", 3000); leave(); return; }
-    const b = room.board, { board, info } = current();
-    if (!board) { view.toast("This board doesn't exist in your version, reload the page", 4000); return; }
-
-    if (b.n !== seen.n) {                       // a new board started
-      if (seen.n) view.toast(`New board · ${CLUES} clues each`, 2200);
-      seen = { n: b.n, guesses: b.guesses.length, found: b.found.length };
-      mySel = new Set(me().sel);
-      view.showClue(null);
-    } else {
-      b.guesses.slice(seen.guesses).forEach(g => {
-        const who = g.by === uid ? "You" : nameOf(g.by);
-        if (g.res !== "right") view.toast(`${who}: ${RESULT_LABEL[g.res].toLowerCase()}`, 2200);
-      });
-      b.found.slice(seen.found).forEach(f => {
-        const ans = info[f.g].answer, who = f.by === uid ? "You" : nameOf(f.by);
-        view.toast(f.named ? `${who} named ${ans}` : `${ans}, half marks`, 2400);
-      });
-      seen.guesses = b.guesses.length;
-      seen.found = b.found.length;
-      if (b.done && !b.won) view.toast("Out of lives", 2500);
+    const b = room.board;
+    if (!b) {                                   // hidden-mode lobby
+      seen = null;
+      draw();
+      if (!lobbyPrompted) { lobbyPrompted = true; handlers.menu(); }
+      else if (view.menuTag() === "game") handlers.menu();    // keep the open sheet's ready states current
+      return;
     }
-    const taken = new Set(b.found.flatMap(f => info[f.g].words));
+    const { board } = current();
+    if (!board) { view.toast("This board doesn't exist in your version, reload the page", 4000); return; }
+    if (!seen || b.n !== seen.n) {              // a new board
+      if (seen) view.toast(`New board · ${LIVES} lives, ${CLUES} clues`, 2200);
+      else if (lobbyPrompted && b.n === 1) view.closeMenu();                // the lobby is over: deal
+      if (b.fellBack) view.toast("Settings were too narrow for a board, so this one uses Balanced", 3500);
+      mySel = new Set(me().sel);
+      clueShown = null;
+    } else {
+      announce(b);
+    }
+    seen = { n: b.n, guesses: b.guesses.length, found: b.found.length, revealed: b.revealed.length,
+      askKeys: new Set(b.asks.map(a => a.w)), done: b.done };
+    const taken = takenSet();
     for (const w of [...mySel]) if (taken.has(w) || b.done) mySel.delete(w);
     draw();
     if (menuOnFirstSnapshot) { menuOnFirstSnapshot = false; handlers.menu(); }
@@ -167,66 +282,139 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
   // ---------- actions ----------
   const pushSel = () => sync.update(`${roomPath(code)}/players/${uid}`, { sel: [...mySel] });
 
+  /** Hidden mode: ask for (or stop asking for) the clue on a tile that's sealed on your screen. */
+  async function askFor(w) {
+    const b = room.board, partner = partnerId();
+    if (b.revealed.some(r => r.w === w)) { view.toast(`Ask ${nameOf(partner)} to read out ${coord(w)}'s clue`, 2500); return; }
+    const asking = b.asks.some(a => a.w === w && a.by === uid);
+    if (!asking && b.clues <= 0) { view.toast("No clues left on this board", 1800); return; }
+    if (!partner) return;
+    await change(cur => {
+      const bb = cur.board;
+      if (bb.n !== b.n || bb.done) return false;
+      const i = bb.asks.findIndex(a => a.w === w);
+      if (i >= 0) { if (bb.asks[i].by !== uid) return false; bb.asks.splice(i, 1); }
+      else bb.asks.push({ w, by: uid });
+      return cur;
+    });
+  }
+
+  async function toggleReady() {
+    await change(cur => {
+      cur.players[uid].ready = !cur.players[uid].ready;
+      const everyone = Object.values(cur.players);
+      if (!cur.board && everyone.length === 2 && everyone.every(p => p.ready)) cur.board = newBoard(cur, 1);
+      return cur;
+    });
+  }
+
   function settingsSheet() {
-    const owner = room.owner === uid;
+    const owner = room.owner === uid, back = () => handlers.menu();
+    if (!hidden()) {
+      view.openSettings({
+        settings: room.settings, editable: owner, onBack: back,
+        note: owner ? "Your settings apply to both of you, from the next board." : `${nameOf(room.owner)}'s settings apply to this game.`,
+        onChange: s => change(cur => { if (cur.owner !== uid) return false; cur.settings = cleanSettings(s); return cur; }),
+      });
+      return;
+    }
     view.openSettings({
-      settings: room.settings, editable: owner,
-      note: owner ? "Your settings apply to both of you, from the next board."
-        : `${nameOf(room.owner)}'s settings apply to this game.`,
-      onChange: s => change(cur => { if (cur.owner !== uid) return false; cur.settings = cleanSettings(s); return cur; }),
-      onBack: () => handlers.menu(),
+      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back,
+      note: `Your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared${owner ? " and set by you" : `, set by ${nameOf(room.owner)}`}.${room.board ? " Changes apply from the next board." : ""}`,
+      onChange: s => change(cur => {
+        cur.players[uid].settings = cleanSettings({ ...s, off: [] });
+        if (cur.owner === uid) cur.settings = cleanSettings({ ...cur.settings, off: s.off });
+        return cur;
+      }),
     });
   }
 
   const handlers = {
     toggle(w) {
       const b = room.board;
-      if (b.done || (b.pending && b.pending.by === uid)) return;
+      if (!b || b.done || b.pending) return;
+      if (!mine(w)) { askFor(w); return; }
       if (mySel.has(w)) mySel.delete(w);
-      else if (mySel.size < 4) mySel.add(w);
-      else return;
+      else {
+        const theirs = hidden() && partnerId() ? room.players[partnerId()].sel.length : 0;
+        if (mySel.size + theirs >= 4) { if (theirs) view.toast("Four are picked between you", 1500); return; }
+        mySel.add(w);
+      }
       draw();
       pushSel();
     },
     async clue(w) {
-      const b = room.board, { board } = current();
-      if (b.done) return;
-      if (b.revealed.some(r => r.w === w)) { view.showClue(w, hintFor(board, w)); return; }
-      if (me().clues <= 0) { view.toast("You have no clues left", 1800); return; }
-      const n = b.n;
-      const r = await change((cur, why) => {
-        const pl = cur.players[uid];
-        if (cur.board.n !== n || cur.board.done) return false;
-        if (cur.board.revealed.some(x => x.w === w)) return cur;
-        if (pl.clues <= 0) { why("You have no clues left"); return false; }
-        pl.clues -= 1;
-        cur.board.revealed.push({ w, by: uid });
+      const b = room.board, partner = partnerId();
+      if (!b || b.done) return;
+      const r = b.revealed.find(x => x.w === w);
+      if (hidden()) {
+        if (!mine(w)) { askFor(w); return; }
+        if (r) { clueShown = w; draw(); return; }
+        if (!b.asks.some(a => a.w === w)) return;
+        const res = await change((cur, why) => {
+          const bb = cur.board;
+          if (bb.n !== b.n || bb.done) return false;
+          const i = bb.asks.findIndex(a => a.w === w);
+          if (i < 0) return false;
+          if (bb.clues <= 0) { why("No clues left on this board"); return false; }
+          bb.clues -= 1;
+          bb.revealed.push({ w, by: bb.asks[i].by });
+          bb.asks.splice(i, 1);
+          return cur;
+        });
+        if (res.note) view.toast(res.note, 1800);
+        if (res.committed) { clueShown = w; draw(); }
+        return;
+      }
+      if (r) {
+        if (r.by === uid) view.toast(`Only ${nameOf(partner)} can read the clue you opened`, 2200);
+        else { clueShown = w; draw(); }
+        return;
+      }
+      if (!partner) { view.toast("Your partner reads your clues, so wait until they've joined", 2500); return; }
+      if (b.clues <= 0) { view.toast("No clues left on this board", 1800); return; }
+      const res = await change((cur, why) => {
+        const bb = cur.board;
+        if (bb.n !== b.n || bb.done) return false;
+        if (bb.revealed.some(x => x.w === w)) return cur;
+        if (bb.clues <= 0) { why("No clues left on this board"); return false; }
+        bb.clues -= 1;
+        bb.revealed.push({ w, by: uid });
         return cur;
       });
-      if (r.note) view.toast(r.note, 1800);
-      if (r.committed) view.showClue(w, hintFor(board, w));
+      if (res.note) view.toast(res.note, 1800);
     },
     async submit() {
-      if (mySel.size !== 4) return;
-      const words = [...mySel], key = wordsKey(words), n = room.board.n, { board, info } = current();
+      const b = room.board, partner = partnerId();
+      const theirs = hidden() && partner ? room.players[partner].sel : [];
+      const words = [...mySel, ...theirs];
+      if (words.length !== 4) return;
+      const key = wordsKey(words), n = b.n, { board, info } = current();
       const r = await change((cur, why) => {
-        const b = cur.board, pl = cur.players[uid];
-        if (b.n !== n || b.done) return false;
-        if (b.pending) { why("Wait for the crate to be named"); return false; }
-        if (pl.lives <= 0) { why("You're out of lives"); return false; }
-        if (b.guesses.some(g => wordsKey(g.words) === key)) { why("Already tried"); return false; }
-        const taken = new Set(b.found.flatMap(f => info[f.g].words));
+        const bb = cur.board;
+        if (bb.n !== n || bb.done || bb.lives <= 0) return false;
+        if (bb.pending) { why("Wait for the crate to be named"); return false; }
+        if (hidden() && wordsKey([...mySel, ...(cur.players[partner]?.sel || [])]) !== key) {
+          why("Your partner changed their picks"); return false;
+        }
+        if (bb.guesses.some(g => wordsKey(g.words) === key)) { why("Already tried"); return false; }
+        const taken = new Set(bb.found.flatMap(f => info[f.g].words));
         if (words.some(w => taken.has(w))) { why("Part of that is already solved"); return false; }
         const c = classify(board, words);
-        b.guesses.push({ by: uid, words, res: c.res, lv: c.lv });
+        bb.guesses.push({ by: uid, words, res: c.res, lv: c.lv });
         if (c.res === "right") {
-          b.pending = { g: c.g, by: uid };
-          for (const other of Object.values(cur.players)) other.sel = other.sel.filter(w => !words.includes(w));
+          // the crate is your partner's to name (yours only if they're not here)
+          const namer = Object.entries(cur.players).find(([id, p]) => id !== uid && p.online !== false)?.[0] || uid;
+          bb.pending = { g: c.g, by: uid, namer };
         } else {
-          pl.lives -= 1;
-          endIfOut(cur);
+          bb.lives -= 1;
+          if (bb.lives <= 0) {
+            bb.done = true; bb.won = false;
+            cur.tally.maps += 1; cur.tally.points += boardScore(bb);
+          }
         }
-        pl.sel = [];
+        for (const pl of Object.values(cur.players)) pl.sel = pl.sel.filter(w => !words.includes(w));
+        cur.players[uid].sel = [];
         return cur;
       });
       if (r.note) { view.toast(r.note, 1800); return; }
@@ -236,10 +424,10 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
       const n = room.board.n, { board } = current();
       await change(cur => {
         const b = cur.board;
-        if (b.n !== n || !b.pending || b.pending.by !== uid) return false;
+        if (b.n !== n || !b.pending || b.pending.namer !== uid) return false;
         const ans = BANK[board.groups[b.pending.g].a];
         const named = guess !== null && nameMatches(guess, ans);
-        b.found.push({ g: b.pending.g, by: uid, named, guess: named ? null : (guess || null) });
+        b.found.push({ g: b.pending.g, by: b.pending.by, namer: uid, named, guess: named ? null : (guess || null) });
         b.pending = null;
         if (b.found.length === 4) {
           b.done = true; b.won = true;
@@ -247,46 +435,54 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
         }
         return cur;
       });
-      view.showClue(null);
     },
     clear() { mySel.clear(); draw(); pushSel(); },
-    shuffle() { sync.update(`${roomPath(code)}/board`, { order: shuffled(room.board.order) }); },
+    shuffle() { if (room.board) sync.update(`${roomPath(code)}/board`, { order: shuffled(room.board.order) }); },
     async next() {
       const n = room.board.n;
       await change(cur => {
         if (cur.board.n !== n || !cur.board.done) return false;
         cur.board = newBoard(cur, n + 1);
-        for (const pl of Object.values(cur.players)) {
-          pl.lives = LIVES;
-          pl.clues = CLUES;
-          pl.sel = [];
-        }
+        for (const pl of Object.values(cur.players)) pl.sel = [];
         return cur;
       });
     },
     async pool(value) {
       setPoolParam(value);
       await change(cur => { cur.pool = value; return cur; });
-      view.toast("Next board comes from the new pool", 2200);
+      view.toast(room.board ? "Next board comes from the new pool" : "Pool set for the first board", 2200);
     },
     share() {},
     menu() {
       view.openMenu((body, close) => {
-        const h = document.createElement("h3");
-        h.textContent = `Game ${code}`;
-        body.appendChild(h);
-        const p = document.createElement("p");
-        p.className = "stats";
-        p.textContent = Object.values(room.players).length < 2
-          ? "Send your partner the link. They join from any phone or laptop."
-          : Object.values(room.players).sort((a, b) => a.slot - b.slot)
-            .map(pl => `${pl.name}${pl.online === false ? " (away)" : ""}`).join(" and ");
-        body.appendChild(p);
+        const add = (tag, cls, text) => {
+          const e = document.createElement(tag);
+          if (cls) e.className = cls;
+          if (text != null) e.textContent = text;
+          body.appendChild(e);
+          return e;
+        };
+        add("h3", null, `${MODES[room.mode].label} game ${code}`);
+        const partner = partnerId();
+        add("p", "stats", !partner ? "Send your partner the link. They join from any phone or laptop."
+          : players().map(pl => `${pl.name}${pl.online === false ? " (away)" : ""}${pl.ready ? " ✓ ready" : ""}`).join(" and "));
 
-        const row = document.createElement("div");
-        row.className = "controls";
+        if (!room.board) {                       // hidden-mode lobby
+          const row = add("div", "controls");
+          const side = document.createElement("button");
+          side.className = "btn";
+          side.textContent = "Set up your side";
+          side.addEventListener("click", settingsSheet);
+          const ready = document.createElement("button");
+          ready.className = "btn primary";
+          ready.textContent = me().ready ? "Not ready" : "I'm ready";
+          ready.addEventListener("click", toggleReady);
+          row.append(side, ready);
+        }
+
+        const row = add("div", "controls");
         const send = document.createElement("button");
-        send.className = "btn primary";
+        send.className = "btn" + (partner ? "" : " primary");
         send.textContent = "Send link";
         send.addEventListener("click", async () => {
           try {
@@ -300,24 +496,18 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
         copy.addEventListener("click", async () => {
           if (await view.copyText(link())) view.toast("Link copied", 1500); else view.toast(link(), 6000);
         });
-        const settingsBtn = document.createElement("button");
-        settingsBtn.className = "btn";
-        settingsBtn.textContent = "Settings";
-        settingsBtn.addEventListener("click", settingsSheet);
-        row.append(send, copy, settingsBtn);
-        body.appendChild(row);
-
-        const lk = document.createElement("p");
-        lk.className = "room-link";
-        lk.textContent = link();
-        body.appendChild(lk);
-
-        const leaveBtn = document.createElement("button");
-        leaveBtn.className = "link";
-        leaveBtn.textContent = "Leave and play solo";
+        row.append(send, copy);
+        if (room.board) {
+          const settingsBtn = document.createElement("button");
+          settingsBtn.className = "btn";
+          settingsBtn.textContent = hidden() ? "Your side" : "Settings";
+          settingsBtn.addEventListener("click", settingsSheet);
+          row.appendChild(settingsBtn);
+        }
+        add("p", "room-link", link());
+        const leaveBtn = add("button", "link", "Leave and play solo");
         leaveBtn.addEventListener("click", () => { close(); leave(); });
-        body.appendChild(leaveBtn);
-      });
+      }, "game");
     },
   };
 
@@ -354,21 +544,24 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
     sync.presence?.(`${roomPath(code)}/players/${uid}`);
   }
 
-  async function create(pool, settings) {
+  async function create(mode, pool, settings) {
     const name = await askName();
     if (!(await connect())) return false;
     try {
       for (let attempt = 0; attempt < 6; attempt++) {
         const c = newCode();
-        const room0 = { v: 2, owner: uid, created: Date.now(), pool, settings: cleanSettings(settings), recentA: [],
-          players: { [uid]: { name, slot: 0, lives: LIVES, clues: CLUES, sel: [], online: true } },
-          tally: { maps: 0, points: 0 } };
-        room0.board = newBoard(room0, 1);
+        const room0 = {
+          v: 3, mode, owner: uid, created: Date.now(), pool, settings: cleanSettings(settings), recentA: [],
+          players: { [uid]: { name, slot: 0, sel: [], online: true, ready: false, settings: cleanSettings(settings) } },
+          tally: { maps: 0, points: 0 },
+        };
+        if (mode !== "hidden") room0.board = newBoard(room0, 1);
         const r = await sync.tx(roomPath(c), cur => (cur === null ? room0 : undefined));
         if (r.committed) {
           code = c;
-          seen = { n: 0, guesses: 0, found: 0 };
-          menuOnFirstSnapshot = true;             // show the link to send once the room is loaded
+          seen = null;
+          lobbyPrompted = false;
+          menuOnFirstSnapshot = mode !== "hidden";   // show the link to send (the lobby opens its own sheet)
           watch();
           return true;
         }
@@ -392,7 +585,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
         if (t.players[uid]) { t.players[uid].name = name; return t; }
         const slots = Object.values(t.players).map(pl => pl.slot);
         if (slots.length >= 2) { full = true; return undefined; }
-        t.players[uid] = { name, slot: slots.includes(0) ? 1 : 0, lives: LIVES, clues: CLUES, sel: [], online: true };
+        t.players[uid] = { name, slot: slots.includes(0) ? 1 : 0, sel: [], online: true, ready: false, settings: cleanSettings(mySettings()) };
         return t;
       });
       if (!r.committed || !r.value) {
@@ -400,7 +593,8 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
           : full ? "That game already has two players" : "No game with that code", 3500);
         return false;
       }
-      seen = { n: 0, guesses: 0, found: 0 };
+      seen = null;
+      lobbyPrompted = false;
       watch();
       return true;
     } catch (e) { explain(e); return false; }
@@ -411,7 +605,8 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam }) {
     unwatch = null;
     room = null;
     mySel = new Set();
-    decoded = { code: null, board: null, info: null };
+    decoded = { code: null };
+    view.closeMenu();
   }
 
   function leave() {

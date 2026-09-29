@@ -1,6 +1,6 @@
 // Solo play: generated boards, progress in this browser's localStorage.
 import { BANK, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
-import { generate, encode, decode, describe, hintFor, classify } from "./gen.js";
+import { generate, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { emptyDeck, cleanDeck, learnFromBoard, deckStats, REVIEW_GAP } from "./learn.js";
 import * as view from "./view.js";
 
@@ -9,7 +9,7 @@ const CLUES = 4;          // per board
 const STORE_KEY = "crates:v2";
 const RECENT_ANSWERS = 16, RECENT_WORDS = 120, HISTORY = 60;
 
-export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
+export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
   const store = (() => {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
   })();
@@ -48,6 +48,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   document.addEventListener("keydown", () => clock.run(), true);
 
   let board, info, selected = new Set(), pendingGroup = null;
+  let clueShown = null;         // word whose clue is on show
   const game = () => store.cur;
   const cluesLeft = () => CLUES - game().revealed.length;
   const score = g => g.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
@@ -87,7 +88,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     selected.clear();
     pendingGroup = null;
     setBoardParam(null);
-    view.showClue(null);
+    clueShown = null;
     draw();
   }
 
@@ -95,6 +96,15 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     const g = game();
     const taken = new Set(g.found.flatMap(f => info[f.g].words));
     if (g.done) info.forEach(gr => gr.words.forEach(w => taken.add(w)));
+    const levelOf = w => board.groups[groupIndexOf(board, w)].level;
+    const cells = g.order.filter(w => !taken.has(w)).map(w => {
+      const open = g.revealed.includes(w);
+      const badge = open ? { kind: "open", level: levelOf(w) }
+        : selected.has(w) && !g.done ? { kind: cluesLeft() > 0 ? "offer" : "spent" } : null;
+      return { id: w, text: w, sel: selected.has(w), badge };
+    });
+    const clue = clueShown && g.revealed.includes(clueShown) && !taken.has(clueShown)
+      ? { label: clueShown, text: hintFor(board, clueShown), level: levelOf(clueShown) } : null;
     const solved = g.found.map(f => ({ ...f }));
     if (g.done) info.forEach((_, i) => { if (!solved.some(r => r.g === i)) solved.push({ g: i, missed: true }); });
     const pts = score(g), won = g.found.length === 4, time = formatTime(g.ms || 0);
@@ -107,12 +117,8 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       mode: "solo", category: board.cat, pool: store.pool, label: g.n, boardKey: g.code,
       groupsInfo: tags ? info.map(gr => ({ ...gr, details: gr.details.map(([w, h]) => [w, h, tags[w]]) })) : info,
       modeNote: store.learning ? learningNote() : null,
-      order: g.order, taken, solved,
-      mySel: selected, partnerSel: new Map(),
-      revealed: new Map(g.revealed.map(w => [w, 0])),
-      myClues: cluesLeft(),
-      players: [{ slot: 0, me: true, name: "", lives: MAX_MISTAKES - g.mistakes, maxLives: MAX_MISTAKES,
-        clues: cluesLeft(), maxClues: CLUES }],
+      cells, clue, solved,
+      team: { lives: MAX_MISTAKES - g.mistakes, maxLives: MAX_MISTAKES, clues: cluesLeft(), maxClues: CLUES },
       pending: pendingGroup !== null ? { g: pendingGroup, mine: true } : null,
       canSubmit: selected.size === 4 && !g.done && pendingGroup === null,
       done: g.done,
@@ -193,7 +199,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
         g.revealed.push(w);
         save();
       }
-      view.showClue(w, hintFor(board, w));
+      clueShown = w;
       draw();
     },
     submit() {
@@ -216,7 +222,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       if (g.mistakes >= MAX_MISTAKES) {
         end();
         selected.clear();
-        view.showClue(null);
+        clueShown = null;
         view.toast("Out of lives", 2500);
       } else {
         view.toast(r.res === "one" ? "One away" : "Not a crate", 1800);
@@ -235,7 +241,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
       pendingGroup = null;
       if (g.found.length === 4) end();
       save();
-      view.showClue(null);
+      clueShown = null;
       view.toast(named ? `${ans.name}, full marks` : `It was ${ans.name}, half marks`, 2200);
       draw();
     },
@@ -254,10 +260,17 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     },
     menu() {
       view.openMenu((body, close) => {
-        const together = document.createElement("button");
-        together.className = "btn primary wide";
-        together.textContent = "Play together";
-        together.addEventListener("click", () => { close(); onTogether(store.pool, store.settings); });
+        const together = document.createElement("div");
+        together.className = "together";
+        Object.entries(modes).forEach(([mode, m]) => {
+          const b = document.createElement("button");
+          b.className = "btn primary";
+          b.innerHTML = "<b></b><small></small>";
+          b.firstChild.textContent = `Play ${m.label.toLowerCase()}`;
+          b.lastChild.textContent = m.blurb;
+          b.addEventListener("click", () => { close(); onTogether(mode, store.pool, store.settings); });
+          together.appendChild(b);
+        });
         body.appendChild(together);
 
         const row = document.createElement("div");
@@ -320,6 +333,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   };
 
   return {
+    settings: () => store.settings,
     start(pool, code) {
       if (pool) { store.pool = pool; save(); }
       setPoolParam(store.pool);

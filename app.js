@@ -2,7 +2,7 @@
 // ?b=CODE opens a specific board, ?cat=countries|commodities|mixed picks the pool.
 import { parsePool, POOL_PARAM } from "./core.js";
 import { createSolo } from "./solo.js";
-import { createCoop } from "./coop.js";
+import { createCoop, MODES } from "./coop.js";
 
 function setParam(key, value) {
   const u = new URL(location.href);
@@ -13,11 +13,11 @@ const setPoolParam = pool => setParam("cat", POOL_PARAM[pool]);
 const setRoomParam = code => setParam("room", code);
 const setBoardParam = code => setParam("b", code);
 
-const solo = createSolo({ onTogether: (pool, settings) => startTogether(pool, settings), setPoolParam, setBoardParam });
-const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam });
+const solo = createSolo({ onTogether: (mode, pool, settings) => startTogether(mode, pool, settings), modes: MODES, setPoolParam, setBoardParam });
+const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam, mySettings: () => solo.settings() });
 
-async function startTogether(pool, settings) {
-  if (!(await coop.create(pool, settings))) solo.start();
+async function startTogether(mode, pool, settings) {
+  if (!(await coop.create(mode, pool, settings))) solo.start();
 }
 
 const params = new URLSearchParams(location.search);

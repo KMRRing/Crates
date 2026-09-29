@@ -26,17 +26,25 @@ Settings → Learning mode → On. The game then keeps a card for every word you
 
 ## Solo
 - Four lives and four clues per board. "One away" means three of your four belong together.
-- Tap a word, then the ? on its corner to spend a clue. An opened clue keeps its ? and can be reread any time.
+- Tap a word, then the ? on its corner to spend a clue. The clue gives the word's explanation and its crate's colour (yellow easiest, red hardest), so two opened clues tell you whether those words share a crate. An opened clue can be reread any time.
 - A crate is worth 2 points: 1 for finding it, 1 for naming it. A wrong name or a skip keeps the half.
 - Tap a solved crate to see why each word belongs, and which words were red herrings.
 - Pick Countries, Commodities or Mixed in the top bar. Recent boards in the menu can be replayed. Progress stays in the browser.
+- Copy result puts your score, time, lives and clues used, the guess grid and a link to the same board on the clipboard. Time only runs while the board is on screen.
 
 ## Together
-- Menu → Play together → send the link. Your partner opens it and joins.
-- The settings of whoever started the game apply to both; only they can change them.
-- Each player has 2 lives and 2 clues per board; the board is lost when both are out of lives.
-- Clues refresh with every board; unused ones don't carry over. Opened clues show for both.
-- You see each other's picks live (coloured ring and initial), and every locked-in guess appears for both with its result.
+Menu → Play together or Play hidden → send the link. Your partner opens it and joins. The team shares 4 lives and 4 clues per board.
+
+One rule runs through both modes: you never see the result of your own action, your partner does.
+- Your wrong guess: you see a life go, your partner sees whether it was one away.
+- Your clue: your partner reads the explanation and sees the crate colour.
+- A crate you find: your partner names it.
+
+**Together** — both of you see all sixteen words and each other's picks. Whoever started the game sets the settings.
+
+**Hidden** — each of you sees only your own eight words; your partner's show as sealed tiles labelled by position (A1 is top left: column letter, row number). Every crate holds one to three words from each side, so a crate always needs picks from both of you.
+- Before the first board you each set up your own side: your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared and set by whoever started the game. The board is dealt once you've both pressed Ready.
+- Clues work the other way round: tap a tile that's sealed on your screen to ask about it. Your partner reveals it, reads the explanation out (not the word), and the crate colour appears on your sealed tile.
 
 ## Links
 - `?cat=countries`, `?cat=commodities` or `?cat=mixed` opens straight into that pool.
@@ -48,4 +56,4 @@ Together mode uses the same Firebase project as CroatiaQuiz (croatiabio). Its da
 Firebase console → Realtime Database → Rules → replace with the contents of `firebase-rules.json` → Publish.
 
 ## Files
-`bank.js` is the word bank as base64-encoded JSON, so answers aren't visible at a glance. It is append-only: board codes point at answer and word positions, so words are only ever added at the end of an answer and answers at the end of the bank. `gen.js` builds and checks boards. `tests/fake-sync.js` stands in for Firebase in local two-tab tests.
+`bank.js` is the word bank as base64-encoded JSON, so answers aren't visible at a glance. It is append-only: board codes point at answer and word positions, so words are only ever added at the end of an answer and answers at the end of the bank. `gen.js` builds and checks boards, including the split boards for hidden mode. `tests/fake-sync.js` stands in for Firebase in local two-tab tests.

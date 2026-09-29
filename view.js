@@ -17,7 +17,6 @@ const el = {
 
 let handlers = {};
 let current = null;          // last view model
-let clueWord = null;         // word whose clue is on show
 let landedKey = "";          // board + solved count, to animate only new crates
 let nameOpenFor = null;      // pending key the naming sheet is open for
 
@@ -58,13 +57,19 @@ export function toast(msg, ms = 2000) {
   if (msg && ms) toastTimer = setTimeout(() => (el.toast.textContent = ""), ms);
 }
 
-export function showClue(word, text) {
-  clueWord = word;
-  if (!word) { el.clue.hidden = true; el.clue.textContent = ""; return; }
+/** The clue strip under the grid: { label, text, level (crate colour, or null if not yours to see), note }. */
+function renderClue(clue) {
+  el.clue.className = "clue" + (clue && clue.level != null ? ` lv${clue.level}` : "");
+  el.clue.hidden = !clue;
+  if (!clue) { el.clue.textContent = ""; return; }
   el.clue.innerHTML = "<b></b> <span></span>";
-  el.clue.querySelector("b").textContent = `${word}:`;
-  el.clue.querySelector("span").textContent = text;
-  el.clue.hidden = false;
+  el.clue.querySelector("b").textContent = `${clue.label}:`;
+  el.clue.querySelector("span").textContent = clue.text;
+  if (clue.note) {
+    const n = document.createElement("small");
+    n.textContent = clue.note;
+    el.clue.appendChild(n);
+  }
 }
 
 // A life: filled while you have it, outlined once lost.
@@ -78,24 +83,23 @@ export function render(vm) {
 
   el.pNum.textContent = vm.label;
   renderPool(vm);
-  el.brief.textContent = `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
+  el.brief.textContent = vm.brief || `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
   if (vm.modeNote) {
     const m = document.createElement("span");
     m.className = "mode-note";
     m.textContent = vm.modeNote;
     el.brief.appendChild(m);
   }
-  el.nameLabel.textContent = `Which ${NOUN[vm.category]} links these four?`;
+  if (vm.category) el.nameLabel.textContent = `Which ${NOUN[vm.category]} links these four?`;
   renderPlayers(vm);
   el.status.textContent = vm.status || "";
   el.status.hidden = !vm.status;
   renderSolved(vm);
   renderGrid(vm);
+  renderClue(vm.clue);
   renderFeed(vm);
 
-  if (clueWord && (vm.taken.has(clueWord) || !vm.revealed.has(clueWord))) showClue(null);
-
-  el.controls.hidden = vm.done;
+  el.controls.hidden = vm.done || vm.hideControls;
   el.submit.disabled = !vm.canSubmit;
   el.submit.textContent = vm.submitLabel || "Submit";
   el.result.hidden = !vm.done;
@@ -115,7 +119,7 @@ export function render(vm) {
 function renderPool(vm) {
   const labels = { mixed: "Mixed", country: PLURAL.country, commodity: PLURAL.commodity };
   for (const opt of el.pool.options) {
-    opt.textContent = opt.value === "mixed" && vm.pool === "mixed"
+    opt.textContent = opt.value === "mixed" && vm.pool === "mixed" && vm.category
       ? `Mixed: ${PLURAL[vm.category]}` : labels[opt.value];
   }
   el.pool.value = vm.pool;
@@ -123,38 +127,41 @@ function renderPool(vm) {
 
 function renderPlayers(vm) {
   el.players.innerHTML = "";
-  el.players.classList.toggle("duo", vm.players.length > 1 || vm.mode === "coop");
-  vm.players.forEach(pl => {
-    const row = document.createElement("div");
-    row.className = `pl s${pl.slot}${pl.me ? " me" : ""}${pl.online === false ? " away" : ""}`;
-    if (vm.mode === "coop") {
+  if (vm.players) {
+    const names = document.createElement("div");
+    names.className = "names";
+    vm.players.forEach(pl => {
       const nm = document.createElement("span");
-      nm.className = "pl-name";
-      nm.textContent = pl.me ? `${pl.name} (you)` : pl.name;
-      row.appendChild(nm);
+      nm.className = `pl-name s${pl.slot}${pl.online === false ? " away" : ""}`;
+      nm.textContent = `${pl.me ? `${pl.name} (you)` : pl.name}${pl.ready ? " ✓" : ""}`;
+      names.appendChild(nm);
+    });
+    if (vm.players.length < 2) {
+      const wait = document.createElement("span");
+      wait.className = "pl-waiting";
+      wait.textContent = "waiting for a partner…";
+      names.appendChild(wait);
     }
-    const lives = document.createElement("span");
-    lives.className = "lives";
-    lives.setAttribute("aria-label", `${pl.lives} of ${pl.maxLives} lives`);
-    lives.innerHTML = Array.from({ length: pl.maxLives }, (_, i) => heart(i < pl.lives)).join("");
-    const dots = document.createElement("span");
-    dots.className = "clue-dots";
-    dots.setAttribute("aria-label", `${pl.clues} clues`);
-    for (let i = 0; i < pl.maxClues; i++) {
-      const b = document.createElement("i");
-      b.textContent = "?";
-      if (i < pl.clues) b.className = "on";
-      dots.appendChild(b);
-    }
-    row.append(lives, dots);
-    el.players.appendChild(row);
-  });
-  if (vm.mode === "coop" && vm.players.length < 2) {
-    const wait = document.createElement("div");
-    wait.className = "pl waiting";
-    wait.textContent = "Waiting for a partner…";
-    el.players.appendChild(wait);
+    el.players.appendChild(names);
   }
+  if (!vm.team) return;
+  const team = document.createElement("div");
+  team.className = "team";
+  const lives = document.createElement("span");
+  lives.className = "lives";
+  lives.setAttribute("aria-label", `${vm.team.lives} of ${vm.team.maxLives} lives`);
+  lives.innerHTML = Array.from({ length: vm.team.maxLives }, (_, i) => heart(i < vm.team.lives)).join("");
+  const dots = document.createElement("span");
+  dots.className = "clue-dots";
+  dots.setAttribute("aria-label", `${vm.team.clues} clues`);
+  for (let i = 0; i < vm.team.maxClues; i++) {
+    const b = document.createElement("i");
+    b.textContent = "?";
+    if (i < vm.team.clues) b.className = "on";
+    dots.appendChild(b);
+  }
+  team.append(lives, dots);
+  el.players.appendChild(team);
 }
 
 function renderSolved(vm) {
@@ -202,22 +209,37 @@ function renderSolved(vm) {
   });
 }
 
+const BADGE_LABEL = {
+  offer: "Use a clue on this word", spent: "No clues left", open: "Show the clue",
+  used: "Your partner can read this clue", ask: "Your partner asks for this clue: reveal it",
+  asked: "Waiting for your partner to reveal it", colour: "Its crate colour, from the clue",
+};
+
+/** cells: [{ id, text, sealed, coord, sel, psel: [{ slot, name }], badge: { kind, level } | null, tint }] */
 function renderGrid(vm) {
   el.grid.innerHTML = "";
-  vm.order.filter(w => !vm.taken.has(w)).forEach(w => {
-    const mine = vm.mySel.has(w);
-    const partners = vm.partnerSel.get(w) || [];
+  el.grid.classList.toggle("coords", vm.cells.some(c => c.coord));
+  vm.cells.forEach(c => {
+    const partners = c.psel || [];
     const cell = document.createElement("div");
-    cell.className = "cell" + (mine ? " sel" : "") + (partners.length ? ` psel ps${partners[0].slot}` : "");
+    cell.className = "cell" + (c.sel ? " sel" : "") + (partners.length ? ` psel ps${partners[0].slot}` : "");
 
     const tile = document.createElement("button");
-    tile.className = "tile";
-    tile.textContent = w;
-    tile.setAttribute("aria-pressed", mine);
+    tile.className = "tile" + (c.sealed ? " sealed" : "") + (c.tint != null ? ` lv${c.tint}` : "");
+    tile.textContent = c.text;
+    tile.setAttribute("aria-pressed", String(!!c.sel));
+    if (c.sealed) tile.setAttribute("aria-label", `Your partner's tile ${c.coord}`);
     if (partners.length) tile.setAttribute("aria-description", `selected by ${partners.map(x => x.name).join(" and ")}`);
-    tile.addEventListener("click", () => handlers.toggle?.(w));
+    tile.addEventListener("click", () => handlers.toggle?.(c.id));
     cell.appendChild(tile);
 
+    if (c.coord && !c.sealed) {
+      const k = document.createElement("span");
+      k.className = "coord";
+      k.textContent = c.coord;
+      k.setAttribute("aria-hidden", "true");
+      cell.appendChild(k);
+    }
     if (partners.length) {
       const tag = document.createElement("span");
       tag.className = "ptag";
@@ -225,15 +247,12 @@ function renderGrid(vm) {
       tag.setAttribute("aria-hidden", "true");
       cell.appendChild(tag);
     }
-
-    const revealedBy = vm.revealed.get(w);
-    if (revealedBy !== undefined || (mine && !vm.done)) {
+    if (c.badge) {
       const hint = document.createElement("button");
-      const spent = revealedBy === undefined && vm.myClues === 0;
-      hint.className = "hint" + (spent ? " spent" : "") + (revealedBy !== undefined ? ` by${revealedBy}` : "");
-      hint.setAttribute("aria-label", revealedBy !== undefined ? `Show clue for ${w}` : `Use a clue on ${w}`);
+      hint.className = `hint ${c.badge.kind}` + (c.badge.level != null ? ` lv${c.badge.level}` : "");
+      hint.setAttribute("aria-label", BADGE_LABEL[c.badge.kind]);
       hint.innerHTML = "<span>?</span>";
-      hint.addEventListener("click", e => { e.stopPropagation(); handlers.clue?.(w); });
+      hint.addEventListener("click", e => { e.stopPropagation(); handlers.clue?.(c.id); });
       cell.appendChild(hint);
     }
     el.grid.appendChild(cell);
@@ -263,7 +282,7 @@ function renderFeed(vm) {
     li.querySelector(".g-who").textContent = g.by;
     li.querySelector(".g-who").classList.add(`s${g.slot}`);
     li.querySelector(".g-res").textContent = RESULT_LABEL[g.res];
-    li.querySelector(".g-words").textContent = g.words.join(", ");
+    li.querySelector(".g-words").textContent = g.words;
     el.feed.appendChild(li);
   });
 }
@@ -283,13 +302,16 @@ function syncNameSheet(vm) {
 }
 
 // ---------- menu sheet ----------
-export function openMenu(build) {
+/** Fills the menu sheet. tag names what's on show ("game", "settings"…) so controllers can refresh it. */
+export function openMenu(build, tag = "menu") {
   el.menuBody.innerHTML = "";
   build(el.menuBody, () => el.menuDlg.close());
+  el.menuDlg.dataset.tag = tag;
   el.menuDlg.scrollTop = 0;
   if (!el.menuDlg.open) el.menuDlg.showModal();
 }
 export const closeMenu = () => el.menuDlg.open && el.menuDlg.close();
+export const menuTag = () => (el.menuDlg.open ? el.menuDlg.dataset.tag : null);
 
 /** Copies to the clipboard; falls back to a hidden text box where the clipboard API is refused. */
 export async function copyText(text) {
@@ -331,7 +353,10 @@ export function askWho(defaultName = "") {
 // ---------- settings sheet ----------
 /** Renders the settings editor into the menu sheet. onChange gets a fresh settings object. */
 export function openSettings(opts) {
-  const { settings, editable, note, onChange, onBack, learning = null } = opts;
+  const { settings, note, onChange, onBack, learning = null } = opts;
+  // editable: true, or { words, groups } when only part is yours to change (hidden mode)
+  const canWords = opts.editable === true || !!opts.editable?.words;
+  const canGroups = opts.editable === true || !!opts.editable?.groups;
   openMenu(body => {
     const add = (tag, cls, text) => {
       const e = document.createElement(tag);
@@ -340,7 +365,7 @@ export function openSettings(opts) {
       body.appendChild(e);
       return e;
     };
-    const segmented = (options, value, onPick, label, enabled = editable) => {
+    const segmented = (options, value, onPick, label, enabled = canWords) => {
       const row = document.createElement("div");
       row.className = "seg";
       row.setAttribute("role", "radiogroup");
@@ -378,7 +403,7 @@ export function openSettings(opts) {
 
     if (note) add("p", `stats set-note${learning ? " sep" : ""}`, note);
     const s = structuredClone(settings);
-    const change = mutate => { if (!editable) return; mutate(s); onChange(structuredClone(s)); };
+    const change = mutate => { mutate(s); onChange(structuredClone(s)); };
 
     add("h4", null, "Preset");
     const presetRow = segmented(Object.entries(PRESETS).map(([k, p]) => [k, p.label]), s.preset, v => {
@@ -410,7 +435,7 @@ export function openSettings(opts) {
         b.className = "chip";
         b.textContent = name;
         b.setAttribute("aria-pressed", String(!s.off.includes(k)));
-        b.disabled = !editable;
+        b.disabled = !canGroups;
         b.addEventListener("click", () => {
           change(x => { x.off = x.off.includes(k) ? x.off.filter(o => o !== k) : [...x.off, k]; });
           b.setAttribute("aria-pressed", String(!s.off.includes(k)));
@@ -418,5 +443,5 @@ export function openSettings(opts) {
         chips.appendChild(b);
       });
     }
-  });
+  }, "settings");
 }
