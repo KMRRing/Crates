@@ -1,6 +1,7 @@
 // Solo play: generated boards, progress in this browser's localStorage.
 import { BANK, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify } from "./gen.js";
+import { emptyDeck, cleanDeck, learnFromBoard, deckStats, REVIEW_GAP } from "./learn.js";
 import * as view from "./view.js";
 
 const MAX_MISTAKES = 4;
@@ -18,6 +19,8 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   store.history = store.history || [];
   store.recentA = store.recentA || [];
   store.recentW = store.recentW || [];
+  store.learning = store.learning === true;
+  store.deck = cleanDeck(store.deck);
 
   // Playing time counts only while the page is visible and the board is still open.
   let clockFrom = null;
@@ -45,6 +48,7 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     store.cur = {
       code: code || encode(b), n: store.n, order: shuffled(describe(b).flatMap(g => g.words)),
       found: [], mistakes: 0, guesses: [], tried: [], revealed: [], done: false, ms: 0,
+      learn: store.learning,
     };
     b.groups.forEach(g => {
       store.recentA = [g.a, ...store.recentA.filter(a => a !== g.a)].slice(0, RECENT_ANSWERS);
@@ -55,7 +59,9 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
   }
 
   function fresh() {
-    let b = generate({ pool: store.pool, settings: store.settings, recentA: store.recentA, recentW: store.recentW });
+    const learn = store.learning ? store.deck : null;
+    if (learn) learn.t += 1;
+    let b = generate({ pool: store.pool, settings: store.settings, recentA: store.recentA, recentW: store.recentW, learn });
     if (!b) {
       view.toast("Not enough words for those settings, so this board uses Balanced", 3500);
       b = generate({ pool: store.pool, settings: defaultSettings(), recentA: store.recentA });
@@ -86,9 +92,12 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     const names = g.found.map(f => f.named ? "✓" : "½").join("");
     const used = `Lives used ${g.mistakes}/${MAX_MISTAKES} · Clues used ${g.revealed.length}/${CLUES}`;
     const link = `${location.origin}${location.pathname}?b=${g.code}`;
+    const tags = g.done && g.tags;
     return {
       mode: "solo", category: board.cat, pool: store.pool, label: g.n, boardKey: g.code,
-      groupsInfo: info, order: g.order, taken, solved,
+      groupsInfo: tags ? info.map(gr => ({ ...gr, details: gr.details.map(([w, h]) => [w, h, tags[w]]) })) : info,
+      modeNote: store.learning ? learningNote() : null,
+      order: g.order, taken, solved,
       mySel: selected, partnerSel: new Map(),
       revealed: new Map(g.revealed.map(w => [w, 0])),
       myClues: cluesLeft(),
@@ -112,16 +121,49 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
     tick();
     g.done = true;
     clockFrom = null;
+    if (g.learn && store.learning) g.tags = learnFromBoard(store.deck, board, g);
     store.history = [{ n: g.n, code: g.code, cat: board.cat, pts: score(g), won: g.found.length === 4,
       mistakes: g.mistakes, clues: g.revealed.length, ms: g.ms }, ...store.history].slice(0, HISTORY);
+  }
+
+  function learningNote() {
+    const n = deckStats(store.deck).review;
+    return `Learning mode · ${n ? `${n} word${n === 1 ? "" : "s"} to review` : "nothing to review yet"}`;
+  }
+
+  function learningSummary() {
+    const s = deckStats(store.deck), n = x => x.toLocaleString("en-GB");
+    return `${n(s.review)} to review · ${n(s.learned)} learned · ${n(s.seen + s.unseen)} still to learn`;
+  }
+
+  function setLearning(on) {
+    store.learning = on;
+    save();
+    const g = game();
+    if (on && !g.done && !g.guesses.length && !g.revealed.length) fresh();   // untouched board: deal a learning one now
+    else { view.toast(on ? "Learning mode starts with the next board" : "Learning mode off", 2200); draw(); }
+    settingsSheet();
   }
 
   function settingsSheet() {
     view.openSettings({
       settings: store.settings, editable: true,
-      note: "Changes apply from the next board.",
+      note: "Everything below applies from the next board.",
       onChange: s => { store.settings = cleanSettings(s); save(); },
       onBack: () => handlers.menu(),
+      learning: {
+        on: store.learning,
+        lines: [`Missed words come back ${REVIEW_GAP[0]} to ${REVIEW_GAP[1]} boards later, in a new crate with new companions. Words you get right retire to the bottom of the deck.`,
+          learningSummary()],
+        onToggle: setLearning,
+        onReset: () => {
+          if (!confirm("Forget everything learning mode knows about you?")) return;
+          store.deck = emptyDeck();
+          save();
+          draw();
+          settingsSheet();
+        },
+      },
     });
   }
 
@@ -249,6 +291,12 @@ export function createSolo({ onTogether, setPoolParam, setBoardParam }) {
         }
         body.appendChild(list);
 
+        if (store.learning) {
+          const lp = document.createElement("p");
+          lp.className = "stats";
+          lp.textContent = `Learning: ${learningSummary()}`;
+          body.appendChild(lp);
+        }
         const done = store.history.length;
         if (done) {
           const total = store.history.reduce((s, r) => s + r.pts, 0);

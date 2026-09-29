@@ -16,6 +16,14 @@ Menu (No. button) → Settings. They apply from the next board.
 
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.
 
+## Learning mode (solo)
+Settings → Learning mode → On. The game then keeps a card for every word you meet:
+- A word counts as missed if its crate was never found or never named, if you opened its clue, or if a "one away" guess put it in the wrong crate or left it out of its own crate. Words in a plain miss get no verdict either way.
+- A missed word comes back 3 to 8 boards later, in its own answer's crate but next to companions it wasn't missed with, and on a board without the crates it was missed next to. At most two missed words share a crate, so there are always new clues beside them.
+- A word you get right retires to the bottom of the deck and only reappears once fresher words run out.
+- Unseen words are preferred, so you work through the whole bank.
+- Solved crates flag words "↻ back soon" or "✓ learned". Progress stays in the browser; Settings has a reset.
+
 ## Solo
 - Four lives and four clues per board. "One away" means three of your four belong together.
 - Tap a word, then the ? on its corner to spend a clue. An opened clue keeps its ? and can be reread any time.

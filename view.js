@@ -79,6 +79,12 @@ export function render(vm) {
   el.pNum.textContent = vm.label;
   renderPool(vm);
   el.brief.textContent = `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
+  if (vm.modeNote) {
+    const m = document.createElement("span");
+    m.className = "mode-note";
+    m.textContent = vm.modeNote;
+    el.brief.appendChild(m);
+  }
   el.nameLabel.textContent = `Which ${NOUN[vm.category]} links these four?`;
   renderPlayers(vm);
   el.status.textContent = vm.status || "";
@@ -166,14 +172,22 @@ function renderSolved(vm) {
     b.innerHTML = `<div><span class="crate-name"></span><span class="crate-meta"></span></div>
       <div class="crate-words"></div><div class="crate-note"></div>`;
     b.querySelector(".crate-name").textContent = gr.answer;
-    b.querySelector(".crate-meta").textContent = meta;
+    const flags = {};                       // learning mode: "↻ 2", "✓ 1" beside the crate name
+    gr.details.forEach(([, , tag]) => { if (tag) flags[tag[0]] = (flags[tag[0]] || 0) + 1; });
+    b.querySelector(".crate-meta").textContent = [meta, ...Object.entries(flags).map(([icon, n]) => `${icon} ${n}`)].join(" · ");
     b.querySelector(".crate-words").textContent = gr.words.join(", ");
     const note = b.querySelector(".crate-note");
-    gr.details.forEach(([w, hint]) => {
+    gr.details.forEach(([w, hint, tag]) => {
       const line = document.createElement("p");
       line.innerHTML = "<b></b> <span></span>";
       line.firstChild.textContent = `${w}:`;
       line.lastChild.textContent = hint;
+      if (tag) {
+        const t = document.createElement("em");
+        t.className = "tag";
+        t.textContent = tag;
+        line.append(" ", t);
+      }
       note.appendChild(line);
     });
     gr.herrings.forEach(h => {
@@ -316,10 +330,37 @@ export function askWho(defaultName = "") {
 
 // ---------- settings sheet ----------
 /** Renders the settings editor into the menu sheet. onChange gets a fresh settings object. */
-export function openSettings({ settings, editable, note, onChange, onBack }) {
-  openMenu((body) => {
-    const head = document.createElement("div");
-    head.className = "set-head";
+export function openSettings(opts) {
+  const { settings, editable, note, onChange, onBack, learning = null } = opts;
+  openMenu(body => {
+    const add = (tag, cls, text) => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      body.appendChild(e);
+      return e;
+    };
+    const segmented = (options, value, onPick, label, enabled = editable) => {
+      const row = document.createElement("div");
+      row.className = "seg";
+      row.setAttribute("role", "radiogroup");
+      row.setAttribute("aria-label", label);
+      options.forEach(([v, text]) => {
+        const b = document.createElement("button");
+        b.textContent = text;
+        b.setAttribute("role", "radio");
+        b.setAttribute("aria-checked", String(v === value));
+        b.disabled = !enabled;
+        b.addEventListener("click", () => {
+          row.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", String(o === b)));
+          onPick(v);
+        });
+        row.appendChild(b);
+      });
+      return row;
+    };
+
+    const head = add("div", "set-head");
     const back = document.createElement("button");
     back.className = "link";
     back.textContent = "‹ Back";
@@ -327,68 +368,43 @@ export function openSettings({ settings, editable, note, onChange, onBack }) {
     const h = document.createElement("h3");
     h.textContent = "Settings";
     head.append(back, h);
-    body.appendChild(head);
-    if (note) {
-      const p = document.createElement("p");
-      p.className = "stats";
-      p.textContent = note;
-      body.appendChild(p);
+
+    if (learning) {
+      add("h4", null, "Learning mode");
+      body.appendChild(segmented([[false, "Off"], [true, "On"]], learning.on, learning.onToggle, "Learning mode", true));
+      learning.lines.forEach(line => add("p", "stats set-note", line));
+      if (learning.onReset) add("button", "link", "Reset learning progress").addEventListener("click", learning.onReset);
     }
+
+    if (note) add("p", `stats set-note${learning ? " sep" : ""}`, note);
     const s = structuredClone(settings);
     const change = mutate => { if (!editable) return; mutate(s); onChange(structuredClone(s)); };
 
-    const section = title => {
-      const t = document.createElement("h4");
-      t.textContent = title;
-      body.appendChild(t);
-    };
-    const segmented = (options, value, set, label) => {
-      const row = document.createElement("div");
-      row.className = "seg";
-      row.setAttribute("role", "radiogroup");
-      if (label) row.setAttribute("aria-label", label);
-      options.forEach(([v, text]) => {
-        const b = document.createElement("button");
-        b.textContent = text;
-        b.setAttribute("role", "radio");
-        b.setAttribute("aria-checked", String(v === value));
-        b.disabled = !editable;
-        b.addEventListener("click", () => {
-          change(x => set(x, v));
-          row.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", String(o === b)));
-        });
-        row.appendChild(b);
-      });
-      return row;
-    };
-
-    section("Preset");
-    const presetRow = segmented(Object.entries(PRESETS).map(([k, p]) => [k, p.label]), s.preset, (x, v) => {
-      x.preset = v; x.topics = { ...PRESETS[v].topics };
-      openSettings({ settings: x, editable, note, onChange, onBack });      // redraw the topic rows
+    add("h4", null, "Preset");
+    const presetRow = segmented(Object.entries(PRESETS).map(([k, p]) => [k, p.label]), s.preset, v => {
+      change(x => { x.preset = v; x.topics = { ...PRESETS[v].topics }; });
+      openSettings({ ...opts, settings: s });                 // redraw the topic rows
     }, "Preset");
     body.appendChild(presetRow);
 
-    section("Difficulty");
-    body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty, (x, v) => { x.difficulty = v; }, "Difficulty"));
+    add("h4", null, "Difficulty");
+    body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty,
+      v => change(x => { x.difficulty = v; }), "Difficulty"));
 
-    section("Topics");
+    add("h4", null, "Topics");
     TOPICS.forEach(([k, name]) => {
-      const row = document.createElement("div");
-      row.className = "topic-row";
+      const row = add("div", "topic-row");
       const lab = document.createElement("span");
       lab.textContent = name;
-      row.append(lab, segmented(WEIGHTS, s.topics[k], (x, v) => {
-        x.topics[k] = v; x.preset = "custom";
+      row.append(lab, segmented(WEIGHTS, s.topics[k], v => {
+        change(x => { x.topics[k] = v; x.preset = "custom"; });
         presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
       }, name));
-      body.appendChild(row);
     });
 
     for (const [cat, title] of [["country", "Countries from"], ["commodity", "Commodities from"]]) {
-      section(title);
-      const chips = document.createElement("div");
-      chips.className = "chips";
+      add("h4", null, title);
+      const chips = add("div", "chips");
       GROUPS[cat].forEach(([k, name]) => {
         const b = document.createElement("button");
         b.className = "chip";
@@ -397,11 +413,10 @@ export function openSettings({ settings, editable, note, onChange, onBack }) {
         b.disabled = !editable;
         b.addEventListener("click", () => {
           change(x => { x.off = x.off.includes(k) ? x.off.filter(o => o !== k) : [...x.off, k]; });
-          b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+          b.setAttribute("aria-pressed", String(!s.off.includes(k)));
         });
         chips.appendChild(b);
       });
-      body.appendChild(chips);
     }
   });
 }

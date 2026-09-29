@@ -5,6 +5,14 @@ const DIFF_WEIGHT = { easy: [3, 1, 0.2], mixed: [1, 1, 1], hard: [0.3, 1, 2.5] }
 const MAX_HERRINGS = 2;        // words on a board that also fit another crate on it
 const SAME_TOPIC_DAMPING = 0.45;
 const RECENT_DAMPING = 0.25;
+// Learning mode. A missed word comes back away from the crates it was missed next to, and with
+// companions other than the ones it was missed with.
+const NEIGHBOUR_DAMPING = 0.15;
+const MATE_DAMPING = 0.05;
+// Word weights: seen without a clear signal; known (bottom of the deck); missed but not yet due
+// (held back until its turn); missed and due (welcome anywhere).
+const LEARN_WEIGHT = { n: 0.5, k: 0.04 };
+const NOT_YET = 0, DUE = 2;
 
 export function wordWeight(word, settings) {
   const topic = Math.max(...word.topics.map(t => settings.topics[t] ?? 1));
@@ -29,23 +37,65 @@ function eligibleAnswers(cat, settings) {
   });
 }
 
-function sampleWords(ai, settings, banned, recentW, rng) {
-  const cands = BANK[ai].words.map((w, i) => i)
-    .filter(i => wordWeight(BANK[ai].words[i], settings) > 0 && !banned.has(norm(BANK[ai].words[i].w)));
-  const weights = cands.map(i => wordWeight(BANK[ai].words[i], settings) * (recentW.has(wordKey(ai, i)) ? RECENT_DAMPING : 1));
-  const out = [];
+/** Four words for one crate: any forced ones first, the rest drawn by weight, spreading topics. */
+function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1 } = {}) {
+  const words = BANK[ai].words;
+  if (forced.some(i => banned.has(norm(words[i].w)))) return null;
+  const out = [...forced], cands = [], weights = [];
+  words.forEach((w, i) => {
+    const wt = out.includes(i) || banned.has(norm(w.w)) ? 0 : wordWeight(w, settings) * mult(i);
+    if (wt > 0) { cands.push(i); weights.push(wt); }
+  });
+  const spread = i => cands.forEach((j, n) => {
+    if (words[j].topics.some(t => words[i].topics.includes(t))) weights[n] *= SAME_TOPIC_DAMPING;
+  });
+  out.forEach(spread);
   while (out.length < 4) {
     const k = pick(cands, weights, rng);
     if (k < 0) return null;
     const i = cands[k];
     out.push(i);
-    const topics = BANK[ai].words[i].topics;
     cands.splice(k, 1); weights.splice(k, 1);
-    cands.forEach((j, n) => {
-      if (BANK[ai].words[j].topics.some(t => topics.includes(t))) weights[n] *= SAME_TOPIC_DAMPING;
-    });
+    spread(i);
   }
   return out;
+}
+
+function learnWeight(learn, a, i) {
+  const c = learn?.cards[wordKey(a, i)];
+  if (!c) return 1;
+  if (c.s === "w") return c.d <= learn.t ? DUE : NOT_YET;
+  return LEARN_WEIGHT[c.s] ?? 1;
+}
+
+/** Missed words that are due, grouped by answer, most overdue first: the crates this board revisits. */
+function reviewPlan(pool, settings, learn, rng) {
+  const due = new Map();
+  for (const [key, c] of Object.entries(learn.cards)) {
+    if (c.s !== "w" || c.d > learn.t) continue;
+    const [a, i] = key.split(".").map(Number);
+    const ans = BANK[a];
+    if (!ans?.words[i] || (pool !== "mixed" && ans.cat !== pool) || settings.off.includes(ans.group)
+      || !(wordWeight(ans.words[i], settings) > 0)) continue;
+    if (!due.has(a)) due.set(a, []);
+    due.get(a).push({ i, d: c.d });
+  }
+  if (!due.size) return null;
+  const order = shuffled([...due], rng).map(([a, list]) => ({ a, list: list.sort((x, y) => x.d - y.d) }))
+    .sort((x, y) => x.list[0].d - y.list[0].d);
+  const cat = BANK[order[0].a].cat;
+  const mine = order.filter(o => BANK[o.a].cat === cat);
+  const backlog = mine.reduce((n, o) => n + o.list.length, 0);
+  const room = backlog >= 12 ? 4 : backlog >= 7 ? 3 : 2;
+  // Words missed on the same board come back on different boards, so they don't meet again.
+  const neighbours = o => new Set(o.list.flatMap(x => learn.cards[wordKey(o.a, x.i)].c || []));
+  const reviews = [];
+  for (const o of mine) {
+    if (reviews.length === room) break;
+    if (reviews.some(r => neighbours(r).has(o.a) || neighbours(o).has(r.a))) continue;
+    reviews.push(o);
+  }
+  return { cat, reviews };
 }
 
 /** Number of ways to fill four crates of four, given each word's own crate plus its also-fits. */
@@ -71,24 +121,46 @@ function withLevels(groups) {
   return groups.map((g, i) => ({ ...g, level: order.indexOf(i) }));
 }
 
-export function generate({ pool, settings, recentA = [], recentW = [], rng = Math.random }) {
+/**
+ * learn (optional) = { t, cards } from learn.js. With it, due missed words come back in crates of their
+ * own answer next to companions they weren't missed with, on boards without their old neighbours;
+ * unseen words are preferred and known ones sink to the bottom.
+ */
+export function generate({ pool, settings, recentA = [], recentW = [], rng = Math.random, learn = null }) {
   const recentAs = new Set(recentA), recentWs = new Set(recentW);
-  const cats = pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
+  const plan = learn && reviewPlan(pool, settings, learn, rng);
+  const cats = plan ? [plan.cat] : pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
+  const unseenShare = a => BANK[a].words.filter((w, i) => !learn.cards[wordKey(a, i)]).length / BANK[a].words.length;
   for (const cat of cats) {
     const answers = eligibleAnswers(cat, settings);
     if (answers.length < 4) continue;
     for (let attempt = 0; attempt < 400; attempt++) {
-      const chosen = [];
-      const pool4 = answers.slice(), weights = pool4.map(a => (recentAs.has(a) ? RECENT_DAMPING : 1));
+      // If the reviews won't fit on a valid board, revisit fewer of them at once.
+      const reviews = plan ? plan.reviews.slice(0, Math.max(0, plan.reviews.length - Math.floor(attempt / 120))) : [];
+      const chosen = reviews.map(r => r.a);
+      const oldNeighbours = new Set(reviews.flatMap(r => r.list.flatMap(x => learn.cards[wordKey(r.a, x.i)].c || [])));
+      const rest = answers.filter(a => !chosen.includes(a));
+      const weights = rest.map(a => (recentAs.has(a) ? RECENT_DAMPING : 1)
+        * (oldNeighbours.has(a) ? NEIGHBOUR_DAMPING : 1) * (learn ? 0.4 + unseenShare(a) : 1));
       while (chosen.length < 4) {
-        const k = pick(pool4, weights, rng);
-        chosen.push(pool4[k]); pool4.splice(k, 1); weights.splice(k, 1);
+        const k = pick(rest, weights, rng);
+        chosen.push(rest[k]); rest.splice(k, 1); weights.splice(k, 1);
       }
       // A tile must never be the name of another crate on the board.
       const banned = new Set(chosen.flatMap(a => [BANK[a].name, ...BANK[a].aliases].map(norm)));
       const groups = [];
       for (const a of chosen) {
-        const w = sampleWords(a, settings, banned, recentWs, rng);
+        const mult = i => learnWeight(learn, a, i) * (recentWs.has(wordKey(a, i)) ? RECENT_DAMPING : 1);
+        const review = reviews.find(r => r.a === a);
+        let w;
+        if (review) {
+          // at most two missed words at a time, so there are always new companions beside them
+          const forced = review.list.slice(0, 2).map(x => x.i);
+          const oldMates = new Set(forced.flatMap(i => learn.cards[wordKey(a, i)].m || []));
+          w = sampleWords(a, settings, banned, rng, { forced, mult: i => mult(i) * (oldMates.has(i) ? MATE_DAMPING : 1) });
+        } else {
+          w = sampleWords(a, settings, banned, rng, { mult });
+        }
         if (!w) break;
         w.forEach(i => banned.add(norm(BANK[a].words[i].w)));
         groups.push({ a, w });
@@ -100,7 +172,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
       return { cat, groups: withLevels(groups) };
     }
   }
-  return null;
+  return learn ? generate({ pool, settings, recentA, recentW, rng }) : null;
 }
 
 // ---------- board codes: "a.w.w.w.w-…" in base36, positions in the append-only bank ----------
