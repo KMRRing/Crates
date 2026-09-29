@@ -274,7 +274,7 @@ function renderFeed(vm) {
     li.innerHTML = `<span class="g-who"></span><span class="g-res"></span><span class="g-words"></span>`;
     li.querySelector(".g-who").textContent = g.by;
     li.querySelector(".g-who").classList.add(`s${g.slot}`);
-    li.querySelector(".g-res").textContent = RESULT_LABEL[g.res];
+    li.querySelector(".g-res").textContent = RESULT_LABEL[g.res] + (g.note ? ` · ${g.note}` : "");
     li.querySelector(".g-words").textContent = g.words;
     el.feed.appendChild(li);
   });

@@ -31,7 +31,7 @@ Menu → Your other devices → Sync this run. The run gets an 8-letter code and
 Menu → Play together or Play hidden → send the link. Your partner opens it and joins. The team shares 4 lives and 4 clues per board.
 
 One rule runs through both modes: you never see the result of your own action, your partner does.
-- Your wrong guess: you see a life go, your partner sees whether it was one away.
+- Your wrong guess: you see a life go, your partner sees whether it was one away (in Hidden, also whose pick is the odd one out). Everyone keeps their picks after a wrong guess.
 - Your clue (Together): your partner reads the explanation and sees the crate colour. In Hidden, clues work differently (below).
 - A crate you find: your partner names it.
 

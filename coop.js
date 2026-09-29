@@ -8,7 +8,7 @@
 // that a clue was used on it. The clue's ? takes the crate colour. Sealed tiles carry no labels: you
 // point them out to each other.
 import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings } from "./core.js";
-import { generate, generateSplit, encode, decode, describe, hintFor, classify } from "./gen.js";
+import { generate, generateSplit, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { getSync } from "./net.js";
 import * as view from "./view.js";
 
@@ -126,6 +126,19 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
   }
 
   // ---------- view model ----------
+  /**
+   * Hidden mode, a "one away" your partner made: whose pick is the odd one out. Shown to the player who
+   * didn't submit (the submitter only learns it was wrong).
+   */
+  function oddPick(g) {
+    if (!hidden() || g.res !== "one") return null;
+    const { board } = current();
+    const crates = g.words.map(w => groupIndexOf(board, w));
+    const odd = g.words.find((w, k) => crates.filter(x => x === crates[k]).length === 1);
+    const owner = Object.keys(room.players).find(id => room.players[id].slot === current().side.get(odd));
+    return owner === uid ? "one of your picks is off" : `one of ${nameOf(owner)}'s picks is off`;
+  }
+
   /** A guess as you may see it: your words (and solved ones) by name, your partner's sealed ones as a count. */
   function listWords(words, shown, partner) {
     const open = words.filter(shown), sealed = words.length - open.length;
@@ -207,6 +220,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
         by: nameOf(g.by), slot: slotOf(g.by),
         words: listWords(g.words, shown, partner),
         res: g.by === uid && g.res !== "right" ? "hidden" : g.res,
+        note: g.by === uid ? null : oddPick(g),
       })),
       done: b.done,
       resultLine: b.won ? `Solved together · ${pts} of 8` : `Out of lives · ${pts} of 8`,
@@ -222,7 +236,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     b.guesses.slice(seen.guesses).forEach(g => {
       if (g.res === "right") return;
       if (g.by === uid) view.toast(partner ? `Wrong. ${nameOf(partner)} saw how close it was.` : "Wrong", 2600);
-      else view.toast(`${nameOf(g.by)}: ${RESULT_LABEL[g.res].toLowerCase()}`, 2400);
+      else view.toast([`${nameOf(g.by)}: ${RESULT_LABEL[g.res].toLowerCase()}`, oddPick(g)].filter(Boolean).join(", "), 2800);
     });
     b.found.slice(seen.found).forEach(f => {
       const ans = info[f.g].answer, who = f.namer === uid ? "You" : nameOf(f.namer);
@@ -370,6 +384,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
       const words = [...mySel, ...theirs];
       if (words.length !== 4) return;
       const key = wordsKey(words), n = b.n, { board, info } = current();
+      const right = classify(board, words).res === "right";
       const r = await change((cur, why) => {
         const bb = cur.board;
         if (bb.n !== n || bb.done || bb.lives <= 0) return false;
@@ -393,12 +408,12 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
             cur.tally.maps += 1; cur.tally.points += boardScore(bb);
           }
         }
-        for (const pl of Object.values(cur.players)) pl.sel = pl.sel.filter(w => !words.includes(w));
-        cur.players[uid].sel = [];
+        // a found crate's tiles leave both selections; after a wrong guess everyone keeps their picks
+        if (c.res === "right") for (const pl of Object.values(cur.players)) pl.sel = pl.sel.filter(w => !words.includes(w));
         return cur;
       });
       if (r.note) { view.toast(r.note, 1800); return; }
-      if (r.committed) { mySel.clear(); draw(); }
+      if (r.committed && right) { mySel.clear(); draw(); }
     },
     async name(guess) {
       const n = room.board.n, { board } = current();
