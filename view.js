@@ -1,5 +1,5 @@
 // Everything that touches the page. Controllers hand render() a plain view model.
-import { NOUN, PLURAL, RESULT_LABEL } from "./core.js";
+import { NOUN, PLURAL, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS } from "./core.js";
 
 const $ = id => document.getElementById(id);
 const el = {
@@ -18,7 +18,7 @@ const el = {
 let handlers = {};
 let current = null;          // last view model
 let clueWord = null;         // word whose clue is on show
-let landedKey = "";          // puzzle+solved count, to animate only new crates
+let landedKey = "";          // board + solved count, to animate only new crates
 let nameOpenFor = null;      // pending key the naming sheet is open for
 
 export function bind(h) { handlers = h; }
@@ -70,13 +70,12 @@ export function showClue(word, text) {
 // ---------- render ----------
 export function render(vm) {
   current = vm;
-  const p = vm.puzzle;
   document.getElementById("app").classList.toggle("coop", vm.mode === "coop");
 
-  el.pNum.textContent = vm.idx + 1;
+  el.pNum.textContent = vm.label;
   renderPool(vm);
-  el.brief.textContent = `Sort the sixteen into four crates and name the ${NOUN[p.category]} behind each.`;
-  el.nameLabel.textContent = `Which ${NOUN[p.category]} links these four?`;
+  el.brief.textContent = `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
+  el.nameLabel.textContent = `Which ${NOUN[vm.category]} links these four?`;
   renderPlayers(vm);
   el.status.textContent = vm.status || "";
   el.status.hidden = !vm.status;
@@ -107,7 +106,7 @@ function renderPool(vm) {
   const labels = { mixed: "Mixed", country: PLURAL.country, commodity: PLURAL.commodity };
   for (const opt of el.pool.options) {
     opt.textContent = opt.value === "mixed" && vm.pool === "mixed"
-      ? `Mixed: ${PLURAL[vm.puzzle.category]}` : labels[opt.value];
+      ? `Mixed: ${PLURAL[vm.category]}` : labels[opt.value];
   }
   el.pool.value = vm.pool;
 }
@@ -153,23 +152,36 @@ function renderPlayers(vm) {
 }
 
 function renderSolved(vm) {
-  const key = `${vm.idx}:${vm.solved.length}`;
-  const animate = landedKey && landedKey !== key && landedKey.split(":")[0] === String(vm.idx);
+  const key = `${vm.boardKey}:${vm.solved.length}`;
+  const animate = landedKey && landedKey !== key && landedKey.split(":")[0] === String(vm.boardKey);
   landedKey = key;
   el.solved.innerHTML = "";
   vm.solved.forEach((r, k) => {
-    const gr = vm.puzzle.groups[r.g];
+    const gr = vm.groupsInfo[r.g];
     const b = document.createElement("button");
     b.className = `crate l${gr.level}${r.missed ? " missed" : ""}`;
     if (animate && k === vm.solved.length - 1 && !r.missed) b.classList.add("land");
     let meta = r.missed ? "not found" : r.named ? "named" : "half: " + (r.guess ? `said ${r.guess}` : "skipped");
     if (r.by && !r.missed) meta = `${r.by}, ${meta}`;
     b.innerHTML = `<div><span class="crate-name"></span><span class="crate-meta"></span></div>
-      <div class="crate-words"></div><p class="crate-note"></p>`;
+      <div class="crate-words"></div><div class="crate-note"></div>`;
     b.querySelector(".crate-name").textContent = gr.answer;
     b.querySelector(".crate-meta").textContent = meta;
     b.querySelector(".crate-words").textContent = gr.words.join(", ");
-    b.querySelector(".crate-note").textContent = gr.note;
+    const note = b.querySelector(".crate-note");
+    gr.details.forEach(([w, hint]) => {
+      const line = document.createElement("p");
+      line.innerHTML = "<b></b> <span></span>";
+      line.firstChild.textContent = `${w}:`;
+      line.lastChild.textContent = hint;
+      note.appendChild(line);
+    });
+    gr.herrings.forEach(h => {
+      const line = document.createElement("p");
+      line.className = "herring";
+      line.textContent = `Red herring: ${h}.`;
+      note.appendChild(line);
+    });
     b.setAttribute("aria-expanded", "false");
     b.addEventListener("click", () => b.setAttribute("aria-expanded", b.classList.toggle("open")));
     el.solved.appendChild(b);
@@ -243,10 +255,10 @@ function renderFeed(vm) {
 }
 
 function syncNameSheet(vm) {
-  const want = vm.pending && vm.pending.mine ? `${vm.idx}:${vm.pending.g}` : null;
+  const want = vm.pending && vm.pending.mine ? `${vm.boardKey}:${vm.pending.g}` : null;
   if (want && nameOpenFor !== want) {
     nameOpenFor = want;
-    el.nameWords.textContent = vm.puzzle.groups[vm.pending.g].words.join(", ");
+    el.nameWords.textContent = vm.groupsInfo[vm.pending.g].words.join(", ");
     el.nameInput.value = "";
     if (!el.nameDlg.open) el.nameDlg.showModal();
     setTimeout(() => el.nameInput.focus(), 50);
@@ -279,5 +291,97 @@ export function askWho(defaultName = "") {
     el.whoForm.addEventListener("submit", done);
     el.whoDlg.showModal();
     setTimeout(() => el.whoInput.focus(), 50);
+  });
+}
+
+// ---------- settings sheet ----------
+/** Renders the settings editor into the menu sheet. onChange gets a fresh settings object. */
+export function openSettings({ settings, editable, note, onChange, onBack }) {
+  openMenu((body) => {
+    const head = document.createElement("div");
+    head.className = "set-head";
+    const back = document.createElement("button");
+    back.className = "link";
+    back.textContent = "‹ Back";
+    back.addEventListener("click", onBack);
+    const h = document.createElement("h3");
+    h.textContent = "Settings";
+    head.append(back, h);
+    body.appendChild(head);
+    if (note) {
+      const p = document.createElement("p");
+      p.className = "stats";
+      p.textContent = note;
+      body.appendChild(p);
+    }
+    const s = structuredClone(settings);
+    const change = mutate => { if (!editable) return; mutate(s); onChange(structuredClone(s)); };
+
+    const section = title => {
+      const t = document.createElement("h4");
+      t.textContent = title;
+      body.appendChild(t);
+    };
+    const segmented = (options, value, set, label) => {
+      const row = document.createElement("div");
+      row.className = "seg";
+      row.setAttribute("role", "radiogroup");
+      if (label) row.setAttribute("aria-label", label);
+      options.forEach(([v, text]) => {
+        const b = document.createElement("button");
+        b.textContent = text;
+        b.setAttribute("role", "radio");
+        b.setAttribute("aria-checked", String(v === value));
+        b.disabled = !editable;
+        b.addEventListener("click", () => {
+          change(x => set(x, v));
+          row.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", String(o === b)));
+        });
+        row.appendChild(b);
+      });
+      return row;
+    };
+
+    section("Preset");
+    const presetRow = segmented(Object.entries(PRESETS).map(([k, p]) => [k, p.label]), s.preset, (x, v) => {
+      x.preset = v; x.topics = { ...PRESETS[v].topics };
+      openSettings({ settings: x, editable, note, onChange, onBack });      // redraw the topic rows
+    }, "Preset");
+    body.appendChild(presetRow);
+
+    section("Difficulty");
+    body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty, (x, v) => { x.difficulty = v; }, "Difficulty"));
+
+    section("Topics");
+    TOPICS.forEach(([k, name]) => {
+      const row = document.createElement("div");
+      row.className = "topic-row";
+      const lab = document.createElement("span");
+      lab.textContent = name;
+      row.append(lab, segmented(WEIGHTS, s.topics[k], (x, v) => {
+        x.topics[k] = v; x.preset = "custom";
+        presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
+      }, name));
+      body.appendChild(row);
+    });
+
+    for (const [cat, title] of [["country", "Countries from"], ["commodity", "Commodities from"]]) {
+      section(title);
+      const chips = document.createElement("div");
+      chips.className = "chips";
+      GROUPS[cat].forEach(([k, name]) => {
+        const b = document.createElement("button");
+        b.className = "chip";
+        b.textContent = name;
+        b.setAttribute("aria-pressed", String(!s.off.includes(k)));
+        b.disabled = !editable;
+        b.addEventListener("click", () => {
+          change(x => { x.off = x.off.includes(k) ? x.off.filter(o => o !== k) : [...x.off, k]; });
+          b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+        });
+        chips.appendChild(b);
+      });
+      body.appendChild(chips);
+    }
   });
 }

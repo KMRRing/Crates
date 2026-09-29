@@ -41,24 +41,30 @@ button, input { font: inherit; color: inherit; }
 
 #app { max-width: 34rem; margin: 0 auto; padding: 1.1rem 1rem 2rem; }
 
-.top { display: flex; align-items: center; justify-content: space-between; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .mark {
   display: flex; align-items: center; gap: .55rem; margin: 0;
   font-size: 1.75rem; font-weight: 800; font-stretch: 100%; letter-spacing: -.02em; line-height: 1;
 }
 .mark-icon { width: 1.35rem; height: 1.35rem; }
-.top-right { display: flex; align-items: center; gap: .45rem; }
+.top-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
 .pool {
   appearance: none; -webkit-appearance: none; min-height: 36px; border: 0; border-radius: 6px; cursor: pointer;
   padding: .3rem 1.9rem .3rem .75rem; background-color: var(--ink); color: var(--yard);
-  font-weight: 700; font-stretch: 87.5%; max-width: 12.5rem;
+  font-weight: 700; font-stretch: 87.5%; max-width: 12.5rem; min-width: 0; text-overflow: ellipsis; white-space: nowrap;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
   background-size: 5px 5px; background-repeat: no-repeat;
 }
 .pick {
   background: none; border: 1.5px solid var(--ink-soft); border-radius: 6px;
-  padding: .3rem .7rem; font-weight: 600; cursor: pointer; min-height: 36px;
+  padding: .3rem .7rem; font-weight: 600; cursor: pointer; min-height: 36px; white-space: nowrap; flex-shrink: 0;
+}
+@media (max-width: 400px) {
+  .mark { font-size: 1.5rem; gap: .45rem; }
+  .mark-icon { width: 1.15rem; height: 1.15rem; }
+  .pool { font-size: .9rem; padding-right: 1.7rem; }
+  .pick { padding: .3rem .55rem; }
 }
 
 .brief { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: 1rem 0 1rem; }
@@ -144,6 +150,8 @@ button, input { font: inherit; color: inherit; }
 .crate-meta { font-size: .82rem; font-weight: 600; opacity: .8; margin-left: .5rem; }
 .crate-words { font-weight: 550; font-stretch: 87.5%; margin-top: .1rem; }
 .crate-note { margin: .45rem 0 0; font-size: .93rem; display: none; }
+.crate-note p { margin: .15rem 0; }
+.crate-note .herring { margin-top: .4rem; font-style: italic; }
 .crate.open .crate-note { display: block; }
 .crate.land { animation: land .3s ease-out; }
 @keyframes land { from { transform: scaleY(.7); opacity: .4; } }
@@ -182,6 +190,28 @@ dialog.sheet {
   width: 100%; max-width: 34rem; margin: auto auto 0; background: var(--sheet); color: var(--ink);
 }
 dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
+#menuDlg { max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; }
+.set-head { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .4rem; }
+.set-head h3 { margin: 0; font-size: 1.25rem; font-weight: 800; }
+.sheet h4 { margin: 1rem 0 .4rem; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; }
+.seg button {
+  background: none; border: 0; border-left: 1.5px solid var(--ink); color: var(--ink);
+  font: inherit; font-size: .85rem; font-weight: 600; padding: .38rem .5rem; min-width: 2.9rem; cursor: pointer; white-space: nowrap;
+}
+.seg button:first-child { border-left: 0; }
+.seg button[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+.seg button:disabled { cursor: default; }
+.topic-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .22rem 0; }
+.topic-row span { font-size: .95rem; flex: 1; min-width: 0; line-height: 1.2; }
+.topic-row .seg { flex-shrink: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip {
+  font: inherit; font-size: .85rem; font-weight: 600; padding: .35rem .7rem; border-radius: 999px; cursor: pointer;
+  border: 1.5px solid var(--ink-soft); background: none; color: var(--ink-soft);
+}
+.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--yard); }
+.chip:disabled { cursor: default; }
 .sheet-words { font-weight: 700; margin: 0 0 .8rem; }
 .sheet label { display: block; color: var(--ink-soft); margin-bottom: .35rem; }
 .sheet input {

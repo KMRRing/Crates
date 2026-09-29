@@ -1,10 +1,58 @@
-// Puzzle data and the rules shared by solo and together play.
-export const PUZZLES = JSON.parse(new TextDecoder().decode(
-  Uint8Array.from(atob(window.CRATES_DATA), c => c.charCodeAt(0))));
+// Word bank, topics, settings and the rules shared by solo and together play.
+const RAW = JSON.parse(new TextDecoder().decode(
+  Uint8Array.from(atob(window.CRATES_BANK), c => c.charCodeAt(0))));
+
+/** BANK[i] = { name, cat, group, aliases, words: [{ w, hint, topics, d, alt }] } — indices are stable. */
+export const BANK = RAW.map(a => ({
+  name: a.n, cat: a.c, group: a.g, aliases: a.a,
+  words: a.w.map(([w, hint, topics, d, alt]) => ({ w, hint, topics, d, alt })),
+}));
 
 export const NOUN = { country: "country", commodity: "commodity" };
 export const PLURAL = { country: "Countries", commodity: "Commodities" };
 export const SQUARES = ["🟨", "🟩", "🟦", "🟥"];
+export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss" };
+
+export const TOPICS = [
+  ["geo", "Geography"], ["nat", "Nature"], ["nrg", "Energy"], ["met", "Metals & mining"],
+  ["agr", "Agriculture"], ["food", "Food & drink"], ["mkt", "Markets & money"], ["trade", "Trade & shipping"],
+  ["co", "Companies & brands"], ["pol", "Policy & institutions"], ["hist", "History"], ["cult", "Culture & arts"],
+  ["sport", "Sport"], ["ppl", "People"], ["sci", "Science & tech"], ["lang", "Language & names"],
+];
+export const WEIGHTS = [[0, "Off"], [0.5, "Less"], [1, "Normal"], [2, "More"]];
+export const GROUPS = {
+  country: [["eu", "Europe"], ["me", "Middle East & N. Africa"], ["af", "Sub-Saharan Africa"], ["asia", "Asia & Pacific"], ["am", "Americas"]],
+  commodity: [["nrg", "Energy"], ["bio", "Biofuels"], ["met", "Metals & minerals"], ["grain", "Grains & oilseeds"], ["soft", "Softs & livestock"], ["chem", "Chemicals"]],
+};
+
+const all = w => Object.fromEntries(TOPICS.map(([k]) => [k, w]));
+export const PRESETS = {
+  trader: { label: "Trader", topics: { ...all(0.5), nrg: 2, met: 2, agr: 2, mkt: 2, trade: 2, co: 2, pol: 1, sci: 1, geo: 1, lang: 1 } },
+  balanced: { label: "Balanced", topics: all(1) },
+  culture: { label: "Culture night", topics: { ...all(1), cult: 2, food: 2, sport: 2, ppl: 2, hist: 2, nat: 2, mkt: 0.5, nrg: 0.5, met: 0.5, trade: 0.5, sci: 0.5, pol: 0.5 } },
+};
+
+export function defaultSettings() {
+  return { preset: "balanced", topics: { ...PRESETS.balanced.topics }, difficulty: "mixed", off: [] };
+}
+
+/** Accepts anything (old saves, room data) and returns a complete, valid settings object. */
+export function cleanSettings(s) {
+  const d = defaultSettings();
+  if (!s || typeof s !== "object") return d;
+  const topics = { ...d.topics };
+  for (const [k] of TOPICS) {
+    const v = Number(s.topics?.[k]);
+    if (WEIGHTS.some(([w]) => w === v)) topics[k] = v;
+  }
+  const valid = new Set(Object.values(GROUPS).flat().map(([k]) => k));
+  return {
+    preset: PRESETS[s.preset] ? s.preset : "custom",
+    topics,
+    difficulty: ["easy", "mixed", "hard"].includes(s.difficulty) ? s.difficulty : "mixed",
+    off: arr(s.off).filter(k => valid.has(k)),
+  };
+}
 
 /** "countries" / "commodity" / "mixed" (any casing or plural) → pool id, else null. */
 export function parsePool(s) {
@@ -15,8 +63,6 @@ export function parsePool(s) {
   return null;
 }
 export const POOL_PARAM = { country: "countries", commodity: "commodities", mixed: "mixed" };
-export const inPool = (i, pool) => pool === "mixed" || PUZZLES[i].category === pool;
-export const poolIndices = pool => PUZZLES.map((_, i) => i).filter(i => inPool(i, pool));
 
 export const norm = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().replace(/^the /, "");
@@ -35,42 +81,26 @@ function editDistance(a, b) {
 }
 
 /** Accepts the answer or an alias, allowing a typo or two on longer names. */
-export function nameMatches(guess, group) {
+export function nameMatches(guess, answer) {
   const g = norm(guess || "");
   if (!g) return false;
-  return [group.answer, ...group.aliases].map(norm).some(a => {
+  return [answer.name, ...answer.aliases].map(norm).some(a => {
     if (a === g) return true;
     const slack = a.length >= 9 ? 2 : a.length >= 5 ? 1 : 0;
     return editDistance(a, g) <= slack;
   });
 }
 
-export function shuffled(list) {
+export function shuffled(list, rng = Math.random) {
   const a = list.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
-export const groupOf = (p, w) => p.groups.findIndex(gr => gr.words.includes(w));
-export const clueFor = (p, w) => { const gr = p.groups[groupOf(p, w)]; return gr.clues[gr.words.indexOf(w)]; };
 export const wordsKey = words => words.slice().sort().join("|");
-
-/** right = all four in one crate; one = three of four; miss = anything else. */
-export function classify(p, words) {
-  const counts = {};
-  words.forEach(w => { const g = groupOf(p, w); counts[g] = (counts[g] || 0) + 1; });
-  const best = Math.max(...Object.values(counts));
-  const g = best === 4 ? Number(Object.keys(counts)[0]) : null;
-  return {
-    res: best === 4 ? "right" : best === 3 ? "one" : "miss",
-    g,
-    lv: words.map(w => p.groups[groupOf(p, w)].level),
-  };
-}
-export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss" };
 
 /** Realtime Database drops empty arrays and may hand arrays back as keyed objects. */
 export function arr(x) {
