@@ -272,6 +272,7 @@ function syncNameSheet(vm) {
 export function openMenu(build) {
   el.menuBody.innerHTML = "";
   build(el.menuBody, () => el.menuDlg.close());
+  el.menuBody.scrollTop = 0;
   if (!el.menuDlg.open) el.menuDlg.showModal();
 }
 export const closeMenu = () => el.menuDlg.open && el.menuDlg.close();

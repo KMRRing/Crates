@@ -190,7 +190,10 @@ dialog.sheet {
   width: 100%; max-width: 34rem; margin: auto auto 0; background: var(--sheet); color: var(--ink);
 }
 dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
-#menuDlg { max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; }
+/* Header stays put, body scrolls. svh = height with Safari's bars showing (plain vh assumes they're hidden). */
+#menuDlg[open] { display: flex; flex-direction: column; overflow: hidden; max-height: 88vh; max-height: 88svh; }
+#menuDlg .pick-head { flex-shrink: 0; padding-bottom: .4rem; }
+#menuBody { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .set-head { display: flex; align-items: baseline; gap: 1rem; margin-bottom: .4rem; }
 .set-head h3 { margin: 0; font-size: 1.25rem; font-weight: 800; }
 .sheet h4 { margin: 1rem 0 .4rem; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
@@ -220,7 +223,7 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 }
 .pick-head { display: flex; justify-content: space-between; align-items: center; }
 .pick-head h2 { font-size: 1.4rem; font-weight: 800; margin: 0; letter-spacing: -.01em; }
-.pick-list { list-style: none; padding: 0; margin: 1rem 0; max-height: 55vh; overflow-y: auto; }
+.pick-list { list-style: none; padding: 0; margin: 1rem 0; }
 .pick-list button {
   width: 100%; display: flex; justify-content: space-between; background: none; border: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--ink-soft) 40%, transparent);
