@@ -144,20 +144,14 @@ button, input { font: inherit; color: inherit; }
 .hint.asked span { background: none; border: 1.5px solid currentColor; color: var(--ink-soft); }
 @keyframes ask { to { transform: scale(1.18); } }
 
-/* Hidden mode: your partner's tiles are sealed; every tile carries its A1-D4 label. */
+/* Hidden mode: your partner's tiles are sealed and unlabelled. */
 .tile.sealed {
   background: repeating-linear-gradient(135deg, var(--ply) 0 8px, color-mix(in srgb, var(--ply) 80%, var(--ply-ink)) 8px 9px);
-  color: color-mix(in srgb, var(--ply-ink) 55%, transparent); font-weight: 800; font-stretch: 100%; letter-spacing: .04em;
 }
 .tile.sealed.lv0 { background: var(--c0); color: var(--on-c0); }
 .tile.sealed.lv1 { background: var(--c1); color: var(--on-c); }
 .tile.sealed.lv2 { background: var(--c2); color: var(--on-c); }
 .tile.sealed.lv3 { background: var(--c3); color: var(--on-c); }
-.coord {
-  position: absolute; left: 5px; top: 3px; font-size: 9px; font-weight: 700; letter-spacing: .03em;
-  color: var(--ply-ink); opacity: .55; pointer-events: none;
-}
-.cell.sel .coord { color: var(--yard); }
 
 .clue {
   margin: .8rem 0 0; padding: .6rem .8rem; border-radius: 6px;

@@ -12,8 +12,6 @@ export const NOUN = { country: "country", commodity: "commodity" };
 export const PLURAL = { country: "Countries", commodity: "Commodities" };
 export const SQUARES = ["🟨", "🟩", "🟦", "🟥"];
 export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss", hidden: "Wrong" };
-/** Grid position → "A1".."D4": column letter, row number. */
-export const coordOf = i => "ABCD"[i % 4] + (Math.floor(i / 4) + 1);
 
 export const TOPICS = [
   ["geo", "Geography"], ["nat", "Nature"], ["nrg", "Energy"], ["met", "Metals & mining"],

@@ -215,10 +215,9 @@ const BADGE_LABEL = {
   asked: "Waiting for your partner to reveal it", colour: "Its crate colour, from the clue",
 };
 
-/** cells: [{ id, text, sealed, coord, sel, psel: [{ slot, name }], badge: { kind, level } | null, tint }] */
+/** cells: [{ id, text, sealed, sel, psel: [{ slot, name }], badge: { kind, level } | null, tint }] */
 function renderGrid(vm) {
   el.grid.innerHTML = "";
-  el.grid.classList.toggle("coords", vm.cells.some(c => c.coord));
   vm.cells.forEach(c => {
     const partners = c.psel || [];
     const cell = document.createElement("div");
@@ -228,18 +227,11 @@ function renderGrid(vm) {
     tile.className = "tile" + (c.sealed ? " sealed" : "") + (c.tint != null ? ` lv${c.tint}` : "");
     tile.textContent = c.text;
     tile.setAttribute("aria-pressed", String(!!c.sel));
-    if (c.sealed) tile.setAttribute("aria-label", `Your partner's tile ${c.coord}`);
+    if (c.sealed) tile.setAttribute("aria-label", "Your partner's tile");
     if (partners.length) tile.setAttribute("aria-description", `selected by ${partners.map(x => x.name).join(" and ")}`);
     tile.addEventListener("click", () => handlers.toggle?.(c.id));
     cell.appendChild(tile);
 
-    if (c.coord && !c.sealed) {
-      const k = document.createElement("span");
-      k.className = "coord";
-      k.textContent = c.coord;
-      k.setAttribute("aria-hidden", "true");
-      cell.appendChild(k);
-    }
     if (partners.length) {
       const tag = document.createElement("span");
       tag.className = "ptag";

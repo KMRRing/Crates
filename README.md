@@ -42,7 +42,7 @@ One rule runs through both modes: you never see the result of your own action, y
 
 **Together** — both of you see all sixteen words and each other's picks. Whoever started the game sets the settings.
 
-**Hidden** — each of you sees only your own eight words; your partner's show as sealed tiles labelled by position (A1 is top left: column letter, row number). Every crate holds one to three words from each side, so a crate always needs picks from both of you.
+**Hidden** — each of you sees only your own eight words; your partner's show as blank sealed tiles, and it's up to you to describe which one you mean. Both screens lay the tiles out identically. Every crate holds one to three words from each side, so a crate always needs picks from both of you.
 - Before the first board you each set up your own side: your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared and set by whoever started the game. The board is dealt once you've both pressed Ready.
 - Clues work the other way round: tap a tile that's sealed on your screen to ask about it. Your partner reveals it, reads the explanation out (not the word), and the crate colour appears on your sealed tile.
 

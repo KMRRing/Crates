@@ -5,8 +5,9 @@
 // Your wrong guess shows them how close it was, your clue shows them its description and crate
 // colour, and a crate you find is theirs to name. In hidden mode clues work the other way round:
 // you ask about a tile sealed on your screen, its owner reveals it and reads the description out,
-// and its crate colour appears on your sealed tile.
-import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings, coordOf } from "./core.js";
+// and its crate colour appears on your sealed tile. Sealed tiles carry no labels: you point them out
+// to each other yourselves.
+import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings, defaultSettings } from "./core.js";
 import { generate, generateSplit, encode, decode, describe, hintFor, classify } from "./gen.js";
 import * as view from "./view.js";
 
@@ -113,11 +114,6 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     if (b.done) info.forEach(g => g.words.forEach(w => t.add(w)));
     return t;
   }
-  /** "B2" = column B, row 2 of the grid as it stands now. Both screens lay tiles out identically. */
-  function coord(w) {
-    const taken = takenSet();
-    return coordOf(room.board.order.filter(x => !taken.has(x)).indexOf(w));
-  }
 
   // ---------- transactions ----------
   async function change(fn) {
@@ -134,6 +130,12 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
   }
 
   // ---------- view model ----------
+  /** A guess as you may see it: your words (and solved ones) by name, your partner's sealed ones as a count. */
+  function listWords(words, shown, partner) {
+    const open = words.filter(shown), sealed = words.length - open.length;
+    return [...open, ...(sealed ? [`${sealed} of ${nameOf(partner)}'s`] : [])].join(", ");
+  }
+
   function players() {
     return Object.entries(room.players)
       .map(([id, pl]) => ({ slot: pl.slot, name: pl.name, me: id === uid, online: pl.online, ready: !room.board && pl.ready }))
@@ -178,7 +180,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
       } else if (clue) badge = { kind: "open", level: null };
       else if (ask) badge = { kind: "ask" };
       const psel = partnerSel.includes(w) ? [{ slot: slotOf(partner), name: nameOf(partner) }] : [];
-      return { id: w, text: sealed ? coord(w) : w, sealed, coord: hidden() ? coord(w) : null, sel: mySel.has(w), psel, badge, tint };
+      return { id: w, text: sealed ? "" : w, sealed, sel: mySel.has(w), psel, badge, tint };
     });
 
     let clue = null;
@@ -188,7 +190,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
       if (!hidden() && shownClue.by !== uid) {
         clue = { label: w, text: hintFor(board, w), level: level.get(w), note: `${nameOf(shownClue.by)} opened this clue for you to read.` };
       } else if (hidden() && mine(w)) {
-        clue = { label: `${coord(w)} · ${w}`, text: hintFor(board, w), level: null,
+        clue = { label: w, text: hintFor(board, w), level: null,
           note: `${nameOf(shownClue.by)} asked for this one: read out the description, not the word.` };
       }
     }
@@ -210,7 +212,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
       canSubmit: !!partner && picks === 4 && !b.done && !b.pending && b.lives > 0,
       feed: b.guesses.map(g => ({
         by: nameOf(g.by), slot: slotOf(g.by),
-        words: g.words.map(w => (shown(w) ? w : coord(w))).join(", "),
+        words: listWords(g.words, shown, partner),
         res: g.by === uid && g.res !== "right" ? "hidden" : g.res,
       })),
       done: b.done,
@@ -238,11 +240,11 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
         if (r.by === uid) view.toast(`Clue sent: only ${nameOf(partner)} can read it`, 2400);
         else { clueShown = r.w; view.toast(`${nameOf(r.by)} opened a clue for you`, 2400); }
       } else if (!mine(r.w)) {
-        view.toast(`${nameOf(partner)} revealed ${coord(r.w)}: its colour is on your tile`, 2600);
+        view.toast(`${nameOf(partner)} revealed your clue: its colour is on that tile`, 2600);
       }
     });
     b.asks.filter(a => a.by !== uid && !seen.askKeys.has(a.w))
-      .forEach(a => view.toast(`${nameOf(a.by)} asks for the clue on ${coord(a.w)}`, 2600));
+      .forEach(a => view.toast(`${nameOf(a.by)} asks for a clue on one of your tiles`, 2600));
     if (b.done && !seen.done && !b.won) view.toast("Out of lives", 2500);
   }
 
@@ -285,7 +287,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
   /** Hidden mode: ask for (or stop asking for) the clue on a tile that's sealed on your screen. */
   async function askFor(w) {
     const b = room.board, partner = partnerId();
-    if (b.revealed.some(r => r.w === w)) { view.toast(`Ask ${nameOf(partner)} to read out ${coord(w)}'s clue`, 2500); return; }
+    if (b.revealed.some(r => r.w === w)) { view.toast(`Ask ${nameOf(partner)} to read this clue out`, 2500); return; }
     const asking = b.asks.some(a => a.w === w && a.by === uid);
     if (!asking && b.clues <= 0) { view.toast("No clues left on this board", 1800); return; }
     if (!partner) return;
