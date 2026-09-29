@@ -44,8 +44,8 @@ document.addEventListener("keydown", e => {
   if (e.key === "Enter" && !anyDialogOpen() && !el.submit.disabled) handlers.submit?.();
 });
 let fitTimer;
-window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitTiles, 100); });
-document.fonts?.ready.then(fitTiles);
+window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitText, 100); });
+document.fonts?.ready.then(fitText);
 
 const anyDialogOpen = () => el.nameDlg.open || el.menuDlg.open || el.whoDlg.open;
 
@@ -176,7 +176,7 @@ function renderSolved(vm) {
     if (animate && k === vm.solved.length - 1 && !r.missed) b.classList.add("land");
     let meta = r.missed ? "not found" : r.named ? "named" : "half: " + (r.guess ? `said ${r.guess}` : "skipped");
     if (r.by && !r.missed) meta = `${r.by}, ${meta}`;
-    b.innerHTML = `<div><span class="crate-name"></span><span class="crate-meta"></span></div>
+    b.innerHTML = `<div class="crate-title"><span class="crate-name"></span><span class="crate-meta"></span></div>
       <div class="crate-words"></div><div class="crate-note"></div>`;
     b.querySelector(".crate-name").textContent = gr.answer;
     const flags = {};                       // learning mode: "↻ 2", "✓ 1" beside the crate name
@@ -247,19 +247,22 @@ function renderGrid(vm) {
     }
     el.grid.appendChild(cell);
   });
-  fitTiles();
+  fitText();
 }
 
 // Shrink a tile's text until its longest word fits on one line.
-function fitTiles() {
-  el.grid.querySelectorAll(".tile").forEach(t => {
+/** Shrinks text until it fits its box: tile words, and the one-line word list of each solved crate. */
+function fitText() {
+  const fit = (t, min) => {
     t.style.fontSize = "";
     let size = parseFloat(getComputedStyle(t).fontSize);
-    while (t.scrollWidth > t.clientWidth && size > 10) {
+    while (t.scrollWidth > t.clientWidth && size > min) {
       size -= 0.5;
       t.style.fontSize = size + "px";
     }
-  });
+  };
+  el.grid.querySelectorAll(".tile").forEach(t => fit(t, 10));
+  el.solved.querySelectorAll(".crate-words").forEach(t => fit(t, 8));
 }
 
 function renderFeed(vm) {

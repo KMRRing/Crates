@@ -1,4 +1,6 @@
 :root {
+  --gap: 6px;             /* between tiles, and between solved crates */
+  --tile-ratio: .8;       /* tile height / width */
   --yard: #E4E7E7;
   --ink: #1C2A34;
   --ink-soft: #5A6B77;
@@ -96,8 +98,8 @@ button, input { font: inherit; color: inherit; }
 }
 .clue-dots i.on { background: var(--ink); border-color: var(--ink); color: var(--yard); }
 
-.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.cell { position: relative; aspect-ratio: 1 / .8; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
+.cell { position: relative; aspect-ratio: 1 / var(--tile-ratio); }
 .tile {
   position: absolute; inset: 0; width: 100%; border: 0; border-radius: 6px; cursor: pointer;
   background: var(--ply); color: var(--ply-ink);
@@ -158,19 +160,25 @@ button, input { font: inherit; color: inherit; }
 .clue b { font-weight: 750; }
 .clue small { display: block; margin-top: .3rem; color: var(--ink-soft); font-size: .85rem; }
 
-.solved { display: grid; gap: 6px; margin-bottom: 6px; }
+.solved { display: grid; gap: var(--gap); margin-bottom: var(--gap); container-type: inline-size; }
+/* Closed, a crate is exactly as tall as the row of tiles it replaces; tapped open, it grows. */
 .crate {
-  border: 0; border-radius: 6px; width: 100%; text-align: left; cursor: pointer;
-  padding: .65rem .85rem .7rem; color: var(--on-c);
+  --row-h: calc((100cqw - 3 * var(--gap)) / 4 * var(--tile-ratio));
+  border: 0; border-radius: 6px; width: 100%; text-align: left; cursor: pointer; color: var(--on-c);
+  height: var(--row-h); padding: .25rem .75rem; overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center; gap: .05rem;
 }
+.crate.open { height: auto; min-height: var(--row-h); justify-content: flex-start; padding-block: .55rem .7rem; }
+.crate-title { display: flex; align-items: baseline; gap: .5rem; min-width: 0; white-space: nowrap; }
 .crate.l0 { background: var(--c0); color: var(--on-c0); }
 .crate.l1 { background: var(--c1); }
 .crate.l2 { background: var(--c2); }
 .crate.l3 { background: var(--c3); }
 .crate.missed { opacity: .7; }
-.crate-name { font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em; }
-.crate-meta { font-size: .82rem; font-weight: 600; opacity: .8; margin-left: .5rem; }
-.crate-words { font-weight: 550; font-stretch: 87.5%; margin-top: .1rem; }
+.crate-name { font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.15; flex: none; }
+.crate-meta { font-size: .82rem; font-weight: 600; opacity: .8; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* one line, always: the view shrinks the font until the four words fit */
+.crate-words { font-weight: 550; font-stretch: 87.5%; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crate-note { margin: .45rem 0 0; font-size: .93rem; display: none; }
 .crate-note p { margin: .15rem 0; }
 .crate-note .herring { margin-top: .4rem; font-style: italic; }
