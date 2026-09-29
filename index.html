@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#DCE1E3" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#131C22" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Crates">
 <title>Crates</title>
@@ -12,23 +12,32 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Display:wght@700;900&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="app">
   <header class="top">
-    <h1 class="mark">Crates</h1>
+    <h1 class="mark">
+      <svg class="mark-icon" viewBox="0 0 20 20" aria-hidden="true">
+        <rect x="0" y="0" width="9" height="9" fill="var(--c0)"/><rect x="11" y="0" width="9" height="9" fill="var(--c1)"/>
+        <rect x="0" y="11" width="9" height="9" fill="var(--c2)"/><rect x="11" y="11" width="9" height="9" fill="var(--c3)"/>
+      </svg>Crates
+    </h1>
     <button id="pickBtn" class="pick" aria-haspopup="dialog">No. <span id="pNum">1</span></button>
   </header>
 
   <div class="brief">
-    <p id="brief">Sort the sixteen into four crates and name the country behind each.</p>
-    <div class="lives" aria-label="Mistakes left"><span id="lives"></span></div>
+    <p id="brief"></p>
+    <div class="meters">
+      <div class="meter" aria-label="Mistakes left"><span id="lives" class="lives"></span></div>
+      <div class="meter" aria-label="Clues left"><span id="clueDots" class="clue-dots"></span></div>
+    </div>
   </div>
 
   <section id="solved" class="solved" aria-live="polite"></section>
-  <section id="grid" class="grid" role="grid" aria-label="Words"></section>
+  <section id="grid" class="grid" aria-label="Words"></section>
+  <p id="clue" class="clue" aria-live="polite" hidden></p>
   <p id="toast" class="toast" role="status" aria-live="polite"></p>
 
   <div id="controls" class="controls">
@@ -42,7 +51,7 @@
     <pre id="shareGrid" class="share-grid"></pre>
     <div class="controls">
       <button id="shareBtn" class="btn">Copy result</button>
-      <button id="nextBtn" class="btn primary">Next crate</button>
+      <button id="nextBtn" class="btn primary">Next puzzle</button>
     </div>
   </section>
 </div>
@@ -50,7 +59,7 @@
 <dialog id="nameDlg" class="sheet">
   <form id="nameForm" method="dialog">
     <p class="sheet-words" id="nameWords"></p>
-    <label for="nameInput" id="nameLabel">Which country links these four?</label>
+    <label for="nameInput" id="nameLabel"></label>
     <input id="nameInput" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
     <div class="controls">
       <button type="button" id="skipBtn" class="btn">Skip</button>
