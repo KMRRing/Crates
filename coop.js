@@ -218,7 +218,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
       canSubmit: !!partner && picks === 4 && !b.done && !b.pending && b.lives > 0,
       feed: b.guesses.map(g => ({
         by: nameOf(g.by), slot: slotOf(g.by),
-        words: listWords(g.words, shown, partner),
+        words: g.res === "right" ? g.words.join(", ") : listWords(g.words, shown, partner),   // a found crate is open to both
         res: g.by === uid && g.res !== "right" ? "hidden" : g.res,
         note: g.by === uid ? null : oddPick(g),
       })),
