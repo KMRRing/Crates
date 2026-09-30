@@ -290,7 +290,8 @@ export function describe(board) {
       answer: ans.name, aliases: ans.aliases, level: g.level,
       words: words.map(x => x.w),
       details: words.map(x => [x.w, x.hint]),
-      herrings: words.flatMap(x => x.alt.filter(a => answers.includes(a) && a !== g.a).map(a => `${x.w} also fits ${BANK[a].name}`)),
+      // words in this crate that also fit another crate on the board: { word, other: index of that crate }
+      herrings: words.flatMap(x => x.alt.filter(a => answers.includes(a) && a !== g.a).map(a => ({ word: x.w, other: answers.indexOf(a) }))),
     };
   });
 }

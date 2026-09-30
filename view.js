@@ -166,7 +166,28 @@ function renderPlayers(vm) {
   el.players.appendChild(team);
 }
 
+/**
+ * Red herrings for crate g. The other crate a herring also fits is only named once that crate is open too,
+ * and then the herring shows in both: "Rotterdam also fits HVO" here, "also fits here, but belongs to FAME" there.
+ */
+function herringLines(vm, g, shown) {
+  const info = vm.groupsInfo, lines = [];
+  const words = [...new Set(info[g].herrings.map(h => h.word))];
+  for (const word of words) {
+    const others = info[g].herrings.filter(h => h.word === word && shown.has(h.other)).map(h => info[h.other].answer);
+    lines.push(others.length ? `Red herring: ${word} also fits ${listJoin(others)}.` : `Red herring: ${word}.`);
+  }
+  info.forEach((o, k) => {
+    if (k === g || !shown.has(k)) return;
+    o.herrings.filter(h => h.other === g).forEach(h => lines.push(`Red herring: ${h.word} also fits here, but belongs to ${o.answer}.`));
+  });
+  return lines;
+}
+
+const listJoin = xs => xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+
 function renderSolved(vm) {
+  const shown = new Set(vm.solved.map(r => r.g));
   const key = `${vm.boardKey}:${vm.solved.length}`;
   const animate = landedKey && landedKey !== key && landedKey.split(":")[0] === String(vm.boardKey);
   landedKey = key;
@@ -199,10 +220,10 @@ function renderSolved(vm) {
       }
       note.appendChild(line);
     });
-    gr.herrings.forEach(h => {
+    herringLines(vm, r.g, shown).forEach(text => {
       const line = document.createElement("p");
       line.className = "herring";
-      line.textContent = `Red herring: ${h}.`;
+      line.textContent = text;
       note.appendChild(line);
     });
     b.setAttribute("aria-expanded", "false");
