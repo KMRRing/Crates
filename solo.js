@@ -1,6 +1,6 @@
 // Solo play: generated boards, progress in this browser's localStorage, and optionally synced to a run
 // that other devices follow (run.js).
-import { BANK, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
+import { BANK, BANK_SIZE, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { emptyDeck, cleanDeck, learnFromBoard, deckStats, REVIEW_GAP } from "./learn.js";
 import { createRun, cleanCode, validCode } from "./run.js";
@@ -33,7 +33,10 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; }
   })());
   let active = false;           // solo is on screen (not a together game)
-  const run = createRun({ snapshot: () => store, adopt: adoptRun, notice: msg => view.toast(msg, 3500) });
+  const run = createRun({
+    snapshot: () => store, adopt: adoptRun, notice: msg => view.toast(msg, 4500),
+    version: BANK_SIZE, usable: s => !s.cur || !!decode(s.cur.code),
+  });
 
   // Playing time. The clock runs while a board is open and pauses only on an explicit sign the page
   // was put away (hidden, or left). It never trusts a one-off read of document.visibilityState: some
@@ -55,7 +58,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
   const persist = () => { persistLocal(); run.changed(); };
   const save = () => { clock.book(); persist(); };
   const putAway = () => {
-    if (active) { clock.pause(); persist(); }
+    if (active && clock.from !== null) { clock.pause(); persist(); }   // nothing to save if it wasn't running
     run.flush();
   };
   const wake = () => { if (active) clock.run(); };
@@ -160,6 +163,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     if (!active) return;
     setPoolParam(store.pool);
     if (store.cur && decode(store.cur.code)) load(); else fresh();
+    clock.pause();          // the other device is the one being played: this clock waits for a tap here
     view.toast("Caught up with your other device", 2500);
     if (view.menuTag() === "solo") handlers.menu();
   }
@@ -436,7 +440,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     start(pool, code, runCode) {
       active = true;
       if (!following) { following = true; run.start(); }
-      if (pool) { store.pool = pool; save(); }
+      if (pool && pool !== store.pool) { store.pool = pool; save(); }
       setPoolParam(store.pool);
       view.bind(handlers);
       const shared = code ? decode(code) : null;

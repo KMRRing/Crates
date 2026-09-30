@@ -25,7 +25,7 @@ Settings → Learning mode → On. Every clue-answer pair is its own card: knowi
 - Solved crates flag clues "↻ back soon" or "✓ learned". Progress stays in the browser (or follows a synced run); Settings has a reset.
 
 ## Your run on several devices
-Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. "Stop syncing on this device" keeps a local copy and lets go of the run.
+Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. Each change also carries the size of the word bank it was made with. A device still on an older version of the app reloads itself onto the new one instead of dealing boards of its own (it couldn't read boards that use newer words), and a device that is only following, untouched, doesn't run the clock or write anything. "Stop syncing on this device" keeps a local copy and lets go of the run.
 
 ## Together
 Menu → Play together or Play hidden → send the link. Your partner opens it and joins. The team shares 4 lives and 4 clues per board.

@@ -12,6 +12,9 @@ export const BANK = RAW.map(a => ({
   words: a.w.map(([w, hint, topics, d, alt, since = 0]) => ({ w, hint, topics, d, alt, since })),
 }));
 
+/** How far this build's bank goes. The bank only grows, so a bigger number means a newer build. */
+export const BANK_SIZE = BANK.reduce((n, a) => n + a.words.length, 0);
+
 export const NOUN = { country: "country", commodity: "commodity" };
 export const PLURAL = { country: "Countries", commodity: "Commodities" };
 export const SQUARES = ["🟨", "🟩", "🟦", "🟥"];
