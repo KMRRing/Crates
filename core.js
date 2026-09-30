@@ -38,7 +38,8 @@ export const POOL_CATS = { country: ["country"], commodity: ["commodity"], mixed
 export const WEIGHTS = [[0, "Off"], [0.5, "Less"], [1, "Normal"], [2, "More"]];
 export const GROUPS = {
   country: [["eu", "Europe"], ["me", "Middle East & N. Africa"], ["af", "Sub-Saharan Africa"], ["asia", "Asia & Pacific"], ["am", "Americas"]],
-  commodity: [["nrg", "Energy"], ["bio", "Biofuels"], ["met", "Metals & minerals"], ["grain", "Grains & oilseeds"], ["soft", "Softs & livestock"], ["chem", "Chemicals"]],
+  commodity: [["nrg", "Energy"], ["bio", "Biofuels & low-carbon"], ["met", "Metals & minerals"], ["grain", "Grains & oilseeds"],
+    ["soft", "Softs, fibres & livestock"], ["chem", "Chemicals"], ["circ", "Circular & recycled"], ["cred", "Credits & freight"]],
 };
 
 const all = w => Object.fromEntries(ALL_TOPICS.map(([k]) => [k, w]));

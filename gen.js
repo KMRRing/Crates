@@ -38,6 +38,19 @@ function eligibleAnswers(cat, settings) {
 }
 
 /** Words for one crate (four, or count): any forced ones first, the rest drawn by weight, spreading topics. */
+/**
+ * Tiles a board can't use: the names of its answers (and any word longer than three letters inside one:
+ * "White gold" never sits on a board with Gold), plus words already dealt.
+ */
+function blocker(chosen) {
+  const exact = new Set(chosen.flatMap(a => [BANK[a].name, ...BANK[a].aliases].map(norm)));
+  const inside = [...exact].filter(n => n.length > 3).map(n => ` ${n} `);
+  return {
+    has: t => exact.has(t) || inside.some(n => ` ${t} `.includes(n)),
+    add: t => exact.add(t),
+  };
+}
+
 function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1, count = 4 } = {}) {
   const words = BANK[ai].words;
   if (forced.some(i => banned.has(norm(words[i].w)))) return null;
@@ -104,6 +117,15 @@ function reviewPlan(pool, settings, learn, rng) {
 }
 
 /** Number of ways to fill four crates of four, given each word's own crate plus its also-fits. */
+/**
+ * Each crate must name exactly one answer: the only answer in the whole bank that all four of its words fit.
+ * (Uniqueness on the board alone isn't enough: four generic biodiesel clues fit RME as well as FAME.)
+ */
+export function namesOne(g) {
+  const fits = i => new Set([g.a, ...BANK[g.a].words[i].alt]);
+  return g.w.map(fits).reduce((acc, s) => new Set([...acc].filter(a => s.has(a)))).size === 1;
+}
+
 export function countSolutions(groups) {
   const answers = groups.map(g => g.a);
   const cands = groups.flatMap((g, gi) => g.w.map(wi => [gi, ...BANK[g.a].words[wi].alt.map(a => answers.indexOf(a)).filter(x => x >= 0)]));
@@ -152,7 +174,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
         chosen.push(rest[k]); rest.splice(k, 1); weights.splice(k, 1);
       }
       // A tile must never be the name of another crate on the board.
-      const banned = new Set(chosen.flatMap(a => [BANK[a].name, ...BANK[a].aliases].map(norm)));
+      const banned = blocker(chosen);
       const groups = [];
       for (const a of chosen) {
         const mult = i => learnWeight(learn, a, i) * (recentWs.has(wordKey(a, i)) ? RECENT_DAMPING : 1);
@@ -175,7 +197,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
       if (groups.length < 4) continue;
       const herrings = groups.reduce((s, g) => s + g.w.filter(i => BANK[g.a].words[i].alt.some(x => chosen.includes(x))).length, 0);
       if (herrings > MAX_HERRINGS) continue;
-      if (countSolutions(groups) !== 1) continue;
+      if (!groups.every(namesOne) || countSolutions(groups) !== 1) continue;
       return { cat, groups: withLevels(groups) };
     }
   }
@@ -210,7 +232,7 @@ export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.
         chosen.push(rest[k]); rest.splice(k, 1); weights.splice(k, 1);
       }
       const split = SPLITS[Math.floor(rng() * SPLITS.length)];
-      const banned = new Set(chosen.flatMap(a => [BANK[a].name, ...BANK[a].aliases].map(norm)));
+      const banned = blocker(chosen);
       const groups = [], owners = [];
       for (const [n, a] of chosen.entries()) {
         const w = [], who = [];
@@ -225,7 +247,7 @@ export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.
       }
       if (groups.length < 4) continue;
       const herrings = groups.reduce((s, g) => s + g.w.filter(i => BANK[g.a].words[i].alt.some(x => chosen.includes(x))).length, 0);
-      if (herrings > MAX_HERRINGS || countSolutions(groups) !== 1) continue;
+      if (herrings > MAX_HERRINGS || !groups.every(namesOne) || countSolutions(groups) !== 1) continue;
       return { cat, groups: withLevels(groups), sides: owners };
     }
   }
