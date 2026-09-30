@@ -219,7 +219,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
 
   function settingsSheet() {
     view.openSettings({
-      settings: store.settings, editable: true,
+      settings: store.settings, editable: true, pool: store.pool,
       note: "Everything below applies from the next board.",
       onChange: s => { store.settings = cleanSettings(s); save(); },
       onBack: () => handlers.menu(),

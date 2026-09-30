@@ -302,14 +302,14 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     const owner = room.owner === uid, back = () => handlers.menu();
     if (!hidden()) {
       view.openSettings({
-        settings: room.settings, editable: owner, onBack: back,
+        settings: room.settings, editable: owner, onBack: back, pool: room.pool,
         note: owner ? "Your settings apply to both of you, from the next board." : `${nameOf(room.owner)}'s settings apply to this game.`,
         onChange: s => change(cur => { if (cur.owner !== uid) return false; cur.settings = cleanSettings(s); return cur; }),
       });
       return;
     }
     view.openSettings({
-      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back,
+      settings: { ...me().settings, off: room.settings.off }, editable: { words: true, groups: owner }, onBack: back, pool: room.pool,
       note: `Your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared${owner ? " and set by you" : `, set by ${nameOf(room.owner)}`}.${room.board ? " Changes apply from the next board." : ""}`,
       onChange: s => change(cur => {
         cur.players[uid].settings = cleanSettings({ ...s, off: [] });

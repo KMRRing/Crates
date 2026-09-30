@@ -1,5 +1,5 @@
 // Everything that touches the page. Controllers hand render() a plain view model.
-import { NOUN, PLURAL, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS } from "./core.js";
+import { NOUN, PLURAL, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS, POOL_CATS } from "./core.js";
 
 const $ = id => document.getElementById(id);
 const el = {
@@ -349,6 +349,7 @@ export function askWho(defaultName = "") {
 /** Renders the settings editor into the menu sheet. onChange gets a fresh settings object. */
 export function openSettings(opts) {
   const { settings, note, onChange, onBack, learning = null } = opts;
+  const cats = POOL_CATS[opts.pool] || POOL_CATS.mixed;   // show only what the current pool deals from
   // editable: true, or { words, groups } when only part is yours to change (hidden mode)
   const canWords = opts.editable === true || !!opts.editable?.words;
   const canGroups = opts.editable === true || !!opts.editable?.groups;
@@ -411,18 +412,20 @@ export function openSettings(opts) {
     body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty,
       v => change(x => { x.difficulty = v; }), "Difficulty"));
 
-    add("h4", null, "Topics");
-    TOPICS.forEach(([k, name]) => {
-      const row = add("div", "topic-row");
-      const lab = document.createElement("span");
-      lab.textContent = name;
-      row.append(lab, segmented(WEIGHTS, s.topics[k], v => {
-        change(x => { x.topics[k] = v; x.preset = "custom"; });
-        presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
-      }, name));
-    });
+    for (const cat of cats) {
+      add("h4", null, cats.length > 1 ? `${NOUN[cat][0].toUpperCase()}${NOUN[cat].slice(1)} topics` : "Topics");
+      TOPICS[cat].forEach(([k, name]) => {
+        const row = add("div", "topic-row");
+        const lab = document.createElement("span");
+        lab.textContent = name;
+        row.append(lab, segmented(WEIGHTS, s.topics[k], v => {
+          change(x => { x.topics[k] = v; x.preset = "custom"; });
+          presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
+        }, name));
+      });
+    }
 
-    for (const [cat, title] of [["country", "Countries from"], ["commodity", "Commodities from"]]) {
+    for (const [cat, title] of [["country", "Countries from"], ["commodity", "Commodities from"]].filter(([c]) => cats.includes(c))) {
       add("h4", null, title);
       const chips = add("div", "chips");
       GROUPS[cat].forEach(([k, name]) => {
