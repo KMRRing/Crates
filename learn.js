@@ -1,9 +1,14 @@
-// Learning mode: one card per clue-answer pair (Copper→Chile and Copper→Zambia are learned separately),
-// remembering whether you tied that clue to that answer. A missed pair comes back a few boards later in
-// a new crate, with new companions; a pair you place correctly retires to the bottom of the deck.
+// Learning modes.
+//   learn     one card per clue-answer pair (Copper→Chile and Copper→Zambia are learned separately),
+//             remembering whether you tied that clue to that answer. A missed pair comes back a few boards
+//             later in a new crate, with new companions; a pair you place correctly retires to the bottom.
+//   clues     the same deck, but only tiles you opened with ? become cards (marked q) and come back.
+//   norepeat  no cards: every dealt clue is remembered (store.seen) and not dealt again until all are used.
 // Card states: "w" weak (due again at board d; missed next to answers c, beside pairs m),
-// "n" seen without a clear signal, "k" known.
+// "n" seen without a clear signal, "k" known; q = became a card because its clue was opened.
 import { BANK, PAIRS, cardKey, norm } from "./core.js";
+
+export const MODES = ["off", "learn", "norepeat", "clues"];
 import { groupIndexOf } from "./gen.js";
 
 export const REVIEW_GAP = [3, 8];            // boards until a missed clue comes back
@@ -47,14 +52,13 @@ export function cleanDeck(d) {
 const gap = rng => REVIEW_GAP[0] + Math.floor(rng() * (REVIEW_GAP[1] - REVIEW_GAP[0] + 1));
 
 /**
- * Reads a finished board and updates the deck. The question per clue: did you tie it to its answer?
- *   Yes: its crate was found and named, or a "one away" guess put it among the three that belonged.
- *   No:  it was the odd one out or the one left out in a "one away", you opened its clue, its crate
- *        was found but not named, or its crate was never found and nothing showed you placed it.
- * A clue that sat in a plain miss (two and two, or worse) proves nothing either way.
- * Returns { word: tag } for the words worth flagging on the solved crates.
+ * The question per clue on a finished board: did you tie it to its answer?
+ *   Yes ("pass"): its crate was found and named, or a "one away" guess put it among the three that belonged.
+ *   No ("fail"):  it was the odd one out or the one left out in a "one away", you opened its clue, its crate
+ *                 was found but not named, or its crate was never found and nothing showed you placed it.
+ * A clue that sat in a plain miss (two and two, or worse) proves nothing either way ("unclear").
  */
-export function learnFromBoard(deck, board, game, rng = Math.random) {
+function verdicts(board, game) {
   const words = board.groups.map(g => g.w.map(i => BANK[g.a].words[i].w));
   const named = new Set(game.found.filter(f => f.named).map(f => f.g));
   const missed = new Set(), placed = new Set(), unclear = new Set();
@@ -74,31 +78,70 @@ export function learnFromBoard(deck, board, game, rng = Math.random) {
   }
   game.revealed.forEach(w => missed.add(w));
   game.found.filter(f => !f.named).forEach(f => words[f.g].forEach(w => missed.add(w)));
-  const verdictOf = (w, gi) => {
+  return (w, gi) => {
     if (missed.has(w) || (!named.has(gi) && !placed.has(w))) return "fail";
     return unclear.has(w) ? "unclear" : "pass";
   };
+}
 
-  const tags = {};
+/** Learn mode: updates the deck from a finished board. Returns { word: tag } for the solved crates. */
+export function learnFromBoard(deck, board, game, rng = Math.random) {
+  const verdictOf = verdicts(board, game);
+  const opened = new Set(game.revealed), tags = {};
   const context = board.groups.map(g => g.a);
-  board.groups.forEach((g, gi) => g.w.forEach((wi, k) => {
-    const w = words[gi][k], key = cardKey(g.a, wi), prev = deck.cards[key];
+  board.groups.forEach((g, gi) => g.w.forEach(wi => {
+    const w = BANK[g.a].words[wi].w, key = cardKey(g.a, wi), prev = deck.cards[key];
     const tally = { f: prev?.f || 0, p: prev?.p || 0 };
     const mates = g.w.filter(x => x !== wi).map(x => cardKey(g.a, x));
+    const clued = prev?.q || opened.has(w) ? { q: 1 } : {};   // so clue learn mode reviews it too
     const v = verdictOf(w, gi);
     if (v === "fail") {
-      deck.cards[key] = { s: "w", d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
+      deck.cards[key] = { s: "w", ...clued, d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
       tags[w] = TAG.fail;
     } else if (v === "pass") {
-      deck.cards[key] = { s: "k", f: tally.f, p: tally.p + 1 };
+      deck.cards[key] = { s: "k", ...clued, f: tally.f, p: tally.p + 1 };
       if (prev?.s === "w") tags[w] = TAG.learned;
     } else if (prev?.s === "w") {                       // still unproven: try again in a new setting
       deck.cards[key] = { ...prev, d: deck.t + gap(rng), c: context, m: mates };
     } else {
-      deck.cards[key] = { s: "n", ...tally };
+      deck.cards[key] = { s: "n", ...clued, ...tally };
     }
   }));
   return tags;
+}
+
+/**
+ * Clue learn mode: only a tile whose clue you opened becomes a card; it comes back a few boards later, and
+ * once you tie it to its answer without opening the clue it's learned. Nothing else on the board is recorded.
+ */
+export function learnFromClues(deck, board, game, rng = Math.random) {
+  const verdictOf = verdicts(board, game);
+  const opened = new Set(game.revealed), tags = {};
+  const context = board.groups.map(g => g.a);
+  board.groups.forEach((g, gi) => g.w.forEach(wi => {
+    const w = BANK[g.a].words[wi].w, key = cardKey(g.a, wi), prev = deck.cards[key];
+    const tally = { f: prev?.f || 0, p: prev?.p || 0 };
+    const mates = g.w.filter(x => x !== wi).map(x => cardKey(g.a, x));
+    if (opened.has(w)) {
+      deck.cards[key] = { s: "w", q: 1, d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
+      tags[w] = TAG.fail;
+    } else if (prev?.q && prev.s === "w") {
+      if (verdictOf(w, gi) === "pass") {
+        deck.cards[key] = { s: "k", q: 1, f: tally.f, p: tally.p + 1 };
+        tags[w] = TAG.learned;
+      } else {
+        deck.cards[key] = { ...prev, d: deck.t + gap(rng), c: context, m: mates };   // not yet: again later
+      }
+    }
+  }));
+  return tags;
+}
+
+/** Tiles learned through their clue: { review, learned }. */
+export function clueStats(deck) {
+  const s = { review: 0, learned: 0 };
+  for (const c of Object.values(deck.cards)) if (c.q) c.s === "w" ? s.review++ : s.learned++;
+  return s;
 }
 
 export function deckStats(deck) {
@@ -108,4 +151,50 @@ export function deckStats(deck) {
   }
   s.unseen = PAIRS.size - s.review - s.learned - s.seen;
   return s;
+}
+
+// ---- No repeats: store.seen = { answer index: hex bitmask of the word positions already dealt } ----
+
+const TEXTS = { country: new Set(), commodity: new Set() };
+BANK.forEach(a => a.words.forEach(w => TEXTS[a.cat].add(norm(w.w))));
+
+export function cleanSeen(seen) {
+  const out = {};
+  if (seen && typeof seen === "object") {
+    for (const [a, hex] of Object.entries(seen)) if (BANK[a] && /^[0-9a-f]+$/.test(hex)) out[a] = hex;
+  }
+  return out;
+}
+
+/** Remembers every clue on a board as dealt. */
+export function markSeen(seen, board) {
+  for (const g of board.groups) {
+    let bits = BigInt(`0x${seen[g.a] || "0"}`);
+    for (const i of g.w) bits |= 1n << BigInt(i);
+    seen[g.a] = bits.toString(16);
+  }
+}
+
+/** The clues dealt so far, as "category:clue" (a clue seen under one answer counts as seen under all). */
+export function seenTexts(seen) {
+  const out = new Set();
+  for (const [a, hex] of Object.entries(seen)) {
+    const bits = BigInt(`0x${hex}`), ans = BANK[a];
+    ans.words.forEach((w, i) => { if ((bits >> BigInt(i)) & 1n) out.add(`${ans.cat}:${norm(w.w)}`); });
+  }
+  return out;
+}
+
+/** Starts a category's clues over. */
+export function forgetSeen(seen, cats) {
+  for (const a of Object.keys(seen)) if (cats.includes(BANK[a].cat)) delete seen[a];
+}
+
+/** { country: { seen, total }, commodity: { seen, total } } in distinct clues. */
+export function seenStats(seen) {
+  const texts = seenTexts(seen), out = {};
+  for (const cat of Object.keys(TEXTS)) {
+    out[cat] = { seen: [...texts].filter(t => t.startsWith(`${cat}:`)).length, total: TEXTS[cat].size };
+  }
+  return out;
 }

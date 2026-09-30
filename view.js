@@ -413,9 +413,9 @@ export function openSettings(opts) {
 
     if (learning) {
       add("h4", null, "Learning mode");
-      body.appendChild(segmented([[false, "Off"], [true, "On"]], learning.on, learning.onToggle, "Learning mode", true));
+      body.appendChild(segmented(learning.modes, learning.mode, learning.onMode, "Learning mode", true));
       learning.lines.forEach(line => add("p", "stats set-note", line));
-      if (learning.onReset) add("button", "link", "Reset learning progress").addEventListener("click", learning.onReset);
+      if (learning.reset) add("button", "link", learning.reset.label).addEventListener("click", learning.reset.run);
     }
 
     if (note) add("p", `stats set-note${learning ? " sep" : ""}`, note);

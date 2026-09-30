@@ -16,13 +16,19 @@ Menu (No. button) → Settings. They apply from the next board.
 
 If the settings are too narrow to build a board, that board falls back to Balanced and says so.
 
-## Learning mode (solo)
-Settings → Learning mode → On. Every clue-answer pair is its own card: knowing that Copper points to Chile doesn't mark Copper→Zambia as known. For each pair on a board the question is: did you tie that clue to that answer?
+## Learning modes (solo)
+Settings → Learning mode has four settings:
+- Off: boards are dealt at random, so a clue can come back.
+- Learn: missed clues come back (below).
+- No repeats: no clue is dealt twice (under any answer) until you've seen every clue your settings allow; then that category starts over. It counts every board you've played, not just those since you switched it on.
+- Clue learn: only tiles you open with ? come back, 3 to 8 boards later in a new crate, even if you skip that board. Solve one without opening it and it's learned. Nothing else on the board is recorded. Tiles you opened in Learn mode count here too.
+
+Learn mode in detail: every clue-answer pair is its own card: knowing that Copper points to Chile doesn't mark Copper→Zambia as known. For each pair on a board the question is: did you tie that clue to that answer?
 - Yes: its crate was found and named, or a "one away" guess put it among the three that belonged together (in a one-away with Matches, Rotten eggs and Gunpowder, those three count as known even if the Sulphur crate is never found).
 - No: it was the odd one out or the one left out in a "one away", you opened its clue, its crate was found but not named, or its crate was never found and nothing showed you placed it. A pair in a plain miss (two and two, or worse) proves nothing either way.
 - A missed pair comes back 3 to 8 boards later in a crate of the same answer, next to companions it wasn't missed with, and usually on a board without the crates it was missed next to. In a Mixed pool, pairs of the other category wait for a board of their own kind, so they can take a little longer.
 - A pair you get right retires to the bottom of the deck. Unseen pairs are preferred, so the same clue turns up under its other answers as you go.
-- Solved crates flag clues "↻ back soon" or "✓ learned". Progress stays in the browser (or follows a synced run); Settings has a reset.
+- Solved crates flag clues "↻ back soon" or "✓ learned" (in Learn and Clue learn). Progress stays in the browser (or follows a synced run); Settings has a reset for the learning cards and, in No repeats, a way to start the clues over.
 
 ## Your run on several devices
 Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. Each change also carries the size of the word bank it was made with. A device still on an older version of the app reloads itself onto the new one instead of dealing boards of its own (it couldn't read boards that use newer words), and a device that is only following, untouched, doesn't run the clock or write anything. "Stop syncing on this device" keeps a local copy and lets go of the run.

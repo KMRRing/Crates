@@ -3,8 +3,9 @@
 // and every device that opens the run's link follows that run. A write only lands if nobody has moved
 // the run on since this device last saw it, so a device holding stale progress can't overwrite newer
 // progress made elsewhere: it takes the newer run instead.
-// Each write carries the size of the writer's word bank. A device on an older build can't read boards
-// dealt from newer words, so instead of dealing boards of its own it fetches the new build and reloads.
+// Each write carries the size of the writer's word bank and the app version. A device on an older build
+// can't read boards dealt from newer words (or runs saved in a newer shape), so instead of dealing boards
+// of its own it fetches the new build and reloads.
 import { getSync } from "./net.js";
 
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -22,9 +23,10 @@ const newCode = () => Array.from({ length: CODE_LENGTH }, () => LETTERS[Math.flo
 
 /**
  * snapshot() → the store to upload; adopt(store) takes over a newer run; notice(text) tells the player;
- * version = this build's bank size; usable(store) says whether this build can show that store's board.
+ * version = this build's bank size, app = its APP_VERSION; usable(store) says whether this build can show
+ * that store's board.
  */
-export function createRun({ snapshot, adopt, notice, version, usable }) {
+export function createRun({ snapshot, adopt, notice, version, app, usable }) {
   let link = (() => { try { return JSON.parse(localStorage.getItem(LINK_KEY)) || null; } catch { return null; } })();
   let sync = null, unwatch = null, timer = null, first = true;
   let stale = false;                           // another device runs a newer build: stop syncing, reload
@@ -32,9 +34,9 @@ export function createRun({ snapshot, adopt, notice, version, usable }) {
   const keepLink = () => {
     try { if (link) localStorage.setItem(LINK_KEY, JSON.stringify(link)); else localStorage.removeItem(LINK_KEY); } catch { /* private mode */ }
   };
-  const doc = rev => ({ v: 1, rev, by: DEVICE, at: Date.now(), bank: version, data: JSON.stringify(snapshot()) });
+  const doc = rev => ({ v: 1, rev, by: DEVICE, at: Date.now(), bank: version, app, data: JSON.stringify(snapshot()) });
   const parse = val => { try { return JSON.parse(val.data); } catch (e) { console.error(e); return null; } };
-  const newer = (val, data) => (val.bank || 0) > version || !data || !usable(data);
+  const newer = (val, data) => (val.bank || 0) > version || (val.app || 0) > app || !data || !usable(data);
 
   /** Another device is on a newer build: fetch the new files past the browser cache and reload, once. */
   async function catchUpBuild() {
@@ -96,7 +98,7 @@ export function createRun({ snapshot, adopt, notice, version, usable }) {
     try {
       const r = await sync.tx(runPath(link.code), cur => {
         if (cur === null) return null;                        // cold cache: let the server hand us the real run
-        if (cur.rev !== base || (cur.bank || 0) > version) return undefined;   // moved on elsewhere: the watcher brings it in
+        if (cur.rev !== base || (cur.bank || 0) > version || (cur.app || 0) > app) return undefined;   // moved on elsewhere: the watcher brings it in
         return doc(base + 1);
       });
       if (r.committed && r.value?.by === DEVICE && link) { link.rev = r.value.rev; link.dirty = false; keepLink(); }

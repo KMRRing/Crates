@@ -1,8 +1,11 @@
 // Solo play: generated boards, progress in this browser's localStorage, and optionally synced to a run
 // that other devices follow (run.js).
-import { BANK, BANK_SIZE, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
+import { APP_VERSION, BANK, BANK_SIZE, POOL_CATS, PLURAL, SQUARES, nameMatches, shuffled, wordsKey, cleanSettings, defaultSettings, formatTime } from "./core.js";
 import { generate, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
-import { emptyDeck, cleanDeck, learnFromBoard, deckStats, REVIEW_GAP } from "./learn.js";
+import {
+  MODES, REVIEW_GAP, emptyDeck, cleanDeck, learnFromBoard, learnFromClues, deckStats, clueStats,
+  cleanSeen, markSeen, seenTexts, forgetSeen, seenStats,
+} from "./learn.js";
 import { createRun, cleanCode, validCode } from "./run.js";
 import * as view from "./view.js";
 
@@ -10,6 +13,13 @@ const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
 const STORE_KEY = "crates:v2";
 const RECENT_ANSWERS = 16, RECENT_WORDS = 120, HISTORY = 60;
+const GAP = `${REVIEW_GAP[0]} to ${REVIEW_GAP[1]} boards later`;
+const MODE = {
+  off: { label: "Off", about: "Boards are dealt at random, so a clue can come back." },
+  learn: { label: "Learn", about: `Missed words come back ${GAP}, in a new crate with new companions. Words you get right retire to the bottom of the deck.` },
+  norepeat: { label: "No repeats", about: "No clue comes back until you've seen every clue your settings allow. Then they start over." },
+  clues: { label: "Clue learn", about: `Only tiles you open with ? come back, ${GAP} in a new crate. Solve one without opening it and it's learned.` },
+};
 
 /** Fills in anything missing from a stored run (old saves, or a run arriving from another device). */
 function normalise(raw) {
@@ -20,8 +30,11 @@ function normalise(raw) {
   s.history = s.history || [];
   s.recentA = s.recentA || [];
   s.recentW = s.recentW || [];
-  s.learning = s.learning === true;
+  s.mode = MODES.includes(s.mode) ? s.mode : s.learning === true ? "learn" : "off";   // was an on/off switch
+  delete s.learning;
+  if (s.cur && !("mode" in s.cur)) { s.cur.mode = s.cur.learn ? "learn" : "off"; delete s.cur.learn; }
   s.deck = cleanDeck(s.deck);
+  s.seen = cleanSeen(s.seen);
   return s;
 }
 
@@ -35,7 +48,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
   let active = false;           // solo is on screen (not a together game)
   const run = createRun({
     snapshot: () => store, adopt: adoptRun, notice: msg => view.toast(msg, 4500),
-    version: BANK_SIZE, usable: s => !s.cur || !!decode(s.cur.code),
+    version: BANK_SIZE, app: APP_VERSION, usable: s => !s.cur || !!decode(s.cur.code),
   });
 
   // Playing time. The clock runs while a board is open and pauses only on an explicit sign the page
@@ -80,8 +93,9 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     store.cur = {
       code: code || encode(b), n: store.n, order: shuffled(describe(b).flatMap(g => g.words)),
       found: [], mistakes: 0, guesses: [], tried: [], revealed: [], done: false, ms: 0,
-      learn: store.learning,
+      mode: store.mode,
     };
+    markSeen(store.seen, b);
     b.groups.forEach(g => {
       store.recentA = [g.a, ...store.recentA.filter(a => a !== g.a)].slice(0, RECENT_ANSWERS);
       g.w.forEach(i => { store.recentW = [`${g.a}.${i}`, ...store.recentW].slice(0, RECENT_WORDS); });
@@ -91,9 +105,18 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
   }
 
   function fresh() {
-    const learn = store.learning ? store.deck : null;
+    const mode = store.mode;
+    const learn = mode === "learn" || mode === "clues" ? store.deck : null;
     if (learn) learn.t += 1;
-    let b = generate({ pool: store.pool, settings: store.settings, recentA: store.recentA, recentW: store.recentW, learn });
+    const opts = { pool: store.pool, settings: store.settings, recentA: store.recentA, recentW: store.recentW,
+      learn, review: mode === "clues" ? "clues" : "all" };
+    const deal = () => generate(mode === "norepeat" ? { ...opts, seen: seenTexts(store.seen) } : opts);
+    let b = deal();
+    if (!b && mode === "norepeat") {
+      forgetSeen(store.seen, POOL_CATS[store.pool]);
+      view.toast("You've seen every clue these settings allow, so they start over", 3500);
+      b = deal();
+    }
     if (!b) {
       view.toast("Not enough words for those settings, so this board uses Balanced", 3500);
       b = generate({ pool: store.pool, settings: defaultSettings(), recentA: store.recentA });
@@ -137,7 +160,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     return {
       mode: "solo", category: board.cat, pool: store.pool, label: g.n, boardKey: g.code,
       groupsInfo: tags ? info.map(gr => ({ ...gr, details: gr.details.map(([w, h]) => [w, h, tags[w]]) })) : info,
-      modeNote: store.learning ? learningNote() : null,
+      modeNote: modeNote(),
       cells, clue, solved,
       team: { lives: MAX_MISTAKES - g.mistakes, maxLives: MAX_MISTAKES, clues: cluesLeft(), maxClues: CLUES },
       pending: pendingGroup !== null ? { g: pendingGroup, mine: true } : null,
@@ -197,27 +220,57 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     const g = game();
     clock.pause();
     g.done = true;
-    if (g.learn && store.learning) g.tags = learnFromBoard(store.deck, board, g);
+    if (g.mode === store.mode && g.mode === "learn") g.tags = learnFromBoard(store.deck, board, g);
+    if (g.mode === store.mode && g.mode === "clues") g.tags = learnFromClues(store.deck, board, g);
     store.history = [{ n: g.n, code: g.code, cat: board.cat, pts: score(g), won: g.found.length === 4,
       mistakes: g.mistakes, clues: g.revealed.length, ms: g.ms }, ...store.history].slice(0, HISTORY);
   }
 
-  function learningNote() {
-    const n = deckStats(store.deck).review;
-    return `Learning mode · ${n ? `${n} word${n === 1 ? "" : "s"} to review` : "nothing to review yet"}`;
+  const count = x => x.toLocaleString("en-GB");
+
+  /** The line under the board. */
+  function modeNote() {
+    const review = n => (n ? `${n} to review` : "nothing to review yet");
+    if (store.mode === "learn") return `Learn · ${review(deckStats(store.deck).review)}`;
+    if (store.mode === "clues") return `Clue learn · ${review(clueStats(store.deck).review)}`;
+    if (store.mode === "norepeat") {
+      const s = seenStats(store.seen), left = POOL_CATS[store.pool].reduce((n, c) => n + s[c].total - s[c].seen, 0);
+      return `No repeats · ${count(left)} new clues left`;
+    }
+    return null;
   }
 
-  function learningSummary() {
-    const s = deckStats(store.deck), n = x => x.toLocaleString("en-GB");
-    return `${n(s.review)} to review · ${n(s.learned)} learned · ${n(s.seen + s.unseen)} still to learn`;
+  /** The mode's progress, for the menu and settings. */
+  function modeSummary() {
+    if (store.mode === "learn") {
+      const s = deckStats(store.deck);
+      return `${count(s.review)} to review · ${count(s.learned)} learned · ${count(s.seen + s.unseen)} still to learn`;
+    }
+    if (store.mode === "clues") {
+      const s = clueStats(store.deck);
+      return `${count(s.review)} to review · ${count(s.learned)} learned`;
+    }
+    if (store.mode === "norepeat") {
+      const s = seenStats(store.seen);
+      return POOL_CATS[store.pool].map(c => `${count(s[c].seen)} of ${count(s[c].total)} ${c} clues seen`).join(" · ");
+    }
+    return null;
   }
 
-  function setLearning(on) {
-    store.learning = on;
+  function setMode(mode) {
+    store.mode = mode;
     save();
     const g = game();
-    if (on && !g.done && !g.guesses.length && !g.revealed.length) fresh();   // untouched board: deal a learning one now
-    else { view.toast(on ? "Learning mode starts with the next board" : "Learning mode off", 2200); draw(); }
+    if (mode !== "off" && !g.done && !g.guesses.length && !g.revealed.length) fresh();   // untouched board: redeal now
+    else { view.toast(mode === "off" ? "Learning mode off" : `${MODE[mode].label} starts with the next board`, 2200); draw(); }
+    settingsSheet();
+  }
+
+  function resetMode(question, forget) {
+    if (!confirm(question)) return;
+    forget();
+    save();
+    draw();
     settingsSheet();
   }
 
@@ -228,17 +281,13 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
       onChange: s => { store.settings = cleanSettings(s); save(); },
       onBack: () => handlers.menu(),
       learning: {
-        on: store.learning,
-        lines: [`Missed words come back ${REVIEW_GAP[0]} to ${REVIEW_GAP[1]} boards later, in a new crate with new companions. Words you get right retire to the bottom of the deck.`,
-          learningSummary()],
-        onToggle: setLearning,
-        onReset: () => {
-          if (!confirm("Forget everything learning mode knows about you?")) return;
-          store.deck = emptyDeck();
-          save();
-          draw();
-          settingsSheet();
-        },
+        mode: store.mode,
+        modes: MODES.map(m => [m, MODE[m].label]),
+        lines: [MODE[store.mode].about, modeSummary()].filter(Boolean),
+        onMode: setMode,
+        reset: store.mode === "norepeat" ? { label: "Start the clues over", run: () => resetMode("Forget which clues you've seen?", () => { store.seen = {}; }) }
+          : store.mode !== "off" ? { label: "Reset learning progress", run: () => resetMode("Forget everything learning mode knows about you?", () => { store.deck = emptyDeck(); }) }
+          : null,
       },
     });
   }
@@ -344,7 +393,10 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
         newBtn.className = "btn";
         newBtn.textContent = game().done ? "New board" : "Skip board";
         newBtn.addEventListener("click", () => {
-          if (!game().done && game().guesses.length && !confirm("Leave this board unfinished?")) return;
+          const g = game();
+          if (!g.done && g.guesses.length && !confirm("Leave this board unfinished?")) return;
+          // clue learn: a tile whose clue you opened comes back even if you skip the board
+          if (!g.done && g.mode === "clues" && store.mode === "clues") learnFromClues(store.deck, board, g);
           close(); fresh();
         });
         row.append(settingsBtn, newBtn);
@@ -374,10 +426,10 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
         }
         body.appendChild(list);
 
-        if (store.learning) {
+        if (store.mode !== "off") {
           const lp = document.createElement("p");
           lp.className = "stats";
-          lp.textContent = `Learning: ${learningSummary()}`;
+          lp.textContent = `${MODE[store.mode].label}: ${modeSummary()}`;
           body.appendChild(lp);
         }
         const done = store.history.length;

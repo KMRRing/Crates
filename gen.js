@@ -74,18 +74,19 @@ function sampleWords(ai, settings, banned, rng, { forced = [], mult = () => 1, c
   return out;
 }
 
-function learnWeight(learn, a, i) {
+/** review "all": missed words come back and known ones sink; "clues": only tiles whose clue was opened come back. */
+function learnWeight(learn, review, a, i) {
   const c = learn?.cards[cardKey(a, i)];
-  if (!c) return 1;
+  if (!c || (review === "clues" && !c.q)) return 1;
   if (c.s === "w") return c.d <= learn.t ? DUE : NOT_YET;
-  return LEARN_WEIGHT[c.s] ?? 1;
+  return review === "clues" ? 1 : LEARN_WEIGHT[c.s] ?? 1;
 }
 
 /** Missed clue-answer pairs that are due, grouped by answer, most overdue first: the crates this board revisits. */
-function reviewPlan(pool, settings, learn, rng) {
+function reviewPlan(pool, settings, learn, review, rng) {
   const due = new Map();
   for (const [key, c] of Object.entries(learn.cards)) {
-    if (c.s !== "w" || c.d > learn.t) continue;
+    if (c.s !== "w" || c.d > learn.t || (review === "clues" && !c.q)) continue;
     const pair = PAIRS.get(key);
     if (!pair) continue;
     const [a, i] = pair;
@@ -151,15 +152,23 @@ function withLevels(groups) {
 /**
  * learn (optional) = { t, cards } from learn.js. With it, due missed words come back in crates of their
  * own answer next to companions they weren't missed with, on boards without their old neighbours;
- * unseen words are preferred and known ones sink to the bottom.
+ * with review "all" unseen words are preferred and known ones sink to the bottom, with review "clues"
+ * only tiles whose clue was opened come back and nothing else changes.
+ * seen (optional) = Set of "category:clue" never to deal again (no repeats mode); null when too few are left.
  */
-export function generate({ pool, settings, recentA = [], recentW = [], rng = Math.random, learn = null }) {
+export function generate({ pool, settings, recentA = [], recentW = [], rng = Math.random, learn = null, review = "all", seen = null }) {
   const recentAs = new Set(recentA), recentWs = new Set(recentW);
-  const plan = learn && reviewPlan(pool, settings, learn, rng);
+  const plan = learn && reviewPlan(pool, settings, learn, review, rng);
   const cats = plan ? [plan.cat] : pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
   const unseenShare = a => BANK[a].words.filter((w, i) => !learn.cards[cardKey(a, i)]).length / BANK[a].words.length;
+  const isNew = (a, i) => !seen || !seen.has(`${BANK[a].cat}:${norm(BANK[a].words[i].w)}`);
+  const newCounts = new Map();
+  const newCount = a => {
+    if (!newCounts.has(a)) newCounts.set(a, BANK[a].words.filter((w, i) => isNew(a, i) && wordWeight(w, settings) > 0).length);
+    return newCounts.get(a);
+  };
   for (const cat of cats) {
-    const answers = eligibleAnswers(cat, settings);
+    const answers = eligibleAnswers(cat, settings).filter(a => !seen || newCount(a) >= 4);
     if (answers.length < 4) continue;
     for (let attempt = 0; attempt < 400; attempt++) {
       // If the reviews won't fit on a valid board, revisit fewer of them at once.
@@ -168,7 +177,8 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
       const oldNeighbours = new Set(reviews.flatMap(r => r.list.flatMap(x => learn.cards[x.key].c || [])));
       const rest = answers.filter(a => !chosen.includes(a));
       const weights = rest.map(a => (recentAs.has(a) ? RECENT_DAMPING : 1)
-        * (oldNeighbours.has(a) ? NEIGHBOUR_DAMPING : 1) * (learn ? 0.4 + unseenShare(a) : 1));
+        * (oldNeighbours.has(a) ? NEIGHBOUR_DAMPING : 1) * (learn && review === "all" ? 0.4 + unseenShare(a) : 1)
+        * (seen ? newCount(a) : 1));        // no repeats: answers with more new clues come first
       while (chosen.length < 4) {
         const k = pick(rest, weights, rng);
         chosen.push(rest[k]); rest.splice(k, 1); weights.splice(k, 1);
@@ -177,7 +187,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
       const banned = blocker(chosen);
       const groups = [];
       for (const a of chosen) {
-        const mult = i => learnWeight(learn, a, i) * (recentWs.has(wordKey(a, i)) ? RECENT_DAMPING : 1);
+        const mult = i => (isNew(a, i) ? learnWeight(learn, review, a, i) : 0) * (recentWs.has(wordKey(a, i)) ? RECENT_DAMPING : 1);
         const review = reviews.find(r => r.a === a);
         let w;
         if (review) {

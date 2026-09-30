@@ -12,6 +12,9 @@ export const BANK = RAW.map(a => ({
   words: a.w.map(([w, hint, topics, d, alt, since = 0]) => ({ w, hint, topics, d, alt, since })),
 }));
 
+/** Bumped whenever a saved run changes shape (2: learning modes off/learn/norepeat/clues, seen clues). */
+export const APP_VERSION = 2;
+
 /** How far this build's bank goes. The bank only grows, so a bigger number means a newer build. */
 export const BANK_SIZE = BANK.reduce((n, a) => n + a.words.length, 0);
 
