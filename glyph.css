@@ -96,6 +96,9 @@
 .g-ask { grid-column: 3; grid-row: 1 / span 2; align-self: start; width: 2.1rem; height: 2.1rem; border-radius: 50%;
   border: 1.5px solid var(--ink); background: none; color: var(--ink); font-weight: 800; font-size: 1.05rem; cursor: pointer; }
 .g-ask:disabled { opacity: .3; cursor: default; }
+/* rule reveals left, beside Close: "2 × ?" */
+.g-reveals { margin-left: auto; margin-right: .7rem; display: inline-flex; align-items: center; gap: .35rem; font-weight: 800; font-size: 1.05rem; }
+.g-q { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1.5px solid var(--ink); font-size: .9rem; }
 /* messages float over the page instead of pushing the board around */
 .g-toast {
   position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%);

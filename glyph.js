@@ -7,6 +7,8 @@ import { getSync } from "./net.js";
 const $ = id => document.getElementById(id);
 const STORE = "glyph:solo";
 const CHECKS = 2, REVEALS = 2;
+/** Checks and rule reveals per board: unlimited on Easy, two each otherwise. */
+const limitsFor = level => (level === "easy" ? { checks: Infinity, reveals: Infinity } : { checks: CHECKS, reveals: REVEALS });
 const GAP = 6;
 const PALETTE = { single: ["s", ["Blue", "Green", "Teal"]], pair: ["p", ["Yellow", "Orange", "Sand"]], whole: ["w", ["Violet", "Pink", "Plum"]] };
 const KIND = { single: "single letters", pair: "pairs", whole: "whole field" };
@@ -99,10 +101,13 @@ function place() {
 
 function check() {
   if (S.done) return;
-  if (checksUsed() >= CHECKS) { toast("No checks left on this board"); return; }
+  if (checksUsed() >= limitsFor(S.level).checks) { toast("No checks left on this board"); return; }
   const letters = lettersFrom(S.board, S.log);
   if (!Object.keys(letters).length) { toast("Place a word first: a check looks at the letters on the board"); return; }
-  act(g => { if (g.done || g.log.filter(e => e.check).length >= CHECKS) return false; g.log.push({ check: letters, ...(room && { by: room.uid }) }); });
+  act(g => {
+    if (g.done || g.log.filter(e => e.check).length >= limitsFor(g.level).checks) return false;
+    g.log.push({ check: letters, ...(room && { by: room.uid }) });
+  });
   toast("Letters that match our fill now have a green outline.");
 }
 
@@ -131,10 +136,10 @@ function clear() {
 /** Spends one of the board's two reveals on a field's rule; a single-letter rule then colours the whole keyboard. */
 function reveal(i) {
   if (S.done || revealed().has(i)) return;
-  if (revealed().size >= REVEALS) { toast("No rule reveals left on this board"); return; }
+  if (revealed().size >= limitsFor(S.level).reveals) { toast("No rule reveals left on this board"); return; }
   act(g => {
     const used = new Set(g.log.filter(e => e.reveal != null).map(e => e.reveal));
-    if (g.done || used.has(i) || used.size >= REVEALS) return false;
+    if (g.done || used.has(i) || used.size >= limitsFor(g.level).reveals) return false;
     g.log.push({ reveal: i, ...(room && { by: room.uid }) });
   });
 }
@@ -268,9 +273,9 @@ function render() {
   if (!S) return;
   const g = grid(), fs = fields(), letters = lettersFrom(S.board, S.log);
   if (!cursor || !g.cells.includes(cursor)) resetCursor();
-  const slot = currentSlot(), left = CHECKS - checksUsed();
+  const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed();
   $("level").value = S.level;
-  $("checkBtn").textContent = `Check letters (${left})`;
+  $("checkBtn").textContent = left === Infinity ? "Check letters" : `Check letters (${left})`;
   $("checkBtn").disabled = !!S.done || left === 0;
   $("clearBtn").disabled = !!S.done;
   const notes = notesFrom(S.board, S.log);
@@ -435,9 +440,10 @@ function mark(ok) {
 }
 
 function drawFields(fs, notes) {
-  const shown = revealed(), left = REVEALS - shown.size;
-  $("revealsLeft").textContent = S.done ? "Every rule is shown now that the board is over."
-    : `Tap ? to reveal a field's rule. ${left} reveal${left === 1 ? "" : "s"} left on this board.`;
+  const shown = revealed(), left = limitsFor(S.level).reveals - shown.size, badge = $("revealsBadge");
+  badge.hidden = left === Infinity || !!S.done;
+  badge.innerHTML = `${left} × <span class="g-q" aria-hidden="true">?</span>`;
+  badge.setAttribute("aria-label", `${left} rule reveal${left === 1 ? "" : "s"} left`);
   $("fields").replaceChildren(...fs.map((f, i) => {
     const st = styleOf(i), row = document.createElement("div");
     row.className = "g-field";
