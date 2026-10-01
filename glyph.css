@@ -6,14 +6,14 @@
   --gp0: #F4E2AE; --gp0e: #A87C0C;  --gp1: #F6D3B5; --gp1e: #B9601C;  --gp2: #EADBC4; --gp2e: #7E6236;
   /* whole fields: purples and pinks */
   --gw0: #E1D8F2; --gw0e: #6650BE;  --gw1: #F2D1E0; --gw1e: #AE3E72;  --gw2: #E6D2EB; --gw2e: #874394;
-  --g-cell: #F7F8F7; --g-line: #C5CDD1; --g-ok: #2E7D4F; --g-no: #B23A2C;
+  --g-cell: #F7F8F7; --g-line: #C5CDD1; --g-ok: #2E7D4F; --g-no: #B23A2C; --g-not-ours: #D9770B;
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --gs0: #1B3448; --gs0e: #7FB2DD;  --gs1: #1E3626; --gs1e: #7CC28F;  --gs2: #183836; --gs2e: #6CC5BF;
     --gp0: #3E3410; --gp0e: #E3BA45;  --gp1: #43281A; --gp1e: #EE9A5F;  --gp2: #392F22; --gp2e: #CBAA78;
     --gw0: #2C2650; --gw0e: #A595F2;  --gw1: #45222F; --gw1e: #E984B2;  --gw2: #3A2440; --gw2e: #CC8BDB;
-    --g-cell: #1D262D; --g-line: #33414B; --g-ok: #63C98E; --g-no: #FF7E6E;
+    --g-cell: #1D262D; --g-line: #33414B; --g-ok: #63C98E; --g-no: #FF7E6E; --g-not-ours: #F5A142;
     --g-logo-tint: #1B3448; --g-logo-edge: #7FB2DD;
   }
 }
@@ -77,6 +77,8 @@
 /* keys the clicked cell's single-letter field has taken (green) or rejected (red) */
 .g-krow button.ok { background: color-mix(in srgb, var(--g-ok) 32%, var(--sheet)); }
 .g-krow button.no { background: color-mix(in srgb, var(--g-no) 28%, var(--sheet)); color: var(--ink-soft); }
+/* a letter a check found isn't ours in the cursor's cell */
+.g-krow button.not-ours { box-shadow: inset 0 0 0 2.5px var(--g-not-ours); }
 
 .g-field { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .1rem .7rem; padding: .7rem 0; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
 .g-field:first-child { border-top: 0; }

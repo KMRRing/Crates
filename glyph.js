@@ -391,6 +391,13 @@ function drawBoard(g, fs, letters, slot) {
   el.replaceChildren(...nodes);
 }
 
+/** Letters a check showed are not ours, by cell (any field, or none). */
+function rejectedByChecks() {
+  const out = {};
+  for (const e of S.log) if (e.check) for (const [k, ch] of Object.entries(e.check)) if (ch !== S.board.sol[k]) (out[k] ||= new Set()).add(ch);
+  return out;
+}
+
 /** Letters a check showed to match our fill, by cell. */
 /**
  * Sizes the board and the keyboard to the visible screen (Safari's bars included): the board as large as the width
@@ -431,10 +438,12 @@ function drawKeys(fs, notes) {
   const i = keyField(fs);
   $("kbd").title = i != null ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)` : "";
   const known = i != null && revealed().has(i) ? fs[i].rule : null;
+  const notOurs = (!S.done && cursor && rejectedByChecks()[cursor]) || new Set();   // checked here, not in our fill
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
     const ch = b.dataset.key;
     b.classList.toggle("ok", i != null && (known ? known.test(ch) : notes[i].ok.has(ch)));
     b.classList.toggle("no", i != null && (known ? !known.test(ch) : notes[i].no.has(ch)));
+    b.classList.toggle("not-ours", notOurs.has(ch));
   });
 }
 
