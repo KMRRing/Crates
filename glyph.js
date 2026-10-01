@@ -120,7 +120,16 @@ function place() {
     render();
     return;
   }
-  if (!VALID.has(word)) { toast(`${word} isn't in the word list`); return; }
+  if (!VALID.has(word)) {
+    // still placed, like a frame: shown underlined, not judged and not counted until it's a real word
+    if (!Object.keys(pending).length) { toast(`${word} isn't in the word list`); return; }
+    const draft = { ...pending };
+    pending = {};
+    act(g => { if (g.done) return false; g.log.push({ draft, ...(room && { by: room.uid }) }); });
+    toast(`${word} isn't in the word list, so it isn't judged`);
+    render();
+    return;
+  }
   if (!Object.keys(pending).length && slot.cells.every(k => before[k])) { toast(`${word} is already on the board`); return; }
   pending = {};
   clearLevel = 0;
@@ -673,14 +682,24 @@ function typeKey(k) {
   if (S.done) return;
   const slot = currentSlot(), at = slot.cells.indexOf(cursor);
   if (k === "ENTER") { place(); return; }
-  if (k === "BACK") {
-    // delete what's typed here, or step back a cell and delete there
-    if (pending[cursor]) delete pending[cursor];
-    else if (at > 0) { cursor = slot.cells[at - 1]; delete pending[cursor]; }
-  } else if (/^[A-Z]$/.test(k)) {
+  if (k === "BACK") { erase(slot, at); return; }
+  if (/^[A-Z]$/.test(k)) {
     pending[cursor] = k;
     if (at < slot.cells.length - 1) cursor = slot.cells[at + 1];
   }
+  render();
+}
+
+/**
+ * Delete empties the cell under the cursor, typed or placed, then steps back one cell. On an empty cell it
+ * steps back first and empties that one, so pressing it repeatedly walks back along the word.
+ */
+function erase(slot, at) {
+  const letters = lettersFrom(S.board, S.log), filled = k => !!(pending[k] || letters[k]);
+  const target = filled(cursor) || at === 0 ? cursor : slot.cells[at - 1];
+  delete pending[target];
+  if (letters[target]) act(g => { if (g.done) return false; g.log.push({ clear: [target], ...(room && { by: room.uid }) }); });
+  cursor = slot.cells[Math.max(0, slot.cells.indexOf(target) - 1)];
   render();
 }
 
