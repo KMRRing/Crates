@@ -134,8 +134,8 @@ function renderPlayers(vm) {
     names.className = "names";
     vm.players.forEach(pl => {
       const nm = document.createElement("span");
-      nm.className = `pl-name s${pl.slot}${pl.online === false ? " away" : ""}`;
-      nm.textContent = `${pl.me ? `${pl.name} (you)` : pl.name}${pl.ready ? " ✓" : ""}`;
+      nm.className = `pl-name s${pl.slot}${pl.online === false || pl.elsewhere ? " away" : ""}`;
+      nm.textContent = `${pl.me ? `${pl.name} (you)` : pl.name}${pl.ready ? " ✓" : ""}${pl.elsewhere ? ` · in ${pl.elsewhere}` : ""}`;
       names.appendChild(nm);
     });
     if (vm.players.length < 2) {

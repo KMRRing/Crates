@@ -302,3 +302,6 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* rooms.js: choosing which player to carry on as */
+.seat-list { display: grid; gap: .5rem; margin: .8rem 0 .4rem; }

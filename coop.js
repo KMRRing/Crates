@@ -11,19 +11,18 @@ import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings
 import { generate, generateSplit, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { getSync } from "./net.js";
 import * as view from "./view.js";
+import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
 
 const LIVES = 4;          // team pool per board
 const CLUES = 4;          // team pool per board; unused clues don't carry over
 const RECENT_ANSWERS = 16;
-const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-const roomPath = code => `crates/rooms/${code}`;
+// Crates' state lives in the crates branch of the app's shared rooms (rooms.js), beside the other games'.
+const roomPath = code => branchPath(code, "crates");
 export const MODES = {
   shared: { label: "Together", blurb: "Both of you see all sixteen words." },
   hidden: { label: "Hidden", blurb: "You each see eight; every crate needs both of you." },
 };
 
-
-const newCode = () => Array.from({ length: 4 }, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("");
 
 /** A fresh board from the room's pool and settings; in hidden mode each side uses its own player's. */
 function newBoard(room, n) {
@@ -68,8 +67,9 @@ function tidy(room) {
 }
 const boardScore = b => b.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
-export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) {
-  let sync, code, room, unwatch, uid;
+export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, myPool }) {
+  let sync, code, room, unwatch, uid, stopHere;
+  let here = {};                // who has which game of this room open: { uid: { game, name, online } }
   let mySel = new Set();
   let seen = null;              // what this screen has already announced: { n, guesses, found, revealed }
   let clueShown = null;         // word whose clue is on show
@@ -146,15 +146,30 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
   }
 
   function players() {
-    return Object.entries(room.players)
-      .map(([id, pl]) => ({ slot: pl.slot, name: pl.name, me: id === uid, online: pl.online, ready: !room.board && pl.ready }))
-      .sort((a, c) => a.slot - c.slot);
+    const elsewhere = id => (here[id] && here[id].game !== "crates" ? GAMES[here[id].game]?.name || null : null);
+    const out = Object.entries(room.players).map(([id, pl]) => ({
+      slot: pl.slot, name: pl.name, me: id === uid, online: here[id] ? here[id].online : pl.online,
+      ready: !room.board && pl.ready, elsewhere: elsewhere(id),
+    }));
+    // your partner has another game of this room open and hasn't sat down in this one yet
+    const o = otherHere(here, uid);
+    if (o && !room.players[o.id] && o.game !== "crates") {
+      out.push({ slot: 1 - (me()?.slot ?? 0), name: o.name, me: false, online: o.online, ready: false, elsewhere: elsewhere(o.id) });
+    }
+    return out.sort((a, c) => a.slot - c.slot);
+  }
+
+  /** The status line while you're alone in this game: who you're waiting for, and where they are. */
+  function waiting() {
+    const o = otherHere(here, uid);
+    return o && o.game !== "crates" ? `Waiting for ${o.name}, who's in ${GAMES[o.game]?.name || "another game"} right now.`
+      : "Waiting for your partner to join. Send the link from the menu.";
   }
 
   function lobbyVm() {
     const partner = partnerId();
     let status = "Set up your side in the menu, then press Ready.";
-    if (!partner) status = "Waiting for your partner to join. Send the link from the menu.";
+    if (!partner) status = waiting();
     else if (me().ready) status = room.players[partner].ready ? "Dealing…" : `Waiting for ${nameOf(partner)} to get ready.`;
     return {
       mode: "coop", category: null, pool: room.pool, label: "–", boardKey: "lobby",
@@ -203,7 +218,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     }
 
     let status = "";
-    if (!partner) status = "Waiting for your partner to join. Send the link from the menu.";
+    if (!partner) status = waiting();
     else if (b.pending) status = b.pending.namer === uid ? "" : `${nameOf(b.pending.namer)} is naming the crate${b.pending.by === uid ? " you found" : ""}…`;
 
     const picks = mySel.size + (hidden() ? partnerSel.length : 0);
@@ -500,7 +515,8 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
           row.appendChild(settingsBtn);
         }
         add("p", "room-link", link());
-        const leaveBtn = add("button", "link", "Leave and play solo");
+        add("p", "stats", "Switching games (tap the title) keeps you both in this room, and each game's progress is kept.");
+        const leaveBtn = add("button", "link", "Leave the room and play solo");
         leaveBtn.addEventListener("click", () => { close(); leave(); });
       }, "game");
     },
@@ -532,67 +548,81 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     view.toast(/permission/i.test(String(e?.message || e)) ? "Together mode isn't switched on in Firebase yet" : "Couldn't reach the game server", 5000);
   }
 
-  function watch() {
+  function watch(name) {
     view.bind(handlers);
     setRoomParam(code);
     unwatch = sync.watch(roomPath(code), onRoom, err => explain(err));
     sync.presence?.(`${roomPath(code)}/players/${uid}`);
+    stopHere = enterRoom(sync, code, "crates", name, h => { here = h; draw(); });
+  }
+
+  /** Crates' state for a room: this mode, pool and settings, with you seated. */
+  function freshRoom(mode, pool, settings, name) {
+    const room0 = {
+      v: 3, mode, owner: uid, created: Date.now(), pool, settings: cleanSettings(settings), recentA: [],
+      players: { [uid]: { name, slot: 0, sel: [], online: true, ready: false, settings: cleanSettings(settings) } },
+      tally: { maps: 0, points: 0 },
+    };
+    if (mode !== "hidden") room0.board = newBoard(room0, 1);
+    return room0;
   }
 
   async function create(mode, pool, settings) {
     const name = await askName();
     if (!(await connect())) return false;
     try {
-      for (let attempt = 0; attempt < 6; attempt++) {
-        const c = newCode();
-        const room0 = {
-          v: 3, mode, owner: uid, created: Date.now(), pool, settings: cleanSettings(settings), recentA: [],
-          players: { [uid]: { name, slot: 0, sel: [], online: true, ready: false, settings: cleanSettings(settings) } },
-          tally: { maps: 0, points: 0 },
-        };
-        if (mode !== "hidden") room0.board = newBoard(room0, 1);
-        const r = await sync.tx(roomPath(c), cur => (cur === null ? room0 : undefined));
-        if (r.committed) {
-          code = c;
-          seen = null;
-          lobbyPrompted = false;
-          menuOnFirstSnapshot = mode !== "hidden";   // show the link to send (the lobby opens its own sheet)
-          watch();
-          return true;
-        }
-      }
-      view.toast("Couldn't start a game, try again", 3000);
+      const c = await createRoom(sync, "crates", freshRoom(mode, pool, settings, name));
+      if (!c) { view.toast("Couldn't start a game, try again", 3000); return false; }
+      code = c;
+      seen = null;
+      lobbyPrompted = false;
+      menuOnFirstSnapshot = mode !== "hidden";   // show the link to send (the lobby opens its own sheet)
+      watch(name);
+      return true;
     } catch (e) { explain(e); }
     return false;
   }
 
+  /**
+   * Joins a room. If it began in another game, Crates starts a Together game in it. When both seats are
+   * taken you can carry on as either player (say after moving from laptop to phone); their other device leaves.
+   */
   async function join(c) {
-    const name = await askName();
+    let name = await askName();
     if (!(await connect())) return false;
-    code = c;
-    let full = false, old = false, glyph = false;
     try {
+      const shared = await openRoom(sync, c);
+      if (!shared) { view.toast("No game with that code", 3500); return false; }
+      const before = shared.crates ? tidy(shared.crates) : null;
+      if (shared.crates && !before) { view.toast("That game is from an older version, start a new one", 3500); return false; }
+      const seats = before ? Object.entries(before.players) : [];
+      let takeover = null;
+      if (before && !before.players[uid] && seats.length >= 2) {
+        takeover = await pickSeat(seats);
+        if (!takeover) return false;
+        name = before.players[takeover].name;
+      }
+      let full = false;
       const r = await sync.tx(roomPath(c), cur => {
-        full = false; old = false; glyph = false;
-        if (cur === null) return null;
-        if (cur.game === "glyph") { glyph = true; return undefined; }    // a Glyph game: it opens over there
+        full = false;
+        if (cur === null) return before ? null : freshRoom("shared", myPool(), mySettings(), name);
         const t = tidy(cur);
-        if (!t) { old = true; return undefined; }
+        if (!t) return undefined;
         if (t.players[uid]) { t.players[uid].name = name; return t; }
+        if (takeover && t.players[takeover]) return reseat(t, takeover, uid);   // their seat and moves are now this device's
         const slots = Object.values(t.players).map(pl => pl.slot);
         if (slots.length >= 2) { full = true; return undefined; }
         t.players[uid] = { name, slot: slots.includes(0) ? 1 : 0, sel: [], online: true, ready: false, settings: cleanSettings(mySettings()) };
         return t;
       });
-      if (glyph) { location.href = `glyph.html?room=${c}`; return true; }
       if (!r.committed || !r.value) {
-        view.toast(old ? "That game is from an older version, start a new one"
-          : full ? "That game already has two players" : "No game with that code", 3500);
+        view.toast(full ? "Someone else just took the free seat" : "No game with that code", 3500);
         return false;
       }
+      code = c;
       seen = null;
       lobbyPrompted = false;
-      watch();
+      watch(name);
       return true;
     } catch (e) { explain(e); return false; }
   }
@@ -600,6 +630,9 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
   function stop() {
     unwatch?.();
     unwatch = null;
+    stopHere?.();
+    stopHere = null;
+    here = {};
     room = null;
     mySel = new Set();
     decoded = { code: null };
@@ -607,6 +640,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
   }
 
   function leave() {
+    if (sync && code) leaveRoom(sync, code);
     stop();
     setRoomParam(null);
     onLeave();

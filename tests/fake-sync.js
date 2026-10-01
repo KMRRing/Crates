@@ -24,7 +24,13 @@
   bc.onmessage = notify;
   const commit = t => { localStorage.setItem(KEY, JSON.stringify(t)); bc.postMessage(1); setTimeout(notify, 0); };
   window.__cratesSync = {
-    uid: "u" + Math.random().toString(36).slice(2, 8),
+    // one id per tab, kept across page loads in it (like Firebase's anonymous sign-in on one device), so
+    // switching games in a tab is the same player while each test page is its own device
+    get uid() {
+      let id = sessionStorage.getItem("fakeuid");
+      if (!id) { id = "u" + Math.random().toString(36).slice(2, 8); sessionStorage.setItem("fakeuid", id); }
+      return id;
+    },
     watch(path, cb) {
       const w = { path, cb }; watchers.add(w);
       setTimeout(() => cb(structuredClone(get(read(), path) ?? null)), 0);
@@ -45,5 +51,10 @@
       commit(t);
     },
     presence() {},
+    session(path) {
+      const at = path.lastIndexOf("/"), parent = path.slice(0, at), key = path.slice(at + 1);
+      this.update(parent, { [key]: true });
+      return () => this.update(parent, { [key]: null });
+    },
   };
 })();

@@ -1,6 +1,6 @@
 // Firebase Realtime Database adapter for playing together (loaded only when needed).
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase, ref, onValue, runTransaction, update, onDisconnect, goOffline, goOnline }
+import { getDatabase, ref, onValue, runTransaction, update, set, remove, onDisconnect, goOffline, goOnline }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -59,6 +59,15 @@ export async function connect() {
     reconnect() {
       goOffline(db);
       goOnline(db);
+    },
+    /** Holds path at true while this page is connected (removed when it disconnects); returns a stop function. */
+    session(path) {
+      const off = onValue(ref(db, ".info/connected"), snap => {
+        if (snap.val() !== true) return;
+        onDisconnect(ref(db, path)).remove();
+        set(ref(db, path), true);
+      });
+      return () => { off(); onDisconnect(ref(db, path)).cancel(); remove(ref(db, path)); };
     },
     /** Marks path online while connected and offline on disconnect; returns a function that stops it. */
     presence(path) {

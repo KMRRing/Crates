@@ -18,7 +18,7 @@ const setBoardParam = code => setParam("b", code);
 bindSwitcher(document.getElementById("appsBtn"), "crates");
 
 const solo = createSolo({ onTogether: (mode, pool, settings) => startTogether(mode, pool, settings), modes: MODES, setPoolParam, setBoardParam });
-const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam, mySettings: () => solo.settings() });
+const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam, mySettings: () => solo.settings(), myPool: () => solo.pool() });
 
 async function startTogether(mode, pool, settings) {
   solo.suspend();

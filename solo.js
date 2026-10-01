@@ -488,6 +488,7 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
   let following = false;
   return {
     settings: () => store.settings,
+    pool: () => store.pool,
     /** runCode: from a ?run= link opened on this device. */
     start(pool, code, runCode) {
       active = true;

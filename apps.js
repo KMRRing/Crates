@@ -1,4 +1,6 @@
-// The game switcher: tapping a game's title opens a sheet listing every game in the app.
+// The game switcher: tapping a game's title opens a sheet listing every game in the app. Going to another
+// game carries the room code, so you stay in the same room (rooms.js).
+import { gameHref } from "./rooms.js";
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="0" y="0" width="9" height="9" fill="var(--c0)"/><rect x="11" y="0" width="9" height="9" fill="var(--c1)"/>
   <rect x="0" y="11" width="9" height="9" fill="var(--c2)"/><rect x="11" y="11" width="9" height="9" fill="var(--c3)"/></svg>`;
@@ -27,5 +29,9 @@ export function bindSwitcher(button, current) {
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });       // tap outside closes
   dlg.querySelectorAll(".app-row.cur").forEach(a => a.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
+  APPS.forEach(a => {
+    if (a.id === current) return;
+    dlg.querySelector(`.app-row[href="${a.href}"]`).addEventListener("click", e => { e.preventDefault(); location.href = gameHref(a.id); });
+  });
   button.addEventListener("click", () => dlg.showModal());
 }

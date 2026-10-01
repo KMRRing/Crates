@@ -1,6 +1,7 @@
-// Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
-// Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); both players see everything.
+// Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the app's
+// shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
 import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./glyph-gen.js";
+import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
@@ -17,9 +18,7 @@ const HOW = {
   pair: "Each pair of neighbours, read left to right and top to bottom.",
   whole: "Judged as a whole once every cell is filled.",
 };
-const roomPath = code => `crates/rooms/${code}`;
-const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-const newCode = () => Array.from({ length: 4 }, () => CODE_LETTERS[Math.floor(Math.random() * CODE_LETTERS.length)]).join("");
+const roomPath = code => branchPath(code, "glyph");
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
 // ---------- state ----------
@@ -106,14 +105,14 @@ async function act(change) {
   try {
     const r = await room.sync.tx(roomPath(room.code), cur => {
       if (cur === null) return null;
-      if (cur.game !== "glyph") return undefined;
+      if (!cur.board) return undefined;
       if ((cur.app || 0) > APP) { newer = true; return undefined; }
       cur.app = APP;
       cur.log = Object.values(cur.log || {});
       return change(cur) === false ? undefined : cur;
     });
     if (newer) { updateApp(); return false; }
-    return !!r.value && r.value.game === "glyph";
+    return !!r.value?.board;
   } catch (e) {
     console.error(e);
     toast("Couldn't save that: check your connection and try again");
@@ -122,7 +121,7 @@ async function act(change) {
 }
 
 // Bumped when together games change shape, so a device still running older code reloads instead of mangling them.
-const APP = 2;
+const APP = 3;
 
 /** Another device runs newer code: fetch the new files past the browser cache and reload, once per session. */
 async function updateApp() {
@@ -263,22 +262,24 @@ async function connect() {
   catch (e) { console.error(e); toast("Couldn't reach the game server"); return null; }
 }
 
+/** Glyph's state for a room: a fresh board, with these players seated. */
+function freshState(players) {
+  const seed = randomSeed();
+  return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board: generate(seed, S.level),
+    log: [], done: null, players };
+}
+
 async function together() {
   const name = await askName();
   if (!name) return;
   const sync = await connect();
   if (!sync) return;
-  const seed = randomSeed(), board = generate(seed, S.level);
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const code = newCode();
-    const room0 = { game: "glyph", v: 1, app: APP, owner: sync.uid, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board, log: [], done: null,
-      players: { [sync.uid]: { name, slot: 0, online: true } } };
-    try {
-      const r = await sync.tx(roomPath(code), cur => (cur === null ? room0 : undefined));
-      if (r.committed) { enter(code, sync); openMenu(); return; }
-    } catch (e) { explain(e); return; }
-  }
-  toast("Couldn't start a game, try again");
+  try {
+    const code = await createRoom(sync, "glyph", freshState({ [sync.uid]: { name, slot: 0, online: true } }));
+    if (!code) { toast("Couldn't start a game, try again"); return; }
+    enter(code, sync, name);
+    openMenu();
+  } catch (e) { explain(e); }
 }
 
 /** The players in a room: [id, player] for each seat (leftovers from devices that handed a seat over are skipped). */
@@ -292,11 +293,9 @@ async function join(code) {
   const sync = await connect();
   if (!sync) return false;
   try {
-    // a first look: whose game it is, and whether there's a free seat (null-on-null makes Firebase check the server)
-    let seen = null;
-    await sync.tx(roomPath(code), cur => { seen = cur; return cur === null ? null : undefined; });
-    if (!seen) { toast("No game with that code"); return false; }
-    if (seen.game !== "glyph") { location.href = `./?room=${code}`; return true; }
+    const shared = await openRoom(sync, code);
+    if (!shared) { toast("No game with that code"); return false; }
+    const seen = shared.glyph || null;
     const seats = seatsOf(seen);
     let takeover = null;
     if (!seats.some(([id]) => id === sync.uid) && seats.length >= 2) {
@@ -308,15 +307,15 @@ async function join(code) {
     let full = false;
     const r = await sync.tx(roomPath(code), cur => {
       full = false;
-      if (cur === null) return null;
-      if (cur.game !== "glyph") return undefined;
+      // the room began in another game: Glyph starts its side of it with a fresh board
+      if (cur === null) return seen ? null : freshState({ [sync.uid]: { name, slot: 0, online: true } });
+      if (!cur.board) return undefined;
       cur.players = Object.fromEntries(seatsOf(cur));
       if (cur.players[sync.uid]) { cur.players[sync.uid].name = name; return cur; }
       if (takeover && cur.players[takeover]) {
-        const { slot } = cur.players[takeover];
-        delete cur.players[takeover];
-        cur.players[sync.uid] = { name, slot, online: true };
-        return cur;
+        const next = reseat(cur, takeover, sync.uid);       // their seat, moves and all, are now this device's
+        next.players[sync.uid] = { ...next.players[sync.uid], online: true };
+        return next;
       }
       const slots = Object.values(cur.players).map(p => p.slot);
       if (slots.length >= 2) { full = true; return undefined; }
@@ -324,34 +323,17 @@ async function join(code) {
       return cur;
     });
     if (!r.committed || !r.value) { toast(full ? "Someone else just took the free seat" : "No game with that code"); return false; }
-    enter(code, sync);
+    enter(code, sync, name);
     return true;
   } catch (e) { explain(e); return false; }
 }
 
-/** Asks which player to carry on as; resolves to their id, or null. */
-function pickSeat(seats) {
-  const dlg = $("seatDlg");
-  return new Promise(resolve => {
-    let chosen = null;
-    $("seatList").replaceChildren(...seats.map(([id, p]) => {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "btn wide";
-      b.textContent = `Continue as ${p.name}${p.online === false ? " (away)" : ""}`;
-      b.addEventListener("click", () => { chosen = id; dlg.close(); });
-      return b;
-    }));
-    dlg.addEventListener("close", () => resolve(chosen), { once: true });
-    dlg.showModal();
-  });
-}
-
-function enter(code, sync) {
+function enter(code, sync, name) {
   clockPause();
-  room = { code, sync, uid: sync.uid, data: null };
+  room = { code, sync, uid: sync.uid, data: null, here: {} };
   setRoomParam(code);
   watchRoom();
+  room.stopHere = enterRoom(sync, code, "glyph", name, here => { if (room) { room.here = here; drawPartner(); } });
   room.stopPresence = sync.presence?.(`${roomPath(code)}/players/${sync.uid}`);
   room.online = true;
   room.stopConnection = sync.connection?.(ok => { if (room) { room.online = ok; drawPartner(); } });
@@ -372,7 +354,7 @@ function resync() {
 function onRoom(val) {
   if (!room) return;
   if ((val?.app || 0) > APP) { updateApp(); return; }
-  if (!val || val.game !== "glyph") { toast("That game has ended"); leave(); return; }
+  if (!val?.board) { toast("That game has ended"); leave(); return; }
   if (!seatsOf(val).some(([id]) => id === room.uid)) { toast("This game continued on another device"); leave(); return; }
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
@@ -393,6 +375,8 @@ function leave() {
   room?.unwatch?.();
   room?.stopPresence?.();
   room?.stopConnection?.();
+  room?.stopHere?.();
+  if (room) leaveRoom(room.sync, room.code);
   room = null;
   setRoomParam(null);
   S = loadSolo();
@@ -436,13 +420,25 @@ function render() {
 function drawPartner() {
   const el = $("partner");
   if (!room) { el.hidden = true; return; }
-  const others = seatsOf(room.data).filter(([id]) => id !== room.uid).map(([, pl]) => pl);
+  const seated = seatsOf(room.data).find(([id]) => id !== room.uid);
+  const there = otherHere(room.here, room.uid);
   el.hidden = false;
   el.innerHTML = "";
   if (room.online === false) { el.append("Reconnecting… moves made now may not reach your partner."); return; }
-  if (!others.length) { el.append(`Game ${room.code}: waiting for your partner to join.`); return; }
+  if (there && there.game !== "glyph") {
+    // your partner has another game of the room open: say which, and offer to follow
+    const b = document.createElement("b");
+    b.textContent = there.name;
+    const go = document.createElement("a");
+    go.href = gameHref(there.game);
+    go.textContent = `Join them`;
+    el.append(b, ` is in ${GAMES[there.game].name}${there.online ? "" : " (away)"}. `, go);
+    return;
+  }
+  if (!seated && !there) { el.append(`Game ${room.code}: waiting for your partner to join.`); return; }
+  const name = seated?.[1].name || there.name, away = there ? !there.online : seated[1].online === false;
   const b = document.createElement("b");
-  b.textContent = others[0].name + (others[0].online === false ? " (away)" : "");
+  b.textContent = name + (away ? " (away)" : "");
   el.append("Playing with ", b, ".");
 }
 
@@ -742,7 +738,7 @@ function drawMenu() {
   if (room) {
     $("menuTitle").textContent = `Game ${room.code}`;
     const link = `${location.origin}${location.pathname}?room=${room.code}`;
-    add("p", "stats", "Send this link to your partner to play the same board together. Opening it on another of your own devices lets you carry on there.");
+    add("p", "stats", "Send this link to your partner to play the same board together. Opening it on another of your own devices lets you carry on there. Switching games (tap the title) keeps you both in this room, and each game's progress is kept.");
     add("p", "room-link", link);
     const row = add("div", "controls");
     const copy = document.createElement("button"); copy.className = "btn"; copy.textContent = "Copy link";
@@ -754,7 +750,7 @@ function drawMenu() {
       row.appendChild(share);
     }
     add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
-    add("button", "link", "Leave this game").addEventListener("click", () => { $("menuDlg").close(); leave(); });
+    add("button", "link", "Leave the room").addEventListener("click", () => { $("menuDlg").close(); leave(); });
     return;
   }
   $("menuTitle").textContent = "Menu";
@@ -857,7 +853,6 @@ document.addEventListener("keydown", e => {
   e.preventDefault();
 });
 $("menuBtn").addEventListener("click", openMenu);
-$("seatCancel").addEventListener("click", () => $("seatDlg").close());
 $("fieldsBtn").addEventListener("click", () => $("fieldsDlg").showModal());
 $("fieldsClose").addEventListener("click", () => $("fieldsDlg").close());
 $("fieldsDlg").addEventListener("click", e => { if (e.target === $("fieldsDlg")) $("fieldsDlg").close(); });
