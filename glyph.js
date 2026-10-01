@@ -48,7 +48,7 @@ function saveSolo() { if (!room) try { localStorage.setItem(STORE, JSON.stringif
 function soloBoard(seed, level) {
   const board = generate(seed, level);
   S = { seed, level, board, log: [], done: null };
-  sel = 0; pending = ""; shownDone = null;
+  sel = 0; dirCell = null; pending = ""; shownDone = null;
   history.replaceState(null, "", `${location.pathname}${room ? "" : location.search}#s=${seed}&d=${level}`);
   saveSolo();
   render();
@@ -86,7 +86,7 @@ function check() {
   const letters = lettersFrom(S.board, S.log);
   if (!Object.keys(letters).length) { toast("Place a word first: a check looks at the letters on the board"); return; }
   act(g => { if (g.done || g.log.filter(e => e.check).length >= CHECKS) return false; g.log.push({ check: letters, ...(room && { by: room.uid }) }); });
-  toast("Solid dots match our fill. Hollow rings aren't in it.");
+  toast("Letters that match our fill now have a green outline.");
 }
 
 function giveUp() {
@@ -184,7 +184,7 @@ function onRoom(val) {
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
   S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null };
-  if (fresh) { sel = 0; pending = ""; shownDone = null; }
+  if (fresh) { sel = 0; dirCell = null; pending = ""; shownDone = null; }
   if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
   render();
   if ($("menuDlg").open) drawMenu();
@@ -221,10 +221,12 @@ function render() {
   $("level").value = S.level;
   $("checkBtn").textContent = `Check letters (${left})`;
   $("checkBtn").disabled = !!S.done || left === 0;
-  $("slotLabel").textContent = S.done ? "Board finished." : `${slot.dir} ${slot.num}, ${slot.cells.length} letters`;
+  const notes = notesFrom(S.board, S.log);
+  $("slotLabel").textContent = S.done ? "Board finished." : `${slot.dir} ${slot.num}, ${slot.cells.length} letters.${keysNote(fs)}`;
   drawPartner();
   drawBoard(g, fs, letters, slot);
-  drawFields(fs);
+  drawFields(fs, notes);
+  drawKeys(fs, notes);
   const doneKey = S.done ? JSON.stringify(S.done) : null;
   if (doneKey && doneKey !== shownDone) { shownDone = doneKey; showDone(); }
 }
@@ -251,8 +253,7 @@ function drawBoard(g, fs, letters, slot) {
   const owner = {};
   fs.forEach((f, i) => f.cells.forEach(k => { owner[k] = i; }));
   const verdict = judge(S.board, letters);
-  const keyMarks = {};                                   // the latest check per cell
-  for (const e of S.log) if (e.check) Object.assign(keyMarks, e.check);
+  const confirmed = confirmedLetters();
   const bad = new Set(g.slots.filter(s => s.cells.every(k => letters[k]) && !VALID.has(s.cells.map(k => letters[k]).join(""))).flatMap(s => s.cells));
   const nodes = [];
 
@@ -275,14 +276,19 @@ function drawBoard(g, fs, letters, slot) {
     if (!typed && letters[k]) {
       const v = verdict.cells[k];
       if (v && sees(v.field)) cell.appendChild(mark(v.ok));
-      if (keyMarks[k] && keyMarks[k] === letters[k]) {
-        const dot = document.createElement("span");
-        const match = letters[k] === S.board.sol[k];
-        dot.className = `g-key ${match ? "match" : "miss"}`;
-        dot.title = match ? "Matches our fill" : "Not in our fill";
-        cell.appendChild(dot);
-      }
       if (bad.has(k)) cell.classList.add("broken");
+    }
+    if (confirmed[k]) {
+      // a checked letter that matches our fill: outlined while it stays, a reminder in the corner once replaced
+      if (!typed && letters[k] === confirmed[k]) cell.classList.add("confirmed");
+      else {
+        const r = document.createElement("span");
+        r.className = "g-remind";
+        r.style.fontSize = `${Math.max(11, size * 0.2)}px`;
+        r.textContent = confirmed[k];
+        r.title = "This letter matched our fill";
+        cell.appendChild(r);
+      }
     }
     if (S.done && !letters[k]) { ch.className = "pending"; ch.textContent = S.board.sol[k]; }
     cell.dataset.k = k;
@@ -320,6 +326,34 @@ function drawBoard(g, fs, letters, slot) {
   el.replaceChildren(...nodes);
 }
 
+/** Letters a check showed to match our fill, by cell. */
+function confirmedLetters() {
+  const out = {};
+  for (const e of S.log) if (e.check) for (const [k, ch] of Object.entries(e.check)) if (ch === S.board.sol[k]) out[k] = ch;
+  return out;
+}
+
+/** The single-letter field of the clicked cell, if its marks are yours to see. */
+function keyField(fs) {
+  if (!dirCell || S.done) return null;
+  const i = fs.findIndex(f => f.cells.includes(dirCell));
+  return i >= 0 && fs[i].rule.type === "single" && sees(i) ? i : null;
+}
+function keysNote(fs) {
+  const i = keyField(fs);
+  return i == null ? "" : ` Keys show what ${styleOf(i).name} has taken and rejected.`;
+}
+
+/** Colours the keyboard with what the clicked cell's single-letter field has taken (green) and rejected (red). */
+function drawKeys(fs, notes) {
+  const i = keyField(fs);
+  document.querySelectorAll("#kbd button[data-key]").forEach(b => {
+    const ch = b.dataset.key;
+    b.classList.toggle("ok", i != null && notes[i].ok.has(ch));
+    b.classList.toggle("no", i != null && notes[i].no.has(ch));
+  });
+}
+
 function mark(ok) {
   const m = document.createElement("span");
   m.className = ok ? "g-mark-ok" : "g-mark-no";
@@ -328,8 +362,7 @@ function mark(ok) {
   return m;
 }
 
-function drawFields(fs) {
-  const notes = notesFrom(S.board, S.log);
+function drawFields(fs, notes) {
   $("fields").replaceChildren(...fs.map((f, i) => {
     const st = styleOf(i), row = document.createElement("div");
     row.className = "g-field";
@@ -450,6 +483,7 @@ function buildKeyboard() {
       const b = document.createElement("button");
       b.type = "button";
       b.textContent = k === "BACK" ? "⌫" : k === "ENTER" ? "Place" : k;
+      if (k.length === 1) b.dataset.key = k;
       if (k.length > 1) b.classList.add("wide");
       if (k === "ENTER") b.classList.add("place");
       if (k === "BACK") b.setAttribute("aria-label", "Delete");

@@ -38,7 +38,7 @@ Fill a small crossword so every across and down run is a real word. Coloured fie
 - Yellows and oranges judge neighbouring pairs, read left to right and top to bottom (the mark sits on the join).
 - Purples and pinks, dashed, judge the whole field once every cell is filled (one mark for the field).
 
-Each placement counts toward par (words plus fields). Two checks per board show which placed letters match our fill: a solid dot matches, a hollow ring isn't in it. Our fill uses only very common words; any fill that obeys every rule and makes real words wins too. Every rule is revealed when the board ends.
+Each placement counts toward par (words plus fields). Two checks per board give every placed letter that matches our fill a green outline; replace one and the matching letter stays in the cell's corner as a reminder. Tap a cell in a single-letter field and the keyboard shows the letters that field has taken (green) and rejected (red). Our fill uses only very common words; any fill that obeys every rule and makes real words wins too. Every rule is revealed when the board ends.
 
 Difficulty comes from the rules, each rated easy, medium or hard; every level mixes all three field types. The rule catalogue (glyph-gen.js): vowels, consonants, alphabet halves and thirds, straight or curved letters, enclosed spaces, keyboard rows, typing hand, mirror symmetry, odd alphabet positions, rarer letters and hidden keywords for single letters; ascending, descending, vowel-consonant, same class, same shape, same keyboard row, same hand, within three letters and double letters for pairs; no duplicates, no vowels, exactly one vowel, a repeated letter, one shape, rearranges into a word, one keyboard row and an even alphabet sum for whole fields.
 
