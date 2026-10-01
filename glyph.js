@@ -117,7 +117,6 @@ function check() {
     if (g.done || g.log.filter(e => e.check).length >= limitsFor(g.level).checks) return false;
     g.log.push({ check: letters, ...(room && { by: room.uid }) });
   });
-  toast("Letters that match our fill now have a green outline.");
 }
 
 /** Clear: first press empties letters that aren't in a real word, the next also words breaking a rule you can see, the next everything. */
@@ -405,7 +404,7 @@ function fitLayout(g) {
   const app = getComputedStyle($("app"));
   const width = $("app").clientWidth - parseFloat(app.paddingLeft) - parseFloat(app.paddingRight);
   const bottom = parseFloat(app.paddingBottom) || 0;
-  const fixed = $("actions").offsetHeight + 12 + 12 + 10 + 2 * KEY_GAP;    // actions, gaps, keyboard padding
+  const fixed = $("actions").offsetHeight + 12 + 12 + 2 * KEY_GAP;    // actions and the gaps around and between rows
   const boardRoom = vh - top - bottom - fixed - 3 * MIN_KEY;
   const size = Math.max(34, Math.min((width - GAP * (g.W - 1)) / g.W, (boardRoom - GAP * (g.H - 1)) / g.H, 84));
   const spare = vh - top - bottom - fixed - (g.H * size + (g.H - 1) * GAP);
@@ -429,11 +428,8 @@ function keyField(fs) {
 
 /** Colours the keyboard with what the clicked cell's single-letter field has taken (green) and rejected (red). */
 function drawKeys(fs, notes) {
-  const i = keyField(fs), kbd = $("kbd");
-  // the keyboard takes the field's colour while it shows that field's letters
-  kbd.classList.toggle("showing", i != null);
-  kbd.style.setProperty("--g-kbd-edge", i != null ? styleOf(i).edge : "transparent");
-  kbd.title = i != null ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)` : "";
+  const i = keyField(fs);
+  $("kbd").title = i != null ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)` : "";
   const known = i != null && revealed().has(i) ? fs[i].rule : null;
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
     const ch = b.dataset.key;

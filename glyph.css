@@ -63,7 +63,7 @@
 .g-dock { padding-top: 12px; }
 .g-actions { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: 12px; }
 .g-actions .btn { min-height: 40px; padding: .35rem 1rem; }
-.g-kbd { display: grid; gap: 6px; padding: 5px; margin: 0 -5px; border-radius: 12px; box-shadow: inset 0 0 0 2px var(--g-kbd-edge, transparent); }
+.g-kbd { display: grid; gap: 6px; }
 .g-krow { display: flex; gap: 5px; }
 .g-krow button {
   flex: 1 1 0; min-width: 0; height: var(--g-key-h, 50px); border: 0; border-radius: 7px; cursor: pointer; padding: 0;
