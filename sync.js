@@ -1,6 +1,6 @@
 // Firebase Realtime Database adapter for playing together (loaded only when needed).
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase, ref, onValue, runTransaction, update, onDisconnect }
+import { getDatabase, ref, onValue, runTransaction, update, onDisconnect, goOffline, goOnline }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
 import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -50,6 +50,15 @@ export async function connect() {
     },
     update(path, obj) {
       return update(ref(db, path), obj);
+    },
+    /** Calls cb(true/false) whenever this device's connection to the database comes or goes; returns a stop function. */
+    connection(cb) {
+      return onValue(ref(db, ".info/connected"), snap => cb(snap.val() === true));
+    },
+    /** Drops and reopens the connection. Safari can resume a page whose socket died while it slept. */
+    reconnect() {
+      goOffline(db);
+      goOnline(db);
     },
     /** Marks path online while connected and offline on disconnect; returns a function that stops it. */
     presence(path) {

@@ -1,6 +1,6 @@
 // Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
 // Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); both players see everything.
-import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells } from "./glyph-gen.js";
+import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./glyph-gen.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
@@ -95,13 +95,43 @@ function soloBoard(seed, level) {
 }
 
 // ---------- actions (solo writes the save; together writes the room) ----------
+/**
+ * Applies a change: to the solo save, or to the room in one transaction. Returns whether it was saved.
+ * (Firebase may first offer a transaction an empty cached value; answering null makes it check the server
+ * instead of abandoning the move.)
+ */
 async function act(change) {
-  if (!room) { change(S); saveSolo(); afterChange(); return; }
-  await room.sync.tx(roomPath(room.code), cur => {
-    if (!cur || cur.game !== "glyph") return undefined;
-    cur.log = Object.values(cur.log || {});
-    return change(cur) === false ? undefined : cur;
-  });
+  if (!room) { change(S); saveSolo(); afterChange(); return true; }
+  let newer = false;
+  try {
+    const r = await room.sync.tx(roomPath(room.code), cur => {
+      if (cur === null) return null;
+      if (cur.game !== "glyph") return undefined;
+      if ((cur.app || 0) > APP) { newer = true; return undefined; }
+      cur.app = APP;
+      cur.log = Object.values(cur.log || {});
+      return change(cur) === false ? undefined : cur;
+    });
+    if (newer) { updateApp(); return false; }
+    return !!r.value && r.value.game === "glyph";
+  } catch (e) {
+    console.error(e);
+    toast("Couldn't save that: check your connection and try again");
+    return false;
+  }
+}
+
+// Bumped when together games change shape, so a device still running older code reloads instead of mangling them.
+const APP = 2;
+
+/** Another device runs newer code: fetch the new files past the browser cache and reload, once per session. */
+async function updateApp() {
+  try { if (sessionStorage.getItem("glyph:updated")) { toast("Your partner has a newer version: close and reopen Glyph"); return; }
+    sessionStorage.setItem("glyph:updated", "1"); } catch { /* private mode */ }
+  toast("Updating to the newest version…");
+  const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));
+  await Promise.all([location.href, ...own].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
+  location.reload();
 }
 
 function place() {
@@ -111,9 +141,9 @@ function place() {
   if (word.length !== slot.cells.length) {
     // a frame: letters stay on the board, aren't judged and don't count until they're part of a real word
     if (!Object.keys(pending).length) { toast("Type a letter first"); return; }
-    const draft = { ...pending };
+    const draft = pending;
     pending = {};
-    act(g => { if (g.done) return false; g.log.push({ draft, ...(room && { by: room.uid }) }); });
+    submit({ draft }, draft);
     toast("Not a full word, so these letters aren't judged yet. Clear removes them.");
     render();
     return;
@@ -121,23 +151,30 @@ function place() {
   if (!VALID.has(word)) {
     // still placed, like a frame: shown underlined, not judged and not counted until it's a real word
     if (!Object.keys(pending).length) { toast(`${word} isn't in the word list`); return; }
-    const draft = { ...pending };
+    const draft = pending;
     pending = {};
-    act(g => { if (g.done) return false; g.log.push({ draft, ...(room && { by: room.uid }) }); });
+    submit({ draft }, draft);
     toast(`${word} isn't in the word list, so it isn't judged`);
     render();
     return;
   }
   if (!Object.keys(pending).length && slot.cells.every(k => before[k])) { toast(`${word} is already on the board`); return; }
+  const typed = pending;
   pending = {};
   clearLevel = 0;
-  act(g => { if (g.done) return false; g.log.push({ slot: slot.id, word, ...(room && { by: room.uid }) }); });
+  submit({ slot: slot.id, word }, typed);
   const after = { ...before };
   slot.cells.forEach((k, i) => { after[k] = word[i]; });
   const broken = grid().slots.filter(s => s !== slot && s.cells.some(k => slot.cells.includes(k))
     && s.cells.every(k => after[k]) && !VALID.has(s.cells.map(k => after[k]).join("")));
   if (broken.length) toast(`That broke ${broken.map(s => `${s.dir.toLowerCase()} ${s.num} (${s.cells.map(k => after[k]).join("")})`).join(" and ")}`);
   render();
+}
+
+/** Adds a move to the log. If a together move doesn't save, the letters you typed come back so nothing is lost. */
+function submit(entry, typed) {
+  act(g => { if (g.done) return false; g.log.push({ ...entry, ...(room && { by: room.uid }) }); })
+    .then(ok => { if (!ok && room && !S.done) { pending = { ...typed, ...pending }; render(); } });
 }
 
 function check() {
@@ -234,7 +271,7 @@ async function together() {
   const seed = randomSeed(), board = generate(seed, S.level);
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = newCode();
-    const room0 = { game: "glyph", v: 1, owner: sync.uid, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board, log: [], done: null,
+    const room0 = { game: "glyph", v: 1, app: APP, owner: sync.uid, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board, log: [], done: null,
       players: { [sync.uid]: { name, slot: 0, online: true } } };
     try {
       const r = await sync.tx(roomPath(code), cur => (cur === null ? room0 : undefined));
@@ -314,26 +351,48 @@ function enter(code, sync) {
   clockPause();
   room = { code, sync, uid: sync.uid, data: null };
   setRoomParam(code);
-  room.unwatch = sync.watch(roomPath(code), onRoom, explain);
+  watchRoom();
   room.stopPresence = sync.presence?.(`${roomPath(code)}/players/${sync.uid}`);
+  room.online = true;
+  room.stopConnection = sync.connection?.(ok => { if (room) { room.online = ok; drawPartner(); } });
+}
+
+function watchRoom() {
+  room.unwatch?.();
+  room.unwatch = room.sync.watch(roomPath(room.code), onRoom, explain);
+}
+
+/** Back from the background (Safari may have frozen the page): reconnect and fetch the room afresh. */
+function resync() {
+  if (!room || document.hidden) return;
+  room.sync.reconnect?.();
+  watchRoom();
 }
 
 function onRoom(val) {
   if (!room) return;
+  if ((val?.app || 0) > APP) { updateApp(); return; }
   if (!val || val.game !== "glyph") { toast("That game has ended"); leave(); return; }
   if (!seatsOf(val).some(([id]) => id === room.uid)) { toast("This game continued on another device"); leave(); return; }
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
   S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null, startedAt: val.startedAt || val.created };
   if (fresh) { resetCursor(); shownDone = null; }
-  if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
-  render();
-  if ($("menuDlg").open) drawMenu();
+  try {
+    if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
+    render();
+    if ($("menuDlg").open) drawMenu();
+  } catch (e) {
+    // one bad update must never freeze the screen for the rest of the game
+    console.error(e);
+    toast("Something went wrong showing the last move; it's still saved");
+  }
 }
 
 function leave() {
   room?.unwatch?.();
   room?.stopPresence?.();
+  room?.stopConnection?.();
   room = null;
   setRoomParam(null);
   S = loadSolo();
@@ -380,6 +439,7 @@ function drawPartner() {
   const others = seatsOf(room.data).filter(([id]) => id !== room.uid).map(([, pl]) => pl);
   el.hidden = false;
   el.innerHTML = "";
+  if (room.online === false) { el.append("Reconnecting… moves made now may not reach your partner."); return; }
   if (!others.length) { el.append(`Game ${room.code}: waiting for your partner to join.`); return; }
   const b = document.createElement("b");
   b.textContent = others[0].name + (others[0].online === false ? " (away)" : "");
@@ -808,7 +868,8 @@ $("checkBtn").addEventListener("click", check);
 $("clearBtn").addEventListener("click", clear);
 $("level").addEventListener("change", e => newBoard(e.target.value));
 window.addEventListener("resize", () => render());
-document.addEventListener("visibilitychange", () => (document.hidden ? clockPause() : clockRun()));
+document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); resync(); } });
+window.addEventListener("pageshow", e => { if (e.persisted) resync(); });   // restored from Safari's page cache
 window.addEventListener("pagehide", clockPause);
 window.visualViewport?.addEventListener("resize", () => render());   // Safari's bars coming and going
 

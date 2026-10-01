@@ -372,7 +372,7 @@ export function notesFrom(board, log) {
     grid.slots.filter(s => s.cells.every(k => ok.has(k)) && s.cells.some(k => placed.has(k))).forEach(s => s.cells.forEach(k => touched.add(k)));
     fields.forEach((f, i) => {
       if (f.rule.type === "single") {
-        f.cells.forEach(k => { if (touched.has(k) && ok.has(k)) (j.cells[k].ok ? notes[i].ok : notes[i].no).add(letters[k]); });
+        f.cells.forEach(k => { if (touched.has(k) && ok.has(k) && j.cells[k]) (j.cells[k].ok ? notes[i].ok : notes[i].no).add(letters[k]); });
       } else if (f.rule.type === "pair") {
         j.joints.filter(x => x.field === i && ok.has(x.a) && ok.has(x.b) && (touched.has(x.a) || touched.has(x.b)))
           .forEach(x => (x.ok ? notes[i].ok : notes[i].no).add(`${letters[x.a]}→${letters[x.b]}`));
@@ -411,15 +411,18 @@ export function lettersFrom(board, log) {
   return letters;
 }
 
+/** The word in a slot, or null while any of its cells is empty (gaps must never close up into a shorter word). */
+export const wordAt = (slot, letters) => (slot.cells.every(k => letters[k]) ? slot.cells.map(k => letters[k]).join("") : null);
+
 /** Cells whose letters count: those in at least one complete real word. Anything else is a draft, not judged. */
 export function eligibleCells(board, letters) {
   const grid = gridOf(SHAPES[board.shape]);
-  return new Set(grid.slots.filter(s => VALID.has(s.cells.map(k => letters[k] || "").join(""))).flatMap(s => s.cells));
+  return new Set(grid.slots.filter(s => VALID.has(wordAt(s, letters))).flatMap(s => s.cells));
 }
 
 export function isSolved(board, letters) {
   const grid = gridOf(SHAPES[board.shape]);
-  if (!grid.slots.every(s => VALID.has(s.cells.map(k => letters[k] || "").join("")))) return false;
+  if (!grid.slots.every(s => VALID.has(wordAt(s, letters)))) return false;
   const j = judge(board, letters);
   return fieldsOf(board).every((f, i) => (f.rule.type === "single" ? f.cells.every(k => j.cells[k]?.ok)
     : f.rule.type === "pair" ? jointsOf(f.cells).every(([a, b]) => j.joints.find(x => x.a === a && x.b === b)?.ok)
@@ -435,8 +438,7 @@ export function clearable(board, letters, level, visible = () => true) {
   const grid = gridOf(SHAPES[board.shape]);
   const filled = grid.cells.filter(k => letters[k]);
   if (level >= 3) return filled;
-  const word = s => s.cells.map(k => letters[k] || "").join("");
-  let keep = grid.slots.filter(s => VALID.has(word(s)));
+  let keep = grid.slots.filter(s => VALID.has(wordAt(s, letters)));
   if (level === 2) {
     const j = judge(board, letters), broken = new Set();
     for (const [k, v] of Object.entries(j.cells)) if (!v.ok && visible(v.field)) broken.add(k);
