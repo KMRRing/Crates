@@ -51,12 +51,14 @@ export async function connect() {
     update(path, obj) {
       return update(ref(db, path), obj);
     },
+    /** Marks path online while connected and offline on disconnect; returns a function that stops it. */
     presence(path) {
-      onValue(ref(db, ".info/connected"), snap => {
+      const off = onValue(ref(db, ".info/connected"), snap => {
         if (snap.val() !== true) return;
         onDisconnect(ref(db, path)).update({ online: false });
         update(ref(db, path), { online: true });
       });
+      return () => { off(); onDisconnect(ref(db, path)).cancel(); };
     },
   };
 }

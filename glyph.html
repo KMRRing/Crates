@@ -63,6 +63,12 @@
   <button class="btn primary wide" type="button" id="doneNew">New board</button>
 </dialog>
 
+<dialog id="seatDlg" class="sheet" aria-label="Take over a seat">
+  <div class="pick-head"><h2>Two players already</h2><button class="btn" type="button" id="seatCancel">Cancel</button></div>
+  <p class="stats">Carry on as one of them, for example after switching from your laptop to your phone. Their other device leaves the game.</p>
+  <div id="seatList" class="g-seats"></div>
+</dialog>
+
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
   <form method="dialog" id="nameForm">
     <label for="nameInput">Your name, so your partner knows who's playing</label>

@@ -1,5 +1,5 @@
 // Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
-// Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); each player sees the marks of half the fields.
+// Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); both players see everything.
 import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells } from "./glyph-gen.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
@@ -37,8 +37,6 @@ const fields = () => fieldsOf(S.board);
 const placements = () => S.log.filter(e => e.word).length;
 const checksUsed = () => S.log.filter(e => e.check).length;
 const revealed = () => new Set(S.log.filter(e => e.reveal != null).map(e => e.reveal));
-const mySlot = () => (room ? room.data?.players?.[room.uid]?.slot ?? 0 : null);
-const sees = i => !room || !!S.done || i % 2 === mySlot() || revealed().has(i);
 const other = d => (d === "Across" ? "Down" : "Across");
 const slotFor = (k, d) => grid().slots.find(s => s.dir === d && s.cells.includes(k));
 const currentSlot = () => slotFor(cursor, dir) || slotFor(cursor, other(dir));
@@ -161,11 +159,11 @@ function clear() {
   pending = {};
   const level = clearLevel + 1;
   clearLevel = level >= 3 ? 0 : level;
-  const cells = clearable(S.board, letters, level, sees);
+  const cells = clearable(S.board, letters, level);
   const words = n => `${n} letter${n === 1 ? "" : "s"}`;
   if (!cells.length) {
     toast(level === 1 ? "Every letter is part of a real word. Press Clear again to remove words that break a rule."
-      : "No word breaks a rule you can see. Press Clear again to empty the board.");
+      : "No word breaks a rule. Press Clear again to empty the board.");
     render();
     return;
   }
@@ -246,29 +244,70 @@ async function together() {
   toast("Couldn't start a game, try again");
 }
 
+/** The players in a room: [id, player] for each seat (leftovers from devices that handed a seat over are skipped). */
+const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]) => p && p.slot != null);
+
+/**
+ * Joins a game. When both seats are taken, you can carry on as either player, for example after moving from
+ * laptop to phone: you take over that seat (and name) and the other device leaves the game.
+ */
 async function join(code) {
-  const name = await askName();
-  if (!name) return false;
   const sync = await connect();
   if (!sync) return false;
-  let crates = false, full = false;
   try {
+    // a first look: whose game it is, and whether there's a free seat (null-on-null makes Firebase check the server)
+    let seen = null;
+    await sync.tx(roomPath(code), cur => { seen = cur; return cur === null ? null : undefined; });
+    if (!seen) { toast("No game with that code"); return false; }
+    if (seen.game !== "glyph") { location.href = `./?room=${code}`; return true; }
+    const seats = seatsOf(seen);
+    let takeover = null;
+    if (!seats.some(([id]) => id === sync.uid) && seats.length >= 2) {
+      takeover = await pickSeat(seats);
+      if (!takeover) return false;
+    }
+    const name = takeover ? seats.find(([id]) => id === takeover)[1].name : await askName();
+    if (!name) return false;
+    let full = false;
     const r = await sync.tx(roomPath(code), cur => {
-      crates = false; full = false;
+      full = false;
       if (cur === null) return null;
-      if (cur.game !== "glyph") { crates = true; return undefined; }
-      cur.players ||= {};
+      if (cur.game !== "glyph") return undefined;
+      cur.players = Object.fromEntries(seatsOf(cur));
       if (cur.players[sync.uid]) { cur.players[sync.uid].name = name; return cur; }
+      if (takeover && cur.players[takeover]) {
+        const { slot } = cur.players[takeover];
+        delete cur.players[takeover];
+        cur.players[sync.uid] = { name, slot, online: true };
+        return cur;
+      }
       const slots = Object.values(cur.players).map(p => p.slot);
       if (slots.length >= 2) { full = true; return undefined; }
       cur.players[sync.uid] = { name, slot: slots.includes(0) ? 1 : 0, online: true };
       return cur;
     });
-    if (crates) { location.href = `./?room=${code}`; return true; }
-    if (!r.committed || !r.value) { toast(full ? "That game already has two players" : "No game with that code"); return false; }
+    if (!r.committed || !r.value) { toast(full ? "Someone else just took the free seat" : "No game with that code"); return false; }
     enter(code, sync);
     return true;
   } catch (e) { explain(e); return false; }
+}
+
+/** Asks which player to carry on as; resolves to their id, or null. */
+function pickSeat(seats) {
+  const dlg = $("seatDlg");
+  return new Promise(resolve => {
+    let chosen = null;
+    $("seatList").replaceChildren(...seats.map(([id, p]) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn wide";
+      b.textContent = `Continue as ${p.name}${p.online === false ? " (away)" : ""}`;
+      b.addEventListener("click", () => { chosen = id; dlg.close(); });
+      return b;
+    }));
+    dlg.addEventListener("close", () => resolve(chosen), { once: true });
+    dlg.showModal();
+  });
 }
 
 function enter(code, sync) {
@@ -276,12 +315,13 @@ function enter(code, sync) {
   room = { code, sync, uid: sync.uid, data: null };
   setRoomParam(code);
   room.unwatch = sync.watch(roomPath(code), onRoom, explain);
-  sync.presence?.(`${roomPath(code)}/players/${sync.uid}`);
+  room.stopPresence = sync.presence?.(`${roomPath(code)}/players/${sync.uid}`);
 }
 
 function onRoom(val) {
   if (!room) return;
   if (!val || val.game !== "glyph") { toast("That game has ended"); leave(); return; }
+  if (!seatsOf(val).some(([id]) => id === room.uid)) { toast("This game continued on another device"); leave(); return; }
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
   S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null, startedAt: val.startedAt || val.created };
@@ -293,6 +333,7 @@ function onRoom(val) {
 
 function leave() {
   room?.unwatch?.();
+  room?.stopPresence?.();
   room = null;
   setRoomParam(null);
   S = loadSolo();
@@ -336,16 +377,14 @@ function render() {
 function drawPartner() {
   const el = $("partner");
   if (!room) { el.hidden = true; return; }
-  const others = Object.entries(room.data?.players || {}).filter(([id]) => id !== room.uid).map(([, pl]) => pl);
-  const mine = fields().map((f, i) => i).filter(i => i % 2 === mySlot()).map(i => styleOf(i).name);
+  const others = seatsOf(room.data).filter(([id]) => id !== room.uid).map(([, pl]) => pl);
   el.hidden = false;
   el.innerHTML = "";
   if (!others.length) { el.append(`Game ${room.code}: waiting for your partner to join.`); return; }
   const b = document.createElement("b");
   b.textContent = others[0].name + (others[0].online === false ? " (away)" : "");
-  el.append("Playing with ", b, `. You see the marks for ${listJoin(mine)}.`);
+  el.append("Playing with ", b, ".");
 }
-const listJoin = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 function drawBoard(g, fs, letters, slot) {
   const el = $("board"), size = fitLayout(g);
@@ -377,7 +416,7 @@ function drawBoard(g, fs, letters, slot) {
     cell.appendChild(ch);
     if (!typed && letters[k]) {
       const v = verdict.cells[k];
-      if (v && sees(v.field) && eligible.has(k)) cell.appendChild(mark(v.ok));
+      if (v && eligible.has(k)) cell.appendChild(mark(v.ok));
       if (bad.has(k)) cell.classList.add("broken");
       else if (!eligible.has(k)) { cell.classList.add("draft"); cell.title = "Not part of a real word yet"; }
     }
@@ -414,10 +453,10 @@ function drawBoard(g, fs, letters, slot) {
           : { left: `${pa.x + (size - thick) / 2}px`, top: `${pa.y + size - 4}px`, width: `${thick}px`, height: `${GAP + 8}px` });
         join.style.background = st.edge;
         const v = verdict.joints.find(j => j.a === a && j.b === b);
-        if (v && sees(i) && eligible.has(a) && eligible.has(b)) join.appendChild(mark(v.ok));
+        if (v && eligible.has(a) && eligible.has(b)) join.appendChild(mark(v.ok));
         nodes.push(join);
       }
-    } else if (f.rule.type === "whole" && i in verdict.wholes && sees(i) && f.cells.every(k => eligible.has(k))) {
+    } else if (f.rule.type === "whole" && i in verdict.wholes && f.cells.every(k => eligible.has(k))) {
       const first = f.cells.slice().sort((a, b) => at(a).y - at(b).y || at(a).x - at(b).x)[0], { x, y } = at(first);
       const badge = document.createElement("div");
       badge.className = "g-badge";
@@ -468,7 +507,7 @@ function confirmedLetters() {
 function keyField(fs) {
   if (!cursor || S.done) return null;
   const i = fs.findIndex(f => f.cells.includes(cursor));
-  return i >= 0 && fs[i].rule.type === "single" && sees(i) ? i : null;
+  return i >= 0 && fs[i].rule.type === "single" ? i : null;
 }
 
 /** Colours the keyboard with what the clicked cell's single-letter field has taken (green) and rejected (red). */
@@ -579,7 +618,6 @@ function drawFields(fs, notes) {
     ask.addEventListener("click", () => reveal(i));
     row.append(sw, name, ask);
     line(row, HOW[st.type]);
-    if (!sees(i)) { line(row, "Your partner sees this field's marks."); return row; }   // (a revealed rule is seen by both)
     const ok = [...notes[i].ok].sort(), no = [...notes[i].no].sort();
     const label = st.type === "single" ? ["Takes", "Rejects"] : ["Passed", "Failed"];
     noteLine(row, label[0], ok, "ok");
@@ -630,7 +668,7 @@ function drawMenu() {
   if (room) {
     $("menuTitle").textContent = `Game ${room.code}`;
     const link = `${location.origin}${location.pathname}?room=${room.code}`;
-    add("p", "stats", "Send this link to your partner. Each of you sees the marks for half the fields, so talk about what you see.");
+    add("p", "stats", "Send this link to your partner to play the same board together. Opening it on another of your own devices lets you carry on there.");
     add("p", "room-link", link);
     const row = add("div", "controls");
     const copy = document.createElement("button"); copy.className = "btn"; copy.textContent = "Copy link";
@@ -745,6 +783,7 @@ document.addEventListener("keydown", e => {
   e.preventDefault();
 });
 $("menuBtn").addEventListener("click", openMenu);
+$("seatCancel").addEventListener("click", () => $("seatDlg").close());
 $("fieldsBtn").addEventListener("click", () => $("fieldsDlg").showModal());
 $("fieldsClose").addEventListener("click", () => $("fieldsDlg").close());
 $("fieldsDlg").addEventListener("click", e => { if (e.target === $("fieldsDlg")) $("fieldsDlg").close(); });
