@@ -2,7 +2,10 @@
 import { BANK, PAIRS, cardKey, norm, shuffled } from "./core.js";
 
 const DIFF_WEIGHT = { easy: [3, 1, 0.2], mixed: [1, 1, 1], hard: [0.3, 1, 2.5] };
-const MAX_HERRINGS = 2;        // words on a board that also fit another crate on it
+// Red herrings (words that also fit another crate on the board) per difficulty: [fewest, most].
+const HERRINGS = { easy: [0, 0], mixed: [0, 1], hard: [1, 2] };
+const LEVELS = ["easy", "mixed", "hard"];
+const STRICT_ATTEMPTS = 300;   // after that, a board short of herrings (Hard) is better than no board
 const SAME_TOPIC_DAMPING = 0.45;
 const RECENT_DAMPING = 0.25;
 // Learning mode. A missed word comes back away from the crates it was missed next to, and with
@@ -117,6 +120,29 @@ function reviewPlan(pool, settings, learn, review, rng) {
   return { cat, reviews, backlog };
 }
 
+/**
+ * Red herrings fit the difficulty: none on Easy, at most one on Mixed, one or two on Hard. Each herring
+ * fits exactly one other crate, and no two herrings link the same two crates (two clues that could go
+ * either way between the same pair would leave the solution unclear).
+ */
+function herringsFit(groups, difficulty, relaxed) {
+  const answers = groups.map(g => g.a), links = [];
+  for (const g of groups) for (const i of g.w) {
+    const others = BANK[g.a].words[i].alt.filter(a => a !== g.a && answers.includes(a));
+    if (others.length > 1) return false;
+    if (others.length) links.push([g.a, others[0]].sort((x, y) => x - y).join("|"));
+  }
+  if (new Set(links).size < links.length) return false;
+  const [fewest, most] = HERRINGS[difficulty] || HERRINGS.mixed;
+  return links.length <= most && (relaxed || links.length >= fewest);
+}
+
+/** Where a difficulty allows no herrings, words that also fit another chosen crate aren't dealt at all (weight 0). */
+function noHerrings(difficulty, chosen) {
+  if ((HERRINGS[difficulty] || HERRINGS.mixed)[1] > 0) return () => 1;
+  return (a, i) => (BANK[a].words[i].alt.some(x => x !== a && chosen.includes(x)) ? 0 : 1);
+}
+
 /** Number of ways to fill four crates of four, given each word's own crate plus its also-fits. */
 /**
  * Each crate must name exactly one answer: the only answer in the whole bank that all four of its words fit.
@@ -185,9 +211,11 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
       }
       // A tile must never be the name of another crate on the board.
       const banned = blocker(chosen);
+      const herringFree = noHerrings(settings.difficulty, chosen);
       const groups = [];
       for (const a of chosen) {
-        const mult = i => (isNew(a, i) ? learnWeight(learn, review, a, i) : 0) * (recentWs.has(wordKey(a, i)) ? RECENT_DAMPING : 1);
+        const mult = i => (isNew(a, i) ? learnWeight(learn, review, a, i) : 0) * herringFree(a, i)
+          * (recentWs.has(wordKey(a, i)) ? RECENT_DAMPING : 1);
         const review = reviews.find(r => r.a === a);
         let w;
         if (review) {
@@ -205,8 +233,7 @@ export function generate({ pool, settings, recentA = [], recentW = [], rng = Mat
         groups.push({ a, w });
       }
       if (groups.length < 4) continue;
-      const herrings = groups.reduce((s, g) => s + g.w.filter(i => BANK[g.a].words[i].alt.some(x => chosen.includes(x))).length, 0);
-      if (herrings > MAX_HERRINGS) continue;
+      if (!herringsFit(groups, settings.difficulty, attempt >= STRICT_ATTEMPTS)) continue;
       if (!groups.every(namesOne) || countSolutions(groups) !== 1) continue;
       return { cat, groups: withLevels(groups) };
     }
@@ -230,6 +257,8 @@ for (let a = 1; a <= 3; a++) for (let b = 1; b <= 3; b++) for (let c = 1; c <= 3
 export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.random }) {
   const recentAs = new Set(recentA);
   const settings = sides.map(s => ({ ...s, off }));
+  // one board for both players: the easier of their two difficulties sets the herrings
+  const difficulty = LEVELS[Math.min(...settings.map(s => Math.max(0, LEVELS.indexOf(s.difficulty))))];
   const cats = pool === "mixed" ? shuffled(["country", "commodity"], rng) : [pool];
   for (const cat of cats) {
     const answers = BANK.map((a, i) => i).filter(i => BANK[i].cat === cat && !off.includes(BANK[i].group)
@@ -243,11 +272,12 @@ export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.
       }
       const split = SPLITS[Math.floor(rng() * SPLITS.length)];
       const banned = blocker(chosen);
+      const herringFree = noHerrings(difficulty, chosen);
       const groups = [], owners = [];
       for (const [n, a] of chosen.entries()) {
         const w = [], who = [];
         for (const [slot, count] of [[0, split[n]], [1, 4 - split[n]]]) {
-          const got = sampleWords(a, settings[slot], banned, rng, { count });
+          const got = sampleWords(a, settings[slot], banned, rng, { count, mult: i => herringFree(a, i) });
           if (!got) break;
           got.forEach(i => { banned.add(norm(BANK[a].words[i].w)); w.push(i); who.push(slot); });
         }
@@ -256,8 +286,8 @@ export function generateSplit({ pool, sides, off = [], recentA = [], rng = Math.
         owners.push(who);
       }
       if (groups.length < 4) continue;
-      const herrings = groups.reduce((s, g) => s + g.w.filter(i => BANK[g.a].words[i].alt.some(x => chosen.includes(x))).length, 0);
-      if (herrings > MAX_HERRINGS || !groups.every(namesOne) || countSolutions(groups) !== 1) continue;
+      if (!herringsFit(groups, difficulty, attempt >= STRICT_ATTEMPTS)) continue;
+      if (!groups.every(namesOne) || countSolutions(groups) !== 1) continue;
       return { cat, groups: withLevels(groups), sides: owners };
     }
   }
