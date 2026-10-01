@@ -582,9 +582,23 @@ function outlineOf(rects) {
       const a = pts[(n - 1 + pts.length) % pts.length], b = pts[(n + 1) % pts.length];
       return !((a[0] === p[0] && p[0] === b[0]) || (a[1] === p[1] && p[1] === b[1]));
     });
-    loops.push(`M${keep.map(p => p.join(",")).join("L")}Z`);
+    loops.push(roundedLoop(keep, CELL_RADIUS));
   }
   return loops.join("");
+}
+const CELL_RADIUS = 9;   // matches .g-cell's border-radius, so a cage's corners follow the cells'
+
+/** A closed rectilinear loop with every corner rounded: outward corners curve one way, inward ones the other. */
+function roundedLoop(pts, radius) {
+  return pts.map((p, i) => {
+    const a = pts[(i - 1 + pts.length) % pts.length], b = pts[(i + 1) % pts.length];
+    const inLen = Math.hypot(p[0] - a[0], p[1] - a[1]), outLen = Math.hypot(b[0] - p[0], b[1] - p[1]);
+    const r = Math.min(radius, inLen / 2, outLen / 2);
+    const u = [(p[0] - a[0]) / inLen, (p[1] - a[1]) / inLen], v = [(b[0] - p[0]) / outLen, (b[1] - p[1]) / outLen];
+    const start = [p[0] - u[0] * r, p[1] - u[1] * r], end = [p[0] + v[0] * r, p[1] + v[1] * r];
+    const clockwise = u[0] * v[1] - u[1] * v[0] > 0;          // screen y points down
+    return `${i ? "L" : "M"}${start.join(",")}A${r},${r} 0 0 ${clockwise ? 1 : 0} ${end.join(",")}`;
+  }).join("") + "Z";
 }
 
 function mark(ok) {
