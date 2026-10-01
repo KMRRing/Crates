@@ -33,7 +33,10 @@
   display: grid; place-items: center; cursor: pointer; user-select: none; -webkit-user-select: none;
   font-weight: 750; font-stretch: 100%; line-height: 1;
 }
-.g-cell.whole { border-style: dashed; }
+.g-cell.whole { background: transparent; border-color: transparent; }
+/* a whole field's cage: one tinted shape and one dashed outline around all its cells */
+.g-cage { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.g-cage path { stroke-width: 2; stroke-dasharray: 7 5; stroke-linejoin: round; }
 /* the word being typed: a ring round each cell, a heavier one where the next letter goes */
 .g-cell.sel { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 50%, transparent); z-index: 2; }
 .g-cell.cursor { box-shadow: 0 0 0 3.5px var(--ink); z-index: 2; }
