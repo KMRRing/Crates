@@ -570,11 +570,12 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
     const name = await askName();
     if (!(await connect())) return false;
     code = c;
-    let full = false, old = false;
+    let full = false, old = false, glyph = false;
     try {
       const r = await sync.tx(roomPath(c), cur => {
-        full = false; old = false;
+        full = false; old = false; glyph = false;
         if (cur === null) return null;
+        if (cur.game === "glyph") { glyph = true; return undefined; }    // a Glyph game: it opens over there
         const t = tidy(cur);
         if (!t) { old = true; return undefined; }
         if (t.players[uid]) { t.players[uid].name = name; return t; }
@@ -583,6 +584,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings }) 
         t.players[uid] = { name, slot: slots.includes(0) ? 1 : 0, sel: [], online: true, ready: false, settings: cleanSettings(mySettings()) };
         return t;
       });
+      if (glyph) { location.href = `glyph.html?room=${c}`; return true; }
       if (!r.committed || !r.value) {
         view.toast(old ? "That game is from an older version, start a new one"
           : full ? "That game already has two players" : "No game with that code", 3500);

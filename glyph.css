@@ -1,0 +1,86 @@
+/* Glyph: the board, its fields and marks. Shell, buttons and sheets come from style.css. */
+:root {
+  /* single-letter fields: blues and greens */
+  --gs0: #CFE3F1; --gs0e: #2D5E88;  --gs1: #D2E9D6; --gs1e: #3F7A50;  --gs2: #CDE9E7; --gs2e: #23736F;
+  /* pair fields: yellows and oranges */
+  --gp0: #F4E2AE; --gp0e: #A87C0C;  --gp1: #F6D3B5; --gp1e: #B9601C;  --gp2: #EADBC4; --gp2e: #7E6236;
+  /* whole fields: purples and pinks */
+  --gw0: #E1D8F2; --gw0e: #6650BE;  --gw1: #F2D1E0; --gw1e: #AE3E72;  --gw2: #E6D2EB; --gw2e: #874394;
+  --g-cell: #F7F8F7; --g-line: #C5CDD1; --g-ok: #2E7D4F; --g-no: #B23A2C; --g-key: #C99A16;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --gs0: #1B3448; --gs0e: #7FB2DD;  --gs1: #1E3626; --gs1e: #7CC28F;  --gs2: #183836; --gs2e: #6CC5BF;
+    --gp0: #3E3410; --gp0e: #E3BA45;  --gp1: #43281A; --gp1e: #EE9A5F;  --gp2: #392F22; --gp2e: #CBAA78;
+    --gw0: #2C2650; --gw0e: #A595F2;  --gw1: #45222F; --gw1e: #E984B2;  --gw2: #3A2440; --gw2e: #CC8BDB;
+    --g-cell: #1D262D; --g-line: #33414B; --g-ok: #63C98E; --g-no: #FF7E6E; --g-key: #E8C04B;
+    --g-logo-tint: #1B3448; --g-logo-edge: #7FB2DD;
+  }
+}
+.g-mark { display: inline-block; }
+.g-mark svg { width: 100%; height: 100%; display: block; }
+.g-status { color: var(--ink-soft); margin: .55rem 0 .2rem; font-size: .95rem; }
+.g-partner { margin: 0 0 .4rem; font-size: .95rem; }
+.g-partner b { font-weight: 750; }
+
+/* The board is laid out in script: cells, joins and field badges are positioned absolutely. */
+.g-board { position: relative; margin: .7rem auto 0; width: min(100%, 25rem); touch-action: manipulation; }
+.g-cell {
+  position: absolute; border-radius: 9px; border: 2px solid var(--g-line); background: var(--g-cell);
+  display: grid; place-items: center; cursor: pointer; user-select: none; -webkit-user-select: none;
+  font-weight: 750; font-stretch: 100%; line-height: 1;
+}
+.g-cell.whole { border-style: dashed; }
+.g-cell.sel { box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
+.g-cell .pending { color: var(--ink-soft); font-weight: 600; }
+.g-cell.broken .ch { text-decoration: underline wavy var(--g-no); text-underline-offset: 4px; }
+.g-mark-ok, .g-mark-no {
+  position: absolute; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 800; color: #fff; line-height: 1; z-index: 3;
+}
+.g-mark-ok { background: var(--g-ok); }
+.g-mark-no { background: var(--g-no); }
+.g-cell .g-mark-ok, .g-cell .g-mark-no { top: -7px; right: -7px; }
+/* a check: solid dot = matches our fill, hollow ring = not in our fill */
+.g-key { position: absolute; left: 5px; bottom: 5px; width: 10px; height: 10px; border-radius: 50%; }
+.g-key.match { background: var(--g-key); }
+.g-key.miss { border: 2px solid var(--g-key); }
+/* the join between two cells of a pair field */
+.g-join { position: absolute; border-radius: 6px; z-index: 4; }   /* above a selected word's outline */
+.g-join .g-mark-ok, .g-join .g-mark-no { left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.g-badge { position: absolute; z-index: 5; }
+.g-badge .g-mark-ok, .g-badge .g-mark-no { position: static; width: 22px; height: 22px; font-size: 13px; }
+
+.g-slot { text-align: center; color: var(--ink-soft); margin: .8rem 0 0; min-height: 1.4em; font-size: .95rem; }
+.g-kbd { display: grid; gap: 6px; margin: .2rem 0 1rem; }
+.g-krow { display: flex; gap: 5px; justify-content: center; }
+.g-krow button {
+  flex: 1 1 0; max-width: 2.6rem; height: 3.1rem; border: 0; border-radius: 7px; cursor: pointer;
+  background: var(--sheet); color: var(--ink); font-size: 1.1rem; font-weight: 650;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-soft) 45%, transparent);
+}
+.g-krow button.wide { max-width: 4.4rem; flex-grow: 1.6; font-size: .95rem; }
+.g-krow button.place { background: var(--ink); color: var(--yard); }
+.g-tools { flex-wrap: wrap; }
+
+.g-h2 { font-size: 1.2rem; font-weight: 800; margin: 1.4rem 0 .3rem; }
+.g-field { display: grid; grid-template-columns: 1.6rem 1fr; gap: .1rem .7rem; padding: .7rem 0; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
+.g-field:first-child { border-top: 0; }
+.g-swatch { width: 1.3rem; height: 1.3rem; border-radius: 5px; border: 2px solid; margin-top: .15rem; }
+.g-swatch.whole { border-style: dashed; }
+.g-swatch.pair { border-radius: 999px; }
+.g-fname { font-weight: 750; }
+.g-fline { grid-column: 2; font-size: .92rem; color: var(--ink-soft); }
+.g-fline .rule { color: var(--ink); }
+.g-notes { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.g-note { padding: 1px 7px; border-radius: 6px; font-weight: 700; font-size: .9rem; color: var(--ink); }
+.g-note.ok { background: color-mix(in srgb, var(--g-ok) 22%, transparent); }
+.g-note.no { background: color-mix(in srgb, var(--g-no) 18%, transparent); text-decoration: line-through; }
+
+.g-howto { margin-top: 1.4rem; color: var(--ink-soft); font-size: .95rem; }
+.g-howto summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+.g-howto p { margin: .5rem 0; }
+.g-done-text { margin: .6rem 0; }
+.g-rules { padding-left: 1.1rem; margin: .4rem 0 .8rem; }
+.g-rules li { margin: .25rem 0; }
+.g-ours { font-weight: 700; letter-spacing: .04em; }

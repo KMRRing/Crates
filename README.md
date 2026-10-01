@@ -30,6 +30,22 @@ Learn mode in detail: every clue-answer pair is its own card: knowing that Coppe
 - A pair you get right retires to the bottom of the deck. Unseen pairs are preferred, so the same clue turns up under its other answers as you go.
 - Solved crates flag clues "↻ back soon" or "✓ learned" (in Learn and Clue learn). Progress stays in the browser (or follows a synced run); Settings has a reset for the learning cards and, in No repeats, a way to start the clues over.
 
+## Glyph
+Tap the title (Crates or Glyph) to switch games. Glyph lives at glyph.html.
+
+Fill a small crossword so every across and down run is a real word. Coloured fields carry secret letter rules, and the colour family says what kind:
+- Blues and greens judge each letter on its own (a tick or cross on the letter).
+- Yellows and oranges judge neighbouring pairs, read left to right and top to bottom (the mark sits on the join).
+- Purples and pinks, dashed, judge the whole field once every cell is filled (one mark for the field).
+
+Each placement counts toward par (words plus fields). Two checks per board show which placed letters match our fill: a solid dot matches, a hollow ring isn't in it. Our fill uses only very common words; any fill that obeys every rule and makes real words wins too. Every rule is revealed when the board ends.
+
+Difficulty comes from the rules, each rated easy, medium or hard; every level mixes all three field types. The rule catalogue (glyph-gen.js): vowels, consonants, alphabet halves and thirds, straight or curved letters, enclosed spaces, keyboard rows, typing hand, mirror symmetry, odd alphabet positions, rarer letters and hidden keywords for single letters; ascending, descending, vowel-consonant, same class, same shape, same keyboard row, same hand, within three letters and double letters for pairs; no duplicates, no vowels, exactly one vowel, a repeated letter, one shape, rearranges into a word, one keyboard row and an even alphabet sum for whole fields.
+
+Together: Menu → Play together sends a link (or a four-letter code). Both players place words on the same board, share the placements and the two checks, and each sees the marks for half the fields, so you have to tell each other what you see. Glyph games use the same Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"), so no rule changes are needed; a Glyph code entered in Crates opens Glyph.
+
+Words: SCOWL word lists (sizes 10-20 for our fills, up to 70 with British and American spellings for what you may place), packed in glyph-words.js.
+
 ## Your run on several devices
 Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. Each change also carries the size of the word bank it was made with. A device still on an older version of the app reloads itself onto the new one instead of dealing boards of its own (it couldn't read boards that use newer words), and a device that is only following, untouched, doesn't run the clock or write anything. "Stop syncing on this device" keeps a local copy and lets go of the run.
 
