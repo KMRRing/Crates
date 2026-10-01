@@ -111,7 +111,11 @@
   opacity: 0; pointer-events: none; transition: opacity .18s;
 }
 .g-toast.show { opacity: 1; }
-.g-done-text { margin: .6rem 0; }
+/* the result: four numbers in a row */
+.g-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin: 1rem 0 .6rem; }
+.g-stats div { display: flex; flex-direction: column; align-items: center; gap: .1rem; text-align: center; }
+.g-stats dd { margin: 0; font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+.g-stats dt { font-size: .8rem; color: var(--ink-soft); }
 .g-rules { padding-left: 1.1rem; margin: .4rem 0 .8rem; }
 .g-rules li { margin: .25rem 0; }
 .g-ours { font-weight: 700; letter-spacing: .04em; }

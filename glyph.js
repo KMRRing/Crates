@@ -1,6 +1,6 @@
 // Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
 // Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); each player sees the marks of half the fields.
-import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, par, jointsOf, unkey, clearable, eligibleCells } from "./glyph-gen.js";
+import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells } from "./glyph-gen.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
@@ -30,6 +30,7 @@ let dir = "Across";   // which way typing runs; tapping the cursor's cell again 
 let pending = {};     // letters typed into the current word but not placed yet, by cell
 let shownDone = null;
 let clearLevel = 0;   // Clear escalates on repeated presses: broken words, then rule-breakers, then everything
+let clockFrom = null; // solo: when the board's clock last started running (paused while the page is hidden)
 
 const grid = () => gridOf(SHAPES[S.board.shape]);
 const fields = () => fieldsOf(S.board);
@@ -54,6 +55,28 @@ function styleOf(i) {
   return { tint: `var(--g${prefix}${n})`, edge: `var(--g${prefix}${n}e)`, name: names[n], type: f.rule.type };
 }
 
+// ---------- the clock ----------
+// Solo boards count the time spent on screen (S.ms). Together boards count from when the board was dealt
+// to when it ended, since two people come and go.
+function clockRun() {
+  if (room || !S || S.done || clockFrom != null || document.hidden) return;
+  clockFrom = performance.now();
+}
+function clockPause() {
+  if (clockFrom == null) return;
+  S.ms = (S.ms || 0) + performance.now() - clockFrom;
+  clockFrom = null;
+  saveSolo();
+}
+function elapsed() {
+  if (room || S.startedAt) return S.startedAt ? (S.done?.at || Date.now()) - S.startedAt : 0;
+  return (S.ms || 0) + (clockFrom != null ? performance.now() - clockFrom : 0);
+}
+const clockText = ms => {
+  const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, pad = n => String(n).padStart(2, "0");
+  return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+};
+
 // ---------- solo ----------
 function loadSolo() {
   try { const s = JSON.parse(localStorage.getItem(STORE)); if (s?.board && Array.isArray(s.log)) return s; } catch { /* fresh */ }
@@ -63,8 +86,10 @@ function saveSolo() { if (!room) try { localStorage.setItem(STORE, JSON.stringif
 
 function soloBoard(seed, level) {
   const board = generate(seed, level);
-  S = { seed, level, board, log: [], done: null };
+  S = { seed, level, board, log: [], done: null, ms: 0 };
   shownDone = null;
+  clockFrom = null;
+  clockRun();
   resetCursor();
   history.replaceState(null, "", `${location.pathname}${room ? "" : location.search}#s=${seed}&d=${level}`);
   saveSolo();
@@ -155,6 +180,7 @@ function reveal(i) {
 function giveUp() {
   if (S.done) { showDone(); return; }
   if (!confirm("Show our fill and end this board?")) return;
+  clockPause();
   act(g => { if (g.done) return false; g.done = { gaveUp: true, at: Date.now() }; });
 }
 
@@ -163,12 +189,13 @@ function newBoard(level = S.level) {
   $("menuDlg").close();
   if (!room) { soloBoard(randomSeed(), level); return; }
   const seed = randomSeed(), board = generate(seed, level);
-  act(g => { g.level = level; g.seed = seed; g.board = board; g.log = []; g.done = null; });
+  act(g => { g.level = level; g.seed = seed; g.board = board; g.log = []; g.done = null; g.startedAt = Date.now(); });
 }
 
 /** Solved boards end themselves; both players see the result. */
 function afterChange() {
   if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) {
+    clockPause();
     act(g => { if (g.done) return false; g.done = { won: true, at: Date.now() }; });
     return;
   }
@@ -200,7 +227,7 @@ async function together() {
   const seed = randomSeed(), board = generate(seed, S.level);
   for (let attempt = 0; attempt < 6; attempt++) {
     const code = newCode();
-    const room0 = { game: "glyph", v: 1, owner: sync.uid, created: Date.now(), level: S.level, seed, board, log: [], done: null,
+    const room0 = { game: "glyph", v: 1, owner: sync.uid, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board, log: [], done: null,
       players: { [sync.uid]: { name, slot: 0, online: true } } };
     try {
       const r = await sync.tx(roomPath(code), cur => (cur === null ? room0 : undefined));
@@ -236,6 +263,7 @@ async function join(code) {
 }
 
 function enter(code, sync) {
+  clockPause();
   room = { code, sync, uid: sync.uid, data: null };
   setRoomParam(code);
   room.unwatch = sync.watch(roomPath(code), onRoom, explain);
@@ -247,7 +275,7 @@ function onRoom(val) {
   if (!val || val.game !== "glyph") { toast("That game has ended"); leave(); return; }
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
-  S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null };
+  S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null, startedAt: val.startedAt || val.created };
   if (fresh) { resetCursor(); shownDone = null; }
   if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
   render();
@@ -262,6 +290,7 @@ function leave() {
   if (!S) { soloBoard(randomSeed(), $("level").value || "easy"); return; }
   resetCursor();
   shownDone = S.done ? JSON.stringify(S.done) : null;
+  clockRun();
   render();
 }
 
@@ -500,18 +529,19 @@ function noteLine(row, label, items, kind) {
 function showDone() {
   const g = grid(), letters = lettersFrom(S.board, S.log);
   const ours = g.slots.every(s => s.cells.every(k => letters[k] === S.board.sol[k]));
-  const n = placements(), p = par(S.board);
-  if (S.done.won) {
-    const stars = n <= p ? 3 : n <= p + 3 ? 2 : 1;
-    $("doneTitle").textContent = "★".repeat(stars) + "☆".repeat(3 - stars);
-    $("doneText").textContent = `Solved in ${n} placement${n === 1 ? "" : "s"} (par ${p}). ${ours ? "You found our fill." : "You found a different fill from ours, which counts just the same."}`;
-  } else {
-    $("doneTitle").textContent = "Our fill";
-    $("doneText").textContent = "Here's the fill we had in mind, and every field's rule.";
-  }
+  $("doneTitle").textContent = S.done.won ? "Solved" : "Our fill";
+  const stats = [["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Time", clockText(elapsed())]];
+  $("doneStats").replaceChildren(...stats.flatMap(([label, value]) => {
+    const dt = document.createElement("dt"), dd = document.createElement("dd");
+    dt.textContent = label; dd.textContent = value;
+    const box = document.createElement("div");
+    box.append(dd, dt);
+    return [box];
+  }));
+  // our fill, when yours differs (or you asked to see it)
   const words = document.createElement("p");
   words.className = "g-ours";
-  words.textContent = ours && S.done.won ? "" : g.slots.map(s => `${s.dir} ${s.num}: ${s.cells.map(k => S.board.sol[k]).join("")}`).join("   ");
+  if (!(ours && S.done.won)) words.textContent = `Our fill: ${g.slots.map(s => s.cells.map(k => S.board.sol[k]).join("")).join(", ")}`;
   $("doneOurs").replaceChildren(words);
   $("doneRules").replaceChildren(...fields().map((f, i) => { const li = document.createElement("li"); li.textContent = `${styleOf(i).name}: ${f.rule.text}`; return li; }));
   $("doneDlg").showModal();
@@ -643,6 +673,8 @@ $("checkBtn").addEventListener("click", check);
 $("clearBtn").addEventListener("click", clear);
 $("level").addEventListener("change", e => newBoard(e.target.value));
 window.addEventListener("resize", () => render());
+document.addEventListener("visibilitychange", () => (document.hidden ? clockPause() : clockRun()));
+window.addEventListener("pagehide", clockPause);
 window.visualViewport?.addEventListener("resize", () => render());   // Safari's bars coming and going
 
 // ---------- start ----------
@@ -656,5 +688,6 @@ S = loadSolo();
 if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d)) soloBoard(+hash.s, ["easy", "medium", "hard"].includes(hash.d) ? hash.d : "easy");
 else if (!S) soloBoard(randomSeed(), "easy");
 else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render(); }
+clockRun();
 if (code.length === 4) join(code).then(ok => { if (!ok) setRoomParam(null); });
 window.__glyph = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };

@@ -426,7 +426,6 @@ export function isSolved(board, letters) {
       : j.wholes[i] === true));
 }
 
-export const par = board => gridOf(SHAPES[board.shape]).slots.length + board.fields.length;
 
 /**
  * Cells a Clear would empty. Level 1: letters in no complete real word. Level 2: also words that break a rule
