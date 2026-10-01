@@ -35,30 +35,26 @@
   <p id="partner" class="g-partner" hidden></p>
 
   <div id="board" class="g-board" aria-label="Board"></div>
-  <p id="slotLabel" class="g-slot"></p>
-  <p id="toast" class="toast" role="status" aria-live="polite"></p>
-  <div id="kbd" class="g-kbd" aria-label="Keyboard"></div>
 
-  <div class="controls g-tools">
-    <button id="checkBtn" class="btn">Check letters</button>
-    <button id="newBtn" class="btn primary">New board</button>
+  <div id="dock" class="g-dock">
+    <div class="g-actions">
+      <button id="fieldsBtn" class="btn" aria-haspopup="dialog">Fields</button>
+      <button id="checkBtn" class="btn">Check letters</button>
+    </div>
+    <div id="kbd" class="g-kbd" aria-label="Keyboard"></div>
   </div>
 
-  <h2 class="g-h2">Fields</h2>
-  <div id="fields" class="g-fields"></div>
-
-  <details class="g-howto">
-    <summary>How to play</summary>
-    <p>Fill the board so every across and down run is a real word. Each coloured field has a secret rule about letters, and the colour tells you what kind:</p>
-    <p><b>Blues and greens</b> judge each letter on its own. <b>Yellows and oranges</b> judge neighbouring pairs, read left to right and top to bottom; their marks sit on the joins. <b>Purples and pinks</b> (dashed) judge the whole field at once, when every cell is filled.</p>
-    <p>Tap a cell to pick its word (tap again to switch direction), type, and press Place. Every placement counts toward par, so use them as experiments. When the cell you tapped is in a blue or green field, the keyboard shows the letters that field has taken (green) and rejected (red).</p>
-    <p>Two checks per board give every placed letter that matches our fill a green outline. If you later replace one, the matching letter stays in the cell's corner as a reminder. Any fill that obeys every rule wins, ours or yours.</p>
-  </details>
+  <button id="newBtn" class="btn primary wide g-new">New board</button>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2 id="menuTitle">Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="fieldsDlg" class="sheet" aria-label="Fields">
+  <div class="pick-head"><h2>Fields</h2><button class="btn" type="button" id="fieldsClose">Close</button></div>
+  <div id="fields" class="g-fields"></div>
 </dialog>
 
 <dialog id="doneDlg" class="sheet" aria-label="Board finished">
@@ -77,6 +73,7 @@
   </form>
 </dialog>
 
+<p id="toast" class="g-toast" role="status" aria-live="polite"></p>
 <script type="module" src="glyph.js"></script>
 </body>
 </html>

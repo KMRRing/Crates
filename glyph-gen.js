@@ -379,6 +379,7 @@ export function notesFrom(board, log) {
     });
   };
   for (const e of log) {
+    if (e.clear) { e.clear.forEach(k => { delete letters[k]; }); continue; }
     if (e.check) {
       // a letter matching the intended fill obeys its field: logged as accepted (a non-match proves nothing)
       fields.forEach((f, i) => {
@@ -397,7 +398,10 @@ export function notesFrom(board, log) {
 /** The letters on the board after a list of placements. */
 export function lettersFrom(board, log) {
   const grid = gridOf(SHAPES[board.shape]), letters = {};
-  for (const e of log) if (!e.check) grid.slots[e.slot].cells.forEach((k, i) => { letters[k] = e.word[i]; });
+  for (const e of log) {
+    if (e.clear) e.clear.forEach(k => { delete letters[k]; });
+    else if (e.word) grid.slots[e.slot].cells.forEach((k, i) => { letters[k] = e.word[i]; });
+  }
   return letters;
 }
 
@@ -411,3 +415,24 @@ export function isSolved(board, letters) {
 }
 
 export const par = board => gridOf(SHAPES[board.shape]).slots.length + board.fields.length;
+
+/**
+ * Cells a Clear would empty. Level 1: letters in no complete real word. Level 2: also words that break a rule
+ * of a field you can see (visible(i)). Level 3: everything.
+ */
+export function clearable(board, letters, level, visible = () => true) {
+  const grid = gridOf(SHAPES[board.shape]);
+  const filled = grid.cells.filter(k => letters[k]);
+  if (level >= 3) return filled;
+  const word = s => s.cells.map(k => letters[k] || "").join("");
+  let keep = grid.slots.filter(s => VALID.has(word(s)));
+  if (level === 2) {
+    const j = judge(board, letters), broken = new Set();
+    for (const [k, v] of Object.entries(j.cells)) if (!v.ok && visible(v.field)) broken.add(k);
+    for (const x of j.joints) if (!x.ok && visible(x.field)) { broken.add(x.a); broken.add(x.b); }
+    for (const [i, ok] of Object.entries(j.wholes)) if (!ok && visible(+i)) board.fields[i].cells.forEach(k => broken.add(k));
+    keep = keep.filter(s => !s.cells.some(k => broken.has(k)));
+  }
+  const kept = new Set(keep.flatMap(s => s.cells));
+  return filled.filter(k => !kept.has(k));
+}

@@ -1,6 +1,6 @@
 // Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
 // Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); each player sees the marks of half the fields.
-import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, par, jointsOf, unkey } from "./glyph-gen.js";
+import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, par, jointsOf, unkey, clearable } from "./glyph-gen.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
@@ -24,10 +24,11 @@ const randomSeed = () => Math.floor(Math.random() * 1e9);
 let S = null;        // { seed, level, board, log, done } — the solo save, or the room's game
 let room = null;     // together: { code, uid, sync, unwatch, data }
 let sel = 0, dirCell = null, pending = "", shownDone = null;
+let clearLevel = 0;  // Clear escalates on repeated presses: broken words, then rule-breakers, then everything
 
 const grid = () => gridOf(SHAPES[S.board.shape]);
 const fields = () => fieldsOf(S.board);
-const placements = () => S.log.filter(e => !e.check).length;
+const placements = () => S.log.filter(e => e.word).length;
 const checksUsed = () => S.log.filter(e => e.check).length;
 const mySlot = () => (room ? room.data?.players?.[room.uid]?.slot ?? 0 : null);
 const sees = i => !room || !!S.done || i % 2 === mySlot();
@@ -48,7 +49,7 @@ function saveSolo() { if (!room) try { localStorage.setItem(STORE, JSON.stringif
 function soloBoard(seed, level) {
   const board = generate(seed, level);
   S = { seed, level, board, log: [], done: null };
-  sel = 0; dirCell = null; pending = ""; shownDone = null;
+  sel = 0; dirCell = null; pending = ""; shownDone = null; clearLevel = 0;
   history.replaceState(null, "", `${location.pathname}${room ? "" : location.search}#s=${seed}&d=${level}`);
   saveSolo();
   render();
@@ -70,6 +71,7 @@ function place() {
   if (word.length !== slot.cells.length) { toast(`Type a ${slot.cells.length}-letter word`); return; }
   if (!VALID.has(word)) { toast(`${word} isn't in the word list`); return; }
   pending = "";
+  clearLevel = 0;
   const before = lettersFrom(S.board, S.log);
   act(g => { if (g.done) return false; g.log.push({ slot: slot.id, word, ...(room && { by: room.uid }) }); });
   const after = { ...before };
@@ -87,6 +89,28 @@ function check() {
   if (!Object.keys(letters).length) { toast("Place a word first: a check looks at the letters on the board"); return; }
   act(g => { if (g.done || g.log.filter(e => e.check).length >= CHECKS) return false; g.log.push({ check: letters, ...(room && { by: room.uid }) }); });
   toast("Letters that match our fill now have a green outline.");
+}
+
+/** Clear: first press empties letters that aren't in a real word, the next also words breaking a rule you can see, the next everything. */
+function clear() {
+  if (S.done) return;
+  const letters = lettersFrom(S.board, S.log);
+  if (!Object.keys(letters).length) { toast("The board is already empty"); clearLevel = 0; return; }
+  pending = "";
+  const level = clearLevel + 1;
+  clearLevel = level >= 3 ? 0 : level;
+  const cells = clearable(S.board, letters, level, sees);
+  const words = n => `${n} letter${n === 1 ? "" : "s"}`;
+  if (!cells.length) {
+    toast(level === 1 ? "Every letter is part of a real word. Press Clear again to remove words that break a rule."
+      : "No word breaks a rule you can see. Press Clear again to empty the board.");
+    render();
+    return;
+  }
+  act(g => { if (g.done) return false; g.log.push({ clear: cells, ...(room && { by: room.uid }) }); });
+  toast(level === 1 ? `Cleared ${words(cells.length)} that weren't part of a real word. Press again to clear rule-breakers too.`
+    : level === 2 ? `Cleared ${words(cells.length)} in words that break a rule. Press again to empty the board.`
+      : "Board cleared.");
 }
 
 function giveUp() {
@@ -184,7 +208,7 @@ function onRoom(val) {
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
   S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null };
-  if (fresh) { sel = 0; dirCell = null; pending = ""; shownDone = null; }
+  if (fresh) { sel = 0; dirCell = null; pending = ""; shownDone = null; clearLevel = 0; }
   if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
   render();
   if ($("menuDlg").open) drawMenu();
@@ -217,12 +241,11 @@ function render() {
   const g = grid(), fs = fields(), letters = lettersFrom(S.board, S.log);
   if (!g.slots[sel]) sel = 0;
   const slot = g.slots[sel], p = par(S.board), n = placements(), left = CHECKS - checksUsed();
-  $("status").textContent = `${n} placement${n === 1 ? "" : "s"}, par ${p}. ${left} check${left === 1 ? "" : "s"} left.`;
+  $("status").textContent = `${S.done ? "Board finished. " : ""}${n} placement${n === 1 ? "" : "s"}, par ${p}.${S.done ? "" : ` ${left} check${left === 1 ? "" : "s"} left.`}`;
   $("level").value = S.level;
   $("checkBtn").textContent = `Check letters (${left})`;
   $("checkBtn").disabled = !!S.done || left === 0;
   const notes = notesFrom(S.board, S.log);
-  $("slotLabel").textContent = S.done ? "Board finished." : `${slot.dir} ${slot.num}, ${slot.cells.length} letters.${keysNote(fs)}`;
   drawPartner();
   drawBoard(g, fs, letters, slot);
   drawFields(fs, notes);
@@ -247,7 +270,12 @@ const listJoin = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(",
 
 function drawBoard(g, fs, letters, slot) {
   const el = $("board");
-  const width = el.clientWidth || 360, size = (width - GAP * (g.W - 1)) / g.W;
+  el.style.width = "";
+  const width = el.clientWidth || 360;
+  // as large as the width allows, but small enough that the keyboard below still fits on screen
+  const spaceForBoard = window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - $("dock").offsetHeight - 12;
+  const size = Math.max(34, Math.min((width - GAP * (g.W - 1)) / g.W, (spaceForBoard - GAP * (g.H - 1)) / g.H, 84));
+  el.style.width = `${g.W * size + (g.W - 1) * GAP}px`;
   el.style.height = `${g.H * size + (g.H - 1) * GAP}px`;
   const at = k => { const [r, c] = unkey(k); return { x: c * (size + GAP), y: r * (size + GAP) }; };
   const owner = {};
@@ -339,14 +367,14 @@ function keyField(fs) {
   const i = fs.findIndex(f => f.cells.includes(dirCell));
   return i >= 0 && fs[i].rule.type === "single" && sees(i) ? i : null;
 }
-function keysNote(fs) {
-  const i = keyField(fs);
-  return i == null ? "" : ` Keys show what ${styleOf(i).name} has taken and rejected.`;
-}
 
 /** Colours the keyboard with what the clicked cell's single-letter field has taken (green) and rejected (red). */
 function drawKeys(fs, notes) {
-  const i = keyField(fs);
+  const i = keyField(fs), kbd = $("kbd");
+  // the keyboard takes the field's colour while it shows that field's letters
+  kbd.classList.toggle("showing", i != null);
+  kbd.style.setProperty("--g-kbd-edge", i != null ? styleOf(i).edge : "transparent");
+  kbd.title = i != null ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)` : "";
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
     const ch = b.dataset.key;
     b.classList.toggle("ok", i != null && notes[i].ok.has(ch));
@@ -475,19 +503,21 @@ function typeKey(k) {
 }
 
 function buildKeyboard() {
-  const rows = [[..."QWERTYUIOP"], [..."ASDFGHJKL"], ["BACK", ..."ZXCVBNM", "ENTER"]];
+  const rows = [[..."QWERTYUIOP"], ["", ..."ASDFGHJKL", ""], ["CLEAR", ..."ZXCVBNM", "BACK"], ["ENTER"]];
+  const label = { CLEAR: "Clear", BACK: "⌫", ENTER: "Place" };
   $("kbd").replaceChildren(...rows.map(keys => {
     const r = document.createElement("div");
     r.className = "g-krow";
     keys.forEach(k => {
+      if (!k) { const gap = document.createElement("span"); gap.className = "g-half"; r.appendChild(gap); return; }
       const b = document.createElement("button");
       b.type = "button";
-      b.textContent = k === "BACK" ? "⌫" : k === "ENTER" ? "Place" : k;
+      b.textContent = label[k] || k;
       if (k.length === 1) b.dataset.key = k;
-      if (k.length > 1) b.classList.add("wide");
-      if (k === "ENTER") b.classList.add("place");
+      else b.classList.add(k === "ENTER" ? "place" : "wide");
+      if (k === "CLEAR") b.classList.add("clear");
       if (k === "BACK") b.setAttribute("aria-label", "Delete");
-      b.addEventListener("click", () => typeKey(k));
+      b.addEventListener("click", () => (k === "CLEAR" ? clear() : typeKey(k)));
       r.appendChild(b);
     });
     return r;
@@ -498,8 +528,9 @@ let toastTimer = null;
 function toast(msg) {
   const t = $("toast");
   t.textContent = msg;
+  t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.textContent = ""; }, 3200);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3400);
 }
 
 document.addEventListener("keydown", e => {
@@ -511,6 +542,9 @@ document.addEventListener("keydown", e => {
   e.preventDefault();
 });
 $("menuBtn").addEventListener("click", openMenu);
+$("fieldsBtn").addEventListener("click", () => $("fieldsDlg").showModal());
+$("fieldsClose").addEventListener("click", () => $("fieldsDlg").close());
+$("fieldsDlg").addEventListener("click", e => { if (e.target === $("fieldsDlg")) $("fieldsDlg").close(); });
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newBoard(); });
@@ -531,4 +565,4 @@ if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d))
 else if (!S) soloBoard(randomSeed(), "easy");
 else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render(); }
 if (code.length === 4) join(code).then(ok => { if (!ok) setRoomParam(null); });
-window.__glyph = { get state() { return S; }, get room() { return room; } };
+window.__glyph = { get state() { return S; }, get room() { return room; }, get slot() { return S && grid().slots[sel]; } };

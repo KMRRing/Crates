@@ -51,22 +51,25 @@
 .g-badge { position: absolute; z-index: 5; }
 .g-badge .g-mark-ok, .g-badge .g-mark-no { position: static; width: 22px; height: 22px; font-size: 13px; }
 
-.g-slot { text-align: center; color: var(--ink-soft); margin: .8rem 0 0; min-height: 1.4em; font-size: .95rem; }
-.g-kbd { display: grid; gap: 6px; margin: .2rem 0 1rem; }
-.g-krow { display: flex; gap: 5px; justify-content: center; }
+/* Fields and Check sit just above the keyboard; together they're the dock the board makes room for. */
+.g-dock { margin-top: .7rem; }
+.g-actions { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .55rem; }
+.g-actions .btn { min-height: 40px; padding: .35rem 1rem; }
+.g-kbd { display: grid; gap: 6px; padding: 5px; margin: 0 -5px; border-radius: 12px; box-shadow: inset 0 0 0 2px var(--g-kbd-edge, transparent); }
+.g-krow { display: flex; gap: 5px; }
 .g-krow button {
-  flex: 1 1 0; max-width: 2.6rem; height: 3.1rem; border: 0; border-radius: 7px; cursor: pointer;
+  flex: 1 1 0; min-width: 0; height: clamp(42px, 6.3svh, 54px); border: 0; border-radius: 7px; cursor: pointer; padding: 0;
   background: var(--sheet); color: var(--ink); font-size: 1.1rem; font-weight: 650;
   box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-soft) 45%, transparent);
 }
-.g-krow button.wide { max-width: 4.4rem; flex-grow: 1.6; font-size: .95rem; }
-.g-krow button.place { background: var(--ink); color: var(--yard); }
+.g-half { flex: .5 1 0; }
+.g-krow button.wide { flex: 1.5 1 0; font-size: .95rem; }
+.g-krow button.clear { background: none; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink-soft) 60%, transparent); font-size: .9rem; }
+.g-krow button.place { background: var(--ink); color: var(--yard); height: clamp(40px, 5.6svh, 48px); font-size: 1rem; }
 /* keys the clicked cell's single-letter field has taken (green) or rejected (red) */
 .g-krow button.ok { background: color-mix(in srgb, var(--g-ok) 32%, var(--sheet)); }
 .g-krow button.no { background: color-mix(in srgb, var(--g-no) 28%, var(--sheet)); color: var(--ink-soft); }
-.g-tools { flex-wrap: wrap; }
 
-.g-h2 { font-size: 1.2rem; font-weight: 800; margin: 1.4rem 0 .3rem; }
 .g-field { display: grid; grid-template-columns: 1.6rem 1fr; gap: .1rem .7rem; padding: .7rem 0; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
 .g-field:first-child { border-top: 0; }
 .g-swatch { width: 1.3rem; height: 1.3rem; border-radius: 5px; border: 2px solid; margin-top: .15rem; }
@@ -80,9 +83,16 @@
 .g-note.ok { background: color-mix(in srgb, var(--g-ok) 22%, transparent); }
 .g-note.no { background: color-mix(in srgb, var(--g-no) 18%, transparent); text-decoration: line-through; }
 
-.g-howto { margin-top: 1.4rem; color: var(--ink-soft); font-size: .95rem; }
-.g-howto summary { cursor: pointer; font-weight: 700; color: var(--ink); }
-.g-howto p { margin: .5rem 0; }
+.g-new { margin-top: 1.2rem; }
+#fieldsDlg { max-height: 85vh; max-height: 85svh; overflow-y: auto; }
+/* messages float over the page instead of pushing the board around */
+.g-toast {
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%);
+  z-index: 20; max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px;
+  background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .18s;
+}
+.g-toast.show { opacity: 1; }
 .g-done-text { margin: .6rem 0; }
 .g-rules { padding-left: 1.1rem; margin: .4rem 0 .8rem; }
 .g-rules li { margin: .25rem 0; }
