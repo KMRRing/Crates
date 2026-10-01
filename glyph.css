@@ -19,19 +19,24 @@
 }
 .g-mark { display: inline-block; }
 .g-mark svg { width: 100%; height: 100%; display: block; }
-.g-status { color: var(--ink-soft); margin: .55rem 0 .2rem; font-size: .95rem; }
-.g-partner { margin: 0 0 .4rem; font-size: .95rem; }
+/* The page fills the visible screen: board at the top, the dock (actions + keyboard) at the bottom, clear of
+   Safari's bottom bar and the home indicator. Key height (--g-key-h) is set in script to use the space left. */
+#app.glyph { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+.g-partner { margin: .5rem 0 0; font-size: .95rem; }
 .g-partner b { font-weight: 750; }
 
 /* The board is laid out in script: cells, joins and field badges are positioned absolutely. */
-.g-board { position: relative; margin: .7rem auto 0; width: min(100%, 25rem); touch-action: manipulation; }
+.g-board { position: relative; margin: auto; touch-action: manipulation; }   /* centred between header and dock */
 .g-cell {
   position: absolute; border-radius: 9px; border: 2px solid var(--g-line); background: var(--g-cell);
   display: grid; place-items: center; cursor: pointer; user-select: none; -webkit-user-select: none;
   font-weight: 750; font-stretch: 100%; line-height: 1;
 }
 .g-cell.whole { border-style: dashed; }
-.g-cell.sel { box-shadow: 0 0 0 3px var(--ink); z-index: 2; }
+/* the word being typed: a ring round each cell, a heavier one where the next letter goes */
+.g-cell.sel { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 50%, transparent); z-index: 2; }
+.g-cell.cursor { box-shadow: 0 0 0 3.5px var(--ink); z-index: 2; }
 .g-cell .pending { color: var(--ink-soft); font-weight: 600; }
 .g-cell.broken .ch { text-decoration: underline wavy var(--g-no); text-underline-offset: 4px; }
 .g-mark-ok, .g-mark-no {
@@ -43,7 +48,8 @@
 .g-cell .g-mark-ok, .g-cell .g-mark-no { top: -7px; right: -7px; }
 /* a check: letters matching our fill get a green outline; once replaced, the matching letter waits in the corner */
 .g-cell.confirmed { box-shadow: inset 0 0 0 3px var(--g-ok); }
-.g-cell.sel.confirmed { box-shadow: 0 0 0 3px var(--ink), inset 0 0 0 3px var(--g-ok); }
+.g-cell.sel.confirmed { box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 50%, transparent), inset 0 0 0 3px var(--g-ok); }
+.g-cell.cursor.confirmed { box-shadow: 0 0 0 3.5px var(--ink), inset 0 0 0 3px var(--g-ok); }
 .g-remind { position: absolute; left: 5px; bottom: 3px; color: var(--g-ok); font-weight: 800; line-height: 1; }
 /* the join between two cells of a pair field */
 .g-join { position: absolute; border-radius: 6px; z-index: 4; }   /* above a selected word's outline */
@@ -52,25 +58,25 @@
 .g-badge .g-mark-ok, .g-badge .g-mark-no { position: static; width: 22px; height: 22px; font-size: 13px; }
 
 /* Fields and Check sit just above the keyboard; together they're the dock the board makes room for. */
-.g-dock { margin-top: .7rem; }
-.g-actions { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: .55rem; }
+.g-dock { padding-top: 12px; }
+.g-actions { display: flex; justify-content: space-between; gap: .5rem; margin-bottom: 12px; }
 .g-actions .btn { min-height: 40px; padding: .35rem 1rem; }
 .g-kbd { display: grid; gap: 6px; padding: 5px; margin: 0 -5px; border-radius: 12px; box-shadow: inset 0 0 0 2px var(--g-kbd-edge, transparent); }
 .g-krow { display: flex; gap: 5px; }
 .g-krow button {
-  flex: 1 1 0; min-width: 0; height: clamp(42px, 6.3svh, 54px); border: 0; border-radius: 7px; cursor: pointer; padding: 0;
+  flex: 1 1 0; min-width: 0; height: var(--g-key-h, 50px); border: 0; border-radius: 7px; cursor: pointer; padding: 0;
+  -webkit-user-select: none; user-select: none;
   background: var(--sheet); color: var(--ink); font-size: 1.1rem; font-weight: 650;
   box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-soft) 45%, transparent);
 }
 .g-half { flex: .5 1 0; }
 .g-krow button.wide { flex: 1.5 1 0; font-size: .95rem; }
-.g-krow button.clear { background: none; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink-soft) 60%, transparent); font-size: .9rem; }
-.g-krow button.place { background: var(--ink); color: var(--yard); height: clamp(40px, 5.6svh, 48px); font-size: 1rem; }
+.g-krow button.place { background: var(--ink); color: var(--yard); }
 /* keys the clicked cell's single-letter field has taken (green) or rejected (red) */
 .g-krow button.ok { background: color-mix(in srgb, var(--g-ok) 32%, var(--sheet)); }
 .g-krow button.no { background: color-mix(in srgb, var(--g-no) 28%, var(--sheet)); color: var(--ink-soft); }
 
-.g-field { display: grid; grid-template-columns: 1.6rem 1fr; gap: .1rem .7rem; padding: .7rem 0; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
+.g-field { display: grid; grid-template-columns: 1.6rem 1fr auto; gap: .1rem .7rem; padding: .7rem 0; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
 .g-field:first-child { border-top: 0; }
 .g-swatch { width: 1.3rem; height: 1.3rem; border-radius: 5px; border: 2px solid; margin-top: .15rem; }
 .g-swatch.whole { border-style: dashed; }
@@ -83,8 +89,13 @@
 .g-note.ok { background: color-mix(in srgb, var(--g-ok) 22%, transparent); }
 .g-note.no { background: color-mix(in srgb, var(--g-no) 18%, transparent); text-decoration: line-through; }
 
-.g-new { margin-top: 1.2rem; }
-#fieldsDlg { max-height: 85vh; max-height: 85svh; overflow-y: auto; }
+/* the fields sheet reaches up to the header (just under the status bar) and scrolls inside */
+#fieldsDlg { height: calc(100vh - 1.2rem); height: calc(100svh - env(safe-area-inset-top, 0px) - .6rem); max-height: none;
+  overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+#fieldsDlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .4rem; }
+.g-ask { grid-column: 3; grid-row: 1 / span 2; align-self: start; width: 2.1rem; height: 2.1rem; border-radius: 50%;
+  border: 1.5px solid var(--ink); background: none; color: var(--ink); font-weight: 800; font-size: 1.05rem; cursor: pointer; }
+.g-ask:disabled { opacity: .3; cursor: default; }
 /* messages float over the page instead of pushing the board around */
 .g-toast {
   position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%);

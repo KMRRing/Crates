@@ -31,20 +31,18 @@
     </div>
   </header>
 
-  <p id="status" class="g-status" aria-live="polite"></p>
   <p id="partner" class="g-partner" hidden></p>
 
   <div id="board" class="g-board" aria-label="Board"></div>
 
   <div id="dock" class="g-dock">
-    <div class="g-actions">
+    <div id="actions" class="g-actions">
       <button id="fieldsBtn" class="btn" aria-haspopup="dialog">Fields</button>
+      <button id="clearBtn" class="btn">Clear</button>
       <button id="checkBtn" class="btn">Check letters</button>
     </div>
     <div id="kbd" class="g-kbd" aria-label="Keyboard"></div>
   </div>
-
-  <button id="newBtn" class="btn primary wide g-new">New board</button>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
@@ -54,6 +52,7 @@
 
 <dialog id="fieldsDlg" class="sheet" aria-label="Fields">
   <div class="pick-head"><h2>Fields</h2><button class="btn" type="button" id="fieldsClose">Close</button></div>
+  <p id="revealsLeft" class="stats"></p>
   <div id="fields" class="g-fields"></div>
 </dialog>
 

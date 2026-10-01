@@ -388,6 +388,7 @@ export function notesFrom(board, log) {
       });
       continue;
     }
+    if (!e.word) continue;                      // a rule reveal
     const slot = grid.slots[e.slot];
     slot.cells.forEach((k, i) => { letters[k] = e.word[i]; });
     record(new Set(slot.cells));

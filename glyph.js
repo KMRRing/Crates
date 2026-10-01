@@ -6,7 +6,7 @@ import { getSync } from "./net.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "glyph:solo";
-const CHECKS = 2;
+const CHECKS = 2, REVEALS = 2;
 const GAP = 6;
 const PALETTE = { single: ["s", ["Blue", "Green", "Teal"]], pair: ["p", ["Yellow", "Orange", "Sand"]], whole: ["w", ["Violet", "Pink", "Plum"]] };
 const KIND = { single: "single letters", pair: "pairs", whole: "whole field" };
@@ -23,15 +23,28 @@ const randomSeed = () => Math.floor(Math.random() * 1e9);
 // ---------- state ----------
 let S = null;        // { seed, level, board, log, done } — the solo save, or the room's game
 let room = null;     // together: { code, uid, sync, unwatch, data }
-let sel = 0, dirCell = null, pending = "", shownDone = null;
-let clearLevel = 0;  // Clear escalates on repeated presses: broken words, then rule-breakers, then everything
+let cursor = null;    // the cell being typed into
+let dir = "Across";   // which way typing runs; tapping the cursor's cell again turns it
+let pending = {};     // letters typed into the current word but not placed yet, by cell
+let shownDone = null;
+let clearLevel = 0;   // Clear escalates on repeated presses: broken words, then rule-breakers, then everything
 
 const grid = () => gridOf(SHAPES[S.board.shape]);
 const fields = () => fieldsOf(S.board);
 const placements = () => S.log.filter(e => e.word).length;
 const checksUsed = () => S.log.filter(e => e.check).length;
+const revealed = () => new Set(S.log.filter(e => e.reveal != null).map(e => e.reveal));
 const mySlot = () => (room ? room.data?.players?.[room.uid]?.slot ?? 0 : null);
-const sees = i => !room || !!S.done || i % 2 === mySlot();
+const sees = i => !room || !!S.done || i % 2 === mySlot() || revealed().has(i);
+const other = d => (d === "Across" ? "Down" : "Across");
+const slotFor = (k, d) => grid().slots.find(s => s.dir === d && s.cells.includes(k));
+const currentSlot = () => slotFor(cursor, dir) || slotFor(cursor, other(dir));
+
+/** Back to the start: the cursor on the first row's first cell, typing across. */
+function resetCursor() {
+  const g = grid(), first = g.slots.find(s => s.dir === "Across") || g.slots[0];
+  cursor = first.cells[0]; dir = first.dir; pending = {}; clearLevel = 0;
+}
 
 function styleOf(i) {
   const fs = fields(), f = fs[i], [prefix, names] = PALETTE[f.rule.type];
@@ -49,7 +62,8 @@ function saveSolo() { if (!room) try { localStorage.setItem(STORE, JSON.stringif
 function soloBoard(seed, level) {
   const board = generate(seed, level);
   S = { seed, level, board, log: [], done: null };
-  sel = 0; dirCell = null; pending = ""; shownDone = null; clearLevel = 0;
+  shownDone = null;
+  resetCursor();
   history.replaceState(null, "", `${location.pathname}${room ? "" : location.search}#s=${seed}&d=${level}`);
   saveSolo();
   render();
@@ -67,12 +81,13 @@ async function act(change) {
 
 function place() {
   if (S.done) return;
-  const slot = grid().slots[sel], word = pending;
-  if (word.length !== slot.cells.length) { toast(`Type a ${slot.cells.length}-letter word`); return; }
+  const slot = currentSlot(), before = lettersFrom(S.board, S.log);
+  const word = slot.cells.map(k => pending[k] || before[k] || "").join("");
+  if (word.length !== slot.cells.length) { toast(`Fill all ${slot.cells.length} letters of this word first`); return; }
   if (!VALID.has(word)) { toast(`${word} isn't in the word list`); return; }
-  pending = "";
+  if (!Object.keys(pending).length && slot.cells.every(k => before[k])) { toast(`${word} is already on the board`); return; }
+  pending = {};
   clearLevel = 0;
-  const before = lettersFrom(S.board, S.log);
   act(g => { if (g.done) return false; g.log.push({ slot: slot.id, word, ...(room && { by: room.uid }) }); });
   const after = { ...before };
   slot.cells.forEach((k, i) => { after[k] = word[i]; });
@@ -96,7 +111,7 @@ function clear() {
   if (S.done) return;
   const letters = lettersFrom(S.board, S.log);
   if (!Object.keys(letters).length) { toast("The board is already empty"); clearLevel = 0; return; }
-  pending = "";
+  pending = {};
   const level = clearLevel + 1;
   clearLevel = level >= 3 ? 0 : level;
   const cells = clearable(S.board, letters, level, sees);
@@ -113,6 +128,17 @@ function clear() {
       : "Board cleared.");
 }
 
+/** Spends one of the board's two reveals on a field's rule; a single-letter rule then colours the whole keyboard. */
+function reveal(i) {
+  if (S.done || revealed().has(i)) return;
+  if (revealed().size >= REVEALS) { toast("No rule reveals left on this board"); return; }
+  act(g => {
+    const used = new Set(g.log.filter(e => e.reveal != null).map(e => e.reveal));
+    if (g.done || used.has(i) || used.size >= REVEALS) return false;
+    g.log.push({ reveal: i, ...(room && { by: room.uid }) });
+  });
+}
+
 function giveUp() {
   if (S.done) { showDone(); return; }
   if (!confirm("Show our fill and end this board?")) return;
@@ -121,6 +147,7 @@ function giveUp() {
 
 function newBoard(level = S.level) {
   if (!S.done && placements() && !confirm("Leave this board unfinished?")) { $("level").value = S.level; return; }
+  $("menuDlg").close();
   if (!room) { soloBoard(randomSeed(), level); return; }
   const seed = randomSeed(), board = generate(seed, level);
   act(g => { g.level = level; g.seed = seed; g.board = board; g.log = []; g.done = null; });
@@ -208,7 +235,7 @@ function onRoom(val) {
   room.data = val;
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
   S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null };
-  if (fresh) { sel = 0; dirCell = null; pending = ""; shownDone = null; clearLevel = 0; }
+  if (fresh) { resetCursor(); shownDone = null; }
   if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
   render();
   if ($("menuDlg").open) drawMenu();
@@ -220,7 +247,8 @@ function leave() {
   setRoomParam(null);
   S = loadSolo();
   if (!S) { soloBoard(randomSeed(), $("level").value || "easy"); return; }
-  sel = 0; pending = ""; shownDone = S.done ? JSON.stringify(S.done) : null;
+  resetCursor();
+  shownDone = S.done ? JSON.stringify(S.done) : null;
   render();
 }
 
@@ -239,12 +267,12 @@ function setRoomParam(code) {
 function render() {
   if (!S) return;
   const g = grid(), fs = fields(), letters = lettersFrom(S.board, S.log);
-  if (!g.slots[sel]) sel = 0;
-  const slot = g.slots[sel], p = par(S.board), n = placements(), left = CHECKS - checksUsed();
-  $("status").textContent = `${S.done ? "Board finished. " : ""}${n} placement${n === 1 ? "" : "s"}, par ${p}.${S.done ? "" : ` ${left} check${left === 1 ? "" : "s"} left.`}`;
+  if (!cursor || !g.cells.includes(cursor)) resetCursor();
+  const slot = currentSlot(), left = CHECKS - checksUsed();
   $("level").value = S.level;
   $("checkBtn").textContent = `Check letters (${left})`;
   $("checkBtn").disabled = !!S.done || left === 0;
+  $("clearBtn").disabled = !!S.done;
   const notes = notesFrom(S.board, S.log);
   drawPartner();
   drawBoard(g, fs, letters, slot);
@@ -269,12 +297,7 @@ function drawPartner() {
 const listJoin = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 function drawBoard(g, fs, letters, slot) {
-  const el = $("board");
-  el.style.width = "";
-  const width = el.clientWidth || 360;
-  // as large as the width allows, but small enough that the keyboard below still fits on screen
-  const spaceForBoard = window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - $("dock").offsetHeight - 12;
-  const size = Math.max(34, Math.min((width - GAP * (g.W - 1)) / g.W, (spaceForBoard - GAP * (g.H - 1)) / g.H, 84));
+  const el = $("board"), size = fitLayout(g);
   el.style.width = `${g.W * size + (g.W - 1) * GAP}px`;
   el.style.height = `${g.H * size + (g.H - 1) * GAP}px`;
   const at = k => { const [r, c] = unkey(k); return { x: c * (size + GAP), y: r * (size + GAP) }; };
@@ -294,9 +317,8 @@ function drawBoard(g, fs, letters, slot) {
       cell.style.background = st.tint; cell.style.borderColor = st.edge;
       if (st.type === "whole") cell.classList.add("whole");
     }
-    const pos = slot.cells.indexOf(k);
-    if (pos >= 0 && !S.done) cell.classList.add("sel");
-    const typed = pos >= 0 && pos < pending.length ? pending[pos] : null;
+    if (!S.done && slot.cells.includes(k)) cell.classList.add(k === cursor ? "cursor" : "sel");
+    const typed = pending[k] || null;
     const ch = document.createElement("span");
     if (typed) { ch.className = "pending"; ch.textContent = typed; }
     else if (letters[k]) { ch.className = "ch"; ch.textContent = letters[k]; }
@@ -355,6 +377,27 @@ function drawBoard(g, fs, letters, slot) {
 }
 
 /** Letters a check showed to match our fill, by cell. */
+/**
+ * Sizes the board and the keyboard to the visible screen (Safari's bars included): the board as large as the width
+ * allows while the keyboard keeps its minimum height, then the keys grow into whatever height is left.
+ */
+function fitLayout(g) {
+  const vh = window.visualViewport?.height || window.innerHeight;
+  // measured from what sits above the board, since the board centres itself in the space it gets
+  const above = $("partner").hidden ? document.querySelector("#app > .top") : $("partner");
+  const top = above.getBoundingClientRect().bottom + window.scrollY + 12;
+  const app = getComputedStyle($("app"));
+  const width = $("app").clientWidth - parseFloat(app.paddingLeft) - parseFloat(app.paddingRight);
+  const bottom = parseFloat(app.paddingBottom) || 0;
+  const fixed = $("actions").offsetHeight + 12 + 12 + 10 + 2 * KEY_GAP;    // actions, gaps, keyboard padding
+  const boardRoom = vh - top - bottom - fixed - 3 * MIN_KEY;
+  const size = Math.max(34, Math.min((width - GAP * (g.W - 1)) / g.W, (boardRoom - GAP * (g.H - 1)) / g.H, 84));
+  const spare = vh - top - bottom - fixed - (g.H * size + (g.H - 1) * GAP);
+  document.documentElement.style.setProperty("--g-key-h", `${Math.max(MIN_KEY, Math.min(MAX_KEY, spare / 3))}px`);
+  return size;
+}
+const MIN_KEY = 44, MAX_KEY = 66, KEY_GAP = 6;
+
 function confirmedLetters() {
   const out = {};
   for (const e of S.log) if (e.check) for (const [k, ch] of Object.entries(e.check)) if (ch === S.board.sol[k]) out[k] = ch;
@@ -363,8 +406,8 @@ function confirmedLetters() {
 
 /** The single-letter field of the clicked cell, if its marks are yours to see. */
 function keyField(fs) {
-  if (!dirCell || S.done) return null;
-  const i = fs.findIndex(f => f.cells.includes(dirCell));
+  if (!cursor || S.done) return null;
+  const i = fs.findIndex(f => f.cells.includes(cursor));
   return i >= 0 && fs[i].rule.type === "single" && sees(i) ? i : null;
 }
 
@@ -375,10 +418,11 @@ function drawKeys(fs, notes) {
   kbd.classList.toggle("showing", i != null);
   kbd.style.setProperty("--g-kbd-edge", i != null ? styleOf(i).edge : "transparent");
   kbd.title = i != null ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)` : "";
+  const known = i != null && revealed().has(i) ? fs[i].rule : null;
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
     const ch = b.dataset.key;
-    b.classList.toggle("ok", i != null && notes[i].ok.has(ch));
-    b.classList.toggle("no", i != null && notes[i].no.has(ch));
+    b.classList.toggle("ok", i != null && (known ? known.test(ch) : notes[i].ok.has(ch)));
+    b.classList.toggle("no", i != null && (known ? !known.test(ch) : notes[i].no.has(ch)));
   });
 }
 
@@ -391,6 +435,9 @@ function mark(ok) {
 }
 
 function drawFields(fs, notes) {
+  const shown = revealed(), left = REVEALS - shown.size;
+  $("revealsLeft").textContent = S.done ? "Every rule is shown now that the board is over."
+    : `Tap ? to reveal a field's rule. ${left} reveal${left === 1 ? "" : "s"} left on this board.`;
   $("fields").replaceChildren(...fs.map((f, i) => {
     const st = styleOf(i), row = document.createElement("div");
     row.className = "g-field";
@@ -400,14 +447,21 @@ function drawFields(fs, notes) {
     const name = document.createElement("div");
     name.className = "g-fname";
     name.textContent = `${st.name}: ${KIND[st.type]}, ${f.cells.length} cells`;
-    row.append(sw, name);
+    const ask = document.createElement("button");
+    ask.type = "button";
+    ask.className = "g-ask";
+    ask.textContent = "?";
+    ask.setAttribute("aria-label", `Reveal the ${st.name} field's rule`);
+    ask.disabled = !!S.done || shown.has(i) || left <= 0;
+    ask.addEventListener("click", () => reveal(i));
+    row.append(sw, name, ask);
     line(row, HOW[st.type]);
-    if (!sees(i)) { line(row, "Your partner sees this field's marks."); return row; }
+    if (!sees(i)) { line(row, "Your partner sees this field's marks."); return row; }   // (a revealed rule is seen by both)
     const ok = [...notes[i].ok].sort(), no = [...notes[i].no].sort();
     const label = st.type === "single" ? ["Takes", "Rejects"] : ["Passed", "Failed"];
     noteLine(row, label[0], ok, "ok");
     noteLine(row, label[1], no, "no");
-    if (S.done) { const r = line(row, "Rule: "); const b = document.createElement("span"); b.className = "rule"; b.textContent = f.rule.text; r.appendChild(b); }
+    if (S.done || shown.has(i)) { const r = line(row, "Rule: "); const b = document.createElement("span"); b.className = "rule"; b.textContent = f.rule.text; r.appendChild(b); }
     return row;
   }));
 }
@@ -448,6 +502,7 @@ function drawMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; body.appendChild(e); return e; };
+  add("button", "btn primary wide", "New board").addEventListener("click", () => newBoard());
   if (room) {
     $("menuTitle").textContent = `Game ${room.code}`;
     const link = `${location.origin}${location.pathname}?room=${room.code}`;
@@ -467,7 +522,7 @@ function drawMenu() {
     return;
   }
   $("menuTitle").textContent = "Menu";
-  add("button", "btn primary wide", "Play together").addEventListener("click", () => { $("menuDlg").close(); together(); });
+  add("button", "btn wide", "Play together").addEventListener("click", () => { $("menuDlg").close(); together(); });
   const form = add("form", "join-run");
   form.innerHTML = `<input aria-label="Game code" placeholder="Code from your partner" maxlength="4" autocapitalize="characters"><button class="btn" type="submit">Join</button>`;
   form.addEventListener("submit", e => {
@@ -484,27 +539,39 @@ function drawMenu() {
 }
 
 // ---------- input ----------
+/** Tapping a cell puts the cursor there, running across by default; tapping the cursor's cell again turns it. */
 function select(k) {
   if (S.done) return;
-  const g = grid(), slots = g.slots.filter(s => s.cells.includes(k)), cur = g.slots[sel];
-  if (!slots.length) return;
-  const next = dirCell === k && slots.length > 1 && slots.includes(cur) ? slots.find(s => s !== cur) : slots.includes(cur) ? cur : slots[0];
-  sel = next.id; dirCell = k; pending = "";
+  const before = currentSlot();
+  if (k === cursor) {
+    if (!slotFor(k, other(dir))) return;
+    dir = other(dir);
+  } else {
+    cursor = k;
+    dir = slotFor(k, "Across") ? "Across" : "Down";
+  }
+  if (currentSlot() !== before) pending = {};
   render();
 }
 
 function typeKey(k) {
   if (S.done) return;
-  const slot = grid().slots[sel];
+  const slot = currentSlot(), at = slot.cells.indexOf(cursor);
   if (k === "ENTER") { place(); return; }
-  if (k === "BACK") pending = pending.slice(0, -1);
-  else if (/^[A-Z]$/.test(k) && pending.length < slot.cells.length) pending += k;
+  if (k === "BACK") {
+    // delete what's typed here, or step back a cell and delete there
+    if (pending[cursor]) delete pending[cursor];
+    else if (at > 0) { cursor = slot.cells[at - 1]; delete pending[cursor]; }
+  } else if (/^[A-Z]$/.test(k)) {
+    pending[cursor] = k;
+    if (at < slot.cells.length - 1) cursor = slot.cells[at + 1];
+  }
   render();
 }
 
 function buildKeyboard() {
-  const rows = [[..."QWERTYUIOP"], ["", ..."ASDFGHJKL", ""], ["CLEAR", ..."ZXCVBNM", "BACK"], ["ENTER"]];
-  const label = { CLEAR: "Clear", BACK: "⌫", ENTER: "Place" };
+  const rows = [[..."QWERTYUIOP"], ["", ..."ASDFGHJKL", ""], ["ENTER", ..."ZXCVBNM", "BACK"]];
+  const label = { BACK: "⌫", ENTER: "Place" };
   $("kbd").replaceChildren(...rows.map(keys => {
     const r = document.createElement("div");
     r.className = "g-krow";
@@ -514,10 +581,10 @@ function buildKeyboard() {
       b.type = "button";
       b.textContent = label[k] || k;
       if (k.length === 1) b.dataset.key = k;
-      else b.classList.add(k === "ENTER" ? "place" : "wide");
-      if (k === "CLEAR") b.classList.add("clear");
+      else b.classList.add("wide");
+      if (k === "ENTER") b.classList.add("place");
       if (k === "BACK") b.setAttribute("aria-label", "Delete");
-      b.addEventListener("click", () => (k === "CLEAR" ? clear() : typeKey(k)));
+      b.addEventListener("click", () => typeKey(k));
       r.appendChild(b);
     });
     return r;
@@ -549,9 +616,10 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newBoard(); });
 $("checkBtn").addEventListener("click", check);
-$("newBtn").addEventListener("click", () => newBoard());
+$("clearBtn").addEventListener("click", clear);
 $("level").addEventListener("change", e => newBoard(e.target.value));
 window.addEventListener("resize", () => render());
+window.visualViewport?.addEventListener("resize", () => render());   // Safari's bars coming and going
 
 // ---------- start ----------
 document.querySelector(".g-mark").innerHTML = APPS.find(a => a.id === "glyph").logo;
@@ -565,4 +633,4 @@ if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d))
 else if (!S) soloBoard(randomSeed(), "easy");
 else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render(); }
 if (code.length === 4) join(code).then(ok => { if (!ok) setRoomParam(null); });
-window.__glyph = { get state() { return S; }, get room() { return room; }, get slot() { return S && grid().slots[sel]; } };
+window.__glyph = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };
