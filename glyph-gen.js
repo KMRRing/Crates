@@ -112,16 +112,62 @@ function passRate(rule, size) {
 // ---------- levels ----------
 // Difficulty comes from the rules: each level draws its rules by rating, every level mixes all three field types.
 export const LEVELS = {
-  easy: { label: "Easy", ratings: { 1: 1 }, shapes: ["ring4", "ladder", "frame5"] },
-  medium: { label: "Medium", ratings: { 1: 0.35, 2: 0.65 }, shapes: ["ladder", "frame5", "waffle"] },
-  hard: { label: "Hard", ratings: { 2: 0.45, 3: 0.55 }, shapes: ["ladder", "frame5", "waffle"] },
+  easy: { label: "Easy", ratings: { 1: 1 },
+    shapes: ["hook", "tower", "zigzag", "pinwheel", "stairs", "wedge", "table", "steps", "kite", "diamond"] },
+  medium: { label: "Medium", ratings: { 1: 0.35, 2: 0.65 },
+    shapes: ["house", "diamond", "fish", "shield", "arrow", "comb", "twist", "kite", "crown", "arch", "cross", "stairs", "pinwheel", "zigzag"] },
+  hard: { label: "Hard", ratings: { 2: 0.45, 3: 0.55 },
+    shapes: ["zigzag5", "rungs", "eye", "bolt", "block", "spiral", "fork", "frame", "cross", "twist", "comb", "shield", "crown", "arch"] },
 };
+// Words of three to five letters cross in every shape; each board turns or mirrors its shape at random.
 export const SHAPES = {
+  // six words round a few 2×2 patches
+  hook: ["##....", "...##.", "...##.", "##...."],
+  tower: ["###.", "#.#.", "....", "....", ".#.#", ".###"],
+  zigzag: ["###.#", "....#", "#....", "....#", "###.#"],
+  pinwheel: ["###.#", "#....", "#...#", "....#", "#.###"],
+  stairs: ["#.....", "....##", "...###", "..####", ".#####", ".#####"],
+  wedge: ["#...#", ".....", "...##", "..###", "#.###"],
+  table: [".....", "#...#", "#...#", "#.#.#", "#.#.#"],
+  steps: ["#.##", "....", "#...", "...#", "....", "##.#"],
+  kite: ["...##", ".....", "....#", "#..##", "#.###"],
+  // six or seven words round a denser middle
+  house: ["##.##", "#...#", ".....", "#...#", "#...#"],
+  diamond: ["##..#", "#...#", ".....", "#...#", "#..##"],
+  fish: ["#.####", "#.....", "....##", "#.....", "#.####"],
+  shield: ["#...#", ".....", ".....", "#...#", "##.##"],
+  arrow: ["#.###", "#....", ".....", "#....", "#.###"],
+  comb: [".....#", "..#.##", "..#...", "..#.##", ".....#"],
+  twist: ["###.##", "##..#.", "#.....", "....#.", "##.##.", "#....."],
+  crown: ["##.#.#", "#.....", ".....#", "#.....", "##.#.#"],
+  arch: ["#...#", ".....", "..#..", "..#..", "..#.."],
+  cross: ["#...#", "#...#", "#...#", ".....", "#...#"],
+  // eight to ten words with big 2×2 patches
+  zigzag5: ["#.....", "....##", "#.....", "....##", "#....."],
+  rungs: ["#...#", ".....", "#...#", ".....", "#...#"],
+  eye: ["#.....", ".....#", "...#.#", ".....#", "#....."],
+  bolt: ["#..#.#", ".....#", ".....#", "#.....", "....##", "###.##"],
+  block: ["#.####", ".....#", "#.....", "#.....", "#...#.", "##...."],
+  spiral: ["###..#", "#....#", ".....#", "#.....", "#....#", "#..###"],
+  fork: ["...#.", "...#.", ".....", "...#.", "...#."],
+  frame: [".....#", "..#..#", "..#...", "..#..#", ".....#"],
+  // the first four shapes, kept so boards saved with them still open
   ring4: ["....", ".##.", ".##.", "...."],
   frame5: [".....", ".###.", ".###.", ".###.", "....."],
   ladder: [".....", ".#.#.", ".#.#.", "....."],
   waffle: [".....", ".#.#.", ".....", ".#.#.", "....."],
 };
+
+/** A board's rows: stored on it (turned or mirrored when it was made), or looked up for older boards. */
+export const rowsOf = board => board.rows || SHAPES[board.shape];
+
+/** One of the eight ways to turn or mirror a shape. */
+export function orient(rows, n) {
+  let out = rows.map(r => [...r]);
+  for (let i = 0; i < n % 4; i++) out = out[0].map((_, c) => out.map(row => row[c]).reverse());   // a quarter turn
+  if (n >= 4) out = out.map(row => [...row].reverse());
+  return out.map(row => row.join(""));
+}
 
 // ---------- grids ----------
 export const key = (r, c) => `${r},${c}`;
@@ -314,7 +360,8 @@ export function generate(seed, levelId) {
   const level = LEVELS[levelId], rnd = rng32(seed);
   for (let attempt = 0; attempt < 30; attempt++) {
     const shapeId = level.shapes[Math.floor(rnd() * level.shapes.length)];
-    const grid = gridOf(SHAPES[shapeId]);
+    const rows = orient(SHAPES[shapeId], Math.floor(rnd() * 8));
+    const grid = gridOf(rows);
     const sol = solve(grid, [], { rnd });
     if (!sol) continue;
     for (let t = 0; t < 8; t++) {
@@ -331,7 +378,7 @@ export function generate(seed, levelId) {
       }
       const types = new Set(fields.map(f => f.rule.type));
       if (fields.length >= 3 && types.size === 3 && covered() >= COVERAGE - 0.15) {
-        return { level: levelId, shape: shapeId, sol, fields: fields.map(f => ({ rule: f.rule.id, cells: f.cells })) };
+        return { level: levelId, shape: shapeId, rows, sol, fields: fields.map(f => ({ rule: f.rule.id, cells: f.cells })) };
       }
     }
   }
@@ -363,7 +410,7 @@ export function judge(board, letters) {
 export function notesFrom(board, log) {
   const fields = fieldsOf(board);
   const notes = fields.map(() => ({ ok: new Set(), no: new Set() }));
-  const grid = gridOf(SHAPES[board.shape]);
+  const grid = gridOf(rowsOf(board));
   const letters = {};
   const record = placed => {
     // judged: letters in complete real words. A placement also judges crossing words it just completed.
@@ -402,7 +449,7 @@ export function notesFrom(board, log) {
 
 /** The letters on the board after a list of placements. */
 export function lettersFrom(board, log) {
-  const grid = gridOf(SHAPES[board.shape]), letters = {};
+  const grid = gridOf(rowsOf(board)), letters = {};
   for (const e of log) {
     if (e.clear) e.clear.forEach(k => { delete letters[k]; });
     else if (e.draft) Object.assign(letters, e.draft);
@@ -416,12 +463,12 @@ export const wordAt = (slot, letters) => (slot.cells.every(k => letters[k]) ? sl
 
 /** Cells whose letters count: those in at least one complete real word. Anything else is a draft, not judged. */
 export function eligibleCells(board, letters) {
-  const grid = gridOf(SHAPES[board.shape]);
+  const grid = gridOf(rowsOf(board));
   return new Set(grid.slots.filter(s => VALID.has(wordAt(s, letters))).flatMap(s => s.cells));
 }
 
 export function isSolved(board, letters) {
-  const grid = gridOf(SHAPES[board.shape]);
+  const grid = gridOf(rowsOf(board));
   if (!grid.slots.every(s => VALID.has(wordAt(s, letters)))) return false;
   const j = judge(board, letters);
   return fieldsOf(board).every((f, i) => (f.rule.type === "single" ? f.cells.every(k => j.cells[k]?.ok)
@@ -435,7 +482,7 @@ export function isSolved(board, letters) {
  * of a field you can see (visible(i)). Level 3: everything.
  */
 export function clearable(board, letters, level, visible = () => true) {
-  const grid = gridOf(SHAPES[board.shape]);
+  const grid = gridOf(rowsOf(board));
   const filled = grid.cells.filter(k => letters[k]);
   if (level >= 3) return filled;
   let keep = grid.slots.filter(s => VALID.has(wordAt(s, letters)));

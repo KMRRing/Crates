@@ -1,6 +1,6 @@
 // Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
 // Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); both players see everything.
-import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./glyph-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./glyph-gen.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
@@ -32,7 +32,7 @@ let shownDone = null;
 let clearLevel = 0;   // Clear escalates on repeated presses: broken words, then rule-breakers, then everything
 let clockFrom = null; // solo: when the board's clock last started running (paused while the page is hidden)
 
-const grid = () => gridOf(SHAPES[S.board.shape]);
+const grid = () => gridOf(rowsOf(S.board));
 const fields = () => fieldsOf(S.board);
 const placements = () => S.log.filter(e => e.word).length;
 const checksUsed = () => S.log.filter(e => e.check).length;
