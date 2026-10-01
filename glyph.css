@@ -39,6 +39,8 @@
 .g-cell.cursor { box-shadow: 0 0 0 3.5px var(--ink); z-index: 2; }
 .g-cell .pending { color: var(--ink-soft); font-weight: 600; }
 .g-cell.broken .ch { text-decoration: underline wavy var(--g-no); text-underline-offset: 4px; }
+/* letters not (yet) part of a complete real word: a frame, not judged */
+.g-cell.draft .ch { color: var(--ink-soft); text-decoration: underline dotted 2px; text-underline-offset: 5px; }
 .g-mark-ok, .g-mark-no {
   position: absolute; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
   font-size: 12px; font-weight: 800; color: #fff; line-height: 1; z-index: 3;
@@ -101,7 +103,7 @@
 .g-q { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; border: 1.5px solid var(--ink); font-size: .9rem; }
 /* messages float over the page instead of pushing the board around */
 .g-toast {
-  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%);
+  position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%);   /* top is set in script */
   z-index: 20; max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px;
   background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center;
   opacity: 0; pointer-events: none; transition: opacity .18s;

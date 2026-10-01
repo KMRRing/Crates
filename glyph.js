@@ -1,6 +1,6 @@
 // Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the same
 // Firebase rooms as Crates (crates/rooms/CODE, marked game: "glyph"); each player sees the marks of half the fields.
-import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, par, jointsOf, unkey, clearable } from "./glyph-gen.js";
+import { generate, gridOf, SHAPES, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, par, jointsOf, unkey, clearable, eligibleCells } from "./glyph-gen.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
@@ -85,7 +85,16 @@ function place() {
   if (S.done) return;
   const slot = currentSlot(), before = lettersFrom(S.board, S.log);
   const word = slot.cells.map(k => pending[k] || before[k] || "").join("");
-  if (word.length !== slot.cells.length) { toast(`Fill all ${slot.cells.length} letters of this word first`); return; }
+  if (word.length !== slot.cells.length) {
+    // a frame: letters stay on the board, aren't judged and don't count until they're part of a real word
+    if (!Object.keys(pending).length) { toast("Type a letter first"); return; }
+    const draft = { ...pending };
+    pending = {};
+    act(g => { if (g.done) return false; g.log.push({ draft, ...(room && { by: room.uid }) }); });
+    toast("Not a full word, so these letters aren't judged yet. Clear removes them.");
+    render();
+    return;
+  }
   if (!VALID.has(word)) { toast(`${word} isn't in the word list`); return; }
   if (!Object.keys(pending).length && slot.cells.every(k => before[k])) { toast(`${word} is already on the board`); return; }
   pending = {};
@@ -311,6 +320,7 @@ function drawBoard(g, fs, letters, slot) {
   const verdict = judge(S.board, letters);
   const confirmed = confirmedLetters();
   const bad = new Set(g.slots.filter(s => s.cells.every(k => letters[k]) && !VALID.has(s.cells.map(k => letters[k]).join(""))).flatMap(s => s.cells));
+  const eligible = eligibleCells(S.board, letters);   // letters in a complete real word: the only ones judged
   const nodes = [];
 
   for (const k of g.cells) {
@@ -330,8 +340,9 @@ function drawBoard(g, fs, letters, slot) {
     cell.appendChild(ch);
     if (!typed && letters[k]) {
       const v = verdict.cells[k];
-      if (v && sees(v.field)) cell.appendChild(mark(v.ok));
+      if (v && sees(v.field) && eligible.has(k)) cell.appendChild(mark(v.ok));
       if (bad.has(k)) cell.classList.add("broken");
+      else if (!eligible.has(k)) { cell.classList.add("draft"); cell.title = "Not part of a real word yet"; }
     }
     if (confirmed[k]) {
       // a checked letter that matches our fill: outlined while it stays, a reminder in the corner once replaced
@@ -366,10 +377,10 @@ function drawBoard(g, fs, letters, slot) {
           : { left: `${pa.x + (size - thick) / 2}px`, top: `${pa.y + size - 4}px`, width: `${thick}px`, height: `${GAP + 8}px` });
         join.style.background = st.edge;
         const v = verdict.joints.find(j => j.a === a && j.b === b);
-        if (v && sees(i)) join.appendChild(mark(v.ok));
+        if (v && sees(i) && eligible.has(a) && eligible.has(b)) join.appendChild(mark(v.ok));
         nodes.push(join);
       }
-    } else if (f.rule.type === "whole" && i in verdict.wholes && sees(i)) {
+    } else if (f.rule.type === "whole" && i in verdict.wholes && sees(i) && f.cells.every(k => eligible.has(k))) {
       const first = f.cells.slice().sort((a, b) => at(a).y - at(b).y || at(a).x - at(b).x)[0], { x, y } = at(first);
       const badge = document.createElement("div");
       badge.className = "g-badge";
@@ -601,6 +612,8 @@ let toastTimer = null;
 function toast(msg) {
   const t = $("toast");
   t.textContent = msg;
+  // float just above the action buttons, so the board stays visible
+  t.style.top = `${Math.max(8, $("actions").getBoundingClientRect().top - t.offsetHeight - 10)}px`;
   t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 3400);

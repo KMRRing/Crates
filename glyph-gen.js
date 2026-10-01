@@ -365,21 +365,25 @@ export function notesFrom(board, log) {
   const notes = fields.map(() => ({ ok: new Set(), no: new Set() }));
   const grid = gridOf(SHAPES[board.shape]);
   const letters = {};
-  const record = touched => {
-    const j = judge(board, letters);
+  const record = placed => {
+    // judged: letters in complete real words. A placement also judges crossing words it just completed.
+    const ok = eligibleCells(board, letters), j = judge(board, letters);
+    const touched = new Set(placed);
+    grid.slots.filter(s => s.cells.every(k => ok.has(k)) && s.cells.some(k => placed.has(k))).forEach(s => s.cells.forEach(k => touched.add(k)));
     fields.forEach((f, i) => {
       if (f.rule.type === "single") {
-        f.cells.forEach(k => { if (touched.has(k) && letters[k]) (j.cells[k].ok ? notes[i].ok : notes[i].no).add(letters[k]); });
+        f.cells.forEach(k => { if (touched.has(k) && ok.has(k)) (j.cells[k].ok ? notes[i].ok : notes[i].no).add(letters[k]); });
       } else if (f.rule.type === "pair") {
-        j.joints.filter(x => x.field === i && (touched.has(x.a) || touched.has(x.b)))
+        j.joints.filter(x => x.field === i && ok.has(x.a) && ok.has(x.b) && (touched.has(x.a) || touched.has(x.b)))
           .forEach(x => (x.ok ? notes[i].ok : notes[i].no).add(`${letters[x.a]}→${letters[x.b]}`));
-      } else if (i in j.wholes && f.cells.some(k => touched.has(k))) {
+      } else if (i in j.wholes && f.cells.every(k => ok.has(k)) && f.cells.some(k => touched.has(k))) {
         (j.wholes[i] ? notes[i].ok : notes[i].no).add(f.cells.slice().sort(readingOrder).map(k => letters[k]).join(""));
       }
     });
   };
   for (const e of log) {
     if (e.clear) { e.clear.forEach(k => { delete letters[k]; }); continue; }
+    if (e.draft) { Object.assign(letters, e.draft); continue; }      // letters short of a word: not judged
     if (e.check) {
       // a letter matching the intended fill obeys its field: logged as accepted (a non-match proves nothing)
       fields.forEach((f, i) => {
@@ -401,9 +405,16 @@ export function lettersFrom(board, log) {
   const grid = gridOf(SHAPES[board.shape]), letters = {};
   for (const e of log) {
     if (e.clear) e.clear.forEach(k => { delete letters[k]; });
+    else if (e.draft) Object.assign(letters, e.draft);
     else if (e.word) grid.slots[e.slot].cells.forEach((k, i) => { letters[k] = e.word[i]; });
   }
   return letters;
+}
+
+/** Cells whose letters count: those in at least one complete real word. Anything else is a draft, not judged. */
+export function eligibleCells(board, letters) {
+  const grid = gridOf(SHAPES[board.shape]);
+  return new Set(grid.slots.filter(s => VALID.has(s.cells.map(k => letters[k] || "").join(""))).flatMap(s => s.cells));
 }
 
 export function isSolved(board, letters) {
