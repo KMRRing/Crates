@@ -35,6 +35,7 @@
   background: radial-gradient(circle at 6px 0, transparent 6px, var(--pt-ticket) 6.5px) 0 0 / 12px 10px repeat-x; }
 .pt-ask { margin: 0; color: var(--ink-soft); font-size: .95rem; }
 .pt-prompt { margin: .2rem 0 1rem; font-size: 2rem; font-weight: 800; font-stretch: 108%; line-height: 1.1; letter-spacing: -.01em; overflow-wrap: anywhere; hyphens: auto; }
+.pt-need { margin: -.6rem 0 .8rem; font-weight: 750; color: var(--pt-turf); }
 .pt-options { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 .pt-option { min-height: 52px; padding: .5rem .7rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge); background: var(--sheet);
   font-weight: 700; font-size: 1.02rem; line-height: 1.2; text-align: center; cursor: pointer; overflow-wrap: anywhere; }

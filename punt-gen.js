@@ -1,16 +1,17 @@
-// Punt: a question from the Crates bank, two to four options (sometimes more than one right), and house odds.
-// You pick an option and stake part of your pot, or pass. The house prices each question from how hard its
+// Punt: a question from the Crates bank, two to four options (sometimes more than one right, and then you're
+// told how many and must pick all of them), and house odds. You pick and stake part of your pot, or pass. The house prices each question from how hard its
 // clue is, plus noise: sometimes it overpays, sometimes it underpays. Knowing the answer is half of it; the
 // other half is seeing when the price is wrong and sizing the bet to how sure you are.
 import { BANK } from "./core.js";
 
 // questions: per session; options: how many choices a question may have; diff: clue difficulties dealt;
-// spread: how far the house's guess at your chances strays (bigger = more mispriced, easier to exploit);
+// spread: how far the house's guess at your chances strays, in log-odds (bigger = more mispriced, easier to
+// exploit; log-odds keep a long shot's mispricing in proportion, so 10% doesn't stray to 0 or 30%);
 // margin: the house's cut; multi: how often a clue that fits several answers shows more than one of them.
 export const LEVELS = {
-  easy: { label: "Easy", questions: 12, options: [2, 2, 3], diff: [1, 1, 2], spread: 0.16, margin: 0.03, multi: 0.15 },
-  medium: { label: "Medium", questions: 15, options: [2, 3, 3, 4], diff: [1, 2, 2, 3], spread: 0.1, margin: 0.05, multi: 0.25 },
-  hard: { label: "Hard", questions: 15, options: [3, 4, 4], diff: [2, 3, 3], spread: 0.06, margin: 0.06, multi: 0.35 },
+  easy: { label: "Easy", questions: 12, options: [2, 2, 3], diff: [1, 1, 2], spread: 0.8, margin: 0.03, multi: 0.15 },
+  medium: { label: "Medium", questions: 15, options: [2, 3, 3, 4], diff: [1, 2, 2, 3], spread: 0.5, margin: 0.05, multi: 0.25 },
+  hard: { label: "Hard", questions: 15, options: [3, 4, 4], diff: [2, 3, 3], spread: 0.3, margin: 0.06, multi: 0.35 },
 };
 export const START_POT = 1000;
 
@@ -39,6 +40,7 @@ const CARRIERS = new Map();
 for (const p of PAIRS) { if (!CARRIERS.has(p.w)) CARRIERS.set(p.w, new Set()); CARRIERS.get(p.w).add(p.a); }
 const pairOf = (a, w) => PAIRS.find(p => p.a === a && p.w === w);
 const NOUN = { country: "country", commodity: "commodity" };
+const PLURAL_NOUN = { country: "countries", commodity: "commodities" };
 
 /** Whether a clue gives an answer away by naming it. */
 const names = (w, a) => [BANK[a].name, ...(BANK[a].aliases || [])].some(n => n.length > 3 && w.toLowerCase().includes(n.toLowerCase()));
@@ -46,13 +48,28 @@ const names = (w, a) => [BANK[a].name, ...(BANK[a].aliases || [])].some(n => n.l
 /** Odds as shown and paid: steps of 0.05 below 2, 0.1 above, never under 1.05 or over 9.9. */
 const price = x => Math.min(9.9, Math.max(1.05, x < 2 ? Math.round(x * 20) / 20 : Math.round(x * 10) / 10));
 
+const choose = (n, k) => { let r = 1; for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1); return r; };
+
 /**
- * The house's price for a question: its guess at the chance a player picks a right option (knowing the clue,
- * or guessing among the options), knocked about by noise, less its margin.
+ * The chance a typical player picks exactly the right options: each right one is known with the chance its
+ * clue's difficulty suggests, and the rest are guessed among the options not already known to be right.
  */
-function odds(rnd, L, d, right, n) {
-  const fair = KNOWS[d] + (1 - KNOWS[d]) * (right / n);
-  const guess = Math.min(0.97, Math.max(0.08, fair + normal(rnd) * L.spread));
+function chanceRight(difficulties, n) {
+  const k = difficulties.length;
+  let total = 0;
+  for (let known = 0; known < 1 << k; known++) {
+    let p = 1, m = 0;
+    difficulties.forEach((d, i) => { if (known >> i & 1) { p *= KNOWS[d]; m++; } else p *= 1 - KNOWS[d]; });
+    total += p / choose(n - m, k - m);
+  }
+  return total;
+}
+
+/** The house's price for a question: its guess at a typical player's chance, knocked about by noise, less its margin. */
+function odds(rnd, L, difficulties, n) {
+  const fair = chanceRight(difficulties, n);
+  const logit = Math.log(fair / (1 - fair)) + normal(rnd) * L.spread;
+  const guess = Math.min(0.97, Math.max(0.06, 1 / (1 + Math.exp(-logit))));
   return { chance: fair, fair: price(1 / fair), offered: price((1 - L.margin) / guess) };
 }
 
@@ -76,12 +93,13 @@ function clueQuestion(rnd, L, used) {
   if (wrong.length < n - right.length) return null;
   const options = shuffle(rnd, [...right, ...wrong]);
   if (options.some(x => names(p.w, x))) return null;
-  const d = Math.min(...right.map(x => pairOf(x, p.w)?.d ?? p.d));
+  const ds = right.map(x => pairOf(x, p.w)?.d ?? p.d);
   return {
-    kind: "clue", cat: BANK[p.a].cat, prompt: p.w, ask: `Which ${NOUN[BANK[p.a].cat]} is this about?`,
-    options: options.map(x => ({ label: BANK[x].name, right: right.includes(x) })),
+    kind: "clue", cat: BANK[p.a].cat, prompt: p.w,
+    ask: right.length > 1 ? `Which ${PLURAL_NOUN[BANK[p.a].cat]} is this about?` : `Which ${NOUN[BANK[p.a].cat]} is this about?`,
+    options: options.map(x => ({ label: BANK[x].name, right: right.includes(x) })), need: right.length,
     notes: right.map(x => ({ label: BANK[x].name, text: pairOf(x, p.w)?.hint || p.hint })),
-    d, ...odds(rnd, L, d, right.length, n), key: p.w,
+    d: Math.min(...ds), ...odds(rnd, L, ds, n), key: p.w,
   };
 }
 
@@ -98,12 +116,12 @@ function answerQuestion(rnd, L, used) {
   const wrong = shuffle(rnd, [...new Set(pool)]).slice(0, n - right.length);
   if (wrong.length < n - right.length || right.some(w => names(w, a)) || wrong.some(w => names(w, a))) return null;
   const options = shuffle(rnd, [...right, ...wrong]);
-  const d = Math.min(...right.map(w => pairOf(a, w).d));
+  const ds = right.map(w => pairOf(a, w).d);
   return {
-    kind: "answer", cat: BANK[a].cat, prompt: BANK[a].name, ask: "Which clue goes with",
-    options: options.map(w => ({ label: w, right: right.includes(w) })),
+    kind: "answer", cat: BANK[a].cat, prompt: BANK[a].name, ask: right.length > 1 ? "Which clues go with" : "Which clue goes with",
+    options: options.map(w => ({ label: w, right: right.includes(w) })), need: right.length,
     notes: right.map(w => ({ label: w, text: pairOf(a, w).hint })),
-    d, ...odds(rnd, L, d, right.length, n), key: p.w,
+    d: Math.min(...ds), ...odds(rnd, L, ds, n), key: p.w,
   };
 }
 
@@ -118,6 +136,11 @@ export function makeSession(seed, levelId) {
   }
   return out;
 }
+
+/** Whether a pick (option indices) is exactly the question's right options: all of them, and nothing else. */
+export const pickedRight = (q, pick) => !!pick && pick.length === rightCount(q) && pick.every(i => q.options[i]?.right);
+/** How many options are right (older saved questions don't say, so count them). */
+export const rightCount = q => q.need ?? q.options.filter(o => o.right).length;
 
 /** What a bet returns: stake = pct% of the pot (rounded down); a right pick wins stake × (odds − 1). */
 export function settle(pot, pct, right, offered) {

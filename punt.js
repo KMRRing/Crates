@@ -2,7 +2,7 @@
 // Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
 // on their own pick, so you can back the same option or hedge against each other. A question settles once
 // everyone at the table has bet or passed.
-import { makeSession, settle, LEVELS, START_POT, showOdds, showChips } from "./punt-gen.js";
+import { makeSession, settle, pickedRight, rightCount, LEVELS, START_POT, showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { gameHref, GAMES } from "./rooms.js";
@@ -14,9 +14,10 @@ const ME = "me";                                   // the solo player's seat
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
 // S: { seed, level, questions, index, pot, phase: "bet" | "reveal", bets: { id: { pick, pct } }, log: [result], done }
+// A pick is a list of option indices (all of the right ones, when several are), or null for a pass.
 // a result: { index, pot (before), bets, change }
 let S = null;
-let pick = null;      // the option chosen on this device for the current question
+let pick = [];        // the options chosen on this device for the current question
 let pct = 0;          // the stake chosen on this device, as a share of the pot
 let shownDone = null;
 
@@ -50,7 +51,21 @@ function newSession(level = S.level) {
   together.act(g => { Object.assign(g, { seed: next.seed, level, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
 }
 
-const resetChoice = () => { pick = null; pct = 0; };
+const resetChoice = () => { pick = []; pct = 0; };
+/** A saved pick as a list (sessions saved before several-right questions stored one index). */
+const picksOf = p => (p == null ? null : Array.isArray(p) ? p : Object.values(p ?? {}).length ? Object.values(p) : [p]);
+
+/**
+ * Tapping an option: with one right answer it's chosen; with several it toggles, and once as many are chosen as
+ * are right, the next tap swaps out the earliest.
+ */
+function toggle(i) {
+  const need = rightCount(question());
+  if (need === 1) pick = [i];
+  else if (pick.includes(i)) pick = pick.filter(x => x !== i);
+  else pick = [...pick, i].slice(-need);
+  render();
+}
 
 // ---------- betting ----------
 /** Applies a change to the session: the solo save, or the room in one transaction. */
@@ -69,9 +84,8 @@ function settleIfReady(g, ids) {
   let total = 0;
   const bets = {};
   for (const id of ids) {
-    const { pick: p, pct: share } = g.bets[id];
-    const right = p != null && q.options[p].right;
-    const { stake, change: c } = p == null ? { stake: 0, change: 0 } : settle(g.pot, share, right, q.offered);
+    const { pct: share } = g.bets[id], p = picksOf(g.bets[id].pick);
+    const { stake, change: c } = p == null ? { stake: 0, change: 0 } : settle(g.pot, share, pickedRight(q, p), q.offered);
     bets[id] = { pick: p, pct: share, stake, change: c };
     total += c;
   }
@@ -83,8 +97,12 @@ function settleIfReady(g, ids) {
 
 function place(passing) {
   if (S.done || S.phase !== "bet") return;
-  if (!passing && (pick == null || pct <= 0)) { toast(pick == null ? "Pick an option first" : "Set a stake, or pass"); return; }
-  const bet = passing ? { pick: null, pct: 0 } : { pick, pct: Math.min(pct, maxPct()) };
+  const need = rightCount(question());
+  if (!passing && (pick.length !== need || pct <= 0)) {
+    toast(pick.length !== need ? (need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass");
+    return;
+  }
+  const bet = passing ? { pick: null, pct: 0 } : { pick: [...pick].sort((a, b) => a - b), pct: Math.min(pct, maxPct()) };
   const id = me(), index = S.index;
   change(g => {
     if (g.done || g.phase !== "bet" || g.index !== index) return false;
@@ -118,19 +136,24 @@ function render() {
 
   $("ask").textContent = q.ask;
   $("prompt").textContent = q.prompt;
-  const mine = reveal && last ? last.bets[me()] : null;
+  const need = rightCount(q);
+  $("need").hidden = need === 1;
+  $("need").textContent = need === 2 ? "Two of these are right: pick both." : `${need} of these are right: pick all ${need}.`;
+  const chosen = reveal ? picksOf(last?.bets[me()]?.pick) || [] : pick;
+  const anyonePicked = i => Object.values(last?.bets || {}).some(x => picksOf(x.pick)?.includes(i));
+  $("options").setAttribute("role", need > 1 ? "group" : "radiogroup");
   $("options").replaceChildren(...q.options.map((o, i) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "pt-option";
-    b.setAttribute("role", "radio");
-    b.setAttribute("aria-checked", String((reveal ? mine?.pick : pick) === i));
+    b.setAttribute("role", need > 1 ? "checkbox" : "radio");
+    b.setAttribute("aria-checked", String(chosen.includes(i)));
     b.textContent = o.label;
     if (reveal) {
       b.disabled = true;
       if (o.right) b.classList.add("right");
-      else if (Object.values(last?.bets || {}).some(x => x.pick === i)) b.classList.add("wrong");
-    } else b.addEventListener("click", () => { pick = i; render(); });
+      else if (anyonePicked(i)) b.classList.add("wrong");
+    } else b.addEventListener("click", () => toggle(i));
     return b;
   }));
 
@@ -164,7 +187,7 @@ function drawBetting(q, waiting) {
     return b;
   }));
   $("passBtn").disabled = waiting;
-  $("betBtn").disabled = waiting || pick == null || pct <= 0;
+  $("betBtn").disabled = waiting || pick.length !== rightCount(q) || pct <= 0;
   $("betBtn").textContent = stake > 0 ? `Bet ${showChips(stake)}` : "Bet";
 }
 
