@@ -7,7 +7,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "delta:solo", SEEN_HELP = "delta:help";
+const STORE = "delta:solo", SEEN_HELP = "delta:help", SPARES = "delta:spares";
 const APP = 1;                                       // together games: bumped when their shape changes
 const COLOURS = 6;                                   // path colours (--d-p0…)
 const SQ3 = Math.sqrt(3);
@@ -61,18 +61,57 @@ function deal(seed, level) {
   return new Promise(resolve => { waiting.set(id, resolve); worker.postMessage({ id, seed, level }); });
 }
 
+// A spare board per level is dealt in the background and kept, so New board is instant even on Hard.
+function spares() { try { return JSON.parse(localStorage.getItem(SPARES)) || {}; } catch { return {}; } }
+function takeSpare(level) {
+  const all = spares(), spare = all[level];
+  if (!spare?.board) return null;
+  delete all[level];
+  try { localStorage.setItem(SPARES, JSON.stringify(all)); } catch { /* private mode */ }
+  return spare;
+}
+const refilling = new Set();
+/** Deals a spare for this level if it has none, then for any other level missing one (one at a time). */
+function refill(level) {
+  if (refilling.size) return;
+  const missing = [level, ...Object.keys(LEVELS).filter(l => l !== level)].find(l => !spares()[l]);
+  if (!missing) return;
+  refilling.add(missing);
+  const seed = randomSeed();
+  deal(seed, missing).then(board => {
+    refilling.delete(missing);
+    if (!board) return;
+    const all = spares();
+    all[missing] = { seed, board };
+    try { localStorage.setItem(SPARES, JSON.stringify(all)); } catch { /* private mode */ }
+    refill(level);
+  });
+}
+/** A new board for this level: the spare if there is one (instant), else dealt now. */
+async function nextBoard(level) {
+  const spare = takeSpare(level);
+  refill(level);
+  if (spare) return spare;
+  const seed = randomSeed();
+  return { seed, board: await deal(seed, level) };
+}
+
 // ---------- solo ----------
 function loadSolo() {
   try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.board ? s : null; } catch { return null; }
 }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
+/** Starts a solo board: this seed's, or (no seed) the next one for the level. */
 async function soloBoard(seed, level) {
   const slow = setTimeout(() => toast("Dealing…", 6000), 250);
-  const board = await deal(seed, level);
+  let board;
+  if (seed) board = await deal(seed, level);
+  else ({ seed, board } = await nextBoard(level));
   clearTimeout(slow);
   $("toast").classList.remove("show");
   if (!board) { toast("Couldn't make a board, try again"); return; }
+  refill(level);
   S = { seed, level, board, paths: {}, clues: [], done: null, ms: 0 };
   shownDone = null;
   clockFrom = null;
@@ -85,10 +124,10 @@ async function soloBoard(seed, level) {
 /** Deals a new board (a hard one can take a moment, so the screen says so first). */
 function newBoard(level = S.level) {
   if (S && !S.done && pathList(S.paths).length && !confirm("Start a new board? This one isn't finished.")) { render(); return; }
-  const seed = randomSeed();
-  if (!together.room) { soloBoard(seed, level); return; }
-  toast("Dealing…", 6000);
-  deal(seed, level).then(board => {
+  if (!together.room) { soloBoard(null, level); return; }
+  const slow = setTimeout(() => toast("Dealing…", 6000), 250);
+  nextBoard(level).then(({ seed, board }) => {
+    clearTimeout(slow);
     $("toast").classList.remove("show");
     if (!board) { toast("Couldn't make a board, try again"); return; }
     together.act(g => { Object.assign(g, { level, seed, board, paths: {}, clues: [], done: null, startedAt: Date.now() }); });
@@ -246,9 +285,26 @@ function endDraw() {
   const { id, c, cells } = drawing;
   drawing = null;
   commit(id, c, cells);
+  if (S.done) return;
   const e = cells.length >= 2 ? evaluate(S.board, cells) : null;
-  if (e?.done && !e.ok) toast(e.value === null ? "A ÷ on that path doesn't divide evenly either way" : "That path doesn't add up either way");
+  if (e?.done && !e.ok && LEVELS[S.level].verdicts === "now") {
+    toast(e.value === null ? "A ÷ on that path doesn't divide evenly" : `From ${S.board.nums[e.from]} this path arrives at ${e.value}, not ${S.board.nums[e.to]}`);
+  } else if (allJoined()) {
+    const paths = pathList(S.paths);
+    const wrong = paths.filter(p => !evaluate(S.board, p.cells).ok).length;
+    const used = new Set(paths.flatMap(p => p.cells)), unused = Object.keys(S.board.ops).filter(k => !used.has(k)).length;
+    if (wrong) toast(`Every number is joined, but ${wrong === 1 ? "one path doesn't" : `${wrong} paths don't`} add up`);
+    else if (unused) toast(`Every pair adds up, but ${unused === 1 ? "one operation is" : `${unused} operations are`} still unused`);
+  }
 }
+
+/** Every number is on a finished path (rightly or wrongly). */
+function allJoined() {
+  const ends = new Set(pathList(S.paths).filter(p => evaluate(S.board, p.cells).done).flatMap(p => [p.cells[0], p.cells[p.cells.length - 1]]));
+  return Object.keys(S.board.nums).every(k => ends.has(k));
+}
+/** Whether finished paths are marked right or wrong now: always on Easy and Medium; on Hard once every number is joined. */
+const showVerdicts = () => !!S.done || LEVELS[S.level].verdicts === "now" || allJoined();
 
 // ---------- rendering ----------
 function render() {
@@ -267,11 +323,13 @@ function render() {
 function drawStatus() {
   const paths = pathList(S.paths), board = S.board;
   const pairs = Object.keys(board.nums).length / 2, ops = Object.keys(board.ops).length;
-  const joined = paths.filter(p => evaluate(board, p.cells).ok).length;
   const used = new Set(paths.flatMap(p => p.cells).filter(k => k in board.ops)).size;
+  // on Hard a pair only says it's joined; whether it adds up shows once every number is joined
+  const now = LEVELS[S.level].verdicts === "now";
+  const count = paths.filter(p => { const e = evaluate(board, p.cells); return now ? e.ok : e.done; }).length;
   $("status").textContent = S.done
     ? (S.done.won ? `Solved in ${clockText(elapsed())}.` : "The solution.")
-    : `${joined} of ${pairs} pairs joined, ${used} of ${ops} operations used.`;
+    : `${count} of ${pairs} pairs ${now ? "add up" : "joined"}, ${used} of ${ops} operations used.`;
 }
 
 function drawPartner() {
@@ -328,16 +386,16 @@ function drawBoard() {
   root.replaceChildren(tiles, lines, marks, labels);
   for (const k of board.cells) el("polygon", { points: corners(centre(k), 0.93), class: `d-tile${k in board.ops ? " op" : ""}` }, tiles);
 
-  // paths: a broad current in the path's colour, arrows once it adds up, dashed if it can't
-  const verdicts = new Map();
+  // paths: a broad current in the path's colour, with arrows the way it was drawn once it reaches a number;
+  // dashed when it's known not to add up
+  const verdicts = new Map(), judged = showVerdicts();
   for (const p of paths) {
     if (p.cells.length < 2) continue;
     const e = evaluate(board, p.cells);
-    verdicts.set(p.id, e);
-    const run = e.ok && e.from !== p.cells[0] ? [...p.cells].reverse() : p.cells;
-    el("polyline", { points: run.map(k => centre(k).map(v => v.toFixed(3)).join(",")).join(" "),
-      class: `d-path${e.done && !e.ok ? " wrong" : ""}`, stroke: `var(--d-p${(p.c ?? 0) % COLOURS})` }, lines);
-    if (e.ok) for (let i = 0; i + 1 < run.length; i += 2) arrow(centre(run[i]), centre(run[i + 1]), lines);
+    if (judged) verdicts.set(p.id, e);
+    el("polyline", { points: p.cells.map(k => centre(k).map(v => v.toFixed(3)).join(",")).join(" "),
+      class: `d-path${judged && e.done && !e.ok ? " wrong" : ""}`, stroke: `var(--d-p${(p.c ?? 0) % COLOURS})` }, lines);
+    if (e.done) for (let i = 0; i + 1 < p.cells.length; i += 2) arrow(centre(p.cells[i]), centre(p.cells[i + 1]), lines);
   }
 
   // operations, then numbers on top
@@ -367,8 +425,8 @@ function drawBoard() {
     el("text", { x: x - 0.56, y: y + 0.56, class: "d-mark-glyph" }, marks).textContent = e.ok ? "✓" : "✕";
   }
 
-  // the running value at the finger
-  if (drawing && drawing.cells.length) {
+  // the running value at the finger (not on Hard: there it's yours to work out)
+  if (drawing && drawing.cells.length && LEVELS[S.level].liveValue) {
     const cells = drawing.cells, head = cells[cells.length - 1];
     const startVal = board.nums[cells[0]];
     const value = cells.filter(k => k in board.ops).reduce((v, k) => (v === null ? null : apply(v, board.ops[k])), startVal ?? null);
@@ -475,8 +533,8 @@ const together = createTogether({
   askName,
   valid: g => !!g?.board,
   fresh: async players => {
-    const level = S?.level || "medium", seed = randomSeed();
-    return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board: await deal(seed, level), paths: {}, clues: [], done: null, players };
+    const level = S?.level || "medium", { seed, board } = await nextBoard(level);
+    return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board, paths: {}, clues: [], done: null, players };
   },
   onState: val => {
     clockPause();
@@ -487,7 +545,7 @@ const together = createTogether({
     render();
   },
   onPresence: () => drawPartner(),
-  onLeave: () => { S = loadSolo(); if (!S) { soloBoard(randomSeed(), "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render(); },
+  onLeave: () => { S = loadSolo(); if (!S) { soloBoard(null, "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render(); },
 });
 
 async function joinRoom(code) {
@@ -511,6 +569,9 @@ window.addEventListener("pagehide", clockPause);
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 $("app").querySelector(".d-mark").innerHTML = APPS.find(a => a.id === "delta").logo;
 
+// for tests and debugging
+window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, get together() { return together; } };
+
 // start: a shared board (#s=…&d=…), the saved one, or a fresh Easy board for a first visit
 const hash = new URLSearchParams(location.hash.slice(1));
 const params = new URLSearchParams(location.search);
@@ -518,9 +579,8 @@ const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").sli
 S = loadSolo();
 const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
 if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
-else if (!S) await soloBoard(randomSeed(), "easy");
-else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); }
+else if (!S) await soloBoard(null, "easy");
+else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level); }
 if (!localStorage.getItem(SEEN_HELP) && !code) { $("helpDlg").showModal(); try { localStorage.setItem(SEEN_HELP, "1"); } catch { /* private mode */ } }
 if (code.length === 4) joinRoom(code);
 
-window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, get together() { return together; } };
