@@ -58,6 +58,7 @@
   <div id="result" class="pt-result" hidden>
     <p id="verdict" class="pt-verdict"></p>
     <ul id="notes" class="pt-notes"></ul>
+    <button id="flagBtn" class="pt-flag" type="button">Disagree with this answer? Flag it</button>
     <p id="house" class="pt-house"></p>
     <button id="nextBtn" class="btn primary wide">Next question</button>
   </div>
@@ -85,6 +86,21 @@
   <p id="doneNote" class="stats"></p>
   <button class="btn wide" type="button" id="doneStatsBtn">Your stats</button>
   <button class="btn primary wide" type="button" id="doneNew">New session</button>
+</dialog>
+
+<dialog id="flagDlg" class="sheet" aria-label="Flag this question">
+  <div class="pick-head"><h2>Flag this question</h2><button class="btn" type="button" id="flagClose">Close</button></div>
+  <p id="flagWhat" class="stats"></p>
+  <div id="flagReasons" class="pt-reasons" role="radiogroup" aria-label="What's wrong"></div>
+  <label class="pt-note-label" for="flagNote">Anything to add (optional)</label>
+  <textarea id="flagNote" class="pt-note" rows="3" maxlength="400" placeholder="Say, Bolivia is in the lithium triangle too"></textarea>
+  <button class="btn primary wide" type="button" id="flagSend" disabled>Flag it</button>
+  <p class="stats">It's kept on this device and sent as soon as there's a connection, so it works offline.</p>
+</dialog>
+
+<dialog id="flagsDlg" class="sheet" aria-label="Flagged questions">
+  <div class="pick-head"><h2>Flagged questions</h2><button class="btn" type="button" id="flagsClose">Close</button></div>
+  <div id="flagsBody"></div>
 </dialog>
 
 <dialog id="statsDlg" class="sheet" aria-label="Your stats">

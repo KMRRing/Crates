@@ -340,6 +340,20 @@ function drawPartner() {
 }
 
 const NS = "http://www.w3.org/2000/svg";
+/**
+ * Text on the board. The board's units are hexes, so its text is under a unit tall; Safari lays out text that
+ * small badly (it rounds the font's metrics, and the glyphs ride up to the top of their discs). So each label is
+ * set at 100 times the size and scaled back down, and centred with an explicit offset instead of
+ * dominant-baseline, which Safari handles unevenly.
+ */
+const TEXT_SCALE = 100;
+function label(parent, x, y, text, cls, size) {
+  const t = el("text", { x: 0, y: 0, dy: "0.36em", class: cls, "font-size": size * TEXT_SCALE,
+    transform: `translate(${x.toFixed(3)} ${y.toFixed(3)}) scale(${1 / TEXT_SCALE})` }, parent);
+  t.textContent = text;
+  return t;
+}
+
 function el(tag, attrs, parent) {
   const n = document.createElementNS(NS, tag);
   for (const [a, v] of Object.entries(attrs)) n.setAttribute(a, v);
@@ -388,18 +402,18 @@ function drawBoard() {
   // operations, then numbers on top
   for (const [k, op] of Object.entries(board.ops)) {
     const [x, y] = centre(k);
-    el("text", { x, y, class: "d-op" }, labels).textContent = showOp(op);
+    label(labels, x, y, showOp(op), "d-op", 0.5);
   }
   const tags = pairTags();
   for (const [k, v] of Object.entries(board.nums)) {
-    const [x, y] = centre(k), label = showValue(v), size = [0.72, 0.72, 0.72, 0.58, 0.5, 0.44, 0.38][Math.min(label.length, 6)];
+    const [x, y] = centre(k), text = showValue(v), size = [0.72, 0.72, 0.72, 0.58, 0.5, 0.44, 0.38][Math.min(text.length, 6)];
     const owner = paths.find(p => p.cells.includes(k));
     el("circle", { cx: x, cy: y, r: 0.7, class: "d-num-disc" }, labels);
     if (owner && verdicts.get(owner.id)?.ok) el("circle", { cx: x, cy: y, r: 0.7, fill: "none", stroke: `var(--d-p${owner.c % COLOURS})`, "stroke-width": 0.14 }, labels);
-    el("text", { x, y, class: "d-num", "font-size": size }, labels).textContent = label;
+    label(labels, x, y, text, "d-num", size);
     if (tags[k]) {
       el("circle", { cx: x + 0.56, cy: y - 0.56, r: 0.24, class: "d-tag-disc" }, labels);
-      el("text", { x: x + 0.56, y: y - 0.56, class: "d-tag" }, labels).textContent = tags[k];
+      label(labels, x + 0.56, y - 0.56, tags[k], "d-tag", 0.34);
     }
   }
 
@@ -409,7 +423,7 @@ function drawBoard() {
     if (!e?.done) continue;
     const [x, y] = centre(e.ok ? e.to : p.cells[p.cells.length - 1]);
     el("circle", { cx: x - 0.56, cy: y + 0.56, r: 0.22, class: e.ok ? "d-mark-ok" : "d-mark-no" }, marks);
-    el("text", { x: x - 0.56, y: y + 0.56, class: "d-mark-glyph" }, marks).textContent = e.ok ? "✓" : "✕";
+    label(marks, x - 0.56, y + 0.56, e.ok ? "✓" : "✕", "d-mark-glyph", 0.32);
   }
 
   // the running value at the finger (not on Hard: there it's yours to work out)
@@ -421,7 +435,7 @@ function drawBoard() {
     const w = 0.36 + 0.27 * text.length;
     const g = el("g", { class: "d-bubble" }, root);
     el("rect", { x: x - w / 2, y: y - 1.55, width: w, height: 0.62, rx: 0.31 }, g);
-    el("text", { x, y: y - 1.24 }, g).textContent = text;
+    label(g, x, y - 1.24, text, "d-bubble-text", 0.46);
   }
 
 }

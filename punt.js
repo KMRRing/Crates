@@ -7,6 +7,7 @@ import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageRet
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
@@ -233,6 +234,7 @@ function drawResult(q, last) {
   }));
   const verdict = q.offered > q.fair ? "more than it was worth" : q.offered < q.fair ? "less than it was worth" : "about what it was worth";
   $("house").textContent = `The house put a typical player's chance at ${Math.round(q.chance * 100)}%, a fair price of ${showOdds(q.fair)}. It paid ${showOdds(q.offered)}: ${verdict}.`;
+  drawFlag(q);
   $("nextBtn").hidden = !!S.done;
   $("nextBtn").textContent = S.pot <= 0 || (lengthOf(S) !== "endless" && S.index + 1 >= S.questions.length) ? "See how you did" : "Next question";
 }
@@ -268,6 +270,87 @@ function recordBest(avg) {
     try { localStorage.setItem(BEST, JSON.stringify(all)); } catch { /* private mode */ }
   }
   return all[key] ?? avg;
+}
+
+// ---------- flags: questions you disagree with ----------
+const REASONS = ["A right answer is marked wrong", "A wrong answer is marked right", "The clue is unclear or misleading", "Something else"];
+const flagKey = q => `${q.key}|${q.prompt}`;
+function drawFlag(q) {
+  const done = flagged("punt", flagKey(q));
+  $("flagBtn").disabled = done;
+  $("flagBtn").textContent = done ? "Flagged: thanks" : "Disagree with this answer? Flag it";
+}
+let flagReason = null;
+function openFlag() {
+  const q = question();
+  flagReason = null;
+  $("flagWhat").textContent = `${q.ask} ${q.prompt}: marked right ${q.options.filter(o => o.right).map(o => o.label).join(" and ")}.`;
+  $("flagNote").value = "";
+  $("flagSend").disabled = true;
+  $("flagReasons").replaceChildren(...REASONS.map(r => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", "false");
+    b.textContent = r;
+    b.addEventListener("click", () => {
+      flagReason = r;
+      for (const x of $("flagReasons").children) x.setAttribute("aria-checked", String(x === b));
+      $("flagSend").disabled = false;
+    });
+    return b;
+  }));
+  $("flagDlg").showModal();
+}
+function sendFlag() {
+  const q = question(), last = S.log[S.log.length - 1], mine = last?.bets[me()];
+  const picked = (picksOf(mine?.pick) || []).map(i => q.options[i]?.label).filter(Boolean);
+  fileFlag("punt", {
+    key: flagKey(q), level: LEVELS[S.level].label, seed: S.seed, index: S.index, kind: q.kind, ask: q.ask, prompt: q.prompt,
+    options: q.options.map(o => ({ label: o.label, right: !!o.right })), picked, reason: flagReason, note: $("flagNote").value.trim(),
+  });
+  $("flagDlg").close();
+  drawFlag(q);
+  toast(navigator.onLine ? "Flagged" : "Flagged: it'll be sent when you're back online");
+}
+
+/** The flagged questions: this device's, and everyone's from the database, with a copy button to hand them over. */
+async function openFlags(everyone = false) {
+  const body = $("flagsBody");
+  body.innerHTML = "";
+  const add = (tag, cls, text, parent = body) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; parent.appendChild(n); return n; };
+  const tabs = add("div", "pt-lengths pt-tabs");
+  for (const [all, label] of [[false, "This device"], [true, "Everyone"]]) {
+    const b = add("button", "btn", label, tabs);
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(everyone === all));
+    b.addEventListener("click", () => openFlags(all));
+  }
+  if (!$("flagsDlg").open) $("flagsDlg").showModal();
+  let list = localFlags("punt");
+  if (everyone) {
+    const wait = add("p", "stats", navigator.onLine ? "Loading…" : "Everyone's flags need a connection.");
+    if (!navigator.onLine) return;
+    try { list = await allFlags("punt"); wait.remove(); }
+    catch { wait.textContent = "Couldn't load them (no connection, or the database doesn't accept flags yet: see the README)."; return; }
+  }
+  const unsent = list.filter(f => f.sent === false).length;
+  add("p", "stats", list.length ? `${list.length} flagged${unsent ? `, ${unsent} waiting to be sent` : ""}.` : "Nothing flagged yet. After a question, tap \"Disagree with this answer?\" to flag it.");
+  if (!list.length) return;
+  const copy = add("button", "btn primary wide", "Copy them as text");
+  copy.type = "button";
+  copy.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(flagsAsText("Punt", list)); toast("Copied: paste them to Claude"); }
+    catch { toast("Couldn't copy here"); }
+  });
+  const ul = add("ul", "pt-flaglist");
+  for (const f of [...list].reverse()) {
+    const li = add("li", null, null, ul);
+    add("b", null, `${f.ask} ${f.prompt}`, li);
+    add("div", null, `${f.reason}${f.note ? `: ${f.note}` : ""}`, li);
+    add("small", null, `${new Date(f.at).toLocaleDateString()}${f.sent === false ? ", waiting to be sent" : ""}`, li);
+  }
 }
 
 // ---------- stats ----------
@@ -428,6 +511,7 @@ function drawMenu() {
   button("New run", () => newSession(S.level, lengthOf(S)));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) button("End this run", endRun);
   button("Your stats", () => openStats("run"));
+  button("Flagged questions", () => openFlags(false));
   button("How to play", () => $("helpDlg").showModal());
   const room = together.room;
   if (!room) {
@@ -465,6 +549,11 @@ $("helpClose").addEventListener("click", () => $("helpDlg").close());
 $("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("statsClose").addEventListener("click", () => $("statsDlg").close());
+$("flagBtn").addEventListener("click", openFlag);
+$("flagClose").addEventListener("click", () => $("flagDlg").close());
+$("flagSend").addEventListener("click", sendFlag);
+$("flagsClose").addEventListener("click", () => $("flagsDlg").close());
+sendFlags();                     // anything flagged offline goes now
 $("doneStatsBtn").addEventListener("click", () => { $("doneDlg").close(); openStats("run"); });
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession(S.level, lengthOf(S)); });
 $("level").addEventListener("change", e => newSession(e.target.value, lengthOf(S)));

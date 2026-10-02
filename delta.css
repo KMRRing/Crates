@@ -31,17 +31,19 @@
 .d-path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: .5; opacity: .92; }
 .d-path.wrong { stroke-dasharray: .18 .16; }
 .d-arrow { fill: var(--d-tile); opacity: .9; }
-.d-op { font-family: var(--font); font-size: .5px; font-weight: 750; font-stretch: 72%; fill: var(--ink);
-  text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--d-tile); stroke-width: .12; stroke-linejoin: round; }
+/* board text is set at 100× and scaled down (see label() in delta.js): sizes come from there, strokes are in
+   those larger units */
+.d-op { font-family: var(--font); font-weight: 750; font-stretch: 72%; fill: var(--ink);
+  text-anchor: middle; paint-order: stroke; stroke: var(--d-tile); stroke-width: 12; stroke-linejoin: round; }
 .d-num-disc { fill: var(--d-num); }
-.d-num { font-family: var(--font); font-weight: 800; font-stretch: 112%; fill: var(--d-num-ink); text-anchor: middle; dominant-baseline: central; }
-.d-tag { font-family: var(--font); font-size: .34px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+.d-num { font-family: var(--font); font-weight: 800; font-stretch: 112%; fill: var(--d-num-ink); text-anchor: middle; }
+.d-tag { font-family: var(--font); font-weight: 800; fill: var(--ink); text-anchor: middle; }
 .d-tag-disc { fill: var(--d-tile); stroke: var(--ink); stroke-width: .04; }
 .d-bubble rect { fill: var(--ink); }
-.d-bubble text { font-family: var(--font); font-size: .46px; font-weight: 800; fill: var(--yard); text-anchor: middle; dominant-baseline: central; }
+.d-bubble-text { font-family: var(--font); font-weight: 800; fill: var(--yard); text-anchor: middle; }
 .d-mark-ok { fill: var(--d-ok); }
 .d-mark-no { fill: var(--d-no); }
-.d-mark-glyph { font-family: var(--font); font-size: .32px; font-weight: 800; fill: #fff; text-anchor: middle; dominant-baseline: central; }
+.d-mark-glyph { font-family: var(--font); font-weight: 800; fill: #fff; text-anchor: middle; }
 
 .d-actions { display: flex; justify-content: center; gap: .6rem; padding: .5rem 0 .2rem; }
 .d-actions .btn { min-height: 42px; min-width: 7.5rem; padding: .35rem 1rem; }

@@ -45,6 +45,14 @@
           ".read": "auth != null",
           ".write": "auth != null && $code.matches(/^[A-Z]{8}$/)"
         }
+      },
+      "flags": {
+        "$game": {
+          ".read": "auth != null",
+          "$id": {
+            ".write": "auth != null && !data.exists() && newData.hasChildren(['at', 'prompt', 'reason'])"
+          }
+        }
       }
     }
   }
