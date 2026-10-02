@@ -1,7 +1,7 @@
 // Cartel: you against computer players. Rules and the referee are in cartel-engine.js, the players in
 // cartel-ai.js. Your view is built the same way theirs is: a Mind follows the events as your seat sees them,
 // so the table shows exactly what you could know, no more.
-import { newGame, act, respond, bid, seen, beats, mustHit, rng, ROLES, POWERS, RULES, totalDice } from "./cartel-engine.js";
+import { newGame, act, respond, respondBlock, comply, bid, seen, mustHit, rng, ROLES, POWERS, BLOCKERS, RULES, totalDice } from "./cartel-engine.js";
 import { Player, Mind, PERSONAS } from "./cartel-ai.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -16,8 +16,9 @@ let mind = null;              // what you know
 let publicMind = null;        // what everyone knows (to show which of your dice the table has seen)
 let ui = null;                // your choices in progress
 let timer = null;
+let freeAsked = -1;           // the turn a computer player last considered its free move
 
-const freshUi = () => ({ panel: null, reroll: new Set(), ask: { target: null, type: "count", f: 4, n: 15 }, claim: { role: 2, target: null, face: 4 }, hit: null, bid: null });
+const freshUi = () => ({ panel: null, reroll: new Set(), comply: null, ask: { target: null, type: "count", f: 4, n: 15 }, claim: { role: 2, target: null, face: 4 }, hit: null, bid: null });
 const name = i => (i === ME ? "You" : g.players[i].name);
 /** "You take" / "Quant takes". */
 const verb = (i, base) => (i === ME ? base : base.endsWith("s") || base.endsWith("sh") ? `${base}es` : `${base}s`);
@@ -75,13 +76,20 @@ function loop() {
   const c = g.pending;
   if (c) {
     if (c.challenger === ME) { showChallenge(); return; }
-    timer = setTimeout(() => { respond(g, ais[c.challenger].challenge(g)); loop(); }, delay());
+    const ai = ais[c.challenger];
+    timer = setTimeout(() => { if (c.type === "block") respondBlock(g, ai.challengeBlock(g)); else respond(g, ai.challenge(g)); loop(); }, delay());
     return;
   }
   if (g.turn === ME) return;                        // your controls are up
   const ai = ais[g.turn];
   timer = setTimeout(() => {
     try {
+      // the free move first: Compliance, to hide a die the table has seen (asked once a turn)
+      if (g.step === "act" && !g.freeUsed && freeAsked !== g.moves) {
+        freeAsked = g.moves;
+        const die = ai.free(g);
+        if (die != null) { comply(g, die); loop(); return; }
+      }
       if (g.step === "act") act(g, ai.action(g)); else bid(g, ai.bid(g));
     } catch (e) {
       console.error(e);                              // a move the referee refused: fall back to the plainest legal one
@@ -138,7 +146,7 @@ const byKind = list => [...list].sort((a, b) => (a.kind === b.kind ? 0 : a.kind 
 
 // ---------- the seats ----------
 // What each player said last, as a bubble at their seat: moves, claims, challenges, bids and calls.
-const BUBBLE = new Set(["pass", "take", "reroll", "ask", "hit", "claim", "challenge", "allow", "bid", "call", "loseGold", "out"]);
+const BUBBLE = new Set(["pass", "take", "reroll", "ask", "hit", "claim", "challenge", "allow", "block", "blocked", "bid", "call", "loseGold", "out"]);
 const animated = {};
 function bubbleText(e) {
   const who = i => (i === ME ? "you" : name(i));
@@ -151,6 +159,8 @@ function bubbleText(e) {
     case "claim": return `${POWERS[e.role].name}${e.target != null ? ` on ${who(e.target)}` : ""}`;
     case "challenge": return e.held ? "Challenges… wrong" : "Challenges: bluff!";
     case "allow": return "Lets it go";
+    case "block": return `Blocks as ${POWERS[e.role].name}`;
+    case "blocked": return "Accepts the block";
     case "bid": return `${e.q} × ${faceLabel(e.f)}`;
     case "call": return `Calls! ${e.held ? "It held" : "Busted"}`;
     case "loseGold": return `Loses a gold ${e.die.face}`;
@@ -246,20 +256,25 @@ function renderMine() {
   plaque.append(b, t);
   // dice that just changed under you shake once
   const last = g.events[g.events.length - 1];
-  const shaken = last && (last.t === "reroll" || last.t === "spend" || last.t === "enforcer") && (last.p === ME || last.target === ME) && shookAt < last.n
+  const shaken = last && (last.t === "reroll" || last.t === "comply") && last.p === ME && shookAt < last.n
     ? new Set([].concat(last.dice || last.die)) : new Set();
   if (shaken.size) shookAt = last.n;
-  const picking = ui.panel === "reroll";
+  const picking = ui.panel === "reroll" || ui.panel === "comply";
   const dice = document.createElement("div");
   dice.className = "ct-dice";
   dice.append(...byKind(me.dice).map(d => {
     const fig = document.createElement("figure");
     const svg = dieSvg({ face: d.face, kind: d.kind, seen: seenByAll.has(d.id) }, 36);
     if (shaken.has(d.id)) svg.classList.add("shake");
-    if (picking) { svg.classList.add("pickable"); if (ui.reroll.has(d.id)) svg.classList.add("picked"); }
+    const chosen = ui.panel === "comply" ? ui.comply === d.id : ui.reroll.has(d.id);
+    if (picking) { svg.classList.add("pickable"); if (chosen) svg.classList.add("picked"); }
     fig.appendChild(svg);
     if (d.kind === "gold") { const cap = document.createElement("figcaption"); cap.textContent = ROLES[d.face]; fig.appendChild(cap); }
-    if (picking) fig.addEventListener("click", () => { ui.reroll.has(d.id) ? ui.reroll.delete(d.id) : ui.reroll.add(d.id); render(); });
+    if (picking) fig.addEventListener("click", () => {
+      if (ui.panel === "comply") ui.comply = ui.comply === d.id ? null : d.id;
+      else if (ui.reroll.has(d.id)) ui.reroll.delete(d.id); else ui.reroll.add(d.id);
+      render();
+    });
     return fig;
   }));
   box.append(plaque, dice);
@@ -275,15 +290,17 @@ function line(e) {
     case "reroll": return `${n(x.p)} ${verb(x.p, "reroll")} ${x.dice.length} ${x.dice.length === 1 ? "die" : "dice"}.`;
     case "ask": return `${n(x.p)} ${verb(x.p, "ask")} ${x.target === ME ? "you" : n(x.target)}: ${questionText(x.question)}${x.answer != null ? ` ${answerText(x, x.answer)}` : ""}`;
     case "hit": return `${n(x.p)} ${verb(x.p, "hit")} ${x.target === ME ? "you" : n(x.target)}.`;
-    case "claim": return `${n(x.p)} ${verb(x.p, "claim")} ${POWERS[x.role].name}${x.target != null ? ` against ${x.target === ME ? "you" : n(x.target)}` : ""}.`;
+    case "claim": return `${n(x.p)} ${verb(x.p, "claim")} ${POWERS[x.role].name}${x.target != null ? ` against ${x.target === ME ? "you" : n(x.target)}` : ""}${x.free ? " (free move)" : ""}.`;
     case "challenge": return x.held
       ? `${n(x.p)} ${verb(x.p, "challenge")}: true, a gold ${x.die.face}. ${n(x.p)} ${verb(x.p, "pay")} 2.`
       : `${n(x.p)} ${verb(x.p, "challenge")}: a bluff! ${n(x.claimant)} ${verb(x.claimant, "pay")} 2.`;
     case "allow": return `${n(x.p)} ${verb(x.p, "let")} it go.`;
-    case "trader": return `${n(x.p)} ${verb(x.p, "take")} ${x.dice.length} dice: ${x.dice.map(d => d.face).join(", ")}.`;
-    case "broker": return x.none ? `${n(x.p)} ${verb(x.p, "get")} nothing.` : `${n(x.p)} ${verb(x.p, "take")} ${x.lost.length} from ${x.target === ME ? "you" : n(x.target)}.`;
-    case "scout": return `${n(x.p)} ${verb(x.p, "look")} at a die of ${x.target === ME ? "yours" : n(x.target)}${x.face ? `: a ${x.face}` : ""}.`;
-    case "enforcer": return `${x.target === ME ? "You have" : `${n(x.target)} has`} to reroll a die.`;
+    case "block": return `${n(x.p)} ${verb(x.p, "block")} the steal as ${POWERS[x.role].name}.`;
+    case "blocked": return `${n(x.p)} ${verb(x.p, "accept")} the block.`;
+    case "banker": return `${n(x.p)} ${verb(x.p, "take")} ${x.dice.length} dice from the bank: ${x.dice.map(d => d.face).join(", ")}.`;
+    case "trader": return x.none ? `${n(x.p)} ${verb(x.p, "get")} nothing.` : `${n(x.p)} ${verb(x.p, "steal")} ${x.lost.length} from ${x.target === ME ? "you" : n(x.target)}.`;
+    case "audit": return `${n(x.p)} ${verb(x.p, "look")} at all of ${x.target === ME ? "your" : `${n(x.target)}'s`} dice${x.faces ? `: ${Object.values(x.faces).join(", ")}` : ""}.`;
+    case "comply": return `${n(x.p)} ${verb(x.p, "reroll")} a die.`;
     case "insider": return `${n(x.p)} ${verb(x.p, "learn")} how many ${faceLabel(x.face)} are out${x.count != null ? `: ${x.count}` : ""}.`;
     case "bid": return `${n(x.p)} ${verb(x.p, "bid")} ${x.q} × ${faceLabel(x.f)}.`;
     case "call": return `${n(x.p)} ${verb(x.p, "call")} ${x.bid.q} × ${faceLabel(x.bid.f)}: ${x.held ? "it holds" : "it doesn't hold"}.`;
@@ -327,6 +344,19 @@ function renderControls() {
   if (g.players[ME].out) { add("p", "ct-waiting", "You're out: the others play on."); return; }
   if (g.turn !== ME || g.pending) { add("p", "ct-waiting", g.pending ? `${name(g.pending.challenger)} ${verb(g.pending.challenger, "decide")} whether to challenge…` : `${name(g.turn)} is thinking…`); return; }
 
+  // the free move: Compliance, once a turn, to reroll one of your dice
+  if (!g.freeUsed) {
+    const free = add("div", "ct-row");
+    btn(ui.panel === "comply" ? "Compliance: tap a die" : "Compliance (free move)", () => { ui.panel = ui.panel === "comply" ? null : "comply"; ui.comply = null; render(); }, free, "btn", ui.panel === "comply");
+    if (ui.panel === "comply") {
+      const panel = add("div", "ct-panel");
+      add("p", "ct-step", `Claim Compliance to reroll one of your dice, secretly: say, one that landed face up. ${g.players[ME].dice.some(d => d.kind === "gold" && d.face === 5) ? "Your gold dice show it." : "Your gold dice don't show it: this is a bluff."} ${name(nextAfter(ME))} may challenge.`, panel);
+      const go = btn(ui.comply != null ? "Reroll that die" : "Tap one of your dice", () => play(() => comply(g, ui.comply)), panel, "btn primary");
+      go.disabled = ui.comply == null;
+      if (g.step === "bid") return;
+    }
+  }
+
   if (g.step === "act") {
     const forced = mustHit(g);
     add("p", "ct-step", forced ? "Your hand is full: you have to hit someone." : "Your move");
@@ -341,7 +371,7 @@ function renderControls() {
       if (id === "take" && myPlain() >= RULES.cap) b.disabled = true;
       if (id === "hit" && myPlain() < RULES.hit) b.disabled = true;
     }
-    if (ui.panel) {
+    if (ui.panel && ui.panel !== "comply") {
       const panel = add("div", "ct-panel");
       drawPanel(panel, add, btn);
       requestAnimationFrame(() => panel.scrollIntoView({ block: "nearest", behavior: "smooth" }));
@@ -409,9 +439,9 @@ function drawPanel(panel, add, btn) {
     case "claim": {
       const c = ui.claim;
       const roles = add("div", "ct-row", null, panel);
-      for (const f of [2, 3, 4, 5, 6]) btn(`${POWERS[f].name} (${f})`, () => { c.role = f; render(); }, roles, "btn", c.role === f);
+      for (const f of [2, 3, 4, 6]) btn(`${POWERS[f].name} (${f})`, () => { c.role = f; render(); }, roles, "btn", c.role === f);
       const power = POWERS[c.role];
-      add("p", "ct-step", `${power.name}: ${{ 2: "take 3 dice from the bank", 3: "steal 2 dice from a player", 4: "look at one of a player's dice", 5: "make one of a player's dice reroll", 6: "learn how many dice show a face" }[c.role]}. Your gold dice ${g.players[ME].dice.filter(d => d.kind === "gold" && d.face === c.role).length ? "show it" : "don't show it: this is a bluff"}.`, panel);
+      add("p", "ct-step", `${power.name}: ${{ 2: "take 3 dice from the bank", 3: "steal 2 dice from a player (they can block it as Trader or Auditor)", 4: "look at all of a player's dice", 6: "learn how many dice on the table show a face" }[c.role]}. Your gold dice ${g.players[ME].dice.filter(d => d.kind === "gold" && d.face === c.role).length ? "show it" : "don't show it: this is a bluff"}.`, panel);
       if (power.target) { c.target ??= others()[0]?.i; targets(i => { c.target = i; render(); }, c.target); }
       if (c.role === 6) {
         const fr = add("div", "ct-row", null, panel);
@@ -429,33 +459,49 @@ function drawPanel(panel, add, btn) {
   }
 }
 
-/** Your picks for a role: look at or reroll a die you know least about, spend the gold die you'd miss least. */
+/** Your picks for a role: which face Insider counts. (A steal takes dice you can't see, at random.) */
 function myPicks(c) {
-  const picks = {};
-  if (c.target != null) {
-    const theirs = mind.known(c.target);
-    if (c.role === 4) picks.die = (theirs.find(d => d.kind === "gold" && d.face == null) || theirs.find(d => d.face == null) || theirs[0])?.id;
-    if (c.role === 5) picks.die = (theirs.find(d => d.kind === "gold" && d.face != null && d.face !== 1) || theirs.find(d => d.kind === "gold") || theirs[0])?.id;
-  }
-  if (c.role === 6) picks.face = c.face;
-  const gold = g.players[ME].dice.filter(d => d.kind === "gold");
-  const seenByAll = new Set(publicMind.known(ME).filter(d => d.face != null).map(d => d.id));
-  picks.spend = (gold.find(d => d.face === 1) || gold.find(d => seenByAll.has(d.id)) || gold.find(d => d.face === c.role) || gold[0])?.id;
-  return picks;
+  return c.role === 6 ? { face: c.face } : {};
 }
+const nextAfter = i => { let j = i; do { j = (j + 1) % g.players.length; } while (g.players[j].out); return j; };
 
-// ---------- challenges aimed at you ----------
+// ---------- claims and blocks you answer ----------
 function showChallenge() {
-  const c = g.pending, power = POWERS[c.role];
-  $("challengeText").textContent = `${name(c.claimant)} ${verb(c.claimant, "claim")} ${power.name}: ${c.target === ME ? `${power.says} you` : power.says}.`;
-  const theirGold = mind.known(c.claimant).filter(d => d.kind === "gold");
-  const known = theirGold.filter(d => d.face != null).map(d => d.face);
-  $("challengeKnow").textContent = `${known.length ? `You know ${known.length === theirGold.length ? "their gold dice" : "one of their gold dice"}: ${known.join(", ")}.` : "You haven't seen their gold dice."} A bluffer caught pays you ${RULES.stake}; if it's true, you pay ${RULES.stake}.`;
+  const c = g.pending, theirs = mind.known(c.claimant).filter(d => d.kind === "gold");
+  const known = theirs.filter(d => d.face != null).map(d => d.face);
+  const knowText = known.length ? `You know ${known.length === theirs.length ? "their gold dice" : "one of their gold dice"}: ${known.join(", ")}.` : "You haven't seen their gold dice.";
+  const blockBtns = $("blockBtns");
+  blockBtns.replaceChildren();
+  if (c.type === "block") {
+    $("challengeText").textContent = `${name(c.claimant)} ${verb(c.claimant, "block")} your steal, claiming ${POWERS[c.role].name}.`;
+    $("challengeKnow").textContent = `${knowText} If they're bluffing, they pay you ${RULES.stake} and the steal goes ahead; if not, you pay ${RULES.stake}.`;
+    $("allowBtn").textContent = "Accept the block";
+    $("challengeBtn").textContent = "Challenge the block";
+  } else {
+    const power = POWERS[c.role];
+    $("challengeText").textContent = `${name(c.claimant)} ${verb(c.claimant, "claim")} ${power.name}: ${c.target === ME ? `${power.says} you` : power.says}.`;
+    $("challengeKnow").textContent = `${knowText} A bluffer caught pays you ${RULES.stake}; if it's true, you pay ${RULES.stake}.` +
+      (power.blockable && c.target === ME ? " Or block it by claiming Trader or Auditor yourself." : "");
+    $("allowBtn").textContent = "Let it go";
+    $("challengeBtn").textContent = "Challenge";
+    if (power.blockable && c.target === ME) {
+      const mine = g.players[ME].dice.filter(d => d.kind === "gold").map(d => d.face);
+      for (const role of BLOCKERS) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "btn";
+        b.textContent = `Block as ${POWERS[role].name}${mine.includes(role) ? "" : " (bluff)"}`;
+        b.addEventListener("click", () => answer({ block: role }));
+        blockBtns.appendChild(b);
+      }
+    }
+  }
   if (!$("challengeDlg").open) $("challengeDlg").showModal();
 }
-function answerChallenge(yes) {
+function answer(decision) {
   $("challengeDlg").close();
-  play(() => respond(g, yes));
+  const c = g.pending;
+  play(() => (c.type === "block" ? respondBlock(g, decision === true) : respond(g, decision)));
 }
 
 // ---------- the end ----------
@@ -527,11 +573,11 @@ $("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("historyClose").addEventListener("click", () => $("historyDlg").close());
 $("overClose").addEventListener("click", () => $("overDlg").close());
 $("overNew").addEventListener("click", () => { $("overDlg").close(); startGame(); });
-$("challengeBtn").addEventListener("click", () => answerChallenge(true));
-$("allowBtn").addEventListener("click", () => answerChallenge(false));
+$("challengeBtn").addEventListener("click", () => answer(true));
+$("allowBtn").addEventListener("click", () => answer(false));
 $("challengeDlg").addEventListener("cancel", e => e.preventDefault());   // a claim against you needs an answer
 
-window.__cartel = { get game() { return g; }, get mind() { return mind; }, get ais() { return ais; } };
+window.__cartel = { get game() { return g; }, get mind() { return mind; }, get ais() { return ais; }, loop: () => loop() };
 
 g = load();
 if (g && !g.over) { setup(); loop(); } else startGame();

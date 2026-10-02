@@ -10,18 +10,18 @@
 //
 // A personality turns those probabilities into choices: how readily it calls, challenges and bluffs, how much
 // it trusts its own reads, how much noise it adds. The Quant plays the probabilities straight.
-import { POWERS, RULES, rng, answer } from "./cartel-engine.js";
+import { POWERS, RULES, BLOCKERS, rng, answer } from "./cartel-engine.js";
 
 export const PERSONAS = {
-  quant: { name: "Quant", trait: "super rational", noise: 0.02, bidBluff: 0.12, bluffBias: -0.2, callBias: 0, challengeBias: 0.25,
-    takeBias: 0, rerollBias: 0.1, askBias: 0.1, hitBias: 0.3, open: 0.62, raiseMin: 0.5 },
+  quant: { name: "Quant", trait: "super rational", noise: 0.02, bidBluff: 0.05, bluffBias: -1, callBias: -0.04, challengeBias: 0.6,
+    takeBias: 0.45, rerollBias: 0.35, askBias: 0.15, hitBias: -0.15, open: 0.75, raiseMin: 0.62 },
   wildcat: { name: "Wildcat", trait: "somewhat random", noise: 0.35, bidBluff: 0.3, bluffBias: 0.3, callBias: 0, challengeBias: 0,
     takeBias: 0, rerollBias: 0, askBias: 0, hitBias: 0, open: 0.5, raiseMin: 0.4 },
   gambler: { name: "Gambler", trait: "risk taker", noise: 0.08, bidBluff: 0.38, bluffBias: 0.7, callBias: 0.12, challengeBias: 0.45,
     takeBias: -0.2, rerollBias: -0.2, askBias: -0.2, hitBias: 0.6, open: 0.42, raiseMin: 0.34 },
   hedger: { name: "Hedger", trait: "conservative", noise: 0.04, bidBluff: 0.04, bluffBias: -1.2, callBias: -0.05, challengeBias: 0.7,
     takeBias: 0.45, rerollBias: 0.35, askBias: 0.1, hitBias: -0.2, open: 0.76, raiseMin: 0.63 },
-  auditor: { name: "Auditor", trait: "suspicious", noise: 0.06, bidBluff: 0.1, bluffBias: -0.4, callBias: -0.1, challengeBias: -0.2,
+  sceptic: { name: "Sceptic", trait: "suspicious", noise: 0.06, bidBluff: 0.1, bluffBias: -0.4, callBias: -0.1, challengeBias: -0.2,
     takeBias: 0, rerollBias: 0.1, askBias: 0.55, hitBias: 0.1, open: 0.6, raiseMin: 0.5 },
 };
 
@@ -72,21 +72,27 @@ export class Mind {
         e.dice.forEach((list, p) => list.forEach(d => this.dice[p].set(d.id, { kind: d.kind, face: null, how: null })));
         this.mine(e.faces);
         break;
-      case "take": case "trader": case "receive":
+      case "take": case "banker": case "receive":
         if (e.dice?.length) this.add(e.p, e.dice.map(d => ({ ...d, kind: "plain" })), "public");
         break;
-      case "broker":
+      case "trader":
         if (e.none) break;
         this.drop(e.target, [].concat(e.lost));
         this.add(e.p, e.dice.map(d => ({ ...d, kind: "plain" })), "public");
         break;
-      case "reroll": case "spend": case "enforcer": {
-        const p = e.t === "enforcer" ? e.target : e.p, ids = e.dice || [e.die];
-        this.forget(p, ids);
-        this.changed(p);
-        if (p === me) this.mine(e.faces);
+      case "reroll": case "comply": {
+        const ids = e.dice || [e.die];
+        this.forget(e.p, ids);
+        this.changed(e.p);
+        if (e.p === me) this.mine(e.faces);
         break;
       }
+      case "audit":
+        if (e.p === me && e.faces) for (const [id, face] of Object.entries(e.faces)) { const d = this.dice[e.target].get(Number(id)); if (d && d.how !== "public") { d.face = face; d.how = "peek"; } }
+        break;
+      case "block":
+        this.chances[e.claimant]++;                // the thief may challenge the block
+        break;
       case "ask": {
         this.exposure[e.p]++;
         this.exposure[e.target]++;
@@ -113,9 +119,6 @@ export class Mind {
           const goldIds = [...this.dice[p]].filter(([, d]) => d.kind === "gold").map(([id]) => id);
           this.rules.push({ p, ver: this.ver[p], test: (faces, ids) => !ids.some((id, k) => goldIds.includes(id) && faces[k] === role), text: `no ${POWERS[role].name} in gold` });
         }
-        break;
-      case "scout":
-        if (e.p === me && e.face) { const d = this.dice[e.target].get(e.die); if (d) { d.face = e.face; d.how = "peek"; } }
         break;
       case "insider":
         if (e.p === me && e.count != null) {
@@ -254,13 +257,12 @@ export class Player {
 
     // reroll: worth it once the table knows a lot about this hand, or the gold dice give nothing
     const exposed = this.publicMind.known(this.seat).filter(d => d.face != null);
-    const asked = m.exposure[this.seat];
     const weakGold = myGold.every(f => f === 1) || exposed.some(d => d.kind === "gold");
     const rerollIds = [...exposed.map(d => d.id), ...me.dice.filter(d => d.kind === "gold" && (d.face === 1 || exposed.some(x => x.id === d.id))).map(d => d.id)];
-    push(0.28 * (exposed.length + asked) + (weakGold ? 0.6 : 0) + P.rerollBias, { type: "reroll", dice: [...new Set(rerollIds.length ? rerollIds : me.dice.map(d => d.id))] });
+    push(0.28 * (exposed.length + m.exposure[this.seat]) + (weakGold ? 0.6 : 0) + P.rerollBias, { type: "reroll", dice: [...new Set(rerollIds.length ? rerollIds : me.dice.map(d => d.id))] });
 
     // ask: most useful while a bid is in doubt; about the player whose dice it knows least
-    const target = [...others].sort((a, b) => unknownCount(m, b.i) - unknownCount(m, a.i))[0];
+    const target = [...others].sort((x, y) => unknownCount(m, y.i) - unknownCount(m, x.i))[0];
     if (target) {
       const f = game.bid?.f || bestFace(me);
       const leak = me.dice.filter(d => d.face === f || d.face === 1).length * 0.08;
@@ -269,60 +271,103 @@ export class Player {
 
     // hit: decisive when someone is down to one gold die
     if (myPlain >= RULES.hit) {
-      const weakest = [...others].sort((a, b) => goldCount(a) - goldCount(b) || plainCount(b) - plainCount(a))[0];
+      const weakest = [...others].sort((x, y) => goldCount(x) - goldCount(y) || plainCount(y) - plainCount(x))[0];
       push((goldCount(weakest) === 1 ? 2.6 : 1.4) + P.hitBias, { type: "hit", target: weakest.i });
       if (myPlain >= RULES.cap) return { type: "hit", target: weakest.i };     // a full hand has to hit
     }
 
-    // claims: true ones are safe (a challenge pays), bluffs risk paying 2 if challenged
-    for (const role of [2, 3, 4, 5, 6]) {
+    // claims: true ones are safe (a challenge pays), bluffs risk paying 2 if challenged; a steal may be blocked
+    for (const role of [2, 3, 4, 6]) {
       const power = POWERS[role], has = myGold.includes(role);
-      const victim = power.target ? pickVictim(role, others, m, game) : null;
+      const victim = power.target ? pickVictim(role, others, m) : null;
       if (power.target && !victim) continue;
-      let value = { 2: Math.min(3, RULES.cap - myPlain) || 0.2, 3: Math.min(2, plainCount(victim || me)) + 0.5, 4: 0.5 + (ladder ? 0.4 : 0), 5: 0.7 + (victim && game.bid?.by === victim.i ? 0.4 : 0), 6: 0.6 + (unsure ? 0.7 : 0) }[role];
+      let value;
+      if (role === 2) value = Math.min(3, RULES.cap - myPlain) || 0.2;
+      if (role === 3) {
+        const blocks = chanceHoldsAny(samples, victim.i, BLOCKERS);
+        value = (Math.min(2, plainCount(victim)) + 0.4) * (1 - 0.75 * blocks);
+      }
+      if (role === 4) value = 0.6 + 0.07 * unknownCount(m, victim.i) + (unsure ? 0.5 : 0);
+      if (role === 6) value = 0.6 + (unsure ? 0.7 : 0);
       const challenger = power.target ? victim.i : nextSeat(game, this.seat);
       const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, role);
       const pc = Math.min(0.95, m.challengeRate(challenger) * (1.3 - believable));
       const fatal = myPlain < RULES.stake && myGold.length === 1;
       const u = has ? value + pc * 1.5 : (1 - pc) * value - pc * (fatal ? 8 : 2) + P.bluffBias;
-      push(u, { type: "claim", role, target: victim?.i, picks: this.picks(role, victim, game, samples) });
+      push(u, { type: "claim", role, target: victim?.i, picks: this.picks(role, victim, game) });
     }
-    options.sort((a, b) => b.u - a.u);
+    options.sort((x, y) => y.u - x.u);
     return options[0].a;
   }
 
-  /** The claimant's picks for a power: which die to steal, look at or reroll, which face to ask about, which gold die to spend. */
-  picks(role, victim, game, samples) {
-    const me = game.players[this.seat], m = this.mind;
-    const picks = {};
-    if (victim) {
-      const theirs = m.known(victim.i);
-      if (role === 3) picks.die = (theirs.find(d => d.kind === "plain" && d.face == null) || theirs.find(d => d.kind === "plain"))?.id;
-      if (role === 4) picks.die = (theirs.find(d => d.kind === "gold" && d.face == null) || theirs.find(d => d.face == null) || theirs[0])?.id;
-      if (role === 5) {
-        const f = game.bid?.f;
-        picks.die = (theirs.find(d => d.kind === "gold" && d.face != null && d.face !== 1) || theirs.find(d => f && (d.face === f || d.face === 1)) || theirs.find(d => d.kind === "gold") || theirs[0])?.id;
-      }
-    }
+  /** The claimant's picks for a power: which die to steal, which face to ask about. */
+  picks(role, victim, game) {
+    const me = game.players[this.seat], picks = {};
+    if (role === 3 && victim) picks.die = (this.mind.known(victim.i).find(d => d.kind === "plain" && d.face == null) || this.mind.known(victim.i).find(d => d.kind === "plain"))?.id;
     if (role === 6) picks.face = game.bid?.f || bestFace(me);
-    // spend the gold die it would miss least: a Wild, one the table has seen, or else the one it just claimed with
-    const gold = me.dice.filter(d => d.kind === "gold");
-    const seen = this.publicMind.known(this.seat).filter(d => d.face != null).map(d => d.id);
-    picks.spend = (gold.find(d => d.face === 1) || gold.find(d => seen.includes(d.id)) || gold.find(d => d.face === role) || gold[0])?.id;
     return picks;
   }
 
-  /** Whether to challenge a claim it's entitled to challenge. */
+  /**
+   * The free move: whether to claim Compliance this turn, and on which die. Worth it to hide a die the table
+   * has seen (one that landed face up, or a gold die someone proved), more so when it matters to the bid.
+   * Returns a die id, or null.
+   */
+  free(game) {
+    const P = this.persona, me = game.players[this.seat], m = this.mind;
+    const seen = this.publicMind.known(this.seat).filter(d => d.face != null);
+    if (!seen.length) return null;
+    const f = game.bid?.f;
+    const worst = [...seen].sort((x, y) => worth(y, f) - worth(x, f))[0];
+    const has = me.dice.some(d => d.kind === "gold" && d.face === 5);
+    const challenger = nextSeat(game, this.seat);
+    const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, 5);
+    const pc = Math.min(0.95, m.challengeRate(challenger) * (1.3 - believable));
+    const value = 0.35 + 0.25 * seen.length + worth(worst, f);
+    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold").length;
+    const fatal = myPlain < RULES.stake && myGold === 1;
+    const u = has ? value : (1 - pc) * value - pc * (fatal ? 8 : 2) + P.bluffBias;
+    return this.noisy(u) > 0.55 ? worst.id : null;
+  }
+
+  /**
+   * Its answer to a claim it's entitled to answer: "challenge", "allow", or (to a steal aimed at it) a block,
+   * { block: 3 | 4 }: honest if it holds Trader or Auditor, a bluff now and then if it doesn't.
+   */
   challenge(game) {
     const c = game.pending, P = this.persona, m = this.mind, me = game.players[this.seat];
+    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold");
+    const ruin = myPlain < RULES.stake && myGold.length === 1 ? 3 : 0;   // a wrong call would knock it out
+    if (POWERS[c.role].blockable && c.target === this.seat) {
+      const honest = myGold.find(d => BLOCKERS.includes(d.face));
+      if (honest && myPlain > 0) return { block: honest.face };
+    }
     const prior = chanceHolds(m.sample(this.r, 250), c.claimant, c.role);
     // claims are made more often by those who have the role; and players bluff less at someone known to challenge
     const bluff = m.bluffRate(c.claimant) * (1.25 - m.challengeRate(this.seat));
     const holds = prior / (prior + (1 - prior) * bluff);
-    const harm = { 2: 0.5, 3: 1.5, 4: 0.4, 5: 0.7, 6: 0.5 }[c.role];
-    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold").length;
-    const ruin = myPlain < RULES.stake && myGold === 1 ? 3 : 0;   // a wrong challenge would knock it out
+    const harm = { 2: 0.5, 3: Math.min(2, myPlain) + 0.3, 4: 0.6, 5: 0.3, 6: 0.5 }[c.role];
     const gain = (2 + harm) * (1 - holds) - (2 + ruin) * holds;
+    if (this.noisy(gain) > P.challengeBias) return "challenge";
+    // a steal it can't honestly block: bluff a block if the thief is unlikely to call it
+    if (POWERS[c.role].blockable && c.target === this.seat && myPlain > 0) {
+      const pc = Math.min(0.95, m.challengeRate(c.claimant) * 1.1);
+      const u = (1 - pc) * harm - pc * (2 + ruin) + P.bluffBias;
+      if (this.noisy(u) > 0.2) return { block: this.r() < 0.5 ? 3 : 4 };
+    }
+    return "allow";
+  }
+
+  /** As the thief: whether to challenge a block of its steal. */
+  challengeBlock(game) {
+    const b = game.pending, P = this.persona, m = this.mind, me = game.players[this.seat];
+    const prior = chanceHolds(m.sample(this.r, 250), b.claimant, b.role);
+    const bluff = m.bluffRate(b.claimant) * (1.25 - m.challengeRate(this.seat));
+    const holds = prior / (prior + (1 - prior) * bluff);
+    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold").length;
+    const ruin = myPlain < RULES.stake && myGold === 1 ? 3 : 0;
+    const stolen = Math.min(2, plainCount(game.players[b.claimant]));
+    const gain = (2 + stolen) * (1 - holds) - (2 + ruin) * holds;
     return this.noisy(gain) > P.challengeBias;
   }
 
@@ -355,6 +400,16 @@ export class Player {
 }
 
 // ---------- small helpers ----------
+/** How much hiding a seen die is worth: more if it's gold (a role) or counts towards the standing bid's face. */
+const worth = (d, f) => (d.kind === "gold" ? 0.5 : 0.2) + (f && (d.face === f || d.face === 1) ? 0.3 : 0);
+/** The chance a player holds any of these roles on a gold die. */
+function chanceHoldsAny(samples, p, roles) {
+  const total = samples.reduce((t, x) => t + x.w, 0);
+  return samples.reduce((t, x) => {
+    const h = x.hands.find(y => y.p === p);
+    return t + (h && h.faces.some((f, k) => roles.includes(f) && h.kinds[k] === "gold") ? x.w : 0);
+  }, 0) / total;
+}
 const goldCount = p => p.dice.filter(d => d.kind === "gold").length;
 const plainCount = p => p.dice.filter(d => d.kind === "plain").length;
 const unknownCount = (m, p) => m.known(p).filter(d => d.face == null).length;
@@ -364,9 +419,8 @@ function bestFace(p) {
   for (let f = 2; f <= 6; f++) { const c = p.dice.filter(d => d.face === f || d.face === 1).length; if (c > n) { n = c; best = f; } }
   return best;
 }
-function pickVictim(role, others, m, game) {
+function pickVictim(role, others, m) {
   if (!others.length) return null;
-  if (role === 3) return [...others].sort((a, b) => plainCount(b) - plainCount(a))[0];          // the richest
-  if (role === 5) return others.find(o => o.i === game.bid?.by) || [...others].sort((a, b) => goldCount(a) - goldCount(b))[0];
-  return [...others].sort((a, b) => unknownCount(m, b.i) - unknownCount(m, a.i))[0];           // the least known
+  if (role === 3) return [...others].sort((a, b) => plainCount(b) - plainCount(a))[0];          // steal from the richest
+  return [...others].sort((a, b) => unknownCount(m, b.i) - unknownCount(m, a.i))[0];           // audit the least known
 }
