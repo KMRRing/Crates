@@ -11,8 +11,8 @@
 // Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
 // Regulator either learns how many dice on the table show a face (an inquiry) or pays 4 dice to sanction a
 // player, who loses a gold die. Legal gives a free move, once a turn and before your bid: reroll one of your
-// dice, say one that just landed face up. A steal can be blocked by claiming Auditor or Legal, a sanction by
-// claiming Legal. Any claim, blocks included, can be challenged by the player it's aimed at (the next
+// dice, say one that just landed face up. A steal can be blocked by claiming Trader, a sanction by claiming
+// Legal. Any claim, blocks included, can be challenged by the player it's aimed at (the next
 // player when it's aimed at no one, the claimant when it's a block). Whoever loses a challenge pays the other
 // 3 dice: a caught bluffer, or a wrong challenger (and the proof is shown). The bid raises the standing "at least N dice show face F" or calls
 // it: the referee says only whether it held, and the loser pays the winner 3 dice. Penalties are paid in plain
@@ -29,11 +29,12 @@ export const ROLES = { 1: "Wild", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Le
  */
 export const ABILITIES = {
   bank: { role: 2, label: "Banker", says: "takes 3 dice from the bank", target: false },
-  steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [4, 5] },
+  steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [3] },
   audit: { role: 4, label: "Auditor", says: "looks at all the dice of", target: true },
   legal: { role: 5, label: "Legal", says: "rerolls one of their dice", target: false, free: true },
   inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
-  sanction: { role: 6, label: "Regulator: sanction", says: "pays 4 dice to sanction", target: true, cost: 4, blockers: [5] },
+  sanction: { role: 6, label: "Regulator: sanction", target: true, blockers: [5],
+    get cost() { return RULES.sanction; }, get says() { return `pays ${RULES.sanction} dice to sanction`; } },
 };
 // bluffStake: what a caught bluffer pays the challenger; challengeStake: what a wrong challenger pays the claimant
 // (in plain dice). goldStakes: instead, whoever loses a challenge loses a gold die, as in Coup. freeAsk: asking a
@@ -238,8 +239,7 @@ function cleanQuestion(q) {
 
 /**
  * The entitled player's answer to a pending claim: "challenge", "allow", or (to a steal or sanction aimed at
- * them) a block, { block: role }, claiming a role that blocks it (Auditor or Legal for a steal, Legal for a
- * sanction). A true claim costs a wrong challenger 2 dice, paid to the
+ * them) a block, { block: role }, claiming a role that blocks it (Trader for a steal, Legal for a sanction). A true claim costs a wrong challenger 2 dice, paid to the
  * claimant, and shows the gold die that proves it; a caught bluff costs the claimant 2 dice, paid to the
  * challenger, and the power doesn't happen. (true and false are accepted for "challenge" and "allow".)
  */
@@ -249,7 +249,8 @@ export function respond(s, decision) {
   const choice = decision === true ? "challenge" : decision === false || decision == null ? "allow" : decision;
   const claimant = s.players[c.claimant], challenger = s.players[c.challenger];
   if (choice?.block) {
-    if (!ABILITIES[c.ability].blockers?.includes(choice.block) || c.target !== c.challenger) throw new Error("that can't be blocked");
+    const x = ABILITIES[c.ability];
+    if (!x.blockers?.includes(choice.block) || (x.target && c.target !== c.challenger)) throw new Error("that can't be blocked");
     s.pending = { type: "block", claimant: c.challenger, role: choice.block, challenger: c.claimant, base: c };
     emit(s, { t: "block", p: c.challenger, role: choice.block, claimant: c.claimant, ability: c.ability });
     return s;

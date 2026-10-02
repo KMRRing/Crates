@@ -56,22 +56,22 @@ if (bad) process.exitCode = 1;
     return s;
   };
   const plainOf = p => E.plain(p).length;
-  // a steal blocked honestly (B's gold shows Auditor), challenged by the thief: the thief pays 2, nothing is stolen
-  let s = setup([3, 1], [4, 1]);
+  // a steal blocked honestly (B's gold shows Trader), challenged by the thief: the thief pays 3, nothing is stolen
+  let s = setup([3, 1], [3, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
-  E.respond(s, { block: 4 });
+  E.respond(s, { block: 3 });
   E.respondBlock(s, true);
   check(plainOf(s.players[0]) === 0 && plainOf(s.players[1]) === 6 && E.gold(s.players[0]).length === 2, "a true block, challenged: the thief pays the blocker 3 and steals nothing");
   // a bluffed block, challenged: the blocker pays 2, then the steal goes ahead
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
-  E.respond(s, { block: 5 });
+  E.respond(s, { block: 3 });
   E.respondBlock(s, true);
   check(plainOf(s.players[1]) === 0 && plainOf(s.players[0]) === 6 && E.gold(s.players[1]).length === 2, "a bluffed block, challenged: the blocker pays 3, and the steal finds nothing left");
   // a block accepted: nothing changes hands
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
-  E.respond(s, { block: 4 });
+  E.respond(s, { block: 3 });
   E.respondBlock(s, false);
   check(plainOf(s.players[0]) === 3 && plainOf(s.players[1]) === 3 && s.step === "bid", "an accepted block: nothing moves, and the thief goes on to bid");
   // using a role doesn't reroll the gold die any more
@@ -107,12 +107,14 @@ if (bad) process.exitCode = 1;
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   try { E.respond(s, { block: 3 }); } catch { blockedWrong = true; }
   check(blockedWrong, "only Legal blocks a sanction");
-  // a Trader can't block a steal any more (Auditor and Legal can)
-  s = setup([3, 1], [3, 1]);
-  E.act(s, { type: "claim", ability: "steal", target: 1 });
-  let traderBlocked = false;
-  try { E.respond(s, { block: 3 }); } catch { traderBlocked = true; }
-  check(traderBlocked, "Trader doesn't block a steal");
+  // only Trader blocks a steal (Auditor and Legal don't)
+  for (const role of [4, 5]) {
+    s = setup([3, 1], [role, 1]);
+    E.act(s, { type: "claim", ability: "steal", target: 1 });
+    let refusedBlock = false;
+    try { E.respond(s, { block: role }); } catch { refusedBlock = true; }
+    check(refusedBlock, `${role === 4 ? "Auditor" : "Legal"} doesn't block a steal`);
+  }
   // the free question: answered both ways, once a turn, and the turn's action is still to come
   s = setup([2, 2, 4, 4, 4], [2, 2, 4, 3, 3]);
   E.freeAsk(s, 1, { type: "count", f: 4 });

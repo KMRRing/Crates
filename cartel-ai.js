@@ -306,9 +306,11 @@ export class Player {
       const has = myGold.includes(x.role);
       const victim = x.target ? pickVictim(ability, others, m) : null;
       if (x.target && !victim) continue;
-      const blocked = x.blockers ? chanceHoldsAny(samples, victim.i, x.blockers) * 0.9 + 0.1 : 0;
+      // whoever answers the claim (its target, or the next player) may block it, if it can be blocked
+      const answerer = x.target ? victim.i : nextSeat(game, this.seat);
+      const blocked = x.blockers ? chanceHoldsAny(samples, answerer, x.blockers) * 0.9 + 0.1 : 0;
       let value;
-      if (ability === "bank") value = Math.min(RULES.banker, RULES.cap - myPlain) || 0.2;
+      if (ability === "bank") value = (Math.min(RULES.banker, RULES.cap - myPlain) || 0.2) * (1 - 0.75 * blocked);
       if (ability === "steal") value = (Math.min(RULES.steal, plainCount(victim)) + 0.4) * (1 - 0.75 * blocked);
       if (ability === "audit") value = 0.6 + 0.07 * unknownCount(m, victim.i) + (unsure ? 0.5 : 0);
       if (ability === "inquiry") value = 0.6 + (unsure ? 0.7 : 0);
@@ -361,7 +363,7 @@ export class Player {
     const c = game.pending, P = this.persona, m = this.mind, me = game.players[this.seat], x = ABILITIES[c.ability];
     const myGold = me.dice.filter(d => d.kind === "gold");
     const aimedAtMe = c.target === this.seat;
-    const canBlock = aimedAtMe && x.blockers?.length;
+    const canBlock = x.blockers?.length && (aimedAtMe || !x.target);
     if (canBlock) {
       const honest = myGold.find(d => x.blockers.includes(d.face));
       if (honest) return { block: honest.face };
