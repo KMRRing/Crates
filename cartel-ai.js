@@ -316,6 +316,7 @@ export class Player {
       // an inquiry on the standing bid's face settles this turn's bid: call it if it's false (+3 dice), or raise to
       // the true count and leave the next player stuck. Worth most when the bid is a coin flip; a sure bid gains little.
       if (ability === "inquiry") value = ladder ? 0.4 + 2 * RULES.callStake * Math.min(doubt, 1 - doubt) : 0.3;
+      if (ability === "inquiry" && !has) continue;                    // the referee answers only a real Regulator
       if (ability === "sanction") value = goldValue(victim) * (1 - blocked) - x.cost + P.hitBias;
       const challenger = x.target ? victim.i : nextSeat(game, this.seat);
       const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, x.role);

@@ -115,6 +115,17 @@ if (bad) process.exitCode = 1;
     try { E.respond(s, { block: role }); } catch { refusedBlock = true; }
     check(refusedBlock, `${role === 4 ? "Auditor" : "Legal"} doesn't block a steal`);
   }
+  // an inquiry: the referee answers a real Regulator, and only a real one
+  s = setup([6, 1], [2, 2]);
+  E.act(s, { type: "claim", ability: "inquiry", picks: { face: 4 } });
+  E.respond(s, "allow");
+  let inq = s.events.filter(e => e.t === "inquiry").pop();
+  check(inq.priv[0].count === E.tableCount(s, 4), "a real Regulator's inquiry gets the count");
+  s = setup([2, 1], [2, 2]);
+  E.act(s, { type: "claim", ability: "inquiry", picks: { face: 4 } });
+  E.respond(s, "allow");
+  inq = s.events.filter(e => e.t === "inquiry").pop();
+  check(inq.priv[0].count == null && inq.priv[0].unanswered && !("count" in E.seen(inq, 1)), "a bluffed inquiry gets no answer, and nobody else can tell");
   // the free question: answered both ways, once a turn, and the turn's action is still to come
   s = setup([2, 2, 4, 4, 4], [2, 2, 4, 3, 3]);
   E.freeAsk(s, 1, { type: "count", f: 4 });

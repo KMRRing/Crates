@@ -9,8 +9,9 @@
 // the bank (it lands face up, for everyone to see), reroll any of your dice (secretly), hit (pay 7 dice so a player
 // loses a gold die), or claim a role one of your gold dice shows (true or not) to use one of its abilities:
 // Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
-// Regulator either learns how many dice on the table show a face (an inquiry) or pays 4 dice to sanction a
-// player, who loses a gold die. Legal gives a free move, once a turn and before your bid: reroll one of your
+// Regulator either learns how many dice on the table show a face (an inquiry: the referee answers only a real
+// Regulator, and nobody else can tell whether there was an answer) or pays 4 dice to sanction a player, who
+// loses a gold die. Legal gives a free move, once a turn and before your bid: reroll one of your
 // dice, say one that just landed face up. A steal can be blocked by claiming Trader, a sanction by claiming
 // Legal. Any claim, blocks included, can be challenged by the player it's aimed at (the next
 // player when it's aimed at no one, the claimant when it's a block). Whoever loses a challenge pays the other
@@ -335,8 +336,11 @@ function power(s, me, c, choice = {}) {
       break;
     }
     case "inquiry": {                           // how many dice on the table show a face (Wilds counted)
+      // The answer comes from the referee, who knows the truth: a bluffing "Regulator" gets none. To everyone else
+      // the event looks the same either way.
       const f = choice.face >= 2 && choice.face <= 6 ? choice.face : (s.bid?.f || 2 + Math.floor(s.r() * 5));
-      emit(s, { t: "inquiry", p: me.i, face: f }, { [me.i]: { count: tableCount(s, f) } });
+      const real = gold(me).some(d => d.face === 6);
+      emit(s, { t: "inquiry", p: me.i, face: f }, { [me.i]: real ? { count: tableCount(s, f) } : { count: null, unanswered: true } });
       break;
     }
     case "sanction":                            // they lose a gold die

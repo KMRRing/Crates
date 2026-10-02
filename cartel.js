@@ -340,7 +340,9 @@ function line(e) {
     case "trader": return x.none ? `${n(x.p)} ${verb(x.p, "get")} nothing.` : `${n(x.p)} ${verb(x.p, "steal")} ${x.lost.length} from ${x.target === ME ? "you" : n(x.target)}.`;
     case "audit": return `${n(x.p)} ${verb(x.p, "look")} at all of ${x.target === ME ? "your" : `${n(x.target)}'s`} dice${x.faces ? `: ${Object.values(x.faces).join(", ")}` : ""}.`;
     case "legal": return `${n(x.p)} ${verb(x.p, "reroll")} a die.`;
-    case "inquiry": return `${n(x.p)} ${verb(x.p, "learn")} how many ${faceLabel(x.face)} are out${x.count != null ? `: ${x.count}` : ""}.`;
+    case "inquiry": return x.unanswered
+      ? `The referee doesn't answer: your gold dice don't show a Regulator.`
+      : `${n(x.p)} ${verb(x.p, "ask")} the referee how many ${faceLabel(x.face)} are out${x.count != null ? `: ${x.count}` : ""}.`;
     case "sanction": return `${n(x.p)} ${verb(x.p, "sanction")} ${x.target === ME ? "you" : n(x.target)}.`;
     case "bid": return `${n(x.p)} ${verb(x.p, "bid")} ${x.q} × ${faceLabel(x.f)}.`;
     case "call": return `${n(x.p)} ${verb(x.p, "call")} ${x.bid.q} × ${faceLabel(x.bid.f)}: ${x.held ? "it holds" : "it doesn't hold"}.`;
@@ -503,7 +505,7 @@ function drawPanel(panel, add, btn) {
         if (x.cost && myPlain() < x.cost) b.disabled = true;
       }
       const x = ABILITIES[c.ability];
-      add("p", "ct-step", `${x.label}: ${{ bank: "take 3 dice from the bank", steal: "steal 2 dice from a player (they can block it as Trader)", audit: "look at all of a player's dice", inquiry: "learn how many dice on the table show a face", sanction: `pay ${RULES.sanction} dice and a player loses a gold die (they can block it as Legal; the dice are spent either way)` }[c.ability]}. Your gold dice ${mine.includes(x.role) ? "show it" : "don't show it: this is a bluff"}.`, panel);
+      add("p", "ct-step", `${x.label}: ${{ bank: "take 3 dice from the bank", steal: "steal 2 dice from a player (they can block it as Trader)", audit: "look at all of a player's dice", inquiry: "the referee tells you how many dice on the table show a face (only a real Regulator gets an answer)", sanction: `pay ${RULES.sanction} dice and a player loses a gold die (they can block it as Legal; the dice are spent either way)` }[c.ability]}. Your gold dice ${mine.includes(x.role) ? "show it" : "don't show it: this is a bluff"}.`, panel);
       if (x.target) { c.target ??= others()[0]?.i; targets(i => { c.target = i; render(); }, c.target); }
       if (c.ability === "inquiry") {
         const fr = add("div", "ct-row", null, panel);
