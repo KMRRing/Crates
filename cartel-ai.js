@@ -80,7 +80,7 @@ export class Mind {
         this.drop(e.target, [].concat(e.lost));
         this.add(e.p, e.dice.map(d => ({ ...d, kind: "plain" })), "public");
         break;
-      case "reroll": case "comply": {
+      case "reroll": case "legal": {
         const ids = e.dice || [e.die];
         this.forget(e.p, ids);
         this.changed(e.p);
@@ -312,7 +312,7 @@ export class Player {
   }
 
   /**
-   * The free move: whether to claim Compliance this turn, and on which die. Worth it to hide a die the table
+   * The free move: whether to claim Legal's reroll this turn, and on which die. Worth it to hide a die the table
    * has seen (one that landed face up, or a gold die someone proved), more so when it matters to the bid.
    * Returns a die id, or null.
    */
@@ -417,7 +417,7 @@ function lossFrom(ability, me, aimedAtMe) {
     case "bank": return 0.5;
     case "audit": return aimedAtMe ? 0.6 : 0.2;
     case "inquiry": return 0.5;
-    case "comply": return 0.3;
+    case "legal": return 0.3;
     default: return 0.4;
   }
 }

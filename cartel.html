@@ -58,12 +58,12 @@
 <dialog id="helpDlg" class="sheet" aria-label="Rules">
   <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="helpClose">Close</button></div>
   <div class="ct-rules">
-    <p><b>Gold dice</b> are your lives and your roles. <b>Plain dice</b> are your money and your weight in the bidding. Faces: 1 Wild, 2 Banker, 3 Trader, 4 Auditor, 5 Compliance, 6 Regulator. Everyone's dice stay hidden until something shows them.</p>
-    <p><b>Your turn:</b> one move, then raise the bid or call it. Once a turn you may also claim <b>Compliance</b>, free: reroll one of your dice, secretly (say, one that landed face up).</p>
+    <p><b>Gold dice</b> are your lives and your roles. <b>Plain dice</b> are your money and your weight in the bidding. Faces: 1 Wild, 2 Banker, 3 Trader, 4 Auditor, 5 Legal, 6 Regulator. Everyone's dice stay hidden until something shows them.</p>
+    <p><b>Your turn:</b> one move, then raise the bid or call it. Once a turn you may also claim <b>Legal</b> for a free move: reroll one of your dice, secretly (say, one that landed face up).</p>
     <p><b>Moves.</b> Take a die from the bank (it lands face up for all to see). Reroll any of your dice, secretly. Ask a player a question: you each learn the answer about the other. Hit: pay 7 dice and they lose a gold die (with 8 plain dice you must). Or claim a role your gold dice show, true or not.</p>
-    <p><b>Roles.</b> Banker takes 3 dice from the bank. Trader steals 2 from a player. Auditor looks at all of a player's dice. Regulator either learns how many dice on the table show a face, or pays 4 dice to sanction a player, who loses a gold die. A steal can be blocked by claiming Trader or Auditor, a sanction by claiming Compliance (the 4 dice are spent either way).</p>
+    <p><b>Roles.</b> Banker takes 3 dice from the bank. Trader steals 2 from a player. Auditor looks at all of a player's dice. Regulator either learns how many dice on the table show a face, or pays 4 dice to sanction a player, who loses a gold die. Legal also blocks steals and sanctions, and Auditor blocks steals (a sanction's 4 dice are spent either way).</p>
     <p><b>Challenges.</b> The player a claim or block is aimed at (or the next player) may challenge. A caught bluffer pays 2 dice; a wrong challenger pays 2, and the proof is shown.</p>
-    <p><b>Bids.</b> "At least 6 dice show 4", across every die on the table; 1s are wild. A call shows only whether the bid held, and whoever was wrong pays the other 3 dice.</p>
+    <p><b>Bids.</b> A bid says "at least 6 dice on the table show 4", counting every die, everyone's, with 1s wild. Every turn ends with you either raising the standing bid (more dice, or as many of a higher face) or calling it. Only the player whose turn it is can call, and only the latest bid. The referee counts and says only whether it held: if it did, you (the caller) pay the bidder 3 dice; if not, the bidder pays you. Earlier bids in the same run aren't judged. The next player then opens a fresh bid.</p>
     <p><b>Out.</b> Can't pay in full, lose a gold die as well. No gold dice, you're out. Last one in wins.</p>
   </div>
   <button class="btn primary wide" type="button" id="helpGo">Play</button>

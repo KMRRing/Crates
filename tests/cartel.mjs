@@ -20,7 +20,7 @@ for (let g = 0; g < games; g++) {
       else if (s.step === "act" && !s.freeUsed && freeAsked !== s.moves) {
         freeAsked = s.moves;
         const d = ais[s.turn].free(s);
-        if (d != null) E.comply(s, d);
+        if (d != null) E.freeReroll(s, d);
       }
       else if (s.step === "act") E.act(s, ais[s.turn].action(s));
       else E.bid(s, ais[s.turn].bid(s));
@@ -60,7 +60,7 @@ if (bad) process.exitCode = 1;
   // a bluffed block, challenged: the blocker pays 2, then the steal goes ahead
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
-  E.respond(s, { block: 3 });
+  E.respond(s, { block: 5 });
   E.respondBlock(s, true);
   check(plainOf(s.players[1]) === 0 && plainOf(s.players[0]) === 3 + 2 + 1, "a bluffed block, challenged: the blocker pays 2, then the steal takes what's left");
   // a block accepted: nothing changes hands
@@ -83,13 +83,13 @@ if (bad) process.exitCode = 1;
   check(plainOf(s.players[0]) === 0, "a sanction is paid for up front: 4 dice to the bank");
   E.respond(s, "allow");
   check(E.gold(s.players[1]).length === 1, "an unblocked sanction takes a gold die");
-  // blocked by a true Compliance: the dice are spent, no gold is lost
+  // blocked by a true Legal: the dice are spent, no gold is lost
   s = setup([6, 1], [5, 2]);
   E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   E.respond(s, { block: 5 });
   E.respondBlock(s, false);
-  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0, "a sanction blocked by Compliance: the 4 dice are gone and nobody loses gold");
+  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0, "a sanction blocked by Legal: the 4 dice are gone and nobody loses gold");
   // a bluffed sanction, challenged: no gold lost, and the bluffer pays 2 on top of the 4
   s = setup([2, 1], [2, 2]);
   for (let k = 0; k < 3; k++) { E.act(s, { type: "take" }); s.turn = 0; s.step = "act"; }   // 6 plain: 4 for the sanction, 2 for the penalty
@@ -101,17 +101,23 @@ if (bad) process.exitCode = 1;
   E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   try { E.respond(s, { block: 3 }); } catch { blockedWrong = true; }
-  check(blockedWrong, "only Compliance blocks a sanction");
-  // Compliance is a free move: the turn stays where it was
+  check(blockedWrong, "only Legal blocks a sanction");
+  // a Trader can't block a steal any more (Auditor and Legal can)
+  s = setup([3, 1], [3, 1]);
+  E.act(s, { type: "claim", ability: "steal", target: 1 });
+  let traderBlocked = false;
+  try { E.respond(s, { block: 3 }); } catch { traderBlocked = true; }
+  check(traderBlocked, "Trader doesn't block a steal");
+  // Legal's reroll is a free move: the turn stays where it was
   s = setup([5, 1], [2, 1]);
   E.act(s, { type: "take" });
   const seenDie = E.plain(s.players[0]).find(d => d.open);
-  E.comply(s, seenDie.id);
+  E.freeReroll(s, seenDie.id);
   E.respond(s, "allow");
-  check(s.step === "bid" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === seenDie.id).open, "Compliance rerolls a face-up die and the turn carries on to the bid");
+  check(s.step === "bid" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === seenDie.id).open, "Legal rerolls a face-up die and the turn carries on to the bid");
   let refused = false;
-  try { E.comply(s, seenDie.id); } catch { refused = true; }
-  check(refused, "Compliance only once a turn");
+  try { E.freeReroll(s, seenDie.id); } catch { refused = true; }
+  check(refused, "the free reroll only once a turn");
   // a lost call costs 3; short of 3, a gold die goes too
   s = setup([2, 2], [2, 2]);
   s.step = "bid";
