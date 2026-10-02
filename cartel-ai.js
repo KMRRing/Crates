@@ -313,7 +313,9 @@ export class Player {
       if (ability === "bank") value = (Math.min(RULES.banker, RULES.cap - myPlain) || 0.2) * (1 - 0.75 * blocked);
       if (ability === "steal") value = (Math.min(RULES.steal, plainCount(victim)) + 0.4) * (1 - 0.75 * blocked);
       if (ability === "audit") value = 0.6 + 0.07 * unknownCount(m, victim.i) + (unsure ? 0.5 : 0);
-      if (ability === "inquiry") value = 0.6 + (unsure ? 0.7 : 0);
+      // an inquiry on the standing bid's face settles this turn's bid: call it if it's false (+3 dice), or raise to
+      // the true count and leave the next player stuck. Worth most when the bid is a coin flip; a sure bid gains little.
+      if (ability === "inquiry") value = ladder ? 0.4 + 2 * RULES.callStake * Math.min(doubt, 1 - doubt) : 0.3;
       if (ability === "sanction") value = goldValue(victim) * (1 - blocked) - x.cost + P.hitBias;
       const challenger = x.target ? victim.i : nextSeat(game, this.seat);
       const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, x.role);
