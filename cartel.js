@@ -7,7 +7,13 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "cartel:game", TABLE = "cartel:table", FAST = "cartel:fast", SEEN_HELP = "cartel:help";
+const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace", SEEN_HELP = "cartel:help";
+// How the computer players' moves come: each shown for a while, or each held until you tap.
+const PACES = {
+  fast: { label: "Fast", ms: 700 },
+  steady: { label: "Steady", ms: 1600 },
+  tap: { label: "Tap to continue", ms: null },
+};
 const ME = 0;
 
 let g = null;                 // the game (the referee's truth)
@@ -63,10 +69,37 @@ function load() {
 }
 
 // ---------- the loop: whoever is due moves ----------
-const delay = () => (localStorage.getItem(FAST) === "1" ? 150 : g.players[ME].out ? 120 : 700);
+/** The pace chosen (an earlier "fast" switch carries over as Fast). */
+function pace() {
+  try {
+    const p = localStorage.getItem(PACE);
+    if (PACES[p]) return p;
+    return localStorage.getItem("cartel:fast") === "1" ? "fast" : "steady";
+  } catch { return "steady"; }
+}
+let waiting = null;           // in Tap to continue: the next computer move, held until you tap
+/**
+ * Runs the next computer move after the chosen pace: a pause, or (Tap to continue) your next tap. Once you're out,
+ * the rest of the game plays itself quickly.
+ */
+function schedule(fn) {
+  if (g.players[ME].out) { timer = setTimeout(fn, 120); return; }
+  const ms = PACES[pace()].ms;
+  if (ms != null) { timer = setTimeout(fn, ms); return; }
+  waiting = fn;
+  renderControls();
+}
+/** A tap anywhere on the table (not the header's buttons or a sheet) shows the next computer move. */
+function tapOn(e) {
+  if (!waiting || e.target.closest("header, dialog")) return;
+  const fn = waiting;
+  waiting = null;
+  fn();
+}
 
 function loop() {
   clearTimeout(timer);
+  waiting = null;
   mind.follow(g, e => seen(e, ME));
   publicMind.follow(g, e => ({ ...e, priv: undefined }));
   for (const ai of ais) ai?.sync(g, seen);
@@ -77,12 +110,12 @@ function loop() {
   if (c) {
     if (c.challenger === ME) { showChallenge(); return; }
     const ai = ais[c.challenger];
-    timer = setTimeout(() => { if (c.type === "block") respondBlock(g, ai.challengeBlock(g)); else respond(g, ai.challenge(g)); loop(); }, delay());
+    schedule(() => { if (c.type === "block") respondBlock(g, ai.challengeBlock(g)); else respond(g, ai.challenge(g)); loop(); });
     return;
   }
   if (g.turn === ME) return;                        // your controls are up
   const ai = ais[g.turn];
-  timer = setTimeout(() => {
+  schedule(() => {
     try {
       // the free move first: Legal's reroll, to hide a die the table has seen (asked once a turn)
       if (g.step === "act" && !g.freeUsed && freeAsked !== g.moves) {
@@ -97,7 +130,7 @@ function loop() {
       else bid(g, g.bid ? { call: true } : { q: 1, f: 2 });
     }
     loop();
-  }, delay());
+  });
 }
 const alive0 = () => g.players.find(p => !p.out && p.i !== g.turn).i;
 
@@ -351,6 +384,11 @@ function renderControls() {
   };
   if (g.over) return;
   if (g.players[ME].out) { add("p", "ct-waiting", "You're out: the others play on."); return; }
+  if (waiting) {
+    add("p", "ct-waiting", "Tap anywhere for the next move");
+    btn("Next move", () => {}, add("div", "ct-row ct-next"), "btn primary");   // its click reaches the table's tap handler
+    return;
+  }
   if (g.turn !== ME || g.pending) { add("p", "ct-waiting", g.pending ? `${name(g.pending.challenger)} ${verb(g.pending.challenger, "decide")} whether to challenge…` : `${name(g.turn)} is thinking…`); return; }
 
   // the free move: Legal's reroll, once a turn, to hide one of your dice
@@ -559,12 +597,22 @@ function openMenu() {
     $("menuDlg").close();
     startGame(picked);
   });
-  const fast = add("button", "btn wide", localStorage.getItem(FAST) === "1" ? "Computer turns: fast" : "Computer turns: steady");
-  fast.type = "button";
-  fast.addEventListener("click", () => {
-    try { localStorage.setItem(FAST, localStorage.getItem(FAST) === "1" ? "0" : "1"); } catch { /* private mode */ }
-    fast.textContent = localStorage.getItem(FAST) === "1" ? "Computer turns: fast" : "Computer turns: steady";
-  });
+  add("h3", null, "Computer turns");
+  add("p", "stats", "Fast and Steady show each move for a moment; Tap to continue holds each one until you tap.");
+  const paces = add("div", "ct-row");
+  const drawPaces = () => paces.replaceChildren(...Object.entries(PACES).map(([id, p]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.textContent = p.label;
+    b.setAttribute("aria-pressed", String(pace() === id));
+    b.addEventListener("click", () => {
+      try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
+      drawPaces();
+      const computerDue = g.pending ? g.pending.challenger !== ME : g.turn !== ME;
+      if (!g.over && computerDue) loop();                    // a move already waiting takes the new pace
+    });
+    return b;
+  }));
+  drawPaces();
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -592,6 +640,7 @@ $("overNew").addEventListener("click", () => { $("overDlg").close(); startGame()
 $("challengeBtn").addEventListener("click", () => answer(true));
 $("allowBtn").addEventListener("click", () => answer(false));
 $("challengeDlg").addEventListener("cancel", e => e.preventDefault());   // a claim against you needs an answer
+$("app").addEventListener("click", tapOn);
 
 window.__cartel = { get game() { return g; }, get mind() { return mind; }, get ais() { return ais; }, loop: () => loop() };
 
