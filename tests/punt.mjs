@@ -15,6 +15,7 @@ for (const lvl of Object.keys(P.LEVELS)) {
     for (const q of s) {
       total++;
       const right = q.options.filter(o => o.right).length;
+      if (![2, 4].includes(q.options.length)) { bad++; console.log(`${lvl}: a question with ${q.options.length} options`); }
       if (!right || right === q.options.length) { bad++; console.log(`${lvl}: a question with ${right} of ${q.options.length} right`); }
       if (right > 1) multi++;
       if (q.offered < 1.05 || q.offered > 9.9) { bad++; console.log(`${lvl}: odds ${q.offered}`); }

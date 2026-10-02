@@ -1,17 +1,18 @@
-// Punt: a question from the Crates bank, two to four options (sometimes more than one right, and then you're
+// Punt: a question from the Crates bank, two or four options (sometimes more than one right, and then you're
 // told how many and must pick all of them), and house odds. You pick and stake part of your pot, or pass. The house prices each question from how hard its
 // clue is, plus noise: sometimes it overpays, sometimes it underpays. Knowing the answer is half of it; the
 // other half is seeing when the price is wrong and sizing the bet to how sure you are.
 import { BANK } from "./core.js";
 
-// questions: per session; options: how many choices a question may have; diff: clue difficulties dealt;
+// questions: per session; options: how many choices a question may have (two or four, so they fill the 2×2
+// grid: three would leave one dangling); diff: clue difficulties dealt;
 // spread: how far the house's guess at your chances strays, in log-odds (bigger = more mispriced, easier to
 // exploit; log-odds keep a long shot's mispricing in proportion, so 10% doesn't stray to 0 or 30%);
 // margin: the house's cut; multi: how often a clue that fits several answers shows more than one of them.
 export const LEVELS = {
-  easy: { label: "Easy", questions: 12, options: [2, 2, 3], diff: [1, 1, 2], spread: 0.8, margin: 0.03, multi: 0.15 },
-  medium: { label: "Medium", questions: 15, options: [2, 3, 3, 4], diff: [1, 2, 2, 3], spread: 0.5, margin: 0.05, multi: 0.25 },
-  hard: { label: "Hard", questions: 15, options: [3, 4, 4], diff: [2, 3, 3], spread: 0.3, margin: 0.06, multi: 0.35 },
+  easy: { label: "Easy", questions: 12, options: [2, 2, 2, 4], diff: [1, 1, 2], spread: 0.8, margin: 0.03, multi: 0.15 },
+  medium: { label: "Medium", questions: 15, options: [2, 4, 4], diff: [1, 2, 2, 3], spread: 0.5, margin: 0.05, multi: 0.25 },
+  hard: { label: "Hard", questions: 15, options: [4], diff: [2, 3, 3], spread: 0.3, margin: 0.06, multi: 0.35 },
 };
 export const START_POT = 1000;
 

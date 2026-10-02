@@ -73,12 +73,12 @@ Boards are dealt in a worker, and a spare board per level is dealt in the backgr
 Together: both players draw on one board (`together.js` handles the room side for Delta: joining, seats, moves as transactions, presence).
 
 ## Punt
-Trivia from the Crates bank with a bookmaker. Each question shows a clue, a country or a commodity, and two to four options; sometimes more than one is right ("China" goes with many commodities): then the question says how many, and you must pick all of them to win. The house prices that as the chance of picking exactly the right set, knowing some and guessing the rest. The house offers odds; you pick an option and stake a share of your pot (slider or 0/5/10/25/50%/all-in), or pass. A right pick pays stake × odds; a wrong one loses the stake. You start with 1,000; the pot after the last question is your score.
+Trivia from the Crates bank with a bookmaker. Each question shows a clue, a country or a commodity, and two or four options (never three: they'd leave one dangling in the 2×2 grid); sometimes more than one is right ("China" goes with many commodities): then the question says how many, and you must pick all of them to win. The house prices that as the chance of picking exactly the right set, knowing some and guessing the rest. The house offers odds; you pick an option and stake a share of your pot (slider or 0/5/10/25/50%/all-in), or pass. A right pick pays stake × odds; a wrong one loses the stake. You start with 1,000; the pot after the last question is your score.
 
 The house prices each question from its clue's difficulty (its guess at a typical player's chance: knowing the clue, or guessing among the options), then strays from that by random noise and takes a small margin. So sometimes it pays far too much and sometimes far too little: the skill is spotting a generous price on something you know, and sizing the bet to how sure you are. After each question it shows the fair price and what it paid.
-- Easy: 12 questions, mostly two options, easy clues, a sloppy house (big mispricings) with a 3% margin.
-- Medium: 15 questions, two to four options, a 5% margin.
-- Hard: 15 questions, three or four options, hard clues, more questions with several right answers, a sharp house (small mispricings) with a 6% margin.
+- Easy: 12 questions, mostly two options (sometimes four), easy clues, a sloppy house (big mispricings) with a 3% margin.
+- Medium: 15 questions, two or four options, a 5% margin.
+- Hard: 15 questions, four options, hard clues, more questions with several right answers, a sharp house (small mispricings) with a 6% margin.
 
 Questions come in two kinds: a clue with answers to choose from (any answer carrying the clue is right; wrong options come mostly from the same region or sector), and an answer with clues to choose from. A clue that names one of the options is never used. The same seed always deals the same session, so a link (#s=…&d=…) lets two people play the same questions. `tests/punt.mjs` checks every level.
 
