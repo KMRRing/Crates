@@ -1,5 +1,5 @@
-/* Cartel: dice under cups. Gold dice are lives and roles, plain dice are money; a cup you can't see under is
-   dark; a face you know shows, outlined when only you know it. Burgundy is the house colour. */
+/* Cartel: a felt table with the players round it. Gold dice are lives and roles, plain dice are money; a die
+   you can't see is a dark cup, a die only you know has a dashed edge. Burgundy is the house colour. */
 :root {
   --ct-ox: #8E2C3B;
   --ct-ox-ink: #F7EEF0;
@@ -21,48 +21,60 @@
 .ct-mark { display: inline-block; }
 .ct-mark svg { width: 100%; height: 100%; display: block; }
 
-/* the other players */
-.ct-seats { display: grid; gap: .45rem; margin-top: .6rem; }
-.ct-seat { display: grid; grid-template-columns: 6.6rem 1fr; gap: .5rem; align-items: center; padding: .45rem .55rem;
-  border-radius: 12px; background: var(--sheet); border: 2px solid transparent; }
-.ct-seat.turn { border-color: var(--ct-ox); }
-.ct-seat.out { opacity: .45; }
-.ct-who b { display: block; font-weight: 800; font-size: 1.02rem; line-height: 1.1; }
-.ct-who span { font-size: .8rem; color: var(--ink-soft); }
+/* the table: dark oxblood felt in a wooden rim; dice sit on it, ivory and gold */
+.ct-table { position: relative; flex: 1; align-content: space-between; margin-top: .6rem; padding: .7rem .55rem .8rem; border-radius: 26px;
+  background: radial-gradient(120% 90% at 50% 45%, #5A2630 0%, #3B171E 62%, #2A1015 100%);
+  box-shadow: inset 0 0 0 5px #6B4128, inset 0 0 0 7px #4A2A1A, 0 6px 18px rgba(0, 0, 0, .18);
+  color: #F6EEE6; display: grid; gap: .6rem; }
+.ct-seats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .45rem; align-items: start; }
+.ct-seat { display: grid; justify-items: center; gap: .3rem; padding: .45rem .3rem .5rem; border-radius: 16px;
+  background: rgba(255, 255, 255, .05); border: 2px solid rgba(255, 255, 255, .08); position: relative; min-height: 7.2rem; }
+.ct-seat.turn { border-color: #E9C46A; box-shadow: 0 0 0 3px rgba(233, 196, 106, .25); }
+.ct-seat.out { opacity: .38; }
+.ct-plaque { text-align: center; line-height: 1.1; }
+.ct-plaque b { display: block; font-weight: 800; font-size: 1rem; letter-spacing: .01em; }
+.ct-plaque span { font-size: .72rem; opacity: .7; }
+.ct-seat .ct-dice { justify-content: center; max-width: 7.6rem; }
+.ct-bubble { position: absolute; left: 50%; bottom: -.9rem; transform: translateX(-50%); z-index: 2; max-width: 9.4rem;
+  padding: .22rem .55rem; border-radius: 12px; background: #F6EEE6; color: #2A1015; font-size: .74rem; font-weight: 750;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); }
+.ct-bubble.old { opacity: .55; }
+.ct-bubble.fresh { animation: pop .28s ease-out; }
+@keyframes pop { from { transform: translateX(-50%) scale(.6); opacity: 0; } }
 
-/* dice */
+/* dice: pips on ivory or gold; a die you can't see is a dark cup */
 .ct-dice { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.ct-die { width: 30px; height: 30px; border-radius: 7px; display: grid; place-items: center; font-weight: 800; font-size: 1rem;
-  background: var(--ct-plain); border: 2px solid var(--ct-plain-edge); color: var(--ink); position: relative; line-height: 1; }
-.ct-die.gold { background: var(--ct-gold); border-color: var(--ct-gold-edge); color: #2B1F04; }
-.ct-die.cup { background: var(--ct-cup); border-color: var(--ct-cup); color: var(--ct-cup-ink); font-weight: 700; }
-.ct-die.cup.gold { border-color: var(--ct-gold-edge); }
-.ct-die.peek { border-style: dashed; }
-.ct-die.open::after { content: ""; position: absolute; right: -3px; top: -3px; width: 9px; height: 9px; border-radius: 50%;
-  background: var(--ct-ox); border: 2px solid var(--yard); }
-.ct-dice-mine .ct-die { width: 40px; height: 40px; font-size: 1.25rem; border-radius: 9px; }
-.ct-dice-mine .ct-die small { position: absolute; bottom: -1.05rem; left: 50%; transform: translateX(-50%); font-size: .62rem; font-weight: 700; color: var(--ink-soft); white-space: nowrap; }
-.ct-dice-mine { gap: 8px; padding-bottom: 1rem; }
+.ct-die { display: block; flex: none; }
 .ct-die.pickable { cursor: pointer; }
-.ct-die.picked { outline: 3px solid var(--ct-ox); outline-offset: 2px; }
+.ct-die.picked { outline: 3px solid #E9C46A; outline-offset: 2px; border-radius: 8px; }
+.ct-die.shake { animation: shake .4s ease-in-out; }
+@keyframes shake { 20% { transform: rotate(-12deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(4deg); } }
 
-/* the bid and what happened */
-.ct-bidbar { padding: .55rem .75rem; border-radius: 12px; background: var(--ct-ox); color: var(--ct-ox-ink); font-weight: 750; display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
-.ct-bidbar small { font-weight: 600; opacity: .85; }
-.ct-log { list-style: none; margin: 0; padding: 0; display: grid; gap: .15rem; font-size: .9rem; color: var(--ink-soft); min-height: 4.2em; }
-.ct-log li:last-child { color: var(--ink); font-weight: 650; }
-.ct-log button { background: none; border: 0; padding: 0; color: var(--ink-soft); text-decoration: underline; font: inherit; cursor: pointer; }
+/* the middle: the standing bid as a marker, the dice on the table, the last thing that happened */
+.ct-centre { display: grid; justify-items: center; gap: .25rem; padding: .9rem 0 .3rem; text-align: center; }
+.ct-marker { display: flex; align-items: center; gap: .45rem; padding: .35rem .9rem; border-radius: 999px;
+  background: rgba(0, 0, 0, .28); border: 2px solid rgba(233, 196, 106, .55); font-weight: 800; font-size: 1.35rem; }
+.ct-marker small { font-size: .75rem; font-weight: 650; opacity: .75; }
+.ct-marker.open { font-size: 1rem; font-weight: 700; border-style: dashed; }
+.ct-tally { font-size: .78rem; opacity: .75; }
+.ct-ticker { font-size: .84rem; max-width: 22rem; opacity: .92; background: none; border: 0; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.ct-verdict { font-weight: 800; font-size: .95rem; padding: .15rem .6rem; border-radius: 8px; }
+.ct-verdict.held { background: #2E7D4F; color: #fff; }
+.ct-verdict.broke { background: #B23A2C; color: #fff; }
 
-/* you */
-.ct-me { padding: .55rem .6rem .4rem; border-radius: 12px; background: var(--sheet); border: 2px solid transparent; }
-.ct-me.turn { border-color: var(--ct-ox); }
-.ct-me-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .4rem; }
-.ct-me-note { font-size: .82rem; color: var(--ink-soft); }
-.ct-notes { list-style: none; margin: .1rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
+/* you, at the near edge */
+.ct-mine { display: grid; justify-items: center; gap: .35rem; padding-top: .3rem; border-top: 1px dashed rgba(255, 255, 255, .15); }
+.ct-mine.turn .ct-plaque b { color: #E9C46A; }
+.ct-mine .ct-dice { justify-content: center; gap: 7px; }
+.ct-mine .ct-dice figure { margin: 0; display: grid; justify-items: center; gap: .1rem; }
+.ct-mine .ct-dice figcaption { font-size: .62rem; font-weight: 700; opacity: .75; }
+.ct-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
 .ct-notes li { font-size: .8rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--ct-plain-edge); }
 
 /* your turn */
-.ct-controls { display: grid; gap: .5rem; margin-top: auto; padding-bottom: .4rem; }
+.ct-controls { display: grid; gap: .5rem; padding-bottom: .4rem; }
+.ct-row .btn.face { padding: .25rem .45rem; min-width: 44px; display: grid; place-items: center; }
+.ct-row .btn.face[aria-pressed="true"] { background: var(--ct-ox); border-color: var(--ct-ox); }
 .ct-step { font-size: .85rem; color: var(--ink-soft); margin: 0; }
 .ct-row { display: flex; flex-wrap: wrap; gap: .35rem; }
 .ct-row .btn { min-height: 40px; padding: .3rem .8rem; }

@@ -102,46 +102,168 @@ function play(fn) {
 // ---------- rendering ----------
 function render() {
   renderSeats();
-  renderBid();
-  renderLog();
-  renderMe();
+  renderCentre();
+  renderMine();
   renderControls();
 }
 
-function dieEl({ face, kind, how, open }, extra = "") {
-  const el = document.createElement("span");
-  el.className = `ct-die${kind === "gold" ? " gold" : ""}${face == null ? " cup" : ""}${how === "peek" ? " peek" : ""}${open ? " open" : ""}${extra}`;
-  el.textContent = face == null ? "?" : face;
-  el.title = face == null ? `A hidden ${kind} die` : `${kind === "gold" ? `Gold ${face}: ${ROLES[face]}` : `Plain ${face}`}${how === "peek" ? " (only you know)" : ""}`;
-  return el;
+// ---------- dice ----------
+// Pips on a 3×3 grid; a die you can't see is a dark cup.
+const PIPS = { 1: [[1, 1]], 2: [[0, 0], [2, 2]], 3: [[0, 0], [1, 1], [2, 2]], 4: [[0, 0], [2, 0], [0, 2], [2, 2]],
+  5: [[0, 0], [2, 0], [1, 1], [0, 2], [2, 2]], 6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]] };
+const NS = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  parent?.appendChild(n);
+  return n;
+}
+/** A die: { face (null = hidden), kind, how ("peek" = only you know), seen (everyone has seen it) }. */
+function dieSvg({ face, kind, how, seen }, size) {
+  const gold = kind === "gold";
+  const svg = svgEl("svg", { viewBox: "0 0 24 24", width: size, height: size, class: "ct-die", role: "img" });
+  svg.setAttribute("aria-label", face == null ? `hidden ${kind} die` : `${kind} ${face}${gold ? `, ${ROLES[face]}` : ""}${how === "peek" ? ", only you know" : ""}`);
+  if (face == null) {
+    svgEl("rect", { x: 1.2, y: 1.2, width: 21.6, height: 21.6, rx: 5, fill: "#1A0B0F", stroke: gold ? "#C9A23B" : "#6B4B52", "stroke-width": 1.6 }, svg);
+    svgEl("text", { x: 12, y: 16.2, "text-anchor": "middle", "font-size": 11, "font-weight": 800, fill: gold ? "#C9A23B" : "#8C6E75", "font-family": "Archivo, Arial, sans-serif" }, svg).textContent = "?";
+    return svg;
+  }
+  svgEl("rect", { x: 1.2, y: 1.2, width: 21.6, height: 21.6, rx: 5, fill: gold ? "#EBC768" : "#F6EEE6", stroke: gold ? "#A47A17" : "#C9BBAA",
+    "stroke-width": 1.6, ...(how === "peek" ? { "stroke-dasharray": "2.4 1.8" } : {}) }, svg);
+  for (const [c, r] of PIPS[face]) svgEl("circle", { cx: 6 + 6 * c, cy: 6 + 6 * r, r: face === 1 ? 3 : 2.1, fill: face === 1 ? "#8E2C3B" : "#2A1015" }, svg);
+  if (seen) svgEl("circle", { cx: 20.5, cy: 3.5, r: 3, fill: "#8E2C3B", stroke: "#F6EEE6", "stroke-width": 1.2 }, svg);
+  return svg;
 }
 const byKind = list => [...list].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "gold" ? -1 : 1));
 
+// ---------- the seats ----------
+// What each player said last, as a bubble at their seat: moves, claims, challenges, bids and calls.
+const BUBBLE = new Set(["pass", "take", "reroll", "ask", "hit", "claim", "challenge", "allow", "bid", "call", "loseGold", "out"]);
+const animated = {};
+function bubbleText(e) {
+  const who = i => (i === ME ? "you" : name(i));
+  switch (e.t) {
+    case "pass": return "Passes";
+    case "take": return `Takes a ${e.dice[0].face}`;
+    case "reroll": return `Rerolls ${e.dice.length}`;
+    case "ask": return `Asks ${who(e.target)}: ${questionText(e.question)}`;
+    case "hit": return `Hits ${who(e.target)}!`;
+    case "claim": return `${POWERS[e.role].name}${e.target != null ? ` on ${who(e.target)}` : ""}`;
+    case "challenge": return e.held ? "Challenges… wrong" : "Challenges: bluff!";
+    case "allow": return "Lets it go";
+    case "bid": return `${e.q} × ${faceLabel(e.f)}`;
+    case "call": return `Calls! ${e.held ? "It held" : "Busted"}`;
+    case "loseGold": return `Loses a gold ${e.die.face}`;
+    case "out": return "Out";
+    default: return "";
+  }
+}
+function lastSaid(i) {
+  for (let k = g.events.length - 1; k >= 0; k--) {
+    const e = g.events[k];
+    if (BUBBLE.has(e.t) && e.p === i) return { e: seen(e, ME), k };
+  }
+  return null;
+}
+
 function renderSeats() {
+  const lap = g.players.length * 3;
   $("seats").replaceChildren(...g.players.filter(p => p.i !== ME).map(p => {
-    const card = document.createElement("div");
-    card.className = `ct-seat${g.turn === p.i && !g.over ? " turn" : ""}${p.out ? " out" : ""}`;
-    const who = document.createElement("div");
-    who.className = "ct-who";
-    const b = document.createElement("b"), s = document.createElement("span");
+    const seat = document.createElement("div");
+    seat.className = `ct-seat${g.turn === p.i && !g.over ? " turn" : ""}${p.out ? " out" : ""}`;
+    const plaque = document.createElement("div");
+    plaque.className = "ct-plaque";
+    const b = document.createElement("b"), t = document.createElement("span");
     b.textContent = p.name;
-    s.textContent = p.out ? "out" : PERSONAS[p.persona].trait;
-    who.append(b, s);
+    t.textContent = p.out ? "out" : PERSONAS[p.persona].trait;
+    plaque.append(b, t);
     const dice = document.createElement("div");
     dice.className = "ct-dice";
-    dice.append(...byKind(mind.known(p.i)).map(d => dieEl({ ...d, open: d.how === "public" })));
-    card.append(who, dice);
-    return card;
+    dice.append(...byKind(mind.known(p.i)).map(d => dieSvg(d, 20)));
+    seat.append(plaque, dice);
+    const said = lastSaid(p.i);
+    if (said) {
+      const bubble = document.createElement("div");
+      bubble.className = `ct-bubble${g.events.length - said.k > lap ? " old" : ""}${(animated[p.i] ?? -1) < said.k ? " fresh" : ""}`;
+      bubble.textContent = bubbleText(said.e);
+      animated[p.i] = said.k;
+      seat.appendChild(bubble);
+    }
+    return seat;
   }));
 }
 
-function renderBid() {
-  const bar = $("bidBar"), b = g.bid;
-  bar.innerHTML = "";
-  const main = document.createElement("span"), small = document.createElement("small");
-  main.textContent = b ? `${name(b.by)} bid ${b.q} × ${faceLabel(b.f)}` : "No bid yet";
-  small.textContent = `${totalDice(g)} dice on the table`;
-  bar.append(main, small);
+// ---------- the middle of the table ----------
+function renderCentre() {
+  const box = $("centre"), b = g.bid;
+  box.innerHTML = "";
+  const marker = document.createElement("div");
+  marker.className = `ct-marker${b ? "" : " open"}`;
+  if (b) {
+    marker.append(`${b.q} ×`, dieSvg({ face: b.f, kind: "plain" }, 26));
+    const by = document.createElement("small");
+    by.textContent = b.by === ME ? "your bid" : `${name(b.by)}'s bid`;
+    marker.appendChild(by);
+  } else marker.textContent = "No bid: the next player opens";
+  box.appendChild(marker);
+  // the last call's verdict stays on the table until someone bids again
+  const lastBidOrCall = [...g.events].reverse().find(e => e.t === "bid" || e.t === "call");
+  if (lastBidOrCall?.t === "call") {
+    const v = document.createElement("div");
+    v.className = `ct-verdict ${lastBidOrCall.held ? "held" : "broke"}`;
+    const loser = lastBidOrCall.held ? lastBidOrCall.p : lastBidOrCall.bid.by;
+    v.textContent = `${lastBidOrCall.bid.q} × ${faceLabel(lastBidOrCall.bid.f)} ${lastBidOrCall.held ? "held" : "busted"}: ${name(loser)} ${verb(loser, "pay")} a die`;
+    box.appendChild(v);
+  }
+  const tally = document.createElement("div");
+  tally.className = "ct-tally";
+  tally.textContent = `${totalDice(g)} dice on the table`;
+  box.appendChild(tally);
+  const lines = g.events.map(e => line(seen(e, ME))).filter(Boolean);
+  if (lines.length) {
+    const ticker = document.createElement("button");
+    ticker.type = "button";
+    ticker.className = "ct-ticker";
+    ticker.textContent = lines[lines.length - 1];
+    ticker.title = "Everything so far";
+    ticker.addEventListener("click", () => { $("history").replaceChildren(...lines.map(t => { const x = document.createElement("li"); x.textContent = t; return x; })); $("historyDlg").showModal(); });
+    box.appendChild(ticker);
+  }
+}
+
+// ---------- you ----------
+let shookAt = -1;
+function renderMine() {
+  const me = g.players[ME], box = $("mine");
+  box.className = `ct-mine${g.turn === ME && !g.over ? " turn" : ""}`;
+  box.innerHTML = "";
+  const plaque = document.createElement("div");
+  plaque.className = "ct-plaque";
+  const b = document.createElement("b"), t = document.createElement("span");
+  b.textContent = "You";
+  const seenByAll = new Set(publicMind.known(ME).filter(d => d.face != null).map(d => d.id));
+  t.textContent = me.out ? "out" : `${myPlain()} plain${seenByAll.size ? `, ${seenByAll.size} seen by everyone` : ""}`;
+  plaque.append(b, t);
+  // dice that just changed under you shake once
+  const last = g.events[g.events.length - 1];
+  const shaken = last && (last.t === "reroll" || last.t === "spend" || last.t === "enforcer") && (last.p === ME || last.target === ME) && shookAt < last.n
+    ? new Set([].concat(last.dice || last.die)) : new Set();
+  if (shaken.size) shookAt = last.n;
+  const picking = ui.panel === "reroll";
+  const dice = document.createElement("div");
+  dice.className = "ct-dice";
+  dice.append(...byKind(me.dice).map(d => {
+    const fig = document.createElement("figure");
+    const svg = dieSvg({ face: d.face, kind: d.kind, seen: seenByAll.has(d.id) }, 36);
+    if (shaken.has(d.id)) svg.classList.add("shake");
+    if (picking) { svg.classList.add("pickable"); if (ui.reroll.has(d.id)) svg.classList.add("picked"); }
+    fig.appendChild(svg);
+    if (d.kind === "gold") { const cap = document.createElement("figcaption"); cap.textContent = ROLES[d.face]; fig.appendChild(cap); }
+    if (picking) fig.addEventListener("click", () => { ui.reroll.has(d.id) ? ui.reroll.delete(d.id) : ui.reroll.add(d.id); render(); });
+    return fig;
+  }));
+  box.append(plaque, dice);
+  $("notes").replaceChildren(...mind.notes().map(nt => { const li = document.createElement("li"); li.textContent = `${nt.p == null ? "Table" : name(nt.p)}: ${nt.text}`; return li; }));
 }
 
 function line(e) {
@@ -179,36 +301,19 @@ function answerText(e, a) {
   return `(${about}: ${v})`;
 }
 
-function renderLog() {
-  const lines = g.events.map(e => line(seen(e, ME))).filter(Boolean);
-  const recent = lines.slice(-4);
-  const items = recent.map(t => { const li = document.createElement("li"); li.textContent = t; return li; });
-  if (lines.length > 4) {
-    const li = document.createElement("li"), b = document.createElement("button");
-    b.type = "button"; b.textContent = "Everything so far";
-    b.addEventListener("click", () => { $("history").replaceChildren(...lines.map(t => { const x = document.createElement("li"); x.textContent = t; return x; })); $("historyDlg").showModal(); });
-    li.appendChild(b);
-    items.unshift(li);
-  }
-  $("log").replaceChildren(...items);
-}
-
-function renderMe() {
-  const me = g.players[ME];
-  document.querySelector(".ct-me").classList.toggle("turn", g.turn === ME && !g.over);
-  const seenByAll = new Set(publicMind.known(ME).filter(d => d.face != null).map(d => d.id));
-  const picking = ui.panel === "reroll";
-  $("myDice").replaceChildren(...byKind(me.dice).map(d => {
-    const el = dieEl({ face: d.face, kind: d.kind, open: seenByAll.has(d.id) }, picking ? ` pickable${ui.reroll.has(d.id) ? " picked" : ""}` : "");
-    if (d.kind === "gold") { const s = document.createElement("small"); s.textContent = ROLES[d.face]; el.appendChild(s); }
-    if (picking) el.addEventListener("click", () => { ui.reroll.has(d.id) ? ui.reroll.delete(d.id) : ui.reroll.add(d.id); render(); });
-    return el;
-  }));
-  $("meNote").textContent = me.out ? "You're out." : `${myPlain()} plain${seenByAll.size ? `, ${seenByAll.size} seen by everyone` : ""}`;
-  $("notes").replaceChildren(...mind.notes().map(nt => { const li = document.createElement("li"); li.textContent = `${nt.p == null ? "Table" : name(nt.p)}: ${nt.text}`; return li; }));
-}
-
 // ---------- your turn ----------
+/** A face to choose, shown as a die. */
+function faceBtn(f, fn, parent, pressed) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn face";
+  b.setAttribute("aria-pressed", String(pressed));
+  b.setAttribute("aria-label", `${f}s`);
+  b.appendChild(dieSvg({ face: f, kind: "plain" }, 24));
+  b.addEventListener("click", fn);
+  parent.appendChild(b);
+  return b;
+}
 function renderControls() {
   const box = $("controls");
   box.innerHTML = "";
@@ -256,7 +361,7 @@ function renderControls() {
   add("p", "ct-step", b ? `Raise ${name(b.by) === "You" ? "your" : `${name(b.by)}'s`} ${b.q} × ${faceLabel(b.f)}, or call it` : "Open the bidding");
   const panel = add("div", "ct-panel");
   const faces = add("div", "ct-row", null, panel);
-  for (let f = 2; f <= 6; f++) btn(`${f}s`, () => { ui.bid.f = f; if (ui.bid.q < minFor(f)) ui.bid.q = minFor(f); render(); }, faces, "btn", ui.bid.f === f);
+  for (let f = 2; f <= 6; f++) faceBtn(f, () => { ui.bid.f = f; if (ui.bid.q < minFor(f)) ui.bid.q = minFor(f); render(); }, faces, ui.bid.f === f);
   const step = add("div", "ct-stepper", null, panel);
   btn("−", () => { if (ui.bid.q > minFor(ui.bid.f)) { ui.bid.q--; render(); } }, step);
   add("b", null, String(ui.bid.q), step);
@@ -290,7 +395,7 @@ function drawPanel(panel, add, btn) {
       for (const [type, label] of [["count", "How many …"], ["any", "Any …"], ["odd", "Odd total?"], ["atLeast", "Total at least …"]]) btn(label, () => { a.type = type; render(); }, kinds, "btn", a.type === type);
       if (a.type === "count" || a.type === "any") {
         const fr = add("div", "ct-row", null, panel);
-        for (let f = 1; f <= 6; f++) btn(`${f}s`, () => { a.f = f; render(); }, fr, "btn", a.f === f);
+        for (let f = 1; f <= 6; f++) faceBtn(f, () => { a.f = f; render(); }, fr, a.f === f);
       } else if (a.type === "atLeast") {
         const st = add("div", "ct-stepper", null, panel);
         btn("−", () => { a.n = Math.max(2, a.n - 1); render(); }, st);
@@ -310,7 +415,7 @@ function drawPanel(panel, add, btn) {
       if (power.target) { c.target ??= others()[0]?.i; targets(i => { c.target = i; render(); }, c.target); }
       if (c.role === 6) {
         const fr = add("div", "ct-row", null, panel);
-        for (let f = 2; f <= 6; f++) btn(`${f}s`, () => { c.face = f; render(); }, fr, "btn", c.face === f);
+        for (let f = 2; f <= 6; f++) faceBtn(f, () => { c.face = f; render(); }, fr, c.face === f);
       }
       btn(`Claim ${power.name}${power.target ? ` against ${name(c.target)}` : ""}`, () => play(() => act(g, { type: "claim", role: c.role, target: power.target ? c.target : undefined, picks: myPicks(c) })), panel, "btn primary");
       break;
