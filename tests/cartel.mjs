@@ -61,13 +61,13 @@ if (bad) process.exitCode = 1;
   E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 4 });
   E.respondBlock(s, true);
-  check(E.gold(s.players[0]).length === 1 && plainOf(s.players[0]) === 3 && plainOf(s.players[1]) === 3, "a true block, challenged: the thief loses a gold die and steals nothing");
+  check(plainOf(s.players[0]) === 0 && plainOf(s.players[1]) === 6 && E.gold(s.players[0]).length === 2, "a true block, challenged: the thief pays the blocker 3 and steals nothing");
   // a bluffed block, challenged: the blocker pays 2, then the steal goes ahead
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 5 });
   E.respondBlock(s, true);
-  check(E.gold(s.players[1]).length === 1 && plainOf(s.players[1]) === 1 && plainOf(s.players[0]) === 5, "a bluffed block, challenged: the blocker loses a gold die, and the steal goes ahead");
+  check(plainOf(s.players[1]) === 0 && plainOf(s.players[0]) === 6 && E.gold(s.players[1]).length === 2, "a bluffed block, challenged: the blocker pays 3, and the steal finds nothing left");
   // a block accepted: nothing changes hands
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
@@ -100,7 +100,7 @@ if (bad) process.exitCode = 1;
   for (let k = 0; k < 3; k++) { E.act(s, { type: "take" }); s.turn = 0; s.step = "act"; }   // 6 plain: 4 for the sanction
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   E.respond(s, "challenge");
-  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 2 && E.gold(s.players[0]).length === 1, "a bluffed sanction caught: the target keeps its gold, the bluffer has paid 4 and loses a gold die");
+  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0 && E.gold(s.players[0]).length === 1, "a bluffed sanction caught: the target keeps its gold; the bluffer, 2 dice short of the 3, pays them and loses a gold die");
   let blockedWrong = false;
   s = setup([6, 1], [3, 2]);
   E.act(s, { type: "take" }); s.turn = 0; s.step = "act";

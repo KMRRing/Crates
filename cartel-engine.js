@@ -13,8 +13,8 @@
 // player, who loses a gold die. Legal gives a free move, once a turn and before your bid: reroll one of your
 // dice, say one that just landed face up. A steal can be blocked by claiming Auditor or Legal, a sanction by
 // claiming Legal. Any claim, blocks included, can be challenged by the player it's aimed at (the next
-// player when it's aimed at no one, the claimant when it's a block). As in Coup, whoever loses a challenge loses a
-// gold die: a caught bluffer, or a wrong challenger (and the proof is shown). The bid raises the standing "at least N dice show face F" or calls
+// player when it's aimed at no one, the claimant when it's a block). Whoever loses a challenge pays the other
+// 3 dice: a caught bluffer, or a wrong challenger (and the proof is shown). The bid raises the standing "at least N dice show face F" or calls
 // it: the referee says only whether it held, and the loser pays the winner 3 dice. Penalties are paid in plain
 // dice to the winner; if you can't pay in full, you also lose a gold die; with no gold dice left you're out.
 // A player with a full hand of plain dice (8) has to hit. The last player in wins.
@@ -38,8 +38,8 @@ export const ABILITIES = {
 // bluffStake: what a caught bluffer pays the challenger; challengeStake: what a wrong challenger pays the claimant
 // (in plain dice). goldStakes: instead, whoever loses a challenge loses a gold die, as in Coup. freeAsk: asking a
 // question is a free move, once a turn, rather than the turn's action.
-export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, bluffStake: 2, challengeStake: 2, callStake: 3, sanction: 4, banker: 3, steal: 2,
-  goldStakes: true, freeAsk: true };
+export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, bluffStake: 3, challengeStake: 3, callStake: 3, sanction: 4, banker: 3, steal: 2,
+  goldStakes: false, freeAsk: true };
 // Questions about one player's whole hand (gold and plain), answered both ways. A "face" here means the face
 // itself: Wilds count only when the question is about 1s.
 export const QUESTIONS = {

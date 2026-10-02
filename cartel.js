@@ -567,7 +567,7 @@ function showChallenge() {
 function stakeText(verbForm, challenger = false) {
   if (RULES.goldStakes) return `${verbForm} a gold die`;
   const n = challenger ? RULES.challengeStake : RULES.bluffStake;
-  return `${verbForm === "lose" ? "pay" : "pays"} ${n} dice`;
+  return `${verbForm === "lose" ? "pay" : "pays"} ${n} dice (and a gold die if short)`;
 }
 
 function answer(decision) {

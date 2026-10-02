@@ -318,8 +318,7 @@ export class Player {
       // a target about to lose a gold die challenges far more readily than one about to lose a peek
       const stakes = ability === "sanction" ? 1.8 : 1;
       const pc = Math.min(0.95, m.challengeRate(challenger) * (1.3 - believable) * stakes);
-      const fatal = !RULES.goldStakes && myPlain - (x.cost || 0) < RULES.bluffStake && myGold.length === 1;
-      const u = has ? value + pc * wrongCost(game.players[challenger]) * 0.75 : (1 - pc) * value - pc * (fatal ? 8 : caughtCost(me)) + P.bluffBias;
+      const u = has ? value + pc * wrongCost(game.players[challenger]) * 0.75 : (1 - pc) * value - pc * caughtCost(afterPaying(me, x.cost || 0)) + P.bluffBias;
       push(u, { type: "claim", ability, target: victim?.i, picks: this.picks(ability, victim, game) });
     }
     options.sort((x, y) => y.u - x.u);
@@ -350,9 +349,7 @@ export class Player {
     const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, 5);
     const pc = Math.min(0.95, m.challengeRate(challenger) * (1.3 - believable));
     const value = 0.35 + 0.25 * seen.length + worth(worst, f);
-    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold").length;
-    const fatal = !RULES.goldStakes && myPlain < RULES.bluffStake && myGold === 1;
-    const u = has ? value : (1 - pc) * value - pc * (fatal ? 8 : caughtCost(me)) + P.bluffBias;
+    const u = has ? value : (1 - pc) * value - pc * caughtCost(me) + P.bluffBias;
     return this.noisy(u) > 0.55 ? worst.id : null;
   }
 
@@ -362,8 +359,7 @@ export class Player {
    */
   challenge(game) {
     const c = game.pending, P = this.persona, m = this.mind, me = game.players[this.seat], x = ABILITIES[c.ability];
-    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold");
-    const ruin = !RULES.goldStakes && myPlain < RULES.challengeStake && myGold.length === 1 ? 3 : 0;   // a wrong call would knock it out
+    const myGold = me.dice.filter(d => d.kind === "gold");
     const aimedAtMe = c.target === this.seat;
     const canBlock = aimedAtMe && x.blockers?.length;
     if (canBlock) {
@@ -372,12 +368,12 @@ export class Player {
     }
     const holds = m.holds(chanceHolds(m.sample(this.r, 250), c.claimant, c.role), c.claimant, this.seat);
     const harm = lossFrom(c.ability, me, aimedAtMe);
-    const gain = (caughtCost(game.players[c.claimant]) + harm) * (1 - holds) - (wrongCost(me) + ruin) * holds;
+    const gain = (caughtCost(game.players[c.claimant]) + harm) * (1 - holds) - wrongCost(me) * holds;
     if (this.noisy(gain) > P.challengeBias) return "challenge";
     // aimed at it and no honest block: bluff one if the claimant is unlikely to call it
     if (canBlock) {
       const pc = Math.min(0.95, m.challengeRate(c.claimant) * 1.1);
-      const u = (1 - pc) * harm - pc * (caughtCost(me) + ruin + (c.ability === "sanction" ? harm : 0)) + P.bluffBias;
+      const u = (1 - pc) * harm - pc * (caughtCost(me) + (c.ability === "sanction" ? harm : 0)) + P.bluffBias;
       if (this.noisy(u) > 0.2) return { block: x.blockers[Math.floor(this.r() * x.blockers.length)] };
     }
     return "allow";
@@ -387,11 +383,9 @@ export class Player {
   challengeBlock(game) {
     const b = game.pending, P = this.persona, m = this.mind, me = game.players[this.seat];
     const holds = m.holds(chanceHolds(m.sample(this.r, 250), b.claimant, b.role), b.claimant, this.seat);
-    const myPlain = me.dice.filter(d => d.kind === "plain").length, myGold = me.dice.filter(d => d.kind === "gold").length;
-    const ruin = !RULES.goldStakes && myPlain < RULES.challengeStake && myGold === 1 ? 3 : 0;
     const blocker = game.players[b.claimant];
-    const worth = b.base.ability === "sanction" ? goldValue(blocker) : Math.min(2, plainCount(blocker));
-    const gain = (caughtCost(blocker) + worth) * (1 - holds) - (wrongCost(me) + ruin) * holds;
+    const worth = b.base.ability === "sanction" ? goldValue(blocker) : Math.min(RULES.steal, plainCount(blocker));
+    const gain = (caughtCost(blocker) + worth) * (1 - holds) - wrongCost(me) * holds;
     return this.noisy(gain) > P.challengeBias;
   }
 
@@ -449,10 +443,14 @@ export class Player {
 // ---------- small helpers ----------
 /** What taking one of a player's gold dice is worth, in dice: about 6, and 10 if it's their last (they're out). */
 const goldValue = p => (goldCount(p) === 1 ? 10 : 6);
-/** What catching someone's bluff takes from them, in dice: plain dice, or (gold stakes) a gold die. */
-const caughtCost = p => (RULES.goldStakes ? goldValue(p) : RULES.bluffStake);
+/** A player as they'd be after paying n plain dice (for a claim's cost), to price what they'd risk next. */
+const afterPaying = (p, n) => (n ? { ...p, dice: [...p.dice.filter(d => d.kind === "gold"), ...p.dice.filter(d => d.kind === "plain").slice(n)] } : p);
+/** What paying n plain dice costs a player, in dice: n, or, short of n, what they have plus a gold die. */
+const payCost = (p, n) => (plainCount(p) >= n ? n : plainCount(p) + goldValue(p));
+/** What catching someone's bluff takes from them, in dice. */
+const caughtCost = p => (RULES.goldStakes ? goldValue(p) : payCost(p, RULES.bluffStake));
 /** What a wrong challenge costs the challenger, in dice. */
-const wrongCost = p => (RULES.goldStakes ? goldValue(p) : RULES.challengeStake);
+const wrongCost = p => (RULES.goldStakes ? goldValue(p) : payCost(p, RULES.challengeStake));
 /** What letting a claim through costs this player, in dice: a gold die is worth about 5, all of it if it's the last. */
 function lossFrom(ability, me, aimedAtMe) {
   const plainLeft = me.dice.filter(d => d.kind === "plain").length, goldLeft = me.dice.filter(d => d.kind === "gold").length;
