@@ -1,7 +1,7 @@
 // Delta: join the numbers in pairs with paths whose operations turn one into the other (rules in delta-gen.js).
 // Solo boards are saved in this browser; together games live in the room's delta branch (together.js) and both
 // players draw on the same board.
-import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, apply, unkey, key, adjacent } from "./delta-gen.js";
+import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { gameHref, GAMES } from "./rooms.js";
@@ -287,7 +287,7 @@ function endDraw() {
   if (S.done) return;
   const e = cells.length >= 2 ? evaluate(S.board, cells) : null;
   if (e?.done && !e.ok && LEVELS[S.level].verdicts === "now") {
-    toast(e.value === null ? "A ÷ on that path doesn't divide evenly" : `From ${S.board.nums[e.from]} this path arrives at ${e.value}, not ${S.board.nums[e.to]}`);
+    toast(e.value === null ? "That path runs out of range" : `From ${showValue(S.board.nums[e.from])} this path arrives at ${showValue(e.value)}, not ${showValue(S.board.nums[e.to])}`);
   } else if (allJoined()) {
     const paths = pathList(S.paths);
     const wrong = paths.filter(p => !evaluate(S.board, p.cells).ok).length;
@@ -391,11 +391,11 @@ function drawBoard() {
   }
   const tags = pairTags();
   for (const [k, v] of Object.entries(board.nums)) {
-    const [x, y] = centre(k), digits = String(v).length;
+    const [x, y] = centre(k), label = showValue(v), size = [0.72, 0.72, 0.72, 0.58, 0.5, 0.44, 0.38][Math.min(label.length, 6)];
     const owner = paths.find(p => p.cells.includes(k));
     el("circle", { cx: x, cy: y, r: 0.7, class: "d-num-disc" }, labels);
     if (owner && verdicts.get(owner.id)?.ok) el("circle", { cx: x, cy: y, r: 0.7, fill: "none", stroke: `var(--d-p${owner.c % COLOURS})`, "stroke-width": 0.14 }, labels);
-    el("text", { x, y, class: "d-num", "font-size": (digits >= 4 ? 0.48 : digits === 3 ? 0.58 : 0.72) }, labels).textContent = v;
+    el("text", { x, y, class: "d-num", "font-size": size }, labels).textContent = label;
     if (tags[k]) {
       el("circle", { cx: x + 0.56, cy: y - 0.56, r: 0.24, class: "d-tag-disc" }, labels);
       el("text", { x: x + 0.56, y: y - 0.56, class: "d-tag" }, labels).textContent = tags[k];
@@ -414,10 +414,9 @@ function drawBoard() {
   // the running value at the finger (not on Hard: there it's yours to work out)
   if (drawing && drawing.cells.length && LEVELS[S.level].liveValue) {
     const cells = drawing.cells, head = cells[cells.length - 1];
-    const startVal = board.nums[cells[0]];
-    const value = cells.filter(k => k in board.ops).reduce((v, k) => (v === null ? null : apply(v, board.ops[k])), startVal ?? null);
+    const value = valueAlong(board, cells);
     const [x, y] = centre(head);
-    const text = value === null ? "÷?" : String(value);
+    const text = value === null ? "?" : showValue(value);
     const w = 0.36 + 0.27 * text.length;
     const g = el("g", { class: "d-bubble" }, root);
     el("rect", { x: x - w / 2, y: y - 1.55, width: w, height: 0.62, rx: 0.31 }, g);
@@ -553,6 +552,11 @@ $("level").addEventListener("change", e => newBoard(e.target.value));
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); together.resync(); } });
 window.addEventListener("pagehide", clockPause);
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
+// a board link opened in a tab that already has Delta open
+window.addEventListener("hashchange", () => {
+  const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
+  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level)) soloBoard(seed, level);
+});
 $("app").querySelector(".d-mark").innerHTML = APPS.find(a => a.id === "delta").logo;
 
 // for tests and debugging

@@ -4,7 +4,8 @@
 // the rest are blank. The player joins the numbers in pairs with paths that never cross or share a hex; going
 // from one number to the other, each operation on the way changes the value, which must arrive exactly at the
 // other number (whole numbers only). A path runs from the number it's drawn from, so which end starts is for
-// the player to work out. Every operation is used exactly once; blank hexes are optional.
+// the player to work out. Values can become fractions (5 ÷ 4 = 1¼). Every operation is used exactly once;
+// blank hexes are optional.
 //
 // Generation lays random paths, puts operations on them, and computes the numbers. A board is kept only if
 // exactly one way of pairing the numbers and sharing out the operations can actually be drawn, while the
@@ -16,14 +17,15 @@
 // decoys: whole solutions the arithmetic allows that the space rules out; candidates: the most whole solutions
 // the arithmetic may allow, so it still narrows things; lures: tempting single paths (see above) and spread, how
 // many of the numbers they must touch. liveValue: the running value shows while drawing; verdicts: whether a
-// finished path is marked right or wrong straight away, or only once every number is joined.
+// finished path is marked right or wrong straight away, or only once every number is joined. big: round steps
+// that make big numbers (×10, ×100, ×1,000, +300 on a round number…); fractions: ÷ may leave a fraction.
 export const LEVELS = {
   easy: { label: "Easy", radius: 3, gaps: 8, pairs: 2, len: [5, 8], ops: [2, 3], kinds: "+-", start: [2, 30], step: [1, 20],
     decoys: 1, candidates: 6, lures: 2, spread: 2, pairsShown: true, liveValue: true, verdicts: "now" },
   medium: { label: "Medium", radius: 3, gaps: 7, pairs: 3, len: [5, 8], ops: [2, 3], kinds: "+-×", start: [2, 15], step: [1, 20],
-    decoys: 2, candidates: 12, lures: 6, spread: 5, liveValue: true, verdicts: "now" },
+    decoys: 2, candidates: 12, lures: 6, spread: 5, liveValue: true, verdicts: "now", big: true },
   hard: { label: "Hard", radius: 3, gaps: 5, pairs: 3, len: [6, 9], ops: [3, 4], kinds: "+-×÷", start: [3, 24], step: [2, 30],
-    decoys: 3, candidates: 32, lures: 8, spread: 6, liveValue: false, verdicts: "end" },
+    decoys: 3, candidates: 32, lures: 8, spread: 6, liveValue: false, verdicts: "end", big: true, fractions: true },
 };
 export const CLUES = 2;            // clues per board outside Easy (Easy shows the pairs from the start)
 
@@ -36,35 +38,59 @@ export const adjacent = (a, b) => neighbours(a).includes(b);
 const inside = (q, r, R) => Math.abs(q) <= R && Math.abs(r) <= R && Math.abs(q + r) <= R;
 
 // ---------- arithmetic ----------
-const LIMIT = 9999;
-/** The value after an operation like "×3", or null if it isn't allowed (÷ that doesn't divide, or out of range). */
+// Values are exact fractions [numerator, denominator] in lowest terms (denominator > 0). Boards store whole
+// numbers as numbers and fractions as "n/d"; operations are a sign and a whole number ("×100", "÷4", "-2").
+const LIMIT = 1e7;
+const gcd = (a, b) => { a = Math.abs(a); b = Math.abs(b); while (b) [a, b] = [b, a % b]; return a || 1; };
+const frac = (n, d = 1) => { if (d < 0) { n = -n; d = -d; } const g = gcd(n, d); return [n / g, d / g]; };
+/** A board number (whole, or "n/d") as a fraction. */
+export const valueOf = x => (typeof x === "number" ? [x, 1] : frac(...String(x).split("/").map(Number)));
+const stored = ([n, d]) => (d === 1 ? n : `${n}/${d}`);
+export const sameValue = (a, b) => !!a && !!b && a[0] === b[0] && a[1] === b[1];
+
+/** The value after an operation like "×3", or null if it runs out of range. */
 export function apply(v, op) {
-  const n = Number(op.slice(1));
-  let w;
+  const k = Number(op.slice(1));
+  let r;
   switch (op[0]) {
-    case "+": w = v + n; break;
-    case "-": w = v - n; break;
-    case "×": w = v * n; break;
-    case "÷": if (v % n !== 0) return null; w = v / n; break;
+    case "+": r = frac(v[0] + k * v[1], v[1]); break;
+    case "-": r = frac(v[0] - k * v[1], v[1]); break;
+    case "×": r = frac(v[0] * k, v[1]); break;
+    case "÷": r = frac(v[0], v[1] * k); break;
     default: return null;
   }
-  return Math.abs(w) <= LIMIT ? w : null;
+  return Math.abs(r[0] / r[1]) <= LIMIT && r[1] <= 1e6 ? r : null;
 }
-/** How an operation is shown: a real minus sign. */
-export const showOp = op => (op[0] === "-" ? `−${op.slice(1)}` : op);
+
+const GLYPHS = { "1/2": "½", "1/3": "⅓", "2/3": "⅔", "1/4": "¼", "3/4": "¾", "1/5": "⅕", "2/5": "⅖", "3/5": "⅗", "4/5": "⅘",
+  "1/6": "⅙", "5/6": "⅚", "1/8": "⅛", "3/8": "⅜", "5/8": "⅝", "7/8": "⅞" };
+const grouped = n => n.toLocaleString("en-US");
+/** How a value reads: 10,000 · ¾ · 2½ (a fraction without its own glyph reads 3/7). */
+export function showValue(x) {
+  const [n, d] = Array.isArray(x) ? x : valueOf(x);
+  if (d === 1) return (n < 0 ? "−" : "") + grouped(Math.abs(n));
+  const whole = Math.floor(Math.abs(n) / d), rest = Math.abs(n) % d;
+  return (n < 0 ? "−" : "") + (whole ? grouped(whole) : "") + (GLYPHS[`${rest}/${d}`] || `${whole ? " " : ""}${rest}/${d}`);
+}
+/** How an operation reads: a real minus sign, and big numbers grouped (×1,000). */
+export const showOp = op => `${op[0] === "-" ? "−" : op[0]}${grouped(Number(op.slice(1)))}`;
+
+/** The value carried along a path from its first cell (a number), or null. */
+export function valueAlong(board, cells) {
+  if (!(cells[0] in board.nums)) return null;
+  return cells.filter(k => k in board.ops).reduce((v, k) => (v === null ? null : apply(v, board.ops[k])), valueOf(board.nums[cells[0]]));
+}
 
 /**
  * Where a drawn path stands. It runs from the number it was drawn from: the value starts there and each
  * operation along the way changes it in turn. Returns { done (it reaches a second number), ok (the value
- * arrives exactly), from, to, value (so far; null once a ÷ doesn't divide) }.
+ * arrives exactly), from, to, value (so far, as a fraction; null if it ran out of range) }.
  */
 export function evaluate(board, cells) {
   const first = cells[0], last = cells[cells.length - 1];
-  const value = first in board.nums
-    ? cells.filter(k => k in board.ops).reduce((v, k) => (v === null ? null : apply(v, board.ops[k])), board.nums[first])
-    : null;
+  const value = valueAlong(board, cells);
   const done = cells.length >= 2 && last in board.nums && last !== first && cells.filter(k => k in board.nums).length === 2;
-  return { done, ok: done && value === board.nums[last], from: first, to: last, value };
+  return { done, ok: done && sameValue(value, valueOf(board.nums[last])), from: first, to: last, value };
 }
 
 // ---------- random numbers ----------
@@ -124,25 +150,78 @@ function walk(rnd, free, len) {
   return null;
 }
 
-/** Operations for a path and the number it ends on, starting from v; null if the values can't be kept sensible. */
-function arithmetic(rnd, v, count, kinds, step) {
+/**
+ * Every operation that may follow value v, keeping the mental maths light at every size: times tables on small
+ * numbers, round numbers times small ones, shifts by 10, 100 and 1,000, round steps on big round numbers, and
+ * simple halves, thirds and quarters. Big numbers can only come from easy steps, so a big number is a hint at
+ * the operation that made it (10,000 wants the ×100), never a sum like 259 × 13. Grouped by kind.
+ */
+function lightOps([n, d], L) {
+  const has = k => L.kinds.includes(k), a = Math.abs(n / d), out = { "+": [], "-": [], "×": [], "÷": [] };
+  const range = (lo, hi, f = x => x) => { const r = []; for (let x = lo; x <= hi; x++) r.push(f(x)); return r; };
+  if (d === 1) {
+    if (has("+")) {
+      if (a <= 100) out["+"].push(...range(L.step[0], L.step[1], k => `+${k}`));
+      if (L.big && n % 100 === 0) out["+"].push(...range(1, 9, k => `+${k * (n % 1000 === 0 ? 1000 : 100)}`));
+    }
+    if (has("-")) {
+      if (a <= 100 && n > L.step[0] + 1) out["-"].push(...range(L.step[0], Math.min(L.step[1], n - 1), k => `-${k}`));
+      if (L.big && n % 100 === 0 && n > 200) out["-"].push(...range(1, Math.min(9, n / 100 - 1), k => `-${k * 100}`));
+    }
+    if (has("×")) {
+      if (a <= 12) out["×"].push(...range(2, 9, k => `×${k}`));
+      else if ((a <= 100 && (n % 10 === 0 || a <= 25)) || (n % 100 === 0 && a <= 5000)) out["×"].push(...range(2, 5, k => `×${k}`));
+      if (L.big && a <= 100) out["×"].push(...[10, 100, 1000].filter(x => a * x <= 100000).map(x => `×${x}`));
+    }
+    if (has("÷")) {
+      out["÷"].push(...range(2, 9).filter(k => n % k === 0 && a / k >= 1 && (a <= 100 || (n % 100 === 0 && (n / 100) % k === 0))).map(k => `÷${k}`));
+      if (L.big) out["÷"].push(...[10, 100, 1000].filter(k => n % k === 0 && a / k >= 2).map(k => `÷${k}`));
+      if (L.fractions && a <= 12) out["÷"].push(...[2, 3, 4, 5, 6, 8].filter(k => n % k !== 0).map(k => `÷${k}`));
+    }
+  } else if (L.fractions) {
+    // a fraction: clear it (¾ × 4 = 3), add or take a whole number (¾ + 2 = 2¾), or halve it
+    if (has("×")) out["×"].push(...[d, 2 * d].filter(k => k <= 12).map(k => `×${k}`), ...([2, 4, 5].includes(d) && a <= 10 ? ["×10"] : []));
+    if (has("+")) out["+"].push(...range(1, 9, k => `+${k}`));
+    if (has("-") && a > 2) out["-"].push(...range(1, Math.floor(a) - 1, k => `-${k}`));
+    if (has("÷") && d * 2 <= 8 && a < 10) out["÷"].push("÷2");
+  }
+  return out;
+}
+
+/**
+ * The next operation for a path at value v. Usually a kind, then an operand; × and ÷ come up more often than
+ * + and − (they're where the thinking is), a ÷ that leaves a fraction most of all. Often it reuses an operation
+ * already on the board, so other pairs could use it too: that's what makes the lures.
+ */
+function nextOp(rnd, v, L, onBoard) {
+  const byKind = lightOps(v, L);
+  const all = Object.values(byKind).flat();
+  if (!all.length) return null;
+  const again = onBoard.filter(op => all.includes(op));
+  if (again.length && rnd() < 0.2) return pick(rnd, again);
+  const leavesFraction = op => op[0] === "÷" && v[1] === 1 && v[0] % Number(op.slice(1)) !== 0;
+  const kinds = Object.keys(byKind).filter(k => byKind[k].length)
+    .flatMap(k => Array(k === "÷" && byKind[k].some(leavesFraction) ? 4 : k === "×" || k === "÷" ? 2 : 1).fill(k));
+  const kind = pick(rnd, kinds), choices = byKind[kind];
+  const fractional = choices.filter(leavesFraction);
+  return pick(rnd, fractional.length && rnd() < 0.6 ? fractional : choices);
+}
+
+/** A value a board can show as a number: positive, at most 100,000, a whole number or a simple fraction. */
+const showable = ([n, d]) => n > 0 && n / d <= 100000 && [1, 2, 3, 4, 5, 6, 8].includes(d) && (d === 1 || n / d < 100);
+
+/** Operations for a path and the value it ends on, starting from a whole number; null if it can't stay showable. */
+function arithmetic(rnd, start, count, L, onBoard) {
+  let v = [start, 1];
   const ops = [];
   for (let i = 0; i < count; i++) {
-    const options = [];
-    for (const kind of kinds) {
-      if (kind === "+") options.push(`+${between(rnd, step[0], step[1])}`);
-      if (kind === "-" && v > step[0] + 1) options.push(`-${between(rnd, step[0], Math.min(step[1], v - 1))}`);
-      if (kind === "×" && v * 2 <= 300) options.push(`×${between(rnd, 2, Math.min(9, Math.floor(300 / v)))}`);
-      if (kind === "÷") { const ds = [2, 3, 4, 5, 6, 7, 8, 9].filter(d => v % d === 0 && v / d >= 2); if (ds.length) options.push(`÷${pick(rnd, ds)}`); }
-    }
-    // the harder operations, when allowed, come up more often: they're where the thinking is
-    const weighted = options.flatMap(o => (o[0] === "×" || o[0] === "÷" ? [o, o] : [o]));
-    if (!weighted.length) return null;
-    const op = pick(rnd, weighted);
+    const op = nextOp(rnd, v, L, onBoard);
+    if (!op) return null;
     ops.push(op);
     v = apply(v, op);
+    if (!v) return null;
   }
-  return v >= 1 && v <= 999 ? { ops, end: v } : null;
+  return showable(v) ? { ops, end: v } : null;
 }
 
 // ---------- solving ----------
@@ -150,30 +229,35 @@ function arithmetic(rnd, v, count, kinds, step) {
  * Every way the arithmetic alone allows: each number paired with another, a direction, and the operations
  * it takes (as a bitmask over board op hexes), using every operation exactly once. Ignores space.
  */
+const SCALE = 840;
 export function arithmeticSolutions(board, cap = 60) {
   const ends = Object.keys(board.nums), opKeys = Object.keys(board.ops), m = opKeys.length;
-  const ALL = (1 << m) - 1, maxOps = Math.min(m, 6);
+  const ALL = (1 << m) - 1, maxOps = Math.min(m, 5);
   const pop = x => { let c = 0; while (x) { x &= x - 1; c++; } return c; };
   // the masks to fill, smallest first (built once), and the operations unpacked for the hot loop below
   const masks = [];
   for (let x = 1; x <= ALL; x++) if (pop(x) <= maxOps) masks.push(x);
   masks.sort((a, b) => pop(a) - pop(b));
+  // values are counted in 840ths, so every fraction with a denominator up to 8 is a whole number of them and the
+  // search can use plain numbers (paths through rarer fractions, like sevenths of a third, aren't followed; nor
+  // are paths of more than five operations: boards are built with at most four per path)
   const kind = opKeys.map(k => board.ops[k][0]), num = opKeys.map(k => Number(board.ops[k].slice(1)));
   const step = (v, i) => {
     let w;
     switch (kind[i]) {
-      case "+": w = v + num[i]; break;
-      case "-": w = v - num[i]; break;
+      case "+": w = v + num[i] * SCALE; break;
+      case "-": w = v - num[i] * SCALE; break;
       case "×": w = v * num[i]; break;
       default: if (v % num[i] !== 0) return null; w = v / num[i];
     }
-    return w <= LIMIT && w >= -LIMIT ? w : null;
+    return Math.abs(w) <= LIMIT * SCALE ? w : null;
   };
+  const scaled = x => { const [n, d] = valueOf(x); return n * (SCALE / d); };
   // reach[e][mask]: values reachable from number e using exactly the operations in mask, in some order
   const reach = {};
   for (const e of ends) {
     const R = new Array(ALL + 1);
-    R[0] = [board.nums[e]];
+    R[0] = [scaled(board.nums[e])];
     for (const mask of masks) {
       const out = new Set();
       for (let i = 0; i < m; i++) {
@@ -188,7 +272,8 @@ export function arithmeticSolutions(board, cap = 60) {
   }
   const valid = (from, to) => {
     const out = [];
-    for (let mask = 1; mask <= ALL; mask++) if (reach[from][mask]?.has(board.nums[to])) out.push(mask);
+    const target = scaled(board.nums[to]);
+    for (let mask = 1; mask <= ALL; mask++) if (reach[from][mask]?.has(target)) out.push(mask);
     return out;
   };
   const table = {};
@@ -217,8 +302,9 @@ export function arithmeticSolutions(board, cap = 60) {
 /** Orders of the operations in mask that take `from` exactly to `to`. */
 function orders(board, opKeys, from, to, mask) {
   const idx = opKeys.map((_, i) => i).filter(i => mask >> i & 1), out = [];
+  const target = valueOf(board.nums[to]);
   const go = (v, left, seq) => {
-    if (!left.length) { if (v === board.nums[to]) out.push(seq.slice()); return; }
+    if (!left.length) { if (sameValue(v, target)) out.push(seq.slice()); return; }
     for (const i of left) {
       const w = apply(v, board.ops[opKeys[i]]);
       if (w === null) continue;
@@ -227,7 +313,7 @@ function orders(board, opKeys, from, to, mask) {
       seq.pop();
     }
   };
-  go(board.nums[from], idx, []);
+  go(valueOf(board.nums[from]), idx, []);
   return out;
 }
 
@@ -350,23 +436,23 @@ function attempt(rnd, L, levelId, phase, stats) {
       const count = Math.min(inner.length, between(rnd, L.ops[0], L.ops[1]));
       const at = new Set(shuffle(rnd, [...inner.keys()]).slice(0, count));
       // a few goes at numbers that aren't on the board yet
-      const taken = new Set(Object.values(nums));
+      const taken = new Set(Object.values(nums).map(String));
       let math = null, start = 0;
       for (let go = 0; go < 6 && !math; go++) {
         start = between(rnd, L.start[0], L.start[1]);
-        if (taken.has(start)) continue;
-        const m = arithmetic(rnd, start, count, L.kinds, L.step);
-        if (m && !taken.has(m.end) && m.end !== start) math = m;
+        if (taken.has(String(start))) continue;
+        const m = arithmetic(rnd, start, count, L, Object.values(ops));
+        if (m && !taken.has(String(stored(m.end))) && !sameValue(m.end, [start, 1])) math = m;
       }
       if (!math) { ok = false; break; }
       // the operations sit on the path in the order they're applied
       const slots = inner.filter((_, i) => at.has(i));
       slots.forEach((k, i) => { ops[k] = math.ops[i]; });
       nums[path[0]] = start;
-      nums[path[path.length - 1]] = math.end;
+      nums[path[path.length - 1]] = stored(math.end);
       sol.push({ from: path[0], to: path[path.length - 1], cells: path });
     }
-    const values = Object.values(nums);
+    const values = Object.values(nums).map(String);
     if (!ok || new Set(values).size !== values.length) { note("numbers clash"); continue; }
     const board = { level: levelId, radius: L.radius, cells, nums, ops, sol };
     const verdict = assess(board, phase.candidates, stats, phase);
@@ -424,7 +510,7 @@ function luresOf(board, opKeys, table, answer, want) {
       if (count >= want.lures && touched.size >= want.spread) return { count, spread: touched.size };
       if (inAnswer.has(`${from}>${to}>${mask}`)) continue;
       if (count >= want.lures && touched.has(from) && touched.has(to)) continue;   // adds nothing now
-      const r = routeAll(board, opKeys, [{ from, to, mask }], 4000);
+      const r = routeAll(board, opKeys, [{ from, to, mask }], 1500);
       if (!r || r === "unknown") continue;
       count++;
       touched.add(from); touched.add(to);

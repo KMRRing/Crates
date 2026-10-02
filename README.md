@@ -52,7 +52,7 @@ Menu → Your other devices → Sync this run. The run gets an 8-letter code and
 ## Delta
 A field of hexes with gaps. Some hexes hold plain numbers, some hold operations (+4, −2, ×3, ÷2), the rest are blank. Three rules:
 1. Join the numbers in pairs. Drag from a number to draw a path; paths can't cross, share a hex or pass through another number.
-2. A path runs from the number you draw it from: the value starts as that number, each operation on the way changes it in turn (whole numbers only), and it must arrive exactly at the other number. Which end to start from is yours to work out.
+2. A path runs from the number you draw it from: the value starts as that number, each operation on the way changes it in turn, and it must arrive exactly at the other number. Values can become fractions (5 ÷ 4 = 1¼). Which end to start from is yours to work out.
 3. Every operation is used exactly once. Blank hexes are optional.
 
 Drawing through another path cuts it there; tapping either number of a path removes it. Arrows show the way each finished path runs.
@@ -61,6 +61,8 @@ Levels:
 - Easy: two pairs, + and −, the pairs are marked; the running value follows your finger and finished paths are marked right or wrong at once.
 - Medium: three pairs, adds ×; running value and immediate marks as on Easy; two clues per board (a clue shows two numbers that belong together).
 - Hard: a small, crowded field (the 37-hex hexagon with five gaps), adds ÷. No running value: you work the values out. Paths are only marked right or wrong once every number is joined.
+
+Numbers and operations keep the mental maths light at every size: times tables on small numbers, round numbers times small ones, shifts by 10, 100 and 1,000, round steps on big round numbers (+300 on 1,200), and simple halves, thirds and quarters. Big numbers (up to 100,000) only come from those easy steps, so a big number is a hint at the operation that made it (13,500 wants the ×1,000), never a sum like 259 × 13. Medium adds the big numbers; Hard also has fractions, shown as 9½ or ¾. Operations are often reused across the board, so another pair could take one: that feeds the lures below.
 
 Boards are built backwards from random paths, then checked by a solver in two stages: first every pairing and share-out of the operations the arithmetic allows, then whether those paths can actually be drawn at the same time. A board is kept only if exactly one can be drawn (the one it was built from) while the arithmetic alone allows others, and only if it is full of lures: single paths that add up and could be drawn on their own but belong to no answer, because they block another pair or use an operation another pair needs. Lures must touch most of the numbers (all six on Hard), so the "this works, but it cuts off that" moments are all over the board. The same seed always gives the same board; if a seed's first tries don't meet the bar, the lure and decoy targets relax step by step, never the one-answer rule. `tests/delta.mjs` checks every level.
 

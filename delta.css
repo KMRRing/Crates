@@ -31,7 +31,7 @@
 .d-path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: .5; opacity: .92; }
 .d-path.wrong { stroke-dasharray: .18 .16; }
 .d-arrow { fill: var(--d-tile); opacity: .9; }
-.d-op { font-family: var(--font); font-size: .58px; font-weight: 750; font-stretch: 78%; fill: var(--ink);
+.d-op { font-family: var(--font); font-size: .5px; font-weight: 750; font-stretch: 72%; fill: var(--ink);
   text-anchor: middle; dominant-baseline: central; paint-order: stroke; stroke: var(--d-tile); stroke-width: .12; stroke-linejoin: round; }
 .d-num-disc { fill: var(--d-num); }
 .d-num { font-family: var(--font); font-weight: 800; font-stretch: 112%; fill: var(--d-num-ink); text-anchor: middle; dominant-baseline: central; }
