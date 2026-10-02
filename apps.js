@@ -1,23 +1,26 @@
 // The game switcher: tapping a game's title opens a sheet listing every game in the app. Going to another
 // game carries the room code, so you stay in the same room (rooms.js).
 import { gameHref } from "./rooms.js";
+// Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
-  <path d="M2.6 6.6H17.4M2.6 13.4H17.4M5 13.4L15 6.6" fill="none" stroke="var(--logo-ink)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  <path d="M2.6 6.6H17.4M2.6 13.4H17.4M5 13.4L15 6.6" fill="none" stroke="var(--cr-logo-edge)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+// A certificate of analysis: a sheet with lines of results and a seal with ribbons.
 const SLATE_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1" y="3" width="15" height="15" rx="3" fill="var(--sl-logo-tint)" stroke="var(--sl-logo-edge)" stroke-width="1.6"/>
-  <text x="8.5" y="15" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="11" fill="var(--logo-ink)">S</text>
-  <circle cx="16" cy="4" r="3.6" fill="var(--c1)"/>
-  <path d="M14.4 4.1l1.1 1.1 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  <rect x="2.2" y="1.6" width="13.4" height="16.8" rx="1.8" fill="var(--sl-logo-tint)" stroke="var(--sl-logo-edge)" stroke-width="1.5"/>
+  <path d="M5 5.4H12.8M5 8.2H12.8M5 11H9.6" fill="none" stroke="var(--sl-logo-edge)" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M13.2 16.4L12.4 19.4L14.4 18.4L16.4 19.4L15.6 16.4" fill="var(--sl-logo-edge)" stroke="var(--sl-logo-edge)" stroke-width=".6" stroke-linejoin="round"/>
+  <circle cx="14.4" cy="14.2" r="3.1" fill="var(--sl-logo-tint)" stroke="var(--sl-logo-edge)" stroke-width="1.4"/>
+  <circle cx="14.4" cy="14.2" r="1.4" fill="var(--sl-logo-edge)"/></svg>`;
 
 const DELTA_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <polygon points="10,1.5 17.5,5.8 17.5,14.2 10,18.5 2.5,14.2 2.5,5.8" fill="var(--d-logo-tint)" stroke="var(--d-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
-  <path d="M10 5.6 L14.2 13.6 H5.8 Z" fill="none" stroke="var(--logo-ink)" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
+  <path d="M10 5.6 L14.2 13.6 H5.8 Z" fill="none" stroke="var(--d-logo-edge)" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
 
 const PUNT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <circle cx="10" cy="10" r="8.6" fill="var(--pt-logo-tint)" stroke="var(--pt-logo-edge)" stroke-width="1.6"/>
   <circle cx="10" cy="10" r="5.2" fill="none" stroke="var(--pt-logo-edge)" stroke-width="1.3" stroke-dasharray="2.2 1.9"/>
-  <text x="10" y="13.4" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="9" fill="var(--logo-ink)">P</text></svg>`;
+  <text x="10" y="13.4" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="9" fill="var(--pt-logo-edge)">P</text></svg>`;
 
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO,
