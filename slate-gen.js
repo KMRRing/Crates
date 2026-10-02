@@ -1,6 +1,6 @@
-// Glyph's engine: the rule catalogue, judging letters / pairs / whole fields, generating boards whose
+// Slate's engine: the rule catalogue, judging letters / pairs / whole fields, generating boards whose
 // intended fill is the only one made of common words, and replaying a board's history into notes.
-import { WORDS } from "./glyph-words.js";
+import { WORDS } from "./slate-words.js";
 
 // ---------- words ----------
 const unpack = packed => Object.fromEntries(Object.entries(packed).map(([L, s]) => {

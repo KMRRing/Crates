@@ -1,4 +1,4 @@
-/* Glyph: the board, its fields and marks. Shell, buttons and sheets come from style.css. */
+/* Slate: the board, its fields and marks. Shell, buttons and sheets come from style.css. */
 :root {
   /* single-letter fields: blues and greens */
   --gs0: #CFE3F1; --gs0e: #2D5E88;  --gs1: #D2E9D6; --gs1e: #3F7A50;  --gs2: #CDE9E7; --gs2e: #23736F;
@@ -14,7 +14,6 @@
     --gp0: #3E3410; --gp0e: #E3BA45;  --gp1: #43281A; --gp1e: #EE9A5F;  --gp2: #392F22; --gp2e: #CBAA78;
     --gw0: #2C2650; --gw0e: #A595F2;  --gw1: #45222F; --gw1e: #E984B2;  --gw2: #3A2440; --gw2e: #CC8BDB;
     --g-cell: #1D262D; --g-line: #33414B; --g-ok: #63C98E; --g-no: #FF7E6E; --g-not-ours: #F5A142;
-    --g-logo-tint: #1B3448; --g-logo-edge: #7FB2DD;
   }
 }
 .g-mark { display: inline-block; }

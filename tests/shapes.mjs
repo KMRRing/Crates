@@ -1,6 +1,6 @@
 // Every shape in the library: connected, every cell in a word, and every horizontal and vertical run of two or
 // more cells a word of three to five letters (no two-letter runs). Also checks every level can deal boards.
-const G = await import("../glyph-gen.js");
+const G = await import("../slate-gen.js");
 let bad = 0;
 for (const [id, rows] of Object.entries(G.SHAPES)) {
   for (let n = 0; n < 8; n++) {

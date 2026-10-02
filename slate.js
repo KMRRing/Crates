@@ -1,11 +1,14 @@
-// Glyph: solo and together play. Boards and rules come from glyph-gen.js. Together games live in the app's
+// Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./glyph-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { getSync } from "./net.js";
 
 const $ = id => document.getElementById(id);
+// Saves, the room branch and the switcher id keep the game's first name (Glyph), so saved boards and rooms in
+// play carry on after the rename.
+const GAME = "glyph";
 const STORE = "glyph:solo";
 const CHECKS = 2, REVEALS = 2;
 /** Checks and rule reveals per board: unlimited on Easy, two each otherwise. */
@@ -18,7 +21,7 @@ const HOW = {
   pair: "Each pair of neighbours, read left to right and top to bottom.",
   whole: "Judged as a whole once every cell is filled.",
 };
-const roomPath = code => branchPath(code, "glyph");
+const roomPath = code => branchPath(code, GAME);
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
 // ---------- state ----------
@@ -125,8 +128,8 @@ const APP = 3;
 
 /** Another device runs newer code: fetch the new files past the browser cache and reload, once per session. */
 async function updateApp() {
-  try { if (sessionStorage.getItem("glyph:updated")) { toast("Your partner has a newer version: close and reopen Glyph"); return; }
-    sessionStorage.setItem("glyph:updated", "1"); } catch { /* private mode */ }
+  try { if (sessionStorage.getItem("slate:updated")) { toast("Your partner has a newer version: close and reopen Slate"); return; }
+    sessionStorage.setItem("slate:updated", "1"); } catch { /* private mode */ }
   toast("Updating to the newest version…");
   const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));
   await Promise.all([location.href, ...own].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
@@ -262,7 +265,7 @@ async function connect() {
   catch (e) { console.error(e); toast("Couldn't reach the game server"); return null; }
 }
 
-/** Glyph's state for a room: a fresh board, with these players seated. */
+/** Slate's state for a room: a fresh board, with these players seated. */
 function freshState(players) {
   const seed = randomSeed();
   return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board: generate(seed, S.level),
@@ -275,7 +278,7 @@ async function together() {
   const sync = await connect();
   if (!sync) return;
   try {
-    const code = await createRoom(sync, "glyph", freshState({ [sync.uid]: { name, slot: 0, online: true } }));
+    const code = await createRoom(sync, GAME, freshState({ [sync.uid]: { name, slot: 0, online: true } }));
     if (!code) { toast("Couldn't start a game, try again"); return; }
     enter(code, sync, name);
     openMenu();
@@ -307,7 +310,7 @@ async function join(code) {
     let full = false;
     const r = await sync.tx(roomPath(code), cur => {
       full = false;
-      // the room began in another game: Glyph starts its side of it with a fresh board
+      // the room began in another game: Slate starts its side of it with a fresh board
       if (cur === null) return seen ? null : freshState({ [sync.uid]: { name, slot: 0, online: true } });
       if (!cur.board) return undefined;
       cur.players = Object.fromEntries(seatsOf(cur));
@@ -333,7 +336,7 @@ function enter(code, sync, name) {
   room = { code, sync, uid: sync.uid, data: null, here: {} };
   setRoomParam(code);
   watchRoom();
-  room.stopHere = enterRoom(sync, code, "glyph", name, here => { if (room) { room.here = here; drawPartner(); } });
+  room.stopHere = enterRoom(sync, code, GAME, name, here => { if (room) { room.here = here; drawPartner(); } });
   room.stopPresence = sync.presence?.(`${roomPath(code)}/players/${sync.uid}`);
   room.online = true;
   room.stopConnection = sync.connection?.(ok => { if (room) { room.online = ok; drawPartner(); } });
@@ -425,7 +428,7 @@ function drawPartner() {
   el.hidden = false;
   el.innerHTML = "";
   if (room.online === false) { el.append("Reconnecting… moves made now may not reach your partner."); return; }
-  if (there && there.game !== "glyph") {
+  if (there && there.game !== GAME) {
     // your partner has another game of the room open: say which, and offer to follow
     const b = document.createElement("b");
     b.textContent = there.name;
@@ -746,7 +749,7 @@ function drawMenu() {
     row.appendChild(copy);
     if (navigator.share) {
       const share = document.createElement("button"); share.className = "btn"; share.textContent = "Share link";
-      share.addEventListener("click", () => navigator.share({ title: "Glyph", url: link }).catch(() => {}));
+      share.addEventListener("click", () => navigator.share({ title: "Slate", url: link }).catch(() => {}));
       row.appendChild(share);
     }
     add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
@@ -869,8 +872,8 @@ window.addEventListener("pagehide", clockPause);
 window.visualViewport?.addEventListener("resize", () => render());   // Safari's bars coming and going
 
 // ---------- start ----------
-document.querySelector(".g-mark").innerHTML = APPS.find(a => a.id === "glyph").logo;
-bindSwitcher($("appsBtn"), "glyph");
+document.querySelector(".g-mark").innerHTML = APPS.find(a => a.id === GAME).logo;
+bindSwitcher($("appsBtn"), GAME);
 buildKeyboard();
 const params = new URLSearchParams(location.search);
 const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
@@ -881,4 +884,4 @@ else if (!S) soloBoard(randomSeed(), "easy");
 else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render(); }
 clockRun();
 if (code.length === 4) join(code).then(ok => { if (!ok) setRoomParam(null); });
-window.__glyph = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };
+window.__slate = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };

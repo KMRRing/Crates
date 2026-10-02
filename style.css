@@ -20,8 +20,9 @@
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --cr-logo-tint: #F3E1BA;  /* Crates' logo: a crate */
   --cr-logo-edge: #A2690F;
-  --g-logo-tint: #CFE3F1;   /* Glyph's logo: a single-letter field */
-  --g-logo-edge: #2D5E88;
+  --sl-logo-tint: #D3DEE7;  /* Slate's logo: a slate with a chalked S */
+  --sl-logo-edge: #3F5A70;
+  --logo-ink: #1C2A34;      /* the mark on every logo: dark in light and dark mode, as the tints stay light */
   --d-logo-tint: #CBE7E4;   /* Delta's logo: a hex with a delta in it */
   --d-logo-edge: #17807C;
   --pt-logo-tint: #CFE6D8;  /* Punt's logo: a betting chip */

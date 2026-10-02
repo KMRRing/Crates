@@ -1,7 +1,7 @@
 // Rooms shared by every game in the app. A room is one four-letter code for two people. Each game keeps its
 // own state in its own branch (crates/rooms/CODE/crates, crates/rooms/CODE/glyph), so switching games keeps
 // you in the room and every game's progress stays where it was. "here" records which game each person has
-// open, so a game can say "Sarah is in Glyph".
+// open, so a game can say "Sarah is in Slate".
 //
 //   crates/rooms/CODE = { suite: 1, created, owner, here: { uid: { game, name, sessions } }, crates: {…}, glyph: {…} }
 //
@@ -9,7 +9,7 @@
 
 export const GAMES = {
   crates: { name: "Crates", page: "./" },
-  glyph: { name: "Glyph", page: "./glyph.html" },
+  glyph: { name: "Slate", page: "./slate.html" },    // id kept from its first name, Glyph
   delta: { name: "Delta", page: "./delta.html" },
   punt: { name: "Punt", page: "./punt.html" },
 };
