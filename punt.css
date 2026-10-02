@@ -25,6 +25,7 @@
 .pt-avg { margin: -.35rem 0 .4rem; text-align: right; color: var(--ink-soft); font-size: .9rem; font-variant-numeric: tabular-nums; }
 .pt-lengths { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .3rem 0 .4rem; }
 .pt-lengths .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+.pt-lengths.pt-tabs { grid-template-columns: 1fr 1fr; }
 .pt-pot { font-size: 1rem; }
 .pt-pot-label { color: var(--ink-soft); }
 .pt-pot b { font-size: 1.7rem; font-weight: 800; font-stretch: 112%; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
@@ -71,6 +72,10 @@
 .pt-house { margin: 0 0 .4rem; color: var(--ink-soft); font-size: .95rem; }
 
 .pt-rules { margin: .8rem 0; padding-left: 1.3rem; display: grid; gap: .55rem; }
+.pt-kelly { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin: .3rem 0 .5rem; }
+.pt-kelly th { text-align: left; font-size: .8rem; font-weight: 650; color: var(--ink-soft); padding: .25rem .3rem; border-bottom: 1px solid var(--pt-ticket-edge); }
+.pt-kelly td { padding: .35rem .3rem; border-bottom: 1px solid var(--pt-ticket-edge); }
+#statsBody h3 { margin: 1rem 0 .2rem; }
 .pt-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: 1rem 0 .6rem; }
 .pt-stats div { display: flex; flex-direction: column; align-items: center; gap: .1rem; text-align: center; }
 .pt-stats dd { margin: 0; font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }

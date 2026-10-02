@@ -234,3 +234,55 @@ export function settle(pot, pct, right, offered) {
 export const showOdds = x => `${x < 2 ? x.toFixed(2).replace(/0$/, "") : x.toFixed(1)}×`;
 /** How chips read: 12,450. */
 export const showChips = n => Math.round(n).toLocaleString("en-US");
+
+// ---------- how well you judge what you know ----------
+// A record is one settled question for one player: { o: odds paid, f: stake as a share of the pot (0 = pass),
+// r: 1 if the pick was right, 0 if wrong, null if passed without a pick }.
+
+/** Stake bands, by how much of the pot was staked: the size of a bet is how sure the player says they are. */
+export const BANDS = [{ label: "up to 10%", lo: 0, hi: 0.1 }, { label: "10% to 30%", lo: 0.1, hi: 0.3 }, { label: "over 30%", lo: 0.3, hi: 1 }];
+
+/** The Kelly stake for a chance p at odds o (the share of the pot that grows it fastest in the long run). */
+export const kellyStake = (p, o) => Math.max(0, Math.min(1, (p * o - 1) / (o - 1)));
+
+/**
+ * Two views of how well a player judges their own knowledge.
+ *
+ * Expected outcome (what a fixed run cares about): the edge per bet at flat stakes (how much each chip staked
+ * would earn if every bet were the same size) and the return on the chips actually staked; plus the hit rate
+ * against the hit rate the prices needed.
+ *
+ * Kelly (what the long run cares about): bets grouped by stake size, since a bigger stake says "I'm surer".
+ * For each group, how often those bets were right and what Kelly would stake at that hit rate and those odds;
+ * then the ratio of what was staked to what Kelly would stake, and the growth a question that staking Kelly at
+ * those hit rates would have given (with hindsight, so it flatters Kelly a little).
+ */
+export function knowledgeStats(records) {
+  const bets = records.filter(x => x.f > 0), passes = records.filter(x => !(x.f > 0));
+  const mean = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const right = bets.filter(x => x.r === 1).length;
+  const out = {
+    questions: records.length, bets: bets.length, right,
+    hitRate: bets.length ? right / bets.length : null,
+    needed: mean(bets.map(x => 1 / x.o)),                                            // hit rate the prices needed
+    edge: mean(bets.map(x => (x.r === 1 ? x.o - 1 : -1))),                            // per bet, flat stakes
+    roi: bets.length ? bets.reduce((t, x) => t + x.f * (x.r === 1 ? x.o - 1 : -1), 0) / bets.reduce((t, x) => t + x.f, 0) : null,
+    passes: passes.length,
+    passPicks: passes.filter(x => x.r != null).length,
+    passRight: passes.filter(x => x.r === 1).length,
+  };
+  out.bands = BANDS.map(b => {
+    const xs = bets.filter(x => x.f > b.lo && x.f <= b.hi);
+    if (!xs.length) return { ...b, n: 0 };
+    const p = xs.filter(x => x.r === 1).length / xs.length, o = mean(xs.map(x => x.o));
+    return { ...b, n: xs.length, hit: p, stake: mean(xs.map(x => x.f)), kelly: kellyStake(p, o) };
+  });
+  const used = out.bands.filter(b => b.n);
+  const staked = used.reduce((t, b) => t + b.n * b.stake, 0), kelly = used.reduce((t, b) => t + b.n * b.kelly, 0);
+  out.sizing = staked && kelly ? staked / kelly : null;                               // 1 = staking like Kelly
+  const growth = list => (list.length ? Math.exp(mean(list)) - 1 : null);
+  const kellyOf = x => used.find(b => x.f > b.lo && x.f <= b.hi)?.kelly ?? 0;
+  out.growth = growth(records.map(x => (x.f > 0 ? Math.log(Math.max(1e-9, 1 + x.f * (x.r === 1 ? x.o - 1 : -1))) : 0)));
+  out.kellyGrowth = growth(records.map(x => (x.f > 0 ? Math.log(Math.max(1e-9, 1 + kellyOf(x) * (x.r === 1 ? x.o - 1 : -1))) : 0)));
+  return out;
+}

@@ -46,3 +46,21 @@ for (const lvl of Object.keys(P.LEVELS)) {
 }
 console.log(bad ? `${bad} problems` : "all sessions check out");
 if (bad) process.exitCode = 1;
+
+// the stats should read sizing right: simulated players who know their chances and stake ½, 1 or 2 × Kelly
+{
+  let r = 12345;
+  const rnd = () => { r = (r * 1103515245 + 12345) % 2147483648; return r / 2147483648; };
+  for (const c of [0.5, 1, 2]) {
+    const recs = [];
+    for (let i = 0; i < 4000; i++) {
+      const o = 1.2 + rnd() * 3, p = 0.3 + rnd() * 0.65, k = P.kellyStake(p, o);
+      const f = Math.min(1, c * k), right = rnd() < p ? 1 : 0;
+      recs.push({ o, f, r: f > 0 ? right : null });
+    }
+    const st = P.knowledgeStats(recs);
+    const ok = Math.abs(st.sizing / c - 1) < 0.45;
+    console.log(`player staking ${c}× Kelly: the stats say ${st.sizing.toFixed(2)}× ${ok ? "" : "(off)"}`);
+    if (!ok) process.exitCode = 1;
+  }
+}
