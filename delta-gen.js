@@ -216,27 +216,42 @@ function orders(board, opKeys, from, to, mask) {
  * sharing hexes? Returns the routes ({ from, to, cells }) if so, null if not, and "unknown" if the search ran
  * out of budget.
  */
-export function routeAll(board, opKeys, assignment, budget = 60000) {
+export function routeAll(board, opKeys, assignment, budget = 25000) {
   const cells = board.cells, index = new Map(cells.map((k, i) => [k, i]));
   const nbr = cells.map(k => neighbours(k).filter(n => index.has(n)).map(n => index.get(n)));
   const special = new Uint8Array(cells.length);                // numbers and operations: only their own path may enter
   for (const k of [...Object.keys(board.nums), ...Object.keys(board.ops)]) special[index.get(k)] = 1;
   const taken = new Uint8Array(cells.length);
   let steps = 0, unknown = false;
-  const plans = assignment.map(a => ({ ...a, seqs: orders(board, opKeys, a.from, a.to, a.mask).map(seq => [a.from, ...seq, a.to].map(k => index.get(k))) }));
+  const plans = assignment.map(a => {
+    const seqs = orders(board, opKeys, a.from, a.to, a.mask).map(seq => [a.from, ...seq, a.to].map(k => index.get(k)));
+    const all = seqs[0] || [];
+    return { ...a, seqs, all, ownSet: new Set(all) };
+  });
   if (plans.some(p => !p.seqs.length)) return null;
   plans.sort((x, y) => x.seqs.length - y.seqs.length);
 
-  // can `to` still be reached from `from` through hexes this path may use?
-  const reachable = (from, to, own) => {
+  // the hexes reachable from `from` through free hexes and this path's own numbers and operations
+  const reach = (from, own) => {
     const seen = new Uint8Array(cells.length), stack = [from];
     seen[from] = 1;
     while (stack.length) {
       const c = stack.pop();
-      if (c === to) return true;
       for (const n of nbr[c]) if (!seen[n] && !taken[n] && (!special[n] || own.has(n))) { seen[n] = 1; stack.push(n); }
     }
-    return false;
+    return seen;
+  };
+  // after a step: can this path still reach all its remaining waypoints, and can every later path still join
+  // all of its own? (Cutting a later path off is found here at once, not after trying every route.)
+  const stillPossible = (p, head, seq, w, own) => {
+    const mine = reach(head, own);
+    for (let i = w; i < seq.length; i++) if (!mine[seq[i]]) return false;
+    for (let q = p + 1; q < plans.length; q++) {
+      const { all, ownSet } = plans[q];
+      const seen = reach(all[0], ownSet);
+      for (const c of all) if (!seen[c]) return false;
+    }
+    return true;
   };
   const routes = [];
   const place = p => {
@@ -259,7 +274,7 @@ export function routeAll(board, opKeys, assignment, budget = 60000) {
           if (n === goal) { taken[n] = 1; path.push(n); if (leg(w + 1)) return true; path.pop(); taken[n] = 0; continue; }
           if (special[n]) continue;                              // never through another number or operation
           taken[n] = 1; path.push(n);
-          if (reachable(n, goal, own) && leg(w)) return true;
+          if (stillPossible(p, n, seq, w, own) && leg(w)) return true;
           path.pop(); taken[n] = 0;
           if (unknown) return false;
         }
@@ -277,11 +292,28 @@ export function routeAll(board, opKeys, assignment, budget = 60000) {
 }
 
 // ---------- generation ----------
-/** A board for this seed and level, or null if none was found in time. */
-export function generate(seed, levelId) {
+/**
+ * A board for this seed and level. The same seed always gives the same board (tries are counted, not timed).
+ * It starts strict about how much the space must decide; if nothing turns up, it relaxes that step by step,
+ * but never the rule that exactly one answer can be drawn. stats, if given, counts why tries failed.
+ */
+export function generate(seed, levelId, stats = null) {
   const L = LEVELS[levelId], rnd = rng(seed);
-  const started = Date.now();
-  for (let attempt = 0; attempt < 400 && Date.now() - started < 2500; attempt++) {
+  const phases = [
+    { tries: 150, decoys: L.decoys, candidates: L.candidates, repaired: L.pairs > 2 },
+    { tries: 150, decoys: Math.max(1, L.decoys - 1), candidates: L.candidates * 2, repaired: false },
+    { tries: 600, decoys: 0, candidates: L.candidates * 4, repaired: false },
+  ];
+  for (const phase of phases) {
+    const board = attempt(rnd, L, levelId, phase, stats);
+    if (board) return board;
+  }
+  return null;
+}
+
+function attempt(rnd, L, levelId, phase, stats) {
+  const note = why => { if (stats) stats[why] = (stats[why] || 0) + 1; };
+  for (let t = 0; t < phase.tries; t++) {
     const cells = field(rnd, L.radius, L.gaps);
     const free = new Set(cells), plan = [];
     for (let p = 0; p < L.pairs; p++) {
@@ -290,7 +322,7 @@ export function generate(seed, levelId) {
       path.forEach(k => free.delete(k));
       plan.push(path);
     }
-    if (plan.length < L.pairs) continue;
+    if (plan.length < L.pairs) { note("no room for the paths"); continue; }
     const nums = {}, ops = {}, sol = [];
     let ok = true;
     for (const path of plan) {
@@ -308,10 +340,11 @@ export function generate(seed, levelId) {
       sol.push({ from: path[0], to: path[path.length - 1], cells: path });
     }
     const values = Object.values(nums);
-    if (!ok || new Set(values).size !== values.length) continue;
+    if (!ok || new Set(values).size !== values.length) { note("numbers clash"); continue; }
     const board = { level: levelId, radius: L.radius, cells, nums, ops, sol };
-    const verdict = assess(board, L.candidates);
-    if (!verdict || verdict.decoys < L.decoys || (L.pairs > 2 && !verdict.repaired)) continue;
+    const verdict = assess(board, phase.candidates, stats);
+    if (!verdict) continue;
+    if (verdict.decoys < phase.decoys || (phase.repaired && !verdict.repaired)) { note("arithmetic gives it away"); continue; }
     board.decoys = verdict.decoys;
     return board;
   }
@@ -326,16 +359,17 @@ const pairing = s => s.map(x => [x.from, x.to].sort().join("~")).sort().join("|"
  * about). Otherwise: decoys, the ways the arithmetic allows that the space rules out, and repaired, whether
  * one of those pairs the numbers differently from the answer.
  */
-export function assess(board, cap = 40) {
+export function assess(board, cap = 40, stats = null) {
+  const note = why => { if (stats) stats[why] = (stats[why] || 0) + 1; };
   const { solutions, opKeys } = arithmeticSolutions(board, cap + 1);
-  if (solutions.length > cap) return null;
+  if (solutions.length > cap) { note("arithmetic too loose"); return null; }
   let answer = null, decoys = 0;
   const ruledOut = [];
   for (const s of solutions) {
     const r = routeAll(board, opKeys, s);
-    if (r === "unknown") return null;
+    if (r === "unknown") { note("search ran out"); return null; }
     if (!r) { decoys++; ruledOut.push(s); continue; }
-    if (answer) return null;
+    if (answer) { note("two answers"); return null; }
     answer = s;
   }
   if (!answer) return null;

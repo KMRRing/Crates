@@ -21,3 +21,4 @@ for (const lvl of Object.keys(G.LEVELS)) {
   console.log(`${lvl}: ${made}/15 boards, average ${Math.round(ms / 15)} ms, slowest ${worst} ms`);
 }
 console.log(bad ? `${bad} problems` : "all boards check out");
+if (bad) process.exitCode = 1;

@@ -48,14 +48,30 @@ function withPath(paths, id, colour, cells) {
 }
 const newId = () => Math.random().toString(36).slice(2, 8);
 
+// ---------- dealing ----------
+// Boards are found in a worker so the screen stays responsive (a hard one can take a second or two on a phone).
+let worker = null, dealt = 0;
+const waiting = new Map();
+function deal(seed, level) {
+  try {
+    worker ||= new Worker(new URL("./delta-worker.js", import.meta.url), { type: "module" });
+    worker.onmessage = e => { waiting.get(e.data.id)?.(e.data.board); waiting.delete(e.data.id); };
+  } catch { return Promise.resolve(generate(seed, level)); }    // no module workers here: deal on the page
+  const id = ++dealt;
+  return new Promise(resolve => { waiting.set(id, resolve); worker.postMessage({ id, seed, level }); });
+}
+
 // ---------- solo ----------
 function loadSolo() {
   try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.board ? s : null; } catch { return null; }
 }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
-function soloBoard(seed, level) {
-  const board = generate(seed, level);
+async function soloBoard(seed, level) {
+  const slow = setTimeout(() => toast("Dealing…", 6000), 250);
+  const board = await deal(seed, level);
+  clearTimeout(slow);
+  $("toast").classList.remove("show");
   if (!board) { toast("Couldn't make a board, try again"); return; }
   S = { seed, level, board, paths: {}, clues: [], done: null, ms: 0 };
   shownDone = null;
@@ -69,14 +85,14 @@ function soloBoard(seed, level) {
 /** Deals a new board (a hard one can take a moment, so the screen says so first). */
 function newBoard(level = S.level) {
   if (S && !S.done && pathList(S.paths).length && !confirm("Start a new board? This one isn't finished.")) { render(); return; }
-  toast("Dealing…");
-  setTimeout(() => {
-    const seed = randomSeed();
-    if (!together.room) { soloBoard(seed, level); return; }
-    const board = generate(seed, level);
+  const seed = randomSeed();
+  if (!together.room) { soloBoard(seed, level); return; }
+  toast("Dealing…", 6000);
+  deal(seed, level).then(board => {
+    $("toast").classList.remove("show");
     if (!board) { toast("Couldn't make a board, try again"); return; }
     together.act(g => { Object.assign(g, { level, seed, board, paths: {}, clues: [], done: null, startedAt: Date.now() }); });
-  }, 30);
+  });
 }
 
 // ---------- the clock (solo: time on screen; together: dealt to finished) ----------
@@ -458,9 +474,9 @@ const together = createTogether({
   toast,
   askName,
   valid: g => !!g?.board,
-  fresh: players => {
+  fresh: async players => {
     const level = S?.level || "medium", seed = randomSeed();
-    return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board: generate(seed, level), paths: {}, clues: [], done: null, players };
+    return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board: await deal(seed, level), paths: {}, clues: [], done: null, players };
   },
   onState: val => {
     clockPause();
@@ -501,8 +517,8 @@ const params = new URLSearchParams(location.search);
 const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
 const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
-if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) soloBoard(linked, linkedLevel);
-else if (!S) soloBoard(randomSeed(), "easy");
+if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
+else if (!S) await soloBoard(randomSeed(), "easy");
 else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); }
 if (!localStorage.getItem(SEEN_HELP) && !code) { $("helpDlg").showModal(); try { localStorage.setItem(SEEN_HELP, "1"); } catch { /* private mode */ } }
 if (code.length === 4) joinRoom(code);

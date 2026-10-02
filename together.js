@@ -10,7 +10,7 @@ export const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]
 
 /**
  * game: the room branch ("delta"); app: this code's version for together games of this kind;
- * fresh(players): a new game state; valid(state): whether a state is this game's; onState(state): draw it;
+ * fresh(players): a new game state (or a promise of one); valid(state): whether a state is this game's; onState(state): draw it;
  * onPresence(): redraw who's where; onLeave(): back to solo; toast(msg); askName(): the player's name.
  */
 export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, toast, askName }) {
@@ -38,7 +38,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     const sync = await connect();
     if (!sync) return false;
     try {
-      const code = await createRoom(sync, game, fresh({ [sync.uid]: { name, slot: 0, online: true } }));
+      const code = await createRoom(sync, game, await fresh({ [sync.uid]: { name, slot: 0, online: true } }));
       if (!code) { toast("Couldn't start a game, try again"); return false; }
       enter(code, sync, name);
       return true;
@@ -63,10 +63,12 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
       }
       const name = takeover ? seats.find(([id]) => id === takeover)[1].name : await askName();
       if (!name) return false;
+      // the room began in another game: this game's side of it starts fresh (made first; dealing can take a moment)
+      const initial = before ? null : await fresh({ [sync.uid]: { name, slot: 0, online: true } });
       let full = false;
       const r = await sync.tx(path(code), cur => {
         full = false;
-        if (cur === null) return before ? null : fresh({ [sync.uid]: { name, slot: 0, online: true } });
+        if (cur === null) return initial;
         if (!valid(cur)) return undefined;
         cur.players = Object.fromEntries(seatsOf(cur));
         if (cur.players[sync.uid]) { cur.players[sync.uid].name = name; return cur; }
