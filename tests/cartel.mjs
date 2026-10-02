@@ -53,28 +53,55 @@ if (bad) process.exitCode = 1;
   const plainOf = p => E.plain(p).length;
   // a steal blocked honestly (B's gold shows Auditor), challenged by the thief: the thief pays 2, nothing is stolen
   let s = setup([3, 1], [4, 1]);
-  E.act(s, { type: "claim", role: 3, target: 1 });
+  E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 4 });
   E.respondBlock(s, true);
   check(plainOf(s.players[0]) === 1 && plainOf(s.players[1]) === 5, "a true block, challenged: the thief pays 2 and steals nothing");
   // a bluffed block, challenged: the blocker pays 2, then the steal goes ahead
   s = setup([3, 1], [2, 1]);
-  E.act(s, { type: "claim", role: 3, target: 1 });
+  E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 3 });
   E.respondBlock(s, true);
   check(plainOf(s.players[1]) === 0 && plainOf(s.players[0]) === 3 + 2 + 1, "a bluffed block, challenged: the blocker pays 2, then the steal takes what's left");
   // a block accepted: nothing changes hands
   s = setup([3, 1], [2, 1]);
-  E.act(s, { type: "claim", role: 3, target: 1 });
+  E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 4 });
   E.respondBlock(s, false);
   check(plainOf(s.players[0]) === 3 && plainOf(s.players[1]) === 3 && s.step === "bid", "an accepted block: nothing moves, and the thief goes on to bid");
   // using a role doesn't reroll the gold die any more
   s = setup([2, 6], [2, 1]);
   const goldBefore = E.gold(s.players[0]).map(d => d.face).join();
-  E.act(s, { type: "claim", role: 2 });
+  E.act(s, { type: "claim", ability: "bank" });
   E.respond(s, "allow");
   check(E.gold(s.players[0]).map(d => d.face).join() === goldBefore && plainOf(s.players[0]) === 6, "Banker takes 3 and the gold dice stay as they were");
+  // a sanction: 4 dice paid up front, and the target loses a gold die
+  s = setup([6, 1, 2, 2, 2], [2, 2]);
+  E.plain(s.players[0]).length;                                   // A has 3 plain: give A a fourth
+  E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
+  E.act(s, { type: "claim", ability: "sanction", target: 1 });
+  check(plainOf(s.players[0]) === 0, "a sanction is paid for up front: 4 dice to the bank");
+  E.respond(s, "allow");
+  check(E.gold(s.players[1]).length === 1, "an unblocked sanction takes a gold die");
+  // blocked by a true Compliance: the dice are spent, no gold is lost
+  s = setup([6, 1], [5, 2]);
+  E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
+  E.act(s, { type: "claim", ability: "sanction", target: 1 });
+  E.respond(s, { block: 5 });
+  E.respondBlock(s, false);
+  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0, "a sanction blocked by Compliance: the 4 dice are gone and nobody loses gold");
+  // a bluffed sanction, challenged: no gold lost, and the bluffer pays 2 on top of the 4
+  s = setup([2, 1], [2, 2]);
+  for (let k = 0; k < 3; k++) { E.act(s, { type: "take" }); s.turn = 0; s.step = "act"; }   // 6 plain: 4 for the sanction, 2 for the penalty
+  E.act(s, { type: "claim", ability: "sanction", target: 1 });
+  E.respond(s, "challenge");
+  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0 && E.gold(s.players[0]).length === 2, "a bluffed sanction caught: no gold lost, and the bluffer has paid 4 + 2");
+  let blockedWrong = false;
+  s = setup([6, 1], [3, 2]);
+  E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
+  E.act(s, { type: "claim", ability: "sanction", target: 1 });
+  try { E.respond(s, { block: 3 }); } catch { blockedWrong = true; }
+  check(blockedWrong, "only Compliance blocks a sanction");
   // Compliance is a free move: the turn stays where it was
   s = setup([5, 1], [2, 1]);
   E.act(s, { type: "take" });

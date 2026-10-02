@@ -2,34 +2,39 @@
 //
 // Everyone has gold dice (their lives and their roles) and plain dice (money and weight in the bidding), all
 // rolled secretly. A face is both a number and a role: 1 Wild, 2 Banker, 3 Trader, 4 Auditor, 5 Compliance,
-// 6 Insider. Only gold dice give powers; every die counts in bids, with Wilds counting as any face.
+// 6 Regulator. Only gold dice give powers; every die counts in bids, with Wilds counting as any face.
 //
 // A turn is one action, then a bid. Actions: take a die from the bank (it lands face up, for everyone to see),
-// reroll any of your dice (secretly), ask a player a question (answered both ways), hit (pay dice so a player
-// loses a gold die), or claim a role one of your gold dice shows (true or not): Banker takes 3 dice from the
-// bank, Trader steals 2 from a player, Auditor looks at all of a player's dice, Insider learns how many dice
-// on the table show a face. Compliance is a free move, once a turn: reroll one of your dice, say to hide one
-// that landed face up. A steal can be blocked by claiming Trader or Auditor; any claim, blocks included, can be
-// challenged by the player it's aimed at (or the next player, when it's aimed at no one). A caught bluffer
-// pays 2 dice, a wrong challenger pays 2 and the proof is shown. The bid raises the standing "at least N dice
-// show face F" or calls it: the referee says only whether it held, and the loser pays the winner 3 dice.
-// Penalties are paid in plain dice to the winner; if you can't pay in full, you also lose a gold die; with no
-// gold dice left you're out. A player with a full hand of plain dice (8) has to hit. The last player in wins.
+// reroll any of your dice (secretly), ask a player a question (answered both ways), hit (pay 7 dice so a player
+// loses a gold die), or claim a role one of your gold dice shows (true or not) to use one of its abilities:
+// Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
+// Regulator either learns how many dice on the table show a face (an inquiry) or pays 4 dice to sanction a
+// player, who loses a gold die. Compliance is a free move, once a turn and before your bid: reroll one of your
+// dice, say one that just landed face up. A steal can be blocked by claiming Trader or Auditor, a sanction by
+// claiming Compliance. Any claim, blocks included, can be challenged by the player it's aimed at (the next
+// player when it's aimed at no one, the claimant when it's a block). A caught bluffer pays 2 dice, a wrong
+// challenger pays 2 and the proof is shown. The bid raises the standing "at least N dice show face F" or calls
+// it: the referee says only whether it held, and the loser pays the winner 3 dice. Penalties are paid in plain
+// dice to the winner; if you can't pay in full, you also lose a gold die; with no gold dice left you're out.
+// A player with a full hand of plain dice (8) has to hit. The last player in wins.
 //
 // The engine holds the truth and records events. Each event says what everyone sees and what only some see, so
 // the table, the log and the AIs each learn exactly what a player at a real table would.
 
-export const ROLES = { 1: "Wild", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Compliance", 6: "Insider" };
-export const POWERS = {
-  2: { name: "Banker", target: false, says: "takes 3 dice from the bank" },
-  3: { name: "Trader", target: true, says: "steals 2 dice from", blockable: true },
-  4: { name: "Auditor", target: true, says: "looks at all the dice of" },
-  5: { name: "Compliance", target: false, free: true, says: "rerolls one of their dice" },
-  6: { name: "Insider", target: false, says: "learns how many dice show a face" },
+export const ROLES = { 1: "Wild", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Compliance", 6: "Regulator" };
+/**
+ * What a claimed role lets you do. role: the face the claim is about; target: aimed at a player; free: the free
+ * move rather than your action; cost: plain dice paid to the bank on claiming; blockers: roles that block it.
+ */
+export const ABILITIES = {
+  bank: { role: 2, label: "Banker", says: "takes 3 dice from the bank", target: false },
+  steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [3, 4] },
+  audit: { role: 4, label: "Auditor", says: "looks at all the dice of", target: true },
+  comply: { role: 5, label: "Compliance", says: "rerolls one of their dice", target: false, free: true },
+  inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
+  sanction: { role: 6, label: "Regulator: sanction", says: "pays 4 dice to sanction", target: true, cost: 4, blockers: [5] },
 };
-/** Roles that block a steal. */
-export const BLOCKERS = [3, 4];
-export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, stake: 2, callStake: 3 };
+export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, stake: 2, callStake: 3, sanction: 4 };
 // Questions about one player's whole hand (gold and plain), answered both ways. A "face" here means the face
 // itself: Wilds count only when the question is about 1s.
 export const QUESTIONS = {
@@ -119,10 +124,10 @@ export function actions(s) {
   out.push({ type: "reroll" });
   for (const p of others) out.push({ type: "ask", target: p.i });
   if (plain(me).length >= RULES.hit) for (const p of others) out.push({ type: "hit", target: p.i });
-  for (const [f, power] of Object.entries(POWERS)) {
-    if (power.free) continue;
-    if (power.target) for (const p of others) out.push({ type: "claim", role: Number(f), target: p.i });
-    else out.push({ type: "claim", role: Number(f) });
+  for (const [ability, x] of Object.entries(ABILITIES)) {
+    if (x.free || (x.cost && plain(me).length < x.cost)) continue;
+    if (x.target) for (const p of others) out.push({ type: "claim", ability, target: p.i });
+    else out.push({ type: "claim", ability });
   }
   return out;
 }
@@ -172,13 +177,15 @@ export function act(s, a) {
       break;
     }
     case "claim": {
-      const power = POWERS[a.role];
-      if (!power) throw new Error("no such role");
-      if (power.free) throw new Error("Compliance is a free move, on top of your action");
-      if (power.target && (a.target == null || s.players[a.target].out || a.target === me.i)) throw new Error("choose a player");
-      const challenger = power.target ? a.target : nextAlive(s, me.i);
-      s.pending = { type: "challenge", claimant: me.i, role: a.role, target: a.target ?? null, challenger, picks: a.picks || {}, step: "act" };
-      emit(s, { t: "claim", p: me.i, role: a.role, target: a.target ?? null, challenger });
+      const x = ABILITIES[a.ability];
+      if (!x) throw new Error("no such role");
+      if (x.free) throw new Error("Compliance is a free move, on top of your action");
+      if (x.target && (a.target == null || s.players[a.target].out || a.target === me.i)) throw new Error("choose a player");
+      if (x.cost && plain(me).length < x.cost) throw new Error(`that costs ${x.cost} dice`);
+      const challenger = x.target ? a.target : nextAlive(s, me.i);
+      emit(s, { t: "claim", p: me.i, ability: a.ability, role: x.role, target: a.target ?? null, challenger });
+      if (x.cost) payToBank(s, me, x.cost);       // paid up front, as Coup's assassin pays: gone even if it's blocked
+      s.pending = { type: "challenge", claimant: me.i, ability: a.ability, role: x.role, target: a.target ?? null, challenger, picks: a.picks || {}, step: "act" };
       return s;
     }
     default: throw new Error("unknown action");
@@ -196,8 +203,8 @@ export function comply(s, dieId) {
   if (!me.dice.some(d => d.id === dieId)) throw new Error("choose one of your dice");
   s.freeUsed = true;
   const challenger = nextAlive(s, me.i);
-  s.pending = { type: "challenge", claimant: me.i, role: 5, target: null, challenger, picks: { die: dieId }, step: s.step, free: true };
-  emit(s, { t: "claim", p: me.i, role: 5, target: null, challenger, free: true });
+  s.pending = { type: "challenge", claimant: me.i, ability: "comply", role: 5, target: null, challenger, picks: { die: dieId }, step: s.step, free: true };
+  emit(s, { t: "claim", p: me.i, ability: "comply", role: 5, target: null, challenger, free: true });
   return s;
 }
 
@@ -209,8 +216,9 @@ function cleanQuestion(q) {
 }
 
 /**
- * The entitled player's answer to a pending claim: "challenge", "allow", or (to a steal aimed at them) a block,
- * { block: 3 | 4 }, claiming Trader or Auditor. A true claim costs a wrong challenger 2 dice, paid to the
+ * The entitled player's answer to a pending claim: "challenge", "allow", or (to a steal or sanction aimed at
+ * them) a block, { block: role }, claiming a role that blocks it (Trader or Auditor for a steal, Compliance for a
+ * sanction). A true claim costs a wrong challenger 2 dice, paid to the
  * claimant, and shows the gold die that proves it; a caught bluff costs the claimant 2 dice, paid to the
  * challenger, and the power doesn't happen. (true and false are accepted for "challenge" and "allow".)
  */
@@ -220,9 +228,9 @@ export function respond(s, decision) {
   const choice = decision === true ? "challenge" : decision === false || decision == null ? "allow" : decision;
   const claimant = s.players[c.claimant], challenger = s.players[c.challenger];
   if (choice?.block) {
-    if (!POWERS[c.role].blockable || c.target !== c.challenger || !BLOCKERS.includes(choice.block)) throw new Error("that can't be blocked");
+    if (!ABILITIES[c.ability].blockers?.includes(choice.block) || c.target !== c.challenger) throw new Error("that can't be blocked");
     s.pending = { type: "block", claimant: c.challenger, role: choice.block, challenger: c.claimant, base: c };
-    emit(s, { t: "block", p: c.challenger, role: choice.block, claimant: c.claimant });
+    emit(s, { t: "block", p: c.challenger, role: choice.block, claimant: c.claimant, ability: c.ability });
     return s;
   }
   s.pending = null;
@@ -235,17 +243,17 @@ export function respond(s, decision) {
 }
 
 /**
- * The thief's answer to a block: challenge it (true) or accept it (false). A true block costs the thief 2 dice
- * and stops the steal; a bluffed block costs the blocker 2 dice and the steal goes ahead.
+ * The blocked player's answer to a block: challenge it (true) or accept it (false). A true block costs them
+ * 2 dice and stops the steal or sanction; a bluffed block costs the blocker 2 dice and it goes ahead.
  */
 export function respondBlock(s, challenge) {
   const b = s.pending;
   if (!b || b.type !== "block") throw new Error("nothing to answer");
   s.pending = null;
-  const blocker = s.players[b.claimant], thief = s.players[b.challenger], c = b.base;
-  if (!challenge) { emit(s, { t: "blocked", p: thief.i, by: blocker.i }); return finish(s, c); }
-  const held = settleChallenge(s, blocker, thief, b.role);
-  if (!held && !thief.out && !blocker.out) power(s, thief, c, c.picks);
+  const blocker = s.players[b.claimant], actor = s.players[b.challenger], c = b.base;
+  if (!challenge) { emit(s, { t: "blocked", p: actor.i, by: blocker.i }); return finish(s, c); }
+  const held = settleChallenge(s, blocker, actor, b.role);
+  if (!held && !actor.out && !blocker.out) power(s, actor, c, c.picks);
   return finish(s, c);
 }
 
@@ -269,17 +277,17 @@ function finish(s, c) {
   return afterAction(s);
 }
 
-/** A power takes effect. choice holds the claimant's picks (which die to steal or reroll, which face). */
+/** An ability takes effect. choice holds the claimant's picks (which die to steal or reroll, which face). */
 function power(s, me, c, choice = {}) {
   const them = c.target != null ? s.players[c.target] : null;
-  switch (c.role) {
-    case 2: {                                   // Banker: three dice from the bank, face up
+  switch (c.ability) {
+    case "bank": {                              // three dice from the bank, face up
       const got = [];
       for (let k = 0; k < 3 && plain(me).length < RULES.cap; k++) { const d = die(s, "plain", true); me.dice.push(d); got.push({ id: d.id, face: d.face }); }
       emit(s, { t: "banker", p: me.i, dice: got });
       break;
     }
-    case 3: {                                   // Trader: two of their plain dice come to you, rerolled face up
+    case "steal": {                             // two of their plain dice come to you, rerolled face up
       const lost = [], got = [];
       for (let k = 0; k < 2; k++) {
         const pool = plain(them);
@@ -294,21 +302,25 @@ function power(s, me, c, choice = {}) {
       emit(s, { t: "trader", p: me.i, target: them.i, lost, dice: got, none: !lost.length });
       break;
     }
-    case 4:                                     // Auditor: every die of theirs, shown to you alone
+    case "audit":                               // every die of theirs, shown to you alone
       emit(s, { t: "audit", p: me.i, target: them.i }, { [me.i]: { faces: facesOf(them) } });
       break;
-    case 5: {                                   // Compliance: one of your dice rerolled, secretly
+    case "comply": {                            // one of your dice rerolled, secretly
       const d = me.dice.find(x => x.id === choice.die) || me.dice[0];
       d.face = roll(s.r);
       d.open = false;
       emit(s, { t: "comply", p: me.i, die: d.id }, { [me.i]: { faces: facesOf(me) } });
       break;
     }
-    case 6: {                                   // Insider: how many dice on the table show a face (Wilds counted)
+    case "inquiry": {                           // how many dice on the table show a face (Wilds counted)
       const f = choice.face >= 2 && choice.face <= 6 ? choice.face : (s.bid?.f || 2 + Math.floor(s.r() * 5));
-      emit(s, { t: "insider", p: me.i, face: f }, { [me.i]: { count: tableCount(s, f) } });
+      emit(s, { t: "inquiry", p: me.i, face: f }, { [me.i]: { count: tableCount(s, f) } });
       break;
     }
+    case "sanction":                            // they lose a gold die
+      emit(s, { t: "sanction", p: me.i, target: them.i });
+      loseGold(s, them, "sanction");
+      break;
   }
 }
 
