@@ -557,11 +557,6 @@ window.addEventListener("hashchange", () => {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
   if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level)) soloBoard(seed, level);
 });
-// a board link opened in a tab that already has Delta open
-window.addEventListener("hashchange", () => {
-  const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
-  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level)) soloBoard(seed, level);
-});
 $("app").querySelector(".d-mark").innerHTML = APPS.find(a => a.id === "delta").logo;
 
 // for tests and debugging
