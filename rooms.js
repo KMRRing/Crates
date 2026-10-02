@@ -11,6 +11,7 @@ export const GAMES = {
   crates: { name: "Crates", page: "./" },
   glyph: { name: "Glyph", page: "./glyph.html" },
   delta: { name: "Delta", page: "./delta.html" },
+  punt: { name: "Punt", page: "./punt.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
