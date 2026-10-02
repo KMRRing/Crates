@@ -194,7 +194,6 @@ function clue() {
 
 function clearAll() {
   if (S.done || !pathList(S.paths).length) return;
-  if (!confirm("Remove every path?")) return;
   change(g => { if (g.done) return false; g.paths = {}; });
 }
 
@@ -310,7 +309,6 @@ const showVerdicts = () => !!S.done || LEVELS[S.level].verdicts === "now" || all
 function render() {
   if (!S) return;
   $("level").value = S.level;
-  drawStatus();
   drawPartner();
   drawBoard();
   const shown = LEVELS[S.level].pairsShown;
@@ -318,18 +316,6 @@ function render() {
   $("clueBtn").disabled = !!S.done || shown || S.clues.length >= CLUES;
   $("clearBtn").disabled = !!S.done || !pathList(S.paths).length;
   if (S.done && JSON.stringify(S.done) !== shownDone) { shownDone = JSON.stringify(S.done); showDone(); }
-}
-
-function drawStatus() {
-  const paths = pathList(S.paths), board = S.board;
-  const pairs = Object.keys(board.nums).length / 2, ops = Object.keys(board.ops).length;
-  const used = new Set(paths.flatMap(p => p.cells).filter(k => k in board.ops)).size;
-  // on Hard a pair only says it's joined; whether it adds up shows once every number is joined
-  const now = LEVELS[S.level].verdicts === "now";
-  const count = paths.filter(p => { const e = evaluate(board, p.cells); return now ? e.ok : e.done; }).length;
-  $("status").textContent = S.done
-    ? (S.done.won ? `Solved in ${clockText(elapsed())}.` : "The solution.")
-    : `${count} of ${pairs} pairs ${now ? "add up" : "joined"}, ${used} of ${ops} operations used.`;
 }
 
 function drawPartner() {
@@ -570,7 +556,7 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 $("app").querySelector(".d-mark").innerHTML = APPS.find(a => a.id === "delta").logo;
 
 // for tests and debugging
-window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, get together() { return together; } };
+window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, evaluate, get together() { return together; } };
 
 // start: a shared board (#s=…&d=…), the saved one, or a fresh Easy board for a first visit
 const hash = new URLSearchParams(location.hash.slice(1));
