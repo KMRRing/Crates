@@ -4,16 +4,17 @@
 // rolled secretly. A face is both a number and a role: 1 Wild, 2 Banker, 3 Trader, 4 Auditor, 5 Legal,
 // 6 Regulator. Only gold dice give powers; every die counts in bids, with Wilds counting as any face.
 //
-// A turn is one action, then a bid. Actions: take a die from the bank (it lands face up, for everyone to see),
-// reroll any of your dice (secretly), ask a player a question (answered both ways), hit (pay 7 dice so a player
+// A turn is one action, then a bid; before the bid you also get two free moves, once each: ask a player a question
+// about their hand (answered both ways) and, by claiming Legal, reroll one of your dice. Actions: take a die from
+// the bank (it lands face up, for everyone to see), reroll any of your dice (secretly), hit (pay 7 dice so a player
 // loses a gold die), or claim a role one of your gold dice shows (true or not) to use one of its abilities:
 // Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
 // Regulator either learns how many dice on the table show a face (an inquiry) or pays 4 dice to sanction a
 // player, who loses a gold die. Legal gives a free move, once a turn and before your bid: reroll one of your
 // dice, say one that just landed face up. A steal can be blocked by claiming Auditor or Legal, a sanction by
 // claiming Legal. Any claim, blocks included, can be challenged by the player it's aimed at (the next
-// player when it's aimed at no one, the claimant when it's a block). A caught bluffer pays 2 dice, a wrong
-// challenger pays 2 and the proof is shown. The bid raises the standing "at least N dice show face F" or calls
+// player when it's aimed at no one, the claimant when it's a block). As in Coup, whoever loses a challenge loses a
+// gold die: a caught bluffer, or a wrong challenger (and the proof is shown). The bid raises the standing "at least N dice show face F" or calls
 // it: the referee says only whether it held, and the loser pays the winner 3 dice. Penalties are paid in plain
 // dice to the winner; if you can't pay in full, you also lose a gold die; with no gold dice left you're out.
 // A player with a full hand of plain dice (8) has to hit. The last player in wins.
@@ -34,7 +35,11 @@ export const ABILITIES = {
   inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
   sanction: { role: 6, label: "Regulator: sanction", says: "pays 4 dice to sanction", target: true, cost: 4, blockers: [5] },
 };
-export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, stake: 2, callStake: 3, sanction: 4 };
+// bluffStake: what a caught bluffer pays the challenger; challengeStake: what a wrong challenger pays the claimant
+// (in plain dice). goldStakes: instead, whoever loses a challenge loses a gold die, as in Coup. freeAsk: asking a
+// question is a free move, once a turn, rather than the turn's action.
+export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, bluffStake: 2, challengeStake: 2, callStake: 3, sanction: 4, banker: 3, steal: 2,
+  goldStakes: true, freeAsk: true };
 // Questions about one player's whole hand (gold and plain), answered both ways. A "face" here means the face
 // itself: Wilds count only when the question is about 1s.
 export const QUESTIONS = {
@@ -63,7 +68,7 @@ const roll = r => 1 + Math.floor(r() * 6);
 /** A new game: seats are [{ name, persona }] (persona null = a human). */
 export function newGame(seed, seats) {
   const r = rng(seed);
-  const s = { seed, r, players: [], turn: 0, step: "act", bid: null, pending: null, events: [], nextDie: 0, over: null, moves: 0, freeUsed: false };
+  const s = { seed, r, players: [], turn: 0, step: "act", bid: null, pending: null, events: [], nextDie: 0, over: null, moves: 0, freeUsed: false, askUsed: false };
   seats.forEach((seat, i) => {
     const dice = [];
     for (let k = 0; k < RULES.gold; k++) dice.push(die(s, "gold"));
@@ -122,7 +127,7 @@ export function actions(s) {
   const out = [{ type: "pass" }];
   if (plain(me).length < RULES.cap) out.push({ type: "take" });
   out.push({ type: "reroll" });
-  for (const p of others) out.push({ type: "ask", target: p.i });
+  if (!RULES.freeAsk) for (const p of others) out.push({ type: "ask", target: p.i });
   if (plain(me).length >= RULES.hit) for (const p of others) out.push({ type: "hit", target: p.i });
   for (const [ability, x] of Object.entries(ABILITIES)) {
     if (x.free || (x.cost && plain(me).length < x.cost)) continue;
@@ -161,14 +166,10 @@ export function act(s, a) {
       emit(s, { t: "reroll", p: me.i, dice: ids }, { [me.i]: { faces: facesOf(me) } });
       break;
     }
-    case "ask": {
-      const them = s.players[a.target];
-      const q = cleanQuestion(a.question);
-      const aboutThem = answer(q, them.dice.map(d => d.face)), aboutMe = answer(q, me.dice.map(d => d.face));
-      emit(s, { t: "ask", p: me.i, target: them.i, question: q },
-        { [me.i]: { answer: aboutThem }, [them.i]: { answer: aboutMe } });
+    case "ask":
+      if (RULES.freeAsk) throw new Error("Asking is a free move, on top of your action");
+      askQuestion(s, me, s.players[a.target], a.question);
       break;
-    }
     case "hit": {
       if (plain(me).length < RULES.hit) throw new Error("not enough dice");
       payToBank(s, me, RULES.hit);
@@ -205,6 +206,26 @@ export function freeReroll(s, dieId) {
   const challenger = nextAlive(s, me.i);
   s.pending = { type: "challenge", claimant: me.i, ability: "legal", role: 5, target: null, challenger, picks: { die: dieId }, step: s.step, free: true };
   emit(s, { t: "claim", p: me.i, ability: "legal", role: 5, target: null, challenger, free: true });
+  return s;
+}
+
+/**
+ * A question about one player's whole hand, answered both ways: the asker learns it about them, they learn the
+ * same about the asker.
+ */
+function askQuestion(s, me, them, question) {
+  if (!them || them.out || them === me) throw new Error("choose a player");
+  const q = cleanQuestion(question);
+  const aboutThem = answer(q, them.dice.map(d => d.face)), aboutMe = answer(q, me.dice.map(d => d.face));
+  emit(s, { t: "ask", p: me.i, target: them.i, question: q }, { [me.i]: { answer: aboutThem }, [them.i]: { answer: aboutMe } });
+}
+
+/** The free question (when RULES.freeAsk): once a turn, before your bid. */
+export function freeAsk(s, target, question) {
+  if (!RULES.freeAsk) throw new Error("asking is an action in these rules");
+  if (s.over || s.pending || s.askUsed) throw new Error("One question a turn");
+  askQuestion(s, s.players[s.turn], s.players[target], question);
+  s.askUsed = true;
   return s;
 }
 
@@ -262,11 +283,11 @@ function settleChallenge(s, claimant, challenger, role) {
   const proof = gold(claimant).find(d => d.face === role);
   if (proof) {
     emit(s, { t: "challenge", p: challenger.i, claimant: claimant.i, role, held: true, die: { id: proof.id, face: proof.face } });
-    pay(s, challenger, claimant, RULES.stake);
+    if (RULES.goldStakes) loseGold(s, challenger, "challenge"); else pay(s, challenger, claimant, RULES.challengeStake);
     return true;
   }
   emit(s, { t: "challenge", p: challenger.i, claimant: claimant.i, role, held: false });
-  pay(s, claimant, challenger, RULES.stake);
+  if (RULES.goldStakes) loseGold(s, claimant, "challenge"); else pay(s, claimant, challenger, RULES.bluffStake);
   return false;
 }
 
@@ -281,15 +302,15 @@ function finish(s, c) {
 function power(s, me, c, choice = {}) {
   const them = c.target != null ? s.players[c.target] : null;
   switch (c.ability) {
-    case "bank": {                              // three dice from the bank, face up
+    case "bank": {                              // dice from the bank, face up
       const got = [];
-      for (let k = 0; k < 3 && plain(me).length < RULES.cap; k++) { const d = die(s, "plain", true); me.dice.push(d); got.push({ id: d.id, face: d.face }); }
+      for (let k = 0; k < RULES.banker && plain(me).length < RULES.cap; k++) { const d = die(s, "plain", true); me.dice.push(d); got.push({ id: d.id, face: d.face }); }
       emit(s, { t: "banker", p: me.i, dice: got });
       break;
     }
-    case "steal": {                             // two of their plain dice come to you, rerolled face up
+    case "steal": {                             // their plain dice come to you, rerolled face up
       const lost = [], got = [];
-      for (let k = 0; k < 2; k++) {
+      for (let k = 0; k < RULES.steal; k++) {
         const pool = plain(them);
         if (!pool.length || plain(me).length >= RULES.cap) break;
         const taken = (k === 0 && pool.find(d => d.id === choice.die)) || pool[Math.floor(s.r() * pool.length)];
@@ -358,6 +379,7 @@ function nextTurn(s) {
   s.turn = nextAlive(s, s.turn);
   s.step = "act";
   s.freeUsed = false;
+  s.askUsed = false;
   s.moves++;
   return s;
 }

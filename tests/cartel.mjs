@@ -11,7 +11,7 @@ for (let g = 0; g < games; g++) {
   const personas = order.slice(0, 4);
   const s = E.newGame(5000 + g, personas.map(p => ({ name: A.PERSONAS[p].name, persona: p })));
   const ais = personas.map((p, i) => new A.Player(i, 4, p, 900 + g * 4 + i));
-  let freeAsked = -1;
+  let freeAsked = -1, askedAt = -1;
   for (let guard = 0; !s.over && guard < 4000; guard++) {
     for (const ai of ais) ai.sync(s, E.seen);
     try {
@@ -21,6 +21,11 @@ for (let g = 0; g < games; g++) {
         freeAsked = s.moves;
         const d = ais[s.turn].free(s);
         if (d != null) E.freeReroll(s, d);
+      }
+      else if (s.step === "act" && !s.askUsed && askedAt !== s.moves) {
+        askedAt = s.moves;
+        const q = ais[s.turn].ask(s);
+        if (q) E.freeAsk(s, q.target, q.question);
       }
       else if (s.step === "act") E.act(s, ais[s.turn].action(s));
       else E.bid(s, ais[s.turn].bid(s));
@@ -56,13 +61,13 @@ if (bad) process.exitCode = 1;
   E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 4 });
   E.respondBlock(s, true);
-  check(plainOf(s.players[0]) === 1 && plainOf(s.players[1]) === 5, "a true block, challenged: the thief pays 2 and steals nothing");
+  check(E.gold(s.players[0]).length === 1 && plainOf(s.players[0]) === 3 && plainOf(s.players[1]) === 3, "a true block, challenged: the thief loses a gold die and steals nothing");
   // a bluffed block, challenged: the blocker pays 2, then the steal goes ahead
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
   E.respond(s, { block: 5 });
   E.respondBlock(s, true);
-  check(plainOf(s.players[1]) === 0 && plainOf(s.players[0]) === 3 + 2 + 1, "a bluffed block, challenged: the blocker pays 2, then the steal takes what's left");
+  check(E.gold(s.players[1]).length === 1 && plainOf(s.players[1]) === 1 && plainOf(s.players[0]) === 5, "a bluffed block, challenged: the blocker loses a gold die, and the steal goes ahead");
   // a block accepted: nothing changes hands
   s = setup([3, 1], [2, 1]);
   E.act(s, { type: "claim", ability: "steal", target: 1 });
@@ -92,10 +97,10 @@ if (bad) process.exitCode = 1;
   check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0, "a sanction blocked by Legal: the 4 dice are gone and nobody loses gold");
   // a bluffed sanction, challenged: no gold lost, and the bluffer pays 2 on top of the 4
   s = setup([2, 1], [2, 2]);
-  for (let k = 0; k < 3; k++) { E.act(s, { type: "take" }); s.turn = 0; s.step = "act"; }   // 6 plain: 4 for the sanction, 2 for the penalty
+  for (let k = 0; k < 3; k++) { E.act(s, { type: "take" }); s.turn = 0; s.step = "act"; }   // 6 plain: 4 for the sanction
   E.act(s, { type: "claim", ability: "sanction", target: 1 });
   E.respond(s, "challenge");
-  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 0 && E.gold(s.players[0]).length === 2, "a bluffed sanction caught: no gold lost, and the bluffer has paid 4 + 2");
+  check(E.gold(s.players[1]).length === 2 && plainOf(s.players[0]) === 2 && E.gold(s.players[0]).length === 1, "a bluffed sanction caught: the target keeps its gold, the bluffer has paid 4 and loses a gold die");
   let blockedWrong = false;
   s = setup([6, 1], [3, 2]);
   E.act(s, { type: "take" }); s.turn = 0; s.step = "act";
@@ -108,6 +113,14 @@ if (bad) process.exitCode = 1;
   let traderBlocked = false;
   try { E.respond(s, { block: 3 }); } catch { traderBlocked = true; }
   check(traderBlocked, "Trader doesn't block a steal");
+  // the free question: answered both ways, once a turn, and the turn's action is still to come
+  s = setup([2, 2, 4, 4, 4], [2, 2, 4, 3, 3]);
+  E.freeAsk(s, 1, { type: "count", f: 4 });
+  const asked = s.events[s.events.length - 1];
+  check(asked.priv[0].answer === 1 && asked.priv[1].answer === 3 && s.step === "act", "a free question: each side learns the other's answer, and the action is still to come");
+  let twice = false;
+  try { E.freeAsk(s, 1, { type: "odd" }); } catch { twice = true; }
+  check(twice, "one free question a turn");
   // Legal's reroll is a free move: the turn stays where it was
   s = setup([5, 1], [2, 1]);
   E.act(s, { type: "take" });
