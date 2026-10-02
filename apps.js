@@ -10,11 +10,17 @@ const GLYPH_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <circle cx="16" cy="4" r="3.6" fill="var(--c1)"/>
   <path d="M14.4 4.1l1.1 1.1 2.1-2.2" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+const DELTA_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <polygon points="10,1.5 17.5,5.8 17.5,14.2 10,18.5 2.5,14.2 2.5,5.8" fill="var(--d-logo-tint)" stroke="var(--d-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M10 5.6 L14.2 13.6 H5.8 Z" fill="none" stroke="var(--ink)" stroke-width="1.7" stroke-linejoin="round"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO,
     blurb: "Sort sixteen clues into four crates and name the country or commodity behind each." },
   { id: "glyph", name: "Glyph", href: "./glyph.html", logo: GLYPH_LOGO,
     blurb: "Fill a small crossword while you work out the secret letter rule of every coloured field." },
+  { id: "delta", name: "Delta", href: "./delta.html", logo: DELTA_LOGO,
+    blurb: "Pair up the numbers with paths whose operations turn one into the other, without cutting each other off." },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

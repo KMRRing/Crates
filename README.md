@@ -49,6 +49,18 @@ Words: SCOWL word lists (sizes 10-20 for our fills, up to 70 with British and Am
 ## Your run on several devices
 Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. Each change also carries the size of the word bank it was made with. A device still on an older version of the app reloads itself onto the new one instead of dealing boards of its own (it couldn't read boards that use newer words), and a device that is only following, untouched, doesn't run the clock or write anything. "Stop syncing on this device" keeps a local copy and lets go of the run.
 
+## Delta
+A field of hexes with gaps. Some hexes hold plain numbers, some hold operations (+4, −2, ×3, ÷2), the rest are blank. Three rules:
+1. Join the numbers in pairs. Drag from a number to draw a path; paths can't cross, share a hex or pass through another number.
+2. Going from one number to the other, each operation on the path changes the value in turn (whole numbers only), and it must arrive exactly at the other number. Which end starts is yours to work out; the game tries both and shows the direction with arrows.
+3. Every operation is used exactly once. Blank hexes are optional.
+
+The running value follows your finger while you draw. Drawing through another path cuts it there; tapping a number removes its path. Easy marks which numbers belong together; on Medium and Hard a clue (two per board) shows one pair.
+
+Boards are built backwards from random paths, then checked by a solver in two stages: first every pairing and share-out of the operations the arithmetic allows, then whether those paths can actually be drawn at the same time. A board is kept only if exactly one can be drawn (the one it was built from) while the arithmetic alone allows others, at least one of them pairing the numbers differently: the "this would work if it didn't cut off that" moments. Easy: two pairs, + and −. Medium: three pairs, adds ×. Hard: a bigger field, adds ÷. `tests/delta.mjs` checks this for every level.
+
+Together: both players draw on one board (`together.js` handles the room side for Delta: joining, seats, moves as transactions, presence).
+
 ## Rooms
 A room is one four-letter code for two people, shared by every game. Once you're in a room you stay in it: tapping the title to switch games carries the room code along, and each game keeps its own progress in the room, so switching back finds everything where you left it. If your partner has another game of the room open, it says so ("Sarah is in Glyph", with a link to join them). A room started in one game gets the other game's side when someone first opens that game in it (Crates starts a Together game). Leave the room (in either game's menu) to go back to solo everywhere.
 

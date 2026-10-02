@@ -20,6 +20,8 @@
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --g-logo-tint: #CFE3F1;   /* Glyph's logo: a single-letter field */
   --g-logo-edge: #2D5E88;
+  --d-logo-tint: #CBE7E4;   /* Delta's logo: a hex with a delta in it */
+  --d-logo-edge: #17807C;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

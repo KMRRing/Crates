@@ -20,8 +20,11 @@
     if (c === undefined) delete o[ks.at(-1)]; else o[ks.at(-1)] = c;
   };
   const watchers = new Set();
+  window.__fakeWatchers = watchers;   // for tests that need to see what's being watched
   const notify = () => { const t = read(); watchers.forEach(w => w.cb(structuredClone(get(t, w.path) ?? null))); };
-  bc.onmessage = notify;
+  // Another tab's write can reach this tab's localStorage a moment after its message does, so look again shortly
+  // after (real Firebase delivers the new value itself, so it has no such gap).
+  bc.onmessage = () => { notify(); setTimeout(notify, 60); setTimeout(notify, 300); };
   const commit = t => { localStorage.setItem(KEY, JSON.stringify(t)); bc.postMessage(1); setTimeout(notify, 0); };
   window.__cratesSync = {
     // one id per tab, kept across page loads in it (like Firebase's anonymous sign-in on one device), so
