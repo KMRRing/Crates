@@ -35,6 +35,8 @@
   --d-logo-edge: #17807C;
   --pt-logo-tint: #CFE6D8;  /* Punt's logo: a betting chip */
   --pt-logo-edge: #2E6B4A;
+  --ct-logo-tint: #F1D7DC;  /* Cartel's logo: a die */
+  --ct-logo-edge: #8E2C3B;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

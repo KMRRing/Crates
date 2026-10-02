@@ -22,6 +22,12 @@ const PUNT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <circle cx="10" cy="10" r="5.2" fill="none" stroke="var(--pt-logo-edge)" stroke-width="1.3" stroke-dasharray="2.2 1.9"/>
   <text x="10" y="13.4" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="9" fill="var(--pt-logo-edge)">P</text></svg>`;
 
+// A die showing five, for Cartel.
+const CARTEL_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="2.2" y="2.2" width="15.6" height="15.6" rx="3.4" fill="var(--ct-logo-tint)" stroke="var(--ct-logo-edge)" stroke-width="1.6"/>
+  <g fill="var(--ct-logo-edge)"><circle cx="6.4" cy="6.4" r="1.35"/><circle cx="13.6" cy="6.4" r="1.35"/><circle cx="10" cy="10" r="1.35"/>
+  <circle cx="6.4" cy="13.6" r="1.35"/><circle cx="13.6" cy="13.6" r="1.35"/></g></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO,
     blurb: "Sort sixteen clues into four crates and name the country or commodity behind each." },
@@ -31,6 +37,8 @@ export const APPS = [
     blurb: "Pair up the numbers with paths whose operations turn one into the other, without cutting each other off." },
   { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO,
     blurb: "Back your knowledge against the house's odds: stake a share of your pot when the price is wrong, or pass." },
+  { id: "cartel", name: "Cartel", href: "./cartel.html", logo: CARTEL_LOGO,
+    blurb: "Bluff with dice: claim roles you may not have, bid on what's under every cup, and buy information with information." },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

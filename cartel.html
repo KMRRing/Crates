@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cartel">
+<title>Cartel</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cartel.css">
+</head>
+<body>
+<div id="app" class="cartel">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon ct-mark" aria-hidden="true"></span>Cartel</button></h1>
+    <div class="top-right">
+      <button id="helpBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <section id="seats" class="ct-seats" aria-label="The other players"></section>
+
+  <div id="bidBar" class="ct-bidbar" aria-live="polite"></div>
+  <ol id="log" class="ct-log" aria-label="What just happened"></ol>
+
+  <section class="ct-me" aria-label="Your dice">
+    <div class="ct-me-head"><b>You</b> <span id="meNote" class="ct-me-note"></span></div>
+    <div id="myDice" class="ct-dice ct-dice-mine"></div>
+    <ul id="notes" class="ct-notes" aria-label="What you know"></ul>
+  </section>
+
+  <section id="controls" class="ct-controls" aria-live="polite"></section>
+</div>
+
+<dialog id="challengeDlg" class="sheet" aria-label="A claim">
+  <p id="challengeText" class="ct-claim"></p>
+  <p id="challengeKnow" class="stats"></p>
+  <div class="ct-two">
+    <button class="btn" type="button" id="allowBtn">Let it go</button>
+    <button class="btn primary" type="button" id="challengeBtn">Challenge</button>
+  </div>
+</dialog>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="historyDlg" class="sheet" aria-label="Everything that happened">
+  <div class="pick-head"><h2>History</h2><button class="btn" type="button" id="historyClose">Close</button></div>
+  <ol id="history" class="ct-history"></ol>
+</dialog>
+
+<dialog id="helpDlg" class="sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="helpClose">Close</button></div>
+  <div class="ct-rules">
+    <p><b>Gold dice</b> are your lives and your roles. <b>Plain dice</b> are your money and your weight in the bidding. Faces: 1 Wild, 2 Trader, 3 Broker, 4 Scout, 5 Enforcer, 6 Insider. Everyone's dice stay hidden until something shows them.</p>
+    <p><b>Your turn:</b> one move, then raise the bid or call it.</p>
+    <p><b>Moves.</b> Take a die from the bank (it lands face up for all to see). Reroll any of your dice, secretly. Ask a player a question: you each learn the answer about the other. Hit: pay 6 dice and they lose a gold die (with 8 plain dice you must). Or claim a role your gold dice show, true or not.</p>
+    <p><b>Roles.</b> Trader takes 3 dice. Broker steals 2. Scout looks at one of a player's dice. Enforcer makes one of theirs reroll. Insider learns how many dice show a face. After using one, a gold die of yours rerolls.</p>
+    <p><b>Challenges.</b> The player a role is aimed at (or the next player) may challenge. A caught bluffer pays 2 dice; a wrong challenger pays 2, and the proof is shown.</p>
+    <p><b>Bids.</b> "At least 6 dice show 4", across every die on the table; 1s are wild. If a call finds the bid holds, the caller pays the bidder 1 die; if not, the bidder pays. You only learn which.</p>
+    <p><b>Out.</b> Can't pay, lose a gold die. No gold dice, you're out. Last one in wins.</p>
+  </div>
+  <button class="btn primary wide" type="button" id="helpGo">Play</button>
+</dialog>
+
+<dialog id="overDlg" class="sheet" aria-label="Game over">
+  <div class="pick-head"><h2 id="overTitle"></h2><button class="btn" type="button" id="overClose">Close</button></div>
+  <p id="overText" class="stats"></p>
+  <button class="btn primary wide" type="button" id="overNew">New game</button>
+</dialog>
+
+<p id="toast" class="ct-toast" role="status" aria-live="polite"></p>
+<script type="module" src="cartel.js"></script>
+</body>
+</html>

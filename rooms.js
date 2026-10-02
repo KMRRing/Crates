@@ -12,6 +12,7 @@ export const GAMES = {
   glyph: { name: "Slate", page: "./slate.html" },    // id kept from its first name, Glyph
   delta: { name: "Delta", page: "./delta.html" },
   punt: { name: "Punt", page: "./punt.html" },
+  cartel: { name: "Cartel", page: "./cartel.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
