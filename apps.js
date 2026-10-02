@@ -2,8 +2,8 @@
 // game carries the room code, so you stay in the same room (rooms.js).
 import { gameHref } from "./rooms.js";
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="0" y="0" width="9" height="9" fill="var(--c0)"/><rect x="11" y="0" width="9" height="9" fill="var(--c1)"/>
-  <rect x="0" y="11" width="9" height="9" fill="var(--c2)"/><rect x="11" y="11" width="9" height="9" fill="var(--c3)"/></svg>`;
+  <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
+  <path d="M2.6 6.6H17.4M2.6 13.4H17.4M5 13.4L15 6.6" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 const GLYPH_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1" y="3" width="15" height="15" rx="3" fill="var(--g-logo-tint)" stroke="var(--g-logo-edge)" stroke-width="1.6"/>
   <text x="8.5" y="15" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="11" fill="var(--ink)">G</text>

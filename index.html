@@ -19,10 +19,7 @@
 <div id="app">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <svg class="mark-icon" viewBox="0 0 20 20" aria-hidden="true">
-        <rect x="0" y="0" width="9" height="9" fill="var(--c0)"/><rect x="11" y="0" width="9" height="9" fill="var(--c1)"/>
-        <rect x="0" y="11" width="9" height="9" fill="var(--c2)"/><rect x="11" y="11" width="9" height="9" fill="var(--c3)"/>
-      </svg>Crates</button>
+      <span class="mark-icon cr-mark" aria-hidden="true"></span>Crates</button>
     </h1>
     <div class="top-right">
       <select id="pool" class="pool" aria-label="Puzzle type">
@@ -30,7 +27,7 @@
         <option value="country">Countries</option>
         <option value="commodity">Commodities</option>
       </select>
-      <button id="menuBtn" class="pick" aria-haspopup="dialog">No. <span id="pNum">1</span></button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
 
@@ -78,7 +75,7 @@
 
 <dialog id="menuDlg" class="sheet">
   <div class="pick-head">
-    <h2>Crates</h2>
+    <h2>Crates <span id="pNum"></span></h2>
     <button id="menuClose" class="btn">Close</button>
   </div>
   <div id="menuBody"></div>

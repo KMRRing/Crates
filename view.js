@@ -1,5 +1,5 @@
 // Everything that touches the page. Controllers hand render() a plain view model.
-import { NOUN, PLURAL, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS, POOL_CATS } from "./core.js";
+import { NOUN, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS, POOL_CATS } from "./core.js";
 
 const $ = id => document.getElementById(id);
 const el = {
@@ -81,7 +81,7 @@ export function render(vm) {
   current = vm;
   document.getElementById("app").classList.toggle("coop", vm.mode === "coop");
 
-  el.pNum.textContent = vm.label;
+  el.pNum.textContent = vm.label && vm.label !== "–" ? `No. ${vm.label}` : "";   // in the menu's title
   renderPool(vm);
   // vm.brief: null = the standard line, "" = none
   el.brief.textContent = vm.brief ?? `Sort the sixteen into four crates and name the ${NOUN[vm.category]} behind each.`;
@@ -118,12 +118,8 @@ export function render(vm) {
   syncNameSheet(vm);
 }
 
+/** The pool menu keeps short labels, like the other games' headers; the line below says which kind this board is. */
 function renderPool(vm) {
-  const labels = { mixed: "Mixed", country: PLURAL.country, commodity: PLURAL.commodity };
-  for (const opt of el.pool.options) {
-    opt.textContent = opt.value === "mixed" && vm.pool === "mixed" && vm.category
-      ? `Mixed: ${PLURAL[vm.category]}` : labels[opt.value];
-  }
   el.pool.value = vm.pool;
 }
 

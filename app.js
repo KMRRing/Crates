@@ -4,7 +4,7 @@
 import { parsePool, POOL_PARAM } from "./core.js";
 import { createSolo } from "./solo.js";
 import { createCoop, MODES } from "./coop.js";
-import { bindSwitcher } from "./apps.js";
+import { bindSwitcher, APPS } from "./apps.js";
 
 function setParam(key, value) {
   const u = new URL(location.href);
@@ -16,6 +16,7 @@ const setRoomParam = code => setParam("room", code);
 const setBoardParam = code => setParam("b", code);
 
 bindSwitcher(document.getElementById("appsBtn"), "crates");
+document.querySelector(".cr-mark").innerHTML = APPS.find(a => a.id === "crates").logo;
 
 const solo = createSolo({ onTogether: (mode, pool, settings) => startTogether(mode, pool, settings), modes: MODES, setPoolParam, setBoardParam });
 const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam, mySettings: () => solo.settings(), myPool: () => solo.pool() });

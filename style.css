@@ -4,8 +4,8 @@
   --yard: #E4E7E7;
   --ink: #1C2A34;
   --ink-soft: #5A6B77;
-  --ply: #EBE1CC;       /* crate: kraft plywood */
-  --ply-ink: #33291A;
+  --tile: #F7F8F7;      /* a tile, as in Glyph and Delta: light, with a quiet edge */
+  --tile-edge: #C9D1D5;
   --c0: #E1AB24;        /* container yellow */
   --c1: #3F7A50;        /* container green  */
   --c2: #2D5E88;        /* container blue   */
@@ -18,6 +18,8 @@
   --p1: #C06A1B;
   --learn: #3F7A50;     /* learning mode accent */
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --cr-logo-tint: #F3E1BA;  /* Crates' logo: a crate */
+  --cr-logo-edge: #A2690F;
   --g-logo-tint: #CFE3F1;   /* Glyph's logo: a single-letter field */
   --g-logo-edge: #2D5E88;
   --d-logo-tint: #CBE7E4;   /* Delta's logo: a hex with a delta in it */
@@ -33,8 +35,8 @@
     --yard: #141B20;
     --ink: #E3E8EB;
     --ink-soft: #93A3AE;
-    --ply: #D6C8A8;
-    --ply-ink: #2A2213;
+    --tile: #1D262D;
+    --tile-edge: #33414B;
     --sheet: #1D262D;
     --focus: #8EB9DE;
     --p0: #6FA3D6;
@@ -58,6 +60,8 @@ button, input { font: inherit; color: inherit; }
   font-size: 1.75rem; font-weight: 800; font-stretch: 100%; letter-spacing: -.02em; line-height: 1;
 }
 .mark-icon { width: 1.35rem; height: 1.35rem; }
+.cr-mark { display: inline-block; }
+.cr-mark svg { width: 100%; height: 100%; display: block; }
 /* The title opens the game switcher. */
 .mark-btn { display: flex; align-items: center; gap: .55rem; background: none; border: 0; padding: 0; margin: 0;
   font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
@@ -120,25 +124,25 @@ button, input { font: inherit; color: inherit; }
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
 .cell { position: relative; aspect-ratio: 1 / var(--tile-ratio); }
 .tile {
-  position: absolute; inset: 0; width: 100%; border: 0; border-radius: 6px; cursor: pointer;
-  background: var(--ply); color: var(--ply-ink);
+  position: absolute; inset: 0; width: 100%; border: 2px solid var(--tile-edge); border-radius: 10px; cursor: pointer;
+  background: var(--tile); color: var(--ink);
   font-weight: 650; font-stretch: 87.5%; font-size: clamp(.8rem, 3.6vw, 1rem); line-height: 1.12;
   padding: .35rem .3rem; overflow-wrap: normal; word-break: normal;
-  transition: background-color .12s ease, color .12s ease, transform .12s ease;
+  transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease, transform .12s ease;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.tile[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+.tile[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
 .tile:active { transform: scale(.97); }
 .grid.shake .tile[aria-pressed="true"] { animation: shake .35s; }
 @keyframes shake { 25% { transform: translateX(-5px);} 75% { transform: translateX(5px);} }
 
 /* Your partner's picks look exactly like yours (no player colours: those read as crate colours).
    Where you both see the same tiles, a small initial says whose pick it is. */
-.cell.psel .tile { background: var(--ink); color: var(--yard); }
+.cell.psel .tile { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
 .ptag {
   position: absolute; left: 5px; bottom: 5px; width: 17px; height: 17px; border-radius: 50%;
   display: grid; place-items: center; font-size: .65rem; font-weight: 800;
-  background: var(--yard); color: var(--ink); pointer-events: none;
+  background: var(--ink); color: var(--yard); pointer-events: none;
 }
 .hint {
   position: absolute; top: 0; right: 0; width: 30px; height: 30px; padding: 0; border: 0;
@@ -148,9 +152,8 @@ button, input { font: inherit; color: inherit; }
 .hint span {
   width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
   font-size: .7rem; font-weight: 800; line-height: 1;
-  background: var(--ply-ink); color: var(--ply);
+  background: var(--ink); color: var(--yard);
 }
-.cell.sel .hint span, .cell.psel .hint span { background: var(--yard); color: var(--ink); }
 .hint.spent span { opacity: .35; }
 /* An opened clue wears its crate's colour; "used" = you opened it and only your partner can read it. */
 /* (.cell raises these above the picked-tile colours, so the crate colour always shows) */
@@ -159,13 +162,13 @@ button, input { font: inherit; color: inherit; }
 .cell .hint.lv2 span { background: var(--c2); color: var(--on-c); }
 .cell .hint.lv3 span { background: var(--c3); color: var(--on-c); }
 .cell .hint[class*="lv"] span { box-shadow: 0 0 0 1.5px var(--yard); }
-.hint.used span { background: none; color: var(--ply-ink); border: 1.5px dashed currentColor; }
+.hint.used span { background: none; color: var(--ink); border: 1.5px dashed currentColor; }
 /* Hidden mode: the sealed tile you've tapped, with a clue on offer. */
 .cell.peek .tile { outline: 2.5px solid var(--ink); outline-offset: -2.5px; }
 
 /* Hidden mode: your partner's tiles are sealed and unlabelled. */
 .tile.sealed {
-  background: repeating-linear-gradient(135deg, var(--ply) 0 8px, color-mix(in srgb, var(--ply) 80%, var(--ply-ink)) 8px 9px);
+  background: repeating-linear-gradient(135deg, var(--tile) 0 8px, var(--tile-edge) 8px 9px);
 }
 
 .clue {
@@ -183,19 +186,19 @@ button, input { font: inherit; color: inherit; }
 /* Closed, a crate is exactly as tall as the row of tiles it replaces; tapped open, it grows. */
 .crate {
   --row-h: calc((100cqw - 3 * var(--gap)) / 4 * var(--tile-ratio));
-  border: 0; border-radius: 6px; width: 100%; text-align: left; cursor: pointer; color: var(--on-c);
+  border: 2px solid; border-radius: 10px; width: 100%; text-align: left; cursor: pointer; color: var(--ink);
   height: var(--row-h); padding: .25rem .75rem; overflow: hidden;
   display: flex; flex-direction: column; justify-content: center; gap: .05rem;
 }
 .crate.open { height: auto; min-height: var(--row-h); justify-content: flex-start; padding-block: .55rem .7rem; }
 .crate-title { display: flex; align-items: baseline; gap: .5rem; min-width: 0; white-space: nowrap; }
-.crate.l0 { background: var(--c0); color: var(--on-c0); }
-.crate.l1 { background: var(--c1); }
-.crate.l2 { background: var(--c2); }
-.crate.l3 { background: var(--c3); }
-.crate.missed { opacity: .7; }
+.crate.l0 { background: color-mix(in srgb, var(--c0) 26%, var(--sheet)); border-color: var(--c0); }
+.crate.l1 { background: color-mix(in srgb, var(--c1) 20%, var(--sheet)); border-color: var(--c1); }
+.crate.l2 { background: color-mix(in srgb, var(--c2) 20%, var(--sheet)); border-color: var(--c2); }
+.crate.l3 { background: color-mix(in srgb, var(--c3) 18%, var(--sheet)); border-color: var(--c3); }
+.crate.missed { border-style: dashed; opacity: .8; }
 .crate-name { font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.15; flex: none; }
-.crate-meta { font-size: .82rem; font-weight: 600; opacity: .8; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.crate-meta { font-size: .82rem; font-weight: 600; color: var(--ink-soft); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* one line, always: the view shrinks the font until the four words fit */
 .crate-words { font-weight: 550; font-stretch: 87.5%; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crate-note { margin: .45rem 0 0; font-size: .93rem; display: none; }
