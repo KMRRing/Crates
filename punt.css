@@ -22,6 +22,9 @@
 
 .pt-ledger { display: flex; justify-content: space-between; align-items: baseline; margin: .9rem 0 .5rem; }
 .pt-progress { color: var(--ink-soft); font-size: .95rem; }
+.pt-avg { margin: -.35rem 0 .4rem; text-align: right; color: var(--ink-soft); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.pt-lengths { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .3rem 0 .4rem; }
+.pt-lengths .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
 .pt-pot { font-size: 1rem; }
 .pt-pot-label { color: var(--ink-soft); }
 .pt-pot b { font-size: 1.7rem; font-weight: 800; font-stretch: 112%; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }

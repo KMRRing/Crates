@@ -37,6 +37,7 @@
     <span id="progress" class="pt-progress"></span>
     <span class="pt-pot"><span class="pt-pot-label">Pot</span> <b id="pot"></b></span>
   </div>
+  <p id="avg" class="pt-avg" hidden></p>
 
   <section id="slip" class="pt-slip" aria-live="polite">
     <p id="ask" class="pt-ask"></p>
@@ -76,7 +77,7 @@
     <li>The house offers odds on you getting it right. Pick an option and stake a share of your pot: a right pick pays your stake times the odds, a wrong one loses it. Or pass.</li>
     <li>The house prices each question from how hard its clue usually is, but its prices stray: sometimes it pays far too much, sometimes far too little. Bet big when you're sure and the price is generous; pass when it isn't worth it.</li>
   </ol>
-  <p class="stats">You start with 1,000. Your pot after the last question is your score. On Easy the house is sloppy and makes more mistakes; on Hard it's sharp and the options are many.</p>
+  <p class="stats">You start with 1,000. Runs are a standard length, 100 questions or endless; the measure that compares them is your average return a question, compounded: the steady rate that would have turned 1,000 into your pot. Every run gets the same spread of generous and stingy prices, shuffled, so luck with the house evens out and the average reflects your calls. On Easy the house is sloppy and makes more mistakes; on Hard it's sharp and there are four options.</p>
   <button class="btn primary wide" type="button" id="helpGo">Play</button>
 </dialog>
 

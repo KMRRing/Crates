@@ -26,5 +26,23 @@ for (const lvl of Object.keys(P.LEVELS)) {
   oddsSeen.sort((a, b) => a - b);
   console.log(`${lvl}: ${total} questions, ${multi} with several right answers, house overpays on ${Math.round(100 * overpaid / total)}%, odds ${oddsSeen[0]}× to ${oddsSeen[oddsSeen.length - 1]}× (median ${oddsSeen[oddsSeen.length >> 1]}×)`);
 }
+// runs must be comparable: a typical player's average value from the house's prices is the same in every run
+for (const lvl of Object.keys(P.LEVELS)) {
+  const target = 1 - P.LEVELS[lvl].margin;
+  for (let seed = 1; seed <= 10; seed++) {
+    let qs = P.makeSession(seed * 104729, lvl, "hundred");
+    const runValue = qs.reduce((t, q) => t + q.chance * q.offered, 0) / qs.length;
+    if (qs.length !== 100 || Math.abs(runValue - target) > 0.005) { bad++; console.log(`${lvl} 100-question run ${seed}: ${qs.length} questions, value ${runValue.toFixed(3)} (target ${target})`); }
+    qs = P.makeSession(seed, lvl, "endless");
+    for (let k = 0; k < 4; k++) qs = qs.concat(P.moreQuestions(seed, lvl, qs));
+    const batches = [0, 1, 2, 3, 4].map(b => qs.slice(b * P.BATCH, (b + 1) * P.BATCH));
+    for (const batch of batches) {
+      const v = batch.reduce((t, q) => t + q.chance * q.offered, 0) / batch.length;
+      if (Math.abs(v - target) > 0.01) { bad++; console.log(`${lvl} endless batch: value ${v.toFixed(3)} (target ${target})`); }
+    }
+    if (new Set(qs.map(q => q.key)).size !== qs.length) { bad++; console.log(`${lvl} endless run repeats a clue`); }
+  }
+  console.log(`${lvl}: 100-question and endless runs all priced at ${target} to a typical player`);
+}
 console.log(bad ? `${bad} problems` : "all sessions check out");
 if (bad) process.exitCode = 1;

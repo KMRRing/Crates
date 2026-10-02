@@ -2,18 +2,19 @@
 // Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
 // on their own pick, so you can back the same option or hedge against each other. A question settles once
 // everyone at the table has bet or passed.
-import { makeSession, settle, pickedRight, rightCount, LEVELS, START_POT, showOdds, showChips } from "./punt-gen.js";
+import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, LEVELS, LENGTHS, START_POT,
+  showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "punt:solo", SEEN_HELP = "punt:help";
+const STORE = "punt:solo", SEEN_HELP = "punt:help", LENGTH = "punt:length", BEST = "punt:best";
 const APP = 1;
 const ME = "me";                                   // the solo player's seat
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
-// S: { seed, level, questions, index, pot, phase: "bet" | "reveal", bets: { id: { pick, pct } }, log: [result], done }
+// S: { seed, level, length, questions, index, pot, phase: "bet" | "reveal", bets: { id: { pick, pct } }, log: [result], done }
 // A pick is a list of option indices (all of the right ones, when several are), or null for a pass.
 // a result: { index, pot (before), bets, change }
 let S = null;
@@ -27,28 +28,39 @@ const question = () => S.questions[S.index];
 const seated = () => (together.room ? seatsOf(together.room.data).map(([id]) => id) : [ME]);
 
 // ---------- sessions ----------
-function freshState(level, players = null) {
+/** The run length chosen last (standard, 100 questions or endless), kept for the next run. */
+function chosenLength() { try { const l = localStorage.getItem(LENGTH); return LENGTHS[l] ? l : "standard"; } catch { return "standard"; } }
+const lengthOf = s => (LENGTHS[s?.length] ? s.length : "standard");
+
+function freshState(level, length, players = null) {
   const seed = randomSeed();
-  return { v: 1, app: APP, seed, level, questions: makeSession(seed, level), index: 0, pot: START_POT, phase: "bet",
+  return { v: 1, app: APP, seed, level, length, questions: makeSession(seed, level, length), index: 0, pot: START_POT, phase: "bet",
     bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
 }
 function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.questions?.length ? s : null; } catch { return null; } }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
-function soloSession(seed, level) {
-  S = { v: 1, seed, level, questions: makeSession(seed, level), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
+function soloSession(seed, level, length = chosenLength()) {
+  S = { v: 1, seed, level, length, questions: makeSession(seed, level, length), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
   resetChoice();
   shownDone = null;
   saveSolo();
-  history.replaceState(null, "", `#s=${seed}&d=${level}`);
+  history.replaceState(null, "", `#s=${seed}&d=${level}${length === "standard" ? "" : `&n=${length}`}`);
   render();
 }
 
-function newSession(level = S.level) {
-  if (S && !S.done && S.index > 0 && !confirm("Start a new session? This one isn't finished.")) { render(); return; }
-  if (!together.room) { soloSession(randomSeed(), level); return; }
-  const next = freshState(level);
-  together.act(g => { Object.assign(g, { seed: next.seed, level, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
+function newSession(level = S.level, length = chosenLength()) {
+  if (S && !S.done && S.index > 0 && !confirm("Start a new run? This one isn't finished.")) { render(); return; }
+  try { localStorage.setItem(LENGTH, length); } catch { /* private mode */ }
+  if (!together.room) { soloSession(randomSeed(), level, length); return; }
+  const next = freshState(level, length);
+  together.act(g => { Object.assign(g, { seed: next.seed, level, length, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
+}
+
+/** Ends an endless run where it stands, to see how it went. */
+function endRun() {
+  if (S.done || !S.log.length) return;
+  change(g => { if (g.done) return false; g.done = { at: Date.now(), ended: true }; });
 }
 
 const resetChoice = () => { pick = []; pct = 0; };
@@ -115,7 +127,9 @@ function next() {
   const index = S.index;
   change(g => {
     if (g.phase !== "reveal" || g.index !== index) return false;
-    if (g.index + 1 >= g.questions.length || g.pot <= 0) { g.done = { at: Date.now() }; return; }
+    g.questions = Object.values(g.questions);
+    if (g.pot <= 0 || (lengthOf(g) !== "endless" && g.index + 1 >= g.questions.length)) { g.done = { at: Date.now() }; return; }
+    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions));
     g.index++;
     g.phase = "bet";
   }).then(() => resetChoice());
@@ -129,7 +143,10 @@ function render() {
   const q = question() || S.questions[S.questions.length - 1];
   const last = S.log[S.log.length - 1];
   const reveal = S.phase === "reveal" || S.done;
-  $("progress").textContent = `Question ${Math.min(S.index + 1, S.questions.length)} of ${S.questions.length}`;
+  $("progress").textContent = lengthOf(S) === "endless" ? `Question ${S.index + 1}` : `Question ${Math.min(S.index + 1, S.questions.length)} of ${S.questions.length}`;
+  const avg = averageReturn(S.log);
+  $("avg").hidden = avg === null;
+  if (avg !== null) $("avg").textContent = `Average ${showReturn(avg)} a question over ${S.log.length}`;
   const pot = $("pot");
   pot.textContent = showChips(S.pot);
   pot.className = reveal && last ? (last.change > 0 ? "up" : last.change < 0 ? "down" : "") : "";
@@ -211,14 +228,16 @@ function drawResult(q, last) {
   const verdict = q.offered > q.fair ? "more than it was worth" : q.offered < q.fair ? "less than it was worth" : "about what it was worth";
   $("house").textContent = `The house put a typical player's chance at ${Math.round(q.chance * 100)}%, a fair price of ${showOdds(q.fair)}. It paid ${showOdds(q.offered)}: ${verdict}.`;
   $("nextBtn").hidden = !!S.done;
-  $("nextBtn").textContent = S.index + 1 >= S.questions.length || S.pot <= 0 ? "See how you did" : "Next question";
+  $("nextBtn").textContent = S.pot <= 0 || (lengthOf(S) !== "endless" && S.index + 1 >= S.questions.length) ? "See how you did" : "Next question";
 }
 
 function showDone() {
   const bets = S.log.flatMap(r => Object.entries(r.bets).filter(([id, b]) => id === me() && b.pick != null).map(([, b]) => b));
   const won = bets.filter(b => b.change > 0).length;
   $("doneTitle").textContent = S.pot <= 0 ? "Bust" : S.pot > START_POT ? "Up on the house" : S.pot < START_POT ? "Down on the day" : "Level";
-  const stats = [["Final pot", showChips(S.pot)], ["Growth", `${(S.pot / START_POT).toFixed(2)}×`], ["Bets won", `${won} of ${bets.length}`]];
+  const avg = averageReturn(S.log) ?? 0;
+  const stats = [["Final pot", showChips(S.pot)], ["A question", showReturn(avg)], ["Bets won", `${won} of ${bets.length}`]];
+  const best = recordBest(avg);
   $("doneStats").replaceChildren(...stats.map(([label, value]) => {
     const box = document.createElement("div"), dd = document.createElement("dd"), dt = document.createElement("dt");
     dd.textContent = value; dt.textContent = label;
@@ -226,8 +245,23 @@ function showDone() {
     return box;
   }));
   const passes = S.log.filter(r => r.bets[me()]?.pick == null).length;
-  $("doneNote").textContent = `${passes} pass${passes === 1 ? "" : "es"}. The same session for anyone with the link: ${location.origin}${location.pathname}#s=${S.seed}&d=${S.level}`;
+  const what = `${LEVELS[S.level].label}, ${LENGTHS[lengthOf(S)].label.toLowerCase()}`;
+  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}, ${passes} pass${passes === 1 ? "" : "es"}. ` +
+    `Your best average on ${what}: ${showReturn(best)} a question. The same run for anyone with the link: ` +
+    `${location.origin}${location.pathname}#s=${S.seed}&d=${S.level}${lengthOf(S) === "standard" ? "" : `&n=${lengthOf(S)}`}`;
   if (!$("doneDlg").open) $("doneDlg").showModal();
+}
+
+/** Keeps the best average return per question for each level and length (runs of at least ten questions). */
+function recordBest(avg) {
+  const key = `${S.level}/${lengthOf(S)}`;
+  let all = {};
+  try { all = JSON.parse(localStorage.getItem(BEST)) || {}; } catch { /* private mode */ }
+  if (S.log.length >= 10 && (all[key] == null || avg > all[key])) {
+    all[key] = avg;
+    try { localStorage.setItem(BEST, JSON.stringify(all)); } catch { /* private mode */ }
+  }
+  return all[key] ?? avg;
 }
 
 // ---------- together ----------
@@ -271,10 +305,10 @@ const together = createTogether({
   toast,
   askName,
   valid: g => !!g?.questions,
-  fresh: players => freshState(S?.level || "medium", players),
+  fresh: players => freshState(S?.level || "medium", chosenLength(), players),
   onState: val => {
     const moved = !S || S.seed !== val.seed || S.index !== val.index || S.phase !== val.phase;
-    S = { ...val, bets: val.bets || {}, log: Object.values(val.log || {}) };
+    S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: Object.values(val.log || {}) };
     if (moved) resetChoice();
     if (moved && !val.done) shownDone = null;
     render();
@@ -299,7 +333,19 @@ function drawMenu() {
   body.innerHTML = "";
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  button("New session", () => newSession());
+  add("h3", null, "Run length");
+  const lengths = add("div", "pt-lengths");
+  for (const [id, L] of Object.entries(LENGTHS)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn";
+    b.textContent = id === "standard" ? `Standard (${LEVELS[S.level].questions})` : id === "hundred" ? "100" : L.label;
+    b.setAttribute("aria-pressed", String(lengthOf(S) === id));
+    b.addEventListener("click", () => { $("menuDlg").close(); newSession(S.level, id); });
+    lengths.appendChild(b);
+  }
+  button("New run", () => newSession(S.level, lengthOf(S)));
+  if (lengthOf(S) === "endless" && !S.done && S.log.length) button("End this run", endRun);
   button("How to play", () => $("helpDlg").showModal());
   const room = together.room;
   if (!room) {
@@ -336,8 +382,8 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("helpClose").addEventListener("click", () => $("helpDlg").close());
 $("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
-$("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession(); });
-$("level").addEventListener("change", e => newSession(e.target.value));
+$("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession(S.level, lengthOf(S)); });
+$("level").addEventListener("change", e => newSession(e.target.value, lengthOf(S)));
 $("stake").addEventListener("input", e => { pct = Number(e.target.value); render(); });
 $("passBtn").addEventListener("click", () => place(true));
 $("betBtn").addEventListener("click", () => place(false));
@@ -346,7 +392,8 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) toge
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 window.addEventListener("hashchange", () => {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
-  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level)) soloSession(seed, level);
+  const length = LENGTHS[h.get("n")] ? h.get("n") : "standard";
+  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level && lengthOf(S) === length)) soloSession(seed, level, length);
 });
 
 // for tests and debugging
@@ -356,9 +403,13 @@ window.__punt = { get state() { return S; }, get together() { return together; }
 const hash = new URLSearchParams(location.hash.slice(1));
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
-const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
-if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) soloSession(linked, linkedLevel);
-else if (!S) soloSession(randomSeed(), "easy");
-else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); render(); }
+const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard";
+if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength);
+else if (!S) soloSession(randomSeed(), "easy", "standard");
+else {
+  shownDone = S.done ? JSON.stringify(S.done) : null;
+  history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}${lengthOf(S) === "standard" ? "" : `&n=${lengthOf(S)}`}`);
+  render();
+}
 if (!localStorage.getItem(SEEN_HELP) && !code) { $("helpDlg").showModal(); try { localStorage.setItem(SEEN_HELP, "1"); } catch { /* private mode */ } }
 if (code.length === 4) together.join(code);
