@@ -6,6 +6,7 @@ import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageRet
   showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);

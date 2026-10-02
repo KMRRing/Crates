@@ -3,6 +3,7 @@
 import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 
 const $ = id => document.getElementById(id);
@@ -126,14 +127,12 @@ async function act(change) {
 // Bumped when together games change shape, so a device still running older code reloads instead of mangling them.
 const APP = 3;
 
-/** Another device runs newer code: fetch the new files past the browser cache and reload, once per session. */
+/** Another device runs newer code: switch to the newest version, once per session. */
 async function updateApp() {
   try { if (sessionStorage.getItem("slate:updated")) { toast("Your partner has a newer version: close and reopen Slate"); return; }
     sessionStorage.setItem("slate:updated", "1"); } catch { /* private mode */ }
   toast("Updating to the newest version…");
-  const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));
-  await Promise.all([location.href, ...own].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
-  location.reload();
+  await reloadFresh();
 }
 
 function place() {

@@ -103,6 +103,18 @@ One rule runs through both modes: you never see the result of your own action, y
 - Before the first board you each set up your own side: your preset, difficulty and topics shape only the eight words dealt to you. Which countries and commodities can come up is shared and set by whoever started the game. The board is dealt once you've both pressed Ready.
 - Clues come from the shared pool of four and are spent on tiles that are sealed on your screen: tap one, then its ?. You see that tile's explanation and crate colour (its ? takes the colour); your partner, who can see the word, only sees that a clue was used on it. The rest is up to the two of you.
 
+## Offline, and installing it as an app
+All four games work offline once the site has been opened online once: `sw.js` (a service worker) keeps every file on the device, the font included (it's served from `fonts/`, not Google). Playing together still needs a connection; offline, solo play works fully and Play together says it can't reach the server.
+
+The site installs as an app called Crates, with all four games and the switcher inside:
+- Windows: open it in Edge or Chrome, then the install icon in the address bar (or menu → Apps → Install). It gets its own window and a Start menu icon.
+- iPhone: open it in Safari, Share → Add to Home Screen. (A home-screen app keeps its own saves, separate from Safari's.)
+- Android: Chrome offers Install app.
+
+Updates: a new version is fetched in the background and waits; it takes over when the app goes off screen and the page reloads onto it when it comes back (taking over mid-game could mix old and new code). When a partner's device is already on a newer version, the game switches straight away (`pwa.js`).
+
+After changing any file the games ship, run `node tools/build-sw.mjs` to rewrite `sw.js` with the file list and a content version (`--check` reports whether it's current), or devices won't fetch the change.
+
 ## Links
 - `?cat=countries`, `?cat=commodities` or `?cat=mixed` opens straight into that pool.
 - `?b=CODE` opens one specific board. Shared results include this link.

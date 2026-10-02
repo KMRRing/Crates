@@ -5,6 +5,7 @@ import { parsePool, POOL_PARAM } from "./core.js";
 import { createSolo } from "./solo.js";
 import { createCoop, MODES } from "./coop.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import "./pwa.js";
 
 function setParam(key, value) {
   const u = new URL(location.href);

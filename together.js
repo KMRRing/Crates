@@ -4,6 +4,7 @@
 // and leaving. A game supplies its fresh state and draws whatever state arrives.
 import { getSync } from "./net.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere } from "./rooms.js";
+import { reloadFresh } from "./pwa.js";
 
 /** The seated players in a game's state: [id, player] (leftovers from devices that handed a seat over are skipped). */
 export const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]) => p && p.slot != null);
@@ -143,7 +144,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     }
   }
 
-  /** Another device runs newer code: fetch the new files past the browser cache and reload, once per session. */
+  /** Another device runs newer code: switch to the newest version, once per session. */
   async function updateApp() {
     const flag = `${game}:updated`;
     try {
@@ -151,9 +152,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
       sessionStorage.setItem(flag, "1");
     } catch { /* private mode */ }
     toast("Updating to the newest version…");
-    const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));
-    await Promise.all([location.href, ...own].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
-    location.reload();
+    await reloadFresh();
   }
 
   /** Leaves the room for good (every game). */

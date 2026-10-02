@@ -7,6 +7,7 @@
 // can't read boards dealt from newer words (or runs saved in a newer shape), so instead of dealing boards
 // of its own it fetches the new build and reloads.
 import { getSync } from "./net.js";
+import { reloadFresh } from "./pwa.js";
 
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const CODE_LENGTH = 8;
@@ -50,9 +51,7 @@ export function createRun({ snapshot, adopt, notice, version, app, usable }) {
     }
     try { sessionStorage.setItem(UPDATE_KEY, String(Date.now())); } catch { /* private mode */ }
     notice("Updating to the newest version…");
-    const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));
-    await Promise.all([location.href, ...own].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
-    location.reload();
+    await reloadFresh();
   }
 
   function onRemote(val) {

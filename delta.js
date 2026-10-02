@@ -4,6 +4,7 @@
 import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
