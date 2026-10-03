@@ -76,15 +76,28 @@ button, input { font: inherit; color: inherit; }
 /* The title opens the game switcher. */
 .mark-btn { display: flex; align-items: center; gap: .55rem; background: none; border: 0; padding: 0; margin: 0;
   font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
-.apps-list { list-style: none; padding: 0; margin: .8rem 0 .4rem; display: grid; gap: .5rem; }
-.app-row { display: flex; gap: .85rem; align-items: center; padding: .75rem .8rem; border-radius: 10px;
-  text-decoration: none; color: var(--ink); background: var(--yard); border: 1.5px solid transparent; }
+/* The game switcher: a full screen of games, a tile each, two across on a phone, more on a wider screen. */
+dialog.apps {
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0;
+  box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
+  background: var(--yard); color: var(--ink); overflow-y: auto; overscroll-behavior: contain;
+}
+dialog.apps::backdrop { background: var(--yard); }
+dialog.apps[open] { animation: apps-in .16s ease-out; }
+@keyframes apps-in { from { opacity: 0; transform: scale(.985); } }
+@media (prefers-reduced-motion: reduce) { dialog.apps[open] { animation: none; } }
+.apps-inner { max-width: 46rem; margin: 0 auto; }
+dialog.apps .pick-head h2 { font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
+.apps-list { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .7rem; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); }
+.app-row { display: flex; flex-direction: column; align-items: flex-start; gap: .6rem; height: 100%; box-sizing: border-box; padding: 1rem .95rem;
+  border-radius: 14px; text-decoration: none; color: var(--ink); background: var(--sheet); border: 2px solid transparent; }
 .app-row.cur { border-color: var(--ink); }
-.app-logo { flex: none; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; }
-.app-logo svg { width: 2.2rem; height: 2.2rem; }
-.app-text { display: grid; gap: .1rem; }
-.app-text b { font-size: 1.15rem; font-weight: 800; }
-.app-text span { font-size: .9rem; color: var(--ink-soft); line-height: 1.3; }
+.app-logo { flex: none; width: 3rem; height: 3rem; display: grid; place-items: center; }
+.app-logo svg { width: 2.8rem; height: 2.8rem; }
+.app-text { display: grid; gap: .25rem; }
+.app-text b { font-size: 1.2rem; font-weight: 800; display: flex; align-items: baseline; gap: .45rem; }
+.app-text b small { font-size: .7rem; font-weight: 750; padding: .05rem .4rem; border-radius: 999px; background: var(--ink); color: var(--yard); }
+.app-text span { font-size: .88rem; color: var(--ink-soft); line-height: 1.32; }
 .top-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
 .pool {
   appearance: none; -webkit-appearance: none; min-height: 36px; border: 0; border-radius: 6px; cursor: pointer;

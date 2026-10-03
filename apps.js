@@ -44,14 +44,14 @@ export const APPS = [
 /** Makes the title button open the switcher; current is the id of the game on screen. */
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
-  dlg.className = "sheet apps";
+  // A full screen of games, a tile each (room for six or seven), rather than a sheet from the bottom.
+  dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="pick-head"><h2>Games</h2><button class="btn" type="button" data-close>Close</button></div>
+  dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><button class="btn" type="button" data-close>Close</button></div>
     <ul class="apps-list">${APPS.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}</span><span class="app-text"><b>${a.name}</b><span>${a.blurb}</span></span></a></li>`).join("")}</ul>`;
+      <span class="app-logo">${a.logo}</span><span class="app-text"><b>${a.name}${a.id === current ? '<small>Playing</small>' : ""}</b><span>${a.blurb}</span></span></a></li>`).join("")}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
-  dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });       // tap outside closes
   dlg.querySelectorAll(".app-row.cur").forEach(a => a.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
   APPS.forEach(a => {
     if (a.id === current) return;
