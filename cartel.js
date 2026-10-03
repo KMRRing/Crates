@@ -506,7 +506,7 @@ function drawPanel(panel, add, btn) {
         if (x.cost && myPlain() < x.cost) b.disabled = true;
       }
       const x = ABILITIES[c.ability];
-      add("p", "ct-step", `${x.label}: ${{ bank: "take 3 dice from the bank", steal: "steal 2 dice from a player (they can block it as Trader)", audit: "look at all of a player's dice", inquiry: "the referee tells you how many dice on the table show a face (only a real Regulator gets an answer)", sanction: `pay ${RULES.sanction} dice and a player loses a gold die (they can block it as Legal; the dice are spent either way)` }[c.ability]}. Your gold dice ${mine.includes(x.role) ? "show it" : "don't show it: this is a bluff"}.`, panel);
+      add("p", "ct-step", `${x.label}: ${{ bank: "take 3 dice from the bank", steal: "steal 2 dice from a player (they can block it as Legal)", audit: "look at all of a player's dice", inquiry: "the referee tells you how many dice on the table show a face (only a real Regulator gets an answer)", sanction: `pay ${RULES.sanction} dice and a player loses a gold die (they can block it as Legal; the dice are spent either way)` }[c.ability]}. Your gold dice ${mine.includes(x.role) ? "show it" : "don't show it: this is a bluff"}.`, panel);
       if (x.target) { c.target ??= others()[0]?.i; targets(i => { c.target = i; render(); }, c.target); }
       if (c.ability === "inquiry") {
         const fr = add("div", "ct-row", null, panel);

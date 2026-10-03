@@ -5,20 +5,19 @@
 // 6 Regulator. Only gold dice give powers; every die counts in bids, with Wilds counting as any face.
 //
 // A turn is one action, then a bid; before the bid you also get two free moves, once each: ask a player a question
-// about their hand (answered both ways) and, by claiming Legal, reroll one of your dice. Actions: take a die from
+// about their hand (answered both ways) and, by claiming Wild, reroll one of your dice. Actions: take a die from
 // the bank (it lands face up, for everyone to see), reroll any of your dice (secretly), hit (pay 7 dice so a player
 // loses a gold die), or claim a role one of your gold dice shows (true or not) to use one of its abilities:
 // Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
-// Regulator either learns how many dice on the table show a face (an inquiry: the referee answers only a real
-// Regulator, and nobody else can tell whether there was an answer) or pays 4 dice to sanction a player, who
-// loses a gold die. Legal gives a free move, once a turn and before your bid: reroll one of your
-// dice, say one that just landed face up. A steal can be blocked by claiming Trader, a sanction by claiming
-// Legal. Any claim, blocks included, can be challenged by the player it's aimed at (the next
-// player when it's aimed at no one, the claimant when it's a block). Whoever loses a challenge pays the other
-// 3 dice: a caught bluffer, or a wrong challenger (and the proof is shown). The bid raises the standing "at least N dice show face F" or calls
-// it: the referee says only whether it held, and the loser pays the winner 3 dice. Penalties are paid in plain
-// dice to the winner; if you can't pay in full, you also lose a gold die; with no gold dice left you're out.
-// A player with a full hand of plain dice (8) has to hit. The last player in wins.
+// Regulator either asks the referee how many dice on the table show a face (an inquiry: the referee answers only
+// a real Regulator, and nobody else can tell whether there was an answer) or pays 4 dice to sanction a player,
+// who loses a gold die. Legal blocks steals and sanctions. Any claim, blocks included, can be challenged by the
+// player it's aimed at (the next player when it's aimed at no one, the claimant when it's a block): whoever is
+// wrong pays the other 3 dice (a caught bluffer, or a wrong challenger, and the proof is shown). The bid raises
+// the standing "at least N dice show face F" or calls it: the referee says only whether it held, and the loser
+// pays the winner 3 dice. Penalties are paid in plain dice to the winner; if you can't pay in full, you also lose
+// a gold die; with no gold dice left you're out. A player with a full hand of plain dice (8) has to hit. The last
+// player in wins.
 //
 // The engine holds the truth and records events. Each event says what everyone sees and what only some see, so
 // the table, the log and the AIs each learn exactly what a player at a real table would.
@@ -30,9 +29,9 @@ export const ROLES = { 1: "Wild", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Le
  */
 export const ABILITIES = {
   bank: { role: 2, label: "Banker", says: "takes 3 dice from the bank", target: false },
-  steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [3] },
+  steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [5] },
   audit: { role: 4, label: "Auditor", says: "looks at all the dice of", target: true },
-  reroll: { role: 5, label: "Legal", says: "rerolls one of their dice", target: false, free: true },
+  reroll: { role: 1, label: "Wild", says: "rerolls one of their dice", target: false, free: true },
   inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
   sanction: { role: 6, label: "Regulator: sanction", target: true, blockers: [5],
     get cost() { return RULES.sanction; }, get says() { return `pays ${RULES.sanction} dice to sanction`; } },
@@ -182,7 +181,7 @@ export function act(s, a) {
     case "claim": {
       const x = ABILITIES[a.ability];
       if (!x) throw new Error("no such role");
-      if (x.free) throw new Error("Legal's reroll is a free move, on top of your action");
+      if (x.free) throw new Error("Wild's reroll is a free move, on top of your action");
       if (x.target && (a.target == null || s.players[a.target].out || a.target === me.i)) throw new Error("choose a player");
       if (x.cost && plain(me).length < x.cost) throw new Error(`that costs ${x.cost} dice`);
       const challenger = x.target ? a.target : nextAlive(s, me.i);
@@ -197,7 +196,7 @@ export function act(s, a) {
 }
 
 /**
- * The free move, once a turn and before your bid: claim Legal to reroll one of your dice (say, one that just
+ * The free move, once a turn and before your bid: claim Wild to reroll one of your dice (say, one that just
  * landed face up). The next player may challenge it like any claim.
  */
 export function freeReroll(s, dieId) {
@@ -241,9 +240,9 @@ function cleanQuestion(q) {
 
 /**
  * The entitled player's answer to a pending claim: "challenge", "allow", or (to a steal or sanction aimed at
- * them) a block, { block: role }, claiming a role that blocks it (Trader for a steal, Legal for a sanction). A true claim costs a wrong challenger 2 dice, paid to the
- * claimant, and shows the gold die that proves it; a caught bluff costs the claimant 2 dice, paid to the
- * challenger, and the power doesn't happen. (true and false are accepted for "challenge" and "allow".)
+ * them) a block, { block: role }, claiming a role that blocks it (Legal, for both). A wrong challenger pays the
+ * claimant and the gold die that proves the claim is shown; a caught bluffer pays the challenger and the power
+ * doesn't happen (RULES says how much). true and false are accepted for "challenge" and "allow".
  */
 export function respond(s, decision) {
   const c = s.pending;
@@ -429,5 +428,5 @@ function loseGold(s, p, why) {
     if (left.length === 1) { s.over = { winner: left[0].i }; emit(s, { t: "win", p: left[0].i }); }
   }
 }
-/** How much a gold die is worth keeping: Wild gives no power, so it goes first. */
+/** How much a gold die is worth keeping: Wild's power (a free reroll) is the slightest, so it goes first. */
 const goldWorth = d => (d.face === 1 ? 0 : 1);
