@@ -458,7 +458,7 @@ function renderControls() {
   add("b", null, String(ui.bid.q), step);
   btn("+", () => { if (ui.bid.q < totalDice(g)) { ui.bid.q++; render(); } }, step);
   const mine = g.players[ME].dice.filter(d => d.face === ui.bid.f || d.face === 1).length;
-  add("span", "ct-step", `You hold ${mine} (with wilds)`, step);
+  add("span", "ct-step", `You hold ${mine} (1s count as any face)`, step);
   const two = add("div", "ct-two", null, panel);
   const call = btn(b ? `Call ${b.q} × ${faceLabel(b.f)}` : "Call", () => play(() => bid(g, { call: true })), two);
   call.disabled = !b;

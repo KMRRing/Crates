@@ -1,11 +1,11 @@
 // Cartel's referee: Coup and Liar's Dice built from dice.
 //
 // Everyone has gold dice (their lives and their roles) and plain dice (money and weight in the bidding), all
-// rolled secretly. A face is both a number and a role: 1 Wild, 2 Banker, 3 Trader, 4 Auditor, 5 Legal,
-// 6 Regulator. Only gold dice give powers; every die counts in bids, with Wilds counting as any face.
+// rolled secretly. A face is both a number and a role: 1 Fixer, 2 Banker, 3 Trader, 4 Auditor, 5 Legal,
+// 6 Regulator. Only gold dice give powers; every die counts in bids, with 1s (Fixers) counting as any face.
 //
 // A turn is one action, then a bid; before the bid you also get two free moves, once each: ask a player a question
-// about their hand (answered both ways) and, by claiming Wild, reroll one of your dice. Actions: take a die from
+// about their hand (answered both ways) and, by claiming Fixer, reroll one of your dice. Actions: take a die from
 // the bank (it lands face up, for everyone to see), reroll any of your dice (secretly), hit (pay 7 dice so a player
 // loses a gold die), or claim a role one of your gold dice shows (true or not) to use one of its abilities:
 // Banker takes 3 dice from the bank; Trader steals 2 from a player; Auditor looks at all of a player's dice;
@@ -22,7 +22,7 @@
 // The engine holds the truth and records events. Each event says what everyone sees and what only some see, so
 // the table, the log and the AIs each learn exactly what a player at a real table would.
 
-export const ROLES = { 1: "Wild", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Legal", 6: "Regulator" };
+export const ROLES = { 1: "Fixer", 2: "Banker", 3: "Trader", 4: "Auditor", 5: "Legal", 6: "Regulator" };
 /**
  * What a claimed role lets you do. role: the face the claim is about; target: aimed at a player; free: the free
  * move rather than your action; cost: plain dice paid to the bank on claiming; blockers: roles that block it.
@@ -31,7 +31,7 @@ export const ABILITIES = {
   bank: { role: 2, label: "Banker", says: "takes 3 dice from the bank", target: false },
   steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [5] },
   audit: { role: 4, label: "Auditor", says: "looks at all the dice of", target: true },
-  reroll: { role: 1, label: "Wild", says: "rerolls one of their dice", target: false, free: true },
+  reroll: { role: 1, label: "Fixer", says: "rerolls one of their dice", target: false, free: true },
   inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
   sanction: { role: 6, label: "Regulator: sanction", target: true, blockers: [5],
     get cost() { return RULES.sanction; }, get says() { return `pays ${RULES.sanction} dice to sanction`; } },
@@ -42,7 +42,7 @@ export const ABILITIES = {
 export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, bluffStake: 3, challengeStake: 3, callStake: 3, sanction: 4, banker: 3, steal: 2,
   goldStakes: false, freeAsk: true };
 // Questions about one player's whole hand (gold and plain), answered both ways. A "face" here means the face
-// itself: Wilds count only when the question is about 1s.
+// itself: 1s count only when the question is about 1s.
 export const QUESTIONS = {
   odd: { label: "Is the total odd?", param: null },
   atLeast: { label: "Is the total at least …?", param: "total" },
@@ -181,7 +181,7 @@ export function act(s, a) {
     case "claim": {
       const x = ABILITIES[a.ability];
       if (!x) throw new Error("no such role");
-      if (x.free) throw new Error("Wild's reroll is a free move, on top of your action");
+      if (x.free) throw new Error("The Fixer's reroll is a free move, on top of your action");
       if (x.target && (a.target == null || s.players[a.target].out || a.target === me.i)) throw new Error("choose a player");
       if (x.cost && plain(me).length < x.cost) throw new Error(`that costs ${x.cost} dice`);
       const challenger = x.target ? a.target : nextAlive(s, me.i);
@@ -196,7 +196,7 @@ export function act(s, a) {
 }
 
 /**
- * The free move, once a turn and before your bid: claim Wild to reroll one of your dice (say, one that just
+ * The free move, once a turn and before your bid: claim Fixer to reroll one of your dice (say, one that just
  * landed face up). The next player may challenge it like any claim.
  */
 export function freeReroll(s, dieId) {
@@ -335,7 +335,7 @@ function power(s, me, c, choice = {}) {
       emit(s, { t: "freeReroll", p: me.i, die: d.id }, { [me.i]: { faces: facesOf(me) } });
       break;
     }
-    case "inquiry": {                           // how many dice on the table show a face (Wilds counted)
+    case "inquiry": {                           // how many dice on the table show a face (1s counted)
       // The answer comes from the referee, who knows the truth: a bluffing "Regulator" gets none. To everyone else
       // the event looks the same either way.
       const f = choice.face >= 2 && choice.face <= 6 ? choice.face : (s.bid?.f || 2 + Math.floor(s.r() * 5));
@@ -428,5 +428,5 @@ function loseGold(s, p, why) {
     if (left.length === 1) { s.over = { winner: left[0].i }; emit(s, { t: "win", p: left[0].i }); }
   }
 }
-/** How much a gold die is worth keeping: Wild's power (a free reroll) is the slightest, so it goes first. */
+/** How much a gold die is worth keeping: the Fixer's power (a free reroll) is the slightest, so it goes first. */
 const goldWorth = d => (d.face === 1 ? 0 : 1);

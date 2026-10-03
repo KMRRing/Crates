@@ -136,13 +136,13 @@ if (bad) process.exitCode = 1;
   let twice = false;
   try { E.freeAsk(s, 1, { type: "odd" }); } catch { twice = true; }
   check(twice, "one free question a turn");
-  // Wild's reroll is a free move: the turn stays where it was
+  // the Fixer's reroll is a free move: the turn stays where it was
   s = setup([5, 1], [2, 1]);
   E.act(s, { type: "take" });
   const seenDie = E.plain(s.players[0]).find(d => d.open);
   E.freeReroll(s, seenDie.id);
   E.respond(s, "allow");
-  check(s.step === "bid" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === seenDie.id).open, "Wild's free reroll hides a face-up die and the turn carries on to the bid");
+  check(s.step === "bid" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === seenDie.id).open, "the Fixer's free reroll hides a face-up die and the turn carries on to the bid");
   let refused = false;
   try { E.freeReroll(s, seenDie.id); } catch { refused = true; }
   check(refused, "the free reroll only once a turn");
