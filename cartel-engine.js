@@ -32,7 +32,7 @@ export const ABILITIES = {
   bank: { role: 2, label: "Banker", says: "takes 3 dice from the bank", target: false },
   steal: { role: 3, label: "Trader", says: "steals 2 dice from", target: true, blockers: [3] },
   audit: { role: 4, label: "Auditor", says: "looks at all the dice of", target: true },
-  legal: { role: 5, label: "Legal", says: "rerolls one of their dice", target: false, free: true },
+  reroll: { role: 5, label: "Legal", says: "rerolls one of their dice", target: false, free: true },
   inquiry: { role: 6, label: "Regulator: inquiry", says: "learns how many dice show a face", target: false },
   sanction: { role: 6, label: "Regulator: sanction", target: true, blockers: [5],
     get cost() { return RULES.sanction; }, get says() { return `pays ${RULES.sanction} dice to sanction`; } },
@@ -206,8 +206,9 @@ export function freeReroll(s, dieId) {
   if (!me.dice.some(d => d.id === dieId)) throw new Error("choose one of your dice");
   s.freeUsed = true;
   const challenger = nextAlive(s, me.i);
-  s.pending = { type: "challenge", claimant: me.i, ability: "legal", role: 5, target: null, challenger, picks: { die: dieId }, step: s.step, free: true };
-  emit(s, { t: "claim", p: me.i, ability: "legal", role: 5, target: null, challenger, free: true });
+  const role = ABILITIES.reroll.role;
+  s.pending = { type: "challenge", claimant: me.i, ability: "reroll", role, target: null, challenger, picks: { die: dieId }, step: s.step, free: true };
+  emit(s, { t: "claim", p: me.i, ability: "reroll", role, target: null, challenger, free: true });
   return s;
 }
 
@@ -328,11 +329,11 @@ function power(s, me, c, choice = {}) {
     case "audit":                               // every die of theirs, shown to you alone
       emit(s, { t: "audit", p: me.i, target: them.i }, { [me.i]: { faces: facesOf(them) } });
       break;
-    case "legal": {                             // one of your dice rerolled, secretly
+    case "reroll": {                            // one of your dice rerolled, secretly
       const d = me.dice.find(x => x.id === choice.die) || me.dice[0];
       d.face = roll(s.r);
       d.open = false;
-      emit(s, { t: "legal", p: me.i, die: d.id }, { [me.i]: { faces: facesOf(me) } });
+      emit(s, { t: "freeReroll", p: me.i, die: d.id }, { [me.i]: { faces: facesOf(me) } });
       break;
     }
     case "inquiry": {                           // how many dice on the table show a face (Wilds counted)

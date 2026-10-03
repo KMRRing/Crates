@@ -102,7 +102,7 @@ export class Mind {
         this.drop(e.target, [].concat(e.lost));
         this.add(e.p, e.dice.map(d => ({ ...d, kind: "plain" })), "public");
         break;
-      case "reroll": case "legal": {
+      case "reroll": case "freeReroll": {
         const ids = e.dice || [e.die];
         this.forget(e.p, ids);
         this.changed(e.p);
@@ -349,9 +349,9 @@ export class Player {
     if (!seen.length) return null;
     const f = game.bid?.f;
     const worst = [...seen].sort((x, y) => worth(y, f) - worth(x, f))[0];
-    const has = me.dice.some(d => d.kind === "gold" && d.face === 5);
+    const has = me.dice.some(d => d.kind === "gold" && d.face === ABILITIES.reroll.role);
     const challenger = nextSeat(game, this.seat);
-    const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, 5);
+    const believable = chanceHolds(this.publicMind.sample(this.r, 80), this.seat, ABILITIES.reroll.role);
     const pc = Math.min(0.95, m.challengeRate(challenger) * (1.3 - believable));
     const value = 0.35 + 0.25 * seen.length + worth(worst, f);
     const u = has ? value : (1 - pc) * value - pc * caughtCost(me) + P.bluffBias;
@@ -465,7 +465,7 @@ function lossFrom(ability, me, aimedAtMe) {
     case "bank": return 0.5;
     case "audit": return aimedAtMe ? 0.6 : 0.2;
     case "inquiry": return 0.5;
-    case "legal": return 0.3;
+    case "reroll": return 0.3;
     default: return 0.4;
   }
 }

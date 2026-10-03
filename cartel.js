@@ -295,7 +295,7 @@ function renderMine() {
   plaque.append(b, t);
   // dice that just changed under you shake once
   const last = g.events[g.events.length - 1];
-  const shaken = last && (last.t === "reroll" || last.t === "legal") && last.p === ME && shookAt < last.n
+  const shaken = last && (last.t === "reroll" || last.t === "freeReroll") && last.p === ME && shookAt < last.n
     ? new Set([].concat(last.dice || last.die)) : new Set();
   if (shaken.size) shookAt = last.n;
   const picking = ui.panel === "reroll" || ui.panel === "free";
@@ -339,7 +339,7 @@ function line(e) {
     case "banker": return `${n(x.p)} ${verb(x.p, "take")} ${x.dice.length} dice from the bank: ${x.dice.map(d => d.face).join(", ")}.`;
     case "trader": return x.none ? `${n(x.p)} ${verb(x.p, "get")} nothing.` : `${n(x.p)} ${verb(x.p, "steal")} ${x.lost.length} from ${x.target === ME ? "you" : n(x.target)}.`;
     case "audit": return `${n(x.p)} ${verb(x.p, "look")} at all of ${x.target === ME ? "your" : `${n(x.target)}'s`} dice${x.faces ? `: ${Object.values(x.faces).join(", ")}` : ""}.`;
-    case "legal": return `${n(x.p)} ${verb(x.p, "reroll")} a die.`;
+    case "freeReroll": return `${n(x.p)} ${verb(x.p, "reroll")} a die.`;
     case "inquiry": return x.unanswered
       ? `The referee doesn't answer: your gold dice don't show a Regulator.`
       : `${n(x.p)} ${verb(x.p, "ask")} the referee how many ${faceLabel(x.face)} are out${x.count != null ? `: ${x.count}` : ""}.`;
@@ -357,7 +357,7 @@ function purpose(e) {
   const t = e.target === ME ? "you" : e.target != null ? name(e.target) : "";
   return {
     bank: "take 3 dice from the bank", steal: `steal 2 dice from ${t}`, audit: `look at all of ${e.target === ME ? "your" : `${t}'s`} dice`,
-    legal: "reroll one of their dice (a free move)", inquiry: "count a face on the table", sanction: `sanction ${t}, paying ${RULES.sanction} dice`,
+    reroll: "reroll one of their dice (a free move)", inquiry: "count a face on the table", sanction: `sanction ${t}, paying ${RULES.sanction} dice`,
   }[e.ability];
 }
 const questionText = q => ({ odd: "is the total odd?", atLeast: `is the total at least ${q.n}?`, any: `any ${faceLabel(q.f)}?`, count: `how many ${faceLabel(q.f)}?` }[q.type]);
@@ -403,14 +403,15 @@ function renderControls() {
   if (!g.freeUsed || !g.askUsed) {
     const free = add("div", "ct-row");
     if (!g.askUsed) btn("Ask (free)", () => { ui.panel = ui.panel === "ask" ? null : "ask"; render(); }, free, "btn", ui.panel === "ask");
-    if (!g.freeUsed) btn(ui.panel === "free" ? "Legal: tap a die" : "Legal: free reroll", () => { ui.panel = ui.panel === "free" ? null : "free"; ui.free = null; render(); }, free, "btn", ui.panel === "free");
+    if (!g.freeUsed) btn(ui.panel === "free" ? `${ROLES[ABILITIES.reroll.role]}: tap a die` : `${ROLES[ABILITIES.reroll.role]}: free reroll`, () => { ui.panel = ui.panel === "free" ? null : "free"; ui.free = null; render(); }, free, "btn", ui.panel === "free");
     if (ui.panel === "ask" && !g.askUsed) {
       drawPanel(add("div", "ct-panel"), add, btn);
       if (g.step === "bid") return;
     }
     if (ui.panel === "free" && !g.freeUsed) {
       const panel = add("div", "ct-panel");
-      add("p", "ct-step", `Claim Legal to reroll one of your dice, secretly: say, one that landed face up. ${g.players[ME].dice.some(d => d.kind === "gold" && d.face === 5) ? "Your gold dice show it." : "Your gold dice don't show it: this is a bluff."} ${name(nextAfter(ME))} may challenge.`, panel);
+      const rr = ABILITIES.reroll;
+      add("p", "ct-step", `Claim ${ROLES[rr.role]} to reroll one of your dice, secretly: say, one that landed face up. ${g.players[ME].dice.some(d => d.kind === "gold" && d.face === rr.role) ? "Your gold dice show it." : "Your gold dice don't show it: this is a bluff."} ${name(nextAfter(ME))} may challenge.`, panel);
       const go = btn(ui.free != null ? "Reroll that die" : "Tap one of your dice", () => play(() => freeReroll(g, ui.free)), panel, "btn primary");
       go.disabled = ui.free == null;
       if (g.step === "bid") return;
