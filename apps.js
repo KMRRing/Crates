@@ -29,27 +29,22 @@ const CARTEL_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <circle cx="6.4" cy="13.6" r="1.35"/><circle cx="13.6" cy="13.6" r="1.35"/></g></svg>`;
 
 export const APPS = [
-  { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO,
-    blurb: "Sort sixteen clues into four crates and name the country or commodity behind each." },
-  { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO,
-    blurb: "Fill a small crossword while you work out the secret letter rule of every coloured field." },
-  { id: "delta", name: "Delta", href: "./delta.html", logo: DELTA_LOGO,
-    blurb: "Pair up the numbers with paths whose operations turn one into the other, without cutting each other off." },
-  { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO,
-    blurb: "Back your knowledge against the house's odds: stake a share of your pot when the price is wrong, or pass." },
-  { id: "cartel", name: "Cartel", href: "./cartel.html", logo: CARTEL_LOGO,
-    blurb: "Bluff with dice: claim roles you may not have, bid on what's under every cup, and buy information with information." },
+  { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
+  { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
+  { id: "delta", name: "Delta", href: "./delta.html", logo: DELTA_LOGO },
+  { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO },
+  { id: "cartel", name: "Cartel", href: "./cartel.html", logo: CARTEL_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
-  // A full screen of games, a tile each (room for six or seven), rather than a sheet from the bottom.
+  // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
   dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><button class="btn" type="button" data-close>Close</button></div>
     <ul class="apps-list">${APPS.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}</span><span class="app-text"><b>${a.name}${a.id === current ? '<small>Playing</small>' : ""}</b><span>${a.blurb}</span></span></a></li>`).join("")}</ul></div>`;
+      <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}</a></li>`).join("")}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
   dlg.querySelectorAll(".app-row.cur").forEach(a => a.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
