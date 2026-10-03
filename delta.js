@@ -8,7 +8,7 @@ import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "delta:solo", SEEN_HELP = "delta:help", SPARES = "delta:spares";
+const STORE = "delta:solo", SPARES = "delta:spares";
 const APP = 1;                                       // together games: bumped when their shape changes
 const COLOURS = 6;                                   // path colours (--d-p0…)
 const SQ3 = Math.sqrt(3);
@@ -485,7 +485,6 @@ function drawMenu() {
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
   button("New board", () => newBoard());
-  button("How to play", () => $("helpDlg").showModal());
   if (!S.done) button("Show the solution", giveUp);
   const room = together.room;
   if (!room) {
@@ -557,8 +556,6 @@ async function joinRoom(code) {
 bindSwitcher($("appsBtn"), "delta");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("helpClose").addEventListener("click", () => $("helpDlg").close());
-$("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newBoard(); });
 $("clueBtn").addEventListener("click", clue);
@@ -586,6 +583,5 @@ const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
 if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
 else if (!S) await soloBoard(null, "easy");
 else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level); }
-if (!localStorage.getItem(SEEN_HELP) && !code) { $("helpDlg").showModal(); try { localStorage.setItem(SEEN_HELP, "1"); } catch { /* private mode */ } }
 if (code.length === 4) joinRoom(code);
 

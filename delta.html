@@ -44,17 +44,6 @@
   <div id="menuBody"></div>
 </dialog>
 
-<dialog id="helpDlg" class="sheet" aria-label="How to play">
-  <div class="pick-head"><h2>How to play</h2><button class="btn" type="button" id="helpClose">Close</button></div>
-  <ol class="d-rules">
-    <li>Join the numbers in pairs. Drag from a number to draw a path; paths can't cross, share a hex or pass through another number.</li>
-    <li>A path runs from the number you draw it from: the value starts as that number, every operation on the way changes it in turn (+, −, ×, ÷; values can become fractions, like 5 ÷ 4 = 1¼), and it has to arrive exactly at the other number. Which end to start from is yours to work out.</li>
-    <li>Use every operation exactly once. Blank hexes are optional.</li>
-  </ol>
-  <p class="stats">On Easy and Medium the value runs along the path as you draw, and a finished path shows whether it adds up. On Hard you work the values out yourself, and paths are only marked once every number is joined. A clue shows two numbers that belong together. To remove a path, tap either of its numbers.</p>
-  <button class="btn primary wide" type="button" id="helpGo">Play</button>
-</dialog>
-
 <dialog id="doneDlg" class="sheet" aria-label="Board finished">
   <div class="pick-head"><h2 id="doneTitle"></h2><button class="btn" type="button" id="doneClose">Close</button></div>
   <dl id="doneStats" class="d-stats"></dl>

@@ -11,7 +11,7 @@ import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from 
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "punt:solo", SEEN_HELP = "punt:help", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records";
+const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records";
 const APP = 1;
 const ME = "me";                                   // the solo player's seat
 const randomSeed = () => Math.floor(Math.random() * 1e9);
@@ -512,7 +512,6 @@ function drawMenu() {
   if (lengthOf(S) === "endless" && !S.done && S.log.length) button("End this run", endRun);
   button("Your stats", () => openStats("run"));
   button("Flagged questions", () => openFlags(false));
-  button("How to play", () => $("helpDlg").showModal());
   const room = together.room;
   if (!room) {
     button("Play together", async () => { if (await together.start()) openMenu(); });
@@ -545,8 +544,6 @@ bindSwitcher($("appsBtn"), "punt");
 document.querySelector(".pt-mark").innerHTML = APPS.find(a => a.id === "punt").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("helpClose").addEventListener("click", () => $("helpDlg").close());
-$("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("statsClose").addEventListener("click", () => $("statsDlg").close());
 $("flagBtn").addEventListener("click", openFlag);
@@ -584,5 +581,4 @@ else {
   history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}${lengthOf(S) === "standard" ? "" : `&n=${lengthOf(S)}`}`);
   render();
 }
-if (!localStorage.getItem(SEEN_HELP) && !code) { $("helpDlg").showModal(); try { localStorage.setItem(SEEN_HELP, "1"); } catch { /* private mode */ } }
 if (code.length === 4) together.join(code);

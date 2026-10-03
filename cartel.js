@@ -7,7 +7,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace", SEEN_HELP = "cartel:help";
+const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
 // How the computer players' moves come: each shown for a while, or each held until you tap.
 const PACES = {
   fast: { label: "Fast", ms: 700 },
@@ -716,7 +716,6 @@ $("helpBtn").addEventListener("click", () => $("helpDlg").showModal());
 $("roleClose").addEventListener("click", () => $("roleDlg").close());
 $("roleDlg").addEventListener("click", e => { if (e.target === $("roleDlg")) $("roleDlg").close(); });   // tap outside closes
 $("helpClose").addEventListener("click", () => $("helpDlg").close());
-$("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("historyClose").addEventListener("click", () => $("historyDlg").close());
 $("overClose").addEventListener("click", () => $("overDlg").close());
 $("overNew").addEventListener("click", () => { $("overDlg").close(); startGame(); });
@@ -729,4 +728,3 @@ window.__cartel = { get game() { return g; }, get mind() { return mind; }, get a
 
 g = load();
 if (g && !g.over) { setup(); loop(); } else startGame();
-if (!localStorage.getItem(SEEN_HELP)) { $("helpDlg").showModal(); try { localStorage.setItem(SEEN_HELP, "1"); } catch { /* private mode */ } }
