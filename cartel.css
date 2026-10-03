@@ -127,6 +127,18 @@
 .ct-row { display: flex; flex-wrap: wrap; gap: .35rem; }
 .ct-row .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
 
+/* what a role does: a small card in the middle of the screen */
+dialog.ct-pop { width: min(22rem, calc(100vw - 2rem)); margin: auto; padding: 1.1rem; border: 0; border-radius: 18px;
+  background: var(--sheet); color: var(--ink); box-shadow: 0 12px 40px rgba(0, 0, 0, .3); }
+dialog.ct-pop::backdrop { background: rgba(15, 20, 24, .45); }
+.ct-pop-head { display: flex; align-items: center; gap: .75rem; }
+.ct-pop-head h2 { margin: 0; font-size: 1.35rem; font-weight: 800; }
+.ct-pop-head p { margin: .1rem 0 0; font-size: .85rem; color: var(--ink-soft); }
+.ct-pop-body { margin: .8rem 0 1rem; display: grid; gap: .55rem; }
+.ct-pop-body p { margin: 0; line-height: 1.4; }
+dialog.ct-pop .ct-go { width: 100%; }
+.ct-tappable { cursor: pointer; }
+
 .ct-toast {
   position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%);
   z-index: 20; max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px;

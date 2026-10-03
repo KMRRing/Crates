@@ -183,6 +183,35 @@ function dieSvg({ face, kind, how, seen }, size) {
 }
 const byKind = list => [...list].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "gold" ? -1 : 1));
 
+// ---------- what a role does (tap a gold die) ----------
+const blockedBy = ability => (ABILITIES[ability].blockers || []).map(r => ROLES[r]).join(" or ");
+function roleInfo(face) {
+  const blocks = Object.entries(ABILITIES).filter(([, x]) => x.blockers?.includes(face)).map(([id]) => ({ steal: "steals", sanction: "sanctions" }[id] || id));
+  return {
+    1: [`Counts as any face in bids.`, `Free move, once a turn: reroll one of your dice in secret (say, one that landed face up).`],
+    2: [`Take ${RULES.banker} dice from the bank. They land face up, for everyone to see.`],
+    3: [`Steal ${RULES.steal} plain dice from a player.`, `${blockedBy("steal")} blocks it.`],
+    4: [`The player you pick shows you all their dice; only you see them.`, `Works as a bluff too: they can't check whether you're a real Auditor.`],
+    5: [`Blocks ${blocks.join(" and ")} aimed at you.`],
+    6: [`Inquiry: the referee tells you how many dice on the table show a face. Only a real Regulator gets an answer.`,
+      `Sanction: pay ${RULES.sanction} dice and a player loses a gold die. ${blockedBy("sanction")} blocks it; the dice are spent either way.`],
+  }[face];
+}
+function showRole(face, whose) {
+  const head = $("roleHead");
+  head.replaceChildren(dieSvg({ face, kind: "gold" }, 40));
+  const t = document.createElement("div");
+  const h = document.createElement("h2"), sub = document.createElement("p");
+  h.id = "roleName";
+  h.textContent = ROLES[face];
+  sub.textContent = whose === ME ? "One of your gold dice" : whose != null ? `${name(whose)}'s gold die` : "A gold die";
+  t.append(h, sub);
+  head.appendChild(t);
+  const lines = [...roleInfo(face), "Anyone can claim any role, true or not. If they're challenged, a gold die showing it proves them right."];
+  $("roleBody").replaceChildren(...lines.map((line, k) => { const p = document.createElement("p"); p.textContent = line; if (k === lines.length - 1) p.className = "ct-note"; return p; }));
+  $("roleDlg").showModal();
+}
+
 // ---------- the seats ----------
 // What each player said last, as a bubble at their seat: moves, claims, challenges, bids and calls.
 const BUBBLE = new Set(["pass", "take", "reroll", "ask", "hit", "claim", "challenge", "allow", "block", "blocked", "bid", "call", "loseGold", "out"]);
@@ -228,7 +257,11 @@ function renderSeats() {
     plaque.append(b, t);
     const dice = document.createElement("div");
     dice.className = "ct-dice";
-    dice.append(...byKind(mind.known(p.i)).map(d => dieSvg(d, 20)));
+    dice.append(...byKind(mind.known(p.i)).map(d => {
+      const svg = dieSvg(d, 20);
+      if (d.kind === "gold" && d.face != null) { svg.classList.add("ct-tappable"); svg.addEventListener("click", e => { e.stopPropagation(); showRole(d.face, p.i); }); }
+      return svg;
+    }));
     seat.append(plaque, dice);
     const said = lastSaid(p.i);
     if (said) {
@@ -309,6 +342,7 @@ function renderMine() {
     if (picking) { svg.classList.add("pickable"); if (chosen) svg.classList.add("picked"); }
     fig.appendChild(svg);
     if (d.kind === "gold") { const cap = document.createElement("figcaption"); cap.textContent = ROLES[d.face]; fig.appendChild(cap); }
+    if (!picking && d.kind === "gold") { fig.classList.add("ct-tappable"); fig.addEventListener("click", e => { e.stopPropagation(); showRole(d.face, ME); }); }
     if (picking) fig.addEventListener("click", () => {
       if (ui.panel === "free") ui.free = ui.free === d.id ? null : d.id;
       else if (ui.reroll.has(d.id)) ui.reroll.delete(d.id); else ui.reroll.add(d.id);
@@ -376,7 +410,6 @@ const ICONS = {
   reroll: '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v5h-5"/>',
   claim: '<path d="M12 3.5l2.5 5.1 5.6.8-4 3.9.9 5.6L12 16.3 7 18.9l.9-5.6-4-3.9 5.6-.8z"/>',
   hit: '<circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/>',
-  pass: '<path d="M5 12h13M13 6l6 6-6 6"/>',
 };
 const POWER = {
   bank: "Take 3 from the bank", steal: "Steal 2 from a player", audit: "See all of a player's dice",
@@ -455,12 +488,12 @@ function renderControls() {
   if (ui.panel === "free" && !g.freeUsed) { freePanel(el("div", "ct-panel", tray)); return; }
 
   if (g.step === "act") {
-    const tiles = grid(tray, 5);
+    // no Pass: taking a die is always at least as good, and rerolling a face-up die covers the rest
+    const tiles = grid(tray, 4);
     tiles.classList.add("ct-actions");
-    for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Hit"], ["pass", "Pass"]]) {
+    for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Hit"]]) {
       const t = button("ct-action", tiles, [icon(id), el("span", null, null, text)], () => {
         if (id === "take") play(() => act(g, { type: "take" }));
-        else if (id === "pass") play(() => act(g, { type: "pass" }));
         else toggle(id);
       }, ui.panel === id);
       t.disabled = (forced && id !== "hit") || (id === "take" && myPlain() >= RULES.cap) || (id === "hit" && myPlain() < RULES.hit);
@@ -680,6 +713,8 @@ document.querySelector(".ct-mark").innerHTML = APPS.find(a => a.id === "cartel")
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("helpBtn").addEventListener("click", () => $("helpDlg").showModal());
+$("roleClose").addEventListener("click", () => $("roleDlg").close());
+$("roleDlg").addEventListener("click", e => { if (e.target === $("roleDlg")) $("roleDlg").close(); });   // tap outside closes
 $("helpClose").addEventListener("click", () => $("helpDlg").close());
 $("helpGo").addEventListener("click", () => $("helpDlg").close());
 $("historyClose").addEventListener("click", () => $("historyDlg").close());
