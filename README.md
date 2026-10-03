@@ -130,7 +130,7 @@ The site installs as an app called Crates, with all four games and the switcher 
 - iPhone: open it in Safari, Share → Add to Home Screen. (A home-screen app keeps its own saves, separate from Safari's.)
 - Android: Chrome offers Install app.
 
-Updates: a new version is fetched in the background and waits; it takes over when the app goes off screen and the page reloads onto it when it comes back (taking over mid-game could mix old and new code). When a partner's device is already on a newer version, the game switches straight away (`pwa.js`).
+The games screen (tap a game's name) has an Update button: it checks there's a connection, empties every stored copy of the app and reloads it fresh from the site, keeping saves, stats and settings (offline it changes nothing). Updates otherwise happen by themselves: a new version is fetched in the background and waits; it takes over when the app goes off screen and the page reloads onto it when it comes back (taking over mid-game could mix old and new code). When a partner's device is already on a newer version, the game switches straight away (`pwa.js`).
 
 After changing any file the games ship, run `node tools/build-sw.mjs` to rewrite `sw.js` with the file list and a content version (`--check` reports whether it's current), or devices won't fetch the change.
 

@@ -1,5 +1,7 @@
-// The game switcher: tapping a game's title opens a sheet listing every game in the app. Going to another
-// game carries the room code, so you stay in the same room (rooms.js).
+// The game switcher: tapping a game's title opens a full screen of every game in the app, with an Update button
+// that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
+// room (rooms.js).
+import { hardUpdate } from "./pwa.js";
 import { gameHref } from "./rooms.js";
 // Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
@@ -42,11 +44,21 @@ export function bindSwitcher(button, current) {
   // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><button class="btn" type="button" data-close>Close</button></div>
+  dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><span class="apps-actions">
+      <button class="btn" type="button" data-update title="Load the newest version (keeps your progress)">Update</button>
+      <button class="btn" type="button" data-close>Close</button></span></div>
     <ul class="apps-list">${APPS.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
       <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}</a></li>`).join("")}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
+  const update = dlg.querySelector("[data-update]");
+  update.addEventListener("click", async () => {
+    update.disabled = true;
+    update.textContent = "Updating…";
+    if (await hardUpdate()) return;                    // the page reloads
+    update.textContent = "Offline: try later";
+    setTimeout(() => { update.textContent = "Update"; update.disabled = false; }, 2500);
+  });
   dlg.querySelectorAll(".app-row.cur").forEach(a => a.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
   APPS.forEach(a => {
     if (a.id === current) return;

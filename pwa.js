@@ -38,3 +38,27 @@ export async function reloadFresh() {
   (reg.waiting || next).postMessage("take-over");
   setTimeout(() => location.reload(), 4000);   // in case the switch is never announced
 }
+
+/**
+ * The Update button: throws away every stored copy of the app and loads it fresh from the network. Saves,
+ * stats and settings are kept. Checks the connection first, since without one, emptying the store would leave
+ * no app at all; returns false (and changes nothing) when offline.
+ */
+export async function hardUpdate() {
+  // the device says whether it's offline; sw.js is never stored, so this request also proves the site answers
+  const online = navigator.onLine && await fetch(`./sw.js?check=${Date.now()}`, { cache: "no-store" }).then(r => r.ok, () => false);
+  if (!online) return false;
+  const urls = new Set([location.href.split("#")[0]]);
+  if ("caches" in window) {
+    for (const key of await caches.keys()) {
+      const cache = await caches.open(key);
+      for (const request of await cache.keys()) urls.add(request.url);
+      await caches.delete(key);
+    }
+  }
+  // with the store empty, these go to the network and refresh the browser's own copies on the way
+  await Promise.all([...urls].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
+  for (const reg of (await navigator.serviceWorker?.getRegistrations?.()) || []) await reg.unregister();
+  location.reload();
+  return true;
+}
