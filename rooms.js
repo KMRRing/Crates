@@ -16,6 +16,7 @@ export const GAMES = {
   spot: { name: "Spot", page: "./spot.html" },
   quote: { name: "Quote", page: "./quote.html" },
   manifest: { name: "Manifest", page: "./manifest.html" },
+  chart: { name: "Chart", page: "./chart.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

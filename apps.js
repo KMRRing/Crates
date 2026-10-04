@@ -47,6 +47,12 @@ const MANIFEST_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="5" y="10.5" width="4.3" height="3.6" rx=".8" fill="var(--mf-logo-edge)"/><rect x="10.7" y="10.5" width="4.3" height="3.6" rx=".8" fill="var(--mf-logo-edge)"/>
   <rect x="7.85" y="6" width="4.3" height="3.6" rx=".8" fill="var(--mf-logo-edge)"/></svg>`;
 
+// A map pin, for Chart.
+const CHART_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--ch-logo-tint)" stroke="var(--ch-logo-edge)" stroke-width="1.6"/>
+  <path d="M10 15.5c-2.6-3-3.9-5.1-3.9-6.7a3.9 3.9 0 0 1 7.8 0c0 1.6-1.3 3.7-3.9 6.7z" fill="var(--ch-logo-edge)"/>
+  <circle cx="10" cy="8.7" r="1.5" fill="var(--ch-logo-tint)"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -56,6 +62,7 @@ export const APPS = [
   { id: "spot", name: "Spot", href: "./spot.html", logo: SPOT_LOGO },
   { id: "quote", name: "Quote", href: "./quote.html", logo: QUOTE_LOGO },
   { id: "manifest", name: "Manifest", href: "./manifest.html", logo: MANIFEST_LOGO },
+  { id: "chart", name: "Chart", href: "./chart.html", logo: CHART_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

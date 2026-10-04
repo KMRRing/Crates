@@ -132,6 +132,13 @@ A stack of coloured containers (columns of varying height) shows for a few secon
 
 Questions: how many of a colour, how many on a tier, which colour sits at a marked position (shown on a blank grid), which colour is most common, how many of a colour you could see, which container changed. Answers are number chips (five, the truth among them) or colour swatches. Right answers score 50 plus 25 a round; a wrong one costs a life, three lives. Rounds grow from a 3×2×2 stack with 3 colours for 6.5 s to 5×4×4 with 6 colours for 2.5 s and two questions a round. Random runs or today's run; bests kept; a run resumes at the start of its round, and a stack hidden mid-showing (the app going to the background) is shown again from the start. `manifest-engine.js` makes the rounds and `tests/manifest.mjs` checks them.
 
+## Chart
+Pin a place on the map: a city, a port or chokepoint, a mine or oilfield, a wine village, a museum (or where a painting hangs), a birthplace, a mountain or a strait. Tap the world, and a close-up of ±8° around your tap appears with a 2° graticule; tap it to fine-tune, then pin. The reveal shows the truth, a line to your pin and the distance. Points fall off smoothly with great-circle distance: 1,000 on the spot, about 600 at 1,000 km, 135 at 4,000 km, plus 100 within 100 km. Ten places a set (at most two from a category), random sets or today's set, bests kept, links to a set.
+
+Together: both of you pin the same place in private; when both pins are in, the reveal shows them side by side with each distance and score, and the higher total over the set wins.
+
+The map is drawn on canvas from `world.js`: Natural Earth's land outlines and country borders at 1:110m (public domain, via the world-atlas package), rounded to a tenth of a degree, 96 KB, so it works offline. Mercator clipped at ±78°. `chart-bank.js` holds 415 places with coordinates and a line of context; `chart-engine.js` does distance, scoring, sets and the projection; `tests/chart.mjs` checks them.
+
 ## Rooms
 A room is one four-letter code for two people, shared by every game. Once you're in a room you stay in it: tapping the title to switch games carries the room code along, and each game keeps its own progress in the room, so switching back finds everything where you left it. If your partner has another game of the room open, it says so ("Sarah is in Slate", with a link to join them). A room started in one game gets the other game's side when someone first opens that game in it (Crates starts a Together game). Leave the room (in either game's menu) to go back to solo everywhere.
 

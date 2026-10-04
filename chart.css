@@ -1,0 +1,44 @@
+/* Chart: a map on a card; tap it, fine-tune in the close-up, pin. Sea blue is the house colour. */
+:root { --ch-in: #1F6F9A; --ch-in-soft: #D5E7F1; --ch-sea: #D9E6EC; --ch-land: #EFE9DA; --ch-border: #C9BFA8; --ch-good: #2E9E5B; --ch-bad: #D23B2A; --ch-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { :root { --ch-in: #5FB0DB; --ch-in-soft: #163445; --ch-sea: #15232B; --ch-land: #3A4149; --ch-border: #5A6470; --ch-edge: #33414B; } }
+
+.ch-mark { display: inline-block; }
+.ch-mark svg { width: 100%; height: 100%; display: block; }
+.ch-partner { margin: .5rem 0 0; font-size: .95rem; }
+.ch-partner b { font-weight: 750; }
+.ch-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); }
+.ch-score b { font-size: 1.4rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ch-score.two { display: flex; gap: .8rem; }
+.ch-score.two b { font-size: 1.05rem; }
+
+.ch-card { padding: .9rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .5rem; }
+.ch-cat { justify-self: start; padding: .15rem .6rem; border-radius: 999px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.ch-place { margin: 0; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
+.ch-maps { display: grid; gap: .5rem; }
+.ch-map { width: 100%; display: block; border-radius: 12px; background: var(--ch-sea); touch-action: manipulation; cursor: crosshair; }
+.ch-zoom { border: 2px solid var(--ch-in); box-sizing: border-box; }
+.ch-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
+.ch-actions:has(#backBtn[hidden]) { grid-template-columns: 1fr; }
+.ch-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--ch-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+.ch-go.quiet { background: var(--yard); color: var(--ink); }
+.ch-go:disabled { opacity: .45; cursor: default; }
+.ch-result { display: grid; gap: .5rem; padding-top: .4rem; border-top: 1px solid var(--ch-edge); }
+.ch-result[hidden] { display: none; }
+.ch-verdict { margin: 0; font-size: 1.15rem; font-weight: 800; }
+.ch-verdict.good { color: var(--ch-good); }
+.ch-verdict.bad { color: var(--ch-bad); }
+.ch-note { margin: 0; color: var(--ink-soft); line-height: 1.4; }
+.ch-note:empty { display: none; }
+.ch-big { font-size: 3rem; font-weight: 800; color: var(--ch-in); text-align: center; margin: .2rem 0; letter-spacing: -.02em; }
+.ch-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
+.ch-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.ch-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
+.ch-stats span { font-size: .75rem; color: var(--ink-soft); }
+.ch-lines { margin: .4rem 0; padding: 0; list-style: none; display: grid; gap: .3rem; font-size: .9rem; }
+.ch-lines li { display: flex; justify-content: space-between; gap: .6rem; }
+.ch-lines b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ch-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.ch-toast.show { opacity: 1; }
