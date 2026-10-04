@@ -1,13 +1,15 @@
-// Spot: sums drift down the screen; their answers sit on a shelf among fakes. Tap an answer before its sum runs
-// out. A wrong tap or a sum that runs out costs a life; three lives.
+// Spot: sums fly across the screen.
 //
-// Together, each player sees half the sums, and the answer to every sum sits on the *other* player's shelf: you
-// call out the answers to your sums, and tap the ones your partner calls.
+// Alone, their answers sit on a shelf among fakes: tap an answer before its sum runs out.
 //
-// Everything is worked out from a seed and the taps. The timeline (which sum appears when, with which fakes) comes
-// from the seed alone; what happened (what was cleared, missed or tapped wrongly, where tokens sit on the shelves)
-// is replayed from the taps by play(). Two devices with the same seed and the same taps see the same game, so
-// only taps need sending.
+// Together there's no shelf. Each player sees only their own sums, and most of them come in pairs: a sum on one
+// screen and a different sum with the same result on the other, appearing up to a few seconds apart. You call out
+// what your sums make; your partner taps the sum on their screen that makes the same, now or when it arrives. Some
+// sums have no partner (decoys): tapping one costs a life. A pair that leaves both screens untapped costs a life.
+//
+// Everything is worked out from a seed and the taps. The timeline (which sum appears when, with which fakes or which
+// partner) comes from the seed alone; what happened is replayed from the taps by play(). Two devices with the same
+// seed and the same taps see the same game, so only taps need sending.
 
 export const LIVES = 3;
 export const SHELF = 8;                       // answer slots per player
@@ -52,6 +54,23 @@ function makeSum(r, kind, big) {
     case "mul": { const a = big ? int(r, 3, 12) : int(r, 2, 9), b = big ? int(r, 6, 12) : int(r, 2, 9); return { a, b, text: `${a} × ${b}`, answer: a * b, points: big ? 3 : 2 }; }
     case "div": { const d = big ? int(r, 3, 12) : int(r, 2, 9), q = big ? int(r, 4, 12) : int(r, 2, 10); return { a: d * q, b: d, text: `${d * q} ÷ ${d}`, answer: q, points: big ? 4 : 3 }; }
   }
+}
+
+/** A sum of a kind that makes exactly n, or null if that kind can't (say, a product for a prime). */
+function sumMaking(r, kind, n, big) {
+  switch (kind) {
+    case "add": { if (n < 3) return null; const a = int(r, 1, n - 1); return { text: `${a} + ${n - a}`, answer: n, points: big ? 2 : 1 }; }
+    case "sub": { const b = big ? int(r, 11, 39) : int(r, 2, 12); return { text: `${n + b} − ${b}`, answer: n, points: big ? 2 : 1 }; }
+    case "mul": {
+      const pairs = [];
+      for (let a = 2; a <= 12; a++) if (n % a === 0 && n / a >= 2 && n / a <= 12) pairs.push([a, n / a]);
+      if (!pairs.length) return null;
+      const [a, b] = pairs[Math.floor(r() * pairs.length)];
+      return { text: `${a} × ${b}`, answer: n, points: big ? 3 : 2 };
+    }
+    case "div": { const d = big ? int(r, 3, 12) : int(r, 2, 9); return n <= 15 ? { text: `${n * d} ÷ ${d}`, answer: n, points: big ? 4 : 3 } : null; }
+  }
+  return null;
 }
 
 /**
@@ -103,14 +122,107 @@ export function timeline(seed, seats, t) {
   return tl.sums.filter(s => s.at <= t);
 }
 
+// ---------- the timeline together: pairs and decoys ----------
+const duoTimelines = new Map();
+/**
+ * Together: the run's sums up to time t, each { id, at, life, seat (whose screen), kind, text, answer, points,
+ * pair (the pair's id, or null for a decoy) }. A pair is two different sums with one result, one on each screen,
+ * the second appearing 0.6–4 s after the first. Results never repeat across sums that can be on screen at once, so
+ * a called number always means one thing.
+ */
+export function duoTimeline(seed, t) {
+  let tl = duoTimelines.get(seed);
+  if (!tl) { tl = { r: rng(seed ^ 0x5bd1e995), sums: [], next: 1500, pairs: 0 }; duoTimelines.set(seed, tl); }
+  const window = MAX_LIFE + 4000;
+  while (tl.next <= t + MAX_LIFE + 4000) {
+    const at = tl.next, r = tl.r, tier = tierAt(at);
+    const taken = new Set(tl.sums.filter(s => Math.abs(s.at - at) < window * 1.2).map(s => s.answer));
+    const decoy = r() < 0.3;
+    // a result for this pair (or decoy): one of the kinds the tier allows, not already in play
+    let made = null;
+    for (let tries = 0; tries < 60 && (!made || taken.has(made.answer)); tries++) made = makeSum(r, pickWeighted(r, tier.kinds), tier.big);
+    const n = made.answer;
+    const first = r() < 0.5 ? 0 : 1;
+    const push = (when, seat, s, pair) => tl.sums.push({ id: tl.sums.length, at: when, life: lifetime(when), seat, kind: s.kind, text: s.text, answer: n, points: s.points, pair });
+    if (decoy) push(at, first, { ...made, kind: null }, null);
+    else {
+      // the partner sum: a different way of making the same number, preferably a different kind
+      let other = null;
+      for (let tries = 0; tries < 30 && (!other || other.text === made.text); tries++) other = sumMaking(r, pickWeighted(r, tier.kinds), n, tier.big);
+      if (!other || other.text === made.text) other = { text: `${n + 1} − 1`, answer: n, points: 1 };
+      const pair = tl.pairs++;
+      push(at, first, made, pair);
+      push(at + 600 + r() * 3400, 1 - first, other, pair);
+    }
+    tl.next = at + interval(at) * 1.35;
+  }
+  return tl.sums.filter(s => s.at <= t).sort((a, b) => a.at - b.at);
+}
+
+/**
+ * Together, the run at time t given the taps ([{ id, t, seat, sum }]): { sums: those on screen (with progress),
+ * lives, score, streak, multiplier, cleared (pairs), missed (pairs), wrong, best, over, recent }. A tap on a sum
+ * that has a partner clears the pair (both sums go, the partner's even before it appears); a tap on a decoy costs a
+ * life; a pair that leaves both screens untapped costs a life.
+ */
+function playDuo(seed, taps, t) {
+  const sums = duoTimeline(seed, t + 5000);                      // partners due soon, so a tap can clear them early
+  const byId = new Map(sums.map(s => [s.id, s]));
+  const partner = new Map();
+  for (const s of sums) if (s.pair != null) partner.set(s.id, sums.find(o => o.pair === s.pair && o.id !== s.id));
+  const happenings = [];
+  for (const s of sums) {
+    if (s.at <= t) happenings.push({ at: s.at, order: 0, type: "spawn", s });
+    if (s.at + s.life <= t) happenings.push({ at: s.at + s.life, order: 2, type: "expire", s });
+  }
+  for (const tap of taps) if (tap.t <= t) happenings.push({ at: tap.t, order: 1, type: "tap", tap });
+  happenings.sort((x, y) => x.at - y.at || x.order - y.order || String(x.tap?.id ?? x.s?.id).localeCompare(String(y.tap?.id ?? y.s?.id)));
+
+  const st = { lives: LIVES, score: 0, streak: 0, best: 0, cleared: 0, missed: 0, wrong: 0, over: null, recent: [] };
+  const status = new Map();                                      // sum id -> "on" | "gone" | "cleared"
+  const lose = (at, what) => { st.lives--; st.streak = 0; st.recent.push({ ...what, at }); if (st.lives <= 0 && !st.over) st.over = { at }; };
+  for (const h of happenings) {
+    if (st.over && h.at > st.over.at) break;
+    const s = h.s;
+    if (h.type === "spawn") { if (!status.has(s.id)) status.set(s.id, "on"); continue; }
+    if (h.type === "expire") {
+      if (status.get(s.id) !== "on") continue;
+      status.set(s.id, "gone");
+      const p = partner.get(s.id);
+      // a pair is missed once both its sums have gone untapped
+      if (p && (status.get(p.id) === "gone")) { st.missed++; lose(h.at, { type: "miss", sum: s.id, pair: s.pair }); }
+      continue;
+    }
+    const { seat, sum } = h.tap, x = byId.get(sum);
+    if (!x || x.seat !== seat || status.get(sum) !== "on") continue;      // gone already, or a double tap
+    status.set(sum, "cleared");
+    if (x.pair == null) { st.wrong++; lose(h.at, { type: "wrong", sum, seat }); continue; }
+    const p = partner.get(sum);
+    status.set(p.id, "cleared");
+    st.streak++;
+    st.best = Math.max(st.best, st.streak);
+    st.score += Math.round(Math.max(x.points, p.points) * 2 * multiplier(st.streak - 1) * 10);
+    st.cleared++;
+    st.recent.push({ type: "clear", sum, partner: p.id, seat, at: h.at });
+  }
+  const until = st.over ? st.over.at : t;
+  return {
+    ...st,
+    multiplier: multiplier(st.streak),
+    sums: sums.filter(s => s.at <= t && status.get(s.id) === "on").map(s => ({ ...s, progress: Math.min(1, (until - s.at) / s.life) })),
+    recent: st.recent.filter(x => x.at > t - 1500),
+  };
+}
+
 // ---------- replaying a run ----------
 /**
- * The run as it stands at time t (ms from the start), given the taps so far: [{ id, t (ms from the start), seat,
- * token }]. Returns { sums: those on screen (with progress 0–1), shelves: per player, SHELF slots of tokens or null,
+ * Alone: the run as it stands at time t (ms from the start), given the taps so far: [{ id, t (ms from the start),
+ * seat, token }]. Returns { sums: those on screen (with progress 0–1), shelves: per player, SHELF slots of tokens or null,
  * lives, score, streak, multiplier, cleared, missed, wrong, best (longest streak), over: { at } or null, recent:
  * what happened lately, for the animations }.
  */
 export function play({ seed, seats }, taps, t) {
+  if (seats === 2) return playDuo(seed, taps, t);
   const sums = timeline(seed, seats, t);
   const happenings = [];
   for (const s of sums) {

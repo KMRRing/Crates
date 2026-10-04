@@ -1,6 +1,7 @@
-// Spot: tap the answers to the falling sums. The engine (spot-engine.js) replays a run from its seed and the taps
-// every frame; this file draws it and takes taps. Together, the room holds the run (seed and start time on the
-// database's clock) and the taps; each device replays the same run, so only taps travel.
+// Spot: sums fly across the screen. Alone, tap their answers on the shelf; together, tap the sums on your screen
+// that make the numbers your partner calls out. The engine (spot-engine.js) replays a run from its seed and the
+// taps every frame; this file draws it and takes taps. Together, the room holds the run (seed and start time on
+// the database's clock) and the taps; each device replays the same run, so only taps travel.
 import { play, LIVES, SHELF } from "./spot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -45,11 +46,12 @@ function reset() {
   for (const el of cards.values()) el.remove();
   cards.clear();
   lastAt.clear();
+  flights.clear();
   $("field").querySelectorAll(".sp-burst").forEach(el => el.remove());
   awake(true);
 }
 
-/** Your tap on a shelf slot: counted at once here, and (together) sent to your partner. */
+/** Alone: your tap on a shelf slot, counted at once. */
 function tapSlot(k) {
   if (!run || !last || last.over || elapsed() < 0) return;
   const tok = last.shelves[mySeat]?.[k];
@@ -60,9 +62,49 @@ function tapSlot(k) {
   const good = tok.real && last.sums.some(s => s.id === tok.sum);
   flashes.set(k, { until: performance.now() + 260, cls: good ? "good" : "bad", value: tok.value });
   if (!good) navigator.vibrate?.(70);
-  if (run.mode === "duo" && together.room) {
-    const { t: when, seat, token } = tap;
-    together.room.sync.update(`${branchPath(together.room.code, "spot")}/taps`, { [tap.id]: { t: when, seat, token } }).catch(() => toast("A tap didn't reach your partner"));
+}
+
+// ---------- flight paths ----------
+// Each sum flies on its own path, picked from its id: thrown up from below in an arc, flung in from a side then
+// dropping, or falling with a sway. Positions are in field units (0–1 across the room a card has); a path starts
+// and ends off the field, so a sum is gone from view about when its time runs out.
+const flights = new Map();
+function flight(id) {
+  const key = `${run.seed}/${id}`;
+  if (flights.has(key)) return flights.get(key);
+  let a = (run.seed ^ Math.imul(id + 1, 0x9E3779B1)) >>> 0;
+  const r = () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), a | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const kind = ["arc", "fling", "drop"][Math.floor(r() * 3)];
+  const ease = { out: x => 1 - (1 - x) ** 3, in: x => x * x };
+  let f;
+  if (kind === "arc") {                                        // up from below, over the top of its arc, back down
+    const x0 = r(), x1 = Math.min(1, Math.max(0, x0 + (r() - 0.5) * 0.8)), apex = r() * 0.3, spin = (r() - 0.5) * 50;
+    f = p => ({ x: x0 + (x1 - x0) * p, y: 1.25 - 4 * (1.25 - apex) * p * (1 - p), rot: spin * (p - 0.5) });
+  } else if (kind === "fling") {                               // flung in from a side, slowing, then falling away
+    const left = r() < 0.5, x0 = left ? -0.7 : 1.7, xt = 0.1 + r() * 0.8, y0 = r() * 0.4, tilt = (left ? -1 : 1) * (12 + r() * 12);
+    f = p => ({ x: x0 + (xt - x0) * ease.out(Math.min(1, p / 0.3)), y: y0 + (1.3 - y0) * ease.in(Math.max(0, (p - 0.2) / 0.8)), rot: tilt * (1 - Math.min(1, p / 0.3)) + tilt * 0.5 * Math.max(0, p - 0.6) });
+  } else {                                                     // dropping, faster and faster, with a sway
+    const x0 = 0.1 + r() * 0.8, phase = r() * Math.PI * 2, sway = 0.08 + r() * 0.08;
+    f = p => ({ x: Math.min(1, Math.max(0, x0 + sway * Math.sin(2 * Math.PI * 1.3 * p + phase))), y: -0.25 + 1.55 * p ** 1.7, rot: 8 * Math.sin(2 * Math.PI * p + phase) });
+  }
+  flights.set(key, f);
+  return f;
+}
+
+/** Together: your tap on a sum on your screen, saying "this makes the number my partner called". */
+function tapSum(id, el) {
+  if (!run || !last || last.over || elapsed() < 0) return;
+  const s = last.sums.find(x => x.id === id && x.seat === mySeat);
+  if (!s) return;
+  const t = elapsed();
+  const tap = { id: `${mySeat}${Math.round(t).toString(36)}${id}${Math.random().toString(36).slice(2, 5)}`, t, seat: mySeat, sum: id };
+  taps.push(tap);
+  const good = s.pair != null;
+  el.classList.add(good ? "good" : "bad");
+  if (!good) navigator.vibrate?.(70);
+  if (together.room) {
+    const { t: when, seat, sum } = tap;
+    together.room.sync.update(`${branchPath(together.room.code, "spot")}/taps`, { [tap.id]: { t: when, seat, sum } }).catch(() => toast("A tap didn't reach your partner"));
   }
 }
 
@@ -71,12 +113,13 @@ function frame() {
   requestAnimationFrame(frame);
   if (!run || pausedAt != null) return;
   const t = elapsed();
-  if (t < 0) { showCountdown(Math.ceil(-t / 1000)); drawShelf(null); drawHud({ score: 0, lives: LIVES, multiplier: 1 }); return; }
+  $("shelf").hidden = run.seats === 2;
+  if (t < 0) { showCountdown(Math.ceil(-t / 1000)); if (run.seats === 1) drawShelf(null); drawHud({ score: 0, lives: LIVES, multiplier: 1 }); return; }
   const st = play(run, taps, t);
   last = st;
   if (!st.over) $("overlay").hidden = true;
   drawField(st);
-  drawShelf(st);
+  if (run.seats === 1) drawShelf(st);
   drawHud(st);
   animate(st);
   if (st.over && finished !== run) { finished = run; setTimeout(() => showResults(st), 700); }
@@ -90,16 +133,18 @@ function drawField(st) {
   for (const s of mine) {
     let el = cards.get(s.id);
     if (!el) {
-      el = document.createElement("div");
-      el.className = "sp-sum";
+      el = document.createElement(run.seats === 2 ? "button" : "div");
+      el.className = `sp-sum${run.seats === 2 ? " tappable" : ""}`;
+      el.dataset.id = s.id;
       el.textContent = s.text;
       el.appendChild(document.createElement("i"));
+      if (run.seats === 2) { el.type = "button"; el.addEventListener("pointerdown", e => { e.preventDefault(); tapSum(s.id, el); }); }
       field.appendChild(el);
       cards.set(s.id, el);
     }
-    const lane = (run.seats === 2 ? Math.floor(s.id / 2) : s.id) % 3;
-    const x = W * (0.0125 + lane * 0.3375), y = 6 + s.progress * Math.max(0, H - el.offsetHeight - 12);
-    el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    const pos = flight(s.id)(s.progress);
+    const x = pos.x * (W - el.offsetWidth), y = pos.y * (H - el.offsetHeight);
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${pos.rot}deg)`;
     el.dataset.x = x;
     el.dataset.y = y;
     el.lastElementChild.style.width = `${(1 - s.progress) * 100}%`;
@@ -151,17 +196,17 @@ function drawHud(st) {
 /** Bursts on the field for what just happened: a cleared sum flies up in green, a missed one in red. */
 function animate(st) {
   for (const h of st.recent) {
-    const key = `${h.type}${h.sum ?? h.token}`;
+    const key = `${h.type}${h.sum ?? h.token}${h.pair ?? ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
     if (h.type === "wrong" && h.seat !== mySeat) navigator.vibrate?.(40);
     if (h.sum == null) continue;
-    const at = lastAt.get(h.sum);
+    const at = lastAt.get(h.sum) || (h.partner != null && lastAt.get(h.partner));
     if (!at) continue;                                     // not one of your sums (together, your partner's)
     const { x, y } = at;
     const burst = document.createElement("div");
     burst.className = `sp-burst ${h.type === "clear" ? "good" : "bad"}`;
-    burst.textContent = h.type === "clear" ? "✓" : "missed";
+    burst.textContent = h.type === "clear" ? "✓" : h.type === "wrong" ? "✗" : "missed";
     burst.style.setProperty("--at", `translate3d(${x}px, ${y}px, 0)`);
     burst.style.transform = `translate3d(${x}px, ${y}px, 0)`;
     $("field").appendChild(burst);
@@ -192,7 +237,7 @@ function showStart() {
 }
 
 function showCountdown(n) {
-  card(add => { add("div", "sp-big", String(n)); add("p", null, run.mode === "duo" ? "Call out your answers; tap your partner's." : "Get ready"); });
+  card(add => { add("div", "sp-big", String(n)); add("p", null, run.mode === "duo" ? "Call out what yours make; tap the ones that match theirs." : "Get ready"); });
 }
 
 function showResults(st) {
@@ -205,7 +250,7 @@ function showResults(st) {
     add("h2", null, "Out of lives");
     add("div", "sp-big", st.score.toLocaleString("en-GB"));
     const stats = add("div", "sp-stats");
-    for (const [v, label] of [[st.cleared, "sums"], [st.best, "best streak"], [`${Math.round((st.over?.at || 0) / 1000)} s`, "lasted"]]) {
+    for (const [v, label] of [[st.cleared, run.seats === 2 ? "pairs" : "sums"], [st.best, "best streak"], [`${Math.round((st.over?.at || 0) / 1000)} s`, "lasted"]]) {
       const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
       b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
     }
@@ -224,7 +269,7 @@ function showLobby() {
   const data = together.room?.data, partner = together.partner();
   card((add, go) => {
     add("h2", null, "Playing together");
-    add("p", null, "You'll each see half the sums. Their answers are on the other one's shelf: call out the answers to yours, tap the ones your partner calls.");
+    add("p", null, "You each see your own sums, and most of them have a partner on the other screen that makes the same number, arriving within a few seconds. Call out what yours make; tap the one of yours that makes a number your partner called. Some have no partner: tapping those costs a life.");
     add("p", null, partner ? `${partner.name} is ${partner.online ? "here" : "away"}.` : `Waiting for your partner: room ${together.room?.code}.`);
     go("Start", startTogether, false, seatsOf(data).length < 2);
     go("Leave the room", () => together.leave(), true);
@@ -325,7 +370,7 @@ function openMenu() {
     button("Play", () => startSolo("solo"));
     button("Today's run", () => startSolo("daily"));
     add("h3", null, "Together");
-    add("p", "stats", "Two phones: each of you sees half the sums, and their answers are on the other one's shelf.");
+    add("p", "stats", "Two phones: each of you sees your own sums. Call out what yours make; your partner taps the one of theirs that makes the same.");
     button("Play together", async () => { if (await together.start()) openMenu(); });
     const row = add("form", "join-run");
     const input = document.createElement("input");

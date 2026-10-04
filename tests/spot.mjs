@@ -46,13 +46,42 @@ check(w.wrong === wrong.length && w.lives === S.LIVES - wrong.length, `wrong tap
 const once = S.play({ seed: 9, seats: 1 }, [{ id: "a", t: sums[0].at + 400, seat: 0, token: "s0" }, { id: "b", t: sums[0].at + 450, seat: 0, token: "s0" }], 10000);
 check(once.cleared === 1 && once.lives === S.LIVES, "a double tap clears once and costs nothing");
 
-// together: the answer is on the other shelf, and tapping it there clears the sum
-const duo = S.timeline(11, 2, 10000);
-const first = duo[0];
-const right = S.play({ seed: 11, seats: 2 }, [{ id: "x", t: first.at + 800, seat: first.shelf, token: `s${first.id}` }], first.at + 1000);
-const wrongShelf = S.play({ seed: 11, seats: 2 }, [{ id: "y", t: first.at + 800, seat: first.seat, token: `s${first.id}` }], first.at + 1000);
-check(right.cleared === 1 && wrongShelf.cleared === 0, "together: the answer is cleared from the partner's shelf, not the asker's");
-const pd = perfect({ seed: 12, seats: 2 }, 150000);
-check(pd.lives === S.LIVES && pd.missed === 0, `a perfect pair clears everything too (${pd.cleared} sums)`);
+// together: pairs across the two screens, decoys with no partner
+{
+  let problems = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const sums = S.duoTimeline(seed * 104729, 180000);
+    const pairs = new Map();
+    for (const x of sums) if (x.pair != null) pairs.set(x.pair, [...(pairs.get(x.pair) || []), x]);
+    for (const [, two] of pairs) {
+      if (two.length !== 2) continue;                                   // the partner may be due after the cut-off
+      const [p, q] = two;
+      if (p.seat === q.seat || p.answer !== q.answer || p.text === q.text || q.at - p.at < 600 || q.at - p.at > 4000) { problems++; console.log("a bad pair", p, q); }
+    }
+    for (const x of sums) {
+      const clash = sums.find(o => o !== x && o.answer === x.answer && Math.abs(o.at - x.at) < 13000 && !(x.pair != null && o.pair === x.pair));
+      if (clash) { problems++; console.log("a number that means two things", x.text, clash.text); break; }
+    }
+  }
+  check(problems === 0, "together: pairs are two different sums making one number, one on each screen, 0.6–4 s apart; no number means two things");
+}
+{
+  const until = 150000, sums = S.duoTimeline(21, until), taps = [];
+  // a perfect pair: whoever sees the second sum of a pair taps it 0.8 s after it appears (the first was called out)
+  const seenPair = new Set();
+  for (const x of [...sums].reverse()) if (x.pair != null && !seenPair.has(x.pair)) { seenPair.add(x.pair); if (x.at + 800 <= until) taps.push({ id: `t${x.id}`, t: x.at + 800, seat: x.seat, sum: x.id }); }
+  const st = S.play({ seed: 21, seats: 2 }, taps, until);
+  check(st.lives === S.LIVES && st.missed === 0 && st.wrong === 0 && st.cleared > 30, `together: a perfect pair clears every pair (${st.cleared}) and leaves the decoys alone`);
+  const decoy = sums.find(x => x.pair == null);
+  // the same perfect play, plus one tap on a decoy
+  const d = S.play({ seed: 21, seats: 2 }, [...taps, { id: "d", t: decoy.at + 300, seat: decoy.seat, sum: decoy.id }], until);
+  check(d.wrong === 1 && d.lives === S.LIVES - 1, "together: tapping a decoy costs a life");
+  const early = sums.find(x => x.pair != null);
+  const later = sums.find(x => x.pair === early.pair && x.id !== early.id);
+  const e = S.play({ seed: 21, seats: 2 }, [{ id: "e", t: early.at + 300, seat: early.seat, sum: early.id }], later.at + 500);
+  check(e.cleared === 1 && !e.sums.some(x => x.id === later.id), "together: tapping a sum clears its partner too, even one still to appear");
+  const idle = S.play({ seed: 21, seats: 2 }, [], 40000);
+  check(idle.missed > 0 && idle.lives < S.LIVES, `together: pairs nobody taps cost lives (${idle.missed} missed by 40 s)`);
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

@@ -39,7 +39,11 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, .3); will-change: transform; overflow: hidden; }
 .sp-sum i { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--sp-or); }
 .sp-sum.late { background: #FFD9C7; }
-.sp-burst { position: absolute; left: 0; top: 0; width: 31%; padding: .55rem .3rem; text-align: center; font-weight: 800; font-size: 1.15rem;
+.sp-sum.tappable { width: 36%; padding: .8rem .3rem .9rem; font: inherit; font-size: 1.35rem; font-weight: 800; border: 0; cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.sp-sum.good { background: var(--sp-good); color: #fff; }
+.sp-sum.bad { background: var(--sp-bad); color: #fff; }
+.sp-burst { position: absolute; left: 0; top: 0; width: 34%; padding: .55rem .3rem; text-align: center; font-weight: 800; font-size: 1.15rem;
   color: #fff; pointer-events: none; animation: burst .7s ease-out forwards; }
 .sp-burst.good { color: #7EE2A6; }
 .sp-burst.bad { color: #FF8C7E; }
