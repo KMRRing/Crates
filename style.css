@@ -41,6 +41,8 @@
   --sp-logo-edge: #C2511F;
   --qt-logo-tint: #DCDFF5;  /* Quote's logo: quotation marks */
   --qt-logo-edge: #3F4DAE;
+  --mf-logo-tint: #D2ECEA;  /* Manifest's logo: a stack of containers */
+  --mf-logo-edge: #137C77;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

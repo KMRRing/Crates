@@ -1,0 +1,51 @@
+/* Manifest: the stack on a stage, then the questions where it stood. Teal is the house colour. */
+:root { --mf-in: #137C77; --mf-in-soft: #D2ECEA; --mf-good: #2E9E5B; --mf-bad: #D23B2A; --mf-edge: #C9D1D5; --mf-floor: #AEB8BE; }
+@media (prefers-color-scheme: dark) { :root { --mf-in: #4FBDB6; --mf-in-soft: #163635; --mf-edge: #33414B; --mf-floor: #3B4A54; } }
+
+.mf-mark { display: inline-block; }
+.mf-mark svg { width: 100%; height: 100%; display: block; }
+.mf-hud { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0; min-height: 2rem; }
+.mf-round { font-size: .95rem; font-weight: 750; color: var(--ink-soft); }
+.mf-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.mf-lives { display: flex; gap: .3rem; }
+.mf-life { width: 14px; height: 14px; border-radius: 50%; background: var(--mf-in); }
+.mf-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--mf-edge); }
+
+.mf-stage { padding: .9rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .6rem; min-height: 24rem; align-content: start; }
+.mf-title { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.mf-timer { height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
+.mf-timer i { display: block; height: 100%; width: 100%; background: var(--mf-in); transform-origin: left; }
+.mf-timer.run i { animation: drain var(--mf-ms, 5s) linear forwards; }
+@keyframes drain { to { transform: scaleX(0); } }
+.mf-timer[hidden] { display: none; }
+.mf-view { display: grid; gap: .6rem; grid-template-columns: repeat(var(--panels, 1), minmax(0, 1fr)); justify-items: center; }
+.mf-view svg { width: 100%; height: auto; display: block; }
+.mf-panel { display: grid; gap: .25rem; width: 100%; }
+.mf-panel small { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.mf-view .tap rect.cell { cursor: pointer; }
+
+.mf-question { margin: .2rem 0 0; font-size: 1.2rem; font-weight: 800; line-height: 1.25; }
+.mf-answers { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
+.mf-answers.colours { grid-template-columns: repeat(3, 1fr); }
+.mf-answers:empty { display: none; }
+.mf-chip { min-height: 50px; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--yard); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
+.mf-chip.colour { font-size: .85rem; font-weight: 750; padding: .4rem .2rem; }
+.mf-chip i { width: 22px; height: 22px; border-radius: 6px; display: block; }
+.mf-chip.good { border-color: var(--mf-good); background: var(--mf-good); color: #fff; }
+.mf-chip.bad { border-color: var(--mf-bad); background: var(--mf-bad); color: #fff; }
+.mf-chip:disabled { cursor: default; }
+.mf-verdict { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.mf-verdict.good { color: var(--mf-good); }
+.mf-verdict.bad { color: var(--mf-bad); }
+.mf-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--mf-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.mf-big { font-size: 3rem; font-weight: 800; color: var(--mf-in); text-align: center; margin: .2rem 0; }
+.mf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
+.mf-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.mf-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
+.mf-stats span { font-size: .75rem; color: var(--ink-soft); }
+
+.mf-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.mf-toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .mf-timer.run i { animation-duration: 0.01s; } }

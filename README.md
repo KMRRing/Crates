@@ -127,6 +127,11 @@ Together (Menu → Play together): two phones taking turns. One makes the market
 
 `quote-bank.js` holds the questions (175 across trade, cities, wine, art, people, geography and markets, with their truths, scales and notes; written in October 2026 and worth checking), `quote-engine.js` settles markets and picks sets (seeded, at most two questions from a category), and `tests/quote.mjs` checks both.
 
+## Manifest
+A stack of coloured containers (columns of varying height) shows for a few seconds, then it's gone and you're asked about it. Each round uses a different view: vertical slices (front to back, everything visible), flat layers (tier by tier, everything visible), two tiers only (you know those and nothing above them), or the whole stack in isometric, where inner containers are hidden and questions ask only about what you could see (visibility is settled exactly, by drawing the cubes back to front onto a small raster). Every fifth round is a change round: the stack comes back with one container recoloured and you tap it.
+
+Questions: how many of a colour, how many on a tier, which colour sits at a marked position (shown on a blank grid), which colour is most common, how many of a colour you could see, which container changed. Answers are number chips (five, the truth among them) or colour swatches. Right answers score 50 plus 25 a round; a wrong one costs a life, three lives. Rounds grow from a 3×2×2 stack with 3 colours for 6.5 s to 5×4×4 with 6 colours for 2.5 s and two questions a round. Random runs or today's run; bests kept; a run resumes at the start of its round, and a stack hidden mid-showing (the app going to the background) is shown again from the start. `manifest-engine.js` makes the rounds and `tests/manifest.mjs` checks them.
+
 ## Rooms
 A room is one four-letter code for two people, shared by every game. Once you're in a room you stay in it: tapping the title to switch games carries the room code along, and each game keeps its own progress in the room, so switching back finds everything where you left it. If your partner has another game of the room open, it says so ("Sarah is in Slate", with a link to join them). A room started in one game gets the other game's side when someone first opens that game in it (Crates starts a Together game). Leave the room (in either game's menu) to go back to solo everywhere.
 

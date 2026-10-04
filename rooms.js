@@ -15,6 +15,7 @@ export const GAMES = {
   cartel: { name: "Cartel", page: "./cartel.html" },
   spot: { name: "Spot", page: "./spot.html" },
   quote: { name: "Quote", page: "./quote.html" },
+  manifest: { name: "Manifest", page: "./manifest.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
