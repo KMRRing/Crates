@@ -1,0 +1,47 @@
+/* Blend: a component table, a recipe you adjust, and the lab's verdicts. Olive is the house colour. */
+:root { --bl-in: #5B7A1E; --bl-in-soft: #E6EFD2; --bl-good: #2E9E5B; --bl-bad: #D23B2A; --bl-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { :root { --bl-in: #9CC24A; --bl-in-soft: #27341A; --bl-edge: #33414B; } }
+
+.bl-mark { display: inline-block; }
+.bl-mark svg { width: 100%; height: 100%; display: block; }
+.bl-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); }
+.bl-count { font-weight: 800; color: var(--ink); }
+.bl-card { padding: .9rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .5rem; }
+.bl-label { margin: .2rem 0 0; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.bl-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.bl-table th, .bl-table td { padding: .3rem .25rem; text-align: right; border-bottom: 1px solid var(--bl-edge); font-variant-numeric: tabular-nums; }
+.bl-table th { font-size: .72rem; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.bl-table th:first-child, .bl-table td:first-child { text-align: left; font-weight: 750; }
+.bl-table td:first-child i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: .4rem; vertical-align: -1px; }
+
+.bl-recipe { display: grid; gap: .35rem; }
+.bl-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; }
+.bl-row .name { font-weight: 750; display: flex; align-items: center; gap: .4rem; }
+.bl-row .name i { width: 10px; height: 10px; border-radius: 3px; }
+.bl-row .bar { height: 6px; border-radius: 3px; background: var(--yard); margin-top: .25rem; overflow: hidden; }
+.bl-row .bar i { display: block; height: 100%; border-radius: 3px; }
+.bl-step { display: inline-grid; grid-template-columns: 40px 3.4rem 40px; align-items: center; }
+.bl-step button { height: 40px; border-radius: 10px; border: 1.5px solid var(--bl-edge); background: var(--yard); color: var(--ink); font: inherit; font-size: 1.25rem; font-weight: 700; cursor: pointer; }
+.bl-step button:disabled { opacity: .35; cursor: default; }
+.bl-step b { text-align: center; font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bl-row.rest .bl-step { grid-template-columns: 1fr; width: calc(80px + 3.4rem); }
+.bl-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--bl-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+.bl-go:disabled { opacity: .45; cursor: default; }
+
+.bl-history { margin: 0; padding: 0; list-style: none; display: grid; gap: .3rem; }
+.bl-history li { display: grid; grid-template-columns: 1.4rem 1fr auto; align-items: center; gap: .4rem; padding: .35rem .5rem; border-radius: 10px; background: var(--yard); font-size: .92rem; }
+.bl-history .n { font-weight: 800; color: var(--ink-soft); }
+.bl-history .rec { font-variant-numeric: tabular-nums; font-weight: 700; }
+.bl-history .fb { display: flex; gap: .3rem; }
+.bl-history .fb span { min-width: 2.6rem; padding: .1rem .35rem; border-radius: 8px; text-align: center; font-weight: 800; font-size: .8rem; background: var(--sheet); }
+.bl-history .fb .up { color: var(--bl-bad); }
+.bl-history .fb .down { color: #2F6FDE; }
+.bl-history .fb .same { color: var(--bl-good); }
+.bl-history:empty { display: none; }
+.bl-result { display: grid; gap: .5rem; }
+.bl-result[hidden] { display: none; }
+.bl-verdict { margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--bl-good); }
+.bl-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.bl-toast.show { opacity: 1; }

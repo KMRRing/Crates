@@ -18,6 +18,7 @@ export const GAMES = {
   manifest: { name: "Manifest", page: "./manifest.html" },
   chart: { name: "Chart", page: "./chart.html" },
   survey: { name: "Survey", page: "./survey.html" },
+  blend: { name: "Blend", page: "./blend.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
