@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pipes">
+<title>Pipes</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pipes.css">
+</head>
+<body>
+<div id="app" class="pipes">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon pi-mark" aria-hidden="true"></span>Pipes</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+
+  <div class="pi-hud">
+    <span class="pi-level" id="level"></span>
+    <span class="pi-score"><b id="score">0</b></span>
+    <span id="lives" class="pi-lives" aria-label="Lives"></span>
+  </div>
+  <div id="gauges" class="pi-gauges"></div>
+
+  <section class="pi-stage">
+    <p class="pi-status" id="status"></p>
+    <div id="board" class="pi-board"></div>
+    <div class="pi-actions">
+      <button class="pi-go quiet" type="button" id="boostBtn" hidden>Pump it: ×4 for a time bonus</button>
+      <button class="pi-go" type="button" id="goBtn" hidden></button>
+    </div>
+    <p class="pi-note" id="note"></p>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="pi-toast" role="status" aria-live="polite"></p>
+<script type="module" src="pipes.js"></script>
+</body>
+</html>

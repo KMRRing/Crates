@@ -49,6 +49,8 @@
   --sv-logo-edge: #9A6B1E;
   --bl-logo-tint: #E6EFD2;  /* Blend's logo: a flask */
   --bl-logo-edge: #5B7A1E;
+  --pi-logo-tint: #F4DCD1;  /* Pipes' logo: a bend of pipe */
+  --pi-logo-edge: #B4532A;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

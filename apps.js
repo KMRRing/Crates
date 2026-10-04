@@ -65,6 +65,12 @@ const BLEND_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <path d="M8.2 5h3.6v3.2l2.9 5.1a1.2 1.2 0 0 1-1 1.8H6.3a1.2 1.2 0 0 1-1-1.8l2.9-5.1z" fill="none" stroke="var(--bl-logo-edge)" stroke-width="1.4" stroke-linejoin="round"/>
   <path d="M6.6 12.2h6.8l.9 1.6a.6.6 0 0 1-.5.9H6.2a.6.6 0 0 1-.5-.9z" fill="var(--bl-logo-edge)"/></svg>`;
 
+// A pipe bend, for Pipes.
+const PIPES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.6"/>
+  <path d="M5 7.5h5.5a2.5 2.5 0 0 1 2.5 2.5V15" fill="none" stroke="var(--pi-logo-edge)" stroke-width="3.2"/>
+  <path d="M13 10v5" fill="none" stroke="var(--pi-logo-tint)" stroke-width="1" opacity=".7"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -77,6 +83,7 @@ export const APPS = [
   { id: "chart", name: "Chart", href: "./chart.html", logo: CHART_LOGO },
   { id: "survey", name: "Survey", href: "./survey.html", logo: SURVEY_LOGO },
   { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO },
+  { id: "pipes", name: "Pipes", href: "./pipes.html", logo: PIPES_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

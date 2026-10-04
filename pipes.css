@@ -1,0 +1,42 @@
+/* Pipes: a board of pipe tiles on dark ground; crude is black, gas blue, the blend purple. Rust is the house colour. */
+:root { --pi-in: #B4532A; --pi-in-soft: #F4DCD1; --pi-ground: #1F2A32; --pi-tile: #2C3A44; --pi-tile-edge: #3B4C58; --pi-pipe: #9AA7B0; --pi-pipe-dark: #6E7D88; --pi-rock: #182028; --pi-good: #2E9E5B; --pi-bad: #D23B2A; --pi-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { :root { --pi-in: #E0794E; --pi-in-soft: #3E251A; --pi-edge: #33414B; } }
+
+.pi-mark { display: inline-block; }
+.pi-mark svg { width: 100%; height: 100%; display: block; }
+.pi-hud { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0 .2rem; min-height: 2rem; }
+.pi-level { font-size: .95rem; font-weight: 750; color: var(--ink-soft); }
+.pi-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.pi-lives { display: flex; gap: .3rem; }
+.pi-life { width: 14px; height: 14px; border-radius: 50%; background: var(--pi-in); }
+.pi-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--pi-edge); }
+.pi-gauges { display: flex; gap: .8rem; margin: 0 0 .5rem; min-height: 1.2rem; font-size: .8rem; color: var(--ink-soft); }
+.pi-gauge { display: flex; align-items: center; gap: .35rem; }
+.pi-gauge i { width: 10px; height: 10px; border-radius: 3px; }
+.pi-gauge .bar { width: 54px; height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
+.pi-gauge .bar i { display: block; height: 100%; width: 100%; border-radius: 0; transition: width .2s; }
+
+.pi-stage { padding: .7rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .55rem; }
+.pi-status { margin: 0; font-size: 1rem; font-weight: 800; min-height: 1.3em; }
+.pi-board { width: 100%; border-radius: 14px; overflow: hidden; background: var(--pi-ground); }
+.pi-board svg { display: block; width: 100%; height: auto; }
+.pi-board .tile { cursor: pointer; }
+.pi-board .tile.fixed, .pi-board .tile.locked { cursor: default; }
+.pi-board .pipe { stroke: var(--pi-pipe); stroke-linecap: butt; fill: none; }
+.pi-board .pipe-dark { stroke: var(--pi-pipe-dark); fill: none; }
+.pi-board .flow { fill: none; stroke-linecap: butt; }
+.pi-actions { display: grid; gap: .45rem; }
+.pi-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--pi-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+.pi-go.quiet { background: var(--yard); color: var(--ink); }
+.pi-go[hidden] { display: none; }
+.pi-note { margin: 0; font-size: .88rem; color: var(--ink-soft); line-height: 1.35; }
+.pi-note:empty { display: none; }
+.pi-big { font-size: 3rem; font-weight: 800; color: var(--pi-in); text-align: center; margin: .2rem 0; }
+.pi-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
+.pi-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.pi-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
+.pi-stats span { font-size: .75rem; color: var(--ink-soft); }
+.pi-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.pi-toast.show { opacity: 1; }
