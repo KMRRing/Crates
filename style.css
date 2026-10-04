@@ -45,6 +45,8 @@
   --mf-logo-edge: #137C77;
   --ch-logo-tint: #D5E7F1;  /* Chart's logo: a map pin */
   --ch-logo-edge: #1F6F9A;
+  --sv-logo-tint: #F3E6CF;  /* Survey's logo: a grid with ore */
+  --sv-logo-edge: #9A6B1E;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

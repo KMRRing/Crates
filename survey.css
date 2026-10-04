@@ -1,0 +1,45 @@
+/* Survey: a concession grid with readings along its edges and in its cells. Ochre is the house colour. */
+:root { --sv-in: #9A6B1E; --sv-in-soft: #F3E6CF; --sv-ore: #B8860B; --sv-good: #2E9E5B; --sv-bad: #D23B2A; --sv-edge: #C9D1D5; --sv-cell: #FFFFFF; --sv-head: #E4E7E7; }
+@media (prefers-color-scheme: dark) { :root { --sv-in: #D9A84E; --sv-in-soft: #3B2E17; --sv-edge: #33414B; --sv-cell: #1D262D; --sv-head: #141B20; } }
+
+.sv-mark { display: inline-block; }
+.sv-mark svg { width: 100%; height: 100%; display: block; }
+.sv-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); }
+.sv-credits b { font-size: 1.4rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.sv-card { padding: .8rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .6rem; }
+
+/* the board: a header row and column of line buttons, then the cells */
+.sv-board { display: grid; gap: 3px; grid-template-columns: var(--cols); width: 100%; }
+.sv-head { display: grid; place-items: center; min-height: 0; aspect-ratio: 1; border-radius: 8px; background: var(--sv-head); color: var(--ink); font: inherit; font-size: .95rem; font-weight: 800; border: 0; cursor: pointer; font-variant-numeric: tabular-nums; }
+.sv-head.read { background: var(--sv-in-soft); color: var(--sv-in); cursor: default; }
+.sv-head small { font-size: .62rem; font-weight: 700; color: var(--ink-soft); }
+.sv-corner { background: none; }
+.sv-cell { position: relative; aspect-ratio: 1; border-radius: 8px; background: var(--sv-cell); border: 1.5px solid var(--sv-edge); cursor: pointer; display: grid; place-items: center; font: inherit; font-weight: 800; color: var(--ink); -webkit-tap-highlight-color: transparent; }
+.sv-cell.ore-mark::after { content: ""; width: 42%; height: 42%; transform: rotate(45deg); border: 3px solid var(--sv-ore); border-radius: 3px; }
+.sv-cell.barren-mark::after { content: ""; width: 18%; height: 18%; border-radius: 50%; background: var(--ink-soft); }
+.sv-cell.drilled-ore { background: var(--sv-ore); border-color: var(--sv-ore); }
+.sv-cell.drilled-ore::after { content: ""; width: 42%; height: 42%; transform: rotate(45deg); background: #fff; border-radius: 3px; }
+.sv-cell.drilled-barren::after { content: "×"; font-size: 1.4rem; color: var(--ink-soft); }
+.sv-cell .mag { position: absolute; top: 2px; right: 4px; font-size: .68rem; font-weight: 800; color: var(--sv-in); }
+.sv-cell.magnet { box-shadow: inset 0 0 0 2px var(--sv-in-soft); }
+.sv-cell.truth-ore { background: var(--sv-good); border-color: var(--sv-good); }
+.sv-cell.truth-ore::after { content: ""; width: 42%; height: 42%; transform: rotate(45deg); background: #fff; border-radius: 3px; }
+.sv-cell.wrong { border-color: var(--sv-bad); box-shadow: inset 0 0 0 2px var(--sv-bad); }
+
+.sv-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.sv-tool { display: grid; gap: .05rem; min-height: 52px; border-radius: 12px; border: 2px solid var(--sv-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
+.sv-tool b { font-weight: 800; }
+.sv-tool small { font-size: .72rem; color: var(--ink-soft); }
+.sv-tool[aria-pressed="true"] { border-color: var(--sv-in); background: var(--sv-in-soft); }
+.sv-hint { margin: 0; min-height: 1.3em; font-size: .88rem; color: var(--ink-soft); line-height: 1.35; }
+.sv-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--sv-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+.sv-go:disabled { opacity: .45; cursor: default; }
+.sv-result { display: grid; gap: .5rem; }
+.sv-result[hidden] { display: none; }
+.sv-verdict { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.sv-verdict.good { color: var(--sv-good); }
+.sv-verdict.bad { color: var(--sv-bad); }
+.sv-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.sv-toast.show { opacity: 1; }
