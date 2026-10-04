@@ -34,6 +34,20 @@ export function fault(q, bid, ask) {
   return null;
 }
 
+/**
+ * Two players: the maker quoted bid–ask; the taker chose "hit" (sold to the maker at the bid), "lift" (bought
+ * from the maker at the ask) or "pass". A trade settles between the two, 150 per doubling the traded price was
+ * off the truth (capped at 600 each way): hitting a bid above the truth pays the taker, hitting one below pays the
+ * maker. A pass settles the maker against the house as when playing alone. Returns { maker, taker, edge }.
+ */
+export function trade(q, bid, ask, take) {
+  if (take === "pass") return { maker: settle(q, bid, ask).delta, taker: 0, edge: 0 };
+  const price = take === "hit" ? bid : ask;
+  const edge = q.scale === "log" ? Math.log2(take === "hit" ? price / q.truth : q.truth / price) : (take === "hit" ? price - q.truth : q.truth - price) / q.scale;
+  const taker = Math.max(-LOSS_CAP, Math.min(LOSS_CAP, Math.round(LOSS * edge)));
+  return { maker: -taker, taker, edge };
+}
+
 // ---------- which questions ----------
 function rng(seed) {
   let a = seed >>> 0;

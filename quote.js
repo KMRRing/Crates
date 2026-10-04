@@ -1,15 +1,24 @@
 // Quote: ten numbers, a two-sided market on each. The engine (quote-engine.js) settles a market; this file runs
-// the set, draws the card and the tape, and keeps bests.
-import { START, PER_SET, settle, fault, pickSet, withUnit, fmt } from "./quote-engine.js";
+// the set, draws the card and the tape, and keeps bests. Together, the room holds the set and you alternate: one
+// makes the market, the other hits it, lifts it or passes (together.js).
+import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { createTogether, seatsOf } from "./together.js";
+import { gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
+const APP = 1;                       // this code's version of the together state
 const RUN = "quote:run", BEST = "quote:best", DAILY = "quote:daily";
 const byId = new Map(QUOTES.map(q => [q.id, q]));
 
-let S = null;      // { seed, mode: "random" | "daily", set: [ids], index, book, log: [{ id, bid, ask, delta, inside, width }], phase: "quote" | "reveal", done }
+let S = null;      // alone: { seed, mode: "random" | "daily", set: [ids], index, book, log: [{ id, bid, ask, delta, inside, width }], phase: "quote" | "reveal", done }
+                   // together: the room's state: { seed, set, index, phase: "make" | "take" | "reveal", market, take, books: [2], log, done, players }
+const inRoom = () => !!together.room;
+const mySeat = () => together.room?.data?.players?.[together.room.uid]?.slot ?? 0;
+const makerOf = g => g.index % 2;            // the maker alternates each question
+const seatName = seat => { const p = seatsOf(together.room?.data)?.find(([, x]) => x.slot === seat)?.[1]; return p ? p.name : seat === mySeat() ? "You" : "Your partner"; };
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
@@ -26,15 +35,19 @@ function start(mode) {
   history.replaceState(null, "", mode === "daily" ? `#d=${seed}` : `#s=${seed}`);
   render();
 }
-function save() { write(RUN, S); }
+function save() { if (!inRoom()) write(RUN, S); }
 const current = () => byId.get(S.set[S.index]);
 
-/** Your quote: settles against the book and shows where the truth fell. */
+/** Your quote: alone, settles against the book; together, goes to your partner to hit, lift or pass. */
 function quote() {
-  if (S.phase !== "quote") return;
   const q = current(), bid = parse($("bid").value), ask = parse($("ask").value);
   const why = fault(q, bid, ask);
   if (why) { $("fault").textContent = why; return; }
+  if (inRoom()) {
+    together.act(g => { if (g.phase !== "make" || makerOf(g) !== mySeat()) return false; g.market = { bid, ask }; g.take = null; g.phase = "take"; });
+    return;
+  }
+  if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
   S.book += r.delta;
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond });
@@ -42,7 +55,29 @@ function quote() {
   save();
   render();
 }
+/** Together: the taker's choice on the maker's market. */
+function take(kind) {
+  together.act(g => {
+    if (g.phase !== "take" || makerOf(g) === mySeat()) return false;
+    const q = byId.get(g.set[g.index]), r = trade(q, g.market.bid, g.market.ask, kind), maker = makerOf(g);
+    g.books = Object.values(g.books);
+    g.books[maker] += r.maker;
+    g.books[1 - maker] += r.taker;
+    g.log = Object.values(g.log || {});
+    g.log.push({ id: q.id, bid: g.market.bid, ask: g.market.ask, take: kind, maker, deltaMaker: r.maker, deltaTaker: r.taker, inside: q.truth >= g.market.bid && q.truth <= g.market.ask, edge: r.edge });
+    g.take = kind;
+    g.phase = "reveal";
+  });
+}
 function next() {
+  if (inRoom()) {
+    together.act(g => {
+      if (g.phase !== "reveal") return false;
+      if (g.index + 1 >= g.set.length) { g.done = true; return; }
+      g.index++; g.market = null; g.take = null; g.phase = "make";
+    });
+    return;
+  }
   if (S.phase !== "reveal") return;
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
   S.index++;
@@ -55,11 +90,21 @@ const parse = s => { const n = Number(String(s).replace(/,/g, "").trim()); retur
 
 // ---------- drawing ----------
 function render() {
-  const q = current();
+  if (!S) return;
+  if (inRoom()) { renderRoom(); return; }
   $("where").textContent = `Question ${S.index + 1} of ${S.set.length}`;
-  const book = $("book");
+  const q = current();
+  const books = $("books");
+  books.replaceChildren("Book ");
+  const book = document.createElement("b");
+  book.id = "book";
   book.textContent = money(S.book);
   book.className = S.book > START ? "up" : S.book < START ? "down" : "";
+  books.appendChild(book);
+  $("waiting").hidden = true;
+  $("takeBox").hidden = true;
+  $("market").hidden = false;
+  $("widths").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;
@@ -134,6 +179,146 @@ function drawTape(q, e) {
   add("lbl t", { left: x(q.truth) }, fmt(q.truth, q));
 }
 
+/** Together: what each of you sees in each phase. */
+function renderRoom() {
+  const g = S, q = current(), me = mySeat(), maker = makerOf(g), isMaker = me === maker;
+  $("where").textContent = `Question ${g.index + 1} of ${g.set.length}`;
+  const books = $("books");
+  books.className = "qt-books";
+  books.replaceChildren();
+  for (const seat of [me, 1 - me]) {
+    const b = document.createElement("b");
+    b.textContent = `${seatName(seat)} ${money(Object.values(g.books)[seat])}`;
+    books.appendChild(b);
+  }
+  $("cat").textContent = CATS[q.cat];
+  $("question").textContent = q.q;
+  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;
+  $("fault").textContent = "";
+  const entry = g.log && Object.values(g.log)[g.index];
+  const making = g.phase === "make" && isMaker, taking = g.phase === "take" && !isMaker;
+  $("market").hidden = !(making || g.phase === "reveal");
+  $("widths").hidden = !making;
+  $("quoteBtn").hidden = !making;
+  if (!making) { $("bid").disabled = $("ask").disabled = true; }
+  if (making) { $("bid").disabled = $("ask").disabled = false; if (document.activeElement !== $("ask")) $("bid").value = $("bid").value; drawWidths(q); }
+  if (g.phase === "reveal" && entry) { $("bid").value = fmt(entry.bid, q); $("ask").value = fmt(entry.ask, q); }
+  const waiting = $("waiting");
+  waiting.hidden = !((g.phase === "make" && !isMaker) || (g.phase === "take" && isMaker));
+  waiting.textContent = g.phase === "make" ? `${seatName(maker)} is making the market…` : `${seatName(1 - maker)} is looking at your market…`;
+  const box = $("takeBox");
+  box.hidden = !taking;
+  if (taking) {
+    $("shown").textContent = `${fmt(g.market.bid, q)} – ${fmt(g.market.ask, q)}`;
+    $("hitBtn").textContent = `Hit the bid: sell at ${fmt(g.market.bid, q)}`;
+    $("liftBtn").textContent = `Lift the offer: buy at ${fmt(g.market.ask, q)}`;
+  }
+  const result = $("result");
+  result.hidden = g.phase !== "reveal" || !entry;
+  if (g.phase === "reveal" && entry) {
+    const mine = entry.maker === me ? entry.deltaMaker : entry.deltaTaker, theirs = entry.maker === me ? entry.deltaTaker : entry.deltaMaker;
+    const who = seatName(1 - entry.maker), makerName = seatName(entry.maker);
+    const what = entry.take === "pass" ? `${who} passed` : entry.take === "hit" ? `${who} hit ${makerName === "You" ? "your" : `${makerName}'s`} bid at ${fmt(entry.bid, q)}` : `${who} lifted ${makerName === "You" ? "your" : `${makerName}'s`} offer at ${fmt(entry.ask, q)}`;
+    const v = $("verdict");
+    v.className = `qt-verdict ${mine >= 0 ? "good" : "bad"}`;
+    v.textContent = `${what}. You ${signed(mine)}, ${seatName(1 - me)} ${signed(theirs)}.`;
+    drawTape(q, { bid: entry.bid, ask: entry.ask, inside: entry.inside });
+    $("note").textContent = /^(About|Roughly|Around|[\d$£€])/.test(q.note) ? q.note : `${withUnit(q.truth, q)}. ${q.note}`;
+    $("nextBtn").textContent = g.index + 1 >= g.set.length ? "Closing bell" : "Next";
+  }
+  if (g.done) finishRoom();
+}
+
+let shownBell = null;
+function finishRoom() {
+  const g = S, me = mySeat(), key = `${g.seed}/${g.index}`;
+  if (shownBell === key) return;
+  shownBell = key;
+  const books = Object.values(g.books), mine = books[me], theirs = books[1 - me];
+  const body = $("doneBody");
+  body.replaceChildren();
+  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
+  add("p", "qt-big", mine > theirs ? "You win" : mine < theirs ? `${seatName(1 - me)} wins` : "A draw");
+  const stats = add("div", "qt-stats");
+  for (const [v, label] of [[money(mine), "you"], [money(theirs), seatName(1 - me)], [`${Object.values(g.log).filter(e => e.take !== "pass").length}`, "trades"]]) {
+    const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
+    b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
+  }
+  const lines = add("ul", "qt-lines");
+  for (const e of Object.values(g.log)) {
+    const q = byId.get(e.id), li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
+    const mineD = e.maker === me ? e.deltaMaker : e.deltaTaker;
+    name.textContent = `${e.maker === me ? "Made" : e.take === "pass" ? "Passed" : e.take === "hit" ? "Hit" : "Lifted"}: ${q.q.length > 36 ? `${q.q.slice(0, 34)}…` : q.q}`;
+    delta.textContent = signed(mineD);
+    delta.className = mineD >= 0 ? "good" : "bad";
+    li.append(name, delta);
+    lines.appendChild(li);
+  }
+  const again = add("button", "btn primary wide", "Play again");
+  again.type = "button";
+  again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(); });
+  const leave = add("button", "btn wide", "Leave the room");
+  leave.type = "button";
+  leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
+  if (!$("doneDlg").open) $("doneDlg").showModal();
+}
+
+// ---------- together ----------
+function freshRoom(players) {
+  const seed = randomSeed();
+  return { v: 1, app: APP, seed, set: pickSet(seed, QUOTES).map(q => q.id), index: 0, phase: "make", market: null, take: null, books: [START, START], log: [], done: false, created: Date.now(), players };
+}
+function startRoomSet() {
+  const next = freshRoom(null);
+  together.act(g => { Object.assign(g, { seed: next.seed, set: next.set, index: 0, phase: "make", market: null, take: null, books: [START, START], log: [], done: false }); });
+}
+function onState(val) {
+  S = val;
+  if (!S.books) S.books = [START, START];
+  drawPartner();
+  render();
+}
+function drawPartner() {
+  const el = $("partner");
+  if (!together.room) { el.hidden = true; return; }
+  el.hidden = false;
+  el.replaceChildren();
+  if (!together.online) { el.append("Reconnecting…"); return; }
+  const p = together.partner();
+  if (!p) { el.append(`Room ${together.room.code}: waiting for your partner.`); return; }
+  const b = document.createElement("b");
+  b.textContent = p.name + (p.online ? "" : " (away)");
+  if (p.game && p.game !== "quote") {
+    const a = document.createElement("a");
+    a.href = gameHref(p.game);
+    a.textContent = "Join them";
+    el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, a);
+    return;
+  }
+  el.append("Making markets with ", b, ": you take turns.");
+}
+async function askName() {
+  const saved = localStorage.getItem("crates:name");
+  if (saved) return saved;
+  const dlg = $("nameDlg");
+  dlg.showModal();
+  $("nameInput").focus();
+  const name = await new Promise(res => dlg.addEventListener("close", () => res($("nameInput").value.trim()), { once: true }));
+  if (name) try { localStorage.setItem("crates:name", name); } catch { /* private mode */ }
+  return name;
+}
+const together = createTogether({
+  game: "quote",
+  app: APP,
+  toast,
+  askName,
+  valid: g => g?.v === 1 && Array.isArray(g.set),
+  fresh: freshRoom,
+  onState,
+  onPresence: drawPartner,
+  onLeave: () => { shownBell = null; S = read(RUN, null); drawPartner(); $("books").className = "qt-book"; if (!S) start("random"); else render(); },
+});
+
 // ---------- the closing bell ----------
 function finish() {
   const inside = S.log.filter(e => e.inside).length;
@@ -190,13 +375,38 @@ function openMenu() {
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", "Make a market on a number: a bid and an ask. Inside pays more the tighter your market; outside costs more the further out the truth lies. Ten questions, a book of 1,000 to start.");
-  button("A new set", () => confirmStart("random"));
-  button("Today's set", () => confirmStart("daily"));
-  if (S?.done) button("See how it went", finish);
-  button("Copy a link to this set", copyLink);
-  const best = read(BEST, null), daily = read(DAILY, {})[today()];
-  add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}`);
+  const room = together.room;
+  if (!room) {
+    add("p", "stats", "Make a market on a number: a bid and an ask. Inside pays more the tighter your market; outside costs more the further out the truth lies. Ten questions, a book of 1,000 to start.");
+    button("A new set", () => confirmStart("random"));
+    button("Today's set", () => confirmStart("daily"));
+    if (S?.done) button("See how it went", finish);
+    button("Copy a link to this set", copyLink);
+    const best = read(BEST, null), daily = read(DAILY, {})[today()];
+    add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}`);
+    add("h3", null, "Together");
+    add("p", "stats", "Two phones, taking turns: one makes the market, the other hits the bid, lifts the offer or passes. A trade settles between you; a pass settles the maker against the house.");
+    button("Play together", async () => { if (await together.start()) openMenu(); });
+    const row = add("form", "join-run");
+    const input = document.createElement("input");
+    input.placeholder = "Code"; input.maxLength = 4; input.autocapitalize = "characters";
+    const go = document.createElement("button");
+    go.className = "btn"; go.type = "submit"; go.textContent = "Join";
+    row.append(input, go);
+    row.addEventListener("submit", e => {
+      e.preventDefault();
+      const code = input.value.toUpperCase().replace(/[^A-Z]/g, "");
+      if (code.length === 4) { $("menuDlg").close(); together.join(code); }
+    });
+  } else {
+    const link = `${location.origin}${location.pathname}?room=${room.code}`;
+    add("h3", null, `Room ${room.code}`);
+    add("p", "stats", "Send this link to your partner. Switching games (tap the title) keeps you both in this room.");
+    add("p", "room-link", link);
+    button("Copy link", async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); } });
+    button("A fresh set", startRoomSet);
+    button("Leave the room", () => together.leave(), "link");
+  }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(mode) {
@@ -212,6 +422,11 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("quoteBtn").addEventListener("click", quote);
 $("nextBtn").addEventListener("click", next);
+$("hitBtn").addEventListener("click", () => take("hit"));
+$("liftBtn").addEventListener("click", () => take("lift"));
+$("passBtn").addEventListener("click", () => take("pass"));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 for (const id of ["bid", "ask"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); if (id === "bid" && !$("ask").value) $("ask").focus(); else quote(); } });
 window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (h.get("s") || h.get("d")) load(h); });
 
@@ -227,7 +442,7 @@ function load(h) {
 }
 
 // for tests and debugging
-window.__quote = { get state() { return S; }, quote, next, start };
+window.__quote = { get state() { return S; }, quote, next, start, get together() { return together; } };
 
 S = read(RUN, null);
 if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;    // the bank changed under a saved run
@@ -237,3 +452,5 @@ if (!load(hash)) {
   else { history.replaceState(null, "", S.mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`); render(); }
 }
 if (S.done) finish();
+const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+if (code.length === 4) together.join(code);

@@ -123,6 +123,8 @@ Make a market on a number you don't know. Each question is a figure (world LNG t
 
 Widths and distances are measured in doublings: for a magnitude, log2 of the ratio; for a year or a percentage, the gap divided by the question's step (25 years, 10 points, and so on), so a market of 10 to 20 million on a city and one of 1850 to 1875 on a year are judged alike. Inside, a point market earns 200, falling to nothing at two doublings (4× wide, or two steps); outside, each doubling beyond your market costs 150, capped at 600. Shortcuts under the fields set a market of a chosen width around what you've typed. After you quote, a tape shows your market and where the truth fell, with a note on the basis of the figure.
 
+Together (Menu → Play together): two phones taking turns. One makes the market without seeing anything else; the other then sees it and hits the bid (sells to the maker at it), lifts the offer (buys at it) or passes. A trade settles between the two, 150 per doubling the traded price was off the truth (capped at 600 each way); a pass settles the maker against the house as when alone. Ten questions, five markets each, higher book wins; the closing bell shows both books and each question's result.
+
 `quote-bank.js` holds the questions (175 across trade, cities, wine, art, people, geography and markets, with their truths, scales and notes; written in October 2026 and worth checking), `quote-engine.js` settles markets and picks sets (seeded, at most two questions from a category), and `tests/quote.mjs` checks both.
 
 ## Rooms

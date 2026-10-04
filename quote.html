@@ -22,7 +22,8 @@
     <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
   </header>
 
-  <div class="qt-strip"><span id="where"></span><span class="qt-book">Book <b id="book">1,000</b></span></div>
+  <p id="partner" class="qt-partner" hidden></p>
+  <div class="qt-strip"><span id="where"></span><span class="qt-book" id="books">Book <b id="book">1,000</b></span></div>
 
   <section class="qt-card">
     <span id="cat" class="qt-cat"></span>
@@ -37,6 +38,13 @@
     <div id="widths" class="qt-widths" aria-label="Set the width"></div>
     <p id="fault" class="qt-fault" role="alert"></p>
     <button class="qt-go" type="button" id="quoteBtn">Quote</button>
+    <p id="waiting" class="qt-waiting" hidden></p>
+    <div id="takeBox" class="qt-take" hidden>
+      <p class="qt-shown">Their market: <b id="shown"></b></p>
+      <button class="qt-go" type="button" id="hitBtn"></button>
+      <button class="qt-go" type="button" id="liftBtn"></button>
+      <button class="qt-go quiet" type="button" id="passBtn">Pass</button>
+    </div>
 
     <div id="result" class="qt-result" hidden>
       <p class="qt-verdict" id="verdict"></p>
@@ -50,6 +58,14 @@
 <dialog id="doneDlg" class="sheet" aria-label="How it went">
   <div class="pick-head"><h2>Closing bell</h2><button class="btn" type="button" id="doneClose">Close</button></div>
   <div id="doneBody"></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog" id="nameForm">
+    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
 </dialog>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">

@@ -33,6 +33,15 @@
 .qt-fault { margin: 0; min-height: 1.2em; font-size: .88rem; color: var(--qt-bad); }
 .qt-go { min-height: 50px; border: 0; border-radius: 14px; background: var(--qt-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
 .qt-go:disabled { opacity: .45; cursor: default; }
+.qt-go.quiet { background: var(--yard); color: var(--ink); }
+.qt-partner { margin: .5rem 0 0; font-size: .95rem; }
+.qt-partner b { font-weight: 750; }
+.qt-waiting { margin: .4rem 0; text-align: center; color: var(--ink-soft); }
+.qt-take { display: grid; gap: .45rem; }
+.qt-shown { margin: 0 0 .2rem; text-align: center; font-size: 1.05rem; }
+.qt-shown b { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.qt-books { display: flex; gap: .8rem; }
+.qt-books b { font-variant-numeric: tabular-nums; }
 
 /* after you quote: where the truth landed */
 .qt-result { display: grid; gap: .6rem; padding-top: .4rem; border-top: 1px solid var(--qt-edge); }
