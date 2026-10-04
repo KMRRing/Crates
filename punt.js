@@ -11,7 +11,7 @@ import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from 
 import { gameHref, GAMES } from "./rooms.js";
 
 const $ = id => document.getElementById(id);
-const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records";
+const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
 const APP = 1;
 const ME = "me";                                   // the solo player's seat
 const randomSeed = () => Math.floor(Math.random() * 1e9);
@@ -29,34 +29,68 @@ const maxPct = () => (together.room ? 50 : 100);
 const question = () => S.questions[S.index];
 const seated = () => (together.room ? seatsOf(together.room.data).map(([id]) => id) : [ME]);
 
+// ---------- the maths bank ----------
+const DIFFICULTIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+let mathsBank = null;        // { MATHS, STAGES } once loaded
+async function loadMaths() { if (!mathsBank) mathsBank = await import("./maths-bank.js"); return mathsBank; }
+/** The stages and difficulties chosen for maths runs (all, until chosen). */
+function chosenMaths() {
+  const all = { stages: ["gcse", "sl", "hl", "uni"], diffs: DIFFICULTIES };
+  try {
+    const m = JSON.parse(localStorage.getItem(MATHS_PICKS));
+    return m?.stages?.length && m?.diffs?.length ? { stages: m.stages, diffs: m.diffs } : all;
+  } catch { return all; }
+}
+/** The bank, filtered to a choice, with a label per stage: what the engine needs to deal maths. */
+async function mathsDeal(picks) {
+  const { MATHS, STAGES } = await loadMaths();
+  return { pool: MATHS.filter(q => picks.stages.includes(q.lv) && picks.diffs.includes(q.d)), stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])) };
+}
+const isMaths = level => !!LEVELS[level]?.maths;
+/** A run's link: seed, level, length, and for maths its stages and difficulties. */
+function linkOf(s) {
+  const n = lengthOf(s) === "standard" ? "" : `&n=${lengthOf(s)}`;
+  const m = isMaths(s.level) && s.maths ? `&st=${s.maths.stages.join(",")}&df=${s.maths.diffs.join(",")}` : "";
+  return `#s=${s.seed}&d=${s.level}${n}${m}`;
+}
+/** The maths choice a link carries, if any (st = stages, df = difficulties). */
+function mathsFromHash(h) {
+  const stages = (h.get("st") || "").split(",").filter(x => ["gcse", "sl", "hl", "uni"].includes(x));
+  const diffs = (h.get("df") || "").split(",").map(Number).filter(d => DIFFICULTIES.includes(d));
+  return stages.length && diffs.length ? { stages, diffs } : chosenMaths();
+}
+
 // ---------- sessions ----------
 /** The run length chosen last (standard, 100 questions or endless), kept for the next run. */
 function chosenLength() { try { const l = localStorage.getItem(LENGTH); return LENGTHS[l] ? l : "standard"; } catch { return "standard"; } }
 const lengthOf = s => (LENGTHS[s?.length] ? s.length : "standard");
 
-function freshState(level, length, players = null) {
+async function freshState(level, length, players = null, maths = chosenMaths()) {
   const seed = randomSeed();
-  return { v: 1, app: APP, seed, level, length, questions: makeSession(seed, level, length), index: 0, pot: START_POT, phase: "bet",
+  const deal = isMaths(level) ? await mathsDeal(maths) : null;
+  return { v: 1, app: APP, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet",
     bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
 }
 function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.questions?.length ? s : null; } catch { return null; } }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
-function soloSession(seed, level, length = chosenLength()) {
-  S = { v: 1, seed, level, length, questions: makeSession(seed, level, length), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
+async function soloSession(seed, level, length = chosenLength(), maths = chosenMaths()) {
+  const deal = isMaths(level) ? await mathsDeal(maths) : null;
+  if (deal && !deal.pool.length) { toast("No maths questions match that choice"); render(); return; }
+  S = { v: 1, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
   resetChoice();
   shownDone = null;
   saveSolo();
-  history.replaceState(null, "", `#s=${seed}&d=${level}${length === "standard" ? "" : `&n=${length}`}`);
+  history.replaceState(null, "", linkOf(S));
   render();
 }
 
-function newSession(level = S.level, length = chosenLength()) {
+async function newSession(level = S.level, length = chosenLength(), maths = chosenMaths()) {
   if (S && !S.done && S.index > 0 && !confirm("Start a new run? This one isn't finished.")) { render(); return; }
   try { localStorage.setItem(LENGTH, length); } catch { /* private mode */ }
-  if (!together.room) { soloSession(randomSeed(), level, length); return; }
-  const next = freshState(level, length);
-  together.act(g => { Object.assign(g, { seed: next.seed, level, length, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
+  if (!together.room) { soloSession(randomSeed(), level, length, maths); return; }
+  const next = await freshState(level, length, null, maths);
+  together.act(g => { Object.assign(g, { seed: next.seed, level, length, maths: next.maths || null, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
 }
 
 /** Ends an endless run where it stands, to see how it went. */
@@ -126,13 +160,14 @@ function place(passing) {
   });
 }
 
-function next() {
+async function next() {
   const index = S.index;
+  const deal = isMaths(S.level) && lengthOf(S) === "endless" ? await mathsDeal(S.maths || chosenMaths()) : null;
   change(g => {
     if (g.phase !== "reveal" || g.index !== index) return false;
     g.questions = Object.values(g.questions);
     if (g.pot <= 0 || (lengthOf(g) !== "endless" && g.index + 1 >= g.questions.length)) { g.done = { at: Date.now() }; return; }
-    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions));
+    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions, deal));
     g.index++;
     g.phase = "bet";
   }).then(() => resetChoice());
@@ -156,6 +191,8 @@ function render() {
 
   $("ask").textContent = q.ask;
   $("prompt").textContent = q.prompt;
+  $("prompt").classList.toggle("long", q.prompt.length > 30);
+  drawMathsBar();
   const need = rightCount(q);
   $("need").hidden = need === 1;
   $("need").textContent = need === 2 ? "Two of these are right: pick both." : `${need} of these are right: pick all ${need}.`;
@@ -165,7 +202,7 @@ function render() {
   $("options").replaceChildren(...q.options.map((o, i) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "pt-option";
+    b.className = `pt-option${o.label.length > 18 ? " long" : ""}`;
     b.setAttribute("role", need > 1 ? "checkbox" : "radio");
     b.setAttribute("aria-checked", String(chosen.includes(i)));
     b.textContent = o.label;
@@ -256,7 +293,7 @@ function showDone() {
   const what = `${LEVELS[S.level].label}, ${LENGTHS[lengthOf(S)].label.toLowerCase()}`;
   $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}, ${passes} pass${passes === 1 ? "" : "es"}. ` +
     `Your best average on ${what}: ${showReturn(best)} a question. The same run for anyone with the link: ` +
-    `${location.origin}${location.pathname}#s=${S.seed}&d=${S.level}${lengthOf(S) === "standard" ? "" : `&n=${lengthOf(S)}`}`;
+    `${location.origin}${location.pathname}${linkOf(S)}`;
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
 
@@ -351,6 +388,59 @@ async function openFlags(everyone = false) {
     add("div", null, `${f.reason}${f.note ? `: ${f.note}` : ""}`, li);
     add("small", null, `${new Date(f.at).toLocaleDateString()}${f.sent === false ? ", waiting to be sent" : ""}`, li);
   }
+}
+
+// ---------- maths: the stage and difficulty pickers ----------
+let picking = null;    // the choice being made in the sheet
+function drawMathsBar() {
+  const bar = $("mathsBar");
+  bar.hidden = !isMaths(S.level);
+  if (bar.hidden) return;
+  const m = S.maths || chosenMaths(), labels = { gcse: "GCSE", sl: "IB SL", hl: "IB HL", uni: "Y1 Uni" };
+  $("stagesBtn").textContent = m.stages.length === 4 ? "All stages" : m.stages.map(x => labels[x]).join(", ");
+  $("diffsBtn").textContent = m.diffs.length === 10 ? "Difficulty 1–10" : `Difficulty ${runs(m.diffs)}`;
+}
+/** 1, 2, 3, 5, 8, 9 → "1–3, 5, 8–9". */
+function runs(nums) {
+  const out = [];
+  for (const n of [...nums].sort((a, b) => a - b)) {
+    const last = out[out.length - 1];
+    if (last && n === last[1] + 1) last[1] = n; else out.push([n, n]);
+  }
+  return out.map(([a, b]) => (a === b ? `${a}` : `${a}–${b}`)).join(", ");
+}
+async function openMathsPicks() {
+  const current = S.maths || chosenMaths();
+  picking = { stages: [...current.stages], diffs: [...current.diffs] };
+  const { STAGES, MATHS } = await loadMaths();
+  const chip = (parent, text, on, fn) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.textContent = text; b.setAttribute("aria-pressed", String(on));
+    b.addEventListener("click", () => { fn(); draw(); });
+    parent.appendChild(b);
+  };
+  const draw = () => {
+    $("stagePicks").replaceChildren();
+    for (const x of STAGES) chip($("stagePicks"), x.label, picking.stages.includes(x.id), () => {
+      picking.stages = picking.stages.includes(x.id) ? picking.stages.filter(y => y !== x.id) : [...picking.stages, x.id];
+    });
+    $("diffPicks").replaceChildren();
+    for (const d of DIFFICULTIES) chip($("diffPicks"), String(d), picking.diffs.includes(d), () => {
+      picking.diffs = picking.diffs.includes(d) ? picking.diffs.filter(y => y !== d) : [...picking.diffs, d];
+    });
+    const n = MATHS.filter(q => picking.stages.includes(q.lv) && picking.diffs.includes(q.d)).length;
+    $("mathsCount").textContent = n ? `${n} questions match.` : "Nothing matches that: pick more stages or difficulties.";
+    $("mathsGo").disabled = !n;
+  };
+  draw();
+  if (!$("mathsDlg").open) $("mathsDlg").showModal();
+}
+function applyMathsPicks() {
+  const order = ["gcse", "sl", "hl", "uni"];
+  const choice = { stages: order.filter(x => picking.stages.includes(x)), diffs: [...picking.diffs].sort((a, b) => a - b) };
+  try { localStorage.setItem(MATHS_PICKS, JSON.stringify(choice)); } catch { /* private mode */ }
+  $("mathsDlg").close();
+  newSession("maths", lengthOf(S), choice);
 }
 
 // ---------- stats ----------
@@ -469,7 +559,7 @@ const together = createTogether({
   toast,
   askName,
   valid: g => !!g?.questions,
-  fresh: players => freshState(S?.level || "medium", chosenLength(), players),
+  fresh: players => freshState(S?.level || "medium", chosenLength(), players),   // a promise: the maths bank may need loading
   onState: val => {
     const moved = !S || S.seed !== val.seed || S.index !== val.index || S.phase !== val.phase;
     S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: Object.values(val.log || {}) };
@@ -554,6 +644,10 @@ sendFlags();                     // anything flagged offline goes now
 $("doneStatsBtn").addEventListener("click", () => { $("doneDlg").close(); openStats("run"); });
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession(S.level, lengthOf(S)); });
 $("level").addEventListener("change", e => newSession(e.target.value, lengthOf(S)));
+$("stagesBtn").addEventListener("click", openMathsPicks);
+$("diffsBtn").addEventListener("click", openMathsPicks);
+$("mathsClose").addEventListener("click", () => $("mathsDlg").close());
+$("mathsGo").addEventListener("click", applyMathsPicks);
 $("stake").addEventListener("input", e => { pct = Number(e.target.value); render(); });
 $("passBtn").addEventListener("click", () => place(true));
 $("betBtn").addEventListener("click", () => place(false));
@@ -563,7 +657,7 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 window.addEventListener("hashchange", () => {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
   const length = LENGTHS[h.get("n")] ? h.get("n") : "standard";
-  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level && lengthOf(S) === length)) soloSession(seed, level, length);
+  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level && lengthOf(S) === length)) soloSession(seed, level, length, mathsFromHash(h));
 });
 
 // for tests and debugging
@@ -574,11 +668,11 @@ const hash = new URLSearchParams(location.hash.slice(1));
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
 const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard";
-if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength);
+if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, mathsFromHash(hash));
 else if (!S) soloSession(randomSeed(), "easy", "standard");
 else {
   shownDone = S.done ? JSON.stringify(S.done) : null;
-  history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}${lengthOf(S) === "standard" ? "" : `&n=${lengthOf(S)}`}`);
+  history.replaceState(null, "", `${location.search}${linkOf(S)}`);
   render();
 }
 if (code.length === 4) together.join(code);

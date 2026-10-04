@@ -24,12 +24,17 @@
         <option value="easy">Easy</option>
         <option value="medium">Medium</option>
         <option value="hard">Hard</option>
+        <option value="maths">Maths</option>
       </select>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
 
   <p id="partner" class="pt-partner" hidden></p>
+  <div id="mathsBar" class="pt-maths" hidden>
+    <button class="pick" type="button" id="stagesBtn" aria-haspopup="dialog"></button>
+    <button class="pick" type="button" id="diffsBtn" aria-haspopup="dialog"></button>
+  </div>
 
   <div class="pt-ledger">
     <span id="progress" class="pt-progress"></span>
@@ -95,6 +100,17 @@
 <dialog id="statsDlg" class="sheet" aria-label="Your stats">
   <div class="pick-head"><h2>Your stats</h2><button class="btn" type="button" id="statsClose">Close</button></div>
   <div id="statsBody"></div>
+</dialog>
+
+<dialog id="mathsDlg" class="sheet" aria-label="Maths questions">
+  <div class="pick-head"><h2>Maths questions</h2><button class="btn" type="button" id="mathsClose">Close</button></div>
+  <h3>Stages</h3>
+  <div id="stagePicks" class="pt-chips"></div>
+  <h3>Difficulty</h3>
+  <p class="stats">1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10.</p>
+  <div id="diffPicks" class="pt-chips pt-chips-10"></div>
+  <p id="mathsCount" class="stats"></p>
+  <button class="btn primary wide" type="button" id="mathsGo">Start a run with these</button>
 </dialog>
 
 <dialog id="nameDlg" class="sheet" aria-label="Your name">

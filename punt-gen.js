@@ -19,7 +19,12 @@ export const LEVELS = {
   easy: { label: "Easy", questions: 12, options: [2, 2, 2, 4], diff: [1, 1, 2], spread: 0.45, margin: 0.03, multi: 0.15 },
   medium: { label: "Medium", questions: 15, options: [2, 4, 4], diff: [1, 2, 2, 3], spread: 0.3, margin: 0.05, multi: 0.25 },
   hard: { label: "Hard", questions: 15, options: [4], diff: [2, 3, 3], spread: 0.18, margin: 0.06, multi: 0.35 },
+  // Maths: questions from maths-bank.js instead of the clue bank, from whichever stages and difficulties the player
+  // picks (dealt in seeded order, cycling once a pool runs dry); priced from each question's difficulty
+  maths: { label: "Maths", questions: 15, spread: 0.3, margin: 0.05, maths: true },
 };
+/** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
+export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
 // How long a run is: the level's standard length, 100 questions, or endless (dealt a batch at a time).
 export const LENGTHS = {
   standard: { label: "Standard" },
@@ -81,23 +86,23 @@ const price = x => Math.min(9.9, Math.max(1.05, x < 2 ? Math.round(x * 20) / 20 
 const choose = (n, k) => { let r = 1; for (let i = 0; i < k; i++) r = r * (n - i) / (i + 1); return r; };
 
 /**
- * The chance a typical player picks exactly the right options: each right one is known with the chance its
- * clue's difficulty suggests, and the rest are guessed among the options not already known to be right.
+ * The chance a typical player picks exactly the right options: each right one is known with the chance given
+ * (knowns, one per right option), and the rest are guessed among the options not already known to be right.
  */
-function chanceRight(difficulties, n) {
-  const k = difficulties.length;
+function chanceRight(knowns, n) {
+  const k = knowns.length;
   let total = 0;
   for (let known = 0; known < 1 << k; known++) {
     let p = 1, m = 0;
-    difficulties.forEach((d, i) => { if (known >> i & 1) { p *= KNOWS[d]; m++; } else p *= 1 - KNOWS[d]; });
+    knowns.forEach((c, i) => { if (known >> i & 1) { p *= c; m++; } else p *= 1 - c; });
     total += p / choose(n - m, k - m);
   }
   return total;
 }
 
 /** A question's chances: a typical player's chance of picking exactly the right options, and its fair price. */
-function odds(difficulties, n, noise) {
-  const fair = chanceRight(difficulties, n);
+function odds(knowns, n, noise) {
+  const fair = chanceRight(knowns, n);
   return { chance: fair, fair: price(1 / fair), noise };
 }
 
@@ -159,7 +164,7 @@ function clueQuestion(rnd, L, used, n, d, noise) {
     ask: right.length > 1 ? `Which ${PLURAL_NOUN[BANK[p.a].cat]} is this about?` : `Which ${NOUN[BANK[p.a].cat]} is this about?`,
     options: options.map(x => ({ label: BANK[x].name, right: right.includes(x) })), need: right.length,
     notes: right.map(x => ({ label: BANK[x].name, text: pairOf(x, p.w)?.hint || p.hint })),
-    d: Math.min(...ds), ...odds(ds, n, noise), key: p.w,
+    d: Math.min(...ds), ...odds(ds.map(d => KNOWS[d]), n, noise), key: p.w,
   };
 }
 
@@ -180,7 +185,7 @@ function answerQuestion(rnd, L, used, n, d, noise) {
     kind: "answer", cat: BANK[a].cat, prompt: BANK[a].name, ask: right.length > 1 ? "Which clues go with" : "Which clue goes with",
     options: options.map(w => ({ label: w, right: right.includes(w) })), need: right.length,
     notes: right.map(w => ({ label: w, text: pairOf(a, w).hint })),
-    d: Math.min(...ds), ...odds(ds, n, noise), key: p.w,
+    d: Math.min(...ds), ...odds(ds.map(d => KNOWS[d]), n, noise), key: p.w,
   };
 }
 
@@ -199,13 +204,42 @@ function makeQuestions(seed, levelId, count, start, used) {
   return out;
 }
 
-/** A run's questions: all of them for a fixed length (balanced as one batch), the first batch for an endless run. */
-export function makeSession(seed, levelId, lengthId = "standard") {
+/**
+ * A batch of maths questions: the pool (the bank, filtered to the chosen stages and difficulties) in the order the
+ * seed shuffles it, taking up from where the run has got to, and round again once it runs dry; noise as for any
+ * batch. stages: a label per stage id, for the small line above each question.
+ */
+function mathsQuestions(seed, pool, stages, count, start) {
+  const L = LEVELS.maths, rnd = rng(mix(seed, start)), order = shuffle(rng(seed), [...pool]), out = [];
+  if (!order.length) return out;
+  const z = shuffle(rnd, Array.from({ length: count }, (_, i) => quantile((i + 0.5) / count)));
+  const m = z.map(v => Math.exp(L.spread * v)), mean = m.reduce((a, b) => a + b, 0) / count;
+  for (let i = 0; i < count; i++) {
+    const q = order[(start + i) % order.length];
+    const right = q.o.map((label, k) => ({ label, right: q.a.includes(k) }));
+    out.push({
+      kind: "maths", cat: "maths", prompt: q.q, ask: `${q.area}, ${stages[q.lv] || q.lv}, level ${q.d}`,
+      options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
+      d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
+    });
+  }
+  priceBatch(L, out);
+  return out;
+}
+
+/**
+ * A run's questions: all of them for a fixed length (balanced as one batch), the first batch for an endless run.
+ * For Maths, pass { pool, stages }: the filtered bank and a label per stage id.
+ */
+export function makeSession(seed, levelId, lengthId = "standard", maths = null) {
   const count = lengthId === "endless" ? BATCH : LENGTHS[lengthId]?.questions ?? LEVELS[levelId].questions;
+  if (LEVELS[levelId].maths) return mathsQuestions(seed, maths.pool, maths.stages, count, 0);
   return makeQuestions(seed, levelId, count, 0, new Set());
 }
 /** The next batch of an endless run, following the questions dealt so far. */
-export const moreQuestions = (seed, levelId, dealt) => makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key)));
+export const moreQuestions = (seed, levelId, dealt, maths = null) => (LEVELS[levelId].maths
+  ? mathsQuestions(seed, maths.pool, maths.stages, BATCH, dealt.length)
+  : makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key))));
 
 /**
  * The average return per question, compounded: the steady rate per question that turns the starting pot into

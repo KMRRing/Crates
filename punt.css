@@ -39,6 +39,15 @@
   background: radial-gradient(circle at 6px 0, transparent 6px, var(--pt-ticket) 6.5px) 0 0 / 12px 10px repeat-x; }
 .pt-ask { margin: 0; color: var(--ink-soft); font-size: .95rem; }
 .pt-prompt { margin: .2rem 0 1rem; font-size: 2rem; font-weight: 800; font-stretch: 108%; line-height: 1.1; letter-spacing: -.01em; overflow-wrap: anywhere; hyphens: auto; }
+.pt-prompt.long { font-size: 1.3rem; font-weight: 750; font-stretch: 100%; line-height: 1.3; letter-spacing: 0; hyphens: none; }
+.pt-option.long { font-size: .95rem; }
+.pt-maths { display: flex; gap: .4rem; margin-top: .5rem; }
+.pt-maths .pick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.pt-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin: .3rem 0 .6rem; }
+.pt-chips-10 { grid-template-columns: repeat(5, 1fr); }
+.pt-chips .btn { min-height: 42px; padding: .3rem .2rem; }
+.pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+#mathsDlg h3 { margin: .8rem 0 .2rem; }
 .pt-need { margin: -.6rem 0 .8rem; font-weight: 750; color: var(--pt-turf); }
 .pt-options { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 .pt-option { min-height: 52px; padding: .5rem .7rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge); background: var(--sheet);

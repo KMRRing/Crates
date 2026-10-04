@@ -6,12 +6,16 @@ globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
 let bad = 0;
+// the maths bank, for the Maths level (every stage and difficulty)
+const M = await import("../maths-bank.js");
+const stages = Object.fromEntries(M.STAGES.map(x => [x.id, x.label]));
+const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages } : null);
 for (const lvl of Object.keys(P.LEVELS)) {
   let multi = 0, total = 0, overpaid = 0, oddsSeen = [];
   for (let seed = 1; seed <= 40; seed++) {
-    const s = P.makeSession(seed * 7919, lvl);
+    const s = P.makeSession(seed * 7919, lvl, "standard", mathsFor(lvl));
     if (s.length !== P.LEVELS[lvl].questions) { bad++; console.log(`${lvl} seed ${seed}: ${s.length} questions`); }
-    if (JSON.stringify(P.makeSession(seed * 7919, lvl)) !== JSON.stringify(s)) { bad++; console.log(`${lvl} seed ${seed}: not repeatable`); }
+    if (JSON.stringify(P.makeSession(seed * 7919, lvl, "standard", mathsFor(lvl))) !== JSON.stringify(s)) { bad++; console.log(`${lvl} seed ${seed}: not repeatable`); }
     for (const q of s) {
       total++;
       const right = q.options.filter(o => o.right).length;
@@ -30,11 +34,11 @@ for (const lvl of Object.keys(P.LEVELS)) {
 for (const lvl of Object.keys(P.LEVELS)) {
   const target = 1 - P.LEVELS[lvl].margin;
   for (let seed = 1; seed <= 10; seed++) {
-    let qs = P.makeSession(seed * 104729, lvl, "hundred");
+    let qs = P.makeSession(seed * 104729, lvl, "hundred", mathsFor(lvl));
     const runValue = qs.reduce((t, q) => t + q.chance * q.offered, 0) / qs.length;
     if (qs.length !== 100 || Math.abs(runValue - target) > 0.005) { bad++; console.log(`${lvl} 100-question run ${seed}: ${qs.length} questions, value ${runValue.toFixed(3)} (target ${target})`); }
-    qs = P.makeSession(seed, lvl, "endless");
-    for (let k = 0; k < 4; k++) qs = qs.concat(P.moreQuestions(seed, lvl, qs));
+    qs = P.makeSession(seed, lvl, "endless", mathsFor(lvl));
+    for (let k = 0; k < 4; k++) qs = qs.concat(P.moreQuestions(seed, lvl, qs, mathsFor(lvl)));
     const batches = [0, 1, 2, 3, 4].map(b => qs.slice(b * P.BATCH, (b + 1) * P.BATCH));
     for (const batch of batches) {
       const v = batch.reduce((t, q) => t + q.chance * q.offered, 0) / batch.length;
@@ -43,6 +47,20 @@ for (const lvl of Object.keys(P.LEVELS)) {
     if (new Set(qs.map(q => q.key)).size !== qs.length) { bad++; console.log(`${lvl} endless run repeats a clue`); }
   }
   console.log(`${lvl}: 100-question and endless runs all priced at ${target} to a typical player`);
+}
+// Maths: a filter to one stage and two difficulties deals only those, cycles once the pool runs dry, keeps the
+// questions' own right answers, and prices harder questions higher
+{
+  const pool = M.MATHS.filter(q => q.lv === "gcse" && [1, 2].includes(q.d));
+  const qs = P.makeSession(5, "maths", "hundred", { pool, stages });
+  const byId = new Map(M.MATHS.map(q => [q.id, q]));
+  const okFilter = qs.every(q => { const src = byId.get(q.key); return src.lv === "gcse" && [1, 2].includes(src.d); });
+  const okAnswers = qs.every(q => { const src = byId.get(q.key); return q.options.filter(o => o.right).length === src.s && q.options.every((o, k) => o.right === src.a.includes(k)); });
+  const easy = qs.filter(q => q.d === 1), easyPrice = easy.reduce((t, q) => t + q.fair, 0) / easy.length;
+  const hardQs = P.makeSession(5, "maths", "standard", { pool: M.MATHS.filter(q => q.d >= 9), stages });
+  const hardPrice = hardQs.reduce((t, q) => t + q.fair, 0) / hardQs.length;
+  console.log(`maths: filtered pool of ${pool.length}, 100 dealt (cycling), fair price ${easyPrice.toFixed(2)}× at difficulty 1 against ${hardPrice.toFixed(2)}× at 9–10`);
+  if (!(okFilter && okAnswers && qs.length === 100 && hardPrice > easyPrice * 1.5)) { bad++; console.log("maths deal problems", { okFilter, okAnswers, n: qs.length }); }
 }
 console.log(bad ? `${bad} problems` : "all sessions check out");
 if (bad) process.exitCode = 1;
