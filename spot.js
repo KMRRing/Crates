@@ -2,7 +2,7 @@
 // that make the numbers your partner calls out. The engine (spot-engine.js) replays a run from its seed and the
 // taps every frame; this file draws it and takes taps. Together, the room holds the run (seed and start time on
 // the database's clock) and the taps; each device replays the same run, so only taps travel.
-import { play, LIVES, SHELF } from "./spot-engine.js";
+import { play, LIVES, SHELF, levelAt, modifierAt, modText } from "./spot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
@@ -40,6 +40,8 @@ function startSolo(mode) {
 }
 function reset() {
   finished = null;
+  shownMod = "";
+  $("modifier").hidden = true;
   last = null;
   flashes.clear();
   seen.clear();
@@ -114,13 +116,13 @@ function frame() {
   if (!run || pausedAt != null) return;
   const t = elapsed();
   $("shelf").hidden = run.seats === 2;
-  if (t < 0) { showCountdown(Math.ceil(-t / 1000)); if (run.seats === 1) drawShelf(null); drawHud({ score: 0, lives: LIVES, multiplier: 1 }); return; }
+  if (t < 0) { showCountdown(Math.ceil(-t / 1000)); if (run.seats === 1) drawShelf(null); drawHud({ score: 0, lives: LIVES, multiplier: 1 }, 0); return; }
   const st = play(run, taps, t);
   last = st;
   if (!st.over) $("overlay").hidden = true;
   drawField(st);
   if (run.seats === 1) drawShelf(st);
-  drawHud(st);
+  drawHud(st, t);
   animate(st);
   if (st.over && finished !== run) { finished = run; setTimeout(() => showResults(st), 700); }
 }
@@ -137,6 +139,7 @@ function drawField(st) {
       el.className = `sp-sum${run.seats === 2 ? " tappable" : ""}`;
       el.dataset.id = s.id;
       el.textContent = s.text;
+      if (s.mod) { const tag = document.createElement("em"); tag.textContent = modText(s.mod); el.appendChild(tag); }   // the modifier it came under
       el.appendChild(document.createElement("i"));
       if (run.seats === 2) { el.type = "button"; el.addEventListener("pointerdown", e => { e.preventDefault(); tapSum(s.id, el); }); }
       field.appendChild(el);
@@ -179,10 +182,21 @@ function drawShelf(st) {
   });
 }
 
-let shownLives = LIVES;
-function drawHud(st) {
+let shownLives = LIVES, shownMod = "";
+function drawHud(st, t = 0) {
   $("score").textContent = st.score.toLocaleString("en-GB");
   $("mult").textContent = st.multiplier > 1 ? `×${st.multiplier}` : "";
+  $("level").textContent = t > 0 ? `LV ${levelAt(t)}` : "";
+  // the modifier new sums come under: apply it to every result first
+  const mod = t > 0 ? modText(modifierAt(run.seed, mySeat, t)) : "";
+  if (mod !== shownMod) {
+    shownMod = mod;
+    const badge = $("modifier");
+    badge.hidden = !mod;
+    badge.querySelector("b").textContent = mod;
+    badge.classList.remove("new"); void badge.offsetWidth; badge.classList.add("new");
+    if (mod) navigator.vibrate?.([30, 40, 30]);
+  }
   const lives = $("lives");
   if (lives.children.length !== LIVES) lives.replaceChildren(...Array.from({ length: LIVES }, () => { const i = document.createElement("i"); i.className = "sp-life"; return i; }));
   [...lives.children].forEach((el, k) => {
@@ -229,7 +243,7 @@ function showStart() {
   const best = read(BEST, 0), daily = read(DAILY, {})[today()];
   card((add, go) => {
     add("h2", null, "Spot");
-    add("p", null, "Sums fall down the screen. Tap their answers on the shelf before they reach the bottom; mind the fakes.");
+    add("p", null, "Sums fly across the screen. Tap their answers on the shelf before they're gone; mind the fakes. From 45 s a modifier appears: apply it to every result first.");
     go("Play", () => startSolo("solo"));
     go(daily != null ? `Today's run (best ${daily})` : "Today's run", () => startSolo("daily"), true);
     if (best) add("p", null, `Your best: ${best.toLocaleString("en-GB")}`);
@@ -269,7 +283,7 @@ function showLobby() {
   const data = together.room?.data, partner = together.partner();
   card((add, go) => {
     add("h2", null, "Playing together");
-    add("p", null, "You each see your own sums, and most of them have a partner on the other screen that makes the same number, arriving within a few seconds. Call out what yours make; tap the one of yours that makes a number your partner called. Some have no partner: tapping those costs a life.");
+    add("p", null, "You each see your own sums, and most of them have a partner on the other screen that makes the same number, arriving within a few seconds. Call out what yours make; tap the one of yours that makes a number your partner called. Some have no partner: tapping those costs a life. From 45 s each of you gets your own modifier to apply to every result first.");
     add("p", null, partner ? `${partner.name} is ${partner.online ? "here" : "away"}.` : `Waiting for your partner: room ${together.room?.code}.`);
     go("Start", startTogether, false, seatsOf(data).length < 2);
     go("Leave the room", () => together.leave(), true);
@@ -411,7 +425,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 
 // for tests and debugging
-window.__spot = { get run() { return run; }, get state() { return last; }, get seat() { return mySeat; }, tap: tapSlot, get together() { return together; } };
+window.__spot = { get run() { return run; }, get state() { return last; }, get seat() { return mySeat; }, get taps() { return taps; }, tap: tapSlot, get together() { return together; } };
 
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 showStart();

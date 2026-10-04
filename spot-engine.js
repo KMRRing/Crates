@@ -32,19 +32,44 @@ const pickWeighted = (r, weights) => {
   return weights[weights.length - 1][0];
 };
 
-// ---------- the pace: everything quickens with time ----------
-const interval = ms => Math.max(1000, 2400 - ms / 60);          // between sums: 2.4 s at first, 1 s after ~85 s
-const lifetime = ms => Math.max(5500, 9000 - ms / 30);          // how long a sum lasts: 9 s, down to 5.5 s after 105 s
-const MAX_LIFE = 9000;
-
-/** Which kinds of sum, and how big, by how far into the run: plus and minus, then times, then division, then bigger. */
-function tierAt(ms) {
-  const s = ms / 1000;
-  if (s < 20) return { kinds: [["add", 3], ["sub", 2]], big: false, fakes: [1, 1] };
-  if (s < 45) return { kinds: [["add", 2], ["sub", 2], ["mul", 3]], big: false, fakes: [1, 2] };
-  if (s < 75) return { kinds: [["add", 2], ["sub", 2], ["mul", 3], ["div", 2]], big: false, fakes: [1, 2] };
-  return { kinds: [["add", 2], ["sub", 2], ["mul", 3], ["div", 2]], big: true, fakes: [2, 2] };
+// ---------- the pace: a slowly rising budget of difficulty ----------
+// Every sum has a cost (how hard it is: 1 for a small addition, up to 4 for a big division, +1 with a modifier),
+// and the run has a budget of difficulty per second that rises slowly. A cheap sum is followed quickly by the
+// next; an expensive one buys a few seconds. So you might get four easy sums in a row, or one division with time
+// to think. Lifetimes scale with cost too, and shorten a little over time.
+const rate = ms => 0.45 + 0.85 * Math.min(1, ms / 240000) + 0.12 * Math.max(0, ms - 240000) / 60000;   // difficulty points a second: 0.45, 1.3 at 4 min
+const lifeFor = (cost, ms) => (3600 + 1700 * cost) * (1 - 0.22 * Math.min(1, ms / 240000));
+const MAX_LIFE = 11000;
+/** The difficulty level shown to the player: up one every 30 seconds. */
+export const levelAt = ms => 1 + Math.floor(ms / 30000);
+const ramp = (ms, from, to) => Math.min(1, Math.max(0, (ms - from) / (to - from)));
+/** What can come up, and how often, this far into the run: plus and minus, then times, then division, then bigger. */
+function mixAt(ms) {
+  return {
+    kinds: [["add", 3], ["sub", 2], ["mul", 3 * ramp(ms, 12000, 72000)], ["div", 2 * ramp(ms, 35000, 110000)]].filter(([, w]) => w > 0),
+    big: 0.7 * ramp(ms, 60000, 200000),                             // the chance of bigger numbers
+    fakes: ms < 20000 ? [1, 1] : ms < 75000 ? [1, 2] : [2, 2],
+  };
 }
+const COST = { add: 1, sub: 1, mul: 2, div: 3 };
+const cost = (kind, big) => COST[kind] + (big ? 1 : 0);
+
+// ---------- modifiers: from 45 s in, an operation to apply to every result before anything else ----------
+const MODS = [[null, 6], [{ op: "+", k: 1 }, 2], [{ op: "+", k: 2 }, 2], [{ op: "+", k: 3 }, 1], [{ op: "−", k: 1 }, 2], [{ op: "−", k: 2 }, 1],
+  [{ op: "+", k: 10 }, 1], [{ op: "×", k: 2 }, 1]];                   // a bit over a third of the windows have none
+const MOD_FROM = 45000, MOD_WINDOW = 20000;
+/** The modifier a seat is under at a moment (changes every 20 s from 45 s in; none before), or null. */
+export function modifierAt(seed, seat, ms) {
+  if (ms < MOD_FROM) return null;
+  const window = Math.floor((ms - MOD_FROM) / MOD_WINDOW);
+  const r = rng((seed ^ Math.imul(window + 1, 0x85EBCA6B) ^ Math.imul(seat + 1, 0xC2B2AE35)) >>> 0);
+  return pickWeighted(r, MODS);
+}
+/** A result after a modifier. */
+export const applyMod = (m, v) => (!m ? v : m.op === "+" ? v + m.k : m.op === "−" ? v - m.k : v * m.k);
+/** The result that a modifier turns into v, or null if none can (an odd v under ×2, or nothing positive). */
+const unMod = (m, v) => { const r = !m ? v : m.op === "+" ? v - m.k : m.op === "−" ? v + m.k : v % m.k === 0 ? v / m.k : null; return r != null && r >= 2 ? r : null; };
+export const modText = m => (!m ? "" : `${m.op}${m.k}`);
 
 /** A sum of a kind: { text, answer, points }. Results are whole and positive; divisions come out exactly. */
 function makeSum(r, kind, big) {
@@ -75,10 +100,11 @@ function sumMaking(r, kind, n, big) {
 
 /**
  * A fake for a sum: an answer you'd get by slipping. Times-table neighbours and adding instead of multiplying for
- * products; off by one or ten, and swapped digits, for anything.
+ * products; off by one or ten, and swapped digits, for anything. n is the value the fake should sit near (the
+ * answer as modified, when there's a modifier).
  */
-function fakeFor(r, sum, kind) {
-  const n = sum.answer, swapped = n >= 10 && n % 10 !== Math.floor(n / 10) ? Number(String(n).split("").reverse().join("")) : null;
+function fakeFor(r, sum, kind, n) {
+  const swapped = n >= 10 && n % 10 !== Math.floor(n / 10) ? Number(String(n).split("").reverse().join("")) : null;
   const options = [n + 1, n - 1, n + 2, n - 2, n + 10, n - 10, swapped];
   if (kind === "mul") options.push(sum.a * (sum.b + 1), sum.a * (sum.b - 1), (sum.a + 1) * sum.b, sum.a + sum.b);
   if (kind === "add") options.push(sum.a * sum.b > 0 && sum.a * sum.b < 100 ? sum.a * sum.b : null, sum.a - sum.b);
@@ -91,33 +117,36 @@ function fakeFor(r, sum, kind) {
 // ---------- the timeline ----------
 const timelines = new Map();
 /**
- * The run's sums up to time t (ms from the start): { id, at, life, kind, text, answer, points, seat (who sees it),
- * shelf (whose shelf holds its answer), fakes: [{ id, value, life }] }. No two sums that can be on screen together
- * share an answer, and no fake equals an answer that can be on screen with it.
+ * Alone: the run's sums up to time t (ms from the start): { id, at, life, kind, text, answer, mod (the modifier it
+ * came under, or null), value (the answer as modified: what the shelf shows), points, fakes: [{ id, value, life }] }.
+ * No two sums that can be on screen together show the same value, and no fake equals a value on screen with it.
  */
 export function timeline(seed, seats, t) {
   const key = `${seed}/${seats}`;
   let tl = timelines.get(key);
   if (!tl) { tl = { r: rng(seed), sums: [], next: 1500 }; timelines.set(key, tl); }
   while (tl.next <= t + MAX_LIFE) {
-    const at = tl.next, r = tl.r, tier = tierAt(at), id = tl.sums.length;
-    // values that might be on screen at the same time: answers and fakes from the last 10 seconds
+    const at = tl.next, r = tl.r, mix = mixAt(at), id = tl.sums.length, mod = modifierAt(seed, 0, at);
+    // values that might be on screen at the same time: answers (as modified) and fakes from the last 11 seconds
     const near = tl.sums.filter(s => s.at > at - MAX_LIFE * 1.1);
-    const taken = new Set(near.flatMap(s => [s.answer, ...s.fakes.map(f => f.value)]));
-    let sum = null, kind = null;
-    for (let tries = 0; tries < 40 && (!sum || taken.has(sum.answer)); tries++) { kind = pickWeighted(r, tier.kinds); sum = makeSum(r, kind, tier.big); }
-    const answers = new Set(near.map(s => s.answer).concat(sum.answer));
-    const fakes = [];
-    const nFakes = int(r, tier.fakes[0], tier.fakes[1]);
+    const taken = new Set(near.flatMap(s => [s.value, ...s.fakes.map(f => f.value)]));
+    let sum = null, kind = null, big = false;
+    for (let tries = 0; tries < 40 && (!sum || taken.has(applyMod(mod, sum.answer))); tries++) { kind = pickWeighted(r, mix.kinds); big = r() < mix.big; sum = makeSum(r, kind, big); }
+    const value = applyMod(mod, sum.answer);
+    const values = new Set(near.map(s => s.value).concat(value));
+    const life = lifeFor(cost(kind, big) + (mod ? 1 : 0), at);
+    // with a modifier on, the unmodified answer is the obvious slip, so it's always among the fakes
+    const wanted = [];
+    if (mod && !values.has(sum.answer)) wanted.push(sum.answer);
+    const nFakes = int(r, mix.fakes[0], mix.fakes[1]);
     for (let k = 0; k < nFakes; k++) {
       let v = null;
-      for (let tries = 0; tries < 12 && (v == null || answers.has(v) || fakes.some(f => f.value === v)); tries++) v = fakeFor(r, sum, kind);
-      if (v != null && !answers.has(v) && !fakes.some(f => f.value === v)) fakes.push({ id: `f${id}.${k}`, value: v, life: lifetime(at) * (0.75 + 0.25 * r()) });
+      for (let tries = 0; tries < 12 && (v == null || values.has(v) || wanted.includes(v)); tries++) v = fakeFor(r, sum, kind, value);
+      if (v != null && !values.has(v) && !wanted.includes(v)) wanted.push(v);
     }
-    // together, sums take turns between the players; the answer goes to the other one's shelf
-    const seat = seats === 2 ? id % 2 : 0, shelf = seats === 2 ? 1 - seat : 0;
-    tl.sums.push({ id, at, life: lifetime(at), kind, text: sum.text, answer: sum.answer, points: sum.points, seat, shelf, fakes });
-    tl.next = at + interval(at);
+    const fakes = wanted.map((v, k) => ({ id: `f${id}.${k}`, value: v, life: life * (0.75 + 0.25 * r()) }));
+    tl.sums.push({ id, at, life, kind, text: sum.text, answer: sum.answer, mod, value, points: sum.points + (mod ? 1 : 0), seat: 0, shelf: 0, fakes });
+    tl.next = at + 1000 * (cost(kind, big) + (mod ? 1 : 0)) / rate(at);
   }
   return tl.sums.filter(s => s.at <= t);
 }
@@ -125,36 +154,42 @@ export function timeline(seed, seats, t) {
 // ---------- the timeline together: pairs and decoys ----------
 const duoTimelines = new Map();
 /**
- * Together: the run's sums up to time t, each { id, at, life, seat (whose screen), kind, text, answer, points,
- * pair (the pair's id, or null for a decoy) }. A pair is two different sums with one result, one on each screen,
- * the second appearing 0.6–4 s after the first. Results never repeat across sums that can be on screen at once, so
- * a called number always means one thing.
+ * Together: the run's sums up to time t, each { id, at, life, seat (whose screen), kind, text, answer, mod (that
+ * seat's modifier when it appeared), value (what it makes after the modifier: the number that gets called), points,
+ * pair (the pair's id, or null for a decoy) }. A pair is two sums that make one value, one on each screen, the
+ * second appearing 0.6–4 s after the first, each under its own seat's modifier. Values never repeat across sums
+ * that can be on screen at once, so a called number always means one thing.
  */
 export function duoTimeline(seed, t) {
   let tl = duoTimelines.get(seed);
   if (!tl) { tl = { r: rng(seed ^ 0x5bd1e995), sums: [], next: 1500, pairs: 0 }; duoTimelines.set(seed, tl); }
   const window = MAX_LIFE + 4000;
   while (tl.next <= t + MAX_LIFE + 4000) {
-    const at = tl.next, r = tl.r, tier = tierAt(at);
-    const taken = new Set(tl.sums.filter(s => Math.abs(s.at - at) < window * 1.2).map(s => s.answer));
+    const at = tl.next, r = tl.r, mix = mixAt(at);
+    // the value that gets called out: what each seat's sum makes after that seat's own modifier
+    const taken = new Set(tl.sums.filter(s => Math.abs(s.at - at) < window * 1.2).map(s => s.value));
     const decoy = r() < 0.3;
-    // a result for this pair (or decoy): one of the kinds the tier allows, not already in play
-    let made = null;
-    for (let tries = 0; tries < 60 && (!made || taken.has(made.answer)); tries++) made = makeSum(r, pickWeighted(r, tier.kinds), tier.big);
-    const n = made.answer;
-    const first = r() < 0.5 ? 0 : 1;
-    const push = (when, seat, s, pair) => tl.sums.push({ id: tl.sums.length, at: when, life: lifetime(when), seat, kind: s.kind, text: s.text, answer: n, points: s.points, pair });
-    if (decoy) push(at, first, { ...made, kind: null }, null);
-    else {
-      // the partner sum: a different way of making the same number, preferably a different kind
-      let other = null;
-      for (let tries = 0; tries < 30 && (!other || other.text === made.text); tries++) other = sumMaking(r, pickWeighted(r, tier.kinds), n, tier.big);
-      if (!other || other.text === made.text) other = { text: `${n + 1} − 1`, answer: n, points: 1 };
-      const pair = tl.pairs++;
-      push(at, first, made, pair);
-      push(at + 600 + r() * 3400, 1 - first, other, pair);
+    const first = r() < 0.5 ? 0 : 1, second = 1 - first;
+    const modFirst = modifierAt(seed, first, at), later = at + 600 + r() * 3400, modSecond = modifierAt(seed, second, later);
+    let made = null, kind = null, big = false, value = null, raw = null;
+    for (let tries = 0; tries < 60 && (!made || taken.has(value) || (!decoy && raw == null)); tries++) {
+      kind = pickWeighted(r, mix.kinds); big = r() < mix.big; made = makeSum(r, kind, big);
+      value = applyMod(modFirst, made.answer);
+      raw = unMod(modSecond, value);                                 // what the partner's sum must make
     }
-    tl.next = at + interval(at) * 1.35;
+    const push = (when, seat, s, mod, pair) => tl.sums.push({ id: tl.sums.length, at: when, life: lifeFor(cost(kind, big) + (mod ? 1 : 0), when), seat,
+      kind, text: s.text, answer: s.answer, mod, value, points: s.points + (mod ? 1 : 0), pair });
+    if (decoy || raw == null) push(at, first, made, modFirst, null);
+    else {
+      // the partner sum: a different way to that value, after the partner's own modifier, preferably a different kind
+      let other = null;
+      for (let tries = 0; tries < 30 && (!other || (other.text === made.text && modSecond === modFirst)); tries++) other = sumMaking(r, pickWeighted(r, mix.kinds), raw, big);
+      if (!other) other = { text: `${raw + 1} − 1`, answer: raw, points: 1 };
+      const pair = tl.pairs++;
+      push(at, first, made, modFirst, pair);
+      push(later, second, other, modSecond, pair);
+    }
+    tl.next = at + 1350 * (cost(kind, big) + (modFirst ? 1 : 0)) / rate(at);
   }
   return tl.sums.filter(s => s.at <= t).sort((a, b) => a.at - b.at);
 }
@@ -260,7 +295,7 @@ export function play({ seed, seats }, taps, t) {
     switch (h.type) {
       case "spawn":
         status.set(s.id, "on");
-        place(s.shelf, { id: `s${s.id}`, value: s.answer, real: true, sum: s.id, born: s.at });
+        place(s.shelf, { id: `s${s.id}`, value: s.value, real: true, sum: s.id, born: s.at });
         for (const f of s.fakes) {
           if (shelves[s.shelf].some(x => x && x.value === f.value)) continue;   // no number twice on a shelf
           place(s.shelf, { id: f.id, value: f.value, real: false, sum: s.id, born: s.at });
