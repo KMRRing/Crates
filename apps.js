@@ -36,6 +36,11 @@ const SPOT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <circle cx="10" cy="10" r="4.6" fill="none" stroke="var(--sp-logo-edge)" stroke-width="1.5"/>
   <circle cx="10" cy="10" r="1.8" fill="var(--sp-logo-edge)"/></svg>`;
 
+// Quotation marks, for Quote.
+const QUOTE_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--qt-logo-tint)" stroke="var(--qt-logo-edge)" stroke-width="1.6"/>
+  <path d="M6 12.2c0-2.4 1.1-4 3.1-4.7v1.3c-1 .4-1.5 1-1.6 1.9h1.6v2.9H6zM11.1 12.2c0-2.4 1.1-4 3.1-4.7v1.3c-1 .4-1.5 1-1.6 1.9h1.6v2.9h-3.1z" fill="var(--qt-logo-edge)"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -43,6 +48,7 @@ export const APPS = [
   { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO },
   { id: "cartel", name: "Cartel", href: "./cartel.html", logo: CARTEL_LOGO },
   { id: "spot", name: "Spot", href: "./spot.html", logo: SPOT_LOGO },
+  { id: "quote", name: "Quote", href: "./quote.html", logo: QUOTE_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

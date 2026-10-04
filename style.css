@@ -39,6 +39,8 @@
   --ct-logo-edge: #8E2C3B;
   --sp-logo-tint: #FBDCCB;  /* Spot's logo: a spot */
   --sp-logo-edge: #C2511F;
+  --qt-logo-tint: #DCDFF5;  /* Quote's logo: quotation marks */
+  --qt-logo-edge: #3F4DAE;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
