@@ -51,6 +51,13 @@ export async function connect() {
     update(path, obj) {
       return update(ref(db, path), obj);
     },
+    /**
+     * Calls cb(ms) with how far this device's clock is from the database's (add it to Date.now() for the shared
+     * time), and again whenever that estimate improves; returns a stop function. Real-time games agree on "now" by it.
+     */
+    serverOffset(cb) {
+      return onValue(ref(db, ".info/serverTimeOffset"), snap => cb(snap.val() || 0));
+    },
     /** Calls cb(true/false) whenever this device's connection to the database comes or goes; returns a stop function. */
     connection(cb) {
       return onValue(ref(db, ".info/connected"), snap => cb(snap.val() === true));

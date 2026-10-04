@@ -54,6 +54,7 @@
       commit(t);
     },
     presence() {},
+    serverOffset(cb) { cb(0); return () => {}; },   // the tabs share one clock
     session(path) {
       const at = path.lastIndexOf("/"), parent = path.slice(0, at), key = path.slice(at + 1);
       this.update(parent, { [key]: true });

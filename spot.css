@@ -1,0 +1,80 @@
+/* Spot: sums fall down a dark field; their answers wait on a shelf of round tokens below. Orange is the house
+   colour. The field and the shelf share one full-height column, so the game fills the phone. */
+:root {
+  --sp-or: #D9531E;
+  --sp-or-soft: #FBE3D6;
+  --sp-field: #1C2A34;
+  --sp-card: #F6F3EE;
+  --sp-card-ink: #1C2A34;
+  --sp-good: #2E9E5B;
+  --sp-bad: #D23B2A;
+  --sp-token: #FFFFFF;
+  --sp-token-edge: #C9D1D5;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --sp-or: #F07A45; --sp-or-soft: #3A2318; --sp-field: #0E151A; --sp-token: #1D262D; --sp-token-edge: #33414B; }
+}
+
+#app.spot { height: 100vh; height: 100svh; display: flex; flex-direction: column; gap: .5rem; overflow: hidden; position: relative; }
+.sp-mark { display: inline-block; }
+.sp-mark svg { width: 100%; height: 100%; display: block; }
+.sp-main { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
+.sp-partner { margin: 0; font-size: .88rem; color: var(--ink-soft); }
+.sp-partner a { color: inherit; font-weight: 700; }
+
+.sp-hud { display: flex; justify-content: space-between; align-items: center; min-height: 2.2rem; }
+.sp-score b { font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.sp-score small { margin-left: .45rem; font-size: .9rem; font-weight: 800; color: var(--sp-or); }
+.sp-lives { display: flex; gap: .3rem; }
+.sp-life { width: 14px; height: 14px; border-radius: 50%; background: var(--sp-or); transition: transform .2s, opacity .2s; }
+.sp-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--sp-token-edge); }
+.sp-life.hit { animation: hit .5s; }
+@keyframes hit { 30% { transform: scale(1.8); } }
+
+/* the field: sums drift from top to bottom; the closer to the bottom, the hotter */
+.sp-field { position: relative; flex: 1; min-height: 12rem; border-radius: 20px; background: var(--sp-field); overflow: hidden;
+  box-shadow: inset 0 -40px 40px -30px rgba(217, 83, 30, .35); }
+.sp-sum { position: absolute; left: 0; top: 0; width: 31%; padding: .55rem .3rem .65rem; border-radius: 14px; text-align: center;
+  background: var(--sp-card); color: var(--sp-card-ink); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .3); will-change: transform; overflow: hidden; }
+.sp-sum i { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--sp-or); }
+.sp-sum.late { background: #FFD9C7; }
+.sp-burst { position: absolute; left: 0; top: 0; width: 31%; padding: .55rem .3rem; text-align: center; font-weight: 800; font-size: 1.15rem;
+  color: #fff; pointer-events: none; animation: burst .7s ease-out forwards; }
+.sp-burst.good { color: #7EE2A6; }
+.sp-burst.bad { color: #FF8C7E; }
+@keyframes burst { to { opacity: 0; transform: var(--at) translateY(-28px) scale(1.15); } }
+
+/* the shelf: eight fixed places, so your thumb learns them */
+.sp-shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; padding-bottom: max(.6rem, env(safe-area-inset-bottom, 0px)); }
+.sp-token { aspect-ratio: 1.15; border-radius: 18px; border: 2px solid var(--sp-token-edge); background: var(--sp-token); color: var(--ink);
+  font: inherit; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; cursor: pointer; touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent; }
+.sp-token:empty { background: none; border-style: dashed; cursor: default; }
+.sp-token.new { animation: pop .22s ease-out; }
+.sp-token.good { background: var(--sp-good); border-color: var(--sp-good); color: #fff; }
+.sp-token.bad { background: var(--sp-bad); border-color: var(--sp-bad); color: #fff; animation: shake .35s; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } }
+@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+
+/* start, countdown and the end of a run */
+.sp-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 1rem; border-radius: 20px; background: rgba(20, 27, 32, .55); z-index: 5; }
+.sp-overlay[hidden] { display: none; }
+.sp-card { width: min(22rem, 100%); padding: 1.3rem; border-radius: 22px; background: var(--sheet); color: var(--ink); text-align: center;
+  box-shadow: 0 16px 50px rgba(0, 0, 0, .35); display: grid; gap: .7rem; }
+.sp-card h2 { margin: 0; font-size: 1.6rem; font-weight: 800; }
+.sp-card p { margin: 0; color: var(--ink-soft); line-height: 1.4; }
+.sp-card .sp-big { font-size: 4.5rem; font-weight: 800; color: var(--sp-or); line-height: 1; }
+.sp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.sp-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); }
+.sp-stats b { display: block; font-size: 1.3rem; font-weight: 800; }
+.sp-stats span { font-size: .75rem; color: var(--ink-soft); }
+.sp-go { min-height: 50px; border: 0; border-radius: 16px; background: var(--sp-or); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.sp-go.quiet { background: var(--yard); color: var(--ink); }
+.sp-go:disabled { opacity: .45; cursor: default; }
+
+.sp-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.sp-toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .sp-token.new, .sp-token.bad, .sp-burst, .sp-life.hit { animation: none; } }

@@ -30,12 +30,19 @@ const CARTEL_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <g fill="var(--ct-logo-edge)"><circle cx="6.4" cy="6.4" r="1.35"/><circle cx="13.6" cy="6.4" r="1.35"/><circle cx="10" cy="10" r="1.35"/>
   <circle cx="6.4" cy="13.6" r="1.35"/><circle cx="13.6" cy="13.6" r="1.35"/></g></svg>`;
 
+// A spot: a ring and the dot at its centre, for Spot.
+const SPOT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <circle cx="10" cy="10" r="8.4" fill="var(--sp-logo-tint)" stroke="var(--sp-logo-edge)" stroke-width="1.6"/>
+  <circle cx="10" cy="10" r="4.6" fill="none" stroke="var(--sp-logo-edge)" stroke-width="1.5"/>
+  <circle cx="10" cy="10" r="1.8" fill="var(--sp-logo-edge)"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
   { id: "delta", name: "Delta", href: "./delta.html", logo: DELTA_LOGO },
   { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO },
   { id: "cartel", name: "Cartel", href: "./cartel.html", logo: CARTEL_LOGO },
+  { id: "spot", name: "Spot", href: "./spot.html", logo: SPOT_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

@@ -13,6 +13,7 @@ export const GAMES = {
   delta: { name: "Delta", page: "./delta.html" },
   punt: { name: "Punt", page: "./punt.html" },
   cartel: { name: "Cartel", page: "./cartel.html" },
+  spot: { name: "Spot", page: "./spot.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

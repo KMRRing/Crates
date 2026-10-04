@@ -103,6 +103,13 @@ Computer turns come at the pace chosen in the menu: Fast (each move shown for 0.
 
 `cartel-engine.js` is the referee, `cartel-ai.js` the players, `cartel.js` the table. Playing together (two people and the AIs) comes next: the referee would run on one device.
 
+## Spot
+Sums fall down a dark field; their answers wait on a shelf of eight round tokens below, among fakes. Tap an answer before its sum reaches the bottom. A wrong tap or a sum that runs out costs a life; three lives. Every 5 in a row raises the score multiplier by half, up to ×3. The pace quickens with time: plus and minus first, then times tables (from 20 s), division (from 45 s) and bigger numbers (from 75 s), with sums arriving every 2.4 s at first and every second after about 85 s. Fakes are the slips you'd make: off by one or ten, swapped digits, a neighbouring times-table answer, adding instead of multiplying. No two sums on screen share an answer, no fake matches one, and no number shows twice on a shelf. Play a random run or today's run (the same for everyone that day); bests are kept.
+
+Together: each of you sees half the sums, and the answer to every sum sits on the other one's shelf, so you call out the answers to yours and tap the ones your partner calls. Lives and score are shared.
+
+How it's built: everything comes from a seed and the taps. `spot-engine.js` makes the timeline from the seed alone and replays the taps over it to get the state at any moment (`play()`), so two phones with the same seed and taps see the same game, and only taps travel through the room (each with its time on the database clock, which `sync.js` now provides as an offset). The page replays the run every frame; a tap counts at once on your phone and reaches your partner's within a fifth of a second or so. Solo runs pause while the app is in the background, and the screen stays awake while you play. `tests/spot.mjs` checks the timeline and the replays.
+
 ## Rooms
 A room is one four-letter code for two people, shared by every game. Once you're in a room you stay in it: tapping the title to switch games carries the room code along, and each game keeps its own progress in the room, so switching back finds everything where you left it. If your partner has another game of the room open, it says so ("Sarah is in Slate", with a link to join them). A room started in one game gets the other game's side when someone first opens that game in it (Crates starts a Together game). Leave the room (in either game's menu) to go back to solo everywhere.
 
