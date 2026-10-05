@@ -11,16 +11,19 @@
 .ch-score.two { display: flex; gap: .8rem; }
 .ch-score.two b { font-size: 1.05rem; }
 
-.ch-card { padding: .9rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .5rem; }
-.ch-cat { justify-self: start; padding: .15rem .6rem; border-radius: 999px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.ch-place { margin: 0; font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+/* the card fits the screen: the map takes the room left and keeps its shape; under it a fixed space holds the clues and
+   buttons, or the result, so the map keeps its size from pinning to the reveal */
+.ch-card { padding: .8rem; border-radius: 20px; background: var(--sheet); gap: .45rem; }
+.ch-bottom { display: grid; gap: .45rem; align-content: end; min-height: 9.4rem; }
+.ch-cat { align-self: flex-start; padding: .15rem .6rem; border-radius: 999px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.ch-place { margin: 0; font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
 .ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
-.ch-maps { display: grid; gap: .5rem; }
-.ch-map { width: 100%; display: block; border-radius: 12px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ch-maps { min-height: 0; }
+.ch-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 12px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .ch-actions { display: grid; gap: .45rem; }
 .ch-actions.two { grid-template-columns: 1fr 1fr; }
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }
-.ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .25rem; font-size: .92rem; line-height: 1.4; }
+.ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .2rem; font-size: .9rem; line-height: 1.35; max-height: 4.2em; }
 .ch-clues:empty { display: none; }
 .ch-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--ch-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
 .ch-go.quiet { background: var(--yard); color: var(--ink); }
@@ -30,7 +33,7 @@
 .ch-verdict { margin: 0; font-size: 1.15rem; font-weight: 800; }
 .ch-verdict.good { color: var(--ch-good); }
 .ch-verdict.bad { color: var(--ch-bad); }
-.ch-note { margin: 0; color: var(--ink-soft); line-height: 1.4; }
+.ch-note { margin: 0; color: var(--ink-soft); line-height: 1.35; font-size: .92rem; max-height: 4.1em; }
 .ch-note:empty { display: none; }
 .ch-big { font-size: 3rem; font-weight: 800; color: var(--ch-in); text-align: center; margin: .2rem 0; letter-spacing: -.02em; }
 .ch-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
@@ -48,4 +51,4 @@
 /* a museum's painting */
 .ch-picture { margin: .1rem 0 .5rem; display: grid; place-items: center; }
 .ch-picture[hidden] { display: none; }
-.ch-picture img { max-width: 100%; max-height: 28vh; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.ch-picture img { max-width: 100%; max-height: 16vh; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }

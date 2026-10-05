@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="chart.css">
 </head>
 <body>
-<div id="app" class="chart">
+<div id="app" class="chart fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon ch-mark" aria-hidden="true"></span>Chart</button></h1>
@@ -25,23 +25,25 @@
   <p id="partner" class="ch-partner" hidden></p>
   <div class="ch-strip"><span id="where"></span><span id="scores" class="ch-score"><b id="score">0</b></span></div>
 
-  <section class="ch-card">
+  <section class="ch-card fit-col fit-grow">
     <span id="cat" class="ch-cat"></span>
     <h2 id="place" class="ch-place"></h2>
     <div id="picture" class="ch-picture" hidden></div>
     <p id="hint" class="ch-hint">Tap to place the pin. Drag to pan, pinch to zoom.</p>
-    <div class="ch-maps">
+    <div class="ch-maps fit-box fit-grow">
       <canvas id="world" class="ch-map" aria-label="The world"></canvas>
     </div>
-    <ul id="clues" class="ch-clues"></ul>
+    <div class="ch-bottom">
+    <ul id="clues" class="ch-clues fit-scroll"></ul>
     <div class="ch-actions two">
       <button class="ch-go quiet" type="button" id="clueBtn">A clue</button>
       <button class="ch-go" type="button" id="pinBtn" disabled>Pin it</button>
     </div>
     <div id="result" class="ch-result" hidden>
       <p class="ch-verdict" id="verdict"></p>
-      <p class="ch-note" id="note"></p>
+      <p class="ch-note fit-scroll" id="note"></p>
       <button class="ch-go" type="button" id="nextBtn">Next</button>
+    </div>
     </div>
   </section>
 </div>

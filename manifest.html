@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="manifest.css">
 </head>
 <body>
-<div id="app" class="manifest">
+<div id="app" class="manifest fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon mf-mark" aria-hidden="true"></span>Manifest</button></h1>
@@ -28,13 +28,13 @@
     <span id="lives" class="mf-lives" aria-label="Lives"></span>
   </div>
 
-  <section class="mf-stage">
+  <section class="mf-stage fit-col fit-grow no-view" id="stage">
     <p class="mf-title" id="title"></p>
     <div id="book" class="mf-book"></div>
     <div class="mf-timer" id="timer" hidden><i></i></div>
-    <div id="view" class="mf-view"></div>
+    <div id="view" class="mf-view fit-box fit-grow"></div>
     <p class="mf-note" id="note" hidden></p>
-    <div id="asks" class="mf-asks"></div>
+    <div id="asks" class="mf-asks fit-scroll"></div>
     <div class="mf-buttons">
       <button class="mf-go quiet" type="button" id="shipBtn" hidden>Ship it</button>
       <button class="mf-go" type="button" id="goBtn" hidden></button>

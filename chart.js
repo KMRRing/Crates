@@ -116,7 +116,7 @@ function next() {
 // ---------- drawing the maps ----------
 function setup(canvas, w, h) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.aspectRatio = `${w} / ${h}`; }
+  if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.aspectRatio = `${w} / ${h}`; canvas.style.setProperty("--aspect", String(w / h)); }
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return ctx;

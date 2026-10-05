@@ -41,15 +41,18 @@ function openRound() {
   save();
   drawOrders();
 }
+/** Whether the stage shows the stack: the questions get its room when there's nothing to show. */
+const viewOn = on => $("stage").classList.toggle("no-view", !on);
 function drawOrders() {
   drawHud();
   title();
   clear();
+  viewOn(false);
   const book = $("book");
   book.className = "mf-book";
   book.append(node("p", "intro", R.level.change
-    ? "Watch the stack. It will vanish and come back with something different."
-    : "The orders for this stack. Once it's gone they open in full: answer any, pass any. A wrong answer costs a life."));
+    ? "Watch the stack: it will vanish and come back with something different."
+    : "The questions to come. Answer any, pass any; a wrong answer costs a life."));
   R.orders.forEach((o, i) => {
     const row = node("div", "mf-order"), left = node("div");
     left.append(node("b", null, KINDS[o.type].name), node("span", null, o.posted));
@@ -70,6 +73,7 @@ function showStack() {
   book.className = "mf-book strip";
   R.orders.forEach((o, i) => { const c = node("span", "mf-chiplet", KINDS[o.type].name); c.appendChild(node("b", null, money(S.prices[i]))); book.appendChild(c); });
   const { panel, drops } = stage(R.cells, { drop: R.view });
+  viewOn(true);
   $("view").replaceChildren(panel);
   const timer = $("timer");
   clearTimeout(showTimer);
@@ -117,10 +121,13 @@ function drawAsks(appear = false) {
   const asks = $("asks");
   asks.replaceChildren(...R.orders.map((o, i) => askRow(o, i)));
   drawAskStage(appear);
+  asks.querySelector(".mf-row.active")?.scrollIntoView({ block: "nearest" });   // the open question's answers in sight
 }
 /** What the stage shows while a question is open: the floor with its spot, the stack turned and grey, or the stack back. */
 function drawAskStage(appear = false) {
   const o = S.active != null ? R.orders[S.active] : R.level.change ? R.orders[0] : null, q = o?.question;
+  // the stage shows the stack only when the open question needs it: a marked spot, the stack turned, the stack back
+  viewOn(!!q && (q.as === "cell" || q.as === "pair" || o.type === "turned" || !!q.cell));
   let panel;
   if (q && (q.as === "cell" || q.as === "pair")) {
     const done = S.answers[0];
@@ -228,6 +235,7 @@ function reviewPhase(focus = null) {
     return row;
   }));
   // the stack again, with whatever the focused question asked about lit
+  viewOn(true);
   const o = focus != null ? R.orders[focus] : R.level.change ? R.orders[0] : null, q = o?.question;
   let panel;
   if (q && (q.as === "cell" || q.as === "pair")) panel = stage(q.back, { turns: q.turns, marks: [].concat(q.answer) }).panel;
@@ -329,6 +337,7 @@ function stage(cells, opts = {}) {
   const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
   const W = (maxX - minX) * s + 20, H = (maxY - minY) * s + 20, room = opts.drop ? s * 1.6 : s * 0.25;
   const svg = el("svg", { viewBox: `0 ${-room} ${W} ${H + room}`, class: opts.tap ? "tap" : "" });
+  svg.style.setProperty("--aspect", (W / (H + room)).toFixed(3));
   const P = ([sx, sy]) => `${((sx - minX) * s + 10).toFixed(1)},${((sy - minY) * s + 10).toFixed(1)}`;
   const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
   const visible = opts.blank || markKey ? visibleSet(cells, b) : null;

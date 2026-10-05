@@ -11,14 +11,19 @@
 .mf-life { width: 14px; height: 14px; border-radius: 50%; background: var(--mf-in); }
 .mf-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--mf-edge); }
 
-.mf-stage { padding: .9rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .6rem; min-height: 24rem; align-content: start; }
+/* the stage fits the screen: the stack takes the room the questions leave (and steps aside when a question
+   doesn't need it), and the questions scroll inside themselves if they must */
+.mf-stage { padding: .8rem; border-radius: 20px; background: var(--sheet); gap: .5rem; }
+.mf-stage.no-view .mf-view { display: none; }
+.mf-asks { flex: 0 1 auto; max-height: 55%; min-height: 0; }
+.mf-stage.no-view .mf-asks { flex: 1 1 auto; max-height: none; }
 .mf-title { margin: 0; font-size: 1.1rem; font-weight: 800; }
 
 /* the order book: rows before the stack comes in, a strip of chips while it's on the stage */
 .mf-book { display: grid; gap: .35rem; }
 .mf-book:empty { display: none; }
-.mf-book .intro { margin: 0 0 .2rem; font-size: .9rem; color: var(--ink-soft); line-height: 1.4; }
-.mf-order { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .55rem .7rem; border-radius: 12px; background: var(--yard); }
+.mf-book .intro { margin: 0 0 .1rem; font-size: .86rem; color: var(--ink-soft); line-height: 1.35; }
+.mf-order { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .4rem .7rem; border-radius: 12px; background: var(--yard); }
 .mf-order b { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--mf-in); }
 .mf-order span { font-weight: 700; line-height: 1.3; }
 .mf-price { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; white-space: nowrap; }
@@ -32,8 +37,9 @@
 .mf-timer.run i { animation: drain var(--mf-ms, 5s) linear forwards; }
 @keyframes drain { to { transform: scaleX(0); } }
 .mf-timer[hidden] { display: none; }
-.mf-view { display: grid; justify-items: center; min-height: 3rem; }
-.mf-view svg { width: 100%; max-width: 24rem; height: auto; display: block; overflow: visible; }
+.mf-view { min-height: 0; }
+/* the stack as big as the room allows, keeping its shape (--aspect: the drawing's width over its height) */
+.mf-view svg { width: min(100cqw, calc(100cqh * var(--aspect, 1.3)), 26rem); height: auto; display: block; overflow: visible; margin: 0 auto; }
 .mf-panel { width: 100%; }
 .mf-panel.away svg { animation: away .38s ease-in forwards; }
 @keyframes away { to { transform: translateY(-40%) scale(.8); opacity: 0; } }
@@ -56,9 +62,9 @@
 .mf-row.active { border-color: var(--mf-in); }
 .mf-row.right { border-color: var(--mf-good); }
 .mf-row.wrong { border-color: var(--mf-bad); }
-.mf-row-head { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .6rem .7rem; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.mf-row-head { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .45rem .7rem; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .mf-row-head:disabled { cursor: default; }
-.mf-row-head span { font-weight: 750; line-height: 1.3; }
+.mf-row-head span { font-weight: 750; line-height: 1.25; font-size: .95rem; }
 .mf-row-head em { font-style: normal; font-size: .85rem; font-weight: 800; white-space: nowrap; }
 .mf-row.right em { color: var(--mf-good); }
 .mf-row.wrong em { color: var(--mf-bad); }
@@ -66,7 +72,7 @@
 .mf-row-body .hint { margin: 0; font-size: .88rem; color: var(--ink-soft); }
 .mf-answers { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
 .mf-answers.colours { grid-template-columns: repeat(3, 1fr); }
-.mf-chip { min-height: 48px; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
+.mf-chip { min-height: 44px; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
 .mf-chip.colour { font-size: .85rem; font-weight: 750; padding: .4rem .2rem; }
 .mf-chip i { width: 22px; height: 22px; border-radius: 6px; display: block; }
 .mf-chip.good { border-color: var(--mf-good); background: var(--mf-good); color: #fff; }
@@ -76,7 +82,7 @@
 .mf-mini button { padding: .3rem; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); cursor: pointer; }
 .mf-mini button.good { border-color: var(--mf-good); box-shadow: inset 0 0 0 2px var(--mf-good); }
 .mf-mini button.bad { border-color: var(--mf-bad); box-shadow: inset 0 0 0 2px var(--mf-bad); }
-.mf-mini svg { width: 100%; height: auto; display: block; }
+.mf-mini svg { width: 100%; height: auto; max-height: 5.4rem; display: block; }
 .mf-pass { justify-self: start; border: 0; background: none; color: var(--ink-soft); font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; padding: .2rem 0; }
 
 .mf-buttons { display: grid; grid-template-columns: 1fr; gap: .4rem; }
