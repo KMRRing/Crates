@@ -31,6 +31,7 @@
 .ch-board .sq.last.dark { fill: #A9A045; }
 .ch-board .sq.sel { fill: #7FA650; }
 .ch-board .sq.hint { fill: #6FB2E0; }
+.ch-board .sq.pre { fill: #B48EDC; }
 .ch-board .sq.check { fill: #D23B2A; opacity: .7; }
 .ch-board .piece { cursor: pointer; }
 .ch-board .target { fill: rgba(0, 0, 0, .22); cursor: pointer; }

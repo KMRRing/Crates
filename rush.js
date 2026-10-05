@@ -1,6 +1,6 @@
 // Rush: chess puzzles, as many as you can. Three minutes, five, or survival; three strikes and it's over. Puzzles
-// climb as you solve them. The bank is Lichess's (chess-bank.js), the board chess-board.js.
-import { PUZZLES } from "./chess-bank.js";
+// climb as you solve them. The bank is 20,000 Lichess puzzles in ten files by rating band (puzzles/), fetched as
+// a run climbs into them and kept on the device; the board is chess-board.js.
 import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -10,9 +10,25 @@ const BEST = "rush:best", DAILY = "rush:daily";
 const MODES = { three: { label: "3 minutes", ms: 180000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
 const STRIKES = 3;
 
-let S = null;      // { mode, seed, daily, used: [puzzle indices], at, solved, strikes, misses: [{ id, rating, line }], ratings (of the solved), started, over }
+let S = null;      // { mode, seed, daily, used: Set of ids, at, solved, strikes, misses: [{ id, rating, line }], ratings (of the solved), started, over }
 let board = null;
 let tick = 0;
+
+// ---------- the bank, by rating band ----------
+const BANDS = [600, 800, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400];
+const bandOf = rating => Math.max(600, Math.min(2400, Math.floor(rating / 200) * 200));
+const bands = new Map();   // band -> puzzles, once fetched
+async function loadBand(b) {
+  if (bands.has(b)) return bands.get(b);
+  const res = await fetch(`./puzzles/band-${String(b).padStart(4, "0")}.txt`);
+  if (!res.ok) throw new Error(`band ${b}`);
+  const list = (await res.text()).trim().split("\n").map(line => {
+    const [id, fen, moves, r, t] = line.split("|");
+    return { id, fen, moves: moves.split(" "), rating: Number(r), themes: t ? t.split(",") : [] };
+  });
+  bands.set(b, list);
+  return list;
+}
 
 const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -23,26 +39,35 @@ function rng(seed) {
 }
 
 /**
- * The run's puzzles: a seeded order where the target rating starts near 800 and rises about 60 a solve, each
- * puzzle the nearest unused one to its target. Built lazily as you go, since a miss doesn't raise the target.
+ * The run's next puzzle: the target rating starts near 800 and rises about 60 a solve (a miss doesn't raise
+ * it); the puzzle is the nearest unused one to the target in its band, with a seeded salt so the same target
+ * doesn't always give the same puzzle. The next band up is fetched ahead of need.
  */
-function nextPuzzle() {
+async function nextPuzzle() {
   const r = rng(S.seed ^ (S.at * 7919));
-  const target = Math.min(2400, 800 + S.solved * 60 + (r() - 0.5) * 200);
+  const target = Math.min(2500, 800 + S.solved * 60 + (r() - 0.5) * 200);
+  const b = bandOf(target);
+  const list = await loadBand(b);
+  if (b < 2400) loadBand(b + 200).catch(() => {});
   let best = null;
-  for (let i = 0; i < PUZZLES.length; i++) {
-    if (S.used.includes(i)) continue;
-    const d = Math.abs(PUZZLES[i].rating - target) + r() * 40;      // a little salt so the same target doesn't always give the same puzzle
-    if (!best || d < best.d) best = { i, d };
+  for (const p of list) {
+    if (S.used.has(p.id)) continue;
+    const d = Math.abs(p.rating - target) + r() * 40;
+    if (!best || d < best.d) best = { p, d };
   }
-  S.used.push(best.i);
-  return PUZZLES[best.i];
+  if (!best) { const up = await loadBand(b < 2400 ? b + 200 : b - 200); best = { p: up.find(p => !S.used.has(p.id)) }; }
+  S.used.add(best.p.id);
+  return best.p;
 }
 
-function start(daily = false) {
+async function start(daily = false) {
   const mode = $("mode").value;
-  S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: [], solved: 0, strikes: 0, misses: [], ratings: [], started: performance.now(), over: false };
   $("startBtn").hidden = true;
+  $("line").className = "ru-line";
+  $("line").textContent = "Loading the puzzles…";
+  try { await Promise.all([loadBand(600), loadBand(800), loadBand(1000)]); }
+  catch { $("line").textContent = "The puzzles need a connection the first time."; $("startBtn").hidden = false; return; }
+  S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [], started: performance.now(), over: false };
   clearInterval(tick);
   tick = setInterval(clock, 250);
   drawHud();
@@ -58,9 +83,11 @@ function clock() {
   c.classList.toggle("low", left < 20000);
   if (left <= 0) finish("time");
 }
-function serve() {
+async function serve() {
   if (S.over) return;
-  const p = nextPuzzle();
+  const run = S;
+  const p = await nextPuzzle();
+  if (S !== run || S.over) return;
   S.current = p;
   S.at++;
   const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";
@@ -68,7 +95,7 @@ function serve() {
   $("line").textContent = `${side} to move`;
   $("meta").textContent = "";
   board?.destroy();
-  board = mountPuzzle($("board"), p, { interactive: true, onDone: solved => settle(p, solved) });
+  board = mountPuzzle($("board"), p, { interactive: true, replyMs: 300, firstMs: 450, onDone: solved => settle(p, solved) });
 }
 function settle(p, solved) {
   if (S.over) return;
@@ -152,7 +179,7 @@ function openMenu() {
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", `Chess puzzles, as many as you can: tap a piece, then a square. Every move must be the puzzle's (any checkmate counts where the solution mates). Puzzles climb as you solve them; three wrong moves end the run. ${PUZZLES.length.toLocaleString("en-GB")} puzzles from the Lichess database, rated 600 to 2,500.`);
+  add("p", "stats", "Chess puzzles, as many as you can: tap a piece, then a square. Every move must be the puzzle's (any checkmate counts where the solution mates). Tap your next move while the opponent is replying and it plays the instant the reply lands: a premove. Puzzles climb as you solve them; three wrong moves end the run. 20,000 puzzles from the Lichess database, rated 600 to 2,500, fetched by rating band as you climb and kept on the phone.");
   button("A new run", () => start(false));
   button("Today's run", () => start(true));
   const bests = read(BEST, {}), daily = read(DAILY, {});

@@ -1,0 +1,2000 @@
+0ikOv|3r3k/1pq3pp/2b2p2/p7/n1PNp3/Q7/4BPPP/2R3K1 b - - 1 27|d8d4 a3f8|800|mate in 1
+2hpIR|2k5/ppp3pp/5p2/3N1P2/4Pn1P/7r/PP6/2KR4 b - - 4 26|h3h4 d5e7 c8b8 d1d8|800|back-rank mate,mate in 2
+2i03w|6k1/5p1p/4p1p1/1R2B3/p1r2P2/P4r2/3K4/8 b - - 7 36|f3f4 b5b8 c4c8 b8c8|800|mate in 2
+1SYzo|8/7p/4p1pk/2q5/2P5/3Q3P/4K1P1/8 b - - 8 41|c5e5 d3e3 e5e3 e2e3|800|queen endgame
+5q0YQ|rn3rk1/ppp2pp1/2q4p/3pNb2/3P4/2P1P3/P1Q1BPPP/R3K2R w KQ - 7 13|c2f5 c6c3 e1d1 c3a1|800|fork
+3XvqN|r7/1pp2p2/1p6/7p/PP3k1K/2P2P2/2B5/3R4 w - - 1 41|h4h5 a8h8 c2h7 h8h7|800|mate in 2
+264RL|1kn5/6r1/p2q2P1/Pp1p1Q2/3P4/2P5/7P/6RK b - - 2 46|c8e7 f5f8 b8c7 f8g7|801|fork
+628Ma|8/6Rp/2k3p1/5p2/1P2p3/8/r2p1PPP/4B1K1 w - - 0 36|e1d2 a2a1 d2c1 a1c1|801|back-rank mate,mate in 2
+4lnwn|r1b1r1k1/pp3ppp/3p4/8/3q4/3B1PK1/P1P3PP/R2Q3R b - - 4 17|g7g5 d3h7 g8h7 d1d4|801|discovered attack,kingside attack
+5wP73|4k1r1/5p1p/p3pB2/5r2/8/5N2/PP4PP/2R3K1 b - - 2 23|f5f6 c1c8 e8e7 c8g8|801|skewer
+73q5m|2r5/1N3kp1/5p1p/p2P4/2P5/5P1P/6P1/6K1 b - - 2 32|c8c4 b7d6 f7e7 d6c4|801|fork
+3DzwM|2q2rk1/4bpp1/p3pn1p/1p6/1P1BP3/P3Q2P/2rN1PP1/R1R3K1 w - - 3 22|e3d3 c2c1 a1c1 c8c1|801|
+6qLvP|r3k2r/pp3ppp/2pbpn2/q7/2PPB3/5Q1P/PP3PP1/R1B2RK1 w kq - 1 13|f1e1 a5e1|801|hanging piece,kingside attack,mate in 1
+29pPc|2k5/2p4p/pp3p2/2p5/2P3P1/1PnN1K1P/P4B2/1r6 b - - 0 32|b1b2 d3b2|801|hanging piece
+18M36|6k1/1p3p1p/6b1/1N2p1p1/2P3P1/8/rPP4P/2K2R2 w - - 0 27|b5d6 a2a1 c1d2 a1f1|801|skewer
+4puZ2|r1bqk2r/ppp1bp2/4p1p1/3pPn1p/3P4/2NPB1Q1/PP2NPPP/R3K2R w KQkq - 1 12|e1g1 f5g3|801|
+4NBW5|r7/4b3/p5pk/7p/6QK/2N3PP/PPP4r/8 w - - 1 33|g4g5 e7g5|802|mate in 1
+1bJFU|8/4k3/4p3/3pNp2/3P1P2/4P3/3bK3/8 b - - 32 62|d2a5 e5c6 e7f6 c6a5|802|fork
+01DJq|4R3/6p1/5bk1/N6p/8/1P6/6PP/3r1K2 w - - 1 45|e8e1 d1e1 f1e1 f6c3 e1d1 c3a5|802|attraction,fork
+0u0kc|6k1/pp1Rbrpp/1qp1Q3/4p3/1P2P3/2N5/P1P2PPP/6K1 w - - 2 21|d7e7 b6f2 g1h1 f2e1|802|back-rank mate,mate in 2
+74Nbx|r1bqk2r/ppp2ppp/2p5/8/4P3/2NPn3/PPP3PP/R2QKB1R w KQkq - 0 9|d1f3 e3c2|802|
+2kqTg|1k1r3r/ppp2pp1/2qp2b1/4p1Q1/4P3/3P3P/PPP2P2/R4RK1 b - - 0 18|h8h5 g5d8|802|hanging piece,mate in 1,queenside attack
+39wQo|5rk1/1p2b1pp/r2pPn2/1Np1np2/2P1p3/BP2P1P1/P2R1P1P/R4BK1 w - - 7 22|a3b2 e5f3 g1g2 f3d2|802|fork
+1Hj77|6r1/3b1k1p/p1p1pp2/P2p4/NP1P1P2/8/7P/R3K1rR w KQ - 4 22|h1g1 g8g1 e1f2 g1a1|802|skewer
+6kYsM|5Qbk/1p4p1/p4p1p/q1P1n3/4P3/P4PN1/4B1PP/7K w - - 5 36|g3f5 a5e1 e2f1 e1f1|802|fork,mate in 2
+4QDw5|3R4/1p3p1k/p3b1pp/8/8/P3q2P/1r4PK/5Q2 b - - 3 33|e6h3 f1f7|802|mate in 1
+2O5uA|3rk3/1p6/p7/7p/6B1/4P3/PP4K1/7R b - - 0 30|h5g4 h1h8 e8e7 h8d8|802|rook endgame
+3jS4a|2k5/p1p3p1/1p2nr1p/3N4/4p3/1P2K2P/P5P1/2R5 b - - 5 37|f6g6 d5e7 c8d7 e7g6|803|fork
+5gf23|5Q1k/1p4rp/pq2B3/3Pp3/1b1n4/4B3/PP4PP/5RK1 b - - 5 25|b4f8 f1f8 g7g8 f8g8|803|mate in 2
+6RkZh|5rk1/5ppp/p2p4/1ppP2q1/8/1P3Q2/P1P1rPPP/4R1K1 w - - 0 20|e1e2 g5c1 e2e1 c1e1|803|kingside attack,mate in 2
+0Eu4T|3r1rk1/p4ppp/1p3n2/2p5/2P2P1P/3BPK2/P5P1/1R1R4 b - - 5 23|d8d6 d3h7 f6h7 d1d6|803|discovered attack,kingside attack
+3gSix|5rk1/pp6/2pp2pp/4p3/2P5/P2P1rPP/1P1RKP2/5R2 b - - 5 25|f3g3 f2g3 f8f1 e2f1|803|hanging piece,rook endgame
+3oeiX|r3r1k1/1bq4p/ppp1p1pB/2p1P3/P1P4N/2nP2QP/2P3P1/R4RK1 w - - 1 23|f1f6 c3e2 g1f2 e2g3|803|fork
+1IKDk|6k1/p5pp/1p1nP3/1P1B2P1/3b1P2/7P/4K3/8 b - - 2 40|d6b5 e6e7 g8h8 e7e8q|803|advanced pawn,back-rank mate,discovered attack
+0wcfp|2k5/ppp1b3/3p3B/3B2p1/4P1P1/2PPn3/PP6/6K1 b - - 0 25|e3g4 d5e6 c8b8 e6g4|803|fork
+38bWI|3q2k1/6p1/1p3rp1/2p5/r2P1Q1b/Pp2B3/1P4PP/3R1RK1 w - - 0 28|f4h4 f6f1 d1f1 d8h4|803|discovered attack
+5s7zj|1r3r1k/4q1pp/3p4/5p2/1pNpPP1n/1B1P4/3Q2PP/1RR3K1 w - - 6 30|g2g3 h4f3 g1g2 f3d2|803|fork
+1eMxo|r1b1r1k1/ppp2p1p/3b2p1/q3p3/3nN3/2NP4/PPP2PPP/R1BQ1RK1 b - - 4 13|d6f8 e4f6 g8h8 f6e8|803|fork
+1AQUg|5r2/1p6/p2k1p2/4p3/P3P3/8/1n1p1PPP/1R4K1 w - - 0 32|b1b2 d2d1q|804|advanced pawn,back-rank mate,mate in 1
+04qHl|r1b1q1k1/ppp5/3p4/3P2N1/1PP1B1p1/6P1/P5P1/Q5K1 b - - 0 23|e8e7 e4h7 e7h7 g5h7|804|
+1hTEG|2bR4/5k2/1p2p3/p7/2P5/1P1KP3/P5r1/8 b - - 3 47|c8b7 d8d7 f7f6 d7b7|804|fork
+2Sm4S|2kr2nr/p1pq2Bp/1pn1R3/2b5/P7/1Q3N2/3N1PPP/1R4K1 b - - 0 18|d7g7 e6c6 c5f2 g1f2|804|hanging piece
+2WHxl|8/1p1n1kp1/2b2p1p/4pN2/8/2P4P/5PP1/2B2K2 b - - 3 30|c6e4 f5d6 f7e6 d6e4|804|fork
+0N6Dy|r3k3/pp3pp1/2n5/4p3/8/2PPQN1q/P3PP2/R4K2 w q - 0 22|f1e1 h3h1 e1d2 h1a1|804|skewer
+0zezY|8/p1b3k1/2p3p1/5p1p/2PN4/3K3P/P5P1/8 b - - 1 31|c6c5 d4e6 g7f6 e6c7|804|fork
+2qRCT|6k1/6pp/p4n2/1p6/3R4/6P1/PP3K1P/8 w - - 1 44|d4d6 f6e4 f2e3 e4d6|805|fork
+6Fa56|2R5/3n1p2/3k4/4p3/4P3/6P1/5KP1/8 w - - 0 57|c8f8 d7f8|805|hanging piece
+2A64K|8/pR3pkp/8/1n6/8/5P2/b6P/5K2 w - - 0 32|b7b5 a2c4 f1f2 c4b5|805|fork
+62Z5J|r1bq1rk1/2p2ppp/pp1p4/3P2b1/1PP1P3/3B2Q1/PB1N2PP/R6K b - - 2 21|g5d2 g3g7|805|kingside attack,mate in 1
+32tTp|5k2/1b3p1p/p7/1p6/1Pr4N/6PP/1R3P2/6K1 w - - 1 32|h4f5 c4c1 g1h2 c1h1|805|mate in 2
+2XGee|2r3k1/pp3ppp/4p3/Pq1pP3/3P4/RP5P/3NbPP1/1Qr1K2R w - - 16 24|b1c1 c8c1|806|hanging piece,mate in 1
+24pRt|2r3k1/pp4r1/2q3p1/7P/3Q4/7R/PPP2P2/1K5R w - - 1 30|h3c3 c6h1 d4d1 h1d1|806|hanging piece,mate in 2
+1JEYX|Q3r2r/2pk4/5q2/8/3P4/4B3/PP3PBb/4RK2 w - - 3 31|g2c6 f6c6 a8c6 d7c6|806|
+1TPIP|r1b3Qk/1q1p2pp/p1nB1n1N/1p2p3/4P3/2P5/P1P2PPP/R3K2R b KQ - 7 19|f6g8 h6f7|806|mate in 1,smothered mate
+4Ff36|8/5pk1/6p1/6q1/2KPpN1p/4P3/8/2R5 b - - 1 62|f7f5 f4e6 g7h6 e6g5|806|fork
+6RNlv|3r2k1/5p1p/2N3p1/1P2Pp2/8/3nK2P/2p3P1/R7 b - - 1 32|d8d5 c6e7 g8f8 e7d5|806|fork,from a master game
+09rwe|2kr1b1r/p1p1pp1p/2p3p1/4Pb2/5n2/2P1NK2/PP4PP/R1B3NR b - - 1 14|f8h6 e3f5|806|
+6CJTw|4k1r1/1p3p2/p1R1N2p/P2rP2p/5P2/8/P4RPP/6K1 b - - 0 35|b7c6 e6c7 e8d7 c7d5|807|fork
+2IByd|6k1/7p/8/1p1N2p1/1P4b1/2P5/6P1/6K1 b - - 0 32|g4d7 d5f6 g8f7 f6d7|807|fork
+56Y7c|r1bqk2r/ppp2ppp/2np4/4p3/2B1P1n1/2PP1N2/PP1N1KPP/R1BQ3R w kq - 1 8|f2f1 g4e3 f1e2 e3d1|807|fork
+1m41b|7r/p2b1k2/5p2/2pP1P2/3n4/P3B1r1/5QB1/6K1 w - - 0 40|f2g3 d4e2 g1f2 e2g3|808|fork
+1uL6c|8/4kp1p/r2np3/p4p2/N4P2/3P4/3K2PP/R7 b - - 2 36|e7d7 a4c5 d7c6 c5a6|808|fork
+3p14k|r3r1k1/pb3ppp/1p5B/2qp3n/4P1Q1/3B1P2/P5PP/R3R2K b - - 3 19|h5f6 g4g7|808|kingside attack,mate in 1
+1VGq7|8/R4p2/p2pp1pp/3k4/5PP1/r6P/1nN3K1/8 b - - 7 38|a3a2 c2b4 d5e4 b4a2|808|fork
+74qIt|8/1p6/7p/R7/5p2/8/4K1k1/8 w - - 4 62|a5h5 f4f3 e2e3 f3f2|808|advanced pawn,rook endgame
+4eI5T|2r2b1k/6pp/p4p2/np1BpP2/8/P5Q1/1P1q2PP/2R4K w - - 0 28|c1c8 d2d1 g3e1 d1e1|808|back-rank mate,fork,mate in 2
+3Iae0|8/6p1/r4k1p/3N2p1/4K3/5PPP/8/8 b - - 7 51|f6e6 d5c7 e6f7 c7a6|808|fork
+6dZps|r2q1r2/4ppbk/p2p2pp/1ppNn3/4P3/P2PB2b/BPPQ1PP1/R4RK1 w - - 0 16|g2h3 e5f3 g1g2 f3d2|809|fork
+4xELZ|5rk1/pp4p1/7p/5r2/3q4/6B1/2Q3PP/R4RK1 w - - 0 30|g1h1 f5f1 a1f1 f8f1|809|back-rank mate,mate in 2
+5Kxb9|1r1qk2r/p4ppp/bpn5/2ppP3/3P3b/P3PN1P/1P1N2P1/1BRQK2R w Kk - 1 15|f3h4 d8h4 g2g3 h4g3|809|mate in 2
+03tOe|r4rk1/p5pp/8/3R1pN1/P4n2/8/5PPP/R5K1 w - - 4 28|d5d4 f4e2 g1f1 e2d4|809|fork
+2yo4e|4rR1k/pp4pp/8/2Q5/8/2P5/Pq4PP/7K b - - 1 24|e8f8 c5f8|809|mate in 1
+4ODq8|8/6p1/3kpp1p/1N6/4P1PP/1b2KP2/8/8 b - - 1 44|d6c6 b5d4 c6d7 d4b3|809|fork
+6wkwX|2R5/6pk/4p2p/8/2n5/P7/7r/R3K3 w - - 2 34|c8c4 h2h1 e1f2 h1a1|809|rook endgame,skewer
+2XGMq|8/1p4pR/p3n2p/1k6/1P6/P3K3/6PP/8 w - - 6 37|e3e4 e6g5 e4f5 g5h7|810|fork
+0K88a|8/4KN1k/pp5p/8/1P1P1r2/2P5/P6R/6r1 b - - 4 52|g1g7 h2h6 h7g8 h6h8|810|mate in 2
+3Xk4U|6r1/8/p3k3/3pn3/3p1RP1/4N3/PPP5/6K1 w - - 0 33|f4d4 e5f3 g1f2 f3d4|810|fork
+27K6c|4r1k1/pp4bp/6p1/8/8/4B1QP/PP1R2PK/3q4 b - - 5 35|d1d2 e3d2|810|hanging piece
+6114m|2r3k1/5ppp/4p3/qR1pPnN1/8/7P/2Q2PPK/8 b - - 0 31|c8c2 b5b8 c2c8 b8c8 a5d8 c8d8|810|mate in 3
+5wcGL|4q3/ppp4k/6n1/8/6QP/3P1pP1/PPP2P2/6K1 w - - 0 28|g4f5 e8e1 g1h2 e1f2|810|deflection
+6QVPt|1k1r4/2p2Q2/1p5r/p7/1b1P1P2/4P3/R3K3/8 w - - 1 45|f7g7 h6h2 e2f3 h2a2|810|skewer
+4OAl2|6r1/p1k1bp2/4p2p/P7/2PPNpq1/3Q4/5PP1/R3R1K1 w - - 0 30|c4c5 g4g2|810|mate in 1
+5nrJH|r1bk1bnr/ppp3pp/4pp2/8/1n2P3/5N2/PPP2PPP/RNB1KB1R w KQ - 0 7|a2a3 b4c2 e1d2 c2a1|810|fork
+1hhNf|r2k2r1/1p6/4p1p1/1p1pP3/3P4/8/2P2P1P/1R2K2R w K - 0 25|b1b5 a8a1 e1d2 a1h1|810|rook endgame,skewer
+5dhCP|r5k1/5p1p/p5p1/8/8/1PBR1n1P/PP3r2/2KR4 b - - 1 25|h7h5 d3d8 g8h7 d8a8|810|
+6hAmN|8/4k3/p4p2/r3p1p1/4P2p/2PK1P1P/6P1/6B1 b - - 1 38|a5a3 g1c5 e7e6 c5a3|811|fork
+2RJoU|4rrk1/pbp1q2p/1p2ppp1/8/3P1n2/1PPQ1N2/P2N1PPP/R3R1K1 w - - 2 19|d3e2 f4e2|811|kingside attack
+3g3Jf|r7/pp3r1k/3p4/3Npp2/3n4/1P6/PP3PPP/R4RK1 w - - 1 23|a1c1 d4e2 g1h1 e2c1|811|fork
+0ANLa|8/5pk1/6p1/2pR3p/5b2/1B6/1rP1RPP1/6K1 w - - 4 40|d5c5 b2b1 e2e1 b1e1|811|mate in 2
+0WAXa|6k1/2q2p1p/2p2Rp1/1prp4/3N4/4P2P/3Q2P1/6K1 w - - 0 28|d2f2 c5c1 f2f1 c1f1|811|
+6Z92J|r2q1rk1/1Qp2ppp/p7/2nP1P2/4P3/5N2/P2B4/RN2K2R w KQ - 0 19|b7b2 c5d3 e1f1 d3b2|811|fork
+0qcXs|r4rk1/2p2n1p/ppNp2q1/3Pb3/PP6/N1P2P1b/5RP1/R2Q2K1 b - - 1 27|e5c3 c6e7 g8g7 e7g6|811|fork
+0F8Y6|1r3r1k/2p3pp/p1p2n2/2Pp4/PP1PpPP1/4P3/5R1K/1R3N2 w - - 1 30|g4g5 f6g4 h2g3 g4f2|812|fork
+49UE1|1r4k1/5ppp/R2p4/3np1P1/1p6/1N3P2/2PK3P/8 b - - 1 32|b8b6 a6a8 b6b8 a8b8|812|back-rank mate,mate in 2
+3A3K9|6B1/R7/6pk/7p/5K2/2b5/Pr5P/8 b - - 1 48|b2h2 a7h7|812|mate in 1
+6u0BK|4rr1k/pp4pp/q1p2p2/5R2/1b4Q1/3P4/1PP3PP/R6K w - - 0 28|a1a6 e8e1 f5f1 e1f1|812|back-rank mate,mate in 2
+6Bius|5r1k/p6p/1pb2bp1/5p2/P1B1p2P/2P1B1P1/1P3P2/3R2K1 b - - 0 27|f8d8 d1d8 f6d8 e3d4 d8f6 d4f6|812|double bishop mate,kingside attack,mate in 3
+5ncRN|1r6/1p4k1/p2p1r2/6p1/P4nP1/1Q6/1P3P2/3R2K1 w - - 0 37|b3c3 f4e2 g1f1 e2c3|812|fork
+5pXLy|3r2k1/p4pBp/4p1pP/6P1/1nPPN3/8/2P1K3/8 b - - 2 42|b4c2 e4f6|813|mate in 1
+2Kcyu|5k2/5p2/p5Rp/1p5N/8/8/Pr3rPP/5R1K w - - 1 44|f1f2 b2b1 f2f1 b1f1|813|back-rank mate,from a master game,mate in 2
+2fsbt|3r4/5k2/n4b2/3P1Np1/2P1RpP1/1K6/8/5R2 w - - 2 47|f1c1 a6c5 b3c2 c5e4|813|fork
+0nWsv|2N3k1/3P1p1p/4p1p1/1r2P3/5P1P/6b1/PP2K3/8 b - - 0 38|b5d5 c8e7 g8f8 e7d5|813|fork
+20U0W|8/5p1p/p1kn1Pp1/1p1pK1P1/1P1P3P/P7/8/2B5 w - - 1 41|c1b2 d6c4 e5f4 c4b2|813|fork
+4L00W|1N3rk1/2p5/pp3qb1/2Pp2pp/4p3/P1b1P2P/2P1BPP1/1R1Q1K1R w - - 1 24|b8a6 f6f2|813|mate in 1
+4APgx|1R6/5p1k/2p1r1pp/1p1p4/p4P2/P1P3P1/1P5P/1B4K1 w - - 0 30|f4f5 e6e1 g1f2 e1b1|814|fork
+2BkL8|8/3r2kp/p4pp1/8/1p1BB3/7P/3R1PPK/4r3 w - - 2 42|d4f6 g7f6 d2d7 e1e4|814|from a master game
+6ygfI|1r3rk1/5p2/7p/1B1q2p1/7n/3P3P/RPP3P1/3Q1R1K w - - 0 24|b5c4 d5g2|814|mate in 1
+5JUFp|6r1/p2N1k2/4p3/P1P5/3B2P1/4K3/8/7b b - - 1 45|g8g4 d7e5 f7e8 e5g4|814|fork
+0dSma|2k4r/1q3pp1/pp2p3/2p4p/P3N3/1P1P1P2/2P4K/5RR1 b - - 0 27|g7g6 e4d6 c8c7 d6b7|814|fork
+0mTLN|r3kn1Q/1p2p2p/p1n3p1/8/8/2P1q3/P1P3PP/R4R1K b q - 1 19|e8c8 f1f8 d8f8 h8f8|814|
+2bwht|2r5/1p3kp1/5n1p/pN6/2nR1bP1/5P1R/PPP5/1K6 b - - 6 29|c4d2 d4d2 f4d2 b5d6 f7e6 d6c8|814|fork,sacrifice
+4KmCK|8/6pk/2QP3p/1p6/2p5/2q2P1P/P3K3/8 b - - 18 53|c3e5 c6e4 e5e4 f3e4|814|queen endgame
+6YUtf|rn2kbnr/p1p2ppp/1p1p1q2/4p3/2B1P3/1QPP1P2/PP3P1P/RNB1K2R w KQkq - 1 8|c4f7 f6f7 b3f7 e8f7|815|
+2kc1W|r1bq1r2/p4pkp/5np1/1B6/3ppP2/2N5/PPPQ2PP/3R1RK1 b - - 1 16|d4c3 d2d8 f8d8 d1d8|815|
+4bSQt|6r1/p1b1kp2/2p1p1r1/2N4p/3P4/1PP2QP1/P5KP/4R3 w - - 0 25|h2h4 g6g3 g2f2 g3f3|815|fork
+20uWi|8/3b4/2k1pK2/1p1pBp2/3P1P2/4b3/8/3B4 b - - 3 65|b5b4 d1a4 c6b6 a4d7|815|bishop endgame,deflection,from a master game
+1P4az|2k3r1/1pP2p2/p3p3/P2pPp1p/2nP1r2/1QP3P1/5P2/R4K2 w - - 0 30|g3f4 c4d2 f1e2 d2b3|815|fork
+4QwKu|8/2p3b1/pp4Pp/4p2P/4K1k1/1PB5/P7/8 b - - 0 35|c7c6 c3e5 g4h5 e5g7|815|bishop endgame
+333wm|1r6/3p1pp1/4p2p/2P1Pk2/3P4/R3KP2/6rP/R7 w - - 0 36|a3a7 b8b3|815|mate in 1,rook endgame
+33NK0|r7/1p3k2/3p1PpP/2pPn3/2P1P3/pP6/P7/1BK3R1 w - - 0 31|c1d2 e5f3 d2c3 f3g1|816|fork
+0sH0y|r5k1/pR3pp1/1p5p/8/P1pB1n2/5P2/1PP3PP/2K5 w - - 7 28|g2g4 f4e2 c1b1 e2d4|816|fork
+3txMr|1k2r3/1pb3p1/2p5/3p2p1/8/Q2Br3/PPP4P/1K4qR w - - 0 28|h1g1 e3e1 g1e1 e8e1|816|back-rank mate,mate in 2
+5FOOG|6k1/5ppp/1pp4q/4N3/p2P4/2P2PQ1/PP4PP/7K w - - 6 35|e5c6 h6c1 g3e1 c1e1|816|back-rank mate,mate in 2
+0w0pe|8/p1k2Bp1/7p/3Kp2P/6n1/P7/8/8 b - - 1 47|c7d7 f7e6 d7e7 e6g4|816|fork
+24WIt|qr4k1/5pn1/4p2p/3p2p1/B1pPPn2/2P2P2/5NPP/R1Q3K1 w - - 11 27|g2g3 f4e2 g1f1 e2c1|817|fork
+0VFk9|r2qbrk1/1pp1bp2/4p1pp/p3P3/2Pn1P2/2PB2N1/P5PP/R1BQ1RK1 w - - 0 16|c3d4 d8d4 c1e3 d4e3|817|fork
+4KUqu|r5k1/p5qp/bp2p1p1/2ppR3/5R2/3P2Q1/P4PPP/6K1 w - - 4 26|e5e6 g7a1 e6e1 a1e1|817|mate in 2
+0Uy51|8/4p1k1/4P3/1p6/1bp2N2/4BBP1/3K1P2/5r2 w - - 0 49|d2e2 f1e1|817|from a master game,master versus master,mate in 1
+0ja6Z|8/8/6pk/p1q5/1p3R2/8/P3RKB1/8 w - - 17 47|f2f1 c5c1 f1f2 c1f4|817|fork
+5udOW|8/6pk/R6p/1p6/3N3r/P1p2P2/5K2/8 w - - 2 38|d4c2 h4h2 f2e3 h2c2|817|skewer
+1sUrq|6k1/5p1p/P3p1p1/1N1p4/8/4P1KP/1r1n2P1/R7 b - - 0 32|b2b5 a6a7|818|advanced pawn
+3wLOM|3r4/5pp1/4p1kp/4P3/3n1P2/2RN2P1/7P/6K1 w - - 5 37|d3f2 d4e2 g1f1 e2c3|818|fork
+02rP5|5k2/pN3ppp/4p3/8/1Prp4/2P3KP/P5P1/2R5 w - - 0 27|b7d6 c4c3 c1c3 d4c3|818|
+1Wlj0|4r1k1/p5pp/1p2p3/4Np2/1P2n3/P3P2P/6P1/3R2K1 b - - 0 30|e8e7 d1d8 e7e8 d8e8|818|mate in 2
+3eYL0|r2r4/pQ4p1/3p1k2/3Pn2p/8/2P4B/PP5P/2K5 w - - 0 25|b7b4 e5d3 c1b1 d3b4|818|fork
+0JqMS|r3r1k1/2bq1pp1/2p2pp1/p7/2PP4/P2Q3P/3NRPP1/4R1K1 b - - 3 25|d7d6 e2e8 a8e8 e1e8|818|kingside attack
+1L4uT|r2qk2r/pbpnnppp/1p1b4/1B1P4/8/2N2N2/PP3PPP/R1BQ1RK1 w kq - 5 11|f3e5 d6e5|818|hanging piece
+5D8Zf|6k1/1q3ppp/p3p3/1p6/5nQ1/PNP5/1P3PPP/3r2K1 w - - 0 28|g4d1 b7g2|818|mate in 1
+0AKIm|7r/p2n1kpp/p3p3/5p2/2NP4/P4K1P/6P1/2B5 b - - 2 24|h8c8 c4d6 f7f6 d6c8|818|fork
+05TX8|2r3k1/4bppp/2N5/3n4/2pNb3/1PQ1B1P1/1P2PP1P/r4BK1 b - - 2 24|d5c3 c6e7 g8f8 e7c8|818|fork,hanging piece
+0Bnks|3r1rk1/p1p2Rpp/8/2p1q3/8/2P5/P1P2QPP/5RK1 b - - 0 22|f8f7 f2f7 g8h8 f7f8 d8f8 f1f8|818|back-rank mate,mate in 3
+3U77O|r1bq3k/1pp1nrpp/p2p4/PP1RP3/7Q/2B5/2P2PPP/5RK1 b - - 0 19|e7d5 h4d8 f7f8 d8f8|818|hanging piece,kingside attack,mate in 2
+1bEZi|r6k/pp1r2pp/1q1P1p2/1Bp1p3/PP2Pn2/5P1P/3Q4/3RK2R b K - 3 25|d7d6 d2d6 b6d6 d1d6|819|
+0J3Fz|r4rk1/1p2nppp/pq6/2b3B1/8/5N2/PPP2PPP/R2Q1RK1 w - - 4 13|f1e1 c5f2 g1h1 f2e1|819|fork
+37TIO|2Q3rk/5ppp/4p3/3p4/3P4/7P/rP3qPK/2RR4 b - - 4 33|a2b2 c8g8 h8g8 c1c8|819|attraction,back-rank mate,mate in 2
+0S10O|r1b3k1/ppp3pp/3p1q2/2b1p3/3nP3/P1NP2QP/1P3PP1/3R1RK1 b - - 0 16|d4e2 c3e2|819|hanging piece
+3LHVb|1r3r1k/1bqn1p1p/p2bpP2/1pp4Q/5B1P/6P1/PPP2PB1/R3R1K1 w - - 1 19|f4d6 c7d6 g2b7 b8b7|819|from a master game
+15eJs|2kr3r/pp3p1p/2nq1pb1/3pp3/6PN/1B1P1Q1P/PPP2P2/2KR3R w - - 6 17|f3d5 d6d5 b3d5 d8d5|819|
+1U6IT|k2r4/p1Q5/1pb4p/3q1Pp1/7n/5P1B/1B4PP/5R1K w - - 2 33|f1a1 d5d1 a1d1 d8d1|819|mate in 2,sacrifice
+21SZ8|2r2q1k/1p3pp1/p1b1p2p/4N3/1n6/1P4P1/P2P1P1P/QB2R1K1 b - - 4 20|f8d6 e5f7|819|kingside attack
+28HSs|6r1/8/3p3p/p1p1k3/P3PNPp/1P1PK2P/2P5/8 b - - 0 34|g8f8 f4g6 e5e6 g6f8|819|fork
+3CaVa|2kr1b1r/ppp2ppp/2p1b3/8/3P2n1/5N2/PPP1RqPP/RNBQ3K w - - 3 12|e2f2 g4f2 h1g1 f2d1|820|fork
+3wbt5|r2qr1k1/1b3p1p/Pp3np1/2p3n1/P1PpN3/3P4/2BNQPPP/R3R1K1 b - - 0 22|a8a6 e4f6 d8f6 e2e8|820|discovered attack,kingside attack
+5ELES|r2qr1k1/1pp1bpnp/p2pb1pB/8/3QP3/P1N2B1P/1PP2PP1/R3R1K1 b - - 2 17|c7c5 d4g7|820|kingside attack,mate in 1
+5FPNb|2r3k1/pp3ppp/4p3/3p1n2/6Pq/5Q1P/PP2B1K1/5R2 b - - 2 24|f5d4 f3f7 g8h8 f7f8 c8f8 f1f8|820|back-rank mate,mate in 3,sacrifice
+4CRjQ|6k1/5pp1/p3r2p/1p2q3/1P2P3/P2Q3P/2P3P1/4R2K w - - 1 40|d3d5 e5d5 e4d5 e6e1|820|discovered attack
+6KPO3|8/8/5kp1/3K1p2/5n2/5P2/7P/6Q1 w - - 6 57|d5d4 f4e2 d4e3 e2g1|820|fork,from a master game
+2d9Q7|3r4/p4k1p/1p2pnp1/6B1/7P/1PP5/1P3PP1/4R1K1 w - - 0 27|e1e3 d8d1 g1h2 f6g4 h2g3 g4e3|820|fork
+1GMep|r2qr1k1/1p2ppbp/p2p2p1/2p1n3/P3P3/2NPB2b/BPPQ1PP1/3R1RK1 w - - 0 14|g2h3 e5f3 g1g2 f3d2|820|fork
+0tjVD|2k5/8/8/8/Pp1P1P2/1P2PKR1/1r6/8 w - - 3 57|e3e4 b2b3 f3e2 b3g3|820|deflection,rook endgame,skewer
+4jZul|rn3k1r/1bp1np2/1p2B1pp/p7/P2NP3/2N5/1PP2PPP/1R3RK1 b - - 0 15|f7e6 d4e6 f8f7 e6c7|821|
+38uFp|8/3n2kp/R5p1/4K3/8/6PP/8/8 w - - 5 39|e5e6 d7c5 e6e5 c5a6|821|fork,from a master game
+5PSa6|r5k1/r3p1b1/3pP3/1ppN2R1/1p2P3/5P2/PPP3P1/1K5R w - - 3 28|d5f4 a7a2 b1c1 a2a1 c1d2 a1h1|821|skewer
+6HMLu|4r3/2N3kp/3p2p1/pp2b3/2p5/P1P2P1P/1P4K1/3R4 b - - 1 35|e8d8 c7e6 g7f6 e6d8|821|fork
+1JZtW|8/5nk1/2pR2p1/pp1b2P1/3P2K1/P1P5/1P6/8 w - - 20 48|d6d7 d5e6 g4f4 e6d7|821|fork
+1fmpF|8/5ppk/2R2bb1/p7/P7/1P3P1P/6P1/6K1 w - - 0 36|c6c5 f6d4 g1h2 d4c5|821|fork
+64Xjv|4r1k1/4P1p1/p4rPp/1pp2R1P/3p4/2q5/P1P1Q3/2BK4 b - - 0 33|f6f5 e2e6 g8h8 e6f5|822|fork
+6ox6y|r2q1rk1/7p/p4pp1/3Pn3/1p1p1Q2/8/PPB2P1P/R4RK1 w - - 0 23|f4d4 e5f3 g1g2 f3d4|822|fork
+2JgiE|6k1/1p3p2/6p1/8/3B1q2/2PKR2p/P7/8 b - - 3 42|h3h2 e3e8 g8h7 e8h8|822|mate in 2
+5hYMI|8/R2P2pk/4Kb1p/1n5P/6P1/8/8/8 w - - 3 58|a7a8 b5c7 e6d6 c7a8|822|fork
+2hDMt|1Q5k/6pp/2q1r3/p1Pn4/1p1P4/P7/4RPPP/6K1 b - - 1 32|c6e8 b8e8 e6e8 e2e8|822|back-rank mate,mate in 2,x-ray
+4EetY|r1b1r1k1/b1ppqppn/p1p4p/4P3/P1B1N3/5Q1P/1PP2PP1/R1B1R1K1 w - - 5 15|c4f7 e7f7 f3f7 g8f7|822|
+5wGFT|1kb5/8/pp1p2q1/2pPp1Pp/2P1Pn1P/P4B2/1P5n/2KNBQ2 w - - 8 39|f1f2 f4d3 c1b1 d3f2|822|fork
+50r2C|8/8/3kp2P/1P4R1/5P2/6K1/8/7r w - - 1 61|g5g6 h1g1 g3h4 g1g6|822|rook endgame,skewer
+75Bll|r3k2r/1pq2pp1/1np1p1p1/p7/3P4/4P3/PPQN1PPP/R3K2R w KQkq - 0 16|e1g1 c7h2|822|kingside attack,mate in 1
+13dd8|7r/4kppp/4p3/4N3/4p3/3b3P/PP3PP1/R5K1 b - - 0 23|h8b8 e5c6 e7d7 c6b8|822|fork
+4wRvT|8/8/3Nbppb/1k2p2p/1p1pP2P/1N1P2P1/2P2P2/4K3 b - - 9 47|b5a4 b3c5 a4a3 c5e6|822|fork,from a master game
+2cWco|r1b1k2r/pp3ppp/1q3n2/3p2B1/3b4/P1N5/1P1Q1PPP/R3KB1R b KQkq - 1 12|d4f2 d2f2 b6f2 e1f2 f6e4 c3e4|822|
+0fwIm|3r4/5k2/6bp/p2P1p2/4p3/1P6/P3BP1P/R4K2 b - - 0 33|d8d5 e2c4 f7f6 c4d5|823|pin
+227gI|b5k1/5p2/4p1p1/3q4/1Q6/2nB4/2P2PPP/4R1K1 w - - 7 25|b4c3 d5g2|823|mate in 1
+1OJje|r2r3k/P4pp1/1q5p/R1p5/1P1p4/7R/3Q1PPP/6K1 w - - 0 44|b4c5 b6b1 d2c1 b1c1|823|back-rank mate,mate in 2
+3Wj2I|r3qbk1/1p3p1p/p2p2p1/2pPn3/P1P4Q/2NBB2P/1P3P2/R5K1 w - - 2 20|a1d1 e5f3 g1h1 f3h4|823|fork
+6popQ|r5k1/ppq1rp1p/2pb2pB/5b2/3PN3/3Q2P1/PP3P1P/R3R1K1 b - - 4 19|a8e8 e4f6 g8h8 f6e8|823|fork
+05k87|3r2k1/5ppp/R7/1p3P2/4rnP1/2N4P/PPP5/2K5 w - - 0 25|c3e4 f4e2 c1b1 d8d1|823|back-rank mate,mate in 2
+251um|4rrk1/p5pp/2Q1p3/8/Pq6/3R1P2/5P1P/4K2R w K - 1 24|e1f1 b4b1 d3d1 b1d1|823|fork
+1FpWa|3R4/5p2/4k1p1/3p4/8/5K1P/5PP1/3r4 b - - 4 43|d1e1 d8e8 e6d6 e8e1|823|rook endgame,skewer
+2jkjk|2r3k1/p4p1p/2p5/5N2/r7/8/P1R3PP/5K2 b - - 5 33|f7f6 f5e7 g8f7 e7c8|824|fork
+02MxE|8/bp1N3r/2p1k2p/3n1p2/7B/3B4/P4PPP/1N4K1 b - - 0 26|e6d7 d3f5 d7e8 f5h7|824|fork
+4hUa2|2kr4/ppp1Rp1p/8/8/3r2n1/2N5/PPP2PPP/R1B3K1 w - - 1 16|h2h3 d4d1 c3d1 d8d1 e7e1 d1e1|824|kingside attack,mate in 3,sacrifice
+6RtAT|5rk1/ppp3p1/7p/3p3Q/3P4/4r3/PP2RqPP/6K1 w - - 0 24|e2f2 e3e1 f2f1 f8f1|824|mate in 2,queen and rook endgame
+6GtTz|r7/1p1n3R/3k4/3p4/3P4/1r3P2/Pp6/1K2R3 w - - 0 33|a2b3 a8a1 b1b2 a1e1|824|skewer
+2SREQ|8/5K2/5P1p/p7/P1k5/1p6/6P1/8 w - - 0 49|f7e8 b3b2 f6f7 b2b1q|824|advanced pawn,pawn endgame,promotion
+0MwbE|6Q1/8/6pk/1q5p/5P2/8/1p3PK1/8 b - - 1 59|b2b1q g8h8|824|mate in 1,queen endgame
+1z1Cn|r2qk2r/ppp3b1/3p2pp/3Ppp2/1n5P/2N1P3/PPPNQPP1/R3K2R w KQkq - 1 14|a2a3 b4c2 e1f1 c2a1|824|fork
+2wLhS|r3k2r/pp3pp1/2n4q/4pb1p/5n1P/1NPB2Q1/PBP2PP1/R4RK1 w kq - 1 15|d3f5 f4e2 g1h2 e2g3|824|fork
+29PoD|3q1k2/5pp1/7p/1pNp3P/3P4/1K6/1P6/5R2 b - - 5 36|f7f6 c5e6 f8e7 e6d8|824|fork
+1z6fv|r1bq1rk1/pp1n1ppp/2p1pb2/4n3/4P3/1P3NPP/P1PN1PB1/R1BQR1K1 w - - 1 12|c1b2 e5f3 d2f3 f6b2|824|discovered attack
+1NRFE|5r1k/1b4p1/p3Q2p/1pBp4/3P1q2/1P6/P4PPP/1BR3K1 w - - 1 32|c5f8 f4c1 e6e1 c1e1|824|fork,hanging piece,mate in 2
+3PHxE|2r5/3p4/bqk1pB1p/2p5/P2nP3/3P2Q1/1PP2PPP/R4RK1 w - - 9 26|e4e5 d4e2 g1h1 e2g3|824|fork
+4w4NB|1kr5/RP6/1p5p/3p1pp1/2pP4/8/1r3PPP/R5K1 b - - 0 40|c8d8 a7a8 b8b7 a8d8|824|rook endgame,skewer
+5S6w5|4r1k1/pp2rpp1/2pb3p/7R/2n5/1BNP3P/PPPB1qP1/5R1K w - - 0 24|f1f2 e7e1 d2e1 e8e1 f2f1 e1f1|825|kingside attack,mate in 3,sacrifice
+0BOHK|2k5/2P5/8/1N1pp2p/6pP/4K1P1/8/8 w - - 3 44|b5c3 d5d4 e3d2 d4c3|825|fork,knight endgame
+5YxrF|8/8/R5pp/2p1pk2/2P5/4K3/Pn4PP/8 w - - 0 37|a6a5 b2c4 e3d3 c4a5|825|fork
+66nGV|2r5/4q1k1/1Rp2pp1/2P1p3/2Q1P3/7P/3N1KP1/8 w - - 4 40|c4a4 e7c5 f2f3 c5b6|825|fork
+0Bzwq|4r1k1/p1p2ppp/1b1p2q1/8/8/B6Q/P4PPP/4RBK1 b - - 0 24|e8e1 h3c8 e1e8 c8e8|825|mate in 2
+4Y4F0|6k1/r3p3/p1rpN1pp/1p6/2n5/7P/P4PK1/2R1R3 b - - 1 30|g8f7 e6d8 f7e8 d8c6|825|fork
+46Qq6|3r2k1/p1p2ppp/1pN5/8/8/Pp2P2P/1B2KPP1/8 b - - 0 27|d8d5 c6e7 g8f8 e7d5|825|fork
+0jlpt|4q3/1pk5/p1p5/5N2/P1P2K2/1P2R3/8/8 b - - 1 42|e8d7 e3e7 d7e7 f5e7|826|pin
+5sTL6|6k1/5ppp/p3p3/1p2P3/1PpP1P1b/P3PqNP/6QK/8 b - - 2 29|f3e3 g2a8 h4d8 a8d8|826|back-rank mate,mate in 2
+4g82V|1rb3k1/1p3pp1/p1p4p/2Pp3n/3P4/P2BrP2/4N1PP/3RR1K1 b - - 1 23|h5f4 e2f4 e3e1 d1e1|826|hanging piece
+2YYgv|2r3k1/7p/p4qbB/1p1p4/2n2p2/1Q6/PPP4R/K6R w - - 0 31|b3h3 f6b2|826|mate in 1
+5xV4O|8/8/1p2k3/1P3pp1/1NPb4/5K2/6P1/8 b - - 1 42|e6e5 b4c6 e5d6 c6d4|826|deflection,from a master game,master versus master
+3ECQS|6r1/8/5R2/2p4k/8/5P1p/P1B2K2/8 w - - 2 43|c2g6 g8g6 f6f5 g6g5|826|
+2jlse|8/3k3r/2pp4/1p2p1p1/1P2PpN1/r1B2P2/3PK2p/7R b - - 4 29|a3a8 g4f6 d7c7 f6h7|826|fork
+1Kokr|8/8/p6p/P1pNk3/2Pp2n1/7P/4K1P1/8 b - - 0 39|g4e3 d5e3 d4e3 e2e3|826|knight endgame
+3XGlf|r2r2k1/2p1pp1p/ppPq2p1/3Nb3/8/5Q2/2PB1PPP/R3R1K1 w - - 2 23|e1e5 d6e5 d5e7 e5e7|827|hanging piece
+610u7|8/1R4pp/4p3/3p1p2/pk3P2/2n3P1/3K3P/8 b - - 5 43|b4c4 b7c7 c4b4 c7c3|827|
+0ehRb|5k2/5ppp/3P4/4Pbb1/1Bp2N2/8/1P4PP/6K1 b - - 0 29|g5f4 d6d7 f8g8 d7d8q|827|advanced pawn,back-rank mate,bishop endgame
+43JQw|r3k1nr/ppp2ppp/2n1b3/3q4/3p4/2B2N2/PPP1QPPP/R3KB1R w KQkq - 2 9|f3d4 c6d4 c3d4 d5d4|827|
+66fw2|5r2/1p5p/p2N2p1/3Pn2k/1PPR4/5p1P/P5P1/6K1 w - - 1 39|g2f3 e5f3 g1f2 f3d4|827|discovered attack,fork
+3LHzA|6k1/p4ppp/1pP1p3/5b2/8/4P3/PP3PPP/R1BrN1K1 w - - 0 21|g1f1 f5d3 f1g1 d1e1|828|back-rank mate,deflection,mate in 2
+5R3d9|r1b2rk1/2p2pp1/2Np2qp/p6n/P1B1P3/2P4P/1P4P1/R1B1Q2K b - - 0 18|c8b7 c6e7 g8h7 e7g6|828|fork
+3nZ3n|2r1r1k1/3bp1bp/p2p2p1/qp4B1/3P2P1/P1N2P2/1P1QB3/2KR3R w - - 0 20|b2b4 a5a3|828|queenside attack
+3vsMU|5rk1/p1r2p1p/3N2p1/Q1p1P3/5Pq1/1P6/P1P2RPP/5K2 w - - 3 27|a5c7 g4d1|828|mate in 1
+5WBPJ|8/1p3pk1/2b3p1/p1qp1rNp/P2r3P/1P2P1Q1/3R1PP1/6K1 w - - 0 34|e3d4 c5c1 d2d1 c1d1|828|fork
+0Dm9M|2rr2k1/pp3pp1/2N1p2p/q3P3/2P5/3Q4/P4PPP/2R1R1K1 b - - 0 22|a5e1 c1e1 d8d3 c6e7 g8f8 e7c8|828|fork
+3CRJw|8/5pp1/2b2p1p/2Pk4/BK6/5P1P/6P1/8 w - - 7 42|b4b3 c6a4 b3a4 d5c5|828|bishop endgame
+3AEGg|r1bq3r/pp1nkppp/3Npn2/3p2N1/3P4/8/PPP1PPPP/R2QKB1R b KQ - 2 8|e7d6 g5f7 d6e7 f7d8|829|fork
+3Yrbh|5rk1/1pp3pp/p1p5/2b3P1/4P2n/2NPRr2/PPPB1P2/5RK1 w - - 5 22|e3f3 h4f3 g1h1 f3d2|829|fork
+0FoiC|4r2k/p4R1p/1p3p2/8/8/2q5/P4PPP/3Q2K1 w - - 0 29|g2g3 e8e1 d1e1 c3e1|829|fork
+5DMXr|2r5/5rR1/4p3/1p1kB3/p1bP1P2/2P1K3/8/6R1 b - - 1 34|c8c7 e5c7 f7g7 g1g7|829|
+45iHH|8/8/2R1p3/p3kp2/P5p1/2b5/6K1/8 b - - 3 40|e5d5 c6c3|829|hanging piece
+6udDU|5k2/4Nppp/8/4PP2/6P1/7P/2b5/7K w - - 3 40|e7d5 c2e4 h1h2 e4d5|829|fork
+4HKZX|4n3/8/ppbk3p/2p1p1p1/2P1P3/1P1NnP1P/1B4P1/3B2K1 w - - 2 32|g1f2 e3d1 f2e2 d1b2|829|hanging piece
+1vTgY|6k1/5p2/5Bp1/7p/1p6/1Pr1p2b/PK5P/3R4 b - - 3 34|e3e2 d1d8 g8h7 d8h8|830|mate in 2
+5r51k|8/8/6kp/1p4p1/pP1BPn2/5P1P/P4KP1/8 w - - 2 43|f2g3 f4e2 g3f2 e2d4|830|fork
+2m9W0|4r1k1/pp3ppp/2r2q2/1Q2p2b/4Pn2/1BP2P2/P5PP/R3NRK1 b - - 1 20|c6c3 b5e8|830|hanging piece,kingside attack,mate in 1
+2YZfE|3rR2k/p5R1/2Q4B/1p1r1q2/8/7P/3p1PP1/6K1 b - - 1 34|d8e8 c6e8 f5f8 e8f8|830|mate in 2
+18g0R|3r4/p3B3/8/1p3kp1/4n3/8/1PP2bP1/5R1K w - - 0 32|e7d8 e4g3 h1h2 g3f1|830|fork
+0qgdP|2kN4/ppp5/8/2bp4/6R1/P4nP1/R1P3Kr/8 w - - 0 28|g2f3 h2f2|830|mate in 1
+4DRa5|r3k3/8/3pP2p/2bP2p1/P5RP/6P1/5P2/6K1 b - - 0 38|g5h4 g4g8 e8e7 g8a8|830|skewer
+3mUAr|k7/ppRN4/2p1qn2/5p2/2PrnQ2/6P1/PP4P1/2K1R3 b - - 1 32|f6d7 c7c8 d7b8 f4b8|830|mate in 2,queenside attack
+4PEiO|6k1/p5p1/5rp1/8/3N4/4R3/2r5/5KR1 w - - 4 40|f1e1 c2c1 e1e2 c1g1|830|skewer
+6Zupu|b7/5kp1/4p2p/1pPp1p2/1Pn5/1B2P1BP/5PP1/6K1 w - - 4 31|g1f1 c4d2 f1e1 d2b3|830|fork
+4BU9N|2r4k/pQ4pp/3pb3/5p2/5Pq1/4B3/PP4PP/R5K1 w - - 3 26|a1c1 c8c1 e3c1 g4d1|830|
+6wofv|5r1k/6pp/5p2/8/2p3P1/Q5qP/PP6/3R3K b - - 1 33|g3f4 a3f8|831|hanging piece,mate in 1
+6e5xQ|2r3k1/5ppp/1pB1p3/1P6/p1RP1P2/2n1P2P/7K/8 b - - 3 36|c3d5 c6d5 c8c4 d5c4|831|
+12bzs|8/q5b1/3p1k1p/3Qp2n/2N1P3/3P1P2/PPP4P/6K1 w - - 0 28|g1g2 h5f4 g2f1 f4d5|831|fork
+0m4jR|5k2/3b1pp1/8/3pPP1p/B2P4/K7/7P/8 b - - 0 34|d7a4 a3a4 g7g6 f5g6|831|
+3Fetq|1Q6/4kpp1/7p/8/P3q3/8/6PP/1R5K w - - 2 41|b8g3 e4b1 g3e1 b1e1|831|back-rank mate,hanging piece,mate in 2
+4nleA|8/3k4/3p1p2/3P1R2/2N4P/1pb5/r7/5K2 b - - 0 51|a2a4 c4b6 d7e7 b6a4|831|fork
+1P86b|7r/5pk1/4pnp1/1Q6/8/5P2/5K2/3R4 w - - 1 52|b5b2 h8h2 f2e1 h2b2|831|skewer
+4lbYA|4q1k1/pr1br3/2p4p/2p1B1p1/2PpQ1P1/1P5P/P3R3/R5K1 b - - 0 32|e7e5 e4e5 e8e5 e2e5|831|
+4Pmwq|5rk1/5ppp/8/6P1/5R1P/1r2P1n1/6B1/R5K1 w - - 0 38|e3e4 g3e2 g1f2 e2f4|831|fork
+0rtn0|R7/8/8/8/8/4K3/1r3p2/5k2 b - - 5 64|f1e1 a8a1 b2b1 a1b1|831|mate in 2,rook endgame
+6zWb0|7k/1p4p1/p4pP1/3R4/7P/2pnrPK1/P7/8 b - - 1 35|c3c2 d5d8 e3e8 d8e8|832|mate in 2
+6okgf|3R4/8/4k3/8/3K1p2/2P1r3/8/8 b - - 4 60|e3e1 d8e8 e6f7 e8e1|832|from a master game,rook endgame,skewer
+38xeU|2k4r/ppp4p/5p2/4n3/2ppN3/7b/PPP2P1P/R1B1R1K1 w - - 3 18|f2f4 e5f3 g1f2 f3e1|832|fork
+1pvwC|3r4/p1b3kp/3N1pp1/8/4P3/1P6/P1P2PP1/1K1R4 w - - 3 27|d6f5 g6f5 d1d8 c7d8|832|
+4u7Do|3rr1k1/2p3pp/p6q/8/1pnP1PB1/2P1RQP1/PP5P/6KR w - - 1 26|g4e6 e8e6 e3e6 h6e6|832|
+42BR3|5q1k/2p1N2p/3p2p1/p1p1p1B1/2P1P1PP/1P6/P5P1/7K b - - 0 26|h7h6 e7g6 h8g8 g6f8|832|fork
+3fAAW|4B3/8/3p1kp1/3Pp1p1/4PpK1/3n1PP1/7P/8 w - - 2 47|h2h4 d3f2|832|mate in 1
+2biM2|r7/1bp1q1pk/p2p3p/1p2pr2/4P3/1P1P1N2/1PP2QPP/R4RK1 b - - 0 19|f5f7 f3g5 e7g5 f2f7|833|deflection,discovered attack
+1Ak8d|3r1rk1/pppN2pp/4pb1n/8/8/2N4P/PPP2PP1/R2R2K1 b - - 2 16|f8f7 d7f6 g7f6 d1d8|833|discovered attack,kingside attack
+2Jbut|4r1k1/5p1p/ppPp2p1/4b1N1/4R3/7P/PP3PP1/6K1 w - - 1 24|g5f3 e5h2 g1f1 e8e4|833|discovered attack
+4khh6|8/1p2k3/p1p2p1p/2Pn3r/5P2/8/PP3B1P/3R1K2 w - - 0 33|f2g3 d5e3 f1e2 e3d1|833|fork
+4KmU4|r5k1/1Rpr1ppp/8/2p1P3/3n1PP1/p7/K1P4P/3R4 b - - 1 26|a8a4 b7b8 d7d8 b8d8|833|back-rank mate,mate in 2
+2PX7P|8/p6p/2pp1k2/7p/P1B1K1P1/1P2P1b1/8/8 w - - 0 39|g4h5 d6d5 c4d5 c6d5|833|bishop endgame,fork
+6SxtP|4r1k1/6p1/p4pq1/3b4/1P5p/P3B2P/3Q2P1/4R1K1 b - - 2 41|g6g3 d2d5|834|hanging piece
+5obAe|r2q1rk1/pp2b1pp/2pp4/4pb2/8/1P1P1N1P/1PP2PP1/R1BQ1RK1 w - - 0 13|c1g5 e7g5 f3g5 d8g5|834|
+1pjhC|8/1p2R3/pk3r2/5pn1/4pN1p/1K2P2P/P4P2/8 b - - 2 43|g5f3 f4d5 b6c6 d5f6|834|fork
+4VlnM|8/1k6/p3p3/PppnP3/8/6P1/5PKP/3Q4 w - - 0 40|f2f4 d5e3 g2f3 e3d1|834|fork
+059Mb|5k2/5p1p/p3bBp1/4P3/2r4P/8/2R2PP1/6K1 w - - 1 42|c2a2 c4c1 g1h2 e6a2|834|discovered attack
+6vpzr|6k1/1p2qppp/n1p5/3p2N1/1p1r3P/1P6/1P3PP1/1Q3K1R b - - 3 22|a6c5 b1h7 g8f8 h7h8|834|kingside attack,mate in 2
+1gIfL|5k1r/1p3pNp/8/2b1P3/5P2/2P5/2K3bP/2BR4 w - - 1 25|g7f5 g2e4 c2b3 e4f5|834|fork
+3oZMC|r4rk1/3qp1bp/npNn1pp1/3N4/2pP4/P3PP2/1P4PP/R1BQ1RK1 b - - 0 18|d7c6 d5e7 g8f7 e7c6|835|fork
+0dDHX|7k/1p4pp/p7/8/2Q2b2/7P/PPP1Nq2/4K3 w - - 10 34|e1d1 f2f1|835|mate in 1
+24dCS|6k1/N4p2/5p1p/8/1P2b1P1/P6P/7r/R3K3 w - - 1 28|b4b5 h2h1 e1f2 h1a1|835|skewer
+0M9gx|R7/8/p1r1k2p/4pp2/4p3/B6P/5PPK/8 w - - 5 36|h2g3 c6c3 g3h2 c3a3|835|fork
+4IztN|r4r2/3R3p/p4pk1/1p3n2/6NP/3P4/P5P1/5R1K w - - 8 33|d7d5 f5g3 h1g1 g3f1|835|fork
+5SFpd|4r3/6k1/2p2nNp/p1b2B2/8/2P5/5PPP/3R2K1 w - - 3 37|d1d2 e8e1|835|mate in 1
+2JBNI|1rq1r1k1/3b1pb1/3p2p1/p1p1p2p/1pP1P1nP/3PNNP1/PP3P2/R1BQ2RK w - - 1 20|f3h2 g4f2 h1g2 f2d1|835|fork
+16mQL|8/3p4/p7/1p4N1/1P3k1P/P7/6K1/8 w - - 0 52|h4h5 f4g5 g2f3 g5h5|835|hanging piece
+0v46x|8/6R1/1r6/8/5k1p/7K/6P1/8 w - - 0 70|h3h4 b6h6|835|mate in 1,rook endgame
+5dDPH|8/8/3n2p1/1ppk4/5KP1/1PP5/5B2/8 w - - 2 34|f4g5 d6e4 g5g6 e4f2|836|fork
+3uwTb|6k1/3n2p1/p3Q2p/8/2Pp4/2qB2PP/P4K2/8 b - - 0 41|g8h8 e6e8 d7f8 e8f8|836|fork,mate in 2
+1xDWg|8/1p6/p1p3pk/2P1rp2/1P2q2P/P3P1R1/3Q3K/8 b - - 4 42|e4h4 g3h3 h4h3 h2h3|836|defensive move,pin
+3c2mu|rn3rk1/pb2qppp/1p1bp3/3n4/1P6/P3PN2/1BQNBPPP/2R2RK1 b - - 7 14|f8c8 c2c8 b7c8 c1c8|836|
+4tr0K|3rk1r1/2n2p2/2p2n1p/p1p1pP2/Pp2P1pP/1B1P1P2/1PP1N1R1/2K3R1 b - - 0 26|g4f3 g2g8 f6g8 g1g8|836|
+23Khb|6k1/6pp/3N4/8/p7/1r1q4/Q5PP/5R1K w - - 6 38|f1b1 d3b1 a2b1 b3b1|837|back-rank mate,mate in 2
+1UEqE|8/pkp4r/1p6/3N1Pn1/3p1RP1/8/P1P5/6K1 w - - 3 34|f4d4 g5f3 g1f2 f3d4|837|fork
+4wkfv|8/p5pp/8/2p2k2/P1P2P2/3rpP2/1R5P/5K2 w - - 5 42|f1e2 d3d2 b2d2 e3d2|837|advanced pawn,rook endgame
+6SoOw|r1b1k2r/pp1n1p2/4p3/1B1pPn2/6p1/B1P1P1p1/P1Q2PKP/1R3R2 w kq - 0 19|f2g3 f5e3 g2g1 e3c2|837|fork
+6X7GI|8/P1p2ppp/8/1B3kP1/5b2/4p2P/2r1K3/RR6 w - - 1 34|e2f3 c2f2|837|mate in 1
+4HKtE|r5k1/3q1ppp/r3p3/3p3n/P2P4/1PPQ3P/3B1PP1/R4RK1 w - - 3 22|d3b5 d7b5 a4b5 a6a1|837|
+4yy3b|3r3k/2p3pp/8/2P2p2/bPQN4/P3P3/1K3q1P/2R5 w - - 0 31|c4e2 f2e2 d4e2 d8d2 b2c3 d2e2|837|fork,from a master game
+6wAAy|6k1/5ppp/K1b1p3/2q5/7P/8/P1P5/1R4R1 b - - 2 33|c5c2 b1b8 c6e8 b8e8|838|mate in 2
+1ZYAz|r3k2r/ppp2p1p/2pb1q2/4p1p1/2N1P1b1/3P1N2/PPP2PK1/R1BQ1R2 b kq - 3 12|g4f3 d1f3 f6f3 g2f3|838|
+1JZry|r2q1rk1/ppp2p1p/1b4p1/3pPn2/8/2P4P/PP2Q1PN/RNB2R1K w - - 0 17|h2g4 f5g3 h1h2 g3e2|838|fork
+4r2j5|1k5r/1p3ppp/2p5/8/3N4/P3P1bP/1P4P1/3R2K1 b - - 0 24|h8d8 d4c6 b7c6 d1d8|838|discovered attack
+1tGEM|1r3k2/1p5R/6p1/1p1N1p2/1P2n3/8/P5PP/3K4 b - - 0 32|b8d8 h7h8 f8f7 h8d8|838|skewer
+3dh7q|2r1n1k1/6p1/p3p1N1/1p1p2R1/1P3r2/2P4P/1P5K/6R1 b - - 3 30|f4e4 g6e7 g8f8 e7c8|838|fork
+3INKV|6k1/5p2/2Np1p2/1r1P3b/1pR4P/1P3PK1/8/8 b - - 6 45|b5d5 c6e7 g8f8 e7d5|838|fork
+75zNr|8/p2Qp1kp/q5p1/8/8/5P2/P4KPP/1r2R3 b - - 8 29|a6a2 e1e2 a2e2 f2e2|838|defensive move,pin
+4bH91|r2qkbnr/pp3ppp/2p1p3/3p1b2/QnPP4/5NP1/PP2PPBP/RNB1K2R w KQkq - 0 7|c4c5 b4c2|839|
+6phHM|3r2k1/2ppq2p/1p2Prp1/p4n2/Pn6/2N2N2/1PPQ1PPP/2KRR3 b - - 0 17|d7e6 d2d8 e7d8 d1d8|839|kingside attack
+0K1TJ|8/8/1Q6/2R5/1k4p1/8/KP6/6rq b - - 15 48|b4a4 b2b3|839|mate in 1
+1rvBL|3r4/q2b1kp1/p2Qppp1/4n3/8/pP6/P1PR1PPP/3R3K b - - 1 23|e5g4 d6d7 d8d7 d2d7 a7d7 d1d7|839|fork
+4b25S|r1br2k1/ppq1pp1p/6p1/2P5/2BbP3/4B2P/P4PP1/1RQ2RK1 w - - 0 17|c4f7 g8f7 e3d4 d8d4|839|hanging piece
+35N6b|2k5/ppp2pRp/3r1n2/7b/8/2N5/PPP2P1P/2K1B3 w - - 1 21|c3b5 d6d1|839|mate in 1
+1uCmI|2r3k1/2P3pp/5p2/3p4/5B2/2n1P3/5PPP/5RK1 w - - 0 28|f1c1 c3e2 g1f1 e2c1|839|fork
+3Q2Qg|5r1k/3r2bp/2pp4/q3pn2/N4p2/1PPQ1P1P/6P1/3RR1BK w - - 5 29|d3e4 f5g3 h1h2 g3e4|839|fork
+75Jd5|r1b1r1k1/6pp/1p4q1/pQ1RNp2/4n3/8/PP3PPP/5RK1 b - - 2 21|g6h6 b5e8|839|hanging piece,kingside attack,mate in 1
+4B3t5|r5k1/p4pp1/3p3p/3Pb3/qR4b1/8/P1PQ1PPP/5RK1 b - - 2 20|a4a5 b4b8 a8b8 d2a5|839|discovered attack
+2aKmg|8/pb1k2p1/1p2p3/8/3n1PKP/P5P1/1P6/2R5 w - - 0 49|c1d1 b7f3 g4g5 f3d1|839|fork
+4IlRq|r5k1/1q2b1pp/p1Rp4/3Np3/5r2/8/PP3PPP/3Q1RK1 b - - 0 24|b7c6 d5e7 g8h8 e7c6|839|fork,hanging piece
+28ZN4|8/8/2K5/3N1k2/8/8/1r4PP/8 b - - 3 45|b2g2 d5e3 f5e5 e3g2|839|fork
+3eYXN|2kr2r1/1bpqn3/p2p1n1p/P3p3/2P2p2/5N2/BQ1B1PPP/1R2R1K1 b - - 4 24|b7f3 b2b8|839|mate in 1
+6hHOp|r2q1rk1/5pp1/2p2n1p/p2pp3/Pp2P3/1B1PP1Q1/1PP1N2K/R4R2 w - - 0 21|g3e5 f6g4 h2g2 g4e5|839|fork
+23BTI|8/p5pk/7p/1n2P2b/8/5P2/2P1R1PP/3K4 w - - 1 35|c2c4 b5c3 d1e1 c3e2|839|fork
+3oztv|r7/8/4k1p1/Pp3p2/1K6/2PP4/6P1/1R6 w - - 6 44|b4b5 a8b8 b5c5 b8b1|840|rook endgame,skewer
+3lgzB|5bk1/pp1n4/3p2q1/2pPpNPp/2P1P3/1P6/P2Q2P1/6K1 b - - 0 26|f8g7 f5e7 g8h7 e7g6|840|fork
+2DYqE|8/3n1p2/1pk3p1/2pR3p/2P5/3K2PP/8/8 w - - 34 59|d3e4 d7f6 e4e5 f6d5|840|fork
+2kAGQ|2r3k1/1p1n1ppp/p7/3n2q1/2P1b3/PPQ5/1B2BPPP/R3R1K1 w - - 0 23|c3d4 g5g2|840|kingside attack,mate in 1
+3x62h|r4rk1/pq4pp/2R1ppN1/1p1p4/1P1P4/2P2P2/1P1Q2PP/5RK1 b - - 0 19|b7c6 g6e7 g8f7 e7c6|840|fork
+6zH9R|4r1k1/p1r2pp1/Qp5p/2p1q3/1P1p4/P3P1P1/5P1P/2R1R1K1 w - - 0 28|e3d4 e5e1 c1e1 e8e1|840|kingside attack
+1fubz|3q1rk1/1pp2ppp/3p4/2nPp1N1/2P4P/r7/2Q2PP1/5RK1 b - - 1 21|h7h6 c2h7|840|mate in 1
+6weaO|2rR4/5ppk/7p/1Qb1Nb2/5P2/P1P3P1/1P5P/7K w - - 5 31|d8c8 f5e4 e5f3 e4f3|840|double bishop mate,mate in 2
+03lgy|6R1/2pR2p1/p5kp/4q3/8/1P6/2P5/1K6 w - - 10 35|g8g7 e5g7 d7g7 g6g7|840|queen and rook endgame
+1Y1DQ|1r2k1nr/pNqb1ppp/4p3/3p4/8/1Q5N/P4PPP/1R3RK1 b k - 6 20|d7c6 b7d6 c7d6 b3b8 d6b8 b1b8|840|discovered attack
+6pq0A|2r4k/1b4pp/3B4/pp3Q2/3p4/8/P5qP/6RK w - - 0 34|g1g2 c8c1 f5f1 c1f1|840|mate in 2,pin
+6ujAh|2r5/4r1k1/1p5b/1B4p1/P1P1Np2/5P1P/3R2K1/8 b - - 2 46|g7f7 e4d6 f7g8 d6c8|840|fork
+0wjFH|1k3b1r/pppQ1Rpp/8/3p4/1P1P4/P3r1P1/2P3KP/q7 b - - 1 19|a1c3 d7d8|841|mate in 1
+14jPA|8/4kp2/p6N/8/3PKP2/6r1/6P1/8 b - - 0 39|a6a5 h6f5 e7f8 f5g3|841|fork
+4N7a6|8/1N3kp1/5p1p/4p3/P1P5/4BKPP/2r5/8 b - - 0 40|c2c4 b7d6 f7e7 d6c4|841|fork,from a master game
+0UFPd|2r1k2r/p2bbppp/3p1n2/q2P4/4P3/2N1B3/PPP1QPPP/R4RK1 b k - 6 16|f6e4 c3e4|841|hanging piece
+1gcw3|4k3/P6R/2K5/2P4p/7P/8/2P5/r7 w - - 1 55|c6c7 a1a7 c7d6 a7h7|841|rook endgame,skewer
+1kdlF|8/8/6k1/p2p1pp1/P2P1PP1/6K1/8/8 b - - 8 44|g5f4 g3f4 f5g4 f4g4 g6f6 g4f4|841|defensive move,pawn endgame,zugzwang
+6tfAq|5k2/1p5p/p2p2p1/3Np1q1/8/8/PPP1Q2P/1K6 w - - 0 23|d5c7 g5g1 e2d1 g1d1|841|mate in 2
+4towE|3r3k/p1p3pp/1pP5/5p2/4pPn1/PQNq2P1/1Br2PBP/3R2K1 b - - 13 30|d3d1 c3d1 d8d1 g2f1 d1f1 g1f1|841|
+4Os4g|r2qkb1r/pb3ppp/1p2p3/4P3/3N1P2/3Bp1P1/PPP4P/R2Q1RK1 b kq - 0 15|d8d4 d3b5 e8d8 d1d4|842|discovered attack
+6ztYN|8/1p2p1k1/p2p2p1/3n3p/7N/2K5/2P5/5R2 w - - 1 47|c3c4 d5e3 c4d3 e3f1|842|fork
+1XG3o|3r2k1/p1p2ppp/1bp5/8/8/2P1r3/PP4PP/RN2R2K w - - 0 17|e1e3 d8d1 e3e1 d1e1|842|back-rank mate,mate in 2
+5Trrg|6n1/8/2p2k2/1p1p3P/1P1P2K1/2P5/2B5/8 w - - 2 43|c2f5 g8h6 g4f4 h6f5|842|
+06Bfl|r6r/2qpkp2/pp2p3/3bP3/2Bn1Q1B/8/PP4PP/5RK1 b - - 1 25|e7e8 f4f7|842|attack on f2/f7,mate in 1
+1elTm|1r6/p6p/3Q4/k1p5/2P5/qPN1R3/P5PP/7K w - - 1 28|d6b8 a3c1 c3d1 c1d1 e3e1 d1e1|842|back-rank mate,fork,mate in 3
+44Srt|r3r1n1/pq5p/5pk1/3P4/2P2p2/1P5N/PB4PP/R4RK1 b - - 2 22|e8e2 h3f4 g6f7 f4e2|842|fork
+5bAyK|rn2k1r1/p4p2/2p1p2p/8/2NBb3/1P4P1/P5P1/R2R3K b q - 0 23|g8g3 c4d6 e8f8 d6e4|843|fork
+5kc47|r2qk2r/1p2pp1p/p2p2p1/2p5/1nP1N3/PP3b2/1Q1PBPPP/R3K2R w KQkq - 0 14|e2f3 b4d3 e1d1 d3b2|843|fork
+4iqOd|6rk/1b3q2/1p5P/p1p1p3/4P3/P7/1PP2P1Q/1K5R b - - 2 32|b7e4 h2e5 h8h7 e5e4|843|fork
+5KZVX|6k1/5pp1/p1b5/1p2PN2/2p4p/2P4P/P2K1PP1/8 b - - 1 31|g7g5 f5e7 g8g7 e7c6|843|fork
+2csZX|3r4/8/1N3k1p/4p1p1/p4pP1/P1P2P1P/1P2K3/8 b - - 1 49|d8b8 b6d7 f6e6 d7b8|843|fork
+0uHnH|1B6/8/r1kn3R/5pp1/p3p3/6PP/5PK1/8 b - - 1 42|a4a3 h6d6 c6b7 d6a6|843|
+15ZKS|8/5pk1/4pbpp/q1RpN3/P7/1r2Q3/5PPP/6K1 w - - 0 29|c5a5 b3b1 e3c1 b1c1|844|back-rank mate,mate in 2
+3jyq4|7r/1ppb1kbq/n2p4/3Pp3/1PP1PpP1/2N2N2/5QPB/1R4K1 b - - 4 29|d7g4 f3g5 f7g6 g5h7|844|fork
+31kSy|8/3r2pp/8/pk6/1p6/1P2P3/4K1PP/2R5 w - - 2 35|c1d1 d7d1 e2d1 a5a4 b3a4 b5a4|844|rook endgame
+3vuG6|1r4k1/p1p2b2/2ppn3/q5p1/4PpP1/1PN2P2/P1P4Q/1NK4R b - - 3 28|g8f8 h2h8 f8e7 h8b8|844|skewer
+3oCB6|r3r1k1/pp3q1p/2p2pp1/3pb3/5PB1/2P1R2P/PP2Q1P1/4R1K1 b - - 0 22|e5f4 e3e8 f7e8 e2e8 a8e8 e1e8|844|kingside attack
+1UXa7|8/4n3/2k1N1p1/4K3/ppP3P1/8/P7/8 w - - 0 39|e6d4 c6c5 d4e6 c5c4|845|defensive move,knight endgame
+4dGiR|r3k2r/p4ppp/b1pPp3/3p4/PP6/1N6/2P3PP/R1K1R3 b kq - 2 22|e8d7 b3c5 d7d6 c5a6|845|fork
+4F15u|N5k1/1r4pp/1P3pn1/3p4/5n2/1P3P1P/6PB/3R2K1 w - - 1 35|d1c1 f4e2 g1f2 e2c1|845|fork
+1fBHp|3r2r1/1p5k/p1pB2q1/2P2p2/1P2p2P/P3P2P/1Q3P1K/4R3 w - - 3 34|e1g1 g6g1|845|mate in 1
+0U6jt|4r1k1/8/P7/3N1pp1/2p5/8/1r2pKPP/4R3 b - - 4 44|b2a2 d5f6 g8f7 f6e8|845|fork
+1EgYj|R1r3k1/5ppp/2b1p3/Q2p4/8/P1P5/4qPPP/1R4K1 b - - 0 22|c8a8 a5a8 c6a8 b1b8|845|back-rank mate,mate in 2,sacrifice
+0i603|8/8/8/4R3/pB4r1/P7/4kn1K/8 b - - 9 50|e2f1 e5e1|845|mate in 1
+1NmcN|2b3rk/8/2p1qpPp/1p6/3P1P1N/4P2P/4Q2K/1R6 w - - 1 33|b1g1 e6h3|845|mate in 1
+0BZVm|r3k2r/pb2b1pp/5n2/1p2N3/2p5/4P3/1PP2PPP/RN2KB1R w KQkq - 0 14|a1a5 e7b4 c2c3 b4a5|846|fork
+6cwzN|6k1/2p5/2N4p/2br1pp1/1p1P4/7P/P5P1/3R1K2 b - - 1 44|c5b6 c6e7 g8f8 e7d5|846|fork
+1VkId|r7/3k4/3b4/4p1p1/P1B1P3/3P1P2/4K3/4B3 b - - 0 38|a8a4 c4b5 d7e7 b5a4|846|fork
+6reQf|1Q6/6pk/5p1p/2N1pq2/8/1P4Pb/P4P1P/4R1K1 w - - 1 37|e1e3 f5b1 e3e1 b1e1|846|mate in 2
+3SlDm|r1b2rk1/ppp2ppp/3p4/8/N3P3/1Q1Pq2N/PPK2nPP/R3R3 b - - 4 15|e3d3 b3d3 f2d3 c2d3 c8h3 g2h3|846|
+6jSIY|kQ4r1/pp3p2/q7/1NPp3p/P6P/4PP1b/1P1B1K2/R7 b - - 2 31|g8b8 b5c7|846|mate in 1,smothered mate
+6NrIx|8/ppR5/1q2p2k/3p1rp1/6Pp/P4r2/1PQ2P1P/5RK1 b - - 0 30|f3f2 f1f2 b6f2 c2f2 f5f2 g1f2|846|
+0xrpR|1R4k1/6p1/4pr2/p2p4/4q2p/P1P2NnP/6P1/4Q1K1 b - - 2 34|g8h7 f3g5 h7g6 g5e4|846|fork
+1QDsE|3r1rk1/5pp1/4b2p/1p6/2PpQ3/P5qP/1PB3P1/2R1R1K1 b - - 0 29|b5c4 e4h7|846|mate in 1
+0mIqT|8/8/R7/p2r1p1k/5KPP/1P6/8/8 b - - 0 40|h5h4 a6h6|846|mate in 1,rook endgame
+5WfA6|8/pp4r1/2pP4/2P2k2/5p2/PP4pK/4Q1P1/5r2 w - - 9 46|e2f1 g7h7|847|mate in 1,queen and rook endgame
+1PsY0|R1Q5/1p5p/4r1b1/4pk2/5q1P/1P1P4/1P1K1P2/4R3 w - - 5 40|d2c2 f4f2 e1e2 f2e2|847|fork
+59ibE|4r1k1/5pp1/2p1p2p/1p1q1N1P/p1nP1Q2/P1P5/1P2RPP1/6K1 b - - 8 33|e8d8 f5e7 g8f8 e7d5|847|fork
+4eOzK|3Q4/8/7p/4p3/P3P1n1/6rk/1P6/7K w - - 2 51|d8d6 g4f2|847|mate in 1
+2gwRT|4r3/4rp2/3pnkp1/p2B4/1pP2P2/1P4P1/P3R2K/4R3 w - - 1 41|h2g2 e6f4 g3f4 e7e2 e1e2 e8e2|847|discovered attack,from a master game
+20EB3|5k2/6p1/7p/2pQ3P/2P3K1/4q1P1/8/8 b - - 7 41|e3e2 d5f3 e2f3 g4f3|848|from a master game,master versus master,queen endgame
+529HA|5k1r/p7/2p2p2/4nNpq/3p4/1P2Q1P1/P1PK1P2/4R3 w - - 0 34|e3d4 e5f3 d2c3 f3d4|848|fork
+5YnH4|2krr3/p4ppp/2p1p3/4b3/2PP4/1R6/P3NKPP/1R6 b - - 0 25|e5d4 e2d4 d8d4 b3b8|848|
+0Oj8r|2rr4/6pp/4p1k1/3nBp2/2pP4/4P3/4KPPP/1Q5R w - - 0 25|g2g4 d5c3 e2f3 c3b1|848|fork
+0eRzD|4r1k1/pb4p1/1q3p1p/1P1p1P2/Pb1Pp3/6P1/2r1N1QP/2BN1RK1 b - - 1 27|b6d4 e2d4 c2g2 g1g2|848|
+4sTWB|3r2k1/pp1b1p2/q1p3p1/7p/P2B4/1PP1QP2/6PP/4R2K b - - 0 30|d8e8 e3e8 d7e8 e1e8 g8h7 e8h8|848|kingside attack,mate in 3
+1gXJs|8/5p2/n1k1p1p1/3pP3/Pp1K1PP1/1P1N4/8/8 b - - 0 36|c6d7 d3c5 a6c5 d4c5|848|knight endgame
+6NXZl|2R3k1/pp1n1p1p/1q5B/5pr1/1P1pP3/P2P4/6PP/6K1 b - - 1 26|d7f8 c8f8|848|mate in 1
+154U0|r1br4/pp2k1pp/1n1N4/5p2/4p3/1B2P3/PPP2PPP/3RK2R w K - 3 17|e1g1 d8d6 d1d6 e7d6|848|
+1XKnJ|5k2/4Nnp1/4Kp1p/5P2/6PP/8/8/8 b - - 2 42|f7e5 e7g6 f8g8 g6e5|848|knight endgame
+52G0W|r7/3k1p1p/1p1p2p1/1Pn5/2PK4/4R1P1/p4P1P/R7 w - - 9 48|e3e2 c5b3 d4c3 b3a1|849|fork
+3LzaU|3rr1k1/pp1n1ppp/2p5/3p4/3P2P1/5PQb/PP2BR1P/3q2K1 w - - 0 24|e2d1 e8e1 f2f1 e1f1|849|fork,mate in 2
+2g7EQ|8/pp2Qrkp/6p1/3p1r2/3q4/8/PPP3PP/R4R1K w - - 6 25|e7a3 f5f1 a1f1 f7f1|849|back-rank mate,mate in 2
+2y5LZ|2r5/p2k2pp/8/Bp6/1P1n2bP/4N1P1/P4P1K/4R3 w - - 3 28|e3g4 d4f3 h2h3 f3e1|850|fork
+2jwaM|2kr3r/ppp2ppp/8/2b1Pn2/2B2P2/2N2KP1/PPn1N2P/2B4R b - - 2 15|f7f6 c4e6 c8b8 e6f5|850|fork
+1rhRe|3r1rk1/1p1q1pp1/p2p1b1p/2p1P3/Pn6/2N2N2/1PPQ1PPP/3RR1K1 b - - 0 16|d6e5 d2d7 d8d7 d1d7|850|
+2aRCA|8/8/4bk2/2p1pN2/1p2PpKP/1P1P4/2P5/8 w - - 1 53|g4f3 e6f5 e4f5 f6f5|850|zugzwang
+6uOMz|2r4k/6p1/3q3p/p1p4R/2Q5/7P/P4PP1/6K1 w - - 2 42|c4c3 d6d1 g1h2 d1h5|851|fork
+3gSUZ|r1bq1Bk1/ppp2p1p/6p1/2P5/3n4/1P1p2Q1/P1P2PPP/3R1RK1 w - - 1 17|d1d3 d4e2 g1h1 e2g3|851|fork
+3g9Tr|3r1r1k/3nR1p1/p3Q2N/1pp5/6n1/3P4/PP4PP/4Rq1K w - - 2 25|e1f1 f8f1|851|mate in 1
+6fMak|1k3b1r/ppp2p2/2qp1np1/7p/P4Q2/1B6/1PPB1PPP/R5K1 b - - 0 20|f8h6 f4f6|851|hanging piece
+2in2m|7r/1pk3p1/pNp2p1p/2P1nP2/PP4P1/3P3P/1K6/4R3 w - - 1 35|d3d4 e5d3 b2c3 d3e1|851|fork
+2mKgF|4r2k/1pp3pp/1pnqr3/3pp1N1/8/1QPP3P/PP2RPP1/4R1K1 b - - 5 19|e6g6 g5f7 h8g8 f7d6|851|fork,pin
+4DHre|8/6k1/p2R3p/1p6/7P/4K1P1/r4P2/8 w - - 2 39|e3d4 a2d2 d4c5 d2d6|851|rook endgame
+5MP0L|1k6/5R2/1K6/4rP2/4p3/8/8/8 b - - 2 61|e4e3 f7f8 e5e8 f8e8|852|mate in 2,rook endgame
+6NdRI|8/k7/5pb1/4pN2/3pP1P1/2pP1Q1P/qrP1K1B1/2R5 w - - 2 43|e2f2 b2c2 c1c2 a2c2|852|
+0CyzE|6k1/1R1p3p/5p2/p1P5/2PK2P1/4P3/7P/r7 w - - 0 38|b7d7 a1d1 d4c3 d1d7|852|rook endgame,skewer
+2vdZx|r5k1/p4p1p/6p1/8/1n1b4/P3B2P/1P3PP1/R5K1 w - - 0 24|e3d4 b4c2 a1c1 c2d4|852|fork
+6DZXc|3r2k1/1p3p1p/5p2/1rP2N2/p2P4/2K4P/5PP1/7R b - - 1 27|d8d5 f5e7 g8f8 e7d5|852|fork
+5HrRy|r1b2rk1/1pp2p1p/p2p2p1/3P1P2/PP1bP1Pq/R7/2B3RP/3QN1K1 w - - 5 26|d1d4 h4e1|853|hanging piece,kingside attack,mate in 1
+0LQkT|6k1/p3rp2/8/6pp/1n3N2/1P3P2/P4KP1/2R5 w - - 0 32|f4h5 b4d3 f2g3 d3c1|853|fork
+30FSz|2r2k2/p4r2/1p6/3R4/3PR3/5Pp1/PP4P1/6K1 w - - 1 31|e4e2 c8c1 e2e1 c1e1|853|mate in 2,rook endgame
+4ZTSd|6k1/pp3prp/2pR4/3p4/1P2r1PP/8/7K/6R1 b - - 4 42|e4g4 d6d8|853|back-rank mate,mate in 1,rook endgame
+4Ymeg|8/p3k1p1/3Rpb1p/2P1p3/2N1P3/3K3P/5PP1/r7 w - - 7 35|c5c6 a1d1 d3c2 d1d6 c4d6 e7d6|854|
+0E8yk|3r4/3Pk1p1/R6p/1p6/2n3P1/P4P2/6K1/3R4 w - - 1 42|a6a7 c4e3 g2g3 e3d1|854|fork
+6MXau|8/1p3p1p/p5pk/Pq5n/4Nn2/2Q2P2/1P4PP/2R3K1 w - - 5 38|g2g4 f4e2 g1f2 e2c3|854|fork
+1IBSp|8/1p6/pP2rp1p/P2k2p1/2pPPp2/2K2PPP/8/2B5 b - - 0 40|d5c6 d4d5 c6d7 d5e6|854|fork
+6SvEz|8/pp1nr3/6pk/7p/3RP2P/2PK1N2/1P6/8 w - - 4 31|d4a4 d7c5 d3c2 c5a4|854|fork
+5Ve5E|8/7p/2Rp4/3P3k/8/4n1KP/8/8 w - - 2 53|c6d6 e3f5 g3f4 f5d6|854|fork
+1E5lx|5rk1/pp4p1/8/2pP2q1/2P1Q3/5r2/P1P4R/R5K1 w - - 0 28|g1h1 f3f1 a1f1 f8f1|855|mate in 2
+0bhdI|8/5kpp/2N1b3/5p2/4pP2/1p2P3/rP4PP/1R4K1 b - - 9 38|e6c4 c6e5 f7e7 e5c4|855|fork
+3lXQa|2r5/4kppp/4p3/N1p1n3/2P3P1/7P/P2R1P2/6K1 w - - 1 30|f2f4 e5f3 g1f2 f3d2|855|fork
+23INn|5B2/p2k4/1p1P1K2/1P5p/5n1P/8/8/8 w - - 5 60|f6g5 f4e6 g5h5 e6f8|855|fork
+2OSmM|r2q1rk1/1pp2p1p/6p1/p2pn3/8/PP1BPP2/2PQ1P1P/R4RK1 w - - 0 15|f3f4 e5f3 g1g2 f3d2|855|fork
+0i72k|4r3/1p5n/5k1p/2p2Pp1/2PpNp2/P2P1R1P/5K2/8 b - - 5 35|f6f5 e4d6 f5e6 d6e8|855|fork
+5trO2|2kr2nr/ppp2p1p/2n5/4p1p1/1b2Rp2/2Q5/P1P3PP/R1B4K w - - 0 15|e4b4 d8d1 c3e1 d1e1|856|back-rank mate,mate in 2
+4huO6|2q4k/6p1/1p1Q3p/8/2PP1r2/PP5P/1B3K2/R3n3 w - - 0 32|d6f4 e1d3 f2e3 d3f4|856|fork
+2uxgE|r1b1k1n1/pp1p2p1/6p1/4p1P1/2BpP3/P2P4/1PPK1PP1/7R b q - 0 14|g8e7 h1h8|856|
+3AN4C|6k1/5pp1/p1pp2rp/B7/PP1n4/3P2PP/5P1K/5R2 w - - 3 33|f1e1 d4f3 h2h1 f3e1|856|fork
+1EQ8N|4r1k1/pp3ppp/2p5/8/2pPPQ2/2P4q/P4P2/4R1K1 b - - 0 25|e8e6 f4b8 e6e8 b8e8|856|mate in 2
+6XMKL|1n2r3/5ppk/4p1q1/1p2Pn2/1NpPQ1P1/2P4p/5P1P/R1B2RK1 w - - 0 26|g1h1 f5g3 h2g3 g6e4|856|discovered attack,kingside attack
+3UB9n|5K2/4P3/5k2/8/8/7r/8/8 w - - 0 71|e7e8q h3h8|857|mate in 1,queen and rook endgame
+3CKUR|1r1q1rk1/5p1p/4p2b/1pPp1pN1/2nP2PP/P2QP3/4NK2/R6R b - - 0 21|f5g4 d3h7|857|kingside attack,mate in 1
+6EyFp|r3r1k1/6p1/5p1p/p1B5/P3Pn2/2R2P1P/6P1/5RK1 w - - 4 29|c5b6 f4e2 g1h2 e2c3|857|fork
+01Bkb|r4rk1/ppp2ppp/3p1q2/2b1p3/2BnP3/2NP2Q1/PPP2PPP/R4RK1 w - - 2 11|c3d5 d4e2 g1h1 e2g3|857|fork
+4oSWe|1r5k/p4p1p/8/8/2b5/4B1P1/P1p2P1P/2N3K1 b - - 0 26|b8b2 e3d4 h8g8 d4b2|857|fork
+5s0Lz|rnbqkbnr/ppppp3/7p/5pp1/3P3B/4P3/PPP2PPP/RN1QKBNR b KQkq - 0 4|g5h4 d1h5|857|mate in 1
+0m4Ps|1k1r4/2p1N3/6r1/1P2p1p1/2K1B1Pp/7P/8/8 w - - 0 50|e7g6 d8d4 c4c3 d4e4|857|fork
+4MAuq|r3kn2/ppqb4/4p1p1/2b2pB1/3QpP2/2N1P3/PPP3PP/2KR3R w q - 1 18|d4c4 c5e3 c1b1 c7c4|857|discovered attack,queenside attack
+5NLNN|5q1k/4bppp/2B5/p3P3/1p1n4/5RQP/P1P2PP1/6K1 w - - 4 29|f3d3 d4e2 g1h2 e2g3|858|fork
+66QBn|1q4k1/3b1ppp/1Qp1p3/3pP3/3P4/1P3N2/2P2PPP/R5K1 b - - 0 26|b8b6 a1a8 d7c8 a8c8 b6d8 c8d8|858|back-rank mate,mate in 3
+4MtqN|5k2/1pp2N1p/1b6/8/8/1Bn1R3/5PPP/r5K1 w - - 4 29|e3e1 a1e1|858|hanging piece,mate in 1
+5Wu3N|r2q1r1k/4b1pp/p3Q1p1/3pP1N1/2pP3P/2PnR3/P2B2P1/R5K1 b - - 6 26|d3f4 g5f7 f8f7 e6f7|858|fork
+2KcF4|8/pkp2p1p/1p4p1/8/8/q2P3P/1RP1rPP1/2Q2K2 b - - 1 39|e2e6 b2b6 a7b6 c1a3|858|discovered attack
+4Psqc|1q6/1Pr1k1pp/2Q1p3/8/8/P4R1P/1P3PP1/7K w - - 11 39|c6e4 c7c1 e4e1 c1e1|858|mate in 2
+25Fy3|3RR3/p4rk1/6pp/8/P7/7P/2r2PP1/6K1 b - - 4 35|c2f2 e8g8 g7h7 g8h8|858|rook endgame
+2a2Di|6k1/2b2p2/R1B5/1n4p1/2pP1p2/2P5/P1K1rP2/2B5 w - - 2 36|c2d1 b5c3|858|mate in 1
+69dDJ|6k1/8/5p2/1p1r1p1R/4pP2/1PP1K3/1P5P/8 w - - 0 33|h5h3 d5d3 e3f2 d3h3|859|rook endgame,skewer
+3sBVC|rnbqk1nr/ppp2ppp/8/2b1p3/4P3/2N2N2/PPP2PPP/R1BQKB1R b KQkq - 0 5|c5f2 e1f2 d8d1 c3d1|859|hanging piece
+3vzgf|r2R2k1/p4ppp/1pp5/6P1/1P3P1P/P5K1/4r3/3R4 b - - 1 35|a8d8 d1d8 e2e8 d8e8|859|back-rank mate,mate in 2,rook endgame
+0yQrF|2r5/6Pk/1p2Bp2/p2p3N/n7/2P5/8/6K1 w - - 1 45|g7g8q c8g8 e6g8 h7g8|859|
+4kGRa|rnb1r3/pp3pbk/3p2pp/2pP2P1/2P1q3/4BN1P/PP2BP2/R1Q1K2R b KQ - 1 17|h6g5 f3g5 h7g8 g5e4|859|fork
+3uQGd|3r4/1pp2kpp/3bpp2/7q/2QB4/2P5/5P2/4RK2 b - - 9 39|d8d7 c4e6 f7g6 e6d7|859|fork
+5YCR8|8/4k3/N5p1/1p1bP1P1/3P1p2/8/3K4/8 b - - 0 47|e7e6 a6c7 e6f5 c7d5|859|deflection
+1djQH|7b/5p2/3rpk2/8/2B3q1/1P3NP1/4KP2/Q7 b - - 0 43|e6e5 a1e5 f6g6 e5d6|860|fork
+3ANLy|r7/p1br2pk/2R4B/8/4N3/1P1P1p2/1P3PbP/R5K1 b - - 0 28|g7h6 e4f6 h7g7 f6d7|860|fork
+0rUNv|r2q1rk1/ppp2ppp/3pp3/4P3/3nQ3/3B3P/PPPR1PP1/2K4R b - - 1 14|d4c6 e4h7|860|kingside attack,mate in 1
+6CNsw|5k2/6p1/7p/3Q4/3P4/1p2P2P/2qBKP2/8 w - - 1 51|d5c5 c2c5 d4c5 b3b2 d2c3 b2b1q|860|advanced pawn,promotion
+1jQtb|r7/8/2pkpq2/5pp1/1PpPp3/2P1P2P/4Q1P1/4K2R w - - 0 31|e2c4 a8a1 e1e2 a1h1|860|skewer
+6JERH|6rk/4bp1p/N2rp3/3p4/3Pn3/3BP1P1/P4P1P/R4R1K w - - 4 32|f1c1 e4f2 h1g1 f2d3|860|fork
+4r7Dn|rn1qk1nr/1bppbppp/p3p3/1p4B1/4P3/1B1P1Q1N/PPP2PPP/RN2K2R w KQkq - 4 8|e1g1 e7g5 h3g5 d8g5|860|
+0wH5j|3r2k1/1b3pp1/pqn2n1p/8/1p5B/b1PB1N1P/P3QPP1/4R1K1 b - - 1 25|d8e8 e2e8 f6e8 e1e8|860|kingside attack,mate in 2
+1WWx1|2k4r/1p4pp/pp6/3B1n2/5P2/P6P/P1P5/2K1R3 b - - 0 29|h8d8 d5e6 c8c7 e6f5|860|fork
+0XdmF|R2R1bk1/7p/6p1/6P1/8/p2K4/5r2/8 w - - 4 43|a8a3 f2f3 d3e2 f3a3|861|skewer
+6Tj63|8/p3b1kp/4Qp2/B3p1p1/5r2/8/6PP/6qK w - - 0 33|h1g1 e7c5 g1h1 f4f1|861|back-rank mate,mate in 2
+5Zov3|r1b4r/1p1kb3/1Bp1p3/p2PPp2/3P4/1PNB1K2/P7/R7 b - - 0 29|c6d5 d3b5|861|mate in 1
+1nPnS|8/6R1/4p3/1P3k2/6p1/1Pr3K1/P7/8 w - - 3 37|g3h4 c3h3|861|mate in 1,rook endgame
+58IeO|3r1rk1/1bp2ppp/p7/1p2nNq1/1P2n2P/1BPP4/P5P1/R2Q1RK1 b - - 0 18|g5g6 f5e7 g8h8 e7g6|861|fork
+0nJtR|r1bk3r/ppp1q1pB/2np4/b3p3/4P3/BQP5/P2P1PPP/RN2K2R b KQ - 0 11|h8h7 b3g8 d8d7 g8h7|861|fork
+3ktaY|3r1k2/1p3rpQ/p3p1Bp/8/1P6/P7/2P2qPP/5RK1 w - - 0 25|f1f2 d8d1 f2f1 f7f1|861|mate in 2
+6n1J0|r7/k1p5/1p6/4p3/p2q3P/2N2Q1K/6P1/8 b - - 5 45|a8d8 c3b5 a7b8 b5d4|861|fork
+3NHFK|r1bq1rk1/pp3pbp/2p1pnp1/8/2B1P3/2N1B3/PPPQ1PPP/2KR3R b - - 1 10|b7b5 d2d8 f8d8 d1d8|862|
+6qUzu|2k5/ppp2R1p/3q4/4p3/3PP3/3P3P/PP4n1/2R3K1 w - - 0 30|g1g2 d6g6 g2f1 g6f7|862|fork,queen and rook endgame
+5D6Li|6k1/2N2ppp/3r4/8/1p3n2/1P5P/P4PP1/R5K1 w - - 0 29|a1c1 f4e2 g1h2 e2c1|862|fork
+4u2yz|2r3k1/6p1/5p1p/p1PR4/2Q5/5P1P/6PK/4q3 b - - 1 37|e1e6 d5d8 c8d8 c4e6|862|discovered attack
+1w4l1|3r2k1/1b5p/4R1p1/pp6/8/1B3P2/P4P1P/6K1 b - - 1 29|g8g7 e6e7 g7h8 e7b7|863|fork
+4A4jw|1r5k/1b4pp/ppB2n2/4pp2/1P6/P3B1P1/4PP1P/2R3K1 b - - 3 24|b8c8 c6b7 c8c1 e3c1|863|hanging piece
+2Hr8q|r2q2k1/1p1bb1pp/p1n1pr2/3p4/3P4/2N1PN1P/PPB3P1/R2Q1RK1 w - - 0 15|f3g5 f6f1 d1f1 e7g5|863|discovered attack,kingside attack
+5VrKa|2k5/ppp3pp/5p2/3N4/8/4r2P/6P1/3R1K2 b - - 1 29|e3a3 d5e7 c8b8 d1d8|863|back-rank mate,mate in 2
+76dj1|3r4/2R2pk1/p2n2p1/P2pN2p/3P3P/5PP1/3K4/8 w - - 0 38|d2c3 d6b5 c3b4 b5c7|863|fork
+0S4Ra|8/1pr2k2/p1p4R/4p1p1/1P4P1/4K2P/8/8 b - - 0 41|c6c5 h6h7 f7e6 h7c7|863|rook endgame,skewer
+0j9Nw|1r3r2/1p1b1ppk/p2p3p/2p1p2N/2B1P3/P1PP2RP/1P3PK1/8 b - - 3 25|g7g6 h5f6 h7g7 f6d7|863|fork
+4M4Jx|r4rk1/pp2qp1p/3p2p1/2pPn3/4Nn2/5N1Q/PPP2PPP/R4RK1 w - - 4 17|h3g3 f4e2 g1h1 e2g3|863|fork
+47Rpr|2r3rk/1p4pp/p2Bbpn1/3p3R/4P3/P6P/4Q1P1/6K1 b - - 2 37|d5d4 h5h7 h8h7 e2h5|863|attraction,mate in 2,sacrifice
+6Cypd|8/p1p1k3/1q2p2p/3r4/6QP/5Pp1/P5P1/3R3K w - - 4 35|d1d5 b6b1 d5d1 b1d1|863|mate in 2
+1vyi3|7k/2p4p/p7/Qp3R2/8/2P4P/PP1r3r/5K2 w - - 2 30|a5c7 h2h1|863|mate in 1,queen and rook endgame
+5FaX1|2r2k1r/5pbp/1q2p1p1/1Bp1n3/4PQ2/8/1PPB1PPP/R3K2R w KQ - 1 19|c2c4 e5d3 e1e2 d3f4|864|fork
+064BV|8/3N2pk/5p1p/2p4r/5P2/2P1K3/2P2P2/8 b - - 0 37|g7g5 d7f6 h7g6 f6h5|864|fork
+6oz8n|8/8/6nk/3P4/2P5/1PQ5/2K5/6q1 b - - 14 51|g1f2 c3d2 f2d2 c2d2|864|from a master game,master versus master,super-GM game
+0lNnj|4r1k1/p1r2ppp/1p2p3/8/4N2P/4K1P1/PP6/3R4 b - - 0 24|e8e7 d1d8 e7e8 d8e8|864|back-rank mate,mate in 2
+5ddzd|3q1rk1/pb3p1p/1p2p1p1/5n2/P2r1PN1/3P4/1P3RPP/1BRQ3K b - - 1 29|d8d5 g4f6 g8h8 f6d5|864|fork
+0miys|r1bq1rk1/1p1pnp1p/p3p1p1/8/1n2P3/PNb1B3/1PPQBPPP/2KR3R w - - 0 12|d2c3 b4a2 c1b1 a2c3|864|fork
+5UoXb|8/8/7p/p1k1pp2/8/b1NK2PP/5P2/8 b - - 3 50|a3b2 c3a4 c5b4 a4b2|864|fork
+2nObR|6k1/p4ppp/1p2p3/4P3/1P2Q3/P2r1P1P/2q3P1/4R1K1 b - - 2 26|c2b3 e4a8 d3d8 a8d8|864|back-rank mate,mate in 2
+1kqmX|r1r5/8/2p1qp1k/p2p3p/P2PpPpP/1PQ1N1P1/5PK1/2R5 b - - 4 56|e6d6 e3f5 h6g6 f5d6|864|fork
+3RVe7|3r2k1/p4pp1/7p/3P4/P2n1p2/4B2P/6P1/3R2K1 w - - 0 35|e3f4 d4e2 g1f2 e2f4|864|fork
+5xayG|2r3k1/1r3pPp/p3p1nB/3pR2N/8/2P5/PP4PP/5R1K b - - 0 30|g6e5 h5f6|865|mate in 1
+3NoDY|2r2rk1/pp3ppp/4p3/3p2n1/8/1PP1PqP1/P2B1P1P/R2Q1RK1 w - - 2 21|d1f3 g5f3 g1g2 f3d2|865|fork
+6U75Q|r1b2rk1/ppb2ppp/3qp3/2N5/2Pp4/3B3P/PB2RPP1/R2Q2K1 w - - 4 19|c5e4 d6h2 g1f1 h2h1|865|kingside attack,mate in 2
+49bQg|8/8/8/N3k3/P3pN1p/2Pr4/2K5/8 w - - 2 58|f4d3 e4d3 c2d3 h4h3|865|knight endgame
+5COWR|1rq2k1r/1B3pp1/p2R1n1p/8/3Q4/8/P5PP/4R1K1 b - - 0 28|c8b7 d6d8 b8d8 d4d8 f6e8 e1e8|865|mate in 3
+6puTt|r5k1/5p1p/6p1/2R5/p2KP1PP/3P1P2/8/8 w - - 0 36|d4c3 a4a3 c3d2 a3a2|865|advanced pawn,rook endgame
+1qwEP|1r4k1/2Q2ppp/r2B4/8/8/8/q4PPP/5RK1 b - - 2 32|a2b3 c7b8 b3b8 d6b8|865|
+0hCLR|r4rk1/1pp1qppp/p7/3Pn3/8/5Q1P/PPP2PP1/RN2R1K1 w - - 0 16|f3f5 e5f3 g2f3 e7e1|865|discovered attack,kingside attack
+1rxSB|4r1k1/p5q1/np4B1/2pP4/2P2p2/P5Pb/2Q2P1P/R5K1 w - - 1 31|g6e8 g7a1 c2d1 a1d1|865|hanging piece,mate in 2
+1tnQN|5rk1/1p3rB1/3p1pQ1/p1pPp3/3qP3/P5RP/3n2P1/3B1R1K b - - 0 32|f7g7 g6g7|865|kingside attack,mate in 1
+4FEW1|8/5ppk/4p2p/4P2P/5PP1/1br5/2N4K/2Q5 w - - 1 52|c1b2 c3c2 b2c2 b3c2|866|fork
+6xLrd|b5k1/5ppp/3p4/2p3P1/1p4Pn/1P2q2P/2P2Q2/5RK1 b - - 5 39|e3h3 f2f7 g8h8 f7e8|866|back-rank mate,mate in 2
+6DUHM|rnbq1rk1/pp3pbp/2p1pnp1/6B1/2BPN3/5N2/PPP2PPP/R2Q1RK1 w - - 4 10|d1d2 f6e4 g5d8 e4d2|866|hanging piece
+02kdk|r2br1k1/pp2pp1p/4b1p1/6B1/3RN2P/1P6/5PP1/4R1K1 b - - 2 19|e6b3 e4f6 g8h8 f6e8|866|
+34noC|r3r1k1/pbq2p1p/1p4p1/4b3/2B5/BQP5/P4PP1/4RRK1 w - - 6 22|c4f7 c7f7 b3f7 g8f7|866|
+74Co2|r2q1rk1/3n1pp1/2p5/ppb1p1n1/4P1P1/2NP2P1/PPP1Q3/R1B1KB1R w KQ - 0 15|e2h2 g5f3 e1e2 f3h2|866|fork
+3NjEJ|3r4/4k1bp/p1R5/P3p3/5p2/7P/1Pb1N1P1/4K2R w - - 0 29|c6a6 d8d1 e1f2 d1h1|867|skewer
+0wNEf|2N5/p1p2kpp/1p3p2/1r2p3/8/6P1/5P1P/2R3K1 b - - 0 31|c7c5 c8d6 f7e6 d6b5|867|fork
+72Oyr|8/1p1k2p1/p2P4/4r1p1/Pp6/1B4K1/1Pb5/2R5 w - - 0 47|c1c2 e5e3 g3g4 e3b3|867|fork
+2gFHp|3rr3/1p3pkp/p5p1/3nq3/P1PN4/1PQ2P2/3R2PP/2R4K w - - 7 28|c3b2 e5e1 c1e1 e8e1|867|back-rank mate,mate in 2,sacrifice
+3MQ71|3r4/1pp4p/p4k2/3P3p/1P3n2/4N2P/P4PP1/4R1K1 w - - 1 35|e1c1 f4e2 g1h2 e2c1|867|fork
+0MILi|r3q2k/2p1r1p1/2p2nQ1/p2p1PB1/3b4/2N3R1/PPP3PP/R6K w - - 3 24|g5f6 e7e1 a1e1 e8e1|867|back-rank mate,mate in 2
+2JgVm|8/8/2pk4/1p2p2r/pK1B3p/P4NpP/1P4P1/8 w - - 0 40|d4e5 h5e5 f3e5 d6e5|867|
+1RpXO|r1b2rk1/2p2pp1/2N4p/p3R1q1/1p6/8/PPP2PPP/R2Q2K1 b - - 1 20|g5g6 c6e7 g8h7 e7g6|868|fork
+6ndo2|Q7/p1P3pk/1p5p/4r3/2p5/P1Bq1P2/1P4PP/4R2K w - - 1 32|c7c8q e5e1 c3e1 d3f1|868|mate in 2
+2HFoj|4r2k/2p3pp/p1n2p2/1p6/3P3q/P1P2Q2/BP4PP/R5K1 w - - 2 23|f3c6 e8e1 a1e1 h4e1|868|mate in 2
+1mE8O|6r1/p1pQR1pk/1p1p2pp/3P1r2/8/1P5P/PB4PK/5q2 b - - 5 41|f5f2 e7g7 g8g7 d7g7|868|mate in 2
+3xyKW|5rk1/r1p1n1pp/1pb5/3pNp2/pP1P4/P4PPn/1B2P1BP/2RQR1qK w - - 7 28|e1g1 h3f2|868|mate in 1,smothered mate
+3kGfc|1rb2rk1/p1q1ppbp/2B2np1/3N4/4P2P/4B3/PPP2PP1/1R1QK2R b K - 0 12|c7c6 d5e7 g8h8 e7c6|868|fork
+62KUb|5rk1/p1p3pp/8/3p4/8/P4P1n/1PP3PP/3R1RqK w - - 5 24|f1g1 h3f2|868|mate in 1,smothered mate
+2AFjg|2k5/pp6/2r5/4K2p/P7/2P1P1P1/P2P4/7R w - - 0 36|h1h5 c6c5 e5d4 c5h5|868|rook endgame,skewer
+6XFwn|r1q5/5ppp/3kp1b1/1R1p4/p2P2Q1/P3P3/1R3PPP/6K1 w - - 1 30|g4g5 c8c1|869|back-rank mate,mate in 1
+32Tdp|7k/5pp1/4p2p/3pP3/1p4P1/3qP3/5BPP/Q5K1 w - - 0 35|a1f1 d3f1 g1f1 b4b3 f1e2 b3b2|869|advanced pawn
+09g9w|1r4k1/p1p1n1p1/3p3p/2p2r1P/N4qbR/P2R4/1PP3Q1/1K3B2 w - - 0 21|h4g4 f4f1 g2f1 f5f1|869|
+38emy|8/6kp/6p1/1pN5/1P6/2N5/5K2/3r4 b - - 7 46|d1d4 c5e6 g7f6 e6d4|869|fork
+4DOHv|5q1k/6pp/p7/1pN5/1Pn5/P5R1/3r2PP/4Q2K b - - 3 34|f8f2 e1e8 f2f8 e8f8|869|mate in 2
+0hQeY|3Rr1k1/p4ppp/2N5/2p5/4n3/2P3P1/qr2PP1P/3R2K1 b - - 3 26|g8f8 d8e8 f8e8 d1d8|869|attraction,mate in 2
+2ADpT|r7/2p2kq1/p2p1rp1/1p1P1p2/7Q/1PPPP1R1/1P1K4/7R b - - 18 33|a8h8 h4h8 g7h8 h1h8|869|
+4qk0P|rr4k1/7p/6p1/4p1Pn/4P2P/8/1KPQ4/3R4 w - - 3 33|b2c1 a8a1|869|mate in 1
+0ps10|8/5pp1/7p/5n2/8/2N1k3/2K1B2P/8 w - - 0 53|e2d3 f5d4 c2d1 e3d3|869|deflection
+5F4MW|5k2/5p2/5N2/4P2p/2p1r2P/5KP1/8/8 b - - 0 53|e4e5 f6d7 f8e7 d7e5|870|fork
+438MU|8/3R4/pR4p1/2P1p1kp/1P6/6PK/2r4P/6b1 w - - 3 37|d7d6 c2h2|870|mate in 1
+3ngJr|6k1/5pp1/q3p2p/P3n3/8/1N2P3/3Q1PPP/6K1 w - - 5 34|g2g3 e5f3 g1g2 f3d2|870|fork
+4CNd9|8/8/3N3k/1p3p2/1P4p1/r5P1/3K4/8 b - - 1 69|a3g3 d6f5 h6g6 f5g3|870|fork
+4BEBd|2r3k1/1pq2ppp/8/2Q5/1P1R4/P6b/2P5/3K4 b - - 1 35|c7h2 c5c8 h3c8 d4d8|870|back-rank mate,mate in 2,sacrifice
+1a2Jb|6k1/3b2pp/4p3/1pb1P3/4P1QP/4n3/3B2PK/8 w - - 3 30|g4g3 e3f1 h2h3 f1g3|870|fork
+6KW9o|8/5k2/1p4pK/p2pP3/P1pP4/2P5/1P6/8 w - - 0 44|h6h7 g6g5 h7h6 g5g4 h6g5 g4g3|870|pawn endgame,quiet move
+6qYDK|4k2r/p5p1/3q1pB1/1p1p3P/3P2Q1/2P5/PP3P2/6K1 b - - 1 36|e8f8 g4c8 f8e7 c8h8|870|from a master game,skewer
+2hCjy|8/8/p4k2/1p1b1ppp/1PpP4/P1B1KPPP/8/8 b - - 0 42|d5e6 d4d5 f6e7 d5e6|870|bishop endgame,discovered attack
+2yBJW|3rrk2/p4pp1/8/1pp5/8/1Q5R/PPB2PPb/3R2K1 w - - 0 26|h3h2 d8d1 c2d1 e8e1|870|back-rank mate,mate in 2
+4sMon|r5k1/1p2Bppp/8/p4rb1/8/P1pB3P/2P2PK1/4R3 b - - 5 28|f5e5 e1e5 g5e7 e5e7|870|hanging piece
+0YuLu|8/8/1q2kp2/3p3P/6Q1/6P1/r4PK1/8 b - - 2 47|f6f5 g4g6 e6e7 g6b6|870|skewer
+61ne8|r3r1k1/ppq2ppp/2p5/7n/3RP3/P1N1B1PP/1PQ2KB1/8 w - - 5 24|g3g4 c7g3|871|
+5zOUb|6k1/4b1p1/4p1P1/n2p2Np/3P1P1P/r1P5/1R1N4/5K2 b - - 0 33|e7g5 b2b8 g5d8 b8d8|871|mate in 2
+3V6KG|8/5k1p/3Q4/3P1P2/8/4r2q/6RP/5K2 w - - 4 44|d6d7 e3e7 d7e6 e7e6|871|defensive move
+2SmQf|8/6p1/3k4/2N5/3P2p1/P1P5/1r3PPK/8 b - - 1 37|b2f2 c5e4 d6d5 e4f2|871|fork
+4t2hg|6k1/1pq2pp1/p3p2p/4N3/8/P1P2Q2/1P1r1PPP/4R1K1 w - - 1 27|e1e2 d2d1 e2e1 d1e1|871|back-rank mate,mate in 2
+0Phf8|6k1/3R4/p1r2pPB/1pp4p/2b3PR/P7/1r5P/6K1 b - - 1 42|c6e6 d7d8 e6e8 d8e8|871|mate in 2
+0vYgx|1r4k1/5pp1/1Pb5/2n5/1R3P2/2N1P2P/6P1/6K1 w - - 1 38|g1f2 c5d3 f2e2 d3b4|871|fork
+6A4wz|r1b5/p3qp1k/2p1p1p1/2p1P3/2Pn4/2Q5/PP3PPP/R4RK1 w - - 2 21|a1d1 d4e2 g1h1 e2c3|871|fork
+17LmI|8/1R4k1/6p1/b7/5PPp/5K2/2r5/8 b - - 3 55|g7h6 g4g5 h6h5 b7h7|871|mate in 2
+1WmpP|rn3r1k/pb4pp/1p3Q2/4n1p1/2B1P3/2N5/PPP1KbPP/3R1R2 b - - 0 17|f8f6 d1d8 f6f8 d8f8|871|back-rank mate,mate in 2
+0IAGi|2r3k1/pp3p2/4b1p1/4N1b1/4Q3/7P/PP4P1/7K w - - 0 31|e4b7 c8c1 h1h2 g5f4|871|
+3IQe0|8/4n3/1k6/6KP/8/8/8/8 b - - 0 72|b6c7 h5h6 c7d6 h6h7|871|advanced pawn,knight endgame
+180aN|r7/p5kp/5pp1/2p1n3/3p1Q1n/7P/PP3P2/3R2K1 w - - 0 28|f4h4 e5f3 g1f1 f3h4|871|fork
+0eeaP|8/r7/1n2k2p/1Bp1Pp2/p1P2Pp1/R3K1P1/2P3P1/8 w - - 6 33|b5e8 b6c4 e3d3 c4a3|872|fork
+6l73h|4q3/3k2r1/3pnR2/4pQ2/5pP1/5P2/1P1R2K1/8 w - - 14 64|g4g5 g7g5 f5g5 e6g5|872|fork
+5OBnR|4rk2/p5b1/8/1p6/q4P2/2P3P1/PP1R4/1K5Q w - - 0 32|h1b7 e8e1 d2d1 a4d1|872|mate in 2
+1IMxV|4r3/3k1pp1/p1pp2n1/1p3r2/3R1P1p/2P2K1P/PP3P1B/5R2 b - - 0 26|g6e5 f3e4 e5g4 e4f5|872|defensive move
+1eWjv|3n4/7R/3k2p1/3P1pP1/4rP2/5K1P/4p3/4N3 b - - 0 45|d6d5 h7d7 d5c4 d7d8|872|fork
+5kvZu|7r/1p4pp/p1k5/2b5/6P1/2P4N/PP5P/2KR4 w - - 3 24|h3g5 c5e3 c1c2 e3g5|872|fork
+2SCOC|r5k1/5ppp/4p3/1Q1n4/P2Pq3/4B1P1/5P1P/1R4K1 b - - 2 28|d5e3 b5b8 a8b8 b1b8|872|back-rank mate,mate in 2,sacrifice
+6APHo|6k1/pp3pp1/1q1p2p1/2pP2n1/2n2PP1/2N4P/PPQ3K1/4N3 w - - 0 23|f4g5 c4e3 g2f2 e3c2|872|fork
+1yM8Q|8/p1k3p1/3Rp2p/2P3b1/P5P1/6B1/4K3/r7 b - - 2 39|a1a2 d6d2 c7c6 d2a2|873|discovered attack
+0bgml|8/5Rpp/1k6/8/8/1r3P2/p5PP/3R1K2 w - - 2 37|d1a1 b3b1 f1f2 b1a1|873|rook endgame
+59k95|4r3/p1q2p1k/2p3p1/2p4p/8/2PP3P/PPRQ1PP1/7K w - - 5 31|d2g5 e8e1|873|mate in 1
+45UNe|3r3k/p1r3pp/1p1b1qp1/2nQB3/2P5/1P2R1P1/P4PBP/3R2K1 b - - 0 23|d6e5 d5d8 f6d8 d1d8|873|back-rank mate,mate in 2
+59MgT|1br2rk1/1b1p1ppp/p1q2n2/2p1n3/P7/1PNBPNP1/2PB1P1P/R2QR1K1 w - - 4 20|f3e5 c6g2|873|mate in 1
+1cjRT|4Q3/pkr3p1/qp1Q4/r7/5P2/8/6PP/R4R1K w - - 1 37|a1a5 a6f1|873|hanging piece,mate in 1
+65pj6|8/6kp/p4pp1/2N1p3/3qP3/P2b1Q1P/5PPK/8 b - - 5 37|d3c2 c5e6 g7f7 e6d4|873|fork
+3OYo2|r1b2rk1/p1p2pp1/1b4qp/3Np3/4P3/3B4/PPQ2PPP/4RRK1 b - - 3 21|c8h3 d5e7 g8h7 e7g6|873|fork
+42hGe|4k3/2p5/3p3P/2n2K2/8/8/1n3P2/8 b - - 0 45|c5d7 h6h7 e8f7 h7h8q|873|advanced pawn,knight endgame,promotion
+1xRCK|2k2r2/2p2p2/p2p1R2/1p1PrN1p/8/4p2P/PPP1K1P1/8 b - - 5 32|e5d5 f5e7 c8d7 e7d5|873|fork
+52YMM|6k1/3r2p1/1pr4p/p1B1R3/1P6/P7/5PPP/2R3K1 w - - 0 30|c5e3 c6c1 e3c1 d7d1 e5e1 d1e1|873|back-rank mate,fork,mate in 3
+6W2Rg|r1bq1rk1/1p1pbppp/1nn1p3/2p1P3/p1P2B2/PPNQ1N2/5PPP/RB2K2R b KQ - 2 15|a4b3 d3h7|873|kingside attack,mate in 1
+3Fj73|r5k1/p2p1pp1/1p1P3r/2p1p3/P1P3R1/4BP2/1P2nP2/3R1K2 b - - 8 28|h6h1 f1e2 h1d1 e2d1|874|hanging piece
+23Kgk|3r3k/p1q3pp/1p1PN3/1r3p2/4p3/4R1P1/1n3PBP/3R2K1 w - - 0 35|e6c7 b2d1 c7b5 d1e3|874|hanging piece
+2JGEZ|5rk1/1pp2ppp/8/8/5P2/r1P3P1/2P1R2P/3K3R w - - 0 24|e2e3 a3a1 d1e2 a1h1|874|rook endgame,skewer
+4ZhM9|5bk1/5p1p/p5p1/8/1pPn1B2/7P/PP3PP1/3N2K1 w - - 1 28|b2b3 d4e2 g1h2 e2f4|874|fork,from a master game
+5Wlfi|5Rk1/B2P1ppp/4p3/2P5/8/2P5/r4PPP/6K1 b - - 0 27|g8f8 d7d8q|874|advanced pawn,mate in 1,promotion
+1nMDv|2kr3r/ppp2p2/2np3p/2bN1bp1/8/5NPP/PPP1B1P1/2KR3R b - - 2 15|c6b4 d5e7 c8b8 e7f5|874|fork
+4jYzc|5rk1/pbq2p2/1p5p/6p1/2Bp1n2/P2P3P/1PP2QP1/R4RK1 w - - 4 25|f2d4 f4e2|874|
+2KlB4|2r3k1/1p4pp/p3pb2/P2p4/1P6/2P1B2P/5R2/1N5K w - - 4 47|e3d4 f6d4 c3d4 c8c1 h1g2 c1b1|874|exposed king,fork
+3vkfg|8/8/8/1p6/4kN2/4pR2/1r4P1/5K2 w - - 5 59|f4e2 b2b1 e2c1 b1c1|874|
+2ZvuL|r5k1/6p1/4p2p/4N3/8/8/1p4PP/5RK1 w - - 0 32|f1b1 a8a1 g1f2 a1b1|874|pin
+6MhKN|r2r2k1/5ppp/4p3/ppb1P3/3n1PPP/P1Np2N1/1P1B4/R3K2R w - - 2 23|h1f1 d4c2 e1d1 c2a1|875|fork
+4lYC5|r2q1rk1/ppp1p1bp/6p1/3P1b2/4Np2/1P3Q2/1PP2PPP/1RB1K2R b K - 3 15|d8d5 e4f6 f8f6 f3d5|875|discovered attack,kingside attack
+4KCQL|8/8/3p1p2/5k2/1p2r1b1/1P4P1/PQ5K/8 w - - 10 44|h2g1 e4e1 g1f2 e1e2 b2e2 g4e2|875|exposed king,fork
+6jyD3|r2q1rk1/pppn1ppp/5n2/4p3/2B1P3/2B2Q2/PPP2PPP/3RK2R w K - 3 11|c3e5 d7e5|876|hanging piece
+22JXU|r6k/6pp/8/3pb3/6Q1/2P5/PPN2qP1/R1B4K w - - 0 26|c2d4 f2e1|876|mate in 1
+0THgb|r6k/p4p1p/2pN3b/5R2/3P4/1P1r4/P4K1P/R7 b - - 0 24|d3d4 d6f7 h8g8 f7h6|876|fork
+1EJA4|4b3/8/5R2/4p1p1/2p2kP1/r1Pn1P2/7N/6K1 b - - 2 38|f4g3 h2f1 g3h4 f6h6 e8h5 h6h5|876|mate in 3
+6ozX8|6k1/2p3p1/p2p1p1p/2b3q1/4QR2/6B1/PPP2PPP/7K w - - 3 35|f4g4 g5c1 e4e1 c1e1|876|back-rank mate,mate in 2
+030gZ|4r3/3p2kp/1R1P1pp1/p1r1p3/8/N3KP2/P5PP/5R2 w - - 0 36|f1b1 c5c3 e3f2 c3a3|876|fork
+1XidF|5k1r/B2B1p1p/5np1/4p3/4P3/N4P2/r4P1P/3R2K1 b - - 0 23|a2a3 a7c5 f8g8 c5a3|876|fork
+3EcbJ|r2q1rk1/pp2bppp/2n2n2/2p5/3pNP2/3P1Q1P/PPP1B1P1/R1B2RK1 b - - 3 12|b7b5 e4f6 e7f6 f3c6|877|discovered attack
+2H08i|6k1/p3r1pp/b1n1p3/5p2/2q5/P1n1BNP1/2Q1PP1P/R3K2R w KQ - 0 28|e1g1 c3e2 c2e2 c4e2|877|kingside attack
+6AGku|8/4kpp1/7p/1BP5/1P1N4/4n1PP/1r6/6K1 b - - 0 40|b2b4 d4c6 e7e6 c6b4|877|fork
+4vNvY|2rq1rk1/p4ppp/2n1p3/2pp4/3P4/5N1P/PP2QPP1/2RR2K1 w - - 0 19|c1c5 c6d4 f3d4 c8c5|877|capturing the defender,discovered attack
+75j2G|r3r1k1/2p2ppp/p1p5/8/1qP1R3/1P3Q2/P4PPP/R5K1 w - - 1 19|a1e1 b4e1 e4e1 e8e1|877|back-rank mate,mate in 2,x-ray
+0ZWhG|1r4k1/p6p/2R2B1b/2p2P2/8/1P6/P5PP/6K1 w - - 1 30|c6c5 h6e3 g1f1 e3c5|877|fork
+4QUaN|r3r1k1/pp1q1ppp/2p1pbb1/8/3P2N1/2P3P1/PP2QP1P/R1B2RK1 b - - 11 18|g6h5 g4f6 g7f6 e2h5|877|discovered attack,kingside attack
+2PIX0|8/3k4/5p1p/5Pp1/3PKnP1/4N3/8/8 b - - 9 56|d7e7 e3d5 f4d5 e4d5|877|knight endgame
+1UYaV|6k1/1b3pp1/p2p1qQp/1p2pP2/1P1pP3/P2P2R1/r1r3PP/R5K1 w - - 0 23|g6f6 a2a1|877|hanging piece,mate in 1
+24TFH|7R/8/2k5/1p2p2p/1P1bP2p/5P2/4K2P/4n3 b - - 3 38|e1c2 h8c8 c6b6 c8c2|877|from a master game,skewer
+2ZXlC|4rr2/2q4n/3p2kp/p1pPn1pN/1pP1P1Q1/1P5P/P5B1/R4RK1 w - - 4 29|h5f4 f8f4 f1f4 e5g4|877|
+1j47w|2kr2n1/1ppq2p1/pbP2p2/4p3/B1N1P2p/2PP3r/P5P1/1RBQ3K w - - 0 22|g2h3 d7h3|877|kingside attack,mate in 1
+3uHlv|1rr2bk1/3b1p1p/2p1p1p1/q3P3/4N3/P3P2P/2Q1N1P1/R4RK1 b - - 0 22|a5e5 e4f6 g8h8 f6d7|878|fork
+0W0OM|8/5kpp/R1P2p2/4p3/6P1/5P1n/2r5/5R1K w - - 4 46|f1d1 h3f2 h1g1 f2d1|878|fork
+21Y0f|r2qr1Qk/1pp3pp/p2b1p1N/8/3P4/8/PPP3PP/R1B2RK1 b - - 7 18|e8g8 h6f7|878|mate in 1,smothered mate
+45col|4rbk1/5pp1/2p3np/2p5/3pN3/3P3P/2PB1PP1/4R2K b - - 3 27|f7f5 e4f6 g7f6 e1e8|878|discovered attack
+204rs|r1b1k1nr/2Q1qpb1/p3p1pp/3p4/RP2P3/2N2N2/1PP2PPP/2B1K2R w Kkq - 0 14|e1g1 e7c7|878|hanging piece
+2Ytwd|r1b1kb1r/p4ppp/1pn2q2/3Np3/5B2/3P1Q2/PPP3PP/R4RK1 b kq - 1 13|f6e6 d5c7 e8d7 c7e6|878|fork
+3LrBl|5r1k/1pp3p1/p2p3p/8/1PQP4/N1P4n/P5PP/R5qK w - - 8 30|a1g1 h3f2|878|mate in 1,smothered mate
+3rZmH|4r1k1/pp2qb2/2p1r1pP/3p1p2/3P1b2/4BR1R/PPPQB3/2K5 w - - 0 26|f3f4 e6e3 h3e3 e7e3|879|
+5HPi0|3r2k1/pp3pp1/4b2p/4n3/8/1P2BP2/P2N2PP/2R3K1 w - - 0 22|g1f2 e5d3 f2f1 d3c1|879|fork
+1RMsJ|8/4p2p/p2rk3/R4p2/2p2P2/2B1K2P/8/8 w - - 6 36|a5c5 d6d3 e3e2 d3c3|879|fork
+3t019|8/8/1b1P4/p2k2p1/P7/N2K1P2/8/8 b - - 8 86|d5d6 a3c4 d6d5 c4b6|879|fork
+6zpsg|5r1k/p1P3pp/1p5q/8/8/P3P1PP/5P1K/2RR4 b - - 0 32|f8c8 d1d8 c8d8 c7d8q|879|advanced pawn,back-rank mate,mate in 2
+5JqvZ|r5k1/5rp1/2Q3R1/p3p2P/2p2q2/8/1pP5/1K5R b - - 0 40|f4c1 h1c1 b2c1r b1c1|879|
+2GPSa|6k1/p5pp/1b6/3N4/P4R2/r5P1/7P/5K2 b - - 2 36|a3a2 d5e7 g8h8 f4f8|879|back-rank mate,mate in 2
+5btax|5r1k/2p3Rq/1p1p3p/p2Pp2P/2P1P3/5r2/PP4Q1/2K3R1 b - - 7 32|h7e4 g7g8 f8g8 g2g8|879|from a master game,mate in 2
+6W3PN|3r2k1/5ppp/1p1r4/2pP4/R3q3/1P6/3Q1PPP/3R2K1 b - - 1 27|e4d5 d2d5 d6d5 d1d5|879|
+64fM4|5rk1/5q1p/2p3p1/1pP5/1n1N4/4P3/5PPP/1Q1R2K1 w - - 0 30|b1b4 f7f2 g1h1 f2f1 d1f1 f8f1|879|back-rank mate,mate in 3,sacrifice
+1w2xC|N5k1/p4ppp/2p5/7n/BPb5/P4P2/1bP3PP/3Rr1KR w - - 5 24|d1e1 b2d4 e1e3 d4e3|880|double bishop mate,kingside attack,mate in 2
+2Q2ZU|2r3k1/5p1p/pn2p1p1/1p4q1/3PN3/Q6P/PP3PP1/4R1K1 b - - 0 26|g5d5 e4f6 g8g7 f6d5|880|fork
+19blL|2kr3r/pppb1p1p/3p3b/3P4/3NP1pP/2N2P2/PPP5/R4RK1 w - - 0 18|f3g4 h6e3 g1g2 e3d4|880|fork
+28cRc|6R1/8/4kr2/8/4r3/6PK/7P/8 b - - 2 41|e4e2 g8e8 e6f5 e8e2|880|rook endgame,skewer
+6rPgQ|r2q1rk1/ppp1bppp/3p1n2/6B1/3QP3/2N4P/PPP2PP1/R4RK1 w - - 3 13|c3d5 f6d5 d4d5 e7g5|880|discovered attack
+1vRi5|8/pp4k1/2p5/2Np3p/3Pbr2/P7/1P2R1PK/8 b - - 4 36|b7b6 c5e6 g7f6 e6f4|880|fork
+6UcnS|8/2k2p2/4p1p1/1p2PP2/1P2K1P1/8/8/8 b - - 0 37|g6f5 g4f5 e6f5 e4f5|880|pawn endgame
+2Rkcr|r4r1k/1RR2pp1/p6p/1p2p1q1/2b1P3/4NP2/PP2Q1PP/7K w - - 1 31|e3c4 g5c1 e2d1 c1d1|880|back-rank mate,mate in 2
+3hLmY|4rq2/pp2b1kr/2p1Rn2/3p2B1/3P3P/5QN1/PPP2PP1/6K1 w - - 9 24|g5f6 e7f6 e6e8 f8e8|880|
+1Lurz|4k3/2b4p/pp4rB/2p4Q/2P1q3/8/PP4PP/3R2K1 w - - 0 28|d1d2 e4e1|880|mate in 1
+40YaW|5r2/2p4p/2pp2k1/p7/5RK1/P1P1rP2/1P4R1/8 b - - 6 29|f8f4 g4f4 g6f7 f4e3|880|discovered attack,rook endgame
+02bmv|r4rk1/pp3pbp/5pp1/7q/1Q1PP1b1/3B1N1P/PP1B1P2/R3K2R w KQ - 0 18|h3g4 h5h1 e1e2 h1a1|880|fork,hanging piece,skewer
+2W6kz|2r3r1/p6p/1pp1k3/1PRnBp1P/3Pp1p1/P3P3/4KPP1/1R6 w - - 0 25|c5c6 c8c6 b5c6 d5c3 e2e1 c3b1|881|fork
+2myB6|6k1/pp3p1p/4pPq1/3p4/8/1PR4P/P5PQ/2r3BK b - - 0 29|c1c3 h2b8 c3c8 b8c8|881|mate in 2
+1uPIW|6k1/2p3b1/1p1p4/p2Pp3/4N1R1/6P1/qP2RK2/8 b - - 1 32|a2d5 e4f6 g8f7 f6d5|881|from a master game,pin
+3lt0f|r3kb1r/ppp3pp/2n4B/7b/2P1N2N/6PP/PP2PP2/3R1RK1 b kq - 0 14|g7h6 e4f6 e8f7 f6h5|881|fork
+6ByRT|8/p4pkp/4p3/4b1p1/BPRpP1b1/P2Q4/5KPq/8 b - - 4 32|e5g3 d3g3 h2g3 f2g3|881|
+46wcv|1r3rk1/2p2pp1/2pP3p/p7/P3qP2/1PQ4P/1BP3P1/5R1K b - - 0 22|c7d6 c3g7|881|kingside attack,mate in 1
+5fkOs|8/1r6/3k3p/R4p2/1n4p1/3p4/5PPP/1R3K2 w - - 2 48|f1e1 b4c2 e1d2 b7b1|882|discovered attack
+6f5j6|8/8/1pp3p1/p2pk2p/P1P1P2P/2P1K1P1/8/8 w - - 0 43|c4d5 c6d5 e4d5 e5d5|882|pawn endgame
+0OXS7|6k1/pp3ppp/2pq4/8/8/2N1PnP1/PPQ2P1P/6K1 w - - 3 24|g1g2 f3e1 g2f1 e1c2|882|fork,from a master game
+6nQLI|2r1r1k1/1p3pp1/3q1n1p/1p1p4/1P6/P1R1PN2/3Q1PPP/2R3K1 b - - 1 23|f6e4 c3c8 e4d2 c8e8|882|
+3Ncov|6k1/1p4pp/1B6/8/8/P1n2KP1/P6P/8 w - - 2 31|f3e3 c3d5 e3d4 d5b6|882|fork
+2LeZh|5Q2/6pk/r6p/8/7P/2q2P2/8/6RK b - - 0 42|a6f6 f8g7|882|mate in 1
+5oUnY|1R6/8/8/4N1pk/3rb3/7p/7K/8 b - - 19 70|e4f5 b8h8 f5h7 h8h7|882|Anastasia's mate,mate in 2
+726HH|r2q1rk1/ppp2ppp/2p5/3bb3/3P2Qn/2P3P1/PP3P1P/RNB1R1K1 w - - 0 15|d4e5 h4f3 g4f3 d5f3|882|fork
+42imD|8/1p4Bp/6p1/P7/8/1p3KP1/2k4P/8 w - - 1 47|h2h4 b3b2 g7b2 c2b2|882|advanced pawn,bishop endgame
+4bgit|r4rk1/1b1q1p1p/p1np2p1/1p1N4/4P3/P2B1P2/1b2N1PP/1R1Q1RK1 b - - 1 17|b2a3 d5f6 g8g7 f6d7|883|fork
+5JQxv|5bk1/P4p2/4p2p/2B3p1/4P3/2Pn1P2/r5PP/3R3K w - - 3 37|c5f8 d3f2 h1g1 f2d1|883|fork
+10yiJ|r1b4k/1p3QBp/p3n3/2q1p3/3NP3/2P5/P1P3PP/5RK1 b - - 2 25|e6g7 f7f8 c5f8 f1f8|883|back-rank mate,mate in 2
+18SQC|2kr2nr/Bp1q2pp/2nb1p2/3Npb2/8/3P1N2/PPP1BPPP/R2Q1RK1 b - - 0 11|c6a7 d5b6 c8b8 b6d7|883|fork
+4GP5P|r1b1r1k1/1p3ppp/p1nq1nN1/8/P1B2B2/2N4P/1P2QPP1/R5K1 w - - 2 18|e2e8 f6e8 f4d6 e8d6|883|
+2SDMU|r5k1/Rb3ppp/1q2p3/4N3/2PPQ3/4P3/5PPP/R5K1 b - - 0 23|b7e4 a7a8 e4a8 a1a8 b6b8 a8b8|883|mate in 3
+5MXeX|r2q1rk1/1p3pbp/3pb1p1/3Np1Pn/p3P3/P1N1QP2/1P5P/2KR1B1R b - - 2 17|d8c8 d5e7 g8h8 e7c8|883|fork
+3w9bk|8/p3rpk1/1pb3p1/7p/P1B2P1P/1P6/6P1/3R1K2 b - - 0 31|g7f6 d1d6 f6f5 d6c6|883|fork
+07F8Y|rnb1kb1r/pp3ppp/2p5/8/2P2q2/4PN2/PP1B2PP/R2Q1BKR w kq - 0 13|e3f4 f8c5 f3d4 c5d4 d2e3 d4e3|884|double bishop mate,kingside attack,mate in 3
+104Rr|r1bqk1nr/pppp1p1p/2n3p1/3Q4/2BpP3/8/PPP2PPP/RNB1K2R b KQkq - 1 7|g8f6 d5f7|884|attack on f2/f7,mate in 1
+2A2Gf|3r1rk1/5pbp/2R3p1/4p3/4P3/3PQ3/5RPP/1qN3K1 b - - 2 26|d8d3 e3d3 b1d3 c1d3|884|
+3AUaY|r1bQ2k1/1pb2rpp/4p2q/1B2Pp2/1B3P2/Pp4P1/1P5P/2KR3R b - - 1 21|c7d8 d1d8 f7f8 d8f8|884|kingside attack,from a master game,mate in 2
+1HG0W|8/6p1/4p3/pNkp2pP/Pnn3P1/6K1/8/1R6 w - - 0 44|g3f3 c4d2 f3g3 d2b1|884|fork
+2O8Lo|r4r1k/ppp2p1p/1b6/3PP1pN/2B2p2/8/PPbB2PP/R4R1K w - - 0 21|g2g3 c2e4 f1f3 e4f3|884|double bishop mate,kingside attack,mate in 2
+2OdGL|2kr4/1pp2qp1/p2pp3/4p2p/4P3/1B1P3Q/PPP2bPP/2R4K b - - 1 20|g7g5 b3e6 c8b8 e6f7|884|fork
+0wDvq|1r5k/pPp2rpp/3b4/3Q4/7q/4R3/PPPBBP2/R4K2 w - - 0 23|d5f7 h4h1|884|mate in 1
+2yRVz|8/6p1/1Rp2k2/8/2r2p1p/P4PnP/1P3R1K/8 w - - 2 37|f2d2 g3f1 h2g2 f1d2|884|fork
+39aVN|2r2r2/1q3p1k/3p2pp/RPp5/3nPp2/3PQ2P/1P1B2P1/5RK1 w - - 0 27|e3f4 d4e2 g1h2 e2f4|884|fork
+3CrPt|r1q3k1/pR1n1pp1/Q3p1pn/3pP1B1/P1pP4/2P2N2/5PPP/6K1 w - - 1 26|b7a7 c8a6 a7a6 a8a6|885|x-ray
+1ID5R|r1b2b1r/ppp4p/5p2/3kp3/3n4/6Q1/PPPP1PPP/R1B1K2R w KQ - 0 13|e1g1 d4e2 g1h1 e2g3|885|fork
+677Rr|8/6p1/p1N2pkp/1p1Pp3/8/P1r1P1KP/3r1PP1/1R6 b - - 7 34|d2d5 c6e7 g6f7 e7d5|885|fork
+0dkvs|5rk1/5p1p/2qbppb1/3p4/3PN3/4P3/5PPP/Q1R3K1 b - - 1 21|c6d7 e4f6 g8g7 f6d7|885|fork
+0KHgq|1k2r3/pp2Np1p/8/8/2RP4/5bP1/P4P1P/5K2 w - - 3 35|e7f5 f3e2 f1g2 e2c4|885|fork
+5n9sD|2r5/p7/5pk1/4p1p1/2NpP1Pp/PP1n3P/2R4K/8 b - - 1 37|d3f4 c4e5 f6e5 c2c8|885|discovered attack
+53ttU|r4Nk1/pppR1ppp/1b6/8/4P1n1/P7/2Q3PP/6K1 w - - 2 25|g1f1 g4e3 f1e2 e3c2|885|fork
+3jkgs|r4rk1/p1R2pp1/1p2p1np/3pP3/1q1P2P1/1P1Q1N1P/P4P2/2R3K1 w - - 3 24|g1g2 g6f4 g2g3 f4d3|885|fork
+04711|5kr1/5p2/4p3/pp5R/6P1/P2R2KP/1r6/8 b - - 1 37|b5b4 d3d8 f8e7 d8g8|886|deflection,rook endgame,skewer
+0tk92|4r3/5pkp/5np1/p1p3Q1/8/PqN5/1P3PPP/3R2K1 w - - 0 23|g5c5 b3d1 c3d1 e8e1|886|back-rank mate,mate in 2,sacrifice
+3M96L|r4rk1/pp4p1/3pb1p1/3Np3/2Ppq3/7P/PP1Q1PP1/4RK1R b - - 3 19|e4f5 d5e7 g8h7 e7f5|886|fork
+1EPEA|8/1p6/3k1p2/3p3P/pP1N1PP1/P6r/6K1/8 b - - 4 52|h3a3 d4b5 d6e7 b5a3|886|fork
+1Cr09|6r1/p7/2p5/3p3N/2p2k2/2P5/PP3K1P/8 b - - 12 48|f4e4 h5f6 e4e5 f6g8|886|fork
+41C3O|r1bnr1k1/p4p1p/5PpP/1p2p1B1/2P1Pn1P/P1p2R2/3N2B1/R5K1 w - - 1 26|f3c3 f4e2 g1f2 e2c3|886|fork
+4PVMM|1r6/p4p2/2k1p1p1/1r2P2p/2PPK2P/5P2/5P2/1R6 w - - 0 31|b1b5 b8b5 c4b5 c6b5|886|rook endgame
+50HfQ|r2rk3/1pp2Rp1/p3p3/6N1/3n4/4Q3/PPP5/2K5 w - - 4 30|e3h3 d4e2 c1b1 d8d1|886|back-rank mate,mate in 2
+1igKx|1r3k1r/p3bp2/1q2p1p1/8/3PQ3/P1N4P/1P1N1P2/2KR3R w - - 1 22|h3h4 b6b2|886|mate in 1,queenside attack
+0s6ke|5rk1/8/4Pb1p/3P1p2/2R2p2/7P/5PPK/8 w - - 1 37|c4f4 f6e5 g2g3 e5f4|886|pin
+5Q6vM|8/8/1p4Kp/pPk1N3/2P1P3/b7/8/8 b - - 2 44|a3b2 e5d3 c5c4 d3b2|887|fork
+4Rudy|6k1/pr3ppp/1b1B4/4p3/P7/3P1P2/5P1P/1R4K1 w - - 0 25|a4a5 b6f2 g1f2 b7b1|887|discovered attack
+4oICV|r3kbnr/pp3ppp/1qn1p3/1BppPb2/3P1P2/1P6/PBP3PP/RN1QK1NR w KQkq - 3 8|c2c3 b6b5|887|hanging piece
+152NF|r4rk1/1b1q1p2/p2bpp1p/1pp5/4N3/1B1P4/PPP2PPP/R2QR1K1 b - - 1 15|f6f5 e4f6 g8g7 f6d7|887|fork
+3a0LL|3r2Rk/p4p1p/1p2pN1b/2p1Pn1p/5P2/8/PPP5/1K4R1 b - - 3 33|d8g8 g1g8|887|Arabian mate,mate in 1
+5OS16|8/8/8/1p3k2/2p1n1p1/2P5/PP2R1K1/8 w - - 6 56|g2f1 e4g3 f1e1 g3e2|887|fork
+0RjN6|r6r/6bp/4R1p1/pkpnPp2/5P2/2B2NP1/PP4KP/5R2 w - - 1 25|f1d1 d5e3 g2g1 e3d1|887|fork
+2yjDn|8/2r5/R3p3/1p2Pkpp/1b1P1p2/1P3P1P/3K1NP1/8 w - - 1 40|d2e2 c7c2 e2f1 c2c1|887|
+2kjub|3r1rk1/p5pp/1p2nb2/8/3B2R1/2P5/PP3PPP/3R2K1 w - - 7 21|d4f6 d8d1|887|back-rank mate,hanging piece,mate in 1
+5V6te|8/4kpp1/7p/3p4/1Np5/2P4P/r1P2PP1/7K b - - 1 28|a2a5 b4c6 e7d6 c6a5|887|fork
+4H0OG|3r4/2R1kppp/3rp3/1b6/1p6/4P3/1P2BPPP/R4K2 b - - 3 23|e7f6 e2b5|887|hanging piece
+1kSID|3r4/5pkp/1pB1p1p1/3n4/1P1P1P2/P4KP1/7P/3R4 w - - 7 35|f3e4 d5c3 e4d3 c3d1|888|fork
+4R69X|r3r1k1/3bqpp1/4p2p/8/1ppPQ3/8/PPB2PPP/R4RK1 b - - 0 23|a8c8 e4h7 g8f8 h7h8|888|kingside attack,mate in 2
+2RPX8|b7/P2n3p/1k4p1/4p3/1P6/7P/7K/3R4 b - - 4 44|d7f6 d1d6 b6a7 d6f6|888|fork,from a master game
+1nSMB|6k1/pp3ppp/1qp5/2b3r1/2Q5/1B3b2/PP3P1P/R4K2 b - - 1 28|c5f2 c4f7 g8h8 f7e8|888|back-rank mate,fork,mate in 2
+5AZrk|8/8/p4p1p/4pK1P/2k5/6P1/P7/8 w - - 0 36|f5f6 e5e4 g3g4 e4e3|888|pawn endgame,quiet move
+4u8IH|2k1rr2/pp4pp/3ppn2/6B1/4P3/8/PPP2PPP/2KR3R w - - 0 16|d1d6 f6e4 d6d4 e4g5|888|fork
+0BmrG|r1bq1rk1/3n1pp1/p1n1p2P/1p1p4/7b/1BNP1N2/PPP1QP1P/R3K1R1 w Q - 0 15|f3h4 d8h4|888|
+5i3yL|r7/1p3k1p/p2r2p1/P2Npp2/1P2P3/3P4/6PP/5RK1 b - - 0 24|f7e6 d5c7 e6f6 c7a8|889|fork
+20fQX|6k1/p1p2pp1/2pbr2p/8/1P2q3/P1P2N2/1R3PPP/3Q2K1 w - - 2 25|f3d4 e4e1 d1e1 e6e1|889|kingside attack,mate in 2
+49EPX|2r3k1/6pp/p3p3/1p3p2/1B1PpP1q/1Q2n3/PP4RP/6K1 b - - 1 25|e3g2 b3e6 g8h8 e6c8 h4d8 c8d8|889|back-rank mate,fork,mate in 3
+64NAj|r2q1b2/pp6/3k1pQ1/3ppb2/3n4/8/PP1N1PPP/R1B2RK1 w - - 2 18|g6g3 d4e2 g1h1 e2g3|889|fork,from a master game
+6fO2z|2r2rk1/pppnppbp/4b1p1/3q4/3P4/4PN2/PPQ1BPPP/R1B2RK1 w - - 9 11|e2c4 d5c4 c2c4 e6c4|889|
+4jh70|8/p7/8/1K6/P2N4/1P6/2P2k2/6q1 b - - 1 55|f2g3 d4e2 g3g4 e2g1|889|fork
+3bbq0|5rk1/2p2rp1/p1p5/2q5/7Q/7R/PPP3PP/R5K1 w - - 5 25|g1h1 f7f1 a1f1 f8f1|889|back-rank mate,mate in 2
+5KMiH|8/8/p1pB4/Pp3pk1/1P3P1p/2n4P/5K2/8 b - - 0 47|g5f6 d6e5 f6f7 e5c3|889|fork
+3mo3G|1r4k1/2q3pp/p1N1p3/Pb1p1p2/3P1P2/1Q2P1P1/2R4P/6K1 b - - 1 32|b8c8 c6e7 c7e7 c2c8|889|deflection,discovered attack,skewer
+6PzZo|5Q2/2R4p/p5p1/4q1k1/P7/1P2r2P/6P1/7K w - - 4 48|c7c5 e3e1 f8f1 e1f1|889|mate in 2
+03935|2r2rk1/6pp/1q2p3/p1ppP1N1/3P1p1P/2PQ2n1/PP4P1/R1B3K1 b - - 3 23|h7h6 d3h7|890|mate in 1
+4lhny|r4r2/p2q3k/3pn3/2p3p1/2P1P1N1/5P2/P2Q1KP1/4R3 b - - 1 26|h7g6 g4e5 d6e5 d2d7|890|from a master game
+1QPNs|r3k3/p1R1n1p1/1p5p/2p5/P1N5/2PPK1P1/7P/8 w - - 11 37|e3f4 e7d5 f4e5 d5c7|890|fork
+5KICr|r1bq1rk1/2ppnp2/p6Q/1p1Pp3/4N3/2PP4/P1P2PPP/R3K2R b KQ - 0 14|e7f5 e4f6 d8f6 h6f6|890|kingside attack
+1R1jg|3Rq3/5rk1/p1p3pp/1pN2pb1/1P6/P3P2P/Q4PP1/6K1 b - - 0 27|e8d8 c5e6 g7g8 e6d8|890|fork
+32h7s|7R/8/p7/1k4p1/8/5PPK/1r1b3P/8 b - - 4 45|a6a5 h8b8 b5c4 b8b2|890|skewer
+0C6oG|r5k1/1bp2pp1/1p3qnp/pP6/Q3P3/P1PP3P/4BPP1/R3K2R w KQ - 0 20|e2f3 f6c3 e1f1 c3a1|890|fork
+0u5Yz|8/8/2R5/2P1k3/5p2/1P2p3/2r5/4K1R1 w - - 0 41|b3b4 c2c1 e1e2 c1g1|890|rook endgame,skewer
+26nF2|6k1/p5p1/1p1r4/4pN2/7P/2P3P1/PK1p1P2/3Rn3 b - - 0 41|d6d5 f5e7 g8f7 e7d5|890|fork
+464bB|5k2/1R3p2/4p1p1/1p2P3/2b2PP1/4K3/8/8 w - - 1 44|e3f3 c4d5 f3e3 d5b7|891|fork
+5jOet|3q2k1/1b3pbp/6p1/4r3/B1p2Q2/2P2PN1/6PP/R6K w - - 0 30|a1d1 d8d1 a4d1 e5e1 g3f1 e1f1|891|back-rank mate,fork,mate in 3
+5oUZq|2kB3R/3rKp2/2p5/1p3P2/p6P/8/PPP5/8 w - - 6 38|e7e8 d7d8 e8f7 d8h8|891|skewer
+2aGuk|1r4k1/2p2pp1/4p2p/6q1/3Q4/N7/P1P2PPP/1r3RK1 w - - 0 25|f1b1 b8b1 a3b1 g5c1 d4d1 c1d1|891|back-rank mate,fork,mate in 3
+5L1SP|3R4/5pk1/6pp/5p2/p7/2P2PPP/Pq6/6BK b - - 0 34|b2c3 g1d4 c3d4 d8d4|891|fork
+6owH2|2krr3/1pp2R2/p5Np/8/1P1n4/1P5P/6P1/3R2K1 w - - 1 30|d1c1 d4e2 g1h2 e2c1|891|fork
+033xP|2r4k/R6p/1p2Np2/4p3/2P5/8/n4PPP/6K1 b - - 0 28|c8c4 a7a8 c4c8 a8c8|891|fork,mate in 2
+1qHIc|r4q1k/pp2r1p1/1P1n3p/8/1P3p2/P4b1P/B2Q1PP1/R3R1K1 w - - 0 28|d2d6 e7e1 a1e1 f8d6|891|discovered attack
+0om30|3r1rk1/1bp2p2/p6p/1p1P4/4N1p1/6P1/PP3PK1/3RR3 b - - 0 27|b7d5 d1d5 d8d5 e4f6 g8h8 f6d5|891|attraction,fork,sacrifice
+2mHdo|6k1/p1pp2p1/1pq3Np/4p3/2P5/n7/P4PPP/2RR2K1 b - - 1 23|d7d6 g6e7 g8h7 e7c6|891|fork
+68f5o|3r4/p3N1pk/P6p/5p2/2B3bR/8/3r1PPP/4R1K1 w - - 0 33|c4f7 d2d1 f7g6 h7h8 h2h3 d1e1|891|
+38OHE|2r1k2r/1q3ppp/p3p3/1p3P2/2p1NQP1/3B4/PP5P/2R4K b k - 0 25|c4d3 c1c8 b7c8 e4d6|891|
+0CAjn|r6k/6p1/p4r1p/Pp4NQ/1q6/8/6PP/R4R1K w - - 0 38|f1f5 f6f5 g5f7 f5f7|891|hanging piece
+4x7xR|r1b2rk1/5ppp/p3p3/1p6/4Q3/2qB1P2/2P2KPP/1R5R b - - 1 20|c8d7 e4h7|892|kingside attack,mate in 1
+2T9rZ|1kr5/p4pp1/1pn1p3/1QNpP2p/3P3q/P4P1P/1P3K2/2R4R w - - 1 23|f2e2 c6d4 e2d3 d4b5|892|fork
+6jV8T|4k2r/pp1n1pp1/3p1q1p/3Pp1b1/1P2Pn2/B4N1P/P2N1PP1/2rQ1RK1 w k - 0 17|d1c1 f4e2 g1h1 e2c1|892|fork
+4r0qm|r2qk2r/2p2pp1/pp2pn1p/3pN3/Nn1P4/3QP1P1/PPP2PP1/2KR3R w kq - 4 13|d3c3 b4a2 c1b1 a2c3|892|fork
+5LnG0|8/8/p7/P1PK4/5p2/4b3/4kR2/8 b - - 0 65|e2f2 c5c6 f4f3 c6c7 f2e1 c7c8q|892|advanced pawn,bishop endgame,promotion
+2tukR|3q2k1/1p1n1p1p/p2N2p1/2p5/5P2/3P2P1/PPP1RKBP/8 b - - 0 24|b7b5 e2e8 d8e8 d6e8|892|fork
+4w5D2|8/4Bp2/R3nPk1/Pp2P3/1P4p1/3R2P1/4K2r/7r w - - 5 52|e2e3 h1e1|892|mate in 1
+2fDb4|3r3r/kp5P/3pQ3/p1nP4/2P1PP2/1PK3P1/P6R/8 w - - 9 39|e6f6 c5e4 c3d4 e4f6|892|fork
+4bRc1|r1b3k1/ppp2pp1/1b3nNp/8/2B5/2N5/PPn2PPP/1RB3K1 b - - 3 16|c8f5 g6e7 g8h8 e7f5|892|fork
+4JlSD|2r3k1/5ppp/Q2bp3/3n2B1/3P4/2q2N1P/P4PP1/R5K1 w - - 1 23|a1c1 c3c1 g5c1 c8c1|892|
+5sha7|6k1/2R5/1p4PP/3r4/7K/8/p7/8 b - - 0 57|a2a1q c7c8 d5d8 c8d8|892|mate in 2,queen and rook endgame
+4r3UG|8/6p1/1n1k1p1p/1Pr5/3N4/7P/3K1PP1/1R6 w - - 8 43|b1b2 b6c4 d2c3 c4b2|892|discovered attack,fork
+6yDdD|1r4k1/2p2pp1/4p2p/8/P2P4/2n3B1/5PPP/2R3K1 w - - 1 27|a4a5 c3e2 g1f1 e2c1|892|fork
+5BL05|2Rk1r2/3P3p/1n2BPp1/8/8/7P/1P6/K7 b - - 2 39|b6c8 d7c8q|892|advanced pawn,mate in 1,promotion
+2HPPy|8/8/1P3pk1/7p/2RKP2P/2PP2p1/8/1r6 w - - 1 48|c4b4 b1b4 c3b4 g3g2 d4c4 g2g1q|893|advanced pawn,promotion,rook endgame
+44YqC|8/8/5pp1/2kp3p/2pN3P/4P1P1/4BPK1/r7 b - - 10 39|c5b4 d4c2 b4b3 c2a1|893|fork
+7257y|2Q5/p5rk/4R1p1/5p1p/1P5P/P7/5PPK/q7 w - - 5 36|e6d6 a1e5 g2g3 e5d6|893|fork
+6STe5|8/7p/5kp1/8/P3KP2/2r4P/6P1/3B4 w - - 8 45|e4d5 c3d3 d5c4 d3d1|893|fork
+5hHvp|r2r2k1/1bq1bppp/pn3n2/1p1pp3/4PPP1/PPN1B2P/2PQN1B1/3R1RK1 w - - 0 18|e3b6 c7b6|893|
+5Rjhn|8/p4Rp1/8/1pkp3p/2r2P1P/P4K2/1P3P2/8 b - - 0 36|c4c2 f7c7 c5d6 c7c2|893|from a master game,rook endgame,skewer
+2gI1i|8/1R6/8/P3pb2/1P6/8/2P2k1P/6RK w - - 0 34|a5a6 f5e4 g1g2 e4g2|893|fork,mate in 2
+4nhjo|r3k3/4n1b1/3p2pp/p1p1p1p1/2N1P3/2PP1NP1/P5PP/5RK1 b q - 0 26|e8d7 c4b6 d7e8 b6a8|894|fork
+105Tj|6k1/p3ppb1/2rq2p1/Q7/4P2p/4B3/5PPP/2R3K1 w - - 0 26|c1c6 d6d1 a5e1 d1e1|894|mate in 2
+41DQy|4k2r/p3nppp/b1N1p3/4P3/P7/2R5/2P2rPP/2KR4 b k - 3 25|a6e2 d1d8|894|mate in 1
+15vlm|5r2/8/3p3k/p2Bp1p1/2Pn1r2/1P2QPqp/1P1R1R1N/5K2 w - - 0 35|h2g4 f4g4|894|
+4G2nN|rnb1r1k1/ppp2p1p/3p1qp1/4b3/2P5/1PN1P1P1/PB2BP1P/R2Q1RK1 w - - 1 13|f2f4 e5c3 b2c3 f6c3|894|
+1X4PO|5rk1/2p3p1/3pp3/2q5/2P1P3/3Q3P/5rP1/4RRK1 w - - 0 34|f1f2 c5f2 g1h2 f2e1|894|fork
+3VWjF|r5rk/p3ppR1/3p4/q1p5/1p2PB2/1B1P3P/PPP1N3/1K4R1 w - - 1 25|b3f7 g8g7 g1g7 h8g7|894|
+3mslj|6k1/5pp1/8/1P2Q3/P5q1/6Pp/3B1P1P/6K1 w - - 0 36|e5f4 g4d1 d2e1 d1e1|894|mate in 2
+3CTy0|8/pp5k/2P4p/1P3p2/r7/7P/8/5K2 b - - 0 45|a4c4 c6b7 c4c7 b7b8q|894|advanced pawn,promotion,rook endgame
+1o8HN|2r2r1k/1Q4pp/p2p4/1p1Bp3/4P1b1/8/PP3qPP/5R1K w - - 0 29|f1f2 c8c1 f2f1 f8f1|895|back-rank mate,mate in 2
+1XbwP|1kb2Q2/ppq5/3p2P1/3PbN2/PP6/7P/6B1/7K w - - 3 34|g6g7 c7c1 g2f1 c1f1|895|mate in 2
+70iwe|8/2q3k1/pp4p1/2p1npP1/3p1Q1r/3P4/PPP2P1P/R3R1K1 w - - 1 28|f4h4 e5f3 g1f1 f3h4|895|fork
+3QDIM|8/6kp/p4pp1/3N4/P3P1Pb/3P3P/r7/3R2K1 w - - 9 40|d5b6 h4f2 g1f1 f2b6|895|fork
+6MN5x|3rb1k1/p3Rppp/1p6/2p5/3p4/1B1K4/PPP2PPP/8 b - - 5 21|d8d7 e7e8|895|hanging piece,mate in 1
+3tkVs|8/R5p1/6k1/P7/8/r3n3/PR4KP/8 w - - 1 43|g2f2 e3d1 f2g1 d1b2|895|fork
+2zc5d|5rk1/2q1bppp/1r2p3/p1pnP1PP/3pQP2/P2B2B1/1PP4K/1R5R b - - 1 30|d5e3 e4h7|895|kingside attack,mate in 1
+41yRd|r4rk1/pp3ppp/4q3/2np4/3Q4/P1B1P3/1P3PPP/R4RK1 b - - 1 16|c5b3 d4g7|895|kingside attack,mate in 1
+1WINN|2R5/p4kpp/2b5/8/P1P2P2/1P2K1P1/7r/8 b - - 1 40|c6b7 c8c7 f7f6 c7b7|895|fork
+3u1Mq|3r2k1/2R2pp1/5b1p/2p2P2/P3p3/1P5P/2P3P1/5RK1 w - - 1 28|c7c5 f6d4 g1h2 d4c5|895|fork
+6pMNF|r1n2r2/5p1k/2pp1Pp1/p3q2p/4N3/1P2Q1NP/PP4P1/3R2K1 b - - 4 29|d6d5 e4g5 e5g5 e3g5|895|
+4jndo|8/3k4/p3p3/1pp1P2R/8/P2n4/6PP/5K2 w - - 0 32|f1e2 d3f4 e2e3 f4h5|895|fork
+4OTsn|1k6/ppp5/2q2p2/4p1b1/5r2/1P1P2Q1/P1P4P/4R1K1 b - - 3 30|g5h4 g3g8 c6e8 g8e8|895|back-rank mate,mate in 2
+1a5WI|8/5pkp/2R1p1p1/2p5/4nP2/2P5/2r3PP/3R2K1 w - - 2 35|d1d3 c2c1 d3d1 c1d1|896|mate in 2
+24HVq|2k5/4npp1/1Bn1p1p1/1BP5/P4PP1/5K1P/8/8 w - - 5 39|a4a5 c6d4 f3e4 d4b5|896|fork
+2PRsg|8/5p1p/3N1b1k/3p4/r1p5/4P3/2R2P1P/5K2 b - - 1 38|f6e5 d6f7 h6g6 f7e5|896|fork
+0jNvD|r1br2k1/ppq2pbp/4p1p1/4PnPP/2Pn1P2/N1Q2N2/PP1B2B1/R3K2R w KQ - 5 17|e1c1 d4e2 c1b1 e2c3|896|fork
+64BDN|r3kbnr/1bppqppp/p1n5/1p1B4/4P3/1QN2N2/PP3PPP/R1B1K2R w KQkq - 4 9|d5f7 e7f7 b3f7 e8f7|896|
+0OVxJ|3r1k2/1R2n1pp/1pp2p2/8/6B1/1N3P2/PPr5/4R1K1 w - - 0 32|e1e7 d8d1 e7e1 d1e1|896|mate in 2
+4JTJ3|r5k1/6pp/2p1p3/p2p4/P2Pb1Pq/1B5P/1PP2r1K/R2Q1R2 w - - 3 24|f1f2 h4f2|896|mate in 1
+2vnWX|1r4k1/5pp1/4p2p/3nq3/Bp2P3/1P6/P1QR1PPP/6K1 w - - 1 29|e4d5 e5e1|896|mate in 1
+2V9br|8/7p/4p1p1/p1r1k3/1pB5/3KP2P/3R2P1/8 w - - 5 36|c4b3 c5c3 d3e2 c3b3|896|fork
+6CJ5b|3Q4/1p3p1k/p1r5/4P3/1P3PP1/P2R2K1/2q5/8 w - - 5 49|d8h4 c6h6 h4h6 h7h6|897|defensive move,from a master game
+4Xu07|r3kb1r/pp3ppp/2p5/3Pp3/2P1P3/2N3Nn/PP2QnPP/R1B3RK w kq - 1 18|e2f2 h3f2|897|hanging piece,kingside attack,mate in 1
+4zQzN|6k1/8/4p2P/3pP3/1n1P4/1Pp5/8/1B1K4 w - - 13 59|d1e2 c3c2 b1c2 b4c2|897|advanced pawn,trapped piece
+34GuN|8/p6p/1p1p4/3k2b1/3P4/1P2K3/P3N2P/8 w - - 2 38|e2f4 g5f4 e3f4 d5d4|897|
+1sU6D|r3k2r/ppp1Pppp/2B5/2q3B1/8/N3Pb2/PP3KPP/3R3R b kq - 0 12|b7c6 d1d8 a8d8 e7d8q|897|advanced pawn,mate in 2,promotion
+5bqE0|r2r4/1b2kpp1/p3pn1p/N7/8/3B3P/PP1R1PP1/3R2K1 b - - 2 26|b7c8 a5c6 e7e8 c6d8|897|fork
+4H7GP|r3k2r/1p1q1pbp/p2p2p1/3Pp1B1/3nB3/P6P/1PPQ1PP1/2KR3R w kq - 3 17|c2c3 d4b3 c1b1 b3d2|897|fork
+2gujw|6k1/1R3pp1/1p2N3/4q2p/2r5/1P2bP2/4Q1PP/7K w - - 0 27|b3c4 e5a1 e2d1 a1d1|898|back-rank mate,mate in 2
+6RXHg|r2q3r/1B2kppp/p2b1nb1/2npp3/3N4/2N1P3/PPP2PPP/R1BQR1K1 b - - 0 13|c5b7 d4c6 e7e6 c6d8|898|fork
+4KMRH|3r2k1/ppp1n1pp/2n1r3/8/3P4/BP3PP1/4N2P/R3R1K1 b - - 0 19|c6d4 e2d4 e6e1 a1e1|898|
+1uLtG|4r1k1/6pp/p2p2r1/1p1q4/3P4/P3QR1P/1P4P1/5RK1 b - - 1 33|g6g5 e3e8|898|hanging piece,mate in 1
+0JNRi|8/r1p1kpp1/N1P1p2p/1P1p4/2n3P1/4P2P/5PK1/1R6 w - - 10 36|g2f3 c4d2 f3g2 d2b1|898|fork
+0B2w7|r2q1rk1/p4pp1/1p1p3p/2p3nn/4P3/P1PPB2P/RP2N1PK/4QR2 w - - 0 19|e1h4 g5f3 f1f3 d8h4|898|discovered attack
+03X1v|4r1k1/1p3pp1/2pqr2p/1P6/3p4/2R1PQ1P/5PP1/2R3K1 w - - 0 25|e3d4 e6e1 c1e1 e8e1|898|mate in 2
+1AuPi|8/8/1pBp4/p2P2k1/2P3P1/1P1n1K2/P7/8 w - - 1 41|c6d7 d3e5 f3f2 e5d7|898|fork
+0QGW7|3rr1k1/ppp2p1p/6pB/3Pnq2/3Q1P2/2N5/PPP3PP/R5K1 b - - 0 24|e5g4 d4g7|899|mate in 1
+1IiIw|4k3/4rp2/2pp4/P3p3/1P1nP3/K3Q3/5N2/8 w - - 8 37|f2d3 d4c2 a3a4 c2e3|899|fork
+2m9Ma|5r1k/2R5/5N1p/4R3/6p1/5nP1/1r3PKP/8 b - - 4 34|f3e5 c7h7|899|Arabian mate,mate in 1
+4Qu80|6N1/1p6/p4P2/P3k1pp/1n4P1/5KP1/8/8 b - - 0 49|h5g4 f3g4 e5e6 g4g5|899|knight endgame
+6ckAv|5r1k/R1Q3p1/1p6/5p1p/PP4qP/4P1P1/3n1PB1/3r1NK1 b - - 2 36|g4e2 c7g7|899|kingside attack,mate in 1
+5CiMZ|r4rk1/2q3pp/p2Nbp2/1pP1p3/1Pp1Pn1P/P5Q1/1B3PP1/2RR2K1 w - - 1 27|c1c3 f4e2 g1h2 e2g3|899|fork
+4gqTW|r3k2r/ppqn1pp1/2pbp1b1/8/2P3p1/3P1N2/PP1BBPP1/R2QRNK1 w kq - 0 16|f3h2 d6h2|899|kingside attack
+23HNS|rn1q3r/pp2pk1p/2p2bp1/6N1/8/3P1Q2/PPP2PPP/R3K2R b KQ - 1 12|f7g7 g5e6 g7f7 e6d8|900|fork,pin
+2rXCw|8/8/p5k1/1p4p1/1P4P1/4QK1P/2q5/8 b - - 6 52|c2c6 e3e4 c6e4 f3e4|900|queen endgame
+3mQdC|r2q1rk1/pp3ppp/n2p1b2/3P4/1P3Bb1/P2Q1N2/2B2PPP/R4RK1 b - - 2 16|f6a1 d3h7|900|kingside attack,mate in 1
+0tUdM|r1b2rk1/p1pp1p1p/1p1b1Np1/8/3P3Q/2P1B3/PPB1KP2/6q1 b - - 1 23|g8h8 h4h7|900|kingside attack,mate in 1
+18lnK|R4k2/5pbp/p3r1p1/1p6/8/1P4BP/5PPK/8 b - - 8 33|e6e8 g3d6 f8g8 a8e8|900|deflection
+3ap8R|8/1pQ3pk/p6p/3p4/2pB3K/2P3P1/Pq3nP1/8 b - - 1 40|b2e2 c7g7|900|mate in 1
+2j5dz|r1b1k2r/1p3pbp/p1qp2p1/3Np3/PPBR3P/8/2P1QPP1/4R1K1 b kq - 0 18|e8g8 d5e7 g8h8 e7c6|900|fork
+4wCDA|r4rk1/1p3pp1/p1p4B/4p3/3qP1Q1/P5PP/1P4K1/5R2 b - - 1 23|d4b2 f1f2 b2f2 g2f2|901|defensive move,pin
+5Cp0c|6rr/1bqnk3/p2p1p2/1p2p1B1/4P2Q/2N4P/PPP2PB1/R4RK1 w - - 0 20|g5f6 d7f6 h4h8 g8h8|901|trapped piece
+2Faf5|r3k3/5pp1/5n1p/2pNp3/PpP1P3/5P2/5P1P/R5K1 b - - 2 30|f6d7 d5c7 e8d8 c7a8|901|fork
+1Ou4c|r2qk2r/pp1n1ppp/4pn2/3p1b2/3P1N2/P4N2/1PP2PPP/R2QKB1R w KQkq - 1 10|f1b5 d8a5 c2c3 a5b5|901|fork
+5lq6u|4r1k1/pp3ppp/8/3p4/8/1Pn2N1P/P1P2PP1/2R3K1 w - - 1 22|a2a4 c3e2 g1f1 e2c1|901|fork
+25TUf|r3k1n1/4bpp1/3p4/Np1Pp1P1/q7/4BP2/PPPQ4/1K5R w q - 1 22|a5b3 a4a2 b1c1 a2a1 b3a1 a8a1|901|back-rank mate,mate in 3,sacrifice
+0LgWV|3k4/8/3Np2p/4q3/2p5/3n2RP/6PK/6R1 b - - 1 40|d3f2 d6f7 d8e7 f7e5|902|fork
+3bB5I|r1bqk1nr/pp1n2bp/4p1p1/1Bpp2N1/4P3/8/PPPP2PP/RNBQK2R w KQkq - 0 9|g5e6 d8h4 g2g3 h4e4|902|
+6SCgV|3r4/p1p2p2/6p1/1Pp3k1/2PbQ3/8/P2K1P2/8 w - - 1 35|e4e7 d4f6 e7d8 f6d8|902|discovered attack
+60pdy|r3r3/1b4kp/3qpn2/p4Bp1/1p1Pp2N/1P4P1/P4P1P/2RQR1K1 b - - 0 27|e6f5 h4f5 g7h8 f5d6|902|fork
+08s6B|5rk1/5pp1/p1N1pb1p/1p1P1q2/1P2nP2/P5P1/1B4QP/2R3K1 b - - 0 25|f6b2 c6e7 g8h7 e7f5|902|fork
+4z4OP|r2q2k1/pp2p2p/4Pn2/2p2p2/2P5/1PN5/P1Q3PP/5RK1 w - - 1 23|c2f5 d8d4 g1h1 d4c3|902|fork
+5NwWk|2r4k/6pp/P4p2/1Qr5/8/6P1/5PPK/8 w - - 3 36|b5b6 c5h5 h2g1 c8c1|902|mate in 2,queen and rook endgame
+2QYsM|8/p7/1p1k4/4pb1p/1PPp3K/P2P4/4B3/8 b - - 1 40|f5g4 e2g4 h5g4 h4g4|902|bishop endgame
+1etcT|8/8/8/4k1p1/8/r3N2P/5PK1/8 b - - 14 58|e5d4 e3c2 d4e5 c2a3|902|fork
+3NwOv|2b2Qk1/1p2r1p1/1p2p2p/4Pp1B/1P3P2/4P1P1/rBP3qP/2KR3R b - - 0 22|g8f8 d1d8 e7e8 d8e8|902|fork,mate in 2
+0KLCu|3r2k1/ppp3p1/4p2p/5p2/5P2/2Q1B2P/PPb3P1/K2q2R1 w - - 5 34|g1d1 d8d1 e3c1 d1c1|903|back-rank mate,mate in 2
+1TE1c|8/5p2/1p3P2/p2QP3/P2K4/1P6/7p/5nk1 w - - 3 60|d4c4 f1e3 c4d4 e3d5|903|fork
+24YZP|2kr3r/4p3/3p2p1/pqp1b3/Np1nP3/PB1P3b/1PP3P1/1RB1QRK1 b - - 1 21|b5d7 a4b6 c8c7 b6d7|903|fork
+2NEGl|Q7/2p2kp1/p7/1p6/3P1P2/2P3PK/q6P/8 w - - 0 32|a8c6 a2e6 c6e6 f7e6|903|queen endgame
+0nhUv|2k2r2/2p5/p1q2np1/P1p1Bb2/1pPP1P2/1P6/R4QPr/4R1K1 w - - 0 25|g1h2 f6g4 h2g3 g4f2|903|fork
+5JizQ|r4r2/1R2b1Qp/2k1p3/3pP1N1/2nP4/2P5/6PP/6K1 w - - 1 25|g7e7 a8a1 b7b1 a1b1|903|mate in 2
+2IAw0|2r1kq1r/pp3p1p/2n2bp1/4PN2/2Pp4/7P/PP4P1/RN1QR1K1 b k - 0 20|f6d8 f5d6 f8d6 e5d6|903|discovered attack,fork
+365rj|rn2k2r/pp3p1p/3bpn2/3p1b2/8/1B3P1N/PPPP2PP/RNB1K2R w KQkq - 1 11|h3f4 d6f4|903|hanging piece
+5iGxj|7r/6p1/4pk2/3bNp1p/3Pp3/R3P3/5PPP/6K1 b - - 0 36|h8b8 e5d7 f6g6 d7b8|903|fork
+4n2py|8/4kpp1/8/P3N3/6p1/6P1/5PPK/r7 b - - 4 49|a1a5 e5c6 e7f8 c6a5|903|fork
+3Kq0Z|r1b2rk1/6pp/2p2p2/1pN2n2/p2q1PB1/7P/PPQ3P1/R1B2RK1 w - - 1 24|g1h1 f5g3 h1h2 g3f1|903|fork
+0mBtB|2r3k1/4qpp1/Qp1p3p/p2P1R2/4P3/1P5P/1P4P1/6K1 b - - 1 28|g7g6 a6c8 e7f8 c8f8|904|hanging piece
+6apab|8/R7/3pBkp1/p1nP3p/3K3P/8/r5P1/8 b - - 4 62|a5a4 a7f7|904|mate in 1
+5pAKg|8/6kR/3pp1p1/6P1/pP1n1P2/P2b4/4r3/5K1R b - - 1 38|g7f8 h7h8 f8e7 h1h7|904|mate in 2
+394dP|b1r4k/p4pnp/4pNp1/P2p2N1/6P1/4P3/5P1P/5RK1 b - - 4 26|h7h6 g5f7|904|mate in 1
+0T6RM|5r2/5pkp/5R2/4p3/1p1nP3/5P2/PP1R1P1P/6K1 w - - 1 25|f6b6 d4f3 g1g2 f3d2|904|fork
+0ULD8|8/3k3p/p4Rp1/3Np3/3nP3/6P1/PP5r/1K6 w - - 2 29|f6a6 h2h1|904|mate in 1
+05f61|r1b2k1r/pp1pn3/3bpp1p/qN4pQ/B2pP3/3P4/PPP2PPP/1RB1R1K1 w - - 4 15|b5d6 a5e1|904|hanging piece,kingside attack,mate in 1
+6GTIN|7k/Qb4pp/2pq3r/1p6/pP2P3/P7/4BPPP/2R3K1 w - - 0 35|a7b7 d6h2 g1f1 h2h1|904|mate in 2
+1si9q|4rrk1/ppp2p1p/1n1qb1p1/8/4N3/PP1B1R1P/2Q3P1/1R5K b - - 1 24|d6e7 e4f6 e7f6 f3f6|904|fork
+2Ggga|8/8/2p1k3/2P5/8/P6K/8/8 w - - 1 50|a3a4 e6d5 a4a5 d5c5 h3g3 c5b5|904|pawn endgame
+4rsD4|r3r1k1/pp3pp1/2p2n1p/3p4/3QqB2/2P3R1/P1P2PPP/R5K1 w - - 4 22|f4h6 e4e1 a1e1 e8e1|904|back-rank mate,mate in 2,sacrifice
+20gqY|2r3k1/5pp1/p4P1b/1p2p2Q/8/8/PPr5/1K5R w - - 0 28|f6g7 c2c1 h1c1 c8c1|904|mate in 2
+1O8hS|2b1kb1r/pp3ppp/4P3/6B1/8/P2B4/1P3P1P/1K2R3 b k - 0 20|c8e6 d3b5|905|Boden's mate,mate in 1
+1POwS|3r4/8/p1qp1kp1/5p1p/P2RpN1P/1P4P1/5P2/3R2K1 b - - 1 33|f6g7 f4e6 g7h7 e6d8|905|fork,from a master game
+0qeQr|4r2k/3Q2p1/1p2r2p/8/5N2/4p2P/3n2PK/8 b - - 1 53|e6e7 f4g6 h8h7 g6e7|905|fork
+4e3MM|r7/2R1bkp1/4pn1p/3p4/3P1B2/P3P2P/1P2KPP1/8 b - - 0 22|a8b8 c7e7 f7e7 f4b8|905|discovered attack
+0fsh7|r4rk1/1ppq1ppp/3b1Bb1/8/p1P1N2Q/8/PPP3PP/R4RK1 b - - 4 19|g7f6 e4f6 g8h8 f6d7|905|fork
+3siBG|8/2p1Q1pk/p3P3/1p6/5r1B/2q5/6PP/4R2K w - - 0 35|e7g5 c3e1 h4e1 f4f1|905|back-rank mate,mate in 2,sacrifice
+4xjym|2r3k1/1bp3pp/p4p2/1pRPp3/1P2P3/Pn1B4/5PPP/2R4K w - - 9 29|c5c7 b3c1 c7c8 b7c8|905|
+3LBFy|5Rbk/ppp1R1pp/2np4/8/2q5/2B3Q1/P5PP/6K1 b - - 0 27|c6e7 g3g7|905|mate in 1
+2sEGk|8/3k4/3p1p2/3PbP2/3NP3/r2BK3/8/8 b - - 5 60|d7c7 d4b5 c7b6 b5a3|905|fork
+768ZM|5r2/pppk2R1/n2pq3/5p1Q/3PP2K/8/PPP5/8 b - - 5 28|d7c6 d4d5 e6d5 e4d5|905|fork
+389FR|6k1/2q3pp/8/2r5/4Q3/2p3P1/5P1P/2R3K1 b - - 0 34|c3c2 e4e8|905|from a master game,mate in 1
+1pp3W|6bk/1Q4pp/1p6/4P3/8/7n/PPP3PP/R5qK w - - 7 29|a1g1 h3f2|906|mate in 1,smothered mate
+3ewVI|r7/p1p3k1/1p4q1/3p3R/3P2Q1/2P1P1P1/PP1n3P/6K1 w - - 7 32|h5g5 d2f3 g4f3 g6g5|906|deflection
+6DOvw|1r1q1rk1/1b2ppbp/3p2p1/pR1P4/4P3/3B4/P4PPP/2BQ1RK1 b - - 1 17|b7a6 b5b8 d8b8 d3a6|906|discovered attack
+4XjDI|8/7r/8/5K1k/8/8/8/R7 b - - 11 68|h7g7 a1h1|906|mate in 1,rook endgame
+46yWY|r6k/p5pp/1p2Bq2/1P1P4/PQ6/3pPnb1/3P3P/3K1R2 w - - 0 33|h2g3 f6a1 b4b1 a1b1|906|mate in 2
+4RNFA|r3kr2/4pb2/p1qp4/8/1p2Q3/5P2/PPP3P1/1K1R1B1R b - - 2 22|f7a2 b1a2 c6e4 f3e4|906|hanging piece
+6iQbY|3r1k2/1Pb1np2/7p/1Q5p/8/5P2/PPP2P2/2K4R w - - 0 19|h1h5 c7f4 c1b1 d8d1|906|back-rank mate,mate in 2
+1TWKZ|4r1k1/6p1/1R2P2q/3p4/2pb4/P1P2Q2/1P4PP/7K w - - 0 42|c3d4 h6c1 f3d1 c1d1|906|back-rank mate,mate in 2
+3iaMi|1r3rk1/4q1pp/2p5/p1Pp2PP/3QbP2/P1B1P3/8/2K3RR w - - 1 27|h1h2 b8b1 c1d2 b1g1|906|skewer
+1qyoe|5rk1/1p3ppp/8/p7/1nPP4/8/1Kb3PP/4NB1R b - - 1 22|f8d8 e1c2 b4c2 b2c2|906|
+4TXo3|3r4/8/8/2k5/8/8/2K1R3/8 b - - 9 79|c5d4 e2d2 d4e4 d2d8|907|from a master game,rook endgame,skewer
+3UsTg|2r5/6k1/R5p1/3B1p2/5P2/6PK/8/8 w - - 15 55|h3h4 c8h8 h4g5 h8h5|907|mate in 2
+3O8yo|3R1bk1/1q3pp1/2n1p2p/N7/8/3Q2P1/5P1P/6K1 b - - 5 28|c6a5 d8f8 g8f8 d3d8|907|attraction,mate in 2,sacrifice
+4yUKk|8/4n1p1/p1p3kp/2Np4/3r2P1/P7/1PP3R1/1K6 b - - 1 35|g6g5 c5e6 g5f6 e6d4|907|fork
+5liVA|2Q5/p5pk/3p2qp/8/P2P3n/4P1P1/1B3P1P/6K1 w - - 1 32|c8d7 g6b1 b2c1 b1c1|907|fork,mate in 2
+1qYyw|5k2/pp2b1n1/8/4P1pp/3N2P1/P7/1P3P1B/6K1 w - - 0 31|f2f3 e7c5 g1g2 c5d4|907|pin
+5yeWi|8/6p1/7p/2b1N2P/8/4k1PK/8/8 b - - 6 56|c5d6 e5c4 e3d4 c4d6|907|fork
+2RjON|r4rk1/pb1p1ppp/1p2p3/4Bn2/2P4q/2N2P2/PP1K2B1/R2Q2R1 b - - 4 19|h4g5 f3f4 g5g2 g1g2|907|defensive move
+1fCVT|r3r1Qk/6bp/nq1P2pN/2p5/P2p1B2/R7/1P3PPP/1R4K1 b - - 9 26|e8g8 h6f7|907|mate in 1,smothered mate
+1GIfo|3r1r1k/2p3pp/5b2/2QR4/8/2N2P2/PPq3PP/R5K1 b - - 2 23|d8d5 c5f8|907|hanging piece,mate in 1
+6X1Xy|8/1R3p2/2k3p1/7p/5K1P/1P4P1/8/1r6 w - - 5 53|b7f7 b1f1 f4g5 f1f7|907|rook endgame,skewer
+5sCVl|4kb1r/B3q2p/p2p1p2/3Bp1p1/P1p1P3/2P1Q3/1P3PPP/n3K2R w Kk - 0 26|d5c4 a1c2 e1e2 c2e3|907|fork
+2DwOB|6rk/p1Q4p/4p1q1/2PpR3/3P4/P4rpP/6P1/6RK w - - 0 36|g2f3 g3g2 g1g2 g6g2|907|advanced pawn,mate in 2
+3ki4F|3r1rk1/1p4pp/p1n3p1/2b5/6P1/2N4P/PPP2P2/R1B1R1K1 w - - 0 18|c1g5 c5f2 g1g2 f2e1|908|fork
+2s2Yk|5k1r/5ppp/4p3/1B6/P1Pq4/4QP2/5K1P/R7 b - - 0 27|d4a1 e3c5 f8g8 c5c8|908|back-rank mate,mate in 2
+4w3Cy|6k1/6p1/pp1p3p/2pP1p1P/1nPb4/NB1b1PP1/PP4K1/R1B2r2 b - - 4 30|d4b2 c1b2 f1a1 b2a1|908|hanging piece
+5qGW8|1r2k2r/p2bbppp/B3pn2/qN6/P1p5/4B1P1/1PQ1PP1P/RN3RK1 b k - 0 13|a5a6 b5c7 e8f8 c7a6|908|fork
+5M74E|8/1kp4N/p7/1p6/4np1K/1P2b3/1PP3P1/4R3 w - - 4 34|g2g4 e3f2 h4h3 f2e1|908|fork
+48SMa|5rk1/2P2ppp/1B2p3/1p2b3/1P2n3/4P2P/4rPP1/2RR2K1 b - - 0 28|f8c8 d1d8 c8d8 c7d8q|908|advanced pawn,back-rank mate,mate in 2
+18Gfk|7k/1p4r1/p4n1p/2P5/7P/P1B5/6K1/6R1 w - - 1 45|g2f2 f6e4 f2f3 e4c3|908|fork
+16CTb|6k1/1b3p2/p4pp1/5r2/2P5/1P1qB2P/P3RQPK/8 w - - 5 34|f2g3 d3e2|908|hanging piece
+14SdU|r1b1k1nr/pp1p1ppp/2n1p3/q7/1b6/2N2NP1/PPPBPPBP/R2QK2R b KQkq - 3 8|b4c3 d2c3 a5c3 b2c3|908|
+6wHwB|r3k2r/1ppq1p1p/p1n3p1/3pPpN1/QP1P1P1P/2P5/P3K3/R1B4R w kq - 1 22|c1a3 c6d4 c3d4 d7a4|908|discovered attack
+21gMs|r4rk1/ppp2pb1/1n4qp/8/3PR2P/2NB1Q2/PPP2PP1/6K1 b - - 0 18|f8e8 e4e8 a8e8 d3g6|908|discovered attack,kingside attack
+4cCjV|r4r2/p1qb1pkp/2p2p2/3p4/4pnB1/2P3Q1/PP4PP/R3RNK1 b - - 1 21|a8c8 g4d7|908|discovered attack
+5r6Py|r2r2k1/pppq2p1/2n2p1p/4p3/4P3/1PP2NNP/1P1B1KP1/R2Q4 w - - 1 19|d2e3 d7d1 a1d1 d8d1|908|
+2meZU|3k2r1/pp6/8/4Bn2/5P2/P7/1PK3p1/6R1 b - - 1 39|f5h4 e5f6 d8d7 f6h4|909|fork
+4thRr|2k2r1r/1pp4p/p7/3Q2P1/PPBP4/1nP5/1B3qPP/R6K w - - 2 23|c4b3 f2f1 a1f1 f8f1|909|back-rank mate,mate in 2,sacrifice
+0yc7D|r2r4/1p6/3pk3/1p2pN2/1P2nPP1/2P3KP/P7/3R1R2 w - - 1 34|g3h4 d8h8 f5h6 h8h6|909|Anastasia's mate,mate in 2
+01194|5qk1/p1pb2p1/5p2/r2N1P1p/2Pp3Q/2n5/P5PP/R4RK1 w - - 0 25|h4d4 c3e2 g1h1 e2d4|909|fork
+00GRa|1r3rk1/2p1Nppb/p2nq3/1p2p1Pp/4Qn1P/2P1N3/PPB2P1K/3R2R1 b - - 5 28|e6e7 e4h7|909|kingside attack,mate in 1
+48B31|2kr3r/1p6/p1ppqp2/1P2p1pp/2P1Pn2/P2PB1QP/5PP1/R4RK1 w - - 1 18|b5c6 f4e2 g1h2 e2g3|909|fork
+5vUkC|r1b2Qk1/pp3ppp/n7/8/3P1B2/2N2N2/PPq3PP/4RK1R b - - 0 16|g8f8 f4d6 f8g8 e1e8|909|back-rank mate,mate in 2
+6F8t1|4Qr1k/6pp/p3B3/2p5/Pp1p1q2/1P1P4/2P2PPP/R5K1 w - - 1 33|e8c6 f4f2 g1h1 f2f1 a1f1 f8f1|909|back-rank mate,mate in 3,sacrifice
+5Z8gK|r1bqkbnr/1p1pp1pp/p1n5/6N1/3pP3/8/PPP2PPP/RNBQ1RK1 b - - 3 7|h7h6 d1h5 g7g6 h5g6|909|mate in 2
+1ZYG2|3r4/p5k1/1ppBp2p/4P1p1/2P5/1P1R3P/P2p1KP1/3b4 b - - 1 35|d8d7 d6f8 g7f8 d3d7|909|discovered attack,from a master game
+2CAvD|r1b1k2r/ppp1ppbp/2P3p1/8/2P5/8/PP1BPPBP/R3K2R b KQkq - 0 11|b7c6 g2c6 c8d7 c6a8|909|fork
+4Zw4B|1k3r1r/pp4q1/2pPRpn1/8/3P3p/6P1/PP2QP1P/4R1K1 b - - 2 25|h4g3 e6e8 f8e8 e2e8 h8e8 e1e8|909|mate in 3,queenside attack,sacrifice
+5PkxR|3qr1k1/4bb2/3p1pp1/1p2p3/4P3/1P6/P2BB1PP/4QRK1 w - - 0 28|e2b5 d8b6 f1f2 b6b5|909|fork
+6wbbm|r3k2r/1bp2ppp/p1p5/4q3/4n3/5Q2/P1PB2PP/3R1RK1 b kq - 1 15|a8d8 f3f7|910|attack on f2/f7,mate in 1
+3LJPj|r4r2/pp3pkp/3p2p1/2p1n1P1/2P1NQ2/1P2P2q/P2P1P2/R4RK1 w - - 0 21|e4d6 e5f3 f4f3 h3f3|910|kingside attack
+0QmlD|2r1r1k1/p1q2p1p/1p1p1p2/2bBp3/4P3/PQ3P2/1PP2P1P/R4RK1 w - - 1 20|d5f7 c7f7 b3f7 g8f7|910|
+4WV19|8/8/7R/4k2P/3ppp2/3r4/R4PPK/3r4 b - - 1 38|e4e3 a2a5 e5e4 f2f3|910|mate in 2,rook endgame
+5Ev8R|3r1b1k/3q2pp/p1r2p2/1pp1pRB1/4P3/PP1P2QP/2P3P1/5RK1 b - - 2 27|f6g5 f5f8 d8f8 f1f8|910|back-rank mate,mate in 2
+1y83w|3r4/1b4k1/pp5p/2p1p1p1/P1PN4/7P/1Pr3PB/3RR2K b - - 0 30|e5d4 e1e7 g7g8 e7b7|910|fork
+6PRXL|7k/2p2p1p/p7/2p5/P4b2/2P4P/3r1r2/1R2K1R1 b - - 11 38|f2h2 b1b8 d2d8 b8d8|910|mate in 2
+67O41|1r5k/R4Qpp/2q5/3pP3/2p5/1rP5/6PP/5R1K b - - 2 37|c6g6 f7f8 b8f8 f1f8|910|mate in 2,sacrifice
+3k8zK|r2q1rk1/ppp2ppp/2p5/2b1P3/5Q2/2P5/PP2bPPP/RNB1R1K1 w - - 1 15|e1e2 d8d1 e2e1 d1e1|910|fork,mate in 2
+293SL|r1b2rk1/p1n3p1/2NqppN1/1p1p3p/2pPn2P/P1P1P3/1PQ1BPP1/R4RK1 b - - 1 17|d6c6 g6e7 g8f7 e7c6|910|fork
+21e6H|8/1pQ2K2/8/k1p5/2P1p3/4b3/8/q7 b - - 7 58|b7b6 c7a7 a5b4 a7a1|910|skewer
+1EMe4|8/4bk2/4p1p1/4P2p/2K5/7r/Q7/8 b - - 10 65|h3e3 a2f2 f7g7 f2e3|910|fork
+2jb2N|3q2k1/Qp1b1ppp/3p4/3P4/1P3n2/P6P/5PP1/2R3K1 w - - 1 27|a7b7 f4e2 g1f1 e2c1|910|fork
+1lAqJ|8/ppp3Bp/2k5/8/2P2Pn1/2PR2P1/r5KP/8 w - - 1 33|g2h3 g4f2 h3g2 f2d3|910|discovered attack,fork
+1ttBo|r1b1r2k/pp4pp/2pN4/3n1pq1/3P4/PQ4P1/1P2BP1P/R4RK1 b - - 0 20|e8e2 d6f7 h8g8 f7g5|911|fork
+5QXcl|8/kp3p1r/p1p5/8/P6N/3Q2P1/1qP2P2/6K1 b - - 2 32|b2f6 d3h7|911|hanging piece
+3pPbx|5kr1/7p/p2N4/1pp1nP1Q/P1PpP3/3P3P/2P4K/8 w - - 1 40|h5h7 e5f3 h2h1 g8g1|911|Arabian mate,mate in 2
+5Owo8|8/5p2/5nk1/8/5PP1/2Q5/PPP2K1P/3r4 w - - 3 40|g4g5 f6e4 f2f3 e4c3|911|fork
+5d2rI|1k4r1/pppQ4/2n5/6p1/2P2p2/8/PP2RKBq/8 b - - 5 27|f4f3 e2e8 g8e8 d7e8 c6d8 e8d8|911|mate in 3
+1OJLT|8/3b2kp/3p4/p1pP2P1/2P1B2P/8/4K3/8 w - - 1 36|h4h5 d7g4 e2d2 g4h5|911|bishop endgame
+1zLB2|r3k2r/pp2qppp/2pp1n2/3Pn3/Qb2P1b1/2NBBN2/PP3PPP/R3K2R w KQkq - 0 12|a4b4 e5d3 e1d2 d3b4|911|fork,hanging piece
+0jP0F|5r1k/5p1p/1q3p2/5b2/4p3/1p3P1P/1Q4P1/1B1R3K b - - 0 30|b6b7 b2f6 h8g8 f6f5|911|fork
+2AHBH|2kr3r/ppp2pp1/4p3/4b3/4QP2/2P2P1q/PP1N3p/R1B2R1K b - - 0 20|d8d2 c1d2|911|hanging piece
+3pW6R|1r6/p5pp/1p1p4/2pBk3/P2pP3/1P1P2KP/2r3P1/5R2 b - - 1 31|c2c3 f1f5|912|mate in 1
+4gjYU|1r4k1/1pp2qpp/p1pb2n1/4p3/8/P1NP1rBP/1PP2PK1/R2QR3 b - - 3 18|h7h5 d1f3 f7f3 g2f3|912|
+5JXKn|r1b1k2r/p4pbp/2qp1p2/3N4/4P3/2P5/PP3PPP/R2Q1RK1 b kq - 0 15|e8g8 d5e7 g8h8 e7c6|912|fork
+0xmik|8/8/2pRp3/4Bk1K/3P4/8/8/r7 w - - 1 57|d6c6 a1h1 e5h2 h1h2|912|mate in 2
+6kdPl|r5k1/1b2qp1p/p3pnp1/3pN3/3n4/PBp3Q1/1PP2PPP/R4RK1 w - - 0 17|b2c3 d4e2 g1h1 e2g3|912|fork
+65B4k|8/8/8/1p6/2p5/kbK5/5R2/8 w - - 0 67|f2f1 b5b4 c3d4 c4c3|912|
+5vKxc|8/p1K5/P7/8/2k5/8/8/8 b - - 0 67|c4b5 c7b7 b5c5 b7a7 c5b5 a7b7|912|defensive move,pawn endgame
+67ryz|5qk1/1p3p2/2pprBRp/p1b4Q/2P4R/PP2P2P/5P1K/8 b - - 0 30|f7g6 h5g6 f8g7 g6g7|912|kingside attack,mate in 2
+4dPYY|3qr2k/3B1p2/2P2n2/8/1Q4pp/8/1P3PPP/6K1 w - - 0 39|d7e8 d8d1 b4e1 d1e1|912|mate in 2
+4FwKq|2r5/1b4kp/p4qp1/8/2P1pN2/1P1p4/3Q1PPP/3R2K1 b - - 1 33|g6g5 f4h5 g7g6 h5f6|912|fork
+4j12W|3r1r1k/pq2b1pp/2p2p2/8/6Q1/1BN1B2P/PP3P2/5KR1 b - - 11 23|f6f5 g4g7|912|kingside attack,mate in 1
+1i2eV|4r1k1/Q1p2ppp/8/4q3/1P6/2Nb4/1P3PPP/5RK1 w - - 1 20|f1d1 e5e1 d1e1 e8e1|912|back-rank mate,mate in 2,sacrifice
+6OhqH|8/5pkp/1b2p3/p3Np2/7P/6P1/P1R2PK1/r7 b - - 1 40|g7f6 e5d7 f6g7 d7b6|912|fork
+1Vv4W|4r3/1p4k1/2p4p/R7/P7/3n4/6PP/2R4K w - - 0 28|c1d1 d3f2 h1g1 f2d1|912|fork
+4B0zO|6k1/6p1/p3R3/1pqp3p/2p3n1/2P4Q/PPB1RrPP/6K1 w - - 0 31|e2f2 c5f2 g1h1 f2f1|913|fork,mate in 2
+2xZOH|3r4/4k1p1/2p2r1p/p1pppP2/P1P1P1P1/1PKP3R/8/7R w - - 0 35|h3e3 d5d4 c3d2 d4e3|913|fork,rook endgame
+358XS|r3k2r/p2p1ppp/b1p2n2/q3p1B1/2B1P3/2P2Q2/P1P2PPP/R3K2R w KQkq - 3 11|c4f7 e8f7 g5f6 g7f6|913|hanging piece
+5YpvG|5k2/p1p2p2/1p6/q3n1Qp/4B3/1PP3P1/P3N2P/6K1 w - - 1 32|a2a4 e5f3 e4f3 a5g5|913|discovered attack
+4uV7R|2k1r3/pp4pp/2pQ4/8/2q5/2PN2P1/1P4PP/4rR1K w - - 0 28|f1e1 e8e1 d3e1 c4f1|913|mate in 2
+5biV3|rnb1k1nr/pppp1Bpp/3b4/8/3Pq3/5N2/PPP3PP/RNBQ1K1R b kq - 0 7|e8f7 f3g5 f7e8 g5e4|913|fork
+3iGk0|8/5nkp/p1p2pp1/2pr4/8/PPQPq2P/2P3P1/5R1K b - - 3 34|d5g5 c3f6 g7h6 f6f7|913|deflection
+4kjpM|2R1k2r/Q2q1ppp/4p3/3p4/P3n3/B3P3/5PPP/6K1 b k - 2 23|d7c8 a7e7|913|mate in 1
+6eZr2|6k1/5pp1/p3b2p/1pqp4/8/P2B2P1/1P1Q3P/7K b - - 3 40|c5d4 d3h7 g8h7 d2d4|913|discovered attack
+4ZiBx|8/8/8/5p2/2R1n3/5pk1/8/5K2 w - - 2 61|c4a4 e4d2 f1e1 f3f2|913|advanced pawn,from a master game
+21hNn|2r3k1/p4p1p/4B1p1/8/6Q1/2q5/P4PPP/R5K1 w - - 1 25|e6c8 c3a1 g4d1 a1d1|914|back-rank mate,hanging piece,mate in 2
+4MbTY|5rk1/2p5/1p1b2pp/1BP1pp2/5P2/3P1KP1/r3P1NP/4R3 b - - 0 27|d6c5 b5c4 g8g7 c4a2|914|fork
+1gvi1|rnbqkbnr/pppp2pp/8/3Ppp2/8/8/PPP1PPPP/RNBQKBNR w KQkq - 0 3|c1g5 d8g5|914|hanging piece
+5BJdZ|2R2rk1/pp3ppp/1q2p3/3pP3/8/1P2PQ2/P5PP/5RK1 b - - 0 18|f8c8 f3f7 g8h8 f7f8 c8f8 f1f8|914|back-rank mate,mate in 3,sacrifice
+5VLHF|r4rk1/p2nb1p1/1pn1p2p/3pPp1q/1P1P1P2/P4N2/4Q1PP/RBB2RK1 b - - 0 17|c6d4 f3d4 h5e2 d4e2|914|hanging piece
+0Tz3A|5rk1/pp3p1p/4pRp1/4P3/3n4/1P6/P5PP/5RK1 w - - 0 24|f6f4 d4e2 g1h1 e2f4|914|fork
+5qHLM|2r5/4k3/3b4/1p2p3/p1p1P3/7P/PPP2QP1/6K1 w - - 2 33|f2b6 d6c5 b6c5 c8c5|914|fork
+6wh8W|2R3k1/7p/3p4/3Pbpq1/3N4/7P/5PP1/5K2 b - - 2 32|g8g7 d4e6 g7h6 e6g5|914|fork
+6mP71|8/8/p7/p1p4p/P3k1p1/1PK3P1/5P1P/8 w - - 6 43|c3c4 e4f3 c4c5 f3f2|914|pawn endgame
+31ZTe|2r5/3Q4/5kp1/7p/2q2P1P/6PK/2p5/2R5 w - - 6 57|d7d6 c4e6 d6e6 f6e6|915|
+1EIYy|6k1/1p4pp/pR6/3n2P1/8/1PP4P/P3r3/1KB5 w - - 1 35|b6b7 d5c3 b1a1 e2a2|915|Arabian mate,mate in 2
+3ESjn|2k3r1/8/R7/8/7P/3r4/5PK1/5R2 w - - 3 43|g2h1 d3h3|915|mate in 1,rook endgame
+1nEPA|3r4/6pk/6pp/8/3pP1P1/3Q1P2/3R2K1/2q5 b - - 1 41|c1c3 d3c3 d4c3 d2d8|915|discovered attack
+1Ch9W|8/r7/3R1p2/4p3/4P2p/1R5P/4rPK1/k7 b - - 0 47|a7a2 d6d1|915|mate in 1,rook endgame
+0cqIE|rn1qr3/5pbk/p2p4/2pPp1pp/2P1Pn2/4B1N1/P4PPP/1RQ1NRK1 w - - 0 22|g3f5 f4e2 g1h1 e2c1|915|fork
+5amnY|2r3k1/6p1/4qpNp/b4p2/3P1P2/2P1p1P1/2Q4P/4B2K b - - 1 36|e6e4 c2e4 f5e4 g6e7 g8f7 e7c8|915|fork
+5avGc|r4rk1/1p2qppp/pN3n2/3bp3/8/1N5P/PPP2PP1/R2Q1RK1 b - - 1 17|a8e8 b6d5 f6d5 d1d5|916|
+0imvr|4rr2/1p3pk1/2p5/p4q2/P2PN1P1/1B1KR2n/1PP4Q/8 b - - 0 31|h3f2 h2f2 f5f2 e4f2 e8e3 d3e3|916|
+3Gywo|1r3rk1/1p3ppp/p2N4/8/P2b4/Rb4P1/1P3PBP/2nR2K1 w - - 0 29|d1d4 c1e2 g1h1 e2d4|916|fork
+24Owx|rnb4r/ppp2kb1/6np/3q4/2PP1p2/5N2/PP5P/RNBQ1RK1 b - - 0 12|d5h5 f3e5 h5e5 d4e5|916|
+41vv0|r1b2rk1/ppp2ppp/3p2q1/3Nn3/8/2P3Q1/PP1N1PPP/R4RK1 b - - 3 15|c7c6 d5e7 g8h8 e7g6|916|fork
+3oYEC|r1bqk1nr/pp1p1ppp/2n1p3/8/1b1NP3/2N5/PPP2PPP/R1BQKB1R w KQkq - 2 6|c1d2 c6d4|916|hanging piece
+4Nxyc|r3kb1r/ppp2p1p/2n1p1p1/4P3/5q2/PPPPpB2/6PP/RNQ2RK1 b kq - 1 14|f8h6 f3c6 b7c6 f1f4|916|discovered attack
+3bGnS|8/1r5k/1P2p2p/3b2p1/1R1B4/3P2P1/2r1PP2/1R4K1 w - - 1 41|b1b2 c2c1 g1h2 c1h1|916|from a master game,mate in 2
+1CzK3|r5k1/1pp3pp/5p2/p2P1q2/2Pp4/PP4QP/4R1P1/7K w - - 0 28|g3c7 f5f1 h1h2 f1e2|916|fork
+4F62o|8/1p6/p3p1k1/3pn1P1/1P5P/P3P3/1r3P2/R4BK1 w - - 1 34|f2f4 e5f3 g1h1 b2h2|916|Arabian mate,mate in 2
+4dEOS|2br1rk1/6b1/1Q6/3p4/8/p1P3P1/PP3PP1/1K1R3R w - - 1 28|b6g6 c8f5 g6f5 f8f5|916|fork
+10iF4|2r1r2k/3R1Qp1/p4p1p/1p6/1B6/P7/5PPP/1Rq3K1 w - - 4 30|b1c1 c8c1 d7d1 c1d1 b4e1 d1e1|916|back-rank mate,mate in 3
+3LKbL|3r1r2/5ppk/pqn2b1p/1p1N1P2/1P1p4/P1p2Q2/B1P2PPP/R4RK1 b - - 1 21|b6b8 d5f6 g7f6 f3c6|917|discovered attack
+5bWLt|3r2kr/1p2R3/5pP1/p1p2q2/P2P2R1/2P3Q1/1P3PP1/6K1 w - - 1 34|g3c7 f5b1 e7e1 b1e1|917|mate in 2
+2zSQ2|r3k2r/p1q3p1/2p1pp2/3p4/3P2Q1/2N1B3/PPP2PP1/1R3RbK w kq - 3 19|h1g1 c7h2|917|mate in 1
+0aM8t|r1bq1r1k/ppp2p2/5n2/3p2Q1/2BP4/P1N3P1/1PP2P1K/R4R2 w - - 0 17|c4d3 f6g4 g5g4 c8g4|917|
+4jcye|2kr4/1bpR4/1p3pp1/p1pP3p/P1P5/7B/5PPP/4R1K1 b - - 0 28|d8d7 e1e8|917|mate in 1,pin
+1o5cE|1r5k/5Qpp/4R3/3n4/1q1P4/1P4P1/1R3PKP/q7 b - - 1 35|a1b2 e6e8 b8e8 f7e8 b4f8 e8f8|917|mate in 3
+4S5jv|1k6/p6p/3N1R2/2p5/2P5/1P4Pb/Pr2rP1P/4R1K1 w - - 7 31|e1e2 b2b1 e2e1 b1e1|917|mate in 2
+06noG|3k4/3P4/2KN2pp/3N1p2/5P2/6n1/4p3/8 b - - 1 52|e2e1q d6b7|917|mate in 1
+0Ulp6|8/8/6k1/5p1p/4p3/4P1PK/2r2PR1/8 b - - 13 48|g6g5 f2f4 e4f3 g2c2|918|discovered attack,rook endgame
+3V4k8|3r2k1/1p3pp1/p2q3p/2p5/2Pb4/BP3Q1P/P4PP1/4R1K1 w - - 0 31|e1d1 d4f2 g1f2 d6d1 f3d1 d8d1|918|discovered attack,kingside attack
+3zoE8|7k/1pR3n1/3p3p/3q2n1/8/8/PPK2Q2/8 b - - 1 43|d5a5 f2f8 h8h7 f8g7|918|mate in 2
+6czGF|2r2r1k/pppbqp2/6B1/3p4/1n1P1N2/4P3/PP3PPP/RQ2K2R b KQ - 0 15|f7g6 f4g6 h8g7 g6e7|918|fork
+3rUUf|8/8/3R2kp/6p1/8/1r5P/5KP1/8 b - - 7 46|g6h5 g2g4 h5h4 d6h6|918|deflection,mate in 2,rook endgame
+0BagY|r5k1/pp4p1/2p3rp/P2p1p2/1P3P2/3n2Q1/B1P2BK1/3N4 w - - 2 32|g3g6 d3f4 g2g3 f4g6|918|fork,from a master game
+5jjYu|2r3k1/2q2ppp/1rP1p3/3p4/RP1P4/2Q2P2/6PP/2R4K b - - 0 28|b6c6 c3c6 c7c6 c1c6|918|
+33rdw|8/1p3nkp/3p4/1N1P4/2P1n1P1/1P6/6K1/3B4 w - - 7 40|g2h3 e4f2 h3h4 f2d1|918|fork
+4lZJQ|b7/8/1k6/2bnp3/2p1p1P1/2P1B2P/2B5/5N1K w - - 1 31|c2e4 d5e3 e4a8 e3f1|918|
+4ujgo|8/4kpp1/2P4p/p7/Bpn1K3/4P1PP/P4P2/8 w - - 3 34|e4d5 c4b6 d5c5 b6a4|918|fork
+680Og|6k1/2P2pbp/B1r3p1/8/4p3/2n3PP/5P2/2R3K1 w - - 1 37|c7c8q c6c8 a6c8 c3e2 g1f1 e2c1|918|fork
+4Sjrb|r4k1r/pp1n1p2/3p4/2pP1P1p/2P1q3/2P1B3/P2KQ2P/R6R b - - 1 18|d7e5 e3h6 h8h6 e2e4|918|discovered attack
+6i6Nx|r5kr/1p3p2/3N3p/p1PN4/1P3Pnq/P2BP3/4K1P1/5R2 b - - 2 25|g8g7 d6f5 g7f8 f5h4|919|fork
+1p2ta|5k2/bpB2ppp/p1p5/8/1PP3Pr/8/P1KP4/4R3 b - - 0 26|h4g4 c7d6 f8g8 e1e8|919|back-rank mate,mate in 2
+13xbr|r4r1k/1b2N1pp/8/2p1p2P/P6R/1B3P2/6P1/4K3 b - - 8 30|a8b8 e7g6 h7g6 h5g6|919|discovered attack,mate in 2,sacrifice
+6OKHy|6k1/5R2/4p3/p2bP2R/7p/2P1B2P/2q3P1/6K1 w - - 11 45|f7f1 c2g2|919|mate in 1
+3O0Np|7r/4kp2/6np/p3p1p1/P7/1Nb2PP1/2K2B1P/5R2 b - - 3 26|h8c8 f2c5 c8c5 b3c5|919|
+4qMWF|4R3/5rbk/2p5/p3P3/2P4p/BP6/P5PP/6K1 w - - 0 30|e5e6 g7d4 g1h1 f7f1|919|back-rank mate,mate in 2
+3etpl|rn3rk1/1bqp1ppp/p3p3/1p4b1/1P2P1n1/P2B1N2/2P1QPPP/RN3RK1 w - - 0 13|f3g5 c7h2|919|kingside attack,mate in 1
+0SDuz|8/P1pk4/3b2p1/7q/8/2BBQbP1/2P2P2/4K3 w - - 5 41|d3e4 h5h1 e1d2 h1d1|920|mate in 2
+01YXn|r1bq1rk1/p4pbp/5np1/4p1B1/3p4/2N5/PPPQBPPP/2R2RK1 w - - 0 14|c3e4 f6e4 g5d8 e4d2|920|hanging piece
+6HOan|6r1/1p4r1/1p1bpk1p/5p1B/3P3P/7K/PP3P2/R5R1 w - - 8 27|a2a4 g7g1 a1g1 g8g1|920|
+1mlyT|5R2/ppk2p2/4r1p1/7p/4p3/P3N3/1n3PPP/6K1 b - - 3 34|e6f6 e3d5 c7d7 d5f6|920|fork
+09nRA|3R4/p3kppp/b3p3/8/8/2N5/PPP2qP1/1K1R4 b - - 4 24|e7f6 c3e4 f6g6 e4f2|921|fork
+3NAr7|r1b2rk1/p1p2pp1/1b1p2qp/2pNp3/1P2P3/P2P1NPP/2P2P2/R2QK2R b KQ - 0 13|c5b4 d5e7 g8h7 e7g6|921|fork
+3O53x|2r5/P4ppk/4p2p/3bP3/3B3P/6P1/5P2/1R4K1 w - - 3 38|b1b8 c8c1 g1h2 c1h1|921|mate in 2
+37Nch|5rk1/5ppp/2N1p3/2p5/P1P1n3/8/1r3PPP/R4RK1 b - - 2 28|f8c8 c6e7 g8f8 e7c8|921|fork
+3NFZT|5r1k/1pp3p1/1p5p/3P4/3NPr2/5P1q/PP2Q3/1K1R4 b - - 1 28|c7c5 d4e6 f4f3 e6f8|921|fork
+2k57x|7r/3k2b1/6p1/1PpN1p1p/2PpnP1P/3R1KP1/rB6/1R6 b - - 2 30|a2a4 d5b6 d7c7 b6a4|921|fork
+07aX5|r2q1r2/pp1nppkp/3p2p1/2pPn1N1/2P1PP2/1P6/P3Q1PP/1B2R1K1 b - - 0 17|f7f6 g5e6 g7f7 e6d8|921|fork
+1jrDk|3r1r1k/p1p1b1pp/2p4q/4pp2/8/PN1PPQPb/1PPN1P1P/R3R1K1 w - - 0 18|f3c6 h6c6|921|hanging piece
+3KMeN|r3r1k1/2pnpp2/1p1q1npB/p2PR2p/8/P1Q2N1P/1PP2PP1/4R1K1 w - - 3 19|e5e7 e8e7 e1e7 d6e7|921|
+6h1Fp|3r1rk1/1q3pbp/1p2p1p1/p1p5/2PpN3/P2P1Q2/1P2RPPP/R5K1 b - - 5 22|f7f5 e4f6 g7f6 f3b7|921|discovered attack
+0Wcq3|2kr1r2/ppq2pp1/2n1p3/3p3p/PP1P2n1/2P2b1P/4BPP1/RN1Q1RK1 w - - 0 15|e2f3 c7h2|921|mate in 1
+1q72Z|2r5/4R3/7p/8/8/pK6/r4P1P/k7 b - - 9 44|c8c2 e7e1 c2c1 e1c1|921|mate in 2,rook endgame
+2xN2c|8/8/5k2/3p1p2/1p1P2p1/1P4P1/2K1RP1r/8 b - - 5 43|f6g5 f2f4 g4f3 e2h2|921|discovered attack,rook endgame
+5WV2j|4Q3/5ppk/5q1p/1P2N3/p2p4/7P/2r2PP1/R3R1K1 w - - 4 37|e5f7 f6f2 g1h2 f2g2|922|mate in 2
+4qqxi|3kr3/1Q3pp1/2p4p/5q2/2Pn4/7P/PPPN2P1/1K1R4 w - - 5 27|d2f3 f5c2 b1a1 c2d1|922|back-rank mate,fork,mate in 2
+1OIqV|8/2Q2pkp/3r2p1/8/4pq2/8/PPP2PPP/2K1N2R w - - 2 23|c1b1 d6d1|922|back-rank mate,mate in 1
+4iPE2|4r1k1/p4p1p/6p1/2p2p2/4qP2/1PQ4P/P1PR2P1/6K1 w - - 2 27|c3f3 e4e1 g1h2 e1d2|922|fork
+4tgb0|2kr1b1r/ppp3p1/2nN1p2/7p/2B2p2/2PP3q/PP3P1N/R2QR1K1 b - - 1 15|f8d6 c4e6 h3e6 e1e6|922|fork
+6DxwV|4rk2/6p1/1pN1bp1p/1P1p4/q1pPn3/2P1R2P/1Q3PPB/6K1 w - - 2 34|f2f3 a4d1 e3e1 d1e1|922|kingside attack,mate in 2
+3bdKG|7r/7P/p3k3/1n6/1p2N3/4K1P1/PP3P2/8 b - - 0 50|h8h7 e4g5 e6f5 g5h7|922|fork
+3EYSG|8/1pp5/p2k4/3P4/4P2b/8/PP3B2/5K2 b - - 0 37|h4f2 f1f2 c7c6 d5c6|922|
+77F56|3r3r/ppp1n1pp/6k1/2b5/3NP3/3P4/PPP3PP/R1BR2K1 w - - 1 15|c1e3 c5d4 e3d4 d8d4|922|
+5xZgC|6k1/2p3p1/4p3/pPP1n3/P2R3p/4N2P/r5PK/8 w - - 0 38|d4h4 e5f3 h2g3 f3h4|922|pin
+5rdSE|k2r4/pp1n2qp/8/3RB3/2Q5/1P6/1KP4r/8 b - - 0 30|d7e5 d5d8|922|back-rank mate,hanging piece,mate in 1
+0MhWq|4r1k1/p2N3p/2p3p1/3n1p2/1PQ5/4q3/P5PP/1R3K2 b - - 3 28|e3f4 c4f4 d5f4 d7f6 g8f7 f6e8|923|fork
+6hd5C|1r4k1/1q3pp1/4p2p/2Rp4/3P4/4PP2/2Q2KPP/8 b - - 6 34|b7b2 c5c8 b8c8 c2b2|923|deflection
+5dOOZ|4r1kr/4Np2/pp3P2/2pq2Np/3p1Qn1/3P2P1/PP5P/5nK1 b - - 1 28|e8e7 f4b8 d5d8 b8d8 e7e8 d8e8|923|fork,mate in 3
+0K07z|8/pp1R4/6k1/4n3/4n1PP/PK6/2P5/8 w - - 3 37|d7b7 e4c5 b3b4 c5b7|923|fork
+6FRau|r7/pb2Bppk/4p3/qp2P3/3r4/2P5/P5PP/1Q2R1K1 b - - 1 22|b7e4 e1e4 d4e4 b1e4 h7g8 e4a8|923|fork
+2H388|5R2/pppk1p2/3p4/8/3P3p/1BP5/PPK5/5q2 b - - 5 32|h4h3 f8f7 f1f7 b3f7|923|fork
+3Kl4R|8/5ppk/7p/5q2/8/1b2Q1P1/r4PP1/2R3K1 w - - 0 37|e3b3 f5f2 g1h2 f2g2|924|mate in 2
+3zgW0|4r1k1/p4ppp/3R4/8/5P2/8/P5PP/2r2RK1 b - - 2 25|e8e1 d6d8 e1e8 d8e8|924|back-rank mate,mate in 2,rook endgame
+1EuId|5k2/4q3/p1p4Q/5pP1/2pr4/1P6/P4P2/6RK b - - 0 33|f8e8 h6h8 e8d7 h8d4|924|fork
+0EQ2j|8/2r3b1/p1k2Np1/1p4P1/1R6/2PK3P/8/8 b - - 2 39|c6b6 f6d5 b6c6 d5c7|924|fork
+2xt5Y|7R/8/2k2p2/p1Pp3K/P2P2Q1/1P3p2/8/7q w - - 13 65|g4h4 h1h4 h5h4 f3f2|924|advanced pawn
+1cVXz|8/8/1bp2kp1/1p2pb1p/5n1P/1BN2P2/PP1BK1P1/8 w - - 4 32|e2f1 f5d3 f1e1 f4g2|924|deflection
+6z5Q8|R2n1r1k/1pp2q2/1p1p4/1P1PpppP/4P1Qn/2P4P/1P3P1K/2B1R3 w - - 0 28|g4g5 h4f3 h2g2 f3g5|924|fork
+3QbpA|8/8/1p2kb1p/p1p3P1/P1Pp1p2/1P1P1PP1/3B1K2/8 b - - 0 36|h6g5 g3f4 g5f4 d2f4|925|bishop endgame
+135CL|1rb2k2/p4pb1/1np2npp/8/2B5/2N2N2/PP3PPP/2KRR3 b - - 5 21|b6c4 d1d8 f6e8 d8e8|925|mate in 2
+0TeVc|r3kb1r/ppp1pppp/2n5/8/2B5/2P2b2/PPP1KPPP/R1B4R w kq - 0 9|e2f3 c6e5 f3e2 e5c4|925|fork
+30u23|3k4/2p5/2p1R1pq/2B5/p1B5/P7/1PP5/1K6 w - - 0 41|e6c6 h6h1 b1a2 h1c6|925|fork
+2fMCY|r2q1rk1/2p3p1/p1p2p1p/3pn3/3N1P2/8/PPP3PP/R2QR1K1 b - - 0 19|c6c5 d4e6 d8d6 e6f8|925|fork
+4Ch2t|r2q1rk1/5ppp/b1n1p3/pp6/3P4/2PQ1N2/P1B2PPP/R4RK1 b - - 3 17|b5b4 d3h7|925|kingside attack,mate in 1
+0Tuc1|6k1/pR3ppp/1n6/8/6PP/1P2K3/3r4/8 b - - 0 34|d2d7 b7b8 b6c8 b8c8 d7d8 c8d8|925|back-rank mate,mate in 3
+0BRqp|6k1/p4pp1/1p5p/1P6/PBr5/5B2/3K2PP/8 w - - 2 37|b4d6 c4d4 d2e3 d4d6|925|fork
+3jbwI|3r3r/1pk5/p1p1p1qp/P2pP2R/1Q1P1Pp1/KPN1n1P1/6P1/7R w - - 2 33|c3a4 e3c2 a3b2 c2b4|925|fork
+5oAfv|6k1/r4pp1/1p2q2p/2P1P3/2PpQ3/3Pb3/6PP/1R2B2K b - - 0 38|b6c5 b1b8 e6e8 b8e8|925|mate in 2
+2tgcs|r4rk1/pppq2pp/3p1p2/3N4/1P6/P4P1b/2PQ1P1P/R3R1K1 b - - 2 18|d7f5 d5e7 g8h8 e7f5|926|fork
+0CZSt|1k6/7R/1ppn4/8/3K4/3B4/PPP3PP/3r4 w - - 1 26|h7h6 d6f5 d4e5 f5h6|926|pin
+3gzpa|rn3rk1/pb2bppp/1p2p3/2pqN3/3P4/4P3/PPB2PPP/R1BQ1RK1 w - - 0 12|d1h5 d5g2|926|kingside attack,mate in 1
+32Swu|8/5p1p/p4Bpk/1p2Pp2/8/P7/2rp4/1K1R4 b - - 1 41|c2c3 d1h1 c3h3 h1h3|926|mate in 2
+3fl34|5r1k/p1p4p/3P4/2p1P2Q/4q3/2P3RK/P7/8 b - - 0 40|f8f2 h5e8 f2f8 e8f8|926|mate in 2
+4LaWm|6k1/1b3ppp/p2P4/2q5/P1r5/8/3Q1PPP/RN4K1 w - - 0 27|d6d7 c4c1 d2c1 c5c1|926|mate in 2
+5xBkl|r1b2rk1/p4p2/1pNq1p1p/8/8/P1Qp4/1P3PPP/R3R1K1 b - - 1 21|c8f5 c6e7 d6e7 e1e7|926|fork
+24S8S|3r4/8/pR4pk/4p3/1P6/8/r5PP/4R1K1 w - - 4 35|e1e3 d8d1 e3e1 d1e1|926|mate in 2,rook endgame
+1yc4A|3N2k1/4R1pp/p1pB1pb1/3p4/8/P6P/1r4P1/7K b - - 0 35|g6e4 e7e8|927|mate in 1
+6hYp5|8/8/8/1N3kp1/5p2/1bBn4/1P4P1/5K2 b - - 5 46|f5e6 b5d4 e6d5 d4b3|927|fork
+3aGyk|r2q1r1k/1bp3p1/p2pnp1p/1p3N2/4Pn2/P1Q2N1P/BPP2PP1/R4RK1 w - - 0 18|a2e6 f4e2 g1h2 e2c3|927|fork
+5lPnt|5r1k/p5bp/2Q1B1p1/4p3/2P5/1P6/q4PPP/3R2K1 w - - 0 27|c4c5 a2f2 g1h1 f2f1 d1f1 f8f1|927|back-rank mate,mate in 3,sacrifice
+5Qh9G|r1b1kb1r/1pp1ppp1/p2q1n2/3Pn2p/8/2N2N2/PPP1BPPP/R1BQ1RK1 w kq - 1 9|c1f4 e5f3 e2f3 d6f4|927|discovered attack,kingside attack
+4RPHA|R7/8/8/7p/8/5rk1/4K3/8 b - - 4 66|h5h4 a8g8 g3f4 g8f8|927|rook endgame
+1yvhk|6rk/ppR4p/3p4/3P4/5q2/P1P2P2/1P3P1P/5Q1K w - - 3 35|f1d3 f4c1 d3f1 c1f1|927|mate in 2
+4Z0IC|k1r5/6pp/1Q6/6q1/8/5P2/PPP3PP/3R2K1 w - - 3 29|d1d7 g5c1 d7d1 c1d1|927|
+3bESQ|6r1/1pp2p1k/p2p1B1R/5P2/2n1r3/8/PPP3P1/2KR4 b - - 0 26|h7h6 d1h1 e4h4 h1h4|927|mate in 2
+5Hcds|6k1/ppp5/4r2p/5rq1/3P2p1/8/PPP3PQ/4R1K1 w - - 0 26|e1e6 g5c1 e6e1 c1e1|927|mate in 2
+4qoJu|r4rk1/pp3pbp/2q1p1p1/3pn3/8/1P3P2/PB2BNPP/1R1Q1RK1 w - - 0 18|d1d4 e5f3 e2f3 g7d4|927|discovered attack,kingside attack
+0vM1v|rn4Q1/pp2kp1p/3bp3/7q/P1B5/8/1P2NP1P/R1BK3b b - - 2 18|h1f3 c1g5 h5g5 g8g5|927|
+5nZ6F|4r2k/R1Q3p1/5p1p/8/5nq1/6P1/1P3PKP/5R2 w - - 3 32|g2h1 g4f3 h1g1 f4e2|927|mate in 2
+0iMbo|6k1/p1p2pp1/7p/8/2PnB1Q1/3P3P/P4PPK/1q6 b - - 1 23|b1a2 g4c8|928|mate in 1
+4Kou9|r4rk1/1pp2ppp/p2p1n2/3P3q/2BQ1P2/8/PPP4P/1K1R2R1 w - - 2 19|d4f6 h5d1 g1d1 g7f6|928|
+4q2YA|r1b2rk1/pppp1ppp/1b3q1n/1B1N4/3PP3/4B3/PP3PPP/R2QK2R b KQ - 4 10|f6g6 d5e7 g8h8 e7g6|928|fork
+1ea9p|r5k1/ppp2ppp/6n1/8/4N3/2P3R1/Pq4PP/R2Q3K w - - 0 20|d1b3 b2a1 b3b1 a1b1|928|back-rank mate,hanging piece,mate in 2
+745r5|3r1rk1/5p1p/pp4p1/2p5/P7/1PQ2R2/2Pq1PPP/4R1K1 w - - 1 25|c3b2 d2e1|928|hanging piece,kingside attack,mate in 1
+6KYtq|8/8/3k4/KP1p1p2/2rP2p1/8/1R3P2/8 b - - 4 61|c4d4 b5b6 d4e4 b6b7|928|advanced pawn,from a master game,master versus master
+5Ph3J|5rk1/R1R2pp1/7p/p7/1b6/5QPP/q4PK1/8 w - - 9 43|c7f7 f8f7 a7f7 a2f7|928|
+0LfyF|2r5/3N2kp/4R1pb/3bp3/PQ6/5P2/1Pq2BPP/K6R w - - 3 30|e6e5 c2c1 h1c1 c8c1|928|mate in 2,sacrifice
+1yND3|r4rk1/p2qp1bp/3p2p1/2p2P2/N7/1P2PQ2/P1P3PP/1R3RK1 b - - 0 18|f8f5 f3a8|928|hanging piece
+2FscI|4r1k1/pbq2pbp/1p3np1/2ppr3/6N1/P2PP2P/1PPBB1P1/1R2QRK1 b - - 3 17|e5e7 g4f6 g7f6 f1f6|928|fork
+4CftJ|2q1kb1r/5ppp/4pn2/1NPp4/1n1P4/rQ2PP2/P4P1P/R3KB1R w KQk - 0 15|b3a3 b4c2 e1d1 c2a3|928|fork
+4d3Bm|3r1rk1/p1p1bppp/1p6/3P4/5P2/1Q1Bq3/PP4PP/R4R1K b - - 3 20|e7f6 d3h7 g8h7 b3e3|928|discovered attack
+1D1Hm|3k2r1/8/2bq4/pp1p2N1/2nP3P/PKPQ4/1P3P2/4R3 b - - 1 37|c6d7 g5f7 d8c7 f7d6|928|fork
+0gR3V|r1bq1r2/pp4k1/2pp2pp/2n1N3/2P1P3/1PQ3P1/P4PBP/R4RK1 b - - 0 17|d6e5 c3e5 f8f6 e5c5|928|fork
+5be6U|8/5p1k/6p1/2p3r1/2P4q/1P2PP1P/P5P1/2Q2RK1 w - - 1 28|g1h2 h4g3 h2g1 g3g2|928|mate in 2
+4bVwQ|8/1Bp1kp2/5b2/PP6/R7/5K1r/8/8 w - - 3 38|f3g4 h3h4 g4f3 h4a4|928|skewer
+0zxvI|r3r1k1/pp4p1/2p3Pp/3p1R2/3P4/3Q4/PPP3q1/1K3R2 b - - 7 29|e8f8 f5f8 a8f8 f1f8 g8f8 d3f5|928|attraction
+4quHC|r2q1rkQ/1b1p1p2/1p2p1p1/p3R3/6p1/8/PBP2P1P/6K1 b - - 1 23|g8h8 e5h5 h8g8 h5h8|928|double check,mate in 2
+37Qee|2r5/pp1k1p2/4p3/1q1p3p/P2P2p1/3NP3/1P1K1PPP/Q7 b - - 0 28|b5c4 d3e5 d7e8 e5c4|928|fork
+6RjIs|r1q2rk1/ppp2ppp/3p4/3Np3/2P1n2Q/7P/PP4P1/R4NK1 b - - 1 19|e4c5 d5e7 g8h8 e7c8|929|fork
+2Y6Dw|7k/1r4p1/1P5p/r1b1R3/2P5/4P1B1/5PPP/1R4K1 w - - 2 34|b1b5 a5a1 b5b1 a1b1|929|back-rank mate,mate in 2
+4iwRI|r1q1Q2k/p2R2pp/1p6/2bp4/P5Q1/5N2/5PPP/6K1 b - - 0 27|c8e8 g4g7|929|mate in 1
+4u1Ky|rbb2rk1/1p2qppp/p4n2/P1p1N3/2B2P2/1QP5/1P4PP/R1B1K2R w KQ - 2 18|c4f7 f8f7 b3f7 e7f7 e5f7 g8f7|929|pin
+4XqZn|8/1b3kpp/2p1pp2/pP1r4/2R2P2/P3B2P/4K1P1/8 b - - 0 27|c6b5 c4c7 f7g8 c7b7|929|fork
+2sraI|3q2k1/6pp/8/8/4n3/4QN2/P3bPPP/R2r2KR w - - 5 26|a1d1 d8d1 f3e1 d1e1|929|mate in 2
+0cAzK|2r3k1/5p2/p3p1p1/q3Nn1p/1p1P1Q2/1Pn3NP/P4PP1/R5K1 w - - 2 30|g3f5 c3e2 g1h2 e2f4|929|fork
+2W4s2|5rk1/pr3p2/1p2p1p1/4b2p/P2pN1q1/1Q4B1/1PP2P2/R3RK2 b - - 1 23|e5g3 e4f6 g8g7 f6g4|929|fork
+6EEYV|4N1k1/6pp/bp6/p2r4/1n3p2/2K2P1P/1P3P2/R5R1 w - - 2 33|e8g7 d5d3|929|hook mate,mate in 1
+1MQoi|8/1p4kp/p1b3p1/r2p2P1/3NpR2/8/5P1K/8 b - - 0 44|a5a3 d4e6 g7h8 f4f8|929|mate in 2
+4dC1o|3r2k1/p1R2ppp/1p6/5b2/1P6/4P1P1/4KPBP/8 b - - 0 25|d8d7 c7c8 d7d8 c8d8|929|back-rank mate,mate in 2
+3CjbO|r2q1rk1/p2p1ppp/1p6/2bb4/3nP3/2N3Q1/PPPB2PP/2KR3R w - - 0 15|c3d5 d4e2 c1b1 e2g3|930|fork
+3igRE|4r2k/1pp3p1/p1q4p/8/2P1n1r1/1P4P1/P3R2P/3Q1RK1 b - - 2 33|e4c3 e2e8 c6e8 d1g4|930|discovered attack
+5L3nb|r2r2k1/5ppp/p1Q1p3/8/2P1PP2/2bB4/q2N2PP/3RK2R b K - 2 24|d8d3 c6a8 d3d8 a8d8|930|back-rank mate,hanging piece,mate in 2
+315PC|2k5/p1r3p1/1p4Pp/3R4/b4P1P/P7/3N4/1K6 w - - 3 38|d2e4 a4c2 b1a1 c2e4|930|fork
+1Lh8u|r2qr2k/1p1b3p/p2P1Q2/3B4/8/2B5/PP4PP/R5K1 b - - 0 23|d8f6 c3f6|930|double bishop mate,mate in 1
+2tAtD|6rk/p3p2p/2R2p2/1p1B1P2/3P4/P6P/1r6/7K b - - 1 36|g8g3 c6c8 h8g7 c8g8 g7h6 g8g3|930|skewer
+3mRK4|3r2k1/4qppp/1np5/1p6/8/PPN3P1/1Q3P1P/R5K1 w - - 0 24|a1d1 d8d1 c3d1 e7e1 g1g2 e1d1|930|fork
+2Wouu|3r2kq/p6p/6p1/5p2/3b4/P4PB1/1PQ2P1P/R5K1 w - - 0 32|c2d3 d4f2 g3f2 d8d3|930|discovered attack
+4d60M|2r3k1/3q1ppp/pp2p3/4P3/1P3P2/P1n1BQP1/6KP/2R5 w - - 4 31|e3b6 d7d2 g2h3 d2c1|931|fork
+2bsJS|8/8/1p1B2n1/8/4KP2/Pkp5/8/8 w - - 0 55|f4f5 c3c2 f5g6 c2c1q|931|advanced pawn,from a master game,master versus master
+27Yv8|5r1k/6p1/2n1pqBR/p2p4/2pp4/P1P5/3Q2PP/6K1 b - - 0 30|g7h6 d2h6 h8g8 h6h7|931|mate in 2
+3b4Xl|r4bk1/pp1R2pp/2n1pB2/7N/8/6P1/PP3P1P/6K1 b - - 0 20|g7f6 h5f6 g8h8 d7h7|931|Arabian mate,mate in 2
+5R0eQ|rn2kb2/1bqp1p1Q/1p2p3/p3P1N1/2Pp4/Pn4P1/1P3PBP/3K3R b q - 1 22|b7g2 h7f7 e8d8 f7f8|931|attack on f2/f7,deflection,mate in 2
+6lLm6|r3k1nr/pbpp2p1/1p3pq1/1P5p/P1PN4/4P3/4BPPP/RN1Q1RK1 w kq - 1 18|e2d3 g6g2|931|kingside attack,mate in 1
+629jG|2R1r2k/p3N1pp/1p1pQr1b/6q1/PP2pp2/8/5PPP/3R1BK1 b - - 6 27|f6e6 c8e8|931|back-rank mate,hanging piece,mate in 1
+31Y2v|8/8/1p3k2/pB1K1Pp1/6P1/P7/8/3n4 w - - 5 44|b5a4 d1c3 d5d6 c3a4|931|fork
+1Cr3B|8/1p6/p7/6Pp/2Pn2k1/6n1/PP1Bp1NK/4R3 w - - 1 36|g5g6 d4f3|931|mate in 1
+10Wi9|6k1/5p1p/6p1/8/P3q3/8/3b1PPP/3Q2K1 w - - 0 31|d1d2 e4b1 d2c1 b1c1|931|back-rank mate,mate in 2,queen endgame
+0KNkh|6k1/pp6/2p3p1/3p3P/3b3Q/5r2/PP2q2P/R4R1K w - - 0 28|f1f3 e2f3|931|mate in 1
+21VLd|8/5p2/3p2p1/2p1k1n1/1pP5/3K2P1/1P3PB1/8 b - - 2 41|f7f5 f2f4 e5f6 f4g5|931|fork
+0YxTN|5r2/p2k4/4p1Bp/1pR1P3/3n4/1P6/P5PP/6K1 w - - 1 30|g6e4 d4e2 g1h1 f8f1|931|back-rank mate,mate in 2
+4dG22|8/1Q3ppp/5k2/2p2r2/P2n4/8/1P4PP/6K1 w - - 7 37|a4a5 d4e2 g1h1 f5f1|932|back-rank mate,mate in 2
+6s7kb|8/p3b3/2p5/2p1N1k1/2Pp4/1P1P3p/P4P2/6K1 b - - 2 43|g5f4 e5g6 f4f3 g6e7|932|fork
+0482Q|4r1k1/ppq2pp1/2p1r1b1/4N1Q1/1P6/P2P3P/2P2PP1/1R2R1K1 w - - 1 24|e5g6 e6e1 b1e1 e8e1|932|kingside attack,mate in 2
+4cOlR|r3k2r/pppn1p1p/2q5/3Nb1R1/5P2/8/PPP4P/R1BQK3 b Qkq - 0 14|e8c8 d5e7 c8b8 e7c6|932|fork
+02IbZ|2r2k2/p4pp1/4p2p/8/8/2P3P1/qP1Q1P1P/3R1K2 b - - 2 30|f8e7 d2d7 e7f6 d7c8|932|fork
+3N2eq|r1bq1rk1/p2nbppp/2pp4/1p2P1N1/7P/2NQ4/PPP2PP1/R1B1K2R b KQ - 0 15|d7e5 d3h7|932|kingside attack,mate in 1
+0dHYc|2r3k1/p6p/1p2N1p1/1Pn5/5r2/P4n2/BB6/1K5R b - - 0 28|c5e6 a2e6 g8f8 e6c8|932|fork
+5oDFb|8/1pnr2p1/5pk1/1R6/4R1K1/8/8/8 w - - 3 57|b5b7 f6f5 g4f3 f5e4|933|fork
+2ktpD|4q1k1/r5p1/5pNp/2bp1P2/P1p3P1/4P3/3Q1KP1/4R3 b - - 4 32|a7a4 d2d5 g8h7 d5c5|933|fork
+03Lzb|6k1/6p1/2N4p/Pp6/2b5/8/1r4PP/R5K1 b - - 0 30|c4d5 c6e7 g8f7 e7d5|933|fork
+2I6sD|1rbq2k1/1pNp2pp/p1p2b2/4p2Q/4P2P/2PP2P1/P4P2/1K1R3R b - - 0 19|d8c7 h5e8|933|mate in 1
+69GsW|4N3/7p/6pb/1p4k1/p3p3/6P1/3R2K1/4r3 b - - 1 40|e4e3 d2d5 g5g4 e8f6|933|mate in 2
+3CU5X|1rb2rk1/3n1ppp/p3q3/2p1pNN1/P2pP3/1P1P3P/5PP1/2RQR1K1 b - - 5 20|e6g6 f5e7 g8h8 e7g6|933|fork
+0FhJX|8/2p1k2b/7p/1p1PP1p1/p5P1/P2pK2P/BP6/8 w - - 0 36|a2b1 d3d2 e3d2 h7b1|933|advanced pawn,bishop endgame,discovered attack
+4u1H8|7k/5p1p/p1pN1qp1/1pP5/1P6/P2Q4/5PPP/6K1 w - - 0 27|d3d2 f6a1 d2c1 a1c1|934|back-rank mate,mate in 2
+1z0qh|1k6/ppp5/4BK2/1P3P2/2P5/P7/7p/5rbR w - - 1 40|f6g7 g1d4 g7h7 f1h1|934|discovered attack
+6Bny4|1br2r1k/p1q2pp1/1p2pN2/4n2Q/7R/3PBb2/PPP2PPP/R4BK1 b - - 2 19|f3h5 h4h5|934|kingside attack,mate in 1
+4Jm8R|r6r/p5kp/4Q1n1/4n3/8/8/PPP2PbP/3R1RK1 w - - 0 22|g1g2 g6f4 g2h1 f4e6|934|fork
+6V9Yz|r1q4r/p4k2/2p1p1n1/3pP3/3P4/1P4P1/P1PQ1PK1/R4R2 b - - 4 27|f7e7 d2g5 e7d7 g5g6|934|fork
+66DgB|5k2/1p1r1N2/p7/2p5/2P1r3/3P3P/PP1K2P1/5R2 b - - 0 30|d7f7 f1f7 f8f7 d3e4|934|rook endgame
+0nd1n|2R5/4r1pk/6qp/4p2n/3bPp2/1P1Q1P1P/P5P1/5R1K w - - 1 34|d3c4 h5g3 h1h2 g3f1|934|fork
+1mwn5|r4r2/pp2Rn1k/1bp2Q1p/8/8/2P4P/PP3PPK/RN1q4 b - - 4 25|a8c8 e7f7 f8f7 f6f7|934|
+008oX|4r1k1/2R3pp/2p4q/1p1p4/3P4/P7/1PP2R2/1K1N4 b - - 3 32|e8e1 c7c8 e1e8 c8e8|934|mate in 2
+0WioI|6r1/B3p2k/1p1p3p/1r1P4/P1n1Pp2/5P2/1bR2KP1/1R6 w - - 0 32|c2c4 b2d4 c4d4 b5b1|935|discovered attack
+615YK|5n2/1B4p1/1R5p/p1r4P/P2k1p2/8/5K2/8 b - - 2 38|f8d7 b6d6 d4c3 d6d7|935|fork
+3GxH8|8/k2n4/5p2/4pK2/1p2P3/1B3P2/7P/8 w - - 2 42|f5e6 d7c5 e6f6 c5b3|935|fork
+31AXg|4r1k1/pp4pp/3q3r/3p1QN1/8/1P3n2/P1R2PPP/2R3K1 w - - 0 25|f5f3 d6h2 g1f1 h2h1|935|mate in 2
+0Eu6Y|7k/pb6/7p/1PB2pp1/2Pp4/3Pr3/P5PP/1N3K2 b - - 3 34|a7a6 c5d4 h8g8 d4e3|935|fork
+5UmLE|r1b1k1nr/pp1p1ppp/2N1p3/q7/4P3/2b5/PPP1BPPP/R1BQK2R w KQkq - 0 8|c1d2 c3d2 d1d2 a5d2|935|
+1tEz8|6k1/2p4p/1p1p2p1/1N1Ppn2/2P5/1P4P1/r4PKP/3R4 w - - 3 29|b5c7 f5e3 g2f3 e3d1|935|pin
+5paiI|r2r4/1b3pkp/p3p1p1/qp6/3nB3/2P2N2/P2Q1PPP/R4RK1 w - - 0 19|e4b7 d4f3 b7f3 d8d2|935|discovered attack,kingside attack
+40NHU|7k/Q5p1/p1p4p/1p2P3/5n2/7P/q5P1/4R2K w - - 1 32|a7e3 a2g2|935|mate in 1
+1y2CE|8/8/8/4p3/4P1pk/8/5KP1/8 b - - 1 57|g4g3 f2f3 h4h5 f3g3 h5g5 g3f3|935|defensive move,pawn endgame
+2ndXz|6k1/2q2p1p/1b2p1p1/1pn5/2pB4/2P2B1P/1P3PP1/Q5K1 b - - 1 41|h7h6 a1a8 c7d8 a8d8 b6d8 d4c5|935|
+4n4e3|8/ppr3k1/3N2pp/2P1p3/1P1b1p2/P3nR1P/B7/7K b - - 1 31|b7b6 d6e8 g7f8 e8c7|935|fork
+25CBj|5r2/3Pk3/6pp/1pN5/1P4K1/8/P6P/8 b - - 4 43|e7d8 c5e6 d8d7 e6f8|936|fork
+1p9si|2r1k3/p4p2/4p3/7N/1P4r1/P7/2P2PPP/5RK1 b - - 0 23|c8c2 h5f6 e8e7 f6g4|936|fork
+16DP4|8/8/8/2K5/p7/P1k5/8/8 w - - 4 60|c5b5 c3b3 b5c5 b3a3 c5c4 a3b2|936|pawn endgame
+29qrp|2rqr1k1/Q2pbp1p/p7/1p2P1p1/2p5/2N2PnP/PPP2P2/R2R2K1 w - - 0 24|f2g3 e7c5 a7c5 c8c5|936|fork
+3t9pP|3r2k1/p1p2pp1/2q4p/2PN4/2p5/P2Q3P/5PP1/4R1K1 b - - 0 22|c4d3 d5e7 g8f8 e7c6|936|fork
+1ebd6|8/r4ppk/5q2/1Q6/3pp3/8/1R2B3/1K6 b - - 4 45|f6f2 b5h5 h7g8 b2b8|936|mate in 2
+5jqoB|rn4k1/1pp2ppp/pb2r2q/1P1Q3P/4p3/P2B1N2/1BPP1nP1/2KR3R b - - 1 18|e4d3 d5d8 e6e8 d8e8|937|kingside attack,mate in 2
+2qc9R|r1b2r1k/pp3ppp/2pp4/7q/4P1n1/3B1N1P/PP1P1PP1/R1BQ1R1K w - - 1 15|f3h2 g4f2 f1f2 h5d1|937|deflection,discovered attack,kingside attack
+5vQjP|1r1q4/1b4pk/p3prNp/1p1pNpnP/1P1P1Q2/4P3/P1P3P1/R4RK1 w - - 1 25|g2g4 g5h3 g1g2 h3f4|937|fork
+0RG8y|1k1r4/2p1q3/1n4p1/5p1p/7P/RQP1PR1N/1P1r2P1/6K1 w - - 0 28|h3g5 d2d1 b3d1 d8d1|937|
+1MJbW|r1b1r1k1/pp1q1pbp/1np1pBp1/4P3/3PNn2/P2Q1N1P/1P3PP1/RB2K2R w KQ - 9 19|d3e3 f4g2 e1e2 g2e3|937|fork
+2aMc9|5r2/8/3k4/8/6R1/PNn4B/6PP/6K1 w - - 8 40|a3a4 c3e2 g1h1 f8f1|937|back-rank mate,mate in 2
+2kXc1|6k1/2R5/6pp/5p2/5P2/r5P1/4RKPr/8 b - - 1 45|h2h1 e2e8|937|mate in 1,rook endgame
+5kxwm|5r2/p2kq1p1/Np1pn1P1/4p3/4P1Qb/8/PPP3PP/R1BK4 w - - 0 21|c1e3 f8f1 d1e2 f1a1|938|skewer
+0ynLH|8/1kpq4/1p1p1pn1/pP3Nr1/P3P1PQ/2P5/5PK1/R3R3 w - - 2 27|h4h3 g6f4 g2g3 f4h3|938|fork
+0f1Kv|2kr3r/pppb4/2n1p3/4q2p/4B2P/2N3pQ/PPP3P1/3KR2R b - - 5 21|c6b4 e4b7 c8b7 e1e5|938|discovered attack,queenside attack
+6LQ89|7r/2p3k1/p2p3p/4pR2/2P1P2R/2K2P2/P5P1/1r6 b - - 6 34|b1g1 h4g4 g7h7 f5f7|938|mate in 2,rook endgame
+4nZCm|8/6p1/6P1/5K2/7k/8/8/8 w - - 1 45|f5e6 h4g5 e6e5 g5g6|938|pawn endgame
+4E8zs|8/7p/1k1b2p1/1Ppr4/P7/1P5P/1B4K1/4R3 w - - 3 32|e1e3 d5d2 g2f1 d2b2|938|fork
+2vdtZ|8/8/2R5/P4p1p/7P/1k3KP1/1rp5/8 b - - 0 55|c2c1q c6c1|938|hanging piece
+3WUoQ|2r4k/4P1p1/3R1n1p/p2p4/2pP3P/P3Q1N1/6P1/1q4K1 w - - 1 37|g1h2 f6g4 h2h3 g4e3|939|fork
+35nyl|5r2/6R1/p1pp2n1/1p3Nk1/1P2Pn2/P2P4/2P3PP/5RK1 w - - 6 37|f5e7 f4e2 g1h1 f8f1|939|back-rank mate,deflection,discovered attack
+4Y4KQ|8/8/6pp/1k2p3/4Pp2/1NK1bP1P/6P1/8 w - - 1 47|b3a1 e3d4 c3d2 d4a1|939|skewer
+3MdgO|r5k1/1p3ppp/p1q3r1/P7/3b4/5P2/2PQ1P1P/R4R1K w - - 0 22|d2d4 c6f3|939|mate in 1
+4Zqa6|8/2R5/1k6/2p5/1pKp4/6B1/5P2/6r1 w - - 12 51|c7c5 g1c1 c4b4 c1c5|939|
+1XnJv|6nr/B1k2pbp/p1Prp1p1/8/8/1P3P2/P3NPPP/2R2RK1 w - - 1 20|a7b8 c7b8 c6c7 b8c8|939|hanging piece
+5BBmT|2r2b1k/1b3Qpp/8/pp6/3B4/6P1/PP3P1P/4R1K1 w - - 0 30|e1e8 c8c1 e8e1 c1e1|939|mate in 2
+53t4G|4b3/3Rb2p/4pk2/pp2p3/4Pp2/P1P2P2/6PP/1R4K1 w - - 6 31|d7a7 e7c5 g1f1 c5a7|939|fork
+6mWna|8/8/4R1K1/1p5p/7k/1r3r1P/6R1/8 b - - 1 55|f3h3 e6e4|939|mate in 1,rook endgame
+1f43a|r1b2Qk1/pp3ppp/2p2n2/5Pq1/2P5/1P5P/P5B1/3RR1K1 b - - 0 24|g8f8 d1d8 f6e8 e1e8|939|mate in 2
+5glMj|2rq2k1/pp4pp/3p4/4p1b1/3nPr2/8/PB1Q2PP/1B1R1RK1 w - - 0 21|b2d4 f4f1 d1f1 g5d2|939|discovered attack,kingside attack
+3m0rs|r1bqnrk1/pp2bppp/2p5/2n1P3/7P/2NB1N2/PP3PP1/R1BQK2R w KQ - 1 12|d3h7 g8h7 d1d8 e7d8|939|hanging piece
+6lspX|4r3/1kp3p1/p5Rp/1pp4n/4P3/2PKBP1P/P1P2P2/8 w - - 0 23|e3c5 h5f4 d3e3 f4g6|939|fork
+5kgmN|r7/2B3b1/2p3k1/p1Pp4/P2Pp1p1/1N2P3/n3K1P1/1R6 w - - 4 34|b3a5 a2c3 e2e1 c3b1|940|fork
+1taCv|8/8/1p1kp3/4r2p/5Q1P/6P1/P2K4/8 w - - 7 38|f4d4 e5d5 d2e3 d5d4 e3d4 e6e5|940|attraction,defensive move,pin
+1zutP|3q3r/2p2pk1/1p1n2p1/rPnPp1N1/p3P1P1/7P/PPBQ4/2K2R1R w - - 2 23|f1f7 d6f7 g5f7 g7f7|940|
+0xw3b|8/7p/2k1b3/2P1K3/5p2/8/2N4P/8 b - - 1 38|e6b3 c2d4 c6c7 d4b3|940|fork
+1INJv|r1b3nr/ppqnk3/2p1p1Qp/2Pp1pp1/3P4/P3P3/1P3PPP/RN2KBNR b KQ - 1 13|g8f6 g6g7 e7d8 g7h8|940|fork
+1eWG5|r3kb1r/1b1p1ppp/pq2p3/8/B1pnn3/2N1B1QN/PPP2PPP/R4RK1 w kq - 0 14|c3e4 d4e2 g1h1 e2g3|940|fork
+6X5Dn|r5k1/1bp2rpp/p3pn2/1p2P3/3q1P2/3B4/PP4PP/R2Q1R1K b - - 1 18|f6d5 d3h7 g8h7 d1d4|940|discovered attack,kingside attack
+1BBNM|8/7p/p2pk1p1/2p5/1pP1KPP1/1PbPB3/P7/8 b - - 2 35|h7h6 f4f5 g6f5 g4f5|940|bishop endgame
+65nLG|5r1k/R5p1/7p/1p6/3N4/1PP5/P5PP/2n3K1 w - - 1 31|d4b5 c1e2 g1h1 f8f1|940|back-rank mate,mate in 2
+2VUz9|8/4k1p1/4p3/3bP3/5KBP/2b5/8/4R3 w - - 4 37|e1c1 c3d2 f4g3 d2c1|940|fork
+48Oxk|1r4k1/5ppp/5r2/6q1/1N1pP3/1P2n2P/1PPRQ1P1/R6K b - - 0 33|b8b4 a1a8 b4b8 a8b8|940|back-rank mate,mate in 2
+6b0XM|5r2/6kp/2p2pp1/4p3/p1P1P1PP/qP2Q3/P4R2/6K1 b - - 0 31|f8b8 e3a7 b8b7 a7b7|940|fork
+6sujW|r1bq1rk1/pp3Bb1/1np4p/4Np1Q/3P1p2/2P5/PP3PPP/R3R1K1 b - - 0 17|g8h8 e5g6 h8h7 g6f8|940|fork
+1WDrv|2R1nk2/5ppp/1rb1p3/4N3/8/8/1P3PPP/6K1 b - - 5 29|c6d5 e5d7 f8e7 d7b6|941|fork
+3xiYq|4r3/2p1B1p1/p1k2p2/1p2n1p1/3P4/1PP4P/P4PP1/4R1K1 w - - 5 32|e7f6 e5f3 g2f3 e8e1|941|discovered attack
+0h1yy|8/p1p2pp1/2p1k2p/4P3/2P2K1P/1P1Nn3/P7/8 b - - 2 31|e3f5 d3c5 e6e7 f4f5|941|deflection,knight endgame
+4wtrE|r3r1k1/2RR1pp1/p4b1p/1p6/8/P1N2p1P/1PP2PP1/6K1 w - - 0 20|d7f7 e8e1 g1h2 f6e5|941|
+5kOcs|r1b1r1k1/pp4p1/4p1Pp/1nqp4/P7/1PP2Pb1/2K5/RNBQ1B1R b - - 0 20|b5d4 d1d4 c5d4 c3d4|941|
+3jP4P|r4k1r/2q2p2/p2b3p/3p1bp1/3Qp3/2PpB3/PP3PPP/R3R1K1 b - - 1 24|f5e6 d4h8 f8e7 h8a8|941|hanging piece,skewer
+1MZQx|3r3k/1pp2q1p/p2p4/4B1R1/8/7P/PPP2P2/2KR4 b - - 0 27|d6e5 d1d8 f7g8 g5g8|941|hanging piece,mate in 2,queen and rook endgame
+3fR3b|1r3bk1/2Q2p1p/3p2p1/3P2N1/p3P3/P6P/1p4PK/8 b - - 0 38|b2b1q c7f7 g8h8 f7h7|941|mate in 2
+0Bdhn|6k1/6p1/1p2p1Pp/3p4/q2P4/r1r5/P3QP2/R4RK1 b - - 1 24|a4c2 e2e6 g8h8 e6e8|942|mate in 2
+3VzWY|r7/6k1/p3prp1/1p3b1p/8/P4P1P/2nQ2P1/5BK1 b - - 0 30|a8c8 d2d7 f6f7 d7c8|942|fork
+6BCly|8/pp6/1bkq3p/2p3p1/2P1P1P1/P4Q1P/1P6/1K6 b - - 2 34|b6a5 e4e5 c6d7 e5d6|942|discovered attack
+1HBSH|5r1k/6pp/2p2p2/1P2p3/3qP3/Q6P/5PP1/R5K1 b - - 0 31|c6b5 a3f8|942|hanging piece,mate in 1
+3y4up|5R1k/1p2n3/4P3/1p4PK/1P2r3/P7/8/8 b - - 6 40|h8g7 f8f7 g7g8 f7e7|942|fork
+0M0ee|8/5kp1/5p1p/2N1p3/1pr5/6KP/6P1/4R3 w - - 2 39|c5b3 c4c3 g3f2 c3b3|942|fork
+3RmC2|r4k1r/pp2ppbp/5np1/1BP2b2/1P1QP3/q1N5/P1K2PPP/3R2NR b - - 0 14|f6e4 d4d8 a8d8 d1d8|942|back-rank mate,mate in 2,sacrifice
+2tgUc|3k2r1/pb6/1p4r1/2pp4/4pP1R/2B4K/PPP1B3/5R2 w - - 4 27|f4f5 g6g3 h3h2 g3g2|942|
+23zJW|5r1k/2p5/3p4/4pN1p/5nP1/2P1Q2P/q4PB1/5RK1 w - - 0 34|e3g3 f4e2 g1h2 e2g3|942|fork
+5Fppw|rn2k1nr/p2b1ppp/4p3/3P4/2N1q3/1KP2N2/PP3bPP/R1BQ3R b kq - 0 12|e6d5 c4d6 e8e7 d6e4|943|fork
+5tESw|6k1/pBr2ppp/1p6/3Q3b/5P2/5PK1/PP2q2P/8 b - - 5 33|e2e6 d5d8 e6e8 d8e8|943|fork,mate in 2
+1Wumy|2R1nrk1/5p1p/3P2p1/q3b3/2Q1N3/6B1/6PP/4N2K w - - 1 32|g3e5 a5e1 c4f1 e1f1|943|hanging piece,mate in 2
+5ech9|r6k/ppp2p1p/3q1pr1/4p2R/7Q/4B3/PPP3PP/7K b - - 2 28|h8g8 h5h7 d6d1 e3g1|943|
+1Vhku|4Q3/6bk/8/5P1K/5BP1/8/8/7q w - - 9 67|h5g5 h1h6|943|mate in 1
+1rBn4|8/1R3pkp/5bp1/8/7P/6P1/r1K2P2/5R2 w - - 9 68|c2b3 a2b2 b3c4 b2b7|943|skewer
+5nvoo|3r1rk1/pp2bpp1/3q4/2pppPn1/6P1/P1PP2QP/BP1B4/R4RK1 w - - 8 21|g3h4 g5f3 f1f3 e7h4|943|discovered attack,kingside attack
+3Gcn0|3r2k1/p4p2/1p2p1p1/6P1/4Q2P/6n1/PPP5/2K5 w - - 1 25|e4b7 g3e2 c1b1 d8d1|943|back-rank mate,mate in 2
+2InYC|8/1R6/3kpr2/3p4/PP1P2p1/2P3P1/3b2P1/3R2K1 w - - 5 33|a4a5 d2e3 g1h2 f6h6|943|mate in 2
+0fdB2|1r3rk1/5p1p/p2pq1pQ/1p6/2n1p1N1/2P2R1P/P1P2PP1/4R1K1 b - - 1 28|c4e5 g4f6 e6f6 f3f6|943|kingside attack
+6FhPW|8/p1p3p1/1p3kB1/5P2/4K1Pp/1P5P/Pb6/8 b - - 3 42|b2e5 g4g5 f6g5 e4e5|943|bishop endgame,deflection
+24h65|8/3r1p1k/7p/1p5q/1P3P2/6P1/2Q2RK1/8 b - - 1 39|h7g8 c2c8 d7d8 c8d8|944|fork
+2hDHq|3r2k1/5pbp/3q4/pPn3N1/2R5/2Q4N/P4PPP/1R4K1 w - - 5 28|c3g3 d6d1 b1d1 d8d1|944|back-rank mate,mate in 2,sacrifice
+1LnM9|r1b3rk/p4p2/2pb4/3pNp1p/8/3B2PP/PPP2P1K/4RR2 b - - 1 21|h5h4 e5f7 h8g7 f7d6|944|fork
+1Rv2N|2r1r1k1/1p3pp1/2n4p/p7/P1NP3q/2P2Q1P/1P4P1/1R2R2K w - - 5 27|c4d6 e8e1 b1e1 h4e1|944|kingside attack
+57zJv|1R6/4P3/3K2p1/Pb6/6kp/8/8/4r3 b - - 3 53|b5a4 b8b4 g4f5 b4a4|944|fork
+44Xjn|3q1rk1/1p1b1pp1/1b1p3p/1Pp1p3/2P1Pn2/2QPNN1P/1B3PP1/R5K1 w - - 9 24|b2c1 f4e2 g1f1 e2c3|944|fork
+4W5XG|1r4q1/2p1k3/3pp3/pp2n3/3Q2p1/P2P1P2/1P1N3P/R4RK1 w - - 0 27|f3f4 e5f3 g1h1 f3d4|944|fork
+3lSvL|2rqk1r1/3p1p2/p2Pp3/1p2Q3/1Pb5/P5R1/5PPP/R5K1 b - - 6 28|g8g3 e5h8 g3g8 h8g8|944|mate in 2
+46Dx9|r4rk1/p1p2ppp/3p4/8/4QB2/2NB4/PPP2KP1/R6q b - - 0 19|h1a1 e4h7|944|mate in 1
+4nbPM|r4rk1/5ppp/p2p4/1p2p3/4P2q/2P5/PP4PP/R2QKB1R w KQ - 1 18|g2g3 h4e4 d1e2 e4h1|944|fork
+5icOP|r4rk1/pp3p1p/5p2/3n1B2/3P4/4P3/P4PqP/R2QKR2 w Q - 1 20|e1e2 d5c3 e2d3 c3d1|944|fork
+5nlzB|2rr4/1p3pkp/1q4p1/p3pPP1/Q1P5/2N4P/PP5R/2KR1n2 w - - 0 22|d1f1 b6e3|945|
+0gnk0|5r1k/6pp/7q/R3p3/2P5/3P3P/5QP1/4R1K1 b - - 0 28|f8f2 a5a8 f2f8 a8f8|945|back-rank mate,from a master game,mate in 2
+0SREi|r1b1k2r/ppp1bp1p/5p2/3Np3/8/8/PPP2PPP/2KR1B1R b - - 1 12|c7c6 d5c7 e8f8 c7a8|945|fork
+0ypID|5rk1/p2q1ppp/1rpp4/4P3/3Q1N2/6PP/PnP2PK1/R3R3 b - - 0 21|d6e5 d4d7|945|hanging piece
+2NUSj|3r4/3r4/6k1/6pp/2Rn4/6NP/PPP5/2K2R2 w - - 0 31|g3e4 d4e2 c1b1 d7d1 f1d1 d8d1|945|back-rank mate,mate in 3
+36JPC|8/3kP3/3n1K2/8/1p4P1/8/P5P1/8 b - - 2 62|d6e8 f6f7 e8d6 f7f8|945|defensive move,knight endgame
+2Nv6H|r2qk2r/pp1n1ppp/5n2/3p4/1b1P4/2N1PN2/1B2QPPP/R3K2R b KQkq - 1 12|d7b6 e2b5 e8f8 b5b4|945|fork
+5yoDo|2r2rk1/pp1b3p/2n4b/4pp2/2P1N3/2P2NP1/P5BP/1R3RK1 w - - 0 23|e4c5 h6e3 g1h1 e3c5|945|fork
+3anNh|6k1/p4p1p/6p1/Np6/P2n3P/1P6/3r1PP1/2R3K1 w - - 1 28|a4b5 d4e2 g1f1 e2c1|945|fork
+4XAqA|3r4/4p1k1/R7/6Pp/8/1pPBpP2/1P4P1/1K6 w - - 0 37|a6g6 g7f7 g6b6 d8d3|945|defensive move
+6ULLX|8/7p/R1p2pp1/1pkn4/3N1PP1/2p1P2P/3K4/8 w - - 0 41|d2d3 d5b4 d3c3 b4a6|945|fork
+14B8x|2r1qrk1/pb4pp/1p2pn2/2p1Np2/2Pn1P2/P1QP2P1/1B2P1BP/R4RK1 w - - 1 16|g2b7 d4e2 g1g2 e2c3|945|fork
+4aI3S|r6k/p1p3pp/bp6/4Q3/6q1/2P5/PP1N1PPP/R1B3K1 w - - 1 19|d2e4 g4d1|945|back-rank mate,mate in 1
+3Q8ZF|r5k1/p1p3p1/1p3r1p/4P2Q/8/2q5/P1P3PP/1R3R1K b - - 0 22|f6e6 h5f7 g8h7 f7e6|945|fork
+2lmyA|8/1pp2R2/1bkp3p/8/1P4r1/2K3P1/2PN3P/8 w - - 1 33|f7f6 b6d4 c3d3 d4f6|945|fork
+1MBY1|2r3k1/5pp1/3q3p/1pPp4/8/3Q1P1P/6P1/R6K b - - 0 33|c8c5 a1a8 d6f8 a8f8|945|
+1AZRp|2q3r1/8/3Q2pk/p1pNp2p/Pp1nP2P/1P1P2P1/2P4K/1R6 w - - 1 38|d6e5 d4f3 h2g2 f3e5|945|fork
+46L6p|8/R3pk2/1K4p1/4B3/1P1PbP2/8/8/2r5 w - - 14 44|e5d6 c1c6 b6b5 c6d6|945|fork
+6IyVF|7r/p1p1kppp/3b2q1/1Q2p3/2N5/7b/PP1P1PPP/R1B2RK1 w - - 10 16|c4e5 g6g2|945|kingside attack,mate in 1
+5vTj8|5rk1/5p1p/p3p1p1/4q3/4N3/5QP1/r4PK1/7R b - - 1 30|a2a4 e4f6 e5f6 f3f6|945|
+5HUij|8/8/5kpp/R4p2/5K1P/p3PP2/6P1/r7 w - - 0 39|g2g3 g6g5 h4g5 h6g5|946|mate in 2,rook endgame
+0LUGJ|2r2rk1/7p/p2pq1pQ/4p1pR/4p3/4N3/PP3PK1/7R b - - 0 29|e6f7 h6h7 f7h7 h5h7|946|
+52qK7|r3r1k1/5p1p/6pP/8/3p2P1/1P1P4/2KR4/7R w - - 0 37|b3b4 a8a2 c2b3 a2d2|946|deflection,rook endgame,skewer
+1oxT2|5k2/3p3Q/1q1N1p2/3Rp1p1/2P4p/5P1P/P5P1/1r5K w - - 1 44|h1h2 b6g1|946|mate in 1
+3GAWo|5nk1/3p1ppp/8/4P3/1p2qP2/pP1B2P1/P6P/1K1Q4 b - - 0 36|e4d4 d3h7 g8h7 d1d4|946|discovered attack
+1dRSF|8/2Nk2b1/3P2pp/4p3/P5PP/8/6K1/8 b - - 0 39|d7d6 c7e8 d6d7 e8g7|946|fork
+0nyVZ|r2q1rk1/pb2pp1p/1pp2bp1/8/2PPBn2/PP3N2/1B3PPP/R2Q1RK1 w - - 2 15|d1c1 f4e2 g1h1 e2c1|946|fork
+5iNGL|2Q5/5p1p/1p4p1/1P1p1r2/3P3P/6qk/8/4RRK1 w - - 0 40|g1h1 g3g2|946|mate in 1
+3lCys|5q1k/pp4p1/1bp4p/8/4r3/2Q5/PP3PPP/4R1K1 w - - 0 23|e1e4 f8f2 g1h1 f2f1|946|mate in 2
+5OsLq|5r1k/6pp/1q1n4/Rp6/8/1QP5/5PPP/R5K1 w - - 4 29|a5a6 b6f2 g1h1 f2f1 a1f1 f8f1|946|back-rank mate,mate in 3,sacrifice
+5GrQ0|4r3/ppp3pp/2k5/3p4/P5b1/2PB4/1P4PP/2K4R b - - 0 22|g7g6 d3b5 c6d6 b5e8|946|skewer
+3JwrP|4r1k1/5ppp/3N4/8/2qbP1P1/B4Q1P/5P2/6K1 b - - 0 29|c4a4 f3f7|946|
+6md11|rr6/2R5/p4kpp/1p2p3/PP4PP/5P2/8/3R2K1 b - - 0 29|b5a4 d1d6|946|mate in 1,rook endgame
+20g1W|r4rk1/pp2ppbp/2p3p1/q1PPn3/4P3/2N5/PP2B1PP/R2Q1RK1 w - - 1 16|d1d4 e5f3 e2f3 g7d4|946|discovered attack,kingside attack
+3anoD|r7/pp3kpp/2p2q2/2Q2b2/8/2N5/PPP3PP/1K2R3 w - - 2 27|e1f1 f5c2 b1c2 f6f1|946|discovered attack
+0ByiV|6k1/6b1/Q5Rp/2p1p3/P5N1/6PP/6PK/4qr2 w - - 3 35|g4h6 g8h7 g6g7 h7g7|946|defensive move
+5E3iW|1r4k1/1r3pbp/2q1p1p1/p1B3P1/3PpNQP/P3P3/4bP2/1R2R1K1 w - - 2 29|f4e2 b7b1 e1b1 b8b1|946|
+2eg7x|1r3k2/8/R3b3/P3n1P1/4N3/3p1PK1/6P1/8 b - - 1 45|e6f5 a6f6 f8e7 f6f5|946|fork
+288HY|r3kb1r/1bp2p1p/p4n2/1p1qn1p1/1P1NP3/P2B4/5PPP/RNBQ1RK1 b kq - 0 13|d5d4 d3b5 a6b5 d1d4|946|discovered attack
+0Napn|r4r1k/1p1q1p1p/p2p1PpN/4p1Pn/4Pn1P/PPb1B3/2PQ4/2KR3R w - - 0 23|d2c3 f4e2 c1d2 e2c3|946|fork
+41qvx|8/8/1P6/8/P3p3/5k1P/1P3p2/5K2 w - - 1 58|b6b7 e4e3 b2b3 e3e2|947|advanced pawn,mate in 2,pawn endgame
+3fFvS|8/1P3K2/3R4/8/8/4r3/3p4/4k3 b - - 0 65|d2d1q d6d1 e1d1 b7b8q|947|advanced pawn,promotion
+59PM3|8/8/8/5p2/5P1p/4BKrP/R5Pk/8 w - - 4 54|f3f2 g3g2 f2f3 g2a2|947|skewer
+1rNnI|r3k2r/1ppqbpp1/p2p3p/4P3/5n2/2N1Q2P/PPP2PP1/2KR3R w kq - 0 16|e3f4 e7g5 f4g5 h6g5|947|pin
+1mO00|4k3/5p2/5Qp1/4Bn2/2q3K1/5P2/P6P/8 w - - 5 43|g4g5 c4h4|947|from a master game,master versus master,mate in 1
+5CjFA|2r2r1k/2p3pp/p7/3p1qB1/4R3/8/PP3PPP/RN1Q2K1 w - - 1 18|e4g4 f5f2 g1h1 f2f1 d1f1 f8f1|947|back-rank mate,mate in 3
+3Cjyt|r2r2k1/pp3ppp/4q3/8/2pQ4/8/P4PPP/2R1R1K1 w - - 0 23|d4d8 a8d8 e1e6 f7e6|947|
+5jJg8|6r1/R7/1p2k2p/4n3/2P5/2P4P/P7/5BK1 w - - 1 35|g1h2 e5f3 h2h1 g8g1|947|Arabian mate,mate in 2
+1c51m|5rk1/1p2p1bp/p3p1p1/2p3B1/P3N1n1/3P1Q2/1qP3PP/2R4K w - - 2 19|f3g4 b2c1 g5c1 f8f1|947|back-rank mate,mate in 2,sacrifice
+2UVMu|1r1r2k1/p4ppp/8/P2Q4/1RnPp1Pq/4P3/1P2BP2/2B1K1R1 b - - 0 23|d8d5 b4b8 d5d8 b8d8 h4d8 e2c4|947|hanging piece
+5Bee4|6k1/5pp1/p2P4/1bB5/7P/P3KNP1/6P1/b4r2 b - - 6 31|g8f8 d6d7 f8g8 d7d8q|947|advanced pawn,discovered attack,promotion
+4J2Nj|rn1qkb1r/ppp2ppp/1n2p3/8/3PP3/4BB1P/PP3PP1/RN1QK2R b KQkq - 0 9|b6c4 d1a4 c7c6 a4c4|947|fork
+5aa9w|r1bq4/1p1nb1kp/p3p1pR/3pP1P1/3B1r2/2NB4/PPPQ4/2KR4 w - - 0 20|d2f4 e7g5 d4e3 g5f4|947|fork,pin
+46Cwh|8/1p6/p4Pb1/2p1pkP1/6N1/P7/1P3KP1/8 w - - 3 37|f2e3 f5g4 f6f7 g6f7|947|hanging piece
+6V8NO|1r2r1kb/pbQ2p1p/6p1/6B1/4p3/1B2R3/P4PPP/q1R3K1 b - - 4 29|a1c1 c7c1|947|hanging piece
+0EZaL|rn1q1r2/1p1b2nk/p2p2p1/3NppQ1/2P4P/6P1/PP3PB1/3RR1K1 b - - 0 23|f8e8 d5f6 d8f6 g5f6|947|fork
+0CeSr|4BR2/6pk/7p/2P2P2/1p2K3/r4P1P/p7/8 b - - 0 45|a2a1q e8g6|948|mate in 1
+3ZZcx|r3kbnr/ppp2ppp/3p1q2/4p3/2BnP3/6QP/PPPP1PP1/RNB2RK1 w kq - 3 8|c4b3 d4e2 g1h1 e2g3|948|fork
+4hXy6|7r/p1pkq1b1/4bp2/3p2p1/3B4/1BP5/PP1NQ1K1/5R2 w - - 2 30|g2f2 h8h2 f2e1 h2e2|948|skewer
+327qi|r5k1/pp4p1/3B2pp/8/3n2P1/1P1P3P/1P3P2/2R3K1 w - - 2 26|d6c5 d4e2 g1f1 e2c1|948|fork
+2kHfc|4QN2/4Rrk1/p4r1p/1p1p3q/6np/2P3P1/PP3P2/5RK1 w - - 0 31|f8e6 f6e6 e7f7 h5f7 e8f7 g7f7|948|
+1dNQO|8/p7/p4n2/8/2P2k2/3K1pp1/8/5N1B w - - 0 44|h1f3 f4f3 f1g3 f3g3|948|hanging piece
+1wBCs|r2q1r1k/1p2n1pp/p7/8/3pQ3/3B4/PP3PPP/R4RK1 b - - 0 18|e7c6 e4h7|948|kingside attack,mate in 1
+37Gib|8/1k3p2/1p6/2p5/P1Pp2P1/5P1P/2P4r/2R2K2 w - - 1 32|h3h4 h2h1 f1e2 h1c1|948|rook endgame,skewer
+3a9ne|5rk1/p1p1q3/1p2b1pQ/4Pp2/7P/8/PPB3PK/4R3 w - f6 0 35|h4h5 e7h4 h2g1 h4e1|948|fork
+5ylyQ|r3b1k1/pp4pp/2N1p3/3pq3/8/1P3Q2/PB4PP/2R4K b - - 0 21|e5b2 c6e7 g8h8 f3f8|948|mate in 2
+3QsNM|r3q1rk/1pp3p1/p2pnp1p/8/4P1RN/2PP3P/PP3QP1/R5K1 b - - 6 21|e6c5 h4g6 e8g6 g4g6|948|kingside attack
+3Ds6S|3R4/5p1k/5P1p/8/1P2K3/7P/1r6/8 w - - 2 41|e4d4 b2d2 d4c5 d2d8|949|rook endgame,skewer
+6bBAm|1k6/3r3p/p2N2p1/1pp1prB1/7P/8/PP1R2K1/8 b - - 2 38|h7h6 d6f5 d7d2 g5d2|949|
+0kUpJ|5rk1/5ppp/1Q1Np3/3p2q1/3P4/4P3/PP2b1PP/2R3K1 w - - 1 23|a2a4 g5e3 g1h1 e3c1|949|back-rank mate,fork,mate in 2
+5c8eo|Q7/p3pkb1/1p5p/n3pP2/8/2Pp2P1/1P1N2P1/q1K2R1R w - - 3 27|d2b1 a5b3 c1d1 a1b1|949|deflection,mate in 2,queenside attack
+5qire|r4b1r/2k1n1p1/2p1B2p/p3p3/8/3P1Q2/PPn2PPP/R3K2R w KQ - 0 19|e1e2 c2d4 e2f1 d4f3|949|fork
+1yvIx|2kr3r/ppp2p1p/2n5/4pp2/3bN3/3P1PPP/PPP5/2KR1B1R w - - 0 15|e4g5 d4e3 c1b1 e3g5|949|fork
+73nMA|8/pb4pr/4k2p/1p2P3/1Pr1P2q/P1p2R1P/6P1/R2Q2K1 b - - 3 36|h4e4 d1d6|949|mate in 1
+4J95e|r2q1rk1/p1p2pp1/3b3p/3p2n1/3Q4/3P1PNP/PPP2P2/R1B2RK1 w - - 7 17|g3f5 g5f3 g1g2 f3d4|949|fork
+3HQbZ|2k2r1r/pppqn1b1/3p3p/1P2p1p1/P3Pn2/2PPQ3/3N1BPP/RN3RK1 b - - 4 19|c8b8 e3a7 b8c8 a7a8|949|mate in 2,queenside attack
+6tmjR|r3qbk1/1p5p/4p1p1/p3P3/P1bNN3/3nP2P/1PQ3P1/3R2K1 b - - 1 23|d3e5 e4f6 g8h8 f6e8|949|fork
+2X4rk|3r2k1/2q2ppp/pB6/1p3Q2/8/2P5/PP4Pb/5R1K b - - 1 22|c7b6 f5f7 g8h8 f7f8 d8f8 f1f8|949|back-rank mate,mate in 3,sacrifice
+2DN4S|1qb2rk1/5p1p/2p3pb/1pP1p3/4Pn2/rB3N1P/P1Q2PPB/1R3RK1 w - - 9 24|c2c3 f4e2 g1h1 e2c3|949|fork
+22mv7|6k1/3R4/6Kp/6p1/8/4P2r/8/8 b - - 3 39|h3e3 d7d8 e3e8 d8e8|950|mate in 2,rook endgame
+0qZUw|8/1r2k1pp/1PR2p2/8/6P1/7P/6K1/8 w - - 1 48|c6c7 b7c7 b6c7 e7d7|950|rook endgame
+0oE07|4r3/1R2br2/pR3pk1/3Np1pp/P1p1P3/8/1PP3PP/6K1 w - - 0 31|b6a6 e7c5 g1f1 f7b7|950|discovered attack
+2e02j|8/p4p1p/6p1/3k4/4R3/4K3/PP3PPP/2r5 w - - 1 28|e4e7 c1e1 e3d3 e1e7|950|rook endgame,skewer
+6o87a|r3kb1r/p1q1npp1/2pp3p/3Pp3/B7/5P1P/PPP2P2/R1BQK2R w KQkq - 1 16|d1d3 c7a5 c2c3 a5a4|950|fork
+1fhZB|4r1k1/5pp1/p4b1p/1pB5/1P2Bn2/P7/5PPP/4R1K1 b - - 0 29|f6c3 e4h7 g8h7 e1e8|950|discovered attack
+2eNrB|4r1k1/ppqnr1pp/2p2p2/3pP3/3Q1P2/2N4P/PPP1R1P1/R5K1 w - - 0 19|e5f6 e7e2 c3e2 e8e2|950|
+6cdKF|r4rk1/pp1q1pp1/7p/2pN1P2/2P2P2/6R1/PP4PP/5RK1 b - - 2 20|d7f5 d5e7 g8h7 e7f5|950|fork
+4Kboi|r3r3/2k5/p2p4/1p1Q4/2P3B1/N3qPbP/PP4P1/R6K w - - 1 29|c4b5 e3e1 a1e1 e8e1|950|mate in 2,sacrifice
+5AMOk|2r3k1/q4p1p/2N2Qp1/1pPp4/1Pb5/p3P3/5PPP/4R2K b - - 0 29|a7c7 c6e7 c7e7 f6e7|950|fork
+74U51|2kr1b1r/2pq1pp1/p1n2n1p/3P4/2P3b1/2N1BN2/PP3PPP/R2Q1RK1 b - - 3 12|c6e5 f3e5 g4d1 e5d7|950|hanging piece
+1yTBM|1r4k1/3P4/7p/4PppK/Q7/6Pq/R2B3P/8 w - - 2 42|h5g6 b8b6 a4c6 b6c6 e5e6 c6e6|950|mate in 3
+0416t|7k/1Q4bp/6p1/8/8/8/5RPP/q5K1 w - - 1 27|f2f1 g7d4 g1h1 a1f1|950|deflection,mate in 2
+0ZBda|r5rk/2qR3p/pp2p3/2p2p2/P3b3/2P4P/1P2Q1PN/3R2K1 b - - 1 25|c7h2 g1h2 g8g2 e2g2|950|hanging piece
+0zRST|8/p2k1Np1/3Pp2p/p2n4/3P1B2/1r4P1/6KP/5R2 w - - 6 33|f4e5 d5e3 g2g1 e3f1|950|fork
+2QkGv|r5k1/2R2bpp/p1N5/1p6/8/7P/1P1K1PP1/8 b - - 0 33|f7d5 c6e7 g8f8 e7d5|951|fork
+1oF3A|r4rk1/ppp1qpnp/4b1p1/8/4N3/3B3P/PPPQ2P1/R4RK1 b - - 7 17|a8d8 e4f6 e7f6 f1f6|951|kingside attack
+4KvHx|r1bqr1k1/1p3pp1/2p2n1p/1p1nN3/1P1P1B2/P2QP3/2B2PPP/R4RK1 w - - 10 19|e3e4 d5f4|951|hanging piece
+0gyZB|r4rk1/2pqnppp/1p6/pPbp4/P1P1P1b1/3P1BP1/1B1N1P2/1R1QR1K1 b - - 2 19|c5b4 f3g4|951|
+2nxBF|5k2/p4P1R/3r2p1/7n/3b4/7P/5PK1/3R4 b - - 6 42|d6d8 h7h8 d4h8 d1d8 f8f7 d8h8|951|exposed king,skewer
+4qsHJ|r2q1rk1/pp4pp/4pb2/2Pp1p2/1P1nB3/P7/1B3PPP/RN1Q1RK1 b - - 0 15|f5e4 b2d4|951|
+2EyXE|4r1k1/pppq1p1p/6pQ/8/2B5/P6P/1Pn2PP1/2R3K1 w - - 2 23|c1c2 d7d1 g1h2 d1c2|951|fork
+4cXMJ|8/R6p/2pN1kp1/2Pn4/8/3r4/PP3P1P/6K1 w - - 1 34|g1g2 d5f4 g2f1 d3d1|951|from a master game,mate in 2
+3c3S8|2r1r1k1/pp1q1ppp/8/3QR3/8/2P5/PP3PPP/4R1K1 b - - 0 20|d7d5 e5e8 c8e8 e1e8|951|back-rank mate,mate in 2,queen and rook endgame
+449OG|5r1k/2q3pp/p7/1p1R4/8/P6P/1P3QP1/3R2K1 b - - 0 31|f8f2 d5d8 c7d8 d1d8 f2f8 d8f8|951|back-rank mate,mate in 3,queen and rook endgame
+1vEUF|6k1/pp4pp/3p4/3Np3/4P1nP/4r3/P2K4/n4R2 b - - 3 23|e3a3 d5e7 g8h8 f1f8|951|back-rank mate,mate in 2
+5GtQx|3r2k1/p3qp1p/1p2b1p1/3P4/8/P5P1/4QPBP/3R2K1 b - - 1 22|e7a3 d5e6 d8d1 e2d1|951|
+2En8q|2Q5/pp4pk/7p/5P2/3R4/4q3/P4nPP/5R1K w - - 1 31|f1f2 e3e1 f2f1 e1f1|952|fork,mate in 2
+2M0oF|8/1pR2pk1/p4pp1/7p/2Q2K1P/5PP1/8/1r5q b - - 5 45|h1h3 c4f7 g7h6 f7g7|952|mate in 2
+0QTzX|2r4k/p4ppp/1p3p2/3P4/4n3/8/PP3PPP/3K1B1R w - - 0 20|f1d3 e4f2 d1e2 f2h1|952|fork
+2wVlA|5r1k/4NNpp/rp2pn2/3p4/3P4/4P3/Pq3PPP/2R2RK1 b - - 0 20|f8f7 c1c8 f6e8 c8e8 f7f8 e8f8|952|back-rank mate,mate in 3
+1Oup8|r4rk1/p2n1ppp/bqp1p3/4P1N1/2P5/3Qb3/P2N2PP/R1B2K1R b - - 2 16|d7e5 d3h7|952|kingside attack,mate in 1
+3H0EX|r7/1p3pkp/p4p2/2pN4/3n2P1/P6P/1PP2P2/4R1K1 w - - 1 25|e1c1 d4e2 g1f1 e2c1|952|fork
+27MGX|6k1/pp5p/5b1p/8/4P3/8/PPr1n2p/3R1R1K w - - 0 24|f1f6 e2g3|952|mate in 1
+07rnG|r2qkb1r/pppbn1pp/2np1B2/3N4/2BPP3/5N2/PPP3PP/R2Q1K1R b kq - 0 11|g7f6 d5f6|953|mate in 1
+5tcmZ|4r2k/R7/5N1p/p7/5p2/1P5P/P4PPK/2r5 b - - 5 44|e8f8 a7h7|953|Arabian mate,mate in 1
+4AbKC|2r3r1/1ppk1pR1/p2p4/2bPB1K1/2P1P3/P7/1P5P/5R2 b - - 0 38|d6e5 f1f7 c5e7 f7e7|953|
+1Co28|r1q3rk/ppp2p1p/3p1p2/4n3/4P3/1P4QP/P1P2PP1/2BR1RK1 w - - 4 19|g3h4 e5f3 g1h1 f3h4|953|kingside attack,pin
+14FPd|1r6/5p2/8/3k1p2/2p1p2P/2B1P1P1/1K2BP2/8 w - - 7 47|b2a3 b8b3 a3a2 b3c3|953|fork
+3W1Fv|2kq3r/1p3p1r/p2p1P2/2pNp3/P3P3/1P1P1BPb/4QP1p/R6K b - - 0 26|d8d7 d5b6 c8b8 b6d7|953|fork
+5Rr9A|2r3k1/5pp1/Pp1p3p/3b1N2/6P1/3B3P/3K4/8 b - - 1 37|c8d8 f5e7 g8f8 e7d5|953|fork
+2U3Pf|2q2r1k/3nR2p/p5pN/1p1p1Q2/3P4/8/PP3PPP/6K1 w - - 11 34|f5d7 c8c1 e7e1 c1e1|953|fork,mate in 2
+4tOVR|8/pppR1pkp/6p1/8/8/4p3/PPP1Kr1P/4R3 w - - 2 28|e2d3 f2d2 d3e3 d2d7|953|rook endgame,skewer
+4fxan|2kr1b1r/pp3ppp/3p1n2/8/1nP2B2/2N2P1P/PP3PP1/R3KB1R w KQ - 3 11|a2a3 b4c2 e1d1 c2a1|953|fork
+0kpz0|r1b2rk1/pp3ppp/3q4/3p4/1b1N2n1/1B1PB3/PP3PPP/R2Q1RK1 w - - 4 16|h2h3 d6h2|953|mate in 1
+1akAF|6k1/5p1p/3R2p1/1p3PP1/1Pb4P/2P5/7r/3K4 b - - 0 35|h2h4 d6d8 g8g7 f5f6|953|mate in 2
+26SGW|8/6p1/2nkp3/p1p3P1/2P1K3/2N5/8/8 b - - 9 55|c6e5 c3b5 d6e7 e4e5|953|deflection,knight endgame
+3CzX9|r5k1/5pp1/p3rn2/1pP3R1/1P1B4/P6P/8/R5K1 w - - 1 28|g1f2 f6e4 f2g2 e4g5|953|fork
+1rTzv|5r1r/1pk2Rp1/p3B3/2pPb2p/P5bq/2N5/2PQ2PP/5RK1 b - - 1 24|c7b8 f7f8 h8f8 f1f8|953|
+5qMQu|6k1/pp3p2/5q1p/2b3p1/6rn/P2Q2P1/1PP2P1K/3R1R2 b - - 7 28|c5f2 d3d8 f6d8 d1d8|954|
+6mcxo|R3bk2/5pp1/4p2p/3n4/2q5/1p3QPP/7K/R7 w - - 0 43|a1b1 c4c2 f3g2 c2b1|954|fork
+1gOdJ|r7/pppkq2p/2n1p3/3p2rQ/3P4/2NPP3/PP3PPP/1R3RK1 w - - 4 16|h5h4 g5g2 g1g2 e7h4|954|discovered attack,kingside attack
+1iJ7V|5r1k/1b4pp/4Q3/2p1B3/4qP2/2Pp4/P4RPP/7K w - - 5 37|h2h3 e4e1 h1h2 e1f2|954|fork
+4K7ss|4k3/7R/1pr2p1p/p1p1p1p1/P1P1K1P1/1P3P2/7P/8 w - - 9 33|h7h6 f6f5 e4f5 c6h6|954|discovered attack,rook endgame
+5mfLN|r5k1/1p1r2pp/p7/4pp1P/2PnB3/8/PP3P2/R1B1K1R1 w Q - 0 25|e4b1 d4f3 e1e2 f3g1|954|fork
+5HoI9|r2q1rk1/2p2ppp/1pn2n2/4P3/p2P4/2PQ2P1/PP1B4/N1Kb1B1R b - - 0 18|f6g4 d3h7|954|kingside attack,mate in 1
+0FUNW|r2q1rk1/p1p1ppb1/7p/2N3p1/1nBP2b1/4PNP1/1P3PP1/2RQ1RK1 w - - 5 16|c4f7 f8f7|955|hanging piece
+1CGgO|2nk1b1r/2p1q2p/p1BpPp2/N4Pp1/3P2R1/1r2B2P/6P1/2R3K1 b - - 2 27|b3e3 a5b7|955|mate in 1
+5POGE|1n1r3k/1bq1brp1/pp4Qp/3Pp3/2P5/PP1BB2N/6PP/3R2K1 b - - 1 22|h8g8 g6h7 g8f8 h7h8|955|kingside attack,mate in 2
+3i4L4|8/3b4/5p2/p2p2kp/3P1p2/1P2bK1P/P1R1N1P1/8 w - - 6 39|a2a4 d7g4 h3g4 h5g4|955|mate in 2,sacrifice
+5z3eD|r5k1/ppp1qpp1/1b1p3p/3P4/4r3/1Q2B2P/PP3PP1/R3R1K1 w - - 1 19|e3b6 e4e1 a1e1 e7e1|955|kingside attack
+1Ksho|B1br2k1/p4p2/1p1BpP1p/2p1P3/8/1P1n2P1/P6P/R5K1 b - - 0 23|g8h7 a8e4 h7h8 e4d3|955|fork
+3Aj6x|2k5/pppn4/3p1pQ1/3P4/4P3/3PK1P1/P4R2/2q5 w - - 1 38|e3f3 d7e5 f3g2 e5g6|956|fork
+6i2bT|rb2nrk1/1pq3pp/p1p2p2/3p1P1Q/2P1p3/1B1P3P/PP1B1PP1/R4RK1 w - - 0 19|c4d5 c7h2|956|mate in 1
+5CaFt|1k6/1p6/p2q3p/8/3Bp2n/2Q5/PP2BPrP/R4R1K w - - 1 27|f1g1 d6h2|956|mate in 1
+76kTC|r1b2r2/p1p1np1k/1p1bp1p1/5q2/1P1PN2N/P7/2Q2PPP/R4RK1 b - - 3 20|f5g4 e4f6 h7g7 f6g4|956|fork
+2SXGo|1r3rk1/2q2p1B/3pbp1B/p1p3Q1/8/1P6/P1P3PP/1R5K b - - 1 24|g8h7 g5g7|956|from a master game,mate in 1
+14Kfq|r1bQ2k1/ppN2ppp/2n5/8/6n1/8/PqP1N1PP/3RKB1R b - - 3 18|c6d8 d1d8|956|back-rank mate,mate in 1
+5XtzO|1Q6/4Rppp/2pn4/1kb5/5q2/5P1P/6P1/7K b - - 13 41|b5c4 e7e4 f4e4 f3e4|956|
+2LWBj|3k1b1r/3b1ppp/4p3/2Q5/2PpBn2/Pq6/5PPP/R4RK1 w - - 1 22|c5d4 f4e2 g1h1 e2d4|956|fork
+2rSWT|2kr3r/1p1qn1b1/p5p1/2p1P1Bp/2Pp2n1/P2P1NQP/2P3P1/R4RK1 b - - 0 19|g4e5 f3e5 g7e5 g3e5|956|
+2B8Uv|5rk1/1pp1Rpp1/1p5p/8/8/q2P3P/2PQ1PP1/6K1 w - - 2 20|e7c7 a3a1 g1h2 a1e5|957|
+5J1Si|4r1k1/2p2p2/1p2rP1p/1q2BRp1/p2PQ2P/2P5/P5P1/4K3 b - - 0 30|g5h4 e4g4 g8h7 g4g7|957|mate in 2
+00EBZ|3rr1k1/p4pp1/1pp4p/3pPQ2/1P3P2/2P3qP/P2R2P1/5RK1 w - - 1 24|f1f3 g3e1 g1h2 e1d2|957|fork
+6cZ3a|4r1k1/pb1p1ppq/1p1B2rp/2p1P3/2Q2R2/5R1P/PPP2PP1/6K1 b - - 3 25|e8e6 f4f7 g6g2 g1g2|957|
+5cQOg|5rk1/p3RNp1/2p3Pp/1p1p3P/4n3/P6R/1PP2r2/2K5 w - - 2 27|e7a7 f2f1|957|mate in 1
+1nBtM|5r1k/pp5p/6p1/3BR3/6Q1/6PP/PP3qK1/8 w - - 1 28|g2h1 f2f1 h1h2 f8f2 d5g2 f1g2|957|exposed king,mate in 3
+0VPlg|3q3k/1p4pp/4p3/pN1p1p1Q/Pn1P1P2/4P1RP/2r3PK/8 b - - 5 31|d8f6 h5e8 f6f8 e8f8|957|kingside attack,mate in 2
+5r39n|8/p6k/1pB3pp/3Pr1r1/7p/7P/PK1R2P1/8 b - - 2 30|h7g7 d5d6 g5f5 d6d7|957|advanced pawn
+6YVxi|3r1bk1/r4ppp/1qn5/pppBp1PP/4P3/NP3P2/1PPQ4/2KR3R b - - 0 23|c6b4 d5f7 a7f7 d2d8 b6d8 d1d8|957|discovered attack,kingside attack
+381XY|4q1k1/4brpp/4r3/p2QP3/2p2P2/1PP5/P5PP/4RRK1 w - - 0 25|d5e6 e7c5 g1h1 e8e6|957|discovered attack
+5IEIL|5rk1/6p1/p6p/5P2/3QPq2/3P3P/4R1PK/8 w - - 2 35|h2h1 f4f1 h1h2 f1e2|957|fork
+5BjWZ|r3kb1r/p2q1ppb/2p2n2/4P3/p2B1NP1/1P1P1Q2/P2P4/2R1K2R b Kkq - 0 21|d7d4 f3c6 d4d7 c6a8|957|fork
+60MLB|2N3k1/6p1/p2p1p2/RbpPpPp1/5r2/6KP/6P1/8 b - - 3 37|f4f5 c8e7 g8f8 e7f5|958|fork
+5IXUn|r2b1rk1/1p5p/p1qp2p1/3np1N1/1PP1Q3/P6P/5PP1/R2R2K1 w - - 0 22|e4d5 c6d5 d1d5 d8g5|958|
+15aRs|8/7k/4q1p1/8/2P1p2P/1P3pP1/P2Q1PK1/8 w - - 0 59|g2f1 e6h3 f1e1 h3h1|958|mate in 2,queen endgame
+3EZ6j|r1b1nrk1/3pqppp/p1p5/4p3/2B1PP2/2N5/PPP3PP/R2Q1RK1 w - - 0 12|f4f5 e7c5 g1h1 c5c4|958|fork
+6UliW|4Qbk1/4p2p/3pP3/1p2pPp1/4P3/1P5P/P1q3PK/8 b - - 3 32|c2e4 e8f7 g8h8 f7f8|958|deflection,mate in 2
+2eONA|3r1rk1/pb3p2/4p1pp/1p2b1NQ/4P2R/1P1qB2P/P4PP1/2R3K1 w - - 0 26|h5h6 d3d1 c1d1 d8d1|958|kingside attack,mate in 2,sacrifice
+2RgNp|3r4/6Q1/p2krp2/1p1b4/8/5P1P/P5P1/3R3K w - - 3 39|g7b7 e6e1 h1h2 e1d1|958|
+6eulG|8/pppk1p2/2nprP2/8/4P1Q1/P7/1PP1K3/8 w - - 1 32|e2d3 c6e5 d3c3 e5g4|958|fork
+5XUAk|r1b1k2r/1q2Np1p/p1p2pp1/8/2Q1P3/8/PPP2PPP/R3K2R b KQkq - 0 16|b7e7 c4c6 e8f8 c6a8|958|fork,pin
+51eZU|r4rk1/p3bppp/4pN2/1p1b2N1/3q4/5P1Q/PP4PP/R1B2R1K b - - 0 19|d4f6 h3h7|958|kingside attack,mate in 1
+1a38j|8/1p2q1pk/pR2p2p/5p2/5P2/6P1/bP5P/3Q2K1 w - - 0 34|b2b3 e7c5 g1f1 c5b6|958|fork
+1EaAi|5rk1/5p2/2p1b1B1/p6Q/P7/2P2P2/2Pq2PP/1R4K1 b - - 0 25|f7g6 h5g6 g8h8 g6e6|958|fork
+3jcxw|7k/5pp1/p3rn1p/2Np4/3P4/2q1BQ2/P4PPP/R5K1 w - - 0 27|c5e6 c3a1 e3c1 a1c1 f3d1 c1d1|958|back-rank mate,hanging piece,mate in 3
+62Cne|1kr5/ppr4p/4Q2p/3pP3/8/P3b1P1/1Pq3BP/1R3R1K b - - 0 27|c2b1 f1b1 c7c1 b1c1|958|hanging piece
+2jKEk|4R3/6pk/7p/8/1R4P1/r5KP/8/8 w - - 1 44|g3h4 g7g5 h4h5 a3h3|958|deflection,mate in 2,rook endgame
+4lPp0|r5k1/pp2bb1n/3p1r2/5p2/5N1Q/5NPn/PP4BP/R3R1qK w - - 4 24|e1g1 h3f2|959|mate in 1,smothered mate
+2eo4r|r2qkb1r/pbpp2pp/1p6/4Np2/4n3/2NP3P/PPPBP1P1/R2QKB1R w KQkq - 1 9|d3e4 d8h4 g2g3 h4g3|959|mate in 2
+6Ak5l|8/8/p7/k1K1p3/2P5/3R4/P2pr3/8 b - - 3 46|e5e4 d3a3|959|mate in 1,rook endgame
+1kVYb|8/2Q2pk1/4pqpp/p2b3B/2pP3P/2P3R1/5PPK/1r6 b - - 2 44|b1e1 g3g6 f6g6 h5g6|959|pin
+3Xk8Z|8/8/5pk1/6p1/1P6/P1P2P2/1R3KP1/2n4r w - - 3 44|b2b1 c1d3 f2e3 h1b1|959|discovered attack
+6zbOo|3R4/pq3kp1/7p/2pp1N2/Pp6/1P4P1/2P4P/1K6 b - - 1 40|c5c4 f5d6 f7e6 d6b7|959|fork
+4ErR9|4r1k1/1p3pp1/3qr2p/1R3Q2/8/7P/5PP1/1R4K1 w - - 3 32|b5b7 e6e1 b1e1 e8e1|959|mate in 2
+52C2u|rn4k1/pp2R2p/2p2pp1/3p4/6b1/2PN4/P1P2KBP/8 b - - 1 21|g4c8 e7e8 g8f7 e8c8|959|fork
+5tjFd|2r5/p1P5/8/3B2k1/1P4P1/P1b5/3pK1P1/5R2 w - - 5 43|f1f7 c8e8 d5e4 e8e4|959|
+3giyW|r5k1/3r1p2/q3p1p1/3pQ1Pp/3P1P2/1PR5/8/2RK4 b - - 7 40|d7b7 c3c8 a8c8 c1c8 g8h7 c8h8|959|mate in 3
+2MymM|3qk1r1/p1rb1ppp/1p1Q1n2/1B6/3P4/P3P3/1P3PPP/RN2K2R w KQ - 3 20|b5d3 c7c1 e1d2 c1h1|959|skewer
+0hWzV|r1b1k2r/1p1n1ppp/pq2pnN1/2b5/2B4Q/8/PPP2PPP/RNB1R1K1 b kq - 4 11|f7g6 e1e6 b6e6 c4e6|959|fork
+4GpFX|8/8/2p1Pk2/1p3P2/2r5/8/7K/2R5 w - - 2 41|c1c4 b5c4 h2g3 c4c3 g3f3 c3c2|959|advanced pawn
+6zWpK|1r5k/4Nppp/4p3/3p3P/2p3P1/R1P5/4nP1K/8 b - - 0 35|b8b3 a3a8 b3b8 a8b8|959|back-rank mate,mate in 2
+3NPfU|r1b1k2r/1p3pbp/p1q2pp1/3Np3/2P1P3/3Q4/PP2BPPP/R4RK1 b kq - 3 14|e8g8 d5e7 g8h8 e7c6|960|fork
+3efVB|3r2k1/5p2/1p2p1pp/p7/8/3BqP2/1Q4PP/3R3K w - - 2 37|d3c2 d8d1 c2d1 e3e1|960|back-rank mate,mate in 2
+2WxS8|8/2q1p1kp/4Qpp1/8/r3p3/2P4P/1P3PP1/3R2K1 w - - 0 30|d1d7 a4a1 d7d1 a1d1|960|mate in 2
+5krJI|r1bk1bnr/ppp1q3/2np2Bp/8/3PP3/5QP1/PPP4P/RNB2RK1 b - - 2 12|c6d4 f3f8 e7f8 f1f8|960|
+26nji|3r2k1/pB3ppp/4b3/4p3/1r6/8/P1P2PPP/R4RK1 w - - 0 20|b7e4 b4e4|960|hanging piece
+70Thg|3r4/6kp/p3b1p1/2N2p2/2n1P3/2P2P2/P1P3PP/1R4K1 b - - 0 27|f5e4 c5e6 g7g8 e6d8|960|fork,hanging piece
+3t8c4|2kr3r/pp1n4/2R2bp1/P2q4/5B2/5Q1P/1PP2P2/R4BK1 b - - 0 25|d5c6 f3c6 b7c6 f1a6|960|Boden's mate,mate in 2,queenside attack
+4WBvr|r2k1r2/pp2bQ2/2N5/6pp/P1Pq1n2/8/1P3PbP/RN2R1K1 b - - 0 22|b7c6 f7e7 d8c8 e7f8|960|fork
+5Z8E4|8/8/k7/p7/K3p2r/1R3p2/5R1P/8 w - - 5 55|b3c3 e4e3 a4a3 e3f2|960|advanced pawn,discovered attack,rook endgame
+4mtJF|4r1k1/q4ppp/P1p1r3/3p4/8/5B2/2PQ1bPP/R3R1K1 w - - 0 31|d2f2 e6e1 a1e1 e8e1|960|mate in 2,pin
+3pQDL|8/4kp2/4pn2/5p1Q/7P/5PK1/8/1r6 w - - 1 57|h5g5 b1g1 g3f4 g1g5|960|skewer
+5ZN3K|1r1r2k1/1pp2p1p/p4p2/3Q4/1P4q1/P3P3/2P2PP1/R2R2K1 w - - 3 22|d5c5 d8d1 a1d1 g4d1|960|kingside attack
+1QTxW|3rr1k1/1b4bp/npqBp1p1/p1p1Pp2/2P5/PQ3N1P/1P2BPP1/3R1RK1 w - - 2 22|f3g5 c6g2|960|kingside attack,mate in 1
+75i9a|r2qk2r/4bp1p/p5p1/5N2/Pp2QP2/8/1P3PPP/R1B3K1 w kq - 1 21|f5e7 d8d1 e4e1 d1e1|960|kingside attack,mate in 2
+2aHby|2R5/7k/p6p/4P3/P2B2p1/1P2Kb2/4r3/8 w - - 10 44|e3f4 e2e4 f4g3 e4d4|960|fork
+5BDsK|3r2k1/pp3p2/2p2q1p/6p1/1PP1P3/2P1bBP1/P1Q3KP/2R5 w - - 3 29|c1e1 d8d2 c2d2 e3d2|960|fork
+3vRVe|4rnk1/pq4p1/1p5B/3p4/3p3P/P1n2P1R/1Q4P1/R5K1 w - - 0 28|h3g3 c3e2 g1f2 e2g3|961|fork
+0cZkt|6k1/7p/1P4p1/1r6/8/4B3/5PPP/1rR3K1 w - - 4 41|g2g3 b1c1 e3c1 b5b1|961|clearance,pin
+3VR8u|2br2k1/4R1p1/pb3p1p/8/8/3p1NP1/P2N1PKP/8 b - - 1 31|d8d7 e7e8 g8f7 e8c8|961|fork
+3xVsh|8/8/PQ3bpk/4np1p/1P2p2P/6P1/3K4/8 w - - 4 52|a6a7 e5c4 d2e2 c4b6|961|fork
+0Ufk8|3r2k1/p3qpb1/1p1p3p/2rQn1p1/2PpN3/1P4BP/P4PP1/4RRK1 w - - 1 22|d5d4 e5f3 g2f3 g7d4|961|discovered attack
+1X2PZ|8/2rk1pp1/4p2p/4P3/1nRP4/6P1/p1pK1P1P/R7 w - - 2 41|c4b4 c2c1q a1c1 c7c1 d2c1 a2a1q|961|advanced pawn,attraction,from a master game
+2X2GB|6k1/1K3p1p/P1Pbp1p1/8/b7/8/8/8 b - - 0 50|a4c6 b7c6 d6b8 c6b7 b8f4 a6a7|961|advanced pawn,bishop endgame,hanging piece
+33Szi|2kr4/1p3ppp/p7/3np1b1/8/BP3P2/1PP1B1PP/1K1R4 w - - 4 21|e2c4 d5c3 b2c3 d8d1|961|discovered attack,queenside attack
+1hY75|2bqr2k/rp2b1pp/n1p4n/3p1p2/5P2/1BNP1N1P/PPP2QP1/4RRK1 w - - 0 16|f2a7 e7c5 a7c5 a6c5 e1e8 d8e8|961|fork
+1uZHY|6k1/p6p/2pBbrp1/3n4/4p3/P1b1P3/2P2PP1/3R1KNR w - - 4 22|g1e2 d5e3 f1g1 e3d1|961|pin
+6UZtt|r1k5/1p6/p1qN2pp/3pnp2/Q1p5/2P5/PP2BP1P/3R3K b - - 5 25|c6d6 a4e8 c8c7 e8a8|961|queenside attack,skewer
+4cQj3|r1b1k2r/pp2ppbp/2p1P1p1/8/N1P3n1/2B5/PP3PPP/3RKB1R b Kkq - 0 14|c8e6 c3g7|961|hanging piece
+13g1y|r1b2r1k/pp2q1pn/2ppP1Qp/8/2P2P2/2NB3P/PP6/4RRK1 b - - 1 23|f8f6 g6h7|962|kingside attack,from a master game,mate in 1
+5FRWX|8/8/k6R/1p6/5K2/P7/1PP1r3/3b4 b - - 5 42|a6a5 b2b4 a5a4 h6a6|962|mate in 2
+30Zgr|3r2k1/2p2pp1/p3p2p/P1Pr4/1RQP1q2/7P/5PP1/3R2K1 b - - 1 31|d5d4 d1d4 d8d4 c4d4 f4d4 b4d4|962|
+3Lvhy|r5k1/pp3ppp/8/3qr3/6P1/P2P1Q2/1P4P1/R4R1K b - - 1 23|d5d4 f3f7 g8h8 f7f8 a8f8 f1f8|962|back-rank mate,mate in 3,sacrifice
+6mWwY|1r4k1/1r3p1p/4p1p1/4Q3/p7/q7/1P1R1PPP/1K1R4 b - - 1 28|b7b2 d2b2 b8b2 e5b2|962|
+1jpo1|r7/pppk4/8/3P3p/3B2p1/5r2/P6P/2KRR3 w - - 2 22|d4c5 f3c3 c1d2 c3c5|962|fork
+1kV02|1q5r/3kbp1p/8/1n2p3/6Q1/8/1P3PPP/2R3K1 b - - 2 35|d7e8 c1c8 b8c8 g4c8|962|fork
+4rnjj|Q5nr/1p2kpp1/2q1p2p/4P2P/3p2P1/P1N5/1Pr1NP2/R3K2R w KQ - 0 19|e2d4 c6h1|962|hanging piece,mate in 1
+62oLU|rn1q1rk1/pb4p1/1p3p2/2p1p2p/2P2nQN/PPB5/2BP1PPP/R4RK1 w - - 0 19|g4g3 f4e2 g1h1 e2g3|962|fork
+5VzB1|6k1/ppp3pp/4p3/1P1pPq1r/P1P5/4P2B/1B4QK/8 b - - 4 33|h5g5 h3f5 g5g2 h2g2|962|
+2MaHX|8/p7/4k1p1/1P2p1P1/8/1P2KR2/1r6/8 w - - 1 42|e3e4 b2e2 e4d3 e5e4 d3e2 e4f3|963|fork,from a master game,master versus master
+4HPq0|8/8/1P6/p2pk1P1/K2npN2/8/8/8 b - - 0 49|e5f4 b6b7 f4g5 b7b8q|963|advanced pawn,knight endgame,promotion
+6fmbU|8/8/6p1/2p3k1/R5P1/P5r1/3K4/8 b - - 4 44|g3g4 a4g4 g5g4 a3a4|963|defensive move,rook endgame
+2hv7x|5Q2/p1pR3p/6q1/4b3/5P2/6k1/bP1R4/2K2B2 w - - 0 31|f4e5 g6b1|963|mate in 1
+3ZW5E|2r4r/pp1kbppp/3p4/3N4/3pP3/qP1Q3P/P4PP1/2R2RK1 w - - 0 20|d3d4 c8c1 f1c1 a3c1|963|
+4J5kt|r4rk1/p4ppp/2p5/2p1P3/1PPpP1q1/3P2n1/P1Q1bR1P/RN2B1K1 w - - 0 17|h2g3 g4g3 f2g2 g3e1|963|kingside attack,skewer
+3wrh1|6k1/3r2p1/p1N1b2p/1ppp4/4pR2/P7/1P1R2P1/6K1 w - - 0 35|f4e4 d5e4 d2d7 e6d7|963|hanging piece
+3B4yY|3r2k1/1R3p2/4p1np/6p1/8/3q2Q1/5PPP/1R4K1 w - - 0 52|g3c7 d3d1 b1d1 d8d1|963|back-rank mate,mate in 2,sacrifice
+4Jsnc|8/R4k1p/3p1pp1/2p5/2P1KPP1/1r2P3/8/8 b - - 3 42|f7e6 f4f5 g6f5 g4f5|963|mate in 2,rook endgame
+3Gi6x|r1r3k1/pp1R1ppp/1p3q2/8/4Q3/2P5/P1P2PPP/4R1K1 b - - 5 18|c8c3 e4e8 a8e8 e1e8|963|mate in 2,sacrifice
+3sdDP|8/1Q5p/p5pk/1p2r1q1/2p5/8/PPP4P/1K2R3 w - - 4 34|e1e5 g5g1 e5e1 g1e1|963|back-rank mate,mate in 2
+478ss|3r2k1/ppp3pp/2q2p2/8/3PrRP1/1P5R/P1PQ3P/2K5 b - - 0 24|e4d4 f4d4 d8d4 d2d4|964|
+4hZbW|2r3k1/p5pp/1p1p1p2/3P4/3QP1q1/6P1/PP5P/4R1K1 w - - 1 25|g1g2 c8c2 d4f2 c2f2|964|
+2rogc|8/8/pRp5/2P2K2/2k5/1r6/5Bb1/8 w - - 6 49|b6a6 b3f3 f5e5 f3f2|964|fork
+46CkQ|r5k1/ppp2ppp/8/3PP3/8/P1n1P3/1Q4PP/R1BbqBK1 w - - 0 19|c1d2 c3e2 g1h1 e1f1|964|deflection,kingside attack,mate in 2
+51GZ4|2k3r1/1pp5/6p1/R4p1p/3P4/2K2P2/PP2RP1r/8 b - - 0 27|h5h4 a5a8 c8d7 a8g8|964|rook endgame,skewer
+4z177|N4rk1/1b2qp1p/p2p1bp1/6Q1/1p1nP3/4BN2/PPP2PPP/2KR3R w - - 3 17|g5g3 d4e2 c1b1 e2g3|964|fork
+5RR0Y|r4rk1/ppp2ppp/2Bp2q1/2bNp3/4P3/3P1NPb/PPP2P1P/R2QK2R b KQ - 0 10|b7c6 d5e7 g8h8 e7g6|964|fork
+2en3t|r1b3k1/1p1q1r1p/p4p1Q/2pn1NP1/3p4/bP3P2/P4K1P/4R3 b - - 0 27|d7f5 e1e8 f7f8 h6f8|964|kingside attack,mate in 2
+6lF6Q|2B2k2/1b3pp1/p4n2/1pq3Q1/2n5/2P2P2/P1P3PP/3RR2K b - - 0 26|c5g5 d1d8 f6e8 e1e8|964|mate in 2
+4lon1|3q1rk1/5p1b/2pp2pP/2b1pNB1/4P1Q1/pr1P4/5P2/2K3RR b - - 1 27|d8b8 f5e7 g8h8 g5f6|964|kingside attack,mate in 2
+4J83E|r1b1r1k1/pp3ppp/1q3n2/2bp4/3N4/1B2B2P/PPP2PP1/R2Q1RK1 b - - 4 13|c8h3 g2h3 e8e3 f2e3|964|hanging piece
+4Zmsm|r4rk1/2b1q1p1/2b1p1Bp/1pPpP2Q/1B6/P7/6PP/R4RK1 w - - 7 27|g6f7 f8f7 h5f7 e7f7 f1f7 g8f7|965|
+58Cv6|8/6k1/2p1p1p1/2PpP3/3Pp1P1/3qP3/5K2/7Q w - - 5 43|g4g5 d3d2 f2g3 d2e3|965|deflection,queen endgame
+3v97P|8/1p3k1p/2b2b2/p1p2N2/2P2NK1/2r3P1/7P/3R4 b - - 9 39|c3c4 f5d6 f7e7 d6c4|965|fork
+499AP|6k1/RP6/3b1pp1/4p3/P3P3/5P1p/1r6/5KB1 w - - 3 43|a4a5 b2b1 f1e2 b1g1|965|deflection,skewer
+6j4yf|2r4k/1R1R2p1/6Bp/6n1/8/6P1/r5KP/8 w - - 9 50|g2f1 c8c1 d7d1 c1d1|965|mate in 2
+666P2|8/2R5/p5p1/3P2k1/8/7P/2pqr1PN/5R1K b - - 4 46|e2g2 h2f3 g5h6 f3d2|965|fork
+3DyrK|8/5p2/6p1/1p1p1bP1/1K6/1PP1k3/P7/5R2 w - - 7 39|b4b5 f5d3 b5c5 d3f1|965|fork
+5crAj|1r2r2k/5Qp1/6Pp/p4p2/b4P2/2P1q3/PP5R/1NK4R w - - 11 32|b1d2 e3e1 h1e1 e8e1|965|mate in 2,queenside attack,sacrifice
+0bCcX|1q4k1/4rpp1/7p/2NQ4/1P6/5P1P/6P1/6K1 b - - 0 39|b8b4 d5d8 g8h7 d8e7|965|fork
+2MqtN|1kr2b1r/ppB3pp/6n1/5Q2/3PR3/P7/1q4PP/6K1 b - - 1 27|c8c7 e4e8 c7c8 e8c8|966|mate in 2
+3XCgK|r7/2k2p1p/2p5/1p6/1P2r3/8/NK1R2PP/R4b2 b - - 0 31|e4b4 a2b4 a8a1 b2a1|966|hanging piece
+1Meml|1rb2rk1/1p3ppp/p5q1/3N4/2Q5/7P/P1P2RP1/5R1K b - - 1 26|c8e6 d5e7 g8h8 e7g6|966|fork
+5RW6d|4r3/8/8/k2P4/P1P5/7r/R3KP2/2R5 w - - 5 41|e2f1 h3h1 f1g2 h1c1|966|rook endgame,skewer
+189Fo|r4rk1/1p1q1pp1/p3p2p/3pPP2/4n3/2PQ4/PP4PP/R1B1R2K w - - 1 19|f5f6 e4f2 h1g1 f2d3|966|fork
+0jcwJ|r3k2r/1ppqbppp/p2p4/3P4/5P2/6P1/PP2QP1P/R1B1R1K1 b kq - 1 15|d7b5 e2e7|966|mate in 1
+0AYZ9|r5k1/5ppp/pnpp1q2/7b/1PP5/3P1N1P/4QPP1/4R1K1 b - - 3 23|h5f3 e2e8 a8e8 e1e8|966|back-rank mate,mate in 2,sacrifice
+2Qq7s|rnbqk1nr/pppp1ppp/8/8/2B1Pp1b/5QP1/PPPP3P/RNB1K1NR b KQkq - 0 5|f4g3 f3f7|966|attack on f2/f7,mate in 1
+70CXi|8/7p/p3qkp1/1pQb1p2/8/1P1P2PP/P4PN1/6K1 w - - 3 35|g2f4 e6e1 g1h2 e1h1|966|mate in 2
+17C7f|r1b1k2r/3n1pbp/p3p3/1pp5/4N3/3P1N1P/PP3PP1/R1B2RK1 b kq - 3 13|c8b7 e4d6 e8e7 d6b7|966|fork
+56v1W|8/8/3R4/3Np3/r1p1k3/3p2n1/1P6/3K4 b - - 1 60|a4a2 d5c3 e4e3 c3a2|966|fork
+4tdvd|r3r1k1/pp1qbpp1/2p4B/4pPn1/3pP2n/P2P2Q1/1PP2PBN/R4RK1 w - - 1 21|g3h4 g5f3 h2f3 e7h4|966|discovered attack,kingside attack
+65zt0|3r1r2/5pkp/1q4p1/1P1p4/PN2n3/2P2Q2/6PP/R4R1K w - - 5 33|f1d1 e4f2 f3f2 b6f2|966|fork
+3JmTG|8/2r3k1/8/2p2R1b/4P2P/3P4/2PK4/8 b - - 5 48|h5g4 f5g5 g7f7 g5g4|966|fork
+0I1IS|r5k1/1pp3pp/p2p4/5N2/4p3/P1P4P/1P1q2P1/5QK1 b - - 3 24|a8f8 f5e7 g8h8 f1f8|966|deflection,discovered attack,mate in 2
+0Tq8X|r5k1/2R1QNp1/6bp/pp6/8/7P/5PPK/1q6 b - - 0 31|g6f7 e7f7 g8h8 f7g7|966|mate in 2
+4R6sn|r1bqk2r/pppp1pp1/2n4p/3Qp3/2B1n3/P1P2N2/1PP2PPP/R1B2RK1 b kq - 1 8|e4f6 d5f7|966|attack on f2/f7,mate in 1
+2YGOM|2r3k1/p4p1p/6p1/3bQ3/7P/2P1P3/PP1N1Pq1/4K2R w K - 0 25|e5h2 g2h1 h2h1 d5h1|967|
+4SK3c|8/5k2/P2R4/8/1n4p1/4KpN1/r6P/8 w - - 5 42|d6d4 b4c2 e3f4 c2d4|967|fork
+6Zwq7|6rk/5pr1/p2bpR2/1p6/7P/3B4/PPP3b1/1K1R4 b - - 2 31|g2h3 f6h6 g7h7 h6h7|967|mate in 2
+57k4k|r3k1nr/pppq1p1p/2nb2pB/3N4/8/5P1P/PPP1PP2/R2QKBR1 b Qkq - 3 10|g8h6 d5f6 e8e7 f6d7|967|fork
+4Ejr0|2Qbkr2/pp1r1p2/4q3/6p1/8/P3PN1P/1P1B1PP1/R2R2K1 w - - 3 24|d2b4 d7d1 a1d1 e6c8|967|discovered attack
+1Fb7v|8/1p3p1p/3n4/p1pPk1p1/P1B3P1/1P2K1P1/5P2/8 b - - 0 35|f7f6 f2f4 g5f4 g3f4|967|mate in 2
+6RReo|5rk1/1pR2ppp/p3p3/4P3/1P1p1PP1/1b6/6KP/R7 w - - 0 28|c7b7 b3d5 g2f1 d5b7|967|fork
+6rs4Q|rnb1k2r/ppp2ppp/8/3Pq3/8/2P5/P3PPPP/R2QKBNR w KQkq - 0 9|c3c4 e5c3 d1d2 c3a1|967|deflection
+0pRtC|6k1/5pp1/p6p/N7/2Pn4/1P4K1/1r4PP/R7 w - - 3 34|a1c1 d4e2 g3f3 e2c1|967|fork
+2m8xe|r2k4/p1p1nrpp/2P5/6q1/8/2NQP1P1/PPP4P/2KR4 b - - 0 18|d8e8 d3d7 e8f8 d7d8 a8d8 d1d8|967|back-rank mate,exposed king,mate in 3
+5S7rk|r2qkr2/pppb4/1b2pp2/3p4/2n2Q1B/P1N3P1/1PP1P1BP/2KR3R w q - 10 20|f4h6 b6e3 h6e3 c4e3|967|fork
+4hsi6|r4rk1/ppN2pp1/2pp2q1/4n3/2P1P2Q/3P3P/PP3PP1/R4RK1 w - - 2 21|c7a8 e5f3 g1h1 f3h4|967|kingside attack,pin
+6WjHx|8/2r2pp1/p2kP2p/1p1n4/3NR1PP/8/2P5/4K3 b - - 0 29|c7e7 d4f5 d6c5 f5e7|967|fork
+0gGJ9|r4rk1/p4ppp/3qp3/3p1b2/6n1/1B2B3/PPP1QPPP/3R1RK1 w - - 4 18|h2h3 d6h2|967|mate in 1
+41Jzt|r2q1rk1/4bppp/3pNP2/2p5/5P2/P5Q1/2P3PP/R1B2bK1 b - - 0 18|f7e6 g3g7|967|kingside attack,mate in 1
+6hbr7|rn2k3/1p3pp1/pbpp3r/4p3/1PB1Pqp1/P1NP4/1BP1QP1N/R5RK w q - 2 17|e2g4 f4h2|967|kingside attack,mate in 1
+4BEbK|r4rk1/1pp1q1pp/p1n1b3/4Bp2/2NP4/3B2Q1/nPP3PP/1K2R3 b - - 1 20|e7b4 g3g7|967|kingside attack,mate in 1
+0nOJn|8/6k1/1r2p2p/2N2ppP/8/3B1PK1/8/8 b - - 1 48|g7f6 c5d7 f6e7 d7b6|967|fork
+6mVzX|5kQ1/2q2p1p/4pN2/n3P3/3P4/1pr2P1P/6P1/1b5K b - - 1 38|f8e7 g8e8|967|mate in 1
+340cu|r2k2nr/1ppb1ppp/p2p4/3Pp2q/2Q1P3/1B2RP2/PPP2NPP/5K1R w - - 1 18|e3c3 d7b5 c4e2 b5e2|968|pin
+14Vd5|8/1p2kp2/p1p3rp/4nR1K/4P3/1B2P3/PPP5/8 b - - 11 29|f7f6 f5e5 f6e5 h5g6|968|
+2Fd5Y|5r2/5ppk/p1n1q2p/1p3N2/2p1P3/1PPp1PPP/P2Q4/1R4K1 b - - 0 26|g7g6 d2h6 h7g8 h6g7|968|fork,mate in 2
+0Tysr|r4r1b/1pp2p1k/3p1qpP/p2Ppbp1/2P5/P4P1N/1P1QB3/2KR3R b - - 6 22|e5e4 h3g5 f6g5 d2g5|968|
+6plOU|rnbq2k1/ppp2Qp1/3p3p/2n1p3/4P3/2P4P/PP4P1/RN3RK1 b - - 1 14|g8h8 f7f8 d8f8 f1f8 h8h7 f8c8|968|fork
+6YdnQ|8/p3r3/2K4p/6p1/1P1B3k/P7/8/8 b - - 0 40|g5g4 d4f6 h4g3 f6e7|968|fork
+0ouKE|2r3k1/6p1/R4b2/2pN1p2/4p3/1r5P/1PR2PP1/6K1 b - - 1 29|f6d4 d5e7 g8h7 e7c8|968|fork
+0nN8P|rn2qrk1/ppp4p/3p1bp1/3P4/2B1N1b1/6N1/PP3PPP/R2QK2R w KQ - 0 13|e1g1 g4d1 e4f6 f8f6|969|
+13gso|6k1/2q1bp2/2p3pR/3n1b2/3P4/5P2/4Q1PP/B5K1 b - - 5 33|e7g5 e2e8 g8g7 e8h8|969|mate in 2
+5CAmF|4r1k1/1bp2ppp/ppn3q1/3rN3/QP1Pn3/P3P1P1/5PBP/2R2RK1 b - - 1 19|c6e5 a4e8|969|hanging piece,kingside attack,mate in 1
+0WZdh|r3k2r/pR2ppb1/3p1Bpp/8/4P3/2q5/P3QPP1/5RK1 b kq - 0 20|c3f6 e2b5 e8f8 b7b8 a8b8 b5b8|969|back-rank mate,from a master game,mate in 3
+1rPqF|8/p1R2pk1/1p3bp1/3B4/PP4P1/2P4K/8/5r2 b - - 5 38|f1e1 c7f7 g7h6 f7f6|969|deflection
+1zsFO|r4rk1/1p2bp2/p1n4Q/2p3q1/6R1/2PP1P2/2P2P1P/3R2K1 b - - 4 23|c6e5 g4g5 e7g5 h6g5|969|kingside attack
+6lgpq|8/PK6/1Q6/8/q7/6p1/6k1/8 b - - 9 70|a4e4 b6c6 e4c6 b7c6 g2f2 a7a8q|969|advanced pawn,defensive move,promotion
+1ErTC|r3k2r/ppb2ppp/7q/PP2n3/4pN2/2P5/5PPP/R1BQ1RK1 w kq - 2 19|f4d5 e5f3 g1h1 h6h2|969|kingside attack,mate in 2
+34K9C|5rk1/p2n1p2/3nN1pp/q2p4/P1pP3P/1rP1P3/2Q2PP1/R1RN2K1 b - - 0 23|f7e6 c2g6 g8h8 g6h6|969|kingside attack
+5h2JK|4r3/5k2/8/8/5R2/6nP/6P1/6K1 b - - 0 46|f7g7 f4g4 g7h6 g4g3|969|fork
+6INIz|1r2k3/R7/5Rpp/5n2/8/8/5PKP/8 w - - 7 40|f6g6 f5h4 g2g3 h4g6|969|fork
+04KbJ|8/pR6/5ppk/8/2P4p/1P3P1P/P5P1/4rnBK w - - 0 43|g1f2 f1g3 h1h2 e1h1|969|double check,hook mate,mate in 2
+1KzXl|1r6/3k1p2/4q3/8/P2Q4/1P6/KB6/8 b - - 2 37|d7e8 d4h8 e8d7 h8b8|970|skewer
+1sILs|1k1r3r/6pp/pp2p3/3pPp2/2qN4/2n1PQ2/P4PPP/2R2RK1 w - - 2 23|d4e6 c3e2 f3e2 c4e2|970|fork
+4oSES|3r1r2/p2bp1bk/P1p3p1/1pQ1p2p/1P1PBq2/5NPP/5P2/4R1K1 b - - 0 32|f4f7 f3g5 h7h6 g5f7|970|fork
+3CWEe|6k1/1bR2p1p/p3p1p1/1p4PP/1P1p1P2/3r4/5K2/8 b - - 1 35|b7e4 c7c8 g8g7 h5h6|970|mate in 2
+30WIp|1r3k2/p3r3/bqp1Q3/3pP3/2pP2P1/2N2N2/PP2BP2/2KR4 w - - 0 24|e6g6 b6b2|970|mate in 1,queenside attack
+4RRzo|r5nr/1bpq1kp1/pp1pNp1p/3Pn1b1/1P2PB2/2N3P1/P1BQ1P1P/R4RK1 w - - 1 17|h2h4 e5f3 g1g2 f3d2|970|fork
+6oGb7|8/8/2q1p3/p3Bpk1/3Pn3/P2QPP2/4K2R/8 w - - 1 39|d3b1 e4c3 e2f2 c3b1|970|fork
+5Q4Hq|2kr3r/1ppb3p/p4p2/3NpP2/2P5/P2P3P/1P2R3/3R2K1 b - - 0 23|d7f5 d5e7 c8b8 e7f5|970|fork
+3ccul|5rk1/1p3p2/2p2P1p/4p3/pQ4Rq/8/3r2P1/6K1 b - - 0 36|h4g4 b4g4 g8h7 g4g7|970|hanging piece,mate in 2
+0e7kB|2r3k1/6pp/p2p4/1p1b1N2/1P2pP2/2r4P/3R2P1/4R1K1 b - - 0 32|d5c4 f5e7 g8f7 e7c8|970|fork
+3vLQF|1r1q1rk1/b1p2p2/3pb3/pp1Pp2Q/3n2pP/P2P1PB1/BPP3PN/R3K2R w KQ - 1 20|e1c1 d4e2 c1b1 e2g3|970|fork
+1YT45|6k1/1q3ppp/1p1Qp3/8/2bP4/3NPP2/3R1KPP/r7 b - - 4 29|c4d3 d6d8|970|back-rank mate,mate in 1
+6tOxX|r3r1k1/N4p1p/1p4p1/nQbqp3/3P4/1pP3P1/P4P1P/R1B1R1K1 b - - 0 22|e5d4 e1e8 a8e8 b5e8|971|kingside attack
+6JSsZ|r7/2k1ppb1/2pp4/pp6/3Pn3/1P2PBP1/1PP1N3/1K1R3r w - - 0 25|d1h1 e4d2 b1c1 d2f3|971|fork
+57oDE|r4rk1/7p/2pp2p1/7R/1p2P3/2N5/1PP5/2K3R1 w - - 0 27|c3e2 a8a1 c1d2 a1g1|971|
+3sd9O|r4rk1/pp1n1ppp/1q2pb2/3n3P/6Q1/1P3NN1/P1PB1PP1/1K1R3R b - - 0 17|d5c3 d2c3 f6c3 d1d7|971|discovered attack
+3cmLM|r1b1kb1r/pppq1pp1/2np1B1p/3NP3/3P1P2/8/PPP3PP/R2QKB1R b KQkq - 0 10|g7f6 d5f6 e8d8 f6d7|971|fork
+4aHGc|3r2k1/1b3pp1/pq1p1n1p/1p3N2/4P3/1PN1B3/P4PPP/3Q2K1 b - - 4 26|b6c6 f5e7 g8f8 e7c6|971|fork
+0uvyr|5r1k/6pp/pp6/2q5/P1P1Q3/8/5rPP/2R2RK1 w - - 0 30|f1f2 c5f2 g1h1 f2f1 c1f1 f8f1|971|back-rank mate,mate in 3
+0RnyE|6rk/p5pp/6Q1/7R/1p6/4P2P/6PK/q7 b - - 1 33|h7h6 h5h6 g7h6 g6h6|971|mate in 2,sacrifice
+3FZO3|3r1r1k/1b1R2pp/pqp4b/1p3B2/8/P1NQ4/1PP3PP/5R1K w - - 7 26|f5h7 f8f1 d3f1 d8d7|971|
+4ZnC2|2rq2kr/pp4p1/3b1npp/1B1pn3/5QPP/2N1B3/PPP2P2/R3K2R w KQ - 2 17|f4d4 e5f3 e1f1 f3d4|971|fork
+5Vtso|2r2rk1/3qbpp1/1p2p2p/1b1pP3/1PnP1N2/5NP1/Q1R2P1P/R4BK1 b - - 2 25|c8a8 a2a8 f8a8 a1a8|971|
+6ezVt|6k1/p1p5/1p5p/8/5rp1/6N1/PP4K1/R7 b - - 1 35|g8g7 g3h5 g7f7 h5f4|971|fork
+6Zpg3|r4k1r/pp3p1p/1qn5/4p3/2P1B3/P3p1P1/1P3P1P/1R1Q1RK1 w - - 0 19|f2e3 b6e3 f1f2 e3e4|971|fork
+5cD9i|2r3k1/1R3pp1/p3p2p/3nP3/3B4/P4Q1P/3q1PP1/6K1 b - - 1 29|d2d4 f3f7 g8h8 f7g7|971|mate in 2
+3k4rU|r7/8/8/8/6R1/5k1K/8/8 w - - 6 67|g4g5 a8h8 g5h5 h8h5|971|mate in 2,rook endgame
+1oSVX|5rk1/pp3Rpp/8/3p4/3P4/2P3QP/q5P1/5R1K b - - 0 27|f8f7 g3b8 f7f8 f1f8|971|mate in 2
+6gW9S|r1b1k2r/1pp1q1p1/3pp2p/p3n2n/1P4P1/P1B1P3/2PQ2NP/R3KB1R w KQkq - 1 18|g4h5 e5f3 e1d1 f3d2|971|fork
+4KQjL|r1b2rk1/ppp2ppp/3p4/3N3q/3PP3/1P2B3/4BRPP/5RK1 b - - 1 18|h5g6 d5e7 g8h8 e7g6|971|fork
+3v5yD|r7/1pk3pp/2np4/p3p2q/4P1n1/PBPP1r2/1P2Q1PP/R1B2RK1 w - - 0 22|f1f3 h5h2 g1f1 h2h1|971|kingside attack,mate in 2
+2NqTj|3b2k1/1b4p1/5p1p/2Nqp3/8/PQP2P2/1P4PP/7K w - - 4 35|b3b7 d5d1|971|back-rank mate,mate in 1
+3pBSr|r6k/pp4pp/4r3/8/1P6/P3qQ2/6PP/3R1R1K b - - 4 26|a8e8 f3f8 e8f8 f1f8|971|back-rank mate,mate in 2,sacrifice
+09tah|6r1/5b1R/1pn5/3p1p2/3P1k2/2PB1N2/5K2/8 b - - 5 38|f7g6 h7h4|972|from a master game,mate in 1
+4eCGM|6k1/5ppp/1q2p3/4P3/1p6/pP3Q1P/P1r1RPPK/8 b - - 2 38|c2e2 f3a8 b6b8 a8b8|972|back-rank mate,mate in 2
+2cKor|6rk/R7/4P1K1/p7/5N2/2b5/8/8 w - - 1 69|g6f7 g8g7 f7e8 g7a7|972|skewer
+0jN8M|2rr4/1pp3qk/3p2nb/pN2p2Q/2P1B3/P2P3P/1P3P2/R4RK1 w - - 0 23|e4b7 g6f4 g1h1 f4h5|972|discovered attack
+0rIr1|4rrk1/pppb1ppp/8/3P1N2/4Pb2/P4P1P/1P2B1P1/R4RK1 w - - 1 23|f5d4 f4e3 g1h1 e3d4|972|fork
+6FtuS|r4rk1/ppp1qp1p/2n1p3/3pP1p1/4NB2/2P1P1PP/PPQ2P2/R3K2R b KQ - 0 14|g5f4 e4f6 e7f6 e5f6|972|kingside attack
+4tI3q|6rk/2p4n/1p1p3Q/p2Ppb2/2P1N3/2KB1q2/PP6/7R b - - 0 32|f5e4 h6h7 e4h7 h1h7|972|mate in 2,sacrifice
+4kErW|2kr3r/ppp1q3/4pN1p/1P2Ppp1/P1p5/Rn2P2P/R4PP1/4Q1K1 b - - 1 23|b3a5 e1a5 d8d1 g1h2|972|hanging piece
+0XocW|8/2k1n1pp/2p2p2/1p2pPP1/4P2P/1bKB2N1/r1P5/r2R3R b - - 0 28|b3f7 d1a1 a2a1 h1a1|972|
+37FYt|2r5/1k1r2bp/1pn5/4P3/5BB1/P5P1/7P/2R4K b - - 3 32|d7d3 g4c8 b7c8 c1c6|972|attraction
+1H1H2|2N3k1/p6p/1p4p1/2pb2N1/8/1P6/1bP3PP/7K b - - 4 33|b2d4 c8e7 g8f8 e7d5|972|fork
+6ATKW|3Q1bk1/1R5p/p5p1/2p5/2P1P3/2q2P2/3Nn1PP/7K w - - 8 31|d8d7 c3c1 d2f1 c1f1|972|mate in 2
+6sqWd|2kr2nr/ppp1b2p/2p1b3/4Pp1q/3P2p1/2N2N1P/PPPBQPP1/R3K2R w KQ - 0 13|h3g4 h5h1 e2f1 h1f1|972|hanging piece
+5sOHh|r1b1k2r/pp2qppp/2B1pn2/8/3PQ3/5N2/PPP2PPP/R3K2R b KQkq - 0 11|b7c6 e4c6 e7d7 c6a8|972|fork
+3Lv6K|8/8/4p2P/5bK1/4kP2/1p6/1N6/8 w - - 3 61|g5f6 e4f4 h6h7 f5h7|972|
+4cXYG|r5k1/1p3ppp/p1pp2r1/5Q2/4P2q/P1PPb2P/1P4P1/R4R1K b - - 1 25|h4g3 f5f7 g8h8 f7f8 a8f8 f1f8|972|back-rank mate,mate in 3,sacrifice
+14Hj8|8/1pp3pk/3q1np1/1P2N3/3PQ1PP/8/7K/8 w - - 1 39|e4d3 f6g4 h2g2 g4e5|973|pin
+3ZyLS|4r1k1/R7/7p/2p5/2n2N2/2P5/PP3PPB/5K2 w - - 1 32|f4h5 c4d2 f1g1 e8e1|973|back-rank mate,mate in 2
+2wwP5|1r3rk1/1b4p1/1pp2q1p/p3np2/2P5/PPN3P1/5PBP/R2QR1K1 w - - 2 20|d1d4 e5f3 g2f3 f6d4|973|discovered attack
+3tLPy|3rkb1r/pp2q1pp/2p5/8/3np3/1B1Q4/PPPP1PPP/RNB2RK1 w - - 0 14|d3g3 d4e2 g1h1 e2g3|973|fork
+003jv|1R6/1p2k2p/p2n2p1/4K3/8/6P1/P6P/8 w - - 10 37|b8h8 d6f7 e5e4 f7h8|973|fork
+71jTu|rnb1k2r/pp3ppp/2p1p3/q2P2B1/3PQ3/2b2N2/PP2PPPP/R3KB1R w KQkq - 0 9|b2c3 a5c3 f3d2 c3a1|973|fork
+5gphM|R7/2p3p1/2nkr3/4p3/4K1P1/3N3P/8/8 b - - 21 57|d6d7 d3c5 d7d6 c5e6|974|fork
+5UwAC|rn2k2r/pppq1ppp/3b4/3p4/3P4/3BPQ1P/P1P2PP1/R1B2RK1 w kq - 0 12|f3d5 d6h2 g1h2 d7d5|974|discovered attack
+6JJmn|3r1rk1/1b3Rpp/p1q5/1p6/2n5/1BP5/P1P2QPP/5R1K b - - 0 22|f8f7 f2f7 g8h8 f7f8 d8f8 f1f8|974|back-rank mate,mate in 3
+2y8q6|5rk1/2B4p/p1P5/2QP1pp1/6q1/5R2/PP1Nr1PP/5RK1 w - - 1 27|c7a5 g4g2|974|kingside attack,mate in 1
+5AWIn|r2qk2r/pppbbppp/8/3P4/Qn1P4/3B1N2/PP3nPP/RNB1R1K1 w kq - 2 12|a4b4 f2d3 b4e7 d8e7 e1e7 e8e7|974|fork,hanging piece
+2r29M|5r2/8/8/8/2K5/3R4/4k3/8 w - - 13 54|c4c3 f8c8 c3d4 c8d8|974|rook endgame
+1yocu|3rr1k1/p4p1p/1p3Qp1/2p5/8/P6P/1P3PP1/R1BN1qK1 w - - 0 20|g1f1 d8d1|974|hanging piece,mate in 1
+3oGf0|3r1rk1/1p3ppp/p7/2bb2N1/P1q2N2/7Q/5PPP/R3R1K1 b - - 3 23|c4f4 h3h7|974|kingside attack,mate in 1
+70omn|2r3k1/p4pp1/1p1RN1np/8/1P2bP2/PB2P2P/6P1/6K1 b - - 0 26|f7e6 b3e6 g8f8 e6c8|974|fork
+3dtdy|3r1rk1/3p1qpp/8/3R4/P7/1Q6/5PPP/1R4K1 w - - 7 32|b1d1 f7f2 g1h1 f2f1 d1f1 f8f1|974|back-rank mate,mate in 3,sacrifice
+5NbrM|2r1r1k1/1q2Bpp1/p3p2p/1p6/4n3/P3PN2/1P3PPP/1QR2RK1 b - - 0 22|e8e7 c1c8 b7c8 b1e4|974|
+1bdWl|7Q/3kn3/3p4/4pq2/8/7P/1r3PP1/2R1R1K1 w - - 1 36|c1d1 f5f2 g1h2 f2g2|974|mate in 2
+5qc2n|r2q1rk1/1pp3pp/p3p3/n7/2PPQ3/P3P3/1B3PPP/R3K2R b KQ - 0 16|a5c4 e4e6 g8h8 e6c4|974|fork
+2BEcu|7R/8/pk5P/1ppB4/1K6/1P6/7r/8 w - - 0 39|b4a3 b5b4 a3a4 h2a2|974|mate in 2
+34YEH|1r3k2/3B1pp1/3p1b2/pPp4p/P4q2/5P1P/1P2QP2/4RK2 b - - 5 30|f4h2 e2e8 b8e8 e1e8|974|mate in 2,sacrifice
+5InvI|r2qk1r1/p3ppBp/2p3p1/2p5/1n6/1P3N2/P2P1PPP/1RQ1K2R w Kq - 0 15|g7h6 b4d3 e1e2 d3c1|974|fork
+49xkW|6rk/5R2/8/1p1p4/1P1P4/P2r4/5K2/5R2 b - - 1 35|d3d4 f1h1 d4h4 h1h4|974|mate in 2,rook endgame
+1x7LV|4r1k1/pp6/2p1np2/3p4/5PN1/3PRK2/P7/8 b - - 1 38|f6f5 g4f6 g8f7 f6e8|974|fork
+1iOCY|8/7p/6p1/3k1p2/5P2/r1pK2P1/7P/2R5 w - - 1 41|c1c3 a3c3 d3c3 d5e4|974|rook endgame
+0nWp8|1r6/4k2p/4p3/5p2/5n2/1p2N3/1R1N1K1P/8 w - - 0 39|e3c4 f4d3 f2e2 d3b2|974|fork
+0Aox8|4Rbk1/pp1n2pq/2p5/8/2P3Q1/1P6/P4P2/6K1 b - - 0 29|d7f6 g4e6 g8h8 e8f8|975|deflection
+4hHTy|1R6/1p2bppk/p1p1b2p/8/8/P3rB1P/1P1B2P1/7K b - - 4 30|e3d3 f3e4 f7f5 e4d3|975|fork
+0oJNl|r3kb1r/3qnppp/2p3bB/1p1p4/p2PP1N1/5P1P/PPB2P2/R2QR1K1 b kq - 3 18|g7h6 g4f6 e8d8 f6d7|975|fork
+2VJWK|r4rk1/ppqn1ppp/2p1p3/2P4b/3PQb2/3B1N1P/P1P2PP1/R1B2RK1 b - - 2 14|f4c1 e4h7|975|kingside attack,mate in 1
+4U1cy|1k1r1bnr/1pp5/1p5p/6p1/q4pQ1/P2PB2P/2P2PP1/R3R1K1 b - - 3 21|f4e3 g4a4 e3f2 g1f2|975|hanging piece
+5Cmoq|1r3k2/1b1R2bp/6p1/p7/2Bp4/1P4P1/P1P2P1P/6K1 b - - 1 35|b7c6 d7f7 f8e8 f7g7|975|deflection
+5owW3|r7/2Rp1kpp/4bB2/p7/8/2N4P/P2r1PP1/R5K1 b - - 0 23|f7f6 c3e4 f6e7 e4d2|975|fork
+2hHP9|r2qkb1r/5p1p/p2p1Pp1/2p5/P1pn1Q2/2N4P/1PPP2P1/R1B2RK1 w kq - 0 14|c3d5 d4e2 g1h2 e2f4|975|fork
+60IlI|8/2b5/4b2k/4p3/PN4p1/3BP3/5PK1/8 w - - 0 46|b4c6 e6d5 e3e4 d5c6|975|fork
+3krWs|5nk1/5p2/ppq1p1p1/2p1P1Pp/2PrNQ1P/P3R3/1P3P1K/8 b - - 7 38|d4c4 e4f6 g8h8 f4c4|976|discovered attack
+0bFH5|4r1k1/ppR4p/6p1/4Pp2/8/5K2/1r6/3R4 b - - 5 42|e8e5 d1d8 e5e8 d8e8|976|mate in 2,rook endgame
+5ZccH|6k1/p1p3pp/2p3q1/2Bp3r/7r/2P5/PP1Q1PPP/4RR1K w - - 3 20|h2h3 h4h3 h1g1 h3h1|976|kingside attack,mate in 2
+63eW5|r5k1/ppp2p1p/3p1bp1/3P1r2/2P1RB2/7Q/qP4PP/4R1K1 b - - 1 21|a2b2 e4e8 a8e8 e1e8 g8g7 f4h6|976|kingside attack,mate in 3
+4gzR3|2rr2k1/1b1pbQ1n/p3p3/1p2P1N1/1P3P2/P5qP/6P1/R4RK1 b - - 0 22|g8h8 f7h7|976|kingside attack,mate in 1
+0DIfp|6k1/pp3p1p/3p1Qp1/3P4/6rP/1P1b4/P1q1rP1K/2R2R2 b - - 1 29|c2d2 c1c8 e2e8 c8e8|976|kingside attack,mate in 2
+2FomD|r2q2r1/pp1b3Q/3kp3/3p2N1/5P2/2P1n3/PP3RPP/R5K1 b - - 10 27|e3f5 g5f7 d6c7 f7d8|976|fork
+2Z434|r3k2r/pppq1p1p/2nb1p2/3Q4/8/2P2N2/PP3PPP/R1B1K2R w KQkq - 1 13|e1g1 d6h2 g1h2 d7d5|976|discovered attack,kingside attack
+6drjG|r5nr/4b1k1/pp1p1pp1/3Pp1p1/2P5/P3B2q/1PQ1BP1N/R4RK1 w - - 0 21|e2g4 h3h2|976|kingside attack,mate in 1
+5t5kg|6k1/2pR4/p1Q1pKP1/4Pp2/2P2P2/4p3/6q1/8 b - - 14 44|g2c6 d7d8 c6e8 d8e8|976|mate in 2,queen and rook endgame
+5IttT|r3k2r/pp1q1ppp/3b4/2p1p3/3nP3/2Q1B2P/PPP2PP1/RN3RK1 w kq - 0 14|b1a3 d4e2 g1h1 e2c3|976|fork
+36yts|2rRk2r/1p3bp1/p1p3n1/4p1Bp/4P3/8/PPP1B1PP/3R2K1 b k - 11 20|c8d8 d1d8|976|mate in 1
+0sT56|8/5p2/5N2/4P1P1/8/1kpK4/8/8 w - - 2 55|f6d5 c3c2 d5c3 c2c1q|976|advanced pawn,knight endgame,promotion
+6Sax4|8/8/5pp1/4k3/2p1P1Pp/2P2K1P/8/8 b - - 1 57|g6g5 f3e3 e5d6 e3d4|977|pawn endgame,zugzwang
+1LGPU|5b1r/pr3kpp/5p2/3p4/8/1P2BP2/P4P1P/2R1K2R w K - 3 19|c1c8 f8b4 e1e2 h8c8|977|discovered attack
+3ZVqK|1n3rk1/q5r1/p3R1nQ/1p4N1/1P6/8/P1P2PPP/3R2K1 w - - 1 23|e6g6 a7f2 g1h1 f2f1 d1f1 f8f1|977|back-rank mate,mate in 3,sacrifice
+6goU7|3r1r2/pp2Npkp/3p2p1/2q5/2pnP3/3P2Pb/PPPQ1PB1/1R2R1K1 w - - 0 19|g2h3 d4f3 g1g2 f3d2|977|fork
+0Y6E1|5rk1/6pp/8/P2R4/2n4P/2N5/6K1/8 w - - 3 44|a5a6 c4e3 g2g3 e3d5|977|fork,from a master game
+54je7|2r5/4nkpp/6n1/p1p2pN1/q4P2/3RP1B1/6PP/3R2K1 b - - 3 35|f7f6 d3d6|977|mate in 1
+20avt|8/7p/p5p1/1q6/kpp3P1/3p2K1/1P6/4Q3 b - - 9 72|b4b3 e1a1 a4b4 a1a3|977|mate in 2,queen endgame
+3Yg5p|r1kq4/pp1b2Qp/1nn3p1/4B3/8/5r2/P4PPP/RNR3K1 w - - 6 20|g2f3 d8g5 e5g3 g5c1|977|fork
+4jdvw|r2q1rk1/p1pb2pp/2pn1b2/3p4/N4P2/3B3P/PPP3P1/R1BQ1RK1 w - - 2 15|a4c5 f6d4 g1h2 d4c5|977|fork
+0MH8c|5k2/3R4/p4rpp/P2Bp1p1/2p3K1/2P2P2/8/8 w - - 2 35|d5c4 f6f4 g4g3 f4c4|977|fork
+5wT80|r2qkb1r/ppp5/3pp1p1/6Np/3nPpQ1/N2P4/PPP3PP/R1B2RK1 w kq - 0 12|g4f4 d4e2 g1h1 e2f4|978|fork
+5zlEj|r1b5/1p3kpp/p3pp2/3p3Q/1P6/PN4P1/1q3P1P/5RK1 b - - 1 21|f7g8 h5e8|978|mate in 1
+6d0XS|6k1/p3rpp1/3Q3p/3p1p2/2bP4/2P1rPPq/P4RNP/2R3K1 w - - 4 28|g2f4 e3e1 c1e1 e7e1 f2f1 h3f1|978|kingside attack,mate in 3
+1JM73|2q3k1/p4ppp/5n2/4Q3/1P4P1/4N3/PB3P1K/3r4 w - - 0 33|e3d1 f6g4 h2g3 g4e5|978|fork
+5WBPV|r4n1r/p1Rn2k1/4p3/1P1pP3/3P4/3B2pq/P1QB1Pp1/5KR1 w - - 0 39|g1g2 h3h1 f1e2 h1g2|978|deflection
+0sfnj|r4k2/5ppp/3R1b2/4pP2/1Q6/7P/r1q3P1/3R3K b - - 4 24|f6e7 d6d8 a8d8 d1d8|978|mate in 2,pin
+4eiix|5rk1/1b1n1p1p/p1q2P2/3pp3/3B4/3P4/PP1Q2PP/5RK1 b - - 1 23|e5d4 d2g5 g8h8 g5g7|978|mate in 2
+3nIW3|rnb1kb1r/ppp2ppp/8/3pp3/3PP2q/2P5/PP4PP/RNBQKBNR w KQkq - 1 6|g2g3 h4e4 d1e2 e4h1|978|fork
+60mkE|r2r2k1/pb5p/4p1p1/2N5/2p1P3/P6P/1P4P1/3R1RK1 b - - 1 31|b7c8 d1d8|978|hanging piece
+3qysC|5r1k/pQp3p1/7p/2p1p3/3nP3/2P1q3/PP3PPP/5RK1 w - - 0 23|f2e3 d4e2 g1h1 f8f1|978|back-rank mate,deflection,mate in 2
+4qaNL|2k1r3/ppp3pp/2p5/5b2/1P3R2/P2P4/RbP2PPP/6K1 w - - 4 24|h2h3 e8e1 g1h2 b2e5|978|pin
+0gJqv|r2qkbnr/pp2pppp/2np4/1Bp5/Q3P1b1/2P2N2/PP1P1PPP/RNB1K2R b KQkq - 3 5|g4f3 b5c6 b7c6 a4c6|978|
+3Bc9b|2r4r/6k1/N2p2p1/1P2p2p/3qP1nP/6R1/P5P1/2RQ2K1 w - - 0 31|d1d4 c8c1 d4d1 c1d1|978|hanging piece,mate in 2
+724lM|6k1/5ppp/1p2p3/p2n4/b2PN2Q/P6P/2q2PPK/4r3 b - - 1 35|c2e4 h4d8 a4e8 d8e8|979|mate in 2
+153Sx|6k1/p1q2ppp/1rBrpn2/2R5/8/1PP2Q1P/P3RPP1/6K1 w - - 1 24|c6a4 d6d1 e2e1 d1e1|979|kingside attack,mate in 2
+1Vajv|3r1rk1/1pq1ppbp/p5p1/5bB1/2PP2n1/2N2Q2/PP2NPPP/3R1RK1 w - - 1 16|b2b3 c7h2|979|kingside attack,mate in 1
+5oqu0|7Q/1p6/p1p5/P3k1K1/8/8/8/3q4 b - - 0 47|e5d5 h8d8 d5c5 d8d1|979|queen endgame,skewer
+1txLH|r2q2k1/1b6/p1p4p/3p2pB/3Prp2/bPRQ1PB1/6PP/5RK1 b - - 0 26|e4e3 d3g6|979|
+3wQ8w|3r1rk1/1bq2pp1/pb3n1B/1p3N2/1P1pP1n1/P2P4/B2QN1PP/R4RK1 w - - 1 27|h6g7 c7h2|979|kingside attack,mate in 1
+5Zbex|8/kp6/p2p2Qp/4p3/3q4/Pr5P/1nR2PP1/4R1K1 w - - 0 34|e1e4 d4d1 e4e1 d1e1|979|fork
+12FSy|2k3r1/1pp2p2/8/1P3N2/P2p3p/3P1b2/5P1R/5K2 b - - 0 33|h4h3 f5e7 c8b8 e7g8|979|fork
+3YgZ7|r5k1/3n1Rp1/p2p3p/1ppP4/4P1Q1/PPq4P/2P3P1/6K1 b - - 0 24|d7e5 g4g7|979|kingside attack,mate in 1
+3Ir3b|1r3rk1/n4pp1/Pb2p2p/1b1pP3/8/1Nq1P1B1/Q4PPP/R2BR1K1 w - - 0 30|a1c1 c3e1|979|hanging piece,kingside attack,mate in 1
+4hmQ5|3r2k1/p5p1/1q6/4pQ2/2P5/1P6/P4RPP/7K b - - 0 29|b6f2 f5f2 d8d1 f2g1|980|hanging piece
+0xJ0u|5r2/3k3p/3N4/p1P3p1/4R3/1n4P1/5P1P/5K2 w - - 2 38|d6b7 b3d2 f1e2 d2e4|980|fork
+6jECE|b4rk1/5pp1/7p/4P3/2N2n2/1B3NnP/3R2P1/6K1 w - - 7 28|g1h2 g3f1 h2g1 f1d2|980|fork
+3SS3q|r4rk1/p1pR1ppp/4p3/2p1P3/2Pn1B2/1P3P2/1P2KP1P/R7 w - - 1 21|e2e3 d4c2 e3e4 c2a1|980|fork
+6d82R|2r2k2/4np1R/2p1p3/1p6/1b5p/1B3P2/1B5P/7K b - - 2 29|e7f5 h7h8 f8e7 h8c8|980|skewer
+3ZPsq|1r3k2/3p1p2/4pR2/p2pP1p1/3P4/P2r3P/1P4P1/5RK1 b - - 2 28|b8b2 f6f7 f8g8 f7f8|980|rook endgame
+22Paf|5rk1/2r1qppp/p3p3/1p6/3nB3/P5Q1/1PP2PPP/R4RK1 w - - 4 20|a1d1 d4e2 g1h1 e2g3|980|fork
+6Ema2|5k2/1p5p/p5p1/2nBN3/P2p2P1/2q2PK1/4R2P/8 b - - 4 46|c5d3 e5d7 f8g7 e2e7|980|
+1cNrA|5rk1/pq3p1p/6p1/8/1PQ5/4PP2/P4P1P/2K3R1 w - - 1 24|f3f4 f8c8 c4c8 b7c8|980|pin
+5PiWn|r4rk1/7p/p2q1pn1/2pb1Np1/2n5/3Q4/P1B2PPP/R4RK1 b - - 3 23|d6c6 f5e7 g8g7 e7c6|980|
+1fR1E|r1bqk2r/pppp2pp/8/4n1N1/1b4Q1/2N5/PP3PPP/R1B1K2R w KQ - 0 11|g4b4 e5d3 e1d1 d3b4|980|fork
+5UyQO|6k1/4Rp1p/4p1p1/1b6/4P3/8/rP3RPP/6K1 w - - 0 22|f2f7 a2a1 g1f2 a1f1 f2e3 f1f7|980|
+4uiUd|4r1k1/R4pp1/5p1p/2Q5/1P1N2b1/P7/r4PPP/5qK1 w - - 0 26|g1f1 a2a1 c5c1 a1c1|980|mate in 2
+67FZg|5rk1/p4pp1/1pp4p/3pPQ2/1P1P4/P3BRrq/1P6/5RK1 w - - 0 29|f3g3 h3g3 g1h1 g3e3|980|fork
+2LCwp|1Q6/3qkp2/1p4p1/p1p3P1/8/PP6/6PK/8 w - - 2 44|b8b6 d7d6 b6d6 e7d6|980|queen endgame
+2na7h|r4rk1/ppq2ppp/3b4/5bNQ/7N/P2n2P1/1P3P1P/R1B2RK1 b - - 8 19|g7g6 h5h7|980|kingside attack,mate in 1
+2xfBY|1r3rk1/1p1N1p1p/p2pp1pb/P1pP3b/4P3/7P/1PP1N1q1/R2KQ2R b - - 1 24|g2e4 d7f6 g8g7 f6e4|980|fork
+5QjRa|8/2p4p/1kp3p1/p5K1/4P2P/2N2P2/1P1r4/8 b - - 0 30|d2b2 c3a4 b6b5 a4b2|980|fork
+1DR4g|7r/1p2ppbk/pq1p2p1/3P4/4P3/1P3PP1/P1Q1B1K1/7R b - - 4 30|h7g8 c2c8 g7f8 h1h8 g8h8 c8f8|980|attraction,deflection,kingside attack
+0aiJs|2R1R3/pp3ppk/8/6r1/8/5P1P/P2n1P2/6K1 w - - 4 27|g1h2 d2f3 h2h1 g5g1|981|Arabian mate,mate in 2
+5SAxG|r5k1/P5np/4p3/3p4/6N1/5r2/4R3/R5K1 b - - 0 35|f3f7 g4h6 g8f8 h6f7|981|fork
+02zVb|r2q1r2/p5k1/3b1ppp/1p1p4/2pP4/P1P2Q1P/1P1N1PP1/R3R1K1 w - - 0 24|f3d5 d6h2 g1h2 d8d5|981|discovered attack
+4ONuh|3r1r2/6k1/1pq1pNp1/2p1P2p/1p1n4/1P1P2PP/P2Q3K/2R2R2 w - - 3 41|f1f4 d4f3 f4f3 c6f3|981|fork
+3SZeR|5bk1/pp3ppp/4p3/3pN2Q/Pq1P4/8/2r2PPP/3R2K1 b - - 9 31|b4a4 h5f7 g8h8 f7f8|981|deflection,mate in 2
+2ezlt|1r3rk1/pp2qppp/2pp4/6n1/2PQ4/1P4Pb/PB2PPBP/R4RK1 b - - 4 16|h3g2 d4g7|981|kingside attack,mate in 1
+1jL8s|6k1/5pp1/5r1p/2P5/8/7q/P1Q3R1/R6K w - - 2 39|g2h2 f6f1 a1f1 h3f1|981|mate in 2
+6GQ7Y|6k1/7R/2q1pb2/p4p2/1pP2P2/1P5K/P2Q3P/8 w - - 0 41|h7d7 c6f3|981|mate in 1
+3NS1u|r4rk1/3q1ppp/p1R1pn2/3p1b2/Q2P4/4P3/PP2NPPP/4KB1R w K - 1 15|c6a6 d7a4 a6a4 a8a4|981|x-ray
+111hw|8/8/3k4/8/r3pK2/2R1B3/2p2P2/3b4 b - - 11 72|a4b4 e3c5 d6d5 c5b4|981|fork
+5RFua|4r3/5ppk/1bp1q2p/p2p1NPQ/2p5/2P4P/PP3P2/R5K1 b - - 0 27|g7g6 h5h6 h7g8 h6g7|981|mate in 2
+09REh|1r6/8/R6p/1p3ppk/8/5K1P/PP4P1/8 b - - 0 33|b5b4 g2g4 f5g4 h3g4 h5h4 a6h6|981|mate in 3,rook endgame
+31FEO|5q2/8/5kp1/p2p1p2/2rP3Q/2p5/2K2P2/4R3 b - - 2 44|f6g7 e1e7 f8e7 h4e7|981|
+38kLx|5rk1/p4Qpp/8/2p3b1/3P4/8/P1qp2PP/1R3RK1 b - - 0 27|f8f7 b1b8 g5d8 b8d8 f7f8 f1f8|982|mate in 3
+4y2GT|6k1/1b4p1/p1q1p2p/p1p1P3/2Pp2Q1/PP1P1rN1/R4bPP/7K w - - 0 28|g2f3 c6f3 g4f3 b7f3|982|double bishop mate,kingside attack,mate in 2
+27xQy|r2r2k1/5ppp/R3p3/1p2n3/4P3/5PP1/PP2K2P/3R4 b - - 0 25|d8d1 a6a8 d1d8 a8d8|982|back-rank mate,hanging piece,mate in 2
+3WkIY|3r1r1k/pp3Q1p/3qP3/2pP4/3R1P2/8/PP4PP/5R1K w - - 1 30|e6e7 f8f7 e7d8r d6d8|982|
+05ZFk|2kr1bnr/ppp2ppp/6q1/3BN3/3P1p2/7b/PPP3P1/RNBQR1K1 b - - 1 13|d8d5 e5g6|982|
+3Mbq6|4R3/pp1r3k/1n1P1Bpp/5b2/1P4p1/6K1/P1r4P/5R2 b - - 5 34|b6d5 e8h8|982|mate in 1
+3w2md|8/3B1p1p/5k2/ppq5/7P/4R1N1/5K2/8 b - - 3 54|b5b4 g3e4 f6e7 e4c5|982|discovered attack,fork
+1sTKl|6k1/5ppp/4P3/b4R2/2r5/4B3/6PP/7K b - - 0 31|f7e6 f5a5|982|hanging piece
+0W3d2|2rr2k1/1b2bpp1/4p3/4B3/1p2n1Q1/7P/1Pq1NPB1/3RR1K1 b - - 0 30|d8d1 g4g7|982|kingside attack,from a master game,mate in 1
+2AUwy|3r2k1/2p3p1/p1b1Nr1p/4R3/8/8/PP3P1P/5RK1 w - - 1 26|e6d8 f6g6 e5g5 g6g5|982|mate in 2
+2A8PI|2rq1rk1/5p1p/p2b1p2/1p1Q4/3p4/1B1P3P/PPP2PP1/R4RK1 w - - 6 21|d5d4 d6h2 g1h2 d8d4|982|discovered attack
+1qmoc|r1b1k2r/ppp2p2/1bnp2p1/4p2B/2P1N2q/1P1PP1P1/PB3P1P/R2Q1RK1 b kq - 0 19|h4h5 e4f6 e8f8 f6h5|982|fork
+0755M|4r1k1/2p1rpp1/p2b1n1p/1p1P4/1P6/P1NRB2P/5PP1/3R2K1 w - - 3 23|e3c5 e7e1 d1e1 e8e1|982|kingside attack,from a master game,mate in 2
+2wseq|1rb2rk1/p1p2ppp/1p1bp3/8/3B2Q1/P4N2/2P2PPP/2qRK2R b K - 3 17|c1c2 g4g7|982|kingside attack,mate in 1
+2QLVP|8/5p1k/4q1pp/4p3/4n3/3R3P/6P1/3Q3K w - - 0 41|d3d7 e4f2 h1h2 f2d1|983|fork
+5CjnK|2k5/pp3p2/1qp1p3/4Pr2/8/3QP3/PPP5/2K4R b - - 0 25|f5e5 h1h8 c8c7 d3d8|983|dovetail mate,mate in 2
+2D7tH|r6k/pp4p1/2pq2p1/b7/3P1rn1/P1P5/BP4PP/R2Q1RK1 w - - 0 22|f1f4 d6f4 d1g4 f4g4|983|
+2S9lZ|r4rk1/4ppbp/p1P3p1/3Pp3/QR2P3/6Pn/6BP/R5qK w - - 5 26|a1g1 h3f2|983|mate in 1,smothered mate
+3czId|8/1p5p/3B1kp1/2P5/5K1P/P1r3P1/8/8 b - - 2 46|h7h6 d6e5 f6e6 e5c3|983|fork
+6n3i5|3r2k1/p1R2ppp/8/8/8/8/r1P2PPP/2K4R w - - 0 22|h1e1 a2a1 c1b2 a1e1|983|rook endgame,skewer
+2qjH5|2kr3r/2qbp1b1/3p1p2/2pPpP2/1pP1N1B1/pP2P3/P1Q4P/R4RK1 w - - 1 20|g1f2 h8h2 f2f3 h2c2|983|skewer
+1qwe6|8/1R6/8/7P/1n6/ppk5/5PP1/1K6 w - - 1 44|h5h6 a3a2 b1a1 b3b2|983|advanced pawn,mate in 2
+2gUI5|6k1/5pp1/pBN1b2p/Pn6/3p4/3R3P/r4PP1/6K1 b - - 1 46|e6d5 c6e7 g8h7 e7d5 a2a1 g1h2|983|fork
+1Vsxl|r3qrk1/pp3p1p/6p1/4b3/8/1P2B3/P3QPPP/2R2RK1 w - - 1 18|e3c5 e5h2 g1h2 e8e2|983|discovered attack,kingside attack
+1ACnA|r1q1k2r/ppp2pp1/3p1b1p/8/4P3/2NP2Pb/PP3P1P/R2QR1KB w kq - 0 14|f2f4 f6d4 e1e3 d4e3|984|Boden's mate,kingside attack,mate in 2
+6MqK2|4k3/p4p2/PrrP2pp/1b2PP2/6PP/1p1B4/1RpK4/2R5 w - - 1 46|f5g6 b5d3 g6f7 e8f7|984|
+1vKof|3rr1k1/p2q1ppp/8/Q7/P7/8/5PPP/R1R3K1 w - - 3 30|c1c7 d7d1 a1d1 d8d1 a5e1 d1e1|984|back-rank mate,mate in 3,sacrifice
+2t43j|r7/6r1/2Rk2p1/p3pp2/Pp1pP3/3P1P2/7P/2R3K1 b - - 1 31|d6d7 c6c7 d7e8 c7g7|984|rook endgame,skewer
+77YOW|2r4k/7p/p4ppb/2B1p3/1P6/P1q5/4RPPP/1B1Q2K1 w - - 0 32|d1d3 c3c1 e2e1 c1e1|984|
+3cygX|r2q1bkr/6pp/p7/1p6/6Q1/2NP4/PPnK1PPP/R1B4R b - - 1 14|c2a1 g4e6|984|mate in 1
+2pI9M|1r1qr1nk/1b3pbp/pp1p1np1/3Pp1N1/2P1N3/1P4P1/PB3PBP/1R1QR1K1 b - - 3 18|f6e4 g5f7|984|kingside attack,mate in 1,smothered mate
+2ejlu|2k2r2/ppp5/8/1PP1p2p/P5p1/1r4P1/1B1q3R/2K1R3 w - - 0 33|c1d2 b3b2 d2c3 b2h2|984|hanging piece,skewer
+1o2bY|1rb4r/3kp3/3pQn2/pp3P2/8/7P/P5P1/4R1K1 b - - 1 32|d7d8 e6e7|984|mate in 1
+1Jya2|r6r/ppp3k1/3p2np/3Np3/2BnPp2/3P1P1R/PPP2P2/2K3R1 w - - 6 21|d5e7 d4e2 c1d1 e2g1|984|fork
+4DgrS|6k1/2p1r1pp/p4p2/8/1P6/P4bP1/1B3P1P/3R1K2 w - - 4 30|d1d3 f3e2 f1e1 e2d3|984|discovered attack,fork
+4i5xk|8/pr2kp1B/4pp2/1b1p4/7P/q3P1Q1/5PP1/1R4K1 b - - 3 36|b5c6 b1b7 c6b7 g3c7|984|
+1WfTu|6r1/1k6/7R/4R1p1/4P1b1/4b3/P1P3P1/2K5 w - - 1 29|c1b2 e3d4 b2b3 d4e5|984|fork
+3gVLz|r2q4/pbp3k1/1p4p1/4b2p/4P3/1QPBpP1R/PP4P1/2K3R1 w - - 0 26|d3e2 d8d2 c1b1 d2e2|985|fork
+1tGfm|r1b1r1k1/1p3pp1/p3pq1p/8/8/P2B2P1/1PQ2PP1/1K1R3R b - - 3 18|c8d7 d3h7 g8h8 d1d7|985|discovered attack
+1NrKa|r1b3k1/pp2q3/1b4p1/2pp2N1/2n4Q/2N5/PP1B1PPP/R4K2 w - - 2 22|a1e1 c4d2 f1g1 e7e1|985|hanging piece,mate in 2
+63eGh|5R2/r2k4/P2p4/2p1pp1p/2P4r/1PK5/8/R7 b - - 3 52|f5f4 f8f7 d7c6 f7a7|985|rook endgame,skewer
+5wx4f|3R2k1/6p1/2p1N3/p3p3/4P3/P4r1P/1rP4K/8 b - - 2 32|g8h7 e6g5 h7g6 g5f3|985|fork
+3NLBR|6k1/1p6/p1n2Bp1/3b3q/5Q2/2P1p1P1/5P2/4R1K1 w - - 0 40|g3g4 h5h1|985|mate in 1
+07EIF|rnb1qrnk/ppp2pbp/3pp1p1/1N4B1/2PP4/4PN2/PPQ1BPPP/R4RK1 b - - 8 10|a7a6 b5c7 e8c6 c7a8|985|fork
+4O4e6|r5k1/p2r2pp/4pp2/Bpb5/1P3P2/7P/P3NnPK/R4R2 b - - 0 25|c5d4 e2d4 d7d4 f1f2|985|capturing the defender
+6X0Vm|8/8/7P/1p4P1/2kP1P2/8/3K4/6r1 b - - 0 46|b5b4 h6h7 b4b3 h7h8q|985|advanced pawn,promotion,rook endgame
+1uUE9|4r1k1/3n1ppp/4q3/nppb2B1/4P2N/1P4P1/5PBP/3QR1K1 w - - 0 24|d1d5 e6d5 e4d5 e8e1|985|discovered attack,kingside attack
+68e9x|2kr1r2/4n2P/p3p1PR/q1pb1p2/1p1P1P2/2p1B3/PPPQN3/1K4R1 w - - 0 28|b2c3 a5a2 b1c1 a2a1|985|mate in 2,queenside attack
+6Rmfc|r6k/6p1/7p/1PP5/2Q3P1/1K3q1P/1R6/8 w - - 2 53|b3b4 f3a3|985|mate in 1
+04kFn|8/2K5/5R2/P7/7k/8/5p1p/8 b - - 0 62|h2h1q f6h6 h4g4 h6h1|985|queen and rook endgame,skewer
+6QQCT|r4rk1/3nbpp1/p1p1p2p/Pp6/1P1PNPn1/4B1Pq/2PNQ2P/1R3RK1 w - - 1 19|e4f2 h3h2|985|kingside attack,mate in 1
+4s3l7|8/3R4/4p1k1/2r1Np2/1pb2P1p/8/5KP1/8 b - - 3 44|g6f6 d7f7|985|hook mate,mate in 1
+2tu7D|5rk1/4Rp1p/3P1qpP/8/4R3/6P1/1r1Q1P1K/8 w - - 1 38|d2f4 b2f2 f4f2 f6f2|985|fork,x-ray
+2qtmz|8/1Bk5/P5P1/2pK4/3b4/4p3/1r4R1/8 w - - 4 50|g2b2 d4b2 b7c6 e3e2 a6a7 e2e1q|985|advanced pawn,promotion
+2dKa2|8/1p6/pq1bR1R1/3k3p/8/5PP1/PP5P/7K b - - 1 35|a6a5 e6d6 b6d6 g6d6|985|fork
+2TkxA|r4r2/1bq2Nkp/6p1/2p2n2/3p1N2/3P3P/1P3PP1/1R2QRK1 b - - 0 26|f8f7 f4e6 g7g8 e6c7|986|fork
+02XT4|r4rk1/6pp/p4pq1/3Np3/2ppP2P/Q5P1/2P5/3RR1K1 b - - 0 26|c4c3 d5e7 g8h8 e7g6|986|fork
+0zBJk|5R2/2p3pp/1k6/8/8/8/PP1r3P/7K b - - 0 25|d2b2 f8b8 b6a5 b8b2|986|rook endgame,skewer
+3nttI|r1br2k1/pp3pp1/2p1n2p/5N2/3q1n2/2RB2N1/PP3PPP/3QR1K1 b - - 5 20|d4d5 f5e7 g8h8 e7d5|986|fork
+6gp0O|1nR5/5pk1/p3p1p1/7p/2P1BP1K/6P1/r6P/8 w - - 4 39|c8b8 a2h2 h4g5 f7f6|986|mate in 2
+6joEV|6k1/5ppp/P3p3/1qNpP3/3P4/3bP3/3B1RPP/6K1 w - - 1 31|a6a7 b5b1 d2e1 b1e1 f2f1 e1f1|986|mate in 3
+52e8l|2r3k1/p1r2pp1/qp1bp2p/2P5/3P4/1QR2NP1/P4P1P/3R2K1 w - - 1 26|c5d6 c7c3 d6d7 c3b3|986|from a master game
+5fYsY|r3r3/5pkp/2Q3p1/pp6/1P1P4/5P2/q5PP/3RR2K b - - 0 25|a5b4 e1e8 a8e8 c6e8|986|
+1wDKj|8/r4ppk/7p/3n4/2Np4/P6P/R4PP1/5K2 w - - 5 30|f1e2 d5c3 e2d3 c3a2|986|fork
+4fxzO|rn1q1k2/p3pp1N/3p1np1/3P4/b1P5/PN6/4BPPP/Q4RK1 b - - 0 20|f6h7 a1h8|986|mate in 1
+49jpd|r3k1nr/p1p3p1/2p1p1b1/1q5p/3PN2P/2P5/PP2QP2/R3K1NR w KQkq - 1 15|e4d6 c7d6 e2b5 c6b5|986|hanging piece
+53WYH|5r2/pp1k2bR/2p5/2P1p3/1P3p2/P2P1N2/3K4/8 b - - 11 48|f8f7 f3e5 g7e5 h7f7|986|
+2FZpq|2r2rk1/1p1b1pp1/p3pq1p/8/3N4/P2B2P1/1P1Q1P1P/R3K2R b KQ - 0 19|f6d4 d3h7 g8h7 d2d4|986|discovered attack
+1iGV8|8/2q2pkp/4pbp1/1pNp1n2/1P1P4/2Q2NP1/4KP1P/8 b - - 6 33|h7h6 c5e6 f7e6 c3c7|986|discovered attack
+1A5tR|R7/2p5/1b1pNk2/p3pr2/8/3P1P2/P3n1PP/3R3K w - - 6 32|e6d8 e2g3 h2g3 f5h5|986|mate in 2,sacrifice
+4KWIS|r4rk1/p1p2p2/2Qbqp1p/3N4/2P1p3/8/PP3PPP/R3R1K1 b - - 0 18|d6h2 g1h2 e6c6 d5e7 g8h7 e7c6|986|fork,sacrifice
+33dxk|8/3q3k/1B5p/5pp1/PR6/5P1P/6P1/6K1 w - - 2 43|a4a5 d7d1 g1f2 d1d2|986|
+0bYui|2r3k1/p7/1p1Bp2p/4P1p1/3pR3/PP1P2R1/1r6/6K1 w - - 1 40|b3b4 c8c1 e4e1 c1e1|986|mate in 2
+3x3MY|2r1k2r/pp3pp1/2q1p2p/P1npPb2/1Q6/B1P1P2P/5PP1/RNR3K1 b k - 8 19|c5d3 b4e7|987|mate in 1
+3QUCG|1r1q2k1/2p2p2/p2b1p1p/1p1B4/4r2B/2P5/PP3PPP/RN1Q2K1 w - - 0 19|d5e4 d6h2 g1h2 d8d1|987|discovered attack,kingside attack
+00bWA|2r1r1k1/3qbppp/pB6/3ppP2/2p1Q3/P6P/BPP3P1/R4RK1 w - - 0 22|e4e5 e7c5 e5d4 c5d4|987|
+2p9sG|1Q6/2p2pk1/3p3p/4r2n/3qP3/5P2/1P4PP/1R3R1K w - - 3 31|b8b3 h5g3 h2g3 e5h5|987|clearance,mate in 2,sacrifice
+4Bik6|6k1/ppp3p1/3p1r2/4p3/4P3/1P1P1r1p/PP2N2R/1K1R4 w - - 2 26|e2g1 f3f1 d1f1 f6f1 b1c2 f1g1|987|fork
+0UZ1S|8/6p1/5pkp/2R1b3/8/3p1P1P/1PP2KP1/8 w - - 0 36|c2d3 e5d4 f2g3 d4c5|987|fork
+6H6Ij|1rb1kbnr/p2q1ppp/4p3/1P1N4/2pnP3/5PPB/1P1P3P/R1BQK2R b KQk - 1 13|d7b5 d5c7 e8d8 c7b5|987|fork
+2epbQ|8/8/p7/4p1pk/2P1Pr1p/P4P1K/5R2/8 b - - 0 41|g5g4 f3g4 f4g4 f2f5 g4g5 f5g5|987|rook endgame
+3oXST|1k6/ppp1p3/1qN3p1/7p/4P3/P1Q5/5PPK/8 b - - 0 33|b6c6 c3h8 c6e8 h8e8|987|back-rank mate,mate in 2,queen endgame
+65qaP|3R4/5ppk/p1r3n1/1p4P1/8/1PP2K1P/3B4/8 w - - 7 41|d8d7 g6e5 f3e4 e5d7|987|fork
+37utC|rnbqkbnr/ppppp1p1/5p1p/8/2PPP3/8/PP3PPP/RNBQKBNR b KQkq - 0 3|a7a6 d1h5 g7g6 h5g6|987|mate in 2
+6ohz7|7r/pb4k1/1p1r2pN/2p2pBB/2PbpP2/P5K1/6P1/3R3R b - - 0 34|g6h5 h6f5 g7g6 f5d6|987|fork
+6I4Ii|1n2R3/7p/2p1Bppk/8/1p1P1PP1/r5K1/P6P/8 w - - 2 30|g3h4 g6g5 f4g5 f6g5|987|mate in 2
+3aLHh|2k5/pppn1p2/2p5/4B2p/4B3/1K3P2/2P2r1P/3R4 w - - 2 24|e4f5 f2f3 e5c3 f3f5|987|fork
+6d5K9|r4rk1/ppbn1ppp/2p5/2P5/1P1P3q/P2BPPN1/5K1P/R2Q3R b - - 2 19|c7g3 h2g3 h4h1 d1h1|987|
+5ThN1|4r1k1/1p4p1/1n1p4/p2P2r1/5B1Q/PP3P2/3R1KPP/1q6 w - - 2 33|h4g5 b1e1|987|mate in 1
+46Vyv|r5k1/rp3ppp/2p5/2P2P2/1b1Pp2P/2n1P2N/PR3P2/K1N4R w - - 11 25|b2b4 a7a2 c1a2 a8a2|987|Arabian mate,mate in 2
+1JMHT|3r3k/2R2p1p/p4p1P/2p1qP2/P1PpP2Q/5KP1/8/8 b - - 0 37|e5c7 h4f6 h8g8 f6g7|988|mate in 2
+2bQ91|rnbq1rk1/p3bpp1/2p1pB1p/1p4N1/2B4P/1P2P3/P1QP1PP1/RN2K2R b KQ - 0 10|e7f6 c2h7|988|mate in 1
+38vXI|3r4/p7/1p1p1r1p/2k3p1/6P1/P6P/1PPN4/1K2R3 b - - 4 39|a7a5 d2e4 c5d4 e4f6|988|fork
+0FYs0|2kr2R1/ppp5/7p/2b5/2B1Pp2/P2p1P1P/1P5P/7K b - - 1 34|d3d2 c4e6 c8b8 g8d8|988|back-rank mate,deflection,mate in 2
+2FOpx|r3kb1r/1p3pp1/p3p2p/3q3b/3P3B/1Q6/PP3PPP/R3KB1R w KQkq - 0 14|b3d5 f8b4|988|Boden's mate,mate in 1
+532em|r2q1rk1/ppp3pp/1b2p3/8/5Q2/8/PPP1B1PP/RN3R1K w - - 0 15|f4c4 f8f1 e2f1 d8d1|988|kingside attack
+63ZPK|5rk1/1b2R2p/2p3p1/pp2P3/5q2/N1Q5/P4PPP/R5K1 w - - 1 26|e5e6 f4f2 g1h1 f2f1 a1f1 f8f1|988|back-rank mate,mate in 3,sacrifice
+43I2a|r2q1rk1/pp4p1/3pp2p/2p1p2Q/4P3/2PP2R1/PP3PPP/R5K1 b - - 1 16|g8h7 h5g6 h7h8 g6g7|988|mate in 2
+64aNQ|6k1/5p1p/p1b1pp1P/8/2P2P2/P3Q3/1q1N2PK/8 b - - 0 35|g8f8 e3c5 f8e8 c5c6|988|fork,from a master game
+6OY2h|r3kb1r/1p1npp1p/p3qnp1/1B2Nb2/Q2P4/2N1B3/PP3PPP/R3K2R b KQkq - 1 11|a6b5 a4a8|988|hanging piece
+5L3lP|2b5/4k3/p4p1p/1p2p3/2r1B3/P5N1/2PR1K1P/8 w - - 1 35|g3f5 c8f5 e4f5 c4f4 f2g3 f4f5|988|exposed king,fork
+3XgDm|8/ppp2p1k/n4B2/4P2P/5rB1/1P2b2R/1PP5/1K6 w - - 1 32|h3e3 f4f1 b1a2 a6b4|988|
+5mADI|q2r2Qk/6bp/r1p3pN/p3Pp2/P3pP2/7P/5PP1/RR4K1 b - - 8 27|d8g8 h6f7|988|mate in 1,smothered mate
+5Cxk9|2b4k/r5pp/1p1p4/2bP4/2P2p2/3QpN1P/5qPK/1B2R3 b - - 0 42|c8h3 d3h7|988|mate in 1
+1MTze|5r2/5p2/4nR2/1k6/6P1/6KP/5P2/8 b - - 4 42|e6g5 f6f5 b5c6 f5g5|988|fork
+3rNGk|r1b2rk1/1pp2ppp/p5n1/4q3/1P1NN3/2P2Q2/P4PPP/R3R1K1 b - - 0 19|e5d5 e4f6 g7f6 f3d5|988|discovered attack
+4w3Pu|r3r1k1/5ppp/p7/1pp2P2/8/2P1RQ2/PPq4P/5R1K b - - 0 26|e8e3 f3a8 e3e8 a8e8|988|hanging piece,mate in 2
+0y04n|3r2k1/6p1/1p5p/p1pNpqbN/2P5/1P1P3P/1P4P1/3R3K b - - 1 24|g5f4 d5e7 g8f7 e7f5|988|fork
+1wtEX|8/2kb2p1/p6p/1p2P2P/2pK2P1/2P2B2/P1P5/8 w - - 3 32|d4d5 d7c6 d5e6 c6f3|988|bishop endgame,skewer
+4tnaL|r4rk1/p4p1p/1pb2p2/3npN2/8/3B4/PPP2PPP/R4RK1 b - - 3 17|d5f4 f5e7 g8h8 e7c6|989|fork
+4zh8J|4k3/1p4p1/n5Rp/4P2P/4p1PB/1P6/P1rr4/5RK1 w - - 9 41|h4g3 d2g2 g1h1 g2g3|989|fork
+4HsmJ|rnb2bnr/ppppq2p/2k5/3QP1p1/2BP1p2/8/PPP3PP/RNB1K2R b KQ - 2 10|c6b6 d5b5|989|mate in 1
+4yaa2|8/6R1/4pp2/3pPk1p/2p1r3/5KPP/8/8 b - - 0 43|e4e5 g3g4 h5g4 h3g4|989|mate in 2,rook endgame
+3y04a|3k1r2/RR5p/1n4p1/1B2p3/4P1b1/2N1P3/1Pr3PP/6K1 w - - 3 22|b7b6 c2c1 c3d1 c1d1 b5f1 d1f1|989|mate in 3
+2TwUg|8/6kp/p2pQ3/3P2P1/1pp5/7K/4nr2/7R w - - 2 42|h1e1 e2f4 h3g3 f4e6|989|fork
+2XLj8|6k1/5ppp/2p5/p5B1/n2P3P/2q2P2/2B5/1rKRR3 w - - 1 34|c1b1 c3b2|989|mate in 1
+3R1AC|2b3kr/4b1r1/p2p4/1p1Pp1q1/7p/2PBPQP1/PP3R1P/5RK1 b - - 1 25|h4g3 f3f8 e7f8 f2f8|989|kingside attack,from a master game,mate in 2
+3gIio|6k1/p6p/1p1pR1p1/2pP2q1/2P5/1P5P/P4rP1/3Q3K w - - 7 28|e6e2 g5g2|989|mate in 1
+4D8na|2r1kb1r/R3ppp1/2p4p/3P2n1/4P3/P2BBP1q/1P2QP1P/5RK1 w k - 1 25|f3f4 g5f3 e2f3 h3f3|990|kingside attack
+0YkfG|8/1r3k2/3R4/3Pp3/2P5/3BK1b1/8/8 w - - 1 44|d6h6 g3f4 e3e4 f4h6|990|fork
+1NpOL|4r3/4P3/pp2k3/8/PB2bp2/8/1P3P1K/2R5 w - - 0 41|c1e1 e8h8 h2g1 h8h1|990|mate in 2
+476o5|8/1pk3p1/pQpbr3/7p/2N3q1/8/PP3PPP/3R2K1 b - - 7 30|c7c8 c4d6 e6d6 d1d6|990|queenside attack
+6Cc8A|r4k1r/pp3ppp/2b2n2/3qN3/3P4/1Q6/PP1N1PPP/R3R1K1 w - - 7 18|d2c4 d5g2|990|kingside attack,mate in 1
+4LqUj|4rrk1/p1q2ppp/3bb3/1p3pN1/8/1PpPp1PQ/P1P1B2P/3R1RK1 b - - 4 28|f5f4 h3h7|990|kingside attack,mate in 1
+6sj8w|5rk1/5pp1/p6p/7q/6n1/2PP1rP1/1P3P2/R2Q1RK1 w - - 0 28|d1f3 h5h2|990|mate in 1
+00YCP|2k3nr/1ppr2pp/p3pp2/2b5/5P2/1N2nN2/PP4PP/1RB1R1K1 b - - 3 15|c5a7 c1e3 a7e3 e1e3|990|
+3kSkx|r2q1r2/pp2ppkp/2n3p1/2p5/5n2/P2P1N1P/1PPN1PP1/R1Q2RK1 w - - 2 15|d2e4 f4e2 g1h1 e2c1|990|fork
+6yKBb|4r2k/ppq1r2p/1bp4Q/4PR2/3P4/2P5/PP4PP/R6K b - - 0 24|e7e6 f5f8 e8f8 h6f8|990|kingside attack,mate in 2
+337N5|k1r5/p2rnp2/q1p1p2p/3pP1p1/PQ1N4/1R2P3/2P3PP/1R4K1 b - - 7 26|c6c5 b4b8 c8b8 b3b8|990|mate in 2,queenside attack,sacrifice
+0OAuF|b7/4rpk1/p2p3p/1p1PbQ2/4P3/P1P3qP/1P4P1/3R1R1K w - - 1 38|f1f3 g3h2|990|mate in 1
+2lJtF|2r2rk1/3nqppp/bp6/p7/2NBP1Q1/1P4P1/P4PBP/2R3K1 b - - 0 20|a6c4 g4g7|990|kingside attack,mate in 1
+40IMb|7k/2p2qp1/p6p/P1R5/4p2N/2P4b/1r3BP1/5RK1 b - - 1 31|f7e7 h4g6 h8h7 g6e7|990|fork
+4G2yo|rn4k1/ppqb1ppp/4r3/1PBQ4/P7/1B3P2/6PP/bN3RK1 b - - 6 22|e6e5 d5f7 g8h8 f7f8|991|kingside attack,mate in 2
+2zgcl|3k1b1r/p1p1pp2/1pBq2p1/7p/2P3n1/1Q1P4/PP2RPPP/R5K1 w - - 5 20|c6f3 d6h2 g1f1 h2h1|991|kingside attack,mate in 2
+6k8SS|r5r1/2pn1pk1/p2q1n1p/1pbb4/2p4N/P1N4P/1PBQ1PP1/4RRK1 b - - 3 22|g8h8 h4f5 g7f8 f5d6|991|fork
+4B5Zk|r2q1rk1/5pp1/4p2p/2b1n3/4P3/3B1P2/P3N1PP/R1Q2R1K w - - 4 20|f1d1 e5d3 d1d3 d8d3|991|
+2mShm|6k1/ppq1rpp1/2pr1n2/3pNR2/3P4/2P2Q1P/PP2R1P1/7K b - - 6 33|g7g6 f5f6 d6f6 f3f6|991|
+4YUyQ|r1b2rk1/ppp2ppp/2n2n2/2bq2B1/8/3B1N2/PPP2PPP/RN1Q1RK1 b - - 5 9|f6g4 d3h7 g8h7 d1d5|991|discovered attack,kingside attack
+0cp7B|2r3k1/2q3pp/p2n1p2/1p1Qp3/6P1/1P3N1P/1P3PK1/3R4 b - - 7 32|g8f8 d5d6 c7d6 d1d6|991|
+5dVhM|2q1r1k1/p1p1bp2/2p4p/8/5p2/2N2Q2/PPP2PPP/2KR4 w - - 0 23|f3f4 e7g5 f4g5 h6g5|991|pin
+2Y1PP|7k/1p3prp/p2p1Q2/4p3/8/2P2P2/PP2q1PP/3R1R1K w - - 3 28|h2h4 e2g2|991|mate in 1
+4F7NM|rnb1r1k1/p4ppp/1p1p3q/2pP1N2/2P2P2/P1Q4P/1B4P1/R3R1K1 b - - 2 21|c8f5 e1e8|991|hanging piece,kingside attack,mate in 1
+11PF2|7r/8/5pq1/4p2k/2Q5/6P1/PPb2PKP/4R3 b - - 0 38|c2f5 c4h4|991|mate in 1
+5wHN6|3r1rk1/pp1q1pbp/2np2p1/3Np3/3P4/4P1P1/P2QNPBP/1R4K1 b - - 0 21|g7h6 d5f6 g8h8 f6d7|991|fork
+0jJcx|QK6/3q4/1k6/8/8/8/8/8 w - - 1 89|a8a6 b6a6 b8a8 d7b7|991|hanging piece,mate in 2,queen endgame
+4hc3d|r4kr1/ppq1b3/2n5/3Q3B/2N1p2p/2P1P3/PP3PPP/2R3K1 b - - 0 23|g8g5 d5f7|991|from a master game,mate in 1
+4zVC7|5N2/6k1/R5pp/3p1r2/8/8/P4bPK/1Q6 w - - 2 47|f8g6 f5h5 g6h4 h5h4|991|mate in 2
+4ZHHC|7R/8/5k2/2Kp4/8/4PbP1/5r2/8 b - - 1 49|f3e4 h8f8 f6g7 f8f2|991|skewer
+1xzJ6|6k1/6p1/1p1Bpp1p/3bP3/P6P/2r3P1/5P2/R5K1 w - - 0 33|a1a3 c3c1 g1h2 c1h1|991|mate in 2
+2zaaE|r2qkbnr/p4ppp/2p1p3/2p5/Q3P1b1/2P2N2/PP1P2PP/RNB1K2R b KQkq - 1 8|d8d7 f3e5|991|
+4fsTu|r1bqkb1r/pppp1ppp/2n5/8/4P3/1PQ5/P1P2PPP/RNB1KB1R w KQkq - 5 9|c1b2 f8b4 a2a3 b4c3|992|pin
+3oNuE|5k2/pp3p2/3p1P1b/3N4/4r2r/8/PPP2R2/1K2R3 w - - 3 33|e1e4 h4h1 f2f1 h1f1 e4e1 f1e1|992|back-rank mate,mate in 3
+2Yvb1|rnb1kbnr/ppp2p2/3p4/4p3/4P1pq/3P4/PPP1B1PP/RNBQNRK1 w kq - 0 9|g2g3 h4h2|992|kingside attack,mate in 1
+2t4mK|2kr1b1r/p2n1p2/b3pP2/3q4/1ppRNB2/5QP1/PP3PBP/4K2R b K - 0 18|d5d4 e4d6 d4d6 f4d6|992|from a master game,queenside attack
+3LKLp|5k2/1p5p/p2N1pp1/5b2/2P5/1P2p1P1/P4bBP/B1nR1K2 w - - 2 27|d1c1 f5d3|992|mate in 1
+4HBD0|r3k1r1/pbpp2p1/1pq1np1p/4pN2/1P2P2Q/P1PP3P/2K2PP1/3R1B1R b q - 3 20|e8c8 f5e7 c8b8 e7c6|992|fork
+063Cp|rnb2rk1/pp3ppp/5q2/3p4/3Q4/2P1PN2/P4PPP/R3KB1R w KQ - 0 11|d4d5 f6c3 d5d2 c3a1|992|fork
+0MBzE|5r2/8/2p1R2k/1p1p4/3b1NP1/5K2/1P6/8 b - - 2 41|h6g5 e6g6 g5h4 g6h6|992|
+28qT0|r4rk1/pppq1ppp/5bn1/3pN2b/3P4/2PQ2B1/PPB2PPP/R3R1K1 b - - 17 20|g6e5 d3h7|992|kingside attack,mate in 1
+0gB5W|r1r3k1/8/P6p/Q3p2P/3p4/4nRN1/1Pq3P1/4R1K1 w - - 2 35|a5e5 c2g2|992|from a master game,master versus master,mate in 1
+2zqKL|r1b2rk1/5pq1/p6p/1p1pp3/3N1P2/3B1R1Q/PP4P1/R5K1 w - - 0 23|f3g3 c8h3 g3g7 g8g7|992|
+13DYy|6rk/p3p3/3p4/2p2Q2/7q/P2P3P/1P4P1/1R4K1 w - - 1 33|g1h2 h4g3 h2g1 g3g2|992|mate in 2
+1wg9x|5r2/5p1k/5Qp1/7p/P7/3q4/4rPPP/1R2R1K1 w - - 3 28|e1e2 d3b1 e2e1 b1e1|992|hanging piece,mate in 2
+2HqLD|6rk/8/8/8/4R1p1/R3P3/P3r1P1/7K w - - 0 34|a3a4 e2e1 h1h2 g4g3 h2h3 e1h1|992|mate in 3,rook endgame
+3nbOH|4r1k1/p4ppp/3P4/1Pp5/8/5Q1P/3qBPP1/4N1K1 b - - 0 27|e8e2 f3a8 e2e8 a8e8|992|mate in 2
+3j1Hu|1b1q1rk1/1p2npp1/1Pp1pnp1/2Pp4/3P2P1/4PN1P/3BNP2/Q4RK1 w - - 1 23|a1a8 b8h2 f3h2 d8a8|992|discovered attack
+1Zq0u|rn3rBk/p1p2pp1/1p2p3/4P1NQ/2pq4/2n2P2/P4P1P/R1B1K2R b KQ - 1 15|h8g8 h5h7|992|mate in 1
+3BFW7|r2q1r2/ppp2p1k/5Pp1/8/2Q3b1/P7/1P3PPP/R4RK1 b - - 0 20|g4e6 c4h4|992|
+4uml0|2r5/Bpk3p1/2p4p/P3r2P/4P3/3P4/2P4P/1R5K b - - 0 27|e5a5 a7b6 c7d7 b6a5|993|fork
+4uIcN|5k2/2p3p1/3p3p/5p2/p1P5/3r2PP/1KRB1P2/8 w - - 0 33|d2b4 d3b3 b2a2 b3b4|993|fork
+1ofMO|8/p2p1R2/1p1r2p1/1P2n1k1/P6R/3P4/1P6/6K1 w - - 5 32|f7h7 e5f3 g1f2 f3h4|993|fork
+03R4H|3r2k1/5ppp/1Q1B1b2/1p6/2p5/8/1Pq2PPP/4R1K1 b - - 1 22|c2d2 b6d8 f6d8 e1e8|993|back-rank mate,mate in 2,sacrifice
+1iuxU|r5k1/pb4pp/1p5q/1Pp5/2Pp1r2/P2P2P1/5P1P/R2Q1RK1 w - - 0 22|g3f4 h6g6 d1g4 g6g4|993|kingside attack,mate in 2
+20C5A|2r3k1/p1r3p1/4pp2/7Q/4q3/P7/1PPR2P1/K2R4 b - - 4 30|e4h7 d2d8 c8d8 d1d8|993|from a master game,mate in 2
+1OwMm|4r2k/ppp4p/3p1pp1/3B4/Q2P4/2P1rNbP/PP4P1/5K1R w - - 5 28|a4c2 e3e1 f3e1 e8e1|993|mate in 2,sacrifice
+3JooH|r1b1k2r/p4ppp/2p1p3/5q2/2PPn3/P1N3P1/1P1Q1P1P/R3K1NR w KQkq - 3 13|c3e4 f5e4 d2e3 e4h1|993|fork,pin
+4QZnr|5rk1/8/p1r1pQp1/1p1p4/7R/P1P3P1/1P3PK1/7R b - - 0 35|f8f6 h4h8 g8f7 h1h7|993|mate in 2,rook endgame
+6iNm5|8/pppk3p/6r1/4n3/3N4/2P1R1K1/PP4PP/8 w - - 4 30|g3f2 e5g4 f2e2 g4e3|993|fork
+1MRqP|r6k/3q1pp1/4p2p/p3P1r1/Pp2B3/1P3n1Q/2R1RP1P/7K w - - 2 35|h3f3 d7d1 e2e1 d1e1|994|kingside attack,mate in 2
+2z1BS|5r2/1pq3k1/3bR1pp/p7/2pP1P2/P1P5/1P2QP1P/6K1 b - - 0 32|d6f4 e6e7 f8f7 e7c7|994|fork
+0K3oG|6k1/2R3pp/p1p2p2/2Bb1P2/6P1/1P4K1/r7/8 b - - 3 43|a2b2 c7c8 g8f7 c8f8|994|mate in 2
+47vV8|3r3k/6p1/3qp2p/8/1pQ2NP1/1P3P2/P2r2P1/R6K b - - 0 36|d6e7 f4g6 h8h7 g6e7|994|fork
+31j5b|3r1rk1/1Q4p1/p6p/6n1/2p3R1/P2p3P/1P3qPB/R4N1K w - - 1 35|h3h4 f2f1 a1f1 f8f1|994|kingside attack
+119ap|4kb1r/p5pp/n3Pp2/8/N1q3P1/2B5/PP4R1/3QK3 b k - 0 27|a6c7 d1d7|994|mate in 1
+1nABy|2r3k1/p4bpq/4p3/3p1PQ1/3P3N/3R4/PP1R2K1/1r6 b - - 0 32|c8c1 g5d8 f7e8 d8e8|994|mate in 2
+4vmuj|r3k2r/pppnqppp/8/4N3/P2p1P2/3P3P/3BB1b1/R2QK2R w KQkq - 0 19|h1g1 e7h4|994|mate in 1
+5cAdL|3r2k1/6pp/2P2pb1/4p1P1/3p1P2/7P/P1r3B1/2RR2K1 w - - 0 30|g2d5 d8d5 c1c2 g6c2|994|hanging piece
+2qYm8|1k6/pp1q3p/6p1/7b/1PQ2B1P/2P5/PK6/8 b - - 1 37|b8a8 c4g8 d7c8 g8c8|994|mate in 2
+6XA9F|8/8/2p5/P7/1P5P/5kP1/7r/4BK2 w - - 7 45|a5a6 h2h1|994|mate in 1
+4vKpd|r4k1r/2Nn1pp1/1p3b1p/p7/3P1p2/P4P1P/1PP1R1P1/2K1R3 b - - 2 30|a8c8 e2e8 c8e8 e1e8|994|mate in 2
+3Ab9n|3r2k1/1p4pp/pb2P3/5P2/4P3/P4R1P/1B4P1/7K w - - 4 32|f3g3 d8d1 h1h2 b6g1|994|
+5cM40|1b5k/p1q2p1p/1p3P2/2p1PQ2/4p3/2P1P3/PP1B3P/6K1 b - - 0 28|c7e5 f5c8 e5e8 c8e8|994|mate in 2
+0X0u2|2kr3r/p1p2p1p/4pb2/1b3P2/1P6/3B2B1/2P1RP1K/3R4 b - - 0 31|h8e8 d3b5 d8d1 b5e8|994|hanging piece
+71j94|4r3/5kpp/1R3p2/8/3n3P/8/P4PP1/2R3K1 w - - 1 33|h4h5 d4e2 g1h2 e2c1|994|fork
+693ds|8/8/1k3K2/2n2NP1/8/p7/1rR5/8 w - - 1 58|c2c3 c5e4 f6g6 e4c3|994|fork,from a master game
+4eNSh|5k2/r4pb1/2pNp1pp/4P3/2P1NP2/2B3P1/2nP3P/6K1 b - - 0 30|f8e7 d6c8 e7d7 c8a7|994|fork
+6EzNT|7k/6p1/1p2R1pp/p1bBp3/Pp6/6PK/5r1P/8 b - - 1 33|f2e2 e6e8 h8h7 d5g8|995|
+4L2WW|1r1R2k1/5p1p/4p3/Q1p1q1p1/7P/2P3P1/P4P2/6K1 b - - 1 35|b8d8 a5d8 g8g7 d8g5 e5g5 h4g5|995|
+1ypn7|3b1r2/1p6/p1pp4/P2P3p/1Pk1R2P/5r2/R4N2/5K2 b - - 0 34|c4d5 a2d2 f3d3 d2d3|995|mate in 2
+6FT46|2r3k1/2q2pp1/p3p1np/1pPpP3/1P1N2PP/P7/4QPK1/3R4 w - - 5 36|d4f3 g6f4 g2f1 f4e2|995|fork
+5YUFk|q3r1k1/p2R1pbp/n1p1p1p1/1p2P3/1P6/2B1PQ1P/P4PP1/6K1 b - - 0 25|a8c8 f3f7 g8h8 f7g7|995|kingside attack,mate in 2
+5F1N1|3RQ3/ppq3kp/4p3/8/8/7P/PPP3PK/5r2 w - - 2 31|g2g3 c7c2 d8d2 c2d2|995|mate in 2
+3Ww9o|6k1/p2n2pp/5r2/3N4/5p2/7P/PP6/5R1K b - - 3 31|f6c6 d5e7 g8f7 e7c6|995|fork
+0grWJ|4r1k1/1pqb1Rb1/p1p3Q1/3p4/1P1Pr3/P1P1P3/3B2PP/6K1 b - - 11 31|e4e7 g6g7|995|kingside attack,mate in 1
+4X5L1|1k1r1b1r/ppp1nppp/2np1q2/4p3/5PB1/1P1PP2P/PBP3P1/RN1QK2R b KQ - 0 10|e5f4 b2f6|995|
+6lN9F|5rk1/p2q1pp1/1p1p3p/1P1Np1b1/P3P3/6QP/5PP1/2R3K1 b - - 0 24|g5c1 d5f6 g8h8 f6d7|995|from a master game,pin
+18kP7|5r1k/2pqpr1p/p6P/1p1pP1Q1/P1nP1p2/2P5/5P2/RN4RK w - - 0 25|a4b5 d7h3|995|mate in 1
+71kIP|r2q1rk1/1pp5/p1p2p1p/6p1/3b2b1/2N2NB1/PP3PPP/R2Q1RK1 w - - 0 17|d1d3 d4f2 f1f2 d8d3|995|discovered attack,kingside attack
+53d9T|8/8/pP6/2P5/6p1/3R1bkp/8/6K1 w - - 0 60|b6b7 h3h2 g1f1 h2h1q|995|advanced pawn,deflection,mate in 2
+0bQpP|r2qr3/pbp1bpkn/1p1p4/5N2/4P2p/2P1Q2P/PP1N1PP1/R4R1K b - - 4 19|g7f8 e3h6 f8g8 h6g7|996|fork,mate in 2
+5XguT|r2q2k1/p4p1p/1ppPr1p1/3p2N1/3P1Q2/1P6/P4PPP/5RK1 b - - 2 21|e6d6 f4f7 g8h8 f7h7|996|kingside attack,mate in 2
+49Y3s|r4r2/pp4pk/2p5/2Q1p1q1/4Pb2/6N1/PPP3PP/R4RK1 w - - 1 21|a1d1 f4e3 c5e3 g5e3|996|fork
+5NXMq|6k1/2R3pp/2p3r1/8/3B4/6PP/1P5K/4n3 w - - 1 29|h3h4 e1f3 h2h3 f3d4|996|fork
+5Alhl|2kr3r/1ppb1p1p/B1n1pp2/3q4/Q2P4/P1P1PN2/5PPP/R3K2R b KQ - 0 12|b7a6 a4a6 c8b8 a1b1|996|queenside attack
+6gzJb|5rk1/p5p1/4P3/2qp1P1Q/2p1n2R/P6P/6rK/R7 w - - 0 30|h2g2 c5f2 g2h1 e4g3|996|mate in 2
+6vaAh|Q4n2/5Bpk/1p5p/p1p1N3/P2P4/6Pq/2P1bP1P/6K1 w - - 1 29|a8f8 h3f1|996|mate in 1
+1HuCc|4rnk1/1b2Bppp/1qp5/4P3/1n6/1Q3NN1/2r2PPP/1R2R1K1 w - - 0 24|e7b4 b6f2 g1h1 f2g2|996|kingside attack,mate in 2
+3QMCK|8/1p1k4/2p5/p2pRp2/1q3B2/1P4P1/P2R1PK1/8 w - - 4 33|e5f5 b4e4 f2f3 e4f5|996|fork
+4qTp4|k4q2/2Q5/p3r3/2R4p/3p1pp1/3P2P1/PPP2P1P/6K1 w - - 0 31|c5h5 e6e1 g1g2 f4f3|996|mate in 2
+12H6l|r3kb1r/pp2pppp/2np1n2/qB1N3b/4P3/2P2N1P/PP3PP1/R1BQK2R b KQkq - 0 10|a5b5 d5c7 e8d8 c7b5|996|fork
+3Sn3i|4rrk1/p4ppp/1pn5/2pN4/4R1Q1/2NP4/PPP2qPP/R6K w - - 11 19|e4f4 e8e1 a1e1 f2e1 f4f1 e1f1|997|kingside attack,mate in 3
+11Ovc|5r2/p7/1p6/k1bB1N2/6p1/5Q2/P5P1/7K w - - 0 41|f3e4 f8h8 f5h6 h8h6|997|mate in 2
+1zxLj|2rnkb2/1p3p1r/p1p2Bpp/3N3n/2P1P1Pq/PP3Q1P/3P4/R4RK1 b - - 1 19|h5f6 d5f6 h4f6 f3f6|997|fork
+5D6qc|rnbqk2r/p4pp1/2p2p1p/1P6/1bpP4/2N2N2/1PQ1PPPP/R3KB1R b KQkq - 0 9|c6b5 c2e4 c8e6 e4a8|997|fork
+2tbVS|6k1/4q1pn/1n1p3p/2pPp3/1p6/1P2BN1P/Q4PP1/6K1 b - - 0 31|b6d5 a2a8 h7f8 a8d5|997|fork
+3o6jh|4rbk1/5pp1/2Rp1q1p/pr6/1P2P3/P2Q2NP/5PP1/4R1K1 b - - 1 23|a5b4 d3b5|997|hanging piece
+0HHhd|8/p6p/3Q2pk/5q2/2Pp1Pr1/1P1P1K2/P6P/8 b - - 14 42|f5h5 d6f8|997|mate in 1
+6WNjD|4k3/7p/1rNp2p1/2nP1pP1/1P1K1P2/3p3P/1R6/8 w - - 3 40|d4c3 c5a4 c3b3 a4b2|997|fork
+6VOVY|3r4/pp2bkpp/4bp2/8/1q6/1P3BB1/PQRr1PPP/5RK1 w - - 8 22|f1c1 d2d1 c1d1 d8d1 f3d1 b4e1|997|kingside attack,mate in 3,sacrifice
+6MHL4|r1b2rk1/pp3ppp/5n2/4q3/3P4/P1NB4/1P3PPP/R2Q1RK1 b - - 0 14|e5d4 d3h7 f6h7 d1d4|997|discovered attack,kingside attack
+10KBr|3rR1k1/p2P1ppp/2B5/b6n/3P4/2p2PB1/PP4KP/8 b - - 1 25|d8e8 d7e8q|997|advanced pawn,mate in 1,promotion
+67yuK|2r3k1/2q3p1/1b2pp1p/pB1pN3/P2Pb3/B1n1P3/1Q3PPP/2R3K1 w - - 0 28|b5d7 c3e2 b2e2 c7c1|997|deflection,discovered attack
+2Kmj6|7r/p2n4/3N1p2/2p5/3p1k2/1P6/P1P2KR1/8 b - - 3 45|f4e5 d6f7 e5e4 f7h8|997|fork,from a master game
+2X13M|rn3rk1/ppp2ppp/5q2/3p4/3P2P1/3B1P2/PPP2P2/R2QR1K1 b - - 0 13|f6d4 d3h7 g8h7 d1d4|997|discovered attack,kingside attack
+3gmun|2r4k/r4pp1/N2Q3p/2p3qn/8/1P2P1Pb/PBP2P1P/R4RK1 b - - 0 23|a7a6 d6a6|998|hanging piece
+3inZL|r3r1k1/pp5p/3p2pb/4pq2/6n1/1P1P2P1/PBP2PBP/R2QR1K1 w - - 0 20|g2b7 f5f2 g1h1 f2h2|998|kingside attack,mate in 2
+35e2k|3r4/p5p1/2R5/1P2k3/P6P/3B4/n1K5/8 w - - 11 42|d3g6 a2b4 c2c3 b4c6|998|fork
+3mqr1|r4r2/pp3pkp/3b4/2p1n2q/3QN1b1/P1N3P1/1P3P1P/R1B2RK1 w - - 0 18|d4d6 e5f3 g1h1 h5h2|998|kingside attack,mate in 2
+2QIC8|6k1/p2q1p2/bp2pQp1/7p/4PP1P/1P3NPK/P7/8 w - - 9 37|f3e5 a6f1 h3h2 d7d2 h2g1 d2g2|998|mate in 3
+6V9Mf|5q1k/p2Q4/1pN3pp/1P1p4/3Pn3/2P5/1P4PP/4rRK1 w - - 7 34|f1e1 f8f2 g1h1 f2e1|998|back-rank mate,fork,mate in 2
+2cEwl|r1b1k2r/ppp4p/2p3p1/4q3/4N3/8/PPP1QPPP/R3K2R b KQkq - 0 13|c8f5 e4f6 e8f7 e2e5|998|discovered attack,pin
+6glmt|8/3k1p2/1R1B2pp/4P3/6P1/r5KP/8/8 w - - 5 52|g3h4 g6g5 h4h5 a3h3|998|deflection,mate in 2
+2YZ44|7r/1p6/p1k3p1/R3N1P1/1P6/3p4/2bK1P2/8 b - - 0 41|c6d6 e5f7 d6e6 f7h8|998|fork
+0zrad|7k/pp6/7p/P2Q1p2/2pP4/2P1q3/6PP/4B1K1 w - - 1 38|e1f2 e3c1 f2e1 c1e1|999|mate in 2
+6p7jk|1r3r1k/pq1b1p1p/5RNQ/6Pn/4P3/5P2/pPP4P/2K4R b - - 1 22|f7g6 f6f8 b8f8 h6f8|999|kingside attack,mate in 2
+3HQHh|r2qr1k1/2pbbp2/p2p1N1Q/1p2p1N1/4P2P/3P4/PPn2PP1/5K1R b - - 0 19|e7f6 h6h7 g8f8 h7f7|999|kingside attack,mate in 2
+2Utpi|5r2/p1k4b/2p1p1p1/2N1P3/2P1B3/6bQ/PP3qP1/3R3K w - - 4 29|c5d3 f2f1 d1f1 f8f1|999|mate in 2,sacrifice
+5sn8B|8/8/p6p/3k1p2/1Pn2P2/2P1BK1P/8/8 b - - 1 39|c4e3 f3e3 d5c4 e3d2|999|defensive move
+6Rjlj|5r1k/q5pp/8/r7/4R3/3p4/Q4PPP/R5K1 w - - 0 30|a2a5 a7f2 g1h1 f2f1 a1f1 f8f1|999|back-rank mate,mate in 3,sacrifice
+6nz5S|r4rk1/1pbq1p2/p4n1B/P2p4/4p3/1P1P3P/1P3PP1/R1Q2RK1 b - - 0 22|f8e8 c1g5 g8h7 g5g7|999|fork,mate in 2
+5o6Bv|3r4/p7/6p1/7p/7k/1P3K1P/1P1p2P1/3R4 b - - 3 41|g6g5 g2g3 h4h3 d1h1|999|mate in 2,rook endgame
+4pvgh|8/p3kp2/2p1p3/1p1r1n2/4R3/2P2P1N/PP1K2P1/8 w - - 9 29|d2e2 f5g3 e2e1 g3e4|999|fork
+1vBEv|2r3k1/3q1ppp/1pBpp3/p1b2N1P/6P1/P5Q1/1P6/1K5R b - - 0 25|d7c6 f5e7 g8f8 e7c6|999|fork
+4rZXt|6k1/6pp/8/1R6/Pp6/1P6/1rp3PP/R6K w - - 0 37|b5b4 b2b1 a1b1 c2b1q|999|advanced pawn,back-rank mate,mate in 2

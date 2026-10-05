@@ -1,7 +1,8 @@
 // A chess board for puzzles: the position from the solver's side, the opponent's move played first, then taps
 // (a piece, then a square, with the legal targets shown) checked against the puzzle's solution move by move.
-// Any move that gives checkmate is accepted where the solution's move does (Lichess's rule). Uses chess.js for
-// the rules and the cburnett pieces.
+// Any move that gives checkmate is accepted where the solution's move does (Lichess's rule). A move tapped while
+// it's the opponent's turn is a premove: it plays the instant the reply lands, if it's legal then, and counts
+// like any other move. Uses chess.js for the rules and the cburnett pieces.
 import { Chess } from "./vendor/chess.js";
 import { PIECES } from "./chess-pieces.js";
 
@@ -23,7 +24,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   const chess = new Chess(puzzle.fen);
   const solver = chess.turn() === "w" ? "b" : "w";                 // the opponent moves first
   let step = 0;                                                      // index into puzzle.moves
-  let selected = null, done = false, last = null, hint = null;
+  let selected = null, done = false, last = null, hint = null, premove = null;
   const timers = [];
   const later = (fn, ms) => timers.push(setTimeout(fn, ms));
   const svg = el("svg", { viewBox: "0 0 8 8", class: "ch-board" });
@@ -40,7 +41,8 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
       const sq = squareAt(f, r), [x, y] = xy(sq), dark = (f + r) % 2 === 0;
       const isLast = last && (last.from === sq || last.to === sq);
-      const rect = el("rect", { x, y, width: 1, height: 1, class: `sq ${dark ? "dark" : "light"}${isLast ? " last" : ""}${selected === sq ? " sel" : ""}${hint === sq ? " hint" : ""}` });
+      const isPre = premove && (premove.from === sq || premove.to === sq);
+      const rect = el("rect", { x, y, width: 1, height: 1, class: `sq ${dark ? "dark" : "light"}${isLast ? " last" : ""}${selected === sq ? " sel" : ""}${hint === sq ? " hint" : ""}${isPre ? " pre" : ""}` });
       rect.addEventListener("click", () => tap(sq));
       svg.appendChild(rect);
     }
@@ -65,28 +67,43 @@ export function mountPuzzle(container, puzzle, opts = {}) {
 
   function play(m) { const mv = chess.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] }); last = mv ? { from: mv.from, to: mv.to } : null; return mv; }
   function tap(sq) {
-    if (done || !opts.interactive || chess.turn() !== solver || step >= puzzle.moves.length) return;
+    if (done || !opts.interactive || step >= puzzle.moves.length) return;
     const piece = chess.get(sq);
-    if (selected && selected !== sq) {
-      const legal = chess.moves({ square: selected, verbose: true }).filter(m => m.to === sq);
-      if (legal.length) {
-        const expected = puzzle.moves[step];
-        // the expected move, including its promotion; otherwise promote as the solution does, else to a queen
-        const promotion = expected.slice(0, 4) === selected + sq ? (expected[4] || undefined) : legal.some(m => m.promotion) ? "q" : undefined;
-        const trial = new Chess(chess.fen());
-        const mv = trial.move({ from: selected, to: sq, promotion });
-        const right = uci(mv) === expected || (trial.isCheckmate() && solutionMates());
-        selected = null;
-        if (!right) { fail(mv); return; }
-        play(uci(mv)); step++;
-        draw();
-        if (step >= puzzle.moves.length) { finish(true); return; }
-        later(() => { play(puzzle.moves[step]); step++; draw(); if (step >= puzzle.moves.length) finish(true); }, 450);
-        return;
-      }
+    if (chess.turn() !== solver) {                                   // the opponent's turn: a premove
+      if (selected && selected !== sq) { premove = { from: selected, to: sq }; selected = null; }
+      else if (premove && premove.from === sq) premove = null;
+      else selected = piece && piece.color === solver ? sq : null;
+      draw();
+      return;
     }
+    if (selected && selected !== sq && attempt(selected, sq)) return;
     selected = piece && piece.color === solver ? sq : null;
     draw();
+  }
+  /** Tries a move from the solver on their turn: plays it if legal and judges it. True if it was a legal move. */
+  function attempt(from, to) {
+    const legal = chess.moves({ square: from, verbose: true }).filter(m => m.to === to);
+    if (!legal.length) return false;
+    const expected = puzzle.moves[step];
+    // the expected move, including its promotion; otherwise promote as the solution does, else to a queen
+    const promotion = expected.slice(0, 4) === from + to ? (expected[4] || undefined) : legal.some(m => m.promotion) ? "q" : undefined;
+    const trial = new Chess(chess.fen());
+    const mv = trial.move({ from, to, promotion });
+    const right = uci(mv) === expected || (trial.isCheckmate() && solutionMates());
+    selected = null; premove = null;
+    if (!right) { fail(mv); return true; }
+    play(uci(mv)); step++;
+    draw();
+    if (step >= puzzle.moves.length) { finish(true); return true; }
+    later(reply, opts.replyMs ?? 350);
+    return true;
+  }
+  /** The opponent's reply, then any premove the solver has waiting. */
+  function reply() {
+    play(puzzle.moves[step]); step++;
+    draw();
+    if (step >= puzzle.moves.length) { finish(true); return; }
+    if (premove) { const p = premove; premove = null; if (!attempt(p.from, p.to)) draw(); }
   }
   /** Does the solution's next move give checkmate? */
   function solutionMates() { const t = new Chess(chess.fen()); const m = puzzle.moves[step]; t.move({ from: m.slice(0, 2), to: m.slice(2, 4), promotion: m[4] }); return t.isCheckmate(); }
@@ -99,13 +116,13 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     later(() => { hint = wanted.slice(2, 4); last = { from: wanted.slice(0, 2), to: wanted.slice(2, 4) }; draw(); }, 500);
     finish(false);
   }
-  function finish(solved) { if (done) return; done = true; selected = null; draw(); opts.onDone?.(solved); }
+  function finish(solved) { if (done) return; done = true; selected = null; premove = null; draw(); opts.onDone?.(solved); }
 
   draw();
   // the opponent's move comes after a beat so the position registers first; a revealed board shows the whole line
   if (opts.revealSolution) {
     for (const m of puzzle.moves) play(m);
     step = puzzle.moves.length; done = true; draw();
-  } else later(() => { play(puzzle.moves[0]); step = 1; draw(); }, 600);
+  } else later(reply, opts.firstMs ?? 500);
   return { destroy() { timers.forEach(clearTimeout); }, get solver() { return solver; } };
 }
