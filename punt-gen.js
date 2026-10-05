@@ -249,7 +249,7 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
     const q = order[(start + i) % order.length];
     const right = q.o.map((label, k) => ({ label, right: q.a.includes(k) }));
     out.push({
-      kind: "maths", cat: "maths", prompt: q.q, ask: `${q.area === (stages[q.lv] || q.lv) ? q.area : `${q.area}, ${stages[q.lv] || q.lv}`}, level ${q.d}`,
+      kind: "maths", cat: "maths", prompt: q.q, ask: "",           // no stage-and-level marker over the question: the slip is for the question
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
       ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
     });

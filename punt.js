@@ -13,7 +13,7 @@ import { dropdown } from "./dropdown.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
-import { part, choice, toggle as menuToggle, action, mirror } from "./menu.js";
+import { part, choice, toggle as menuToggle, action, mirror, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -260,13 +260,6 @@ function drawBetting(q, waiting) {
   slider.value = pct;
   slider.disabled = waiting;
   const stake = Math.floor(S.pot * pct / 100);
-  $("stakeLine").innerHTML = "";
-  if (waiting) $("stakeLine").append(`Your bet is in. Waiting for ${partnerName()}.`);
-  else if (stake > 0) {
-    const s = document.createElement("b"), w = document.createElement("b");
-    s.textContent = showChips(stake); w.textContent = showChips(Math.round(stake * q.offered));
-    $("stakeLine").append(`Stake `, s, ` (${pct}%) returns `, w, " if right");
-  } else $("stakeLine").append(together.room ? "Stake up to half the shared pot, or pass." : "Choose a stake, or pass.");
   $("chips").replaceChildren(...[0, 5, 10, 25, 50, 100].filter(x => x <= maxPct()).map(x => {
     const b = document.createElement("button");
     b.type = "button"; b.className = "btn"; b.disabled = waiting;
@@ -276,7 +269,8 @@ function drawBetting(q, waiting) {
   }));
   $("passBtn").disabled = waiting;
   $("betBtn").disabled = waiting || pick.length !== rightCount(q) || pct <= 0;
-  $("betBtn").textContent = stake > 0 ? `Bet ${showChips(stake)}` : "Bet";
+  // the Bet button says it all: the stake, the odds, and what comes back if right (just the odds before a stake)
+  $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · ${showOdds(q.offered)} · ${showChips(Math.round(stake * q.offered))}` : `Pays ${showOdds(q.offered)}`;
 }
 
 function drawResult(q, last) {
@@ -640,9 +634,11 @@ function drawMenu() {
   const play = part(body, "play");
   play.append(action("New run", () => newSession(S.level, pickLength), "primary"));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
-  part(body, "content").append(mirror("Level", $("level")), choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
+  const picks = $("mathsBar").hidden ? [] : [action($("stagesBtn").textContent, () => $("stagesBtn").click()), action($("diffsBtn").textContent, () => $("diffsBtn").click())];
+  part(body, "content").append(mirror("Level", $("level")), ...picks, choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
   part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
+  if ($("avg").textContent && !$("avg").hidden) part(body, "about").append(line($("avg").textContent));
   part(body, "about").append(action("Your stats", () => openStats("run")), action("Flagged questions", () => openFlags(false)),
     ...(together.room ? [] : [action("Copy a link to this run", async () => {
       try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }

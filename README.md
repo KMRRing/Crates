@@ -125,6 +125,8 @@ The page fits the screen: the slip takes the room left and scrolls inside itself
 
 The level dropdown in the header is the suite's own, as in Crates (`dropdown.js`): a button in Punt's logo colours, and the levels on a card with a tick on the current one, scrolling inside itself on a phone. A hidden select still holds the level, so links and rooms work as before.
 
+The slip never scrolls. A painting takes only the room the question and its answers leave (contained, with a shadow on its own edges), down to a small picture on the shortest screens; the stages and difficulties pickers of a bank and the running average are in the menu (Content and About), bank questions carry no stage-and-level marker, and there's no "choose a stake, or pass" line. Pass is as narrow as its word, and the Bet button carries the rest: the stake, the odds and what comes back if right ("Bet 100 · 1.3× · 130"; "Pays 1.3×" before a stake; "Waiting for Sarah" in a duo). Checked over full Art runs at 360×640, 375×600, 390×664 and 390×844: nothing scrolls inside the slip.
+
 ## Cartel
 Coup and Liar's Dice built from dice. Everyone has gold dice (lives and roles; two each) and plain dice (money and weight in the bidding; three to start, at most eight), all hidden. A face is both a number and a role: 1 Fixer, 2 Banker, 3 Trader, 4 Auditor, 5 Legal, 6 Regulator. Only gold dice give powers; every die counts in bids, 1s (Fixers) as any face.
 

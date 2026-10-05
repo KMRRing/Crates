@@ -126,3 +126,32 @@
 }
 .pt-toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .pt-toast { transition: none; } }
+
+/* vertical room for the question (a painting must never need scrolling inside the slip): the stages and difficulties
+   are in the menu, the odds row is on the Bet button, and an empty question marker takes no space */
+.pt-maths { display: none !important; }
+.pt-odds-row { display: none; }
+.pt-ask:empty { display: none; }
+/* Pass as narrow as its word; Bet takes the rest, its lettering set closer so stake · odds · return fit */
+.pt-buttons { grid-template-columns: auto 1fr; }
+.pt-buttons #passBtn { padding-left: .9rem; padding-right: .9rem; }
+.pt-buttons #betBtn { font-size: .78rem; letter-spacing: .02em; font-stretch: 100%; padding-left: .5rem; padding-right: .5rem; white-space: nowrap; }
+
+/* a painting takes the room the question and its answers leave, never more: the slip is a column, the picture its one
+   stretchy part, and the image is contained in it (a drop shadow follows the painting's own edges) */
+.pt-slip-body { display: flex; flex-direction: column; }
+.pt-slip-body > * { flex: none; }
+.pt-slip-body > .pt-picture:not([hidden]) { flex: 1 1 0; min-height: 5rem; display: grid; grid-template-rows: minmax(0, 1fr) auto; place-items: center; }
+.pt-picture img { width: 100%; height: 100%; min-height: 0; max-height: none; object-fit: contain; border-radius: 0; box-shadow: none; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .22)); }
+
+/* more room on short screens: the running average is in the menu (About), and the slip sets its question and answers
+   a little tighter */
+.pt-avg { display: none !important; }
+@media (max-height: 720px) {
+  .pt-slip-body { padding: .75rem .85rem .8rem; }
+  .pt-prompt { margin-bottom: .55rem; }
+  .pt-prompt.long { font-size: 1.12rem; line-height: 1.25; }
+  .pt-options { gap: .4rem; }
+  .pt-options > * { min-height: 44px; padding-top: .35rem; padding-bottom: .35rem; font-size: .92rem; }
+  .pt-slip-body > .pt-picture:not([hidden]) { min-height: 3rem; }   /* the painting gives way before anything scrolls */
+}
