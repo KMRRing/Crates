@@ -28,13 +28,11 @@
   <section class="ch-card">
     <span id="cat" class="ch-cat"></span>
     <h2 id="place" class="ch-place"></h2>
-    <p id="hint" class="ch-hint">Tap the map, then fine-tune in the close-up.</p>
+    <p id="hint" class="ch-hint">Tap to place the pin. Drag to pan, pinch to zoom.</p>
     <div class="ch-maps">
       <canvas id="world" class="ch-map" aria-label="The world"></canvas>
-      <canvas id="zoom" class="ch-map ch-zoom" aria-label="A close-up" hidden></canvas>
     </div>
     <div class="ch-actions">
-      <button class="ch-go quiet" type="button" id="backBtn" hidden>Elsewhere</button>
       <button class="ch-go" type="button" id="pinBtn" disabled>Pin it</button>
     </div>
     <div id="result" class="ch-result" hidden>

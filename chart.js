@@ -1,5 +1,6 @@
-// Chart: pin a place on the map. Tap the world, fine-tune in the close-up, pin; then see the truth, the distance
-// and the points. Together, both of you pin the same place in private and the pins are revealed side by side.
+// Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
+// see the truth, the distance and the points. Together, both of you pin the same place in private and the pins
+// are revealed side by side.
 import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, merc, unmerc, LAT_MAX } from "./chart-engine.js";
 import { PLACES, CATS } from "./chart-bank.js";
 import { LAND, BORDERS } from "./world.js";
@@ -16,8 +17,8 @@ const byId = new Map(PLACES.map(p => [p.id, p]));
 let S = null;        // alone: { seed, mode, set, index, score, log: [{ id, lat, lon, km, pts }], phase: "pin" | "reveal", done }
                      // together: the room: { seed, set, index, pins: { seat: { lat, lon } }, scores: [2], log, done, players }
 let pin = null;      // the provisional pin { lat, lon }
-let views = { world: worldView(), zoom: null };   // what each map shows; the close-up appears once there's a pin
-const SIZES = { world: [360, Math.round(360 / worldAspect())], zoom: [360, 300] };
+let views = { world: worldView() };                // what the map shows: pan and pinch move it
+const SIZES = { world: [360, Math.round(360 / worldAspect())] };
 const inRoom = () => !!together.room;
 const mySeat = () => together.room?.data?.players?.[together.room.uid]?.slot ?? 0;
 const seatName = seat => { const p = seatsOf(together.room?.data)?.find(([, x]) => x.slot === seat)?.[1]; return p ? p.name : seat === mySeat() ? "You" : "Your partner"; };
@@ -36,7 +37,7 @@ function start(mode) {
   S = { seed, mode, set: pickSet(seed, PLACES).map(p => p.id), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   history.replaceState(null, "", mode === "daily" ? `#d=${seed}` : `#s=${seed}`);
-  pin = null; views = { world: worldView(), zoom: null };
+  pin = null; views = { world: worldView() };
   render();
 }
 function confirmPin() {
@@ -61,14 +62,14 @@ function next() {
       if (g.index + 1 >= g.set.length) { g.done = true; return; }
       g.index++; g.pins = {}; g.phase = "pin";
     });
-    pin = null; views = { world: worldView(), zoom: null };
+    pin = null; views = { world: worldView() };
     return;
   }
   if (S.phase !== "reveal") return;
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
   S.index++;
   S.phase = "pin";
-  pin = null; views = { world: worldView(), zoom: null };
+  pin = null; views = { world: worldView() };
   save();
   render();
 }
@@ -128,13 +129,12 @@ function line(ctx, a, b, colour) {
 }
 const projFor = name => { const [w, h] = SIZES[name], win = viewWindow(views[name], w, h); return { proj: projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h), win, w, h }; };
 
-/** Both maps as they stand: pins, and after the reveal the truth and the lines. */
+/** The map as it stands: pins, and after the reveal the truth and the lines. */
 function drawMaps() {
   const p = current(), reveal = S.phase === "reveal";
   const pins = inRoom() ? [[pinOf(mySeat()), "mine"], [pinOf(1 - mySeat()), "theirs"]] : [[reveal ? S.log[S.index] : pin, "mine"]];
-  for (const name of ["world", "zoom"]) {
+  for (const name of ["world"]) {
     const canvas = $(name);
-    if (name === "zoom") { canvas.hidden = !views.zoom; if (!views.zoom) continue; }
     const { proj, win, w, h } = projFor(name);
     const ctx = setup(canvas, w, h);
     drawMap(ctx, proj, win, w, h);
@@ -190,7 +190,6 @@ function gestures(name) {
     if (e.type === "pointerup" && pointers.size === 0 && !pinching && moved < 8 && canPin()) {
       const [lon, lat] = projFor(name).proj.toLonLat(px, py);
       pin = { lat: Math.max(-LAT_MAX, Math.min(LAT_MAX, lat)), lon: Math.max(-180, Math.min(180, lon)) };
-      if (name === "world") views.zoom = clampView(viewAround(pin.lon, pin.lat, 16), ...SIZES.zoom);
       render();
     }
   };
@@ -216,11 +215,10 @@ function render() {
   $("cat").textContent = CATS[p.cat];
   $("place").textContent = p.name;
   const waitingForThem = inRoom() && S.phase === "pin" && S.pins?.[mySeat()];
-  $("hint").textContent = reveal ? "" : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : views.zoom ? "Drag and pinch the close-up; tap to move the pin; then pin it." : "Tap the map to place a pin. Drag to pan, pinch to zoom.";
-  $("backBtn").hidden = reveal || !views.zoom || waitingForThem;
-  if (reveal && !views.revealSet) {                       // the close-up shows the truth and the pin together
+  $("hint").textContent = reveal ? "Drag and pinch to look around." : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : pin ? "Tap to move the pin, or pin it. Drag to pan, pinch to zoom." : "Tap to place the pin. Drag to pan, pinch to zoom.";
+  if (reveal && !views.revealSet) {                       // the map frames the truth and the pin together
     const e = inRoom() ? Object.values(S.log)[S.index]?.pins?.[mySeat()] : S.log[S.index];
-    views.zoom = e ? viewCovering(e, p, ...SIZES.zoom) : clampView(viewAround(p.lon, p.lat, 16), ...SIZES.zoom);
+    views.world = e ? viewCovering(e, p, ...SIZES.world, 12) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
     views.revealSet = true;
   }
   if (!reveal) views.revealSet = false;
@@ -297,7 +295,7 @@ function freshRoom(players) {
 function startRoomSet() {
   const n = freshRoom(null);
   together.act(g => { Object.assign(g, { seed: n.seed, set: n.set, index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false }); });
-  pin = null; views = { world: worldView(), zoom: null };
+  pin = null; views = { world: worldView() };
 }
 let shownBell = null;
 function finishRoom() {
@@ -323,7 +321,7 @@ function finishRoom() {
 function onState(val) {
   const was = S;
   S = val;
-  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; views = { world: worldView(), zoom: null }; }
+  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; views = { world: worldView() }; }
   drawPartner();
   render();
 }
@@ -365,7 +363,7 @@ const together = createTogether({
   fresh: freshRoom,
   onState,
   onPresence: drawPartner,
-  onLeave: () => { shownBell = null; S = read(RUN, null); pin = null; views = { world: worldView(), zoom: null }; drawPartner(); if (!S) start("random"); else render(); },
+  onLeave: () => { shownBell = null; S = read(RUN, null); pin = null; views = { world: worldView() }; drawPartner(); if (!S) start("random"); else render(); },
 });
 
 // ---------- menu, links, messages ----------
@@ -432,9 +430,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 gestures("world");
-gestures("zoom");
 $("pinBtn").addEventListener("click", confirmPin);
-$("backBtn").addEventListener("click", () => { pin = null; views.zoom = null; render(); });
 $("nextBtn").addEventListener("click", next);
 window.addEventListener("resize", () => { if (S) drawMaps(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (S) drawMaps(); });
@@ -448,13 +444,13 @@ function load(h) {
   if (S && S.seed === seed && S.mode === mode) return true;
   S = { seed, mode, set: pickSet(seed, PLACES).map(p => p.id), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
-  pin = null; views = { world: worldView(), zoom: null };
+  pin = null; views = { world: worldView() };
   render();
   return true;
 }
 
 // for tests and debugging
-window.__chart = { get state() { return S; }, get views() { return views; }, setPin: (lat, lon) => { pin = { lat, lon }; views.zoom = clampView(viewAround(lon, lat, 16), ...SIZES.zoom); render(); }, confirmPin, next, start, get together() { return together; } };
+window.__chart = { get state() { return S; }, get views() { return views; }, setPin: (lat, lon) => { pin = { lat, lon }; render(); }, confirmPin, next, start, get together() { return together; } };
 
 S = read(RUN, null);
 if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;
