@@ -64,12 +64,12 @@ function rng(seed) {
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 /** The set for a seed: PER_SET questions from the bank in a seeded order, at most two from any category. */
-export function pickSet(seed, bank, perSet = PER_SET) {
+export function pickSet(seed, bank, perSet = PER_SET, perCat = 2) {
   const r = rng(seed), order = [...bank];
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   const used = {}, out = [];
   for (const q of order) {
-    if ((used[q.cat] || 0) >= 2) continue;
+    if ((used[q.cat] || 0) >= perCat) continue;
     used[q.cat] = (used[q.cat] || 0) + 1;
     out.push(q);
     if (out.length === perSet) break;

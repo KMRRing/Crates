@@ -1995,5 +1995,875 @@ export const QUOTES = [
 "scale": 1,
 "tol": 4,
 "note": "About 20–30% by weight."
+},
+{
+"id": "rf-25",
+"cat": "refining",
+"q": "EN 228's minimum motor octane number (MON) for Eurosuper 95",
+"unit": "MON",
+"truth": 85,
+"scale": 1,
+"tol": 1,
+"note": "MON 85 alongside RON 95: the harsher test that catches aromatic-heavy pools."
+},
+{
+"id": "rf-26",
+"cat": "refining",
+"q": "EN 228's maximum aromatics content",
+"unit": "% by volume",
+"truth": 35,
+"scale": 1,
+"tol": 2,
+"note": "35 vol%, which caps reformate at roughly half the pool."
+},
+{
+"id": "rf-27",
+"cat": "refining",
+"q": "EN 228's maximum olefins content",
+"unit": "% by volume",
+"truth": 18,
+"scale": 1,
+"tol": 2,
+"note": "18 vol%, which caps olefinic FCC naphtha."
+},
+{
+"id": "rf-28",
+"cat": "refining",
+"q": "EN 228's maximum oxygen content for the E10 grade",
+"unit": "% by mass",
+"truth": 3.7,
+"scale": 1,
+"tol": 0.2,
+"note": "3.7 wt%, the figure that makes 10% ethanol the limit."
+},
+{
+"id": "rf-29",
+"cat": "refining",
+"q": "EN 228's density window, the lower bound",
+"unit": "kg/m³",
+"truth": 720,
+"scale": 1,
+"tol": 5,
+"note": "720–775 kg/m³ at 15 °C."
+},
+{
+"id": "rf-30",
+"cat": "refining",
+"q": "EN 228's summer vapour pressure class A, the upper bound",
+"unit": "kPa",
+"truth": 60,
+"scale": 1,
+"tol": 3,
+"note": "Class A runs 45–60 kPa; winter classes reach 90–100 kPa."
+},
+{
+"id": "rf-31",
+"cat": "refining",
+"q": "EN 228's winter vapour pressure class F, the upper bound",
+"unit": "kPa",
+"truth": 100,
+"scale": 1,
+"tol": 4,
+"note": "Class F: 70–100 kPa, for cold northern winters."
+},
+{
+"id": "rf-32",
+"cat": "refining",
+"q": "EN 228's minimum evaporated at 150 °C (E150)",
+"unit": "%",
+"truth": 75,
+"scale": 1,
+"tol": 3,
+"note": "At least 75% evaporated by 150 °C: not too much heavy tail."
+},
+{
+"id": "rf-33",
+"cat": "refining",
+"q": "EN 228's final boiling point limit",
+"unit": "°C",
+"truth": 210,
+"scale": 1,
+"tol": 5,
+"note": "210 °C maximum."
+},
+{
+"id": "rf-34",
+"cat": "refining",
+"q": "EN 228's minimum induction period (oxidation stability)",
+"unit": "minutes",
+"truth": 360,
+"scale": 1,
+"tol": 30,
+"note": "360 minutes under oxygen at 100 °C; olefinic pools need antioxidant to reach it."
+},
+{
+"id": "rf-35",
+"cat": "refining",
+"q": "EN 228's existent gum limit",
+"unit": "mg per 100 mL",
+"truth": 5,
+"scale": 1,
+"tol": 1,
+"note": "5 mg/100 mL, solvent-washed."
+},
+{
+"id": "rf-36",
+"cat": "refining",
+"q": "The ethanol content of E85",
+"unit": "% by volume, the upper bound",
+"truth": 85,
+"scale": 1,
+"tol": 5,
+"note": "EN 15293 allows 50–85% ethanol, less in winter for cold starting."
+},
+{
+"id": "rf-37",
+"cat": "refining",
+"q": "EN 590's minimum cetane index (calculated from density and distillation)",
+"unit": "cetane index",
+"truth": 46,
+"scale": 1,
+"tol": 1,
+"note": "46 for the calculated index against 51 for the measured number; improvers raise the number but not the index."
+},
+{
+"id": "rf-38",
+"cat": "refining",
+"q": "EN 590's density window, the upper bound",
+"unit": "kg/m³",
+"truth": 845,
+"scale": 1,
+"tol": 3,
+"note": "820–845 kg/m³ at 15 °C."
+},
+{
+"id": "rf-39",
+"cat": "refining",
+"q": "EN 590's minimum flash point",
+"unit": "°C",
+"truth": 55,
+"scale": 1,
+"tol": 3,
+"note": "Above 55 °C: the spec that fails first when petrol or jet gets into a diesel tank."
+},
+{
+"id": "rf-40",
+"cat": "refining",
+"q": "EN 590's viscosity window at 40 °C, the upper bound",
+"unit": "mm²/s",
+"truth": 4.5,
+"scale": 1,
+"tol": 0.3,
+"note": "2.0–4.5 mm²/s."
+},
+{
+"id": "rf-41",
+"cat": "refining",
+"q": "EN 590's maximum water content",
+"unit": "mg/kg",
+"truth": 200,
+"scale": 1,
+"tol": 20,
+"note": "200 mg/kg; FAME blends run close to it in humid storage."
+},
+{
+"id": "rf-42",
+"cat": "refining",
+"q": "EN 590's lubricity limit, the HFRR wear scar",
+"unit": "microns",
+"truth": 460,
+"scale": 1,
+"tol": 20,
+"note": "460 µm at 60 °C; ULSD needs additive or a little FAME to pass."
+},
+{
+"id": "rf-43",
+"cat": "refining",
+"q": "EN 590's T95 distillation limit",
+"unit": "°C",
+"truth": 360,
+"scale": 1,
+"tol": 5,
+"note": "95% recovered by 360 °C."
+},
+{
+"id": "rf-44",
+"cat": "refining",
+"q": "EN 590's arctic class 0 CFPP",
+"unit": "°C",
+"truth": -20,
+"scale": 1,
+"tol": 3,
+"note": "Class 0 is −20 °C; the arctic classes run to −44."
+},
+{
+"id": "rf-45",
+"cat": "refining",
+"q": "EN 590's minimum oxidation stability for FAME-containing diesel (Rancimat)",
+"unit": "hours",
+"truth": 20,
+"scale": 1,
+"tol": 2,
+"note": "20 hours at 110 °C; the FAME itself has to meet 8 hours under EN 14214."
+},
+{
+"id": "rf-46",
+"cat": "refining",
+"q": "EN 15940's (paraffinic diesel: HVO, GTL) density window, the lower bound",
+"unit": "kg/m³",
+"truth": 765,
+"scale": 1,
+"tol": 5,
+"note": "765–800 kg/m³: a separate standard because paraffinic diesel is too light for EN 590."
+},
+{
+"id": "rf-47",
+"cat": "refining",
+"q": "EN 15940 class A's minimum cetane number",
+"unit": "cetane",
+"truth": 70,
+"scale": 1,
+"tol": 3,
+"note": "70, against 51 for EN 590; HVO typically delivers 75–90."
+},
+{
+"id": "rf-48",
+"cat": "refining",
+"q": "EN 14214's (FAME) minimum ester content",
+"unit": "% by mass",
+"truth": 96.5,
+"scale": 1,
+"tol": 0.5,
+"note": "96.5 wt%: nearly all methyl esters, little free glycerol, mono- and diglycerides."
+},
+{
+"id": "rf-49",
+"cat": "refining",
+"q": "EN 14214's maximum iodine value for FAME",
+"unit": "g iodine per 100 g",
+"truth": 120,
+"scale": 1,
+"tol": 5,
+"note": "120, which rules out soybean and sunflower esters' unsaturation unless blended down; rapeseed passes."
+},
+{
+"id": "rf-50",
+"cat": "refining",
+"q": "EN 14214's density window for FAME, the lower bound",
+"unit": "kg/m³",
+"truth": 860,
+"scale": 1,
+"tol": 5,
+"note": "860–900 kg/m³."
+},
+{
+"id": "rf-51",
+"cat": "refining",
+"q": "Research octane of a typical alkylate",
+"unit": "RON",
+"truth": 95,
+"scale": 1,
+"tol": 2,
+"note": "93–97; MON 92–95, so the sensitivity is a point or two."
+},
+{
+"id": "rf-52",
+"cat": "refining",
+"q": "Motor octane of a typical reformate",
+"unit": "MON",
+"truth": 89,
+"scale": 1,
+"tol": 2,
+"note": "RON around 100 but MON around 88–90: aromatics have a sensitivity of ten or so."
+},
+{
+"id": "rf-53",
+"cat": "refining",
+"q": "Research octane of FCC naphtha before treating",
+"unit": "RON",
+"truth": 92,
+"scale": 1,
+"tol": 2,
+"note": "90–93, with MON around 80: olefins carry the octane and the sensitivity."
+},
+{
+"id": "rf-54",
+"cat": "refining",
+"q": "Motor octane of n-butane",
+"unit": "MON",
+"truth": 90,
+"scale": 1,
+"tol": 2,
+"note": "RON 93–94, MON 89–90: the cheapest octane in the refinery."
+},
+{
+"id": "rf-55",
+"cat": "refining",
+"q": "Motor octane of ethanol",
+"unit": "MON",
+"truth": 90,
+"scale": 1,
+"tol": 3,
+"note": "About 90 against a RON of 108: ethanol's sensitivity is the widest in the pool, which is why it does less for MON than its RON suggests."
+},
+{
+"id": "rf-56",
+"cat": "refining",
+"q": "Research octane of MTBE",
+"unit": "RON",
+"truth": 118,
+"scale": 1,
+"tol": 3,
+"note": "About 118, MON 101; ETBE is similar at 118/102."
+},
+{
+"id": "rf-57",
+"cat": "refining",
+"q": "Research octane of toluene",
+"unit": "RON",
+"truth": 120,
+"scale": 1,
+"tol": 4,
+"note": "About 120, MON 103: the best of the aromatics, which is why toluene is the reformer's prize."
+},
+{
+"id": "rf-58",
+"cat": "refining",
+"q": "Research octane of n-heptane",
+"unit": "RON",
+"truth": 0,
+"scale": 1,
+"tol": 2,
+"note": "Zero by definition: the bottom of the octane scale, with isooctane at 100."
+},
+{
+"id": "rf-59",
+"cat": "refining",
+"q": "Research octane of n-hexane",
+"unit": "RON",
+"truth": 25,
+"scale": 1,
+"tol": 5,
+"note": "About 25; its branched isomers run from the 70s to over 90, which is isomerisation's whole point."
+},
+{
+"id": "rf-60",
+"cat": "refining",
+"q": "Research octane of isopentane",
+"unit": "RON",
+"truth": 92,
+"scale": 1,
+"tol": 3,
+"note": "About 92 against n-pentane's 62: isomerate's main component."
+},
+{
+"id": "rf-61",
+"cat": "refining",
+"q": "Vapour pressure (RVP) of n-butane",
+"unit": "kPa",
+"truth": 358,
+"scale": "log",
+"tol": 0.08,
+"note": "About 358 kPa (52 psi): a little goes a long way in the pool's RVP."
+},
+{
+"id": "rf-62",
+"cat": "refining",
+"q": "Vapour pressure (RVP) of a typical alkylate",
+"unit": "kPa",
+"truth": 35,
+"scale": "log",
+"tol": 0.25,
+"note": "About 30–40 kPa (4–6 psi): the lowest of the major blendstocks, leaving room for butane."
+},
+{
+"id": "rf-63",
+"cat": "refining",
+"q": "Vapour pressure (RVP) of a typical isomerate",
+"unit": "kPa",
+"truth": 93,
+"scale": "log",
+"tol": 0.15,
+"note": "About 90–100 kPa (13–14 psi), from its isopentane: good octane, but it eats the RVP budget."
+},
+{
+"id": "rf-64",
+"cat": "refining",
+"q": "Ethanol's effective blending vapour pressure at a 10% blend",
+"unit": "kPa",
+"truth": 130,
+"scale": "log",
+"tol": 0.2,
+"note": "About 120–140 kPa (18–20 psi), far above its neat 16 kPa, because of the azeotrope with light hydrocarbons."
+},
+{
+"id": "rf-65",
+"cat": "refining",
+"q": "Density of a typical alkylate",
+"unit": "kg/m³",
+"truth": 700,
+"scale": 1,
+"tol": 10,
+"note": "About 700 kg/m³: light, saturated and branched."
+},
+{
+"id": "rf-66",
+"cat": "refining",
+"q": "Density of a typical reformate",
+"unit": "kg/m³",
+"truth": 810,
+"scale": 1,
+"tol": 15,
+"note": "About 800–820 kg/m³: aromatics are dense, which is why reformate carries the most energy per litre."
+},
+{
+"id": "rf-67",
+"cat": "refining",
+"q": "Density of ethanol",
+"unit": "kg/m³",
+"truth": 789,
+"scale": 1,
+"tol": 5,
+"note": "789 kg/m³ at 20 °C."
+},
+{
+"id": "rf-68",
+"cat": "refining",
+"q": "Density of FAME",
+"unit": "kg/m³",
+"truth": 880,
+"scale": 1,
+"tol": 10,
+"note": "About 880 kg/m³: above the diesel window, which it pulls up as HVO pulls it down."
+},
+{
+"id": "rf-69",
+"cat": "refining",
+"q": "Density of GTL diesel",
+"unit": "kg/m³",
+"truth": 775,
+"scale": 1,
+"tol": 10,
+"note": "About 775–780 kg/m³, like HVO: paraffinic and light."
+},
+{
+"id": "rf-70",
+"cat": "refining",
+"q": "Density of kerosene / jet A-1",
+"unit": "kg/m³",
+"truth": 800,
+"scale": 1,
+"tol": 10,
+"note": "About 775–840 by spec, 800 typical."
+},
+{
+"id": "rf-71",
+"cat": "refining",
+"q": "Cetane number of n-hexadecane",
+"unit": "cetane",
+"truth": 100,
+"scale": 1,
+"tol": 2,
+"note": "100 by definition: 'cetane' is its old name."
+},
+{
+"id": "rf-72",
+"cat": "refining",
+"q": "Cetane number of heptamethylnonane, the low reference fuel",
+"unit": "cetane",
+"truth": 15,
+"scale": 1,
+"tol": 2,
+"note": "15; it replaced alpha-methylnaphthalene (0) as the low reference."
+},
+{
+"id": "rf-73",
+"cat": "refining",
+"q": "Typical cetane number of HVO",
+"unit": "cetane",
+"truth": 80,
+"scale": 1,
+"tol": 6,
+"note": "75–90: the highest of anything in the pool."
+},
+{
+"id": "rf-74",
+"cat": "refining",
+"q": "Typical cetane number of rapeseed methyl ester (RME)",
+"unit": "cetane",
+"truth": 54,
+"scale": 1,
+"tol": 3,
+"note": "About 52–56; palm methyl ester is higher at 60–65, soy lower at about 50."
+},
+{
+"id": "rf-75",
+"cat": "refining",
+"q": "Typical cetane number of light cycle oil",
+"unit": "cetane",
+"truth": 23,
+"scale": 1,
+"tol": 4,
+"note": "20–25: aromatic cracked gas oil, the pool's cetane problem."
+},
+{
+"id": "rf-76",
+"cat": "refining",
+"q": "Typical cetane number of hydrocracker diesel",
+"unit": "cetane",
+"truth": 58,
+"scale": 1,
+"tol": 4,
+"note": "55–60: paraffinic and clean."
+},
+{
+"id": "rf-77",
+"cat": "refining",
+"q": "Typical cetane number of kerosene",
+"unit": "cetane",
+"truth": 43,
+"scale": 1,
+"tol": 3,
+"note": "42–45: excellent cold flow, poor cetane, which is winter diesel's compromise."
+},
+{
+"id": "rf-78",
+"cat": "refining",
+"q": "Typical CFPP of palm methyl ester",
+"unit": "°C",
+"truth": 10,
+"scale": 1,
+"tol": 4,
+"note": "About +8 to +12 °C: unusable in a European winter without blending down."
+},
+{
+"id": "rf-79",
+"cat": "refining",
+"q": "Typical CFPP of rapeseed methyl ester",
+"unit": "°C",
+"truth": -13,
+"scale": 1,
+"tol": 4,
+"note": "About −10 to −15 °C: the reason rapeseed is Europe's biodiesel feedstock."
+},
+{
+"id": "rf-80",
+"cat": "refining",
+"q": "Typical cloud point of winter-grade HVO",
+"unit": "°C",
+"truth": -30,
+"scale": 1,
+"tol": 6,
+"note": "Isomerised winter grades reach −20 to −34 °C; summer grades sit around −5."
+},
+{
+"id": "rf-81",
+"cat": "refining",
+"q": "Energy content of petrol per litre",
+"unit": "MJ/L",
+"truth": 32,
+"scale": 1,
+"tol": 1,
+"note": "About 32 MJ/L, 43–44 MJ/kg."
+},
+{
+"id": "rf-82",
+"cat": "refining",
+"q": "Energy content of ethanol per litre",
+"unit": "MJ/L",
+"truth": 21.2,
+"scale": 1,
+"tol": 1,
+"note": "About 21 MJ/L, two thirds of petrol's: E10 costs about 3% in consumption."
+},
+{
+"id": "rf-83",
+"cat": "refining",
+"q": "Energy content of FAME per litre",
+"unit": "MJ/L",
+"truth": 33,
+"scale": 1,
+"tol": 1,
+"note": "About 33 MJ/L (37 MJ/kg) against diesel's 35.8."
+},
+{
+"id": "rf-84",
+"cat": "refining",
+"q": "Energy content of HVO per litre",
+"unit": "MJ/L",
+"truth": 34.4,
+"scale": 1,
+"tol": 1,
+"note": "About 34.4 MJ/L: higher per kg than diesel (44 MJ/kg) but lighter, so a little less per litre."
+},
+{
+"id": "rf-85",
+"cat": "refining",
+"q": "Energy content of methanol per litre",
+"unit": "MJ/L",
+"truth": 15.6,
+"scale": 1,
+"tol": 1,
+"note": "About 15.6 MJ/L: half of petrol's, the catch in methanol blending."
+},
+{
+"id": "rf-86",
+"cat": "refining",
+"q": "Energy content of hydrogen per kilogram",
+"unit": "MJ/kg",
+"truth": 120,
+"scale": 1,
+"tol": 5,
+"note": "About 120 MJ/kg (lower heating value), three times diesel's, and almost nothing per litre at atmospheric pressure."
+},
+{
+"id": "rf-87",
+"cat": "refining",
+"q": "Oxygen content of ethanol by mass",
+"unit": "%",
+"truth": 34.7,
+"scale": 1,
+"tol": 1,
+"note": "34.7 wt%: the figure that converts the 3.7% oxygen limit into E10."
+},
+{
+"id": "rf-88",
+"cat": "refining",
+"q": "Oxygen content of FAME by mass",
+"unit": "%",
+"truth": 11,
+"scale": 1,
+"tol": 1,
+"note": "About 11 wt%, in the ester group."
+},
+{
+"id": "rf-89",
+"cat": "refining",
+"q": "Oxygen content of MTBE by mass",
+"unit": "%",
+"truth": 18.2,
+"scale": 1,
+"tol": 1,
+"note": "18.2 wt%; ETBE is 15.7, so ETBE can go to about 22% before hitting the oxygen cap."
+},
+{
+"id": "rf-90",
+"cat": "refining",
+"q": "CO2 from burning a litre of diesel",
+"unit": "kg",
+"truth": 2.64,
+"scale": 1,
+"tol": 0.1,
+"note": "About 2.64 kg CO2 per litre; petrol about 2.33."
+},
+{
+"id": "rf-91",
+"cat": "refining",
+"q": "Litres of diesel in a tonne",
+"unit": "litres",
+"truth": 1190,
+"scale": 1,
+"tol": 20,
+"note": "About 1,190 at 840 kg/m³, or 7.5 barrels."
+},
+{
+"id": "rf-92",
+"cat": "refining",
+"q": "Litres of petrol in a tonne",
+"unit": "litres",
+"truth": 1350,
+"scale": 1,
+"tol": 25,
+"note": "About 1,350 at 740 kg/m³, or 8.5 barrels."
+},
+{
+"id": "rf-93",
+"cat": "refining",
+"q": "Litres in a barrel",
+"unit": "litres",
+"truth": 158.99,
+"scale": 1,
+"tol": 1,
+"note": "158.987 litres, 42 US gallons."
+},
+{
+"id": "rf-94",
+"cat": "refining",
+"q": "RED III's fossil fuel comparator for transport",
+"unit": "gCO2e/MJ",
+"truth": 94,
+"scale": 1,
+"tol": 2,
+"note": "94 gCO2e/MJ: the baseline every biofuel's saving is measured against."
+},
+{
+"id": "rf-95",
+"cat": "refining",
+"q": "RED's minimum greenhouse-gas saving for biofuels from installations starting after 2021",
+"unit": "%",
+"truth": 65,
+"scale": 1,
+"tol": 3,
+"note": "65%; 60% for 2015–2020 plants, 50% before."
+},
+{
+"id": "rf-96",
+"cat": "refining",
+"q": "RED III's 2030 cap on crop-based biofuels in transport",
+"unit": "% of final energy",
+"truth": 7,
+"scale": 1,
+"tol": 1,
+"note": "7%, or the 2020 share plus one point if lower; crops can't be the route to the target."
+},
+{
+"id": "rf-97",
+"cat": "refining",
+"q": "RED III's 2030 sub-target for advanced biofuels and RFNBOs in transport",
+"unit": "% of final energy",
+"truth": 5.5,
+"scale": 1,
+"tol": 0.5,
+"note": "5.5% combined, of which at least 1% RFNBOs (renewable fuels of non-biological origin: e-fuels)."
+},
+{
+"id": "rf-98",
+"cat": "refining",
+"q": "Germany's THG-quota (greenhouse-gas reduction quota) for 2027",
+"unit": "%",
+"truth": 14.5,
+"scale": 1,
+"tol": 1,
+"note": "The ladder runs 10.5% (2025), 12% (2026), 14.5% (2027), 17.5%, 21%, 25% in 2030."
+},
+{
+"id": "rf-99",
+"cat": "refining",
+"q": "Germany's THG-quota for 2025",
+"unit": "%",
+"truth": 10.5,
+"scale": 1,
+"tol": 1,
+"note": "10.5%, after 9.35% in 2024."
+},
+{
+"id": "rf-100",
+"cat": "refining",
+"q": "Germany's energy tax on petrol",
+"unit": "euro cents per litre",
+"truth": 65.45,
+"scale": 1,
+"tol": 2,
+"note": "65.45 ct/L (€654.50 per 1,000 litres), plus VAT at 19%."
+},
+{
+"id": "rf-101",
+"cat": "refining",
+"q": "Germany's energy tax on diesel",
+"unit": "euro cents per litre",
+"truth": 47.04,
+"scale": 1,
+"tol": 2,
+"note": "47.04 ct/L: the diesel privilege, about 18 cents below petrol."
+},
+{
+"id": "rf-102",
+"cat": "refining",
+"q": "The UK's fuel duty on petrol and diesel in 2024/25",
+"unit": "pence per litre",
+"truth": 52.95,
+"scale": 1,
+"tol": 2,
+"note": "52.95 p/L, with the 5p cut of 2022 kept in place year after year, plus VAT at 20%."
+},
+{
+"id": "rf-103",
+"cat": "refining",
+"q": "The RTFO's buy-out price for the main obligation",
+"unit": "pence per litre",
+"truth": 50,
+"scale": 1,
+"tol": 3,
+"note": "50 p/L for a main certificate, 80 p/L for a development fuel certificate: the ceiling on RTFC prices."
+},
+{
+"id": "rf-104",
+"cat": "refining",
+"q": "France's excise (TICPE) on unleaded petrol",
+"unit": "euro cents per litre",
+"truth": 68.29,
+"scale": 1,
+"tol": 2,
+"note": "About 68.3 ct/L on SP95; diesel 60.75."
+},
+{
+"id": "rf-105",
+"cat": "refining",
+"q": "The EU's minimum excise rate on unleaded petrol under the Energy Taxation Directive",
+"unit": "euro per 1,000 litres",
+"truth": 359,
+"scale": 1,
+"tol": 10,
+"note": "€359 per 1,000 litres; diesel €330. Most member states are far above."
+},
+{
+"id": "rf-106",
+"cat": "refining",
+"q": "A typical European diesel crack spread over the last decade",
+"unit": "$ per barrel",
+"truth": 15,
+"scale": "log",
+"tol": 0.4,
+"note": "Diesel over Brent has averaged mid-teens, with 2022's spike past $50 as the outlier."
+},
+{
+"id": "rf-107",
+"cat": "refining",
+"q": "A typical European gasoline (Eurobob) crack over the last decade",
+"unit": "$ per barrel",
+"truth": 10,
+"scale": "log",
+"tol": 0.4,
+"note": "Low teens in summer, single digits in winter; Europe is structurally long gasoline and short diesel."
+},
+{
+"id": "rf-108",
+"cat": "refining",
+"q": "The share of EU road fuel demand that is diesel, by energy",
+"unit": "%",
+"truth": 70,
+"scale": 1,
+"tol": 5,
+"note": "Roughly 70%: dieselisation since the 1990s, now slowly reversing."
+},
+{
+"id": "rf-109",
+"cat": "refining",
+"q": "A VLSFO (0.5% sulphur) bunker fuel's typical discount to Brent per barrel in 2024",
+"unit": "$ per barrel",
+"truth": 5,
+"scale": "log",
+"tol": 0.6,
+"note": "A few dollars under crude on average; HSFO sits $15–25 under."
+},
+{
+"id": "rf-110",
+"cat": "refining",
+"q": "Germany's E10 share of petrol sales",
+"unit": "%",
+"truth": 50,
+"scale": 1,
+"tol": 8,
+"note": "Around half, after a slow start in 2011; the rest is E5 Super and Super Plus."
+},
+{
+"id": "rf-111",
+"cat": "refining",
+"q": "Sulphur in EN 228 and EN 590 fuels before the 2009 step to 10 ppm",
+"unit": "ppm",
+"truth": 50,
+"scale": 1,
+"tol": 5,
+"note": "50 ppm from 2005 ('sulphur-free' fuels at 10 ppm had to be available from 2005 and became mandatory in 2009)."
 }
 ];

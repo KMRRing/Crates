@@ -28,11 +28,14 @@ const money = n => (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-GB");
 const signed = n => (n >= 0 ? "+" : "−") + Math.abs(n).toLocaleString("en-GB");
 
 // ---------- the run ----------
-function start(mode) {
+/** The questions a set draws from: everything, or one category only (a focus), with the category cap lifted. */
+const setFor = (seed, focus) => pickSet(seed, focus ? QUOTES.filter(q => q.cat === focus) : QUOTES, PER_SET, focus ? PER_SET : 2).map(q => q.id);
+const hashFor = s => `${s.mode === "daily" ? `#d=${s.seed}` : `#s=${s.seed}`}${s.focus ? `&f=${s.focus}` : ""}`;
+function start(mode, focus = null) {
   const seed = mode === "daily" ? today() : randomSeed();
-  S = { seed, mode, set: pickSet(seed, QUOTES).map(q => q.id), index: 0, book: START, log: [], phase: "quote", done: false };
+  S = { seed, mode, focus, set: setFor(seed, focus), index: 0, book: START, log: [], phase: "quote", done: false };
   save();
-  history.replaceState(null, "", mode === "daily" ? `#d=${seed}` : `#s=${seed}`);
+  history.replaceState(null, "", hashFor(S));
   render();
 }
 function save() { if (!inRoom()) write(RUN, S); }
@@ -354,8 +357,10 @@ function finish() {
   link.addEventListener("click", copyLink);
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
-function bestEver(book) { const b = Math.max(read(BEST, -Infinity), book); write(BEST, b); return b; }
-function bestDaily(book) { const d = read(DAILY, {}); d[today()] = Math.max(d[today()] ?? -Infinity, book); write(DAILY, d); return d[today()]; }
+const bestKey = () => (S.focus ? `${BEST}:${S.focus}` : BEST);
+const dailyKey = () => (S.focus ? `${today()}/${S.focus}` : String(today()));
+function bestEver(book) { const b = Math.max(read(bestKey(), -Infinity), book); write(bestKey(), b); return b; }
+function bestDaily(book) { const d = read(DAILY, {}); d[dailyKey()] = Math.max(d[dailyKey()] ?? -Infinity, book); write(DAILY, d); return d[dailyKey()]; }
 
 // ---------- menu, links, messages ----------
 let toastTimer = null;
@@ -367,7 +372,7 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 async function copyLink() {
-  const link = `${location.origin}${location.pathname}${S.mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`}`;
+  const link = `${location.origin}${location.pathname}${hashFor(S)}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 function openMenu() {
@@ -380,10 +385,14 @@ function openMenu() {
     add("p", "stats", "Make a market on a number: a bid and an ask. Each question says what counts as close; the tighter and the nearer, the more it pays, falling off smoothly, and the further out the truth lies the more you lose. Ten questions, a book of 1,000 to start.");
     button("A new set", () => confirmStart("random"));
     button("Today's set", () => confirmStart("daily"));
+    add("h3", null, "Refining");
+    add("p", "stats", `Sets drawn only from the ${QUOTES.filter(q => q.cat === "refining").length} refining questions: European fuel specs, what each blendstock brings, cetane and cold flow, energy contents, RED III, quotas, duties and cracks. Crush these and you have the numbers of the trade.`);
+    button("A refining set", () => confirmStart("random", "refining"));
+    button("Today's refining set", () => confirmStart("daily", "refining"));
     if (S?.done) button("See how it went", finish);
     button("Copy a link to this set", copyLink);
-    const best = read(BEST, null), daily = read(DAILY, {})[today()];
-    add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}`);
+    const best = read(BEST, null), daily = read(DAILY, {})[String(today())], bestRf = read(`${BEST}:refining`, null), dailyRf = read(DAILY, {})[`${today()}/refining`];
+    add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}${bestRf != null ? ` Refining: best ${money(bestRf)}${dailyRf != null ? `, today ${money(dailyRf)}` : ""}.` : ""}`);
     add("h3", null, "Together");
     add("p", "stats", "Two phones, taking turns: one makes the market, the other hits the bid, lifts the offer or passes. A trade settles between you; a pass settles the maker against the house.");
     button("Play together", async () => { if (await together.start()) openMenu(); });
@@ -409,9 +418,9 @@ function openMenu() {
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function confirmStart(mode) {
+function confirmStart(mode, focus = null) {
   if (S && !S.done && S.index > 0 && !confirm("Start a new set? This one isn't finished.")) return;
-  start(mode);
+  start(mode, focus);
 }
 
 // ---------- wiring ----------
@@ -432,10 +441,10 @@ window.addEventListener("hashchange", () => { const h = new URLSearchParams(loca
 
 /** A linked set: #s=seed for a random one, #d=YYYYMMDD for a day's. */
 function load(h) {
-  const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
+  const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random", focus = CATS[h.get("f")] ? h.get("f") : null;
   if (!seed) return false;
-  if (S && S.seed === seed && S.mode === mode) return true;
-  S = { seed, mode, set: pickSet(seed, QUOTES).map(q => q.id), index: 0, book: START, log: [], phase: "quote", done: false };
+  if (S && S.seed === seed && S.mode === mode && (S.focus || null) === focus) return true;
+  S = { seed, mode, focus, set: setFor(seed, focus), index: 0, book: START, log: [], phase: "quote", done: false };
   save();
   render();
   return true;
@@ -449,7 +458,7 @@ if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;    // the bank 
 const hash = new URLSearchParams(location.hash.slice(1));
 if (!load(hash)) {
   if (!S) start("random");
-  else { history.replaceState(null, "", S.mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`); render(); }
+  else { history.replaceState(null, "", hashFor(S)); render(); }
 }
 if (S.done) finish();
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
