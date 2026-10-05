@@ -35,10 +35,77 @@ function loadLevel(n) {
   render();
 }
 function routing() { return S.routing[L.id]; }
+/**
+ * The routing with one stream sent somewhere else, and any streams that choice newly creates sent to their own
+ * best destination (one level deep): so "heavy naphtha to the hydrotreater" is judged with the treated naphtha
+ * going on to the reformer, not sitting in the naphtha pool.
+ */
+function whatIf(stream, dest) {
+  const outputsOf = res => new Set(Object.entries(res.units).filter(([u]) => u !== "cdu").flatMap(([, u]) => Object.keys(u.outputs)));
+  const madeBefore = outputsOf(evaluate(L, routing()));
+  let r = { ...routing(), [stream]: dest };
+  const madeAfter = outputsOf(evaluate(L, r));
+  for (const st of streamsOf(L)) {
+    if (st === stream || !madeAfter.has(st) || madeBefore.has(st)) continue;
+    let best = null;
+    for (const d of destinations(L, st)) { const m = evaluate(L, { ...r, [st]: d }).margin; if (!best || m > best.m) best = { d, m }; }
+    if (best) r = { ...r, [st]: best.d };
+  }
+  return r;
+}
+/** Sends a stream somewhere; streams the choice newly creates go to their best places (what the picker's delta assumed). */
 function setDestination(stream, dest) {
-  routing()[stream] = dest;
+  S.routing[L.id] = whatIf(stream, dest);
   save();
   render();
+}
+/**
+ * A hint: the one change of destination, from where things are, that gains the most; or, when no single change
+ * helps (pools have cliffs), the stream where the player's routing differs from par's. After three hints on a level,
+ * par's routing is shown in full.
+ */
+function hint() {
+  S.hints = S.hints || {};
+  S.hints[L.id] = (S.hints[L.id] || 0) + 1;
+  save();
+  if (S.hints[L.id] >= 5) { showPar(); return; }
+  const now = R.margin;
+  let best = null;
+  for (const st of streamsOf(L)) for (const d of destinations(L, st)) {
+    if (d === routing()[st]) continue;
+    const m = evaluate(L, whatIf(st, d)).margin;
+    if (!best || m > best.m) best = { st, d, m };
+  }
+  if (best && best.m > now + 0.05) {
+    const name = d => UNITS[d]?.name || POOLS[d].name;
+    const extra = Object.entries(whatIf(best.st, best.d)).filter(([st, d]) => st !== best.st && routing()[st] !== d).map(([st, d]) => `${STREAMS[st].name.toLowerCase()} → ${name(d)}`);
+    toast(`${STREAMS[best.st].name} → ${name(best.d)}${extra.length ? `, with ${extra.join(" and ")}` : ""}: ${money(best.m - now)}/bbl better.`, 6500);
+    return;
+  }
+  const diff = streamsOf(L).find(st => par.routing[st] && par.routing[st] !== routing()[st]);
+  if (diff) toast(`No single change helps from here: two streams have to move together. Start with ${STREAMS[diff].name.toLowerCase()}: par sends it to ${UNITS[par.routing[diff]]?.name.toLowerCase() || POOLS[par.routing[diff]].name.toLowerCase()}.`, 7000);
+  else toast("You're already on par's routing.", 3000);
+}
+function showPar() {
+  const body = $("menuBody");
+  body.replaceChildren();
+  $("menuDlg").querySelector("h2").textContent = "Par's routing";
+  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
+  add("p", "stats", `What the solver does on this level, for ${money(par.margin)}/bbl. Streams where you differ are marked.`);
+  const list = add("ul", "rf-parlist");
+  for (const st of streamsOf(L)) {
+    const d = par.routing[st];
+    if (!d) continue;
+    const li = document.createElement("li");
+    const differs = routing()[st] !== d;
+    li.className = differs ? "differs" : "";
+    li.textContent = `${STREAMS[st].name} → ${UNITS[d]?.name || POOLS[d]?.name}${differs ? ` (you: ${UNITS[routing()[st]]?.name || POOLS[routing()[st]]?.name})` : ""}`;
+    list.appendChild(li);
+  }
+  const apply = add("button", "btn primary wide", "Route it like par");
+  apply.type = "button";
+  apply.addEventListener("click", () => { S.routing[L.id] = { ...par.routing }; save(); $("menuDlg").close(); render(); });
+  if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function chooseCrude(id) {
   S.crude[L.id] = id;
@@ -63,16 +130,18 @@ function render() {
   $("marginBar").style.width = pct(R.margin);
   $("parTick").style.left = pct(par.margin);
   const pools = Object.entries(R.pools).filter(([, p]) => p.vol > 0.05);
-  const offSpec = pools.filter(([, p]) => !p.inSpec);
-  const reached = R.margin >= par.margin - 0.3 && !offSpec.length;
+  const offSpec = pools.filter(([id, p]) => !p.inSpec && ["gasoline", "diesel", "jet"].includes(id));
+  const reached = R.margin >= par.margin - 0.6 && !offSpec.length;
   if (!S.best[L.id] || R.margin > S.best[L.id]) { S.best[L.id] = R.margin; save(); }
   if (reached && !S.done[L.id]) { S.done[L.id] = true; save(); }
   const v = $("verdict");
   v.className = `rf-verdict${reached ? " good" : ""}`;
   v.textContent = reached ? `Par reached with every pool in spec. Your best here: ${money(S.best[L.id])}/bbl.`
-    : offSpec.length ? `${offSpec.length} pool${offSpec.length > 1 ? "s" : ""} off spec. ${money(par.margin - R.margin)}/bbl short of par.` : `${money(par.margin - R.margin)}/bbl short of par.`;
+    : offSpec.length ? `${offSpec.map(([id]) => POOLS[id].name).join(" and ")} off spec. ${money(par.margin - R.margin)}/bbl short of par.` : `${money(par.margin - R.margin)}/bbl short of par.`;
   $("nextBtn").hidden = !(reached && L.id < LEVELS.length);
   $("nextBtn").onclick = () => loadLevel(L.id + 1);
+  $("hintBtn").hidden = reached;
+  $("hintBtn").textContent = (S.hints?.[L.id] || 0) >= 4 ? "Show par's routing" : `Hint${S.hints?.[L.id] ? ` (${S.hints[L.id]} used)` : ""}`;
   drawUnits();
   drawStreams();
   drawPools();
@@ -168,11 +237,15 @@ function pickDestination(s) {
   const current = routing()[s];
   const units = destinations(L, s).filter(d => UNITS[d]), pools = destinations(L, s).filter(d => POOLS[d]);
   const head = t => { const h = document.createElement("div"); h.className = "head"; h.textContent = t; body.appendChild(h); };
+  const now = R.margin;
   const option = (d, title, text) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = d === current ? "on" : "";
     const bb = document.createElement("b"); bb.textContent = title;
+    // what this choice would do to the margin, with everything else as it is
+    const delta = d === current ? null : evaluate(L, whatIf(s, d)).margin - now;
+    if (delta != null) { const tag = document.createElement("em"); tag.className = `delta ${delta > 0.05 ? "up" : delta < -0.05 ? "down" : ""}`; tag.textContent = `${delta >= 0 ? "+" : "−"}${Math.abs(delta).toFixed(1)}`; bb.appendChild(tag); }
     const sp = document.createElement("span"); sp.textContent = text;
     b.append(bb, sp);
     b.addEventListener("click", () => { $("pickDlg").close(); setDestination(s, d); });
@@ -259,6 +332,7 @@ function openMenu() {
     b.addEventListener("click", () => { $("menuDlg").close(); loadLevel(lv.id); });
     list.appendChild(b);
   }
+  $("menuDlg").querySelector("h2").textContent = "Menu";
   const reset = add("button", "btn wide", "Reset this level's routing");
   reset.type = "button";
   reset.addEventListener("click", () => { $("menuDlg").close(); S.routing[L.id] = defaultRouting(L); save(); render(); });
@@ -274,6 +348,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("pickClose").addEventListener("click", () => $("pickDlg").close());
 $("cardClose").addEventListener("click", () => $("cardDlg").close());
+$("hintBtn").addEventListener("click", hint);
 
 // for tests and debugging
 window.__refinery = { get level() { return L; }, get par() { return par; }, get result() { return R; }, get routing() { return routing(); }, setDestination, loadLevel, chooseCrude };

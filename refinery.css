@@ -22,6 +22,14 @@
 .rf-verdict { margin: 0; font-size: .9rem; color: var(--ink-soft); }
 .rf-verdict.good { color: var(--rf-good); font-weight: 750; }
 .rf-go { min-height: 46px; border: 0; border-radius: 14px; background: var(--rf-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+.rf-go.quiet { background: var(--yard); color: var(--ink); }
+.rf-buttons { display: grid; grid-template-columns: 1fr; gap: .4rem; }
+.rf-buttons:has(#nextBtn:not([hidden])):has(#hintBtn:not([hidden])) { grid-template-columns: 1fr 1fr; }
+.rf-pick button b .delta { float: right; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.rf-pick button b .delta.up { color: var(--rf-good); }
+.rf-pick button b .delta.down { color: var(--rf-bad); }
+.rf-parlist { margin: .5rem 0; padding-left: 1.1rem; display: grid; gap: .25rem; font-size: .9rem; }
+.rf-parlist .differs { font-weight: 750; color: var(--rf-in); }
 
 .rf-section { margin-top: .9rem; }
 .rf-section h3 { margin: 0 0 .4rem; font-size: 1rem; font-weight: 800; }
