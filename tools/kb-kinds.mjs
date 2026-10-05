@@ -97,12 +97,18 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const text = fs.readFileSync(kbFile("entities.js"), "utf8");
   const head = text.slice(0, text.indexOf("export const ENTITIES"));
   fs.writeFileSync(kbFile("entities.js"), `${head}export const ENTITIES = [\n${ENTITIES.map(e => JSON.stringify(e)).join(",\n")}\n];\n`);
-  const total = Object.values(given).reduce((a, b) => a + b, 0);
+  // the record: every clue thing's kind by where it came from (by hand, read one by one, or from the wording), and what's open
+  const kinds = ENTITIES.filter(e => e.sets.some(x => x.startsWith("kind:")));
+  const by = src => kinds.filter(e => (e.kindBy || "hand") === src).length;
+  const tally = {};
+  for (const e of kinds) { const k = e.sets.find(x => x.startsWith("kind:")).slice(5); tally[k] = (tally[k] || 0) + 1; }
   const md = `# What each clue thing is
 
-Given by their wording (kindBy "words"), ${total} of ${total + open.length} clue things: ${Object.entries(given).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${v} ${KINDS[k][0].toLowerCase()}`).join(", ")}.
+${kinds.length} clue things have a kind: ${by("hand")} set by hand, ${by("read")} settled by reading each one's hints (kindBy "read"),
+${by("words")} given from their wording by tools/kb-kinds.mjs (kindBy "words"). This run gave ${Object.values(given).reduce((a, b) => a + b, 0)}.
+By kind: ${Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${v} ${KINDS[k][0].toLowerCase()}`).join(", ")}.
 
-## Left for a person (${open.length}): the wording doesn't settle it. Two best guesses each, then the hints
+## Still open (${open.length}): the wording doesn't settle it. Two best guesses each, then the hints
 ${open.map(({ e, ls, guesses }) => `- **${e.name}** (${guesses}): ${ls.map(l => `${byId.get(l.to).name}: ${l.hint}`).join("; ").slice(0, 220)}`).join("\n")}
 `;
   fs.writeFileSync(kbFile("KINDS.md"), md);
