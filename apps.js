@@ -100,14 +100,17 @@ export const APPS = [
   { id: "manifest", name: "Manifest", href: "./manifest.html", logo: MANIFEST_LOGO },
   { id: "chart", name: "Chart", href: "./chart.html", logo: CHART_LOGO },
   { id: "survey", name: "Survey", href: "./survey.html", logo: SURVEY_LOGO },
-  { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO },
+  { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO, more: true },
   { id: "pipes", name: "Pipes", href: "./pipes.html", logo: PIPES_LOGO },
-  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO },
+  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO, more: true },
   { id: "rush", name: "Rush", href: "./rush.html", logo: RUSH_LOGO },
   { id: "deck", name: "Deck", href: "./deck.html", logo: DECK_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
+const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
+      <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}</a></li>`).join("");
+
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
   // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
@@ -116,10 +119,15 @@ export function bindSwitcher(button, current) {
   dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><span class="apps-actions">
       <button class="btn" type="button" data-update title="Load the newest version (keeps your progress)">Update</button>
       <button class="btn" type="button" data-close>Close</button></span></div>
-    <ul class="apps-list">${APPS.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}</a></li>`).join("")}</ul></div>`;
+    <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more" type="button" data-more aria-expanded="false" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul>
+    <ul class="apps-list apps-more" hidden>${tiles(APPS.filter(a => a.more), current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
+  // "…": the second row of games, shown on request (and already open when you're playing one of them)
+  const more = dlg.querySelector("[data-more]"), moreList = dlg.querySelector(".apps-more");
+  const showMore = on => { moreList.hidden = !on; more.setAttribute("aria-expanded", String(on)); };
+  more.addEventListener("click", () => showMore(moreList.hidden));
+  if (APPS.find(a => a.id === current)?.more) showMore(true);
   // after an update the app reloads: open the games screen again, where Update was pressed
   try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
   const update = dlg.querySelector("[data-update]");

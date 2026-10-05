@@ -179,6 +179,9 @@ The pile, reviewed: what you didn't know, brought back until you do. Every knowl
 
 Learning mode, on by default and switchable from Deck's, Punt's, Quote's or Chart's menu: Punt leads each block of a bank level with what's due (up to half the block, spread through it) and fills the rest with questions you haven't seen before any you have; Quote and Chart lead their sets the same way. Off, the games deal as they always did and still bank what you miss. Crates keeps its own learn mode, which feeds the pile. `pile.js` is the store and scheduler; `tests/pile.mjs` checks promotion, demotion, gaps and learning.
 
+## The games screen
+Fifteen tiles: Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck, one free for the language course, and "…", which opens a second row holding Refinery and Blend (the second row is already open when you're playing one of them).
+
 ## Rooms
 A room is one four-letter code for two people, shared by every game. Once you're in a room you stay in it: tapping the title to switch games carries the room code along, and each game keeps its own progress in the room, so switching back finds everything where you left it. If your partner has another game of the room open, it says so ("Sarah is in Slate", with a link to join them). A room started in one game gets the other game's side when someone first opens that game in it (Crates starts a Together game). Leave the room (in either game's menu) to go back to solo everywhere.
 

@@ -115,6 +115,10 @@ dialog.apps .pick-head h2 { font-size: 1.75rem; font-weight: 800; letter-spacing
   box-sizing: border-box; padding: 1rem .5rem; border-radius: 14px; text-decoration: none; color: var(--ink); background: var(--sheet);
   border: 2px solid transparent; text-align: center; }
 .app-row.cur { border-color: var(--ink); }
+.app-more { width: 100%; border-color: var(--line, #C9D1D5); border-style: dashed; cursor: pointer; font: inherit; }
+.app-more[aria-expanded="true"] { border-style: solid; }
+.app-dots { font-size: 2.2rem; font-weight: 800; line-height: 1; color: var(--ink-soft); }
+.apps-more { margin-top: .7rem; padding-top: .7rem; border-top: 1px dashed var(--line, #C9D1D5); }
 .app-logo { flex: none; width: 3rem; height: 3rem; display: grid; place-items: center; }
 .app-logo svg { width: 2.8rem; height: 2.8rem; }
 .app-name { font-size: 1.1rem; font-weight: 800; }
