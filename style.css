@@ -136,15 +136,17 @@ button, input { font: inherit; color: inherit; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-bottom: .6rem;
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
     repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
+/* The header never pushes its right-hand buttons off the screen: they keep their size, and the title side gives way,
+   only the partner pill in it shrinking (to "…"); the game's name and icon stay whole. */
 .mark {
-  display: flex; align-items: center; gap: .55rem; margin: 0;
+  display: flex; align-items: center; gap: .55rem; margin: 0; min-width: 0; flex: 0 1 auto;
   font-size: 1.32rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; line-height: 1;
 }
 .mark-icon { width: 2.5rem; height: 2.5rem; flex: none; }   /* the game's logo: as large as the rete across the header */
 .cr-mark { display: inline-block; }
 .cr-mark svg { width: 100%; height: 100%; display: block; }
 /* The title opens the game switcher. */
-.mark-btn { display: flex; align-items: center; gap: .55rem; background: none; border: 0; padding: 0; margin: 0;
+.mark-btn { display: flex; align-items: center; gap: .55rem; min-width: 0; max-width: 100%; background: none; border: 0; padding: 0; margin: 0;
   font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 /* The game switcher: a full screen of games, a tile each, two across on a phone, more on a wider screen. */
 /* It fits the screen without scrolling: the tiles share the height left under the title, and their logos and names
@@ -195,7 +197,7 @@ dialog.apps-pop::backdrop { background: rgba(10, 14, 18, .45); }
 dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
 .apps-pop-list { flex: none; grid-auto-rows: 7rem; overflow: visible; }
 .apps-pop-list .app-row { background: var(--yard); }
-.top-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.top-right { display: flex; align-items: center; gap: .45rem; flex: none; }
 /* A game that fits the screen: the page is exactly the screen's height and never scrolls; its parts share the
    height (the part marked .fit-grow takes what's left, in the page or in a .fit-col inside it), and anything long
    scrolls inside its own box. */
@@ -587,4 +589,4 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 @media (prefers-reduced-motion: reduce) { .rete-btn.turning .rete-turn, .rete-btn.turning .rete-rule { animation: none; } }
 
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
-.partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; }
+.partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }
