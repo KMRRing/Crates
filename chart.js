@@ -1,7 +1,7 @@
 // Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
 // see the truth, the distance and the points. Together, both of you pin the same place in private and the pins
 // are revealed side by side.
-import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, merc, unmerc, LAT_MAX } from "./chart-engine.js";
+import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR } from "./chart-engine.js";
 import { PLACES, CATS } from "./chart-bank.js";
 import { LAND, BORDERS } from "./world.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -17,6 +17,7 @@ const byId = new Map(PLACES.map(p => [p.id, p]));
 let S = null;        // alone: { seed, mode, set, index, score, log: [{ id, lat, lon, km, pts }], phase: "pin" | "reveal", done }
                      // together: the room: { seed, set, index, pins: { seat: { lat, lon } }, scores: [2], log, done, players }
 let pin = null;      // the provisional pin { lat, lon }
+let clues = 0;       // clues taken on the current place (alone; together it's in the room, per seat)
 let views = { world: worldView() };                // what the map shows: pan and pinch move it
 const SIZES = { world: [360, Math.round(360 / worldAspect())] };
 const inRoom = () => !!together.room;
@@ -48,13 +49,23 @@ function confirmPin() {
     return;
   }
   if (S.phase !== "pin") return;
-  const d = distance(pin, p), pts = score(d);
+  const d = distance(pin, p), pts = Math.round(score(d) * clueFactor(clues));
   S.score += pts;
-  S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts });
+  S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues });
   S.phase = "reveal";
   save();
   render();
 }
+/** A clue for the current place: the region, then the country, then the description with the name hidden. */
+function takeClue() {
+  if (S.phase !== "pin") return;
+  const n = (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues) + 1;
+  if (n >= CLUE_FACTOR.length) return;
+  if (inRoom()) { together.act(g => { if (g.phase !== "pin") return false; g.clues = { ...(g.clues || {}), [mySeat()]: n }; }); return; }
+  clues = n;
+  render();
+}
+const cluesTaken = () => (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues);
 function next() {
   if (inRoom()) {
     together.act(g => {
@@ -69,6 +80,7 @@ function next() {
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
   S.index++;
   S.phase = "pin";
+  clues = 0;
   pin = null; views = { world: worldView() };
   save();
   render();
@@ -225,6 +237,11 @@ function render() {
   $("pinBtn").hidden = reveal;
   $("pinBtn").disabled = !pin || waitingForThem;
   $("pinBtn").textContent = waitingForThem ? "Pinned" : "Pin it";
+  const taken = cluesTaken(), clueBtn = $("clueBtn"), clueBox = $("clues");
+  clueBtn.hidden = reveal || waitingForThem;
+  clueBtn.disabled = taken >= CLUE_FACTOR.length - 1;
+  clueBtn.textContent = taken >= CLUE_FACTOR.length - 1 ? "No more clues" : `${["A clue", "Another clue", "A last clue"][taken]} (keeps ${Math.round(CLUE_FACTOR[taken + 1] * 100)}%)`;
+  clueBox.replaceChildren(...Array.from({ length: reveal ? 0 : taken }, (_, i) => { const li = document.createElement("li"); li.textContent = clueText(p, i + 1); return li; }));
   drawMaps();
   const result = $("result");
   result.hidden = !reveal;
@@ -233,12 +250,13 @@ function render() {
     if (inRoom()) {
       const e = Object.values(S.log)[S.index], me = mySeat();
       const mine = e.km[me], theirs = e.km[1 - me], pm = e.pts[me], pt = e.pts[1 - me];
+      const cm = e.clues?.[me] || 0, ct = e.clues?.[1 - me] || 0;
       v.className = `ch-verdict ${mine <= theirs ? "good" : "bad"}`;
-      v.textContent = `You were ${km(mine)} off (+${pm}); ${seatName(1 - me)} ${km(theirs)} off (+${pt}).`;
+      v.textContent = `You were ${km(mine)} off (+${pm}${cm ? `, ${cm} clue${cm > 1 ? "s" : ""}` : ""}); ${seatName(1 - me)} ${km(theirs)} off (+${pt}${ct ? `, ${ct} clue${ct > 1 ? "s" : ""}` : ""}).`;
     } else {
       const e = S.log[S.index];
       v.className = `ch-verdict ${e.km < 500 ? "good" : "bad"}`;
-      v.textContent = `${km(e.km)} off: +${e.pts}`;
+      v.textContent = `${km(e.km)} off: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
     }
     $("note").textContent = p.note || "";
     $("nextBtn").textContent = S.index + 1 >= S.set.length ? "The set" : "Next";
@@ -263,7 +281,7 @@ function finish() {
   for (const e of S.log) {
     const q = byId.get(e.id), li = document.createElement("li"), name = document.createElement("span"), pts = document.createElement("b");
     name.textContent = q.name.length > 34 ? `${q.name.slice(0, 32)}…` : q.name;
-    pts.textContent = `${km(e.km)} · +${e.pts}`;
+    pts.textContent = `${km(e.km)} · +${e.pts}${e.clues ? ` · ${e.clues} clue${e.clues > 1 ? "s" : ""}` : ""}`;
     li.append(name, pts);
     lines.appendChild(li);
   }
@@ -279,13 +297,14 @@ function bestEver(s) { const b = Math.max(read(BEST, 0), s); write(BEST, b); ret
 function bestDaily(s) { const d = read(DAILY, {}); d[today()] = Math.max(d[today()] || 0, s); write(DAILY, d); return d[today()]; }
 
 // ---------- together ----------
-/** Both pins are in: settle the place for both. */
+/** Both pins are in: settle the place for both, each with their own clues' discount. */
 function settleRoom(g) {
   const p = byId.get(g.set[g.index]);
-  const kms = [0, 1].map(seat => distance(g.pins[seat], p)), pts = kms.map(score);
+  const kms = [0, 1].map(seat => distance(g.pins[seat], p)), pts = kms.map((d, seat) => Math.round(score(d) * clueFactor((g.clues || {})[seat] || 0)));
   g.scores = Object.values(g.scores || [0, 0]).map((s, seat) => s + pts[seat]);
   g.log = Object.values(g.log || {});
-  g.log.push({ id: p.id, pins: { 0: g.pins[0], 1: g.pins[1] }, km: kms, pts });
+  g.log.push({ id: p.id, pins: { 0: g.pins[0], 1: g.pins[1] }, km: kms, pts, clues: { 0: (g.clues || {})[0] || 0, 1: (g.clues || {})[1] || 0 } });
+  g.clues = {};
   g.phase = "reveal";
 }
 function freshRoom(players) {
@@ -321,7 +340,7 @@ function finishRoom() {
 function onState(val) {
   const was = S;
   S = val;
-  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; views = { world: worldView() }; }
+  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; clues = 0; views = { world: worldView() }; }
   drawPartner();
   render();
 }
@@ -431,6 +450,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 gestures("world");
 $("pinBtn").addEventListener("click", confirmPin);
+$("clueBtn").addEventListener("click", takeClue);
 $("nextBtn").addEventListener("click", next);
 window.addEventListener("resize", () => { if (S) drawMaps(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (S) drawMaps(); });
@@ -450,7 +470,7 @@ function load(h) {
 }
 
 // for tests and debugging
-window.__chart = { get state() { return S; }, get views() { return views; }, setPin: (lat, lon) => { pin = { lat, lon }; render(); }, confirmPin, next, start, get together() { return together; } };
+window.__chart = { get state() { return S; }, get views() { return views; }, setPin: (lat, lon) => { pin = { lat, lon }; render(); }, confirmPin, next, start, takeClue, get together() { return together; } };
 
 S = read(RUN, null);
 if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;

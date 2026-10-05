@@ -18,6 +18,10 @@
 .ch-maps { display: grid; gap: .5rem; }
 .ch-map { width: 100%; display: block; border-radius: 12px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .ch-actions { display: grid; gap: .45rem; }
+.ch-actions.two { grid-template-columns: 1fr 1fr; }
+.ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }
+.ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .25rem; font-size: .92rem; line-height: 1.4; }
+.ch-clues:empty { display: none; }
 .ch-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--ch-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
 .ch-go.quiet { background: var(--yard); color: var(--ink); }
 .ch-go:disabled { opacity: .45; cursor: default; }

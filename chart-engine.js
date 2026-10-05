@@ -13,6 +13,18 @@ export function distance(a, b) {
 }
 /** Points for a pin d km off: 1000 at the spot, about 600 at 1,000 km, 135 at 4,000 km; +100 within 100 km. */
 export const score = d => Math.round(1000 * Math.exp(-d / 2000)) + (d < 100 ? 100 : 0);
+/** Clues cost: the first (the region) leaves 70% of the points, the second (the country) 45%, the third (the description) 25%. */
+export const CLUE_FACTOR = [1, 0.7, 0.45, 0.25];
+export const clueFactor = n => CLUE_FACTOR[Math.min(n, CLUE_FACTOR.length - 1)];
+/** The text of clue n (1–3) for a place: the region, the country, then its description with its own name hidden. */
+export function clueText(p, n) {
+  if (n === 1) return `It's in ${p.region}.`;
+  if (n === 2) return `It's in ${p.country}.`;
+  const words = p.name.replace(/[,(].*$/, "").split(/\s+/).filter(w => w.length > 3 && !/^(the|where|was|born)$/i.test(w));
+  let text = p.note;
+  for (const w of words) text = text.replace(new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi"), "…");
+  return text;
+}
 
 function rng(seed) {
   let a = seed >>> 0;
