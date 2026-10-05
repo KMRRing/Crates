@@ -24,5 +24,33 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
     && clamped.lon === 160 && tiny.span === 1.5 && huge.span === 360 && huge.lon === 0 && huge.my === 0 && both.span >= 6 && both.lon > 6 && both.lon < 9,
     "views: the world shows ±180 and ±78, a close-up centres on its point, panning stops at the edges, pinching stops at 1.5° and 360°, a reveal view covers both pins");
 }
+// the countries: outlines that hold their own anchor, the even–odd rule (a hole is outside), the antimeridian, scoring
+{
+  const { COUNTRIES, REGION_OF } = await import("../chart-countries.js");
+  const by = n => COUNTRIES.find(c => c.name === n);
+  const whole = COUNTRIES.every(c => c.rings.length && c.rings.every(r => r.length >= 4) && c.regions.length && c.regions.every(k => E.REGIONS[k]) && c.flag && c.about && E.insideFeature({ lat: c.lat, lon: c.lon }, c));
+  check(COUNTRIES.length >= 160 && whole, `countries: ${COUNTRIES.length}, each with an outline holding its own anchor, regions, a flag and a knowledge-base id`);
+  const at = (lat, lon) => ({ lat, lon });
+  check(E.insideFeature(at(48.86, 2.35), by("France")) && !E.insideFeature(at(40.42, -3.7), by("France")) && E.insideFeature(at(-29.31, 27.48), by("Lesotho"))
+    && !E.insideFeature(at(-29.31, 27.48), by("South Africa")) && E.insideFeature(at(66, -175), by("Russia")) && E.insideFeature(at(35.3, 33.6), by("Cyprus")),
+    "inside: Paris in France, Madrid not; Maseru in Lesotho and not in South Africa (its hole); Chukotka past 180° in Russia; Northern Cyprus in Cyprus");
+  const fr = { cat: "countries" }, city = { cat: "cities" };
+  check(E.pointsFor(fr, 0) === E.score(0) && E.pointsFor(fr, 3) === 0 && E.pointsFor(city, 3) === E.score(3), "a country scores in full inside its outline and nothing outside; other places by distance");
+  // regions: a place goes by its country, Russia and Turkey by their side of the Urals and the Bosphorus
+  const R = q => E.regionsOfPlace(PLACES.find(p => p.name.startsWith(q)), REGION_OF).join("+");
+  check(R("Ras Tanura") === "middle-east" && R("Norilsk") === "asia" && R("The Ceyhan terminal") === "middle-east" && R("The port of Rotterdam") === "europe" && R("The port of Santos") === "south-america",
+    `regions: Ras Tanura ${R("Ras Tanura")}, Norilsk ${R("Norilsk")}, Ceyhan ${R("The Ceyhan terminal")}, Rotterdam ${R("The port of Rotterdam")}, Santos ${R("The port of Santos")}`);
+  // topics: one topic deals all ten from itself; everything keeps at most two of a kind
+  const countries = COUNTRIES.map(c => ({ id: c.id, cat: "countries" }));
+  const set = E.pickSet(9, countries, E.PER_SET, E.capFor("countries", 1));
+  const lopsided = E.pickSet(3, [...countries.slice(0, 12), { id: "x", cat: "cities" }], E.PER_SET, 2);
+  check(set.length === 10 && set.every(q => q.cat === "countries") && E.capFor("all", 7) === 2 && E.capFor("nature", 2) === 6 && lopsided.length === 10,
+    "a one-category topic deals ten from it; everything worldwide still takes at most two of a kind; a lopsided bank still fills ten");
+  // a region's opening view shows its whole window
+  const ok = Object.entries(E.REGIONS).every(([k, r]) => { const v = E.viewWindow(E.regionView(k, 360, 240), 360, 240), [lon0, lon1, lat0, lat1] = r.window; return v.lon0 <= lon0 + 0.5 && v.lon1 >= lon1 - 0.5 && v.lat0 <= lat0 + 0.5 && v.lat1 >= lat1 - 0.5; });
+  check(ok, "each region's opening view shows its whole window");
+  const clue = E.clueText({ ...by("Bulgaria"), cat: "countries", region: "Europe" }, 2);
+  check(/borders/.test(clue) && !clue.includes("Bulgaria"), `a country's clues never name it: "${clue}"`);
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

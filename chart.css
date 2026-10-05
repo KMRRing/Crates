@@ -6,7 +6,10 @@
 .ch-mark svg { width: 100%; height: 100%; display: block; }
 .ch-partner { margin: .5rem 0 0; font-size: .95rem; }
 .ch-partner b { font-weight: 750; }
-.ch-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); }
+.ch-strip { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .5rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+/* the topic and region dropdowns share the strip with the score, and shrink before it does */
+.ch-pick { display: flex; gap: .4rem; min-width: 0; }
+.ch-pick .dd { min-width: 0; max-width: 11rem; }
 .ch-score b { font-size: 1.4rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .ch-score.two { display: flex; gap: .8rem; }
 .ch-score.two b { font-size: 1.05rem; }
@@ -15,6 +18,9 @@
    buttons, or the result, so the map keeps its size from pinning to the reveal */
 .ch-card { padding: .8rem; border-radius: 20px; background: var(--sheet); gap: .45rem; }
 .ch-bottom { display: grid; gap: .45rem; align-content: end; min-height: 9.4rem; }
+/* the category pill, and how far through the set, on one line */
+.ch-card-top { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.ch-where { font-size: .8rem; font-weight: 750; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .ch-cat { align-self: flex-start; padding: .15rem .6rem; border-radius: 999px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .ch-place { margin: 0; font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
 .ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }

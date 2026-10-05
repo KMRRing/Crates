@@ -1,15 +1,27 @@
 // Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
-// see the truth, the distance and the points. Together, both of you pin the same place in private and the pins
-// are revealed side by side.
-import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox } from "./chart-engine.js";
+// see the truth, the distance and the points. Two dropdowns choose what a set deals: a topic (everything, cities,
+// countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
+// outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
+// in private and the pins are revealed side by side.
+import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace } from "./chart-engine.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
 import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
+import { COUNTRIES, REGION_OF } from "./chart-countries.js";
+import { dropdown } from "./dropdown.js";
 // the physical features join the places: a river, range, desert, plateau or lake is pinned to its nearest point
-const CATS = { ...BANK_CATS, physical: "Physical" };
+const CATS = { ...BANK_CATS, trade: "Commodities", physical: "Physical", countries: "Countries" };   // named as the topics are
 const KIND = { river: "river", range: "mountain range", desert: "desert", plateau: "plateau or basin", lake: "lake" };
-const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about }))];
+// the countries join them: an outline, pinned anywhere inside
+const COUNTRY_PLACES = COUNTRIES.map(c => ({ id: `co-${c.id}`, cat: "countries", name: c.name, lat: c.lat, lon: c.lon, country: c.name, regions: c.regions,
+  kind: "country", geo: { rings: c.rings }, about: c.about, flag: c.flag, neighbours: c.neighbours,
+  note: `${c.flag} ${c.name}, in ${c.regions.map(r => REGIONS[r].name).join(" and ")}. ${c.neighbours.length ? `It borders ${c.neighbours.join(", ")}.` : "It has no land neighbours."}` }));
+const withRegions = p => { const regions = p.regions || regionsOfPlace(p, REGION_OF); return { ...p, regions, region: regions.length ? REGIONS[regions[0]].name : p.region }; };
+const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about })), ...COUNTRY_PLACES].map(withRegions);
+/** What a selection deals from: its topic's categories, in its region ("world": anywhere). */
+const poolOf = ({ topic = "all", region = "world" } = {}) => PLACES.filter(p => (!TOPICS[topic]?.cats || TOPICS[topic].cats.includes(p.cat)) && (region === "world" || p.regions.includes(region)));
+const capOf = sel => capFor(sel.topic || "all", new Set(poolOf(sel).map(p => p.cat)).size);
 import { LAND, BORDERS } from "./world.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -30,8 +42,8 @@ const APP = 1;
 const RUN = "chart:run", BEST = "chart:best", DAILY = "chart:daily";
 const byId = new Map(PLACES.map(p => [p.id, p]));
 
-let S = null;        // alone: { seed, mode, set, index, score, log: [{ id, lat, lon, km, pts }], phase: "pin" | "reveal", done }
-                     // together: the room: { seed, set, index, pins: { seat: { lat, lon } }, scores: [2], log, done, players }
+let S = null;        // alone: { seed, mode, topic, region, set, index, score, log: [{ id, lat, lon, km, pts }], phase: "pin" | "reveal", done }
+                     // together: the room: { seed, topic, region, set, index, pins: { seat: { lat, lon } }, scores: [2], log, done, players }
 let pin = null;      // the provisional pin { lat, lon }
 let clues = 0;       // clues taken on the current place (alone; together it's in the room, per seat)
 let views = { world: worldView() };                // what the map shows: pan and pinch move it
@@ -46,25 +58,35 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const save = () => { if (!inRoom()) write(RUN, S); };
 const current = () => byId.get(S.set[S.index]);
+/** The selection the dropdowns show: a topic and a region. */
+const chosen = () => ({ topic: $("topic").value || "all", region: $("region").value || "world" });
+const selOf = s => ({ topic: s?.topic || "all", region: s?.region || "world" });
+/** The view a question opens on: its set's region, or the whole world. */
+const startView = () => (selOf(S).region !== "world" ? regionView(selOf(S).region, ...SIZES.world) : worldView());
+/** A set's link: its seed, and its selection where it isn't everything everywhere. */
+const hashOf = s => { const { topic, region } = selOf(s); return `#${s.mode === "daily" ? "d" : "s"}=${s.seed}${topic !== "all" ? `&t=${topic}` : ""}${region !== "world" ? `&r=${region}` : ""}`; };
+const selKey = s => { const { topic, region } = selOf(s); return `${topic}/${region}`; };
 const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString("en-GB")} km`);
 
 // ---------- the run ----------
-/** The set for a seed, with what's due from the pile leading it in learning mode. */
-function setFor(seed) {
+/** The set for a seed and a selection, with what's due from the pile (within the selection) leading it in learning mode. */
+function setFor(seed, sel) {
+  const pool = poolOf(sel), inPool = new Set(pool.map(p => p.id));
   // and places that the other games found you weak on (a city whose clue you missed in Crates), to pin
-  const own = pile.learning() ? pile.due("chart").map(it => it.key).filter(id => byId.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
-  const due = pile.learning() ? pile.dealDue("chart", PLACES.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
-  const rest = pickSet(seed, PLACES.filter(p => !due.includes(p.id)), PER_SET - due.length).map(p => p.id);
+  const own = pile.learning() ? pile.due("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const due = pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
+  const rest = pickSet(seed, pool.filter(p => !due.includes(p.id)), PER_SET - due.length, capOf(sel)).map(p => p.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
   return set;
 }
-function start(mode) {
+function start(mode, sel = chosen()) {
   const seed = mode === "daily" ? today() : randomSeed();
-  S = { seed, mode, set: setFor(seed), index: 0, score: 0, log: [], phase: "pin", done: false };
+  S = { seed, mode, ...sel, set: setFor(seed, sel), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
-  history.replaceState(null, "", mode === "daily" ? `#d=${seed}` : `#s=${seed}`);
-  pin = null; views = { world: worldView() };
+  history.replaceState(null, "", hashOf(S));
+  pin = null; views = { world: startView() };
+  showSelection();
   render();
 }
 function confirmPin() {
@@ -75,11 +97,12 @@ function confirmPin() {
     return;
   }
   if (S.phase !== "pin") return;
-  const m = missOf(pin, p), d = m.km, pts = Math.round(score(d) * clueFactor(clues));
+  const m = missOf(pin, p), d = m.km, pts = Math.round(pointsFor(p, d) * clueFactor(clues));
   S.score += pts;
   S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues, near: p.geo ? m.point : undefined });
-  // the pile: a pin over 500 km off, or any clue, means you didn't know where it was; a clean close pin moves a banked place up
-  if (d > 500 || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined }, clues > 0 ? "clue" : "miss");
+  // the pile: a pin over 500 km off (outside, for a country), or any clue, means you didn't know where it was; a
+  // clean close pin moves a banked place up
+  if (missed(p, d) || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined }, clues > 0 ? "clue" : "miss");
   else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
   S.phase = "reveal";
   save();
@@ -94,6 +117,7 @@ function takeClue() {
   clues = n;
   render();
 }
+const missed = (p, d) => (p.cat === "countries" ? d > 0 : d > 500);
 const cluesTaken = () => (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues);
 function next() {
   if (inRoom()) {
@@ -102,7 +126,7 @@ function next() {
       if (g.index + 1 >= g.set.length) { g.done = true; return; }
       g.index++; g.pins = {}; g.phase = "pin";
     });
-    pin = null; views = { world: worldView() };
+    pin = null; views = { world: startView() };
     return;
   }
   if (S.phase !== "reveal") return;
@@ -110,7 +134,7 @@ function next() {
   S.index++;
   S.phase = "pin";
   clues = 0;
-  pin = null; views = { world: worldView() };
+  pin = null; views = { world: startView() };
   save();
   render();
 }
@@ -265,7 +289,7 @@ function gestures(name) {
 function render() {
   if (!S) return;
   const p = current(), reveal = S.phase === "reveal";
-  $("where").textContent = `Place ${S.index + 1} of ${S.set.length}`;
+  $("where").textContent = `${S.index + 1} of ${S.set.length}`;
   const scores = $("scores");
   if (inRoom()) {
     scores.className = "ch-score two";
@@ -275,7 +299,7 @@ function render() {
     scores.replaceChildren();
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
   }
-  $("cat").textContent = p.geo ? `Physical · a ${p.kind}: pin anywhere on it` : CATS[p.cat];
+  $("cat").textContent = p.cat === "countries" ? "Country · pin anywhere inside it" : p.geo ? `Physical · a ${p.kind}: pin anywhere on it` : CATS[p.cat];
   picture(p);
   $("place").textContent = p.name;
   const waitingForThem = inRoom() && S.phase === "pin" && S.pins?.[mySeat()];
@@ -307,11 +331,13 @@ function render() {
       const mine = e.km[me], theirs = e.km[1 - me], pm = e.pts[me], pt = e.pts[1 - me];
       const cm = e.clues?.[me] || 0, ct = e.clues?.[1 - me] || 0;
       v.className = `ch-verdict ${mine <= theirs ? "good" : "bad"}`;
-      v.textContent = `You were ${km(mine)} off (+${pm}${cm ? `, ${cm} clue${cm > 1 ? "s" : ""}` : ""}); ${seatName(1 - me)} ${km(theirs)} off (+${pt}${ct ? `, ${ct} clue${ct > 1 ? "s" : ""}` : ""}).`;
+      const off = d => (p.cat === "countries" ? (d === 0 ? "inside it" : `${km(d)} outside it`) : `${km(d)} off`);
+      v.textContent = `You were ${off(mine)} (+${pm}${cm ? `, ${cm} clue${cm > 1 ? "s" : ""}` : ""}); ${seatName(1 - me)} ${off(theirs)} (+${pt}${ct ? `, ${ct} clue${ct > 1 ? "s" : ""}` : ""}).`;
     } else {
       const e = S.log[S.index];
-      v.className = `ch-verdict ${e.km < 500 ? "good" : "bad"}`;
-      v.textContent = `${e.km === 0 && p.geo ? "On it" : `${km(e.km)} ${p.geo ? "from it" : "off"}`}: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
+      v.className = `ch-verdict ${missed(p, e.km) ? "bad" : "good"}`;
+      const where = p.cat === "countries" ? (e.km === 0 ? "Inside it" : `Outside it, ${km(e.km)} from its border`) : e.km === 0 && p.geo ? "On it" : `${km(e.km)} ${p.geo ? "from it" : "off"}`;
+      v.textContent = `${where}: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
     }
     $("note").textContent = p.note || "";
     $("nextBtn").textContent = S.index + 1 >= S.set.length ? "The set" : "Next";
@@ -413,35 +439,38 @@ function finish() {
   }
   summary(add, setPairs(), (p, i) => { const e = S.log[i]; return `${km(e.km)} · +${e.pts}${e.clues ? ` · ${e.clues} clue${e.clues > 1 ? "s" : ""}` : ""}`; });
   const again = add("button", "btn primary wide", "Again");
-  again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); start("random"); });
+  again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); start("random", selOf(S)); });
   const daily = add("button", "btn wide", S.mode === "daily" ? "A random set" : "Today's set");
-  daily.type = "button"; daily.addEventListener("click", () => { $("doneDlg").close(); start(S.mode === "daily" ? "random" : "daily"); });
+  daily.type = "button"; daily.addEventListener("click", () => { $("doneDlg").close(); start(S.mode === "daily" ? "random" : "daily", selOf(S)); });
   const link = add("button", "btn wide", "Copy a link to this set");
   link.type = "button"; link.addEventListener("click", copyLink);
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
-function bestEver(s) { const b = Math.max(read(BEST, 0), s); write(BEST, b); return b; }
-function bestDaily(s) { const d = read(DAILY, {}); d[today()] = Math.max(d[today()] || 0, s); write(DAILY, d); return d[today()]; }
+// bests are kept by selection: { "topic/region": best }; a best from before the dropdowns was everything everywhere
+const bests = () => { const b = read(BEST, {}); return typeof b === "number" ? { "all/world": b } : b; };
+const dailies = () => { const d = read(DAILY, {}), day = d[today()]; return typeof day === "number" ? { "all/world": day } : day || {}; };
+function bestEver(s) { const b = bests(), k = selKey(S); b[k] = Math.max(b[k] || 0, s); write(BEST, b); return b[k]; }
+function bestDaily(s) { const day = dailies(), k = selKey(S); day[k] = Math.max(day[k] || 0, s); write(DAILY, { [today()]: day }); return day[k]; }
 
 // ---------- together ----------
 /** Both pins are in: settle the place for both, each with their own clues' discount. */
 function settleRoom(g) {
   const p = byId.get(g.set[g.index]);
-  const misses = [0, 1].map(seat => missOf(g.pins[seat], p)), kms = misses.map(m => m.km), pts = kms.map((d, seat) => Math.round(score(d) * clueFactor((g.clues || {})[seat] || 0)));
+  const misses = [0, 1].map(seat => missOf(g.pins[seat], p)), kms = misses.map(m => m.km), pts = kms.map((d, seat) => Math.round(pointsFor(p, d) * clueFactor((g.clues || {})[seat] || 0)));
   g.scores = Object.values(g.scores || [0, 0]).map((s, seat) => s + pts[seat]);
   g.log = Object.values(g.log || {});
   g.log.push({ id: p.id, pins: { 0: g.pins[0], 1: g.pins[1] }, km: kms, pts, clues: { 0: (g.clues || {})[0] || 0, 1: (g.clues || {})[1] || 0 }, near: p.geo ? { 0: misses[0].point, 1: misses[1].point } : undefined });
   g.clues = {};
   g.phase = "reveal";
 }
-function freshRoom(players) {
+function freshRoom(players, sel = chosen()) {
   const seed = randomSeed();
-  return { v: 1, app: APP, seed, set: pickSet(seed, PLACES).map(p => p.id), index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false, created: Date.now(), players };
+  return { v: 1, app: APP, seed, ...sel, set: pickSet(seed, poolOf(sel), PER_SET, capOf(sel)).map(p => p.id), index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false, created: Date.now(), players };
 }
 function startRoomSet() {
   const n = freshRoom(null);
-  together.act(g => { Object.assign(g, { seed: n.seed, set: n.set, index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false }); });
-  pin = null; views = { world: worldView() };
+  together.act(g => { Object.assign(g, { seed: n.seed, topic: n.topic, region: n.region, set: n.set, index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false }); });
+  pin = null; views = { world: startView() };
 }
 let shownBell = null;
 function finishRoom() {
@@ -469,7 +498,8 @@ function finishRoom() {
 function onState(val) {
   const was = S;
   S = val;
-  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; clues = 0; views = { world: worldView() }; }
+  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; clues = 0; views = { world: startView() }; }
+  showSelection();
   drawPartner();
   render();
 }
@@ -514,7 +544,7 @@ const together = createTogether({
   fresh: freshRoom,
   onState,
   onPresence: drawPartner,
-  onLeave: () => { shownBell = null; S = read(RUN, null); pin = null; views = { world: worldView() }; drawPartner(); if (!S) start("random"); else render(); },
+  onLeave: () => { shownBell = null; S = read(RUN, null); pin = null; views = { world: startView() }; showSelection(); drawPartner(); if (!S) start("random"); else render(); },
 });
 
 // ---------- menu, links, messages ----------
@@ -527,7 +557,7 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 async function copyLink() {
-  const link = `${location.origin}${location.pathname}${S.mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`}`;
+  const link = `${location.origin}${location.pathname}${hashOf(S)}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 function openMenu() {
@@ -537,7 +567,7 @@ function openMenu() {
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
   const room = together.room;
   if (!room) {
-    add("p", "stats", "Pin a place on the map. Tap the world, fine-tune in the close-up, pin. Points fall off with distance: 1,000 on the spot, about 600 at 1,000 km, and 100 extra within 100 km.");
+    add("p", "stats", "Pin a place on the map. Points fall off with distance: 1,000 on the spot, about 600 at 1,000 km, and 100 extra within 100 km. A country is pinned anywhere inside its outline for full marks; outside it scores nothing. The dropdowns above choose a topic and a region; in a region, every question opens on its map.");
     button("A new set", () => confirmStart("random"));
     button("Today's set", () => confirmStart("daily"));
     const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
@@ -546,8 +576,8 @@ function openMenu() {
     add("p", "stats", `A pin over 500 km off, or any clue, sends the place to the pile; it leads your next sets until you pin it clean (${pile.counts("chart").due} due now). Deck reviews everything due.`);
     if (S?.done) button("See how it went", finish);
     button("Copy a link to this set", copyLink);
-    const best = read(BEST, 0), daily = read(DAILY, {})[today()];
-    add("p", "stats", `${best ? `Your best: ${best.toLocaleString("en-GB")}.` : "No finished set yet."}${daily != null ? ` Today's best: ${daily.toLocaleString("en-GB")}.` : ""}`);
+    const best = bests()[selKey(S)], daily = dailies()[selKey(S)], what = selName(selOf(S));
+    add("p", "stats", `${best ? `Your best at ${what}: ${best.toLocaleString("en-GB")}.` : `No finished set at ${what} yet.`}${daily != null ? ` Today's best: ${daily.toLocaleString("en-GB")}.` : ""}`);
     add("h3", null, "Together");
     add("p", "stats", "Two phones: you both pin the same place in private, then the pins are revealed side by side. Higher total wins.");
     add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
@@ -562,6 +592,41 @@ function confirmStart(mode) {
   if (S && !S.done && S.index > 0 && !confirm("Start a new set? This one isn't finished.")) return;
   start(mode);
 }
+
+// ---------- the dropdowns ----------
+const selName = ({ topic, region }) => `${TOPICS[topic].name}${region === "world" ? "" : ` in ${REGIONS[region].name}`}`;
+const topicMenu = dropdown($("topic"));
+let regionMenu = null;
+/** The region list for a topic: worldwide and every region, each noting how many places it holds (a short set below ten). */
+function fillRegions(topic, region) {
+  const sel = $("region");
+  sel.replaceChildren(...[["world", "Worldwide"], ...Object.entries(REGIONS).map(([k, r]) => [k, r.name])].map(([k, name]) => {
+    const n = poolOf({ topic, region: k }).length, o = document.createElement("option");
+    o.value = k; o.textContent = name; o.disabled = n === 0;
+    o.dataset.note = n === 0 ? "nothing here" : n < PER_SET ? `${n} places: a short set` : `${n} places`;
+    return o;
+  }));
+  sel.value = poolOf({ topic, region }).length ? region : "world";
+  if (regionMenu) regionMenu.sync(); else regionMenu = dropdown(sel);
+}
+/** The dropdowns show the set's selection (or the room's). */
+function showSelection() {
+  if (!S) return;
+  const { topic, region } = selOf(S);
+  $("topic").value = topic;
+  topicMenu.sync();
+  fillRegions(topic, region);
+}
+/** A new choice deals a new set with it, after asking if this one's under way; together, a fresh set for both. */
+function choose() {
+  const sel = chosen();
+  if (inRoom()) { startRoomSet(); return; }
+  if (S && !S.done && S.index > 0 && !confirm("Start a new set with this? This one isn't finished.")) { showSelection(); return; }
+  start(S?.mode === "daily" ? "daily" : "random", sel);
+}
+fillRegions("all", "world");
+$("topic").addEventListener("change", () => { fillRegions($("topic").value, $("region").value); choose(); });
+$("region").addEventListener("change", choose);
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "chart");
@@ -582,10 +647,12 @@ window.addEventListener("hashchange", () => { const h = new URLSearchParams(loca
 function load(h) {
   const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
   if (!seed) return false;
-  if (S && S.seed === seed && S.mode === mode) return true;
-  S = { seed, mode, set: setFor(seed), index: 0, score: 0, log: [], phase: "pin", done: false };
+  const sel = { topic: TOPICS[h.get("t")] ? h.get("t") : "all", region: REGIONS[h.get("r")] ? h.get("r") : "world" };
+  if (S && S.seed === seed && S.mode === mode && selKey(S) === selKey(sel)) return true;
+  S = { seed, mode, ...sel, set: setFor(seed, sel), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
-  pin = null; views = { world: worldView() };
+  pin = null; views = { world: startView() };
+  showSelection();
   render();
   return true;
 }
@@ -598,7 +665,7 @@ if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;
 const hash = new URLSearchParams(location.hash.slice(1));
 if (!load(hash)) {
   if (!S) start("random");
-  else { history.replaceState(null, "", S.mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`); render(); }
+  else { history.replaceState(null, "", hashOf(S)); showSelection(); render(); }
 }
 if (S.done) finish();
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);

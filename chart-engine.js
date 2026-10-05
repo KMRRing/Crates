@@ -18,7 +18,7 @@ export function distance(a, b) {
 export function nearestOnFeature(pin, feature) {
   const kx = 111.32 * Math.cos(pin.lat * Math.PI / 180), ky = 110.57;
   const parts = feature.lines || feature.rings || [];
-  if (feature.rings && feature.rings.some(ring => inside(pin, ring))) return { km: 0, point: { lat: pin.lat, lon: pin.lon } };
+  if (insideFeature(pin, feature)) return { km: 0, point: { lat: pin.lat, lon: pin.lon } };
   let best = null;
   for (const part of parts) for (let i = 1; i < part.length; i++) {
     const [ax, ay] = [(part[i - 1][0] - pin.lon) * kx, (part[i - 1][1] - pin.lat) * ky], [bx, by] = [(part[i][0] - pin.lon) * kx, (part[i][1] - pin.lat) * ky];
@@ -29,9 +29,11 @@ export function nearestOnFeature(pin, feature) {
   }
   return best || { km: Infinity, point: { lat: feature.lat, lon: feature.lon } };
 }
-function inside(p, ring) {
+/** Whether a pin is inside a feature's rings, by the even–odd rule over all of them, so a hole is outside: a pin in
+ *  Lesotho isn't in South Africa. */
+export function insideFeature(p, feature) {
   let on = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+  for (const ring of feature.rings || []) for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const [xi, yi] = ring[i], [xj, yj] = ring[j];
     if ((yi > p.lat) !== (yj > p.lat) && p.lon < (xj - xi) * (p.lat - yi) / (yj - yi) + xi) on = !on;
   }
@@ -45,11 +47,23 @@ export function featureBox(feature) {
 }
 /** Points for a pin d km off: 1000 at the spot, about 600 at 1,000 km, 135 at 4,000 km; +100 within 100 km. */
 export const score = d => Math.round(1000 * Math.exp(-d / 2000)) + (d < 100 ? 100 : 0);
+/** Points for a pin d km off a place: a country's outline is the target, full marks inside it and nothing outside. */
+export const pointsFor = (p, d) => (p.cat === "countries" ? (d === 0 ? score(0) : 0) : score(d));
 /** Clues cost: the first (the region) leaves 70% of the points, the second (the country) 45%, the third (the description) 25%. */
 export const CLUE_FACTOR = [1, 0.7, 0.45, 0.25];
 export const clueFactor = n => CLUE_FACTOR[Math.min(n, CLUE_FACTOR.length - 1)];
-/** The text of clue n (1–3) for a place: the region, the country, then its description with its own name hidden. */
+/**
+ * The text of clue n (1–3) for a place: the region, the country, then its description with its own name hidden. A
+ * country can't be given away by its own name: its land neighbours' count, then two of them, then its flag (an
+ * island nation: its flag, then the first letter of its name).
+ */
 export function clueText(p, n) {
+  if (p.cat === "countries") {
+    const near = p.neighbours, k = near.length;
+    if (n === 1) return k ? `It's in ${p.region} and has ${k} land neighbour${k > 1 ? "s" : ""}.` : `It's in ${p.region} and has no land neighbours.`;
+    if (n === 2) return k ? `It borders ${near.slice(0, 2).join(" and ")}${k > 2 ? ", among others" : ""}.` : `Its flag: ${p.flag}`;
+    return k ? `Its flag: ${p.flag}` : `Its name begins with ${p.name[0]}.`;
+  }
   if (n === 1) return `It's in ${p.region}.`;
   if (n === 2) return `It's in ${p.country}.`;
   const words = p.name.replace(/[,(].*$/, "").split(/\s+/).filter(w => w.length > 3 && !/^(the|where|was|born)$/i.test(w));
@@ -62,19 +76,45 @@ function rng(seed) {
   let a = seed >>> 0;
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
-/** The set for a seed: PER_SET places in a seeded order, at most two from any category. */
-export function pickSet(seed, bank, perSet = PER_SET) {
+/** The set for a seed: PER_SET places in a seeded order, at most `cap` from any one category while others can fill it;
+ *  a lopsided bank (a region with few kinds of place) tops the set up regardless, so it's short only if the bank is. */
+export function pickSet(seed, bank, perSet = PER_SET, cap = 2) {
   const r = rng(seed), order = [...bank];
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   const used = {}, out = [];
   for (const p of order) {
-    if ((used[p.cat] || 0) >= 2) continue;
+    if ((used[p.cat] || 0) >= cap) continue;
     used[p.cat] = (used[p.cat] || 0) + 1;
     out.push(p);
     if (out.length === perSet) break;
   }
+  for (const p of order) { if (out.length >= perSet) break; if (!out.includes(p)) out.push(p); }
   return out;
 }
+
+// ---------- what a set deals: topics and regions ----------
+/** The topics a set can be drawn from: their name and the bank categories in them. */
+export const TOPICS = {
+  all: { name: "Everything", cats: null },
+  cities: { name: "Cities", cats: ["cities"] },
+  countries: { name: "Countries", cats: ["countries"] },
+  commodities: { name: "Commodities", cats: ["trade"] },
+  nature: { name: "Nature", cats: ["geo", "physical"] },
+  culture: { name: "Culture", cats: ["art", "people", "wine"] },
+};
+/** A selection's cap per category, so a set spreads across what it holds: everything worldwide at two each, as it always
+ *  was; a topic of several categories a little over its share; a single category, all ten. */
+export const capFor = (topic, cats) => (cats <= 1 ? Infinity : topic === "all" ? Math.max(2, Math.ceil(PER_SET / cats)) : Math.ceil(PER_SET / cats) + 1);
+/** The regions a set can be narrowed to, each with the window a question opens on: [lon0, lon1, lat0, lat1]. */
+export const REGIONS = {
+  europe: { name: "Europe", window: [-25, 45, 34, 72] },
+  "middle-east": { name: "Middle East", window: [24, 64, 11, 44] },
+  asia: { name: "Asia", window: [40, 150, -11, 60] },
+  africa: { name: "Africa", window: [-20, 55, -36, 38] },
+  "north-america": { name: "North America", window: [-170, -50, 6, 72] },
+  "south-america": { name: "South America", window: [-83, -33, -56, 13] },
+  oceania: { name: "Oceania", window: [110, 180, -48, -1] },
+};
 
 // ---------- the map's projection: Mercator, clipped near the poles ----------
 export const LAT_MAX = 78;
@@ -119,6 +159,21 @@ export function viewFitting(points, w, h, { minSpan = 6, pad = 1.6 } = {}) {
   const lon0 = Math.min(...lons), lon1 = Math.max(...lons), my0 = Math.min(...mys), my1 = Math.max(...mys);
   const span = Math.max(minSpan, (lon1 - lon0) * pad, (my1 - my0) / (h / w) * 180 / Math.PI * pad);
   return clampView({ lon: (lon0 + lon1) / 2, my: (my0 + my1) / 2, span }, w, h);
+}
+// territories and seas the region table doesn't know, placed by hand (the rest, like Antarctica, are in no region)
+const PLACE_REGIONS = { Svalbard: ["europe"], Greenland: ["north-america"], "New Caledonia": ["oceania"], "French Polynesia": ["oceania"], "Mariana Islands": ["oceania"], "United States (Pacific)": ["oceania"], "Timor-Leste": ["asia"] };
+/** The regions a place counts in, from its (first) country by `regionOf` (country -> regions); a place in Russia or
+ *  Turkey by its side of the Urals or the Bosphorus. */
+export function regionsOfPlace(p, regionOf) {
+  const first = (p.country || "").split(/,| and | to /)[0].trim().replace(/^the /, "");
+  if (first === "Russia") return [p.lon < 60 ? "europe" : "asia"];
+  if (first === "Turkey") return [p.lon < 30 ? "europe" : "middle-east"];
+  return regionOf[first] || PLACE_REGIONS[first] || [];
+}
+/** The view a question opens on in a region: its window, fitted to the map. */
+export function regionView(region, w, h) {
+  const [lon0, lon1, lat0, lat1] = REGIONS[region].window;
+  return viewFitting([{ lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }], w, h, { pad: 1.02 });
 }
 /** A view that shows both points with room around them (used for the reveal). */
 export const viewCovering = (a, b, w, h, minSpan = 6) => viewFitting([a, b], w, h, { minSpan });

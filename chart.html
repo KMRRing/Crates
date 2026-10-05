@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
 <link rel="stylesheet" href="chart.css">
 </head>
 <body>
@@ -23,10 +24,19 @@
   </header>
 
   <p id="partner" class="ch-partner" hidden></p>
-  <div class="ch-strip"><span id="where"></span><span id="scores" class="ch-score"><b id="score">0</b></span></div>
+  <div class="ch-strip">
+    <div class="ch-pick">
+      <select id="topic" class="pool" aria-label="Topic" data-accent="ch">
+        <option value="all">Everything</option><option value="cities">Cities</option><option value="countries">Countries</option>
+        <option value="commodities">Commodities</option><option value="nature">Nature</option><option value="culture">Culture</option>
+      </select>
+      <select id="region" class="pool" aria-label="Region" data-accent="ch"></select>
+    </div>
+    <span id="scores" class="ch-score"><b id="score">0</b></span>
+  </div>
 
   <section class="ch-card fit-col fit-grow">
-    <span id="cat" class="ch-cat"></span>
+    <div class="ch-card-top"><span id="cat" class="ch-cat"></span><span id="where" class="ch-where"></span></div>
     <h2 id="place" class="ch-place"></h2>
     <div id="picture" class="ch-picture" hidden></div>
     <p id="hint" class="ch-hint">Tap to place the pin. Drag to pan, pinch to zoom.</p>
