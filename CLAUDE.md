@@ -2,7 +2,9 @@
 
 A suite of web games (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
 Parley, Blend, Refinery, Brut), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
-Every push to `main` goes live at https://kmrring.github.io/Crates/ (GitHub Pages, straight from the branch).
+Every push to `main` is tested by `.github/workflows/pages.yml`; GitHub Pages serves `main` at
+https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
+`sw.js`, which it does only when every test passes.
 README.md describes every game and every decision; read the section of the game you work on first.
 
 The owner, Korbi, never uses a command line: do the git work yourself, and make anything he needs work from the app.
@@ -18,17 +20,17 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    `refining` banks), and this file.
 3. **Pull before you push:** `git pull --rebase`. Never force-push, never rewrite `main`'s history: that is how one
    Claude silently deletes another's work.
-4. **`sw.js` is rebuilt, never merged.** It lists every file for offline play with a version from their contents,
-   so every change touches it. After `git pull --rebase`, run `node tools/build-sw.mjs` and commit it with your
-   change; if a rebase conflicts in `sw.js`, take either side and rebuild. (Once the deploy workflow waiting in
-   `tools/ci/pages.yml` is live, the workflow builds `sw.js` and nobody commits it: that needs the GitHub token to
-   have the Workflows and Pages permissions.)
+4. **Never commit `sw.js`.** It lists every file for offline play with a version from their contents, so every
+   change would touch it; the workflow writes it after the tests pass and commits it as github-actions[bot] (pull
+   before your next push). `node tools/build-sw.mjs` writes nothing locally; `--local` writes one to try offline play,
+   which you then don't commit.
 5. **Built files are rebuilt, not merged.** If a rebase conflicts in a bank built from `kb/`, settle `kb/` and run
    `node tools/build-kb.mjs`.
 6. **Test before pushing:** `node tests/<game>.mjs` for what you touched, all of `tests/*.mjs` if you touched a shared
-   file. Nothing stops a failing push from going live yet, so this is the only gate.
-7. **After pushing, check the Pages build** finished (the repo's Pages builds on GitHub); the site updates a minute or
-   two later.
+   file. The workflow runs them all; if one fails, `sw.js` isn't published and installed copies stay on the last good
+   version (a fresh visit to the site still gets the new files, so don't leave it broken).
+7. **After pushing, check the run went green** (Actions on GitHub) and that the bot committed `sw.js` when you changed
+   a game file; installed copies update a minute or two later.
 
 ## Knowledge lives in kb/
 

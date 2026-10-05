@@ -1,5 +1,6 @@
 // Offline play and updates. sw.js keeps every file of every game on the device, so the games open and play
-// without a connection (playing together still needs one). A new version is fetched in the background and waits:
+// without a connection (playing together still needs one). sw.js is published by the workflow only when every
+// game's test passes, so a broken push never reaches an installed copy. A new version is fetched in the background and waits:
 // it takes over when the app goes off screen, and the page reloads onto it when it comes back. Taking over in the
 // middle of a game could mix old code with new.
 const supported = "serviceWorker" in navigator;

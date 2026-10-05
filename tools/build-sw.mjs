@@ -1,7 +1,7 @@
 // Writes sw.js: the list of every file the games need offline, and a version that changes whenever any of them
-// does (so devices fetch the new set). Run after changing any game file, after rebasing on others' work (sw.js is
-// rebuilt, never merged); `--check` only reports whether it's current. The deploy workflow waiting in
-// tools/ci/pages.yml will run it on every push instead, once it's live.  node tools/build-sw.mjs [--check]
+// does (so devices fetch the new set). The workflow (.github/workflows/pages.yml) runs it after every game's tests
+// pass and commits the result; nothing else writes sw.js, so nobody collides on it. Locally it writes only with
+// --local (to try offline play: don't commit it); --check only reports.  node tools/build-sw.mjs [--check | --local]
 import fs from "fs";
 import crypto from "crypto";
 import { execSync } from "child_process";
@@ -56,9 +56,11 @@ self.addEventListener("fetch", event => {
 `;
 const current = fs.existsSync(root + "sw.js") ? fs.readFileSync(root + "sw.js", "utf8") : "";
 if (process.argv.includes("--check")) {
-  console.log(current === sw ? `sw.js is current (${files.length} files, version ${version})` : "sw.js is out of date: run node tools/build-sw.mjs");
+  console.log(current === sw ? `sw.js is current (${files.length} files, version ${version})` : "sw.js is out of date: the workflow publishes it once every test passes");
   if (current !== sw) process.exitCode = 1;
-} else {
+} else if (process.env.GITHUB_ACTIONS === "true" || process.argv.includes("--local")) {
   fs.writeFileSync(root + "sw.js", sw);
   console.log(`sw.js: ${files.length} files, version ${version}`);
+} else {
+  console.log("sw.js is published by the workflow once every test passes: nothing written (--local writes one to try offline play; don't commit it).");
 }
