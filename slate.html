@@ -38,10 +38,16 @@
       <button id="fieldsBtn" class="btn" aria-haspopup="dialog">Fields</button>
       <button id="clearBtn" class="btn">Clear</button>
       <button id="checkBtn" class="btn">Check letters</button>
+      <button id="hintBtn" class="btn">Hint</button>
     </div>
     <div id="kbd" class="g-kbd" aria-label="Keyboard"></div>
   </div>
 </div>
+
+<dialog id="defineDlg" class="sheet" aria-label="Definitions">
+  <div class="pick-head"><h2>Definitions</h2><button class="btn" type="button" id="defineClose">Close</button></div>
+  <div id="defineBody" class="g-defs"></div>
+</dialog>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2 id="menuTitle">Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>

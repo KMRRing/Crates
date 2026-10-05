@@ -489,6 +489,41 @@ export function isSolved(board, letters) {
 
 
 /**
+ * A word hint for a slot: a word that fits the letters already in the slot, keeps every crossing word real, and
+ * obeys every rule that can be judged with the board as it would then stand (singles on the slot's cells, pairs
+ * whose two letters are both there, wholes whose field would be full). With nothing in the slot it's the intended
+ * fill; otherwise the fill if it still fits, else the first common word that does, else any valid word; null when
+ * nothing fits.
+ */
+export function suggest(board, letters, slotIndex) {
+  const grid = gridOf(rowsOf(board)), slot = grid.slots[slotIndex], fs = fieldsOf(board);
+  const placed = slot.cells.map(k => letters[k] || null);
+  const solution = slot.cells.map(k => board.sol[k]).join("");
+  if (placed.every(c => !c)) return solution;
+  const fits = word => {
+    if (word.length !== slot.cells.length || placed.some((c, i) => c && c !== word[i])) return false;
+    const after = { ...letters };
+    slot.cells.forEach((k, i) => { after[k] = word[i]; });
+    for (const s of grid.slots) {
+      if (s === slot || !s.cells.some(k => slot.cells.includes(k))) continue;
+      if (s.cells.every(k => after[k]) && !VALID.has(s.cells.map(k => after[k]).join(""))) return false;
+    }
+    for (const f of fs) {
+      if (!f.cells.some(k => slot.cells.includes(k))) continue;
+      if (f.rule.type === "single") { if (f.cells.some(k => slot.cells.includes(k) && !f.rule.test(after[k]))) return false; }
+      else if (f.rule.type === "pair") { for (const [a, b] of jointsOf(f.cells)) if (after[a] && after[b] && (slot.cells.includes(a) || slot.cells.includes(b)) && !f.rule.test(after[a], after[b])) return false; }
+      else if (f.cells.every(k => after[k]) && !f.rule.test(f.cells.map(k => after[k]))) return false;
+    }
+    return true;
+  };
+  if (fits(solution)) return solution;
+  const easy = (EASY[String(slot.cells.length)] || []).find(fits);
+  if (easy) return easy;
+  for (const w of VALID) if (w.length === slot.cells.length && fits(w)) return w;
+  return null;
+}
+
+/**
  * Cells a Clear would empty. Level 1: letters in no complete real word. Level 2: also words that break a rule
  * of a field you can see (visible(i)). Level 3: everything.
  */

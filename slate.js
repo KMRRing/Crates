@@ -1,6 +1,6 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt, suggest } from "./slate-gen.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { reloadFresh } from "./pwa.js";
@@ -11,9 +11,9 @@ const $ = id => document.getElementById(id);
 // play carry on after the rename.
 const GAME = "glyph";
 const STORE = "glyph:solo";
-const CHECKS = 2, REVEALS = 2;
-/** Checks and rule reveals per board: unlimited on Easy, two each otherwise. */
-const limitsFor = level => (level === "easy" ? { checks: Infinity, reveals: Infinity } : { checks: CHECKS, reveals: REVEALS });
+const CHECKS = 2, REVEALS = 2, HINTS = 2;
+/** Checks, rule reveals and word hints per board: unlimited on Easy, two each otherwise. */
+const limitsFor = level => (level === "easy" ? { checks: Infinity, reveals: Infinity, hints: Infinity } : { checks: CHECKS, reveals: REVEALS, hints: HINTS });
 const GAP = 6;
 const PALETTE = { single: ["s", ["Blue", "Green", "Teal"]], pair: ["p", ["Yellow", "Orange", "Sand"]], whole: ["w", ["Violet", "Pink", "Plum"]] };
 const KIND = { single: "single letters", pair: "pairs", whole: "whole field" };
@@ -39,6 +39,7 @@ const grid = () => gridOf(rowsOf(S.board));
 const fields = () => fieldsOf(S.board);
 const placements = () => S.log.filter(e => e.word).length;
 const checksUsed = () => S.log.filter(e => e.check).length;
+const hintsUsed = () => S.log.filter(e => e.hint != null).length;
 const revealed = () => new Set(S.log.filter(e => e.reveal != null).map(e => e.reveal));
 const other = d => (d === "Across" ? "Down" : "Across");
 const slotFor = (k, d) => grid().slots.find(s => s.dir === d && s.cells.includes(k));
@@ -186,6 +187,32 @@ function check() {
   act(g => {
     if (g.done || g.log.filter(e => e.check).length >= limitsFor(g.level).checks) return false;
     g.log.push({ check: letters, ...(room && { by: room.uid }) });
+  });
+}
+
+/**
+ * A word hint for the highlighted word: a word that fits the letters already there (placed or typed) and every
+ * rule that can be judged; the intended fill when the word is empty. Typed into the word for you to place. Costs
+ * a hint only when there is one.
+ */
+function hint() {
+  if (S.done) return;
+  if (hintsUsed() >= limitsFor(S.level).hints) { toast("No word hints left on this board"); return; }
+  const slot = currentSlot();
+  if (!slot) { toast("Tap a cell first"); return; }
+  const letters = { ...lettersFrom(S.board, S.log), ...pending };
+  const word = suggest(S.board, letters, slot.id);
+  if (!word) { toast("No word fits here with the letters already in it"); return; }
+  if (slot.cells.every((k, i) => letters[k] === word[i])) { toast(`${word} is what's there, and it fits`); return; }
+  act(g => {
+    if (g.done || g.log.filter(e => e.hint != null).length >= limitsFor(g.level).hints) return false;
+    g.log.push({ hint: slot.id, ...(room && { by: room.uid }) });
+  }).then(ok => {
+    if (!ok) return;
+    const placed = lettersFrom(S.board, S.log);
+    slot.cells.forEach((k, i) => { if (!placed[k]) pending[k] = word[i]; });
+    render();
+    toast(`Try ${word}: Enter places it`);
   });
 }
 
@@ -405,10 +432,12 @@ function render() {
   if (!S) return;
   const g = grid(), fs = fields(), letters = lettersFrom(S.board, S.log);
   if (!cursor || !g.cells.includes(cursor)) resetCursor();
-  const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed();
+  const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed(), hintsLeft = limitsFor(S.level).hints - hintsUsed();
   $("level").value = S.level;
   $("checkBtn").textContent = left === Infinity ? "Check letters" : `Check letters (${left})`;
   $("checkBtn").disabled = !!S.done || left === 0;
+  $("hintBtn").textContent = hintsLeft === Infinity ? "Hint" : `Hint (${hintsLeft})`;
+  $("hintBtn").disabled = !!S.done || hintsLeft === 0;
   $("clearBtn").disabled = !!S.done;
   const notes = notesFrom(S.board, S.log);
   drawPartner();
@@ -495,7 +524,7 @@ function drawBoard(g, fs, letters, slot) {
     cell.setAttribute("role", "button");
     cell.tabIndex = 0;
     cell.setAttribute("aria-label", `${letters[k] || "Empty"}${i != null ? `, ${styleOf(i).name} field` : ""}`);
-    cell.addEventListener("click", () => select(k));
+    cell.addEventListener("click", () => { if (doubleTap(k)) define(k); else select(k); });
     nodes.push(cell);
   }
 
@@ -712,7 +741,7 @@ function showDone() {
   const g = grid(), letters = lettersFrom(S.board, S.log);
   const ours = g.slots.every(s => s.cells.every(k => letters[k] === S.board.sol[k]));
   $("doneTitle").textContent = S.done.won ? "Solved" : "Our fill";
-  const stats = [["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Time", clockText(elapsed())]];
+  const stats = [["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Hints", hintsUsed()], ["Time", clockText(elapsed())]];
   $("doneStats").replaceChildren(...stats.flatMap(([label, value]) => {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = label; dd.textContent = value;
@@ -770,6 +799,50 @@ function drawMenu() {
   add("button", "link", "Copy this board's link").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }
   });
+}
+
+// ---------- definitions ----------
+let lastTap = { k: null, t: 0 };
+/** True on the second tap of the same cell within 350 ms. */
+function doubleTap(k) {
+  const now = performance.now(), again = lastTap.k === k && now - lastTap.t < 350;
+  lastTap = again ? { k: null, t: 0 } : { k, t: now };
+  return again;
+}
+const DEFS = "glyph:defs";
+const defCache = (() => { try { return JSON.parse(localStorage.getItem(DEFS)) || {}; } catch { return {}; } })();
+/** The dictionary's first few senses of a word, from the free dictionaryapi.dev, kept once fetched. */
+async function definitionOf(word) {
+  if (defCache[word]) return defCache[word];
+  const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+  if (!res.ok) throw new Error(res.status === 404 ? "no entry" : "no reply");
+  const data = await res.json();
+  const senses = [];
+  for (const entry of data) for (const m of entry.meanings || []) for (const d of m.definitions || []) { if (senses.length < 4) senses.push({ pos: m.partOfSpeech, text: d.definition }); }
+  defCache[word] = senses;
+  try { const keys = Object.keys(defCache); if (keys.length > 300) delete defCache[keys[0]]; localStorage.setItem(DEFS, JSON.stringify(defCache)); } catch { /* full or private */ }
+  return senses;
+}
+/** The complete words through a cell, defined: a double tap on the board. */
+async function define(k) {
+  const letters = { ...lettersFrom(S.board, S.log), ...pending };
+  const words = [...new Set(grid().slots.filter(s => s.cells.includes(k)).map(s => wordAt(s, letters)).filter(w => w && VALID.has(w)))];
+  const body = $("defineBody");
+  body.replaceChildren();
+  if (!words.length) { toast("Finish a word through this cell first"); return; }
+  for (const w of words) {
+    const box = document.createElement("div"), h = document.createElement("h3"), list = document.createElement("ol");
+    h.textContent = w;
+    const p = document.createElement("p"); p.textContent = "Looking it up…";
+    box.append(h, p, list);
+    body.appendChild(box);
+    definitionOf(w).then(senses => {
+      p.remove();
+      if (!senses.length) { p.textContent = "No entry in the dictionary."; box.appendChild(p); return; }
+      for (const s of senses) { const li = document.createElement("li"); const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = s.pos || ""; li.append(pos, s.text); list.appendChild(li); }
+    }).catch(err => { p.textContent = String(err.message).includes("no entry") ? "No entry in the dictionary." : "Needs a connection to look words up."; });
+  }
+  if (!$("defineDlg").open) $("defineDlg").showModal();
 }
 
 // ---------- input ----------
@@ -862,6 +935,8 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newBoard(); });
 $("checkBtn").addEventListener("click", check);
+$("hintBtn").addEventListener("click", hint);
+$("defineClose").addEventListener("click", () => $("defineDlg").close());
 $("clearBtn").addEventListener("click", clear);
 $("level").addEventListener("change", e => newBoard(e.target.value));
 window.addEventListener("resize", () => render());
