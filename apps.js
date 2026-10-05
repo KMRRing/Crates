@@ -223,11 +223,16 @@ function bindCodes(dlg) {
   const openSheet = () => {
     const duo = duoCode(), inDuo = new URLSearchParams(location.search).has("room");
     sheet.replaceChildren();
+    const x = document.createElement("button");
+    x.className = "icon-btn sheet-x"; x.type = "button"; x.setAttribute("aria-label", "Close"); x.innerHTML = ICON.close;
+    x.addEventListener("click", () => sheet.close());
+    sheet.appendChild(x);
     const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; sheet.appendChild(n); return n; };
     const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", fn); return b; };
     add("h3", null, "Your partner");
     {
-      add("p", "stats", `Code ${duo}. ${status(partner)}.`);
+      const said = status(partner);
+      add("p", "stats", `Code ${duo}. ${said[0].toUpperCase()}${said.slice(1)}.`);
       const them = partner?.online && partner.game, mine = here;
       const askFor = game => async () => {
         sheet.close();
@@ -239,11 +244,10 @@ function bindCodes(dlg) {
       };
       if (them && partner.mode === "solo") button(`Watch ${(partner.name || "them").split(" ")[0]}'s ${GAME_NAME(them)}`, () => { location.href = watchHref(them); }, "btn primary wide");
       if (them && DUO_GAMES[them] && partner.mode === "solo") button(`Ask to play ${GAME_NAME(them)} together`, askFor(them));
-      if (DUO_GAMES[mine] && mine !== them && !inDuo) button(`Ask to play ${GAME_NAME(mine)} together`, askFor(mine));
+      if (partner?.online && DUO_GAMES[mine] && mine !== them && !inDuo) button(`Ask to play ${GAME_NAME(mine)} together`, askFor(mine));   // only someone who's here can say Play
       if (inDuo) button("Back to solo", () => { location.href = soloHref(); });
       button("Unlink", () => { if (confirm("Unlink from your partner on all your devices?")) { unlink(); location.reload(); } }, "link");
     }
-    button("Close", () => sheet.close(), "btn wide");
     sheet.showModal();
   };
   head.addEventListener("click", e => {

@@ -399,23 +399,27 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 /* the games screen's head: the solo and duo codes, and each tile's best (yours, and your partner's in a duo room) */
 .apps .pick-head { gap: .5rem; }
 .apps .codes { display: flex; align-items: center; gap: .35rem; min-width: 0; flex: 1; flex-wrap: nowrap; }
-.code-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .55rem .3rem .45rem; flex: none; -webkit-touch-callout: none; user-select: none; border: 1.5px solid var(--edge, #c9cdd2); border-radius: 999px;
+.code-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .55rem .3rem .45rem; flex: none; -webkit-touch-callout: none; user-select: none; border: 1.5px solid var(--tile-edge); border-radius: 999px;
   background: var(--sheet); color: var(--ink); font: inherit; font-size: .82rem; cursor: pointer; max-width: 100%; }
 .code-chip span { color: var(--ink-soft); font-weight: 700; }
 .code-chip b { font-weight: 800; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
 .code-chip em { font-style: normal; color: var(--ink-soft); font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.code-chip em.on { color: #2f8a4b; font-weight: 700; }
+.code-chip em.on { color: #3a9d57; font-weight: 700; }
 .app-best { display: block; font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .app-best:empty { display: none; }
 
 /* the partner sheet, over the games screen */
-.pair-sheet { width: min(92vw, 420px); border: 0; border-radius: 16px; padding: 1rem; background: var(--paper, #eef0f2); color: var(--ink); }
+.pair-sheet { position: relative; width: min(92vw, 420px); border: 1.5px solid var(--tile-edge); border-radius: 16px; padding: 1rem; background: var(--sheet); color: var(--ink); }
+.pair-sheet h3 { padding-right: 2.6rem; }
+.pair-sheet .sheet-x { position: absolute; top: .6rem; right: .6rem; width: 34px; height: 34px; }
+.pair-sheet .btn.wide { display: block; width: 100%; }
+.pair-sheet .link { display: block; margin: .7rem auto 0; }
 .pair-sheet::backdrop { background: rgba(0, 0, 0, .35); }
 .pair-sheet h3 { margin: 0 0 .5rem; }
-.pair-sheet .btn.wide, .pair-sheet .link { margin-top: .45rem; }
+.pair-sheet .btn.wide { margin-top: .45rem; }
 /* your partner asks to play together: a banner over whatever you're playing */
 .pair-ask { position: fixed; left: .5rem; right: .5rem; top: calc(env(safe-area-inset-top, 0px) + .5rem); z-index: 1000; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
-  padding: .6rem .75rem; border-radius: 14px; background: var(--ink, #1d2730); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); font-size: .92rem; }
+  padding: .6rem .75rem; border-radius: 14px; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--tile-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); font-size: .92rem; }
 .pair-ask span { flex: 1 1 12rem; }
 .pair-ask .btn { min-height: 38px; }
 
@@ -423,21 +427,21 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .partner-pill { display: inline-block; margin-left: .45rem; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
   font-size: .62rem; font-weight: 700; line-height: 1.5; padding: 0 .4rem; border-radius: 999px; background: var(--yard, #e3e6ea); color: var(--ink-soft); }
 .partner-pill:empty { display: none; }
-.partner-pill.on { color: #2f8a4b; }
+.partner-pill.on { color: #3a9d57; }
 
 /* watching your partner: their game under a veil that keeps your taps off it, and a bar to stop */
 .watch-veil { position: fixed; inset: 0; z-index: 900; background: transparent; }
 .watch-bar { position: fixed; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); display: flex; align-items: center; gap: .6rem;
-  padding: .5rem .75rem; border-radius: 14px; background: var(--ink, #1d2730); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); font-size: .9rem; }
+  padding: .5rem .75rem; border-radius: 14px; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--tile-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); font-size: .9rem; }
 .watch-bar span { flex: 1; }
 .watch-bar .btn { min-height: 36px; }
 
 .code-chip svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
 .partner-line { min-width: 0; flex: 1 1 auto; border: 0; background: none; padding: .3rem .1rem; font: inherit; font-size: .78rem; font-weight: 700;
   color: var(--ink-soft); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.partner-line.on { color: #2f8a4b; }
+.partner-line.on { color: #3a9d57; }
 /* the head's icon buttons: update (it turns while it fetches) and close */
-.icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1.5px solid var(--edge, #c9cdd2); border-radius: 50%;
+.icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1.5px solid var(--tile-edge); border-radius: 50%;
   background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
 .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn:disabled { opacity: .6; }
