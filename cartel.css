@@ -18,18 +18,22 @@
     --ct-win: #63C98E; --ct-loss: #FF7E6E; }
 }
 
-#app.cartel { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; gap: .55rem; }
+/* the whole game fits the screen, never scrolling: the table keeps one size all game, the tray takes the rest (and
+   scrolls inside itself only on the smallest screens) */
+#app.cartel { height: 100vh; height: 100svh; box-sizing: border-box; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem);
+  display: flex; flex-direction: column; gap: .45rem; overflow: hidden; }
 .ct-mark { display: inline-block; }
 .ct-mark svg { width: 100%; height: 100%; display: block; }
 
 /* the table: dark oxblood felt in a wooden rim; dice sit on it, ivory and gold */
-.ct-table { position: relative; flex: 1; align-content: space-between; margin-top: .6rem; padding: .7rem .55rem .8rem; border-radius: 26px;
+.ct-table { position: relative; flex: none; height: clamp(15.5rem, 41svh, 21rem); grid-template-rows: auto minmax(0, 1fr) auto;
+  margin-top: .4rem; padding: .6rem .5rem .6rem; border-radius: 26px;
   background: radial-gradient(120% 90% at 50% 45%, #5A2630 0%, #3B171E 62%, #2A1015 100%);
   box-shadow: inset 0 0 0 5px #6B4128, inset 0 0 0 7px #4A2A1A, 0 6px 18px rgba(0, 0, 0, .18);
-  color: #F6EEE6; display: grid; gap: .6rem; }
+  color: #F6EEE6; display: grid; gap: .3rem; }
 .ct-seats { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .45rem; align-items: start; }
-.ct-seat { display: grid; justify-items: center; gap: .3rem; padding: .45rem .3rem .5rem; border-radius: 16px;
-  background: rgba(255, 255, 255, .05); border: 2px solid rgba(255, 255, 255, .08); position: relative; min-height: 7.2rem; }
+.ct-seat { display: grid; justify-items: center; align-content: start; gap: .2rem; padding: .35rem .25rem .4rem; border-radius: 16px;
+  background: rgba(255, 255, 255, .05); border: 2px solid rgba(255, 255, 255, .08); position: relative; }
 .ct-seat.turn { border-color: #E9C46A; box-shadow: 0 0 0 3px rgba(233, 196, 106, .25); }
 .ct-seat.out { opacity: .38; }
 /* choosing a target: the seats that can be chosen glow, the chosen one is ringed */
@@ -38,10 +42,12 @@
 .ct-seat.targetable.picked::after { content: "target"; position: absolute; top: -.6rem; left: 50%; transform: translateX(-50%); padding: .05rem .45rem; border-radius: 999px; background: #E76F51; color: #fff; font-size: .62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 @keyframes ct-aim { 0%, 100% { box-shadow: 0 0 0 0 rgba(246, 238, 230, .25); } 50% { box-shadow: 0 0 0 4px rgba(246, 238, 230, .08); } }
 @media (prefers-reduced-motion: reduce) { .ct-seat.targetable { animation: none; } }
-.ct-plaque { text-align: center; line-height: 1.1; }
+.ct-plaque { text-align: center; line-height: 1.1; min-width: 0; max-width: 100%; }
+.ct-seat .ct-plaque span { display: block; font-size: .62rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-plaque b { display: block; font-weight: 800; font-size: 1rem; letter-spacing: .01em; }
 .ct-plaque span { font-size: .72rem; opacity: .7; }
-.ct-seat .ct-dice { justify-content: center; max-width: 7.6rem; }
+/* two rows of dice, always: the dice shrink as a hand grows, so the seats keep their height */
+.ct-seat .ct-dice { justify-content: center; align-content: flex-start; gap: 3px; height: calc(2 * var(--seat-die, 20px) + 3px); overflow: hidden; }
 .ct-bubble { position: absolute; left: 50%; bottom: -.9rem; transform: translateX(-50%); z-index: 2; max-width: 9.4rem;
   padding: .22rem .55rem; border-radius: 12px; background: #F6EEE6; color: #2A1015; font-size: .74rem; font-weight: 750;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); }
@@ -58,29 +64,36 @@
 @keyframes shake { 20% { transform: rotate(-12deg); } 40% { transform: rotate(10deg); } 60% { transform: rotate(-6deg); } 80% { transform: rotate(4deg); } }
 
 /* the middle: the standing bid as a marker, the dice on the table, the last thing that happened */
-.ct-centre { display: grid; justify-items: center; gap: .25rem; padding: .9rem 0 .3rem; text-align: center; }
-.ct-marker { display: flex; align-items: center; gap: .45rem; padding: .35rem .9rem; border-radius: 999px;
-  background: rgba(0, 0, 0, .28); border: 2px solid rgba(233, 196, 106, .55); font-weight: 800; font-size: 1.35rem; }
+.ct-centre { display: grid; justify-items: center; align-content: center; gap: .2rem; padding: .7rem 0 .1rem; text-align: center; min-height: 0; overflow: hidden; }
+.ct-marker { display: flex; align-items: center; gap: .4rem; padding: .2rem .8rem; border-radius: 999px;
+  background: rgba(0, 0, 0, .28); border: 2px solid rgba(233, 196, 106, .55); font-weight: 800; font-size: 1.2rem; }
 .ct-marker small { font-size: .75rem; font-weight: 650; opacity: .75; }
-.ct-marker.open { font-size: 1rem; font-weight: 700; border-style: dashed; }
+.ct-marker.open { font-size: .95rem; font-weight: 700; border-style: dashed; }
 .ct-tally { font-size: .78rem; opacity: .75; }
-.ct-ticker { font-size: .84rem; max-width: 22rem; opacity: .92; background: none; border: 0; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
-.ct-verdict { font-weight: 800; font-size: .95rem; padding: .15rem .6rem; border-radius: 8px; }
+.ct-ticker { font-size: .82rem; max-width: 100%; opacity: .92; background: none; border: 0; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-verdict { font-weight: 800; font-size: .85rem; padding: .1rem .55rem; border-radius: 8px; }
 .ct-verdict.held { background: #2E7D4F; color: #fff; }
 .ct-verdict.broke { background: #B23A2C; color: #fff; }
 
 /* you, at the near edge */
-.ct-mine { display: grid; justify-items: center; gap: .35rem; padding-top: .3rem; border-top: 1px dashed rgba(255, 255, 255, .15); }
+.ct-mine { display: grid; justify-items: center; gap: .25rem; padding-top: .3rem; border-top: 1px dashed rgba(255, 255, 255, .15); }
+.ct-mine .ct-plaque { display: flex; gap: .4rem; align-items: baseline; }
 .ct-mine.turn .ct-plaque b { color: #E9C46A; }
-.ct-mine .ct-dice { justify-content: center; gap: 7px; }
+/* one row of dice, always: they shrink as your hand grows */
+.ct-mine .ct-dice { justify-content: center; flex-wrap: nowrap; gap: var(--mine-gap, 7px); min-height: calc(var(--mine-die, 36px) + .8rem); align-items: flex-start; }
 .ct-mine .ct-dice figure { margin: 0; display: grid; justify-items: center; gap: .1rem; }
 .ct-mine .ct-dice figcaption { font-size: .62rem; font-weight: 700; opacity: .75; }
-.ct-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem; }
-.ct-notes li { font-size: .8rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--ct-plain-edge); }
+/* what you know: one line that scrolls sideways, so it never pushes anything down */
+.ct-notes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: nowrap; gap: .3rem; flex: none; height: 1.5rem;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.ct-notes::-webkit-scrollbar { display: none; }
+.ct-notes li { flex: none; white-space: nowrap; font-size: .78rem; padding: .05rem .5rem; border-radius: 999px; border: 1px solid var(--ct-plain-edge); }
 
 /* your turn: the tray under the table */
-.ct-controls { display: grid; gap: .5rem; padding-bottom: .4rem; }
-.ct-tray { display: grid; gap: .65rem; padding: .75rem; border-radius: 18px; background: var(--sheet); box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
+.ct-controls { display: grid; gap: .5rem; align-content: start; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ct-tray { display: grid; gap: .5rem; padding: .6rem; border-radius: 18px; background: var(--sheet); box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
+.ct-tray-title { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
 .ct-tray-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 34px; }
 .ct-tray-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
 .ct-free { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
@@ -91,37 +104,39 @@
 .ct-chip[aria-pressed="true"] small { color: #fff; opacity: .8; }
 
 .ct-grid { display: grid; gap: .45rem; }
-.ct-action { display: grid; justify-items: center; align-content: center; gap: .25rem; min-height: 62px; padding: .4rem .2rem; border-radius: 14px; cursor: pointer;
+.ct-action { display: grid; justify-items: center; align-content: center; gap: .15rem; min-height: 52px; padding: .3rem .2rem; border-radius: 14px; cursor: pointer;
   border: 1.5px solid transparent; background: var(--yard); color: var(--ink); font: inherit; font-size: .82rem; font-weight: 750; }
 .ct-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .ct-action[aria-pressed="true"] { background: var(--ct-ox-fill); color: #fff; }
 .ct-action:disabled, .ct-role:disabled, .ct-go:disabled { opacity: .38; cursor: default; }
 
-.ct-panel { display: grid; gap: .5rem; padding: .7rem; border-radius: 14px; background: var(--yard); }
+.ct-panel { display: grid; gap: .45rem; padding: .55rem; border-radius: 14px; background: var(--yard); }
 .ct-label { margin: .1rem 0 0; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
 .ct-note { margin: 0; font-size: .84rem; color: var(--ink-soft); line-height: 1.35; }
 .ct-choice { display: grid; place-items: center; min-height: 42px; padding: .3rem .4rem; border-radius: 12px; cursor: pointer;
   border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .88rem; font-weight: 750; }
 .ct-choice[aria-pressed="true"] { border-color: var(--ct-ox); box-shadow: inset 0 0 0 1.5px var(--ct-ox); }
-.ct-face { min-height: 46px; }
-.ct-role { display: flex; align-items: center; gap: .55rem; padding: .55rem .6rem; border-radius: 12px; cursor: pointer; text-align: left;
-  border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink); font: inherit; }
+.ct-face { min-height: 42px; }
+/* role cards, three to a row: the die, the role's name in green (you hold it) or red (a bluff), the power in brief */
+.ct-role { display: flex; align-items: center; gap: .3rem; padding: .35rem .3rem; border-radius: 12px; cursor: pointer; text-align: left; min-height: 48px;
+  border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink); font: inherit; min-width: 0; }
+.ct-role.free { border-style: dashed; }
 .ct-role[aria-pressed="true"] { border-color: var(--ct-ox); box-shadow: inset 0 0 0 1.5px var(--ct-ox); }
 .ct-role .ct-die { flex: none; }
 .ct-role-text { display: grid; gap: .05rem; min-width: 0; }
-.ct-role-text b { font-size: .9rem; font-weight: 800; }
-.ct-role-text span { font-size: .74rem; color: var(--ink-soft); line-height: 1.25; }
-.ct-role-text small { justify-self: start; margin-top: .15rem; font-size: .62rem; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; }
-.ct-role-text small.held { color: var(--ct-win); }
-.ct-role-text small.bluff { color: var(--ct-ox); }
-.ct-stepper { display: grid; grid-template-columns: 46px 3.2rem 46px 1fr; align-items: center; gap: .45rem; }
-.ct-step-btn { height: 46px; border-radius: 12px; cursor: pointer; border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink);
+.ct-role-text b { font-size: .78rem; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ct-role-text b.held { color: var(--ct-win); }
+.ct-role-text b.bluff { color: #C0392B; }
+.ct-role-text span { font-size: .66rem; color: var(--ink-soft); line-height: 1.2; }
+.ct-stepper { display: grid; grid-template-columns: 44px 3rem 44px 1fr; align-items: center; gap: .45rem; }
+.ct-step-btn { height: 44px; border-radius: 12px; cursor: pointer; border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink);
   font: inherit; font-size: 1.4rem; font-weight: 700; line-height: 1; }
 .ct-count { text-align: center; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ct-stepper .ct-note { padding-left: .3rem; }
-.ct-go { min-height: 48px; padding: 0 1rem; border-radius: 14px; cursor: pointer; border: 0; background: var(--ct-ox-fill); color: #fff;
-  font: inherit; font-size: 1rem; font-weight: 800; }
+.ct-go { min-height: 46px; padding: 0 .6rem; border-radius: 14px; cursor: pointer; border: 0; background: var(--ct-ox-fill); color: #fff;
+  font: inherit; font-size: .95rem; font-weight: 800; line-height: 1.15; }
 .ct-go-quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ct-plain-edge); }
+.ct-go small { display: block; font-size: .7rem; font-weight: 650; opacity: .85; margin-top: .1rem; }
 .ct-waiting { color: var(--ink-soft); text-align: center; margin: .4rem 0; }
 .ct-claim { font-size: 1.15rem; font-weight: 700; margin: .4rem 0; }
 .ct-rules p { margin: .5rem 0; }

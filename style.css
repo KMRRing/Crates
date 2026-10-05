@@ -102,31 +102,44 @@ button, input { font: inherit; color: inherit; }
 .mark-btn { display: flex; align-items: center; gap: .55rem; background: none; border: 0; padding: 0; margin: 0;
   font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
 /* The game switcher: a full screen of games, a tile each, two across on a phone, more on a wider screen. */
+/* It fits the screen without scrolling: the tiles share the height left under the title, and their logos and names
+   size themselves to the tile (only a screen too small for any of that scrolls). */
 dialog.apps {
   position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0;
-  box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 1.2rem);
-  background: var(--yard); color: var(--ink); overflow-y: auto; overscroll-behavior: contain;
+  box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
+  background: var(--yard); color: var(--ink); overflow: hidden; overscroll-behavior: contain;
 }
 dialog.apps::backdrop { background: var(--yard); }
 dialog.apps[open] { animation: apps-in .16s ease-out; }
 @keyframes apps-in { from { opacity: 0; transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { dialog.apps[open] { animation: none; } }
-.apps-inner { max-width: 46rem; margin: 0 auto; }
+.apps-inner { max-width: 46rem; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
 dialog.apps .pick-head h2 { font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
 .apps-actions { display: flex; gap: .45rem; }
-.apps-list { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .7rem; grid-template-columns: repeat(auto-fill, minmax(6.8rem, 1fr)); }
-.app-row { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; height: 100%; min-height: 7.6rem;
-  box-sizing: border-box; padding: 1rem .5rem; border-radius: 14px; text-decoration: none; color: var(--ink); background: var(--sheet);
-  border: 2px solid transparent; text-align: center; }
+.apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr));
+  flex: 1; min-height: 0; grid-auto-rows: minmax(4.6rem, 1fr); overflow-y: auto; }
+@media (min-width: 36rem) { .apps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (min-width: 46rem) { .apps-list { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.apps-list li { min-height: 0; }
+.app-row { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; height: 100%; min-height: 0;
+  box-sizing: border-box; padding: .4rem; border-radius: 14px; text-decoration: none; color: var(--ink); background: var(--sheet);
+  border: 2px solid transparent; text-align: center; container-type: size; overflow: hidden; }
 .app-row.cur { border-color: var(--ink); }
 .app-more { width: 100%; border-color: var(--line, #C9D1D5); border-style: dashed; cursor: pointer; font: inherit; }
-.app-more[aria-expanded="true"] { border-style: solid; }
-.app-dots { font-size: 2.2rem; font-weight: 800; line-height: 1; color: var(--ink-soft); }
-.apps-more { margin-top: .7rem; padding-top: .7rem; border-top: 1px dashed var(--line, #C9D1D5); }
-.app-logo { flex: none; width: 3rem; height: 3rem; display: grid; place-items: center; }
-.app-logo svg { width: 2.8rem; height: 2.8rem; }
-.app-name { font-size: 1.1rem; font-weight: 800; }
-.app-now { font-size: .7rem; font-weight: 750; padding: .05rem .45rem; border-radius: 999px; background: var(--ink); color: var(--yard); }
+.app-more.cur { border-style: solid; border-color: var(--ink); }
+.app-dots { font-size: min(2.2rem, 32cqh); font-weight: 800; line-height: 1; color: var(--ink-soft); }
+.app-logo { flex: none; width: min(3rem, 42cqh); height: min(3rem, 42cqh); display: grid; place-items: center; }
+.app-logo svg { width: 94%; height: 94%; }
+.app-name { font-size: clamp(.82rem, 17cqh, 1.1rem); font-weight: 800; line-height: 1.1; }
+.app-now { font-size: .68rem; font-weight: 750; padding: .05rem .45rem; border-radius: 999px; background: var(--ink); color: var(--yard); }
+@container (max-height: 6.6rem) { .app-now { display: none; } }
+/* "…" opens the other games in a popup over the screen of games */
+dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-box; margin: auto; padding: 1rem; border: 0; border-radius: 18px;
+  background: var(--sheet); color: var(--ink); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); overflow-y: auto; overscroll-behavior: contain; }
+dialog.apps-pop::backdrop { background: rgba(10, 14, 18, .45); }
+dialog.apps-pop .pick-head h2 { font-size: 1.3rem; font-weight: 800; }
+.apps-pop-list { flex: none; grid-auto-rows: 7rem; overflow: visible; }
+.apps-pop-list .app-row { background: var(--yard); }
 .top-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
 /* maths from the banks (Temml → MathML) */
 .math { font-size: 1.05em; }

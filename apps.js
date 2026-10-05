@@ -134,15 +134,20 @@ export function bindSwitcher(button, current) {
   dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><span class="apps-actions">
       <button class="btn" type="button" data-update title="Load the newest version (keeps your progress)">Update</button>
       <button class="btn" type="button" data-close>Close</button></span></div>
-    <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more" type="button" data-more aria-expanded="false" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul>
-    <ul class="apps-list apps-more" hidden>${tiles(APPS.filter(a => a.more), current)}</ul></div>`;
+    <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more${APPS.find(x => x.id === current)?.more ? " cur" : ""}" type="button" data-more aria-haspopup="dialog" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
-  // "…": the second row of games, shown on request (and already open when you're playing one of them)
-  const more = dlg.querySelector("[data-more]"), moreList = dlg.querySelector(".apps-more");
-  const showMore = on => { moreList.hidden = !on; more.setAttribute("aria-expanded", String(on)); };
-  more.addEventListener("click", () => showMore(moreList.hidden));
-  if (APPS.find(a => a.id === current)?.more) showMore(true);
+  // "…": the other games, in a popup over the screen of games (it scrolls inside itself if it must; the screen of
+  // games never does). Tapping outside it, or Close, puts it away.
+  const pop = document.createElement("dialog");
+  pop.className = "apps-pop";
+  pop.setAttribute("aria-label", "More games");
+  pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="btn" type="button" data-close>Close</button></div>
+    <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}</ul>`;
+  dlg.appendChild(pop);
+  pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
+  pop.addEventListener("click", e => { if (e.target === pop) pop.close(); });    // a tap on the backdrop
+  dlg.querySelector("[data-more]").addEventListener("click", () => pop.showModal());
   // after an update the app reloads: open the games screen again, where Update was pressed
   try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
   const update = dlg.querySelector("[data-update]");
@@ -153,10 +158,11 @@ export function bindSwitcher(button, current) {
     update.textContent = "Offline: try later";
     setTimeout(() => { update.textContent = "Update"; update.disabled = false; }, 2500);
   });
-  dlg.querySelectorAll(".app-row.cur").forEach(a => a.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
+  // the game you're in: its tile just closes the screen of games (and the popup, if it's one of the more games)
+  dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); pop.close(); dlg.close(); }));
   APPS.forEach(a => {
     if (a.id === current) return;
-    dlg.querySelector(`.app-row[href="${a.href}"]`).addEventListener("click", e => { e.preventDefault(); location.href = gameHref(a.id); });
+    dlg.querySelectorAll(`.app-row[href="${a.href}"]`).forEach(row => row.addEventListener("click", e => { e.preventDefault(); location.href = gameHref(a.id); }));
   });
   button.addEventListener("click", () => dlg.showModal());
 }

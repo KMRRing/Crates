@@ -39,8 +39,10 @@ export const ABILITIES = {
 // bluffStake: what a caught bluffer pays the challenger; challengeStake: what a wrong challenger pays the claimant
 // (in plain dice). goldStakes: instead, whoever loses a challenge loses a gold die, as in Coup. freeAsk: asking a
 // question is a free move, once a turn, rather than the turn's action.
+// askAfterMove: the free question comes after your move (it informs the bid, not the move); fixerFirst: the Fixer's
+// free reroll comes before your move (dice that land face up stay seen for a round). Both on since October 2026.
 export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, bluffStake: 3, challengeStake: 3, callStake: 3, sanction: 4, banker: 3, steal: 2,
-  goldStakes: false, freeAsk: true };
+  goldStakes: false, freeAsk: true, askAfterMove: true, fixerFirst: true };
 // Questions about one player's whole hand (gold and plain), answered both ways. A "face" here means the face
 // itself: 1s count only when the question is about 1s.
 export const QUESTIONS = {
@@ -196,11 +198,13 @@ export function act(s, a) {
 }
 
 /**
- * The free move, once a turn and before your bid: claim Fixer to reroll one of your dice (say, one that just
- * landed face up). The next player may challenge it like any claim.
+ * The free reroll, once a turn and before your move: claim Fixer to reroll one of your dice (say, one the table
+ * has seen). The next player may challenge it like any claim. Not after your move: dice that land face up from
+ * the bank or a steal stay seen for a round.
  */
 export function freeReroll(s, dieId) {
   if (s.over || s.pending || s.freeUsed) throw new Error("The free reroll is once a turn");
+  if (RULES.fixerFirst && s.step !== "act") throw new Error("The Fixer's reroll comes before your move");
   const me = s.players[s.turn];
   if (!me.dice.some(d => d.id === dieId)) throw new Error("choose one of your dice");
   s.freeUsed = true;
@@ -222,10 +226,14 @@ function askQuestion(s, me, them, question) {
   emit(s, { t: "ask", p: me.i, target: them.i, question: q }, { [me.i]: { answer: aboutThem }, [them.i]: { answer: aboutMe } });
 }
 
-/** The free question (when RULES.freeAsk): once a turn, before your bid. */
+/**
+ * The free question (when RULES.freeAsk): once a turn, after your move and before your bid, so what you learn
+ * shapes the bid but can't make a steal or a sanction safe.
+ */
 export function freeAsk(s, target, question) {
   if (!RULES.freeAsk) throw new Error("asking is an action in these rules");
   if (s.over || s.pending || s.askUsed) throw new Error("One question a turn");
+  if (RULES.askAfterMove && s.step !== "bid") throw new Error("Ask after your move, before your bid");
   askQuestion(s, s.players[s.turn], s.players[target], question);
   s.askUsed = true;
   return s;

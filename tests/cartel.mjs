@@ -23,7 +23,7 @@ for (let g = 0; g < games; g++) {
         const d = ais[s.turn].free(s);
         if (d != null) E.freeReroll(s, d);
       }
-      else if (s.step === "act" && !s.askUsed && askedAt !== s.moves) {
+      else if (s.step === "bid" && !s.askUsed && askedAt !== s.moves) {
         askedAt = s.moves;
         const q = ais[s.turn].ask(s);
         if (q) E.freeAsk(s, q.target, q.question);
@@ -128,24 +128,34 @@ if (bad) process.exitCode = 1;
   E.respond(s, "allow");
   inq = s.events.filter(e => e.t === "inquiry").pop();
   check(inq.priv[0].count == null && inq.priv[0].unanswered && !("count" in E.seen(inq, 1)), "a bluffed inquiry gets no answer, and nobody else can tell");
-  // the free question: answered both ways, once a turn, and the turn's action is still to come
+  // the free question: after your move, before your bid; answered both ways; once a turn
   s = setup([2, 2, 4, 4, 4], [2, 2, 4, 3, 3]);
+  let early = false;
+  try { E.freeAsk(s, 1, { type: "count", f: 4 }); } catch { early = true; }
+  check(early, "no question before your move: it can't make a steal or sanction safe");
+  E.act(s, { type: "take" });
   E.freeAsk(s, 1, { type: "count", f: 4 });
   const asked = s.events[s.events.length - 1];
-  check(asked.priv[0].answer === 1 && asked.priv[1].answer === 3 && s.step === "act", "a free question: each side learns the other's answer, and the action is still to come");
+  const fours = s.players[0].dice.filter(d => d.face === 4).length;
+  check(asked.priv[0].answer === 1 && asked.priv[1].answer === fours && s.step === "bid", "a question after your move: each side learns the other's answer, and the bid is still to come");
   let twice = false;
   try { E.freeAsk(s, 1, { type: "odd" }); } catch { twice = true; }
   check(twice, "one free question a turn");
-  // the Fixer's reroll is a free move: the turn stays where it was
+  // the Fixer's reroll: a free move before your move, never after it
+  s = setup([5, 1], [2, 1]);
+  const shown = E.plain(s.players[0])[0];
+  shown.open = true;                                   // a die the table has seen
+  E.freeReroll(s, shown.id);
+  E.respond(s, "allow");
+  check(s.step === "act" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === shown.id).open, "the Fixer's reroll hides a seen die before your move, and the move is still yours");
+  let refused = false;
+  try { E.freeReroll(s, shown.id); } catch { refused = true; }
+  check(refused, "the free reroll only once a turn");
   s = setup([5, 1], [2, 1]);
   E.act(s, { type: "take" });
-  const seenDie = E.plain(s.players[0]).find(d => d.open);
-  E.freeReroll(s, seenDie.id);
-  E.respond(s, "allow");
-  check(s.step === "bid" && s.turn === 0 && !E.plain(s.players[0]).find(d => d.id === seenDie.id).open, "the Fixer's free reroll hides a face-up die and the turn carries on to the bid");
-  let refused = false;
-  try { E.freeReroll(s, seenDie.id); } catch { refused = true; }
-  check(refused, "the free reroll only once a turn");
+  let late = false;
+  try { E.freeReroll(s, E.plain(s.players[0]).find(d => d.open).id); } catch { late = true; }
+  check(late, "no Fixer's reroll after your move: a die that just landed face up stays seen for a round");
   // a lost call costs 3; short of 3, a gold die goes too
   s = setup([2, 2], [2, 2]);
   s.step = "bid";
