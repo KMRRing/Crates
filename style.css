@@ -55,6 +55,8 @@
   --rf-logo-edge: #35607E;
   --ru-logo-tint: #EADFD2;  /* Rush's logo: a knight */
   --ru-logo-edge: #6B4A2B;
+  --dk-logo-tint: #EEDFF2;  /* Deck's logo: a stack of cards */
+  --dk-logo-edge: #6D3B7A;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

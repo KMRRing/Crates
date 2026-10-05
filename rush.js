@@ -2,6 +2,7 @@
 // climb as you solve them. The bank is 20,000 Lichess puzzles in ten files by rating band (puzzles/), fetched as
 // a run climbs into them and kept on the device; the board is chess-board.js.
 import { mountPuzzle, solutionSan } from "./chess-board.js";
+import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
@@ -134,6 +135,8 @@ function settle(p, solved) {
     return;
   }
   rate(p, solved, S.misses.length);
+  if (solved) { if (pile.has("rush", p.id)) pile.answer("rush", p.id, true); }
+  else pile.record("rush", p.id, { id: p.id, fen: p.fen, moves: p.moves, rating: p.rating, themes: p.themes }, "miss");
   if (solved) {
     S.solved++;
     S.ratings.push(p.rating);

@@ -1,0 +1,23 @@
+// The pile: recording, promotion through the four piles with their gaps, demotion, due ordering, learned.
+globalThis.localStorage = { _s: {}, getItem(k) { return this._s[k] ?? null; }, setItem(k, v) { this._s[k] = String(v); }, removeItem(k) { delete this._s[k]; } };
+const P = await import("../pile.js");
+let bad = 0;
+const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+P.clear();
+P.record("punt", "words/WD-001", { prompt: "laconic" }, "wrong");
+P.record("quote", "tr-01", { id: "tr-01" }, "wide");
+check(P.counts().piles[0] === 2 && P.due().length === 2, "two items recorded land in the ultra-short pile, due at once");
+check(P.due("punt").length === 1 && P.due("quote").length === 1, "due is per game");
+let it = P.answer("punt", "words/WD-001", true);
+check(it.pile === 1 && it.due > Date.now() && P.due("punt").length === 0, `right moves it to the short pile, due in ${Math.round((it.due - Date.now()) / 60000)} min`);
+check(P.due("punt", Date.now() + 11 * 60000).length === 1, "and it's due eleven minutes later");
+it = P.answer("punt", "words/WD-001", false);
+check(it.pile === 0 && P.due("punt").length === 1, "wrong drops it back to the ultra-short pile, due now");
+for (let i = 0; i < 4; i++) it = P.answer("punt", "words/WD-001", true);
+check(!!it.learned && P.counts().learned === 1 && P.due("punt").length === 0, "four rights in a row from the bottom: learned");
+P.record("punt", "words/WD-001", {}, "wrong");
+check(!P.all("punt")[0].learned && P.all("punt")[0].pile === 0, "a miss on a learned item brings it back to the first pile");
+check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's banked");
+P.setLearning(false); check(P.learning() === false, "learning mode can be switched off"); P.setLearning(true);
+console.log(bad ? `${bad} problems` : "all checks pass");
+if (bad) process.exitCode = 1;

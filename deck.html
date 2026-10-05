@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Deck">
+<title>Deck</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="rush.css">
+<link rel="stylesheet" href="deck.css">
+</head>
+<body>
+<div id="app" class="deck">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon dk-mark" aria-hidden="true"></span>Deck</button></h1>
+    <div class="top-right">
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <section id="overview" class="dk-overview">
+    <p class="dk-lead" id="lead"></p>
+    <div class="dk-piles" id="piles"></div>
+    <div class="dk-games" id="games"></div>
+    <button class="dk-go" type="button" id="reviewBtn">Review</button>
+  </section>
+
+  <section id="review" class="dk-review" hidden>
+    <div class="dk-head"><span id="progress"></span><span id="source"></span></div>
+    <p class="dk-ask" id="ask"></p>
+    <p class="dk-prompt" id="prompt"></p>
+    <div id="figure" class="dk-figure" hidden></div>
+    <div id="answerBox" class="dk-answer"></div>
+    <p class="dk-verdict" id="verdict"></p>
+    <p class="dk-note" id="note"></p>
+    <button class="dk-go" type="button" id="nextBtn" hidden>Next</button>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="dk-toast" role="status" aria-live="polite"></p>
+<script src="bank.js"></script>
+<script type="module" src="deck.js"></script>
+</body>
+</html>

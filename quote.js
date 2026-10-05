@@ -1,11 +1,12 @@
 // Quote: ten numbers, a two-sided market on each. The engine (quote-engine.js) settles a market; this file runs
 // the set, draws the card and the tape, and keeps bests. Together, the room holds the set and you alternate: one
 // makes the market, the other hits it, lifts it or passes (together.js).
-import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, rangeText } from "./quote-engine.js";
+import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, rangeText, rangeOf } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
+import * as pile from "./pile.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -29,7 +30,15 @@ const signed = n => (n >= 0 ? "+" : "−") + Math.abs(n).toLocaleString("en-GB")
 
 // ---------- the run ----------
 /** The questions a set draws from: everything, or one category only (a focus), with the category cap lifted. */
-const setFor = (seed, focus) => pickSet(seed, focus ? QUOTES.filter(q => q.cat === focus) : QUOTES, PER_SET, focus ? PER_SET : 2).map(q => q.id);
+const setFor = (seed, focus) => {
+  const pool = focus ? QUOTES.filter(q => q.cat === focus) : QUOTES;
+  // learning mode: what's due leads the set (up to half of it), the rest dealt as usual around it
+  const due = pile.learning() ? pile.due("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const rest = pickSet(seed, pool.filter(q => !due.includes(q.id)), PER_SET - due.length, focus ? PER_SET : 2).map(q => q.id);
+  const set = [...rest];
+  due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
+  return set;
+};
 const hashFor = s => `${s.mode === "daily" ? `#d=${s.seed}` : `#s=${s.seed}`}${s.focus ? `&f=${s.focus}` : ""}`;
 function start(mode, focus = null) {
   const seed = mode === "daily" ? today() : randomSeed();
@@ -52,6 +61,9 @@ function quote() {
   }
   if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
+  // the pile: outside, or a market wider than three ranges, means you didn't know it; a tight hit moves a banked one up
+  if (!r.inside || r.width > 3 * rangeOf(q)) pile.record("quote", q.id, { id: q.id }, r.inside ? "wide" : "wrong");
+  else if (pile.has("quote", q.id)) pile.answer("quote", q.id, true);
   S.book += r.delta;
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond });
   S.phase = "reveal";
@@ -385,6 +397,10 @@ function openMenu() {
     add("p", "stats", "Make a market on a number: a bid and an ask. Each question says what counts as close; the tighter and the nearer, the more it pays, falling off smoothly, and the further out the truth lies the more you lose. Ten questions, a book of 1,000 to start.");
     button("A new set", () => confirmStart("random"));
     button("Today's set", () => confirmStart("daily"));
+    const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
+    learn.type = "button";
+    learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); $("menuDlg").close(); openMenu(); });
+    add("p", "stats", `A miss, or a market wider than three ranges, sends the question to the pile; it leads your next sets until you quote it tight (${pile.counts("quote").due} due now). Deck reviews everything due.`);
     add("h3", null, "Refining");
     add("p", "stats", `Sets drawn only from the ${QUOTES.filter(q => q.cat === "refining").length} refining questions: European fuel specs, what each blendstock brings, cetane and cold flow, energy contents, RED III, quotas, duties and cracks. Crush these and you have the numbers of the trade.`);
     button("A refining set", () => confirmStart("random", "refining"));

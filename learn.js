@@ -7,6 +7,7 @@
 // Card states: "w" weak (due again at board d; missed next to answers c, beside pairs m),
 // "n" seen without a clear signal, "k" known; q = became a card because its clue was opened.
 import { BANK, PAIRS, cardKey, norm } from "./core.js";
+import * as pile from "./pile.js";
 
 export const MODES = ["off", "learn", "norepeat", "clues"];
 import { groupIndexOf } from "./gen.js";
@@ -98,9 +99,11 @@ export function learnFromBoard(deck, board, game, rng = Math.random) {
     if (v === "fail") {
       deck.cards[key] = { s: "w", ...clued, d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
       tags[w] = TAG.fail;
+      pile.record("crates", key, { word: w, hint: BANK[g.a].words[wi].hint, answer: BANK[g.a].name, cat: BANK[g.a].cat, a: g.a }, "wrong");   // the shared pile too, for Deck
     } else if (v === "pass") {
       deck.cards[key] = { s: "k", ...clued, f: tally.f, p: tally.p + 1 };
       if (prev?.s === "w") tags[w] = TAG.learned;
+      if (pile.has("crates", key)) pile.answer("crates", key, true);
     } else if (prev?.s === "w") {                       // still unproven: try again in a new setting
       deck.cards[key] = { ...prev, d: deck.t + gap(rng), c: context, m: mates };
     } else {

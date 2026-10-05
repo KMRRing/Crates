@@ -218,8 +218,18 @@ function makeQuestions(seed, levelId, count, start, used) {
  * seed shuffles it, taking up from where the run has got to, and round again once it runs dry; noise as for any
  * batch. stages: a label per stage id, for the small line above each question.
  */
-function mathsQuestions(seed, pool, stages, count, start) {
-  const L = LEVELS.maths, rnd = rng(mix(seed, start)), order = shuffle(rng(seed), [...pool]), out = [];
+function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys = new Set()) {
+  const L = LEVELS.maths, rnd = rng(mix(seed, start)), out = [];
+  // learning mode: due questions lead each block (at most half of it), spread through it, then unseen questions, then the rest
+  let order = shuffle(rng(seed), [...pool]);
+  if (dueKeys.length || seenKeys.size) {
+    const dueSet = new Set(dueKeys);
+    const dueFirst = order.filter(q => dueSet.has(q.id)).slice(0, Math.ceil(count / 2));
+    const rest = [...order.filter(q => !dueSet.has(q.id) && !seenKeys.has(q.id)), ...order.filter(q => !dueSet.has(q.id) && seenKeys.has(q.id))];
+    const block = rest.slice(0, Math.max(0, count - dueFirst.length));
+    dueFirst.forEach((q, i) => block.splice(Math.min(block.length, Math.floor((i + 0.5) * (block.length + dueFirst.length) / dueFirst.length)), 0, q));
+    order = [...block, ...rest.slice(Math.max(0, count - dueFirst.length))];
+  }
   if (!order.length) return out;
   const z = shuffle(rnd, Array.from({ length: count }, (_, i) => quantile((i + 0.5) / count)));
   const m = z.map(v => Math.exp(L.spread * v)), mean = m.reduce((a, b) => a + b, 0) / count;
@@ -242,12 +252,12 @@ function mathsQuestions(seed, pool, stages, count, start) {
  */
 export function makeSession(seed, levelId, lengthId = "standard", maths = null) {
   const count = lengthId === "endless" ? BATCH : LENGTHS[lengthId]?.questions ?? LEVELS[levelId].questions;
-  if (LEVELS[levelId].maths) return mathsQuestions(seed, maths.pool, maths.stages, count, 0);
+  if (LEVELS[levelId].maths) return mathsQuestions(seed, maths.pool, maths.stages, count, 0, maths.dueKeys, maths.seenKeys);
   return makeQuestions(seed, levelId, count, 0, new Set());
 }
 /** The next batch of an endless run, following the questions dealt so far. */
 export const moreQuestions = (seed, levelId, dealt, maths = null) => (LEVELS[levelId].maths
-  ? mathsQuestions(seed, maths.pool, maths.stages, BATCH, dealt.length)
+  ? mathsQuestions(seed, maths.pool, maths.stages, BATCH, dealt.length, maths.dueKeys, maths.seenKeys)
   : makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key))));
 
 /**

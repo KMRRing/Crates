@@ -1,0 +1,49 @@
+/* Deck: the piles and the review. Plum is the house colour. */
+:root { --dk-in: #6D3B7A; --dk-in-soft: #EEDFF2; --dk-good: #2E9E5B; --dk-bad: #D23B2A; --dk-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { :root { --dk-in: #C98BD6; --dk-in-soft: #3A2340; --dk-edge: #33414B; } }
+
+.dk-mark { display: inline-block; }
+.dk-mark svg { width: 100%; height: 100%; display: block; }
+.dk-lead { margin: .4rem 0 .8rem; color: var(--ink-soft); line-height: 1.45; }
+.dk-piles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+.dk-piles div { padding: .55rem .3rem; border-radius: 12px; background: var(--sheet); text-align: center; }
+.dk-piles b { display: block; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.dk-piles b.due { color: var(--dk-in); }
+.dk-piles span { font-size: .72rem; color: var(--ink-soft); }
+.dk-piles small { display: block; font-size: .68rem; color: var(--ink-soft); }
+.dk-games { margin: .8rem 0; display: grid; gap: .3rem; }
+.dk-games div { display: flex; justify-content: space-between; padding: .5rem .7rem; border-radius: 10px; background: var(--sheet); font-size: .92rem; }
+.dk-games b { font-weight: 800; }
+.dk-games span.due { color: var(--dk-in); font-weight: 750; }
+.dk-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--dk-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.dk-go:disabled { opacity: .45; cursor: default; }
+.dk-go[hidden] { display: none; }
+
+.dk-review { display: grid; gap: .5rem; }
+.dk-head { display: flex; justify-content: space-between; font-size: .85rem; color: var(--ink-soft); font-weight: 700; }
+.dk-ask { margin: 0; font-size: .85rem; color: var(--ink-soft); }
+.dk-prompt { margin: 0; font-size: 1.3rem; font-weight: 800; line-height: 1.25; }
+.dk-figure { display: grid; place-items: center; }
+.dk-figure svg { width: 100%; max-width: 20rem; height: auto; }
+.dk-figure[hidden] { display: none; }
+.dk-answer { display: grid; gap: .45rem; }
+.dk-answer.two { grid-template-columns: 1fr 1fr; }
+.dk-option { min-height: 50px; padding: .6rem .7rem; border-radius: 12px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.dk-option[aria-checked="true"] { border-color: var(--dk-in); background: var(--dk-in-soft); }
+.dk-option.right { border-color: var(--dk-good); background: color-mix(in srgb, var(--dk-good) 15%, var(--sheet)); }
+.dk-option.wrong { border-color: var(--dk-bad); background: color-mix(in srgb, var(--dk-bad) 12%, var(--sheet)); }
+.dk-option:disabled { cursor: default; }
+.dk-number { display: grid; grid-template-columns: 1fr auto; gap: .4rem; }
+.dk-number input { min-height: 48px; padding: 0 .7rem; border-radius: 12px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
+.dk-number button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--dk-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.dk-verdict { margin: 0; min-height: 1.3em; font-weight: 800; }
+.dk-verdict.good { color: var(--dk-good); }
+.dk-verdict.bad { color: var(--dk-bad); }
+.dk-note { margin: 0; font-size: .92rem; color: var(--ink-soft); line-height: 1.45; }
+.dk-summary { padding: .8rem; border-radius: 16px; background: var(--sheet); }
+.dk-summary b { font-size: 2.2rem; font-weight: 800; color: var(--dk-in); }
+.deck .ch-board { border-radius: 10px; }
+.dk-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.dk-toast.show { opacity: 1; }

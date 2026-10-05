@@ -5,6 +5,7 @@
 import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT,
   showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
+import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
@@ -51,7 +52,12 @@ async function bankDeal(level, picks) {
   const ids = STAGES.map(x => x.id);
   const stages = (picks.stages || ids).filter(x => ids.includes(x));
   const resolved = { stages: stages.length ? stages : ids, diffs: picks.diffs?.length ? picks.diffs.filter(d => DIFFICULTIES.includes(d)) : DIFFICULTIES };
-  return { deal: { pool: MATHS.filter(q => resolved.stages.includes(q.lv) && resolved.diffs.includes(q.d)), stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])) }, picks: resolved };
+  const pool = MATHS.filter(q => resolved.stages.includes(q.lv) && resolved.diffs.includes(q.d));
+  // learning mode: what's due from the pile leads the next block; the rest prefers questions not yet seen
+  const learning = pile.learning();
+  const dueKeys = learning ? pile.due("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
+  const seenKeys = learning ? new Set(pile.all("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1))) : new Set();
+  return { deal: { pool, stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])), dueKeys, seenKeys }, picks: resolved };
 }
 /** A run's link: seed, level, length, and for a bank its stages and difficulties. */
 function linkOf(s) {
@@ -475,10 +481,24 @@ function fileLatest() {
   const key = `${S.seed}/${S.level}/${lengthOf(S)}/${last.index}`;
   const all = allRecords();
   if (all.some(x => x.key === key)) return;
+  bankLatest(last);
   const rec = runRecords().slice(-1)[0];
   if (!rec) return;
   all.push({ ...rec, key, lv: S.level, n: lengthOf(S) });
   try { localStorage.setItem(RECORDS, JSON.stringify(all.slice(-5000))); } catch { /* private mode */ }
+}
+
+/** The pile: a wrong answer, a pass, or a stake of 20% or less banks the question; a confident right answer moves a banked one up. */
+function bankLatest(last) {
+  const q = S.questions[last.index], mine = last.bets[me()];
+  if (!q || !mine || !q.key) return;
+  const right = mine.pick ? pickedRight(q, picksOf(mine.pick)) : null;
+  const key = `${S.level}/${q.key}`;
+  const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, level: S.level };
+  if (!mine.pct) pile.record("punt", key, payload, "pass");
+  else if (!right) pile.record("punt", key, payload, "wrong");
+  else if (mine.pct <= 20) pile.record("punt", key, payload, "lowStake");
+  else if (pile.has("punt", key)) pile.answer("punt", key, true);
 }
 
 const pctText = x => (x == null ? "–" : `${Math.round(x * 100)}%`);
@@ -600,6 +620,10 @@ function drawMenu() {
   body.innerHTML = "";
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
+  const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
+  learn.type = "button";
+  learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); drawMenu(); });
+  add("p", "stats", `What you miss, pass or stake 20% or less on goes to the pile and leads your next blocks until you know it (${pile.counts("punt").due} due here now). Deck, on the games screen, reviews everything due across the games.`);
   add("h3", null, "Run length");
   const lengths = add("div", "pt-lengths");
   for (const [id, L] of Object.entries(LENGTHS)) {

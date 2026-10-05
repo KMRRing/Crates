@@ -7,6 +7,7 @@ import { LAND, BORDERS } from "./world.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
+import * as pile from "./pile.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -33,9 +34,17 @@ const current = () => byId.get(S.set[S.index]);
 const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString("en-GB")} km`);
 
 // ---------- the run ----------
+/** The set for a seed, with what's due from the pile leading it in learning mode. */
+function setFor(seed) {
+  const due = pile.learning() ? pile.due("chart").map(it => it.key).filter(id => byId.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const rest = pickSet(seed, PLACES.filter(p => !due.includes(p.id)), PER_SET - due.length).map(p => p.id);
+  const set = [...rest];
+  due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
+  return set;
+}
 function start(mode) {
   const seed = mode === "daily" ? today() : randomSeed();
-  S = { seed, mode, set: pickSet(seed, PLACES).map(p => p.id), index: 0, score: 0, log: [], phase: "pin", done: false };
+  S = { seed, mode, set: setFor(seed), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   history.replaceState(null, "", mode === "daily" ? `#d=${seed}` : `#s=${seed}`);
   pin = null; views = { world: worldView() };
@@ -52,6 +61,9 @@ function confirmPin() {
   const d = distance(pin, p), pts = Math.round(score(d) * clueFactor(clues));
   S.score += pts;
   S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues });
+  // the pile: a pin over 500 km off, or any clue, means you didn't know where it was; a clean close pin moves a banked place up
+  if (d > 500 || clues > 0) pile.record("chart", p.id, { id: p.id }, clues > 0 ? "clue" : "miss");
+  else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
   S.phase = "reveal";
   save();
   render();
@@ -408,6 +420,10 @@ function openMenu() {
     add("p", "stats", "Pin a place on the map. Tap the world, fine-tune in the close-up, pin. Points fall off with distance: 1,000 on the spot, about 600 at 1,000 km, and 100 extra within 100 km.");
     button("A new set", () => confirmStart("random"));
     button("Today's set", () => confirmStart("daily"));
+    const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
+    learn.type = "button";
+    learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); $("menuDlg").close(); openMenu(); });
+    add("p", "stats", `A pin over 500 km off, or any clue, sends the place to the pile; it leads your next sets until you pin it clean (${pile.counts("chart").due} due now). Deck reviews everything due.`);
     if (S?.done) button("See how it went", finish);
     button("Copy a link to this set", copyLink);
     const best = read(BEST, 0), daily = read(DAILY, {})[today()];
@@ -462,7 +478,7 @@ function load(h) {
   const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
   if (!seed) return false;
   if (S && S.seed === seed && S.mode === mode) return true;
-  S = { seed, mode, set: pickSet(seed, PLACES).map(p => p.id), index: 0, score: 0, log: [], phase: "pin", done: false };
+  S = { seed, mode, set: setFor(seed), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   pin = null; views = { world: worldView() };
   render();
