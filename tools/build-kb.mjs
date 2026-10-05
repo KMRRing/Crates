@@ -10,7 +10,7 @@ import { pathToFileURL } from "node:url";
 const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining"];
 /** What the build writes: the bank each game reads. */
-export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js",
+export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
@@ -57,7 +57,39 @@ export async function build() {
     const m = await load(`items/choice/${b}.js`);
     choice[b] = { STAGES: m.STAGES, MATHS: m.ITEMS };
   }
-  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice };
+  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, index: await subjects(ENTITIES, LINKS) };
+}
+
+// What each entity is a matter of, for coverage by subject across the games. A thing with a set the knowledge base
+// knows (a country, a city, a painting…) is in that set's subject; a clue thing without one (most of Crates' clues) is
+// in the subject of its links' commonest aspect, by its label in Crates' topics (History, Food & drink…).
+const SET_SUBJECT = [["country", "Countries"], ["commodity", "Commodities"], ["painting", "Paintings"], ["painter", "Painters"],
+  ["art-movement", "Art movements"], ["museum", "Museums"], ["city", "Cities"], ["trade-place", "Ports, plants and trade"],
+  ["wine-place", "Wine places"], ["people-place", "People's places"], ["feature", "Physical features"], ["geo-place", "Geography"]];
+// Crates' country and commodity topics that are one subject seen from the two sides
+const SAME_SUBJECT = { Companies: "Companies & brands", Policy: "Policy & institutions", "Trade & logistics": "Trade & shipping", "Culture & language": "Culture & arts" };
+async function subjects(ENTITIES, LINKS) {
+  globalThis.window ??= globalThis;
+  await import(pathToFileURL(path.join(root, "bank.js")).href);
+  const { ALL_TOPICS } = await import(pathToFileURL(path.join(root, "core.js")).href);
+  const topic = Object.fromEntries(ALL_TOPICS.map(([code, label]) => [code, SAME_SUBJECT[label] || label]));
+  const aspects = new Map();
+  for (const l of LINKS) if (l.rel === "clue") for (const a of l.aspects) {
+    const m = aspects.get(l.from) || aspects.set(l.from, new Map()).get(l.from);
+    m.set(topic[a], (m.get(topic[a]) || 0) + 1);
+  }
+  const labels = [], at = new Map(), of = {};
+  const index = label => { if (!at.has(label)) { at.set(label, labels.length); labels.push({ label, total: 0 }); } return at.get(label); };
+  for (const [, label] of SET_SUBJECT) index(label);
+  for (const e of ENTITIES) {
+    const set = SET_SUBJECT.find(([s]) => e.sets.includes(s) || e.sets.some(x => x.startsWith(`${s}:`)));
+    const top = !set && [...(aspects.get(e.id) || [])].sort((a, b) => b[1] - a[1])[0];
+    const label = set ? set[1] : top ? top[0] : null;
+    if (!label) continue;
+    of[e.id] = index(label);
+    labels[of[e.id]].total++;
+  }
+  return { SUBJECTS: labels.filter(s => s.total), SUBJECT: Object.fromEntries(Object.entries(of).map(([id, i]) => [id, labels.filter(s => s.total).indexOf(labels[i])])) };
 }
 
 /** The files' text, headed by each bank's own comment and a line saying where it comes from. */
@@ -71,6 +103,11 @@ export async function render(out) {
     [OUTPUTS.geo]: `${head(OUTPUTS.geo)}export const GEO = ${lines(out.geo.GEO)};\n`,
     [OUTPUTS.quote]: `${head(OUTPUTS.quote)}export const CATS = ${JSON.stringify(out.quote.CATS)};\nexport const QUOTES = ${lines(out.quote.QUOTES)};\n`,
   };
+  files[OUTPUTS.index] = `// The knowledge base's subjects, for Deck's coverage by subject: SUBJECTS[i] = { label, total entities }; SUBJECT[entity]
+// = i. A thing with a set (country, city, painting…) is in its set's subject; a clue thing in its links' commonest aspect.
+// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
+export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
   for (const b of CHOICE_BANKS) files[OUTPUTS[b]] = `${head(OUTPUTS[b])}export const STAGES = ${JSON.stringify(out.choice[b].STAGES)};\nexport const MATHS = ${lines(out.choice[b].MATHS)};\n`;
   return files;
 }

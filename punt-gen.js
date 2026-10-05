@@ -91,6 +91,8 @@ const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.h
 const CARRIERS = new Map();
 for (const p of PAIRS) { if (!CARRIERS.has(p.w)) CARRIERS.set(p.w, new Set()); CARRIERS.get(p.w).add(p.a); }
 const pairOf = (a, w) => PAIRS.find(p => p.a === a && p.w === w);
+/** The knowledge base's entities of answers and clues ([answer index, clue word or null]), once each. */
+const entitiesOf = list => [...new Set(list.map(([a, w]) => (w == null ? BANK[a].entity : BANK[a].words.find(x => x.w === w)?.entity)).filter(Boolean))];
 const NOUN = { country: "country", commodity: "commodity" };
 const PLURAL_NOUN = { country: "countries", commodity: "commodities" };
 
@@ -182,6 +184,7 @@ function clueQuestion(rnd, L, used, n, d, noise) {
     options: options.map(x => ({ label: BANK[x].name, right: right.includes(x) })), need: right.length,
     notes: right.map(x => ({ label: BANK[x].name, text: pairOf(x, p.w)?.hint || p.hint })),
     d: Math.min(...ds), ...odds(ds.map(d => KNOWS[d]), n, noise), key: p.w,
+    about: entitiesOf([[p.a, p.w], ...right.map(x => [x, null])]),     // the clue's entity and the right answers', for the pile
   };
 }
 
@@ -203,6 +206,7 @@ function answerQuestion(rnd, L, used, n, d, noise) {
     options: options.map(w => ({ label: w, right: right.includes(w) })), need: right.length,
     notes: right.map(w => ({ label: w, text: pairOf(a, w).hint })),
     d: Math.min(...ds), ...odds(ds.map(d => KNOWS[d]), n, noise), key: p.w,
+    about: entitiesOf([[a, null], ...right.map(w => [a, w])]),
   };
 }
 

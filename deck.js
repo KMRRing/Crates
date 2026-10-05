@@ -13,6 +13,7 @@ import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { setRich } from "./rich.js";
 import { showPicture } from "./pics.js";
+import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -53,8 +54,37 @@ function overview() {
     d.append(b, s);
     return d;
   }).filter(Boolean));
+  drawSubjects();
   $("reviewBtn").textContent = c.due ? `Review ${Math.min(c.due, MAX_REVIEW)} due` : "Nothing to review";
   $("reviewBtn").disabled = !c.due;
+}
+/**
+ * Coverage by subject, across the games: for each subject of the knowledge base, how many of its things the pile is
+ * working on with you (due now, and in the piles) and how many you've learned there, of how many it holds. A thing
+ * counts once, whichever games asked about it. Subjects you haven't touched stay off the list.
+ */
+function drawSubjects() {
+  const per = new Map();
+  for (const it of pile.all()) for (const id of new Set(it.about || [])) {
+    const s = SUBJECT[id];
+    if (s === undefined) continue;
+    const row = per.get(s) || per.set(s, { working: new Set(), due: new Set(), learned: new Set() }).get(s);
+    if (it.learned) row.learned.add(id); else { row.working.add(id); if (it.due <= Date.now()) row.due.add(id); }
+  }
+  for (const row of per.values()) for (const id of row.working) row.learned.delete(id);   // learned only once nothing about it is still open
+  const rows = [...per.entries()].sort((a, b) => b[1].working.size - a[1].working.size || b[1].learned.size - a[1].learned.size);
+  $("subjectsHead").hidden = !rows.length;
+  $("subjects").replaceChildren(...rows.map(([s, r]) => {
+    const d = document.createElement("div"), b = document.createElement("b"), span = document.createElement("span"), bar = document.createElement("i"), fill = document.createElement("em");
+    b.textContent = SUBJECTS[s].label;
+    span.textContent = `${r.working.size ? `${r.working.size} to learn${r.due.size ? ` (${r.due.size} due)` : ""}` : ""}${r.working.size && r.learned.size ? " · " : ""}${r.learned.size ? `${r.learned.size} learned` : ""} of ${SUBJECTS[s].total}`;
+    if (r.due.size) span.className = "due";
+    fill.style.width = `${Math.min(100, (r.learned.size / SUBJECTS[s].total) * 100).toFixed(1)}%`;
+    bar.appendChild(fill);
+    bar.title = `${r.learned.size} of ${SUBJECTS[s].total} learned`;
+    d.append(b, span, bar);
+    return d;
+  }));
 }
 const gapText = ms => (ms >= 86400000 ? `${Math.round(ms / 86400000)} day${ms >= 2 * 86400000 ? "s" : ""}` : ms >= 3600000 ? `${Math.round(ms / 3600000)} hours` : `${Math.round(ms / 60000)} min`);
 

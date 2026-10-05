@@ -16,8 +16,8 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
    is in them: `style.css`, `apps.js`, `pwa.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
    `rich.js`, `pics.js`, `tools/`, `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`,
-   `chart-geo.js`, `quote-bank.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`, `phil`, `rel`,
-   `refining` banks), and this file.
+   `chart-geo.js`, `quote-bank.js`, `kb-index.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`,
+   `phil`, `rel`, `refining` banks), and this file.
 3. **Pull before you push:** `git pull --rebase`. Never force-push, never rewrite `main`'s history: that is how one
    Claude silently deletes another's work.
 4. **Never commit `sw.js`.** It lists every file for offline play with a version from their contents, so every

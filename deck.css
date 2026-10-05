@@ -11,7 +11,17 @@
 .dk-piles b.due { color: var(--dk-in); }
 .dk-piles span { font-size: .72rem; color: var(--ink-soft); }
 .dk-piles small { display: block; font-size: .68rem; color: var(--ink-soft); }
-.dk-games { margin: .8rem 0; display: grid; gap: .3rem; }
+.dk-lists { margin: .8rem 0; }
+.dk-games { display: grid; gap: .3rem; }
+.dk-h { margin: .9rem 0 .35rem; font-size: .95rem; font-weight: 800; }
+/* coverage by subject: what you're working on and what you've learned, of how much the knowledge base holds */
+.dk-subjects { display: grid; gap: .25rem; }
+.dk-subjects div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .2rem .6rem; padding: .45rem .7rem; border-radius: 10px; background: var(--sheet); font-size: .9rem; }
+.dk-subjects b { font-weight: 800; }
+.dk-subjects span { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dk-subjects span.due { color: var(--dk-in); font-weight: 750; }
+.dk-subjects i { grid-column: 1 / -1; display: block; height: 5px; border-radius: 3px; background: var(--yard); overflow: hidden; font-style: normal; }
+.dk-subjects i em { display: block; height: 100%; background: var(--dk-in); }
 .dk-games div { display: flex; justify-content: space-between; padding: .5rem .7rem; border-radius: 10px; background: var(--sheet); font-size: .92rem; }
 .dk-games b { font-weight: 800; }
 .dk-games span.due { color: var(--dk-in); font-weight: 750; }
