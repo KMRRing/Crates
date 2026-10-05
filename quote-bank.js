@@ -1,8 +1,9 @@
 // Quote's bank: 175 numbers to make a market on, each with its truth, a scale and a note on the basis. Written
 // October 2026 and best checked against the sources; "about" means the figure is a rounded estimate. Fields: id;
 // cat (trade, cities, wine, art, people, geo, markets); q (the question); unit; truth; scale ("log": judged by
-// ratio, for magnitudes; or a number: the step that counts as one doubling, for years, percentages and the like);
-// note (shown after you quote).
+// ratio, for magnitudes; or a number: a step, for years, percentages, counts and the like); tol: the question's own
+// range for "close", a ratio for magnitudes (0.15 = ±15%) and units for steps (3 = ±3 years), which sets how the
+// payout falls off; note (shown after you quote).
 export const CATS = { trade: "Trade", cities: "Cities", wine: "Wine", art: "Art", people: "People", geo: "Geography", markets: "Markets" };
 export const QUOTES = [
 {
@@ -12,7 +13,8 @@ export const QUOTES = [
 "unit": "million barrels a day",
 "truth": 102,
 "scale": "log",
-"note": "About 102 million barrels a day in 2023 (IEA)."
+"note": "About 102 million barrels a day in 2023 (IEA).",
+"tol": 0.15
 },
 {
 "id": "tr-02",
@@ -21,7 +23,8 @@ export const QUOTES = [
 "unit": "$ billion",
 "truth": 121,
 "scale": "log",
-"note": "$121 billion in 2023, after a record $161 billion in 2022."
+"note": "$121 billion in 2023, after a record $161 billion in 2022.",
+"tol": 0.15
 },
 {
 "id": "tr-03",
@@ -30,7 +33,8 @@ export const QUOTES = [
 "unit": "$ a barrel",
 "truth": 147.5,
 "scale": "log",
-"note": "$147.50 intraday on 11 July 2008."
+"note": "$147.50 intraday on 11 July 2008.",
+"tol": 0.03
 },
 {
 "id": "tr-04",
@@ -39,7 +43,8 @@ export const QUOTES = [
 "unit": "million barrels",
 "truth": 2,
 "scale": "log",
-"note": "About 2 million barrels, roughly 300,000 tonnes deadweight."
+"note": "About 2 million barrels, roughly 300,000 tonnes deadweight.",
+"tol": 0.15
 },
 {
 "id": "tr-05",
@@ -48,7 +53,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 193,
 "scale": "log",
-"note": "193 km after the 2015 expansion."
+"note": "193 km after the 2015 expansion.",
+"tol": 0.05
 },
 {
 "id": "tr-06",
@@ -57,7 +63,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 400,
 "scale": "log",
-"note": "399.94 m, one of the largest container ships afloat."
+"note": "399.94 m, one of the largest container ships afloat.",
+"tol": 0.03
 },
 {
 "id": "tr-07",
@@ -66,7 +73,8 @@ export const QUOTES = [
 "unit": "million tonnes",
 "truth": 401,
 "scale": "log",
-"note": "About 401 million tonnes in 2023 (GIIGNL)."
+"note": "About 401 million tonnes in 2023 (GIIGNL).",
+"tol": 0.15
 },
 {
 "id": "tr-08",
@@ -75,7 +83,8 @@ export const QUOTES = [
 "unit": "million tonnes a year",
 "truth": 77,
 "scale": "log",
-"note": "77 million tonnes a year, heading for 126 with the North Field East and South projects."
+"note": "77 million tonnes a year, heading for 126 with the North Field East and South projects.",
+"tol": 0.15
 },
 {
 "id": "tr-09",
@@ -84,7 +93,8 @@ export const QUOTES = [
 "unit": "million barrels a day",
 "truth": 21,
 "scale": "log",
-"note": "About 21 million barrels a day in 2023 (EIA), roughly a fifth of world consumption."
+"note": "About 21 million barrels a day in 2023 (EIA), roughly a fifth of world consumption.",
+"tol": 0.15
 },
 {
 "id": "tr-10",
@@ -93,7 +103,8 @@ export const QUOTES = [
 "unit": "$ billion",
 "truth": 244,
 "scale": "log",
-"note": "$244 billion for the year to September 2023."
+"note": "$244 billion for the year to September 2023.",
+"tol": 0.15
 },
 {
 "id": "tr-11",
@@ -102,7 +113,8 @@ export const QUOTES = [
 "unit": "$ billion",
 "truth": 218,
 "scale": "log",
-"note": "$218 billion in 2023."
+"note": "$218 billion in 2023.",
+"tol": 0.15
 },
 {
 "id": "tr-12",
@@ -111,7 +123,8 @@ export const QUOTES = [
 "unit": "million barrels a day",
 "truth": 7.3,
 "scale": "log",
-"note": "About 7.3 million barrels a day in 2023."
+"note": "About 7.3 million barrels a day in 2023.",
+"tol": 0.15
 },
 {
 "id": "tr-13",
@@ -120,7 +133,8 @@ export const QUOTES = [
 "unit": "million tonnes",
 "truth": 180,
 "scale": "log",
-"note": "About 180 million tonnes (USDA)."
+"note": "About 180 million tonnes (USDA).",
+"tol": 0.15
 },
 {
 "id": "tr-14",
@@ -129,7 +143,8 @@ export const QUOTES = [
 "unit": "$ a tonne",
 "truth": 11104,
 "scale": "log",
-"note": "$11,104.50 a tonne on 20 May 2024."
+"note": "$11,104.50 a tonne on 20 May 2024.",
+"tol": 0.03
 },
 {
 "id": "tr-15",
@@ -138,7 +153,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2020,
 "scale": 25,
-"note": "August 2020."
+"note": "August 2020.",
+"tol": 1
 },
 {
 "id": "tr-16",
@@ -147,7 +163,8 @@ export const QUOTES = [
 "unit": "million tonnes",
 "truth": 4.9,
 "scale": "log",
-"note": "About 4.9 million tonnes (ICCO)."
+"note": "About 4.9 million tonnes (ICCO).",
+"tol": 0.15
 },
 {
 "id": "tr-17",
@@ -156,7 +173,8 @@ export const QUOTES = [
 "unit": "%",
 "truth": 40,
 "scale": 10,
-"note": "About 40%, the world's largest producer."
+"note": "About 40%, the world's largest producer.",
+"tol": 3
 },
 {
 "id": "tr-18",
@@ -165,7 +183,8 @@ export const QUOTES = [
 "unit": "million 60-kg bags",
 "truth": 66,
 "scale": "log",
-"note": "About 66 million bags (USDA)."
+"note": "About 66 million bags (USDA).",
+"tol": 0.15
 },
 {
 "id": "tr-19",
@@ -174,7 +193,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2023,
 "scale": 25,
-"note": "February 2023."
+"note": "February 2023.",
+"tol": 1
 },
 {
 "id": "tr-20",
@@ -183,7 +203,8 @@ export const QUOTES = [
 "unit": "kg per litre",
 "truth": 0.84,
 "scale": "log",
-"note": "About 0.84 kg per litre (EN 590 allows 0.820–0.845)."
+"note": "About 0.84 kg per litre (EN 590 allows 0.820–0.845).",
+"tol": 0.02
 },
 {
 "id": "tr-21",
@@ -192,7 +213,8 @@ export const QUOTES = [
 "unit": "barrels",
 "truth": 7.33,
 "scale": "log",
-"note": "About 7.33 barrels a tonne at a density of 0.86."
+"note": "About 7.33 barrels a tonne at a density of 0.86.",
+"tol": 0.03
 },
 {
 "id": "tr-22",
@@ -201,7 +223,8 @@ export const QUOTES = [
 "unit": "MJ per litre",
 "truth": 35.8,
 "scale": "log",
-"note": "About 35.8 MJ per litre; petrol is about 32."
+"note": "About 35.8 MJ per litre; petrol is about 32.",
+"tol": 0.04
 },
 {
 "id": "tr-23",
@@ -210,7 +233,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1960,
 "scale": 25,
-"note": "Baghdad, September 1960."
+"note": "Baghdad, September 1960.",
+"tol": 3
 },
 {
 "id": "tr-24",
@@ -219,7 +243,8 @@ export const QUOTES = [
 "unit": "million tonnes",
 "truth": 439,
 "scale": "log",
-"note": "438.8 million tonnes in 2023."
+"note": "438.8 million tonnes in 2023.",
+"tol": 0.15
 },
 {
 "id": "tr-25",
@@ -228,7 +253,8 @@ export const QUOTES = [
 "unit": "%",
 "truth": 67,
 "scale": 10,
-"note": "About 67%: ethanol holds roughly two thirds of petrol's energy by volume."
+"note": "About 67%: ethanol holds roughly two thirds of petrol's energy by volume.",
+"tol": 3
 },
 {
 "id": "tr-26",
@@ -237,7 +263,8 @@ export const QUOTES = [
 "unit": "%",
 "truth": 29,
 "scale": 5,
-"note": "29% by 2030, or a 14.5% cut in greenhouse-gas intensity."
+"note": "29% by 2030, or a 14.5% cut in greenhouse-gas intensity.",
+"tol": 3
 },
 {
 "id": "tr-27",
@@ -246,7 +273,8 @@ export const QUOTES = [
 "unit": "%",
 "truth": 25,
 "scale": 5,
-"note": "25% in 2030 under the BImSchG."
+"note": "25% in 2030 under the BImSchG.",
+"tol": 3
 },
 {
 "id": "tr-28",
@@ -255,7 +283,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1993,
 "scale": 25,
-"note": "1993, by Claude Dauphin and Eric de Turckheim."
+"note": "1993, by Claude Dauphin and Eric de Turckheim.",
+"tol": 2
 },
 {
 "id": "tr-29",
@@ -264,7 +293,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1974,
 "scale": 25,
-"note": "1974, in Zug."
+"note": "1974, in Zug.",
+"tol": 3
 },
 {
 "id": "tr-30",
@@ -273,7 +303,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1966,
 "scale": 25,
-"note": "1966, in Rotterdam."
+"note": "1966, in Rotterdam.",
+"tol": 4
 },
 {
 "id": "tr-31",
@@ -282,7 +313,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1865,
 "scale": 25,
-"note": "1865, in Conover, Iowa."
+"note": "1865, in Conover, Iowa.",
+"tol": 6
 },
 {
 "id": "tr-32",
@@ -291,7 +323,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1851,
 "scale": 25,
-"note": "1851, in Alsace."
+"note": "1851, in Alsace.",
+"tol": 6
 },
 {
 "id": "tr-33",
@@ -300,7 +333,8 @@ export const QUOTES = [
 "unit": "litres",
 "truth": 225,
 "scale": "log",
-"note": "225 litres; a Burgundy pièce holds 228."
+"note": "225 litres; a Burgundy pièce holds 228.",
+"tol": 0.03
 },
 {
 "id": "tr-34",
@@ -308,8 +342,9 @@ export const QUOTES = [
 "q": "Number of OPEC member countries in 2024",
 "unit": "countries",
 "truth": 12,
-"scale": "log",
-"note": "12 after Angola left at the start of 2024."
+"scale": 1,
+"note": "12 after Angola left at the start of 2024.",
+"tol": 1
 },
 {
 "id": "tr-35",
@@ -318,7 +353,8 @@ export const QUOTES = [
 "unit": "employees",
 "truth": 13000,
 "scale": "log",
-"note": "About 13,000 at the end of the 2023 financial year."
+"note": "About 13,000 at the end of the 2023 financial year.",
+"tol": 0.15
 },
 {
 "id": "ct-01",
@@ -327,7 +363,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 37,
 "scale": "log",
-"note": "About 37 million (UN urban agglomeration estimate, 2024)."
+"note": "About 37 million (UN urban agglomeration estimate, 2024).",
+"tol": 0.15
 },
 {
 "id": "ct-02",
@@ -336,7 +373,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 34,
 "scale": "log",
-"note": "About 34 million (UN estimate, 2024)."
+"note": "About 34 million (UN estimate, 2024).",
+"tol": 0.15
 },
 {
 "id": "ct-03",
@@ -345,7 +383,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 30,
 "scale": "log",
-"note": "About 30 million (UN estimate, 2024)."
+"note": "About 30 million (UN estimate, 2024).",
+"tol": 0.15
 },
 {
 "id": "ct-04",
@@ -354,7 +393,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 16.5,
 "scale": "log",
-"note": "About 16.5 million (UN estimate); Nigerian figures run higher."
+"note": "About 16.5 million (UN estimate); Nigerian figures run higher.",
+"tol": 0.15
 },
 {
 "id": "ct-05",
@@ -363,7 +403,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 22.5,
 "scale": "log",
-"note": "About 22.5 million (UN estimate, 2024)."
+"note": "About 22.5 million (UN estimate, 2024).",
+"tol": 0.15
 },
 {
 "id": "ct-06",
@@ -372,7 +413,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 8.8,
 "scale": "log",
-"note": "8.8 million in 2021."
+"note": "8.8 million in 2021.",
+"tol": 0.15
 },
 {
 "id": "ct-07",
@@ -381,7 +423,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 8.3,
 "scale": "log",
-"note": "About 8.3 million (2023 estimate)."
+"note": "About 8.3 million (2023 estimate).",
+"tol": 0.15
 },
 {
 "id": "ct-08",
@@ -390,7 +433,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 2.1,
 "scale": "log",
-"note": "About 2.1 million; the metropolitan area has over 12 million."
+"note": "About 2.1 million; the metropolitan area has over 12 million.",
+"tol": 0.15
 },
 {
 "id": "ct-09",
@@ -399,7 +443,8 @@ export const QUOTES = [
 "unit": "people",
 "truth": 204000,
 "scale": "log",
-"note": "About 204,000; the canton has about 520,000."
+"note": "About 204,000; the canton has about 520,000.",
+"tol": 0.1
 },
 {
 "id": "ct-10",
@@ -408,7 +453,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 3.8,
 "scale": "log",
-"note": "About 3.8 million."
+"note": "About 3.8 million.",
+"tol": 0.15
 },
 {
 "id": "ct-11",
@@ -417,7 +463,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 15.7,
 "scale": "log",
-"note": "About 15.7 million (TurkStat)."
+"note": "About 15.7 million (TurkStat).",
+"tol": 0.15
 },
 {
 "id": "ct-12",
@@ -426,7 +473,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 5.9,
 "scale": "log",
-"note": "About 5.9 million."
+"note": "About 5.9 million.",
+"tol": 0.15
 },
 {
 "id": "ct-13",
@@ -435,7 +483,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 3.6,
 "scale": "log",
-"note": "About 3.6 million."
+"note": "About 3.6 million.",
+"tol": 0.15
 },
 {
 "id": "ct-14",
@@ -444,7 +493,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 3640,
 "scale": "log",
-"note": "About 3,640 m, the highest capital in the world."
+"note": "About 3,640 m, the highest capital in the world.",
+"tol": 0.05
 },
 {
 "id": "ct-15",
@@ -453,7 +503,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 277,
 "scale": "log",
-"note": "About 277 km by the A1."
+"note": "About 277 km by the A1.",
+"tol": 0.08
 },
 {
 "id": "ct-16",
@@ -462,7 +513,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 632,
 "scale": "log",
-"note": "632 m, the tallest building in China."
+"note": "632 m, the tallest building in China.",
+"tol": 0.03
 },
 {
 "id": "ct-17",
@@ -471,7 +523,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 828,
 "scale": "log",
-"note": "828 m, the tallest building in the world since 2010."
+"note": "828 m, the tallest building in the world since 2010.",
+"tol": 0.02
 },
 {
 "id": "ct-18",
@@ -480,7 +533,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 2240,
 "scale": "log",
-"note": "About 2,240 m."
+"note": "About 2,240 m.",
+"tol": 0.05
 },
 {
 "id": "ct-19",
@@ -489,7 +543,8 @@ export const QUOTES = [
 "unit": "people",
 "truth": 455000,
 "scale": "log",
-"note": "About 455,000."
+"note": "About 455,000.",
+"tol": 0.1
 },
 {
 "id": "ct-20",
@@ -498,7 +553,8 @@ export const QUOTES = [
 "unit": "people",
 "truth": 49000,
 "scale": "log",
-"note": "About 49,000, below 50,000 since 2022."
+"note": "About 49,000, below 50,000 since 2022.",
+"tol": 0.15
 },
 {
 "id": "ct-21",
@@ -507,7 +563,8 @@ export const QUOTES = [
 "unit": "degrees north",
 "truth": 31.2,
 "scale": 5,
-"note": "About 31.2°N, about the same as Cairo and New Orleans."
+"note": "About 31.2°N, about the same as Cairo and New Orleans.",
+"tol": 2
 },
 {
 "id": "ct-22",
@@ -516,7 +573,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 1.37,
 "scale": "log",
-"note": "About 1.37 million."
+"note": "About 1.37 million.",
+"tol": 0.05
 },
 {
 "id": "ct-23",
@@ -525,7 +583,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 8.9,
 "scale": "log",
-"note": "About 8.9 million."
+"note": "About 8.9 million.",
+"tol": 0.05
 },
 {
 "id": "ct-24",
@@ -534,7 +593,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 22.6,
 "scale": "log",
-"note": "About 22.6 million (UN estimate, 2024)."
+"note": "About 22.6 million (UN estimate, 2024).",
+"tol": 0.15
 },
 {
 "id": "ct-25",
@@ -543,7 +603,8 @@ export const QUOTES = [
 "unit": "km²",
 "truth": 41285,
 "scale": "log",
-"note": "41,285 km²."
+"note": "41,285 km².",
+"tol": 0.03
 },
 {
 "id": "ct-26",
@@ -552,7 +613,8 @@ export const QUOTES = [
 "unit": "km²",
 "truth": 580,
 "scale": "log",
-"note": "About 580 km², the largest lake in the Alps."
+"note": "About 580 km², the largest lake in the Alps.",
+"tol": 0.1
 },
 {
 "id": "ct-27",
@@ -560,8 +622,9 @@ export const QUOTES = [
 "q": "Number of metro lines in Shanghai in 2024",
 "unit": "lines",
 "truth": 19,
-"scale": "log",
-"note": "19 lines, the world's longest metro network by route length."
+"scale": 1,
+"note": "19 lines, the world's longest metro network by route length.",
+"tol": 1
 },
 {
 "id": "ct-28",
@@ -570,7 +633,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 4806,
 "scale": "log",
-"note": "4,806 m (4,805.59 m at the 2023 survey)."
+"note": "4,806 m (4,805.59 m at the 2023 survey).",
+"tol": 0.01
 },
 {
 "id": "wn-01",
@@ -579,7 +643,8 @@ export const QUOTES = [
 "unit": "$",
 "truth": 558000,
 "scale": "log",
-"note": "$558,000 in New York, October 2018."
+"note": "$558,000 in New York, October 2018.",
+"tol": 0.15
 },
 {
 "id": "wn-02",
@@ -588,7 +653,8 @@ export const QUOTES = [
 "unit": "million bottles",
 "truth": 299,
 "scale": "log",
-"note": "About 299 million (Comité Champagne), down from 326 million in 2022."
+"note": "About 299 million (Comité Champagne), down from 326 million in 2022.",
+"tol": 0.1
 },
 {
 "id": "wn-03",
@@ -597,7 +663,8 @@ export const QUOTES = [
 "unit": "litres",
 "truth": 15,
 "scale": "log",
-"note": "15 litres, twenty standard bottles."
+"note": "15 litres, twenty standard bottles.",
+"tol": 0.1
 },
 {
 "id": "wn-04",
@@ -606,7 +673,8 @@ export const QUOTES = [
 "unit": "litres",
 "truth": 6,
 "scale": "log",
-"note": "6 litres, eight standard bottles."
+"note": "6 litres, eight standard bottles.",
+"tol": 0.1
 },
 {
 "id": "wn-05",
@@ -615,7 +683,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1855,
 "scale": 25,
-"note": "1855, for the Paris Exposition Universelle."
+"note": "1855, for the Paris Exposition Universelle.",
+"tol": 4
 },
 {
 "id": "wn-06",
@@ -623,8 +692,9 @@ export const QUOTES = [
 "q": "Number of First Growths in the Médoc classification today",
 "unit": "châteaux",
 "truth": 5,
-"scale": "log",
-"note": "Five: Lafite, Latour, Margaux, Haut-Brion and, since 1973, Mouton Rothschild."
+"scale": 1,
+"note": "Five: Lafite, Latour, Margaux, Haut-Brion and, since 1973, Mouton Rothschild.",
+"tol": 0.5
 },
 {
 "id": "wn-07",
@@ -633,7 +703,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1973,
 "scale": 25,
-"note": "1973, the only change ever made to the 1855 classification."
+"note": "1973, the only change ever made to the 1855 classification.",
+"tol": 3
 },
 {
 "id": "wn-08",
@@ -642,7 +713,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1976,
 "scale": 25,
-"note": "1976, organised by Steven Spurrier."
+"note": "1976, organised by Steven Spurrier.",
+"tol": 3
 },
 {
 "id": "wn-09",
@@ -651,7 +723,8 @@ export const QUOTES = [
 "unit": "hectares",
 "truth": 1.8,
 "scale": "log",
-"note": "1.81 hectares, producing around 5,000 bottles a year."
+"note": "1.81 hectares, producing around 5,000 bottles a year.",
+"tol": 0.1
 },
 {
 "id": "wn-10",
@@ -660,7 +733,8 @@ export const QUOTES = [
 "unit": "million hectolitres",
 "truth": 237,
 "scale": "log",
-"note": "About 237 million hectolitres (OIV), the smallest since 1961."
+"note": "About 237 million hectolitres (OIV), the smallest since 1961.",
+"tol": 0.08
 },
 {
 "id": "wn-11",
@@ -669,7 +743,8 @@ export const QUOTES = [
 "unit": "million hectolitres",
 "truth": 48,
 "scale": "log",
-"note": "About 48 million hectolitres, the most of any country that year."
+"note": "About 48 million hectolitres, the most of any country that year.",
+"tol": 0.12
 },
 {
 "id": "wn-12",
@@ -677,8 +752,9 @@ export const QUOTES = [
 "q": "Number of Grand Cru vineyards in Burgundy",
 "unit": "vineyards",
 "truth": 33,
-"scale": "log",
-"note": "33, including Chablis Grand Cru."
+"scale": 1,
+"note": "33, including Chablis Grand Cru.",
+"tol": 2
 },
 {
 "id": "wn-13",
@@ -687,7 +763,8 @@ export const QUOTES = [
 "unit": "% ABV",
 "truth": 12.5,
 "scale": 1,
-"note": "About 12.5%."
+"note": "About 12.5%.",
+"tol": 0.5
 },
 {
 "id": "wn-14",
@@ -696,7 +773,8 @@ export const QUOTES = [
 "unit": "% ABV",
 "truth": 20,
 "scale": 2,
-"note": "About 20%, fortified with grape spirit."
+"note": "About 20%, fortified with grape spirit.",
+"tol": 0.5
 },
 {
 "id": "wn-15",
@@ -705,7 +783,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1981,
 "scale": 25,
-"note": "1981, California's first AVA."
+"note": "1981, California's first AVA.",
+"tol": 3
 },
 {
 "id": "wn-16",
@@ -714,7 +793,8 @@ export const QUOTES = [
 "unit": "degrees",
 "truth": 65,
 "scale": 5,
-"note": "About 65 degrees."
+"note": "About 65 degrees.",
+"tol": 5
 },
 {
 "id": "wn-17",
@@ -723,7 +803,8 @@ export const QUOTES = [
 "unit": "%",
 "truth": 38,
 "scale": 10,
-"note": "About 38%, with Meunier and Chardonnay about 31% each."
+"note": "About 38%, with Meunier and Chardonnay about 31% each.",
+"tol": 3
 },
 {
 "id": "wn-18",
@@ -732,7 +813,8 @@ export const QUOTES = [
 "unit": "bottles",
 "truth": 30000,
 "scale": "log",
-"note": "Roughly 30,000 bottles from about 11.5 hectares."
+"note": "Roughly 30,000 bottles from about 11.5 hectares.",
+"tol": 0.4
 },
 {
 "id": "wn-19",
@@ -741,7 +823,8 @@ export const QUOTES = [
 "unit": "hectares",
 "truth": 110000,
 "scale": "log",
-"note": "About 110,000 hectares, before the grubbing-up schemes of 2023–24."
+"note": "About 110,000 hectares, before the grubbing-up schemes of 2023–24.",
+"tol": 0.15
 },
 {
 "id": "wn-20",
@@ -749,8 +832,9 @@ export const QUOTES = [
 "q": "Number of standard bottles in a case",
 "unit": "bottles",
 "truth": 12,
-"scale": "log",
-"note": "12 bottles of 75 cl: 9 litres."
+"scale": 1,
+"note": "12 bottles of 75 cl: 9 litres.",
+"tol": 0.5
 },
 {
 "id": "wn-21",
@@ -759,7 +843,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1985,
 "scale": 25,
-"note": "1985."
+"note": "1985.",
+"tol": 4
 },
 {
 "id": "wn-22",
@@ -768,7 +853,8 @@ export const QUOTES = [
 "unit": "thousand hectares",
 "truth": 720,
 "scale": "log",
-"note": "About 720,000 hectares (OIV), second to Spain."
+"note": "About 720,000 hectares (OIV), second to Spain.",
+"tol": 0.2
 },
 {
 "id": "wn-23",
@@ -777,7 +863,8 @@ export const QUOTES = [
 "unit": "thousand hectares",
 "truth": 930,
 "scale": "log",
-"note": "About 930,000 hectares (OIV)."
+"note": "About 930,000 hectares (OIV).",
+"tol": 0.2
 },
 {
 "id": "ar-01",
@@ -786,7 +873,8 @@ export const QUOTES = [
 "unit": "$ million",
 "truth": 450.3,
 "scale": "log",
-"note": "$450.3 million, November 2017."
+"note": "$450.3 million, November 2017.",
+"tol": 0.05
 },
 {
 "id": "ar-02",
@@ -795,7 +883,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1937,
 "scale": 25,
-"note": "1937, after the bombing of Guernica in April that year."
+"note": "1937, after the bombing of Guernica in April that year.",
+"tol": 2
 },
 {
 "id": "ar-03",
@@ -804,7 +893,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 7.77,
 "scale": "log",
-"note": "3.49 m by 7.77 m."
+"note": "3.49 m by 7.77 m.",
+"tol": 0.05
 },
 {
 "id": "ar-04",
@@ -813,7 +903,8 @@ export const QUOTES = [
 "unit": "cm",
 "truth": 77,
 "scale": "log",
-"note": "77 cm by 53 cm: smaller than most people expect."
+"note": "77 cm by 53 cm: smaller than most people expect.",
+"tol": 0.06
 },
 {
 "id": "ar-05",
@@ -822,7 +913,8 @@ export const QUOTES = [
 "unit": "million",
 "truth": 8.9,
 "scale": "log",
-"note": "About 8.9 million, the most visited museum in the world."
+"note": "About 8.9 million, the most visited museum in the world.",
+"tol": 0.2
 },
 {
 "id": "ar-06",
@@ -831,7 +923,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1793,
 "scale": 25,
-"note": "1793, during the Revolution."
+"note": "1793, during the Revolution.",
+"tol": 5
 },
 {
 "id": "ar-07",
@@ -839,8 +932,9 @@ export const QUOTES = [
 "q": "Number of paintings Van Gogh is usually said to have sold in his lifetime",
 "unit": "paintings",
 "truth": 1,
-"scale": "log",
-"note": "One, The Red Vineyard, in 1890; the count is debated but this is the usual answer."
+"scale": 1,
+"note": "One, The Red Vineyard, in 1890; the count is debated but this is the usual answer.",
+"tol": 0.5
 },
 {
 "id": "ar-08",
@@ -849,7 +943,8 @@ export const QUOTES = [
 "unit": "works",
 "truth": 50000,
 "scale": "log",
-"note": "Around 50,000, including paintings, drawings, prints, ceramics and sculpture."
+"note": "Around 50,000, including paintings, drawings, prints, ceramics and sculpture.",
+"tol": 0.4
 },
 {
 "id": "ar-09",
@@ -858,7 +953,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1895,
 "scale": 25,
-"note": "1895."
+"note": "1895.",
+"tol": 4
 },
 {
 "id": "ar-10",
@@ -867,7 +963,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 5.17,
 "scale": "log",
-"note": "5.17 m, without the plinth."
+"note": "5.17 m, without the plinth.",
+"tol": 0.05
 },
 {
 "id": "ar-11",
@@ -876,7 +973,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1512,
 "scale": 25,
-"note": "1512, begun in 1508."
+"note": "1512, begun in 1508.",
+"tol": 6
 },
 {
 "id": "ar-12",
@@ -885,7 +983,8 @@ export const QUOTES = [
 "unit": "$ million",
 "truth": 91.1,
 "scale": "log",
-"note": "$91.1 million at Christie's, May 2019."
+"note": "$91.1 million at Christie's, May 2019.",
+"tol": 0.08
 },
 {
 "id": "ar-13",
@@ -894,7 +993,8 @@ export const QUOTES = [
 "unit": "£ million",
 "truth": 18.6,
 "scale": "log",
-"note": "£18.6 million at Sotheby's, October 2021."
+"note": "£18.6 million at Sotheby's, October 2021.",
+"tol": 0.1
 },
 {
 "id": "ar-14",
@@ -903,7 +1003,8 @@ export const QUOTES = [
 "unit": "cm",
 "truth": 437,
 "scale": "log",
-"note": "363 cm by 437 cm."
+"note": "363 cm by 437 cm.",
+"tol": 0.06
 },
 {
 "id": "ar-15",
@@ -912,7 +1013,8 @@ export const QUOTES = [
 "unit": "$ million",
 "truth": 86.9,
 "scale": "log",
-"note": "$86.9 million at Christie's, May 2012."
+"note": "$86.9 million at Christie's, May 2012.",
+"tol": 0.08
 },
 {
 "id": "ar-16",
@@ -921,7 +1023,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1889,
 "scale": 25,
-"note": "1889, at the asylum in Saint-Rémy."
+"note": "1889, at the asylum in Saint-Rémy.",
+"tol": 2
 },
 {
 "id": "ar-17",
@@ -929,8 +1032,9 @@ export const QUOTES = [
 "q": "Number of paintings generally attributed to Vermeer",
 "unit": "paintings",
 "truth": 35,
-"scale": "log",
-"note": "About 35, depending on which attributions you accept."
+"scale": 1,
+"note": "About 35, depending on which attributions you accept.",
+"tol": 2
 },
 {
 "id": "ar-18",
@@ -939,7 +1043,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2000,
 "scale": 25,
-"note": "2000, in the former Bankside power station."
+"note": "2000, in the former Bankside power station.",
+"tol": 1
 },
 {
 "id": "ar-19",
@@ -948,7 +1053,8 @@ export const QUOTES = [
 "unit": "$ million",
 "truth": 119.9,
 "scale": "log",
-"note": "$119.9 million at Sotheby's, May 2012."
+"note": "$119.9 million at Sotheby's, May 2012.",
+"tol": 0.08
 },
 {
 "id": "ar-20",
@@ -957,7 +1063,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 46,
 "scale": "log",
-"note": "46 m; 93 m including the pedestal."
+"note": "46 m; 93 m including the pedestal.",
+"tol": 0.08
 },
 {
 "id": "ar-21",
@@ -966,7 +1073,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1831,
 "scale": 25,
-"note": "About 1831, in Thirty-six Views of Mount Fuji."
+"note": "About 1831, in Thirty-six Views of Mount Fuji.",
+"tol": 6
 },
 {
 "id": "ar-22",
@@ -975,7 +1083,8 @@ export const QUOTES = [
 "unit": "£ million",
 "truth": 85.3,
 "scale": "log",
-"note": "£85.3 million at Sotheby's London, June 2023."
+"note": "£85.3 million at Sotheby's London, June 2023.",
+"tol": 0.08
 },
 {
 "id": "ar-23",
@@ -984,7 +1093,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 17000,
 "scale": "log",
-"note": "About 17,000 years."
+"note": "About 17,000 years.",
+"tol": 0.2
 },
 {
 "id": "ar-24",
@@ -993,7 +1103,8 @@ export const QUOTES = [
 "unit": "$ million",
 "truth": 110.5,
 "scale": "log",
-"note": "$110.5 million at Sotheby's, May 2017."
+"note": "$110.5 million at Sotheby's, May 2017.",
+"tol": 0.08
 },
 {
 "id": "ar-25",
@@ -1002,7 +1113,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1519,
 "scale": 25,
-"note": "1519, at Amboise in France."
+"note": "1519, at Amboise in France.",
+"tol": 6
 },
 {
 "id": "ar-26",
@@ -1010,8 +1122,9 @@ export const QUOTES = [
 "q": "Number of Vermeer paintings shown at the Rijksmuseum's 2023 exhibition, the largest ever",
 "unit": "paintings",
 "truth": 28,
-"scale": "log",
-"note": "28 of the roughly 35 known."
+"scale": 1,
+"note": "28 of the roughly 35 known.",
+"tol": 2
 },
 {
 "id": "pp-01",
@@ -1020,7 +1133,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 96,
 "scale": 10,
-"note": "Born 30 August 1930."
+"note": "Born 30 August 1930.",
+"tol": 2
 },
 {
 "id": "pp-02",
@@ -1029,7 +1143,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 32,
 "scale": 10,
-"note": "32, in Babylon in 323 BC."
+"note": "32, in Babylon in 323 BC.",
+"tol": 2
 },
 {
 "id": "pp-03",
@@ -1038,7 +1153,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1905,
 "scale": 25,
-"note": "1905."
+"note": "1905.",
+"tol": 2
 },
 {
 "id": "pp-04",
@@ -1046,8 +1162,9 @@ export const QUOTES = [
 "q": "Number of Nobel Prizes won by Marie Curie",
 "unit": "prizes",
 "truth": 2,
-"scale": "log",
-"note": "Two: physics in 1903 and chemistry in 1911."
+"scale": 1,
+"note": "Two: physics in 1903 and chemistry in 1911.",
+"tol": 0.5
 },
 {
 "id": "pp-05",
@@ -1055,8 +1172,9 @@ export const QUOTES = [
 "q": "Number of children Johann Sebastian Bach had",
 "unit": "children",
 "truth": 20,
-"scale": "log",
-"note": "20, from two marriages; ten survived to adulthood."
+"scale": 1,
+"note": "20, from two marriages; ten survived to adulthood.",
+"tol": 2
 },
 {
 "id": "pp-06",
@@ -1065,7 +1183,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 35,
 "scale": 10,
-"note": "35, in December 1791."
+"note": "35, in December 1791.",
+"tol": 2
 },
 {
 "id": "pp-07",
@@ -1073,8 +1192,9 @@ export const QUOTES = [
 "q": "Number of symphonies Beethoven completed",
 "unit": "symphonies",
 "truth": 9,
-"scale": "log",
-"note": "Nine."
+"scale": 1,
+"note": "Nine.",
+"tol": 0.5
 },
 {
 "id": "pp-08",
@@ -1083,7 +1203,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 70,
 "scale": 10,
-"note": "70 years, from 1952 to 2022."
+"note": "70 years, from 1952 to 2022.",
+"tol": 2
 },
 {
 "id": "pp-09",
@@ -1092,7 +1213,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1874,
 "scale": 25,
-"note": "1874, at Blenheim Palace."
+"note": "1874, at Blenheim Palace.",
+"tol": 4
 },
 {
 "id": "pp-10",
@@ -1101,7 +1223,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 17,
 "scale": 10,
-"note": "17, in 2014."
+"note": "17, in 2014.",
+"tol": 2
 },
 {
 "id": "pp-11",
@@ -1110,7 +1233,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1498,
 "scale": 25,
-"note": "1498, landing at Calicut."
+"note": "1498, landing at Calicut.",
+"tol": 8
 },
 {
 "id": "pp-12",
@@ -1119,7 +1243,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1522,
 "scale": 25,
-"note": "1522, under Elcano; Magellan had died in the Philippines in 1521."
+"note": "1522, under Elcano; Magellan had died in the Philippines in 1521.",
+"tol": 8
 },
 {
 "id": "pp-13",
@@ -1127,8 +1252,9 @@ export const QUOTES = [
 "q": "Number of plays usually credited to Shakespeare",
 "unit": "plays",
 "truth": 37,
-"scale": "log",
-"note": "37 by the usual count; some say 38 or 39."
+"scale": 1,
+"note": "37 by the usual count; some say 38 or 39.",
+"tol": 1
 },
 {
 "id": "pp-14",
@@ -1137,7 +1263,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 56,
 "scale": 10,
-"note": "56, in 2011."
+"note": "56, in 2011.",
+"tol": 2
 },
 {
 "id": "pp-15",
@@ -1146,7 +1273,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2002,
 "scale": 25,
-"note": "2002; he stepped down in 2021."
+"note": "2002; he stepped down in 2021.",
+"tol": 2
 },
 {
 "id": "pp-16",
@@ -1155,7 +1283,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2014,
 "scale": 25,
-"note": "2014."
+"note": "2014.",
+"tol": 2
 },
 {
 "id": "pp-17",
@@ -1164,7 +1293,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 63,
 "scale": 10,
-"note": "63, in 1669."
+"note": "63, in 1669.",
+"tol": 2
 },
 {
 "id": "pp-18",
@@ -1173,7 +1303,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1971,
 "scale": 25,
-"note": "1971, in Pretoria."
+"note": "1971, in Pretoria.",
+"tol": 2
 },
 {
 "id": "pp-19",
@@ -1182,7 +1313,8 @@ export const QUOTES = [
 "unit": "million men",
 "truth": 16,
 "scale": "log",
-"note": "About 16 million men carry the Y-chromosome lineage, about 0.5% of men worldwide."
+"note": "About 16 million men carry the Y-chromosome lineage, about 0.5% of men worldwide.",
+"tol": 0.3
 },
 {
 "id": "pp-20",
@@ -1191,7 +1323,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 51,
 "scale": 10,
-"note": "51, on Saint Helena in 1821."
+"note": "51, on Saint Helena in 1821.",
+"tol": 2
 },
 {
 "id": "pp-21",
@@ -1200,7 +1333,8 @@ export const QUOTES = [
 "unit": "million Swedish kronor",
 "truth": 11,
 "scale": "log",
-"note": "11 million kronor, about $1 million."
+"note": "11 million kronor, about $1 million.",
+"tol": 0.1
 },
 {
 "id": "pp-22",
@@ -1209,7 +1343,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1867,
 "scale": 25,
-"note": "1867, in Warsaw."
+"note": "1867, in Warsaw.",
+"tol": 4
 },
 {
 "id": "pp-23",
@@ -1218,7 +1353,8 @@ export const QUOTES = [
 "unit": "years",
 "truth": 91,
 "scale": 10,
-"note": "91, in 1973."
+"note": "91, in 1973.",
+"tol": 2
 },
 {
 "id": "ge-01",
@@ -1227,7 +1363,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 8849,
 "scale": "log",
-"note": "8,848.86 m by the 2020 survey."
+"note": "8,848.86 m by the 2020 survey.",
+"tol": 0.01
 },
 {
 "id": "ge-02",
@@ -1236,7 +1373,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 6650,
 "scale": "log",
-"note": "About 6,650 km."
+"note": "About 6,650 km.",
+"tol": 0.05
 },
 {
 "id": "ge-03",
@@ -1245,7 +1383,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 40075,
 "scale": "log",
-"note": "40,075 km."
+"note": "40,075 km.",
+"tol": 0.01
 },
 {
 "id": "ge-04",
@@ -1254,7 +1393,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 384400,
 "scale": "log",
-"note": "384,400 km."
+"note": "384,400 km.",
+"tol": 0.02
 },
 {
 "id": "ge-05",
@@ -1263,7 +1403,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 10935,
 "scale": "log",
-"note": "About 10,935 m."
+"note": "About 10,935 m.",
+"tol": 0.03
 },
 {
 "id": "ge-06",
@@ -1272,7 +1413,8 @@ export const QUOTES = [
 "unit": "metres a second",
 "truth": 343,
 "scale": "log",
-"note": "343 m/s at 20 °C."
+"note": "343 m/s at 20 °C.",
+"tol": 0.03
 },
 {
 "id": "ge-07",
@@ -1280,8 +1422,9 @@ export const QUOTES = [
 "q": "Number of member states of the United Nations",
 "unit": "countries",
 "truth": 193,
-"scale": "log",
-"note": "193."
+"scale": 1,
+"note": "193.",
+"tol": 2
 },
 {
 "id": "ge-08",
@@ -1289,8 +1432,9 @@ export const QUOTES = [
 "q": "Number of member states of the European Union",
 "unit": "countries",
 "truth": 27,
-"scale": "log",
-"note": "27 since the UK left in 2020."
+"scale": 1,
+"note": "27 since the UK left in 2020.",
+"tol": 1
 },
 {
 "id": "ge-09",
@@ -1299,7 +1443,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 1233,
 "scale": "log",
-"note": "About 1,233 km."
+"note": "About 1,233 km.",
+"tol": 0.08
 },
 {
 "id": "ge-10",
@@ -1308,7 +1453,8 @@ export const QUOTES = [
 "unit": "million km²",
 "truth": 9.2,
 "scale": "log",
-"note": "About 9.2 million km², roughly the size of China."
+"note": "About 9.2 million km², roughly the size of China.",
+"tol": 0.06
 },
 {
 "id": "ge-11",
@@ -1317,7 +1463,8 @@ export const QUOTES = [
 "unit": "thousand cubic metres a second",
 "truth": 209,
 "scale": "log",
-"note": "About 209,000 m³/s, about a fifth of all river water reaching the oceans."
+"note": "About 209,000 m³/s, about a fifth of all river water reaching the oceans.",
+"tol": 0.06
 },
 {
 "id": "ge-12",
@@ -1326,7 +1473,8 @@ export const QUOTES = [
 "unit": "°C",
 "truth": 71,
 "scale": 10,
-"note": "About 71 °C."
+"note": "About 71 °C.",
+"tol": 3
 },
 {
 "id": "ge-13",
@@ -1335,7 +1483,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 82,
 "scale": "log",
-"note": "About 82 km."
+"note": "About 82 km.",
+"tol": 0.06
 },
 {
 "id": "ge-14",
@@ -1344,7 +1493,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 9000,
 "scale": "log",
-"note": "About 9,000 km."
+"note": "About 9,000 km.",
+"tol": 0.06
 },
 {
 "id": "ge-15",
@@ -1353,7 +1503,8 @@ export const QUOTES = [
 "unit": "km²",
 "truth": 45339,
 "scale": "log",
-"note": "45,339 km²."
+"note": "45,339 km².",
+"tol": 0.05
 },
 {
 "id": "ge-16",
@@ -1362,7 +1513,8 @@ export const QUOTES = [
 "unit": "km",
 "truth": 21196,
 "scale": "log",
-"note": "21,196 km in the 2012 survey."
+"note": "21,196 km in the 2012 survey.",
+"tol": 0.1
 },
 {
 "id": "ge-17",
@@ -1371,7 +1523,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 330,
 "scale": "log",
-"note": "330 m with its antennas."
+"note": "330 m with its antennas.",
+"tol": 0.02
 },
 {
 "id": "ge-18",
@@ -1380,7 +1533,8 @@ export const QUOTES = [
 "unit": "km²",
 "truth": 31722,
 "scale": "log",
-"note": "31,722 km², holding about a fifth of the world's unfrozen fresh water."
+"note": "31,722 km², holding about a fifth of the world's unfrozen fresh water.",
+"tol": 0.1
 },
 {
 "id": "ge-19",
@@ -1389,7 +1543,8 @@ export const QUOTES = [
 "unit": "metres",
 "truth": 310,
 "scale": "log",
-"note": "About 310 m."
+"note": "About 310 m.",
+"tol": 0.06
 },
 {
 "id": "ge-20",
@@ -1398,7 +1553,8 @@ export const QUOTES = [
 "unit": "billion years",
 "truth": 13.8,
 "scale": "log",
-"note": "About 13.8 billion years."
+"note": "About 13.8 billion years.",
+"tol": 0.03
 },
 {
 "id": "mk-01",
@@ -1407,7 +1563,8 @@ export const QUOTES = [
 "unit": "$ trillion",
 "truth": 27.4,
 "scale": "log",
-"note": "About $27.4 trillion."
+"note": "About $27.4 trillion.",
+"tol": 0.06
 },
 {
 "id": "mk-02",
@@ -1416,7 +1573,8 @@ export const QUOTES = [
 "unit": "$ trillion",
 "truth": 17.8,
 "scale": "log",
-"note": "About $17.8 trillion."
+"note": "About $17.8 trillion.",
+"tol": 0.08
 },
 {
 "id": "mk-03",
@@ -1425,7 +1583,8 @@ export const QUOTES = [
 "unit": "$ trillion",
 "truth": 4.5,
 "scale": "log",
-"note": "About $4.5 trillion, the third largest in the world that year."
+"note": "About $4.5 trillion, the third largest in the world that year.",
+"tol": 0.08
 },
 {
 "id": "mk-04",
@@ -1434,7 +1593,8 @@ export const QUOTES = [
 "unit": "$ billion",
 "truth": 885,
 "scale": "log",
-"note": "About $885 billion."
+"note": "About $885 billion.",
+"tol": 0.1
 },
 {
 "id": "mk-05",
@@ -1443,7 +1603,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2023,
 "scale": 25,
-"note": "June 2023 (it had touched $3 trillion in trading in January 2022)."
+"note": "June 2023 (it had touched $3 trillion in trading in January 2022).",
+"tol": 1
 },
 {
 "id": "mk-06",
@@ -1452,7 +1613,8 @@ export const QUOTES = [
 "unit": "points",
 "truth": 4770,
 "scale": "log",
-"note": "4,769.83 on 29 December 2023."
+"note": "4,769.83 on 29 December 2023.",
+"tol": 0.03
 },
 {
 "id": "mk-07",
@@ -1461,7 +1623,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2024,
 "scale": 25,
-"note": "July 2024."
+"note": "July 2024.",
+"tol": 1
 },
 {
 "id": "mk-08",
@@ -1470,7 +1633,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2022,
 "scale": 25,
-"note": "March 2022."
+"note": "March 2022.",
+"tol": 1
 },
 {
 "id": "mk-09",
@@ -1479,7 +1643,8 @@ export const QUOTES = [
 "unit": "£ an hour",
 "truth": 11.44,
 "scale": "log",
-"note": "£11.44 an hour."
+"note": "£11.44 an hour.",
+"tol": 0.03
 },
 {
 "id": "mk-10",
@@ -1488,7 +1653,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2002,
 "scale": 25,
-"note": "1 January 2002."
+"note": "1 January 2002.",
+"tol": 1
 },
 {
 "id": "mk-11",
@@ -1497,7 +1663,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1987,
 "scale": 25,
-"note": "19 October 1987: the Dow fell 22.6%."
+"note": "19 October 1987: the Dow fell 22.6%.",
+"tol": 1
 },
 {
 "id": "mk-12",
@@ -1506,7 +1673,8 @@ export const QUOTES = [
 "unit": "%",
 "truth": 22.6,
 "scale": 10,
-"note": "22.6% in one day."
+"note": "22.6% in one day.",
+"tol": 3
 },
 {
 "id": "mk-13",
@@ -1515,7 +1683,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2008,
 "scale": 25,
-"note": "15 September 2008."
+"note": "15 September 2008.",
+"tol": 1
 },
 {
 "id": "mk-14",
@@ -1523,8 +1692,9 @@ export const QUOTES = [
 "q": "Number of companies in the Swiss Market Index (SMI)",
 "unit": "companies",
 "truth": 20,
-"scale": "log",
-"note": "20."
+"scale": 1,
+"note": "20.",
+"tol": 1
 },
 {
 "id": "mk-15",
@@ -1532,8 +1702,9 @@ export const QUOTES = [
 "q": "Number of companies in the FTSE 100",
 "unit": "companies",
 "truth": 100,
-"scale": "log",
-"note": "100, as the name says."
+"scale": 1,
+"note": "100, as the name says.",
+"tol": 0.5
 },
 {
 "id": "mk-16",
@@ -1542,7 +1713,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2015,
 "scale": 25,
-"note": "15 January 2015."
+"note": "15 January 2015.",
+"tol": 1
 },
 {
 "id": "mk-17",
@@ -1551,7 +1723,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 2009,
 "scale": 25,
-"note": "January 2009."
+"note": "January 2009.",
+"tol": 1
 },
 {
 "id": "mk-18",
@@ -1560,7 +1733,8 @@ export const QUOTES = [
 "unit": "people",
 "truth": 215,
 "scale": "log",
-"note": "About 215 people per km²."
+"note": "About 215 people per km².",
+"tol": 0.1
 },
 {
 "id": "mk-19",
@@ -1569,7 +1743,8 @@ export const QUOTES = [
 "unit": "year",
 "truth": 1990,
 "scale": 25,
-"note": "1990."
+"note": "1990.",
+"tol": 2
 },
 {
 "id": "mk-20",
@@ -1578,6 +1753,7 @@ export const QUOTES = [
 "unit": "%",
 "truth": 250,
 "scale": 25,
-"note": "About 250%, the highest of any major economy."
+"note": "About 250%, the highest of any major economy.",
+"tol": 3
 }
 ];

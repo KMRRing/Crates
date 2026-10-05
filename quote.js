@@ -1,7 +1,7 @@
 // Quote: ten numbers, a two-sided market on each. The engine (quote-engine.js) settles a market; this file runs
 // the set, draws the card and the tape, and keeps bests. Together, the room holds the set and you alternate: one
 // makes the market, the other hits it, lifts it or passes (together.js).
-import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt } from "./quote-engine.js";
+import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, rangeText } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -107,7 +107,7 @@ function render() {
   $("widths").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
-  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;
+  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · close means ${rangeText(q)}`;
   const entry = S.log[S.index];
   $("bid").value = entry ? fmt(entry.bid, q) : "";
   $("ask").value = entry ? fmt(entry.ask, q) : "";
@@ -139,7 +139,7 @@ function drawWidths(q) {
   const box = $("widths");
   box.replaceChildren();
   const log = q.scale === "log";
-  const steps = log ? [0.05, 0.1, 0.25, 0.5] : [0.08, 0.2, 0.4, 1].map(x => nice(x * q.scale));
+  const steps = [0.5, 1, 2, 4].map(k => (log ? q.tol * k : nice(q.tol * k)));
   for (const w of steps) {
     const b = document.createElement("button");
     b.type = "button";
@@ -157,7 +157,7 @@ function drawWidths(q) {
     box.appendChild(b);
   }
 }
-const nice = x => { const p = 10 ** Math.floor(Math.log10(x)); return Math.round(x / p) * p; };
+const nice = x => { const p = 10 ** Math.floor(Math.log10(x)); return Math.round(x / p * 2) * p / 2; };
 const round = (v, q) => (q.scale === "log" ? Number(v.toPrecision(3)) : q.scale >= 10 ? Math.round(v) : Math.round(v * 10) / 10);
 
 /** The tape: a rail with your bid and ask as a span and the truth as a tick, on the question's own scale. */
@@ -193,7 +193,7 @@ function renderRoom() {
   }
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
-  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;
+  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · close means ${rangeText(q)}`;
   $("fault").textContent = "";
   const entry = g.log && Object.values(g.log)[g.index];
   const making = g.phase === "make" && isMaker, taking = g.phase === "take" && !isMaker;
@@ -342,7 +342,7 @@ function finish() {
     li.append(name, delta);
     lines.appendChild(li);
   }
-  add("p", "stats", `${S.mode === "daily" ? "Today's best" : "Your best"}: ${money(best)}. Tight and inside earns most; wider than 4× earns nothing; outside costs 150 a doubling, up to 600.`);
+  add("p", "stats", `${S.mode === "daily" ? "Today's best" : "Your best"}: ${money(best)}. Each question has its own range for "close": a tight market on the number pays up to 300, a near miss still pays, and the loss grows smoothly the further out the truth lies, up to 300.`);
   const again = add("button", "btn primary wide", "Again");
   again.type = "button";
   again.addEventListener("click", () => { $("doneDlg").close(); start("random"); });
@@ -377,7 +377,7 @@ function openMenu() {
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
   const room = together.room;
   if (!room) {
-    add("p", "stats", "Make a market on a number: a bid and an ask. Inside pays more the tighter your market; outside costs more the further out the truth lies. Ten questions, a book of 1,000 to start.");
+    add("p", "stats", "Make a market on a number: a bid and an ask. Each question says what counts as close; the tighter and the nearer, the more it pays, falling off smoothly, and the further out the truth lies the more you lose. Ten questions, a book of 1,000 to start.");
     button("A new set", () => confirmStart("random"));
     button("Today's set", () => confirmStart("daily"));
     if (S?.done) button("See how it went", finish);
