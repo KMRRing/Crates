@@ -9,6 +9,7 @@ import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
 import { reportDuo } from "./suite.js";
+import { part, choice, action, line } from "./menu.js";
 
 
 const $ = id => document.getElementById(id);
@@ -379,20 +380,18 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 
+// the menu: Play (start the run you've chosen), Content (random or today's); in a room, back to solo
+let pick = null;                                              // the run the menu will start: "solo" or "daily"
 function openMenu() {
   const body = $("menuBody");
-  body.innerHTML = "";
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  const room = together.room;
-  if (!room) {
-    button("Play", () => startSolo("solo"));
-    button("Today's run", () => startSolo("daily"));
-    add("h3", null, "Together");
-    add("p", "stats", "Two phones: each of you sees your own sums. Call out what yours make; your partner taps the one of theirs that makes the same.");
-  } else {
-    add("h3", null, "Playing together");
-    button("Back to solo", () => together.leave(), "link");
+  body.replaceChildren();
+  if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
+  else {
+    pick ??= run?.mode === "daily" ? "daily" : "solo";
+    part(body, "play").append(action("Start a run", () => startSolo(pick), "primary"));
+    part(body, "content").append(choice("Run", [["solo", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+    const best = read(BEST, 0);
+    if (best) part(body, "about").append(line(`Best ${best.toLocaleString("en-GB")}`));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

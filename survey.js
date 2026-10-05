@@ -4,6 +4,7 @@ import { SIZES, TOOLS, WRONG_CLAIM, makeConcession, newRun, probe, claim } from 
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { part, choice, action, line } from "./menu.js";
 
 dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -161,17 +162,19 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Play (start the concession you've chosen), Content (random or today's; the size is the header's),
+// About (your bests at this size, a link)
+let pick = null;                                              // the concession the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", "Ore lies in a few bodies of 2–3 connected cells that never touch, corners included. Buy readings: a seismic line along a row or column (how many ore cells on it), the magnetometer (how many in the 3×3 around a cell), or a drill (the truth about one cell). Mark the ore and file the claim; what you have left is your score. A wrong claim costs 10.");
-  button("A new concession", () => confirmStart("random"));
-  button("Today's concession", () => confirmStart("daily"));
-  button("Copy a link to this one", copyLink);
+  pick ??= S?.mode === "daily" ? "daily" : "random";
+  part(body, "play").append(action("Start a concession", () => confirmStart(pick), "primary"));
+  part(body, "content").append(choice("Concession", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
   const best = read(BEST, {}), daily = read(DAILY, {})[`${today()}/${S.size}`];
-  add("p", "stats", `${SIZES[S.size].label}: ${best[S.size] ? `your best ${best[S.size]} credits left` : "no claim filed yet"}${daily != null ? `; today's best ${daily}` : ""}.`);
+  part(body, "about").append(
+    line(`${SIZES[S.size].label}: ${best[S.size] ? `best ${best[S.size]} credits left` : "no claim filed yet"}${daily != null ? `, today ${daily}` : ""}`),
+    action("Copy a link to this one", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(mode) {

@@ -3,6 +3,7 @@
 import { LIVES, PRODUCTS, COSTS, DIRS, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf } from "./pipes-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { part, choice, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
@@ -284,17 +285,16 @@ function toast(msg, ms = 2000) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Play (start the run you've chosen), Content (random or today's), About (your bests)
+let pick = null;                                              // the run the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  $("menuDlg").querySelector("h2").textContent = "Menu";
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", `Oil is already on its way. Tap tiles to turn them and build a route from the wellhead to a terminal ahead of the flow. Pressure lasts ${levelInfo().pressure} tiles and only a pump refills it, so the straight line runs dry: detour through a pump. A delivery pays its netback: the terminal's price, less ${COSTS.tile} a tile of pipe and ${COSTS.pump} a pump, plus time. On levels 3 and 4 there are two terminals: pick the one that nets more. From level 5 two products run at once and may only cross at crossings; from level 9 they meet at a blender. Fill it now sends the oil at once, the time counted at ×4. Three lives; a spill costs one, pays nothing, and the level comes back fresh.`);
-  button("A new run", () => confirmStart("random"));
-  button("Today's run", () => confirmStart("daily"));
+  pick ??= S?.mode === "daily" ? "daily" : "random";
+  part(body, "play").append(action("Start a run", () => confirmStart(pick), "primary"));
+  part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
   const best = read(BEST, null), daily = read(DAILY, {})[today()];
-  add("p", "stats", `${best ? `Your best: ${best.score.toLocaleString("en-GB")}, level ${best.n}.` : "No finished run yet."}${daily ? ` Today's best: ${daily.score.toLocaleString("en-GB")}.` : ""}`);
+  part(body, "about").append(line(`${best ? `Best ${best.score.toLocaleString("en-GB")}, level ${best.n}` : "No finished run yet"}${daily ? `, today ${daily.score.toLocaleString("en-GB")}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(mode) {
