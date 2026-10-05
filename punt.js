@@ -299,8 +299,6 @@ function drawResult(q, last) {
     li.append(b, t);
     return li;
   }));
-  const verdict = q.offered > q.fair ? "more than it was worth" : q.offered < q.fair ? "less than it was worth" : "about what it was worth";
-  $("house").textContent = `The house put a typical player's chance at ${Math.round(q.chance * 100)}%, a fair price of ${showOdds(q.fair)}. It paid ${showOdds(q.offered)}: ${verdict}.`;
   drawFlag(q);
   $("nextBtn").hidden = !!S.done;
   $("nextBtn").textContent = S.pot <= 0 || (lengthOf(S) !== "endless" && S.index + 1 >= S.questions.length) ? "See how you did" : "Next question";
