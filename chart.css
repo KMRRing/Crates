@@ -1,6 +1,6 @@
 /* Chart: a map on a card; tap it, fine-tune in the close-up, pin. Sea blue is the house colour. */
-:root { --ch-in: #1F6F9A; --ch-in-soft: #D5E7F1; --ch-sea: #D9E6EC; --ch-land: #EFE9DA; --ch-border: #C9BFA8; --ch-good: #2E9E5B; --ch-bad: #D23B2A; --ch-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --ch-in: #5FB0DB; --ch-in-soft: #163445; --ch-sea: #15232B; --ch-land: #3A4149; --ch-border: #5A6470; --ch-edge: #33414B; } }
+:root { --ch-in: #2C5B8A; --ch-in-soft: color-mix(in srgb, var(--ch-in) 15%, var(--sheet)); --ch-sea: #D3DDDF; --ch-land: #F3ECDC; --ch-border: #BFA97A; --ch-good: #2F7D5B; --ch-bad: #A8382B; --ch-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #0E1A23; --ch-land: #263340; --ch-border: #5E5134; } }
 
 .ch-mark { display: inline-block; }
 .ch-mark svg { width: 100%; height: 100%; display: block; }
@@ -31,8 +31,8 @@
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }
 .ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .2rem; font-size: .9rem; line-height: 1.35; max-height: 4.2em; }
 .ch-clues:empty { display: none; }
-.ch-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--ch-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
-.ch-go.quiet { background: var(--yard); color: var(--ink); }
+.ch-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.ch-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .ch-go:disabled { opacity: .45; cursor: default; }
 .ch-result { display: grid; gap: .5rem; padding-top: .4rem; border-top: 1px solid var(--ch-edge); }
 .ch-result[hidden] { display: none; }
@@ -56,7 +56,7 @@
 .ch-line span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ch-line b { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: .82rem; }
 .ch-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .ch-toast.show { opacity: 1; }
 

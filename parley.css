@@ -1,6 +1,6 @@
 /* Parley: a card, a drill, a reading. Teal is the house colour. */
-:root { --pa-in: #1E7A74; --pa-in-soft: #D8EEEC; --pa-good: #2E9E5B; --pa-bad: #D23B2A; --pa-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --pa-in: #5CC1B9; --pa-in-soft: #1C3A38; --pa-edge: #33414B; } }
+:root { --pa-in: #22706A; --pa-in-soft: color-mix(in srgb, var(--pa-in) 15%, var(--sheet)); --pa-good: #2F7D5B; --pa-bad: #A8382B; --pa-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806F; } }
 
 .pa-mark { display: inline-block; }
 .pa-mark svg { width: 100%; height: 100%; display: block; }
@@ -10,7 +10,7 @@
 .pa-stats b { display: block; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pa-stats b.due { color: var(--pa-in); }
 .pa-stats span { font-size: .72rem; color: var(--ink-soft); }
-.pa-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--pa-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.pa-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .pa-go:disabled { opacity: .45; cursor: default; }
 .pa-go[hidden] { display: none; }
 .pa-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }
@@ -62,6 +62,6 @@
 .pa-verdict.bad { color: var(--pa-bad); }
 .pa-note { margin: 0; font-size: .92rem; color: var(--ink-soft); line-height: 1.45; }
 .pa-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .pa-toast.show { opacity: 1; }

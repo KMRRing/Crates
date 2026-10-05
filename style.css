@@ -10,75 +10,111 @@
 :root {
   --gap: 6px;             /* between tiles, and between solved crates */
   --tile-ratio: .8;       /* tile height / width */
-  --yard: #E4E7E7;
-  --ink: #1C2A34;
-  --ink-soft: #5A6B77;
-  --tile: #F7F8F7;      /* a tile, as in Glyph and Delta: light, with a quiet edge */
-  --tile-edge: #C9D1D5;
-  --c0: #E1AB24;        /* container yellow */
-  --c1: #3F7A50;        /* container green  */
-  --c2: #2D5E88;        /* container blue   */
-  --c3: #A23C30;        /* container red    */
+  /* Almanac's look: brass instruments on an almanac's page. Light is the page (parchment, navy ink, brass rules);
+     dark is the instrument (a night-navy dial, parchment lettering, bright brass). The four crate colours are
+     enamels: ochre, verdigris (copper's green patina), cobalt and oxblood. */
+  --yard: #E8DFC9;      /* the page */
+  --ink: #1C2A34;       /* navy ink */
+  --ink-soft: #5C5545;
+  --tile: #FBF8F0;      /* a tile: paper, with a brass edge */
+  --tile-edge: #C2AE82;
+  --c0: #D49A22;        /* ochre     */
+  --c1: #3D7A66;        /* verdigris */
+  --c2: #2C5B8A;        /* cobalt    */
+  --c3: #8F3328;        /* oxblood   */
   --on-c0: #2A2005;
-  --on-c: #F7F5EF;
-  --sheet: #F4F5F4;
-  --focus: #2D5E88;
-  --p0: #2D5E88;        /* player colours */
-  --p1: #C06A1B;
-  --learn: #3F7A50;     /* learning mode accent */
+  --on-c: #F7F1E3;
+  --sheet: #F5EFE1;     /* paper: cards and dialogs */
+  --brass: #A47528;     /* lines, frames and rules */
+  --brass-hi: #E2B865;  /* gilt lettering on navy */
+  --brass-lo: #7A5518;  /* brass that has to read as text on the page */
+  --rule: #CDB98C;      /* hairlines */
+  --plate: #1C2A34;     /* a primary button: a navy plate lettered in gilt */
+  --plate-ink: #E2B865;
+  --focus: #A47528;
+  --p0: #2C5B8A;        /* player colours: cobalt and copper */
+  --p1: #B4632A;
+  --learn: #3D7A66;     /* learning mode: verdigris */
+  --logo-edge: #7A5518; /* every game's logo: brass wire round an enamel, as in cloisonné */
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
-  --cr-logo-tint: #F3E1BA;  /* Crates' logo: a crate */
-  --cr-logo-edge: #A2690F;
-  --sl-logo-tint: #D3DEE7;  /* Slate's logo: a certificate of analysis */
-  --sl-logo-edge: #3F5A70;
-  --d-logo-tint: #CBE7E4;   /* Delta's logo: a hex with a delta in it */
-  --d-logo-edge: #17807C;
-  --pt-logo-tint: #CFE6D8;  /* Punt's logo: a betting chip */
-  --pt-logo-edge: #2E6B4A;
-  --ct-logo-tint: #F1D7DC;  /* Cartel's logo: a die */
-  --ct-logo-edge: #8E2C3B;
-  --sp-logo-tint: #FBDCCB;  /* Spot's logo: a spot */
-  --sp-logo-edge: #C2511F;
-  --qt-logo-tint: #DCDFF5;  /* Quote's logo: quotation marks */
-  --qt-logo-edge: #3F4DAE;
-  --mf-logo-tint: #D2ECEA;  /* Manifest's logo: a stack of containers */
-  --mf-logo-edge: #137C77;
-  --ch-logo-tint: #D5E7F1;  /* Chart's logo: a map pin */
-  --ch-logo-edge: #1F6F9A;
-  --sv-logo-tint: #F3E6CF;  /* Survey's logo: a grid with ore */
-  --sv-logo-edge: #9A6B1E;
-  --bl-logo-tint: #E6EFD2;  /* Blend's logo: a flask */
-  --bl-logo-edge: #5B7A1E;
-  --pi-logo-tint: #F4DCD1;  /* Pipes' logo: a bend of pipe */
-  --pi-logo-edge: #B4532A;
-  --rf-logo-tint: #D8E4EC;  /* Refinery's logo: a distillation column */
-  --rf-logo-edge: #35607E;
-  --ru-logo-tint: #EADFD2;  /* Rush's logo: a knight */
-  --ru-logo-edge: #6B4A2B;
-  --dk-logo-tint: #EEDFF2;  /* Deck's logo: a stack of cards */
-  --dk-logo-edge: #6D3B7A;
-  --pa-logo-tint: #D8EEEC;  /* Parley's logo: two speech marks */
-  --pa-logo-edge: #1E7A74;
-  --br-logo-tint: #F5D9E3;  /* Brut's logo: a wine glass */
-  --br-logo-edge: #7A1638;
-  --hb-logo-tint: #DCE3F0;  /* Harbour's logo: a tanker from above */
-  --hb-logo-edge: #263A63;
+  --wide: 125%;         /* headings: Archivo at its widest, in spaced capitals (the Deco signage look) */
+  --cr-logo-tint: #F0D9A6;  /* Crates' logo: a crate */
+  --cr-logo-edge: var(--logo-edge);
+  --sl-logo-tint: #D4DBE0;  /* Slate's logo: a certificate of analysis */
+  --sl-logo-edge: var(--logo-edge);
+  --d-logo-tint: #CBE3DA;   /* Delta's logo: a hex with a delta in it */
+  --d-logo-edge: var(--logo-edge);
+  --pt-logo-tint: #CFE2D2;  /* Punt's logo: a betting chip */
+  --pt-logo-edge: var(--logo-edge);
+  --ct-logo-tint: #EBD0D3;  /* Cartel's logo: a die */
+  --ct-logo-edge: var(--logo-edge);
+  --sp-logo-tint: #F2D3C2;  /* Spot's logo: a spot */
+  --sp-logo-edge: var(--logo-edge);
+  --qt-logo-tint: #D7DAEE;  /* Quote's logo: quotation marks */
+  --qt-logo-edge: var(--logo-edge);
+  --mf-logo-tint: #CDE5E1;  /* Manifest's logo: a stack of containers */
+  --mf-logo-edge: var(--logo-edge);
+  --ch-logo-tint: #D2DEEA;  /* Chart's logo: a map pin */
+  --ch-logo-edge: var(--logo-edge);
+  --sv-logo-tint: #EFDDC1;  /* Survey's logo: a grid with ore */
+  --sv-logo-edge: var(--logo-edge);
+  --bl-logo-tint: #E0E7C8;  /* Blend's logo: a flask */
+  --bl-logo-edge: var(--logo-edge);
+  --pi-logo-tint: #F1D5C6;  /* Pipes' logo: a bend of pipe */
+  --pi-logo-edge: var(--logo-edge);
+  --rf-logo-tint: #D5E0E8;  /* Refinery's logo: a distillation column */
+  --rf-logo-edge: var(--logo-edge);
+  --ru-logo-tint: #E6D9C8;  /* Rush's logo: a knight */
+  --ru-logo-edge: var(--logo-edge);
+  --dk-logo-tint: #E6D7EC;  /* Deck's logo: a stack of cards */
+  --dk-logo-edge: var(--logo-edge);
+  --pa-logo-tint: #CFE7E2;  /* Parley's logo: two speech marks */
+  --pa-logo-edge: var(--logo-edge);
+  --br-logo-tint: #EFD3DD;  /* Brut's logo: a wine glass */
+  --br-logo-edge: var(--logo-edge);
+  --hb-logo-tint: #D6DCEB;  /* Harbour's logo: a tanker from above */
+  --hb-logo-edge: var(--logo-edge);
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --yard: #141B20;
-    --ink: #E3E8EB;
-    --ink-soft: #93A3AE;
-    --tile: #1D262D;
-    --tile-edge: #33414B;
-    --sheet: #1D262D;
-    --focus: #8EB9DE;
-    --p0: #6FA3D6;
-    --p1: #E39A55;
-    --learn: #86C79A;
+    --yard: #10181F;    /* the dial at night */
+    --ink: #ECE2CB;     /* parchment lettering */
+    --ink-soft: #A99E86;
+    --tile: #1E2A35;
+    --tile-edge: #4E4128;
+    --sheet: #1A2530;
+    --brass: #C99A45;
+    --brass-hi: #E9C47C;
+    --brass-lo: #D9AF62;
+    --rule: #3E3524;
+    --plate: #C99A45;   /* a brass plate lettered in navy */
+    --plate-ink: #10181F;
+    --focus: #E9C47C;
+    --p0: #6FA0D2;
+    --p1: #E0965A;
+    --learn: #7FC2A8;
+    --logo-edge: #D9AF62;
+    --cr-logo-tint: #5A4317;
+    --sl-logo-tint: #2E3B46;
+    --d-logo-tint: #1F4A42;
+    --pt-logo-tint: #23432F;
+    --ct-logo-tint: #4B1F27;
+    --sp-logo-tint: #5A2A18;
+    --qt-logo-tint: #2A2F57;
+    --mf-logo-tint: #17403E;
+    --ch-logo-tint: #1E3A55;
+    --sv-logo-tint: #4D3818;
+    --bl-logo-tint: #39431A;
+    --pi-logo-tint: #55291A;
+    --rf-logo-tint: #263D50;
+    --ru-logo-tint: #3F2D1D;
+    --dk-logo-tint: #3D2347;
+    --pa-logo-tint: #1B4440;
+    --br-logo-tint: #4A1528;
+    --hb-logo-tint: #23304F;
   }
 }
 *, *::before, *::after { box-sizing: inherit; }
@@ -92,17 +128,19 @@ button, input { font: inherit; color: inherit; }
 
 #app { max-width: 34rem; margin: 0 auto; padding: 1.1rem 1rem 2rem; }
 
-.top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-bottom: .6rem;
+  background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
 .mark {
   display: flex; align-items: center; gap: .55rem; margin: 0;
-  font-size: 1.75rem; font-weight: 800; font-stretch: 100%; letter-spacing: -.02em; line-height: 1;
+  font-size: 1.32rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; line-height: 1;
 }
 .mark-icon { width: 1.35rem; height: 1.35rem; }
 .cr-mark { display: inline-block; }
 .cr-mark svg { width: 100%; height: 100%; display: block; }
 /* The title opens the game switcher. */
 .mark-btn { display: flex; align-items: center; gap: .55rem; background: none; border: 0; padding: 0; margin: 0;
-  font: inherit; color: inherit; letter-spacing: inherit; cursor: pointer; }
+  font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
 /* The game switcher: a full screen of games, a tile each, two across on a phone, more on a wider screen. */
 /* It fits the screen without scrolling: the tiles share the height left under the title, and their logos and names
    size themselves to the tile (only a screen too small for any of that scrolls). */
@@ -116,30 +154,35 @@ dialog.apps[open] { animation: apps-in .16s ease-out; }
 @keyframes apps-in { from { opacity: 0; transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { dialog.apps[open] { animation: none; } }
 .apps-inner { max-width: 46rem; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
-dialog.apps .pick-head h2 { font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
+dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .14em; text-transform: uppercase; }
 .apps-actions { display: flex; gap: .45rem; }
+.apps-brand { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 0 0 .7rem; padding-bottom: .65rem;
+  font-size: 1.45rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .22em; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
+.apps-brand img { width: 2rem; height: 2rem; display: block; }
 .apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: 1; min-height: 0; grid-auto-rows: minmax(4.6rem, 1fr); overflow-y: auto; }
 @media (min-width: 36rem) { .apps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (min-width: 46rem) { .apps-list { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 .apps-list li { min-height: 0; }
 .app-row { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; height: 100%; min-height: 0;
-  box-sizing: border-box; padding: .4rem; border-radius: 14px; text-decoration: none; color: var(--ink); background: var(--sheet);
-  border: 2px solid transparent; text-align: center; container-type: size; overflow: hidden; }
-.app-row.cur { border-color: var(--ink); }
-.app-more { width: 100%; border-color: var(--line, #C9D1D5); border-style: dashed; cursor: pointer; font: inherit; }
+  box-sizing: border-box; padding: .4rem; border-radius: 6px; text-decoration: none; color: var(--ink); background: var(--sheet);
+  border: 1px solid var(--tile-edge); outline: 1px solid var(--rule); outline-offset: -5px; text-align: center; container-type: size; overflow: hidden; }
+.app-row.cur { border: 2px solid var(--brass); }
+.app-more { width: 100%; border-color: var(--tile-edge); border-style: dashed; cursor: pointer; font: inherit; }
 .app-more.cur { border-style: solid; border-color: var(--ink); }
 .app-dots { font-size: min(2.2rem, 32cqh); font-weight: 800; line-height: 1; color: var(--ink-soft); }
 .app-logo { flex: none; width: min(3rem, 42cqh); height: min(3rem, 42cqh); display: grid; place-items: center; }
 .app-logo svg { width: 94%; height: 94%; }
-.app-name { font-size: clamp(.82rem, 17cqh, 1.1rem); font-weight: 800; line-height: 1.1; }
-.app-now { font-size: .68rem; font-weight: 750; padding: .05rem .45rem; border-radius: 999px; background: var(--ink); color: var(--yard); }
+.app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; line-height: 1.1; }
+.app-now { font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .05rem .45rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); }
 @container (max-height: 6.6rem) { .app-now { display: none; } }
 /* "…" opens the other games in a popup over the screen of games */
-dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-box; margin: auto; padding: 1rem; border: 0; border-radius: 18px;
+dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-box; margin: auto; padding: 1rem; border: 1.5px solid var(--brass); border-radius: 10px;
   background: var(--sheet); color: var(--ink); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); overflow-y: auto; overscroll-behavior: contain; }
 dialog.apps-pop::backdrop { background: rgba(10, 14, 18, .45); }
-dialog.apps-pop .pick-head h2 { font-size: 1.3rem; font-weight: 800; }
+dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
 .apps-pop-list { flex: none; grid-auto-rows: 7rem; overflow: visible; }
 .apps-pop-list .app-row { background: var(--yard); }
 .top-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
@@ -161,16 +204,17 @@ dialog.apps-pop .pick-head h2 { font-size: 1.3rem; font-weight: 800; }
 .math.display { display: block; text-align: center; margin: .35rem 0; }
 math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math", serif; }
 .pool {
-  appearance: none; -webkit-appearance: none; min-height: 36px; border: 0; border-radius: 6px; cursor: pointer;
-  padding: .3rem 1.9rem .3rem .75rem; background-color: var(--ink); color: var(--yard);
+  appearance: none; -webkit-appearance: none; min-height: 36px; border: 0; border-radius: 4px; cursor: pointer;
+  padding: .3rem 1.9rem .3rem .75rem; background-color: var(--plate); color: var(--plate-ink);
   font-weight: 700; font-stretch: 87.5%; max-width: 12.5rem; min-width: 0; text-overflow: ellipsis; white-space: nowrap;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
   background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
   background-size: 5px 5px; background-repeat: no-repeat;
 }
 .pick {
-  background: none; border: 1.5px solid var(--ink-soft); border-radius: 6px;
-  padding: .3rem .7rem; font-weight: 600; cursor: pointer; min-height: 36px; white-space: nowrap; flex-shrink: 0;
+  background: none; border: 1.5px solid var(--brass); border-radius: 4px; color: var(--ink);
+  padding: .3rem .7rem; font-weight: 750; font-size: .8rem; font-stretch: 112%; letter-spacing: .1em; text-transform: uppercase;
+  cursor: pointer; min-height: 36px; white-space: nowrap; flex-shrink: 0;
 }
 @media (max-width: 400px) {
   .mark { font-size: 1.5rem; gap: .45rem; }
@@ -209,21 +253,21 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--gap); }
 .cell { position: relative; aspect-ratio: 1 / var(--tile-ratio); }
 .tile {
-  position: absolute; inset: 0; width: 100%; border: 2px solid var(--tile-edge); border-radius: 10px; cursor: pointer;
+  position: absolute; inset: 0; width: 100%; border: 1.5px solid var(--tile-edge); border-radius: 5px; cursor: pointer;
   background: var(--tile); color: var(--ink);
   font-weight: 650; font-stretch: 87.5%; font-size: clamp(.8rem, 3.6vw, 1rem); line-height: 1.12;
   padding: .35rem .3rem; overflow-wrap: normal; word-break: normal;
   transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease, transform .12s ease;
   -webkit-tap-highlight-color: transparent; touch-action: manipulation;
 }
-.tile[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
+.tile[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 2px var(--brass); background: color-mix(in srgb, var(--brass) 14%, var(--tile)); }
 .tile:active { transform: scale(.97); }
 .grid.shake .tile[aria-pressed="true"] { animation: shake .35s; }
 @keyframes shake { 25% { transform: translateX(-5px);} 75% { transform: translateX(5px);} }
 
 /* Your partner's picks look exactly like yours (no player colours: those read as crate colours).
    Where you both see the same tiles, a small initial says whose pick it is. */
-.cell.psel .tile { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
+.cell.psel .tile { border-color: var(--brass); box-shadow: inset 0 0 0 2px var(--brass); background: color-mix(in srgb, var(--brass) 14%, var(--tile)); }
 .ptag {
   position: absolute; left: 5px; bottom: 5px; width: 17px; height: 17px; border-radius: 50%;
   display: grid; place-items: center; font-size: .65rem; font-weight: 800;
@@ -271,7 +315,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 /* Closed, a crate is exactly as tall as the row of tiles it replaces; tapped open, it grows. */
 .crate {
   --row-h: calc((100cqw - 3 * var(--gap)) / 4 * var(--tile-ratio));
-  border: 2px solid; border-radius: 10px; width: 100%; text-align: left; cursor: pointer; color: var(--ink);
+  border: 2px solid; border-radius: 5px; width: 100%; text-align: left; cursor: pointer; color: var(--ink);
   height: var(--row-h); padding: .25rem .75rem; overflow: hidden;
   display: flex; flex-direction: column; justify-content: center; gap: .05rem;
 }
@@ -282,7 +326,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .crate.l2 { background: color-mix(in srgb, var(--c2) 20%, var(--sheet)); border-color: var(--c2); }
 .crate.l3 { background: color-mix(in srgb, var(--c3) 18%, var(--sheet)); border-color: var(--c3); }
 .crate.missed { border-style: dashed; opacity: .8; }
-.crate-name { font-size: 1.3rem; font-weight: 800; letter-spacing: -.01em; line-height: 1.15; flex: none; }
+.crate-name { font-size: 1.05rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .08em; text-transform: uppercase; line-height: 1.15; flex: none; }
 .crate-meta { font-size: .82rem; font-weight: 600; color: var(--ink-soft); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* one line, always: the view shrinks the font until the four words fit */
 .crate-words { font-weight: 550; font-stretch: 87.5%; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -301,10 +345,12 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 
 .controls { display: flex; gap: .5rem; justify-content: center; }
 .btn {
-  border: 1.5px solid var(--ink); background: transparent; border-radius: 999px;
-  padding: .5rem 1.1rem; font-weight: 650; cursor: pointer; min-height: 44px;
+  border: 1.5px solid var(--brass); background: transparent; border-radius: 4px; color: var(--ink);
+  padding: .5rem 1.1rem; font-weight: 750; font-size: .86rem; font-stretch: 112%; letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; min-height: 44px;
 }
-.btn.primary { background: var(--ink); color: var(--yard); }
+.btn.primary { background: var(--plate); color: var(--plate-ink); border-color: var(--plate);
+  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; }
 .btn:disabled { opacity: .35; cursor: default; }
 
 .result { margin-top: 1rem; text-align: center; }
@@ -328,7 +374,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .join-run { display: flex; gap: .5rem; margin: .7rem 0 .3rem; }
 .sheet .join-run input {
   flex: 1; min-width: 0; font: inherit; font-size: 1rem; letter-spacing: .08em; text-transform: uppercase;
-  padding: .45rem .7rem; margin: 0; border: 1.5px solid var(--ink-soft); border-radius: 999px; background: var(--yard); color: var(--ink);
+  padding: .45rem .7rem; margin: 0; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard); color: var(--ink);
 }
 .sheet .join-run input::placeholder { text-transform: none; letter-spacing: normal; }
 #menuBody h3 { font-size: 1.05rem; margin: 1rem 0 0; }
@@ -339,6 +385,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 dialog.sheet {
   border: 0; border-radius: 12px 12px 0 0; padding: 1.2rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
   width: 100%; max-width: 34rem; margin: auto auto 0; background: var(--sheet); color: var(--ink);
+  border-top: 2px solid var(--brass);
 }
 dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 /* The sheet scrolls as one piece; its header (with Close) sticks to the top while you scroll.
@@ -353,14 +400,14 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .set-head h3 { margin: 0; font-size: 1.25rem; font-weight: 800; }
 .set-note { margin: .45rem 0 .2rem; font-size: .9rem; }
 .set-note.sep { margin-top: 1.1rem; padding-top: .9rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
-.sheet h4 { margin: 1rem 0 .4rem; font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
-.seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 6px; overflow: hidden; }
+.sheet h4 { margin: 1rem 0 .4rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .12em; text-transform: uppercase; color: var(--brass-lo); }
+.seg { display: inline-flex; border: 1.5px solid var(--brass); border-radius: 4px; overflow: hidden; }
 .seg button {
-  background: none; border: 0; border-left: 1.5px solid var(--ink); color: var(--ink);
+  background: none; border: 0; border-left: 1.5px solid var(--brass); color: var(--ink);
   font: inherit; font-size: .85rem; font-weight: 600; padding: .38rem .5rem; min-width: 2.9rem; cursor: pointer; white-space: nowrap;
 }
 .seg button:first-child { border-left: 0; }
-.seg button[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+.seg button[aria-checked="true"] { background: var(--plate); color: var(--plate-ink); }
 .seg button:disabled { cursor: default; }
 .topic-row { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .22rem 0; }
 .topic-row span { font-size: .95rem; flex: 1; min-width: 0; line-height: 1.2; }
@@ -368,18 +415,18 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .chips { display: flex; flex-wrap: wrap; gap: .4rem; }
 .chip {
   font: inherit; font-size: .85rem; font-weight: 600; padding: .35rem .7rem; border-radius: 999px; cursor: pointer;
-  border: 1.5px solid var(--ink-soft); background: none; color: var(--ink-soft);
+  border: 1.5px solid var(--tile-edge); background: none; color: var(--ink-soft);
 }
-.chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--yard); }
+.chip[aria-pressed="true"] { border-color: var(--plate); background: var(--plate); color: var(--plate-ink); }
 .chip:disabled { cursor: default; }
 .sheet-words { font-weight: 700; margin: 0 0 .8rem; }
 .sheet label { display: block; color: var(--ink-soft); margin-bottom: .35rem; }
 .sheet input {
   width: 100%; font-size: 1.25rem; padding: .55rem .7rem; margin-bottom: 1rem;
-  border: 1.5px solid var(--ink); border-radius: 6px; background: var(--yard);
+  border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard);
 }
 .pick-head { display: flex; justify-content: space-between; align-items: center; }
-.pick-head h2 { font-size: 1.4rem; font-weight: 800; margin: 0; letter-spacing: -.01em; }
+.pick-head h2 { font-size: 1.1rem; font-weight: 800; margin: 0; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; }
 .pick-list { list-style: none; padding: 0; margin: 1rem 0; }
 .pick-list button {
   width: 100%; display: flex; justify-content: space-between; background: none; border: 0;
@@ -401,12 +448,12 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 /* the games screen's head: the solo and duo codes, and each tile's best (yours, and your partner's in a duo room) */
 .apps .pick-head { gap: .5rem; }
 .apps .codes { display: flex; align-items: center; gap: .35rem; min-width: 0; flex: 1; flex-wrap: nowrap; }
-.code-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .55rem .3rem .45rem; flex: none; -webkit-touch-callout: none; user-select: none; border: 1.5px solid var(--tile-edge); border-radius: 999px;
+.code-chip { display: inline-flex; align-items: center; gap: .3rem; padding: .3rem .55rem .3rem .45rem; flex: none; -webkit-touch-callout: none; user-select: none; border: 1.5px solid var(--tile-edge); border-radius: 4px;
   background: var(--sheet); color: var(--ink); font: inherit; font-size: .82rem; cursor: pointer; max-width: 100%; }
 .code-chip span { color: var(--ink-soft); font-weight: 700; }
 .code-chip b { font-weight: 800; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
 .code-chip em { font-style: normal; color: var(--ink-soft); font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.code-chip em.on { color: #3a9d57; font-weight: 700; }
+.code-chip em.on { color: var(--learn); font-weight: 700; }
 .app-best { display: block; font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .app-best:empty { display: none; }
 
@@ -444,9 +491,9 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .code-chip svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
 .partner-line { min-width: 0; flex: 1 1 auto; border: 0; background: none; padding: .3rem .1rem; font: inherit; font-size: .78rem; font-weight: 700;
   color: var(--ink-soft); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.partner-line.on { color: #3a9d57; }
+.partner-line.on { color: var(--learn); }
 /* the head's icon buttons: update (it turns while it fetches) and close */
-.icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1.5px solid var(--tile-edge); border-radius: 50%;
+.icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1.5px solid var(--brass); border-radius: 50%;
   background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
 .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn:disabled { opacity: .6; }
@@ -455,22 +502,41 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 
 /* every game's menu: one popup. A sheet rising from the bottom on a phone, a card in the middle on a wide screen;
    the × at the top right (the game's own Close button, reshaped by menu.js); a tap outside closes it */
-dialog.menu-sheet { border-radius: 18px 18px 0 0; padding: 0 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 30px rgba(0, 0, 0, .18); }
+dialog.menu-sheet { border-radius: 10px 10px 0 0; padding: 0 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 30px rgba(0, 0, 0, .18); }
 dialog.menu-sheet[open] { animation: menu-up .22s cubic-bezier(.2, .8, .2, 1); }
 @keyframes menu-up { from { transform: translateY(24px); opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { dialog.menu-sheet[open] { animation: none; } }
-@media (min-width: 640px) { dialog.menu-sheet { margin: auto; border-radius: 18px; max-width: 30rem; box-shadow: 0 16px 48px rgba(0, 0, 0, .25); } }
+@media (min-width: 640px) { dialog.menu-sheet { margin: auto; border-radius: 10px; border: 1.5px solid var(--brass); max-width: 30rem; box-shadow: 0 16px 48px rgba(0, 0, 0, .25); } }
 dialog.menu-sheet .pick-head { align-items: center; padding: .9rem 0 .5rem; }
-dialog.menu-sheet .pick-head h2 { font-size: 1.15rem; }
+dialog.menu-sheet .pick-head h2 { font-size: 1rem; }
 dialog.menu-sheet .menu-x { width: 36px; height: 36px; }
 /* the standard parts, each under the same small heading */
 .menu-part { margin-top: .9rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
 .menu-part:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
-.menu-h { margin: 0 0 .45rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+.menu-h { margin: 0 0 .45rem; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .14em; text-transform: uppercase; color: var(--brass-lo); }
 /* the long explanations, folded away at the bottom */
 details.menu-how { margin-top: 1rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); color: var(--ink-soft); font-size: .88rem; }
 details.menu-how summary { cursor: pointer; font-weight: 700; color: var(--ink); list-style-position: inside; padding: .2rem 0; }
 details.menu-how p { margin: .5rem 0 0; line-height: 1.45; }
+
+/* Loading (loading.js). While a page loads, and while a long task runs, the rete turns large in the middle of the
+   screen, the task's words under it: a page that's ready at once never shows it (it fades in after a moment), and it
+   lets taps through while a page loads, so a page that somehow never says it's ready isn't locked behind it. */
+html:not(.ready) body::after, html.busy body::after {
+  content: attr(data-busy); position: fixed; inset: 0; z-index: 2147483000; display: block; box-sizing: border-box;
+  padding: calc(50vh + min(23vw, 6.5rem) + .4rem) 1.5rem 0; text-align: center;
+  background: var(--yard) url("rete.svg") center calc(50% - .9rem) / min(46vw, 13rem) no-repeat;
+  color: var(--brass-lo); font: 800 .76rem/1.4 var(--font); font-stretch: var(--wide); letter-spacing: .16em; text-transform: uppercase;
+  animation: busy-in .2s .35s both;
+}
+html:not(.ready) body::after { pointer-events: none; }
+html.busy body::after { animation-delay: 0s; }
+@keyframes busy-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { html:not(.ready) body::after { display: none; } }   /* without its fade-in delay it would flash on every page */
+/* a picture on its way (pics.js): the sextant turns where it will appear, until the painting covers it */
+img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
+/* the small sextant, before the words of a short wait */
+.ld { display: inline-block; width: 1.3em; height: 1.3em; margin-right: .4em; vertical-align: -.32em; background: url("sextant.svg") center / contain no-repeat; }
 
 /* Almanac's home: the screen of games is the page, so there's nothing to close it back to */
 .home dialog.apps [data-close] { display: none; }

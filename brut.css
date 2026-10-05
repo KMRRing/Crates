@@ -1,6 +1,6 @@
 /* Brut: a glass, a tasting note revealed stage by stage, six candidates; and the study cards. Claret is the house colour. */
-:root { --br-in: #7A1638; --br-in-soft: #F5D9E3; --br-good: #2E9E5B; --br-bad: #D23B2A; --br-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --br-in: #E07A9C; --br-in-soft: #3E1A27; --br-edge: #33414B; } }
+:root { --br-in: #7A1E3A; --br-in-soft: color-mix(in srgb, var(--br-in) 15%, var(--sheet)); --br-good: #2F7D5B; --br-bad: #A8382B; --br-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806F; } }
 
 .br-mark { display: inline-block; }
 .br-mark svg { width: 100%; height: 100%; display: block; }
@@ -36,8 +36,8 @@
 .br-option.right { border-color: var(--br-good); background: color-mix(in srgb, var(--br-good) 15%, var(--sheet)); }
 .br-option:disabled { cursor: default; }
 .br-buttons { margin-top: .5rem; min-height: 48px; display: grid; grid-template-columns: 1fr; gap: .4rem; }
-.br-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--br-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
-.br-go.quiet { background: var(--sheet); color: var(--ink); border: 1.5px solid var(--br-edge); }
+.br-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.br-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .br-go:disabled { opacity: .45; cursor: default; }
 .br-go[hidden] { display: none; }
 
@@ -71,6 +71,6 @@
 .br-flight li small { grid-column: 1 / -1; color: var(--ink-soft); }
 .br-big { font-size: 3rem; font-weight: 800; color: var(--br-in); text-align: center; margin: .2rem 0; }
 .br-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .br-toast.show { opacity: 1; }

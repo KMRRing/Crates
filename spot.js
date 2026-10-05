@@ -4,6 +4,7 @@
 // the database's clock) and the taps; each device replays the same run, so only taps travel.
 import { play, LIVES, SHELF, levelAt, modifierAt, modText } from "./spot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { sextant } from "./loading.js";
 import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
@@ -321,7 +322,7 @@ function drawPartner() {
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append("Reconnecting…"); return; }
+  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
   const p = together.partner();
   if (!p) { el.append(`Room ${together.room.code}: waiting for your partner.`); return; }
   const b = document.createElement("b");

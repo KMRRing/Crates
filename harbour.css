@@ -1,11 +1,11 @@
 /* Harbour: the harbour on top, the programs under it (one row per ship, one column per hour), then the tools, the
    clock and one line of status. The page never scrolls; the programs scroll sideways inside their box. */
 .harbour {
-  --hb-water: #CFE1EA; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #E8E2D4;
-  --hb-hull: #FBFBF9; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
+  --hb-water: #CDDADE; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #EADFC6;
+  --hb-hull: #FBF8F0; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
 }
 @media (prefers-color-scheme: dark) {
-  .harbour { --hb-water: #16303B; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; }
+  .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
 }
 
 .hb-brief { margin: .5rem 0 .4rem; height: 3.9em; overflow: hidden; color: var(--ink-soft); font-size: .86rem; line-height: 1.3; }   /* three lines on every level, so switching levels moves nothing */
@@ -67,7 +67,7 @@
 .hb-run { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: .45rem; }
 .hb-ctl { height: 40px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink); border-radius: 999px;
   background: none; color: var(--ink); font: 800 .95rem var(--font); cursor: pointer; }
-.hb-ctl.primary { background: var(--ink); color: var(--yard); }
+.hb-ctl.primary { background: var(--plate); color: var(--plate-ink); }
 .hb-ctl:disabled { opacity: .35; cursor: default; }
 .hb-ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .hb-ctl svg .solid { fill: currentColor; }
@@ -82,7 +82,7 @@
 .hb-act { font: 750 .66rem/1 var(--font); font-stretch: 87.5%; letter-spacing: -.01em; }
 .hb-tool:disabled { opacity: .35; cursor: default; }
 .hb-tool svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
-.hb-picktool[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+.hb-picktool[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 
 /* loops: the body boxed in the loop colour; its later passes faded, the first of them showing the count */
 .harbour { --hb-loop: var(--p1); }

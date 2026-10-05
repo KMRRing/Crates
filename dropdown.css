@@ -4,7 +4,7 @@ select.dd-native { display: none !important; }
 
 .dd {
   display: inline-flex; align-items: center; gap: .5rem; flex: 0 1 auto; min-width: 0; max-width: 12.5rem; min-height: 36px;
-  box-sizing: border-box; padding: .3rem .6rem .3rem .75rem; border-radius: 6px; cursor: pointer;
+  box-sizing: border-box; padding: .3rem .6rem .3rem .75rem; border-radius: 4px; cursor: pointer;
   font: inherit; font-weight: 700; font-stretch: 87.5%; line-height: 1.2; text-align: left;
   background: var(--dd-tint, var(--tile)); border: 1.5px solid var(--dd-edge, var(--tile-edge));
   color: color-mix(in srgb, var(--dd-edge, var(--ink)) 55%, var(--ink));
@@ -20,7 +20,7 @@ select.dd-native { display: none !important; }
 
 .dd-list {
   position: fixed; inset: auto; margin: 0; box-sizing: border-box; padding: 5px;
-  border: 1px solid var(--tile-edge); border-radius: 12px; background: var(--sheet); color: var(--ink);
+  border: 1.5px solid var(--brass); border-radius: 6px; background: var(--sheet); color: var(--ink);
   box-shadow: 0 14px 34px rgba(20, 40, 60, .18), 0 2px 6px rgba(20, 40, 60, .08);
   overflow-y: auto; overscroll-behavior: contain; font-family: var(--font);
 }
@@ -29,9 +29,9 @@ select.dd-native { display: none !important; }
 @keyframes dd-in { from { opacity: 0; transform: translateY(-4px); } }
 .dd-opt {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 44px; box-sizing: border-box;
-  padding: .45rem .65rem .45rem .7rem; border-radius: 8px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  padding: .45rem .65rem .45rem .7rem; border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-.dd-opt.on, .dd-opt:active { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.dd-opt.on, .dd-opt:active { background: color-mix(in srgb, var(--brass) 14%, transparent); }
 .dd-opt[aria-disabled="true"] { opacity: .4; cursor: default; }
 .dd-text { display: flex; flex-direction: column; min-width: 0; }
 .dd-name { font-weight: 700; font-stretch: 87.5%; line-height: 1.2; }
@@ -41,8 +41,9 @@ select.dd-native { display: none !important; }
 .dd-opt[aria-selected="true"] .dd-tick { visibility: visible; }
 
 /* The logo tints are light in both schemes; on a dark page the button takes a deep tint instead, so it doesn't glare. */
+/* on the dial the game's enamel is deep, so the lettering is parchment and the tick bright brass */
 @media (prefers-color-scheme: dark) {
-  .dd { background: color-mix(in srgb, var(--dd-edge, var(--tile)) 30%, var(--yard)); color: var(--dd-tint, var(--ink)); }
-  .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--dd-tint, var(--ink))); }
+  .dd { color: var(--ink); }
+  .dd-tick { stroke: var(--dd-edge, var(--brass)); }
 }
 @media (prefers-reduced-motion: reduce) { .dd-list:popover-open { animation: none; } .dd-chev { transition: none; } }

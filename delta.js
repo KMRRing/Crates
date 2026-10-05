@@ -4,6 +4,7 @@
 import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
@@ -108,12 +109,12 @@ function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON
 
 /** Starts a solo board: this seed's, or (no seed) the next one for the level. */
 async function soloBoard(seed, level) {
-  const slow = setTimeout(() => toast("Dealing…", 6000), 250);
+  const done = busy("Dealing the board", { delay: 250 });   // a hard board can take a moment
   let board;
-  if (seed) board = await deal(seed, level);
-  else ({ seed, board } = await nextBoard(level));
-  clearTimeout(slow);
-  $("toast").classList.remove("show");
+  try {
+    if (seed) board = await deal(seed, level);
+    else ({ seed, board } = await nextBoard(level));
+  } finally { done(); }
   if (!board) { toast("Couldn't make a board, try again"); return; }
   refill(level);
   S = { seed, level, board, paths: {}, clues: [], done: null, ms: 0 };
@@ -129,10 +130,8 @@ async function soloBoard(seed, level) {
 function newBoard(level = S.level) {
   if (S && !S.done && pathList(S.paths).length && !confirm("Start a new board? This one isn't finished.")) { render(); return; }
   if (!together.room) { soloBoard(null, level); return; }
-  const slow = setTimeout(() => toast("Dealing…", 6000), 250);
-  nextBoard(level).then(({ seed, board }) => {
-    clearTimeout(slow);
-    $("toast").classList.remove("show");
+  const done = busy("Dealing the board", { delay: 250 });
+  nextBoard(level).finally(done).then(({ seed, board }) => {
     if (!board) { toast("Couldn't make a board, try again"); return; }
     together.act(g => { Object.assign(g, { level, seed, board, paths: {}, clues: [], done: null, startedAt: Date.now() }); });
   });
@@ -327,7 +326,7 @@ function drawPartner() {
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.innerHTML = "";
-  if (!together.online) { el.append("Reconnecting… moves made now may not reach your partner."); return; }
+  if (!together.online) { el.append(sextant(), "Reconnecting… moves made now may not reach your partner."); return; }
   const p = together.partner();
   if (!p) { el.append(`Game ${together.room.code}: waiting for your partner to join.`); return; }
   const b = document.createElement("b");

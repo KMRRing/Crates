@@ -3,6 +3,7 @@
 import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { sextant } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo } from "./suite.js";
@@ -514,7 +515,7 @@ function drawPartner() {
   const there = otherHere(room.here, room.uid);
   el.hidden = false;
   el.innerHTML = "";
-  if (room.online === false) { el.append("Reconnecting… moves made now may not reach your partner."); return; }
+  if (room.online === false) { el.append(sextant(), "Reconnecting… moves made now may not reach your partner."); return; }
   if (there && there.game !== GAME) {
     // your partner has another game of the room open: say which, and offer to follow
     const b = document.createElement("b");
@@ -907,7 +908,7 @@ async function define(k) {
   if (!words.length) { toast("Finish a word through this cell first"); return; }
   const body = $("defineBody"), show = () => body.replaceChildren(...words.map(entryBox), make("p", "Definitions: Open English WordNet (CC BY 4.0), and Slate's own for words it lacks.", "credit"));
   if (DEFS) show();
-  else body.replaceChildren(make("p", "Looking it up…"));
+  else { const p = make("p", "Looking it up…"); p.prepend(sextant()); body.replaceChildren(p); }
   if (!$("defineDlg").open) $("defineDlg").showModal();
   if (!DEFS) {
     try { await loadDefs(); show(); }
@@ -1009,7 +1010,7 @@ function buildKeyboard() {
 let toastTimer = null;
 function toast(msg) {
   const t = $("toast");
-  t.textContent = msg;
+  t.replaceChildren(...(msg.endsWith("…") ? [sextant()] : []), msg);   // still working: the small sextant says so
   // float just above the action buttons, so the board stays visible
   t.style.top = `${Math.max(8, $("actions").getBoundingClientRect().top - t.offsetHeight - 10)}px`;
   t.classList.add("show");

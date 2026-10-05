@@ -2,16 +2,16 @@
    the page; the pot is a running ledger figure. Turf green for the house's colours, the suite's red and green
    for wins and losses. */
 :root {
-  --pt-turf: #2E6B4A;
-  --pt-turf-ink: #F4F7F4;
-  --pt-ticket: #F9FAF8;
-  --pt-ticket-edge: #C9D1D5;
-  --pt-win: #2E7D4F;
-  --pt-loss: #B23A2C;
-  --pt-pick: #1C2A34;
+  --pt-turf: #2F6B4F;       /* racing green, enamelled */
+  --pt-turf-ink: #F5EFE1;
+  --pt-ticket: var(--tile);
+  --pt-ticket-edge: var(--tile-edge);
+  --pt-win: #2F7D5B;
+  --pt-loss: #A8382B;
+  --pt-pick: var(--ink);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --pt-turf: #5FAE84; --pt-turf-ink: #0E1A14; --pt-ticket: #1D262D; --pt-ticket-edge: #33414B; --pt-win: #63C98E; --pt-loss: #FF7E6E; --pt-pick: #E3E8EB; }
+  :root { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: #7FC2A8; --pt-loss: #E8806F; }
 }
 
 #app.punt { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
@@ -26,7 +26,7 @@
 .pt-progress { color: var(--ink-soft); font-size: .95rem; }
 .pt-avg { margin: -.35rem 0 .4rem; text-align: right; color: var(--ink-soft); font-size: .9rem; font-variant-numeric: tabular-nums; }
 .pt-lengths { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .3rem 0 .4rem; }
-.pt-lengths .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+.pt-lengths .btn[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 .pt-lengths.pt-tabs { grid-template-columns: 1fr 1fr; }
 .pt-pot { font-size: 1rem; }
 .pt-pot-label { color: var(--ink-soft); }
@@ -50,7 +50,7 @@
 .pt-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin: .3rem 0 .6rem; }
 .pt-chips-10 { grid-template-columns: repeat(5, 1fr); }
 .pt-chips .btn { min-height: 42px; padding: .3rem .2rem; }
-.pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+.pt-chips .btn[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 #mathsDlg h3 { margin: .8rem 0 .2rem; }
 .pt-need { margin: -.6rem 0 .8rem; font-weight: 750; color: var(--pt-turf); }
 .pt-figure { margin: -.4rem 0 .9rem; display: grid; place-items: center; }
@@ -106,7 +106,7 @@
 .pt-flag:disabled { text-decoration: none; cursor: default; }
 .pt-reasons { display: grid; gap: .4rem; margin: .4rem 0 .7rem; }
 .pt-reasons .btn { text-align: left; justify-content: flex-start; }
-.pt-reasons .btn[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+.pt-reasons .btn[aria-checked="true"] { background: var(--plate); color: var(--plate-ink); }
 .pt-note-label { display: block; font-size: .85rem; color: var(--ink-soft); margin-bottom: .25rem; }
 .pt-note { width: 100%; box-sizing: border-box; font: inherit; padding: .5rem .6rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge);
   background: var(--sheet); color: var(--ink); margin-bottom: .6rem; resize: vertical; }

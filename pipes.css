@@ -1,6 +1,6 @@
-/* Pipes: a board of pipe tiles on dark ground; crude is black, gas blue, the blend purple. Rust is the house colour. */
-:root { --pi-in: #B4532A; --pi-in-soft: #F4DCD1; --pi-ground: #1F2A32; --pi-tile: #2C3A44; --pi-tile-edge: #3B4C58; --pi-pipe: #9AA7B0; --pi-pipe-dark: #6E7D88; --pi-rock: #182028; --pi-good: #2E9E5B; --pi-bad: #D23B2A; --pi-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --pi-in: #E0794E; --pi-in-soft: #3E251A; --pi-edge: #33414B; } }
+/* Pipes: a board of brass pipe tiles on a navy ground; crude is black, gas blue, the blend purple. Copper is the house colour. */
+:root { --pi-in: #A9542B; --pi-in-soft: color-mix(in srgb, var(--pi-in) 15%, var(--sheet)); --pi-ground: #16212A; --pi-tile: #22303B; --pi-tile-edge: #3A3424; --pi-pipe: #C99A45; --pi-pipe-dark: #8A6424; --pi-rock: #0F171D; --pi-good: #2F7D5B; --pi-bad: #A8382B; --pi-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806F; } }
 
 .pi-mark { display: inline-block; }
 .pi-mark svg { width: 100%; height: 100%; display: block; }
@@ -30,8 +30,8 @@
 .pi-board .flow { fill: none; stroke-linecap: butt; }
 /* the buttons and the note keep their room whether or not they're showing, so the board never changes size mid-level */
 .pi-actions { display: grid; gap: .45rem; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-height: 48px; }
-.pi-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--pi-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
-.pi-go.quiet { background: var(--yard); color: var(--ink); }
+.pi-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.pi-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .pi-go[hidden] { display: none; }
 .pi-note { margin: 0; font-size: .86rem; color: var(--ink-soft); line-height: 1.3; height: 3.9em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pi-big { font-size: 3rem; font-weight: 800; color: var(--pi-in); text-align: center; margin: .2rem 0; }
@@ -40,6 +40,6 @@
 .pi-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
 .pi-stats span { font-size: .75rem; color: var(--ink-soft); }
 .pi-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .pi-toast.show { opacity: 1; }

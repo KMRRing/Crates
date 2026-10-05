@@ -5,6 +5,12 @@
 // middle of a game could mix old code with new.
 import "./suite.js";   // the solo code's sync runs on every page
 import "./menu.js";    // every game's menu: one popup, laid out the same
+import { busy } from "./loading.js";
+
+// The page is drawn: the rete style.css shows while a page loads (html:not(.ready)) goes. Module scripts have all
+// run by DOMContentLoaded, so the game's first render is in.
+const drawn = () => document.documentElement.classList.add("ready");
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", drawn, { once: true }); else drawn();
 const supported = "serviceWorker" in navigator;
 const ready = supported ? navigator.serviceWorker.register("./sw.js").catch(() => null) : Promise.resolve(null);
 
@@ -23,6 +29,7 @@ if (supported) {
  * onto it. Without a service worker, reloads past the browser's cache instead.
  */
 export async function reloadFresh() {
+  busy("Updating Almanac", { delay: 0 });   // until the reload replaces the page
   const reg = await ready;
   if (!reg) {
     const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));

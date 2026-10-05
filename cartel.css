@@ -4,18 +4,18 @@
   --ct-ox: #8E2C3B;
   --ct-ox-fill: #8E2C3B;      /* filled buttons: white text on it, so it stays deep in dark mode too */
   --ct-ox-ink: #F7EEF0;
-  --ct-gold: #EBCB74;
-  --ct-gold-edge: #A47A17;
-  --ct-plain: #F7F8F7;
-  --ct-plain-edge: #C9D1D5;
+  --ct-gold: #E2B865;        /* the suite's gilt */
+  --ct-gold-edge: #A47528;
+  --ct-plain: var(--tile);
+  --ct-plain-edge: var(--tile-edge);
   --ct-cup: #26343F;
   --ct-cup-ink: #93A3AE;
-  --ct-win: #2E7D4F;
-  --ct-loss: #B23A2C;
+  --ct-win: #2F7D5B;
+  --ct-loss: #A8382B;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: #1D0C10; --ct-plain: #1D262D; --ct-plain-edge: #33414B; --ct-cup: #0C1216; --ct-cup-ink: #5E707C;
-    --ct-win: #63C98E; --ct-loss: #FF7E6E; }
+  :root { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: #1D0C10; --ct-cup: #0C1216; --ct-cup-ink: #5E707C;
+    --ct-win: #7FC2A8; --ct-loss: #E8806F; }
 }
 
 /* the whole game fits the screen, never scrolling: the table keeps one size all game, the tray takes the rest (and
@@ -151,7 +151,7 @@
   font: inherit; font-size: 1.4rem; font-weight: 700; line-height: 1; }
 .ct-count { text-align: center; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ct-stepper .ct-note { padding-left: .3rem; }
-.ct-go { min-height: 44px; padding: 0 .6rem; border-radius: 14px; cursor: pointer; border: 0; background: var(--ct-ox-fill); color: #fff;
+.ct-go { min-height: 44px; padding: 0 .6rem; border-radius: 4px; cursor: pointer; border: 0; background: var(--plate); color: var(--plate-ink); text-transform: uppercase; letter-spacing: .07em; font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   font: inherit; font-size: .95rem; font-weight: 800; line-height: 1.15; }
 .ct-go-quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ct-plain-edge); }
 .ct-go small { display: block; font-size: .7rem; font-weight: 650; opacity: .85; margin-top: .1rem; }
@@ -164,7 +164,7 @@
 .ct-blocks { grid-template-columns: 1fr; margin-top: .5rem; }
 .ct-blocks:empty { display: none; }
 .ct-row { display: flex; flex-wrap: wrap; gap: .35rem; }
-.ct-row .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+.ct-row .btn[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 
 /* what a role does: a small card in the middle of the screen */
 dialog.ct-pop { width: min(22rem, calc(100vw - 2rem)); margin: auto; padding: 1.1rem; border: 0; border-radius: 18px;

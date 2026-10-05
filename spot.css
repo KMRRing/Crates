@@ -1,18 +1,18 @@
 /* Spot: sums fall down a dark field; their answers wait on a shelf of round tokens below. Orange is the house
    colour. The field and the shelf share one full-height column, so the game fills the phone. */
 :root {
-  --sp-or: #D9531E;
-  --sp-or-soft: #FBE3D6;
+  --sp-or: #B8492A;          /* vermilion enamel */
+  --sp-or-soft: color-mix(in srgb, var(--sp-or) 15%, var(--sheet));
   --sp-field: #1C2A34;
-  --sp-card: #F6F3EE;
+  --sp-card: #F5EFE1;
   --sp-card-ink: #1C2A34;
-  --sp-good: #2E9E5B;
-  --sp-bad: #D23B2A;
-  --sp-token: #FFFFFF;
-  --sp-token-edge: #C9D1D5;
+  --sp-good: #2F7D5B;
+  --sp-bad: #A8382B;
+  --sp-token: var(--tile);
+  --sp-token-edge: var(--tile-edge);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --sp-or: #F07A45; --sp-or-soft: #3A2318; --sp-field: #0E151A; --sp-token: #1D262D; --sp-token-edge: #33414B; }
+  :root { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC2A8; --sp-bad: #E8806F; }
 }
 
 #app.spot { height: 100vh; height: 100svh; display: flex; flex-direction: column; gap: .5rem; overflow: hidden; position: relative; }
@@ -83,12 +83,12 @@
 .sp-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); }
 .sp-stats b { display: block; font-size: 1.3rem; font-weight: 800; }
 .sp-stats span { font-size: .75rem; color: var(--ink-soft); }
-.sp-go { min-height: 50px; border: 0; border-radius: 16px; background: var(--sp-or); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
-.sp-go.quiet { background: var(--yard); color: var(--ink); }
+.sp-go { min-height: 50px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); text-transform: uppercase; letter-spacing: .07em; font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.sp-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .sp-go:disabled { opacity: .45; cursor: default; }
 
 .sp-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .sp-toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .sp-token.new, .sp-token.bad, .sp-burst, .sp-life.hit { animation: none; } }

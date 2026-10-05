@@ -1,12 +1,12 @@
 /* Quote: one question at a time on a card, a two-sided market underneath. Indigo is the house colour. */
 :root {
-  --qt-in: #3F4DAE;
-  --qt-in-soft: #DCDFF5;
-  --qt-good: #2E9E5B;
-  --qt-bad: #D23B2A;
-  --qt-edge: #C9D1D5;
+  --qt-in: #34478F;
+  --qt-in-soft: color-mix(in srgb, var(--qt-in) 15%, var(--sheet));
+  --qt-good: #2F7D5B;
+  --qt-bad: #A8382B;
+  --qt-edge: var(--tile-edge);
 }
-@media (prefers-color-scheme: dark) { :root { --qt-in: #8A96E8; --qt-in-soft: #262B4A; --qt-edge: #33414B; } }
+@media (prefers-color-scheme: dark) { :root { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-bad: #E8806F; } }
 
 .qt-mark { display: inline-block; }
 .qt-mark svg { width: 100%; height: 100%; display: block; }
@@ -35,9 +35,9 @@
 .qt-widths button { min-height: 38px; border-radius: 10px; border: 1.5px solid var(--qt-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; }
 .qt-widths button:disabled { opacity: .4; cursor: default; }
 .qt-fault { margin: 0; min-height: 1.2em; font-size: .88rem; color: var(--qt-bad); }
-.qt-go { min-height: 50px; border: 0; border-radius: 14px; background: var(--qt-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.qt-go { min-height: 50px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .qt-go:disabled { opacity: .45; cursor: default; }
-.qt-go.quiet { background: var(--yard); color: var(--ink); }
+.qt-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .qt-partner { margin: .5rem 0 0; font-size: .95rem; }
 .qt-partner b { font-weight: 750; }
 .qt-waiting { margin: .4rem 0; text-align: center; color: var(--ink-soft); }
@@ -75,7 +75,7 @@
 .qt-lines .bad { color: var(--qt-bad); }
 
 .qt-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .qt-toast.show { opacity: 1; }
 

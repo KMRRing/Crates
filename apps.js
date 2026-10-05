@@ -279,7 +279,7 @@ export function bindSwitcher(button, current) {
   // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
+  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand"><img src="logo.svg" alt="">Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more${APPS.find(x => x.id === current)?.more ? " cur" : ""}" type="button" data-more aria-haspopup="dialog" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul></div>`;

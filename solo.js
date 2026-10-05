@@ -7,6 +7,7 @@ import {
   cleanSeen, markSeen, seenTexts, forgetSeen, seenStats,
 } from "./learn.js";
 import { createRun, cleanCode, validCode } from "./run.js";
+import { busy } from "./loading.js";
 import * as view from "./view.js";
 
 const MAX_MISTAKES = 4;
@@ -194,11 +195,12 @@ export function createSolo({ setPoolParam, setBoardParam }) {
   const runLink = code => `${location.origin}${location.pathname}?run=${code}`;
 
   async function syncRun() {
-    view.toast("Setting up sync…", 3000);
+    const done = busy("Setting up sync");
     try {
       const code = await run.create();
+      done();
       view.toast(code ? `Synced as ${code}` : "Couldn't set up sync, try again", 3000);
-    } catch (e) { console.error(e); view.toast(syncError(e), 4500); }
+    } catch (e) { done(); console.error(e); view.toast(syncError(e), 4500); }
     if (view.menuTag() === "solo") handlers.menu();
   }
 
@@ -208,11 +210,12 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     if (code === run.code()) { view.toast("This device already follows that run", 2200); return; }
     const progress = store.history.length > 0 || (store.cur && store.cur.guesses.length > 0);
     if (progress && !confirm("Switch this device to the synced run? Its own progress here will be replaced.")) return;
-    view.toast("Fetching your run…", 3000);
+    const done = busy("Fetching your run");
     try {
       const ok = await run.join(code);
+      done();
       view.toast(ok ? `This device now follows run ${code}` : "No run with that code", 3000);
-    } catch (e) { console.error(e); view.toast(syncError(e), 4500); }
+    } catch (e) { done(); console.error(e); view.toast(syncError(e), 4500); }
     if (view.menuTag() === "solo") handlers.menu();
   }
 

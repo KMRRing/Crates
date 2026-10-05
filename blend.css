@@ -1,6 +1,6 @@
 /* Blend: an order, a margin bar, the specification judged live, and the tank farm with steppers. Olive is the house colour. */
-:root { --bl-in: #5B7A1E; --bl-in-soft: #E6EFD2; --bl-good: #2E9E5B; --bl-bad: #D23B2A; --bl-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --bl-in: #9CC24A; --bl-in-soft: #27341A; --bl-edge: #33414B; } }
+:root { --bl-in: #5E7424; --bl-in-soft: color-mix(in srgb, var(--bl-in) 15%, var(--sheet)); --bl-good: #2F7D5B; --bl-bad: #A8382B; --bl-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806F; } }
 
 .bl-mark { display: inline-block; }
 .bl-mark svg { width: 100%; height: 100%; display: block; }
@@ -28,8 +28,8 @@
 .bl-verdict.good { color: var(--bl-good); font-weight: 750; }
 .bl-verdict.bad { color: var(--bl-bad); }
 .bl-buttons { display: grid; grid-template-columns: minmax(0, 1fr) 4.6rem 6rem; gap: .4rem; }
-.bl-go { min-height: 42px; border: 0; border-radius: 14px; background: var(--bl-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
-.bl-go.quiet { background: var(--yard); color: var(--ink); }
+.bl-go { min-height: 42px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.bl-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .bl-go:disabled { opacity: .45; cursor: default; }
 
 .bl-spec-box { margin-top: .5rem; }
@@ -74,6 +74,6 @@
 .bl-levels button b { font-weight: 800; }
 .bl-levels button.done { border-color: var(--bl-good); }
 .bl-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .bl-toast.show { opacity: 1; }

@@ -63,6 +63,18 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 - **Write the README** for every change: plain prose, what it does and why, in the game's section.
 - He's a biofuels trader and wants expert, terse engagement; define a technical term the first time you use it.
 
+## The look
+
+Brass instruments on an almanac's page (README, "The look"). Build every screen from `style.css`'s tokens: `--yard`
+(the page), `--sheet` (cards, dialogs), `--tile`/`--tile-edge`, `--ink`, `--ink-soft`, `--brass` (lines, frames, scales),
+`--rule` (hairlines), `--plate`/`--plate-ink` (a primary action: navy lettered in gilt by day, brass lettered in navy by
+night), the enamels `--c0`..`--c3`, `--learn`. A game's own accent is one enamel, `--<game>-in`, with its soft fill
+`color-mix(in srgb, var(--<game>-in) 15%, var(--sheet))`; good and bad are verdigris `#2F7D5B`/`#7FC2A8` and oxblood
+`#A8382B`/`#E8806F`. No cool greys, no pills: corners are square-ish (4–6px), the main action is the plate, names of
+things are wide spaced capitals (`font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .08em+`).
+**Loading:** `busy(label)` from `loading.js` for any wait that holds up the screen (the rete, large, mid-screen);
+`sextant()` before the words of a short wait in a line or a box. Never a spinner of your own, never "Loading…" alone.
+
 ## Saved state syncs
 
 `suite.js` syncs every `localStorage` key between devices on the same solo code (except `suite:`, Crates' run keys and

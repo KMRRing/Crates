@@ -1,6 +1,6 @@
 /* Rush: a board, a clock, three strikes. Walnut is the house colour. */
-:root { --ru-in: #6B4A2B; --ru-in-soft: #EADFD2; --ru-good: #2E9E5B; --ru-bad: #D23B2A; --ru-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --ru-in: #C49A6C; --ru-in-soft: #3A2C1F; --ru-edge: #33414B; } }
+:root { --ru-in: #6B4A2B; --ru-in-soft: color-mix(in srgb, var(--ru-in) 15%, var(--sheet)); --ru-good: #2F7D5B; --ru-bad: #A8382B; --ru-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --ru-in: #C49A6C; --ru-good: #7FC2A8; --ru-bad: #E8806F; } }
 
 .ru-mark { display: inline-block; }
 .ru-mark svg { width: 100%; height: 100%; display: block; }
@@ -26,13 +26,14 @@
 .ru-board .ch-board { width: min(100cqw, 100cqh); }
 .ru-board:empty { display: grid; place-items: center; color: var(--ink-soft); }
 .ru-meta { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
-.ru-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--ru-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.ru-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .ru-go[hidden] { display: none; }
 
-/* the board: classic, in the suite's blues; highlights are translucent layers over the squares */
+/* the board: parchment and bronze, maple and walnut in the suite's brass (a mid-tone dark square, so black pieces read
+   on it as well as white); highlights are translucent layers over the squares */
 .ch-board { width: 100%; margin: 0; display: block; border-radius: 0; overflow: visible; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.ch-board .sq.light { fill: #E4ECF3; }
-.ch-board .sq.dark { fill: #6B8DB0; }
+.ch-board .sq.light { fill: #EFE3C8; }
+.ch-board .sq.dark { fill: #9C8257; }
 .ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
 .ch-board .hl.sel { fill: rgba(255, 221, 89, .75); }
 .ch-board .hl.pre { fill: rgba(168, 104, 230, .5); }
@@ -40,18 +41,18 @@
 .ch-board .hl.want { fill: rgba(46, 158, 91, .6); }
 .ch-board .hl.check { fill: rgba(210, 59, 42, .75); }
 .ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
-.ch-board .coord.on-light { fill: #6B8DB0; }
-.ch-board .coord.on-dark { fill: #E4ECF3; }
+.ch-board .coord.on-light { fill: #7A6440; }
+.ch-board .coord.on-dark { fill: #EFE3C8; }
 .ch-board .piece { cursor: grab; }
 .ch-board .piece.lifted { opacity: .35; }
 .ch-board .piece.dragging { pointer-events: none; filter: drop-shadow(0 .08px .12px rgba(0, 0, 0, .35)); }
 .ch-board .target { fill: rgba(20, 40, 60, .22); cursor: pointer; }
 .ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
 @media (prefers-color-scheme: dark) {
-  .ch-board .sq.light { fill: #CBD6E0; }
-  .ch-board .sq.dark { fill: #4F6E8F; }
-  .ch-board .coord.on-light { fill: #4F6E8F; }
-  .ch-board .coord.on-dark { fill: #CBD6E0; }
+  .ch-board .sq.light { fill: #CDBF9E; }
+  .ch-board .sq.dark { fill: #8C744B; }
+  .ch-board .coord.on-light { fill: #6E5A38; }
+  .ch-board .coord.on-dark { fill: #E6DAC0; }
 }
 
 .ru-big { font-size: 3rem; font-weight: 800; color: var(--ru-in); text-align: center; margin: .2rem 0; }
@@ -63,6 +64,6 @@
 .ru-missed li { display: flex; justify-content: space-between; gap: .6rem; }
 .ru-missed a { color: var(--ru-in); font-weight: 750; text-decoration: none; }
 .ru-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .ru-toast.show { opacity: 1; }

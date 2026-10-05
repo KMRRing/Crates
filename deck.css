@@ -1,6 +1,6 @@
 /* Deck: the piles and the review. Plum is the house colour. */
-:root { --dk-in: #6D3B7A; --dk-in-soft: #EEDFF2; --dk-good: #2E9E5B; --dk-bad: #D23B2A; --dk-edge: #C9D1D5; }
-@media (prefers-color-scheme: dark) { :root { --dk-in: #C98BD6; --dk-in-soft: #3A2340; --dk-edge: #33414B; } }
+:root { --dk-in: #6A3D78; --dk-in-soft: color-mix(in srgb, var(--dk-in) 15%, var(--sheet)); --dk-good: #2F7D5B; --dk-bad: #A8382B; --dk-edge: var(--tile-edge); }
+@media (prefers-color-scheme: dark) { :root { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806F; } }
 
 .dk-mark { display: inline-block; }
 .dk-mark svg { width: 100%; height: 100%; display: block; }
@@ -25,7 +25,7 @@
 .dk-games div { display: flex; justify-content: space-between; padding: .5rem .7rem; border-radius: 10px; background: var(--sheet); font-size: .92rem; }
 .dk-games b { font-weight: 800; }
 .dk-games span.due { color: var(--dk-in); font-weight: 750; }
-.dk-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--dk-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.dk-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .dk-go:disabled { opacity: .45; cursor: default; }
 .dk-go[hidden] { display: none; }
 
@@ -59,7 +59,7 @@
 .dk-summary b { font-size: 2.2rem; font-weight: 800; color: var(--dk-in); }
 .deck .ch-board { border-radius: 10px; }
 .dk-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .dk-toast.show { opacity: 1; }
 

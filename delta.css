@@ -1,19 +1,18 @@
 /* Delta: a field of hexes with channels between them. Paths are drawn as broad currents in their own colour;
    numbers are the solid ink anchors; operations sit on the tiles in a narrower cut of the same face. */
 :root {
-  --d-tile: #F7F8F7;
-  --d-tile-edge: #C9D1D5;
-  --d-op-tile: #E9EEF0;
-  --d-num: #1C2A34;
-  --d-num-ink: #F7F8F7;
-  --d-p0: #17807C; --d-p1: #4B5BB7; --d-p2: #C3830F; --d-p3: #B83A6B; --d-p4: #5E8C2E; --d-p5: #7A4FA8;
-  --d-ok: #2E7D4F; --d-no: #B23A2C;
+  --d-tile: var(--tile);
+  --d-tile-edge: var(--tile-edge);
+  --d-op-tile: color-mix(in srgb, var(--brass) 12%, var(--tile));
+  --d-num: var(--ink);       /* a number's disc: navy on the page, parchment on the dial */
+  --d-num-ink: var(--yard);
+  --d-p0: #1F6E66; --d-p1: #34478F; --d-p2: #B8862F; --d-p3: #8E2F48; --d-p4: #5E7424; --d-p5: #6A3D78;
+  --d-ok: #2F7D5B; --d-no: #A8382B;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --d-tile: #1D262D; --d-tile-edge: #33414B; --d-op-tile: #24303A; --d-num: #E3E8EB; --d-num-ink: #141B20;
-    --d-p0: #3DB3AD; --d-p1: #8492E6; --d-p2: #E2A93A; --d-p3: #E2719C; --d-p4: #93C462; --d-p5: #B38BE0;
-    --d-ok: #63C98E; --d-no: #FF7E6E;
+    --d-p0: #6CC0B5; --d-p1: #8E9BE0; --d-p2: #E2B865; --d-p3: #D9849F; --d-p4: #A9C25A; --d-p5: #C08FD0;
+    --d-ok: #7FC2A8; --d-no: #E8806F;
   }
 }
 
