@@ -8,6 +8,7 @@ import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo } from "./suite.js";
 import { dropdown } from "./dropdown.js";
+import { part, action } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -832,22 +833,16 @@ function showDone() {
 // ---------- the menu ----------
 function openMenu() { drawMenu(); if (!$("menuDlg").open) $("menuDlg").showModal(); }
 
+// the menu: Play (a new board, the fill or result); in a room, back to solo; else a link to this board
 function drawMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; body.appendChild(e); return e; };
-  add("button", "btn primary wide", "New board").addEventListener("click", () => newBoard());
-  if (room) {
-    $("menuTitle").textContent = "Playing together";
-    add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
-    add("button", "link", "Back to solo").addEventListener("click", () => { $("menuDlg").close(); leave(); });
-    return;
-  }
-  $("menuTitle").textContent = "Menu";
-  add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
-  add("button", "link", "Copy this board's link").addEventListener("click", async () => {
+  $("menuTitle").textContent = room ? "Playing together" : "Menu";
+  part(body, "play").append(action("New board", () => newBoard(), "primary"), action(S.done ? "Show the result" : "Show our fill", giveUp));
+  if (room) part(body, "together").append(action("Back to solo", () => leave(), "link"));
+  else part(body, "about").append(action("Copy this board's link", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }
-  });
+  }, "link"));
 }
 
 // ---------- definitions ----------

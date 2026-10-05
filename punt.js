@@ -13,6 +13,7 @@ import { dropdown } from "./dropdown.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
+import { part, choice, toggle as menuToggle, action } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -629,39 +630,23 @@ function toast(msg, ms = 2600) {
 }
 
 function openMenu() { drawMenu(); if (!$("menuDlg").open) $("menuDlg").showModal(); }
+// the menu: Play (a new run, ending an endless one), Content (the run's length; the level is the header's), Settings
+// (learning mode), About (stats, flagged questions, a link); in a room, back to solo
+let pickLength = null;                                        // the length the menu will start
 function drawMenu() {
   const body = $("menuBody");
-  body.innerHTML = "";
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
-  learn.type = "button";
-  learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); drawMenu(); });
-  add("p", "stats", `What you miss, pass or stake 20% or less on goes to the pile and leads your next blocks until you know it (${pile.counts("punt").due} due here now). Deck, on the games screen, reviews everything due across the games.`);
-  add("h3", null, "Run length");
-  const lengths = add("div", "pt-lengths");
-  for (const [id, L] of Object.entries(LENGTHS)) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = "btn";
-    b.textContent = id === "standard" ? `Standard (${LEVELS[S.level].questions})` : id === "hundred" ? "100" : L.label;
-    b.setAttribute("aria-pressed", String(lengthOf(S) === id));
-    b.addEventListener("click", () => { $("menuDlg").close(); newSession(S.level, id); });
-    lengths.appendChild(b);
-  }
-  button("New run", () => newSession(S.level, lengthOf(S)));
-  if (lengthOf(S) === "endless" && !S.done && S.log.length) button("End this run", endRun);
-  button("Your stats", () => openStats("run"));
-  button("Flagged questions", () => openFlags(false));
-  const room = together.room;
-  if (!room) {
-    button("Copy a link to this session", async () => {
+  body.replaceChildren();
+  pickLength ??= lengthOf(S);
+  const play = part(body, "play");
+  play.append(action("New run", () => newSession(S.level, pickLength), "primary"));
+  if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
+  part(body, "content").append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
+  part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+  if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
+  part(body, "about").append(action("Your stats", () => openStats("run")), action("Flagged questions", () => openFlags(false)),
+    ...(together.room ? [] : [action("Copy a link to this run", async () => {
       try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
-    }, "link");
-  } else {
-    add("h3", null, "Playing together");
-    button("Back to solo", () => together.leave(), "link");
-  }
+    }, "link")]));
 }
 
 // ---------- wiring ----------
