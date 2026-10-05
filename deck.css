@@ -38,6 +38,9 @@
 .dk-number { display: grid; grid-template-columns: 1fr auto; gap: .4rem; }
 .dk-number input { min-height: 48px; padding: 0 .7rem; border-radius: 12px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
 .dk-number button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--dk-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.dk-number button:disabled { opacity: .45; cursor: default; }
+/* answered: the field keeps its focus for the next card, so it only looks settled */
+.dk-number.done input { color: var(--ink-soft); background: var(--yard); }
 .dk-verdict { margin: 0; min-height: 1.3em; font-weight: 800; }
 .dk-verdict.good { color: var(--dk-good); }
 .dk-verdict.bad { color: var(--dk-bad); }

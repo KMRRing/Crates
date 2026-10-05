@@ -217,6 +217,8 @@ The pile, reviewed: what you didn't know, brought back until you do. Every knowl
 
 Learning mode, on by default and switchable from Deck's, Punt's, Quote's or Chart's menu: Punt leads each block of a bank level with what's due (up to half the block, spread through it) and fills the rest with questions you haven't seen before any you have; Quote and Chart lead their sets the same way. Off, the games deal as they always did and still bank what you miss. Crates keeps its own learn mode, which feeds the pile. `pile.js` is the store and scheduler; `tests/pile.mjs` checks promotion, demotion, gaps and learning.
 
+No clicks needed. A typed card (Quote's numbers) has its field ready to type in, and the field stays focused from one typed card to the next (on a phone the keyboard stays up): type, Enter to answer, then either Enter to move on or simply type the next answer, which starts the next card with it. On a card with options, 1 to 9 pick one and Enter moves on.
+
 ## Parley
 Three beginner courses from an English speaker's side: Chinese, French and German, on the pile's schedule. A course is units of about 14 words, each unit opening with its grammar pattern (three genders and *sein*; the accusative *den*; verb second; the partitive *du / de la*; *aller* and *au*; measure words and 块; 在 and 去; 了) and closing, once all its words are met, with a short text written only from words learned so far, read aloud by the phone, with three questions. Every word card carries the word with its article (French and German) or its characters and pinyin with tone marks (Chinese), the meaning, an example sentence, and a button that speaks it; a new word is shown on its card, spoken, and drilled at once. Up to 12 new words a day, units unlocking in order.
 

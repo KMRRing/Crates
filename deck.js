@@ -20,6 +20,8 @@ const MAX_REVIEW = 40;
 let session = null;    // { items, at, right, wrong }
 let board = null;
 let picked = [];
+let answered = false;  // the card on show has been answered: Enter (or, on a typed card, typing) moves on
+let submitTyped = null;
 
 const placeById = new Map(PLACES.map(p => [p.id, p]));
 const quoteById = new Map(QUOTES.map(q => [q.id, q]));
@@ -69,6 +71,7 @@ function ask() {
   const it = session.items[session.at];
   board?.destroy(); board = null;
   picked = [];
+  answered = false;
   $("progress").textContent = `${session.at + 1} of ${session.items.length}`;
   $("source").textContent = `${GAMES[it.game] || it.game} · ${PILES[it.pile].name.toLowerCase()} pile`;
   $("verdict").textContent = ""; $("verdict").className = "dk-verdict";
@@ -77,7 +80,8 @@ function ask() {
   $("figure").hidden = true;
   const box = $("answerBox");
   box.className = "dk-answer";
-  box.replaceChildren();
+  // a typed card after a typed card keeps the field, and with it the focus (and a phone's keyboard)
+  if (!(it.game === "quote" && field && box.contains(field.wrap))) box.replaceChildren();
   const r = rng(seedOf(it.id) ^ Date.now());
   if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
@@ -116,22 +120,21 @@ function ask() {
     $("ask").textContent = `Quote · an A is ${tierText(q, "A")}`;
     $("prompt").textContent = `${q.q}${q.unit && q.unit !== "year" ? ` (${q.unit})` : ""}`;
     if (q.pic) { const box = document.createElement("div"); box.className = "dk-figure"; $("figure").replaceChildren(box); $("figure").hidden = false; showPicture(box, q.pic); }
-    const wrap = document.createElement("div"); wrap.className = "dk-number";
-    const input = document.createElement("input"); input.type = "text"; input.inputMode = "decimal"; input.placeholder = "Your number"; input.autocomplete = "off";
-    const go = document.createElement("button"); go.type = "button"; go.textContent = "Answer";
-    const submit = () => {
+    const { wrap, input, go } = numberField();
+    input.value = "";
+    go.disabled = false;
+    wrap.classList.remove("done");
+    submitTyped = () => {
       const v = Number(String(input.value).replace(/[^0-9.\-]/g, ""));
       if (!Number.isFinite(v) || input.value.trim() === "") { toast("Give a number"); return; }
       const A = tiersOf(q).A;
       const right = q.scale === "log" ? v > 0 && Math.abs(Math.log2(v / q.truth)) <= Math.log2(1 + A) : Math.abs(v - q.truth) <= A;
-      input.disabled = true; go.disabled = true;
+      go.disabled = true;
+      wrap.classList.add("done");
       settle(right, `${right ? "Close enough" : "Not close"}: it's ${withUnit(q.truth, q)}. ${q.note || ""}`);
     };
-    go.addEventListener("click", submit);
-    input.addEventListener("keydown", e => { if (e.key === "Enter") submit(); });
-    wrap.append(input, go);
-    box.appendChild(wrap);
-    setTimeout(() => input.focus(), 50);
+    if (!box.contains(wrap)) box.appendChild(wrap);
+    input.focus();                                   // at once, not later: a phone only raises its keyboard inside the tap or key that got here
   } else if (it.game === "parley") {
     const p = it.payload;
     $("ask").textContent = `Parley · ${{ zh: "Chinese", fr: "French", de: "German" }[p.course] || p.course}`;
@@ -174,6 +177,7 @@ function options(labels, right, need, note) {
   }
 }
 function settle(right, note) {
+  answered = true;
   const it = session.items[session.at];
   const after = pile.answer(it.game, it.key, right);
   session[right ? "right" : "wrong"]++;
@@ -183,6 +187,37 @@ function settle(right, note) {
   setRich($("note"), note || "");
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = session.at + 1 < session.items.length ? "Next" : "Finish";
+}
+/**
+ * The field for typed answers, made once and kept: it stays focused from one typed card to the next, so you can go
+ * type, Enter, type, Enter. Enter answers, and once answered Enter moves on; so does typing, which starts the next
+ * card with what you typed.
+ */
+let field = null;
+function numberField() {
+  if (field) return field;
+  const wrap = document.createElement("div");
+  wrap.className = "dk-number";
+  const input = document.createElement("input");
+  Object.assign(input, { type: "text", inputMode: "decimal", placeholder: "Your number", autocomplete: "off", enterKeyHint: "go" });
+  input.setAttribute("aria-label", "Your number");
+  const go = document.createElement("button");
+  go.type = "button";
+  go.textContent = "Answer";
+  go.addEventListener("click", () => submitTyped?.());
+  input.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (answered) next(); else submitTyped?.();
+  });
+  input.addEventListener("beforeinput", e => {
+    if (!answered || !e.inputType.startsWith("insert")) return;
+    e.preventDefault();
+    next();
+    if (!answered && input.isConnected) input.value = e.data || "";
+  });
+  wrap.append(input, go);
+  return (field = { wrap, input, go });
 }
 function skip() { session.items.splice(session.at, 1); if (session.at >= session.items.length) finish(); else ask(); }
 function next() {
@@ -230,5 +265,12 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("reviewBtn").addEventListener("click", startReview);
 $("nextBtn").addEventListener("click", next);
+// the keyboard, for a card without a field: 1 to 9 pick an option, Enter moves on once it's answered
+document.addEventListener("keydown", e => {
+  if (!session || $("review").hidden || e.ctrlKey || e.metaKey || e.altKey || e.target.closest?.("input, textarea, select, dialog")) return;
+  if (e.key === "Enter" && answered && !e.target.closest?.("button")) { e.preventDefault(); next(); return; }
+  const n = Number(e.key), option = !answered && n >= 1 ? $("answerBox").querySelectorAll(".dk-option")[n - 1] : null;
+  if (option && !option.disabled) { e.preventDefault(); option.click(); }
+});
 window.__deck = { get session() { return session; }, startReview, overview, pile };
 overview();
