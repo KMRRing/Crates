@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rush">
+<title>Rush</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="rush.css">
+</head>
+<body>
+<div id="app" class="rush">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon ru-mark" aria-hidden="true"></span>Rush</button></h1>
+    <div class="top-right">
+      <select id="mode" class="pool" aria-label="Mode">
+        <option value="three">3 minutes</option>
+        <option value="five">5 minutes</option>
+        <option value="survival">Survival</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div class="ru-hud">
+    <span class="ru-solved"><b id="solved">0</b> solved</span>
+    <span class="ru-clock" id="clock"></span>
+    <span id="strikes" class="ru-strikes" aria-label="Strikes"></span>
+  </div>
+
+  <section class="ru-stage">
+    <p class="ru-line" id="line"></p>
+    <div id="board" class="ru-board"></div>
+    <p class="ru-meta" id="meta"></p>
+    <button class="ru-go" type="button" id="startBtn">Start</button>
+  </section>
+</div>
+
+<dialog id="doneDlg" class="sheet" aria-label="How it went">
+  <div class="pick-head"><h2 id="doneTitle">Time</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div id="doneBody"></div>
+</dialog>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="ru-toast" role="status" aria-live="polite"></p>
+<script type="module" src="rush.js"></script>
+</body>
+</html>

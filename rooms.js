@@ -21,6 +21,7 @@ export const GAMES = {
   blend: { name: "Blend", page: "./blend.html" },
   pipes: { name: "Pipes", page: "./pipes.html" },
   refinery: { name: "Refinery", page: "./refinery.html" },
+  rush: { name: "Rush", page: "./rush.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

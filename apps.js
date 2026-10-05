@@ -77,6 +77,11 @@ const REFINERY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="8" y="4.5" width="4" height="11" rx="1.6" fill="none" stroke="var(--rf-logo-edge)" stroke-width="1.5"/>
   <path d="M8 8h4M8 11h4M12 6.5h2.5M12 9.5h2.5M12 12.5h2.5M5.5 15.5h9" stroke="var(--rf-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 
+// A knight, for Rush.
+const RUSH_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.6"/>
+  <path d="M7 15.5h7v-1.3c0-2.2-1.1-3.2-1.9-4.1-.4-.5-.4-1.6-.2-2.4l.5-1.9-1.6.6-1 1.3-1.5.4c-.9.3-1 1.4-.4 1.9l1.4.3-.2 1.2c-.7.6-2.1 1.2-2.1 2.7z" fill="var(--ru-logo-edge)"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -91,6 +96,7 @@ export const APPS = [
   { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO },
   { id: "pipes", name: "Pipes", href: "./pipes.html", logo: PIPES_LOGO },
   { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO },
+  { id: "rush", name: "Rush", href: "./rush.html", logo: RUSH_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

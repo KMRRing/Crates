@@ -5,7 +5,6 @@
 import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT,
   showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
-import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
@@ -35,8 +34,6 @@ const DIFFICULTIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const banks = {};            // level id -> the loaded module
 async function loadBank(level) { if (!banks[level]) banks[level] = await import(LEVELS[level].bank); return banks[level]; }
 const isMaths = level => !!LEVELS[level]?.maths;
-const isChess = level => !!LEVELS[level]?.chess;
-const usesBank = level => isMaths(level) || isChess(level);
 const picksKey = level => (level === "maths" ? MATHS_PICKS : `punt:picks:${level}`);
 /** The stages and difficulties chosen for a bank's runs: null stages means all of them. */
 function chosenPicks(level) {
@@ -50,7 +47,6 @@ function chosenPicks(level) {
  * with the picks resolved (unknown stages dropped, none meaning all).
  */
 async function bankDeal(level, picks) {
-  if (isChess(level)) { const { PUZZLES } = await loadBank(level); return { deal: { pool: PUZZLES }, picks: null }; }
   const { MATHS, STAGES } = await loadBank(level);
   const ids = STAGES.map(x => x.id);
   const stages = (picks.stages || ids).filter(x => ids.includes(x));
@@ -77,16 +73,16 @@ const lengthOf = s => (LENGTHS[s?.length] ? s.length : "standard");
 
 async function freshState(level, length, players = null, picks = null) {
   const seed = randomSeed();
-  const bank = usesBank(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
+  const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
-  return { v: 1, app: APP, seed, level, length, ...(maths && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet",
+  return { v: 1, app: APP, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet",
     bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
 }
 function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.questions?.length ? s : null; } catch { return null; } }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
 async function soloSession(seed, level, length = chosenLength(), picks = null) {
-  const bank = usesBank(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
+  const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
   if (deal && !deal.pool.length) { toast("No questions match that choice"); render(); return; }
   S = { v: 1, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
@@ -155,23 +151,15 @@ function settleIfReady(g, ids) {
   g.bets = {};
 }
 
-let solving = null;   // chess: { pct, board } while a puzzle is being solved after the stake was placed
 function place(passing) {
   if (S.done || S.phase !== "bet") return;
-  if (question().kind === "chess" && !passing && !solving) {
-    if (pct <= 0) { toast("Set a stake, or pass"); return; }
-    solving = { pct: Math.min(pct, maxPct()), index: S.index };
-    render();
-    return;
-  }
   const need = rightCount(question());
   if (!passing && (pick.length !== need || pct <= 0)) {
     toast(pick.length !== need ? (need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass");
     return;
   }
   const chosen = pick.length === need ? [...pick].sort((a, b) => a - b) : null;
-  const bet = passing ? { pick: chosen, pct: 0 } : { pick: chosen, pct: solving?.pct ?? Math.min(pct, maxPct()) };
-  solving = null;
+  const bet = passing ? { pick: chosen, pct: 0 } : { pick: chosen, pct: Math.min(pct, maxPct()) };
   const id = me(), index = S.index;
   change(g => {
     if (g.done || g.phase !== "bet" || g.index !== index) return false;
@@ -182,7 +170,7 @@ function place(passing) {
 
 async function next() {
   const index = S.index;
-  const deal = usesBank(S.level) && lengthOf(S) === "endless" ? (await bankDeal(S.level, S.maths || chosenPicks(S.level))).deal : null;
+  const deal = isMaths(S.level) && lengthOf(S) === "endless" ? (await bankDeal(S.level, S.maths || chosenPicks(S.level))).deal : null;
   change(g => {
     if (g.phase !== "reveal" || g.index !== index) return false;
     g.questions = Object.values(g.questions);
@@ -190,7 +178,7 @@ async function next() {
     if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions, deal));
     g.index++;
     g.phase = "bet";
-  }).then(() => { solving = null; resetChoice(); });
+  }).then(() => resetChoice());
 }
 
 // ---------- rendering ----------
@@ -218,9 +206,7 @@ function render() {
   $("need").textContent = need === 2 ? "Two of these are right: pick both." : `${need} of these are right: pick all ${need}.`;
   const chosen = reveal ? picksOf(last?.bets[me()]?.pick) || [] : pick;
   const anyonePicked = i => Object.values(last?.bets || {}).some(x => picksOf(x.pick)?.includes(i));
-  $("options").classList.toggle("board", q.kind === "chess");
-  if (q.kind === "chess") { drawBoard(q, reveal); }
-  else $("options").replaceChildren(...q.options.map((o, i) => {
+  $("options").replaceChildren(...q.options.map((o, i) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = `pt-option${o.label.length > 18 ? " long" : ""}`;
@@ -236,7 +222,7 @@ function render() {
   }));
 
   const waiting = !reveal && !!S.bets?.[me()];
-  if (q.kind !== "chess") $("options").setAttribute("role", need > 1 ? "group" : "radiogroup");
+  $("options").setAttribute("role", need > 1 ? "group" : "radiogroup");
   $("betting").hidden = reveal;
   $("result").hidden = !reveal;
   if (!reveal) drawBetting(q, waiting);
@@ -266,45 +252,9 @@ function drawBetting(q, waiting) {
     b.addEventListener("click", () => { pct = x; render(); });
     return b;
   }));
-  const chess = q.kind === "chess", busy = chess && !!solving;
-  slider.disabled = waiting || busy;
-  for (const b of $("chips").children) b.disabled = waiting || busy;
-  $("passBtn").disabled = waiting || busy;
-  $("betBtn").disabled = waiting || busy || (!chess && pick.length !== rightCount(q)) || pct <= 0;
-  $("betBtn").textContent = busy ? "Solving…" : chess ? (stake > 0 ? `Bet ${showChips(stake)} and solve` : "Bet and solve") : stake > 0 ? `Bet ${showChips(stake)}` : "Bet";
-  if (busy) { $("stakeLine").replaceChildren(`Stake ${showChips(Math.floor(S.pot * solving.pct / 100))} on the board. Find the moves.`); }
-}
-
-let board = null;     // the mounted chess board, if any
-/** The chess board for a puzzle question: live while solving, the solution played out at the reveal. */
-function drawBoard(q, reveal) {
-  const box = $("options");
-  const key = `${S.seed}/${S.index}/${reveal ? "reveal" : solving ? "solve" : "look"}`;
-  if (box.dataset.board === key) return;
-  box.dataset.board = key;
-  board?.destroy();
-  box.replaceChildren();
-  const holder = document.createElement("div");
-  box.appendChild(holder);
-  const line = document.createElement("p");
-  line.className = "pt-solve";
-  box.appendChild(line);
-  const mine = S.log[S.log.length - 1]?.bets?.[me()];
-  if (reveal) {
-    board = mountPuzzle(holder, q.puzzle, { interactive: false, revealSolution: true });
-    line.textContent = `The line: ${solutionSan(q.puzzle).join(" ")}`;
-  } else if (solving && solving.index === S.index) {
-    board = mountPuzzle(holder, q.puzzle, { interactive: true, onDone: solved => {
-      line.textContent = solved ? "Solved." : "Not that one.";
-      line.classList.toggle("bad", !solved);
-      pick = solved ? [0] : [1];
-      setTimeout(() => place(false), solved ? 500 : 1400);
-    } });
-    line.textContent = `${q.prompt}: your move.`;
-  } else {
-    board = mountPuzzle(holder, q.puzzle, { interactive: false });
-    line.textContent = S.bets?.[me()] ? "" : "Set your stake, then solve.";
-  }
+  $("passBtn").disabled = waiting;
+  $("betBtn").disabled = waiting || pick.length !== rightCount(q) || pct <= 0;
+  $("betBtn").textContent = stake > 0 ? `Bet ${showChips(stake)}` : "Bet";
 }
 
 function drawResult(q, last) {
@@ -321,8 +271,7 @@ function drawResult(q, last) {
     v.textContent = would == null ? "Passed." : would ? "Passed: your pick was right." : "Passed: your pick was wrong.";
   }
   else v.textContent = mine.change > 0 ? `Right! ${signed(mine.change)}` : `Wrong. ${signed(mine.change)}`;
-  const notes = q.kind === "chess" ? [{ label: "Solution", text: solutionSan(q.puzzle).join(" ") }, ...q.notes] : q.notes;
-  $("notes").replaceChildren(...notes.map(n => {
+  $("notes").replaceChildren(...q.notes.map(n => {
     const li = document.createElement("li"), b = document.createElement("b");
     b.textContent = n.label;
     li.append(b, `: ${n.text}`);
@@ -625,7 +574,7 @@ const together = createTogether({
   onState: val => {
     const moved = !S || S.seed !== val.seed || S.index !== val.index || S.phase !== val.phase;
     S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: Object.values(val.log || {}) };
-    if (moved && !(solving && solving.index === val.index && val.phase === "bet")) { solving = null; resetChoice(); }
+    if (moved) resetChoice();
     if (moved && !val.done) shownDone = null;
     render();
   },

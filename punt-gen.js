@@ -26,11 +26,7 @@ export const LEVELS = {
   refining: { label: "Refining", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, the blending chemistry 3–7, specs and economics 2–6." },
   // Reasoning: critical reasoning on reasoning-bank.js: arguments, flaws, inference, statistics, decisions
   reasoning: { label: "Reasoning", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./reasoning-bank.js", note: "3 is a clear fallacy, 8 is a base-rate or selection trap. Most sit at 5–6." },
-  // Chess: tactical puzzles from Lichess (chess-bank.js); you bet, then solve on the board
-  chess: { label: "Chess", questions: 15, spread: 0.3, margin: 0.05, chess: true, bank: "./chess-bank.js" },
 };
-/** A typical player's chance of solving a puzzle of this rating: half at 1600, nine in ten at 1000, one in ten at 2200. */
-export const solves = rating => Math.min(0.95, Math.max(0.08, 1 / (1 + 10 ** ((rating - 1600) / 600))));
 /** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
 export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
 // How long a run is: the level's standard length, 100 questions, or endless (dealt a batch at a time).
@@ -239,50 +235,15 @@ function mathsQuestions(seed, pool, stages, count, start) {
  * A run's questions: all of them for a fixed length (balanced as one batch), the first batch for an endless run.
  * For Maths, pass { pool, stages }: the filtered bank and a label per stage id.
  */
-/**
- * Chess questions: puzzles on a rating ramp (about 900 up to 2,000 over a standard run, on and up in an endless
- * one), each the nearest unused puzzle to its target rating in a seeded order. Priced by the solving chance.
- */
-function chessQuestions(seed, pool, count, start, taken = new Set()) {
-  const L = LEVELS.chess, rnd = rng(seed ^ 0x5EED ^ start);
-  const order = shuffle(rnd, [...pool]);
-  const used = new Set(taken);
-  // the house's noise, an even spread as for every batch
-  const z = shuffle(rnd, Array.from({ length: count }, (_, i) => quantile((i + 0.5) / count)));
-  const m = z.map(v => Math.exp(L.spread * v)), mean = m.reduce((t, v) => t + v, 0) / count;
-  const noise = m.map(v => v / mean);
-  const questions = [];
-  for (let i = 0; i < count; i++) {
-    const n = start + i, target = Math.min(2050, 900 + n * 80 + (rnd() - 0.5) * 300);   // the ramp tops out where the odds can still be fair
-    let best = null;
-    for (const q of order) { if (used.has(q.id)) continue; if (!best || Math.abs(q.rating - target) < Math.abs(best.rating - target)) best = q; }
-    if (!best) break;
-    used.add(best.id);
-    const side = best.fen.split(" ")[1] === "w" ? "Black" : "White";       // the opponent moves first
-    const chance = solves(best.rating);
-    questions.push({
-      kind: "chess", cat: "chess", prompt: `${side} to move`, ask: `Puzzle · rated ${best.rating}${best.themes.length ? ` · ${best.themes.join(", ")}` : ""}`,
-      puzzle: best, options: [{ label: "Solved", right: true }, { label: "Failed", right: false }], need: 1,
-      notes: [{ label: "Lichess", text: `lichess.org/training/${best.id}` }],
-      chance, fair: price(1 / chance), noise: noise[i], key: best.id,
-    });
-  }
-  priceBatch(L, questions);
-  return questions;
-}
-
 export function makeSession(seed, levelId, lengthId = "standard", maths = null) {
   const count = lengthId === "endless" ? BATCH : LENGTHS[lengthId]?.questions ?? LEVELS[levelId].questions;
-  if (LEVELS[levelId].chess) return chessQuestions(seed, maths.pool, count, 0);
   if (LEVELS[levelId].maths) return mathsQuestions(seed, maths.pool, maths.stages, count, 0);
   return makeQuestions(seed, levelId, count, 0, new Set());
 }
 /** The next batch of an endless run, following the questions dealt so far. */
-export const moreQuestions = (seed, levelId, dealt, maths = null) => (LEVELS[levelId].chess
-  ? chessQuestions(seed, maths.pool, BATCH, dealt.length, new Set(dealt.map(q => q.key)))
-  : LEVELS[levelId].maths
-    ? mathsQuestions(seed, maths.pool, maths.stages, BATCH, dealt.length)
-    : makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key))));
+export const moreQuestions = (seed, levelId, dealt, maths = null) => (LEVELS[levelId].maths
+  ? mathsQuestions(seed, maths.pool, maths.stages, BATCH, dealt.length)
+  : makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key))));
 
 /**
  * The average return per question, compounded: the steady rate per question that turns the starting pot into

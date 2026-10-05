@@ -7,9 +7,9 @@ new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "
 const P = await import("../punt-gen.js");
 let bad = 0;
 // the maths bank, for the Maths level (every stage and difficulty)
-const M = await import("../maths-bank.js"), RF = await import("../refining-bank.js"), CH = await import("../chess-bank.js"), RS = await import("../reasoning-bank.js");
+const M = await import("../maths-bank.js"), RF = await import("../refining-bank.js"), RS = await import("../reasoning-bank.js");
 const stageMap = B => Object.fromEntries(B.STAGES.map(x => [x.id, x.label]));
-const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages: stageMap(M) } : lvl === "refining" ? { pool: RF.MATHS, stages: stageMap(RF) } : lvl === "reasoning" ? { pool: RS.MATHS, stages: stageMap(RS) } : lvl === "chess" ? { pool: CH.PUZZLES } : null);
+const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages: stageMap(M) } : lvl === "refining" ? { pool: RF.MATHS, stages: stageMap(RF) } : lvl === "reasoning" ? { pool: RS.MATHS, stages: stageMap(RS) } : null);
 for (const lvl of Object.keys(P.LEVELS)) {
   let multi = 0, total = 0, overpaid = 0, oddsSeen = [];
   for (let seed = 1; seed <= 40; seed++) {
