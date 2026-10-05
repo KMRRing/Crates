@@ -124,11 +124,24 @@ function buildBoard() {
   const svg = el("svg", { viewBox: `0 0 ${L.w * TILE} ${L.h * TILE}` });
   for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
     const g = el("g", { transform: `translate(${x * TILE} ${y * TILE})` });
-    g.addEventListener("click", () => tap(x, y));
     svg.appendChild(g);
     cells.set(`${x},${y}`, { g });
     drawTile(x, y);
   }
+  // taps are taken on the board itself and mapped to a tile by position: phones are unreliable about taps on
+  // the SVG groups, and a finger that moved (a scroll) isn't a tap
+  let down = null;
+  svg.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  svg.addEventListener("pointerup", e => {
+    if (!down || e.pointerId !== down.id) return;
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+    down = null;
+    if (moved > 12) return;
+    const r = svg.getBoundingClientRect();
+    const x = Math.floor((e.clientX - r.left) / r.width * L.w), y = Math.floor((e.clientY - r.top) / r.height * L.h);
+    if (x >= 0 && y >= 0 && x < L.w && y < L.h) tap(x, y);
+  });
+  svg.addEventListener("pointercancel", () => { down = null; });
   board.appendChild(svg);
 }
 /** Draws a tile from scratch: ground, the pipe shape at its rotation, and any flow in it. */
