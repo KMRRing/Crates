@@ -49,6 +49,9 @@
 .pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
 #mathsDlg h3 { margin: .8rem 0 .2rem; }
 .pt-need { margin: -.6rem 0 .8rem; font-weight: 750; color: var(--pt-turf); }
+.pt-figure { margin: -.4rem 0 .9rem; display: grid; place-items: center; }
+.pt-figure svg { width: 100%; max-width: 20rem; height: auto; display: block; }
+.pt-figure[hidden] { display: none; }
 .pt-options { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
 .pt-option { min-height: 52px; padding: .5rem .7rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge); background: var(--sheet);
   font-weight: 700; font-size: 1.02rem; line-height: 1.2; text-align: center; cursor: pointer; overflow-wrap: anywhere; }

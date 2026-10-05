@@ -199,6 +199,8 @@ function render() {
 
   $("ask").textContent = q.ask;
   $("prompt").textContent = q.prompt;
+  $("figure").hidden = !q.svg;
+  if (q.svg) $("figure").innerHTML = q.svg;                       // a drawing from the bank, for patterns
   $("prompt").classList.toggle("long", q.prompt.length > 30);
   drawMathsBar();
   const need = rightCount(q);

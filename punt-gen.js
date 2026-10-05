@@ -229,7 +229,7 @@ function mathsQuestions(seed, pool, stages, count, start) {
     out.push({
       kind: "maths", cat: "maths", prompt: q.q, ask: `${q.area}, ${stages[q.lv] || q.lv}, level ${q.d}`,
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
-      d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
+      ...(q.svg && { svg: q.svg }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
     });
   }
   priceBatch(L, out);
