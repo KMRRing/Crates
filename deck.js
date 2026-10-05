@@ -6,6 +6,7 @@ import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
+import { part, toggle, action, line } from "./menu.js";
 const geoById = new Map(GEO.map(g => [`geo-${g.id}`, { id: `geo-${g.id}`, name: g.name, note: g.note, country: g.country, region: g.region, geo: g }]));
 import { QUOTES } from "./quote-bank.js";
 import { tiersOf, withUnit, tierText } from "./quote-engine.js";
@@ -276,18 +277,14 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Settings (learning mode; forgetting the pile), About (the piles' gaps)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "stats", `Four piles with growing gaps: ultra-short (due at once), short (${gapText(PILES[1].gap)}), medium (${gapText(PILES[2].gap)}), long (${gapText(PILES[3].gap)}). An item enters at the first when you miss it, pass on it or stake 20% or less (Punt), quote a B or worse (Quote), pin it over 500 km off or with a clue (Chart), get its crate wrong (Crates), miss the puzzle (Rush), or can't name the wine before the palate (Brut); Parley's and Brut's new cards start there too. Right here or in the game moves it up; right in the long pile and it's learned.`);
-  const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
-  learn.type = "button";
-  learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); openMenu(); });
-  add("p", "stats", "With learning mode on, Punt, Quote and Chart lead their next blocks with what's due from the pile, up to half a block, and fill the rest with what you haven't seen; Crates runs its own learn mode. Off, the games deal as they always did and still bank what you miss.");
-  const clear = add("button", "btn wide", "Forget everything");
-  clear.type = "button";
-  clear.addEventListener("click", () => { if (confirm("Empty the pile? Every banked item goes.")) { pile.clear(); $("menuDlg").close(); overview(); } });
+  part(body, "settings").append(
+    toggle("Learning mode", pile.learning(), on => pile.setLearning(on)),
+    action("Forget everything", () => { if (confirm("Empty the pile? Every banked item goes.")) { pile.clear(); overview(); } }, "link"));
+  part(body, "about").append(line(`Piles: at once, ${gapText(PILES[1].gap)}, ${gapText(PILES[2].gap)}, ${gapText(PILES[3].gap)}; right in the last and it's learned`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

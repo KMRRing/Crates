@@ -8,6 +8,7 @@ import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { part, choice, toggle, action, line } from "./menu.js";
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -260,20 +261,20 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: in Blind, Play (start the flight you've chosen), Content (random or today's), Settings (grapes on the
+// candidates), About (your bests); Study has nothing to set (the mode is the header's)
+let pick = null;                                              // the flight the menu will start: daily or not
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = el(tag, cls, text); body.appendChild(n); return n; };
-  const button = (text, fn) => { const b = add("button", "btn wide", text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
   if (P.mode === "blind") {
-    add("p", "stats", `Blind: a flight of ${FLIGHT} classic wines. You see the wine; taste further for the nose, the palate and the taster's conclusions. Name it from six candidates: ${BASE.join(", ")} points at each stage, ${WRONG} off for each wrong call. A wine you needed the palate for goes to the pile, and comes back in Study. ${WINES.length} wines in all, from Chablis to Vintage Port.`);
-    button("A new flight", () => newFlight(false));
-    button("Today's flight", () => newFlight(true));
-    const g = add("button", "btn wide", `Grapes on the candidates: ${P.grapes ? "shown" : "hidden"}`); g.type = "button";
-    g.addEventListener("click", () => { P.grapes = !P.grapes; save(); $("menuDlg").close(); drawBlind(); });
-    add("p", "stats", `Best flight ${P.best.flight || "–"}; best today's flight ${P.best.daily || "–"}${P.daily[today()] != null ? ` (today ${P.daily[today()]})` : ""}.`);
+    pick ??= false;
+    part(body, "play").append(action("Start a flight", () => newFlight(pick), "primary"));
+    part(body, "content").append(choice("Flight", [[false, "Random"], [true, "Today's"]], pick, v => { pick = v; }));
+    part(body, "settings").append(toggle("Grapes on the candidates", P.grapes, on => { P.grapes = on; save(); drawBlind(); }));
+    part(body, "about").append(line(`Best flight ${P.best.flight || "–"}, best today's ${P.best.daily || "–"}${P.daily[today()] != null ? ` (today ${P.daily[today()]})` : ""}`));
   } else {
-    add("p", "stats", `Study: ${CARDS.length} cards in ${UNITS.length} units. A new card shows a fact, then asks a question on it; the pile brings back what you miss, with the wines you couldn't name in Blind. Up to ${NEW_A_DAY} new cards a day. The same cards make the Wine level in Punt.`);
+    part(body, "about").append(line(`${CARDS.length} cards in ${UNITS.length} units`));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

@@ -5,6 +5,7 @@
 import { LIVES, ROUNDS, COLOURS, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn, cubeFaces, drawOrder, isoPoint, visibleSet, boxFor } from "./manifest-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { part, choice, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
@@ -393,17 +394,16 @@ function stage(cells, opts = {}) {
 }
 
 // ---------- menu and messages ----------
+// the menu: Play (start the run you've chosen), Content (random or today's), About (your bests)
+let pick = null;                                              // the run the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  $("menuDlg").querySelector("h2").textContent = "Menu";
-  const add = (tag, cls, text) => { const n = node(tag, cls, text); body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", `Twelve rounds. Each opens with the orders for its stack: the questions to come, by kind, with prices. The stack comes in and holds; Ship it ends the hold early, and the time you didn't use pays up to half as much again. Then the questions open: answer any, pass any. A right answer pays its price, a wrong one costs a life (three in all), a pass costs nothing. Prices grow with the rounds and follow your record: ↓ marks a kind you usually get right, which pays less; ↑ one you usually miss. Every fourth round the stack vanishes and comes back with something different: a container recoloured, then the stack turned round, then two containers swapped.`);
-  button("A new run", () => confirmStart("random"));
-  button("Today's run", () => confirmStart("daily"));
+  pick ??= S?.mode === "daily" ? "daily" : "random";
+  part(body, "play").append(action("Start a run", () => confirmStart(pick), "primary"));
+  part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
   const best = read(BEST, 0), daily = read(DAILY, {})[today()];
-  add("p", "stats", `${best ? `Your best: ${money(best)}.` : "No finished run yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}`);
+  part(body, "about").append(line(`${best ? `Best ${money(best)}` : "No finished run yet"}${daily != null ? `, today ${money(daily)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(mode) {
