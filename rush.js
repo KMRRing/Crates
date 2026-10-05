@@ -10,7 +10,7 @@ const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating";
 const MODES = { three: { label: "3 minutes", ms: 180000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
 const STRIKES = 3;
 
-let S = null;      // { mode, seed, daily, used: Set of ids, at, solved, strikes, misses: [{ id, rating, line }], ratings (of the solved), started, over }
+let S = null;      // { mode, seed, daily, used: Set of ids, at, solved, strikes, misses: [{ id, rating, line }], ratings (of the solved), started (null until the warm-up is solved), warming, over }
 let board = null;
 let tick = 0;
 
@@ -60,8 +60,9 @@ function rate(puzzle, solved, missesSoFar) {
  */
 async function nextPuzzle() {
   const r = rng(S.seed ^ (S.at * 7919));
-  const target = S.daily ? Math.min(2500, 800 + S.solved * 60 + (r() - 0.5) * 200)
-    : Math.max(600, Math.min(2500, Math.min(rating.r + 150, rating.r - 250 + S.solved * 40) + (r() - 0.5) * 160));
+  const target = S.warming ? 650 + r() * 100                                          // the warm-up: an easy one
+    : S.daily ? Math.min(2500, 800 + S.solved * 60 + (r() - 0.5) * 200)
+      : Math.max(600, Math.min(2500, Math.min(rating.r + 150, rating.r - 250 + S.solved * 40) + (r() - 0.5) * 160));
   const b = bandOf(target);
   const list = await loadBand(b);
   if (b < 2400) loadBand(b + 200).catch(() => {});
@@ -76,14 +77,15 @@ async function nextPuzzle() {
   return best.p;
 }
 
+/** A run opens on an easy warm-up puzzle; the clock, the count and the rating start when it's solved. */
 async function start(daily = false) {
   const mode = $("mode").value;
   $("startBtn").hidden = true;
   $("line").className = "ru-line";
   $("line").textContent = "Loading the puzzles…";
   try { await Promise.all([loadBand(600), loadBand(800), loadBand(1000)]); }
-  catch { $("line").textContent = "The puzzles need a connection the first time."; $("startBtn").hidden = false; return; }
-  S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [], started: performance.now(), over: false, ratingAtStart: rating.r };
+  catch { $("line").textContent = "The puzzles need a connection the first time."; $("startBtn").hidden = false; $("startBtn").textContent = "Try again"; return; }
+  S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [], started: null, warming: true, over: false, ratingAtStart: rating.r };
   clearInterval(tick);
   tick = setInterval(clock, 250);
   drawHud();
@@ -94,6 +96,7 @@ function clock() {
   const ms = MODES[S.mode].ms;
   const c = $("clock");
   if (!ms) { c.textContent = ""; return; }
+  if (S.started == null) { c.textContent = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`; c.classList.remove("low"); return; }   // not running yet
   const left = Math.max(0, ms - (performance.now() - S.started));
   c.textContent = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
   c.classList.toggle("low", left < 20000);
@@ -108,13 +111,28 @@ async function serve() {
   S.at++;
   const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";
   $("line").className = "ru-line";
-  $("line").textContent = `${side} to move`;
+  $("line").textContent = S.warming ? `${side} to move. Solve this one to start the clock.` : `${side} to move`;
   $("meta").textContent = "";
   board?.destroy();
   board = mountPuzzle($("board"), p, { interactive: true, replyMs: 300, firstMs: 450, onDone: solved => settle(p, solved) });
 }
 function settle(p, solved) {
   if (S.over) return;
+  if (S.warming) {                                   // the warm-up: solving it starts the run; a miss just shows the line and serves another
+    if (solved) {
+      S.warming = false;
+      S.started = performance.now();
+      $("line").className = "ru-line good";
+      $("line").textContent = "Go.";
+      drawHud();
+      setTimeout(serve, 350);
+    } else {
+      $("line").className = "ru-line bad";
+      $("line").textContent = `Not that one: ${solutionSan(p).slice(1).join(" ")}. Another warm-up.`;
+      setTimeout(serve, 1400);
+    }
+    return;
+  }
   rate(p, solved, S.misses.length);
   if (solved) {
     S.solved++;
@@ -141,7 +159,7 @@ function finish(why) {
   S.over = true;
   clearInterval(tick);
   board?.destroy();
-  const elapsed = performance.now() - S.started;
+  const elapsed = performance.now() - (S.started ?? performance.now());
   const key = `${S.mode}${S.daily ? ":daily" : ""}`;
   const bests = read(BEST, {});
   const best = Math.max(bests[key] || 0, S.solved);
@@ -218,11 +236,10 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("startBtn").addEventListener("click", () => start(false));
 $("mode").addEventListener("change", () => { if (S && !S.over) { if (confirm("Start a new run in that mode? This one isn't finished.")) start(S.daily); else $("mode").value = S.mode; } });
-document.addEventListener("visibilitychange", () => { if (document.hidden && S && !S.over && MODES[S.mode].ms) finish("time"); });   // a timed run can't be paused
+document.addEventListener("visibilitychange", () => { if (document.hidden && S && !S.over && S.started != null && MODES[S.mode].ms) finish("time"); });   // a timed run can't be paused
 
 // for tests and debugging
 window.__rush = { get state() { return S; }, start, finish, get puzzle() { return S?.current; } };
 
 drawHud();
-$("board").textContent = "Press Start.";
-$("line").textContent = "";
+start(false);
