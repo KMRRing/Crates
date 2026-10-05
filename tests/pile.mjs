@@ -21,3 +21,20 @@ check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's ba
 P.setLearning(false); check(P.learning() === false, "learning mode can be switched off"); P.setLearning(true);
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
+
+// Knowledge travels: what one game found you weak on is dealt by the others, in their own form
+{
+  const P = await import("../pile.js");
+  P.clear();
+  P.record("punt", "art/AR-001", { prompt: "Who painted this?", about: ["mona-lisa"] }, "wrong");
+  P.record("crates", "0:12", { word: "Geneva", about: ["geneva", "switzerland"] }, "wrong");
+  const weak = P.weakElsewhere("quote");
+  const quotePool = [{ key: "ar-p01", about: ["mona-lisa"] }, { key: "ct-01", about: [] }, { key: "rf-01" }];
+  const dealt = P.dealDue("quote", quotePool, [], 5);
+  const chartDealt = P.dealDue("chart", [{ key: "ci-11", about: ["geneva"] }, { key: "ci-01", about: ["tokyo"] }], [], 5);
+  const puntOwn = P.weakElsewhere("punt");
+  const ok = weak.has("mona-lisa") && weak.has("geneva") && dealt.join() === "ar-p01" && chartDealt.join() === "ci-11" && !puntOwn.has("mona-lisa") && puntOwn.has("geneva");
+  console.log(`${ok ? "ok  " : "FAIL"} a painter missed in Punt brings the painting's year into Quote; a clue missed in Crates brings the city's pin into Chart; a game isn't dealt its own misses twice`);
+  if (!ok) process.exitCode = 1;
+  P.clear();
+}

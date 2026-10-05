@@ -99,7 +99,8 @@ export function learnFromBoard(deck, board, game, rng = Math.random) {
     if (v === "fail") {
       deck.cards[key] = { s: "w", ...clued, d: deck.t + gap(rng), c: context, m: mates, f: tally.f + 1, p: tally.p };
       tags[w] = TAG.fail;
-      pile.record("crates", key, { word: w, hint: BANK[g.a].words[wi].hint, answer: BANK[g.a].name, cat: BANK[g.a].cat, a: g.a }, "wrong");   // the shared pile too, for Deck
+      pile.record("crates", key, { word: w, hint: BANK[g.a].words[wi].hint, answer: BANK[g.a].name, cat: BANK[g.a].cat, a: g.a,
+        about: [BANK[g.a].words[wi].entity, BANK[g.a].entity].filter(Boolean) }, "wrong");   // the shared pile too, for Deck and the other games
     } else if (v === "pass") {
       deck.cards[key] = { s: "k", ...clued, f: tally.f, p: tally.p + 1 };
       if (prev?.s === "w") tags[w] = TAG.learned;

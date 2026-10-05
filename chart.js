@@ -9,7 +9,7 @@ import { GEO } from "./chart-geo.js";
 // the physical features join the places: a river, range, desert, plateau or lake is pinned to its nearest point
 const CATS = { ...BANK_CATS, physical: "Physical" };
 const KIND = { river: "river", range: "mountain range", desert: "desert", plateau: "plateau or basin", lake: "lake" };
-const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g }))];
+const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about }))];
 import { LAND, BORDERS } from "./world.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -51,7 +51,9 @@ const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString
 // ---------- the run ----------
 /** The set for a seed, with what's due from the pile leading it in learning mode. */
 function setFor(seed) {
-  const due = pile.learning() ? pile.due("chart").map(it => it.key).filter(id => byId.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  // and places that the other games found you weak on (a city whose clue you missed in Crates), to pin
+  const own = pile.learning() ? pile.due("chart").map(it => it.key).filter(id => byId.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const due = pile.learning() ? pile.dealDue("chart", PLACES.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
   const rest = pickSet(seed, PLACES.filter(p => !due.includes(p.id)), PER_SET - due.length).map(p => p.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
@@ -77,7 +79,7 @@ function confirmPin() {
   S.score += pts;
   S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues, near: p.geo ? m.point : undefined });
   // the pile: a pin over 500 km off, or any clue, means you didn't know where it was; a clean close pin moves a banked place up
-  if (d > 500 || clues > 0) pile.record("chart", p.id, { id: p.id }, clues > 0 ? "clue" : "miss");
+  if (d > 500 || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined }, clues > 0 ? "clue" : "miss");
   else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
   S.phase = "reveal";
   save();

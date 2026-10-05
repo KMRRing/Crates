@@ -40,7 +40,9 @@ const signed = n => (n >= 0 ? "+" : "−") + Math.abs(n).toLocaleString("en-GB")
 const setFor = (seed, focus) => {
   const pool = focus ? QUOTES.filter(q => q.cat === focus) : QUOTES;
   // learning mode: what's due leads the set (up to half of it), the rest dealt as usual around it
-  const due = pile.learning() ? pile.due("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  // and questions about what the other games found you weak on, in Quote's form
+  const own = pile.learning() ? pile.due("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const due = pile.learning() ? pile.dealDue("quote", pool.map(q => ({ key: q.id, about: q.about ? [q.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
   const rest = pickSet(seed, pool.filter(q => !due.includes(q.id)), PER_SET - due.length, focus ? PER_SET : 2).map(q => q.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
@@ -69,7 +71,7 @@ function quote() {
   if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
   // the pile: a B or below means you didn't adequately know it; an A or better moves a banked question up
-  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id, pic: q.pic || null }, r.inside ? "wide" : "wrong");
+  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id, pic: q.pic || null, about: q.about ? [q.about] : undefined }, r.inside ? "wide" : "wrong");
   else if (pile.has("quote", q.id)) pile.answer("quote", q.id, true);
   S.book += r.delta;
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond, grade: r.grade });

@@ -57,7 +57,9 @@ async function bankDeal(level, picks) {
   const pool = MATHS.filter(q => resolved.stages.includes(q.lv) && resolved.diffs.includes(q.d));
   // learning mode: what's due from the pile leads the next block; the rest prefers questions not yet seen
   const learning = pile.learning();
-  const dueKeys = learning ? pile.due("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
+  // its own due questions, then its questions about what the other games found you weak on (up to a third of a block)
+  const ownDue = learning ? pile.due("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
+  const dueKeys = learning ? pile.dealDue("punt", pool.map(q => ({ key: q.id, about: q.about })), ownDue, ownDue.length + 5) : [];
   const seenKeys = learning ? new Set(pile.all("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1))) : new Set();
   return { deal: { pool, stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])), dueKeys, seenKeys }, picks: resolved };
 }
@@ -505,7 +507,7 @@ function bankLatest(last) {
   if (!q || !mine || !q.key) return;
   const right = mine.pick ? pickedRight(q, picksOf(mine.pick)) : null;
   const key = `${S.level}/${q.key}`;
-  const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level };
+  const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level , about: q.about };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
   else if (!right) pile.record("punt", key, payload, "wrong");
   else if (mine.pct <= 20) pile.record("punt", key, payload, "lowStake");

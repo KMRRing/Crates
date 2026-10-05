@@ -27,38 +27,35 @@ export async function build() {
   // Crates: the answers in board order, each with its clues in list order (both append-only)
   const clues = new Map();
   for (const l of LINKS) if (l.rel === "clue") (clues.get(l.to) || clues.set(l.to, []).get(l.to)).push(l);
+  // each answer and each clue carries its entity (e, and a clue's seventh place), so the pile knows what was missed
   const raw = ENTITIES.filter(e => e.crates !== undefined).sort((a, b) => a.crates - b.crates).map(e => ({
-    n: e.name, c: e.sets.includes("country") ? "country" : "commodity", g: e.sets.find(s => s.startsWith("group:")).slice(6), a: e.aliases,
-    w: (clues.get(e.id) || []).sort((x, y) => x.pos - y.pos).map(l => {
-      const w = [l.w ?? of(l.from).name, l.hint, l.aspects, l.d, l.alt.map(id => of(id).crates)];
-      if ("since" in l) w.push(l.since);
-      return w;
-    }),
+    n: e.name, c: e.sets.includes("country") ? "country" : "commodity", g: e.sets.find(s => s.startsWith("group:")).slice(6), a: e.aliases, e: e.id,
+    w: (clues.get(e.id) || []).sort((x, y) => x.pos - y.pos).map(l => [l.w ?? of(l.from).name, l.hint, l.aspects, l.d, l.alt.map(id => of(id).crates), l.since ?? 0, l.from]),
   }));
   const crates = Buffer.from(JSON.stringify(raw), "utf8").toString("base64");
 
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = pins.PINS.map(({ id, cat, about, ...over }) => {
     const { name, lat, lon, note, country, region, pic } = of(about);
-    return defined({ id, cat, name, lat, lon, note, country, region, pic, ...over });
+    return defined({ id, cat, name, lat, lon, note, country, region, pic, ...over, about });
   });
   const GEO = pins.FEATURES.map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
-    return defined({ id, name, kind, region, country, note, lat, lon, ...over, ...GEOMETRY[about] });
+    return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about] });
   });
 
   // Quote: a number that's an entity's fact comes from the entity
-  const QUOTES = estimates.ESTIMATES.map(({ about, fact, ...q }) => {
-    if (!about) return q;
-    const e = of(about);
+  const QUOTES = estimates.ESTIMATES.map(({ fact, ...q }) => {
+    if (!fact) return q;
+    const e = of(q.about);
     return defined({ ...q, truth: q.truth ?? e[fact], pic: q.pic ?? (fact === "year" ? e.pic : undefined) });
   });
 
-  // Punt: the questions as written; what they're about stays in kb/ for now
+  // Punt: the questions as written, with what they're about
   const choice = {};
   for (const b of CHOICE_BANKS) {
     const m = await load(`items/choice/${b}.js`);
-    choice[b] = { STAGES: m.STAGES, MATHS: m.ITEMS.map(({ about, ...q }) => q) };
+    choice[b] = { STAGES: m.STAGES, MATHS: m.ITEMS };
   }
   return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice };
 }

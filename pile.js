@@ -33,6 +33,7 @@ export function record(game, key, payload, why) {
   const all = load(), id = `${game}:${key}`, now = Date.now();
   const it = all[id] || { id, game, key, added: now, seen: 0, fails: 0, passes: 0 };
   it.payload = payload;
+  if (payload?.about?.length) it.about = payload.about;     // the entities it's about (kb/), so other games can ask about them too
   it.pile = 0;
   it.due = now;
   delete it.learned;                                   // a learned item that's missed again is back in the piles
@@ -87,6 +88,27 @@ export function counts(game = null) {
   const list = all(game), out = { piles: PILES.map(() => 0), learned: 0, due: 0, total: list.length };
   for (const it of list) { if (it.learned) out.learned++; else { out.piles[it.pile]++; if (it.due <= Date.now()) out.due++; } }
   return out;
+}
+/**
+ * The knowledge base's entities that other games have found you weak on: what's due there now, by entity, with how
+ * many due items name it. A game's learning mode deals its own questions about them, in its own format: miss who
+ * painted the Mona Lisa in Punt and Quote asks the year it was painted; miss Geneva in Crates and Chart asks you to
+ * pin it.
+ */
+export function weakElsewhere(game, at = Date.now()) {
+  const weak = new Map();
+  for (const it of due(null, at)) if (it.game !== game) for (const id of it.about || []) weak.set(id, (weak.get(id) || 0) + 1);
+  return weak;
+}
+/**
+ * A learning mode's picks from a game's pool: its own due keys first, then (up to `cap`) questions about what other
+ * games found you weak on, most-missed first, never one already dealt. pool: [{ key, about }].
+ */
+export function dealDue(game, pool, ownDue, cap) {
+  const weak = weakElsewhere(game), taken = new Set(ownDue);
+  const cross = pool.filter(q => !taken.has(q.key) && q.about?.some(id => weak.has(id)))
+    .sort((a, b) => Math.max(...b.about.map(id => weak.get(id) || 0)) - Math.max(...a.about.map(id => weak.get(id) || 0)));
+  return [...ownDue, ...cross.slice(0, Math.max(0, cap - ownDue.length)).map(q => q.key)];
 }
 /** Has this item been recorded (and not yet learned)? */
 export function has(game, key) { const it = load()[`${game}:${key}`]; return !!it && !it.learned; }
