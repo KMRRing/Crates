@@ -19,7 +19,8 @@ const DEVICE = Math.random().toString(36).slice(2, 10);   // tells our own write
 const runPath = code => `crates/runs/${code}`;
 
 export const cleanCode = s => String(s || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, CODE_LENGTH);
-export const validCode = s => s.length === CODE_LENGTH && [...s].every(ch => LETTERS.includes(ch));
+// a code made here avoids I and O; one you chose (on the games screen) may use any letter
+export const validCode = s => s.length === CODE_LENGTH && /^[A-Z]+$/.test(s);
 const newCode = () => Array.from({ length: CODE_LENGTH }, () => LETTERS[Math.floor(Math.random() * LETTERS.length)]).join("");
 
 /**

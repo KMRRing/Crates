@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, joinSolo, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES } from "./suite.js";
+import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES } from "./suite.js";
 // Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
@@ -144,23 +144,32 @@ export const APPS = [
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
       <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
+// the head's icons: one person (your solo code), two (your partner code), refresh (update), and close
+const ICON = {
+  solo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-4 3.6-6.2 7.5-6.2s6.9 2.2 7.5 6.2"/></svg>',
+  duo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="8.5" r="3.1"/><path d="M2.5 19.5c.5-3.4 2.9-5.3 6-5.3s5.5 1.9 6 5.3"/><circle cx="16.5" cy="8" r="2.7"/><path d="M15.2 13.9c3.3-.3 5.7 1.5 6.3 5.1"/></svg>',
+  update: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 4.2v4.6h-4.6"/></svg>',
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+};
 /**
- * The games screen's head: your solo code (every device with it is in the same state in every game) and your partner:
- * link once here and you stay linked; the chip then says what they're playing, solo or together, and opens a sheet to
- * ask them to play a game together, go back to solo from a duo match, or unlink. Each tile shows the best kept in that
- * game, and your partner's beside it by initial. Nothing about playing together is set up inside a game.
+ * The games screen's head, in one line: your solo code (one person: every device with it is in the same state in every
+ * game) and your partner code (two people), then what your partner is playing. Tapping a code copies this page's link
+ * with it (solo: both codes, for your other devices; partner: the partner code, for your partner); holding a code (or
+ * tapping it while there's none) lets you type one: one nobody has yet starts fresh, so you can pick your own. Tapping
+ * your partner's line opens the partner sheet. Each tile shows its best, your partner's, and your duo record.
  */
 const GAME_NAME = id => APPS.find(a => a.id === (id === "slate" ? "glyph" : id))?.name || id;
 function bindCodes(dlg) {
   const head = dlg.querySelector("[data-codes]");
   let partner = null, theirs = {}, theirName = "", duoRecords = {};
   const here = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "").replace(/^index$|^$/, "crates");
-  const status = p => (p ? `${p.name || "Partner"} · ${p.online ? `${GAME_NAME(p.game)}${p.mode === "duo" ? ", together" : ", solo"}` : "offline"}` : "not here yet");
+  const status = p => (p ? `${(p.name || "Partner").split(" ")[0]} · ${p.online ? `${GAME_NAME(p.game)}${p.mode === "duo" ? " together" : p.mode === "watch" ? " (watching)" : ""}` : "offline"}` : "not here yet");
   const draw = () => {
-    const solo = soloCode(), duo = duoCode(), inDuo = new URLSearchParams(location.search).has("room");
-    head.innerHTML = `<button class="code-chip" type="button" data-solo title="Every device with this code is in the same state in every game"><span>Solo</span><b>${solo || "start syncing"}</b></button>
-      <button class="code-chip" type="button" data-pair title="Your partner: what they're playing, and asking them to play together"><span>${inDuo ? "Together" : "Partner"}</span>${duo ? `<em class="${partner?.online ? "on" : ""}"></em>` : "<b>link</b>"}</button>`;
-    if (duo) head.querySelector("[data-pair] em").textContent = status(partner);
+    const solo = soloCode(), duo = duoCode();
+    head.innerHTML = `<button class="code-chip" type="button" data-solo aria-label="Your solo code${solo ? ` ${solo}: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.solo}<b>${solo || "—"}</b></button>
+      <button class="code-chip" type="button" data-duo aria-label="Your partner code${duo ? ` ${duo}: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.duo}<b>${duo || "—"}</b></button>
+      ${duo ? `<button class="partner-line${partner?.online ? " on" : ""}" type="button" data-pair></button>` : ""}`;
+    if (duo) head.querySelector("[data-pair]").textContent = status(partner);
     for (const el of dlg.querySelectorAll("[data-best]")) {
       const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
@@ -169,6 +178,44 @@ function bindCodes(dlg) {
       el.textContent = [mine != null ? `Best ${short(mine)}` : "", duo && them != null ? `${(theirName || "P")[0]} ${short(them)}` : "", duoText].filter(Boolean).join(" · ");
     }
   };
+  // typing a code: an existing one is followed (solo) or joined (partner); a new one starts fresh, from here
+  const editSolo = async () => {
+    const now = soloCode();
+    const typed = prompt(`Your solo code${now ? ` is ${now}` : ""}. Type 8 letters: a code you use on another device, or a new one of your own to start here${now ? "" : " (empty: a random one)"}:`, "");
+    if (typed === null) return;
+    const code = cleanCode(typed);
+    if (!code && !now) startSolo();
+    else if (code.length === 8 && code !== now) await chooseSolo(code);
+    else { if (code) alert("A solo code is 8 letters."); return; }
+    location.reload();
+  };
+  const editDuo = () => {
+    const now = duoCode();
+    const typed = prompt(`Your partner code${now ? ` is ${now}` : ""}. Type 4 letters: your partner's, or a new one of your own for them to type${now ? "" : " (empty: a random one)"}:`, "");
+    if (typed === null) return;
+    const code = cleanCode(typed);
+    if (!code && !now) link();
+    else if (code.length === 4 && code !== now) link(code);
+    else { if (code) alert("A partner code is 4 letters."); return; }
+    location.reload();
+  };
+  const copy = async (kind, chip) => {
+    const url = codesLink(kind), b = chip.querySelector("b"), was = b.textContent;
+    try { await navigator.clipboard.writeText(url); b.textContent = "Copied"; } catch { prompt("Copy this link:", url); return; }
+    setTimeout(() => { b.textContent = was; }, 1200);
+  };
+  // tap copies the link, hold types a code (a code that isn't set yet is typed on a tap)
+  let held = null, heldFired = false;
+  head.addEventListener("pointerdown", e => {
+    const chip = e.target.closest("[data-solo], [data-duo]");
+    if (!chip) return;
+    heldFired = false;
+    held = setTimeout(() => { heldFired = true; (chip.matches("[data-solo]") ? editSolo : editDuo)(); }, 550);
+  });
+  const release = () => clearTimeout(held);
+  head.addEventListener("pointerup", release);
+  head.addEventListener("pointerleave", release);
+  head.addEventListener("contextmenu", e => { if (e.target.closest("[data-solo], [data-duo]")) e.preventDefault(); });
   // the partner sheet: link, ask to play together, back to solo, unlink
   const sheet = document.createElement("dialog");
   sheet.className = "pair-sheet";
@@ -178,18 +225,8 @@ function bindCodes(dlg) {
     sheet.replaceChildren();
     const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; sheet.appendChild(n); return n; };
     const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", fn); return b; };
-    add("h3", null, duo ? "Your partner" : "Link with your partner");
-    if (!duo) {
-      add("p", "stats", "Link once and you stay linked on every device: you'll see what your partner is playing, and either of you can ask the other to play a game together.");
-      const row = add("form", "join-run");
-      const input = document.createElement("input");
-      Object.assign(input, { placeholder: "Their code", maxLength: 4, autocapitalize: "characters" });
-      const go = document.createElement("button");
-      go.className = "btn"; go.type = "submit"; go.textContent = "Link";
-      row.append(input, go);
-      row.addEventListener("submit", e => { e.preventDefault(); const c = cleanCode(input.value); if (c.length === 4) { link(c); location.reload(); } });
-      button("Make a code for them", () => { const c = link(); sheet.close(); alert(`Your code is ${c}. Your partner types it here, on their games screen.`); location.reload(); });
-    } else {
+    add("h3", null, "Your partner");
+    {
       add("p", "stats", `Code ${duo}. ${status(partner)}.`);
       const them = partner?.online && partner.game, mine = here;
       const askFor = game => async () => {
@@ -210,14 +247,10 @@ function bindCodes(dlg) {
     sheet.showModal();
   };
   head.addEventListener("click", e => {
-    if (e.target.closest("[data-solo]")) {
-      const now = soloCode();
-      const typed = prompt(now ? `Your solo code is ${now}. Enter it on your other devices. To follow a different one, type it here:` : "Type the code from your other device, or leave it empty to start a new one here:", "");
-      if (typed === null) return;
-      const code = cleanCode(typed);
-      if (code.length === 8 && code !== now) joinSolo(code); else if (!code && !now) startSolo(); else return;
-      location.reload();
-    }
+    if (heldFired) { heldFired = false; return; }
+    const solo = e.target.closest("[data-solo]"), duo = e.target.closest("[data-duo]");
+    if (solo) { if (soloCode()) copy("solo", solo); else editSolo(); }
+    if (duo) { if (duoCode()) copy("duo", duo); else editDuo(); }
     if (e.target.closest("[data-pair]")) openSheet();
   });
   draw();
@@ -236,8 +269,8 @@ export function bindSwitcher(button, current) {
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
   dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
-      <button class="btn" type="button" data-update title="Load the newest version (keeps your progress)">Update</button>
-      <button class="btn" type="button" data-close>Close</button></span></div>
+      <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
+      <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more${APPS.find(x => x.id === current)?.more ? " cur" : ""}" type="button" data-more aria-haspopup="dialog" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
@@ -246,7 +279,7 @@ export function bindSwitcher(button, current) {
   const pop = document.createElement("dialog");
   pop.className = "apps-pop";
   pop.setAttribute("aria-label", "More games");
-  pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="btn" type="button" data-close>Close</button></div>
+  pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></div>
     <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}</ul>`;
   dlg.appendChild(pop);
   pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
@@ -257,10 +290,11 @@ export function bindSwitcher(button, current) {
   const update = dlg.querySelector("[data-update]");
   update.addEventListener("click", async () => {
     update.disabled = true;
-    update.textContent = "Updating…";
+    update.classList.add("spin");                      // turning while it fetches
     if (await hardUpdate()) return;                    // the page reloads
-    update.textContent = "Offline: try later";
-    setTimeout(() => { update.textContent = "Update"; update.disabled = false; }, 2500);
+    update.classList.remove("spin");
+    update.title = "Offline: try later";
+    setTimeout(() => { update.title = "Load the newest version (keeps your progress)"; update.disabled = false; }, 2500);
   });
   // the game you're in: its tile just closes the screen of games (and the popup, if it's one of the more games)
   dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); pop.close(); dlg.close(); }));

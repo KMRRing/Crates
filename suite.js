@@ -22,7 +22,10 @@ const PUSH_DELAY = 1500;
 // what stays on this device: the suite's bookkeeping, Crates' run (synced by run.js), Firebase's own sign-in
 const LOCAL = /^(suite:|crates:run|crates:updated|crates:v2|firebase:)/;
 // the store sits beside Crates' run under crates/runs (where 8-letter codes may write), at the code moved on seven letters
-const storePath = code => `crates/runs/${[...code].map(ch => LETTERS[(LETTERS.indexOf(ch) + 7) % LETTERS.length]).join("")}`;
+// (codes made here avoid I and O, which read as 1 and 0; a code you choose may use any letter, and moves through all 26)
+const storePath = code => `crates/runs/${/[IO]/.test(code)
+  ? [...code].map(ch => String.fromCharCode(65 + ((ch.charCodeAt(0) - 65 + 7) % 26))).join("")
+  : [...code].map(ch => LETTERS[(LETTERS.indexOf(ch) + 7) % LETTERS.length]).join("")}`;
 const enc = k => encodeURIComponent(k).replace(/\./g, "%2E");     // a database key can't hold . # $ [ ] /
 const raw = { getItem: Storage.prototype.getItem, set: Storage.prototype.setItem, remove: Storage.prototype.removeItem };
 raw.get = k => raw.getItem.call(localStorage, k);
@@ -43,9 +46,8 @@ const own = k => k.startsWith("pile:") || k.startsWith(`${page() === "index" ? "
 let meta = json(META, {}), dirty = new Map(), timer = null;
 const syncing = () => !!soloCode();
 
-/** Starts a solo code on this device: everything here goes up, as of now. */
-export function startSolo() {
-  const code = newCode();
+/** Starts a solo code on this device (a new one, or one you chose that nobody has yet): everything here goes up, as of now. */
+export function startSolo(code = newCode()) {
   meta = {};
   for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!LOCAL.test(k)) meta[k] = Date.now(); }
   put(META, meta);
@@ -62,9 +64,23 @@ export function joinSolo(code) {
   linkCrates(code);
 }
 export function stopSolo() { raw.remove.call(localStorage, SOLO); }
+/**
+ * A solo code you typed or followed a link to: if it already holds someone's games, follow it (what's there wins);
+ * if nobody has it yet, it becomes yours, starting from what this device has now. Resolves "joined" or "started".
+ */
+export async function chooseSolo(code) {
+  let there = null;
+  try { there = await once(await getSync(), storePath(code)); } catch (e) { console.error(e); }
+  if (there && Object.keys(there).length) { joinSolo(code); return "joined"; }
+  startSolo(code);
+  return "started";
+}
 /** Crates' run follows the same code through run.js; rev 0 means whatever the code holds is newer. */
 function linkCrates(code) { put("crates:run", { code, rev: 0, dirty: true }); }
-/** Links you to a partner by their code, or (none given) makes a new code to give them. Synced to your other devices. */
+/**
+ * Links you to a partner by their code, or (none given) makes a new code to give them; a code nobody has used yet is
+ * simply a new, empty room, so you can pick your own. Synced to your other devices.
+ */
 export function link(code) { code = code || newPair(); localStorage.setItem(PAIR, code); return code; }
 export function unlink() { localStorage.removeItem(PAIR); }
 
@@ -307,8 +323,31 @@ async function beginWatching() {
   };
   if (document.body) veil(); else document.addEventListener("DOMContentLoaded", veil);
 }
+/**
+ * The link to this page that carries your codes: solo carries both (another of your devices opening it follows your
+ * games and your partner), duo only the partner code (your partner opening it links with you).
+ */
+export function codesLink(kind) {
+  const u = new URL(location.href);
+  u.hash = "";
+  for (const k of ["room", "watch", "solo", "duo"]) u.searchParams.delete(k);
+  if (kind === "solo" && soloCode()) u.searchParams.set("solo", soloCode());
+  if (duoCode()) u.searchParams.set("duo", duoCode());
+  return u.toString();
+}
 export const watchHref = game => `${DUO_GAMES[game] || `${game}.html`}?watch=1`;
 
+// a link with codes in it (?solo=, ?duo=): take them on, then go on without them in the address
+{
+  const q = new URLSearchParams(location.search), solo = cleanCode(q.get("solo")), duo = cleanCode(q.get("duo"));
+  if (duo.length === 4 && duo !== duoCode()) link(duo);
+  if (solo.length === 8 || duo.length === 4) {
+    const u = new URL(location.href);
+    u.searchParams.delete("solo"); u.searchParams.delete("duo");
+    history.replaceState(null, "", u);
+    if (solo.length === 8 && solo !== soloCode()) { await chooseSolo(solo); location.reload(); }
+  }
+}
 // a page that opens catches up, and again when it comes back into view; a paired page says where it is and listens
 {
   const old = raw.get("suite:duo");                       // the per-device duo memory before pairing became a link
