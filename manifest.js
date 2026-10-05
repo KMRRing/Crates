@@ -137,7 +137,7 @@ const colourOf = c => COLOURS[c - 1].hex;
 
 /** A container drawn as a rounded box with ribs; blank ones are outlines. */
 function box(g, x, y, s, c, opts) {
-  const r = el("rect", { x, y, width: s, height: s, rx: s * 0.14, class: "cell" });
+  const r = el("rect", { x, y, width: s, height: s, rx: s * 0.14, class: "mf-cell" });
   if (opts.blank || !c) { r.setAttribute("fill", c ? "var(--mf-floor)" : "none"); r.setAttribute("stroke", "var(--mf-edge)"); r.setAttribute("stroke-width", 1.5); }
   else { r.setAttribute("fill", colourOf(c)); r.setAttribute("stroke", "rgba(0,0,0,.25)"); r.setAttribute("stroke-width", 1.5); }
   if (opts.dim) r.setAttribute("opacity", 0.25);
@@ -215,7 +215,7 @@ function isoPanel(cells, opts) {
     const hex = opts.blank ? null : colourOf(cube.c);
     const g = el("g", dim ? { opacity: 0.3 } : {});
     for (const [name, k] of [["left", 0.72], ["right", 0.86], ["top", 1.05]]) {
-      const poly = el("polygon", { points: faces[name].map(P).join(" "), fill: hex ? shade(hex, k) : "var(--mf-floor)", stroke: "rgba(0,0,0,.3)", "stroke-width": 1, class: "cell" });
+      const poly = el("polygon", { points: faces[name].map(P).join(" "), fill: hex ? shade(hex, k) : "var(--mf-floor)", stroke: "rgba(0,0,0,.3)", "stroke-width": 1, class: "mf-cell" });
       if (opts.tap) poly.addEventListener("click", () => opts.tap(key));
       g.appendChild(poly);
     }

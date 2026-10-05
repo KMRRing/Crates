@@ -22,7 +22,7 @@
 .mf-view svg { width: 100%; height: auto; display: block; }
 .mf-panel { display: grid; gap: .25rem; width: 100%; }
 .mf-panel small { font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
-.mf-view .tap rect.cell { cursor: pointer; }
+.mf-view .tap .mf-cell { cursor: pointer; }
 
 .mf-question { margin: .2rem 0 0; font-size: 1.2rem; font-weight: 800; line-height: 1.25; }
 .mf-answers { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }

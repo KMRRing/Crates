@@ -148,7 +148,7 @@ function buildBoard() {
 function drawTile(x, y) {
   const t = R.tiles[y][x], c = cells.get(`${x},${y}`), g = c.g;
   g.replaceChildren();
-  g.setAttribute("class", `tile${t.fixed ? " fixed" : ""}${t.locked ? " locked" : ""}`);
+  g.setAttribute("class", `pi-tile${t.fixed ? " fixed" : ""}${t.locked ? " locked" : ""}`);
   g.appendChild(el("rect", { x: 2, y: 2, width: TILE - 4, height: TILE - 4, rx: 8, fill: t.kind === "rock" ? "var(--pi-rock)" : "var(--pi-tile)", stroke: "var(--pi-tile-edge)", "stroke-width": 1 }));
   if (t.kind === "rock") {
     for (const [cx, cy, r] of [[20, 24, 9], [38, 36, 11], [24, 42, 6]]) g.appendChild(el("circle", { cx, cy, r, fill: "var(--pi-tile-edge)" }));
