@@ -7,6 +7,7 @@ import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { part, action } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const U = 10;                         // a tile, in the map's drawing units
@@ -409,9 +410,14 @@ function status() {
 function openMenu() {
   const best = bests();
   const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td><td>${f(L.par[k])}</td></tr>`).join("");
-  $("menuBody").innerHTML = `<h3>${L.name}</h3><table class="hb-bests"><thead><tr><th></th><th>Your best</th><th>Par</th></tr></thead>`
-    + `<tbody>${rows}</tbody></table><button class="btn wide" type="button" id="clearBtn">Clear this level's ships</button>`;
-  $("clearBtn").addEventListener("click", () => { edit(() => { sol.ships = []; sel = -1; pick = null; }); $("menuDlg").close(); });
+  // the menu: About (this level's bests against par), Settings (clear its ships)
+  const body = $("menuBody");
+  body.replaceChildren();
+  const table = document.createElement("table");
+  table.className = "hb-bests";
+  table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
+  part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
+  part(body, "about").append(table);
   $("menuDlg").showModal();
 }
 

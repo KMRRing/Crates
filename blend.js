@@ -5,6 +5,7 @@ import { COMPONENTS, PRODUCTS, PROPS, LEVELS, STEP, blendProps, blendCost, bioSh
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { part, action } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -159,25 +160,26 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Content (the orders in order, each with its best and a tick once done: a progression), Settings
+// (reset this order's blend)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "stats", "An order comes in: a product with its specification, and a tank farm of components with their properties and prices. Set each component in steps of 5% until the blend adds up to 100 and every line of the spec passes, at the best margin you can; par is the best blend there is. Properties blend the way they do in practice: flash point, cold flow and viscosity by index, so a little of the wrong component moves them a long way. Tap any spec line for what it is and which components move it.");
-  const list = add("div", "bl-levels");
+  const list = document.createElement("div");
+  list.className = "bl-levels";
   for (const lv of LEVELS) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = S.done[lv.id] ? "done" : "";
+    if (lv.id === L.id) b.setAttribute("aria-current", "true");
     const t = document.createElement("b"); t.textContent = `${lv.id}. ${lv.title}`;
     const r = document.createElement("span"); r.textContent = S.best[lv.id] != null ? `best ${euro(S.best[lv.id])}/m³${S.done[lv.id] ? " ✓" : ""}` : "";
     b.append(t, r);
     b.addEventListener("click", () => { $("menuDlg").close(); loadLevel(lv.id); });
     list.appendChild(b);
   }
-  const reset = add("button", "btn wide", "Reset this order's blend");
-  reset.type = "button";
-  reset.addEventListener("click", () => { $("menuDlg").close(); S.blends[L.id] = L.components.map((c, i) => (i === 0 ? 100 : 0)); save(); render(); });
+  part(body, "content").append(list);
+  part(body, "settings").append(action("Reset this order's blend", () => { S.blends[L.id] = L.components.map((c, i) => (i === 0 ? 100 : 0)); save(); render(); }, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

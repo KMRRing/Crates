@@ -6,6 +6,7 @@ import { LEVELS } from "./refinery-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { part, action } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -341,26 +342,26 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Content (the levels in order, each with its best and a tick once done: a progression), Settings
+// (reset this level's routing)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "stats", "Route every stream to a unit or a pool. Pools blend what they're given and must meet their spec, or they sell as something cheaper. Reach par with every pool in spec to finish a level. Tap any unit for its card.");
-  const list = add("div", "rf-levels");
+  const list = document.createElement("div");
+  list.className = "rf-levels";
   for (const lv of LEVELS) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = S.done[lv.id] ? "done" : "";
+    if (lv.id === L.id) b.setAttribute("aria-current", "true");
     const t = document.createElement("b"); t.textContent = `${lv.id}. ${lv.title}`;
     const r = document.createElement("span"); r.textContent = S.best[lv.id] != null ? `best ${money(S.best[lv.id])}/bbl${S.done[lv.id] ? " ✓" : ""}` : "";
     b.append(t, r);
     b.addEventListener("click", () => { $("menuDlg").close(); loadLevel(lv.id); });
     list.appendChild(b);
   }
-  $("menuDlg").querySelector("h2").textContent = "Menu";
-  const reset = add("button", "btn wide", "Reset this level's routing");
-  reset.type = "button";
-  reset.addEventListener("click", () => { $("menuDlg").close(); S.routing[L.id] = defaultRouting(L); save(); render(); });
+  part(body, "content").append(list);
+  part(body, "settings").append(action("Reset this level's routing", () => { S.routing[L.id] = defaultRouting(L); save(); render(); }, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
