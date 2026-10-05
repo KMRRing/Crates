@@ -35,8 +35,8 @@ export function pickSet(seed, bank, perSet = PER_SET) {
 // ---------- the map's projection: Mercator, clipped near the poles ----------
 export const LAT_MAX = 78;
 const toRad = d => d * Math.PI / 180;
-const merc = lat => Math.log(Math.tan(Math.PI / 4 + toRad(lat) / 2));
-const unmerc = y => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180 / Math.PI;
+export const merc = lat => Math.log(Math.tan(Math.PI / 4 + toRad(Math.max(-89, Math.min(89, lat))) / 2));
+export const unmerc = y => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180 / Math.PI;
 /**
  * A projection for a window: lon0..lon1 across, lat0..lat1 up, onto width w and height h (pixels). Returns
  * { toXY(lon, lat), toLonLat(x, y) }. The whole world is lon −180..180, lat −LAT_MAX..LAT_MAX.
@@ -50,8 +50,28 @@ export function projection(lon0, lon1, lat0, lat1, w, h) {
 }
 /** The world's aspect (width over height) when clipped at ±LAT_MAX. */
 export const worldAspect = () => 360 / ((merc(LAT_MAX) - merc(-LAT_MAX)) * 180 / Math.PI);
-/** A zoom window of ±span degrees of longitude around a point, with the latitude span matched to the map's scale there. */
-export function windowAround(lon, lat, span = 8) {
-  const latSpan = span * 0.95;
-  return { lon0: lon - span, lon1: lon + span, lat0: Math.max(-LAT_MAX, lat - latSpan), lat1: Math.min(LAT_MAX, lat + latSpan) };
+// ---------- views you can pan and pinch ----------
+// A view is { lon (its centre's longitude), my (its centre in Mercator units), span (degrees of longitude across) }.
+// The window it shows on a w×h canvas follows from the aspect, so Mercator stays conformal.
+const MERC_MAX = merc(LAT_MAX);
+export const worldView = () => ({ lon: 0, my: 0, span: 360 });
+export const viewAround = (lon, lat, span) => ({ lon, my: merc(lat), span });
+/** The view's window: { lon0, lon1, lat0, lat1 }. */
+export function viewWindow(view, w, h) {
+  const half = view.span / 2, mercHalf = toRad(half) * (h / w);
+  return { lon0: view.lon - half, lon1: view.lon + half, lat0: unmerc(view.my - mercHalf), lat1: unmerc(view.my + mercHalf) };
+}
+/** The view kept inside the world (longitude −180..180, latitude ±LAT_MAX) with a span between min and 360. */
+export function clampView(view, w, h, minSpan = 1.5) {
+  const span = Math.max(minSpan, Math.min(360, view.span));
+  const half = span / 2, mercHalf = toRad(half) * (h / w);
+  const lon = Math.max(-180 + half, Math.min(180 - half, view.lon));
+  const my = mercHalf >= MERC_MAX ? 0 : Math.max(-MERC_MAX + mercHalf, Math.min(MERC_MAX - mercHalf, view.my));
+  return { lon, my, span };
+}
+/** A view that shows both points with room around them (used for the reveal). */
+export function viewCovering(a, b, w, h, minSpan = 6) {
+  const lon = (a.lon + b.lon) / 2, my = (merc(a.lat) + merc(b.lat)) / 2;
+  const span = Math.max(minSpan, Math.abs(a.lon - b.lon) * 1.6, (Math.abs(merc(a.lat) - merc(b.lat)) / (h / w)) * 180 / Math.PI * 1.6);
+  return clampView({ lon, my, span }, w, h);
 }
