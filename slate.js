@@ -1,6 +1,6 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt, suggest } from "./slate-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { reloadFresh } from "./pwa.js";
@@ -12,7 +12,7 @@ const $ = id => document.getElementById(id);
 const GAME = "glyph";
 const STORE = "glyph:solo";
 const CHECKS = 2, REVEALS = 2, HINTS = 2;
-/** Checks, rule reveals and word hints per board: unlimited on Easy, two each otherwise. */
+/** Checks, rule reveals and suggestions per board: unlimited on Easy, two each otherwise. */
 const limitsFor = level => (level === "easy" ? { checks: Infinity, reveals: Infinity, hints: Infinity } : { checks: CHECKS, reveals: REVEALS, hints: HINTS });
 const GAP = 6;
 const PALETTE = { single: ["s", ["Blue", "Green", "Teal"]], pair: ["p", ["Yellow", "Orange", "Sand"]], whole: ["w", ["Violet", "Pink", "Plum"]] };
@@ -34,11 +34,14 @@ let pending = {};     // letters typed into the current word but not placed yet,
 let shownDone = null;
 let clearLevel = 0;   // Clear escalates on repeated presses: broken words, then rule-breakers, then everything
 let clockFrom = null; // solo: when the board's clock last started running (paused while the page is hidden)
+let thinking = false; // a check or suggestion is being worked out
 
 const grid = () => gridOf(rowsOf(S.board));
 const fields = () => fieldsOf(S.board);
 const placements = () => S.log.filter(e => e.word).length;
 const checksUsed = () => S.log.filter(e => e.check).length;
+/** The latest check's verdict: the letters it found must change, by cell (checks from before October 2026 had none). */
+const lastCheck = () => { for (let i = S.log.length - 1; i >= 0; i--) if (S.log[i].check) return S.log[i].check.v === 2 ? S.log[i].check.out || {} : {}; return {}; };
 const hintsUsed = () => S.log.filter(e => e.hint != null).length;
 const revealed = () => new Set(S.log.filter(e => e.reveal != null).map(e => e.reveal));
 const other = d => (d === "Across" ? "Down" : "Across");
@@ -126,7 +129,7 @@ async function act(change) {
 }
 
 // Bumped when together games change shape, so a device still running older code reloads instead of mangling them.
-const APP = 3;
+const APP = 4;
 
 /** Another device runs newer code: switch to the newest version, once per session. */
 async function updateApp() {
@@ -179,41 +182,84 @@ function submit(entry, typed) {
     .then(ok => { if (!ok && room && !S.done) { pending = { ...typed, ...pending }; render(); } });
 }
 
-function check() {
-  if (S.done) return;
+// ---------- the referee: Check and Suggest ----------
+// Both judge against every winning board (any real words, every rule kept), not our fill, and run in a worker
+// (slate-worker.js, slate-solve.js) since a hard board can take a moment on a phone.
+let referee = null, asked = 0;
+const waiting = new Map();
+async function ask(kind, payload) {
+  try {
+    if (!referee) {
+      referee = new Worker(new URL("./slate-worker.js", import.meta.url), { type: "module" });
+      referee.onmessage = e => { waiting.get(e.data.id)?.(e.data); waiting.delete(e.data.id); };
+      referee.onerror = () => { waiting.forEach(done => done({ timeout: true })); waiting.clear(); referee = null; };
+    }
+  } catch {                                                       // no module workers here: work it out on the page
+    const m = await import("./slate-solve.js");
+    return kind === "check" ? m.checkBoard(payload.board, payload.letters, payload.placed, payload.slot) : m.suggestWord(payload.board, payload.letters, payload.slot);
+  }
+  const id = ++asked;
+  return new Promise(resolve => { waiting.set(id, resolve); referee.postMessage({ id, kind, ...payload }); });
+}
+/** Every letter entered: placed, typed short of a word, or typed into the current word and not placed yet. */
+const enteredLetters = () => ({ ...lettersFrom(S.board, S.log), ...pending });
+
+/**
+ * Check: the fewest letters that must change for a winning board to exist, keeping all the others, nearest the
+ * highlighted word protected first. They're outlined in orange until they change; a clean board says so.
+ */
+async function check() {
+  if (S.done || thinking) return;
   if (checksUsed() >= limitsFor(S.level).checks) { toast("No checks left on this board"); return; }
-  const letters = lettersFrom(S.board, S.log);
-  if (!Object.keys(letters).length) { toast("Place a word first: a check looks at the letters on the board"); return; }
-  act(g => {
+  const letters = enteredLetters(), slot = currentSlot();
+  if (!Object.keys(letters).length) { toast("Nothing to check yet: put some letters down first"); return; }
+  const onBoard = lettersFrom(S.board, S.log), placed = [...eligibleCells(S.board, onBoard)].filter(k => !pending[k]);
+  thinking = true; render(); toast("Checking…");
+  const r = await ask("check", { board: S.board, letters, placed, slot: slot.id });
+  thinking = false;
+  if (r.timeout) { render(); toast("Couldn't finish the check in time, so it wasn't spent. Try again."); return; }
+  const entry = { v: 2, at: slot.id, out: r.out || {}, proven: !!r.proven };
+  const ok = await act(g => {
     if (g.done || g.log.filter(e => e.check).length >= limitsFor(g.level).checks) return false;
-    g.log.push({ check: letters, ...(room && { by: room.uid }) });
+    g.log.push({ check: entry, ...(room && { by: room.uid }) });
   });
+  if (!ok) { render(); return; }
+  const n = Object.keys(entry.out).length;
+  toast(!n ? "All of this can still win."
+    : `${n === 1 ? "The orange letter has" : `These ${n} orange letters have`} to change; everything else can stay.${entry.proven ? "" : " (The fewest found in the time: a smaller change may exist.)"}`);
 }
 
 /**
- * A word hint for the highlighted word: a word that fits the letters already there (placed or typed) and every
- * rule that can be judged; the intended fill when the word is empty. Typed into the word for you to place. Costs
- * a hint only when there is one.
+ * Suggest: a word for the highlighted word that lies on a winning board keeping every letter entered; our fill's
+ * word where it can be. Typed in for you to place with Enter. Spent only when there's a word to give.
  */
-function hint() {
-  if (S.done) return;
-  if (hintsUsed() >= limitsFor(S.level).hints) { toast("No word hints left on this board"); return; }
+async function suggestWord() {
+  if (S.done || thinking) return;
+  if (hintsUsed() >= limitsFor(S.level).hints) { toast("No suggestions left on this board"); return; }
   const slot = currentSlot();
   if (!slot) { toast("Tap a cell first"); return; }
-  const letters = { ...lettersFrom(S.board, S.log), ...pending };
-  const word = suggest(S.board, letters, slot.id);
-  if (!word) { toast("No word fits here with the letters already in it"); return; }
-  if (slot.cells.every((k, i) => letters[k] === word[i])) { toast(`${word} is what's there, and it fits`); return; }
-  act(g => {
+  const letters = enteredLetters();
+  if (slot.cells.every(k => letters[k])) { toast("This word is full, so there's nothing to suggest. Check tells you whether it can stay."); return; }
+  thinking = true; render(); toast("Looking for a word that can win…");
+  const r = await ask("suggest", { board: S.board, letters, slot: slot.id });
+  thinking = false;
+  const now = enteredLetters();
+  if (slot.cells.some(k => (now[k] || "") !== (letters[k] || ""))) { render(); toast("The word changed while I looked: ask again"); return; }
+  if (!r.word) {
+    render();
+    toast(r.proven ? "No winning board keeps your current letters, so nothing was spent. Check shows which have to change."
+      : "No solution found with your current letters, so nothing was spent. Check shows which have to change.");
+    return;
+  }
+  const ok = await act(g => {
     if (g.done || g.log.filter(e => e.hint != null).length >= limitsFor(g.level).hints) return false;
     g.log.push({ hint: slot.id, ...(room && { by: room.uid }) });
-  }).then(ok => {
-    if (!ok) return;
-    const placed = lettersFrom(S.board, S.log);
-    slot.cells.forEach((k, i) => { if (!placed[k]) pending[k] = word[i]; });
-    render();
-    toast(`Try ${word}: Enter places it`);
   });
+  if (!ok) { render(); return; }
+  const placed = lettersFrom(S.board, S.log);
+  slot.cells.forEach((k, i) => { if (!placed[k]) pending[k] = r.word[i]; });
+  render();
+  toast(`Try ${r.word}: Enter places it`);
 }
 
 /** Clear: first press empties letters that aren't in a real word, the next also words breaking a rule you can see, the next everything. */
@@ -434,10 +480,10 @@ function render() {
   if (!cursor || !g.cells.includes(cursor)) resetCursor();
   const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed(), hintsLeft = limitsFor(S.level).hints - hintsUsed();
   $("level").value = S.level;
-  $("checkBtn").textContent = left === Infinity ? "Check letters" : `Check letters (${left})`;
-  $("checkBtn").disabled = !!S.done || left === 0;
-  $("hintBtn").textContent = hintsLeft === Infinity ? "Hint" : `Hint (${hintsLeft})`;
-  $("hintBtn").disabled = !!S.done || hintsLeft === 0;
+  $("checkBtn").textContent = left === Infinity ? "Check" : `Check (${left})`;
+  $("checkBtn").disabled = !!S.done || left === 0 || thinking;
+  $("hintBtn").textContent = hintsLeft === Infinity ? "Suggest" : `Suggest (${hintsLeft})`;
+  $("hintBtn").disabled = !!S.done || hintsLeft === 0 || thinking;
   $("clearBtn").disabled = !!S.done;
   const notes = notesFrom(S.board, S.log);
   drawPartner();
@@ -481,7 +527,7 @@ function drawBoard(g, fs, letters, slot) {
   const owner = {};
   fs.forEach((f, i) => f.cells.forEach(k => { owner[k] = i; }));
   const verdict = judge(S.board, letters);
-  const confirmed = confirmedLetters();
+  const mustGo = lastCheck();
   const bad = new Set(g.slots.filter(s => s.cells.every(k => letters[k]) && !VALID.has(s.cells.map(k => letters[k]).join(""))).flatMap(s => s.cells));
   const eligible = eligibleCells(S.board, letters);   // letters in a complete real word: the only ones judged
   const nodes = fs.flatMap((f, i) => (f.rule.type === "whole" ? [cage(f.cells, styleOf(i), at, size)] : []));   // under the cells
@@ -507,17 +553,10 @@ function drawBoard(g, fs, letters, slot) {
       if (bad.has(k)) cell.classList.add("broken");
       else if (!eligible.has(k)) { cell.classList.add("draft"); cell.title = "Not part of a real word yet"; }
     }
-    if (confirmed[k]) {
-      // a checked letter that matches our fill: outlined while it stays, a reminder in the corner once replaced
-      if (!typed && letters[k] === confirmed[k]) cell.classList.add("confirmed");
-      else {
-        const r = document.createElement("span");
-        r.className = "g-remind";
-        r.style.fontSize = `${Math.max(11, size * 0.2)}px`;
-        r.textContent = confirmed[k];
-        r.title = "This letter matched our fill";
-        cell.appendChild(r);
-      }
+    if (mustGo[k] && (typed || letters[k]) === mustGo[k]) {
+      // the last check found this letter has to change: outlined until it does
+      cell.classList.add("must-go");
+      cell.title = "Check: this letter has to change for a winning board";
     }
     if (S.done && !letters[k]) { ch.className = "pending"; ch.textContent = S.board.sol[k]; }
     cell.dataset.k = k;
@@ -555,14 +594,6 @@ function drawBoard(g, fs, letters, slot) {
   el.replaceChildren(...nodes);
 }
 
-/** Letters a check showed are not ours, by cell (any field, or none). */
-function rejectedByChecks() {
-  const out = {};
-  for (const e of S.log) if (e.check) for (const [k, ch] of Object.entries(e.check)) if (ch !== S.board.sol[k]) (out[k] ||= new Set()).add(ch);
-  return out;
-}
-
-/** Letters a check showed to match our fill, by cell. */
 /**
  * Sizes the board and the keyboard to the visible screen (Safari's bars included): the board as large as the width
  * allows while the keyboard keeps its minimum height, then the keys grow into whatever height is left.
@@ -584,12 +615,6 @@ function fitLayout(g) {
 }
 const MIN_KEY = 44, MAX_KEY = 66, KEY_GAP = 6;
 
-function confirmedLetters() {
-  const out = {};
-  for (const e of S.log) if (e.check) for (const [k, ch] of Object.entries(e.check)) if (ch === S.board.sol[k]) out[k] = ch;
-  return out;
-}
-
 /** The single-letter field of the clicked cell, if its marks are yours to see. */
 function keyField(fs) {
   if (!cursor || S.done) return null;
@@ -602,12 +627,12 @@ function drawKeys(fs, notes) {
   const i = keyField(fs);
   $("kbd").title = i != null ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)` : "";
   const known = i != null && revealed().has(i) ? fs[i].rule : null;
-  const notOurs = (!S.done && cursor && rejectedByChecks()[cursor]) || new Set();   // checked here, not in our fill
+  const mustGo = (!S.done && cursor && lastCheck()[cursor]) || null;   // the last check said this letter has to change here
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
     const ch = b.dataset.key;
     b.classList.toggle("ok", i != null && (known ? known.test(ch) : notes[i].ok.has(ch)));
     b.classList.toggle("no", i != null && (known ? !known.test(ch) : notes[i].no.has(ch)));
-    b.classList.toggle("not-ours", notOurs.has(ch));
+    b.classList.toggle("must-go", ch === mustGo);
   });
 }
 
@@ -741,7 +766,7 @@ function showDone() {
   const g = grid(), letters = lettersFrom(S.board, S.log);
   const ours = g.slots.every(s => s.cells.every(k => letters[k] === S.board.sol[k]));
   $("doneTitle").textContent = S.done.won ? "Solved" : "Our fill";
-  const stats = [["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Hints", hintsUsed()], ["Time", clockText(elapsed())]];
+  const stats = [["Placements", placements()], ["Checks", checksUsed()], ["Clues", revealed().size], ["Suggestions", hintsUsed()], ["Time", clockText(elapsed())]];
   $("doneStats").replaceChildren(...stats.flatMap(([label, value]) => {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = label; dd.textContent = value;
@@ -935,7 +960,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newBoard(); });
 $("checkBtn").addEventListener("click", check);
-$("hintBtn").addEventListener("click", hint);
+$("hintBtn").addEventListener("click", suggestWord);
 $("defineClose").addEventListener("click", () => $("defineDlg").close());
 $("clearBtn").addEventListener("click", clear);
 $("level").addEventListener("change", e => newBoard(e.target.value));
