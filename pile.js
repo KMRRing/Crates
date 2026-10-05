@@ -35,6 +35,7 @@ export function record(game, key, payload, why) {
   it.payload = payload;
   it.pile = 0;
   it.due = now;
+  delete it.learned;                                   // a learned item that's missed again is back in the piles
   it.fails++;
   it.last = { at: now, why };
   all[id] = it;
