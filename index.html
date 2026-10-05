@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
 </head>
 <body>
 <div id="app">
@@ -20,10 +21,10 @@
       <span class="mark-icon cr-mark" aria-hidden="true"></span>Crates</button>
     </h1>
     <div class="top-right">
-      <select id="pool" class="pool" aria-label="Puzzle type">
-        <option value="mixed">Mixed</option>
-        <option value="country">Countries</option>
-        <option value="commodity">Commodities</option>
+      <select id="pool" class="pool" aria-label="Puzzle type" data-accent="cr">
+        <option value="mixed" data-note="Country boards and commodity boards">Mixed</option>
+        <option value="country" data-note="A country behind every crate">Countries</option>
+        <option value="commodity" data-note="A commodity behind every crate">Commodities</option>
       </select>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>

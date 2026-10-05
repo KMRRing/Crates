@@ -1,5 +1,6 @@
 // Everything that touches the page. Controllers hand render() a plain view model.
 import { NOUN, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS, POOL_CATS } from "./core.js";
+import { dropdown } from "./dropdown.js";
 
 const $ = id => document.getElementById(id);
 const el = {
@@ -28,6 +29,7 @@ el.clear.addEventListener("click", () => handlers.clear?.());
 el.shuffle.addEventListener("click", () => handlers.shuffle?.());
 el.next.addEventListener("click", () => handlers.next?.());
 el.share.addEventListener("click", () => handlers.share?.());
+dropdown(el.pool);
 el.pool.addEventListener("change", () => handlers.pool?.(el.pool.value));
 el.menuBtn.addEventListener("click", () => handlers.menu?.());
 el.menuClose.addEventListener("click", () => el.menuDlg.close());
