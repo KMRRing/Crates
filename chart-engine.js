@@ -113,9 +113,12 @@ export function clampView(view, w, h, minSpan = 1.5) {
   const my = mercHalf >= MERC_MAX ? 0 : Math.max(-MERC_MAX + mercHalf, Math.min(MERC_MAX - mercHalf, view.my));
   return { lon, my, span };
 }
-/** A view that shows both points with room around them (used for the reveal). */
-export function viewCovering(a, b, w, h, minSpan = 6) {
-  const lon = (a.lon + b.lon) / 2, my = (merc(a.lat) + merc(b.lat)) / 2;
-  const span = Math.max(minSpan, Math.abs(a.lon - b.lon) * 1.6, (Math.abs(merc(a.lat) - merc(b.lat)) / (h / w)) * 180 / Math.PI * 1.6);
-  return clampView({ lon, my, span }, w, h);
+/** A view that shows every point with room around them (pad: how much wider than the points the view is). */
+export function viewFitting(points, w, h, { minSpan = 6, pad = 1.6 } = {}) {
+  const lons = points.map(p => p.lon), mys = points.map(p => merc(p.lat));
+  const lon0 = Math.min(...lons), lon1 = Math.max(...lons), my0 = Math.min(...mys), my1 = Math.max(...mys);
+  const span = Math.max(minSpan, (lon1 - lon0) * pad, (my1 - my0) / (h / w) * 180 / Math.PI * pad);
+  return clampView({ lon: (lon0 + lon1) / 2, my: (my0 + my1) / 2, span }, w, h);
 }
+/** A view that shows both points with room around them (used for the reveal). */
+export const viewCovering = (a, b, w, h, minSpan = 6) => viewFitting([a, b], w, h, { minSpan });

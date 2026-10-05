@@ -1,7 +1,7 @@
 // Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
 // see the truth, the distance and the points. Together, both of you pin the same place in private and the pins
 // are revealed side by side.
-import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox } from "./chart-engine.js";
+import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox } from "./chart-engine.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
 import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
@@ -318,6 +318,85 @@ function render() {
 }
 
 // ---------- the end of a set ----------
+/**
+ * The set's places for the summary: each place with its legs, a pin and the point its miss was measured to (the
+ * place, or a feature's nearest point), yours and, in a room, your partner's.
+ */
+function setPairs() {
+  const room = inRoom(), me = room ? mySeat() : 0;
+  return Object.values(S.log || {}).map((e, i) => {
+    const q = byId.get(e.id);
+    const legs = (room ? [[me, "mine"], [1 - me, "theirs"]] : [[null, "mine"]]).map(([seat, kind]) => {
+      const from = room ? e.pins?.[seat] : { lat: e.lat, lon: e.lon };
+      const to = q.geo ? (room ? e.near?.[seat] : e.near) : q;
+      return from && to ? { from, to: { lat: to.lat, lon: to.lon }, kind, km: room ? e.km[seat] : e.km } : null;
+    }).filter(Boolean);
+    return { n: i + 1, q, legs };
+  });
+}
+/** A place's number on the summary map, in a small disc beside it. */
+function badge(ctx, x, y, text) {
+  ctx.font = "800 10px Archivo, Arial, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.beginPath(); ctx.arc(x, y, 7.5, 0, Math.PI * 2); ctx.fillStyle = css("--ink"); ctx.fill();
+  ctx.fillStyle = css("--sheet"); ctx.fillText(text, x, y + .5);
+}
+/**
+ * Every pin of the set joined to where it should have been, framed to show them all; with a place in focus, the
+ * map frames that one and fades the rest.
+ */
+function drawSummary(canvas, pairs, focus = null) {
+  const [w, h] = SIZES.world;
+  const shown = focus != null ? [pairs[focus]] : pairs;
+  const points = shown.flatMap(p => p.legs.flatMap(l => [l.from, l.to]));
+  const view = points.length ? viewFitting(points, w, h, { minSpan: 12, pad: 1.25 }) : worldView();
+  const win = viewWindow(view, w, h), proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
+  const ctx = setup(canvas, w, h);
+  drawMap(ctx, proj, win, w, h);
+  const xy = p => proj.toXY(p.lon, p.lat);
+  // the faded ones first, so the one in focus sits on top
+  const order = pairs.map((p, i) => i).sort((a, b) => (a === focus) - (b === focus));
+  for (const i of order) {
+    const p = pairs[i];
+    ctx.globalAlpha = focus == null || focus === i ? 1 : 0.2;
+    if (p.q.geo) drawFeature(ctx, proj, p.q.geo);
+    for (const l of p.legs) line(ctx, xy(l.from), xy(l.to), l.kind === "theirs" ? "#7A4BC9" : css("--ch-in"));
+    for (const l of p.legs) marker(ctx, ...xy(l.from), l.kind);
+    for (const l of p.legs) marker(ctx, ...xy(l.to), "truth");
+    const [x, y] = xy(p.legs[0]?.to || p.q);
+    badge(ctx, x + 11, y - 11, String(p.n));
+  }
+  ctx.globalAlpha = 1;
+}
+/** The summary: the map, and a row a place (tap one to frame it on the map; tap again for all of them). */
+function summary(add, pairs, rowText) {
+  const canvas = add("canvas", "ch-summary");
+  canvas.setAttribute("aria-label", "Every pin of the set joined to where it should have been");
+  add("p", "ch-hint", "Tap a place to see its miss on the map.");
+  const lines = add("ul", "ch-lines");
+  let focus = null;
+  const rows = pairs.map((p, i) => {
+    const li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button";
+    b.className = "ch-line";
+    const num = document.createElement("i"), name = document.createElement("span"), how = document.createElement("b");
+    num.textContent = String(p.n);
+    name.textContent = p.q.name.length > 30 ? `${p.q.name.slice(0, 28)}…` : p.q.name;
+    how.textContent = rowText(p, i);
+    b.append(num, name, how);
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", () => {
+      focus = focus === i ? null : i;
+      rows.forEach((r, k) => r.setAttribute("aria-pressed", String(k === focus)));
+      drawSummary(canvas, pairs, focus);
+    });
+    li.appendChild(b);
+    lines.appendChild(li);
+    return b;
+  });
+  // drawn once the dialog is open, so the canvas has its size
+  requestAnimationFrame(() => drawSummary(canvas, pairs));
+}
 function finish() {
   const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
   const body = $("doneBody");
@@ -330,14 +409,7 @@ function finish() {
     const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
     b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
   }
-  const lines = add("ul", "ch-lines");
-  for (const e of S.log) {
-    const q = byId.get(e.id), li = document.createElement("li"), name = document.createElement("span"), pts = document.createElement("b");
-    name.textContent = q.name.length > 34 ? `${q.name.slice(0, 32)}…` : q.name;
-    pts.textContent = `${km(e.km)} · +${e.pts}${e.clues ? ` · ${e.clues} clue${e.clues > 1 ? "s" : ""}` : ""}`;
-    li.append(name, pts);
-    lines.appendChild(li);
-  }
+  summary(add, setPairs(), (p, i) => { const e = S.log[i]; return `${km(e.km)} · +${e.pts}${e.clues ? ` · ${e.clues} clue${e.clues > 1 ? "s" : ""}` : ""}`; });
   const again = add("button", "btn primary wide", "Again");
   again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); start("random"); });
   const daily = add("button", "btn wide", S.mode === "daily" ? "A random set" : "Today's set");
@@ -384,6 +456,8 @@ function finishRoom() {
     const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
     b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
   }
+  const log = Object.values(g.log);
+  summary(add, setPairs(), (p, i) => `you ${km(log[i].km[me])} · ${seatName(1 - me)} ${km(log[i].km[1 - me])}`);
   const again = add("button", "btn primary wide", "Play again");
   again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(); });
   const leave = add("button", "btn wide", "Leave the room");

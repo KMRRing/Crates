@@ -40,9 +40,15 @@
 .ch-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
 .ch-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
 .ch-stats span { font-size: .75rem; color: var(--ink-soft); }
-.ch-lines { margin: .4rem 0; padding: 0; list-style: none; display: grid; gap: .3rem; font-size: .9rem; }
-.ch-lines li { display: flex; justify-content: space-between; gap: .6rem; }
-.ch-lines b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* the end of a set: every pin joined to its place on one map, and a row a place to frame it */
+.ch-summary { display: block; width: 100%; height: auto; margin: .3rem 0 .2rem; border-radius: 12px; background: var(--ch-sea); }
+.ch-lines { margin: .3rem 0 .6rem; padding: 0; list-style: none; display: grid; gap: .2rem; font-size: .88rem; }
+.ch-line { width: 100%; display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; align-items: center; gap: .5rem; padding: .3rem .45rem;
+  border-radius: 10px; border: 1.5px solid transparent; background: var(--yard); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ch-line[aria-pressed="true"] { border-color: var(--ch-in); }
+.ch-line i { font-style: normal; display: grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: var(--ink); color: var(--sheet); font-size: .7rem; font-weight: 800; }
+.ch-line span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-line b { font-variant-numeric: tabular-nums; white-space: nowrap; font-size: .82rem; }
 .ch-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
