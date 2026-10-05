@@ -214,17 +214,14 @@ function exitOf(tile, into) {
   if (tile.kind === "cross") return opposite(into);
   return o.find(d => d !== into);
 }
-/**
- * Advance the flow by dt ms. Heads move `tick` ms a tile. Returns the run. `boost` multiplies the speed (the
- * player pumping it once the route is ready).
- */
-export function advance(level, run, dt, boost = 1) {
+/** Advance the flow by dt ms of flow time. Heads move `tick` ms a tile (times their product's pace). Returns the run. */
+export function advance(level, run, dt) {
   if (run.over) return run;
   run.clock = (run.clock || 0) + dt;
   for (const h of run.heads) {
     if (h.done) continue;
     if (run.clock < (PRODUCTS[h.product].delay || 0)) continue;        // crude sets off later than gas
-    const tick = level.level.tick * (PRODUCTS[h.product].pace || 1) / boost;
+    const tick = level.level.tick * (PRODUCTS[h.product].pace || 1);
     h.progress += dt / tick;
     while (h.progress >= 1 && !h.done && !run.over) {
       h.progress -= 1;

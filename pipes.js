@@ -9,11 +9,14 @@ const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
 const SVG = "http://www.w3.org/2000/svg";
 const TILE = 60, PIPE = 18;            // drawing units
 const BONUS_WINDOW = 60000;             // ms: the time bonus counts down from here once the flow starts
+const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 40 s flow in half a second), in 50 ms steps so
+                                       // the products meet crossings in the same order they would at speed 1
+const FILL_SCORED = 4;                 // and the time bonus counts that time as if pumped at ×4
 
 let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over" }
 let L = null;        // the level
 let R = null;        // the run
-let clock = { last: 0, planLeft: 0, flowing: 0, boost: 1 };
+let clock = { last: 0, planLeft: 0, flowing: 0, filling: false };   // flowing: the time the bonus counts
 let raf = 0;
 const cells = new Map();   // "x,y" -> { g, flows: [] }
 
@@ -36,11 +39,11 @@ function beginLevel() {
   R = newRun(L);
   S.phase = "plan";
   save();
-  clock = { last: performance.now(), planLeft: L.level.plan, flowing: 0, boost: 1 };
+  clock = { last: performance.now(), planLeft: L.level.plan, flowing: 0, filling: false };
   drawHud();
   buildBoard();
   $("goBtn").hidden = true;
-  $("boostBtn").hidden = true;
+  $("fillBtn").hidden = false;                       // there from the first moment: fill as soon as the route is ready
   $("note").textContent = L.n === 1 ? "Tap a tile to turn it. Build a route from the wellhead to the terminal before the oil gets there; a tile the flow has entered is locked. Pressure drops a notch a tile: route through pumps."
     : L.n === 5 ? "Two products now, each to its own terminal. Gas sets off first and moves faster; crude waits six seconds and crawls. They can only cross at a crossing; the wrong terminal is contamination."
     : L.n === 9 ? "A blender: crude in one side, gas in the other, and the blend leaves by the bottom to the blend terminal." : "";
@@ -54,22 +57,30 @@ function frame(now) {
   if (S.phase === "plan") {
     clock.planLeft -= dt;
     $("status").textContent = `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · level ${L.n}`;
-    if (clock.planLeft <= 0) { S.phase = "flow"; $("boostBtn").hidden = false; }
+    if (clock.planLeft <= 0) S.phase = "flow";
     return;
   }
   if (S.phase !== "flow") return;
-  clock.flowing += dt;
-  advance(L, R, dt, clock.boost);
+  if (clock.filling) {
+    for (let left = dt * FILL_SPEED; left > 0 && !R.over; left -= FILL_STEP) {
+      const step = Math.min(FILL_STEP, left);
+      advance(L, R, step);
+      clock.flowing += step / FILL_SCORED;
+    }
+  } else {
+    clock.flowing += dt;
+    advance(L, R, dt);
+  }
   drawFlow();
   drawGauges();
-  $("status").textContent = `Flowing${clock.boost > 1 ? " ×4" : ""} · level ${L.n}`;
+  $("status").textContent = `${clock.filling ? "Filling, time at ×4" : "Flowing"} · level ${L.n}`;
   if (R.over) endLevel();
 }
 function endLevel() {
   const msLeft = Math.max(0, BONUS_WINDOW - clock.flowing);
   const earned = points(L, R, msLeft);
   S.score += earned;
-  $("boostBtn").hidden = true;
+  $("fillBtn").hidden = true;
   if (R.over.win) {
     S.phase = "done";
     $("status").textContent = `Delivered: +${earned}`;
@@ -282,7 +293,15 @@ bindSwitcher($("appsBtn"), "pipes");
 document.querySelector(".pi-mark").innerHTML = APPS.find(a => a.id === "pipes").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("boostBtn").addEventListener("click", () => { clock.boost = 4; $("boostBtn").hidden = true; });
+/** Fill it now: the oil goes at once (planning ends there), the whole route fills in a moment, and the time it would
+ *  have taken counts as if pumped at ×4. A route that isn't ready spills just the same. */
+$("fillBtn").addEventListener("click", () => {
+  if (S.phase !== "plan" && S.phase !== "flow") return;
+  S.phase = "flow";
+  clock.planLeft = 0;
+  clock.filling = true;
+  $("fillBtn").hidden = true;
+});
 document.addEventListener("visibilitychange", () => { if (document.hidden && (S?.phase === "plan" || S?.phase === "flow")) { S.attempt++; save(); beginLevel(); } });   // a level left mid-flow starts over, fresh
 
 // for tests and debugging
