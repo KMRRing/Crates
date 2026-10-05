@@ -1,6 +1,6 @@
 // Pipes: turn tiles ahead of the flow. The engine (pipes-engine.js) builds levels and moves the flow; this file
 // draws the board, takes taps and runs the clock.
-import { LIVES, PRODUCTS, DIRS, makeLevel, newRun, turn, advance, points, openings, shapeOf } from "./pipes-engine.js";
+import { LIVES, PRODUCTS, COSTS, DIRS, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf } from "./pipes-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
@@ -8,7 +8,7 @@ const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
 const SVG = "http://www.w3.org/2000/svg";
 const TILE = 60, PIPE = 18;            // drawing units
-const BONUS_WINDOW = 60000;             // ms: the time bonus counts down from here once the flow starts
+const BONUS_WINDOW = 90000;             // ms: the time bonus counts down from here once the flow starts
 const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 40 s flow in half a second), in 50 ms steps so
                                        // the products meet crossings in the same order they would at speed 1
 const FILL_SCORED = 4;                 // and the time bonus counts that time as if pumped at ×4
@@ -25,6 +25,7 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const save = () => write(RUN, S);
+const levelInfo = () => levelOf(S?.n || 1);
 
 // ---------- the run ----------
 function start(mode) {
@@ -44,8 +45,10 @@ function beginLevel() {
   buildBoard();
   $("goBtn").hidden = true;
   $("fillBtn").hidden = false;                       // there from the first moment: fill as soon as the route is ready
-  $("note").textContent = L.n === 1 ? "Tap a tile to turn it. Build a route from the wellhead to the terminal before the oil gets there; a tile the flow has entered is locked. Pressure drops a notch a tile: route through pumps."
-    : L.n === 5 ? "Two products now, each to its own terminal. Gas sets off first and moves faster; crude waits six seconds and crawls. They can only cross at a crossing; the wrong terminal is contamination."
+  // the note has three lines: each level's news must fit them
+  $("note").textContent = L.n === 1 ? `Tap tiles to turn them. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: detour through one. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
+    : L.n === 3 ? "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more."
+    : L.n === 5 ? "Two products, each to its own terminal; gas goes first and faster. They cross only at a crossing; the wrong terminal is contamination."
     : L.n === 9 ? "A blender: crude in one side, gas in the other, and the blend leaves by the bottom to the blend terminal." : "";
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
@@ -78,13 +81,13 @@ function frame(now) {
 }
 function endLevel() {
   const msLeft = Math.max(0, BONUS_WINDOW - clock.flowing);
-  const earned = points(L, R, msLeft);
+  const net = score(L, R, msLeft), earned = net.total;
   S.score += earned;
   $("fillBtn").hidden = true;
   if (R.over.win) {
     S.phase = "done";
     $("status").textContent = `Delivered: +${earned}`;
-    $("note").textContent = `${R.tilesFilled} tiles of pipe, the terminal${L.terminals.length > 1 ? "s" : ""} bonus and ${Math.round(msLeft / 100)} for time.`;
+    $("note").textContent = `${net.revenue} at the terminal${R.reached.length > 1 ? "s" : ""}, −${net.pipe} for ${R.tilesFilled} tiles of pipe, −${net.pumps} for ${R.pumpsFired} pump${R.pumpsFired === 1 ? "" : "s"}, +${net.time} for time.${pickNote()}`;
     $("goBtn").hidden = false;
     $("goBtn").textContent = `Level ${S.n + 1}`;
     $("goBtn").onclick = () => { S.n++; S.attempt = 0; save(); beginLevel(); };
@@ -92,7 +95,7 @@ function endLevel() {
     S.lives--;
     const why = { "no opening": "a dead end", "the edge": "the edge of the field", "already full": "a pipe that was already full", "wrong product": "the wrong terminal: contamination", pressure: "no pressure left: it needed a pump" }[R.over.why] || R.over.why;
     $("status").textContent = `Spill: ${why}.`;
-    $("note").textContent = `+${earned} for the pipe filled.`;
+    $("note").textContent = "Nothing delivered, nothing paid.";
     navigator.vibrate?.([60, 40, 60]);
     markSpill();
     if (S.lives <= 0) { S.phase = "over"; $("goBtn").hidden = false; $("goBtn").textContent = "See how it went"; $("goBtn").onclick = over; }
@@ -100,6 +103,12 @@ function endLevel() {
   }
   save();
   drawHud();
+}
+/** On a two-terminal level, a word on the pick: the board was priced so one nets more. */
+function pickNote() {
+  if (!L.choice) return "";
+  const took = R.reached[0] === 0 ? "far" : "near";
+  return took === L.choice.better ? ` The ${took} terminal was the better pick here.` : ` The ${L.choice.better} terminal would have netted about ${L.choice.by} more.`;
 }
 function over() {
   const best = S.mode === "daily" ? bestDaily() : bestEver();
@@ -170,13 +179,17 @@ function drawTile(x, y) {
   const stub = d => { const [ex, ey] = edge(d); return el("line", { x1: centre[0], y1: centre[1], x2: ex, y2: ey, class: "pipe", "stroke-width": PIPE }); };
   if (t.kind === "well" || t.kind === "term") {
     g.appendChild(stub(o[0]));
-    const colour = PRODUCTS[L[t.kind === "well" ? "heads" : "terminals"].find(h => h.at[0] === x && h.at[1] === y)?.product]?.colour || "#888";
+    const end = L[t.kind === "well" ? "heads" : "terminals"].find(h => h.at[0] === x && h.at[1] === y);
+    const colour = PRODUCTS[end?.product]?.colour || "#888";
     if (t.kind === "well") {
       g.appendChild(el("path", { d: "M18 46 L30 14 L42 46 Z M22 36 H38", fill: "none", stroke: colour, "stroke-width": 3.5, "stroke-linejoin": "round" }));
       g.appendChild(el("rect", { x: 14, y: 44, width: 32, height: 5, rx: 2, fill: colour }));
     } else {
-      g.appendChild(el("rect", { x: 14, y: 18, width: 32, height: 26, rx: 6, fill: colour, stroke: "#fff", "stroke-width": 2 }));
-      g.appendChild(el("rect", { x: 20, y: 24, width: 20, height: 4, rx: 2, fill: "rgba(255,255,255,.55)" }));
+      // a terminal shows what it pays, so a route can be weighed against what it costs
+      g.appendChild(el("rect", { x: 7, y: 17, width: 46, height: 27, rx: 6, fill: colour, stroke: "#fff", "stroke-width": 2, class: "term-face" }));
+      const price = el("text", { x: 30, y: 35.5, "text-anchor": "middle", "font-size": 14, "font-weight": 800, fill: "#fff", class: "term-face" });
+      price.textContent = String(end?.price ?? "");
+      g.appendChild(price);
     }
     return;
   }
@@ -219,6 +232,7 @@ function drawFlowIn(x, y) {
     const path = el("path", { d, class: "flow", stroke: PRODUCTS[f.product].colour, "stroke-width": PIPE - 6, "stroke-dasharray": len, "stroke-dashoffset": len * (1 - progress), "stroke-linejoin": "round" });
     g.appendChild(path);
   }
+  for (const face of g.querySelectorAll(".term-face")) g.appendChild(face);   // a terminal's price stays readable over the flow
 }
 let lastLockedKeys = "";
 function drawFlow() {
@@ -276,7 +290,7 @@ function openMenu() {
   $("menuDlg").querySelector("h2").textContent = "Menu";
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", "Oil is already on its way. Tap tiles to turn them and build a route from the wellhead to the terminal ahead of the flow. Pressure drops a notch a tile, so long routes need pumps. From level 4 two products run at once and may only cross at crossings; from level 7 they meet at a blender. Three lives; a spill costs one and the level comes back fresh.");
+  add("p", "stats", `Oil is already on its way. Tap tiles to turn them and build a route from the wellhead to a terminal ahead of the flow. Pressure lasts ${levelInfo().pressure} tiles and only a pump refills it, so the straight line runs dry: detour through a pump. A delivery pays its netback: the terminal's price, less ${COSTS.tile} a tile of pipe and ${COSTS.pump} a pump, plus time. On levels 3 and 4 there are two terminals: pick the one that nets more. From level 5 two products run at once and may only cross at crossings; from level 9 they meet at a blender. Fill it now sends the oil at once, the time counted at ×4. Three lives; a spill costs one, pays nothing, and the level comes back fresh.`);
   button("A new run", () => confirmStart("random"));
   button("Today's run", () => confirmStart("daily"));
   const best = read(BEST, null), daily = read(DAILY, {})[today()];
