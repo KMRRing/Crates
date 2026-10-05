@@ -432,8 +432,11 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .partner-pill.on { color: #3a9d57; }
 
 /* watching your partner: their game under a veil that keeps your taps off it, and a bar to stop */
-.watch-veil { position: fixed; inset: 0; z-index: 900; background: transparent; }
-.watch-bar { position: fixed; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); display: flex; align-items: center; gap: .6rem;
+.watch-shell { position: fixed; inset: 0; z-index: 900; background: var(--yard); }
+.watch-frames, .watch-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.watch-frame { pointer-events: none; background: var(--yard); }        /* the frames take no taps: watching only */
+.watch-frame.next { visibility: hidden; }                              /* loading behind the one on show */
+.watch-bar { position: fixed; z-index: 1; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); display: flex; align-items: center; gap: .6rem;
   padding: .5rem .75rem; border-radius: 14px; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--tile-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); font-size: .9rem; }
 .watch-bar span { flex: 1; }
 .watch-bar .btn { min-height: 36px; }

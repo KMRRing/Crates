@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES } from "./suite.js";
+import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
 // Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
@@ -265,7 +265,7 @@ function bindCodes(dlg) {
     if (e.target.closest("[data-pair]")) openSheet();
   });
   draw();
-  if (duoCode()) {
+  if (duoCode() && !IN_FRAME) {
     shareBests(APPS.map(a => a.id)).catch(() => {});
     watchPartner(p => { partner = p; draw(); }).catch(() => {});
     watchBests((bests, name) => { theirs = bests; theirName = name; draw(); }).catch(() => {});
@@ -317,7 +317,7 @@ export function bindSwitcher(button, current) {
   const redraw = bindCodes(dlg);
   button.addEventListener("click", () => { redraw(); dlg.showModal(); });
   // inside every game, a small line in the title: what your partner is playing (green while they're online)
-  if (duoCode()) {
+  if (duoCode() && !IN_FRAME) {
     const pill = document.createElement("small");
     pill.className = "partner-pill";
     button.appendChild(pill);

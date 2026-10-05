@@ -16,6 +16,7 @@ import { roomInAddress } from "./rooms.js";
 
 const SOLO = "suite:solo", META = "suite:meta", PULLED = "suite:pulled";
 const WATCHING = new URLSearchParams(location.search).has("watch");   // this page shows your partner's game (see below)
+const FRAME = WATCHING && new URLSearchParams(location.search).has("frame");   // one frame of that view, inside the watching page
 const PAIR = "pair:code", ME = "pair:me";       // the pair's room and your player id: synced, so all your devices share them
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PUSH_DELAY = 1500;
@@ -87,7 +88,7 @@ export function unlink() { localStorage.removeItem(PAIR); }
 // every write to this device's storage is noted with its time, and goes up a moment later
 function touched(k, v) {
   if (typeof k !== "string") return;
-  if (!WATCHING && duoCode() && k.startsWith(storePrefix(pageGame()))) { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(mirror, PUSH_DELAY); }
+  if (!WATCHING && duoCode() && k.startsWith(storePrefix(pageGame())) && !mirrorTimer) mirrorTimer = setTimeout(() => { mirrorTimer = null; mirror(); }, PUSH_DELAY);
   if (!syncing() || LOCAL.test(k)) return;
   meta[k] = Date.now();
   put(META, meta);
@@ -273,7 +274,7 @@ async function listen() {
 // with ?watch and sees yours: there, every read of that game's keys returns your copy and every write goes nowhere, so
 // their own solo state is never touched; a veil keeps their taps off the board, and the page reloads when you move.
 // So any game can be watched, without code of its own. Keys of the suite, Crates' run link and Firebase's stay out.
-let mirrorTimer = null, watched = null;           // watched: { name, game, at, keys: Map } while watching
+let mirrorTimer = null, watched = null;           // watched: inside a frame, the partner's copy { name, game, at, keys: Map }
 /** The prefix of a game's keys in storage: the game's id, but Slate keeps its old name, Glyph. */
 const storePrefix = game => (game === "slate" ? "glyph:" : `${game}:`);
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
@@ -292,36 +293,69 @@ async function mirror() {
   try { await (await getSync()).update(`crates/rooms/${code}/watch`, { [playerId()]: { name: raw.get("crates:name") || "", game: pageGame(), at: Date.now(), keys } }); }
   catch (e) { console.error(e); }
 }
-/** Watching: your partner's copy of this game, read before the game starts (this module holds the page until then). */
-async function beginWatching() {
-  const code = duoCode();
-  if (!code) return;
-  const sync = await getSync(), me = playerId();
-  const all = await once(sync, `crates/rooms/${code}/watch`);
-  const theirs = Object.entries(all || {}).filter(([id, w]) => id !== me && w?.game === pageGame()).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))[0];
-  if (!theirs) return;
-  const [id, w] = theirs;
-  watched = { name: w.name || "your partner", game: w.game, at: w.at, keys: new Map(Object.entries(w.keys || {}).map(([k, v]) => [decodeURIComponent(k), v])) };
+/**
+ * Watching, without reloads you can see. The watching page doesn't run the game itself: it holds it (this module never
+ * finishes loading there) and shows the game in a frame, the same page with &frame, which reads your partner's copy
+ * instead of yours. When they move, a new frame loads behind the one on show and takes its place once drawn, so the
+ * view changes in place, at most every MIN_SWAP; the frames take no taps, and a bar says who you're watching, with Stop.
+ */
+const MIN_SWAP = 1200;
+/** A frame of the watching view: it draws a copy and connects to nothing (no presence, no partner line, no bests). */
+export const IN_FRAME = FRAME;
+/** Inside a frame: every read of this game's keys returns the copy the watching page holds (the frame's parent). */
+function readCopy() {
+  const copy = window.parent !== window ? window.parent.__watchCopy : null;
+  if (!copy) return;
+  watched = copy;
   const prefix = storePrefix(pageGame());
   Storage.prototype.getItem = function (k) {
     if (this === localStorage && watched) { if (watched.keys.has(k)) return watched.keys.get(k); if (k.startsWith(prefix) || WATCH_SKIP.test(k)) return null; }
     return raw.getItem.call(this, k);
   };
-  let reloading = false;
-  sync.watch(`crates/rooms/${code}/watch/${id}`, v => {     // they moved (or left this game): show the new state
-    if (reloading || !v || v.at === watched.at) return;
-    reloading = true;
-    setTimeout(() => location.reload(), v.game === pageGame() ? 300 : 0);
-  });
-  const veil = () => {
-    const d = document.createElement("div");
-    d.className = "watch-veil";
-    d.innerHTML = `<div class="watch-bar"><span>Watching <b></b></span><button class="btn" type="button">Stop</button></div>`;
-    d.querySelector("b").textContent = watched.name;
-    d.querySelector("button").addEventListener("click", () => { const u = new URL(location.href); u.searchParams.delete("watch"); location.href = u.toString(); });
-    document.body.appendChild(d);
+}
+/** The watching page: your partner's game in frames that swap in place as they move. Never returns (the game itself stays held). */
+async function watchInFrames() {
+  const code = duoCode();
+  const shell = document.createElement("div");
+  shell.className = "watch-shell";
+  shell.innerHTML = `<div class="watch-frames"></div><div class="watch-bar"><span>Watching <b></b></span><button class="btn" type="button">Stop</button></div>`;
+  shell.querySelector("button").addEventListener("click", () => { const u = new URL(location.href); u.searchParams.delete("watch"); location.href = u.toString(); });
+  const place = () => document.body.appendChild(shell);
+  if (document.body) place(); else document.addEventListener("DOMContentLoaded", place);
+  const frames = shell.querySelector(".watch-frames"), who = shell.querySelector("b");
+  if (!code) { who.textContent = "nobody: link with a partner first"; return new Promise(() => {}); }
+  const sync = await getSync(), me = playerId();
+  let shownAt = null, busy = false, pending = false, last = 0;
+  const swap = () => {
+    if (busy) { pending = true; return; }
+    busy = true; pending = false;
+    const wait = Math.max(0, last + MIN_SWAP - Date.now());
+    setTimeout(() => {
+      const f = document.createElement("iframe");
+      f.className = "watch-frame next";
+      f.title = "Your partner's game";
+      const u = new URL(location.href); u.searchParams.set("frame", "1"); u.hash = "";
+      f.src = u.toString();
+      f.addEventListener("load", () => setTimeout(() => {    // drawn: it takes the old one's place
+        for (const old of frames.querySelectorAll(".watch-frame:not(.next)")) old.remove();
+        f.classList.remove("next");
+        last = Date.now(); busy = false;
+        if (pending) swap();
+      }, 350));
+      frames.appendChild(f);
+    }, wait);
   };
-  if (document.body) veil(); else document.addEventListener("DOMContentLoaded", veil);
+  sync.watch(`crates/rooms/${code}/watch`, all => {
+    const theirs = Object.entries(all || {}).filter(([id, w]) => id !== me && w?.game === pageGame()).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))[0];
+    if (!theirs) { who.textContent = "your partner (not in this game now)"; return; }
+    const [, w] = theirs;
+    who.textContent = w.name || "your partner";
+    if (w.at === shownAt) return;
+    shownAt = w.at;
+    window.__watchCopy = { name: w.name, game: w.game, at: w.at, keys: new Map(Object.entries(w.keys || {}).map(([k, v]) => [decodeURIComponent(k), v])) };
+    swap();
+  });
+  return new Promise(() => {});                                // the game itself never starts on this page
 }
 /**
  * The link to this page that carries your codes: solo carries both (another of your devices opening it follows your
@@ -353,11 +387,12 @@ export const watchHref = game => `${DUO_GAMES[game] || `${game}.html`}?watch=1`;
   const old = raw.get("suite:duo");                       // the per-device duo memory before pairing became a link
   if (old && !raw.get(PAIR)) put(PAIR, old);
   if (old) raw.remove.call(localStorage, "suite:duo");
-  if (duoCode()) { playerId(); present().catch(e => console.error(e)); listen().catch(e => console.error(e)); }
+  if (duoCode() && !FRAME) { playerId(); present().catch(e => console.error(e)); if (!WATCHING) listen().catch(e => console.error(e)); }
   if (duoCode() && !WATCHING && !roomInAddress()) setTimeout(mirror, 800);   // your partner can watch from the moment you open a game
-  if (syncing()) {
+  if (syncing() && !WATCHING) {
     pull();
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pull(); else push(); });
   }
 }
-if (WATCHING) { try { await beginWatching(); } catch (e) { console.error(e); } }
+if (FRAME) readCopy();
+else if (WATCHING) { try { await watchInFrames(); } catch (e) { console.error(e); } }
