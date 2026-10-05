@@ -120,6 +120,11 @@
 *, *::before, *::after { box-sizing: inherit; }
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--yard); color: var(--ink); }
+/* The screen doesn't move under your thumb: no page scroll and no rubber band (dragging used to stretch the gap between
+   the header and the game). What's long scrolls inside its own box: a dialog, a list, or, on a page whose game is
+   taller than the screen, the app itself, still without the bounce. */
+html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+body > #app { max-height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: none; }
 * { touch-action: manipulation; }   /* no double-tap zoom anywhere (phones only honour this on the touched element itself); pinch still works */
 input, textarea, select { font-size: max(1em, 16px); }   /* iPhones zoom into a field smaller than 16px when it's focused */
 body { font-family: var(--font); font-size: 17px; line-height: 1.4; font-weight: 500; -webkit-text-size-adjust: 100%; }
