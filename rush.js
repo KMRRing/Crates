@@ -6,6 +6,7 @@ import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { part, choice, toggle, action, line } from "./menu.js";
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -217,20 +218,25 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Play (start the run you've chosen), Content (random or today's; the mode), Settings (reset the rating),
+// About (your rating, your bests by mode)
+let pick = null;                                              // the run the menu will start: { daily, mode }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", "Chess puzzles, as many as you can: tap a piece, then a square. Every move must be the puzzle's (any checkmate counts where the solution mates). Tap your next move while the opponent is replying and it plays the instant the reply lands: a premove. Puzzles climb as you solve them; three wrong moves end the run. 20,000 puzzles from the Lichess database, rated 600 to 2,500, fetched by rating band as you climb and kept on the phone.");
-  button("A new run", () => start(false));
-  button("Today's run", () => start(true));
+  pick ??= { daily: !!S?.daily, mode: $("mode").value };
+  part(body, "play").append(action("Start a run", () => { $("mode").value = pick.mode; start(pick.daily); }, "primary"));
+  part(body, "content").append(
+    choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; }),
+    choice("Mode", Object.entries(MODES).map(([id, m]) => [id, m.label]), pick.mode, v => { pick.mode = v; }));
+  part(body, "settings").append(action("Reset my rating", () => {
+    if (!confirm("Reset your rating to 1,000?")) return;
+    rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud();
+  }, "link"));
   const bests = read(BEST, {}), daily = read(DAILY, {});
-  const lines = Object.entries(MODES).map(([id, m]) => `${m.label}: ${bests[id] ? `best ${bests[id]}` : "no run yet"}${daily[`${today()}/${id}`] != null ? `, today ${daily[`${today()}/${id}`]}` : ""}`);
-  add("p", "stats", `Your rating: ${Math.round(rating.r)}${rating.n < 20 ? " (settling: it moves fast for your first twenty puzzles)" : ""}, over ${rating.n} puzzles. It sets where your runs start and how high they climb; it moves slowly, and gains halve with every miss in a run. ${lines.join(". ")}.`);
-  const reset = add("button", "btn wide", "Reset my rating");
-  reset.type = "button";
-  reset.addEventListener("click", () => { if (confirm("Reset your rating to 1,000?")) { rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud(); $("menuDlg").close(); } });
+  part(body, "about").append(
+    line(`Rating ${Math.round(rating.r)} over ${rating.n} puzzles${rating.n < 20 ? " (still settling)" : ""}`),
+    ...Object.entries(MODES).map(([id, m]) => line(`${m.label}: ${bests[id] ? `best ${bests[id]}` : "no run yet"}${daily[`${today()}/${id}`] != null ? `, today ${daily[`${today()}/${id}`]}` : ""}`)));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

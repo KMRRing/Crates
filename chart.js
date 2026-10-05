@@ -4,6 +4,7 @@
 // outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
 // in private and the pins are revealed side by side.
 import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace } from "./chart-engine.js";
+import { part, choice, toggle, action, line as menuLine } from "./menu.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
 import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
@@ -560,30 +561,25 @@ async function copyLink() {
   const link = `${location.origin}${location.pathname}${hashOf(S)}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
+// the menu: Play (start the set you've chosen), Content (random or today's; what it deals is in the header's
+// dropdowns), Settings (learning mode), About (your bests here, a link); in a room, what the duo match offers
+let pick = null;                                              // the set the menu will start: { mode }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  const room = together.room;
-  if (!room) {
-    add("p", "stats", "Pin a place on the map. Points fall off with distance: 1,000 on the spot, about 600 at 1,000 km, and 100 extra within 100 km. A country is pinned anywhere inside its outline for full marks; outside it scores nothing. The dropdowns above choose a topic and a region; in a region, every question opens on its map.");
-    button("A new set", () => confirmStart("random"));
-    button("Today's set", () => confirmStart("daily"));
-    const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
-    learn.type = "button";
-    learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); $("menuDlg").close(); openMenu(); });
-    add("p", "stats", `A pin over 500 km off, or any clue, sends the place to the pile; it leads your next sets until you pin it clean (${pile.counts("chart").due} due now). Deck reviews everything due.`);
-    if (S?.done) button("See how it went", finish);
-    button("Copy a link to this set", copyLink);
-    const best = bests()[selKey(S)], daily = dailies()[selKey(S)], what = selName(selOf(S));
-    add("p", "stats", `${best ? `Your best at ${what}: ${best.toLocaleString("en-GB")}.` : `No finished set at ${what} yet.`}${daily != null ? ` Today's best: ${daily.toLocaleString("en-GB")}.` : ""}`);
-    add("h3", null, "Together");
-    add("p", "stats", "Two phones: you both pin the same place in private, then the pins are revealed side by side. Higher total wins.");
+  if (together.room) {
+    part(body, "together").append(action("A fresh set", startRoomSet, "primary"), action("Back to solo", () => together.leave(), "link"));
   } else {
-    add("h3", null, "Playing together");
-    button("A fresh set", startRoomSet);
-    button("Back to solo", () => together.leave(), "link");
+    pick ??= { mode: S?.mode === "daily" ? "daily" : "random" };
+    const play = part(body, "play");
+    play.append(action("Start a set", () => confirmStart(pick.mode), "primary"));
+    if (S?.done) play.append(action("See how it went", finish));
+    part(body, "content").append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; }));
+    part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+    const best = bests()[selKey(S)], daily = dailies()[selKey(S)], what = selName(selOf(S));
+    part(body, "about").append(
+      menuLine(`${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),
+      action("Copy a link to this set", copyLink, "link"));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
