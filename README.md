@@ -267,7 +267,9 @@ The site installs as an app called Crates, with all four games and the switcher 
 
 The games screen (tap a game's name) has an Update button: it checks there's a connection, empties every stored copy of the app and reloads it fresh from the site, keeping saves, stats and settings (offline it changes nothing). Updates otherwise happen by themselves: a new version is fetched in the background and waits; it takes over when the app goes off screen and the page reloads onto it when it comes back (taking over mid-game could mix old and new code). When a partner's device is already on a newer version, the game switches straight away (`pwa.js`).
 
-After changing any file the games ship, run `node tools/build-sw.mjs` to rewrite `sw.js` with the file list and a content version (`--check` reports whether it's current), or devices won't fetch the change.
+After changing any file the games ship, run `node tools/build-sw.mjs` to rewrite `sw.js` with the file list and a content version, or devices won't fetch the change; it's rebuilt, never merged. A deploy workflow is ready in `tools/ci/pages.yml`: once the GitHub token may write workflows and Pages settings, it moves to `.github/workflows/`, builds `sw.js` itself (so nobody commits it) and deploys only pushes that pass every game's tests.
+
+Several Claudes can work at once, one app each: `CLAUDE.md` holds the rules (shared files one at a time, pull and rebase before pushing, never force-push, never commit `sw.js`, rebuild built files rather than merge them, test before pushing).
 
 ## Links
 - `?cat=countries`, `?cat=commodities` or `?cat=mixed` opens straight into that pool.

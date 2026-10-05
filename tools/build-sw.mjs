@@ -1,6 +1,7 @@
 // Writes sw.js: the list of every file the games need offline, and a version that changes whenever any of them
-// does (so devices fetch the new set). Run after changing any game file; `--check` only reports whether sw.js is
-// current (the tests use it).  node tools/build-sw.mjs [--check]
+// does (so devices fetch the new set). Run after changing any game file, after rebasing on others' work (sw.js is
+// rebuilt, never merged); `--check` only reports whether it's current. The deploy workflow waiting in
+// tools/ci/pages.yml will run it on every push instead, once it's live.  node tools/build-sw.mjs [--check]
 import fs from "fs";
 import crypto from "crypto";
 import { execSync } from "child_process";
