@@ -21,8 +21,8 @@
 .pa-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
 .pa-unit .bar i { display: block; height: 100%; background: var(--pa-in); }
 .pa-unit button { min-height: 36px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--pa-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
-.pa-unit button:disabled { opacity: .4; cursor: default; }
-.pa-unit.locked { opacity: .55; }
+/* the unit's pattern, in its line of small print: a link, not a button */
+.pa-unit .pa-gram { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; font-weight: 650; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 
 .pa-session { gap: .55rem; }
 .pa-read { display: grid; gap: .55rem; align-content: start; }

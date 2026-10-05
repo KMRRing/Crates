@@ -1,6 +1,7 @@
 // Parley: three beginner courses (parley-courses.js) on the pile's schedule. A study session reviews what's due,
 // each card at the drill its pile level earns (recognise, then listen, then produce, then cloze), and then
-// introduces new words, each shown on a learn card and drilled at once, up to a daily cap. The phone's voice reads
+// introduces new words, each shown on a learn card and drilled at once, up to a daily cap; any unit can also be
+// learned at once from its row, whatever the day's count. The phone's voice reads
 // every word and sentence. Each unit opens with its grammar pattern and, once all its words have been met, a short
 // text written only from words learned so far, with questions.
 import { COURSES } from "./parley-courses.js";
@@ -56,42 +57,47 @@ function home() {
     const d = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
     b.textContent = String(v); b.className = hot && v ? "due" : ""; s.textContent = label; d.append(b, s); return d;
   }));
-  $("studyBtn").textContent = due ? `Study: ${Math.min(due, REVIEW_CAP)} due${day < NEW_A_DAY ? " and new words" : ""}` : day < NEW_A_DAY && m.size < allWords().length ? "Study: new words" : "Nothing due: come back later";
-  $("studyBtn").disabled = !due && (day >= NEW_A_DAY || m.size >= allWords().length);
-  $("units").replaceChildren(...C.units.map((u, i) => {
-    const metHere = u.words.filter(w => m.has(keyOf(u, w))).length;
-    const locked = i > 0 && C.units[i - 1].words.some(w => !m.has(keyOf(C.units[i - 1], w)));
-    const row = document.createElement("div");
-    row.className = `pa-unit${locked ? " locked" : ""}`;
-    const left = document.createElement("div");
-    const b = document.createElement("b"); b.textContent = `${u.id}. ${u.title}`;
-    const s = document.createElement("small"); s.textContent = `${metHere} of ${u.words.length} words · ${u.grammar.title}`;
-    const bar = document.createElement("div"); bar.className = "bar"; bar.innerHTML = `<i style="width:${metHere / u.words.length * 100}%"></i>`;
-    left.append(b, s, bar);
-    const btn = document.createElement("button"); btn.type = "button";
-    btn.textContent = metHere === u.words.length ? "Read" : "Grammar";
-    btn.disabled = locked;
-    btn.addEventListener("click", () => (metHere === u.words.length ? reader(u) : grammar(u, () => home())));
+  const allMet = m.size >= allWords().length, newLeft = day < NEW_A_DAY && !allMet;
+  $("studyBtn").textContent = due ? `Study: ${Math.min(due, REVIEW_CAP)} due${newLeft ? " and new words" : ""}`
+    : newLeft ? "Study: new words" : allMet ? "Nothing due: come back later" : "Today's new words done: Learn a unit";
+  $("studyBtn").disabled = !due && !newLeft;
+  // every unit is open: Learn teaches its words now, Read opens its text once they're all met, and its pattern opens
+  // from its row; Study keeps the paced order
+  $("units").replaceChildren(...C.units.map(u => {
+    const metHere = u.words.filter(w => m.has(keyOf(u, w))).length, done = metHere === u.words.length;
+    const row = el("div", "pa-unit"), left = el("div"), sub = el("small", null, `${metHere} of ${u.words.length} words · `);
+    const pattern = el("button", "pa-gram", u.grammar.title);
+    pattern.type = "button";
+    pattern.addEventListener("click", () => grammar(u, () => home(), "Back to the units"));
+    sub.appendChild(pattern);
+    const bar = el("div", "bar");
+    bar.innerHTML = `<i style="width:${metHere / u.words.length * 100}%"></i>`;
+    left.append(el("b", null, `${u.id}. ${u.title}`), sub, bar);
+    const btn = el("button", null, done ? "Read" : "Learn");
+    btn.type = "button";
+    btn.addEventListener("click", () => (done ? reader(u) : startStudy(u)));
     row.append(left, btn);
     return row;
   }));
 }
 
 // ---------- a study session ----------
-function startStudy() {
-  const m = met();
-  const due = pile.due("parley").filter(it => it.key.startsWith(`${C.id}:`)).slice(0, REVIEW_CAP);
-  const byKey = new Map(allWords().map(x => [x.key, x]));
-  const items = due.map(it => byKey.get(it.key)).filter(Boolean).map(x => ({ kind: "drill", ...x, drill: DRILLS[Math.min(pile.all("parley").find(it => it.key === x.key)?.pile ?? 0, 3)] }));
-  const day = P.day[C.id]?.d === today() ? P.day[C.id].n : 0;
-  let fresh = [];
-  if (day < NEW_A_DAY) {
-    for (const u of C.units) {
-      const prev = C.units[u.id - 2];
-      if (prev && prev.words.some(w => !m.has(keyOf(prev, w)))) break;
-      fresh = u.words.filter(w => !m.has(keyOf(u, w))).map(w => ({ kind: "learn", w, unit: u, key: keyOf(u, w) }));
-      if (fresh.length) { fresh = fresh.slice(0, NEW_A_DAY - day); fresh.unit = u; break; }
-    }
+/**
+ * A study session. From Study: what's due, then new words from the first unit not finished, up to the day's cap.
+ * From a unit's Learn: every word of that unit not met yet, whatever the day's count, since choosing a unit is choosing
+ * the pace. Either way a unit's pattern comes first the first time.
+ */
+function startStudy(unit = null) {
+  const m = met(), unmet = u => u.words.filter(w => !m.has(keyOf(u, w))).map(w => ({ kind: "learn", w, unit: u, key: keyOf(u, w) }));
+  let items = [], fresh = [];
+  if (unit) { fresh = unmet(unit); fresh.unit = unit; }
+  else {
+    const due = pile.due("parley").filter(it => it.key.startsWith(`${C.id}:`)).slice(0, REVIEW_CAP);
+    const byKey = new Map(allWords().map(x => [x.key, x]));
+    items = due.map(it => byKey.get(it.key)).filter(Boolean).map(x => ({ kind: "drill", ...x, drill: DRILLS[Math.min(pile.all("parley").find(it => it.key === x.key)?.pile ?? 0, 3)] }));
+    const day = P.day[C.id]?.d === today() ? P.day[C.id].n : 0;
+    const next = C.units.find(u => unmet(u).length);
+    if (day < NEW_A_DAY && next) { fresh = unmet(next).slice(0, NEW_A_DAY - day); fresh.unit = next; }
   }
   if (!items.length && !fresh.length) { toast("Nothing to study right now."); return; }
   session = { items: [...items, ...fresh], at: 0, right: 0, wrong: 0, newUnit: fresh.unit && !P.grammarSeen[`${C.id}:${fresh.unit.id}`] ? fresh.unit : null };
@@ -281,7 +287,8 @@ function finish() {
 }
 
 // ---------- grammar and readings ----------
-function grammar(u, then) {
+/** A unit's pattern card; the button goes on to the words in a session, or back to the units from a unit's row. */
+function grammar(u, then, label = "On to the words") {
   $("home").hidden = true; $("session").hidden = false; $("reader").hidden = true;
   $("progress").textContent = `Unit ${u.id}: ${u.title}`;
   $("kind").textContent = "The pattern";
@@ -295,7 +302,7 @@ function grammar(u, then) {
   card.appendChild(g);
   $("answerBox").className = "pa-answer"; $("answerBox").replaceChildren();
   $("verdict").textContent = ""; $("note").textContent = "";
-  const go = document.createElement("button"); go.type = "button"; go.className = "pa-go"; go.textContent = "On to the words";
+  const go = document.createElement("button"); go.type = "button"; go.className = "pa-go"; go.textContent = label;
   go.addEventListener("click", then);
   $("answerBox").appendChild(go);
   $("nextBtn").hidden = true;
@@ -304,7 +311,9 @@ function reader(u) {
   $("home").hidden = true; $("session").hidden = true; $("reader").hidden = false;
   $("readTitle").textContent = `Unit ${u.id}: ${u.title}`;
   const card = $("readCard");
-  card.replaceChildren(el("div", "ask", "Written only from words you've met. Listen first, then read."), el("div", "text", u.text.l2));
+  const m = met(), gaps = C.units.slice(0, u.id - 1).some(e => e.words.some(w => !m.has(keyOf(e, w))));
+  card.replaceChildren(el("div", "ask", gaps ? "Written from the words up to this unit, some from units you haven't finished. Listen first, then read."
+    : "Written only from words you've met. Listen first, then read."), el("div", "text", u.text.l2));
   if (u.text.py) card.append(el("div", "py", u.text.py));
   card.append(speakBtn(u.text.l2, true));
   const show = document.createElement("button"); show.type = "button"; show.className = "btn"; show.textContent = "Show the English";
@@ -339,7 +348,7 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "stats", `Each unit opens with its grammar pattern, then about 14 words, each on a card the phone reads out, with an example sentence. A word is drilled harder as it climbs the piles: recognise it, then pick it by ear${C.tones ? " (or name its tone)" : ""}, then type it${C.script ? " in pinyin with tones" : ", with its article"}, then fill it into a sentence. Up to ${NEW_A_DAY} new words a day; what's due comes first. When a unit's words are all met, its reading unlocks: a short text written only from words you know, read aloud, with questions.`);
+  add("p", "stats", `Each unit opens with its grammar pattern, then about 14 words, each on a card the phone reads out, with an example sentence. A word is drilled harder as it climbs the piles: recognise it, then pick it by ear${C.tones ? " (or name its tone)" : ""}, then type it${C.script ? " in pinyin with tones" : ", with its article"}, then fill it into a sentence. Study brings what's due first, then up to ${NEW_A_DAY} new words a day, unit by unit; Learn on a unit's row teaches its words now, whatever the day's count, and its pattern opens from the row. When a unit's words are all met, its reading unlocks: a short text written only from words you know, read aloud, with questions.`);
   add("p", "stats", voices.some(v => v.lang.startsWith(C.lang.slice(0, 2))) ? `This phone has a ${C.name} voice.` : `No ${C.name} voice was found on this phone: cards will still show, but not speak. On iPhone, add one under Settings › Accessibility › Spoken Content › Voices.`);
   const reset = add("button", "btn wide", `Start ${C.name} over`);
   reset.type = "button";
@@ -354,7 +363,7 @@ function setCourse(id) { C = COURSES.find(c => c.id === id) || COURSES[0]; P.cou
 $("course").addEventListener("change", e => setCourse(e.target.value));
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("studyBtn").addEventListener("click", startStudy);
+$("studyBtn").addEventListener("click", () => startStudy());
 $("nextBtn").addEventListener("click", next);
 $("readClose").addEventListener("click", home);
 if (window.speechSynthesis) { loadVoices(); window.speechSynthesis.addEventListener?.("voiceschanged", loadVoices); }
