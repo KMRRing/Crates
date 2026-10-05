@@ -8,7 +8,7 @@ import { execSync } from "child_process";
 const root = new URL("..", import.meta.url).pathname;
 const SHIP = /\.(html|js|css|webmanifest|woff2|png|svg)$/;
 const files = execSync("git ls-files", { cwd: root, encoding: "utf8" }).split("\n")
-  .filter(f => SHIP.test(f) && !f.startsWith("tests/") && !f.startsWith("tools/") && f !== "sw.js")
+  .filter(f => SHIP.test(f) && !f.startsWith("tests/") && !f.startsWith("tools/") && !f.startsWith("kb/") && f !== "sw.js")   // kb/ is the source the banks are built from
   .concat(fs.readdirSync(root + "fonts").map(f => `fonts/${f}`), fs.readdirSync(root + "icons").map(f => `icons/${f}`))
   .filter((f, i, all) => all.indexOf(f) === i && fs.existsSync(root + f))
   .sort();

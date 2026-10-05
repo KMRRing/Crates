@@ -1,11 +1,7 @@
-// Punt's refining bank: 139 multiple-choice questions on how a refinery works, with the same shape as the maths
-// bank. Fields: id; lv (stage: bs = basics, un = units, sp = specs, gb = gasoline blending chemistry, db = diesel
-// blending chemistry, rn = renewables, ec = economics);
-// d (difficulty 1–10); area; q; o (four options); a (the right options' indices); s (how many to pick); x (the
-// explanation). Written October 2026, textbook-typical.
-// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+// Punt's refining questions (the bank refining-bank.js is written from this). about: the entities a question is about, where
+// that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
 export const STAGES = [{"id":"bs","label":"Basics"},{"id":"un","label":"Units"},{"id":"sp","label":"Specs"},{"id":"gb","label":"Gasoline blending"},{"id":"db","label":"Diesel blending"},{"id":"rn","label":"Renewables"},{"id":"ec","label":"Economics"}];
-export const MATHS = [
+export const ITEMS = [
 {"id":"RF-01","lv":"bs","d":1,"area":"Distillation","q":"What does the crude distillation unit do?","o":["Cracks heavy molecules into lighter ones","Separates crude into cuts by boiling range","Removes sulphur from the crude","Blends the finished products"],"a":[1],"s":1,"x":"Nothing is converted in the crude unit: a furnace and a tall column simply sort the crude into cuts, gases to residue, by boiling point."},
 {"id":"RF-02","lv":"bs","d":1,"area":"Distillation","q":"Which of these cuts boils highest, and so comes off the bottom of the crude column?","o":["LPG","Naphtha","Kerosene","Atmospheric residue"],"a":[3],"s":1,"x":"Residue is what hasn't boiled at the column's bottom temperature; it goes to the vacuum unit or to fuel oil."},
 {"id":"RF-03","lv":"bs","d":2,"area":"Distillation","q":"Why is the atmospheric residue distilled under vacuum rather than simply heated further?","o":["Vacuum makes the column cheaper to build","At the temperature it would need at atmospheric pressure it would crack and coke","Vacuum removes its sulphur","The residue contains water that must be boiled off"],"a":[1],"s":1,"x":"Lowering the pressure lowers the boiling points, so vacuum gas oil can be lifted out of the residue at a temperature where it doesn't crack."},

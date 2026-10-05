@@ -1,8 +1,7 @@
-// Punt's chemistry bank: 58 questions in 4 units, with explanations; maths between $…$ renders as
-// LaTeX, svg carries a drawn chart, code a snippet to read. Same shape as the maths bank. Written by hand.
-// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+// Punt's chm questions (the bank chm-bank.js is written from this). about: the entities a question is about, where
+// that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
 export const STAGES = [{"id":"atoms","label":"Atoms & bonds"},{"id":"react","label":"Reactions"},{"id":"organic","label":"Organic & fuels"},{"id":"industry","label":"Industry & environment"}];
-export const MATHS = [
+export const ITEMS = [
 {"id":"CHM-001","lv":"atoms","d":2,"area":"Atoms & bonds","q":"The periodic table is ordered by","o":["reactivity","date of discovery","atomic number: the number of protons","atomic mass"],"a":[2],"s":1,"x":"Mendeleev ordered by mass in 1869 and left gaps for elements he predicted; Moseley fixed the order by proton count in 1913."},
 {"id":"CHM-002","lv":"atoms","d":2,"area":"Atoms & bonds","q":"Isotopes of an element have","o":["different numbers of electrons","the same number of protons but different numbers of neutrons","different numbers of protons","different chemical properties"],"a":[1],"s":1,"x":"Carbon-12 and carbon-14; uranium-235 and 238, separated by centrifuge for enrichment."},
 {"id":"CHM-003","lv":"atoms","d":3,"area":"Atoms & bonds","q":"Group 1, the alkali metals (Li, Na, K),","o":["are unreactive","react violently with water, more so down the group","are gases","form negative ions"],"a":[1],"s":1,"x":"One outer electron, easily lost; caesium explodes in water."},

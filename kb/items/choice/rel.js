@@ -1,8 +1,7 @@
-// Punt's religion bank: 59 questions in 4 units, with explanations; maths between $…$ renders as
-// LaTeX, svg carries a drawn chart, code a snippet to read. Same shape as the maths bank. Written by hand.
-// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+// Punt's rel questions (the bank rel-bank.js is written from this). about: the entities a question is about, where
+// that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
 export const STAGES = [{"id":"islam","label":"Islam"},{"id":"judchr","label":"Judaism & Christianity"},{"id":"east","label":"India & East Asia"},{"id":"table","label":"At the table & in the calendar"}];
-export const MATHS = [
+export const ITEMS = [
 {"id":"REL-001","lv":"islam","d":2,"area":"Islam","q":"The five pillars of Islam are","o":["prayer, baptism, communion, confession, marriage","Torah, Talmud, Sabbath, kosher, circumcision","the profession of faith, prayer, almsgiving, fasting in Ramadan, and the pilgrimage to Mecca","faith, hope, charity, wisdom, courage"],"a":[2],"s":1,"x":"Shahada, salat (five times a day), zakat (2.5% of wealth), sawm, hajj."},
 {"id":"REL-002","lv":"islam","d":2,"area":"Islam","q":"During Ramadan Muslims","o":["fast for one day","fast from dawn to sunset for a month, breaking it each evening (iftar)","do not work","abstain from meat"],"a":[1],"s":1,"x":"Eid al-Fitr ends it; Eid al-Adha, the feast of sacrifice, comes two months later at the hajj. Don't schedule a lunch, and expect shorter working days."},
 {"id":"REL-003","lv":"islam","d":3,"area":"Islam","q":"The Islamic calendar is lunar, so Ramadan","o":["falls in the same Gregorian month","moves about 11 days earlier each year","is fixed to the solar year","is always in spring"],"a":[1],"s":1,"x":"354-day years; in the late 2020s Ramadan falls in late winter, in the 2030s in autumn."},

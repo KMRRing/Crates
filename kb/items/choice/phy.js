@@ -1,8 +1,7 @@
-// Punt's physics bank: 62 questions in 4 units, with explanations; maths between $…$ renders as
-// LaTeX, svg carries a drawn chart, code a snippet to read. Same shape as the maths bank. Written by hand.
-// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+// Punt's phy questions (the bank phy-bank.js is written from this). about: the entities a question is about, where
+// that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
 export const STAGES = [{"id":"mech","label":"Motion & energy"},{"id":"elec","label":"Electricity & waves"},{"id":"heat","label":"Heat, gases & nuclei"},{"id":"modern","label":"The modern picture"}];
-export const MATHS = [
+export const ITEMS = [
 {"id":"PHY-001","lv":"mech","d":2,"area":"Motion & energy","q":"Newton's second law:","o":["$E = mc^2$","$F = \\frac{mv^2}{r}$","$F = ma$","$F = mv$"],"a":[2],"s":1,"x":"Force equals mass times acceleration; a newton accelerates one kilogram at one metre per second squared."},
 {"id":"PHY-002","lv":"mech","d":3,"area":"Motion & energy","q":"Kinetic energy is $E_k = \\tfrac{1}{2}mv^2$. Doubling a car's speed multiplies its kinetic energy by","o":["2","$\\sqrt{2}$","4","8"],"a":[2],"s":1,"x":"Which is why braking distance quadruples and a crash at 60 is four times a crash at 30.","svg":"<svg viewBox=\"0 0 360 230\" xmlns=\"http://www.w3.org/2000/svg\" font-family=\"Archivo, sans-serif\" font-size=\"13\"><line x1=\"44\" y1=\"194\" x2=\"346\" y2=\"194\" stroke=\"var(--ink)\" stroke-width=\"1.6\"/><line x1=\"44\" y1=\"18\" x2=\"44\" y2=\"194\" stroke=\"var(--ink)\" stroke-width=\"1.6\"/><text x=\"346\" y=\"212\" text-anchor=\"end\" fill=\"var(--ink-soft)\">Speed</text><text x=\"12\" y=\"16\" fill=\"var(--ink-soft)\">Kinetic energy</text><path d=\"M44 194 L100 186 L160 160 L220 116 L280 60 L320 18\" fill=\"none\" stroke=\"var(--ink)\" stroke-width=\"2.4\"/></svg>"},
 {"id":"PHY-003","lv":"mech","d":2,"area":"Motion & energy","q":"Gravitational potential energy near the ground is","o":["$E_p = mg/h$","$E_p = mgh$","$E_p = \\tfrac{1}{2}mv^2$","$E_p = \\tfrac{1}{2}mgh$"],"a":[1],"s":1,"x":"Pumped hydro stores energy this way: a tonne of water raised 100 m holds about 1 MJ, 0.27 kWh."},

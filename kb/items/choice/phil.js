@@ -1,8 +1,7 @@
-// Punt's philosophy bank: 60 questions in 4 units, with explanations; maths between $…$ renders as
-// LaTeX, svg carries a drawn chart, code a snippet to read. Same shape as the maths bank. Written by hand.
-// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+// Punt's phil questions (the bank phil-bank.js is written from this). about: the entities a question is about, where
+// that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
 export const STAGES = [{"id":"ancient","label":"The ancients"},{"id":"modern","label":"The moderns"},{"id":"ethics","label":"Ethics & politics"},{"id":"knowledge","label":"Knowledge & mind"}];
-export const MATHS = [
+export const ITEMS = [
 {"id":"PHIL-001","lv":"ancient","d":2,"area":"The ancients","q":"Socrates' method was","o":["writing dialogues","meditation","lecturing","questioning to expose contradictions in what people think they know"],"a":[3],"s":1,"x":"He wrote nothing; Plato wrote him down. Condemned in 399 BC for corrupting the young; 'the unexamined life is not worth living'."},
 {"id":"PHIL-002","lv":"ancient","d":3,"area":"The ancients","q":"Plato's theory of Forms holds that","o":["the gods made everything","the things we see are shadows of perfect, unchanging ideas","only matter exists","knowledge comes from the senses"],"a":[1],"s":1,"x":"The allegory of the cave: prisoners watching shadows on a wall mistake them for the world."},
 {"id":"PHIL-003","lv":"ancient","d":3,"area":"The ancients","q":"In Plato's Republic, the ideal state is ruled by","o":["the people","merchants","generals","philosopher-kings"],"a":[3],"s":1,"x":"Three classes, like the three parts of the soul: reason, spirit, appetite."},

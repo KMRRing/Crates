@@ -1,8 +1,7 @@
-// Punt's code bank: 68 questions in 4 units, with explanations; maths between $…$ renders as
-// LaTeX, svg carries a drawn chart, code a snippet to read. Same shape as the maths bank. Written by hand.
-// Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
+// Punt's cs questions (the bank cs-bank.js is written from this). about: the entities a question is about, where
+// that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
 export const STAGES = [{"id":"data","label":"Data & algorithms"},{"id":"code","label":"Reading code"},{"id":"design","label":"Programs & paradigms"},{"id":"systems","label":"Systems & the web"}];
-export const MATHS = [
+export const ITEMS = [
 {"id":"CS-001","lv":"data","d":3,"area":"Data & algorithms","q":"Binary search on a sorted list of a million items takes about how many steps?","o":["1,000,000","1,000","20","500,000"],"a":[2],"s":1,"x":"$\\log_2(10^6) \\approx 20$: halve the range each time. $O(\\log n)$, against $O(n)$ for a linear scan."},
 {"id":"CS-002","lv":"data","d":3,"area":"Data & algorithms","q":"Big-O notation describes","o":["the size of the output","the exact running time","the number of lines of code","how an algorithm's time or memory grows with input size"],"a":[3],"s":1,"x":"$O(n^2)$ means doubling the input quadruples the work."},
 {"id":"CS-003","lv":"data","d":3,"area":"Data & algorithms","q":"Which sort runs in $O(n \\log n)$ in the worst case?","o":["Insertion sort","Bubble sort","Quicksort","Merge sort"],"a":[3],"s":1,"x":"Quicksort is $O(n \\log n)$ on average but $O(n^2)$ on bad input; bubble and insertion are $O(n^2)$; Python's sort (Timsort) is a merge-insertion hybrid."},
