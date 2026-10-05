@@ -268,3 +268,10 @@ Clue words that are themselves answers (country ↔ commodity links): 372.
 Cross-checking each place's country against the countries it's a Crates clue for found three of Chart's places filed
 in the wrong country (the notes had them right): Geneva (France → Switzerland), Jurong Island (Malaysia → Singapore),
 Kiruna (Russia → Sweden). Fixed in kb/; Chart shows the right country from now on.
+
+## Art tidied before questions were generated (October 2026)
+23 of Chart's art places that aren't museums (Machu Picchu, Stonehenge, the Taj Mahal…) are art places now, not museums.
+Seven museums that came in twice, as Punt's answer and Chart's pin, are one each (Rijksmuseum, Mauritshuis, Museo Reina Sofía, Belvedere, National Gallery, Kunsthistorisches Museum, Kunstmuseum Basel, among others: Punt's name
+kept as an alias). Every museum has the short name its questions show. Four paintings came in through the knowledge base
+alone (The Lacemaker, The Laughing Cavalier, Netherlandish Proverbs, The Blue Boy, with Frans Hals, Thomas Gainsborough, the
+Gemäldegalerie and the Huntington): the build writes their questions for Punt, Quote and Chart.

@@ -43,6 +43,8 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
   it fits, its position. Typed links: in, painted-by, hangs-in, movement.
 - **Crates is append-only:** shared board codes point at answer and clue positions (`crates`, `pos`). New answers and
   new clues go at the end; nothing is reordered or removed.
+- **The build writes questions** for a painting (Punt's who, where, movement; Quote's year) and a pin for a museum, when
+  kb/ has the facts and no hand-written ones exist: to add a painting, add the entity and its three links, nothing else.
 - **Items** (Chart's pins, Quote's estimates, Punt's choices) point at the entities they're about; misses carry those
   entities into the pile, and the other games' learning modes deal questions about them.
 - **Kinds:** a clue thing's kind (`kind:person`, `kind:food`…) is either set by hand or given by `tools/kb-kinds.mjs`

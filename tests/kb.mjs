@@ -33,7 +33,24 @@ check([...PINS, ...FEATURES].every(p => { const e = E.get(p.about); return Numbe
   "every pin is on a place with a position, every feature has its shape");
 const paintings = ENTITIES.filter(e => e.sets.includes("painting"));
 check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted-by") && Number.isFinite(p.year) && p.pic), `${paintings.length} paintings, each with its painter, year and picture`);
-const floor = { entities: 4395, clue: 5526, pins: 415, features: 172, estimates: 355 };
+// the questions the knowledge base writes: every painting is asked in Punt (who, where, movement) and Quote (its year),
+// by hand or by the build (where it hangs, when it hangs anywhere); every museum Chart can place has its pin
+{
+  const { MATHS: ART } = await import("../art-bank.js");
+  const { QUOTES } = await import("../quote-bank.js");
+  const { PLACES } = await import("../chart-bank.js");
+  const asked = new Set(ART.flatMap(q => (q.about || []).map(id => `${id}:${q.lv}`)));
+  const dated = new Set(QUOTES.filter(q => q.unit === "year" && q.about).map(q => q.about));
+  const pinned = new Set(PLACES.map(p => p.about));
+  // a painting with no museum (a private collection, stolen, in many versions) has no "where" to ask
+  const hangs = new Set(LINKS.filter(l => l.rel === "hangs-in").map(l => l.from));
+  const all = paintings.every(p => ["who", "when", ...(hangs.has(p.id) ? ["where"] : [])].every(lv => asked.has(`${p.id}:${lv}`)) && dated.has(p.id));
+  const gen = ART.filter(q => q.id.startsWith("AR-G-"));
+  const fair = gen.every(q => q.o.length === 4 && new Set(q.o).size === 4 && q.a.length === 1 && q.o[q.a[0]] !== undefined);
+  check(all && fair && ENTITIES.filter(e => e.sets.includes("museum") && e.lat !== undefined).every(m => pinned.has(m.id)),
+    `every painting asked in Punt and Quote (${gen.length} questions written by the build, each with four different options), every museum with a position pinned in Chart`);
+}
+const floor = { entities: 4396, clue: 5526, pins: 415, features: 172, estimates: 355 };
 const now = { entities: ENTITIES.length, clue: LINKS.filter(l => l.rel === "clue").length, pins: PINS.length, features: FEATURES.length, estimates: ESTIMATES.length };
 check(Object.entries(floor).every(([k, v]) => now[k] >= v), `nothing lost since the move: ${Object.entries(now).map(([k, v]) => `${v} ${k}`).join(", ")}`);
 console.log(bad ? `${bad} problems` : "all checks pass");
