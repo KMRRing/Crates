@@ -9,6 +9,7 @@ import * as pile from "./pile.js";
 import { setRich } from "./rich.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { dropdown } from "./dropdown.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
@@ -693,6 +694,7 @@ $("flagsClose").addEventListener("click", () => $("flagsDlg").close());
 sendFlags();                     // anything flagged offline goes now
 $("doneStatsBtn").addEventListener("click", () => { $("doneDlg").close(); openStats("run"); });
 $("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession(S.level, lengthOf(S)); });
+dropdown($("level"));
 $("level").addEventListener("change", e => newSession(e.target.value, lengthOf(S)));
 $("stagesBtn").addEventListener("click", openMathsPicks);
 $("diffsBtn").addEventListener("click", openMathsPicks);

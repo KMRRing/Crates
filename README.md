@@ -108,6 +108,8 @@ Together: one shared pot. Each of you stakes up to half of it on your own pick, 
 
 The page fits the screen: the slip takes the room left and scrolls inside itself when a question is long (its torn edge stays put), the stake in words sits beside the odds, and at the reveal the result sits under the slip with its notes scrolling inside, so Next stays in reach while the slip keeps the right answer in sight.
 
+The level dropdown in the header is the suite's own, as in Crates (`dropdown.js`): a button in Punt's logo colours, and the levels on a card with a tick on the current one, scrolling inside itself on a phone. A hidden select still holds the level, so links and rooms work as before.
+
 ## Cartel
 Coup and Liar's Dice built from dice. Everyone has gold dice (lives and roles; two each) and plain dice (money and weight in the bidding; three to start, at most eight), all hidden. A face is both a number and a role: 1 Fixer, 2 Banker, 3 Trader, 4 Auditor, 5 Legal, 6 Regulator. Only gold dice give powers; every die counts in bids, 1s (Fixers) as any face.
 
