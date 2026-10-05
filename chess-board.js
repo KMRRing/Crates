@@ -38,13 +38,24 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   function draw() {
     svg.replaceChildren();
     const legal = selected ? chess.moves({ square: selected, verbose: true }) : [];
+    // the squares, then translucent highlights over them (last move, selection, premove, the wanted move), then
+    // the coordinates in the edge squares, as a printed board has them
     for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
       const sq = squareAt(f, r), [x, y] = xy(sq), dark = (f + r) % 2 === 0;
-      const isLast = last && (last.from === sq || last.to === sq);
-      const isPre = premove && (premove.from === sq || premove.to === sq);
-      const rect = el("rect", { x, y, width: 1, height: 1, class: `sq ${dark ? "dark" : "light"}${isLast ? " last" : ""}${selected === sq ? " sel" : ""}${hint === sq ? " hint" : ""}${isPre ? " pre" : ""}` });
+      const rect = el("rect", { x, y, width: 1, height: 1, class: `sq ${dark ? "dark" : "light"}` });
       rect.addEventListener("click", () => tap(sq));
       svg.appendChild(rect);
+      const marks = [last && (last.from === sq || last.to === sq) && "last", selected === sq && "sel", premove && (premove.from === sq || premove.to === sq) && "pre", hint === sq && "hint"].filter(Boolean);
+      for (const m of marks) { const h = el("rect", { x, y, width: 1, height: 1, class: `hl ${m}` }); h.addEventListener("click", () => tap(sq)); svg.appendChild(h); }
+    }
+    for (let i = 0; i < 8; i++) {
+      const fileSq = solver === "w" ? FILES[i] + "1" : FILES[7 - i] + "8", rankSq = solver === "w" ? "a" + (8 - i) : "h" + (i + 1);
+      const [fx, fy] = xy(fileSq), [rx, ry] = xy(rankSq);
+      const fileText = el("text", { x: fx + 0.93, y: fy + 0.95, class: `coord ${(FILES.indexOf(fileSq[0]) + Number(fileSq[1]) - 1) % 2 === 0 ? "on-dark" : "on-light"}`, "text-anchor": "end" });
+      fileText.textContent = fileSq[0];
+      const rankText = el("text", { x: rx + 0.07, y: ry + 0.3, class: `coord ${(FILES.indexOf(rankSq[0]) + Number(rankSq[1]) - 1) % 2 === 0 ? "on-dark" : "on-light"}` });
+      rankText.textContent = rankSq[1];
+      svg.append(fileText, rankText);
     }
     for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
       const sq = squareAt(f, r), piece = chess.get(sq);
@@ -61,7 +72,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
       dot.addEventListener("click", () => tap(m.to));
       svg.appendChild(dot);
     }
-    if (chess.inCheck()) { const k = kingSquare(chess.turn()); if (k) { const [x, y] = xy(k); svg.insertBefore(el("rect", { x, y, width: 1, height: 1, class: "sq check" }), svg.children[64]); } }
+    if (chess.inCheck()) { const k = kingSquare(chess.turn()); if (k) { const [x, y] = xy(k); const pieces = svg.querySelector(".piece"); svg.insertBefore(el("circle", { cx: x + 0.5, cy: y + 0.5, r: 0.5, class: "hl check" }), pieces); } }
   }
   function kingSquare(colour) { for (const row of chess.board()) for (const p of row) if (p && p.type === "k" && p.color === colour) return p.square; return null; }
 
