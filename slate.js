@@ -1,6 +1,6 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { reloadFresh } from "./pwa.js";
@@ -47,6 +47,8 @@ const revealed = () => new Set(S.log.filter(e => e.reveal != null).map(e => e.re
 const other = d => (d === "Across" ? "Down" : "Across");
 const slotFor = (k, d) => grid().slots.find(s => s.dir === d && s.cells.includes(k));
 const currentSlot = () => slotFor(cursor, dir) || slotFor(cursor, other(dir));
+/** The same word: grid() builds fresh slot objects on every call, so comparing them with === never matches. */
+const sameWord = (a, b) => a?.dir === b?.dir && a?.cells[0] === b?.cells[0];
 
 /** Back to the start: the cursor on the first row's first cell, typing across. */
 function resetCursor() {
@@ -862,6 +864,7 @@ function drawMenu() {
 // A double tap on a cell defines the complete words through it from Slate's own dictionary (slate-defs.js), so it
 // works offline and has every word players may place. It is loaded on the first lookup, not with the board.
 let lastTap = { k: null, t: 0, before: null };
+/** A key press in between ends a double tap: tap, type, tap is two taps, and undoing the first would undo the typing. */
 const forgetTap = () => { lastTap = { k: null, t: 0, before: null }; };
 /** True on the second tap of the same cell within 350 ms. The first tap has already moved or turned the cursor (and
  *  changing word drops typed letters); that is undone, so a double tap only looks words up. */
@@ -935,12 +938,13 @@ function select(k) {
     cursor = k;
     dir = slotFor(k, "Across") ? "Across" : "Down";
   }
-  if (currentSlot() !== before) pending = {};
+  if (!sameWord(currentSlot(), before)) pending = {};   // typed letters belong to their word
   render();
 }
 
 function typeKey(k) {
   if (S.done) return;
+  forgetTap();
   const slot = currentSlot(), at = slot.cells.indexOf(cursor);
   if (k === "ENTER") { place(); return; }
   if (k === "BACK") { erase(slot, at); return; }
@@ -952,15 +956,42 @@ function typeKey(k) {
 }
 
 /**
- * Delete empties the cell under the cursor, typed or placed, then steps back one cell. On an empty cell it
- * steps back first and empties that one, so pressing it repeatedly walks back along the word.
+ * Delete empties the cell under the cursor, typed or placed, and the cursor stays there. On an empty cell it steps
+ * back one cell and empties that one, so pressing it repeatedly walks back along the word.
  */
 function erase(slot, at) {
-  const letters = lettersFrom(S.board, S.log), filled = k => !!(pending[k] || letters[k]);
-  const target = filled(cursor) || at === 0 ? cursor : slot.cells[at - 1];
+  const letters = lettersFrom(S.board, S.log);
+  if (!pending[cursor] && !letters[cursor]) {
+    if (at === 0) return;
+    cursor = slot.cells[at - 1];
+  }
+  const target = cursor;
   delete pending[target];
   if (letters[target]) act(g => { if (g.done) return false; g.log.push({ clear: [target], ...(room && { by: room.uid }) }); });
-  cursor = slot.cells[Math.max(0, slot.cells.indexOf(target) - 1)];
+  render();
+}
+
+/**
+ * Arrow keys, as in the New York Times crossword: pressed across the word being typed where another word crosses,
+ * the first press turns to that word; otherwise the cursor moves to the next cell that way, over gaps, and typing
+ * then runs that way wherever a word does.
+ */
+function arrow(way) {
+  if (S.done || !cursor) return;
+  forgetTap();
+  const [dr, dc] = { Up: [-1, 0], Down: [1, 0], Left: [0, -1], Right: [0, 1] }[way];
+  const axis = dr ? "Down" : "Across", before = currentSlot();
+  if (before.dir !== axis && slotFor(cursor, axis)) dir = axis;   // the word shown, not dir: a cell in one word shows it either way
+  else {
+    const rows = rowsOf(S.board), cells = new Set(grid().cells);
+    const inside = (r, c) => r >= 0 && c >= 0 && r < rows.length && c < rows[0].length;
+    let [r, c] = unkey(cursor), next = null;
+    do { r += dr; c += dc; if (cells.has(key(r, c))) next = key(r, c); } while (!next && inside(r, c));
+    if (!next) return;
+    cursor = next;
+    if (slotFor(cursor, axis)) dir = axis;
+  }
+  if (!sameWord(currentSlot(), before)) pending = {};   // typed letters belong to their word, as with a tap
   render();
 }
 
@@ -1001,6 +1032,7 @@ document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
   if (e.key === "Enter") typeKey("ENTER");
   else if (e.key === "Backspace") typeKey("BACK");
+  else if (e.key.startsWith("Arrow")) arrow(e.key.slice(5));
   else if (/^[a-z]$/i.test(e.key)) typeKey(e.key.toUpperCase());
   else return;
   e.preventDefault();
