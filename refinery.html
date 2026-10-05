@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Refinery">
+<title>Refinery</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="refinery.css">
+</head>
+<body>
+<div id="app" class="refinery">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon rf-mark" aria-hidden="true"></span>Refinery</button></h1>
+    <div class="top-right">
+      <select id="level" class="pool" aria-label="Level"></select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <section class="rf-brief">
+    <h2 id="title"></h2>
+    <p id="lesson"></p>
+    <p id="intro" class="rf-intro"></p>
+  </section>
+
+  <section class="rf-margin">
+    <div class="rf-margin-row"><span>Margin</span><b id="margin"></b><small id="par"></small></div>
+    <div class="rf-bar"><i id="marginBar"></i><em id="parTick"></em></div>
+    <p id="verdict" class="rf-verdict"></p>
+    <button class="rf-go" type="button" id="nextBtn" hidden>Next level</button>
+  </section>
+
+  <section class="rf-section">
+    <h3>Units <small>tap one for its card</small></h3>
+    <div id="units" class="rf-chips"></div>
+    <p id="h2" class="rf-h2"></p>
+  </section>
+
+  <section class="rf-section">
+    <h3>Streams <small>tap a destination to change it</small></h3>
+    <div id="crudePick" class="rf-crude" hidden></div>
+    <div id="streams" class="rf-streams"></div>
+  </section>
+
+  <section class="rf-section">
+    <h3>Pools</h3>
+    <div id="pools" class="rf-pools"></div>
+    <ul id="issues" class="rf-issues"></ul>
+  </section>
+</div>
+
+<dialog id="pickDlg" class="sheet" aria-label="Destination">
+  <div class="pick-head"><h2 id="pickTitle"></h2><button class="btn" type="button" id="pickClose">Close</button></div>
+  <p id="pickNote" class="stats"></p>
+  <div id="pickBody" class="rf-pick"></div>
+</dialog>
+
+<dialog id="cardDlg" class="sheet" aria-label="Unit">
+  <div class="pick-head"><h2 id="cardTitle"></h2><button class="btn" type="button" id="cardClose">Close</button></div>
+  <div id="cardBody" class="rf-card"></div>
+</dialog>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="rf-toast" role="status" aria-live="polite"></p>
+<script type="module" src="refinery.js"></script>
+</body>
+</html>

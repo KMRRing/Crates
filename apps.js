@@ -71,6 +71,12 @@ const PIPES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <path d="M5 7.5h5.5a2.5 2.5 0 0 1 2.5 2.5V15" fill="none" stroke="var(--pi-logo-edge)" stroke-width="3.2"/>
   <path d="M13 10v5" fill="none" stroke="var(--pi-logo-tint)" stroke-width="1" opacity=".7"/></svg>`;
 
+// A distillation column, for Refinery.
+const REFINERY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--rf-logo-tint)" stroke="var(--rf-logo-edge)" stroke-width="1.6"/>
+  <rect x="8" y="4.5" width="4" height="11" rx="1.6" fill="none" stroke="var(--rf-logo-edge)" stroke-width="1.5"/>
+  <path d="M8 8h4M8 11h4M12 6.5h2.5M12 9.5h2.5M12 12.5h2.5M5.5 15.5h9" stroke="var(--rf-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -84,6 +90,7 @@ export const APPS = [
   { id: "survey", name: "Survey", href: "./survey.html", logo: SURVEY_LOGO },
   { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO },
   { id: "pipes", name: "Pipes", href: "./pipes.html", logo: PIPES_LOGO },
+  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

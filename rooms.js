@@ -20,6 +20,7 @@ export const GAMES = {
   survey: { name: "Survey", page: "./survey.html" },
   blend: { name: "Blend", page: "./blend.html" },
   pipes: { name: "Pipes", page: "./pipes.html" },
+  refinery: { name: "Refinery", page: "./refinery.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

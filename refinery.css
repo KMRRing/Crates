@@ -1,0 +1,77 @@
+/* Refinery: a brief, a margin bar, the units, the streams with their destinations, and the pools. Steel blue is the house colour. */
+:root { --rf-in: #35607E; --rf-in-soft: #D8E4EC; --rf-good: #2E9E5B; --rf-bad: #D23B2A; --rf-edge: #C9D1D5; --rf-naphtha: #E8B04B; --rf-middle: #3C8DBC; --rf-heavy: #8B5E3C; --rf-resid: #3A3A3A; --rf-gas: #9BB0BC; --rf-renew: #4FA36B; }
+@media (prefers-color-scheme: dark) { :root { --rf-in: #7FB0D6; --rf-in-soft: #1E3240; --rf-edge: #33414B; } }
+
+.rf-mark { display: inline-block; }
+.rf-mark svg { width: 100%; height: 100%; display: block; }
+.rf-brief { margin: .5rem 0 .4rem; }
+.rf-brief h2 { margin: 0; font-size: 1.35rem; font-weight: 800; }
+.rf-brief p { margin: .25rem 0 0; color: var(--ink-soft); line-height: 1.4; font-size: .92rem; }
+.rf-brief .rf-intro { color: var(--ink); }
+
+.rf-margin { padding: .8rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .4rem; }
+.rf-margin-row { display: flex; align-items: baseline; gap: .5rem; }
+.rf-margin-row span { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.rf-margin-row b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rf-margin-row b.good { color: var(--rf-good); }
+.rf-margin-row b.bad { color: var(--rf-bad); }
+.rf-margin-row small { margin-left: auto; color: var(--ink-soft); font-weight: 700; }
+.rf-bar { position: relative; height: 8px; border-radius: 4px; background: var(--yard); overflow: visible; }
+.rf-bar i { display: block; height: 100%; border-radius: 4px; background: var(--rf-in); width: 0; transition: width .3s; }
+.rf-bar em { position: absolute; top: -4px; width: 3px; height: 16px; background: var(--ink); border-radius: 2px; }
+.rf-verdict { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+.rf-verdict.good { color: var(--rf-good); font-weight: 750; }
+.rf-go { min-height: 46px; border: 0; border-radius: 14px; background: var(--rf-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+
+.rf-section { margin-top: .9rem; }
+.rf-section h3 { margin: 0 0 .4rem; font-size: 1rem; font-weight: 800; }
+.rf-section h3 small { font-weight: 600; color: var(--ink-soft); font-size: .8rem; margin-left: .3rem; }
+.rf-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.rf-chip { padding: .35rem .65rem; border-radius: 999px; border: 1.5px solid var(--rf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; }
+.rf-chip.on { border-color: var(--rf-in); background: var(--rf-in-soft); }
+.rf-chip.idle { opacity: .6; }
+.rf-h2 { margin: .4rem 0 0; font-size: .85rem; color: var(--ink-soft); }
+.rf-crude { margin: 0 0 .5rem; display: flex; align-items: center; gap: .5rem; font-weight: 750; }
+
+.rf-streams { display: grid; gap: .35rem; }
+.rf-group { margin: .5rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.rf-stream { display: grid; grid-template-columns: 4px 1fr auto; align-items: center; gap: .55rem; padding: .45rem .6rem .45rem .5rem; border-radius: 12px; background: var(--sheet); }
+.rf-stream i { width: 4px; height: 100%; min-height: 28px; border-radius: 2px; }
+.rf-stream .name { font-weight: 750; font-size: .95rem; }
+.rf-stream .meta { font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.rf-dest { min-height: 38px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--rf-edge); background: var(--yard); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; white-space: nowrap; }
+.rf-dest.unit { border-color: var(--rf-in); background: var(--rf-in-soft); color: var(--rf-in); }
+.rf-dest::after { content: " ›"; opacity: .6; }
+
+.rf-pools { display: grid; gap: .35rem; }
+.rf-pool { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; padding: .5rem .7rem; border-radius: 12px; background: var(--sheet); align-items: center; }
+.rf-pool .name { font-weight: 800; }
+.rf-pool .vol { font-variant-numeric: tabular-nums; font-weight: 750; text-align: right; }
+.rf-pool .spec { grid-column: 1 / -1; font-size: .8rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: .25rem .6rem; }
+.rf-pool .spec b.ok { color: var(--rf-good); }
+.rf-pool .spec b.no { color: var(--rf-bad); }
+.rf-pool.off { box-shadow: inset 0 0 0 2px var(--rf-bad); }
+.rf-pool .parts { grid-column: 1 / -1; font-size: .78rem; color: var(--ink-soft); }
+.rf-issues { margin: .5rem 0 0; padding-left: 1.2rem; font-size: .85rem; color: var(--rf-bad); display: grid; gap: .2rem; }
+.rf-issues:empty { display: none; }
+
+.rf-pick { display: grid; gap: .35rem; }
+.rf-pick button { display: grid; gap: .1rem; text-align: left; padding: .55rem .7rem; border-radius: 12px; border: 1.5px solid var(--rf-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
+.rf-pick button b { font-weight: 800; }
+.rf-pick button span { font-size: .82rem; color: var(--ink-soft); line-height: 1.3; }
+.rf-pick button.on { border-color: var(--rf-in); background: var(--rf-in-soft); }
+.rf-pick .head { margin: .4rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.rf-card p { margin: .4rem 0; line-height: 1.45; }
+.rf-card .purpose { font-weight: 700; }
+.rf-card table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .4rem 0; }
+.rf-card td, .rf-card th { padding: .25rem .3rem; border-bottom: 1px solid var(--rf-edge); text-align: left; }
+.rf-card td:last-child, .rf-card th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.rf-card .facts { font-size: .85rem; color: var(--ink-soft); }
+.rf-levels { display: grid; gap: .3rem; }
+.rf-levels button { display: flex; justify-content: space-between; gap: .5rem; padding: .5rem .7rem; border-radius: 10px; border: 1.5px solid var(--rf-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
+.rf-levels button b { font-weight: 800; }
+.rf-levels button.done { border-color: var(--rf-good); }
+.rf-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.rf-toast.show { opacity: 1; }
