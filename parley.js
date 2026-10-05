@@ -155,7 +155,20 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 function drill(it, kind) {
   const { w } = it, r = rng((Date.now() ^ it.key.length * 7919) >>> 0);
   const pool = allWords().filter(x => x.key !== it.key && (met().has(x.key) || x.unit === it.unit));
-  const others = n => shuffle(r, pool.slice()).slice(0, n).map(x => x.w);
+  // the wrong answers: none that means the same, sounds the same, or shows the same label as another option
+  const label = x => (C.script ? `${x.w}\n${x.py}` : x.w), sound = x => x.py || x.w;
+  const others = (n, show) => {
+    const taken = new Set([show(w)]), out = [];
+    for (const { w: x } of shuffle(r, pool.slice())) {
+      if (out.length === n) break;
+      if (taken.has(show(x)) || x.en === w.en || sound(x) === sound(w)) continue;
+      taken.add(show(x));
+      out.push(x);
+    }
+    return out;
+  };
+  // the right answer goes anywhere among them
+  const choose = show => { const opts = shuffle(r, [w, ...others(3, show)]); return [opts.map(show), opts.indexOf(w)]; };
   const card = $("card");
   card.replaceChildren();
   const box = $("answerBox");
@@ -166,13 +179,12 @@ function drill(it, kind) {
     if (w.py) card.append(el("div", "py", w.py));
     card.append(speakBtn(w.w));
     speak(w.w);
-    options([w, ...others(3)].map(x => x.en), 0, it, null);
+    options(...choose(x => x.en), it, null);
   } else if (kind === "listen") {
     if (C.tones && r() < 0.35 && w.py) { toneDrill(it); return; }
     card.append(el("div", "ask", "Listen, then pick what you heard."), speakBtn(w.w, true));
     speak(w.w);
-    const opts = shuffle(r, [w, ...others(3)]);
-    options(opts.map(x => (C.script ? `${x.w}\n${x.py}` : x.w)), opts.indexOf(w), it, null, true);
+    options(...choose(label), it, null, true);
   } else if (kind === "produce") {
     card.append(el("div", "ask", C.script ? "Type the pinyin with tones (ni3 hao3 or nǐ hǎo)." : "Type the word" + (isNoun(w) ? ", and pick its article." : ".")), el("div", "big", w.en));
     typed(it);
@@ -184,8 +196,7 @@ function drill(it, kind) {
     if (gapped === sentence) { drill(it, "recognise"); return; }
     const c = el("div", "cloze"); c.innerHTML = gapped.replace("____", '<span class="gap"></span>');
     card.append(el("div", "ask", "Which word fills the gap?"), c, el("div", "en", w.ex.en));
-    const opts = shuffle(r, [w, ...others(3)]);
-    options(opts.map(x => (C.script ? `${x.w}\n${x.py}` : x.w)), opts.indexOf(w), it, null, true);
+    options(...choose(label), it, null, true);
   }
 }
 /** Chinese: hear a syllable and name its tone. */
