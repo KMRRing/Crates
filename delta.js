@@ -8,6 +8,7 @@ import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
+import { part, action } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -481,22 +482,17 @@ function showDone() {
 }
 
 function openMenu() { drawMenu(); if (!$("menuDlg").open) $("menuDlg").showModal(); }
+// the menu: Play (a new board, the solution); in a room, back to solo; else a link to this board
 function drawMenu() {
   const body = $("menuBody");
-  body.innerHTML = "";
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  button("New board", () => newBoard());
-  if (!S.done) button("Show the solution", giveUp);
-  const room = together.room;
-  if (!room) {
-    button("Copy a link to this board", async () => {
-      try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
-    }, "link");
-  } else {
-    add("h3", null, "Playing together");
-    button("Back to solo", () => together.leave(), "link");
-  }
+  body.replaceChildren();
+  const play = part(body, "play");
+  play.append(action("New board", () => newBoard(), "primary"));
+  if (!S.done) play.append(action("Show the solution", giveUp));
+  if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
+  else part(body, "about").append(action("Copy a link to this board", async () => {
+    try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
+  }, "link"));
 }
 
 // ---------- together ----------

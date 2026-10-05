@@ -10,6 +10,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { speak as say, hasVoice } from "./voice.js";
+import { part, action, line } from "./menu.js";
 
 dropdown(document.getElementById("course"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -345,15 +346,18 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// the menu: Settings (start this course over), About (whether this phone can speak the course's language)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "stats", `Each unit opens with its grammar pattern, then about 14 words, each on a card the phone reads out, with an example sentence. A word is drilled harder as it climbs the piles: recognise it, then pick it by ear${C.tones ? " (or name its tone)" : ""}, then type it${C.script ? " in pinyin with tones" : ", with its article"}, then fill it into a sentence. Study brings what's due first, then up to ${NEW_A_DAY} new words a day, unit by unit; Learn on a unit's row teaches its words now, whatever the day's count, and its pattern opens from the row. When a unit's words are all met, its reading unlocks: a short text written only from words you know, read aloud, with questions.`);
-  add("p", "stats", hasVoice(C.lang) ? `This phone has a ${C.name} voice.` : `No ${C.name} voice was found on this phone: cards will still show, but not speak. On iPhone, add one under Settings › Accessibility › Spoken Content › Voices.`);
-  const reset = add("button", "btn wide", `Start ${C.name} over`);
-  reset.type = "button";
-  reset.addEventListener("click", () => { if (confirm(`Forget your ${C.name} progress?`)) { for (const k of met()) pile.forget("parley", k); P.met[C.id] = []; P.day[C.id] = null; for (const u of C.units) delete P.grammarSeen[`${C.id}:${u.id}`]; save(); $("menuDlg").close(); home(); } });
+  part(body, "settings").append(action(`Start ${C.name} over`, () => {
+    if (!confirm(`Forget your ${C.name} progress?`)) return;
+    for (const k of met()) pile.forget("parley", k);
+    P.met[C.id] = []; P.day[C.id] = null;
+    for (const u of C.units) delete P.grammarSeen[`${C.id}:${u.id}`];
+    save(); home();
+  }, "link"));
+  part(body, "about").append(line(hasVoice(C.lang) ? `This phone speaks ${C.name}` : `No ${C.name} voice on this phone (on iPhone: Settings › Accessibility › Spoken Content › Voices)`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

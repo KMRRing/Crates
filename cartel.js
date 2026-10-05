@@ -5,6 +5,7 @@ import { newGame, act, respond, respondBlock, freeReroll, freeAsk, bid, seen, mu
 import { Player, Mind, PERSONAS } from "./cartel-ai.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { part, choice, action } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
@@ -723,51 +724,36 @@ function showOver() {
 }
 
 // ---------- menu ----------
+// the menu: Play (a new game with the opponents chosen), Content (two or three opponents), Settings (the pace of the
+// computer's turns)
 function openMenu() {
   const body = $("menuBody");
-  body.innerHTML = "";
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("h3", null, "Opponents");
-  add("p", "stats", "Choose two or three. They keep what they learn, read your habits and play their character.");
+  body.replaceChildren();
   let picked = chosenOpponents();
-  const row = add("div", "ct-row");
-  const draw = () => {
-    row.replaceChildren(...Object.entries(PERSONAS).map(([id, p]) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "btn"; b.textContent = `${p.name}, ${p.trait}`;
-      b.setAttribute("aria-pressed", String(picked.includes(id)));
-      b.addEventListener("click", () => {
-        picked = picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id].slice(-3);
-        draw();
-      });
-      return b;
-    }));
-  };
-  draw();
-  const go = add("button", "btn primary wide", "New game with these");
-  go.type = "button";
-  go.addEventListener("click", () => {
+  part(body, "play").append(action("New game", () => {
     if (picked.length < 2) { toast("Pick at least two opponents"); return; }
     if (!g.over && g.moves > 2 && !confirm("Start a new game? This one isn't finished.")) return;
-    $("menuDlg").close();
     startGame(picked);
-  });
-  add("h3", null, "Computer turns");
-  add("p", "stats", "Fast and Steady show each move for a moment; Tap to continue holds each one until you tap.");
-  const paces = add("div", "ct-row");
-  const drawPaces = () => paces.replaceChildren(...Object.entries(PACES).map(([id, p]) => {
+  }, "primary"));
+  const row = document.createElement("div");
+  row.className = "ct-row";
+  const draw = () => row.replaceChildren(...Object.entries(PERSONAS).map(([id, p]) => {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "btn"; b.textContent = p.label;
-    b.setAttribute("aria-pressed", String(pace() === id));
-    b.addEventListener("click", () => {
-      try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
-      drawPaces();
-      const computerDue = g.pending ? g.pending.challenger !== ME : g.turn !== ME;
-      if (!g.over && computerDue) loop();                    // a move already waiting takes the new pace
-    });
+    b.type = "button"; b.className = "btn"; b.textContent = `${p.name}, ${p.trait}`;
+    b.setAttribute("aria-pressed", String(picked.includes(id)));
+    b.addEventListener("click", () => { picked = picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id].slice(-3); draw(); });
     return b;
   }));
-  drawPaces();
+  draw();
+  const label = document.createElement("span");
+  label.className = "menu-label";
+  label.textContent = "Opponents (two or three)";
+  part(body, "content").append(label, row);
+  part(body, "settings").append(choice("Computer turns", Object.entries(PACES).map(([id, p]) => [id, p.label]), pace(), id => {
+    try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
+    const computerDue = g.pending ? g.pending.challenger !== ME : g.turn !== ME;
+    if (!g.over && computerDue) loop();                        // a move already waiting takes the new pace
+  }));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
