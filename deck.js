@@ -14,6 +14,8 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { setRich } from "./rich.js";
 import { showPicture } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
+import { speak } from "./voice.js";
+import { COURSES } from "./parley-courses.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -166,9 +168,10 @@ function ask() {
     if (!box.contains(wrap)) box.appendChild(wrap);
     input.focus();                                   // at once, not later: a phone only raises its keyboard inside the tap or key that got here
   } else if (it.game === "parley") {
-    const p = it.payload;
-    $("ask").textContent = `Parley · ${{ zh: "Chinese", fr: "French", de: "German" }[p.course] || p.course}`;
+    const p = it.payload, course = COURSES.find(c => c.id === p.course);
+    $("ask").textContent = `Parley · ${course?.name || p.course}`;
     $("prompt").textContent = `${p.w}${p.py ? ` (${p.py})` : ""}`;
+    if (course) { $("prompt").append(" ", speakButton(p.w, course.lang)); speak(p.w, course.lang); }   // said as it appears, again on a tap
     const pool = pile.all("parley").filter(x => x.payload?.course === p.course && x.key !== it.key).map(x => x.payload.en);
     const opts = shuffle(r, [p.en, ...shuffle(r, [...new Set(pool)]).slice(0, 3)]);
     while (opts.length < 2) opts.push("—");
@@ -290,6 +293,15 @@ function openMenu() {
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "deck");
+// a loudspeaker beside a word in another language: says it again
+const SPEAKER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path class="solid" d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>';
+function speakButton(text, lang) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "dk-speak"; b.innerHTML = SPEAKER;
+  b.setAttribute("aria-label", "Hear it again");
+  b.addEventListener("click", () => speak(text, lang));
+  return b;
+}
 document.querySelector(".dk-mark").innerHTML = APPS.find(a => a.id === "deck").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());

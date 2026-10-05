@@ -9,6 +9,7 @@ import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
+import { speak as say, hasVoice } from "./voice.js";
 
 dropdown(document.getElementById("course"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -32,21 +33,7 @@ const allWords = () => C.units.flatMap(u => u.words.map(w => ({ w, unit: u, key:
 const met = () => new Set(P.met[C.id] || []);
 
 // ---------- the voice ----------
-let voices = [];
-function loadVoices() { voices = window.speechSynthesis?.getVoices?.() || []; }
-function speak(text, lang = C.lang, rate = 0.9) {
-  if (!window.speechSynthesis) return false;
-  try {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = lang;
-    u.rate = rate;
-    const v = voices.find(v => v.lang === lang) || voices.find(v => v.lang.startsWith(lang.slice(0, 2)));
-    if (v) u.voice = v;
-    window.speechSynthesis.speak(u);
-    return true;
-  } catch { return false; }
-}
+const speak = (text, lang = C.lang, rate = 0.9) => say(text, lang, rate);   // voice.js, shared with Deck
 const speakBtn = (text, big = false) => { const b = document.createElement("button"); b.type = "button"; b.className = `pa-speak${big ? " big" : ""}`; b.textContent = "🔈"; b.setAttribute("aria-label", "Listen"); b.addEventListener("click", () => speak(text)); return b; };
 
 // ---------- the home ----------
@@ -363,7 +350,7 @@ function openMenu() {
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   add("p", "stats", `Each unit opens with its grammar pattern, then about 14 words, each on a card the phone reads out, with an example sentence. A word is drilled harder as it climbs the piles: recognise it, then pick it by ear${C.tones ? " (or name its tone)" : ""}, then type it${C.script ? " in pinyin with tones" : ", with its article"}, then fill it into a sentence. Study brings what's due first, then up to ${NEW_A_DAY} new words a day, unit by unit; Learn on a unit's row teaches its words now, whatever the day's count, and its pattern opens from the row. When a unit's words are all met, its reading unlocks: a short text written only from words you know, read aloud, with questions.`);
-  add("p", "stats", voices.some(v => v.lang.startsWith(C.lang.slice(0, 2))) ? `This phone has a ${C.name} voice.` : `No ${C.name} voice was found on this phone: cards will still show, but not speak. On iPhone, add one under Settings › Accessibility › Spoken Content › Voices.`);
+  add("p", "stats", hasVoice(C.lang) ? `This phone has a ${C.name} voice.` : `No ${C.name} voice was found on this phone: cards will still show, but not speak. On iPhone, add one under Settings › Accessibility › Spoken Content › Voices.`);
   const reset = add("button", "btn wide", `Start ${C.name} over`);
   reset.type = "button";
   reset.addEventListener("click", () => { if (confirm(`Forget your ${C.name} progress?`)) { for (const k of met()) pile.forget("parley", k); P.met[C.id] = []; P.day[C.id] = null; for (const u of C.units) delete P.grammarSeen[`${C.id}:${u.id}`]; save(); $("menuDlg").close(); home(); } });
@@ -380,6 +367,5 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("studyBtn").addEventListener("click", () => startStudy());
 $("nextBtn").addEventListener("click", next);
 $("readClose").addEventListener("click", home);
-if (window.speechSynthesis) { loadVoices(); window.speechSynthesis.addEventListener?.("voiceschanged", loadVoices); }
 window.__parley = { get session() { return session; }, get course() { return C; }, startStudy, home, pile, speak };
 setCourse(P.course || "zh");

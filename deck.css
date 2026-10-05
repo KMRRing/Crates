@@ -62,3 +62,9 @@
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .dk-toast.show { opacity: 1; }
+
+/* the loudspeaker beside a word in another language (Parley's cards): says it again */
+.dk-speak { display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; margin-left: .35rem; vertical-align: middle;
+  padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
+.dk-speak svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dk-speak .solid { fill: currentColor; }
