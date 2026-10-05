@@ -213,35 +213,102 @@ function showRole(face, whose) {
 }
 
 // ---------- the seats ----------
-// What each player said last, as a bubble at their seat: moves, claims, challenges, bids and calls.
-const BUBBLE = new Set(["pass", "take", "reroll", "ask", "hit", "claim", "challenge", "allow", "block", "blocked", "bid", "call", "loseGold", "out"]);
-const animated = {};
-function bubbleText(e) {
-  const who = i => (i === ME ? "you" : name(i));
-  switch (e.t) {
-    case "pass": return "Passes";
-    case "take": return `Takes a ${e.dice[0].face}`;
-    case "reroll": return `Rerolls ${e.dice.length}`;
-    case "ask": return `Asks ${who(e.target)}: ${questionText(e.question)}`;
-    case "hit": return `Hits ${who(e.target)}!`;
-    case "claim": return e.ability === "sanction" ? `Sanction on ${who(e.target)}` : `${ROLES[e.role]}${e.target != null ? ` on ${who(e.target)}` : ""}`;
-    case "challenge": return e.held ? "Challenges… wrong" : "Challenges: bluff!";
-    case "allow": return "Lets it go";
-    case "block": return `Blocks as ${ROLES[e.role]}`;
-    case "blocked": return "Accepts the block";
-    case "bid": return `${e.q} × ${faceLabel(e.f)}`;
-    case "call": return `Calls! ${e.held ? "It held" : "Busted"}`;
-    case "loseGold": return `Loses a gold ${e.die.face}`;
-    case "out": return "Out";
-    default: return "";
+// Each seat keeps its player's whole last turn (their move and what came of it, their question with both answers
+// when you're part of it, their bid or call) until their next turn starts, so a round played fast can still be read.
+const ACTS = new Set(["pass", "take", "reroll", "hit", "claim", "ask", "bid", "call"]);
+/**
+ * The game's events cut into turns, oldest first: { p, events }. A turn runs from its player's first move to their
+ * bid or call and what that cost; challenges, blocks and payments in between belong to it.
+ */
+function turnsOf(events) {
+  const turns = [];
+  let cur = null, closed = true;
+  for (const e of events) {
+    if (ACTS.has(e.t) && (closed || e.p !== cur.p)) { cur = { p: e.p, events: [] }; turns.push(cur); closed = false; }
+    cur?.events.push(e);
+    if (e.t === "bid" || e.t === "call") closed = true;
   }
+  return turns;
 }
-function lastSaid(i) {
-  for (let k = g.events.length - 1; k >= 0; k--) {
-    const e = g.events[k];
-    if (BUBBLE.has(e.t) && e.p === i) return { e: seen(e, ME), k };
+/** A question in a few words: "how many 4s?", "any 6s?", "odd total?", "total 15+?". */
+const shortQuestion = q => ({ count: `how many ${q.f}s?`, any: `any ${q.f}s?`, odd: "odd total?", atLeast: `total ${q.n}+?` }[q.type]);
+const answerWord = a => (typeof a === "number" ? String(a) : a ? "yes" : "no");
+/**
+ * Both answers to a question you're part of: what the asker said about their hand and what the one asked said
+ * about theirs (each learned the other's). Null when you're not part of it: those answers stay private.
+ */
+function bothAnswers(e) {
+  if (e.p !== ME && e.target !== ME) return null;
+  const aboutTarget = e.priv?.[e.p]?.answer, aboutAsker = e.priv?.[e.target]?.answer;
+  if (aboutTarget == null || aboutAsker == null) return null;
+  const who = i => (i === ME ? "you" : name(i));
+  return `${who(e.p)} ${answerWord(aboutAsker)} · ${who(e.target)} ${answerWord(aboutTarget)}`;
+}
+// How much each kind of line matters when a turn has more than the seat can show: losses and the answers first.
+const KEEP = { bad: 5, answer: 5, ask: 4, act: 4, bid: 4, free: 2, private: 1 };
+/** A turn as at most five short lines, { text, cls }, in the order things happened. */
+function turnLines(turn) {
+  const who = i => (i === ME ? "you" : name(i));
+  const out = [];
+  let move = null, fixer = false;                    // the move's line, which its outcome finishes; a Fixer reroll before it
+  const finish = more => { if (move) move.text += more; };
+  for (const raw of turn.events) {
+    const e = seen(raw, ME);
+    switch (e.t) {
+      case "claim":
+        if (e.free) { out.push(move = { text: "Fixer reroll", cls: "free" }); fixer = true; break; }
+        // a claim aimed at a player names them; the others name the role
+        out.push(move = { text: e.target != null ? `${{ steal: "Trader", audit: "Auditor", sanction: "Sanction" }[e.ability] || ROLES[e.role]} on ${who(e.target)}`
+          : e.ability === "inquiry" ? "Inquiry" : ROLES[e.role], cls: "act" });
+        break;
+      case "take": out.push(move = { text: `Took a ${e.dice[0].face}`, cls: "act" }); break;
+      case "reroll": out.push(move = { text: `Rerolled ${e.dice.length}`, cls: "act" }); break;
+      case "pass": out.push(move = { text: "Passed", cls: "act" }); break;
+      case "hit": out.push(move = { text: `Hit ${who(e.target)}`, cls: "act" }); break;
+      case "challenge": finish(e.held ? ": true" : ": a bluff, caught"); if (!e.held && move) move.cls = "bad"; break;
+      case "block": finish(`: blocked (${ROLES[e.role]})`); break;
+      case "banker": finish(" +3"); break;
+      case "trader": finish(e.none ? ": nothing" : `: stole ${e.lost.length}`); break;
+      case "inquiry": finish(`: ${e.face}s${e.count != null ? ` = ${e.count}` : ""}`); break;
+      case "ask": {
+        const both = bothAnswers(raw);
+        out.push({ text: `Asked ${who(e.target)}: ${shortQuestion(e.question)}`, cls: "ask" });
+        out.push({ text: both || "answers private", cls: both ? "answer" : "private" });
+        break;
+      }
+      case "bid": out.push({ text: `Bid ${e.q}×${faceLabel(e.f)}`, cls: "bid" }); break;
+      case "call": out.push({ text: `Call ${e.bid.q}×${faceLabel(e.bid.f)}: ${e.held ? "held" : "bust"}`, cls: "bid" }); break;
+      case "loseGold": if (e.p === turn.p) out.push({ text: `Lost a gold ${ROLES[e.die.face]}`, cls: "bad" }); break;
+      case "out": if (e.p === turn.p) out.push({ text: "Out", cls: "bad" }); break;
+    }
   }
-  return null;
+  // a Fixer reroll that went through quietly rides on the move's line
+  if (fixer && out[0]?.cls === "free" && out[0].text === "Fixer reroll" && out[1]?.cls === "act") { out[1].text = `Fixer · ${out[1].text}`; out.shift(); }
+  while (out.length > 5) out.splice(out.reduce((lo, ln, k) => (KEEP[ln.cls] < KEEP[out[lo].cls] ? k : lo), 0), 1);
+  return out;
+}
+/** Each player's latest turn, by seat. */
+function lastTurns() {
+  const last = {};
+  for (const t of turnsOf(g.events)) last[t.p] = t;
+  return last;
+}
+const shownLines = {};                                // per seat, the turn last drawn and how many lines it had
+/** A seat's log of its player's last turn; lines that weren't there when the table was last drawn pop in. */
+function turnLog(turn, p) {
+  const box = document.createElement("div");
+  box.className = "ct-log";
+  if (!turn) return box;
+  const lines = turnLines(turn), start = turn.events[0].n;
+  const before = shownLines[p]?.start === start ? shownLines[p].count : 0;
+  lines.forEach((ln, k) => {
+    const row = document.createElement("div");
+    row.className = `ct-log-line ${ln.cls}${k >= before ? " fresh" : ""}`;
+    row.textContent = row.title = ln.text;
+    box.appendChild(row);
+  });
+  shownLines[p] = { start, count: lines.length };
+  return box;
 }
 
 /** When the open panel wants a target, who's picked and how to pick: the seats on the table do the choosing. */
@@ -254,12 +321,11 @@ function targeting() {
   return null;
 }
 function renderSeats() {
-  const lap = g.players.length * 3;
-  const aim = targeting();
+  const aim = targeting(), turns = lastTurns();
   // the dice at every seat take two rows: as the biggest hand grows, all of them shrink to fit (the seats keep their height)
   const opponents = g.players.filter(p => p.i !== ME), most = Math.max(1, ...opponents.map(p => mind.known(p.i).length));
   const width = ($("seats").clientWidth || 340) / Math.max(1, opponents.length) - 14, perRow = Math.ceil(most / 2);
-  $("seats").style.setProperty("--seat-die", `${Math.max(13, Math.min(20, Math.floor((width - (perRow - 1) * 3) / perRow)))}px`);
+  $("seats").style.setProperty("--seat-die", `${Math.max(13, Math.min(18, Math.floor((width - (perRow - 1) * 3) / perRow)))}px`);
   $("seats").replaceChildren(...g.players.filter(p => p.i !== ME).map(p => {
     const seat = document.createElement("div");
     const canTarget = aim && !p.out;
@@ -267,10 +333,10 @@ function renderSeats() {
     if (canTarget) { seat.setAttribute("role", "button"); seat.addEventListener("click", () => aim.pick(p.i)); }
     const plaque = document.createElement("div");
     plaque.className = "ct-plaque";
-    const b = document.createElement("b"), t = document.createElement("span");
-    b.textContent = p.name;
-    t.textContent = p.out ? "out" : PERSONAS[p.persona].trait;
-    plaque.append(b, t);
+    const b = document.createElement("b");
+    b.textContent = p.out ? `${p.name} · out` : p.name;
+    plaque.title = PERSONAS[p.persona].trait;
+    plaque.appendChild(b);
     const dice = document.createElement("div");
     dice.className = "ct-dice";
     dice.append(...byKind(mind.known(p.i)).map(d => {
@@ -279,15 +345,7 @@ function renderSeats() {
       if (d.kind === "gold" && d.face != null) { svg.classList.add("ct-tappable"); svg.addEventListener("click", e => { e.stopPropagation(); showRole(d.face, p.i); }); }
       return svg;
     }));
-    seat.append(plaque, dice);
-    const said = lastSaid(p.i);
-    if (said) {
-      const bubble = document.createElement("div");
-      bubble.className = `ct-bubble${g.events.length - said.k > lap ? " old" : ""}${(animated[p.i] ?? -1) < said.k ? " fresh" : ""}`;
-      bubble.textContent = bubbleText(said.e);
-      animated[p.i] = said.k;
-      seat.appendChild(bubble);
-    }
+    seat.append(plaque, dice, turnLog(turns[p.i], p.i));
     return seat;
   }));
 }
@@ -299,24 +357,22 @@ function renderCentre() {
   const marker = document.createElement("div");
   marker.className = `ct-marker${b ? "" : " open"}`;
   const by = document.createElement("small");
+  // with no bid standing, the last call's verdict sits where the bid stood, until someone bids again
+  const lastBidOrCall = [...g.events].reverse().find(e => e.t === "bid" || e.t === "call");
   if (b) {
     marker.append(`${b.q} ×`, dieSvg({ face: b.f, kind: "plain" }, 24));
     by.textContent = `${b.by === ME ? "your bid" : `${name(b.by)}'s bid`} · ${totalDice(g)} dice`;
+  } else if (lastBidOrCall?.t === "call") {
+    const c = lastBidOrCall, loser = c.held ? c.p : c.bid.by;
+    marker.classList.add(c.held ? "held" : "broke");
+    marker.append(`${c.bid.q} × ${faceLabel(c.bid.f)} ${c.held ? "held" : "busted"}`);
+    by.textContent = `${name(loser)} ${verb(loser, "pay")} · ${totalDice(g)} dice`;
   } else {
     marker.append("No bid yet");
     by.textContent = `${totalDice(g)} dice on the table`;
   }
   marker.appendChild(by);
   box.appendChild(marker);
-  // the last call's verdict stays on the table until someone bids again
-  const lastBidOrCall = [...g.events].reverse().find(e => e.t === "bid" || e.t === "call");
-  if (lastBidOrCall?.t === "call") {
-    const v = document.createElement("div");
-    v.className = `ct-verdict ${lastBidOrCall.held ? "held" : "broke"}`;
-    const loser = lastBidOrCall.held ? lastBidOrCall.p : lastBidOrCall.bid.by;
-    v.textContent = `${lastBidOrCall.bid.q} × ${faceLabel(lastBidOrCall.bid.f)} ${lastBidOrCall.held ? "held" : "busted"}: ${name(loser)} ${verb(loser, "pay")} a die`;
-    box.appendChild(v);
-  }
   const lines = g.events.map(e => line(seen(e, ME))).filter(Boolean);
   if (lines.length) {
     const ticker = document.createElement("button");
@@ -342,6 +398,11 @@ function renderMine() {
   const seenByAll = new Set(publicMind.known(ME).filter(d => d.face != null).map(d => d.id));
   t.textContent = me.out ? "out" : `${myPlain()} plain${seenByAll.size ? `, ${seenByAll.size} seen by everyone` : ""}`;
   plaque.append(b, t);
+  // your last question, with both answers, stays with you until your next turn
+  const myTurn = lastTurns()[ME], asked = myTurn?.events.find(e => e.t === "ask");
+  const mine = document.createElement("p");
+  mine.className = "ct-mine-ask";
+  if (asked) mine.textContent = `You asked ${name(asked.target)}: ${shortQuestion(asked.question)} ${bothAnswers(asked) || ""}`.trim();
   // dice that just changed under you shake once
   const last = g.events[g.events.length - 1];
   const shaken = last && (last.t === "reroll" || last.t === "freeReroll") && last.p === ME && shookAt < last.n
@@ -371,7 +432,7 @@ function renderMine() {
     });
     return fig;
   }));
-  box.append(plaque, dice);
+  box.append(plaque, dice, mine);
   $("notes").replaceChildren(...mind.notes().map(nt => { const li = document.createElement("li"); li.textContent = `${nt.p == null ? "Table" : name(nt.p)}: ${nt.text}`; return li; }));
 }
 
@@ -550,7 +611,7 @@ function claimPanel(panel) {
     const card = button(`ct-role${x.free ? " free" : ""}`, roles, [dieSvg({ face: x.role, kind: "gold" }, 22), (() => {
       const t = el("span", "ct-role-text");
       el("b", held ? "held" : "bluff", t, ROLES[x.role]);
-      el("span", null, t, used ? "Used this turn" : POWER[id]);
+      el("span", null, t, used ? "Used this turn" : id === "inquiry" && !held ? "No answer if bluffed" : POWER[id]);
       return t;
     })()], () => { c.ability = id; ui.free = null; render(); }, c.ability === id);
     card.setAttribute("aria-label", `${ROLES[x.role]}: ${POWER[id]}. ${held ? "You hold it." : "A bluff: you don't hold it."}`);
@@ -562,12 +623,17 @@ function claimPanel(panel) {
       `Before your move; ${name(nextAfter(ME))} may challenge`);
     return;
   }
-  if (c.ability === "inquiry") faces(panel, 2, c.face, f => { c.face = f; render(); });
+  const claim = () => play(() => act(g, { type: "claim", ability: c.ability, target: x.target ? c.target : undefined, picks: myPicks(c) }));
+  if (c.ability === "inquiry") {
+    // the face to count and the claim share one row, so the inquiry is no taller than any other claim
+    const row = grid(panel, "repeat(5, minmax(0, 1fr)) minmax(0, 1.9fr)");
+    for (let f = 2; f <= 6; f++) button("ct-choice ct-face", row, [dieSvg({ face: f, kind: "plain" }, 22)], () => { c.face = f; render(); }, c.face === f).setAttribute("aria-label", `count ${f}s`);
+    go(row, `Count ${c.face}s`, claim);
+    return;
+  }
   if (x.target) c.target ??= others()[0]?.i;
-  const small = x.blockers ? `${x.blockers.map(r => ROLES[r]).join(" or ")} can block it${c.ability === "sanction" ? `; the ${RULES.sanction} dice are spent either way` : ""}`
-    : c.ability === "inquiry" && !mine.includes(6) ? "The referee only answers a real Regulator" : null;
-  go(panel, `Claim ${ROLES[x.role]}${x.target ? ` against ${name(c.target)}` : ""}`, () => play(() => act(g, { type: "claim", ability: c.ability, target: x.target ? c.target : undefined, picks: myPicks(c) })),
-    !!(x.cost && myPlain() < x.cost), small);
+  const small = x.blockers ? `${x.blockers.map(r => ROLES[r]).join(" or ")} can block it${c.ability === "sanction" ? `; the ${RULES.sanction} dice are spent either way` : ""}` : null;
+  go(panel, `Claim ${ROLES[x.role]}${x.target ? ` against ${name(c.target)}` : ""}`, claim, !!(x.cost && myPlain() < x.cost), small);
 }
 
 function askPanel(panel) {
