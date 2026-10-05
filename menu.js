@@ -19,6 +19,50 @@ export function part(body, name) {
   return box;
 }
 
+// ---------- the controls, the same in every game ----------
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+/** One of: a label and a segmented row; onChange(value) when another is tapped. options: [[value, text], …]. */
+export function choice(label, options, value, onChange) {
+  const row = el("div", "menu-row"), seg = el("div", "menu-seg");
+  seg.setAttribute("role", "radiogroup");
+  seg.setAttribute("aria-label", label);
+  for (const [v, text] of options) {
+    const b = el("button", null, text);
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(v === value));
+    b.addEventListener("click", () => {
+      if (v === value) return;
+      value = v;
+      for (const x of seg.children) x.setAttribute("aria-checked", String(x === b));
+      onChange(v);
+    });
+    seg.appendChild(b);
+  }
+  row.append(el("span", "menu-label", label), seg);
+  return row;
+}
+/** A switch: a label and on or off; onChange(on). */
+export function toggle(label, on, onChange) {
+  const row = el("div", "menu-row"), sw = el("button", "menu-switch");
+  sw.type = "button";
+  sw.setAttribute("role", "switch");
+  sw.setAttribute("aria-checked", String(!!on));
+  sw.setAttribute("aria-label", label);
+  sw.addEventListener("click", () => { on = !on; sw.setAttribute("aria-checked", String(on)); onChange(on); });
+  row.append(el("span", "menu-label", label), sw);
+  return row;
+}
+/** A button: the menu closes, then fn runs. kind: "primary" (the one to press), "" (plain) or "link" (quiet). */
+export function action(text, fn, kind = "") {
+  const b = el("button", kind === "link" ? "link menu-link" : `btn wide${kind === "primary" ? " primary" : ""}`, text);
+  b.type = "button";
+  b.addEventListener("click", () => { document.getElementById("menuDlg")?.close(); fn(); });
+  return b;
+}
+/** A short status line (a best, where you are). */
+export const line = text => el("p", "menu-line", text);
+
 const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 let shaping = false;
 /** Lays out what the game just put in the menu: parts in order, under their headings; long explanations folded away. */

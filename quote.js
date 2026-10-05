@@ -15,6 +15,7 @@ function picture(q) {
   if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic); }
 }
 import "./pwa.js";
+import { part, choice, toggle, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const APP = 1;                       // this code's version of the together state
@@ -405,34 +406,27 @@ async function copyLink() {
   const link = `${location.origin}${location.pathname}${hashFor(S)}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
+// the menu: Play (start the set you've chosen), Content (random or today's; all questions or refining only),
+// Settings (learning mode), About (your bests, a link to this set); in a room, what the duo match offers
+let pick = null;                                              // the set the menu will start: { mode, focus }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  const room = together.room;
-  if (!room) {
-    add("p", "stats", "Make a market on a number: a bid and an ask. Each question says what counts as close; the tighter and the nearer, the more it pays, falling off smoothly, and the further out the truth lies the more you lose. Ten questions, a book of 1,000 to start.");
-    button("A new set", () => confirmStart("random"));
-    button("Today's set", () => confirmStart("daily"));
-    const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
-    learn.type = "button";
-    learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); $("menuDlg").close(); openMenu(); });
-    add("p", "stats", `A miss, or a market wider than three ranges, sends the question to the pile; it leads your next sets until you quote it tight (${pile.counts("quote").due} due now). Deck reviews everything due.`);
-    add("h3", null, "Refining");
-    add("p", "stats", `Sets drawn only from the ${QUOTES.filter(q => q.cat === "refining").length} refining questions: European fuel specs, what each blendstock brings, cetane and cold flow, energy contents, RED III, quotas, duties and cracks. Crush these and you have the numbers of the trade.`);
-    button("A refining set", () => confirmStart("random", "refining"));
-    button("Today's refining set", () => confirmStart("daily", "refining"));
-    if (S?.done) button("See how it went", finish);
-    button("Copy a link to this set", copyLink);
-    const best = read(BEST, null), daily = read(DAILY, {})[String(today())], bestRf = read(`${BEST}:refining`, null), dailyRf = read(DAILY, {})[`${today()}/refining`];
-    add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}${bestRf != null ? ` Refining: best ${money(bestRf)}${dailyRf != null ? `, today ${money(dailyRf)}` : ""}.` : ""}`);
-    add("h3", null, "Together");
-    add("p", "stats", "Two phones, taking turns: one makes the market, the other hits the bid, lifts the offer or passes. A trade settles between you; a pass settles the maker against the house.");
+  if (together.room) {
+    part(body, "together").append(action("A fresh set", startRoomSet, "primary"), action("Back to solo", () => together.leave(), "link"));
   } else {
-    add("h3", null, "Playing together");
-    button("A fresh set", startRoomSet);
-    button("Back to solo", () => together.leave(), "link");
+    pick ??= { mode: S?.mode === "daily" ? "daily" : "random", focus: S?.focus || null };
+    const play = part(body, "play");
+    play.append(action("Start a set", () => confirmStart(pick.mode, pick.focus), "primary"));
+    if (S?.done) play.append(action("See how it went", finish));
+    part(body, "content").append(
+      choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; }),
+      choice("Questions", [[null, "All"], ["refining", "Refining"]], pick.focus, v => { pick.focus = v; }));
+    part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+    const best = read(BEST, null), daily = read(DAILY, {})[String(today())], bestRf = read(`${BEST}:refining`, null);
+    part(body, "about").append(
+      line([best != null ? `Best book ${money(best)}` : "No finished set yet", daily != null ? `today ${money(daily)}` : "", bestRf != null ? `refining ${money(bestRf)}` : ""].filter(Boolean).join(" · ")),
+      action("Copy a link to this set", copyLink, "link"));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
