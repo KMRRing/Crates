@@ -638,8 +638,8 @@ function claimPanel(panel) {
   }
   const x = ABILITIES[c.ability];
   if (c.ability === "reroll") {
-    go(panel, ui.free != null ? "Reroll that die, free" : "Tap one of your dice", () => play(() => freeReroll(g, ui.free)), ui.free == null,
-      `Before your move; ${name(nextAfter(ME))} may challenge`);
+    // the card just picked already says what the Fixer does; the button only claims it, like every other claim
+    go(panel, ui.free != null ? `Claim ${ROLES[x.role]}` : "Tap one of your dice", () => play(() => freeReroll(g, ui.free)), ui.free == null);
     return;
   }
   const claim = () => play(() => act(g, { type: "claim", ability: c.ability, target: x.target ? c.target : undefined, picks: myPicks(c) }));
@@ -683,7 +683,6 @@ function hitPanel(panel) {
 function myPicks(c) {
   return c.ability === "inquiry" ? { face: c.face } : {};
 }
-const nextAfter = i => { let j = i; do { j = (j + 1) % g.players.length; } while (g.players[j].out); return j; };
 
 // ---------- claims and blocks you answer ----------
 function showChallenge() {
