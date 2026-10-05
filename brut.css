@@ -1,0 +1,74 @@
+/* Brut: a glass, a tasting note revealed stage by stage, six candidates; and the study cards. Claret is the house colour. */
+:root { --br-in: #7A1638; --br-in-soft: #F5D9E3; --br-good: #2E9E5B; --br-bad: #D23B2A; --br-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { :root { --br-in: #E07A9C; --br-in-soft: #3E1A27; --br-edge: #33414B; } }
+
+.br-mark { display: inline-block; }
+.br-mark svg { width: 100%; height: 100%; display: block; }
+.br-head { display: flex; justify-content: space-between; align-items: center; margin: .3rem 0 .4rem; font-size: .88rem; color: var(--ink-soft); font-weight: 700; }
+.br-score b { font-size: 1.3rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.br-stages { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; }
+.br-stages li { padding: .3rem .2rem; border-radius: 8px; text-align: center; font-size: .78rem; font-weight: 800; background: var(--sheet); color: var(--ink-soft); }
+.br-stages li.done { background: var(--br-in-soft); color: var(--br-in); }
+.br-stages li.now { background: var(--br-in); color: #fff; }
+.br-stages li small { display: block; font-weight: 700; opacity: .8; }
+.br-pour { display: grid; grid-template-columns: 6.5rem 1fr; gap: .7rem; align-items: start; padding: .7rem; border-radius: 16px; background: var(--sheet); }
+.br-glass-box svg { width: 100%; height: auto; display: block; }
+.br-glass-box .bubble { fill: rgba(255, 255, 255, .85); animation: br-rise 2.4s linear infinite; }
+@keyframes br-rise { from { transform: translateY(0); opacity: .9; } to { transform: translateY(-46px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .br-glass-box .bubble { animation: none; } }
+.br-note { display: grid; gap: .45rem; font-size: .92rem; line-height: 1.4; }
+.br-note b { display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--br-in); }
+.br-note .tags { display: flex; flex-wrap: wrap; gap: .25rem; }
+.br-note .tags span { padding: .1rem .45rem; border-radius: 999px; background: var(--yard); font-size: .85rem; font-weight: 650; }
+.br-note .struct { display: grid; grid-template-columns: auto 1fr; gap: .1rem .5rem; font-size: .85rem; }
+.br-note .dots { letter-spacing: .1em; color: var(--br-in); font-size: .8rem; }
+.br-note .faded { color: var(--ink-soft); font-style: italic; }
+.br-line { margin: .5rem 0 .3rem; min-height: 1.3em; font-weight: 800; }
+.br-line.good { color: var(--br-good); }
+.br-line.bad { color: var(--br-bad); }
+.br-options { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.br-option { min-height: 54px; padding: .45rem .55rem; border-radius: 12px; border: 1.5px solid var(--br-edge); background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.br-option b { display: block; font-weight: 800; font-size: .95rem; line-height: 1.2; }
+.br-option span { display: block; font-size: .76rem; color: var(--ink-soft); margin-top: .1rem; }
+.br-option.struck { opacity: .38; text-decoration: line-through; }
+.br-option.right { border-color: var(--br-good); background: color-mix(in srgb, var(--br-good) 15%, var(--sheet)); }
+.br-option:disabled { cursor: default; }
+.br-buttons { margin-top: .55rem; display: grid; grid-template-columns: 1fr; gap: .4rem; }
+.br-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--br-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.br-go.quiet { background: var(--sheet); color: var(--ink); border: 1.5px solid var(--br-edge); }
+.br-go:disabled { opacity: .45; cursor: default; }
+.br-go[hidden] { display: none; }
+
+.br-intro { margin: .4rem 0 .7rem; color: var(--ink-soft); line-height: 1.45; }
+.br-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin-bottom: .7rem; }
+.br-stats div { padding: .5rem .3rem; border-radius: 12px; background: var(--sheet); text-align: center; }
+.br-stats b { display: block; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.br-stats b.due { color: var(--br-in); }
+.br-stats span { font-size: .72rem; color: var(--ink-soft); }
+.br-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }
+.br-units { display: grid; gap: .35rem; }
+.br-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 12px; background: var(--sheet); }
+.br-unit b { font-weight: 800; }
+.br-unit small { display: block; color: var(--ink-soft); font-size: .8rem; }
+.br-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
+.br-unit .bar i { display: block; height: 100%; background: var(--br-in); }
+.br-unit button { min-height: 36px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--br-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.br-card { padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .4rem; font-size: 1.05rem; line-height: 1.45; }
+.br-card .fact { font-size: 1.2rem; font-weight: 800; line-height: 1.35; }
+.br-card .q { font-size: 1.15rem; font-weight: 800; }
+.br-card .ask { font-size: .82rem; color: var(--ink-soft); }
+.br-answers { display: grid; gap: .45rem; margin-top: .5rem; }
+.br-answers .br-option { min-height: 48px; font-weight: 750; }
+.br-answers .br-option.wrong { border-color: var(--br-bad); background: color-mix(in srgb, var(--br-bad) 12%, var(--sheet)); }
+.br-verdict { margin: .5rem 0 0; min-height: 1.3em; font-weight: 800; }
+.br-verdict.good { color: var(--br-good); }
+.br-verdict.bad { color: var(--br-bad); }
+.br-explain { margin: .2rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); line-height: 1.45; }
+.br-flight { margin: .4rem 0; padding: 0; list-style: none; display: grid; gap: .35rem; font-size: .9rem; }
+.br-flight li { display: grid; grid-template-columns: 1fr auto; gap: .5rem; }
+.br-flight li small { grid-column: 1 / -1; color: var(--ink-soft); }
+.br-big { font-size: 3rem; font-weight: 800; color: var(--br-in); text-align: center; margin: .2rem 0; }
+.br-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.br-toast.show { opacity: 1; }

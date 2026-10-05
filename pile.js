@@ -12,7 +12,7 @@ export const PILES = [
   { id: 2, name: "Medium", gap: 12 * 60 * 60 * 1000 },
   { id: 3, name: "Long", gap: 7 * 24 * 60 * 60 * 1000 },
 ];
-export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Rush", slate: "Slate", parley: "Parley" };
+export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Rush", slate: "Slate", parley: "Parley", brut: "Brut" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };

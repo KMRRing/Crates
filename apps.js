@@ -95,6 +95,13 @@ const PARLEY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <path d="M4.5 7.5h6.5a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5H8l-2.2 1.8v-1.8H6a1.5 1.5 0 0 1-1.5-1.5V9A1.5 1.5 0 0 1 6 7.5z" fill="var(--pa-logo-edge)"/>
   <path d="M9.5 5h5A1.5 1.5 0 0 1 16 6.5v2A1.5 1.5 0 0 1 14.5 10H13l1.8 1.5V10h-.3" fill="none" stroke="var(--pa-logo-edge)" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
 
+// A wine glass, for Brut.
+const BRUT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--br-logo-tint)" stroke="var(--br-logo-edge)" stroke-width="1.6"/>
+  <path d="M6.6 5.4h6.8c.2 3.4-1.2 5.6-3.4 5.8-2.2-.2-3.6-2.4-3.4-5.8z" fill="none" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M7 8h6c-.4 1.9-1.5 3-3 3.1-1.5-.1-2.6-1.2-3-3.1z" fill="var(--br-logo-edge)"/>
+  <path d="M10 11.2v3.3M7.6 14.8h4.8" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -112,6 +119,7 @@ export const APPS = [
   { id: "rush", name: "Rush", href: "./rush.html", logo: RUSH_LOGO },
   { id: "deck", name: "Deck", href: "./deck.html", logo: DECK_LOGO },
   { id: "parley", name: "Parley", href: "./parley.html", logo: PARLEY_LOGO },
+  { id: "brut", name: "Brut", href: "./brut.html", logo: BRUT_LOGO, more: true },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

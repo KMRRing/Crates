@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brut">
+<title>Brut</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="brut.css">
+</head>
+<body>
+<div id="app" class="brut">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon br-mark" aria-hidden="true"></span>Brut</button></h1>
+    <div class="top-right">
+      <select id="mode" class="pool" aria-label="Mode">
+        <option value="blind">Blind</option>
+        <option value="study">Study</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <section id="blind" class="br-blind">
+    <div class="br-head"><span id="flightPos"></span><span class="br-score">Score <b id="score">0</b></span></div>
+    <ol class="br-stages" id="stages"></ol>
+    <div class="br-pour">
+      <div id="glass" class="br-glass-box"></div>
+      <div id="note" class="br-note"></div>
+    </div>
+    <p class="br-line" id="line"></p>
+    <div id="options" class="br-options"></div>
+    <div class="br-buttons">
+      <button class="br-go quiet" type="button" id="tasteBtn">Taste further</button>
+      <button class="br-go" type="button" id="nextBtn" hidden>Next wine</button>
+    </div>
+  </section>
+
+  <section id="study" class="br-study" hidden>
+    <div id="studyHome">
+      <p class="br-intro">Twelve units, from the grapes to the trade. Each card is a fact to learn, then a question on it; what you miss comes back until you know it.</p>
+      <div class="br-stats" id="stats"></div>
+      <button class="br-go" type="button" id="studyBtn">Study</button>
+      <h3 class="br-h">Units</h3>
+      <div class="br-units" id="units"></div>
+    </div>
+    <div id="studyCard" hidden>
+      <div class="br-head"><span id="studyPos"></span><span id="studyKind"></span></div>
+      <div class="br-card" id="card"></div>
+      <div id="answers" class="br-answers"></div>
+      <p class="br-verdict" id="verdict"></p>
+      <p class="br-explain" id="explain"></p>
+      <button class="br-go" type="button" id="studyNext" hidden>Next</button>
+    </div>
+  </section>
+</div>
+
+<dialog id="doneDlg" class="sheet" aria-label="The flight">
+  <div class="pick-head"><h2 id="doneTitle">The flight</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div id="doneBody"></div>
+</dialog>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="br-toast" role="status" aria-live="polite"></p>
+<script type="module" src="brut.js"></script>
+</body>
+</html>

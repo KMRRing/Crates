@@ -75,7 +75,7 @@ function ask() {
   box.className = "dk-answer";
   box.replaceChildren();
   const r = rng(seedOf(it.id) ^ Date.now());
-  if (it.game === "punt") {
+  if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
     $("ask").textContent = p.ask || "";
     $("prompt").textContent = p.prompt;
@@ -197,7 +197,7 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "stats", `Four piles with growing gaps: ultra-short (due at once), short (${gapText(PILES[1].gap)}), medium (${gapText(PILES[2].gap)}), long (${gapText(PILES[3].gap)}). An item enters at the first when you miss it, pass on it or stake 20% or less (Punt), quote it wide or wrong (Quote), pin it over 500 km off or with a clue (Chart), get its crate wrong (Crates) or miss the puzzle (Rush). Right here or in the game moves it up; right in the long pile and it's learned.`);
+  add("p", "stats", `Four piles with growing gaps: ultra-short (due at once), short (${gapText(PILES[1].gap)}), medium (${gapText(PILES[2].gap)}), long (${gapText(PILES[3].gap)}). An item enters at the first when you miss it, pass on it or stake 20% or less (Punt), quote a B or worse (Quote), pin it over 500 km off or with a clue (Chart), get its crate wrong (Crates), miss the puzzle (Rush), or can't name the wine before the palate (Brut); Parley's and Brut's new cards start there too. Right here or in the game moves it up; right in the long pile and it's learned.`);
   const learn = add("button", "btn wide", `Learning mode: ${pile.learning() ? "on" : "off"}`);
   learn.type = "button";
   learn.addEventListener("click", () => { pile.setLearning(!pile.learning()); openMenu(); });
