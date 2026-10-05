@@ -6,6 +6,9 @@ import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const STORE = "delta:solo", SPARES = "delta:spares";

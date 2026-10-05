@@ -7,6 +7,9 @@ import { STAGES as UNITS, MATHS as CARDS } from "./wine-bank.js";
 import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const SAVE = "brut:save";

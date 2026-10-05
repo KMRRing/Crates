@@ -80,3 +80,9 @@ only joins the room in its address, and offers "Back to solo" while in it. A gam
 `DUO_GAMES` in `suite.js`. A finished duo match is recorded for the pair: on `together.js`,
 give `createTogether` a `result(state)` returning `{ match, score, won, coop, lower }` once the match is over; otherwise
 call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on each player's device.
+
+## Header dropdowns
+
+A game's header `<select class="pool">` is shown as the suite's dropdown: link `dropdown.css`, give the select
+`data-accent` (its logo prefix: cr, sl, d, pt, bl, br, pa, rf, ru, sv…) and call `dropdown(select)` from `dropdown.js`
+once. The select stays the one place the choice lives; its options, value and events work as before.

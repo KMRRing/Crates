@@ -6,6 +6,9 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo } from "./suite.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 // Saves, the room branch and the switcher id keep the game's first name (Glyph), so saved boards and rooms in

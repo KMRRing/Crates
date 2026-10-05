@@ -5,6 +5,9 @@ import { FEED, evaluate, destinations, streamsOf, defaultRouting, solve } from "
 import { LEVELS } from "./refinery-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const SAVE = "refinery:save";
@@ -196,6 +199,7 @@ function drawStreams() {
     for (const [id, c] of Object.entries(CRUDES)) { const o = document.createElement("option"); o.value = id; o.textContent = `${c.name} ($${c.price}, ${c.sulphur}% S)`; if (id === L.crude) o.selected = true; sel.appendChild(o); }
     sel.addEventListener("change", e => chooseCrude(e.target.value));
     pick.append(label, sel);
+    dropdown(sel);                                                 // in the suite's style, like the header's
   }
   // where each stream comes from, for grouping: the crude unit, then each unit's outputs, then bought-in feeds
   const from = {};

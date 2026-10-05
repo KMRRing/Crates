@@ -3,6 +3,9 @@
 import { SIZES, TOOLS, WRONG_CLAIM, makeConcession, newRun, probe, claim } from "./survey-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const RUN = "survey:run", BEST = "survey:best", DAILY = "survey:daily";

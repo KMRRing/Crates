@@ -4,6 +4,9 @@
 import { COMPONENTS, PRODUCTS, PROPS, LEVELS, STEP, blendProps, blendCost, bioShare, margin, judge, solve, hint } from "./blend-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const SAVE = "blend2:save";

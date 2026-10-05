@@ -5,6 +5,9 @@ import { mountPuzzle, solutionSan } from "./chess-board.js";
 import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
+import { dropdown } from "./dropdown.js";
+
+dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
 const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating";
