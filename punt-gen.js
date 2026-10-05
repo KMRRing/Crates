@@ -32,6 +32,13 @@ export const LEVELS = {
   flags: { label: "Flags", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./flags-bank.js", note: "1–3 are flags everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
   patterns: { label: "Patterns", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./patterns-bank.js", note: "1–3 are counting and squares, 7 and up need two steps or a trick." },
   wine: { label: "Wine", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./wine-bank.js", note: "Brut's cards: 1–3 is what any wine list assumes, 6 and up is for the trade." },
+  art: { label: "Art", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./art-bank.js", note: "Paintings shown as pictures: who, where, which movement; and the art world's stories." },
+  economics: { label: "Economics", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./eco-bank.js", note: "Markets with their diagrams, macro and money, trade and finance, the ideas." },
+  physics: { label: "Physics", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./phy-bank.js", note: "Motion and energy, electricity and waves, heat and nuclei, the modern picture." },
+  chemistry: { label: "Chemistry", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./chm-bank.js", note: "Atoms and bonds, reactions, organic chemistry and fuels, industry." },
+  code: { label: "Code", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./cs-bank.js", note: "Data and algorithms, code to read, paradigms, systems and the web." },
+  philosophy: { label: "Philosophy", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./phil-bank.js", note: "The ancients and moderns, ethics and politics, knowledge and mind." },
+  religion: { label: "Religion", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./rel-bank.js", note: "The faiths, their calendars, food rules and etiquette: what to know before the meeting." },
 };
 /** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
 export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
@@ -238,9 +245,9 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
     const q = order[(start + i) % order.length];
     const right = q.o.map((label, k) => ({ label, right: q.a.includes(k) }));
     out.push({
-      kind: "maths", cat: "maths", prompt: q.q, ask: `${q.area}, ${stages[q.lv] || q.lv}, level ${q.d}`,
+      kind: "maths", cat: "maths", prompt: q.q, ask: `${q.area === (stages[q.lv] || q.lv) ? q.area : `${q.area}, ${stages[q.lv] || q.lv}`}, level ${q.d}`,
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
-      ...(q.svg && { svg: q.svg }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
+      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.code && { code: q.code }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
     });
   }
   priceBatch(L, out);

@@ -7,6 +7,13 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
 import * as pile from "./pile.js";
+import { showPicture } from "./pics.js";
+/** A picture with the question, when it has one: a painting to date. */
+function picture(q) {
+  const pic = $("picture");
+  if (!q.pic) { pic.hidden = true; pic.dataset.title = ""; return; }
+  if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic); }
+}
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -62,7 +69,7 @@ function quote() {
   if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
   // the pile: a B or below means you didn't adequately know it; an A or better moves a banked question up
-  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id }, r.inside ? "wide" : "wrong");
+  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id, pic: q.pic || null }, r.inside ? "wide" : "wrong");
   else if (pile.has("quote", q.id)) pile.answer("quote", q.id, true);
   S.book += r.delta;
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond, grade: r.grade });
@@ -122,6 +129,7 @@ function render() {
   $("widths").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
+  picture(q);
   $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · ${tiersText(q)}`;
   const entry = S.log[S.index];
   $("bid").value = entry ? fmt(entry.bid, q) : "";
@@ -211,6 +219,7 @@ function renderRoom() {
   }
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
+  picture(q);
   $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · ${tiersText(q)}`;
   $("fault").textContent = "";
   const entry = g.log && Object.values(g.log)[g.index];

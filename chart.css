@@ -44,3 +44,8 @@
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .ch-toast.show { opacity: 1; }
+
+/* a museum's painting */
+.ch-picture { margin: .1rem 0 .5rem; display: grid; place-items: center; }
+.ch-picture[hidden] { display: none; }
+.ch-picture img { max-width: 100%; max-height: 28vh; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }

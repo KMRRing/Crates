@@ -8,7 +8,7 @@ const P = await import("../punt-gen.js");
 let bad = 0;
 // the maths bank, for the Maths level (every stage and difficulty)
 const M = await import("../maths-bank.js");
-const BANKS = { maths: M, refining: await import("../refining-bank.js"), reasoning: await import("../reasoning-bank.js"), words: await import("../words-bank.js"), cities: await import("../cities-bank.js"), flags: await import("../flags-bank.js"), patterns: await import("../patterns-bank.js"), wine: await import("../wine-bank.js") };
+const BANKS = { maths: M, refining: await import("../refining-bank.js"), reasoning: await import("../reasoning-bank.js"), words: await import("../words-bank.js"), cities: await import("../cities-bank.js"), flags: await import("../flags-bank.js"), patterns: await import("../patterns-bank.js"), wine: await import("../wine-bank.js"), art: await import("../art-bank.js"), economics: await import("../eco-bank.js"), physics: await import("../phy-bank.js"), chemistry: await import("../chm-bank.js"), code: await import("../cs-bank.js"), philosophy: await import("../phil-bank.js"), religion: await import("../rel-bank.js") };
 const stageMap = B => Object.fromEntries(B.STAGES.map(x => [x.id, x.label]));
 const mathsFor = lvl => (BANKS[lvl] ? { pool: BANKS[lvl].MATHS, stages: stageMap(BANKS[lvl]) } : null);
 for (const lvl of Object.keys(P.LEVELS)) {

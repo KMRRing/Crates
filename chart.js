@@ -15,6 +15,14 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
 import * as pile from "./pile.js";
+import { showPicture } from "./pics.js";
+/** A museum's famous painting, shown with the card. */
+function picture(p) {
+  const pic = $("picture");
+  if (!pic) return;
+  if (!p.pic) { pic.hidden = true; pic.dataset.title = ""; return; }
+  if (pic.dataset.title !== p.pic) { pic.dataset.title = p.pic; showPicture(pic, p.pic, { width: 480 }); }
+}
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -266,6 +274,7 @@ function render() {
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
   }
   $("cat").textContent = p.geo ? `Physical · a ${p.kind}: pin anywhere on it` : CATS[p.cat];
+  picture(p);
   $("place").textContent = p.name;
   const waitingForThem = inRoom() && S.phase === "pin" && S.pins?.[mySeat()];
   $("hint").textContent = reveal ? "Drag and pinch to look around." : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : pin ? "Tap to move the pin, or pin it. Drag to pan, pinch to zoom." : "Tap to place the pin. Drag to pan, pinch to zoom.";

@@ -25,6 +25,8 @@
 .dk-prompt { margin: 0; font-size: 1.3rem; font-weight: 800; line-height: 1.25; }
 .dk-figure { display: grid; place-items: center; }
 .dk-figure svg { width: 100%; max-width: 20rem; height: auto; }
+.dk-figure img { max-width: 100%; max-height: 45vh; border-radius: 10px; }
+.dk-code { margin: 0; padding: .6rem .75rem; border-radius: 10px; background: var(--sheet); font: .88rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; overflow-x: auto; text-align: left; }
 .dk-figure[hidden] { display: none; }
 .dk-answer { display: grid; gap: .45rem; }
 .dk-answer.two { grid-template-columns: 1fr 1fr; }

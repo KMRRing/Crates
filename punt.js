@@ -6,6 +6,8 @@ import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageRet
   showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
+import { setRich } from "./rich.js";
+import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
@@ -204,9 +206,14 @@ function render() {
   pot.className = reveal && last ? (last.change > 0 ? "up" : last.change < 0 ? "down" : "") : "";
 
   $("ask").textContent = q.ask;
-  $("prompt").textContent = q.prompt;
+  setRich($("prompt"), q.prompt);
   $("figure").hidden = !q.svg;
   if (q.svg) $("figure").innerHTML = q.svg;                       // a drawing from the bank, for patterns
+  $("code").hidden = !q.code;
+  if (q.code) $("code").textContent = q.code;                 // a snippet to read, for the code bank
+  const pic = $("picture");
+  if (q.pic) { if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic, { alt: "" }); } }
+  else { pic.hidden = true; pic.dataset.title = ""; }
   $("prompt").classList.toggle("long", q.prompt.length > 30);
   drawMathsBar();
   const need = rightCount(q);
@@ -220,7 +227,7 @@ function render() {
     b.className = `pt-option${o.label.length > 18 ? " long" : ""}`;
     b.setAttribute("role", need > 1 ? "checkbox" : "radio");
     b.setAttribute("aria-checked", String(chosen.includes(i)));
-    b.textContent = o.label;
+    setRich(b, o.label);
     if (reveal) {
       b.disabled = true;
       if (o.right) b.classList.add("right");
@@ -280,9 +287,10 @@ function drawResult(q, last) {
   }
   else v.textContent = mine.change > 0 ? `Right! ${signed(mine.change)}` : `Wrong. ${signed(mine.change)}`;
   $("notes").replaceChildren(...q.notes.map(n => {
-    const li = document.createElement("li"), b = document.createElement("b");
-    b.textContent = n.label;
-    li.append(b, `: ${n.text}`);
+    const li = document.createElement("li"), b = document.createElement("b"), t = document.createElement("span");
+    setRich(b, n.label);
+    setRich(t, `: ${n.text}`);
+    li.append(b, t);
     return li;
   }));
   const verdict = q.offered > q.fair ? "more than it was worth" : q.offered < q.fair ? "less than it was worth" : "about what it was worth";
@@ -494,7 +502,7 @@ function bankLatest(last) {
   if (!q || !mine || !q.key) return;
   const right = mine.pick ? pickedRight(q, picksOf(mine.pick)) : null;
   const key = `${S.level}/${q.key}`;
-  const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, level: S.level };
+  const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
   else if (!right) pile.record("punt", key, payload, "wrong");
   else if (mine.pct <= 20) pile.record("punt", key, payload, "lowStake");

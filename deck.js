@@ -11,6 +11,8 @@ import { QUOTES } from "./quote-bank.js";
 import { tiersOf, withUnit, tierText } from "./quote-engine.js";
 import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { setRich } from "./rich.js";
+import { showPicture } from "./pics.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -80,8 +82,10 @@ function ask() {
   if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
     $("ask").textContent = p.ask || "";
-    $("prompt").textContent = p.prompt;
+    setRich($("prompt"), p.prompt);
     if (p.svg) { $("figure").innerHTML = p.svg; $("figure").hidden = false; }
+    if (p.pic) { const box = document.createElement("div"); box.className = "dk-figure"; $("figure").replaceChildren(box); $("figure").hidden = false; showPicture(box, p.pic); }
+    if (p.code) { const pre = document.createElement("pre"); pre.className = "dk-code"; pre.textContent = p.code; $("figure").replaceChildren(pre); $("figure").hidden = false; }
     options(p.options, p.right, p.need || 1, p.note);
   } else if (it.game === "crates") {
     const p = it.payload;
@@ -111,6 +115,7 @@ function ask() {
     if (!q) { skip(); return; }
     $("ask").textContent = `Quote · an A is ${tierText(q, "A")}`;
     $("prompt").textContent = `${q.q}${q.unit && q.unit !== "year" ? ` (${q.unit})` : ""}`;
+    if (q.pic) { const box = document.createElement("div"); box.className = "dk-figure"; $("figure").replaceChildren(box); $("figure").hidden = false; showPicture(box, q.pic); }
     const wrap = document.createElement("div"); wrap.className = "dk-number";
     const input = document.createElement("input"); input.type = "text"; input.inputMode = "decimal"; input.placeholder = "Your number"; input.autocomplete = "off";
     const go = document.createElement("button"); go.type = "button"; go.textContent = "Answer";
@@ -151,7 +156,7 @@ function options(labels, right, need, note) {
   box.className = `dk-answer${labels.every(l => l.length <= 18) ? " two" : ""}`;
   const buttons = labels.map((label, i) => {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "dk-option"; b.textContent = label; b.setAttribute("role", need > 1 ? "checkbox" : "radio"); b.setAttribute("aria-checked", "false");
+    b.type = "button"; b.className = "dk-option"; setRich(b, label); b.setAttribute("role", need > 1 ? "checkbox" : "radio"); b.setAttribute("aria-checked", "false");
     b.addEventListener("click", () => {
       if (need === 1) { picked = [i]; judge(); return; }
       picked = picked.includes(i) ? picked.filter(x => x !== i) : [...picked, i];
@@ -175,7 +180,7 @@ function settle(right, note) {
   const v = $("verdict");
   v.className = `dk-verdict ${right ? "good" : "bad"}`;
   v.textContent = right ? (after?.learned ? "Right: learned." : `Right: up to the ${PILES[after.pile].name.toLowerCase()} pile, back in ${PILES[after.pile].gap ? gapText(PILES[after.pile].gap) : "a moment"}.`) : "Wrong: back to the ultra-short pile.";
-  $("note").textContent = note || "";
+  setRich($("note"), note || "");
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = session.at + 1 < session.items.length ? "Next" : "Finish";
 }

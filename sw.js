@@ -2,12 +2,13 @@
 // Keeps every file of every game on the device, so the games open and play offline. The version changes with
 // any file, so devices fetch the new set in the background; it waits until the app is off screen to take over
 // (see pwa.js). Requests to other sites (Firebase, for playing together) go straight to the network.
-const VERSION = "c30575fb5dd8";
+const VERSION = "47b6834f07ea";
 const CACHE = `crates-${VERSION}`;
 const FILES = [
   "./",
   "app.js",
   "apps.js",
+  "art-bank.js",
   "bank.js",
   "blend-engine.js",
   "blend.css",
@@ -31,9 +32,11 @@ const FILES = [
   "chart.js",
   "chess-board.js",
   "chess-pieces.js",
+  "chm-bank.js",
   "cities-bank.js",
   "coop.js",
   "core.js",
+  "cs-bank.js",
   "deck.css",
   "deck.html",
   "deck.js",
@@ -42,6 +45,7 @@ const FILES = [
   "delta.css",
   "delta.html",
   "delta.js",
+  "eco-bank.js",
   "flags-bank.js",
   "flags.js",
   "fonts/archivo-latin-ext.woff2",
@@ -67,6 +71,9 @@ const FILES = [
   "parley.html",
   "parley.js",
   "patterns-bank.js",
+  "phil-bank.js",
+  "phy-bank.js",
+  "pics.js",
   "pile.js",
   "pipes-engine.js",
   "pipes.css",
@@ -90,6 +97,8 @@ const FILES = [
   "refinery.html",
   "refinery.js",
   "refining-bank.js",
+  "rel-bank.js",
+  "rich.js",
   "rooms.js",
   "run.js",
   "rush.css",
@@ -112,7 +121,10 @@ const FILES = [
   "survey.js",
   "sync.js",
   "together.js",
+  "vendor/Temml.woff2",
   "vendor/chess.js",
+  "vendor/temml.css",
+  "vendor/temml.min.js",
   "view.js",
   "wine-bank.js",
   "words-bank.js",
@@ -124,19 +136,24 @@ self.addEventListener("install", event => {
 });
 self.addEventListener("activate", event => {
   event.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k.startsWith("crates-") && k !== CACHE && k !== PUZZLES).map(k => caches.delete(k))))
+    .then(keys => Promise.all(keys.filter(k => k.startsWith("crates-") && k !== CACHE && k !== PUZZLES && k !== PICS).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 self.addEventListener("message", event => { if (event.data === "take-over") self.skipWaiting(); });
 // The chess puzzle bands (puzzles/*.txt) are big and rarely change: fetched when a run needs them and kept in a
 // cache of their own, which an app update leaves alone.
-const PUZZLES = "crates-puzzles-1";
+const PUZZLES = "crates-puzzles-1", PICS = "crates-pics-1";
 self.addEventListener("fetch", event => {
   if (event.request.method === "GET" && new URL(event.request.url).pathname.includes("/puzzles/")) {
     event.respondWith(caches.open(PUZZLES).then(cache => cache.match(event.request).then(hit => hit || fetch(event.request).then(res => { if (res.ok) cache.put(event.request, res.clone()); return res; }))));
     return;
   }
   const url = new URL(event.request.url);
+  // pictures from Wikipedia (summaries and thumbnails) are kept once fetched, in a cache of their own
+  if (event.request.method === "GET" && (url.hostname === "en.wikipedia.org" && url.pathname.startsWith("/api/rest_v1/page/summary/") || url.hostname === "upload.wikimedia.org")) {
+    event.respondWith(caches.open(PICS).then(cache => cache.match(event.request).then(hit => hit || fetch(event.request).then(res => { if (res.ok) cache.put(event.request, res.clone()); return res; }))));
+    return;
+  }
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
   event.respondWith(caches.open(CACHE)
     .then(cache => cache.match(event.request, { ignoreSearch: true }))
