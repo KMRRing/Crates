@@ -25,6 +25,7 @@
         <option value="medium">Medium</option>
         <option value="hard">Hard</option>
         <option value="maths">Maths</option>
+        <option value="refining">Refining</option>
       </select>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
@@ -103,11 +104,11 @@
 </dialog>
 
 <dialog id="mathsDlg" class="sheet" aria-label="Maths questions">
-  <div class="pick-head"><h2>Maths questions</h2><button class="btn" type="button" id="mathsClose">Close</button></div>
+  <div class="pick-head"><h2 id="mathsTitle">Questions</h2><button class="btn" type="button" id="mathsClose">Close</button></div>
   <h3>Stages</h3>
   <div id="stagePicks" class="pt-chips"></div>
   <h3>Difficulty</h3>
-  <p class="stats">1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10.</p>
+  <p class="stats" id="mathsNote"></p>
   <div id="diffPicks" class="pt-chips pt-chips-10"></div>
   <p id="mathsCount" class="stats"></p>
   <button class="btn primary wide" type="button" id="mathsGo">Start a run with these</button>

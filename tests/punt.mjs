@@ -7,9 +7,9 @@ new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "
 const P = await import("../punt-gen.js");
 let bad = 0;
 // the maths bank, for the Maths level (every stage and difficulty)
-const M = await import("../maths-bank.js");
-const stages = Object.fromEntries(M.STAGES.map(x => [x.id, x.label]));
-const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages } : null);
+const M = await import("../maths-bank.js"), RF = await import("../refining-bank.js");
+const stages = Object.fromEntries(M.STAGES.map(x => [x.id, x.label])), rfStages = Object.fromEntries(RF.STAGES.map(x => [x.id, x.label]));
+const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages } : lvl === "refining" ? { pool: RF.MATHS, stages: rfStages } : null);
 for (const lvl of Object.keys(P.LEVELS)) {
   let multi = 0, total = 0, overpaid = 0, oddsSeen = [];
   for (let seed = 1; seed <= 40; seed++) {
@@ -44,7 +44,8 @@ for (const lvl of Object.keys(P.LEVELS)) {
       const v = batch.reduce((t, q) => t + q.chance * q.offered, 0) / batch.length;
       if (Math.abs(v - target) > 0.01) { bad++; console.log(`${lvl} endless batch: value ${v.toFixed(3)} (target ${target})`); }
     }
-    if (new Set(qs.map(q => q.key)).size !== qs.length) { bad++; console.log(`${lvl} endless run repeats a clue`); }
+    const pool = mathsFor(lvl)?.pool.length;
+    if (!(pool && pool < qs.length) && new Set(qs.map(q => q.key)).size !== qs.length) { bad++; console.log(`${lvl} endless run repeats a clue`); }   // a small bank cycles by design
   }
   console.log(`${lvl}: 100-question and endless runs all priced at ${target} to a typical player`);
 }

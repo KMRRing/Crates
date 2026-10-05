@@ -4,7 +4,7 @@
 // ratio, for magnitudes; or a number: a step, for years, percentages, counts and the like); tol: the question's own
 // range for "close", a ratio for magnitudes (0.15 = ±15%) and units for steps (3 = ±3 years), which sets how the
 // payout falls off; note (shown after you quote).
-export const CATS = { trade: "Trade", cities: "Cities", wine: "Wine", art: "Art", people: "People", geo: "Geography", markets: "Markets" };
+export const CATS = { trade: "Trade", cities: "Cities", wine: "Wine", art: "Art", people: "People", geo: "Geography", markets: "Markets", refining: "Refining" };
 export const QUOTES = [
 {
 "id": "tr-01",
@@ -1755,5 +1755,245 @@ export const QUOTES = [
 "scale": 25,
 "note": "About 250%, the highest of any major economy.",
 "tol": 3
+},
+{
+"id": "rf-01",
+"cat": "refining",
+"q": "Crude capacity of the Jamnagar refinery complex, the world's largest",
+"unit": "million barrels a day",
+"truth": 1.24,
+"scale": "log",
+"tol": 0.08,
+"note": "About 1.24 million barrels a day across its two refineries."
+},
+{
+"id": "rf-02",
+"cat": "refining",
+"q": "Typical yield of gasoline-range naphtha from an FCC, as a share of feed",
+"unit": "%",
+"truth": 48,
+"scale": 1,
+"tol": 5,
+"note": "Around 45–50% by volume, the unit's main product."
+},
+{
+"id": "rf-03",
+"cat": "refining",
+"q": "Hydrogen a hydrocracker typically consumes",
+"unit": "scf per barrel of feed",
+"truth": 2000,
+"scale": "log",
+"tol": 0.25,
+"note": "About 1,500–2,500 scf a barrel, the refinery's biggest hydrogen user."
+},
+{
+"id": "rf-04",
+"cat": "refining",
+"q": "Hydrogen a catalytic reformer typically makes",
+"unit": "scf per barrel of feed",
+"truth": 1000,
+"scale": "log",
+"tol": 0.25,
+"note": "About 800–1,200 scf a barrel: the refinery's own hydrogen supply."
+},
+{
+"id": "rf-05",
+"cat": "refining",
+"q": "The sulphur limit for road diesel and petrol in the EU",
+"unit": "ppm",
+"truth": 10,
+"scale": 1,
+"tol": 2,
+"note": "10 ppm since 2009."
+},
+{
+"id": "rf-06",
+"cat": "refining",
+"q": "The sulphur limit for marine fuel under IMO 2020, outside emission control areas",
+"unit": "%",
+"truth": 0.5,
+"scale": 1,
+"tol": 0.1,
+"note": "0.5%, down from 3.5%, from 1 January 2020."
+},
+{
+"id": "rf-07",
+"cat": "refining",
+"q": "Minimum cetane number for EN 590 diesel",
+"unit": "cetane",
+"truth": 51,
+"scale": 1,
+"tol": 2,
+"note": "51."
+},
+{
+"id": "rf-08",
+"cat": "refining",
+"q": "Research octane of a typical reformate",
+"unit": "RON",
+"truth": 100,
+"scale": 1,
+"tol": 3,
+"note": "About 98–102, the pool's octane backbone."
+},
+{
+"id": "rf-09",
+"cat": "refining",
+"q": "Research octane of straight-run light naphtha",
+"unit": "RON",
+"truth": 70,
+"scale": 1,
+"tol": 4,
+"note": "About 65–72: too low to blend as it is."
+},
+{
+"id": "rf-10",
+"cat": "refining",
+"q": "Cetane number of light cycle oil from an FCC",
+"unit": "cetane",
+"truth": 25,
+"scale": 1,
+"tol": 4,
+"note": "About 20–30: aromatic, and a drag on the diesel pool."
+},
+{
+"id": "rf-11",
+"cat": "refining",
+"q": "The maximum FAME content of EN 590 diesel (B7)",
+"unit": "%",
+"truth": 7,
+"scale": 1,
+"tol": 1,
+"note": "7% by volume."
+},
+{
+"id": "rf-12",
+"cat": "refining",
+"q": "The maximum ethanol content of E10 petrol",
+"unit": "%",
+"truth": 10,
+"scale": 1,
+"tol": 1,
+"note": "10% by volume."
+},
+{
+"id": "rf-13",
+"cat": "refining",
+"q": "Hydrogen an HVO unit typically consumes",
+"unit": "scf per barrel of feed",
+"truth": 3000,
+"scale": "log",
+"tol": 0.25,
+"note": "About 2,500–3,500 scf a barrel: oxygen removal and saturation."
+},
+{
+"id": "rf-14",
+"cat": "refining",
+"q": "Typical HVO yield from vegetable oil, by volume",
+"unit": "%",
+"truth": 85,
+"scale": 1,
+"tol": 4,
+"note": "About 85%, plus propane, naphtha and water."
+},
+{
+"id": "rf-15",
+"cat": "refining",
+"q": "Operating temperature of a crude distillation furnace outlet",
+"unit": "°C",
+"truth": 360,
+"scale": 1,
+"tol": 20,
+"note": "About 350–370 °C: hotter and the crude cracks."
+},
+{
+"id": "rf-16",
+"cat": "refining",
+"q": "Share of a typical FCC feed that ends up as coke on the catalyst",
+"unit": "%",
+"truth": 5,
+"scale": 1,
+"tol": 1.5,
+"note": "About 4–6%, burned off in the regenerator to heat the unit."
+},
+{
+"id": "rf-17",
+"cat": "refining",
+"q": "Typical pressure of a hydrocracker",
+"unit": "bar",
+"truth": 150,
+"scale": "log",
+"tol": 0.2,
+"note": "About 100–200 bar."
+},
+{
+"id": "rf-18",
+"cat": "refining",
+"q": "Number of oil refineries operating in Europe (EU plus the UK and Norway) in 2023",
+"unit": "refineries",
+"truth": 80,
+"scale": "log",
+"tol": 0.12,
+"note": "About 80, down from over 100 in 2009."
+},
+{
+"id": "rf-19",
+"cat": "refining",
+"q": "Global refining capacity in 2023",
+"unit": "million barrels a day",
+"truth": 103,
+"scale": "log",
+"tol": 0.05,
+"note": "About 103 million barrels a day."
+},
+{
+"id": "rf-20",
+"cat": "refining",
+"q": "The Nelson complexity index of a simple hydroskimming refinery",
+"unit": "index",
+"truth": 3,
+"scale": 1,
+"tol": 1,
+"note": "About 2–4; a coking refinery scores 10 or more."
+},
+{
+"id": "rf-21",
+"cat": "refining",
+"q": "Typical propylene yield from an FCC",
+"unit": "%",
+"truth": 5,
+"scale": 1,
+"tol": 1.5,
+"note": "About 4–6% by volume, more with ZSM-5 additive."
+},
+{
+"id": "rf-22",
+"cat": "refining",
+"q": "Research octane of alkylate",
+"unit": "RON",
+"truth": 95,
+"scale": 1,
+"tol": 3,
+"note": "About 93–97, with low vapour pressure and no aromatics."
+},
+{
+"id": "rf-23",
+"cat": "refining",
+"q": "Typical density of HVO",
+"unit": "kg/m³",
+"truth": 780,
+"scale": 1,
+"tol": 10,
+"note": "About 780 kg/m³, below the EN 590 minimum of 820 for pure diesel."
+},
+{
+"id": "rf-24",
+"cat": "refining",
+"q": "Typical petroleum coke yield from a delayed coker on vacuum residue",
+"unit": "%",
+"truth": 25,
+"scale": 1,
+"tol": 4,
+"note": "About 20–30% by weight."
 }
 ];
