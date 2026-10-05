@@ -27,12 +27,12 @@ const mix = (a, b) => (Math.imul(a ^ 0x9E3779B1, 0x85EBCA6B) ^ Math.imul(b + 1, 
 /** How hard round r is: the stack's size, colours, time on screen, view and how many questions. */
 export function levelOf(r) {
   return {
-    x: Math.min(5, 3 + Math.floor((r - 1) / 3)),
-    y: Math.min(4, 2 + Math.floor((r - 1) / 4)),
-    z: Math.min(4, 2 + Math.floor((r - 1) / 5)),
-    colours: Math.min(COLOURS.length, 3 + Math.floor((r - 1) / 2)),
-    exposure: Math.max(2500, 6500 - 350 * (r - 1)),           // ms the stack shows
-    questions: r < 4 ? 1 : 2,
+    x: Math.min(5, 3 + Math.floor((r - 1) / 4)),
+    y: Math.min(4, 2 + Math.floor((r - 1) / 6)),
+    z: Math.min(4, 2 + Math.floor((r - 1) / 7)),
+    colours: Math.min(COLOURS.length, 3 + Math.floor((r - 1) / 4)),
+    exposure: Math.max(3500, 8000 - 300 * (r - 1)),           // ms the stack holds once the last container has landed
+    questions: r < 6 ? 1 : 2,
     change: r % 5 === 0,                                        // every fifth round: spot the change
   };
 }
@@ -56,8 +56,10 @@ const count = (cells, pred) => { let n = 0; each(cells, (x, y, z, c) => { if (pr
 // The whole-stack view hides inner containers. Which ones show is settled the way the screen settles it: the cubes
 // are drawn back to front onto a small raster of ids, and a cube is visible if any of its pixels survive.
 const ISO = { w: 0.866, h: 0.5 };
-/** Screen position (in cube units) of the corner of cell (x, y, z) as the page draws it. */
-export const isoPoint = (x, y, z) => ({ sx: (x - y) * ISO.w, sy: (x + y) * ISO.h - z });
+/** A container's proportions: length along x, width along y, height along z, in cell units. */
+export const BOX = { L: 1.9, W: 1, H: 0.95 };
+/** Screen position of the corner of cell (x, y, z) as the page draws it: cells are container-sized. */
+export const isoPoint = (x, y, z) => ({ sx: (x * BOX.L - y * BOX.W) * ISO.w, sy: (x * BOX.L + y * BOX.W) * ISO.h - z * BOX.H });
 /** The three faces of a cube as polygons in cube units: top, left (the +y face), right (the +x face). */
 export function cubeFaces(x, y, z) {
   const p = (dx, dy, dz) => { const q = isoPoint(x + dx, y + dy, z + dz); return [q.sx, q.sy]; };

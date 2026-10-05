@@ -1,6 +1,6 @@
 // Manifest: a stack of containers is shown, then it's gone and you're asked about it. The engine
 // (manifest-engine.js) makes the rounds; this file shows the views and takes the answers.
-import { LIVES, COLOURS, VIEWS, makeRound, points, cubeFaces, drawOrder, isoPoint, visibleSet } from "./manifest-engine.js";
+import { LIVES, COLOURS, VIEWS, makeRound, points, cubeFaces, drawOrder, isoPoint, visibleSet, BOX } from "./manifest-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
@@ -152,7 +152,7 @@ function dropTimes(cells, order) {
   const X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
   const times = {};
   let k = 0, last = 0;
-  const stagger = 45, pause = 950;
+  const stagger = 45, pause = 1300;
   for (const cube of drawOrder(cells)) {
     const key = `${cube.x},${cube.y},${cube.z}`;
     let at;
@@ -210,6 +210,20 @@ function stage(cells, opts) {
       if (opts.tap) poly.addEventListener("click", () => opts.tap(key));
       g.appendChild(poly);
     }
+    // the details that make a box a container: corrugations along the long side, doors on the end, roof ridges
+    const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const lineOn = (face, t0, t1, from, to, attrs) => {   // a line across a face between two edges, at fractions along them
+      const a = lerp(face[from[0]], face[from[1]], t0), b = lerp(face[to[0]], face[to[1]], t1);
+      g.appendChild(el("line", { x1: P(a).split(",")[0], y1: P(a).split(",")[1], x2: P(b).split(",")[0], y2: P(b).split(",")[1], ...attrs }));
+    };
+    const ink = { stroke: "rgba(0,0,0,.28)", "stroke-width": 0.9 };
+    const L = faces.left;                                   // corners: bottom-near, bottom-far, top-far, top-near along x
+    for (let i = 1; i < 8; i++) lineOn(L, i / 8, i / 8, [0, 1], [3, 2], ink);
+    const R = faces.right;                                   // the end: two doors with a centre split and handles
+    lineOn(R, 0.5, 0.5, [0, 1], [3, 2], { stroke: "rgba(0,0,0,.45)", "stroke-width": 1.2 });
+    lineOn(R, 0.4, 0.4, [0, 1], [3, 2], ink); lineOn(R, 0.6, 0.6, [0, 1], [3, 2], ink);
+    const T = faces.top;
+    for (const t of [0.33, 0.66]) lineOn(T, t, t, [0, 3], [1, 2], { stroke: "rgba(0,0,0,.14)", "stroke-width": 0.9 });
     if (markKey === key && (!visible || visible.has(key))) g.appendChild(el("polygon", { points: faces.top.map(P).join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5 }));
     svg.appendChild(g);
   }
