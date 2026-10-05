@@ -245,9 +245,20 @@ function bothAnswers(e) {
   const who = i => (i === ME ? "you" : name(i));
   return `${who(e.p)} ${answerWord(aboutAsker)} · ${who(e.target)} ${answerWord(aboutTarget)}`;
 }
-// How much each kind of line matters when a turn has more than the seat can show: losses and the answers first.
-const KEEP = { bad: 5, answer: 5, ask: 4, act: 4, bid: 4, free: 2, private: 1 };
-/** A turn as at most five short lines, { text, cls }, in the order things happened. */
+// How much each kind of line matters when a turn has more than its seat can show: losses first, then the move and what
+// came of it, then a question with its answers (they go together), then the bid (the middle of the table shows it too),
+// and last a Fixer reroll.
+const KEEP = { bad: 6, act: 5, answer: 4, ask: 4, bid: 3, free: 2 };
+const MAX_LINES = 7;
+/** Where the least telling of a turn's lines starts, by their kinds, and how many go with it: a question takes its
+ * answers along, so neither is left without the other. */
+function weakest(kinds) {
+  const i = kinds.reduce((lo, k, j) => (KEEP[k] < KEEP[kinds[lo]] ? j : lo), 0);
+  if (kinds[i] === "ask" && kinds[i + 1] === "answer") return [i, 2];
+  if (kinds[i] === "answer" && kinds[i - 1] === "ask") return [i - 1, 2];
+  return [i, 1];
+}
+/** A turn as at most seven short lines, { text, cls }, in the order things happened. */
 function turnLines(turn) {
   const who = i => (i === ME ? "you" : name(i));
   const out = [];
@@ -274,7 +285,7 @@ function turnLines(turn) {
       case "ask": {
         const both = bothAnswers(raw);
         out.push({ text: `Asked ${who(e.target)}: ${shortQuestion(e.question)}`, cls: "ask" });
-        out.push({ text: both || "answers private", cls: both ? "answer" : "private" });
+        if (both) out.push({ text: both, cls: "answer" });   // between two others, the answers are theirs: no line for them
         break;
       }
       case "bid": out.push({ text: `Bid ${e.q}×${faceLabel(e.f)}`, cls: "bid" }); break;
@@ -285,7 +296,7 @@ function turnLines(turn) {
   }
   // a Fixer reroll that went through quietly rides on the move's line
   if (fixer && out[0]?.cls === "free" && out[0].text === "Fixer reroll" && out[1]?.cls === "act") { out[1].text = `Fixer · ${out[1].text}`; out.shift(); }
-  while (out.length > 5) out.splice(out.reduce((lo, ln, k) => (KEEP[ln.cls] < KEEP[out[lo].cls] ? k : lo), 0), 1);
+  while (out.length > MAX_LINES) out.splice(...weakest(out.map(ln => ln.cls)));
   return out;
 }
 /** Each player's latest turn, by seat. */
@@ -305,6 +316,7 @@ function turnLog(turn, p) {
   lines.forEach((ln, k) => {
     const row = document.createElement("div");
     row.className = `ct-log-line ${ln.cls}${k >= before ? " fresh" : ""}`;
+    row.dataset.kind = ln.cls;
     row.textContent = row.title = ln.text;
     box.appendChild(row);
   });
@@ -349,6 +361,12 @@ function renderSeats() {
     seat.append(plaque, dice, turnLog(turns[p.i], p.i));
     return seat;
   }));
+  // a long line wraps onto two: rather than cut the last one off part-way, drop whole lines, least telling first, until it fits
+  for (const box of $("seats").querySelectorAll(".ct-log"))
+    while (box.scrollHeight > box.clientHeight + 1 && box.children.length > 1) {
+      const [at, n] = weakest([...box.children].map(r => r.dataset.kind));
+      for (let k = 0; k < n; k++) box.children[at].remove();
+    }
 }
 
 // ---------- the middle of the table ----------

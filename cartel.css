@@ -46,14 +46,13 @@
 @media (prefers-reduced-motion: reduce) { .ct-seat.targetable { animation: none; } }
 .ct-plaque { text-align: center; line-height: 1.1; min-width: 0; max-width: 100%; }
 .ct-seat .ct-plaque b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* a seat's last turn, five short lines at most, kept until the player's next turn starts */
-.ct-log { width: 100%; height: calc(5 * 1.2 * .66rem); display: grid; align-content: start; gap: 0; overflow: hidden; text-align: left; }
+/* a seat's last turn, seven short lines at most, kept until the player's next turn starts */
+.ct-log { width: 100%; height: calc(7 * 1.2 * .66rem); display: grid; align-content: start; gap: 0; overflow: hidden; text-align: left; }
 .ct-log-line { font-size: .66rem; line-height: 1.2; font-weight: 650; overflow-wrap: anywhere; }
 .ct-log-line.act { color: #F6EEE6; }
 .ct-log-line.free { color: #F6EEE6; opacity: .75; }
 .ct-log-line.ask { color: #E9C46A; }
 .ct-log-line.answer { color: #E9C46A; font-weight: 800; }
-.ct-log-line.private { color: #E9C46A; opacity: .6; font-style: italic; }
 .ct-log-line.bid { color: #F6EEE6; font-weight: 800; }
 .ct-log-line.bad { color: #FF9C8A; font-weight: 800; }
 .ct-log-line.fresh { animation: ct-in .35s ease-out; }
