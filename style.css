@@ -175,6 +175,11 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .app-dots { font-size: min(2.2rem, 32cqh); font-weight: 800; line-height: 1; color: var(--ink-soft); }
 .app-logo { flex: none; width: min(3rem, 42cqh); height: min(3rem, 42cqh); display: grid; place-items: center; }
 .app-logo svg { width: 94%; height: 94%; }
+/* the logos' brass wire (apps.js draws each stroke at its width times --wire): fine, as Deco linework, except on the
+   selected game (the one you're in, or a tile under your finger or pointer), where it's drawn at full weight */
+.app-logo, .mark-icon { --wire: var(--wire-fine, .55); }
+.app-row.cur .app-logo, .app-row:hover .app-logo, .app-row:active .app-logo, .app-row:focus-visible .app-logo { --wire: 1; }
+.app-logo svg *, .mark-icon svg * { transition: stroke-width .15s ease; }
 .app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; line-height: 1.1; }
 .app-now { font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .05rem .45rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); }
 @container (max-height: 6.6rem) { .app-now { display: none; } }

@@ -3,7 +3,8 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
-// Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
+// Every logo is cloisonné: its game's enamel (--<game>-logo-tint) inside brass wire (--<game>-logo-edge), the mark drawn in
+// the wire. Each stroke is drawn at the width below times --wire (wire(), at the end of APPS; style.css sets it).
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
   <path d="M2.6 6.6H17.4M2.6 13.4H17.4M5 13.4L15 6.6" fill="none" stroke="var(--cr-logo-edge)" stroke-width="1.6" stroke-linecap="round"/></svg>`;
@@ -126,6 +127,8 @@ const HARBOUR_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="
   <path d="M10 1.2C12.7 2.9 13.7 5.2 13.7 7.4V16.8Q13.7 18.6 11.9 18.6H8.1Q6.3 18.6 6.3 16.8V7.4C6.3 5.2 7.3 2.9 10 1.2Z" fill="var(--hb-logo-tint)" stroke="var(--hb-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
   <rect x="7.6" y="14.3" width="4.8" height="2.7" rx=".6" fill="var(--hb-logo-edge)"/>
   <g fill="var(--hb-logo-edge)"><circle cx="10" cy="6.3" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="10" cy="11.7" r="1"/></g></g></svg>`;
+/** A logo whose strokes follow --wire: fine brass linework by default, full weight on the selected game (style.css). */
+function wire(svg) { return svg.replace(/stroke-width="([\d.]+)"/g, 'style="stroke-width: calc($1 * var(--wire, 1))"'); }
 export const APPS = [
   { id: "crates", name: "Crates", href: "./crates.html", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -145,7 +148,7 @@ export const APPS = [
   { id: "deck", name: "Deck", href: "./deck.html", logo: DECK_LOGO },
   { id: "parley", name: "Parley", href: "./parley.html", logo: PARLEY_LOGO },
   { id: "brut", name: "Brut", href: "./brut.html", logo: BRUT_LOGO, more: true },
-];
+].map(a => ({ ...a, logo: wire(a.logo) }));
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
