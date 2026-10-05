@@ -14,7 +14,7 @@
 .pa-go:disabled { opacity: .45; cursor: default; }
 .pa-go[hidden] { display: none; }
 .pa-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }
-.pa-units { display: grid; gap: .35rem; }
+.pa-units { display: grid; gap: .35rem; align-content: start; }
 .pa-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 12px; background: var(--sheet); }
 .pa-unit b { font-weight: 800; }
 .pa-unit small { display: block; color: var(--ink-soft); font-size: .8rem; }
@@ -24,9 +24,10 @@
 .pa-unit button:disabled { opacity: .4; cursor: default; }
 .pa-unit.locked { opacity: .55; }
 
-.pa-session { display: grid; gap: .55rem; }
+.pa-session { gap: .55rem; }
+.pa-read { display: grid; gap: .55rem; align-content: start; }
 .pa-head { display: flex; justify-content: space-between; align-items: center; font-size: .85rem; color: var(--ink-soft); font-weight: 700; }
-.pa-card { padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; }
+.pa-card { padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; align-content: start; }
 .pa-card .big { font-size: 2.1rem; font-weight: 800; line-height: 1.15; }
 .pa-card .big.hanzi { font-size: 2.7rem; }
 .pa-card .py { font-size: 1.15rem; color: var(--pa-in); font-weight: 750; }

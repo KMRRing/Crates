@@ -16,22 +16,24 @@
 .pi-gauge .bar { width: 54px; height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
 .pi-gauge .bar i { display: block; height: 100%; width: 100%; border-radius: 0; transition: width .2s; }
 
-.pi-stage { padding: .7rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .55rem; }
+.pi-stage { padding: .7rem; border-radius: 20px; background: var(--sheet); gap: .55rem; }
 .pi-status { margin: 0; font-size: 1rem; font-weight: 800; min-height: 1.3em; }
-.pi-board { width: 100%; border-radius: 14px; overflow: hidden; background: var(--pi-ground); }
-.pi-board, .pi-board svg { display: block; width: 100%; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.pi-board svg { height: auto; }
+/* the board: as big as the room under the status line allows, keeping its shape (--aspect is its width over height) */
+.pi-fit { width: 100%; }
+.pi-board { width: min(100cqw, calc(100cqh * var(--aspect, .714))); border-radius: 14px; overflow: hidden; background: var(--pi-ground); }
+.pi-board, .pi-board svg { display: block; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.pi-board svg { width: 100%; height: auto; }
 .pi-board .pi-tile { cursor: pointer; }
 .pi-board .pi-tile.fixed, .pi-board .pi-tile.locked { cursor: default; }
 .pi-board .pipe { stroke: var(--pi-pipe); stroke-linecap: butt; fill: none; }
 .pi-board .pipe-dark { stroke: var(--pi-pipe-dark); fill: none; }
 .pi-board .flow { fill: none; stroke-linecap: butt; }
-.pi-actions { display: grid; gap: .45rem; }
+/* the buttons and the note keep their room whether or not they're showing, so the board never changes size mid-level */
+.pi-actions { display: grid; gap: .45rem; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-height: 48px; }
 .pi-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--pi-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
 .pi-go.quiet { background: var(--yard); color: var(--ink); }
 .pi-go[hidden] { display: none; }
-.pi-note { margin: 0; font-size: .88rem; color: var(--ink-soft); line-height: 1.35; }
-.pi-note:empty { display: none; }
+.pi-note { margin: 0; font-size: .86rem; color: var(--ink-soft); line-height: 1.3; height: 3.9em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pi-big { font-size: 3rem; font-weight: 800; color: var(--pi-in); text-align: center; margin: .2rem 0; }
 .pi-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
 .pi-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }

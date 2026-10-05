@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="blend.css">
 </head>
 <body>
-<div id="app" class="blend">
+<div id="app" class="blend fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon bl-mark" aria-hidden="true"></span>Blend</button></h1>
@@ -26,31 +26,26 @@
   </header>
 
   <section class="bl-order">
-    <h2 id="title"></h2>
+    <div class="bl-order-head"><h2 id="title"></h2><button class="bl-about" type="button" id="aboutBtn">About</button></div>
     <p class="bl-product" id="product"></p>
-    <p class="bl-intro" id="intro"></p>
+    <p class="bl-intro" id="intro" hidden></p>
   </section>
-
   <section class="bl-margin">
     <div class="bl-margin-row"><span>Margin</span><b id="margin"></b><small id="par"></small></div>
     <div class="bl-bar"><i id="marginBar"></i><em id="parTick"></em></div>
     <p class="bl-costline" id="costline"></p>
-    <p class="bl-verdict" id="verdict"></p>
     <div class="bl-buttons">
+      <p class="bl-verdict" id="verdict"></p>
       <button class="bl-go quiet" type="button" id="hintBtn">Hint</button>
       <button class="bl-go" type="button" id="certifyBtn" disabled>Certify</button>
     </div>
   </section>
-
-  <section class="bl-section">
-    <h3>Specification <small>tap a line for why</small></h3>
-    <table class="bl-spec" id="spec"></table>
+  <section class="bl-spec-box" aria-label="Specification: tap a line for why">
+    <div id="spec" class="bl-chips"></div>
   </section>
-
-  <section class="bl-section">
-    <h3>Tank farm <small>tap a name for its note</small></h3>
-    <div id="components" class="bl-components"></div>
-    <p class="bl-total" id="total"></p>
+  <section class="bl-farm fit-col fit-grow" aria-label="Tank farm">
+    <div class="bl-farm-head"><h3>Tank farm <small>tap a name for its note</small></h3><p class="bl-total" id="total"></p></div>
+    <div id="components" class="bl-components fit-grow fit-scroll"></div>
   </section>
 </div>
 

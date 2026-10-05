@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="refinery.css">
 </head>
 <body>
-<div id="app" class="refinery">
+<div id="app" class="refinery fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon rf-mark" aria-hidden="true"></span>Refinery</button></h1>
@@ -26,35 +26,32 @@
   </header>
 
   <section class="rf-brief">
-    <h2 id="title"></h2>
-    <p id="lesson"></p>
-    <p id="intro" class="rf-intro"></p>
+    <div class="rf-brief-head"><h2 id="title"></h2><button class="rf-about" type="button" id="aboutBtn">About</button></div>
+    <p id="lesson" class="rf-lesson"></p>
+    <p id="intro" class="rf-intro" hidden></p>
   </section>
-
   <section class="rf-margin">
     <div class="rf-margin-row"><span>Margin</span><b id="margin"></b><small id="par"></small></div>
     <div class="rf-bar"><i id="marginBar"></i><em id="parTick"></em></div>
-    <p id="verdict" class="rf-verdict"></p>
     <div class="rf-buttons">
+      <p id="verdict" class="rf-verdict"></p>
       <button class="rf-go quiet" type="button" id="hintBtn">Hint</button>
       <button class="rf-go" type="button" id="nextBtn" hidden>Next level</button>
     </div>
   </section>
-
-  <section class="rf-section">
-    <h3>Units <small>tap one for its card</small></h3>
+  <section class="rf-unitbar" aria-label="Units: tap one for its card">
     <div id="units" class="rf-chips"></div>
     <p id="h2" class="rf-h2"></p>
   </section>
-
-  <section class="rf-section">
-    <h3>Streams <small>tap a destination to change it</small></h3>
+  <div class="rf-tabs" role="tablist" aria-label="Streams or pools">
+    <button type="button" role="tab" id="tabStreams" aria-selected="true" aria-controls="paneStreams">Streams</button>
+    <button type="button" role="tab" id="tabPools" aria-selected="false" aria-controls="panePools">Pools</button>
+  </div>
+  <section class="rf-pane fit-grow fit-scroll" id="paneStreams" role="tabpanel" aria-label="Streams: tap a destination to change it">
     <div id="crudePick" class="rf-crude" hidden></div>
     <div id="streams" class="rf-streams"></div>
   </section>
-
-  <section class="rf-section">
-    <h3>Pools</h3>
+  <section class="rf-pane fit-grow fit-scroll" id="panePools" role="tabpanel" aria-label="Pools" hidden>
     <div id="pools" class="rf-pools"></div>
     <ul id="issues" class="rf-issues"></ul>
   </section>

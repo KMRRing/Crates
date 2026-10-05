@@ -11,7 +11,9 @@
 .br-stages li.done { background: var(--br-in-soft); color: var(--br-in); }
 .br-stages li.now { background: var(--br-in); color: #fff; }
 .br-stages li small { display: block; font-weight: 700; opacity: .8; }
-.br-pour { display: grid; grid-template-columns: 6.5rem 1fr; gap: .7rem; align-items: start; padding: .7rem; border-radius: 16px; background: var(--sheet); }
+/* the glass and its note take the height left; a long note scrolls inside, so nothing below it moves */
+.br-pour { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); gap: .7rem; align-items: start; padding: .7rem; border-radius: 16px; background: var(--sheet); }
+.br-pour .br-note { max-height: 100%; align-self: stretch; align-content: start; }
 .br-glass-box svg { width: 100%; height: auto; display: block; }
 .br-glass-box .bubble { fill: rgba(255, 255, 255, .85); animation: br-rise 2.4s linear infinite; }
 @keyframes br-rise { from { transform: translateY(0); opacity: .9; } to { transform: translateY(-46px); opacity: 0; } }
@@ -27,13 +29,13 @@
 .br-line.good { color: var(--br-good); }
 .br-line.bad { color: var(--br-bad); }
 .br-options { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
-.br-option { min-height: 54px; padding: .45rem .55rem; border-radius: 12px; border: 1.5px solid var(--br-edge); background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.br-option { min-height: 50px; padding: .45rem .55rem; border-radius: 12px; border: 1.5px solid var(--br-edge); background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .br-option b { display: block; font-weight: 800; font-size: .95rem; line-height: 1.2; }
 .br-option span { display: block; font-size: .76rem; color: var(--ink-soft); margin-top: .1rem; }
 .br-option.struck { opacity: .38; text-decoration: line-through; }
 .br-option.right { border-color: var(--br-good); background: color-mix(in srgb, var(--br-good) 15%, var(--sheet)); }
 .br-option:disabled { cursor: default; }
-.br-buttons { margin-top: .55rem; display: grid; grid-template-columns: 1fr; gap: .4rem; }
+.br-buttons { margin-top: .5rem; min-height: 48px; display: grid; grid-template-columns: 1fr; gap: .4rem; }
 .br-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--br-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
 .br-go.quiet { background: var(--sheet); color: var(--ink); border: 1.5px solid var(--br-edge); }
 .br-go:disabled { opacity: .45; cursor: default; }
@@ -53,7 +55,7 @@
 .br-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
 .br-unit .bar i { display: block; height: 100%; background: var(--br-in); }
 .br-unit button { min-height: 36px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--br-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
-.br-card { padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .4rem; font-size: 1.05rem; line-height: 1.45; }
+.br-card { align-content: start; padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .4rem; font-size: 1.05rem; line-height: 1.45; }
 .br-card .fact { font-size: 1.2rem; font-weight: 800; line-height: 1.35; }
 .br-card .q { font-size: 1.15rem; font-weight: 800; }
 .br-card .ask { font-size: .82rem; color: var(--ink-soft); }

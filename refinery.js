@@ -145,6 +145,27 @@ function render() {
   drawUnits();
   drawStreams();
   drawPools();
+  // the pools tab says how the pools stand, so the routing tab shows it too
+  const pt = $("tabPools");
+  pt.textContent = offSpec.length ? `Pools · ${offSpec.length} off spec` : "Pools · in spec";
+  pt.classList.toggle("off", offSpec.length > 0);
+}
+/** Streams or pools: one list at a time takes the room under the margin, scrolling inside itself. */
+let tab = "streams";
+function showTab(t) {
+  tab = t;
+  $("tabStreams").setAttribute("aria-selected", String(t === "streams"));
+  $("tabPools").setAttribute("aria-selected", String(t === "pools"));
+  $("paneStreams").hidden = t !== "streams";
+  $("panePools").hidden = t !== "pools";
+}
+/** The level's story, behind the About button. */
+function about() {
+  $("cardTitle").textContent = $("title").textContent;
+  const body = $("cardBody");
+  body.replaceChildren();
+  for (const id of ["lesson", "intro"]) { const p = document.createElement("p"); p.textContent = $(id).textContent; body.appendChild(p); }
+  if (!$("cardDlg").open) $("cardDlg").showModal();
 }
 function drawUnits() {
   const box = $("units");
@@ -348,6 +369,9 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("pickClose").addEventListener("click", () => $("pickDlg").close());
 $("cardClose").addEventListener("click", () => $("cardDlg").close());
+$("tabStreams").addEventListener("click", () => showTab("streams"));
+$("tabPools").addEventListener("click", () => showTab("pools"));
+$("aboutBtn").addEventListener("click", about);
 $("hintBtn").addEventListener("click", hint);
 
 // for tests and debugging

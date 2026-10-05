@@ -85,15 +85,17 @@ function render() {
   else { v.className = "bl-verdict"; v.textContent = `On spec. ${euro(par.margin - m)}/m³ short of par: a cheaper blend passes too.`; }
   $("certifyBtn").disabled = !passing;
   $("certifyBtn").textContent = S.done[L.id] ? "Certified ✓" : "Certify";
-  // the specification
-  const table = $("spec");
-  table.replaceChildren();
+  // the specification, a chip a line in the spec's order, so nothing moves while you blend: red is off spec
+  const chips = $("spec");
+  chips.replaceChildren();
   for (const x of verdict) {
-    const tr = document.createElement("tr");
-    tr.className = x.value == null ? "" : x.ok ? "ok" : "no";
-    tr.innerHTML = `<td class="name">${PROPS[x.p].name}</td><td class="limit">${limitText(x.p, { min: x.min, max: x.max })}</td><td class="value">${fmt(x.p, x.value)}${x.value != null && PROPS[x.p].unit && PROPS[x.p].unit !== "ppm" ? ` ${PROPS[x.p].unit}` : x.value != null && PROPS[x.p].unit === "ppm" && x.value < 1000 ? " ppm" : ""} ${x.value == null ? "" : x.ok ? "✓" : "✗"}</td>`;
-    tr.addEventListener("click", () => why(x.p));
-    table.appendChild(tr);
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `bl-chip ${x.value == null ? "" : x.ok ? "ok" : "no"}`;
+    chip.innerHTML = `${PROPS[x.p].name} <b>${valueText(x)}</b>${x.value == null ? "" : x.ok ? " ✓" : " ✗"}`;
+    chip.setAttribute("aria-label", `${PROPS[x.p].name}: ${valueText(x)}, limit ${limitText(x.p, { min: x.min, max: x.max })}, ${x.ok ? "on spec" : "off spec"}`);
+    chip.addEventListener("click", () => why(x.p, x));
+    chips.appendChild(chip);
   }
   // the tank farm
   const box = $("components");
@@ -124,9 +126,17 @@ function render() {
   t.className = `bl-total${total === 100 ? "" : " no"}`;
   t.textContent = `Total ${total}%${total === 100 ? "" : total > 100 ? ": take some out" : ": fill it up"}`;
 }
-function why(p) {
+/** A spec line's value with its unit: "52 kPa", "8 ppm". */
+const valueText = x => `${fmt(x.p, x.value)}${x.value != null && PROPS[x.p].unit && PROPS[x.p].unit !== "ppm" ? ` ${PROPS[x.p].unit}` : x.value != null && PROPS[x.p].unit === "ppm" && x.value < 1000 ? " ppm" : ""}`;
+function why(p, x = null) {
   $("whyTitle").textContent = PROPS[p].name;
-  $("whyBody").textContent = PROPS[p].why;
+  $("whyBody").textContent = `${x ? `Spec ${limitText(p, { min: x.min, max: x.max })}; this blend ${valueText(x)}${x.value == null ? "" : x.ok ? ", on spec" : ", off spec"}. ` : ""}${PROPS[p].why}`;
+  if (!$("whyDlg").open) $("whyDlg").showModal();
+}
+/** The order's story, behind the About button. */
+function about() {
+  $("whyTitle").textContent = `${L.id}. ${L.title}`;
+  $("whyBody").textContent = $("intro").textContent;
   if (!$("whyDlg").open) $("whyDlg").showModal();
 }
 function whyComponent(id) {
@@ -176,6 +186,7 @@ $("level").addEventListener("change", e => loadLevel(Number(e.target.value)));
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("whyClose").addEventListener("click", () => $("whyDlg").close());
+$("aboutBtn").addEventListener("click", about);
 $("certifyBtn").addEventListener("click", certify);
 $("hintBtn").addEventListener("click", giveHint);
 

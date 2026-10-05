@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="survey.css">
 </head>
 <body>
-<div id="app" class="survey">
+<div id="app" class="survey fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon sv-mark" aria-hidden="true"></span>Survey</button></h1>
@@ -32,8 +32,8 @@
 
   <div class="sv-strip"><span id="brief"></span><span class="sv-credits">Credits <b id="credits"></b></span></div>
 
-  <section class="sv-card">
-    <div id="board" class="sv-board"></div>
+  <section class="sv-card fit-col fit-grow">
+    <div class="sv-fit fit-box fit-grow"><div id="board" class="sv-board"></div></div>
     <div class="sv-tools" id="tools">
       <button class="sv-tool" type="button" data-tool="mark" aria-pressed="true"><b>Mark</b><small>free</small></button>
       <button class="sv-tool" type="button" data-tool="magnet"><b>Magnet</b><small>3 credits</small></button>

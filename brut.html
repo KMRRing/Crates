@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="brut.css">
 </head>
 <body>
-<div id="app" class="brut">
+<div id="app" class="brut fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon br-mark" aria-hidden="true"></span>Brut</button></h1>
@@ -28,12 +28,12 @@
     </div>
   </header>
 
-  <section id="blind" class="br-blind">
+  <section id="blind" class="br-blind fit-col fit-grow">
     <div class="br-head"><span id="flightPos"></span><span class="br-score">Score <b id="score">0</b></span></div>
     <ol class="br-stages" id="stages"></ol>
-    <div class="br-pour">
+    <div class="br-pour fit-grow">
       <div id="glass" class="br-glass-box"></div>
-      <div id="note" class="br-note"></div>
+      <div id="note" class="br-note fit-scroll"></div>
     </div>
     <p class="br-line" id="line"></p>
     <div id="options" class="br-options"></div>
@@ -43,17 +43,17 @@
     </div>
   </section>
 
-  <section id="study" class="br-study" hidden>
-    <div id="studyHome">
+  <section id="study" class="br-study fit-col fit-grow" hidden>
+    <div id="studyHome" class="fit-col fit-grow">
       <p class="br-intro">Twelve units, from the grapes to the trade. Each card is a fact to learn, then a question on it; what you miss comes back until you know it.</p>
       <div class="br-stats" id="stats"></div>
       <button class="br-go" type="button" id="studyBtn">Study</button>
       <h3 class="br-h">Units</h3>
-      <div class="br-units" id="units"></div>
+      <div class="br-units fit-grow fit-scroll" id="units"></div>
     </div>
-    <div id="studyCard" hidden>
+    <div id="studyCard" class="fit-col fit-grow" hidden>
       <div class="br-head"><span id="studyPos"></span><span id="studyKind"></span></div>
-      <div class="br-card" id="card"></div>
+      <div class="br-card fit-grow fit-scroll" id="card"></div>
       <div id="answers" class="br-answers"></div>
       <p class="br-verdict" id="verdict"></p>
       <p class="br-explain" id="explain"></p>

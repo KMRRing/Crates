@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="pipes.css">
 </head>
 <body>
-<div id="app" class="pipes">
+<div id="app" class="pipes fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon pi-mark" aria-hidden="true"></span>Pipes</button></h1>
@@ -29,9 +29,9 @@
   </div>
   <div id="gauges" class="pi-gauges"></div>
 
-  <section class="pi-stage">
+  <section class="pi-stage fit-col fit-grow">
     <p class="pi-status" id="status"></p>
-    <div id="board" class="pi-board"></div>
+    <div class="pi-fit fit-box fit-grow"><div id="board" class="pi-board"></div></div>
     <div class="pi-actions">
       <button class="pi-go quiet" type="button" id="boostBtn" hidden>Pump it: ×4 for a time bonus</button>
       <button class="pi-go" type="button" id="goBtn" hidden></button>

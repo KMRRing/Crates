@@ -141,6 +141,19 @@ dialog.apps-pop .pick-head h2 { font-size: 1.3rem; font-weight: 800; }
 .apps-pop-list { flex: none; grid-auto-rows: 7rem; overflow: visible; }
 .apps-pop-list .app-row { background: var(--yard); }
 .top-right { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+/* A game that fits the screen: the page is exactly the screen's height and never scrolls; its parts share the
+   height (the part marked .fit-grow takes what's left, in the page or in a .fit-col inside it), and anything long
+   scrolls inside its own box. */
+#app.fit-screen { height: 100vh; height: 100svh; box-sizing: border-box; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .6rem);
+  display: flex; flex-direction: column; overflow: hidden; }
+.fit-col { display: flex; flex-direction: column; }
+#app.fit-screen > *, .fit-col > * { flex: none; }
+#app.fit-screen > .fit-grow, .fit-col > .fit-grow { flex: 1 1 auto; min-height: 0; }
+.fit-col[hidden], .fit-grow[hidden], .fit-box[hidden] { display: none; }
+/* a part that scrolls inside itself when its contents are longer than its room */
+.fit-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* a box whose contents size themselves to it (container units: 100cqw × 100cqh is the room they have) */
+.fit-box { container-type: size; display: grid; place-items: center; }
 /* maths from the banks (Temml → MathML) */
 .math { font-size: 1.05em; }
 .math.display { display: block; text-align: center; margin: .35rem 0; }

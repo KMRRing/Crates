@@ -4,27 +4,30 @@
 
 .rf-mark { display: inline-block; }
 .rf-mark svg { width: 100%; height: 100%; display: block; }
-.rf-brief { margin: .5rem 0 .4rem; }
-.rf-brief h2 { margin: 0; font-size: 1.35rem; font-weight: 800; }
-.rf-brief p { margin: .25rem 0 0; color: var(--ink-soft); line-height: 1.4; font-size: .92rem; }
-.rf-brief .rf-intro { color: var(--ink); }
+/* everything fits the screen: the level in two lines (its story behind About), the margin, the units, and then
+   streams or pools, one at a time, taking the rest and scrolling inside */
+.rf-brief { margin: .45rem 0 .4rem; }
+.rf-brief-head { display: flex; align-items: center; gap: .5rem; }
+.rf-brief h2 { margin: 0; font-size: 1.15rem; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-about { flex: none; min-height: 30px; padding: 0 .7rem; border-radius: 999px; border: 1.5px solid var(--rf-edge, #C9D1D5); background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
+.rf-lesson { margin: .15rem 0 0; color: var(--ink-soft); line-height: 1.3; font-size: .86rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-.rf-margin { padding: .8rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .4rem; }
+.rf-margin { padding: .6rem .7rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; }
 .rf-margin-row { display: flex; align-items: baseline; gap: .5rem; }
 .rf-margin-row span { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
-.rf-margin-row b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rf-margin-row b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rf-margin-row b.good { color: var(--rf-good); }
 .rf-margin-row b.bad { color: var(--rf-bad); }
 .rf-margin-row small { margin-left: auto; color: var(--ink-soft); font-weight: 700; }
 .rf-bar { position: relative; height: 8px; border-radius: 4px; background: var(--yard); overflow: visible; }
 .rf-bar i { display: block; height: 100%; border-radius: 4px; background: var(--rf-in); width: 0; transition: width .3s; }
 .rf-bar em { position: absolute; top: -4px; width: 3px; height: 16px; background: var(--ink); border-radius: 2px; }
-.rf-verdict { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+.rf-verdict { margin: 0; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); align-self: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rf-verdict.good { color: var(--rf-good); font-weight: 750; }
-.rf-go { min-height: 46px; border: 0; border-radius: 14px; background: var(--rf-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
+.rf-go { min-height: 42px; padding: 0 .8rem; border: 0; border-radius: 14px; background: var(--rf-in); color: #fff; font: inherit; font-size: 1.02rem; font-weight: 800; cursor: pointer; }
 .rf-go.quiet { background: var(--yard); color: var(--ink); }
-.rf-buttons { display: grid; grid-template-columns: 1fr; gap: .4rem; }
-.rf-buttons:has(#nextBtn:not([hidden])):has(#hintBtn:not([hidden])) { grid-template-columns: 1fr 1fr; }
+.rf-buttons { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; }
+.rf-buttons .rf-go[hidden] { display: none; }
 .rf-pick button b .delta { float: right; font-style: normal; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
 .rf-pick button b .delta.up { color: var(--rf-good); }
 .rf-pick button b .delta.down { color: var(--rf-bad); }
@@ -34,11 +37,19 @@
 .rf-section { margin-top: .9rem; }
 .rf-section h3 { margin: 0 0 .4rem; font-size: 1rem; font-weight: 800; }
 .rf-section h3 small { font-weight: 600; color: var(--ink-soft); font-size: .8rem; margin-left: .3rem; }
-.rf-chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+.rf-unitbar { margin-top: .5rem; }
+.rf-chips { display: flex; flex-wrap: nowrap; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.rf-chips::-webkit-scrollbar { display: none; }
+.rf-chips > * { flex: none; }
+.rf-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; margin: .5rem 0 .4rem; padding: .25rem; border-radius: 12px; background: var(--sheet); }
+.rf-tabs button { min-height: 36px; border: 0; border-radius: 9px; background: none; color: var(--ink-soft); font: inherit; font-size: .9rem; font-weight: 800; cursor: pointer; }
+.rf-tabs button[aria-selected="true"] { background: var(--yard); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
+.rf-tabs button.off { color: var(--rf-bad); }
+.rf-pane { border-radius: 12px; }
 .rf-chip { padding: .35rem .65rem; border-radius: 999px; border: 1.5px solid var(--rf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; }
 .rf-chip.on { border-color: var(--rf-in); background: var(--rf-in-soft); }
 .rf-chip.idle { opacity: .6; }
-.rf-h2 { margin: .4rem 0 0; font-size: .85rem; color: var(--ink-soft); }
+.rf-h2 { margin: .3rem 0 0; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rf-crude { margin: 0 0 .5rem; display: flex; align-items: center; gap: .5rem; font-weight: 750; }
 
 .rf-streams { display: grid; gap: .35rem; }

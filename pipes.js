@@ -122,6 +122,7 @@ function buildBoard() {
   const board = $("board");
   board.replaceChildren();
   const svg = el("svg", { viewBox: `0 0 ${L.w * TILE} ${L.h * TILE}` });
+  board.style.setProperty("--aspect", String(L.w / L.h));           // the board fits the room left, keeping this shape
   for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
     const g = el("g", { transform: `translate(${x * TILE} ${y * TILE})` });
     svg.appendChild(g);
