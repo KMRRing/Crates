@@ -99,6 +99,8 @@ export function bindSwitcher(button, current) {
       <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}</a></li>`).join("")}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
+  // after an update the app reloads: open the games screen again, where Update was pressed
+  try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
   const update = dlg.querySelector("[data-update]");
   update.addEventListener("click", async () => {
     update.disabled = true;

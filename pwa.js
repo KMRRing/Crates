@@ -59,6 +59,7 @@ export async function hardUpdate() {
   // with the store empty, these go to the network and refresh the browser's own copies on the way
   await Promise.all([...urls].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
   for (const reg of (await navigator.serviceWorker?.getRegistrations?.()) || []) await reg.unregister();
+  try { sessionStorage.setItem("crates:games", "1"); } catch { /* private mode */ }   // come back to the games screen
   location.reload();
   return true;
 }
