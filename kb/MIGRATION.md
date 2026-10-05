@@ -4,12 +4,24 @@ Read from the banks: 159 Crates answers with 5526 clue pairs, 415 Chart places,
 172 features, 355 Quote numbers, 225 art, 506 cities, 197 flags, 73 eco, 62 phy, 58 chm, 68 cs, 60 phil, 59 rel, 139 refining Punt questions.
 Written back by tools/build-kb.mjs: identical, every bank (checked before the banks were replaced).
 
-Entities: 4411. Made: 69 country, 90 commodity, 3483 clue, 128 country (from the flags), 65 city, 62 trade-place, 42 wine-place, 69 museum, 47 people-place, 62 geo-place, 32 feature:range, 20 feature:desert, 18 feature:plateau, 33 feature:lake, 49 feature:river, 69 painting, 44 painter, 29 art-movement.
-Links: 6452 (5526 clue, 725 in, 69 painted-by, 63 hangs-in, 69 movement).
+Entities: 4395. Made: 69 country, 90 commodity, 3483 clue, 116 country (from the flags), 65 city, 62 trade-place, 42 wine-place, 69 museum, 47 people-place, 62 geo-place, 32 feature:range, 20 feature:desert, 18 feature:plateau, 28 feature:lake, 50 feature:river, 69 painting, 44 painter, 29 art-movement.
+Links: 6443 (5526 clue, 716 in, 69 painted-by, 63 hangs-in, 69 movement).
 Clue words under more than one answer, now one entity each: 992.
 Clue words that are themselves answers (country ↔ commodity links): 372.
 
-## Merged by name (114): a place and a Crates clue of the same name are one entity
+## Merged by name (130): a place, feature or country and a clue (or Chart's own point) of the same name are one entity
+- the flags' "Belarus" = Crates clue "Belarus"
+- the flags' "Cyprus" = Crates clue "Cyprus"
+- the flags' "Uzbekistan" = Crates clue "Uzbekistan"
+- the flags' "Sri Lanka" = Crates clue "Sri Lanka"
+- the flags' "Myanmar" = Crates clue "Myanmar"
+- the flags' "Guinea" = Crates clue "Guinea"
+- the flags' "Mozambique" = Crates clue "Mozambique"
+- the flags' "Madagascar" = Crates clue "Madagascar"
+- the flags' "Namibia" = Crates clue "Namibia"
+- the flags' "Botswana" = Crates clue "Botswana"
+- the flags' "Bolivia" = Crates clue "Bolivia"
+- the flags' "Nauru" = Crates clue "Nauru"
 - Chart ci-04 "Lagos" = Crates clue "Lagos"
 - Chart ci-07 "Istanbul" = Crates clue "Istanbul"
 - Chart ci-09 "Nairobi" = Crates clue "Nairobi"
@@ -108,7 +120,12 @@ Clue words that are themselves answers (country ↔ commodity links): 372.
 - Chart feature ardennes "The Ardennes" = Crates clue "Ardennes"
 - Chart feature southernalps "The Southern Alps" = Crates clue "Southern Alps"
 - Chart feature atacama "The Atacama" = Crates clue "Atacama"
+- Chart feature baikal "Lake Baikal" = Chart's point "Lake Baikal"
+- Chart feature victoria "Lake Victoria" = Chart's point "Lake Victoria"
+- Chart feature titicaca "Lake Titicaca" = Chart's point "Lake Titicaca"
 - Chart feature balaton "Lake Balaton" = Crates clue "Lake Balaton"
+- Chart feature deadsea "The Dead Sea" = Chart's point "Dead Sea"
+- Chart feature aral "The Aral Sea" = Chart's point "The Aral Sea"
 - Chart feature nile "The Nile" = Crates clue "Nile"
 - Chart feature amazon "The Amazon" = Crates clue "Amazon"
 - Chart feature yangtze "The Yangtze" = Crates clue "Yangtze"
@@ -122,11 +139,36 @@ Clue words that are themselves answers (country ↔ commodity links): 372.
 - Chart feature orinoco "The Orinoco" = Crates clue "Orinoco"
 - Chart feature parana "The Paraná" = Crates clue "Paraná"
 - Chart feature tagus "The Tagus" = Crates clue "Tagus"
-- Chart feature orange "The Orange" = Crates clue "Orange"
 - Chart feature volta "The Volta" = Crates clue "Volta"
 
-## Facts that disagreed (0): the item keeps its own value, nothing changed in the games
-None.
+## Same name, kept apart (5): nothing in the clue says it's the same thing, or one is a country or a painting
+- Chart ci-13 "Singapore" and "Singapore" (country, group:asia): kept apart
+- Chart feature niger "The Niger" and "Niger" (country): kept apart
+- Chart feature orange "The Orange" and "Orange" (a Crates clue): kept apart
+- Chart feature jordan "The Jordan" and "Jordan" (country): kept apart
+- Chart feature senegal "The Senegal" and "Senegal" (country): kept apart
+
+## Facts that disagreed (20): the item keeps its own value, nothing changed in the games
+- Chart feature baikal: Lake Baikal.note is "The deepest lake on Earth at 1,642 m, in Siberia, holding a fifth of the world's unfrozen fresh water, 25 million years old." on the entity, "The deepest (1,642 m) and oldest lake on Earth, holding a fifth of all unfrozen fresh water; the Trans-Siberian skirts its southern shore." here (kept here)
+- Chart feature baikal: Lake Baikal.lat is 53.5 on the entity, 53.51 here (kept here)
+- Chart feature baikal: Lake Baikal.lon is 108 on the entity, 107.92 here (kept here)
+- Chart feature victoria: Lake Victoria.country is "Tanzania" on the entity, "Uganda, Kenya, Tanzania" here (kept here)
+- Chart feature victoria: Lake Victoria.note is "Africa's largest lake and the source of the White Nile, shared by Uganda, Kenya and Tanzania, the size of Ireland." on the entity, "Africa's largest lake and the source of the White Nile; Kampala, Kisumu and Mwanza on its shores." here (kept here)
+- Chart feature victoria: Lake Victoria.lat is -1 on the entity, -1.24 here (kept here)
+- Chart feature victoria: Lake Victoria.lon is 33 on the entity, 33.1 here (kept here)
+- Chart feature titicaca: Lake Titicaca.country is "Peru" on the entity, "Peru, Bolivia" here (kept here)
+- Chart feature titicaca: Lake Titicaca.note is "The highest navigable lake in the world at 3,812 m, between Peru and Bolivia, the Inca's place of creation." on the entity, "The highest navigable lake, 3,812 m, on the Altiplano between Peru and Bolivia." here (kept here)
+- Chart feature titicaca: Lake Titicaca.lat is -15.9 on the entity, -15.98 here (kept here)
+- Chart feature titicaca: Lake Titicaca.lon is -69.3 on the entity, -69.31 here (kept here)
+- Chart feature deadsea: Dead Sea.region is "Asia" on the entity, "Middle East" here (kept here)
+- Chart feature deadsea: Dead Sea.country is "Jordan" on the entity, "Israel, Jordan" here (kept here)
+- Chart feature deadsea: Dead Sea.note is "The salt lake between Israel, Jordan and the West Bank, the lowest point on land at 430 m below sea level, ten times saltier than the ocean; potash is mined from its brine." on the entity, "The lowest point on land, 430 m below sea level, and ten times saltier than the ocean; potash and bromine from its brine; shrinking a metre a year." here (kept here)
+- Chart feature deadsea: Dead Sea.lat is 31.5 on the entity, 31.38 here (kept here)
+- Chart feature deadsea: Dead Sea.lon is 35.5 on the entity, 35.49 here (kept here)
+- Chart feature aral: The Aral Sea.country is "Uzbekistan" on the entity, "Kazakhstan, Uzbekistan" here (kept here)
+- Chart feature aral: The Aral Sea.note is "Once the world's fourth-largest lake, between Kazakhstan and Uzbekistan, drained to a tenth of its size by Soviet cotton irrigation." on the entity, "Once the fourth-largest lake on Earth, drained for cotton to a tenth of its size: the great environmental disaster of the Soviet era." here (kept here)
+- Chart feature aral: The Aral Sea.lat is 45 on the entity, 46.5 here (kept here)
+- Chart feature aral: The Aral Sea.lon is 59.5 on the entity, 60.7 here (kept here)
 
 ## Possibly two things under one name (78): links to two countries (or two commodities) with no aspect in common; check, and split if so
 - Palm oil: Indonesia (agr: The most-produced vegetable oil in the world); Malaysia (agr: The most-produced vegetable oil in the world); Nigeria (agr: The oil palm's West African homeland); Colombia (agr: The biggest grower in the Americas); Thailand (agr: The third-biggest grower, in its south); Ivory Coast (agr: Plantations along the coast); PME (prod: Its feedstock); THG quota (reg: Excluded from counting since 2023)
@@ -221,3 +263,8 @@ None.
 - New Caledonia
 - Venezuela to Chile
 - Bosnia
+
+## Fixed after the move: facts the knowledge base showed to be wrong
+Cross-checking each place's country against the countries it's a Crates clue for found three of Chart's places filed
+in the wrong country (the notes had them right): Geneva (France → Switzerland), Jurong Island (Malaysia → Singapore),
+Kiruna (Russia → Sweden). Fixed in kb/; Chart shows the right country from now on.

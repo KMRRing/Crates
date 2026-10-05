@@ -33,7 +33,7 @@ check([...PINS, ...FEATURES].every(p => { const e = E.get(p.about); return Numbe
   "every pin is on a place with a position, every feature has its shape");
 const paintings = ENTITIES.filter(e => e.sets.includes("painting"));
 check(paintings.every(p => LINKS.some(l => l.from === p.id && l.rel === "painted-by") && Number.isFinite(p.year) && p.pic), `${paintings.length} paintings, each with its painter, year and picture`);
-const floor = { entities: 4411, clue: 5526, pins: 415, features: 172, estimates: 355 };
+const floor = { entities: 4395, clue: 5526, pins: 415, features: 172, estimates: 355 };
 const now = { entities: ENTITIES.length, clue: LINKS.filter(l => l.rel === "clue").length, pins: PINS.length, features: FEATURES.length, estimates: ESTIMATES.length };
 check(Object.entries(floor).every(([k, v]) => now[k] >= v), `nothing lost since the move: ${Object.entries(now).map(([k, v]) => `${v} ${k}`).join(", ")}`);
 console.log(bad ? `${bad} problems` : "all checks pass");

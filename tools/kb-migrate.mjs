@@ -39,7 +39,7 @@ function entity(name, props = {}) {
   return e;
 }
 const addSet = (e, s) => { if (!e.sets.includes(s)) e.sets.push(s); };
-const report = { merged: [], conflicts: [], homonyms: [], created: {} };
+const report = { merged: [], unmerged: [], conflicts: [], homonyms: [], created: {} };
 const count = k => { report.created[k] = (report.created[k] || 0) + 1; };
 
 // Crates' answers: the country and commodity sets Crates asks by, in their board positions
@@ -85,10 +85,12 @@ const countryOf = name => { const id = answerByName.get(norm(name)); return id &
 for (const q of choice.flags.MATHS) {
   const name = q.o[q.a[0]];
   if (countryOf(name)) continue;
-  const e = entity(name.replace(/^the /, ""));
+  const clue = byName.get(norm(name));                      // a clue of that name is that country (Namibia, under uranium)
+  const e = clue ? entities.get(clue) : entity(name.replace(/^the /, ""));
+  if (clue) report.merged.push(`the flags' "${name}" = Crates clue "${e.name}"`);
+  else { byName.set(norm(name), e.id); count("country (from the flags)"); }
   addSet(e, "country");
   answerByName.set(norm(name), e.id);
-  count("country (from the flags)");
 }
 // a place's country string ("France, Switzerland, Italy", "Bosnia and Herzegovina", "Argentina and Chile") as "in" links
 const unplaced = new Set();
@@ -112,17 +114,29 @@ function facts(e, fields, where) {
   }
   return overrides;
 }
-// a place or feature: the clue entity of the same name if there is one, else a new entity
-function placeEntity(name, set, where) {
-  const id = byName.get(norm(name));
-  if (id && entities.get(id).crates === undefined && entities.get(id).lat === undefined) {
-    report.merged.push(`${where} "${name}" = Crates clue "${entities.get(id).name}"`);
-    addSet(entities.get(id), set);
-    return entities.get(id);
+// A place or feature is the entity of the same name when there's one: a Crates clue, or (for a feature) Chart's own
+// point for the same lake or sea. A natural feature and a clue share a name more often by chance (the Orange River and
+// the Dutch colour), so for those something has to say it's the same thing: the clue is for a country the place is
+// in, or the name or the clue's hint names it as a river, lake, falls, reef and so on.
+const NATURAL = /\b(rivers?|lakes?|mountains?|range|alps|desert|plateau|basin|flows?|delta|peaks?|sea|valley|highlands|falls|glacier|volcano|island|reef|archipelago|crater|canyon)\b/i;
+const hintsOf = id => links.filter(l => l.from === id && l.rel === "clue").map(l => l.hint).join(" ");
+const countriesIn = str => String(str || "").split(/,\s*/).flatMap(part => countryOf(part) ? [countryOf(part)] : part.split(/\s+and\s+/).map(countryOf)).filter(Boolean);
+function placeEntity(name, set, where, countries) {
+  const id = byName.get(norm(name)), had = id && entities.get(id);
+  const natural = set.startsWith("feature") || set === "geo-place";
+  const clueCountries = had ? links.filter(l => l.from === id && l.rel === "clue").map(l => l.to).filter(t => entities.get(t).sets.includes("country")) : [];
+  const said = () => clueCountries.some(c => countriesIn(countries).includes(c)) || NATURAL.test(name) || NATURAL.test(hintsOf(id));
+  const sameThing = had && had.crates === undefined && !had.sets.includes("country") && !had.sets.includes("painting")
+    && (had.lat === undefined ? !natural || said() : set.startsWith("feature") && had.sets.includes("geo-place"));
+  if (sameThing) {
+    report.merged.push(`${where} "${name}" = ${had.lat === undefined ? "Crates clue" : "Chart's point"} "${had.name}"`);
+    addSet(had, set);
+    return had;
   }
+  if (had) report.unmerged.push(`${where} "${name}" and "${had.name}" (${had.sets.join(", ") || "a Crates clue"}): kept apart`);
   const e = entity(name);
   addSet(e, set);
-  byName.set(norm(name), e.id);
+  if (!had) byName.set(norm(name), e.id);
   count(set);
   return e;
 }
@@ -132,7 +146,7 @@ const PLACE_SET = { cities: "city", trade: "trade-place", wine: "wine-place", ar
 const pins = [];
 for (const p of PLACES) {
   const { id, cat, name, ...rest } = p;
-  const e = placeEntity(name, PLACE_SET[cat], `Chart ${id}`);
+  const e = placeEntity(name, PLACE_SET[cat], `Chart ${id}`, rest.country);
   const over = facts(e, rest, `Chart ${id}`);
   const pin = { id, cat, about: e.id, ...over };
   if (e.name !== name) pin.name = name;
@@ -143,7 +157,7 @@ const geometry = {};
 const features = [];
 for (const g of GEO) {
   const { id, name, rings, lines, ...rest } = g;
-  const e = placeEntity(name, `feature:${g.kind}`, `Chart feature ${id}`);
+  const e = placeEntity(name, `feature:${g.kind}`, `Chart feature ${id}`, rest.country);
   addSet(e, "feature");
   const over = facts(e, rest, `Chart feature ${id}`);
   geometry[e.id] = rings ? { rings } : { lines };
@@ -211,7 +225,8 @@ for (const b of CHOICE_BANKS) {
 
 // ---------- the record of where each bank's comment came from ----------
 const headers = {};
-for (const f of Object.values(OUTPUTS)) headers[f] = fs.readFileSync(rel(f), "utf8").split("\n").filter((l, i, all) => all.slice(0, i + 1).every(x => x.startsWith("//"))).join("\n");
+for (const f of Object.values(OUTPUTS)) headers[f] = fs.readFileSync(rel(f), "utf8").split("\n")
+  .filter((l, i, all) => all.slice(0, i + 1).every(x => x.startsWith("//")) && !l.startsWith("// Written by tools/build-kb.mjs")).join("\n");
 
 // ---------- write kb/ ----------
 const lines = xs => `[\n${xs.map(x => JSON.stringify(x)).join(",\n")}\n]`;
@@ -271,8 +286,11 @@ Links: ${links.length} (${["clue", "in", "painted-by", "hangs-in", "movement"].m
 Clue words under more than one answer, now one entity each: ${[...linksFrom.values()].filter(ls => ls.length > 1).length}.
 Clue words that are themselves answers (country ↔ commodity links): ${links.filter(l => l.rel === "clue" && entities.get(l.from).crates !== undefined).length}.
 
-## Merged by name (${report.merged.length}): a place and a Crates clue of the same name are one entity
+## Merged by name (${report.merged.length}): a place, feature or country and a clue (or Chart's own point) of the same name are one entity
 ${report.merged.map(s => `- ${s}`).join("\n")}
+
+## Same name, kept apart (${report.unmerged.length}): nothing in the clue says it's the same thing, or one is a country or a painting
+${report.unmerged.map(s => `- ${s}`).join("\n")}
 
 ## Facts that disagreed (${report.conflicts.length}): the item keeps its own value, nothing changed in the games
 ${report.conflicts.map(s => `- ${s}`).join("\n") || "None."}
