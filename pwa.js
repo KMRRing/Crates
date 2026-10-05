@@ -4,6 +4,7 @@
 // it takes over when the app goes off screen, and the page reloads onto it when it comes back. Taking over in the
 // middle of a game could mix old code with new.
 import "./suite.js";   // the solo code's sync runs on every page
+import "./menu.js";    // every game's menu: one popup, laid out the same
 const supported = "serviceWorker" in navigator;
 const ready = supported ? navigator.serviceWorker.register("./sw.js").catch(() => null) : Promise.resolve(null);
 

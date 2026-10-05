@@ -452,3 +452,22 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .icon-btn:disabled { opacity: .6; }
 .icon-btn.spin svg { animation: icon-spin 1s linear infinite; }
 @keyframes icon-spin { to { transform: rotate(360deg); } }
+
+/* every game's menu: one popup. A sheet rising from the bottom on a phone, a card in the middle on a wide screen;
+   the × at the top right (the game's own Close button, reshaped by menu.js); a tap outside closes it */
+dialog.menu-sheet { border-radius: 18px 18px 0 0; padding: 0 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 30px rgba(0, 0, 0, .18); }
+dialog.menu-sheet[open] { animation: menu-up .22s cubic-bezier(.2, .8, .2, 1); }
+@keyframes menu-up { from { transform: translateY(24px); opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { dialog.menu-sheet[open] { animation: none; } }
+@media (min-width: 640px) { dialog.menu-sheet { margin: auto; border-radius: 18px; max-width: 30rem; box-shadow: 0 16px 48px rgba(0, 0, 0, .25); } }
+dialog.menu-sheet .pick-head { align-items: center; padding: .9rem 0 .5rem; }
+dialog.menu-sheet .pick-head h2 { font-size: 1.15rem; }
+dialog.menu-sheet .menu-x { width: 36px; height: 36px; }
+/* the standard parts, each under the same small heading */
+.menu-part { margin-top: .9rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
+.menu-part:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.menu-h { margin: 0 0 .45rem; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+/* the long explanations, folded away at the bottom */
+details.menu-how { margin-top: 1rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); color: var(--ink-soft); font-size: .88rem; }
+details.menu-how summary { cursor: pointer; font-weight: 700; color: var(--ink); list-style-position: inside; padding: .2rem 0; }
+details.menu-how p { margin: .5rem 0 0; line-height: 1.45; }

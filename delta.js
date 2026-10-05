@@ -491,7 +491,6 @@ function drawMenu() {
   if (!S.done) button("Show the solution", giveUp);
   const room = together.room;
   if (!room) {
-    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
     button("Copy a link to this board", async () => {
       try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
     }, "link");

@@ -843,7 +843,6 @@ function drawMenu() {
     return;
   }
   $("menuTitle").textContent = "Menu";
-  add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
   add("button", "link", "Copy this board's link").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }

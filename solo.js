@@ -370,11 +370,6 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     },
     menu() {
       view.openMenu((body, close) => {
-        // playing together starts from the games screen: link with your partner there and ask them
-        const together = document.createElement("p");
-        together.className = "stats";
-        together.textContent = "To play together, link with your partner on the games screen (tap the title) and ask them from there.";
-        body.appendChild(together);
 
         const row = document.createElement("div");
         row.className = "controls";

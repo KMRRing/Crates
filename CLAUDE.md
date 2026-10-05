@@ -86,3 +86,17 @@ call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on ea
 A game's header `<select class="pool">` is shown as the suite's dropdown: link `dropdown.css`, give the select
 `data-accent` (its logo prefix: cr, sl, d, pt, bl, br, pa, rf, ru, sv…) and call `dropdown(select)` from `dropdown.js`
 once. The select stays the one place the choice lives; its options, value and events work as before.
+
+## Menus
+
+Every game's menu is the same popup (`menu.js`, loaded by every page): a sheet from the bottom on a phone, a card on
+a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody` as before, but:
+- **Mark the parts** (`part(body, name)` from `menu.js`, or `data-part` on a container); they're laid out in this order
+  under the same small heading: `play` (new run, where you are: no heading), `content` (daily or random, difficulty or
+  level, topics, chapters), `together` (only what's specific to this game's duo match: pairing, watching and asking
+  live on the games screen), `settings` (learning mode, length, the game's own options), `about` (stats, sources).
+- **Content choices come in four kinds** and should look the same in every game: one of (a dropdown or segmented
+  control), include (tick boxes with All/None), mix (Off/Less/Normal/More, Crates' topics), progression (chapters in
+  order: done, current, locked, with Continue).
+- **No instructions in the menu.** A line longer than about two sentences is folded into a closed "How it works" at
+  the bottom by `menu.js`; better still, cut it. Keep a menu to choices, buttons and a short status line.

@@ -580,7 +580,6 @@ function openMenu() {
     add("p", "stats", `${best ? `Your best at ${what}: ${best.toLocaleString("en-GB")}.` : `No finished set at ${what} yet.`}${daily != null ? ` Today's best: ${daily.toLocaleString("en-GB")}.` : ""}`);
     add("h3", null, "Together");
     add("p", "stats", "Two phones: you both pin the same place in private, then the pins are revealed side by side. Higher total wins.");
-    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   } else {
     add("h3", null, "Playing together");
     button("A fresh set", startRoomSet);

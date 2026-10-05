@@ -655,7 +655,6 @@ function drawMenu() {
   button("Flagged questions", () => openFlags(false));
   const room = together.room;
   if (!room) {
-    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
     button("Copy a link to this session", async () => {
       try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
     }, "link");

@@ -429,7 +429,6 @@ function openMenu() {
     add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}${bestRf != null ? ` Refining: best ${money(bestRf)}${dailyRf != null ? `, today ${money(dailyRf)}` : ""}.` : ""}`);
     add("h3", null, "Together");
     add("p", "stats", "Two phones, taking turns: one makes the market, the other hits the bid, lifts the offer or passes. A trade settles between you; a pass settles the maker against the house.");
-    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   } else {
     add("h3", null, "Playing together");
     button("A fresh set", startRoomSet);

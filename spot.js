@@ -389,7 +389,6 @@ function openMenu() {
     button("Today's run", () => startSolo("daily"));
     add("h3", null, "Together");
     add("p", "stats", "Two phones: each of you sees your own sums. Call out what yours make; your partner taps the one of theirs that makes the same.");
-    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   } else {
     add("h3", null, "Playing together");
     button("Back to solo", () => together.leave(), "link");
