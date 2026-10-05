@@ -19,7 +19,8 @@
 .pi-stage { padding: .7rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .55rem; }
 .pi-status { margin: 0; font-size: 1rem; font-weight: 800; min-height: 1.3em; }
 .pi-board { width: 100%; border-radius: 14px; overflow: hidden; background: var(--pi-ground); }
-.pi-board svg { display: block; width: 100%; height: auto; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.pi-board, .pi-board svg { display: block; width: 100%; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.pi-board svg { height: auto; }
 .pi-board .pi-tile { cursor: pointer; }
 .pi-board .pi-tile.fixed, .pi-board .pi-tile.locked { cursor: default; }
 .pi-board .pipe { stroke: var(--pi-pipe); stroke-linecap: butt; fill: none; }
