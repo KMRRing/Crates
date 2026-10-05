@@ -15,6 +15,7 @@ import { getSync } from "./net.js";
 import { roomInAddress } from "./rooms.js";
 
 const SOLO = "suite:solo", META = "suite:meta", PULLED = "suite:pulled";
+const WATCHING = new URLSearchParams(location.search).has("watch");   // this page shows your partner's game (see below)
 const PAIR = "pair:code", ME = "pair:me";       // the pair's room and your player id: synced, so all your devices share them
 const LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const PUSH_DELAY = 1500;
@@ -23,7 +24,8 @@ const LOCAL = /^(suite:|crates:run|crates:updated|crates:v2|firebase:)/;
 // the store sits beside Crates' run under crates/runs (where 8-letter codes may write), at the code moved on seven letters
 const storePath = code => `crates/runs/${[...code].map(ch => LETTERS[(LETTERS.indexOf(ch) + 7) % LETTERS.length]).join("")}`;
 const enc = k => encodeURIComponent(k).replace(/\./g, "%2E");     // a database key can't hold . # $ [ ] /
-const raw = { get: k => Storage.prototype.getItem.call(localStorage, k), set: Storage.prototype.setItem, remove: Storage.prototype.removeItem };
+const raw = { getItem: Storage.prototype.getItem, set: Storage.prototype.setItem, remove: Storage.prototype.removeItem };
+raw.get = k => raw.getItem.call(localStorage, k);
 const json = (k, fallback) => { try { return JSON.parse(raw.get(k)) ?? fallback; } catch { return fallback; } };
 const put = (k, v) => { try { raw.set.call(localStorage, k, typeof v === "string" ? v : JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -68,6 +70,8 @@ export function unlink() { localStorage.removeItem(PAIR); }
 
 // every write to this device's storage is noted with its time, and goes up a moment later
 function touched(k, v) {
+  if (typeof k !== "string") return;
+  if (!WATCHING && duoCode() && k.startsWith(storePrefix(pageGame()))) { clearTimeout(mirrorTimer); mirrorTimer = setTimeout(mirror, PUSH_DELAY); }
   if (!syncing() || LOCAL.test(k)) return;
   meta[k] = Date.now();
   put(META, meta);
@@ -75,8 +79,16 @@ function touched(k, v) {
   clearTimeout(timer);
   timer = setTimeout(push, PUSH_DELAY);
 }
-Storage.prototype.setItem = function (k, v) { raw.set.call(this, k, v); if (this === localStorage) touched(k, String(v)); };
-Storage.prototype.removeItem = function (k) { raw.remove.call(this, k); if (this === localStorage) touched(k, null); };
+Storage.prototype.setItem = function (k, v) {
+  if (this === localStorage && WATCHING && !k.startsWith("suite:")) return;      // watching: their game, nothing of yours is written
+  raw.set.call(this, k, v);
+  if (this === localStorage) touched(k, String(v));
+};
+Storage.prototype.removeItem = function (k) {
+  if (this === localStorage && WATCHING && !k.startsWith("suite:")) return;
+  raw.remove.call(this, k);
+  if (this === localStorage) touched(k, null);
+};
 
 async function push() {
   const code = soloCode();
@@ -214,7 +226,7 @@ async function present() {
   const code = duoCode();
   if (!code) return;
   const sync = await getSync(), path = `crates/rooms/${code}/live/${playerId()}/${sync.uid}`;
-  const say = () => sync.update(path, { name: raw.get("crates:name") || "", game: pageGame(), mode: roomInAddress() ? "duo" : "solo", at: Date.now() });
+  const say = () => sync.update(path, { name: raw.get("crates:name") || "", game: pageGame(), mode: WATCHING ? "watch" : roomInAddress() ? "duo" : "solo", at: Date.now() });
   await say();
   sync.presence(path);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") say(); });
@@ -239,14 +251,74 @@ async function listen() {
   });
 }
 
+// ---------- watching your partner ----------
+// While you play solo, the game you have open is mirrored to the pair's room: every key of its own (its run, its
+// settings: "pipes:run"…), a moment after it changes (watch/PLAYER = { game, at, keys }). Your partner opens the same game
+// with ?watch and sees yours: there, every read of that game's keys returns your copy and every write goes nowhere, so
+// their own solo state is never touched; a veil keeps their taps off the board, and the page reloads when you move.
+// So any game can be watched, without code of its own. Keys of the suite, Crates' run link and Firebase's stay out.
+let mirrorTimer = null, watched = null;           // watched: { name, game, at, keys: Map } while watching
+/** The prefix of a game's keys in storage: the game's id, but Slate keeps its old name, Glyph. */
+const storePrefix = game => (game === "slate" ? "glyph:" : `${game}:`);
+// what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
+const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;
+const MIRROR_MAX = 300000;                        // a key larger than this (a long history) isn't mirrored
+async function mirror() {
+  const code = duoCode();
+  if (!code || WATCHING) return;
+  const prefix = storePrefix(pageGame()), keys = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k.startsWith(prefix) || WATCH_SKIP.test(k)) continue;
+    const v = raw.get(k);
+    if (v != null && v.length <= MIRROR_MAX) keys[enc(k)] = v;
+  }
+  try { await (await getSync()).update(`crates/rooms/${code}/watch`, { [playerId()]: { name: raw.get("crates:name") || "", game: pageGame(), at: Date.now(), keys } }); }
+  catch (e) { console.error(e); }
+}
+/** Watching: your partner's copy of this game, read before the game starts (this module holds the page until then). */
+async function beginWatching() {
+  const code = duoCode();
+  if (!code) return;
+  const sync = await getSync(), me = playerId();
+  const all = await once(sync, `crates/rooms/${code}/watch`);
+  const theirs = Object.entries(all || {}).filter(([id, w]) => id !== me && w?.game === pageGame()).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))[0];
+  if (!theirs) return;
+  const [id, w] = theirs;
+  watched = { name: w.name || "your partner", game: w.game, at: w.at, keys: new Map(Object.entries(w.keys || {}).map(([k, v]) => [decodeURIComponent(k), v])) };
+  const prefix = storePrefix(pageGame());
+  Storage.prototype.getItem = function (k) {
+    if (this === localStorage && watched) { if (watched.keys.has(k)) return watched.keys.get(k); if (k.startsWith(prefix) || WATCH_SKIP.test(k)) return null; }
+    return raw.getItem.call(this, k);
+  };
+  let reloading = false;
+  sync.watch(`crates/rooms/${code}/watch/${id}`, v => {     // they moved (or left this game): show the new state
+    if (reloading || !v || v.at === watched.at) return;
+    reloading = true;
+    setTimeout(() => location.reload(), v.game === pageGame() ? 300 : 0);
+  });
+  const veil = () => {
+    const d = document.createElement("div");
+    d.className = "watch-veil";
+    d.innerHTML = `<div class="watch-bar"><span>Watching <b></b></span><button class="btn" type="button">Stop</button></div>`;
+    d.querySelector("b").textContent = watched.name;
+    d.querySelector("button").addEventListener("click", () => { const u = new URL(location.href); u.searchParams.delete("watch"); location.href = u.toString(); });
+    document.body.appendChild(d);
+  };
+  if (document.body) veil(); else document.addEventListener("DOMContentLoaded", veil);
+}
+export const watchHref = game => `${DUO_GAMES[game] || `${game}.html`}?watch=1`;
+
 // a page that opens catches up, and again when it comes back into view; a paired page says where it is and listens
 {
   const old = raw.get("suite:duo");                       // the per-device duo memory before pairing became a link
   if (old && !raw.get(PAIR)) put(PAIR, old);
   if (old) raw.remove.call(localStorage, "suite:duo");
   if (duoCode()) { playerId(); present().catch(e => console.error(e)); listen().catch(e => console.error(e)); }
+  if (duoCode() && !WATCHING && !roomInAddress()) setTimeout(mirror, 800);   // your partner can watch from the moment you open a game
   if (syncing()) {
     pull();
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pull(); else push(); });
   }
 }
+if (WATCHING) { try { await beginWatching(); } catch (e) { console.error(e); } }

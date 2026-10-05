@@ -68,7 +68,9 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 `suite.js` syncs every `localStorage` key between devices on the same solo code (except `suite:`, Crates' run keys and
 Firebase's own). Keep a game's keys under its own prefix (`manifest:run2`, `quote:best`): a change from another device
 to the open game's keys reloads it. A game's best goes in `<game>:best` (a number, a `{ score }`, or bests by level) to
-show on the games screen.
+show on the games screen. The same prefix is what a partner watches: everything a game needs to draw its solo state
+must be in its own keys (`<game>:…`, Slate's `glyph:…`), read at start-up; a game in `?watch` mode reads the
+partner's copy and its writes go nowhere, so don't keep state that matters anywhere else.
 
 ## Playing together
 

@@ -423,3 +423,10 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
   font-size: .62rem; font-weight: 700; line-height: 1.5; padding: 0 .4rem; border-radius: 999px; background: var(--yard, #e3e6ea); color: var(--ink-soft); }
 .partner-pill:empty { display: none; }
 .partner-pill.on { color: #2f8a4b; }
+
+/* watching your partner: their game under a veil that keeps your taps off it, and a bar to stop */
+.watch-veil { position: fixed; inset: 0; z-index: 900; background: transparent; }
+.watch-bar { position: fixed; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); display: flex; align-items: center; gap: .6rem;
+  padding: .5rem .75rem; border-radius: 14px; background: var(--ink, #1d2730); color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, .25); font-size: .9rem; }
+.watch-bar span { flex: 1; }
+.watch-bar .btn { min-height: 36px; }
