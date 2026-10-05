@@ -1,0 +1,77 @@
+/* Harbour: the harbour on top, the programs under it (one row per ship, one column per hour), then the tools, the
+   clock and one line of status. The page never scrolls; the programs scroll sideways inside their box. */
+.harbour {
+  --hb-water: #CFE1EA; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #E8E2D4;
+  --hb-hull: #FBFBF9; --hb-cargo: #E1AB24; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
+}
+@media (prefers-color-scheme: dark) {
+  .harbour { --hb-water: #16303B; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; }
+}
+
+.hb-brief { margin: .5rem 0 .4rem; height: 2.6em; overflow: hidden; color: var(--ink-soft); font-size: .9rem; line-height: 1.3; }
+
+/* the harbour: as big as the room left, at the map's own proportions */
+.hb-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 10px;
+  touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.hb-water { fill: var(--hb-water); }
+.hb-cellwater { fill: none; stroke: var(--hb-grid); stroke-width: .3; }
+.hb-land { fill: var(--hb-land); shape-rendering: crispEdges; }
+.hb-jetty { --hb-berth: var(--c0); }
+.hb-jetty.discharge { --hb-berth: var(--c1); }
+.hb-jetty rect { fill: color-mix(in srgb, var(--hb-berth) 28%, transparent); stroke: var(--hb-berth); stroke-width: .5; }
+.hb-jetty text { font: 800 4px var(--font); text-anchor: middle; fill: var(--hb-berth); }
+
+/* ships glide from tile to tile over an hour's time; while you drag one, or after an edit, they jump */
+.hb-ship { transition: transform var(--hb-hour, 420ms) ease-in-out; cursor: grab; }
+.hb-map.still .hb-ship, .hb-ship.dragging { transition: none; }
+.hb-ship.dragging { cursor: grabbing; }
+.hb-hull { fill: var(--hb-hull); stroke: var(--hb-ship-ink); stroke-width: .55; stroke-linejoin: round; }
+.hb-ship.laden .hb-hull { fill: var(--hb-cargo); }
+.hb-bridge { fill: var(--hb-ship-ink); }
+.hb-num { font: 800 3.1px var(--font); text-anchor: middle; fill: var(--hb-ship-ink); pointer-events: none; }
+.hb-ship.sel .hb-hull { stroke: var(--focus); stroke-width: 1; }
+.hb-ship.hit .hb-hull { stroke: var(--c3); stroke-width: 1.1; }
+.hb-ship.scrap { opacity: .4; }
+.hb-crash { fill: none; stroke: var(--c3); stroke-width: .8; stroke-dasharray: 1.6 1.1; }
+
+/* the programs: a row per ship, a column per hour; the loop ends at the last instruction, and cells past it are faded */
+.hb-tape { margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+  background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 10px; -webkit-overflow-scrolling: touch; }
+.hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem repeat(4, 1.7rem);
+  gap: 3px; width: max-content; }
+.hb-lab, .hb-corner { position: sticky; left: 0; z-index: 1; background: var(--tile); }
+.hb-lab { border: 0; padding: 0; border-radius: 0 6px 6px 0; font: 800 .85rem var(--font); color: var(--ink); cursor: pointer; }
+.hb-lab.on { background: var(--ink); color: var(--yard); }
+.hb-lab:disabled { cursor: default; }
+.hb-colno { align-self: end; text-align: center; font-size: .62rem; font-weight: 700; color: var(--ink-soft); }
+.hb-cell { display: grid; place-items: center; padding: 0; border: 0; border-radius: 5px; cursor: pointer;
+  background: color-mix(in srgb, var(--ink) 6%, transparent); color: var(--ink); font: 800 .85rem var(--font); }
+.hb-cell:disabled { background: color-mix(in srgb, var(--ink) 3%, transparent); cursor: default; }
+.hb-cell.out { opacity: .45; }
+.hb-cell.now { box-shadow: 0 0 0 2px var(--focus); }
+.hb-cell.op-L, .hb-tool.op-L { background: var(--c0); color: var(--on-c0); }
+.hb-cell.op-D, .hb-tool.op-D { background: var(--c1); color: var(--on-c); }
+.hb-cell svg, .hb-tool svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* the instructions to paint with, then the clock */
+.hb-tools { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; margin-top: .5rem; }
+.hb-tool { height: 38px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 8px;
+  background: none; color: var(--ink); font: 800 1rem var(--font); cursor: pointer; }
+.hb-tool[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.hb-run { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: .45rem; }
+.hb-ctl { height: 40px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink); border-radius: 999px;
+  background: none; color: var(--ink); font: 800 .95rem var(--font); cursor: pointer; }
+.hb-ctl.primary { background: var(--ink); color: var(--yard); }
+.hb-ctl:disabled { opacity: .35; cursor: default; }
+.hb-ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.hb-ctl svg .solid { fill: currentColor; }
+.hb-status { margin: .4rem 0 0; min-height: 1.35em; text-align: center; font-size: .9rem; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-status.bad { color: var(--c3); }
+.hb-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
+
+/* Menu: your best on each measure beside the level's par */
+.hb-bests { width: 100%; margin: .2rem 0 .6rem; border-collapse: collapse; }
+.hb-bests th, .hb-bests td { padding: .4rem .2rem; text-align: left; border-bottom: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
+.hb-bests thead th { font-size: .75rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-soft); }
+@media (prefers-reduced-motion: reduce) { .hb-ship { transition: none; } }

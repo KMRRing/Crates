@@ -120,6 +120,12 @@ const BRUT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <path d="M7 8h6c-.4 1.9-1.5 3-3 3.1-1.5-.1-2.6-1.2-3-3.1z" fill="var(--br-logo-edge)"/>
   <path d="M10 11.2v3.3M7.6 14.8h4.8" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linecap="round"/></svg>`;
 
+// A tanker seen from above, as the ships are on Harbour's map: bow up and to the right, the bridge aft, the domes of
+// its cargo tanks along the deck.
+const HARBOUR_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="rotate(45 10 10)">
+  <path d="M10 1.2C12.7 2.9 13.7 5.2 13.7 7.4V16.8Q13.7 18.6 11.9 18.6H8.1Q6.3 18.6 6.3 16.8V7.4C6.3 5.2 7.3 2.9 10 1.2Z" fill="var(--hb-logo-tint)" stroke="var(--hb-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="7.6" y="14.3" width="4.8" height="2.7" rx=".6" fill="var(--hb-logo-edge)"/>
+  <g fill="var(--hb-logo-edge)"><circle cx="10" cy="6.3" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="10" cy="11.7" r="1"/></g></g></svg>`;
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -130,7 +136,8 @@ export const APPS = [
   { id: "quote", name: "Quote", href: "./quote.html", logo: QUOTE_LOGO },
   { id: "manifest", name: "Manifest", href: "./manifest.html", logo: MANIFEST_LOGO },
   { id: "chart", name: "Chart", href: "./chart.html", logo: CHART_LOGO },
-  { id: "survey", name: "Survey", href: "./survey.html", logo: SURVEY_LOGO },
+  { id: "harbour", name: "Harbour", href: "./harbour.html", logo: HARBOUR_LOGO },
+  { id: "survey", name: "Survey", href: "./survey.html", logo: SURVEY_LOGO, more: true },
   { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO, more: true },
   { id: "pipes", name: "Pipes", href: "./pipes.html", logo: PIPES_LOGO },
   { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO, more: true },

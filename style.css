@@ -61,6 +61,8 @@
   --pa-logo-edge: #1E7A74;
   --br-logo-tint: #F5D9E3;  /* Brut's logo: a wine glass */
   --br-logo-edge: #7A1638;
+  --hb-logo-tint: #DCE3F0;  /* Harbour's logo: a tanker from above */
+  --hb-logo-edge: #263A63;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
