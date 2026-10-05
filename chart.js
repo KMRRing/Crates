@@ -1,8 +1,15 @@
 // Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
 // see the truth, the distance and the points. Together, both of you pin the same place in private and the pins
 // are revealed side by side.
-import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR } from "./chart-engine.js";
-import { PLACES, CATS } from "./chart-bank.js";
+import { PER_SET, distance, score, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox } from "./chart-engine.js";
+/** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
+const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
+import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
+import { GEO } from "./chart-geo.js";
+// the physical features join the places: a river, range, desert, plateau or lake is pinned to its nearest point
+const CATS = { ...BANK_CATS, physical: "Physical" };
+const KIND = { river: "river", range: "mountain range", desert: "desert", plateau: "plateau or basin", lake: "lake" };
+const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g }))];
 import { LAND, BORDERS } from "./world.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -58,9 +65,9 @@ function confirmPin() {
     return;
   }
   if (S.phase !== "pin") return;
-  const d = distance(pin, p), pts = Math.round(score(d) * clueFactor(clues));
+  const m = missOf(pin, p), d = m.km, pts = Math.round(score(d) * clueFactor(clues));
   S.score += pts;
-  S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues });
+  S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues, near: p.geo ? m.point : undefined });
   // the pile: a pin over 500 km off, or any clue, means you didn't know where it was; a clean close pin moves a banked place up
   if (d > 500 || clues > 0) pile.record("chart", p.id, { id: p.id }, clues > 0 ? "clue" : "miss");
   else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
@@ -139,6 +146,24 @@ function drawMap(ctx, proj, win, w, h) {
     ctx.stroke();
   }
 }
+/** A feature on the map: a river as a blue line, a range, desert, plateau or lake as a filled shape. */
+function drawFeature(ctx, proj, g) {
+  const good = css("--ch-good");
+  ctx.save();
+  if (g.lines) {
+    ctx.strokeStyle = good; ctx.lineWidth = 3.5; ctx.lineJoin = "round"; ctx.lineCap = "round";
+    ctx.beginPath();
+    for (const ln of g.lines) ln.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.stroke();
+  } else {
+    ctx.fillStyle = good; ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    for (const ring of g.rings) { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.closePath(); }
+    ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = good; ctx.lineWidth = 2; ctx.stroke();
+  }
+  ctx.restore();
+}
 function marker(ctx, x, y, kind) {
   ctx.beginPath();
   if (kind === "truth") {
@@ -163,9 +188,13 @@ function drawMaps() {
     const ctx = setup(canvas, w, h);
     drawMap(ctx, proj, win, w, h);
     const colour = kind => (kind === "theirs" ? "#7A4BC9" : css("--ch-in"));
-    if (reveal) for (const [q, kind] of pins) if (q) line(ctx, proj.toXY(q.lon, q.lat), proj.toXY(p.lon, p.lat), colour(kind));
+    if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
+    const entry = reveal ? S.log[S.index] : null;
+    const nearFor = (kind, i) => (p.geo && entry ? (inRoom() ? entry.near?.[i === 0 ? mySeat() : 1 - mySeat()] : entry.near) : null) || p;
+    if (reveal) pins.forEach(([q, kind], i) => { if (q) { const n = nearFor(kind, i); line(ctx, proj.toXY(q.lon, q.lat), proj.toXY(n.lon, n.lat), colour(kind)); } });
     for (const [q, kind] of pins) if (q) marker(ctx, ...proj.toXY(q.lon, q.lat), kind);
-    if (reveal) marker(ctx, ...proj.toXY(p.lon, p.lat), "truth");
+    if (reveal && !p.geo) marker(ctx, ...proj.toXY(p.lon, p.lat), "truth");
+    if (reveal && p.geo) pins.forEach(([q, kind], i) => { if (q) marker(ctx, ...proj.toXY(nearFor(kind, i).lon, nearFor(kind, i).lat), "truth"); });
   }
 }
 const pinOf = seat => (S.phase === "reveal" ? Object.values(S.log || {})[S.index]?.pins?.[seat] : seat === mySeat() ? pin : null);
@@ -236,13 +265,16 @@ function render() {
     scores.replaceChildren();
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
   }
-  $("cat").textContent = CATS[p.cat];
+  $("cat").textContent = p.geo ? `Physical · a ${p.kind}: pin anywhere on it` : CATS[p.cat];
   $("place").textContent = p.name;
   const waitingForThem = inRoom() && S.phase === "pin" && S.pins?.[mySeat()];
   $("hint").textContent = reveal ? "Drag and pinch to look around." : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : pin ? "Tap to move the pin, or pin it. Drag to pan, pinch to zoom." : "Tap to place the pin. Drag to pan, pinch to zoom.";
   if (reveal && !views.revealSet) {                       // the map frames the truth and the pin together
     const e = inRoom() ? Object.values(S.log)[S.index]?.pins?.[mySeat()] : S.log[S.index];
-    views.world = e ? viewCovering(e, p, ...SIZES.world, 12) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
+    if (p.geo) {
+      const [lon0, lat0, lon1, lat1] = featureBox(p.geo), q = e || p;
+      views.world = viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, 12);
+    } else views.world = e ? viewCovering(e, p, ...SIZES.world, 12) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
     views.revealSet = true;
   }
   if (!reveal) views.revealSet = false;
@@ -268,7 +300,7 @@ function render() {
     } else {
       const e = S.log[S.index];
       v.className = `ch-verdict ${e.km < 500 ? "good" : "bad"}`;
-      v.textContent = `${km(e.km)} off: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
+      v.textContent = `${e.km === 0 && p.geo ? "On it" : `${km(e.km)} ${p.geo ? "from it" : "off"}`}: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
     }
     $("note").textContent = p.note || "";
     $("nextBtn").textContent = S.index + 1 >= S.set.length ? "The set" : "Next";
@@ -312,10 +344,10 @@ function bestDaily(s) { const d = read(DAILY, {}); d[today()] = Math.max(d[today
 /** Both pins are in: settle the place for both, each with their own clues' discount. */
 function settleRoom(g) {
   const p = byId.get(g.set[g.index]);
-  const kms = [0, 1].map(seat => distance(g.pins[seat], p)), pts = kms.map((d, seat) => Math.round(score(d) * clueFactor((g.clues || {})[seat] || 0)));
+  const misses = [0, 1].map(seat => missOf(g.pins[seat], p)), kms = misses.map(m => m.km), pts = kms.map((d, seat) => Math.round(score(d) * clueFactor((g.clues || {})[seat] || 0)));
   g.scores = Object.values(g.scores || [0, 0]).map((s, seat) => s + pts[seat]);
   g.log = Object.values(g.log || {});
-  g.log.push({ id: p.id, pins: { 0: g.pins[0], 1: g.pins[1] }, km: kms, pts, clues: { 0: (g.clues || {})[0] || 0, 1: (g.clues || {})[1] || 0 } });
+  g.log.push({ id: p.id, pins: { 0: g.pins[0], 1: g.pins[1] }, km: kms, pts, clues: { 0: (g.clues || {})[0] || 0, 1: (g.clues || {})[1] || 0 }, near: p.geo ? { 0: misses[0].point, 1: misses[1].point } : undefined });
   g.clues = {};
   g.phase = "reveal";
 }

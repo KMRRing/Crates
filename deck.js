@@ -5,6 +5,8 @@ import * as pile from "./pile.js";
 import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
+import { GEO } from "./chart-geo.js";
+const geoById = new Map(GEO.map(g => [`geo-${g.id}`, { id: `geo-${g.id}`, name: g.name, note: g.note, country: g.country, region: g.region, geo: g }]));
 import { QUOTES } from "./quote-bank.js";
 import { tiersOf, withUnit, tierText } from "./quote-engine.js";
 import { mountPuzzle, solutionSan } from "./chess-board.js";
@@ -89,8 +91,16 @@ function ask() {
     const opts = shuffle(r, [p.answer, ...shuffle(r, pool).slice(0, 3)]);
     options(opts, [opts.indexOf(p.answer)], 1, `${p.answer}: ${p.word} — ${p.hint}`);
   } else if (it.game === "chart") {
-    const place = placeById.get(it.key);
+    const place = placeById.get(it.key) || geoById.get(it.key);
     if (!place) { skip(); return; }
+    if (place.geo) {                                           // a feature: which countries is it in
+      $("ask").textContent = `Chart · physical`;
+      $("prompt").textContent = `Where is ${place.name}?`;
+      const pool = [...new Set(GEO.filter(g => g.region === place.geo.region && g.country !== place.country).map(g => g.country))];
+      const opts = shuffle(r, [place.country, ...shuffle(r, pool).slice(0, 3)]);
+      options(opts, [opts.indexOf(place.country)], 1, `${place.name}: ${place.note}`);
+      return;
+    }
     $("ask").textContent = `Chart · ${place.cat}`;
     $("prompt").textContent = `Which country is ${place.name} in?`;
     const pool = [...new Set(PLACES.filter(p => p.region === place.region && p.country !== place.country).map(p => p.country))];

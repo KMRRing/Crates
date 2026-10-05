@@ -11,6 +11,38 @@ export function distance(a, b) {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
+/**
+ * A pin against a drawn feature (a river's lines, a range's rings): the distance to the nearest point of it, in km,
+ * and that point; zero inside a polygon. Local flat geometry around the pin, which is fine at these scales.
+ */
+export function nearestOnFeature(pin, feature) {
+  const kx = 111.32 * Math.cos(pin.lat * Math.PI / 180), ky = 110.57;
+  const parts = feature.lines || feature.rings || [];
+  if (feature.rings && feature.rings.some(ring => inside(pin, ring))) return { km: 0, point: { lat: pin.lat, lon: pin.lon } };
+  let best = null;
+  for (const part of parts) for (let i = 1; i < part.length; i++) {
+    const [ax, ay] = [(part[i - 1][0] - pin.lon) * kx, (part[i - 1][1] - pin.lat) * ky], [bx, by] = [(part[i][0] - pin.lon) * kx, (part[i][1] - pin.lat) * ky];
+    const dx = bx - ax, dy = by - ay, len2 = dx * dx + dy * dy;
+    const t = len2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2)) : 0;
+    const px = ax + t * dx, py = ay + t * dy, km = Math.hypot(px, py);
+    if (!best || km < best.km) best = { km, point: { lon: pin.lon + px / kx, lat: pin.lat + py / ky } };
+  }
+  return best || { km: Infinity, point: { lat: feature.lat, lon: feature.lon } };
+}
+function inside(p, ring) {
+  let on = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if ((yi > p.lat) !== (yj > p.lat) && p.lon < (xj - xi) * (p.lat - yi) / (yj - yi) + xi) on = !on;
+  }
+  return on;
+}
+/** The box around a feature: [lon0, lat0, lon1, lat1]. */
+export function featureBox(feature) {
+  let lon0 = 180, lat0 = 90, lon1 = -180, lat1 = -90;
+  for (const part of feature.lines || feature.rings || []) for (const [lon, lat] of part) { lon0 = Math.min(lon0, lon); lon1 = Math.max(lon1, lon); lat0 = Math.min(lat0, lat); lat1 = Math.max(lat1, lat); }
+  return [lon0, lat0, lon1, lat1];
+}
 /** Points for a pin d km off: 1000 at the spot, about 600 at 1,000 km, 135 at 4,000 km; +100 within 100 km. */
 export const score = d => Math.round(1000 * Math.exp(-d / 2000)) + (d < 100 ? 100 : 0);
 /** Clues cost: the first (the region) leaves 70% of the points, the second (the country) 45%, the third (the description) 25%. */
