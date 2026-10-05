@@ -65,6 +65,8 @@ Suggest: a word for the highlighted slot that lies on a winning board keeping ev
 
 On a narrow phone the four buttons under the board share the row equally, so the last one never runs off the edge.
 
+What's left of Check and Suggest on a board that limits them shows as a small brass badge on each button's corner, not as "(2)" in the label, which ran out of four buttons to a row.
+
 ## Your run on several devices
 Menu → Your other devices → Sync this run. The run gets an 8-letter code and a link; open the link on your other device (or type the code into Join there) and both devices follow the same run: the board you're on, your history, settings and learning cards. Changes go up a moment after each move and when you put the page away, and a device that was left open with old progress catches up instead of overwriting newer progress. Each change also carries the size of the word bank it was made with. A device still on an older version of the app reloads itself onto the new one instead of dealing boards of its own (it couldn't read boards that use newer words), and a device that is only following, untouched, doesn't run the clock or write anything. "Stop syncing on this device" keeps a local copy and lets go of the run.
 

@@ -190,6 +190,19 @@ function submit(entry, typed) {
     .then(ok => { if (!ok && room && !S.done) { pending = { ...typed, ...pending }; render(); } });
 }
 
+/** A button's name, with how many are left as a small badge on its corner (none when there's no limit): "Suggest (2)"
+ *  written out didn't fit four buttons to a row. */
+function labelLeft(btn, text, left) {
+  btn.textContent = text;
+  btn.setAttribute("aria-label", left === Infinity ? text : `${text}, ${left} left`);
+  if (left === Infinity) return;
+  const badge = document.createElement("span");
+  badge.className = "g-left";
+  badge.setAttribute("aria-hidden", "true");
+  badge.textContent = String(left);
+  btn.appendChild(badge);
+}
+
 // ---------- the referee: Check and Suggest ----------
 // Both judge against every winning board (any real words, every rule kept), not our fill, and run in a worker
 // (slate-worker.js, slate-solve.js) since a hard board can take a moment on a phone.
@@ -495,9 +508,9 @@ function render() {
   if (!cursor || !g.cells.includes(cursor)) resetCursor();
   const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed(), hintsLeft = limitsFor(S.level).hints - hintsUsed();
   $("level").value = S.level;
-  $("checkBtn").textContent = left === Infinity ? "Check" : `Check (${left})`;
+  labelLeft($("checkBtn"), "Check", left);
   $("checkBtn").disabled = !!S.done || left === 0 || thinking;
-  $("hintBtn").textContent = hintsLeft === Infinity ? "Suggest" : `Suggest (${hintsLeft})`;
+  labelLeft($("hintBtn"), "Suggest", hintsLeft);
   $("hintBtn").disabled = !!S.done || hintsLeft === 0 || thinking;
   $("clearBtn").disabled = !!S.done;
   const notes = notesFrom(S.board, S.log);

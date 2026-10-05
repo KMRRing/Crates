@@ -133,3 +133,8 @@
 .g-ours { font-weight: 700; letter-spacing: .04em; }
 
 @media (max-width: 340px) { .g-actions .btn { font-size: .68rem; letter-spacing: 0; } }   /* the narrowest phones */
+
+/* what's left of Check and Suggest: a badge on the button's corner, not words in its label */
+.g-actions .btn { position: relative; overflow: visible; }
+.g-left { position: absolute; top: -8px; right: -6px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 10px; background: var(--brass); color: var(--sheet);
+  font-size: .68rem; font-weight: 800; letter-spacing: 0; line-height: 19px; text-align: center; font-stretch: 100%; box-shadow: 0 0 0 2px var(--yard); }
