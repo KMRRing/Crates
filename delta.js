@@ -510,7 +510,9 @@ async function askName() {
   return name;
 }
 
+// a board solved together: a team result, the time it took (lower is better)
 const together = createTogether({
+  result: g => (g.done?.won ? { match: `${g.seed}-${g.startedAt || ""}`, score: Math.round(((g.done.at || 0) - (g.startedAt || 0)) / 1000), won: true, coop: true, lower: true } : null),
   game: "delta",
   app: APP,
   toast,

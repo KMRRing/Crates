@@ -337,7 +337,10 @@ async function askName() {
   if (name) try { localStorage.setItem("crates:name", name); } catch { /* private mode */ }
   return name;
 }
+// a finished set together: your book against your partner's
+const seatBooks = g => Object.values(g.books || []);
 const together = createTogether({
+  result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: seatBooks(g)[mySeat()] ?? null, won: (seatBooks(g)[mySeat()] ?? 0) > (seatBooks(g)[1 - mySeat()] ?? 0) } : null),
   game: "quote",
   app: APP,
   toast,

@@ -5,6 +5,7 @@
 import { getSync } from "./net.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere } from "./rooms.js";
 import { reloadFresh } from "./pwa.js";
+import { reportDuo } from "./suite.js";
 
 /** The seated players in a game's state: [id, player] (leftovers from devices that handed a seat over are skipped). */
 export const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]) => p && p.slot != null);
@@ -12,9 +13,12 @@ export const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]
 /**
  * game: the room branch ("delta"); app: this code's version for together games of this kind;
  * fresh(players): a new game state (or a promise of one); valid(state): whether a state is this game's; onState(state): draw it;
- * onPresence(): redraw who's where; onLeave(): back to solo; toast(msg); askName(): the player's name.
+ * onPresence(): redraw who's where; onLeave(): back to solo; toast(msg); askName(): the player's name;
+ * result(state): once a match is over, { match, score, won, coop, lower } as this player saw it (else null), recorded
+ * for the pair's duo record.
  */
-export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, toast, askName }) {
+export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, toast, askName, result }) {
+  const reported = new Set();
   let room = null;   // { code, sync, uid, name, data, here, online, stop: [] }
   const path = code => branchPath(code, game);
 
@@ -111,6 +115,10 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     room.data = val;
     try { onState(val); }
     catch (e) { console.error(e); toast("Something went wrong showing the last move; it's still saved"); }   // never freeze
+    try {
+      const r = result?.(val);
+      if (r && !reported.has(r.match)) { reported.add(r.match); reportDuo(game, r.match, r).catch(e => console.error(e)); }
+    } catch (e) { console.error(e); }
   }
 
   /** Back from the background (Safari may have frozen the page): reconnect and fetch the room afresh. */

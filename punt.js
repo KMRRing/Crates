@@ -600,7 +600,9 @@ async function askName() {
   return name;
 }
 
+// a run played together: one pot, a team result
 const together = createTogether({
+  result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: g.pot ?? null, won: (g.pot ?? 0) > START_POT, coop: true } : null),
   game: "punt",
   app: APP,
   toast,

@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, joinSolo, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, ask, duoHref, soloHref, DUO_GAMES } from "./suite.js";
+import { soloCode, duoCode, startSolo, joinSolo, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, DUO_GAMES } from "./suite.js";
 // Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
@@ -135,7 +135,7 @@ const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 
 const GAME_NAME = id => APPS.find(a => a.id === (id === "slate" ? "glyph" : id))?.name || id;
 function bindCodes(dlg) {
   const head = dlg.querySelector("[data-codes]");
-  let partner = null, theirs = {}, theirName = "";
+  let partner = null, theirs = {}, theirName = "", duoRecords = {};
   const here = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "").replace(/^index$|^$/, "crates");
   const status = p => (p ? `${p.name || "Partner"} · ${p.online ? `${GAME_NAME(p.game)}${p.mode === "duo" ? ", together" : ", solo"}` : "offline"}` : "not here yet");
   const draw = () => {
@@ -145,7 +145,10 @@ function bindCodes(dlg) {
     if (duo) head.querySelector("[data-pair] em").textContent = status(partner);
     for (const el of dlg.querySelectorAll("[data-best]")) {
       const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
-      el.textContent = mine == null && them == null ? "" : `${mine != null ? `Best ${short(mine)}` : "–"}${duo && them != null ? ` · ${(theirName || "P")[0]} ${short(them)}` : ""}`;
+      // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
+      const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+      const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `×${d.n}` : d.lower ? time(d.best) : short(d.best)}` : `Duo ${d.mine}–${d.theirs}`;
+      el.textContent = [mine != null ? `Best ${short(mine)}` : "", duo && them != null ? `${(theirName || "P")[0]} ${short(them)}` : "", duoText].filter(Boolean).join(" · ");
     }
   };
   // the partner sheet: link, ask to play together, back to solo, unlink
@@ -203,6 +206,7 @@ function bindCodes(dlg) {
     shareBests(APPS.map(a => a.id)).catch(() => {});
     watchPartner(p => { partner = p; draw(); }).catch(() => {});
     watchBests((bests, name) => { theirs = bests; theirName = name; draw(); }).catch(() => {});
+    watchDuoRecords(r => { duoRecords = r; draw(); }).catch(() => {});
   }
   return draw;
 }

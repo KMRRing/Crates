@@ -502,7 +502,10 @@ async function askName() {
   if (name) try { localStorage.setItem("crates:name", name); } catch { /* private mode */ }
   return name;
 }
+// a finished set together: your points against your partner's
+const seatScores = g => Object.values(g.scores || [0, 0]);
 const together = createTogether({
+  result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: seatScores(g)[mySeat()] || 0, won: (seatScores(g)[mySeat()] || 0) > (seatScores(g)[1 - mySeat()] || 0) } : null),
   game: "chart",
   app: APP,
   toast,
