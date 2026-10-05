@@ -859,47 +859,68 @@ function drawMenu() {
 }
 
 // ---------- definitions ----------
-let lastTap = { k: null, t: 0 };
-/** True on the second tap of the same cell within 350 ms. */
+// A double tap on a cell defines the complete words through it from Slate's own dictionary (slate-defs.js), so it
+// works offline and has every word players may place. It is loaded on the first lookup, not with the board.
+let lastTap = { k: null, t: 0, before: null };
+const forgetTap = () => { lastTap = { k: null, t: 0, before: null }; };
+/** True on the second tap of the same cell within 350 ms. The first tap has already moved or turned the cursor (and
+ *  changing word drops typed letters); that is undone, so a double tap only looks words up. */
 function doubleTap(k) {
   const now = performance.now(), again = lastTap.k === k && now - lastTap.t < 350;
-  lastTap = again ? { k: null, t: 0 } : { k, t: now };
+  if (again) {
+    ({ cursor, dir, pending } = lastTap.before);
+    forgetTap();
+    render();
+  } else lastTap = { k, t: now, before: { cursor, dir, pending: { ...pending } } };
   return again;
 }
-const DEFS = "glyph:defs";
-const defCache = (() => { try { return JSON.parse(localStorage.getItem(DEFS)) || {}; } catch { return {}; } })();
-/** The dictionary's first few senses of a word, from the free dictionaryapi.dev, kept once fetched. */
-async function definitionOf(word) {
-  if (defCache[word]) return defCache[word];
-  const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
-  if (!res.ok) throw new Error(res.status === 404 ? "no entry" : "no reply");
-  const data = await res.json();
-  const senses = [];
-  for (const entry of data) for (const m of entry.meanings || []) for (const d of m.definitions || []) { if (senses.length < 4) senses.push({ pos: m.partOfSpeech, text: d.definition }); }
-  defCache[word] = senses;
-  try { const keys = Object.keys(defCache); if (keys.length > 300) delete defCache[keys[0]]; localStorage.setItem(DEFS, JSON.stringify(defCache)); } catch { /* full or private */ }
-  return senses;
+try { localStorage.removeItem("glyph:defs"); } catch { /* the old online lookup's cache, no longer read */ }
+const SENSE = { n: "noun", v: "verb", a: "adjective", r: "adverb", p: "preposition", c: "conjunction", d: "determiner", o: "pronoun", i: "exclamation", x: "abbreviation", k: "contraction" };
+const FORM = { p: "plural of", s: "present tense of", d: "past tense of", g: "-ing form of", c: "comparative of", t: "superlative of", f: "form of", v: "variant spelling of" };
+let DEFS = null, loadingDefs = null;
+const loadDefs = () => (loadingDefs ??= import("./slate-defs.js").then(m => (DEFS = m.DEFS), err => { loadingDefs = null; throw err; }));
+/** A word's senses ({pos, text}) and the base words it is a form of ({base, how}), from its dictionary line. */
+function entryOf(word) {
+  const senses = [], forms = [];
+  for (const part of (DEFS[word] || "").split("|")) {
+    if (part.startsWith("=")) { const [base, how] = part.slice(1).split("."); forms.push({ base, how }); }
+    else if (part) senses.push({ pos: SENSE[part[0]], text: part.slice(1) });
+  }
+  return { senses, forms };
+}
+const make = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = text; if (cls) e.className = cls; return e; };
+function sensesList(senses) {
+  const list = make("ol");
+  for (const s of senses) { const li = make("li"); li.append(make("span", s.pos, "pos"), s.text); list.appendChild(li); }
+  return list;
+}
+/** One word: its senses, then what it is a form of. A word with no senses of its own (BILLS) shows its base's. */
+function entryBox(word) {
+  const box = make("div"), { senses, forms } = entryOf(word.toLowerCase());
+  box.append(make("h3", word));
+  if (senses.length) box.append(sensesList(senses));
+  for (const { base, how } of forms) {
+    const line = make("p", senses.length ? `Also ${how === "f" || how === "v" ? "a" : "the"} ${FORM[how]} ` : `${FORM[how][0].toUpperCase()}${FORM[how].slice(1)} `);
+    line.append(make("b", base.toUpperCase()));
+    box.append(line);
+    if (!senses.length) box.append(sensesList(entryOf(base).senses));
+  }
+  if (!senses.length && !forms.length) box.append(make("p", "Not in Slate's dictionary: one of the word list's rarest words."));
+  return box;
 }
 /** The complete words through a cell, defined: a double tap on the board. */
 async function define(k) {
-  const letters = { ...lettersFrom(S.board, S.log), ...pending };
+  const letters = enteredLetters();
   const words = [...new Set(grid().slots.filter(s => s.cells.includes(k)).map(s => wordAt(s, letters)).filter(w => w && VALID.has(w)))];
-  const body = $("defineBody");
-  body.replaceChildren();
   if (!words.length) { toast("Finish a word through this cell first"); return; }
-  for (const w of words) {
-    const box = document.createElement("div"), h = document.createElement("h3"), list = document.createElement("ol");
-    h.textContent = w;
-    const p = document.createElement("p"); p.textContent = "Looking it up…";
-    box.append(h, p, list);
-    body.appendChild(box);
-    definitionOf(w).then(senses => {
-      p.remove();
-      if (!senses.length) { p.textContent = "No entry in the dictionary."; box.appendChild(p); return; }
-      for (const s of senses) { const li = document.createElement("li"); const pos = document.createElement("span"); pos.className = "pos"; pos.textContent = s.pos || ""; li.append(pos, s.text); list.appendChild(li); }
-    }).catch(err => { p.textContent = String(err.message).includes("no entry") ? "No entry in the dictionary." : "Needs a connection to look words up."; });
-  }
+  const body = $("defineBody"), show = () => body.replaceChildren(...words.map(entryBox), make("p", "Definitions: Open English WordNet (CC BY 4.0), and Slate's own for words it lacks.", "credit"));
+  if (DEFS) show();
+  else body.replaceChildren(make("p", "Looking it up…"));
   if (!$("defineDlg").open) $("defineDlg").showModal();
+  if (!DEFS) {
+    try { await loadDefs(); show(); }
+    catch { body.replaceChildren(make("p", "The dictionary didn't load. Open Slate once with a connection and it stays on the device.")); }
+  }
 }
 
 // ---------- input ----------
