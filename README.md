@@ -216,6 +216,8 @@ The bank is 20,000 puzzles from the Lichess puzzle database (CC0), popular ones 
 
 The page fits the screen: the board is square, as wide as the phone or as tall as the room left, whichever is less.
 
+After a miss the board shows your move, then the wanted one as its two squares: yellow where it starts, green where it lands. (That square's mark was once called "hint", which picked up the suite's clue-button style, a 30-pixel box, and grew far past the board; it's "want" now.)
+
 ## Deck
 The pile, reviewed: what you didn't know, brought back until you do. Every knowledge game records an item when you show you don't know it: Punt when you answer wrong, pass, or stake 20% or less; Quote when the truth is outside your market or the market is wider than three ranges; Chart when a pin is over 500 km off or you took a clue; Crates when a clue's crate is got wrong (through its own learn deck); Rush when you miss a puzzle. Items move through four piles with growing gaps, Leitner's boxes on Pimsleur's clock: ultra-short (due at once), short (10 minutes), medium (12 hours), long (a week). Right moves an item up a pile, in Deck or in the game that banked it (a confident right answer in Punt, a tight quote, a clean pin, a solved puzzle); wrong drops it to the first; right in the long pile and it's learned. Deck shows the piles and what's due per game, and a review asks each due item back in its own form: Punt's questions as options (drawings included), Crates' clues as which-country-or-commodity, Chart's places as which-country, Quote's numbers as a number judged in the question's own range, Rush's puzzles on the board. Up to 40 a review, lowest piles first.
 

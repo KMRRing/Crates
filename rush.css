@@ -36,7 +36,8 @@
 .ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
 .ch-board .hl.sel { fill: rgba(255, 221, 89, .75); }
 .ch-board .hl.pre { fill: rgba(168, 104, 230, .5); }
-.ch-board .hl.hint { fill: rgba(46, 158, 91, .6); }
+/* (not "hint": the suite's .hint is Crates' clue button, and its width and height would blow this square up) */
+.ch-board .hl.want { fill: rgba(46, 158, 91, .6); }
 .ch-board .hl.check { fill: rgba(210, 59, 42, .75); }
 .ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
 .ch-board .coord.on-light { fill: #6B8DB0; }

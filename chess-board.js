@@ -25,7 +25,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   const chess = new Chess(puzzle.fen);
   const solver = chess.turn() === "w" ? "b" : "w";                 // the opponent moves first
   let step = 0;                                                      // index into puzzle.moves
-  let selected = null, done = false, last = null, hint = null, premove = null, drag = null;
+  let selected = null, done = false, last = null, want = null, premove = null, drag = null;   // want: the square the wanted move goes to, after a miss
   const timers = [];
   const later = (fn, ms) => timers.push(setTimeout(fn, ms));
   const svg = el("svg", { viewBox: "0 0 8 8", class: "ch-board" });
@@ -44,7 +44,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
       const sq = squareAt(f, r), [x, y] = xy(sq), dark = (f + r) % 2 === 0;
       svg.appendChild(el("rect", { x, y, width: 1, height: 1, class: `sq ${dark ? "dark" : "light"}` }));
-      const marks = [last && (last.from === sq || last.to === sq) && "last", selected === sq && "sel", premove && (premove.from === sq || premove.to === sq) && "pre", hint === sq && "hint"].filter(Boolean);
+      const marks = [last && (last.from === sq || last.to === sq) && "last", selected === sq && "sel", premove && (premove.from === sq || premove.to === sq) && "pre", want === sq && "want"].filter(Boolean);
       for (const m of marks) svg.appendChild(el("rect", { x, y, width: 1, height: 1, class: `hl ${m}` }));
     }
     for (let i = 0; i < 8; i++) {
@@ -124,9 +124,9 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     // show the wrong move, then the move that was wanted
     const wanted = puzzle.moves[step];
     last = { from: mv.from, to: mv.to };
-    hint = null;
+    want = null;
     draw();
-    later(() => { hint = wanted.slice(2, 4); last = { from: wanted.slice(0, 2), to: wanted.slice(2, 4) }; draw(); }, 500);
+    later(() => { want = wanted.slice(2, 4); last = { from: wanted.slice(0, 2), to: wanted.slice(2, 4) }; draw(); }, 500);
     finish(false);
   }
   function finish(solved) { if (done) return; done = true; selected = null; premove = null; draw(); opts.onDone?.(solved); }
