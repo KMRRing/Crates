@@ -75,6 +75,7 @@
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--yard); color: var(--ink); }
 * { touch-action: manipulation; }   /* no double-tap zoom anywhere (phones only honour this on the touched element itself); pinch still works */
+input, textarea, select { font-size: max(1em, 16px); }   /* iPhones zoom into a field smaller than 16px when it's focused */
 body { font-family: var(--font); font-size: 17px; line-height: 1.4; font-weight: 500; -webkit-text-size-adjust: 100%; }
 button, input { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

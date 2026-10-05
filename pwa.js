@@ -63,3 +63,7 @@ export async function hardUpdate() {
   location.reload();
   return true;
 }
+
+// A double tap must never zoom the page: the viewport is capped at scale 1 and every element is touch-action:
+// manipulation, and this catches whatever is left (a double tap that reaches the document as a dblclick).
+document.addEventListener("dblclick", e => { if (!e.target.closest("input, textarea, select, [contenteditable]")) e.preventDefault(); }, { passive: false });
