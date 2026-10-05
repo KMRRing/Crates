@@ -12,6 +12,7 @@ import { generate, generateSplit, encode, decode, describe, hintFor, classify, g
 import { getSync } from "./net.js";
 import * as view from "./view.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
+import { reportDuo } from "./suite.js";
 
 const LIVES = 4;          // team pool per board
 const CLUES = 4;          // team pool per board; unused clues don't carry over
@@ -268,6 +269,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     if (b.done && !seen.done && !b.won) view.toast("Out of lives", 2500);
   }
 
+  const reportedBoards = new Set();
   function onRoom(val) {
     if (!val) { view.toast("That game has ended", 3000); leave(); return; }
     const t = tidy(val);
@@ -293,6 +295,11 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
       peek = null;
     } else {
       announce(b);
+    }
+    // a board finished together is a team result for the duo record: cleared (all four found) or not, once per board
+    if (b.done && !reportedBoards.has(b.code)) {
+      reportedBoards.add(b.code);
+      reportDuo("crates", b.code, { score: null, won: b.found.length >= 4, coop: true }).catch(e => console.error(e));
     }
     seen = { n: b.n, guesses: b.guesses.length, found: b.found.length, revealed: b.revealed.length, done: b.done };
     const taken = takenSet();

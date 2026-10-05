@@ -165,7 +165,7 @@ function bindCodes(dlg) {
       const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
       const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
-      const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `×${d.n}` : d.lower ? time(d.best) : short(d.best)}` : `Duo ${d.mine}–${d.theirs}`;
+      const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : short(d.best)}` : `Duo ${d.mine}–${d.theirs}`;
       el.textContent = [mine != null ? `Best ${short(mine)}` : "", duo && them != null ? `${(theirName || "P")[0]} ${short(them)}` : "", duoText].filter(Boolean).join(" · ");
     }
   };

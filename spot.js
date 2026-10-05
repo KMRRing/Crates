@@ -7,6 +7,8 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
+import { reportDuo } from "./suite.js";
+
 
 const $ = id => document.getElementById(id);
 const APP = 1;                         // this code's version of the together state
@@ -258,6 +260,8 @@ function showResults(st) {
   awake(false);
   const solo = run.mode !== "duo";
   let best = null;
+  // a run played together is a team result: the pair's score, recorded for the duo record (each device its side)
+  if (!solo) reportDuo("spot", `${run.seed}-${run.startAt}`, { score: st.score, won: null, coop: true }).catch(e => console.error(e));
   if (run.mode === "solo") { best = Math.max(read(BEST, 0), st.score); write(BEST, best); }
   if (run.mode === "daily") { const d = read(DAILY, {}); d[today()] = Math.max(d[today()] || 0, st.score); write(DAILY, d); best = d[today()]; }
   card((add, go) => {

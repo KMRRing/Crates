@@ -147,14 +147,15 @@ export async function watchDuoRecords(cb) {
   return sync.watch(`crates/rooms/${code}/duo`, all => {
     const out = {};
     for (const [game, matches] of Object.entries(all || {})) {
-      const r = out[game] = { n: 0, coop: false, best: null, lower: false, mine: 0, theirs: 0 };
+      const r = out[game] = { n: 0, coop: false, best: null, lower: false, wins: 0, mine: 0, theirs: 0 };
       for (const sides of Object.values(matches || {})) {
         const entries = Object.entries(sides || {});
         if (!entries.length) continue;
         r.n++;
         const any = entries[0][1];
         if (any.coop) {
-          r.coop = true; r.lower = !!any.lower;
+          r.coop = true; r.lower ||= !!any.lower;           // a game's matches all score the same way
+          if (entries.some(([, x]) => x.won)) r.wins++;
           for (const [, x] of entries) if (x.score != null && (r.best == null || (r.lower ? x.score < r.best : x.score > r.best))) r.best = x.score;
         } else {
           if (entries.some(([id, x]) => id === me && x.won)) r.mine++;

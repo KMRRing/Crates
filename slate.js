@@ -5,6 +5,7 @@ import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSea
 import { bindSwitcher, APPS } from "./apps.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
+import { reportDuo } from "./suite.js";
 
 const $ = id => document.getElementById(id);
 // Saves, the room branch and the switcher id keep the game's first name (Glyph), so saved boards and rooms in
@@ -428,6 +429,7 @@ function resync() {
   watchRoom();
 }
 
+const reportedDone = new Set();   // boards finished together, recorded once per visit
 function onRoom(val) {
   if (!room) return;
   if ((val?.app || 0) > APP) { updateApp(); return; }
@@ -437,6 +439,12 @@ function onRoom(val) {
   const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
   S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null, startedAt: val.startedAt || val.created };
   if (fresh) { resetCursor(); shownDone = null; }
+  // a board finished together is a team result for the duo record: solved, in the time it took (lower is better)
+  if (S.done && !reportedDone.has(`${S.seed}-${S.startedAt}`)) {
+    reportedDone.add(`${S.seed}-${S.startedAt}`);
+    reportDuo("slate", `${S.seed}-${S.startedAt}`, S.done.won ? { score: Math.round(((S.done.at || 0) - (S.startedAt || 0)) / 1000), won: true, coop: true, lower: true } : { score: null, won: false, coop: true, lower: true })
+      .catch(e => console.error(e));
+  }
   try {
     if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
     render();
