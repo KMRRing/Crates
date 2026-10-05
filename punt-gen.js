@@ -26,6 +26,11 @@ export const LEVELS = {
   refining: { label: "Refining", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, the blending chemistry 3–7, specs and economics 2–6." },
   // Reasoning: critical reasoning on reasoning-bank.js: arguments, flaws, inference, statistics, decisions
   reasoning: { label: "Reasoning", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./reasoning-bank.js", note: "3 is a clear fallacy, 8 is a base-rate or selection trap. Most sit at 5–6." },
+  // Words: a word, pick its synonym; Capitals and Flags: the world's countries; Patterns: what comes next
+  words: { label: "Words", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./words-bank.js", note: "Advanced words at 1–4, rare at 5–7, obscure at 8–10." },
+  capitals: { label: "Capitals", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./capitals-bank.js", note: "1–3 are countries everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
+  flags: { label: "Flags", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./flags-bank.js", note: "1–3 are flags everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
+  patterns: { label: "Patterns", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./patterns-bank.js", note: "1–3 are counting and squares, 7 and up need two steps or a trick." },
 };
 /** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
 export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
