@@ -7,7 +7,7 @@ import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action } from "./menu.js";
+import { part, action, mirror } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const U = 10;                         // a tile, in the map's drawing units
@@ -416,6 +416,7 @@ function openMenu() {
   const table = document.createElement("table");
   table.className = "hb-bests";
   table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
+  part(body, "content").append(mirror("Level", $("level")));
   part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
   part(body, "about").append(table);
   $("menuDlg").showModal();

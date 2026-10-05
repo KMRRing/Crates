@@ -566,3 +566,19 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: .35rem; margin-top: .4rem; }
 .menu-grid button { border: 1.5px solid var(--tile-edge); border-radius: 10px; background: none; color: var(--ink); font: inherit; font-size: .86rem; font-weight: 700; padding: .45rem .5rem; cursor: pointer; }
 .menu-grid button[aria-checked="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+
+/* the games screen's head: a person (solo) and two people (partner), each with a tick once set; your partner's status
+   takes the rest of the line */
+.code-chip .code-tick { width: .95rem; height: .95rem; color: #3a9d57; stroke-width: 2.6; }
+.code-chip { padding: .3rem .5rem .3rem .45rem; }
+/* in a game's header: the dropdowns live in the menu now (under Content), and the menu button is the rete */
+.top .dd, .top select.pool, .ch-pick { display: none !important; }   /* Chart's topic and region too */
+.rete-btn { display: inline-grid; place-items: center; width: 42px; height: 42px; padding: 0 !important; }
+.rete-btn .rete { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.rete-btn .rete path:last-child { fill: currentColor; }
+.rete-btn.turning .rete { animation: rete-turn 9s linear infinite; }
+@keyframes rete-turn { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rete-btn.turning .rete { animation: none; } }
+
+/* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
+.partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; }

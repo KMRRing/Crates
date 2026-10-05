@@ -160,6 +160,7 @@ const ICON = {
   duo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="8.5" r="3.1"/><path d="M2.5 19.5c.5-3.4 2.9-5.3 6-5.3s5.5 1.9 6 5.3"/><circle cx="16.5" cy="8" r="2.7"/><path d="M15.2 13.9c3.3-.3 5.7 1.5 6.3 5.1"/></svg>',
   update: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 4.2v4.6h-4.6"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  tick: '<svg class="code-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 /**
  * The games screen's head, in one line: your solo code (one person: every device with it is in the same state in every
@@ -176,8 +177,9 @@ function bindCodes(dlg) {
   const status = p => (p ? `${(p.name || "Partner").split(" ")[0]} · ${!p.online ? "offline" : !p.game ? "choosing a game" : `${GAME_NAME(p.game)}${p.mode === "duo" ? " together" : p.mode === "watch" ? " (watching)" : ""}`}` : "not here yet");
   const draw = () => {
     const solo = soloCode(), duo = duoCode();
-    head.innerHTML = `<button class="code-chip" type="button" data-solo aria-label="Your solo code${solo ? ` ${solo}: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.solo}<b>${solo || "—"}</b></button>
-      <button class="code-chip" type="button" data-duo aria-label="Your partner code${duo ? ` ${duo}: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.duo}<b>${duo || "—"}</b></button>
+    // a tick: syncing (solo) or linked (partner); the codes themselves are in the links a tap copies, and in the box a hold opens
+    head.innerHTML = `<button class="code-chip${solo ? " set" : ""}" type="button" data-solo aria-label="Your solo code${solo ? ` ${solo}, syncing: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.solo}${solo ? ICON.tick : "<b>+</b>"}</button>
+      <button class="code-chip${duo ? " set" : ""}" type="button" data-duo aria-label="Your partner code${duo ? ` ${duo}, linked: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.duo}${duo ? ICON.tick : "<b>+</b>"}</button>
       ${duo ? `<button class="partner-line${partner?.online ? " on" : ""}" type="button" data-pair></button>` : ""}`;
     if (duo) head.querySelector("[data-pair]").textContent = status(partner);
     for (const el of dlg.querySelectorAll("[data-best]")) {
@@ -210,9 +212,9 @@ function bindCodes(dlg) {
     location.reload();
   };
   const copy = async (kind, chip) => {
-    const url = codesLink(kind), b = chip.querySelector("b"), was = b.textContent;
-    try { await navigator.clipboard.writeText(url); b.textContent = "Copied"; } catch { prompt("Copy this link:", url); return; }
-    setTimeout(() => { b.textContent = was; }, 1200);
+    const url = codesLink(kind), was = chip.innerHTML;
+    try { await navigator.clipboard.writeText(url); chip.innerHTML = `${ICON[kind]}<b>Copied</b>`; } catch { prompt("Copy this link:", url); return; }
+    setTimeout(() => { chip.innerHTML = was; }, 1200);
   };
   // tap copies the link, hold types a code (a code that isn't set yet is typed on a tap)
   let held = null, heldFired = false;

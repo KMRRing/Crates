@@ -87,6 +87,11 @@ export function mirror(label, select) {
 export const line = text => el("p", "menu-line", text);
 
 const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+// the menu button: an astrolabe's rete, the openwork star map that turns over the plate (rim, the off-centre ecliptic
+// ring, star pointers, the hub)
+const RETE = `<svg class="rete" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.6"/><circle cx="12" cy="10.3" r="5.9"/>
+  <circle cx="12" cy="12" r="1.5"/><path d="M12 2.4v3M12 18.6v3M2.4 12h3M18.6 12h3"/><path d="M6.4 6.2l2.1 2.4M17.6 6.2l-2.1 2.4M7 17.3l2.4-1.9M17 17.3l-2.4-1.9"/>
+  <path d="M12 16.2l-.9 1.6h1.8z"/></svg>`;
 let shaping = false;
 /** Lays out what the game just put in the menu: parts in order, under their headings; long explanations folded away. */
 function shape(body) {
@@ -129,6 +134,13 @@ function upgrade() {
     close.innerHTML = CLOSE;
   }
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });   // the backdrop: outside the sheet
+  const btn = document.getElementById("menuBtn");
+  if (btn) {                                                     // the rete stands still, and turns while the menu is open
+    btn.classList.add("rete-btn");
+    btn.setAttribute("aria-label", "Menu");
+    btn.innerHTML = RETE;
+    new MutationObserver(() => btn.classList.toggle("turning", dlg.open)).observe(dlg, { attributes: true, attributeFilter: ["open"] });
+  }
   const body = document.getElementById("menuBody") || dlg;
   new MutationObserver(() => queueMicrotask(() => shape(body))).observe(body, { childList: true });
 }
