@@ -45,8 +45,11 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
   new clues go at the end; nothing is reordered or removed.
 - **Items** (Chart's pins, Quote's estimates, Punt's choices) point at the entities they're about; misses carry those
   entities into the pile, and the other games' learning modes deal questions about them.
-- `kb/MIGRATION.md` lists what still needs a person: words that may be two things under one name, facts two sources
-  gave differently, places whose country names no country.
+- **Kinds:** a clue thing's kind (`kind:person`, `kind:food`…) is either set by hand or given by `tools/kb-kinds.mjs`
+  from its hints (marked `kindBy: "words"`); a kind by hand always stands. Settling one from `kb/KINDS.md`: add the
+  set and drop `kindBy`.
+- `kb/MIGRATION.md` and `kb/KINDS.md` list what still needs a person: words that may be two things under one name,
+  facts two sources gave differently, places whose country names no country, clue things whose kind is open.
 
 ## How the owner wants things
 

@@ -61,11 +61,19 @@ export async function build() {
 }
 
 // What each entity is a matter of, for coverage by subject across the games. A thing with a set the knowledge base
-// knows (a country, a city, a painting…) is in that set's subject; a clue thing without one (most of Crates' clues) is
-// in the subject of its links' commonest aspect, by its label in Crates' topics (History, Food & drink…).
+// knows (a country, a city, a painting…) is in that set's subject; a clue thing with a kind (a person, a company, a
+// festival…, given by tools/kb-kinds.mjs or by hand) in its kind's; any other in the subject of its links' commonest
+// aspect, by its label in Crates' topics (History, Food & drink…).
 const SET_SUBJECT = [["country", "Countries"], ["commodity", "Commodities"], ["painting", "Paintings"], ["painter", "Painters"],
   ["art-movement", "Art movements"], ["museum", "Museums"], ["city", "Cities"], ["trade-place", "Ports, plants and trade"],
   ["wine-place", "Wine places"], ["people-place", "People's places"], ["feature", "Physical features"], ["geo-place", "Geography"]];
+// A clue thing's kind, by the subject it belongs to: the kinds are finer than the subjects, and fold into Crates' topics
+const KIND_SUBJECT = { person: "People", company: "Companies & brands", organisation: "Policy & institutions", place: "Geography",
+  natural: "Nature", site: "Sites & structures", event: "History", law: "Policy & institutions", market: "Markets",
+  film: "Film, TV & games", book: "Culture & arts", music: "Culture & arts", art: "Culture & arts", food: "Food & drink",
+  drink: "Food & drink", animal: "Nature", plant: "Agriculture", disease: "Agriculture", currency: "Money & economy",
+  vehicle: "Trade & shipping", sport: "Sport", custom: "Culture & arts", word: "Language & names", tech: "Science & tech",
+  material: "Specs & science", craft: "Craft & style", number: "History" };
 // Crates' country and commodity topics that are one subject seen from the two sides
 const SAME_SUBJECT = { Companies: "Companies & brands", Policy: "Policy & institutions", "Trade & logistics": "Trade & shipping", "Culture & language": "Culture & arts" };
 async function subjects(ENTITIES, LINKS) {
@@ -83,8 +91,9 @@ async function subjects(ENTITIES, LINKS) {
   for (const [, label] of SET_SUBJECT) index(label);
   for (const e of ENTITIES) {
     const set = SET_SUBJECT.find(([s]) => e.sets.includes(s) || e.sets.some(x => x.startsWith(`${s}:`)));
-    const top = !set && [...(aspects.get(e.id) || [])].sort((a, b) => b[1] - a[1])[0];
-    const label = set ? set[1] : top ? top[0] : null;
+    const kind = !set && e.sets.find(s => s.startsWith("kind:"))?.slice(5);
+    const top = !set && !kind && [...(aspects.get(e.id) || [])].sort((a, b) => b[1] - a[1])[0];
+    const label = set ? set[1] : kind ? KIND_SUBJECT[kind] : top ? top[0] : null;
     if (!label) continue;
     of[e.id] = index(label);
     labels[of[e.id]].total++;
