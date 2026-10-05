@@ -113,6 +113,8 @@ Computer turns come at the pace chosen in the menu: Fast (each move shown for 0.
 
 `cartel-engine.js` is the referee, `cartel-ai.js` the players, `cartel.js` the table. Playing together (two people and the AIs) comes next: the referee would run on one device.
 
+Targets are chosen on the table: when a move needs one (a steal, an audit, a sanction, a question, a hit), the seats that can be chosen glow, the chosen one is ringed and labelled, and tapping another seat changes it; the move panel keeps only the move.
+
 ## Spot
 Sums fly across a dark field: thrown up from below in an arc, flung in from a side and falling away, or dropping faster and faster with a sway, each on its own path. Three lives; every 5 right in a row raises the score multiplier by half, up to ×3.
 

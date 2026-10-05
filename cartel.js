@@ -244,11 +244,23 @@ function lastSaid(i) {
   return null;
 }
 
+/** When the open panel wants a target, who's picked and how to pick: the seats on the table do the choosing. */
+function targeting() {
+  if (!g || g.over || g.turn !== ME || g.step !== "act") return null;
+  const first = others()[0]?.i;
+  if (ui.panel === "claim" && ABILITIES[ui.claim.ability]?.target) return { picked: ui.claim.target ??= first, pick: i => { ui.claim.target = i; render(); } };
+  if (ui.panel === "ask") return { picked: ui.ask.target ??= first, pick: i => { ui.ask.target = i; render(); } };
+  if (ui.panel === "hit") return { picked: ui.hit ??= first, pick: i => { ui.hit = i; render(); } };
+  return null;
+}
 function renderSeats() {
   const lap = g.players.length * 3;
+  const aim = targeting();
   $("seats").replaceChildren(...g.players.filter(p => p.i !== ME).map(p => {
     const seat = document.createElement("div");
-    seat.className = `ct-seat${g.turn === p.i && !g.over ? " turn" : ""}${p.out ? " out" : ""}`;
+    const canTarget = aim && !p.out;
+    seat.className = `ct-seat${g.turn === p.i && !g.over ? " turn" : ""}${p.out ? " out" : ""}${canTarget ? " targetable" : ""}${canTarget && aim.picked === p.i ? " picked" : ""}`;
+    if (canTarget) { seat.setAttribute("role", "button"); seat.addEventListener("click", () => aim.pick(p.i)); }
     const plaque = document.createElement("div");
     plaque.className = "ct-plaque";
     const b = document.createElement("b"), t = document.createElement("span");
@@ -444,11 +456,6 @@ function faces(parent, from, picked, pick) {
   }
 }
 /** The other players to pick from. */
-function players(parent, picked, pick) {
-  const list = others();
-  const row = grid(parent, list.length);
-  for (const p of list) button("ct-choice", row, p.name, () => pick(p.i), picked === p.i);
-}
 /** A − number + stepper. */
 function stepper(parent, value, down, up, note) {
   const row = el("div", "ct-stepper", parent);
@@ -543,7 +550,7 @@ function claimPanel(panel) {
     if (x.cost && myPlain() < x.cost) card.disabled = true;
   }
   const x = ABILITIES[c.ability];
-  if (x.target) { c.target ??= others()[0]?.i; label(panel, "Against"); players(panel, c.target, i => { c.target = i; render(); }); }
+  if (x.target) { c.target ??= others()[0]?.i; el("p", "ct-note", panel, `Against ${name(c.target)}: tap another player on the table to change.`); }
   if (c.ability === "inquiry") { label(panel, "Count which face"); faces(panel, 2, c.face, f => { c.face = f; render(); }); }
   if (x.blockers) el("p", "ct-note", panel, `They can block it as ${x.blockers.map(r => ROLES[r]).join(" or ")}.${c.ability === "sanction" ? ` The ${RULES.sanction} dice are spent either way.` : ""}`);
   if (c.ability === "inquiry" && !mine.includes(6)) el("p", "ct-note", panel, "The referee only answers a real Regulator: bluffed, this gets you nothing.");
@@ -554,8 +561,7 @@ function claimPanel(panel) {
 function askPanel(panel) {
   const a = ui.ask;
   a.target ??= others()[0]?.i;
-  label(panel, "Ask whom");
-  players(panel, a.target, i => { a.target = i; render(); });
+  el("p", "ct-note", panel, `Asking ${name(a.target)}: tap another player on the table to change.`);
   label(panel, "What");
   const kinds = grid(panel, 2);
   for (const [type, text] of [["count", "How many …?"], ["any", "Any …?"], ["odd", "Odd total?"], ["atLeast", "Total at least …?"]]) button("ct-choice", kinds, text, () => { a.type = type; render(); }, a.type === type);
@@ -582,7 +588,7 @@ function rerollPanel(panel) {
 function hitPanel(panel) {
   ui.hit ??= others()[0]?.i;
   label(panel, `Pay ${RULES.hit} dice: they lose a gold die`);
-  players(panel, ui.hit, i => { ui.hit = i; render(); });
+  el("p", "ct-note", panel, `Hitting ${name(ui.hit)}: tap another player on the table to change.`);
   go(panel, `Hit ${name(ui.hit)}`, () => play(() => act(g, { type: "hit", target: ui.hit })));
 }
 
