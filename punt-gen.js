@@ -24,6 +24,8 @@ export const LEVELS = {
   maths: { label: "Maths", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./maths-bank.js", note: "1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10." },
   // Refining: the same machinery on refining-bank.js: how a refinery works, unit by unit
   refining: { label: "Refining", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, the blending chemistry 3–7, specs and economics 2–6." },
+  // Reasoning: critical reasoning on reasoning-bank.js: arguments, flaws, inference, statistics, decisions
+  reasoning: { label: "Reasoning", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./reasoning-bank.js", note: "3 is a clear fallacy, 8 is a base-rate or selection trap. Most sit at 5–6." },
   // Chess: tactical puzzles from Lichess (chess-bank.js); you bet, then solve on the board
   chess: { label: "Chess", questions: 15, spread: 0.3, margin: 0.05, chess: true, bank: "./chess-bank.js" },
 };

@@ -7,9 +7,9 @@ new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "
 const P = await import("../punt-gen.js");
 let bad = 0;
 // the maths bank, for the Maths level (every stage and difficulty)
-const M = await import("../maths-bank.js"), RF = await import("../refining-bank.js"), CH = await import("../chess-bank.js");
-const stages = Object.fromEntries(M.STAGES.map(x => [x.id, x.label])), rfStages = Object.fromEntries(RF.STAGES.map(x => [x.id, x.label]));
-const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages } : lvl === "refining" ? { pool: RF.MATHS, stages: rfStages } : lvl === "chess" ? { pool: CH.PUZZLES } : null);
+const M = await import("../maths-bank.js"), RF = await import("../refining-bank.js"), CH = await import("../chess-bank.js"), RS = await import("../reasoning-bank.js");
+const stageMap = B => Object.fromEntries(B.STAGES.map(x => [x.id, x.label]));
+const mathsFor = lvl => (lvl === "maths" ? { pool: M.MATHS, stages: stageMap(M) } : lvl === "refining" ? { pool: RF.MATHS, stages: stageMap(RF) } : lvl === "reasoning" ? { pool: RS.MATHS, stages: stageMap(RS) } : lvl === "chess" ? { pool: CH.PUZZLES } : null);
 for (const lvl of Object.keys(P.LEVELS)) {
   let multi = 0, total = 0, overpaid = 0, oddsSeen = [];
   for (let seed = 1; seed <= 40; seed++) {
@@ -53,7 +53,7 @@ for (const lvl of Object.keys(P.LEVELS)) {
 // questions' own right answers, and prices harder questions higher
 {
   const pool = M.MATHS.filter(q => q.lv === "gcse" && [1, 2].includes(q.d));
-  const qs = P.makeSession(5, "maths", "hundred", { pool, stages });
+  const qs = P.makeSession(5, "maths", "hundred", { pool, stages: stageMap(M) });
   const byId = new Map(M.MATHS.map(q => [q.id, q]));
   const okFilter = qs.every(q => { const src = byId.get(q.key); return src.lv === "gcse" && [1, 2].includes(src.d); });
   const okAnswers = qs.every(q => { const src = byId.get(q.key); return q.options.filter(o => o.right).length === src.s && q.options.every((o, k) => o.right === src.a.includes(k)); });
