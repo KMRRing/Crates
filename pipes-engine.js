@@ -10,7 +10,8 @@
 // "blender" (inlets W and E, outlet S at rot 0). Directions: 0 N, 1 E, 2 S, 3 W.
 
 export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-export const PRODUCTS = { crude: { name: "Crude", colour: "#2C2A28" }, gas: { name: "Gas", colour: "#2F6FDE" }, blend: { name: "Blend", colour: "#7A4BC9" } };
+// pace: how much slower than the level's tick a product crosses a tile; delay: ms after the start before it flows
+export const PRODUCTS = { crude: { name: "Crude", colour: "#2C2A28", pace: 1.6, delay: 6000 }, gas: { name: "Gas", colour: "#2F6FDE", pace: 1, delay: 0 }, blend: { name: "Blend", colour: "#7A4BC9", pace: 1.3, delay: 0 } };
 export const LIVES = 3;
 const OPENINGS = { straight: [0, 2], bend: [0, 1], cross: [0, 1, 2, 3], rock: [], well: [2], term: [0], blender: [1, 2, 3] };
 const opposite = d => (d + 2) % 4;
@@ -29,15 +30,15 @@ const key = (x, y) => `${x},${y}`;
 /** How hard level n is. */
 export function levelOf(n) {
   return {
-    w: Math.min(7, 5 + Math.floor((n - 1) / 3)),
-    h: Math.min(9, 7 + Math.floor((n - 1) / 3)),
-    products: n >= 4 ? 2 : 1,
-    blender: n >= 7,
-    tick: Math.max(700, 1500 - 70 * (n - 1)),          // ms the flow takes to cross a tile
-    plan: Math.max(5000, 11000 - 500 * (n - 1)),       // ms before the flow starts
-    pressure: 9,                                       // tiles before a flow stalls, without a pump
-    minPath: 8 + n,                                    // the carved route is at least this long
-    rock: Math.min(0.2, 0.06 + 0.02 * (n - 1)),        // the share of spare cells that are rock
+    w: Math.min(7, 5 + Math.floor((n - 1) / 4)),
+    h: Math.min(9, 7 + Math.floor((n - 1) / 4)),
+    products: n >= 5 ? 2 : 1,
+    blender: n >= 9,
+    tick: Math.max(900, 1900 - 60 * (n - 1)),          // ms gas takes to cross a tile; crude is slower (its pace)
+    plan: Math.max(7000, 14000 - 450 * (n - 1)),       // ms before anything flows
+    pressure: 10,                                      // tiles before a flow stalls, without a pump
+    minPath: 7 + n,                                    // the carved route is at least this long
+    rock: Math.min(0.18, 0.05 + 0.015 * (n - 1)),      // the share of spare cells that are rock
   };
 }
 
@@ -219,9 +220,11 @@ function exitOf(tile, into) {
  */
 export function advance(level, run, dt, boost = 1) {
   if (run.over) return run;
-  const tick = level.level.tick / boost;
+  run.clock = (run.clock || 0) + dt;
   for (const h of run.heads) {
     if (h.done) continue;
+    if (run.clock < (PRODUCTS[h.product].delay || 0)) continue;        // crude sets off later than gas
+    const tick = level.level.tick * (PRODUCTS[h.product].pace || 1) / boost;
     h.progress += dt / tick;
     while (h.progress >= 1 && !h.done && !run.over) {
       h.progress -= 1;
@@ -285,7 +288,7 @@ function spill(run, h, why, x = h.x, y = h.y) {
 export function solved(level) {
   const run = newRun(level);
   run.tiles.forEach((row, y) => row.forEach((t, x) => { t.rot = level.solution[y][x]; }));
-  for (let i = 0; i < 400 && !run.over; i++) advance(level, run, level.level.tick);
+  for (let i = 0; i < 600 && !run.over; i++) advance(level, run, level.level.tick);
   return run;
 }
 

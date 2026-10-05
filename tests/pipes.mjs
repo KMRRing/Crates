@@ -10,17 +10,17 @@ for (let seed = 1; seed <= 15; seed++) for (let n = 1; n <= 10; n++) {
   const win = P.solved(lv);
   if (!win.over?.win) { problems++; console.log("the solution doesn't work", seed, n, win.over, win.spill); }
   lv.tiles.flat().forEach(t => { kinds[t.kind] = (kinds[t.kind] || 0) + 1; });
-  if (n >= 4 && n < 7 && !lv.tiles.flat().some(t => t.kind === "cross")) { problems++; console.log("a two-product level without a crossing", seed, n); }
-  if (n >= 7 && !lv.tiles.flat().some(t => t.kind === "blender")) { problems++; console.log("a blender level without a blender", seed, n); }
+  if (n >= 5 && n < 9 && !lv.tiles.flat().some(t => t.kind === "cross")) { problems++; console.log("a two-product level without a crossing", seed, n); }
+  if (n >= 9 && !lv.tiles.flat().some(t => t.kind === "blender")) { problems++; console.log("a blender level without a blender", seed, n); }
   if (lv.heads.length !== lv.level.products) { problems++; console.log("heads", seed, n); }
   // as scrambled, the flow usually spills (the player has to work)
   const run = P.newRun(lv);
-  for (let i = 0; i < 300 && !run.over; i++) P.advance(lv, run, lv.level.tick);
+  for (let i = 0; i < 400 && !run.over; i++) P.advance(lv, run, lv.level.tick);
   scrambledRuns++;
   if (run.over?.win) scrambledWins++;
   if (!run.over) { problems++; console.log("a scrambled run never ends", seed, n); }
 }
-check(problems === 0, `${built} levels: repeatable, every solution delivers (pumps included), crossings from level 4, blenders from 7 (tiles: ${JSON.stringify(kinds)})`);
+check(problems === 0, `${built} levels: repeatable, every solution delivers (pumps included), crossings from level 5, blenders from 9 (tiles: ${JSON.stringify(kinds)})`);
 check(scrambledWins < scrambledRuns * 0.05, `scrambled boards almost never work by luck (${scrambledWins} of ${scrambledRuns})`);
 // turning: a locked or fixed tile won't turn; a pressure stall ends the run
 {

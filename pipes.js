@@ -42,8 +42,8 @@ function beginLevel() {
   $("goBtn").hidden = true;
   $("boostBtn").hidden = true;
   $("note").textContent = L.n === 1 ? "Tap a tile to turn it. Build a route from the wellhead to the terminal before the oil gets there; a tile the flow has entered is locked. Pressure drops a notch a tile: route through pumps."
-    : L.n === 4 ? "Two products now, each to its own terminal. They can only cross at a crossing; the wrong terminal is contamination."
-    : L.n === 7 ? "A blender: crude in one side, gas in the other, and the blend leaves by the bottom to the blend terminal." : "";
+    : L.n === 5 ? "Two products now, each to its own terminal. Gas sets off first and moves faster; crude waits six seconds and crawls. They can only cross at a crossing; the wrong terminal is contamination."
+    : L.n === 9 ? "A blender: crude in one side, gas in the other, and the blend leaves by the bottom to the blend terminal." : "";
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
 }
