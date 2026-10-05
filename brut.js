@@ -8,7 +8,7 @@ import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, mirror } from "./menu.js";
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -267,6 +267,7 @@ let pick = null;                                              // the flight the 
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  part(body, "content").append(mirror("Mode", $("mode")));
   if (P.mode === "blind") {
     pick ??= false;
     part(body, "play").append(action("Start a flight", () => newFlight(pick), "primary"));

@@ -13,6 +13,7 @@ import { getSync } from "./net.js";
 import * as view from "./view.js";
 import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
 import { reportDuo } from "./suite.js";
+import { part, action, line } from "./menu.js";
 
 const LIVES = 4;          // team pool per board
 const CLUES = 4;          // team pool per board; unused clues don't carry over
@@ -471,42 +472,15 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     },
     share() {},
     menu() {
+      // the duo match's menu: Play (in the hidden-mode lobby: ready, and your side), Together (who's here, the match's
+      // settings or your side, back to solo)
       view.openMenu((body, close) => {
-        const add = (tag, cls, text) => {
-          const e = document.createElement(tag);
-          if (cls) e.className = cls;
-          if (text != null) e.textContent = text;
-          body.appendChild(e);
-          return e;
-        };
-        add("h3", null, `${MODES[room.mode].label} game ${code}`);
-        const partner = partnerId();
-        add("p", "stats", !partner ? "Send your partner the link. They join from any phone or laptop."
-          : players().map(pl => `${pl.name}${pl.online === false ? " (away)" : ""}${pl.ready ? " ✓ ready" : ""}`).join(" and "));
-
-        if (!room.board) {                       // hidden-mode lobby
-          const row = add("div", "controls");
-          const side = document.createElement("button");
-          side.className = "btn";
-          side.textContent = "Set up your side";
-          side.addEventListener("click", settingsSheet);
-          const ready = document.createElement("button");
-          ready.className = "btn primary";
-          ready.textContent = me().ready ? "Not ready" : "I'm ready";
-          ready.addEventListener("click", toggleReady);
-          row.append(side, ready);
-        }
-
-        const row = add("div", "controls");
-        if (room.board) {
-          const settingsBtn = document.createElement("button");
-          settingsBtn.className = "btn";
-          settingsBtn.textContent = hidden() ? "Your side" : "Settings";
-          settingsBtn.addEventListener("click", settingsSheet);
-          row.appendChild(settingsBtn);
-        }
-        const leaveBtn = add("button", "link", "Back to solo");
-        leaveBtn.addEventListener("click", () => { close(); leave(); });
+        const together = part(body, "together");
+        together.append(line(players().map(pl => `${pl.name}${pl.online === false ? " (away)" : ""}${pl.ready ? " ✓ ready" : ""}`).join(" and ") || `${MODES[room.mode].label} game`));
+        if (!room.board) {                                        // hidden-mode lobby
+          part(body, "play").append(action(me().ready ? "Not ready" : "I'm ready", toggleReady, "primary"), action("Set up your side", settingsSheet));
+        } else together.append(action(hidden() ? "Your side" : "Settings", settingsSheet));
+        together.append(action("Back to solo", () => { close(); leave(); }, "link"));
       }, "game");
     },
   };

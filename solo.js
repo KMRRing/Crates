@@ -9,7 +9,7 @@ import {
 import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
 import * as view from "./view.js";
-import { part, action, line } from "./menu.js";
+import { part, action, line, mirror } from "./menu.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
@@ -372,7 +372,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           if (!g.done && g.mode === "clues" && store.mode === "clues") learnFromClues(store.deck, board, g);
           fresh();
         }, "primary"));
-        part(body, "content").append(action("Topics and difficulty", settingsSheet));
+        part(body, "content").append(mirror("Puzzles", document.getElementById("pool")), action("Topics and difficulty", settingsSheet));
         const about = part(body, "about"), done = store.history.length;
         if (done) {
           const total = store.history.reduce((t, r) => t + r.pts, 0), perfect = store.history.filter(r => r.pts === 8).length;

@@ -10,7 +10,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { speak as say, hasVoice } from "./voice.js";
-import { part, action, line } from "./menu.js";
+import { part, action, line, mirror } from "./menu.js";
 
 dropdown(document.getElementById("course"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -350,6 +350,7 @@ function toast(msg, ms = 2600) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  part(body, "content").append(mirror("Course", $("course")));
   part(body, "settings").append(action(`Start ${C.name} over`, () => {
     if (!confirm(`Forget your ${C.name} progress?`)) return;
     for (const k of met()) pile.forget("parley", k);

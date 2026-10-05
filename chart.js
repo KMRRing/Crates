@@ -4,7 +4,7 @@
 // outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
 // in private and the pins are revealed side by side.
 import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace } from "./chart-engine.js";
-import { part, choice, toggle, action, line as menuLine } from "./menu.js";
+import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
 import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
@@ -574,7 +574,8 @@ function openMenu() {
     const play = part(body, "play");
     play.append(action("Start a set", () => confirmStart(pick.mode), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
-    part(body, "content").append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; }));
+    part(body, "content").append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; }),
+      mirror("Topic", $("topic")), mirror("Region", $("region")));
     part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
     const best = bests()[selKey(S)], daily = dailies()[selKey(S)], what = selName(selOf(S));
     part(body, "about").append(

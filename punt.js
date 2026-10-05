@@ -13,7 +13,7 @@ import { dropdown } from "./dropdown.js";
 import "./pwa.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
-import { part, choice, toggle as menuToggle, action } from "./menu.js";
+import { part, choice, toggle as menuToggle, action, mirror } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -640,7 +640,7 @@ function drawMenu() {
   const play = part(body, "play");
   play.append(action("New run", () => newSession(S.level, pickLength), "primary"));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
-  part(body, "content").append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
+  part(body, "content").append(mirror("Level", $("level")), choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
   part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   part(body, "about").append(action("Your stats", () => openStats("run")), action("Flagged questions", () => openFlags(false)),

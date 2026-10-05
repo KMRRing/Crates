@@ -4,7 +4,7 @@ import { SIZES, TOOLS, WRONG_CLAIM, makeConcession, newRun, probe, claim } from 
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, mirror } from "./menu.js";
 
 dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -170,7 +170,7 @@ function openMenu() {
   body.replaceChildren();
   pick ??= S?.mode === "daily" ? "daily" : "random";
   part(body, "play").append(action("Start a concession", () => confirmStart(pick), "primary"));
-  part(body, "content").append(choice("Concession", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+  part(body, "content").append(choice("Concession", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }), mirror("Size", $("size")));
   const best = read(BEST, {}), daily = read(DAILY, {})[`${today()}/${S.size}`];
   part(body, "about").append(
     line(`${SIZES[S.size].label}: ${best[S.size] ? `best ${best[S.size]} credits left` : "no claim filed yet"}${daily != null ? `, today ${daily}` : ""}`),

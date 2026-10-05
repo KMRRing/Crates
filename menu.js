@@ -60,6 +60,29 @@ export function action(text, fn, kind = "") {
   b.addEventListener("click", () => { document.getElementById("menuDlg")?.close(); fn(); });
   return b;
 }
+/**
+ * The header's dropdown, in the menu too: the same choice, from the same <select> (a game's quick switch stays in its
+ * header). A few options make a segmented row, many a grid; picking one closes the menu and changes the select, so
+ * the game answers exactly as it does to the header.
+ */
+export function mirror(label, select) {
+  const options = [...select.options].filter(o => !o.disabled).map(o => [o.value, o.label]);
+  const pick = v => { document.getElementById("menuDlg")?.close(); select.value = v; select.dispatchEvent(new Event("change", { bubbles: true })); };
+  if (options.length <= 6) return choice(label, options, select.value, pick);
+  const wrap = el("div", "menu-grid-wrap"), grid = el("div", "menu-grid");
+  grid.setAttribute("role", "radiogroup");
+  grid.setAttribute("aria-label", label);
+  for (const [v, text] of options) {
+    const b = el("button", null, text);
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", String(v === select.value));
+    b.addEventListener("click", () => { if (v !== select.value) pick(v); });
+    grid.appendChild(b);
+  }
+  wrap.append(el("span", "menu-label", label), grid);
+  return wrap;
+}
 /** A short status line (a best, where you are). */
 export const line = text => el("p", "menu-line", text);
 

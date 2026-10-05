@@ -8,7 +8,7 @@ import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo } from "./suite.js";
 import { dropdown } from "./dropdown.js";
-import { part, action } from "./menu.js";
+import { part, action, mirror } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -839,6 +839,7 @@ function drawMenu() {
   body.replaceChildren();
   $("menuTitle").textContent = room ? "Playing together" : "Menu";
   part(body, "play").append(action("New board", () => newBoard(), "primary"), action(S.done ? "Show the result" : "Show our fill", giveUp));
+  if (!room) part(body, "content").append(mirror("Difficulty", $("level")));
   if (room) part(body, "together").append(action("Back to solo", () => leave(), "link"));
   else part(body, "about").append(action("Copy this board's link", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }
