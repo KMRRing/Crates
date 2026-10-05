@@ -1,7 +1,7 @@
 // Quote: ten numbers, a two-sided market on each. The engine (quote-engine.js) settles a market; this file runs
 // the set, draws the card and the tape, and keeps bests. Together, the room holds the set and you alternate: one
 // makes the market, the other hits it, lifts it or passes (together.js).
-import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, rangeText, rangeOf } from "./quote-engine.js";
+import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, tiersText, tiersOf, adequate } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -61,11 +61,11 @@ function quote() {
   }
   if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
-  // the pile: outside, or a market wider than three ranges, means you didn't know it; a tight hit moves a banked one up
-  if (!r.inside || r.width > 3 * rangeOf(q)) pile.record("quote", q.id, { id: q.id }, r.inside ? "wide" : "wrong");
+  // the pile: a B or below means you didn't adequately know it; an A or better moves a banked question up
+  if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id }, r.inside ? "wide" : "wrong");
   else if (pile.has("quote", q.id)) pile.answer("quote", q.id, true);
   S.book += r.delta;
-  S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond });
+  S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond, grade: r.grade });
   S.phase = "reveal";
   save();
   render();
@@ -122,7 +122,7 @@ function render() {
   $("widths").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
-  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · close means ${rangeText(q)}`;
+  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · ${tiersText(q)}`;
   const entry = S.log[S.index];
   $("bid").value = entry ? fmt(entry.bid, q) : "";
   $("ask").value = entry ? fmt(entry.ask, q) : "";
@@ -134,8 +134,10 @@ function render() {
   result.hidden = !entry;
   if (entry) {
     const v = $("verdict");
-    v.className = `qt-verdict ${entry.inside ? "good" : "bad"}`;
-    v.textContent = entry.inside ? `Inside: ${signed(entry.delta)}` : `Outside, ${beyondText(q, entry)}: ${signed(entry.delta)}`;
+    const grade = entry.grade || (entry.inside ? "A" : "C");
+    v.className = `qt-verdict ${adequate(grade) ? "good" : "bad"}`;
+    const word = { SS: "exact", S: "sharp", A: "adequate", B: "pushing it", C: "a miss" }[grade];
+    v.textContent = `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
     drawTape(q, entry);
     // the note usually opens with the figure itself; when it doesn't, lead with it
     $("note").textContent = /^(About|Roughly|Around|[\d$£€])/.test(q.note) ? q.note : `${withUnit(q.truth, q)}. ${q.note}`;
@@ -149,16 +151,17 @@ function beyondText(q, e) {
   return `${fmt(gap, { unit: "" })} ${q.unit === "year" ? "years" : q.unit} ${above ? "above your ask" : "below your bid"}`;
 }
 
-/** The shortcuts: set a market of a given width around what you've typed (one number, or the middle of two). */
+/** The shortcuts: set a market of a tier's radius around what you've typed (one number, or the middle of two). */
 function drawWidths(q) {
   const box = $("widths");
   box.replaceChildren();
   const log = q.scale === "log";
-  const steps = [0.5, 1, 2, 4].map(k => (log ? q.tol * k : nice(q.tol * k)));
-  for (const w of steps) {
+  const T = tiersOf(q);
+  for (const g of ["S", "A", "B"]) {
+    const w = T[g];
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = log ? `±${Math.round(w * 100)}%` : `±${w}`;
+    b.textContent = `${g} ${log ? `±${Math.round(w * 100)}%` : `±${w}`}`;
     b.disabled = S.phase !== "quote";
     b.addEventListener("click", () => {
       const bid = parse($("bid").value), ask = parse($("ask").value);
@@ -208,7 +211,7 @@ function renderRoom() {
   }
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
-  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · close means ${rangeText(q)}`;
+  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · ${tiersText(q)}`;
   $("fault").textContent = "";
   const entry = g.log && Object.values(g.log)[g.index];
   const making = g.phase === "make" && isMaker, taking = g.phase === "take" && !isMaker;

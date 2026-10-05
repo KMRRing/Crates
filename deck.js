@@ -6,7 +6,7 @@ import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
 import { QUOTES } from "./quote-bank.js";
-import { rangeOf, withUnit, rangeText } from "./quote-engine.js";
+import { tiersOf, withUnit, tierText } from "./quote-engine.js";
 import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -99,7 +99,7 @@ function ask() {
   } else if (it.game === "quote") {
     const q = quoteById.get(it.key);
     if (!q) { skip(); return; }
-    $("ask").textContent = `Quote · close means ${rangeText(q)}`;
+    $("ask").textContent = `Quote · an A is ${tierText(q, "A")}`;
     $("prompt").textContent = `${q.q}${q.unit && q.unit !== "year" ? ` (${q.unit})` : ""}`;
     const wrap = document.createElement("div"); wrap.className = "dk-number";
     const input = document.createElement("input"); input.type = "text"; input.inputMode = "decimal"; input.placeholder = "Your number"; input.autocomplete = "off";
@@ -107,8 +107,8 @@ function ask() {
     const submit = () => {
       const v = Number(String(input.value).replace(/[^0-9.\-]/g, ""));
       if (!Number.isFinite(v) || input.value.trim() === "") { toast("Give a number"); return; }
-      const miss = q.scale === "log" ? (v > 0 ? Math.abs(Math.log2(v / q.truth)) : Infinity) : Math.abs(v - q.truth);
-      const right = miss <= rangeOf(q);
+      const A = tiersOf(q).A;
+      const right = q.scale === "log" ? v > 0 && Math.abs(Math.log2(v / q.truth)) <= Math.log2(1 + A) : Math.abs(v - q.truth) <= A;
       input.disabled = true; go.disabled = true;
       settle(right, `${right ? "Close enough" : "Not close"}: it's ${withUnit(q.truth, q)}. ${q.note || ""}`);
     };
