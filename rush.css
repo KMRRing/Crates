@@ -6,7 +6,9 @@
 .ru-mark svg { width: 100%; height: 100%; display: block; }
 .ru-hud { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0; min-height: 2rem; }
 .ru-solved { font-size: .95rem; color: var(--ink-soft); }
-.ru-solved b { font-size: 1.6rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ru-solved > b { font-size: 1.6rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ru-rating { display: block; font-size: .78rem; color: var(--ink-soft); }
+.ru-rating b { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 .ru-clock { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ru-clock.low { color: var(--ru-bad); }
 .ru-strikes { display: flex; gap: .3rem; }
@@ -24,7 +26,7 @@
 .ru-go[hidden] { display: none; }
 
 /* the board: classic, in the suite's blues; highlights are translucent layers over the squares */
-.ch-board { width: 100%; max-width: 26rem; margin: 0 auto; display: block; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ch-board { width: 100%; max-width: 26rem; margin: 0 auto; display: block; border-radius: 10px; overflow: visible; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .ch-board .sq.light { fill: #E4ECF3; }
 .ch-board .sq.dark { fill: #6B8DB0; }
 .ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
@@ -35,7 +37,9 @@
 .ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
 .ch-board .coord.on-light { fill: #6B8DB0; }
 .ch-board .coord.on-dark { fill: #E4ECF3; }
-.ch-board .piece { cursor: pointer; }
+.ch-board .piece { cursor: grab; }
+.ch-board .piece.lifted { opacity: .35; }
+.ch-board .piece.dragging { pointer-events: none; filter: drop-shadow(0 .08px .12px rgba(0, 0, 0, .35)); }
 .ch-board .target { fill: rgba(20, 40, 60, .22); cursor: pointer; }
 .ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
 @media (prefers-color-scheme: dark) {

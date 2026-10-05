@@ -6,7 +6,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const BEST = "rush:best", DAILY = "rush:daily";
+const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating";
 const MODES = { three: { label: "3 minutes", ms: 180000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
 const STRIKES = 3;
 
@@ -38,14 +38,30 @@ function rng(seed) {
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
+// ---------- your rating ----------
+// A running rating across every run, Elo-style against each puzzle's rating: it moves fast for your first twenty
+// puzzles, then slowly, and gains shrink by half with every miss in the run, so a careless run can't climb.
+const rating = read(RATING, { r: 1000, n: 0 });
+function rate(puzzle, solved, missesSoFar) {
+  const expected = 1 / (1 + 10 ** ((puzzle.rating - rating.r) / 400));
+  const k = rating.n < 20 ? 30 : solved ? 10 / 2 ** missesSoFar : 14;
+  const delta = k * ((solved ? 1 : 0) - expected);
+  rating.r = Math.max(400, Math.min(3000, rating.r + delta));
+  rating.n++;
+  write(RATING, rating);
+  return delta;
+}
+
 /**
- * The run's next puzzle: the target rating starts near 800 and rises about 60 a solve (a miss doesn't raise
- * it); the puzzle is the nearest unused one to the target in its band, with a seeded salt so the same target
- * doesn't always give the same puzzle. The next band up is fetched ahead of need.
+ * The run's next puzzle. Your rating sets the range: a run starts about 250 below it and climbs 40 a solve to
+ * about 150 above it (a miss doesn't raise it); today's run ignores ratings so everyone gets the same puzzles.
+ * The puzzle is the nearest unused one to the target in its band, with a seeded salt so the same target doesn't
+ * always give the same puzzle. The next band up is fetched ahead of need.
  */
 async function nextPuzzle() {
   const r = rng(S.seed ^ (S.at * 7919));
-  const target = Math.min(2500, 800 + S.solved * 60 + (r() - 0.5) * 200);
+  const target = S.daily ? Math.min(2500, 800 + S.solved * 60 + (r() - 0.5) * 200)
+    : Math.max(600, Math.min(2500, Math.min(rating.r + 150, rating.r - 250 + S.solved * 40) + (r() - 0.5) * 160));
   const b = bandOf(target);
   const list = await loadBand(b);
   if (b < 2400) loadBand(b + 200).catch(() => {});
@@ -67,7 +83,7 @@ async function start(daily = false) {
   $("line").textContent = "Loading the puzzles…";
   try { await Promise.all([loadBand(600), loadBand(800), loadBand(1000)]); }
   catch { $("line").textContent = "The puzzles need a connection the first time."; $("startBtn").hidden = false; return; }
-  S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [], started: performance.now(), over: false };
+  S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [], started: performance.now(), over: false, ratingAtStart: rating.r };
   clearInterval(tick);
   tick = setInterval(clock, 250);
   drawHud();
@@ -99,6 +115,7 @@ async function serve() {
 }
 function settle(p, solved) {
   if (S.over) return;
+  rate(p, solved, S.misses.length);
   if (solved) {
     S.solved++;
     S.ratings.push(p.rating);
@@ -138,7 +155,8 @@ function finish(why) {
   add("p", "ru-big", String(S.solved));
   const stats = add("div", "ru-stats");
   const attempts = S.solved + S.misses.length;
-  for (const [v, label] of [[`${attempts ? Math.round(S.solved / attempts * 100) : 0}%`, "accuracy"], [attempts ? `${(elapsed / 1000 / attempts).toFixed(1)} s` : "–", "a puzzle"], [best, S.daily ? "best today" : "your best"]]) {
+  const change = Math.round(rating.r - S.ratingAtStart);
+  for (const [v, label] of [[`${attempts ? Math.round(S.solved / attempts * 100) : 0}%`, "accuracy"], [`${Math.round(rating.r)} (${change >= 0 ? "+" : "−"}${Math.abs(change)})`, "rating"], [best, S.daily ? "best today" : "your best"]]) {
     const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
     b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
   }
@@ -161,6 +179,7 @@ function finish(why) {
 }
 function drawHud() {
   $("solved").textContent = String(S ? S.solved : 0);
+  $("rating").textContent = `${Math.round(rating.r)}${rating.n < 20 ? "?" : ""}`;
   $("strikes").replaceChildren(...Array.from({ length: STRIKES }, (_, k) => { const i = document.createElement("i"); i.className = `ru-strike${S && k < S.strikes ? " hit" : ""}`; return i; }));
   clock();
 }
@@ -184,7 +203,10 @@ function openMenu() {
   button("Today's run", () => start(true));
   const bests = read(BEST, {}), daily = read(DAILY, {});
   const lines = Object.entries(MODES).map(([id, m]) => `${m.label}: ${bests[id] ? `best ${bests[id]}` : "no run yet"}${daily[`${today()}/${id}`] != null ? `, today ${daily[`${today()}/${id}`]}` : ""}`);
-  add("p", "stats", lines.join(". ") + ".");
+  add("p", "stats", `Your rating: ${Math.round(rating.r)}${rating.n < 20 ? " (settling: it moves fast for your first twenty puzzles)" : ""}, over ${rating.n} puzzles. It sets where your runs start and how high they climb; it moves slowly, and gains halve with every miss in a run. ${lines.join(". ")}.`);
+  const reset = add("button", "btn wide", "Reset my rating");
+  reset.type = "button";
+  reset.addEventListener("click", () => { if (confirm("Reset your rating to 1,000?")) { rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud(); $("menuDlg").close(); } });
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
