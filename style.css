@@ -573,12 +573,14 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .code-chip { padding: .3rem .5rem .3rem .45rem; }
 /* in a game's header: the dropdowns live in the menu now (under Content), and the menu button is the rete */
 .top .dd, .top select.pool, .ch-pick { display: none !important; }   /* Chart's topic and region too */
-.rete-btn { display: inline-grid; place-items: center; width: 42px; height: 42px; padding: 0 !important; }
-.rete-btn .rete { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.rete-btn .rete path:last-child { fill: currentColor; }
-.rete-btn.turning .rete { animation: rete-turn 9s linear infinite; }
+/* the menu button: the rete, large and unboxed (no frame or fill round it, as an instrument sits on the page) */
+.rete-btn { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 50%; }
+.rete-btn .rete { width: 40px; height: 40px; display: block; }
+.rete .rete-turn, .rete .rete-rule { transform-box: view-box; transform-origin: 50px 50px; }
+.rete-btn.turning .rete-turn { animation: rete-turn 9s linear infinite; }
+.rete-btn.turning .rete-rule { animation: rete-turn 15s linear infinite reverse; }
 @keyframes rete-turn { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .rete-btn.turning .rete { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rete-btn.turning .rete-turn, .rete-btn.turning .rete-rule { animation: none; } }
 
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; }
