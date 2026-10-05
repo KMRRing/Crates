@@ -74,6 +74,7 @@ function shape(body) {
     for (const box of body.querySelectorAll(":scope > [data-part]")) {
       const name = box.dataset.part;
       if (LABEL[name] && !box.querySelector(":scope > .menu-h")) { const h = document.createElement("h4"); h.className = "menu-h"; h.textContent = LABEL[name]; box.prepend(h); }
+      box.hidden = ![...box.children].some(c => !c.classList.contains("menu-h"));   // a part with nothing in it stays out of sight
     }
     // long explanations, wherever they are, into one closed "How it works" at the very bottom
     let about = body.querySelector(":scope > details.menu-how");

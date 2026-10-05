@@ -9,6 +9,7 @@ import {
 import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
 import * as view from "./view.js";
+import { part, action, line } from "./menu.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
@@ -192,18 +193,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     if (view.menuTag() === "solo") handlers.menu();
   }
 
-  const runLink = code => `${location.origin}${location.pathname}?run=${code}`;
-
-  async function syncRun() {
-    const done = busy("Setting up sync");
-    try {
-      const code = await run.create();
-      done();
-      view.toast(code ? `Synced as ${code}` : "Couldn't set up sync, try again", 3000);
-    } catch (e) { done(); console.error(e); view.toast(syncError(e), 4500); }
-    if (view.menuTag() === "solo") handlers.menu();
-  }
-
+  // an old ?run= link (from before the solo code) still joins its run
   async function joinRun(raw) {
     const code = cleanCode(raw);
     if (!validCode(code)) { view.toast("That code doesn't look right: it's 8 letters", 2500); return; }
@@ -372,105 +362,37 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       else { view.toast("Next board comes from the new pool", 2000); draw(); }
     },
     menu() {
+      // the menu: Play (a new board, or skip this one), Content (topics and difficulty, in Settings), About (your stats,
+      // learning, recent boards to replay). Your other devices follow this run through the solo code on the games screen.
       view.openMenu((body, close) => {
-
-        const row = document.createElement("div");
-        row.className = "controls";
-        const settingsBtn = document.createElement("button");
-        settingsBtn.className = "btn";
-        settingsBtn.textContent = "Settings";
-        settingsBtn.addEventListener("click", settingsSheet);
-        const newBtn = document.createElement("button");
-        newBtn.className = "btn";
-        newBtn.textContent = game().done ? "New board" : "Skip board";
-        newBtn.addEventListener("click", () => {
-          const g = game();
+        const g = game();
+        part(body, "play").append(action(g.done ? "New board" : "Skip board", () => {
           if (!g.done && g.guesses.length && !confirm("Leave this board unfinished?")) return;
           // clue learn: a tile whose clue you opened comes back even if you skip the board
           if (!g.done && g.mode === "clues" && store.mode === "clues") learnFromClues(store.deck, board, g);
-          close(); fresh();
-        });
-        row.append(settingsBtn, newBtn);
-        body.appendChild(row);
-
-        const h = document.createElement("h3");
-        h.textContent = "Recent boards";
-        body.appendChild(h);
-        const list = document.createElement("ol");
-        list.className = "pick-list";
-        store.history.slice(0, 15).forEach(r => {
-          const li = document.createElement("li");
-          const b = document.createElement("button");
-          b.innerHTML = "<span></span><span class=\"st\"></span>";
-          b.firstChild.textContent = `No. ${r.n}  ${PLURAL[r.cat]}`;
-          b.lastChild.textContent = `${r.won ? "" : "out · "}${r.pts}/8${r.ms ? ` · ${formatTime(r.ms)}` : ""}`;
-          b.title = "Replay this board";
-          b.addEventListener("click", () => { close(); const d = decode(r.code); if (d) begin(d, r.code); });
-          li.appendChild(b);
-          list.appendChild(li);
-        });
-        if (!store.history.length) {
-          const li = document.createElement("li");
-          li.className = "stats";
-          li.textContent = "Nothing finished yet.";
-          list.appendChild(li);
-        }
-        body.appendChild(list);
-
-        if (store.mode !== "off") {
-          const lp = document.createElement("p");
-          lp.className = "stats";
-          lp.textContent = `${MODE[store.mode].label}: ${modeSummary()}`;
-          body.appendChild(lp);
-        }
-        const done = store.history.length;
+          fresh();
+        }, "primary"));
+        part(body, "content").append(action("Topics and difficulty", settingsSheet));
+        const about = part(body, "about"), done = store.history.length;
         if (done) {
-          const total = store.history.reduce((s, r) => s + r.pts, 0);
-          const perfect = store.history.filter(r => r.pts === 8).length;
-          const stats = document.createElement("p");
-          stats.className = "stats";
-          stats.textContent = `${done} played · average ${(total / done).toFixed(1)} of 8 · ${perfect} perfect`;
-          body.appendChild(stats);
+          const total = store.history.reduce((t, r) => t + r.pts, 0), perfect = store.history.filter(r => r.pts === 8).length;
+          about.append(line(`${done} played · average ${(total / done).toFixed(1)} of 8 · ${perfect} perfect`));
         }
-
-        // ---- carry this run over to other devices ----
-        const add = (tag, cls, text, parent = body) => {
-          const e = document.createElement(tag);
-          if (cls) e.className = cls;
-          if (text != null) e.textContent = text;
-          parent.appendChild(e);
-          return e;
-        };
-        add("h3", null, "Your other devices");
-        const code = run.code();
-        if (code) {
-          add("p", "stats", `This run is synced as ${code}: the board you're on, your history, settings and learning. Open the link on your other device to carry on there.`);
-          add("p", "room-link", runLink(code));
-          const row = add("div", "controls");
-          add("button", "btn", "Copy link", row).addEventListener("click", async () => {
-            view.toast(await view.copyText(runLink(code)) ? "Link copied" : runLink(code), 2500);
-          });
-          if (navigator.share) {
-            add("button", "btn", "Share link", row).addEventListener("click", async () => {
-              try { await navigator.share({ title: "My Crates run", url: runLink(code) }); } catch { /* dismissed */ }
-            });
+        if (store.mode !== "off") about.append(line(`${MODE[store.mode].label}: ${modeSummary()}`));
+        if (done) {
+          const list = document.createElement("ol");
+          list.className = "pick-list";
+          for (const r of store.history.slice(0, 15)) {
+            const li = document.createElement("li"), b = document.createElement("button");
+            b.innerHTML = "<span></span><span class=\"st\"></span>";
+            b.firstChild.textContent = `No. ${r.n}  ${PLURAL[r.cat]}`;
+            b.lastChild.textContent = `${r.won ? "" : "out · "}${r.pts}/8${r.ms ? ` · ${formatTime(r.ms)}` : ""}`;
+            b.title = "Replay this board";
+            b.addEventListener("click", () => { close(); const d = decode(r.code); if (d) begin(d, r.code); });
+            li.appendChild(b);
+            list.appendChild(li);
           }
-          add("button", "link", "Stop syncing on this device").addEventListener("click", () => {
-            run.unlink();
-            view.toast("This device keeps its own copy and stops syncing", 2500);
-            handlers.menu();
-          });
-        } else {
-          add("p", "stats", "Carry this run over to your phone or computer: the board you're on, your history, settings and learning.");
-          add("button", "btn primary wide", "Sync this run").addEventListener("click", syncRun);
-          const row = add("form", "join-run");
-          const input = add("input", null, null, row);
-          input.placeholder = "Code from other device";
-          input.autocapitalize = "characters";
-          input.autocomplete = "off";
-          input.spellcheck = false;
-          add("button", "btn", "Join", row).type = "submit";
-          row.addEventListener("submit", e => { e.preventDefault(); joinRun(input.value); });
+          about.append(list);
         }
       }, "solo");
     },
