@@ -56,34 +56,38 @@
 .mf-note[hidden] { display: none; }
 
 /* the questions, once open: answer any, pass any */
-.mf-asks { display: grid; gap: .45rem; }
+.mf-asks { display: grid; gap: .45rem; align-content: start; }   /* cards keep their height; the list scrolls if they must */
 .mf-asks:empty { display: none; }
 .mf-row { border-radius: 14px; background: var(--yard); border: 2px solid transparent; }
 .mf-row.active { border-color: var(--mf-in); }
 .mf-row.right { border-color: var(--mf-good); }
 .mf-row.wrong { border-color: var(--mf-bad); }
-.mf-row-head { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .45rem .7rem; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
-.mf-row-head:disabled { cursor: default; }
+.mf-row-head { width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .45rem .7rem; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; }
+button.mf-row-head { cursor: pointer; }   /* the review's questions light what they asked about */
 .mf-row-head span { font-weight: 750; line-height: 1.25; font-size: .95rem; }
 .mf-row-head em { font-style: normal; font-size: .85rem; font-weight: 800; white-space: nowrap; }
 .mf-row.right em { color: var(--mf-good); }
 .mf-row.wrong em { color: var(--mf-bad); }
-.mf-row-body { padding: 0 .7rem .7rem; display: grid; gap: .45rem; }
-.mf-row-body .hint { margin: 0; font-size: .88rem; color: var(--ink-soft); }
-.mf-answers { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; }
-.mf-answers.colours { grid-template-columns: repeat(3, 1fr); }
-.mf-chip { min-height: 44px; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
-.mf-chip.colour { font-size: .85rem; font-weight: 750; padding: .4rem .2rem; }
-.mf-chip i { width: 22px; height: 22px; border-radius: 6px; display: block; }
+.mf-row-body { padding: 0 .7rem .6rem; display: grid; gap: .45rem; }
+/* a question with a picture: the picture beside its answers */
+.mf-row-body.with-pic { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); align-items: center; gap: .5rem; }
+.mf-pic svg { width: 100%; height: auto; max-height: 7.5rem; display: block; overflow: visible; }
+.mf-answers { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: .4rem; }   /* every answer in one row */
+.with-pic .mf-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* beside a picture, a colour is one line (swatch, then name), so the answers are no taller than the picture */
+.with-pic .mf-chip.colour { grid-auto-flow: column; justify-content: start; gap: .35rem; min-height: 38px; padding: .3rem .45rem; }
+.with-pic .mf-chip i { width: 16px; height: 16px; }
+.mf-chip { min-height: 42px; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
+.mf-chip.colour { font-size: .78rem; font-weight: 750; padding: .35rem .15rem; }
+.mf-chip i { width: 18px; height: 18px; border-radius: 5px; display: block; }
 .mf-chip.good { border-color: var(--mf-good); background: var(--mf-good); color: #fff; }
 .mf-chip.bad { border-color: var(--mf-bad); background: var(--mf-bad); color: #fff; }
 .mf-chip:disabled { cursor: default; }
-.mf-mini { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
-.mf-mini button { padding: .3rem; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); cursor: pointer; }
+.mf-mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
+.mf-mini button { padding: .25rem; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); cursor: pointer; }
 .mf-mini button.good { border-color: var(--mf-good); box-shadow: inset 0 0 0 2px var(--mf-good); }
 .mf-mini button.bad { border-color: var(--mf-bad); box-shadow: inset 0 0 0 2px var(--mf-bad); }
-.mf-mini svg { width: 100%; height: auto; max-height: 5.4rem; display: block; }
-.mf-pass { justify-self: start; border: 0; background: none; color: var(--ink-soft); font: inherit; font-weight: 750; text-decoration: underline; cursor: pointer; padding: .2rem 0; }
+.mf-mini svg { width: 100%; height: auto; max-height: 4.6rem; display: block; }
 
 .mf-buttons { display: grid; grid-template-columns: 1fr; gap: .4rem; }
 .mf-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--mf-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }

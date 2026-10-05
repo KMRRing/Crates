@@ -11,7 +11,7 @@ const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", R
 const SVG = "http://www.w3.org/2000/svg";
 
 // S: { seed, mode, round, score, lives, right, wrong, passed, phase: "orders" | "show" | "ask" | "review" | "over",
-//      prices, answers: { [order]: { given, right, paid } }, bonus, active }
+//      prices, answers: { [order]: { given, right, paid } }, bonus }
 let S = null;
 let R = null;                 // the current round from the engine
 let showTimer = null, holdStart = 0;
@@ -35,7 +35,7 @@ function start(mode) {
 function openRound() {
   R = makeRound(S.seed, S.round);
   const record = read(RECORD, {});
-  Object.assign(S, { phase: "orders", answers: {}, bonus: 1, active: null,
+  Object.assign(S, { phase: "orders", answers: {}, bonus: 1,
     prices: R.orders.map(o => priceOf(o.type, S.round, record[o.type])),
     trend: R.orders.map(o => { const f = skillFactor(record[o.type]); return f < 0.9 ? "↓" : f > 1.1 ? "↑" : ""; }) });
   save();
@@ -118,41 +118,49 @@ function askPhase(appear = false) {
   go(R.orders.length === 1 ? "Pass" : answered() ? "Done: pass the rest" : "Pass them all", () => reviewPhase());
 }
 function drawAsks(appear = false) {
-  const asks = $("asks");
-  asks.replaceChildren(...R.orders.map((o, i) => askRow(o, i)));
+  $("asks").replaceChildren(...R.orders.map((o, i) => askRow(o, i)));
   drawAskStage(appear);
-  asks.querySelector(".mf-row.active")?.scrollIntoView({ block: "nearest" });   // the open question's answers in sight
 }
-/** What the stage shows while a question is open: the floor with its spot, the stack turned and grey, or the stack back. */
+/** A change round's stage: the stack come back, to tap the container that changed (or the two that swapped). Other
+ *  rounds need no stage here: each question carries its own picture. */
 function drawAskStage(appear = false) {
-  const o = S.active != null ? R.orders[S.active] : R.level.change ? R.orders[0] : null, q = o?.question;
-  // the stage shows the stack only when the open question needs it: a marked spot, the stack turned, the stack back
-  viewOn(!!q && (q.as === "cell" || q.as === "pair" || o.type === "turned" || !!q.cell));
-  let panel;
-  if (q && (q.as === "cell" || q.as === "pair")) {
-    const done = S.answers[0];
-    panel = stage(q.back, { turns: q.turns, tap: done ? null : key => tapBack(key), selected: picked, marks: done ? [].concat(q.answer) : [] }).panel;
-  } else if (q && o.type === "turned") panel = stage(turnedOf(q), { turns: q.turns, grey: true, ring: q.at }).panel;
-  else panel = stage(R.cells, { blank: true, mark: q?.cell && o.type !== "turned" ? q.cell : null }).panel;
+  const q = R.level.change ? R.orders[0].question : null;
+  viewOn(!!q);
+  if (!q) { $("view").replaceChildren(); return; }
+  const done = S.answers[0];
+  const panel = stage(q.back, { turns: q.turns, tap: done ? null : key => tapBack(key), selected: picked, marks: done ? [].concat(q.answer) : [] }).panel;
   if (appear) panel.classList.add("appear");
   $("view").replaceChildren(panel);
 }
 /** The round's stack turned the way a question turns it. */
 const turnedOf = q => turn(R.cells, q.turns);
+/** What a question asks about, drawn in its card: the floor with the spot marked, or the stack turned and grey with
+ *  one container lit. Each question has its own, so two never share one stage. */
+function pictureFor(o) {
+  const q = o.question;
+  if (o.type === "turned") return stage(turnedOf(q), { turns: q.turns, grey: true, ring: q.at }).panel;
+  if (q.cell && q.as === "colour") return stage(R.cells, { blank: true, mark: q.cell }).panel;
+  return null;
+}
+/** A question as a card with everything needed to answer it at a tap: the words and the price, its picture, its
+ *  answers. Answered, it keeps only what it paid or cost. Passing is leaving it: the button below ends the round. */
 function askRow(o, i) {
   const q = o.question, a = S.answers[i], row = node("div", "mf-row");
-  if (S.active === i && !a) row.classList.add("active");
   if (a) row.classList.add(a.right ? "right" : "wrong");
-  const head = node("button", "mf-row-head");
-  head.type = "button";
+  const head = node("div", "mf-row-head");
   head.append(node("span", null, q.text), node("em", null, a ? (a.right ? `+${money(a.paid)}` : "a life") : money(Math.round(S.prices[i] * S.bonus))));
-  head.disabled = !!a;
-  head.addEventListener("click", () => { S.active = S.active === i ? null : i; picked = []; save(); drawAsks(); });
   row.appendChild(head);
-  if (S.active !== i || a) return row;
-  const body = node("div", "mf-row-body");
+  if (a) return row;
+  const body = node("div", "mf-row-body"), pic = pictureFor(o);
+  if (pic) {
+    body.classList.add("with-pic");
+    const frame = node("div", "mf-pic");
+    frame.appendChild(pic);
+    body.appendChild(frame);
+  }
   if (q.as === "number" || q.as === "colour") {
     const opts = node("div", `mf-answers${q.as === "colour" ? " colours" : ""}`);
+    opts.style.setProperty("--n", q.options.length);
     for (const opt of q.options) {
       const b = node("button", `mf-chip${q.as === "colour" ? " colour" : ""}`);
       b.type = "button";
@@ -173,18 +181,13 @@ function askRow(o, i) {
       grid.appendChild(b);
     });
     body.appendChild(grid);
-  } else body.appendChild(node("p", "hint", q.as === "pair" ? "Tap the two containers on the stack." : "Tap the container on the stack."));
-  const pass = node("button", "mf-pass", "Pass");
-  pass.type = "button";
-  pass.addEventListener("click", () => { S.active = null; picked = []; save(); drawAsks(); });
-  body.appendChild(pass);
-  row.appendChild(body);
+  }
+  if (body.childElementCount) row.appendChild(body);   // a change round's question is answered on the stack itself
   return row;
 }
 /** A tap on the stack that came back: one container, or two for a swap. */
 function tapBack(key) {
   if (S.phase !== "ask" || S.answers[0]) return;
-  S.active = 0;
   const q = R.orders[0].question;
   if (q.as === "cell") { answer(0, key); return; }
   picked = picked.includes(key) ? picked.filter(k => k !== key) : [...picked, key];
@@ -197,7 +200,6 @@ function answer(i, given) {
   const right = JSON.stringify(given) === JSON.stringify(q.answer);
   const paid = right ? Math.round(S.prices[i] * S.bonus) : 0;
   S.answers[i] = { given, right, paid };
-  S.active = null;
   if (right) { S.score += paid; S.right++; } else { S.lives--; S.wrong++; navigator.vibrate?.(70); }
   const record = read(RECORD, {});
   record[o.type] = recordAfter(record[o.type], right);
@@ -333,7 +335,8 @@ function stage(cells, opts = {}) {
   const panel = node("div", `mf-panel${opts.small ? " small" : ""}`);
   const b = boxFor(opts.turns || 0), X = cells.length, Y = cells[0].length, Z = cells[0][0].length, s = 46;
   const pts = [];
-  for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= Z; z++) pts.push(isoPoint(x, y, z, b));
+  const top = opts.blank ? 0 : Z;                                  // the floor alone is framed to its own size
+  for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= top; z++) pts.push(isoPoint(x, y, z, b));
   const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
   const W = (maxX - minX) * s + 20, H = (maxY - minY) * s + 20, room = opts.drop ? s * 1.6 : s * 0.25;
   const svg = el("svg", { viewBox: `0 ${-room} ${W} ${H + room}`, class: opts.tap ? "tap" : "" });
@@ -348,7 +351,7 @@ function stage(cells, opts = {}) {
     svg.appendChild(el("polygon", { points: f.map(P).join(" "), fill: marked ? "var(--mf-in)" : "var(--mf-floor)", stroke: "var(--sheet)", "stroke-width": 1, opacity: marked ? 0.9 : 0.6 }));
     if (marked) {
       const c = f.reduce((a, q) => [a[0] + q[0] / 4, a[1] + q[1] / 4], [0, 0]);
-      const t = el("text", { x: ((c[0] - minX) * s + 10).toFixed(1), y: ((c[1] - minY) * s + 14).toFixed(1), "text-anchor": "middle", "font-size": 12, "font-weight": 800, fill: "#fff" });
+      const t = el("text", { x: ((c[0] - minX) * s + 10).toFixed(1), y: ((c[1] - minY) * s + 16).toFixed(1), "text-anchor": "middle", "font-size": 17, "font-weight": 800, fill: "#fff" });   // read in a question's card too
       t.textContent = `tier ${opts.mark.z + 1}`;
       svg.appendChild(t);
     }
