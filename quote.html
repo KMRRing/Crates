@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="quote.css">
 </head>
 <body>
-<div id="app" class="quote">
+<div id="app" class="quote fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon qt-mark" aria-hidden="true"></span>Quote</button></h1>
@@ -25,7 +25,7 @@
   <p id="partner" class="qt-partner" hidden></p>
   <div class="qt-strip"><span id="where"></span><span class="qt-book" id="books">Book <b id="book">1,000</b></span></div>
 
-  <section class="qt-card">
+  <section class="qt-card fit-col fit-grow" id="card">
     <span id="cat" class="qt-cat"></span>
     <h2 id="question" class="qt-q"></h2>
     <div id="picture" class="qt-picture" hidden></div>
@@ -50,7 +50,7 @@
     <div id="result" class="qt-result" hidden>
       <p class="qt-verdict" id="verdict"></p>
       <div class="qt-tape" id="tape"></div>
-      <p class="qt-note" id="note"></p>
+      <p class="qt-note fit-scroll" id="note"></p>
       <button class="qt-go" type="button" id="nextBtn">Next</button>
     </div>
   </section>

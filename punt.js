@@ -240,6 +240,9 @@ function render() {
   $("options").setAttribute("role", need > 1 ? "group" : "radiogroup");
   $("betting").hidden = reveal;
   $("result").hidden = !reveal;
+  // at the reveal the slip has less room: keep the right answer in sight; a new question starts from the top
+  if (reveal) requestAnimationFrame(() => $("options").querySelector(".right")?.scrollIntoView({ block: "nearest" }));
+  else if ($("slipBody").dataset.q !== String(S.index)) { $("slipBody").scrollTop = 0; $("slipBody").dataset.q = String(S.index); }
   if (!reveal) drawBetting(q, waiting);
   else drawResult(q, last);
   if (reveal) fileLatest();

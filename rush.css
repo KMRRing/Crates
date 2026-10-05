@@ -16,12 +16,14 @@
 .ru-strike.hit { background: var(--ru-bad); box-shadow: none; }
 
 /* the stage bleeds to the screen's edges so the board is the full width of the phone */
-.ru-stage { margin: 0 -1rem; padding: .8rem 0; border-radius: 0; background: var(--sheet); display: grid; gap: .55rem; }
+.ru-stage { margin: 0 -1rem; padding: .8rem 0; border-radius: 0; background: var(--sheet); gap: .55rem; }
 .ru-stage > p, .ru-stage > button { margin-left: 1rem; margin-right: 1rem; }
 .ru-line { margin: 0; font-size: 1.1rem; font-weight: 800; min-height: 1.3em; }
 .ru-line.bad { color: var(--ru-bad); }
 .ru-line.good { color: var(--ru-good); }
-.ru-board { min-height: 20rem; }
+/* the board is square: as wide as the phone, or as tall as the room left, whichever is less */
+.ru-board { min-height: 0; }
+.ru-board .ch-board { width: min(100cqw, 100cqh); }
 .ru-board:empty { display: grid; place-items: center; color: var(--ink-soft); }
 .ru-meta { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
 .ru-go { min-height: 48px; border: 0; border-radius: 14px; background: var(--ru-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }

@@ -15,7 +15,11 @@
 .qt-book b.up { color: var(--qt-good); }
 .qt-book b.down { color: var(--qt-bad); }
 
-.qt-card { padding: 1rem; border-radius: 20px; background: var(--sheet); display: grid; gap: .6rem; }
+/* the card fits the screen; once a market is settled, the inputs and shortcuts make way for the result (the tape
+   shows your market against the truth), and a long note scrolls inside */
+.qt-card { padding: .9rem; border-radius: 20px; background: var(--sheet); gap: .55rem; }
+.qt-card.settled #market, .qt-card.settled #widths, .qt-card.settled #fault { display: none; }
+.qt-card .qt-cat { align-self: flex-start; }
 .qt-cat { justify-self: start; padding: .15rem .6rem; border-radius: 999px; background: var(--qt-in-soft); color: var(--qt-in); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
 .qt-q { margin: 0; font-size: 1.45rem; font-weight: 800; line-height: 1.2; letter-spacing: -.01em; }
 .qt-unit { margin: 0; color: var(--ink-soft); font-weight: 650; }
@@ -57,7 +61,7 @@
 .qt-tape .truth.bad { background: var(--qt-bad); }
 .qt-tape .lbl { position: absolute; top: 40px; font-size: .72rem; font-weight: 750; color: var(--ink-soft); white-space: nowrap; transform: translateX(-50%); }
 .qt-tape .lbl.t { top: -2px; color: var(--ink); }
-.qt-note { margin: 0; color: var(--ink-soft); line-height: 1.4; }
+.qt-note { margin: 0; color: var(--ink-soft); line-height: 1.4; max-height: 7em; }
 
 .qt-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
 .qt-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
@@ -78,4 +82,4 @@
 /* a painting to date */
 .qt-picture { margin: .2rem 0 .6rem; display: grid; place-items: center; }
 .qt-picture[hidden] { display: none; }
-.qt-picture img { max-width: 100%; max-height: 42vh; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }
+.qt-picture img { max-width: 100%; max-height: 24vh; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); }

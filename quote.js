@@ -140,6 +140,7 @@ function render() {
   drawWidths(q);
   const result = $("result");
   result.hidden = !entry;
+  $("card").classList.toggle("settled", !!entry);             // the tape shows your market against the truth
   if (entry) {
     const v = $("verdict");
     const grade = entry.grade || (entry.inside ? "A" : "C");

@@ -15,7 +15,7 @@
 <link rel="stylesheet" href="punt.css">
 </head>
 <body>
-<div id="app" class="punt">
+<div id="app" class="punt fit-screen">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon pt-mark" aria-hidden="true"></span>Punt</button></h1>
@@ -56,7 +56,8 @@
   </div>
   <p id="avg" class="pt-avg" hidden></p>
 
-  <section id="slip" class="pt-slip" aria-live="polite">
+  <section id="slip" class="pt-slip fit-grow" aria-live="polite">
+    <div class="pt-slip-body fit-scroll" id="slipBody">
     <p id="ask" class="pt-ask"></p>
     <p id="prompt" class="pt-prompt"></p>
     <div id="figure" class="pt-figure" hidden></div>
@@ -64,13 +65,13 @@
     <pre id="code" class="pt-code" hidden></pre>
     <p id="need" class="pt-need" hidden></p>
     <div id="options" class="pt-options" role="radiogroup" aria-label="Your pick"></div>
+    </div>
   </section>
 
   <div id="betting" class="pt-betting">
-    <div class="pt-odds-row"><span>Pays</span> <b id="odds" class="pt-odds"></b></div>
+    <div class="pt-odds-row"><span>Pays</span> <b id="odds" class="pt-odds"></b><p id="stakeLine" class="pt-stake"></p></div>
     <input id="stake" type="range" min="0" max="100" step="1" value="0" aria-label="Stake, as a share of the pot">
     <div id="chips" class="pt-chips"></div>
-    <p id="stakeLine" class="pt-stake"></p>
     <div class="pt-buttons">
       <button id="passBtn" class="btn">Pass</button>
       <button id="betBtn" class="btn primary">Bet</button>
@@ -79,7 +80,7 @@
 
   <div id="result" class="pt-result" hidden>
     <p id="verdict" class="pt-verdict"></p>
-    <ul id="notes" class="pt-notes"></ul>
+    <ul id="notes" class="pt-notes fit-scroll"></ul>
     <button id="flagBtn" class="pt-flag" type="button">Disagree with this answer? Flag it</button>
     <p id="house" class="pt-house"></p>
     <button id="nextBtn" class="btn primary wide">Next question</button>

@@ -28,8 +28,9 @@ const toUnits = (q, r) => (q.scale === "log" ? Math.log2(1 + r) : r);
 /** The question's tiers, from the bank or derived from its range when it has none. */
 export function tiersOf(q) {
   if (q.tiers) return q.tiers;
-  const t = q.tol;
-  return q.scale === "log" ? { SS: t / 5, S: t, A: t * 2.5, B: t * 5 } : { SS: t <= 2 ? 0 : t / 4, S: t, A: t * 2.5, B: t * 5 };
+  const t = q.tol, clean = x => Number(x.toPrecision(12));       // 0.1 × 3 is 0.30000000000000004; the width is 0.3
+  const T = q.scale === "log" ? { SS: t / 5, S: t, A: t * 2.5, B: t * 5 } : { SS: t <= 2 ? 0 : t / 4, S: t, A: t * 2.5, B: t * 5 };
+  return Object.fromEntries(Object.entries(T).map(([g, r]) => [g, clean(r)]));
 }
 export const GRADES = ["SS", "S", "A", "B", "C"];
 /** The payoff at each grade's edge, before difficulty: exact 300, then the steps. */
