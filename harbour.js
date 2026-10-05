@@ -1,7 +1,7 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { MOVES, LOAD, DISCHARGE, WAIT, grid, period, invalid, start, step, score, flatten } from "./harbour-engine.js";
+import { MOVES, LOAD, DISCHARGE, WAIT, grid, period, invalid, start, step, score, flatten, instructions, capOf } from "./harbour-engine.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
@@ -15,7 +15,8 @@ const SPEED = [420, 110];             // ms an hour takes: normal, fast
 const HOLD = 450;                     // ms: holding a loop's count lowers it
 const ANGLE = { E: 0, S: 90, W: 180, N: -90 };
 const HULL = "M1.2 2.9H6.2C8.4 2.9 9.4 4 9.5 5C9.4 6 8.4 7.1 6.2 7.1H1.2Q.6 5 1.2 2.9Z";   // bow to the east
-const MEASURES = [["hire", "Hire", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`]];
+const MEASURES = [["cost", "Cost", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`], ["instructions", "Instructions", v => `${v} instr`]];
+const REPEAT = [380, 110];            // ms: holding a shift arrow repeats it, after a pause, this often
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
@@ -53,6 +54,8 @@ let facing = [];                      // which way each ship points (its last mo
 let drag = null;                      // a ship being dragged: { i, from, moved }
 let held = null;                      // a loop count being held down: { timer, fired }
 let sweeping = false, swept = false;  // picking hours with a mouse drag (swept: the click that ends it is already handled)
+let nudged = 0;                       // hours the picked rows have been shifted, for the status line
+let repeat = { delay: 0, every: 0, at: 0 };   // a shift arrow being held
 
 const solKey = () => `harbour:sol:${L.id}`, bestKey = () => `harbour:best:${L.id}`;
 const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k => pick.r0 + k).filter(r => sol.ships[r]) : []);
@@ -79,8 +82,13 @@ function drawSea() {
     const k = G.at(x, y), X = x * U, Y = y * U;
     if (k === "land") { parts.push(`<rect class="hb-land" x="${X}" y="${Y}" width="${U}" height="${U}"/>`); continue; }
     parts.push(`<rect class="hb-cellwater" x="${X + .3}" y="${Y + .3}" width="${U - .6}" height="${U - .6}" rx="1.4"/>`);
-    if (k === "load" || k === "discharge") parts.push(`<g class="hb-jetty ${k}"><rect x="${X + 1}" y="${Y + 1}" width="${U - 2}" height="${U - 2}" rx="1.6"/>`
-      + `<text x="${X + U / 2}" y="${Y + U / 2 + 1.45}">${k === "load" ? LOAD : DISCHARGE}</text></g>`);
+    const j = G.jetty(x, y);
+    if (!j) continue;
+    // a jetty in its product's colour (the customer's in blue), lettered as on the map; a refinery's has its tank's gauge
+    const gauge = j.tank ? `<rect class="hb-gauge-bg" x="${X + U - 2.5}" y="${Y + 2}" width="1.2" height="${U - 4}" rx=".6"/>`
+      + `<rect class="hb-gauge" data-tank="${k}" data-top="${Y + 2}" data-full="${U - 4}" x="${X + U - 2.5}" y="${Y + U - 2}" width="1.2" height="0" rx=".6"/>` : "";
+    parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><rect x="${X + 1}" y="${Y + 1}" width="${U - 2}" height="${U - 2}" rx="1.6"/>`
+      + `<text x="${X + U / 2 - (j.tank ? .7 : 0)}" y="${Y + U / 2 + 1.45}">${k}</text>${gauge}</g>`);
   }
   map.innerHTML = parts.join("") + `<g id="fleet"></g><g id="marks"></g>`;
 }
@@ -123,14 +131,14 @@ function count(row, col, by) {
 function pickAt(row, col, extend) {
   if (extend && pick) pick = { ...pick, r0: Math.min(pick.ar, row), r1: Math.max(pick.ar, row), c0: Math.min(pick.ac, col), c1: Math.max(pick.ac, col), open: false };
   else pick = { ar: row, ac: col, r0: row, r1: row, c0: col, c1: col, open: true };
-  sel = row; notice = "";
+  sel = row; notice = ""; nudged = 0;
   markPick(); fleet(); status(); toolbar();
 }
 function pickRow(row) {
   const r0 = pick?.open ? Math.min(pick.ar, row) : row, r1 = pick?.open ? Math.max(pick.ar, row) : row;
   const end = Math.max(1, ...sol.ships.slice(r0, r1 + 1).map(s => T.width(s.prog))) - 1;
   pick = { ar: r0, ac: 0, r0, r1, c0: 0, c1: end, open: false };
-  sel = row; notice = "";
+  sel = row; notice = ""; nudged = 0;
   markPick(); fleet(); status(); toolbar();
 }
 function setMode(m) {
@@ -143,11 +151,22 @@ function setMode(m) {
 function act(name) {
   if (name === "paste") {
     if (!clip || !pick) return;
-    const w = Math.max(...clip.map(T.width)), { r0, c0 } = pick;
+    const w = Math.max(...clip.map(T.width)), { r0, c0 } = pick, P = period(sol), r1 = Math.min(sol.ships.length - 1, r0 + clip.length - 1);
+    let wrapped = false;
     edit(() => {
-      clip.forEach((items, k) => { const s = sol.ships[r0 + k]; if (s) s.prog = T.insert(s.prog, c0, items); });
-      pick = { ar: r0, ac: c0, r0, r1: Math.min(sol.ships.length - 1, r0 + clip.length - 1), c0, c1: c0 + w - 1, open: false };   // what was pasted
+      clip.forEach((items, k) => {
+        const s = sol.ships[r0 + k];
+        if (!s) return;
+        // a whole loop pasted into an empty row at hour h is the same loop, h hours later: a second ship on the route
+        if (!s.prog.length && c0 > 0 && T.width(items) === P) {
+          let p = items;
+          for (let i = 0; i < c0 % P; i++) p = T.shift(p, P, true);
+          s.prog = p; wrapped = true;
+        } else s.prog = T.insert(s.prog, c0, items);
+      });
+      pick = wrapped ? { ar: r0, ac: 0, r0, r1, c0: 0, c1: P - 1, open: false } : { ar: r0, ac: c0, r0, r1, c0, c1: c0 + w - 1, open: false };
     });
+    if (wrapped) { notice = `Pasted as the same loop, ${c0 % P} hour${c0 % P > 1 ? "s" : ""} later.`; status(); }
     return;
   }
   if (!pick) return;
@@ -172,6 +191,9 @@ function act(name) {
       // shifting can leave the longest row ending in empty hours; an explicit wait keeps the loop the length it was
       if (period(sol) < P) sol.ships[rows[0]].prog = T.paint(sol.ships[rows[0]].prog, P - 1, WAIT);
     });
+    nudged += name === "later" ? 1 : -1;
+    notice = nudged ? `Shifted ${Math.abs(nudged)} hour${Math.abs(nudged) > 1 ? "s" : ""} ${nudged > 0 ? "later" : "earlier"}.` : "";
+    status();
   }
 }
 
@@ -239,8 +261,9 @@ function stepOnce() {
   running = false; clearTimeout(timer);
   if (begin() && !over()) tick();
 }
+const bests = () => { const b = read(bestKey(), {}); if (b.hire != null && b.cost == null) b.cost = b.hire; return b; };   // level 1's first bests said hire
 function keepBests() {
-  const sc = score(L, sol, sim), best = read(bestKey(), {});
+  const sc = score(L, sol, sim), best = bests();
   for (const [k] of MEASURES) if (best[k] == null || sc[k] < best[k]) best[k] = sc[k];
   write(bestKey(), best);
 }
@@ -250,7 +273,15 @@ function render(still = false) {
   const map = $("map");
   map.classList.toggle("still", still);
   map.style.setProperty("--hb-hour", `${Math.round(SPEED[fast ? 1 : 0] * .9)}ms`);
-  fleet(); marks(); tape(); toolbar(); controls(); status();
+  fleet(); marks(); tanks(); tape(); toolbar(); controls(); status();
+}
+
+function tanks() {
+  for (const el of $("map").querySelectorAll(".hb-gauge")) {
+    const k = el.dataset.tank, t = L.jetties[k].tank, level = sim ? sim.tanks[k] : t.start || 0, h = +el.dataset.full * level / t.cap;
+    el.setAttribute("height", h);
+    el.setAttribute("y", +el.dataset.top + +el.dataset.full - h);
+  }
 }
 
 function fleet() {
@@ -259,7 +290,7 @@ function fleet() {
   while (g.children.length < ships.length) {
     const i = g.children.length, el = document.createElementNS("http://www.w3.org/2000/svg", "g");
     el.setAttribute("class", "hb-ship");
-    el.innerHTML = `<g><path class="hb-hull" d="${HULL}"/><rect class="hb-bridge" x="1.7" y="3.5" width="1.5" height="3" rx=".35"/></g>`
+    el.innerHTML = `<g><path class="hb-hull" d="${HULL}"/><rect class="hb-bridge" x="1.7" y="3.5" width="1.5" height="3" rx=".35"/><g class="hb-cargo"></g></g>`
       + `<text class="hb-num" x="5.9" y="6.1">${i + 1}</text>`;
     g.appendChild(el);
   }
@@ -268,7 +299,13 @@ function fleet() {
     el.classList.remove("dragging", "scrap");
     el.style.transform = `translate(${p.x * U}px, ${p.y * U}px)`;
     el.firstChild.setAttribute("transform", `rotate(${ANGLE[facing[i]] ?? 0} 5 5)`);
-    el.classList.toggle("laden", !!p.laden);
+    // the cargo as a bar along the deck, a stretch per product, as long as the share of the ship it fills
+    let x = 3.6;
+    el.querySelector(".hb-cargo").innerHTML = Object.entries(p.cargo || {}).filter(([, u]) => u > 0).map(([prod, u]) => {
+      const w = 4.3 * u / capOf(L), r = `<rect class="hb-load pr-${prod}" x="${x}" y="4" width="${w}" height="2" rx=".4"/>`;
+      x += w;
+      return r;
+    }).join("");
     el.classList.toggle("sel", i === sel && !sim);
     el.classList.toggle("hit", !!sim?.crash?.ships.includes(i));
   });
@@ -351,7 +388,7 @@ function status() {
       : `${w} hour${w > 1 ? "s" : ""}${rows > 1 ? ` × ${rows} ships` : ""} picked`;
   } else if (!sim) text = !n ? "Tap the water to put a ship there."
     : sel >= 0 ? `Ship ${sel + 1}: drag it to move it, onto land to scrap it.`
-    : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · hire $${n * L.shipCost}k`;
+    : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${n * L.shipCost}k`;
   else if (sim.crash) {
     const [a, b] = sim.crash.ships; tone = "bad";
     text = sim.crash.kind === "aground" ? `Ship ${a + 1} ran aground in hour ${sim.crash.t}.` : `Ships ${a + 1} and ${b + 1} collided in hour ${sim.crash.t}.`;
@@ -360,13 +397,17 @@ function status() {
     tone = "good";
     text = `Done · ${MEASURES.map(([k, , f]) => f(sc[k]) + mark(k)).join(" · ")}`;
   } else if (sim.t >= L.maxCycles) { tone = "bad"; text = `Not done after ${L.maxCycles} hours.`; }
-  else text = `Hour ${sim.t} · ${sim.delivered} of ${L.target} delivered`;
+  else {
+    const no = sim.events.find(e => e.kind === "refused"), tank = Object.entries(sim.tanks)[0];
+    if (no) { tone = "bad"; text = `Hour ${sim.t}: the jetty refused ship ${no.ship + 1}, ${no.why}.`; }
+    else text = `Hour ${sim.t} · ${sim.delivered} of ${L.target} delivered${tank ? ` · tank ${tank[1]}/${L.jetties[tank[0]].tank.cap}` : ""}`;
+  }
   el.textContent = text;
   el.className = `hb-status${tone ? ` ${tone}` : ""}`;
 }
 
 function openMenu() {
-  const best = read(bestKey(), {});
+  const best = bests();
   const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td><td>${f(L.par[k])}</td></tr>`).join("");
   $("menuBody").innerHTML = `<h3>${L.name}</h3><table class="hb-bests"><thead><tr><th></th><th>Your best</th><th>Par</th></tr></thead>`
     + `<tbody>${rows}</tbody></table><button class="btn wide" type="button" id="clearBtn">Clear this level's ships</button>`;
@@ -381,9 +422,22 @@ $("tools").addEventListener("click", e => {
   const b = e.target.closest(".hb-tool");
   if (!b || b.disabled) return;
   if (b.dataset.act === "mode") setMode(mode === "pick" ? "paint" : "pick");
+  else if ((b.dataset.act === "earlier" || b.dataset.act === "later") && performance.now() - repeat.at < 800) return;   // the press did it
   else if (b.dataset.act) act(b.dataset.act);
   else { tool = b.dataset.op; toolbar(); }
 });
+// a shift arrow acts as it's pressed and repeats while held, so shifting a ship many hours is one press
+$("tools").addEventListener("pointerdown", e => {
+  const b = e.target.closest(".hb-tool"), a = b?.dataset.act;
+  if (!b || b.disabled || (a !== "earlier" && a !== "later")) return;
+  repeat.at = performance.now();
+  act(a);
+  clearTimeout(repeat.delay); clearInterval(repeat.every);
+  repeat.delay = setTimeout(() => { repeat.every = setInterval(() => { repeat.at = performance.now(); act(a); }, REPEAT[1]); }, REPEAT[0]);
+});
+const stopRepeat = () => { clearTimeout(repeat.delay); clearInterval(repeat.every); };
+addEventListener("pointerup", stopRepeat);
+addEventListener("pointercancel", stopRepeat);
 const tapeBox = $("tape");
 tapeBox.addEventListener("pointerdown", e => {
   swept = false;

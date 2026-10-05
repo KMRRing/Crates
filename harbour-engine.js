@@ -1,27 +1,42 @@
-// Harbour's rules, apart from the page: a harbour on a grid and ships whose programs all run in lockstep. The page
-// (harbour.js) draws it and edits the programs; tests/harbour.mjs replays reference solutions through the same rules.
+// Harbour's rules, apart from the page: a harbour on a grid, jetties, and ships whose programs all run in lockstep.
+// The page (harbour.js) draws it, harbour-tape.js edits the programs, and tests/harbour.mjs replays reference
+// solutions through the same rules.
 //
 // Each hour every ship carries out its program's instruction for that hour. Programs loop, and the longest sets the
 // loop's length for all of them, so ships stay in step for good. Moves happen together. A ship that would end on land
 // or off the map runs aground; two that would end on one tile, or pass through each other, collide; either ends the
 // run. A ship may move onto a tile another is leaving that same hour: ships can follow each other. Then loads and
-// discharges, and one that can't happen does nothing: loading where there's nothing to load, discharging an empty
-// ship. That rule (an impossible transfer is no transfer) is what later levels build their logic on.
+// discharges, each in full or not at all, and one that can't happen does nothing: a load needs the jetty's whole
+// parcel on hand and room for it aboard; a discharge needs the cargo to be the size the jetty takes and on its spec.
+// That rule (an impossible transfer is no transfer) is what later levels build their logic on. Last, every
+// refinery's tank fills at its rate, up to what it holds; when it's full the refinery waits.
 
 export const MOVES = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
 export const LOAD = "L", DISCHARGE = "D", WAIT = ".";
 export const OPS = [...Object.keys(MOVES), LOAD, DISCHARGE, WAIT];
-const KIND = { "#": "land", ".": "water", L: "load", D: "discharge" };
 
-/** The level's grid: its size and what each tile is (land, water, or a berth to load or discharge at). */
+// Level 1 was written before jetties were spelled out: one product, and a cargo is the whole ship.
+const FIRST_JETTIES = { L: { kind: "load", product: "oil" }, D: { kind: "discharge" } };
+export const jettiesOf = level => level.jetties || FIRST_JETTIES;
+export const capOf = level => level.shipCap || 1;
+export const parcelOf = (level, j) => j.parcel || capOf(level);
+export const total = cargo => Object.values(cargo).reduce((a, b) => a + b, 0);
+const priceOf = (level, j) => level.products?.[j.product]?.price || 0;
+const pct = v => `${Math.round(v * 100)}%`;
+
+/** The level's grid: its size, and what each tile is (land, water, or a jetty, by its letter on the map). */
 export function grid(level) {
-  const rows = level.map, h = rows.length, w = rows[0].length;
-  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? "off" : KIND[rows[y][x]]);
-  return { w, h, at, afloat: (x, y) => !["land", "off"].includes(at(x, y)) };
+  const rows = level.map, h = rows.length, w = rows[0].length, J = jettiesOf(level);
+  const at = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return "off";
+    const c = rows[y][x];
+    return c === "." ? "water" : J[c] ? c : "land";
+  };
+  return { w, h, at, afloat: (x, y) => !["land", "off"].includes(at(x, y)), jetty: (x, y) => J[at(x, y)] || null };
 }
 
 /** A program as it plays, hour by hour. A program is a row of items: an instruction (null for an empty hour) or a loop
- * { n, body } that plays its body n times (harbour-tape.js edits them). */
+ * { n, body } that plays its body n times. */
 export function flatten(prog) {
   const out = [];
   for (const it of prog) if (it && typeof it === "object") for (let k = 0; k < it.n; k++) out.push(...it.body); else out.push(it ?? null);
@@ -32,6 +47,10 @@ export function flatten(prog) {
 export function period(solution) {
   return Math.max(1, ...solution.ships.map(s => flatten(s.prog).reduce((n, op, i) => (op ? i + 1 : n), 0)));
 }
+
+/** Instructions as written: each counts once, a loop's body once however often it plays, empty hours not at all. */
+export const instructions = solution => solution.ships.reduce((n, s) =>
+  n + s.prog.reduce((m, it) => m + (it && typeof it === "object" ? it.body.filter(Boolean).length : it ? 1 : 0), 0), 0);
 
 const okOp = op => op === null || OPS.includes(op);
 const okItem = it => okOp(it) || (!!it && typeof it === "object" && Number.isInteger(it.n) && it.n >= 2 && it.n <= 99
@@ -50,10 +69,22 @@ export function invalid(level, solution) {
   return null;
 }
 
+/** Why a cargo is off a jetty's spec (each product's share of it between a least and a most), or null if it's on. */
+export function offSpec(level, spec, cargo) {
+  const all = total(cargo);
+  for (const [p, [lo, hi]] of Object.entries(spec || {})) {
+    const share = (cargo[p] || 0) / all, name = level.products?.[p]?.name || p;
+    if (share < lo - 1e-9) return `${name} ${pct(share)}, needs at least ${pct(lo)}`;
+    if (share > hi + 1e-9) return `${name} ${pct(share)}, needs at most ${pct(hi)}`;
+  }
+  return null;
+}
+
 /** The run before its first hour. */
 export function start(level, solution) {
-  const ships = solution.ships.map(s => ({ x: s.x, y: s.y, laden: false }));
-  return { t: 0, ships, delivered: 0, visited: new Set(ships.map(s => `${s.x},${s.y}`)), done: null, crash: null, events: [] };
+  const ships = solution.ships.map(s => ({ x: s.x, y: s.y, cargo: {} })), tanks = {};
+  for (const [k, j] of Object.entries(jettiesOf(level))) if (j.tank) tanks[k] = j.tank.start || 0;
+  return { t: 0, ships, tanks, delivered: 0, bought: 0, visited: new Set(ships.map(s => `${s.x},${s.y}`)), done: null, crash: null, events: [] };
 }
 
 /** One hour: a new state (the old one is left as it was, so the page can step and redraw from either). */
@@ -72,14 +103,33 @@ export function step(level, solution, state) {
     if (swapped || shared) return crash("collision", [i, j], [to[i].x, to[i].y]);
   }
 
-  next.ships = to.map((p, i) => ({ ...p, laden: from[i].laden }));
+  next.ships = to.map((p, i) => ({ ...p, cargo: { ...from[i].cargo } }));
+  next.tanks = { ...state.tanks };
   next.visited = new Set(state.visited);
   for (const s of next.ships) next.visited.add(`${s.x},${s.y}`);
+  const cap = capOf(level);
   for (const [i, s] of next.ships.entries()) {
-    const here = g.at(s.x, s.y);
-    if (op(i) === LOAD && here === "load" && !s.laden) { s.laden = true; next.events.push({ ship: i, kind: "load" }); }
-    if (op(i) === DISCHARGE && here === "discharge" && s.laden) { s.laden = false; next.delivered++; next.events.push({ ship: i, kind: "discharge" }); }
+    const key = g.at(s.x, s.y), j = g.jetty(s.x, s.y);
+    if (!j) continue;
+    if (op(i) === LOAD && j.kind === "load") {
+      const p = parcelOf(level, j), onHand = j.tank ? next.tanks[key] : Infinity;
+      if (cap - total(s.cargo) < p || onHand < p) continue;
+      s.cargo[j.product] = (s.cargo[j.product] || 0) + p;
+      if (j.tank) next.tanks[key] -= p;
+      next.bought += p * priceOf(level, j);
+      next.events.push({ ship: i, kind: "load" });
+    }
+    if (op(i) === DISCHARGE && j.kind === "discharge") {
+      const amount = total(s.cargo), p = parcelOf(level, j);
+      if (!amount) continue;
+      const why = amount !== p ? `carries ${amount}, the jetty takes ${p}` : offSpec(level, j.spec, s.cargo);
+      if (why) { next.events.push({ ship: i, kind: "refused", why }); continue; }
+      s.cargo = {};
+      next.delivered++;
+      next.events.push({ ship: i, kind: "discharge" });
+    }
   }
+  for (const [k, j] of Object.entries(jettiesOf(level))) if (j.tank) next.tanks[k] = Math.min(j.tank.cap, next.tanks[k] + j.tank.rate);
   if (next.delivered >= level.target) next.done = t + 1;
   return next;
 }
@@ -91,8 +141,8 @@ export function run(level, solution, limit = level.maxCycles) {
   return s;
 }
 
-/** The three measures, each kept for itself: what the ships cost to hire, the hours to the last delivery, and the
- * water they used (every tile a ship was on at some point). */
+/** The four measures, each kept for itself: what it cost (ships hired and product bought), the hours to the last
+ * delivery, the water used (every tile a ship was on at some point) and the instructions written. */
 export function score(level, solution, final) {
-  return { hire: solution.ships.length * level.shipCost, hours: final.done, water: final.visited.size };
+  return { cost: solution.ships.length * level.shipCost + final.bought, hours: final.done, water: final.visited.size, instructions: instructions(solution) };
 }

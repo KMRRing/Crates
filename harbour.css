@@ -2,13 +2,13 @@
    clock and one line of status. The page never scrolls; the programs scroll sideways inside their box. */
 .harbour {
   --hb-water: #CFE1EA; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #E8E2D4;
-  --hb-hull: #FBFBF9; --hb-cargo: #E1AB24; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
+  --hb-hull: #FBFBF9; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
 }
 @media (prefers-color-scheme: dark) {
   .harbour { --hb-water: #16303B; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; }
 }
 
-.hb-brief { margin: .5rem 0 .4rem; height: 2.6em; overflow: hidden; color: var(--ink-soft); font-size: .9rem; line-height: 1.3; }
+.hb-brief { margin: .5rem 0 .4rem; height: 3.9em; overflow: hidden; color: var(--ink-soft); font-size: .86rem; line-height: 1.3; }   /* three lines on every level, so switching levels moves nothing */
 
 /* the harbour: as big as the room left, at the map's own proportions */
 .hb-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 10px;
@@ -16,8 +16,14 @@
 .hb-water { fill: var(--hb-water); }
 .hb-cellwater { fill: none; stroke: var(--hb-grid); stroke-width: .3; }
 .hb-land { fill: var(--hb-land); shape-rendering: crispEdges; }
-.hb-jetty { --hb-berth: var(--c0); }
-.hb-jetty.discharge { --hb-berth: var(--c1); }
+/* products by colour: oil and its cuts amber, FAME green; the customer's jetty blue */
+.pr-oil, .pr-diesel, .pr-gasoil { --pr: var(--c0); }
+.pr-fame { --pr: var(--c1); }
+.hb-jetty { --hb-berth: var(--pr, var(--c0)); }
+.hb-jetty.discharge { --hb-berth: var(--c2); }
+.hb-gauge-bg { fill: color-mix(in srgb, var(--hb-ship-ink) 16%, transparent); }
+.hb-gauge { fill: var(--hb-berth); }
+.hb-load { fill: var(--pr); stroke: var(--hb-ship-ink); stroke-width: .2; }
 .hb-jetty rect { fill: color-mix(in srgb, var(--hb-berth) 28%, transparent); stroke: var(--hb-berth); stroke-width: .5; }
 .hb-jetty text { font: 800 4px var(--font); text-anchor: middle; fill: var(--hb-berth); }
 
@@ -26,9 +32,9 @@
 .hb-map.still .hb-ship, .hb-ship.dragging { transition: none; }
 .hb-ship.dragging { cursor: grabbing; }
 .hb-hull { fill: var(--hb-hull); stroke: var(--hb-ship-ink); stroke-width: .55; stroke-linejoin: round; }
-.hb-ship.laden .hb-hull { fill: var(--hb-cargo); }
 .hb-bridge { fill: var(--hb-ship-ink); }
-.hb-num { font: 800 3.1px var(--font); text-anchor: middle; fill: var(--hb-ship-ink); pointer-events: none; }
+.hb-num { font: 800 3.1px var(--font); text-anchor: middle; fill: var(--hb-ship-ink); pointer-events: none;
+  paint-order: stroke; stroke: var(--hb-hull); stroke-width: .7px; }   /* readable over the cargo bar */
 .hb-ship.sel .hb-hull { stroke: var(--focus); stroke-width: 1; }
 .hb-ship.hit .hb-hull { stroke: var(--c3); stroke-width: 1.1; }
 .hb-ship.scrap { opacity: .4; }
@@ -50,7 +56,7 @@
 .hb-cell.out { opacity: .45; }
 .hb-cell.now { box-shadow: 0 0 0 2px var(--focus); }
 .hb-cell.op-L, .hb-tool.op-L { background: var(--c0); color: var(--on-c0); }
-.hb-cell.op-D, .hb-tool.op-D { background: var(--c1); color: var(--on-c); }
+.hb-cell.op-D, .hb-tool.op-D { background: var(--c2); color: var(--on-c); }
 .hb-cell svg, .hb-tool svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* the instructions to paint with, then the clock */
@@ -65,7 +71,7 @@
 .hb-ctl:disabled { opacity: .35; cursor: default; }
 .hb-ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .hb-ctl svg .solid { fill: currentColor; }
-.hb-status { margin: .4rem 0 0; min-height: 1.35em; text-align: center; font-size: .9rem; font-weight: 700;
+.hb-status { margin: .4rem 0 0; min-height: 1.35em; text-align: center; font-size: .84rem; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hb-status.bad { color: var(--c3); }
 .hb-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
