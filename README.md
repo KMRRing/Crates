@@ -1,8 +1,11 @@
-# Crates
+# Almanac
 
-Sixteen words, four hidden crates. Group the four words that belong together, then name the country or commodity behind them.
+Puzzle, logic and knowledge games for the phone, alone or with a partner, online or off. It began as Crates, the first game below, and keeps that address; on the home screen it's Almanac, an open almanac for its icon (the manifest, every page's home-screen title, and `icon.svg` with the PNGs drawn from it).
 
 Play: https://kmrring.github.io/Crates/ (on iPhone: Share → Add to Home Screen)
+
+## Crates
+Sixteen words, four hidden crates. Group the four words that belong together, then name the country or commodity behind them.
 
 ## Boards
 Every board is drawn fresh from a word bank: 69 countries and 90 commodities. Clues and answers map many-to-many: Copper points to Chile, the DR Congo, Zambia and eight more; the Nile to Egypt and Ethiopia; Commonwealth to the UK, Poland and Lithuania. Each clue-answer pair has its own explanation and its own difficulty from 1 to 3, because the link is easy for some answers and hard for others (about 5,500 pairs over 3,700 clues). Hong Kong's clues sit under China. Clues also carry topics. The generator picks four answers, then four clues each, and only keeps a board that has exactly one solution given every answer each clue points to. Each crate must also name exactly one answer: the only answer in the whole bank that all four of its clues fit. That matters for close relatives such as FAME and its variants (UCOME, RME, SME, PME, TME): clues true of all biodiesel sit under all six, so a crate needs at least one clue specific to its answer. No tile contains the name of an answer on its board, so White gold never appears alongside Gold. Red herrings (clues that also point to another crate on the board) follow the difficulty: none on Easy, at most one on Mixed (on roughly two boards in five), one or two on Hard (two on roughly one board in five). Each herring fits exactly one other crate, and no two herrings link the same pair of crates. A solved crate lists its red herrings but names the other crate only once that one is open too; from then on the herring shows in both crates ("Amazon also fits Brazil" in Peru, "also fits here, but belongs to Peru" in Brazil). Crates are coloured yellow to red by the average difficulty of their clues.
