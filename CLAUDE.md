@@ -14,7 +14,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 1. **Stay in one app.** A game is its `<game>.html`, `.js` and `.css`, its own engine and data files, and
    `tests/<game>.mjs`. Change only those, and only that game's section of README.md.
 2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
-   is in them: `style.css`, `apps.js`, `pwa.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
+   is in them: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
    `rich.js`, `pics.js`, `tools/`, `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`,
    `chart-geo.js`, `quote-bank.js`, `kb-index.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`,
    `phil`, `rel`, `refining` banks), and this file.
@@ -62,3 +62,10 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 - **Clean code as you go**, don't just flag it; comments say why, not what.
 - **Write the README** for every change: plain prose, what it does and why, in the game's section.
 - He's a biofuels trader and wants expert, terse engagement; define a technical term the first time you use it.
+
+## Saved state syncs
+
+`suite.js` syncs every `localStorage` key between devices on the same solo code (except `suite:`, Crates' run keys and
+Firebase's own). Keep a game's keys under its own prefix (`manifest:run2`, `quote:best`): a change from another device
+to the open game's keys reloads it. A game's best goes in `<game>:best` (a number, a `{ score }`, or bests by level) to
+show on the games screen.

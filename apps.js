@@ -3,6 +3,7 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { gameHref } from "./rooms.js";
+import { soloCode, duoCode, startSolo, joinSolo, setDuo, cleanCode, bestOf, shareBests, watchDuo } from "./suite.js";
 // Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
@@ -124,14 +125,55 @@ export const APPS = [
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}</a></li>`).join("");
+      <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
+const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
+/**
+ * The games screen's head: your solo code (every device with it is in the same state in every game) and your duo
+ * room (whether your partner is online and where), and on each tile the best score kept there, yours and your
+ * partner's when you have a duo room. Tapping a code changes it.
+ */
+function bindCodes(dlg) {
+  const head = dlg.querySelector("[data-codes]");
+  let partner = null, theirs = {}, theirName = "";
+  const draw = () => {
+    const solo = soloCode(), duo = duoCode();
+    head.innerHTML = `<button class="code-chip" type="button" data-solo title="Every device with this code is in the same state in every game"><span>Solo</span><b>${solo || "start syncing"}</b></button>
+      <button class="code-chip" type="button" data-duo title="The room you play in with someone"><span>Duo</span><b>${duo || "none"}</b>${duo ? `<em class="${partner?.online ? "on" : ""}">${partner ? `${partner.name || "Partner"} · ${partner.online ? (partner.game ? `in ${partner.game[0].toUpperCase()}${partner.game.slice(1)}` : "online") : "offline"}` : "nobody yet"}</em>` : ""}</button>`;
+    for (const el of dlg.querySelectorAll("[data-best]")) {
+      const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
+      el.textContent = mine == null && them == null ? "" : `${mine != null ? `Best ${short(mine)}` : "–"}${duo && them != null ? ` · ${(theirName || "P")[0]} ${short(them)}` : ""}`;
+    }
+  };
+  head.addEventListener("click", e => {
+    if (e.target.closest("[data-solo]")) {
+      const now = soloCode();
+      const typed = prompt(now ? `Your solo code is ${now}. Enter it on your other devices. To follow a different one, type it here:` : "Type the code from your other device, or leave it empty to start a new one here:", "");
+      if (typed === null) return;
+      const code = cleanCode(typed);
+      if (code.length === 8 && code !== now) joinSolo(code); else if (!code && !now) startSolo(); else return;
+      location.reload();
+    }
+    if (e.target.closest("[data-duo]")) {
+      const typed = prompt("Your duo room's four-letter code (empty to forget it):", duoCode() || "");
+      if (typed === null) return;
+      const code = cleanCode(typed);
+      if (code.length === 4 || !code) { setDuo(code || null); location.reload(); }
+    }
+  });
+  draw();
+  if (duoCode()) {
+    shareBests(APPS.map(a => a.id)).catch(() => {});
+    watchDuo(({ partner: p, bests, name }) => { partner = p; theirs = bests; theirName = name; draw(); }).catch(() => {});
+  }
+  return draw;
+}
 
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
   // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><h2>Games</h2><span class="apps-actions">
+  dlg.innerHTML = `<div class="apps-inner"><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
       <button class="btn" type="button" data-update title="Load the newest version (keeps your progress)">Update</button>
       <button class="btn" type="button" data-close>Close</button></span></div>
     <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more${APPS.find(x => x.id === current)?.more ? " cur" : ""}" type="button" data-more aria-haspopup="dialog" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul></div>`;
@@ -164,5 +206,6 @@ export function bindSwitcher(button, current) {
     if (a.id === current) return;
     dlg.querySelectorAll(`.app-row[href="${a.href}"]`).forEach(row => row.addEventListener("click", e => { e.preventDefault(); location.href = gameHref(a.id); }));
   });
-  button.addEventListener("click", () => dlg.showModal());
+  const redraw = bindCodes(dlg);
+  button.addEventListener("click", () => { redraw(); dlg.showModal(); });
 }

@@ -3,6 +3,7 @@
 // game's test passes, so a broken push never reaches an installed copy. A new version is fetched in the background and waits:
 // it takes over when the app goes off screen, and the page reloads onto it when it comes back. Taking over in the
 // middle of a game could mix old code with new.
+import "./suite.js";   // the solo code's sync runs on every page
 const supported = "serviceWorker" in navigator;
 const ready = supported ? navigator.serviceWorker.register("./sw.js").catch(() => null) : Promise.resolve(null);
 

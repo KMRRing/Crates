@@ -395,3 +395,14 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 
 /* rooms.js: choosing which player to carry on as */
 .seat-list { display: grid; gap: .5rem; margin: .8rem 0 .4rem; }
+
+/* the games screen's head: the solo and duo codes, and each tile's best (yours, and your partner's in a duo room) */
+.apps .codes { display: flex; gap: .4rem; min-width: 0; flex-wrap: wrap; }
+.code-chip { display: inline-flex; align-items: baseline; gap: .35rem; padding: .3rem .6rem; border: 1.5px solid var(--edge, #c9cdd2); border-radius: 999px;
+  background: var(--sheet); color: var(--ink); font: inherit; font-size: .82rem; cursor: pointer; max-width: 100%; }
+.code-chip span { color: var(--ink-soft); font-weight: 700; }
+.code-chip b { font-weight: 800; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.code-chip em { font-style: normal; color: var(--ink-soft); font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.code-chip em.on { color: #2f8a4b; font-weight: 700; }
+.app-best { display: block; font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.app-best:empty { display: none; }
