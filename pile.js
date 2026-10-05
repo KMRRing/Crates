@@ -12,7 +12,7 @@ export const PILES = [
   { id: 2, name: "Medium", gap: 12 * 60 * 60 * 1000 },
   { id: 3, name: "Long", gap: 7 * 24 * 60 * 60 * 1000 },
 ];
-export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Rush", slate: "Slate" };
+export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Rush", slate: "Slate", parley: "Parley" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -41,6 +41,15 @@ export function record(game, key, payload, why) {
   all[id] = it;
   save();
   return it;
+}
+/** Adds an item to learn (a new word): it starts in the ultra-short pile, due now, without counting as a miss. */
+export function add(game, key, payload) {
+  const all = load(), id = `${game}:${key}`;
+  if (all[id]) return all[id];
+  const now = Date.now();
+  all[id] = { id, game, key, added: now, seen: 0, fails: 0, passes: 0, payload, pile: 0, due: now, last: { at: now, why: "new" } };
+  save();
+  return all[id];
 }
 /** Notes an item was shown (for the cap on how much of a block is old). */
 export function seen(game, key) {

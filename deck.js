@@ -117,6 +117,14 @@ function ask() {
     wrap.append(input, go);
     box.appendChild(wrap);
     setTimeout(() => input.focus(), 50);
+  } else if (it.game === "parley") {
+    const p = it.payload;
+    $("ask").textContent = `Parley · ${{ zh: "Chinese", fr: "French", de: "German" }[p.course] || p.course}`;
+    $("prompt").textContent = `${p.w}${p.py ? ` (${p.py})` : ""}`;
+    const pool = pile.all("parley").filter(x => x.payload?.course === p.course && x.key !== it.key).map(x => x.payload.en);
+    const opts = shuffle(r, [p.en, ...shuffle(r, [...new Set(pool)]).slice(0, 3)]);
+    while (opts.length < 2) opts.push("—");
+    options(opts, [opts.indexOf(p.en)], 1, `${p.w}: ${p.en}. ${p.ex?.l2 || ""} — ${p.ex?.en || ""}`);
   } else if (it.game === "rush") {
     const p = it.payload;
     const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";

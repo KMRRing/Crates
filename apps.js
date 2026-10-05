@@ -89,6 +89,12 @@ const DECK_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="7" y="6.5" width="8" height="6" rx="1.2" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
   <rect x="9" y="4.5" width="8" height="6" rx="1.2" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/></svg>`;
 
+// Two speech marks meeting, for Parley.
+const PARLEY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--pa-logo-tint)" stroke="var(--pa-logo-edge)" stroke-width="1.6"/>
+  <path d="M4.5 7.5h6.5a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5H8l-2.2 1.8v-1.8H6a1.5 1.5 0 0 1-1.5-1.5V9A1.5 1.5 0 0 1 6 7.5z" fill="var(--pa-logo-edge)"/>
+  <path d="M9.5 5h5A1.5 1.5 0 0 1 16 6.5v2A1.5 1.5 0 0 1 14.5 10H13l1.8 1.5V10h-.3" fill="none" stroke="var(--pa-logo-edge)" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+
 export const APPS = [
   { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
@@ -105,6 +111,7 @@ export const APPS = [
   { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO, more: true },
   { id: "rush", name: "Rush", href: "./rush.html", logo: RUSH_LOGO },
   { id: "deck", name: "Deck", href: "./deck.html", logo: DECK_LOGO },
+  { id: "parley", name: "Parley", href: "./parley.html", logo: PARLEY_LOGO },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

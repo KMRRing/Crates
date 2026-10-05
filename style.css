@@ -57,6 +57,8 @@
   --ru-logo-edge: #6B4A2B;
   --dk-logo-tint: #EEDFF2;  /* Deck's logo: a stack of cards */
   --dk-logo-edge: #6D3B7A;
+  --pa-logo-tint: #D8EEEC;  /* Parley's logo: two speech marks */
+  --pa-logo-edge: #1E7A74;
   box-sizing: border-box;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);

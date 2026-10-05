@@ -1,0 +1,66 @@
+/* Parley: a card, a drill, a reading. Teal is the house colour. */
+:root { --pa-in: #1E7A74; --pa-in-soft: #D8EEEC; --pa-good: #2E9E5B; --pa-bad: #D23B2A; --pa-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { :root { --pa-in: #5CC1B9; --pa-in-soft: #1C3A38; --pa-edge: #33414B; } }
+
+.pa-mark { display: inline-block; }
+.pa-mark svg { width: 100%; height: 100%; display: block; }
+.pa-intro { margin: .4rem 0 .7rem; color: var(--ink-soft); line-height: 1.45; }
+.pa-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin-bottom: .7rem; }
+.pa-stats div { padding: .5rem .3rem; border-radius: 12px; background: var(--sheet); text-align: center; }
+.pa-stats b { display: block; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pa-stats b.due { color: var(--pa-in); }
+.pa-stats span { font-size: .72rem; color: var(--ink-soft); }
+.pa-go { width: 100%; min-height: 48px; border: 0; border-radius: 14px; background: var(--pa-in); color: #fff; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.pa-go:disabled { opacity: .45; cursor: default; }
+.pa-go[hidden] { display: none; }
+.pa-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }
+.pa-units { display: grid; gap: .35rem; }
+.pa-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 12px; background: var(--sheet); }
+.pa-unit b { font-weight: 800; }
+.pa-unit small { display: block; color: var(--ink-soft); font-size: .8rem; }
+.pa-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
+.pa-unit .bar i { display: block; height: 100%; background: var(--pa-in); }
+.pa-unit button { min-height: 36px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--pa-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.pa-unit button:disabled { opacity: .4; cursor: default; }
+.pa-unit.locked { opacity: .55; }
+
+.pa-session { display: grid; gap: .55rem; }
+.pa-head { display: flex; justify-content: space-between; align-items: center; font-size: .85rem; color: var(--ink-soft); font-weight: 700; }
+.pa-card { padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; }
+.pa-card .big { font-size: 2.1rem; font-weight: 800; line-height: 1.15; }
+.pa-card .big.hanzi { font-size: 2.7rem; }
+.pa-card .py { font-size: 1.15rem; color: var(--pa-in); font-weight: 750; }
+.pa-card .en { font-size: 1.05rem; }
+.pa-card .ex { margin-top: .4rem; padding-top: .4rem; border-top: 1px solid var(--pa-edge); font-size: 1rem; line-height: 1.4; }
+.pa-card .ex .l2 { font-weight: 750; }
+.pa-card .ex .py { font-size: .95rem; }
+.pa-card .ex .en { color: var(--ink-soft); font-size: .92rem; }
+.pa-card .ask { font-size: .85rem; color: var(--ink-soft); }
+.pa-card .cloze { font-size: 1.35rem; font-weight: 750; line-height: 1.35; }
+.pa-card .cloze .gap { display: inline-block; min-width: 3rem; border-bottom: 3px solid var(--pa-in); }
+.pa-card .gram { font-size: .95rem; line-height: 1.5; }
+.pa-card .gram b { display: block; font-size: 1.1rem; margin-bottom: .2rem; }
+.pa-card .gram ul { margin: .4rem 0 0; padding-left: 1.1rem; }
+.pa-card .text { font-size: 1.2rem; line-height: 1.6; font-weight: 650; }
+.pa-speak { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--pa-in-soft); color: var(--pa-in); font-size: 1.3rem; cursor: pointer; justify-self: start; }
+.pa-speak.big { width: 64px; height: 64px; font-size: 1.8rem; justify-self: center; }
+.pa-answer { display: grid; gap: .45rem; }
+.pa-answer.two { grid-template-columns: 1fr 1fr; }
+.pa-option { min-height: 50px; padding: .6rem .7rem; border-radius: 12px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.pa-option .py { display: block; font-size: .8rem; color: var(--pa-in); font-weight: 700; }
+.pa-option.right { border-color: var(--pa-good); background: color-mix(in srgb, var(--pa-good) 15%, var(--sheet)); }
+.pa-option.wrong { border-color: var(--pa-bad); background: color-mix(in srgb, var(--pa-bad) 12%, var(--sheet)); }
+.pa-option:disabled { cursor: default; }
+.pa-type { display: grid; grid-template-columns: 1fr auto; gap: .4rem; }
+.pa-type input { min-height: 48px; padding: 0 .7rem; border-radius: 12px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
+.pa-type button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--pa-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.pa-articles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.pa-articles .pa-option[aria-pressed="true"] { border-color: var(--pa-in); background: var(--pa-in-soft); }
+.pa-verdict { margin: 0; min-height: 1.3em; font-weight: 800; }
+.pa-verdict.good { color: var(--pa-good); }
+.pa-verdict.bad { color: var(--pa-bad); }
+.pa-note { margin: 0; font-size: .92rem; color: var(--ink-soft); line-height: 1.45; }
+.pa-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 10px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.pa-toast.show { opacity: 1; }

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4E7E7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Parley">
+<title>Parley</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="parley.css">
+</head>
+<body>
+<div id="app" class="parley">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon pa-mark" aria-hidden="true"></span>Parley</button></h1>
+    <div class="top-right">
+      <select id="course" class="pool" aria-label="Course">
+        <option value="zh">Chinese</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <section id="home" class="pa-home">
+    <p class="pa-intro" id="intro"></p>
+    <div class="pa-stats" id="stats"></div>
+    <button class="pa-go" type="button" id="studyBtn">Study</button>
+    <h3 class="pa-h">Units</h3>
+    <div class="pa-units" id="units"></div>
+  </section>
+
+  <section id="session" class="pa-session" hidden>
+    <div class="pa-head"><span id="progress"></span><span id="kind"></span></div>
+    <div class="pa-card" id="card"></div>
+    <div id="answerBox" class="pa-answer"></div>
+    <p class="pa-verdict" id="verdict"></p>
+    <p class="pa-note" id="note"></p>
+    <button class="pa-go" type="button" id="nextBtn" hidden>Next</button>
+  </section>
+
+  <section id="reader" class="pa-session" hidden>
+    <div class="pa-head"><span id="readTitle"></span><button class="btn" type="button" id="readClose">Close</button></div>
+    <div class="pa-card" id="readCard"></div>
+    <div id="readQs" class="pa-answer"></div>
+    <p class="pa-verdict" id="readVerdict"></p>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="pa-toast" role="status" aria-live="polite"></p>
+<script type="module" src="parley.js"></script>
+</body>
+</html>
