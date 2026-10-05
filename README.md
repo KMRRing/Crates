@@ -244,6 +244,8 @@ The screen has no title: its head shows your two codes. **Solo** is one 8-letter
 
 Fifteen tiles: Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck, Parley, and "…", which opens a popup over the screen with Blend, Refinery and Brut (tap outside it, or Close, to put it away; "…" is outlined when you're playing one of them). The screen fits without scrolling: the tiles share the height under the title, three across on a phone and four or six on wider screens, with their logos and names sized to the tile.
 
+A logo is the object at the heart of its game, so no two share a frame: a tinted shape, outlined, with marks in the outline's colour. Crates a crate, Slate a certificate of analysis, Delta a hex, Punt a betting chip, Cartel a die, Spot a target, Quote a price tag holding a value inside its brackets (the market around the truth), Manifest a stack of containers, Chart a pin on the globe, Survey a magnifier over a concession grid with ore, Pipes a pipe elbow with the flow running through, Rush a knight at speed, Deck fanned flashcards marked for review, Parley A and 文 in two speech bubbles. Blend, Refinery and Brut, behind "…", still have the older framed icons.
+
 ## Rooms
 Two players link once, on the games screen, and stay linked: the partner chip there makes a four-letter code to give your partner, or takes theirs. The link is a room that is yours for good (crates/rooms/CODE), and it belongs to the player, not the device: the code and your player id sync with your solo code, so your phone and laptop both know your partner. Nothing about playing together is set up inside a game.
 

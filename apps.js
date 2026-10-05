@@ -36,28 +36,41 @@ const SPOT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <circle cx="10" cy="10" r="4.6" fill="none" stroke="var(--sp-logo-edge)" stroke-width="1.5"/>
   <circle cx="10" cy="10" r="1.8" fill="var(--sp-logo-edge)"/></svg>`;
 
-// Quotation marks, for Quote.
+// A price tag holding a value inside its brackets: the market you make around the truth, for Quote.
 const QUOTE_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--qt-logo-tint)" stroke="var(--qt-logo-edge)" stroke-width="1.6"/>
-  <path d="M6 12.2c0-2.4 1.1-4 3.1-4.7v1.3c-1 .4-1.5 1-1.6 1.9h1.6v2.9H6zM11.1 12.2c0-2.4 1.1-4 3.1-4.7v1.3c-1 .4-1.5 1-1.6 1.9h1.6v2.9h-3.1z" fill="var(--qt-logo-edge)"/></svg>`;
+  <path d="M6.4 3.4H16.3a2.2 2.2 0 0 1 2.2 2.2v8.8a2.2 2.2 0 0 1-2.2 2.2H6.4L1.5 10z" fill="var(--qt-logo-tint)" stroke="var(--qt-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="5.3" cy="10" r="1.15" fill="none" stroke="var(--qt-logo-edge)" stroke-width="1.25"/>
+  <path d="M10.2 6.6H9V13.4H10.2M15.3 6.6H16.5V13.4H15.3" fill="none" stroke="var(--qt-logo-edge)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12.75" cy="10" r="1.7" fill="var(--qt-logo-edge)"/></svg>`;
 
-// A stack of containers, for Manifest.
+// A stack of containers, as they drop onto the stage, for Manifest.
 const MANIFEST_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.6"/>
-  <rect x="5" y="10.5" width="4.3" height="3.6" rx=".8" fill="var(--mf-logo-edge)"/><rect x="10.7" y="10.5" width="4.3" height="3.6" rx=".8" fill="var(--mf-logo-edge)"/>
-  <rect x="7.85" y="6" width="4.3" height="3.6" rx=".8" fill="var(--mf-logo-edge)"/></svg>`;
+  <path d="M10 6.2 L13.98 8.5 L10 10.8 L6.02 8.5Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 8.5 L10 10.8 L10 15.4 L6.02 13.1Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 10.8 L13.98 8.5 L13.98 13.1 L10 15.4Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 1.6 L13.98 3.9 L10 6.2 L6.02 3.9Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 3.9 L10 6.2 L10 10.8 L6.02 8.5Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 6.2 L13.98 3.9 L13.98 8.5 L10 10.8Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M13.98 8.5 L17.97 10.8 L13.98 13.1 L10 10.8Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 10.8 L13.98 13.1 L13.98 17.7 L10 15.4Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M13.98 13.1 L17.97 10.8 L17.97 15.4 L13.98 17.7Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 8.5 L10 10.8 L6.02 13.1 L2.03 10.8Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M2.03 10.8 L6.02 13.1 L6.02 17.7 L2.03 15.4Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 13.1 L10 10.8 L10 15.4 L6.02 17.7Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/></svg>`;
 
-// A map pin, for Chart.
+// A pin on the globe, for Chart.
 const CHART_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--ch-logo-tint)" stroke="var(--ch-logo-edge)" stroke-width="1.6"/>
-  <path d="M10 15.5c-2.6-3-3.9-5.1-3.9-6.7a3.9 3.9 0 0 1 7.8 0c0 1.6-1.3 3.7-3.9 6.7z" fill="var(--ch-logo-edge)"/>
-  <circle cx="10" cy="8.7" r="1.5" fill="var(--ch-logo-tint)"/></svg>`;
+  <path d="M10 18.8L4.84 11.79A6.4 6.4 0 1 1 15.16 11.79Z" fill="var(--ch-logo-tint)" stroke="var(--ch-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="10" cy="8" r="3.4" fill="none" stroke="var(--ch-logo-edge)" stroke-width="1.25"/>
+  <ellipse cx="10" cy="8" rx="1.4" ry="3.4" fill="none" stroke="var(--ch-logo-edge)" stroke-width="1.05"/>
+  <path d="M6.6 8h6.8" stroke="var(--ch-logo-edge)" stroke-width="1.05"/></svg>`;
 
-// A drill core, for Survey.
+// A magnifier over a concession grid with ore in it, for Survey.
 const SURVEY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--sv-logo-tint)" stroke="var(--sv-logo-edge)" stroke-width="1.6"/>
-  <path d="M4.5 6.5h11M4.5 10h11M4.5 13.5h11M7.8 5v10.5M12.2 5v10.5" stroke="var(--sv-logo-edge)" stroke-width="1.1" opacity=".55"/>
-  <path d="M10 7.3l2.6 2.7-2.6 2.7-2.6-2.7z" fill="var(--sv-logo-edge)"/></svg>`;
+  <path d="M13.3 13.3L17.8 17.8" stroke="var(--sv-logo-edge)" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="8.7" cy="8.7" r="6.7" fill="var(--sv-logo-tint)" stroke="var(--sv-logo-edge)" stroke-width="1.6"/>
+  <path d="M6.9 3.6v10.2M10.5 3.6v10.2M3.6 6.9h10.2M3.6 10.5h10.2" stroke="var(--sv-logo-edge)" stroke-width="1" opacity=".45"/>
+  <path d="M8.7 7.1L10.3 8.7 8.7 10.3 7.1 8.7Z" fill="var(--sv-logo-edge)"/></svg>`;
 
 // A flask, for Blend.
 const BLEND_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
@@ -65,11 +78,12 @@ const BLEND_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <path d="M8.2 5h3.6v3.2l2.9 5.1a1.2 1.2 0 0 1-1 1.8H6.3a1.2 1.2 0 0 1-1-1.8l2.9-5.1z" fill="none" stroke="var(--bl-logo-edge)" stroke-width="1.4" stroke-linejoin="round"/>
   <path d="M6.6 12.2h6.8l.9 1.6a.6.6 0 0 1-.5.9H6.2a.6.6 0 0 1-.5-.9z" fill="var(--bl-logo-edge)"/></svg>`;
 
-// A pipe bend, for Pipes.
+// A pipe elbow with its flanges and the flow running through, for Pipes.
 const PIPES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.6"/>
-  <path d="M5 7.5h5.5a2.5 2.5 0 0 1 2.5 2.5V15" fill="none" stroke="var(--pi-logo-edge)" stroke-width="3.2"/>
-  <path d="M13 10v5" fill="none" stroke="var(--pi-logo-tint)" stroke-width="1" opacity=".7"/></svg>`;
+  <path d="M2.4 4.2H9.6A7.4 7.4 0 0 1 17 11.6V17.4H10.6V11.6A1 1 0 0 0 9.6 10.6H2.4Z" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <rect x="1.2" y="2.9" width="2.4" height="9" rx=".7" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.4"/>
+  <rect x="9.3" y="16.3" width="9" height="2.4" rx=".7" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.4"/>
+  <path d="M5.9 5.8L7.5 7.4 5.9 9M12.2 12.5L13.8 14.1 15.4 12.5" fill="none" stroke="var(--pi-logo-edge)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
 // A distillation column, for Refinery.
 const REFINERY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
@@ -77,23 +91,27 @@ const REFINERY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="8" y="4.5" width="4" height="11" rx="1.6" fill="none" stroke="var(--rf-logo-edge)" stroke-width="1.5"/>
   <path d="M8 8h4M8 11h4M12 6.5h2.5M12 9.5h2.5M12 12.5h2.5M5.5 15.5h9" stroke="var(--rf-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 
-// A knight, for Rush.
+// A knight at speed, for Rush.
 const RUSH_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.6"/>
-  <path d="M7 15.5h7v-1.3c0-2.2-1.1-3.2-1.9-4.1-.4-.5-.4-1.6-.2-2.4l.5-1.9-1.6.6-1 1.3-1.5.4c-.9.3-1 1.4-.4 1.9l1.4.3-.2 1.2c-.7.6-2.1 1.2-2.1 2.7z" fill="var(--ru-logo-edge)"/></svg>`;
+  <rect x="4.2" y="15.8" width="11.6" height="2.4" rx=".9" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.4"/>
+  <path d="M5.6 15.8C5.6 13.4 6.9 12.2 8.6 11.3C7.6 11.6 6.4 11.9 5.4 11.6C4.4 11.3 3.7 10.4 4.1 9.4L6.3 6.4C7 5.4 8 4.9 8.9 4.6L9.6 2.6L10.9 4.5C13.9 5.2 15.6 8.2 15.6 11.6C15.6 13.4 15 14.8 14.4 15.8Z" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="8.1" cy="7.3" r=".85" fill="var(--ru-logo-edge)"/>
+  <path d="M11.6 5.6C13.5 6.8 14.2 9 14.1 11.4" fill="none" stroke="var(--ru-logo-edge)" stroke-width="1.1" stroke-linecap="round"/>
+  <path d="M17 8.2h1.8M16.8 10.8h2.2M17 13.4h1.8" stroke="var(--ru-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`;
 
-// A stack of cards, for Deck.
+// Flashcards fanned out, the front one marked for review, for Deck.
 const DECK_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.6"/>
-  <rect x="5" y="8.5" width="8" height="6" rx="1.2" fill="none" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
-  <rect x="7" y="6.5" width="8" height="6" rx="1.2" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
-  <rect x="9" y="4.5" width="8" height="6" rx="1.2" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/></svg>`;
+  <rect x="3" y="3.8" width="10" height="13.4" rx="1.8" transform="rotate(-13 8 17.2)" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
+  <rect x="7" y="3" width="10.2" height="13.6" rx="1.8" transform="rotate(5 12.1 16.6)" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
+  <path d="M14.19 8.23A2.6 2.6 0 1 1 11.31 7.46" fill="none" stroke="var(--dk-logo-edge)" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M11.75 8.65 L12.75 6.93 L10.87 6.26Z" fill="var(--dk-logo-edge)" stroke="var(--dk-logo-edge)" stroke-width=".7" stroke-linejoin="round"/></svg>`;
 
-// Two speech marks meeting, for Parley.
+// A and 文 in two speech bubbles, for Parley's languages.
 const PARLEY_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--pa-logo-tint)" stroke="var(--pa-logo-edge)" stroke-width="1.6"/>
-  <path d="M4.5 7.5h6.5a1.5 1.5 0 0 1 1.5 1.5v2a1.5 1.5 0 0 1-1.5 1.5H8l-2.2 1.8v-1.8H6a1.5 1.5 0 0 1-1.5-1.5V9A1.5 1.5 0 0 1 6 7.5z" fill="var(--pa-logo-edge)"/>
-  <path d="M9.5 5h5A1.5 1.5 0 0 1 16 6.5v2A1.5 1.5 0 0 1 14.5 10H13l1.8 1.5V10h-.3" fill="none" stroke="var(--pa-logo-edge)" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+  <path d="M4.2 2.2H10a2.6 2.6 0 0 1 2.6 2.6v3.4a2.6 2.6 0 0 1-2.6 2.6H5.2L2.4 13V10.6A2.6 2.6 0 0 1 1.6 8.2V4.8A2.6 2.6 0 0 1 4.2 2.2Z" fill="var(--pa-logo-edge)" stroke="var(--pa-logo-edge)" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="7.1" y="9.1" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="6.6" fill="var(--pa-logo-tint)">A</text>
+  <path d="M10 7.6H15.8a2.6 2.6 0 0 1 2.6 2.6v3.6a2.6 2.6 0 0 1-2.6 2.6H15.2v2.4L12.4 16.4H10a2.6 2.6 0 0 1-2.6-2.6V10.2A2.6 2.6 0 0 1 10 7.6Z" fill="var(--pa-logo-tint)" stroke="var(--pa-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M12.9 9.4v.8M10.6 10.7h4.6M11.2 11.4C11.9 13.4 13.1 14.6 15 15.2M14.6 11.4C13.9 13.4 12.7 14.6 10.8 15.2" fill="none" stroke="var(--pa-logo-edge)" stroke-width="1.15" stroke-linecap="round"/></svg>`;
 
 // A wine glass, for Brut.
 const BRUT_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
