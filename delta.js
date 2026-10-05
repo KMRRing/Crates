@@ -488,28 +488,13 @@ function drawMenu() {
   if (!S.done) button("Show the solution", giveUp);
   const room = together.room;
   if (!room) {
-    button("Play together", async () => { if (await together.start()) openMenu(); });
-    const row = add("form", "join-run");
-    const input = document.createElement("input");
-    input.placeholder = "Code"; input.maxLength = 4; input.autocapitalize = "characters";
-    const go = document.createElement("button");
-    go.className = "btn"; go.type = "submit"; go.textContent = "Join";
-    row.append(input, go);
-    row.addEventListener("submit", e => {
-      e.preventDefault();
-      const code = input.value.toUpperCase().replace(/[^A-Z]/g, "");
-      if (code.length === 4) { $("menuDlg").close(); joinRoom(code); }
-    });
+    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
     button("Copy a link to this board", async () => {
       try { await navigator.clipboard.writeText(location.href); toast("Link copied"); } catch { toast(location.href, 6000); }
     }, "link");
   } else {
-    const link = `${location.origin}${location.pathname}?room=${room.code}`;
-    add("h3", null, `Game ${room.code}`);
-    add("p", "stats", "Send this link to your partner: you both draw on the same board. Switching games (tap the title) keeps you both in this room, and each game's progress is kept.");
-    add("p", "room-link", link);
-    button("Copy link", async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); } });
-    button("Leave the room", () => together.leave(), "link");
+    add("h3", null, "Playing together");
+    button("Back to solo", () => together.leave(), "link");
   }
 }
 

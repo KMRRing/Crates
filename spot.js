@@ -274,7 +274,7 @@ function showResults(st) {
       go(run.mode === "daily" ? "A random run" : "Today's run", () => startSolo(run.mode === "daily" ? "solo" : "daily"), true);
     } else {
       go("Play again together", startTogether);
-      go("Leave the room", () => together.leave(), true);
+      go("Back to solo", () => together.leave(), true);
     }
   });
 }
@@ -286,7 +286,7 @@ function showLobby() {
     add("p", null, "You each see your own sums, and most of them have a partner on the other screen that makes the same number, arriving within a few seconds. Call out what yours make; tap the one of yours that makes a number your partner called. Some have no partner: tapping those costs a life. From 45 s each of you gets your own modifier to apply to every result first.");
     add("p", null, partner ? `${partner.name} is ${partner.online ? "here" : "away"}.` : `Waiting for your partner: room ${together.room?.code}.`);
     go("Start", startTogether, false, seatsOf(data).length < 2);
-    go("Leave the room", () => together.leave(), true);
+    go("Back to solo", () => together.leave(), true);
   });
 }
 
@@ -385,25 +385,10 @@ function openMenu() {
     button("Today's run", () => startSolo("daily"));
     add("h3", null, "Together");
     add("p", "stats", "Two phones: each of you sees your own sums. Call out what yours make; your partner taps the one of theirs that makes the same.");
-    button("Play together", async () => { if (await together.start()) openMenu(); });
-    const row = add("form", "join-run");
-    const input = document.createElement("input");
-    input.placeholder = "Code"; input.maxLength = 4; input.autocapitalize = "characters";
-    const go = document.createElement("button");
-    go.className = "btn"; go.type = "submit"; go.textContent = "Join";
-    row.append(input, go);
-    row.addEventListener("submit", e => {
-      e.preventDefault();
-      const code = input.value.toUpperCase().replace(/[^A-Z]/g, "");
-      if (code.length === 4) { $("menuDlg").close(); together.join(code); }
-    });
+    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   } else {
-    const link = `${location.origin}${location.pathname}?room=${room.code}`;
-    add("h3", null, `Room ${room.code}`);
-    add("p", "stats", "Send this link to your partner. Switching games (tap the title) keeps you both in this room.");
-    add("p", "room-link", link);
-    button("Copy link", async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); } });
-    button("Leave the room", () => together.leave(), "link");
+    add("h3", null, "Playing together");
+    button("Back to solo", () => together.leave(), "link");
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

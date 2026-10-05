@@ -287,7 +287,7 @@ function finishRoom() {
   const again = add("button", "btn primary wide", "Play again");
   again.type = "button";
   again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(); });
-  const leave = add("button", "btn wide", "Leave the room");
+  const leave = add("button", "btn wide", "Back to solo");
   leave.type = "button";
   leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
   if (!$("doneDlg").open) $("doneDlg").showModal();
@@ -426,26 +426,11 @@ function openMenu() {
     add("p", "stats", `${best != null ? `Your best book: ${money(best)}.` : "No finished set yet."}${daily != null ? ` Today's best: ${money(daily)}.` : ""}${bestRf != null ? ` Refining: best ${money(bestRf)}${dailyRf != null ? `, today ${money(dailyRf)}` : ""}.` : ""}`);
     add("h3", null, "Together");
     add("p", "stats", "Two phones, taking turns: one makes the market, the other hits the bid, lifts the offer or passes. A trade settles between you; a pass settles the maker against the house.");
-    button("Play together", async () => { if (await together.start()) openMenu(); });
-    const row = add("form", "join-run");
-    const input = document.createElement("input");
-    input.placeholder = "Code"; input.maxLength = 4; input.autocapitalize = "characters";
-    const go = document.createElement("button");
-    go.className = "btn"; go.type = "submit"; go.textContent = "Join";
-    row.append(input, go);
-    row.addEventListener("submit", e => {
-      e.preventDefault();
-      const code = input.value.toUpperCase().replace(/[^A-Z]/g, "");
-      if (code.length === 4) { $("menuDlg").close(); together.join(code); }
-    });
+    add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   } else {
-    const link = `${location.origin}${location.pathname}?room=${room.code}`;
-    add("h3", null, `Room ${room.code}`);
-    add("p", "stats", "Send this link to your partner. Switching games (tap the title) keeps you both in this room.");
-    add("p", "room-link", link);
-    button("Copy link", async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); } });
+    add("h3", null, "Playing together");
     button("A fresh set", startRoomSet);
-    button("Leave the room", () => together.leave(), "link");
+    button("Back to solo", () => together.leave(), "link");
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }

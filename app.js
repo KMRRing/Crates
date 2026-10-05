@@ -3,7 +3,7 @@
 // ?run=CODE makes this device follow a solo run synced from another device.
 import { parsePool, POOL_PARAM } from "./core.js";
 import { createSolo } from "./solo.js";
-import { createCoop, MODES } from "./coop.js";
+import { createCoop } from "./coop.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
@@ -19,13 +19,8 @@ const setBoardParam = code => setParam("b", code);
 bindSwitcher(document.getElementById("appsBtn"), "crates");
 document.querySelector(".cr-mark").innerHTML = APPS.find(a => a.id === "crates").logo;
 
-const solo = createSolo({ onTogether: (mode, pool, settings) => startTogether(mode, pool, settings), modes: MODES, setPoolParam, setBoardParam });
+const solo = createSolo({ setPoolParam, setBoardParam });
 const coop = createCoop({ onLeave: () => solo.start(), setRoomParam, setPoolParam, mySettings: () => solo.settings(), myPool: () => solo.pool() });
-
-async function startTogether(mode, pool, settings) {
-  solo.suspend();
-  if (!(await coop.create(mode, pool, settings))) solo.start();
-}
 
 const params = new URLSearchParams(location.search);
 const pool = parsePool(params.get("cat"));

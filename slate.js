@@ -826,34 +826,13 @@ function drawMenu() {
   const add = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; body.appendChild(e); return e; };
   add("button", "btn primary wide", "New board").addEventListener("click", () => newBoard());
   if (room) {
-    $("menuTitle").textContent = `Game ${room.code}`;
-    const link = `${location.origin}${location.pathname}?room=${room.code}`;
-    add("p", "stats", "Send this link to your partner to play the same board together. Opening it on another of your own devices lets you carry on there. Switching games (tap the title) keeps you both in this room, and each game's progress is kept.");
-    add("p", "room-link", link);
-    const row = add("div", "controls");
-    const copy = document.createElement("button"); copy.className = "btn"; copy.textContent = "Copy link";
-    copy.addEventListener("click", async () => { try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link); } });
-    row.appendChild(copy);
-    if (navigator.share) {
-      const share = document.createElement("button"); share.className = "btn"; share.textContent = "Share link";
-      share.addEventListener("click", () => navigator.share({ title: "Slate", url: link }).catch(() => {}));
-      row.appendChild(share);
-    }
+    $("menuTitle").textContent = "Playing together";
     add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
-    add("button", "link", "Leave the room").addEventListener("click", () => { $("menuDlg").close(); leave(); });
+    add("button", "link", "Back to solo").addEventListener("click", () => { $("menuDlg").close(); leave(); });
     return;
   }
   $("menuTitle").textContent = "Menu";
-  add("button", "btn wide", "Play together").addEventListener("click", () => { $("menuDlg").close(); together(); });
-  const form = add("form", "join-run");
-  form.innerHTML = `<input aria-label="Game code" placeholder="Code from your partner" maxlength="4" autocapitalize="characters"><button class="btn" type="submit">Join</button>`;
-  form.addEventListener("submit", e => {
-    e.preventDefault();
-    const code = form.querySelector("input").value.toUpperCase().replace(/[^A-Z]/g, "");
-    if (code.length !== 4) { toast("Codes are four letters"); return; }
-    $("menuDlg").close();
-    join(code);
-  });
+  add("p", "stats", "To play together, link with your partner on the games screen (tap the title) and ask them from there.");
   add("button", "btn wide", S.done ? "Show the result" : "Show our fill").addEventListener("click", () => { $("menuDlg").close(); giveUp(); });
   add("button", "link", "Copy this board's link").addEventListener("click", async () => {
     try { await navigator.clipboard.writeText(location.href); toast("Board link copied"); } catch { toast(location.href); }

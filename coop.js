@@ -491,22 +491,6 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
         }
 
         const row = add("div", "controls");
-        const send = document.createElement("button");
-        send.className = "btn" + (partner ? "" : " primary");
-        send.textContent = "Send link";
-        send.addEventListener("click", async () => {
-          try {
-            if (navigator.share) await navigator.share({ title: "Crates", text: "Play Crates with me", url: link() });
-            else if (await view.copyText(link())) view.toast("Link copied", 1500);
-          } catch { /* share sheet dismissed */ }
-        });
-        const copy = document.createElement("button");
-        copy.className = "btn";
-        copy.textContent = "Copy link";
-        copy.addEventListener("click", async () => {
-          if (await view.copyText(link())) view.toast("Link copied", 1500); else view.toast(link(), 6000);
-        });
-        row.append(send, copy);
         if (room.board) {
           const settingsBtn = document.createElement("button");
           settingsBtn.className = "btn";
@@ -514,9 +498,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
           settingsBtn.addEventListener("click", settingsSheet);
           row.appendChild(settingsBtn);
         }
-        add("p", "room-link", link());
-        add("p", "stats", "Switching games (tap the title) keeps you both in this room, and each game's progress is kept.");
-        const leaveBtn = add("button", "link", "Leave the room and play solo");
+        const leaveBtn = add("button", "link", "Back to solo");
         leaveBtn.addEventListener("click", () => { close(); leave(); });
       }, "game");
     },

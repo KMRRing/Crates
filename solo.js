@@ -41,7 +41,7 @@ function normalise(raw) {
 const syncError = e => (/permission/i.test(String(e?.message || e))
   ? "Syncing isn't switched on in Firebase yet" : "Couldn't reach the sync server");
 
-export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
+export function createSolo({ setPoolParam, setBoardParam }) {
   const store = normalise((() => {
     try { return JSON.parse(localStorage.getItem(STORE_KEY)); } catch { return null; }
   })());
@@ -370,17 +370,10 @@ export function createSolo({ onTogether, modes, setPoolParam, setBoardParam }) {
     },
     menu() {
       view.openMenu((body, close) => {
-        const together = document.createElement("div");
-        together.className = "together";
-        Object.entries(modes).forEach(([mode, m]) => {
-          const b = document.createElement("button");
-          b.className = "btn primary";
-          b.innerHTML = "<b></b><small></small>";
-          b.firstChild.textContent = `Play ${m.label.toLowerCase()}`;
-          b.lastChild.textContent = m.blurb;
-          b.addEventListener("click", () => { close(); onTogether(mode, store.pool, store.settings); });
-          together.appendChild(b);
-        });
+        // playing together starts from the games screen: link with your partner there and ask them
+        const together = document.createElement("p");
+        together.className = "stats";
+        together.textContent = "To play together, link with your partner on the games screen (tap the title) and ask them from there.";
         body.appendChild(together);
 
         const row = document.createElement("div");

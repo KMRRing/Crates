@@ -2,8 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { gameHref } from "./rooms.js";
-import { soloCode, duoCode, startSolo, joinSolo, setDuo, cleanCode, bestOf, shareBests, watchDuo } from "./suite.js";
+import { soloCode, duoCode, startSolo, joinSolo, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, ask, duoHref, soloHref, DUO_GAMES } from "./suite.js";
 // Every logo: a light tint, an outline, and the mark drawn in the outline's colour.
 const CRATES_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
@@ -128,21 +127,65 @@ const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === 
       <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
 /**
- * The games screen's head: your solo code (every device with it is in the same state in every game) and your duo
- * room (whether your partner is online and where), and on each tile the best score kept there, yours and your
- * partner's when you have a duo room. Tapping a code changes it.
+ * The games screen's head: your solo code (every device with it is in the same state in every game) and your partner:
+ * link once here and you stay linked; the chip then says what they're playing, solo or together, and opens a sheet to
+ * ask them to play a game together, go back to solo from a duo match, or unlink. Each tile shows the best kept in that
+ * game, and your partner's beside it by initial. Nothing about playing together is set up inside a game.
  */
+const GAME_NAME = id => APPS.find(a => a.id === (id === "slate" ? "glyph" : id))?.name || id;
 function bindCodes(dlg) {
   const head = dlg.querySelector("[data-codes]");
   let partner = null, theirs = {}, theirName = "";
+  const here = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "").replace(/^index$|^$/, "crates");
+  const status = p => (p ? `${p.name || "Partner"} · ${p.online ? `${GAME_NAME(p.game)}${p.mode === "duo" ? ", together" : ", solo"}` : "offline"}` : "not here yet");
   const draw = () => {
-    const solo = soloCode(), duo = duoCode();
+    const solo = soloCode(), duo = duoCode(), inDuo = new URLSearchParams(location.search).has("room");
     head.innerHTML = `<button class="code-chip" type="button" data-solo title="Every device with this code is in the same state in every game"><span>Solo</span><b>${solo || "start syncing"}</b></button>
-      <button class="code-chip" type="button" data-duo title="The room you play in with someone"><span>Duo</span><b>${duo || "none"}</b>${duo ? `<em class="${partner?.online ? "on" : ""}">${partner ? `${partner.name || "Partner"} · ${partner.online ? (partner.game ? `in ${partner.game[0].toUpperCase()}${partner.game.slice(1)}` : "online") : "offline"}` : "nobody yet"}</em>` : ""}</button>`;
+      <button class="code-chip" type="button" data-pair title="Your partner: what they're playing, and asking them to play together"><span>${inDuo ? "Together" : "Partner"}</span>${duo ? `<em class="${partner?.online ? "on" : ""}"></em>` : "<b>link</b>"}</button>`;
+    if (duo) head.querySelector("[data-pair] em").textContent = status(partner);
     for (const el of dlg.querySelectorAll("[data-best]")) {
       const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
       el.textContent = mine == null && them == null ? "" : `${mine != null ? `Best ${short(mine)}` : "–"}${duo && them != null ? ` · ${(theirName || "P")[0]} ${short(them)}` : ""}`;
     }
+  };
+  // the partner sheet: link, ask to play together, back to solo, unlink
+  const sheet = document.createElement("dialog");
+  sheet.className = "pair-sheet";
+  dlg.appendChild(sheet);
+  const openSheet = () => {
+    const duo = duoCode(), inDuo = new URLSearchParams(location.search).has("room");
+    sheet.replaceChildren();
+    const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; sheet.appendChild(n); return n; };
+    const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", fn); return b; };
+    add("h3", null, duo ? "Your partner" : "Link with your partner");
+    if (!duo) {
+      add("p", "stats", "Link once and you stay linked on every device: you'll see what your partner is playing, and either of you can ask the other to play a game together.");
+      const row = add("form", "join-run");
+      const input = document.createElement("input");
+      Object.assign(input, { placeholder: "Their code", maxLength: 4, autocapitalize: "characters" });
+      const go = document.createElement("button");
+      go.className = "btn"; go.type = "submit"; go.textContent = "Link";
+      row.append(input, go);
+      row.addEventListener("submit", e => { e.preventDefault(); const c = cleanCode(input.value); if (c.length === 4) { link(c); location.reload(); } });
+      button("Make a code for them", () => { const c = link(); sheet.close(); alert(`Your code is ${c}. Your partner types it here, on their games screen.`); location.reload(); });
+    } else {
+      add("p", "stats", `Code ${duo}. ${status(partner)}.`);
+      const them = partner?.online && partner.game, mine = here;
+      const askFor = game => async () => {
+        sheet.close();
+        const b = head.querySelector("[data-pair] em");
+        if (b) b.textContent = `Asking to play ${GAME_NAME(game)}…`;
+        const answer = await ask(game);
+        if (answer === "yes") location.href = duoHref(game);
+        else { draw(); alert(answer === "no" ? "Not now, they said." : "No answer."); }
+      };
+      if (them && DUO_GAMES[them] && !(partner.mode === "duo")) button(`Ask to play ${GAME_NAME(them)} together`, askFor(them), "btn primary wide");
+      if (DUO_GAMES[mine] && mine !== them && !inDuo) button(`Ask to play ${GAME_NAME(mine)} together`, askFor(mine));
+      if (inDuo) button("Back to solo", () => { location.href = soloHref(); });
+      button("Unlink", () => { if (confirm("Unlink from your partner on all your devices?")) { unlink(); location.reload(); } }, "link");
+    }
+    button("Close", () => sheet.close(), "btn wide");
+    sheet.showModal();
   };
   head.addEventListener("click", e => {
     if (e.target.closest("[data-solo]")) {
@@ -153,17 +196,13 @@ function bindCodes(dlg) {
       if (code.length === 8 && code !== now) joinSolo(code); else if (!code && !now) startSolo(); else return;
       location.reload();
     }
-    if (e.target.closest("[data-duo]")) {
-      const typed = prompt("Your duo room's four-letter code (empty to forget it):", duoCode() || "");
-      if (typed === null) return;
-      const code = cleanCode(typed);
-      if (code.length === 4 || !code) { setDuo(code || null); location.reload(); }
-    }
+    if (e.target.closest("[data-pair]")) openSheet();
   });
   draw();
   if (duoCode()) {
     shareBests(APPS.map(a => a.id)).catch(() => {});
-    watchDuo(({ partner: p, bests, name }) => { partner = p; theirs = bests; theirName = name; draw(); }).catch(() => {});
+    watchPartner(p => { partner = p; draw(); }).catch(() => {});
+    watchBests((bests, name) => { theirs = bests; theirName = name; draw(); }).catch(() => {});
   }
   return draw;
 }
@@ -204,8 +243,19 @@ export function bindSwitcher(button, current) {
   dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); pop.close(); dlg.close(); }));
   APPS.forEach(a => {
     if (a.id === current) return;
-    dlg.querySelectorAll(`.app-row[href="${a.href}"]`).forEach(row => row.addEventListener("click", e => { e.preventDefault(); location.href = gameHref(a.id); }));
+    // a tile always opens the game solo: a duo match only starts when your partner says Play
+    dlg.querySelectorAll(`.app-row[href="${a.href}"]`).forEach(row => row.addEventListener("click", e => { e.preventDefault(); location.href = a.href; }));
   });
   const redraw = bindCodes(dlg);
   button.addEventListener("click", () => { redraw(); dlg.showModal(); });
+  // inside every game, a small line in the title: what your partner is playing (green while they're online)
+  if (duoCode()) {
+    const pill = document.createElement("small");
+    pill.className = "partner-pill";
+    button.appendChild(pill);
+    watchPartner(p => {
+      pill.textContent = p ? `${(p.name || "Partner").split(" ")[0]} · ${p.online ? `${GAME_NAME(p.game)}${p.mode === "duo" ? " ×2" : ""}` : "away"}` : "";
+      pill.classList.toggle("on", !!p?.online);
+    }).catch(() => {});
+  }
 }

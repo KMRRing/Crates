@@ -69,3 +69,10 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 Firebase's own). Keep a game's keys under its own prefix (`manifest:run2`, `quote:best`): a change from another device
 to the open game's keys reloads it. A game's best goes in `<game>:best` (a number, a `{ score }`, or bests by level) to
 show on the games screen.
+
+## Playing together
+
+Players pair once on the games screen; a duo match is the game opened with `?room=CODE` (the pair's room), which the
+partner sheet and the request banner do. Don't add room setup (start, join, share a code) to a game's menu: a game
+only joins the room in its address, and offers "Back to solo" while in it. A game that gets a duo match goes in
+`DUO_GAMES` in `suite.js`.
