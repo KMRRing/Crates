@@ -23,9 +23,9 @@ for (let seed = 1; seed <= 40; seed++) for (let r = 1; r <= 20; r++) {
     if (q.kind === "colour" && !q.options.includes(q.answer)) { bad++; console.log("colour options", q); }
     if (q.cell && !a.cells[q.cell.x][q.cell.y][q.cell.z]) { bad++; console.log("a marked cell that's empty", q); }
     if (a.view === "pair" && q.cell && q.cell.z > 1) { bad++; console.log("two-tier view asking about a tier you didn't see", q); }
-    if (a.view === "iso" && q.cell && !a.visible.has(`${q.cell.x},${q.cell.y},${q.cell.z}`)) { bad++; console.log("isometric asking about a hidden container", q); }
+    if (a.view === "all" && q.cell && !a.visible.has(`${q.cell.x},${q.cell.y},${q.cell.z}`)) { bad++; console.log("all-at-once asking about a hidden container", q); }
   }
-  if (a.visible) {
+  if (a.visible && a.view === "all") {
     const total = a.cells.flat(2).filter(Boolean).length;
     // every top-of-column container on the front edge or right edge is visible; nothing is "visible" that doesn't exist
     for (const key of a.visible) { const [x, y, z] = key.split(",").map(Number); if (!a.cells[x][y][z]) { bad++; console.log("a visible cube that doesn't exist", key); } }

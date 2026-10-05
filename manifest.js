@@ -1,6 +1,6 @@
 // Manifest: a stack of containers is shown, then it's gone and you're asked about it. The engine
 // (manifest-engine.js) makes the rounds; this file shows the views and takes the answers.
-import { LIVES, COLOURS, VIEWS, makeRound, points, cubeFaces, drawOrder, isoPoint } from "./manifest-engine.js";
+import { LIVES, COLOURS, VIEWS, makeRound, points, cubeFaces, drawOrder, isoPoint, visibleSet } from "./manifest-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
@@ -25,7 +25,7 @@ function start(mode) {
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
   showRound();
 }
-/** Shows the round's stack for the level's time, then asks. */
+/** The round: the containers drop in by the round's order, the stack holds for the level's time, flies off, and the question comes. */
 function showRound() {
   R = makeRound(S.seed, S.round);
   S.phase = "show";
@@ -38,15 +38,24 @@ function showRound() {
   $("verdict").hidden = true;
   $("goBtn").hidden = true;
   const view = $("view");
-  view.replaceChildren(...panelsFor(R.view, R.cells, {}));
+  const { panel, drops } = stage(R.cells, { drop: R.view });
+  view.replaceChildren(panel);
+  const landed = drops.last + 450;
   const timer = $("timer");
-  timer.hidden = false;
-  timer.style.setProperty("--mf-ms", `${R.level.exposure}ms`);
-  timer.classList.remove("run"); void timer.offsetWidth; timer.classList.add("run");
+  timer.hidden = true;
   clearTimeout(showTimer);
-  showTimer = setTimeout(ask, R.level.exposure);
+  showTimer = setTimeout(() => {                    // the last one has landed: the clock runs
+    timer.hidden = false;
+    timer.style.setProperty("--mf-ms", `${R.level.exposure}ms`);
+    timer.classList.remove("run"); void timer.offsetWidth; timer.classList.add("run");
+    showTimer = setTimeout(() => {
+      if (R.changed) { ask(); return; }               // a change round keeps the stack: one container flips
+      panel.classList.add("away");                    // the rest fly off before the question
+      showTimer = setTimeout(ask, 380);
+    }, R.level.exposure);
+  }, landed);
 }
-/** The question: the stack is gone (or, for a change round, back with one container changed). */
+/** The question: the stack is gone (or, for a change round, still there with one container changed). */
 function ask() {
   S.phase = "ask";
   save();
@@ -60,9 +69,11 @@ function ask() {
   answers.replaceChildren();
   answers.className = `mf-answers${q.kind === "colour" ? " colours" : ""}`;
   if (q.kind === "cell") {
-    view.replaceChildren(...panelsFor(R.view, R.changed, { tap: key => answer(key) }));
+    const { panel } = stage(R.changed, { tap: key => answer(key), flip: q.cell });
+    view.replaceChildren(panel);
   } else {
-    view.replaceChildren(...panelsFor(R.view, R.cells, { blank: true, mark: q.cell }));
+    const { panel } = stage(R.cells, { blank: true, mark: q.cell });
+    view.replaceChildren(panel);
     for (const opt of q.options) {
       const b = document.createElement("button");
       b.type = "button";
@@ -87,9 +98,9 @@ function answer(given) {
     if (b.dataset.value === String(q.answer)) b.classList.add("good");
     else if (b.dataset.value === String(given) && !right) b.classList.add("bad");
   }
-  // show the stack again with the answer marked
-  const mark = q.kind === "cell" ? q.cell : q.cell || null;
-  $("view").replaceChildren(...panelsFor(R.view, R.changed || R.cells, { mark, highlight: q.colour || null }));
+  // the stack again, with the answer marked and the colour asked about lit
+  const { panel } = stage(R.changed || R.cells, { mark: q.cell, highlight: q.colour || null, tier: q.type === "tier" || q.type === "tier2" ? Number(q.text.match(/tier (\d)/)?.[1]) - 1 : null });
+  $("view").replaceChildren(panel);
   const v = $("verdict");
   v.hidden = false;
   v.className = `mf-verdict ${right ? "good" : "bad"}`;
@@ -131,102 +142,79 @@ function drawHud() {
   lives.replaceChildren(...Array.from({ length: LIVES }, (_, k) => { const i = document.createElement("i"); i.className = `mf-life${k >= S.lives ? " gone" : ""}`; return i; }));
 }
 
-// ---------- drawing the views ----------
+// ---------- the stage: one isometric stack ----------
 const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
 const colourOf = c => COLOURS[c - 1].hex;
+const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const ch = sh => Math.round(Math.min(255, Math.max(0, ((n >> sh) & 255) * k))); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; };
 
-/** A container drawn as a rounded box with ribs; blank ones are outlines. */
-function box(g, x, y, s, c, opts) {
-  const r = el("rect", { x, y, width: s, height: s, rx: s * 0.14, class: "mf-cell" });
-  if (opts.blank || !c) { r.setAttribute("fill", c ? "var(--mf-floor)" : "none"); r.setAttribute("stroke", "var(--mf-edge)"); r.setAttribute("stroke-width", 1.5); }
-  else { r.setAttribute("fill", colourOf(c)); r.setAttribute("stroke", "rgba(0,0,0,.25)"); r.setAttribute("stroke-width", 1.5); }
-  if (opts.dim) r.setAttribute("opacity", 0.25);
-  g.appendChild(r);
-  if (c && !opts.blank) for (const f of [0.35, 0.65]) g.appendChild(el("line", { x1: x + s * 0.18, x2: x + s * 0.82, y1: y + s * f, y2: y + s * f, stroke: "rgba(0,0,0,.22)", "stroke-width": 1.2 }));
-  return r;
-}
-function markRing(g, x, y, s) {
-  g.appendChild(el("rect", { x: x - 3, y: y - 3, width: s + 6, height: s + 6, rx: s * 0.2, fill: "none", stroke: "var(--ink)", "stroke-width": 3 }));
-}
-/** A flat grid panel (X across, rows), with cell (col, row) → colour via at(col, row) and key(col, row). */
-function gridPanel(label, cols, rows, at, key, opts) {
-  const wrap = document.createElement("div");
-  wrap.className = "mf-panel";
-  const small = document.createElement("small");
-  small.textContent = label;
-  wrap.appendChild(small);
-  const s = 40, gap = 4, W = cols * (s + gap) + 6, H = rows * (s + gap) + 6;
-  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, class: opts.tap ? "tap" : "" });
-  for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) {
-    const c = at(col, row), x = 3 + col * (s + gap), y = 3 + row * (s + gap);
-    const k = key(col, row);
-    const marked = opts.mark && opts.markKey === k;
-    const r = box(svg, x, y, s, c, { blank: opts.blank, dim: opts.highlight && c && c !== opts.highlight });
-    if (marked) markRing(svg, x, y, s);
-    if (opts.tap && c) r.addEventListener("click", () => opts.tap(k));
-  }
-  wrap.appendChild(svg);
-  return wrap;
-}
-/** The panels for a view of a stack: opts { blank, mark: {x,y,z}, highlight: colour, tap(key) }. */
-function panelsFor(view, cells, opts) {
+/** When each container lands, by the round's order: { "x,y,z": ms, last }. */
+function dropTimes(cells, order) {
   const X = cells.length, Y = cells[0].length, Z = cells[0][0].length;
-  const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
-  const o = { ...opts, markKey };
-  const panels = [];
-  if (view === "slices") {
-    for (let y = Y - 1; y >= 0; y--) panels.push(gridPanel(y === Y - 1 ? "Front slice" : y === 0 ? "Back slice" : `Slice ${Y - y} from the front`, X, Z,
-      (col, row) => cells[col][y][Z - 1 - row], (col, row) => `${col},${y},${Z - 1 - row}`, o));
-  } else if (view === "layers" || view === "pair") {
-    const tiers = view === "pair" ? Math.min(2, Z) : Z;
-    for (let z = 0; z < tiers; z++) panels.push(gridPanel(`Tier ${z + 1}${z === 0 ? " (bottom)" : ""}`, X, Y,
-      (col, row) => cells[col][Y - 1 - row][z], (col, row) => `${col},${Y - 1 - row},${z}`, o));
-  } else {
-    panels.push(isoPanel(cells, o));
+  const times = {};
+  let k = 0, last = 0;
+  const stagger = 45, pause = 950;
+  for (const cube of drawOrder(cells)) {
+    const key = `${cube.x},${cube.y},${cube.z}`;
+    let at;
+    if (order === "layers") at = cube.z * pause + k * stagger;
+    else if (order === "slices") at = cube.y * pause + k * stagger;
+    else if (order === "pair") at = cube.z < 2 ? cube.z * pause + k * stagger : 2 * pause + 600 + k * 25;
+    else at = k * 35;
+    times[key] = at;
+    last = Math.max(last, at);
+    k++;
   }
-  $("view").style.setProperty("--panels", panels.length >= 3 ? 2 : panels.length === 2 && X <= 3 ? 2 : 1);
-  if (view === "iso") $("view").style.setProperty("--panels", 1);
-  return panels;
+  return { times, last };
 }
-/** The isometric view: cubes back to front; blank shows the floor with the marked column raised. */
-function isoPanel(cells, opts) {
-  const wrap = document.createElement("div");
-  wrap.className = "mf-panel";
-  const small = document.createElement("small");
-  small.textContent = "The whole stack, from the front-right";
-  wrap.appendChild(small);
+
+/**
+ * The stack as one isometric panel: { panel, drops }. opts: drop (an order: the containers fall in), blank (the
+ * floor only, for a marked position), mark {x,y,z} (outline a container, or its floor cell with a tier label when
+ * it's hidden), highlight (dim every colour but this), tier (dim every tier but this), tap(key), flip {x,y,z} (the
+ * container that changed, which flips in).
+ */
+function stage(cells, opts) {
+  const panel = document.createElement("div");
+  panel.className = "mf-panel";
   const X = cells.length, Y = cells[0].length, Z = cells[0][0].length, s = 46;
   const pts = [];
   for (let x = 0; x <= X; x++) for (let y = 0; y <= Y; y++) for (let z = 0; z <= Z; z++) pts.push(isoPoint(x, y, z));
   const minX = Math.min(...pts.map(p => p.sx)), maxX = Math.max(...pts.map(p => p.sx)), minY = Math.min(...pts.map(p => p.sy)), maxY = Math.max(...pts.map(p => p.sy));
   const W = (maxX - minX) * s + 20, H = (maxY - minY) * s + 20;
-  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, class: opts.tap ? "tap" : "" });
+  const svg = el("svg", { viewBox: `0 ${-s * 1.6} ${W} ${H + s * 1.6}`, class: opts.tap ? "tap" : "" });   // room above for the drops
   const P = ([sx, sy]) => `${((sx - minX) * s + 10).toFixed(1)},${((sy - minY) * s + 10).toFixed(1)}`;
+  const markKey = opts.mark ? `${opts.mark.x},${opts.mark.y},${opts.mark.z}` : null;
+  const visible = opts.blank || markKey ? visibleSet(cells) : null;
   // the floor
   for (let x = 0; x < X; x++) for (let y = 0; y < Y; y++) {
     const f = cubeFaces(x, y, -1).top;
-    svg.appendChild(el("polygon", { points: f.map(P).join(" "), fill: "var(--mf-floor)", stroke: "var(--sheet)", "stroke-width": 1, opacity: 0.6 }));
+    const marked = opts.mark && opts.mark.x === x && opts.mark.y === y && (opts.blank || !visible.has(markKey));
+    svg.appendChild(el("polygon", { points: f.map(P).join(" "), fill: marked ? "var(--mf-in)" : "var(--mf-floor)", stroke: "var(--sheet)", "stroke-width": 1, opacity: marked ? 0.9 : 0.6 }));
+    if (marked) {
+      const c = cubeFaces(x, y, -1).top.reduce((a, q) => [a[0] + q[0] / 4, a[1] + q[1] / 4], [0, 0]);
+      const t = el("text", { x: ((c[0] - minX) * s + 10).toFixed(1), y: ((c[1] - minY) * s + 14).toFixed(1), "text-anchor": "middle", "font-size": 12, "font-weight": 800, fill: "#fff" });
+      t.textContent = `tier ${opts.mark.z + 1}`;
+      svg.appendChild(t);
+    }
   }
-  const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const ch = sh => Math.round(Math.min(255, Math.max(0, ((n >> sh) & 255) * k))); return `rgb(${ch(16)},${ch(8)},${ch(0)})`; };
-  for (const cube of drawOrder(cells)) {
-    const faces = cubeFaces(cube.x, cube.y, cube.z);
-    const key = `${cube.x},${cube.y},${cube.z}`;
-    const dim = opts.highlight && cube.c !== opts.highlight;
-    const hex = opts.blank ? null : colourOf(cube.c);
-    const g = el("g", dim ? { opacity: 0.3 } : {});
+  const drops = opts.drop ? dropTimes(cells, opts.drop) : { times: {}, last: 0 };
+  if (!opts.blank) for (const cube of drawOrder(cells)) {
+    const faces = cubeFaces(cube.x, cube.y, cube.z), key = `${cube.x},${cube.y},${cube.z}`;
+    const dim = (opts.highlight && cube.c !== opts.highlight) || (opts.tier != null && cube.z !== opts.tier);
+    const hex = colourOf(cube.c);
+    const g = el("g", { class: `cube${opts.drop ? " drop" : ""}${opts.flip && opts.flip.x === cube.x && opts.flip.y === cube.y && opts.flip.z === cube.z ? " flip" : ""}` });
+    if (dim) g.setAttribute("opacity", 0.25);
+    if (opts.drop) g.style.animationDelay = `${drops.times[key]}ms`;
     for (const [name, k] of [["left", 0.72], ["right", 0.86], ["top", 1.05]]) {
-      const poly = el("polygon", { points: faces[name].map(P).join(" "), fill: hex ? shade(hex, k) : "var(--mf-floor)", stroke: "rgba(0,0,0,.3)", "stroke-width": 1, class: "mf-cell" });
+      const poly = el("polygon", { points: faces[name].map(P).join(" "), fill: shade(hex, k), stroke: "rgba(0,0,0,.3)", "stroke-width": 1, class: "mf-cell" });
       if (opts.tap) poly.addEventListener("click", () => opts.tap(key));
       g.appendChild(poly);
     }
-    if (opts.markKey === key) {
-      const top = faces.top.map(P).join(" ");
-      g.appendChild(el("polygon", { points: top, fill: "none", stroke: "var(--ink)", "stroke-width": 3.5 }));
-    }
+    if (markKey === key && (!visible || visible.has(key))) g.appendChild(el("polygon", { points: faces.top.map(P).join(" "), fill: "none", stroke: "var(--ink)", "stroke-width": 3.5 }));
     svg.appendChild(g);
   }
-  wrap.appendChild(svg);
-  return wrap;
+  panel.appendChild(svg);
+  return { panel, drops };
 }
 
 // ---------- menu and messages ----------

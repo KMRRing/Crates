@@ -1,7 +1,9 @@
-// Manifest: a stack of coloured containers is shown for a few seconds, then it's gone and you're asked about it.
-// How many blue? How many on tier 2? Which colour sits here? Which one changed? Rounds get bigger stacks, more
-// colours, less time, and a different view each time: vertical slices, flat layers, two tiers only, or the whole
-// stack in isometric, where the inner containers are hidden and questions ask only about what you could see.
+// Manifest: a stack of coloured containers drops in, holds for a few seconds, then it's gone and you're asked
+// about it. How many blue? How many on tier 2? Which colour sits here? Which one changed? The stack is always
+// shown in isometric; what varies is how the containers arrive. All at once, and the inner ones stay hidden. Tier
+// by tier or slice by slice, and you see every container, but only in passing before the next lot covers it.
+// Two tiers with pauses and then the rest at once, and you know the bottom and little else. Rounds get bigger
+// stacks, more colours, less time.
 
 export const LIVES = 3;
 export const COLOURS = [
@@ -12,7 +14,7 @@ export const COLOURS = [
   { id: "orange", name: "Orange", hex: "#E8832A" },
   { id: "purple", name: "Purple", hex: "#7A4BC9" },
 ];
-export const VIEWS = { slices: "Vertical slices", layers: "Flat layers", pair: "Two tiers", iso: "The whole stack" };
+export const VIEWS = { all: "All at once", layers: "Tier by tier", slices: "Slice by slice", pair: "Two tiers, then the rest" };
 
 function rng(seed) {
   let a = seed >>> 0;
@@ -118,7 +120,7 @@ function makeQuestions(r, cells, L, view, visible) {
   const used = [...colours];
   const qs = [];
   const total = count(cells, () => true);
-  const types = { slices: ["count", "tier", "at", "most"], layers: ["count", "tier", "at", "most"], pair: ["count2", "at2", "tier2"], iso: ["seen", "top", "seenMost"] }[view];
+  const types = { slices: ["count", "tier", "at", "most"], layers: ["count", "tier", "at", "most"], pair: ["count2", "at2", "tier2"], all: ["seen", "top", "seenMost"] }[view];
   const pool = [...types];
   for (let k = 0; k < L.questions && pool.length; k++) {
     const type = pool.splice(Math.floor(r() * pool.length), 1)[0];
@@ -163,9 +165,9 @@ function makeQuestions(r, cells, L, view, visible) {
   return { qs, total };
 }
 
-/** A change round: one container recoloured; the question is which. */
-function makeChange(r, cells, L) {
-  const spots = []; each(cells, (x, y, z) => spots.push([x, y, z]));
+/** A change round: one container you could see recoloured; the question is which. */
+function makeChange(r, cells, L, visible) {
+  const spots = []; each(cells, (x, y, z) => { if (visible.has(`${x},${y},${z}`)) spots.push([x, y, z]); });
   const [x, y, z] = pick(r, spots);
   const before = cells[x][y][z];
   let after = before;
@@ -180,9 +182,9 @@ export function makeRound(seed, r) {
   const L = levelOf(r), rand = rng(mix(seed, r));
   const cells = makeStack(rand, L);
   const change = L.change;
-  const view = change ? pick(rand, ["slices", "layers"]) : ["slices", "layers", "pair", "iso"][(r - 1) % 4];
-  const visible = view === "iso" ? visibleSet(cells) : null;
-  if (change) { const c = makeChange(rand, cells, L); return { r, level: L, cells, view, visible, questions: [c.question], changed: c.changed }; }
+  const view = change ? "all" : ["layers", "all", "slices", "pair"][(r - 1) % 4];
+  const visible = visibleSet(cells);
+  if (change) { const c = makeChange(rand, cells, L, visible); return { r, level: L, cells, view, visible, questions: [c.question], changed: c.changed }; }
   const { qs } = makeQuestions(rand, cells, L, view, visible);
   return { r, level: L, cells, view, visible, questions: qs };
 }
