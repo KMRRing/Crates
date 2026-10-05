@@ -1,131 +1,140 @@
-// Blend: find the secret recipe from the lab's higher/lower/same verdicts. The engine (blend-engine.js) makes
-// puzzles and compares trials; this file draws the table, the recipe and the history.
-import { LEVELS, PROPS, makePuzzle, compare } from "./blend-engine.js";
+// Blend: build an order to spec at the best margin. The engine (blend-engine.js) holds the components, the
+// products and their specs, the blending maths and par; this file draws the order, the spec panel and the
+// tank farm and keeps your blends.
+import { COMPONENTS, PRODUCTS, PROPS, LEVELS, STEP, blendProps, blendCost, bioShare, margin, judge, solve, hint } from "./blend-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "blend:run", BEST = "blend:best", DAILY = "blend:daily";
-const SWATCH = ["#D9531E", "#2F6FDE", "#2E9E5B", "#7A4BC9"];
+const SAVE = "blend2:save";
 
-let S = null;     // { seed, mode, level, trials: [{ recipe, feedback }], recipe (the one being built), done }
-let P = null;     // the puzzle
+let S = read(SAVE, { level: 1, blends: {}, best: {}, done: {} });   // the blend per level (per cent per component), best margins, levels certified
+let L = null;      // the level
+let par = null;    // { margin, pct, feasible }
 
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
-const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
-const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
-const save = () => write(RUN, S);
+function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
+function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch { /* private mode */ } }
+const euro = n => `${n < 0 ? "−" : ""}€${Math.abs(Math.round(n))}`;
+const fmt = (p, v) => (v == null ? "–" : PROPS[p].unit === "ppm" && v >= 1000 ? `${(v / 10000).toFixed(2)}%` : Number.isInteger(v) ? String(v) : v.toFixed(p === "visc" || p === "oxy" || p === "benz" ? 2 : 1));
+const limitText = (p, lim) => { const u = PROPS[p].unit; const f = v => (u === "ppm" && v >= 1000 ? `${v / 10000}%` : `${v}${u && u !== "ppm" ? ` ${u}` : u === "ppm" ? " ppm" : ""}`); return lim.min != null && lim.max != null ? `${f(lim.min)} – ${f(lim.max)}` : lim.min != null ? `≥ ${f(lim.min)}` : `≤ ${f(lim.max)}`; };
 
-function start(mode, level = $("level").value) {
-  const seed = mode === "daily" ? today() : randomSeed();
-  P = makePuzzle(seed, level);
-  S = { seed, mode, level, trials: [], recipe: evenRecipe(P), done: false };
+// ---------- levels ----------
+function loadLevel(n) {
+  L = LEVELS.find(l => l.id === n) || LEVELS[0];
+  S.level = L.id;
+  par = solve(L);
+  if (!S.blends[L.id] || S.blends[L.id].length !== L.components.length) S.blends[L.id] = L.components.map((c, i) => (i === 0 ? 100 : 0));
   save();
-  history.replaceState(null, "", `${mode === "daily" ? `#d=${seed}` : `#s=${seed}`}&l=${level}`);
+  $("level").value = String(L.id);
   render();
 }
-/** A starting recipe near even shares, on the grid. */
-function evenRecipe(p) {
-  const n = p.comps.length, base = Math.floor(100 / n / p.step) * p.step;
-  const rec = Array(n).fill(base);
-  rec[n - 1] = 100 - base * (n - 1);
-  return rec;
-}
+const pct = () => S.blends[L.id];
 function adjust(i, delta) {
-  if (S.done) return;
-  const rec = [...S.recipe], last = rec.length - 1;
-  const next = rec[i] + delta;
+  const p = pct(), next = p[i] + delta;
   if (next < 0 || next > 100) return;
-  const rest = rec[last] - delta;                  // the last component takes up the difference
-  if (rest < 0 || rest > 100) return;
-  rec[i] = next; rec[last] = rest;
-  S.recipe = rec;
+  if (delta > 0 && L.max?.[L.components[i]] != null && next > L.max[L.components[i]]) { toast(`${COMPONENTS[L.components[i]].name} is limited to ${L.max[L.components[i]]}% here`); return; }
+  p[i] = next;
   save();
   render();
 }
-function sendToLab() {
-  if (S.done) return;
-  if (S.trials.some(t => t.recipe.every((v, i) => v === S.recipe[i]))) { toast("That trial's already been to the lab"); return; }
-  const feedback = compare(P, S.recipe);
-  S.trials.push({ recipe: [...S.recipe], feedback });
-  if (feedback.every(v => v === 0)) {
-    S.done = true;
-    const n = S.trials.length;
-    const best = S.mode === "daily" ? bestDaily(n) : bestEver(n);
-    S.best = best;
-  }
+function certify() {
+  const p = pct(), total = p.reduce((a, b) => a + b, 0);
+  if (total !== 100) { toast("The blend has to add up to 100%"); return; }
+  const props = blendProps(L.components, p), verdict = judge(L.product, props);
+  if (!verdict.every(x => x.ok)) { toast("Something's still off spec"); return; }
+  const m = margin(L.product, L.components, p);
+  S.best[L.id] = Math.max(S.best[L.id] ?? -Infinity, m);
+  if (m >= par.margin - 5) S.done[L.id] = true;
   save();
   render();
+  toast(m >= par.margin - 5 ? `Certified at ${euro(m)}/m³: par.` : `Certified at ${euro(m)}/m³. Par is ${euro(par.margin)}: there's a cheaper way to pass.`, 4500);
 }
-function bestEver(n) { const b = read(BEST, {}); b[S.level] = Math.min(b[S.level] || Infinity, n); write(BEST, b); return b[S.level]; }
-function bestDaily(n) { const d = read(DAILY, {}); const k = `${today()}/${S.level}`; d[k] = Math.min(d[k] || Infinity, n); write(DAILY, d); return d[k]; }
+function giveHint() {
+  const h = hint(L, pct());
+  if (!h) { toast(par ? "You're at the best blend on the grid." : "Nothing to suggest."); return; }
+  const props = blendProps(L.components, pct()), failing = judge(L.product, props).filter(x => !x.ok);
+  const why = failing.length ? ` to fix ${failing.map(x => PROPS[x.p].name).join(", ")}` : ` for ${euro(h.margin)}/m³`;
+  toast(`Move 5% from ${COMPONENTS[h.down].name} to ${COMPONENTS[h.up].name}${why}.`, 5000);
+}
 
 // ---------- drawing ----------
 function render() {
-  const L = LEVELS[S.level];
-  $("brief").textContent = `${P.comps.length} components, ${P.props.length} properties, steps of ${P.step}%`;
-  $("count").textContent = S.done ? `Matched in ${S.trials.length}, par ${P.par}` : `Trial ${S.trials.length + 1} · par ${P.par}`;
-  // the table
-  const table = $("table");
+  const p = pct(), total = p.reduce((a, b) => a + b, 0);
+  const product = PRODUCTS[L.product];
+  $("title").textContent = `${L.id}. ${L.title}`;
+  $("product").textContent = `${product.name} · sells at €${product.price}/m³${product.credit ? `, plus €${product.credit} per m³ of renewable content` : ""}`;
+  $("intro").textContent = `${L.intro} ${product.note}`;
+  const props = blendProps(L.components, p), verdict = judge(L.product, props);
+  const passing = total === 100 && verdict.every(x => x.ok);
+  const m = margin(L.product, L.components, p);
+  // the margin against par
+  const mb = $("margin");
+  mb.textContent = `${euro(m)}/m³`;
+  mb.className = passing ? (m >= 0 ? "good" : "bad") : "";
+  $("par").textContent = `par ${euro(par.margin)}`;
+  const lo = Math.min(-50, m - 20), hi = Math.max(par.margin + 30, m + 20);
+  const at = v => `${Math.max(0, Math.min(100, (v - lo) / (hi - lo) * 100)).toFixed(1)}%`;
+  $("marginBar").style.width = at(m);
+  $("parTick").style.left = at(par.margin);
+  $("costline").textContent = `Components ${euro(blendCost(L.components, p))}/m³ · revenue ${euro(product.price + (product.credit || 0) * bioShare(L.components, p))}/m³${product.credit ? ` (${Math.round(bioShare(L.components, p) * 100)}% renewable)` : ""}`;
+  const v = $("verdict");
+  const failing = verdict.filter(x => !x.ok);
+  if (total !== 100) { v.className = "bl-verdict bad"; v.textContent = `The blend adds up to ${total}%, not 100.`; }
+  else if (failing.length) { v.className = "bl-verdict bad"; v.textContent = `Off spec: ${failing.map(x => PROPS[x.p].name).join(", ")}.`; }
+  else if (m >= par.margin - 5) { v.className = "bl-verdict good"; v.textContent = `On spec at par.${S.done[L.id] ? " Certified." : ""}`; }
+  else { v.className = "bl-verdict"; v.textContent = `On spec. ${euro(par.margin - m)}/m³ short of par: a cheaper blend passes too.`; }
+  $("certifyBtn").disabled = !passing;
+  $("certifyBtn").textContent = S.done[L.id] ? "Certified ✓" : "Certify";
+  // the specification
+  const table = $("spec");
   table.replaceChildren();
-  const head = document.createElement("tr");
-  head.innerHTML = `<th>Component</th>${P.props.map(p => `<th>${PROPS[p].name}${PROPS[p].unit ? ` (${PROPS[p].unit})` : ""}</th>`).join("")}`;
-  table.appendChild(head);
-  P.comps.forEach((c, i) => {
+  for (const x of verdict) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><i style="background:${SWATCH[i]}"></i>${c.name}</td>${P.props.map(p => `<td>${c[p]}</td>`).join("")}`;
+    tr.className = x.value == null ? "" : x.ok ? "ok" : "no";
+    tr.innerHTML = `<td class="name">${PROPS[x.p].name}</td><td class="limit">${limitText(x.p, { min: x.min, max: x.max })}</td><td class="value">${fmt(x.p, x.value)}${x.value != null && PROPS[x.p].unit && PROPS[x.p].unit !== "ppm" ? ` ${PROPS[x.p].unit}` : x.value != null && PROPS[x.p].unit === "ppm" && x.value < 1000 ? " ppm" : ""} ${x.value == null ? "" : x.ok ? "✓" : "✗"}</td>`;
+    tr.addEventListener("click", () => why(x.p));
     table.appendChild(tr);
-  });
-  // the recipe
-  const box = $("recipe");
+  }
+  // the tank farm
+  const box = $("components");
   box.replaceChildren();
-  P.comps.forEach((c, i) => {
-    const last = i === P.comps.length - 1;
+  L.components.forEach((id, i) => {
+    const c = COMPONENTS[id];
     const row = document.createElement("div");
-    row.className = `bl-row${last ? " rest" : ""}`;
-    const name = document.createElement("div");
-    name.className = "name";
-    name.innerHTML = `<i style="background:${SWATCH[i]}"></i><span>${c.name}</span>`;
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    bar.innerHTML = `<i style="width:${S.recipe[i]}%;background:${SWATCH[i]}"></i>`;
+    row.className = "bl-row";
     const left = document.createElement("div");
-    left.append(name, bar);
-    const step = document.createElement("div");
-    step.className = "bl-step";
-    if (!last) {
-      const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.disabled = S.done || S.recipe[i] <= 0; minus.addEventListener("click", () => adjust(i, -P.step));
-      const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.disabled = S.done || S.recipe[P.comps.length - 1] <= 0; plus.addEventListener("click", () => adjust(i, P.step));
-      const b = document.createElement("b"); b.textContent = `${S.recipe[i]}%`;
-      step.append(minus, b, plus);
-    } else {
-      const b = document.createElement("b"); b.textContent = `${S.recipe[i]}%`;
-      step.appendChild(b);
-    }
+    const name = document.createElement("div"); name.className = "name";
+    name.textContent = c.name;
+    if (c.bio) { const b = document.createElement("span"); b.className = "bio"; b.textContent = c.bio > 1 ? "renewable ×2" : "renewable"; name.appendChild(b); }
+    name.addEventListener("click", () => whyComponent(id));
+    const meta = document.createElement("div"); meta.className = "meta";
+    const keys = product.order.filter(k => c[k] != null).slice(0, 4);
+    meta.textContent = `€${c.price}/m³ · ${keys.map(k => `${PROPS[k].name} ${fmt(k, c[k])}`).join(" · ")}${L.max?.[id] != null ? ` · max ${L.max[id]}%` : ""}`;
+    const bar = document.createElement("div"); bar.className = "bar"; bar.innerHTML = `<i style="width:${p[i]}%"></i>`;
+    left.append(name, meta, bar);
+    const step = document.createElement("div"); step.className = "bl-step";
+    const minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.disabled = p[i] <= 0; minus.addEventListener("click", () => adjust(i, -STEP));
+    const val = document.createElement("b"); val.textContent = `${p[i]}%`;
+    const plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.disabled = p[i] >= 100 || total >= 100 && false; plus.addEventListener("click", () => adjust(i, STEP));
+    step.append(minus, val, plus);
     row.append(left, step);
     box.appendChild(row);
   });
-  $("labBtn").hidden = S.done;
-  // the history
-  const hist = $("history");
-  hist.replaceChildren();
-  $("historyLabel").hidden = !S.trials.length;
-  S.trials.forEach((t, k) => {
-    const li = document.createElement("li");
-    const n = document.createElement("span"); n.className = "n"; n.textContent = String(k + 1);
-    const rec = document.createElement("span"); rec.className = "rec"; rec.textContent = t.recipe.map(v => `${v}`).join(" / ");
-    const fb = document.createElement("span"); fb.className = "fb";
-    t.feedback.forEach((v, i) => { const s = document.createElement("span"); s.className = v > 0 ? "up" : v < 0 ? "down" : "same"; s.textContent = `${PROPS[P.props[i]].name.slice(0, 3)} ${v > 0 ? "↑" : v < 0 ? "↓" : "="}`; s.title = `${PROPS[P.props[i]].name}: your trial reads ${v > 0 ? "higher than" : v < 0 ? "lower than" : "the same as"} the sample`; fb.appendChild(s); });
-    li.append(n, rec, fb);
-    hist.appendChild(li);
-  });
-  const result = $("result");
-  result.hidden = !S.done;
-  if (S.done) {
-    const n = S.trials.length, par = P.par;
-    $("verdict").textContent = `Matched in ${n} ${n === 1 ? "trial" : "trials"}: ${n < par ? "under par" : n === par ? "on par" : `${n - par} over par`} (par ${par}). ${S.mode === "daily" ? "Today's" : "Your"} best on ${L.label.toLowerCase()}: ${S.best}.`;
-  }
+  const t = $("total");
+  t.className = `bl-total${total === 100 ? "" : " no"}`;
+  t.textContent = `Total ${total}%${total === 100 ? "" : total > 100 ? ": take some out" : ": fill it up"}`;
+}
+function why(p) {
+  $("whyTitle").textContent = PROPS[p].name;
+  $("whyBody").textContent = PROPS[p].why;
+  if (!$("whyDlg").open) $("whyDlg").showModal();
+}
+function whyComponent(id) {
+  const c = COMPONENTS[id];
+  $("whyTitle").textContent = c.name;
+  const facts = Object.keys(PROPS).filter(k => c[k] != null).map(k => `${PROPS[k].name} ${fmt(k, c[k])}${PROPS[k].unit && PROPS[k].unit !== "ppm" ? ` ${PROPS[k].unit}` : PROPS[k].unit === "ppm" && c[k] < 1000 ? " ppm" : ""}`);
+  $("whyBody").textContent = `${c.note} €${c.price}/m³. ${facts.join(" · ")}.`;
+  if (!$("whyDlg").open) $("whyDlg").showModal();
 }
 
 // ---------- menu and messages ----------
@@ -141,52 +150,36 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  const button = (text, fn, cls = "btn wide") => { const b = add("button", cls, text); b.type = "button"; b.addEventListener("click", () => { $("menuDlg").close(); fn(); }); return b; };
-  add("p", "stats", "A competitor's sample is a secret blend of the components in the table. Build a trial and send it to the lab: for each property it says only whether your trial reads higher, lower or the same as the sample. Blends mix linearly, so the table is all you need. Match the sample in as few trials as you can; par is a solver's count.");
-  button("A new sample", () => confirmStart("random"));
-  button("Today's sample", () => confirmStart("daily"));
-  button("Copy a link to this one", copyLink);
-  const best = read(BEST, {}), daily = read(DAILY, {})[`${today()}/${S.level}`];
-  add("p", "stats", `${LEVELS[S.level].label}: ${best[S.level] ? `your best ${best[S.level]} trials` : "no match yet"}${daily != null ? `; today's best ${daily}` : ""}.`);
+  add("p", "stats", "An order comes in: a product with its specification, and a tank farm of components with their properties and prices. Set each component in steps of 5% until the blend adds up to 100 and every line of the spec passes, at the best margin you can; par is the best blend there is. Properties blend the way they do in practice: flash point, cold flow and viscosity by index, so a little of the wrong component moves them a long way. Tap any spec line for what it is and which components move it.");
+  const list = add("div", "bl-levels");
+  for (const lv of LEVELS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = S.done[lv.id] ? "done" : "";
+    const t = document.createElement("b"); t.textContent = `${lv.id}. ${lv.title}`;
+    const r = document.createElement("span"); r.textContent = S.best[lv.id] != null ? `best ${euro(S.best[lv.id])}/m³${S.done[lv.id] ? " ✓" : ""}` : "";
+    b.append(t, r);
+    b.addEventListener("click", () => { $("menuDlg").close(); loadLevel(lv.id); });
+    list.appendChild(b);
+  }
+  const reset = add("button", "btn wide", "Reset this order's blend");
+  reset.type = "button";
+  reset.addEventListener("click", () => { $("menuDlg").close(); S.blends[L.id] = L.components.map((c, i) => (i === 0 ? 100 : 0)); save(); render(); });
   if (!$("menuDlg").open) $("menuDlg").showModal();
-}
-function confirmStart(mode) {
-  if (S && !S.done && S.trials.length > 0 && !confirm("Start a new sample? This one isn't matched.")) return;
-  start(mode);
-}
-async function copyLink() {
-  const link = `${location.origin}${location.pathname}${location.hash}`;
-  try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "blend");
 document.querySelector(".bl-mark").innerHTML = APPS.find(a => a.id === "blend").logo;
+for (const lv of LEVELS) { const o = document.createElement("option"); o.value = String(lv.id); o.textContent = `Order ${lv.id}`; $("level").appendChild(o); }
+$("level").addEventListener("change", e => loadLevel(Number(e.target.value)));
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("labBtn").addEventListener("click", sendToLab);
-$("nextBtn").addEventListener("click", () => start("random"));
-$("level").addEventListener("change", () => confirmStart(S?.mode === "daily" ? "daily" : "random"));
-window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (h.get("s") || h.get("d")) fromHash(h); });
-
-function fromHash(h) {
-  const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random", level = LEVELS[h.get("l")] ? h.get("l") : "easy";
-  if (!seed) return false;
-  if (S && S.seed === seed && S.mode === mode && S.level === level) return true;
-  P = makePuzzle(seed, level);
-  S = { seed, mode, level, trials: [], recipe: evenRecipe(P), done: false };
-  save();
-  $("level").value = level;
-  render();
-  return true;
-}
+$("whyClose").addEventListener("click", () => $("whyDlg").close());
+$("certifyBtn").addEventListener("click", certify);
+$("hintBtn").addEventListener("click", giveHint);
 
 // for tests and debugging
-window.__blend = { get state() { return S; }, get puzzle() { return P; }, adjust, sendToLab, setRecipe: r => { S.recipe = r; render(); }, start };
+window.__blend = { get level() { return L; }, get par() { return par; }, get pct() { return pct(); }, adjust, certify, loadLevel, setBlend: arr => { S.blends[L.id] = [...arr]; save(); render(); } };
 
-S = read(RUN, null);
-const hash = new URLSearchParams(location.hash.slice(1));
-if (!fromHash(hash)) {
-  if (!S || !LEVELS[S.level]) start("random", "easy");
-  else { P = makePuzzle(S.seed, S.level); $("level").value = S.level; history.replaceState(null, "", `${S.mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`}&l=${S.level}`); render(); }
-}
+loadLevel(S.level || 1);
