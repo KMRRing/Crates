@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="home">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
@@ -7,90 +7,15 @@
 <meta name="theme-color" content="#141B20" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Almanac">
-<title>Crates</title>
+<title>Almanac</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="dropdown.css">
 </head>
 <body>
-<div id="app">
-  <header class="top">
-    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <span class="mark-icon cr-mark" aria-hidden="true"></span>Crates</button>
-    </h1>
-    <div class="top-right">
-      <select id="pool" class="pool" aria-label="Puzzle type" data-accent="cr">
-        <option value="mixed" data-note="Country boards and commodity boards">Mixed</option>
-        <option value="country" data-note="A country behind every crate">Countries</option>
-        <option value="commodity" data-note="A commodity behind every crate">Commodities</option>
-      </select>
-      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
-    </div>
-  </header>
-
-  <div class="brief">
-    <p id="brief"></p>
-    <div id="players" class="players" aria-label="Lives and clues"></div>
-  </div>
-
-  <section id="solved" class="solved" aria-live="polite"></section>
-  <section id="grid" class="grid" aria-label="Words"></section>
-  <p id="status" class="status" aria-live="polite" hidden></p>
-  <p id="clue" class="clue" aria-live="polite" hidden></p>
-  <p id="toast" class="toast" role="status" aria-live="polite"></p>
-
-  <div id="controls" class="controls">
-    <button id="shuffleBtn" class="btn">Shuffle</button>
-    <button id="clearBtn" class="btn">Deselect</button>
-    <button id="submitBtn" class="btn primary" disabled>Submit</button>
-  </div>
-
-  <section id="result" class="result" hidden>
-    <p id="resultLine" class="result-line"></p>
-    <p id="subLine" class="sub-line" hidden></p>
-    <pre id="shareGrid" class="share-grid"></pre>
-    <div class="controls">
-      <button id="shareBtn" class="btn">Copy result</button>
-      <button id="nextBtn" class="btn primary">Next puzzle</button>
-    </div>
-  </section>
-
-  <ol id="feed" class="feed" aria-label="Guesses this puzzle" hidden></ol>
-</div>
-
-<dialog id="nameDlg" class="sheet">
-  <form id="nameForm" method="dialog">
-    <p class="sheet-words" id="nameWords"></p>
-    <label for="nameInput" id="nameLabel"></label>
-    <input id="nameInput" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="done">
-    <div class="controls">
-      <button type="button" id="skipBtn" class="btn">Skip</button>
-      <button type="submit" id="nameBtn" class="btn primary">Name it</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="menuDlg" class="sheet">
-  <div class="pick-head">
-    <h2>Crates <span id="pNum"></span></h2>
-    <button id="menuClose" class="btn">Close</button>
-  </div>
-  <div id="menuBody"></div>
-</dialog>
-
-<dialog id="whoDlg" class="sheet">
-  <form id="whoForm" method="dialog">
-    <label for="whoInput">Your name, as your partner will see it</label>
-    <input id="whoInput" autocomplete="nickname" autocapitalize="words" spellcheck="false" enterkeyhint="done" maxlength="16">
-    <div class="controls">
-      <button type="submit" class="btn primary">Continue</button>
-    </div>
-  </form>
-</dialog>
-
-<script src="bank.js"></script>
-<script type="module" src="app.js"></script>
+<!-- Almanac's home: the screen of games, open from the start; every game is a page of its own -->
+<button id="appsBtn" hidden aria-hidden="true"></button>
+<script type="module" src="home.js"></script>
 </body>
 </html>

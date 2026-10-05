@@ -8,7 +8,7 @@
 // Rooms from before this layout kept one game's state at the top; they're lifted into a branch when opened.
 
 export const GAMES = {
-  crates: { name: "Crates", page: "./" },
+  crates: { name: "Crates", page: "./crates.html" },
   glyph: { name: "Slate", page: "./slate.html" },    // id kept from its first name, Glyph
   delta: { name: "Delta", page: "./delta.html" },
   punt: { name: "Punt", page: "./punt.html" },

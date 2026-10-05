@@ -42,7 +42,7 @@ const newPair = () => Array.from({ length: 4 }, () => LETTERS[Math.floor(Math.ra
 const newCode = () => Array.from({ length: 8 }, () => LETTERS[Math.floor(Math.random() * LETTERS.length)]).join("");
 /** The game this page is (its file's name), for whether a change from elsewhere is this page's own. */
 const page = () => (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "") || "index";
-const own = k => k.startsWith("pile:") || k.startsWith(`${page() === "index" ? "crates" : page()}:`);
+const own = k => page() !== "index" && (k.startsWith("pile:") || k.startsWith(`${page()}:`));
 
 let meta = json(META, {}), dirty = new Map(), timer = null;
 const syncing = () => !!soloCode();
@@ -208,8 +208,8 @@ export async function watchBests(cb) {
 
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
-export const DUO_GAMES = { crates: "index.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html" };
-const pageGame = () => (page() === "index" ? "crates" : page());
+export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html" };
+const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 export const duoHref = game => `${DUO_GAMES[game]}?room=${duoCode()}`;
 export const soloHref = () => { const u = new URL(location.href); u.searchParams.delete("room"); return u.pathname.split("/").pop() + u.search; };
@@ -282,7 +282,7 @@ const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;
 const MIRROR_MAX = 300000;                        // a key larger than this (a long history) isn't mirrored
 async function mirror() {
   const code = duoCode();
-  if (!code || WATCHING) return;
+  if (!code || WATCHING || !pageGame()) return;            // home has no game to show
   const prefix = storePrefix(pageGame()), keys = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);

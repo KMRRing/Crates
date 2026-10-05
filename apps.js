@@ -127,7 +127,7 @@ const HARBOUR_LOGO = `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="
   <rect x="7.6" y="14.3" width="4.8" height="2.7" rx=".6" fill="var(--hb-logo-edge)"/>
   <g fill="var(--hb-logo-edge)"><circle cx="10" cy="6.3" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="10" cy="11.7" r="1"/></g></g></svg>`;
 export const APPS = [
-  { id: "crates", name: "Crates", href: "./", logo: CRATES_LOGO },
+  { id: "crates", name: "Crates", href: "./crates.html", logo: CRATES_LOGO },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
   { id: "delta", name: "Delta", href: "./delta.html", logo: DELTA_LOGO },
   { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO },
@@ -169,8 +169,8 @@ const GAME_NAME = id => APPS.find(a => a.id === (id === "slate" ? "glyph" : id))
 function bindCodes(dlg) {
   const head = dlg.querySelector("[data-codes]");
   let partner = null, theirs = {}, theirName = "", duoRecords = {};
-  const here = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "").replace(/^index$|^$/, "crates");
-  const status = p => (p ? `${(p.name || "Partner").split(" ")[0]} · ${p.online ? `${GAME_NAME(p.game)}${p.mode === "duo" ? " together" : p.mode === "watch" ? " (watching)" : ""}` : "offline"}` : "not here yet");
+  const here = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "").replace(/^index$|^$/, "");   // "" at home: no game open
+  const status = p => (p ? `${(p.name || "Partner").split(" ")[0]} · ${!p.online ? "offline" : !p.game ? "choosing a game" : `${GAME_NAME(p.game)}${p.mode === "duo" ? " together" : p.mode === "watch" ? " (watching)" : ""}`}` : "not here yet");
   const draw = () => {
     const solo = soloCode(), duo = duoCode();
     head.innerHTML = `<button class="code-chip" type="button" data-solo aria-label="Your solo code${solo ? ` ${solo}: tap to copy its link, hold to change it` : ": tap to set it"}">${ICON.solo}<b>${solo || "—"}</b></button>

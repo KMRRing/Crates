@@ -471,3 +471,6 @@ dialog.menu-sheet .menu-x { width: 36px; height: 36px; }
 details.menu-how { margin-top: 1rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); color: var(--ink-soft); font-size: .88rem; }
 details.menu-how summary { cursor: pointer; font-weight: 700; color: var(--ink); list-style-position: inside; padding: .2rem 0; }
 details.menu-how p { margin: .5rem 0 0; line-height: 1.45; }
+
+/* Almanac's home: the screen of games is the page, so there's nothing to close it back to */
+.home dialog.apps [data-close] { display: none; }
