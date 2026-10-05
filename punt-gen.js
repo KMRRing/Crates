@@ -23,7 +23,7 @@ export const LEVELS = {
   // picks (dealt in seeded order, cycling once a pool runs dry); priced from each question's difficulty
   maths: { label: "Maths", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./maths-bank.js", note: "1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10." },
   // Refining: the same machinery on refining-bank.js: how a refinery works, unit by unit
-  refining: { label: "Refining", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, specs and economics 2–6." },
+  refining: { label: "Refining", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, the blending chemistry 3–7, specs and economics 2–6." },
 };
 /** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
 export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
