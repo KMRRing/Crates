@@ -65,7 +65,7 @@
   background: none; color: var(--ink); font: 800 1rem var(--font); cursor: pointer; }
 .hb-tool[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
 .hb-run { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: .45rem; }
-.hb-ctl { height: 40px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink); border-radius: 999px;
+.hb-ctl { height: 40px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--brass); border-radius: 4px;
   background: none; color: var(--ink); font: 800 .95rem var(--font); cursor: pointer; }
 .hb-ctl.primary { background: var(--plate); color: var(--plate-ink); }
 .hb-ctl:disabled { opacity: .35; cursor: default; }
@@ -91,7 +91,7 @@
 .hb-cell.lp-last { border-radius: 2px 6px 6px 2px; box-shadow: inset -2px 0 0 var(--hb-loop), inset 0 2px 0 var(--hb-loop), inset 0 -2px 0 var(--hb-loop); }
 .hb-cell.lp-first.lp-last { border-radius: 6px; box-shadow: inset 0 0 0 2px var(--hb-loop); }
 .hb-cell.lp-ghost { opacity: .45; }
-.hb-cell.lp-badge { background: var(--hb-loop); color: #fff; font-size: .74rem; border-radius: 999px; }
+.hb-cell.lp-badge { background: var(--hb-loop); color: #fff; font-size: .74rem; border-radius: 3px; }
 
 /* Menu: your best on each measure beside the level's par */
 .hb-bests { width: 100%; margin: .2rem 0 .6rem; border-collapse: collapse; }

@@ -6,7 +6,7 @@
 .dk-mark svg { width: 100%; height: 100%; display: block; }
 .dk-lead { margin: .4rem 0 .8rem; color: var(--ink-soft); line-height: 1.45; }
 .dk-piles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
-.dk-piles div { padding: .55rem .3rem; border-radius: 12px; background: var(--sheet); text-align: center; }
+.dk-piles div { padding: .55rem .3rem; border-radius: 5px; background: var(--sheet); text-align: center; }
 .dk-piles b { display: block; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .dk-piles b.due { color: var(--dk-in); }
 .dk-piles span { font-size: .72rem; color: var(--ink-soft); }
@@ -40,14 +40,14 @@
 .dk-figure[hidden] { display: none; }
 .dk-answer { display: grid; gap: .45rem; }
 .dk-answer.two { grid-template-columns: 1fr 1fr; }
-.dk-option { min-height: 50px; padding: .6rem .7rem; border-radius: 12px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.dk-option { min-height: 50px; padding: .6rem .7rem; border-radius: 5px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
 .dk-option[aria-checked="true"] { border-color: var(--dk-in); background: var(--dk-in-soft); }
 .dk-option.right { border-color: var(--dk-good); background: color-mix(in srgb, var(--dk-good) 15%, var(--sheet)); }
 .dk-option.wrong { border-color: var(--dk-bad); background: color-mix(in srgb, var(--dk-bad) 12%, var(--sheet)); }
 .dk-option:disabled { cursor: default; }
 .dk-number { display: grid; grid-template-columns: 1fr auto; gap: .4rem; }
-.dk-number input { min-height: 48px; padding: 0 .7rem; border-radius: 12px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
-.dk-number button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--dk-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.dk-number input { min-height: 48px; padding: 0 .7rem; border-radius: 5px; border: 1.5px solid var(--dk-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
+.dk-number button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 5px; background: var(--dk-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 .dk-number button:disabled { opacity: .45; cursor: default; }
 /* answered: the field keeps its focus for the next card, so it only looks settled */
 .dk-number.done input { color: var(--ink-soft); background: var(--yard); }
@@ -55,7 +55,7 @@
 .dk-verdict.good { color: var(--dk-good); }
 .dk-verdict.bad { color: var(--dk-bad); }
 .dk-note { margin: 0; font-size: .92rem; color: var(--ink-soft); line-height: 1.45; }
-.dk-summary { padding: .8rem; border-radius: 16px; background: var(--sheet); }
+.dk-summary { padding: .8rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .dk-summary b { font-size: 2.2rem; font-weight: 800; color: var(--dk-in); }
 .deck .ch-board { border-radius: 10px; }
 .dk-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
@@ -65,6 +65,6 @@
 
 /* the loudspeaker beside a word in another language (Parley's cards): says it again */
 .dk-speak { display: inline-grid; place-items: center; width: 2.4rem; height: 2.4rem; margin-left: .35rem; vertical-align: middle;
-  padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
+  padding: 0; border: 1.5px solid var(--brass); border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
 .dk-speak svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .dk-speak .solid { fill: currentColor; }

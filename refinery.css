@@ -9,10 +9,10 @@
 .rf-brief { margin: .45rem 0 .4rem; }
 .rf-brief-head { display: flex; align-items: center; gap: .5rem; }
 .rf-brief h2 { margin: 0; font-size: 1.15rem; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rf-about { flex: none; min-height: 30px; padding: 0 .7rem; border-radius: 999px; border: 1.5px solid var(--rf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
+.rf-about { flex: none; min-height: 30px; padding: 0 .7rem; border-radius: 4px; border: 1.5px solid var(--rf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
 .rf-lesson { margin: .15rem 0 0; color: var(--ink-soft); line-height: 1.3; font-size: .86rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
-.rf-margin { padding: .6rem .7rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; }
+.rf-margin { padding: .6rem .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .35rem; }
 .rf-margin-row { display: flex; align-items: baseline; gap: .5rem; }
 .rf-margin-row span { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
 .rf-margin-row b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -41,12 +41,12 @@
 .rf-chips { display: flex; flex-wrap: nowrap; gap: .35rem; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .rf-chips::-webkit-scrollbar { display: none; }
 .rf-chips > * { flex: none; }
-.rf-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; margin: .5rem 0 .4rem; padding: .25rem; border-radius: 12px; background: var(--sheet); }
+.rf-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; margin: .5rem 0 .4rem; padding: .25rem; border-radius: 5px; background: var(--sheet); }
 .rf-tabs button { min-height: 36px; border: 0; border-radius: 9px; background: none; color: var(--ink-soft); font: inherit; font-size: .9rem; font-weight: 800; cursor: pointer; }
 .rf-tabs button[aria-selected="true"] { background: var(--yard); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, .12); }
 .rf-tabs button.off { color: var(--rf-bad); }
-.rf-pane { border-radius: 12px; }
-.rf-chip { padding: .35rem .65rem; border-radius: 999px; border: 1.5px solid var(--rf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; }
+.rf-pane { border-radius: 5px; }
+.rf-chip { padding: .35rem .65rem; border-radius: 4px; border: 1.5px solid var(--rf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; }
 .rf-chip.on { border-color: var(--rf-in); background: var(--rf-in-soft); }
 .rf-chip.idle { opacity: .6; }
 .rf-h2 { margin: .3rem 0 0; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -54,7 +54,7 @@
 
 .rf-streams { display: grid; gap: .35rem; }
 .rf-group { margin: .5rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
-.rf-stream { display: grid; grid-template-columns: 4px 1fr auto; align-items: center; gap: .55rem; padding: .45rem .6rem .45rem .5rem; border-radius: 12px; background: var(--sheet); }
+.rf-stream { display: grid; grid-template-columns: 4px 1fr auto; align-items: center; gap: .55rem; padding: .45rem .6rem .45rem .5rem; border-radius: 5px; background: var(--sheet); }
 .rf-stream i { width: 4px; height: 100%; min-height: 28px; border-radius: 2px; }
 .rf-stream .name { font-weight: 750; font-size: .95rem; }
 .rf-stream .meta { font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
@@ -63,7 +63,7 @@
 .rf-dest::after { content: " ›"; opacity: .6; }
 
 .rf-pools { display: grid; gap: .35rem; }
-.rf-pool { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; padding: .5rem .7rem; border-radius: 12px; background: var(--sheet); align-items: center; }
+.rf-pool { display: grid; grid-template-columns: 1fr auto; gap: .2rem .6rem; padding: .5rem .7rem; border-radius: 5px; background: var(--sheet); align-items: center; }
 .rf-pool .name { font-weight: 800; }
 .rf-pool .vol { font-variant-numeric: tabular-nums; font-weight: 750; text-align: right; }
 .rf-pool .spec { grid-column: 1 / -1; font-size: .8rem; color: var(--ink-soft); display: flex; flex-wrap: wrap; gap: .25rem .6rem; }
@@ -75,7 +75,7 @@
 .rf-issues:empty { display: none; }
 
 .rf-pick { display: grid; gap: .35rem; }
-.rf-pick button { display: grid; gap: .1rem; text-align: left; padding: .55rem .7rem; border-radius: 12px; border: 1.5px solid var(--rf-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
+.rf-pick button { display: grid; gap: .1rem; text-align: left; padding: .55rem .7rem; border-radius: 5px; border: 1.5px solid var(--rf-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
 .rf-pick button b { font-weight: 800; }
 .rf-pick button span { font-size: .82rem; color: var(--ink-soft); line-height: 1.3; }
 .rf-pick button.on { border-color: var(--rf-in); background: var(--rf-in-soft); }

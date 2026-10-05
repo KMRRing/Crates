@@ -16,23 +16,24 @@
 
 /* the card fits the screen: the map takes the room left and keeps its shape; under it a fixed space holds the clues and
    buttons, or the result, so the map keeps its size from pinning to the reveal */
-.ch-card { padding: .8rem; border-radius: 20px; background: var(--sheet); gap: .45rem; }
+.ch-card { padding: .8rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); gap: .45rem; }
 .ch-bottom { display: grid; gap: .45rem; align-content: end; min-height: 9.4rem; }
 /* the category pill, and how far through the set, on one line */
 .ch-card-top { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
 .ch-where { font-size: .8rem; font-weight: 750; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.ch-cat { align-self: flex-start; padding: .15rem .6rem; border-radius: 999px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.ch-cat { align-self: flex-start; padding: .15rem .6rem; border-radius: 3px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .12em; }
 .ch-place { margin: 0; font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
 .ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
 .ch-maps { min-height: 0; }
-.ch-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 12px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ch-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 5px; background: var(--ch-sea); touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .ch-actions { display: grid; gap: .45rem; }
 .ch-actions.two { grid-template-columns: 1fr 1fr; }
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }
 .ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .2rem; font-size: .9rem; line-height: 1.35; max-height: 4.2em; }
 .ch-clues:empty { display: none; }
 .ch-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.ch-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
+.ch-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0;
+  font-stretch: 96%; letter-spacing: .03em; white-space: nowrap; }   /* the clue's cost fits on one line */
 .ch-go:disabled { opacity: .45; cursor: default; }
 .ch-result { display: grid; gap: .5rem; padding-top: .4rem; border-top: 1px solid var(--ch-edge); }
 .ch-result[hidden] { display: none; }
@@ -43,11 +44,11 @@
 .ch-note:empty { display: none; }
 .ch-big { font-size: 3rem; font-weight: 800; color: var(--ch-in); text-align: center; margin: .2rem 0; letter-spacing: -.02em; }
 .ch-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
-.ch-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.ch-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); text-align: center; }
 .ch-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
 .ch-stats span { font-size: .75rem; color: var(--ink-soft); }
 /* the end of a set: every pin joined to its place on one map, and a row a place to frame it */
-.ch-summary { display: block; width: 100%; height: auto; margin: .3rem 0 .2rem; border-radius: 12px; background: var(--ch-sea); }
+.ch-summary { display: block; width: 100%; height: auto; margin: .3rem 0 .2rem; border-radius: 5px; background: var(--ch-sea); }
 .ch-lines { margin: .3rem 0 .6rem; padding: 0; list-style: none; display: grid; gap: .2rem; font-size: .88rem; }
 .ch-line { width: 100%; display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; align-items: center; gap: .5rem; padding: .3rem .45rem;
   border-radius: 10px; border: 1.5px solid transparent; background: var(--yard); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }

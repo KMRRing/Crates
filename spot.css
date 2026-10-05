@@ -29,11 +29,11 @@
 .sp-level { font-size: .78rem; font-weight: 800; color: var(--ink-soft); letter-spacing: .02em; }
 .sp-lives { display: flex; gap: .3rem; }
 /* the modifier: apply it to every result before anything else */
-.sp-mod { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .7rem; border-radius: 999px; background: var(--sp-or); color: #fff; }
+.sp-mod { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .7rem; border-radius: 3px; background: var(--sp-or); color: #fff; }
 .sp-mod small { font-size: .68rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; opacity: .85; }
 .sp-mod b { font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .sp-mod.new { animation: pop .3s ease-out; }
-.sp-sum em { position: absolute; top: -.45rem; right: -.3rem; padding: .05rem .4rem; border-radius: 999px; background: var(--sp-or); color: #fff;
+.sp-sum em { position: absolute; top: -.45rem; right: -.3rem; padding: .05rem .4rem; border-radius: 3px; background: var(--sp-or); color: #fff;
   font-size: .72rem; font-weight: 800; font-style: normal; }
 .sp-life { width: 14px; height: 14px; border-radius: 50%; background: var(--sp-or); transition: transform .2s, opacity .2s; }
 .sp-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--sp-token-edge); }
@@ -41,9 +41,9 @@
 @keyframes hit { 30% { transform: scale(1.8); } }
 
 /* the field: sums drift from top to bottom; the closer to the bottom, the hotter */
-.sp-field { position: relative; flex: 1; min-height: 12rem; border-radius: 20px; background: var(--sp-field); overflow: hidden;
+.sp-field { position: relative; flex: 1; min-height: 12rem; border-radius: 8px; border: 1.5px solid var(--brass); background: var(--sp-field); overflow: hidden;
   box-shadow: inset 0 -40px 40px -30px rgba(217, 83, 30, .35); }
-.sp-sum { position: absolute; left: 0; top: 0; width: 31%; padding: .55rem .3rem .65rem; border-radius: 14px; text-align: center;
+.sp-sum { position: absolute; left: 0; top: 0; width: 31%; padding: .55rem .3rem .65rem; border-radius: 6px; text-align: center;
   background: var(--sp-card); color: var(--sp-card-ink); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums;
   box-shadow: 0 4px 12px rgba(0, 0, 0, .3); will-change: transform; }
 .sp-sum i { overflow: hidden; }
@@ -61,7 +61,7 @@
 
 /* the shelf: eight fixed places, so your thumb learns them */
 .sp-shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; padding-bottom: max(.6rem, env(safe-area-inset-bottom, 0px)); }
-.sp-token { aspect-ratio: 1.15; border-radius: 18px; border: 2px solid var(--sp-token-edge); background: var(--sp-token); color: var(--ink);
+.sp-token { aspect-ratio: 1.15; border-radius: 6px; border: 2px solid var(--sp-token-edge); background: var(--sp-token); color: var(--ink);
   font: inherit; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; cursor: pointer; touch-action: manipulation;
   -webkit-tap-highlight-color: transparent; }
 .sp-token:empty { background: none; border-style: dashed; cursor: default; }
@@ -72,15 +72,15 @@
 @keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
 
 /* start, countdown and the end of a run */
-.sp-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 1rem; border-radius: 20px; background: rgba(20, 27, 32, .55); z-index: 5; }
+.sp-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 1rem; border-radius: 8px; background: rgba(16, 24, 31, .55); z-index: 5; }
 .sp-overlay[hidden] { display: none; }
-.sp-card { width: min(22rem, 100%); padding: 1.3rem; border-radius: 22px; background: var(--sheet); color: var(--ink); text-align: center;
+.sp-card { width: min(22rem, 100%); padding: 1.3rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); color: var(--ink); text-align: center;
   box-shadow: 0 16px 50px rgba(0, 0, 0, .35); display: grid; gap: .7rem; }
 .sp-card h2 { margin: 0; font-size: 1.6rem; font-weight: 800; }
 .sp-card p { margin: 0; color: var(--ink-soft); line-height: 1.4; }
 .sp-card .sp-big { font-size: 4.5rem; font-weight: 800; color: var(--sp-or); line-height: 1; }
 .sp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-.sp-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); }
+.sp-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); }
 .sp-stats b { display: block; font-size: 1.3rem; font-weight: 800; }
 .sp-stats span { font-size: .75rem; color: var(--ink-soft); }
 .sp-go { min-height: 50px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); text-transform: uppercase; letter-spacing: .07em; font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }

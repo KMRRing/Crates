@@ -16,11 +16,11 @@
 .pi-gauge .bar { width: 54px; height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
 .pi-gauge .bar i { display: block; height: 100%; width: 100%; border-radius: 0; transition: width .2s; }
 
-.pi-stage { padding: .7rem; border-radius: 20px; background: var(--sheet); gap: .55rem; }
+.pi-stage { padding: .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); gap: .55rem; }
 .pi-status { margin: 0; font-size: 1rem; font-weight: 800; min-height: 1.3em; }
 /* the board: as big as the room under the status line allows, keeping its shape (--aspect is its width over height) */
 .pi-fit { width: 100%; }
-.pi-board { width: min(100cqw, calc(100cqh * var(--aspect, .714))); border-radius: 14px; overflow: hidden; background: var(--pi-ground); }
+.pi-board { width: min(100cqw, calc(100cqh * var(--aspect, .714))); border-radius: 6px; overflow: hidden; background: var(--pi-ground); }
 .pi-board, .pi-board svg { display: block; touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .pi-board svg { width: 100%; height: auto; }
 .pi-board .pi-tile { cursor: pointer; }
@@ -36,7 +36,7 @@
 .pi-note { margin: 0; font-size: .86rem; color: var(--ink-soft); line-height: 1.3; height: 3.9em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .pi-big { font-size: 3rem; font-weight: 800; color: var(--pi-in); text-align: center; margin: .2rem 0; }
 .pi-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
-.pi-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.pi-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); text-align: center; }
 .pi-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
 .pi-stats span { font-size: .75rem; color: var(--ink-soft); }
 .pi-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;

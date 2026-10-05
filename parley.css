@@ -6,7 +6,7 @@
 .pa-mark svg { width: 100%; height: 100%; display: block; }
 .pa-intro { margin: .4rem 0 .7rem; color: var(--ink-soft); line-height: 1.45; }
 .pa-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin-bottom: .7rem; }
-.pa-stats div { padding: .5rem .3rem; border-radius: 12px; background: var(--sheet); text-align: center; }
+.pa-stats div { padding: .5rem .3rem; border-radius: 5px; background: var(--sheet); text-align: center; }
 .pa-stats b { display: block; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pa-stats b.due { color: var(--pa-in); }
 .pa-stats span { font-size: .72rem; color: var(--ink-soft); }
@@ -15,7 +15,7 @@
 .pa-go[hidden] { display: none; }
 .pa-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }
 .pa-units { display: grid; gap: .35rem; align-content: start; }
-.pa-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 12px; background: var(--sheet); }
+.pa-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 5px; background: var(--sheet); }
 .pa-unit b { font-weight: 800; }
 .pa-unit small { display: block; color: var(--ink-soft); font-size: .8rem; }
 .pa-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
@@ -27,7 +27,7 @@
 .pa-session { gap: .55rem; }
 .pa-read { display: grid; gap: .55rem; align-content: start; }
 .pa-head { display: flex; justify-content: space-between; align-items: center; font-size: .85rem; color: var(--ink-soft); font-weight: 700; }
-.pa-card { padding: 1rem .9rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; align-content: start; }
+.pa-card { padding: 1rem .9rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .35rem; align-content: start; }
 .pa-card .big { font-size: 2.1rem; font-weight: 800; line-height: 1.15; }
 .pa-card .big.hanzi { font-size: 2.7rem; }
 .pa-card .py { font-size: 1.15rem; color: var(--pa-in); font-weight: 750; }
@@ -47,14 +47,14 @@
 .pa-speak.big { width: 64px; height: 64px; font-size: 1.8rem; justify-self: center; }
 .pa-answer { display: grid; gap: .45rem; }
 .pa-answer.two { grid-template-columns: 1fr 1fr; }
-.pa-option { min-height: 50px; padding: .6rem .7rem; border-radius: 12px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.pa-option { min-height: 50px; padding: .6rem .7rem; border-radius: 5px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
 .pa-option .py { display: block; font-size: .8rem; color: var(--pa-in); font-weight: 700; }
 .pa-option.right { border-color: var(--pa-good); background: color-mix(in srgb, var(--pa-good) 15%, var(--sheet)); }
 .pa-option.wrong { border-color: var(--pa-bad); background: color-mix(in srgb, var(--pa-bad) 12%, var(--sheet)); }
 .pa-option:disabled { cursor: default; }
 .pa-type { display: grid; grid-template-columns: 1fr auto; gap: .4rem; }
-.pa-type input { min-height: 48px; padding: 0 .7rem; border-radius: 12px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
-.pa-type button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 12px; background: var(--pa-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.pa-type input { min-height: 48px; padding: 0 .7rem; border-radius: 5px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
+.pa-type button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 5px; background: var(--pa-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 .pa-articles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .pa-articles .pa-option[aria-pressed="true"] { border-color: var(--pa-in); background: var(--pa-in-soft); }
 .pa-verdict { margin: 0; min-height: 1.3em; font-weight: 800; }

@@ -74,7 +74,7 @@
 .pt-betting { margin-top: .7rem; }
 .pt-odds-row { display: flex; align-items: center; gap: .5rem; }
 .pt-odds-row span { color: var(--ink-soft); }
-.pt-odds { display: inline-block; padding: .1rem .7rem; border-radius: 999px; background: var(--pt-turf); color: var(--pt-turf-ink);
+.pt-odds { display: inline-block; padding: .1rem .7rem; border-radius: 3px; background: var(--pt-turf); color: var(--pt-turf-ink);
   font-size: 1.6rem; font-weight: 800; font-stretch: 112%; font-variant-numeric: tabular-nums; }
 #stake { width: 100%; margin: .55rem 0 .25rem; accent-color: var(--pt-turf); height: 28px; }
 .pt-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .35rem; }

@@ -13,7 +13,7 @@
 
 /* the stage fits the screen: the stack takes the room the questions leave (and steps aside when a question
    doesn't need it), and the questions scroll inside themselves if they must */
-.mf-stage { padding: .8rem; border-radius: 20px; background: var(--sheet); gap: .5rem; }
+.mf-stage { padding: .8rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); gap: .5rem; }
 .mf-stage.no-view .mf-view { display: none; }
 .mf-asks { flex: 0 1 auto; max-height: 55%; min-height: 0; }
 .mf-stage.no-view .mf-asks { flex: 1 1 auto; max-height: none; }
@@ -23,13 +23,13 @@
 .mf-book { display: grid; gap: .35rem; }
 .mf-book:empty { display: none; }
 .mf-book .intro { margin: 0 0 .1rem; font-size: .86rem; color: var(--ink-soft); line-height: 1.35; }
-.mf-order { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .4rem .7rem; border-radius: 12px; background: var(--yard); }
+.mf-order { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .6rem; padding: .4rem .7rem; border-radius: 5px; background: var(--yard); }
 .mf-order b { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--mf-in); }
 .mf-order span { font-weight: 700; line-height: 1.3; }
 .mf-price { font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; white-space: nowrap; }
 .mf-price small { font-size: .75rem; color: var(--ink-soft); margin-left: .15rem; }
 .mf-book.strip { display: flex; flex-wrap: wrap; gap: .3rem; }
-.mf-book.strip .mf-chiplet { padding: .2rem .55rem; border-radius: 999px; background: var(--yard); font-size: .82rem; font-weight: 700; }
+.mf-book.strip .mf-chiplet { padding: .2rem .55rem; border-radius: 3px; background: var(--yard); font-size: .82rem; font-weight: 700; }
 .mf-book.strip .mf-chiplet b { color: var(--mf-in); margin-left: .3rem; }
 
 .mf-timer { height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
@@ -58,7 +58,7 @@
 /* the questions, once open: answer any, pass any */
 .mf-asks { display: grid; gap: .45rem; align-content: start; }   /* cards keep their height; the list scrolls if they must */
 .mf-asks:empty { display: none; }
-.mf-row { border-radius: 14px; background: var(--yard); border: 2px solid transparent; }
+.mf-row { border-radius: 6px; background: var(--yard); border: 2px solid transparent; }
 .mf-row.active { border-color: var(--mf-in); }
 .mf-row.right { border-color: var(--mf-good); }
 .mf-row.wrong { border-color: var(--mf-bad); }
@@ -77,14 +77,14 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 /* beside a picture, a colour is one line (swatch, then name), so the answers are no taller than the picture */
 .with-pic .mf-chip.colour { grid-auto-flow: column; justify-content: start; gap: .35rem; min-height: 38px; padding: .3rem .45rem; }
 .with-pic .mf-chip i { width: 16px; height: 16px; }
-.mf-chip { min-height: 42px; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
+.mf-chip { min-height: 42px; border-radius: 5px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
 .mf-chip.colour { font-size: .78rem; font-weight: 750; padding: .35rem .15rem; }
 .mf-chip i { width: 18px; height: 18px; border-radius: 5px; display: block; }
 .mf-chip.good { border-color: var(--mf-good); background: var(--mf-good); color: #fff; }
 .mf-chip.bad { border-color: var(--mf-bad); background: var(--mf-bad); color: #fff; }
 .mf-chip:disabled { cursor: default; }
 .mf-mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .4rem; }
-.mf-mini button { padding: .25rem; border-radius: 12px; border: 2px solid var(--mf-edge); background: var(--sheet); cursor: pointer; }
+.mf-mini button { padding: .25rem; border-radius: 5px; border: 2px solid var(--mf-edge); background: var(--sheet); cursor: pointer; }
 .mf-mini button.good { border-color: var(--mf-good); box-shadow: inset 0 0 0 2px var(--mf-good); }
 .mf-mini button.bad { border-color: var(--mf-bad); box-shadow: inset 0 0 0 2px var(--mf-bad); }
 .mf-mini svg { width: 100%; height: auto; max-height: 4.6rem; display: block; }
@@ -95,7 +95,7 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-go[hidden] { display: none; }
 .mf-big { font-size: 3rem; font-weight: 800; color: var(--mf-in); text-align: center; margin: .2rem 0; }
 .mf-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
-.mf-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.mf-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); text-align: center; }
 .mf-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
 .mf-stats span { font-size: .75rem; color: var(--ink-soft); }
 

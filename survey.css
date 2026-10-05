@@ -6,7 +6,7 @@
 .sv-mark svg { width: 100%; height: 100%; display: block; }
 .sv-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); }
 .sv-credits b { font-size: 1.4rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.sv-card { padding: .8rem; border-radius: 20px; background: var(--sheet); gap: .6rem; }
+.sv-card { padding: .8rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); gap: .6rem; }
 
 /* the board: a header row and column of line buttons, then the cells */
 /* the board is square: as wide as the room allows, or as tall, whichever is less */
@@ -29,7 +29,7 @@
 .sv-cell.wrong { border-color: var(--sv-bad); box-shadow: inset 0 0 0 2px var(--sv-bad); }
 
 .sv-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-.sv-tool { display: grid; gap: .05rem; min-height: 52px; border-radius: 12px; border: 2px solid var(--sv-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
+.sv-tool { display: grid; gap: .05rem; min-height: 52px; border-radius: 5px; border: 2px solid var(--sv-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
 .sv-tool b { font-weight: 800; }
 .sv-tool small { font-size: .72rem; color: var(--ink-soft); }
 .sv-tool[aria-pressed="true"] { border-color: var(--sv-in); background: var(--sv-in-soft); }

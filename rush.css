@@ -57,7 +57,7 @@
 
 .ru-big { font-size: 3rem; font-weight: 800; color: var(--ru-in); text-align: center; margin: .2rem 0; }
 .ru-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
-.ru-stats div { padding: .5rem .2rem; border-radius: 12px; background: var(--yard); text-align: center; }
+.ru-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); text-align: center; }
 .ru-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
 .ru-stats span { font-size: .75rem; color: var(--ink-soft); }
 .ru-missed { margin: .4rem 0; padding: 0; list-style: none; display: grid; gap: .3rem; font-size: .9rem; }

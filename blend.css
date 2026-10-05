@@ -9,11 +9,11 @@
 .bl-order { margin: .45rem 0 .4rem; }
 .bl-order-head { display: flex; align-items: center; gap: .5rem; }
 .bl-order h2 { margin: 0; font-size: 1.15rem; font-weight: 800; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bl-about { flex: none; min-height: 30px; padding: 0 .7rem; border-radius: 999px; border: 1.5px solid var(--bl-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
+.bl-about { flex: none; min-height: 30px; padding: 0 .7rem; border-radius: 4px; border: 1.5px solid var(--bl-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750; cursor: pointer; }
 .bl-product { margin: .15rem 0 0; font-weight: 750; font-size: .86rem; line-height: 1.3; color: var(--bl-in); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .bl-intro { margin: .3rem 0 0; color: var(--ink-soft); line-height: 1.4; font-size: .92rem; }
 
-.bl-margin { padding: .6rem .7rem; border-radius: 16px; background: var(--sheet); display: grid; gap: .35rem; }
+.bl-margin { padding: .6rem .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .35rem; }
 .bl-margin-row { display: flex; align-items: baseline; gap: .5rem; }
 .bl-margin-row span { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
 .bl-margin-row b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
@@ -34,7 +34,7 @@
 
 .bl-spec-box { margin-top: .5rem; }
 .bl-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
-.bl-chip { min-height: 28px; padding: .1rem .55rem; border-radius: 999px; border: 1.5px solid var(--bl-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .78rem; font-weight: 650; cursor: pointer; font-variant-numeric: tabular-nums; }
+.bl-chip { min-height: 28px; padding: .1rem .55rem; border-radius: 4px; border: 1.5px solid var(--bl-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .78rem; font-weight: 650; cursor: pointer; font-variant-numeric: tabular-nums; }
 .bl-chip b { font-weight: 800; }
 .bl-chip.ok { border-color: color-mix(in srgb, var(--bl-good) 45%, var(--bl-edge)); }
 .bl-chip.ok b { color: var(--bl-good); }
@@ -43,7 +43,7 @@
 .bl-farm-head { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
 .bl-farm h3 { margin: 0; font-size: 1rem; font-weight: 800; }
 .bl-farm h3 small { font-weight: 600; color: var(--ink-soft); font-size: .76rem; margin-left: .3rem; }
-.bl-spec { width: 100%; border-collapse: collapse; font-size: .9rem; background: var(--sheet); border-radius: 12px; overflow: hidden; }
+.bl-spec { width: 100%; border-collapse: collapse; font-size: .9rem; background: var(--sheet); border-radius: 5px; overflow: hidden; }
 .bl-spec tr { cursor: pointer; }
 .bl-spec td { padding: .45rem .6rem; border-bottom: 1px solid var(--bl-edge); font-variant-numeric: tabular-nums; }
 .bl-spec tr:last-child td { border-bottom: 0; }
@@ -55,9 +55,9 @@
 .bl-spec tr.no td.name { color: var(--bl-bad); }
 
 .bl-components { display: grid; gap: .35rem; align-content: start; }
-.bl-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .45rem .6rem; border-radius: 12px; background: var(--sheet); }
+.bl-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .45rem .6rem; border-radius: 5px; background: var(--sheet); }
 .bl-row .name { font-weight: 750; cursor: pointer; }
-.bl-row .name .bio { margin-left: .35rem; padding: .05rem .4rem; border-radius: 999px; background: var(--bl-in-soft); color: var(--bl-in); font-size: .7rem; font-weight: 800; }
+.bl-row .name .bio { margin-left: .35rem; padding: .05rem .4rem; border-radius: 3px; background: var(--bl-in-soft); color: var(--bl-in); font-size: .6rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; }
 .bl-row > div:first-child { min-width: 0; }
 .bl-row .meta { font-size: .76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bl-row .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .3rem; overflow: hidden; }
