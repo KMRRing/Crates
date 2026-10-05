@@ -1,6 +1,7 @@
 // Harbour: the rules, case by case, and the reference solutions for every level, which must reach the level's par
 // (so a change to the rules can't quietly make a level harder, easier or impossible).
-import { start, step, run, score, period, invalid } from "../harbour-engine.js";
+import { start, step, run, score, period, invalid, flatten } from "../harbour-engine.js";
+import * as T from "../harbour-tape.js";
 import { LEVELS } from "../harbour-levels.js";
 
 let bad = 0;
@@ -61,6 +62,39 @@ for (const [name, s] of Object.entries(refs)) {
 }
 check(JSON.stringify(best) === JSON.stringify(L1.par), `level 1's par is what the references reach: ${JSON.stringify(best)}`);
 check(run(L1, sol(behind(0), behind(2))).crash?.kind === "collision", "two ships only two hours apart meet at the jetty");
+
+
+// the tape: loops, and every edit on them
+{
+  const ring = ["L", "E", "N", { n: 5, body: ["E"] }, "S", "E", "D", "W", "S", { n: 5, body: ["W"] }, "N", "W"];
+  const plays = p => flatten(p).map(op => op || " ").join("");
+  check(plays(ring) === RING && T.width(ring) === 20, "a loop plays its body n times");
+  const one = { ships: [{ x: 0, y: 2, prog: ring }] }, flat = sol([0, 2, RING]);
+  check(JSON.stringify(score(L1, one, run(L1, one))) === JSON.stringify(score(L1, flat, run(L1, flat))), "a looped program runs exactly as its hours written out");
+  const a = T.at(ring, 4);
+  check(a.kind === "ghost" && a.badge && a.n === 5 && a.op === "E", "the first ghost of a loop carries its count");
+  check(plays(T.paint(ring, 5, "N")) === "LENNNNNNSEDWSWWWWWNW", "painting a ghost paints every pass");
+  check(plays(T.insert(ring, 5, ["S"])) === "LENESESESESESSEDWSWWWWWNW", "inserting into a ghost grows the body");
+  check(plays(T.insert(ring, 3, ["S"])) === "LENSEEEEESEDWSWWWWWNW", "inserting at a loop's first hour goes before the loop");
+  check(plays(T.remove(ring, 6, 7)) === "LENEEESEDWSWWWWWNW", "removing later passes takes passes away");
+  check(plays(T.remove(ring, 3, 3)) === "LENSEDWSWWWWWNW", "removing the whole body removes the loop");
+  check(JSON.stringify(T.slice(ring, 3, 7)) === JSON.stringify([{ n: 5, body: ["E"] }]), "copying a whole loop keeps the loop");
+  check(JSON.stringify(T.slice(ring, 5, 9)) === JSON.stringify(["E", "E", "E", "S", "E"]), "copying part of a loop copies the hours it plays");
+  check(JSON.stringify(T.slice(["L"], 0, 2)) === JSON.stringify(["L", null, null]), "copying past the end keeps the empty hours");
+  check(JSON.stringify(T.loop(["L", "E", "E"], 1, 2)) === JSON.stringify(["L", { n: 2, body: ["E", "E"] }]), "picked hours become a loop played twice");
+  check(T.loop(ring, 4, 9) === null, "a loop can't start inside another");
+  check(plays(T.loop(ring, 2, 8)) === "LE" + "NEEEEES".repeat(2) + "EDWSWWWWWNW", "a loop wholly inside the pick is unrolled into the new body");
+  check(plays(T.setCount(ring, 3, 1)) === "LENESEDWSWWWWWNW", "a count of one unrolls the loop");
+  check(T.backwards(["E", "N", { n: 2, body: ["E"] }]).join("") === "WWSW", "the way back: reversed, every move turned round");
+  let p = ring;
+  for (let k = 0; k < 4; k++) p = T.shift(p, 20, true);
+  check(plays(p) === RING.slice(16) + RING.slice(0, 16), "four hours later: the same loop, four hours behind");
+  for (let k = 0; k < 4; k++) p = T.shift(p, 20, false);
+  check(plays(p) === RING, "and four hours earlier puts it back");
+  check(plays(T.shift(["E"], 3, true)) === " E", "a short row shifts inside the longest row's loop");
+  check(invalid(L1, { ships: [{ x: 0, y: 2, prog: [{ n: 2, body: [{ n: 2, body: ["E"] }] }] }] }) !== null, "loops don't nest");
+  check(invalid(L1, { ships: [{ x: 0, y: 2, prog: [{ n: 1, body: ["E"] }] }] }) !== null, "a loop plays at least twice");
+}
 
 for (const l of LEVELS) {
   const widths = new Set(l.map.map(r => r.length));

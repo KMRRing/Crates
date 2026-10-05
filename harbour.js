@@ -1,7 +1,8 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
-// compactly as you can. The rules are in harbour-engine.js and the levels in harbour-levels.js; this file draws the
-// harbour and the programs, takes taps and drags, and runs the clock.
-import { MOVES, LOAD, DISCHARGE, WAIT, grid, period, invalid, start, step, score } from "./harbour-engine.js";
+// compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
+// harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
+import { MOVES, LOAD, DISCHARGE, WAIT, grid, period, invalid, start, step, score, flatten } from "./harbour-engine.js";
+import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -11,13 +12,14 @@ const $ = id => document.getElementById(id);
 const U = 10;                         // a tile, in the map's drawing units
 const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
 const SPEED = [420, 110];             // ms an hour takes: normal, fast
+const HOLD = 450;                     // ms: holding a loop's count lowers it
 const ANGLE = { E: 0, S: 90, W: 180, N: -90 };
 const HULL = "M1.2 2.9H6.2C8.4 2.9 9.4 4 9.5 5C9.4 6 8.4 7.1 6.2 7.1H1.2Q.6 5 1.2 2.9Z";   // bow to the east
 const MEASURES = [["hire", "Hire", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`]];
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
-const svg = (body, cls = "") => `<svg viewBox="0 0 24 24" aria-hidden="true" class="${cls}">${body}</svg>`;
+const svg = body => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
 const arrow = d => `<svg viewBox="0 0 16 16" aria-hidden="true"><path transform="rotate(${ANGLE[d] + 90} 8 8)" d="M8 13V3M3.8 7.2 8 3l4.2 4.2"/></svg>`;
 const ICON = {
   undo: svg('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
@@ -25,22 +27,35 @@ const ICON = {
   step: svg('<path class="solid" d="M6 6l9 6-9 6z"/><path d="M18 5v14"/>'),
   play: svg('<path class="solid" d="M7 5l12 7-12 7z"/>'),
   pause: svg('<path d="M8 5v14M16 5v14"/>'),
+  pick: svg('<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M11 4h2M11 20h2M4 11v2M20 11v2"/>'),
+  earlier: svg('<path d="M14 6l-6 6 6 6"/>'),
+  later: svg('<path d="M10 6l6 6-6 6"/>'),
 };
-const TOOLS = [["N", "North"], ["E", "East"], ["S", "South"], ["W", "West"], [LOAD, "Load"], [DISCHARGE, "Discharge"],
-  [WAIT, "Wait"], ["+", "Insert an hour (shifts the rest right)"], ["-", "Remove an hour (shifts the rest left)"]];
-const glyph = op => (MOVES[op] ? arrow(op) : op === WAIT ? "·" : op === "-" ? "−" : op);
-const opName = op => TOOLS.find(t => t[0] === op)?.[1] || "nothing";
+const PAINT = [["N", "North"], ["E", "East"], ["S", "South"], ["W", "West"], [LOAD, "Load"], [DISCHARGE, "Discharge"], [WAIT, "Wait"]];
+const ACTIONS = [["copy", "Copy", "Copy"], ["paste", "Paste", "Paste"], ["insert", "Insert empty hours", "Insert"],
+  ["delete", "Delete these hours", "Delete"], ["loop", "Loop: play these hours twice (tap the count to raise it)", "Loop"],
+  ["back", "Copy the way back: reversed, each move turned round", "Back"],
+  ["earlier", "Shift an hour earlier in the loop", ICON.earlier], ["later", "Shift an hour later in the loop", ICON.later]];
+const glyph = op => (MOVES[op] ? arrow(op) : op === WAIT ? "·" : op);
+const opName = op => PAINT.find(t => t[0] === op)?.[1] || "nothing";
 
 let L = null, G = null;               // the level and its grid
 let sol = { ships: [] };              // what you've planned: each ship's start tile and program
 let sim = null;                       // the run on screen, or null while you edit
 let running = false, timer = 0, fast = false;
-let sel = -1, tool = "E";
+let sel = -1;                         // the selected ship (its row is highlighted)
+let tool = "E", mode = "paint";       // painting instructions, or picking hours to act on
+let pick = null;                      // picked hours: rows r0..r1, hours c0..c1, from the anchor (ar, ac); open: waiting for the far end
+let clip = null;                      // copied hours, one list of items per row
+let notice = "";                      // a message for the status line until the next change
 let history = [];                     // earlier plans, for Undo
 let facing = [];                      // which way each ship points (its last move), for drawing
 let drag = null;                      // a ship being dragged: { i, from, moved }
+let held = null;                      // a loop count being held down: { timer, fired }
+let sweeping = false, swept = false;  // picking hours with a mouse drag (swept: the click that ends it is already handled)
 
 const solKey = () => `harbour:sol:${L.id}`, bestKey = () => `harbour:best:${L.id}`;
+const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k => pick.r0 + k).filter(r => sol.ships[r]) : []);
 
 // ---------- the level ----------
 function load(level) {
@@ -49,7 +64,7 @@ function load(level) {
   write("harbour:level", L.id);
   const saved = read(solKey(), null);
   sol = saved?.ships && !invalid(L, saved) ? saved : { ships: [] };
-  history = []; sel = -1; sim = null;
+  history = []; sel = -1; sim = null; pick = null; notice = "";
   $("brief").textContent = L.brief;
   drawSea();
   faceStart();
@@ -77,7 +92,7 @@ function edit(change) {
   history.push(JSON.stringify(sol));
   if (history.length > 100) history.shift();
   change();
-  for (const s of sol.ships) while (s.prog.length && !s.prog[s.prog.length - 1]) s.prog.pop();
+  notice = "";
   write(solKey(), sol);
   faceStart();
   render(true);
@@ -91,17 +106,74 @@ function undo() {
   faceStart();
   render(true);
 }
-function paint(row, col) {
+const faceStart = () => { facing = sol.ships.map(s => flatten(s.prog).find(op => MOVES[op]) || "E"); };
+
+function paintCell(row, col) {
+  const prog = sol.ships[row].prog, here = T.at(prog, col);
   sel = row;
-  edit(() => {
-    const p = sol.ships[row].prog;
-    while (p.length < col) p.push(null);
-    if (tool === "+") p.splice(col, 0, null);
-    else if (tool === "-") p.splice(col, 1);
-    else p[col] = p[col] === tool ? null : tool;     // painting the same instruction again clears it
-  });
+  edit(() => { sol.ships[row].prog = T.paint(prog, col, here.op === tool ? null : tool); });   // the same instruction again clears it
 }
-const faceStart = () => { facing = sol.ships.map(s => s.prog.find(op => MOVES[op]) || "E"); };
+function count(row, col, by) {
+  const a = T.at(sol.ships[row].prog, col);
+  if (a.kind !== "ghost") return;
+  edit(() => { sol.ships[row].prog = T.setCount(sol.ships[row].prog, a.i, a.n + by); });
+}
+
+// picking: the first tap is one end, the next the other (or shift-click, or drag with a mouse); a row's number picks the row
+function pickAt(row, col, extend) {
+  if (extend && pick) pick = { ...pick, r0: Math.min(pick.ar, row), r1: Math.max(pick.ar, row), c0: Math.min(pick.ac, col), c1: Math.max(pick.ac, col), open: false };
+  else pick = { ar: row, ac: col, r0: row, r1: row, c0: col, c1: col, open: true };
+  sel = row; notice = "";
+  markPick(); fleet(); status(); toolbar();
+}
+function pickRow(row) {
+  const r0 = pick?.open ? Math.min(pick.ar, row) : row, r1 = pick?.open ? Math.max(pick.ar, row) : row;
+  const end = Math.max(1, ...sol.ships.slice(r0, r1 + 1).map(s => T.width(s.prog))) - 1;
+  pick = { ar: r0, ac: 0, r0, r1, c0: 0, c1: end, open: false };
+  sel = row; notice = "";
+  markPick(); fleet(); status(); toolbar();
+}
+function setMode(m) {
+  mode = m;
+  if (m === "paint") pick = null;
+  notice = "";
+  render(true);
+}
+
+function act(name) {
+  if (name === "paste") {
+    if (!clip || !pick) return;
+    const w = Math.max(...clip.map(T.width)), { r0, c0 } = pick;
+    edit(() => {
+      clip.forEach((items, k) => { const s = sol.ships[r0 + k]; if (s) s.prog = T.insert(s.prog, c0, items); });
+      pick = { ar: r0, ac: c0, r0, r1: Math.min(sol.ships.length - 1, r0 + clip.length - 1), c0, c1: c0 + w - 1, open: false };   // what was pasted
+    });
+    return;
+  }
+  if (!pick) return;
+  const rows = rowsPicked(), w = pick.c1 - pick.c0 + 1, { c0, c1 } = pick;
+  if (name === "copy" || name === "back") {
+    clip = rows.map(r => T.slice(sol.ships[r].prog, c0, c1));
+    if (name === "back") clip = clip.map(T.backwards);
+    notice = name === "back" ? "Way back copied: pick where it goes, then Paste." : `Copied ${w} hour${w > 1 ? "s" : ""}: pick where it goes, then Paste.`;
+    status(); toolbar();
+  } else if (name === "insert") {
+    edit(() => rows.forEach(r => { sol.ships[r].prog = T.insert(sol.ships[r].prog, c0, Array(w).fill(null)); }));
+  } else if (name === "delete") {
+    edit(() => { rows.forEach(r => { sol.ships[r].prog = T.remove(sol.ships[r].prog, c0, c1); }); pick = { ...pick, c1: c0, ac: c0, open: false }; });
+  } else if (name === "loop") {
+    const looped = rows.map(r => T.loop(sol.ships[r].prog, c0, c1));
+    if (looped.some(p => !p)) { notice = "A loop can't start or end inside another loop."; status(); return; }
+    edit(() => { rows.forEach((r, k) => { sol.ships[r].prog = looped[k]; }); pick = { ...pick, c1: c0 + 2 * w - 1, open: false }; });   // body and its second pass
+  } else if (name === "earlier" || name === "later") {
+    const P = period(sol);
+    edit(() => {
+      rows.forEach(r => { sol.ships[r].prog = T.shift(sol.ships[r].prog, P, name === "later"); });
+      // shifting can leave the longest row ending in empty hours; an explicit wait keeps the loop the length it was
+      if (period(sol) < P) sol.ships[rows[0]].prog = T.paint(sol.ships[rows[0]].prog, P - 1, WAIT);
+    });
+  }
+}
 
 // the map: tap water to put a ship there, tap a ship to pick it, drag it to move it, onto land to scrap it
 function tileAt(e) {
@@ -131,7 +203,7 @@ function pointerUp(e) {
   const d = drag, t = tileAt(e);
   drag = null;
   if (d.i >= 0 && d.moved) {
-    if (!G.afloat(t.x, t.y)) edit(() => { sol.ships.splice(d.i, 1); sel = -1; });
+    if (!G.afloat(t.x, t.y)) edit(() => { sol.ships.splice(d.i, 1); sel = -1; pick = null; });
     else if (shipOn(t.x, t.y) < 0) edit(() => { Object.assign(sol.ships[d.i], { x: t.x, y: t.y }); sel = d.i; });
     else render(true);                                 // onto another ship: it goes back where it was
   } else if (d.i >= 0) { sel = sel === d.i ? -1 : d.i; render(true); }
@@ -144,7 +216,7 @@ function stop() { running = false; clearTimeout(timer); sim = null; faceStart();
 function begin() {
   if (sim) return true;
   const why = !sol.ships.length ? "Tap the water to put a ship there first." : invalid(L, sol);
-  if (why) { $("status").textContent = why; return false; }
+  if (why) { notice = why; status(); return false; }
   sim = start(L, sol);
   return true;
 }
@@ -152,7 +224,7 @@ const over = () => sim.done || sim.crash || sim.t >= L.maxCycles;
 function tick() {
   const P = period(sol), t = sim.t;
   sim = step(L, sol, sim);
-  if (!sim.crash) sol.ships.forEach((s, i) => { if (MOVES[s.prog[t % P]]) facing[i] = s.prog[t % P]; });
+  if (!sim.crash) sol.ships.forEach((s, i) => { const op = T.at(s.prog, t % P).op; if (MOVES[op]) facing[i] = op; });
   if (over()) { running = false; if (sim.done) keepBests(); }
   render();
 }
@@ -178,7 +250,7 @@ function render(still = false) {
   const map = $("map");
   map.classList.toggle("still", still);
   map.style.setProperty("--hb-hour", `${Math.round(SPEED[fast ? 1 : 0] * .9)}ms`);
-  fleet(); marks(); tape(); controls(); status();
+  fleet(); marks(); tape(); toolbar(); controls(); status();
 }
 
 function fleet() {
@@ -207,8 +279,11 @@ function marks() {
   $("marks").innerHTML = c ? `<circle class="hb-crash" cx="${c.at[0] * U + U / 2}" cy="${c.at[1] * U + U / 2}" r="4.7"/>` : "";
 }
 
+/** The programs: a row per ship, a column per hour. A loop's body is boxed, its later passes are faded, and the first of
+ * them shows the count (tap: one more pass; hold, or right-click: one fewer). Hours past the loop's end are faded too. */
 function tape() {
-  const box = $("tape"), P = period(sol), cols = Math.min(99, Math.max(16, P + 6));
+  const box = $("tape"), P = period(sol), widest = Math.max(0, ...sol.ships.map(s => T.width(s.prog)));
+  const cols = Math.min(150, Math.max(16, widest + 6, P + 6));
   const now = sim && sim.t > 0 ? (sim.t - 1) % P : -1;
   const html = [`<div class="hb-grid" style="--cols:${cols}"><span class="hb-corner"></span>`];
   for (let c = 0; c < cols; c++) html.push(`<span class="hb-colno">${c === 0 || (c + 1) % 5 === 0 ? c + 1 : ""}</span>`);
@@ -216,11 +291,19 @@ function tape() {
     const ship = sol.ships[r], off = ship ? "" : " disabled";
     html.push(`<button class="hb-lab${r === sel ? " on" : ""}" type="button" data-row="${r}"${off} aria-label="Ship ${r + 1}">${ship ? r + 1 : ""}</button>`);
     for (let c = 0; c < cols; c++) {
-      const op = ship?.prog[c] || null, cls = `hb-cell${op ? ` op-${op === WAIT ? "wait" : op}` : ""}${c >= P ? " out" : ""}${c === now && ship ? " now" : ""}`;
-      html.push(`<button class="${cls}" type="button" data-row="${r}" data-col="${c}"${off} aria-label="Ship ${r + 1}, hour ${c + 1}: ${opName(op)}">${op ? glyph(op) : ""}</button>`);
+      const a = ship ? T.at(ship.prog, c) : { kind: "past", op: null };
+      let cls = "hb-cell", body = a.op ? glyph(a.op) : "", label = `Ship ${r + 1}, hour ${c + 1}: ${opName(a.op)}`;
+      if (a.badge) { cls += " lp-badge"; body = `×${a.n}`; label = `Ship ${r + 1}: these hours play ${a.n} times`; }
+      else if (a.op) cls += ` op-${a.op === WAIT ? "wait" : a.op}`;
+      if (a.kind === "body") cls += ` lp-in${a.b === 0 ? " lp-first" : ""}${a.b === a.len - 1 ? " lp-last" : ""}`;
+      if (a.kind === "ghost" && !a.badge) cls += " lp-ghost";
+      if (c >= P) cls += " out";
+      if (c === now && ship) cls += " now";
+      html.push(`<button class="${cls}" type="button" data-row="${r}" data-col="${c}"${off} aria-label="${label}">${body}</button>`);
     }
   }
   box.innerHTML = html.join("") + "</div>";
+  markPick();
   if (now >= 0) {                                    // keep the hour being run in view
     const cell = box.querySelector(".hb-cell.now");
     const left = cell.offsetLeft - box.querySelector(".hb-lab").offsetWidth - 8, right = cell.offsetLeft + cell.offsetWidth + 8;
@@ -228,9 +311,28 @@ function tape() {
     else if (right > box.scrollLeft + box.clientWidth) box.scrollLeft = right - box.clientWidth;
   }
 }
+function markPick() {
+  const on = mode === "pick" && pick;
+  for (const l of $("tape").querySelectorAll(".hb-lab")) l.classList.toggle("on", +l.dataset.row === sel);
+  for (const b of $("tape").querySelectorAll(".hb-cell")) {
+    const r = +b.dataset.row, c = +b.dataset.col;
+    b.classList.toggle("picked", !!on && r >= pick.r0 && r <= pick.r1 && c >= pick.c0 && c <= pick.c1);
+    b.classList.toggle("anchor", !!on && pick.open && r === pick.ar && c === pick.ac);
+  }
+}
+
+/** The tools: the instructions to paint with, or, while picking, what to do with the picked hours. Same size either way. */
+function toolbar() {
+  const box = $("tools"), picking = mode === "pick";
+  const toggle = `<button class="hb-tool hb-picktool" type="button" data-act="mode" aria-pressed="${picking}" aria-label="Pick hours to copy, paste, loop or shift">${ICON.pick}</button>`;
+  const rest = picking
+    ? ACTIONS.map(([a, name, label]) => `<button class="hb-tool hb-act" type="button" data-act="${a}" aria-label="${name}"${(a === "paste" ? !clip || !pick : !pick) ? " disabled" : ""}>${label}</button>`)
+    : PAINT.map(([op, name]) => `<button class="hb-tool op-${op === WAIT ? "wait" : op}" type="button" data-op="${op}" aria-label="${name}" aria-pressed="${op === tool}">${glyph(op)}</button>`);
+  box.style.setProperty("--n", rest.length + 1);
+  box.innerHTML = toggle + rest.join("");
+}
 
 function controls() {
-  $("tools").querySelectorAll(".hb-tool").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.op === tool)));
   $("undoBtn").disabled = !history.length;
   $("runBtn").innerHTML = running ? ICON.pause : ICON.play;
   $("runBtn").setAttribute("aria-label", running ? "Pause" : "Run");
@@ -241,7 +343,13 @@ function controls() {
 function status() {
   const el = $("status"), n = sol.ships.length;
   let text, tone = "";
-  if (!sim) text = !n ? "Tap the water to put a ship there."
+  if (notice) text = notice;
+  else if (!sim && mode === "pick") {
+    const w = pick ? pick.c1 - pick.c0 + 1 : 0, rows = rowsPicked().length;
+    text = !pick ? "Tap an hour, then another to pick between."
+      : pick.open ? "Tap another hour to pick between, or act now."
+      : `${w} hour${w > 1 ? "s" : ""}${rows > 1 ? ` × ${rows} ships` : ""} picked`;
+  } else if (!sim) text = !n ? "Tap the water to put a ship there."
     : sel >= 0 ? `Ship ${sel + 1}: drag it to move it, onto land to scrap it.`
     : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · hire $${n * L.shipCost}k`;
   else if (sim.crash) {
@@ -262,21 +370,56 @@ function openMenu() {
   const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td><td>${f(L.par[k])}</td></tr>`).join("");
   $("menuBody").innerHTML = `<h3>${L.name}</h3><table class="hb-bests"><thead><tr><th></th><th>Your best</th><th>Par</th></tr></thead>`
     + `<tbody>${rows}</tbody></table><button class="btn wide" type="button" id="clearBtn">Clear this level's ships</button>`;
-  $("clearBtn").addEventListener("click", () => { edit(() => { sol.ships = []; sel = -1; }); $("menuDlg").close(); });
+  $("clearBtn").addEventListener("click", () => { edit(() => { sol.ships = []; sel = -1; pick = null; }); $("menuDlg").close(); });
   $("menuDlg").showModal();
 }
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "harbour");
 document.querySelector(".hb-mark").innerHTML = APPS.find(a => a.id === "harbour").logo;
-$("tools").innerHTML = TOOLS.map(([op, name]) =>
-  `<button class="hb-tool op-${op === WAIT ? "wait" : op === "+" ? "ins" : op === "-" ? "del" : op}" type="button" data-op="${op}" aria-label="${name}">${glyph(op)}</button>`).join("");
-$("tools").addEventListener("click", e => { const b = e.target.closest(".hb-tool"); if (b) { tool = b.dataset.op; controls(); } });
-$("tape").addEventListener("click", e => {
+$("tools").addEventListener("click", e => {
+  const b = e.target.closest(".hb-tool");
+  if (!b || b.disabled) return;
+  if (b.dataset.act === "mode") setMode(mode === "pick" ? "paint" : "pick");
+  else if (b.dataset.act) act(b.dataset.act);
+  else { tool = b.dataset.op; toolbar(); }
+});
+const tapeBox = $("tape");
+tapeBox.addEventListener("pointerdown", e => {
+  swept = false;
+  const b = e.target.closest(".hb-cell");
+  if (!b || b.disabled) return;
+  if (b.classList.contains("lp-badge")) {            // holding a loop's count takes a pass away
+    held = { fired: false, timer: setTimeout(() => { held.fired = true; count(+b.dataset.row, +b.dataset.col, -1); }, HOLD) };
+  } else if (mode === "pick" && e.pointerType === "mouse") {
+    if (sim) { stop(); render(true); }
+    sweeping = swept = true;
+    pickAt(+b.dataset.row, +b.dataset.col, e.shiftKey || !!pick?.open);   // like a tap: a second click picks between
+    e.preventDefault();
+  }
+});
+tapeBox.addEventListener("pointermove", e => {
+  if (!sweeping) return;
+  const b = document.elementFromPoint(e.clientX, e.clientY)?.closest(".hb-cell");
+  if (b && !b.disabled) pickAt(+b.dataset.row, +b.dataset.col, true);
+});
+addEventListener("pointerup", () => { if (held) clearTimeout(held.timer); sweeping = false; });
+tapeBox.addEventListener("contextmenu", e => {
+  const b = e.target.closest(".lp-badge");
+  if (b) { e.preventDefault(); if (held) { clearTimeout(held.timer); held.fired = true; } count(+b.dataset.row, +b.dataset.col, -1); }
+});
+tapeBox.addEventListener("click", e => {
   const b = e.target.closest("button");
   if (!b || b.disabled) return;
-  if (b.classList.contains("hb-lab")) { if (sim) stop(); sel = sel === +b.dataset.row ? -1 : +b.dataset.row; render(true); }
-  else paint(+b.dataset.row, +b.dataset.col);
+  const row = +b.dataset.row, col = +b.dataset.col;
+  if (b.classList.contains("lp-badge")) { if (!held?.fired) count(row, col, 1); held = null; return; }
+  if (b.classList.contains("hb-lab")) {
+    if (sim) stop();
+    if (mode === "pick") pickRow(row); else { sel = sel === row ? -1 : row; render(true); }
+    return;
+  }
+  if (mode === "paint") paintCell(row, col);
+  else if (!swept) { if (sim) { stop(); render(true); } pickAt(row, col, pick?.open || e.shiftKey); }
 });
 const map = $("map");
 map.addEventListener("pointerdown", pointerDown);
@@ -294,13 +437,26 @@ $("speedBtn").addEventListener("click", () => { fast = !fast; render(); });
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("menuDlg").addEventListener("click", e => { if (e.target === $("menuDlg")) $("menuDlg").close(); });
-// keys on a computer: space runs and pauses, S steps, R goes back to the start, Ctrl/Cmd+Z undoes
+// keys on a computer: Ctrl/Cmd with C, X, V, A and Z copy, cut, paste, pick everything and undo; Delete deletes the
+// picked hours; Escape stops picking; space runs and pauses, S steps, R goes back to the start
 addEventListener("keydown", e => {
-  if (document.activeElement !== document.body || $("menuDlg").open) return;
-  if (e.key === " ") { e.preventDefault(); play(); }
-  else if (e.key === "s") stepOnce();
-  else if (e.key === "r") { stop(); render(true); }
-  else if (e.key === "z" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); undo(); }
+  if ($("menuDlg").open || e.target.closest?.("input, textarea")) return;
+  const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+  if (mod && k === "z") { e.preventDefault(); undo(); }
+  else if (mod && k === "a") {
+    e.preventDefault();
+    if (!sol.ships.length) return;
+    if (mode !== "pick") setMode("pick");
+    pick = { ar: 0, ac: 0, r0: 0, r1: sol.ships.length - 1, c0: 0, c1: Math.max(1, ...sol.ships.map(s => T.width(s.prog))) - 1, open: false };
+    render(true);
+  } else if (mod && (k === "c" || k === "x") && pick) { e.preventDefault(); act("copy"); if (k === "x") act("delete"); }
+  else if (mod && k === "v" && clip && pick) { e.preventDefault(); act("paste"); }
+  else if ((e.key === "Delete" || e.key === "Backspace") && pick && mode === "pick") { e.preventDefault(); act("delete"); }
+  else if (e.key === "Escape" && mode === "pick") setMode("paint");
+  else if (document.activeElement !== document.body) return;   // a focused button takes space itself
+  else if (e.key === " ") { e.preventDefault(); play(); }
+  else if (k === "s" && !mod) stepOnce();
+  else if (k === "r" && !mod) { stop(); render(true); }
 });
 
 const levelSel = $("level");

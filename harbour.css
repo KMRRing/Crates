@@ -35,7 +35,7 @@
 .hb-crash { fill: none; stroke: var(--c3); stroke-width: .8; stroke-dasharray: 1.6 1.1; }
 
 /* the programs: a row per ship, a column per hour; the loop ends at the last instruction, and cells past it are faded */
-.hb-tape { margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+.hb-tape { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
   background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 10px; -webkit-overflow-scrolling: touch; }
 .hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem repeat(4, 1.7rem);
   gap: 3px; width: max-content; }
@@ -54,7 +54,7 @@
 .hb-cell svg, .hb-tool svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* the instructions to paint with, then the clock */
-.hb-tools { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 4px; margin-top: .5rem; }
+.hb-tools { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 4px; margin-top: .5rem; }
 .hb-tool { height: 38px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 8px;
   background: none; color: var(--ink); font: 800 1rem var(--font); cursor: pointer; }
 .hb-tool[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
@@ -69,6 +69,23 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hb-status.bad { color: var(--c3); }
 .hb-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
+
+/* picking hours: what's picked is tinted, the first end of a pick still waiting for the other is ringed */
+.hb-cell.picked { background: color-mix(in srgb, var(--focus) 24%, transparent); box-shadow: inset 0 0 0 1.5px var(--focus); }
+.hb-cell.anchor { box-shadow: inset 0 0 0 2.5px var(--focus); }
+.hb-act { font: 750 .66rem/1 var(--font); font-stretch: 87.5%; letter-spacing: -.01em; }
+.hb-tool:disabled { opacity: .35; cursor: default; }
+.hb-tool svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.hb-picktool[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+
+/* loops: the body boxed in the loop colour; its later passes faded, the first of them showing the count */
+.harbour { --hb-loop: var(--p1); }
+.hb-cell.lp-in { border-radius: 2px; box-shadow: inset 0 2px 0 var(--hb-loop), inset 0 -2px 0 var(--hb-loop); }
+.hb-cell.lp-first { border-radius: 6px 2px 2px 6px; box-shadow: inset 2px 0 0 var(--hb-loop), inset 0 2px 0 var(--hb-loop), inset 0 -2px 0 var(--hb-loop); }
+.hb-cell.lp-last { border-radius: 2px 6px 6px 2px; box-shadow: inset -2px 0 0 var(--hb-loop), inset 0 2px 0 var(--hb-loop), inset 0 -2px 0 var(--hb-loop); }
+.hb-cell.lp-first.lp-last { border-radius: 6px; box-shadow: inset 0 0 0 2px var(--hb-loop); }
+.hb-cell.lp-ghost { opacity: .45; }
+.hb-cell.lp-badge { background: var(--hb-loop); color: #fff; font-size: .74rem; border-radius: 999px; }
 
 /* Menu: your best on each measure beside the level's par */
 .hb-bests { width: 100%; margin: .2rem 0 .6rem; border-collapse: collapse; }

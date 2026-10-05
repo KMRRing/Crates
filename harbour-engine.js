@@ -20,10 +20,22 @@ export function grid(level) {
   return { w, h, at, afloat: (x, y) => !["land", "off"].includes(at(x, y)) };
 }
 
-/** The loop's length: the longest program, up to its last instruction (empty cells after it don't count). */
-export function period(solution) {
-  return Math.max(1, ...solution.ships.map(s => s.prog.reduce((n, op, i) => (op ? i + 1 : n), 0)));
+/** A program as it plays, hour by hour. A program is a row of items: an instruction (null for an empty hour) or a loop
+ * { n, body } that plays its body n times (harbour-tape.js edits them). */
+export function flatten(prog) {
+  const out = [];
+  for (const it of prog) if (it && typeof it === "object") for (let k = 0; k < it.n; k++) out.push(...it.body); else out.push(it ?? null);
+  return out;
 }
+
+/** The loop's length: the longest program, up to its last instruction (empty hours after it don't count). */
+export function period(solution) {
+  return Math.max(1, ...solution.ships.map(s => flatten(s.prog).reduce((n, op, i) => (op ? i + 1 : n), 0)));
+}
+
+const okOp = op => op === null || OPS.includes(op);
+const okItem = it => okOp(it) || (!!it && typeof it === "object" && Number.isInteger(it.n) && it.n >= 2 && it.n <= 99
+  && Array.isArray(it.body) && it.body.length > 0 && it.body.every(okOp));
 
 /** Why a solution can't run as placed: ships off the water, two on one tile, too many. null when it can. */
 export function invalid(level, solution) {
@@ -33,7 +45,7 @@ export function invalid(level, solution) {
     if (!g.afloat(s.x, s.y)) return `Ship ${i + 1} isn't on water`;
     if (seen.has(`${s.x},${s.y}`)) return `Two ships start on one tile`;
     seen.add(`${s.x},${s.y}`);
-    if (s.prog.some(op => op && !OPS.includes(op))) return `Ship ${i + 1} has an unknown instruction`;
+    if (!Array.isArray(s.prog) || !s.prog.every(okItem)) return `Ship ${i + 1}'s program has something it can't run`;
   }
   return null;
 }
@@ -47,8 +59,8 @@ export function start(level, solution) {
 /** One hour: a new state (the old one is left as it was, so the page can step and redraw from either). */
 export function step(level, solution, state) {
   if (state.done || state.crash) return state;
-  const g = grid(level), P = period(solution), t = state.t;
-  const op = i => solution.ships[i].prog[t % P] || WAIT;
+  const g = grid(level), P = period(solution), t = state.t, plays = solution.ships.map(s => flatten(s.prog));
+  const op = i => plays[i][t % P] || WAIT;
   const from = state.ships, to = from.map((s, i) => { const d = MOVES[op(i)]; return d ? { x: s.x + d[0], y: s.y + d[1] } : { x: s.x, y: s.y }; });
   const next = { ...state, t: t + 1, events: [] };
   const crash = (kind, ships, at) => ({ ...next, crash: { kind, ships, at, t: t + 1 } });
