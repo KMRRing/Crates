@@ -2,7 +2,7 @@
 // Keeps every file of every game on the device, so the games open and play offline. The version changes with
 // any file, so devices fetch the new set in the background; it waits until the app is off screen to take over
 // (see pwa.js). Requests to other sites (Firebase, for playing together) go straight to the network.
-const VERSION = "a9d1d372026a";
+const VERSION = "23c44e9c7aab";
 const CACHE = `crates-${VERSION}`;
 const FILES = [
   "./",
@@ -155,16 +155,22 @@ self.addEventListener("activate", event => {
 self.addEventListener("message", event => { if (event.data === "take-over") self.skipWaiting(); });
 // The chess puzzle bands (puzzles/*.txt) are big and rarely change: fetched when a run needs them and kept in a
 // cache of their own, which an app update leaves alone.
-const PUZZLES = "crates-puzzles-1", PICS = "crates-pics-1";
+const PUZZLES = "crates-puzzles-1", PICS = "crates-pics-2";   // pics-2: the old one could hold refused thumbnails
 self.addEventListener("fetch", event => {
   if (event.request.method === "GET" && new URL(event.request.url).pathname.includes("/puzzles/")) {
     event.respondWith(caches.open(PUZZLES).then(cache => cache.match(event.request).then(hit => hit || fetch(event.request).then(res => { if (res.ok) cache.put(event.request, res.clone()); return res; }))));
     return;
   }
   const url = new URL(event.request.url);
-  // pictures from Wikipedia (summaries and thumbnails) are kept once fetched, in a cache of their own
-  if (event.request.method === "GET" && (url.hostname === "en.wikipedia.org" && url.pathname.startsWith("/api/rest_v1/page/summary/") || url.hostname === "upload.wikimedia.org")) {
-    event.respondWith(caches.open(PICS).then(cache => cache.match(event.request).then(hit => hit || fetch(event.request).then(res => { if (res.ok) cache.put(event.request, res.clone()); return res; }))));
+  // pictures from Wikipedia (the API's answers and the images themselves, thumbnails now served from
+  // thumb.wikimedia.org) are kept once fetched, in a cache of their own; an image fetched by an <img> comes back
+  // opaque (no CORS), which can still be kept and served back to an <img>
+  const wiki = url.hostname === "en.wikipedia.org" && url.pathname === "/w/api.php" && url.searchParams.get("prop") === "pageimages";
+  if (event.request.method === "GET" && (wiki || url.hostname === "upload.wikimedia.org" || url.hostname === "thumb.wikimedia.org")) {
+    event.respondWith(caches.open(PICS).then(cache => cache.match(event.request).then(hit => hit || fetch(event.request).then(res => {
+      if (res.ok || res.type === "opaque") cache.put(event.request, res.clone());
+      return res;
+    }))));
     return;
   }
   if (event.request.method !== "GET" || url.origin !== self.location.origin) return;
