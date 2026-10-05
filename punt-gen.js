@@ -28,7 +28,7 @@ export const LEVELS = {
   reasoning: { label: "Reasoning", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./reasoning-bank.js", note: "3 is a clear fallacy, 8 is a base-rate or selection trap. Most sit at 5–6." },
   // Words: a word, pick its synonym; Capitals and Flags: the world's countries; Patterns: what comes next
   words: { label: "Words", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./words-bank.js", note: "Advanced words at 1–4, rare at 5–7, obscure at 8–10." },
-  capitals: { label: "Capitals", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./capitals-bank.js", note: "1–3 are countries everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
+  cities: { label: "Cities", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./cities-bank.js", note: "Capitals, which country a city is in, and what a city is known for: ports, refineries, exchanges, companies, culture. 1–3 is common knowledge, 5 and up is for traders." },
   flags: { label: "Flags", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./flags-bank.js", note: "1–3 are flags everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
   patterns: { label: "Patterns", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./patterns-bank.js", note: "1–3 are counting and squares, 7 and up need two steps or a trick." },
 };
