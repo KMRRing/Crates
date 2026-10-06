@@ -63,16 +63,17 @@ function away(fromId, toId) {
 const WARMTH = [[0, "on it"], [600, "scorching"], [1500, "hot"], [3000, "warm"], [6000, "cool"], [10000, "cold"], [Infinity, "freezing"]];
 const warmth = km => WARMTH.find(([edge]) => km <= edge)[1];
 
-// ---------- the map: every country on Chart's outlines, scrolled about in its box; tap to name, tap again to guess ----------
+// ---------- the map: every country on Chart's outlines; drag to move it, pinch, scroll or the buttons to zoom; a tap
+// names a country, a second tap on it guesses it. The map moves by its own view (the SVG's viewBox), not by scrolling,
+// so a drag works with a mouse as well as a finger and there are no scrollbars ----------
 const NS = "http://www.w3.org/2000/svg", W = 1000, LAT_TOP = 84, LAT_BOTTOM = -57;
 const H = Math.round(W * (LAT_TOP - LAT_BOTTOM) / 360);
 const px = ([lon, lat]) => [((lon + 180) / 360) * W, ((LAT_TOP - lat) / (LAT_TOP - LAT_BOTTOM)) * H];
-const ZOOMS = [1, 1.6, 2.6, 4];
-let zoom = 1, chosen = null;
-const shapes = new Map();
+const MIN_W = W / 14, LABEL_PX = 34;                            // the closest zoom; a country's name shows once it's this wide on screen
+let view = null, chosen = null;
+const shapes = new Map(), labels = [];
 function drawMap() {
   const svg = $("map");
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   const land = document.createElementNS(NS, "g"), names = document.createElementNS(NS, "g");
   names.setAttribute("class", "og-names");
   for (const c of COUNTRIES) {
@@ -93,28 +94,85 @@ function drawMap() {
     path.setAttribute("class", "og-c");
     path.dataset.id = id;
     const t = document.createElementNS(NS, "title"); t.textContent = c.name; path.append(t);
-    path.addEventListener("click", () => tapCountry(id));
     land.append(path); shapes.set(id, path);
-    if (maxX - minX > 28) {                                    // big enough to carry its name; the rest name themselves on a tap
-      const [x, y] = px([c.lon, c.lat]), label = document.createElementNS(NS, "text");
-      label.setAttribute("x", x.toFixed(1)); label.setAttribute("y", y.toFixed(1)); label.setAttribute("text-anchor", "middle");
-      label.textContent = c.name; names.append(label);
-    }
+    const [x, y] = px([c.lon, c.lat]), label = document.createElementNS(NS, "text");
+    label.setAttribute("x", x.toFixed(1)); label.setAttribute("y", y.toFixed(1)); label.setAttribute("text-anchor", "middle");
+    label.textContent = c.name; names.append(label);
+    labels.push({ label, width: Math.min(maxX - minX, W / 4) });
   }
   svg.append(land, names);
-  setZoom(1, [20, 25]);
+  const box = svg.getBoundingClientRect();
+  view = { w: W / 2.2, h: (W / 2.2) * (box.height / Math.max(1, box.width)) };
+  const [cx, cy] = px([20, 25]);
+  view.x = cx - view.w / 2; view.y = cy - view.h / 2;
+  show();
 }
-function setZoom(z, centre) {
-  const box = $("mapBox"), svg = $("map");
-  const fx = centre ? px(centre)[0] / W : (box.scrollLeft + box.clientWidth / 2) / svg.clientWidth || .5;
-  const fy = centre ? px(centre)[1] / H : (box.scrollTop + box.clientHeight / 2) / svg.clientHeight || .5;
-  zoom = z;
-  const width = Math.max(box.clientWidth, 1) * 2.2 * z;
-  svg.style.width = `${width}px`; svg.style.height = `${width * H / W}px`;
-  svg.style.setProperty("--k", String(1 / z));               // names and borders stay the same size on screen
-  box.scrollLeft = fx * width - box.clientWidth / 2;
-  box.scrollTop = fy * width * H / W - box.clientHeight / 2;
-  $("zoomIn").disabled = z === ZOOMS.at(-1); $("zoomOut").disabled = z === ZOOMS[0];
+/** Draws the current view, kept inside the map; names and lines keep their size on screen at any zoom. */
+function show() {
+  const svg = $("map"), box = svg.getBoundingClientRect(), aspect = box.height / Math.max(1, box.width);
+  view.w = Math.min(W, Math.max(MIN_W, view.w)); view.h = view.w * aspect;
+  view.x = Math.min(W - view.w, Math.max(0, view.x));
+  view.y = view.h >= H ? (H - view.h) / 2 : Math.min(H - view.h, Math.max(0, view.y));
+  svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
+  const k = view.w / Math.max(1, box.width);                    // map units per screen pixel
+  svg.style.setProperty("--k", String(k));
+  for (const { label, width } of labels) label.style.display = width / k >= LABEL_PX ? "" : "none";
+  $("zoomIn").disabled = view.w <= MIN_W + 1e-6; $("zoomOut").disabled = view.w >= W - 1e-6;
+}
+/** Zooms by a factor around a point on screen (client coordinates); without one, around the middle. */
+function zoomBy(factor, at) {
+  const box = $("map").getBoundingClientRect();
+  const fx = at ? (at.x - box.left) / box.width : .5, fy = at ? (at.y - box.top) / box.height : .5;
+  const wx = view.x + fx * view.w, wy = view.y + fy * view.h;
+  view.w = Math.min(W, Math.max(MIN_W, view.w * factor));
+  view.h = view.w * box.height / Math.max(1, box.width);
+  view.x = wx - fx * view.w; view.y = wy - fy * view.h;
+  show();
+}
+// pointers: one moves the map (a tap if it barely moved), two pinch
+const pointers = new Map();
+let gesture = null;
+function wireMap() {
+  const svg = $("map");
+  svg.addEventListener("pointerdown", e => {
+    svg.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const box = svg.getBoundingClientRect(), pts = [...pointers.values()];
+    gesture = pts.length === 1
+      ? { kind: "pan", from: pts[0], view: { ...view }, moved: false, scale: view.w / box.width }
+      : { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), w: view.w, moved: true };
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!pointers.has(e.pointerId) || !gesture) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = [...pointers.values()];
+    if (gesture.kind === "pan" && pts.length === 1) {
+      const dx = pts[0].x - gesture.from.x, dy = pts[0].y - gesture.from.y;
+      if (Math.hypot(dx, dy) > 6) gesture.moved = true;
+      if (!gesture.moved) return;
+      view.x = gesture.view.x - dx * gesture.scale; view.y = gesture.view.y - dy * gesture.scale;
+      show();
+    } else if (gesture.kind === "pinch" && pts.length >= 2) {
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      zoomBy((gesture.w * gesture.d / Math.max(1, d)) / view.w, { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 });
+    }
+  });
+  const end = e => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.delete(e.pointerId);
+    if (gesture?.kind === "pan" && !gesture.moved && e.type === "pointerup") {        // a tap: the country under it
+      const hit = document.elementsFromPoint(e.clientX, e.clientY).find(n => n.classList?.contains("og-c"));
+      if (hit) tapCountry(hit.dataset.id);
+    }
+    if (!pointers.size) gesture = null;
+    else if (pointers.size === 1) { const p = [...pointers.values()][0]; gesture = { kind: "pan", from: p, view: { ...view }, moved: true, scale: view.w / $("map").getBoundingClientRect().width }; }
+  };
+  svg.addEventListener("pointerup", end);
+  svg.addEventListener("pointercancel", end);
+  svg.addEventListener("wheel", e => { e.preventDefault(); zoomBy(Math.exp(e.deltaY * 0.0015), { x: e.clientX, y: e.clientY }); }, { passive: false });
+  $("zoomIn").addEventListener("click", () => zoomBy(1 / 1.6));
+  $("zoomOut").addEventListener("click", () => zoomBy(1.6));
+  addEventListener("resize", () => view && show());
 }
 function tapCountry(id) {
   const R = round();
@@ -265,8 +323,7 @@ function openMenu() {
 document.querySelector(".og-mark").innerHTML = APPS.find(a => a.id === "origin").logo;
 bindSwitcher($("appsBtn"), "origin");
 drawMap();
-$("zoomIn").addEventListener("click", () => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom) + 1)]));
-$("zoomOut").addEventListener("click", () => setZoom(ZOOMS[Math.max(0, ZOOMS.indexOf(zoom) - 1)]));
+wireMap();
 $("guessIn").addEventListener("input", suggest);
 $("guessIn").addEventListener("blur", () => setTimeout(hideSuggest, 150));
 $("guessIn").addEventListener("keydown", e => {

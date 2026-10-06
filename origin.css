@@ -35,10 +35,11 @@
 
 /* the world map: scrolled about in its box (both ways), countries tapped; guessed ones take their warmth, the answer green */
 .og-mapwrap { position: relative; flex: none; }
-.og-map { position: relative; height: 34vh; min-height: 9rem; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--tile-edge); border-radius: 8px; background: color-mix(in srgb, var(--c2, #2C5B8A) 14%, var(--sheet)); }
-.og-map svg { display: block; }
-.og-c { fill: var(--tile); stroke: var(--tile-edge); stroke-width: calc(.6px * var(--k, 1)); cursor: pointer; vector-effect: non-scaling-stroke; }
+.og-map { position: relative; height: 34vh; min-height: 9rem; overflow: hidden; border: 1px solid var(--tile-edge); border-radius: 8px;
+  background: color-mix(in srgb, var(--c2, #2C5B8A) 14%, var(--sheet)); }
+.og-map svg { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.og-map svg:active { cursor: grabbing; }
+.og-c { fill: var(--tile); stroke: var(--tile-edge); stroke-width: calc(.6px * var(--k, 1)); vector-effect: non-scaling-stroke; }
 .og-c:hover { fill: color-mix(in srgb, var(--brass) 18%, var(--tile)); }
 .og-c.og-chosen { fill: color-mix(in srgb, var(--brass) 45%, var(--tile)); stroke: var(--ink); stroke-width: 1.4px; }
 .og-c.og-scorching { fill: #D2462E; } .og-c.og-hot { fill: #E07A3A; } .og-c.og-warm { fill: #E2B04A; }
