@@ -13,7 +13,8 @@
 // a real Regulator, and nobody else can tell whether there was an answer) or pays 4 dice to sanction a player,
 // who loses a gold die. Legal blocks steals and sanctions. Any claim, blocks included, can be challenged by the
 // player it's aimed at (the next player when it's aimed at no one, the claimant when it's a block): whoever is
-// wrong pays the other 3 dice (a caught bluffer, or a wrong challenger, and the proof is shown). The bid raises
+// wrong pays the other 3 dice (a caught bluffer, or a wrong challenger, and the proof is shown: its owner keeps it
+// shown or puts it back, rerolled unseen). The bid raises
 // the standing "at least N dice show face F" or calls it: the referee says only whether it held, and the loser
 // pays the winner 3 dice. Penalties are paid in plain dice to the winner; if you can't pay in full, you also lose
 // a gold die; with no gold dice left you're out. A player with a full hand of plain dice (8) has to hit. The last
@@ -41,8 +42,11 @@ export const ABILITIES = {
 // question is a free move, once a turn, rather than the turn's action.
 // askAfterMove: the free question comes after your move (it informs the bid, not the move); fixerFirst: the Fixer's
 // free reroll comes before your move (dice that land face up stay seen for a round). Both on since October 2026.
+// provenReroll: the gold die that proves a challenged claim (or block) is shown, and then: "may", the claimant keeps
+// it shown or puts it back, rerolled unseen (keepProof; since October 2026); "keep", it stays shown; "must", it goes
+// back, as Coup's proven card does.
 export const RULES = { gold: 2, plain: 3, cap: 8, hit: 7, bluffStake: 3, challengeStake: 3, callStake: 3, sanction: 4, banker: 3, steal: 2,
-  goldStakes: false, freeAsk: true, askAfterMove: true, fixerFirst: true };
+  goldStakes: false, freeAsk: true, askAfterMove: true, fixerFirst: true, provenReroll: "may" };
 // Questions about one player's whole hand (gold and plain), answered both ways. A "face" here means the face
 // itself: 1s count only when the question is about 1s.
 export const QUESTIONS = {
@@ -266,9 +270,15 @@ export function respond(s, decision) {
   }
   s.pending = null;
   if (choice === "challenge") {
-    if (!settleChallenge(s, claimant, challenger, c.role)) return finish(s, c);
-    if (claimant.out) return finish(s, c);
+    const proof = settleChallenge(s, claimant, challenger, c.role);
+    if (!proof || claimant.out) return finish(s, c);
+    if (offerProof(s, claimant, proof, c, "power")) return s;
   } else emit(s, { t: "allow", p: challenger.i, claimant: claimant.i });
+  return afterClaim(s, c);
+}
+/** A claim that stands takes effect (unless the claimant or its target is out by now), and the turn goes on. */
+function afterClaim(s, c) {
+  const claimant = s.players[c.claimant];
   if (!claimant.out && (c.target == null || !s.players[c.target].out)) power(s, claimant, c, c.picks);
   return finish(s, c);
 }
@@ -283,22 +293,52 @@ export function respondBlock(s, challenge) {
   s.pending = null;
   const blocker = s.players[b.claimant], actor = s.players[b.challenger], c = b.base;
   if (!challenge) { emit(s, { t: "blocked", p: actor.i, by: blocker.i }); return finish(s, c); }
-  const held = settleChallenge(s, blocker, actor, b.role);
-  if (!held && !actor.out && !blocker.out) power(s, actor, c, c.picks);
+  const proof = settleChallenge(s, blocker, actor, b.role);
+  if (!proof) { if (!actor.out && !blocker.out) power(s, actor, c, c.picks); return finish(s, c); }
+  if (!blocker.out && offerProof(s, blocker, proof, c, "blocked")) return s;
   return finish(s, c);
 }
 
+/**
+ * After a proof is shown (RULES.provenReroll "may"), the claimant decides what becomes of the die: kept shown, it's a
+ * role nobody will challenge again; put back, it's rerolled unseen and their gold dice are hidden again. The game
+ * waits (s.pending, type "proof") and keepProof answers; then the claim takes effect, or the block stands.
+ */
+function offerProof(s, p, proof, c, then) {
+  if (RULES.provenReroll !== "may" || s.over || !p.dice.includes(proof)) return false;
+  s.pending = { type: "proof", claimant: p.i, die: proof.id, role: proof.face, then, base: c };
+  return true;
+}
+/** The claimant's answer to a proof: keep the die shown (true) or put it back, rerolled unseen (false). Returns s. */
+export function keepProof(s, keep) {
+  const x = s.pending;
+  if (!x || x.type !== "proof") throw new Error("no proof to keep or put back");
+  s.pending = null;
+  const p = s.players[x.claimant], die = p.dice.find(d => d.id === x.die);
+  if (die && !keep) putBack(s, p, die, x.role);
+  else emit(s, { t: "kept", p: p.i, die: x.die, role: x.role });
+  return x.then === "power" ? afterClaim(s, x.base) : finish(s, x.base);
+}
+/** A proven gold die goes back in the cup: rerolled, seen only by its owner (the table learns which role it was). */
+function putBack(s, p, die, role) {
+  die.face = roll(s.r);
+  die.open = false;
+  emit(s, { t: "putBack", p: p.i, die: die.id, role }, { [p.i]: { faces: facesOf(p) } });
+}
+
 /** A challenge: the claimant's gold dice either show the role or not. Returns whether the claim held. */
+/** Settles a challenge; returns the gold die that proves the claim, or null for a bluff caught. */
 function settleChallenge(s, claimant, challenger, role) {
   const proof = gold(claimant).find(d => d.face === role);
   if (proof) {
     emit(s, { t: "challenge", p: challenger.i, claimant: claimant.i, role, held: true, die: { id: proof.id, face: proof.face } });
     if (RULES.goldStakes) loseGold(s, challenger, "challenge"); else pay(s, challenger, claimant, RULES.challengeStake);
-    return true;
+    if (RULES.provenReroll === "must" && claimant.dice.includes(proof)) putBack(s, claimant, proof, role);
+    return proof;
   }
   emit(s, { t: "challenge", p: challenger.i, claimant: claimant.i, role, held: false });
   if (RULES.goldStakes) loseGold(s, claimant, "challenge"); else pay(s, claimant, challenger, RULES.bluffStake);
-  return false;
+  return null;
 }
 
 /** After a claim is settled: a free move returns to where the turn was; an action moves on to the bid. */

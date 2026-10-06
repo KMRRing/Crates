@@ -102,7 +102,7 @@ export class Mind {
         this.drop(e.target, [].concat(e.lost));
         this.add(e.p, e.dice.map(d => ({ ...d, kind: "plain" })), "public");
         break;
-      case "reroll": case "freeReroll": {
+      case "reroll": case "freeReroll": case "putBack": {   // a die rerolled unseen, a proven one put back included
         const ids = e.dice || [e.die];
         this.forget(e.p, ids);
         this.changed(e.p);
@@ -260,6 +260,17 @@ export class Player {
   sync(game, see) {
     this.mind.follow(game, e => see(e, this.seat));
     this.publicMind.follow(game, e => ({ ...e, priv: undefined }));
+  }
+
+  /**
+   * After its claim is proven: keep the die shown, or put it back (rerolled unseen)? A shown Banker is income nobody
+   * will challenge and a shown Legal a block nobody will test; any other face is worth more hidden again, since a
+   * gold die everyone has seen tells the table one of your roles for the rest of the game. That puts about three
+   * proofs in four back; in 400-game tests it played alike with putting every one back.
+   */
+  keepProof(game) {
+    const c = game.pending, die = game.players[this.seat].dice.find(d => d.id === c?.die);
+    return !!die && (die.face === 2 || die.face === 5);
   }
 
   /** Chooses this turn's action. */

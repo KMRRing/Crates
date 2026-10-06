@@ -1,7 +1,7 @@
 // Cartel: you against computer players. Rules and the referee are in cartel-engine.js, the players in
 // cartel-ai.js. Your view is built the same way theirs is: a Mind follows the events as your seat sees them,
 // so the table shows exactly what you could know, no more.
-import { newGame, act, respond, respondBlock, freeReroll, freeAsk, bid, seen, mustHit, rng, ROLES, ABILITIES, RULES, totalDice } from "./cartel-engine.js";
+import { newGame, act, respond, respondBlock, keepProof, freeReroll, freeAsk, bid, seen, mustHit, rng, ROLES, ABILITIES, RULES, totalDice } from "./cartel-engine.js";
 import { Player, Mind, PERSONAS } from "./cartel-ai.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -109,6 +109,12 @@ function loop() {
   render();
   if (g.over) { showOver(); return; }
   const c = g.pending;
+  if (c?.type === "proof") {                        // a proven claim: its owner keeps the die shown or puts it back
+    if (c.claimant === ME) { showProof(); return; }
+    const ai = ais[c.claimant];
+    schedule(() => { keepProof(g, ai.keepProof(g)); loop(); });
+    return;
+  }
   if (c) {
     if (c.challenger === ME) { showChallenge(); return; }
     const ai = ais[c.challenger];
@@ -278,6 +284,8 @@ function turnLines(turn) {
       case "pass": out.push(move = { text: "Passed", cls: "act" }); break;
       case "hit": out.push(move = { text: `Hit ${who(e.target)}`, cls: "act" }); break;
       case "challenge": finish(e.held ? ": true" : ": a bluff, caught"); if (!e.held && move) move.cls = "bad"; break;
+      case "kept": finish(", kept shown"); break;
+      case "putBack": finish(", put back"); break;
       case "block": finish(`: blocked (${ROLES[e.role]})`); break;
       case "banker": finish(" +3"); break;
       case "trader": finish(e.none ? ": nothing" : `: stole ${e.lost.length}`); break;
@@ -475,6 +483,8 @@ function line(e) {
     case "trader": return x.none ? `${n(x.p)} ${verb(x.p, "get")} nothing.` : `${n(x.p)} ${verb(x.p, "steal")} ${x.lost.length} from ${x.target === ME ? "you" : n(x.target)}.`;
     case "audit": return `${n(x.p)} ${verb(x.p, "look")} at all of ${x.target === ME ? "your" : `${n(x.target)}'s`} dice${x.faces ? `: ${Object.values(x.faces).join(", ")}` : ""}.`;
     case "freeReroll": return `${n(x.p)} ${verb(x.p, "reroll")} a die.`;
+    case "kept": return `${n(x.p)} ${verb(x.p, "keep")} the proven ${ROLES[x.role]} shown.`;
+    case "putBack": return `${n(x.p)} ${verb(x.p, "put")} the proven ${ROLES[x.role]} back in the cup, rerolled unseen.`;
     case "inquiry": return x.unanswered
       ? `The referee doesn't answer: your gold dice don't show a Regulator.`
       : `${n(x.p)} ${verb(x.p, "ask")} the referee how many ${faceLabel(x.face)} are out${x.count != null ? `: ${x.count}` : ""}.`;
@@ -569,7 +579,9 @@ function renderControls() {
     return;
   }
   if (g.turn !== ME || g.pending) {
-    el("p", "ct-waiting", box, g.pending ? `${name(g.pending.challenger)} ${verb(g.pending.challenger, "decide")} whether to challenge…` : `${name(g.turn)} is thinking…`);
+    const c = g.pending;
+    el("p", "ct-waiting", box, c?.type === "proof" ? `${name(c.claimant)} ${verb(c.claimant, "decide")} whether to keep the ${ROLES[c.role]} shown…`
+      : c ? `${name(c.challenger)} ${verb(c.challenger, "decide")} whether to challenge…` : `${name(g.turn)} is thinking…`);
     return;
   }
   const tray = el("section", "ct-tray", box);
@@ -719,6 +731,18 @@ function showChallenge() {
   }
   if (!$("challengeDlg").open) $("challengeDlg").showModal();
 }
+/** Your claim (or block) was proven: keep the gold die shown, or put it back in the cup. */
+function showProof() {
+  const c = g.pending, role = ROLES[c.role];
+  $("proofText").textContent = `Your ${role} is proven.`;
+  $("proofKnow").textContent = `Keep it shown and nobody will challenge your ${role} while it stays; but everyone knows one of your gold dice. ` +
+    `Put it back and it's rerolled unseen: your gold dice are hidden again, and it may come up as another role.`;
+  if (!$("proofDlg").open) $("proofDlg").showModal();
+}
+function answerProof(keep) {
+  $("proofDlg").close();
+  play(() => keepProof(g, keep));
+}
 /** What losing a challenge costs, in words: "pay 3 dice (a gold die if short)". */
 function stakeText(verbForm, challenger = false) {
   if (RULES.goldStakes) return `lose a gold die`;
@@ -768,7 +792,7 @@ function openMenu() {
   part(body, "content").append(label, row);
   part(body, "settings").append(choice("Computer turns", Object.entries(PACES).map(([id, p]) => [id, p.label]), pace(), id => {
     try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
-    const computerDue = g.pending ? g.pending.challenger !== ME : g.turn !== ME;
+    const c = g.pending, computerDue = c ? (c.type === "proof" ? c.claimant : c.challenger) !== ME : g.turn !== ME;
     if (!g.over && computerDue) loop();                        // a move already waiting takes the new pace
   }));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -797,6 +821,9 @@ $("historyClose").addEventListener("click", () => $("historyDlg").close());
 $("overClose").addEventListener("click", () => $("overDlg").close());
 $("overNew").addEventListener("click", () => { $("overDlg").close(); startGame(); });
 $("challengeBtn").addEventListener("click", () => answer(true));
+$("keepBtn").addEventListener("click", () => answerProof(true));
+$("putBackBtn").addEventListener("click", () => answerProof(false));
+$("proofDlg").addEventListener("cancel", e => e.preventDefault());   // a choice has to be made: Escape doesn't skip it
 $("allowBtn").addEventListener("click", () => answer(false));
 $("challengeDlg").addEventListener("cancel", e => e.preventDefault());   // a claim against you needs an answer
 $("app").addEventListener("click", tapOn);

@@ -16,7 +16,8 @@ for (let g = 0; g < games; g++) {
   for (let guard = 0; !s.over && guard < 4000; guard++) {
     for (const ai of ais) ai.sync(s, E.seen);
     try {
-      if (s.pending?.type === "block") E.respondBlock(s, ais[s.pending.challenger].challengeBlock(s));
+      if (s.pending?.type === "proof") E.keepProof(s, ais[s.pending.claimant].keepProof(s));   // a proven claim's die: kept or put back
+      else if (s.pending?.type === "block") E.respondBlock(s, ais[s.pending.challenger].challengeBlock(s));
       else if (s.pending) E.respond(s, ais[s.pending.challenger].challenge(s));
       else if (s.step === "act" && !s.freeUsed && freeAsked !== s.moves) {
         freeAsked = s.moves;
@@ -76,6 +77,49 @@ if (bad) process.exitCode = 1;
   E.respond(s, { block: 5 });
   E.respondBlock(s, false);
   check(plainOf(s.players[0]) === 3 && plainOf(s.players[1]) === 3 && s.step === "bid", "an accepted block: nothing moves, and the thief goes on to bid");
+  // a proven claim: its owner keeps the die shown or puts it back (rerolled unseen); either way the claim takes effect
+  {
+    const after = (s, n) => s.events.slice(n).map(e => e.t);
+    s = setup([2, 6], [3, 4]);
+    E.act(s, { type: "claim", ability: "bank" });
+    let n = s.events.length;
+    E.respond(s, "challenge");
+    check(s.pending?.type === "proof" && s.pending.claimant === 0 && s.pending.role === 2 && plainOf(s.players[1]) === 0,
+      "a challenged Banker that's true: the challenger pays 3, and the claimant chooses what becomes of the proof");
+    E.keepProof(s, true);
+    check(after(s, n).join() === "challenge,pay,kept,banker" || (after(s, n).includes("kept") && after(s, n).indexOf("banker") > after(s, n).indexOf("kept")),
+      "kept shown: the die stays as it was shown, then the Banker takes its 3");
+    check(E.gold(s.players[0]).map(d => d.face).join() === "2,6" && s.step === "bid" && !s.pending, "…and the turn goes on to the bid");
+    s = setup([2, 6], [3, 4]);
+    E.act(s, { type: "claim", ability: "bank" });
+    E.respond(s, "challenge");
+    n = s.events.length;
+    const proofId = s.pending.die;
+    E.keepProof(s, false);
+    const back = s.events.find(e => e.t === "putBack");
+    check(back && back.role === 2 && back.priv[0]?.faces && !("faces" in E.seen(back, 1)) && !E.gold(s.players[0]).find(d => d.id === proofId).open,
+      "put back: the die is rerolled unseen (only its owner sees the new face; the table hears which role went back)");
+    check(after(s, n).indexOf("banker") > after(s, n).indexOf("putBack") && s.step === "bid", "…and the Banker still takes its 3");
+    // a proven block, put back: the block still stands
+    s = setup([3, 1], [5, 1]);
+    E.act(s, { type: "claim", ability: "steal", target: 1 });
+    E.respond(s, { block: 5 });
+    E.respondBlock(s, true);
+    check(s.pending?.type === "proof" && s.pending.claimant === 1, "a true block, challenged: the blocker chooses what becomes of its Legal");
+    E.keepProof(s, false);
+    check(plainOf(s.players[0]) === 0 && plainOf(s.players[1]) === 6 && s.step === "bid" && !s.events.some(e => e.t === "trader"),
+      "…put back, the steal stays blocked and the thief goes on to bid");
+    // the other versions of the rule, for comparison: kept always, or put back always (Coup)
+    E.RULES.provenReroll = "keep";
+    s = setup([2, 6], [3, 4]);
+    E.act(s, { type: "claim", ability: "bank" }); E.respond(s, "challenge");
+    check(!s.pending && !s.events.some(e => e.t === "putBack") && E.gold(s.players[0]).map(d => d.face).join() === "2,6", "RULES.provenReroll \"keep\": the proof stays shown, no choice");
+    E.RULES.provenReroll = "must";
+    s = setup([2, 6], [3, 4]);
+    E.act(s, { type: "claim", ability: "bank" }); E.respond(s, "challenge");
+    check(!s.pending && s.events.some(e => e.t === "putBack") && s.events.some(e => e.t === "banker"), "RULES.provenReroll \"must\": the proof goes back at once, as in Coup");
+    E.RULES.provenReroll = "may";
+  }
   // using a role doesn't reroll the gold die any more
   s = setup([2, 6], [2, 1]);
   const goldBefore = E.gold(s.players[0]).map(d => d.face).join();
