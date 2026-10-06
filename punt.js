@@ -13,7 +13,7 @@ import { dropdown } from "./dropdown.js";
 import "./pwa.js";
 import { check } from "./typing.js";
 import * as known from "./known.js";
-import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
+import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { part, choice, toggle as menuToggle, action, mirror, line, weights, ticks } from "./menu.js";
 
