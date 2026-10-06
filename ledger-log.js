@@ -14,7 +14,7 @@ export const GAPS = [
   { id: "quarter", name: "After three months", max: Infinity },
 ];
 /** Stake sizes, as Punt offers them (a share of the pot). */
-export const STAKES = [5, 10, 25, 50, 100];
+export const STAKES = [0, 5, 10, 25, 50, 100];      // 0: a pass
 export const GRADES = ["SS", "S", "A", "B", "C"];
 
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
@@ -51,7 +51,7 @@ export function noteRecall(gap, right) {
 }
 /** A Punt bet: a share `pct` (1–100) of the pot at decimal odds `odds`, won or lost. */
 export function noteStake(pct, odds, won) {
-  if (!(pct > 0)) return;
+  if (!(pct >= 0) || won == null) return;                     // a pass is a bet of 0%: it believed no more than the price
   const p = kellyChance(pct / 100, odds), tenth = Math.min(9, Math.floor(p * 10)), w = won ? 1 : 0;
   bump(["stake", weekOf(), tenth], v => { const [k, n, b] = v || [0, 0, 0]; return [k + w, n + 1, Math.round((b + (p - w) ** 2) * 1e4) / 1e4]; });
   bump(["size", weekOf(), stakeOf(pct)], v => { const [k, n] = v || [0, 0]; return [k + w, n + 1]; });

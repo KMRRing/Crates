@@ -80,13 +80,13 @@ function confidence(box, s) {
   svgEl("text", { x: x(.5), y: H - 1, "text-anchor": "middle" }, svg).textContent = "believed, %";
   const two = el("div", "lg-two", card);
   const b1 = el("div", null, two); el("b", null, b1, Number.isFinite(brier) ? brier.toFixed(3) : "–"); b1.append("Brier score: 0 is perfect; always saying 50% scores .250");
-  const b2 = el("div", null, two); el("b", null, b2, `${n}`); b2.append("bets counted (passes aren't bets)");
+  const b2 = el("div", null, two); el("b", null, b2, `${n}`); b2.append("bets counted (a pass is a bet of 0%)");
   // won, by the size of the stake: bigger stakes should win more often
   const sizes = total(s.size), bars = el("div", "lg-bars lg-sizes", card);
   for (const k of STAKES) {
     const [w, m] = sizes[k] || [0, 0];
     if (!m) continue;
-    el("span", "lab", bars, k === 100 ? "All in" : `Staked ${k}%`);
+    el("span", "lab", bars, k === 100 ? "All in" : k === 0 ? "Passed (0%)" : `Staked ${k}%`);
     el("i", null, el("span", "bar", bars)).style.width = `${pct(w, m)}%`;
     const v = el("span", "val", bars); v.append(el("b", null, null, `${pct(w, m)}%`), ` won of ${m}`);
   }

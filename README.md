@@ -131,6 +131,8 @@ Name it turns a clue round: its own hint, with the country or commodity it belon
 
 A subject bank's options (Maths, Art and the rest) come in a new order every run, with "all of the above" and its kind kept last; they used to keep the bank's order, which gave answers away.
 
+A pass is a bet of 0%: Pass waits for an answer like Bet does, the answer is kept, and every count treats it as a bet (the stats' hit rate and Kelly view, with a "passed (0%)" band; the Ledger, where a pass believed no more than the price's own chance, 1/odds, and shows as "Passed (0%)").
+
 ## Cartel
 Coup and Liar's Dice built from dice. Everyone has gold dice (lives and roles; two each) and plain dice (money and weight in the bidding; three to start, at most eight), all hidden. A face is both a number and a role: 1 Fixer, 2 Banker, 3 Trader, 4 Auditor, 5 Legal, 6 Regulator. Only gold dice give powers; every die counts in bids, 1s (Fixers) as any face.
 

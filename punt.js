@@ -193,13 +193,14 @@ function settleIfReady(g, ids) {
 function place(passing) {
   if (S.done || S.phase !== "bet") return;
   const q = question(), need = rightCount(q), typing = typedNow(q), answered = typing ? !!typed.trim() : pick.length === need;
-  if (!passing && (!answered || pct <= 0)) {
-    toast(!answered ? (typing ? "Type your answer first" : need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass");
+  // a pass is a bet of 0%: it needs an answer like any other (what you'd have said, and whether it was right, counts)
+  if (!answered || (!passing && pct <= 0)) {
+    toast(!answered ? (typing ? "Type your answer first" : need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass at 0%");
     return;
   }
   const share = passing ? 0 : Math.min(pct, maxPct());
   const bet = typing ? { ...(typed.trim() && { typed: typed.trim() }), pct: share }
-    : { pick: pick.length === need ? [...pick].sort((a, b) => a - b) : null, pct: share };
+    : { pick: [...pick].sort((a, b) => a - b), pct: share };
   const id = me(), index = S.index;
   change(g => {
     if (g.done || g.phase !== "bet" || g.index !== index) return false;
@@ -320,7 +321,7 @@ function drawBetting(q, waiting) {
     b.addEventListener("click", () => { pct = x; render(); });
     return b;
   }));
-  $("passBtn").disabled = waiting;
+  $("passBtn").disabled = waiting || !(typedNow(q) ? !!typed.trim() : pick.length === rightCount(q));   // a pass needs an answer too
   $("betBtn").disabled = waiting || (typing ? !typed.trim() : pick.length !== rightCount(q)) || pct <= 0;
   // the Bet button says it all: the stake, the odds, and what comes back if right (just the odds before a stake)
   $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · ${showOdds(offered)} · ${showChips(Math.round(stake * offered))}` : `Pays ${showOdds(offered)}`;
@@ -353,7 +354,7 @@ function drawResult(q, last) {
 }
 
 function showDone() {
-  const bets = S.log.flatMap(r => Object.entries(r.bets).filter(([id, b]) => id === me() && b.pct > 0).map(([, b]) => b));
+  const bets = S.log.flatMap(r => Object.entries(r.bets).filter(([id]) => id === me()).map(([, b]) => b));   // a pass is a bet of 0%
   const won = bets.filter(b => b.change > 0).length;
   $("doneTitle").textContent = S.pot <= 0 ? "Bust" : S.pot > START_POT ? "Up on the house" : S.pot < START_POT ? "Down on the day" : "Level";
   const avg = averageReturn(S.log) ?? 0;
@@ -592,7 +593,7 @@ function openStats(scope = "run") {
   }
   add("p", "stats", `You were right on ${pctText(st.hitRate)} of your bets; their prices needed ${pctText(st.needed)} to break even. ` +
     `Edge a bet is what each chip would have earned at equal stakes (${showReturn(st.edge)}); on staked chips is what your actual stakes earned (${showReturn(st.roi)}).` +
-    (st.passPicks ? ` On passes where you'd picked, you'd have been right ${st.passRight} of ${st.passPicks}.` : ""));
+    (st.passes ? ` Your ${st.passes} pass${st.passes === 1 ? " was a bet" : "es were bets"} of 0%: right ${st.passRight} of ${st.passes}.` : ""));
 
   add("h3", null, "Kelly");
   add("p", "stats", "How big you bet against how often bets that size came off. Kelly is the stake that grows a pot fastest in the long run, so this is the view for endless runs.");

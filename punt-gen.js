@@ -357,10 +357,11 @@ export const showChips = n => Math.round(n).toLocaleString("en-US");
 
 // ---------- how well you judge what you know ----------
 // A record is one settled question for one player: { o: odds paid, f: stake as a share of the pot (0 = pass),
-// r: 1 if the pick was right, 0 if wrong, null if passed without a pick }.
+// r: 1 if the pick was right, 0 if wrong; null only in records from before a pass needed an answer }.
+// A pass is a bet of 0%: it counts as a bet, believing no more than the price.
 
 /** Stake bands, by how much of the pot was staked: the size of a bet is how sure the player says they are. */
-export const BANDS = [{ label: "up to 10%", lo: 0, hi: 0.1 }, { label: "10% to 30%", lo: 0.1, hi: 0.3 }, { label: "over 30%", lo: 0.3, hi: 1 }];
+export const BANDS = [{ label: "passed (0%)", lo: -1, hi: 0 }, { label: "up to 10%", lo: 0, hi: 0.1 }, { label: "10% to 30%", lo: 0.1, hi: 0.3 }, { label: "over 30%", lo: 0.3, hi: 1 }];
 
 /** The Kelly stake for a chance p at odds o (the share of the pot that grows it fastest in the long run). */
 export const kellyStake = (p, o) => Math.max(0, Math.min(1, (p * o - 1) / (o - 1)));
@@ -378,7 +379,7 @@ export const kellyStake = (p, o) => Math.max(0, Math.min(1, (p * o - 1) / (o - 1
  * those hit rates would have given (with hindsight, so it flatters Kelly a little).
  */
 export function knowledgeStats(records) {
-  const bets = records.filter(x => x.f > 0), passes = records.filter(x => !(x.f > 0));
+  const bets = records.filter(x => x.r != null), passes = bets.filter(x => !(x.f > 0));   // a pass is a bet of 0%
   const mean = xs => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
   const right = bets.filter(x => x.r === 1).length;
   const out = {
@@ -388,7 +389,6 @@ export function knowledgeStats(records) {
     edge: mean(bets.map(x => (x.r === 1 ? x.o - 1 : -1))),                            // per bet, flat stakes
     roi: bets.length ? bets.reduce((t, x) => t + x.f * (x.r === 1 ? x.o - 1 : -1), 0) / bets.reduce((t, x) => t + x.f, 0) : null,
     passes: passes.length,
-    passPicks: passes.filter(x => x.r != null).length,
     passRight: passes.filter(x => x.r === 1).length,
   };
   out.bands = BANDS.map(b => {
