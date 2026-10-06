@@ -35,7 +35,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 ## Knowledge lives in kb/
 
 `kb/` is the one source for Crates, Punt's knowledge levels, Quote and Chart (README: "The knowledge base"). Edit
-`kb/`, run `node tools/build-kb.mjs`, never edit a built bank; `tests/kb.mjs` must pass.
+`kb/`, run `node tools/build-kb.mjs`, never edit a built bank; `tests/kb.mjs` must pass. Edited one anyway? `node tools/adopt-banks.mjs` brings the edits into `kb/` and checks the rebuild is byte-identical; rebuilding without it undoes them.
 
 - **Entities** have sets (what they are: country, commodity, city, painting…) and facts (position, note, year…).
 - **Links** say why two things connect. A clue link is one of Crates' pairs: the hand-written hint (the "because"), its

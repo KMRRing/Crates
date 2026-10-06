@@ -15,7 +15,7 @@ const E = new Map(ENTITIES.map(e => [e.id, e]));
 
 const files = await render(await build());
 const stale = Object.entries(files).filter(([f, text]) => fs.readFileSync(new URL(`../${f}`, import.meta.url), "utf8") !== text).map(([f]) => f);
-check(!stale.length, `every bank is built from kb/ and current (${Object.keys(files).length} banks)${stale.length ? `: stale ${stale.join(", ")}` : ""}`);
+check(!stale.length, `every bank is built from kb/ and current (${Object.keys(files).length} banks)${stale.length ? `: stale ${stale.join(", ")}; a bank edited by hand is brought into kb/ by node tools/adopt-banks.mjs (rebuilding would undo the edit)` : ""}`);
 
 check(E.size === ENTITIES.length, `${ENTITIES.length} entities, every id unique`);
 const missing = LINKS.flatMap(l => [l.from, l.to, ...(l.alt || [])]).filter(id => !E.has(id));
