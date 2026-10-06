@@ -10,11 +10,15 @@ const formula = s => /[=≥≤≈∝ΔΣ∫√±×÷^ℏπλμσ$/−²³⁴⁵�
 // options that are all names (a country, a city, a painter, a museum) vary in length by nature, not by a writer
 // padding the answer: the length rule leaves them be
 const nameLike = s => /^(the )?[A-ZÀ-Þ]/.test(s) && !/[:;]/.test(s) && s.split(/\s+/).length <= 6 && !/\d/.test(s);
+// what a player sees of an option: LaTeX between $…$ counts as it renders (\frac{a}{b} as a/b, a command as one
+// character, delimiters and braces as nothing), so markup doesn't make a typeset option look longer than it is
+const seen = s => String(s).replace(/\\(?:begin|end)\{[a-z]*\}/g, "").replace(/\\[td]?frac\{([^{}]*)\}\{([^{}]*)\}/g, "$1/$2")
+  .replace(/\\(?:operatorname|text|mathrm|mathbb|mathbf|hat|bar|sqrt)\{([^{}]*)\}/g, "$1").replace(/\\[a-zA-Z]+/g, "x").replace(/\\\\|[${}^_&]/g, "");
 export function givesAway(q) {
   const right = q.a.map(i => q.o[i]), wrong = q.o.filter((_, i) => !q.a.includes(i));
   if (!wrong.length) return false;
   if (q.o.every(nameLike)) return q.o.length >= 3 && right.every(formula) && wrong.every(s => !formula(s));
-  const rl = Math.max(...right.map(s => s.length)), wl = wrong.map(s => s.length), mean = wl.reduce((a, b) => a + b, 0) / wl.length;
+  const rl = Math.max(...right.map(s => seen(s).length)), wl = wrong.map(s => seen(s).length), mean = wl.reduce((a, b) => a + b, 0) / wl.length;
   const longest = rl > Math.max(...wl) && rl >= 1.5 * mean && rl - Math.max(...wl) >= 8;
   const onlyFormula = q.o.length >= 3 && right.every(formula) && wrong.every(s => !formula(s));
   return longest || onlyFormula;
