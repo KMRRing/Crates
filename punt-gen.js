@@ -42,6 +42,7 @@ export const LEVELS = {
   code: { label: "Code", questions: 15, spread: 0.3, maths: true, bank: "./cs-bank.js", note: "Data and algorithms, code to read, paradigms, systems and the web." },
   philosophy: { label: "Philosophy", questions: 15, spread: 0.3, maths: true, bank: "./phil-bank.js", note: "The ancients and moderns, ethics and politics, knowledge and mind." },
   religion: { label: "Religion", questions: 15, spread: 0.3, maths: true, bank: "./rel-bank.js", note: "The faiths, their calendars, food rules and etiquette: what to know before the meeting." },
+  swiss: { label: "Switzerland", questions: 15, spread: 0.3, maths: true, bank: "./swiss-bank.js", note: "Geneva, the Swiss state and its direct democracy, Swiss life and money." },
 };
 /** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
 export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
@@ -182,7 +183,7 @@ const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
 export const TOPIC_PRESETS = {
   balanced: { label: "Balanced", topics: allTopics(1) },
   trader: { label: "Trader", topics: { ...allTopics(0), countries: 1, commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, cities: 1, patterns: 1, chemistry: 1, physics: 1, code: 1 } },
-  culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1 } },
+  culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1, swiss: 1 } },
 };
 export const MIX = { label: "Topics", questions: 15, spread: 0.3 };
 LEVELS.mix = MIX;                                   // a run of topics is a level of its own (its label, its length)

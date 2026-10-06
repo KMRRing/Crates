@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -106,6 +106,27 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     if (!quoted.has(p.id)) out.quotes.push({ id: `ar-g-${p.id}`, cat: "art", q: "The year this was painted", unit: "year", scale: 25, tol: 5, note: `${dated}.`,
       tiers: { SS: 0, S: 5, A: 15, B: 30 }, d: 4, about: p.id, fact: "year" });
     if (museum.lat !== undefined && !pinned.has(museum.id)) { out.pins.push({ id: `ar-g-${museum.id}`, cat: "art", about: museum.id }); pinned.add(museum.id); }
+  }
+  // Movements as ideas, so knowing a movement means more than sorting its pictures: each movement with a card (when and
+  // where; what it rejected; what it sought; how to spot it; what lay behind it; what came next) gets four questions.
+  // Which movement rejected this, and which sought that, offer movements; how to spot it and what lay behind it offer
+  // other movements' own lines, so every wrong answer is true of something. Nearest in time first; on "against", never
+  // one of the same family (the Renaissances, the abstractions…), whose reasons overlap. The card is the explanation.
+  const carded = ENTITIES.filter(e => e.sets.includes("art-movement") && e.card).sort((a, b) => a.card.from - b.card.from);
+  const near = (m, keep) => carded.filter(o => o !== m && keep(o))
+    .sort((a, b) => Math.abs(a.card.from - m.card.from) - Math.abs(b.card.from - m.card.from) || (a.id < b.id ? -1 : 1));
+  const cardText = m => { const c = m.card; return `${m.name} (${c.where}, ${c.span}). Against ${c.against}. Seeking ${c.aim}. Spot it by ${c.tells}. Behind it: ${c.context}. Next: ${c.then}.`; };
+  const idea = (m, facet, q, right, pool) => {
+    const options = order(m.id + facet, [right, ...pool.slice(0, 3)]);
+    return { id: `AR-I-${m.id}-${facet}`, lv: "ideas", d: 5, area: "Movements as ideas", q, o: options, a: [options.indexOf(right)], s: 1, x: cardText(m), about: [m.id] };
+  };
+  for (const m of carded) {
+    // a movement the question names, even by a stem ("…against Neoclassical reason"), is never offered: it gives itself away
+    const c = m.card, any = () => true, unnamed = text => o => !text.toLowerCase().includes(o.name.toLowerCase().slice(0, 8));
+    out.art.push(idea(m, "against", `Which movement was reacting against ${c.against}?`, m.name, near(m, o => o.card.family !== c.family && unnamed(c.against)(o)).map(o => o.name)));
+    out.art.push(idea(m, "aim", `Which movement was seeking ${c.aim}?`, m.name, near(m, unnamed(c.aim)).map(o => o.name)));
+    out.art.push(idea(m, "tells", `How do you spot ${m.name}?`, c.tells, near(m, any).map(o => o.card.tells)));
+    out.art.push(idea(m, "context", `What lay behind ${m.name}?`, c.context, near(m, any).map(o => o.card.context)));
   }
   return out;
 }

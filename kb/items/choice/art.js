@@ -1,6 +1,6 @@
 // Punt's art questions (the bank art-bank.js is written from this). about: the entities a question is about, where
 // that's certain. o: the options, a: the right ones, s: how many to pick, x: the explanation, lv: the stage, d: 1–10.
-export const STAGES = [{"id":"who","label":"Who painted it"},{"id":"where","label":"Where it hangs"},{"id":"when","label":"Movement & period"},{"id":"facts","label":"The art world"}];
+export const STAGES = [{"id":"who","label":"Who painted it"},{"id":"where","label":"Where it hangs"},{"id":"when","label":"Movement & period"},{"id":"ideas","label":"Movements as ideas"},{"id":"facts","label":"The art world"}];
 export const ITEMS = [
 {"id":"AR-001","lv":"who","d":2,"area":"Who painted it","q":"Who painted this?","o":["Vincent van Gogh","Michelangelo","Raphael","Leonardo da Vinci"],"a":[3],"s":1,"x":"Mona Lisa, Leonardo da Vinci, 1503. Painted in Florence from about 1503; Leonardo took it to France, and François I bought it. Stolen in 1911 by Vincenzo Peruggia and recovered in 1913.","pic":"Mona Lisa","about":["mona-lisa"]},
 {"id":"AR-002","lv":"where","d":3,"area":"Where it hangs","q":"Where does this hang?","o":["the National Museum","the Uffizi","the Louvre","the Hermitage"],"a":[2],"s":1,"x":"Mona Lisa (Leonardo da Vinci) is in the Louvre, Paris.","pic":"Mona Lisa","about":["mona-lisa"]},

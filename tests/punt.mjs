@@ -15,7 +15,9 @@ const P = await import("../punt-gen.js");
 let bad = 0;
 // the maths bank, for the Maths level (every stage and difficulty)
 const M = await import("../maths-bank.js");
-const BANKS = { maths: M, refining: await import("../refining-bank.js"), reasoning: await import("../reasoning-bank.js"), words: await import("../words-bank.js"), cities: await import("../cities-bank.js"), flags: await import("../flags-bank.js"), patterns: await import("../patterns-bank.js"), wine: await import("../wine-bank.js"), art: await import("../art-bank.js"), economics: await import("../eco-bank.js"), physics: await import("../phy-bank.js"), chemistry: await import("../chm-bank.js"), code: await import("../cs-bank.js"), philosophy: await import("../phil-bank.js"), religion: await import("../rel-bank.js") };
+// every level that deals from a bank, as punt-gen.js declares it (so a new level is tested without touching this file)
+const BANKS = Object.fromEntries(await Promise.all(Object.entries(P.LEVELS).filter(([, L]) => L.bank)
+  .map(async ([id, L]) => [id, L.bank === "./maths-bank.js" ? M : await import(`../${L.bank.replace("./", "")}`)])));
 const stageMap = B => Object.fromEntries(B.STAGES.map(x => [x.id, x.label]));
 const mathsFor = lvl => (BANKS[lvl] ? { pool: BANKS[lvl].MATHS, stages: stageMap(BANKS[lvl]) } : null);
 for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {   // a run of topics has its own test, below
