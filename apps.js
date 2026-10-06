@@ -3,7 +3,7 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
-import { choice } from "./menu.js";
+import { choice, RETE } from "./menu.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -174,11 +174,13 @@ const KONTOR_LOGOS = {
   brut: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h8c0 5-1.5 8-4 8s-4-3-4-8z"/><path d="M12 11.5v8.5M8.5 20.5h7"/><path class="a" d="M8.4 7h7.2"/></svg>`,
 };
 const LOOK = document.documentElement.dataset.theme;
-// the games screen's title mark: Almanac's sextant, Modern's open almanac with the moon (the app's icon before Deco),
-// Kontor's open book in line, its right-hand page ruled in green
+// the games screen's title mark: Almanac's sextant in brass on navy, Modern's flat on a rounded tile (logo-modern.svg),
+// Kontor's in line, its scale and index arm in green: three versions of the same sextant
 const BRAND = LOOK === "modern" ? '<img src="logo-modern.svg" alt="">'
-  : LOOK === "kontor" ? '<svg class="k-ico k-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5c-2.4-1.6-5.6-1.8-8.5-1v13c2.9-.8 6.1-.6 8.5 1 2.4-1.6 5.6-1.8 8.5-1v-13c-2.9-.8-6.1-.6-8.5 1z"/><path d="M12 6.5v13"/><path class="a" d="M14.8 9.6h3.2M14.8 12.6h3.2M14.8 15.6h2"/></svg>'
+  : LOOK === "kontor" ? '<svg class="k-ico k-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8L3.9 19.1A17.3 17.3 0 0 0 20.1 19.1Z"/><path d="M7.7 11.9A9.1 9.1 0 0 0 16.3 11.9"/><path class="a" d="M6.1 20.1L6.7 18.5M9 20.8L9.3 19.2M12 21.1V19.4M15 20.8L14.7 19.2M17.9 20.1L17.3 18.5M12 3.8L14.5 19.5"/><circle class="f" cx="12" cy="3.8" r="1.2"/></svg>'
   : '<img src="logo.svg" alt="">';
+// Settings' tile: in Almanac the rete, the device every game's options button wears; in Kontor the sliders in line
+const K_SETTINGS = '<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><path class="a" d="M14 5h4v4h-4zM8 15h4v4H8z"/></svg>';
 const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LOOK === "kontor" ? KONTOR_LOGOS[id] : null) || almanac;
 
 export const APPS = [
@@ -233,7 +235,7 @@ function openSettings(host) {
 }
 
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
+      <span class="app-logo">${a.logo}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
 // the head's icons: one person (your solo code), two (your partner code), refresh (update), and close
 const ICON = {
@@ -379,7 +381,7 @@ export function bindSwitcher(button, current) {
   pop.setAttribute("aria-label", "More games");
   pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></div>
     <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}<li><button class="app-row app-settings" type="button" data-settings>
-      <span class="app-logo">${ICON.settings}</span><b class="app-name">Settings</b></button></li></ul>`;
+      <span class="app-logo">${LOOK === "modern" ? ICON.settings : LOOK === "kontor" ? K_SETTINGS : RETE}</span><b class="app-name">Settings</b></button></li></ul>`;
   dlg.appendChild(pop);
   pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
   pop.addEventListener("click", e => { if (e.target === pop) pop.close(); });    // a tap on the backdrop

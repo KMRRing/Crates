@@ -632,7 +632,10 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 
 /* the games screen's Settings (behind More) */
 .app-settings { font: inherit; color: inherit; cursor: pointer; }
-.app-settings .app-logo svg { width: 60%; height: 60%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.app-settings .app-logo svg { width: 60%; height: 60%; }
+.app-settings .app-logo svg.rete { width: 100%; height: 100%; }   /* the rete at a game logo's size */
+.app-settings .app-name, .app-name.long { letter-spacing: calc(.05em * var(--track)); }   /* long names (Settings, Refinery, Manifest) fit their tiles */   /* "Settings" fits its tile in spaced capitals */
+.app-settings .app-logo svg:not(.rete):not(.k-ico) { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .settings-body { padding: .2rem 0 .6rem; }
 .apps-pop-list .app-settings { width: 100%; }   /* a button, stretched like the game tiles beside it */
 
