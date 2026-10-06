@@ -11,6 +11,7 @@ import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { dropdown } from "./dropdown.js";
 import "./pwa.js";
+import { check } from "./typing.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { part, choice, toggle as menuToggle, action, mirror, line } from "./menu.js";
@@ -26,6 +27,7 @@ const randomSeed = () => Math.floor(Math.random() * 1e9);
 // a result: { index, pot (before), bets, change }
 let S = null;
 let pick = [];        // the options chosen on this device for the current question
+let typed = "";       // or, for a name-it question with typing on, the answer typed
 let pct = 0;          // the stake chosen on this device, as a share of the pot
 let shownDone = null;
 
@@ -119,7 +121,28 @@ function endRun() {
   change(g => { if (g.done) return false; g.done = { at: Date.now(), ended: true }; });
 }
 
-const resetChoice = () => { pick = []; pct = 0; };
+const resetChoice = () => { pick = []; typed = ""; pct = 0; };
+// Typing: a name-it question is answered by typing the name (the strictest test), unless typing is switched off in the
+// menu, when it's picked from options like any other. Each device answers its own way, so partners can differ.
+const TYPING = "punt:typing";
+const typingOn = () => { try { return localStorage.getItem(TYPING) !== "off"; } catch { return true; } };
+const typedNow = q => q?.kind === "name" && typingOn();
+/** Whether a bet's answer was right (null: a pass with nothing chosen), and the price it was laid at: a typed answer
+ * is checked against the name and pays the typed price, a pick against the options. */
+function judged(q, b) {
+  if (b?.typed != null) return { right: check(b.typed, [q.answer]).right, offered: q.typedOffered };
+  const p = picksOf(b?.pick);
+  return { right: p ? pickedRight(q, p) : null, offered: q.offered };
+}
+// the box a name is typed into, kept across redraws so typing isn't interrupted; the phone's own suggestions are off,
+// since they would turn recalling the name back into choosing it
+const typedInput = Object.assign(document.createElement("input"), { type: "text", className: "pt-typed", placeholder: "Type the name", autocomplete: "off", spellcheck: false });
+typedInput.setAttribute("autocorrect", "off");
+typedInput.setAttribute("autocapitalize", "off");
+typedInput.setAttribute("enterkeyhint", "go");
+typedInput.setAttribute("aria-label", "Your answer");
+typedInput.addEventListener("input", () => { typed = typedInput.value; drawBetting(question(), !!S.bets?.[me()]); });
+typedInput.addEventListener("keydown", e => { if (e.key !== "Enter") return; e.preventDefault(); typedInput.blur(); if (pct > 0 && typed.trim()) place(false); });
 /** A saved pick as a list (sessions saved before several-right questions stored one index). */
 const picksOf = p => (p == null ? null : Array.isArray(p) ? p : Object.values(p ?? {}).length ? Object.values(p) : [p]);
 
@@ -152,9 +175,9 @@ function settleIfReady(g, ids) {
   let total = 0;
   const bets = {};
   for (const id of ids) {
-    const { pct: share } = g.bets[id], p = picksOf(g.bets[id].pick);
-    const { stake, change: c } = p == null || !share ? { stake: 0, change: 0 } : settle(g.pot, share, pickedRight(q, p), q.offered);
-    bets[id] = { pick: p, pct: share, stake, change: c };
+    const b = g.bets[id], { pct: share } = b, p = picksOf(b.pick), { right, offered } = judged(q, b);
+    const { stake, change: c } = right == null || !share ? { stake: 0, change: 0 } : settle(g.pot, share, right, offered);
+    bets[id] = { pick: p, ...(b.typed != null && { typed: b.typed }), pct: share, stake, change: c };
     total += c;
   }
   g.log.push({ index: g.index, pot: g.pot, bets, change: total });
@@ -165,13 +188,14 @@ function settleIfReady(g, ids) {
 
 function place(passing) {
   if (S.done || S.phase !== "bet") return;
-  const need = rightCount(question());
-  if (!passing && (pick.length !== need || pct <= 0)) {
-    toast(pick.length !== need ? (need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass");
+  const q = question(), need = rightCount(q), typing = typedNow(q), answered = typing ? !!typed.trim() : pick.length === need;
+  if (!passing && (!answered || pct <= 0)) {
+    toast(!answered ? (typing ? "Type your answer first" : need > 1 ? `Pick all ${need} right answers` : "Pick an option first") : "Set a stake, or pass");
     return;
   }
-  const chosen = pick.length === need ? [...pick].sort((a, b) => a - b) : null;
-  const bet = passing ? { pick: chosen, pct: 0 } : { pick: chosen, pct: Math.min(pct, maxPct()) };
+  const share = passing ? 0 : Math.min(pct, maxPct());
+  const bet = typing ? { ...(typed.trim() && { typed: typed.trim() }), pct: share }
+    : { pick: pick.length === need ? [...pick].sort((a, b) => a - b) : null, pct: share };
   const id = me(), index = S.index;
   change(g => {
     if (g.done || g.phase !== "bet" || g.index !== index) return false;
@@ -225,7 +249,8 @@ function render() {
   $("need").textContent = need === 2 ? "Two of these are right: pick both." : `${need} of these are right: pick all ${need}.`;
   const chosen = reveal ? picksOf(last?.bets[me()]?.pick) || [] : pick;
   const anyonePicked = i => Object.values(last?.bets || {}).some(x => picksOf(x.pick)?.includes(i));
-  $("options").replaceChildren(...q.options.map((o, i) => {
+  if (reveal ? last?.bets[me()]?.typed != null || typedNow(q) : typedNow(q)) drawTyped(q, reveal, last);
+  else $("options").replaceChildren(...q.options.map((o, i) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = `pt-option${o.label.length > 18 ? " long" : ""}`;
@@ -241,7 +266,8 @@ function render() {
   }));
 
   const waiting = !reveal && !!S.bets?.[me()];
-  $("options").setAttribute("role", need > 1 ? "group" : "radiogroup");
+  if (typedNow(q) || (reveal && last?.bets[me()]?.typed != null)) $("options").removeAttribute("role");
+  else $("options").setAttribute("role", need > 1 ? "group" : "radiogroup");
   $("betting").hidden = reveal;
   $("result").hidden = !reveal;
   // at the reveal the slip has less room: keep the right answer in sight; a new question starts from the top
@@ -253,8 +279,31 @@ function render() {
   if (S.done && JSON.stringify(S.done) !== shownDone) { shownDone = JSON.stringify(S.done); showDone(); }
 }
 
+/** A name-it question answered by typing: the box to type in; at the reveal, the name, and what was typed if it differs. */
+function drawTyped(q, reveal, last) {
+  const box = $("options");
+  if (!reveal) {
+    if (box.firstChild !== typedInput || box.children.length !== 1) box.replaceChildren(typedInput);
+    if (typedInput.value !== typed) typedInput.value = typed;
+    typedInput.disabled = !!S.bets?.[me()];
+    return;
+  }
+  const mine = last?.bets[me()], res = mine?.typed != null ? check(mine.typed, [q.answer]) : null;
+  const card = document.createElement("div"), name = document.createElement("b");
+  card.className = "pt-typed-result";
+  name.textContent = q.answer;
+  card.append(name);
+  if (res && !res.exact) {
+    const you = document.createElement("span");
+    you.className = res.right ? "close" : "wrong";
+    you.textContent = res.right ? `You typed "${mine.typed}": close enough` : `You typed "${mine.typed}"`;
+    card.append(you);
+  }
+  box.replaceChildren(card);
+}
 function drawBetting(q, waiting) {
-  $("odds").textContent = showOdds(q.offered);
+  const typing = typedNow(q), offered = typing ? q.typedOffered : q.offered;
+  $("odds").textContent = showOdds(offered);
   const slider = $("stake");
   slider.max = maxPct();
   slider.value = pct;
@@ -268,9 +317,9 @@ function drawBetting(q, waiting) {
     return b;
   }));
   $("passBtn").disabled = waiting;
-  $("betBtn").disabled = waiting || pick.length !== rightCount(q) || pct <= 0;
+  $("betBtn").disabled = waiting || (typing ? !typed.trim() : pick.length !== rightCount(q)) || pct <= 0;
   // the Bet button says it all: the stake, the odds, and what comes back if right (just the odds before a stake)
-  $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · ${showOdds(q.offered)} · ${showChips(Math.round(stake * q.offered))}` : `Pays ${showOdds(q.offered)}`;
+  $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · ${showOdds(offered)} · ${showChips(Math.round(stake * offered))}` : `Pays ${showOdds(offered)}`;
 }
 
 function drawResult(q, last) {
@@ -283,7 +332,7 @@ function drawResult(q, last) {
     const parts = Object.entries(last.bets).map(([id, b]) => `${id === me() ? "You" : nameOf(id)} ${!b.pct ? "passed" : `${signed(b.change)}`}`);
     v.textContent = `${parts.join(", ")}. Pot ${signed(last.change)}.`;
   } else if (!mine || !mine.pct) {
-    const would = mine?.pick ? pickedRight(q, picksOf(mine.pick)) : null;
+    const would = judged(q, mine).right;
     v.textContent = would == null ? "Passed." : would ? "Passed: your pick was right." : "Passed: your pick was wrong.";
   }
   else v.textContent = mine.change > 0 ? `Right! ${signed(mine.change)}` : `Wrong. ${signed(mine.change)}`;
@@ -365,7 +414,7 @@ function openFlag() {
 }
 function sendFlag() {
   const q = question(), last = S.log[S.log.length - 1], mine = last?.bets[me()];
-  const picked = (picksOf(mine?.pick) || []).map(i => q.options[i]?.label).filter(Boolean);
+  const picked = mine?.typed != null ? [mine.typed] : (picksOf(mine?.pick) || []).map(i => q.options[i]?.label).filter(Boolean);
   fileFlag("punt", {
     key: flagKey(q), level: LEVELS[S.level].label, seed: S.seed, index: S.index, kind: q.kind, ask: q.ask, prompt: q.prompt,
     options: q.options.map(o => ({ label: o.label, right: !!o.right })), picked, reason: flagReason, note: $("flagNote").value.trim(),
@@ -475,8 +524,8 @@ function runRecords() {
   return S.log.map(r => {
     const b = r.bets[me()], q = S.questions[r.index];
     if (!b || !q) return null;
-    const p = picksOf(b.pick);
-    return { o: q.offered, f: (b.pct || 0) / 100, r: p ? (pickedRight(q, p) ? 1 : 0) : null };
+    const { right, offered } = judged(q, b);
+    return { o: offered, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0 };
   }).filter(Boolean);
 }
 /** Every question settled on this device, kept for the all-runs view (the most recent 5,000). */
@@ -499,7 +548,7 @@ function fileLatest() {
 function bankLatest(last) {
   const q = S.questions[last.index], mine = last.bets[me()];
   if (!q || !mine || !q.key) return;
-  const right = mine.pick ? pickedRight(q, picksOf(mine.pick)) : null;
+  const right = judged(q, mine).right;
   const key = `${S.level}/${q.key}`;
   const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level , about: q.about };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
@@ -636,7 +685,8 @@ function drawMenu() {
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
   const picks = $("mathsBar").hidden ? [] : [action($("stagesBtn").textContent, () => $("stagesBtn").click()), action($("diffsBtn").textContent, () => $("diffsBtn").click())];
   part(body, "content").append(mirror("Level", $("level")), ...picks, choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
-  part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
+  part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)),
+    menuToggle("Type name-it answers", typingOn(), on => { try { localStorage.setItem(TYPING, on ? "on" : "off"); } catch { /* private mode */ } resetChoice(); render(); }));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   if ($("avg").textContent && !$("avg").hidden) part(body, "about").append(line($("avg").textContent));
   part(body, "about").append(action("Your stats", () => openStats("run")), action("Flagged questions", () => openFlags(false)),

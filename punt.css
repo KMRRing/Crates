@@ -157,3 +157,16 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
   .pt-options > * { min-height: 44px; padding-top: .35rem; padding-bottom: .35rem; font-size: .92rem; }
   .pt-slip-body > .pt-picture:not([hidden]) { min-height: 3rem; }   /* the painting gives way before anything scrolls */
 }
+
+/* a name-it question with typing on: one box across the options' width to type the name in (16px or more, so a phone
+   doesn't zoom in on it); at the reveal, the name in the winning colour, and what was typed if it was spelled otherwise */
+.pt-typed { grid-column: 1 / -1; min-height: 52px; padding: .5rem .8rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge);
+  background: var(--sheet); color: var(--ink); font: 700 1.05rem var(--font); }
+.pt-typed:focus { outline: none; border-color: var(--pt-pick); box-shadow: inset 0 0 0 2px var(--pt-pick); }
+.pt-typed:disabled { opacity: .7; }
+.pt-typed-result { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; gap: .2rem; min-height: 52px;
+  padding: .5rem .8rem; border-radius: 10px; border: 2px solid var(--pt-win); background: color-mix(in srgb, var(--pt-win) 16%, var(--sheet)); }
+.pt-typed-result b { font-size: 1.05rem; }
+.pt-typed-result .close, .pt-typed-result .wrong { font-size: .85rem; font-weight: 700; }
+.pt-typed-result .close { color: var(--ink-soft); }
+.pt-typed-result .wrong { color: var(--pt-loss); }

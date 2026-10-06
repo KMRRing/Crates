@@ -84,3 +84,23 @@ if (bad) process.exitCode = 1;
     if (!ok) process.exitCode = 1;
   }
 }
+
+// name-it questions: a clue's own hint, with its answer and topics, the clue to name; the hint never gives the name
+// away, choosing it from options has exactly one right option and it's the name, and typing it pays at least as much
+{
+  const { normalize } = await import("../typing.js");
+  let wrong = 0;
+  for (const lvl of ["easy", "medium", "hard"]) {
+    const named = P.makeSession(4242, lvl, "hundred").filter(q => q.kind === "name");
+    if (named.length < 20) { wrong++; console.log(`FAIL ${lvl}: only ${named.length} name-it questions in 100`); }
+    for (const q of named) {
+      const right = q.options.filter(o => o.right);
+      if (right.length !== 1 || right[0].label !== q.answer) { wrong++; console.log(`FAIL ${lvl}: "${q.prompt}" offers ${right.length} right options`); }
+      if (!(q.typedOffered >= q.offered)) { wrong++; console.log(`FAIL ${lvl}: "${q.prompt}" pays ${q.typedOffered} typed, ${q.offered} chosen`); }
+      if (normalize(q.prompt).includes(normalize(q.answer))) { wrong++; console.log(`FAIL ${lvl}: "${q.prompt}" names ${q.answer}`); }
+      if (!/^Name it · /.test(q.ask)) { wrong++; console.log(`FAIL ${lvl}: ask "${q.ask}"`); }
+    }
+  }
+  console.log(wrong ? `name-it: ${wrong} FAILED` : "name-it: every question asks for one name its hint doesn't give away, and typing pays more");
+  if (wrong) process.exitCode = 1;
+}

@@ -1,5 +1,6 @@
 // Punt: a question from the Crates bank, two or four options (sometimes more than one right, and then you're
-// told how many and must pick all of them), and house odds. You pick and stake part of your pot, or pass. The
+// told how many and must pick all of them), or, for a name-it question with typing on, the answer typed, and house
+// odds. You pick and stake part of your pot, or pass. The
 // house prices each question from how hard its clue is, plus noise: sometimes it overpays, sometimes it
 // underpays. Knowing the answer is half of it; the other half is seeing when the price is wrong and sizing the
 // bet to how sure you are.
@@ -8,7 +9,8 @@
 // counts and clue difficulties is exactly the level's mix, and the house's mispricings are an even spread of its
 // noise, shuffled, averaging out to exactly its margin. Runs differ in which questions they get, never in how
 // generous the house happened to be.
-import { BANK } from "./core.js";
+import { BANK, TOPICS } from "./core.js";
+import { normalize } from "./typing.js";
 
 // questions: a standard run's length; options: how many choices a question may have (two or four, so they fill
 // the 2×2 grid: three would leave one dangling) and diff: clue difficulties, both dealt in these proportions;
@@ -49,11 +51,16 @@ export const LENGTHS = {
   endless: { label: "Endless" },
 };
 export const BATCH = 20;
-const KINDS = ["clue", "clue", "clue", "answer", "answer"];   // three clue questions to two answer questions
+// three clue questions (the clue, which answer?), two answer questions (the answer, which clue?) and two name-it
+// questions (a clue's hint, its answer and topics: name the clue), in every seven
+const KINDS = ["clue", "clue", "clue", "answer", "answer", "name", "name"];
 export const START_POT = 1000;
 
 // The house's view of how likely a typical player is to know a clue, by its difficulty.
 const KNOWS = { 1: 0.6, 2: 0.35, 3: 0.15 };
+// ...and of naming one from its hint with nothing to choose from: recall, well under half as likely as recognition
+const RECALLS = { 1: 0.3, 2: 0.12, 3: 0.05 };
+const TOPIC = Object.fromEntries(Object.values(TOPICS).flat());
 
 // ---------- random numbers ----------
 function rng(seed) {
@@ -137,7 +144,11 @@ function priceBatch(L, questions) {
   let lo = 0.5, hi = 1.5;
   for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (value(mid) > target) hi = mid; else lo = mid; }
   const k = (lo + hi) / 2;
-  for (const q of questions) { q.offered = price(k * target * q.noise / q.chance); delete q.noise; }
+  for (const q of questions) {
+    q.offered = price(k * target * q.noise / q.chance);
+    if (q.recall) q.typedOffered = price(k * target * q.noise / q.recall);   // typed, the same house view at the chance of recall
+    delete q.noise; delete q.recall;
+  }
 }
 
 /**
@@ -210,11 +221,31 @@ function answerQuestion(rnd, L, used, n, d, noise) {
   };
 }
 
+/**
+ * "Name it": a clue's own hint, with its answer and topics; name the clue. Typed, when typing is on (the strictest test
+ * of having learned it), priced at the chance of recall; otherwise picked from the answer's other clues.
+ */
+function nameQuestion(rnd, L, used, n, d, noise) {
+  const p = freshPair(rnd, used, d), a = p.a, word = BANK[a].words.find(w => w.w === p.w);
+  if (names(p.w, a) || normalize(p.hint).includes(normalize(p.w))) return null;   // nothing to recall if it's given away
+  const others = BANK[a].words.filter(w => w.w !== p.w && !names(w.w, a));
+  if (others.length < n - 1) return null;
+  const options = shuffle(rnd, [p.w, ...shuffle(rnd, others).slice(0, n - 1).map(w => w.w)]);
+  const topics = (word.topics || []).map(t => TOPIC[t]).filter(Boolean);
+  return {
+    kind: "name", cat: BANK[a].cat, prompt: p.hint, ask: `Name it · ${BANK[a].name}${topics.length ? ` · ${topics.join(", ")}` : ""}`,
+    options: options.map(w => ({ label: w, right: w === p.w })), need: 1, answer: p.w,
+    notes: [{ label: p.w, text: `${BANK[a].name}: ${p.hint}` }],
+    d: p.d, ...odds([KNOWS[p.d]], n, noise), recall: RECALLS[p.d], key: p.w,
+    about: entitiesOf([[a, p.w], [a, null]]),
+  };
+}
+
 /** A balanced batch of questions (see the top). The same seed and start always give the same batch. */
 function makeQuestions(seed, levelId, count, start, used) {
   const L = LEVELS[levelId], rnd = rng(mix(seed, start)), p = plan(rnd, L, count), out = [];
   for (let i = 0; i < count; i++) {
-    const build = p.kinds[i] === "clue" ? clueQuestion : answerQuestion;
+    const build = { clue: clueQuestion, answer: answerQuestion, name: nameQuestion }[p.kinds[i]];
     let q = null;
     for (let tries = 0; !q && tries < 80; tries++) q = build(rnd, L, used, p.options[i], p.diffs[i], p.noise[i]);
     if (!q) continue;                       // vanishingly rare: the batch is one question short
