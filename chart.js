@@ -3,7 +3,7 @@
 // countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
 // outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
 // in private and the pins are revealed side by side.
-import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM } from "./chart-engine.js";
+import { PER_SET, regionSpan, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM } from "./chart-engine.js";
 import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
@@ -167,7 +167,7 @@ function setup(canvas, w, h) {
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 /** Draws land (polygon by polygon, holes included) and borders through a projection onto a w×h context. A detailed coastline
  *  (key into DETAIL) replaces the coarse land wholly inside its box. */
-function drawMap(ctx, proj, win, w, h, detail = null) {
+function drawMap(ctx, proj, win, w, h, detail = null, fineBorders = false) {
   ctx.fillStyle = css("--ch-sea");
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = css("--ch-land");
@@ -187,7 +187,7 @@ function drawMap(ctx, proj, win, w, h, detail = null) {
   ctx.strokeStyle = css("--ch-border");
   ctx.lineWidth = span > 100 ? 0.6 : 1.1;
   ctx.beginPath();
-  for (const line of BORDERS) line.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  if (!fineBorders) for (const line of BORDERS) line.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
   ctx.stroke();
   if (span <= 60) {                                              // a light graticule helps judge scale when zoomed in
     const step = span > 30 ? 5 : span > 12 ? 2 : 1;
@@ -199,12 +199,16 @@ function drawMap(ctx, proj, win, w, h, detail = null) {
     ctx.stroke();
   }
 }
+// a reveal keeps a sub-region's scale (Lake Geneva at city scale); elsewhere it opens out to 12° at least
+const revealSpan = () => (REGIONS[S.region]?.sub ? regionSpan(S.region) : 12);
 /** A sub-region (Bavaria, Scotland, Britain) carries its outline or borders, and its rivers and lakes for bearings: drawn
  *  faintly, under the pins, whenever a round is played in it. */
 function drawRegion(ctx, proj, region) {
   const r = REGIONS[region];
-  if (!r?.outline && !r?.borders && !r?.context) return;
+  if (!r?.outline && !r?.borders && !r?.context && !r?.lakes) return;
   const trace = pts => pts.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  if (r.lakes) { ctx.beginPath(); for (const poly of DETAIL[r.lakes]) for (const ring of poly) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
+  if (r.fineBorders) { ctx.beginPath(); for (const l of DETAIL[r.fineBorders]) trace(l); ctx.strokeStyle = css("--ch-border"); ctx.lineWidth = 1.3; ctx.stroke(); }
   for (const id of r.context || []) {
     const g = GEO.find(f => f.id === id);
     if (!g) continue;
@@ -259,7 +263,7 @@ function drawMaps() {
     const canvas = $(name);
     const { proj, win, w, h } = projFor(name);
     const ctx = setup(canvas, w, h);
-    drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail);
+    drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
     drawRegion(ctx, proj, S.region || "world");
     const colour = kind => (kind === "theirs" ? "#7A4BC9" : css("--ch-in"));
     if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
@@ -350,8 +354,8 @@ function render() {
     const e = inRoom() ? Object.values(S.log)[S.index]?.pins?.[mySeat()] : S.log[S.index];
     if (p.geo) {
       const [lon0, lat0, lon1, lat1] = featureBox(p.geo), q = e || p;
-      views.world = viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, 12);
-    } else views.world = e ? viewCovering(e, p, ...SIZES.world, 12) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
+      views.world = viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, revealSpan());
+    } else views.world = e ? viewCovering(e, p, ...SIZES.world, revealSpan()) : clampView(viewAround(p.lon, p.lat, REGIONS[S.region]?.sub ? regionSpan(S.region) * 2 : 20), ...SIZES.world);
     views.revealSet = true;
   }
   if (!reveal) views.revealSet = false;

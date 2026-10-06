@@ -534,5 +534,58 @@ export const SEQUENCES = [
    "Dig in from downhill, in a relay",
    "Clear the airway first"
   ]
+ },
+ {
+  "id": "power-path",
+  "name": "The power's path through a watch",
+  "unit": "part",
+  "ask": "Which part does the power reach first? Tap where it goes",
+  "note": "From the mainspring through the wheels to the escapement, which lets it out in beats to the balance.",
+  "steps": [
+   "The mainspring, in its barrel",
+   "The centre wheel, turning once an hour",
+   "The third wheel",
+   "The fourth wheel, turning once a minute",
+   "The escape wheel",
+   "The pallet fork",
+   "The balance wheel and hairspring"
+  ]
+ },
+ {
+  "id": "horology-history",
+  "name": "Watchmaking through time",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1675, 1761, 1801, 1886, 1926, 1931, 1953, 1969, 1972, 1983.",
+  "steps": [
+   "Huygens's balance spring",
+   "Harrison's H4 crosses to Jamaica",
+   "Breguet patents the tourbillon",
+   "Geneva creates its Seal",
+   "Rolex launches the waterproof Oyster",
+   "Jaeger-LeCoultre makes the Reverso",
+   "The Submariner and the Fifty Fathoms",
+   "The Speedmaster goes to the Moon",
+   "Genta's Royal Oak",
+   "The Swatch"
+  ]
+ },
+ {
+  "id": "lake-shore",
+  "name": "Along the lake, from Geneva",
+  "unit": "town",
+  "ask": "Which comes first, from Geneva? Tap where it goes",
+  "note": "The Swiss shore, west to east: about 90 km from Geneva to Villeneuve.",
+  "steps": [
+   "Geneva",
+   "Coppet",
+   "Nyon",
+   "Rolle",
+   "Morges",
+   "Lausanne",
+   "Vevey",
+   "Montreux",
+   "Villeneuve"
+  ]
  }
 ];

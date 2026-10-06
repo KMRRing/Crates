@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -334,6 +334,25 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   const skGreats = ENTITIES.filter(e => e.sets.includes("great-skier") && e.feat);
   for (const s of skGreats) out.skiing.push(skQ("skiers", "Great skiers", `SK-G-${s.id}`, `Who ${s.feat}?`, s.name,
     skNear(s.name, skGreats.filter(o => o !== s).map(o => o.name)), `${s.name} ${s.feat}.`, [s.id], 4));
+
+  // Watches, from kb/: the manufactures by home town (unless the name says it), owner and signature; the complications,
+  // movement parts and finishes by what they do, each with its picture where its Wikipedia page shows one.
+  const wtQ = (lv, area, id, q, right, pool, x, about, d, pic) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about, ...(pic ? { pic } : {}) }; };
+  const wtNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const wtBrands = ENTITIES.filter(e => e.sets.includes("watch-brand") && e.town);
+  const wtOwner = g => ({ independent: "independent owners", Richemont: "the Richemont group", LVMH: "the LVMH group" })[g] || g, wtOwners = ["the Swatch Group", "the Richemont group", "the LVMH group", "independent owners"];
+  for (const b of wtBrands) { const x = `${b.name}: founded ${b.founded}, made in ${b.town}, ${b.group === "independent" ? "independent" : `part of ${b.group}`}; known for ${b.signature}.`;
+    if (!b.name.toLowerCase().includes(b.town.toLowerCase())) out.watches.push(wtQ("makers", "The manufactures", `WT-G-${b.id}-town`, `Where does ${b.name} make its watches?`, b.town,
+      wtNear(b.town, wtBrands.map(o => o.town)), x, [b.id], 4));
+    out.watches.push(wtQ("makers", "The manufactures", `WT-G-${b.id}-owner`, `Who owns ${b.name}?`, wtOwner(b.group), order(b.id + "o", wtOwners), x, [b.id], 5));
+    out.watches.push(wtQ("makers", "The manufactures", `WT-G-${b.id}-known`, `Which house is known for ${b.signature}?`, b.name, wtNear(b.name, wtBrands.filter(o => o !== b).map(o => o.name)), x, [b.id], 4)); }
+  for (const [set, lv, area, ask, d] of [["complication", "complications", "Complications", t => `Which complication shows ${t}?`, 4],
+    ["movement-part", "movement", "Inside the movement", t => `Which part ${t}?`, 4], ["watch-finish", "finishes", "Finishes", t => `Which finish is ${t}?`, 5]]) {
+    const all = ENTITIES.filter(e => e.sets.includes(set) && (e.does || e.desc));
+    for (const e of all) { const what = e.does || e.desc;
+      out.watches.push(wtQ(lv, area, `WT-G-${e.id}`, ask(what), e.name, wtNear(e.name, all.filter(o => o !== e).map(o => o.name)), `${e.name}: ${what}.`, [e.id], d, e.pic)); }
+  }
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

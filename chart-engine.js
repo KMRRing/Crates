@@ -154,6 +154,10 @@ export const REGIONS = {
   britain: { name: "Britain", sub: true, detail: "british-isles", window: [-8.7, 1.9, 49.8, 60.9], countries: ["United Kingdom"], local: "britain", context: ["thames", "severn"],
     borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]], [[-3.08, 53.28], [-2.93, 53.18], [-2.95, 53.0], [-3.0, 52.93], [-3.05, 52.8], [-3.12, 52.62], [-3.05, 52.45], [-3.0, 52.35], [-3.05, 52.2], [-3.0, 52.05], [-2.95, 51.95], [-2.82, 51.85], [-2.65, 51.7], [-2.65, 51.61]]] },
   alps: { name: "The Alps", sub: true, window: [5, 16.5, 43.6, 48.4], mark: "Alps", local: "ski", context: ["alps"] },
+  // Lake Geneva at city scale, and the Watch Valley along the Jura: 1:10m lakes filled and 1:10m borders in place of the
+  // coarse ones (chart-detail.js)
+  "lake-geneva": { name: "Lake Geneva", sub: true, window: [5.85, 7.05, 46.12, 46.7], mark: "Lake Geneva", local: "leman", lakes: "jura-lakes", fineBorders: "jura-borders" },
+  "watch-valley": { name: "Watch Valley", sub: true, window: [5.8, 8.9, 46.1, 47.85], mark: "Watch Valley", local: "horology", lakes: "jura-lakes", fineBorders: "jura-borders" },
   china: { name: "China", sub: true, window: [73, 135, 18, 54], countries: ["China"], local: "china", context: ["yangtze", "yellow"] },
   scotland: { name: "Scotland", sub: true, detail: "british-isles", window: [-7.8, -0.6, 54.5, 60.9], state: "Scotland", local: "scotland", borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]]] },
   // its outline (traced roughly, for bearings), and the rivers and lakes drawn under it (ids in chart-geo.js)
@@ -219,7 +223,10 @@ export function regionsOfPlace(p, regionOf) {
 /** The view a question opens on in a region: its window, fitted to the map. */
 export function regionView(region, w, h) {
   const [lon0, lon1, lat0, lat1] = REGIONS[region].window;
-  return viewFitting([{ lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }], w, h, { pad: 1.02 });
+  return viewFitting([{ lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }], w, h, { pad: 1.02, minSpan: regionSpan(region) });
 }
+/** The narrowest view worth showing in a region: 6° of longitude in a continent or the world, and in a small region
+ *  (Lake Geneva, 1.2° across) its own width, down to the 1.5° the map can zoom to. Used for its opening and reveals. */
+export const regionSpan = region => Math.max(1.5, Math.min(6, REGIONS[region] ? REGIONS[region].window[1] - REGIONS[region].window[0] : 6));
 /** A view that shows both points with room around them (used for the reveal). */
 export const viewCovering = (a, b, w, h, minSpan = 6) => viewFitting([a, b], w, h, { minSpan });

@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China","ski":"Skiing"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China","ski":"Skiing","leman":"Lake Geneva","horology":"Watchmaking"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
@@ -628,7 +628,40 @@ export const PINS = [
 {"id":"sk-livigno","cat":"ski","about":"livigno"},
 {"id":"sk-madonna-di-campiglio","cat":"ski","about":"madonna-di-campiglio"},
 {"id":"sk-garmisch","cat":"ski","about":"garmisch"},
-{"id":"sk-oberstdorf","cat":"ski","about":"oberstdorf"}
+{"id":"sk-oberstdorf","cat":"ski","about":"oberstdorf"},
+{"id":"lg-jet-deau","cat":"leman","about":"jet-deau"},
+{"id":"lg-palais-des-nations","cat":"leman","about":"palais-des-nations"},
+{"id":"lg-cern","cat":"leman","about":"cern"},
+{"id":"lg-st-pierre-cathedral","cat":"leman","about":"st-pierre-cathedral"},
+{"id":"lg-reformation-wall","cat":"leman","about":"reformation-wall"},
+{"id":"lg-carouge","cat":"leman","about":"carouge"},
+{"id":"lg-villa-diodati","cat":"leman","about":"villa-diodati"},
+{"id":"lg-coppet","cat":"leman","about":"coppet"},
+{"id":"lg-nyon","cat":"leman","about":"nyon"},
+{"id":"lg-morges","cat":"leman","about":"morges"},
+{"id":"lg-lausanne","cat":"leman","about":"lausanne"},
+{"id":"lg-epfl","cat":"leman","about":"epfl"},
+{"id":"lg-vevey","cat":"leman","about":"vevey"},
+{"id":"lg-montreux","cat":"leman","about":"montreux"},
+{"id":"lg-chillon","cat":"leman","about":"chillon"},
+{"id":"lg-evian-les-bains","cat":"leman","about":"evian-les-bains"},
+{"id":"lg-yvoire","cat":"leman","about":"yvoire"},
+{"id":"lg-plan-les-ouates","cat":"leman","about":"plan-les-ouates"},
+{"id":"lg-saleve","cat":"leman","about":"saleve"},
+{"id":"wv-le-sentier","cat":"horology","about":"le-sentier"},
+{"id":"wv-le-brassus","cat":"horology","about":"le-brassus"},
+{"id":"wv-labbaye","cat":"horology","about":"labbaye"},
+{"id":"wv-le-locle","cat":"horology","about":"le-locle"},
+{"id":"wv-la-chaux-de-fonds","cat":"horology","about":"la-chaux-de-fonds"},
+{"id":"wv-saint-imier","cat":"horology","about":"saint-imier"},
+{"id":"wv-villeret","cat":"horology","about":"villeret"},
+{"id":"wv-biel","cat":"horology","about":"biel"},
+{"id":"wv-grenchen","cat":"horology","about":"grenchen"},
+{"id":"wv-fleurier","cat":"horology","about":"fleurier"},
+{"id":"wv-neuchatel","cat":"horology","about":"neuchatel"},
+{"id":"wv-schaffhausen","cat":"horology","about":"schaffhausen"},
+{"id":"wv-besancon","cat":"horology","about":"besancon"},
+{"id":"wv-la-cote-aux-fees","cat":"horology","about":"la-cote-aux-fees"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},
