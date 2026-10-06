@@ -34,8 +34,9 @@
   <div id="classes" class="hb-classes" role="group" aria-label="The fleet: tap a class for the next ship, or to swap the picked one"></div>
   <div id="tape" class="hb-tape" aria-label="Programs, one row per ship"></div>
   <div id="tools" class="hb-tools" role="toolbar" aria-label="Instructions"></div>
+  <input id="scrub" class="hb-scrub" type="range" min="0" max="1" step="1" value="0" disabled aria-label="The run, hour by hour: back to any hour played">
   <div class="hb-run">
-    <button id="undoBtn" class="hb-ctl" type="button" aria-label="Undo"></button>
+    <span class="hb-pair"><button id="undoBtn" class="hb-ctl" type="button" aria-label="Undo"></button><button id="redoBtn" class="hb-ctl" type="button" aria-label="Redo"></button></span>
     <button id="resetBtn" class="hb-ctl" type="button" aria-label="Back to the start"></button>
     <button id="stepBtn" class="hb-ctl" type="button" aria-label="One hour"></button>
     <button id="runBtn" class="hb-ctl primary" type="button" aria-label="Run"></button>

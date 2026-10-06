@@ -49,7 +49,7 @@ export function createFlat(box) {
       parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><polygon class="hb-berth" points="${shape}"/>${level}`
         + `<polygon class="hb-edge" points="${shape}"/><text x="${cx.toFixed(2)}" y="${(cy + 1.45).toFixed(2)}">${k}</text></g>`);
     }
-    svg.innerHTML = `<defs>${defs.join("")}</defs>` + parts.join("") + `<g class="hb-fleet"></g><g class="hb-marks"></g>`;
+    svg.innerHTML = `<defs>${defs.join("")}</defs>` + parts.join("") + `<g class="hb-trails"></g><g class="hb-fleet"></g><g class="hb-marks"></g>`;
   }
 
   /** ships: [{ x, y, h, type, cargo }], sel: the picked ship (or -1), crash: the run's crash (or null), tanks: each
@@ -114,5 +114,11 @@ export function createFlat(box) {
     const { cx, cy } = centre(x, y), m = svg.getScreenCTM();
     return { clientX: m.a * cx + m.c * cy + m.e, clientY: m.b * cx + m.d * cy + m.f };
   }
-  return { setLevel, draw, pick, drag, where, release() {}, theme() {}, resize() {}, dispose() { svg.remove(); }, flat: true };
+  /** Each ship's route over a loop, as a faint dashed line through the hexes it passes; the picked ship's stronger. */
+  function trails(paths, sel = -1) {
+    const g = svg.querySelector(".hb-trails");
+    if (!g) return;
+    g.innerHTML = paths.map((pts, i) => `<polyline class="hb-trail${i === sel ? " on" : ""}" points="${pts.map(p => { const c = centre(p.x, p.y); return `${c.cx.toFixed(2)},${c.cy.toFixed(2)}`; }).join(" ")}"/>`).join("");
+  }
+  return { setLevel, draw, pick, drag, where, trails, release() {}, theme() {}, resize() {}, dispose() { svg.remove(); }, flat: true };
 }

@@ -140,3 +140,12 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-tag-jetty { padding: 3px 6px; border-radius: 6px; background: var(--tag); color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
 html[data-theme="kontor"] .hb-tag { border-radius: 2px; }
 html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
+/* the scrubber: the run's hours played so far; Undo and Redo share a cell; a crash's hour in the programs */
+.hb-scrub { display: block; width: 100%; height: 22px; margin: .35rem 0 0; accent-color: var(--ink); background: none; }
+.hb-scrub:disabled { opacity: .35; }
+.hb-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; min-width: 0; }
+.hb-pair .hb-ctl { padding-left: 0; padding-right: 0; min-width: 0; }
+.hb-cell.wreck { box-shadow: inset 0 0 0 2.5px #D8432F; }
+.hb-status.back { cursor: pointer; }
+.hb-trail { fill: none; stroke: var(--ink); stroke-opacity: .28; stroke-width: .9; stroke-linejoin: round; stroke-dasharray: 2 1.6; }   /* a ship's route while you plan */
+.hb-trail.on { stroke-opacity: .65; }

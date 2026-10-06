@@ -84,7 +84,7 @@ export function create3D(box) {
 
   const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 100), ray = new THREE.Raycaster(), sea = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   let scene = null, skin = null, L = null, G = null, mid = new THREE.Vector3(), water = [], ashore = [];
-  let ships = [], last = null, ring = null, wreck = null, tankLevels = {}, tags = [], frame = 0, dragging = -1;
+  let ships = [], last = null, ring = null, wreck = null, tankLevels = {}, tags = [], frame = 0, dragging = -1, trailGroup = null, lastTrails = null;
   const mats = new Map(), owned = [];
   const mat = (colour, extra = {}) => {                                     // one material per look, shared
     const key = `${new THREE.Color(colour).getHex()}|${JSON.stringify(extra)}`;
@@ -234,8 +234,32 @@ export function create3D(box) {
     ring.visible = false; scene.add(ring);
     wreck = new THREE.Mesh(hexRing(R * .99, R * .74, .06), new THREE.MeshBasicMaterial({ color: 0xd8432f }));
     wreck.visible = false; scene.add(wreck);
+    trailGroup = new THREE.Group();
+    scene.add(trailGroup);
     fit();
     if (last) draw({ ...last, still: true });
+    if (lastTrails) trails(...lastTrails);
+  }
+
+  /** Each ship's route over a loop, as a faint line on the water through the hexes it passes; the picked ship's stronger. */
+  function trails(paths, sel = -1) {
+    lastTrails = [paths, sel];
+    if (!trailGroup) return;
+    for (const c of trailGroup.children) { c.geometry.dispose(); c.material.dispose(); }
+    trailGroup.clear();
+    paths.forEach((pts, i) => {
+      const xyz = [];
+      for (let k = 1; k < pts.length; k++) {
+        const a = centre(pts[k - 1].x, pts[k - 1].y), b = centre(pts[k].x, pts[k].y);
+        if (a.equals(b)) continue;                                  // an hour waited or loaded: no line
+        xyz.push(a.x, .05, a.z, b.x, .05, b.z);
+      }
+      if (!xyz.length) return;
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(xyz, 3));
+      trailGroup.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: skin.night ? skin.glass : skin.funnel, transparent: true, opacity: i === sel ? .85 : .4 })));
+    });
+    invalidate();
   }
 
   // ---------- ships ----------
@@ -422,5 +446,5 @@ export function create3D(box) {
     renderer.dispose();
     canvas.remove(); labels.remove();
   }
-  return { setLevel, draw, pick, drag, release, where, theme: () => { if (L) build(); }, resize: fit, dispose, flat: false };
+  return { setLevel, draw, pick, drag, release, where, trails, theme: () => { if (L) build(); }, resize: fit, dispose, flat: false };
 }

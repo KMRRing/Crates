@@ -1,7 +1,7 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
+import { steer, flatten, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
@@ -12,7 +12,8 @@ import { part, action, mirror, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
-const SPEED = [420, 110];             // ms an hour takes: normal, fast
+const SPEED = [420, 110, 28];         // ms an hour takes: 1×, 4×, 16×
+const SPEED_LABELS = ["1×", "4×", "16×"];
 const HOLD = 450;                     // ms: holding a loop's count lowers it
 const MEASURES = [["cost", "Cost", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`], ["instructions", "Instructions", v => `${v} instr`]];
 const REPEAT = [380, 110];            // ms: holding a shift arrow repeats it, after a pause, this often
@@ -25,6 +26,7 @@ const STEERING = { A: "M8 13V3M3.8 7.2 8 3l4.2 4.2", P: "M11 13V9a4 4 0 0 0-4-4H
 const arrow = op => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${STEERING[op]}"/></svg>`;
 const ICON = {
   undo: svg('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
+  redo: svg('<path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>'),
   reset: svg('<path d="M6 5v14"/><path class="solid" d="M18 6 9 12l9 6z"/>'),
   step: svg('<path class="solid" d="M6 6l9 6-9 6z"/><path d="M18 5v14"/>'),
   play: svg('<path class="solid" d="M7 5l12 7-12 7z"/>'),
@@ -45,13 +47,17 @@ const opName = op => PAINT.find(t => t[0] === op)?.[1] || "nothing";
 let L = null, G = null;               // the level and its grid
 let sol = { ships: [] };              // what you've planned: each ship's start tile and program
 let sim = null;                       // the run on screen, or null while you edit
-let running = false, timer = 0, fast = false;
+let running = false, timer = 0, speed = 0;
+// The run so far, hour by hour: the engine never changes a state, so every hour played is kept, and the scrubber (or
+// B, or tapping a crash) shows any of them again. seen: the latest hour played; the scrubber never goes past it.
+let frames = [], seen = 0;
 let sel = -1;                         // the selected ship (its row is highlighted)
 let tool = "A", mode = "paint";       // painting instructions, or picking hours to act on
 let pick = null;                      // picked hours: rows r0..r1, hours c0..c1, from the anchor (ar, ac); open: waiting for the far end
 let clip = null;                      // copied hours, one list of items per row
 let notice = "";                      // a message for the status line until the next change
 let history = [];                     // earlier plans, for Undo
+let future = [];                      // plans undone, for Redo
 let drag = null;                      // a ship being dragged: { i, from, moved }
 let held = null;                      // a loop count being held down: { timer, fired }
 let sweeping = false, swept = false;  // picking hours with a mouse drag (swept: the click that ends it is already handled)
@@ -73,7 +79,7 @@ function load(level) {
   write("harbour:level", L.id);
   const saved = read(solKey(), null);
   sol = saved?.ships && !invalid(L, saved) ? saved : { ships: [] };
-  history = []; sel = -1; sim = null; pick = null; notice = ""; viewing = null; shipType = Object.keys(L.fleet)[0];
+  history = []; future = []; sel = -1; sim = null; frames = []; seen = 0; pick = null; notice = ""; viewing = null; shipType = Object.keys(L.fleet)[0];
   $("brief").textContent = L.brief;
   banner();
   mapView.setLevel(L, G);
@@ -117,15 +123,26 @@ function edit(change) {
   if (sim) stop();
   history.push(JSON.stringify(sol));
   if (history.length > 100) history.shift();
+  future = [];
   change();
   notice = "";
   write(solKey(), sol);
   render(true);
 }
 function undo() {
-  if (!history.length) return;
+  if (!history.length || viewing) return;
   if (sim) stop();
+  future.push(JSON.stringify(sol));
   sol = JSON.parse(history.pop());
+  sel = Math.min(sel, sol.ships.length - 1);
+  write(solKey(), sol);
+  render(true);
+}
+function redo() {
+  if (!future.length || viewing) return;
+  if (sim) stop();
+  history.push(JSON.stringify(sol));
+  sol = JSON.parse(future.pop());
   sel = Math.min(sel, sol.ships.length - 1);
   write(solKey(), sol);
   render(true);
@@ -258,18 +275,21 @@ function pointerUp(e) {
 }
 
 // ---------- the clock ----------
-function stop() { running = false; clearTimeout(timer); sim = null; }
+function stop() { running = false; clearTimeout(timer); sim = null; frames = []; seen = 0; }
 function begin() {
   if (sim) return true;
   const why = !sol.ships.length ? "Tap the water to put a ship there first." : invalid(L, sol);
   if (why) { notice = why; status(); return false; }
   sim = start(L, sol);
+  frames = [sim]; seen = 0;
   notice = "";                                         // a run on screen speaks for itself
   return true;
 }
 const over = () => sim.done || sim.crash || sim.t >= L.maxCycles;
 function tick() {
-  sim = step(L, sol, sim);
+  sim = frames[sim.t + 1] || step(L, sol, sim);       // an hour already played (scrubbed back to) is the same hour again
+  frames[sim.t] = sim;
+  seen = Math.max(seen, sim.t);
   if (over()) { running = false; if (sim.done) keepBests(); }
   render();
 }
@@ -280,8 +300,15 @@ function play() {
   if (running) { running = false; clearTimeout(timer); render(); return; }
   if (!begin() || over()) return;
   running = true;
-  const loop = () => { if (!running) return; tick(); if (running) timer = setTimeout(loop, SPEED[fast ? 1 : 0]); };
+  const loop = () => { if (!running) return; tick(); if (running) timer = setTimeout(loop, SPEED[speed]); };
   loop();
+}
+/** Shows the run at hour h, one already played: back to any hour, forward again as far as you've seen. */
+function scrubTo(h) {
+  if (!sim) return;
+  running = false; clearTimeout(timer);
+  sim = frames[Math.max(0, Math.min(seen, h))];
+  render();
 }
 function stepOnce() {
   running = false; clearTimeout(timer);
@@ -300,12 +327,25 @@ function render(still = false) {
   drawMap(still);
   classes(); tape(); toolbar(); controls(); status();
 }
+/** Each ship's route over one loop, from its start. A ship's moves are its own program's alone (ships never decide),
+ *  so its route doesn't depend on any other ship: drawn while you plan, whether or not ships would meet. */
+function trailsOf() {
+  const P = period(sol);
+  return sol.ships.map(s => {
+    const ops = flatten(s.prog);
+    let p = { x: s.x, y: s.y, h: s.h ?? 0 };
+    const pts = [p];
+    for (let t = 0; t < P; t++) { p = steer(p, ops[t] || WAIT); pts.push(p); }
+    return pts;
+  });
+}
 /** The map (flat or 3D): the ships as planned or as the run has them, the picked one, a crash, the tanks' levels. */
 function drawMap(still) {
+  mapView.trails(sim ? [] : trailsOf(), sel);              // routes while you plan; a run speaks for itself
   const tanks = {};
   for (const [k, j] of Object.entries(L.jetties)) if (j.tank) tanks[k] = sim ? sim.tanks[k] : j.tank.start || 0;
   mapView.draw({ ships: sim ? sim.ships : sol.ships.map(s => ({ ...s, type: typeOf(L, s) })), sel: sim ? -1 : sel, crash: sim?.crash || null,
-    tanks, still, ms: Math.round(SPEED[fast ? 1 : 0] * .9) });
+    tanks, still, ms: Math.round(SPEED[speed] * .9) });
 }
 
 // the fleet: each class the level offers, what it holds and costs, and how many are left. With no ship picked, the class
@@ -328,6 +368,7 @@ function tape() {
   const box = $("tape"), P = period(sol), widest = Math.max(0, ...sol.ships.map(s => T.width(s.prog)));
   const cols = Math.min(150, Math.max(16, widest + 6, P + 6));
   const now = sim && sim.t > 0 ? (sim.t - 1) % P : -1;
+  const wreck = frames[seen]?.crash, wcol = wreck ? (wreck.t - 1) % P : -1;   // where the run ended in a crash
   const html = [`<div class="hb-grid" style="--cols:${cols}"><span class="hb-corner"></span>`];
   for (let c = 0; c < cols; c++) html.push(`<span class="hb-colno">${c === 0 || (c + 1) % 5 === 0 ? c + 1 : ""}</span>`);
   for (let r = 0; r < ROWS; r++) {
@@ -342,6 +383,7 @@ function tape() {
       if (a.kind === "ghost" && !a.badge) cls += " lp-ghost";
       if (c >= P) cls += " out";
       if (c === now && ship) cls += " now";
+      if (c === wcol && wreck.ships.includes(r)) cls += " wreck";
       html.push(`<button class="${cls}" type="button" data-row="${r}" data-col="${c}"${off} aria-label="${label}">${body}</button>`);
     }
   }
@@ -382,9 +424,14 @@ function controls() {
   $("runBtn").innerHTML = running ? ICON.pause : ICON.play;
   $("runBtn").setAttribute("aria-label", running ? "Pause" : "Run");
   $("runBtn").disabled = $("stepBtn").disabled = !!sim && over();
-  $("speedBtn").textContent = fast ? "4×" : "1×";
+  $("speedBtn").textContent = SPEED_LABELS[speed];
+  $("redoBtn").disabled = !future.length;
+  // the scrubber: the hours played so far, this one marked
+  const sc = $("scrub");
+  sc.disabled = !sim; sc.max = String(Math.max(1, seen)); sc.value = String(sim ? sim.t : 0);
 }
 
+const crashText = c => (c.kind === "aground" ? `Ship ${c.ships[0] + 1} ran aground in hour ${c.t}.` : `Ships ${c.ships[0] + 1} and ${c.ships[1] + 1} collided in hour ${c.t}.`);
 function status() {
   const el = $("status"), n = sol.ships.length;
   let text, tone = "";
@@ -398,8 +445,8 @@ function status() {
     : sel >= 0 ? `Ship ${sel + 1}: tap to turn it, drag to move it, onto land to scrap it.`
     : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${sol.ships.reduce((m, sh) => m + classOf(L, sh).cost, 0)}k`;
   else if (sim.crash) {
-    const [a, b] = sim.crash.ships; tone = "bad";
-    text = sim.crash.kind === "aground" ? `Ship ${a + 1} ran aground in hour ${sim.crash.t}.` : `Ships ${a + 1} and ${b + 1} collided in hour ${sim.crash.t}.`;
+    tone = "bad";
+    text = `${crashText(sim.crash)} Tap for the hour before.`;
   } else if (sim.done) {
     const sc = score(L, sol, sim), mark = k => (sc[k] <= L.par[k] ? " ★" : "");
     tone = "good";
@@ -410,8 +457,11 @@ function status() {
     if (no) { tone = "bad"; text = `Hour ${sim.t}: the jetty refused ship ${no.ship + 1}, ${no.why}.`; }
     else text = `Hour ${sim.t} · ${sim.delivered} of ${L.target} delivered${tank ? ` · tank ${tank[1]}/${L.jetties[tank[0]].tank.cap}` : ""}`;
   }
+  const end = frames[seen]?.crash;
+  // scrubbed back before a crash: what's coming, and when
+  if (end && sim && !sim.crash) text += end.kind === "aground" ? ` · ship ${end.ships[0] + 1} runs aground in hour ${end.t}` : ` · ships ${end.ships[0] + 1} and ${end.ships[1] + 1} collide in hour ${end.t}`;
   el.textContent = text;
-  el.className = `hb-status${tone ? ` ${tone}` : ""}`;
+  el.className = `hb-status${tone ? ` ${tone}` : ""}${sim?.crash ? " back" : ""}`;
 }
 
 function openMenu() {
@@ -541,7 +591,12 @@ $("undoBtn").addEventListener("click", undo);
 $("resetBtn").addEventListener("click", () => { stop(); render(true); });
 $("stepBtn").addEventListener("click", stepOnce);
 $("runBtn").addEventListener("click", play);
-$("speedBtn").addEventListener("click", () => { fast = !fast; render(); });
+$("speedBtn").addEventListener("click", () => { speed = (speed + 1) % SPEED.length; render(); });
+$("redoBtn").innerHTML = ICON.redo;
+$("redoBtn").addEventListener("click", redo);
+$("scrub").addEventListener("input", e => scrubTo(+e.target.value));
+// a crash on screen: tap the status line for the hour before it
+$("status").addEventListener("click", () => { if (sim?.crash) scrubTo(sim.t - 1); });
 $("menuBtn").addEventListener("click", openMenu);
 $("mineBtn").addEventListener("click", unview);
 $("classes").addEventListener("click", e => {
@@ -559,7 +614,8 @@ $("menuDlg").addEventListener("click", e => { if (e.target === $("menuDlg")) $("
 addEventListener("keydown", e => {
   if ($("menuDlg").open || e.target.closest?.("input, textarea")) return;
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
-  if (mod && k === "z") { e.preventDefault(); undo(); }
+  if (mod && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
+  else if (mod && k === "z") { e.preventDefault(); undo(); }
   else if (mod && k === "a") {
     e.preventDefault();
     if (!sol.ships.length) return;
@@ -573,6 +629,7 @@ addEventListener("keydown", e => {
   else if (document.activeElement !== document.body) return;   // a focused button takes space itself
   else if (e.key === " ") { e.preventDefault(); play(); }
   else if (k === "s" && !mod) stepOnce();
+  else if (k === "b" && !mod && sim) scrubTo(sim.t - 1);
   else if (k === "r" && !mod) { stop(); render(true); }
 });
 
