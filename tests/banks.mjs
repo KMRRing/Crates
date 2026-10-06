@@ -5,11 +5,15 @@ import fs from "fs";
 globalThis.window = {}; globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
-const CLEAN = new Set(["physics", "chemistry", "economics", "religion", "code"]);
+const CLEAN = new Set(["physics", "chemistry", "economics", "religion", "code", "wine", "art", "words", "refining", "reasoning", "cities", "flags", "patterns", "philosophy"]);
 const formula = s => /[=≥≤≈∝ΔΣ∫√±×÷^ℏπλμσ$]|\d/.test(s);
+// options that are all names (a country, a city, a painter, a museum) vary in length by nature, not by a writer
+// padding the answer: the length rule leaves them be
+const nameLike = s => /^(the )?[A-ZÀ-Þ]/.test(s) && !/[:;]/.test(s) && s.split(/\s+/).length <= 6 && !/\d/.test(s);
 export function givesAway(q) {
   const right = q.a.map(i => q.o[i]), wrong = q.o.filter((_, i) => !q.a.includes(i));
   if (!wrong.length) return false;
+  if (q.o.every(nameLike)) return q.o.length >= 3 && right.every(formula) && wrong.every(s => !formula(s));
   const rl = Math.max(...right.map(s => s.length)), wl = wrong.map(s => s.length), mean = wl.reduce((a, b) => a + b, 0) / wl.length;
   const longest = rl > Math.max(...wl) && rl >= 1.5 * mean && rl - Math.max(...wl) >= 8;
   const onlyFormula = q.o.length >= 3 && right.every(formula) && wrong.every(s => !formula(s));
