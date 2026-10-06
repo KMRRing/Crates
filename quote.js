@@ -341,7 +341,7 @@ function finish() {
   // power of their mean: a 76-year market came out as ×7.6e+22.)
   const inside = S.log.filter(e => e.inside).length, sharp = S.log.filter(e => e.inside && adequate(e.grade)).length;
   const best = S.mode === "daily" ? bestDaily(S.book) : bestEver(S.book);
-  if (S.ranked) noteComparable("quote", S.book, S.mode === "daily");   // the daily or Standard: it counts for your best
+  if (S.ranked) noteComparable("quote", S.book, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };

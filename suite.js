@@ -142,13 +142,14 @@ export async function pull() {
 export const today = () => { const d = new Date(); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
 /** Games whose best counts only comparable runs: the daily, and the Standard preset (everything in, default settings,
  *  nothing from your pile or your history dealt in). The games screen and your partner see only these. */
-export const RANKED = new Set(["chart", "quote"]);     // Punt and Crates join as their dailies land
-/** Notes a comparable result (higher is better): the best of them, and for a daily, today's. */
-export function noteComparable(app, score, daily = false) {
+export const RANKED = new Set(["chart", "quote", "punt"]);     // Crates joins as its daily lands
+/** Notes a comparable result (higher is better): the best of them, and for a daily (day: the date it was dealt for,
+ *  YYYYMMDD) that day's, the latest day's only, so an older daily from a link leaves today's alone. */
+export function noteComparable(app, score, day = null) {
   if (!Number.isFinite(score)) return;
   const r = json(`${app}:ranked`, null) || {};
   if (r.best == null || score > r.best) r.best = score;
-  if (daily) { const k = today(); if (r.day?.key !== k || score > r.day.score) r.day = { key: k, score }; }
+  if (day && (!r.day || day > r.day.key || (day === r.day.key && score > r.day.score))) r.day = { key: day, score };
   try { localStorage.setItem(`${app}:ranked`, JSON.stringify(r)); } catch { /* private mode */ }   // synced like any game's best
 }
 /** A ranked game's comparable best, and today's daily (null if not played today). */

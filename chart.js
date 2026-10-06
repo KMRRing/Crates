@@ -438,7 +438,7 @@ function summary(add, pairs, rowText) {
 }
 function finish() {
   const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
-  if (S.ranked) noteComparable("chart", S.score, S.mode === "daily");   // the daily or Standard: it counts for your best
+  if (S.ranked) noteComparable("chart", S.score, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };

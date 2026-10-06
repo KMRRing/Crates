@@ -16,6 +16,7 @@ import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { part, choice, toggle as menuToggle, action, mirror, line, weights, ticks } from "./menu.js";
+import { today, noteComparable } from "./suite.js";   // the day, the same for everyone; comparable results
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -54,14 +55,15 @@ function chosenPicks(level) {
  * The bank, filtered to a choice, with a label per stage: what the engine needs to deal. Returns { deal, picks }
  * with the picks resolved (unknown stages dropped, none meaning all).
  */
-async function bankDeal(level, picks) {
+async function bankDeal(level, picks, personal = true) {
   const { MATHS, STAGES } = await loadBank(level);
   const ids = STAGES.map(x => x.id);
   const stages = (picks.stages || ids).filter(x => ids.includes(x));
   const resolved = { stages: stages.length ? stages : ids, diffs: picks.diffs?.length ? picks.diffs.filter(d => DIFFICULTIES.includes(d)) : DIFFICULTIES };
   const pool = MATHS.filter(q => resolved.stages.includes(q.lv) && resolved.diffs.includes(q.d));
-  // learning mode: what's due from the pile leads the next block; the rest prefers questions not yet seen
-  const learning = pile.learning();
+  // learning mode: what's due from the pile leads the next block; the rest prefers questions not yet seen (never in
+  // today's run, which is the same for everyone)
+  const learning = personal && pile.learning();
   // its own due questions, then its questions about what the other games found you weak on (up to a third of a block)
   const ownDue = learning ? pile.due("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1)) : [];
   const dueKeys = learning ? pile.dealDue("punt", pool.map(q => ({ key: q.id, about: q.about })), ownDue, ownDue.length + 5) : [];
@@ -83,24 +85,33 @@ function chosenDiffs() {
 }
 const keepDiffs = d => { try { localStorage.setItem(DIFFS_KEY, JSON.stringify(d)); } catch { /* private mode */ } };
 /** What each topic in deals from: a clue topic its category, a subject bank its deal (its stages, the difficulties). */
-async function topicSources(mixPicks) {
+async function topicSources(mixPicks, personal = true) {
   const ins = TOPIC_LIST.filter(([id]) => (mixPicks.weights[id] || 0) > 0);
   return Promise.all(ins.map(async ([id, label]) => {
     const weight = mixPicks.weights[id];
     if (CLUE_TOPICS[id]) return { id, label, weight, cat: CLUE_TOPICS[id], diffs: mixPicks.diffs };
-    const { deal } = await bankDeal(id, { stages: chosenPicks(id).stages, diffs: mixPicks.diffs });
+    const { deal } = await bankDeal(id, { stages: personal ? chosenPicks(id).stages : null, diffs: mixPicks.diffs }, personal);
     return { id, label, weight, ...deal };
   }));
 }
 const mixNow = () => ({ weights: chosenTopics().weights, diffs: chosenDiffs() });
 /** A mixed run's questions: a fixed length in one batch, an endless run's first block. */
-async function mixSession(seed, length, mixPicks) {
+async function mixSession(seed, length, mixPicks, { personal = true, name = nameDeal() } = {}) {
   const count = length === "endless" ? BATCH : LENGTHS[length]?.questions ?? MIX.questions;
-  return mixQuestions(seed, await topicSources(mixPicks), count, [], nameDeal());
+  return mixQuestions(seed, await topicSources(mixPicks, personal), count, [], name);
 }
+// ---------- what counts: today's run and Standard ----------
+// Your best (the games screen's, the one your partner sees) counts only runs anyone could have played: today's run,
+// dealt from the date on the Standard settings with nothing of yours in it, and any run you set up on those settings
+// with learning off. Standard: the Balanced topics, every difficulty, the standard length, and name-it off (Known
+// deals from your own history).
+const standardPicks = () => ({ weights: { ...TOPIC_PRESETS.balanced.topics }, diffs: [...DIFFICULTIES] });
+const isStandard = (level, length, picks) => level === "mix" && length === "standard" && !pile.learning() && nameMode() === "off"
+  && TOPIC_LIST.every(([id]) => (picks?.weights?.[id] || 0) === 1) && DIFFICULTIES.every(d => picks?.diffs?.includes(d));
 
-/** A run's link: seed, level, length, and for a bank its stages and difficulties. */
+/** A run's link: today's run by its date; else seed, level, length, and for a bank its stages and difficulties. */
 function linkOf(s) {
+  if (s.daily) return `#day=${s.seed}`;
   const n = lengthOf(s) === "standard" ? "" : `&n=${lengthOf(s)}`;
   const m = isMaths(s.level) && s.maths ? `&st=${s.maths.stages.join(",")}&df=${s.maths.diffs.join(",")}`
     : s.level === "mix" && s.mix ? `&t=${Object.entries(s.mix.weights).filter(([, w]) => w > 0).map(([k, w]) => `${k}.${w}`).join(",")}&df=${s.mix.diffs.join(",")}` : "";
@@ -138,12 +149,14 @@ async function freshState(level, length, players = null, picks = null) {
 function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.questions?.length ? s : null; } catch { return null; } }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
-async function soloSession(seed, level, length = chosenLength(), picks = null) {
+async function soloSession(seed, level, length = chosenLength(), picks = null, daily = false) {
   if (level === "mix") {
-    const mixPicks = picks?.weights ? picks : mixNow();
-    const questions = await mixSession(seed, length, mixPicks);
+    if (daily) length = "standard";
+    const mixPicks = daily ? standardPicks() : picks?.weights ? picks : mixNow();
+    const questions = await mixSession(seed, length, mixPicks, daily ? { personal: false, name: { mode: "off", known: {} } } : {});
     if (!questions.length) { toast("Put at least one topic in"); render(); return; }
-    S = { v: 1, seed, level, length, mix: mixPicks, questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
+    S = { v: 1, seed, level, length, mix: mixPicks, ...(daily && { daily: true }), ranked: daily || isStandard(level, length, mixPicks),
+      questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
     resetChoice(); shownDone = null; saveSolo(); history.replaceState(null, "", linkOf(S)); render();
     return;
   }
@@ -158,6 +171,12 @@ async function soloSession(seed, level, length = chosenLength(), picks = null) {
   render();
 }
 
+/** Today's run: the date's seed on the Standard settings, nothing of yours dealt in; the same for everyone. Solo only. */
+async function newDaily() {
+  if (together.room) { toast("Today's run is played alone"); return; }
+  if (S && !S.done && S.index > 0 && !confirm("Start today's run? This one isn't finished.")) { render(); return; }
+  soloSession(today(), "mix", "standard", null, true);
+}
 async function newSession(level = S.level, length = chosenLength(), picks = null) {
   if (S && !S.done && S.index > 0 && !confirm("Start a new run? This one isn't finished.")) { render(); return; }
   try { localStorage.setItem(LENGTH, length); } catch { /* private mode */ }
@@ -410,6 +429,7 @@ function showDone() {
   const avg = averageReturn(S.log) ?? 0;
   const stats = [["Final pot", showChips(S.pot)], ["A question", showReturn(avg)], ["Bets won", `${won} of ${bets.length}`]];
   const best = recordBest(avg);
+  if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);   // today's run or Standard: it counts for your best
   $("doneStats").replaceChildren(...stats.map(([label, value]) => {
     const box = document.createElement("div"), dd = document.createElement("dd"), dt = document.createElement("dt");
     dd.textContent = value; dt.textContent = label;
@@ -745,7 +765,9 @@ function drawMenu() {
   body.replaceChildren();
   pickLength ??= lengthOf(S);
   const play = part(body, "play");
-  play.append(action("New run", () => newSession("mix", pickLength), "primary"));
+  play.append(action("New run", () => newSession("mix", pickLength), "primary"), action("Today's run", newDaily),
+    line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A Standard run: it counts for your best."
+      : "Your best counts today's run and Standard runs (Balanced, every difficulty, 15 questions, name-it off, learning off)."));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
   // what a run deals: a preset or your own mix of topics (each out, in or more), the difficulties for all of them,
   // and each subject bank's stages; a change applies to the next run
@@ -816,7 +838,8 @@ $("nextBtn").addEventListener("click", next);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 window.addEventListener("hashchange", () => {
-  const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
+  const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d"), day = Number(h.get("day"));
+  if (!together.room && day && !(S?.daily && S.seed === day)) { soloSession(day, "mix", "standard", null, true); return; }
   const length = LENGTHS[h.get("n")] ? h.get("n") : "standard";
   if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level && lengthOf(S) === length)) soloSession(seed, level, length, isMaths(level) || level === "mix" ? picksFromHash(h, level) : null);
 });
@@ -828,8 +851,9 @@ window.__punt = { get state() { return S; }, get together() { return together; }
 const hash = new URLSearchParams(location.hash.slice(1));
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
-const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard";
-if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) || linkedLevel === "mix" ? picksFromHash(hash, linkedLevel) : null);
+const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard", linkedDay = Number(hash.get("day"));
+if (linkedDay && !(S?.daily && S.seed === linkedDay)) soloSession(linkedDay, "mix", "standard", null, true);
+else if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) || linkedLevel === "mix" ? picksFromHash(hash, linkedLevel) : null);
 else if (!S) soloSession(randomSeed(), "mix", "standard");
 else {
   shownDone = S.done ? JSON.stringify(S.done) : null;
