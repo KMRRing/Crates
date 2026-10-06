@@ -5,7 +5,7 @@ import fs from "fs";
 globalThis.window = {}; globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
-const CLEAN = new Set(["physics"]);
+const CLEAN = new Set(["physics", "chemistry"]);
 const formula = s => /[=≥≤≈∝ΔΣ∫√±×÷^ℏπλμσ$]|\d/.test(s);
 export function givesAway(q) {
   const right = q.a.map(i => q.o[i]), wrong = q.o.filter((_, i) => !q.a.includes(i));
