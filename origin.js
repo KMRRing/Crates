@@ -1,6 +1,6 @@
 // Origin: a hidden country, found from clues. The clues come one at a time, the most obscure first, trade and
-// commodities ahead of the rest; guess whenever you like. A wrong guess says how far off you are and which way, warmer
-// as you close in. Five countries a run, random or today's; fewer clues and fewer guesses score more. The clues are
+// commodities ahead of the rest; guess whenever you like. A wrong guess shows only how warm it is, blue for far,
+// red for close. Five countries a run, random or today's; fewer clues and fewer guesses score more. The clues are
 // the knowledge base's own (the ones Crates and Punt draw on, here every one of a country's, hardest first); the
 // places are Chart's.
 import { ENTITIES } from "./kb/entities.js";
@@ -50,18 +50,25 @@ function cluesFor(id, r) {
 const GUESSABLE = new Map();
 for (const c of COUNTRIES) for (const n of [c.name, ...(ALIASES.get(c.about || c.id) || [])]) GUESSABLE.set(n.toLowerCase(), c.about || c.id);
 
-// ---------- how far off, and which way ----------
+// ---------- how warm a wrong guess is ----------
 const rad = d => d * Math.PI / 180;
 function away(fromId, toId) {
   const a = PLACE.get(fromId), b = PLACE.get(toId);
   const [φ1, φ2, Δλ] = [rad(a.lat), rad(b.lat), rad(b.lon - a.lon)];
-  const km = 6371 * 2 * Math.asin(Math.sqrt(Math.sin((φ2 - φ1) / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2));
-  const deg = (Math.atan2(Math.sin(Δλ) * Math.cos(φ2), Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)) * 180 / Math.PI + 360) % 360;
-  const border = (a.neighbours || []).includes(b.name);
-  return { km: Math.round(km), deg, way: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(deg / 45) % 8], border };
+  return { km: Math.round(6371 * 2 * Math.asin(Math.sqrt(Math.sin((φ2 - φ1) / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2))) };
 }
-const WARMTH = [[0, "on it"], [600, "scorching"], [1500, "hot"], [3000, "warm"], [6000, "cool"], [10000, "cold"], [Infinity, "freezing"]];
-const warmth = km => WARMTH.find(([edge]) => km <= edge)[1];
+// a wrong guess says only how warm it is, as a colour from blue (the far side of the world) to red (next door): no
+// distance, no direction. Warmth runs on a log scale of the distance, 300 km and nearer fully red, 12,000 km and
+// further fully blue.
+const heat = km => Math.min(1, Math.max(0, 1 - Math.log(Math.max(km, 300) / 300) / Math.log(12000 / 300)));
+const STOPS = [[0, [62, 110, 158]], [.35, [141, 182, 211]], [.6, [226, 176, 74]], [.8, [224, 122, 58]], [1, [210, 70, 46]]];
+function heatColour(t) {
+  const i = STOPS.findIndex(([at]) => at >= t), [a, ca] = STOPS[Math.max(0, i - 1)], [b, cb] = STOPS[Math.max(0, i)];
+  const f = b === a ? 0 : (t - a) / (b - a);
+  return `rgb(${ca.map((v, k) => Math.round(v + (cb[k] - v) * f)).join(",")})`;
+}
+const WORDS = [[.9, "scorching"], [.75, "hot"], [.55, "warm"], [.35, "cool"], [.15, "cold"], [0, "freezing"]];
+const warmthWord = t => WORDS.find(([at]) => t >= at)[1];          // for screen readers only
 
 // ---------- the map: every country on Chart's outlines; drag to move it, pinch, scroll or the buttons to zoom; a tap
 // names a country, a second tap on it guesses it. The map moves by its own view (the SVG's viewBox), not by scrolling,
@@ -187,7 +194,8 @@ function colourMap() {
   const R = round();
   for (const [id, path] of shapes) {
     let cls = "og-c";
-    if (R?.guesses.includes(id)) cls += ` og-${warmth(away(id, R.id).km).replace(" ", "-")}`;
+    path.style.removeProperty("fill");
+    if (R?.guesses.includes(id)) { cls += " og-guessed"; path.style.fill = heatColour(heat(away(id, R.id).km)); }
     if (R?.done && id === R.id) cls += " og-answer";
     if (id === chosen && !R?.done) cls += " og-chosen";
     path.setAttribute("class", cls);
@@ -270,13 +278,11 @@ function render() {
   }));
   $("clues").lastElementChild?.scrollIntoView({ block: "nearest" });
   $("guesses").replaceChildren(...R.guesses.map(g => {
-    const w = away(g, R.id), li = document.createElement("li");
-    li.className = `og-g og-${warmth(w.km).replace(" ", "-")}`;
-    li.innerHTML = `<b></b><span class="og-km"></span><span class="og-arrow" aria-hidden="true">↑</span>`;
-    li.firstChild.textContent = PLACE.get(g).name;
-    li.querySelector(".og-km").textContent = w.border ? `borders it · ${warmth(w.km)}` : `${w.km.toLocaleString("en-GB")} km ${w.way} · ${warmth(w.km)}`;
-    li.querySelector(".og-arrow").style.transform = `rotate(${w.deg}deg)`;
-    li.setAttribute("aria-label", `${PLACE.get(g).name}: ${w.border ? "a neighbour" : `${w.km} km off, the answer lies ${w.way}`}`);
+    const t = heat(away(g, R.id).km), li = document.createElement("li");
+    li.className = "og-g";
+    li.style.setProperty("--heat", heatColour(t));
+    li.textContent = PLACE.get(g).name;
+    li.setAttribute("aria-label", `${PLACE.get(g).name}: ${warmthWord(t)}`);
     return li;
   }));
   colourMap();
