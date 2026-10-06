@@ -52,6 +52,24 @@ export const pointsFor = (p, d) => (p.cat === "countries" ? (d === 0 ? score(0) 
 /** Clues cost: the first (the region) leaves 70% of the points, the second (the country) 45%, the third (the description) 25%. */
 export const CLUE_FACTOR = [1, 0.7, 0.45, 0.25];
 export const clueFactor = n => CLUE_FACTOR[Math.min(n, CLUE_FACTOR.length - 1)];
+/** Within this far of a place counts as knowing it whenever the pin is inside the place's own country: many are vast. */
+export const HOME_KM = 600;
+const homeNames = new WeakMap();
+/**
+ * The outline of a place's own country that a pin falls inside, or null; for a feature across borders, any of its
+ * countries ("Saudi Arabia, Oman", "Venezuela to Chile"). outlines: chart-countries.js's COUNTRIES. Chart's pile and
+ * Deck's review both use it, so a place known well enough in one counts the same in the other.
+ */
+export function homeOf(place, pin, outlines) {
+  if (!pin || !outlines || pin.lat == null) return null;
+  let byName = homeNames.get(outlines);
+  if (!byName) homeNames.set(outlines, (byName = new Map(outlines.map(c => [c.name, c]))));
+  for (const raw of String(place.country || "").split(/,| and | to /)) {
+    const n = raw.trim().replace(/^the /, ""), c = byName.get(n === "Timor-Leste" ? "East Timor" : n);
+    if (c && insideFeature(pin, c)) return c;
+  }
+  return null;
+}
 /**
  * What a place asks of you, in words: "Pin the Hermitage" (a name alone, "The Hermitage", left the task to guess), with
  * what its name carries after a comma as a line of its own ("Where Rumi was born.", "In Rioja.") and, for an outline or

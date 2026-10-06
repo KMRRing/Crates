@@ -64,5 +64,12 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   const all = [...PLACES, ...GEO.map(g => ({ ...g, cat: "physical", geo: g }))];
   check(all.every(p => { const q = E.askFor(p); return q.pin.length > 4 && !q.pin.includes(", "); }), `every one of ${all.length} places and features has a plain instruction`);
 }
+// the right country, within 600 km, counts as knowing a place, in Chart's pile as in Deck's review
+{
+  const { COUNTRIES } = await import("../chart-countries.js");
+  const norilsk = PLACES.find(p => p.name.startsWith("Norilsk")), inRussia = { lat: 66, lon: 95 }, inKazakhstan = { lat: 49, lon: 70 };
+  check(E.HOME_KM === 600 && E.homeOf(norilsk, inRussia, COUNTRIES)?.name === "Russia" && !E.homeOf(norilsk, inKazakhstan, COUNTRIES) && !E.homeOf(norilsk, null, COUNTRIES),
+    "a pin inside the place's own country is found there (Norilsk, pinned in Russia); one in another country isn't; no pin, no home");
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

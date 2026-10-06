@@ -3,7 +3,7 @@
 // countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
 // outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
 // in private and the pins are revealed side by side.
-import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor } from "./chart-engine.js";
+import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM } from "./chart-engine.js";
 import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
@@ -109,7 +109,7 @@ function confirmPin() {
   S.log.push({ id: p.id, lat: pin.lat, lon: pin.lon, km: d, pts, clues, near: p.geo ? m.point : undefined });
   // the pile: a pin over 500 km off (outside, for a country), or any clue, means you didn't know where it was; a
   // clean close pin moves a banked place up
-  if (missed(p, d) || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined }, clues > 0 ? "clue" : "miss");
+  if (missed(p, d, pin) || clues > 0) pile.record("chart", p.id, { id: p.id, about: p.about ? [p.about] : undefined }, clues > 0 ? "clue" : "miss");
   else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
   S.phase = "reveal";
   save();
@@ -124,7 +124,9 @@ function takeClue() {
   clues = n;
   render();
 }
-const missed = (p, d) => (p.cat === "countries" ? d > 0 : d > 500);
+// a miss for the pile: outside a country's outline; for anything else over 500 km off, unless within HOME_KM (600)
+// inside the place's own country, as Deck's review counts it (a pin is optional: rooms judge by distance alone)
+const missed = (p, d, pin) => (p.cat === "countries" ? d > 0 : d > 500 && !(d <= HOME_KM && homeOf(p, pin, COUNTRIES)));
 const cluesTaken = () => (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues);
 function next() {
   if (inRoom()) {
@@ -344,7 +346,7 @@ function render() {
       v.textContent = `You were ${off(mine)} (+${pm}${cm ? `, ${cm} clue${cm > 1 ? "s" : ""}` : ""}); ${seatName(1 - me)} ${off(theirs)} (+${pt}${ct ? `, ${ct} clue${ct > 1 ? "s" : ""}` : ""}).`;
     } else {
       const e = S.log[S.index];
-      v.className = `ch-verdict ${missed(p, e.km) ? "bad" : "good"}`;
+      v.className = `ch-verdict ${missed(p, e.km, e) ? "bad" : "good"}`;
       const where = p.cat === "countries" ? (e.km === 0 ? "Inside it" : `Outside it, ${km(e.km)} from its border`) : e.km === 0 && p.geo ? "On it" : `${km(e.km)} ${p.geo ? "from it" : "off"}`;
       v.textContent = `${where}: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
     }

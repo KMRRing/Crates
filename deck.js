@@ -7,7 +7,7 @@ import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
-import { distance, nearestOnFeature, insideFeature, featureBox, viewFitting, projection, regionView, viewWindow, clampView, worldView, REGIONS, askFor } from "./chart-engine.js";
+import { distance, nearestOnFeature, featureBox, viewFitting, projection, regionView, viewWindow, clampView, worldView, REGIONS, askFor, homeOf, HOME_KM } from "./chart-engine.js";
 import { COUNTRIES } from "./chart-countries.js";
 import { LAND, BORDERS } from "./world.js";
 import { part, toggle, action, line } from "./menu.js";
@@ -37,12 +37,6 @@ const placeById = new Map(PLACES.map(p => [p.id, p]));
 const countryById = new Map(COUNTRIES.map(c => [`co-${c.id}`, { id: `co-${c.id}`, name: c.name, cat: "countries", country: c.name,
   region: REGIONS[c.regions[0]]?.name, geo: { rings: c.rings },
   note: `${c.flag} ${c.name}, in ${c.regions.map(r => REGIONS[r].name).join(" and ")}. ${c.neighbours.length ? `It borders ${c.neighbours.join(", ")}.` : "It has no land neighbours."}` }]));
-const outlineByName = new Map(COUNTRIES.map(c => [c.name, c]));
-/** A place's country (or countries, for a feature that crosses borders: "Saudi Arabia, Oman", "Venezuela to Chile"), as outlines. */
-const countriesOf = place => String(place.country || "").split(/,| and | to /).map(s => s.trim().replace(/^the /, ""))
-  .map(n => outlineByName.get(n === "Timor-Leste" ? "East Timor" : n)).filter(Boolean);
-// anywhere in the right country within 600 km counts too, whatever the pile: a lot of the countries are vast
-const COUNTRY_KM = 600;
 const quoteById = new Map(QUOTES.map(q => [q.id, q]));
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const shuffle = (r, xs) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
@@ -294,7 +288,7 @@ function plot(place, feature, note, level = 1) {
   ctx.stroke();
   // right within a share of the map's width that narrows as the card climbs the piles: a 25th in the short pile,
   // a 40th in the medium, a 60th from the long on (on Asia's map about 500, 310 and 190 km): the right part of China,
-  // not China; or within COUNTRY_KM anywhere inside the right country. A country itself: anywhere inside its outline.
+  // not China; or within HOME_KM (600) anywhere inside the right country. A country itself: anywhere inside its outline.
   const midLat = (win.lat0 + win.lat1) / 2, widthKm = (win.lon1 - win.lon0) * 111.32 * Math.cos(midLat * Math.PI / 180);
   const [share, floor] = [[25, 120], [25, 120], [40, 90], [60, 60]][Math.min(3, level)];
   const tolerance = Math.max(floor, Math.round(widthKm / share / 10) * 10);
@@ -303,8 +297,8 @@ function plot(place, feature, note, level = 1) {
     const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * (w / b.width), y = (e.clientY - b.top) * (h / b.height);
     const [lon, lat] = proj.toLonLat(x, y), pin = { lat, lon };
     const hit = feature ? nearestOnFeature(pin, feature) : { km: distance(pin, place), point: { lat: place.lat, lon: place.lon } };
-    const isCountry = place.cat === "countries", home = isCountry ? null : countriesOf(place).find(c => insideFeature(pin, c));
-    const near = hit.km <= tolerance, inHome = !near && !!home && hit.km <= COUNTRY_KM;
+    const isCountry = place.cat === "countries", home = isCountry ? null : homeOf(place, pin, COUNTRIES);
+    const near = hit.km <= tolerance, inHome = !near && !!home && hit.km <= HOME_KM;
     const ok = isCountry ? hit.km === 0 : near || inHome, good = colour(canvas, ok ? "--dk-good" : "--dk-bad"), ink = colour(canvas, "--ink");
     if (feature) {                                             // the feature itself, drawn on the reveal
       ctx.strokeStyle = good; ctx.lineWidth = 2.2; ctx.beginPath();
@@ -317,7 +311,7 @@ function plot(place, feature, note, level = 1) {
     ctx.strokeStyle = good; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 7); ctx.stroke();
     const off = `${Math.round(hit.km).toLocaleString("en-GB")} km`;
     settle(ok, isCountry ? `${hit.km === 0 ? "Inside it." : `Outside it, ${off} from its border.`} ${note}`
-      : `${hit.km < 1 ? "On it" : `${off} off`}${inHome ? `, but in ${home.name}: within ${COUNTRY_KM} km counts there` : ` (within ${tolerance} km counts, or ${COUNTRY_KM} km in the right country)`}. ${note}`);
+      : `${hit.km < 1 ? "On it" : `${off} off`}${inHome ? `, but in ${home.name}: within ${HOME_KM} km counts there` : ` (within ${tolerance} km counts, or ${HOME_KM} km in the right country)`}. ${note}`);
   });
 }
 /** A name-it card from Punt: the hint, a box to type the name in, and Check. Recall, as it was asked in Punt: nothing to
