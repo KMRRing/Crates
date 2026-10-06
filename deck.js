@@ -200,8 +200,6 @@ function ask() {
     board = mountPuzzle(holder, p, { interactive: true, onDone: solved => settle(solved, `${solved ? "Solved." : "Not that one."} The line: ${solutionSan(p).join(" ")}`) });
   } else { skip(); }
 }
-/** Multiple choice: one tap answers when one is needed; several then Answer when more are. */
-<<<<<<< Updated upstream
 /**
  * A card's choices in a new order each time it's dealt (so a place on the screen never gives an answer away); "all of
  * the above" and its kind stay last. Returns the labels and where the right ones went.
@@ -286,7 +284,7 @@ function plot(place, feature, note, level = 1) {
     ctx.strokeStyle = good; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 7); ctx.stroke();
     settle(ok, `${hit.km < 1 ? "On it" : `${Math.round(hit.km).toLocaleString("en-GB")} km off`} (within ${tolerance} km counts). ${note}`);
   });
-=======
+}
 /** A name-it card from Punt: the hint, a box to type the name in, and Check. Recall, as it was asked in Punt: nothing to
  * choose from. The name shows after, with what was typed if it differs (typing.js decides what counts). */
 function named(p) {
@@ -309,8 +307,8 @@ function named(p) {
   go.addEventListener("click", judge);
   input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); judge(); } });
   box.replaceChildren(input, go);
->>>>>>> Stashed changes
 }
+/** Multiple choice: one tap answers when one is needed; several then Answer when more are. */
 function options(labels, right, need, note) {
   const box = $("answerBox");
   box.className = `dk-answer${labels.every(l => l.length <= 18) ? " two" : ""}`;
