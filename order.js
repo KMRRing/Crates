@@ -6,7 +6,7 @@
 // story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number.
 import { QUOTES } from "./quote-bank.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
-import { PRIMERS } from "./kb/items/primers.js";
+import { UNIT_KEYS } from "./kb/items/units.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -31,26 +31,22 @@ export const FAMILIES = Object.entries(QUOTES.filter(q => q.unit !== "year").red
 // stories: each event a card whose truth is its place in the story
 const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
 for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
-// primers: a unit learned by ordering familiar things by it; each card shows its value in the unit once placed
-const PRIMER = new Map(PRIMERS.map(p => [p.id, p]));
-for (const p of PRIMERS) p.items.forEach((it, i) => BY_ID.set(`pr:${p.id}:${i}`, { id: `pr:${p.id}:${i}`, q: it.q, truth: it.v, unit: p.unit, primer: p.id, shown: it.shown }));
 const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
 /** A card's value as the line shows it: a story's place (5th), or the number with its unit. */
-const valueOf = q => (q.story ? ordinal(q.truth) : q.primer ? q.shown : withUnit(q.truth, q));
-const MODES = { dates: "Dates", quantities: "Quantities", stories: "Stories", primers: "Primers" };
+const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
+const MODES = { dates: "Dates", quantities: "Quantities", stories: "Stories" };
 
 // ---------- a run ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
 function newRun(mode, daily) {
-  const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7, primers: 11 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
-  let ids, unit = "year", story = null, primer = null;
+  const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
+  let ids, unit = "year", story = null;
   if (mode === "dates") ids = shuffle(r, DATES).slice(0, DATES_PER_RUN);
-  else if (mode === "primers") { const p = PRIMERS[Math.floor(r() * PRIMERS.length)]; primer = p.id; unit = p.unit; ids = shuffle(r, p.items.map((_, i) => `pr:${p.id}:${i}`)); }
   else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
   else { const fam = FAMILIES[Math.floor(r() * FAMILIES.length)]; unit = fam.unit; ids = shuffle(r, fam.ids); }
   // the line starts with one card face up
-  S = { seed, daily, mode, unit, story, primer, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
+  S = { seed, daily, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
   save(); render();
 }
 const truth = id => BY_ID.get(id).truth;
@@ -70,7 +66,7 @@ function place(slot) {
 }
 function end() {
   S.over = true;
-  const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : S.mode === "primers" ? `p:${S.primer}` : `q:${S.unit}`;
+  const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;
   if (!(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }
   if (S.daily) { const d = read(DAILY, {}), k = `${today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
   setTimeout(finish, 700);
@@ -84,21 +80,21 @@ const withTitle = q => q.q.replace(/^This (\w+)'s/i, `${titleOf(q)}'s`).replace(
 const short = id => {
   const q = BY_ID.get(id);
   if (q.pic) return q.unit === "year" ? `${titleOf(q)}, ${doneTo(q)}` : withTitle(q);
-  return q.q.replace(/^(The )?(year|number of|share of|population of)\s+(the\s+)?/i, "").replace(/^./, c => c.toUpperCase());
+  return q.q.replace(/^(The )?(year|number of|share of|population of|area of|land area of|size of|energy in|energy to|power of|length of|volume of)\s+(the\s+)?/i, "").replace(/^./, c => c.toUpperCase());
 };
 const cardText = q => (q.pic ? (q.unit === "year" ? `When was ${titleOf(q)} ${doneTo(q)}?` : withTitle(q)) : q.q);
 
 // ---------- drawing ----------
 function render() {
   if (!S) { newRun("dates", false); return; }
-  $("where").textContent = `${S.mode === "stories" ? STORIES.get(S.story)?.name || MODES.stories : S.mode === "primers" ? PRIMER.get(S.primer)?.name || MODES.primers : MODES[S.mode]}${S.mode === "quantities" ? `, in ${S.unit}` : ""}${S.daily ? " · today's" : ""} · placed ${S.placed}`;
+  $("where").textContent = `${S.mode === "stories" ? STORIES.get(S.story)?.name || MODES.stories : MODES[S.mode]}${S.mode === "quantities" ? `, in ${S.unit}` : ""}${S.daily ? " · today's" : ""} · placed ${S.placed}`;
   $("lives").textContent = "●".repeat(Math.max(0, S.lives)) + "○".repeat(LIVES - Math.max(0, S.lives));
   const next = S.deck[0];
   $("deal").hidden = !next || S.over;
   if (next && !S.over) {
     const q = BY_ID.get(next);
-    // a primer keeps its key in view: what one unit is, in things you know
-    $("ask").textContent = S.mode === "primers" ? PRIMER.get(S.primer).key : S.mode === "dates" ? "When? Tap where it goes in your line" : S.mode === "stories" ? STORIES.get(S.story).ask : `How much, in ${S.unit}? Tap where it goes`;
+    // a unit you can't picture (a hectare, a kWh) keeps its key in view: what one unit is, in things you know
+    $("ask").textContent = S.mode === "quantities" && UNIT_KEYS[S.unit] ? UNIT_KEYS[S.unit] : S.mode === "dates" ? "When? Tap where it goes in your line" : S.mode === "stories" ? STORIES.get(S.story).ask : `How much, in ${S.unit}? Tap where it goes`;
     $("card").textContent = cardText(q);
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
@@ -140,7 +136,6 @@ function finish() {
   p.textContent = `${S.placed} placed${S.lives <= 0 ? ", then out of lives" : ", the whole deck"}.`;
   body.append(p);
   if (S.mode === "stories") { const n = document.createElement("p"); n.className = "or-note"; n.textContent = STORIES.get(S.story).note; body.append(n); }
-  if (S.mode === "primers") { const n = document.createElement("p"); n.className = "or-note"; n.textContent = PRIMER.get(S.primer).key; body.append(n); }
   body.append(action("Another run", () => { $("doneDlg").close(); newRun(S.mode, false); }, "primary"));
   $("doneDlg").showModal();
 }

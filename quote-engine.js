@@ -168,6 +168,8 @@ export function withUnit(v, q) {
 export function fmt(v, q) {
   if (q.unit === "year") return String(Math.round(v));
   const abs = Math.abs(v);
+  // under 1, keep the significant figures (a tennis court is 0.026 ha, a rupiah €0.000055), not two decimals
+  if (abs > 0 && abs < 1) return v.toLocaleString("en-GB", { maximumSignificantDigits: 2 });
   const digits = abs >= 1000 ? 0 : abs >= 100 ? 1 : 2;
   return v.toLocaleString("en-GB", { maximumFractionDigits: digits });
 }

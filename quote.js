@@ -3,6 +3,7 @@
 // makes the market, the other hits it, lifts it or passes (together.js).
 import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, adequate } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
+import { UNIT_KEYS } from "./kb/items/units.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
@@ -138,7 +139,8 @@ function render() {
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
   picture(q);
-  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
+  // the unit only (the grade widths gave the scale away), with a key for one you can't picture: what a hectare is
+  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}${UNIT_KEYS[q.unit] ? `. ${UNIT_KEYS[q.unit]}` : ""}`;
   const entry = S.log[S.index];
   $("bid").value = entry ? fmt(entry.bid, q) : "";
   $("ask").value = entry ? fmt(entry.ask, q) : "";
@@ -206,7 +208,8 @@ function renderRoom() {
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
   picture(q);
-  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
+  // the unit only (the grade widths gave the scale away), with a key for one you can't picture: what a hectare is
+  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}${UNIT_KEYS[q.unit] ? `. ${UNIT_KEYS[q.unit]}` : ""}`;
   $("fault").textContent = "";
   const entry = g.log && Object.values(g.log)[g.index];
   const making = g.phase === "make" && isMaker, taking = g.phase === "take" && !isMaker;
