@@ -5,10 +5,10 @@
   --hb-hull: #FBF8F0; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
+  html:not([data-mode="day"]) .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
 }
 /* night, set in Settings */
-html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
+html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
 
 .hb-brief { margin: .5rem 0 .4rem; height: 3.9em; overflow: hidden; color: var(--ink-soft); font-size: .86rem; line-height: 1.3; }   /* three lines on every level, so switching levels moves nothing */
 
@@ -43,6 +43,7 @@ html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226
 /* the programs: a row per ship, a column per hour; the loop ends at the last instruction, and cells past it are faded */
 .hb-tape { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
   touch-action: pan-x;   /* sideways only: an up-or-down swipe on the programs moves nothing */
+  scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 30%, transparent) transparent;   /* a laptop's bar, thin and in the theme */
   background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 10px; -webkit-overflow-scrolling: touch; }
 .hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem repeat(4, 1.7rem);
   gap: 3px; width: max-content; }
@@ -99,3 +100,6 @@ html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226
 .hb-bests th, .hb-bests td { padding: .4rem .2rem; text-align: left; border-bottom: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
 .hb-bests thead th { font-size: .75rem; letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) { .hb-ship { transition: none; } }
+.hb-tape::-webkit-scrollbar { height: 6px; }
+.hb-tape::-webkit-scrollbar-track { background: transparent; }
+.hb-tape::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 3px; }

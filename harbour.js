@@ -470,6 +470,12 @@ const stopRepeat = () => { clearTimeout(repeat.delay); clearInterval(repeat.ever
 addEventListener("pointerup", stopRepeat);
 addEventListener("pointercancel", stopRepeat);
 const tapeBox = $("tape");
+// on a computer, the wheel scrolls the programs sideways, the only way they go
+tapeBox.addEventListener("wheel", e => {
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX) || tapeBox.scrollWidth <= tapeBox.clientWidth) return;
+  tapeBox.scrollLeft += e.deltaY;
+  e.preventDefault();
+}, { passive: false });
 tapeBox.addEventListener("pointerdown", e => {
   swept = false;
   const b = e.target.closest(".hb-cell");
