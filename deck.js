@@ -1,11 +1,14 @@
 // Deck: the pile, reviewed. What the knowledge games banked comes back here in its own form: Punt's questions
-// as options, Crates' clues as which-answer, Chart's places as which-country, Quote's numbers as a number judged
+// as options (in a new order each deal, with fresh wrong answers where they come from Crates' bank), Crates' clues as
+// which-answer, Chart's places as which-country in the first pile and plotted on the map from the second, Quote's numbers as a number judged
 // in the question's own range, Rush's puzzles on the board. Right moves an item up a pile; wrong drops it back.
 import * as pile from "./pile.js";
 import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
+import { distance, nearestOnFeature, projection, regionView, viewWindow, clampView, worldView, REGIONS } from "./chart-engine.js";
+import { LAND, BORDERS } from "./world.js";
 import { part, toggle, action, line } from "./menu.js";
 const geoById = new Map(GEO.map(g => [`geo-${g.id}`, { id: `geo-${g.id}`, name: g.name, note: g.note, country: g.country, region: g.region, geo: g }]));
 import { QUOTES } from "./quote-bank.js";
@@ -123,7 +126,9 @@ function ask() {
     if (p.svg) { $("figure").innerHTML = p.svg; $("figure").hidden = false; }
     if (p.pic) { const box = document.createElement("div"); box.className = "dk-figure"; $("figure").replaceChildren(box); $("figure").hidden = false; showPicture(box, p.pic); }
     if (p.code) { const pre = document.createElement("pre"); pre.className = "dk-code"; pre.textContent = p.code; $("figure").replaceChildren(pre); $("figure").hidden = false; }
-    options(p.options, p.right, p.need || 1, p.note);
+    const fresh = freshChoices(r, p) || { labels: p.options, right: p.right };
+    const mixed = mix(r, fresh.labels, fresh.right);
+    options(mixed.labels, mixed.right, p.need || 1, p.note);
   } else if (it.game === "crates") {
     const p = it.payload;
     $("ask").textContent = `Crates · ${p.cat === "country" ? "which country" : "which commodity"}`;
@@ -134,6 +139,12 @@ function ask() {
   } else if (it.game === "chart") {
     const place = placeById.get(it.key) || geoById.get(it.key);
     if (!place) { skip(); return; }
+    if (it.pile >= 1) {                                        // from the second pile on: where, on the map
+      $("ask").textContent = `Chart · ${place.geo ? "physical" : place.cat} · plot it`;
+      $("prompt").textContent = `Where is ${place.name}? Tap the map.`;
+      plot(place, place.geo ? place.geo : null, place.geo ? `${place.name}: ${place.note}` : `${place.name}, ${place.country}: ${place.note}`, it.pile);
+      return;
+    }
     if (place.geo) {                                           // a feature: which countries is it in
       $("ask").textContent = `Chart · physical`;
       $("prompt").textContent = `Where is ${place.name}?`;
@@ -188,6 +199,91 @@ function ask() {
   } else { skip(); }
 }
 /** Multiple choice: one tap answers when one is needed; several then Answer when more are. */
+/**
+ * A card's choices in a new order each time it's dealt (so a place on the screen never gives an answer away); "all of
+ * the above" and its kind stay last. Returns the labels and where the right ones went.
+ */
+function mix(r, labels, right) {
+  const last = i => /\b(all|none|both|neither) of (the )?(above|these)\b/i.test(labels[i]);
+  const order = [...shuffle(r, labels.map((_, i) => i).filter(i => !last(i))), ...labels.map((_, i) => i).filter(last)];
+  return { labels: order.map(i => labels[i]), right: right.map(i => order.indexOf(i)) };
+}
+/**
+ * Fresh wrong answers for a Punt card drawn from Crates' bank, so the same card doesn't come with the same company:
+ * "which country (or commodity) is this about?" gets other answers of the kind; "which clue goes with X?" other
+ * clues X doesn't carry. Anything else (a subject bank's question) keeps its own choices. Null when it can't.
+ */
+function freshChoices(r, p) {
+  const byName = new Map(BANK.map(a => [a.name, a]));
+  const rightLabels = p.right.map(i => p.options[i]), n = p.options.length;
+  if (p.options.every(o => byName.has(o))) {                   // the options are answers: swap in others of the kind
+    const cat = byName.get(rightLabels[0]).cat;
+    const pool = BANK.filter(a => a.cat === cat && !rightLabels.includes(a.name)).map(a => a.name);
+    if (pool.length < n - rightLabels.length) return null;
+    const labels = [...rightLabels, ...shuffle(r, pool).slice(0, n - rightLabels.length)];
+    return { labels, right: rightLabels.map((_, i) => i) };
+  }
+  const a = byName.get(p.prompt);
+  if (a && rightLabels.every(w => a.words.some(x => x.w === w))) {   // the options are clues to the answer asked about
+    const mine = new Set(a.words.map(x => x.w));
+    const pool = [...new Set(BANK.filter(b => b.cat === a.cat && b !== a).flatMap(b => b.words.map(x => x.w)).filter(w => !mine.has(w)))];
+    if (pool.length < n - rightLabels.length) return null;
+    const labels = [...rightLabels, ...shuffle(r, pool).slice(0, n - rightLabels.length)];
+    return { labels, right: rightLabels.map((_, i) => i) };
+  }
+  return null;
+}
+
+// ---------- a Chart place, plotted: tap where it is on the map of its region ----------
+const colour = (el, v) => { el.style.color = `var(${v})`; const c = getComputedStyle(el).color; el.style.color = ""; return c; };
+function plot(place, feature, note, level = 1) {
+  const box = $("answerBox");
+  box.className = "dk-answer dk-plot";
+  const canvas = document.createElement("canvas");
+  canvas.className = "dk-map";
+  canvas.setAttribute("aria-label", `Map: tap where ${place.name} is`);
+  box.replaceChildren(canvas);
+  const w = Math.max(240, Math.round(box.clientWidth || 340)), h = Math.round(w * 0.72), dpr = devicePixelRatio || 1;
+  canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
+  const region = Object.keys(REGIONS).find(k => REGIONS[k].name === place.region) || null;   // places name their region
+  const win = viewWindow(clampView(region ? regionView(region, w, h) : worldView(), w, h), w, h);
+  const proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const sea = colour(canvas, "--dk-sea"), land = colour(canvas, "--dk-land"), border = colour(canvas, "--dk-border");
+  ctx.fillStyle = sea; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = land;
+  for (const poly of LAND) {
+    ctx.beginPath();
+    for (const ring of poly) { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); }
+    ctx.fill("evenodd");
+  }
+  ctx.strokeStyle = border; ctx.lineWidth = .7; ctx.beginPath();
+  for (const l of BORDERS) l.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+  ctx.stroke();
+  // right within a share of the map's width that narrows as the card climbs the piles: a 25th in the short pile,
+  // a 40th in the medium, a 60th in the long (on Asia's map about 500, 310 and 190 km): the right part of China, not China
+  const midLat = (win.lat0 + win.lat1) / 2, widthKm = (win.lon1 - win.lon0) * 111.32 * Math.cos(midLat * Math.PI / 180);
+  const [share, floor] = [[25, 120], [25, 120], [40, 90], [60, 60]][Math.min(3, level)];
+  const tolerance = Math.max(floor, Math.round(widthKm / share / 10) * 10);
+  canvas.addEventListener("click", e => {
+    if (answered) return;
+    const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * (w / b.width), y = (e.clientY - b.top) * (h / b.height);
+    const [lon, lat] = proj.toLonLat(x, y), pin = { lat, lon };
+    const hit = feature ? nearestOnFeature(pin, feature) : { km: distance(pin, place), point: { lat: place.lat, lon: place.lon } };
+    const ok = hit.km <= tolerance, good = colour(canvas, ok ? "--dk-good" : "--dk-bad"), ink = colour(canvas, "--ink");
+    if (feature) {                                             // the feature itself, drawn on the reveal
+      ctx.strokeStyle = good; ctx.lineWidth = 2.2; ctx.beginPath();
+      for (const part of feature.lines || feature.rings || []) part.forEach(([flon, flat], i) => { const [fx, fy] = proj.toXY(flon, flat); if (i) ctx.lineTo(fx, fy); else ctx.moveTo(fx, fy); });
+      ctx.stroke();
+    }
+    const [tx, ty] = proj.toXY(hit.point.lon, hit.point.lat);
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
+    ctx.strokeStyle = good; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 7); ctx.stroke();
+    settle(ok, `${hit.km < 1 ? "On it" : `${Math.round(hit.km).toLocaleString("en-GB")} km off`} (within ${tolerance} km counts). ${note}`);
+  });
+}
 function options(labels, right, need, note) {
   const box = $("answerBox");
   box.className = `dk-answer${labels.every(l => l.length <= 18) ? " two" : ""}`;

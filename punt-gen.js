@@ -278,7 +278,11 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
   const m = z.map(v => Math.exp(L.spread * v)), mean = m.reduce((a, b) => a + b, 0) / count;
   for (let i = 0; i < count; i++) {
     const q = order[(start + i) % order.length];
-    const right = q.o.map((label, k) => ({ label, right: q.a.includes(k) }));
+    // the bank's options in a new order each run (they used to keep the bank's order, which gave answers away);
+    // "all of the above" and its kind stay last
+    const last = label => /\b(all|none|both|neither) of (the )?(above|these)\b/i.test(label);
+    const mixed = q.o.map((label, k) => ({ label, right: q.a.includes(k) }));
+    const right = [...shuffle(rnd, mixed.filter(o => !last(o.label))), ...mixed.filter(o => last(o.label))];
     out.push({
       kind: "maths", cat: "maths", prompt: q.q, ask: "",           // no stage-and-level marker over the question: the slip is for the question
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],

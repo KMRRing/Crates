@@ -72,3 +72,8 @@ html[data-mode="night"] { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806
   padding: 0; border: 1.5px solid var(--brass); border-radius: 999px; background: none; color: var(--ink); cursor: pointer; }
 .dk-speak svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .dk-speak .solid { fill: currentColor; }
+
+/* a Chart place plotted on its region's map */
+.dk-plot { display: block; }
+.dk-map { display: block; width: 100%; border-radius: 6px; border: 1px solid var(--tile-edge); touch-action: manipulation; cursor: crosshair; }
+:root { --dk-sea: color-mix(in srgb, var(--c2) 16%, var(--sheet)); --dk-land: var(--tile); --dk-border: var(--tile-edge); --dk-good: #2E8B57; --dk-bad: #C0392B; }

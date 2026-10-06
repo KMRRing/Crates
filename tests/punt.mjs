@@ -57,7 +57,10 @@ for (const lvl of Object.keys(P.LEVELS)) {
   const qs = P.makeSession(5, "maths", "hundred", { pool, stages: stageMap(M) });
   const byId = new Map(M.MATHS.map(q => [q.id, q]));
   const okFilter = qs.every(q => { const src = byId.get(q.key); return src.lv === "gcse" && [1, 2].includes(src.d); });
-  const okAnswers = qs.every(q => { const src = byId.get(q.key); return q.options.filter(o => o.right).length === src.s && q.options.every((o, k) => o.right === src.a.includes(k)); });
+  // the bank's options, in a new order each run: the same labels, each right exactly when the bank says so
+  const okAnswers = qs.every(q => { const src = byId.get(q.key); return q.options.filter(o => o.right).length === src.s && q.options.length === src.o.length && q.options.every(o => src.o.includes(o.label) && o.right === src.a.includes(src.o.indexOf(o.label))); });
+  const moved = qs.filter(q => q.options.some((o, k) => o.label !== byId.get(q.key).o[k])).length;
+  if (moved < qs.length / 2) { bad++; console.log("maths options keep the bank's order", { moved, of: qs.length }); }
   const easy = qs.filter(q => q.d === 1), easyPrice = easy.reduce((t, q) => t + q.fair, 0) / easy.length;
   const hardQs = P.makeSession(5, "maths", "standard", { pool: M.MATHS.filter(q => q.d >= 9), stages: stageMap(M) });
   const hardPrice = hardQs.reduce((t, q) => t + q.fair, 0) / hardQs.length;
