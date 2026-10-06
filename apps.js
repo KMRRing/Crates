@@ -174,6 +174,11 @@ const KONTOR_LOGOS = {
   brut: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h8c0 5-1.5 8-4 8s-4-3-4-8z"/><path d="M12 11.5v8.5M8.5 20.5h7"/><path class="a" d="M8.4 7h7.2"/></svg>`,
 };
 const LOOK = document.documentElement.dataset.theme;
+// the games screen's title mark: Almanac's sextant, Modern's open almanac with the moon (the app's icon before Deco),
+// Kontor's open book in line, its right-hand page ruled in green
+const BRAND = LOOK === "modern" ? '<img src="logo-modern.svg" alt="">'
+  : LOOK === "kontor" ? '<svg class="k-ico k-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5c-2.4-1.6-5.6-1.8-8.5-1v13c2.9-.8 6.1-.6 8.5 1 2.4-1.6 5.6-1.8 8.5-1v-13c-2.9-.8-6.1-.6-8.5 1z"/><path d="M12 6.5v13"/><path class="a" d="M14.8 9.6h3.2M14.8 12.6h3.2M14.8 15.6h2"/></svg>'
+  : '<img src="logo.svg" alt="">';
 const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LOOK === "kontor" ? KONTOR_LOGOS[id] : null) || almanac;
 
 export const APPS = [
@@ -361,7 +366,7 @@ export function bindSwitcher(button, current) {
   // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
-  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand"><img src="logo.svg" alt="">Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
+  dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more${APPS.find(x => x.id === current)?.more ? " cur" : ""}" type="button" data-more aria-haspopup="dialog" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul></div>`;

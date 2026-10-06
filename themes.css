@@ -243,3 +243,21 @@ html[data-theme="kontor"] .menu-h { color: var(--brass-lo); }
 /* Modern's ornaments: none (its plain Menu button is the game's own) */
 html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand { background: none; }
 html:is([data-theme="modern"], [data-theme="kontor"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }
+
+/* the games screen's title, per theme: Modern's bold sentence case beside its almanac icon; Kontor's tracked capitals */
+html[data-theme="modern"] .apps-brand { font-stretch: 100%; letter-spacing: -.01em; text-transform: none; font-size: 1.6rem; font-weight: 800; }
+html[data-theme="modern"] .apps-brand img { width: 2.1rem; height: 2.1rem; border-radius: 9px; }
+html[data-theme="kontor"] .apps-brand { font-family: var(--font); font-stretch: 100%; letter-spacing: .24em; text-transform: uppercase; font-size: 1.15rem; font-weight: 700; }
+html[data-theme="kontor"] .apps-brand .k-brand { width: 1.7rem; height: 1.7rem; stroke-width: 1.5; }
+
+/* Cartel in Kontor: the felt becomes a trading screen (near-black, a faint grid, a green hairline), gold becomes green */
+html[data-theme="kontor"] { --ct-gold: #2EB36A; --ct-gold-edge: #1E7A45; }
+html[data-theme="kontor"] .ct-table { border: 1px solid var(--ct-gold-edge); border-radius: 2px; outline: 0; box-shadow: none; color: #D3E2D8;
+  background: linear-gradient(rgba(46, 179, 106, .07) 1px, transparent 1px) 0 0 / 100% 22px,
+    linear-gradient(90deg, rgba(46, 179, 106, .07) 1px, transparent 1px) 0 0 / 22px 100%, #0C120E; }
+html[data-theme="kontor"] .ct-seat { border-radius: 2px; border-width: 1px; background: rgba(255, 255, 255, .03); border-color: rgba(211, 226, 216, .14); }
+html[data-theme="kontor"] .ct-seat.turn { border-color: #2EB36A; box-shadow: 0 0 0 2px rgba(46, 179, 106, .25); }
+html[data-theme="kontor"] :is(.ct-log-line.ask, .ct-log-line.answer, .ct-mine-ask, .ct-mine.turn .ct-plaque b) { color: #4CCB7E; }
+html[data-theme="kontor"] :is(.ct-log-line.act, .ct-log-line.free, .ct-log-line.bid) { color: #D3E2D8; }
+html[data-theme="kontor"] .ct-die.picked { outline-color: #2EB36A; border-radius: 2px; }
+html[data-theme="kontor"] .ct-notes li { border-color: rgba(46, 179, 106, .35); color: #D3E2D8; border-radius: 2px; }
