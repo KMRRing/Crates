@@ -98,9 +98,13 @@ export function answer(game, key, right) {
 export function all(game = null) {
   return Object.values(load()).filter(it => !game || it.game === game).sort((a, b) => (a.learned ? 1 : 0) - (b.learned ? 1 : 0) || a.pile - b.pile || a.due - b.due);
 }
-/** What's due now (or by `at`), soonest first; lower piles first among the due. */
+/**
+ * What's due now (or by `at`), the most revised first: the highest pile first, and within a pile the longest overdue.
+ * What has lasted longest is what a lapse would cost most, so it's checked first; moving a new miss from the ultra-short
+ * pile up is for when every longer check is done. Deck's review and every game's learning mode take this order.
+ */
 export function due(game = null, at = Date.now()) {
-  return all(game).filter(it => !it.learned && it.due <= at).sort((a, b) => a.pile - b.pile || a.due - b.due);
+  return all(game).filter(it => !it.learned && it.due <= at).sort((a, b) => b.pile - a.pile || a.due - b.due);
 }
 /** Counts per pile for a game or all, plus learned and due. */
 export function counts(game = null) {

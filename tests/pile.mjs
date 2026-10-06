@@ -20,6 +20,18 @@ check(!!it.learned && P.counts().learned === 1 && P.due("punt").length === 0, "r
 P.record("punt", "words/WD-001", {}, "wrong");
 check(!P.all("punt")[0].learned && P.all("punt")[0].pile === 0, "a miss on a learned item brings it back to the first pile");
 check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's banked");
+{ // the most revised first: the highest pile, then the longest overdue; the ultra-short pile last
+  P.clear();
+  for (const [key, ups] of [["new", 0], ["week", 3], ["quarter", 5], ["day", 2], ["week2", 3]]) {
+    P.record("chart", key, {}, "miss");
+    for (let i = 0; i < ups; i++) P.answer("chart", key, true);
+  }
+  const at = Date.now() + 200 * 86400000, all = P.all("chart");
+  all.find(x => x.key === "week2").due -= 5000;                // overdue a little longer than its pile-mate
+  const order = P.due("chart", at).map(it => it.key).join();
+  check(order === "quarter,week2,week,day,new", `due order, the most revised first: ${order}`);
+  P.clear();
+}
 P.setLearning(false); check(P.learning() === false, "learning mode can be switched off"); P.setLearning(true);
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
