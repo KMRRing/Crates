@@ -188,6 +188,8 @@ Refining sets (Menu → A refining set / Today's refining set) draw ten question
 
 The page fits the screen: once a market is settled the bid and ask boxes and the width shortcuts make way for the result (the tape shows your market against the truth), and a long note scrolls inside. Widths are rounded where they're made (0.1 × 3 used to show as 0.30000000000000004).
 
+A question shows its unit only: the grade widths ("S ±3 ppm · A ±7 · B ±15") and the width shortcuts gave away the scale of the answer, so you work out your own range. A range that holds the answer never loses money, however wide: it at worst breaks even (and, below A, still goes to the review pile), and its verdict is yellow ("too wide"), never red; red is for a range that missed.
+
 ## Manifest
 A stack of coloured containers (columns of varying height) drops into one isometric stage, container by container with a bounce, holds, and is gone; then you're asked about it. A run is twelve rounds, or until three lives are gone.
 

@@ -35,9 +35,6 @@ html[data-mode="night"] { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-bad: #E8806
   font: inherit; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; box-sizing: border-box; }
 .qt-side input:focus { outline: none; border-color: var(--qt-in); }
 .qt-dash { padding-bottom: .9rem; font-size: 1.4rem; font-weight: 800; color: var(--ink-soft); }
-.qt-widths { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
-.qt-widths button { min-height: 38px; border-radius: 10px; border: 1.5px solid var(--qt-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; cursor: pointer; }
-.qt-widths button:disabled { opacity: .4; cursor: default; }
 .qt-fault { margin: 0; min-height: 1.2em; font-size: .88rem; color: var(--qt-bad); }
 .qt-go { min-height: 50px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .qt-go:disabled { opacity: .45; cursor: default; }
@@ -57,6 +54,7 @@ html[data-mode="night"] { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-bad: #E8806
 .qt-verdict { margin: 0; font-size: 1.25rem; font-weight: 800; }
 .qt-verdict.good { color: var(--qt-good); }
 .qt-verdict.bad { color: var(--qt-bad); }
+.qt-verdict.meh { color: var(--qt-meh, #B8860B); }   /* held the answer, but wide: yellow, never red */
 .qt-tape { position: relative; height: 54px; }
 .qt-tape .rail { position: absolute; left: 0; right: 0; top: 26px; height: 4px; border-radius: 2px; background: var(--qt-edge); }
 .qt-tape .span { position: absolute; top: 20px; height: 16px; border-radius: 8px; background: var(--qt-in-soft); border: 2px solid var(--qt-in); box-sizing: border-box; }

@@ -1,7 +1,7 @@
 // Quote: ten numbers, a two-sided market on each. The engine (quote-engine.js) settles a market; this file runs
 // the set, draws the card and the tape, and keeps bests. Together, the room holds the set and you alternate: one
 // makes the market, the other hits it, lifts it or passes (together.js).
-import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, tiersText, tiersOf, adequate } from "./quote-engine.js";
+import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, adequate } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -131,26 +131,24 @@ function render() {
   $("waiting").hidden = true;
   $("takeBox").hidden = true;
   $("market").hidden = false;
-  $("widths").hidden = false;
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
   picture(q);
-  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · ${tiersText(q)}`;
+  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   const entry = S.log[S.index];
   $("bid").value = entry ? fmt(entry.bid, q) : "";
   $("ask").value = entry ? fmt(entry.ask, q) : "";
   $("bid").disabled = $("ask").disabled = !!entry;
   $("fault").textContent = "";
   $("quoteBtn").hidden = !!entry;
-  drawWidths(q);
   const result = $("result");
   result.hidden = !entry;
   $("card").classList.toggle("settled", !!entry);             // the tape shows your market against the truth
   if (entry) {
     const v = $("verdict");
     const grade = entry.grade || (entry.inside ? "A" : "C");
-    v.className = `qt-verdict ${adequate(grade) ? "good" : "bad"}`;
-    const word = { SS: "exact", S: "sharp", A: "adequate", B: "pushing it", C: "a miss" }[grade];
+    v.className = `qt-verdict ${adequate(grade) ? "good" : entry.inside ? "meh" : "bad"}`;   // wide but right is never red
+    const word = { SS: "exact", S: "sharp", A: "adequate", B: "pushing it", C: entry.inside ? "too wide" : "a miss" }[grade];
     v.textContent = `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
     drawTape(q, entry);
     // the note usually opens with the figure itself; when it doesn't, lead with it
@@ -165,32 +163,6 @@ function beyondText(q, e) {
   return `${fmt(gap, { unit: "" })} ${q.unit === "year" ? "years" : q.unit} ${above ? "above your ask" : "below your bid"}`;
 }
 
-/** The shortcuts: set a market of a tier's radius around what you've typed (one number, or the middle of two). */
-function drawWidths(q) {
-  const box = $("widths");
-  box.replaceChildren();
-  const log = q.scale === "log";
-  const T = tiersOf(q);
-  for (const g of ["S", "A", "B"]) {
-    const w = T[g];
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = `${g} ${log ? `±${Math.round(w * 100)}%` : `±${w}`}`;
-    b.disabled = S.phase !== "quote";
-    b.addEventListener("click", () => {
-      const bid = parse($("bid").value), ask = parse($("ask").value);
-      const mid = Number.isFinite(bid) && Number.isFinite(ask) ? (log ? Math.sqrt(bid * ask) : (bid + ask) / 2) : Number.isFinite(bid) ? bid : Number.isFinite(ask) ? ask : NaN;
-      if (!Number.isFinite(mid) || (log && mid <= 0)) { $("fault").textContent = "Type a number first; the shortcuts set the width around it."; return; }
-      const lo = log ? mid / (1 + w) : mid - w, hi = log ? mid * (1 + w) : mid + w;
-      $("bid").value = fmt(round(lo, q), q);
-      $("ask").value = fmt(round(hi, q), q);
-      $("fault").textContent = "";
-    });
-    box.appendChild(b);
-  }
-}
-const nice = x => { const p = 10 ** Math.floor(Math.log10(x)); return Math.round(x / p * 2) * p / 2; };
-const round = (v, q) => (q.scale === "log" ? Number(v.toPrecision(3)) : q.scale >= 10 ? Math.round(v) : Math.round(v * 10) / 10);
 
 /** The tape: a rail with your bid and ask as a span and the truth as a tick, on the question's own scale. */
 function drawTape(q, e) {
@@ -226,12 +198,11 @@ function renderRoom() {
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = q.q;
   picture(q);
-  $("unit").textContent = `${q.unit === "year" ? "A year" : `In ${q.unit}`} · ${tiersText(q)}`;
+  $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   $("fault").textContent = "";
   const entry = g.log && Object.values(g.log)[g.index];
   const making = g.phase === "make" && isMaker, taking = g.phase === "take" && !isMaker;
   $("market").hidden = !(making || g.phase === "reveal");
-  $("widths").hidden = !making;
   $("quoteBtn").hidden = !making;
   if (!making) { $("bid").disabled = $("ask").disabled = true; }
   if (making) { $("bid").disabled = $("ask").disabled = false; if (document.activeElement !== $("ask")) $("bid").value = $("bid").value; drawWidths(q); }

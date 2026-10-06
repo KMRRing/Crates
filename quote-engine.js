@@ -76,7 +76,8 @@ export function curve(q, r) {
 export function settle(q, bid, ask) {
   const width = widthOf(q, bid, ask), beyond = beyondOf(q, bid, ask), inside = beyond === 0;
   const radius = radiusOf(q, bid, ask), grade = gradeOf(q, bid, ask);
-  const delta = Math.round(curve(q, radius) * weight(q));
+  // a range that holds the answer never loses: however wide, it at worst breaks even (it still banks the question)
+  const delta = Math.round((inside ? Math.max(0, curve(q, radius)) : curve(q, radius)) * weight(q));
   return { inside, width, beyond, radius, grade, delta };
 }
 /** Whether a grade shows adequate knowledge: A or better. B and below bank the question. */
