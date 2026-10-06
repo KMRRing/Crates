@@ -37,10 +37,10 @@ const SKINS = {
   kontor: {
     day: { land: 0xe4eae6, grass: null, side: .9, plate: 0x93a39a, water: [0xb2cabd, 0xabc4b6], decor: null,
       hull: 0x111a15, boot: 0x2eb36a, deck: 0x2e3b33, house: 0xffffff, glass: 0x111a15, funnel: 0x111a15, band: 0x2eb36a,
-      tank: 0xffffff, pier: 0x93a39a, empty: 0xc9d2cc, edge: [0x1e7a45, .55], sky: 0xffffff, ground: 0xc9d2cc, hemi: 1.75, sun: 0xffffff, sunI: 1.25, sunAt: [4, 12, 6], exposure: 1 },
+      tank: 0xffffff, pier: 0x93a39a, empty: 0xc9d2cc, edge: [0x1e7a45, .55], landEdge: [0x1e7a45, .16], sky: 0xffffff, ground: 0xc9d2cc, hemi: 1.75, sun: 0xffffff, sunI: 1.25, sunAt: [4, 12, 6], exposure: 1 },
     night: { land: 0x18231c, grass: null, side: .8, plate: 0x030504, water: [0x1d4a33, 0x1b452f], seaGlow: .3, decor: null,
       hull: 0x15201a, boot: 0x3dd884, deck: 0x1f2c24, house: 0x22302a, houseGlow: .2, glass: 0x6bffb0, funnel: 0x15201a, band: 0x3dd884,
-      tank: 0x1f2c24, pier: 0x2c3d33, empty: 0x22302a, edge: [0x3dd884, .95], sky: 0x4f7a60, ground: 0x0b100d, hemi: .9, sun: 0xa8f0c8, sunI: 1.2, sunAt: [-4, 12, -3], exposure: 1.25,
+      tank: 0x1f2c24, pier: 0x2c3d33, empty: 0x22302a, edge: [0x3dd884, .95], landEdge: [0x3dd884, .2], sky: 0x4f7a60, ground: 0x0b100d, hemi: .9, sun: 0xa8f0c8, sunI: 1.2, sunAt: [-4, 12, -3], exposure: 1.25,
       night: true, lamp: 0x6bffb0 },
   },
 };
@@ -118,9 +118,23 @@ export function create3D(box) {
     scene = new THREE.Scene();
     renderer.toneMappingExposure = skin.exposure;
     const at = (x, y) => (x < 0 || y < 0 || x >= G.w || y >= G.h ? "land" : G.at(x, y));
-    const cells = [];
-    for (let y = -1; y <= G.h; y++) for (let x = -1; x <= G.w; x++) cells.push({ x, y, k: at(x, y), p: centre(x, y) });
-    const land = cells.filter(c => c.k === "land"), wet = cells.filter(c => c.k !== "land");
+    // The board: the water and the land round it to FADE hexes out, each ring past the first a little lower and more
+    // see-through, so the land dissolves into the page rather than stopping at an edge. d: hexes from the water.
+    const FADE = 4, alphaAt = d => [1, 1, .7, .4, .15][Math.min(d, FADE)], cells = [], byKey = new Map();
+    for (let y = -FADE - 1; y < G.h + FADE + 1; y++) for (let x = -FADE - 1; x < G.w + FADE + 1; x++) {
+      const c = { x, y, k: at(x, y), p: centre(x, y), d: Infinity };
+      cells.push(c); byKey.set(`${x},${y}`, c);
+    }
+    const queue = cells.filter(c => c.k !== "land");
+    for (const c of queue) c.d = 0;
+    for (let i = 0; i < queue.length; i++) {
+      const c = queue[i];
+      if (c.d >= FADE) continue;
+      for (let h = 0; h < 6; h++) { const n = neighbour(c.x, c.y, h), nc = byKey.get(`${n.x},${n.y}`); if (nc && nc.d === Infinity) { nc.d = c.d + 1; queue.push(nc); } }
+    }
+    const board = cells.filter(c => c.d <= FADE), land = board.filter(c => c.k === "land"), wet = board.filter(c => c.k !== "land");
+    const rings = list => { const out = new Map(); for (const c of list) { const a = c.k === "land" ? alphaAt(c.d) : 1; if (!out.has(a)) out.set(a, []); out.get(a).push(c); } return out; };
+    const faded = a => (a < 1 ? { transparent: true, opacity: a, depthWrite: false } : {});
     water = wet.map(c => c.p);
     mid = water.reduce((a, p) => a.add(p), new THREE.Vector3()).divideScalar(water.length);
     const m4 = new THREE.Matrix4(), col = new THREE.Color();
@@ -131,30 +145,35 @@ export function create3D(box) {
       scene.add(mesh);
       return mesh;
     };
-    // the board: a dark plate under every tile, the gaps between tiles its grout
-    instanced(hexGeo(R * 1.002, .3), mat(skin.plate, { roughness: .95 }), cells, (c, m) => m.makeTranslation(c.p.x, -.31, c.p.z));
-    // land, raised and a little uneven, its sides darker than its top; the sea low, in two tones
-    const height = c => .42 + hash(c.x, c.y) * .16;
+    // the board: a dark plate under every tile, the gaps between tiles its grout (fading with the land above it)
+    for (const [a, list] of rings(board)) instanced(hexGeo(R * 1.002, .3), mat(skin.plate, { roughness: .95, ...faded(a) }), list, (c, m) => m.makeTranslation(c.p.x, -.31, c.p.z));
+    // land, raised and a little uneven, its sides darker than its top, lower ring by ring away from the water; the sea
+    // low, in two tones
+    const height = c => (.42 + hash(c.x, c.y) * .16) * (c.d <= 1 ? 1 : 1 - .18 * (c.d - 1));
     const sideTone = new THREE.Color(skin.side, skin.side, skin.side);
-    instanced(hexGeo(R * .985, 1), [mat(sideTone), mat(0xffffff), mat(sideTone)], land,
-      (c, m) => m.compose(new THREE.Vector3(c.p.x, height(c) / 2 - .14, c.p.z), new THREE.Quaternion(), new THREE.Vector3(1, height(c), 1)),
-      c => (skin.grass && hash(c.x, c.y, 1) < .45 ? skin.grass : skin.land));
+    for (const [a, list] of rings(land)) {
+      const mesh = instanced(hexGeo(R * .985, 1), [mat(sideTone, faded(a)), mat(0xffffff, faded(a)), mat(sideTone, faded(a))], list,
+        (c, m) => m.compose(new THREE.Vector3(c.p.x, height(c) / 2 - .14, c.p.z), new THREE.Quaternion(), new THREE.Vector3(1, height(c), 1)),
+        c => (skin.grass && hash(c.x, c.y, 1) < .45 ? skin.grass : skin.land));
+      if (a < 1) mesh.castShadow = false;
+    }
     instanced(hexGeo(R * .965, .16), mat(0xffffff, { roughness: .35, emissive: skin.water[0], emissiveIntensity: skin.seaGlow || 0 }), wet, (c, m) => m.makeTranslation(c.p.x, -.08, c.p.z),
       c => skin.water[(c.x + c.y) & 1]);
     // trees on Almanac's land, shrubs on Modern's, none on Kontor's
     if (skin.decor) {
       const spots = [];
-      for (const c of land) if (hash(c.x, c.y, 2) < .5) for (let i = 0; i < 1 + Math.floor(hash(c.x, c.y, 3) * 3); i++) {
+      for (const c of land) if (c.d <= 1 && hash(c.x, c.y, 2) < .5) for (let i = 0; i < 1 + Math.floor(hash(c.x, c.y, 3) * 3); i++) {
         const a = hash(c.x, c.y, 4 + i) * Math.PI * 2, d = hash(c.x, c.y, 9 + i) * .5;
         spots.push({ x: c.p.x + Math.cos(a) * d, z: c.p.z + Math.sin(a) * d, y: height(c) - .14, s: .8 + hash(c.x, c.y, 13 + i) * .5 });
       }
       const geo = skin.decor === "pine" ? new THREE.ConeGeometry(.17, .46, 6) : new THREE.IcosahedronGeometry(.17, 0);
       instanced(geo, mat(skin.leaf), spots, (s, m) => m.compose(new THREE.Vector3(s.x, s.y + (skin.decor === "pine" ? .23 : .12) * s.s, s.z), new THREE.Quaternion(), new THREE.Vector3(s.s, s.s, s.s)));
     }
-    // Kontor inks every tile's top edge, and the land's corners down to the sea
-    if (skin.edge) {
+    // Kontor inks every tile's top edge, and the land's corners down to the sea: the sea's lines in full, the land's faint
+    // (and fading with it)
+    const ink = (list, [colour, opacity]) => {
       const pts = [];
-      for (const c of cells) {
+      for (const c of list) {
         const top = c.k === "land" ? height(c) - .14 : .0, r = c.k === "land" ? R * .985 : R * .965;
         for (let i = 0; i < 6; i++) {
           const a0 = Math.PI / 3 * i, a1 = Math.PI / 3 * (i + 1);
@@ -164,7 +183,11 @@ export function create3D(box) {
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-      scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: skin.edge[0], transparent: true, opacity: skin.edge[1] })));
+      scene.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: colour, transparent: true, opacity })));
+    };
+    if (skin.edge) {
+      ink(wet, skin.edge);
+      for (const [a, list] of rings(land)) ink(list, [skin.landEdge[0], skin.landEdge[1] * a]);
     }
     // the jetties: a rim in the jetty's colour round its berth, a pier to the shore, and a shore tank banded in the same
     // colour; a refinery's tank is glass, so its level shows
@@ -176,7 +199,7 @@ export function create3D(box) {
       rim.position.set(c.p.x, -.01, c.p.z); rim.castShadow = rim.receiveShadow = true; scene.add(rim);
       let shore = null;
       for (const h of [2, 1, 3, 0, 4, 5]) { const n = neighbour(c.x, c.y, h); if (at(n.x, n.y) === "land") { shore = n; break; } }
-      const s = shore ? centre(shore.x, shore.y) : c.p.clone().add(new THREE.Vector3(0, 0, -1.5)), ground = shore ? height({ x: shore.x, y: shore.y }) - .14 : 0;
+      const s = shore ? centre(shore.x, shore.y) : c.p.clone().add(new THREE.Vector3(0, 0, -1.5)), ground = shore ? height(byKey.get(`${shore.x},${shore.y}`)) - .14 : 0;
       const half = c.p.clone().lerp(s, .5), pier = new THREE.Mesh(new THREE.BoxGeometry(.18, .08, c.p.distanceTo(s) * .7), mat(skin.pier));
       pier.position.set(half.x, .06, half.z); pier.lookAt(s.x, .06, s.z); pier.castShadow = pier.receiveShadow = true; scene.add(pier);
       const towards = s.clone().sub(c.p).normalize(), end = c.p.clone().addScaledVector(towards, .32);
@@ -203,7 +226,7 @@ export function create3D(box) {
     sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.radius = 3;
     sun.shadow.bias = -.0005;
-    const reach = Math.max(G.w, G.h) * 1.6 + 3;
+    const reach = Math.max(G.w, G.h) * 1.6 + 2 * FADE + 3;
     Object.assign(sun.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 1, far: 40 });
     scene.add(sun, sun.target);
     // the picked ship's ring on the water, and the crash's
@@ -340,7 +363,7 @@ export function create3D(box) {
     const v = new THREE.Vector3();
     for (const p of water) for (let i = 0; i < 6; i++) for (const up of [.6, -.2]) {
       const a = Math.PI / 3 * i;
-      v.set(p.x + Math.sin(a) * R * 1.2, up, p.z + Math.cos(a) * R * 1.2).applyMatrix4(cam.matrixWorldInverse);
+      v.set(p.x + Math.sin(a) * R * 1.5, up, p.z + Math.cos(a) * R * 1.5).applyMatrix4(cam.matrixWorldInverse);   // room for the edge's fade
       x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y);
     }
     for (const p of ashore) { v.copy(p).applyMatrix4(cam.matrixWorldInverse); x0 = Math.min(x0, v.x - .5); x1 = Math.max(x1, v.x + .5); y0 = Math.min(y0, v.y - .5); y1 = Math.max(y1, v.y + .35); }
