@@ -458,7 +458,19 @@ export const PINS = [
 {"id":"hi-thirteen-factories","cat":"history","about":"thirteen-factories"},
 {"id":"hi-elmina","cat":"history","about":"elmina","name":"Elmina Castle","note":"Built by the Portuguese in 1482, later Dutch; enslaved Africans left through its door of no return."},
 {"id":"hi-goree-island","cat":"history","about":"goree-island"},
-{"id":"hi-york-factory","cat":"history","about":"york-factory"}
+{"id":"hi-york-factory","cat":"history","about":"york-factory"},
+{"id":"hi-st-georges-chapel","cat":"history","about":"st-georges-chapel"},
+{"id":"hi-st-giles-cathedral","cat":"history","about":"st-giles-cathedral"},
+{"id":"hi-hotel-de-salm","cat":"history","about":"hotel-de-salm"},
+{"id":"hi-palazzo-di-malta","cat":"history","about":"palazzo-di-malta"},
+{"id":"hi-malbork-castle","cat":"history","about":"malbork-castle"},
+{"id":"hi-aachen-cathedral","cat":"history","about":"aachen-cathedral"},
+{"id":"hi-frankfurt-cathedral","cat":"history","about":"frankfurt-cathedral"},
+{"id":"hi-hofburg","cat":"history","about":"hofburg"},
+{"id":"hi-munich-residenz","cat":"history","about":"munich-residenz"},
+{"id":"hi-college-of-arms","cat":"history","about":"college-of-arms"},
+{"id":"hi-ascot-racecourse","cat":"history","about":"ascot-racecourse"},
+{"id":"hi-tuxedo-park","cat":"history","about":"tuxedo-park"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},

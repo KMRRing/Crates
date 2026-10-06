@@ -42,6 +42,7 @@ export const LEVELS = {
   code: { label: "Code", questions: 15, spread: 0.3, maths: true, bank: "./cs-bank.js", note: "Data and algorithms, code to read, paradigms, systems and the web." },
   philosophy: { label: "Philosophy", questions: 15, spread: 0.3, maths: true, bank: "./phil-bank.js", note: "The ancients and moderns, ethics and politics, knowledge and mind." },
   religion: { label: "Religion", questions: 15, spread: 0.3, maths: true, bank: "./rel-bank.js", note: "The faiths, their calendars, food rules and etiquette: what to know before the meeting." },
+  titles: { label: "Titles & etiquette", questions: 15, spread: 0.3, maths: true, bank: "./titles-bank.js", note: "The peerage, nobility abroad, orders and honours, dress codes, manners and address, heraldry." },
   merchants: { label: "Merchants & empires", questions: 15, spread: 0.3, maths: true, bank: "./merchants-bank.js", note: "Merchant powers from the Silk Road to the opium trade, the Hanse and Venice, the chartered companies, bankers and their tools, mercantilism." },
   mythology: { label: "Mythology", questions: 15, spread: 0.3, maths: true, bank: "./myth-bank.js", note: "The gods of Greece and Rome, heroes and monsters, the Norse, Egypt, and myth in words." },
   architecture: { label: "Architecture", questions: 15, spread: 0.3, maths: true, bank: "./arch-bank.js", note: "Styles as ideas, buildings by sight, and the parts of a building." },
@@ -186,7 +187,7 @@ const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
 export const TOPIC_PRESETS = {
   balanced: { label: "Balanced", topics: allTopics(1) },
   trader: { label: "Trader", topics: { ...allTopics(0), countries: 1, commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, cities: 1, patterns: 1, chemistry: 1, physics: 1, code: 1, merchants: 1 } },
-  culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1, swiss: 1, architecture: 1, mythology: 1, merchants: 1 } },
+  culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1, swiss: 1, architecture: 1, mythology: 1, merchants: 1, titles: 1 } },
 };
 export const MIX = { label: "Topics", questions: 15, spread: 0.3 };
 LEVELS.mix = MIX;                                   // a run of topics is a level of its own (its label, its length)

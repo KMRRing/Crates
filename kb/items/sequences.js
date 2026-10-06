@@ -187,5 +187,54 @@ export const SEQUENCES = [
    "Elizabeth I closes the London Steelyard",
    "The last Diet meets, with nine towns"
   ]
+ },
+ {
+  "id": "peerage",
+  "name": "The British peerage",
+  "unit": "rank",
+  "ask": "Which ranks higher? Tap where it goes",
+  "note": "Precedence in the peerage, highest first; baronets and knights follow the barons, but they aren't peers.",
+  "steps": [
+   "Duke",
+   "Marquess",
+   "Earl",
+   "Viscount",
+   "Baron",
+   "Baronet (hereditary, but not a peer)",
+   "Knight bachelor (for life only)"
+  ]
+ },
+ {
+  "id": "german-ranks",
+  "name": "The German nobility",
+  "unit": "rank",
+  "ask": "Which ranks higher? Tap where it goes",
+  "note": "The usual order of German ranks. Prince-electors and archdukes ranked by their own rules, just above the dukes.",
+  "steps": [
+   "Kaiser (emperor)",
+   "König (king)",
+   "Großherzog (grand duke)",
+   "Herzog (duke)",
+   "Fürst (prince)",
+   "Graf (count)",
+   "Freiherr (baron)",
+   "Ritter (knight)",
+   "Edler (the lowest noble rank)"
+  ]
+ },
+ {
+  "id": "obe-grades",
+  "name": "The Order of the British Empire",
+  "unit": "grade",
+  "ask": "Which grade is higher? Tap where it goes",
+  "note": "Its five grades, highest first, and the medal attached to the order.",
+  "steps": [
+   "Knight or Dame Grand Cross (GBE)",
+   "Knight or Dame Commander (KBE, DBE)",
+   "Commander (CBE)",
+   "Officer (OBE)",
+   "Member (MBE)",
+   "The British Empire Medal (BEM)"
+  ]
  }
 ];

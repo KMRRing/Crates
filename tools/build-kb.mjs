@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -195,6 +195,35 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     if (p.dark) out.merchants.push(mk("dark", `Whose darkest chapter was ${p.dark}?`, p.title, near.filter(o => o.dark).map(o => o.title)));
     out.merchants.push(mk("fell", `How did ${low(p.title)} come to an end?`, p.fell, near.map(o => o.fell)));
   }
+
+  // Titles and etiquette, from kb/: the orders by their founders and mottos, the peers' wives, the German ranks and
+  // styles in English, and the dress codes both ways. Wrong names are the ones nearest in length (so no option stands out
+  // by its length); a founder of two orders, or one whose name echoes the order's (Victoria, Victorian), isn't asked.
+  const teQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...pool.filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  const teByLength = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const teOrders = ENTITIES.filter(e => e.sets.includes("chivalric-order"));
+  const teFounders = teOrders.reduce((m, o) => m.set(o.founder, (m.get(o.founder) || 0) + 1), new Map());
+  const teStem = w => w.toLowerCase().slice(0, 6);
+  for (const o of teOrders) {
+    const others = teOrders.filter(x => x !== o).map(x => x.name), x = `${o.name}: ${o.country}, founded in ${o.year} by ${o.founder}.${o.motto ? ` Motto: '${o.motto}', ${o.mottoEn}.` : ""}${o.seat ? ` Its chapel or seat: ${o.seat}.` : ""}`;
+    const teEchoes = o.founder.split(/[\s,]+/).filter(w => w.length >= 5).some(w => o.name.toLowerCase().includes(teStem(w)));
+    if (teFounders.get(o.founder) === 1 && !teEchoes) out.titles.push(teQ("orders", "Orders and honours", `TE-G-${o.id}-founder`, `Which order did ${o.founder} found?`, o.name, teByLength(o.name, others.filter(n => teOrders.find(y => y.name === n).founder !== o.founder)), x, [o.id]));
+    if (o.motto) out.titles.push(teQ("orders", "Orders and honours", `TE-G-${o.id}-motto`, `Whose motto is '${o.motto}' (${o.mottoEn})?`, o.name, teByLength(o.name, others), x, [o.id]));
+  }
+  const teRanks = ENTITIES.filter(e => e.sets.includes("peerage-rank")).sort((a, b) => a.rank - b.rank);
+  for (const r of teRanks) out.titles.push(teQ("peerage", "The peerage", `TE-G-${r.id}-wife`, `The wife of a ${r.name.toLowerCase()} is a`, r.wife, teRanks.filter(o => o !== r).map(o => o.wife),
+    `A ${r.name.toLowerCase()}'s wife is a ${r.wife}. The ranks, from the top: duke, marquess, earl, viscount, baron.`, [r.id]));
+  const teDe = ENTITIES.filter(e => e.sets.includes("german-rank")).sort((a, b) => a.rank - b.rank);
+  for (const r of teDe) { const near = [...teDe].filter(o => o !== r).sort((a, b) => Math.abs(a.rank - r.rank) - Math.abs(b.rank - r.rank) || a.rank - b.rank);
+    out.titles.push(teQ("abroad", "Nobility abroad", `TE-G-${r.id}`, `A ${r.name} is, in English, a`, r.english, near.map(o => o.english), `${r.name}: ${r.english}. In order, the German ranks run ${teDe.map(o => o.name).join(", ")}.`, [r.id])); }
+  const teStyles = ENTITIES.filter(e => e.sets.includes("german-style"));
+  for (const t of teStyles) out.titles.push(teQ("abroad", "Nobility abroad", `TE-G-${t.id}`, `'${t.name}' is the German style for`, t.english, teByLength(t.english, teStyles.filter(o => o !== t).map(o => o.english)),
+    `${t.name}: ${t.english}. ${teStyles.filter(o => o !== t).map(o => `${o.name}, ${o.english}`).join("; ")}.`, [t.id]));
+  const teCodes = ENTITIES.filter(e => e.sets.includes("dress-code"));
+  for (const c of teCodes) { const x = `${c.name}: for men, ${c.men}; worn at ${c.when}.`;
+    out.titles.push(teQ("dress", "Dress codes", `TE-G-${c.id}-means`, `Which dress code means ${c.men}?`, c.name, teByLength(c.name, teCodes.filter(o => o !== c).map(o => o.name)), x, [c.id]));
+    out.titles.push(teQ("dress", "Dress codes", `TE-G-${c.id}-when`, `${c.name} is worn at`, c.when, teByLength(c.when, teCodes.filter(o => o !== c).map(o => o.when)), x, [c.id])); }
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.
