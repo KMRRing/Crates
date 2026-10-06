@@ -332,15 +332,17 @@ const together = createTogether({
 
 // ---------- the closing bell ----------
 function finish() {
-  const inside = S.log.filter(e => e.inside).length;
-  const widths = S.log.map(e => e.width), avgWidth = widths.reduce((t, w) => t + w, 0) / widths.length;
+  // how sharp the markets were, in the game's own terms: inside and graded A or better on each question's own scale.
+  // (An "average width" mixed units, doublings for ratios and plain units for years and counts, and printed 2 to the
+  // power of their mean: a 76-year market came out as ×7.6e+22.)
+  const inside = S.log.filter(e => e.inside).length, sharp = S.log.filter(e => e.inside && adequate(e.grade)).length;
   const best = S.mode === "daily" ? bestDaily(S.book) : bestEver(S.book);
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
   add("p", "qt-big", money(S.book));
   const stats = add("div", "qt-stats");
-  for (const [v, label] of [[`${inside} of ${S.log.length}`, "inside"], [`×${(2 ** avgWidth).toFixed(1)}`, "average width"], [signed(S.book - START), "on the set"]]) {
+  for (const [v, label] of [[`${inside} of ${S.log.length}`, "inside"], [`${sharp} of ${S.log.length}`, "A or better"], [signed(S.book - START), "on the set"]]) {
     const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
     b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
   }
