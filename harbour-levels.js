@@ -193,6 +193,40 @@ export const LEVELS = [
     ],
   },
   {
+    id: "trickle", name: "Trickle",                    // found by the level lab
+    brief: "G, beside the customer (D), sells oil at $1k a unit, one a lift, but its tank fills only half a unit an hour. L, down the channel, sells at $2k, four a lift. The customer takes four an hour. Thirty units.",
+    map: [
+      "######",
+      "######",
+      "###.D#",
+      "##.G##",
+      "#..###",
+      "#.####",
+      "#L####",
+      "######",
+    ],
+    products: { oil: { name: "Oil", price: 2 }, cheap: { name: "Oil, cheaper", price: 1 } },
+    jetties: {
+      L: { kind: "load", product: "oil", parcel: 4 },
+      D: { kind: "discharge", parcel: 4 },
+      G: { kind: "load", product: "cheap", parcel: 1, tank: { start: 0, rate: 0.5, cap: 10 } },
+    },
+    fleet: { coaster: 3, handy: 1 }, target: 30, maxCycles: 500,
+    par: { cost: 52, hours: 35, water: 2, instructions: 4 },
+    plans: [
+      { par: ["cost", "water"], ships: [
+        { x: 3, y: 3, h: 1, type: "coaster", prog: program("(2L)ADB(2L)") },
+      ] },
+      { par: ["hours"], ships: [
+        { x: 4, y: 2, h: 1, type: "coaster", prog: program("B(4L)ADB(4L)ADB(4L)AD") },
+        { x: 1, y: 6, h: 4, type: "handy", prog: program("(2L)(4B)PBP(2D)BSBS(3A)") },
+      ] },
+      { par: ["water", "instructions"], ships: [
+        { x: 4, y: 2, h: 1, type: "handy", prog: program("(2D)B(7L)A") },
+      ] },
+    ],
+  },
+  {
     id: "first-blend", name: "First blend",
     rev: 4,              // FAME at $5k (the Handy's exact blend cheapest again): plans and bests from before don't carry over
     brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $5k. The customer (D) takes two an hour, at least 20% FAME. Twenty units.",
