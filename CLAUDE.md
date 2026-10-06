@@ -116,8 +116,12 @@ a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody`
 
 ## Themes
 
-Three looks (Deco, Modern, Kontor), each day and night, set by `theme.js` on `<html data-theme>`. Write styles that
-follow them: colours from the variables (`--yard`, `--ink`, `--sheet`, `--tile`, `--brass`, `--plate`…), never fixed
-hex for the page, panels or buttons (a game's own board colours are fine); spaced capitals as
-`text-transform: var(--caps); letter-spacing: calc(.1em * var(--track))`, and wide lettering as `var(--wide)` or
-`var(--stretch-btn)`. Check a new screen in all three, day and night.
+Three themes (Almanac, Modern, Kontor), each day and night, set by `theme.js` on `<html data-theme data-mode>`.
+- Write styles that follow them: colours from the variables (`--yard`, `--ink`, `--sheet`, `--tile`, `--brass`,
+  `--plate`…), never fixed hex for the page, panels or buttons (a game's own board colours are fine); spaced capitals
+  as `text-transform: var(--caps); letter-spacing: calc(.1em * var(--track))`, wide lettering as `var(--wide)`.
+- Dark rules go in `@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) … }` plus a copy under
+  `html[data-mode="night"] …` (every stylesheet is written that way now).
+- Almanac's ornaments (ticks, inset frames, gilt) are Almanac's: if you add one, undo it for Modern and Kontor in
+  `themes.css`. A new game needs a Modern logo and a Kontor icon in `apps.js` (else it shows Almanac's).
+- Check a new screen in all three, day and night.

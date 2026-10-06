@@ -1,0 +1,245 @@
+/* The themes beyond Almanac (whose look is the stylesheets themselves). Loaded last on every page.
+   Modern is Almanac as it was before the Art Deco update: its palette, logos and every visual property (colour,
+   lettering, borders, corners, shadows, ornaments) restored from the stylesheets of 253953f^ for each selector Deco
+   changed; spacing is today's. Kontor starts from the same undecorated base and dresses it as Kontor: dense, technical,
+   an office's green. Theme and day or night are chosen on the games screen (More, Settings); theme.js sets them on
+   <html> before the page draws. Generated once from the old stylesheets, maintained by hand from here. */
+
+/* ---------- Modern's palette (and the logos' colours), day and night ---------- */
+html[data-theme="modern"] { --gap: 6px; --tile-ratio: .8; --yard: #E4E7E7; --ink: #1C2A34; --ink-soft: #5A6B77; --tile: #F7F8F7; --tile-edge: #C9D1D5; --c0: #E1AB24; --c1: #3F7A50; --c2: #2D5E88; --c3: #A23C30; --on-c0: #2A2005; --on-c: #F7F5EF; --sheet: #F4F5F4; --focus: #2D5E88; --p0: #2D5E88; --p1: #C06A1B; --learn: #3F7A50; --font: "Archivo", "Helvetica Neue", Arial, sans-serif; --cr-logo-tint: #F3E1BA; --cr-logo-edge: #A2690F; --sl-logo-tint: #D3DEE7; --sl-logo-edge: #3F5A70; --d-logo-tint: #CBE7E4; --d-logo-edge: #17807C; --pt-logo-tint: #CFE6D8; --pt-logo-edge: #2E6B4A; --ct-logo-tint: #F1D7DC; --ct-logo-edge: #8E2C3B; --sp-logo-tint: #FBDCCB; --sp-logo-edge: #C2511F; --qt-logo-tint: #DCDFF5; --qt-logo-edge: #3F4DAE; --mf-logo-tint: #D2ECEA; --mf-logo-edge: #137C77; --ch-logo-tint: #D5E7F1; --ch-logo-edge: #1F6F9A; --sv-logo-tint: #F3E6CF; --sv-logo-edge: #9A6B1E; --bl-logo-tint: #E6EFD2; --bl-logo-edge: #5B7A1E; --pi-logo-tint: #F4DCD1; --pi-logo-edge: #B4532A; --rf-logo-tint: #D8E4EC; --rf-logo-edge: #35607E; --ru-logo-tint: #EADFD2; --ru-logo-edge: #6B4A2B; --dk-logo-tint: #EEDFF2; --dk-logo-edge: #6D3B7A; --pa-logo-tint: #D8EEEC; --pa-logo-edge: #1E7A74; --br-logo-tint: #F5D9E3; --br-logo-edge: #7A1638; --hb-logo-tint: #DCE3F0; --hb-logo-edge: #263A63;
+  --brass: var(--tile-edge); --brass-hi: var(--sheet); --brass-lo: var(--ink-soft); --rule: var(--tile-edge); --plate: var(--ink); --plate-ink: var(--yard); --logo-edge: var(--ink-soft);
+  --caps: none; --track: 0; --stretch-btn: 100%; --wide: 100%; }
+@media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) { --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B; --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A; } }
+html[data-theme="modern"][data-mode="night"] { --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B; --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A; }
+
+/* ---------- the undecorated base Modern and Kontor share: each selector Deco restyled, as it was before ---------- */
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-about { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-margin { border-radius: 16px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-go { border-radius: 14px; background: var(--bl-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-chip { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-spec { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-row { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-row .name .bio { border-radius: 999px; font-size: .7rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .bl-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-pour { border-radius: 16px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-note b { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-note .tags span { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-option { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-go { border-radius: 14px; background: var(--br-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-go.quiet { background: var(--sheet); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-unit { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-card { border-radius: 16px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .br-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-table { border-radius: 26px; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-seat { border-radius: 16px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-seat.targetable.picked::after { border-radius: 999px; background: #E76F51; letter-spacing: .04em; text-transform: uppercase; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-marker { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-notes li { border-radius: 999px; border: 1px solid rgba(255, 255, 255, .22); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-tray { border-radius: 18px; box-shadow: 0 1px 0 rgba(0, 0, 0, .04); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-chip { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-chip small { text-transform: uppercase; letter-spacing: .04em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-action { border-radius: 14px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-panel { border-radius: 14px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-label { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-choice { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-role { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-step-btn { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-go { border-radius: 14px; background: var(--ct-ox-fill); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ct-row .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) dialog.ct-pop { border: 0; border-radius: 18px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-card { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-map { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-go { border-radius: 14px; background: var(--ch-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-go.quiet { background: var(--yard); box-shadow: none; outline: none; font-stretch: 100%; letter-spacing: normal; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-summary { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-piles div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-go { border-radius: 14px; background: var(--dk-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-option { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-number input { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-number button { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-summary { border-radius: 16px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dk-speak { border: 1.5px solid var(--ink-soft); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .d-num { font-stretch: 112%; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dd { border-radius: 6px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dd-list { border: 1px solid var(--tile-edge); border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dd-opt { border-radius: 8px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dd-opt.on { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .dd-opt:active { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .hb-ctl { border: 1.5px solid var(--ink); border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .hb-ctl.primary { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .hb-picktool[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .hb-cell.lp-badge { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .hb-bests thead th { letter-spacing: .05em; text-transform: uppercase; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-stage { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-order { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-order b { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-book.strip .mf-chiplet { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-row { border-radius: 14px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-chip { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-mini button { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-go { border-radius: 14px; background: var(--mf-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mf-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-go { border-radius: 14px; background: var(--pa-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-unit { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-card { border-radius: 16px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-option { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-type input { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-type button { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pa-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pi-stage { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pi-board { border-radius: 14px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pi-go { border-radius: 14px; background: var(--pi-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pi-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pi-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pi-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pt-lengths .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pt-pot b { font-stretch: 112%; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pt-picture img { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); filter: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pt-odds { border-radius: 999px; font-stretch: 112%; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pt-reasons .btn[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-card { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-side span { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-side input { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-go { border-radius: 14px; background: var(--qt-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .qt-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-about { border-radius: 999px; border: 1.5px solid var(--rf-edge, #C9D1D5); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-margin { border-radius: 16px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-go { border-radius: 14px; background: var(--rf-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-tabs { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-pane { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-chip { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-group { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-stream { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-pool { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-pick button { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-pick .head { text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .rf-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ru-go { border-radius: 14px; background: var(--ru-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-board .sq.light { fill: #E4ECF3; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-board .sq.dark { fill: #6B8DB0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-board .coord.on-light { fill: #6B8DB0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ch-board .coord.on-dark { fill: #E4ECF3; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ru-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .ru-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .g-actions .btn { letter-spacing: normal; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .g-krow button.place { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .g-defs .pos { text-transform: uppercase; letter-spacing: .05em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-mod { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-mod small { text-transform: uppercase; letter-spacing: .05em; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-sum em { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-field { border-radius: 20px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-sum { border-radius: 14px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-token { border-radius: 18px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-overlay { border-radius: 20px; background: rgba(20, 27, 32, .55); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-card { border-radius: 22px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-stats div { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-go { border-radius: 16px; background: var(--sp-or); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sp-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .top { background: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mark { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .mark-btn { text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) dialog.apps .pick-head h2 { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .app-row { border-radius: 14px; border: 2px solid transparent; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .app-more { border-color: var(--line, #C9D1D5); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .app-name { font-size: clamp(.82rem, 17cqh, 1.1rem); font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .app-now { font-size: .68rem; font-weight: 750; letter-spacing: normal; text-transform: none; border-radius: 999px; background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) dialog.apps-pop { border: 0; border-radius: 18px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) dialog.apps-pop .pick-head h2 { font-size: 1.3rem; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pool { border-radius: 6px; background-color: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pick { border: 1.5px solid var(--ink-soft); border-radius: 6px; font-weight: 600; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .tile { border: 2px solid var(--tile-edge); border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .tile[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .cell.psel .tile { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); background: color-mix(in srgb, var(--ink) 7%, var(--tile)); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .crate { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .crate-name { font-size: 1.3rem; font-stretch: 100%; letter-spacing: -.01em; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .btn { border: 1.5px solid var(--ink); border-radius: 999px; font-weight: 650; font-stretch: 100%; letter-spacing: normal; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .btn.primary { background: var(--ink); color: var(--yard); outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sheet .join-run input { border: 1.5px solid var(--ink-soft); border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sheet h4 { font-size: .8rem; font-weight: 700; font-stretch: 100%; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-soft); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .seg { border: 1.5px solid var(--ink); border-radius: 6px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .seg button { border-left: 1.5px solid var(--ink); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .seg button[aria-checked="true"] { background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .chip { border: 1.5px solid var(--ink-soft); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .chip[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: var(--yard); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sheet input { border: 1.5px solid var(--ink); border-radius: 6px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .pick-head h2 { font-size: 1.4rem; font-stretch: 100%; letter-spacing: -.01em; text-transform: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .code-chip { border-radius: 999px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .code-chip em.on { color: #3a9d57; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .partner-pill { font-size: .62rem; letter-spacing: normal; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .partner-line.on { color: #3a9d57; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .icon-btn { border: 1.5px solid var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="kontor"]) dialog.menu-sheet { border-radius: 18px 18px 0 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) dialog.menu-sheet .pick-head h2 { font-size: 1.15rem; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .menu-h { font-size: .72rem; font-stretch: 100%; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-soft); }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sv-card { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sv-tool { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sv-go { border-radius: 14px; background: var(--sv-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .sv-toast { border-radius: 10px; }
+@media (prefers-color-scheme: dark) {
+html:is([data-theme="modern"], [data-theme="kontor"]):not([data-mode="day"]) .dd { color: var(--dd-tint, var(--ink)); }
+html:is([data-theme="modern"], [data-theme="kontor"]):not([data-mode="day"]) .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--dd-tint, var(--ink))); }
+html:is([data-theme="modern"], [data-theme="kontor"]):not([data-mode="day"]) .ch-board .sq.light { fill: #CBD6E0; }
+html:is([data-theme="modern"], [data-theme="kontor"]):not([data-mode="day"]) .ch-board .sq.dark { fill: #4F6E8F; }
+html:is([data-theme="modern"], [data-theme="kontor"]):not([data-mode="day"]) .ch-board .coord.on-light { fill: #4F6E8F; }
+html:is([data-theme="modern"], [data-theme="kontor"]):not([data-mode="day"]) .ch-board .coord.on-dark { fill: #CBD6E0; }
+}
+html:is([data-theme="modern"], [data-theme="kontor"])[data-mode="night"] .dd { color: var(--dd-tint, var(--ink)); }
+html:is([data-theme="modern"], [data-theme="kontor"])[data-mode="night"] .dd-tick { stroke: color-mix(in srgb, var(--dd-edge, var(--ink)) 45%, var(--dd-tint, var(--ink))); }
+html:is([data-theme="modern"], [data-theme="kontor"])[data-mode="night"] .ch-board .sq.light { fill: #CBD6E0; }
+html:is([data-theme="modern"], [data-theme="kontor"])[data-mode="night"] .ch-board .sq.dark { fill: #4F6E8F; }
+html:is([data-theme="modern"], [data-theme="kontor"])[data-mode="night"] .ch-board .coord.on-light { fill: #4F6E8F; }
+html:is([data-theme="modern"], [data-theme="kontor"])[data-mode="night"] .ch-board .coord.on-dark { fill: #CBD6E0; }
+
+/* ---------- Kontor: dense and technical, an office's green (after Kontor, the trading office's own app): system
+   lettering in small tracked capitals for labels, hairlines, square corners, tabular figures, line icons ---------- */
+html[data-theme="kontor"] {
+  --font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --yard: #EEF1EF; --ink: #111A15; --ink-soft: #5B6A61; --tile: #FFFFFF; --tile-edge: #C9D2CC; --sheet: #FFFFFF;
+  --c0: #C8901A; --c1: #1E7A45; --c2: #2A64A0; --c3: #B23B30; --on-c: #FFFFFF; --on-c0: #231A04;
+  --brass: #1E7A45; --brass-hi: #FFFFFF; --brass-lo: #1E7A45; --rule: #D3DBD6; --plate: #1E7A45; --plate-ink: #FFFFFF;
+  --focus: #1E7A45; --p0: #2A64A0; --p1: #C46A1E; --learn: #1E7A45; --logo-edge: #111A15;
+  --caps: uppercase; --track: .5; --stretch-btn: 100%; --wide: 100%;
+}
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) {
+  --yard: #0B100D; --ink: #D3E2D8; --ink-soft: #8A9E91; --tile: #131B16; --tile-edge: #24322A; --sheet: #121915;
+  --c1: #2EB36A; --brass: #2EB36A; --brass-hi: #04110A; --brass-lo: #48C67F; --rule: #1E2A23; --plate: #2EB36A; --plate-ink: #04110A;
+  --focus: #48C67F; --p0: #6FA6D8; --p1: #E39A55; --learn: #48C67F; --logo-edge: #D3E2D8; } }
+html[data-theme="kontor"][data-mode="night"] {
+  --yard: #0B100D; --ink: #D3E2D8; --ink-soft: #8A9E91; --tile: #131B16; --tile-edge: #24322A; --sheet: #121915;
+  --c1: #2EB36A; --brass: #2EB36A; --brass-hi: #04110A; --brass-lo: #48C67F; --rule: #1E2A23; --plate: #2EB36A; --plate-ink: #04110A;
+  --focus: #48C67F; --p0: #6FA6D8; --p1: #E39A55; --learn: #48C67F; --logo-edge: #D3E2D8; }
+html[data-theme="kontor"] body { font-family: var(--font); font-size: 15px; font-variant-numeric: tabular-nums; }
+html[data-theme="kontor"] :is(.btn, .pick, .tile, .app-row, .menu-seg, .menu-grid button, .menu-switch, .menu-switch::after, dialog.sheet, dialog.menu-sheet, dialog.apps-pop, .code-chip, .icon-btn, input, select, [class*="-go"]) { border-radius: 2px; }
+html[data-theme="kontor"] :is(.btn, .pick, .tile, .app-row, .code-chip, .icon-btn) { border-width: 1px; box-shadow: none; }
+html[data-theme="kontor"] :is(.btn, .pick, .menu-h, .pick-head h2, .app-name, .sheet h4, .menu-label, [class*="-go"], .menu-seg button) {
+  text-transform: uppercase; letter-spacing: .06em; font-stretch: 100%; font-weight: 650; }
+html[data-theme="kontor"] :is(.btn, [class*="-go"]) { font-size: .8rem; }
+html[data-theme="kontor"] .btn.primary, html[data-theme="kontor"] [class*="-go"]:not(.quiet) { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); outline: 0; }
+html[data-theme="kontor"] :is(.mark, .mark-btn) { font-size: 1.05rem; font-weight: 700; text-transform: uppercase; letter-spacing: .14em; font-stretch: 100%; }
+html[data-theme="kontor"] .top, html[data-theme="kontor"] .apps-brand { background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 2px no-repeat; }
+html[data-theme="kontor"] .menu-h { color: var(--brass-lo); }
+/* Kontor's icons and menu button: line drawings, square ends, one stroke in the green */
+.k-ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; color: var(--ink); }
+.k-ico .a { stroke: var(--brass); }
+.k-ico .f { fill: var(--brass); stroke: none; }
+.k-menu { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; }
+/* Modern's ornaments: none (its plain Menu button is the game's own) */
+html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand { background: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }

@@ -87,6 +87,8 @@ export function mirror(label, select) {
 export const line = text => el("p", "menu-line", text);
 
 const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+// Kontor's menu button: three rules, technical
+const KONTOR_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"/></svg>';
 // the menu button: an astrolabe's rete, Almanac's large loader standing still (rete.svg): the navy plate with its brass
 // limb and hour ticks, the rete (its ring, the off-centre ecliptic, four flame-shaped star pointers) and the rule across
 // it, pinned at the centre. While the menu is open the rete turns over the plate and the rule the other way (style.css).
@@ -134,10 +136,11 @@ function upgrade() {
   }
   dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });   // the backdrop: outside the sheet
   const btn = document.getElementById("menuBtn");
-  if (btn) {                                                     // the rete stands still, and turns while the menu is open
+  const look = document.documentElement.dataset.theme;           // Modern keeps its plain "Menu" button
+  if (btn && look !== "modern") {                                                     // the rete stands still, and turns while the menu is open
     btn.classList.add("rete-btn");
     btn.setAttribute("aria-label", "Menu");
-    btn.innerHTML = RETE;
+    btn.innerHTML = look === "kontor" ? KONTOR_MENU : RETE;
     new MutationObserver(() => btn.classList.toggle("turning", dlg.open)).observe(dlg, { attributes: true, attributeFilter: ["open"] });
   }
   const body = document.getElementById("menuBody") || dlg;

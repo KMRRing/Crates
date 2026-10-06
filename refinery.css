@@ -1,6 +1,10 @@
 /* Refinery: a brief, a margin bar, the units, the streams with their destinations, and the pools. Steel blue is the house colour. */
 :root { --rf-in: #35607E; --rf-in-soft: color-mix(in srgb, var(--rf-in) 15%, var(--sheet)); --rf-good: #2F7D5B; --rf-bad: #A8382B; --rf-edge: var(--tile-edge); --rf-naphtha: #E8B04B; --rf-middle: #3C8DBC; --rf-heavy: #8B5E3C; --rf-resid: #3A3A3A; --rf-gas: #9BB0BC; --rf-renew: #4FA36B; }
-@media (prefers-color-scheme: dark) { :root { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806F; }
 
 .rf-mark { display: inline-block; }
 .rf-mark svg { width: 100%; height: 100%; display: block; }

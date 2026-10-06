@@ -1,6 +1,10 @@
 /* Blend: an order, a margin bar, the specification judged live, and the tank farm with steppers. Olive is the house colour. */
 :root { --bl-in: #5E7424; --bl-in-soft: color-mix(in srgb, var(--bl-in) 15%, var(--sheet)); --bl-good: #2F7D5B; --bl-bad: #A8382B; --bl-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) { :root { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806F; }
 
 .bl-mark { display: inline-block; }
 .bl-mark svg { width: 100%; height: 100%; display: block; }

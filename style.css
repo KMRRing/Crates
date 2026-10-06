@@ -80,7 +80,7 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not([data-mode="day"]) {
     --yard: #10181F;    /* the dial at night */
     --ink: #ECE2CB;     /* parchment lettering */
     --ink-soft: #A99E86;
@@ -118,6 +118,44 @@
     --hb-logo-tint: #23304F;
   }
 }
+/* night, set in Settings */
+html[data-mode="night"] {
+    --yard: #10181F;    /* the dial at night */
+    --ink: #ECE2CB;     /* parchment lettering */
+    --ink-soft: #A99E86;
+    --tile: #1E2A35;
+    --tile-edge: #4E4128;
+    --sheet: #1A2530;
+    --brass: #C99A45;
+    --brass-hi: #E9C47C;
+    --brass-lo: #D9AF62;
+    --rule: #3E3524;
+    --plate: #C99A45;   /* a brass plate lettered in navy */
+    --plate-ink: #10181F;
+    --focus: #E9C47C;
+    --p0: #6FA0D2;
+    --p1: #E0965A;
+    --learn: #7FC2A8;
+    --logo-edge: #D9AF62;
+    --cr-logo-tint: #5A4317;
+    --sl-logo-tint: #2E3B46;
+    --d-logo-tint: #1F4A42;
+    --pt-logo-tint: #23432F;
+    --ct-logo-tint: #4B1F27;
+    --sp-logo-tint: #5A2A18;
+    --qt-logo-tint: #2A2F57;
+    --mf-logo-tint: #17403E;
+    --ch-logo-tint: #1E3A55;
+    --sv-logo-tint: #4D3818;
+    --bl-logo-tint: #39431A;
+    --pi-logo-tint: #55291A;
+    --rf-logo-tint: #263D50;
+    --ru-logo-tint: #3F2D1D;
+    --dk-logo-tint: #3D2347;
+    --pa-logo-tint: #1B4440;
+    --br-logo-tint: #4A1528;
+    --hb-logo-tint: #23304F;
+  }
 *, *::before, *::after { box-sizing: inherit; }
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--yard); color: var(--ink); }
@@ -592,57 +630,9 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }
 
-/* ---------- the themes: Deco (as above, the default), Modern (the clean app look Almanac had before Deco) and Kontor
-   (a clean technical look in green, after Korbi's Kontor). Each has a day and a night, following the system. Chosen on
-   the games screen (More, Settings) and set on <html data-theme> by theme.js before the page draws. ---------- */
-html[data-theme="modern"] {
-  --yard: #E4E7E7; --ink: #1C2A34; --ink-soft: #5A6B77; --tile: #F7F8F7; --tile-edge: #C9D1D5;
-  --c0: #E1AB24; --c1: #3F7A50; --c2: #2D5E88; --c3: #A23C30; --on-c: #F7F5EF; --sheet: #F4F5F4;
-  --focus: #2D5E88; --p0: #2D5E88; --p1: #C06A1B; --learn: #3F7A50;
-  --brass: var(--tile-edge); --brass-hi: var(--sheet); --brass-lo: var(--ink-soft); --rule: var(--tile-edge); --plate: var(--ink); --plate-ink: var(--yard);
-  --caps: none; --track: 0; --stretch-btn: 100%; --wide: 100%; --cr-logo-tint: #F3E1BA; --cr-logo-edge: #A2690F; --sl-logo-tint: #D3DEE7; --sl-logo-edge: #3F5A70; --d-logo-tint: #CBE7E4; --d-logo-edge: #17807C; --pt-logo-tint: #CFE6D8; --pt-logo-edge: #2E6B4A; --ct-logo-tint: #F1D7DC; --ct-logo-edge: #8E2C3B; --sp-logo-tint: #FBDCCB; --sp-logo-edge: #C2511F; --qt-logo-tint: #DCDFF5; --qt-logo-edge: #3F4DAE; --mf-logo-tint: #D2ECEA; --mf-logo-edge: #137C77; --ch-logo-tint: #D5E7F1; --ch-logo-edge: #1F6F9A; --sv-logo-tint: #F3E6CF; --sv-logo-edge: #9A6B1E; --bl-logo-tint: #E6EFD2; --bl-logo-edge: #5B7A1E; --pi-logo-tint: #F4DCD1; --pi-logo-edge: #B4532A; --rf-logo-tint: #D8E4EC; --rf-logo-edge: #35607E; --ru-logo-tint: #EADFD2; --ru-logo-edge: #6B4A2B; --dk-logo-tint: #EEDFF2; --dk-logo-edge: #6D3B7A; --pa-logo-tint: #D8EEEC; --pa-logo-edge: #1E7A74; --br-logo-tint: #F5D9E3; --br-logo-edge: #7A1638; --hb-logo-tint: #DCE3F0; --hb-logo-edge: #263A63;
-}
-@media (prefers-color-scheme: dark) {
-  html[data-theme="modern"] {
-    --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B;
-    --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A;
-  }
-}
-html[data-theme="kontor"] {
-  --yard: #F2F4F1; --ink: #101A14; --ink-soft: #56645B; --tile: #FFFFFF; --tile-edge: #CBD4CD; --sheet: #FFFFFF;
-  --c0: #C9921C; --c1: #1E8449; --c2: #2B6A9E; --c3: #B03A2E; --on-c: #FFFFFF;
-  --brass: #1E8449; --brass-hi: #FFFFFF; --brass-lo: #17683A; --rule: #D6DDD8; --plate: #17683A; --plate-ink: #FFFFFF;
-  --focus: #1E8449; --p0: #2B6A9E; --p1: #C46A1E; --learn: #1E8449; --logo-edge: #2A3A30;
-  --caps: none; --track: .3; --stretch-btn: 92%; --wide: 87.5%;
-}
-@media (prefers-color-scheme: dark) {
-  html[data-theme="kontor"] {
-    --yard: #0A0F0C; --ink: #D6E4DA; --ink-soft: #8B9F91; --tile: #121A15; --tile-edge: #233129; --sheet: #111814;
-    --brass: #2FB463; --brass-hi: #0A0F0C; --brass-lo: #4CCB7E; --rule: #1D2922; --plate: #2FB463; --plate-ink: #06110A;
-    --focus: #4CCB7E; --p0: #6FA6D8; --p1: #E39A55; --learn: #4CCB7E; --logo-edge: #8FD3A8;
-  }
-}
-/* shapes: Modern's round buttons and plain header; Kontor's square, hairline technical look with tabular figures */
-html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand,
-html[data-theme="kontor"] .top, html[data-theme="kontor"] .apps-brand { background: linear-gradient(var(--rule), var(--rule)) left bottom / 100% 1px no-repeat; }
-html[data-theme="modern"] .btn { border-color: var(--ink); border-radius: 999px; font-weight: 650; font-size: 1rem; }
-html[data-theme="modern"] .btn.primary { background: var(--ink); color: var(--yard); border-color: var(--ink); box-shadow: none; outline: 0; }
-html[data-theme="modern"] .pick { border-color: var(--ink-soft); border-radius: 6px; font-weight: 600; font-size: .95rem; }
-html[data-theme="modern"] .mark { font-size: 1.6rem; letter-spacing: -.02em; }
-html[data-theme="modern"] dialog.menu-sheet, html[data-theme="modern"] .sheet { border-color: var(--tile-edge); }
-html[data-theme="kontor"] body { font-variant-numeric: tabular-nums; }
-html[data-theme="kontor"] .btn { border: 1px solid var(--tile-edge); border-radius: 3px; font-weight: 650; }
-html[data-theme="kontor"] .btn.primary { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); box-shadow: none; outline: 0; }
-html[data-theme="kontor"] .pick { border: 1px solid var(--tile-edge); border-radius: 3px; }
-html[data-theme="kontor"] .mark { letter-spacing: .02em; }
-html[data-theme="kontor"] .tile, html[data-theme="kontor"] .app-row { border-radius: 4px; }
-
 /* the games screen's Settings (behind More) */
 .app-settings { font: inherit; color: inherit; cursor: pointer; }
 .app-settings .app-logo svg { width: 60%; height: 60%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .settings-body { padding: .2rem 0 .6rem; }
+.apps-pop-list .app-settings { width: 100%; }   /* a button, stretched like the game tiles beside it */
 
-/* Deco frames its plates (a gilt line inset in the primary button and each game's Go button); the others don't */
-html:is([data-theme="modern"], [data-theme="kontor"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }
-html[data-theme="modern"] [class*="-go"] { border-radius: 12px; }
-html[data-theme="kontor"] [class*="-go"] { border-radius: 3px; }

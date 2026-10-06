@@ -11,8 +11,10 @@
   --pt-pick: var(--ink);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: #7FC2A8; --pt-loss: #E8806F; }
+  html:not([data-mode="day"]) { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: #7FC2A8; --pt-loss: #E8806F; }
 }
+/* night, set in Settings */
+html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: #7FC2A8; --pt-loss: #E8806F; }
 
 #app.punt { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
 .pt-mark { display: inline-block; }

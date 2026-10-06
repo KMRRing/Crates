@@ -43,7 +43,10 @@ select.dd-native { display: none !important; }
 /* The logo tints are light in both schemes; on a dark page the button takes a deep tint instead, so it doesn't glare. */
 /* on the dial the game's enamel is deep, so the lettering is parchment and the tick bright brass */
 @media (prefers-color-scheme: dark) {
-  .dd { color: var(--ink); }
-  .dd-tick { stroke: var(--dd-edge, var(--brass)); }
+  html:not([data-mode="day"]) .dd { color: var(--ink); }
+  html:not([data-mode="day"]) .dd-tick { stroke: var(--dd-edge, var(--brass)); }
 }
+/* night, set in Settings */
+html[data-mode="night"] .dd { color: var(--ink); }
+html[data-mode="night"] .dd-tick { stroke: var(--dd-edge, var(--brass)); }
 @media (prefers-reduced-motion: reduce) { .dd-list:popover-open { animation: none; } .dd-chev { transition: none; } }

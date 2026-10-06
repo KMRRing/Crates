@@ -10,11 +10,16 @@
   --d-ok: #2F7D5B; --d-no: #A8382B;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not([data-mode="day"]) {
     --d-p0: #6CC0B5; --d-p1: #8E9BE0; --d-p2: #E2B865; --d-p3: #D9849F; --d-p4: #A9C25A; --d-p5: #C08FD0;
     --d-ok: #7FC2A8; --d-no: #E8806F;
   }
 }
+/* night, set in Settings */
+html[data-mode="night"] {
+    --d-p0: #6CC0B5; --d-p1: #8E9BE0; --d-p2: #E2B865; --d-p3: #D9849F; --d-p4: #A9C25A; --d-p5: #C08FD0;
+    --d-ok: #7FC2A8; --d-no: #E8806F;
+  }
 
 #app.delta { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
 .d-mark { display: inline-block; }

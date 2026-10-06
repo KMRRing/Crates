@@ -5,8 +5,10 @@
   --hb-hull: #FBF8F0; --hb-ship-ink: #1C2A34;   /* ships keep dark ink on a light hull in both schemes */
 }
 @media (prefers-color-scheme: dark) {
-  .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
+  html:not([data-mode="day"]) .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
 }
+/* night, set in Settings */
+html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226, 203, .09); --hb-land: #1E2A33; --hb-hull: #E9DFC8; }
 
 .hb-brief { margin: .5rem 0 .4rem; height: 3.9em; overflow: hidden; color: var(--ink-soft); font-size: .86rem; line-height: 1.3; }   /* three lines on every level, so switching levels moves nothing */
 

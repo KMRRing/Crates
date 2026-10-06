@@ -14,9 +14,12 @@
   --ct-loss: #A8382B;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: #1D0C10; --ct-cup: #0C1216; --ct-cup-ink: #5E707C;
+  html:not([data-mode="day"]) { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: #1D0C10; --ct-cup: #0C1216; --ct-cup-ink: #5E707C;
     --ct-win: #7FC2A8; --ct-loss: #E8806F; }
 }
+/* night, set in Settings */
+html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: #1D0C10; --ct-cup: #0C1216; --ct-cup-ink: #5E707C;
+    --ct-win: #7FC2A8; --ct-loss: #E8806F; }
 
 /* the whole game fits the screen, never scrolling: the table keeps one size all game, the tray takes the rest (and
    scrolls inside itself only on the smallest screens) */

@@ -1,6 +1,10 @@
 /* Parley: a card, a drill, a reading. Teal is the house colour. */
 :root { --pa-in: #22706A; --pa-in-soft: color-mix(in srgb, var(--pa-in) 15%, var(--sheet)); --pa-good: #2F7D5B; --pa-bad: #A8382B; --pa-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) { :root { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806F; }
 
 .pa-mark { display: inline-block; }
 .pa-mark svg { width: 100%; height: 100%; display: block; }

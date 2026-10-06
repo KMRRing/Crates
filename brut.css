@@ -1,6 +1,10 @@
 /* Brut: a glass, a tasting note revealed stage by stage, six candidates; and the study cards. Claret is the house colour. */
 :root { --br-in: #7A1E3A; --br-in-soft: color-mix(in srgb, var(--br-in) 15%, var(--sheet)); --br-good: #2F7D5B; --br-bad: #A8382B; --br-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) { :root { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806F; }
 
 .br-mark { display: inline-block; }
 .br-mark svg { width: 100%; height: 100%; display: block; }

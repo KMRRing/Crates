@@ -59,35 +59,156 @@ const BRUT_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M28 10
 // A tanker seen from above, as the ships are on Harbour's map: bow up and to the right, the domes of its cargo tanks
 // along the deck, the manifold across it, the bridge and funnel aft.
 const HARBOUR_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(45 50 50)"><path d="M50 4C61 14 66 25 66 36V86Q66 95 57 95H43Q34 95 34 86V36C34 25 39 14 50 4Z" fill="#35607E" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><path d="M50 10C58.5 18.5 61 27 61 36V68H39V36C39 27 41.5 18.5 50 10Z" fill="#2c4d64" stroke="#C8923A" stroke-width="1.3"/><path d="M50 16V66" stroke="#E2B865" stroke-width="1.5"/><path d="M39.5 44H60.5" stroke="#E2B865" stroke-width="2.2"/><g fill="#F3E1BA" stroke="#C8923A" stroke-width="1"><circle cx="50" cy="24" r="3.3"/><circle cx="50" cy="33" r="3.3"/><circle cx="50" cy="53" r="3.3"/><circle cx="50" cy="61" r="3.3"/></g><rect x="40" y="71" width="20" height="13" rx="2" fill="#FBF4E4" stroke="#1C2A34" stroke-width="1.6"/><path d="M43 75.5H57M43 79.5H57" stroke="#1C2A34" stroke-width="1" opacity=".5"/><rect x="45.5" y="85.5" width="9" height="5.5" rx="1.5" fill="#8F3328" stroke="#1C2A34" stroke-width="1.2"/></g></svg>`;
+// Each theme draws the games its own way: Almanac's instruments (above), Modern's logos as they were before Almanac,
+// Kontor's technical line icons. theme.js has set the theme before this runs.
+const MODERN_LOGOS = {
+  crates: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.8" y="2.8" width="16.4" height="14.4" rx="2.6" fill="var(--cr-logo-tint)" stroke="var(--cr-logo-edge)" stroke-width="1.6"/>
+  <path d="M2.6 6.6H17.4M2.6 13.4H17.4M5 13.4L15 6.6" fill="none" stroke="var(--cr-logo-edge)" stroke-width="1.6" stroke-linecap="round"/></svg>`,
+  slate: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="2.2" y="1.6" width="13.4" height="16.8" rx="1.8" fill="var(--sl-logo-tint)" stroke="var(--sl-logo-edge)" stroke-width="1.5"/>
+  <path d="M5 5.4H12.8M5 8.2H12.8M5 11H9.6" fill="none" stroke="var(--sl-logo-edge)" stroke-width="1.3" stroke-linecap="round"/>
+  <path d="M13.2 16.4L12.4 19.4L14.4 18.4L16.4 19.4L15.6 16.4" fill="var(--sl-logo-edge)" stroke="var(--sl-logo-edge)" stroke-width=".6" stroke-linejoin="round"/>
+  <circle cx="14.4" cy="14.2" r="3.1" fill="var(--sl-logo-tint)" stroke="var(--sl-logo-edge)" stroke-width="1.4"/>
+  <circle cx="14.4" cy="14.2" r="1.4" fill="var(--sl-logo-edge)"/></svg>`,
+  delta: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <polygon points="10,1.5 17.5,5.8 17.5,14.2 10,18.5 2.5,14.2 2.5,5.8" fill="var(--d-logo-tint)" stroke="var(--d-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M10 5.6 L14.2 13.6 H5.8 Z" fill="none" stroke="var(--d-logo-edge)" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  punt: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <circle cx="10" cy="10" r="8.6" fill="var(--pt-logo-tint)" stroke="var(--pt-logo-edge)" stroke-width="1.6"/>
+  <circle cx="10" cy="10" r="5.2" fill="none" stroke="var(--pt-logo-edge)" stroke-width="1.3" stroke-dasharray="2.2 1.9"/>
+  <text x="10" y="13.4" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="9" fill="var(--pt-logo-edge)">P</text></svg>`,
+  cartel: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="2.2" y="2.2" width="15.6" height="15.6" rx="3.4" fill="var(--ct-logo-tint)" stroke="var(--ct-logo-edge)" stroke-width="1.6"/>
+  <g fill="var(--ct-logo-edge)"><circle cx="6.4" cy="6.4" r="1.35"/><circle cx="13.6" cy="6.4" r="1.35"/><circle cx="10" cy="10" r="1.35"/>
+  <circle cx="6.4" cy="13.6" r="1.35"/><circle cx="13.6" cy="13.6" r="1.35"/></g></svg>`,
+  spot: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <circle cx="10" cy="10" r="8.4" fill="var(--sp-logo-tint)" stroke="var(--sp-logo-edge)" stroke-width="1.6"/>
+  <circle cx="10" cy="10" r="4.6" fill="none" stroke="var(--sp-logo-edge)" stroke-width="1.5"/>
+  <circle cx="10" cy="10" r="1.8" fill="var(--sp-logo-edge)"/></svg>`,
+  quote: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <path d="M6.4 3.4H16.3a2.2 2.2 0 0 1 2.2 2.2v8.8a2.2 2.2 0 0 1-2.2 2.2H6.4L1.5 10z" fill="var(--qt-logo-tint)" stroke="var(--qt-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="5.3" cy="10" r="1.15" fill="none" stroke="var(--qt-logo-edge)" stroke-width="1.25"/>
+  <path d="M10.2 6.6H9V13.4H10.2M15.3 6.6H16.5V13.4H15.3" fill="none" stroke="var(--qt-logo-edge)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="12.75" cy="10" r="1.7" fill="var(--qt-logo-edge)"/></svg>`,
+  manifest: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <path d="M10 6.2 L13.98 8.5 L10 10.8 L6.02 8.5Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 8.5 L10 10.8 L10 15.4 L6.02 13.1Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 10.8 L13.98 8.5 L13.98 13.1 L10 15.4Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 1.6 L13.98 3.9 L10 6.2 L6.02 3.9Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 3.9 L10 6.2 L10 10.8 L6.02 8.5Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 6.2 L13.98 3.9 L13.98 8.5 L10 10.8Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M13.98 8.5 L17.97 10.8 L13.98 13.1 L10 10.8Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M10 10.8 L13.98 13.1 L13.98 17.7 L10 15.4Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M13.98 13.1 L17.97 10.8 L17.97 15.4 L13.98 17.7Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 8.5 L10 10.8 L6.02 13.1 L2.03 10.8Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M2.03 10.8 L6.02 13.1 L6.02 17.7 L2.03 15.4Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/>
+  <path d="M6.02 13.1 L10 10.8 L10 15.4 L6.02 17.7Z" fill="var(--mf-logo-tint)" stroke="var(--mf-logo-edge)" stroke-width="1.25" stroke-linejoin="round"/></svg>`,
+  chart: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <path d="M10 18.8L4.84 11.79A6.4 6.4 0 1 1 15.16 11.79Z" fill="var(--ch-logo-tint)" stroke="var(--ch-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <circle cx="10" cy="8" r="3.4" fill="none" stroke="var(--ch-logo-edge)" stroke-width="1.25"/>
+  <ellipse cx="10" cy="8" rx="1.4" ry="3.4" fill="none" stroke="var(--ch-logo-edge)" stroke-width="1.05"/>
+  <path d="M6.6 8h6.8" stroke="var(--ch-logo-edge)" stroke-width="1.05"/></svg>`,
+  survey: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <path d="M13.3 13.3L17.8 17.8" stroke="var(--sv-logo-edge)" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="8.7" cy="8.7" r="6.7" fill="var(--sv-logo-tint)" stroke="var(--sv-logo-edge)" stroke-width="1.6"/>
+  <path d="M6.9 3.6v10.2M10.5 3.6v10.2M3.6 6.9h10.2M3.6 10.5h10.2" stroke="var(--sv-logo-edge)" stroke-width="1" opacity=".45"/>
+  <path d="M8.7 7.1L10.3 8.7 8.7 10.3 7.1 8.7Z" fill="var(--sv-logo-edge)"/></svg>`,
+  blend: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--bl-logo-tint)" stroke="var(--bl-logo-edge)" stroke-width="1.6"/>
+  <path d="M8.2 5h3.6v3.2l2.9 5.1a1.2 1.2 0 0 1-1 1.8H6.3a1.2 1.2 0 0 1-1-1.8l2.9-5.1z" fill="none" stroke="var(--bl-logo-edge)" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M6.6 12.2h6.8l.9 1.6a.6.6 0 0 1-.5.9H6.2a.6.6 0 0 1-.5-.9z" fill="var(--bl-logo-edge)"/></svg>`,
+  pipes: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <path d="M2.4 4.2H9.6A7.4 7.4 0 0 1 17 11.6V17.4H10.6V11.6A1 1 0 0 0 9.6 10.6H2.4Z" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.6" stroke-linejoin="round"/>
+  <rect x="1.2" y="2.9" width="2.4" height="9" rx=".7" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.4"/>
+  <rect x="9.3" y="16.3" width="9" height="2.4" rx=".7" fill="var(--pi-logo-tint)" stroke="var(--pi-logo-edge)" stroke-width="1.4"/>
+  <path d="M5.9 5.8L7.5 7.4 5.9 9M12.2 12.5L13.8 14.1 15.4 12.5" fill="none" stroke="var(--pi-logo-edge)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  refinery: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--rf-logo-tint)" stroke="var(--rf-logo-edge)" stroke-width="1.6"/>
+  <rect x="8" y="4.5" width="4" height="11" rx="1.6" fill="none" stroke="var(--rf-logo-edge)" stroke-width="1.5"/>
+  <path d="M8 8h4M8 11h4M12 6.5h2.5M12 9.5h2.5M12 12.5h2.5M5.5 15.5h9" stroke="var(--rf-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  rush: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="4.2" y="15.8" width="11.6" height="2.4" rx=".9" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.4"/>
+  <path d="M5.6 15.8C5.6 13.4 6.9 12.2 8.6 11.3C7.6 11.6 6.4 11.9 5.4 11.6C4.4 11.3 3.7 10.4 4.1 9.4L6.3 6.4C7 5.4 8 4.9 8.9 4.6L9.6 2.6L10.9 4.5C13.9 5.2 15.6 8.2 15.6 11.6C15.6 13.4 15 14.8 14.4 15.8Z" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
+  <circle cx="8.1" cy="7.3" r=".85" fill="var(--ru-logo-edge)"/>
+  <path d="M11.6 5.6C13.5 6.8 14.2 9 14.1 11.4" fill="none" stroke="var(--ru-logo-edge)" stroke-width="1.1" stroke-linecap="round"/>
+  <path d="M17 8.2h1.8M16.8 10.8h2.2M17 13.4h1.8" stroke="var(--ru-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`,
+  deck: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="3" y="3.8" width="10" height="13.4" rx="1.8" transform="rotate(-13 8 17.2)" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
+  <rect x="7" y="3" width="10.2" height="13.6" rx="1.8" transform="rotate(5 12.1 16.6)" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
+  <path d="M14.19 8.23A2.6 2.6 0 1 1 11.31 7.46" fill="none" stroke="var(--dk-logo-edge)" stroke-width="1.4" stroke-linecap="round"/>
+  <path d="M11.75 8.65 L12.75 6.93 L10.87 6.26Z" fill="var(--dk-logo-edge)" stroke="var(--dk-logo-edge)" stroke-width=".7" stroke-linejoin="round"/></svg>`,
+  parley: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <path d="M4.2 2.2H10a2.6 2.6 0 0 1 2.6 2.6v3.4a2.6 2.6 0 0 1-2.6 2.6H5.2L2.4 13V10.6A2.6 2.6 0 0 1 1.6 8.2V4.8A2.6 2.6 0 0 1 4.2 2.2Z" fill="var(--pa-logo-edge)" stroke="var(--pa-logo-edge)" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="7.1" y="9.1" text-anchor="middle" font-family="Archivo, Arial, sans-serif" font-weight="800" font-size="6.6" fill="var(--pa-logo-tint)">A</text>
+  <path d="M10 7.6H15.8a2.6 2.6 0 0 1 2.6 2.6v3.6a2.6 2.6 0 0 1-2.6 2.6H15.2v2.4L12.4 16.4H10a2.6 2.6 0 0 1-2.6-2.6V10.2A2.6 2.6 0 0 1 10 7.6Z" fill="var(--pa-logo-tint)" stroke="var(--pa-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M12.9 9.4v.8M10.6 10.7h4.6M11.2 11.4C11.9 13.4 13.1 14.6 15 15.2M14.6 11.4C13.9 13.4 12.7 14.6 10.8 15.2" fill="none" stroke="var(--pa-logo-edge)" stroke-width="1.15" stroke-linecap="round"/></svg>`,
+  brut: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--br-logo-tint)" stroke="var(--br-logo-edge)" stroke-width="1.6"/>
+  <path d="M6.6 5.4h6.8c.2 3.4-1.2 5.6-3.4 5.8-2.2-.2-3.6-2.4-3.4-5.8z" fill="none" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linejoin="round"/>
+  <path d="M7 8h6c-.4 1.9-1.5 3-3 3.1-1.5-.1-2.6-1.2-3-3.1z" fill="var(--br-logo-edge)"/>
+  <path d="M10 11.2v3.3M7.6 14.8h4.8" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  harbour: `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="rotate(45 10 10)">
+  <path d="M10 1.2C12.7 2.9 13.7 5.2 13.7 7.4V16.8Q13.7 18.6 11.9 18.6H8.1Q6.3 18.6 6.3 16.8V7.4C6.3 5.2 7.3 2.9 10 1.2Z" fill="var(--hb-logo-tint)" stroke="var(--hb-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="7.6" y="14.3" width="4.8" height="2.7" rx=".6" fill="var(--hb-logo-edge)"/>
+  <g fill="var(--hb-logo-edge)"><circle cx="10" cy="6.3" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="10" cy="11.7" r="1"/></g></g></svg>`,
+};
+const KONTOR_LOGOS = {
+  crates: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7"/><rect x="13.5" y="3.5" width="7" height="7"/><rect x="3.5" y="13.5" width="7" height="7"/><rect class="a" x="13.5" y="13.5" width="7" height="7"/></svg>`,
+  slate: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17"/><rect class="f" x="9.2" y="9.2" width="5.6" height="5.6"/></svg>`,
+  delta: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8 20.6 19H3.4z"/><path class="a" d="M12 10.5 15.7 17H8.3z"/></svg>`,
+  punt: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle class="a" cx="12" cy="12" r="4.2"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg>`,
+  cartel: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/><rect class="f" x="7" y="7" width="2.6" height="2.6"/><rect class="f" x="10.7" y="10.7" width="2.6" height="2.6"/><rect class="f" x="14.4" y="14.4" width="2.6" height="2.6"/></svg>`,
+  spot: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/><rect class="f" x="10.6" y="10.6" width="2.8" height="2.8"/></svg>`,
+  quote: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 19V5M3.8 8.2 7 5l3.2 3.2"/><path class="a" d="M17 5v14M13.8 15.8 17 19l3.2-3.2"/></svg>`,
+  manifest: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="13.5" width="8" height="6"/><rect x="12.5" y="13.5" width="8" height="6"/><rect class="a" x="8" y="6.5" width="8" height="6"/></svg>`,
+  chart: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><rect class="f" x="10.5" y="8.5" width="3" height="3"/></svg>`,
+  harbour: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5h17l-2.5 4h-12z"/><path d="M7 15.5v-5h10v5"/><path class="a" d="M10 10.5v-4h4v4"/></svg>`,
+  pipes: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7h9a5 5 0 0 1 5 5v8.5"/><path class="a" d="M3.5 12h8.5v8.5"/></svg>`,
+  rush: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3 5 13.5h6l-1 7.5 8.5-10.5h-6z"/></svg>`,
+  deck: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6.5" width="12" height="14"/><path class="a" d="M8 6.5V3.5h12v14h-4"/></svg>`,
+  parley: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 4.5h11v8h-6l-3 3v-3h-2z"/><path class="a" d="M17.5 8.5h3v8h-2v3l-3-3h-5v-1.5"/></svg>`,
+  survey: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="3.5" width="7" height="5"/><path d="M12 8.5v3.5M12 12l-5.5 8.5M12 12l5.5 8.5"/><path class="a" d="M12 12v8.5"/></svg>`,
+  blend: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5v6l-5 10h16l-5-10v-6M7.5 3.5h9"/><path class="a" d="M6.3 15h11.4"/></svg>`,
+  refinery: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="17"/><path d="M9 8h6M9 12.5h6M9 17h6"/><path class="a" d="M15 6h4.5M15 10.5h4.5M15 15h4.5"/></svg>`,
+  brut: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h8c0 5-1.5 8-4 8s-4-3-4-8z"/><path d="M12 11.5v8.5M8.5 20.5h7"/><path class="a" d="M8.4 7h7.2"/></svg>`,
+};
+const LOOK = document.documentElement.dataset.theme;
+const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LOOK === "kontor" ? KONTOR_LOGOS[id] : null) || almanac;
+
 export const APPS = [
-  { id: "crates", name: "Crates", href: "./crates.html", logo: CRATES_LOGO },
-  { id: "glyph", name: "Slate", href: "./slate.html", logo: SLATE_LOGO },
-  { id: "delta", name: "Delta", href: "./delta.html", logo: DELTA_LOGO },
-  { id: "punt", name: "Punt", href: "./punt.html", logo: PUNT_LOGO },
-  { id: "cartel", name: "Cartel", href: "./cartel.html", logo: CARTEL_LOGO },
-  { id: "spot", name: "Spot", href: "./spot.html", logo: SPOT_LOGO },
-  { id: "quote", name: "Quote", href: "./quote.html", logo: QUOTE_LOGO },
-  { id: "manifest", name: "Manifest", href: "./manifest.html", logo: MANIFEST_LOGO },
-  { id: "chart", name: "Chart", href: "./chart.html", logo: CHART_LOGO },
-  { id: "harbour", name: "Harbour", href: "./harbour.html", logo: HARBOUR_LOGO },
-  { id: "survey", name: "Survey", href: "./survey.html", logo: SURVEY_LOGO, more: true },
-  { id: "blend", name: "Blend", href: "./blend.html", logo: BLEND_LOGO, more: true },
-  { id: "pipes", name: "Pipes", href: "./pipes.html", logo: PIPES_LOGO },
-  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: REFINERY_LOGO, more: true },
-  { id: "rush", name: "Rush", href: "./rush.html", logo: RUSH_LOGO },
-  { id: "deck", name: "Deck", href: "./deck.html", logo: DECK_LOGO },
-  { id: "parley", name: "Parley", href: "./parley.html", logo: PARLEY_LOGO },
-  { id: "brut", name: "Brut", href: "./brut.html", logo: BRUT_LOGO, more: true },
+  { id: "crates", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO) },
+  { id: "glyph", name: "Slate", href: "./slate.html", logo: LOGO("slate", SLATE_LOGO) },
+  { id: "delta", name: "Delta", href: "./delta.html", logo: LOGO("delta", DELTA_LOGO) },
+  { id: "punt", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO) },
+  { id: "cartel", name: "Cartel", href: "./cartel.html", logo: LOGO("cartel", CARTEL_LOGO) },
+  { id: "spot", name: "Spot", href: "./spot.html", logo: LOGO("spot", SPOT_LOGO) },
+  { id: "quote", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
+  { id: "manifest", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO) },
+  { id: "chart", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO) },
+  { id: "harbour", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO) },
+  { id: "survey", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), more: true },
+  { id: "blend", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO), more: true },
+  { id: "pipes", name: "Pipes", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO) },
+  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO), more: true },
+  { id: "rush", name: "Rush", href: "./rush.html", logo: LOGO("rush", RUSH_LOGO) },
+  { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
+  { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
+  { id: "brut", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO), more: true },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
 // Settings, behind More: the theme (Deco, Modern or Kontor; each with a day and a night that follow the system).
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
-const THEMES = [["deco", "Deco"], ["modern", "Modern"], ["kontor", "Kontor"]];
+const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"]];
+const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
-export function setTheme(t) {
-  if (t === "deco") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
-  try { if (t === "deco") localStorage.removeItem("suite:theme"); else localStorage.setItem("suite:theme", t); } catch { /* private mode: this page only */ }
+const mode = () => document.documentElement.dataset.mode || "auto";
+/** Keeps a look on this device and redraws the page in it (the logos and the menu button are the theme's own). */
+function keep(key, value, fallback) {
+  try { if (value === fallback) localStorage.removeItem(key); else localStorage.setItem(key, value); } catch { /* private mode */ }
+  try { sessionStorage.setItem("crates:games", "1"); } catch { /* private mode */ }   // come back to the games screen
+  location.reload();
 }
 function openSettings(host) {
   let sheet = host.querySelector("dialog.apps-settings");
@@ -100,7 +221,9 @@ function openSettings(host) {
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
     host.appendChild(sheet);
   }
-  sheet.querySelector(".settings-body").replaceChildren(choice("Theme", THEMES, theme(), setTheme));
+  sheet.querySelector(".settings-body").replaceChildren(
+    choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
+    choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")));
   sheet.showModal();
 }
 

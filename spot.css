@@ -12,8 +12,10 @@
   --sp-token-edge: var(--tile-edge);
 }
 @media (prefers-color-scheme: dark) {
-  :root { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC2A8; --sp-bad: #E8806F; }
+  html:not([data-mode="day"]) { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC2A8; --sp-bad: #E8806F; }
 }
+/* night, set in Settings */
+html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC2A8; --sp-bad: #E8806F; }
 
 #app.spot { height: 100vh; height: 100svh; display: flex; flex-direction: column; gap: .5rem; overflow: hidden; position: relative; }
 .sp-mark { display: inline-block; }

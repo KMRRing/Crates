@@ -1,6 +1,10 @@
 /* Pipes: a board of brass pipe tiles on a navy ground; crude is black, gas blue, the blend purple. Copper is the house colour. */
 :root { --pi-in: #A9542B; --pi-in-soft: color-mix(in srgb, var(--pi-in) 15%, var(--sheet)); --pi-ground: #16212A; --pi-tile: #22303B; --pi-tile-edge: #3A3424; --pi-pipe: #C99A45; --pi-pipe-dark: #8A6424; --pi-rock: #0F171D; --pi-good: #2F7D5B; --pi-bad: #A8382B; --pi-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) { :root { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806F; }
 
 .pi-mark { display: inline-block; }
 .pi-mark svg { width: 100%; height: 100%; display: block; }

@@ -1,6 +1,10 @@
 /* Deck: the piles and the review. Plum is the house colour. */
 :root { --dk-in: #6A3D78; --dk-in-soft: color-mix(in srgb, var(--dk-in) 15%, var(--sheet)); --dk-good: #2F7D5B; --dk-bad: #A8382B; --dk-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) { :root { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806F; }
 
 .dk-mark { display: inline-block; }
 .dk-mark svg { width: 100%; height: 100%; display: block; }

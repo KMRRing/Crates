@@ -1,6 +1,10 @@
 /* Survey: a concession grid with readings along its edges and in its cells. Ochre is the house colour. */
 :root { --sv-in: #A47528; --sv-in-soft: color-mix(in srgb, var(--sv-in) 15%, var(--sheet)); --sv-ore: #C8923A; --sv-good: #2F7D5B; --sv-bad: #A8382B; --sv-edge: var(--tile-edge); --sv-cell: var(--tile); --sv-head: var(--yard); }
-@media (prefers-color-scheme: dark) { :root { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806F; }
 
 .sv-mark { display: inline-block; }
 .sv-mark svg { width: 100%; height: 100%; display: block; }

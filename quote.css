@@ -6,7 +6,11 @@
   --qt-bad: #A8382B;
   --qt-edge: var(--tile-edge);
 }
-@media (prefers-color-scheme: dark) { :root { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-bad: #E8806F; } }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-bad: #E8806F; }
 
 .qt-mark { display: inline-block; }
 .qt-mark svg { width: 100%; height: 100%; display: block; }

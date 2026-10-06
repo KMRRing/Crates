@@ -9,13 +9,20 @@
   --g-cell: var(--tile); --g-line: var(--tile-edge); --g-ok: #2F7D5B; --g-no: #A8382B; --g-must-go: #C0761A;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  html:not([data-mode="day"]) {
     --gs0: #1E3247; --gs0e: #79A9D6;  --gs1: #1C3A30; --gs1e: #7FC2A8;  --gs2: #163A37; --gs2e: #6CC0B5;
     --gp0: #3E3214; --gp0e: #E2B865;  --gp1: #43281A; --gp1e: #E08A5C;  --gp2: #382D20; --gp2e: #C9A878;
     --gw0: #262B4C; --gw0e: #8E9BE0;  --gw1: #45222F; --gw1e: #D9849F;  --gw2: #3A2440; --gw2e: #C08FD0;
     --g-ok: #7FC2A8; --g-no: #E8806F; --g-must-go: #E8A04E;
   }
 }
+/* night, set in Settings */
+html[data-mode="night"] {
+    --gs0: #1E3247; --gs0e: #79A9D6;  --gs1: #1C3A30; --gs1e: #7FC2A8;  --gs2: #163A37; --gs2e: #6CC0B5;
+    --gp0: #3E3214; --gp0e: #E2B865;  --gp1: #43281A; --gp1e: #E08A5C;  --gp2: #382D20; --gp2e: #C9A878;
+    --gw0: #262B4C; --gw0e: #8E9BE0;  --gw1: #45222F; --gw1e: #D9849F;  --gw2: #3A2440; --gw2e: #C08FD0;
+    --g-ok: #7FC2A8; --g-no: #E8806F; --g-must-go: #E8A04E;
+  }
 .g-mark { display: inline-block; }
 .g-mark svg { width: 100%; height: 100%; display: block; }
 /* The page fills the visible screen: board at the top, the dock (actions + keyboard) at the bottom, clear of
