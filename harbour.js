@@ -1,7 +1,7 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { ASTERN, LOAD, DISCHARGE, WAIT, moves, grid, period, invalid, start, step, score, instructions, capOf } from "./harbour-engine.js";
+import { ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
@@ -65,6 +65,7 @@ let sweeping = false, swept = false;  // picking hours with a mouse drag (swept:
 let nudged = 0;                       // hours the picked rows have been shifted, for the status line
 let repeat = { delay: 0, every: 0, at: 0 };   // a shift arrow being held
 let viewing = null;                   // a par plan on show in place of yours: { k (its measure), mine (your plan), history }
+let shipType = null;                  // the class the next ship placed will be
 
 // v2: the harbour went from squares to hexes, and plans and bests from before don't carry over
 const solKey = () => `harbour:v2:sol:${L.id}`, bestKey = () => `harbour:v2:best:${L.id}`;
@@ -77,7 +78,7 @@ function load(level) {
   write("harbour:level", L.id);
   const saved = read(solKey(), null);
   sol = saved?.ships && !invalid(L, saved) ? saved : { ships: [] };
-  history = []; sel = -1; sim = null; pick = null; notice = ""; viewing = null;
+  history = []; sel = -1; sim = null; pick = null; notice = ""; viewing = null; shipType = Object.keys(L.fleet)[0];
   $("brief").textContent = L.brief;
   banner();
   drawSea();
@@ -128,7 +129,7 @@ function drawSea() {
   map.style.setProperty("--aspect", W / H);
   for (const { x, y, cx, cy } of tiles) {
     const k = G.at(x, y), j = G.jetty(x, y);
-    if (!j) { parts.push(`<polygon class="hb-sea" points="${hexPoints(x, y, GAP)}"/>`); continue; }
+    if (!j) { parts.push(`<polygon class="hb-tile" points="${hexPoints(x, y, GAP)}"/>`); continue; }
     const shape = hexPoints(x, y, GAP + EDGE / 2);
     let level = "";
     if (j.tank) {
@@ -282,8 +283,12 @@ function pointerUp(e) {
     else render(true);                                 // onto another ship: it goes back where it was
   } else if (d.i >= 0 && sel === d.i) edit(() => { const s = sol.ships[d.i]; s.h = ((s.h ?? 0) + 5) % 6; });   // picked already: turn it to starboard
   else if (d.i >= 0) { sel = d.i; render(true); }
-  else if (G.afloat(t.x, t.y) && sol.ships.length < L.maxShips) edit(() => { sol.ships.push({ x: t.x, y: t.y, h: 0, prog: [] }); sel = sol.ships.length - 1; });
-  else { sel = -1; render(true); }
+  else if (G.afloat(t.x, t.y)) {
+    // a ship of the class picked in the fleet, or of whichever class still has one left
+    const type = left(shipType) > 0 ? shipType : Object.keys(L.fleet).find(k => left(k) > 0);
+    if (type) edit(() => { sol.ships.push({ x: t.x, y: t.y, h: 0, type, prog: [] }); sel = sol.ships.length - 1; shipType = type; });
+    else { notice = "The whole fleet is out. Drag a ship onto land to scrap it."; sel = -1; render(true); }
+  } else { sel = -1; render(true); }
 }
 
 // ---------- the clock ----------
@@ -329,7 +334,7 @@ function render(still = false) {
   const map = $("map");
   map.classList.toggle("still", still);
   map.style.setProperty("--hb-hour", `${Math.round(SPEED[fast ? 1 : 0] * .9)}ms`);
-  fleet(); marks(); tanks(); tape(); toolbar(); controls(); status();
+  fleet(); marks(); tanks(); classes(); tape(); toolbar(); controls(); status();
 }
 
 function tanks() {
@@ -355,17 +360,34 @@ function fleet() {
     el.classList.remove("dragging", "scrap");
     const { cx, cy } = centre(p.x, p.y);
     el.style.transform = `translate(${cx - 5}px, ${cy - 5}px)`;
-    el.firstChild.setAttribute("transform", `rotate(${-60 * (p.h ?? 0)} 5 5)`);           // the bow along its heading
+    const type = typeOf(L, p);
+    el.firstChild.setAttribute("transform", `rotate(${-60 * (p.h ?? 0)} 5 5) ${hullScale(type)}`);   // the bow along its heading, a Handy bigger
     // the cargo as a bar along the deck, a stretch per product, as long as the share of the ship it fills
     let x = 3.6;
     el.querySelector(".hb-cargo").innerHTML = Object.entries(p.cargo || {}).filter(([, u]) => u > 0).map(([prod, u]) => {
-      const w = 4.3 * u / capOf(L), r = `<rect class="hb-load pr-${prod}" x="${x}" y="4" width="${w}" height="2" rx=".4"/>`;
+      const w = 4.3 * u / CLASSES[type].cap, r = `<rect class="hb-load pr-${prod}" x="${x}" y="4" width="${w}" height="2" rx=".4"/>`;
       x += w;
       return r;
     }).join("");
     el.classList.toggle("sel", i === sel && !sim);
     el.classList.toggle("hit", !!sim?.crash?.ships.includes(i));
   });
+}
+
+// the fleet: each class the level offers, what it holds and costs, and how many are left. With no ship picked, the class
+// the next ship placed will be; with one picked, its class (tap another to swap it, if one's left)
+const HULL_SCALE = { coaster: .84, handy: 1.06 };
+const hullScale = type => `translate(5 5) scale(${HULL_SCALE[type] || 1}) translate(-5 -5)`;
+const left = type => (L.fleet[type] || 0) - sol.ships.filter(s => typeOf(L, s) === type).length;
+function classes() {
+  const picked = sel >= 0 && sol.ships[sel] ? typeOf(L, sol.ships[sel]) : null;
+  $("classes").innerHTML = Object.entries(L.fleet).map(([t, n]) => {
+    const c = CLASSES[t], on = (picked || shipType) === t, k = left(t);
+    return `<button type="button" class="hb-class${on ? " on" : ""}${k <= 0 ? " out" : ""}" data-type="${t}" aria-pressed="${on}"`
+      + ` aria-label="${c.name}: holds ${c.cap}, hire $${c.cost}k, ${k} of ${n} left">`
+      + `<svg viewBox="0 1.5 10 7" aria-hidden="true"><path class="hb-hull" d="${HULL}" transform="${hullScale(t)}"/></svg>`
+      + `<b>${c.name}</b><span>${c.cap} · $${c.cost}k</span><i>×${k}</i></button>`;
+  }).join("");
 }
 
 function marks() {
@@ -448,7 +470,7 @@ function status() {
       : `${w} hour${w > 1 ? "s" : ""}${rows > 1 ? ` × ${rows} ships` : ""} picked`;
   } else if (!sim) text = !n ? "Tap the water to put a ship there."
     : sel >= 0 ? `Ship ${sel + 1}: tap to turn it, drag to move it, onto land to scrap it.`
-    : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${n * L.shipCost}k`;
+    : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${sol.ships.reduce((m, sh) => m + classOf(L, sh).cost, 0)}k`;
   else if (sim.crash) {
     const [a, b] = sim.crash.ships; tone = "bad";
     text = sim.crash.kind === "aground" ? `Ship ${a + 1} ran aground in hour ${sim.crash.t}.` : `Ships ${a + 1} and ${b + 1} collided in hour ${sim.crash.t}.`;
@@ -567,6 +589,14 @@ $("runBtn").addEventListener("click", play);
 $("speedBtn").addEventListener("click", () => { fast = !fast; render(); });
 $("menuBtn").addEventListener("click", openMenu);
 $("mineBtn").addEventListener("click", unview);
+$("classes").addEventListener("click", e => {
+  const b = e.target.closest(".hb-class");
+  if (!b) return;
+  const t = b.dataset.type, ship = sel >= 0 ? sol.ships[sel] : null;
+  if (!ship || typeOf(L, ship) === t) { shipType = t; render(true); return; }
+  if (left(t) <= 0) { notice = `No ${CLASSES[t].name} left: the fleet has ${L.fleet[t]}.`; render(true); return; }
+  edit(() => { ship.type = t; });
+});
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("menuDlg").addEventListener("click", e => { if (e.target === $("menuDlg")) $("menuDlg").close(); });
 // keys on a computer: Ctrl/Cmd with C, X, V, A and Z copy, cut, paste, pick everything and undo; Delete deletes the

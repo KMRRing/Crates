@@ -21,7 +21,7 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-jetty { --hb-berth: var(--pr, var(--c0)); }
 .hb-jetty.discharge { --hb-berth: var(--c2); }
 .hb-load { fill: var(--pr); stroke: var(--hb-ship-ink); stroke-width: .2; }
-.hb-sea { fill: var(--hb-water); }
+.hb-tile { fill: var(--hb-water); }
 .hb-jetty .hb-berth { fill: color-mix(in srgb, var(--hb-berth) 22%, var(--hb-water)); }
 .hb-jetty .hb-edge { fill: none; stroke: var(--hb-berth); stroke-width: .8; }
 .hb-level { fill: var(--hb-berth); opacity: .5; transition: y .25s, height .25s; }     /* the tank's level, filling the jetty */
@@ -113,3 +113,15 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
   text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .hb-par:hover, .hb-par:focus-visible { background: color-mix(in srgb, var(--ink) 9%, transparent); }
 .hb-note { margin: 8px 0 0; font-size: .85rem; color: var(--ink-soft); }
+/* the fleet: a chip per class, what it holds and costs, and how many are left */
+.hb-classes { display: flex; gap: 6px; margin-top: .45rem; }
+.hb-class { flex: 1 1 0; max-width: calc(50% - 3px); min-width: 0; display: flex; align-items: center; gap: 6px; padding: 5px 9px;
+  border-radius: 10px; border: 1.5px solid var(--tile-edge); background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem;
+  line-height: 1.2; cursor: pointer; text-align: left; }
+.hb-class.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.hb-class svg { flex: none; width: 24px; height: 17px; }
+.hb-class svg .hb-hull { fill: var(--hb-hull); stroke: var(--hb-ship-ink, var(--ink)); stroke-width: .7; }
+.hb-class b { font-weight: 700; }
+.hb-class span { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hb-class i { margin-left: auto; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hb-class.out i { color: var(--ink-soft); }

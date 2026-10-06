@@ -12,7 +12,7 @@ const lp = (n, op) => ({ n, body: [op] });
 const hours = (level, s, n) => { let st = start(level, s); for (let k = 0; k < n; k++) st = step(level, s, st); return st; };
 
 // moving: ships steer relative to their heading, on hexes (odd rows half a hex to the right)
-const sea = { map: [".....", ".....", ".....", "....."], target: 1, shipCost: 10, maxShips: 4, maxCycles: 50 };
+const sea = { map: [".....", ".....", ".....", "....."], jetties: {}, fleet: { coaster: 4 }, target: 1, maxCycles: 50 };
 const at = (lvl, s, n = 1) => hours(lvl, s, n).ships[0];
 const ship = (x, y, h, p) => ({ ships: [{ x, y, h, prog: prog(p) }] });
 {
@@ -39,12 +39,13 @@ check(invalid({ ...sea, map: ["#...."] }, sol([0, 0, ""])) !== null, "a ship can
 check(invalid(sea, sol([0, 0, ""], [0, 0, ""])) !== null, "two ships can't start on one hex");
 
 // transfers: whole parcels or nothing, and nothing when they can't happen
-const toy = { map: ["L..D"], target: 1, shipCost: 10, maxShips: 4, maxCycles: 50 };
+const toy = { map: ["L..D"], products: { oil: { name: "Oil", price: 0 } }, jetties: { L: { kind: "load", product: "oil", parcel: 4 }, D: { kind: "discharge", parcel: 4 } },
+  fleet: { coaster: 4 }, target: 1, maxCycles: 50 };
 check(hours(toy, sol([3, 0, "D"]), 1).delivered === 0, "discharging an empty ship does nothing");
 check(total(hours(toy, sol([1, 0, "L"]), 1).ships[0].cargo) === 0, "loading off a jetty does nothing");
 { const r = run(toy, sol([0, 0, "LAAAD"])); check(r.done === 5 && score(toy, sol([0, 0, "LAAAD"]), r).water === 4, `load, three hexes on, discharge: 5 hours, 4 hexes (${r.done})`); }
-const tankToy = (startLevel, cap = 8) => ({ map: ["L.D"], target: 1, shipCost: 10, maxShips: 2, maxCycles: 50, shipCap: 4,
-  products: { diesel: { name: "Diesel", price: 2 } }, jetties: { L: { kind: "load", product: "diesel", tank: { start: startLevel, rate: 1, cap } }, D: { kind: "discharge" } } });
+const tankToy = (startLevel, cap = 8) => ({ map: ["L.D"], target: 1, fleet: { coaster: 2 }, maxCycles: 50,
+  products: { diesel: { name: "Diesel", price: 2 } }, jetties: { L: { kind: "load", product: "diesel", parcel: 4, tank: { start: startLevel, rate: 1, cap } }, D: { kind: "discharge", parcel: 4 } } });
 {
   const lvl = tankToy(3), s1 = hours(lvl, sol([0, 0, "LL"]), 1), s2 = hours(lvl, sol([0, 0, "LL"]), 2);
   check(total(s1.ships[0].cargo) === 0 && total(s2.ships[0].cargo) === 4, "a load waits for the whole parcel: three in the tank lifts nothing, four lifts four");
@@ -52,14 +53,25 @@ const tankToy = (startLevel, cap = 8) => ({ map: ["L.D"], target: 1, shipCost: 1
 }
 { const s = hours(tankToy(8), sol([0, 0, "LL"]), 2); check(total(s.ships[0].cargo) === 4 && s.tanks.L === 6, `a full ship lifts no more (tank ${s.tanks.L})`); }
 check(hours(tankToy(7), sol([1, 0, " "]), 3).tanks.L === 8, "a refinery waits when its tank is full");
-const blend = { map: ["GFD"], target: 1, shipCost: 10, maxShips: 1, maxCycles: 20, shipCap: 5, products: { gasoil: { name: "Gasoil", price: 1 }, fame: { name: "FAME", price: 3 } },
-  jetties: { G: { kind: "load", product: "gasoil", parcel: 2 }, F: { kind: "load", product: "fame", parcel: 1 }, D: { kind: "discharge", parcel: 5, spec: { fame: [0.2, 1] } } } };
+const blend = { map: ["GFD"], target: 4, fleet: { coaster: 1, handy: 1 }, maxCycles: 20, products: { gasoil: { name: "Gasoil", price: 1 }, fame: { name: "FAME", price: 3 } },
+  jetties: { G: { kind: "load", product: "gasoil", parcel: 2 }, F: { kind: "load", product: "fame", parcel: 1 }, D: { kind: "discharge", parcel: 4, spec: { fame: [0.25, 1] } } } };
+const typed = (type, x, y, p) => ({ ships: [{ x, y, h: 0, type, prog: prog(p) }] });
 {
-  const short = hours(blend, sol([0, 0, "LLAAD"]), 5);
-  check(total(short.ships[0].cargo) === 4 && short.delivered === 0 && /carries 4/.test(short.events[0]?.why), `a cargo the wrong size is refused and stays aboard (${short.events[0]?.why})`);
-  const noFame = hours({ ...blend, jetties: { ...blend.jetties, G: { kind: "load", product: "gasoil", parcel: 5 } } }, sol([0, 0, "LAAD"]), 4);
-  check(noFame.delivered === 0 && /FAME 0%, needs at least 20%/.test(noFame.events[0]?.why), `a cargo off spec is refused (${noFame.events[0]?.why})`);
-  check(run(blend, sol([0, 0, "LLALAD"])).done === 6, "two gasoil lifts and one FAME: exactly 20%, delivered");
+  const short = hours(blend, typed("coaster", 0, 0, "LAAD"), 4);
+  check(total(short.ships[0].cargo) === 2 && short.delivered === 0 && /carries 2, the jetty takes 4/.test(short.events[0]?.why), `less than the jetty's parcel is refused and stays aboard (${short.events[0]?.why})`);
+  const noFame = hours(blend, typed("coaster", 0, 0, "LLAAD"), 5);
+  check(noFame.delivered === 0 && /FAME 0%, needs at least 25%/.test(noFame.events[0]?.why), `a cargo off spec is refused (${noFame.events[0]?.why})`);
+  const full = hours(blend, typed("coaster", 0, 0, "LLL"), 3);
+  check(total(full.ships[0].cargo) === 4, "a coaster holds four: a third lift of two doesn't fit");
+  const rich = hours(blend, typed("coaster", 0, 0, "LALLAD"), 6);
+  check(rich.delivered === 1 && total(rich.ships[0].cargo) === 0, "a coaster's cheapest blend on spec: two gasoil, two FAME, 50%");
+  const handy = typed("handy", 0, 0, "LLLALLADD"), h8 = hours(blend, handy, 7), h9 = hours(blend, handy, 8), h10 = hours(blend, handy, 9);
+  check(total(h8.ships[0].cargo) === 8 && h8.ships[0].cargo.fame === 2, "a Handy holds eight: six gasoil, two FAME, exactly 25%");
+  check(h9.delivered === 1 && total(h9.ships[0].cargo) === 4 && h9.ships[0].cargo.fame === 1, "a discharge takes the jetty's four out of the blend, every product in its share; the rest stays aboard");
+  check(h10.delivered === 2 && total(h10.ships[0].cargo) === 0, "and the second four, on spec as the first was");
+  check(invalid(blend, { ships: [{ x: 0, y: 0, h: 0, type: "handy", prog: [] }, { x: 1, y: 0, h: 0, type: "handy", prog: [] }] })?.includes("1 Handy"), "no more of a class than the fleet has");
+  check(invalid(sea, typed("handy", 0, 0, "")) !== null, "no class the harbour doesn't offer");
+  check(score(blend, { ships: [{ x: 0, y: 0, h: 0, type: "coaster", prog: [] }, { x: 1, y: 0, h: 0, type: "handy", prog: [] }] }, { bought: 0, done: 1, visited: new Set() }).cost === 46, "hire is each ship's class: a coaster $20k, a Handy $26k");
 }
 check(instructions(sol([0, 0, ["L", { n: 3, body: ["A", null] }, ".", null]])) === 3, "instructions: a loop's body counts once, empty hours not at all");
 
@@ -110,10 +122,10 @@ for (const level of LEVELS) {
   for (const k of Object.keys(level.par)) check(plans.some(p => p.par.includes(k)), `${level.id}: a plan to show for ${k}`);
   check(new Set(level.map.map(r => r.length)).size === 1, `${level.id}: every row of the map is as wide`);
 }
-// around the pars: a blend with more FAME is on spec too, and dearer; two ships an hour apart meet at the jetty
+// around the pars: a coaster's blend is on spec too, and dearer; two ships an hour apart meet at the jetty
 const [L3] = ["first-blend"].map(id => LEVELS.find(l => l.id === id));
-{ const rich = { ships: [{ x: 2, y: 1, h: 0, prog: program("L(2A)(3L)A(3S)D(3A)(3S)") }] }, r = run(L3, rich);
-  check(r.done && score(L3, rich, r).cost === 64, `level 3: 60% FAME is delivered, at $${score(L3, rich, r).cost}k`); }
+{ const coaster = { ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("L(2A)(2L)A(3S)D(3A)(3S)") }] }, r = run(L3, coaster);
+  check(r.done && score(L3, coaster, r).cost === 52, `level 3: a coaster can only blend 50% FAME, on spec but dearer than the Handy's 25% ($${score(L3, coaster, r).cost}k)`); }
 { const lead = L1.plans[0].ships[0], flat = flatten(lead.prog), next = hours(L1, { ships: [lead] }, 1).ships[0];
   const close = { ships: [lead, { x: next.x, y: next.y, h: next.h, prog: flat.slice(1).concat(flat.slice(0, 1)) }] };
   check(run(L1, close).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty"); }
