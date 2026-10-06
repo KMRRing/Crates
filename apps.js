@@ -193,7 +193,7 @@ const K_SETTINGS = '<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><p
 const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LOOK === "kontor" ? KONTOR_LOGOS[id] : null) || almanac;
 
 export const APPS = [
-  { id: "crates", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO) },
+  { id: "crates", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO), score: "board" },   // its best: today's board, points then time
   { id: "glyph", name: "Slate", href: "./slate.html", logo: LOGO("slate", SLATE_LOGO) },
   { id: "delta", name: "Delta", href: "./delta.html", logo: LOGO("delta", DELTA_LOGO) },
   { id: "punt", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO), score: "return" },   // its best: a return a question
@@ -248,7 +248,12 @@ const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === 
       <span class="app-logo">${a.logo}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
 /** A game's score as its tile shows it: most as a number, a return a question (Punt's) as a signed percentage, 0.41 as +41%. */
-const scoreText = (id, n) => (APPS.find(a => a.id === id)?.score === "return" ? `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.round(Math.abs(n) * 100)}%` : short(n));
+const scoreText = (id, n) => {
+  const kind = APPS.find(a => a.id === id)?.score;
+  if (kind === "return") return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.round(Math.abs(n) * 100)}%`;
+  if (kind === "board") { const t = 99999 - (n % 100000); return `${Math.floor(n / 100000)}/8 in ${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; }   // Crates: points, then time
+  return short(n);
+};
 // the head's icons: one person (your solo code), two (your partner code), refresh (update), and close
 const ICON = {
   solo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-4 3.6-6.2 7.5-6.2s6.9 2.2 7.5 6.2"/></svg>',

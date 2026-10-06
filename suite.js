@@ -142,7 +142,7 @@ export async function pull() {
 export const today = () => { const d = new Date(); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
 /** Games whose best counts only comparable runs: the daily, and the Standard preset (everything in, default settings,
  *  nothing from your pile or your history dealt in). The games screen and your partner see only these. */
-export const RANKED = new Set(["chart", "quote", "punt"]);     // Crates joins as its daily lands
+export const RANKED = new Set(["chart", "quote", "punt", "crates"]);
 /** Notes a comparable result (higher is better): the best of them, and for a daily (day: the date it was dealt for,
  *  YYYYMMDD) that day's, the latest day's only, so an older daily from a link leaves today's alone. */
 export function noteComparable(app, score, day = null) {

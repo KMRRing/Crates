@@ -11,6 +11,7 @@ import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
 import { part, action, line, mirror, isPaused, onPause } from "./menu.js";
+import { today, noteComparable } from "./suite.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
@@ -40,6 +41,14 @@ function normalise(raw) {
   s.seen = cleanSeen(s.seen);
   return s;
 }
+
+// ---------- today's board ----------
+// The same board for everyone today: dealt from the date on the standard puzzles (mixed) and settings, with nothing of
+// yours passed in (recent words, learning, clues seen). It counts for your best, by points and then time, on the first
+// go only: a second would know the answers.
+const seeded = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+/** A board's result as one number, higher better: its points (up to 8), then the quicker the better. */
+export const boardScore = (pts, ms) => pts * 100000 + (99999 - Math.min(99999, Math.round(ms / 1000)));
 
 const syncError = e => (/permission/i.test(String(e?.message || e))
   ? "Syncing isn't switched on in Firebase yet" : "Couldn't reach the sync server");
@@ -91,14 +100,15 @@ export function createSolo({ setPoolParam, setBoardParam }) {
   const cluesLeft = () => CLUES - game().revealed.length;
   const score = g => g.found.reduce((s, f) => s + 1 + (f.named ? 1 : 0), 0);
 
-  function begin(b, code) {
+  function begin(b, code, day = null) {
     clock.pause();          // book the time so far to the board being left
     store.n += 1;
     store.cur = {
       code: code || encode(b), n: store.n, order: shuffled(describe(b).flatMap(g => g.words)),
       found: [], mistakes: 0, guesses: [], tried: [], revealed: [], done: false, ms: 0,
-      mode: store.mode,
+      mode: day ? "off" : store.mode, ...(day && { daily: day }),
     };
+    if (day) store.daily = { key: day };                 // today's board is had: one go
     markSeen(store.seen, b);
     b.groups.forEach(g => {
       store.recentA = [g.a, ...store.recentA.filter(a => a !== g.a)].slice(0, RECENT_ANSWERS);
@@ -106,6 +116,20 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     });
     save();
     load();
+  }
+
+  /** Today's board, or (already had) what it scored. */
+  function daily() {
+    const day = today();
+    if (store.daily?.key === day) {
+      const d = store.daily;
+      view.toast(d.pts != null ? `Today's board: ${d.pts}/8 in ${formatTime(d.ms)}. A new one tomorrow` : "You've had today's board. A new one tomorrow", 3500);
+      return false;
+    }
+    const b = generate({ pool: "mixed", settings: defaultSettings(), rng: seeded(day) });
+    if (!b) { view.toast("Today's board couldn't be dealt", 3000); return false; }
+    begin(b, null, day);
+    return true;
   }
 
   function fresh() {
@@ -219,6 +243,10 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     if (g.mode === store.mode && g.mode === "clues") g.tags = learnFromClues(store.deck, board, g);
     store.history = [{ n: g.n, code: g.code, cat: board.cat, pts: score(g), won: g.found.length === 4,
       mistakes: g.mistakes, clues: g.revealed.length, ms: g.ms }, ...store.history].slice(0, HISTORY);
+    if (g.daily) {                                         // today's board: it counts for your best, points then time
+      store.daily = { key: g.daily, pts: score(g), ms: g.ms || 0 };
+      noteComparable("crates", boardScore(score(g), g.ms || 0), g.daily);
+    }
   }
 
   const count = x => x.toLocaleString("en-GB");
@@ -375,7 +403,10 @@ export function createSolo({ setPoolParam, setBoardParam }) {
           // clue learn: a tile whose clue you opened comes back even if you skip the board
           if (!g.done && g.mode === "clues" && store.mode === "clues") learnFromClues(store.deck, board, g);
           fresh();
-        }, "primary"));
+        }, "primary"), action("Today's board", () => {
+          if (!g.done && g.guesses.length && !confirm("Leave this board unfinished?")) return;
+          if (daily()) close();
+        }));
         part(body, "content").append(mirror("Puzzles", document.getElementById("pool")), action("Topics and difficulty", settingsSheet));
         const about = part(body, "about"), done = store.history.length;
         if (done) {
