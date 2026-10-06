@@ -2,6 +2,7 @@
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
 import { ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
+import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
@@ -10,17 +11,9 @@ import "./pwa.js";
 import { part, action, mirror, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
-// hexes, pointy side up, every odd row half a hex to the right: 10 drawing units across, 8.66 from row to row
-const HEX_W = 10, HEX_R = HEX_W / Math.sqrt(3), ROW_H = 1.5 * HEX_R;
-const centre = (x, y) => ({ cx: HEX_W * (x + 0.5 + (y & 1) / 2), cy: HEX_R + ROW_H * y });
-const hexPoints = (x, y, inset = 0) => {
-  const { cx, cy } = centre(x, y), r = HEX_R - inset;
-  return [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 180 * (60 * i - 30); return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`; }).join(" ");
-};
 const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
 const SPEED = [420, 110];             // ms an hour takes: normal, fast
 const HOLD = 450;                     // ms: holding a loop's count lowers it
-const HULL = "M1.2 2.9H6.2C8.4 2.9 9.4 4 9.5 5C9.4 6 8.4 7.1 6.2 7.1H1.2Q.6 5 1.2 2.9Z";   // bow to the east
 const MEASURES = [["cost", "Cost", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`], ["instructions", "Instructions", v => `${v} instr`]];
 const REPEAT = [380, 110];            // ms: holding a shift arrow repeats it, after a pause, this often
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
@@ -83,7 +76,7 @@ function load(level) {
   history = []; sel = -1; sim = null; pick = null; notice = ""; viewing = null; shipType = Object.keys(L.fleet)[0];
   $("brief").textContent = L.brief;
   banner();
-  drawSea();
+  mapView.setLevel(L, G);
   render(true);
 }
 
@@ -115,33 +108,6 @@ function banner() {
   if (!viewing) return;
   const [, name, f] = MEASURES.find(([k]) => k === viewing.k);
   $("viewingText").textContent = `The par plan for ${name.toLowerCase()}: ${f(L.par[viewing.k])}.`;
-}
-
-// The harbour: only the water is drawn, every hex the same tile with the same gap round it, and the page round them is
-// the land. The view is cropped to the water (plus a margin), so the harbour sits in the middle of its box whatever land
-// the map has around it. A jetty is a water tile in its product's colour (the customer's in blue), lettered as on the
-// map; a refinery's fills from the bottom up as its tank does.
-const GAP = 0.6, EDGE = 0.8;                 // between tiles; a jetty's border, inside its tile so every tile is as big
-function drawSea() {
-  const map = $("map"), tiles = [], parts = [], defs = [];
-  for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) if (G.at(x, y) !== "land") tiles.push({ x, y, ...centre(x, y) });
-  const pad = 1.5, x0 = Math.min(...tiles.map(t => t.cx)) - HEX_W / 2 - pad, y0 = Math.min(...tiles.map(t => t.cy)) - HEX_R - pad;
-  const W = Math.max(...tiles.map(t => t.cx)) + HEX_W / 2 + pad - x0, H = Math.max(...tiles.map(t => t.cy)) + HEX_R + pad - y0;
-  map.setAttribute("viewBox", `${x0.toFixed(2)} ${y0.toFixed(2)} ${W.toFixed(2)} ${H.toFixed(2)}`);
-  map.style.setProperty("--aspect", W / H);
-  for (const { x, y, cx, cy } of tiles) {
-    const k = G.at(x, y), j = G.jetty(x, y);
-    if (!j) { parts.push(`<polygon class="hb-tile" points="${hexPoints(x, y, GAP)}"/>`); continue; }
-    const shape = hexPoints(x, y, GAP + EDGE / 2);
-    let level = "";
-    if (j.tank) {
-      defs.push(`<clipPath id="tank-${k}"><polygon points="${shape}"/></clipPath>`);
-      level = `<rect class="hb-level" data-tank="${k}" data-bottom="${(cy + HEX_R).toFixed(2)}" data-full="${(2 * HEX_R).toFixed(2)}" x="${(cx - HEX_W / 2).toFixed(2)}" y="${(cy + HEX_R).toFixed(2)}" width="${HEX_W}" height="0" clip-path="url(#tank-${k})"/>`;
-    }
-    parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><polygon class="hb-berth" points="${shape}"/>${level}`
-      + `<polygon class="hb-edge" points="${shape}"/><text x="${cx.toFixed(2)}" y="${(cy + 1.45).toFixed(2)}">${k}</text></g>`);
-  }
-  map.innerHTML = `<defs>${defs.join("")}</defs>` + parts.join("") + `<g id="fleet"></g><g id="marks"></g>`;
 }
 
 // ---------- editing ----------
@@ -181,14 +147,14 @@ function pickAt(row, col, extend) {
   if (extend && pick) pick = { ...pick, r0: Math.min(pick.ar, row), r1: Math.max(pick.ar, row), c0: Math.min(pick.ac, col), c1: Math.max(pick.ac, col), open: false };
   else pick = { ar: row, ac: col, r0: row, r1: row, c0: col, c1: col, open: true };
   sel = row; notice = ""; nudged = 0;
-  markPick(); fleet(); status(); toolbar();
+  markPick(); drawMap(true); status(); toolbar();
 }
 function pickRow(row) {
   const r0 = pick?.open ? Math.min(pick.ar, row) : row, r1 = pick?.open ? Math.max(pick.ar, row) : row;
   const end = Math.max(1, ...sol.ships.slice(r0, r1 + 1).map(s => T.width(s.prog))) - 1;
   pick = { ar: r0, ac: 0, r0, r1, c0: 0, c1: end, open: false };
   sel = row; notice = ""; nudged = 0;
-  markPick(); fleet(); status(); toolbar();
+  markPick(); drawMap(true); status(); toolbar();
 }
 function setMode(m) {
   mode = m;
@@ -247,38 +213,28 @@ function act(name) {
 }
 
 // the map: tap water to put a ship there, tap a ship to pick it and again to turn it, drag it to move it, onto land to
-// scrap it. A point is in the hex whose centre is nearest.
-function tileAt(e) {
-  const map = $("map"), pt = map.createSVGPoint();
-  pt.x = e.clientX; pt.y = e.clientY;
-  const p = pt.matrixTransform(map.getScreenCTM().inverse()), y0 = Math.round((p.y - HEX_R) / ROW_H);
-  let best = null;
-  for (let y = y0 - 1; y <= y0 + 1; y++) {
-    const x0 = Math.round(p.x / HEX_W - 0.5 - (y & 1) / 2);
-    for (let x = x0 - 1; x <= x0 + 1; x++) { const c = centre(x, y), d = (c.cx - p.x) ** 2 + (c.cy - p.y) ** 2; if (!best || d < best.d) best = { x, y, d }; }
-  }
-  return { x: best.x, y: best.y, px: p.x, py: p.y };
-}
+// scrap it. Which hex a tap is on is the view's to say (flat or 3D).
 const shipOn = (x, y) => sol.ships.findIndex(s => s.x === x && s.y === y);
 function pointerDown(e) {
   if (sim) stop();
-  const t = tileAt(e), i = shipOn(t.x, t.y);
+  const t = mapView.pick(e);
+  if (!t) return;
+  const i = shipOn(t.x, t.y);
   drag = { i, from: t, moved: false };
-  if (i >= 0) $("map").setPointerCapture(e.pointerId);
+  if (i >= 0) $("sea").setPointerCapture(e.pointerId);
 }
 function pointerMove(e) {
   if (!drag || drag.i < 0 || viewing) return;                 // a par plan's ships stay where they are
-  const t = tileAt(e), el = $("fleet").children[drag.i];
+  const t = mapView.pick(e);
+  if (!t) return;
   if (!drag.moved && (t.x !== drag.from.x || t.y !== drag.from.y)) drag.moved = true;
-  if (!drag.moved) return;
-  el.classList.add("dragging");
-  el.classList.toggle("scrap", !G.afloat(t.x, t.y));
-  el.style.transform = `translate(${t.px - 5}px, ${t.py - 5}px)`;
+  if (drag.moved) mapView.drag(drag.i, e, !G.afloat(t.x, t.y));
 }
 function pointerUp(e) {
   if (!drag) return;
-  const d = drag, t = tileAt(e);
+  const d = drag, t = mapView.pick(e) || d.from;
   drag = null;
+  mapView.release();
   if (d.i >= 0 && d.moved) {
     if (!G.afloat(t.x, t.y)) edit(() => { sol.ships.splice(d.i, 1); sel = -1; pick = null; });
     else if (shipOn(t.x, t.y) < 0) edit(() => { Object.assign(sol.ships[d.i], { x: t.x, y: t.y }); sel = d.i; });
@@ -333,53 +289,19 @@ function keepBests() {
 
 // ---------- drawing ----------
 function render(still = false) {
-  const map = $("map");
-  map.classList.toggle("still", still);
-  map.style.setProperty("--hb-hour", `${Math.round(SPEED[fast ? 1 : 0] * .9)}ms`);
-  fleet(); marks(); tanks(); classes(); tape(); toolbar(); controls(); status();
+  drawMap(still);
+  classes(); tape(); toolbar(); controls(); status();
 }
-
-function tanks() {
-  for (const el of $("map").querySelectorAll(".hb-level")) {
-    const k = el.dataset.tank, t = L.jetties[k].tank, level = sim ? sim.tanks[k] : t.start || 0, h = +el.dataset.full * level / t.cap;
-    el.setAttribute("height", h.toFixed(2));
-    el.setAttribute("y", (+el.dataset.bottom - h).toFixed(2));
-  }
-}
-
-function fleet() {
-  const g = $("fleet"), ships = sim ? sim.ships : sol.ships;
-  while (g.children.length > ships.length) g.lastChild.remove();
-  while (g.children.length < ships.length) {
-    const i = g.children.length, el = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    el.setAttribute("class", "hb-ship");
-    el.innerHTML = `<g><path class="hb-hull" d="${HULL}"/><rect class="hb-bridge" x="1.7" y="3.5" width="1.5" height="3" rx=".35"/><g class="hb-cargo"></g></g>`
-      + `<text class="hb-num" x="5.9" y="6.1">${i + 1}</text>`;
-    g.appendChild(el);
-  }
-  ships.forEach((p, i) => {
-    const el = g.children[i];
-    el.classList.remove("dragging", "scrap");
-    const { cx, cy } = centre(p.x, p.y);
-    el.style.transform = `translate(${cx - 5}px, ${cy - 5}px)`;
-    const type = typeOf(L, p);
-    el.firstChild.setAttribute("transform", `rotate(${-60 * (p.h ?? 0)} 5 5) ${hullScale(type)}`);   // the bow along its heading, a Handy bigger
-    // the cargo as a bar along the deck, a stretch per product, as long as the share of the ship it fills
-    let x = 3.6;
-    el.querySelector(".hb-cargo").innerHTML = Object.entries(p.cargo || {}).filter(([, u]) => u > 0).map(([prod, u]) => {
-      const w = 4.3 * u / CLASSES[type].cap, r = `<rect class="hb-load pr-${prod}" x="${x}" y="4" width="${w}" height="2" rx=".4"/>`;
-      x += w;
-      return r;
-    }).join("");
-    el.classList.toggle("sel", i === sel && !sim);
-    el.classList.toggle("hit", !!sim?.crash?.ships.includes(i));
-  });
+/** The map (flat or 3D): the ships as planned or as the run has them, the picked one, a crash, the tanks' levels. */
+function drawMap(still) {
+  const tanks = {};
+  for (const [k, j] of Object.entries(L.jetties)) if (j.tank) tanks[k] = sim ? sim.tanks[k] : j.tank.start || 0;
+  mapView.draw({ ships: sim ? sim.ships : sol.ships.map(s => ({ ...s, type: typeOf(L, s) })), sel: sim ? -1 : sel, crash: sim?.crash || null,
+    tanks, still, ms: Math.round(SPEED[fast ? 1 : 0] * .9) });
 }
 
 // the fleet: each class the level offers, what it holds and costs, and how many are left. With no ship picked, the class
 // the next ship placed will be; with one picked, its class (tap another to swap it, if one's left)
-const HULL_SCALE = { coaster: .84, handy: 1.06 };
-const hullScale = type => `translate(5 5) scale(${HULL_SCALE[type] || 1}) translate(-5 -5)`;
 const left = type => (L.fleet[type] || 0) - sol.ships.filter(s => typeOf(L, s) === type).length;
 function classes() {
   const picked = sel >= 0 && sol.ships[sel] ? typeOf(L, sol.ships[sel]) : null;
@@ -390,12 +312,6 @@ function classes() {
       + `<svg viewBox="0 1.5 10 7" aria-hidden="true"><path class="hb-hull" d="${HULL}" transform="${hullScale(t)}"/></svg>`
       + `<b>${c.name}</b><span>${c.cap} · $${c.cost}k</span><i>×${k}</i></button>`;
   }).join("");
-}
-
-function marks() {
-  const c = sim?.crash;
-  const o = c && centre(c.at[0], c.at[1]);
-  $("marks").innerHTML = c ? `<circle class="hb-crash" cx="${o.cx}" cy="${o.cy}" r="4.7"/>` : "";
 }
 
 /** The programs: a row per ship, a column per hour. A loop's body is boxed, its later passes are faded, and the first of
@@ -501,7 +417,14 @@ function openMenu() {
   table.className = "hb-bests";
   table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
   part(body, "content").append(mirror("Level", $("level")));
-  part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
+  part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"),
+    action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
+      write("harbour:flat", !mapView.flat);
+      $("menuDlg").close();
+      await makeMap();
+      mapView.setLevel(L, G);
+      render(true);
+    }, "link"));
   table.addEventListener("click", e => { const b = e.target.closest(".hb-par"); if (b) { $("menuDlg").close(); view(b.dataset.k); } });
   const note = document.createElement("p");
   note.className = "hb-note";
@@ -576,11 +499,11 @@ tapeBox.addEventListener("click", e => {
   if (mode === "paint") paintCell(row, col);
   else if (!swept) { if (sim) { stop(); render(true); } pickAt(row, col, pick?.open || e.shiftKey); }
 });
-const map = $("map");
-map.addEventListener("pointerdown", pointerDown);
-map.addEventListener("pointermove", pointerMove);
-map.addEventListener("pointerup", pointerUp);
-map.addEventListener("pointercancel", () => { drag = null; render(true); });
+const seaBox = $("sea");
+seaBox.addEventListener("pointerdown", pointerDown);
+seaBox.addEventListener("pointermove", pointerMove);
+seaBox.addEventListener("pointerup", pointerUp);
+seaBox.addEventListener("pointercancel", () => { drag = null; mapView.release(); render(true); });
 $("undoBtn").innerHTML = ICON.undo;
 $("resetBtn").innerHTML = ICON.reset;
 $("stepBtn").innerHTML = ICON.step;
@@ -627,6 +550,23 @@ const levelSel = $("level");
 levelSel.innerHTML = LEVELS.map((l, i) => `<option value="${l.id}">${i + 1} · ${l.name}</option>`).join("");
 dropdown(levelSel);
 levelSel.addEventListener("change", () => load(LEVELS.find(l => l.id === levelSel.value)));
+// the map: in 3D where the device can draw it and the player hasn't asked for it flat, flat otherwise
+let mapView = null;
+async function makeMap() {
+  mapView?.dispose();
+  mapView = null;
+  if (!read("harbour:flat", false)) {
+    try { mapView = (await import("./harbour-3d.js")).create3D($("sea")); }
+    catch (err) { console.warn("Harbour: no 3D here, so the harbour is drawn flat.", err); }
+  }
+  mapView ||= createFlat($("sea"));
+  $("sea").view = mapView;                                   // for the tests: where a hex is on screen
+}
+// the theme (Almanac, Modern, Kontor) and day or night re-skin the 3D harbour as they change
+new MutationObserver(() => mapView?.theme()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => mapView?.theme());
+
 const first = LEVELS.find(l => l.id === read("harbour:level", "")) || LEVELS[0];
 levelSel.value = first.id;
+await makeMap();
 load(first);

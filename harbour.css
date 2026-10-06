@@ -115,13 +115,22 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-note { margin: 8px 0 0; font-size: .85rem; color: var(--ink-soft); }
 /* the fleet: a chip per class, what it holds and costs, and how many are left */
 .hb-classes { display: flex; gap: 6px; margin-top: .45rem; }
-.hb-class { flex: 1 1 0; max-width: calc(50% - 3px); min-width: 0; display: flex; align-items: center; gap: 6px; padding: 5px 9px;
-  border-radius: 10px; border: 1.5px solid var(--tile-edge); background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem;
+.hb-class { flex: 1 1 0; max-width: calc(50% - 3px); min-width: 0; display: flex; align-items: center; gap: 5px; padding: 5px 7px;
+  border-radius: 10px; border: 1.5px solid var(--tile-edge); background: var(--tile); color: var(--ink); font: inherit; font-size: .76rem;
   line-height: 1.2; cursor: pointer; text-align: left; }
 .hb-class.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.hb-class svg { flex: none; width: 24px; height: 17px; }
+.hb-class svg { flex: none; width: 20px; height: 14px; }
 .hb-class svg .hb-hull { fill: var(--hb-hull); stroke: var(--hb-ship-ink, var(--ink)); stroke-width: .7; }
 .hb-class b { font-weight: 700; }
 .hb-class span { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hb-class i { margin-left: auto; font-style: normal; font-weight: 700; font-variant-numeric: tabular-nums; }
 .hb-class.out i { color: var(--ink-soft); }
+/* the 3D map (harbour-3d.js): its canvas fills the box, the labels ride on top of it as ordinary text */
+.hb-sea { position: relative; touch-action: none; }
+.hb-3d { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; border-radius: 10px; }
+.hb-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.hb-tag { position: absolute; left: 0; top: 0; font: 800 .68rem/1 var(--font); white-space: nowrap; will-change: transform; }
+.hb-tag-ship { padding: 2px 5px; border-radius: 999px; background: var(--sheet, var(--tile)); color: var(--ink); border: 1.5px solid var(--ink); }
+.hb-tag-jetty { padding: 3px 6px; border-radius: 6px; background: var(--tag); color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+html[data-theme="kontor"] .hb-tag { border-radius: 2px; }
+html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
