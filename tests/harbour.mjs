@@ -124,8 +124,12 @@ for (const level of LEVELS) {
 }
 // around the pars: a coaster's blend is on spec too, and dearer; two ships an hour apart meet at the jetty
 const [L3] = ["first-blend"].map(id => LEVELS.find(l => l.id === id));
-{ const coaster = { ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("L(2A)(2L)A(3S)(2D)(3A)(3S)") }] }, r = run(L3, coaster);
-  check(r.done && score(L3, coaster, r).cost === 60, `level 3: a coaster's four can't be 20% FAME, its blend on spec is 50%, dearer than the Handy's exact B20 ($${score(L3, coaster, r).cost}k)`); }
+// a coaster's blends, half FAME (four units) or a third (three, its heel topped up every lap), are on spec and dearer
+// than the Handy's exact B20: what the level teaches
+for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
+  const coaster = { ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program(prog) }] }, r = run(L3, coaster), c = r.done && score(L3, coaster, r).cost;
+  check(r.done && c > L3.par.cost, `level 3: a coaster's blend (${prog}) is on spec and dearer than the Handy's exact B20 ($${c}k against $${L3.par.cost}k)`);
+}
 { const lead = L1.plans[0].ships[0], flat = flatten(lead.prog), next = hours(L1, { ships: [lead] }, 1).ships[0];
   const close = { ships: [lead, { x: next.x, y: next.y, h: next.h, prog: flat.slice(1).concat(flat.slice(0, 1)) }] };
   check(run(L1, close).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty"); }
