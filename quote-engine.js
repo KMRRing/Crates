@@ -76,9 +76,16 @@ export function curve(q, r) {
 export function settle(q, bid, ask) {
   const width = widthOf(q, bid, ask), beyond = beyondOf(q, bid, ask), inside = beyond === 0;
   const radius = radiusOf(q, bid, ask), grade = gradeOf(q, bid, ask);
-  // a range that holds the answer never loses: however wide, it at worst breaks even (it still banks the question)
-  const delta = Math.round((inside ? Math.max(0, curve(q, radius)) : curve(q, radius)) * weight(q));
+  // a range that holds the answer never loses and always earns something: past the curve's B, a small amount that
+  // shrinks as the range widens (30% of B's payoff at twice the B radius, half that at four times...); knowing it's
+  // somewhere in there is worth something. It still banks the question below A.
+  const delta = Math.round((inside ? Math.max(curve(q, radius), inRange(q, radius)) : curve(q, radius)) * weight(q));
   return { inside, width, beyond, radius, grade, delta };
+}
+/** What a range that holds the answer earns at least: 30% of B's payoff out to twice the B radius, falling with width. */
+function inRange(q, r) {
+  const edge = 2 * toUnits(q, tiersOf(q).B);
+  return STEP.B * 0.3 * Math.min(1, edge / Math.max(r, 1e-9));
 }
 /** Whether a grade shows adequate knowledge: A or better. B and below bank the question. */
 export const adequate = grade => ["SS", "S", "A"].includes(grade);

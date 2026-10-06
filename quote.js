@@ -148,8 +148,10 @@ function render() {
     const v = $("verdict");
     const grade = entry.grade || (entry.inside ? "A" : "C");
     v.className = `qt-verdict ${adequate(grade) ? "good" : entry.inside ? "meh" : "bad"}`;   // wide but right is never red
-    const word = { SS: "exact", S: "sharp", A: "adequate", B: "pushing it", C: entry.inside ? "too wide" : "a miss" }[grade];
-    v.textContent = `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
+    const word = { SS: "exact", S: "sharp", A: "adequate", B: "pushing it", C: "a miss" }[grade];
+    // a wide range that held the answer is in range, not a miss: said so, in yellow
+    v.textContent = grade === "C" && entry.inside ? `Wide, but in range: ${signed(entry.delta)}`
+      : `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
     drawTape(q, entry);
     // the note usually opens with the figure itself; when it doesn't, lead with it
     $("note").textContent = /^(About|Roughly|Around|[\d$£€])/.test(q.note) ? q.note : `${withUnit(q.truth, q)}. ${q.note}`;
