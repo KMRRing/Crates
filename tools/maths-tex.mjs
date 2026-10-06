@@ -97,7 +97,9 @@ export function wholeOption(text, log) {
   return parses(tex) ? "$" + tex + "$" : (log?.push(text), null);
 }
 export function convert(text, log) {
-  if (text == null || /\$/.test(text.replace(/\\\$/g, "")) && /\$[^$\d\s][^$]*\$/.test(text)) return text;            // already marked up
+  // already marked up: once typeset, a string's only unescaped dollars are maths delimiters (money is always \$), so any
+  // unescaped dollar means leave it alone, whatever its maths begins with ($240 = 0.15$ as much as $x^2$)
+  if (text == null || /(^|[^\\])\$/.test(text)) return text;
   const src = String(text).replace(/(^|[^\\])\$/g, "$1\\$").replace(/\b(i\.e\.|e\.g\.|cf\.|etc\.|vs\.)/g, m => `\u2060${m.replace(/\./g, "\u2024")}\u2060`);                                                          // a dollar is money
   // abbreviations are prose, though their letters look like variables: i.e., e.g., cf., etc.
 
