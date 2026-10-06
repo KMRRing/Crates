@@ -147,8 +147,9 @@ function render() {
   if (entry) {
     const v = $("verdict");
     const grade = entry.grade || (entry.inside ? "A" : "C");
-    v.className = `qt-verdict ${adequate(grade) ? "good" : entry.inside ? "meh" : "bad"}`;   // wide but right is never red
-    const word = { SS: "exact", S: "sharp", A: "adequate", B: "pushing it", C: "a miss" }[grade];
+    // A or better green, a B light green (a sound range for a number you don't know), wide but right yellow, never red
+    v.className = `qt-verdict ${adequate(grade) ? "good" : grade === "B" ? "fair" : entry.inside ? "meh" : "bad"}`;
+    const word = { SS: "exact", S: "sharp", A: "strong", B: "solid", C: "a miss" }[grade];
     // a wide range that held the answer is in range, not a miss: said so, in yellow
     v.textContent = grade === "C" && entry.inside ? `Wide, but in range: ${signed(entry.delta)}`
       : `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
