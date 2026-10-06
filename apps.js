@@ -196,7 +196,7 @@ export const APPS = [
   { id: "crates", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO) },
   { id: "glyph", name: "Slate", href: "./slate.html", logo: LOGO("slate", SLATE_LOGO) },
   { id: "delta", name: "Delta", href: "./delta.html", logo: LOGO("delta", DELTA_LOGO) },
-  { id: "punt", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO) },
+  { id: "punt", name: "Punt", href: "./punt.html", logo: LOGO("punt", PUNT_LOGO), score: "return" },   // its best: a return a question
   { id: "cartel", name: "Cartel", href: "./cartel.html", logo: LOGO("cartel", CARTEL_LOGO) },
   { id: "spot", name: "Spot", href: "./spot.html", logo: LOGO("spot", SPOT_LOGO) },
   { id: "quote", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
@@ -247,6 +247,8 @@ function openSettings(host) {
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
       <span class="app-logo">${a.logo}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
+/** A game's score as its tile shows it: most as a number, a return a question (Punt's) as a signed percentage, 0.41 as +41%. */
+const scoreText = (id, n) => (APPS.find(a => a.id === id)?.score === "return" ? `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.round(Math.abs(n) * 100)}%` : short(n));
 // the head's icons: one person (your solo code), two (your partner code), refresh (update), and close
 const ICON = {
   solo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-4 3.6-6.2 7.5-6.2s6.9 2.2 7.5 6.2"/></svg>',
@@ -280,8 +282,8 @@ function bindCodes(dlg) {
       const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
       const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
-      const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : short(d.best)}` : `Duo ${d.mine}–${d.theirs}`;
-      el.textContent = [mine != null ? `Best ${short(mine)}` : "", duo && them != null ? `${(theirName || "P")[0]} ${short(them)}` : "", duoText].filter(Boolean).join(" · ");
+      const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : scoreText(id, d.best)}` : `Duo ${d.mine}–${d.theirs}`;
+      el.textContent = [mine != null ? `Best ${scoreText(id, mine)}` : "", duo && them != null ? `${(theirName || "P")[0]} ${scoreText(id, them)}` : "", duoText].filter(Boolean).join(" · ");
     }
   };
   // typing a code: an existing one is followed (solo) or joined (partner); a new one starts fresh, from here
