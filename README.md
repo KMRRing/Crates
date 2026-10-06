@@ -295,6 +295,8 @@ Under the tools: Undo, back to the start, one hour, run or pause, and 1× or 4×
 
 A game stands still while you're in its menu, its rules or the games screen (`menu.js`: `onPause(pause, resume)`, resume told how long it stood): Crates', Slate's and Delta's board clocks stop, Rush's countdown stops and its start moves on by the pause, Pipes' oil holds where it is, Spot freezes, a running Harbour stops and runs on after, and Cartel's computer waits with its next move. A duo match's shared clock doesn't stop.
 
+Flags are written as emoji (🇮🇪 is two "regional indicator" letters), and some systems, Windows above all, have no flag pictures and show the letters ("IE"). `flags.js` checks on every page whether the system draws a flag; where it doesn't, a font of just the flags (Twemoji Country Flags, MIT, 78 KB in `fonts/`) goes in front of the page's own font for the flag letters only. Systems that draw flags, like the iPhone, keep their own.
+
 ## The games screen
 The app is Almanac, and it opens here: the site's front page (`index.html`, `home.js`) is the screen of games with no game open and nothing to close back to. Every game is a page of its own; Crates, which used to be the front page, is at `crates.html`, and a link made for it back then (a shared board, a room, a run, a pool: `?b=`, `?room=`, `?run=`, `?cat=`) is forwarded there. A link carrying codes (`?solo=`, `?duo=`) stays home and takes them on.
 

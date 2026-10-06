@@ -666,3 +666,6 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 /* numbers (difficulty 1–10) in one dense row */
 .menu-grid.dense { grid-template-columns: repeat(auto-fit, minmax(2.2rem, 1fr)); gap: .25rem; }
 .menu-grid.dense button { padding: .45rem 0; }
+
+/* where flags come from the flag font, the elements that name their own font take it too */
+html.flag-font :is(button, input, select, textarea) { font-family: var(--font); }
