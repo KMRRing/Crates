@@ -470,7 +470,16 @@ export const PINS = [
 {"id":"hi-munich-residenz","cat":"history","about":"munich-residenz"},
 {"id":"hi-college-of-arms","cat":"history","about":"college-of-arms"},
 {"id":"hi-ascot-racecourse","cat":"history","about":"ascot-racecourse"},
-{"id":"hi-tuxedo-park","cat":"history","about":"tuxedo-park"}
+{"id":"hi-tuxedo-park","cat":"history","about":"tuxedo-park"},
+{"id":"am-christies-king-street","cat":"art","about":"christies-king-street"},
+{"id":"am-sothebys-new-bond-street","cat":"art","about":"sothebys-new-bond-street"},
+{"id":"am-dorotheum-vienna","cat":"art","about":"dorotheum-vienna"},
+{"id":"am-messe-basel","cat":"art","about":"messe-basel"},
+{"id":"am-mecc-maastricht","cat":"art","about":"mecc-maastricht"},
+{"id":"am-geneva-freeport","cat":"art","about":"geneva-freeport"},
+{"id":"am-kunstmuseum-bern","cat":"art","about":"kunstmuseum-bern"},
+{"id":"am-haus-der-kunst","cat":"art","about":"haus-der-kunst"},
+{"id":"am-neue-galerie","cat":"art","about":"neue-galerie"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},

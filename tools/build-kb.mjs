@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -224,6 +224,23 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   for (const c of teCodes) { const x = `${c.name}: for men, ${c.men}; worn at ${c.when}.`;
     out.titles.push(teQ("dress", "Dress codes", `TE-G-${c.id}-means`, `Which dress code means ${c.men}?`, c.name, teByLength(c.name, teCodes.filter(o => o !== c).map(o => o.name)), x, [c.id]));
     out.titles.push(teQ("dress", "Dress codes", `TE-G-${c.id}-when`, `${c.name} is worn at`, c.when, teByLength(c.when, teCodes.filter(o => o !== c).map(o => o.when)), x, [c.id])); }
+
+  // The art market, from kb/: the auction houses by where and when they began (most are named after their founders, so
+  // a founder would give the house away), the dealers by the artists they made, the forgers by whom they faked and how
+  // they were caught. The wrong answers are the names or accounts nearest in length.
+  const amQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...pool.filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  const amNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const amHouses = ENTITIES.filter(e => e.sets.includes("auction-house"));
+  for (const h of amHouses) out.artmarket.push(amQ("dealers", "Houses and dealers", `AM-G-${h.id}`, `Which auction house was founded in ${h.city} in ${h.year}?`, h.name,
+    amNear(h.name, amHouses.filter(o => o !== h).map(o => o.name)), `${h.name}: founded in ${h.city} in ${h.year} by ${h.founder}.`, [h.id]));
+  const amDealers = ENTITIES.filter(e => e.sets.includes("art-dealer"));
+  for (const d of amDealers) out.artmarket.push(amQ("dealers", "Houses and dealers", `AM-G-${d.id}`, `Which dealer championed ${d.championed}?`, d.name,
+    amNear(d.name, amDealers.filter(o => o !== d).map(o => o.name)), `${d.name} championed ${d.championed}.`, [d.id]));
+  const amForgers = ENTITIES.filter(e => e.sets.includes("art-forger"));
+  for (const f of amForgers) { const x = `${f.name} forged ${f.faked}; the fakes were exposed by ${f.caught}.`;
+    out.artmarket.push(amQ("fakes", "Fakes", `AM-G-${f.id}-faked`, `Who forged ${f.faked}?`, f.name, amNear(f.name, amForgers.filter(o => o !== f).map(o => o.name)), x, [f.id]));
+    out.artmarket.push(amQ("fakes", "Fakes", `AM-G-${f.id}-caught`, `What exposed ${f.name}'s fakes?`, f.caught, amNear(f.caught, amForgers.filter(o => o !== f).map(o => o.caught)), x, [f.id])); }
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

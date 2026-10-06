@@ -236,5 +236,39 @@ export const SEQUENCES = [
    "Member (MBE)",
    "The British Empire Medal (BEM)"
   ]
+ },
+ {
+  "id": "salvator-mundi",
+  "name": "The Salvator Mundi",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1958, 2005, 2005–11, 2011, 2013, 2013, 2017; it hasn't been seen in public since.",
+  "steps": [
+   "Sold at Sotheby's as a follower's copy, for £45",
+   "Bought at a New Orleans auction for $1,175",
+   "Restored, and claimed for Leonardo's own hand",
+   "Shown as a Leonardo at London's National Gallery",
+   "Sold privately to the dealer Yves Bouvier for $80m",
+   "Resold to Dmitry Rybolovlev for $127.5m",
+   "Sold at Christie's for $450.3m, a world record",
+   "Bought for a Saudi prince, and not seen since"
+  ]
+ },
+ {
+  "id": "gurlitt",
+  "name": "The Gurlitt hoard",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1938–45, 1945, 1956, 2010, 2012, 2013, 2014, and from 2015 the first returns (a Matisse to the Rosenberg heirs).",
+  "steps": [
+   "Hildebrand Gurlitt sells 'degenerate art' for the Nazis",
+   "He tells the Allies his collection burned in Dresden",
+   "He dies in a car crash; his son inherits",
+   "Cornelius is checked on a train from Zurich, with cash",
+   "Customs raid his Munich flat and find 1,280 works",
+   "A magazine reveals the hoard to the world",
+   "Cornelius dies, leaving it all to Kunstmuseum Bern",
+   "The first looted works go back to the owners' heirs"
+  ]
  }
 ];
