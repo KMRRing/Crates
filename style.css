@@ -596,11 +596,16 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .home dialog.apps [data-close] { display: none; }
 
 /* the menu's controls: a row with its label; one-of as a segmented row, on-off as a switch; a quiet status line */
-.menu-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin: .5rem 0; }
+/* a label and a segmented choice side by side; where they don't fit (Kontor's spaced capitals, a narrow phone), the choice
+   moves under its label whole, never breaking apart */
+.menu-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem .75rem; margin: .5rem 0; }
 .menu-label { font-weight: 700; font-size: .95rem; }
-.menu-seg { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 0; border: 1.5px solid var(--tile-edge); border-radius: 10px; overflow: hidden; }
-.menu-seg button { border: 0; background: none; color: var(--ink); font: inherit; font-size: .88rem; font-weight: 700; padding: .42rem .7rem; cursor: pointer; }
+.menu-seg { display: inline-flex; flex-wrap: nowrap; flex: none; max-width: 100%; margin-left: auto; gap: 0; border: 1.5px solid var(--tile-edge); border-radius: 10px; overflow: hidden; }
+.menu-seg button { border: 0; background: none; color: var(--ink); font: inherit; font-size: .88rem; font-weight: 700; padding: .42rem .7rem; cursor: pointer; white-space: nowrap; }
 .menu-seg button + button { border-left: 1.5px solid var(--tile-edge); }
+@media (max-width: 380px) {   /* a narrow phone: the segments tighten with the screen, so three still fit on one line */
+  .menu-seg button { font-size: clamp(.72rem, 3.5vw, .88rem); padding-inline: clamp(.3rem, 1.9vw, .7rem); }
+}
 .menu-seg button[aria-checked="true"] { background: var(--ink); color: var(--sheet); }
 .menu-switch { position: relative; width: 46px; height: 28px; flex: none; border-radius: 999px; border: 1.5px solid var(--tile-edge); background: var(--yard); cursor: pointer; padding: 0; }
 .menu-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px; border-radius: 50%; background: var(--ink-soft); transition: transform .15s; }
