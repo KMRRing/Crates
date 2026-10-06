@@ -67,6 +67,7 @@ export const LEVELS = [
   },
   {
     id: "first-blend", name: "First blend",
+    rev: 2,              // four at a time at 25% FAME since the ship classes: plans and bests from before don't carry over
     brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $3k. The customer (D) takes four at a time, at least 25% FAME. Four cargoes.",
     map: [
       "#######",

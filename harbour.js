@@ -67,8 +67,10 @@ let repeat = { delay: 0, every: 0, at: 0 };   // a shift arrow being held
 let viewing = null;                   // a par plan on show in place of yours: { k (its measure), mine (your plan), history }
 let shipType = null;                  // the class the next ship placed will be
 
-// v2: the harbour went from squares to hexes, and plans and bests from before don't carry over
-const solKey = () => `harbour:v2:sol:${L.id}`, bestKey = () => `harbour:v2:best:${L.id}`;
+// v2: the harbour went from squares to hexes, and plans and bests from before don't carry over; a level whose rules
+// changed since carries a rev, and its plans and bests from before the change are left behind the same way
+const levelKey = () => `${L.id}${L.rev ? `@${L.rev}` : ""}`;
+const solKey = () => `harbour:v2:sol:${levelKey()}`, bestKey = () => `harbour:v2:best:${levelKey()}`;
 const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k => pick.r0 + k).filter(r => sol.ships[r]) : []);
 
 // ---------- the level ----------
