@@ -1,0 +1,29 @@
+/* Lexicon: a search field, then either the results or an entry; an entry is its kinds, what's said about it, its
+   numbers and topics, and its links in groups, each a tap from its own entry */
+.lx-search { flex: none; margin: .2rem 0 .6rem; }
+.lx-search input { width: 100%; box-sizing: border-box; font: inherit; font-size: 1rem; padding: .65rem .8rem; border: 1.5px solid var(--tile-edge); border-radius: 10px; background: var(--sheet); color: var(--ink); }
+.lx-results, .lx-entry { min-height: 0; overflow-y: auto; padding-bottom: 1rem; }
+.lx-results[hidden], .lx-entry[hidden] { display: none; }
+.lx-lead { color: var(--ink-soft); margin: .2rem 0 .6rem; }
+.lx-tries { display: flex; flex-wrap: wrap; gap: .4rem; }
+.lx-tries .lx-hit { width: auto; }
+.lx-list { display: grid; gap: .3rem; }
+.lx-hit { width: 100%; display: grid; grid-template-columns: 1fr auto; column-gap: .6rem; align-items: baseline; text-align: left; padding: .5rem .7rem; border: 1px solid var(--tile-edge); border-radius: 8px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
+.lx-hit small { color: var(--ink-soft); font-size: .75rem; }
+.lx-why { grid-column: 1 / -1; color: var(--ink-soft); font-size: .85rem; line-height: 1.35; margin-top: .15rem; }
+.lx-head h2 { margin: .1rem 0 .35rem; font-size: 1.6rem; line-height: 1.15; }
+.lx-chips { display: flex; flex-wrap: wrap; gap: .3rem; }
+.lx-chip { padding: .15rem .55rem; border-radius: 999px; background: var(--ink); color: var(--sheet); font-size: .78rem; font-weight: 700; }
+.lx-chip.quiet { background: none; color: var(--ink); border: 1px solid var(--tile-edge); }
+.lx-pic { margin: .7rem 0 .2rem; display: grid; place-items: center; }
+.lx-pic[hidden] { display: none; }
+.lx-pic img { max-width: 100%; max-height: 32vh; object-fit: contain; border-radius: 6px; }
+.lx-note { margin: .55rem 0 0; line-height: 1.45; }
+.lx-sec { margin-top: 1rem; }
+.lx-sec h3 { margin: 0 0 .4rem; font-size: .95rem; color: var(--ink-soft); }
+.lx-fact { display: flex; justify-content: space-between; gap: .8rem; margin: .25rem 0; padding-bottom: .25rem; border-bottom: 1px solid color-mix(in srgb, var(--tile-edge) 60%, transparent); }
+.lx-fact b { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lx-more { margin-top: .4rem; }
+.lx-toast { display: none; }
+.lx-mark { display: inline-block; }
+.lx-mark svg { width: 100%; height: 100%; display: block; }
