@@ -1,0 +1,34 @@
+/* Origin: the clues stack up the card, the guesses below them carry their distance and their warmth */
+.origin .og-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
+.og-score b { color: var(--ink); font-size: 1.25rem; }
+.og-card { background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .9rem; gap: .6rem; min-height: 0; }
+.og-clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
+.og-clues li { display: grid; gap: .1rem; padding: .45rem .6rem; border-left: 3px solid var(--brass); background: color-mix(in srgb, var(--tile) 70%, transparent); border-radius: 0 6px 6px 0; }
+.og-clues li b { font-size: 1.05rem; }
+.og-clues li span { color: var(--ink-soft); font-size: .88rem; line-height: 1.35; }
+.og-guesses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; flex: none; }
+.og-g { display: grid; grid-template-columns: 1fr auto 1.4rem; align-items: center; gap: .5rem; padding: .35rem .6rem; border-radius: 6px; font-size: .9rem; border: 1px solid var(--tile-edge); }
+.og-g b { font-weight: 700; }
+.og-km { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.og-arrow { display: inline-block; text-align: center; font-weight: 800; transition: transform .3s; }
+.og-scorching { background: color-mix(in srgb, #D2462E 22%, var(--sheet)); }
+.og-hot { background: color-mix(in srgb, #E07A3A 20%, var(--sheet)); }
+.og-warm { background: color-mix(in srgb, #E2B04A 20%, var(--sheet)); }
+.og-cool { background: color-mix(in srgb, #6FA6C8 18%, var(--sheet)); }
+.og-cold, .og-freezing { background: color-mix(in srgb, #3E6E9E 18%, var(--sheet)); }
+.og-guess { display: flex; gap: .4rem; flex: none; }
+.og-guess input { flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: .6rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 8px; background: var(--tile); color: var(--ink); }
+.og-go { min-height: 46px; padding: 0 1.1rem; border: 0; border-radius: 8px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; cursor: pointer; }
+.og-more { display: flex; justify-content: space-between; align-items: center; flex: none; }
+.og-quiet { border: 1.5px solid var(--tile-edge); background: none; color: var(--ink); border-radius: 8px; padding: .45rem .8rem; font: inherit; font-weight: 700; cursor: pointer; }
+.og-quiet:disabled { opacity: .45; cursor: default; }
+.og-result { flex: none; display: grid; gap: .4rem; }
+.og-verdict { margin: 0; font-size: 1.3rem; font-weight: 800; }
+.og-verdict.good { color: #2E8B57; }
+.og-verdict.bad { color: var(--ink); }
+.og-note { margin: 0; color: var(--ink-soft); }
+.og-sum { font-size: 1.1rem; }
+.og-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: .5rem .9rem; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.og-toast.on { opacity: 1; }
+.og-mark { display: inline-block; }
+.og-mark svg { width: 100%; height: 100%; display: block; }
