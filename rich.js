@@ -15,24 +15,53 @@ export function loadMath() {
   });
   return ready;
 }
-export const hasMath = text => typeof text === "string" && /\$[^$]+\$/.test(text);
-/** Fills `node` with `text`, rendering any $…$ as maths. Plain text otherwise. */
+/**
+ * Splits text into plain runs and maths, telling maths from money as Pandoc does: $$…$$ is displayed maths; an inline
+ * $ opens maths only if a non-space follows it, and closes it only after a non-space and not before a digit; \$ is
+ * always a dollar. So "$2^{10}$" is maths, but "spent $3 million … needs $2 million" is two prices: a plain pair of
+ * dollars once turned the words between them into run-together italic maths. Returns [{ text } | { tex, display }].
+ */
+export function mathParts(text) {
+  const s = text == null ? "" : String(text), out = [];
+  let plain = "", i = 0;
+  const flush = () => { if (plain) out.push({ text: plain }); plain = ""; };
+  while (i < s.length) {
+    const c = s[i];
+    if (c === "\\" && s[i + 1] === "$") { plain += "$"; i += 2; continue; }
+    if (c !== "$") { plain += c; i++; continue; }
+    if (s[i + 1] === "$") {                                       // $$…$$
+      const end = s.indexOf("$$", i + 2);
+      if (end > i + 2) { flush(); out.push({ tex: s.slice(i + 2, end), display: true }); i = end + 2; continue; }
+      plain += "$$"; i += 2; continue;
+    }
+    if (s[i + 1] && !/\s/.test(s[i + 1])) {                       // an opening $ has a non-space after it
+      let j = i + 1, end = -1;
+      while ((j = s.indexOf("$", j)) !== -1) {
+        if (s[j - 1] !== "\\" && !/\s/.test(s[j - 1]) && !/[0-9]/.test(s[j + 1] || "")) { end = j; break; }
+        j++;
+      }
+      if (end > i + 1) { flush(); out.push({ tex: s.slice(i + 1, end), display: false }); i = end + 1; continue; }
+    }
+    plain += c; i++;                                               // a dollar, not maths
+  }
+  flush();
+  return out;
+}
+export const hasMath = text => typeof text === "string" && mathParts(text).some(p => p.tex != null);
+/** Fills `node` with `text`, rendering any maths in it (see mathParts). Plain text otherwise. */
 export function setRich(node, text) {
-  const s = text == null ? "" : String(text);
-  if (!hasMath(s)) { node.textContent = s; return; }
+  const parts = mathParts(text);
+  if (!parts.some(p => p.tex != null)) { node.textContent = parts.map(p => p.text).join(""); return; }
   const render = () => {
     node.replaceChildren();
-    const parts = s.split(/(\$\$[^$]+\$\$|\$[^$]+\$)/);
-    for (const part of parts) {
-      if (!part) continue;
-      const display = part.startsWith("$$"), tex = display ? part.slice(2, -2) : part.startsWith("$") ? part.slice(1, -1) : null;
-      if (tex == null) { node.appendChild(document.createTextNode(part)); continue; }
-      const span = document.createElement(display ? "div" : "span");
-      span.className = display ? "math display" : "math";
-      try { span.innerHTML = window.temml.renderToString(tex, { displayMode: display, throwOnError: false }); } catch { span.textContent = tex; }
+    for (const p of parts) {
+      if (p.tex == null) { node.appendChild(document.createTextNode(p.text)); continue; }
+      const span = document.createElement(p.display ? "div" : "span");
+      span.className = p.display ? "math display" : "math";
+      try { span.innerHTML = window.temml.renderToString(p.tex, { displayMode: p.display, throwOnError: false }); } catch { span.textContent = p.tex; }
       node.appendChild(span);
     }
   };
   if (window.temml) render();
-  else { node.textContent = s.replace(/\$\$?/g, ""); loadMath().then(ok => { if (ok) render(); }); }
+  else { node.textContent = parts.map(p => p.tex ?? p.text).join(""); loadMath().then(ok => { if (ok) render(); }); }   // the source, dollars kept, until Temml loads
 }
