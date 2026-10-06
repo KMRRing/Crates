@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -177,6 +177,23 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       out.myth.push(mk("sign", signQ(g[signOf]), g.name, rest.map(o => o.name)));
       if (g.roman) out.myth.push(mk("roman", `What did the Romans call ${g.name}?`, g.roman, rest.filter(o => o.roman).map(o => o.roman)));
     }
+  }
+
+  // The merchant powers, each asked from its card: what it traded and its darkest chapter (name the power), how it did
+  // business and how it ended (pick its account). The wrong answers are the other powers', the nearest in time first, so
+  // the VOC is weighed against the East India Company and the Hanse against Venice; a power with no fair darkest
+  // chapter on its card isn't asked one.
+  const powers = ENTITIES.filter(e => e.sets.includes("merchant-power") && e.traded);
+  const startOf = p => +(p.span.match(/\d{3,4}/) || [0])[0], low = t => t.replace(/^The /, "the ");
+  for (const p of powers) {
+    const near = powers.filter(o => o !== p).sort((a, b) => Math.abs(startOf(a) - startOf(p)) - Math.abs(startOf(b) - startOf(p)) || (a.id < b.id ? -1 : 1));
+    const x = `${p.title} (${p.span}; ${p.where}). Traded ${p.traded}. Did business through ${p.model}. Run as ${p.ruled}.${p.dark ? ` Darkest chapter: ${p.dark}.` : ""} The end: ${p.fell}. It left ${p.then}.`;
+    const mk = (kind, q, right, pool) => { const options = order(p.id + kind, [right, ...pool.slice(0, 3)]);
+      return { id: `MC-P-${p.id}-${kind}`, lv: "powers", d: 3, area: "Merchant powers", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [p.id] }; };
+    out.merchants.push(mk("traded", `Which merchant power traded ${p.traded}?`, p.title, near.map(o => o.title)));
+    out.merchants.push(mk("model", `How did ${low(p.title)} do business?`, p.model, near.map(o => o.model)));
+    if (p.dark) out.merchants.push(mk("dark", `Whose darkest chapter was ${p.dark}?`, p.title, near.filter(o => o.dark).map(o => o.title)));
+    out.merchants.push(mk("fell", `How did ${low(p.title)} come to an end?`, p.fell, near.map(o => o.fell)));
   }
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)

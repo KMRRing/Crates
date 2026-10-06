@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
@@ -435,7 +435,30 @@ export const PINS = [
 {"id":"my-nemea","cat":"myth","about":"nemea"},
 {"id":"my-dictaean-cave","cat":"myth","about":"dictaean-cave"},
 {"id":"my-mount-parnassus","cat":"myth","about":"mount-parnassus"},
-{"id":"my-lejre","cat":"myth","about":"lejre"}
+{"id":"my-lejre","cat":"myth","about":"lejre"},
+{"id":"hi-steelyard","cat":"history","about":"steelyard","name":"The Steelyard","note":"The Hanse's walled counting-house in London, by today's Cannon Street station, until Elizabeth I closed it in 1598."},
+{"id":"hi-bryggen","cat":"history","about":"bryggen","name":"Bryggen","note":"The Hanse's wharf at Bergen, whose German merchants ran Norway's stockfish trade for four centuries."},
+{"id":"hi-lubeck","cat":"history","about":"lubeck","name":"Lübeck","note":"Queen of the Hanse, where its Diet met; the Holstentor still guards the old town."},
+{"id":"hi-visby","cat":"history","about":"visby","name":"Visby","note":"Gotland's Hanseatic town, its medieval wall still almost whole."},
+{"id":"hi-novgorod","cat":"history","about":"novgorod","name":"Novgorod","note":"Where the Hanse's Peterhof traded for Russian furs and wax, until Moscow closed it in 1494."},
+{"id":"hi-rialto","cat":"history","about":"rialto"},
+{"id":"hi-fuggerei","cat":"history","about":"fuggerei"},
+{"id":"hi-frankfurt-judengasse","cat":"history","about":"frankfurt-judengasse"},
+{"id":"hi-calicut","cat":"history","about":"calicut"},
+{"id":"hi-goa","cat":"history","about":"goa","name":"Old Goa","note":"The capital of Portuguese Asia from 1510, its baroque churches now in the jungle."},
+{"id":"hi-malacca","cat":"history","about":"malacca"},
+{"id":"hi-macau","cat":"history","about":"macau","name":"Macau","note":"Portugal's foothold on the coast of China, from 1557 to 1999."},
+{"id":"hi-potosi","cat":"history","about":"potosi","name":"Potosí","note":"The silver mountain of Cerro Rico, the Spanish empire's treasury, worked by forced labour."},
+{"id":"hi-batavia","cat":"history","about":"batavia","name":"Batavia","note":"The VOC's capital in Asia, founded by Coen in 1619 on the ruins of Jayakarta; today Jakarta's old town."},
+{"id":"hi-banda-islands","cat":"history","about":"banda-islands","name":"The Banda Islands","note":"Once the world's only source of nutmeg and mace, conquered by the VOC in 1621.","region":"Asia"},
+{"id":"hi-dejima","cat":"history","about":"dejima","name":"Dejima","note":"The fan-shaped island in Nagasaki harbour where the Dutch alone traded with Japan, 1641 to 1854."},
+{"id":"hi-castle-of-good-hope","cat":"history","about":"castle-of-good-hope"},
+{"id":"hi-fort-st-george","cat":"history","about":"fort-st-george"},
+{"id":"hi-plassey","cat":"history","about":"plassey","name":"Plassey","note":"Where Clive's victory in 1757 handed Bengal to the East India Company."},
+{"id":"hi-thirteen-factories","cat":"history","about":"thirteen-factories"},
+{"id":"hi-elmina","cat":"history","about":"elmina","name":"Elmina Castle","note":"Built by the Portuguese in 1482, later Dutch; enslaved Africans left through its door of no return."},
+{"id":"hi-goree-island","cat":"history","about":"goree-island"},
+{"id":"hi-york-factory","cat":"history","about":"york-factory"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},

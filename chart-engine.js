@@ -132,7 +132,7 @@ export const TOPICS = {
   countries: { name: "Countries", cats: ["countries"] },
   commodities: { name: "Commodities", cats: ["trade"] },
   nature: { name: "Nature", cats: ["geo", "physical"] },
-  culture: { name: "Culture", cats: ["art", "architecture", "myth", "people", "wine"] },
+  culture: { name: "Culture", cats: ["art", "architecture", "myth", "history", "people", "wine"] },
 };
 /** A selection's cap per category, so a set spreads across what it holds: everything worldwide at two each, as it always
  *  was; a topic of several categories a little over its share; a single category, all ten. */

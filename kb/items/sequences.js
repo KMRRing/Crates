@@ -134,5 +134,58 @@ export const SEQUENCES = [
    "Servius Tullius",
    "Tarquinius Superbus"
   ]
+ },
+ {
+  "id": "east-india-company",
+  "name": "The East India Company",
+  "unit": "event",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1600 charter; 1639 Fort St George; 1668 Bombay; 1690 Calcutta; 1757 Plassey; 1765 the diwani; 1770 the famine; 1813 the Indian monopoly ends; 1857 the rebellion; 1874 dissolved.",
+  "steps": [
+   "Elizabeth I charters the company",
+   "Fort St George is begun at Madras",
+   "Bombay passes to the company from the Crown",
+   "Job Charnock founds Calcutta",
+   "Clive wins the Battle of Plassey",
+   "The company takes Bengal's revenues, the diwani",
+   "Famine kills millions in Bengal",
+   "Parliament ends its monopoly on Indian trade",
+   "The Indian Rebellion breaks out",
+   "The company is dissolved"
+  ]
+ },
+ {
+  "id": "voc",
+  "name": "The Dutch East India Company",
+  "unit": "event",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1602 founded; 1619 Batavia; 1621 Banda; 1623 Amboyna; 1641 Dejima; 1652 the Cape; 1656 Colombo; 1780–84 the Fourth Anglo-Dutch War; 1799 dissolved.",
+  "steps": [
+   "The VOC is founded, selling shares to anyone",
+   "Coen founds Batavia on the ruins of Jayakarta",
+   "The conquest of the Banda Islands",
+   "The Amboyna massacre of English traders",
+   "The Dutch are confined to Dejima, alone in Japan",
+   "Jan van Riebeeck lands at the Cape",
+   "Colombo is taken from the Portuguese",
+   "The Fourth Anglo-Dutch War wrecks its fleet",
+   "Bankrupt, the VOC is dissolved"
+  ]
+ },
+ {
+  "id": "hanse",
+  "name": "The Hanseatic League",
+  "unit": "event",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1159 Lübeck refounded; 1241 Lübeck and Hamburg ally; 1356 the first Diet; 1370 the Peace of Stralsund; 1494 Novgorod closed; 1598 the Steelyard closed; 1669 the last Diet.",
+  "steps": [
+   "Henry the Lion refounds Lübeck",
+   "Lübeck and Hamburg ally to guard their road",
+   "The first Diet of the Hanse meets",
+   "The Peace of Stralsund humbles Denmark",
+   "Moscow closes the Novgorod counting-house",
+   "Elizabeth I closes the London Steelyard",
+   "The last Diet meets, with nine towns"
+  ]
  }
 ];
