@@ -261,3 +261,25 @@ html[data-theme="kontor"] :is(.ct-log-line.ask, .ct-log-line.answer, .ct-mine-as
 html[data-theme="kontor"] :is(.ct-log-line.act, .ct-log-line.free, .ct-log-line.bid) { color: #D3E2D8; }
 html[data-theme="kontor"] .ct-die.picked { outline-color: #2EB36A; border-radius: 2px; }
 html[data-theme="kontor"] .ct-notes li { border-color: rgba(46, 179, 106, .35); color: #D3E2D8; border-radius: 2px; }
+
+/* ---------- Pipes and Harbour, per theme: their boards are drawn from these variables ---------- */
+/* Modern: as they were before Deco (Pipes' steel pipes on slate with rust; Harbour's blue-grey water) */
+html[data-theme="modern"] { --pi-in: #B4532A; --pi-in-soft: #F4DCD1; --pi-ground: #1F2A32; --pi-tile: #2C3A44; --pi-tile-edge: #3B4C58;
+  --pi-pipe: #9AA7B0; --pi-pipe-dark: #6E7D88; --pi-rock: #182028; --pi-good: #2E9E5B; --pi-bad: #D23B2A; --pi-edge: #C9D1D5; }
+@media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) { --pi-in: #E0794E; --pi-in-soft: #3E251A; --pi-edge: #33414B; } }
+html[data-theme="modern"][data-mode="night"] { --pi-in: #E0794E; --pi-in-soft: #3E251A; --pi-edge: #33414B; }
+html[data-theme="modern"] .harbour { --hb-water: #CFE1EA; --hb-grid: rgba(28, 42, 52, .13); --hb-land: #E8E2D4; --hb-hull: #FBFBF9; }
+@media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) .harbour { --hb-water: #16303B; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; } }
+html[data-theme="modern"][data-mode="night"] .harbour { --hb-water: #16303B; --hb-grid: rgba(227, 232, 235, .09); --hb-land: #232A2F; --hb-hull: #DCE3E8; }
+
+/* Kontor: a schematic. Pipes on a near-black screen in pale grey lines, the inlet and a good flow in the green; Harbour
+   a chart in greys with a green grid, land as flat grey blocks, hulls white */
+html[data-theme="kontor"] { --pi-in: #2EB36A; --pi-in-soft: color-mix(in srgb, #2EB36A 16%, var(--sheet)); --pi-ground: #0C120E; --pi-tile: #141C17;
+  --pi-tile-edge: #26342C; --pi-pipe: #A9BDB0; --pi-pipe-dark: #5E7368; --pi-rock: #070B09; --pi-good: #2EB36A; --pi-bad: #E06C5A; --pi-edge: var(--tile-edge); }
+html[data-theme="kontor"] .harbour { --hb-water: #E4EBE6; --hb-grid: rgba(30, 122, 69, .16); --hb-land: #C3CDC6; --hb-hull: #FFFFFF; --hb-ship-ink: #111A15; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) .harbour { --hb-water: #0D1511; --hb-grid: rgba(46, 179, 106, .14); --hb-land: #1C2620; --hb-hull: #D3E2D8; } }
+html[data-theme="kontor"][data-mode="night"] .harbour { --hb-water: #0D1511; --hb-grid: rgba(46, 179, 106, .14); --hb-land: #1C2620; --hb-hull: #D3E2D8; }
+html[data-theme="kontor"] .hb-land { shape-rendering: crispEdges; }
+/* Kontor's square corners on the boards too */
+html[data-theme="kontor"] :is(.pi-stage, .pi-board, .pi-go, .pi-stats div, .hb-map, .hb-cell, .hb-tool, .hb-ctl) { border-radius: 2px; }
+html[data-theme="kontor"] .pi-board rect[rx="8"] { rx: 1.5px; }
