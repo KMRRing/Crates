@@ -22,7 +22,7 @@ const ENT = new Map(ENTITIES.map(e => [e.id, e]));
 const NEAR = new Map();                                     // id → Map(neighbour → why they're linked)
 for (const l of LINKS) {
   if (!ENT.has(l.from) || !ENT.has(l.to) || l.from === l.to) continue;
-  const why = l.hint || ({ in: "is in", "painted-by": "painted by", "hangs-in": "hangs in", movement: "belongs to" }[l.rel] || "");
+  const why = l.hint || ({ in: "is in", "painted-by": "painted by", "hangs-in": "hangs in", movement: "belongs to", "designed-by": "designed by", style: "in the style of", city: "stands in" }[l.rel] || "");
   for (const [a, b] of [[l.from, l.to], [l.to, l.from]]) {
     if (!NEAR.has(a)) NEAR.set(a, new Map());
     if (!NEAR.get(a).has(b)) NEAR.get(a).set(b, { why, from: l.from });
@@ -31,7 +31,7 @@ for (const l of LINKS) {
 const degree = id => NEAR.get(id)?.size || 0;
 /** What stepping onto a thing costs: 1 for an obscure one, more the better-connected it is. */
 export const cost = id => 1 + Math.log2(Math.max(1, degree(id)));
-const name = id => ENT.get(id)?.name || id;
+const name = id => { const e = ENT.get(id); return e ? (e.qualifier ? `${e.name} (${e.qualifier})` : e.name) : id; };
 const kind = id => (ENT.get(id)?.sets || []).find(s => !s.startsWith("group:")) || "";
 /** The cheapest route from a to everything (Dijkstra, paying for each thing stepped onto). */
 function cheapest(a) {

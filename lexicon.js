@@ -13,6 +13,8 @@ import "./pwa.js";
 
 const $ = id => document.getElementById(id);
 const ENT = new Map(ENTITIES.map(e => [e.id, e]));
+// a thing's name, with its qualifier where another thing shares the name ("Guernica (Picasso)")
+const label = e => (e.qualifier ? `${e.name} (${e.qualifier})` : e.name);
 const fold = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const KEYS = ENTITIES.map(e => ({ e, keys: [e.name, ...(e.aliases || [])].map(fold) }));
 const OUT = new Map(), IN = new Map();                       // id → links from it, links to it
@@ -59,7 +61,7 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 function entityButton(e, extra) {
   const b = el("button", "lx-hit");
   b.type = "button";
-  b.append(el("b", null, e.name), el("small", null, kindsOf(e).slice(0, 2).join(" · ")));
+  b.append(el("b", null, label(e)), el("small", null, kindsOf(e).slice(0, 2).join(" · ")));
   if (extra) b.append(el("span", "lx-why", extra));
   b.addEventListener("click", () => open(e.id));
   return b;
@@ -84,19 +86,25 @@ function showResults() {
 }
 
 // ---------- an entry ----------
-const GROUPS = [
-  // [title, links, the other end, the reason shown]
-  ["Clues to it", id => (IN.get(id) || []).filter(l => l.rel === "clue"), l => l.from, l => l.hint],
-  ["A clue to", id => (OUT.get(id) || []).filter(l => l.rel === "clue"), l => l.to, l => l.hint],
-  ["Painted by", id => (OUT.get(id) || []).filter(l => l.rel === "painted-by"), l => l.to, () => ""],
-  ["Paintings", id => (IN.get(id) || []).filter(l => l.rel === "painted-by"), l => l.from, () => ""],
-  ["Hangs in", id => (OUT.get(id) || []).filter(l => l.rel === "hangs-in"), l => l.to, () => ""],
-  ["On its walls", id => (IN.get(id) || []).filter(l => l.rel === "hangs-in"), l => l.from, () => ""],
-  ["Movement", id => (OUT.get(id) || []).filter(l => l.rel === "movement"), l => l.to, () => ""],
-  ["Works", id => (IN.get(id) || []).filter(l => l.rel === "movement"), l => l.from, () => ""],
-  ["In", id => (OUT.get(id) || []).filter(l => l.rel === "in"), l => l.to, () => ""],
-  ["Within it", id => (IN.get(id) || []).filter(l => l.rel === "in"), l => l.from, () => ""],
-];
+// every kind of link gets a group each way: what it points to, and what points to it. A clue is Crates' pair, a link
+// a plain association; the rest are typed relations
+const REL = { clue: ["A clue to", "Clues to it"], link: ["Linked to", "Linked from"], in: ["In", "Within it"],
+  "painted-by": ["Painted by", "Paintings"], "hangs-in": ["Hangs in", "On its walls"], movement: ["Movement", "Works"],
+  "designed-by": ["Designed by", "Designs"], style: ["Style", "In this style"], city: ["Stands in", "Buildings here"],
+  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"] };
+const ORDER = ["clue", "link", "painted-by", "hangs-in", "movement", "designed-by", "style", "city", "from", "led-to", "in"];
+function groupsOf(id) {
+  const rels = new Set([...(OUT.get(id) || []), ...(IN.get(id) || [])].map(l => l.rel));
+  const order = [...ORDER.filter(r => rels.has(r)), ...[...rels].filter(r => !ORDER.includes(r))];
+  const out = [];
+  for (const r of order) {
+    const [away, toward] = REL[r] || [r, `${r} (from)`];
+    // a clue's hint describes the clue thing (the one it comes from), so it's shown on either side
+    out.push([toward, (IN.get(id) || []).filter(l => l.rel === r), l => l.from, l => l.hint || ""]);
+    out.push([away, (OUT.get(id) || []).filter(l => l.rel === r), l => l.to, l => l.hint || ""]);
+  }
+  return out;
+}
 const SHOWN = 24;
 function open(id, push = true) {
   const e = ENT.get(id);
@@ -106,7 +114,7 @@ function open(id, push = true) {
   $("results").hidden = true; box.hidden = false;
   box.replaceChildren();
   const head = el("header", "lx-head");
-  head.append(el("h2", null, e.name));
+  head.append(el("h2", null, label(e)));
   const chips = el("div", "lx-chips");
   for (const k of kindsOf(e)) chips.append(el("span", "lx-chip", k));
   head.append(chips);
@@ -115,6 +123,7 @@ function open(id, push = true) {
   // what's said about it
   const said = [];
   if (e.note) said.push(e.note);
+  if (e.def) said.push(e.def.replace(/^./, c => c.toUpperCase()) + ".");
   if (e.region || e.country) said.push([e.country && e.country !== e.name ? e.country : "", e.region].filter(Boolean).join(", "));
   if (e.year) said.push(`${e.circa ? "Around " : ""}${e.year}`);
   for (const s of said) box.append(el("p", "lx-note", s));
@@ -132,8 +141,7 @@ function open(id, push = true) {
     for (const t of topics.slice(0, 10)) row.append(el("span", "lx-chip quiet", t));
     sec.append(row); box.append(sec);
   }
-  for (const [title, pick, other, why] of GROUPS) {
-    const links = pick(id);
+  for (const [title, links, other, why] of groupsOf(id)) {
     if (!links.length) continue;
     const sec = el("section", "lx-sec"), list = el("div", "lx-list");
     sec.append(el("h3", null, `${title} (${links.length})`));

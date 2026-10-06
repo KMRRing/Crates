@@ -34,7 +34,7 @@ for (const l of LINKS) if (l.rel === "in" && PLACE.has(l.to) && NAME.has(l.from)
 }
 const CLUES = new Map();
 for (const l of LINKS) {
-  if (l.rel !== "clue" || !PLACE.has(l.to) || !NAME.has(l.from)) continue;
+  if (!["clue", "link"].includes(l.rel) || !l.hint || !PLACE.has(l.to) || !NAME.has(l.from)) continue;   // a clue, or a plain link with a reason
   const names = [...ALIASES.get(l.to), ...(INSIDE.get(l.to) || [])], said = `${NAME.get(l.from)} ${l.hint || ""}`.toLowerCase();
   if (names.some(n => n.length > 3 && said.includes(n))) continue;
   if (!CLUES.has(l.to)) CLUES.set(l.to, []);
