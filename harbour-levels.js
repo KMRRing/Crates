@@ -74,25 +74,29 @@ export const LEVELS = [
   },
   {
     id: "single-track", name: "Single track",
-    brief: "One channel, one passing loop, and both berths are dead ends. Sixteen units within 80 hours.",
+    brief: "One channel, one passing loop, and both berths are dead ends. Sixteen units within 60 hours.",
     map: [
-      "############",
-      "############",
-      "#####..#####",
-      "L..........D",
-      "############",
+      "#########",
+      "#########",
+      "####..###",
+      "L.......D",
+      "#########",
     ],
     products: { oil: { name: "Oil", price: 0 } },
     jetties: {
       L: { kind: "load", product: "oil", parcel: 2 },
       D: { kind: "discharge", parcel: 2 },
     },
-    fleet: { coaster: 3 }, target: 16, deadline: 80, maxCycles: 400,
-    par: { cost: 40, hours: 56, water: 14, instructions: 16 },
+    fleet: { coaster: 3 }, target: 16, deadline: 60, maxCycles: 400,
+    par: { cost: 40, hours: 43, water: 11, instructions: 16 },
     plans: [
-      { par: ["cost","hours","water","instructions"], ships: [
-        { x: 0, y: 3, h: 0, type: "coaster", prog: program("(2L)(4A)P(2S)P(4A)(2D)(11B)") },
-        { x: 11, y: 3, h: 0, type: "coaster", prog: program("(2D)(11B)(2L)(4A)P(2S)P(4A)") },
+      { par: ["cost","hours","water"], ships: [
+        { x: 0, y: 3, h: 0, type: "coaster", prog: program("(2L)(3A)P(2S)P(2A)(2D)(8B)") },
+        { x: 8, y: 3, h: 0, type: "coaster", prog: program("D(8B)(2L)(3A)P(2S)P(2A)D") },
+      ] },
+      { par: ["cost","water","instructions"], ships: [
+        { x: 0, y: 3, h: 0, type: "coaster", prog: program("(2L)(3A)P(2S)P(2A)(2D)(8B)") },
+        { x: 8, y: 3, h: 0, type: "coaster", prog: program("(2D)(8B)(2L)(3A)P(2S)P(2A)") },
       ] },
     ],
   },
