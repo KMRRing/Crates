@@ -20,28 +20,28 @@ import { pairKey } from "./known.js";
 // that fits several answers shows more than one of them.
 export const LEVELS = {
   easy: { label: "Easy", questions: 12, options: [2, 2, 2, 4], diff: [1, 1, 2], spread: 0.45, margin: 0.03, multi: 0.15 },
-  medium: { label: "Medium", questions: 15, options: [2, 4, 4], diff: [1, 2, 2, 3], spread: 0.3, margin: 0.05, multi: 0.25 },
+  medium: { label: "Medium", questions: 15, options: [2, 4, 4], diff: [1, 2, 2, 3], spread: 0.3, multi: 0.25 },
   hard: { label: "Hard", questions: 15, options: [4], diff: [2, 3, 3], spread: 0.18, margin: 0.06, multi: 0.35 },
   // Maths: questions from maths-bank.js instead of the clue bank, from whichever stages and difficulties the player
   // picks (dealt in seeded order, cycling once a pool runs dry); priced from each question's difficulty
-  maths: { label: "Maths", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./maths-bank.js", note: "1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10." },
+  maths: { label: "Maths", questions: 15, spread: 0.3, maths: true, bank: "./maths-bank.js", note: "1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10." },
   // Refining: the same machinery on refining-bank.js: how a refinery works, unit by unit
-  refining: { label: "Refining", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, the blending chemistry 3–7, specs and economics 2–6." },
+  refining: { label: "Refining", questions: 15, spread: 0.3, maths: true, bank: "./refining-bank.js", note: "1 is what anyone on a trading floor knows, 7 and up is for engineers. Basics 1–3, units 2–7, the blending chemistry 3–7, specs and economics 2–6." },
   // Reasoning: critical reasoning on reasoning-bank.js: arguments, flaws, inference, statistics, decisions
-  reasoning: { label: "Reasoning", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./reasoning-bank.js", note: "3 is a clear fallacy, 8 is a base-rate or selection trap. Most sit at 5–6." },
+  reasoning: { label: "Reasoning", questions: 15, spread: 0.3, maths: true, bank: "./reasoning-bank.js", note: "3 is a clear fallacy, 8 is a base-rate or selection trap. Most sit at 5–6." },
   // Words: a word, pick its synonym; Capitals and Flags: the world's countries; Patterns: what comes next
-  words: { label: "Words", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./words-bank.js", note: "Advanced words at 1–4, rare at 5–7, obscure at 8–10." },
-  cities: { label: "Cities", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./cities-bank.js", note: "Capitals, which country a city is in, and what a city is known for: ports, refineries, exchanges, companies, culture. 1–3 is common knowledge, 5 and up is for traders." },
-  flags: { label: "Flags", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./flags-bank.js", note: "1–3 are flags everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
-  patterns: { label: "Patterns", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./patterns-bank.js", note: "1–3 are counting and squares, 7 and up need two steps or a trick." },
-  wine: { label: "Wine", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./wine-bank.js", note: "Brut's cards: 1–3 is what any wine list assumes, 6 and up is for the trade." },
-  art: { label: "Art", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./art-bank.js", note: "Paintings shown as pictures: who, where, which movement; and the art world's stories." },
-  economics: { label: "Economics", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./eco-bank.js", note: "Markets with their diagrams, macro and money, trade and finance, the ideas." },
-  physics: { label: "Physics", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./phy-bank.js", note: "Motion and energy, electricity and waves, heat and nuclei, the modern picture." },
-  chemistry: { label: "Chemistry", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./chm-bank.js", note: "Atoms and bonds, reactions, organic chemistry and fuels, industry." },
-  code: { label: "Code", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./cs-bank.js", note: "Data and algorithms, code to read, paradigms, systems and the web." },
-  philosophy: { label: "Philosophy", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./phil-bank.js", note: "The ancients and moderns, ethics and politics, knowledge and mind." },
-  religion: { label: "Religion", questions: 15, spread: 0.3, margin: 0.05, maths: true, bank: "./rel-bank.js", note: "The faiths, their calendars, food rules and etiquette: what to know before the meeting." },
+  words: { label: "Words", questions: 15, spread: 0.3, maths: true, bank: "./words-bank.js", note: "Advanced words at 1–4, rare at 5–7, obscure at 8–10." },
+  cities: { label: "Cities", questions: 15, spread: 0.3, maths: true, bank: "./cities-bank.js", note: "Capitals, which country a city is in, and what a city is known for: ports, refineries, exchanges, companies, culture. 1–3 is common knowledge, 5 and up is for traders." },
+  flags: { label: "Flags", questions: 15, spread: 0.3, maths: true, bank: "./flags-bank.js", note: "1–3 are flags everyone knows, 9 the Pacific micro-states. Distractors come from the same region." },
+  patterns: { label: "Patterns", questions: 15, spread: 0.3, maths: true, bank: "./patterns-bank.js", note: "1–3 are counting and squares, 7 and up need two steps or a trick." },
+  wine: { label: "Wine", questions: 15, spread: 0.3, maths: true, bank: "./wine-bank.js", note: "Brut's cards: 1–3 is what any wine list assumes, 6 and up is for the trade." },
+  art: { label: "Art", questions: 15, spread: 0.3, maths: true, bank: "./art-bank.js", note: "Paintings shown as pictures: who, where, which movement; and the art world's stories." },
+  economics: { label: "Economics", questions: 15, spread: 0.3, maths: true, bank: "./eco-bank.js", note: "Markets with their diagrams, macro and money, trade and finance, the ideas." },
+  physics: { label: "Physics", questions: 15, spread: 0.3, maths: true, bank: "./phy-bank.js", note: "Motion and energy, electricity and waves, heat and nuclei, the modern picture." },
+  chemistry: { label: "Chemistry", questions: 15, spread: 0.3, maths: true, bank: "./chm-bank.js", note: "Atoms and bonds, reactions, organic chemistry and fuels, industry." },
+  code: { label: "Code", questions: 15, spread: 0.3, maths: true, bank: "./cs-bank.js", note: "Data and algorithms, code to read, paradigms, systems and the web." },
+  philosophy: { label: "Philosophy", questions: 15, spread: 0.3, maths: true, bank: "./phil-bank.js", note: "The ancients and moderns, ethics and politics, knowledge and mind." },
+  religion: { label: "Religion", questions: 15, spread: 0.3, maths: true, bank: "./rel-bank.js", note: "The faiths, their calendars, food rules and etiquette: what to know before the meeting." },
 };
 /** A typical player's chance of knowing a maths question outright, by its difficulty (1 routine GCSE … 10 hardest Y1 Uni). */
 export const knowsMaths = d => Math.min(0.9, Math.max(0.15, 0.9 - 0.08 * (d - 1)));
@@ -142,20 +142,19 @@ function odds(knowns, n, noise) {
 }
 
 /**
- * Prices a batch: each question pays the fair price times its share of the noise, less the margin, scaled by
- * one factor for the whole batch, found so that a typical player's average return per unit staked is exactly
- * 1 − margin. (Without it, rounding and the 1.05× floor would quietly make a batch of short-priced questions
- * generous.)
+ * The odds: a scale from 1.1× (the easiest question) to 3× (the hardest), by how hard the house thinks a question is
+ * for a typical player (its fair price, with the level's spread of opinion in noise), set so that a long run of
+ * questions averages about 2×. The easy end of the scale sits at a fair price of 1.16 and the hard end at 1.54: the
+ * banks lean easy, so the scale climbs fast. It is a game's scale, not a bookmaker's: a typical player comes out ahead
+ * on a long run, and the stake sizing is where the skill is. A typed answer pays more, by how much less likely it is
+ * than a pick from the options, up to 4×.
  */
+const ODDS = { easy: 1.1, hard: 3, fairEasy: 1.16, fairHard: 1.54 };
+export const scaleOdds = fair => ODDS.easy + (ODDS.hard - ODDS.easy) * Math.min(1, Math.max(0, (fair - ODDS.fairEasy) / (ODDS.fairHard - ODDS.fairEasy)));
 function priceBatch(L, questions) {
-  const target = 1 - L.margin;
-  const value = k => questions.reduce((t, q) => t + q.chance * price(k * target * q.noise / q.chance), 0) / questions.length;
-  let lo = 0.5, hi = 1.5;
-  for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (value(mid) > target) hi = mid; else lo = mid; }
-  const k = (lo + hi) / 2;
   for (const q of questions) {
-    q.offered = price(k * target * q.noise / q.chance);
-    if (q.recall) q.typedOffered = price(k * target * q.noise / q.recall);   // typed, the same house view at the chance of recall
+    q.offered = price(scaleOdds(q.noise / q.chance));
+    if (q.recall) q.typedOffered = price(Math.min(4, q.offered * q.chance / q.recall));   // typed: rarer, so it pays more
     delete q.noise; delete q.recall;
   }
 }
@@ -185,7 +184,7 @@ export const TOPIC_PRESETS = {
   trader: { label: "Trader", topics: { ...allTopics(0), countries: 1, commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, cities: 1, patterns: 1, chemistry: 1, physics: 1, code: 1 } },
   culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1 } },
 };
-export const MIX = { label: "Topics", questions: 15, spread: 0.3, margin: 0.05 };
+export const MIX = { label: "Topics", questions: 15, spread: 0.3 };
 LEVELS.mix = MIX;                                   // a run of topics is a level of its own (its label, its length)
 let ONLY = null;                                    // while a clue topic is dealt: the one category its pairs come from
 // a clue question on the 1–10 scale, from its clue's obscurity (1–3) and its option count

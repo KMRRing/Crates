@@ -36,26 +36,25 @@ for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {   // a run o
     }
   }
   oddsSeen.sort((a, b) => a - b);
-  console.log(`${lvl}: ${total} questions, ${multi} with several right answers, house overpays on ${Math.round(100 * overpaid / total)}%, odds ${oddsSeen[0]}× to ${oddsSeen[oddsSeen.length - 1]}× (median ${oddsSeen[oddsSeen.length >> 1]}×)`);
+  console.log(`${lvl}: ${total} questions, ${multi} with several right answers, odds ${oddsSeen[0]}× to ${oddsSeen[oddsSeen.length - 1]}× (median ${oddsSeen[oddsSeen.length >> 1]}×)`);
 }
-// runs must be comparable: a typical player's average value from the house's prices is the same in every run
+// the odds: every question on the scale from 1.1× to 3× (typed answers up to 4×), harder questions paying more; runs
+// still deal their full lengths (100-question and endless) without repeating a clue
 for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {
-  const target = 1 - P.LEVELS[lvl].margin;
   for (let seed = 1; seed <= 10; seed++) {
     let qs = P.makeSession(seed * 104729, lvl, "hundred", mathsFor(lvl));
-    const runValue = qs.reduce((t, q) => t + q.chance * q.offered, 0) / qs.length;
-    if (qs.length !== 100 || Math.abs(runValue - target) > 0.005) { bad++; console.log(`${lvl} 100-question run ${seed}: ${qs.length} questions, value ${runValue.toFixed(3)} (target ${target})`); }
+    const off = qs.filter(q => q.offered < 1.1 - 1e-9 || q.offered > 3 + 1e-9 || (q.typedOffered && q.typedOffered > 4 + 1e-9));
+    if (qs.length !== 100 || off.length) { bad++; console.log(`${lvl} 100-question run ${seed}: ${qs.length} questions, ${off.length} priced off the scale`); }
     qs = P.makeSession(seed, lvl, "endless", mathsFor(lvl));
     for (let k = 0; k < 4; k++) qs = qs.concat(P.moreQuestions(seed, lvl, qs, mathsFor(lvl)));
-    const batches = [0, 1, 2, 3, 4].map(b => qs.slice(b * P.BATCH, (b + 1) * P.BATCH));
-    for (const batch of batches) {
-      const v = batch.reduce((t, q) => t + q.chance * q.offered, 0) / batch.length;
-      if (Math.abs(v - target) > 0.01) { bad++; console.log(`${lvl} endless batch: value ${v.toFixed(3)} (target ${target})`); }
-    }
     const pool = mathsFor(lvl)?.pool.length;
     if (!(pool && pool < qs.length) && new Set(qs.map(q => q.key)).size !== qs.length) { bad++; console.log(`${lvl} endless run repeats a clue`); }   // a small bank cycles by design
   }
-  console.log(`${lvl}: 100-question and endless runs all priced at ${target} to a typical player`);
+}
+{
+  const easy = P.scaleOdds(1.05), hard = P.scaleOdds(2.5), mid = P.scaleOdds(1.35);
+  if (!(Math.abs(easy - 1.1) < 1e-9 && Math.abs(hard - 3) < 1e-9 && mid > easy && mid < hard)) { bad++; console.log("odds scale ends", { easy, mid, hard }); }
+  else console.log(`odds: the easiest ${easy}×, the hardest ${hard}×, in between by how hard the house thinks a question is`);
 }
 // Maths: a filter to one stage and two difficulties deals only those, cycles once the pool runs dry, keeps the
 // questions' own right answers, and prices harder questions higher
@@ -142,4 +141,21 @@ if (bad) process.exitCode = 1;
     console.log("topics mix problems", { by, n: qs.length, more: more.length, repeats: keys.length - new Set(keys).size, easy: easyOnly.map(q => q.d), presetsOk });
     process.exitCode = 1;
   } else console.log("topics: a mixed run deals by weight, keeps each clue topic to its category, prices as one batch and carries on");
+}
+
+// the long run: Balanced runs of every topic average about 2×, from about 1.1× on the easiest to 3× on the hardest
+{
+  const sources = [];
+  for (const [id, label] of P.TOPIC_LIST) {
+    if (P.CLUE_TOPICS[id]) { sources.push({ id, label, weight: 1, cat: P.CLUE_TOPICS[id], diffs: [] }); continue; }
+    const B = BANKS[id] || await import(`../${P.LEVELS[id].bank.replace("./", "")}`);
+    const pool = B[Object.keys(B).find(k => Array.isArray(B[k]) && B[k][0]?.o)] || [];
+    sources.push({ id, label, weight: 1, pool, stages: stageMap(B), dueKeys: [], seenKeys: new Set() });
+  }
+  const all = [];
+  for (let seed = 1; seed <= 40; seed++) all.push(...P.mixQuestions(seed * 7919, sources, 15));
+  const odds = all.map(q => q.offered).sort((a, b) => a - b), mean = odds.reduce((a, b) => a + b, 0) / odds.length;
+  const p5 = odds[Math.floor(.05 * odds.length)], p95 = odds[Math.floor(.95 * odds.length)];
+  if (!(mean > 1.85 && mean < 2.15 && p5 <= 1.25 && p95 >= 2.8)) { console.log("long-run odds", { mean, p5, p95 }); process.exitCode = 1; }
+  else console.log(`odds over ${all.length} Balanced questions: average ${mean.toFixed(2)}×, the easiest twentieth ${p5}×, the hardest ${p95}×`);
 }
