@@ -19,6 +19,7 @@ import { setRich } from "./rich.js";
 import { showPicture } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import { speak } from "./voice.js";
+import { check } from "./typing.js";
 import { COURSES } from "./parley-courses.js";
 import "./pwa.js";
 
@@ -119,7 +120,8 @@ function ask() {
   // a typed card after a typed card keeps the field, and with it the focus (and a phone's keyboard)
   if (!(it.game === "quote" && field && box.contains(field.wrap))) box.replaceChildren();
   const r = rng(seedOf(it.id) ^ Date.now());
-  if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
+  if (it.game === "punt" && it.payload?.name) named(it.payload);
+  else if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
     $("ask").textContent = p.ask || "";
     setRich($("prompt"), p.prompt);
@@ -199,6 +201,7 @@ function ask() {
   } else { skip(); }
 }
 /** Multiple choice: one tap answers when one is needed; several then Answer when more are. */
+<<<<<<< Updated upstream
 /**
  * A card's choices in a new order each time it's dealt (so a place on the screen never gives an answer away); "all of
  * the above" and its kind stay last. Returns the labels and where the right ones went.
@@ -283,6 +286,30 @@ function plot(place, feature, note, level = 1) {
     ctx.strokeStyle = good; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 7); ctx.stroke();
     settle(ok, `${hit.km < 1 ? "On it" : `${Math.round(hit.km).toLocaleString("en-GB")} km off`} (within ${tolerance} km counts). ${note}`);
   });
+=======
+/** A name-it card from Punt: the hint, a box to type the name in, and Check. Recall, as it was asked in Punt: nothing to
+ * choose from. The name shows after, with what was typed if it differs (typing.js decides what counts). */
+function named(p) {
+  $("ask").textContent = p.ask || "Name it";
+  setRich($("prompt"), p.prompt);
+  const box = $("answerBox"), input = document.createElement("input"), go = document.createElement("button");
+  box.className = "dk-answer dk-name";
+  Object.assign(input, { type: "text", className: "dk-typed", placeholder: "Type the name", autocomplete: "off", spellcheck: false });
+  for (const [k, v] of [["autocorrect", "off"], ["autocapitalize", "off"], ["enterkeyhint", "go"], ["aria-label", "Your answer"]]) input.setAttribute(k, v);
+  go.type = "button"; go.className = "dk-option"; go.textContent = "Check";
+  const judge = () => {
+    if (answered) return;
+    const typed = input.value.trim(), res = check(typed, [p.answer]), shown = document.createElement("p");
+    input.disabled = go.disabled = true;
+    shown.className = `dk-named ${res.right ? "right" : "wrong"}`;
+    shown.textContent = res.right && res.exact ? p.answer : `${p.answer}${typed ? ` · you typed "${typed}"` : ""}`;
+    box.append(shown);
+    settle(res.right, p.note);
+  };
+  go.addEventListener("click", judge);
+  input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); judge(); } });
+  box.replaceChildren(input, go);
+>>>>>>> Stashed changes
 }
 function options(labels, right, need, note) {
   const box = $("answerBox");

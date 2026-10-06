@@ -8,6 +8,7 @@ import {
 } from "./learn.js";
 import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
+import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
 import { part, action, line, mirror } from "./menu.js";
 
@@ -341,6 +342,8 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       const ans = BANK[board.groups[pendingGroup].a];
       const named = guess !== null && nameMatches(guess, ans);
       g.found.push({ g: pendingGroup, named, guess: named ? null : (guess || null) });
+      // a crate solved and named: its four clues are recognised, so Punt can ask you to name them (known.js)
+      if (named) { const grp = board.groups[pendingGroup], A = BANK[grp.a]; recognised(grp.w.map(i => A.words[i]?.entity).filter(Boolean).map(e => pairKey(A.entity, e)));   // w: positions in the answer's clues }
       pendingGroup = null;
       if (g.found.length === 4) end();
       save();

@@ -11,6 +11,7 @@
 // generous the house happened to be.
 import { BANK, TOPICS } from "./core.js";
 import { normalize } from "./typing.js";
+import { pairKey } from "./known.js";
 
 // questions: a standard run's length; options: how many choices a question may have (two or four, so they fill
 // the 2×2 grid: three would leave one dangling) and diff: clue difficulties, both dealt in these proportions;
@@ -52,8 +53,11 @@ export const LENGTHS = {
 };
 export const BATCH = 20;
 // three clue questions (the clue, which answer?), two answer questions (the answer, which clue?) and two name-it
-// questions (a clue's hint, its answer and topics: name the clue), in every seven
-const KINDS = ["clue", "clue", "clue", "answer", "answer", "name", "name"];
+// questions (a clue's hint, its answer and topics: name the clue), in every seven. Name-it has three modes: off (none),
+// known (only clues already recognised the other way round, in Crates or Punt; until there are some, those slots are
+// clue and answer questions) and all (every question is name-it, any clue).
+const KINDS = { off: ["clue", "clue", "clue", "answer", "answer"], known: ["clue", "clue", "clue", "answer", "answer", "name", "name"], all: ["name"] };
+export const NAME_MODES = { off: "Off", known: "Known", all: "All" };
 export const START_POT = 1000;
 
 // The house's view of how likely a typical player is to know a clue, by its difficulty.
@@ -93,11 +97,12 @@ const deck = (rnd, values, count) => shuffle(rnd, Array.from({ length: count }, 
 const mix = (seed, start) => (seed ^ Math.imul(start + 1, 0x9E3779B1)) >>> 0;
 
 // ---------- the bank, indexed ----------
-// every clue-answer pair, and for each clue text, which answers carry it
-const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.hint, d: w.d })));
+// every clue-answer pair (k: its key in known.js, by the entities), and for each clue text, which answers carry it
+const PAIRS = BANK.flatMap((a, i) => a.words.map(w => ({ a: i, w: w.w, hint: w.hint, d: w.d, k: w.entity ? pairKey(a.entity, w.entity) : null })));
 const CARRIERS = new Map();
 for (const p of PAIRS) { if (!CARRIERS.has(p.w)) CARRIERS.set(p.w, new Set()); CARRIERS.get(p.w).add(p.a); }
 const pairOf = (a, w) => PAIRS.find(p => p.a === a && p.w === w);
+const keysOf = list => list.map(([a, w]) => pairOf(a, w)?.k).filter(Boolean);   // [answer, clue] pairs, as known.js keys
 /** The knowledge base's entities of answers and clues ([answer index, clue word or null]), once each. */
 const entitiesOf = list => [...new Set(list.map(([a, w]) => (w == null ? BANK[a].entity : BANK[a].words.find(x => x.w === w)?.entity)).filter(Boolean))];
 const NOUN = { country: "country", commodity: "commodity" };
@@ -156,10 +161,10 @@ function priceBatch(L, questions) {
  * exactly the level's mix, and noise that is an even spread of the house's (normal quantiles, shuffled) scaled so
  * its average is exactly 1.
  */
-function plan(rnd, L, count) {
+function plan(rnd, L, count, kinds) {
   const z = shuffle(rnd, Array.from({ length: count }, (_, i) => quantile((i + 0.5) / count)));
   const m = z.map(v => Math.exp(L.spread * v)), mean = m.reduce((s, v) => s + v, 0) / count;
-  return { kinds: deck(rnd, KINDS, count), options: deck(rnd, L.options, count), diffs: deck(rnd, L.diff, count), noise: m.map(v => v / mean) };
+  return { kinds: deck(rnd, kinds, count), options: deck(rnd, L.options, count), diffs: deck(rnd, L.diff, count), noise: m.map(v => v / mean) };
 }
 
 /** A clue-answer pair of this difficulty not used yet in the run (once a difficulty runs dry, its pairs come round again). */
@@ -196,6 +201,7 @@ function clueQuestion(rnd, L, used, n, d, noise) {
     notes: right.map(x => ({ label: BANK[x].name, text: pairOf(x, p.w)?.hint || p.hint })),
     d: Math.min(...ds), ...odds(ds.map(d => KNOWS[d]), n, noise), key: p.w,
     about: entitiesOf([[p.a, p.w], ...right.map(x => [x, null])]),     // the clue's entity and the right answers', for the pile
+    pairs: keysOf(right.map(x => [x, p.w])),                           // recognised, if picked right
   };
 }
 
@@ -218,6 +224,7 @@ function answerQuestion(rnd, L, used, n, d, noise) {
     notes: right.map(w => ({ label: w, text: pairOf(a, w).hint })),
     d: Math.min(...ds), ...odds(ds.map(d => KNOWS[d]), n, noise), key: p.w,
     about: entitiesOf([[a, null], ...right.map(w => [a, w])]),
+    pairs: keysOf(right.map(w => [a, w])),
   };
 }
 
@@ -225,8 +232,10 @@ function answerQuestion(rnd, L, used, n, d, noise) {
  * "Name it": a clue's own hint, with its answer and topics; name the clue. Typed, when typing is on (the strictest test
  * of having learned it), priced at the chance of recall; otherwise picked from the answer's other clues.
  */
-function nameQuestion(rnd, L, used, n, d, noise) {
-  const p = freshPair(rnd, used, d), a = p.a, word = BANK[a].words.find(w => w.w === p.w);
+function nameQuestion(rnd, L, used, n, d, noise, known) {
+  const p = known ? knownPair(rnd, used, known) : freshPair(rnd, used, d);
+  if (!p) return null;
+  const a = p.a, word = BANK[a].words.find(w => w.w === p.w);
   if (names(p.w, a) || normalize(p.hint).includes(normalize(p.w))) return null;   // nothing to recall if it's given away
   const others = BANK[a].words.filter(w => w.w !== p.w && !names(w.w, a));
   if (others.length < n - 1) return null;
@@ -236,18 +245,28 @@ function nameQuestion(rnd, L, used, n, d, noise) {
     kind: "name", cat: BANK[a].cat, prompt: p.hint, ask: `Name it · ${BANK[a].name}${topics.length ? ` · ${topics.join(", ")}` : ""}`,
     options: options.map(w => ({ label: w, right: w === p.w })), need: 1, answer: p.w,
     notes: [{ label: p.w, text: `${BANK[a].name}: ${p.hint}` }],
-    d: p.d, ...odds([KNOWS[p.d]], n, noise), recall: RECALLS[p.d], key: p.w,
+    d: p.d, ...odds([KNOWS[p.d]], n, noise), recall: RECALLS[p.d], key: p.w, pair: p.k,
     about: entitiesOf([[a, p.w], [a, null]]),
   };
 }
 
+/** A clue recognised before (known: known.js's record) and not in the run yet: one not named yet if there is one. */
+function knownPair(rnd, used, known) {
+  const pool = PAIRS.filter(p => p.k && known[p.k] && !used.has(p.w)), unnamed = pool.filter(p => !known[p.k].named);
+  return unnamed.length ? pick(rnd, unnamed) : pool.length ? pick(rnd, pool) : null;
+}
+
 /** A balanced batch of questions (see the top). The same seed and start always give the same batch. */
-function makeQuestions(seed, levelId, count, start, used) {
-  const L = LEVELS[levelId], rnd = rng(mix(seed, start)), p = plan(rnd, L, count), out = [];
+function makeQuestions(seed, levelId, count, start, used, name = { mode: "known", known: {} }) {
+  const L = LEVELS[levelId], rnd = rng(mix(seed, start)), p = plan(rnd, L, count, KINDS[name.mode] || KINDS.known), out = [];
+  const known = name.mode === "known" ? name.known || {} : null;
   for (let i = 0; i < count; i++) {
-    const build = { clue: clueQuestion, answer: answerQuestion, name: nameQuestion }[p.kinds[i]];
-    let q = null;
-    for (let tries = 0; !q && tries < 80; tries++) q = build(rnd, L, used, p.options[i], p.diffs[i], p.noise[i]);
+    let kind = p.kinds[i], q = null;
+    for (let tries = 0; !q && tries < 80; tries++) {
+      q = { clue: clueQuestion, answer: answerQuestion, name: nameQuestion }[kind](rnd, L, used, p.options[i], p.diffs[i], p.noise[i], known);
+      // nothing recognised left to name: the slot is a clue or answer question instead
+      if (!q && kind === "name" && known && tries > 8) kind = i % 2 ? "clue" : "answer";
+    }
     if (!q) continue;                       // vanishingly rare: the batch is one question short
     used.add(q.key);
     out.push(q);
@@ -297,15 +316,16 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
  * A run's questions: all of them for a fixed length (balanced as one batch), the first batch for an endless run.
  * For Maths, pass { pool, stages }: the filtered bank and a label per stage id.
  */
-export function makeSession(seed, levelId, lengthId = "standard", maths = null) {
+/** A run's questions. name: name-it's mode and, for known, known.js's record ({ mode, known }). */
+export function makeSession(seed, levelId, lengthId = "standard", maths = null, name) {
   const count = lengthId === "endless" ? BATCH : LENGTHS[lengthId]?.questions ?? LEVELS[levelId].questions;
   if (LEVELS[levelId].maths) return mathsQuestions(seed, maths.pool, maths.stages, count, 0, maths.dueKeys, maths.seenKeys);
-  return makeQuestions(seed, levelId, count, 0, new Set());
+  return makeQuestions(seed, levelId, count, 0, new Set(), name);
 }
 /** The next batch of an endless run, following the questions dealt so far. */
-export const moreQuestions = (seed, levelId, dealt, maths = null) => (LEVELS[levelId].maths
+export const moreQuestions = (seed, levelId, dealt, maths = null, name) => (LEVELS[levelId].maths
   ? mathsQuestions(seed, maths.pool, maths.stages, BATCH, dealt.length, maths.dueKeys, maths.seenKeys)
-  : makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key))));
+  : makeQuestions(seed, levelId, BATCH, dealt.length, new Set(dealt.map(q => q.key)), name));
 
 /**
  * The average return per question, compounded: the steady rate per question that turns the starting pot into

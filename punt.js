@@ -2,7 +2,7 @@
 // Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
 // on their own pick, so you can back the same option or hedge against each other. A question settles once
 // everyone at the table has bet or passed.
-import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT,
+import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT, NAME_MODES,
   showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
@@ -12,6 +12,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { dropdown } from "./dropdown.js";
 import "./pwa.js";
 import { check } from "./typing.js";
+import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { part, choice, toggle as menuToggle, action, mirror, line } from "./menu.js";
@@ -89,7 +90,7 @@ async function freshState(level, length, players = null, picks = null) {
   const seed = randomSeed();
   const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
-  return { v: 1, app: APP, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet",
+  return { v: 1, app: APP, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal, nameDeal()), index: 0, pot: START_POT, phase: "bet",
     bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
 }
 function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.questions?.length ? s : null; } catch { return null; } }
@@ -99,7 +100,7 @@ async function soloSession(seed, level, length = chosenLength(), picks = null) {
   const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
   if (deal && !deal.pool.length) { toast("No questions match that choice"); render(); return; }
-  S = { v: 1, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
+  S = { v: 1, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal, nameDeal()), index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
   resetChoice();
   shownDone = null;
   saveSolo();
@@ -122,11 +123,13 @@ function endRun() {
 }
 
 const resetChoice = () => { pick = []; typed = ""; pct = 0; };
-// Typing: a name-it question is answered by typing the name (the strictest test), unless typing is switched off in the
-// menu, when it's picked from options like any other. Each device answers its own way, so partners can differ.
-const TYPING = "punt:typing";
-const typingOn = () => { try { return localStorage.getItem(TYPING) !== "off"; } catch { return true; } };
-const typedNow = q => q?.kind === "name" && typingOn();
+// Name it (Menu, Content): off, known (only clues this device has recognised the other way round, in Crates or Punt;
+// the default) or all (every question). A name-it question is typed: the strictest test. One dealt by a partner who
+// started the run is typed too, unless this device has name-it off, when it's chosen from options like any other.
+const NAME = "punt:name";
+const nameMode = () => { try { const m = localStorage.getItem(NAME); return NAME_MODES[m] ? m : "known"; } catch { return "known"; } };
+const nameDeal = () => ({ mode: nameMode(), known: known.all() });
+const typedNow = q => q?.kind === "name" && nameMode() !== "off";
 /** Whether a bet's answer was right (null: a pass with nothing chosen), and the price it was laid at: a typed answer
  * is checked against the name and pays the typed price, a pick against the options. */
 function judged(q, b) {
@@ -211,7 +214,7 @@ async function next() {
     if (g.phase !== "reveal" || g.index !== index) return false;
     g.questions = Object.values(g.questions);
     if (g.pot <= 0 || (lengthOf(g) !== "endless" && g.index + 1 >= g.questions.length)) { g.done = { at: Date.now() }; return; }
-    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions, deal));
+    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions, deal, nameDeal()));
     g.index++;
     g.phase = "bet";
   }).then(() => resetChoice());
@@ -548,9 +551,13 @@ function fileLatest() {
 function bankLatest(last) {
   const q = S.questions[last.index], mine = last.bets[me()];
   if (!q || !mine || !q.key) return;
-  const right = judged(q, mine).right;
-  const key = `${S.level}/${q.key}`;
-  const payload = { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level , about: q.about };
+  const right = judged(q, mine).right, asName = typedNow(q);
+  // what's recognised one way round can be asked the other (known.js); a name-it question typed goes to the pile as one,
+  // so Deck asks it again as a name to type, not as options to choose from
+  if (asName && q.pair) known.named(q.pair, right === true);
+  else if (right && mine.pct > 0 && q.pairs?.length) known.recognised(q.pairs);
+  const key = asName ? `${S.level}/name/${q.key}` : `${S.level}/${q.key}`;
+  const payload = asName ? { name: true, prompt: q.prompt, ask: q.ask, answer: q.answer, note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "" } : { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level , about: q.about };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
   else if (!right) pile.record("punt", key, payload, "wrong");
   else if (mine.pct <= 20) pile.record("punt", key, payload, "lowStake");
@@ -684,9 +691,13 @@ function drawMenu() {
   play.append(action("New run", () => newSession(S.level, pickLength), "primary"));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
   const picks = $("mathsBar").hidden ? [] : [action($("stagesBtn").textContent, () => $("stagesBtn").click()), action($("diffsBtn").textContent, () => $("diffsBtn").click())];
-  part(body, "content").append(mirror("Level", $("level")), ...picks, choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }));
-  part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)),
-    menuToggle("Type name-it answers", typingOn(), on => { try { localStorage.setItem(TYPING, on ? "on" : "off"); } catch { /* private mode */ } resetChoice(); render(); }));
+  part(body, "content").append(mirror("Level", $("level")), ...picks, choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }),
+    // the clue levels only; a change deals a new run (in a match it applies from the next one)
+    ...(isMaths(S.level) ? [] : [choice("Name it", Object.entries(NAME_MODES), nameMode(), m => {
+      try { localStorage.setItem(NAME, m); } catch { /* private mode */ }
+      if (together.room) render(); else newSession(S.level, lengthOf(S));
+    })]));
+  part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   if ($("avg").textContent && !$("avg").hidden) part(body, "about").append(line($("avg").textContent));
   part(body, "about").append(action("Your stats", () => openStats("run")), action("Flagged questions", () => openFlags(false)),

@@ -89,21 +89,31 @@ if (bad) process.exitCode = 1;
 }
 
 // name-it questions: a clue's own hint, with its answer and topics, the clue to name; the hint never gives the name
-// away, choosing it from options has exactly one right option and it's the name, and typing it pays at least as much
+// away, choosing it from options has exactly one right option and it's the name, and typing it pays at least as much.
+// Three modes: off deals none; all deals nothing else; known (the default) only clues in the record of those recognised
+// the other way round, and until there are some, a full run without them
 {
   const { normalize } = await import("../typing.js");
   let wrong = 0;
+  const fail = msg => { wrong++; console.log(`FAIL ${msg}`); };
   for (const lvl of ["easy", "medium", "hard"]) {
-    const named = P.makeSession(4242, lvl, "hundred").filter(q => q.kind === "name");
-    if (named.length < 20) { wrong++; console.log(`FAIL ${lvl}: only ${named.length} name-it questions in 100`); }
-    for (const q of named) {
+    const all = P.makeSession(4242, lvl, "hundred", null, { mode: "all" });
+    if (all.some(q => q.kind !== "name") || all.length !== 100) fail(`${lvl}: "all" deals ${all.filter(q => q.kind === "name").length} name-it of ${all.length}`);
+    for (const q of all) {
       const right = q.options.filter(o => o.right);
-      if (right.length !== 1 || right[0].label !== q.answer) { wrong++; console.log(`FAIL ${lvl}: "${q.prompt}" offers ${right.length} right options`); }
-      if (!(q.typedOffered >= q.offered)) { wrong++; console.log(`FAIL ${lvl}: "${q.prompt}" pays ${q.typedOffered} typed, ${q.offered} chosen`); }
-      if (normalize(q.prompt).includes(normalize(q.answer))) { wrong++; console.log(`FAIL ${lvl}: "${q.prompt}" names ${q.answer}`); }
-      if (!/^Name it · /.test(q.ask)) { wrong++; console.log(`FAIL ${lvl}: ask "${q.ask}"`); }
+      if (right.length !== 1 || right[0].label !== q.answer) fail(`${lvl}: "${q.prompt}" offers ${right.length} right options`);
+      if (!(q.typedOffered >= q.offered)) fail(`${lvl}: "${q.prompt}" pays ${q.typedOffered} typed, ${q.offered} chosen`);
+      if (normalize(q.prompt).includes(normalize(q.answer))) fail(`${lvl}: "${q.prompt}" names ${q.answer}`);
+      if (!/^Name it · /.test(q.ask) || !q.pair) fail(`${lvl}: ask "${q.ask}", pair ${q.pair}`);
     }
+    const off = P.makeSession(4242, lvl, "hundred", null, { mode: "off" });
+    if (off.some(q => q.kind === "name") || off.length !== 100) fail(`${lvl}: "off" deals name-it`);
+    const none = P.makeSession(4242, lvl, "hundred", null, { mode: "known", known: {} });
+    if (none.some(q => q.kind === "name") || none.length !== 100) fail(`${lvl}: "known" with nothing recognised deals ${none.length}, some name-it`);
+    const record = Object.fromEntries(off.flatMap(q => q.pairs || []).slice(0, 10).map(k => [k, { at: 1 }]));
+    const mine = P.makeSession(77, lvl, "hundred", null, { mode: "known", known: record }).filter(q => q.kind === "name");
+    if (!mine.length || mine.some(q => !record[q.pair])) fail(`${lvl}: "known" names ${mine.length} clues, some not in the record`);
   }
-  console.log(wrong ? `name-it: ${wrong} FAILED` : "name-it: every question asks for one name its hint doesn't give away, and typing pays more");
+  console.log(wrong ? `name-it: ${wrong} FAILED` : "name-it: off deals none, all only name-it, known only what's been recognised; every one asks for a name its hint doesn't give away, and typing pays more");
   if (wrong) process.exitCode = 1;
 }
