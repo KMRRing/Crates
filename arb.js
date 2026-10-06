@@ -126,7 +126,10 @@ function render() {
   if (playing) {
     $("backBtn").disabled = x.path.length < 2;
     const filter = $("filter").value.trim().toLowerCase();
-    const options = [...NEAR.get(here).keys()].filter(id => !x.path.includes(id) && (!filter || name(id).toLowerCase().includes(filter)))
+    // no dead ends: a link is offered only if it leads somewhere new (the goal always is), so a step never forces a
+    // step back; a thing whose only link is the one you came along, or whose links all lead back onto your route, isn't
+    const onward = id => id === x.b || [...NEAR.get(id).keys()].some(n => n !== here && !x.path.includes(n));
+    const options = [...NEAR.get(here).keys()].filter(id => !x.path.includes(id) && onward(id) && (!filter || name(id).toLowerCase().includes(filter)))
       .sort((p, q) => (p === x.b ? -1 : q === x.b ? 1 : name(p).localeCompare(name(q))));
     $("links").replaceChildren(...options.map(id => {
       const li = document.createElement("li"), btn = document.createElement("button");
