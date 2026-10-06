@@ -179,7 +179,7 @@ button, input { font: inherit; color: inherit; }
    only the partner pill in it shrinking (to "…"); the game's name and icon stay whole. */
 .mark {
   display: flex; align-items: center; gap: .55rem; margin: 0; min-width: 0; flex: 0 1 auto;
-  font-size: 1.32rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1;
+  font-size: 1.16rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); line-height: 1;
 }
 .mark-icon { width: 2.5rem; height: 2.5rem; flex: none; }   /* the game's logo: as large as the rete across the header */
 .cr-mark { display: inline-block; }
@@ -268,7 +268,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
   cursor: pointer; min-height: 36px; white-space: nowrap; flex-shrink: 0;
 }
 @media (max-width: 400px) {
-  .mark { font-size: 1.2rem; gap: .5rem; }
+  .mark { font-size: 1.06rem; gap: .5rem; }
   .pool { font-size: .9rem; padding-right: 1.7rem; }
   .pick { padding: .3rem .55rem; }
 }
@@ -639,3 +639,9 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .settings-body { padding: .2rem 0 .6rem; }
 .apps-pop-list .app-settings { width: 100%; }   /* a button, stretched like the game tiles beside it */
 
+
+/* the header: a game's name never gives way. The title holds at least its icon and its word, and your partner's pill
+   takes only what's left (shortened, or gone on a narrow phone), instead of pushing the name under the buttons */
+.top .mark { flex: 1 1 auto; min-width: auto; }
+.top .mark-btn { flex: 1 1 auto; max-width: 100%; }
+.top .partner-pill { flex: 1 1 0; width: 0; min-width: 0; }
