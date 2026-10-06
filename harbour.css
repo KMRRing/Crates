@@ -149,3 +149,5 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hb-status.back { cursor: pointer; }
 .hb-trail { fill: none; stroke: var(--ink); stroke-opacity: .28; stroke-width: .9; stroke-linejoin: round; stroke-dasharray: 2 1.6; }   /* a ship's route while you plan */
 .hb-trail.on { stroke-opacity: .65; }
+.hb-trail-end { fill: var(--ink); fill-opacity: .75; }   /* where the picked ship's route goes on from, in draw mode */
+.hb-pentool[aria-pressed="true"] { background: var(--ink); color: var(--yard); border-color: var(--ink); }

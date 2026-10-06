@@ -242,8 +242,8 @@ export function create3D(box) {
   }
 
   /** Each ship's route over a loop, as a faint line on the water through the hexes it passes; the picked ship's stronger. */
-  function trails(paths, sel = -1) {
-    lastTrails = [paths, sel];
+  function trails(paths, sel = -1, dot = false) {
+    lastTrails = [paths, sel, dot];
     if (!trailGroup) return;
     for (const c of trailGroup.children) { c.geometry.dispose(); c.material.dispose(); }
     trailGroup.clear();
@@ -257,8 +257,14 @@ export function create3D(box) {
       if (!xyz.length) return;
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.Float32BufferAttribute(xyz, 3));
-      trailGroup.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: skin.night ? skin.glass : skin.funnel, transparent: true, opacity: i === sel ? .85 : .4 })));
+      trailGroup.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: skin.night ? skin.glass : skin.funnel, transparent: true, opacity: i === sel ? 1 : .45 })));
     });
+    if (dot && paths[sel]?.length) {                       // where the picked ship's route goes on from
+      const e = paths[sel].at(-1), c = centre(e.x, e.y);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(.24, .24, .03, 24), new THREE.MeshBasicMaterial({ color: skin.night ? skin.glass : skin.funnel }));
+      m.position.set(c.x, .06, c.z);
+      trailGroup.add(m);
+    }
     invalidate();
   }
 

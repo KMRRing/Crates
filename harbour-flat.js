@@ -115,10 +115,12 @@ export function createFlat(box) {
     return { clientX: m.a * cx + m.c * cy + m.e, clientY: m.b * cx + m.d * cy + m.f };
   }
   /** Each ship's route over a loop, as a faint dashed line through the hexes it passes; the picked ship's stronger. */
-  function trails(paths, sel = -1) {
+  function trails(paths, sel = -1, dot = false) {
     const g = svg.querySelector(".hb-trails");
     if (!g) return;
-    g.innerHTML = paths.map((pts, i) => `<polyline class="hb-trail${i === sel ? " on" : ""}" points="${pts.map(p => { const c = centre(p.x, p.y); return `${c.cx.toFixed(2)},${c.cy.toFixed(2)}`; }).join(" ")}"/>`).join("");
+    const end = dot && paths[sel]?.length ? centre(paths[sel].at(-1).x, paths[sel].at(-1).y) : null;
+    g.innerHTML = paths.map((pts, i) => `<polyline class="hb-trail${i === sel ? " on" : ""}" points="${pts.map(p => { const c = centre(p.x, p.y); return `${c.cx.toFixed(2)},${c.cy.toFixed(2)}`; }).join(" ")}"/>`).join("")
+      + (end ? `<circle class="hb-trail-end" cx="${end.cx.toFixed(2)}" cy="${end.cy.toFixed(2)}" r="1.7"/>` : "");   // where its route goes on from
   }
   return { setLevel, draw, pick, drag, where, trails, release() {}, theme() {}, resize() {}, dispose() { svg.remove(); }, flat: true };
 }

@@ -1,7 +1,8 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { steer, flatten, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
+import { steer, flatten, neighbour, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
+import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
@@ -31,6 +32,7 @@ const ICON = {
   step: svg('<path class="solid" d="M6 6l9 6-9 6z"/><path d="M18 5v14"/>'),
   play: svg('<path class="solid" d="M7 5l12 7-12 7z"/>'),
   pause: svg('<path d="M8 5v14M16 5v14"/>'),
+  pen: svg('<path d="M4 20l4-1 10.5-10.5a2.1 2.1 0 0 0-3-3L5 16z"/><path d="M14 6.5l3.5 3.5"/>'),
   pick: svg('<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M11 4h2M11 20h2M4 11v2M20 11v2"/>'),
   earlier: svg('<path d="M14 6l-6 6 6 6"/>'),
   later: svg('<path d="M10 6l6 6-6 6"/>'),
@@ -58,6 +60,10 @@ let clip = null;                      // copied hours, one list of items per row
 let notice = "";                      // a message for the status line until the next change
 let history = [];                     // earlier plans, for Undo
 let future = [];                      // plans undone, for Redo
+// Drawing a route: the pen in the tools makes a drag on the map draw the picked ship's route on from where its program
+// leaves it, an hour a hex (Ahead, Port, Starboard or Astern, whichever reaches it), added to its program on release.
+let drawMode = false, drawing = null;   // drawing: { i, ops, path } while a finger draws
+sound.on = read("harbour:sound", true);
 let drag = null;                      // a ship being dragged: { i, from, moved }
 let held = null;                      // a loop count being held down: { timer, fired }
 let sweeping = false, swept = false;  // picking hours with a mouse drag (swept: the click that ends it is already handled)
@@ -183,6 +189,7 @@ function pickRow(row) {
 }
 function setMode(m) {
   mode = m;
+  if (m === "pick") { drawMode = false; drawing = null; }
   if (m === "paint") pick = null;
   notice = "";
   render(true);
@@ -240,8 +247,41 @@ function act(name) {
 // the map: tap water to put a ship there, tap a ship to pick it and again to turn it, drag it to move it, onto land to
 // scrap it. Which hex a tap is on is the view's to say (flat or 3D).
 const shipOn = (x, y) => sol.ships.findIndex(s => s.x === x && s.y === y);
+/** Where a ship's program leaves it: its start, played through every hour written. */
+const endPose = s => flatten(s.prog).reduce((p, op) => steer(p, op || WAIT), { x: s.x, y: s.y, h: s.h ?? 0 });
+function startDrawing(e) {
+  const t = mapView.pick(e);
+  if (!t) return;
+  const at = shipOn(t.x, t.y), i = at >= 0 ? at : sel;
+  if (i < 0) { notice = "Pick a ship first, then draw its route on from the dot at the end of its trail."; render(true); return; }
+  sel = i;
+  drawing = { i, ops: [], path: [endPose(sol.ships[i])] };
+  $("sea").setPointerCapture(e.pointerId);
+  render(true);
+}
+function extendDrawing(e) {
+  const t = mapView.pick(e);
+  if (!t) return;
+  const path = drawing.path, cur = path[path.length - 1], prev = path[path.length - 2];
+  if (t.x === cur.x && t.y === cur.y) return;
+  if (prev && t.x === prev.x && t.y === prev.y) { path.pop(); drawing.ops.pop(); drawMap(true); status(); return; }   // back over the last hex: that step off
+  const d = [0, 1, 2, 3, 4, 5].find(h => { const n = neighbour(cur.x, cur.y, h); return n.x === t.x && n.y === t.y; });
+  if (d == null || !G.afloat(t.x, t.y)) return;
+  const op = { 0: "A", 1: "P", 5: "S", 3: ASTERN }[(d - cur.h + 6) % 6];
+  if (!op) return;                                    // a 120° turn: no single hour does that, so draw a smoother line
+  drawing.ops.push(op);
+  path.push(steer(cur, op));
+  drawMap(true); status();
+}
+function finishDrawing() {
+  const d = drawing;
+  drawing = null;
+  if (d.ops.length) edit(() => { sol.ships[d.i].prog = [...sol.ships[d.i].prog, ...d.ops]; });   // one edit: Undo takes the route back
+  else render(true);
+}
 function pointerDown(e) {
   if (sim) stop();
+  if (drawMode && !viewing) { startDrawing(e); return; }
   const t = mapView.pick(e);
   if (!t) return;
   const i = shipOn(t.x, t.y);
@@ -249,6 +289,7 @@ function pointerDown(e) {
   if (i >= 0) $("sea").setPointerCapture(e.pointerId);
 }
 function pointerMove(e) {
+  if (drawing) { extendDrawing(e); return; }
   if (!drag || drag.i < 0 || viewing) return;                 // a par plan's ships stay where they are
   const t = mapView.pick(e);
   if (!t) return;
@@ -256,6 +297,7 @@ function pointerMove(e) {
   if (drag.moved) mapView.drag(drag.i, e, !G.afloat(t.x, t.y));
 }
 function pointerUp(e) {
+  if (drawing) { finishDrawing(); return; }
   if (!drag) return;
   const d = drag, t = mapView.pick(e) || d.from;
   drag = null;
@@ -275,7 +317,7 @@ function pointerUp(e) {
 }
 
 // ---------- the clock ----------
-function stop() { running = false; clearTimeout(timer); sim = null; frames = []; seen = 0; }
+function stop() { running = false; clearTimeout(timer); sim = null; frames = []; seen = 0; sound.sea(false); }
 function begin() {
   if (sim) return true;
   const why = !sol.ships.length ? "Tap the water to put a ship there first." : invalid(L, sol);
@@ -286,20 +328,31 @@ function begin() {
   return true;
 }
 const over = () => sim.done || sim.crash || sim.t >= L.maxCycles;
+/** An hour's sounds: loads, deliveries, refusals, a ship leaving a berth, a crash, the plan done. */
+function hear(before, after) {
+  if (!sound.on) return;
+  for (const ev of after.events) { if (ev.kind === "load") sound.pump(); else if (ev.kind === "discharge") sound.chime(); else if (ev.kind === "refused") sound.thud(); }
+  if (after.ships.some((s, i) => G.jetty(before.ships[i].x, before.ships[i].y) && (s.x !== before.ships[i].x || s.y !== before.ships[i].y))) sound.horn();
+  if (after.crash) sound.thud();
+  if (after.done && !before.done) sound.done();
+}
 function tick() {
+  const before = sim;
   sim = frames[sim.t + 1] || step(L, sol, sim);       // an hour already played (scrubbed back to) is the same hour again
   frames[sim.t] = sim;
   seen = Math.max(seen, sim.t);
-  if (over()) { running = false; if (sim.done) keepBests(); }
+  hear(before, sim);
+  if (over()) { running = false; sound.sea(false); if (sim.done) keepBests(); }
   render();
 }
 // the menu stops a running harbour; it runs on when the menu closes
 let heldRun = false;
-onPause(() => { if (running) { running = false; clearTimeout(timer); heldRun = true; render(); } }, () => { if (heldRun) { heldRun = false; play(); } });
+onPause(() => { if (running) { running = false; clearTimeout(timer); sound.sea(false); heldRun = true; render(); } }, () => { if (heldRun) { heldRun = false; play(); } });
 function play() {
-  if (running) { running = false; clearTimeout(timer); render(); return; }
+  if (running) { running = false; clearTimeout(timer); sound.sea(false); render(); return; }
   if (!begin() || over()) return;
   running = true;
+  sound.sea(true);
   const loop = () => { if (!running) return; tick(); if (running) timer = setTimeout(loop, SPEED[speed]); };
   loop();
 }
@@ -329,9 +382,9 @@ function render(still = false) {
 }
 /** Each ship's route over one loop, from its start. A ship's moves are its own program's alone (ships never decide),
  *  so its route doesn't depend on any other ship: drawn while you plan, whether or not ships would meet. */
-function trailsOf() {
-  const P = period(sol);
-  return sol.ships.map(s => {
+function trailsOf(plan = sol) {
+  const P = period(plan);
+  return plan.ships.map(s => {
     const ops = flatten(s.prog);
     let p = { x: s.x, y: s.y, h: s.h ?? 0 };
     const pts = [p];
@@ -341,7 +394,10 @@ function trailsOf() {
 }
 /** The map (flat or 3D): the ships as planned or as the run has them, the picked one, a crash, the tanks' levels. */
 function drawMap(still) {
-  mapView.trails(sim ? [] : trailsOf(), sel);              // routes while you plan; a run speaks for itself
+  // routes while you plan (a run speaks for itself); while a finger draws, the route so far; in draw mode a dot where
+  // the picked ship's program leaves it, where its route goes on from
+  const plan = drawing ? { ships: sol.ships.map((s, k) => (k === drawing.i ? { ...s, prog: [...s.prog, ...drawing.ops] } : s)) } : sol;
+  mapView.trails(sim ? [] : trailsOf(plan), sel, drawMode && !sim);
   const tanks = {};
   for (const [k, j] of Object.entries(L.jetties)) if (j.tank) tanks[k] = sim ? sim.tanks[k] : j.tank.start || 0;
   mapView.draw({ ships: sim ? sim.ships : sol.ships.map(s => ({ ...s, type: typeOf(L, s) })), sel: sim ? -1 : sel, crash: sim?.crash || null,
@@ -415,8 +471,9 @@ function toolbar() {
   const rest = picking
     ? ACTIONS.map(([a, name, label]) => `<button class="hb-tool hb-act" type="button" data-act="${a}" aria-label="${name}"${(a === "paste" ? !clip || !pick : !pick) ? " disabled" : ""}>${label}</button>`)
     : PAINT.map(([op, name]) => `<button class="hb-tool op-${op === WAIT ? "wait" : op}" type="button" data-op="${op}" aria-label="${name}" aria-pressed="${op === tool}">${glyph(op)}</button>`);
-  box.style.setProperty("--n", rest.length + 1);
-  box.innerHTML = toggle + rest.join("");
+  const pen = picking ? "" : `<button class="hb-tool hb-pentool" type="button" data-act="route" aria-pressed="${drawMode}" aria-label="Draw a route on the map">${ICON.pen}</button>`;
+  box.style.setProperty("--n", rest.length + (picking ? 1 : 2));
+  box.innerHTML = toggle + pen + rest.join("");
 }
 
 function controls() {
@@ -441,7 +498,9 @@ function status() {
     text = !pick ? "Tap an hour, then another to pick between."
       : pick.open ? "Tap another hour to pick between, or act now."
       : `${w} hour${w > 1 ? "s" : ""}${rows > 1 ? ` × ${rows} ships` : ""} picked`;
-  } else if (!sim) text = !n ? "Tap the water to put a ship there."
+  } else if (!sim && drawMode) text = drawing ? `Ship ${drawing.i + 1}: ${drawing.ops.length} hour${drawing.ops.length === 1 ? "" : "s"} drawn`
+    : sel >= 0 ? `Draw ship ${sel + 1}'s route on from the dot at the end of its trail.` : "Pick a ship, then draw its route on the map.";
+  else if (!sim) text = !n ? "Tap the water to put a ship there."
     : sel >= 0 ? `Ship ${sel + 1}: tap to turn it, drag to move it, onto land to scrap it.`
     : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${sol.ships.reduce((m, sh) => m + classOf(L, sh).cost, 0)}k`;
   else if (sim.crash) {
@@ -476,6 +535,7 @@ function openMenu() {
   table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
   part(body, "content").append(mirror("Level", $("level")));
   part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"),
+    action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); $("menuDlg").close(); }, "link"),
     action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
       write("harbour:flat", !mapView.flat);
       $("menuDlg").close();
@@ -498,6 +558,7 @@ $("tools").addEventListener("click", e => {
   const b = e.target.closest(".hb-tool");
   if (!b || b.disabled) return;
   if (b.dataset.act === "mode") setMode(mode === "pick" ? "paint" : "pick");
+  else if (b.dataset.act === "route") { drawMode = !drawMode; drawing = null; notice = ""; render(true); }
   else if ((b.dataset.act === "earlier" || b.dataset.act === "later") && performance.now() - repeat.at < 800) return;   // the press did it
   else if (b.dataset.act) act(b.dataset.act);
   else { tool = b.dataset.op; toolbar(); }
@@ -583,7 +644,7 @@ const seaBox = $("sea");
 seaBox.addEventListener("pointerdown", pointerDown);
 seaBox.addEventListener("pointermove", pointerMove);
 seaBox.addEventListener("pointerup", pointerUp);
-seaBox.addEventListener("pointercancel", () => { drag = null; mapView.release(); render(true); });
+seaBox.addEventListener("pointercancel", () => { drag = null; drawing = null; mapView.release(); render(true); });
 $("undoBtn").innerHTML = ICON.undo;
 $("resetBtn").innerHTML = ICON.reset;
 $("stepBtn").innerHTML = ICON.step;
