@@ -129,11 +129,11 @@ const [L3] = ["first-blend"].map(id => LEVELS.find(l => l.id === id));
 { const lead = L1.plans[0].ships[0], flat = flatten(lead.prog), next = hours(L1, { ships: [lead] }, 1).ships[0];
   const close = { ships: [lead, { x: next.x, y: next.y, h: next.h, prog: flat.slice(1).concat(flat.slice(0, 1)) }] };
   check(run(L1, close).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty"); }
-// a delivery window: one ship can't shuttle sixteen units down the single track in 60 hours; the run stops there
-{ const ST = LEVELS.find(l => l.id === "single-track"), one = { ships: [{ x: 0, y: 3, h: 0, type: "coaster", prog: program("(2L)(8A)(2D)(8B)") }] };
-  const r = run(ST, one);
-  check(!r.done && !r.crash && r.t === ST.deadline, `single track: one ship is stopped by the window at hour ${ST.deadline} (${r.t}, ${r.delivered} delivered)`);
-  check(run({ ...ST, deadline: undefined }, one).done > ST.deadline, "single track: without the window, one ship gets there, late"); }
+// a delivery window: the Handy alone on the far run takes 117 hours, so Two refineries' 100-hour window stops it there
+{ const TR = LEVELS.find(l => l.id === "two-refineries"), handy = { ships: [{ x: 2, y: 3, h: 2, type: "handy", prog: program("DDDDDSSSPAAAAPSSLLLLLSSSPAAAAPSS") }] };
+  const r = run(TR, handy);
+  check(!r.done && !r.crash && r.t === TR.deadline, `two refineries: the Handy alone is stopped by the window at hour ${TR.deadline} (${r.t}, ${r.delivered} delivered)`);
+  check(run({ ...TR, deadline: undefined }, handy).done > TR.deadline, "two refineries: without the window, the Handy alone gets there, late"); }
 // each customer its own target: a plan that serves only A never finishes Heels, however much it delivers
 { const H = LEVELS.find(l => l.id === "heels"), onlyA = { ships: [{ x: 3, y: 2, h: 2, type: "handy", prog: program("(5L)(2S)A(5D)A(3S)(2A)S") }] };
   const r = run(H, onlyA);
