@@ -73,6 +73,34 @@ export const LEVELS = [
     ],
   },
   {
+    id: "roundabout", name: "Roundabout",              // found by the level lab
+    brief: "Both berths are dead ends off a ring round a little island: the refinery (L) to the east, the customer (D) to the west, taking four units an hour. Sixteen units.",
+    map: [
+      "#######",
+      "##...##",
+      "##.#.L#",
+      "#D..###",
+      "#######",
+    ],
+    products: { oil: { name: "Oil", price: 0 } },
+    jetties: {
+      L: { kind: "load", product: "oil", parcel: 2 },
+      D: { kind: "discharge", parcel: 4 },
+    },
+    fleet: { coaster: 3 }, target: 16, maxCycles: 500,
+    par: { cost: 20, hours: 23, water: 9, instructions: 10 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [
+        { x: 5, y: 2, h: 0, type: "coaster", prog: program("(2L)BPB(3P)ADB(3P)S") },
+      ] },
+      { par: ["hours", "water"], ships: [
+        { x: 4, y: 2, h: 4, type: "coaster", prog: program("ASADB(3S)AS(2L)BS") },
+        { x: 2, y: 3, h: 3, type: "coaster", prog: program("(3S)AS(2L)BSASADB") },
+        { x: 5, y: 2, h: 5, type: "coaster", prog: program("(2L)BSASADB.(3S)AS") },
+      ] },
+    ],
+  },
+  {
     id: "single-track", name: "Single track",
     brief: "The line between the two harbours is single track, opening round a small island halfway. The jetties pump a unit an hour. Twenty-four units.",
     map: [
