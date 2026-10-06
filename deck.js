@@ -7,7 +7,8 @@ import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
-import { distance, nearestOnFeature, projection, regionView, viewWindow, clampView, worldView, REGIONS } from "./chart-engine.js";
+import { distance, nearestOnFeature, insideFeature, featureBox, viewFitting, projection, regionView, viewWindow, clampView, worldView, REGIONS } from "./chart-engine.js";
+import { COUNTRIES } from "./chart-countries.js";
 import { LAND, BORDERS } from "./world.js";
 import { part, toggle, action, line } from "./menu.js";
 const geoById = new Map(GEO.map(g => [`geo-${g.id}`, { id: `geo-${g.id}`, name: g.name, note: g.note, country: g.country, region: g.region, geo: g }]));
@@ -32,6 +33,16 @@ let answered = false;  // the card on show has been answered: Enter (or, on a ty
 let submitTyped = null;
 
 const placeById = new Map(PLACES.map(p => [p.id, p]));
+// Chart's countries, as Chart files them in the pile (co-<id>): an outline to pin anywhere inside
+const countryById = new Map(COUNTRIES.map(c => [`co-${c.id}`, { id: `co-${c.id}`, name: c.name, cat: "countries", country: c.name,
+  region: REGIONS[c.regions[0]]?.name, geo: { rings: c.rings },
+  note: `${c.flag} ${c.name}, in ${c.regions.map(r => REGIONS[r].name).join(" and ")}. ${c.neighbours.length ? `It borders ${c.neighbours.join(", ")}.` : "It has no land neighbours."}` }]));
+const outlineByName = new Map(COUNTRIES.map(c => [c.name, c]));
+/** A place's country (or countries, for a feature that crosses borders: "Saudi Arabia, Oman", "Venezuela to Chile"), as outlines. */
+const countriesOf = place => String(place.country || "").split(/,| and | to /).map(s => s.trim().replace(/^the /, ""))
+  .map(n => outlineByName.get(n === "Timor-Leste" ? "East Timor" : n)).filter(Boolean);
+// anywhere in the right country within 600 km counts too, whatever the pile: a lot of the countries are vast
+const COUNTRY_KM = 600;
 const quoteById = new Map(QUOTES.map(q => [q.id, q]));
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const shuffle = (r, xs) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
@@ -143,8 +154,14 @@ function ask() {
     const opts = shuffle(r, [p.answer, ...shuffle(r, pool).slice(0, 3)]);
     options(opts, [opts.indexOf(p.answer)], 1, `${p.answer}: ${p.word} — ${p.hint}`);
   } else if (it.game === "chart") {
-    const place = placeById.get(it.key) || geoById.get(it.key);
+    const place = placeById.get(it.key) || geoById.get(it.key) || countryById.get(it.key);
     if (!place) { skip(); return; }
+    if (place.cat === "countries") {                           // a country: always on the map, anywhere inside it
+      $("ask").textContent = "Chart · country · plot it";
+      $("prompt").textContent = `Where is ${place.name}? Tap anywhere inside it.`;
+      plot(place, place.geo, place.note, it.pile);
+      return;
+    }
     if (it.pile >= 1) {                                        // from the second pile on: where, on the map
       $("ask").textContent = `Chart · ${place.geo ? "physical" : place.cat} · plot it`;
       $("prompt").textContent = `Where is ${place.name}? Tap the map.`;
@@ -251,7 +268,15 @@ function plot(place, feature, note, level = 1) {
   const w = Math.max(240, Math.round(box.clientWidth || 340)), h = Math.round(w * 0.72), dpr = devicePixelRatio || 1;
   canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
   const region = Object.keys(REGIONS).find(k => REGIONS[k].name === place.region) || null;   // places name their region
-  const win = viewWindow(clampView(region ? regionView(region, w, h) : worldView(), w, h), w, h);
+  let view = clampView(region ? regionView(region, w, h) : worldView(), w, h);
+  // the answer has to be on the map, which doesn't pan: a place or feature beyond its region's window (Norilsk, at 69°N,
+  // above Asia's) widens the window to take it in, without centring on it. A country needn't: any part of it will do.
+  if (place.cat !== "countries") {
+    const w0 = viewWindow(view, w, h), [lon0, lat0, lon1, lat1] = feature ? featureBox(feature) : [place.lon, place.lat, place.lon, place.lat];
+    if (lon0 < w0.lon0 || lon1 > w0.lon1 || lat0 < w0.lat0 || lat1 > w0.lat1)
+      view = viewFitting([{ lon: w0.lon0, lat: w0.lat0 }, { lon: w0.lon1, lat: w0.lat1 }, { lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }], w, h, { pad: 1.08 });
+  }
+  const win = viewWindow(view, w, h);
   const proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
   const ctx = canvas.getContext("2d");
   ctx.scale(dpr, dpr);
@@ -267,7 +292,8 @@ function plot(place, feature, note, level = 1) {
   for (const l of BORDERS) l.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
   ctx.stroke();
   // right within a share of the map's width that narrows as the card climbs the piles: a 25th in the short pile,
-  // a 40th in the medium, a 60th in the long (on Asia's map about 500, 310 and 190 km): the right part of China, not China
+  // a 40th in the medium, a 60th from the long on (on Asia's map about 500, 310 and 190 km): the right part of China,
+  // not China; or within COUNTRY_KM anywhere inside the right country. A country itself: anywhere inside its outline.
   const midLat = (win.lat0 + win.lat1) / 2, widthKm = (win.lon1 - win.lon0) * 111.32 * Math.cos(midLat * Math.PI / 180);
   const [share, floor] = [[25, 120], [25, 120], [40, 90], [60, 60]][Math.min(3, level)];
   const tolerance = Math.max(floor, Math.round(widthKm / share / 10) * 10);
@@ -276,7 +302,9 @@ function plot(place, feature, note, level = 1) {
     const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * (w / b.width), y = (e.clientY - b.top) * (h / b.height);
     const [lon, lat] = proj.toLonLat(x, y), pin = { lat, lon };
     const hit = feature ? nearestOnFeature(pin, feature) : { km: distance(pin, place), point: { lat: place.lat, lon: place.lon } };
-    const ok = hit.km <= tolerance, good = colour(canvas, ok ? "--dk-good" : "--dk-bad"), ink = colour(canvas, "--ink");
+    const isCountry = place.cat === "countries", home = isCountry ? null : countriesOf(place).find(c => insideFeature(pin, c));
+    const near = hit.km <= tolerance, inHome = !near && !!home && hit.km <= COUNTRY_KM;
+    const ok = isCountry ? hit.km === 0 : near || inHome, good = colour(canvas, ok ? "--dk-good" : "--dk-bad"), ink = colour(canvas, "--ink");
     if (feature) {                                             // the feature itself, drawn on the reveal
       ctx.strokeStyle = good; ctx.lineWidth = 2.2; ctx.beginPath();
       for (const part of feature.lines || feature.rings || []) part.forEach(([flon, flat], i) => { const [fx, fy] = proj.toXY(flon, flat); if (i) ctx.lineTo(fx, fy); else ctx.moveTo(fx, fy); });
@@ -286,7 +314,9 @@ function plot(place, feature, note, level = 1) {
     ctx.setLineDash([4, 3]); ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]);
     ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
     ctx.strokeStyle = good; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 7); ctx.stroke();
-    settle(ok, `${hit.km < 1 ? "On it" : `${Math.round(hit.km).toLocaleString("en-GB")} km off`} (within ${tolerance} km counts). ${note}`);
+    const off = `${Math.round(hit.km).toLocaleString("en-GB")} km`;
+    settle(ok, isCountry ? `${hit.km === 0 ? "Inside it." : `Outside it, ${off} from its border.`} ${note}`
+      : `${hit.km < 1 ? "On it" : `${off} off`}${inHome ? `, but in ${home.name}: within ${COUNTRY_KM} km counts there` : ` (within ${tolerance} km counts, or ${COUNTRY_KM} km in the right country)`}. ${note}`);
   });
 }
 /** A name-it card from Punt: the hint, a box to type the name in, and Check. Recall, as it was asked in Punt: nothing to
