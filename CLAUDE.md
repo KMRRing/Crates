@@ -137,3 +137,11 @@ for every script and runs in CI. A missing brace in solo.js once passed every te
 A game stands still while its menu, rules or the games screen is open. A game with a clock, a countdown, an animation
 that scores, or a computer that moves by itself must listen: `onPause(pause, resume)` from `menu.js` (resume gets the
 milliseconds it stood, to move a start or deadline on), and not start its clock while `isPaused()`. Duo clocks don't stop.
+
+## Writing questions
+
+A right option must not give itself away: make every wrong option as long, as specific and as plausible as the right
+one (a neighbouring idea, or the answer with one thing changed), and don't let the answer be the only option with a
+formula or a number. Put the extra detail in the explanation (`x`), not the answer. `tests/banks.mjs` fails otherwise.
+Banks built from the knowledge base (art, chm, cities, cs, eco, flags, phil, phy, refining, rel) are edited in
+`kb/items/choice/<bank>.js`, then `node tools/build-kb.mjs`; maths, wine, words, reasoning and patterns are edited in place.

@@ -142,6 +142,8 @@ Wrong options are real alternatives, never padding. In Philosophy each wrong ans
 
 The odds run on a scale from 1.1× (the easiest question) to 3× (the hardest), by how hard the house thinks a question is for a typical player (its fair price, 1/chance, with the house's spread of opinion); the scale's ends sit at fair prices of 1.16 and 1.54, tuned so a long run of Balanced questions averages about 2× (measured: 1.98×, the easiest twentieth at 1.1×, the hardest at 3×). It's a game's scale, not a bookmaker's: there's no house margin any more, a typical player comes out ahead on a long run, and the skill is in the stake. A typed answer pays more, by how much rarer it is than a pick, up to 4×.
 
+No subject question gives its answer away. Every bank was audited (442 of 3,067 questions did: the right option clearly the longest, or the only one with a formula or a number) and those questions rewritten, every option as long, specific and plausible as the answer: often a neighbouring idea (Veblen for Giffen, contango for backwardation, Bellman-Ford for Dijkstra, the expected shortfall for VaR, jihad as a false fifth pillar) or the answer with one thing changed; detail that only the answer carried moved to the explanation. `tests/banks.mjs` holds every bank to it.
+
 ## Cartel
 Coup and Liar's Dice built from dice. Everyone has gold dice (lives and roles; two each) and plain dice (money and weight in the bidding; three to start, at most eight), all hidden. A face is both a number and a role: 1 Fixer, 2 Banker, 3 Trader, 4 Auditor, 5 Legal, 6 Regulator. Only gold dice give powers; every die counts in bids, 1s (Fixers) as any face.
 

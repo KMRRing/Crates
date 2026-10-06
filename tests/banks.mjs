@@ -1,11 +1,11 @@
 // The subject banks don't give their answers away: the right option mustn't stand out as clearly the longest, or as
-// the only one with a formula or a number. Banks listed in CLEAN are held to it (none may give an answer away);
-// the others are counted until they're rewritten. Run: node tests/banks.mjs
+// the only one with a formula or a number (options that are all names are left to vary). Every bank is held to it:
+// a new question that gives its answer away fails the tests. Run: node tests/banks.mjs
 import fs from "fs";
 globalThis.window = {}; globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
-const CLEAN = new Set(["physics", "chemistry", "economics", "religion", "code", "wine", "art", "words", "refining", "reasoning", "cities", "flags", "patterns", "philosophy"]);
+const CLEAN = new Set(P.TOPIC_LIST.map(([id]) => id).filter(id => !P.CLUE_TOPICS[id]));   // every subject bank, now
 const formula = s => /[=≥≤≈∝ΔΣ∫√±×÷^ℏπλμσ$/−²³⁴⁵ⁿ⁰¹⁺⁻₀₁₂₃ₐᵇ∑∏∞∂∇⟂∥ℤℝℂℕ∈⊂]|\d/.test(s);
 // options that are all names (a country, a city, a painter, a museum) vary in length by nature, not by a writer
 // padding the answer: the length rule leaves them be
