@@ -319,5 +319,90 @@ export const SEQUENCES = [
    "Ferment for a week or more",
    "Lager it cold for weeks"
   ]
+ },
+ {
+  "id": "road-to-union",
+  "name": "The road to the Union",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1603, 1638, 1651, 1692, 1698, 1700, 1704, 1705, 1706, 1707.",
+  "steps": [
+   "James VI inherits the English crown",
+   "Scots sign the National Covenant",
+   "Cromwell's army occupies Scotland",
+   "Soldiers massacre the MacDonalds at Glen Coe",
+   "The Darien expedition sails for Panama",
+   "Darien is abandoned, and the money with it",
+   "Scotland's Act of Security defies England",
+   "England's Alien Act threatens Scottish trade",
+   "Commissioners agree the Treaty of Union",
+   "The Acts of Union come into force"
+  ]
+ },
+ {
+  "id": "the-forty-five",
+  "name": "The Forty-Five",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "July 1745 to September 1746.",
+  "steps": [
+   "Charles Edward Stuart lands on Eriskay",
+   "He raises his standard at Glenfinnan",
+   "The Jacobites take Edinburgh",
+   "They rout Cope's army at Prestonpans",
+   "They reach Derby, then turn back",
+   "They win again at Falkirk",
+   "They are crushed at Culloden",
+   "Charles escapes 'over the sea to Skye'",
+   "He sails for France, never to return"
+  ]
+ },
+ {
+  "id": "tudors",
+  "name": "The Tudors",
+  "unit": "monarch",
+  "ask": "Who reigned first? Tap where they go",
+  "note": "1485 to 1603, from Bosworth to Elizabeth I's death and the Union of the Crowns.",
+  "steps": [
+   "Henry VII",
+   "Henry VIII",
+   "Edward VI",
+   "Lady Jane Grey, for nine days",
+   "Mary I",
+   "Elizabeth I"
+  ]
+ },
+ {
+  "id": "henry-viii-wives",
+  "name": "The wives of Henry VIII",
+  "unit": "wife",
+  "ask": "Which wife came first? Tap where she goes",
+  "note": "Divorced, beheaded, died; divorced, beheaded, survived.",
+  "steps": [
+   "Catherine of Aragon",
+   "Anne Boleyn",
+   "Jane Seymour",
+   "Anne of Cleves",
+   "Catherine Howard",
+   "Catherine Parr"
+  ]
+ },
+ {
+  "id": "whisky-making",
+  "name": "How Scotch is made",
+  "unit": "step",
+  "ask": "Which step comes first? Tap where it goes",
+  "note": "Malt whisky by the book: two copper pot stills, and at least three years in oak in Scotland.",
+  "steps": [
+   "Steep the barley until it sprouts",
+   "Dry the malt, sometimes over peat",
+   "Mash the malt in hot water",
+   "Ferment the sweet wort into wash",
+   "Distil it once in the wash still",
+   "Distil again in the spirit still",
+   "Keep only the heart of the run",
+   "Fill the spirit into oak casks",
+   "Mature it at least three years"
+  ]
  }
 ];

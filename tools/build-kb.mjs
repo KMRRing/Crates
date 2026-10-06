@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -172,7 +172,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     for (const g of gods) {
       const rest = order(g.id, gods.filter(o => o !== g)), x = `${g.name}${g.roman ? ` (to the Romans, ${g.roman})` : ""}: ${g.domain}; ${g[signOf]}.`;
       const mk = (kind, q, right, pool) => { const options = order(g.id + kind, [right, ...pool.slice(0, 3)]);
-        return { id: `MY-G-${g.id}-${kind}`, lv, d: 3, area: { gods: "Gods of Greece and Rome", norse: "The Norse", egypt: "Egypt" }[lv], q, o: options, a: [options.indexOf(right)], s: 1, x, about: [g.id] }; };
+        return { id: `MY-G-${g.id}-${kind}`, lv, d: 5, area: { gods: "Gods of Greece and Rome", norse: "The Norse", egypt: "Egypt" }[lv], q, o: options, a: [options.indexOf(right)], s: 1, x, about: [g.id] }; };
       out.myth.push(mk("domain", `${cap(g.domain)}: which ${who} god?`, g.name, rest.map(o => o.name)));
       out.myth.push(mk("sign", signQ(g[signOf]), g.name, rest.map(o => o.name)));
       if (g.roman) out.myth.push(mk("roman", `What did the Romans call ${g.name}?`, g.roman, rest.filter(o => o.roman).map(o => o.roman)));
@@ -189,7 +189,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const near = powers.filter(o => o !== p).sort((a, b) => Math.abs(startOf(a) - startOf(p)) - Math.abs(startOf(b) - startOf(p)) || (a.id < b.id ? -1 : 1));
     const x = `${p.title} (${p.span}; ${p.where}). Traded ${p.traded}. Did business through ${p.model}. Run as ${p.ruled}.${p.dark ? ` Darkest chapter: ${p.dark}.` : ""} The end: ${p.fell}. It left ${p.then}.`;
     const mk = (kind, q, right, pool) => { const options = order(p.id + kind, [right, ...pool.slice(0, 3)]);
-      return { id: `MC-P-${p.id}-${kind}`, lv: "powers", d: 3, area: "Merchant powers", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [p.id] }; };
+      return { id: `MC-P-${p.id}-${kind}`, lv: "powers", d: 5, area: "Merchant powers", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [p.id] }; };
     out.merchants.push(mk("traded", `Which merchant power traded ${p.traded}?`, p.title, near.map(o => o.title)));
     out.merchants.push(mk("model", `How did ${low(p.title)} do business?`, p.model, near.map(o => o.model)));
     if (p.dark) out.merchants.push(mk("dark", `Whose darkest chapter was ${p.dark}?`, p.title, near.filter(o => o.dark).map(o => o.title)));
@@ -200,7 +200,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   // styles in English, and the dress codes both ways. Wrong names are the ones nearest in length (so no option stands out
   // by its length); a founder of two orders, or one whose name echoes the order's (Victoria, Victorian), isn't asked.
   const teQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...pool.filter(o => o !== right).slice(0, 3)]);
-    return { id, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+    return { id, lv, d: 5, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
   const teByLength = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
   const teOrders = ENTITIES.filter(e => e.sets.includes("chivalric-order"));
   const teFounders = teOrders.reduce((m, o) => m.set(o.founder, (m.get(o.founder) || 0) + 1), new Map());
@@ -229,7 +229,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   // a founder would give the house away), the dealers by the artists they made, the forgers by whom they faked and how
   // they were caught. The wrong answers are the names or accounts nearest in length.
   const amQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...pool.filter(o => o !== right).slice(0, 3)]);
-    return { id, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+    return { id, lv, d: 5, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
   const amNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
   const amHouses = ENTITIES.filter(e => e.sets.includes("auction-house"));
   for (const h of amHouses) out.artmarket.push(amQ("dealers", "Houses and dealers", `AM-G-${h.id}`, `Which auction house was founded in ${h.city} in ${h.year}?`, h.name,
@@ -245,8 +245,10 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   // Bavaria, from kb/: the seven districts by their capitals, the companies by their home towns, the Bairisch words by
   // what they mean. The wrong answers are the other districts' capitals, the other companies' towns, the other words'
   // meanings, the nearest in length first.
-  const byQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
-    return { id, lv, d: 2, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  // difficulty, on Punt's scale of 1 to 10: a district's capital or a company's town is harder than a word (Ansbach,
+  // Zirndorf); the house prices by it
+  const byQ = (lv, area, id, q, right, pool, x, about, d = lv === "language" ? 2 : 5) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
   const byNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
   const byDistricts = ENTITIES.filter(e => e.sets.includes("bavarian-district"));
   for (const d of byDistricts) out.bavaria.push(byQ("places", "Places", `BY-G-${d.id}`, `Which city is the capital of ${d.name}?`, d.capital,
@@ -257,6 +259,22 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   const byWords = ENTITIES.filter(e => e.sets.includes("bavarian-word") && e.meaning);
   for (const w of byWords) out.bavaria.push(byQ("language", "Bairisch", `BY-G-${w.id}`, `What does the Bavarian '${w.name}' mean?`, w.meaning,
     byNear(w.meaning, byWords.filter(o => o !== w).map(o => o.meaning)), `${w.name}: ${w.meaning}.`, [w.id]));
+
+  // Britain and Scotland, from kb/: the Scots words by meaning, the distilleries by whisky region, the inventors by what
+  // they gave the world. The wrong answers are the other words' meanings, the other regions, the other inventors.
+  // difficulty, on Punt's scale of 1 to 10: a distillery's region is harder than a word or an inventor; the house prices by it
+  const gbQ = (lv, area, id, q, right, pool, x, about, d = lv === "whisky" ? 5 : 2) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  const gbNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const gbWords = ENTITIES.filter(e => e.sets.includes("scots-word") && e.meaning);
+  for (const w of gbWords) out.britain.push(gbQ("words", "Scots words", `GB-G-${w.id}`, `What does the Scots '${w.name}' mean?`, w.meaning,
+    gbNear(w.meaning, gbWords.filter(o => o !== w).map(o => o.meaning)), `${w.name}: ${w.meaning}.`, [w.id]));
+  const gbStills = ENTITIES.filter(e => e.sets.includes("distillery") && e.whiskyRegion), gbRegions = [...new Set(gbStills.map(d => d.whiskyRegion))];
+  for (const d of gbStills) out.britain.push(gbQ("whisky", "Whisky", `GB-G-${d.id}`, `Which whisky region is ${d.name} distilled in?`, d.whiskyRegion,
+    order(d.id + "r", gbRegions), `${d.name} is a ${d.whiskyRegion} malt. The five regions: Speyside, Highland, Lowland, Islay and Campbeltown.`, [d.id]));
+  const gbMakers = ENTITIES.filter(e => e.sets.includes("scottish-inventor") && e.gave);
+  for (const m of gbMakers) out.britain.push(gbQ("science", "Scottish inventors", `GB-G-${m.id}`, `Which Scot gave the world ${m.gave}?`, m.name,
+    gbNear(m.name, gbMakers.filter(o => o !== m).map(o => o.name)), `${m.name}: ${m.gave}.`, [m.id]));
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

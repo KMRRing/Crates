@@ -21,12 +21,17 @@ const COUNTRY_PLACES = COUNTRIES.map(c => ({ id: `co-${c.id}`, cat: "countries",
 const withRegions = p => { const regions = p.regions || regionsOfPlace(p, REGION_OF); return { ...p, regions, region: regions.length ? REGIONS[regions[0]].name : p.region }; };
 const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about })), ...COUNTRY_PLACES].map(withRegions);
 /** What a selection deals from: its topic's categories, in its region ("world": anywhere). */
-// a region's own category (Bavaria's towns and peaks) is dealt only in that region
-const LOCAL = Object.fromEntries(Object.entries(REGIONS).filter(([, r]) => r.local).map(([k, r]) => [r.local, k]));
+// a sub-region's own category (Bavaria's towns, Scotland's glens) is dealt only in sub-regions its places belong to:
+// Scottish towns in Scotland and in Britain, never in Europe or the world
+const LOCAL = new Set(Object.values(REGIONS).map(r => r.local).filter(Boolean));
 const poolOf = ({ topic = "all", region = "world" } = {}) => PLACES.filter(p => (!TOPICS[topic]?.cats || TOPICS[topic].cats.includes(p.cat))
-  && (region === "world" || p.regions.includes(region)) && (!LOCAL[p.cat] || LOCAL[p.cat] === region));
+  && (region === "world" || p.regions.includes(region)) && (!LOCAL.has(p.cat) || (REGIONS[region]?.sub && p.regions.includes(region))));
 const capOf = sel => capFor(sel.topic || "all", new Set(poolOf(sel).map(p => p.cat)).size);
 import { LAND, BORDERS } from "./world.js";
+import { DETAIL } from "./chart-detail.js";
+// the box each detailed coastline covers: coarse land wholly inside it gives way to the detail
+const DETAIL_BOX = Object.fromEntries(Object.entries(DETAIL).map(([k, polys]) => { const pts = polys.flatMap(p => p[0]);
+  return [k, [Math.min(...pts.map(q => q[0])), Math.max(...pts.map(q => q[0])), Math.min(...pts.map(q => q[1])), Math.max(...pts.map(q => q[1]))]]; }));
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
@@ -160,14 +165,16 @@ function setup(canvas, w, h) {
   return ctx;
 }
 const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-/** Draws land (polygon by polygon, holes included) and borders through a projection onto a w×h context. */
-function drawMap(ctx, proj, win, w, h) {
+/** Draws land (polygon by polygon, holes included) and borders through a projection onto a w×h context. A detailed coastline
+ *  (key into DETAIL) replaces the coarse land wholly inside its box. */
+function drawMap(ctx, proj, win, w, h, detail = null) {
   ctx.fillStyle = css("--ch-sea");
   ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = css("--ch-land");
   const inView = ring => ring.some(([lon, lat]) => lon >= win.lon0 - 5 && lon <= win.lon1 + 5 && lat >= win.lat0 - 5 && lat <= win.lat1 + 5)
     || ring.some(([lon]) => lon < win.lon0) && ring.some(([lon]) => lon > win.lon1);
-  for (const poly of LAND) {
+  const box = detail && DETAIL_BOX[detail], inside = ring => box && ring.every(([lon, lat]) => lon >= box[0] && lon <= box[1] && lat >= box[2] && lat <= box[3]);
+  for (const poly of [...LAND.filter(p => !inside(p[0])), ...(detail ? DETAIL[detail] : [])]) {
     if (!inView(poly[0])) continue;
     ctx.beginPath();
     for (const ring of poly) {
@@ -192,11 +199,11 @@ function drawMap(ctx, proj, win, w, h) {
     ctx.stroke();
   }
 }
-/** A region within a country (Bavaria) carries its own outline, and its rivers and lakes for bearings: drawn faintly, under
- *  the pins, whenever a round is played in it. */
+/** A sub-region (Bavaria, Scotland, Britain) carries its outline or borders, and its rivers and lakes for bearings: drawn
+ *  faintly, under the pins, whenever a round is played in it. */
 function drawRegion(ctx, proj, region) {
   const r = REGIONS[region];
-  if (!r?.outline) return;
+  if (!r?.outline && !r?.borders) return;
   const trace = pts => pts.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
   for (const id of r.context || []) {
     const g = GEO.find(f => f.id === id);
@@ -205,7 +212,9 @@ function drawRegion(ctx, proj, region) {
     if (g.rings) { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
     if (g.lines) { for (const l of g.lines) trace(l); ctx.strokeStyle = "rgba(60,120,180,.55)"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke(); }
   }
-  ctx.beginPath(); trace(r.outline); ctx.closePath();
+  ctx.beginPath();
+  if (r.outline) { trace(r.outline); ctx.closePath(); }
+  for (const b of r.borders || []) trace(b);
   ctx.setLineDash([6, 4]); ctx.strokeStyle = css("--ch-border"); ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
 }
 /** A feature on the map: a river as a blue line, a range, desert, plateau or lake as a filled shape. */
@@ -248,7 +257,7 @@ function drawMaps() {
     const canvas = $(name);
     const { proj, win, w, h } = projFor(name);
     const ctx = setup(canvas, w, h);
-    drawMap(ctx, proj, win, w, h);
+    drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail);
     drawRegion(ctx, proj, S.region || "world");
     const colour = kind => (kind === "theirs" ? "#7A4BC9" : css("--ch-in"));
     if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
