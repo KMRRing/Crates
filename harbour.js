@@ -136,6 +136,14 @@ function paintCell(row, col) {
   sel = row;
   edit(() => { sol.ships[row].prog = T.paint(prog, col, here.op === tool ? null : tool); });   // the same instruction again clears it
 }
+/** Held (or right-clicked with a mouse), an instruction becomes a loop of its own: that hour, played twice. */
+function loopHour(row, col) {
+  const prog = sol.ships[row]?.prog, a = prog && T.at(prog, col);
+  if (!a?.op) return;                                       // an empty hour stays as it is
+  if (a.kind !== "op") { notice = "That hour is in a loop already: loops don't nest."; render(true); return; }
+  sel = row;
+  edit(() => { sol.ships[row].prog = T.loop(prog, col, col); });
+}
 function count(row, col, by) {
   const a = T.at(sol.ships[row].prog, col);
   if (a.kind !== "ghost") return;
@@ -463,12 +471,21 @@ tapeBox.addEventListener("wheel", e => {
   tapeBox.scrollLeft += e.deltaY;
   e.preventDefault();
 }, { passive: false });
+// A hold that fired swallows the click (and an Android right-click) that ends it, for a moment only: the programs are
+// redrawn when it fires, so the release can land on a button that's gone and never reach here to clear it.
+const justHeld = () => !!held?.fired && performance.now() - held.at < 1000;
+const fire = act => { held.fired = true; held.at = performance.now(); act(); };
 tapeBox.addEventListener("pointerdown", e => {
   swept = false;
+  if (held) { clearTimeout(held.timer); held = null; }     // a new press starts afresh
   const b = e.target.closest(".hb-cell");
   if (!b || b.disabled) return;
+  const row = +b.dataset.row, col = +b.dataset.col;
   if (b.classList.contains("lp-badge")) {            // holding a loop's count takes a pass away
-    held = { fired: false, timer: setTimeout(() => { held.fired = true; count(+b.dataset.row, +b.dataset.col, -1); }, HOLD) };
+    held = { fired: false, x: e.clientX, y: e.clientY, timer: setTimeout(() => fire(() => count(row, col, -1)), HOLD) };
+  } else if (e.pointerType !== "mouse" && b.classList.contains("hb-cell") && T.at(sol.ships[row]?.prog || [], col).op) {
+    // holding an instruction (a finger; a mouse right-clicks) makes it a loop of its own
+    held = { fired: false, x: e.clientX, y: e.clientY, timer: setTimeout(() => fire(() => loopHour(row, col)), HOLD) };
   } else if (mode === "pick" && e.pointerType === "mouse") {
     if (sim) { stop(); render(true); }
     sweeping = swept = true;
@@ -477,20 +494,33 @@ tapeBox.addEventListener("pointerdown", e => {
   }
 });
 tapeBox.addEventListener("pointermove", e => {
+  // a finger that moves is scrolling the programs, not holding an hour
+  if (held && !held.fired && Math.hypot(e.clientX - held.x, e.clientY - held.y) > 8) { clearTimeout(held.timer); held = null; }
   if (!sweeping) return;
   const b = document.elementFromPoint(e.clientX, e.clientY)?.closest(".hb-cell");
   if (b && !b.disabled) pickAt(+b.dataset.row, +b.dataset.col, true);
 });
 addEventListener("pointerup", () => { if (held) clearTimeout(held.timer); sweeping = false; });
+tapeBox.addEventListener("pointercancel", () => { if (held && !held.fired) { clearTimeout(held.timer); held = null; } });
+// a right-click does what holding does: a loop's count takes a pass away, an instruction becomes a loop of its own. A
+// phone that sends one at the end of a long press (Android) finds the hold has already done it.
 tapeBox.addEventListener("contextmenu", e => {
-  const b = e.target.closest(".lp-badge");
-  if (b) { e.preventDefault(); if (held) { clearTimeout(held.timer); held.fired = true; } count(+b.dataset.row, +b.dataset.col, -1); }
+  const b = e.target.closest(".hb-cell");
+  if (!b) return;
+  e.preventDefault();
+  if (justHeld()) return;
+  if (held) clearTimeout(held.timer);
+  held = {};
+  fire(() => (b.classList.contains("lp-badge") ? count(+b.dataset.row, +b.dataset.col, -1) : loopHour(+b.dataset.row, +b.dataset.col)));
 });
 tapeBox.addEventListener("click", e => {
   const b = e.target.closest("button");
   if (!b || b.disabled) return;
+  const wasHeld = justHeld();
+  held = null;
+  if (wasHeld) return;                                // a hold did its work: the click that ends it does nothing more
   const row = +b.dataset.row, col = +b.dataset.col;
-  if (b.classList.contains("lp-badge")) { if (!held?.fired) count(row, col, 1); held = null; return; }
+  if (b.classList.contains("lp-badge")) { count(row, col, 1); return; }
   if (b.classList.contains("hb-lab")) {
     if (sim) stop();
     if (mode === "pick") pickRow(row); else { sel = sel === row ? -1 : row; render(true); }
