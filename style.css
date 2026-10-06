@@ -8,6 +8,7 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 
 :root {
+  --caps: uppercase; --track: 1; --stretch-btn: 112%;   /* the Deco lettering; the other themes reset these */
   --gap: 6px;             /* between tiles, and between solved crates */
   --tile-ratio: .8;       /* tile height / width */
   /* Almanac's look: brass instruments on an almanac's page. Light is the page (parchment, navy ink, brass rules);
@@ -140,7 +141,7 @@ button, input { font: inherit; color: inherit; }
    only the partner pill in it shrinking (to "…"); the game's name and icon stay whole. */
 .mark {
   display: flex; align-items: center; gap: .55rem; margin: 0; min-width: 0; flex: 0 1 auto;
-  font-size: 1.32rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; line-height: 1;
+  font-size: 1.32rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1;
 }
 .mark-icon { width: 2.5rem; height: 2.5rem; flex: none; }   /* the game's logo: as large as the rete across the header */
 .cr-mark { display: inline-block; }
@@ -161,10 +162,10 @@ dialog.apps[open] { animation: apps-in .16s ease-out; }
 @keyframes apps-in { from { opacity: 0; transform: scale(.985); } }
 @media (prefers-reduced-motion: reduce) { dialog.apps[open] { animation: none; } }
 .apps-inner { max-width: 46rem; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
-dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .14em; text-transform: uppercase; }
+dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.14em * var(--track)); text-transform: var(--caps); }
 .apps-actions { display: flex; gap: .45rem; }
 .apps-brand { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 0 0 .7rem; padding-bottom: .65rem;
-  font-size: 1.45rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .22em; text-transform: uppercase; line-height: 1;
+  font-size: 1.45rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.22em * var(--track)); text-transform: var(--caps); line-height: 1;
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
     repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
 .apps-brand img { width: 2rem; height: 2rem; display: block; }
@@ -187,8 +188,8 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .app-logo, .mark-icon { --wire: 1; }
 .app-row.cur .app-logo, .app-row:hover .app-logo, .app-row:active .app-logo, .app-row:focus-visible .app-logo { --wire: 1.5; }
 .app-logo svg *, .mark-icon svg * { transition: stroke-width .15s ease; }
-.app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; line-height: 1.1; }
-.app-now { font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .05rem .45rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); }
+.app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.1; }
+.app-now { font-size: .62rem; font-weight: 800; letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); padding: .05rem .45rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); }
 @container (max-height: 6.6rem) { .app-now { display: none; } }
 /* "…" opens the other games in a popup over the screen of games */
 dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-box; margin: auto; padding: 1rem; border: 1.5px solid var(--brass); border-radius: 10px;
@@ -225,7 +226,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 }
 .pick {
   background: none; border: 1.5px solid var(--brass); border-radius: 4px; color: var(--ink);
-  padding: .3rem .7rem; font-weight: 750; font-size: .8rem; font-stretch: 112%; letter-spacing: .1em; text-transform: uppercase;
+  padding: .3rem .7rem; font-weight: 750; font-size: .8rem; font-stretch: var(--stretch-btn); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps);
   cursor: pointer; min-height: 36px; white-space: nowrap; flex-shrink: 0;
 }
 @media (max-width: 400px) {
@@ -337,7 +338,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .crate.l2 { background: color-mix(in srgb, var(--c2) 20%, var(--sheet)); border-color: var(--c2); }
 .crate.l3 { background: color-mix(in srgb, var(--c3) 18%, var(--sheet)); border-color: var(--c3); }
 .crate.missed { border-style: dashed; opacity: .8; }
-.crate-name { font-size: 1.05rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .08em; text-transform: uppercase; line-height: 1.15; flex: none; }
+.crate-name { font-size: 1.05rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); line-height: 1.15; flex: none; }
 .crate-meta { font-size: .82rem; font-weight: 600; color: var(--ink-soft); min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 /* one line, always: the view shrinks the font until the four words fit */
 .crate-words { font-weight: 550; font-stretch: 87.5%; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -357,7 +358,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .controls { display: flex; gap: .5rem; justify-content: center; }
 .btn {
   border: 1.5px solid var(--brass); background: transparent; border-radius: 4px; color: var(--ink);
-  padding: .5rem 1.1rem; font-weight: 750; font-size: .86rem; font-stretch: 112%; letter-spacing: .08em; text-transform: uppercase;
+  padding: .5rem 1.1rem; font-weight: 750; font-size: .86rem; font-stretch: var(--stretch-btn); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps);
   cursor: pointer; min-height: 44px;
 }
 .btn.primary { background: var(--plate); color: var(--plate-ink); border-color: var(--plate);
@@ -411,7 +412,7 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .set-head h3 { margin: 0; font-size: 1.25rem; font-weight: 800; }
 .set-note { margin: .45rem 0 .2rem; font-size: .9rem; }
 .set-note.sep { margin-top: 1.1rem; padding-top: .9rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 35%, transparent); }
-.sheet h4 { margin: 1rem 0 .4rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .12em; text-transform: uppercase; color: var(--brass-lo); }
+.sheet h4 { margin: 1rem 0 .4rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .seg { display: inline-flex; border: 1.5px solid var(--brass); border-radius: 4px; overflow: hidden; }
 .seg button {
   background: none; border: 0; border-left: 1.5px solid var(--brass); color: var(--ink);
@@ -437,7 +438,7 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
   border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard);
 }
 .pick-head { display: flex; justify-content: space-between; align-items: center; }
-.pick-head h2 { font-size: 1.1rem; font-weight: 800; margin: 0; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; }
+.pick-head h2 { font-size: 1.1rem; font-weight: 800; margin: 0; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
 .pick-list { list-style: none; padding: 0; margin: 1rem 0; }
 .pick-list button {
   width: 100%; display: flex; justify-content: space-between; background: none; border: 0;
@@ -524,7 +525,7 @@ dialog.menu-sheet .menu-x { width: 36px; height: 36px; }
 /* the standard parts, each under the same small heading */
 .menu-part { margin-top: .9rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
 .menu-part:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
-.menu-h { margin: 0 0 .45rem; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .14em; text-transform: uppercase; color: var(--brass-lo); }
+.menu-h { margin: 0 0 .45rem; font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.14em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 /* the long explanations, folded away at the bottom */
 details.menu-how { margin-top: 1rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); color: var(--ink-soft); font-size: .88rem; }
 details.menu-how summary { cursor: pointer; font-weight: 700; color: var(--ink); list-style-position: inside; padding: .2rem 0; }
@@ -537,7 +538,7 @@ html:not(.ready) body::after, html.busy body::after {
   content: attr(data-busy); position: fixed; inset: 0; z-index: 2147483000; display: block; box-sizing: border-box;
   padding: calc(50vh + min(23vw, 6.5rem) + .4rem) 1.5rem 0; text-align: center;
   background: var(--yard) url("rete.svg") center calc(50% - .9rem) / min(46vw, 13rem) no-repeat;
-  color: var(--brass-lo); font: 800 .76rem/1.4 var(--font); font-stretch: var(--wide); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--brass-lo); font: 800 .76rem/1.4 var(--font); font-stretch: var(--wide); letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps);
   animation: busy-in .2s .35s both;
 }
 html:not(.ready) body::after { pointer-events: none; }
@@ -590,3 +591,58 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }
+
+/* ---------- the themes: Deco (as above, the default), Modern (the clean app look Almanac had before Deco) and Kontor
+   (a clean technical look in green, after Korbi's Kontor). Each has a day and a night, following the system. Chosen on
+   the games screen (More, Settings) and set on <html data-theme> by theme.js before the page draws. ---------- */
+html[data-theme="modern"] {
+  --yard: #E4E7E7; --ink: #1C2A34; --ink-soft: #5A6B77; --tile: #F7F8F7; --tile-edge: #C9D1D5;
+  --c0: #E1AB24; --c1: #3F7A50; --c2: #2D5E88; --c3: #A23C30; --on-c: #F7F5EF; --sheet: #F4F5F4;
+  --focus: #2D5E88; --p0: #2D5E88; --p1: #C06A1B; --learn: #3F7A50;
+  --brass: var(--tile-edge); --brass-hi: var(--sheet); --brass-lo: var(--ink-soft); --rule: var(--tile-edge); --plate: var(--ink); --plate-ink: var(--yard);
+  --caps: none; --track: 0; --stretch-btn: 100%; --wide: 100%; --cr-logo-tint: #F3E1BA; --cr-logo-edge: #A2690F; --sl-logo-tint: #D3DEE7; --sl-logo-edge: #3F5A70; --d-logo-tint: #CBE7E4; --d-logo-edge: #17807C; --pt-logo-tint: #CFE6D8; --pt-logo-edge: #2E6B4A; --ct-logo-tint: #F1D7DC; --ct-logo-edge: #8E2C3B; --sp-logo-tint: #FBDCCB; --sp-logo-edge: #C2511F; --qt-logo-tint: #DCDFF5; --qt-logo-edge: #3F4DAE; --mf-logo-tint: #D2ECEA; --mf-logo-edge: #137C77; --ch-logo-tint: #D5E7F1; --ch-logo-edge: #1F6F9A; --sv-logo-tint: #F3E6CF; --sv-logo-edge: #9A6B1E; --bl-logo-tint: #E6EFD2; --bl-logo-edge: #5B7A1E; --pi-logo-tint: #F4DCD1; --pi-logo-edge: #B4532A; --rf-logo-tint: #D8E4EC; --rf-logo-edge: #35607E; --ru-logo-tint: #EADFD2; --ru-logo-edge: #6B4A2B; --dk-logo-tint: #EEDFF2; --dk-logo-edge: #6D3B7A; --pa-logo-tint: #D8EEEC; --pa-logo-edge: #1E7A74; --br-logo-tint: #F5D9E3; --br-logo-edge: #7A1638; --hb-logo-tint: #DCE3F0; --hb-logo-edge: #263A63;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="modern"] {
+    --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B;
+    --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A;
+  }
+}
+html[data-theme="kontor"] {
+  --yard: #F2F4F1; --ink: #101A14; --ink-soft: #56645B; --tile: #FFFFFF; --tile-edge: #CBD4CD; --sheet: #FFFFFF;
+  --c0: #C9921C; --c1: #1E8449; --c2: #2B6A9E; --c3: #B03A2E; --on-c: #FFFFFF;
+  --brass: #1E8449; --brass-hi: #FFFFFF; --brass-lo: #17683A; --rule: #D6DDD8; --plate: #17683A; --plate-ink: #FFFFFF;
+  --focus: #1E8449; --p0: #2B6A9E; --p1: #C46A1E; --learn: #1E8449; --logo-edge: #2A3A30;
+  --caps: none; --track: .3; --stretch-btn: 92%; --wide: 87.5%;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-theme="kontor"] {
+    --yard: #0A0F0C; --ink: #D6E4DA; --ink-soft: #8B9F91; --tile: #121A15; --tile-edge: #233129; --sheet: #111814;
+    --brass: #2FB463; --brass-hi: #0A0F0C; --brass-lo: #4CCB7E; --rule: #1D2922; --plate: #2FB463; --plate-ink: #06110A;
+    --focus: #4CCB7E; --p0: #6FA6D8; --p1: #E39A55; --learn: #4CCB7E; --logo-edge: #8FD3A8;
+  }
+}
+/* shapes: Modern's round buttons and plain header; Kontor's square, hairline technical look with tabular figures */
+html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand,
+html[data-theme="kontor"] .top, html[data-theme="kontor"] .apps-brand { background: linear-gradient(var(--rule), var(--rule)) left bottom / 100% 1px no-repeat; }
+html[data-theme="modern"] .btn { border-color: var(--ink); border-radius: 999px; font-weight: 650; font-size: 1rem; }
+html[data-theme="modern"] .btn.primary { background: var(--ink); color: var(--yard); border-color: var(--ink); box-shadow: none; outline: 0; }
+html[data-theme="modern"] .pick { border-color: var(--ink-soft); border-radius: 6px; font-weight: 600; font-size: .95rem; }
+html[data-theme="modern"] .mark { font-size: 1.6rem; letter-spacing: -.02em; }
+html[data-theme="modern"] dialog.menu-sheet, html[data-theme="modern"] .sheet { border-color: var(--tile-edge); }
+html[data-theme="kontor"] body { font-variant-numeric: tabular-nums; }
+html[data-theme="kontor"] .btn { border: 1px solid var(--tile-edge); border-radius: 3px; font-weight: 650; }
+html[data-theme="kontor"] .btn.primary { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); box-shadow: none; outline: 0; }
+html[data-theme="kontor"] .pick { border: 1px solid var(--tile-edge); border-radius: 3px; }
+html[data-theme="kontor"] .mark { letter-spacing: .02em; }
+html[data-theme="kontor"] .tile, html[data-theme="kontor"] .app-row { border-radius: 4px; }
+
+/* the games screen's Settings (behind More) */
+.app-settings { font: inherit; color: inherit; cursor: pointer; }
+.app-settings .app-logo svg { width: 60%; height: 60%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.settings-body { padding: .2rem 0 .6rem; }
+
+/* Deco frames its plates (a gilt line inset in the primary button and each game's Go button); the others don't */
+html:is([data-theme="modern"], [data-theme="kontor"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }
+html[data-theme="modern"] [class*="-go"] { border-radius: 12px; }
+html[data-theme="kontor"] [class*="-go"] { border-radius: 3px; }

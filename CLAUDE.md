@@ -113,3 +113,11 @@ a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody`
   order: done, current, locked, with Continue).
 - **No instructions in the menu.** A line longer than about two sentences is folded into a closed "How it works" at
   the bottom by `menu.js`; better still, cut it. Keep a menu to choices, buttons and a short status line.
+
+## Themes
+
+Three looks (Deco, Modern, Kontor), each day and night, set by `theme.js` on `<html data-theme>`. Write styles that
+follow them: colours from the variables (`--yard`, `--ink`, `--sheet`, `--tile`, `--brass`, `--plate`…), never fixed
+hex for the page, panels or buttons (a game's own board colours are fine); spaced capitals as
+`text-transform: var(--caps); letter-spacing: calc(.1em * var(--track))`, and wide lettering as `var(--wide)` or
+`var(--stretch-btn)`. Check a new screen in all three, day and night.

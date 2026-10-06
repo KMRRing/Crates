@@ -30,7 +30,7 @@
 .pt-lengths.pt-tabs { grid-template-columns: 1fr 1fr; }
 .pt-pot { font-size: 1rem; }
 .pt-pot-label { color: var(--ink-soft); }
-.pt-pot b { font-size: 1.7rem; font-weight: 800; font-stretch: 112%; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.pt-pot b { font-size: 1.7rem; font-weight: 800; font-stretch: var(--stretch-btn); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
 .pt-pot b.up { color: var(--pt-win); }
 .pt-pot b.down { color: var(--pt-loss); }
 
@@ -75,7 +75,7 @@
 .pt-odds-row { display: flex; align-items: center; gap: .5rem; }
 .pt-odds-row span { color: var(--ink-soft); }
 .pt-odds { display: inline-block; padding: .1rem .7rem; border-radius: 3px; background: var(--pt-turf); color: var(--pt-turf-ink);
-  font-size: 1.6rem; font-weight: 800; font-stretch: 112%; font-variant-numeric: tabular-nums; }
+  font-size: 1.6rem; font-weight: 800; font-stretch: var(--stretch-btn); font-variant-numeric: tabular-nums; }
 #stake { width: 100%; margin: .55rem 0 .25rem; accent-color: var(--pt-turf); height: 28px; }
 .pt-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .35rem; }
 .pt-chips .btn { min-height: 36px; padding: .2rem .2rem; font-size: .9rem; white-space: nowrap; }

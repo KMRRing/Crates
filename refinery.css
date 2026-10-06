@@ -14,7 +14,7 @@
 
 .rf-margin { padding: .6rem .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .35rem; }
 .rf-margin-row { display: flex; align-items: baseline; gap: .5rem; }
-.rf-margin-row span { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.rf-margin-row span { font-size: .8rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); }
 .rf-margin-row b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .rf-margin-row b.good { color: var(--rf-good); }
 .rf-margin-row b.bad { color: var(--rf-bad); }
@@ -24,7 +24,7 @@
 .rf-bar em { position: absolute; top: -4px; width: 3px; height: 16px; background: var(--ink); border-radius: 2px; }
 .rf-verdict { margin: 0; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); align-self: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rf-verdict.good { color: var(--rf-good); font-weight: 750; }
-.rf-go { min-height: 42px; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.rf-go { min-height: 42px; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .rf-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .rf-buttons { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; }
 .rf-buttons .rf-go[hidden] { display: none; }
@@ -53,7 +53,7 @@
 .rf-crude { margin: 0 0 .5rem; display: flex; align-items: center; gap: .5rem; font-weight: 750; }
 
 .rf-streams { display: grid; gap: .35rem; }
-.rf-group { margin: .5rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.rf-group { margin: .5rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); }
 .rf-stream { display: grid; grid-template-columns: 4px 1fr auto; align-items: center; gap: .55rem; padding: .45rem .6rem .45rem .5rem; border-radius: 5px; background: var(--sheet); }
 .rf-stream i { width: 4px; height: 100%; min-height: 28px; border-radius: 2px; }
 .rf-stream .name { font-weight: 750; font-size: .95rem; }
@@ -79,7 +79,7 @@
 .rf-pick button b { font-weight: 800; }
 .rf-pick button span { font-size: .82rem; color: var(--ink-soft); line-height: 1.3; }
 .rf-pick button.on { border-color: var(--rf-in); background: var(--rf-in-soft); }
-.rf-pick .head { margin: .4rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.rf-pick .head { margin: .4rem 0 .1rem; font-size: .72rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); }
 .rf-card p { margin: .4rem 0; line-height: 1.45; }
 .rf-card .purpose { font-weight: 700; }
 .rf-card table { width: 100%; border-collapse: collapse; font-size: .88rem; margin: .4rem 0; }

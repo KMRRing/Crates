@@ -25,7 +25,7 @@
 .dk-games div { display: flex; justify-content: space-between; padding: .5rem .7rem; border-radius: 10px; background: var(--sheet); font-size: .92rem; }
 .dk-games b { font-weight: 800; }
 .dk-games span.due { color: var(--dk-in); font-weight: 750; }
-.dk-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.dk-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .dk-go:disabled { opacity: .45; cursor: default; }
 .dk-go[hidden] { display: none; }
 

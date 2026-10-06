@@ -21,7 +21,7 @@
 /* the category pill, and how far through the set, on one line */
 .ch-card-top { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
 .ch-where { font-size: .8rem; font-weight: 750; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
-.ch-cat { align-self: flex-start; padding: .15rem .6rem; border-radius: 3px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .12em; }
+.ch-cat { align-self: flex-start; padding: .15rem .6rem; border-radius: 3px; background: var(--ch-in-soft); color: var(--ch-in); font-size: .66rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); }
 .ch-place { margin: 0; font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
 .ch-hint { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
 .ch-maps { min-height: 0; }
@@ -31,7 +31,7 @@
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }
 .ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .2rem; font-size: .9rem; line-height: 1.35; max-height: 4.2em; }
 .ch-clues:empty { display: none; }
-.ch-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.ch-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .ch-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0;
   font-stretch: 96%; letter-spacing: .03em; white-space: nowrap; }   /* the clue's cost fits on one line */
 .ch-go:disabled { opacity: .45; cursor: default; }

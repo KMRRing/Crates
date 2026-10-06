@@ -34,7 +34,7 @@
 .sv-tool small { font-size: .72rem; color: var(--ink-soft); }
 .sv-tool[aria-pressed="true"] { border-color: var(--sv-in); background: var(--sv-in-soft); }
 .sv-hint { margin: 0; min-height: 1.3em; font-size: .88rem; color: var(--ink-soft); line-height: 1.35; }
-.sv-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.sv-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .sv-go:disabled { opacity: .45; cursor: default; }
 .sv-result { display: grid; gap: .5rem; }
 .sv-result[hidden] { display: none; }

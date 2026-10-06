@@ -112,7 +112,7 @@
 .g-defs { display: grid; gap: .7rem; }
 .g-defs h3 { margin: 0 0 .2rem; font-size: 1.1rem; font-weight: 800; }
 .g-defs ol { margin: 0; padding-left: 1.2rem; display: grid; gap: .25rem; font-size: .92rem; line-height: 1.4; }
-.g-defs .pos { font-size: .75rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); margin-right: .35rem; }
+.g-defs .pos { font-size: .75rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); color: var(--ink-soft); margin-right: .35rem; }
 .g-defs p { margin: 0; color: var(--ink-soft); font-size: .9rem; }
 .g-defs p b { color: var(--ink); }
 .g-defs .credit { font-size: .75rem; }

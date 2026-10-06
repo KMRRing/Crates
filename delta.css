@@ -35,7 +35,7 @@
 .d-op { font-family: var(--font); font-weight: 750; font-stretch: 72%; fill: var(--ink);
   text-anchor: middle; paint-order: stroke; stroke: var(--d-tile); stroke-width: 12; stroke-linejoin: round; }
 .d-num-disc { fill: var(--d-num); }
-.d-num { font-family: var(--font); font-weight: 800; font-stretch: 112%; fill: var(--d-num-ink); text-anchor: middle; }
+.d-num { font-family: var(--font); font-weight: 800; font-stretch: var(--stretch-btn); fill: var(--d-num-ink); text-anchor: middle; }
 .d-tag { font-family: var(--font); font-weight: 800; fill: var(--ink); text-anchor: middle; }
 .d-tag-disc { fill: var(--d-tile); stroke: var(--ink); stroke-width: .04; }
 .d-bubble rect { fill: var(--ink); }

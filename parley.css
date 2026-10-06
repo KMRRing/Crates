@@ -10,7 +10,7 @@
 .pa-stats b { display: block; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pa-stats b.due { color: var(--pa-in); }
 .pa-stats span { font-size: .72rem; color: var(--ink-soft); }
-.pa-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.pa-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .pa-go:disabled { opacity: .45; cursor: default; }
 .pa-go[hidden] { display: none; }
 .pa-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }

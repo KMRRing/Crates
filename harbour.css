@@ -96,5 +96,5 @@
 /* Menu: your best on each measure beside the level's par */
 .hb-bests { width: 100%; margin: .2rem 0 .6rem; border-collapse: collapse; }
 .hb-bests th, .hb-bests td { padding: .4rem .2rem; text-align: left; border-bottom: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
-.hb-bests thead th { font-size: .75rem; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-soft); }
+.hb-bests thead th { font-size: .75rem; letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) { .hb-ship { transition: none; } }

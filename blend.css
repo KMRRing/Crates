@@ -15,7 +15,7 @@
 
 .bl-margin { padding: .6rem .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .35rem; }
 .bl-margin-row { display: flex; align-items: baseline; gap: .5rem; }
-.bl-margin-row span { font-size: .8rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.bl-margin-row span { font-size: .8rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); }
 .bl-margin-row b { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .bl-margin-row b.good { color: var(--bl-good); }
 .bl-margin-row b.bad { color: var(--bl-bad); }
@@ -28,7 +28,7 @@
 .bl-verdict.good { color: var(--bl-good); font-weight: 750; }
 .bl-verdict.bad { color: var(--bl-bad); }
 .bl-buttons { display: grid; grid-template-columns: minmax(0, 1fr) 4.6rem 6rem; gap: .4rem; }
-.bl-go { min-height: 42px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: .07em; text-transform: uppercase; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.bl-go { min-height: 42px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .bl-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .bl-go:disabled { opacity: .45; cursor: default; }
 
@@ -57,7 +57,7 @@
 .bl-components { display: grid; gap: .35rem; align-content: start; }
 .bl-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .45rem .6rem; border-radius: 5px; background: var(--sheet); }
 .bl-row .name { font-weight: 750; cursor: pointer; }
-.bl-row .name .bio { margin-left: .35rem; padding: .05rem .4rem; border-radius: 3px; background: var(--bl-in-soft); color: var(--bl-in); font-size: .6rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: .1em; text-transform: uppercase; }
+.bl-row .name .bio { margin-left: .35rem; padding: .05rem .4rem; border-radius: 3px; background: var(--bl-in-soft); color: var(--bl-in); font-size: .6rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
 .bl-row > div:first-child { min-width: 0; }
 .bl-row .meta { font-size: .76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bl-row .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .3rem; overflow: hidden; }

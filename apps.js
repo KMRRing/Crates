@@ -3,6 +3,7 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
+import { choice } from "./menu.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -80,6 +81,29 @@ export const APPS = [
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
+// Settings, behind More: the theme (Deco, Modern or Kontor; each with a day and a night that follow the system).
+// The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
+const THEMES = [["deco", "Deco"], ["modern", "Modern"], ["kontor", "Kontor"]];
+export const theme = () => document.documentElement.dataset.theme || "deco";
+export function setTheme(t) {
+  if (t === "deco") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  try { if (t === "deco") localStorage.removeItem("suite:theme"); else localStorage.setItem("suite:theme", t); } catch { /* private mode: this page only */ }
+}
+function openSettings(host) {
+  let sheet = host.querySelector("dialog.apps-settings");
+  if (!sheet) {
+    sheet = document.createElement("dialog");
+    sheet.className = "apps-pop apps-settings";
+    sheet.setAttribute("aria-label", "Settings");
+    sheet.innerHTML = `<div class="pick-head"><h2>Settings</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></div><div class="settings-body"></div>`;
+    sheet.querySelector("[data-close]").addEventListener("click", () => sheet.close());
+    sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
+    host.appendChild(sheet);
+  }
+  sheet.querySelector(".settings-body").replaceChildren(choice("Theme", THEMES, theme(), setTheme));
+  sheet.showModal();
+}
+
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
       <span class="app-logo">${a.logo}</span><b class="app-name">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
@@ -89,6 +113,7 @@ const ICON = {
   duo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="8.5" r="3.1"/><path d="M2.5 19.5c.5-3.4 2.9-5.3 6-5.3s5.5 1.9 6 5.3"/><circle cx="16.5" cy="8" r="2.7"/><path d="M15.2 13.9c3.3-.3 5.7 1.5 6.3 5.1"/></svg>',
   update: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 4.2v4.6h-4.6"/></svg>',
   close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/></svg>',
   tick: '<svg class="code-tick" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
 };
 /**
@@ -225,11 +250,13 @@ export function bindSwitcher(button, current) {
   pop.className = "apps-pop";
   pop.setAttribute("aria-label", "More games");
   pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></div>
-    <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}</ul>`;
+    <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}<li><button class="app-row app-settings" type="button" data-settings>
+      <span class="app-logo">${ICON.settings}</span><b class="app-name">Settings</b></button></li></ul>`;
   dlg.appendChild(pop);
   pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
   pop.addEventListener("click", e => { if (e.target === pop) pop.close(); });    // a tap on the backdrop
   dlg.querySelector("[data-more]").addEventListener("click", () => pop.showModal());
+  pop.querySelector("[data-settings]").addEventListener("click", () => openSettings(dlg));
   // after an update the app reloads: open the games screen again, where Update was pressed
   try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
   const update = dlg.querySelector("[data-update]");
