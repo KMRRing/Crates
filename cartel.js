@@ -5,7 +5,7 @@ import { newGame, act, respond, respondBlock, keepProof, freeReroll, freeAsk, bi
 import { Player, Mind, PERSONAS } from "./cartel-ai.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, onPause } from "./menu.js";
+import { part, choice, action, onPause, ticks } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
@@ -781,20 +781,8 @@ function openMenu() {
     if (!g.over && g.moves > 2 && !confirm("Start a new game? This one isn't finished.")) return;
     startGame(picked);
   }, "primary"));
-  const row = document.createElement("div");
-  row.className = "ct-row";
-  const draw = () => row.replaceChildren(...Object.entries(PERSONAS).map(([id, p]) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "btn"; b.textContent = `${p.name}, ${p.trait}`;
-    b.setAttribute("aria-pressed", String(picked.includes(id)));
-    b.addEventListener("click", () => { picked = picked.includes(id) ? picked.filter(x => x !== id) : [...picked, id].slice(-3); draw(); });
-    return b;
-  }));
-  draw();
-  const label = document.createElement("span");
-  label.className = "menu-label";
-  label.textContent = "Opponents (two or three)";
-  part(body, "content").append(label, row);
+  // the opponents: tick two or three (a fourth ticked lets go of the one ticked longest ago)
+  part(body, "content").append(ticks("Opponents (two or three)", Object.entries(PERSONAS).map(([id, p]) => [id, `${p.name}, ${p.trait}`]), picked, next => { picked = next; }, 3));
   part(body, "settings").append(choice("Computer turns", Object.entries(PACES).map(([id, p]) => [id, p.label]), pace(), id => {
     try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
     const c = g.pending, computerDue = c ? (c.type === "proof" ? c.claimant : c.challenger) !== ME : g.turn !== ME;

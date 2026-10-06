@@ -21,11 +21,16 @@ export function part(body, name) {
 
 // ---------- the controls, the same in every game ----------
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-/** One of: a label and a segmented row; onChange(value) when another is tapped. options: [[value, text], …]. */
+/**
+ * One of: a label and its options; onChange(value) when another is tapped. options: [[value, text], …]. A few short
+ * options sit in a segmented row beside the label; more, or longer ones, in a grid of buttons under it (a segmented
+ * row that wraps onto a second line breaks its own borders).
+ */
 export function choice(label, options, value, onChange) {
-  const row = el("div", "menu-row"), seg = el("div", "menu-seg");
-  seg.setAttribute("role", "radiogroup");
-  seg.setAttribute("aria-label", label);
+  const compact = options.length <= 3 && options.reduce((n, [, t]) => n + String(t).length, 0) <= 20;
+  const row = el("div", compact ? "menu-row" : "menu-grid-wrap"), set = el("div", compact ? "menu-seg" : "menu-grid");
+  set.setAttribute("role", "radiogroup");
+  set.setAttribute("aria-label", label);
   for (const [v, text] of options) {
     const b = el("button", null, text);
     b.type = "button";
@@ -34,13 +39,39 @@ export function choice(label, options, value, onChange) {
     b.addEventListener("click", () => {
       if (v === value) return;
       value = v;
-      for (const x of seg.children) x.setAttribute("aria-checked", String(x === b));
+      for (const x of set.children) x.setAttribute("aria-checked", String(x === b));
       onChange(v);
     });
-    seg.appendChild(b);
+    set.appendChild(b);
   }
-  row.append(el("span", "menu-label", label), seg);
+  row.append(el("span", "menu-label", label), set);
   return row;
+}
+/**
+ * Some of: a label and a grid of options to tick; onChange(values) with the ticked values, in the options' order. With
+ * max, ticking one more lets go of the one ticked longest ago.
+ */
+export function ticks(label, options, values, onChange, max = Infinity) {
+  const wrap = el("div", "menu-grid-wrap"), grid = el("div", "menu-grid");
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", label);
+  const order = [...values], buttons = new Map();               // order: ticked values, oldest first
+  const show = () => { for (const [v, b] of buttons) b.setAttribute("aria-pressed", String(order.includes(v))); };
+  for (const [v, text] of options) {
+    const b = el("button", null, text);
+    b.type = "button";
+    b.addEventListener("click", () => {
+      const at = order.indexOf(v);
+      if (at >= 0) order.splice(at, 1); else { order.push(v); if (order.length > max) order.shift(); }
+      show();
+      onChange(options.map(([x]) => x).filter(x => order.includes(x)));
+    });
+    buttons.set(v, b);
+    grid.appendChild(b);
+  }
+  show();
+  wrap.append(el("span", "menu-label", label), grid);
+  return wrap;
 }
 /** A switch: a label and on or off; onChange(on). */
 export function toggle(label, on, onChange) {
@@ -62,26 +93,12 @@ export function action(text, fn, kind = "") {
 }
 /**
  * The header's dropdown, in the menu too: the same choice, from the same <select> (a game's quick switch stays in its
- * header). A few options make a segmented row, many a grid; picking one closes the menu and changes the select, so
+ * header), laid out like any choice; picking one closes the menu and changes the select, so
  * the game answers exactly as it does to the header.
  */
 export function mirror(label, select) {
   const options = [...select.options].filter(o => !o.disabled).map(o => [o.value, o.label]);
-  const pick = v => { document.getElementById("menuDlg")?.close(); select.value = v; select.dispatchEvent(new Event("change", { bubbles: true })); };
-  if (options.length <= 6) return choice(label, options, select.value, pick);
-  const wrap = el("div", "menu-grid-wrap"), grid = el("div", "menu-grid");
-  grid.setAttribute("role", "radiogroup");
-  grid.setAttribute("aria-label", label);
-  for (const [v, text] of options) {
-    const b = el("button", null, text);
-    b.type = "button";
-    b.setAttribute("role", "radio");
-    b.setAttribute("aria-checked", String(v === select.value));
-    b.addEventListener("click", () => { if (v !== select.value) pick(v); });
-    grid.appendChild(b);
-  }
-  wrap.append(el("span", "menu-label", label), grid);
-  return wrap;
+  return choice(label, options, select.value, v => { document.getElementById("menuDlg")?.close(); select.value = v; select.dispatchEvent(new Event("change", { bubbles: true })); });
 }
 /** A short status line (a best, where you are). */
 export const line = text => el("p", "menu-line", text);

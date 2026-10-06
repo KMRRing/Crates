@@ -103,7 +103,7 @@ once. The select stays the one place the choice lives; its options, value and ev
 
 Every game's menu is the same popup (`menu.js`, loaded by every page): a sheet from the bottom on a phone, a card on
 a wide screen, an × at the top right, a tap outside closes it. Fill `#menuBody` as before, but:
-- **Build with `menu.js`'s controls:** `part(body, name)` for each part, `choice(label, [[value, text]…], value, onChange)` for one of a few, `toggle(label, on, onChange)` for on or off, `action(text, fn, "primary" | "" | "link")` for buttons (the menu closes, then fn runs), `line(text)` for a status line. Every game's menu is built this way now; follow one (Quote's is the fullest).
+- **Build with `menu.js`'s controls:** `part(body, name)` for each part, `choice(label, [[value, text]…], value, onChange)` for one of several (a segmented row when it's three short options or fewer, else a grid under the label), `ticks(label, options, values, onChange, max)` for some of several, `mirror(label, select)` for a header select, `toggle(label, on, onChange)` for on or off, `action(text, fn, "primary" | "" | "link")` for buttons (the menu closes, then fn runs), `line(text)` for a status line. Every game's menu is built this way now; follow one (Quote's is the fullest).
 - **Mark the parts** (`part(body, name)` from `menu.js`, or `data-part` on a container); they're laid out in this order
   under the same small heading: `play` (new run, where you are: no heading), `content` (daily or random, difficulty or
   level, topics, chapters), `together` (only what's specific to this game's duo match: pairing, watching and asking

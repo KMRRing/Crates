@@ -683,6 +683,9 @@ function openMenu() { drawMenu(); if (!$("menuDlg").open) $("menuDlg").showModal
 // the menu: Play (a new run, ending an endless one), Content (the run's length; the level is the header's), Settings
 // (learning mode), About (stats, flagged questions, a link); in a room, back to solo
 let pickLength = null;                                        // the length the menu will start
+let pickCopies = [];                                          // the menu's copies of the bar's pickers: [button, source, fallback]
+new MutationObserver(() => { for (const [b, src, fb] of pickCopies) b.textContent = src.textContent || fb; })
+  .observe($("mathsBar"), { childList: true, characterData: true, subtree: true });
 function drawMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -690,7 +693,11 @@ function drawMenu() {
   const play = part(body, "play");
   play.append(action("New run", () => newSession(S.level, pickLength), "primary"));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
-  const picks = $("mathsBar").hidden ? [] : [action($("stagesBtn").textContent, () => $("stagesBtn").click()), action($("diffsBtn").textContent, () => $("diffsBtn").click())];
+  // the stage and difficulty pickers, as the bar labels them; the bar is labelled once the bank has loaded, so the
+  // copies start with a plain name and follow the bar (they used to come up blank on a menu opened before that)
+  const copy = (src, fallback) => { const b = action(src.textContent || fallback, () => src.click()); pickCopies.push([b, src, fallback]); return b; };
+  pickCopies = [];
+  const picks = $("mathsBar").hidden ? [] : [copy($("stagesBtn"), "Stages"), copy($("diffsBtn"), "Difficulty")];
   part(body, "content").append(mirror("Level", $("level")), ...picks, choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }),
     // the clue levels only; a change deals a new run (in a match it applies from the next one)
     ...(isMaths(S.level) ? [] : [choice("Name it", Object.entries(NAME_MODES), nameMode(), m => {

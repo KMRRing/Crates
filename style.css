@@ -608,9 +608,9 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 
 /* a long one-of (Punt's levels) as a grid of the same buttons */
 .menu-grid-wrap { margin: .5rem 0; }
-.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: .35rem; margin-top: .4rem; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(6.4rem, 1fr)); gap: .35rem; margin-top: .4rem; }
 .menu-grid button { border: 1.5px solid var(--tile-edge); border-radius: 10px; background: none; color: var(--ink); font: inherit; font-size: .86rem; font-weight: 700; padding: .45rem .5rem; cursor: pointer; }
-.menu-grid button[aria-checked="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.menu-grid button:is([aria-checked="true"], [aria-pressed="true"]) { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
 
 /* the games screen's head: a person (solo) and two people (partner), each with a tick once set; your partner's status
    takes the rest of the line */
