@@ -103,3 +103,13 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-tape::-webkit-scrollbar { height: 6px; }
 .hb-tape::-webkit-scrollbar-track { background: transparent; }
 .hb-tape::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 3px; }
+/* a par plan on show: which one, and the way back (in the brief's place) */
+.hb-viewing { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: .5rem 0 .4rem; height: calc(3.9 * .86rem);   /* the brief's space exactly: nothing moves */
+  box-sizing: border-box; font-size: .92rem; font-weight: 600; color: var(--ink); }
+.hb-viewing[hidden] { display: none; }
+.hb-mine { flex: none; font: inherit; font-size: .85rem; padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--ink); background: var(--ink); color: var(--yard); cursor: pointer; }
+/* the menu's pars: each opens the plan that reaches it */
+.hb-par { appearance: none; border: 0; background: none; font: inherit; color: inherit; padding: 2px 6px; margin: -2px -6px; border-radius: 6px;
+  text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+.hb-par:hover, .hb-par:focus-visible { background: color-mix(in srgb, var(--ink) 9%, transparent); }
+.hb-note { margin: 8px 0 0; font-size: .85rem; color: var(--ink-soft); }

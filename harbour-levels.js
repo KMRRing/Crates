@@ -3,8 +3,22 @@
 // whole ship). A load jetty has a product, the parcel it lifts and, if it's a refinery's, the tank behind it; a discharge
 // jetty the parcel it takes and the spec it holds it to. Jetties sit on the channel round an island, as berths do: a ship
 // can't turn on the spot, so a dead end means backing out. The par on each measure is the best that tests/harbour.mjs
-// reaches with its reference solutions (found by searching every plan of ships going round the ring), and the tests
-// hold it there.
+// reaches, found by searching every plan of ships going round the ring; each level carries the plans that reach it, so
+// the page can show them (tap a par in the menu) and the tests run the same plans and hold the par there.
+
+/** A plan's program written compactly: one character an hour (A ahead, P port, S starboard, B astern, L load,
+ *  D discharge, . wait), a loop in brackets with its count first: "(2S)" plays S twice. */
+export function program(text) {
+  const items = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] !== "(") { items.push(text[i]); continue; }
+    const close = text.indexOf(")", i), [, n, body] = text.slice(i + 1, close).match(/^(\d+)(.+)$/);
+    items.push({ n: +n, body: [...body] });
+    i = close;
+  }
+  return items;
+}
+
 export const LEVELS = [
   {
     id: "first-cargo", name: "First cargo",
@@ -17,6 +31,15 @@ export const LEVELS = [
     ],
     target: 4, shipCost: 20, maxShips: 4, maxCycles: 400,
     par: { cost: 20, hours: 13, water: 10, instructions: 8 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [{ x: 1, y: 2, h: 2, prog: program("L(2S)(2A)SD(2S)(2A)S") }] },
+      { par: ["hours"], ships: [
+        { x: 1, y: 2, h: 2, prog: program("L(2S)(2A)SD(2S)(2A)S") },
+        { x: 5, y: 2, h: 5, prog: program("D(2S)(2A)SL(2S)(2A)S") },
+        { x: 4, y: 3, h: 4, prog: program("S(2A)SL(2S)(2A)SDS") },
+        { x: 2, y: 3, h: 3, prog: program("ASL(2S)(2A)SD(2S)A") },
+      ] },
+    ],
   },
   {
     id: "rundown", name: "Rundown",
@@ -31,6 +54,14 @@ export const LEVELS = [
     jetties: { L: { kind: "load", product: "diesel", tank: { start: 0, rate: 1, cap: 8 } }, D: { kind: "discharge" } },
     shipCap: 4, target: 6, shipCost: 20, maxShips: 4, maxCycles: 400,
     par: { cost: 20, hours: 30, water: 8, instructions: 6 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [{ x: 2, y: 1, h: 0, prog: program("LA(3S)DA(3S)") }] },
+      { par: ["hours"], ships: [
+        { x: 2, y: 1, h: 0, prog: program("LA(3S)DA(3S)") },
+        { x: 3, y: 1, h: 0, prog: program("(3S)DA(3S)LA") },
+        { x: 2, y: 3, h: 3, prog: program("A(3S)LA(3S)D") },
+      ] },
+    ],
   },
   {
     id: "first-blend", name: "First blend",
@@ -49,5 +80,13 @@ export const LEVELS = [
     },
     shipCap: 5, target: 4, shipCost: 20, maxShips: 3, maxCycles: 400,
     par: { cost: 48, hours: 26, water: 12, instructions: 8 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [{ x: 2, y: 1, h: 0, prog: program("(2L)(2A)LA(3S)D(3A)(3S)") }] },
+      { par: ["hours"], ships: [
+        { x: 2, y: 1, h: 0, prog: program("(2L)(2A)LA(3S)D(3A)(3S)") },
+        { x: 3, y: 1, h: 0, prog: program("ALA(3S)D(3A)(3S)(2L)A") },
+        { x: 5, y: 1, h: 0, prog: program("(3S)D(3A)(3S)(2L)(2A)LA") },
+      ] },
+    ],
   },
 ];

@@ -2,7 +2,7 @@
 // level's par on each measure (so a change to the rules can't quietly make a level easier, harder or impossible).
 import { start, step, run, score, period, invalid, flatten, total, instructions } from "../harbour-engine.js";
 import * as T from "../harbour-tape.js";
-import { LEVELS } from "../harbour-levels.js";
+import { LEVELS, program } from "../harbour-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -95,46 +95,27 @@ const L1 = LEVELS.find(l => l.id === "first-cargo");
   check(invalid(L1, { ships: [{ x: 0, y: 2, prog: [lp(1, "A")] }] }) !== null, "a loop plays at least twice");
 }
 
-// every level: references that reach its par on each measure, and nothing better among them. Each ring's own program,
-// one ship going round, and ships spaced round the ring as the par search found best
-const loops = flat => { const out = []; for (let i = 0; i < flat.length;) { let j = i; while (j < flat.length && flat[j] === flat[i]) j++; out.push(j - i > 1 ? lp(j - i, flat[i]) : flat[i]); i = j; } return out; };
-const ringOf = (x, y, h, flat) => ({ x, y, h, prog: loops([...flat]) });
-const phased = (level, lead, phases) => {
-  const flat = flatten(lead.prog);
-  return { ships: phases.map(k => { const s = hours(level, { ships: [lead] }, k).ships[0]; return { x: s.x, y: s.y, h: s.h, prog: k ? flat.slice(k).concat(flat.slice(0, k)) : lead.prog }; }) };
-};
-const [L2, L3] = ["rundown", "first-blend"].map(id => LEVELS.find(l => l.id === id));
-const ring1 = ringOf(1, 2, 2, "LSSAASDSSAAS"), ring2 = ringOf(2, 1, 0, "LASSSDASSS"), ring3 = ringOf(2, 1, 0, "LLAALASSSDAAASSS");
-const REFS = {
-  // level 1: one ship round the island; or four, spaced so none waits at a jetty another is still at
-  "first-cargo": {
-    "one ship": [{ ships: [ring1] }, { cost: 20, hours: 43, water: 10, instructions: 8 }],
-    "four ships": [phased(L1, ring1, [0, 6, 8, 10]), { cost: 80, hours: 13 }],
-  },
-  // level 2: the tank starts empty; ships spaced to the refinery's rhythm, not evenly round the ring
-  rundown: {
-    "one ship": [{ ships: [ring2] }, { cost: 20, hours: 66, water: 8, instructions: 6 }],
-    "three ships": [phased(L2, ring2, [0, 2, 6]), { cost: 60, hours: 30 }],
-  },
-  // level 3: two gasoil lifts and one FAME make exactly 20% FAME, the cheapest blend on spec; 60% is on spec too, dearer
-  "first-blend": {
-    "one ship, exactly 20%": [{ ships: [ring3] }, { cost: 48, hours: 58, water: 12, instructions: 8 }],
-    "one ship, 60% FAME": [{ ships: [ringOf(2, 1, 0, "LAALLLASSSDAAASSS")] }, { cost: 64 }],
-    "three ships": [phased(L3, ring3, [0, 3, 6]), { hours: 26 }],
-  },
-};
+// every level: the plans it carries (the ones the page shows when a par is tapped) reach its par on the measures they
+// are for, none of them beats the par on any measure, and every measure has a plan to show
 for (const level of LEVELS) {
-  const best = {}, refs = REFS[level.id] || {};
-  check(Object.keys(refs).length > 0, `${level.id}: has reference solutions`);
-  for (const [name, [s, expect]] of Object.entries(refs)) {
-    const r = run(level, s), sc = score(level, s, r);
-    check(!r.crash && r.done, `${level.id}, ${name}: runs clean (${r.crash ? r.crash.kind : "not done"})`);
-    for (const [k, v] of Object.entries(expect)) check(sc[k] === v, `${level.id}, ${name}: ${k} ${sc[k]}, expected ${v}`);
+  const best = {}, plans = level.plans || [];
+  check(plans.length > 0, `${level.id}: carries its par plans`);
+  for (const [i, plan] of plans.entries()) {
+    const r = run(level, plan), sc = score(level, plan, r);
+    check(invalid(level, plan) === null && !r.crash && r.done, `${level.id}, plan ${i + 1}: runs clean (${r.crash ? r.crash.kind : "not done"})`);
+    for (const k of plan.par) check(sc[k] === level.par[k], `${level.id}, plan ${i + 1}: ${k} ${sc[k]}, par ${level.par[k]}`);
     if (r.done && !r.crash) for (const k of Object.keys(sc)) best[k] = Math.min(best[k] ?? Infinity, sc[k]);
   }
-  check(JSON.stringify(best) === JSON.stringify(level.par), `${level.id}: par is what the references reach (${JSON.stringify(best)})`);
+  check(JSON.stringify(best) === JSON.stringify(level.par), `${level.id}: par is what its plans reach (${JSON.stringify(best)})`);
+  for (const k of Object.keys(level.par)) check(plans.some(p => p.par.includes(k)), `${level.id}: a plan to show for ${k}`);
   check(new Set(level.map.map(r => r.length)).size === 1, `${level.id}: every row of the map is as wide`);
 }
-check(run(L1, phased(L1, ring1, [0, 1])).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty");
+// around the pars: a blend with more FAME is on spec too, and dearer; two ships an hour apart meet at the jetty
+const [L3] = ["first-blend"].map(id => LEVELS.find(l => l.id === id));
+{ const rich = { ships: [{ x: 2, y: 1, h: 0, prog: program("L(2A)(3L)A(3S)D(3A)(3S)") }] }, r = run(L3, rich);
+  check(r.done && score(L3, rich, r).cost === 64, `level 3: 60% FAME is delivered, at $${score(L3, rich, r).cost}k`); }
+{ const lead = L1.plans[0].ships[0], flat = flatten(lead.prog), next = hours(L1, { ships: [lead] }, 1).ships[0];
+  const close = { ships: [lead, { x: next.x, y: next.y, h: next.h, prog: flat.slice(1).concat(flat.slice(0, 1)) }] };
+  check(run(L1, close).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty"); }
 console.log(bad ? `${bad} FAILED` : `harbour: rules, tape and ${LEVELS.length} levels' pars hold`);
 process.exitCode = bad ? 1 : 0;

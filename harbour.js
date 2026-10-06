@@ -64,6 +64,7 @@ let held = null;                      // a loop count being held down: { timer, 
 let sweeping = false, swept = false;  // picking hours with a mouse drag (swept: the click that ends it is already handled)
 let nudged = 0;                       // hours the picked rows have been shifted, for the status line
 let repeat = { delay: 0, every: 0, at: 0 };   // a shift arrow being held
+let viewing = null;                   // a par plan on show in place of yours: { k (its measure), mine (your plan), history }
 
 // v2: the harbour went from squares to hexes, and plans and bests from before don't carry over
 const solKey = () => `harbour:v2:sol:${L.id}`, bestKey = () => `harbour:v2:best:${L.id}`;
@@ -76,10 +77,41 @@ function load(level) {
   write("harbour:level", L.id);
   const saved = read(solKey(), null);
   sol = saved?.ships && !invalid(L, saved) ? saved : { ships: [] };
-  history = []; sel = -1; sim = null; pick = null; notice = "";
+  history = []; sel = -1; sim = null; pick = null; notice = ""; viewing = null;
   $("brief").textContent = L.brief;
+  banner();
   drawSea();
   render(true);
+}
+
+// A par plan, shown in place of yours to watch: run it, step it, pick and copy from it (and paste into yours), but not
+// change it, and running it keeps no bests. Your plan waits, as you left it, until Back to your plan.
+function view(k) {
+  const plan = L.plans?.find(p => p.par.includes(k));
+  if (!plan) return;
+  stop();
+  if (!viewing) viewing = { mine: sol, history };
+  viewing.k = k;
+  sol = JSON.parse(JSON.stringify({ ships: plan.ships }));
+  history = []; sel = -1; pick = null; notice = "";
+  banner();
+  render(true);
+}
+function unview() {
+  if (!viewing) return;
+  stop();
+  sol = viewing.mine; history = viewing.history; viewing = null;
+  sel = -1; pick = null; notice = "";
+  banner();
+  render(true);
+}
+// the brief, or while a par plan is on show, which one it is and the way back
+function banner() {
+  $("brief").hidden = !!viewing;
+  $("viewing").hidden = !viewing;
+  if (!viewing) return;
+  const [, name, f] = MEASURES.find(([k]) => k === viewing.k);
+  $("viewingText").textContent = `The par plan for ${name.toLowerCase()}: ${f(L.par[viewing.k])}.`;
 }
 
 // The harbour: only the water is drawn, every hex the same tile with the same gap round it, and the page round them is
@@ -112,6 +144,7 @@ function drawSea() {
 // ---------- editing ----------
 /** Every change to the plan goes through here: back to the start if a run is on screen, Undo can take it back, and it's saved. */
 function edit(change) {
+  if (viewing) { notice = "This is the par plan, to watch. Back to your plan to change yours."; render(true); return; }
   if (sim) stop();
   history.push(JSON.stringify(sol));
   if (history.length > 100) history.shift();
@@ -231,7 +264,7 @@ function pointerDown(e) {
   if (i >= 0) $("map").setPointerCapture(e.pointerId);
 }
 function pointerMove(e) {
-  if (!drag || drag.i < 0) return;
+  if (!drag || drag.i < 0 || viewing) return;                 // a par plan's ships stay where they are
   const t = tileAt(e), el = $("fleet").children[drag.i];
   if (!drag.moved && (t.x !== drag.from.x || t.y !== drag.from.y)) drag.moved = true;
   if (!drag.moved) return;
@@ -260,6 +293,7 @@ function begin() {
   const why = !sol.ships.length ? "Tap the water to put a ship there first." : invalid(L, sol);
   if (why) { notice = why; status(); return false; }
   sim = start(L, sol);
+  notice = "";                                         // a run on screen speaks for itself
   return true;
 }
 const over = () => sim.done || sim.crash || sim.t >= L.maxCycles;
@@ -284,6 +318,7 @@ function stepOnce() {
 }
 const bests = () => { const b = read(bestKey(), {}); if (b.hire != null && b.cost == null) b.cost = b.hire; return b; };   // level 1's first bests said hire
 function keepBests() {
+  if (viewing) return;                                        // watching a par plan earns nothing
   const sc = score(L, sol, sim), best = bests();
   for (const [k] of MEASURES) if (best[k] == null || sc[k] < best[k]) best[k] = sc[k];
   write(bestKey(), best);
@@ -433,7 +468,8 @@ function status() {
 
 function openMenu() {
   const best = bests();
-  const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td><td>${f(L.par[k])}</td></tr>`).join("");
+  const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td>`
+    + `<td><button type="button" class="hb-par" data-k="${k}" aria-label="Watch the par plan for ${name.toLowerCase()}">${f(L.par[k])}</button></td></tr>`).join("");
   // the menu: About (this level's bests against par), Settings (clear its ships)
   const body = $("menuBody");
   body.replaceChildren();
@@ -442,7 +478,11 @@ function openMenu() {
   table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
   part(body, "content").append(mirror("Level", $("level")));
   part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
-  part(body, "about").append(table);
+  table.addEventListener("click", e => { const b = e.target.closest(".hb-par"); if (b) { $("menuDlg").close(); view(b.dataset.k); } });
+  const note = document.createElement("p");
+  note.className = "hb-note";
+  note.textContent = "Tap a par to watch the plan that reaches it.";
+  part(body, "about").append(table, note);
   $("menuDlg").showModal();
 }
 
@@ -526,6 +566,7 @@ $("stepBtn").addEventListener("click", stepOnce);
 $("runBtn").addEventListener("click", play);
 $("speedBtn").addEventListener("click", () => { fast = !fast; render(); });
 $("menuBtn").addEventListener("click", openMenu);
+$("mineBtn").addEventListener("click", unview);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("menuDlg").addEventListener("click", e => { if (e.target === $("menuDlg")) $("menuDlg").close(); });
 // keys on a computer: Ctrl/Cmd with C, X, V, A and Z copy, cut, paste, pick everything and undo; Delete deletes the
