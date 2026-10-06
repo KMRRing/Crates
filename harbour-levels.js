@@ -101,42 +101,6 @@ export const LEVELS = [
     ],
   },
   {
-    id: "single-track", name: "Single track",
-    brief: "The line between the two harbours is single track, opening round a small island halfway. The jetties pump two units an hour. Twenty-four units.",
-    map: [
-      "#########",
-      "#L.######",
-      "#.#.#####",
-      "#..######",
-      "###.#####",
-      "###..####",
-      "###.#.###",
-      "###..####",
-      "#####.###",
-      "#####..##",
-      "#####.#.#",
-      "#####..D#",
-      "#########",
-    ],
-    products: { oil: { name: "Oil", price: 0 } },
-    jetties: {
-      L: { kind: "load", product: "oil", parcel: 2 },
-      D: { kind: "discharge", parcel: 2 },
-    },
-    fleet: { coaster: 4 }, target: 24, maxCycles: 600,
-    par: { cost: 20, hours: 56, water: 19, instructions: 22 },
-    plans: [
-      { par: ["cost", "water", "instructions"], ships: [
-        { x: 1, y: 1, h: 1, type: "coaster", prog: program("(2L)(3S)PAP(2S)PAPSA(2D)B(4S)PAS(2P)SAP(2S)") },
-      ] },
-      { par: ["hours", "water"], ships: [
-        { x: 1, y: 1, h: 1, type: "coaster", prog: program("(2L)(3S)PAP(2S)PAPSA(2D)B(4S)PAS(2P)SAP(2S)") },
-        { x: 5, y: 6, h: 1, type: "coaster", prog: program("(2P)SAP(2S)(2L)(3S)PAP(2S)PAPSA(2D)B(4S)PAS") },
-        { x: 2, y: 3, h: 2, type: "coaster", prog: program("P(2S)(2L)(3S)PAP(2S)PAS(2P)A(2D)B(3P)SAS(2P)SA") },
-      ] },
-    ],
-  },
-  {
     id: "queue", name: "Queue",                              // drawn in the level lab
     brief: "The refinery (L) fills a ship a unit an hour; the customer (D) takes four. One channel joins them, with room to pass halfway and a little basin at each end. Twenty-four units.",
     map: [
@@ -257,6 +221,69 @@ export const LEVELS = [
       ] },
       { par: ["water", "instructions"], ships: [
         { x: 4, y: 2, h: 1, type: "handy", prog: program("(2D)B(7L)A") },
+      ] },
+    ],
+  },
+  {
+    id: "passing-places", name: "Passing places",                 // drawn in the level lab
+    brief: "One channel from the refinery (L) to the customer (D), with three wider stretches where ships can get by. Twelve units.",
+    map: [
+      "#L####",
+      "#.####",
+      "##..##",
+      "##..##",
+      "###..#",
+      "###.##",
+      "###..#",
+      "####D#",
+      "######",
+    ],
+    products: { oil: { name: "Oil", price: 0 } },
+    jetties: {
+      L: { kind: "load", product: "oil", parcel: 2 },
+      D: { kind: "discharge", parcel: 2 },
+    },
+    fleet: { coaster: 3 }, target: 12, maxCycles: 600,
+    par: { cost: 20, hours: 25, water: 8, instructions: 4 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [
+        { x: 1, y: 0, h: 2, type: "coaster", prog: program("(2L)(7B)(2D)(7A)") },
+      ] },
+      { par: ["hours"], ships: [
+        { x: 4, y: 7, h: 2, type: "coaster", prog: program("(2D)(3A)SP(4.)PSA(2L)(7B)") },
+        { x: 1, y: 0, h: 2, type: "coaster", prog: program("(2L)(7B)(2D)(2A)SPA(4.)PSA") },
+        { x: 3, y: 2, h: 2, type: "coaster", prog: program("(4.)PSA(2L)(7B)(2D)(2A)SPA") },
+      ] },
+    ],
+  },
+  {
+    id: "lockstep", name: "Lockstep",                 // drawn in the level lab
+    brief: "One straight channel from the refinery (L) to the customer (D), with a hex to spare past each. Twelve units.",
+    map: [
+      "#.####",
+      "#L####",
+      "##.###",
+      "##.###",
+      "###.##",
+      "###.##",
+      "####.#",
+      "####D#",
+      "#####.",
+    ],
+    products: { oil: { name: "Oil", price: 0 } },
+    jetties: {
+      L: { kind: "load", product: "oil", parcel: 2 },
+      D: { kind: "discharge", parcel: 2 },
+    },
+    fleet: { coaster: 3 }, target: 12, maxCycles: 600,
+    par: { cost: 20, hours: 35, water: 7, instructions: 4 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [
+        { x: 1, y: 1, h: 2, type: "coaster", prog: program("(2L)(6B)(2D)(6A)") },
+      ] },
+      { par: ["hours"], ships: [
+        { x: 1, y: 1, h: 2, type: "coaster", prog: program("(2L)(6B)(2D)B(2.)(6A)(2.)A") },
+        { x: 1, y: 0, h: 2, type: "coaster", prog: program("(2.)(6B)(2.)B(2D)(6A)(2L)A") },
       ] },
     ],
   },
