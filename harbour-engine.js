@@ -114,7 +114,7 @@ export function offSpec(level, spec, cargo) {
 export function start(level, solution) {
   const ships = solution.ships.map(s => ({ x: s.x, y: s.y, h: s.h ?? 0, type: typeOf(level, s), cargo: {} })), tanks = {};
   for (const [k, j] of Object.entries(jettiesOf(level))) if (j.tank) tanks[k] = j.tank.start || 0;
-  return { t: 0, ships, tanks, delivered: 0, bought: 0, visited: new Set(ships.map(s => `${s.x},${s.y}`)), done: null, crash: null, events: [] };
+  return { t: 0, ships, tanks, delivered: 0, got: {}, bought: 0, visited: new Set(ships.map(s => `${s.x},${s.y}`)), done: null, crash: null, events: [] };
 }
 
 /** One hour: a new state (the old one is left as it was, so the page can step and redraw from either). */
@@ -135,6 +135,7 @@ export function step(level, solution, state) {
 
   next.ships = to.map((p, i) => ({ ...p, type: from[i].type, cargo: { ...from[i].cargo } }));
   next.tanks = { ...state.tanks };
+  next.got = { ...state.got };
   next.visited = new Set(state.visited);
   for (const s of next.ships) next.visited.add(`${s.x},${s.y}`);
   for (const [i, s] of next.ships.entries()) {
@@ -157,16 +158,26 @@ export function step(level, solution, state) {
       const keep = (amount - p) / amount;
       for (const k of Object.keys(s.cargo)) { s.cargo[k] *= keep; if (s.cargo[k] < 1e-9) delete s.cargo[k]; }
       next.delivered += p;                                // a level's target is units delivered, whatever the ships' sizes
+      next.got[key] = (next.got[key] || 0) + p;          // and per customer, for a level whose customers each want their own
       next.events.push({ ship: i, kind: "discharge" });
     }
   }
   for (const [k, j] of Object.entries(jettiesOf(level))) if (j.tank) next.tanks[k] = Math.min(j.tank.cap, next.tanks[k] + j.tank.rate);
-  if (next.delivered >= level.target) next.done = t + 1;
+  if (met(level, next)) next.done = t + 1;
   return next;
 }
 
+/** Whether a run has delivered what the level asks: its total, and each customer's own target where it sets one. */
+export function met(level, state) {
+  if (level.target != null && state.delivered < level.target) return false;
+  return Object.entries(jettiesOf(level)).every(([k, j]) => j.kind !== "discharge" || j.target == null || (state.got[k] || 0) >= j.target);
+}
+
+/** The hour a run stops at: the level's delivery window if it has one ("16 units within 80 hours"), else its limit. */
+export const limitOf = level => level.deadline ?? level.maxCycles;
+
 /** Runs to the end: done, crashed, or out of hours. */
-export function run(level, solution, limit = level.maxCycles) {
+export function run(level, solution, limit = limitOf(level)) {
   let s = start(level, solution);
   while (!s.done && !s.crash && s.t < limit) s = step(level, solution, s);
   return s;

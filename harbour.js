@@ -1,7 +1,7 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { steer, flatten, neighbour, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
+import { steer, flatten, neighbour, limitOf, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
 import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
@@ -327,7 +327,7 @@ function begin() {
   notice = "";                                         // a run on screen speaks for itself
   return true;
 }
-const over = () => sim.done || sim.crash || sim.t >= L.maxCycles;
+const over = () => sim.done || sim.crash || sim.t >= limitOf(L);
 /** An hour's sounds: loads, deliveries, refusals, a ship leaving a berth, a crash, the plan done. */
 function hear(before, after) {
   if (!sound.on) return;
@@ -488,6 +488,11 @@ function controls() {
   sc.disabled = !sim; sc.max = String(Math.max(1, seen)); sc.value = String(sim ? sim.t : 0);
 }
 
+/** What's delivered: of the target, or, where each customer wants its own, each one's ("A 6/12 · B 4/12"). */
+function progress(st) {
+  const own = Object.entries(L.jetties).filter(([, j]) => j.kind === "discharge" && j.target != null);
+  return own.length ? own.map(([k, j]) => `${k} ${+(st.got[k] || 0).toFixed(1)}/${j.target}`).join(" · ") : `${st.delivered} of ${L.target} delivered`;
+}
 const crashText = c => (c.kind === "aground" ? `Ship ${c.ships[0] + 1} ran aground in hour ${c.t}.` : `Ships ${c.ships[0] + 1} and ${c.ships[1] + 1} collided in hour ${c.t}.`);
 function status() {
   const el = $("status"), n = sol.ships.length;
@@ -510,11 +515,11 @@ function status() {
     const sc = score(L, sol, sim), mark = k => (sc[k] <= L.par[k] ? " ★" : "");
     tone = "good";
     text = `Done · ${MEASURES.map(([k, , f]) => f(sc[k]) + mark(k)).join(" · ")}`;
-  } else if (sim.t >= L.maxCycles) { tone = "bad"; text = `Not done after ${L.maxCycles} hours.`; }
+  } else if (sim.t >= limitOf(L)) { tone = "bad"; text = L.deadline ? `Out of time: ${progress(sim)} in ${L.deadline} hours.` : `Not done after ${L.maxCycles} hours.`; }
   else {
     const no = sim.events.find(e => e.kind === "refused"), tank = Object.entries(sim.tanks)[0];
     if (no) { tone = "bad"; text = `Hour ${sim.t}: the jetty refused ship ${no.ship + 1}, ${no.why}.`; }
-    else text = `Hour ${sim.t} · ${sim.delivered} of ${L.target} delivered${tank ? ` · tank ${tank[1]}/${L.jetties[tank[0]].tank.cap}` : ""}`;
+    else text = `Hour ${sim.t} · ${progress(sim)}${tank ? ` · tank ${tank[1]}/${L.jetties[tank[0]].tank.cap}` : ""}`;
   }
   const end = frames[seen]?.crash;
   // scrubbed back before a crash: what's coming, and when

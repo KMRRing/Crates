@@ -129,5 +129,19 @@ const [L3] = ["first-blend"].map(id => LEVELS.find(l => l.id === id));
 { const lead = L1.plans[0].ships[0], flat = flatten(lead.prog), next = hours(L1, { ships: [lead] }, 1).ships[0];
   const close = { ships: [lead, { x: next.x, y: next.y, h: next.h, prog: flat.slice(1).concat(flat.slice(0, 1)) }] };
   check(run(L1, close).crash?.kind === "collision", "level 1: two ships an hour apart meet at the jetty"); }
+// a delivery window: one ship can't shuttle sixteen units down the single track in 80 hours; the run stops there
+{ const ST = LEVELS.find(l => l.id === "single-track"), one = { ships: [{ x: 0, y: 3, h: 0, type: "coaster", prog: program("(2L)(11A)(2D)(11B)") }] };
+  const r = run(ST, one);
+  check(!r.done && !r.crash && r.t === 80, `single track: one ship is stopped by the window at hour 80 (${r.t}, ${r.delivered} delivered)`);
+  check(run({ ...ST, deadline: undefined }, one).done > 80, "single track: without the window, one ship gets there, late"); }
+// each customer its own target: a plan that serves only A never finishes Heels, however much it delivers
+{ const H = LEVELS.find(l => l.id === "heels"), onlyA = { ships: [{ x: 3, y: 2, h: 2, type: "handy", prog: program("(5L)(2S)A(5D)A(3S)(2A)S") }] };
+  const r = run(H, onlyA);
+  check(!r.done && r.got.A >= 12 && !r.got.B, `heels: serving only A delivers ${r.got.A} there and never finishes`); }
+// the heel: B30 first leaves FAME aboard, so the pure grade is refused at A
+{ const H = LEVELS.find(l => l.id === "heels"), wrong = { ships: [{ x: 3, y: 2, h: 2, type: "handy", prog: program("(3L)(2S)A.ASL(2S)(3D)(2A)S(2L)(2S)A(3D)ASA(2S)(2A)S") }] };
+  let st = start(H, wrong), refused = null;
+  for (let t = 0; t < 60 && !refused; t++) { st = step(H, wrong, st); refused = st.events.find(e => e.kind === "refused"); }
+  check(refused && /FAME/i.test(refused.why), `heels: a FAME heel is refused by the pure customer (${refused?.why})`); }
 console.log(bad ? `${bad} FAILED` : `harbour: rules, tape and ${LEVELS.length} levels' pars hold`);
 process.exitCode = bad ? 1 : 0;
