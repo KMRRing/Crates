@@ -45,11 +45,11 @@ export const LEVELS = {
   watches: { label: "Watches", questions: 15, spread: 0.3, maths: true, bank: "./watches-bank.js", note: "The manufactures, complications, the movement inside, finishes, history, the icons, seals and standards." },
   skiing: { label: "Skiing", questions: 15, spread: 0.3, maths: true, bank: "./skiing-bank.js", note: "Resorts, ski areas, races and runs, great skiers, history, technique and rules, avalanches, passes and food." },
   china: { label: "China", questions: 15, spread: 0.3, maths: true, bank: "./china-bank.js", note: "History, provinces and places, food, tea, inventions, thinkers, festivals and language, trade and markets." },
-  britain: { label: "Britain & Scotland", questions: 15, spread: 0.3, maths: true, bank: "./britain-bank.js", note: "Scotland's history, places, whisky, customs, money, inventors and words; the constitution, the City, English history, Wales." },
+  britain: { label: "Britain", questions: 15, spread: 0.3, maths: true, bank: "./britain-bank.js", note: "Scotland's history, places, whisky, customs, money, inventors and words; the constitution, the City, English history, Wales." },
   bavaria: { label: "Bavaria", questions: 15, spread: 0.3, maths: true, bank: "./bavaria-bank.js", note: "History, places, beer, customs and food, Bairisch, art and science, business." },
   artmarket: { label: "Art market", questions: 15, spread: 0.3, maths: true, bank: "./artmarket-bank.js", note: "How auctions work, records, houses and dealers, provenance and loot, fakes, fairs." },
-  titles: { label: "Titles & etiquette", questions: 15, spread: 0.3, maths: true, bank: "./titles-bank.js", note: "The peerage, nobility abroad, orders and honours, dress codes, manners and address, heraldry." },
-  merchants: { label: "Merchants & empires", questions: 15, spread: 0.3, maths: true, bank: "./merchants-bank.js", note: "Merchant powers from the Silk Road to the opium trade, the Hanse and Venice, the chartered companies, bankers and their tools, mercantilism." },
+  titles: { label: "Etiquette", questions: 15, spread: 0.3, maths: true, bank: "./titles-bank.js", note: "The peerage, nobility abroad, orders and honours, dress codes, manners and address, heraldry." },
+  merchants: { label: "Mercantilism", questions: 15, spread: 0.3, maths: true, bank: "./merchants-bank.js", note: "Merchant powers from the Silk Road to the opium trade, the Hanse and Venice, the chartered companies, bankers and their tools, mercantilism." },
   mythology: { label: "Mythology", questions: 15, spread: 0.3, maths: true, bank: "./myth-bank.js", note: "The gods of Greece and Rome, heroes and monsters, the Norse, Egypt, and myth in words." },
   architecture: { label: "Architecture", questions: 15, spread: 0.3, maths: true, bank: "./arch-bank.js", note: "Styles as ideas, buildings by sight, and the parts of a building." },
   swiss: { label: "Switzerland", questions: 15, spread: 0.3, maths: true, bank: "./swiss-bank.js", note: "Geneva, the Swiss state and its direct democracy, Swiss life and money." },
@@ -190,10 +190,16 @@ export const CLUE_TOPICS = { countries: "country", commodities: "commodity" };
 export const TOPIC_LIST = [["countries", "Countries"], ["commodities", "Commodities"],
   ...Object.entries(LEVELS).filter(([, L]) => L.maths).map(([id, L]) => [id, L.label])];
 const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
+// The presets. Balanced is a general mix, spread evenly over five areas (numbers and words, science, markets, the world,
+// culture), leaving the specialist and regional topics to the presets they suit; Trader weights markets and numbers;
+// Culture night weights art, wine, architecture and myth, with every regional and cultural topic in.
 export const TOPIC_PRESETS = {
-  balanced: { label: "Balanced", topics: allTopics(1) },
-  trader: { label: "Trader", topics: { ...allTopics(0), countries: 1, commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, cities: 1, patterns: 1, chemistry: 1, physics: 1, code: 1, merchants: 1, artmarket: 1, china: 1 } },
-  culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1, swiss: 1, architecture: 1, mythology: 1, merchants: 1, titles: 1, artmarket: 1, bavaria: 1, britain: 1, china: 1, skiing: 1, watches: 1 } },
+  balanced: { label: "Balanced", topics: { ...allTopics(0), maths: 1, reasoning: 1, patterns: 1, words: 1, physics: 1, chemistry: 1, code: 1,
+    economics: 1, commodities: 1, merchants: 1, countries: 1, cities: 1, flags: 1, china: 1, art: 1, architecture: 1, mythology: 1, philosophy: 1, religion: 1 } },
+  trader: { label: "Trader", topics: { ...allTopics(0), commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, patterns: 1, code: 1, chemistry: 1,
+    physics: 1, countries: 1, cities: 1, merchants: 1, china: 1, swiss: 1, artmarket: 1 } },
+  culture: { label: "Culture night", topics: { ...allTopics(0), art: 2, wine: 2, architecture: 2, mythology: 2, words: 1, philosophy: 1, religion: 1, titles: 1,
+    artmarket: 1, watches: 1, merchants: 1, britain: 1, bavaria: 1, swiss: 1, china: 1, skiing: 1, countries: 1, cities: 1, flags: 1 } },
 };
 export const MIX = { label: "Topics", questions: 15, spread: 0.3 };
 LEVELS.mix = MIX;                                   // a run of topics is a level of its own (its label, its length)
