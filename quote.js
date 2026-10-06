@@ -163,7 +163,7 @@ function beyondText(q, e) {
   const above = q.truth > e.ask;
   if (q.scale === "log") { const ratio = above ? q.truth / e.ask : e.bid / q.truth; return `${ratio.toFixed(ratio < 10 ? 1 : 0)}× ${above ? "above your ask" : "below your bid"}`; }
   const gap = above ? q.truth - e.ask : e.bid - q.truth;
-  return `${fmt(gap, { unit: "" })} ${q.unit === "year" ? "years" : q.unit} ${above ? "above your ask" : "below your bid"}`;
+  return `${fmt(gap, { unit: "" })} ${q.unit === "year" ? (gap === 1 ? "year" : "years") : q.unit} ${above ? "above your ask" : "below your bid"}`;
 }
 
 

@@ -75,12 +75,20 @@ export function curve(q, r) {
  */
 export function settle(q, bid, ask) {
   const width = widthOf(q, bid, ask), beyond = beyondOf(q, bid, ask), inside = beyond === 0;
-  const radius = radiusOf(q, bid, ask), grade = gradeOf(q, bid, ask);
+  // a range that misses is a miss (C), and never earns: even a hair outside loses a little, more the further out
+  const radius = radiusOf(q, bid, ask), grade = inside ? gradeOf(q, bid, ask) : "C";
   // a range that holds the answer never loses and always earns something: past the curve's B, a small amount that
   // shrinks as the range widens (30% of B's payoff at twice the B radius, half that at four times...); knowing it's
   // somewhere in there is worth something. It still banks the question below A.
-  const delta = Math.round((inside ? Math.max(curve(q, radius), inRange(q, radius)) : curve(q, radius)) * weight(q));
+  const delta = Math.round((inside ? Math.max(curve(q, radius), inRange(q, radius)) : Math.min(curve(q, radius), -outside(q, beyond))) * weight(q));
   return { inside, width, beyond, radius, grade, delta };
+}
+/**
+ * What a range that misses loses at least: 10 a hair outside, growing with how far the answer is beyond it, against
+ * the question's B radius (a year beyond on a ±15-year question: about 16; five beyond: about 40), on towards 300.
+ */
+function outside(q, beyond) {                                  // beyond: in the question's units (log2 on a log scale)
+  return 10 + 290 * (1 - Math.exp(-beyond / (3 * toUnits(q, tiersOf(q).B))));
 }
 /** What a range that holds the answer earns at least: 30% of B's payoff out to twice the B radius, falling with width. */
 function inRange(q, r) {

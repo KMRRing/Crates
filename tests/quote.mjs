@@ -23,11 +23,15 @@ const point = E.settle(city, 37, 37.0001), tight = E.settle(city, 35, 40), a1 = 
 check(point.grade === "SS" && point.delta === 300 && tight.grade === "S" && a1.grade === "A" && wide.grade === "B" && veryWide.grade === "C" && tight.delta > a1.delta && a1.delta > wide.delta && wide.delta > 0,
   `grades by radius: a point SS 300, 35–40 S ${tight.delta}, 30–50 A ${a1.delta}, 20–60 B ${wide.delta}, 10–100 C ${veryWide.delta}`);
 const edgeIn = E.settle(city, 30, 37), edgeOut = E.settle(city, 30, 36.99), near = E.settle(city, 40, 45), far = E.settle(city, 80, 100), veryFar = E.settle(city, 1000, 2000);
-check(Math.abs(edgeIn.delta - edgeOut.delta) <= 2 && near.delta < edgeOut.delta && far.delta < near.delta && far.delta < -100 && veryFar.delta <= -295,
-  `continuous across the edge (${edgeIn.delta} just inside, ${edgeOut.delta} just outside); further out loses more (40–45 ${near.delta}, 80–100 ${far.delta}, 1000–2000 ${veryFar.delta})`);
+// in range pays, out of range never does: a hair outside loses a little (a C), further out loses more
+check(edgeIn.delta > 0 && edgeOut.grade === "C" && edgeOut.delta < 0 && edgeOut.delta >= -20 && near.delta < edgeOut.delta && far.delta < near.delta && far.delta < -100 && veryFar.delta <= -295,
+  `in range pays, out never does (${edgeIn.delta} just inside, ${edgeOut.delta} just outside); further out loses more (40–45 ${near.delta}, 80–100 ${far.delta}, 1000–2000 ${veryFar.delta})`);
+// a range that holds the answer never loses, however wide
+const huge = E.settle(city, 0.001, 1e9);
+check(huge.inside && huge.delta > 0, `a huge range that holds the answer still earns a little: ${huge.delta}`);
 const y0 = E.settle(year, 1937, 1937), yS = E.settle(year, 1930, 1939), yA = E.settle(year, 1920, 1950), yB = E.settle(year, 1920, 1970), yC = E.settle(year, 1800, 1900), yMiss = E.settle(year, 1940, 1942);
-check(y0.grade === "SS" && y0.delta === 300 && yS.grade === "S" && yA.grade === "A" && yB.grade === "B" && yC.grade === "C" && yMiss.grade === "S" && yC.delta < 60,
-  `years by their tiers: exact SS, 1930s S ${yS.delta}, 1920–1950 A ${yA.delta}, 1920–1970 B ${yB.delta}, 1800–1900 C ${yC.delta}, a near miss 1940–1942 still S ${yMiss.delta}`);
+check(y0.grade === "SS" && y0.delta === 300 && yS.grade === "S" && yA.grade === "A" && yB.grade === "B" && yC.grade === "C" && yMiss.grade === "C" && yMiss.delta < 0 && yMiss.delta > -30 && yC.delta < 60,
+  `years by their tiers: exact SS, 1930s S ${yS.delta}, 1920–1950 A ${yA.delta}, 1920–1970 B ${yB.delta}, 1800–1900 C ${yC.delta}, a near miss 1940–1942 a C that loses a little ${yMiss.delta}`);
 const easy = E.settle({ ...year, d: 1 }, 1930, 1939), hard = E.settle({ ...year, d: 5 }, 1930, 1939);
 check(easy.delta < yS.delta && hard.delta > yS.delta && E.adequate("A") && !E.adequate("B"), `difficulty scales the payoff (a 1 pays ${easy.delta}, a 3 ${yS.delta}, a 5 ${hard.delta}); A is adequate, B is not`);
 check(E.fault(city, 10, 5) && E.fault(city, 0, 5) && E.fault(city, NaN, 5) && !E.fault(city, 1, 5), "faults: ask below bid, a zero bid, a missing number");
