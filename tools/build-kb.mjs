@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -162,6 +162,22 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       tiers: { SS: 0.006, S: 0.045, A: 0.105, B: 0.21 }, d: 4, about: b.id, fact: "height", pic: b.pic, note: `${b.name}: ${b.height} metres.` });
   }
   for (const b of ENTITIES.filter(e => e.sets.includes("building") && e.lat !== undefined)) if (!pinned.has(b.id)) { out.pins.push({ id: `ah-p-${b.id}`, cat: "architecture", about: b.id }); pinned.add(b.id); }
+
+  // The gods, asked by what they ruled and by their signs, and the Greeks by their Roman names: the wrong answers are
+  // the other gods of the same pantheon, in an order fixed by the god. A domain or a sign never names its own god.
+  const cap = t => t[0].toUpperCase() + t.slice(1);
+  for (const [set, lv, who, signOf, signQ] of [["greek-god", "gods", "Greek", "symbol", t => `${cap(t)}: which god's sign?`],
+    ["norse-god", "norse", "Norse", "symbol", t => `${cap(t)}: which god's?`], ["egyptian-god", "egypt", "Egyptian", "form", t => `Shown as ${t}: which god?`]]) {
+    const gods = ENTITIES.filter(e => e.sets.includes(set) && e.domain);
+    for (const g of gods) {
+      const rest = order(g.id, gods.filter(o => o !== g)), x = `${g.name}${g.roman ? ` (to the Romans, ${g.roman})` : ""}: ${g.domain}; ${g[signOf]}.`;
+      const mk = (kind, q, right, pool) => { const options = order(g.id + kind, [right, ...pool.slice(0, 3)]);
+        return { id: `MY-G-${g.id}-${kind}`, lv, d: 3, area: { gods: "Gods of Greece and Rome", norse: "The Norse", egypt: "Egypt" }[lv], q, o: options, a: [options.indexOf(right)], s: 1, x, about: [g.id] }; };
+      out.myth.push(mk("domain", `${cap(g.domain)}: which ${who} god?`, g.name, rest.map(o => o.name)));
+      out.myth.push(mk("sign", signQ(g[signOf]), g.name, rest.map(o => o.name)));
+      if (g.roman) out.myth.push(mk("roman", `What did the Romans call ${g.name}?`, g.roman, rest.filter(o => o.roman).map(o => o.roman)));
+    }
+  }
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

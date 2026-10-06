@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
@@ -416,7 +416,26 @@ export const PINS = [
 {"id":"ge-78","cat":"geo","about":"vientiane"},
 {"id":"ge-79","cat":"geo","about":"phnom-penh"},
 {"id":"ge-80","cat":"geo","about":"naypyidaw"},
-{"id":"ge-81","cat":"geo","about":"bandar-seri-begawan"}
+{"id":"ge-81","cat":"geo","about":"bandar-seri-begawan"},
+{"id":"my-mount-olympus","cat":"myth","about":"mount-olympus"},
+{"id":"my-delphi","cat":"myth","about":"delphi"},
+{"id":"my-knossos","cat":"myth","about":"knossos"},
+{"id":"my-troy","cat":"myth","about":"troy"},
+{"id":"my-ithaca","cat":"myth","about":"ithaca"},
+{"id":"my-mycenae","cat":"myth","about":"mycenae"},
+{"id":"my-cape-sounion","cat":"myth","about":"cape-sounion"},
+{"id":"my-lake-avernus","cat":"myth","about":"lake-avernus"},
+{"id":"my-strait-of-messina","cat":"myth","about":"strait-of-messina"},
+{"id":"my-pillars-of-hercules","cat":"myth","about":"pillars-of-hercules"},
+{"id":"my-gamla-uppsala","cat":"myth","about":"gamla-uppsala"},
+{"id":"my-karnak","cat":"myth","about":"karnak"},
+{"id":"my-abydos","cat":"myth","about":"abydos"},
+{"id":"my-colchis","cat":"myth","about":"colchis"},
+{"id":"my-lerna","cat":"myth","about":"lerna"},
+{"id":"my-nemea","cat":"myth","about":"nemea"},
+{"id":"my-dictaean-cave","cat":"myth","about":"dictaean-cave"},
+{"id":"my-mount-parnassus","cat":"myth","about":"mount-parnassus"},
+{"id":"my-lejre","cat":"myth","about":"lejre"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},

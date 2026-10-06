@@ -1,8 +1,11 @@
 // Order: put things in order. A card is dealt and you place it in your line, between the two it falls between; the
 // line grows a card at a time. A wrong place costs a life (the card goes where it belongs, so the line is always
 // right); three lives a run. Dates deal every dated question from Quote's bank, a painting's year among them;
-// Quantities deal one family at a time, the same unit and the same kind of thing, so the comparison means something.
+// Quantities deal one family at a time, the same unit and the same kind of thing, so the comparison means something;
+// Stories deal one story's events (Heracles' labours, Odysseus's voyage home, Ragnarök…), where what's ordered is the
+// story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number.
 import { QUOTES } from "./quote-bank.js";
+import { SEQUENCES } from "./kb/items/sequences.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -24,18 +27,25 @@ const DATES = QUOTES.filter(q => q.unit === "year").map(q => q.id);
 // quantities: one family a run, a unit with enough cards to make a line
 export const FAMILIES = Object.entries(QUOTES.filter(q => q.unit !== "year").reduce((f, q) => ((f[q.unit] ||= []).push(q.id), f), {}))
   .filter(([, ids]) => ids.length >= 6).map(([unit, ids]) => ({ unit, ids }));
-const MODES = { dates: "Dates", quantities: "Quantities" };
+// stories: each event a card whose truth is its place in the story
+const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
+for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
+const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
+/** A card's value as the line shows it: a story's place (5th), or the number with its unit. */
+const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
+const MODES = { dates: "Dates", quantities: "Quantities", stories: "Stories" };
 
 // ---------- a run ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
 function newRun(mode, daily) {
-  const seed = daily ? today() * 7919 + (mode === "dates" ? 3 : 5) : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
-  let ids, unit = "year";
+  const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
+  let ids, unit = "year", story = null;
   if (mode === "dates") ids = shuffle(r, DATES).slice(0, DATES_PER_RUN);
+  else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
   else { const fam = FAMILIES[Math.floor(r() * FAMILIES.length)]; unit = fam.unit; ids = shuffle(r, fam.ids); }
   // the line starts with one card face up
-  S = { seed, daily, mode, unit, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
+  S = { seed, daily, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
   save(); render();
 }
 const truth = id => BY_ID.get(id).truth;
@@ -49,13 +59,13 @@ function place(slot) {
   else S.placed++;
   S.line.splice(at, 0, { id, ok, fresh: true });
   S.deck.shift();
-  if (!ok) toast(`${withUnit(truth(id), BY_ID.get(id))}: it goes ${at === 0 ? "first" : at === S.line.length - 1 ? "last" : `after ${short(S.line[at - 1].id)}`}`);
+  if (!ok) toast(`${valueOf(BY_ID.get(id))}: it goes ${at === 0 ? "first" : at === S.line.length - 1 ? "last" : `after ${short(S.line[at - 1].id)}`}`);
   if (S.lives <= 0 || !S.deck.length) end();
   save(); render();
 }
 function end() {
   S.over = true;
-  const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : `q:${S.unit}`;
+  const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;
   if (!(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }
   if (S.daily) { const d = read(DAILY, {}), k = `${today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
   setTimeout(finish, 700);
@@ -76,13 +86,13 @@ const cardText = q => (q.pic ? (q.unit === "year" ? `When was ${titleOf(q)} ${do
 // ---------- drawing ----------
 function render() {
   if (!S) { newRun("dates", false); return; }
-  $("where").textContent = `${MODES[S.mode]}${S.mode === "quantities" ? `, in ${S.unit}` : ""}${S.daily ? " · today's" : ""} · placed ${S.placed}`;
+  $("where").textContent = `${S.mode === "stories" ? STORIES.get(S.story)?.name || MODES.stories : MODES[S.mode]}${S.mode === "quantities" ? `, in ${S.unit}` : ""}${S.daily ? " · today's" : ""} · placed ${S.placed}`;
   $("lives").textContent = "●".repeat(Math.max(0, S.lives)) + "○".repeat(LIVES - Math.max(0, S.lives));
   const next = S.deck[0];
   $("deal").hidden = !next || S.over;
   if (next && !S.over) {
     const q = BY_ID.get(next);
-    $("ask").textContent = S.mode === "dates" ? "When? Tap where it goes in your line" : `How much, in ${S.unit}? Tap where it goes`;
+    $("ask").textContent = S.mode === "dates" ? "When? Tap where it goes in your line" : S.mode === "stories" ? STORIES.get(S.story).ask : `How much, in ${S.unit}? Tap where it goes`;
     $("card").textContent = cardText(q);
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
@@ -102,7 +112,7 @@ function render() {
     box.append(slot(i));
     const q = BY_ID.get(c.id), li = document.createElement("li"), v = document.createElement("b"), t = document.createElement("span");
     li.className = `or-item${c.ok ? "" : " wrong"}${c.fresh ? " fresh" : ""}`;
-    v.textContent = withUnit(q.truth, q); t.textContent = short(c.id);
+    v.textContent = valueOf(q); t.textContent = short(c.id);
     li.append(v, t);
     if (q.pic) {                                               // a painting in the line keeps its picture, small
       const thumb = document.createElement("span");
@@ -122,7 +132,9 @@ function finish() {
   const p = document.createElement("p");
   p.className = "or-sum";
   p.textContent = `${S.placed} placed${S.lives <= 0 ? ", then out of lives" : ", the whole deck"}.`;
-  body.append(p, action("Another run", () => { $("doneDlg").close(); newRun(S.mode, false); }, "primary"));
+  body.append(p);
+  if (S.mode === "stories") { const n = document.createElement("p"); n.className = "or-note"; n.textContent = STORIES.get(S.story).note; body.append(n); }
+  body.append(action("Another run", () => { $("doneDlg").close(); newRun(S.mode, false); }, "primary"));
   $("doneDlg").showModal();
 }
 let toastTimer;

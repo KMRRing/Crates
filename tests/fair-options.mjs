@@ -2,7 +2,7 @@
 // longest, nor much longer than the wrong ones (which were once, in some banks, a few words against a full sentence).
 // Every choice bank is held to it: their wrong options have been rewritten as real alternatives of matching length.
 const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js", "phy-bank.js", "chm-bank.js", "eco-bank.js", "cs-bank.js", "rel-bank.js",
-  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js"];   // every choice bank, since October 2026
+  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js", "myth-bank.js"];   // every choice bank, since October 2026
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
@@ -38,6 +38,12 @@ for (const f of FAIR) {
     return stems(name).some(st => def.toLowerCase().includes(st));
   });
   check(!styleEcho.length && !partEcho.length, `architecture: no style question names its answer, no definition says its part's name${styleEcho.length + partEcho.length ? `: ${[...styleEcho, ...partEcho].map(q => q.id).join(", ")}` : ""}`);
+}
+// mythology: no question about a god says the god's name
+{
+  const { MATHS } = await import("../myth-bank.js");
+  const said = MATHS.filter(q => q.id.startsWith("MY-G-") && !q.id.endsWith("-roman") && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
+  check(!said.length, `mythology: no god's question names the god${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

@@ -31,3 +31,5 @@
 .or-toast.on { opacity: 1; }
 .or-mark { display: inline-block; }
 .or-mark svg { width: 100%; height: 100%; display: block; }
+/* a story's closing note: which sources tell it in this order */
+.or-note { margin: .2rem 0 .9rem; font-size: .86rem; line-height: 1.45; color: var(--ink-soft); }
