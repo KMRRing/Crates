@@ -15,18 +15,16 @@ html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226
 /* the harbour: as big as the room left, at the map's own proportions */
 .hb-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 10px;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.hb-sea { fill: var(--hb-water); stroke: var(--hb-water); stroke-width: .4; }
-.hb-cellwater { fill: none; stroke: var(--hb-grid); stroke-width: .3; }
-.hb-land { fill: var(--hb-land); stroke: var(--hb-land); stroke-width: .4; }   /* the stroke closes the seams between hexes */
 /* products by colour: oil and its cuts amber, FAME green; the customer's jetty blue */
 .pr-oil, .pr-diesel, .pr-gasoil { --pr: var(--c0); }
 .pr-fame { --pr: var(--c1); }
 .hb-jetty { --hb-berth: var(--pr, var(--c0)); }
 .hb-jetty.discharge { --hb-berth: var(--c2); }
-.hb-gauge-bg { fill: color-mix(in srgb, var(--hb-ship-ink) 16%, transparent); }
-.hb-gauge { fill: var(--hb-berth); }
 .hb-load { fill: var(--pr); stroke: var(--hb-ship-ink); stroke-width: .2; }
-.hb-jetty polygon { fill: color-mix(in srgb, var(--hb-berth) 28%, transparent); stroke: var(--hb-berth); stroke-width: .5; }
+.hb-sea { fill: var(--hb-water); }
+.hb-jetty .hb-berth { fill: color-mix(in srgb, var(--hb-berth) 22%, var(--hb-water)); }
+.hb-jetty .hb-edge { fill: none; stroke: var(--hb-berth); stroke-width: .8; }
+.hb-level { fill: var(--hb-berth); opacity: .5; transition: y .25s, height .25s; }     /* the tank's level, filling the jetty */
 .hb-jetty text { font: 800 4px var(--font); text-anchor: middle; fill: var(--hb-berth); }
 
 /* ships glide from tile to tile over an hour's time; while you drag one, or after an edit, they jump */
@@ -43,7 +41,8 @@ html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226
 .hb-crash { fill: none; stroke: var(--c3); stroke-width: .8; stroke-dasharray: 1.6 1.1; }
 
 /* the programs: a row per ship, a column per hour; the loop ends at the last instruction, and cells past it are faded */
-.hb-tape { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain;
+.hb-tape { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
+  touch-action: pan-x;   /* sideways only: an up-or-down swipe on the programs moves nothing */
   background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 10px; -webkit-overflow-scrolling: touch; }
 .hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem repeat(4, 1.7rem);
   gap: 3px; width: max-content; }

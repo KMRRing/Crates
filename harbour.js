@@ -82,24 +82,31 @@ function load(level) {
   render(true);
 }
 
+// The harbour: only the water is drawn, every hex the same tile with the same gap round it, and the page round them is
+// the land. The view is cropped to the water (plus a margin), so the harbour sits in the middle of its box whatever land
+// the map has around it. A jetty is a water tile in its product's colour (the customer's in blue), lettered as on the
+// map; a refinery's fills from the bottom up as its tank does.
+const GAP = 0.6, EDGE = 0.8;                 // between tiles; a jetty's border, inside its tile so every tile is as big
 function drawSea() {
-  const map = $("map"), W = HEX_W * (G.w + 0.5), H = 2 * HEX_R + ROW_H * (G.h - 1), parts = [];
-  map.setAttribute("viewBox", `0 0 ${W.toFixed(2)} ${H.toFixed(2)}`);
+  const map = $("map"), tiles = [], parts = [], defs = [];
+  for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) if (G.at(x, y) !== "land") tiles.push({ x, y, ...centre(x, y) });
+  const pad = 1.5, x0 = Math.min(...tiles.map(t => t.cx)) - HEX_W / 2 - pad, y0 = Math.min(...tiles.map(t => t.cy)) - HEX_R - pad;
+  const W = Math.max(...tiles.map(t => t.cx)) + HEX_W / 2 + pad - x0, H = Math.max(...tiles.map(t => t.cy)) + HEX_R + pad - y0;
+  map.setAttribute("viewBox", `${x0.toFixed(2)} ${y0.toFixed(2)} ${W.toFixed(2)} ${H.toFixed(2)}`);
   map.style.setProperty("--aspect", W / H);
-  for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) {
-    const k = G.at(x, y), { cx, cy } = centre(x, y);
-    if (k === "land") { parts.push(`<polygon class="hb-land" points="${hexPoints(x, y, -0.3)}"/>`); continue; }
-    parts.push(`<polygon class="hb-sea" points="${hexPoints(x, y, -0.3)}"/><polygon class="hb-cellwater" points="${hexPoints(x, y, 0.4)}"/>`);
-    const j = G.jetty(x, y);
-    if (!j) continue;
-    // a jetty in its product's colour (the customer's in blue), lettered as on the map; a refinery's has its tank's gauge
-    const gauge = j.tank ? `<rect class="hb-gauge-bg" x="${cx + 2.2}" y="${cy - 3.3}" width="1.2" height="6.6" rx=".6"/>`
-      + `<rect class="hb-gauge" data-tank="${k}" data-top="${cy - 3.3}" data-full="6.6" x="${cx + 2.2}" y="${cy + 3.3}" width="1.2" height="0" rx=".6"/>` : "";
-    parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><polygon points="${hexPoints(x, y, 1)}"/>`
-      + `<text x="${cx - (j.tank ? .7 : 0)}" y="${cy + 1.45}">${k}</text>${gauge}</g>`);
+  for (const { x, y, cx, cy } of tiles) {
+    const k = G.at(x, y), j = G.jetty(x, y);
+    if (!j) { parts.push(`<polygon class="hb-sea" points="${hexPoints(x, y, GAP)}"/>`); continue; }
+    const shape = hexPoints(x, y, GAP + EDGE / 2);
+    let level = "";
+    if (j.tank) {
+      defs.push(`<clipPath id="tank-${k}"><polygon points="${shape}"/></clipPath>`);
+      level = `<rect class="hb-level" data-tank="${k}" data-bottom="${(cy + HEX_R).toFixed(2)}" data-full="${(2 * HEX_R).toFixed(2)}" x="${(cx - HEX_W / 2).toFixed(2)}" y="${(cy + HEX_R).toFixed(2)}" width="${HEX_W}" height="0" clip-path="url(#tank-${k})"/>`;
+    }
+    parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><polygon class="hb-berth" points="${shape}"/>${level}`
+      + `<polygon class="hb-edge" points="${shape}"/><text x="${cx.toFixed(2)}" y="${(cy + 1.45).toFixed(2)}">${k}</text></g>`);
   }
-  // land underneath everything (so the half-hex notches at the ends of rows are coast, not open sea), each water hex on it
-  map.innerHTML = `<rect class="hb-land" width="${W.toFixed(2)}" height="${H.toFixed(2)}"/>` + parts.join("") + `<g id="fleet"></g><g id="marks"></g>`;
+  map.innerHTML = `<defs>${defs.join("")}</defs>` + parts.join("") + `<g id="fleet"></g><g id="marks"></g>`;
 }
 
 // ---------- editing ----------
@@ -291,10 +298,10 @@ function render(still = false) {
 }
 
 function tanks() {
-  for (const el of $("map").querySelectorAll(".hb-gauge")) {
+  for (const el of $("map").querySelectorAll(".hb-level")) {
     const k = el.dataset.tank, t = L.jetties[k].tank, level = sim ? sim.tanks[k] : t.start || 0, h = +el.dataset.full * level / t.cap;
-    el.setAttribute("height", h);
-    el.setAttribute("y", +el.dataset.top + +el.dataset.full - h);
+    el.setAttribute("height", h.toFixed(2));
+    el.setAttribute("y", (+el.dataset.bottom - h).toFixed(2));
   }
 }
 
@@ -355,7 +362,9 @@ function tape() {
       html.push(`<button class="${cls}" type="button" data-row="${r}" data-col="${c}"${off} aria-label="${label}">${body}</button>`);
     }
   }
+  const kept = box.scrollLeft;                        // rebuilt on every change: it stays where you'd scrolled it
   box.innerHTML = html.join("") + "</div>";
+  box.scrollLeft = kept;
   markPick();
   if (now >= 0) {                                    // keep the hour being run in view
     const cell = box.querySelector(".hb-cell.now");
