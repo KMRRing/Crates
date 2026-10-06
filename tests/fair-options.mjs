@@ -2,7 +2,7 @@
 // longest, nor much longer than the wrong ones (which were once, in some banks, a few words against a full sentence).
 // The banks listed have had their wrong options rewritten as real alternatives of matching length; add a bank here
 // once its options are evened out.
-const FAIR = ["phil-bank.js", "reasoning-bank.js"];
+const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js"];
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
