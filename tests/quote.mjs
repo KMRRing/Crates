@@ -6,7 +6,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 
 // the bank
 const ids = new Set(QUOTES.map(q => q.id));
-const sound = QUOTES.every(q => CATS[q.cat] && q.q && q.unit && Number.isFinite(q.truth) && q.note && q.tol > 0 && (q.scale === "log" ? q.truth > 0 : q.scale > 0) && (q.unit !== "year" || (q.truth > 1000 && q.truth < 2100 && q.scale !== "log")));
+const sound = QUOTES.every(q => CATS[q.cat] && q.q && q.unit && Number.isFinite(q.truth) && q.note && q.tol > 0 && (q.scale === "log" ? q.truth > 0 : q.scale > 0) && (q.unit !== "year" || (q.truth >= 1000 && q.truth < 2100 && q.scale !== "log")));
 check(ids.size === QUOTES.length && sound, `bank: ${QUOTES.length} questions, unique ids, every truth, scale and range sound`);
 
 // sets

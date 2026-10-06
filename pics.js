@@ -11,6 +11,9 @@ const step = width => STEPS.find(s => s >= width) ?? STEPS[STEPS.length - 1];
 // pageimages gives a page's lead image as its thumbnail at the size asked (rounded up to a step) and its original;
 // pilicense=any includes images Wikipedia uses under fair use (most 20th-century paintings); origin=* allows the call
 const API = "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&redirects=1&prop=pageimages&piprop=thumbnail|original&pilicense=any";
+// a picture can also be named by its file ("File:Kirchner - Mountain Landscape from Clavadel.jpg"), for one that has no
+// page of its own: imageinfo gives that file's thumbnail at the width asked, and its original
+const FILE_API = "https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=imageinfo&iiprop=url";
 const KEY = "pics:v2";                 // { "title@width": { t: thumbnail, o: original } | null (the page has no image) }
 let urls = null;
 function load() { if (!urls) { try { urls = JSON.parse(localStorage.getItem(KEY)) || {}; } catch { urls = {}; } } return urls; }
@@ -22,10 +25,12 @@ export async function pictureUrls(title, width = 640) {
   const all = load(), w = step(width), key = `${title}@${w}`;
   if (all[key] !== undefined) return all[key];
   try {
-    const res = await fetch(`${API}&pithumbsize=${w}&titles=${encodeURIComponent(title)}`);
+    const file = title.startsWith("File:");
+    const res = await fetch(file ? `${FILE_API}&iiurlwidth=${w}&titles=${encodeURIComponent(title)}` : `${API}&pithumbsize=${w}&titles=${encodeURIComponent(title)}`);
     if (!res.ok) return null;                                  // a failure isn't remembered: next time it's asked again
     const page = (await res.json())?.query?.pages?.[0];
-    const t = page?.thumbnail?.source || null, o = page?.original?.source || null;
+    const info = page?.imageinfo?.[0];
+    const t = (file ? info?.thumburl : page?.thumbnail?.source) || null, o = (file ? info?.url : page?.original?.source) || null;
     all[key] = t || o ? { t: t || o, o: o || t } : null;       // a page without an image is remembered
     save();
     return all[key];
