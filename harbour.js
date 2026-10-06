@@ -559,9 +559,99 @@ function openMenu() {
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "harbour");
 document.querySelector(".hb-mark").innerHTML = APPS.find(a => a.id === "harbour").logo;
+// ---------- dragging an instruction in ----------
+// A tool dragged onto the programs: onto an hour, it takes that hour's place; onto the edge between two hours (an
+// hour's outer quarters and the gap between), it goes in there for that ship, the hours after it shifting later; onto
+// the hour numbers between two hours, it goes in there for every ship, a column squeezed in. One edit each, for Undo.
+let carry = null, carried = 0;          // carry: { op, id, x, y, on, ghost, mark, to, scroll } while a tool is dragged
+const EDGE = .25;                       // an hour's outer quarter, each side, counts as the edge between two hours
+function dropTarget(x, y) {
+  const tb = tapeBox.getBoundingClientRect(), cell = (r, c) => tapeBox.querySelector(`.hb-cell[data-row="${r}"][data-col="${c}"]`);
+  const a0 = cell(0, 0), a1 = cell(0, 1), b0 = cell(1, 0);
+  if (!a0 || !a1 || !b0 || x < tb.left || x > tb.right || y < tb.top || y > tb.bottom) return null;
+  const a = a0.getBoundingClientRect(), stepX = a1.getBoundingClientRect().left - a.left, stepY = b0.getBoundingClientRect().top - a.top;
+  if (x < tapeBox.querySelector(".hb-lab").getBoundingClientRect().right) return null;   // over the ships' numbers
+  const cols = +tapeBox.querySelector(".hb-grid").style.getPropertyValue("--cols"), u = (x - a.left) / stepX, col = Math.floor(u);
+  if (y < a.top) return sol.ships.length ? { kind: "column", col: Math.max(0, Math.min(cols, Math.round(u))) } : null;
+  const row = Math.floor((y - a.top) / stepY), dx = x - (a.left + col * stepX);
+  if (row < 0 || row >= sol.ships.length || col < 0 || col >= cols) return null;
+  if (dx < a.width * EDGE) return { kind: "insert", row, col };
+  if (dx > a.width * (1 - EDGE)) return { kind: "insert", row, col: col + 1 };
+  return { kind: "paint", row, col };
+}
+/** Marks where the dragged instruction would go (an outlined hour, or a bar between two), and says so. */
+function showDrop(t) {
+  const m = carry.mark, name = opName(carry.op).split(":")[0];   // "Port", not the label's whole description
+  carry.to = t;
+  if (!t) { m.hidden = true; notice = "Drop it on an hour to replace it, between two to put it in, or between two hour numbers for every ship."; status(); return; }
+  const tb = tapeBox.getBoundingClientRect(), a = tapeBox.querySelector('.hb-cell[data-row="0"][data-col="0"]').getBoundingClientRect();
+  const stepX = tapeBox.querySelector('.hb-cell[data-row="0"][data-col="1"]').getBoundingClientRect().left - a.left;
+  const stepY = tapeBox.querySelector('.hb-cell[data-row="1"][data-col="0"]').getBoundingClientRect().top - a.top, gap = stepX - a.width;
+  let box;
+  if (t.kind === "paint") box = { left: a.left + t.col * stepX, top: a.top + t.row * stepY, width: a.width, height: a.height };
+  else {
+    const x = a.left + t.col * stepX - gap / 2 - 2, top = t.kind === "column" ? tapeBox.querySelector(".hb-colno").getBoundingClientRect().top : a.top + t.row * stepY;
+    box = { left: x, top, width: 4, height: t.kind === "column" ? a.top + (sol.ships.length - 1) * stepY + a.height - top : a.height };
+  }
+  m.className = `hb-dropmark ${t.kind === "paint" ? "cell" : "bar"}`;
+  m.hidden = box.left + box.width < tb.left || box.left > tb.right;
+  Object.assign(m.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px` });
+  notice = t.kind === "paint" ? `Ship ${t.row + 1}, hour ${t.col + 1}: ${name} in its place.`
+    : t.kind === "insert" ? `Ship ${t.row + 1}: ${name} in before hour ${t.col + 1}, the rest later.`
+    : `Every ship: ${name} in before hour ${t.col + 1}, the rest later.`;
+  status();
+}
+function dropIn(t, op) {
+  if (t.kind !== "column") sel = t.row;
+  if (t.kind === "paint") edit(() => { sol.ships[t.row].prog = T.paint(sol.ships[t.row].prog, t.col, op); });
+  else if (t.kind === "insert") edit(() => { sol.ships[t.row].prog = T.insert(sol.ships[t.row].prog, t.col, [op]); });
+  else edit(() => { for (const s of sol.ships) s.prog = T.insert(s.prog, t.col, [op]); });
+}
+function endCarry(drop) {
+  const c = carry;
+  carry = null;
+  if (!c) return;
+  clearInterval(c.scroll);
+  c.ghost?.remove(); c.mark?.remove();
+  if (!c.on) return;
+  carried = performance.now();                     // the click that ends a drag picks nothing
+  notice = "";
+  if (drop && c.to) dropIn(c.to, c.op); else render(true);
+}
+$("tools").addEventListener("pointerdown", e => {
+  const b = e.target.closest(".hb-tool[data-op]");
+  if (!b || mode !== "paint") return;
+  endCarry(false);
+  carry = { op: b.dataset.op, id: e.pointerId, x: e.clientX, y: e.clientY, on: false, btn: b };
+  b.setPointerCapture(e.pointerId);
+});
+$("tools").addEventListener("pointermove", e => {
+  if (!carry || e.pointerId !== carry.id) return;
+  carry.x = e.clientX; carry.y = e.clientY;
+  if (!carry.on) {
+    if (Math.hypot(e.clientX - carry.btn.getBoundingClientRect().left - carry.btn.offsetWidth / 2, e.clientY - carry.btn.getBoundingClientRect().top - carry.btn.offsetHeight / 2) < 14) return;
+    carry.on = true;
+    if (sim) { stop(); render(true); }
+    carry.ghost = Object.assign(document.createElement("div"), { className: `hb-tool hb-ghost op-${carry.op === WAIT ? "wait" : carry.op}`, innerHTML: glyph(carry.op) });
+    carry.mark = Object.assign(document.createElement("div"), { className: "hb-dropmark", hidden: true });
+    document.body.append(carry.mark, carry.ghost);
+    // held near either end of the programs, they scroll, so a drag reaches any hour
+    carry.scroll = setInterval(() => {
+      if (!carry) return;
+      const tb = tapeBox.getBoundingClientRect();
+      if (carry.y < tb.top || carry.y > tb.bottom) return;
+      const d = carry.x < tb.left + 36 ? -10 : carry.x > tb.right - 36 ? 10 : 0;
+      if (d) { tapeBox.scrollLeft += d; showDrop(dropTarget(carry.x, carry.y)); }
+    }, 30);
+  }
+  Object.assign(carry.ghost.style, { left: `${e.clientX}px`, top: `${e.clientY}px` });
+  showDrop(dropTarget(e.clientX, e.clientY));
+});
+$("tools").addEventListener("pointerup", e => { if (carry && e.pointerId === carry.id) endCarry(true); });
+$("tools").addEventListener("pointercancel", () => endCarry(false));
 $("tools").addEventListener("click", e => {
   const b = e.target.closest(".hb-tool");
-  if (!b || b.disabled) return;
+  if (!b || b.disabled || performance.now() - carried < 400) return;
   if (b.dataset.act === "mode") setMode(mode === "pick" ? "paint" : "pick");
   else if (b.dataset.act === "route") { drawMode = !drawMode; drawing = null; notice = ""; render(true); }
   else if ((b.dataset.act === "earlier" || b.dataset.act === "later") && performance.now() - repeat.at < 800) return;   // the press did it

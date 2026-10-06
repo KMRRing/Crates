@@ -151,3 +151,10 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hb-trail.on { stroke-opacity: .65; }
 .hb-trail-end { fill: var(--ink); fill-opacity: .75; }   /* where the picked ship's route goes on from, in draw mode */
 .hb-pentool[aria-pressed="true"] { background: var(--ink); color: var(--yard); border-color: var(--ink); }
+/* dragging an instruction in: the tool follows the finger (lifted clear of it), and a mark shows where it would go */
+.hb-tools .hb-tool[data-op] { touch-action: none; }
+.hb-ghost { position: fixed; z-index: 60; width: 40px; height: 40px; transform: translate(-50%, -125%); pointer-events: none;
+  box-shadow: 0 8px 18px rgb(0 0 0 / .28); opacity: .96; }
+.hb-dropmark { position: fixed; z-index: 59; pointer-events: none; border-radius: 3px; }
+.hb-dropmark.cell { box-shadow: 0 0 0 2.5px var(--ink), 0 0 0 5px color-mix(in srgb, var(--yard, #fff) 70%, transparent); }
+.hb-dropmark.bar { background: var(--ink); border-radius: 2px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--yard, #fff) 70%, transparent); }
