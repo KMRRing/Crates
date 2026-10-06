@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -56,7 +56,7 @@ export async function build() {
   const choice = {};
   for (const b of CHOICE_BANKS) {
     const m = await load(`items/choice/${b}.js`);
-    choice[b] = { STAGES: m.STAGES, MATHS: b === "art" ? [...m.ITEMS, ...gen.art] : m.ITEMS };
+    choice[b] = { STAGES: m.STAGES, MATHS: [...m.ITEMS, ...(gen[b] || [])] };
   }
   return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, index: await subjects(ENTITIES, LINKS) };
 }
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -107,26 +107,71 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       tiers: { SS: 0, S: 5, A: 15, B: 30 }, d: 4, about: p.id, fact: "year" });
     if (museum.lat !== undefined && !pinned.has(museum.id)) { out.pins.push({ id: `ar-g-${museum.id}`, cat: "art", about: museum.id }); pinned.add(museum.id); }
   }
-  // Movements as ideas, so knowing a movement means more than sorting its pictures: each movement with a card (when and
-  // where; what it rejected; what it sought; how to spot it; what lay behind it; what came next) gets four questions.
-  // Which movement rejected this, and which sought that, offer movements; how to spot it and what lay behind it offer
-  // other movements' own lines, so every wrong answer is true of something. Nearest in time first; on "against", never
-  // one of the same family (the Renaissances, the abstractions…), whose reasons overlap. The card is the explanation.
-  const carded = ENTITIES.filter(e => e.sets.includes("art-movement") && e.card).sort((a, b) => a.card.from - b.card.from);
-  const near = (m, keep) => carded.filter(o => o !== m && keep(o))
-    .sort((a, b) => Math.abs(a.card.from - m.card.from) - Math.abs(b.card.from - m.card.from) || (a.id < b.id ? -1 : 1));
-  const cardText = m => { const c = m.card; return `${m.name} (${c.where}, ${c.span}). Against ${c.against}. Seeking ${c.aim}. Spot it by ${c.tells}. Behind it: ${c.context}. Next: ${c.then}.`; };
-  const idea = (m, facet, q, right, pool) => {
-    const options = order(m.id + facet, [right, ...pool.slice(0, 3)]);
-    return { id: `AR-I-${m.id}-${facet}`, lv: "ideas", d: 5, area: "Movements as ideas", q, o: options, a: [options.indexOf(right)], s: 1, x: cardText(m), about: [m.id] };
+  // Ideas, so knowing a movement or a style means more than sorting its pictures: each with a card (when and where;
+  // what it rejected; what it sought; how to spot it; what lay behind it; what came next) gets up to four questions.
+  // Which one rejected this, and which sought that, offer names; how to spot it and what lay behind it offer the
+  // others' own lines, so every wrong answer is true of something. Nearest in time first; on "against", never one of
+  // the same family (the Renaissances, the abstractions…), whose reasons overlap; never one the question names, even
+  // by a stem ("…against Neoclassical reason"). The card is the explanation. Art movements use their card; a style of
+  // building its archCard where it's also a movement (the Baroque, the Rococo…), so each bank asks about its own art.
+  const cardQuestions = (set, cardOf, prefix, lv, area, kind) => {
+    const carded = ENTITIES.filter(e => e.sets.includes(set) && cardOf(e)).sort((a, b) => cardOf(a).from - cardOf(b).from);
+    const near = (m, keep) => carded.filter(o => o !== m && keep(o))
+      .sort((a, b) => Math.abs(cardOf(a).from - cardOf(m).from) - Math.abs(cardOf(b).from - cardOf(m).from) || (a.id < b.id ? -1 : 1));
+    const text = m => { const c = cardOf(m); return `${m.name} (${c.where}, ${c.span}).${c.against ? ` Against ${c.against}.` : ""} Seeking ${c.aim}. Spot it by ${c.tells}. Behind it: ${c.context}. Next: ${c.then}.`; };
+    const ask = (m, facet, q, right, pool) => {
+      const options = order(m.id + facet, [right, ...pool.slice(0, 3)]);
+      return { id: `${prefix}-${m.id}-${facet}`, lv, d: 5, area, q, o: options, a: [options.indexOf(right)], s: 1, x: text(m), about: [m.id] };
+    };
+    const qs = [];
+    for (const m of carded) {
+      const c = cardOf(m), any = () => true, unnamed = t => o => !t.toLowerCase().includes(o.name.toLowerCase().slice(0, 8));
+      if (c.against) qs.push(ask(m, "against", `Which ${kind} was reacting against ${c.against}?`, m.name, near(m, o => cardOf(o).family !== c.family && unnamed(c.against)(o)).map(o => o.name)));
+      qs.push(ask(m, "aim", `Which ${kind} was seeking ${c.aim}?`, m.name, near(m, unnamed(c.aim)).map(o => o.name)));
+      qs.push(ask(m, "tells", `How do you spot ${m.name}?`, c.tells, near(m, any).map(o => cardOf(o).tells)));
+      qs.push(ask(m, "context", `What lay behind ${m.name}?`, c.context, near(m, any).map(o => cardOf(o).context)));
+    }
+    return qs;
   };
-  for (const m of carded) {
-    // a movement the question names, even by a stem ("…against Neoclassical reason"), is never offered: it gives itself away
-    const c = m.card, any = () => true, unnamed = text => o => !text.toLowerCase().includes(o.name.toLowerCase().slice(0, 8));
-    out.art.push(idea(m, "against", `Which movement was reacting against ${c.against}?`, m.name, near(m, o => o.card.family !== c.family && unnamed(c.against)(o)).map(o => o.name)));
-    out.art.push(idea(m, "aim", `Which movement was seeking ${c.aim}?`, m.name, near(m, unnamed(c.aim)).map(o => o.name)));
-    out.art.push(idea(m, "tells", `How do you spot ${m.name}?`, c.tells, near(m, any).map(o => o.card.tells)));
-    out.art.push(idea(m, "context", `What lay behind ${m.name}?`, c.context, near(m, any).map(o => o.card.context)));
+  out.art.push(...cardQuestions("art-movement", e => e.card, "AR-I", "ideas", "Movements as ideas", "movement"));
+  out.arch.push(...cardQuestions("architecture-style", e => e.archCard || e.card, "AH-S", "styles", "Styles as ideas", "style"));
+
+  // Buildings, by sight: which style is this, who designed it (with its picture); the year it was completed and its
+  // height for Quote and Order; and a pin for Chart. Styles nearest the building's date, never one of its own family
+  // (a Gothic Revival hall isn't asked against the Gothic); architects nearest in their buildings' years.
+  const linked = (from, rel) => LINKS.filter(l => l.from === from && l.rel === rel).map(l => E.get(l.to)).filter(Boolean);
+  const buildings = ENTITIES.filter(e => e.sets.includes("building") && e.pic);
+  const styleOf = b => linked(b.id, "style")[0], archsOf = b => linked(b.id, "designed-by");
+  const styleCard = st => st.archCard || st.card, styles = ENTITIES.filter(e => e.sets.includes("architecture-style"));
+  const yearOf = b => b.year ?? (styleOf(b) ? styleCard(styleOf(b)).from : 0);
+  const architects = [...new Set(buildings.flatMap(archsOf))], archYear = a => mean(buildings.filter(b => archsOf(b).includes(a)).map(yearOf));
+  for (const b of buildings) {
+    const st = styleOf(b), as = archsOf(b), who = as.map(a => a.name).join(" and ");
+    const x = `${b.name}${who ? `, by ${who}` : ""}${b.year ? `, ${b.circa ? "c. " : ""}${b.year}` : ""}${st ? `: ${st.name}` : ""}.${b.note ? ` ${b.note}` : ""}`;
+    const ask = (kind, q, right, pool) => {
+      const options = order(b.id + kind, [right, ...pool.slice(0, 3)]);
+      return { id: `AH-B-${b.id}-${kind}`, lv: "buildings", d: 4, area: "Buildings", q, o: options, a: [options.indexOf(right)], s: 1, x, pic: b.pic, about: [b.id] };
+    };
+    if (st) out.arch.push(ask("style", "Which style is this?", st.name, styles.filter(o => o !== st && styleCard(o).family !== styleCard(st).family)
+      .sort((p, q) => Math.abs(styleCard(p).from - yearOf(b)) - Math.abs(styleCard(q).from - yearOf(b)) || (p.id < q.id ? -1 : 1)).map(o => o.name)));
+    if (as.length) out.arch.push(ask("who", "Who designed this?", as[0].name, architects.filter(a => !as.includes(a))
+      .sort((p, q) => Math.abs(archYear(p) - yearOf(b)) - Math.abs(archYear(q) - yearOf(b)) || (p.id < q.id ? -1 : 1)).map(a => a.name)));
+    if (b.year > 1000 && !quoted.has(b.id)) out.quotes.push({ id: `ah-y-${b.id}`, cat: "art", q: "The year this was completed", unit: "year", scale: 25, tol: 5,
+      note: `${b.name}${who ? `, by ${who}` : ""}, ${b.circa ? "about " : ""}${b.year}.`, tiers: { SS: 0, S: 5, A: 15, B: 30 }, d: 4, about: b.id, fact: "year" });
+    if (Number.isFinite(b.height)) out.quotes.push({ id: `ah-h-${b.id}`, cat: "art", q: "This building's height, to its tip", unit: "metres", scale: "log", tol: 0.03,
+      tiers: { SS: 0.006, S: 0.045, A: 0.105, B: 0.21 }, d: 4, about: b.id, fact: "height", pic: b.pic, note: `${b.name}: ${b.height} metres.` });
+  }
+  for (const b of ENTITIES.filter(e => e.sets.includes("building") && e.lat !== undefined)) if (!pinned.has(b.id)) { out.pins.push({ id: `ah-p-${b.id}`, cat: "architecture", about: b.id }); pinned.add(b.id); }
+
+  // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
+  // and what it's called. A definition never echoes the name it defines.
+  const terms = ENTITIES.filter(e => e.sets.includes("architecture-term") && e.def);
+  const others = t => { const o = order(t.id, terms.filter(u => u !== t)); return [...o.filter(u => u.family === t.family), ...o.filter(u => u.family !== t.family)]; };
+  for (const t of terms) {
+    const x = `${t.name}: ${t.def}.`, mk = (kind, q, right, pool) => { const options = order(t.id + kind, [right, ...pool.slice(0, 3)]);
+      return { id: `AH-T-${t.id}-${kind}`, lv: "parts", d: 3, area: "Reading a building", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [t.id] }; };
+    out.arch.push(mk("what", `${t.name}: what is it?`, t.def, others(t).map(u => u.def)));
+    out.arch.push(mk("name", `What do you call ${t.def}?`, t.name, others(t).map(u => u.name)));
   }
   return out;
 }

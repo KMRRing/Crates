@@ -60,14 +60,18 @@ function end() {
   if (S.daily) { const d = read(DAILY, {}), k = `${today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
   setTimeout(finish, 700);
 }
-// a card's own words, without the question's lead-in; a painting goes by its title ("this" means the picture)
+// a card's own words, without the question's lead-in. A picture goes by its title ("this" means the picture), and its
+// question says what happened to it: "The year this was painted", "…was completed" (a painting, a building); a
+// picture's quantity keeps its own words, the title for "this" ("This building's height" → "Ulm Minster's height").
 const titleOf = q => q.pic.replace(/_/g, " ").replace(/\s*\(.*\)$/, "");
+const doneTo = q => q.q.match(/\bthis was (\w+)/i)?.[1] || "made";
+const withTitle = q => q.q.replace(/^This (\w+)'s/i, `${titleOf(q)}'s`).replace(/\bthis\b/i, titleOf(q));
 const short = id => {
   const q = BY_ID.get(id);
-  if (q.pic) return `${titleOf(q)}, painted`;
+  if (q.pic) return q.unit === "year" ? `${titleOf(q)}, ${doneTo(q)}` : withTitle(q);
   return q.q.replace(/^(The )?(year|number of|share of|population of)\s+(the\s+)?/i, "").replace(/^./, c => c.toUpperCase());
 };
-const cardText = q => (q.pic ? `When was ${titleOf(q)} painted?` : q.q);
+const cardText = q => (q.pic ? (q.unit === "year" ? `When was ${titleOf(q)} ${doneTo(q)}?` : withTitle(q)) : q.q);
 
 // ---------- drawing ----------
 function render() {

@@ -2,7 +2,7 @@
 // longest, nor much longer than the wrong ones (which were once, in some banks, a few words against a full sentence).
 // Every choice bank is held to it: their wrong options have been rewritten as real alternatives of matching length.
 const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js", "phy-bank.js", "chm-bank.js", "eco-bank.js", "cs-bank.js", "rel-bank.js",
-  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js"];   // every choice bank, since October 2026
+  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js"];   // every choice bank, since October 2026
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
@@ -27,6 +27,17 @@ for (const f of FAIR) {
   const stems = name => name.toLowerCase().split(/[\s-]+/).filter(w => w.length >= 5 && !["early", "american", "abstract", "northern"].includes(w)).map(w => w.slice(0, 5));
   const echo = MATHS.filter(q => q.lv === "ideas" && /^Which movement/.test(q.q)).filter(q => stems(q.o[q.a[0]]).some(st => q.q.toLowerCase().includes(st)));
   check(!echo.length, `art: no "which movement" question echoes its answer${echo.length ? `: ${echo.map(q => q.id).join(", ")}` : ""}`);
+}
+// the same for architecture: a style question never names its style, and a part's definition never says the part's name
+{
+  const { MATHS } = await import("../arch-bank.js");
+  const stems = name => name.toLowerCase().split(/[\s-]+/).filter(w => w.length >= 5 && !["classical", "revival"].includes(w)).map(w => w.slice(0, 5));
+  const styleEcho = MATHS.filter(q => q.lv === "styles" && /^Which style/.test(q.q)).filter(q => stems(q.o[q.a[0]]).some(st => q.q.toLowerCase().includes(st)));
+  const partEcho = MATHS.filter(q => q.lv === "parts").filter(q => {
+    const [name, def] = q.id.endsWith("-what") ? [q.q.replace(/: what is it\?$/, ""), q.o[q.a[0]]] : [q.o[q.a[0]], q.q];
+    return stems(name).some(st => def.toLowerCase().includes(st));
+  });
+  check(!styleEcho.length && !partEcho.length, `architecture: no style question names its answer, no definition says its part's name${styleEcho.length + partEcho.length ? `: ${[...styleEcho, ...partEcho].map(q => q.id).join(", ")}` : ""}`);
 }
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
