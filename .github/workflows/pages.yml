@@ -22,9 +22,11 @@ jobs:
         with:
           node-version: 22
       - name: The banks are built from kb/ and current
-        run: node tools/build-kb.mjs --check
+        # under a second when it's linear; the time limit catches a scan of every link creeping back into a loop
+        run: timeout 30 node tools/build-kb.mjs --check
       - name: Every game's tests
-        run: for t in tests/*.mjs; do echo "== $t"; node "$t"; done
+        # the test files run four at a time; a failing one prints its output and fails the step
+        run: ls tests/*.mjs | xargs -P 4 -I{} sh -c 'node {} > "/tmp/$(basename {}).log" 2>&1 && echo "ok   {}" || { echo "FAIL {}"; cat "/tmp/$(basename {}).log"; exit 1; }'
       - name: Publish sw.js
         run: |
           node tools/build-sw.mjs

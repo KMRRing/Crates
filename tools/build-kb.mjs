@@ -139,12 +139,20 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   // Buildings, by sight: which style is this, who designed it (with its picture); the year it was completed and its
   // height for Quote and Order; and a pin for Chart. Styles nearest the building's date, never one of its own family
   // (a Gothic Revival hall isn't asked against the Gothic); architects nearest in their buildings' years.
-  const linked = (from, rel) => LINKS.filter(l => l.from === from && l.rel === rel).map(l => E.get(l.to)).filter(Boolean);
+  // links indexed once by thing and kind, and each building's style, architects and year, and each architect's mean
+  // year, worked out once: the architect sort below calls them for every pair it compares, and scanning all the links
+  // each time made this section most of the build's two minutes
+  const byFromRel = new Map();
+  for (const l of LINKS) { const k = `${l.from}|${l.rel}`; (byFromRel.get(k) || byFromRel.set(k, []).get(k)).push(l); }
+  const linked = (from, rel) => (byFromRel.get(`${from}|${rel}`) || []).map(l => E.get(l.to)).filter(Boolean);
   const buildings = ENTITIES.filter(e => e.sets.includes("building") && e.pic);
-  const styleOf = b => linked(b.id, "style")[0], archsOf = b => linked(b.id, "designed-by");
+  const STYLE = new Map(buildings.map(b => [b.id, linked(b.id, "style")[0]])), ARCHS = new Map(buildings.map(b => [b.id, linked(b.id, "designed-by")]));
+  const styleOf = b => STYLE.get(b.id), archsOf = b => ARCHS.get(b.id);
   const styleCard = st => st.archCard || st.card, styles = ENTITIES.filter(e => e.sets.includes("architecture-style"));
   const yearOf = b => b.year ?? (styleOf(b) ? styleCard(styleOf(b)).from : 0);
-  const architects = [...new Set(buildings.flatMap(archsOf))], archYear = a => mean(buildings.filter(b => archsOf(b).includes(a)).map(yearOf));
+  const architects = [...new Set(buildings.flatMap(archsOf))];
+  const ARCH_YEAR = new Map(architects.map(a => [a, mean(buildings.filter(b => archsOf(b).includes(a)).map(yearOf))]));
+  const archYear = a => ARCH_YEAR.get(a);
   for (const b of buildings) {
     const st = styleOf(b), as = archsOf(b), who = as.map(a => a.name).join(" and ");
     const x = `${b.name}${who ? `, by ${who}` : ""}${b.year ? `, ${b.circa ? "c. " : ""}${b.year}` : ""}${st ? `: ${st.name}` : ""}.${b.note ? ` ${b.note}` : ""}`;

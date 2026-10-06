@@ -145,3 +145,9 @@ one (a neighbouring idea, or the answer with one thing changed), and don't let t
 formula or a number. Put the extra detail in the explanation (`x`), not the answer. `tests/banks.mjs` fails otherwise.
 Banks built from the knowledge base (art, chm, cities, cs, eco, flags, phil, phy, refining, rel) are edited in
 `kb/items/choice/<bank>.js`, then `node tools/build-kb.mjs`; maths, wine, words, reasoning and patterns are edited in place.
+
+## Keeping the build fast
+
+`tools/build-kb.mjs` runs in under a second; CI fails it after 30. Never scan `LINKS` or `ENTITIES` inside a loop or a
+sort comparator: index what you need once (a Map by id, or by id and relation) and look it up. One such scan in the
+architecture section once made the build take two minutes, and every push's pipeline five.
