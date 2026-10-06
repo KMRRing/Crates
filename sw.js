@@ -2,7 +2,7 @@
 // Keeps every file of every game on the device, so the games open and play offline. The version changes with
 // any file, so devices fetch the new set in the background; it waits until the app is off screen to take over
 // (see pwa.js). Requests to other sites (Firebase, for playing together) go straight to the network.
-const VERSION = "5d335927957d";
+const VERSION = "f691903848b5";
 const CACHE = `crates-${VERSION}`;
 const FILES = [
   "./",
@@ -57,7 +57,9 @@ const FILES = [
   "fonts/twemoji-flags.woff2",
   "gen.js",
   "glyph.html",
+  "harbour-3d.js",
   "harbour-engine.js",
+  "harbour-flat.js",
   "harbour-levels.js",
   "harbour-tape.js",
   "harbour.css",
@@ -156,6 +158,7 @@ const FILES = [
   "vendor/chess.js",
   "vendor/temml.css",
   "vendor/temml.min.js",
+  "vendor/three.js",
   "view.js",
   "voice.js",
   "wine-bank.js",
