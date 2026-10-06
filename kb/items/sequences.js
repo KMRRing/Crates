@@ -479,5 +479,60 @@ export const SEQUENCES = [
    "The Belt and Road is announced",
    "Yuan-priced crude futures open in Shanghai"
   ]
+ },
+ {
+  "id": "streif",
+  "name": "The Streif, top to bottom",
+  "unit": "section",
+  "ask": "Which comes first, from the top? Tap where it goes",
+  "note": "Kitzbühel's Hahnenkamm downhill, about 3.3 km; the Mausefalle (mousetrap) sends racers 60 metres through the air.",
+  "steps": [
+   "The start house",
+   "The Mausefalle",
+   "The Karussell",
+   "The Steilhang",
+   "The Brückenschuss",
+   "The Gschöss",
+   "The Seidlalm jump",
+   "The Lärchenschuss",
+   "The Hausbergkante",
+   "The Zielschuss"
+  ]
+ },
+ {
+  "id": "ski-history",
+  "name": "Skiing becomes a sport",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1864, 1868, 1896, 1922, 1924, 1934, 1936, 1980, 1985, 1998.",
+  "steps": [
+   "Badrutt's winter bet at St. Moritz",
+   "Sondre Norheim jumps at Christiania",
+   "Zdarsky's book on Alpine skiing",
+   "Lunn sets the first slalom, at Mürren",
+   "The first Winter Olympics, at Chamonix",
+   "Constam's T-bar opens at Davos",
+   "The first chairlift, at Sun Valley",
+   "Lake Placid's Games use artificial snow",
+   "Jan Boklöv first jumps in a V",
+   "Snowboarding joins the Olympics"
+  ]
+ },
+ {
+  "id": "avalanche-rescue",
+  "name": "Avalanche rescue",
+  "unit": "step",
+  "ask": "What comes first? Tap where it goes",
+  "note": "The first fifteen minutes decide most outcomes, so companions dig before help arrives.",
+  "steps": [
+   "Mark where the victim was last seen",
+   "Switch every transceiver to search",
+   "Search for the first signal",
+   "Follow the signal in close",
+   "Pinpoint it, low over the snow",
+   "Probe until you strike the victim",
+   "Dig in from downhill, in a relay",
+   "Clear the airway first"
+  ]
  }
 ];

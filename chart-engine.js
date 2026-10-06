@@ -153,6 +153,7 @@ export const REGIONS = {
   // with its borders (open lines) or outline (closed, traced roughly for bearings) and rivers and lakes from chart-geo.js
   britain: { name: "Britain", sub: true, detail: "british-isles", window: [-8.7, 1.9, 49.8, 60.9], countries: ["United Kingdom"], local: "britain", context: ["thames", "severn"],
     borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]], [[-3.08, 53.28], [-2.93, 53.18], [-2.95, 53.0], [-3.0, 52.93], [-3.05, 52.8], [-3.12, 52.62], [-3.05, 52.45], [-3.0, 52.35], [-3.05, 52.2], [-3.0, 52.05], [-2.95, 51.95], [-2.82, 51.85], [-2.65, 51.7], [-2.65, 51.61]]] },
+  alps: { name: "The Alps", sub: true, window: [5, 16.5, 43.6, 48.4], mark: "Alps", local: "ski", context: ["alps"] },
   china: { name: "China", sub: true, window: [73, 135, 18, 54], countries: ["China"], local: "china", context: ["yangtze", "yellow"] },
   scotland: { name: "Scotland", sub: true, detail: "british-isles", window: [-7.8, -0.6, 54.5, 60.9], state: "Scotland", local: "scotland", borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]]] },
   // its outline (traced roughly, for bearings), and the rivers and lakes drawn under it (ids in chart-geo.js)
@@ -207,12 +208,12 @@ export function viewFitting(points, w, h, { minSpan = 6, pad = 1.6 } = {}) {
 // territories and seas the region table doesn't know, placed by hand (the rest, like Antarctica, are in no region)
 const PLACE_REGIONS = { Svalbard: ["europe"], Greenland: ["north-america"], "New Caledonia": ["oceania"], "French Polynesia": ["oceania"], "Mariana Islands": ["oceania"], "United States (Pacific)": ["oceania"], "Timor-Leste": ["asia"] };
 /** The regions a place counts in, from its (first) country by `regionOf` (country -> regions); a place in Russia or
- *  Turkey by its side of the Urals or the Bosphorus; and a region within or of a country (Bavaria, Scotland, Britain) by the place's state or country. */
+ *  Turkey by its side of the Urals or the Bosphorus; and a region within or of a country (Bavaria, Scotland, Britain) by the place's state, country or marks (the Alps). */
 export function regionsOfPlace(p, regionOf) {
   const first = (p.country || "").split(/,| and | to /)[0].trim().replace(/^the /, "");
   if (first === "Russia") return [p.lon < 60 ? "europe" : "asia"];
   if (first === "Turkey") return [p.lon < 30 ? "europe" : "middle-east"];
-  const within = Object.entries(REGIONS).filter(([, r]) => (r.state && r.state === p.state) || r.countries?.includes(first)).map(([k]) => k);
+  const within = Object.entries(REGIONS).filter(([, r]) => (r.state && r.state === p.state) || r.countries?.includes(first) || (r.mark && p.marks?.includes(r.mark))).map(([k]) => k);
   return [...(regionOf[first] || PLACE_REGIONS[first] || []), ...within];
 }
 /** The view a question opens on in a region: its window, fitted to the map. */

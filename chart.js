@@ -209,7 +209,8 @@ function drawRegion(ctx, proj, region) {
     const g = GEO.find(f => f.id === id);
     if (!g) continue;
     ctx.beginPath();
-    if (g.rings) { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
+    if (g.rings && g.kind === "lake") { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
+    else if (g.rings) { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.setLineDash([2, 4]); ctx.strokeStyle = "rgba(110,90,60,.45)"; ctx.lineWidth = 1.2; ctx.stroke(); ctx.setLineDash([]); }
     if (g.lines) { for (const l of g.lines) trace(l); ctx.strokeStyle = "rgba(60,120,180,.55)"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke(); }
   }
   if (!r.outline && !r.borders) return;

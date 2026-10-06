@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -37,8 +37,8 @@ export async function build() {
   const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS);
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = [...pins.PINS, ...gen.pins].map(({ id, cat, about, ...over }) => {
-    const { name, lat, lon, note, country, region, pic, state } = of(about);
-    return defined({ id, cat, name, lat, lon, note, country, region, state, pic, ...over, about });
+    const { name, lat, lon, note, country, region, pic, state, marks } = of(about);
+    return defined({ id, cat, name, lat, lon, note, country, region, state, marks, pic, ...over, about });
   });
   const GEO = pins.FEATURES.map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -312,6 +312,28 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   const cnThink = cnOf("chinese-thinker");
   for (const t of cnThink) out.china.push(cnQ("thought", "Thinkers", `CN-G-${t.id}`, `Who taught ${t.taught}?`, t.name,
     cnNear(t.name, cnThink.filter(o => o !== t).map(o => o.name)), `${t.name}: ${t.taught}.`, [t.id], 4));
+
+  // Skiing, from kb/: the resorts by country and by linked ski area, the races and runs by resort, the great skiers by
+  // what they did. Difficulty on Punt's scale of 1 to 10.
+  const skQ = (lv, area, id, q, right, pool, x, about, d) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  const skNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const skResorts = ENTITIES.filter(e => e.sets.includes("ski-resort")), skCountry = r => r.resortCountry || r.country;
+  const skCountries = [...new Set(skResorts.map(skCountry))];
+  // an Alpine resort's wrong countries are the other Alpine ones: Cervinia against Switzerland, not against Japan
+  const skAlpine = [...new Set(skResorts.filter(r => r.lat).map(skCountry))];
+  for (const r of skResorts) out.skiing.push(skQ("resorts", "Resorts", `SK-G-${r.id}-country`, `Which country is ${r.name} in?`, skCountry(r), order(r.id + "c", r.lat ? skAlpine : skCountries),
+    `${r.name} is in ${skCountry(r)}.${r.note ? ` ${r.note}` : ""}`, [r.id], 3));
+  const skAreas = [...new Set(skResorts.map(r => r.skiArea).filter(Boolean))];
+  for (const r of skResorts.filter(r => r.skiArea)) out.skiing.push(skQ("areas", "Ski areas", `SK-G-${r.id}-area`, `Which linked ski area is ${r.name} part of?`, r.skiArea,
+    skNear(r.skiArea, skAreas), `${r.name} is part of ${r.skiArea}.`, [r.id], 5));
+  const skByID = new Map(skResorts.map(r => [r.id, r]));
+  for (const race of ENTITIES.filter(e => e.sets.includes("ski-race") && skByID.has(e.at))) { const at = skByID.get(race.at);
+    out.skiing.push(skQ("races", "Races and runs", `SK-G-${race.id}`, `Where would you find ${race.called}?`, at.name,
+      skNear(at.name, skResorts.filter(r => r.lat && r !== at).map(r => r.name)), `${race.called[0].toUpperCase() + race.called.slice(1)}: at ${at.name}.`, [race.id, at.id], 5)); }
+  const skGreats = ENTITIES.filter(e => e.sets.includes("great-skier") && e.feat);
+  for (const s of skGreats) out.skiing.push(skQ("skiers", "Great skiers", `SK-G-${s.id}`, `Who ${s.feat}?`, s.name,
+    skNear(s.name, skGreats.filter(o => o !== s).map(o => o.name)), `${s.name} ${s.feat}.`, [s.id], 4));
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

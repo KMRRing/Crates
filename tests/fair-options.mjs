@@ -2,7 +2,7 @@
 // longest, nor much longer than the wrong ones (which were once, in some banks, a few words against a full sentence).
 // Every choice bank is held to it: their wrong options have been rewritten as real alternatives of matching length.
 const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js", "phy-bank.js", "chm-bank.js", "eco-bank.js", "cs-bank.js", "rel-bank.js",
-  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js", "myth-bank.js", "merchants-bank.js", "titles-bank.js", "artmarket-bank.js", "bavaria-bank.js", "britain-bank.js", "china-bank.js"];   // every choice bank, since October 2026
+  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js", "swiss-bank.js", "arch-bank.js", "myth-bank.js", "merchants-bank.js", "titles-bank.js", "artmarket-bank.js", "bavaria-bank.js", "britain-bank.js", "china-bank.js", "skiing-bank.js"];   // every choice bank, since October 2026
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
@@ -81,6 +81,12 @@ for (const f of FAIR) {
   const said = MATHS.filter(q => /^CN-G-/.test(q.id) && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
   const kinds = MATHS.filter(q => /-kind$/.test(q.id) && new Set(q.o.map(o => o.split(",")[0])).size < q.o.length);
   check(!said.length && !kinds.length, `China: no generated question names its answer, no tea has two right kinds${said.length + kinds.length ? `: ${[...said, ...kinds].map(q => q.id).join(", ")}` : ""}`);
+}
+// skiing: no generated question names its answer
+{
+  const { MATHS } = await import("../skiing-bank.js");
+  const said = MATHS.filter(q => /^SK-G-/.test(q.id) && q.q.toLowerCase().includes(q.o[q.a[0]].toLowerCase()));
+  check(!said.length, `skiing: no generated question names its answer${said.length ? `: ${said.map(q => q.id).join(", ")}` : ""}`);
 }
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

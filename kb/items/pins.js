@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China","ski":"Skiing"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
@@ -586,7 +586,49 @@ export const PINS = [
 {"id":"cn-urumqi","cat":"china","about":"urumqi"},
 {"id":"cn-shanhaiguan","cat":"china","about":"shanhaiguan"},
 {"id":"cn-jiayuguan","cat":"china","about":"jiayuguan"},
-{"id":"cn-zhoukoudian","cat":"china","about":"zhoukoudian"}
+{"id":"cn-zhoukoudian","cat":"china","about":"zhoukoudian"},
+{"id":"sk-zermatt","cat":"ski","about":"zermatt"},
+{"id":"sk-verbier","cat":"ski","about":"verbier"},
+{"id":"sk-st-moritz","cat":"ski","about":"st-moritz"},
+{"id":"sk-davos","cat":"ski","about":"davos"},
+{"id":"sk-gstaad","cat":"ski","about":"gstaad"},
+{"id":"sk-wengen","cat":"ski","about":"wengen"},
+{"id":"sk-murren","cat":"ski","about":"murren"},
+{"id":"sk-grindelwald","cat":"ski","about":"grindelwald"},
+{"id":"sk-saas-fee","cat":"ski","about":"saas-fee"},
+{"id":"sk-andermatt","cat":"ski","about":"andermatt"},
+{"id":"sk-crans-montana","cat":"ski","about":"crans-montana"},
+{"id":"sk-laax","cat":"ski","about":"laax"},
+{"id":"sk-engelberg","cat":"ski","about":"engelberg"},
+{"id":"sk-chamonix","cat":"ski","about":"chamonix"},
+{"id":"sk-val-disere","cat":"ski","about":"val-disere"},
+{"id":"sk-tignes","cat":"ski","about":"tignes"},
+{"id":"sk-courchevel","cat":"ski","about":"courchevel"},
+{"id":"sk-meribel","cat":"ski","about":"meribel"},
+{"id":"sk-val-thorens","cat":"ski","about":"val-thorens"},
+{"id":"sk-avoriaz","cat":"ski","about":"avoriaz"},
+{"id":"sk-les-arcs","cat":"ski","about":"les-arcs"},
+{"id":"sk-la-plagne","cat":"ski","about":"la-plagne"},
+{"id":"sk-megeve","cat":"ski","about":"megeve"},
+{"id":"sk-alpe-dhuez","cat":"ski","about":"alpe-dhuez"},
+{"id":"sk-kitzbuhel","cat":"ski","about":"kitzbuhel"},
+{"id":"sk-st-anton","cat":"ski","about":"st-anton"},
+{"id":"sk-lech","cat":"ski","about":"lech"},
+{"id":"sk-ischgl","cat":"ski","about":"ischgl"},
+{"id":"sk-solden","cat":"ski","about":"solden"},
+{"id":"sk-saalbach","cat":"ski","about":"saalbach"},
+{"id":"sk-mayrhofen","cat":"ski","about":"mayrhofen"},
+{"id":"sk-innsbruck","cat":"ski","about":"innsbruck"},
+{"id":"sk-cortina","cat":"ski","about":"cortina"},
+{"id":"sk-cervinia","cat":"ski","about":"cervinia"},
+{"id":"sk-val-gardena","cat":"ski","about":"val-gardena"},
+{"id":"sk-alta-badia","cat":"ski","about":"alta-badia"},
+{"id":"sk-courmayeur","cat":"ski","about":"courmayeur"},
+{"id":"sk-bormio","cat":"ski","about":"bormio"},
+{"id":"sk-livigno","cat":"ski","about":"livigno"},
+{"id":"sk-madonna-di-campiglio","cat":"ski","about":"madonna-di-campiglio"},
+{"id":"sk-garmisch","cat":"ski","about":"garmisch"},
+{"id":"sk-oberstdorf","cat":"ski","about":"oberstdorf"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},
