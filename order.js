@@ -6,7 +6,6 @@
 // story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number.
 import { QUOTES } from "./quote-bank.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
-import { UNIT_KEYS } from "./kb/items/units.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -93,8 +92,7 @@ function render() {
   $("deal").hidden = !next || S.over;
   if (next && !S.over) {
     const q = BY_ID.get(next);
-    // a unit you can't picture (a hectare, a kWh) keeps its key in view: what one unit is, in things you know
-    $("ask").textContent = S.mode === "quantities" && UNIT_KEYS[S.unit] ? UNIT_KEYS[S.unit] : S.mode === "dates" ? "When? Tap where it goes in your line" : S.mode === "stories" ? STORIES.get(S.story).ask : `How much, in ${S.unit}? Tap where it goes`;
+    $("ask").textContent = S.mode === "dates" ? "When? Tap where it goes in your line" : S.mode === "stories" ? STORIES.get(S.story).ask : `How much, in ${S.unit}? Tap where it goes`;
     $("card").textContent = cardText(q);
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");

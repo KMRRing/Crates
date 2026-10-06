@@ -11,11 +11,3 @@ if (notNumbers.length) { bad++; console.log("cards without a number", notNumbers
 console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${fams.length} quantity families (${fams.map(([u, qs]) => `${u} ${qs.length}`).join(", ")})`);
 if (bad) process.exitCode = 1;
 
-// every unit with a key (a hectare, a kWh) has a family of cards to order, and every key is a sentence
-const { UNIT_KEYS } = await import("../kb/items/units.js");
-for (const [unit, key] of Object.entries(UNIT_KEYS)) {
-  const n = QUOTES.filter(q => q.unit === unit).length;
-  if (n < 6 || !/\.$/.test(key)) { bad++; console.log("unit", unit, "has", n, "cards or no key"); }
-}
-console.log(`order: keys for ${Object.keys(UNIT_KEYS).join(", ")}`);
-if (bad) process.exitCode = 1;
