@@ -6,7 +6,7 @@ globalThis.window = {}; globalThis.atob = b => Buffer.from(b, "base64").toString
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
 const CLEAN = new Set(["physics", "chemistry", "economics", "religion", "code", "wine", "art", "words", "refining", "reasoning", "cities", "flags", "patterns", "philosophy"]);
-const formula = s => /[=≥≤≈∝ΔΣ∫√±×÷^ℏπλμσ$]|\d/.test(s);
+const formula = s => /[=≥≤≈∝ΔΣ∫√±×÷^ℏπλμσ$/−²³⁴⁵ⁿ⁰¹⁺⁻₀₁₂₃ₐᵇ∑∏∞∂∇⟂∥ℤℝℂℕ∈⊂]|\d/.test(s);
 // options that are all names (a country, a city, a painter, a museum) vary in length by nature, not by a writer
 // padding the answer: the length rule leaves them be
 const nameLike = s => /^(the )?[A-ZÀ-Þ]/.test(s) && !/[:;]/.test(s) && s.split(/\s+/).length <= 6 && !/\d/.test(s);
