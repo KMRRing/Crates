@@ -7,8 +7,8 @@
 //
 // Runs are dealt in balanced batches, so they're comparable: within a batch the mix of question kinds, option
 // counts and clue difficulties is exactly the level's mix, and the house's mispricings are an even spread of its
-// noise, shuffled, averaging out to exactly its margin. Runs differ in which questions they get, never in how
-// generous the house happened to be.
+// noise, shuffled. Runs differ in which questions they get, never in how generous the house happened to be; the
+// odds themselves come from one scale (scaleOdds: 1.1× to 3×, about 2× on a long run).
 import { BANK, TOPICS } from "./core.js";
 import { normalize } from "./typing.js";
 import { pairKey } from "./known.js";
@@ -16,12 +16,12 @@ import { pairKey } from "./known.js";
 // questions: a standard run's length; options: how many choices a question may have (two or four, so they fill
 // the 2×2 grid: three would leave one dangling) and diff: clue difficulties, both dealt in these proportions;
 // spread: how far the house's price strays from fair, as a multiplier (bigger = more mispriced, easier to exploit;
-// a multiplier keeps a long shot's mispricing in proportion); margin: the house's cut; multi: how often a clue
+// a multiplier keeps a long shot's mispricing in proportion); multi: how often a clue
 // that fits several answers shows more than one of them.
 export const LEVELS = {
-  easy: { label: "Easy", questions: 12, options: [2, 2, 2, 4], diff: [1, 1, 2], spread: 0.45, margin: 0.03, multi: 0.15 },
+  easy: { label: "Easy", questions: 12, options: [2, 2, 2, 4], diff: [1, 1, 2], spread: 0.45, multi: 0.15 },
   medium: { label: "Medium", questions: 15, options: [2, 4, 4], diff: [1, 2, 2, 3], spread: 0.3, multi: 0.25 },
-  hard: { label: "Hard", questions: 15, options: [4], diff: [2, 3, 3], spread: 0.18, margin: 0.06, multi: 0.35 },
+  hard: { label: "Hard", questions: 15, options: [4], diff: [2, 3, 3], spread: 0.18, multi: 0.35 },
   // Maths: questions from maths-bank.js instead of the clue bank, from whichever stages and difficulties the player
   // picks (dealt in seeded order, cycling once a pool runs dry); priced from each question's difficulty
   maths: { label: "Maths", questions: 15, spread: 0.3, maths: true, bank: "./maths-bank.js", note: "1 is routine GCSE, 10 the hardest first-year university. Roughly GCSE 1–4, IB SL 2–6, IB HL 4–8, Y1 Uni 6–10." },
