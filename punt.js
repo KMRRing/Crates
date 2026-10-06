@@ -2,7 +2,7 @@
 // Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
 // on their own pick, so you can back the same option or hedge against each other. A question settles once
 // everyone at the table has bet or passed.
-import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT, NAME_MODES, showOdds, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
+import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, showOdds, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
@@ -580,7 +580,7 @@ function runRecords() {
     const b = r.bets[me()], q = S.questions[r.index];
     if (!b || !q) return null;
     const { right, offered } = judged(q, b);
-    return { o: offered, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0 };
+    return { o: offered, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0, g: guessChance(q, typedNow(q)) };
   }).filter(Boolean);
 }
 /** Every question settled on this device, kept for the all-runs view (the most recent 5,000). */
@@ -604,7 +604,8 @@ function bankLatest(last) {
   const q = S.questions[last.index], mine = last.bets[me()];
   if (!q || !mine || !q.key) return;
   const right = judged(q, mine).right, asName = typedNow(q);
-  noteStake(mine.pct, asName ? q.typedOffered : q.offered, right === true);   // the Ledger: what your stake believed, and what happened
+  // the Ledger: what your stake believed, what happened, and what a pure guess would have had
+  noteStake(mine.pct, asName ? q.typedOffered : q.offered, right === true, guessChance(q, asName));
   // what's recognised one way round can be asked the other (known.js); a name-it question typed goes to the pile as one,
   // so Deck asks it again as a name to type, not as options to choose from
   if (asName && q.pair) known.named(q.pair, right === true);

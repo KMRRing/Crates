@@ -20,6 +20,10 @@ html[data-mode="night"] { --lg-in: #79A9D6; --lg-good: #7FC2A8; --lg-bad: #E8806
 .lg-bars .bar { height: .7rem; border-radius: 2px; background: color-mix(in srgb, var(--ink) 9%, transparent); overflow: hidden; }
 .lg-bars .bar i { display: block; height: 100%; background: var(--lg-in); }
 .lg-bars .bar.key i { background: var(--lg-good); }
+.lg-bars .bar.two { display: grid; gap: 2px; height: auto; background: none; }   /* knowledge: the claim above, what you knew below */
+.lg-bars .bar.two i { height: .45rem; border-radius: 2px; min-width: 2px; }
+.lg-bars .bar.two i.claimed { background: none; box-shadow: inset 0 0 0 1.5px var(--lg-in); }
+.lg-sub-h { margin: 1.1rem 0 .2rem; font-size: .95rem; }
 .lg-bars .val { font-variant-numeric: tabular-nums; color: var(--ink-soft); white-space: nowrap; }
 .lg-bars .val b { color: var(--ink); }
 

@@ -36,5 +36,17 @@ P.record("quote", "q1", { id: "q1" }, "wrong");
 check(!L.stats().recall[w].hour, "a first miss isn't a recall: nothing was there to remember");
 P.record("quote", "q1", { id: "q1" }, "wrong");
 check(L.stats().recall[w].hour?.join() === "0,1", "the same item missed again: a recall that failed, within the hour");
+// knowledge, read two ways: the stake through Kelly and the results, both corrected for guessing
+const near = (a, b) => Math.abs(a - b) < 1e-9;
+check(near(L.impliedKnowledge(.25, 4, .25), .25) && near(L.impliedKnowledge(.5, 2, .5), .5) && near(L.impliedKnowledge(.1, 6, 1 / 6), .1), "at a fair price, the knowledge a stake claims is the stake itself");
+check(L.impliedKnowledge(0, 3, .25) === 0 && L.impliedKnowledge(1, 1.5, .5) === 1, "a pass claims nothing, all in claims everything");
+check(L.impliedKnowledge(.05, 5, .25) === 0, "a small stake at a generous price claims nothing: the price was good, not the knowledge");
+check(near(L.impliedKnowledge(.25, 3, .25), 1 / 3), "at a stingy price the same stake claims more (a quarter of the pot at 3.0 on four options: a third)");
+check(near(L.actualKnowledge(50, 100, 25), 1 / 3) && near(L.actualKnowledge(10, 100, 25), -.2) && L.actualKnowledge(0, 0, 0) === null, "half right on four options is knowing a third; worse than guessing is below 0");
+L.reset();
+L.noteStake(25, 4, true, .25); L.noteStake(0, 4, true, .25); L.noteStake(25, 4, false);
+const kw = L.stats().know[L.weekOf()];
+check(kw?.[25]?.join() === "1,1,0.25,0.25" && kw?.[0]?.join() === "1,1,0.25,0" && Object.values(L.stats().size[L.weekOf()]).reduce((a, v) => a + v[1], 0) === 3,
+  `knowledge keeps won, bets, what guessing would win and the claim, by stake; a bet without a guess's chance counts only in the rest (${JSON.stringify(kw)})`);
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

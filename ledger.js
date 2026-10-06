@@ -1,7 +1,7 @@
 // Ledger: is it working? How well what you learn stays learned (the pile's items, by how long they were away), how
 // well your confidence matches your results (Punt's stakes against how often they won) and how often your markets
 // hold the truth (Quote). Read from the record the games keep (ledger-log.js); nothing here changes the games.
-import { stats, reset, GAPS, STAKES, GRADES, weekOf } from "./ledger-log.js";
+import { stats, reset, GAPS, STAKES, GRADES, weekOf, actualKnowledge } from "./ledger-log.js";
 import * as pile from "./pile.js";
 import { PILES } from "./pile.js";
 import { part, action, line } from "./menu.js";
@@ -91,7 +91,49 @@ function confidence(box, s) {
     const v = el("span", "val", bars); v.append(el("b", null, null, `${pct(w, m)}%`), ` won of ${m}`);
   }
   if (bars.childElementCount) bars.before(el("p", "lg-note lg-sub", null, "Won, by stake: bigger stakes should win more often."));
+  knowledge(card, s);
   trend(card, weeksOf(s.stake).map(w => { const v = Object.values(s.stake[w]); const nn = v.reduce((a, q) => a + q[1], 0); const b = v.reduce((a, q) => a + (q[2] ?? NaN), 0) / nn; return [w, nn && Number.isFinite(b) ? 1 - b / .5 : null, nn]; }), "skill by week (1 − Brier/.5; 50 = guessing at evens)");
+}
+
+// ---------- knowledge: what your stakes claimed you knew, against what you knew ----------
+// Both corrected for guessing: a stake's Kelly chance less what a pure guess gets, over what's left, is the share of the
+// answer it claimed to know (a pass claims none; at a fair price it's the stake itself); the hit rate corrected the
+// same way is the share you knew. In a perfect world the two are the same at every stake.
+const signed = v => `${v < 0 ? "−" : ""}${Math.abs(Math.round(100 * v))}%`;
+function knowledge(card, s) {
+  const t = total(s.know), counted = Object.values(t).reduce((a, v) => a + v[1], 0);
+  if (!counted) { el("p", "lg-note lg-sub", card, "Knowledge, read two ways, starts with your next bets in Punt: what your stakes claim you know, against what you do."); return; }
+  const sum = i => Object.values(t).reduce((a, v) => a + v[i], 0);
+  const claimed = sum(3) / counted, knew = actualKnowledge(sum(0), counted, sum(2)), gap = Math.round(100 * (claimed - (knew ?? 0)));
+  el("h3", "lg-sub-h", card, "Knowledge");
+  const lead = el("p", "lg-lead", card);
+  lead.append("Your stakes claim you know ", el("b", null, null, signed(claimed)), " of the answers; your results say ", el("b", null, null, knew == null ? "–" : signed(knew)), ". ",
+    knew == null ? "" : Math.abs(gap) <= 5 ? "Your stakes claim what you know." : gap > 0 ? `You stake as if you know ${gap} points more than you do.` : `You know ${-gap} points more than your stakes claim: stake more when you know.`);
+  // by stake: the claim (outlined) against what you knew (filled)
+  const bars = el("div", "lg-bars lg-know", card), rows = [];
+  for (const k of STAKES) {
+    const [w, n, g, im] = t[k] || [0, 0, 0, 0];
+    if (!n) continue;
+    const c = im / n, a = actualKnowledge(w, n, g);
+    rows.push({ n, c, a });
+    el("span", "lab", bars, k === 100 ? "All in" : k === 0 ? "Passed (0%)" : `Staked ${k}%`);
+    const bar = el("span", "bar two", bars);
+    el("i", "claimed", bar).style.width = `${Math.round(100 * c)}%`;
+    el("i", null, bar).style.width = `${Math.round(100 * Math.max(0, a ?? 0))}%`;
+    const v = el("span", "val", bars); v.append(`${signed(c)} → `, el("b", null, null, a == null ? "–" : signed(a)), ` of ${n}`);
+  }
+  bars.before(el("p", "lg-note lg-sub", null, "Knowledge, by stake: what your stakes claimed (outlined) and what you knew (filled), both corrected for guessing."));
+  // do the stakes rise with what you knew? the claim and the knowledge across the stakes with a few bets each
+  const used = rows.filter(r => r.n >= 3 && r.a != null);
+  let note = "";
+  if (used.length >= 3) {
+    const W = used.reduce((a, r) => a + r.n, 0), mc = used.reduce((a, r) => a + r.n * r.c, 0) / W, ma = used.reduce((a, r) => a + r.n * r.a, 0) / W;
+    const cov = used.reduce((a, r) => a + r.n * (r.c - mc) * (r.a - ma), 0), vc = used.reduce((a, r) => a + r.n * (r.c - mc) ** 2, 0), va = used.reduce((a, r) => a + r.n * (r.a - ma) ** 2, 0);
+    const r = vc && va ? cov / Math.sqrt(vc * va) : 0;
+    note = r >= .8 ? "Your stakes rise with what you know." : r >= .4 ? "Your stakes rise only loosely with what you know." : "Your stake sizes don't follow what you know.";
+  }
+  const all = Object.values(total(s.size)).reduce((a, v) => a + v[1], 0);
+  el("p", "lg-note", card, [note, all > counted ? `${counted} of ${all} bets count here: older ones didn't record what a pure guess would get.` : ""].filter(Boolean).join(" "));
 }
 
 // ---------- markets: how often the truth was inside, and the grades ----------
@@ -135,6 +177,7 @@ function openMenu() {
     line("Recall: every item from the pile that comes back, right or wrong, sorted by how long it was away. Away a week or more is the measure that matters: what lasts."),
     line("Confidence: a stake in Punt read backwards through Kelly's rule. Staking a share f of the pot at odds o, you act as if your chance were (1 + f(o − 1)) / o. Dots on the diagonal mean you know what you know."),
     line("Brier score: the average squared gap between that chance and what happened (1 won, 0 lost)."),
+    line("Knowledge: that chance, less what a pure guess would get (one in the number of options; for several right ones, one in the ways to pick them; nothing, typed), over what's left: the share of the answer your stake claimed to know (a pass claims none; at a fair price it's the stake itself). Your hit rate corrected the same way is what you knew: right half the time on four options is knowing a third."),
     line("Markets: in Quote, how often the truth lay inside your bid and ask, and the grades."),
     line("Weeks are ISO weeks. The record syncs with your solo code, like everything else."));
   if (!$("menuDlg").open) $("menuDlg").showModal();

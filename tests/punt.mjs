@@ -5,6 +5,13 @@ globalThis.window = {};
 globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
+{
+  const opts = n => Array.from({ length: n }, (_, i) => ({ label: `o${i}`, right: i === 0 }));
+  const g = P.guessChance, ok = Math.abs(g({ options: opts(4), need: 1 }) - .25) < 1e-9 && Math.abs(g({ options: opts(4), need: 2 }) - 1 / 6) < 1e-9
+    && g({ options: opts(2), need: 1 }) === .5 && g({ options: opts(4), need: 1 }, true) === 0 && g({}) === 0;
+  console.log(ok ? "guess: a pure guess's chance, one in four for one of four, one in six for two of four, none typed" : "FAIL guess chances");
+  if (!ok) process.exitCode = 1;
+}
 let bad = 0;
 // the maths bank, for the Maths level (every stage and difficulty)
 const M = await import("../maths-bank.js");

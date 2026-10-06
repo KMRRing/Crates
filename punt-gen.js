@@ -131,6 +131,10 @@ function chanceRight(knowns, n) {
   return total;
 }
 
+/** The chance a pure guess gets a question right: nothing typed can be guessed; otherwise the right set among every
+ *  set of the size asked for (one in the number of options for a single answer). The Ledger corrects for it. */
+export const guessChance = (q, typed = false) => (typed || !q?.options?.length ? 0 : 1 / choose(q.options.length, q.need || 1));
+
 /** A question's chances: a typical player's chance of picking exactly the right options, and its fair price. */
 function odds(knowns, n, noise) {
   const fair = chanceRight(knowns, n);

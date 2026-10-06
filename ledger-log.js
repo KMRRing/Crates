@@ -19,8 +19,8 @@ export const GRADES = ["SS", "S", "A", "B", "C"];
 
 const read = () => { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } };
 const write = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } };
-const fresh = () => ({ since: Date.now(), recall: {}, stake: {}, size: {}, market: {} });
-/** The record as kept: { since, recall: { week: { gap: [right, n] } }, stake: { week: { tenth: [won, n, brier] } }, size: { week: { pct: [won, n] } }, market: { week: { n, inside, grades } } } */
+const fresh = () => ({ since: Date.now(), recall: {}, stake: {}, size: {}, know: {}, market: {} });
+/** The record as kept: { since, recall: { week: { gap: [right, n] } }, stake: { week: { tenth: [won, n, brier] } }, size: { week: { pct: [won, n] } }, know: { week: { pct: [won, n, guesses, implied] } }, market: { week: { n, inside, grades } } } */
 export function stats() { return read() || fresh(); }
 /** Starts the record afresh (the piles stay as they are). */
 export function reset() { write(fresh()); }
@@ -37,6 +37,14 @@ export const gapOf = ms => GAPS.find(g => ms < g.max).id;
 /** Kelly's stake read backwards: staking a fraction f of the pot at decimal odds o, a Kelly bettor believes p = (1 + f(o − 1)) / o. */
 export const kellyChance = (f, o) => (o > 1 ? Math.min(1, Math.max(0, (1 + f * (o - 1)) / o)) : 1);
 export const stakeOf = pct => STAKES.find(s => pct <= s) ?? 100;
+/** Knowledge, read two ways (the correction for guessing): a chance p on a question a pure guess gets right with chance g
+ *  is knowing the answer with probability (p − g) / (1 − g), the rest guessed. What a stake implies: Kelly's chance,
+ *  corrected so (a pass claims nothing; at a fair price, odds 1/g, it comes out at the stake itself). */
+export const impliedKnowledge = (f, o, g) => (f > 0 && g < 1 ? Math.min(1, Math.max(0, (kellyChance(f, o) - g) / (1 - g))) : 0);
+/** What results show: `won` of `n`, where pure guessing would have won `guesses` (the sum of their chances). Below 0 is
+ *  worse than guessing: sure, and wrong. null with nothing to go on. */
+export const actualKnowledge = (won, n, guesses) => (n - guesses > 1e-9 ? (won - guesses) / (n - guesses) : null);
+const r4 = x => Math.round(x * 1e4) / 1e4;
 
 function bump(path, add) {
   const s = stats(); let node = s;
@@ -49,12 +57,17 @@ function bump(path, add) {
 export function noteRecall(gap, right) {
   bump(["recall", weekOf(), gapOf(Math.max(0, gap))], v => { const [r, n] = v || [0, 0]; return [r + (right ? 1 : 0), n + 1]; });
 }
-/** A Punt bet: a share `pct` (1–100) of the pot at decimal odds `odds`, won or lost. */
-export function noteStake(pct, odds, won) {
+/** A Punt bet: a share `pct` (1–100) of the pot at decimal odds `odds`, won or lost, and (when Punt says) the chance a
+ *  pure guess had, `guess`, for knowledge read two ways. */
+export function noteStake(pct, odds, won, guess) {
   if (!(pct >= 0) || won == null) return;                     // a pass is a bet of 0%: it believed no more than the price
   const p = kellyChance(pct / 100, odds), tenth = Math.min(9, Math.floor(p * 10)), w = won ? 1 : 0;
   bump(["stake", weekOf(), tenth], v => { const [k, n, b] = v || [0, 0, 0]; return [k + w, n + 1, Math.round((b + (p - w) ** 2) * 1e4) / 1e4]; });
   bump(["size", weekOf(), stakeOf(pct)], v => { const [k, n] = v || [0, 0]; return [k + w, n + 1]; });
+  if (Number.isFinite(guess) && guess >= 0 && guess < 1) bump(["know", weekOf(), stakeOf(pct)], v => {
+    const [k, n, g, im] = v || [0, 0, 0, 0];
+    return [k + w, n + 1, r4(g + guess), r4(im + impliedKnowledge(pct / 100, odds, guess))];
+  });
 }
 /** A Quote market, graded (SS, S, A, B or C), and whether the truth lay inside it. */
 export function noteMarket(grade, inside) {
