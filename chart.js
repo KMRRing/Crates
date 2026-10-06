@@ -203,7 +203,7 @@ function drawMap(ctx, proj, win, w, h, detail = null) {
  *  faintly, under the pins, whenever a round is played in it. */
 function drawRegion(ctx, proj, region) {
   const r = REGIONS[region];
-  if (!r?.outline && !r?.borders) return;
+  if (!r?.outline && !r?.borders && !r?.context) return;
   const trace = pts => pts.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
   for (const id of r.context || []) {
     const g = GEO.find(f => f.id === id);
@@ -212,6 +212,7 @@ function drawRegion(ctx, proj, region) {
     if (g.rings) { for (const ring of g.rings) { trace(ring); ctx.closePath(); } ctx.fillStyle = css("--ch-sea"); ctx.fill("evenodd"); }
     if (g.lines) { for (const l of g.lines) trace(l); ctx.strokeStyle = "rgba(60,120,180,.55)"; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke(); }
   }
+  if (!r.outline && !r.borders) return;
   ctx.beginPath();
   if (r.outline) { trace(r.outline); ctx.closePath(); }
   for (const b of r.borders || []) trace(b);

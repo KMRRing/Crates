@@ -404,5 +404,80 @@ export const SEQUENCES = [
    "Fill the spirit into oak casks",
    "Mature it at least three years"
   ]
+ },
+ {
+  "id": "dynasties",
+  "name": "China's dynasties",
+  "unit": "dynasty",
+  "ask": "Which came first? Tap where it goes",
+  "note": "Shang (c. 1600 BC), Zhou, Qin (221 BC), Han, Sui (581), Tang (618), Song (960), Yuan (1271), Ming (1368), Qing (1644 to 1912).",
+  "steps": [
+   "Shang",
+   "Zhou",
+   "Qin",
+   "Han",
+   "Sui",
+   "Tang",
+   "Song",
+   "Yuan",
+   "Ming",
+   "Qing"
+  ]
+ },
+ {
+  "id": "zodiac",
+  "name": "The Chinese zodiac",
+  "unit": "sign",
+  "ask": "Which comes first? Tap where it goes",
+  "note": "In the order of the Jade Emperor's race: the rat rode on the ox's back and jumped ahead at the line.",
+  "steps": [
+   "Rat",
+   "Ox",
+   "Tiger",
+   "Rabbit",
+   "Dragon",
+   "Snake",
+   "Horse",
+   "Goat",
+   "Monkey",
+   "Rooster",
+   "Dog",
+   "Pig"
+  ]
+ },
+ {
+  "id": "road-to-1949",
+  "name": "The road to 1949",
+  "unit": "event",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1839, 1850, 1900, 1911, 1919, 1921, 1934, 1937, 1949.",
+  "steps": [
+   "The First Opium War",
+   "The Taiping Rebellion",
+   "The Boxers besiege the legations",
+   "The Wuchang uprising ends the Qing",
+   "The May Fourth protests",
+   "The Communist Party is founded in Shanghai",
+   "The Long March",
+   "War with Japan",
+   "The People's Republic is proclaimed"
+  ]
+ },
+ {
+  "id": "reform-era",
+  "name": "Reform and opening",
+  "unit": "event",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1978, 1980, 1992, 1997, 2001, 2008, 2013, 2018.",
+  "steps": [
+   "Deng Xiaoping launches 'reform and opening'",
+   "Shenzhen becomes a Special Economic Zone",
+   "Deng's southern tour revives the reforms",
+   "Hong Kong returns to China",
+   "China joins the WTO",
+   "Beijing hosts the Olympics",
+   "The Belt and Road is announced",
+   "Yuan-priced crude futures open in Shanghai"
+  ]
  }
 ];

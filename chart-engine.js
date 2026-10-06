@@ -153,6 +153,7 @@ export const REGIONS = {
   // with its borders (open lines) or outline (closed, traced roughly for bearings) and rivers and lakes from chart-geo.js
   britain: { name: "Britain", sub: true, detail: "british-isles", window: [-8.7, 1.9, 49.8, 60.9], countries: ["United Kingdom"], local: "britain", context: ["thames", "severn"],
     borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]], [[-3.08, 53.28], [-2.93, 53.18], [-2.95, 53.0], [-3.0, 52.93], [-3.05, 52.8], [-3.12, 52.62], [-3.05, 52.45], [-3.0, 52.35], [-3.05, 52.2], [-3.0, 52.05], [-2.95, 51.95], [-2.82, 51.85], [-2.65, 51.7], [-2.65, 51.61]]] },
+  china: { name: "China", sub: true, window: [73, 135, 18, 54], countries: ["China"], local: "china", context: ["yangtze", "yellow"] },
   scotland: { name: "Scotland", sub: true, detail: "british-isles", window: [-7.8, -0.6, 54.5, 60.9], state: "Scotland", local: "scotland", borders: [[[-3.05, 54.97], [-2.96, 55.03], [-2.86, 55.07], [-2.67, 55.17], [-2.58, 55.27], [-2.47, 55.35], [-2.33, 55.4], [-2.2, 55.47], [-2.24, 55.55], [-2.22, 55.64], [-2.13, 55.66], [-2.05, 55.72], [-2.03, 55.81]]] },
   // its outline (traced roughly, for bearings), and the rivers and lakes drawn under it (ids in chart-geo.js)
   bavaria: { name: "Bavaria", sub: true, window: [8.9, 13.9, 47.2, 50.6], state: "Bavaria", local: "bavaria", context: ["danube", "constance"],

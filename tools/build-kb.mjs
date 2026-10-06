@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -283,6 +283,35 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   const gbMakers = ENTITIES.filter(e => e.sets.includes("scottish-inventor") && e.gave);
   for (const m of gbMakers) out.britain.push(gbQ("science", "Scottish inventors", `GB-G-${m.id}`, `Which Scot gave the world ${m.gave}?`, m.name,
     gbNear(m.name, gbMakers.filter(o => o !== m).map(o => o.name)), `${m.name}: ${m.gave}.`, [m.id]));
+
+  // China, from kb/: the provinces by capital, the dishes by cuisine, the teas by kind and province, the futures by
+  // exchange, the idioms by meaning, the festivals by custom, the thinkers by teaching. Difficulty on Punt's scale of 1 to 10.
+  const cnQ = (lv, area, id, q, right, pool, x, about, d) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  const cnNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const cnOf = set => ENTITIES.filter(e => e.sets.includes(set));
+  const cnProv = cnOf("chinese-province");
+  for (const p of cnProv) out.china.push(cnQ("geography", "Provinces and places", `CN-G-${p.id}`, `What is the capital of ${p.name}?`, p.capital,
+    cnNear(p.capital, cnProv.filter(o => o !== p).map(o => o.capital)), `${p.name}'s capital is ${p.capital}.`, [p.id], 4));
+  const cnCuisines = ["Sichuan", "Cantonese", "Shandong", "Jiangsu", "Zhejiang", "Fujian", "Hunan", "Anhui"];
+  for (const d of cnOf("chinese-dish")) out.china.push(cnQ("food", "Food", `CN-G-${d.id}`, `Which of China's eight great cuisines does ${d.name} come from?`, d.cuisine,
+    order(d.id + "c", cnCuisines), `${d.name} is ${d.cuisine === "Cantonese" ? "Cantonese" : `from ${d.cuisine}'s cuisine`}. The eight: ${cnCuisines.join(", ")}.`, [d.id], 5));
+  const cnBase = t => t.split(",")[0], cnTypes = ["green", "white", "yellow", "oolong", "black", "dark"], cnTeaProv = [...new Set(cnOf("chinese-tea").map(t => t.province))];
+  for (const t of cnOf("chinese-tea")) { const x = `${t.name}: ${t.teaType} tea, from ${t.province}.`;
+    out.china.push(cnQ("tea", "Tea", `CN-G-${t.id}-kind`, `What kind of tea is ${t.name}?`, cnBase(t.teaType), order(t.id + "k", cnTypes), x, [t.id], 4));
+    out.china.push(cnQ("tea", "Tea", `CN-G-${t.id}-from`, `Which province does ${t.name} come from?`, t.province, order(t.id + "p", cnTeaProv), x, [t.id], 5)); }
+  const cnEx = cnOf("futures-exchange");
+  for (const e of cnEx) for (const c of e.contracts || []) out.china.push(cnQ("trade", "Trade and markets", `CN-G-${e.id}-${c.replace(/[^a-z]+/gi, "-").toLowerCase()}`,
+    `Where do ${c} futures trade?`, e.name, order(e.id + c, cnEx.map(o => o.name)), `${c[0].toUpperCase() + c.slice(1)} futures trade on ${e.name.replace(/^The /, "the ")}.`, [e.id], 6));
+  const cnIdioms = cnOf("chengyu");
+  for (const i of cnIdioms) out.china.push(cnQ("culture", "Festivals and language", `CN-G-${i.id}`, `The idiom ${i.name}, '${i.literal}', means`, i.meaning,
+    cnNear(i.meaning, cnIdioms.filter(o => o !== i).map(o => o.meaning)), `${i.name}: '${i.literal}': ${i.meaning}.`, [i.id], 4));
+  const cnFest = cnOf("chinese-festival");
+  for (const f of cnFest) out.china.push(cnQ("culture", "Festivals and language", `CN-G-${f.id}`, `Which festival brings ${f.custom}?`, f.called,
+    cnNear(f.called, cnFest.filter(o => o !== f).map(o => o.called)), `${f.name}: ${f.custom}.`, [f.id], 3));
+  const cnThink = cnOf("chinese-thinker");
+  for (const t of cnThink) out.china.push(cnQ("thought", "Thinkers", `CN-G-${t.id}`, `Who taught ${t.taught}?`, t.name,
+    cnNear(t.name, cnThink.filter(o => o !== t).map(o => o.name)), `${t.name}: ${t.taught}.`, [t.id], 4));
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

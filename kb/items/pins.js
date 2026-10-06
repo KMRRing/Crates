@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
@@ -559,7 +559,34 @@ export const PINS = [
 {"id":"gb-lme","cat":"britain","about":"lme","name":"The London Metal Exchange","note":"Founded in 1877; the last open-outcry trading floor in Europe, the Ring."},
 {"id":"gb-baltic-exchange","cat":"britain","about":"baltic-exchange","name":"The Baltic Exchange","note":"The shipping market on St Mary Axe, born in a coffee house in 1744."},
 {"id":"gb-lloyd-s","cat":"britain","about":"lloyd-s","name":"Lloyd's of London","note":"The insurance market, in Richard Rogers's inside-out building since 1986."},
-{"id":"gb-harland-and-wolff","cat":"britain","about":"harland-and-wolff"}
+{"id":"gb-harland-and-wolff","cat":"britain","about":"harland-and-wolff"},
+{"id":"cn-beijing","cat":"china","about":"beijing"},
+{"id":"cn-guangzhou","cat":"china","about":"guangzhou"},
+{"id":"cn-shenzhen","cat":"china","about":"shenzhen"},
+{"id":"cn-xian","cat":"china","about":"xian"},
+{"id":"cn-chengdu","cat":"china","about":"chengdu"},
+{"id":"cn-west-lake","cat":"china","about":"west-lake"},
+{"id":"cn-nanjing","cat":"china","about":"nanjing"},
+{"id":"cn-wuhan","cat":"china","about":"wuhan"},
+{"id":"cn-suzhou-gardens","cat":"china","about":"suzhou-gardens"},
+{"id":"cn-guilin","cat":"china","about":"guilin"},
+{"id":"cn-zhangjiajie","cat":"china","about":"zhangjiajie"},
+{"id":"cn-huangshan","cat":"china","about":"huangshan"},
+{"id":"cn-mogao-caves","cat":"china","about":"mogao-caves"},
+{"id":"cn-potala-palace","cat":"china","about":"potala-palace"},
+{"id":"cn-leshan-buddha","cat":"china","about":"leshan-buddha"},
+{"id":"cn-three-gorges-dam","cat":"china","about":"three-gorges-dam"},
+{"id":"cn-jingdezhen","cat":"china","about":"jingdezhen"},
+{"id":"cn-yiwu","cat":"china","about":"yiwu"},
+{"id":"cn-zhengzhou","cat":"china","about":"zhengzhou"},
+{"id":"cn-wuyishan","cat":"china","about":"wuyishan"},
+{"id":"cn-puer","cat":"china","about":"puer"},
+{"id":"cn-pingyao","cat":"china","about":"pingyao"},
+{"id":"cn-yangshan-port","cat":"china","about":"yangshan-port"},
+{"id":"cn-urumqi","cat":"china","about":"urumqi"},
+{"id":"cn-shanhaiguan","cat":"china","about":"shanhaiguan"},
+{"id":"cn-jiayuguan","cat":"china","about":"jiayuguan"},
+{"id":"cn-zhoukoudian","cat":"china","about":"zhoukoudian"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},
