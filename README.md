@@ -324,7 +324,7 @@ A hidden country, found from clues. The clues come one at a time, the most obscu
 
 ## Order
 
-Put things in order. A card is dealt and you tap the gap where it goes in your line, which starts with one card face up and grows a card at a time; a wrong place costs one of three lives and the card goes where it belongs, so the line is always right, values showing. Dates deal 16 of Quote's 111 dated questions (a painting by its title, with its picture); Quantities deal one family a run, Quote's questions of one unit (11 families: %, millions, metres, kg/m³, km, °C and more), so the comparison means something. Random or today's; bests by mode. `tests/order.mjs` checks the families.
+Put things in order. A card is dealt and you tap the gap where it goes in your line, which starts with one card face up and grows a card at a time; a wrong place costs one of three lives and the card goes where it belongs, so the line is always right, values showing. Dates deal 16 of Quote's 111 dated questions (a painting by its title, with its picture on the card, fetched once per card, and a small one beside it in the line); Quantities deal one family a run, Quote's questions of one unit (11 families: %, millions, metres, kg/m³, km, °C and more), so the comparison means something. Random or today's; bests by mode. `tests/order.mjs` checks the families.
 
 ## Arb
 

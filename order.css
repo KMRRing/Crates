@@ -5,8 +5,14 @@
 .or-deal[hidden] { display: none; }
 .or-ask { margin: 0 0 .25rem; color: var(--ink-soft); font-size: .85rem; }
 .or-card { margin: 0; font-size: 1.2rem; line-height: 1.25; }
-.or-pic { margin-top: .5rem; display: grid; place-items: center; }
-.or-pic img { max-height: 18vh; max-width: 100%; object-fit: contain; }
+.or-pic { margin-top: .5rem; display: grid; place-items: center; min-height: 18vh; }
+.or-pic[hidden] { display: none; }
+.or-pic img { max-height: 24vh; max-width: 100%; object-fit: contain; border-radius: 4px; }
+/* a painting in the line, small at the right */
+.or-item.has-pic { grid-template-columns: minmax(4.5rem, auto) 1fr 2.6rem; align-items: center; }
+.or-thumb { display: block; width: 2.6rem; height: 2.6rem; }
+.or-thumb[hidden] { display: none; }
+.or-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block; }
 .or-line { list-style: none; margin: 0; padding: 0 0 .6rem; min-height: 0; overflow-y: auto; }
 .or-gap { display: flex; }
 .or-slot { flex: 1; height: 26px; margin: 2px 0; border: 1.5px dashed var(--tile-edge); border-radius: 6px; background: none; cursor: pointer; }

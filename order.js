@@ -80,9 +80,10 @@ function render() {
     const q = BY_ID.get(next);
     $("ask").textContent = S.mode === "dates" ? "When? Tap where it goes in your line" : `How much, in ${S.unit}? Tap where it goes`;
     $("card").textContent = cardText(q);
+    // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
-    pic.hidden = !q.pic;
-    if (q.pic) showPicture(pic, q.pic, { width: 330 });
+    if (!q.pic) { pic.hidden = true; pic.replaceChildren(); delete pic.dataset.title; }
+    else if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic, { width: 500, alt: titleOf(q) }); }
   }
   const box = $("line");
   box.replaceChildren();
@@ -98,7 +99,15 @@ function render() {
     const q = BY_ID.get(c.id), li = document.createElement("li"), v = document.createElement("b"), t = document.createElement("span");
     li.className = `or-item${c.ok ? "" : " wrong"}${c.fresh ? " fresh" : ""}`;
     v.textContent = withUnit(q.truth, q); t.textContent = short(c.id);
-    li.append(v, t); box.append(li);
+    li.append(v, t);
+    if (q.pic) {                                               // a painting in the line keeps its picture, small
+      const thumb = document.createElement("span");
+      thumb.className = "or-thumb";
+      li.classList.add("has-pic");
+      li.append(thumb);
+      showPicture(thumb, q.pic, { width: 120, alt: titleOf(q) });
+    }
+    box.append(li);
     delete c.fresh;
   });
   box.append(slot(S.line.length));
