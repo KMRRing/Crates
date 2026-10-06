@@ -45,7 +45,7 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
   touch-action: pan-x;   /* sideways only: an up-or-down swipe on the programs moves nothing */
   scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 30%, transparent) transparent;   /* a laptop's bar, thin and in the theme */
   background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 10px; -webkit-overflow-scrolling: touch; }
-.hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem repeat(4, 1.7rem);
+.hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem; grid-auto-rows: 1.7rem;   /* the hour ruler, then a row per ship */
   gap: 3px; width: max-content; }
 .hb-lab, .hb-corner { position: sticky; left: 0; z-index: 1; background: var(--tile); }
 .hb-lab { border: 0; padding: 0; border-radius: 0 6px 6px 0; font: 800 .85rem var(--font); color: var(--ink); cursor: pointer; }
@@ -151,3 +151,6 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hb-trail.on { stroke-opacity: .65; }
 .hb-trail-end { fill: var(--ink); fill-opacity: .75; }   /* where the picked ship's route goes on from, in draw mode */
 .hb-pentool[aria-pressed="true"] { background: var(--ink); color: var(--yard); border-color: var(--ink); }
+/* the room the fleet's other ships would take in the table (a row and a gap each), kept at the page's foot so the map
+   never moves as ships come and go */
+.hb-room { flex: none; height: calc(var(--free, 0) * (1.7rem + 3px)); }
