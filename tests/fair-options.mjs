@@ -1,8 +1,8 @@
 // A multiple-choice bank mustn't give its answers away by their length: the right option shouldn't usually be the
 // longest, nor much longer than the wrong ones (which were once, in some banks, a few words against a full sentence).
-// The banks listed have had their wrong options rewritten as real alternatives of matching length; add a bank here
-// once its options are evened out.
-const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js"];
+// Every choice bank is held to it: their wrong options have been rewritten as real alternatives of matching length.
+const FAIR = ["phil-bank.js", "reasoning-bank.js", "refining-bank.js", "phy-bank.js", "chm-bank.js", "eco-bank.js", "cs-bank.js", "rel-bank.js",
+  "wine-bank.js", "art-bank.js", "words-bank.js", "maths-bank.js", "cities-bank.js", "flags-bank.js", "patterns-bank.js"];   // every choice bank, since October 2026
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 for (const f of FAIR) {
@@ -17,7 +17,8 @@ for (const f of FAIR) {
   const share = longest / qs.length, mean = ratio / qs.length;
   check(share <= 0.4, `${f}: the right option is the longest in ${Math.round(100 * share)}% of ${qs.length} (at most 40%; chance is 25%)`);
   check(mean <= 1.2, `${f}: the right option is on average ${mean.toFixed(2)}× the wrong ones' length (at most 1.2)`);
-  check(qs.every(q => new Set(q.o).size === q.o.length && q.o.length === 4), `${f}: four distinct options a question`);
+  const twins = qs.filter(q => new Set(q.o).size !== q.o.length).map(q => q.id);
+  check(!twins.length, `${f}: every question's options are distinct${twins.length ? `: not ${twins.slice(0, 5).join(", ")}` : ""}`);
 }
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
