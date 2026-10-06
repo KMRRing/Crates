@@ -146,6 +146,11 @@ export const REGIONS = {
   "north-america": { name: "North America", window: [-170, -50, 6, 72] },
   "south-america": { name: "South America", window: [-83, -33, -56, 13] },
   oceania: { name: "Oceania", window: [110, 180, -48, -1] },
+  // a region within a country: its places are the ones marked with its state, and its own category (local) is dealt
+  // only here, so Landshut and the Watzmann don't turn up in a round of the world
+  // its outline (traced roughly, for bearings), and the rivers and lakes drawn under it (ids in chart-geo.js)
+  bavaria: { name: "Bavaria", window: [8.9, 13.9, 47.2, 50.6], state: "Bavaria", local: "bavaria", context: ["danube", "constance"],
+    outline: [[9.02, 50.05], [9.1, 50.21], [9.5, 50.24], [9.73, 50.42], [9.95, 50.42], [10.06, 50.55], [10.45, 50.4], [10.73, 50.38], [11.0, 50.42], [11.27, 50.45], [11.48, 50.5], [11.7, 50.4], [11.95, 50.4], [12.1, 50.32], [12.25, 50.2], [12.1, 50.1], [12.48, 49.98], [12.4, 49.75], [12.55, 49.55], [12.8, 49.33], [13.2, 49.15], [13.5, 48.97], [13.84, 48.77], [13.73, 48.52], [13.44, 48.56], [13.3, 48.3], [12.95, 48.2], [12.85, 48.1], [12.95, 47.95], [13.03, 47.8], [13.08, 47.65], [12.98, 47.45], [12.75, 47.6], [12.5, 47.68], [12.2, 47.6], [11.9, 47.6], [11.6, 47.58], [11.35, 47.43], [11.05, 47.4], [10.85, 47.48], [10.55, 47.53], [10.45, 47.4], [10.18, 47.27], [9.97, 47.53], [9.65, 47.53], [9.56, 47.54], [9.85, 47.7], [10.1, 47.85], [10.13, 48.1], [10.03, 48.4], [10.25, 48.55], [10.35, 48.75], [10.25, 49.0], [10.2, 49.2], [10.1, 49.4], [9.95, 49.55], [9.62, 49.62], [9.4, 49.65], [9.1, 49.58], [9.02, 49.75]] },
 };
 
 // ---------- the map's projection: Mercator, clipped near the poles ----------
@@ -195,12 +200,13 @@ export function viewFitting(points, w, h, { minSpan = 6, pad = 1.6 } = {}) {
 // territories and seas the region table doesn't know, placed by hand (the rest, like Antarctica, are in no region)
 const PLACE_REGIONS = { Svalbard: ["europe"], Greenland: ["north-america"], "New Caledonia": ["oceania"], "French Polynesia": ["oceania"], "Mariana Islands": ["oceania"], "United States (Pacific)": ["oceania"], "Timor-Leste": ["asia"] };
 /** The regions a place counts in, from its (first) country by `regionOf` (country -> regions); a place in Russia or
- *  Turkey by its side of the Urals or the Bosphorus. */
+ *  Turkey by its side of the Urals or the Bosphorus; and a region within a country (Bavaria) by the place's state. */
 export function regionsOfPlace(p, regionOf) {
   const first = (p.country || "").split(/,| and | to /)[0].trim().replace(/^the /, "");
   if (first === "Russia") return [p.lon < 60 ? "europe" : "asia"];
   if (first === "Turkey") return [p.lon < 30 ? "europe" : "middle-east"];
-  return regionOf[first] || PLACE_REGIONS[first] || [];
+  const within = Object.entries(REGIONS).filter(([, r]) => r.state && r.state === p.state).map(([k]) => k);
+  return [...(regionOf[first] || PLACE_REGIONS[first] || []), ...within];
 }
 /** The view a question opens on in a region: its window, fitted to the map. */
 export function regionView(region, w, h) {

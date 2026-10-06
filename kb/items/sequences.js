@@ -270,5 +270,54 @@ export const SEQUENCES = [
    "Cornelius dies, leaving it all to Kunstmuseum Bern",
    "The first looted works go back to the owners' heirs"
   ]
+ },
+ {
+  "id": "kings-of-bavaria",
+  "name": "The kings of Bavaria",
+  "unit": "king",
+  "ask": "Which king came first? Tap where he goes",
+  "note": "1806 to 1918. Prince Regent Luitpold ruled for King Otto from 1886 to 1912; Ludwig III fled the revolution in 1918.",
+  "steps": [
+   "Maximilian I Joseph",
+   "Ludwig I",
+   "Maximilian II",
+   "Ludwig II",
+   "Otto",
+   "Ludwig III"
+  ]
+ },
+ {
+  "id": "ludwig-ii",
+  "name": "The life of Ludwig II",
+  "unit": "step",
+  "ask": "Which came first? Tap where it goes",
+  "note": "1845, 1864, 1864, 1866, 1869, 1878, 1886, 1886.",
+  "steps": [
+   "Born at Nymphenburg Palace",
+   "Crowned king at eighteen",
+   "Summons Wagner to Munich and pays his debts",
+   "Loses the war against Prussia, as Austria's ally",
+   "Lays the foundation stone of Neuschwanstein",
+   "Begins Herrenchiemsee, his Versailles",
+   "Declared unfit to rule by his government",
+   "Found drowned in Lake Starnberg"
+  ]
+ },
+ {
+  "id": "brewing",
+  "name": "How beer is brewed",
+  "unit": "step",
+  "ask": "Which step comes first? Tap where it goes",
+  "note": "Malting, kilning, mashing, lautering, boiling with hops, cooling and pitching the yeast, fermenting, then lagering for the bottom-fermented beers.",
+  "steps": [
+   "Steep the barley until it sprouts",
+   "Dry the sprouted grain in a kiln: malt",
+   "Mash the crushed malt in hot water",
+   "Lauter: strain off the sweet wort",
+   "Boil the wort with hops",
+   "Cool it and pitch the yeast",
+   "Ferment for a week or more",
+   "Lager it cold for weeks"
+  ]
  }
 ];

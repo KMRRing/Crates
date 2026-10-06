@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -37,8 +37,8 @@ export async function build() {
   const gen = written(ENTITIES, LINKS, E, await load("items/choice/art.js").then(m => m.ITEMS), estimates.ESTIMATES, pins.PINS);
   // Chart: each pin shows its entity, with the pin's own overrides
   const PLACES = [...pins.PINS, ...gen.pins].map(({ id, cat, about, ...over }) => {
-    const { name, lat, lon, note, country, region, pic } = of(about);
-    return defined({ id, cat, name, lat, lon, note, country, region, pic, ...over, about });
+    const { name, lat, lon, note, country, region, pic, state } = of(about);
+    return defined({ id, cat, name, lat, lon, note, country, region, state, pic, ...over, about });
   });
   const GEO = pins.FEATURES.map(({ id, about, ...over }) => {
     const { name, kind, region, country, note, lat, lon } = of(about);
@@ -83,7 +83,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -241,6 +241,22 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   for (const f of amForgers) { const x = `${f.name} forged ${f.faked}; the fakes were exposed by ${f.caught}.`;
     out.artmarket.push(amQ("fakes", "Fakes", `AM-G-${f.id}-faked`, `Who forged ${f.faked}?`, f.name, amNear(f.name, amForgers.filter(o => o !== f).map(o => o.name)), x, [f.id]));
     out.artmarket.push(amQ("fakes", "Fakes", `AM-G-${f.id}-caught`, `What exposed ${f.name}'s fakes?`, f.caught, amNear(f.caught, amForgers.filter(o => o !== f).map(o => o.caught)), x, [f.id])); }
+
+  // Bavaria, from kb/: the seven districts by their capitals, the companies by their home towns, the Bairisch words by
+  // what they mean. The wrong answers are the other districts' capitals, the other companies' towns, the other words'
+  // meanings, the nearest in length first.
+  const byQ = (lv, area, id, q, right, pool, x, about) => { const options = order(id, [right, ...[...new Set(pool)].filter(o => o !== right).slice(0, 3)]);
+    return { id, lv, d: 2, area, q, o: options, a: [options.indexOf(right)], s: 1, x, about }; };
+  const byNear = (t, xs) => [...xs].sort((a, b) => Math.abs(a.length - t.length) - Math.abs(b.length - t.length) || (a < b ? -1 : 1));
+  const byDistricts = ENTITIES.filter(e => e.sets.includes("bavarian-district"));
+  for (const d of byDistricts) out.bavaria.push(byQ("places", "Places", `BY-G-${d.id}`, `Which city is the capital of ${d.name}?`, d.capital,
+    byNear(d.capital, byDistricts.filter(o => o !== d).map(o => o.capital)), `The seven districts and their capitals: ${byDistricts.map(o => `${o.name}, ${o.capital}`).join("; ")}.`, [d.id]));
+  const byCompanies = ENTITIES.filter(e => e.sets.includes("bavarian-company") && e.town);
+  for (const c of byCompanies) out.bavaria.push(byQ("business", "Business", `BY-G-${c.id}`, `Where is ${c.name} (${c.makes}) based?`, c.town,
+    byNear(c.town, byCompanies.map(o => o.town)), `${c.name} is based in ${c.town}.`, [c.id]));
+  const byWords = ENTITIES.filter(e => e.sets.includes("bavarian-word") && e.meaning);
+  for (const w of byWords) out.bavaria.push(byQ("language", "Bairisch", `BY-G-${w.id}`, `What does the Bavarian '${w.name}' mean?`, w.meaning,
+    byNear(w.meaning, byWords.filter(o => o !== w).map(o => o.meaning)), `${w.name}: ${w.meaning}.`, [w.id]));
 
   // Reading a building: each part both ways, what it is (other parts' definitions as the wrong answers, its own kind first)
   // and what it's called. A definition never echoes the name it defines.

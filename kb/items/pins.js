@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
@@ -479,7 +479,42 @@ export const PINS = [
 {"id":"am-geneva-freeport","cat":"art","about":"geneva-freeport"},
 {"id":"am-kunstmuseum-bern","cat":"art","about":"kunstmuseum-bern"},
 {"id":"am-haus-der-kunst","cat":"art","about":"haus-der-kunst"},
-{"id":"am-neue-galerie","cat":"art","about":"neue-galerie"}
+{"id":"am-neue-galerie","cat":"art","about":"neue-galerie"},
+{"id":"by-landshut","cat":"bavaria","about":"landshut"},
+{"id":"by-regensburg","cat":"bavaria","about":"regensburg"},
+{"id":"by-bayreuth-town","cat":"bavaria","about":"bayreuth-town"},
+{"id":"by-ansbach","cat":"bavaria","about":"ansbach"},
+{"id":"by-wurzburg","cat":"bavaria","about":"wurzburg"},
+{"id":"by-augsburg","cat":"bavaria","about":"augsburg"},
+{"id":"by-nuremberg","cat":"bavaria","about":"nuremberg"},
+{"id":"by-bamberg","cat":"bavaria","about":"bamberg"},
+{"id":"by-passau","cat":"bavaria","about":"passau"},
+{"id":"by-ingolstadt","cat":"bavaria","about":"ingolstadt"},
+{"id":"by-rothenburg","cat":"bavaria","about":"rothenburg"},
+{"id":"by-coburg","cat":"bavaria","about":"coburg"},
+{"id":"by-erlangen","cat":"bavaria","about":"erlangen"},
+{"id":"by-herzogenaurach","cat":"bavaria","about":"herzogenaurach"},
+{"id":"by-furth","cat":"bavaria","about":"furth"},
+{"id":"by-nordlingen","cat":"bavaria","about":"nordlingen"},
+{"id":"by-lindau","cat":"bavaria","about":"lindau"},
+{"id":"by-altotting","cat":"bavaria","about":"altotting"},
+{"id":"by-oberammergau","cat":"bavaria","about":"oberammergau"},
+{"id":"by-andechs","cat":"bavaria","about":"andechs"},
+{"id":"by-weihenstephan-freising","cat":"bavaria","about":"weihenstephan-freising"},
+{"id":"by-benediktbeuern","cat":"bavaria","about":"benediktbeuern"},
+{"id":"by-berchtesgaden","cat":"bavaria","about":"berchtesgaden"},
+{"id":"by-konigssee","cat":"bavaria","about":"konigssee"},
+{"id":"by-zugspitze","cat":"bavaria","about":"zugspitze"},
+{"id":"by-watzmann","cat":"bavaria","about":"watzmann"},
+{"id":"by-chiemsee","cat":"bavaria","about":"chiemsee"},
+{"id":"by-linderhof","cat":"bavaria","about":"linderhof"},
+{"id":"by-hohenschwangau","cat":"bavaria","about":"hohenschwangau"},
+{"id":"by-lake-starnberg","cat":"bavaria","about":"lake-starnberg"},
+{"id":"by-theresienwiese","cat":"bavaria","about":"theresienwiese"},
+{"id":"by-hofbrauhaus","cat":"bavaria","about":"hofbrauhaus"},
+{"id":"by-allianz-arena","cat":"bavaria","about":"allianz-arena"},
+{"id":"by-olympiapark","cat":"bavaria","about":"olympiapark"},
+{"id":"by-deutsches-museum","cat":"bavaria","about":"deutsches-museum"}
 ];
 export const FEATURES = [
 {"id":"alps","about":"the-alps"},
