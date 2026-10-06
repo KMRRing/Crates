@@ -2,7 +2,7 @@
 .origin .og-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
 .og-score b { color: var(--ink); font-size: 1.25rem; }
 .og-card { background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .9rem; gap: .6rem; min-height: 0; }
-.og-clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; min-height: 0; flex: 1 1 auto; overflow-y: auto; }
+.og-clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; min-height: 3.5rem; flex: 1 1 auto; overflow-y: auto; }
 .og-clues li { display: grid; gap: .1rem; padding: .45rem .6rem; border-left: 3px solid var(--brass); background: color-mix(in srgb, var(--tile) 70%, transparent); border-radius: 0 6px 6px 0; }
 .og-clues li b { font-size: 1.05rem; }
 .og-clues li span { color: var(--ink-soft); font-size: .88rem; line-height: 1.35; }
@@ -32,3 +32,27 @@
 .og-toast.on { opacity: 1; }
 .og-mark { display: inline-block; }
 .og-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the world map: scrolled about in its box (both ways), countries tapped; guessed ones take their warmth, the answer green */
+.og-mapwrap { position: relative; flex: none; }
+.og-map { position: relative; height: 34vh; min-height: 9rem; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--tile-edge); border-radius: 8px; background: color-mix(in srgb, var(--c2, #2C5B8A) 14%, var(--sheet)); }
+.og-map svg { display: block; }
+.og-c { fill: var(--tile); stroke: var(--tile-edge); stroke-width: calc(.6px * var(--k, 1)); cursor: pointer; vector-effect: non-scaling-stroke; }
+.og-c:hover { fill: color-mix(in srgb, var(--brass) 18%, var(--tile)); }
+.og-c.og-chosen { fill: color-mix(in srgb, var(--brass) 45%, var(--tile)); stroke: var(--ink); stroke-width: 1.4px; }
+.og-c.og-scorching { fill: #D2462E; } .og-c.og-hot { fill: #E07A3A; } .og-c.og-warm { fill: #E2B04A; }
+.og-c.og-cool { fill: #8DB6D3; } .og-c.og-cold, .og-c.og-freezing { fill: #4F7FAE; }
+.og-c.og-answer { fill: #2E8B57; stroke: var(--ink); stroke-width: 1.4px; }
+.og-names text { font: 600 calc(9px * var(--k, 1)) var(--font, sans-serif); fill: var(--ink-soft); pointer-events: none; paint-order: stroke; stroke: var(--tile); stroke-width: calc(2.4px * var(--k, 1)); }
+.og-zoom { position: absolute; top: .45rem; right: .45rem; display: grid; gap: .25rem; z-index: 2; }
+.og-zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; }
+.og-zoom button:disabled { opacity: .4; cursor: default; }
+/* the suggestions as you type: the app's list, opening upwards from the field */
+.og-field { position: relative; flex: 1; min-width: 0; display: flex; }
+.og-field input { flex: 1; }
+.og-suggest { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); margin: 0; padding: .25rem; list-style: none; z-index: 5; max-height: 40vh; overflow-y: auto;
+  background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.og-suggest li { padding: .55rem .7rem; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.og-suggest li.on, .og-suggest li:hover { background: var(--tile); }
+.og-guesses { max-height: 6.2rem; overflow-y: auto; }

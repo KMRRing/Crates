@@ -63,6 +63,109 @@ function away(fromId, toId) {
 const WARMTH = [[0, "on it"], [600, "scorching"], [1500, "hot"], [3000, "warm"], [6000, "cool"], [10000, "cold"], [Infinity, "freezing"]];
 const warmth = km => WARMTH.find(([edge]) => km <= edge)[1];
 
+// ---------- the map: every country on Chart's outlines, scrolled about in its box; tap to name, tap again to guess ----------
+const NS = "http://www.w3.org/2000/svg", W = 1000, LAT_TOP = 84, LAT_BOTTOM = -57;
+const H = Math.round(W * (LAT_TOP - LAT_BOTTOM) / 360);
+const px = ([lon, lat]) => [((lon + 180) / 360) * W, ((LAT_TOP - lat) / (LAT_TOP - LAT_BOTTOM)) * H];
+const ZOOMS = [1, 1.6, 2.6, 4];
+let zoom = 1, chosen = null;
+const shapes = new Map();
+function drawMap() {
+  const svg = $("map");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const land = document.createElementNS(NS, "g"), names = document.createElementNS(NS, "g");
+  names.setAttribute("class", "og-names");
+  for (const c of COUNTRIES) {
+    const id = c.about || c.id;
+    // one subpath per ring; a ring that crosses the date line breaks there rather than streaking across the map
+    let d = "", minX = Infinity, maxX = -Infinity;
+    for (const ring of c.rings || []) {
+      let prev = null;
+      ring.forEach(p => {
+        const [x, y] = px(p);
+        d += `${prev === null || Math.abs(p[0] - prev) > 180 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+        prev = p[0]; minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+      });
+      d += "Z";
+    }
+    const path = document.createElementNS(NS, "path");
+    path.setAttribute("d", d);
+    path.setAttribute("class", "og-c");
+    path.dataset.id = id;
+    const t = document.createElementNS(NS, "title"); t.textContent = c.name; path.append(t);
+    path.addEventListener("click", () => tapCountry(id));
+    land.append(path); shapes.set(id, path);
+    if (maxX - minX > 28) {                                    // big enough to carry its name; the rest name themselves on a tap
+      const [x, y] = px([c.lon, c.lat]), label = document.createElementNS(NS, "text");
+      label.setAttribute("x", x.toFixed(1)); label.setAttribute("y", y.toFixed(1)); label.setAttribute("text-anchor", "middle");
+      label.textContent = c.name; names.append(label);
+    }
+  }
+  svg.append(land, names);
+  setZoom(1, [20, 25]);
+}
+function setZoom(z, centre) {
+  const box = $("mapBox"), svg = $("map");
+  const fx = centre ? px(centre)[0] / W : (box.scrollLeft + box.clientWidth / 2) / svg.clientWidth || .5;
+  const fy = centre ? px(centre)[1] / H : (box.scrollTop + box.clientHeight / 2) / svg.clientHeight || .5;
+  zoom = z;
+  const width = Math.max(box.clientWidth, 1) * 2.2 * z;
+  svg.style.width = `${width}px`; svg.style.height = `${width * H / W}px`;
+  svg.style.setProperty("--k", String(1 / z));               // names and borders stay the same size on screen
+  box.scrollLeft = fx * width - box.clientWidth / 2;
+  box.scrollTop = fy * width * H / W - box.clientHeight / 2;
+  $("zoomIn").disabled = z === ZOOMS.at(-1); $("zoomOut").disabled = z === ZOOMS[0];
+}
+function tapCountry(id) {
+  const R = round();
+  if (!R || R.done) return;
+  if (chosen === id) { guess(PLACE.get(id).name); $("guessIn").value = ""; return; }   // the second tap guesses it
+  chosen = id;
+  $("guessIn").value = PLACE.get(id).name;
+  hideSuggest();
+  colourMap();
+}
+function colourMap() {
+  const R = round();
+  for (const [id, path] of shapes) {
+    let cls = "og-c";
+    if (R?.guesses.includes(id)) cls += ` og-${warmth(away(id, R.id).km).replace(" ", "-")}`;
+    if (R?.done && id === R.id) cls += " og-answer";
+    if (id === chosen && !R?.done) cls += " og-chosen";
+    path.setAttribute("class", cls);
+  }
+}
+
+// ---------- the suggestions, as you type: the app's own list, not the browser's ----------
+const NAMED = COUNTRIES.map(c => ({ id: c.about || c.id, name: c.name, flag: c.flag || "", keys: [c.name, ...(ALIASES.get(c.about || c.id) || [])].map(k => k.toLowerCase()) }));
+let active = -1;
+function suggest() {
+  const text = $("guessIn").value.trim().toLowerCase(), list = $("suggest");
+  chosen = null; colourMap();
+  if (!text) { hideSuggest(); return; }
+  const starts = NAMED.filter(n => n.keys.some(k => k.startsWith(text)));
+  const inside = NAMED.filter(n => !starts.includes(n) && n.keys.some(k => k.includes(text)));
+  const hits = [...starts, ...inside].slice(0, 6);
+  active = hits.length ? 0 : -1;
+  list.replaceChildren(...hits.map((n, i) => {
+    const li = document.createElement("li");
+    li.setAttribute("role", "option"); li.id = `sg-${n.id}`;
+    li.className = i === active ? "on" : "";
+    li.textContent = n.name;
+    li.addEventListener("pointerdown", e => { e.preventDefault(); $("guessIn").value = n.name; hideSuggest(); guess(n.name); $("guessIn").value = ""; });
+    return li;
+  }));
+  list.hidden = !hits.length;
+}
+function hideSuggest() { $("suggest").hidden = true; active = -1; }
+function moveActive(step) {
+  const items = [...$("suggest").children];
+  if (!items.length) return;
+  active = (active + step + items.length) % items.length;
+  items.forEach((li, i) => li.classList.toggle("on", i === active));
+  $("guessIn").setAttribute("aria-activedescendant", items[active].id);
+}
+
 // ---------- a run ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
@@ -81,6 +184,7 @@ function guess(text) {
   const id = GUESSABLE.get(text.trim().toLowerCase());
   if (!id) { toast("Not a country on the map"); return; }
   if (R.guesses.includes(id)) { toast("Already guessed"); return; }
+  chosen = null;
   if (id === R.id) { R.done = "found"; R.points = pointsNow(R); S.total += R.points; }
   else { R.guesses.push(id); if (R.shown < R.clues.length) R.shown++; }          // a wrong guess turns up the next clue
   save(); render();
@@ -117,6 +221,7 @@ function render() {
     li.setAttribute("aria-label", `${PLACE.get(g).name}: ${w.border ? "a neighbour" : `${w.km} km off, the answer lies ${w.way}`}`);
     return li;
   }));
+  colourMap();
   const playing = !R.done;
   $("guessForm").hidden = !playing;
   $("clueBtn").parentElement.hidden = !playing;
@@ -159,8 +264,17 @@ function openMenu() {
 // ---------- wiring ----------
 document.querySelector(".og-mark").innerHTML = APPS.find(a => a.id === "origin").logo;
 bindSwitcher($("appsBtn"), "origin");
-$("countryList").replaceChildren(...COUNTRIES.map(c => Object.assign(document.createElement("option"), { value: c.name })));
-$("guessForm").addEventListener("submit", e => { e.preventDefault(); guess($("guessIn").value); $("guessIn").value = ""; });
+drawMap();
+$("zoomIn").addEventListener("click", () => setZoom(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom) + 1)]));
+$("zoomOut").addEventListener("click", () => setZoom(ZOOMS[Math.max(0, ZOOMS.indexOf(zoom) - 1)]));
+$("guessIn").addEventListener("input", suggest);
+$("guessIn").addEventListener("blur", () => setTimeout(hideSuggest, 150));
+$("guessIn").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); moveActive(e.key === "ArrowDown" ? 1 : -1); }
+  else if (e.key === "Escape") hideSuggest();
+  else if (e.key === "Enter" && !$("suggest").hidden && active >= 0) { e.preventDefault(); const pick = $("suggest").children[active].textContent; hideSuggest(); guess(pick); $("guessIn").value = ""; }
+});
+$("guessForm").addEventListener("submit", e => { e.preventDefault(); hideSuggest(); guess($("guessIn").value); $("guessIn").value = ""; });
 $("clueBtn").addEventListener("click", another);
 $("giveBtn").addEventListener("click", () => { if (confirm("Give up on this one?")) giveUp(); });
 $("nextBtn").addEventListener("click", next);

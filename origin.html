@@ -25,13 +25,21 @@
   </header>
   <div class="og-strip"><span id="where"></span><span id="score" class="og-score"></span></div>
   <section class="og-card fit-col fit-grow" id="card">
-    <ol id="clues" class="og-clues fit-scroll" aria-label="Clues"></ol>
+    <ol id="clues" class="og-clues fit-scroll fit-grow" aria-label="Clues"></ol>
+    <div class="og-mapwrap">
+      <div id="mapBox" class="og-map" aria-label="World map: tap a country to name it, tap it again to guess it">
+        <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+      <div class="og-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button></div>
+    </div>
     <ul id="guesses" class="og-guesses" aria-label="Your guesses"></ul>
     <form id="guessForm" class="og-guess" autocomplete="off">
-      <input id="guessIn" list="countryList" placeholder="Name a country" aria-label="Your guess" autocapitalize="words" spellcheck="false">
+      <div class="og-field">
+        <input id="guessIn" placeholder="Name a country, or tap the map" aria-label="Your guess" aria-autocomplete="list" aria-controls="suggest" autocapitalize="words" spellcheck="false">
+        <ul id="suggest" class="og-suggest" role="listbox" hidden></ul>
+      </div>
       <button class="og-go" type="submit" id="guessBtn">Guess</button>
     </form>
-    <datalist id="countryList"></datalist>
     <div class="og-more"><button class="og-quiet" type="button" id="clueBtn"></button><button class="link" type="button" id="giveBtn">Give up</button></div>
     <div id="result" class="og-result" hidden>
       <p id="verdict" class="og-verdict"></p>
