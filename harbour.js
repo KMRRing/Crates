@@ -7,7 +7,7 @@ import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, mirror } from "./menu.js";
+import { part, action, mirror, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 // hexes, pointy side up, every odd row half a hex to the right: 10 drawing units across, 8.66 from row to row
@@ -261,6 +261,9 @@ function tick() {
   if (over()) { running = false; if (sim.done) keepBests(); }
   render();
 }
+// the menu stops a running harbour; it runs on when the menu closes
+let heldRun = false;
+onPause(() => { if (running) { running = false; clearTimeout(timer); heldRun = true; render(); } }, () => { if (heldRun) { heldRun = false; play(); } });
 function play() {
   if (running) { running = false; clearTimeout(timer); render(); return; }
   if (!begin() || over()) return;

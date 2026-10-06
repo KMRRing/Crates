@@ -8,7 +8,7 @@ import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo } from "./suite.js";
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror } from "./menu.js";
+import { part, action, mirror, isPaused, onPause } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -72,7 +72,7 @@ function styleOf(i) {
 // Solo boards count the time spent on screen (S.ms). Together boards count from when the board was dealt
 // to when it ended, since two people come and go.
 function clockRun() {
-  if (room || !S || S.done || clockFrom != null || document.hidden) return;
+  if (room || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;
   clockFrom = performance.now();
 }
 function clockPause() {
@@ -81,6 +81,7 @@ function clockPause() {
   clockFrom = null;
   saveSolo();
 }
+onPause(() => clockPause(), () => clockRun());   // the menu stops the clock too
 function elapsed() {
   if (room || S.startedAt) return S.startedAt ? (S.done?.at || Date.now()) - S.startedAt : 0;
   return (S.ms || 0) + (clockFrom != null ? performance.now() - clockFrom : 0);

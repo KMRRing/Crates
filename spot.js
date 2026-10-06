@@ -9,7 +9,7 @@ import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
 import { reportDuo } from "./suite.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, onPause } from "./menu.js";
 
 
 const $ = id => document.getElementById(id);
@@ -401,6 +401,8 @@ bindSwitcher($("appsBtn"), "spot");
 document.querySelector(".sp-mark").innerHTML = APPS.find(a => a.id === "spot").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+onPause(() => { if (run && run.mode !== "duo" && !last?.over && pausedAt == null) pausedAt = performance.now(); },
+  () => { if (pausedAt != null && run && !document.hidden) { run.startAt += performance.now() - pausedAt; pausedAt = null; } });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     if (run && run.mode !== "duo" && !last?.over) pausedAt = performance.now();      // solo pauses in the background

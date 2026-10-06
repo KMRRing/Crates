@@ -6,7 +6,7 @@ import * as pile from "./pile.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, toggle, action, line } from "./menu.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -248,6 +248,10 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("startBtn").addEventListener("click", () => start(false));
 $("mode").addEventListener("change", () => { if (S && !S.over) { if (confirm("Start a new run in that mode? This one isn't finished.")) start(S.daily); else $("mode").value = S.mode; } });
+// the menu stops a run's clock: its start moves on by however long the menu was open
+let heldTick = false;
+onPause(() => { if (S && !S.over && S.started != null) { clearInterval(tick); heldTick = true; } },
+  ms => { if (!heldTick) return; heldTick = false; if (S && !S.over && S.started != null) { S.started += ms; tick = setInterval(clock, 250); clock(); } });
 document.addEventListener("visibilitychange", () => { if (document.hidden && S && !S.over && S.started != null && MODES[S.mode].ms) finish("time"); });   // a timed run can't be paused
 
 // for tests and debugging

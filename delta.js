@@ -8,7 +8,7 @@ import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
-import { part, action, mirror } from "./menu.js";
+import { part, action, mirror, isPaused, onPause } from "./menu.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -139,7 +139,8 @@ function newBoard(level = S.level) {
 }
 
 // ---------- the clock (solo: time on screen; together: dealt to finished) ----------
-function clockRun() { if (!together.room && S && !S.done && clockFrom == null && !document.hidden) clockFrom = performance.now(); }
+function clockRun() { if (!together.room && S && !S.done && clockFrom == null && !document.hidden && !isPaused()) clockFrom = performance.now(); }
+onPause(() => clockPause(), () => clockRun());   // the menu stops the clock too
 function clockPause() {
   if (clockFrom == null) return;
   S.ms = (S.ms || 0) + performance.now() - clockFrom;

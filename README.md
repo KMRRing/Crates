@@ -287,6 +287,8 @@ A loop plays its hours more than once. Loop makes the picked hours play twice; t
 
 Under the tools: Undo, back to the start, one hour, run or pause, and 1× or 4× speed. Any edit goes back to the start. On a computer, Ctrl or Cmd with C, X, V, A and Z copy, cut, paste, pick everything and undo; Delete deletes the picked hours, Escape stops picking; space runs and pauses, S steps, R goes back. Each level keeps its own plan and bests on the device (from the move to hexes, under new keys: square-grid plans don't carry over). Harbour took Survey's tile on the games screen; Survey is under "…".
 
+A game stands still while you're in its menu, its rules or the games screen (`menu.js`: `onPause(pause, resume)`, resume told how long it stood): Crates', Slate's and Delta's board clocks stop, Rush's countdown stops and its start moves on by the pause, Pipes' oil holds where it is, Spot freezes, a running Harbour stops and runs on after, and Cartel's computer waits with its next move. A duo match's shared clock doesn't stop.
+
 ## The games screen
 The app is Almanac, and it opens here: the site's front page (`index.html`, `home.js`) is the screen of games with no game open and nothing to close back to. Every game is a page of its own; Crates, which used to be the front page, is at `crates.html`, and a link made for it back then (a shared board, a room, a run, a pool: `?b=`, `?room=`, `?run=`, `?cat=`) is forwarded there. A link carrying codes (`?solo=`, `?duo=`) stays home and takes them on.
 

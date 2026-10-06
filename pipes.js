@@ -3,7 +3,7 @@
 import { LIVES, PRODUCTS, COSTS, DIRS, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf } from "./pipes-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, action, line, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
@@ -316,6 +316,10 @@ $("fillBtn").addEventListener("click", () => {
   clock.filling = true;
   $("fillBtn").hidden = true;
 });
+// the menu holds the oil where it is: no frames while it's open, and no catching up after
+let heldFrame = false;
+onPause(() => { if (S?.phase === "plan" || S?.phase === "flow") { cancelAnimationFrame(raf); heldFrame = true; } },
+  () => { if (!heldFrame) return; heldFrame = false; clock.last = performance.now(); raf = requestAnimationFrame(frame); });
 document.addEventListener("visibilitychange", () => { if (document.hidden && (S?.phase === "plan" || S?.phase === "flow")) { S.attempt++; save(); beginLevel(); } });   // a level left mid-flow starts over, fresh
 
 // for tests and debugging

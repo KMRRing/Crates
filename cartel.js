@@ -5,7 +5,7 @@ import { newGame, act, respond, respondBlock, keepProof, freeReroll, freeAsk, bi
 import { Player, Mind, PERSONAS } from "./cartel-ai.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action } from "./menu.js";
+import { part, choice, action, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
@@ -84,7 +84,12 @@ let waiting = null;           // in Tap to continue: the next computer move, hel
  * Runs the next computer move after the chosen pace: a pause, or (Tap to continue) your next tap. Once you're out,
  * the rest of the game plays itself quickly.
  */
+// the menu holds the computer's next move until it closes
+let heldMove = null, nextMove = null;
+onPause(() => { if (timer != null && nextMove) { clearTimeout(timer); timer = null; heldMove = nextMove; } },
+  () => { if (heldMove) { const fn = heldMove; heldMove = null; schedule(fn); } });
 function schedule(fn) {
+  nextMove = fn;
   if (g.players[ME].out) { timer = setTimeout(fn, 120); return; }
   const ms = PACES[pace()].ms;
   if (ms != null) { timer = setTimeout(fn, ms); return; }

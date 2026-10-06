@@ -122,6 +122,24 @@ function shape(body) {
   } finally { shaping = false; }
 }
 
+// ---------- the pause: a game stands still while its menu, its rules, or the games screen is open ----------
+// Games listen with onPause(pause, resume): pause() when it should stop, resume(ms) when it may go on, ms being how
+// long it stood (to move a deadline or a start on by). A duo match's shared clock doesn't stop; the games see to that.
+const PAUSERS = "#menuDlg[open], #helpDlg[open], #rulesDlg[open], dialog.apps[open], dialog.apps-pop[open]";
+let pausedAt = null;
+export const isPaused = () => pausedAt !== null;
+export function onPause(pause, resume) {
+  addEventListener("suite:pause", () => pause());
+  addEventListener("suite:resume", e => resume(e.detail.ms));
+}
+function settlePause() {
+  const on = !!document.querySelector(PAUSERS);
+  if (on === isPaused()) return;
+  if (on) { pausedAt = performance.now(); dispatchEvent(new CustomEvent("suite:pause")); }
+  else { const ms = performance.now() - pausedAt; pausedAt = null; dispatchEvent(new CustomEvent("suite:resume", { detail: { ms } })); }
+}
+new MutationObserver(settlePause).observe(document.documentElement, { subtree: true, attributes: true, attributeFilter: ["open"] });
+
 /** Gives the page's menu its shape: the × at the top right, a tap outside closes, and the contents laid out on each open. */
 function upgrade() {
   const dlg = document.getElementById("menuDlg");

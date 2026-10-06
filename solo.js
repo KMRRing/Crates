@@ -10,7 +10,7 @@ import { createRun, cleanCode, validCode } from "./run.js";
 import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
-import { part, action, line, mirror } from "./menu.js";
+import { part, action, line, mirror, isPaused, onPause } from "./menu.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
@@ -65,7 +65,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       if (g && !g.done) g.ms = (g.ms || 0) + Math.max(0, Date.now() - this.from);
       this.from = Date.now();
     },
-    run() { this.book(); if (this.from === null && store.cur && !store.cur.done) this.from = Date.now(); },
+    run() { this.book(); if (this.from === null && store.cur && !store.cur.done && !isPaused()) this.from = Date.now(); },
     pause() { this.book(); this.from = null; },
   };
   const persistLocal = () => {
@@ -79,6 +79,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
   };
   const wake = () => { if (active) clock.run(); };
   document.addEventListener("visibilitychange", () => (document.hidden ? putAway() : wake()));
+  onPause(() => clock.pause(), () => clock.run());   // the menu stops the board's clock too
   window.addEventListener("pagehide", putAway);
   window.addEventListener("pageshow", wake);
   document.addEventListener("pointerdown", wake, true);

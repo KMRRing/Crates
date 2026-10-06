@@ -131,3 +131,9 @@ Three themes (Almanac, Modern, Kontor), each day and night, set by `theme.js` on
 `node --check file.js` does NOT catch a syntax error in an ES module on Node 22 (it falls back quietly and exits 0).
 Check with `node --experimental-default-type=module --check file.js`, or run `node tests/syntax.mjs`, which does that
 for every script and runs in CI. A missing brace in solo.js once passed every test and stopped Crates at "Loading".
+
+## The pause
+
+A game stands still while its menu, rules or the games screen is open. A game with a clock, a countdown, an animation
+that scores, or a computer that moves by itself must listen: `onPause(pause, resume)` from `menu.js` (resume gets the
+milliseconds it stood, to move a start or deadline on), and not start its clock while `isPaused()`. Duo clocks don't stop.
