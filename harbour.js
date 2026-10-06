@@ -12,6 +12,7 @@ import "./pwa.js";
 import { part, action, mirror, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
+const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
 const SPEED = [420, 110, 28];         // ms an hour takes: 1×, 4×, 16×
 const SPEED_LABELS = ["1×", "4×", "16×"];
 const HOLD = 450;                     // ms: holding a loop's count lowers it
@@ -426,15 +427,11 @@ function tape() {
   const wreck = frames[seen]?.crash, wcol = wreck ? (wreck.t - 1) % P : -1;   // where the run ended in a crash
   const html = [`<div class="hb-grid" style="--cols:${cols}"><span class="hb-corner"></span>`];
   for (let c = 0; c < cols; c++) html.push(`<span class="hb-colno">${c === 0 || (c + 1) % 5 === 0 ? c + 1 : ""}</span>`);
-  // a row for each ship deployed, no more; the room at the page's foot keeps what the rest of the fleet would take, so
-  // the map never moves as ships come and go: the table grows down into it
-  const rows = sol.ships.length, fleet = Object.values(L.fleet).reduce((a, b) => a + b, 0);
-  $("room").style.setProperty("--free", Math.max(0, fleet - rows));
-  for (let r = 0; r < rows; r++) {
-    const ship = sol.ships[r];
-    html.push(`<button class="hb-lab${r === sel ? " on" : ""}" type="button" data-row="${r}" aria-label="Ship ${r + 1}">${r + 1}</button>`);
+  for (let r = 0; r < ROWS; r++) {
+    const ship = sol.ships[r], off = ship ? "" : " disabled";
+    html.push(`<button class="hb-lab${r === sel ? " on" : ""}" type="button" data-row="${r}"${off} aria-label="Ship ${r + 1}">${ship ? r + 1 : ""}</button>`);
     for (let c = 0; c < cols; c++) {
-      const a = T.at(ship.prog, c);
+      const a = ship ? T.at(ship.prog, c) : { kind: "past", op: null };
       let cls = "hb-cell", body = a.op ? glyph(a.op) : "", label = `Ship ${r + 1}, hour ${c + 1}: ${opName(a.op)}`;
       if (a.badge) { cls += " lp-badge"; body = `×${a.n}`; label = `Ship ${r + 1}: these hours play ${a.n} times`; }
       else if (a.op) cls += ` op-${a.op === WAIT ? "wait" : a.op}`;
@@ -443,7 +440,7 @@ function tape() {
       if (c >= P) cls += " out";
       if (c === now && ship) cls += " now";
       if (c === wcol && wreck.ships.includes(r)) cls += " wreck";
-      html.push(`<button class="${cls}" type="button" data-row="${r}" data-col="${c}" aria-label="${label}">${body}</button>`);
+      html.push(`<button class="${cls}" type="button" data-row="${r}" data-col="${c}"${off} aria-label="${label}">${body}</button>`);
     }
   }
   const kept = box.scrollLeft;                        // rebuilt on every change: it stays where you'd scrolled it
