@@ -5,7 +5,7 @@
 // loop inside a loop unrolls the inner one. Every function returns a new program; tests/harbour.mjs checks them.
 import { flatten } from "./harbour-engine.js";
 
-const BACK = { N: "S", S: "N", E: "W", W: "E" };
+const BACK = { P: "S", S: "P" };
 export const isLoop = it => !!it && typeof it === "object";
 const copy = it => (isLoop(it) ? { n: it.n, body: [...it.body] } : it);
 const asLoop = (n, body) => (n >= 2 ? [{ n, body: [...body] }] : n === 1 ? [...body] : []);
@@ -97,7 +97,7 @@ export function setCount(prog, i, n) {
   return trim(p);
 }
 
-/** The way back: the hours played in reverse, every move turned round (N and S, E and W swap). */
+/** The way back, once the ship has turned round: the hours played in reverse, port and starboard swapped. */
 export const backwards = items => flatten(items).reverse().map(op => BACK[op] || op);
 
 /** The row one hour later (or earlier) in a loop of P hours: what falls off one end comes round to the other. This is

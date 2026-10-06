@@ -15,9 +15,9 @@ html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226
 /* the harbour: as big as the room left, at the map's own proportions */
 .hb-map { width: min(100cqw, calc(100cqh * var(--aspect, 1.6))); height: auto; display: block; border-radius: 10px;
   touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.hb-water { fill: var(--hb-water); }
+.hb-sea { fill: var(--hb-water); stroke: var(--hb-water); stroke-width: .4; }
 .hb-cellwater { fill: none; stroke: var(--hb-grid); stroke-width: .3; }
-.hb-land { fill: var(--hb-land); shape-rendering: crispEdges; }
+.hb-land { fill: var(--hb-land); stroke: var(--hb-land); stroke-width: .4; }   /* the stroke closes the seams between hexes */
 /* products by colour: oil and its cuts amber, FAME green; the customer's jetty blue */
 .pr-oil, .pr-diesel, .pr-gasoil { --pr: var(--c0); }
 .pr-fame { --pr: var(--c1); }
@@ -26,7 +26,7 @@ html[data-mode="night"] .harbour { --hb-water: #10202B; --hb-grid: rgba(236, 226
 .hb-gauge-bg { fill: color-mix(in srgb, var(--hb-ship-ink) 16%, transparent); }
 .hb-gauge { fill: var(--hb-berth); }
 .hb-load { fill: var(--pr); stroke: var(--hb-ship-ink); stroke-width: .2; }
-.hb-jetty rect { fill: color-mix(in srgb, var(--hb-berth) 28%, transparent); stroke: var(--hb-berth); stroke-width: .5; }
+.hb-jetty polygon { fill: color-mix(in srgb, var(--hb-berth) 28%, transparent); stroke: var(--hb-berth); stroke-width: .5; }
 .hb-jetty text { font: 800 4px var(--font); text-anchor: middle; fill: var(--hb-berth); }
 
 /* ships glide from tile to tile over an hour's time; while you drag one, or after an edit, they jump */

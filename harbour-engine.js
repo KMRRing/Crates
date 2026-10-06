@@ -1,4 +1,4 @@
-// Harbour's rules, apart from the page: a harbour on a grid, jetties, and ships whose programs all run in lockstep.
+// Harbour's rules, apart from the page: a harbour of hexes, jetties, and ships whose programs all run in lockstep.
 // The page (harbour.js) draws it, harbour-tape.js edits the programs, and tests/harbour.mjs replays reference
 // solutions through the same rules.
 //
@@ -11,9 +11,29 @@
 // That rule (an impossible transfer is no transfer) is what later levels build their logic on. Last, every
 // refinery's tank fills at its rate, up to what it holds; when it's full the refinery waits.
 
-export const MOVES = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
-export const LOAD = "L", DISCHARGE = "D", WAIT = ".";
-export const OPS = [...Object.keys(MOVES), LOAD, DISCHARGE, WAIT];
+// The harbour is hexes, pointy side up, every odd row set half a hex to the right; a tile is (x, y), its column and
+// row. Ships steer as ships do, relative to their heading: ahead; port, a 60° turn to the left and one hex on; starboard,
+// the same to the right; astern, a hex back still facing the same way. A program written so runs the same turned to any
+// of the six directions (or mirrored, port and starboard swapped): a module can be reused facing another way.
+export const HEADINGS = ["E", "NE", "NW", "W", "SW", "SE"];       // counterclockwise: a port turn is one on
+const AXIAL = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+export const STEER = { A: 0, P: 1, S: -1 };                       // ahead, port, starboard: the turn, then a hex on
+export const ASTERN = "B", LOAD = "L", DISCHARGE = "D", WAIT = ".";
+export const OPS = [...Object.keys(STEER), ASTERN, LOAD, DISCHARGE, WAIT];
+export const moves = op => op in STEER || op === ASTERN;
+
+/** The hex next to (x, y) in direction h (0 east, then counterclockwise). */
+export function neighbour(x, y, h) {
+  const [dq, dr] = AXIAL[((h % 6) + 6) % 6], q = x - (y - (y & 1)) / 2 + dq, r = y + dr;
+  return { x: q + (r - (r & 1)) / 2, y: r };
+}
+
+/** Where a ship at (x, y) facing h ends up after one instruction, and which way it then faces. */
+export function steer(ship, op) {
+  if (op === ASTERN) return { ...neighbour(ship.x, ship.y, ship.h + 3), h: ship.h };
+  if (op in STEER) { const h = (ship.h + STEER[op] + 6) % 6; return { ...neighbour(ship.x, ship.y, h), h }; }
+  return { x: ship.x, y: ship.y, h: ship.h };
+}
 
 // Level 1 was written before jetties were spelled out: one product, and a cargo is the whole ship.
 const FIRST_JETTIES = { L: { kind: "load", product: "oil" }, D: { kind: "discharge" } };
@@ -62,6 +82,7 @@ export function invalid(level, solution) {
   if (solution.ships.length > level.maxShips) return `At most ${level.maxShips} ships`;
   for (const [i, s] of solution.ships.entries()) {
     if (!g.afloat(s.x, s.y)) return `Ship ${i + 1} isn't on water`;
+    if (!Number.isInteger(s.h ?? 0) || (s.h ?? 0) < 0 || (s.h ?? 0) > 5) return `Ship ${i + 1} has no heading`;
     if (seen.has(`${s.x},${s.y}`)) return `Two ships start on one tile`;
     seen.add(`${s.x},${s.y}`);
     if (!Array.isArray(s.prog) || !s.prog.every(okItem)) return `Ship ${i + 1}'s program has something it can't run`;
@@ -82,7 +103,7 @@ export function offSpec(level, spec, cargo) {
 
 /** The run before its first hour. */
 export function start(level, solution) {
-  const ships = solution.ships.map(s => ({ x: s.x, y: s.y, cargo: {} })), tanks = {};
+  const ships = solution.ships.map(s => ({ x: s.x, y: s.y, h: s.h ?? 0, cargo: {} })), tanks = {};
   for (const [k, j] of Object.entries(jettiesOf(level))) if (j.tank) tanks[k] = j.tank.start || 0;
   return { t: 0, ships, tanks, delivered: 0, bought: 0, visited: new Set(ships.map(s => `${s.x},${s.y}`)), done: null, crash: null, events: [] };
 }
@@ -92,7 +113,7 @@ export function step(level, solution, state) {
   if (state.done || state.crash) return state;
   const g = grid(level), P = period(solution), t = state.t, plays = solution.ships.map(s => flatten(s.prog));
   const op = i => plays[i][t % P] || WAIT;
-  const from = state.ships, to = from.map((s, i) => { const d = MOVES[op(i)]; return d ? { x: s.x + d[0], y: s.y + d[1] } : { x: s.x, y: s.y }; });
+  const from = state.ships, to = from.map((s, i) => steer(s, op(i)));
   const next = { ...state, t: t + 1, events: [] };
   const crash = (kind, ships, at) => ({ ...next, crash: { kind, ships, at, t: t + 1 } });
 

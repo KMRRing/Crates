@@ -1,7 +1,7 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { MOVES, LOAD, DISCHARGE, WAIT, grid, period, invalid, start, step, score, flatten, instructions, capOf } from "./harbour-engine.js";
+import { ASTERN, LOAD, DISCHARGE, WAIT, moves, grid, period, invalid, start, step, score, instructions, capOf } from "./harbour-engine.js";
 import * as T from "./harbour-tape.js";
 import { LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
@@ -10,11 +10,16 @@ import "./pwa.js";
 import { part, action, mirror } from "./menu.js";
 
 const $ = id => document.getElementById(id);
-const U = 10;                         // a tile, in the map's drawing units
+// hexes, pointy side up, every odd row half a hex to the right: 10 drawing units across, 8.66 from row to row
+const HEX_W = 10, HEX_R = HEX_W / Math.sqrt(3), ROW_H = 1.5 * HEX_R;
+const centre = (x, y) => ({ cx: HEX_W * (x + 0.5 + (y & 1) / 2), cy: HEX_R + ROW_H * y });
+const hexPoints = (x, y, inset = 0) => {
+  const { cx, cy } = centre(x, y), r = HEX_R - inset;
+  return [0, 1, 2, 3, 4, 5].map(i => { const a = Math.PI / 180 * (60 * i - 30); return `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`; }).join(" ");
+};
 const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
 const SPEED = [420, 110];             // ms an hour takes: normal, fast
 const HOLD = 450;                     // ms: holding a loop's count lowers it
-const ANGLE = { E: 0, S: 90, W: 180, N: -90 };
 const HULL = "M1.2 2.9H6.2C8.4 2.9 9.4 4 9.5 5C9.4 6 8.4 7.1 6.2 7.1H1.2Q.6 5 1.2 2.9Z";   // bow to the east
 const MEASURES = [["cost", "Cost", v => `$${v}k`], ["hours", "Hours", v => `${v} h`], ["water", "Water", v => `${v} tiles`], ["instructions", "Instructions", v => `${v} instr`]];
 const REPEAT = [380, 110];            // ms: holding a shift arrow repeats it, after a pause, this often
@@ -22,7 +27,9 @@ const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
 const svg = body => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
-const arrow = d => `<svg viewBox="0 0 16 16" aria-hidden="true"><path transform="rotate(${ANGLE[d] + 90} 8 8)" d="M8 13V3M3.8 7.2 8 3l4.2 4.2"/></svg>`;
+// the steering, drawn as the ship sees it: ahead, a curve to port, a curve to starboard, astern
+const STEERING = { A: "M8 13V3M3.8 7.2 8 3l4.2 4.2", P: "M11 13V9a4 4 0 0 0-4-4H4M6.6 2.4 4 5l2.6 2.6", S: "M5 13V9a4 4 0 0 1 4-4h3M9.4 2.4 12 5l-2.6 2.6", B: "M8 3v10M3.8 8.8 8 13l4.2-4.2" };
+const arrow = op => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${STEERING[op]}"/></svg>`;
 const ICON = {
   undo: svg('<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>'),
   reset: svg('<path d="M6 5v14"/><path class="solid" d="M18 6 9 12l9 6z"/>'),
@@ -33,12 +40,13 @@ const ICON = {
   earlier: svg('<path d="M14 6l-6 6 6 6"/>'),
   later: svg('<path d="M10 6l6 6-6 6"/>'),
 };
-const PAINT = [["N", "North"], ["E", "East"], ["S", "South"], ["W", "West"], [LOAD, "Load"], [DISCHARGE, "Discharge"], [WAIT, "Wait"]];
+const PAINT = [["A", "Ahead"], ["P", "Port: turn 60° left and on"], ["S", "Starboard: turn 60° right and on"], [ASTERN, "Astern: a hex back"],
+  [LOAD, "Load"], [DISCHARGE, "Discharge"], [WAIT, "Wait"]];
 const ACTIONS = [["copy", "Copy", "Copy"], ["paste", "Paste", "Paste"], ["insert", "Insert empty hours", "Insert"],
   ["delete", "Delete these hours", "Delete"], ["loop", "Loop: play these hours twice (tap the count to raise it)", "Loop"],
-  ["back", "Copy the way back: reversed, each move turned round", "Back"],
+  ["back", "Copy the way back, once turned round: reversed, port and starboard swapped", "Back"],
   ["earlier", "Shift an hour earlier in the loop", ICON.earlier], ["later", "Shift an hour later in the loop", ICON.later]];
-const glyph = op => (MOVES[op] ? arrow(op) : op === WAIT ? "·" : op);
+const glyph = op => (moves(op) ? arrow(op) : op === WAIT ? "·" : op);
 const opName = op => PAINT.find(t => t[0] === op)?.[1] || "nothing";
 
 let L = null, G = null;               // the level and its grid
@@ -46,19 +54,19 @@ let sol = { ships: [] };              // what you've planned: each ship's start 
 let sim = null;                       // the run on screen, or null while you edit
 let running = false, timer = 0, fast = false;
 let sel = -1;                         // the selected ship (its row is highlighted)
-let tool = "E", mode = "paint";       // painting instructions, or picking hours to act on
+let tool = "A", mode = "paint";       // painting instructions, or picking hours to act on
 let pick = null;                      // picked hours: rows r0..r1, hours c0..c1, from the anchor (ar, ac); open: waiting for the far end
 let clip = null;                      // copied hours, one list of items per row
 let notice = "";                      // a message for the status line until the next change
 let history = [];                     // earlier plans, for Undo
-let facing = [];                      // which way each ship points (its last move), for drawing
 let drag = null;                      // a ship being dragged: { i, from, moved }
 let held = null;                      // a loop count being held down: { timer, fired }
 let sweeping = false, swept = false;  // picking hours with a mouse drag (swept: the click that ends it is already handled)
 let nudged = 0;                       // hours the picked rows have been shifted, for the status line
 let repeat = { delay: 0, every: 0, at: 0 };   // a shift arrow being held
 
-const solKey = () => `harbour:sol:${L.id}`, bestKey = () => `harbour:best:${L.id}`;
+// v2: the harbour went from squares to hexes, and plans and bests from before don't carry over
+const solKey = () => `harbour:v2:sol:${L.id}`, bestKey = () => `harbour:v2:best:${L.id}`;
 const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k => pick.r0 + k).filter(r => sol.ships[r]) : []);
 
 // ---------- the level ----------
@@ -71,27 +79,27 @@ function load(level) {
   history = []; sel = -1; sim = null; pick = null; notice = "";
   $("brief").textContent = L.brief;
   drawSea();
-  faceStart();
   render(true);
 }
 
 function drawSea() {
-  const map = $("map"), parts = [`<rect class="hb-water" width="${G.w * U}" height="${G.h * U}"/>`];
-  map.setAttribute("viewBox", `0 0 ${G.w * U} ${G.h * U}`);
-  map.style.setProperty("--aspect", G.w / G.h);
+  const map = $("map"), W = HEX_W * (G.w + 0.5), H = 2 * HEX_R + ROW_H * (G.h - 1), parts = [];
+  map.setAttribute("viewBox", `0 0 ${W.toFixed(2)} ${H.toFixed(2)}`);
+  map.style.setProperty("--aspect", W / H);
   for (let y = 0; y < G.h; y++) for (let x = 0; x < G.w; x++) {
-    const k = G.at(x, y), X = x * U, Y = y * U;
-    if (k === "land") { parts.push(`<rect class="hb-land" x="${X}" y="${Y}" width="${U}" height="${U}"/>`); continue; }
-    parts.push(`<rect class="hb-cellwater" x="${X + .3}" y="${Y + .3}" width="${U - .6}" height="${U - .6}" rx="1.4"/>`);
+    const k = G.at(x, y), { cx, cy } = centre(x, y);
+    if (k === "land") { parts.push(`<polygon class="hb-land" points="${hexPoints(x, y, -0.3)}"/>`); continue; }
+    parts.push(`<polygon class="hb-sea" points="${hexPoints(x, y, -0.3)}"/><polygon class="hb-cellwater" points="${hexPoints(x, y, 0.4)}"/>`);
     const j = G.jetty(x, y);
     if (!j) continue;
     // a jetty in its product's colour (the customer's in blue), lettered as on the map; a refinery's has its tank's gauge
-    const gauge = j.tank ? `<rect class="hb-gauge-bg" x="${X + U - 2.5}" y="${Y + 2}" width="1.2" height="${U - 4}" rx=".6"/>`
-      + `<rect class="hb-gauge" data-tank="${k}" data-top="${Y + 2}" data-full="${U - 4}" x="${X + U - 2.5}" y="${Y + U - 2}" width="1.2" height="0" rx=".6"/>` : "";
-    parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><rect x="${X + 1}" y="${Y + 1}" width="${U - 2}" height="${U - 2}" rx="1.6"/>`
-      + `<text x="${X + U / 2 - (j.tank ? .7 : 0)}" y="${Y + U / 2 + 1.45}">${k}</text>${gauge}</g>`);
+    const gauge = j.tank ? `<rect class="hb-gauge-bg" x="${cx + 2.2}" y="${cy - 3.3}" width="1.2" height="6.6" rx=".6"/>`
+      + `<rect class="hb-gauge" data-tank="${k}" data-top="${cy - 3.3}" data-full="6.6" x="${cx + 2.2}" y="${cy + 3.3}" width="1.2" height="0" rx=".6"/>` : "";
+    parts.push(`<g class="hb-jetty ${j.kind === "load" ? `load pr-${j.product}` : "discharge"}"><polygon points="${hexPoints(x, y, 1)}"/>`
+      + `<text x="${cx - (j.tank ? .7 : 0)}" y="${cy + 1.45}">${k}</text>${gauge}</g>`);
   }
-  map.innerHTML = parts.join("") + `<g id="fleet"></g><g id="marks"></g>`;
+  // land underneath everything (so the half-hex notches at the ends of rows are coast, not open sea), each water hex on it
+  map.innerHTML = `<rect class="hb-land" width="${W.toFixed(2)}" height="${H.toFixed(2)}"/>` + parts.join("") + `<g id="fleet"></g><g id="marks"></g>`;
 }
 
 // ---------- editing ----------
@@ -103,7 +111,6 @@ function edit(change) {
   change();
   notice = "";
   write(solKey(), sol);
-  faceStart();
   render(true);
 }
 function undo() {
@@ -112,10 +119,8 @@ function undo() {
   sol = JSON.parse(history.pop());
   sel = Math.min(sel, sol.ships.length - 1);
   write(solKey(), sol);
-  faceStart();
   render(true);
 }
-const faceStart = () => { facing = sol.ships.map(s => flatten(s.prog).find(op => MOVES[op]) || "E"); };
 
 function paintCell(row, col) {
   const prog = sol.ships[row].prog, here = T.at(prog, col);
@@ -198,12 +203,18 @@ function act(name) {
   }
 }
 
-// the map: tap water to put a ship there, tap a ship to pick it, drag it to move it, onto land to scrap it
+// the map: tap water to put a ship there, tap a ship to pick it and again to turn it, drag it to move it, onto land to
+// scrap it. A point is in the hex whose centre is nearest.
 function tileAt(e) {
   const map = $("map"), pt = map.createSVGPoint();
   pt.x = e.clientX; pt.y = e.clientY;
-  const p = pt.matrixTransform(map.getScreenCTM().inverse());
-  return { x: Math.floor(p.x / U), y: Math.floor(p.y / U), px: p.x, py: p.y };
+  const p = pt.matrixTransform(map.getScreenCTM().inverse()), y0 = Math.round((p.y - HEX_R) / ROW_H);
+  let best = null;
+  for (let y = y0 - 1; y <= y0 + 1; y++) {
+    const x0 = Math.round(p.x / HEX_W - 0.5 - (y & 1) / 2);
+    for (let x = x0 - 1; x <= x0 + 1; x++) { const c = centre(x, y), d = (c.cx - p.x) ** 2 + (c.cy - p.y) ** 2; if (!best || d < best.d) best = { x, y, d }; }
+  }
+  return { x: best.x, y: best.y, px: p.x, py: p.y };
 }
 const shipOn = (x, y) => sol.ships.findIndex(s => s.x === x && s.y === y);
 function pointerDown(e) {
@@ -219,7 +230,7 @@ function pointerMove(e) {
   if (!drag.moved) return;
   el.classList.add("dragging");
   el.classList.toggle("scrap", !G.afloat(t.x, t.y));
-  el.style.transform = `translate(${t.px - U / 2}px, ${t.py - U / 2}px)`;
+  el.style.transform = `translate(${t.px - 5}px, ${t.py - 5}px)`;
 }
 function pointerUp(e) {
   if (!drag) return;
@@ -229,13 +240,14 @@ function pointerUp(e) {
     if (!G.afloat(t.x, t.y)) edit(() => { sol.ships.splice(d.i, 1); sel = -1; pick = null; });
     else if (shipOn(t.x, t.y) < 0) edit(() => { Object.assign(sol.ships[d.i], { x: t.x, y: t.y }); sel = d.i; });
     else render(true);                                 // onto another ship: it goes back where it was
-  } else if (d.i >= 0) { sel = sel === d.i ? -1 : d.i; render(true); }
-  else if (G.afloat(t.x, t.y) && sol.ships.length < L.maxShips) edit(() => { sol.ships.push({ x: t.x, y: t.y, prog: [] }); sel = sol.ships.length - 1; });
+  } else if (d.i >= 0 && sel === d.i) edit(() => { const s = sol.ships[d.i]; s.h = ((s.h ?? 0) + 5) % 6; });   // picked already: turn it to starboard
+  else if (d.i >= 0) { sel = d.i; render(true); }
+  else if (G.afloat(t.x, t.y) && sol.ships.length < L.maxShips) edit(() => { sol.ships.push({ x: t.x, y: t.y, h: 0, prog: [] }); sel = sol.ships.length - 1; });
   else { sel = -1; render(true); }
 }
 
 // ---------- the clock ----------
-function stop() { running = false; clearTimeout(timer); sim = null; faceStart(); }
+function stop() { running = false; clearTimeout(timer); sim = null; }
 function begin() {
   if (sim) return true;
   const why = !sol.ships.length ? "Tap the water to put a ship there first." : invalid(L, sol);
@@ -245,9 +257,7 @@ function begin() {
 }
 const over = () => sim.done || sim.crash || sim.t >= L.maxCycles;
 function tick() {
-  const P = period(sol), t = sim.t;
   sim = step(L, sol, sim);
-  if (!sim.crash) sol.ships.forEach((s, i) => { const op = T.at(s.prog, t % P).op; if (MOVES[op]) facing[i] = op; });
   if (over()) { running = false; if (sim.done) keepBests(); }
   render();
 }
@@ -298,8 +308,9 @@ function fleet() {
   ships.forEach((p, i) => {
     const el = g.children[i];
     el.classList.remove("dragging", "scrap");
-    el.style.transform = `translate(${p.x * U}px, ${p.y * U}px)`;
-    el.firstChild.setAttribute("transform", `rotate(${ANGLE[facing[i]] ?? 0} 5 5)`);
+    const { cx, cy } = centre(p.x, p.y);
+    el.style.transform = `translate(${cx - 5}px, ${cy - 5}px)`;
+    el.firstChild.setAttribute("transform", `rotate(${-60 * (p.h ?? 0)} 5 5)`);           // the bow along its heading
     // the cargo as a bar along the deck, a stretch per product, as long as the share of the ship it fills
     let x = 3.6;
     el.querySelector(".hb-cargo").innerHTML = Object.entries(p.cargo || {}).filter(([, u]) => u > 0).map(([prod, u]) => {
@@ -314,7 +325,8 @@ function fleet() {
 
 function marks() {
   const c = sim?.crash;
-  $("marks").innerHTML = c ? `<circle class="hb-crash" cx="${c.at[0] * U + U / 2}" cy="${c.at[1] * U + U / 2}" r="4.7"/>` : "";
+  const o = c && centre(c.at[0], c.at[1]);
+  $("marks").innerHTML = c ? `<circle class="hb-crash" cx="${o.cx}" cy="${o.cy}" r="4.7"/>` : "";
 }
 
 /** The programs: a row per ship, a column per hour. A loop's body is boxed, its later passes are faded, and the first of
@@ -388,7 +400,7 @@ function status() {
       : pick.open ? "Tap another hour to pick between, or act now."
       : `${w} hour${w > 1 ? "s" : ""}${rows > 1 ? ` × ${rows} ships` : ""} picked`;
   } else if (!sim) text = !n ? "Tap the water to put a ship there."
-    : sel >= 0 ? `Ship ${sel + 1}: drag it to move it, onto land to scrap it.`
+    : sel >= 0 ? `Ship ${sel + 1}: tap to turn it, drag to move it, onto land to scrap it.`
     : `${n} ship${n > 1 ? "s" : ""} · loop ${period(sol)} h · ${instructions(sol)} instr · hire $${n * L.shipCost}k`;
   else if (sim.crash) {
     const [a, b] = sim.crash.ships; tone = "bad";
