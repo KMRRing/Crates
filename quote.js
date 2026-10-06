@@ -179,9 +179,10 @@ function drawTape(q, e) {
   const x = v => `${((f(v) - left) / (right - left) * 100).toFixed(1)}%`;
   const add = (cls, style, text) => { const d = document.createElement("div"); d.className = cls; Object.assign(d.style, style); if (text != null) d.textContent = text; tape.appendChild(d); return d; };
   add("rail", {});
-  add("span", { left: x(e.bid), width: `calc(${x(e.ask)} - ${x(e.bid)})` });
+  const point = e.ask === e.bid;                       // a market on one figure: a dot, labelled once
+  add(point ? "span point" : "span", point ? { left: x(e.bid) } : { left: x(e.bid), width: `calc(${x(e.ask)} - ${x(e.bid)})` });
   add("lbl", { left: x(e.bid) }, fmt(e.bid, q));
-  add("lbl", { left: x(e.ask) }, fmt(e.ask, q));
+  if (!point) add("lbl", { left: x(e.ask) }, fmt(e.ask, q));
   add(`truth ${e.inside ? "good" : "bad"}`, { left: x(q.truth) });
   add("lbl t", { left: x(q.truth) }, fmt(q.truth, q));
 }

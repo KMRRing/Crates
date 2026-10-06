@@ -60,6 +60,7 @@ html[data-mode="night"] { --qt-in: #8E9BE0; --qt-good: #7FC2A8; --qt-fair: #B2DC
 .qt-tape { position: relative; height: 54px; }
 .qt-tape .rail { position: absolute; left: 0; right: 0; top: 26px; height: 4px; border-radius: 2px; background: var(--qt-edge); }
 .qt-tape .span { position: absolute; top: 20px; height: 16px; border-radius: 8px; background: var(--qt-in-soft); border: 2px solid var(--qt-in); box-sizing: border-box; }
+.qt-tape .span.point { width: 16px; margin-left: -8px; border-radius: 50%; }   /* bid = ask: one figure, the truth's tick through it when it's right */
 .qt-tape .truth { position: absolute; top: 14px; width: 4px; height: 28px; margin-left: -2px; border-radius: 2px; background: var(--ink); }
 .qt-tape .truth.good { background: var(--qt-good); }
 .qt-tape .truth.bad { background: var(--qt-bad); }

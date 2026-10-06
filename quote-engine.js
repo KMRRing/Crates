@@ -101,7 +101,8 @@ export const adequate = grade => ["SS", "S", "A"].includes(grade);
 export function fault(q, bid, ask) {
   if (!Number.isFinite(bid) || !Number.isFinite(ask)) return "Give a bid and an ask.";
   if (q.scale === "log" && bid <= 0) return "The bid has to be above zero.";
-  if (ask <= bid) return "The ask has to be above the bid.";
+  // a bid equal to the ask is a market on one figure: you know it exactly (an SS where the question can be known exactly)
+  if (ask < bid) return "The ask can't be below the bid.";
   return null;
 }
 

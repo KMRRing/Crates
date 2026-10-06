@@ -35,6 +35,15 @@ check(y0.grade === "SS" && y0.delta === 300 && yS.grade === "S" && yA.grade === 
 const easy = E.settle({ ...year, d: 1 }, 1930, 1939), hard = E.settle({ ...year, d: 5 }, 1930, 1939);
 check(easy.delta < yS.delta && hard.delta > yS.delta && E.adequate("A") && !E.adequate("B"), `difficulty scales the payoff (a 1 pays ${easy.delta}, a 3 ${yS.delta}, a 5 ${hard.delta}); A is adequate, B is not`);
 check(E.fault(city, 10, 5) && E.fault(city, 0, 5) && E.fault(city, NaN, 5) && !E.fault(city, 1, 5), "faults: ask below bid, a zero bid, a missing number");
+{
+  // the same number twice: a market on one figure, for when you know it exactly
+  const opec = QUOTES.find(q => q.id === "tr-34"), exact = E.settle(opec, 12, 12), near = E.settle(opec, 11.5, 12.5), off = E.settle(opec, 11, 11);
+  check(!E.fault(opec, 12, 12) && E.fault(opec, 13, 12), "the same number as bid and ask is a market; an ask below the bid still isn't");
+  check(exact.grade === "SS" && exact.inside && exact.delta > near.delta && near.grade !== "SS", `12–12 on OPEC's 12 members is SS, exact, and pays more than 11.5–12.5 (${exact.grade} ${exact.delta}, ${near.grade} ${near.delta})`);
+  check(!off.inside && off.grade !== "SS" && off.delta < exact.delta, `11–11 is outside, graded by how far it is (one country out: ${off.grade} ${off.delta}), and pays less than exact`);
+  const t = E.trade(opec, 12, 12, "hit");
+  check(Number.isFinite(t.maker) && Number.isFinite(t.taker), "a partner can trade against a market on one figure");
+}
 check(E.withUnit(450.3, { unit: "$ million" }) === "$450.3 million" && E.withUnit(1937, { unit: "year" }) === "1937" && E.withUnit(37, { unit: "million" }) === "37 million" && E.withUnit(11104, { unit: "$ a tonne" }) === "$11,104 a tonne",
   "words: currencies lead, years stand alone, thousands get commas");
 check(E.tiersText(year) === "S ±8 years · A ±20 · B ±35" && E.tierText(city, "A") === "±53%", `the tiers read as "${E.tiersText(year)}", an A on a magnitude as ${E.tierText(city, "A")}`);
