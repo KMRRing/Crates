@@ -1,4 +1,4 @@
-// The pile: recording, promotion through the four piles with their gaps, demotion, due ordering, learned.
+// The pile: recording, promotion through the six piles with their gaps, demotion, due ordering, learned; the record it keeps for the Ledger.
 globalThis.localStorage = { _s: {}, getItem(k) { return this._s[k] ?? null; }, setItem(k, v) { this._s[k] = String(v); }, removeItem(k) { delete this._s[k]; } };
 const P = await import("../pile.js");
 let bad = 0;
@@ -13,8 +13,10 @@ check(it.pile === 1 && it.due > Date.now() && P.due("punt").length === 0, `right
 check(P.due("punt", Date.now() + 11 * 60000).length === 1, "and it's due eleven minutes later");
 it = P.answer("punt", "words/WD-001", false);
 check(it.pile === 0 && P.due("punt").length === 1, "wrong drops it back to the ultra-short pile, due now");
-for (let i = 0; i < 4; i++) it = P.answer("punt", "words/WD-001", true);
-check(!!it.learned && P.counts().learned === 1 && P.due("punt").length === 0, "four rights in a row from the bottom: learned");
+for (let i = 0; i < P.PILES.length - 1; i++) it = P.answer("punt", "words/WD-001", true);
+check(it.pile === 5 && !it.learned && Math.round((it.due - Date.now()) / 86400000) === 91, "five rights in a row from the bottom: the longest pile, back in three months (a week, then a month, then a quarter)");
+it = P.answer("punt", "words/WD-001", true);
+check(!!it.learned && P.counts().learned === 1 && P.due("punt").length === 0, "right once more: learned");
 P.record("punt", "words/WD-001", {}, "wrong");
 check(!P.all("punt")[0].learned && P.all("punt")[0].pile === 0, "a miss on a learned item brings it back to the first pile");
 check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's banked");

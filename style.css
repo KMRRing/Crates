@@ -73,6 +73,8 @@
   --pa-logo-edge: var(--logo-edge);
   --br-logo-tint: #EFD3DD;  /* Brut's logo: a wine glass */
   --br-logo-edge: var(--logo-edge);
+  --lg-logo-tint: #EDE0BC;  /* Ledger's logo: an open ledger */
+  --lg-logo-edge: var(--logo-edge);
   --hb-logo-tint: #D6DCEB;  /* Harbour's logo: a tanker from above */
   --hb-logo-edge: var(--logo-edge);
   box-sizing: border-box;
@@ -115,6 +117,7 @@
     --dk-logo-tint: #3D2347;
     --pa-logo-tint: #1B4440;
     --br-logo-tint: #4A1528;
+    --lg-logo-tint: #4A3D1E;
     --hb-logo-tint: #23304F;
   }
 }
@@ -154,6 +157,7 @@ html[data-mode="night"] {
     --dk-logo-tint: #3D2347;
     --pa-logo-tint: #1B4440;
     --br-logo-tint: #4A1528;
+    --lg-logo-tint: #4A3D1E;
     --hb-logo-tint: #23304F;
   }
 *, *::before, *::after { box-sizing: inherit; }

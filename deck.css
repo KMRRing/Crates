@@ -9,7 +9,7 @@ html[data-mode="night"] { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806
 .dk-mark { display: inline-block; }
 .dk-mark svg { width: 100%; height: 100%; display: block; }
 .dk-lead { margin: .4rem 0 .8rem; color: var(--ink-soft); line-height: 1.45; }
-.dk-piles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; }
+.dk-piles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }   /* six piles: two rows of three */
 .dk-piles div { padding: .55rem .3rem; border-radius: 5px; background: var(--sheet); text-align: center; }
 .dk-piles b { display: block; font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .dk-piles b.due { color: var(--dk-in); }

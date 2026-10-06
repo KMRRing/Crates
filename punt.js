@@ -6,6 +6,7 @@ import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageRet
   showOdds, showChips } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
+import { noteStake } from "./ledger-log.js";
 import { setRich } from "./rich.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -552,6 +553,7 @@ function bankLatest(last) {
   const q = S.questions[last.index], mine = last.bets[me()];
   if (!q || !mine || !q.key) return;
   const right = judged(q, mine).right, asName = typedNow(q);
+  noteStake(mine.pct, asName ? q.typedOffered : q.offered, right === true);   // the Ledger: what your stake believed, and what happened
   // what's recognised one way round can be asked the other (known.js); a name-it question typed goes to the pile as one,
   // so Deck asks it again as a name to type, not as options to choose from
   if (asName && q.pair) known.named(q.pair, right === true);

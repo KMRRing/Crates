@@ -55,6 +55,9 @@ const PARLEY_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M16 
 
 // A gilt-rimmed glass of bordeaux, for Brut.
 const BRUT_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M28 10H72C74 34 70 52 50 58C30 52 26 34 28 10Z" fill="#FBF4E4" opacity=".95"/><path d="M28.25 31H71.75L71.71 31.29L71.47 32.74L71.19 34.15L70.88 35.54L70.53 36.89L70.14 38.21L69.72 39.5L69.25 40.75L68.74 41.97L68.19 43.16L67.6 44.31L66.96 45.42L66.28 46.5L65.55 47.55L64.77 48.55L63.95 49.52L63.08 50.45L62.16 51.34L61.18 52.2L60.16 53.01L59.08 53.78L57.95 54.51L56.77 55.2L55.53 55.85L54.23 56.45L52.88 57.01L51.47 57.53L50 58L50 58L48.53 57.53L47.12 57.01L45.77 56.45L44.47 55.85L43.23 55.2L42.05 54.51L40.92 53.78L39.84 53.01L38.82 52.2L37.84 51.34L36.92 50.45L36.05 49.52L35.23 48.55L34.45 47.55L33.72 46.5L33.04 45.42L32.4 44.31L31.81 43.16L31.26 41.97L30.75 40.75L30.28 39.5L29.86 38.21L29.47 36.89L29.12 35.54L28.81 34.15L28.53 32.74L28.29 31.29Z" fill="#7A1E3A"/><ellipse cx="50" cy="31" rx="21.75" ry="2.6" fill="#984f5a"/><path d="M34 15C32 27 33 38 38 47" fill="none" stroke="#FBF4E4" stroke-width="2.4" stroke-linecap="round" opacity=".9"/><path d="M28 10H72C74 34 70 52 50 58C30 52 26 34 28 10Z" fill="none" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><path d="M28.5 10H71.5" stroke="#E2B865" stroke-width="2"/><path d="M50 58V84" stroke="#1C2A34" stroke-width="7"/><path d="M50 59V84" stroke="#FBF4E4" stroke-width="3"/><ellipse cx="50" cy="87" rx="21" ry="5.5" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(2.6 * var(--wire, 1))"/><ellipse cx="50" cy="87" rx="16" ry="3" fill="none" stroke="#C8923A" stroke-width="1.2"/></svg>`;
+// An open ledger with brass corners: a column of figures, a rising line, a ribbon from the spine, for Ledger, the record of how
+// well you learn.
+const LEDGER_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M47.5 82V97L50 93.5L52.5 97V82Z" fill="#8F3328" stroke="#1C2A34" stroke-width="1.4" stroke-linejoin="round"/><path d="M50 21C41 16 25 15 10 18V80C25 77 41 78 50 83Z" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><path d="M50 21C59 16 75 15 90 18V80C75 77 59 78 50 83Z" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><path d="M14.5 21.5V76.5M85.5 21.5V76.5" stroke="#C8923A" stroke-width="1.3"/><path d="M50 21V83" stroke="#1C2A34" stroke-width="1.8"/><path d="M18.5 31H31M18.5 38.5H31M18.5 46H31M18.5 53.5H31M18.5 61H31M18.5 68.5H31" stroke="#1C2A34" stroke-width="2.3" stroke-linecap="round"/><path d="M35 31H44M35 38.5H41M35 46H45M35 53.5H40M35 61H43M35 68.5H42" stroke="#1C2A34" stroke-width="2.3" stroke-linecap="round" opacity=".5"/><path d="M57 31V69H84" fill="none" stroke="#C8923A" stroke-width="1.5"/><path d="M57 50H84M70.5 31V69" stroke="#1C2A34" stroke-width=".9" opacity=".3"/><path d="M58 64L64 57L70 60L76 47L83 35" fill="none" stroke="#2C5B8A" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><g fill="#E2B865" stroke="#1C2A34" stroke-width=".9"><circle cx="58" cy="64" r="2.1"/><circle cx="64" cy="57" r="2.1"/><circle cx="70" cy="60" r="2.1"/><circle cx="76" cy="47" r="2.1"/><circle cx="83" cy="35" r="2.1"/></g><g fill="#C8923A" stroke="#1C2A34" stroke-width="1.1" stroke-linejoin="round"><path d="M10 18L19 17.2L10 26.5Z"/><path d="M90 18L81 17.2L90 26.5Z"/><path d="M10 80L19 78.6L10 71.5Z"/><path d="M90 80L81 78.6L90 71.5Z"/></g></svg>`;
 
 // A tanker seen from above, as the ships are on Harbour's map: bow up and to the right, the domes of its cargo tanks
 // along the deck, the manifold across it, the bridge and funnel aft.
@@ -148,6 +151,11 @@ const MODERN_LOGOS = {
   <path d="M6.6 5.4h6.8c.2 3.4-1.2 5.6-3.4 5.8-2.2-.2-3.6-2.4-3.4-5.8z" fill="none" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linejoin="round"/>
   <path d="M7 8h6c-.4 1.9-1.5 3-3 3.1-1.5-.1-2.6-1.2-3-3.1z" fill="var(--br-logo-edge)"/>
   <path d="M10 11.2v3.3M7.6 14.8h4.8" stroke="var(--br-logo-edge)" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  ledger: `<svg viewBox="0 0 20 20" aria-hidden="true">
+  <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--lg-logo-tint)" stroke="var(--lg-logo-edge)" stroke-width="1.6"/>
+  <path d="M10 6.3C8.5 5.4 6.2 5.3 4.6 5.7V14.3C6.2 13.9 8.5 14 10 14.9C11.5 14 13.8 13.9 15.4 14.3V5.7C13.8 5.3 11.5 5.4 10 6.3Z" fill="none" stroke="var(--lg-logo-edge)" stroke-width="1.3" stroke-linejoin="round"/>
+  <path d="M10 6.3V14.9M6.2 8.6H8.5M6.2 10.5H8.5M6.2 12.4H8" stroke="var(--lg-logo-edge)" stroke-width="1" stroke-linecap="round"/>
+  <path d="M11.4 12.2L12.7 10.6L13.6 11.2L14.6 8.7" fill="none" stroke="var(--lg-logo-edge)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   harbour: `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="rotate(45 10 10)">
   <path d="M10 1.2C12.7 2.9 13.7 5.2 13.7 7.4V16.8Q13.7 18.6 11.9 18.6H8.1Q6.3 18.6 6.3 16.8V7.4C6.3 5.2 7.3 2.9 10 1.2Z" fill="var(--hb-logo-tint)" stroke="var(--hb-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
   <rect x="7.6" y="14.3" width="4.8" height="2.7" rx=".6" fill="var(--hb-logo-edge)"/>
@@ -172,6 +180,7 @@ const KONTOR_LOGOS = {
   blend: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3.5v6l-5 10h16l-5-10v-6M7.5 3.5h9"/><path class="a" d="M6.3 15h11.4"/></svg>`,
   refinery: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3.5" width="6" height="17"/><path d="M9 8h6M9 12.5h6M9 17h6"/><path class="a" d="M15 6h4.5M15 10.5h4.5M15 15h4.5"/></svg>`,
   brut: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3.5h8c0 5-1.5 8-4 8s-4-3-4-8z"/><path d="M12 11.5v8.5M8.5 20.5h7"/><path class="a" d="M8.4 7h7.2"/></svg>`,
+  ledger: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5C10 5.3 6.5 5 4 5.6V18.4C6.5 17.8 10 18.1 12 19.3C14 18.1 17.5 17.8 20 18.4V5.6C17.5 5 14 5.3 12 6.5Z"/><path d="M12 6.5V19.3M6.5 9.5H9.5M6.5 12H9.5M6.5 14.5H9"/><path class="a" d="M13.8 15L15.6 12.6L16.8 13.5L18.4 9.8"/></svg>`,
 };
 const LOOK = document.documentElement.dataset.theme;
 // the games screen's title mark: Almanac's sextant in brass on navy, Modern's flat on a rounded tile (logo-modern.svg),
@@ -202,6 +211,7 @@ export const APPS = [
   { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
   { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
   { id: "brut", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO), more: true },
+  { id: "ledger", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), more: true },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

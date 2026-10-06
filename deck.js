@@ -93,7 +93,11 @@ function drawSubjects() {
     return d;
   }));
 }
-const gapText = ms => (ms >= 86400000 ? `${Math.round(ms / 86400000)} day${ms >= 2 * 86400000 ? "s" : ""}` : ms >= 3600000 ? `${Math.round(ms / 3600000)} hours` : `${Math.round(ms / 60000)} min`);
+const gapText = ms => {
+  const day = 86400000, months = Math.round(ms / (30.44 * day));
+  if (ms >= 28 * day) return `${months} month${months > 1 ? "s" : ""}`;           // the month and quarter piles
+  return ms >= day ? `${Math.round(ms / day)} day${ms >= 2 * day ? "s" : ""}` : ms >= 3600000 ? `${Math.round(ms / 3600000)} hours` : `${Math.round(ms / 60000)} min`;
+};
 
 // ---------- the review ----------
 function startReview() {
@@ -405,7 +409,7 @@ function openMenu() {
   part(body, "settings").append(
     toggle("Learning mode", pile.learning(), on => pile.setLearning(on)),
     action("Forget everything", () => { if (confirm("Empty the pile? Every banked item goes.")) { pile.clear(); overview(); } }, "link"));
-  part(body, "about").append(line(`Piles: at once, ${gapText(PILES[1].gap)}, ${gapText(PILES[2].gap)}, ${gapText(PILES[3].gap)}; right in the last and it's learned`));
+  part(body, "about").append(line(`Piles: at once, ${PILES.slice(1).map(p => gapText(p.gap)).join(", ")}; right in the last and it's learned`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

@@ -7,6 +7,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
 import * as pile from "./pile.js";
+import { noteMarket } from "./ledger-log.js";
 import { showPicture } from "./pics.js";
 /** A picture with the question, when it has one: a painting to date. */
 function picture(q) {
@@ -71,6 +72,7 @@ function quote() {
   }
   if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
+  noteMarket(r.grade, r.inside);   // the Ledger: the grade, and whether the truth was inside the market
   // the pile: a B or below means you didn't adequately know it; an A or better moves a banked question up
   if (!adequate(r.grade)) pile.record("quote", q.id, { id: q.id, pic: q.pic || null, about: q.about ? [q.about] : undefined }, r.inside ? "wide" : "wrong");
   else if (pile.has("quote", q.id)) pile.answer("quote", q.id, true);

@@ -1,23 +1,40 @@
 // The pile: what you didn't know, brought back until you do. Every knowledge game records an item when you miss
 // it, pass on it, or barely stake on it, and when it comes back and you get it right it moves up a pile; wrong,
-// and it drops to the first. Four piles with growing gaps, Leitner's boxes on Pimsleur's clock: ultra-short
-// (due at once, for the next block), short (ten minutes), medium (twelve hours), long (a week); right in the long
-// pile and it's learned. Learning mode lets each game's dealer draw what's due into its next block, alongside
+// and it drops to the first. Six piles with growing gaps, Leitner's boxes on Pimsleur's clock: ultra-short
+// (due at once, for the next block), short (ten minutes), medium (twelve hours), long (a week), longer (a month),
+// longest (three months); right in the longest pile and it's learned. (Until October 2026 the week was the last;
+// items learned then come back once, a month after they were learned.) Every item that comes back, right or wrong,
+// goes to the Ledger's record with how long it was away (ledger-log.js). Learning mode lets each game's dealer draw what's due into its next block, alongside
 // new content. Deck is the tile that reviews everything due, across the games.
 
-const STORE = "pile:items", SETTINGS = "pile:settings";
+import { noteRecall } from "./ledger-log.js";
+
+const STORE = "pile:items", SETTINGS = "pile:settings", DAY = 24 * 60 * 60 * 1000;
 export const PILES = [
   { id: 0, name: "Ultra-short", gap: 0 },
   { id: 1, name: "Short", gap: 10 * 60 * 1000 },
   { id: 2, name: "Medium", gap: 12 * 60 * 60 * 1000 },
-  { id: 3, name: "Long", gap: 7 * 24 * 60 * 60 * 1000 },
+  { id: 3, name: "Long", gap: 7 * DAY },
+  { id: 4, name: "Longer", gap: 30 * DAY },
+  { id: 5, name: "Longest", gap: 91 * DAY },
 ];
 export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Rush", slate: "Slate", parley: "Parley", brut: "Brut" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 let items = null;
-function load() { if (!items) items = read(STORE, {}); return items; }
+function load() {
+  if (items) return items;
+  items = read(STORE, {});
+  // once: what was learned when the week was the last pile comes back for its month, a month after it was learned
+  const settings = read(SETTINGS, {});
+  if (!settings.months) {
+    for (const it of Object.values(items)) if (it.learned) { it.pile = 4; it.due = it.learned + PILES[4].gap; delete it.learned; }
+    save();
+    write(SETTINGS, { ...settings, months: true });
+  }
+  return items;
+}
 function save() { write(STORE, items); }
 
 /** Learning mode: on by default. When on, the games' dealers draw due items into their next block. */
@@ -31,6 +48,7 @@ export function setLearning(on) { write(SETTINGS, { ...read(SETTINGS, {}), learn
  */
 export function record(game, key, payload, why) {
   const all = load(), id = `${game}:${key}`, now = Date.now();
+  if (all[id]) noteRecall(now - (all[id].last?.at ?? all[id].added), false);   // it came back, and you didn't have it
   const it = all[id] || { id, game, key, added: now, seen: 0, fails: 0, passes: 0 };
   it.payload = payload;
   if (payload?.about?.length) it.about = payload.about;     // the entities it's about (kb/), so other games can ask about them too
@@ -62,6 +80,7 @@ export function answer(game, key, right) {
   const all = load(), id = `${game}:${key}`, it = all[id];
   if (!it) return null;
   const now = Date.now();
+  noteRecall(now - (it.last?.at ?? it.added), right);
   if (right) {
     it.passes++;
     if (it.pile >= PILES.length - 1) { it.learned = now; it.due = Infinity; }
