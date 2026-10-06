@@ -17,6 +17,7 @@ function picture(q) {
 }
 import "./pwa.js";
 import { part, choice, toggle, action, line } from "./menu.js";
+import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 
 const $ = id => document.getElementById(id);
 const APP = 1;                       // this code's version of the together state
@@ -30,7 +31,6 @@ const mySeat = () => together.room?.data?.players?.[together.room.uid]?.slot ?? 
 const makerOf = g => g.index % 2;            // the maker alternates each question
 const seatName = seat => { const p = seatsOf(together.room?.data)?.find(([, x]) => x.slot === seat)?.[1]; return p ? p.name : seat === mySeat() ? "You" : "Your partner"; };
 
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -38,13 +38,16 @@ const money = n => (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-GB");
 const signed = n => (n >= 0 ? "+" : "−") + Math.abs(n).toLocaleString("en-GB");
 
 // ---------- the run ----------
+// A run counts for your best (the games screen's, your partner's) only if it's the daily, or Standard: no focus and
+// nothing from your pile in. A daily is always unfocused and has nothing of yours in it: the same for everyone.
+const rankedRun = (mode, focus) => mode === "daily" || (!focus && !pile.learning());
 /** The questions a set draws from: everything, or one category only (a focus), with the category cap lifted. */
-const setFor = (seed, focus) => {
+const setFor = (seed, focus, personal = true) => {
   const pool = focus ? QUOTES.filter(q => q.cat === focus) : QUOTES;
   // learning mode: what's due leads the set (up to half of it), the rest dealt as usual around it
   // and questions about what the other games found you weak on, in Quote's form
-  const own = pile.learning() ? pile.due("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
-  const due = pile.learning() ? pile.dealDue("quote", pool.map(q => ({ key: q.id, about: q.about ? [q.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
+  const own = personal && pile.learning() ? pile.due("quote").map(it => it.key).filter(id => pool.some(q => q.id === id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const due = personal && pile.learning() ? pile.dealDue("quote", pool.map(q => ({ key: q.id, about: q.about ? [q.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
   const rest = pickSet(seed, pool.filter(q => !due.includes(q.id)), PER_SET - due.length, focus ? PER_SET : 2).map(q => q.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
@@ -53,7 +56,8 @@ const setFor = (seed, focus) => {
 const hashFor = s => `${s.mode === "daily" ? `#d=${s.seed}` : `#s=${s.seed}`}${s.focus ? `&f=${s.focus}` : ""}`;
 function start(mode, focus = null) {
   const seed = mode === "daily" ? today() : randomSeed();
-  S = { seed, mode, focus, set: setFor(seed, focus), index: 0, book: START, log: [], phase: "quote", done: false };
+  if (mode === "daily") focus = null;                    // today's set: unfocused, the same for everyone
+  S = { seed, mode, focus, ranked: rankedRun(mode, focus), set: setFor(seed, focus, mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
   save();
   history.replaceState(null, "", hashFor(S));
   render();
@@ -337,6 +341,7 @@ function finish() {
   // power of their mean: a 76-year market came out as ×7.6e+22.)
   const inside = S.log.filter(e => e.inside).length, sharp = S.log.filter(e => e.inside && adequate(e.grade)).length;
   const best = S.mode === "daily" ? bestDaily(S.book) : bestEver(S.book);
+  if (S.ranked) noteComparable("quote", S.book, S.mode === "daily");   // the daily or Standard: it counts for your best
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
@@ -432,10 +437,12 @@ window.addEventListener("hashchange", () => { const h = new URLSearchParams(loca
 
 /** A linked set: #s=seed for a random one, #d=YYYYMMDD for a day's. */
 function load(h) {
-  const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random", focus = CATS[h.get("f")] ? h.get("f") : null;
+  const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
+  let focus = CATS[h.get("f")] ? h.get("f") : null;
   if (!seed) return false;
   if (S && S.seed === seed && S.mode === mode && (S.focus || null) === focus) return true;
-  S = { seed, mode, focus, set: setFor(seed, focus), index: 0, book: START, log: [], phase: "quote", done: false };
+  if (mode === "daily") focus = null;                    // today's set: unfocused, the same for everyone
+  S = { seed, mode, focus, ranked: rankedRun(mode, focus), set: setFor(seed, focus, mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
   save();
   render();
   return true;

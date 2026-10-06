@@ -136,9 +136,32 @@ export async function pull() {
   if (mine && !sessionStorage.getItem(PULLED)) { sessionStorage.setItem(PULLED, "1"); location.reload(); }
 }
 
+// ---------- comparable results ----------
+/** The day, the same for everyone: the UTC date as YYYYMMDD. It seeds every game's daily, which is dealt on the device
+ *  (offline too) and is the same set wherever you are, rolling over at the same moment for everyone. */
+export const today = () => { const d = new Date(); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
+/** Games whose best counts only comparable runs: the daily, and the Standard preset (everything in, default settings,
+ *  nothing from your pile or your history dealt in). The games screen and your partner see only these. */
+export const RANKED = new Set(["chart", "quote"]);     // Punt and Crates join as their dailies land
+/** Notes a comparable result (higher is better): the best of them, and for a daily, today's. */
+export function noteComparable(app, score, daily = false) {
+  if (!Number.isFinite(score)) return;
+  const r = json(`${app}:ranked`, null) || {};
+  if (r.best == null || score > r.best) r.best = score;
+  if (daily) { const k = today(); if (r.day?.key !== k || score > r.day.score) r.day = { key: k, score }; }
+  try { localStorage.setItem(`${app}:ranked`, JSON.stringify(r)); } catch { /* private mode */ }   // synced like any game's best
+}
+/** A ranked game's comparable best, and today's daily (null if not played today). */
+export function comparableOf(app) {
+  const r = json(`${app}:ranked`, null);
+  return { best: r?.best ?? null, today: r?.day?.key === today() ? r.day.score : null };
+}
+
 // ---------- bests ----------
-/** A game's best, from what it keeps: a number, a { score }, or its bests by level (the highest). */
+/** A game's best, from what it keeps: a number, a { score }, or its bests by level (the highest). A ranked game's is
+ *  its comparable best only. */
 export function bestOf(app) {
+  if (RANKED.has(app)) return comparableOf(app).best;
   const v = json(`${app}:best`, null);
   const num = x => (typeof x === "number" ? x : typeof x?.score === "number" ? x.score : null);
   if (num(v) != null) return num(v);

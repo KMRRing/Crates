@@ -6,6 +6,7 @@ import { LIVES, ROUNDS, COLOURS, VIEWS, KINDS, makeRound, priceOf, skillFactor, 
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
+import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 
 const $ = id => document.getElementById(id);
 const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
@@ -18,7 +19,6 @@ let R = null;                 // the current round from the engine
 let showTimer = null, holdStart = 0;
 let picked = [];              // a swap round: the containers tapped so far
 
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };

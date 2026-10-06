@@ -37,6 +37,7 @@ function picture(p) {
   if (pic.dataset.title !== p.pic) { pic.dataset.title = p.pic; showPicture(pic, p.pic, { width: 480 }); }
 }
 import "./pwa.js";
+import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 
 const $ = id => document.getElementById(id);
 const APP = 1;
@@ -53,7 +54,6 @@ const inRoom = () => !!together.room;
 const mySeat = () => together.room?.data?.players?.[together.room.uid]?.slot ?? 0;
 const seatName = seat => { const p = seatsOf(together.room?.data)?.find(([, x]) => x.slot === seat)?.[1]; return p ? p.name : seat === mySeat() ? "You" : "Your partner"; };
 
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -70,12 +70,17 @@ const selKey = s => { const { topic, region } = selOf(s); return `${topic}/${reg
 const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString("en-GB")} km`);
 
 // ---------- the run ----------
-/** The set for a seed and a selection, with what's due from the pile (within the selection) leading it in learning mode. */
-function setFor(seed, sel) {
+// The Standard selection: every topic, the whole world. A daily is always dealt on it, and a run counts for your best
+// (the games screen's, the one your partner sees) only if it's the daily, or Standard with nothing from your pile in.
+const STANDARD = { topic: "all", region: "world" };
+const rankedRun = (mode, sel) => mode === "daily" || (selKey(sel) === selKey(STANDARD) && !pile.learning());
+/** The set for a seed and a selection, with what's due from the pile (within the selection) leading it in learning mode;
+ *  a daily is the same for everyone, so nothing of yours goes into it. */
+function setFor(seed, sel, personal = true) {
   const pool = poolOf(sel), inPool = new Set(pool.map(p => p.id));
   // and places that the other games found you weak on (a city whose clue you missed in Crates), to pin
-  const own = pile.learning() ? pile.due("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
-  const due = pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
+  const own = personal && pile.learning() ? pile.due("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
+  const due = personal && pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
   const rest = pickSet(seed, pool.filter(p => !due.includes(p.id)), PER_SET - due.length, capOf(sel)).map(p => p.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
@@ -83,7 +88,8 @@ function setFor(seed, sel) {
 }
 function start(mode, sel = chosen()) {
   const seed = mode === "daily" ? today() : randomSeed();
-  S = { seed, mode, ...sel, set: setFor(seed, sel), index: 0, score: 0, log: [], phase: "pin", done: false };
+  if (mode === "daily") sel = STANDARD;                     // today's set: the same for everyone
+  S = { seed, mode, ...sel, ranked: rankedRun(mode, sel), set: setFor(seed, sel, mode !== "daily"), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   history.replaceState(null, "", hashOf(S));
   pin = null; views = { world: startView() };
@@ -430,6 +436,7 @@ function summary(add, pairs, rowText) {
 }
 function finish() {
   const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
+  if (S.ranked) noteComparable("chart", S.score, S.mode === "daily");   // the daily or Standard: it counts for your best
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
@@ -645,9 +652,10 @@ window.addEventListener("hashchange", () => { const h = new URLSearchParams(loca
 function load(h) {
   const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
   if (!seed) return false;
-  const sel = { topic: TOPICS[h.get("t")] ? h.get("t") : "all", region: REGIONS[h.get("r")] ? h.get("r") : "world" };
+  let sel = { topic: TOPICS[h.get("t")] ? h.get("t") : "all", region: REGIONS[h.get("r")] ? h.get("r") : "world" };
   if (S && S.seed === seed && S.mode === mode && selKey(S) === selKey(sel)) return true;
-  S = { seed, mode, ...sel, set: setFor(seed, sel), index: 0, score: 0, log: [], phase: "pin", done: false };
+  if (mode === "daily") sel = STANDARD;
+  S = { seed, mode, ...sel, ranked: rankedRun(mode, sel), set: setFor(seed, sel, mode !== "daily"), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   pin = null; views = { world: startView() };
   showSelection();

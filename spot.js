@@ -8,7 +8,7 @@ import { sextant } from "./loading.js";
 import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
-import { reportDuo } from "./suite.js";
+import { today, reportDuo } from "./suite.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 
 
@@ -31,7 +31,6 @@ const seen = new Set();                // happenings already animated
 const clock = () => (run?.mode === "duo" ? Date.now() + offset : performance.now());
 const elapsed = () => clock() - run.startAt;
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 

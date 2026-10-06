@@ -5,6 +5,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, action, line, mirror } from "./menu.js";
+import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 
 dropdown(document.getElementById("size"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -15,7 +16,6 @@ let S = null;      // { seed, mode, size, run: { credits, readings, ore: [keys],
 let C = null;      // the concession
 let tool = "mark";
 
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };

@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
+import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
 import { choice, RETE } from "./menu.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -283,7 +283,9 @@ function bindCodes(dlg) {
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
       const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
       const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : scoreText(id, d.best)}` : `Duo ${d.mine}–${d.theirs}`;
-      el.textContent = [mine != null ? `Best ${scoreText(id, mine)}` : "", duo && them != null ? `${(theirName || "P")[0]} ${scoreText(id, them)}` : "", duoText].filter(Boolean).join(" · ");
+      const day = RANKED.has(id) ? comparableOf(id).today : null;          // today's daily, for a game that has one
+      el.textContent = [mine != null ? `Best ${scoreText(id, mine)}` : "", day != null ? `Today ${scoreText(id, day)}` : "",
+        duo && them != null ? `${(theirName || "P")[0]} ${scoreText(id, them)}` : "", duoText].filter(Boolean).join(" · ");
     }
   };
   // typing a code: an existing one is followed (solo) or joined (partner); a new one starts fresh, from here

@@ -4,6 +4,7 @@ import { LIVES, PRODUCTS, COSTS, DIRS, makeLevel, newRun, turn, advance, score, 
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
+import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 
 const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
@@ -21,7 +22,6 @@ let clock = { last: 0, planLeft: 0, flowing: 0, filling: false };   // flowing: 
 let raf = 0;
 const cells = new Map();   // "x,y" -> { g, flows: [] }
 
-const today = () => { const d = new Date(); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
