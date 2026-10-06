@@ -52,5 +52,17 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   const clue = E.clueText({ ...by("Bulgaria"), cat: "countries", region: "Europe" }, 2);
   check(/borders/.test(clue) && !clue.includes("Bulgaria"), `a country's clues never name it: "${clue}"`);
 }
+// every place says what it asks: an instruction, what its name carried, and what counts for an outline or a line
+{
+  const a = E.askFor({ name: "The Hermitage", cat: "art" }), b = E.askFor({ name: "Balkh, where Rumi was born", cat: "people" });
+  const c = E.askFor({ name: "Switzerland", cat: "countries" }), d = E.askFor({ name: "The Euphrates", cat: "physical", geo: {} });
+  const e = E.askFor({ name: "The pyramids of Giza", cat: "art" }), f = E.askFor({ name: "Haro, in Rioja", cat: "wine" });
+  check(a.pin === "Pin the Hermitage" && !a.about && !a.rule, `"The Hermitage" asks: ${a.pin}`);
+  check(b.pin === "Pin Balkh" && b.about === "Where Rumi was born." && f.about === "In Rioja.", `a name's descriptor becomes its own line: ${b.pin} / ${b.about}; ${f.pin} / ${f.about}`);
+  check(c.rule === "Anywhere inside it counts." && d.rule === "Anywhere on it counts." && d.pin === "Pin the Euphrates" && e.pin === "Pin the pyramids of Giza", "outlines and lines say what counts; plurals read right");
+  const { GEO } = await import("../chart-geo.js");
+  const all = [...PLACES, ...GEO.map(g => ({ ...g, cat: "physical", geo: g }))];
+  check(all.every(p => { const q = E.askFor(p); return q.pin.length > 4 && !q.pin.includes(", "); }), `every one of ${all.length} places and features has a plain instruction`);
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

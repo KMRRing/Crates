@@ -7,7 +7,7 @@ import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
-import { distance, nearestOnFeature, insideFeature, featureBox, viewFitting, projection, regionView, viewWindow, clampView, worldView, REGIONS } from "./chart-engine.js";
+import { distance, nearestOnFeature, insideFeature, featureBox, viewFitting, projection, regionView, viewWindow, clampView, worldView, REGIONS, askFor } from "./chart-engine.js";
 import { COUNTRIES } from "./chart-countries.js";
 import { LAND, BORDERS } from "./world.js";
 import { part, toggle, action, line } from "./menu.js";
@@ -156,28 +156,29 @@ function ask() {
   } else if (it.game === "chart") {
     const place = placeById.get(it.key) || geoById.get(it.key) || countryById.get(it.key);
     if (!place) { skip(); return; }
+    const ask = askFor(place), about = ask.about ? ` ${ask.about}` : "";
     if (place.cat === "countries") {                           // a country: always on the map, anywhere inside it
       $("ask").textContent = "Chart · country · plot it";
-      $("prompt").textContent = `Where is ${place.name}? Tap anywhere inside it.`;
+      $("prompt").textContent = `${ask.pin}: anywhere inside it counts.`;
       plot(place, place.geo, place.note, it.pile);
       return;
     }
     if (it.pile >= 1) {                                        // from the second pile on: where, on the map
       $("ask").textContent = `Chart · ${place.geo ? "physical" : place.cat} · plot it`;
-      $("prompt").textContent = `Where is ${place.name}? Tap the map.`;
+      $("prompt").textContent = `${ask.pin} on the map.${about}${ask.rule ? ` ${ask.rule}` : ""}`;
       plot(place, place.geo ? place.geo : null, place.geo ? `${place.name}: ${place.note}` : `${place.name}, ${place.country}: ${place.note}`, it.pile);
       return;
     }
     if (place.geo) {                                           // a feature: which countries is it in
       $("ask").textContent = `Chart · physical`;
-      $("prompt").textContent = `Where is ${place.name}?`;
+      $("prompt").textContent = `Where is ${ask.subject}?${about}`;
       const pool = [...new Set(GEO.filter(g => g.region === place.geo.region && g.country !== place.country).map(g => g.country))];
       const opts = shuffle(r, [place.country, ...shuffle(r, pool).slice(0, 3)]);
       options(opts, [opts.indexOf(place.country)], 1, `${place.name}: ${place.note}`);
       return;
     }
     $("ask").textContent = `Chart · ${place.cat}`;
-    $("prompt").textContent = `Which country is ${place.name} in?`;
+    $("prompt").textContent = `Which country is ${ask.subject} in?${about}`;
     const pool = [...new Set(PLACES.filter(p => p.region === place.region && p.country !== place.country).map(p => p.country))];
     const opts = shuffle(r, [place.country, ...shuffle(r, pool).slice(0, 3)]);
     options(opts, [opts.indexOf(place.country)], 1, `${place.name}, ${place.country}: ${place.note}`);

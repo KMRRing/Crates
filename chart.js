@@ -3,7 +3,7 @@
 // countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
 // outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
 // in private and the pins are revealed side by side.
-import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace } from "./chart-engine.js";
+import { PER_SET, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor } from "./chart-engine.js";
 import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
@@ -300,11 +300,13 @@ function render() {
     scores.replaceChildren();
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
   }
-  $("cat").textContent = p.cat === "countries" ? "Country · pin anywhere inside it" : p.geo ? `Physical · a ${p.kind}: pin anywhere on it` : CATS[p.cat];
+  $("cat").textContent = p.cat === "countries" ? "Country" : p.geo ? `Physical · a ${p.kind}` : CATS[p.cat];
   picture(p);
-  $("place").textContent = p.name;
+  // the task in words while you pin ("Pin the Hermitage", then what the name carried and what counts); its name at the reveal
+  const ask = askFor(p), told = [ask.about, ask.rule].filter(Boolean).join(" ");
+  $("place").textContent = reveal ? p.name : ask.pin;
   const waitingForThem = inRoom() && S.phase === "pin" && S.pins?.[mySeat()];
-  $("hint").textContent = reveal ? "Drag and pinch to look around." : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : pin ? "Tap to move the pin, or pin it. Drag to pan, pinch to zoom." : "Tap to place the pin. Drag to pan, pinch to zoom.";
+  $("hint").textContent = reveal ? "Drag and pinch to look around." : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : pin ? `${told ? `${told} ` : ""}Tap to move the pin, or pin it.` : `${told ? `${told} ` : ""}Tap to place the pin. Drag to pan, pinch to zoom.`;
   if (reveal && !views.revealSet) {                       // the map frames the truth and the pin together
     const e = inRoom() ? Object.values(S.log)[S.index]?.pins?.[mySeat()] : S.log[S.index];
     if (p.geo) {

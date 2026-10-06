@@ -53,6 +53,20 @@ export const pointsFor = (p, d) => (p.cat === "countries" ? (d === 0 ? score(0) 
 export const CLUE_FACTOR = [1, 0.7, 0.45, 0.25];
 export const clueFactor = n => CLUE_FACTOR[Math.min(n, CLUE_FACTOR.length - 1)];
 /**
+ * What a place asks of you, in words: "Pin the Hermitage" (a name alone, "The Hermitage", left the task to guess), with
+ * what its name carries after a comma as a line of its own ("Where Rumi was born.", "In Rioja.") and, for an outline or
+ * a line, what counts ("Anywhere inside it counts."). An instruction rather than a question, so the pyramids of Giza
+ * and the Alps need no "are". Returns { pin, subject, about, rule }.
+ */
+export function askFor(p) {
+  const name = String(p.name || ""), cut = name.indexOf(", ");
+  const head = cut > 0 ? name.slice(0, cut) : name, tail = cut > 0 ? name.slice(cut + 2) : "";
+  const subject = /^The /.test(head) && !/^The (Hague|Gambia|Bahamas)\b/.test(head) ? `the ${head.slice(4)}` : head;
+  const about = tail ? `${tail[0].toUpperCase()}${tail.slice(1)}${/[.!?]$/.test(tail) ? "" : "."}` : "";
+  const rule = p.cat === "countries" ? "Anywhere inside it counts." : p.geo ? "Anywhere on it counts." : "";
+  return { pin: `Pin ${subject}`, subject, about, rule };
+}
+/**
  * The text of clue n (1–3) for a place: the region, the country, then its description with its own name hidden. A
  * country can't be given away by its own name: its land neighbours' count, then two of them, then its flag (an
  * island nation: its flag, then the first letter of its name).
