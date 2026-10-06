@@ -167,10 +167,61 @@ function plan(rnd, L, count, kinds) {
   return { kinds: deck(rnd, kinds, count), options: deck(rnd, L.options, count), diffs: deck(rnd, L.diff, count), noise: m.map(v => v / mean) };
 }
 
+// ---------- topics: what a run deals from (countries and commodities from Crates' bank, beside the subject banks) ----------
+// A run mixes the topics the player has in, a "more" topic dealt twice as often as an "in" one; every question is on
+// the subject banks' difficulty scale (1–10) and the whole run is priced as one batch, so a clue question pays like
+// any other. The clue topics turn the chosen difficulties into the clue bank's own terms: how obscure the clue, how
+// many options.
+export const CLUE_TOPICS = { countries: "country", commodities: "commodity" };
+export const TOPIC_LIST = [["countries", "Countries"], ["commodities", "Commodities"],
+  ...Object.entries(LEVELS).filter(([, L]) => L.maths).map(([id, L]) => [id, L.label])];
+const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
+export const TOPIC_PRESETS = {
+  balanced: { label: "Balanced", topics: allTopics(1) },
+  trader: { label: "Trader", topics: { ...allTopics(0), countries: 1, commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, cities: 1, patterns: 1, chemistry: 1, physics: 1, code: 1 } },
+  culture: { label: "Culture night", topics: { ...allTopics(0), countries: 2, cities: 2, flags: 2, wine: 2, art: 2, words: 1, philosophy: 1, religion: 1, commodities: 1 } },
+};
+export const MIX = { label: "Topics", questions: 15, spread: 0.3, margin: 0.05 };
+LEVELS.mix = MIX;                                   // a run of topics is a level of its own (its label, its length)
+let ONLY = null;                                    // while a clue topic is dealt: the one category its pairs come from
+// a clue question on the 1–10 scale, from its clue's obscurity (1–3) and its option count
+const TEN = { "1,2": 2, "1,4": 3, "2,2": 4, "2,4": 6, "3,2": 7, "3,4": 8 };
+const clueLevel = diffs => {
+  const ds = diffs?.length ? diffs : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  return { ...MIX, diff: ds.map(d => (d <= 3 ? 1 : d <= 6 ? 2 : 3)), options: ds.map(d => (d <= 4 ? 2 : 4)) };
+};
+const hashOf = text => [...text].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
+/**
+ * A block of a mixed run: sources are the topics in, each { id, label, weight (1 or 2) } plus, for a clue topic,
+ * { cat, diffs } and for a subject bank its deal ({ pool, stages, dueKeys, seenKeys }). count slots go to the topics
+ * by weight (the rounding settled at random), each topic carrying on from where its own deal had got to in dealt.
+ */
+export function mixQuestions(seed, sources, count, dealt = [], name = { mode: "known", known: {} }) {
+  const live = sources.filter(t => t.weight > 0 && (t.cat || t.pool?.length));
+  if (!live.length) return [];
+  const rnd = rng(mix(seed, dealt.length)), total = live.reduce((t, x) => t + x.weight, 0);
+  const counts = live.map(t => Math.floor(count * t.weight / total));
+  let left = count - counts.reduce((a, b) => a + b, 0);
+  for (const i of shuffle(rnd, live.map((_, i) => i))) if (left-- > 0) counts[i]++;
+  const used = new Set(dealt.map(q => q.key)), out = [];
+  live.forEach((t, i) => {
+    if (!counts[i]) return;
+    const before = dealt.filter(q => q.src === t.id).length, tseed = mix(seed, hashOf(t.id));
+    let qs;
+    if (t.cat) { ONLY = t.cat; try { qs = makeQuestions(tseed, null, counts[i], before, used, name, clueLevel(t.diffs), false); } finally { ONLY = null; } }
+    else qs = mathsQuestions(tseed, t.pool, t.stages, counts[i], before, t.dueKeys, t.seenKeys, false);
+    for (const q of qs) out.push({ ...q, src: t.id, topic: t.label });
+  });
+  const order = shuffle(rnd, out);
+  priceBatch(MIX, order);
+  return order;
+}
+
 /** A clue-answer pair of this difficulty not used yet in the run (once a difficulty runs dry, its pairs come round again). */
 function freshPair(rnd, used, d) {
-  let pool = PAIRS.filter(x => x.d === d && !used.has(x.w));
-  if (!pool.length) { PAIRS.filter(x => x.d === d).forEach(x => used.delete(x.w)); pool = PAIRS.filter(x => x.d === d); }
+  const mine = x => x.d === d && (!ONLY || BANK[x.a].cat === ONLY);
+  let pool = PAIRS.filter(x => mine(x) && !used.has(x.w));
+  if (!pool.length) { PAIRS.filter(mine).forEach(x => used.delete(x.w)); pool = PAIRS.filter(mine); }
   return pick(rnd, pool);
 }
 
@@ -252,13 +303,13 @@ function nameQuestion(rnd, L, used, n, d, noise, known) {
 
 /** A clue recognised before (known: known.js's record) and not in the run yet: one not named yet if there is one. */
 function knownPair(rnd, used, known) {
-  const pool = PAIRS.filter(p => p.k && known[p.k] && !used.has(p.w)), unnamed = pool.filter(p => !known[p.k].named);
+  const pool = PAIRS.filter(p => p.k && known[p.k] && !used.has(p.w) && (!ONLY || BANK[p.a].cat === ONLY)), unnamed = pool.filter(p => !known[p.k].named);
   return unnamed.length ? pick(rnd, unnamed) : pool.length ? pick(rnd, pool) : null;
 }
 
 /** A balanced batch of questions (see the top). The same seed and start always give the same batch. */
-function makeQuestions(seed, levelId, count, start, used, name = { mode: "known", known: {} }) {
-  const L = LEVELS[levelId], rnd = rng(mix(seed, start)), p = plan(rnd, L, count, KINDS[name.mode] || KINDS.known), out = [];
+function makeQuestions(seed, levelId, count, start, used, name = { mode: "known", known: {} }, L = LEVELS[levelId], priced = true) {
+  const rnd = rng(mix(seed, start)), p = plan(rnd, L, count, KINDS[name.mode] || KINDS.known), out = [];
   const known = name.mode === "known" ? name.known || {} : null;
   for (let i = 0; i < count; i++) {
     let kind = p.kinds[i], q = null;
@@ -268,10 +319,11 @@ function makeQuestions(seed, levelId, count, start, used, name = { mode: "known"
       if (!q && kind === "name" && known && tries > 8) kind = i % 2 ? "clue" : "answer";
     }
     if (!q) continue;                       // vanishingly rare: the batch is one question short
+    q.d = q.d ?? TEN[`${p.diffs[i]},${p.options[i]}`] ?? 5;   // on the subject banks' 1–10 scale
     used.add(q.key);
     out.push(q);
   }
-  priceBatch(L, out);
+  if (priced) priceBatch(L, out);
   return out;
 }
 
@@ -280,7 +332,7 @@ function makeQuestions(seed, levelId, count, start, used, name = { mode: "known"
  * seed shuffles it, taking up from where the run has got to, and round again once it runs dry; noise as for any
  * batch. stages: a label per stage id, for the small line above each question.
  */
-function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys = new Set()) {
+function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys = new Set(), priced = true) {
   const L = LEVELS.maths, rnd = rng(mix(seed, start)), out = [];
   // learning mode: due questions lead each block (at most half of it), spread through it, then unseen questions, then the rest
   let order = shuffle(rng(seed), [...pool]);
@@ -308,7 +360,7 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
       ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
     });
   }
-  priceBatch(L, out);
+  if (priced) priceBatch(L, out);
   return out;
 }
 

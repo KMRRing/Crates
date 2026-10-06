@@ -11,7 +11,7 @@ const M = await import("../maths-bank.js");
 const BANKS = { maths: M, refining: await import("../refining-bank.js"), reasoning: await import("../reasoning-bank.js"), words: await import("../words-bank.js"), cities: await import("../cities-bank.js"), flags: await import("../flags-bank.js"), patterns: await import("../patterns-bank.js"), wine: await import("../wine-bank.js"), art: await import("../art-bank.js"), economics: await import("../eco-bank.js"), physics: await import("../phy-bank.js"), chemistry: await import("../chm-bank.js"), code: await import("../cs-bank.js"), philosophy: await import("../phil-bank.js"), religion: await import("../rel-bank.js") };
 const stageMap = B => Object.fromEntries(B.STAGES.map(x => [x.id, x.label]));
 const mathsFor = lvl => (BANKS[lvl] ? { pool: BANKS[lvl].MATHS, stages: stageMap(BANKS[lvl]) } : null);
-for (const lvl of Object.keys(P.LEVELS)) {
+for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {   // a run of topics has its own test, below
   let multi = 0, total = 0, overpaid = 0, oddsSeen = [];
   for (let seed = 1; seed <= 40; seed++) {
     const s = P.makeSession(seed * 7919, lvl, "standard", mathsFor(lvl));
@@ -32,7 +32,7 @@ for (const lvl of Object.keys(P.LEVELS)) {
   console.log(`${lvl}: ${total} questions, ${multi} with several right answers, house overpays on ${Math.round(100 * overpaid / total)}%, odds ${oddsSeen[0]}× to ${oddsSeen[oddsSeen.length - 1]}× (median ${oddsSeen[oddsSeen.length >> 1]}×)`);
 }
 // runs must be comparable: a typical player's average value from the house's prices is the same in every run
-for (const lvl of Object.keys(P.LEVELS)) {
+for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {
   const target = 1 - P.LEVELS[lvl].margin;
   for (let seed = 1; seed <= 10; seed++) {
     let qs = P.makeSession(seed * 104729, lvl, "hundred", mathsFor(lvl));
@@ -116,4 +116,23 @@ if (bad) process.exitCode = 1;
   }
   console.log(wrong ? `name-it: ${wrong} FAILED` : "name-it: off deals none, all only name-it, known only what's been recognised; every one asks for a name its hint doesn't give away, and typing pays more");
   if (wrong) process.exitCode = 1;
+}
+
+// topics: a mixed run deals each topic by its weight (a "more" topic twice an "in" one), keeps a clue topic to its own
+// category, puts every question on the 1–10 scale and prices the run as one batch; the next block carries on
+{
+  const pool = M.MATHS.slice(0, 200), mathsStages = stageMap(M);
+  const src = [{ id: "countries", label: "Countries", weight: 1, cat: "country", diffs: [] }, { id: "commodities", label: "Commodities", weight: 2, cat: "commodity", diffs: [] },
+    { id: "maths", label: "Maths", weight: 1, pool, stages: mathsStages, dueKeys: [], seenKeys: new Set() }];
+  const qs = P.mixQuestions(12345, src, 16);
+  const by = qs.reduce((t, q) => ({ ...t, [q.src]: (t[q.src] || 0) + 1 }), {});
+  const ok = qs.length === 16 && by.commodities === 8 && by.countries === 4 && by.maths === 4 && qs.every(q => q.offered > 1 && q.d >= 1 && q.d <= 10)
+    && qs.filter(q => q.src === "countries").every(q => q.cat === "country") && qs.filter(q => q.src === "commodities").every(q => q.cat === "commodity");
+  const more = P.mixQuestions(12345, src, 8, qs), keys = [...qs, ...more].filter(q => q.src !== "maths").map(q => q.key);
+  const easyOnly = P.mixQuestions(7, [{ id: "countries", label: "Countries", weight: 1, cat: "country", diffs: [1, 2] }], 12);
+  const presetsOk = Object.values(P.TOPIC_PRESETS).every(p => Object.keys(p.topics).every(k => P.TOPIC_LIST.some(([t]) => t === k)));
+  if (!ok || more.length !== 8 || new Set(keys).size !== keys.length || !easyOnly.every(q => q.d <= 3) || !presetsOk) {
+    console.log("topics mix problems", { by, n: qs.length, more: more.length, repeats: keys.length - new Set(keys).size, easy: easyOnly.map(q => q.d), presetsOk });
+    process.exitCode = 1;
+  } else console.log("topics: a mixed run deals by weight, keeps each clue topic to its category, prices as one batch and carries on");
 }

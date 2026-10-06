@@ -28,7 +28,8 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
  */
 export function choice(label, options, value, onChange) {
   const compact = options.length <= 3 && options.reduce((n, [, t]) => n + String(t).length, 0) <= 20;
-  const row = el("div", compact ? "menu-row" : "menu-grid-wrap"), set = el("div", compact ? "menu-seg" : "menu-grid");
+  const dense = options.every(([, t]) => String(t).length <= 3);
+  const row = el("div", compact ? "menu-row" : "menu-grid-wrap"), set = el("div", compact ? "menu-seg" : dense ? "menu-grid dense" : "menu-grid");
   set.setAttribute("role", "radiogroup");
   set.setAttribute("aria-label", label);
   for (const [v, text] of options) {
@@ -52,7 +53,8 @@ export function choice(label, options, value, onChange) {
  * max, ticking one more lets go of the one ticked longest ago.
  */
 export function ticks(label, options, values, onChange, max = Infinity) {
-  const wrap = el("div", "menu-grid-wrap"), grid = el("div", "menu-grid");
+  const wrap = el("div", "menu-grid-wrap"), grid = el("div", options.every(([, t]) => String(t).length <= 3) ? "menu-grid dense" : "menu-grid");
+  if (grid.classList.contains("dense")) grid.style.gridTemplateColumns = `repeat(${Math.min(options.length, 10)}, minmax(0, 1fr))`;   // 1–10 in one row
   grid.setAttribute("role", "group");
   grid.setAttribute("aria-label", label);
   const order = [...values], buttons = new Map();               // order: ticked values, oldest first
@@ -70,6 +72,27 @@ export function ticks(label, options, values, onChange, max = Infinity) {
     grid.appendChild(b);
   }
   show();
+  wrap.append(el("span", "menu-label", label), grid);
+  return wrap;
+}
+/**
+ * Topics to mix, each tapped round three states: out (empty), in (white), more (highlighted: dealt twice as often).
+ * values: { id: 0 | 1 | 2 }; onChange(values) after every tap. Crates' and Punt's topics both use it.
+ */
+export const WEIGHT_NAMES = ["out", "in", "more"];
+export function weights(label, options, values, onChange) {
+  const wrap = el("div", "menu-grid-wrap"), grid = el("div", "menu-grid menu-weights");
+  grid.setAttribute("role", "group");
+  grid.setAttribute("aria-label", `${label}: tap once to put a topic in, twice for more, again to leave it out`);
+  let now = { ...values };
+  for (const [id, text] of options) {
+    const b = el("button", null, text);
+    b.type = "button";
+    const show = () => { const w = Math.min(2, Math.round(now[id] || 0)); b.dataset.w = String(w); b.setAttribute("aria-label", `${text}: ${WEIGHT_NAMES[w]}`); };
+    b.addEventListener("click", () => { now = { ...now, [id]: (Math.min(2, Math.round(now[id] || 0)) + 1) % 3 }; show(); onChange(now); });
+    show();
+    grid.appendChild(b);
+  }
   wrap.append(el("span", "menu-label", label), grid);
   return wrap;
 }

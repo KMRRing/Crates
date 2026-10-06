@@ -654,3 +654,16 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .top .mark { flex: 1 1 auto; min-width: auto; }
 .top .mark-btn { flex: 1 1 auto; max-width: 100%; }
 .top .partner-pill { flex: 1 1 0; width: 0; min-width: 0; }
+
+/* topics in three states: out (empty, dashed), in (white), more (highlighted, with a +) */
+.menu-weights button[data-w="0"] { background: none; color: var(--ink-soft); border-style: dashed; }
+.menu-weights button[data-w="1"] { background: var(--sheet); color: var(--ink); border-color: var(--ink); }
+.menu-weights button[data-w="2"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.menu-weights button[data-w="2"]::after { content: " +"; }
+.menu-stages { margin: .4rem 0; }
+.menu-stages summary { cursor: pointer; font-weight: 700; font-size: .92rem; padding: .3rem 0; }
+.menu-stages summary span { font-weight: 500; color: var(--ink-soft); }
+
+/* numbers (difficulty 1–10) in one dense row */
+.menu-grid.dense { grid-template-columns: repeat(auto-fit, minmax(2.2rem, 1fr)); gap: .25rem; }
+.menu-grid.dense button { padding: .45rem 0; }

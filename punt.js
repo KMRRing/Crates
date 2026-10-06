@@ -2,8 +2,7 @@
 // Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
 // on their own pick, so you can back the same option or hedge against each other. A question settles once
 // everyone at the table has bet or passed.
-import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT, NAME_MODES,
-  showOdds, showChips } from "./punt-gen.js";
+import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, LEVELS, LENGTHS, START_POT, NAME_MODES, showOdds, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
@@ -16,7 +15,7 @@ import { check } from "./typing.js";
 import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./flags.js";
 import { gameHref, GAMES } from "./rooms.js";
-import { part, choice, toggle as menuToggle, action, mirror, line } from "./menu.js";
+import { part, choice, toggle as menuToggle, action, mirror, line, weights, ticks } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -69,14 +68,51 @@ async function bankDeal(level, picks) {
   const seenKeys = learning ? new Set(pile.all("punt").map(it => it.key).filter(k => k.startsWith(`${level}/`)).map(k => k.slice(level.length + 1))) : new Set();
   return { deal: { pool, stages: Object.fromEntries(STAGES.map(x => [x.id, x.label])), dueKeys, seenKeys }, picks: resolved };
 }
+// ---------- topics: a run mixes the topics in (each in, or more), on one difficulty range ----------
+const TOPICS_KEY = "punt:topics", DIFFS_KEY = "punt:diffs";
+/** The topics chosen: { preset, weights: { topic: 0 | 1 | 2 } } (Balanced to start). */
+function chosenTopics() {
+  try { const t = JSON.parse(localStorage.getItem(TOPICS_KEY)); if (t?.weights) return t; } catch { /* first time */ }
+  return { preset: "balanced", weights: { ...TOPIC_PRESETS.balanced.topics } };
+}
+const keepTopics = t => { try { localStorage.setItem(TOPICS_KEY, JSON.stringify(t)); } catch { /* private mode */ } };
+/** The difficulties chosen (1–10), for every topic. */
+function chosenDiffs() {
+  try { const d = JSON.parse(localStorage.getItem(DIFFS_KEY)); if (Array.isArray(d) && d.length) return d.filter(x => DIFFICULTIES.includes(x)); } catch { /* first time */ }
+  return [...DIFFICULTIES];
+}
+const keepDiffs = d => { try { localStorage.setItem(DIFFS_KEY, JSON.stringify(d)); } catch { /* private mode */ } };
+/** What each topic in deals from: a clue topic its category, a subject bank its deal (its stages, the difficulties). */
+async function topicSources(mixPicks) {
+  const ins = TOPIC_LIST.filter(([id]) => (mixPicks.weights[id] || 0) > 0);
+  return Promise.all(ins.map(async ([id, label]) => {
+    const weight = mixPicks.weights[id];
+    if (CLUE_TOPICS[id]) return { id, label, weight, cat: CLUE_TOPICS[id], diffs: mixPicks.diffs };
+    const { deal } = await bankDeal(id, { stages: chosenPicks(id).stages, diffs: mixPicks.diffs });
+    return { id, label, weight, ...deal };
+  }));
+}
+const mixNow = () => ({ weights: chosenTopics().weights, diffs: chosenDiffs() });
+/** A mixed run's questions: a fixed length in one batch, an endless run's first block. */
+async function mixSession(seed, length, mixPicks) {
+  const count = length === "endless" ? BATCH : LENGTHS[length]?.questions ?? MIX.questions;
+  return mixQuestions(seed, await topicSources(mixPicks), count, [], nameDeal());
+}
+
 /** A run's link: seed, level, length, and for a bank its stages and difficulties. */
 function linkOf(s) {
   const n = lengthOf(s) === "standard" ? "" : `&n=${lengthOf(s)}`;
-  const m = isMaths(s.level) && s.maths ? `&st=${s.maths.stages.join(",")}&df=${s.maths.diffs.join(",")}` : "";
+  const m = isMaths(s.level) && s.maths ? `&st=${s.maths.stages.join(",")}&df=${s.maths.diffs.join(",")}`
+    : s.level === "mix" && s.mix ? `&t=${Object.entries(s.mix.weights).filter(([, w]) => w > 0).map(([k, w]) => `${k}.${w}`).join(",")}&df=${s.mix.diffs.join(",")}` : "";
   return `#s=${s.seed}&d=${s.level}${n}${m}`;
 }
-/** The choice a link carries, if any (st = stages, df = difficulties), else the chosen one. */
+/** The choice a link carries, if any (st = stages, df = difficulties; for topics t = topic.weight list), else the chosen one. */
 function picksFromHash(h, level) {
+  if (level === "mix") {
+    const weights = Object.fromEntries((h.get("t") || "").split(",").map(x => x.split(".")).filter(([k, w]) => TOPIC_LIST.some(([t]) => t === k) && Number(w) > 0).map(([k, w]) => [k, Number(w)]));
+    const diffs = (h.get("df") || "").split(",").map(Number).filter(d => DIFFICULTIES.includes(d));
+    return Object.keys(weights).length ? { weights, diffs: diffs.length ? diffs : [...DIFFICULTIES] } : mixNow();
+  }
   const stages = (h.get("st") || "").split(",").filter(Boolean);
   const diffs = (h.get("df") || "").split(",").map(Number).filter(d => DIFFICULTIES.includes(d));
   return stages.length && diffs.length ? { stages, diffs } : chosenPicks(level);
@@ -89,6 +125,11 @@ const lengthOf = s => (LENGTHS[s?.length] ? s.length : "standard");
 
 async function freshState(level, length, players = null, picks = null) {
   const seed = randomSeed();
+  if (level === "mix") {
+    const mixPicks = picks?.weights ? picks : mixNow();
+    return { v: 1, app: APP, seed, level, length, mix: mixPicks, questions: await mixSession(seed, length, mixPicks), index: 0, pot: START_POT, phase: "bet",
+      bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
+  }
   const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
   return { v: 1, app: APP, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal, nameDeal()), index: 0, pot: START_POT, phase: "bet",
@@ -98,6 +139,14 @@ function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); r
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
 
 async function soloSession(seed, level, length = chosenLength(), picks = null) {
+  if (level === "mix") {
+    const mixPicks = picks?.weights ? picks : mixNow();
+    const questions = await mixSession(seed, length, mixPicks);
+    if (!questions.length) { toast("Put at least one topic in"); render(); return; }
+    S = { v: 1, seed, level, length, mix: mixPicks, questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
+    resetChoice(); shownDone = null; saveSolo(); history.replaceState(null, "", linkOf(S)); render();
+    return;
+  }
   const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
   if (deal && !deal.pool.length) { toast("No questions match that choice"); render(); return; }
@@ -114,7 +163,7 @@ async function newSession(level = S.level, length = chosenLength(), picks = null
   try { localStorage.setItem(LENGTH, length); } catch { /* private mode */ }
   if (!together.room) { soloSession(randomSeed(), level, length, picks); return; }
   const next = await freshState(level, length, null, picks);
-  together.act(g => { Object.assign(g, { seed: next.seed, level, length, maths: next.maths || null, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
+  together.act(g => { Object.assign(g, { seed: next.seed, level, length, maths: next.maths || null, mix: next.mix || null, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
 }
 
 /** Ends an endless run where it stands, to see how it went. */
@@ -212,11 +261,12 @@ function place(passing) {
 async function next() {
   const index = S.index;
   const deal = isMaths(S.level) && lengthOf(S) === "endless" ? (await bankDeal(S.level, S.maths || chosenPicks(S.level))).deal : null;
+  const sources = S.level === "mix" && lengthOf(S) === "endless" ? await topicSources(S.mix || mixNow()) : null;
   change(g => {
     if (g.phase !== "reveal" || g.index !== index) return false;
     g.questions = Object.values(g.questions);
     if (g.pot <= 0 || (lengthOf(g) !== "endless" && g.index + 1 >= g.questions.length)) { g.done = { at: Date.now() }; return; }
-    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(moreQuestions(g.seed, g.level, g.questions, deal, nameDeal()));
+    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(sources ? mixQuestions(g.seed, sources, BATCH, g.questions, nameDeal()) : moreQuestions(g.seed, g.level, g.questions, deal, nameDeal()));
     g.index++;
     g.phase = "bet";
   }).then(() => resetChoice());
@@ -559,7 +609,7 @@ function bankLatest(last) {
   // so Deck asks it again as a name to type, not as options to choose from
   if (asName && q.pair) known.named(q.pair, right === true);
   else if (right && mine.pct > 0 && q.pairs?.length) known.recognised(q.pairs);
-  const key = asName ? `${S.level}/name/${q.key}` : `${S.level}/${q.key}`;
+  const lv = q.src || S.level, key = asName ? `${lv}/name/${q.key}` : `${lv}/${q.key}`;
   const payload = asName ? { name: true, prompt: q.prompt, ask: q.ask, answer: q.answer, note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "" } : { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level , about: q.about };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
   else if (!right) pile.record("punt", key, payload, "wrong");
@@ -660,7 +710,7 @@ const together = createTogether({
   toast,
   askName,
   valid: g => !!g?.questions,
-  fresh: players => freshState(S?.level || "medium", chosenLength(), players),   // a promise: the maths bank may need loading
+  fresh: players => freshState("mix", chosenLength(), players),   // a promise: the maths bank may need loading
   onState: val => {
     const moved = !S || S.seed !== val.seed || S.index !== val.index || S.phase !== val.phase;
     S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: Object.values(val.log || {}) };
@@ -694,19 +744,41 @@ function drawMenu() {
   body.replaceChildren();
   pickLength ??= lengthOf(S);
   const play = part(body, "play");
-  play.append(action("New run", () => newSession(S.level, pickLength), "primary"));
+  play.append(action("New run", () => newSession("mix", pickLength), "primary"));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
-  // the stage and difficulty pickers, as the bar labels them; the bar is labelled once the bank has loaded, so the
-  // copies start with a plain name and follow the bar (they used to come up blank on a menu opened before that)
-  const copy = (src, fallback) => { const b = action(src.textContent || fallback, () => src.click()); pickCopies.push([b, src, fallback]); return b; };
-  pickCopies = [];
-  const picks = $("mathsBar").hidden ? [] : [copy($("stagesBtn"), "Stages"), copy($("diffsBtn"), "Difficulty")];
-  part(body, "content").append(mirror("Level", $("level")), ...picks, choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${LEVELS[S.level].questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }),
-    // the clue levels only; a change deals a new run (in a match it applies from the next one)
-    ...(isMaths(S.level) ? [] : [choice("Name it", Object.entries(NAME_MODES), nameMode(), m => {
-      try { localStorage.setItem(NAME, m); } catch { /* private mode */ }
-      if (together.room) render(); else newSession(S.level, lengthOf(S));
-    })]));
+  // what a run deals: a preset or your own mix of topics (each out, in or more), the difficulties for all of them,
+  // and each subject bank's stages; a change applies to the next run
+  const topics = chosenTopics(), content = part(body, "content");
+  const presets = [...Object.entries(TOPIC_PRESETS).map(([id, p]) => [id, p.label]), ...(topics.preset === "custom" ? [["custom", "Your own"]] : [])];
+  content.append(
+    choice("Preset", presets, topics.preset, id => { if (id === "custom") return; keepTopics({ preset: id, weights: { ...TOPIC_PRESETS[id].topics } }); drawMenu(); }),
+    weights("Topics", TOPIC_LIST, topics.weights, w => {
+      keepTopics({ preset: "custom", weights: w });
+      content.querySelector("[aria-label='Preset']")?.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));   // your own mix now
+    }),
+    ticks("Difficulty", DIFFICULTIES.map(d => [d, String(d)]), chosenDiffs(), d => keepDiffs(d.length ? d : [...DIFFICULTIES])));
+  const stages = document.createElement("div");
+  content.append(stages);
+  for (const [id, label] of TOPIC_LIST.filter(([id]) => !CLUE_TOPICS[id] && (topics.weights[id] || 0) > 0)) {
+    loadBank(id).then(({ STAGES }) => {
+      const mine = chosenPicks(id), on = (mine.stages || STAGES.map(x => x.id)).filter(x => STAGES.some(y => y.id === x));
+      const box = document.createElement("details"), sum = document.createElement("summary"), what = document.createElement("span");
+      box.className = "menu-stages";
+      const say = list => { what.textContent = list.length === STAGES.length ? " · all stages" : ` · ${list.length} of ${STAGES.length} stages`; };
+      sum.append(`${label} stages`, what); say(on);
+      box.append(sum, ticks(`${label} stages`, STAGES.map(x => [x.id, x.label]), on, list => {
+        const keep = list.length ? list : STAGES.map(x => x.id);
+        try { localStorage.setItem(picksKey(id), JSON.stringify({ ...mine, stages: keep })); } catch { /* private mode */ }
+        say(keep);
+      }));
+      stages.append(box);
+    });
+  }
+  content.append(choice("Length", Object.entries(LENGTHS).map(([id, L]) => [id, id === "standard" ? `${MIX.questions}` : id === "hundred" ? "100" : L.label]), pickLength, v => { pickLength = v; }),
+    // countries and commodities only; a change applies to the next run
+    ...(["countries", "commodities"].some(id => (topics.weights[id] || 0) > 0) ? [choice("Name it", Object.entries(NAME_MODES), nameMode(), mo => {
+      try { localStorage.setItem(NAME, mo); } catch { /* private mode */ }
+    })] : []));
   part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
   if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
   if ($("avg").textContent && !$("avg").hidden) part(body, "about").append(line($("avg").textContent));
@@ -729,7 +801,7 @@ $("flagSend").addEventListener("click", sendFlag);
 $("flagsClose").addEventListener("click", () => $("flagsDlg").close());
 sendFlags();                     // anything flagged offline goes now
 $("doneStatsBtn").addEventListener("click", () => { $("doneDlg").close(); openStats("run"); });
-$("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession(S.level, lengthOf(S)); });
+$("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession("mix", lengthOf(S)); });
 dropdown($("level"));
 $("level").addEventListener("change", e => newSession(e.target.value, lengthOf(S)));
 $("stagesBtn").addEventListener("click", openMathsPicks);
@@ -745,19 +817,19 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 window.addEventListener("hashchange", () => {
   const h = new URLSearchParams(location.hash.slice(1)), seed = Number(h.get("s")), level = h.get("d");
   const length = LENGTHS[h.get("n")] ? h.get("n") : "standard";
-  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level && lengthOf(S) === length)) soloSession(seed, level, length, isMaths(level) ? picksFromHash(h, level) : null);
+  if (!together.room && seed && LEVELS[level] && !(S && S.seed === seed && S.level === level && lengthOf(S) === length)) soloSession(seed, level, length, isMaths(level) || level === "mix" ? picksFromHash(h, level) : null);
 });
 
 // for tests and debugging
 window.__punt = { get state() { return S; }, get together() { return together; } };
 
-// start: a shared session (#s=…&d=…), the saved one, or a fresh Easy session for a first visit
+// start: a shared session (#s=…&d=…), the saved one, or a fresh run of the chosen topics for a first visit
 const hash = new URLSearchParams(location.hash.slice(1));
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
 const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard";
-if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) ? picksFromHash(hash, linkedLevel) : null);
-else if (!S) soloSession(randomSeed(), "easy", "standard");
+if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) || linkedLevel === "mix" ? picksFromHash(hash, linkedLevel) : null);
+else if (!S) soloSession(randomSeed(), "mix", "standard");
 else {
   shownDone = S.done ? JSON.stringify(S.done) : null;
   history.replaceState(null, "", `${location.search}${linkOf(S)}`);

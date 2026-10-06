@@ -41,7 +41,7 @@ export const TOPICS = {
 export const ALL_TOPICS = [...TOPICS.country, ...TOPICS.commodity];
 /** Which categories a pool deals from. */
 export const POOL_CATS = { country: ["country"], commodity: ["commodity"], mixed: ["country", "commodity"] };
-export const WEIGHTS = [[0, "Off"], [0.5, "Less"], [1, "Normal"], [2, "More"]];
+export const WEIGHTS = [[0, "Out"], [1, "In"], [2, "More"]];   // tapped round on one button: out, in, more
 export const GROUPS = {
   country: [["eu", "Europe"], ["me", "Middle East & N. Africa"], ["af", "Sub-Saharan Africa"], ["asia", "Asia & Pacific"], ["am", "Americas"]],
   commodity: [["nrg", "Energy"], ["bio", "Biofuels & low-carbon"], ["met", "Metals & minerals"], ["grain", "Grains & oilseeds"],
@@ -50,11 +50,11 @@ export const GROUPS = {
 
 const all = w => Object.fromEntries(ALL_TOPICS.map(([k]) => [k, w]));
 export const PRESETS = {
-  trader: { label: "Trader", topics: { ...all(0.5), nrg: 2, met: 2, agr: 2, mkt: 2, fin: 2, trade: 2, co: 2, pol: 1, sci: 1, geo: 1, lang: 1,
+  trader: { label: "Trader", topics: { ...all(1), nrg: 2, met: 2, agr: 2, mkt: 2, fin: 2, trade: 2, co: 2, pol: 1, sci: 1, geo: 1, lang: 1,
     mkts: 2, logi: 2, reg: 2, firm: 2, orig: 1, prod: 1, uses: 1, spec: 1 } },
   balanced: { label: "Balanced", topics: all(1) },
-  culture: { label: "Culture night", topics: { ...all(1), cult: 2, screen: 2, style: 2, food: 2, sport: 2, ppl: 2, hist: 2, nat: 2, mkt: 0.5, fin: 0.5, nrg: 0.5, met: 0.5, trade: 0.5, sci: 0.5, pol: 0.5,
-    life: 2, past: 2, uses: 2, spec: 0.5, mkts: 0.5, logi: 0.5, reg: 0.5 } },
+  culture: { label: "Culture night", topics: { ...all(1), cult: 2, screen: 2, style: 2, food: 2, sport: 2, ppl: 2, hist: 2, nat: 2, mkt: 1, fin: 1, nrg: 1, met: 1, trade: 1, sci: 1, pol: 1,
+    life: 2, past: 2, uses: 2, spec: 1, mkts: 1, logi: 1, reg: 1 } },
 };
 
 export function defaultSettings() {
@@ -67,7 +67,7 @@ export function cleanSettings(s) {
   if (!s || typeof s !== "object") return d;
   const topics = { ...(PRESETS[s.preset]?.topics || d.topics) };
   for (const [k] of ALL_TOPICS) {
-    const v = Number(s.topics?.[k]);
+    const raw = Number(s.topics?.[k]), v = raw > 0 && raw < 1 ? 1 : raw;   // an old "Less" (0.5) is in now
     if (WEIGHTS.some(([w]) => w === v)) topics[k] = v;
   }
   const valid = new Set(Object.values(GROUPS).flat().map(([k]) => k));

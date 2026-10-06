@@ -1,5 +1,6 @@
 // Everything that touches the page. Controllers hand render() a plain view model.
 import { NOUN, RESULT_LABEL, TOPICS, WEIGHTS, GROUPS, PRESETS, POOL_CATS } from "./core.js";
+import { weights } from "./menu.js";
 import { dropdown } from "./dropdown.js";
 
 const $ = id => document.getElementById(id);
@@ -431,17 +432,12 @@ export function openSettings(opts) {
     body.appendChild(segmented([["easy", "Easy"], ["mixed", "Mixed"], ["hard", "Hard"]], s.difficulty,
       v => change(x => { x.difficulty = v; }), "Difficulty"));
 
+    // each topic tapped round out, in and more (the same control as Punt's topics)
     for (const cat of cats) {
-      add("h4", null, cats.length > 1 ? `${NOUN[cat][0].toUpperCase()}${NOUN[cat].slice(1)} topics` : "Topics");
-      TOPICS[cat].forEach(([k, name]) => {
-        const row = add("div", "topic-row");
-        const lab = document.createElement("span");
-        lab.textContent = name;
-        row.append(lab, segmented(WEIGHTS, s.topics[k], v => {
-          change(x => { x.topics[k] = v; x.preset = "custom"; });
-          presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
-        }, name));
-      });
+      body.appendChild(weights(cats.length > 1 ? `${NOUN[cat][0].toUpperCase()}${NOUN[cat].slice(1)} topics` : "Topics", TOPICS[cat], s.topics, w => {
+        change(x => { for (const [k] of TOPICS[cat]) x.topics[k] = w[k] || 0; x.preset = "custom"; });
+        presetRow.querySelectorAll("button").forEach(o => o.setAttribute("aria-checked", "false"));
+      }));
     }
 
     for (const [cat, title] of [["country", "Countries from"], ["commodity", "Commodities from"]].filter(([c]) => cats.includes(c))) {
