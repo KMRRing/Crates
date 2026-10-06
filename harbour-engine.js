@@ -35,11 +35,13 @@ export function steer(ship, op) {
   return { x: ship.x, y: ship.y, h: ship.h };
 }
 
-// Ships come in classes, the same in every level: what each carries and what it costs to hire. A level offers some of
+// Ships come in classes, the same in every level: what each carries and what it costs to hire. The sizes aren't
+// multiples of each other, so a Handy isn't two coasters: a ship of N units blends in steps of 1/N (a coaster 25%, a
+// Handy 10%), so a spec can suit one and not the other, and fleets of both reach totals neither reaches alone. A level offers some of
 // them, so many of each (its fleet); a ship's type is its class, the level's first if it has none.
 export const CLASSES = {
   coaster: { name: "Coaster", cap: 4, cost: 20 },
-  handy: { name: "Handy", cap: 8, cost: 26 },
+  handy: { name: "Handy", cap: 10, cost: 30 },
 };
 export const classOf = (level, ship) => CLASSES[ship.type || Object.keys(level.fleet)[0]];
 export const typeOf = (level, ship) => ship.type || Object.keys(level.fleet)[0];
@@ -154,7 +156,7 @@ export function step(level, solution, state) {
       if (why) { next.events.push({ ship: i, kind: "refused", why }); continue; }
       const keep = (amount - p) / amount;
       for (const k of Object.keys(s.cargo)) { s.cargo[k] *= keep; if (s.cargo[k] < 1e-9) delete s.cargo[k]; }
-      next.delivered++;
+      next.delivered += p;                                // a level's target is units delivered, whatever the ships' sizes
       next.events.push({ ship: i, kind: "discharge" });
     }
   }

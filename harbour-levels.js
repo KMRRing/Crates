@@ -23,7 +23,7 @@ export function program(text) {
 export const LEVELS = [
   {
     id: "first-cargo", name: "First cargo",
-    brief: "Load at the refinery's jetty (L), discharge at the customer's (D), round the island. Four cargoes.",
+    brief: "Load at the refinery's jetty (L), discharge at the customer's (D), round the island. Sixteen units: four coaster loads.",
     map: [
       "######",
       "#....#",
@@ -32,7 +32,7 @@ export const LEVELS = [
     ],
     products: { oil: { name: "Oil", price: 0 } },
     jetties: { L: { kind: "load", product: "oil", parcel: 4 }, D: { kind: "discharge", parcel: 4 } },
-    fleet: { coaster: 4 }, target: 4, maxCycles: 400,
+    fleet: { coaster: 4 }, target: 16, maxCycles: 400,
     par: { cost: 20, hours: 13, water: 10, instructions: 8 },
     plans: [
       { par: ["cost", "water", "instructions"], ships: [{ x: 1, y: 2, h: 2, type: "coaster", prog: program("L(2S)(2A)SD(2S)(2A)S") }] },
@@ -46,7 +46,8 @@ export const LEVELS = [
   },
   {
     id: "rundown", name: "Rundown",
-    brief: "The refinery's tank (L) fills a unit an hour and holds eight; its jetty lifts four an hour. Six cargoes of four to the customer (D).",
+    rev: 2,              // pumps of two an hour and a tank of ten since the 10-unit Handy: plans and bests from before don't carry over
+    brief: "The refinery's tank (L) fills a unit an hour and holds ten. Both jetties pump two units an hour. Twenty-four units to the customer (D).",
     map: [
       "#####",
       "#.L.#",
@@ -54,21 +55,22 @@ export const LEVELS = [
       "#.D.#",
     ],
     products: { diesel: { name: "Diesel", price: 0 } },
-    jetties: { L: { kind: "load", product: "diesel", parcel: 4, tank: { start: 0, rate: 1, cap: 8 } }, D: { kind: "discharge", parcel: 4 } },
-    fleet: { coaster: 3, handy: 1 }, target: 6, maxCycles: 400,
-    par: { cost: 20, hours: 30, water: 8, instructions: 6 },
+    jetties: { L: { kind: "load", product: "diesel", parcel: 2, tank: { start: 0, rate: 1, cap: 10 } }, D: { kind: "discharge", parcel: 2 } },
+    fleet: { coaster: 3, handy: 1 }, target: 24, maxCycles: 400,
+    par: { cost: 20, hours: 31, water: 8, instructions: 6 },
     plans: [
-      { par: ["cost", "water", "instructions"], ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("LA(3S)DA(3S)") }] },
+      { par: ["cost", "water", "instructions"], ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)A(3S)") }] },
       { par: ["hours"], ships: [
-        { x: 2, y: 1, h: 0, type: "coaster", prog: program("LA(3S)DA(3S)") },
-        { x: 3, y: 3, h: 4, type: "handy", prog: program("S(2D)A(3S)(2L)A(2S)") },
+        { x: 2, y: 1, h: 0, type: "coaster", prog: program("LA(3S)(2D)A(3S)L") },
+        { x: 4, y: 2, h: 5, type: "coaster", prog: program("(2S)(2D)A(3S)(2L)AS") },
+        { x: 2, y: 3, h: 3, type: "handy", prog: program("DA(3S)(2L)A(3S)D") },
       ] },
     ],
   },
   {
     id: "first-blend", name: "First blend",
-    rev: 2,              // four at a time at 25% FAME since the ship classes: plans and bests from before don't carry over
-    brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $3k. The customer (D) takes four at a time, at least 25% FAME. Four cargoes.",
+    rev: 3,              // B20 at two an hour since the 10-unit Handy: plans and bests from before don't carry over
+    brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $3k. The customer (D) takes two an hour, at least 20% FAME. Twenty units.",
     map: [
       "#######",
       "#.G.F.#",
@@ -79,17 +81,18 @@ export const LEVELS = [
     jetties: {
       G: { kind: "load", product: "gasoil", parcel: 2 },
       F: { kind: "load", product: "fame", parcel: 1 },
-      D: { kind: "discharge", parcel: 4, spec: { fame: [0.25, 1] } },
+      D: { kind: "discharge", parcel: 2, spec: { fame: [0.2, 1] } },
     },
-    fleet: { coaster: 2, handy: 1 }, target: 4, maxCycles: 400,
-    par: { cost: 50, hours: 18, water: 12, instructions: 8 },
+    fleet: { coaster: 2, handy: 1 }, target: 20, maxCycles: 400,
+    par: { cost: 58, hours: 30, water: 12, instructions: 7 },
     plans: [
-      { par: ["cost", "water", "instructions"], ships: [{ x: 2, y: 1, h: 0, type: "handy", prog: program("(3L)(2A)(2L)A(3S)(2D)(3A)(3S)") }] },
+      { par: ["cost", "water"], ships: [{ x: 2, y: 1, h: 0, type: "handy", prog: program("(4L)(2A)(2L)A(3S)(5D)(3A)(3S)") }] },
       { par: ["hours"], ships: [
-        { x: 2, y: 1, h: 0, type: "coaster", prog: program("L(2A)(2L)A(3S)D(3A)(3S)") },
-        { x: 1, y: 3, h: 3, type: "coaster", prog: program("(3S)L(2A)(2L)A(3S)D(3A)") },
-        { x: 3, y: 3, h: 3, type: "handy", prog: program("(2A)(3S)(3L)(2A)(2L)A(3S)(2D)A") },
+        { x: 2, y: 1, h: 0, type: "coaster", prog: program("L(2A)(2L)A(3S)(2D)(3A)(3S)") },
+        { x: 4, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)(3A)(3S)L(2A)") },
+        { x: 5, y: 3, h: 4, type: "handy", prog: program("S(3D)(3A)(3S)(2L)(2A)(2L)A(2S)") },
       ] },
+      { par: ["instructions"], ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("(2A)(2L)A(3S)D(3A)(3S)") }] },
     ],
   },
 ];
