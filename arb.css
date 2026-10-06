@@ -1,4 +1,5 @@
-/* Arb: the route on top (from, to, par and the steps so far), the links from where you are below, each with its cost */
+/* Arb: the route on top (from, to, par and the steps so far), the links from where you are below, each with its cost;
+   the list takes the rest of the screen and scrolls in it (.fit-grow: a column's children otherwise keep their full height) */
 .arb .ab-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .5rem; color: var(--ink-soft); }
 .ab-score b { color: var(--ink); font-size: 1.25rem; }
 .ab-route { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .7rem .9rem; margin-bottom: .55rem; }
