@@ -61,14 +61,14 @@ export const LEVELS = [
       D: { kind: "discharge", parcel: 2 },
     },
     fleet: { coaster: 3 }, target: 16, maxCycles: 400,
-    par: { cost: 20, hours: 43, water: 7, instructions: 4 },
+    par: { cost: 20, hours: 37, water: 7, instructions: 4 },
     plans: [
-      { par: ["cost","water","instructions"], ships: [
+      { par: ["cost", "water", "instructions"], ships: [
         { x: 0, y: 3, h: 0, type: "coaster", prog: program("(2L)(6A)(2D)(6B)") },
       ] },
       { par: ["hours"], ships: [
-        { x: 0, y: 3, h: 3, type: "coaster", prog: program("(2L)(3B)(3S)(2A)(2S)(2D)S(5A)") },
-        { x: 7, y: 2, h: 5, type: "coaster", prog: program("S(2D)S(5A)(2L)(3B)(3S)(2A)S") },
+        { x: 0, y: 3, h: 3, type: "coaster", prog: program("(2L)(6B)(2D)(3A)SBP(2A)") },
+        { x: 6, y: 3, h: 3, type: "coaster", prog: program("D(3A)SBP(2A)(2L)(6B)D") },
       ] },
     ],
   },
@@ -181,15 +181,19 @@ export const LEVELS = [
       D: { kind: "discharge", parcel: 2, spec: { fame: [0.2, 1] } },
     },
     fleet: { coaster: 2, handy: 1 }, target: 20, maxCycles: 400,
-    par: { cost: 58, hours: 30, water: 12, instructions: 7 },
+    par: { cost: 55, hours: 30, water: 12, instructions: 7 },
     plans: [
-      { par: ["cost", "water"], ships: [{ x: 2, y: 1, h: 0, type: "handy", prog: program("(4L)(2A)(2L)A(3S)(5D)(3A)(3S)") }] },
-      { par: ["hours"], ships: [
-        { x: 2, y: 1, h: 0, type: "coaster", prog: program("L(2A)(2L)A(3S)(2D)(3A)(3S)") },
-        { x: 4, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)(3A)(3S)L(2A)") },
-        { x: 5, y: 3, h: 4, type: "handy", prog: program("S(3D)(3A)(3S)(2L)(2A)(2L)A(2S)") },
+      { par: ["hours", "water"], ships: [
+        { x: 2, y: 1, h: 0, type: "handy", prog: program("(2L)(2A)LA(3S)(3D)(3A)(3S)") },
+        { x: 4, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)(3A)(3S).L(2A)") },
+        { x: 5, y: 1, h: 0, type: "coaster", prog: program("(3S)(2D)(3A)(3S).L(2A)(2L)A") },
       ] },
-      { par: ["instructions"], ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("(2A)(2L)A(3S)D(3A)(3S)") }] },
+      { par: ["water", "instructions"], ships: [
+        { x: 4, y: 1, h: 0, type: "handy", prog: program("(10L)A(3S)(5D)(3A)(3S)(2A)") },
+      ] },
+      { par: ["cost", "water"], ships: [
+        { x: 2, y: 1, h: 0, type: "coaster", prog: program("L(2A)LA(3S)(2D)(3A)(3S)") },
+      ] },
     ],
   },
   {
@@ -209,18 +213,18 @@ export const LEVELS = [
       D: { kind: "discharge", parcel: 2, spec: { ethanol: [0, 0.1] } },
     },
     fleet: { coaster: 2, handy: 1 }, target: 30, maxCycles: 400,
-    par: { cost: 72, hours: 34, water: 10, instructions: 8 },
+    par: { cost: 72, hours: 34, water: 10, instructions: 6 },
     plans: [
-      { par: ["hours","water"], ships: [
+      { par: ["hours", "water"], ships: [
         { x: 4, y: 3, h: 3, type: "handy", prog: program("A(3S)A(3L)A(2S)(5D)SA") },
-        { x: 3, y: 2, h: 2, type: "coaster", prog: program("(2S)ALA(2S)(2D)S(2A)S") },
         { x: 5, y: 1, h: 0, type: "coaster", prog: program("LA(2S)(2D)S(2A)(3S)A") },
+        { x: 3, y: 2, h: 2, type: "coaster", prog: program("(2S)ALA(2S)(2D)S(2A)S") },
+      ] },
+      { par: ["water", "instructions"], ships: [
+        { x: 5, y: 1, h: 3, type: "handy", prog: program("(3L)(2A)(3P)(2A)(5D)(3P)") },
       ] },
       { par: ["cost"], ships: [
         { x: 0, y: 3, h: 3, type: "handy", prog: program("L(3B)(3S)A(3L)A(2S)(5D)S(5A)") },
-      ] },
-      { par: ["water","instructions"], ships: [
-        { x: 5, y: 1, h: 0, type: "handy", prog: program("(3L)A(2S)(5D)S(2A)(3S)A") },
       ] },
     ],
   },
@@ -242,15 +246,15 @@ export const LEVELS = [
       B: { kind: "discharge", parcel: 2, spec: { fame: [0.3, 1] }, target: 12 },
     },
     fleet: { coaster: 2, handy: 1 }, target: 24, maxCycles: 400,
-    par: { cost: 62, hours: 27, water: 10, instructions: 11 },
+    par: { cost: 62, hours: 24, water: 10, instructions: 11 },
     plans: [
-      { par: ["cost","water","instructions"], ships: [
+      { par: ["cost", "water", "instructions"], ships: [
         { x: 3, y: 2, h: 2, type: "handy", prog: program("(5L)(2S)A(3D)ASL(2S)(3D)(2A)S") },
       ] },
-      { par: ["hours","water"], ships: [
-        { x: 7, y: 2, h: 5, type: "handy", prog: program("(2S)(3D)(2A)S(5L)(2S)A(3D)ASL") },
-        { x: 3, y: 2, h: 2, type: "coaster", prog: program("L(2S)ADASL(2S)(2D)(2A)SL") },
-        { x: 5, y: 3, h: 3, type: "coaster", prog: program("D(2A)S(2L)(2S)ADASL(2S)D") },
+      { par: ["hours", "water"], ships: [
+        { x: 7, y: 2, h: 5, type: "handy", prog: program("(3L)(2S)(3D)(2A)(3S)(2A)S") },
+        { x: 3, y: 2, h: 2, type: "coaster", prog: program("(2L)(2S)A(2D)A(3S)(2A)S") },
+        { x: 5, y: 3, h: 3, type: "coaster", prog: program("(2A)S(2.)(2L)(2S)A(2D)A(3S)") },
       ] },
     ],
   },
