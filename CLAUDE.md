@@ -125,3 +125,9 @@ Three themes (Almanac, Modern, Kontor), each day and night, set by `theme.js` on
 - Almanac's ornaments (ticks, inset frames, gilt) are Almanac's: if you add one, undo it for Modern and Kontor in
   `themes.css`. A new game needs a Modern logo and a Kontor icon in `apps.js` (else it shows Almanac's).
 - Check a new screen in all three, day and night.
+
+## Checking syntax
+
+`node --check file.js` does NOT catch a syntax error in an ES module on Node 22 (it falls back quietly and exits 0).
+Check with `node --experimental-default-type=module --check file.js`, or run `node tests/syntax.mjs`, which does that
+for every script and runs in CI. A missing brace in solo.js once passed every test and stopped Crates at "Loading".

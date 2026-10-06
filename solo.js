@@ -343,7 +343,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
       const named = guess !== null && nameMatches(guess, ans);
       g.found.push({ g: pendingGroup, named, guess: named ? null : (guess || null) });
       // a crate solved and named: its four clues are recognised, so Punt can ask you to name them (known.js)
-      if (named) { const grp = board.groups[pendingGroup], A = BANK[grp.a]; recognised(grp.w.map(i => A.words[i]?.entity).filter(Boolean).map(e => pairKey(A.entity, e)));   // w: positions in the answer's clues }
+      if (named) { const grp = board.groups[pendingGroup], A = BANK[grp.a]; recognised(grp.w.map(i => A.words[i]?.entity).filter(Boolean).map(e => pairKey(A.entity, e))); }   // w: positions in the answer's clues }
       pendingGroup = null;
       if (g.found.length === 4) end();
       save();
