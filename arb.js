@@ -19,13 +19,16 @@ const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = M
 
 // ---------- the graph ----------
 const ENT = new Map(ENTITIES.map(e => [e.id, e]));
+const CANON = id => ENT.get(id)?.same || id;   // a duplicate entry stands for the one it duplicates
 const NEAR = new Map();                                     // id → Map(neighbour → why they're linked)
 for (const l of LINKS) {
   if (!ENT.has(l.from) || !ENT.has(l.to) || l.from === l.to) continue;
   const why = l.hint || ({ in: "is in", "painted-by": "painted by", "hangs-in": "hangs in", movement: "belongs to", "designed-by": "designed by", style: "in the style of", city: "stands in" }[l.rel] || "");
-  for (const [a, b] of [[l.from, l.to], [l.to, l.from]]) {
+  const [f, t] = [CANON(l.from), CANON(l.to)];
+  if (f === t) continue;
+  for (const [a, b] of [[f, t], [t, f]]) {
     if (!NEAR.has(a)) NEAR.set(a, new Map());
-    if (!NEAR.get(a).has(b)) NEAR.get(a).set(b, { why, from: l.from });
+    if (!NEAR.get(a).has(b)) NEAR.get(a).set(b, { why, from: f });
   }
 }
 const degree = id => NEAR.get(id)?.size || 0;

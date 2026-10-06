@@ -13,15 +13,18 @@ import "./pwa.js";
 
 const $ = id => document.getElementById(id);
 const ENT = new Map(ENTITIES.map(e => [e.id, e]));
+// a thing entered twice is one thing: "same" points a duplicate at the entry that stands, and its links count there
+const CANON = id => ENT.get(id)?.same || id;
 // a thing's name, with its qualifier where another thing shares the name ("Guernica (Picasso)")
 const label = e => (e.qualifier ? `${e.name} (${e.qualifier})` : e.name);
 const fold = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-const KEYS = ENTITIES.map(e => ({ e, keys: [e.name, ...(e.aliases || [])].map(fold) }));
+const KEYS = ENTITIES.filter(e => !e.same).map(e => ({ e, keys: [e.name, ...(e.aliases || [])].map(fold) }));
 const OUT = new Map(), IN = new Map();                       // id → links from it, links to it
 for (const l of LINKS) {
   if (!ENT.has(l.from) || !ENT.has(l.to)) continue;
-  (OUT.get(l.from) || OUT.set(l.from, []).get(l.from)).push(l);
-  (IN.get(l.to) || IN.set(l.to, []).get(l.to)).push(l);
+  const c = { ...l, from: CANON(l.from), to: CANON(l.to) };
+  (OUT.get(c.from) || OUT.set(c.from, []).get(c.from)).push(c);
+  (IN.get(c.to) || IN.set(c.to, []).get(c.to)).push(c);
 }
 const FACTS = new Map();                                     // id → the numbers Quote knows about it
 for (const q of QUOTES) if (q.about) (FACTS.get(q.about) || FACTS.set(q.about, []).get(q.about)).push(q);
@@ -107,6 +110,7 @@ function groupsOf(id) {
 }
 const SHOWN = 24;
 function open(id, push = true) {
+  id = CANON(id);
   const e = ENT.get(id);
   if (!e) return;
   if (push && location.hash !== `#e=${id}`) history.pushState(null, "", `#e=${id}`);
