@@ -536,6 +536,22 @@ export const LEVELS = [
     solution: { add: [{ arbor: "barrel", part: { kind: "barrel", teeth: 82, layer: 1 } }, { arbor: "centre", part: P(8, 1) }] },
   },
 
+  {
+    id: "5.4", chapter: 5, title: "Constant force", plate: 13,
+    primer: [
+      "A mainspring pushes hardest fully wound and gives a little over half that near the end of its run, so the balance swings wide at first and weakly later, and a watch keeps different time over its day.",
+      "Two old answers: the fusée, a cone the chain from the barrel winds onto, pulling on a wider radius as the spring weakens; and the remontoire, a small spring rewound by the train every few seconds, that alone drives the escapement.",
+      "A stronger spring is no answer: fully wound, it swings the balance so far the impulse pin knocks the outside of the fork's horns.",
+    ],
+    task: "Keep the balance between 230 and 310 degrees from a full wind to the end of the reserve.",
+    fixed: TRAIN(),
+    tray: [{ kind: "fusee", n: 1 }, { kind: "remontoire", n: 1 }, { kind: "mainspring", strength: 1.5, n: 1 }],
+    amplitude: { ref: 280, refRatio: 4800, refSteps: 4 },
+    goals: [{ arbor: "seconds", rate: 60 }, { amplitude: 230, upTo: 310, whole: true }],
+    par: 1,
+    solution: { add: [{ arbor: "barrel", part: { kind: "fusee", layer: 5 } }] },
+  },
+
   // ---------- 6. Winding and setting ----------
   {
     id: "6.1", chapter: 6, title: "Winding", plate: 13,
@@ -711,6 +727,22 @@ export const LEVELS = [
     solution: { add: [{ arbor: "coupling", part: P(20, 7) }] },
   },
 
+  {
+    id: "8.5", chapter: 8, title: "Harrison's H4", plate: 13,
+    primer: [
+      "Finding longitude at sea needs the time at home, kept to a few seconds over weeks. John Harrison's H4, finished in 1759, did it: on its trial voyage to Jamaica in 1761 and 1762 it lost about five seconds in 81 days.",
+      "It beats five times a second, and a remontoire, rewound by the train every seven and a half seconds, gives the escapement the same force whatever the mainspring is doing.",
+      "Give it steady force, then regulate it to a second a day.",
+    ],
+    task: "Fit the constant force and regulate the balance to within one second a day.",
+    fixed: TRAIN({ kind: "balance", inertia: 10, stiffness: 0.2465, index: 0, adjustable: true, layer: 10 }),
+    tray: [{ kind: "fusee", n: 1 }, { kind: "remontoire", n: 1 }, { kind: "mainspring", strength: 1.5, n: 1 }],
+    amplitude: { ref: 280, refRatio: 4800, refSteps: 4 },
+    goals: [{ arbor: "seconds", rate: 60, tol: 1 / 86400 }, { amplitude: 230, upTo: 310, whole: true }],
+    par: 1,
+    solution: { set: [{ arbor: "balance", kind: "balance", values: { index: 0.0486 } }], add: [{ arbor: "barrel", part: { kind: "remontoire", layer: 5 } }] },
+  },
+
   // ---------- 9. The chronograph ----------
   {
     id: "9.1", chapter: 9, title: "The chronograph wheel", plate: 13,
@@ -754,7 +786,7 @@ export const LEVELS = [
     fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
       { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [W(40, 7)] },
       { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7)] },
-      { id: "counter", label: "Minute counter", ...COUNTER, parts: [] }],
+      { id: "counter", label: "Minute counter", ...COUNTER, side: "dial", parts: [] }],
     tray: [{ kind: "finger", len: 3.6, n: 1 }, { kind: "star", teeth: 30, r: 2, n: 1 }, { kind: "star", teeth: 31, r: 2, n: 1 }, { kind: "star", teeth: 60, r: 2, n: 1 }],
     goals: [{ in: "start", arbor: "counter", rate: 2, abs: true }, { in: "stop", arbor: "counter", still: true }, { in: "start", arbor: "chrono", rate: 60 }],
     par: 2,
@@ -771,11 +803,48 @@ export const LEVELS = [
     fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
       { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [W(40, 7)] },
       { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7), { kind: "finger", len: 3.6, layer: 8 }] },
-      { id: "counter", label: "Minute counter", ...COUNTER, parts: [{ kind: "star", teeth: 30, r: 2, layer: 8 }] }],
+      { id: "counter", label: "Minute counter", ...COUNTER, side: "dial", parts: [{ kind: "star", teeth: 30, r: 2, layer: 8 }] }],
     tray: [{ kind: "heart", n: 2 }],
     goals: [{ reset: ["chrono", "counter"] }, { in: "start", arbor: "chrono", rate: 60 }],
     par: 2,
     solution: { add: [{ arbor: "chrono", part: { kind: "heart", layer: 6 } }, { arbor: "counter", part: { kind: "heart", layer: 6 } }] },
+  },
+
+  {
+    id: "9.5", chapter: 9, title: "Flyback", plate: 13,
+    primer: [
+      "A pilot timing one leg after another can't stop, reset and start again: three presses lose seconds. A flyback chronograph does it in one. Pressed while running, the hands fly back to zero and set off again at once.",
+      "An ordinary coupling lever lifts as the reset hammers fall, so the chronograph stands still at zero. A flyback lever keeps the coupling in: the hearts are struck while the drive goes on.",
+      "Lange's Datograph of 1999 made the flyback famous again in a column-wheel chronograph.",
+    ],
+    task: "Fit the lever that lets the chronograph fly back: reset while running, and keep running.",
+    scenarios: [{ id: "start", name: "Started", state: "start" }, { id: "stop", name: "Stopped", state: "stop" }, { id: "flyback", name: "Reset while running", state: "flyback" }],
+    fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
+      { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [W(40, 7)] },
+      { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7), { kind: "finger", len: 3.6, layer: 8 }, { kind: "heart", layer: 6 }] },
+      { id: "counter", label: "Minute counter", ...COUNTER, side: "dial", parts: [{ kind: "star", teeth: 30, r: 2, layer: 8 }, { kind: "heart", layer: 6 }] }],
+    tray: [{ kind: "lever", flyback: false, n: 1 }, { kind: "lever", flyback: true, n: 1 }],
+    goals: [{ reset: ["chrono", "counter"] }, { in: "flyback", arbor: "chrono", rate: 60 }, { in: "stop", arbor: "chrono", still: true }],
+    par: 1,
+    solution: { add: [{ arbor: "coupling", part: { kind: "lever", flyback: true, layer: 6 } }] },
+  },
+  {
+    id: "9.6", chapter: 9, title: "Jump, don't creep", plate: 13,
+    primer: [
+      "A minute counter geared straight to the chronograph wheel creeps: its hand drifts between the minutes, and reading it at a glance, 4 or 5, is guesswork.",
+      "Lange's Datograph has a precisely jumping minute counter: a finger lets it stand still for the whole minute, then jumps it in an instant as the seconds hand passes twelve.",
+      "Either drive turns the counter at the right average rate. Only one is the Datograph's.",
+    ],
+    task: "Drive the minute counter so it turns once in thirty minutes, and jumps.",
+    scenarios: [{ id: "start", name: "Started", state: "start" }, { id: "stop", name: "Stopped", state: "stop" }],
+    fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
+      { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [W(40, 7)] },
+      { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7)] },
+      { id: "counter", label: "Minute counter", ...COUNTER, side: "dial", parts: [] }],
+    tray: [{ kind: "finger", len: 3.6, n: 1 }, { kind: "star", teeth: 30, r: 2, n: 1 }, ...tray(["pinion", 10, 2], ["wheel", 50], ["wheel", 60])],
+    goals: [{ in: "start", arbor: "counter", rate: 2, abs: true }, { in: "start", jumps: "counter" }],
+    par: 2,
+    solution: { add: [{ arbor: "chrono", part: { kind: "finger", len: 3.6, layer: 8 } }, { arbor: "counter", part: { kind: "star", teeth: 30, r: 2, layer: 8 } }] },
   },
 
   // ---------- 10. Automatic winding ----------
@@ -939,6 +1008,34 @@ export const LEVELS = [
     solution: { set: [{ arbor: "month", kind: "cam", values: { notches: Array.from({ length: 48 }, (_, i) => [31, (Math.floor(i / 12) % 4 === 0 ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][i % 12]) } }], add: [] },
   },
 
+  {
+    id: "13.3", chapter: 13, title: "The equation of time", plate: 13,
+    primer: [
+      "A sundial and a watch agree only four days a year. The Earth's orbit is an ellipse and its axis tilted, so the solar day is sometimes longer, sometimes shorter: in mid-February a sundial runs about 14 minutes behind, in early November about 16 ahead.",
+      "The equation of time complication carries the difference on a cam turning once a year: shaped like a kidney, its radius at each point is that day's difference, and a lever riding it moves a hand.",
+      "Shape the cam month by month, to within a minute of the mid-month difference.",
+    ],
+    task: "Set the kidney cam's twelve months: minutes the sundial runs ahead (+) or behind (−).",
+    fixed: [{ id: "year", label: "Year wheel with its kidney cam", x: 0, y: -5.5, parts: [{ kind: "kidney", values: Array(12).fill(0), editable: true, layer: 8 }] }],
+    tray: [],
+    goals: [{ eot: "year", tol: 1 }],
+    par: 0,
+    solution: { set: [{ arbor: "year", kind: "kidney", values: { values: [-9, -14, -9, 0, 4, 0, -6, -4, 5, 14, 15, 5] } }], add: [] },
+  },
+  {
+    id: "13.4", chapter: 13, title: "A secular calendar", plate: 13,
+    primer: [
+      "The Gregorian calendar drops three leap days every four centuries: years divisible by 100 aren't leap years, unless they're divisible by 400. So 2000 was a leap year; 2100, 2200 and 2300 won't be.",
+      "A perpetual calendar's four-year cam can't know that: in 2100 it will add a February 29 that doesn't exist. A secular perpetual calendar adds a wheel turning once in 400 years, with a notch for each century year that must skip its leap day.",
+    ],
+    task: "Set the century wheel: which of these century years are leap years?",
+    fixed: [{ id: "century", label: "Century wheel", x: 0, y: -5.5, parts: [{ kind: "century", leaps: [true, true, true, true], editable: true, layer: 8 }] }],
+    tray: [],
+    goals: [{ secular: true }],
+    par: 0,
+    solution: { set: [{ arbor: "century", kind: "century", values: { leaps: [true, false, false, false] } }], add: [] },
+  },
+
   // ---------- 14. Striking ----------
   {
     id: "14.1", chapter: 14, title: "The hour snail", plate: 13,
@@ -1052,6 +1149,12 @@ const HELP = {
   "8.4": { hints: ["The pinion must be 4 mm from both the driving wheel's arbor and the centre when started.", "20 leaves: 1 mm of radius, plus the wheels' 3 mm."], watch: [] },
   "12.3": { hints: ["One trip on the hour wheel, one on the cannon pinion.", "The hour trip alone gives a twelve-minute window; the minute trip alone goes off every hour."], watch: [] },
   "14.2": { hints: ["Zero stays at the top: on the hour, no quarters.", "Anticlockwise from the top: 1, 2, 3."], watch: [] },
+  "5.4": { hints: ["Something that gives the escapement a steady force, whatever the spring does.", "A fusée or a remontoire, on the barrel arbor."], watch: ["Too much force is as bad as too little: past about 310 degrees the balance knocks."] },
+  "8.5": { hints: ["Steady force first: Harrison's own answer was the remontoire.", "Then the index: about one twentieth of the way towards +."], watch: [] },
+  "9.5": { hints: ["The lever is what lifts the coupling at reset.", "Fit the flyback lever on the coupling's arbor."], watch: [] },
+  "9.6": { hints: ["A finger and a star jump; a pair of gears creeps.", "The finger on the chronograph wheel, the 30-tooth star on the counter."], watch: ["The gears give the right average rate, and still fail: the counter must jump."] },
+  "13.3": { hints: ["Biggest behind in February, biggest ahead in early November; near zero in April, June, and the start of September.", "−9, −14, −9, 0, +4, 0, −6, −4, +5, +14, +15, +5."], watch: [] },
+  "13.4": { hints: ["Divisible by 400: leap. Divisible by 100 only: not."], watch: [] },
   "8.2": { hints: ["The third wheel goes to the right of the line from centre to seconds; the left is the escapement's.", "21,600 vph needs 72 over 6 at the end."], watch: ["A rectangle has corners to use and sides to hit."] },
 };
 for (const L of LEVELS) Object.assign(L, { hints: [], watch: [], ...HELP[L.id] });
@@ -1079,6 +1182,11 @@ export const GLOSSARY = [
   ["Minute repeater", "A striking work that sounds the hours, quarters and minutes on gongs when its slide is pushed."],
   ["Snail", "A stepped cam whose step depths a rack reads, to count the blows of a striking work."],
   ["Tourbillon", "A cage carrying the escapement, turning once a minute so that gravity's errors average out."],
+  ["Flyback", "A chronograph that resets and restarts with one press, while running."],
+  ["Fusée", "A cone wound with a chain from the barrel, evening out the mainspring's force as it runs down."],
+  ["Remontoire", "A small spring rewound by the train every few seconds, giving the escapement a constant force."],
+  ["Amplitude", "How far the balance swings each way, in degrees: 270 to 300 when healthy."],
+  ["Equation of time", "The difference between sundial time and mean time, up to about 16 minutes either way."],
   ["Click", "The sprung pawl on the ratchet wheel that stops the mainspring unwinding through the crown."],
   ["Escape wheel", "The last wheel of the train, released half a tooth per beat by the pallet fork."],
   ["Escapement", "The escape wheel, pallet fork and balance together: what lets the power out a tooth at a time."],

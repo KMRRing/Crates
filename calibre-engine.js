@@ -41,7 +41,7 @@ export const DIAL_LAYERS = [6, 7, 8];
 export const TOP_LAYERS = [11, 12];
 const side = layer => (DIAL_LAYERS.includes(layer) ? "dial" : TOP_LAYERS.includes(layer) ? "top" : "train");
 /** The sides of the plate an arbor reaches: those its parts sit on; an empty arbor, both, until it carries something. */
-const sides = a => { const s = new Set((a.parts || []).map(p => side(p.layer))); return s.size ? s : new Set(["dial", "train", "top"]); };
+const sides = a => { const s = new Set((a.parts || []).map(p => side(p.layer))); return s.size ? s : new Set(a.side ? [a.side] : ["dial", "train", "top"]); };   // an empty arbor may say which side it's on
 const has = (a, kind) => (a.parts || []).find(p => p.kind === kind);
 /** How far the regulator index changes the hairspring's working length: at full travel either way, 2%. */
 export const INDEX_TRAVEL = 0.02;
@@ -189,7 +189,9 @@ export function judge(level, design) {
 /** A design as it stands in one state: arbors on levers move to that state's position, drives take that state's rates. */
 export function inState(design, sc) {
   return { ...design, arbors: design.arbors.map(a => {
-    const b = { ...a, ...(a.positions?.[sc.state] || {}), links: (a.links || []).filter(l => !l.in || l.in.includes(sc.state)) };
+    // pressed while running, an ordinary lever lifts the coupling as the hammers fall; a flyback lever keeps it in
+    const st = sc.state === "flyback" && a.positions ? ((a.parts || []).some(p => p.kind === "lever" && p.flyback) ? "start" : "stop") : sc.state;
+    const b = { ...a, ...(a.positions?.[st] || {}), links: (a.links || []).filter(l => !l.in || l.in.includes(sc.state)) };
     if (sc.drive && a.id in sc.drive) { if (sc.drive[a.id] == null) delete b.drive; else b.drive = sc.drive[a.id]; }
     return b;
   }) };
@@ -207,7 +209,21 @@ function judgeOne(level, design) {
     if (g.calendar) { const bad = calendarErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
     if (g.snail) { const bad = snailErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
     if (g.alarm != null) { const m = alarmMinutes(design, g); return { goal: g, ok: m.length === 1 && m[0] === g.alarm, actual: m }; }
-    if (g.amplitude) { const a = amplitudeOf(level, design, out); return { goal: g, ok: a != null && a >= g.amplitude, actual: a }; }
+    if (g.amplitude) {
+      // over the whole run: the swing fully wound and near the end of the reserve, both within the bounds
+      const full = amplitudeOf(level, design, out, 1), end = g.whole ? amplitudeOf(level, design, out, 0.1) : full;
+      return { goal: g, ok: full != null && Math.min(full, end) >= g.amplitude && (!g.upTo || Math.max(full, end) <= g.upTo), actual: full, end };
+    }
+    if (g.jumps) {                                                  // driven by a finger at the last step: it jumps
+      const w = workings(design, out, g.jumps);
+      return { goal: g, ok: !!w?.length && !!w[w.length - 1].finger, actual: !w ? "not driven" : w[w.length - 1].finger ? "jumps" : "creeps" };
+    }
+    if (g.eot) { const bad = eotErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
+    if (g.secular) {
+      const c = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "century");
+      const bad = c ? CENTURIES.filter((y, i) => c.leaps[i] !== (y % 400 === 0)) : null;
+      return { goal: g, ok: bad != null && !bad.length, actual: bad };
+    }
     if (g.still) { const r = out.rates[g.arbor]; return { goal: g, ok: !r, actual: r }; }
     if (g.reset) { const missing = g.reset.filter(id => !(design.arbors.find(a => a.id === id)?.parts || []).some(p => p.kind === "heart")); return { goal: g, ok: !missing.length, actual: missing }; }
     const actual = out.rates[g.arbor];
@@ -279,13 +295,37 @@ export function alarmMinutes(design, g) {
  * to escape wheel, and a few per cent lost at every mesh. A level states a reference train and its amplitude; below
  * about 200 degrees a watch keeps poor time, below 150 it may stop.
  */
-export function amplitudeOf(level, design, out) {
+/**
+ * The force at the barrel through the spring's run, relative to fully wound: a mainspring gives a little under
+ * half its torque near the end. A fusée, its chain pulling on a widening cone as the spring weakens, or a remontoire,
+ * a small spring rewound every few seconds, give the train a steady force instead. A stronger mainspring gives more
+ * of everything.
+ */
+export function torqueAt(design, wound) {
+  const parts = design.arbors.flatMap(a => a.parts || []), steady = parts.some(p => p.kind === "fusee" || p.kind === "remontoire");
+  const strength = parts.find(p => p.kind === "mainspring")?.strength || 1;
+  return strength * (steady ? 0.8 : 0.55 + 0.45 * wound);
+}
+export function amplitudeOf(level, design, out, wound = 1) {
   const b = design.arbors.find(a => a.power != null), esc = out.escapements.find(e => e.state === "running" && out.rates[e.escape]);
   if (!level.amplitude || !b || !esc || !out.rates[b.id]) return null;
   const ratio = Math.abs(out.rates[esc.escape] / out.rates[b.id]), steps = workings(design, out, esc.escape)?.length || 0;
   const { ref, refRatio, refSteps = 4, eta = 0.97 } = level.amplitude;
-  return Math.min(315, ref * Math.sqrt(refRatio / ratio) * Math.pow(eta, steps - refSteps));
+  return Math.min(345, ref * Math.sqrt((refRatio / ratio) * torqueAt(design, wound)) * Math.pow(eta, steps - refSteps));
 }
+
+/**
+ * The equation of time: how far a sundial runs ahead (+) or behind (−) mean time, in minutes, in the middle of each
+ * month. The Earth's elliptical orbit and its tilted axis make the solar day vary; a kidney-shaped cam turning once a
+ * year carries the difference, and a lever reading it moves a hand.
+ */
+export const EOT = [-9.2, -14.2, -9.0, 0.0, 3.7, -0.3, -6.0, -4.5, 4.8, 14.1, 15.4, 4.9];
+export function eotErrors(design, g) {
+  const k = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "kidney");
+  return k ? EOT.map((v, i) => i).filter(i => Math.abs(k.values[i] - EOT[i]) > (g.tol ?? 1)) : null;
+}
+/** The century years of the Gregorian cycle a secular calendar must know: only those divisible by 400 are leap. */
+export const CENTURIES = [2000, 2100, 2200, 2300];
 
 /** The power reserve: hours a fully wound mainspring lasts at the barrel's rate (needs a running escapement). */
 export function reserveOf(design, out) {
