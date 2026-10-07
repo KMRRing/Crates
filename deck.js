@@ -270,63 +270,131 @@ const colour = (el, v) => { el.style.color = `var(${v})`; const c = getComputedS
 function plot(place, feature, note, level = 1) {
   const box = $("answerBox");
   box.className = "dk-answer dk-plot";
-  const canvas = document.createElement("canvas");
+  const wrap = document.createElement("div"), canvas = document.createElement("canvas");
+  wrap.className = "dk-mapwrap";
   canvas.className = "dk-map";
-  canvas.setAttribute("aria-label", `Map: tap where ${place.name} is`);
-  box.replaceChildren(canvas);
+  canvas.setAttribute("aria-label", `Map: tap where ${place.name} is; drag to move, pinch or the buttons to zoom`);
+  const zoom = document.createElement("div");
+  zoom.className = "dk-zoom";
+  zoom.innerHTML = '<button type="button" aria-label="Zoom in">+</button><button type="button" aria-label="Zoom out">−</button>';
+  wrap.append(canvas, zoom);
+  box.replaceChildren(wrap);
   const w = Math.max(240, Math.round(box.clientWidth || 340)), h = Math.round(w * 0.72), dpr = devicePixelRatio || 1;
   canvas.width = w * dpr; canvas.height = h * dpr; canvas.style.width = `${w}px`; canvas.style.height = `${h}px`;
   const region = Object.keys(REGIONS).find(k => REGIONS[k].name === place.region) || null;   // places name their region
   let view = clampView(region ? regionView(region, w, h) : worldView(), w, h);
-  // the answer has to be on the map, which doesn't pan: a place or feature beyond its region's window (Norilsk, at 69°N,
-  // above Asia's) widens the window to take it in, without centring on it. A country needn't: any part of it will do.
+  // the answer has to be on the first view: a place or feature beyond its region's window (Norilsk, at 69°N, above
+  // Asia's) widens the window to take it in, without centring on it. A country needn't: any part of it will do.
   if (place.cat !== "countries") {
     const w0 = viewWindow(view, w, h), [lon0, lat0, lon1, lat1] = feature ? featureBox(feature) : [place.lon, place.lat, place.lon, place.lat];
     if (lon0 < w0.lon0 || lon1 > w0.lon1 || lat0 < w0.lat0 || lat1 > w0.lat1)
       view = viewFitting([{ lon: w0.lon0, lat: w0.lat0 }, { lon: w0.lon1, lat: w0.lat1 }, { lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }], w, h, { pad: 1.08 });
   }
-  const win = viewWindow(view, w, h);
-  const proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
-  const sea = colour(canvas, "--dk-sea"), land = colour(canvas, "--dk-land"), border = colour(canvas, "--dk-border");
-  ctx.fillStyle = sea; ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = land;
-  for (const poly of LAND) {
-    ctx.beginPath();
-    for (const ring of poly) { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); }
-    ctx.fill("evenodd");
-  }
-  ctx.strokeStyle = border; ctx.lineWidth = .7; ctx.beginPath();
-  for (const l of BORDERS) l.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
-  ctx.stroke();
-  // right within a share of the map's width that narrows as the card climbs the piles: a 25th in the short pile,
-  // a 40th in the medium, a 60th from the long on (on Asia's map about 500, 310 and 190 km): the right part of China,
-  // not China; or within HOME_KM (600) anywhere inside the right country. A country itself: anywhere inside its outline.
-  const midLat = (win.lat0 + win.lat1) / 2, widthKm = (win.lon1 - win.lon0) * 111.32 * Math.cos(midLat * Math.PI / 180);
+  const first = viewWindow(view, w, h);
+  let win = { ...first }, proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
+  // right within a share of the first view's width, which narrows as the card climbs the piles: a 25th in the short
+  // pile, a 40th in the medium, a 60th from the long on (on Asia's map about 500, 310 and 190 km): the right part of
+  // China, not China; or within HOME_KM (600) anywhere inside the right country. A country itself: anywhere inside its
+  // outline. Zooming in to aim doesn't tighten it: the tolerance is set by the first view, once.
+  const midLat = (first.lat0 + first.lat1) / 2, widthKm = (first.lon1 - first.lon0) * 111.32 * Math.cos(midLat * Math.PI / 180);
   const [share, floor] = [[25, 120], [25, 120], [40, 90], [60, 60]][Math.min(3, level)];
   const tolerance = Math.max(floor, Math.round(widthKm / share / 10) * 10);
-  canvas.addEventListener("click", e => {
-    if (answered) return;
-    const b = canvas.getBoundingClientRect(), x = (e.clientX - b.left) * (w / b.width), y = (e.clientY - b.top) * (h / b.height);
-    const [lon, lat] = proj.toLonLat(x, y), pin = { lat, lon };
-    const hit = feature ? nearestOnFeature(pin, feature) : { km: distance(pin, place), point: { lat: place.lat, lon: place.lon } };
-    const isCountry = place.cat === "countries", home = isCountry ? null : homeOf(place, pin, COUNTRIES);
-    const near = hit.km <= tolerance, inHome = !near && !!home && hit.km <= HOME_KM;
-    const ok = isCountry ? hit.km === 0 : near || inHome, good = colour(canvas, ok ? "--dk-good" : "--dk-bad"), ink = colour(canvas, "--ink");
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  let reveal = null;                                           // once answered: the pin, the nearest right point, right or not
+  function draw() {
+    proj = projection(win.lon0, win.lon1, win.lat0, win.lat1, w, h);
+    const sea = colour(canvas, "--dk-sea"), land = colour(canvas, "--dk-land"), border = colour(canvas, "--dk-border");
+    ctx.fillStyle = sea; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = land;
+    for (const poly of LAND) {
+      ctx.beginPath();
+      for (const ring of poly) { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); }); ctx.closePath(); }
+      ctx.fill("evenodd");
+    }
+    ctx.strokeStyle = border; ctx.lineWidth = .7; ctx.beginPath();
+    for (const l of BORDERS) l.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y); });
+    ctx.stroke();
+    if (!reveal) return;
+    const good = colour(canvas, reveal.ok ? "--dk-good" : "--dk-bad"), ink = colour(canvas, "--ink");
     if (feature) {                                             // the feature itself, drawn on the reveal
       ctx.strokeStyle = good; ctx.lineWidth = 2.2; ctx.beginPath();
       for (const part of feature.lines || feature.rings || []) part.forEach(([flon, flat], i) => { const [fx, fy] = proj.toXY(flon, flat); if (i) ctx.lineTo(fx, fy); else ctx.moveTo(fx, fy); });
       ctx.stroke();
     }
-    const [tx, ty] = proj.toXY(hit.point.lon, hit.point.lat);
+    const [x, y] = proj.toXY(reveal.pin.lon, reveal.pin.lat), [tx, ty] = proj.toXY(reveal.point.lon, reveal.point.lat);
     ctx.setLineDash([4, 3]); ctx.strokeStyle = ink; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(tx, ty); ctx.stroke(); ctx.setLineDash([]);
     ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill();
     ctx.strokeStyle = good; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(tx, ty, 7, 0, 7); ctx.stroke();
+  }
+  // the view: zoom about a point on the map, pan by a drag; kept within the world and between a city's width and four
+  // times the first view
+  function zoomAt(factor, sx = w / 2, sy = h / 2) {
+    const [alon, alat] = proj.toLonLat(sx, sy), span = win.lon1 - win.lon0;
+    const f = Math.min(Math.max(factor, 2 / span), Math.min(360, (first.lon1 - first.lon0) * 4) / span);
+    win = { lon0: alon - (alon - win.lon0) * f, lon1: alon + (win.lon1 - alon) * f, lat0: alat - (alat - win.lat0) * f, lat1: alat + (win.lat1 - alat) * f };
+    keep(); draw();
+  }
+  function keep() {
+    const dl = win.lon1 - win.lon0, dt = win.lat1 - win.lat0;
+    if (win.lon0 < -180) { win.lon0 = -180; win.lon1 = -180 + dl; } if (win.lon1 > 180) { win.lon1 = 180; win.lon0 = 180 - dl; }
+    if (win.lat0 < -80) { win.lat0 = -80; win.lat1 = -80 + dt; } if (win.lat1 > 84) { win.lat1 = 84; win.lat0 = 84 - dt; }
+  }
+  function tap(clientX, clientY) {
+    if (answered) return;
+    const b = canvas.getBoundingClientRect(), x = (clientX - b.left) * (w / b.width), y = (clientY - b.top) * (h / b.height);
+    const [lon, lat] = proj.toLonLat(x, y), pin = { lat, lon };
+    const hit = feature ? nearestOnFeature(pin, feature) : { km: distance(pin, place), point: { lat: place.lat, lon: place.lon } };
+    const isCountry = place.cat === "countries", home = isCountry ? null : homeOf(place, pin, COUNTRIES);
+    const near = hit.km <= tolerance, inHome = !near && !!home && hit.km <= HOME_KM;
+    const ok = isCountry ? hit.km === 0 : near || inHome;
+    reveal = { pin, point: hit.point, ok };
+    draw();
     const off = `${Math.round(hit.km).toLocaleString("en-GB")} km`;
     settle(ok, isCountry ? `${hit.km === 0 ? "Inside it." : `Outside it, ${off} from its border.`} ${note}`
       : `${hit.km < 1 ? "On it" : `${off} off`}${inHome ? `, but in ${home.name}: within ${HOME_KM} km counts there` : ` (within ${tolerance} km counts, or ${HOME_KM} km in the right country)`}. ${note}`);
+  }
+  // one finger or the mouse drags the map (a tap if it barely moved), two fingers pinch; the wheel and the buttons zoom
+  const pointers = new Map();
+  let gesture = null;
+  const local = (cx, cy) => { const b = canvas.getBoundingClientRect(); return [(cx - b.left) * (w / b.width), (cy - b.top) * (h / b.height)]; };
+  canvas.addEventListener("pointerdown", e => {
+    canvas.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = [...pointers.values()];
+    gesture = pts.length === 1 ? { kind: "pan", from: pts[0], win: { ...win }, moved: false }
+      : { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), span: win.lon1 - win.lon0 };
   });
+  canvas.addEventListener("pointermove", e => {
+    if (!pointers.has(e.pointerId) || !gesture) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = [...pointers.values()];
+    if (gesture.kind === "pan" && pts.length === 1) {
+      const b = canvas.getBoundingClientRect(), dx = (pts[0].x - gesture.from.x) * (w / b.width), dy = (pts[0].y - gesture.from.y) * (h / b.height);
+      if (Math.hypot(dx, dy) > 6) gesture.moved = true;
+      if (!gesture.moved) return;
+      const g = gesture.win, kx = (g.lon1 - g.lon0) / w, ky = (g.lat1 - g.lat0) / h;
+      win = { lon0: g.lon0 - dx * kx, lon1: g.lon1 - dx * kx, lat0: g.lat0 + dy * ky, lat1: g.lat1 + dy * ky };
+      keep(); draw();
+    } else if (gesture.kind === "pinch" && pts.length >= 2) {
+      const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), [sx, sy] = local((pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
+      zoomAt((gesture.span * gesture.d / Math.max(1, d)) / (win.lon1 - win.lon0), sx, sy);
+    }
+  });
+  const end = e => {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.delete(e.pointerId);
+    if (gesture?.kind === "pan" && !gesture.moved && e.type === "pointerup") tap(e.clientX, e.clientY);
+    if (!pointers.size) gesture = null;
+    else if (pointers.size === 1) gesture = { kind: "pan", from: [...pointers.values()][0], win: { ...win }, moved: true };
+  };
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+  canvas.addEventListener("wheel", e => { e.preventDefault(); const [sx, sy] = local(e.clientX, e.clientY); zoomAt(Math.exp(e.deltaY * 0.0015), sx, sy); }, { passive: false });
+  const [zin, zout] = zoom.querySelectorAll("button");
+  zin.addEventListener("click", () => zoomAt(1 / 1.6));
+  zout.addEventListener("click", () => zoomAt(1.6));
+  draw();
 }
 /** A name-it card from Punt: the hint, a box to type the name in, and Check. Recall, as it was asked in Punt: nothing to
  * choose from. The name shows after, with what was typed if it differs (typing.js decides what counts). */

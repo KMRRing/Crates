@@ -87,3 +87,10 @@ html[data-mode="night"] { --dk-in: #C08FD0; --dk-good: #7FC2A8; --dk-bad: #E8806
 .dk-named { grid-column: 1 / -1; margin: .2rem 0 0; font-weight: 800; }
 .dk-named.right { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
 .dk-named.wrong { color: var(--c3); }
+
+/* the map card moves: drag it, pinch it, or use the buttons; the page itself never scrolls with it */
+.dk-mapwrap { position: relative; display: inline-block; max-width: 100%; }
+.dk-map { touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.dk-map:active { cursor: grabbing; }
+.dk-zoom { position: absolute; top: .4rem; right: .4rem; display: grid; gap: .25rem; }
+.dk-zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; }
