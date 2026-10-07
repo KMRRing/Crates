@@ -218,7 +218,7 @@ export const APPS = [
   { id: "quote", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
   { id: "origin", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO) },
   { id: "order", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO) },
-  { id: "arb", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO) },
+  { id: "arb", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO), more: true },
   { id: "calibre", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO) },
   { id: "manifest", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO) },
   { id: "chart", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO) },
