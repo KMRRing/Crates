@@ -543,5 +543,27 @@ document.addEventListener("keydown", e => {
   const n = Number(e.key), option = !answered && n >= 1 ? $("answerBox").querySelectorAll(".dk-option")[n - 1] : null;
   if (option && !option.disabled) { e.preventDefault(); option.click(); }
 });
+// A Punt question comes back as it is now, not as it was when it went into the pile: one rewritten since (a giveaway
+// fixed, its maths typeset, its diagram redrawn) is shown rewritten, its place in the pile kept. One whose question has
+// gone from its bank keeps what it stored.
+async function refreshPunt() {
+  const items = pile.all("punt").filter(it => !it.payload?.name && it.key.includes("/"));
+  if (!items.length) return;
+  const { LEVELS } = await import("./punt-gen.js"), byLevel = new Map();
+  for (const it of items) { const [lv, ...id] = it.key.split("/"); if (LEVELS[lv]?.bank) (byLevel.get(lv) || byLevel.set(lv, []).get(lv)).push([it, id.join("/")]); }
+  await Promise.all([...byLevel].map(async ([lv, list]) => {
+    let bank;
+    try { const B = await import(LEVELS[lv].bank); bank = B[Object.keys(B).find(k => Array.isArray(B[k]) && B[k][0]?.o)] || []; } catch { return; }
+    const byId = new Map(bank.map(q => [q.id, q]));
+    for (const [it, id] of list) {
+      const q = byId.get(id);
+      if (!q) continue;
+      const fresh = { ...it.payload, prompt: q.q, options: q.o, right: q.a, need: q.s || q.a.length, note: `${q.a.map(i => q.o[i]).join(" and ")}: ${q.x || ""}`,
+        svg: q.svg || null, pic: q.pic || null, code: q.code || null };
+      if (JSON.stringify(fresh) !== JSON.stringify(it.payload)) pile.refresh("punt", it.key, fresh);
+    }
+  }));
+}
 window.__deck = { get session() { return session; }, startReview, overview, pile };
+try { await refreshPunt(); } catch { /* the stored questions still serve */ }
 overview();

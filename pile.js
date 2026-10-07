@@ -146,6 +146,9 @@ export function dealDue(game, pool, ownDue, cap) {
   return [...ownDue, ...cross.slice(0, Math.max(0, cap - ownDue.length)).map(q => q.key)];
 }
 /** Has this item been recorded (and not yet learned)? */
+/** Replaces what an item shows (its question has been rewritten since it went in) and nothing else: not its pile, its
+ *  streak or when it's due. */
+export function refresh(game, key, payload) { const all = load(), it = all[`${game}:${key}`]; if (!it) return; it.payload = payload; save(); }
 export function has(game, key) { const it = load()[`${game}:${key}`]; return !!it && !it.learned; }
 export function forget(game, key) { const all = load(); delete all[`${game}:${key}`]; save(); }
 export function clear() { items = {}; save(); }
