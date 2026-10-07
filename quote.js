@@ -258,7 +258,9 @@ function finishRoom() {
   }
   const lines = add("ul", "qt-lines");
   for (const e of Object.values(g.log)) {
-    const q = byId.get(e.id), li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
+    const q = byId.get(e.id);
+    if (!q) continue;                                      // a question the bank has since dropped: its money still counts above
+    const li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
     const mineD = e.maker === me ? e.deltaMaker : e.deltaTaker;
     name.textContent = `${e.maker === me ? "Made" : e.take === "pass" ? "Passed" : e.take === "hit" ? "Hit" : "Lifted"}: ${q.q.length > 36 ? `${q.q.slice(0, 34)}…` : q.q}`;
     delta.textContent = signed(mineD);
@@ -353,7 +355,9 @@ function finish() {
   }
   const lines = add("ul", "qt-lines");
   for (const e of S.log) {
-    const q = byId.get(e.id), li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
+    const q = byId.get(e.id);
+    if (!q) continue;                                      // a question the bank has since dropped: its money still counts above
+    const li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
     name.textContent = q.q.length > 44 ? `${q.q.slice(0, 42)}…` : q.q;
     delta.textContent = signed(e.delta);
     delta.className = e.delta >= 0 ? "good" : "bad";
@@ -440,7 +444,9 @@ function load(h) {
   const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
   let focus = CATS[h.get("f")] ? h.get("f") : null;
   if (!seed) return false;
-  if (S && S.seed === seed && S.mode === mode && (S.focus || null) === focus) return true;
+  // the link names the run already in progress (the page was reloaded, or the phone brought the app back): carry on
+  // with it, drawn as it stands, its last answer and the closing bell included; returning without drawing left the bare page
+  if (S && S.seed === seed && S.mode === mode && (S.focus || null) === focus) { render(); return true; }
   if (mode === "daily") focus = null;                    // today's set: unfocused, the same for everyone
   S = { seed, mode, focus, ranked: rankedRun(mode, focus), set: setFor(seed, focus, mode !== "daily"), index: 0, book: START, log: [], phase: "quote", done: false };
   save();
