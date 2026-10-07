@@ -401,7 +401,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       continue;
     }
     // an anonymous work (the Tale of the Heike) is asked only which work it is; "Anonymous" is never a wrong author
-    if (!author.anonymous) out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.filter(a => !a.anonymous && !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
+    if (!author.anonymous) out.lit.push(mk("author", `${work.form === "speech" ? "Who said this?" : "Who wrote this?"} ${shown}`, author.name, peers.filter(a => !a.anonymous && !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
     // a long title among short ones would give itself away: for a long one, the other titles in the same language are
     // taken nearest in length first
     let titles = [...new Set(otherWorks.filter(w => w.form !== "scripture").map(w => w.name))].filter(n => n !== work.name);
@@ -409,15 +409,20 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       const langOf = new Map(works.map(w => [w.name, w.lang]));
       titles.sort((p, q) => (langOf.get(q) === work.lang) - (langOf.get(p) === work.lang) || Math.abs(p.length - work.name.length) - Math.abs(q.length - work.name.length) || (p < q ? -1 : 1));
     }
-    out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, titles));
+    out.lit.push(mk("work", `${work.form === "speech" ? "When was this said?" : "Which work is this from?"} ${shown}`, work.name, titles));
   }
   // Sayings: what one means. A saying in another language shows its literal rendering unless it's iconic; the wrong
   // meanings are written for it, the misreadings someone might really make.
   for (const s of ENTITIES.filter(e => e.sets.includes("saying") && e.meaning && (e.wrong || []).length >= 3)) {
     const shown = `“${s.text}”${s.literal && !s.iconic ? ` (literally: ${s.literal})` : ""}`;
     const options = order(s.id, [s.meaning, ...s.wrong.slice(0, 3)]);
-    out.sayings.push({ id: `SY-${s.id}`, lv: s.stage, d: D[s.d] || 5, area: "Sayings", q: `What does this mean? ${shown}`, o: options, a: [options.indexOf(s.meaning)], s: 1,
-      x: `${s.meaning[0].toUpperCase()}${s.meaning.slice(1)}.${s.literal ? ` Literally: ${s.literal}.` : ""}${s.origin ? ` ${s.origin}` : ""}`, about: [s.id] });
+    const x = `${s.meaning[0].toUpperCase()}${s.meaning.slice(1)}.${s.literal ? ` Literally: ${s.literal}.` : ""}${s.from ? ` From ${s.from}.` : ""}${s.origin ? ` ${s.origin}` : ""}`;
+    out.sayings.push({ id: `SY-${s.id}`, lv: s.stage, d: D[s.d] || 5, area: "Sayings", q: `What does this mean? ${shown}`, o: options, a: [options.indexOf(s.meaning)], s: 1, x, about: [s.id] });
+    // a saying from a film, a show, a book or a game is also asked where it comes from, against three it could have been
+    if (s.from && (s.fromWrong || []).length >= 3) {
+      const from = order(s.id + "from", [s.from, ...s.fromWrong.slice(0, 3)]);
+      out.sayings.push({ id: `SY-${s.id}-from`, lv: s.stage, d: D[s.d] || 5, area: "Sayings", q: `Where does this come from? “${s.text}”`, o: from, a: [from.indexOf(s.from)], s: 1, x, about: [s.id] });
+    }
   }
   return out;
 }
