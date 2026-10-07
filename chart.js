@@ -29,6 +29,9 @@ const poolOf = ({ topic = "all", region = "world" } = {}) => PLACES.filter(p => 
 const capOf = sel => capFor(sel.topic || "all", new Set(poolOf(sel).map(p => p.cat)).size);
 import { LAND, BORDERS } from "./world.js";
 import { DETAIL } from "./chart-detail.js";
+import { ISLANDS, ISLAND_DOTS } from "./chart-islands.js";
+// each island's box, so drawing skips those out of view without projecting them
+const ISLAND_BOX = ISLANDS.map(([ring]) => { const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]); return [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)]; });
 // the box each detailed coastline covers: coarse land wholly inside it gives way to the detail
 const DETAIL_BOX = Object.fromEntries(Object.entries(DETAIL).map(([k, polys]) => { const pts = polys.flatMap(p => p[0]);
   return [k, [Math.min(...pts.map(q => q[0])), Math.max(...pts.map(q => q[0])), Math.min(...pts.map(q => q[1])), Math.max(...pts.map(q => q[1]))]]; }));
@@ -174,16 +177,34 @@ function drawMap(ctx, proj, win, w, h, detail = null, fineBorders = false) {
   const inView = ring => ring.some(([lon, lat]) => lon >= win.lon0 - 5 && lon <= win.lon1 + 5 && lat >= win.lat0 - 5 && lat <= win.lat1 + 5)
     || ring.some(([lon]) => lon < win.lon0) && ring.some(([lon]) => lon > win.lon1);
   const box = detail && DETAIL_BOX[detail], inside = ring => box && ring.every(([lon, lat]) => lon >= box[0] && lon <= box[1] && lat >= box[2] && lat <= box[3]);
+  // every coastline is outlined as well as filled, so small islands and archipelagos stand out, even in the night palette
+  const coast = new Path2D(), specks = new Path2D(), SPECK = 1.7;
+  const trace = (path, ring) => { ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) path.moveTo(x, y); else path.lineTo(x, y); }); path.closePath(); };
   for (const poly of [...LAND.filter(p => !inside(p[0])), ...(detail ? DETAIL[detail] : [])]) {
     if (!inView(poly[0])) continue;
-    ctx.beginPath();
-    for (const ring of poly) {
-      ring.forEach(([lon, lat], i) => { const [x, y] = proj.toXY(lon, lat); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-      ctx.closePath();
-    }
-    ctx.fill("evenodd");
+    const shape = new Path2D();
+    for (const ring of poly) { trace(shape, ring); trace(coast, ring); }
+    ctx.fill(shape, "evenodd");
   }
+  // the islands the coarse map leaves out (chart-islands.js); one too small to see at this zoom is drawn as a speck
+  const seen = ([x0, x1, y0, y1]) => x1 >= win.lon0 - 1 && x0 <= win.lon1 + 1 && y1 >= win.lat0 - 1 && y0 <= win.lat1 + 1;
+  const speck = (lon, lat) => { const [x, y] = proj.toXY(lon, lat); specks.moveTo(x + SPECK, y); specks.arc(x, y, SPECK, 0, 2 * Math.PI); };
+  ISLANDS.forEach((poly, k) => {
+    const b = ISLAND_BOX[k];
+    if (!seen(b) || (box && b[0] >= box[0] && b[1] <= box[1] && b[2] >= box[2] && b[3] <= box[3])) return;
+    const [ax, ay] = proj.toXY(b[0], b[2]), [bx, by] = proj.toXY(b[1], b[3]);
+    if (Math.max(Math.abs(bx - ax), Math.abs(by - ay)) < 2 * SPECK) { if (poly[1]) speck((b[0] + b[1]) / 2, (b[2] + b[3]) / 2); return; }   // a coastal islet waits until it's big enough
+    const shape = new Path2D(); trace(shape, poly[0]); trace(coast, poly[0]); ctx.fill(shape);
+  });
+  for (const [lon, lat] of ISLAND_DOTS) if (seen([lon, lon, lat, lat])) speck(lon, lat);
+  ctx.fill(specks);
   const span = win.lon1 - win.lon0;
+  ctx.strokeStyle = css("--ch-coast");
+  ctx.lineJoin = "round";
+  ctx.lineWidth = span > 100 ? 1.1 : 1.5;
+  ctx.stroke(coast);
+  ctx.lineWidth = 1;
+  ctx.stroke(specks);
   ctx.strokeStyle = css("--ch-border");
   ctx.lineWidth = span > 100 ? 0.6 : 1.1;
   ctx.beginPath();
@@ -191,7 +212,7 @@ function drawMap(ctx, proj, win, w, h, detail = null, fineBorders = false) {
   ctx.stroke();
   if (span <= 60) {                                              // a light graticule helps judge scale when zoomed in
     const step = span > 30 ? 5 : span > 12 ? 2 : 1;
-    ctx.strokeStyle = "rgba(0,0,0,.08)";
+    ctx.strokeStyle = css("--ch-grid");
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let lon = Math.ceil(win.lon0 / step) * step; lon <= win.lon1; lon += step) { const [x] = proj.toXY(lon, 0); ctx.moveTo(x, 0); ctx.lineTo(x, h); }
@@ -293,6 +314,11 @@ function gestures(name) {
     const after = projFor(name).proj.toLonLat(px, py);
     views[name] = clampView({ ...views[name], lon: views[name].lon + before[0] - after[0], my: views[name].my + merc(before[1]) - merc(after[1]) }, w, h);
   };
+  // Safari on the iPhone pinches the whole page unless it's told not to: its own gesture events, and touches of two
+  // fingers moving, are refused on the map, so the pinch reaches the pointer handlers below and zooms the map instead
+  for (const type of ["gesturestart", "gesturechange", "gestureend"]) canvas.addEventListener(type, e => e.preventDefault(), { passive: false });
+  canvas.addEventListener("touchstart", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  canvas.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   canvas.addEventListener("pointerdown", e => {
     try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer */ }
     pointers.set(e.pointerId, at(e));

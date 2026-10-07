@@ -1,10 +1,10 @@
 /* Chart: a map on a card; tap it, fine-tune in the close-up, pin. Sea blue is the house colour. */
-:root { --ch-in: #2C5B8A; --ch-in-soft: color-mix(in srgb, var(--ch-in) 15%, var(--sheet)); --ch-sea: #D3DDDF; --ch-land: #F3ECDC; --ch-border: #BFA97A; --ch-good: #2F7D5B; --ch-bad: #A8382B; --ch-edge: var(--tile-edge); }
+:root { --ch-in: #2C5B8A; --ch-in-soft: color-mix(in srgb, var(--ch-in) 15%, var(--sheet)); --ch-sea: #C9D7DC; --ch-land: #F3ECDC; --ch-border: #BFA97A; --ch-coast: #9E9070; --ch-grid: rgba(0,0,0,.08); --ch-good: #2F7D5B; --ch-bad: #A8382B; --ch-edge: var(--tile-edge); }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #0E1A23; --ch-land: #263340; --ch-border: #5E5134; }
+  html:not([data-mode="day"]) { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #060E15; --ch-land: #4A5A50; --ch-border: #9C8A5C; --ch-coast: #A9BBAD; --ch-grid: rgba(255,255,255,.08); }
 }
 /* night, set in Settings */
-html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #0E1A23; --ch-land: #263340; --ch-border: #5E5134; }
+html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806F; --ch-sea: #060E15; --ch-land: #4A5A50; --ch-border: #9C8A5C; --ch-coast: #A9BBAD; --ch-grid: rgba(255,255,255,.08); }
 
 .ch-mark { display: inline-block; }
 .ch-mark svg { width: 100%; height: 100%; display: block; }
