@@ -105,8 +105,22 @@ const gapText = ms => {
 };
 
 // ---------- the review ----------
+/**
+ * Language words come in a block per language (Chinese together, French together), where that language's first word
+ * would have come; within a block they're shuffled, not in chapter order: a chapter is Parley's to drill.
+ */
+function arrange(items) {
+  const out = [], blocks = new Map();
+  for (const it of items) {
+    const lang = it.game === "parley" ? COURSES.find(c => c.id === it.payload?.course)?.lang ?? it.payload?.course : null;
+    if (!lang) { out.push(it); continue; }
+    if (!blocks.has(lang)) { blocks.set(lang, []); out.push({ block: lang }); }
+    blocks.get(lang).push(it);
+  }
+  return out.flatMap(x => (x.block ? shuffle(Math.random, blocks.get(x.block)) : [x]));
+}
 function startReview() {
-  const items = pile.due().slice(0, MAX_REVIEW);
+  const items = arrange(pile.due().slice(0, MAX_REVIEW));
   if (!items.length) { overview(); return; }
   session = { items, at: 0, right: 0, wrong: 0 };
   $("overview").hidden = true;
