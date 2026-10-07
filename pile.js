@@ -2,7 +2,8 @@
 // it, pass on it, or barely stake on it, and when it comes back and you get it right it moves up a pile; wrong,
 // and it drops to the first. Six piles with growing gaps, Leitner's boxes on Pimsleur's clock: ultra-short
 // (due at once, for the next block), short (ten minutes), medium (twelve hours), long (a week), longer (a month),
-// longest (three months); right in the longest pile and it's learned. (Until October 2026 the week was the last;
+// longest (three months); right in the longest pile and it's learned. Chess puzzles skip the short-term piles: ultra-short,
+// a week, three months. (Until October 2026 the week was the last;
 // items learned then come back once, a month after they were learned.) Every item that comes back, right or wrong,
 // goes to the Ledger's record with how long it was away (ledger-log.js). Learning mode lets each game's dealer draw what's due into its next block, alongside
 // new content. Deck is the tile that reviews everything due, across the games.
@@ -18,6 +19,16 @@ export const PILES = [
   { id: 4, name: "Longer", gap: 30 * DAY },
   { id: 5, name: "Longest", gap: 91 * DAY },
 ];
+// the piles a game's items climb through. Most use every pile; a chess puzzle skips the short-term ones (a tactic seen
+// ten minutes or twelve hours ago is still in mind, so passing it then proves little): ultra-short, then a week, then
+// three months, then learned
+const LADDER = { rush: [0, 3, 5] };
+/** The pile an item moves to when it's right, or null if that makes it learned. */
+export function nextPile(game, pile) {
+  const steps = LADDER[game] || PILES.map(p => p.id);
+  const next = steps.find(s => s > pile);
+  return next === undefined ? null : next;
+}
 export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Rush", slate: "Slate", parley: "Parley", brut: "Brut" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -83,8 +94,9 @@ export function answer(game, key, right) {
   noteRecall(now - (it.last?.at ?? it.added), right);
   if (right) {
     it.passes++;
-    if (it.pile >= PILES.length - 1) { it.learned = now; it.due = Infinity; }
-    else { it.pile++; it.due = now + PILES[it.pile].gap; }
+    const next = nextPile(it.game, it.pile);
+    if (next === null) { it.learned = now; it.due = Infinity; }
+    else { it.pile = next; it.due = now + PILES[next].gap; }
   } else {
     it.fails++;
     it.pile = 0;

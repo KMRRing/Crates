@@ -17,6 +17,16 @@ for (let i = 0; i < P.PILES.length - 1; i++) it = P.answer("punt", "words/WD-001
 check(it.pile === 5 && !it.learned && Math.round((it.due - Date.now()) / 86400000) === 91, "five rights in a row from the bottom: the longest pile, back in three months (a week, then a month, then a quarter)");
 it = P.answer("punt", "words/WD-001", true);
 check(!!it.learned && P.counts().learned === 1 && P.due("punt").length === 0, "right once more: learned");
+// a chess puzzle skips the short-term piles: ultra-short, then a week, then three months, then learned
+P.record("rush", "puzzle-1", { fen: "x" }, "wrong");
+let ch = P.answer("rush", "puzzle-1", true);
+const days = x => Math.round((x.due - Date.now()) / 86400000);
+check(ch.pile === 3 && days(ch) === 7, `a chess puzzle right from the ultra-short pile: the week pile, back in ${days(ch)} days`);
+ch = P.answer("rush", "puzzle-1", true);
+check(ch.pile === 5 && days(ch) === 91, `right again: the three-month pile, back in ${days(ch)} days`);
+ch = P.answer("rush", "puzzle-1", true);
+check(!!ch.learned, "right once more: learned");
+ch = P.answer("rush", "puzzle-1", false);
 P.record("punt", "words/WD-001", {}, "wrong");
 check(!P.all("punt")[0].learned && P.all("punt")[0].pile === 0, "a miss on a learned item brings it back to the first pile");
 check(P.has("quote", "tr-01") && !P.has("quote", "nope"), "has() knows what's banked");
