@@ -24,7 +24,7 @@ export function program(text) {
 // The campaign's chapters, region by region: each teaches four or five ideas, the hardest timing last.
 export const CHAPTERS = [
   { id: "baltic", name: "The Baltic", note: "learning to move" },
-  { id: "nwe", name: "North-West Europe", note: "learning to trade" },
+  { id: "nwe", name: "North-West Europe", note: "learning to trade and blend" },
   { id: "straits", name: "The Straits", note: "mastering timing" },
 ];
 
@@ -107,7 +107,7 @@ export const LEVELS = [
   },
   {
     id: "first-blend", name: "First blend",
-    chapter: "baltic", teaches: "blending to a spec",
+    chapter: "nwe", teaches: "blending to a spec",
     rev: 4,              // FAME at $5k (the Handy's exact blend cheapest again): plans and bests from before don't carry over
     brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $5k. The customer (D) takes two an hour, at least 20% FAME. Twenty units.",
     map: [
@@ -135,35 +135,6 @@ export const LEVELS = [
       ] },
       { par: ["water", "instructions"], ships: [
         { x: 4, y: 1, h: 0, type: "handy", prog: program("(10L)A(3S)(5D)(3A)(3S)(2A)") },
-      ] },
-    ],
-  },
-  {
-    id: "roundabout", name: "Roundabout",              // found by the level lab
-    chapter: "nwe", teaches: "ships sharing one route",
-    brief: "Both berths are dead ends off a ring round a little island: the refinery (L) to the east, the customer (D) to the west, taking four units an hour. Sixteen units.",
-    map: [
-      "#######",
-      "##...##",
-      "##.#.L#",
-      "#D..###",
-      "#######",
-    ],
-    products: { oil: { name: "Oil", price: 0 } },
-    jetties: {
-      L: { kind: "load", product: "oil", parcel: 2 },
-      D: { kind: "discharge", parcel: 4 },
-    },
-    fleet: { coaster: 3 }, target: 16, maxCycles: 500,
-    par: { cost: 20, hours: 23, water: 9, instructions: 10 },
-    plans: [
-      { par: ["cost", "water", "instructions"], ships: [
-        { x: 5, y: 2, h: 0, type: "coaster", prog: program("(2L)BPB(3P)ADB(3P)S") },
-      ] },
-      { par: ["hours", "water"], ships: [
-        { x: 4, y: 2, h: 4, type: "coaster", prog: program("ASADB(3S)AS(2L)BS") },
-        { x: 2, y: 3, h: 3, type: "coaster", prog: program("(3S)AS(2L)BSASADB") },
-        { x: 5, y: 2, h: 5, type: "coaster", prog: program("(2L)BSASADB.(3S)AS") },
       ] },
     ],
   },
@@ -295,6 +266,35 @@ export const LEVELS = [
         { x: 7, y: 2, h: 5, type: "handy", prog: program("(3L)(2S)(3D)(2A)(3S)(2A)S") },
         { x: 3, y: 2, h: 2, type: "coaster", prog: program("(2L)(2S)A(2D)A(3S)(2A)S") },
         { x: 5, y: 3, h: 3, type: "coaster", prog: program("(2A)S(2.)(2L)(2S)A(2D)A(3S)") },
+      ] },
+    ],
+  },
+  {
+    id: "roundabout", name: "Roundabout",              // found by the level lab
+    chapter: "straits", teaches: "ships sharing one route",
+    brief: "Both berths are dead ends off a ring round a little island: the refinery (L) to the east, the customer (D) to the west, taking four units an hour. Sixteen units.",
+    map: [
+      "#######",
+      "##...##",
+      "##.#.L#",
+      "#D..###",
+      "#######",
+    ],
+    products: { oil: { name: "Oil", price: 0 } },
+    jetties: {
+      L: { kind: "load", product: "oil", parcel: 2 },
+      D: { kind: "discharge", parcel: 4 },
+    },
+    fleet: { coaster: 3 }, target: 16, maxCycles: 500,
+    par: { cost: 20, hours: 23, water: 9, instructions: 10 },
+    plans: [
+      { par: ["cost", "water", "instructions"], ships: [
+        { x: 5, y: 2, h: 0, type: "coaster", prog: program("(2L)BPB(3P)ADB(3P)S") },
+      ] },
+      { par: ["hours", "water"], ships: [
+        { x: 4, y: 2, h: 4, type: "coaster", prog: program("ASADB(3S)AS(2L)BS") },
+        { x: 2, y: 3, h: 3, type: "coaster", prog: program("(3S)AS(2L)BSASADB") },
+        { x: 5, y: 2, h: 5, type: "coaster", prog: program("(2L)BSASADB.(3S)AS") },
       ] },
     ],
   },
