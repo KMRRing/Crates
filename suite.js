@@ -203,7 +203,10 @@ function dailyOf(app) {
 /** A game's figure for its tile, as data: { kind, v }, or for a daily game { kind, best, day, today }; null if none yet. */
 export function markOf(app) {
   const kind = MARKS[app] || "best", k = keyOf(app), d = today();
-  if (kind === "streak") { const r = json(`${k}:streak`, null); return r?.best ? { kind, v: r.best } : null; }
+  if (kind === "streak") {                                     // Crates carries today's board too, which its tile shows first
+    const r = json(`${k}:streak`, null), t = app === "crates" ? comparableOf("crates").today : null;
+    return r?.best || t != null ? { kind, v: r?.best || 0, day: d, today: t } : null;
+  }
   if (kind === "time" || kind === "count") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
   if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
   if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }

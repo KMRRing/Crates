@@ -269,15 +269,19 @@ const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === 
       <span class="app-logo">${a.logo}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
 /**
- * A tile's line: your figure and your partner's (by initial). A streak, today's time or count, stars, or a best; for a
- * game with a daily, today's results when either of you has played today's (a dash for whoever hasn't), otherwise the bests.
+ * A tile's line: your figure and your partner's (by initial). A streak, today's time or count, stars, or a best; today's
+ * board, puzzle or run first, when either of you has played it (a dash for whoever hasn't): Crates, Slate, Delta, Punt and
+ * the other daily games.
  */
 function tileText(id, mine, theirs, P) {
   const kind = MARKS[id] || "best", d = today(), clock = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
-  if (kind === "daily") {
-    const a = mine?.day === d ? mine.today ?? null : null, b = theirs?.day === d ? theirs.today ?? null : null;
-    if (a != null || b != null) return [`Today ${a != null ? scoreText(id, a) : "—"}`, theirs ? `${P} ${b != null ? scoreText(id, b) : "—"}` : ""].filter(Boolean).join(" · ");
-    return [mine?.best != null ? `Best ${scoreText(id, mine.best)}` : "", theirs?.best != null ? `${P} ${scoreText(id, theirs.best)}` : ""].filter(Boolean).join(" · ");
+  // today's comes first: once either of you has played today's board, puzzle or run (Crates, Slate, Delta, Punt and the
+  // other daily games), both tiles show how it went, a dash for whoever hasn't
+  if (kind === "daily" || kind === "time" || id === "crates") {
+    const todayOf = m => (m?.day === d ? (kind === "time" ? m.v : m.today) ?? null : null), a = todayOf(mine), b = todayOf(theirs);
+    const show = v => (kind === "time" ? clock(v) : scoreText(id, v));
+    if (a != null || b != null) return [`Today ${a != null ? show(a) : "—"}`, theirs ? `${P} ${b != null ? show(b) : "—"}` : ""].filter(Boolean).join(" · ");
+    if (kind === "daily") return [mine?.best != null ? `Best ${scoreText(id, mine.best)}` : "", theirs?.best != null ? `${P} ${scoreText(id, theirs.best)}` : ""].filter(Boolean).join(" · ");
   }
   const today_ = m => (kind === "time" || kind === "count" ? m?.day === d : true) ? m : null;    // a day's figure is today's or nothing
   const show = m => (kind === "time" ? clock(m.v) : kind === "stars" ? `★ ${m.v}` : kind === "best" ? scoreText(id, m.v) : String(m.v));
