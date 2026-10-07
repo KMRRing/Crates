@@ -402,7 +402,10 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     }
     // an anonymous work (the Tale of the Heike) is asked only which work it is; "Anonymous" is never a wrong author
     if (!author.anonymous) out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.filter(a => !a.anonymous && !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
-    out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, [...new Set(otherWorks.filter(w => w.form !== "scripture").map(w => w.name))].filter(n => n !== work.name)));
+    // a long title among short ones would give itself away: for a long one, the nearest thirty are taken by length
+    let titles = [...new Set(otherWorks.filter(w => w.form !== "scripture").map(w => w.name))].filter(n => n !== work.name);
+    if (work.name.length > 24) titles = [...titles.slice(0, 30).sort((p, q) => Math.abs(p.length - work.name.length) - Math.abs(q.length - work.name.length) || (p < q ? -1 : 1)), ...titles.slice(30)];
+    out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, titles));
   }
   // Sayings: what one means. A saying in another language shows its literal rendering unless it's iconic; the wrong
   // meanings are written for it, the misreadings someone might really make.
