@@ -1,0 +1,71 @@
+/* Calibre: a strip, the brief (task and goals), the plate filling what's left, the tray and the controls below */
+.calibre .cb-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .45rem; color: var(--ink-soft); font-size: .9rem; }
+.cb-stars { color: var(--brass-lo, var(--brass)); letter-spacing: .1em; white-space: nowrap; }
+.cb-brief { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .6rem .8rem; margin-bottom: .5rem; }
+.cb-task { margin: 0 0 .35rem; font-weight: 700; line-height: 1.3; }
+.cb-goals { list-style: none; margin: 0; padding: 0; font-size: .82rem; color: var(--ink-soft); }
+.cb-goals li { padding-left: 1.2em; position: relative; line-height: 1.35; }
+.cb-goals li::before { content: "○"; position: absolute; left: 0; }
+.cb-goals li.ok { color: #2F7D5B; }
+.cb-goals li.ok::before { content: "●"; }
+.cb-goals li.bad { color: #A8402F; }
+.cb-goals li.bad::before { content: "!"; font-weight: 800; }
+.cb-link { background: none; border: 0; padding: 0; margin-top: .3rem; color: var(--brass-lo, var(--brass)); font: inherit; font-size: .82rem; text-decoration: underline; cursor: pointer; }
+.cb-stage { position: relative; min-height: 0; border: 1px solid var(--tile-edge); border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--sheet) 70%, var(--tile)); }
+.cb-plan { width: 100%; height: 100%; display: block; touch-action: none; user-select: none; -webkit-user-select: none; }
+.cb-zoom { position: absolute; top: .4rem; right: .4rem; display: grid; gap: .25rem; }
+.cb-zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; }
+.cb-inspect { position: absolute; left: .4rem; bottom: .4rem; max-width: min(92%, 22rem); background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 8px; padding: .45rem .6rem; font-size: .8rem; }
+.cb-inspect[hidden] { display: none; }
+.cb-in-head { margin: 0 0 .2rem; font-weight: 700; }
+.cb-in-row { margin: .1rem 0; display: flex; gap: .5rem; align-items: center; justify-content: space-between; }
+.cb-x { background: none; border: 1px solid var(--tile-edge); border-radius: 6px; padding: .1rem .45rem; font: inherit; font-size: .75rem; color: var(--ink); cursor: pointer; }
+/* the plan: a brass plate; wheels in brass, pinions in steel, the barrel darker, the escape wheel blued; the layer in
+   hand drawn full, the others faint; the dial side dashed */
+.cb-plate { fill: color-mix(in srgb, #C9B07A 22%, var(--sheet)); stroke: var(--tile-edge); stroke-width: .08; }
+.cb-tick { stroke: var(--ink-soft); stroke-width: .08; }
+.cb-part path { stroke: #1C2A34; stroke-width: .05; opacity: .45; }
+.cb-part.on path { opacity: 1; }
+.cb-wheel path { fill: #D4A847; }
+.cb-pinion path { fill: #A9B4BC; }
+.cb-barrel path { fill: #9C7A2E; }
+.cb-escape path { fill: #3D6E9E; }
+.cb-part.dial path { stroke-dasharray: .25 .15; }
+.cb-part.clash path { fill: #C0392B; opacity: .85; }
+.cb-web { fill: none; stroke: #1C2A34; stroke-width: .05; opacity: .35; }
+.cb-spoke { stroke: #1C2A34; stroke-width: .12; opacity: .3; }
+.cb-mesh { fill: #2F7D5B; }
+.cb-pivot { fill: var(--sheet); stroke: #1C2A34; stroke-width: .07; cursor: pointer; }
+.cb-pivot.fixed { fill: #A8402F; }
+.cb-pivot.post { fill: #1C2A34; }
+.cb-pivot.sel { stroke: var(--brass); stroke-width: .18; }
+.cb-label { font-size: .55px; text-anchor: middle; fill: var(--ink); font-family: var(--font, sans-serif); pointer-events: none; }
+.cb-hand line { stroke: #1C2A34; stroke-linecap: round; }
+.cb-minute line { stroke-width: .28; }
+.cb-hour line { stroke-width: .42; }
+.cb-seconds line { stroke-width: .14; stroke: #A8402F; }
+.cb-balance circle { fill: none; stroke: #8F6A1E; stroke-width: .18; }
+.cb-balance line { stroke: #8F6A1E; stroke-width: .12; }
+/* the tray and the controls */
+.cb-tray { flex: none; display: flex; gap: .35rem; overflow-x: auto; padding: .5rem 0 .3rem; scrollbar-width: none; font-size: .85rem; color: var(--ink-soft); }
+.cb-chip { flex: none; border: 1.5px solid var(--tile-edge); border-radius: 999px; padding: .35rem .7rem; background: var(--tile); color: var(--ink); font: inherit; font-size: .85rem; cursor: pointer; }
+.cb-chip.cb-wheel { border-color: #C9952F; }
+.cb-chip.cb-pinion { border-color: #8A949C; }
+.cb-chip.on { background: var(--brass); color: var(--sheet); border-color: var(--brass); }
+.cb-chip:disabled { opacity: .35; cursor: default; }
+.cb-controls { flex: none; display: flex; gap: .5rem; align-items: center; justify-content: space-between; padding-bottom: .2rem; }
+.cb-layers { display: flex; gap: .2rem; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.cb-layer { flex: none; min-width: 1.9rem; border: 1px solid var(--tile-edge); border-radius: 6px; padding: .3rem .45rem; background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem; cursor: pointer; }
+.cb-layer.dial { border-style: dashed; }
+.cb-layer.on { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.cb-wind { min-width: 5.5rem; }
+/* the sheets */
+.cb-primer p { line-height: 1.5; }
+.cb-how { color: var(--ink-soft); font-size: .9rem; border-top: 1px solid var(--tile-edge); padding-top: .6rem; }
+.cb-course h3 { margin: .9rem 0 .1rem; }
+.cb-ch-about { margin: 0 0 .4rem; color: var(--ink-soft); font-size: .88rem; }
+.cb-level { display: flex; justify-content: space-between; width: 100%; padding: .55rem .7rem; margin: .2rem 0; border: 1px solid var(--tile-edge); border-radius: 8px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; text-align: left; }
+.cb-level.here { border-color: var(--brass); }
+.cb-done-stars { font-size: 2rem; color: var(--brass-lo, var(--brass)); margin: .2rem 0; letter-spacing: .1em; }
+.cb-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: 90vw; background: var(--ink); color: var(--sheet); padding: .55rem .9rem; border-radius: 8px; font-size: .9rem; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 50; }
+.cb-toast.on { opacity: 1; }

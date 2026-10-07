@@ -438,3 +438,22 @@ The maths bank is typeset (October 2026): its maths is LaTeX between $…$, rend
 
 ## Bests that compare
 A best is only worth comparing if everyone played the same thing. So in the ranked games (Punt, Chart, Quote, Crates; `RANKED` in `suite.js`) the best on the games screen, and the one your partner sees, counts only comparable runs: the daily, and the game's Standard preset (everything in, default settings, learning off). Every daily is dealt on the device from the date (`today()` in `suite.js`, the UTC date, one for every game, so it works offline and rolls over at the same moment everywhere) with nothing of yours in it: no questions due from your pile, no name-it from your history, no narrowed selection. Punt has Today's run (the Standard settings: Balanced, every difficulty, 15 questions, name-it off), Crates Today's board (the mixed puzzles, one go, scored by points then time), Chart and Quote their sets of the day on everything. Other runs still play, learning mode keeps its review in them, and they keep their own bests in each game. `noteComparable(app, score, day)` keeps a game's comparable best and today's daily under `GAME:ranked`, synced like any best; the games screen shows both (Best +41% · Today +12%).
+
+## Calibre
+
+Learn watchmaking by drafting movements the way watchmakers do, on the calibre plan: the plate seen from above, each
+arbor a point, each wheel and pinion a circle of its pitch diameter on a layer (1 to 5 the train's, D1 and D2 the motion
+works under the dial). Choose a part from the tray, pick its layer and tap the plate: on an arbor to add it there, or
+near a wheel to set a new arbor that snaps into mesh. The engine (`calibre-engine.js`) runs the plan as kinematics, with
+real sizes (one module, 0.1 mm a tooth): meshing turns the next arbor the other way by the ratio of teeth, three wheels
+in a loop lock, no wheel may cover another arbor's pivot on its side of the plate, nothing may stick out of the plate,
+a barrel with no escapement runs away, and the balance's beat (vph over twice the escape wheel's teeth) sets the pace
+of the whole train. The goals show live what each arbor does and what it should; Wind runs the movement in time-lapse,
+hands and balance included, and a level is won only when the watch truly keeps time. Stars for par (fewest parts).
+
+The course (`calibre-levels.js`): 1 Gears (two wheels, direction and idlers, wheel and pinion, a locked triangle,
+clearance round a bridge post), 2 The going train (the centre wheel from the barrel, small seconds, choosing the tooth
+counts), 3 The escapement (18,000 vph and a 15-tooth escape wheel, 28,800 and a 20-tooth, choosing the balance), 4 The
+motion works (the minute wheel, twelve to one with equal centre distances, the whole watch). `tests/calibre.mjs` proves
+the engine's rules and that every level is unsolved at the start and solved by its worked solution, from its tray,
+within par. Menu: speed (real time, a minute a second, twelve minutes a second), start again, show a solution.

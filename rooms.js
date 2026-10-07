@@ -18,6 +18,7 @@ export const GAMES = {
   origin: { name: "Origin", page: "./origin.html" },
   order: { name: "Order", page: "./order.html" },
   arb: { name: "Arb", page: "./arb.html" },
+  calibre: { name: "Calibre", page: "./calibre.html" },
   manifest: { name: "Manifest", page: "./manifest.html" },
   chart: { name: "Chart", page: "./chart.html" },
   survey: { name: "Survey", page: "./survey.html" },

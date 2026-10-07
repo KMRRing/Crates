@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Calibre</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="calibre.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="calibre fit-screen">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon cb-mark" aria-hidden="true"></span>Calibre</button></h1>
+    <div class="top-right"><button id="courseBtn" class="pick" aria-haspopup="dialog">Course</button><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+  <div class="cb-strip"><span id="where"></span><span id="stars" class="cb-stars"></span></div>
+  <section class="cb-brief">
+    <p id="task" class="cb-task"></p>
+    <ul id="goals" class="cb-goals" aria-label="Goals"></ul>
+    <button id="primerBtn" class="cb-link" type="button">How it works</button>
+  </section>
+  <div id="stage" class="cb-stage fit-grow">
+    <svg id="plan" class="cb-plan" aria-label="The calibre plan: tap to place the chosen part; drag to move, pinch to zoom"></svg>
+    <div class="cb-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button></div>
+    <div id="inspect" class="cb-inspect" hidden></div>
+  </div>
+  <div id="tray" class="cb-tray" aria-label="Parts"></div>
+  <div class="cb-controls">
+    <div id="layers" class="cb-layers" role="radiogroup" aria-label="Layer"></div>
+    <button id="windBtn" class="btn cb-wind" type="button">Wind</button>
+  </div>
+</div>
+<dialog id="primerDlg" class="sheet" aria-label="How it works">
+  <div class="pick-head"><h2 id="primerTitle">How it works</h2><button class="btn" type="button" id="primerClose">Close</button></div>
+  <div id="primerBody" class="cb-primer"></div>
+</dialog>
+<dialog id="courseDlg" class="sheet" aria-label="Course">
+  <div class="pick-head"><h2>Course</h2><button class="btn" type="button" id="courseClose">Close</button></div>
+  <div id="courseBody" class="cb-course"></div>
+</dialog>
+<dialog id="doneDlg" class="sheet" aria-label="It runs">
+  <div class="pick-head"><h2 id="doneTitle">It runs</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div id="doneBody"></div>
+</dialog>
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+<p id="toast" class="cb-toast" role="status" aria-live="polite"></p>
+<script type="module" src="calibre.js"></script>
+</body>
+</html>
