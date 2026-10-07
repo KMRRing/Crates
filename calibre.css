@@ -153,3 +153,7 @@ path.cb-fork { fill: #C3CBD1; }
 .cb-cagearm { stroke: #3D6E9E; stroke-width: .3; stroke-linecap: round; }
 .cb-cagering { fill: none; stroke: #3D6E9E; stroke-width: .18; }
 .cb-escape-in-cage { fill: #4A78A8; }
+
+.cb-trip { stroke: #A8402F; stroke-width: .16; stroke-linecap: round; }
+.cb-trippin { fill: #A8402F; }
+.cb-strike button { white-space: nowrap; }

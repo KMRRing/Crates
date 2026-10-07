@@ -206,6 +206,8 @@ function judgeOne(level, design) {
     }
     if (g.calendar) { const bad = calendarErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
     if (g.snail) { const bad = snailErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
+    if (g.alarm != null) { const m = alarmMinutes(design, g); return { goal: g, ok: m.length === 1 && m[0] === g.alarm, actual: m }; }
+    if (g.amplitude) { const a = amplitudeOf(level, design, out); return { goal: g, ok: a != null && a >= g.amplitude, actual: a }; }
     if (g.still) { const r = out.rates[g.arbor]; return { goal: g, ok: !r, actual: r }; }
     if (g.reset) { const missing = g.reset.filter(id => !(design.arbors.find(a => a.id === id)?.parts || []).some(p => p.kind === "heart")); return { goal: g, ok: !missing.length, actual: missing }; }
     const actual = out.rates[g.arbor];
@@ -249,11 +251,40 @@ export function calendarErrors(design, g) {
  * of twelve. That step's depth sets how many teeth the rack falls, and so how many blows the hammer strikes.
  */
 export function snailErrors(design, g) {
-  const sn = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "snail");
+  const a = design.arbors.find(x => x.id === g.snail), sn = (a?.parts || []).find(p => p.kind === "snail");
   if (!sn) return null;
-  const bad = [];
-  for (let h = 1; h <= 12; h++) if (sn.steps[(12 - (h % 12)) % 12] !== h) bad.push(h);
-  return bad;
+  const n = sn.steps.length, values = n === 12 ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] : Array.from({ length: n }, (_, i) => i);
+  return values.filter(v => sn.steps[(n - (v % n)) % n] !== v);
+}
+
+/**
+ * When an alarm lets go, minute by minute over twelve hours. A trip on the hour wheel drops into the setting disc's
+ * notch over a twelve-minute window; a trip on the cannon pinion (the minute) drops in for just one minute each hour.
+ * The alarm is released only while every fitted trip is down. Returns the minutes after twelve when it sounds.
+ */
+export const HOUR_NOTCH = 12;
+export function alarmMinutes(design, g) {
+  const trips = design.arbors.flatMap(a => (a.parts || []).filter(p => p.kind === "trip").map(p => p.on));
+  if (!trips.length) return [];
+  const out = [];
+  for (let t = 0; t < 720; t++) {
+    const hourDown = Math.abs(((t - g.alarm + 360) % 720) - 360) < HOUR_NOTCH / 2, minuteDown = t % 60 === g.alarm % 60;
+    if ((!trips.includes("hour") || hourDown) && (!trips.includes("minute") || minuteDown)) out.push(t);
+  }
+  return out;
+}
+
+/**
+ * The balance's amplitude, from the force reaching it: the spring's torque divided by the train's speed-up from barrel
+ * to escape wheel, and a few per cent lost at every mesh. A level states a reference train and its amplitude; below
+ * about 200 degrees a watch keeps poor time, below 150 it may stop.
+ */
+export function amplitudeOf(level, design, out) {
+  const b = design.arbors.find(a => a.power != null), esc = out.escapements.find(e => e.state === "running" && out.rates[e.escape]);
+  if (!level.amplitude || !b || !esc || !out.rates[b.id]) return null;
+  const ratio = Math.abs(out.rates[esc.escape] / out.rates[b.id]), steps = workings(design, out, esc.escape)?.length || 0;
+  const { ref, refRatio, refSteps = 4, eta = 0.97 } = level.amplitude;
+  return Math.min(315, ref * Math.sqrt(refRatio / ratio) * Math.pow(eta, steps - refSteps));
 }
 
 /** The power reserve: hours a fully wound mainspring lasts at the barrel's rate (needs a running escapement). */

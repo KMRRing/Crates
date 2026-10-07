@@ -39,7 +39,7 @@ const turn = (c, p, deg) => { const a = (deg * Math.PI) / 180, dx = p.x - c.x, d
 // the chronograph, a module under the dial driven from the fourth wheel: the coupling wheel swings on a lever about the
 // fourth wheel's arbor, always in mesh with its driving wheel, in mesh with the chronograph wheel only when started;
 // the driving and chronograph wheels (60 each) stand a millimetre apart, so they never touch each other
-const SECONDS = { x: 0, y: 7 }, C_ON = meet(SECONDS, 5.0, { x: 0, y: 0 }, 5.0, -1), C_OFF = turn(SECONDS, C_ON, 14), COUNTER = { x: 0, y: -5.4 };
+const SECONDS = { x: 0, y: 7 }, V_ON = meet(SECONDS, 4.0, { x: 0, y: 0 }, 4.0, 1), C_ON = meet(SECONDS, 5.0, { x: 0, y: 0 }, 5.0, -1), C_OFF = turn(SECONDS, C_ON, 14), V_OFF = turn(SECONDS, V_ON, -14), COUNTER = { x: 0, y: -5.4 };
 // automatic winding: the rotor's pinion at the centre, a reverser beside it, the reduction wheel to the ratchet
 const RATCHET_AT = { x: -3.182, y: -3.182 }, REV_A = { x: -2, y: 0 }, REDUCTION = meet(REV_A, 3.5, RATCHET_AT, 2.9, 1), REV_B = meet(REV_A, 3.0, REDUCTION, 3.5, 1);
 // the Reverso: the barrel up in a corner, clear of the centre wheel; the third wheel where it meshes both, on the
@@ -520,6 +520,22 @@ export const LEVELS = [
     solution: { add: [{ at: { id: "a1", ...WEEK_INTER }, part: P(12, 1) }, { at: { id: "a1" }, part: W(75, 5) }, { arbor: "centre", part: P(10, 5) }] },
   },
 
+  {
+    id: "5.3", chapter: 5, title: "Force or hours", plate: 13,
+    primer: [
+      "Every gain in reserve is paid for in force. The spring's torque reaches the balance divided by the whole train's speed-up from barrel to escape wheel, and a few per cent is lost at every mesh.",
+      "The balance shows it in its amplitude, how far it swings each way: a healthy watch swings 270 to 300 degrees; below about 230 it starts to lose accuracy, and below 150 it may stop.",
+      "Here you need both: a reserve of at least 45 hours and an amplitude of at least 230 degrees.",
+    ],
+    task: "Fit a barrel and a centre pinion that give at least 45 hours without starving the balance.",
+    fixed: TRAIN().map(a => (a.id === "barrel" ? { ...a, label: "Barrel arbor", parts: [] } : a.id === "centre" ? { ...a, parts: [W(80, 2)] } : a)),
+    tray: [{ kind: "barrel", teeth: 78, n: 1 }, { kind: "barrel", teeth: 80, n: 1 }, { kind: "barrel", teeth: 82, n: 1 }, { kind: "barrel", teeth: 84, n: 1 }, ...tray(["pinion", 6], ["pinion", 8], ["pinion", 10], ["pinion", 12])],
+    amplitude: { ref: 280, refRatio: 4800, refSteps: 4 },
+    goals: [{ arbor: "seconds", rate: 60 }, { reserve: 45 }, { amplitude: 230 }],
+    par: 2,
+    solution: { add: [{ arbor: "barrel", part: { kind: "barrel", teeth: 82, layer: 1 } }, { arbor: "centre", part: P(8, 1) }] },
+  },
+
   // ---------- 6. Winding and setting ----------
   {
     id: "6.1", chapter: 6, title: "Winding", plate: 13,
@@ -676,6 +692,23 @@ export const LEVELS = [
     goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
     par: 1,
     solution: { add: [{ arbor: "escape", part: { kind: "escape", teeth: 30, layer: 9 } }] },
+  },
+
+  {
+    id: "8.4", chapter: 8, title: "Valjoux 7750", plate: 13,
+    primer: [
+      "The Valjoux 7750, designed by Edmond Capt in 1974, is the most widely used mechanical chronograph in the world: automatic, 28,800 vph, switched by cams and levers instead of a column wheel.",
+      "It couples with an oscillating pinion: a long pinion on a rocker, always driven from the seconds side, that tilts its teeth into the chronograph wheel to start and out to stop. Cheaper to make than a coupling wheel, and robust.",
+    ],
+    task: "Fit the oscillating pinion so the chronograph runs when started and stands still when stopped.",
+    scenarios: [{ id: "start", name: "Started", state: "start" }, { id: "stop", name: "Stopped", state: "stop" }],
+    fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
+      { id: "coupling", label: "Oscillating pinion", ...V_ON, positions: { start: V_ON, stop: V_OFF }, lever: SECONDS, parts: [] },
+      { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7)] }],
+    tray: tray(["pinion", 16], ["pinion", 20], ["pinion", 24]),
+    goals: [{ arbor: "seconds", rate: 60 }, { in: "start", arbor: "chrono", rate: 60 }, { in: "stop", arbor: "chrono", still: true }],
+    par: 1,
+    solution: { add: [{ arbor: "coupling", part: P(20, 7) }] },
   },
 
   // ---------- 9. The chronograph ----------
@@ -857,6 +890,25 @@ export const LEVELS = [
     solution: { add: [{ arbor: "column", part: { kind: "column", columns: 7, layer: 7 } }, { arbor: "column", part: { kind: "star", teeth: 14, r: 2.2, layer: 8 } }] },
   },
 
+  {
+    id: "12.3", chapter: 12, title: "The alarm", plate: 13,
+    primer: [
+      "Mechanical alarm watches, Vulcain's Cricket of 1947 and Jaeger-LeCoultre's Memovox of 1950 among them, let the alarm go when a trip on the hour wheel drops into a notch on the setting disc.",
+      "The hour wheel turns once in twelve hours, so its trip drops in over several minutes: the alarm goes off somewhere near the time, not on it. A trip on the minute's arbor, gating the release, makes it exact: it can drop in only during the set minute, and only when the hour trip is down too.",
+      "This alarm is set for 7:30.",
+    ],
+    task: "Fit the trips so the alarm goes off at 7:30 exactly, once in twelve hours.",
+    fixed: [
+      { id: "centre", label: "Cannon pinion (minutes)", x: 0, y: 0, drive: 1, parts: [P(10, 6)] },
+      { id: "hours", label: "Hour wheel", x: 0, y: 0, on: "centre", parts: [W(32, 7)] },
+      { id: "minute", label: "Minute wheel", x: 1.4142, y: 1.4142, parts: [W(30, 6), P(8, 7)] },
+    ],
+    tray: [{ kind: "trip", on: "hour", n: 1 }, { kind: "trip", on: "minute", n: 1 }],
+    goals: [{ alarm: 450 }],
+    par: 2,
+    solution: { add: [{ arbor: "hours", part: { kind: "trip", on: "hour", layer: 8 } }, { arbor: "centre", part: { kind: "trip", on: "minute", layer: 8 } }] },
+  },
+
   // ---------- 13. Calendars that know ----------
   {
     id: "13.1", chapter: 13, title: "The annual calendar", plate: 13,
@@ -905,6 +957,25 @@ export const LEVELS = [
     goals: [{ snail: "hours" }],
     par: 0,
     solution: { set: [{ arbor: "hours", kind: "snail", values: { steps: [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1] } }], add: [] },
+  },
+
+  {
+    id: "14.2", chapter: 14, title: "The quarters", plate: 13,
+    primer: [
+      "After the hours, a repeater strikes the quarters, ding-dong on both gongs, then the minutes past the quarter on the high gong. Quarters come from a four-step snail on the cannon pinion, turning once an hour; minutes from a snail beside it.",
+      "The quarter snail turns clockwise once an hour, and its rack reads it from twelve too: at quarter past, the step one place anticlockwise of twelve is under the rack.",
+      "Strike the time to hear the whole repeater: hours low, quarters double, minutes high.",
+    ],
+    task: "Set the quarter snail's steps so the repeater strikes the right quarters.",
+    fixed: [
+      { id: "centre", label: "Cannon pinion with its quarter snail", x: 0, y: 0, drive: 1, parts: [P(10, 6), { kind: "snail", steps: [0, 1, 2, 3], editable: true, layer: 8 }] },
+      { id: "hours", label: "Hour wheel with its snail", x: 0, y: 0, on: "centre", parts: [W(32, 7), { kind: "snail", steps: [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1], layer: 8 }] },
+      { id: "minute", label: "Minute wheel", x: 1.4142, y: 1.4142, parts: [W(30, 6), P(8, 7)] },
+    ],
+    tray: [],
+    goals: [{ snail: "centre" }],
+    par: 0,
+    solution: { set: [{ arbor: "centre", kind: "snail", values: { steps: [0, 3, 2, 1] } }], add: [] },
   },
 
   // ---------- 15. The tourbillon ----------
@@ -977,6 +1048,10 @@ const HELP = {
   "13.2": { hints: ["Every year as the annual calendar, plus February: 29 in the first year, 28 in the other three."], watch: [] },
   "14.1": { hints: ["Twelve stays at the top. At one o'clock the rack reads the step one place anticlockwise of twelve.", "Going anticlockwise from twelve: 1, 2, 3 … 11."], watch: ["The snail turns with the hours; the rack stands still."] },
   "15.1": { hints: ["The escape wheel must turn 600 times an hour relative to the cage, and the cage 60: ten times.", "80 teeth over 8 leaves is ten."], watch: [] },
+  "5.3": { hints: ["Reserve is five turns times the barrel ratio; amplitude falls as the square root of the ratio.", "82 over 8: 51 hours and about 247 degrees."], watch: ["The 84 over 6 gives 70 hours, but the balance barely swings."] },
+  "8.4": { hints: ["The pinion must be 4 mm from both the driving wheel's arbor and the centre when started.", "20 leaves: 1 mm of radius, plus the wheels' 3 mm."], watch: [] },
+  "12.3": { hints: ["One trip on the hour wheel, one on the cannon pinion.", "The hour trip alone gives a twelve-minute window; the minute trip alone goes off every hour."], watch: [] },
+  "14.2": { hints: ["Zero stays at the top: on the hour, no quarters.", "Anticlockwise from the top: 1, 2, 3."], watch: [] },
   "8.2": { hints: ["The third wheel goes to the right of the line from centre to seconds; the left is the escapement's.", "21,600 vph needs 72 over 6 at the end."], watch: ["A rectangle has corners to use and sides to hit."] },
 };
 for (const L of LEVELS) Object.assign(L, { hints: [], watch: [], ...HELP[L.id] });
