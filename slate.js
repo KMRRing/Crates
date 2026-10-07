@@ -6,7 +6,8 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { sextant } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
-import { reportDuo } from "./suite.js";
+import { reportDuo, today, noteDayTime } from "./suite.js";
+const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
 
@@ -325,8 +326,12 @@ function giveUp() {
 }
 
 function newBoard(level = S.level) {
-  if (!S.done && placements() && !confirm("Leave this board unfinished?")) { $("level").value = S.level; return; }
+  if (!S.done && placements() && !confirm("Leave this board unfinished?")) { $("level").value = S.daily ? "today" : S.level; return; }
   $("menuDlg").close();
+  if (level === "today") {                                     // today's puzzle: solo, timed for the games screen
+    if (room) { $("level").value = S.daily ? "today" : S.level; return; }
+    soloBoard(today(), DAILY_LEVEL); S.daily = today(); saveSolo(); render(); return;
+  }
   if (!room) { soloBoard(randomSeed(), level); return; }
   const seed = randomSeed(), board = generate(seed, level);
   act(g => { g.level = level; g.seed = seed; g.board = board; g.log = []; g.done = null; g.startedAt = Date.now(); });
@@ -336,6 +341,7 @@ function newBoard(level = S.level) {
 function afterChange() {
   if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) {
     clockPause();
+    if (S.daily && !room) noteDayTime("slate", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
     act(g => { if (g.done) return false; g.done = { won: true, at: Date.now() }; });
     return;
   }
@@ -508,7 +514,7 @@ function render() {
   const g = grid(), fs = fields(), letters = lettersFrom(S.board, S.log);
   if (!cursor || !g.cells.includes(cursor)) resetCursor();
   const slot = currentSlot(), left = limitsFor(S.level).checks - checksUsed(), hintsLeft = limitsFor(S.level).hints - hintsUsed();
-  $("level").value = S.level;
+  $("level").value = S.daily ? "today" : S.level;
   labelLeft($("checkBtn"), "Check", left);
   $("checkBtn").disabled = !!S.done || left === 0 || thinking;
   labelLeft($("hintBtn"), "Suggest", hintsLeft);

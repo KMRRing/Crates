@@ -490,3 +490,7 @@ synthesised gong; the quarter snail, and the whole repeater: hours low, quarters
 Mechanisms with states (started and stopped, the rotor either way, running and pressed) are judged in each, with
 buttons to switch between them. `tests/calibre.mjs` proves the engine's rules and that every level is unsolved at the
 start and solved by its worked solution, from its tray, within par.
+
+## The games screen's figures (October 2026)
+
+Each tile shows one figure, the same way for you and your partner (suite.js: markOf, shared by shareBests): a win streak, the longest (Crates, Cartel: noteStreak); today's time (Slate, Delta: noteDayTime, each with a Today's puzzle, today's date its seed, a medium board, the first solve timed); today's count (Deck's cards revised, Parley's lessons: noteDayCount); stars collected (Calibre, Harbour, Blend, Refinery: noteStars, Blend and Refinery three a level by margin against par); or a best. A game with a daily (Punt, Quote, Origin, Order, Chart) shows today's when either of you has played it, and otherwise the bests: Punt's from today's run or a preset with every difficulty, Chart's from everything worldwide, Order's without its History runs (the stories, once Stories). Rush's Standard is 3 minutes with a 5-second delay a puzzle: the clock waits, then runs, and never gains.

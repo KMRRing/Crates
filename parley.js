@@ -11,7 +11,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { speak as say, hasVoice } from "./voice.js";
 import { part, action, line, mirror } from "./menu.js";
-import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { today, noteDayCount } from "./suite.js";          // the day, the same for everyone (UTC)
 
 dropdown(document.getElementById("course"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -285,6 +285,7 @@ function next() { session.at++; show(); }
 function finish() {
   const s = session; session = null;
   home();
+  if (s && s.right + s.wrong > 0) noteDayCount("parley");          // lessons done today, on the games screen
   if (s) toast(`${s.right} right, ${s.wrong} wrong this session.`, 4000);
 }
 

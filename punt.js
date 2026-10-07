@@ -111,6 +111,9 @@ async function mixSession(seed, length, mixPicks, { personal = true, name = name
 // dealt from the date on the Standard settings with nothing of yours in it, and any run you set up on those settings
 // with learning off. Standard: the Balanced topics, every difficulty, the standard length, and name-it off (Known
 // deals from your own history).
+// a run that counts for your best: today's, or a mix on one of the presets (Balanced, Trader, Culture night) with every
+// difficulty in, at any length
+const onPreset = (level, picks) => level === "mix" && !!TOPIC_PRESETS[picks?.preset] && (!picks.diffs || DIFFICULTIES.every(d => picks.diffs.includes(d)));
 const standardPicks = () => ({ weights: { ...TOPIC_PRESETS.balanced.topics }, diffs: [...DIFFICULTIES] });
 const isStandard = (level, length, picks) => level === "mix" && length === "standard" && !pile.learning() && nameMode() === "off"
   && TOPIC_LIST.every(([id]) => (picks?.weights?.[id] || 0) === 1) && DIFFICULTIES.every(d => picks?.diffs?.includes(d));
@@ -161,7 +164,7 @@ async function soloSession(seed, level, length = chosenLength(), picks = null, d
     const mixPicks = daily ? standardPicks() : picks?.weights ? picks : mixNow();
     const questions = await mixSession(seed, length, mixPicks, daily ? { personal: false, name: { mode: "off", known: {} } } : {});
     if (!questions.length) { toast("Put at least one topic in"); render(); return; }
-    S = { v: 1, seed, level, length, mix: mixPicks, ...(daily && { daily: true }), ranked: daily || isStandard(level, length, mixPicks),
+    S = { v: 1, seed, level, length, mix: mixPicks, ...(daily && { daily: true }), ranked: daily || onPreset(level, mixPicks),
       questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null };
     resetChoice(); shownDone = null; saveSolo(); history.replaceState(null, "", linkOf(S)); render();
     return;
@@ -435,7 +438,7 @@ function showDone() {
   const avg = averageReturn(S.log) ?? 0;
   const stats = [["Final pot", showChips(S.pot)], ["A question", showReturn(avg)], ["Bets won", `${won} of ${bets.length}`]];
   const best = recordBest(avg);
-  if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);   // today's run or Standard: it counts for your best
+  if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);   // today's run, or a preset with every difficulty: it counts for your best
   $("doneStats").replaceChildren(...stats.map(([label, value]) => {
     const box = document.createElement("div"), dd = document.createElement("dd"), dt = document.createElement("dt");
     dd.textContent = value; dt.textContent = label;
@@ -772,8 +775,8 @@ function drawMenu() {
   pickLength ??= lengthOf(S);
   const play = part(body, "play");
   play.append(action("New run", () => newSession("mix", pickLength), "primary"), action("Today's run", newDaily),
-    line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A Standard run: it counts for your best."
-      : "Your best counts today's run and Standard runs (Balanced, every difficulty, 15 questions, name-it off, learning off)."));
+    line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A preset with every difficulty in: it counts for your best."
+      : "Your best counts today's run, and runs on a preset (Balanced, Trader, Culture night) with every difficulty in, at any length."));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
   // what a run deals: a preset or your own mix of topics (each out, in or more), the difficulties for all of them,
   // and each subject bank's stages; a change applies to the next run

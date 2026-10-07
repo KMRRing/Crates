@@ -2,6 +2,7 @@
 // products and their specs, the blending maths and par; this file draws the order, the spec panel and the
 // tank farm and keeps your blends.
 import { COMPONENTS, PRODUCTS, PROPS, LEVELS, STEP, blendProps, blendCost, bioShare, margin, judge, solve, hint } from "./blend-engine.js";
+import { noteStars } from "./suite.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -49,6 +50,10 @@ function certify() {
   const m = margin(L.product, L.components, p);
   S.best[L.id] = Math.max(S.best[L.id] ?? -Infinity, m);
   if (m >= par.margin - 5) S.done[L.id] = true;
+  // stars: on spec one, within 5% of par (at least €15/m³) two, at par (certified) three
+  const st = m >= par.margin - 5 ? 3 : m >= par.margin - Math.max(15, 0.05 * Math.abs(par.margin)) ? 2 : 1;
+  S.stars = { ...(S.stars || {}), [L.id]: Math.max(S.stars?.[L.id] || 0, st) };
+  noteStars("blend", starsAll());
   save();
   render();
   toast(m >= par.margin - 5 ? `Certified at ${euro(m)}/m³: par.` : `Certified at ${euro(m)}/m³. Par is ${euro(par.margin)}: there's a cheaper way to pass.`, 4500);
@@ -173,7 +178,7 @@ function openMenu() {
     b.className = S.done[lv.id] ? "done" : "";
     if (lv.id === L.id) b.setAttribute("aria-current", "true");
     const t = document.createElement("b"); t.textContent = `${lv.id}. ${lv.title}`;
-    const r = document.createElement("span"); r.textContent = S.best[lv.id] != null ? `best ${euro(S.best[lv.id])}/m³${S.done[lv.id] ? " ✓" : ""}` : "";
+    const r = document.createElement("span"); r.textContent = S.best[lv.id] != null ? `best ${euro(S.best[lv.id])}/m³ ${"★".repeat(starsOf(lv.id))}${"☆".repeat(3 - starsOf(lv.id))}` : "";
     b.append(t, r);
     b.addEventListener("click", () => { $("menuDlg").close(); loadLevel(lv.id); });
     list.appendChild(b);
@@ -199,3 +204,7 @@ $("hintBtn").addEventListener("click", giveHint);
 window.__blend = { get level() { return L; }, get par() { return par; }, get pct() { return pct(); }, adjust, certify, loadLevel, setBlend: arr => { S.blends[L.id] = [...arr]; save(); render(); } };
 
 loadLevel(S.level || 1);
+// stars collected: an order's stars, or for one certified before there were stars three, and one for any on-spec best
+function starsOf(id) { return S.stars?.[id] || (S.done[id] ? 3 : S.best[id] != null ? 1 : 0); }
+function starsAll() { return LEVELS.reduce((n, l) => n + starsOf(l.id), 0); }
+noteStars("blend", starsAll());

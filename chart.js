@@ -84,7 +84,7 @@ const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString
 // The Standard selection: every topic, the whole world. A daily is always dealt on it, and a run counts for your best
 // (the games screen's, the one your partner sees) only if it's the daily, or Standard with nothing from your pile in.
 const STANDARD = { topic: "all", region: "world" };
-const rankedRun = (mode, sel) => mode === "daily" || (selKey(sel) === selKey(STANDARD) && !pile.learning());
+const rankedRun = (mode, sel) => mode === "daily" || selKey(sel) === selKey(STANDARD);   // today's, or everything worldwide
 /** The set for a seed and a selection, with what's due from the pile (within the selection) leading it in learning mode;
  *  a daily is the same for everyone, so nothing of yours goes into it. */
 function setFor(seed, sel, personal = true) {

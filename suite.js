@@ -169,13 +169,55 @@ export function bestOf(app) {
   const xs = v && typeof v === "object" ? Object.values(v).map(num).filter(x => x != null) : [];
   return xs.length ? Math.max(...xs) : null;
 }
+// ---------- what each game's tile shows ----------
+// One figure a game, kept the same way on every device, so the games screen reads yours and your partner's alike: a win
+// streak (Crates, Cartel), today's time (Slate, Delta) or count (Deck's cards, Parley's lessons), stars collected (the
+// level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
+// of you has played it.
+export const MARKS = { crates: "streak", cartel: "streak", glyph: "time", delta: "time", punt: "daily", quote: "daily", origin: "daily",
+  order: "daily", chart: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", deck: "count", parley: "count" };
+const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
+/** A game won or lost, in a game that counts streaks: the current run, and the longest. */
+export function noteStreak(app, won) {
+  const s = json(`${app}:streak`, null) || { now: 0, best: 0 };
+  s.now = won ? s.now + 1 : 0;
+  s.best = Math.max(s.best, s.now);
+  put(`${app}:streak`, s);
+}
+/** Today's puzzle solved, in seconds: the first solve counts, a second is a replay. */
+export function noteDayTime(app, secs, day = today()) { if (json(`${app}:today`, null)?.key !== day) put(`${app}:today`, { key: day, v: Math.round(secs) }); }
+/** One more done today: a card revised, a lesson finished. */
+export function noteDayCount(app, day = today()) { const r = json(`${app}:count`, null); put(`${app}:count`, { key: day, v: r?.key === day ? r.v + 1 : 1 }); }
+/** Stars collected, in all. */
+export function noteStars(app, n) { put(`${app}:stars`, n); }
+const calibreStars = () => Object.values(json("calibre:progress", {}) || {}).reduce((n, p) => n + (p?.stars || 0), 0);
+// a daily game's best and today's: Quote, Chart and Punt keep them as comparable results; Origin and Order keep each
+// day's total by the day, and Order's best leaves its History runs out
+function dailyOf(app) {
+  if (RANKED.has(app)) return comparableOf(app);
+  const day = json(`${app}:daily`, {})?.[today()] ?? null;
+  if (app !== "order") return { best: bestOf(app), today: day };
+  const xs = Object.entries(json("order:best", {}) || {}).filter(([k]) => !k.startsWith("s:")).map(([, v]) => v).filter(Number.isFinite);
+  return { best: xs.length ? Math.max(...xs) : null, today: day };
+}
+/** A game's figure for its tile, as data: { kind, v }, or for a daily game { kind, best, day, today }; null if none yet. */
+export function markOf(app) {
+  const kind = MARKS[app] || "best", k = keyOf(app), d = today();
+  if (kind === "streak") { const r = json(`${k}:streak`, null); return r?.best ? { kind, v: r.best } : null; }
+  if (kind === "time" || kind === "count") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
+  if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
+  if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }
+  const v = bestOf(app);
+  return v == null ? null : { kind, v };
+}
 /** Shares your bests with the duo room, under your name. */
 export async function shareBests(apps) {
   const code = duoCode();
   if (!code) return;
   const sync = await getSync();
   const bests = Object.fromEntries(apps.map(a => [a, bestOf(a)]).filter(([, v]) => v != null));
-  await sync.update(`crates/rooms/${code}/best/${playerId()}`, { name: raw.get("crates:name") || "", at: Date.now(), bests });
+  const marks = Object.fromEntries(apps.map(a => [a, markOf(a)]).filter(([, v]) => v));     // what your tiles show, for theirs
+  await sync.update(`crates/rooms/${code}/best/${playerId()}`, { name: raw.get("crates:name") || "", at: Date.now(), bests, marks });
 }
 // ---------- duo records ----------
 /**
@@ -226,7 +268,7 @@ export async function watchBests(cb) {
   const sync = await getSync(), me = playerId();
   return sync.watch(`crates/rooms/${code}/best`, best => {
     const theirs = Object.entries(best || {}).filter(([id]) => id !== me).sort((a, b) => (b[1].at || 0) - (a[1].at || 0))[0]?.[1];
-    cb(theirs?.bests || {}, theirs?.name || "");
+    cb(theirs?.bests || {}, theirs?.name || "", theirs?.marks || {});
   });
 }
 

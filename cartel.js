@@ -8,6 +8,7 @@ import "./pwa.js";
 import { part, choice, action, onPause, ticks } from "./menu.js";
 
 const $ = id => document.getElementById(id);
+import { noteStreak } from "./suite.js";
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
 // How the computer players' moves come: each shown for a while, or each held until you tap.
 const PACES = {
@@ -763,6 +764,7 @@ function answer(decision) {
 // ---------- the end ----------
 function showOver() {
   const w = g.over.winner;
+  if (!g.over.counted) { g.over.counted = true; noteStreak("cartel", w === ME); save(); }   // the longest win streak, once a game
   $("overTitle").textContent = w === ME ? "You win the table" : `${g.players[w].name} wins`;
   const order = g.events.filter(e => e.t === "out").map(e => name(e.p));
   $("overText").textContent = `Out, in order: ${order.join(", ")}. ${g.moves} turns.`;

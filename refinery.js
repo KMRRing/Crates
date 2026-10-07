@@ -3,6 +3,7 @@
 import { STREAMS, UNITS, POOLS, CRUDES } from "./refinery-data.js";
 import { FEED, evaluate, destinations, streamsOf, defaultRouting, solve } from "./refinery-engine.js";
 import { LEVELS } from "./refinery-levels.js";
+import { noteStars } from "./suite.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -138,6 +139,8 @@ function render() {
   const reached = R.margin >= par.margin - 0.6 && !offSpec.length;
   if (!S.best[L.id] || R.margin > S.best[L.id]) { S.best[L.id] = R.margin; save(); }
   if (reached && !S.done[L.id]) { S.done[L.id] = true; save(); }
+  const st = reached ? 3 : offSpec.length ? 0 : R.margin >= par.margin - Math.max(0.6, 0.05 * Math.abs(par.margin)) ? 2 : 1;
+  if (st > (S.stars?.[L.id] || 0)) { S.stars = { ...(S.stars || {}), [L.id]: st }; save(); noteStars("refinery", starsAll()); }
   const v = $("verdict");
   v.className = `rf-verdict${reached ? " good" : ""}`;
   v.textContent = reached ? `Par reached with every pool in spec. Your best here: ${money(S.best[L.id])}/bbl.`
@@ -383,3 +386,7 @@ $("hintBtn").addEventListener("click", hint);
 window.__refinery = { get level() { return L; }, get par() { return par; }, get result() { return R; }, get routing() { return routing(); }, setDestination, loadLevel, chooseCrude };
 
 loadLevel(S.level || 1);
+// stars collected: a level's stars, or for one completed before there were stars three, and one for any best
+function starsOf(id) { return S.stars?.[id] || (S.done[id] ? 3 : S.best[id] != null ? 1 : 0); }
+function starsAll() { return LEVELS.reduce((n, l) => n + starsOf(l.id), 0); }
+noteStars("refinery", starsAll());

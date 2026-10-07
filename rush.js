@@ -13,7 +13,7 @@ dropdown(document.getElementById("mode"));   // the header dropdown in the suite
 
 const $ = id => document.getElementById(id);
 const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating";
-const MODES = { three: { label: "3 minutes", ms: 180000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
+const MODES = { three: { label: "3 min, 5 s delay", ms: 180000, grace: 5000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
 const STRIKES = 3;
 
 let S = null;      // { mode, seed, daily, used: Set of ids, at, solved, strikes, misses: [{ id, rating, line }], ratings (of the solved), started (null until the warm-up is solved), warming, over }
@@ -64,6 +64,7 @@ function rate(puzzle, solved, missesSoFar) {
  * always give the same puzzle. The next band up is fetched ahead of need.
  */
 async function nextPuzzle() {
+  graceNext();
   const r = rng(S.seed ^ (S.at * 7919));
   const target = S.warming ? 650 + r() * 100                                          // the warm-up: an easy one
     : S.daily ? Math.min(2500, 800 + S.solved * 60 + (r() - 0.5) * 200)
@@ -102,7 +103,7 @@ function clock() {
   const c = $("clock");
   if (!ms) { c.textContent = ""; return; }
   if (S.started == null) { c.textContent = `${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`; c.classList.remove("low"); return; }   // not running yet
-  const left = Math.max(0, ms - (performance.now() - S.started));
+  const left = Math.max(0, ms - spent());
   c.textContent = `${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, "0")}`;
   c.classList.toggle("low", left < 20000);
   if (left <= 0) finish("time");
@@ -127,6 +128,7 @@ function settle(p, solved) {
     if (solved) {
       S.warming = false;
       S.started = performance.now();
+      S.puzzleAt = S.started; S.free = 0;
       $("line").className = "ru-line good";
       $("line").textContent = "Go.";
       drawHud();
@@ -251,7 +253,7 @@ $("mode").addEventListener("change", () => { if (S && !S.over) { if (confirm("St
 // the menu stops a run's clock: its start moves on by however long the menu was open
 let heldTick = false;
 onPause(() => { if (S && !S.over && S.started != null) { clearInterval(tick); heldTick = true; } },
-  ms => { if (!heldTick) return; heldTick = false; if (S && !S.over && S.started != null) { S.started += ms; tick = setInterval(clock, 250); clock(); } });
+  ms => { if (!heldTick) return; heldTick = false; if (S && !S.over && S.started != null) { S.started += ms; if (S.puzzleAt != null) S.puzzleAt += ms; tick = setInterval(clock, 250); clock(); } });
 document.addEventListener("visibilitychange", () => { if (document.hidden && S && !S.over && S.started != null && MODES[S.mode].ms) finish("time"); });   // a timed run can't be paused
 
 // for tests and debugging
@@ -259,3 +261,15 @@ window.__rush = { get state() { return S; }, start, finish, get puzzle() { retur
 
 drawHud();
 start(false);
+// Standard's delay: each puzzle's first 5 seconds don't run the clock, and nothing is ever added back, so the clock
+// never shows more than its 3 minutes. Time spent is the run's time less the delays used, the current puzzle's included.
+function spent() {
+  const now = performance.now(), g = MODES[S.mode]?.grace || 0;
+  return now - S.started - (S.free || 0) - (S.puzzleAt != null ? Math.min(g, now - S.puzzleAt) : 0);
+}
+function graceNext() {
+  if (!S || S.started == null) return;
+  const now = performance.now(), g = MODES[S.mode]?.grace || 0;
+  if (S.puzzleAt != null) S.free = (S.free || 0) + Math.min(g, now - S.puzzleAt);
+  S.puzzleAt = now;
+}

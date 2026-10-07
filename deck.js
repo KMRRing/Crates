@@ -3,6 +3,7 @@
 // which-answer, Chart's places as which-country in the first pile and plotted on the map from the second, Quote's numbers as a number judged
 // in the question's own range, Rush's puzzles on the board. Right moves an item up a pile; wrong drops it back.
 import * as pile from "./pile.js";
+import { noteDayCount } from "./suite.js";
 import { PILES, GAMES } from "./pile.js";
 import { BANK } from "./core.js";
 import { PLACES } from "./chart-bank.js";
@@ -446,6 +447,7 @@ function settle(right, note) {
   answered = true;
   const it = session.items[session.at];
   const after = pile.answer(it.game, it.key, right);
+  noteDayCount("deck");                                         // cards revised today, on the games screen
   session[right ? "right" : "wrong"]++;
   const v = $("verdict");
   v.className = `dk-verdict ${right ? "good" : "bad"}`;

@@ -1,6 +1,8 @@
 // Delta: join the numbers in pairs with paths whose operations turn one into the other (rules in delta-gen.js).
 // Solo boards are saved in this browser; together games live in the room's delta branch (together.js) and both
 // players draw on the same board.
+import { today, noteDayTime } from "./suite.js";
+const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -130,6 +132,10 @@ async function soloBoard(seed, level) {
 /** Deals a new board (a hard one can take a moment, so the screen says so first). */
 function newBoard(level = S.level) {
   if (S && !S.done && pathList(S.paths).length && !confirm("Start a new board? This one isn't finished.")) { render(); return; }
+  if (level === "today") {                                     // today's puzzle: solo, timed for the games screen
+    if (together.room) { render(); return; }
+    soloBoard(today(), DAILY_LEVEL).then(() => { if (S) { S.daily = today(); saveSolo(); render(); } }); return;
+  }
   if (!together.room) { soloBoard(null, level); return; }
   const done = busy("Dealing the board", { delay: 250 });
   nextBoard(level).finally(done).then(({ seed, board }) => {
@@ -167,6 +173,7 @@ async function change(fn) {
 function afterChange() {
   if (!S.done && isSolved(S.board, pathList(S.paths).map(p => p.cells))) {
     clockPause();
+    if (S.daily && !together.room) noteDayTime("delta", (S.ms || 0) / 1000, S.daily);    // today's puzzle: the first solve's time
     const at = Date.now();
     if (together.room) together.act(g => { if (g.done) return false; g.done = { won: true, at }; });
     else S.done = { won: true, at };
@@ -313,7 +320,7 @@ const showVerdicts = () => !!S.done || LEVELS[S.level].verdicts === "now" || all
 // ---------- rendering ----------
 function render() {
   if (!S) return;
-  $("level").value = S.level;
+  $("level").value = S.daily ? "today" : S.level;
   drawPartner();
   drawBoard();
   const shown = LEVELS[S.level].pairsShown;

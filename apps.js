@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
+import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
 import { choice, RETE } from "./menu.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -268,6 +268,23 @@ function openSettings(host) {
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
       <span class="app-logo">${a.logo}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
+/**
+ * A tile's line: your figure and your partner's (by initial). A streak, today's time or count, stars, or a best; for a
+ * game with a daily, today's results when either of you has played today's (a dash for whoever hasn't), otherwise the bests.
+ */
+function tileText(id, mine, theirs, P) {
+  const kind = MARKS[id] || "best", d = today(), clock = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+  if (kind === "daily") {
+    const a = mine?.day === d ? mine.today ?? null : null, b = theirs?.day === d ? theirs.today ?? null : null;
+    if (a != null || b != null) return [`Today ${a != null ? scoreText(id, a) : "—"}`, theirs ? `${P} ${b != null ? scoreText(id, b) : "—"}` : ""].filter(Boolean).join(" · ");
+    return [mine?.best != null ? `Best ${scoreText(id, mine.best)}` : "", theirs?.best != null ? `${P} ${scoreText(id, theirs.best)}` : ""].filter(Boolean).join(" · ");
+  }
+  const today_ = m => (kind === "time" || kind === "count" ? m?.day === d : true) ? m : null;    // a day's figure is today's or nothing
+  const show = m => (kind === "time" ? clock(m.v) : kind === "stars" ? `★ ${m.v}` : kind === "best" ? scoreText(id, m.v) : String(m.v));
+  const lead = { streak: "Streak", time: "Today", count: "Today", stars: "", best: "Best" }[kind];
+  const a = today_(mine), b = today_(theirs);
+  return [a ? `${lead ? `${lead} ` : ""}${show(a)}` : "", b ? `${P} ${show(b)}` : ""].filter(Boolean).join(" · ");
+}
 /** A game's score as its tile shows it: most as a number, a return a question (Punt's) as a signed percentage, 0.41 as +41%. */
 const scoreText = (id, n) => {
   const kind = APPS.find(a => a.id === id)?.score;
@@ -294,7 +311,7 @@ const ICON = {
 const GAME_NAME = id => APPS.find(a => a.id === (id === "slate" ? "glyph" : id))?.name || id;
 function bindCodes(dlg) {
   const head = dlg.querySelector("[data-codes]");
-  let partner = null, theirs = {}, theirName = "", duoRecords = {};
+  let partner = null, theirs = {}, theirMarks = {}, theirName = "", duoRecords = {};
   const here = (location.pathname.split("/").pop() || "index.html").replace(/\.html$/, "").replace(/^index$|^$/, "");   // "" at home: no game open
   const status = p => (p ? `${(p.name || "Partner").split(" ")[0]} · ${!p.online ? "offline" : !p.game ? "choosing a game" : `${GAME_NAME(p.game)}${p.mode === "duo" ? " together" : p.mode === "watch" ? " (watching)" : ""}`}` : "not here yet");
   const draw = () => {
@@ -309,9 +326,9 @@ function bindCodes(dlg) {
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
       const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
       const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : scoreText(id, d.best)}` : `Duo ${d.mine}–${d.theirs}`;
-      const day = RANKED.has(id) ? comparableOf(id).today : null;          // today's daily, for a game that has one
-      el.textContent = [mine != null ? `Best ${scoreText(id, mine)}` : "", day != null ? `Today ${scoreText(id, day)}` : "",
-        duo && them != null ? `${(theirName || "P")[0]} ${scoreText(id, them)}` : "", duoText].filter(Boolean).join(" · ");
+      // your figure and your partner's (a partner on an older version sends only a best)
+      const theirMark = duo ? theirMarks[id] || (them != null ? { kind: MARKS[id] === "daily" ? "daily" : "best", v: them, best: them } : null) : null;
+      el.textContent = [tileText(id, markOf(id), theirMark, (theirName || "P")[0]), duoText].filter(Boolean).join(" · ");
     }
   };
   // typing a code: an existing one is followed (solo) or joined (partner); a new one starts fresh, from here
@@ -397,7 +414,7 @@ function bindCodes(dlg) {
   if (duoCode() && !IN_FRAME) {
     shareBests(APPS.map(a => a.id)).catch(() => {});
     watchPartner(p => { partner = p; draw(); }).catch(() => {});
-    watchBests((bests, name) => { theirs = bests; theirName = name; draw(); }).catch(() => {});
+    watchBests((bests, name, marks) => { theirs = bests; theirName = name; theirMarks = marks || {}; draw(); }).catch(() => {});
     watchDuoRecords(r => { duoRecords = r; draw(); }).catch(() => {});
   }
   return draw;

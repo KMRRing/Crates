@@ -6,6 +6,7 @@ import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { CHAPTERS, LEVELS } from "./harbour-levels.js";
+import { noteStars } from "./suite.js";
 import { REGIONS } from "./harbour-region.js";
 import { createRegionScreen } from "./harbour-region-ui.js";
 import { dropdown } from "./dropdown.js";
@@ -376,6 +377,7 @@ function keepBests() {
   const sc = score(L, sol, sim), best = bests();
   for (const [k] of MEASURES) if (best[k] == null || sc[k] < best[k]) best[k] = sc[k];
   write(bestKey(), best);
+  noteStars("harbour", starsAll());
 }
 
 // ---------- drawing ----------
@@ -848,3 +850,12 @@ levelSel.value = first.id;
 await makeMap();
 load(first);
 if (lastRegion) { levelSel.value = `region:${lastRegion.id}`; levelSel.dispatchEvent(new Event("change", { bubbles: true })); }
+// stars collected: a measure met at par or under is a star, as a run's line marks it, over every level
+function starsAll() {
+  return LEVELS.reduce((n, l) => {
+    const b = read(`harbour:v2:best:${l.id}${l.rev ? `@${l.rev}` : ""}`, {});
+    if (b.hire != null && b.cost == null) b.cost = b.hire;
+    return n + MEASURES.filter(([k]) => b[k] != null && l.par?.[k] != null && b[k] <= l.par[k]).length;
+  }, 0);
+}
+noteStars("harbour", starsAll());

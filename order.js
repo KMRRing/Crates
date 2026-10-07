@@ -2,7 +2,7 @@
 // line grows a card at a time. A wrong place costs a life (the card goes where it belongs, so the line is always
 // right); three lives a run. Dates deal every dated question from Quote's bank, a painting's year among them;
 // Quantities deal one family at a time, the same unit and the same kind of thing, so the comparison means something;
-// Stories deal one story's events (Heracles' labours, Odysseus's voyage home, Ragnarök…), where what's ordered is the
+// History (the stories) deals one story's events (Heracles' labours, Odysseus's voyage home, Ragnarök…), where what's ordered is the
 // story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number.
 import { QUOTES } from "./quote-bank.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
@@ -33,7 +33,7 @@ for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${
 const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
 /** A card's value as the line shows it: a story's place (5th), or the number with its unit. */
 const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
-const MODES = { dates: "Dates", quantities: "Quantities", stories: "Stories" };
+const MODES = { dates: "Dates", quantities: "Quantities", stories: "History" };   // History: the stories, once called Stories
 
 // ---------- a run ----------
 let S = read(RUN, null);

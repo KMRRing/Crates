@@ -11,7 +11,7 @@ import { busy } from "./loading.js";
 import { recognised, pairKey } from "./known.js";
 import * as view from "./view.js";
 import { part, action, line, mirror, isPaused, onPause } from "./menu.js";
-import { today, noteComparable } from "./suite.js";
+import { today, noteComparable, noteStreak } from "./suite.js";
 
 const MAX_MISTAKES = 4;
 const CLUES = 4;          // per board
@@ -243,6 +243,7 @@ export function createSolo({ setPoolParam, setBoardParam }) {
     if (g.mode === store.mode && g.mode === "clues") g.tags = learnFromClues(store.deck, board, g);
     store.history = [{ n: g.n, code: g.code, cat: board.cat, pts: score(g), won: g.found.length === 4,
       mistakes: g.mistakes, clues: g.revealed.length, ms: g.ms }, ...store.history].slice(0, HISTORY);
+    if (g.mode !== "learn" && g.mode !== "clues") noteStreak("crates", g.found.length === 4);   // the longest win streak, on the games screen
     if (g.daily) {                                         // today's board: it counts for your best, points then time
       store.daily = { key: g.daily, pts: score(g), ms: g.ms || 0 };
       noteComparable("crates", boardScore(score(g), g.ms || 0), g.daily);
