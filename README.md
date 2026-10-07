@@ -463,12 +463,17 @@ the goals show live what each arbor does and what it should; Workings shows how 
 mesh, ratio by ratio; Hint gives two or three graded nudges (a hint caps the stars at two); a Glossary of the craft's
 words; Undo; keys (1–8 layers, W wind, Z undo, H hint, Delete, Esc). Stars for par (fewest parts).
 
-The course (`calibre-levels.js`, 30 levels): 1 Gears (two wheels, idlers, wheel and pinion, speeding up, a ratio hunt,
+The course (`calibre-levels.js`, 39 levels): 1 Gears (two wheels, idlers, wheel and pinion, speeding up, a ratio hunt,
 a locked triangle, clearance round a post), 2 The going train (the centre wheel, small seconds, choosing the counts, a
 repair that keeps the tooth sum), 3 The escapement (the runaway and the pallet fork, the balance, the beat, the faster
 beat, choosing the balance, the escape wheel's teeth), 4 The motion works (the minute wheel, twelve to one, the 24-hour
 hand, the whole watch), 5 Power (more hours from the barrel ratio, a week with an intermediate wheel), 6 Winding and
 setting (ratchet and click, the setting wheels), 7 Calendars and the moon (the date ring and its finger, the 59-tooth
 moon, the 135-tooth moon good for 122 years), 8 Famous calibres (the Unitas 6497 with small seconds at nine, the
-Reverso's rectangular calibre). `tests/calibre.mjs` proves the engine's rules and that every level is unsolved at the
+Reverso's rectangular calibre, the El Primero's 36,000 vph), 9 The chronograph (a module under the dial driven from the
+fourth wheel: the chronograph wheel, start and stop with a coupling lever swinging about the driving wheel, a finger
+counting minutes on a 30-tooth star, heart cams for reset), 10 Automatic winding (one reverser winds one way, a second
+makes either swing of the rotor wind), 11 Regulating (the index on a balance whose beat comes from its inertia and its
+hairspring's stiffness, to within five seconds a day; a free-sprung balance chosen by its inertia). Mechanisms with
+states (started and stopped, the rotor either way) are judged in each, with buttons to switch between them. `tests/calibre.mjs` proves the engine's rules and that every level is unsolved at the
 start and solved by its worked solution, from its tray, within par.

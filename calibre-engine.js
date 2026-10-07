@@ -37,10 +37,24 @@ const concentric = (a, b) => a.on === b.id || b.on === a.id || (!!a.on && a.on =
 /** Layers 6 to 8 lie under the dial, on the far side of the main plate from the train (layers 1 to 5, and the escape
  * wheel's 9): the motion works there never meet the train's wheels, and a stud there doesn't reach through. */
 export const DIAL_LAYERS = [6, 7, 8];
-const side = layer => (DIAL_LAYERS.includes(layer) ? "dial" : "train");
+/** Layers 11 and 12 are the automatic module's, on top of the bridges, under the rotor. */
+export const TOP_LAYERS = [11, 12];
+const side = layer => (DIAL_LAYERS.includes(layer) ? "dial" : TOP_LAYERS.includes(layer) ? "top" : "train");
 /** The sides of the plate an arbor reaches: those its parts sit on; an empty arbor, both, until it carries something. */
-const sides = a => { const s = new Set((a.parts || []).map(p => side(p.layer))); return s.size ? s : new Set(["dial", "train"]); };
+const sides = a => { const s = new Set((a.parts || []).map(p => side(p.layer))); return s.size ? s : new Set(["dial", "train", "top"]); };
 const has = (a, kind) => (a.parts || []).find(p => p.kind === kind);
+/** How far the regulator index changes the hairspring's working length: at full travel either way, 2%. */
+export const INDEX_TRAVEL = 0.02;
+/**
+ * A balance's beat. Given as vph, or from its physics: it swings at f = √(k/I) / 2π, I its moment of inertia (mg·cm²)
+ * and k its hairspring's stiffness (µN·m per radian), and beats twice a swing, so vph = 7200 f. The regulator index
+ * moves the curb pins along the spring: towards − it lengthens the working spring (weaker, slower), towards + shortens it.
+ */
+export function beatOf(b) {
+  if (b.inertia == null) return b.vph;
+  const k = b.stiffness / (1 - (b.index || 0) * INDEX_TRAVEL);
+  return (7200 * 100 * Math.sqrt(k / b.inertia)) / (2 * Math.PI);
+}
 /**
  * The escapement as it is built: for each escape wheel, a pallet fork whose stones reach its teeth, and a balance whose
  * impulse pin sits in the fork's horns, in line. Without a fork the escape wheel spins free and the spring runs away;
@@ -56,7 +70,7 @@ export function escapements(arbors) {
       return ((b.x - fork.x) * ux + (b.y - fork.y) * uy) / dist(b, fork) >= Math.cos(Math.PI / 6);
     });
     return { escape: e.id, fork: fork?.id || null, balance: balance?.id || null, state: !fork ? "free" : !balance ? "locked" : "running",
-      vph: balance ? has(balance, "balance").vph : null, teeth: has(e, "escape").teeth };
+      vph: balance ? beatOf(has(balance, "balance")) : null, teeth: has(e, "escape").teeth };
   });
 }
 
@@ -67,7 +81,14 @@ export function escapements(arbors) {
  * Returns { meshes, clashes, rates: { arbor: rev/h | null }, jammed: [arbor], runaway: bool, idle: [arbor] }.
  */
 export function run(design) {
-  const arbors = design.arbors, byId = new Map(arbors.map(a => [a.id, a]));
+  // a reverser is two bodies on one arbor: its wheel, and its pinion, which the wheel turns only one way
+  const arbors = design.arbors.flatMap(a => {
+    const rv = (a.parts || []).find(p => p.kind === "reverser");
+    if (!rv) return [a];
+    return [{ ...a, parts: a.parts.map(p => (p === rv ? { kind: "wheel", teeth: rv.teeth, layer: rv.layer, reverser: true } : p)), oneway: { to: `${a.id}~`, passes: rv.passes } },
+      { id: `${a.id}~`, x: a.x, y: a.y, on: a.id, label: a.label, parts: [{ kind: "pinion", teeth: rv.out, layer: rv.outLayer }] }];
+  });
+  const byId = new Map(arbors.map(a => [a.id, a]));
   const toothed = arbors.flatMap(a => (a.parts || []).filter(p => partRadius(p)).map(p => ({ a, p, r: partRadius(p) })));
   const meshes = [], clashes = [];
   for (let i = 0; i < toothed.length; i++) for (let j = i + 1; j < toothed.length; j++) {
@@ -103,7 +124,9 @@ export function run(design) {
     const got = new Map([[seed, rate]]), queue = [seed];
     let jam = false;
     while (queue.length) {
-      const id = queue.shift();
+      const id = queue.shift(), ow = byId.get(id)?.oneway;
+      // a one-way clutch takes the wheel's turning to its pinion only in its direction; the other way it slips
+      if (ow && Math.sign(got.get(id)) === ow.passes && !got.has(ow.to)) { got.set(ow.to, got.get(id)); queue.push(ow.to); }
       for (const [to, k] of edges.get(id)) {
         const want = got.get(id) * k;
         if (!got.has(to)) { got.set(to, want); queue.push(to); }
@@ -147,13 +170,30 @@ export function rateText(r) {
  * A goal is { arbor, rate (rev/h), abs? (either direction) }. Returns { ok, out, goals: [{ goal, ok, actual }], problems }.
  */
 export function judge(level, design) {
+  if (level.scenarios?.length) {
+    // each state of the mechanism is run on its own; a goal tagged with a state is judged in it, the rest in all
+    const runs = level.scenarios.map(sc => ({ sc, v: judgeOne({ ...level, goals: (level.goals || []).filter(g => !g.in || g.in === sc.id) }, inState(design, sc)) }));
+    const goals = runs.flatMap(({ sc, v }) => v.goals.filter(g => g.goal.in === sc.id || (!g.goal.in && sc === level.scenarios[0])).map(g => ({ ...g, scenario: sc })));
+    const problems = [...new Set(runs.flatMap(({ v }) => v.problems))];
+    return { ok: runs.every(({ v }) => v.ok), out: runs[0].v.out, goals, problems, runs };
+  }
+  return judgeOne(level, design);
+}
+/** A design as it stands in one state: arbors on levers move to that state's position, drives take that state's rates. */
+export function inState(design, sc) {
+  return { ...design, arbors: design.arbors.map(a => ({ ...a, ...(a.positions?.[sc.state] || {}), ...(sc.drive && sc.drive[a.id] != null ? { drive: sc.drive[a.id] } : {}) })) };
+}
+function judgeOne(level, design) {
   const out = run(design);
   const goals = (level.goals || []).map(g => {
     if (g.escapement) { const e = out.escapements[0]; return { goal: g, ok: e?.state === g.escapement, actual: e?.state || "none" }; }
     if (g.reserve) { const h = reserveOf(design, out); return { goal: g, ok: h != null && h >= g.reserve - 1e-6 && (!g.most || h <= g.most + 1e-6), actual: h }; }
     if (g.sign) { const r = out.rates[g.arbor]; return { goal: g, ok: r != null && r !== 0 && Math.sign(r) === g.sign, actual: r }; }
+    if (g.still) { const r = out.rates[g.arbor]; return { goal: g, ok: !r, actual: r }; }
+    if (g.reset) { const missing = g.reset.filter(id => !(design.arbors.find(a => a.id === id)?.parts || []).some(p => p.kind === "heart")); return { goal: g, ok: !missing.length, actual: missing }; }
     const actual = out.rates[g.arbor];
-    const ok = actual != null && actual !== 0 && (g.abs ? near(Math.abs(actual), Math.abs(g.rate)) : near(actual, g.rate));
+    const close = (x, y) => (g.tol ? Math.abs(x / y - 1) <= g.tol : near(x, y));          // tol: a share, e.g. 5 s a day
+    const ok = actual != null && actual !== 0 && (g.abs ? close(Math.abs(actual), Math.abs(g.rate)) : close(actual, g.rate));
     return { goal: g, ok, actual };
   });
   const problems = [];
@@ -199,6 +239,7 @@ export function solved(level) {
   const d = startDesign(level);
   for (const id of level.solution.remove || []) d.arbors = d.arbors.filter(a => a.id !== id);
   for (const t of level.solution.takeOff || []) { const a = d.arbors.find(x => x.id === t.arbor); a.parts = a.parts.filter(p => !(p.kind === t.kind && (p.teeth ?? p.vph) === (t.teeth ?? t.vph) && p.loose)); }
+  for (const st of level.solution.set || []) Object.assign(d.arbors.find(x => x.id === st.arbor).parts.find(p => p.kind === st.kind), st.values);
   for (const s of level.solution.add || []) {
     let a = s.arbor ? d.arbors.find(x => x.id === s.arbor) : d.arbors.find(x => x.id === s.at.id);
     if (!a) d.arbors.push(a = { id: s.at.id, x: s.at.x, y: s.at.y, parts: [], label: s.at.label });

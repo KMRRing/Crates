@@ -34,6 +34,14 @@ const SET_CROWN = { x: 7.0, y: -2.6 }, SET_B = at({ x: 1.4142, y: 1.4142 }, 3.0,
 const WEEK_WHEEL = at({ x: 0, y: -4.8 }, 4.0, 1, 0), MOON_AT = at(WEEK_WHEEL, 3.775, -0.2, -0.9798);
 // the Unitas: small seconds at nine; the escapement up and in towards the top
 const U_ESC = at({ x: -7, y: 0 }, 4.4, 0.6, -0.8), U_FORK = at(U_ESC, 2.0, 0.6, -0.8), U_BAL = at(U_ESC, 4.8, 0.6, -0.8);
+/** A point turned about a centre by some degrees (clockwise on the plan). */
+const turn = (c, p, deg) => { const a = (deg * Math.PI) / 180, dx = p.x - c.x, dy = p.y - c.y; return { x: +(c.x + dx * Math.cos(a) - dy * Math.sin(a)).toFixed(5), y: +(c.y + dx * Math.sin(a) + dy * Math.cos(a)).toFixed(5) }; };
+// the chronograph, a module under the dial driven from the fourth wheel: the coupling wheel swings on a lever about the
+// fourth wheel's arbor, always in mesh with its driving wheel, in mesh with the chronograph wheel only when started;
+// the driving and chronograph wheels (60 each) stand a millimetre apart, so they never touch each other
+const SECONDS = { x: 0, y: 7 }, C_ON = meet(SECONDS, 5.0, { x: 0, y: 0 }, 5.0, -1), C_OFF = turn(SECONDS, C_ON, 14), COUNTER = { x: 0, y: -5.4 };
+// automatic winding: the rotor's pinion at the centre, a reverser beside it, the reduction wheel to the ratchet
+const RATCHET_AT = { x: -3.182, y: -3.182 }, REV_A = { x: -2, y: 0 }, REDUCTION = meet(REV_A, 3.5, RATCHET_AT, 2.9, 1), REV_B = meet(REV_A, 3.0, REDUCTION, 3.5, 1);
 // the Reverso: the barrel up in a corner, clear of the centre wheel; the third wheel where it meshes both, on the
 // right, away from the escapement tucked in beside the seconds
 const R_BARREL = at({ x: 0, y: -2.5 }, 4.25, 0.6, -0.8), R_THIRD = meet({ x: 0, y: -2.5 }, 4.5, { x: 0, y: 5.5 }, 4.25, 1);
@@ -47,9 +55,23 @@ export const CHAPTERS = [
   { id: 5, title: "Power", about: "The mainspring's reserve: how the barrel's ratio to the centre wheel trades force for hours, up to a week." },
   { id: 6, title: "Winding and setting", about: "The keyless works: what the crown turns when you wind, why the click stops the spring unwinding, and how the hands are set." },
   { id: 7, title: "Calendars and the moon", about: "Wheels that turn once a day, a month, a lunation: fingers that push a star on a tooth a day, and a moon good for a century." },
-  { id: 8, title: "Famous calibres", about: "Real movements by real makers: the Unitas pocket calibre, the Reverso's rectangle, and why each was built the way it was." },
+  { id: 8, title: "Famous calibres", about: "Real movements by real makers: the Unitas pocket calibre, the Reverso's rectangle, the El Primero's high beat, and why each was built the way it was." },
+  { id: 9, title: "The chronograph", about: "A stopwatch inside the watch: a wheel coupled to the train on demand, a finger counting its minutes, and hearts that send the hands home." },
+  { id: 10, title: "Automatic winding", about: "A weight that swings with the wrist, and the one-way wheels that turn its every swing into winding." },
+  { id: 11, title: "Regulating", about: "Making a running watch keep time: the hairspring's working length, the balance's weight, and seconds a day." },
 ];
 
+/** The going train of chapter 3, complete: barrel, centre, third, small seconds at six, escapement. */
+const TRAIN = (balance = { kind: "balance", vph: 18000, layer: 10 }) => [
+  { id: "barrel", label: "Barrel", ...BARREL_AT, power: -1, parts: [{ kind: "barrel", teeth: 80, layer: 1 }] },
+  { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
+  { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
+  { id: "seconds", label: "Fourth wheel (small seconds)", ...SECONDS, parts: [P(10, 3), W(80, 4)] },
+  { id: "escape", label: "Escape wheel", ...ESC_A, parts: [P(8, 4), { kind: "escape", teeth: 15, layer: 9 }] },
+  { id: "fork", label: "Pallet fork", ...FORK_A, parts: [{ kind: "fork", layer: 9 }] },
+  { id: "balance", label: "Balance", ...BALANCE_A, parts: balance ? [balance] : [] },
+];
+const CHRONO_STATES = [{ id: "start", name: "Started", state: "start" }, { id: "stop", name: "Stopped", state: "stop" }];
 export const LEVELS = [
   // ---------- 1. Gears ----------
   {
@@ -637,6 +659,157 @@ export const LEVELS = [
     par: 5,
     solution: { add: [{ at: { id: "a1", ...R_THIRD }, part: P(10, 2) }, { at: { id: "a1" }, part: W(75, 3) }, { arbor: "seconds", part: P(10, 3) }, { arbor: "seconds", part: W(72, 4) }, { arbor: "escape", part: P(6, 4) }] },
   },
+  {
+    id: "8.3", chapter: 8, title: "El Primero's high beat", plate: 13,
+    primer: [
+      "Zenith's El Primero of 1969 was among the first automatic chronographs, and it beat at 36,000 vph: ten beats a second, fine enough to time tenths of a second.",
+      "A faster beat needs the escape wheel to turn faster for the same seconds hand, or more teeth for it to give each turn.",
+      "This train turns the escape wheel ten times for each turn of the seconds: 600 turns an hour.",
+    ],
+    task: "Choose the escape wheel for a 36,000 vph balance, and fit it.",
+    fixed: TRAIN({ kind: "balance", vph: 36000, layer: 10 }).map(a => (a.id === "escape" ? { ...a, label: "Escape arbor", parts: [P(8, 4)] } : a)),
+    tray: [{ kind: "escape", teeth: 20, n: 1 }, { kind: "escape", teeth: 25, n: 1 }, { kind: "escape", teeth: 30, n: 1 }],
+    goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
+    par: 1,
+    solution: { add: [{ arbor: "escape", part: { kind: "escape", teeth: 30, layer: 9 } }] },
+  },
+
+  // ---------- 9. The chronograph ----------
+  {
+    id: "9.1", chapter: 9, title: "The chronograph wheel", plate: 13,
+    primer: [
+      "A chronograph is a stopwatch built into the watch. Its seconds hand, the long one at the centre, rides on its own wheel, the chronograph wheel, turning once a minute when running.",
+      "It takes its drive from the fourth wheel, which already turns once a minute: a driving wheel on the fourth wheel's arbor, then a coupling wheel, then the chronograph wheel.",
+      "This one is a module under the dial: its wheels sit on the dial side, clear of the train's pivots.",
+    ],
+    task: "Drive the chronograph wheel from the fourth wheel, once a minute, clockwise.",
+    fixed: [...TRAIN(), { id: "coupling", label: "Coupling arbor", ...C_ON, parts: [] }, { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [] }],
+    tray: tray(["wheel", 30], ["wheel", 40], ["wheel", 60, 2], ["wheel", 70]),
+    goals: [{ arbor: "seconds", rate: 60 }, { arbor: "chrono", rate: 60 }],
+    par: 3,
+    solution: { add: [{ arbor: "seconds", part: W(60, 7) }, { arbor: "coupling", part: W(40, 7) }, { arbor: "chrono", part: W(60, 7) }] },
+  },
+  {
+    id: "9.2", chapter: 9, title: "Start and stop", plate: 13,
+    primer: [
+      "Starting and stopping a chronograph must not disturb the watch. So the coupling wheel sits on a lever that swings about the driving wheel's arbor: it never leaves the driving wheel, and the swing only brings it to the chronograph wheel or takes it away.",
+      "This is the horizontal clutch of the classic chronographs. A column wheel, turned a step by each press of the pusher, lets the lever fall in or lifts it out.",
+      "Switch between Started and Stopped to see the coupling swing.",
+    ],
+    task: "Fit the coupling wheel so the chronograph runs when started and stands still when stopped, with the watch running in both.",
+    scenarios: CHRONO_STATES,
+    fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
+      { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [] },
+      { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7)] }],
+    tray: tray(["wheel", 30], ["wheel", 40], ["wheel", 50]),
+    goals: [{ arbor: "seconds", rate: 60 }, { in: "start", arbor: "chrono", rate: 60 }, { in: "stop", arbor: "chrono", still: true }],
+    par: 1,
+    solution: { add: [{ arbor: "coupling", part: W(40, 7) }] },
+  },
+  {
+    id: "9.3", chapter: 9, title: "Counting minutes", plate: 13,
+    primer: [
+      "Every turn of the chronograph wheel is a minute timed. A finger on it pushes the minute counter on by one tooth a turn: a 30-tooth star counts half an hour.",
+      "In a finished movement a spring jumper holds the star between pushes, so the counter's hand jumps from minute to minute instead of creeping.",
+    ],
+    task: "Fit the finger and the counter's star so the counter turns once in thirty minutes while the chronograph runs.",
+    scenarios: CHRONO_STATES,
+    fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
+      { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [W(40, 7)] },
+      { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7)] },
+      { id: "counter", label: "Minute counter", ...COUNTER, parts: [] }],
+    tray: [{ kind: "finger", len: 3.6, n: 1 }, { kind: "star", teeth: 30, r: 2, n: 1 }, { kind: "star", teeth: 31, r: 2, n: 1 }, { kind: "star", teeth: 60, r: 2, n: 1 }],
+    goals: [{ in: "start", arbor: "counter", rate: 2, abs: true }, { in: "stop", arbor: "counter", still: true }, { in: "start", arbor: "chrono", rate: 60 }],
+    par: 2,
+    solution: { add: [{ arbor: "chrono", part: { kind: "finger", len: 3.6, layer: 8 } }, { arbor: "counter", part: { kind: "star", teeth: 30, r: 2, layer: 8 } }] },
+  },
+  {
+    id: "9.4", chapter: 9, title: "Back to zero", plate: 13,
+    primer: [
+      "Reset sends both hands home from wherever they stopped. On each of their arbors sits a heart-shaped cam; at reset a hammer drops onto it, and a heart pressed anywhere turns until the hammer lies in its notch: at zero.",
+      "The heart's curve is a spiral that rises evenly from the notch to the point, so the hammer always finds the way down, whichever side it lands.",
+    ],
+    task: "Fit a heart on the chronograph wheel and one on the minute counter, so both return to zero.",
+    scenarios: CHRONO_STATES,
+    fixed: [...TRAIN().map(a => (a.id === "seconds" ? { ...a, parts: [...a.parts, W(60, 7)] } : a)),
+      { id: "coupling", label: "Coupling lever", ...C_ON, positions: { start: C_ON, stop: C_OFF }, lever: SECONDS, parts: [W(40, 7)] },
+      { id: "chrono", label: "Chronograph wheel", x: 0, y: 0, on: "centre", parts: [W(60, 7), { kind: "finger", len: 3.6, layer: 8 }] },
+      { id: "counter", label: "Minute counter", ...COUNTER, parts: [{ kind: "star", teeth: 30, r: 2, layer: 8 }] }],
+    tray: [{ kind: "heart", n: 2 }],
+    goals: [{ reset: ["chrono", "counter"] }, { in: "start", arbor: "chrono", rate: 60 }],
+    par: 2,
+    solution: { add: [{ arbor: "chrono", part: { kind: "heart", layer: 6 } }, { arbor: "counter", part: { kind: "heart", layer: 6 } }] },
+  },
+
+  // ---------- 10. Automatic winding ----------
+  {
+    id: "10.1", chapter: 10, title: "One way", plate: 13,
+    primer: [
+      "An automatic watch winds itself: a half-moon weight, the rotor, swings round the movement with every move of the wrist, and its pinion turns a train down to the ratchet wheel.",
+      "The rotor swings both ways, but the spring must only ever be wound one way. A reverser is a wheel and a pinion joined by a one-way clutch: turned one way it drives, the other way it slips.",
+      "With one reverser, only one direction of the rotor winds. Switch the rotor's direction to see.",
+    ],
+    task: "Connect the reverser to the ratchet so the rotor winds the spring when it swings anticlockwise.",
+    scenarios: [{ id: "ccw", name: "Rotor anticlockwise", drive: { rotor: -60 } }, { id: "cw", name: "Rotor clockwise", drive: { rotor: 60 } }],
+    fixed: [
+      { id: "rotor", label: "Rotor", x: 0, y: 0, drive: -60, parts: [P(10, 11), { kind: "rotor", layer: 12 }] },
+      { id: "rev", label: "Reverser", ...REV_A, parts: [{ kind: "reverser", teeth: 30, out: 10, passes: 1, layer: 11, outLayer: 12 }] },
+      { id: "ratchet", label: "Ratchet wheel (barrel arbor)", ...RATCHET_AT, parts: [{ kind: "ratchet", teeth: 48, layer: 5 }] },
+    ],
+    tray: tray(["wheel", 50], ["wheel", 60], ["pinion", 8], ["pinion", 10]),
+    goals: [{ in: "ccw", arbor: "ratchet", sign: 1 }, { in: "cw", arbor: "ratchet", still: true }],
+    par: 2,
+    solution: { add: [{ at: { id: "a1", ...REDUCTION }, part: W(60, 12) }, { at: { id: "a1" }, part: P(10, 5) }] },
+  },
+  {
+    id: "10.2", chapter: 10, title: "Both ways", plate: 13,
+    primer: [
+      "A second reverser, meshed with the first, turns the other way. When the rotor swings one way the first reverser's clutch drives; the other way, the second's. Both drive the same reduction wheel, so either swing winds.",
+      "This is the reverser-wheel system of the great automatic calibres, the ETA 2824 among them.",
+    ],
+    task: "Add the second reverser so the rotor winds the spring whichever way it swings.",
+    scenarios: [{ id: "ccw", name: "Rotor anticlockwise", drive: { rotor: -60 } }, { id: "cw", name: "Rotor clockwise", drive: { rotor: 60 } }],
+    fixed: [
+      { id: "rotor", label: "Rotor", x: 0, y: 0, drive: -60, parts: [P(10, 11), { kind: "rotor", layer: 12 }] },
+      { id: "rev", label: "Reverser", ...REV_A, parts: [{ kind: "reverser", teeth: 30, out: 10, passes: 1, layer: 11, outLayer: 12 }] },
+      { id: "reduction", label: "Reduction wheel", ...REDUCTION, parts: [W(60, 12), P(10, 5)] },
+      { id: "ratchet", label: "Ratchet wheel (barrel arbor)", ...RATCHET_AT, parts: [{ kind: "ratchet", teeth: 48, layer: 5 }] },
+    ],
+    tray: [{ kind: "reverser", teeth: 30, out: 10, passes: 1, layer: 11, outLayer: 12, n: 1 }],
+    goals: [{ in: "ccw", arbor: "ratchet", sign: 1 }, { in: "cw", arbor: "ratchet", sign: 1 }],
+    par: 1,
+    solution: { add: [{ at: { id: "a1", ...REV_B }, part: { kind: "reverser", teeth: 30, out: 10, passes: 1, layer: 11, outLayer: 12 } }] },
+  },
+
+  // ---------- 11. Regulating ----------
+  {
+    id: "11.1", chapter: 11, title: "The index", plate: 13,
+    primer: [
+      "A balance swings at a rate set by two things: how heavy its rim is (its inertia) and how stiff its hairspring is. Stiffer or lighter, faster; weaker or heavier, slower.",
+      "The regulator index moves two little curb pins along the hairspring's last turn. Towards + it shortens the spring's working length, stiffening it, and the watch gains; towards − it loses.",
+      "This watch loses about a minute and a half a day. A good watch keeps within a few seconds.",
+    ],
+    task: "Move the index until the watch keeps time to within five seconds a day.",
+    fixed: TRAIN({ kind: "balance", inertia: 10, stiffness: 0.2462, index: 0, adjustable: true, layer: 10 }),
+    tray: [],
+    goals: [{ arbor: "seconds", rate: 60, tol: 5 / 86400 }, { arbor: "centre", rate: 1, tol: 5 / 86400 }],
+    par: 0,
+    solution: { set: [{ arbor: "balance", kind: "balance", values: { index: 0.1094 } }], add: [] },
+  },
+  {
+    id: "11.2", chapter: 11, title: "Heavier, lighter", plate: 13,
+    primer: [
+      "Some balances have no index at all: free-sprung, their hairspring's length is fixed, and they're regulated by weights on the rim instead.",
+      "A balance's beat goes as one over the square root of its inertia: four per cent more inertia, two per cent slower.",
+      "This hairspring was made for a balance of inertia 10 to beat 18,000 times an hour.",
+    ],
+    task: "Choose the balance that makes this watch keep time.",
+    fixed: TRAIN(null).map(a => (a.id === "balance" ? { ...a, label: "Balance staff" } : a)),
+    tray: [{ kind: "balance", inertia: 9, stiffness: 0.24674, n: 1 }, { kind: "balance", inertia: 10, stiffness: 0.24674, n: 1 }, { kind: "balance", inertia: 11, stiffness: 0.24674, n: 1 }],
+    goals: [{ arbor: "seconds", rate: 60, tol: 30 / 86400 }],
+    par: 1,
+    solution: { add: [{ arbor: "balance", part: { kind: "balance", inertia: 10, stiffness: 0.24674, layer: 10 } }] },
+  },
 ];
 
 // ---------- hints and pitfalls ----------
@@ -672,6 +845,15 @@ const HELP = {
   "7.2": { hints: ["Two moons in 59 days: 59 teeth.", "The finger goes on the 24-hour wheel, the disc on the arbor above it."], watch: [] },
   "7.3": { hints: ["10 into 70 makes a week; 16 into 135 does the rest.", "Pinion 10 on D3 on the 24-hour wheel; week wheel 70 on D3, 4 mm to its right; fine pinion 16 on D1 under it; the fine 135 disc on D1 on the moon arbor."], watch: ["Fine teeth mesh only with fine teeth."] },
   "8.1": { hints: ["It's the familiar train turned a quarter round: the third arbor where it meshes both the centre and the seconds.", "Then fourth wheel 80 on layer 4 and escape pinion 8."], watch: [] },
+  "8.3": { hints: ["36,000 beats an hour is 18,000 teeth released an hour, at two beats a tooth.", "18,000 teeth over 600 turns is 30 teeth."], watch: ["A faster beat wears an escapement faster: high-beat escape wheels are made light."] },
+  "9.1": { hints: ["Three wheels: a driving wheel on the fourth wheel, a coupling wheel, the chronograph wheel.", "For once a minute the chronograph wheel needs the driving wheel's teeth: 60 and 60, with the 40 between them, all on D2."], watch: ["If the driving and chronograph wheels touch each other directly, the loop locks."] },
+  "9.2": { hints: ["The lever keeps the coupling wheel 5 mm from the fourth wheel's arbor in both positions.", "A 40-tooth coupling wheel meshes both 60s when started and clears the chronograph wheel when stopped."], watch: ["Stopping the chronograph must never stop the watch."] },
+  "9.3": { hints: ["The finger goes on the chronograph wheel, the star on the counter's arbor.", "Thirty minutes a turn: 30 teeth."], watch: ["The counter only moves while the chronograph runs."] },
+  "9.4": { hints: ["Choose a heart and tap the chronograph wheel's arbor; then the counter's."], watch: [] },
+  "10.1": { hints: ["The reduction wheel meshes the reverser's pinion and, through its own pinion, the ratchet.", "A 60-tooth wheel on A2 and a 10-leaf pinion on layer 5, where both mesh."], watch: ["Wind the wrong way and the click blocks the ratchet."] },
+  "10.2": { hints: ["The second reverser's wheel meshes the first's; its pinion meshes the reduction wheel.", "Put it where it is 3 mm from the first reverser and 3.5 mm from the reduction wheel."], watch: ["If the second reverser also touches the rotor's pinion, the train locks."] },
+  "11.1": { hints: ["The watch loses, so it needs a stiffer spring: move the index towards +.", "About a tenth of the way towards +."], watch: ["The index trims seconds; minutes a day mean something else is wrong."] },
+  "11.2": { hints: ["The hairspring was made for inertia 10."], watch: [] },
   "8.2": { hints: ["The third wheel goes to the right of the line from centre to seconds; the left is the escapement's.", "21,600 vph needs 72 over 6 at the end."], watch: ["A rectangle has corners to use and sides to hit."] },
 };
 for (const L of LEVELS) Object.assign(L, { hints: [], watch: [], ...HELP[L.id] });
@@ -686,6 +868,14 @@ export const GLOSSARY = [
   ["Calibre", "A movement's design, and the plan of it drawn from above."],
   ["Cannon pinion", "The pinion on the centre arbor that carries the minute hand and drives the motion works."],
   ["Centre wheel", "The wheel that turns once an hour, at the centre of most movements."],
+  ["Chronograph", "A stopwatch inside the watch, started, stopped and reset by pushers."],
+  ["Column wheel", "The castellated wheel that sequences a chronograph's start, stop and reset, a step per press."],
+  ["Coupling wheel", "The chronograph's clutch wheel, swung into and out of mesh by a lever."],
+  ["Heart cam", "The heart-shaped cam on a chronograph's arbor that a hammer turns back to zero."],
+  ["Index", "The regulator lever whose curb pins set the hairspring's working length, and so the rate."],
+  ["Inertia", "How hard a balance is to set swinging: the more, the slower it beats."],
+  ["Reverser", "A wheel and pinion joined by a one-way clutch, so a rotor winds whichever way it swings."],
+  ["Rotor", "The half-moon weight of an automatic watch that swings with the wrist and winds the spring."],
   ["Click", "The sprung pawl on the ratchet wheel that stops the mainspring unwinding through the crown."],
   ["Escape wheel", "The last wheel of the train, released half a tooth per beat by the pallet fork."],
   ["Escapement", "The escape wheel, pallet fork and balance together: what lets the power out a tooth at a time."],

@@ -1,7 +1,7 @@
 // Calibre: learn watchmaking by drafting movements on the calibre plan. Each level gives a plate, the parts already
 // fixed there and a tray; you place wheels and pinions on layers, the engine runs the train as it would really turn,
 // and winding sets it going in time-lapse. Goals are met only when the watch truly keeps time.
-import { judge, startDesign, solved, partsUsed, snap, snapEscapement, radius, rateText, workings, MODULE, DIAL_LAYERS, ESCAPE_R, FORK_LENGTH, BALANCE_R, MAINSPRING_TURNS } from "./calibre-engine.js";
+import { judge, inState, startDesign, solved, partsUsed, snap, snapEscapement, radius, rateText, workings, MODULE, DIAL_LAYERS, ESCAPE_R, FORK_LENGTH, BALANCE_R, MAINSPRING_TURNS } from "./calibre-engine.js";
 import { LEVELS, CHAPTERS, GLOSSARY } from "./calibre-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
@@ -13,15 +13,15 @@ const PROGRESS = "calibre:progress", AT = "calibre:at", SPEED = "calibre:speed";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.append(e); return e; };
-const LAYER_NAMES = { 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "D1", 7: "D2", 8: "D3" };   // D: the dial side
+const LAYER_NAMES = { 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "D1", 7: "D2", 8: "D3", 11: "A1", 12: "A2" };   // D: the dial side; A: the automatic module
 // parts that can only sit at one height: the barrel at the bottom, the ratchet on top of it, the escapement above the
 // train, calendar fingers and discs on the dial side
-const FORCED = { barrel: 1, ratchet: 5, escape: 9, fork: 9, balance: 10, finger: 8, star: 8 };
-const HANDS = { centre: "minute", hours: "hour", seconds: "seconds", h24: "gmt" };
+const FORCED = { barrel: 1, ratchet: 5, escape: 9, fork: 9, balance: 10, finger: 8, star: 8, heart: 6, rotor: 12, reverser: 11 };
+const HANDS = { centre: "minute", hours: "hour", seconds: "seconds", h24: "gmt", chrono: "chrono", counter: "counter" };
 const SPEEDS = [[1, "Real time"], [60, "A minute a second"], [720, "Twelve minutes a second"]];
 
 // ---------- state ----------
-let level = null, design = null, tray = [], chosen = null, layer = 1, selected = null, view = null, nextId = 1, history = [], hintAt = 0, showWork = false;
+let level = null, design = null, tray = [], chosen = null, layer = 1, selected = null, view = null, nextId = 1, history = [], hintAt = 0, showWork = false, scene = 0;
 let verdict = null, last = 0, toastTimer = 0;
 // The simulation: the angle of every arbor (in turns), how wound the mainspring is (0 to 1), the barrel arbor's turn
 // while winding, the balance's swing and the fork's rock (degrees), and what the movement is doing.
@@ -36,7 +36,7 @@ function load(id) {
   write(AT, level.id);
   design = startDesign(level);
   tray = level.tray.map(t => ({ ...t, left: t.n }));
-  chosen = null; selected = null; nextId = 1; history = []; hintAt = 0; showWork = false;
+  chosen = null; selected = null; nextId = 1; history = []; hintAt = 0; showWork = false; scene = 0;
   sim = { angles: {}, base: {}, wound: 0, windAngle: 0, balance: 0, fork: 0, state: "stopped", t: 0, hours: 0 };
   layer = Math.min(...level.tray.filter(t => t.kind !== "balance").map(() => 1), 1);
   const R = plateReach() + 0.8;
@@ -46,6 +46,9 @@ function load(id) {
   if (!progress()[level.id]?.seen) openPrimer();
 }
 
+/** The design in the state on show (a chronograph started or stopped, the rotor one way or the other), and its run. */
+const shown = () => (level.scenarios ? inState(design, level.scenarios[scene]) : design);
+const curOut = () => (verdict.runs ? verdict.runs[scene].v.out : verdict.out);
 /** How far the plate reaches from the centre: its radius, or a rectangle's half-diagonal. */
 const plateReach = () => (typeof level.plate === "number" ? level.plate : Math.max(level.plate.w, level.plate.h) / 2);
 
@@ -149,6 +152,20 @@ function drawPart(svg, a, p, clash) {
     const r = p.kind === "star" ? p.r : radius(p.teeth, p.m), moon = p.teeth === 59 || p.teeth >= 100;
     el("path", { d: p.kind === "star" ? starPath(p.teeth, r) : toothPath(p.teeth, false, p.m), class: moon ? "cb-moondisc" : "cb-star" }, spin);
     if (moon) for (const k of [0, 1]) el("circle", { cx: Math.cos(k * Math.PI) * r * 0.55, cy: Math.sin(k * Math.PI) * r * 0.55, r: r * 0.28, class: "cb-moon" }, spin);
+  } else if (p.kind === "rotor") {
+    // the rotor: a half-moon weight over the whole movement, seen through
+    const rr = plateReach() * 0.92;
+    el("path", { d: `M${-rr} 0A${rr} ${rr} 0 0 1 ${rr} 0L${rr * 0.72} 0A${rr * 0.72} ${rr * 0.72} 0 0 0 ${-rr * 0.72} 0Z`, class: "cb-rotor" }, spin);
+    el("line", { x1: 0, y1: 0, x2: 0, y2: -rr * 0.72, class: "cb-rotor-arm" }, spin);
+  } else if (p.kind === "reverser") {
+    // a reverser: its wheel, and on the same arbor its pinion, joined by a one-way clutch (the small pawls between)
+    el("path", { d: toothPath(p.teeth) }, spin);
+    for (let k = 0; k < 3; k++) el("path", { d: `M${(Math.cos(k * 2.094) * 0.55).toFixed(2)} ${(Math.sin(k * 2.094) * 0.55).toFixed(2)}l${(Math.cos(k * 2.094 + 1.2) * 0.4).toFixed(2)} ${(Math.sin(k * 2.094 + 1.2) * 0.4).toFixed(2)}`, class: "cb-pawl" }, spin);
+    const pin = el("g", {}, g);
+    el("path", { d: toothPath(p.out, true) }, pin);
+    dyn.push([pin, st => pin.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[`${a.id}~`] || 0) * 360})`)]);
+  } else if (p.kind === "heart") {
+    el("path", { d: "M0 0.9C-0.9 0.3 -1.15 -0.35 -0.75 -0.75C-0.4 -1.1 0 -0.85 0 -0.55C0 -0.85 0.4 -1.1 0.75 -0.75C1.15 -0.35 0.9 0.3 0 0.9Z", class: "cb-heart" }, spin);
   } else if (p.kind === "finger") {
     el("path", { d: `M0 -0.12L${p.len - 0.2} -0.08L${p.len} 0L${p.len - 0.2} 0.08L0 0.12Z`, class: "cb-finger" }, spin);
   } else {
@@ -167,12 +184,13 @@ function starPath(teeth, r) {
   for (let i = 0; i < teeth; i++) { pts.push([Math.cos(i * step) * r, Math.sin(i * step) * r]); pts.push([Math.cos((i + 0.5) * step) * (r - 0.35), Math.sin((i + 0.5) * step) * (r - 0.35)]); }
   return `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
 }
-const partName = p => p.kind === "balance" ? `Balance, ${p.vph.toLocaleString("en-GB")} vph` : p.kind === "fork" ? "Pallet fork" : p.kind === "escape" ? `${p.teeth}-tooth escape wheel`
+const partName = p => p.kind === "balance" ? (p.inertia != null ? `Balance, inertia ${p.inertia}${p.adjustable ? ", with an index" : ""}` : `Balance, ${p.vph.toLocaleString("en-GB")} vph`)
+  : p.kind === "rotor" ? "Rotor" : p.kind === "reverser" ? `Reverser: ${p.teeth}-tooth wheel, ${p.out}-leaf pinion, one-way` : p.kind === "heart" ? "Heart cam" : p.kind === "fork" ? "Pallet fork" : p.kind === "escape" ? `${p.teeth}-tooth escape wheel`
   : p.kind === "barrel" ? `Barrel with its mainspring, ${p.teeth} teeth` : p.kind === "ratchet" ? `Ratchet wheel, ${p.teeth} teeth, with its click` : p.kind === "finger" ? "Driving finger"
   : p.kind === "star" ? (p.internal ? `Date ring, ${p.teeth} inner teeth` : p.teeth === 59 ? "Moon disc, 59 teeth" : `${p.teeth}-tooth star wheel`)
   : `${p.teeth}-${p.kind === "pinion" ? "leaf pinion" : "tooth wheel"}${p.m ? " (fine)" : ""}, layer ${LAYER_NAMES[p.layer] || p.layer}`;
 /** A tray part in a few words, as its chip shows it. */
-const chipName = t => t.kind === "balance" ? `Balance ${t.vph.toLocaleString("en-GB")} vph` : t.kind === "fork" ? "Pallet fork" : t.kind === "escape" ? `Escape wheel ${t.teeth}`
+const chipName = t => t.kind === "balance" ? (t.inertia != null ? `Balance, inertia ${t.inertia}` : `Balance ${t.vph.toLocaleString("en-GB")} vph`) : t.kind === "reverser" ? `Reverser ${t.teeth}/${t.out}` : t.kind === "heart" ? "Heart cam" : t.kind === "fork" ? "Pallet fork" : t.kind === "escape" ? `Escape wheel ${t.teeth}`
   : t.kind === "barrel" ? `Barrel ${t.teeth}` : t.kind === "finger" ? "Finger" : t.kind === "star" ? (t.teeth === 59 ? "Moon disc 59" : `Star ${t.teeth}`)
   : `${t.teeth}${t.m ? " fine" : ""} ${t.kind === "pinion" ? "leaves" : "teeth"}`;
 
@@ -199,22 +217,25 @@ function render() {
     for (const a of design.arbors) for (const q of a.parts || []) if (q.layer === lay && q.teeth && !["escape", "star"].includes(q.kind) && (q.m || MODULE) === (t.m || MODULE))
       el("circle", { cx: a.x, cy: a.y, r: radius(q.teeth, q.m) + rr, class: "cb-guide" }, svg);
   }
-  const clashing = new Set(verdict.out.clashes.flatMap(c => c.arbors));
+  const out = curOut(), arbors = shown().arbors, clashing = new Set(out.clashes.flatMap(c => c.arbors));
+  // a lever's arm, from its pivot to the arbor it carries, drawn under the parts
+  for (const a of arbors) if (a.lever) el("line", { x1: a.lever.x, y1: a.lever.y, x2: a.x, y2: a.y, class: "cb-lever" }, svg);
   // parts from the lowest layer up, so higher ones lie on top as they do in the movement
-  const parts = design.arbors.flatMap(a => (a.parts || []).map(p => ({ a, p }))).sort((u, v) => u.p.layer - v.p.layer);
+  const parts = arbors.flatMap(a => (a.parts || []).map(p => ({ a, p }))).sort((u, v) => u.p.layer - v.p.layer);
   for (const { a, p } of parts) drawPart(svg, a, p, clashing.has(a.id));
-  for (const m of verdict.out.meshes) {
-    const A = design.arbors.find(a => a.id === m.a), B = design.arbors.find(a => a.id === m.b), k = m.ra / (m.ra + m.rb);
+  for (const m of out.meshes) {
+    const A = arbors.find(a => a.id === m.a) || arbors.find(a => `${a.id}~` === m.a), B = arbors.find(a => a.id === m.b) || arbors.find(a => `${a.id}~` === m.b), k = m.ra / (m.ra + m.rb);
+    if (!A || !B) continue;
     el("circle", { cx: A.x + (B.x - A.x) * k, cy: A.y + (B.y - A.y) * k, r: 0.16, class: "cb-mesh" }, svg);
   }
-  for (const a of design.arbors) {                                // hands on the arbors that carry them
+  for (const a of arbors) {                                       // hands on the arbors that carry them
     const hand = HANDS[a.id];
     if (!hand || !(a.parts || []).length) continue;
-    const len = hand === "hour" ? R * 0.42 : hand === "minute" ? R * 0.62 : hand === "gmt" ? R * 0.22 : R * 0.18, g = el("g", { class: `cb-hand cb-${hand}` }, svg);
+    const len = { hour: R * 0.42, minute: R * 0.62, gmt: R * 0.22, chrono: R * 0.78, counter: R * 0.14 }[hand] || R * 0.18, g = el("g", { class: `cb-hand cb-${hand}` }, svg);
     el("line", { x1: 0, y1: hand === "seconds" ? len * 0.25 : 0, x2: 0, y2: -len }, g);
     dyn.push([g, st => g.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`)]);
   }
-  for (const a of design.arbors) {                                // pivots: jewels in their chatons; posts plain
+  for (const a of arbors) {                                       // pivots: jewels in their chatons; posts plain
     const train = (a.parts || []).some(p => !DIAL_LAYERS.includes(p.layer));
     const pin = el("g", { "data-arbor": a.id, class: `cb-pivot${a.fixed ? " fixed" : ""}${selected === a.id ? " sel" : ""}${a.noParts ? " post" : ""}` }, svg);
     if (a.noParts) el("circle", { cx: a.x, cy: a.y, r: 0.4, class: "cb-post" }, pin);
@@ -238,12 +259,36 @@ function renderBrief() {
   $("goals").replaceChildren(...verdict.goals.map(g => {
     const li = document.createElement("li"), a = design.arbors.find(x => x.id === g.goal.arbor);
     li.className = g.ok ? "ok" : "";
-    li.textContent = g.goal.escapement ? `Escape wheel: ${STATES[g.goal.escapement]} · now ${STATES[g.actual]}`
+    if (g.goal.in) { const tag = document.createElement("span"); tag.className = "cb-scene-tag"; tag.textContent = level.scenarios.find(x => x.id === g.goal.in).name; li.append(tag, " "); }
+    li.append(g.goal.escapement ? `Escape wheel: ${STATES[g.goal.escapement]} · now ${STATES[g.actual]}`
       : g.goal.reserve ? `Power reserve: ${g.goal.reserve}${g.goal.most ? `–${g.goal.most}` : "+"} hours · now ${g.actual ? `${Math.round(g.actual)} hours` : "not running"}`
       : g.goal.sign ? `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: turning ${g.goal.sign > 0 ? "clockwise" : "anticlockwise"} · now ${rateText(g.actual)}`
-      : `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: ${g.goal.abs ? rateText(Math.abs(g.goal.rate)).replace(/, clockwise$/, ", either way") : rateText(g.goal.rate)} · now ${rateText(g.actual)}`;
+      : g.goal.still ? `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: standing still · now ${rateText(g.actual)}`
+      : g.goal.reset ? `Hearts on ${g.goal.reset.map(id => (design.arbors.find(x => x.id === id)?.label || id).replace(/ \(.*\)$/, "")).join(" and ")}${g.actual.length ? ` · still missing on ${g.actual.length}` : " · fitted"}`
+      : g.goal.tol ? `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: ${rateText(g.goal.rate)} within ${Math.round(g.goal.tol * 86400)} s a day · now ${g.actual ? `${(g.actual / g.goal.rate - 1) * 86400 >= 0 ? "+" : ""}${((g.actual / g.goal.rate - 1) * 86400).toFixed(1)} s a day` : "still"}`
+      : `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: ${g.goal.abs ? rateText(Math.abs(g.goal.rate)).replace(/, clockwise$/, ", either way") : rateText(g.goal.rate)} · now ${rateText(g.actual)}`);
     return li;
   }), ...verdict.problems.slice(0, 2).map(t => { const li = document.createElement("li"); li.className = "bad"; li.textContent = t; return li; }));
+  // the states a mechanism can be in, to switch between; a chronograph with hearts can be reset
+  const scenes = $("scenes");
+  scenes.replaceChildren(...(level.scenarios || []).map((sc, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = `cb-scene${i === scene ? " on" : ""}`; b.textContent = sc.name;
+    b.addEventListener("click", () => { scene = i; stop(); render(); });
+    return b;
+  }));
+  if (design.arbors.some(a => (a.parts || []).some(p => p.kind === "heart"))) {
+    const b = document.createElement("button"); b.type = "button"; b.className = "cb-scene"; b.textContent = "Reset";
+    b.addEventListener("click", () => {                             // the hammers fall: every arbor with a heart goes home
+      for (const a of design.arbors) if ((a.parts || []).some(p => p.kind === "heart")) { sim.angles[a.id] = 0; sim.base[a.id] = 0; }
+      frame(); toast("The hammers fall on the hearts: both hands fly back to zero.");
+    });
+    scenes.append(b);
+  }
+  scenes.hidden = !scenes.children.length;
+  // a balance with an index: the slider moves it, and the brief shows the rate in seconds a day
+  const bal = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "balance" && p.adjustable);
+  $("indexRow").hidden = !bal;
+  if (bal) { $("index").value = bal.index || 0; $("indexOut").textContent = `${(bal.index || 0) >= 0 ? "+" : ""}${(bal.index || 0).toFixed(3)}`; }
   // the workings: how the first goal that isn't met is driven, step by step, ratio by ratio
   const work = $("work");
   work.hidden = !showWork;
@@ -282,7 +327,7 @@ function renderTray() {
 }
 
 function renderLayers() {
-  const used = [1, 2, 3, 4, 5, 6, 7, 8].filter(n => n <= 2 || design.arbors.some(a => (a.parts || []).some(p => p.layer >= n - 1)) || (n <= 7 && DIAL_LAYERS.includes(n) && level.chapter >= 4) || (n === 8 && level.chapter >= 7));
+  const used = [1, 2, 3, 4, 5, 6, 7, 8, 11, 12].filter(n => n > 10 ? level.chapter === 10 : n <= 2 || design.arbors.some(a => (a.parts || []).some(p => p.layer >= n - 1 && p.layer <= 10)) || (n <= 7 && DIAL_LAYERS.includes(n) && level.chapter >= 4) || (n === 8 && level.chapter >= 7));
   $("layers").replaceChildren(...used.map(n => {
     const b = document.createElement("button");
     b.type = "button"; b.className = `cb-layer${layer === n ? " on" : ""}${DIAL_LAYERS.includes(n) ? " dial" : ""}`;
@@ -298,7 +343,7 @@ function renderInspect() {
   if (!a) { box.hidden = true; return; }
   box.hidden = false;
   box.replaceChildren();
-  const h = document.createElement("p"); h.className = "cb-in-head"; h.textContent = `${a.label || "Arbor"} · ${rateText(verdict.out.rates[a.id])}`;
+  const h = document.createElement("p"); h.className = "cb-in-head"; h.textContent = `${a.label || "Arbor"} · ${rateText(curOut().rates[a.id])}`;
   box.append(h);
   for (const [i, p] of (a.parts || []).entries()) {
     const row = document.createElement("p"); row.className = "cb-in-row";
@@ -334,7 +379,7 @@ function place(x, y) {
   const hit = arborAt(x, y);
   const special = t.kind === "balance" || t.kind === "fork", partLayer = FORCED[t.kind] || layer;
   const piece = { ...Object.fromEntries(Object.entries(t).filter(([k]) => !["n", "left"].includes(k))), layer: partLayer };
-  if (!hit && ["finger", "star", "barrel", "escape", "ratchet"].includes(t.kind)) return toast(t.kind === "finger" ? "A finger rides on a wheel: tap the arbor it goes on." : "Tap the arbor it goes on.");
+  if (!hit && ["finger", "star", "barrel", "escape", "ratchet", "heart"].includes(t.kind)) return toast(t.kind === "finger" ? "A finger rides on a wheel: tap the arbor it goes on." : "Tap the arbor it goes on.");
   remember();
   if (hit) {
     if (hit.noParts) return toast("That's a post: nothing goes on it.");
@@ -431,7 +476,7 @@ function wind() {
   render();
 }
 function start() {
-  const out = verdict.out;
+  const out = curOut();
   sim.base = { ...sim.angles }; sim.t = 0; sim.hours = 0;
   if (out.jammed.length) { sim.state = "stopped"; toast("It won't turn: the train is locked."); }
   else if (out.runaway) { sim.state = "runaway"; sim.w0 = sim.wound; }
@@ -460,7 +505,7 @@ function stop(note) { sim.state = "stopped"; sim.balance = 0; sim.fork = 0; $("w
 
 function tick(now) {
   if (!running()) return;
-  const dt = Math.min(0.1, (now - last) / 1000), speed = read(SPEED, 60), out = verdict.out, rates = out.rates, b = barrelOf();
+  const dt = Math.min(0.1, (now - last) / 1000), speed = read(SPEED, 60), out = curOut(), rates = out.rates, b = barrelOf();
   last = now; sim.t += dt;
   if (sim.state === "winding") {
     const k = Math.min(1, sim.t / 0.9), e = 1 - (1 - k) * (1 - k);
@@ -504,7 +549,7 @@ function tick(now) {
 function showPower() {
   let el2 = $("power");
   if (!el2) { el2 = document.createElement("span"); el2.id = "power"; el2.className = "cb-power"; $("where").after(el2); }
-  const b = barrelOf(), r = b && verdict?.out.rates[b.id];
+  const b = barrelOf(), r = b && verdict && curOut().rates[b.id];
   el2.textContent = b ? `${Math.round(sim.wound * 100)}%${r ? ` · ${Math.round((sim.wound * TURNS) / Math.abs(r))} h` : ""}` : "";
   el2.title = "The mainspring: how wound it is, and the hours it has left at this rate";
 }
@@ -580,6 +625,10 @@ $("hintBtn").addEventListener("click", () => {
 });
 $("workBtn").addEventListener("click", () => { showWork = !showWork; $("workBtn").textContent = showWork ? "Hide workings" : "Workings"; renderBrief(); });
 $("undoBtn").addEventListener("click", undo);
+$("index").addEventListener("input", e => {
+  const bal = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "balance" && p.adjustable);
+  if (bal) { bal.index = +e.target.value; verdict = judge(level, design); renderBrief(); }
+});
 document.addEventListener("keydown", e => {
   if (e.target.closest?.("input, textarea") || document.querySelector("dialog[open]")) return;
   if ((e.key === "z" || e.key === "Z") && !e.altKey) { e.preventDefault(); undo(); }
