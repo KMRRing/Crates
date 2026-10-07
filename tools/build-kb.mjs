@@ -78,7 +78,8 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   const mean = xs => xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
   const yearsBy = rel => { const m = new Map(); for (const p of paintings) { const t = one(p.id, rel); if (t) (m.get(t.id) || m.set(t.id, []).get(t.id)).push(p); } return m; };
   const byPainter = yearsBy("painted-by"), byMovement = yearsBy("movement");
-  const museums = ENTITIES.filter(e => e.sets.includes("museum") && e.short);
+  // where a painting hangs is asked among art museums only (a science museum is no answer to "where does this hang?")
+  const museums = ENTITIES.filter(e => e.sets.includes("museum") && e.short && (e.pinCat ?? "art") === "art");
   const ask = (p, lv, right, pool, q, area, x) => {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
@@ -106,6 +107,13 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     if (!quoted.has(p.id)) out.quotes.push({ id: `ar-g-${p.id}`, cat: "art", q: "The year this was painted", unit: "year", scale: 25, tol: 5, note: `${dated}.`,
       tiers: { SS: 0, S: 5, A: 15, B: 30 }, d: 4, about: p.id, fact: "year" });
     if (museum.lat !== undefined && !pinned.has(museum.id)) { out.pins.push({ id: `ar-g-${museum.id}`, cat: "art", about: museum.id }); pinned.add(museum.id); }
+  }
+  // every museum with a position gets Chart's pin, whether or not a painting hangs in it: art museums in Art, the rest
+  // (history, archaeology, science, natural history, memorials) in Museums, as their pinCat says
+  for (const m of ENTITIES) {
+    if (!m.sets.includes("museum") || m.lat === undefined || pinned.has(m.id)) continue;
+    const cat = m.pinCat || "art";
+    out.pins.push({ id: `${cat === "art" ? "ar" : "mu"}-g-${m.id}`, cat, about: m.id }); pinned.add(m.id);
   }
   // Ideas, so knowing a movement or a style means more than sorting its pictures: each with a card (when and where;
   // what it rejected; what it sought; how to spot it; what lay behind it; what came next) gets up to four questions.

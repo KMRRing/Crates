@@ -1,6 +1,6 @@
 // Chart's questions: pin the place. Each is about an entity, whose name, position, note, country, region and picture
 // it shows; a field here overrides the entity's. Features are pinned anywhere on their shape (kb/geometry.js).
-export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China","ski":"Skiing","leman":"Lake Geneva","horology":"Watchmaking"};
+export const CATS = {"cities":"Cities","trade":"Trade","wine":"Wine","art":"Art","museums":"Museums","people":"People","geo":"Geography","architecture":"Architecture","myth":"Myth","history":"History","bavaria":"Bavaria","britain":"Britain","scotland":"Scotland","china":"China","ski":"Skiing","leman":"Lake Geneva","horology":"Watchmaking"};
 export const PINS = [
 {"id":"ci-01","cat":"cities","about":"tokyo"},
 {"id":"ci-02","cat":"cities","about":"delhi"},
