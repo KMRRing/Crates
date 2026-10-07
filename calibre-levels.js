@@ -59,6 +59,10 @@ export const CHAPTERS = [
   { id: 9, title: "The chronograph", about: "A stopwatch inside the watch: a wheel coupled to the train on demand, a finger counting its minutes, and hearts that send the hands home." },
   { id: 10, title: "Automatic winding", about: "A weight that swings with the wrist, and the one-way wheels that turn its every swing into winding." },
   { id: 11, title: "Regulating", about: "Making a running watch keep time: the hairspring's working length, the balance's weight, and seconds a day." },
+  { id: 12, title: "Pushers and jumpers", about: "Mechanisms worked by a press: a star held by a jumper, a jumping hour for travelling, and the column wheel that sequences a chronograph." },
+  { id: 13, title: "Calendars that know", about: "Cams that know the months: the annual calendar's twelve notches, and the perpetual calendar's four-year cam with its leap year." },
+  { id: 14, title: "Striking", about: "Watches that tell the time aloud: the snail that counts the hours, read by a rack, struck by a hammer." },
+  { id: 15, title: "The tourbillon", about: "Breguet's answer to gravity: the whole escapement turning in a cage, once a minute." },
 ];
 
 /** The going train of chapter 3, complete: barrel, centre, third, small seconds at six, escapement. */
@@ -810,6 +814,119 @@ export const LEVELS = [
     par: 1,
     solution: { add: [{ arbor: "balance", part: { kind: "balance", inertia: 10, stiffness: 0.24674, layer: 10 } }] },
   },
+  // ---------- 12. Pushers and jumpers ----------
+  {
+    id: "12.1", chapter: 12, title: "The jumping hour", plate: 13,
+    primer: [
+      "For travelling: a second hour hand you can jump an hour at a time without stopping the watch, while a 24-hour hand keeps home time.",
+      "The travel hour hand rides on a twelve-pointed star. A jumper, a spring with a tooth, holds the star to the hour wheel so they turn together; a press of the pusher drives the star round one point, and the jumper snaps it into the next.",
+      "Switch between Running and Press the pusher: running, both hands follow the watch; pressed, only the travel hand moves.",
+    ],
+    task: "Fit the star and the pusher's finger so each press jumps the travel hour hand one hour forward, and nothing else moves.",
+    scenarios: [{ id: "run", name: "Running", state: "run" }, { id: "press", name: "Press the pusher", state: "press", drive: { centre: null, pusher: -1 } }],
+    fixed: [
+      { id: "centre", label: "Centre (minute hand)", x: 0, y: 0, drive: 1, parts: [P(10, 6)] },
+      { id: "hours", label: "Hour wheel", x: 0, y: 0, on: "centre", parts: [W(32, 7)], links: [{ to: "local", in: ["run"] }] },
+      { id: "minute", label: "Minute wheel", x: 1.4142, y: 1.4142, parts: [W(30, 6), P(8, 7)] },
+      { id: "idler", label: "Idler", ...meet({ x: 0, y: 0 }, 2.6, { x: 0, y: 6 }, 4.2, -1), parts: [W(20, 7)] },
+      { id: "h24", label: "24-hour hand (home)", x: 0, y: 6, parts: [W(64, 7)] },
+      { id: "local", label: "Travel hour hand", x: 0, y: 0, on: "centre", parts: [] },
+      { id: "pusher", label: "Pusher", x: -4.2, y: -1, parts: [] },
+    ],
+    tray: [{ kind: "star", teeth: 10, r: 1.6, n: 1 }, { kind: "star", teeth: 12, r: 1.6, n: 1 }, { kind: "star", teeth: 24, r: 1.6, n: 1 }, { kind: "finger", len: 2.8, n: 1 }],
+    goals: [{ in: "run", arbor: "local", rate: 1 / 12 }, { in: "run", arbor: "h24", rate: 1 / 24 }, { in: "press", arbor: "local", rate: 1 / 12 }, { in: "press", arbor: "h24", still: true }, { in: "press", arbor: "centre", still: true }],
+    par: 2,
+    solution: { add: [{ arbor: "local", part: { kind: "star", teeth: 12, r: 1.6, layer: 8 } }, { arbor: "pusher", part: { kind: "finger", len: 2.8, layer: 8 } }] },
+  },
+  {
+    id: "12.2", chapter: 12, title: "The column wheel", plate: 13,
+    primer: [
+      "A column-wheel chronograph is run by a castellated wheel. Its levers rest on top of a column or drop between two: down, the coupling engages; up, it lets go.",
+      "Each press of the pusher moves the column wheel on by one tooth of its ratchet. For start and stop to alternate, one tooth must be half a column: the ratchet needs twice as many teeth as there are columns.",
+      "Column wheels are prized because they switch crisply and are finished by hand; cheaper chronographs use a stamped cam instead.",
+    ],
+    task: "Fit a column wheel and a ratchet that alternate start and stop with each press.",
+    scenarios: [{ id: "press", name: "Press the pusher", state: "press", drive: { pusher: -1 } }],
+    fixed: [
+      { id: "column", label: "Column wheel arbor", x: 2.5, y: 0, parts: [] },
+      { id: "pusher", label: "Pusher", x: -1.2, y: 0, parts: [{ kind: "finger", len: 1.6, layer: 8 }] },
+    ],
+    tray: [{ kind: "column", columns: 6, n: 1 }, { kind: "column", columns: 7, n: 1 }, { kind: "column", columns: 9, n: 1 }, { kind: "star", teeth: 14, r: 2.2, n: 1 }, { kind: "star", teeth: 15, r: 2.2, n: 1 }, { kind: "star", teeth: 16, r: 2.2, n: 1 }],
+    goals: [{ alternate: "column" }],
+    par: 2,
+    solution: { add: [{ arbor: "column", part: { kind: "column", columns: 7, layer: 7 } }, { arbor: "column", part: { kind: "star", teeth: 14, r: 2.2, layer: 8 } }] },
+  },
+
+  // ---------- 13. Calendars that know ----------
+  {
+    id: "13.1", chapter: 13, title: "The annual calendar", plate: 13,
+    primer: [
+      "A simple date runs to 31 every month. An annual calendar knows which months have 30 days: a month wheel turning once a year carries a cam, and a lever reading it lets the date jump from the 30th to the 1st in the short months.",
+      "Each notch in the cam is a month: no notch for 31 days, a notch for 30. It doesn't know February, so the wearer corrects it once a year, on the 1st of March.",
+      "Patek Philippe made the first wristwatch annual calendar in 1996.",
+    ],
+    task: "Cut the cam: tap each month to set how many days it runs. February doesn't count.",
+    fixed: [{ id: "month", label: "Month wheel", x: 0, y: -6, parts: [{ kind: "cam", notches: Array(12).fill(31), editable: true, layer: 8 }] }],
+    tray: [],
+    goals: [{ calendar: "month", years: 1, except: [1] }],
+    par: 0,
+    solution: { set: [{ arbor: "month", kind: "cam", values: { notches: [31, 30, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] } }], add: [] },
+  },
+  {
+    id: "13.2", chapter: 13, title: "The perpetual calendar", plate: 13,
+    primer: [
+      "A perpetual calendar needs no correcting: its cam turns once in four years, with 48 notches, one for every month, and February's notch is deepest in the three ordinary years, a little shallower in the leap year.",
+      "The first year on this cam is a leap year. Set every month of the four years.",
+      "Even a perpetual calendar will be wrong in 2100, which isn't a leap year; a secular calendar adds a cam for the centuries.",
+    ],
+    task: "Cut the four-year cam so the date is right every month.",
+    fixed: [{ id: "month", label: "Four-year cam", x: 0, y: -6, parts: [{ kind: "cam", notches: Array(48).fill(31), editable: true, layer: 8 }] }],
+    tray: [],
+    goals: [{ calendar: "month", years: 4 }],
+    par: 0,
+    solution: { set: [{ arbor: "month", kind: "cam", values: { notches: Array.from({ length: 48 }, (_, i) => [31, (Math.floor(i / 12) % 4 === 0 ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][i % 12]) } }], add: [] },
+  },
+
+  // ---------- 14. Striking ----------
+  {
+    id: "14.1", chapter: 14, title: "The hour snail", plate: 13,
+    primer: [
+      "A minute repeater strikes the time on gongs when you slide its lever: low blows for the hours, double blows for the quarters, high ones for the minutes.",
+      "The hours come from a snail: a cam of twelve steps on the hour wheel. A rack falls against it, and the deeper the step, the more teeth the rack falls, and the more blows the hammer strikes as it climbs back.",
+      "The snail turns clockwise with the hour wheel, and the rack reads it at twelve o'clock: at three o'clock the step under the rack is the one that started three places anticlockwise. Strike any hour to hear it.",
+    ],
+    task: "Number the snail's steps so it strikes the right hour at every hour.",
+    fixed: [
+      { id: "centre", label: "Centre", x: 0, y: 0, drive: 1, parts: [P(10, 6)] },
+      { id: "hours", label: "Hour wheel with its snail", x: 0, y: 0, on: "centre", parts: [W(32, 7), { kind: "snail", steps: [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], editable: true, layer: 8 }] },
+      { id: "minute", label: "Minute wheel", x: 1.4142, y: 1.4142, parts: [W(30, 6), P(8, 7)] },
+    ],
+    tray: [],
+    goals: [{ snail: "hours" }],
+    par: 0,
+    solution: { set: [{ arbor: "hours", kind: "snail", values: { steps: [12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1] } }], add: [] },
+  },
+
+  // ---------- 15. The tourbillon ----------
+  {
+    id: "15.1", chapter: 15, title: "The tourbillon", plate: 13,
+    primer: [
+      "A balance runs slightly differently with the watch dial up, crown down, and every way between, because gravity pulls on it unevenly. Abraham-Louis Breguet's answer, patented in 1801: put the whole escapement in a cage and turn the cage once a minute, so the errors average out.",
+      "The fourth wheel stands still, fixed to the plate. The cage takes the fourth wheel's place on its arbor and turns once a minute; the escape pinion, riding in the cage, rolls round the fixed wheel and turns the escape wheel as it goes.",
+      "Relative to the cage, the escape wheel turns once for every pinion leaf's worth of fixed-wheel teeth: the fixed wheel's teeth over the pinion's leaves, each turn of the cage.",
+    ],
+    task: "Choose the cage, its fixed wheel and escape pinion, so it turns once a minute with an 18,000 vph balance.",
+    fixed: [
+      { id: "barrel", label: "Barrel", ...BARREL_AT, power: -1, parts: [{ kind: "barrel", teeth: 80, layer: 1 }] },
+      { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
+      { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
+      { id: "seconds", label: "Tourbillon cage (seconds)", ...SECONDS, parts: [P(10, 3)] },
+    ],
+    tray: [{ kind: "cage", escape: 15, vph: 18000, sun: 75, pinion: 10, n: 1 }, { kind: "cage", escape: 15, vph: 18000, sun: 80, pinion: 8, n: 1 }, { kind: "cage", escape: 15, vph: 18000, sun: 90, pinion: 8, n: 1 }],
+    goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
+    par: 1,
+    solution: { add: [{ arbor: "seconds", part: { kind: "cage", escape: 15, vph: 18000, sun: 80, pinion: 8, layer: 9 } }] },
+  },
 ];
 
 // ---------- hints and pitfalls ----------
@@ -854,6 +971,12 @@ const HELP = {
   "10.2": { hints: ["The second reverser's wheel meshes the first's; its pinion meshes the reduction wheel.", "Put it where it is 3 mm from the first reverser and 3.5 mm from the reduction wheel."], watch: ["If the second reverser also touches the rotor's pinion, the train locks."] },
   "11.1": { hints: ["The watch loses, so it needs a stiffer spring: move the index towards +.", "About a tenth of the way towards +."], watch: ["The index trims seconds; minutes a day mean something else is wrong."] },
   "11.2": { hints: ["The hairspring was made for inertia 10."], watch: [] },
+  "12.1": { hints: ["The travel hand turns one twelfth of a turn per press: a star of twelve points.", "The star goes on the travel hour hand's arbor, the finger on the pusher."], watch: ["A press must not move the minute hand or the home time."] },
+  "12.2": { hints: ["Twice as many ratchet teeth as columns.", "Seven columns and fourteen teeth."], watch: [] },
+  "13.1": { hints: ["Thirty days hath September, April, June and November."], watch: ["The annual calendar still needs one correction a year, after February."] },
+  "13.2": { hints: ["Every year as the annual calendar, plus February: 29 in the first year, 28 in the other three."], watch: [] },
+  "14.1": { hints: ["Twelve stays at the top. At one o'clock the rack reads the step one place anticlockwise of twelve.", "Going anticlockwise from twelve: 1, 2, 3 … 11."], watch: ["The snail turns with the hours; the rack stands still."] },
+  "15.1": { hints: ["The escape wheel must turn 600 times an hour relative to the cage, and the cage 60: ten times.", "80 teeth over 8 leaves is ten."], watch: [] },
   "8.2": { hints: ["The third wheel goes to the right of the line from centre to seconds; the left is the escapement's.", "21,600 vph needs 72 over 6 at the end."], watch: ["A rectangle has corners to use and sides to hit."] },
 };
 for (const L of LEVELS) Object.assign(L, { hints: [], watch: [], ...HELP[L.id] });
@@ -876,6 +999,11 @@ export const GLOSSARY = [
   ["Inertia", "How hard a balance is to set swinging: the more, the slower it beats."],
   ["Reverser", "A wheel and pinion joined by a one-way clutch, so a rotor winds whichever way it swings."],
   ["Rotor", "The half-moon weight of an automatic watch that swings with the wrist and winds the spring."],
+  ["Jumper", "A spring with a tooth that holds a star wheel in place between pushes, so it moves only in clean jumps."],
+  ["Perpetual calendar", "A calendar that knows every month's length, leap years included, through a cam turning once in four years."],
+  ["Minute repeater", "A striking work that sounds the hours, quarters and minutes on gongs when its slide is pushed."],
+  ["Snail", "A stepped cam whose step depths a rack reads, to count the blows of a striking work."],
+  ["Tourbillon", "A cage carrying the escapement, turning once a minute so that gravity's errors average out."],
   ["Click", "The sprung pawl on the ratchet wheel that stops the mainspring unwinding through the crown."],
   ["Escape wheel", "The last wheel of the train, released half a tooth per beat by the pallet fork."],
   ["Escapement", "The escape wheel, pallet fork and balance together: what lets the power out a tooth at a time."],

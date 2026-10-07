@@ -130,3 +130,26 @@ path.cb-fork { fill: #C3CBD1; }
 .cb-lever { stroke: #55626B; stroke-width: .35; stroke-linecap: round; opacity: .55; }
 .cb-chrono line { stroke: #A8402F; stroke-width: .12; }
 .cb-counter line { stroke: #A8402F; stroke-width: .18; }
+
+/* the editors: a cam's months, a snail's steps, the strike buttons; the new parts */
+.cb-editor { margin: .4rem 0 0; }
+.cb-editor[hidden] { display: none; }
+.cb-camrow { display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; margin-bottom: 3px; position: relative; }
+.cb-camrow:has(.cb-camyear) { grid-template-columns: 2.6rem repeat(12, 1fr); }
+.cb-camyear { font-size: .62rem; color: var(--ink-soft); align-self: center; }
+.cb-cam-cell { border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .7rem; padding: .1rem 0; cursor: pointer; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cb-cam-cell small { display: block; font-size: .55rem; color: var(--ink-soft); }
+.cb-cam-cell.short { background: color-mix(in srgb, var(--brass) 22%, var(--tile)); }
+.cb-snailring { position: relative; width: 9.5rem; height: 9.5rem; margin: .2rem auto; border-radius: 50%; border: 1px dashed var(--tile-edge); }
+.cb-snailstep { position: absolute; transform: translate(-50%, -50%); width: 1.9rem; height: 1.9rem; border-radius: 50%; border: 1px solid var(--tile-edge); background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem; cursor: pointer; }
+.cb-rackmark { position: absolute; left: 50%; top: -1.15rem; transform: translateX(-50%); font-size: .7rem; color: #A8402F; }
+.cb-strike { display: flex; flex-wrap: wrap; gap: 2px; align-items: center; justify-content: center; font-size: .75rem; color: var(--ink-soft); }
+.cb-strike button { border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .72rem; min-width: 1.6rem; padding: .1rem .2rem; cursor: pointer; }
+.cb-cam { fill: #C3CBD1; }
+.cb-snail { fill: #B3BDC4; }
+.cb-colbase { fill: #B3BDC4; }
+.cb-column { fill: #55626B; }
+.cb-sun { fill: #D9AF4F; opacity: .9; }
+.cb-cagearm { stroke: #3D6E9E; stroke-width: .3; stroke-linecap: round; }
+.cb-cagering { fill: none; stroke: #3D6E9E; stroke-width: .18; }
+.cb-escape-in-cage { fill: #4A78A8; }

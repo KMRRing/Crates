@@ -62,7 +62,11 @@ export function beatOf(b) {
  * Returns [{ escape, fork, balance, state: "free" | "locked" | "running", vph, teeth }].
  */
 export function escapements(arbors) {
-  return arbors.filter(a => has(a, "escape")).map(e => {
+  // a tourbillon cage carries the escape wheel and balance; its escape pinion rolls round the fixed fourth wheel, so
+  // the escape wheel turns, relative to the cage, as many times as the fixed wheel's teeth over its pinion's leaves
+  const cages = arbors.filter(a => has(a, "cage")).map(a => { const c = has(a, "cage");
+    return { escape: a.id, fork: a.id, balance: a.id, state: "running", vph: c.vph, teeth: (c.escape * c.sun) / c.pinion }; });
+  return [...cages, ...arbors.filter(a => has(a, "escape")).map(e => {
     const fork = arbors.find(f => has(f, "fork") && Math.abs(dist(f, e) - FORK_REACH) <= FIT);
     const balance = fork && arbors.find(b => {
       if (!has(b, "balance") || Math.abs(dist(b, fork) - FORK_LENGTH) > FIT) return false;
@@ -71,7 +75,7 @@ export function escapements(arbors) {
     });
     return { escape: e.id, fork: fork?.id || null, balance: balance?.id || null, state: !fork ? "free" : !balance ? "locked" : "running",
       vph: balance ? beatOf(has(balance, "balance")) : null, teeth: has(e, "escape").teeth };
-  });
+  })];
 }
 
 /**
@@ -108,13 +112,16 @@ export function run(design) {
   // rates: each mesh turns the other arbor the other way, faster by the ratio of teeth
   const edges = new Map(arbors.map(a => [a.id, []]));
   for (const m of meshes) { edges.get(m.a).push([m.b, -m.ta / m.tb]); edges.get(m.b).push([m.a, -m.tb / m.ta]); }
+  // a jumper or a friction spring holds two bodies together (they turn as one) in the states it's set for; in the
+  // others (a pusher acting) it lets them slip
+  for (const A of arbors) for (const l of A.links || []) if (byId.has(l.to)) { edges.get(A.id).push([l.to, l.ratio ?? 1]); edges.get(l.to).push([A.id, 1 / (l.ratio ?? 1)]); }
   // a finger on one arbor pushes a star wheel, or a ring's inner teeth, on by one tooth each turn it makes: the star
   // turns once in as many turns of the finger as it has teeth, the other way (a ring, being pushed from inside, the same way)
   const fingers = [];
   for (const A of arbors) for (const f of (A.parts || []).filter(p => p.kind === "finger")) for (const B of arbors) for (const st of (B.parts || []).filter(p => p.kind === "star" && p.layer === f.layer)) {
     if (A === B || Math.abs(dist(A, B) - st.r) > f.len) continue;
     const k = (st.internal ? 1 : -1) / st.teeth;
-    edges.get(A.id).push([B.id, k]); edges.get(B.id).push([A.id, 1 / k]);
+    edges.get(A.id).push([B.id, k]);                              // a finger drives its star; a star never drives the finger
     fingers.push({ a: A.id, b: B.id, teeth: st.teeth });
   }
   const rates = Object.fromEntries(arbors.map(a => [a.id, null]));
@@ -181,7 +188,11 @@ export function judge(level, design) {
 }
 /** A design as it stands in one state: arbors on levers move to that state's position, drives take that state's rates. */
 export function inState(design, sc) {
-  return { ...design, arbors: design.arbors.map(a => ({ ...a, ...(a.positions?.[sc.state] || {}), ...(sc.drive && sc.drive[a.id] != null ? { drive: sc.drive[a.id] } : {}) })) };
+  return { ...design, arbors: design.arbors.map(a => {
+    const b = { ...a, ...(a.positions?.[sc.state] || {}), links: (a.links || []).filter(l => !l.in || l.in.includes(sc.state)) };
+    if (sc.drive && a.id in sc.drive) { if (sc.drive[a.id] == null) delete b.drive; else b.drive = sc.drive[a.id]; }
+    return b;
+  }) };
 }
 function judgeOne(level, design) {
   const out = run(design);
@@ -189,6 +200,12 @@ function judgeOne(level, design) {
     if (g.escapement) { const e = out.escapements[0]; return { goal: g, ok: e?.state === g.escapement, actual: e?.state || "none" }; }
     if (g.reserve) { const h = reserveOf(design, out); return { goal: g, ok: h != null && h >= g.reserve - 1e-6 && (!g.most || h <= g.most + 1e-6), actual: h }; }
     if (g.sign) { const r = out.rates[g.arbor]; return { goal: g, ok: r != null && r !== 0 && Math.sign(r) === g.sign, actual: r }; }
+    if (g.alternate) {                                            // a column wheel: each press one ratchet tooth, half a column
+      const a = design.arbors.find(x => x.id === g.alternate), col = (a?.parts || []).find(p => p.kind === "column"), st = (a?.parts || []).find(p => p.kind === "star");
+      return { goal: g, ok: !!(col && st && st.teeth === 2 * col.columns && out.rates[g.alternate]), actual: col && st ? `${col.columns} columns, ${st.teeth}-tooth ratchet` : "incomplete" };
+    }
+    if (g.calendar) { const bad = calendarErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
+    if (g.snail) { const bad = snailErrors(design, g); return { goal: g, ok: bad != null && !bad.length, actual: bad }; }
     if (g.still) { const r = out.rates[g.arbor]; return { goal: g, ok: !r, actual: r }; }
     if (g.reset) { const missing = g.reset.filter(id => !(design.arbors.find(a => a.id === id)?.parts || []).some(p => p.kind === "heart")); return { goal: g, ok: !missing.length, actual: missing }; }
     const actual = out.rates[g.arbor];
@@ -204,6 +221,39 @@ function judgeOne(level, design) {
   if (out.runaway) problems.push("Nothing holds the spring back: with no pallet fork on the escape wheel, it unwinds at once.");
   if (out.locked && !(level.goals || []).some(g => g.escapement === "locked")) problems.push("The pallet fork locks the escape wheel: with no balance to swing it, the watch stops after one tick.");
   return { ok: goals.every(g => g.ok) && !problems.length, out, goals, problems };
+}
+
+// ---------- calendars and striking: cams and snails read by levers ----------
+export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/** A month's true length, month i counted from January of a leap year. */
+export const monthLength = i => [31, (Math.floor(i / 12) % 4 === 0 ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][i % 12];
+/**
+ * The months a calendar cam gets wrong. Its notches say how many days each month runs before the date jumps to the
+ * 1st: a 31 is no notch, the lever riding the cam's rim; deeper notches let it fall further, skipping the dates the
+ * month hasn't got. Twelve notches make an annual calendar (February corrected by hand, if the goal allows), 48 a
+ * perpetual one: four years, the first a leap year.
+ */
+export function calendarErrors(design, g) {
+  const cam = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "cam");
+  if (!cam) return null;
+  const months = 12 * (g.years || 1), bad = [];
+  for (let i = 0; i < months; i++) {
+    if (g.except?.includes(i % 12)) continue;
+    if (cam.notches[i % cam.notches.length] !== monthLength(i)) bad.push(i);
+  }
+  return bad;
+}
+/**
+ * The hours an hour snail strikes wrong. The snail rides the hour wheel, turning clockwise once in twelve hours; the
+ * rack's arm reads it from twelve o'clock, so at h o'clock it rests on the step that started h places anticlockwise
+ * of twelve. That step's depth sets how many teeth the rack falls, and so how many blows the hammer strikes.
+ */
+export function snailErrors(design, g) {
+  const sn = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "snail");
+  if (!sn) return null;
+  const bad = [];
+  for (let h = 1; h <= 12; h++) if (sn.steps[(12 - (h % 12)) % 12] !== h) bad.push(h);
+  return bad;
 }
 
 /** The power reserve: hours a fully wound mainspring lasts at the barrel's rate (needs a running escapement). */
