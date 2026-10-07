@@ -27,7 +27,9 @@
   <section class="cb-brief">
     <p id="task" class="cb-task"></p>
     <ul id="goals" class="cb-goals" aria-label="Goals"></ul>
-    <button id="primerBtn" class="cb-link" type="button">How it works</button>
+    <p id="hint" class="cb-hint" hidden></p>
+    <p id="work" class="cb-work" hidden></p>
+    <div class="cb-help"><button id="primerBtn" class="cb-link" type="button">How it works</button><button id="workBtn" class="cb-link" type="button">Workings</button><button id="hintBtn" class="cb-link" type="button">Hint</button></div>
   </section>
   <div id="stage" class="cb-stage fit-grow">
     <svg id="plan" class="cb-plan" aria-label="The calibre plan: tap to place the chosen part; drag to move, pinch to zoom"></svg>
@@ -37,6 +39,7 @@
   <div id="tray" class="cb-tray" aria-label="Parts"></div>
   <div class="cb-controls">
     <div id="layers" class="cb-layers" role="radiogroup" aria-label="Layer"></div>
+    <button id="undoBtn" class="btn cb-undo" type="button" aria-label="Undo">↶</button>
     <button id="windBtn" class="btn cb-wind" type="button">Wind</button>
   </div>
 </div>

@@ -90,3 +90,26 @@ path.cb-fork { fill: #C3CBD1; }
 .cb-done-stars { font-size: 2rem; color: var(--brass-lo, var(--brass)); margin: .2rem 0; letter-spacing: .1em; }
 .cb-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); max-width: 90vw; background: var(--ink); color: var(--sheet); padding: .55rem .9rem; border-radius: 8px; font-size: .9rem; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 50; }
 .cb-toast.on { opacity: 1; }
+
+/* teaching: the hint, the workings, the help links, the chapter line and the pitfalls in the primer */
+.cb-help { display: flex; gap: .9rem; flex-wrap: wrap; }
+.cb-hint { margin: .35rem 0 0; padding: .35rem .55rem; border-left: 3px solid var(--brass); background: color-mix(in srgb, var(--brass) 10%, transparent); font-size: .82rem; line-height: 1.35; }
+.cb-hint[hidden], .cb-work[hidden] { display: none; }
+.cb-work { margin: .35rem 0 0; font-size: .78rem; color: var(--ink-soft); line-height: 1.4; font-variant-numeric: tabular-nums; }
+.cb-chapter { font-weight: 700; color: var(--brass-lo, var(--brass)); }
+.cb-watch-head { margin: .8rem 0 .2rem; font-weight: 700; }
+.cb-watch { margin: 0; padding-left: 1.2rem; color: #A8402F; }
+.cb-undo { min-width: 2.6rem; padding-left: .5rem; padding-right: .5rem; }
+/* the new parts: guides, the ratchet and click, the date ring, the moon, fingers, star wheels, the 24-hour hand */
+.cb-guide { fill: none; stroke: #2F7D5B; stroke-width: .06; stroke-dasharray: .3 .25; opacity: .7; pointer-events: none; }
+.cb-ratchet { fill: #B3BDC4; }
+.cb-click { fill: #55626B; stroke: #1C2A34; stroke-width: .05; }
+.cb-ring { fill: #F4EFE3; stroke: #8A949C; stroke-width: .05; }
+.cb-date { font-size: .45px; text-anchor: middle; dominant-baseline: middle; fill: #1C2A34; font-family: var(--font, sans-serif); }
+.cb-moondisc { fill: #1E3A63; }
+.cb-moon { fill: #E8D27A; }
+.cb-star { fill: #C3CBD1; }
+.cb-finger { fill: #55626B; }
+.cb-gmt line { stroke: #2C5B8A; stroke-width: .2; }
+.cb-part path.cb-moondisc { fill: #1E3A63; }
+.cb-part path.cb-star, .cb-part path.cb-ring, .cb-part path.cb-ratchet { opacity: 1; }

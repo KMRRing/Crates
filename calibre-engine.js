@@ -12,7 +12,9 @@ export const MESH_TOL = 0.04;
 /** The room a pivot needs: a wheel must clear every other arbor by this much, or it rubs on it. */
 export const PIVOT_CLEAR = 0.15;
 
-export const radius = teeth => (teeth * MODULE) / 2;
+/** A gear's pitch radius from its teeth: every gear is cut to the train's module unless it has its own (a moon disc's
+ * fine teeth, say), and only gears of one module can mesh. */
+export const radius = (teeth, m = MODULE) => (teeth * m) / 2;
 
 // The escapement, laid out as a straight-line Swiss lever: the escape wheel, the pallet fork's pivot and the balance
 // staff in a line. The escape wheel is cut to its own, larger module, so its size is fixed whatever its teeth; the
@@ -21,7 +23,12 @@ export const radius = teeth => (teeth * MODULE) / 2;
 export const ESCAPE_R = 1.5, FORK_REACH = 2.0, FORK_LENGTH = 2.8, BALANCE_R = 2.6;
 const FIT = 0.15;                                                // how far off its place a fork or balance may sit
 /** A part's footprint on the plan: its pitch circle, or for the escape wheel and balance their own sizes. */
-export const partRadius = p => (p.kind === "escape" ? ESCAPE_R : p.kind === "balance" ? BALANCE_R : p.teeth ? radius(p.teeth) : 0);
+export const partRadius = p => (p.kind === "escape" ? ESCAPE_R : p.kind === "balance" ? BALANCE_R : p.kind === "star" ? (p.internal ? 0 : p.r) : p.kind === "finger" ? 0 : p.teeth ? radius(p.teeth, p.m) : 0);
+/** Turns of the barrel a fully wound mainspring gives: with the classic 8:1 to the centre wheel, forty hours. */
+export const MAINSPRING_TURNS = 5;
+/** Does a part of radius r at (x, y) lie within the plate? A plate is round (its radius) or rectangular ({ w, h }). */
+export const onPlate = (plate, x, y, r) => (typeof plate === "number" ? Math.hypot(x, y) + r <= plate + MESH_TOL
+  : Math.abs(x) + r <= plate.w / 2 + MESH_TOL && Math.abs(y) + r <= plate.h / 2 + MESH_TOL);
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
 
@@ -65,9 +72,9 @@ export function run(design) {
   const meshes = [], clashes = [];
   for (let i = 0; i < toothed.length; i++) for (let j = i + 1; j < toothed.length; j++) {
     const A = toothed[i], B = toothed[j];
-    if (A.a === B.a || A.p.layer !== B.p.layer || concentric(A.a, B.a) || !A.p.teeth || !B.p.teeth || A.p.kind === "escape" || B.p.kind === "escape") continue;
-    const gap = dist(A.a, B.a) - (A.r + B.r);
-    if (Math.abs(gap) <= MESH_TOL) meshes.push({ a: A.a.id, b: B.a.id, ta: A.p.teeth, tb: B.p.teeth, layer: A.p.layer });
+    if (A.a === B.a || A.p.layer !== B.p.layer || concentric(A.a, B.a)) continue;
+    const gap = dist(A.a, B.a) - (A.r + B.r), gears = A.p.teeth && B.p.teeth && !["escape", "star"].includes(A.p.kind) && !["escape", "star"].includes(B.p.kind);
+    if (gears && (A.p.m || MODULE) === (B.p.m || MODULE) && Math.abs(gap) <= MESH_TOL) meshes.push({ a: A.a.id, b: B.a.id, ta: A.p.teeth, tb: B.p.teeth, layer: A.p.layer, ra: A.r, rb: B.r });
     else if (gap < 0) clashes.push({ kind: "overlap", arbors: [A.a.id, B.a.id], layer: A.p.layer });
   }
   // an arbor runs from plate to bridge, so no wheel, at any height on that side of the plate, may pass over its pivot
@@ -75,11 +82,20 @@ export function run(design) {
     if (X === T.a || concentric(X, T.a) || !sides(X).has(side(T.p.layer))) continue;
     if (dist(X, T.a) < T.r + PIVOT_CLEAR - 1e-9) clashes.push({ kind: "pivot", arbors: [T.a.id, X.id], layer: T.p.layer });
   }
-  for (const T of toothed) if (Math.hypot(T.a.x, T.a.y) + T.r > design.plate + MESH_TOL) clashes.push({ kind: "outside", arbors: [T.a.id], layer: T.p.layer });
+  for (const T of toothed) if (!onPlate(design.plate, T.a.x, T.a.y, T.r)) clashes.push({ kind: "outside", arbors: [T.a.id], layer: T.p.layer });
 
   // rates: each mesh turns the other arbor the other way, faster by the ratio of teeth
   const edges = new Map(arbors.map(a => [a.id, []]));
   for (const m of meshes) { edges.get(m.a).push([m.b, -m.ta / m.tb]); edges.get(m.b).push([m.a, -m.tb / m.ta]); }
+  // a finger on one arbor pushes a star wheel, or a ring's inner teeth, on by one tooth each turn it makes: the star
+  // turns once in as many turns of the finger as it has teeth, the other way (a ring, being pushed from inside, the same way)
+  const fingers = [];
+  for (const A of arbors) for (const f of (A.parts || []).filter(p => p.kind === "finger")) for (const B of arbors) for (const st of (B.parts || []).filter(p => p.kind === "star" && p.layer === f.layer)) {
+    if (A === B || Math.abs(dist(A, B) - st.r) > f.len) continue;
+    const k = (st.internal ? 1 : -1) / st.teeth;
+    edges.get(A.id).push([B.id, k]); edges.get(B.id).push([A.id, 1 / k]);
+    fingers.push({ a: A.id, b: B.id, teeth: st.teeth });
+  }
   const rates = Object.fromEntries(arbors.map(a => [a.id, null]));
   const jammed = new Set(), escs = escapements(arbors);
   let runaway = false, locked = false, relative = null;
@@ -113,7 +129,7 @@ export function run(design) {
     if (jam) for (const id of got.keys()) jammed.add(id);
   }
   const idle = arbors.filter(a => rates[a.id] == null && !runaway).map(a => a.id);
-  return { meshes, clashes, rates, jammed: [...jammed], runaway, locked, relative: relative && Object.fromEntries(relative), escapements: escs, idle, byId };
+  return { meshes, fingers, edges, clashes, rates, jammed: [...jammed], runaway, locked, relative: relative && Object.fromEntries(relative), escapements: escs, idle, byId };
 }
 
 /** Rates in words: once a minute is 60 an hour; the unit is chosen to make the number readable. */
@@ -134,6 +150,8 @@ export function judge(level, design) {
   const out = run(design);
   const goals = (level.goals || []).map(g => {
     if (g.escapement) { const e = out.escapements[0]; return { goal: g, ok: e?.state === g.escapement, actual: e?.state || "none" }; }
+    if (g.reserve) { const h = reserveOf(design, out); return { goal: g, ok: h != null && h >= g.reserve - 1e-6 && (!g.most || h <= g.most + 1e-6), actual: h }; }
+    if (g.sign) { const r = out.rates[g.arbor]; return { goal: g, ok: r != null && r !== 0 && Math.sign(r) === g.sign, actual: r }; }
     const actual = out.rates[g.arbor];
     const ok = actual != null && actual !== 0 && (g.abs ? near(Math.abs(actual), Math.abs(g.rate)) : near(actual, g.rate));
     return { goal: g, ok, actual };
@@ -148,9 +166,31 @@ export function judge(level, design) {
   return { ok: goals.every(g => g.ok) && !problems.length, out, goals, problems };
 }
 
-/** A level's starting design: its fixed arbors and anything placed in advance, copied so play never changes the level. */
+/** The power reserve: hours a fully wound mainspring lasts at the barrel's rate (needs a running escapement). */
+export function reserveOf(design, out) {
+  const b = design.arbors.find(a => a.power != null && (a.parts || []).some(p => p.kind === "barrel"));
+  const r = b && out.rates[b.id];
+  return r ? MAINSPRING_TURNS / Math.abs(r) : null;
+}
+
+/** How an arbor is driven: the path of meshes from the power (crank, barrel or escapement) to it, each step a ratio. */
+export function workings(design, out, target) {
+  const sources = design.arbors.filter(a => a.drive != null || a.power != null).map(a => a.id);
+  const prev = new Map(sources.map(id => [id, null])), queue = [...sources];
+  while (queue.length) { const id = queue.shift(); for (const [to] of out.edges.get(id) || []) if (!prev.has(to)) { prev.set(to, id); queue.push(to); } }
+  if (!prev.has(target)) return null;
+  const steps = [];
+  for (let at = target; prev.get(at) != null; at = prev.get(at)) {
+    const from = prev.get(at), m = out.meshes.find(x => (x.a === from && x.b === at) || (x.b === from && x.a === at)), f = out.fingers.find(x => x.a === from && x.b === at);
+    steps.unshift(m ? { from, to: at, driver: m.a === from ? m.ta : m.tb, driven: m.a === from ? m.tb : m.ta } : { from, to: at, finger: f?.teeth });
+  }
+  return steps;
+}
+
+/** A level's starting design: its fixed arbors and anything placed in advance, copied so play never changes the level.
+ * A part marked loose sits on a fixed arbor but may be taken off: the suspect in a repair. */
 export function startDesign(level) {
-  const copy = a => ({ ...a, parts: (a.parts || []).map(p => ({ ...p, fixed: a.fixed !== false && !a.placed })) });
+  const copy = a => ({ ...a, parts: (a.parts || []).map(p => ({ ...p, fixed: a.fixed !== false && !a.placed && !p.loose })) });
   return { plate: level.plate, arbors: [...(level.fixed || []).map(a => ({ ...copy(a), fixed: true })), ...(level.placed || []).map(a => ({ ...copy(a), placed: true }))] };
 }
 
@@ -158,6 +198,7 @@ export function startDesign(level) {
 export function solved(level) {
   const d = startDesign(level);
   for (const id of level.solution.remove || []) d.arbors = d.arbors.filter(a => a.id !== id);
+  for (const t of level.solution.takeOff || []) { const a = d.arbors.find(x => x.id === t.arbor); a.parts = a.parts.filter(p => !(p.kind === t.kind && (p.teeth ?? p.vph) === (t.teeth ?? t.vph) && p.loose)); }
   for (const s of level.solution.add || []) {
     let a = s.arbor ? d.arbors.find(x => x.id === s.arbor) : d.arbors.find(x => x.id === s.at.id);
     if (!a) d.arbors.push(a = { id: s.at.id, x: s.at.x, y: s.at.y, parts: [], label: s.at.label });
@@ -186,14 +227,14 @@ export function snapEscapement(design, x, y, kind) {
 }
 
 /** Where a new arbor should sit so its part meshes with a neighbour's: on the line from that neighbour to the tap. */
-export function snap(design, x, y, teeth, layer, exclude) {
-  const r = radius(teeth);
+export function snap(design, x, y, teeth, layer, exclude, m = MODULE) {
+  const r = radius(teeth, m);
   let best = null;
   for (const a of design.arbors) {
     if (a.id === exclude) continue;
     for (const p of a.parts || []) {
-      if (p.layer !== layer || !p.teeth || p.kind === "escape") continue;
-      const d = r + radius(p.teeth), dx = x - a.x, dy = y - a.y, len = Math.hypot(dx, dy) || 1;
+      if (p.layer !== layer || !p.teeth || ["escape", "star"].includes(p.kind) || (p.m || MODULE) !== m) continue;
+      const d = r + radius(p.teeth, p.m), dx = x - a.x, dy = y - a.y, len = Math.hypot(dx, dy) || 1;
       const sx = a.x + (dx / len) * d, sy = a.y + (dy / len) * d, off = Math.hypot(sx - x, sy - y);
       if (off < Math.max(1.2, r) && (!best || off < best.off)) best = { x: sx, y: sy, off, to: a.id };
     }

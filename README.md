@@ -444,25 +444,31 @@ A best is only worth comparing if everyone played the same thing. So in the rank
 ## Calibre
 
 Learn watchmaking by drafting movements the way watchmakers do, on the calibre plan: the plate seen from above, each
-arbor a point, each wheel and pinion a circle of its pitch diameter on a layer (1 to 5 the train's, D1 and D2 the motion
-works under the dial). Choose a part from the tray, pick its layer and tap the plate: on an arbor to add it there, or
-near a wheel to set a new arbor that snaps into mesh. The engine (`calibre-engine.js`) runs the plan as kinematics, with
-real sizes (one module, 0.1 mm a tooth): meshing turns the next arbor the other way by the ratio of teeth, three wheels
-in a loop lock, no wheel may cover another arbor's pivot on its side of the plate, nothing may stick out of the plate,
-and the escapement is built from its real parts, a club-tooth escape wheel, a pallet fork whose stones must reach its
-teeth, and a balance in line at the end of the fork: no fork and the spring runs away, a fork alone locks after one
-tick, fork and balance and the balance's beat (vph over twice the escape wheel's teeth) sets the pace of the whole
-train. Every part is drawn as itself: wheels with rims and crossings, steel pinions, the barrel's drum with the
-mainspring coiled inside, the fork with its red pallet stones, the balance with timing screws and a breathing
-hairspring, jewels in their chatons. Wind coils the mainspring; the watch then runs down over its power reserve (shown
-beside the level), the balance swinging in real time and its amplitude falling as the spring weakens; at real speed
-the escape wheel and every wheel after it step half a tooth a beat. The goals show live what each arbor does and what it should; Wind runs the movement in time-lapse,
-hands and balance included, and a level is won only when the watch truly keeps time. Stars for par (fewest parts).
+arbor a point, each wheel and pinion a circle of its pitch diameter on a layer (1 to 5 the train's, D1 to D3 the dial
+side). Choose a part from the tray: faint circles show where its arbor would have to stand to mesh with each wheel on
+that layer; tap an arbor to add it there, or near a wheel to set a new arbor that snaps into mesh. Drag your own arbors;
+tap one to see how it turns or take a part off.
 
-The course (`calibre-levels.js`): 1 Gears (two wheels, direction and idlers, wheel and pinion, a locked triangle,
-clearance round a bridge post), 2 The going train (the centre wheel from the barrel, small seconds, choosing the tooth
-counts), 3 The escapement (the runaway train and the pallet fork, the balance, 18,000 vph and a 15-tooth escape wheel, 28,800 and a
-20-tooth, choosing the balance), 4 The
-motion works (the minute wheel, twelve to one with equal centre distances, the whole watch). `tests/calibre.mjs` proves
-the engine's rules and that every level is unsolved at the start and solved by its worked solution, from its tray,
-within par. Menu: speed (real time, a minute a second, twelve minutes a second), start again, show a solution.
+The engine (`calibre-engine.js`) runs the plan as it would really turn, at real size (one module, 0.1 mm a tooth, or a
+gear's own finer module, which meshes only its own kind): ratios and directions through every mesh, a finger pushing a
+star wheel or a date ring one tooth a turn, locked loops, no wheel over another arbor's pivot on its side of the plate,
+nothing off the plate (round, or the Reverso's rectangle). The escapement is built from its real parts, a club-tooth
+escape wheel, a pallet fork whose stones must reach its teeth and a balance in line at the end of the fork: no fork and
+the spring runs away, a fork alone locks after one tick, both and the balance's beat sets the pace. Wind coils the
+mainspring in its barrel; the watch then runs down over its power reserve, the balance swinging in real time and its
+amplitude falling as the spring weakens, the escape wheel stepping half a tooth a beat at real speed.
+
+Teaching: every level opens with a primer that defines its terms and names what usually goes wrong ("watch out for");
+the goals show live what each arbor does and what it should; Workings shows how the first unmet goal is driven, mesh by
+mesh, ratio by ratio; Hint gives two or three graded nudges (a hint caps the stars at two); a Glossary of the craft's
+words; Undo; keys (1–8 layers, W wind, Z undo, H hint, Delete, Esc). Stars for par (fewest parts).
+
+The course (`calibre-levels.js`, 30 levels): 1 Gears (two wheels, idlers, wheel and pinion, speeding up, a ratio hunt,
+a locked triangle, clearance round a post), 2 The going train (the centre wheel, small seconds, choosing the counts, a
+repair that keeps the tooth sum), 3 The escapement (the runaway and the pallet fork, the balance, the beat, the faster
+beat, choosing the balance, the escape wheel's teeth), 4 The motion works (the minute wheel, twelve to one, the 24-hour
+hand, the whole watch), 5 Power (more hours from the barrel ratio, a week with an intermediate wheel), 6 Winding and
+setting (ratchet and click, the setting wheels), 7 Calendars and the moon (the date ring and its finger, the 59-tooth
+moon, the 135-tooth moon good for 122 years), 8 Famous calibres (the Unitas 6497 with small seconds at nine, the
+Reverso's rectangular calibre). `tests/calibre.mjs` proves the engine's rules and that every level is unsolved at the
+start and solved by its worked solution, from its tray, within par.
