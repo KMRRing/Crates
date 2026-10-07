@@ -74,7 +74,13 @@ async function bankDeal(level, picks, personal = true) {
 const TOPICS_KEY = "punt:topics", DIFFS_KEY = "punt:diffs";
 /** The topics chosen: { preset, weights: { topic: 0 | 1 | 2 } } (Balanced to start). */
 function chosenTopics() {
-  try { const t = JSON.parse(localStorage.getItem(TOPICS_KEY)); if (t?.weights) return t; } catch { /* first time */ }
+  try {
+    const t = JSON.parse(localStorage.getItem(TOPICS_KEY));
+    // a preset is taken as it stands now (a topic added since, or a preset rebalanced, reaches those who chose it);
+    // weights set by hand are kept as they were
+    if (t?.preset && TOPIC_PRESETS[t.preset]) return { ...t, weights: { ...TOPIC_PRESETS[t.preset].topics } };
+    if (t?.weights) return t;
+  } catch { /* first time */ }
   return { preset: "balanced", weights: { ...TOPIC_PRESETS.balanced.topics } };
 }
 const keepTopics = t => { try { localStorage.setItem(TOPICS_KEY, JSON.stringify(t)); } catch { /* private mode */ } };

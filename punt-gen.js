@@ -192,12 +192,12 @@ export const CLUE_TOPICS = { countries: "country", commodities: "commodity" };
 export const TOPIC_LIST = [["countries", "Countries"], ["commodities", "Commodities"],
   ...Object.entries(LEVELS).filter(([, L]) => L.maths).map(([id, L]) => [id, L.label])];
 const allTopics = w => Object.fromEntries(TOPIC_LIST.map(([id]) => [id, w]));
-// The presets. Balanced is a general mix, spread evenly over five areas (numbers and words, science, markets, the world,
-// culture), leaving the specialist and regional topics to the presets they suit; Trader weights markets and numbers;
-// Culture night weights art, wine, architecture and myth, with every regional and cultural topic in.
+// The presets. Balanced has every topic in, and more of each except the four specialist ones (watches, skiing, the art
+// market, etiquette), which are in once; Trader weights markets and numbers; Culture night weights art, wine,
+// architecture, myth and literature, with every regional and cultural topic in.
+const NICHE = ["watches", "skiing", "artmarket", "titles"];
 export const TOPIC_PRESETS = {
-  balanced: { label: "Balanced", topics: { ...allTopics(0), maths: 1, reasoning: 1, patterns: 1, words: 1, physics: 1, chemistry: 1, code: 1,
-    economics: 1, commodities: 1, merchants: 1, countries: 1, cities: 1, flags: 1, china: 1, art: 1, architecture: 1, mythology: 1, philosophy: 1, religion: 1, lit: 1 } },
+  balanced: { label: "Balanced", topics: { ...allTopics(2), ...Object.fromEntries(NICHE.map(id => [id, 1])) } },
   trader: { label: "Trader", topics: { ...allTopics(0), commodities: 2, refining: 2, economics: 2, maths: 2, reasoning: 1, patterns: 1, code: 1, chemistry: 1,
     physics: 1, countries: 1, cities: 1, merchants: 1, china: 1, swiss: 1, artmarket: 1 } },
   culture: { label: "Culture night", topics: { ...allTopics(0), art: 2, wine: 2, architecture: 2, mythology: 2, lit: 2, sayings: 1, words: 1, philosophy: 1, religion: 1, titles: 1,
