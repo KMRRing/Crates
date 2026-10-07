@@ -2,7 +2,7 @@
 // Keeps every file of every game on the device, so the games open and play offline. The version changes with
 // any file, so devices fetch the new set in the background; it waits until the app is off screen to take over
 // (see pwa.js). Requests to other sites (Firebase, for playing together) go straight to the network.
-const VERSION = "d59177a68d36";
+const VERSION = "083642948c93";
 const CACHE = `crates-${VERSION}`;
 const FILES = [
   "./",
