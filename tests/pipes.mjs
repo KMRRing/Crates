@@ -7,7 +7,7 @@ const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if
 
 let problems = 0, built = 0, scrambledWins = 0, detours = 0, lines = 0;
 const kinds = {}, picks = { near: 0, far: 0 };
-for (let seed = 1; seed <= 15; seed++) for (let n = 1; n <= 12; n++) {
+for (let seed = 1; seed <= 10; seed++) for (let n = 1; n <= 20; n++) {
   const lv = P.makeLevel(seed, n), again = P.makeLevel(seed, n);
   const fail = (...why) => { problems++; console.log(...why, "seed", seed, "level", n); };
   built++;
@@ -15,17 +15,20 @@ for (let seed = 1; seed <= 15; seed++) for (let n = 1; n <= 12; n++) {
   if (!P.solved(lv).over?.win) fail("the solution doesn't deliver");
   for (const route of lv.routes) if (!P.runWith(lv, P.rotsFor(lv.solution, route)).over?.win) fail("a designed route doesn't deliver");
   for (const d of lv.directs) if (P.runWith(lv, P.rotsFor(lv.solution, d.route)).over?.why !== "pressure") fail("a direct line doesn't run dry");
-  detours += lv.directs.length; lines += lv.level.products + (lv.level.blender ? 1 : 0);
+  detours += lv.directs.length; lines += lv.level.products + (lv.level.separator ? 2 : 0);
   if (!lv.directs.length) fail("no pump detour");
-  if (lv.heads.length === 1 && P.reachableDry(lv, lv.heads[0], lv.terminals[0].at)) fail("the far terminal can be reached without a pump");
+  if (lv.heads.length === 1 && !lv.level.separator && P.reachableDry(lv, lv.heads[0], lv.terminals[0].at)) fail("the far terminal can be reached without a pump");
   if (lv.terminals.some(t => !(t.price > 0))) fail("a terminal without a price");
   if (lv.level.terminals === 2) {
     if (lv.terminals.length !== 2 || !lv.choice) fail("a two-terminal level without its choice");
     else { picks[lv.choice.better]++; if (lv.terminals[0].price <= lv.terminals[1].price) fail("the far terminal doesn't pay more"); }
   }
   lv.tiles.flat().forEach(t => { kinds[t.kind] = (kinds[t.kind] || 0) + 1; });
-  if (n >= 5 && n < 9 && !lv.tiles.flat().some(t => t.kind === "cross")) fail("a two-product level without a crossing");
-  if (n >= 9 && !lv.tiles.flat().some(t => t.kind === "blender")) fail("a blender level without a blender");
+  if (lv.level.products === 2 && !lv.tiles.flat().some(t => t.kind === "cross")) fail("a two-product level without a crossing");
+  if (lv.level.separator && (!lv.tiles.flat().some(t => t.kind === "separator") || lv.terminals.length !== 2)) fail("a separator level without its separator and two terminals");
+  // the trace of the solved board delivers every line; of the scrambled board, it rarely does
+  const solvedTiles = lv.tiles.map((row, y) => row.map((t, x) => ({ ...t, rot: lv.solution[y][x] })));
+  if (!P.trace(lv, solvedTiles).every(l => l.end === "delivered" || l.end === "separated")) fail("the trace of the solution doesn't deliver");
   if (lv.heads.length !== lv.level.products) fail("heads");
   // as scrambled, the flow usually spills (the player has to work)
   const run = P.newRun(lv);
@@ -33,7 +36,7 @@ for (let seed = 1; seed <= 15; seed++) for (let n = 1; n <= 12; n++) {
   if (run.over?.win) scrambledWins++;
   if (!run.over) fail("a scrambled run never ends");
 }
-check(problems === 0, `${built} levels: repeatable; routes deliver; ${detours} detours on ${lines} product lines, every direct line runs dry; one product needs a pump for its far terminal; crossings from level 5, blenders from 9 (tiles: ${JSON.stringify(kinds)})`);
+check(problems === 0, `${built} levels: repeatable; routes deliver; ${detours} detours on ${lines} product lines, every direct line runs dry; one product needs a pump for its far terminal; crossings on two-product levels, separators on theirs, the trace of every solution delivering (tiles: ${JSON.stringify(kinds)})`);
 check(picks.near > 0 && picks.far > 0, `two-terminal levels: either terminal can be the better pick (near ${picks.near}, far ${picks.far})`);
 check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck (${scrambledWins} of ${built})`);
 
@@ -50,7 +53,7 @@ check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck 
 {
   const one = P.makeLevel(1, 1), r1 = P.newRun(one);
   P.advance(one, r1, 500);
-  const two = P.makeLevel(1, 5), r2 = P.newRun(two);
+  const two = P.makeLevel(1, P.ACT_LENGTH + 1), r2 = P.newRun(two);   // the first level of act 2: two products
   P.advance(two, r2, 500);
   check(r1.heads[0].progress > 0 && r2.heads.find(h => h.product === "crude").progress === 0, "crude goes at once alone, and waits behind gas when they share the board");
 }

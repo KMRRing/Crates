@@ -1,6 +1,6 @@
 // Pipes: turn tiles ahead of the flow. The engine (pipes-engine.js) builds levels and moves the flow; this file
 // draws the board, takes taps and runs the clock.
-import { LIVES, PRODUCTS, COSTS, DIRS, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf } from "./pipes-engine.js";
+import { LIVES, PRODUCTS, COSTS, DIRS, ACTS, ACT_LENGTH, actOf, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf, trace } from "./pipes-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
@@ -15,7 +15,7 @@ const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 4
                                        // the products meet crossings in the same order they would at speed 1
 const FILL_SCORED = 4;                 // and the time bonus counts that time as if pumped at ×4
 
-let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over" }
+let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", kit: { plan, clear, pump }, market: { crude, gas }, tool }
 let L = null;        // the level
 let R = null;        // the run
 let clock = { last: 0, planLeft: 0, flowing: 0, filling: false };   // flowing: the time the bonus counts
@@ -23,6 +23,14 @@ let raf = 0;
 const cells = new Map();   // "x,y" -> { g, flows: [] }
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
+// the kit bought between levels with what you've earned: more time to plan, a rock cleared, a pump fitted where you like
+const KIT = {
+  plan: { name: "+5 s to plan", cost: 150, about: "Five more seconds before the oil comes, on the next level." },
+  clear: { name: "Clear a rock", cost: 120, about: "Tap a rock during planning: it becomes a straight." },
+  pump: { name: "Fit a pump", cost: 200, about: "Tap a pipe during planning: it becomes a pump of the same shape." },
+};
+/** Prices drift between levels, a few per cent either way, within 70% and 140% of the list price. */
+const drift = (m, r) => Math.min(1.4, Math.max(0.7, +(m * (1 + (r - 0.5) * 0.24)).toFixed(3)));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const save = () => write(RUN, S);
@@ -30,7 +38,7 @@ const levelInfo = () => levelOf(S?.n || 1);
 
 // ---------- the run ----------
 function start(mode) {
-  S = { seed: mode === "daily" ? today() : randomSeed(), mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan" };
+  S = { seed: mode === "daily" ? today() : randomSeed(), mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan", kit: { plan: 0, clear: 0, pump: 0 }, market: { crude: 1, gas: 1 }, tool: null };
   save();
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
   beginLevel();
@@ -41,16 +49,18 @@ function beginLevel() {
   R = newRun(L);
   S.phase = "plan";
   save();
-  clock = { last: performance.now(), planLeft: L.level.plan, flowing: 0, filling: false };
+  S.kit ??= { plan: 0, clear: 0, pump: 0 }; S.market ??= { crude: 1, gas: 1 }; S.tool = null;
+  clock = { last: performance.now(), planLeft: L.level.plan + 5000 * S.kit.plan, flowing: 0, filling: false };
+  S.kit.plan = 0;                                    // the extra time is spent on this level
   drawHud();
   buildBoard();
   $("goBtn").hidden = true;
   $("fillBtn").hidden = false;                       // there from the first moment: fill as soon as the route is ready
   // the note has three lines: each level's news must fit them
-  $("note").textContent = L.n === 1 ? `Tap tiles to turn them. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: detour through one. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
+  $("note").textContent = L.n === 1 ? `Tap a tile to turn it, hold to turn it back. The lit line shows where the oil will go and the pressure left: only a pump refills it. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
     : L.n === 3 ? "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more."
-    : L.n === 5 ? "Two products, each to its own terminal; gas goes first and faster. They cross only at a crossing; the wrong terminal is contamination."
-    : L.n === 9 ? "A blender: crude in one side, gas in the other, and the blend leaves by the bottom to the blend terminal." : "";
+    : L.level.place === 0 && L.level.act > 1 ? `Act ${L.level.act}, ${ACTS[L.level.act - 1].name}. ${ACTS[L.level.act - 1].news}` : "";
+  drawKit();
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
 }
@@ -82,7 +92,7 @@ function frame(now) {
 }
 function endLevel() {
   const msLeft = Math.max(0, BONUS_WINDOW - clock.flowing);
-  const net = score(L, R, msLeft), earned = net.total;
+  const net = score(L, R, msLeft, S.market), earned = net.total;
   S.score += earned;
   $("fillBtn").hidden = true;
   if (R.over.win) {
@@ -91,7 +101,15 @@ function endLevel() {
     $("note").textContent = `${net.revenue} at the terminal${R.reached.length > 1 ? "s" : ""}, −${net.pipe} for ${R.tilesFilled} tiles of pipe, −${net.pumps} for ${R.pumpsFired} pump${R.pumpsFired === 1 ? "" : "s"}, +${net.time} for time.${pickNote()}`;
     $("goBtn").hidden = false;
     $("goBtn").textContent = `Level ${S.n + 1}`;
-    $("goBtn").onclick = () => { S.n++; S.attempt = 0; save(); beginLevel(); };
+    $("goBtn").onclick = () => {
+      S.n++; S.attempt = 0;
+      // a new act gives a life back; prices drift for the next level
+      if (levelOf(S.n).place === 0 && S.lives < LIVES) { S.lives++; toast(`Act ${actOf(S.n)}: a life back`); }
+      const r = Math.random, m = S.market;
+      S.market = { crude: drift(m.crude, r()), gas: drift(m.gas, r()) };
+      save(); beginLevel();
+    };
+    drawKit(true);
   } else {
     S.lives--;
     const why = { "no opening": "a dead end", "the edge": "the edge of the field", "already full": "a pipe that was already full", "wrong product": "the wrong terminal: contamination", pressure: "no pressure left: it needed a pump" }[R.over.why] || R.over.why;
@@ -100,7 +118,7 @@ function endLevel() {
     navigator.vibrate?.([60, 40, 60]);
     markSpill();
     if (S.lives <= 0) { S.phase = "over"; $("goBtn").hidden = false; $("goBtn").textContent = "See how it went"; $("goBtn").onclick = over; }
-    else { S.phase = "done"; $("goBtn").hidden = false; $("goBtn").textContent = `Try level ${S.n} again`; $("goBtn").onclick = () => { S.attempt++; save(); beginLevel(); }; }
+    else { S.phase = "done"; $("goBtn").hidden = false; $("goBtn").textContent = `Try level ${S.n} again`; $("goBtn").onclick = () => { S.attempt++; save(); beginLevel(); }; drawKit(true); }
   }
   save();
   drawHud();
@@ -152,19 +170,29 @@ function buildBoard() {
   }
   // taps are taken on the board itself and mapped to a tile by position: phones are unreliable about taps on
   // the SVG groups, and a finger that moved (a scroll) isn't a tap
+  // a tap turns a tile clockwise; holding it (or a right-click) turns it back anticlockwise
   let down = null;
-  svg.addEventListener("pointerdown", e => { down = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+  const cellAt = e => { const r = svg.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) / r.width * L.w), y = Math.floor((e.clientY - r.top) / r.height * L.h); return x >= 0 && y >= 0 && x < L.w && y < L.h ? [x, y] : null; };
+  svg.addEventListener("pointerdown", e => {
+    if (e.button === 2) return;
+    down = { x: e.clientX, y: e.clientY, id: e.pointerId, held: false };
+    const c = cellAt(e), mine = down;
+    down.timer = setTimeout(() => { if (down === mine && c) { mine.held = true; tap(...c, -1); navigator.vibrate?.(15); } }, 380);
+  });
   svg.addEventListener("pointerup", e => {
     if (!down || e.pointerId !== down.id) return;
-    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+    clearTimeout(down.timer);
+    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), held = down.held;
     down = null;
-    if (moved > 12) return;
-    const r = svg.getBoundingClientRect();
-    const x = Math.floor((e.clientX - r.left) / r.width * L.w), y = Math.floor((e.clientY - r.top) / r.height * L.h);
-    if (x >= 0 && y >= 0 && x < L.w && y < L.h) tap(x, y);
+    if (moved > 12 || held) return;
+    const c = cellAt(e);
+    if (c) tap(...c);
   });
-  svg.addEventListener("pointercancel", () => { down = null; });
+  svg.addEventListener("pointercancel", () => { if (down) clearTimeout(down.timer); down = null; });
+  svg.addEventListener("contextmenu", e => { e.preventDefault(); const c = cellAt(e); if (c) tap(...c, -1); });
+  svg.appendChild(el("g", { class: "pi-trace" }));          // the trace lies over the tiles
   board.appendChild(svg);
+  drawTrace();
 }
 /** Draws a tile from scratch: ground, the pipe shape at its rotation, and any flow in it. */
 function drawTile(x, y) {
@@ -194,10 +222,15 @@ function drawTile(x, y) {
     }
     return;
   }
-  if (t.kind === "blender") {
+  if (t.kind === "separator") {
     for (const d of o) g.appendChild(stub(d));
-    g.appendChild(el("rect", { x: 12, y: 12, width: 36, height: 36, rx: 7, fill: PRODUCTS.blend.colour, stroke: "#fff", "stroke-width": 2 }));
-    g.appendChild(el("path", { d: "M22 30 h16 M30 22 v16", stroke: "#fff", "stroke-width": 3, "stroke-linecap": "round" }));
+    // a horizontal vessel: gas above the liquid, crude below; its outlets coloured by what leaves them
+    const v = el("g", { transform: `rotate(${t.rot * 90} 30 30)` });
+    v.appendChild(el("rect", { x: 9, y: 17, width: 42, height: 26, rx: 13, fill: PRODUCTS.fluid.colour, stroke: "#fff", "stroke-width": 2 }));
+    v.appendChild(el("path", { d: "M14 33 h32", stroke: "#fff", "stroke-width": 1.5, "stroke-dasharray": "3 2" }));
+    v.appendChild(el("circle", { cx: 9, cy: 30, r: 4, fill: PRODUCTS.crude.colour, stroke: "#fff", "stroke-width": 1.5 }));
+    v.appendChild(el("circle", { cx: 51, cy: 30, r: 4, fill: PRODUCTS.gas.colour, stroke: "#fff", "stroke-width": 1.5 }));
+    g.appendChild(v);
     return;
   }
   if (t.kind === "cross") {
@@ -248,15 +281,72 @@ function markSpill() {
   const c = cells.get(`${R.spill.x},${R.spill.y}`);
   c.g.appendChild(el("rect", { x: 3, y: 3, width: TILE - 6, height: TILE - 6, rx: 8, fill: "none", stroke: "var(--pi-bad)", "stroke-width": 4 }));
 }
-function tap(x, y) {
+function tap(x, y, by = 1) {
   if (S.phase !== "plan" && S.phase !== "flow") return;
-  if (turn(R, x, y)) drawTile(x, y);
-  else if (R.tiles[y][x].locked) toast("That tile's full");
+  const t = R.tiles[y][x];
+  if (S.tool && S.phase === "plan") {                 // the kit: clear a rock, or fit a pump to a pipe
+    if (S.tool === "clear" && t.kind === "rock") { Object.assign(t, { kind: "straight", fixed: false }); S.kit.clear--; }
+    else if (S.tool === "pump" && ["straight", "bend"].includes(t.kind) && !t.locked) { Object.assign(t, { kind: "pump", shape: t.kind }); S.kit.pump--; }
+    else return toast(S.tool === "clear" ? "Tap a rock to clear it." : "Tap a straight or a bend to make it a pump.");
+    S.tool = null; save(); drawTile(x, y); drawTrace(); drawKit();
+    return;
+  }
+  if (turn(R, x, y, by)) { drawTile(x, y); drawTrace(); }
+  else if (t.locked) toast("That tile's full");
+}
+
+// ---------- the trace: where each product will go as the board stands, and the pressure it'll have ----------
+function drawTrace() {
+  const layer = $("board").querySelector(".pi-trace");
+  if (!layer) return;
+  layer.replaceChildren();
+  for (const line of trace(L, R.tiles)) {
+    const pts = [line.from, ...line.cells.map(c => [c.x, c.y])].map(([x, y]) => `${x * TILE + TILE / 2},${y * TILE + TILE / 2}`);
+    if (pts.length > 1) {                           // a pale halo under the product's colour, so even crude shows on the dark field
+      layer.appendChild(el("polyline", { points: pts.join(" "), class: `pi-trace-halo ${line.end}` }));
+      layer.appendChild(el("polyline", { points: pts.join(" "), class: `pi-trace-line ${line.end}`, stroke: PRODUCTS[line.product].colour }));
+    }
+    const last = line.cells[line.cells.length - 1] || { x: line.from[0], y: line.from[1], pressure: L.level.pressure };
+    if (line.end === "separated") continue;
+    // at the end of the line: delivered, or why not, with the pressure left
+    const [cx, cy] = [last.x * TILE + TILE / 2, last.y * TILE + TILE / 2];
+    const tag = line.end === "delivered" ? "✓" : line.end === "dry" ? "dry" : line.end === "wrong" ? "✗" : String(last.pressure);
+    const badge = el("g", { class: `pi-trace-end ${line.end}`, transform: `translate(${cx + 16} ${cy - (line.end === "delivered" ? 24 : 15)})` });   // clear of a terminal's price
+    badge.appendChild(el("circle", { r: 11 }));
+    const t = el("text", { y: 4, "text-anchor": "middle" }); t.textContent = tag; badge.appendChild(t);
+    layer.appendChild(badge);
+  }
+}
+
+// ---------- the kit: bought between levels, used while planning ----------
+function drawKit(shop = false) {
+  const box = $("kit");
+  box.replaceChildren();
+  if (shop) {                                        // between levels: the market and the shop
+    const m = S.market, pct = v => `${v >= 1 ? "+" : ""}${Math.round((v - 1) * 100)}%`;
+    const mk = document.createElement("p"); mk.className = "pi-market";
+    mk.textContent = `Prices now: crude ${pct(m.crude)}, gas ${pct(m.gas)} on list. Spend on kit, or keep it on the board.`;
+    box.append(mk);
+    for (const [id, k] of Object.entries(KIT)) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "pi-kit-buy";
+      b.textContent = `${k.name} · ${k.cost}${S.kit[id] ? ` (have ${S.kit[id]})` : ""}`; b.title = k.about;
+      b.disabled = S.score < k.cost;
+      b.addEventListener("click", () => { if (S.score < k.cost) return; S.score -= k.cost; S.kit[id]++; save(); drawHud(); drawKit(true); toast(`${k.name}: bought`); });
+      box.append(b);
+    }
+    return;
+  }
+  for (const id of ["clear", "pump"]) if (S.kit[id] > 0 && S.phase === "plan") {    // while planning: the kit in hand
+    const b = document.createElement("button"); b.type = "button"; b.className = `pi-kit-use${S.tool === id ? " on" : ""}`;
+    b.textContent = `${KIT[id].name} ×${S.kit[id]}`;
+    b.addEventListener("click", () => { S.tool = S.tool === id ? null : id; drawKit(); });
+    box.append(b);
+  }
 }
 
 // ---------- hud ----------
 function drawHud() {
-  $("level").textContent = `Level ${S.n}`;
+  $("level").textContent = `Act ${actOf(S.n)} · level ${S.n}`;
   $("score").textContent = S.score.toLocaleString("en-GB");
   $("lives").replaceChildren(...Array.from({ length: LIVES }, (_, k) => { const i = document.createElement("i"); i.className = `pi-life${k >= S.lives ? " gone" : ""}`; return i; }));
   drawGauges();

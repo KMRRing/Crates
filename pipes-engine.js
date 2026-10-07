@@ -3,23 +3,24 @@
 // board has a direct line that runs dry and a detour through a pump that doesn't: the detour leaves and rejoins the
 // line at two bends, the same tiles turned the other way. A level pays its netback: the price of the terminal reached,
 // less 10 a tile of pipe and 40 a pump fired, plus time. On levels 3 and 4 there are two terminals, the far one dearer
-// to reach, priced so that either can be the better pick. From level 5 two products run at once, from two wellheads to
-// their own terminals, crossing only where the board has a crossing; from level 9 they meet at a blender first and the
-// blend goes on to a third terminal. Every level is carved from real routes before it's scrambled, and each is proved
-// by running it: the routes deliver, the direct lines stall.
+// to reach, priced so that either can be the better pick. The campaign runs in acts of five levels, each bringing one
+// new idea onto a gentle board and ramping within itself: crude alone; two products crossing; the separator, which
+// splits the well's fluid into crude and gas for their own terminals (as a wellsite really does); then the open field,
+// the three in turn. Every level is carved from real routes before it's scrambled, and each is proved by running it:
+// the routes deliver, the direct lines stall.
 //
 // Tiles: { kind, rot (0–3 quarter turns), fixed }. Kinds: "straight" (openings N and S at rot 0), "bend" (N and
 // E), "cross" (two channels N–S and E–W), "pump" (a straight or a bend, by its `shape`, that restores pressure),
 // "rock" (nothing), "well" (a source; its opening is S at rot 0), "term" (a terminal; its opening is N at rot 0),
-// "blender" (inlets W and E, outlet S at rot 0). Directions: 0 N, 1 E, 2 S, 3 W.
+// "separator" (well fluid in at N, crude out W, gas out E at rot 0). Directions: 0 N, 1 E, 2 S, 3 W.
 
 export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 // pace: how much slower than the level's tick a product crosses a tile; delay: ms after the start before it flows,
 // when it shares the board (crude lets the gas get going)
-export const PRODUCTS = { crude: { name: "Crude", colour: "#2C2A28", pace: 1.5, delay: 8000 }, gas: { name: "Gas", colour: "#2F6FDE", pace: 1, delay: 0 }, blend: { name: "Blend", colour: "#7A4BC9", pace: 1.3, delay: 0 } };
+export const PRODUCTS = { crude: { name: "Crude", colour: "#2C2A28", pace: 1.5, delay: 8000 }, gas: { name: "Gas", colour: "#2F6FDE", pace: 1, delay: 0 }, fluid: { name: "Well fluid", colour: "#8B6A3E", pace: 1.3, delay: 0 } };
 export const COSTS = { tile: 10, pump: 40 };        // netback: each tile of pipe the flow fills, each pump it passes
 export const LIVES = 3;
-const OPENINGS = { straight: [0, 2], bend: [0, 1], cross: [0, 1, 2, 3], rock: [], well: [2], term: [0], blender: [1, 2, 3] };
+const OPENINGS = { straight: [0, 2], bend: [0, 1], cross: [0, 1, 2, 3], rock: [], well: [2], term: [0], separator: [0, 1, 3] };
 const opposite = d => (d + 2) % 4;
 export const shapeOf = tile => (tile.kind === "pump" ? tile.shape : tile.kind);
 export const openings = tile => OPENINGS[shapeOf(tile)].map(d => (d + tile.rot) % 4);
@@ -33,20 +34,34 @@ const int = (r, lo, hi) => lo + Math.floor(r() * (hi - lo + 1));
 const mix = (a, b) => (Math.imul(a ^ 0x9E3779B1, 0x85EBCA6B) ^ Math.imul(b + 1, 0xC2B2AE35)) >>> 0;
 const key = (x, y) => `${x},${y}`;
 
-/** How hard level n is. */
+/**
+ * The campaign, in acts of five levels. Each act brings one new idea onto a gentle board and ramps within itself; the
+ * next starts gentler again. Speeds and planning time never pass a floor: gas at least 1.9 s a tile, 15 s to plan.
+ */
+export const ACT_LENGTH = 5;
+export const ACTS = [
+  { name: "Crude", news: "One product to its terminal; on levels 3 and 4, a near terminal and a far one to choose between." },
+  { name: "Two products", news: "Crude and gas from their own wellheads to their own terminals. They cross only at a crossing." },
+  { name: "The separator", news: "The well brings up oil and gas together. A separator splits them: crude leaves by one side, gas by the other, each to its own terminal." },
+  { name: "The open field", news: "Everything so far, in turn, on the biggest field." },
+];
+export const actOf = n => Math.min(ACTS.length, 1 + Math.floor((n - 1) / ACT_LENGTH));
+/** How hard level n is, and what it holds. */
 export function levelOf(n) {
-  const pressure = 8;
+  const pressure = 8, a = 1 + Math.floor((n - 1) / ACT_LENGTH), i = (n - 1) % ACT_LENGTH;   // the act (open-ended), and the place in it
+  const kind = a === 1 ? "one" : a === 2 ? "two" : a === 3 ? "separator" : ["one", "two", "separator", "two", "separator"][i];
   return {
-    w: Math.min(7, 5 + Math.floor((n - 1) / 4)),
-    h: Math.min(9, 7 + Math.floor((n - 1) / 4)),
-    products: n >= 5 ? 2 : 1,
-    blender: n >= 9,
-    terminals: n === 3 || n === 4 ? 2 : 1,             // one product: a near and a far terminal to choose between
-    tick: Math.max(1500, 2800 - 60 * (n - 1)),          // ms gas takes to cross a tile; crude and the blend are slower
-    plan: Math.max(12000, 22000 - 500 * (n - 1)),       // ms before anything flows
+    act: Math.min(a, ACTS.length), place: i, kind,
+    w: a === 1 ? 5 : a === 2 ? 6 : 7,
+    h: a === 1 ? 7 : a === 2 ? 8 : 9,
+    products: kind === "two" ? 2 : 1,
+    separator: kind === "separator",
+    terminals: (a === 1 && (i === 2 || i === 3)) || (a >= 4 && kind === "one") ? 2 : 1,   // one product: a near and a far terminal
+    tick: Math.max(1900, 2800 - 150 * (a - 1) - 70 * i),   // ms gas takes to cross a tile; crude and well fluid are slower
+    plan: Math.max(15000, 22000 - 1000 * (a - 1) - 400 * i),   // ms before anything flows
     pressure,                                           // tiles a flow can enter after the wellhead or a pump
-    minPath: Math.max(pressure + 2, 7 + n),             // the carved line is at least this long, so it runs dry
-    rock: Math.min(0.18, 0.05 + 0.015 * (n - 1)),       // the share of spare cells that are rock
+    minPath: Math.min(18, Math.max(pressure + 2, 8 + 2 * a + i)),   // the carved line is at least this long, so it runs dry
+    rock: Math.min(0.12, 0.05 + 0.01 * (a - 1) + 0.005 * i),        // the share of spare cells that are rock
     margin: 250 + 50 * n,                               // what a level nets over its routes' costs, before time
   };
 }
@@ -98,9 +113,9 @@ const round10 = v => Math.round(v / 10) * 10;
 export function makeLevel(seed, n) {
   const L = levelOf(n), r = rng(mix(seed, n));
   for (let attempt = 0; attempt < 400; attempt++) {
-    const built = L.blender ? buildBlender(r, L) : L.products === 2 ? buildTwo(r, L) : buildOne(r, L);
+    const built = L.separator ? buildSeparator(r, L) : L.products === 2 ? buildTwo(r, L) : buildOne(r, L);
     if (!built) continue;
-    const level = { n, w: L.w, h: L.h, level: L, ...built };
+    const level = { n, w: L.w, h: L.h, level: L, separator: L.separator, ...built };
     if (!proven(level)) continue;
     price(level, r);
     return level;
@@ -192,7 +207,7 @@ function addBranch(r, grid, L, route, before, product) {
 }
 /**
  * Turns cells of a route into pumps where its pressure needs them, so that no stretch after a refill (the wellhead,
- * a blender's outlet, a pump) enters more tiles than the budget, its end counting. `forced` route indices are pumps
+ * a separator's outlet, a pump) enters more tiles than the budget, its end counting. `forced` route indices are pumps
  * whatever (a detour's middle); the rest go as late as the budget allows, on plain straights and bends. Pumps already
  * on the route count. False if the budget can't be kept.
  */
@@ -258,34 +273,35 @@ function buildTwo(r, L) {
   const heads = [wellFor(grid, pathA, "crude"), wellFor(grid, pathB, "gas")], terminals = [termFor(grid, pathA, "crude"), termFor(grid, pathB, "gas")];
   return withDetours(r, grid, L, [{ line: pathA, product: "crude" }, { line: pathB, product: "gas" }], heads, terminals);
 }
-function buildBlender(r, L) {
+/** The separator: the well's fluid comes down to it; crude leaves it to the west, gas to the east, each to its terminal. */
+function buildSeparator(r, L) {
   const grid = emptyGrid(L.w, L.h);
-  const bx = int(r, 2, L.w - 3), by = int(r, Math.floor(L.h / 2) - 1, Math.floor(L.h / 2) + 1);
-  const blender = [bx, by];
-  const wellA = [int(r, 0, 1), 0], wellB = [int(r, L.w - 2, L.w - 1), 0], term = [int(r, 1, L.w - 2), L.h - 1];
-  const inW = [bx - 1, by], inE = [bx + 1, by], outS = [bx, by + 1];
-  const taken = [key(...blender), key(...inW), key(...inE), key(...outS), key(...wellA), key(...wellB), key(...term)];
-  const pathA = carve(r, L.w, L.h, wellA, inW, taken.filter(k => k !== key(...inW)), Math.max(4, Math.floor(L.minPath / 2)));
-  if (!pathA) return null;
-  const lineA = [...pathA, blender];
-  if (!layRoute(grid, lineA, "crude")) return null;
-  const pathB = carve(r, L.w, L.h, wellB, inE, [...taken.filter(k => k !== key(...inE)), ...footprint(grid)], Math.max(4, Math.floor(L.minPath / 2)));
-  if (!pathB) return null;
-  const lineB = [...pathB, blender];
-  if (!layRoute(grid, lineB, "gas")) return null;
-  const pathC = carve(r, L.w, L.h, outS, term, [...taken.filter(k => k !== key(...outS) && k !== key(...term)), ...footprint(grid)], Math.max(3, Math.floor(L.minPath / 2)));
-  if (!pathC) return null;
-  const lineC = [blender, ...pathC];
-  if (!layRoute(grid, lineC, "blend")) return null;
-  grid[by][bx] = { kind: "blender", rot: 0, products: ["blend"] };
-  const heads = [wellFor(grid, pathA, "crude"), wellFor(grid, pathB, "gas")], terminals = [termFor(grid, lineC, "blend")];
-  return withDetours(r, grid, L, [{ line: lineA, product: "crude" }, { line: lineB, product: "gas" }, { line: lineC, product: "blend" }], heads, terminals);
+  const sx = int(r, 2, L.w - 3), sy = int(r, 2, Math.floor(L.h / 2));
+  const sep = [sx, sy], inN = [sx, sy - 1], outW = [sx - 1, sy], outE = [sx + 1, sy];
+  const well = [int(r, 1, L.w - 2), 0];
+  const termOil = [int(r, 0, Math.floor(L.w / 2) - 1), L.h - 1], termGas = [int(r, Math.ceil(L.w / 2), L.w - 1), L.h - 1];
+  const taken = [sep, inN, outW, outE, well, termOil, termGas].map(c => key(...c));
+  const pathF = carve(r, L.w, L.h, well, inN, taken.filter(k => k !== key(...inN) && k !== key(...well)), Math.max(3, Math.floor(L.minPath / 2)));
+  if (!pathF) return null;
+  const lineF = [...pathF, sep];
+  if (!layRoute(grid, lineF, "fluid")) return null;
+  const pathO = carve(r, L.w, L.h, outW, termOil, [...taken.filter(k => k !== key(...outW) && k !== key(...termOil)), ...footprint(grid)], Math.max(4, Math.floor(L.minPath / 2)));
+  if (!pathO) return null;
+  const lineO = [sep, ...pathO];
+  if (!layRoute(grid, lineO, "crude")) return null;
+  const pathG = carve(r, L.w, L.h, outE, termGas, [...taken.filter(k => k !== key(...outE) && k !== key(...termGas)), ...footprint(grid)], Math.max(4, Math.floor(L.minPath / 2)));
+  if (!pathG) return null;
+  const lineG = [sep, ...pathG];
+  if (!layRoute(grid, lineG, "gas")) return null;
+  grid[sy][sx] = { kind: "separator", rot: 0, products: ["crude", "gas"] };
+  const heads = [wellFor(grid, pathF, "fluid")], terminals = [termFor(grid, lineO, "crude"), termFor(grid, lineG, "gas")];
+  return withDetours(r, grid, L, [{ line: lineF, product: "fluid" }, { line: lineO, product: "crude" }, { line: lineG, product: "gas" }], heads, terminals);
 }
 function finish(grid, L, r, heads, terminals, routes, directs) {
   // the rest: random tiles, some rock; then scramble every turnable tile
   const solution = grid.map(row => row.map(c => (c ? c.rot : 0)));
   const tiles = grid.map(row => row.map(c => {
-    if (c) return { kind: c.kind, shape: c.shape, rot: c.rot, fixed: ["well", "term", "blender", "rock"].includes(c.kind) };
+    if (c) return { kind: c.kind, shape: c.shape, rot: c.rot, fixed: ["well", "term", "separator", "rock"].includes(c.kind) };
     if (r() < L.rock) return { kind: "rock", rot: 0, fixed: true };
     const kind = ["straight", "bend", "bend", "cross", "pump"][int(r, 0, 4)];
     return { kind, shape: kind === "pump" ? ["straight", "bend"][int(r, 0, 1)] : undefined, rot: int(r, 0, 3), fixed: false };
@@ -333,7 +349,7 @@ function proven(level) {
   const rotsOf = route => rotsFor(level.solution, route);
   if (!level.routes.every(route => runWith(level, rotsOf(route)).over?.win)) return false;
   if (!level.directs.every(d => runWith(level, rotsOf(d.route)).over?.why === "pressure")) return false;
-  return level.heads.length > 1 || !reachableDry(level, level.heads[0], level.terminals[0].at);
+  return level.heads.length > 1 || level.separator || !reachableDry(level, level.heads[0], level.terminals[0].at);
 }
 /**
  * Prices the terminals. A terminal pays the cost of its designed route (pipe and pumps) plus the level's margin, so
@@ -345,7 +361,7 @@ function price(level, r) {
   const L = level.level;
   const stats = level.routes.map(route => runWith(level, rotsFor(level.solution, route)));
   const cost = run => COSTS.tile * run.tilesFilled + COSTS.pump * run.pumpsFired;
-  if (level.terminals.length === 1 || level.heads.length > 1) {
+  if (level.terminals.length === 1 || level.heads.length > 1 || level.separator) {
     const all = stats[0], share = round10(L.margin / level.terminals.length);
     level.terminals.forEach(t => { t.price = share + round10(cost(all) / level.terminals.length); });
     return;
@@ -370,7 +386,7 @@ function price(level, r) {
  * A run of a level: { tiles (with rot as turned), heads: [{ product, x, y, into (the direction it entered by),
  * progress 0–1, pressure, done, stalled }], fill: { "x,y": [{ product, into, out }] } (what's in each tile),
  * delivered, reached (the terminals delivered to, by index), tilesFilled, pumpsFired, over: null | { win, why },
- * spill: { x, y, why } | null, waiting (products in at the blender) }.
+ * spill: { x, y, why } | null }.
  */
 export function newRun(level) {
   return {
@@ -383,22 +399,23 @@ export function newRun(level) {
     pumpsFired: 0,
     over: null,
     spill: null,
-    waiting: [],
   };
 }
-/** Turn a tile a quarter clockwise, if it can be. Returns true if it turned. */
-export function turn(run, x, y) {
+/** Turn a tile a quarter clockwise (by 1) or anticlockwise (by -1), if it can be. Returns true if it turned. */
+export function turn(run, x, y, by = 1) {
   const t = run.tiles[y]?.[x];
   if (!t || t.fixed || t.locked) return false;
-  t.rot = (t.rot + 1) % 4;
+  t.rot = (t.rot + by + 4) % 4;
   return true;
 }
-/** Where a head leaves a tile it entered by `into`: the exit direction, or null for a terminal or blender. */
+/** Where a head leaves a tile it entered by `into`: the exit direction, null for a terminal or a separator's inlet,
+ *  undefined for no way on (a spill). */
 function exitOf(tile, into) {
   const o = openings(tile);
   if (tile.kind === "well") return o[0];                           // the source: the flow leaves by its one opening
   if (!o.includes(into)) return undefined;                         // no opening on the side it came from: a spill
-  if (tile.kind === "term" || tile.kind === "blender") return null;
+  if (tile.kind === "separator") return into === tile.rot % 4 ? null : undefined;   // only well fluid, only at its inlet
+  if (tile.kind === "term") return null;
   if (tile.kind === "cross") return opposite(into);
   return o.find(d => d !== into);
 }
@@ -426,13 +443,14 @@ export function advance(level, run, dt) {
         run.reached.push(at);
         break;
       }
-      if (tile.kind === "blender") {
+      if (tile.kind === "separator") {
+        // in: well fluid; out: crude by the west side, gas by the east, each with the separator's pressure behind it
         h.done = true;
-        run.waiting.push(h.product);
-        if (run.waiting.length === 2) {           // both in: the blend leaves by the outlet
-          const out = (2 + tile.rot) % 4, nx = h.x + DIRS[out][0], ny = h.y + DIRS[out][1];
-          run.heads.push({ product: "blend", x: nx, y: ny, into: opposite(out), progress: 0, pressure: level.level.pressure, done: false });
-          if (!enter(level, run, run.heads[run.heads.length - 1], nx, ny, opposite(out))) break;
+        for (const [product, side] of [["crude", 3], ["gas", 1]]) {
+          const out = (side + tile.rot) % 4, nx = h.x + DIRS[out][0], ny = h.y + DIRS[out][1];
+          const nh = { product, x: nx, y: ny, into: opposite(out), progress: 0, pressure: level.level.pressure - 1, done: false };
+          run.heads.push(nh);
+          if (!enter(level, run, nh, nx, ny, opposite(out))) break;
         }
         break;
       }
@@ -444,7 +462,7 @@ export function advance(level, run, dt) {
       h.x = nx; h.y = ny; h.into = opposite(exit);
     }
   }
-  if (!run.over && run.heads.every(h => h.done)) run.over = { win: true };   // every product home (or into the blender)
+  if (!run.over && run.heads.every(h => h.done)) run.over = { win: true };   // every product home (or into the separator)
   return run;
 }
 /** A head moving into cell (nx, ny) from direction `into`: fills it or spills. */
@@ -453,12 +471,11 @@ function enter(level, run, h, nx, ny, into) {
   if (!next || next.kind === "rock") { spill(run, h, "the edge"); return false; }
   if (!hasOpening(next, into)) { spill(run, h, "no opening", nx, ny); return false; }
   const k = key(nx, ny), there = run.fill[k] || [];
-  // a crossing carries two products, one per channel; a blender takes one at each inlet; anything else holds one
-  const room = next.kind === "cross" ? there.length === 1 && there[0].into % 2 !== into % 2
-    : next.kind === "blender" ? there.length === 1 && there[0].into !== into
-    : false;
+  // a separator takes well fluid at its inlet only; a crossing carries two products, one per channel; anything else holds one
+  if (next.kind === "separator" && (into !== next.rot % 4 || h.product !== "fluid")) { spill(run, h, into !== next.rot % 4 ? "no opening" : "wrong product", nx, ny); return false; }
+  const room = next.kind === "cross" ? there.length === 1 && there[0].into % 2 !== into % 2 : false;
   if (there.length && !room) { spill(run, h, "already full", nx, ny); return false; }
-  run.fill[k] = [...there, { product: h.product, into, out: next.kind === "term" || next.kind === "blender" ? null : exitOf(next, into) }];
+  run.fill[k] = [...there, { product: h.product, into, out: next.kind === "term" || next.kind === "separator" ? null : exitOf(next, into) }];
   run.tilesFilled++;
   next.locked = true;
   return true;
@@ -471,9 +488,45 @@ function spill(run, h, why, x = h.x, y = h.y) {
  * A level's netback: what the terminals reached pay, less 10 a tile of pipe filled and 40 a pump fired, plus the time
  * left of the bonus window in tenths of a second; never below nothing, and nothing for a spill.
  */
-export function score(level, run, msLeft) {
+export function score(level, run, msLeft, market = {}) {
   if (!run.over?.win) return { total: 0, revenue: 0, pipe: 0, pumps: 0, time: 0 };
-  const revenue = run.reached.reduce((s, i) => s + level.terminals[i].price, 0);
+  const revenue = Math.round(run.reached.reduce((s, i) => s + level.terminals[i].price * (market[level.terminals[i].product] ?? 1), 0));
   const pipe = COSTS.tile * run.tilesFilled, pumps = COSTS.pump * run.pumpsFired, time = Math.round(msLeft / 100);
   return { total: Math.max(0, revenue - pipe - pumps + time), revenue, pipe, pumps, time };
+}
+
+/**
+ * The routes as the board stands, before anything flows: from each wellhead, tile by tile along the pipes, with the
+ * pressure left on each. Each line ends delivered (at its own terminal), wrong (at another's), open (the pipe ends or
+ * doesn't join the next tile), edge (off the field or into rock), dry (out of pressure) or separated (into the
+ * separator, which starts a crude and a gas line of its own). Other products' flows aren't modelled: it's a guide.
+ */
+export function trace(level, tiles) {
+  const lines = [], queue = level.heads.map(h => ({ product: h.product, x: h.at[0], y: h.at[1], dir: openings(tiles[h.at[1]][h.at[0]])[0], pressure: level.level.pressure, from: [h.at[0], h.at[1]] }));
+  while (queue.length) {
+    const w = queue.shift(), cells = [], seen = new Set();
+    let { x, y, dir, pressure } = w, end = "open", terminal = null;
+    for (;;) {
+      const nx = x + DIRS[dir][0], ny = y + DIRS[dir][1], t = tiles[ny]?.[nx], into = opposite(dir);
+      if (!t || t.kind === "rock") { end = "edge"; break; }
+      if (!hasOpening(t, into)) { end = "open"; break; }
+      if (pressure <= 0) { end = "dry"; break; }
+      if (seen.has(key(nx, ny, into))) { end = "open"; break; }
+      seen.add(key(nx, ny, into));
+      pressure--; x = nx; y = ny;
+      cells.push({ x, y, pressure });
+      if (t.kind === "term") { terminal = level.terminals.findIndex(tt => tt.at[0] === x && tt.at[1] === y); end = level.terminals[terminal]?.product === w.product ? "delivered" : "wrong"; break; }
+      if (t.kind === "separator") {
+        if (into !== t.rot % 4 || w.product !== "fluid") { end = "open"; break; }
+        for (const [product, side] of [["crude", 3], ["gas", 1]]) queue.push({ product, x, y, dir: (side + t.rot) % 4, pressure: level.level.pressure, from: [x, y] });
+        end = "separated"; break;
+      }
+      if (t.kind === "pump") pressure = level.level.pressure;
+      const out = exitOf(t, into);
+      if (out == null) { end = "open"; break; }
+      dir = out;
+    }
+    lines.push({ product: w.product, from: w.from, cells, end, terminal });
+  }
+  return lines;
 }
