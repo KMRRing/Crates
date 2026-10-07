@@ -394,8 +394,14 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const x = `${author.name}, ${work.name} (${work.year})${qn.who ? `, ${qn.who}` : ""}.${qn.rendering ? ` In English: ${qn.rendering}.` : ""}${qn.note ? ` ${qn.note}` : ""}`;
     const mk = (kind, q, right, pool) => { const options = order(qn.id + kind, [right, ...pool.slice(0, 3)]);
       return { id: `LT-${qn.id}-${kind}`, lv: qn.stage, d: D[qn.d] || 5, area: "Literature", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [qn.id, work.id, author.id] }; };
-    out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.map(a => a.name)));
-    out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, [...new Set(otherWorks.map(w => w.name))].filter(n => n !== work.name)));
+    // scripture has no author to name: a line from the Bible asks which of its books it's from, against its other books
+    if (work.form === "scripture") {
+      const books = byAuthor.get(author.id).filter(w => w !== work).sort((p, q) => (p.id < q.id ? -1 : 1)).map(w => w.name);
+      out.lit.push(mk("work", `Which book of ${author.name.replace(/^The /, "the ")} is this from? ${shown}`, work.name, books));
+      continue;
+    }
+    out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.filter(a => !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
+    out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, [...new Set(otherWorks.filter(w => w.form !== "scripture").map(w => w.name))].filter(n => n !== work.name)));
   }
   // Sayings: what one means. A saying in another language shows its literal rendering unless it's iconic; the wrong
   // meanings are written for it, the misreadings someone might really make.
