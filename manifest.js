@@ -13,7 +13,7 @@ const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", R
 const SVG = "http://www.w3.org/2000/svg";
 
 // S: { seed, mode, round, score, lives, right, wrong, passed, phase: "orders" | "show" | "ask" | "review" | "over",
-//      prices, answers: { [order]: { given, right, paid } }, bonus }
+//      prices, answers: { [order]: { given, right, paid } }, skipped: [order], judged, bonus }
 let S = null;
 let R = null;                 // the current round from the engine
 let showTimer = null, holdStart = 0;
@@ -36,7 +36,7 @@ function start(mode) {
 function openRound() {
   R = makeRound(S.seed, S.round);
   const record = read(RECORD, {});
-  Object.assign(S, { phase: "orders", answers: {}, bonus: 1,
+  Object.assign(S, { phase: "orders", answers: {}, skipped: [], judged: false, bonus: 1,
     prices: R.orders.map(o => priceOf(o.type, S.round, record[o.type])),
     trend: R.orders.map(o => { const f = skillFactor(record[o.type]); return f < 0.9 ? "↓" : f > 1.1 ? "↑" : ""; }) });
   save();
@@ -111,16 +111,42 @@ function endShow(left) {
 
 // ---------- the questions ----------
 const answered = () => Object.keys(S.answers).length;
+/** The question in hand: the first neither answered nor passed. Questions come one at a time, in the order that gives
+ *  least away first, and nothing is judged until the round's review: an answer can't help with the next. */
+const current = () => R.orders.findIndex((o, i) => !S.answers[i] && !(S.skipped || []).includes(i));
 function askPhase(appear = false) {
   title();
   clear();
   if (S.bonus > 1) { $("note").hidden = false; $("note").textContent = `Shipped early: answers pay ×${S.bonus.toFixed(2)}`; }
   drawAsks(appear);
-  go(R.orders.length === 1 ? "Pass" : answered() ? "Done: pass the rest" : "Pass them all", () => reviewPhase());
+  go(R.orders.length === 1 ? "Pass" : current() > 0 ? "Pass the rest" : "Pass them all", () => reviewPhase());
 }
 function drawAsks(appear = false) {
-  $("asks").replaceChildren(...R.orders.map((o, i) => askRow(o, i)));
+  const at = current();
+  $("asks").replaceChildren(...R.orders.map((o, i) => (i === at ? askRow(o, i) : i < at || at < 0 ? doneRow(o, i) : laterRow(o, i))));
   drawAskStage(appear);
+}
+/** A question behind you: what you gave, or that you passed. Right or wrong waits for the review. */
+function doneRow(o, i) {
+  const a = S.answers[i], row = node("div", "mf-row done"), head = node("div", "mf-row-head");
+  head.append(node("span", null, o.question.text), node("em", null, a ? `Answered: ${givenText(o.question, a.given)}` : "Passed"));
+  row.appendChild(head);
+  return row;
+}
+/** A question still to come: only what the order book said, its kind and price; its picture and answers stay hidden. */
+function laterRow(o, i) {
+  const row = node("div", "mf-row later"), head = node("div", "mf-row-head");
+  head.append(node("span", null, o.posted), node("em", null, money(Math.round(S.prices[i] * S.bonus))));
+  row.appendChild(head);
+  return row;
+}
+const givenText = (q, g) => (q.as === "number" ? String(g) : q.as === "colour" ? COLOURS[g - 1].name.toLowerCase() : q.as === "stack" ? `stack ${g + 1}` : "your pick");
+function pass(i) {
+  if (S.phase !== "ask" || S.answers[i] || S.skipped.includes(i)) return;
+  S.skipped.push(i);
+  save();
+  if (current() < 0) { reviewPhase(); return; }
+  askPhase();
 }
 /** A change round's stage: the stack come back, to tap the container that changed (or the two that swapped). Other
  *  rounds need no stage here: each question carries its own picture. */
@@ -143,15 +169,13 @@ function pictureFor(o) {
   if (q.cell && q.as === "colour") return stage(R.cells, { blank: true, mark: q.cell }).panel;
   return null;
 }
-/** A question as a card with everything needed to answer it at a tap: the words and the price, its picture, its
- *  answers. Answered, it keeps only what it paid or cost. Passing is leaving it: the button below ends the round. */
+/** The question in hand, as a card with everything needed to answer it at a tap: the words and the price, its picture,
+ *  its answers, and a way to pass it. */
 function askRow(o, i) {
-  const q = o.question, a = S.answers[i], row = node("div", "mf-row");
-  if (a) row.classList.add(a.right ? "right" : "wrong");
+  const q = o.question, row = node("div", "mf-row");
   const head = node("div", "mf-row-head");
-  head.append(node("span", null, q.text), node("em", null, a ? (a.right ? `+${money(a.paid)}` : "a life") : money(Math.round(S.prices[i] * S.bonus))));
+  head.append(node("span", null, q.text), node("em", null, money(Math.round(S.prices[i] * S.bonus))));
   row.appendChild(head);
-  if (a) return row;
   const body = node("div", "mf-row-body"), pic = pictureFor(o);
   if (pic) {
     body.classList.add("with-pic");
@@ -184,6 +208,12 @@ function askRow(o, i) {
     body.appendChild(grid);
   }
   if (body.childElementCount) row.appendChild(body);   // a change round's question is answered on the stack itself
+  if (R.orders.length > 1) {                           // pass this one and go on to the next
+    const p = node("button", "mf-pass", "Pass this one");
+    p.type = "button";
+    p.addEventListener("click", () => pass(i));
+    row.appendChild(p);
+  }
   return row;
 }
 /** A tap on the stack that came back: one container, or two for a swap. */
@@ -196,25 +226,35 @@ function tapBack(key) {
   drawAsks();
 }
 function answer(i, given) {
-  if (S.phase !== "ask" || S.answers[i]) return;
-  const o = R.orders[i], q = o.question;
-  const right = JSON.stringify(given) === JSON.stringify(q.answer);
-  const paid = right ? Math.round(S.prices[i] * S.bonus) : 0;
-  S.answers[i] = { given, right, paid };
-  if (right) { S.score += paid; S.right++; } else { S.lives--; S.wrong++; navigator.vibrate?.(70); }
-  const record = read(RECORD, {});
-  record[o.type] = recordAfter(record[o.type], right);
-  write(RECORD, record);
+  if (S.phase !== "ask" || S.answers[i] || S.skipped.includes(i)) return;
+  S.answers[i] = { given };
   save();
-  drawHud();
-  if (S.lives <= 0 || answered() === R.orders.length) { reviewPhase(); return; }
+  if (current() < 0) { reviewPhase(); return; }
   askPhase();
+}
+/** The round's answers judged together, once, at its review: what each pays, the lives they cost, your record. */
+function judge() {
+  if (S.judged) return;
+  const record = read(RECORD, {});
+  R.orders.forEach((o, i) => {
+    const a = S.answers[i];
+    if (!a) return;
+    a.right = JSON.stringify(a.given) === JSON.stringify(o.question.answer);
+    a.paid = a.right ? Math.round(S.prices[i] * S.bonus) : 0;
+    if (a.right) { S.score += a.paid; S.right++; } else { S.lives = Math.max(0, S.lives - 1); S.wrong++; }
+    record[o.type] = recordAfter(record[o.type], a.right);
+  });
+  if (Object.values(S.answers).some(a => !a.right)) navigator.vibrate?.(70);
+  write(RECORD, record);
+  S.judged = true;
+  drawHud();
 }
 
 // ---------- the review ----------
 const truthText = q => (q.as === "number" ? String(q.answer) : q.as === "colour" ? COLOURS[q.answer - 1].name.toLowerCase()
   : q.as === "stack" ? `stack ${q.answer + 1}` : q.as === "pair" ? "the two outlined" : "the outlined one");
 function reviewPhase(focus = null) {
+  judge();
   S.phase = "review";
   save();
   title();
@@ -247,7 +287,7 @@ function reviewPhase(focus = null) {
   $("view").replaceChildren(panel);
   const last = S.lives <= 0 || S.round >= ROUNDS;
   go(last ? "See how it went" : `Round ${S.round + 1}`, () => {
-    S.passed += R.orders.length - answered();             // counted once, as the round is left
+    S.passed += R.orders.length - answered();             // counted once, as the round is left (passed one by one or all at once)
     if (last) { over(); return; }
     S.round++;
     openRound();

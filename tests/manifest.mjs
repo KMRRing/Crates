@@ -85,3 +85,19 @@ check(p > 0 && pLate > p && pGood < p && pBad > p, `prices: a spot pays ${p} in 
 check(M.shipBonus(1) === 1.5 && M.shipBonus(0) === 1 && M.shipBonus(0.4) === 1.2, "shipping early: up to half as much again");
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
+
+// questions come in the order that gives least away first: which-stack, whose four stacks show nearly everything, last;
+// and a number answer's truth isn't mostly in the middle
+{
+  const E = await import("../manifest-engine.js");
+  let outOfOrder = 0, middle = 0, numbers = 0;
+  for (let seed = 1; seed <= 300; seed++) for (let r = 1; r <= 12; r++) {
+    const R = E.makeRound(seed, r), ranks = R.orders.map(o => E.ASK_ORDER.indexOf(o.type)).filter(k => k >= 0);
+    if (ranks.some((k, i) => i && k < ranks[i - 1])) outOfOrder++;
+    for (const o of R.orders) if (o.question.as === "number") { numbers++; if (o.question.options.indexOf(o.question.answer) === 2) middle++; }
+  }
+  const share = middle / numbers;
+  console.log(`${outOfOrder ? "FAIL" : "ok  "} questions asked least-revealing first, which-stack last (${outOfOrder} rounds out of order)`);
+  console.log(`${share > 0.3 ? "FAIL" : "ok  "} the true number is in the middle ${Math.round(share * 100)}% of the time (a fifth is fair; random scatter gave 37%)`);
+  if (outOfOrder || share > 0.3) process.exitCode = 1;
+}

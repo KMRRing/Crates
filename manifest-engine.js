@@ -152,14 +152,15 @@ export const KINDS = {
   changeTurned: { name: "Change, turned", base: 220 },
   swap: { name: "Swap", base: 220 },
 };
-/** Number options around the truth: five, including it, never negative. */
+/**
+ * Number options around the truth: five, evenly spaced, never negative, the truth at a place drawn evenly from those
+ * that fit. Scattered at random round the truth, the truth would sit in the middle more often than not, and picking
+ * the middle option would pay without looking.
+ */
 function numberOptions(r, truth) {
-  const opts = new Set([truth]);
-  const spread = Math.max(2, Math.round(truth * 0.5));
-  let guard = 0;
-  while (opts.size < 5 && guard++ < 50) { const v = truth + int(r, -spread, spread); if (v >= 0) opts.add(v); }
-  for (let v = truth + 1; opts.size < 5; v++) opts.add(v);
-  return [...opts].sort((a, b) => a - b);
+  const step = truth >= 8 ? int(r, 1, 2) : 1, places = [0, 1, 2, 3, 4].filter(k => truth - k * step >= 0);
+  const at = pick(r, places);
+  return [0, 1, 2, 3, 4].map(k => truth + (k - at) * step);
 }
 const colourName = c => COLOURS[c - 1].name.toLowerCase();
 const turnWords = t => (t === 2 ? "from behind" : "from the side");
@@ -280,6 +281,13 @@ function makeChange(r, cells, L, visible, variant) {
     : { type: "change", posted: "Spot the change", question: { as: "cell", text: "One container changed colour. Tap it.", turns: 0, back: changed, answer: keyOf(x, y, z), cell: { x, y, z } } };
 }
 
+/**
+ * The order questions are asked in: those whose pictures and answers give least away first. A turned spot's grey
+ * stack shows the shape, so it comes after the counts; the four stacks of which-stack show nearly everything, so it
+ * comes last. Questions come one at a time, so nothing later is seen before what comes earlier is answered or passed.
+ */
+export const ASK_ORDER = ["count", "total", "tier", "most", "spot", "top", "turned", "which"];
+
 /** Round r of a run: { r, level, cells, view, visible, orders }. Orders are fixed by the seed; prices are not. */
 export function makeRound(seed, r) {
   const L = levelOf(r), rand = rng(mix(seed, r));
@@ -294,6 +302,7 @@ export function makeRound(seed, r) {
     const o = makeOrder(rand, type, cells, L, view, visible);
     if (o) orders.push(o);
   }
+  orders.sort((a, b) => ASK_ORDER.indexOf(a.type) - ASK_ORDER.indexOf(b.type));
   return { r, level: L, cells, view, visible, orders };
 }
 
