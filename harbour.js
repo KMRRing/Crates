@@ -5,11 +5,11 @@ import { steer, flatten, neighbour, limitOf, ASTERN, LOAD, DISCHARGE, WAIT, CLAS
 import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
-import { LEVELS } from "./harbour-levels.js";
+import { CHAPTERS, LEVELS } from "./harbour-levels.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, mirror, onPause } from "./menu.js";
+import { part, action, choice, onPause } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const ROWS = 4;                       // program rows always shown, so nothing changes size as ships come and go
@@ -538,7 +538,12 @@ function openMenu() {
   const table = document.createElement("table");
   table.className = "hb-bests";
   table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
-  part(body, "content").append(mirror("Level", $("level")));
+  // the levels by chapter, each under its heading: the region and what it teaches (the shared mirror leaves headings out)
+  const content = part(body, "content"), pickLevel = v => { $("menuDlg")?.close(); levelSel.value = v; levelSel.dispatchEvent(new Event("change", { bubbles: true })); };
+  for (const c of CHAPTERS) {
+    const ls = LEVELS.filter(l => l.chapter === c.id);
+    content.append(choice(`${c.name}: ${c.note}`, ls.map(l => [l.id, `${LEVELS.indexOf(l) + 1} · ${l.name}`]), L.id, pickLevel));
+  }
   part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"),
     action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); $("menuDlg").close(); }, "link"),
     action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
@@ -790,7 +795,9 @@ addEventListener("keydown", e => {
 });
 
 const levelSel = $("level");
-levelSel.innerHTML = LEVELS.map((l, i) => `<option value="${l.id}">${i + 1} · ${l.name}</option>`).join("");
+// a heading for each chapter (it can't be picked), then its levels, each with the idea it teaches under its name
+levelSel.innerHTML = CHAPTERS.map(c => `<option disabled>${c.name}: ${c.note}</option>`
+  + LEVELS.filter(l => l.chapter === c.id).map(l => `<option value="${l.id}" data-note="${l.teaches}">${LEVELS.indexOf(l) + 1} · ${l.name}</option>`).join("")).join("");
 dropdown(levelSel);
 levelSel.addEventListener("change", () => load(LEVELS.find(l => l.id === levelSel.value)));
 // the map: in 3D where the device can draw it and the player hasn't asked for it flat, flat otherwise
