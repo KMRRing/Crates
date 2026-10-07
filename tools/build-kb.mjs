@@ -400,7 +400,8 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       out.lit.push(mk("work", `Which book of ${author.name.replace(/^The /, "the ")} is this from? ${shown}`, work.name, books));
       continue;
     }
-    out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.filter(a => !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
+    // an anonymous work (the Tale of the Heike) is asked only which work it is; "Anonymous" is never a wrong author
+    if (!author.anonymous) out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.filter(a => !a.anonymous && !byAuthor.get(a.id).every(w => w.form === "scripture")).map(a => a.name)));
     out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, [...new Set(otherWorks.filter(w => w.form !== "scripture").map(w => w.name))].filter(n => n !== work.name)));
   }
   // Sayings: what one means. A saying in another language shows its literal rendering unless it's iconic; the wrong
