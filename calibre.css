@@ -1,5 +1,6 @@
 /* Calibre: a strip, the brief (task and goals), the plate filling what's left, the tray and the controls below */
-.calibre .cb-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .2rem 0 .45rem; color: var(--ink-soft); font-size: .9rem; }
+.calibre .cb-strip { display: flex; align-items: baseline; gap: .6rem; margin: .2rem 0 .45rem; color: var(--ink-soft); font-size: .9rem; }
+.calibre .cb-strip #where { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cb-stars { color: var(--brass-lo, var(--brass)); letter-spacing: .1em; white-space: nowrap; }
 .cb-brief { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .6rem .8rem; margin-bottom: .5rem; }
 .cb-task { margin: 0 0 .35rem; font-weight: 700; line-height: 1.3; }
@@ -20,32 +21,52 @@
 .cb-in-head { margin: 0 0 .2rem; font-weight: 700; }
 .cb-in-row { margin: .1rem 0; display: flex; gap: .5rem; align-items: center; justify-content: space-between; }
 .cb-x { background: none; border: 1px solid var(--tile-edge); border-radius: 6px; padding: .1rem .45rem; font: inherit; font-size: .75rem; color: var(--ink); cursor: pointer; }
-/* the plan: a brass plate; wheels in brass, pinions in steel, the barrel darker, the escape wheel blued; the layer in
-   hand drawn full, the others faint; the dial side dashed */
-.cb-plate { fill: color-mix(in srgb, #C9B07A 22%, var(--sheet)); stroke: var(--tile-edge); stroke-width: .08; }
+/* the plan: a grained brass plate; wheels in gilt brass with their rims and crossings, pinions in steel, the barrel's
+   drum with the blued mainspring coiled inside, a blued club-tooth escape wheel, the pallet fork in steel with red
+   stones, the balance in gilt with timing screws and a blued hairspring; jewels red in their chatons. The layer in
+   hand drawn full, the others faint; the dial side dashed. */
+.cb-plate { fill: color-mix(in srgb, #C9B07A 24%, var(--sheet)); stroke: var(--tile-edge); stroke-width: .08; }
+.cb-perlage { fill: none; stroke: #8F6A1E; stroke-width: .03; opacity: .18; }
 .cb-tick { stroke: var(--ink-soft); stroke-width: .08; }
-.cb-part path { stroke: #1C2A34; stroke-width: .05; opacity: .45; }
-.cb-part.on path { opacity: 1; }
-.cb-wheel path { fill: #D4A847; }
-.cb-pinion path { fill: #A9B4BC; }
-.cb-barrel path { fill: #9C7A2E; }
-.cb-escape path { fill: #3D6E9E; }
+.cb-part path, .cb-part circle, .cb-part rect { stroke: #1C2A34; stroke-width: .05; }
+.cb-part { opacity: .55; }
+.cb-part.on, .cb-barrel, .cb-escape, .cb-fork, .cb-balance { opacity: 1; }
+.cb-wheel > g > path { fill: #D9AF4F; }
+.cb-pinion > g > path { fill: #B3BDC4; }
+.cb-rimline { fill: none; }
+.cb-crossing { stroke: #D9AF4F; stroke-width: .42; stroke-linecap: round; }
+.cb-hub { fill: #C49A3C; }
+.cb-wheel .cb-rimline { fill: color-mix(in srgb, var(--sheet) 70%, #C9B07A); }
+.cb-drum { fill: #A8842F; }
+.cb-cavity { fill: #6E5520; }
+.cb-mainspring { fill: none; stroke: #5B86B5; stroke-width: .07; }
+.cb-barrel-arbor { fill: #B3BDC4; }
+.cb-square { fill: #55626B; }
+.cb-escape path { fill: #4A78A8; }
+.cb-spoke { stroke: #4A78A8; stroke-width: .22; stroke-linecap: round; }
+path.cb-fork { fill: #C3CBD1; }
+.cb-stone { fill: #C0283C; }
+.cb-rim { fill: none; stroke: #C9A04A; stroke-width: .28; }
+.cb-arm { stroke: #C9A04A; stroke-width: .2; stroke-linecap: round; }
+.cb-screw { fill: #E3C878; }
+.cb-roller { fill: #C3CBD1; }
+.cb-hairspring { fill: none; stroke: #4A78A8; stroke-width: .04; }
 .cb-part.dial path { stroke-dasharray: .25 .15; }
-.cb-part.clash path { fill: #C0392B; opacity: .85; }
-.cb-web { fill: none; stroke: #1C2A34; stroke-width: .05; opacity: .35; }
-.cb-spoke { stroke: #1C2A34; stroke-width: .12; opacity: .3; }
+.cb-part.clash path { fill: #C0392B; }
 .cb-mesh { fill: #2F7D5B; }
-.cb-pivot { fill: var(--sheet); stroke: #1C2A34; stroke-width: .07; cursor: pointer; }
-.cb-pivot.fixed { fill: #A8402F; }
-.cb-pivot.post { fill: #1C2A34; }
-.cb-pivot.sel { stroke: var(--brass); stroke-width: .18; }
-.cb-label { font-size: .55px; text-anchor: middle; fill: var(--ink); font-family: var(--font, sans-serif); pointer-events: none; }
+.cb-pivot { cursor: pointer; }
+.cb-chaton { fill: #E6E9EB; stroke: #55626B; stroke-width: .05; }
+.cb-jewel { fill: #C0283C; }
+.cb-stud { fill: #8A949C; }
+.cb-post { fill: #1C2A34; }
+.cb-pivot.sel .cb-chaton { stroke: var(--brass); stroke-width: .16; }
+.cb-label { font-size: .55px; text-anchor: middle; fill: var(--ink); font-family: var(--font, sans-serif); pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: .12px; }
 .cb-hand line { stroke: #1C2A34; stroke-linecap: round; }
 .cb-minute line { stroke-width: .28; }
 .cb-hour line { stroke-width: .42; }
 .cb-seconds line { stroke-width: .14; stroke: #A8402F; }
-.cb-balance circle { fill: none; stroke: #8F6A1E; stroke-width: .18; }
-.cb-balance line { stroke: #8F6A1E; stroke-width: .12; }
+.cb-power { color: #5B86B5; font-size: .82rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cb-power:not(:empty)::before { content: "⟳ "; }
 /* the tray and the controls */
 .cb-tray { flex: none; display: flex; gap: .35rem; overflow-x: auto; padding: .5rem 0 .3rem; scrollbar-width: none; font-size: .85rem; color: var(--ink-soft); }
 .cb-chip { flex: none; border: 1.5px solid var(--tile-edge); border-radius: 999px; padding: .35rem .7rem; background: var(--tile); color: var(--ink); font: inherit; font-size: .85rem; cursor: pointer; }

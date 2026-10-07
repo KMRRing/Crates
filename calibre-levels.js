@@ -12,11 +12,16 @@ const W = (teeth, layer = 1) => ({ kind: "wheel", teeth, layer });
 const P = (teeth, layer = 1) => ({ kind: "pinion", teeth, layer });
 const tray = (...items) => items.map(([kind, teeth, n = 1, extra = {}]) => ({ kind, teeth, n, ...extra }));
 const BARREL_AT = { x: -3.182, y: -3.182 };                      // 4.5 mm from the centre, up and to the left
+// the escapement in a straight line out from the escape wheel: fork 2 mm on, the balance 2.8 mm beyond (FORK_REACH,
+// FORK_LENGTH in the engine), up and to the left, clear of the train
+const line = (e, u = [-0.8, -0.6]) => [e, { x: +(e.x + u[0] * 2).toFixed(4), y: +(e.y + u[1] * 2).toFixed(4) }, { x: +(e.x + u[0] * 4.8).toFixed(4), y: +(e.y + u[1] * 4.8).toFixed(4) }];
+const [ESC_A, FORK_A, BALANCE_A] = line({ x: -3.6042, y: 4.4763 });
+const [ESC_B, FORK_B, BALANCE_B] = line({ x: -3.1947, y: 4.7630 });
 
 export const CHAPTERS = [
   { id: 1, title: "Gears", about: "How two toothed wheels turn each other: the ratio, the direction, and what may go where." },
   { id: 2, title: "The going train", about: "From the mainspring to the seconds: the wheels that carry the power and set the hands' speeds." },
-  { id: 3, title: "The escapement", about: "What lets the spring run down at exactly the right pace: the balance, its beat and the escape wheel." },
+  { id: 3, title: "The escapement", about: "What lets the spring run down at exactly the right pace: the escape wheel, the pallet fork, the balance and its beat." },
   { id: 4, title: "The motion works", about: "The little train under the dial that turns the minute hand's hour into the hour hand's twelve." },
 ];
 
@@ -162,19 +167,62 @@ export const LEVELS = [
 
   // ---------- 3. The escapement ----------
   {
-    id: "3.1", chapter: 3, title: "The beat", plate: 13,
+    id: "3.1", chapter: 3, title: "Runaway", plate: 13,
     primer: [
-      "Left alone, a mainspring would spin the train round in a second. The escapement lets it go one tooth at a time: the balance, a weighted wheel on a hair-thin spring, swings back and forth at a steady rate, and each swing releases the escape wheel by half a tooth.",
-      "A beat is one swing. Watches count them in vibrations per hour (vph): 18,000 vph is five a second. Each tooth of the escape wheel gives two beats, so a 15-tooth escape wheel at 18,000 vph turns 600 times an hour.",
-      "The balance sets the pace of everything: the fourth wheel must turn the escape wheel's pinion so that the seconds come out at once a minute.",
+      "Wound and left to itself, a mainspring would spin the whole train in a blur and be spent in seconds. Something has to let the power out a little at a time: the escapement.",
+      "Its first part is the pallet fork, the lever some call the hammer: an anchor-shaped piece on its own arbor, with two jewelled pallet stones that take turns to catch the escape wheel's teeth.",
+      "On its own, a fork just stops the wheel: one tooth lands on a stone and the train locks. Tick, and nothing more.",
     ],
-    task: "The balance beats 18,000 times an hour against a 15-tooth escape wheel. Finish the train so the seconds turn once a minute.",
+    task: "The train runs away. Fit the pallet fork so its stones reach the escape wheel's teeth.",
+    fixed: [
+      { id: "barrel", label: "Barrel", ...BARREL_AT, power: -1, parts: [{ kind: "barrel", teeth: 80, layer: 1 }] },
+      { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
+      { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
+      { id: "seconds", label: "Fourth wheel (small seconds)", x: 0, y: 7, parts: [P(10, 3), W(80, 4)] },
+      { id: "escape", label: "Escape wheel", ...ESC_A, parts: [P(8, 4), { kind: "escape", teeth: 15, layer: 9 }] },
+    ],
+    tray: [{ kind: "fork", n: 1 }],
+    goals: [{ escapement: "locked" }],
+    par: 1,
+    solution: { add: [{ at: { id: "fork", ...FORK_A }, part: { kind: "fork", layer: 9 } }] },
+  },
+  {
+    id: "3.2", chapter: 3, title: "The balance", plate: 13,
+    primer: [
+      "The balance is the watch's heart: a weighted wheel on a hair-thin spiral spring, the hairspring, which swings it back and forth at a steady rate whatever the spring's force.",
+      "Each swing, a jewel on its roller, the impulse pin, knocks the fork across. One pallet lets a tooth go, the other catches the next, and the escaping tooth pushes the fork, which pushes the balance to keep it swinging. That release is the tick.",
+      "The escape wheel, the fork's pivot and the balance sit in a straight line: the Swiss lever escapement.",
+    ],
+    task: "Fit the balance at the end of the fork, in line, so the watch runs.",
+    fixed: [
+      { id: "barrel", label: "Barrel", ...BARREL_AT, power: -1, parts: [{ kind: "barrel", teeth: 80, layer: 1 }] },
+      { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
+      { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
+      { id: "seconds", label: "Fourth wheel (small seconds)", x: 0, y: 7, parts: [P(10, 3), W(80, 4)] },
+      { id: "escape", label: "Escape wheel", ...ESC_A, parts: [P(8, 4), { kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "fork", label: "Pallet fork", ...FORK_A, parts: [{ kind: "fork", layer: 9 }] },
+    ],
+    tray: [{ kind: "balance", vph: 18000, n: 1 }],
+    goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
+    par: 1,
+    solution: { add: [{ at: { id: "balance", ...BALANCE_A }, part: { kind: "balance", vph: 18000, layer: 10 } }] },
+  },
+  {
+    id: "3.3", chapter: 3, title: "The beat", plate: 13,
+    primer: [
+      "A beat is one swing of the balance. Watches count them in vibrations per hour (vph): 18,000 vph is five a second.",
+      "Each tooth of the escape wheel gives two beats, one on each pallet, so a 15-tooth escape wheel at 18,000 vph turns 600 times an hour.",
+      "The fourth wheel turns sixty times an hour, so it must drive the escape pinion ten times faster.",
+    ],
+    task: "The escapement is fitted but not yet driven. Finish the train so the seconds turn once a minute.",
     fixed: [
       { id: "barrel", label: "Barrel", ...BARREL_AT, power: -1, parts: [{ kind: "barrel", teeth: 80, layer: 1 }] },
       { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
       { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
       { id: "seconds", label: "Fourth wheel (small seconds)", x: 0, y: 7, parts: [P(10, 3)] },
-      { id: "escape", label: "Escape wheel", x: -3.6042, y: 4.4763, regulator: { vph: 18000, escape: 15 }, parts: [{ kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "escape", label: "Escape wheel", ...ESC_A, parts: [{ kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "fork", label: "Pallet fork", ...FORK_A, parts: [{ kind: "fork", layer: 9 }] },
+      { id: "balance", label: "Balance", ...BALANCE_A, parts: [{ kind: "balance", vph: 18000, layer: 10 }] },
     ],
     tray: tray(["wheel", 75], ["wheel", 80], ["wheel", 90], ["pinion", 6], ["pinion", 8], ["pinion", 10]),
     goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
@@ -182,9 +230,9 @@ export const LEVELS = [
     solution: { add: [{ arbor: "seconds", part: W(80, 4) }, { arbor: "escape", part: P(8, 4) }] },
   },
   {
-    id: "3.2", chapter: 3, title: "A faster beat", plate: 13,
+    id: "3.4", chapter: 3, title: "A faster beat", plate: 13,
     primer: [
-      "Modern watches beat faster: 28,800 vph, four beats a second, keeps time better when the watch is jolted.",
+      "Modern watches beat faster: 28,800 vph, eight beats a second, keeps better time when the watch is jolted.",
       "With a 20-tooth escape wheel that's 720 turns an hour, twelve times the fourth wheel's sixty: the last step of the train must speed up twelve times.",
     ],
     task: "A 28,800 vph balance and a 20-tooth escape wheel. Make the seconds turn once a minute.",
@@ -193,7 +241,9 @@ export const LEVELS = [
       { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
       { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
       { id: "seconds", label: "Fourth wheel (small seconds)", x: 0, y: 7, parts: [P(10, 3)] },
-      { id: "escape", label: "Escape wheel", x: -3.1947, y: 4.7630, regulator: { vph: 28800, escape: 20 }, parts: [{ kind: "escape", teeth: 20, layer: 9 }] },
+      { id: "escape", label: "Escape wheel", ...ESC_B, parts: [{ kind: "escape", teeth: 20, layer: 9 }] },
+      { id: "fork", label: "Pallet fork", ...FORK_B, parts: [{ kind: "fork", layer: 9 }] },
+      { id: "balance", label: "Balance", ...BALANCE_B, parts: [{ kind: "balance", vph: 28800, layer: 10 }] },
     ],
     tray: tray(["wheel", 72], ["wheel", 80], ["wheel", 84], ["pinion", 6], ["pinion", 7], ["pinion", 8]),
     goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
@@ -201,23 +251,25 @@ export const LEVELS = [
     solution: { add: [{ arbor: "seconds", part: W(72, 4) }, { arbor: "escape", part: P(6, 4) }] },
   },
   {
-    id: "3.3", chapter: 3, title: "The right balance", plate: 13,
+    id: "3.5", chapter: 3, title: "The right balance", plate: 13,
     primer: [
       "A train is built for one beat. Fit a balance that beats faster and the whole watch runs fast; slower, and it loses.",
       "This train turns its 15-tooth escape wheel twelve times for each turn of the seconds: 720 times an hour.",
     ],
-    task: "Choose the balance that makes this watch keep time.",
+    task: "Choose the balance that makes this watch keep time, and fit it on the balance staff.",
     fixed: [
       { id: "barrel", label: "Barrel", ...BARREL_AT, power: -1, parts: [{ kind: "barrel", teeth: 80, layer: 1 }] },
       { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2)] },
       { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
       { id: "seconds", label: "Fourth wheel (small seconds)", x: 0, y: 7, parts: [P(10, 3), W(72, 4)] },
-      { id: "escape", label: "Escape wheel", x: -3.1947, y: 4.7630, parts: [P(6, 4), { kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "escape", label: "Escape wheel", ...ESC_B, parts: [P(6, 4), { kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "fork", label: "Pallet fork", ...FORK_B, parts: [{ kind: "fork", layer: 9 }] },
+      { id: "balance", label: "Balance staff", ...BALANCE_B, parts: [] },
     ],
     tray: [{ kind: "balance", vph: 18000, n: 1 }, { kind: "balance", vph: 21600, n: 1 }, { kind: "balance", vph: 28800, n: 1 }],
     goals: [{ arbor: "centre", rate: 1 }, { arbor: "seconds", rate: 60 }],
     par: 1,
-    solution: { add: [{ arbor: "escape", part: { kind: "balance", vph: 21600, layer: 10 } }] },
+    solution: { add: [{ arbor: "balance", part: { kind: "balance", vph: 21600, layer: 10 } }] },
   },
 
   // ---------- 4. The motion works ----------
@@ -266,7 +318,9 @@ export const LEVELS = [
       { id: "centre", label: "Centre wheel (minute hand)", x: 0, y: 0, parts: [P(10, 1), W(80, 2), P(10, 6)] },
       { id: "third", label: "Third wheel", x: 2.6231, y: 3.6558, parts: [P(10, 2), W(75, 3)] },
       { id: "seconds", label: "Fourth wheel (small seconds)", x: 0, y: 7, parts: [P(10, 3)] },
-      { id: "escape", label: "Escape wheel", x: -3.6042, y: 4.4763, regulator: { vph: 18000, escape: 15 }, parts: [{ kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "escape", label: "Escape wheel", ...ESC_A, parts: [{ kind: "escape", teeth: 15, layer: 9 }] },
+      { id: "fork", label: "Pallet fork", ...FORK_A, parts: [{ kind: "fork", layer: 9 }] },
+      { id: "balance", label: "Balance", ...BALANCE_A, parts: [{ kind: "balance", vph: 18000, layer: 10 }] },
       { id: "hours", label: "Hour wheel (hour hand)", x: 0, y: 0, on: "centre", parts: [] },
     ],
     tray: tray(["wheel", 30], ["wheel", 32], ["wheel", 72], ["wheel", 80], ["pinion", 6], ["pinion", 8, 2]),

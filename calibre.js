@@ -1,7 +1,7 @@
 // Calibre: learn watchmaking by drafting movements on the calibre plan. Each level gives a plate, the parts already
 // fixed there and a tray; you place wheels and pinions on layers, the engine runs the train as it would really turn,
 // and winding sets it going in time-lapse. Goals are met only when the watch truly keeps time.
-import { judge, startDesign, solved, partsUsed, snap, radius, rateText, MODULE, DIAL_LAYERS, regulatorOf } from "./calibre-engine.js";
+import { judge, startDesign, solved, partsUsed, snap, snapEscapement, radius, rateText, MODULE, DIAL_LAYERS, ESCAPE_R, FORK_LENGTH, BALANCE_R } from "./calibre-engine.js";
 import { LEVELS, CHAPTERS } from "./calibre-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
@@ -19,7 +19,13 @@ const SPEEDS = [[1, "Real time"], [60, "A minute a second"], [720, "Twelve minut
 
 // ---------- state ----------
 let level = null, design = null, tray = [], chosen = null, layer = 1, selected = null, view = null, nextId = 1;
-let running = false, angles = {}, last = 0, verdict = null;
+let verdict = null, last = 0, toastTimer = 0;
+// The simulation: the angle of every arbor (in turns), how wound the mainspring is (0 to 1), the barrel arbor's turn
+// while winding, the balance's swing and the fork's rock (degrees), and what the movement is doing.
+const TURNS = 5;                                                  // a fully wound mainspring gives the barrel five turns
+let sim = { angles: {}, base: {}, wound: 0, windAngle: 0, balance: 0, fork: 0, state: "stopped", t: 0, hours: 0 };
+const running = () => sim.state !== "stopped";
+const barrelOf = () => design.arbors.find(a => (a.parts || []).some(p => p.kind === "barrel"));
 const progress = () => read(PROGRESS, {});
 
 function load(id) {
@@ -27,72 +33,141 @@ function load(id) {
   write(AT, level.id);
   design = startDesign(level);
   tray = level.tray.map(t => ({ ...t, left: t.n }));
-  chosen = null; selected = null; running = false; angles = {}; nextId = 1;
+  chosen = null; selected = null; nextId = 1;
+  sim = { angles: {}, base: {}, wound: 0, windAngle: 0, balance: 0, fork: 0, state: "stopped", t: 0, hours: 0 };
   layer = Math.min(...level.tray.filter(t => t.kind !== "balance").map(() => 1), 1);
   const R = level.plate + 0.8;
   view = { x: -R, y: -R, w: 2 * R, h: 2 * R };
   render();
+  $("windBtn").textContent = barrelOf() ? "Wind" : "Turn";
   if (!progress()[level.id]?.seen) openPrimer();
 }
 
-// ---------- drawing ----------
+// ---------- drawing: each part as itself ----------
 const toothCache = new Map();
-/** A wheel's outline: teeth round the pitch circle, an addendum out and a dedendum in, as a cutter would leave them. */
-function toothPath(teeth) {
-  if (toothCache.has(teeth)) return toothCache.get(teeth);
-  const r = radius(teeth), out = r + MODULE, inn = r - MODULE * 1.25, step = (2 * Math.PI) / teeth;
+/** A gear's outline: teeth round the pitch circle, as a cutter leaves them; pinions have fewer, deeper, rounder leaves. */
+function toothPath(teeth, pinion) {
+  const key = `${teeth}${pinion ? "p" : ""}`;
+  if (toothCache.has(key)) return toothCache.get(key);
+  const r = radius(teeth), out = r + MODULE * (pinion ? 0.9 : 1), inn = r - MODULE * (pinion ? 1.6 : 1.25), step = (2 * Math.PI) / teeth;
+  const shape = pinion ? [[-0.3, inn], [-0.18, out], [0.18, out], [0.3, inn]] : [[-0.25, inn], [-0.12, out], [0.12, out], [0.25, inn]];
   const pts = [];
-  for (let i = 0; i < teeth; i++) {
-    const a = i * step;
-    for (const [da, rr] of [[-0.25, inn], [-0.12, out], [0.12, out], [0.25, inn]]) pts.push([Math.cos(a + da * step) * rr, Math.sin(a + da * step) * rr]);
-  }
-  const d = `M${pts.map(p => p.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
-  toothCache.set(teeth, d);
+  for (let i = 0; i < teeth; i++) for (const [da, rr] of shape) pts.push([Math.cos((i + da) * step) * rr, Math.sin((i + da) * step) * rr]);
+  const d = `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
+  toothCache.set(key, d);
   return d;
 }
+/** A Swiss lever escape wheel: club teeth leaning the way it turns, cut to its own larger module. */
+function escapePath(teeth) {
+  const key = `e${teeth}`;
+  if (toothCache.has(key)) return toothCache.get(key);
+  const R = ESCAPE_R, step = (2 * Math.PI) / teeth, pts = [];
+  for (let i = 0; i < teeth; i++) {
+    const a = i * step;
+    for (const [da, rr] of [[0, R * 0.72], [0.18, R * 0.78], [0.62, R], [0.72, R * 0.97], [0.5, R * 0.8], [0.75, R * 0.72]]) pts.push([Math.cos(a + da * step) * rr, Math.sin(a + da * step) * rr]);
+  }
+  const d = `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
+  toothCache.set(key, d);
+  return d;
+}
+/** A flat spiral from radius r0 to r1 over the given turns, its radius running by the shape function f(s) on 0..1. */
+function spiralPath(r0, r1, turns, f = s => s, twist = 0) {
+  const n = Math.max(60, Math.round(turns * 48)), pts = [];
+  for (let i = 0; i <= n; i++) { const s = i / n, a = s * turns * 2 * Math.PI + twist * (1 - s), r = r0 + (r1 - r0) * f(s); pts.push(`${(Math.cos(a) * r).toFixed(3)} ${(Math.sin(a) * r).toFixed(3)}`); }
+  return `M${pts.join("L")}`;
+}
+/** The mainspring in its barrel: wound, its coils wrap tight round the arbor; let down, they lie against the drum wall. */
+const springShape = (wound, ra, rw) => s => wound * Math.pow(s, 3) + (1 - wound) * (1 - Math.pow(1 - s, 3));
+
+const dyn = [];                                                  // what each frame moves: [element, update(state)]
+function drawPart(svg, a, p, clash) {
+  const g = el("g", { class: `cb-part cb-${p.kind}${p.layer === layer ? " on" : ""}${DIAL_LAYERS.includes(p.layer) ? " dial" : ""}${clash ? " clash" : ""}` }, svg);
+  const spin = el("g", {}, g);
+  dyn.push([spin, st => spin.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`)]);
+  if (p.kind === "barrel") {
+    const r = radius(p.teeth);
+    el("path", { d: toothPath(p.teeth), class: "cb-drum" }, spin);
+    el("circle", { r: r - MODULE * 2.4, class: "cb-cavity" }, spin);
+    const spring = el("path", { class: "cb-mainspring" }, g), ra = 0.62, rw = r - MODULE * 2.6;
+    dyn.push([spring, st => { spring.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`); spring.setAttribute("d", spiralPath(ra, rw, 6 + 6 * st.wound, springShape(st.wound, ra, rw), -st.wound * 9)); }]);
+    const arbor = el("g", {}, g);
+    el("circle", { r: ra, class: "cb-barrel-arbor" }, arbor); el("rect", { x: -0.24, y: -0.24, width: 0.48, height: 0.48, class: "cb-square" }, arbor);
+    dyn.push([arbor, st => arbor.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${st.windAngle * 360})`)]);
+  } else if (p.kind === "escape") {
+    el("path", { d: escapePath(p.teeth) }, spin);
+    for (let k = 0; k < 4; k++) el("line", { x1: 0, y1: 0, x2: Math.cos(k * Math.PI / 2) * ESCAPE_R * 0.7, y2: Math.sin(k * Math.PI / 2) * ESCAPE_R * 0.7, class: "cb-spoke" }, spin);
+  } else if (p.kind === "fork") {
+    const e = design.arbors.find(x => (x.parts || []).some(q => q.kind === "escape"));
+    const base = e ? Math.atan2(a.y - e.y, a.x - e.x) * 180 / Math.PI : 0;  // the lever points away from the escape wheel
+    const lever = el("g", {}, g);
+    // the anchor: two arms reaching back to the escape wheel with their pallet stones, the lever out to the fork's horns
+    el("path", { d: `M0 -0.18L${FORK_LENGTH - 0.45} -0.12L${FORK_LENGTH - 0.45} -0.32L${FORK_LENGTH} -0.32L${FORK_LENGTH} -0.1L${FORK_LENGTH - 0.25} -0.1L${FORK_LENGTH - 0.25} 0.1L${FORK_LENGTH} 0.1L${FORK_LENGTH} 0.32L${FORK_LENGTH - 0.45} 0.32L${FORK_LENGTH - 0.45} 0.12L0 0.18Z`, class: "cb-fork" }, lever);
+    el("path", { d: "M0 -0.2L-0.9 -1.15L-1.2 -0.95L-0.35 0L-1.2 0.95L-0.9 1.15L0 0.2Z", class: "cb-fork" }, lever);
+    el("rect", { x: -1.32, y: -1.2, width: 0.32, height: 0.22, class: "cb-stone", transform: "rotate(-35 -1.16 -1.09)" }, lever);
+    el("rect", { x: -1.32, y: 0.98, width: 0.32, height: 0.22, class: "cb-stone", transform: "rotate(35 -1.16 1.09)" }, lever);
+    dyn.push([lever, st => lever.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${base + (st.fork || 0)})`)]);
+  } else if (p.kind === "balance") {
+    const R = BALANCE_R, bal = el("g", {}, g), hair = el("path", { class: "cb-hairspring" }, g);
+    el("circle", { r: R - 0.14, class: "cb-rim" }, bal);
+    for (let k = 0; k < 3; k++) el("line", { x1: 0, y1: 0, x2: Math.cos(k * 2 * Math.PI / 3) * (R - 0.2), y2: Math.sin(k * 2 * Math.PI / 3) * (R - 0.2), class: "cb-arm" }, bal);
+    for (let k = 0; k < 8; k++) el("circle", { cx: Math.cos(k * Math.PI / 4 + 0.39) * (R - 0.14), cy: Math.sin(k * Math.PI / 4 + 0.39) * (R - 0.14), r: 0.13, class: "cb-screw" }, bal);
+    el("circle", { r: 0.42, class: "cb-roller" }, bal);
+    const f = design.arbors.find(x => (x.parts || []).some(q => q.kind === "fork"));
+    const toward = f ? Math.atan2(f.y - a.y, f.x - a.x) : 0;    // at rest the impulse pin sits in the fork's horns
+    el("circle", { cx: Math.cos(toward) * 0.42, cy: Math.sin(toward) * 0.42, r: 0.11, class: "cb-stone" }, bal);
+    dyn.push([bal, st => bal.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${st.balance || 0})`)]);
+    dyn.push([hair, st => { hair.setAttribute("transform", `translate(${a.x} ${a.y})`); hair.setAttribute("d", spiralPath(0.3, R * 0.68, 9, s => s, ((st.balance || 0) * Math.PI) / 180)); }]);
+  } else {
+    el("path", { d: toothPath(p.teeth, p.kind === "pinion") }, spin);
+    const r = radius(p.teeth);
+    if (p.kind === "wheel" && r > 1.2) {                       // a wheel's rim and its five crossings
+      el("circle", { r: r - MODULE * 2.2, class: "cb-rimline" }, spin);
+      for (let k = 0; k < 5; k++) { const ang = (k * 2 * Math.PI) / 5; el("line", { x1: Math.cos(ang) * 0.4, y1: Math.sin(ang) * 0.4, x2: Math.cos(ang) * (r - MODULE * 2.2), y2: Math.sin(ang) * (r - MODULE * 2.2), class: "cb-crossing" }, spin); }
+      el("circle", { r: 0.45, class: "cb-hub" }, spin);
+    }
+  }
+  el("title", {}, g).textContent = partName(p);
+}
+const partName = p => p.kind === "balance" ? `Balance, ${p.vph.toLocaleString("en-GB")} vph` : p.kind === "fork" ? "Pallet fork" : p.kind === "escape" ? `${p.teeth}-tooth escape wheel` : p.kind === "barrel" ? `Barrel with its mainspring, ${p.teeth} teeth` : `${p.teeth}-${p.kind === "pinion" ? "leaf pinion" : "tooth wheel"}, layer ${LAYER_NAMES[p.layer] || p.layer}`;
 
 function render() {
   const svg = $("plan");
   svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
   svg.replaceChildren();
+  dyn.length = 0;
   verdict = judge(level, design);
   const R = level.plate;
   el("circle", { cx: 0, cy: 0, r: R, class: "cb-plate" }, svg);
+  for (let r = 1.2; r < R; r += 0.9) el("circle", { cx: 0, cy: 0, r, class: "cb-perlage" }, svg);   // the plate's circular graining
   for (let k = 1; k <= 12; k++) { const a = (k / 12) * 2 * Math.PI; el("line", { x1: Math.sin(a) * (R - 0.5), y1: -Math.cos(a) * (R - 0.5), x2: Math.sin(a) * R, y2: -Math.cos(a) * R, class: "cb-tick" }, svg); }
   const clashing = new Set(verdict.out.clashes.flatMap(c => c.arbors));
-  // parts, lowest layer first, so higher layers lie on top as they would in the movement
-  const parts = design.arbors.flatMap(a => (a.parts || []).filter(p => p.teeth).map(p => ({ a, p }))).sort((u, v) => u.p.layer - v.p.layer);
-  for (const { a, p } of parts) {
-    const g = el("g", { transform: `translate(${a.x} ${a.y}) rotate(${(angles[a.id] || 0) * 360})`, class: `cb-part cb-${p.kind}${p.layer === layer ? " on" : ""}${DIAL_LAYERS.includes(p.layer) ? " dial" : ""}${clashing.has(a.id) ? " clash" : ""}` }, svg);
-    el("path", { d: toothPath(p.teeth) }, g);
-    if (radius(p.teeth) > 1.2) { el("circle", { r: radius(p.teeth) * 0.62, class: "cb-web" }, g); for (let k = 0; k < 4; k++) el("line", { x1: 0, y1: 0, x2: Math.cos(k * Math.PI / 2) * radius(p.teeth) * 0.62, y2: Math.sin(k * Math.PI / 2) * radius(p.teeth) * 0.62, class: "cb-spoke" }, g); }
-    el("title", {}, g).textContent = `${p.kind === "pinion" ? `${p.teeth}-leaf pinion` : `${p.teeth}-tooth ${p.kind}`}, layer ${LAYER_NAMES[p.layer] || p.layer}`;
-  }
+  // parts from the lowest layer up, so higher ones lie on top as they do in the movement
+  const parts = design.arbors.flatMap(a => (a.parts || []).map(p => ({ a, p }))).sort((u, v) => u.p.layer - v.p.layer);
+  for (const { a, p } of parts) drawPart(svg, a, p, clashing.has(a.id));
   for (const m of verdict.out.meshes) {
     const A = design.arbors.find(a => a.id === m.a), B = design.arbors.find(a => a.id === m.b), t = radius(m.ta) / (radius(m.ta) + radius(m.tb));
-    el("circle", { cx: A.x + (B.x - A.x) * t, cy: A.y + (B.y - A.y) * t, r: 0.18, class: "cb-mesh" }, svg);
+    el("circle", { cx: A.x + (B.x - A.x) * t, cy: A.y + (B.y - A.y) * t, r: 0.16, class: "cb-mesh" }, svg);
   }
-  // hands on the arbors that carry them, and a balance where one is fitted
-  for (const a of design.arbors) {
+  for (const a of design.arbors) {                                // hands on the arbors that carry them
     const hand = HANDS[a.id];
-    if (hand && (a.parts || []).length) {
-      const len = hand === "hour" ? R * 0.42 : hand === "minute" ? R * 0.62 : R * 0.18;
-      const g = el("g", { transform: `translate(${a.x} ${a.y}) rotate(${(angles[a.id] || 0) * 360})`, class: `cb-hand cb-${hand}` }, svg);
-      el("line", { x1: 0, y1: 0, x2: 0, y2: -len }, g);
-    }
-    if (regulatorOf(a)) {
-      const swing = running ? Math.sin(performance.now() / 1000 * Math.PI * regulatorOf(a).vph / 3600) * 40 : 0;
-      const g = el("g", { transform: `translate(${a.x - 2.2} ${a.y - 1.6}) rotate(${swing})`, class: "cb-balance" }, svg);
-      el("circle", { r: 1.3 }, g); el("line", { x1: -1.3, y1: 0, x2: 1.3, y2: 0 }, g);
-    }
+    if (!hand || !(a.parts || []).length) continue;
+    const len = hand === "hour" ? R * 0.42 : hand === "minute" ? R * 0.62 : R * 0.18, g = el("g", { class: `cb-hand cb-${hand}` }, svg);
+    el("line", { x1: 0, y1: hand === "seconds" ? len * 0.25 : 0, x2: 0, y2: -len }, g);
+    dyn.push([g, st => g.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`)]);
   }
-  for (const a of design.arbors) {
-    const pin = el("circle", { cx: a.x, cy: a.y, r: a.noParts ? 0.35 : 0.22, class: `cb-pivot${a.fixed ? " fixed" : ""}${selected === a.id ? " sel" : ""}${a.noParts ? " post" : ""}`, "data-arbor": a.id }, svg);
+  for (const a of design.arbors) {                                // pivots: jewels in their chatons; posts plain
+    const train = (a.parts || []).some(p => !DIAL_LAYERS.includes(p.layer));
+    const pin = el("g", { "data-arbor": a.id, class: `cb-pivot${a.fixed ? " fixed" : ""}${selected === a.id ? " sel" : ""}${a.noParts ? " post" : ""}` }, svg);
+    if (a.noParts) el("circle", { cx: a.x, cy: a.y, r: 0.4, class: "cb-post" }, pin);
+    else { el("circle", { cx: a.x, cy: a.y, r: 0.3, class: "cb-chaton" }, pin); el("circle", { cx: a.x, cy: a.y, r: 0.17, class: train ? "cb-jewel" : "cb-stud" }, pin); }
     el("title", {}, pin).textContent = a.label || "Arbor";
-    if (a.label && a.fixed && !a.on) { const t = el("text", { x: a.x, y: a.y + 0.9, class: "cb-label" }, svg); t.textContent = a.label.replace(/ \(.*\)$/, ""); }
+    if (a.label && a.fixed && !a.on) { const t = el("text", { x: a.x, y: a.y + 0.95, class: "cb-label" }, svg); t.textContent = a.label.replace(/ \(.*\)$/, ""); }
   }
-  renderBrief(); renderTray(); renderLayers(); renderInspect();
+  frame();
+  renderBrief(); renderTray(); renderLayers(); renderInspect(); showPower();
 }
+/** Moves what moves: wheels, hands, the spring, the fork and the balance, from the simulation's state. */
+function frame() { for (const [, update] of dyn) update(sim); }
 
 function renderBrief() {
   const ch = CHAPTERS.find(c => c.id === level.chapter);
@@ -100,10 +175,12 @@ function renderBrief() {
   const p = progress()[level.id];
   $("stars").textContent = p?.stars ? "★".repeat(p.stars) + "☆".repeat(3 - p.stars) : "";
   $("task").textContent = level.task;
+  const STATES = { free: "spinning free", locked: "held by the pallet fork", running: "running", none: "no escape wheel" };
   $("goals").replaceChildren(...verdict.goals.map(g => {
     const li = document.createElement("li"), a = design.arbors.find(x => x.id === g.goal.arbor);
     li.className = g.ok ? "ok" : "";
-    li.textContent = `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: ${g.goal.abs ? rateText(Math.abs(g.goal.rate)).replace(/, clockwise$/, ", either way") : rateText(g.goal.rate)} · now ${rateText(g.actual)}`;
+    li.textContent = g.goal.escapement ? `Escape wheel: ${STATES[g.goal.escapement]} · now ${STATES[g.actual]}`
+      : `${a?.label?.replace(/ \(.*\)$/, "") || g.goal.arbor}: ${g.goal.abs ? rateText(Math.abs(g.goal.rate)).replace(/, clockwise$/, ", either way") : rateText(g.goal.rate)} · now ${rateText(g.actual)}`;
     return li;
   }), ...verdict.problems.slice(0, 2).map(t => { const li = document.createElement("li"); li.className = "bad"; li.textContent = t; return li; }));
 }
@@ -114,7 +191,7 @@ function renderTray() {
     b.type = "button";
     b.className = `cb-chip cb-${t.kind}${chosen === i ? " on" : ""}`;
     b.disabled = !t.left;
-    b.textContent = t.kind === "balance" ? `Balance ${t.vph.toLocaleString("en-GB")} vph` : `${t.teeth} ${t.kind === "pinion" ? "leaves" : "teeth"}${t.n > 1 ? ` ×${t.left}` : ""}`;
+    b.textContent = t.kind === "balance" ? `Balance ${t.vph.toLocaleString("en-GB")} vph` : t.kind === "fork" ? "Pallet fork" : `${t.teeth} ${t.kind === "pinion" ? "leaves" : "teeth"}${t.n > 1 ? ` ×${t.left}` : ""}`;
     b.setAttribute("aria-pressed", chosen === i);
     b.addEventListener("click", () => { chosen = chosen === i ? null : i; selected = null; renderTray(); renderInspect(); });
     return b;
@@ -143,7 +220,7 @@ function renderInspect() {
   box.append(h);
   for (const [i, p] of (a.parts || []).entries()) {
     const row = document.createElement("p"); row.className = "cb-in-row";
-    row.textContent = p.kind === "balance" ? `Balance, ${p.vph.toLocaleString("en-GB")} vph` : `${p.teeth}-${p.kind === "pinion" ? "leaf pinion" : `tooth ${p.kind}`}, layer ${LAYER_NAMES[p.layer] || p.layer}`;
+    row.textContent = partName(p);
     if (!p.fixed) {
       const x = document.createElement("button"); x.type = "button"; x.className = "cb-x"; x.textContent = "Remove";
       x.addEventListener("click", () => removePart(a, i));
@@ -161,7 +238,7 @@ function renderInspect() {
 // ---------- placing ----------
 function removePart(a, i) {
   const p = a.parts[i];
-  const t = tray.find(t => t.kind === p.kind && (t.teeth ?? t.vph) === (p.teeth ?? p.vph));
+  const t = tray.find(t => t.kind === p.kind && (t.teeth ?? t.vph ?? null) === (p.teeth ?? p.vph ?? null));
   if (t) t.left++;
   a.parts.splice(i, 1);
   if (!a.fixed && !a.placed && !a.parts.length) { design.arbors = design.arbors.filter(x => x !== a); selected = null; }
@@ -172,16 +249,17 @@ function place(x, y) {
   const t = tray[chosen];
   if (!t?.left) return;
   const hit = arborAt(x, y);
-  const partLayer = t.kind === "balance" ? 10 : layer;
-  const piece = t.kind === "balance" ? { kind: "balance", vph: t.vph, layer: 10 } : { kind: t.kind, teeth: t.teeth, layer: partLayer };
+  const special = t.kind === "balance" || t.kind === "fork", partLayer = t.kind === "balance" ? 10 : t.kind === "fork" ? 9 : layer;
+  const piece = t.kind === "balance" ? { kind: "balance", vph: t.vph, layer: 10 } : t.kind === "fork" ? { kind: "fork", layer: 9 } : { kind: t.kind, teeth: t.teeth, layer: partLayer };
   if (hit) {
     if (hit.noParts) return toast("That's a post: nothing goes on it.");
-    if (piece.kind === "balance" && !(hit.parts || []).some(p => p.kind === "escape")) return toast("A balance goes beside the escape wheel.");
+    if (special && (hit.parts || []).length) return toast(t.kind === "fork" ? "The pallet fork has an arbor of its own, beside the escape wheel." : "The balance has a staff of its own, at the end of the fork.");
     if ((hit.parts || []).some(p => p.layer === partLayer)) return toast(`That arbor already has a part on layer ${LAYER_NAMES[partLayer]}.`);
     hit.parts.push(piece);
   } else {
-    if (piece.kind === "balance") return toast("A balance goes beside the escape wheel: tap the escape wheel.");
-    const s = snap(design, x, y, t.teeth, partLayer);
+    // a fork sits where its stones reach the escape wheel; a balance in line at the end of the fork
+    const s = special ? snapEscapement(design, x, y, t.kind) : snap(design, x, y, t.teeth, partLayer);
+    if (special && !s) return toast(t.kind === "fork" ? "A pallet fork works on an escape wheel: there isn't one yet." : "A balance needs a pallet fork to swing.");
     design.arbors.push({ id: `a${nextId++}`, x: s ? s.x : x, y: s ? s.y : y, parts: [piece] });
   }
   t.left--;
@@ -252,37 +330,102 @@ svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(e.delta
 $("zoomIn").addEventListener("click", () => zoomAt(1 / 1.5));
 $("zoomOut").addEventListener("click", () => zoomAt(1.5));
 
-// ---------- winding: run it ----------
+// ---------- winding and running: the movement as it would really behave ----------
+// A barrel-driven movement is wound first: the barrel arbor turns, the mainspring coils tight round it. Then the
+// escapement decides: with no pallet fork the spring dumps itself in a second and a half; a fork with no balance
+// locks after one tick; fork and balance and it runs, the balance swinging in real time, the escape wheel stepping
+// half a tooth a beat (visible at real speed), the spring running down until the watch stops. A crank just turns.
 function wind() {
   verdict = judge(level, design);
-  running = true; last = performance.now();
+  sim.base = { ...sim.angles }; sim.t = 0; sim.hours = 0;
+  if (barrelOf()) { sim.state = "winding"; sim.w0 = sim.wound; }
+  else start();
+  last = performance.now();
   requestAnimationFrame(tick);
-  if (verdict.ok) {
-    const used = partsUsed(design), stars = used <= level.par ? 3 : used <= level.par + 2 ? 2 : 1;
-    const all = progress(), before = all[level.id] || {};
-    all[level.id] = { ...before, seen: true, stars: Math.max(stars, before.stars || 0), parts: Math.min(used, before.parts ?? Infinity) };
-    write(PROGRESS, all);
-    const next = LEVELS[LEVELS.indexOf(level) + 1];
-    $("doneTitle").textContent = "It runs";
-    const body = $("doneBody"); body.replaceChildren();
-    const p = document.createElement("p"); p.className = "cb-done-stars"; p.textContent = "★".repeat(stars) + "☆".repeat(3 - stars); body.append(p);
-    const q = document.createElement("p"); q.textContent = `${used} part${used === 1 ? "" : "s"}, par ${level.par}.${stars < 3 ? " Fewer parts would earn all three stars." : ""}`; body.append(q);
-    if (next) body.append(action(`Next: ${next.id} ${next.title}`, () => { $("doneDlg").close(); load(next.id); }, "primary"));
-    else body.append(line("That's the course so far. More chapters are coming."));
-    body.append(action("Watch it run", () => $("doneDlg").close()));
-    setTimeout(() => $("doneDlg").showModal(), 900);
-  } else toast(verdict.problems[0] || "Not yet: the goals show what's turning and what should.");
   render();
 }
+function start() {
+  const out = verdict.out;
+  sim.base = { ...sim.angles }; sim.t = 0; sim.hours = 0;
+  if (out.jammed.length) { sim.state = "stopped"; toast("It won't turn: the train is locked."); }
+  else if (out.runaway) { sim.state = "runaway"; sim.w0 = sim.wound; }
+  else if (out.locked) { sim.state = "locked"; }
+  else sim.state = "running";
+  if (sim.state === "running" && verdict.ok) setTimeout(() => { if (sim.state === "running") won(); }, 1600);
+  if (sim.state === "running" && !verdict.ok) toast(verdict.problems[0] || "It runs, but not at the right rates: the goals show what's turning and what should.");
+}
+function won() {
+  const used = partsUsed(design), stars = used <= level.par ? 3 : used <= level.par + 2 ? 2 : 1;
+  const all = progress(), before = all[level.id] || {};
+  all[level.id] = { ...before, seen: true, stars: Math.max(stars, before.stars || 0), parts: Math.min(used, before.parts ?? Infinity) };
+  write(PROGRESS, all);
+  const next = LEVELS[LEVELS.indexOf(level) + 1];
+  $("doneTitle").textContent = verdict.goals.some(g => g.goal.escapement === "locked") ? "Tick" : "It runs";
+  const body = $("doneBody"); body.replaceChildren();
+  const p = document.createElement("p"); p.className = "cb-done-stars"; p.textContent = "★".repeat(stars) + "☆".repeat(3 - stars); body.append(p);
+  const q = document.createElement("p"); q.textContent = `${used} part${used === 1 ? "" : "s"}, par ${level.par}.${stars < 3 ? " Fewer parts would earn all three stars." : ""}`; body.append(q);
+  if (next) body.append(action(`Next: ${next.id} ${next.title}`, () => { $("doneDlg").close(); load(next.id); }, "primary"));
+  else body.append(line("That's the course so far. More chapters are coming."));
+  body.append(action("Watch it run", () => $("doneDlg").close()));
+  renderBrief();
+  $("doneDlg").showModal();
+}
+function stop(note) { sim.state = "stopped"; sim.balance = 0; sim.fork = 0; $("windBtn").textContent = barrelOf() ? "Wind" : "Turn"; if (note) toast(note); renderBrief(); }
+
 function tick(now) {
-  if (!running) return;
-  const dt = Math.min(0.1, (now - last) / 1000), speed = read(SPEED, 60);
-  last = now;
-  for (const [id, r] of Object.entries(verdict.out.rates)) if (r) angles[id] = ((angles[id] || 0) + (r * speed * dt) / 3600) % 1;
-  render();
-  requestAnimationFrame(tick);
+  if (!running()) return;
+  const dt = Math.min(0.1, (now - last) / 1000), speed = read(SPEED, 60), out = verdict.out, rates = out.rates, b = barrelOf();
+  last = now; sim.t += dt;
+  if (sim.state === "winding") {
+    const k = Math.min(1, sim.t / 0.9), e = 1 - (1 - k) * (1 - k);
+    sim.wound = sim.w0 + (1 - sim.w0) * e;
+    sim.windAngle = -e * (1 - sim.w0) * TURNS * 0.5;
+    if (k >= 1) start();
+  } else if (sim.state === "runaway") {
+    // the spring lets go: the barrel spins out its turns in a second and a half, the train with it at its ratios
+    const k = Math.min(1, sim.t / 1.5), released = sim.w0 * TURNS * (1 - (1 - k) * (1 - k)), rel = out.relative || {};
+    sim.wound = sim.w0 * (1 - k) * (1 - k);
+    for (const [id, r] of Object.entries(rel)) if (b && rel[b.id]) sim.angles[id] = (sim.base[id] || 0) + (released * r) / Math.abs(rel[b.id]);
+    if (k >= 1) stop("The spring ran away: with no pallet fork to hold the escape wheel, it unwound in a second.");
+  } else if (sim.state === "locked") {
+    const esc = out.escapements[0];
+    if (esc && sim.t < 0.15) sim.angles[esc.escape] = (sim.base[esc.escape] || 0) + (sim.t / 0.15) * (0.5 / esc.teeth) * 0.3;
+    if (sim.t > 0.4) stop(level.goals.some(g => g.escapement === "locked") ? null : "Tick, and nothing more: the pallet fork locks the escape wheel, and there's no balance to swing it.");
+    if (sim.t > 0.4 && verdict.ok) won();
+  } else {
+    const dh = (dt * speed) / 3600, esc = out.escapements.find(x => x.state === "running" && rates[x.escape]);
+    sim.hours += dh;
+    if (esc && speed === 1) {
+      // at real speed the escape wheel steps half a tooth a beat, and every wheel steps with it
+      const beats = Math.floor((sim.t * esc.vph) / 3600), escRev = (beats / (2 * esc.teeth)) * Math.sign(rates[esc.escape]);
+      for (const [id, r] of Object.entries(rates)) if (r) sim.angles[id] = (sim.base[id] || 0) + (escRev * r) / rates[esc.escape];
+    } else for (const [id, r] of Object.entries(rates)) if (r) sim.angles[id] = (sim.base[id] || 0) + r * sim.hours;
+    if (esc) {                                                    // the balance swings in real time, whatever the speed
+      const amp = 270 * Math.min(1, 0.45 + sim.wound * 0.7);      // its swing falls off as the spring runs down
+      sim.balance = amp * Math.sin(2 * Math.PI * (esc.vph / 7200) * sim.t);
+      sim.fork = 8 * Math.max(-1, Math.min(1, sim.balance / 30));
+    }
+    if (b && rates[b.id]) {
+      sim.wound -= (Math.abs(rates[b.id]) * dh) / TURNS;
+      if (sim.wound <= 0) { sim.wound = 0; stop(`The mainspring has run down after ${Math.round(sim.hours)} hours.`); }
+    }
+  }
+  frame();
+  showPower();
+  if (running()) requestAnimationFrame(tick);
 }
-$("windBtn").addEventListener("click", () => { if (running) { running = false; render(); } else wind(); $("windBtn").textContent = running ? "Stop" : "Wind"; });
+/** The power reserve: hours left in the spring at the barrel's present rate. */
+function showPower() {
+  let el2 = $("power");
+  if (!el2) { el2 = document.createElement("span"); el2.id = "power"; el2.className = "cb-power"; $("where").after(el2); }
+  const b = barrelOf(), r = b && verdict?.out.rates[b.id];
+  el2.textContent = b ? `${Math.round(sim.wound * 100)}%${r ? ` · ${Math.round((sim.wound * TURNS) / Math.abs(r))} h` : ""}` : "";
+  el2.title = "The mainspring: how wound it is, and the hours it has left at this rate";
+}
+$("windBtn").addEventListener("click", () => {
+  if (running()) stop();
+  else { wind(); $("windBtn").textContent = "Stop"; }
+});
 
 // ---------- sheets ----------
 function openPrimer() {
@@ -317,12 +460,11 @@ function openMenu() {
   part(body, "content").append(choice("Speed", SPEEDS, read(SPEED, 60), v => write(SPEED, v)));
   part(body, "about").append(action("Show a solution", () => {
     $("menuDlg").close();
-    design = solved(level); tray.forEach(t => { t.left = 0; }); chosen = null; render();
+    stop(); design = solved(level); tray.forEach(t => { t.left = 0; }); chosen = null; render();
     toast("One way to do it. Others work too.");
   }), line(`${Object.values(progress()).filter(p => p.stars).length} of ${LEVELS.length} levels running.`));
   $("menuDlg").showModal();
 }
-let toastTimer = 0;
 function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => e.classList.remove("on"), 3200); }
 
 // ---------- wiring ----------

@@ -19,9 +19,15 @@ r = run({ plate: 10, arbors: [{ id: "a", x: 0, y: 0, parts: [W(60)] }, { id: "po
 check(r.clashes.some(c => c.kind === "pivot"), "a wheel can't cover another arbor's pivot");
 r = run({ plate: 3, arbors: [{ id: "a", x: 0, y: 0, parts: [W(80)] }] });
 check(r.clashes.some(c => c.kind === "outside"), "a wheel can't stick out of the plate");
-// the escapement sets the pace of a powered train; without it the spring runs away
-r = run({ plate: 10, arbors: [{ id: "barrel", x: 0, y: 0, power: -1, parts: [W(40)] }, { id: "esc", x: radius(40) + radius(10), y: 0, regulator: { vph: 18000, escape: 15 }, parts: [{ kind: "pinion", teeth: 10, layer: 1 }] }] });
-check(Math.abs(Math.abs(r.rates.esc) - 600) < 1e-9, `a 15-tooth escape wheel at 18,000 vph turns 600 times an hour (got ${r.rates.esc})`);
+// the escapement: no fork and the spring runs away; a fork alone locks; fork and balance in line, and the beat sets the pace
+const ex = radius(40) + radius(10);
+const train = extra => ({ plate: 12, arbors: [{ id: "barrel", x: 0, y: 0, power: -1, parts: [W(40)] }, { id: "esc", x: ex, y: 0, parts: [{ kind: "pinion", teeth: 10, layer: 1 }, { kind: "escape", teeth: 15, layer: 9 }] }, ...extra] });
+const fork = { id: "fork", x: ex + 2, y: 0, parts: [{ kind: "fork", layer: 9 }] }, bal = { id: "bal", x: ex + 4.8, y: 0, parts: [{ kind: "balance", vph: 18000, layer: 10 }] };
+check(run(train([])).runaway, "an escape wheel with no pallet fork runs away");
+check(run(train([fork])).locked, "a pallet fork with no balance locks the train");
+r = run(train([fork, bal]));
+check(Math.abs(Math.abs(r.rates.esc) - 600) < 1e-9, `fork and balance in line: a 15-tooth escape wheel at 18,000 vph turns 600 times an hour (got ${r.rates.esc})`);
+check(run(train([fork, { ...bal, y: 2.8, x: ex + 2 }])).escapements[0].state === "locked", "a balance out of line with the fork doesn't engage it");
 r = run({ plate: 10, arbors: [{ id: "barrel", x: 0, y: 0, power: -1, parts: [W(40)] }] });
 check(r.runaway, "a barrel with no escapement runs away");
 check(rateText(60) === "1 a minute, clockwise" && rateText(-1) === "1 an hour, anticlockwise" && rateText(1 / 12) === "once every 12 hours, clockwise", `rates read naturally (${rateText(1 / 12)})`);

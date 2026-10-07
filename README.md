@@ -449,13 +449,20 @@ works under the dial). Choose a part from the tray, pick its layer and tap the p
 near a wheel to set a new arbor that snaps into mesh. The engine (`calibre-engine.js`) runs the plan as kinematics, with
 real sizes (one module, 0.1 mm a tooth): meshing turns the next arbor the other way by the ratio of teeth, three wheels
 in a loop lock, no wheel may cover another arbor's pivot on its side of the plate, nothing may stick out of the plate,
-a barrel with no escapement runs away, and the balance's beat (vph over twice the escape wheel's teeth) sets the pace
-of the whole train. The goals show live what each arbor does and what it should; Wind runs the movement in time-lapse,
+and the escapement is built from its real parts, a club-tooth escape wheel, a pallet fork whose stones must reach its
+teeth, and a balance in line at the end of the fork: no fork and the spring runs away, a fork alone locks after one
+tick, fork and balance and the balance's beat (vph over twice the escape wheel's teeth) sets the pace of the whole
+train. Every part is drawn as itself: wheels with rims and crossings, steel pinions, the barrel's drum with the
+mainspring coiled inside, the fork with its red pallet stones, the balance with timing screws and a breathing
+hairspring, jewels in their chatons. Wind coils the mainspring; the watch then runs down over its power reserve (shown
+beside the level), the balance swinging in real time and its amplitude falling as the spring weakens; at real speed
+the escape wheel and every wheel after it step half a tooth a beat. The goals show live what each arbor does and what it should; Wind runs the movement in time-lapse,
 hands and balance included, and a level is won only when the watch truly keeps time. Stars for par (fewest parts).
 
 The course (`calibre-levels.js`): 1 Gears (two wheels, direction and idlers, wheel and pinion, a locked triangle,
 clearance round a bridge post), 2 The going train (the centre wheel from the barrel, small seconds, choosing the tooth
-counts), 3 The escapement (18,000 vph and a 15-tooth escape wheel, 28,800 and a 20-tooth, choosing the balance), 4 The
+counts), 3 The escapement (the runaway train and the pallet fork, the balance, 18,000 vph and a 15-tooth escape wheel, 28,800 and a
+20-tooth, choosing the balance), 4 The
 motion works (the minute wheel, twelve to one with equal centre distances, the whole watch). `tests/calibre.mjs` proves
 the engine's rules and that every level is unsolved at the start and solved by its worked solution, from its tray,
 within par. Menu: speed (real time, a minute a second, twelve minutes a second), start again, show a solution.
