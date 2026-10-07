@@ -6,6 +6,8 @@ import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { CHAPTERS, LEVELS } from "./harbour-levels.js";
+import { REGIONS } from "./harbour-region.js";
+import { createRegionScreen } from "./harbour-region-ui.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -81,6 +83,7 @@ const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k 
 // ---------- the level ----------
 function load(level) {
   stop();
+  closeRegion();
   L = level; G = grid(L);
   write("harbour:level", L.id);
   const saved = read(solKey(), null);
@@ -529,6 +532,7 @@ function status() {
 }
 
 function openMenu() {
+  const R = regionScreen.active();
   const best = bests();
   const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td>`
     + `<td><button type="button" class="hb-par" data-k="${k}" aria-label="Watch the par plan for ${name.toLowerCase()}">${f(L.par[k])}</button></td></tr>`).join("");
@@ -541,10 +545,12 @@ function openMenu() {
   // the levels by chapter, each under its heading: the region and what it teaches (the shared mirror leaves headings out)
   const content = part(body, "content"), pickLevel = v => { $("menuDlg")?.close(); levelSel.value = v; levelSel.dispatchEvent(new Event("change", { bubbles: true })); };
   for (const c of CHAPTERS) {
-    const ls = LEVELS.filter(l => l.chapter === c.id);
-    content.append(choice(`${c.name}: ${c.note}`, ls.map(l => [l.id, `${LEVELS.indexOf(l) + 1} · ${l.name}`]), L.id, pickLevel));
+    const ls = LEVELS.filter(l => l.chapter === c.id).map(l => [l.id, `${LEVELS.indexOf(l) + 1} · ${l.name}`]);
+    const rs = REGIONS.filter(r => r.chapter === c.id).map(r => [`region:${r.id}`, `Region · ${r.name}`]);
+    content.append(choice(`${c.name}: ${c.note}`, [...ls, ...rs], R ? `region:${R.id}` : L.id, pickLevel));
   }
-  part(body, "settings").append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"),
+  part(body, "settings").append(R ? action("Let this region's ships go", () => { regionScreen.clear(); $("menuDlg").close(); }, "link")
+    : action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"),
     action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); $("menuDlg").close(); }, "link"),
     action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
       write("harbour:flat", !mapView.flat);
@@ -553,11 +559,12 @@ function openMenu() {
       mapView.setLevel(L, G);
       render(true);
     }, "link"));
-  table.addEventListener("click", e => { const b = e.target.closest(".hb-par"); if (b) { $("menuDlg").close(); view(b.dataset.k); } });
+  const bestsTable = R ? regionScreen.menuTable() : table;
+  bestsTable.addEventListener("click", e => { const b = e.target.closest(".hb-par"); if (b) { $("menuDlg").close(); (R ? regionScreen.view : view)(b.dataset.k); } });
   const note = document.createElement("p");
   note.className = "hb-note";
   note.textContent = "Tap a par to watch the plan that reaches it.";
-  part(body, "about").append(table, note);
+  part(body, "about").append(bestsTable, note);
   $("menuDlg").showModal();
 }
 
@@ -773,7 +780,7 @@ $("menuDlg").addEventListener("click", e => { if (e.target === $("menuDlg")) $("
 // keys on a computer: Ctrl/Cmd with C, X, V, A and Z copy, cut, paste, pick everything and undo; Delete deletes the
 // picked hours; Escape stops picking; space runs and pauses, S steps, R goes back to the start
 addEventListener("keydown", e => {
-  if ($("menuDlg").open || e.target.closest?.("input, textarea")) return;
+  if ($("menuDlg").open || e.target.closest?.("input, textarea") || regionScreen.active()) return;
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
   if (mod && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
   else if (mod && k === "z") { e.preventDefault(); undo(); }
@@ -797,9 +804,28 @@ addEventListener("keydown", e => {
 const levelSel = $("level");
 // a heading for each chapter (it can't be picked), then its levels, each with the idea it teaches under its name
 levelSel.innerHTML = CHAPTERS.map(c => `<option disabled>${c.name}: ${c.note}</option>`
-  + LEVELS.filter(l => l.chapter === c.id).map(l => `<option value="${l.id}" data-note="${l.teaches}">${LEVELS.indexOf(l) + 1} · ${l.name}</option>`).join("")).join("");
+  + LEVELS.filter(l => l.chapter === c.id).map(l => `<option value="${l.id}" data-note="${l.teaches}">${LEVELS.indexOf(l) + 1} · ${l.name}</option>`).join("")
+  + REGIONS.filter(r => r.chapter === c.id).map(r => `<option value="region:${r.id}" data-note="${r.teaches}">Region · ${r.name}</option>`).join("")).join("");
 dropdown(levelSel);
-levelSel.addEventListener("change", () => load(LEVELS.find(l => l.id === levelSel.value)));
+levelSel.addEventListener("change", () => {
+  const v = levelSel.value;
+  if (v.startsWith("region:")) openRegion(REGIONS.find(r => `region:${r.id}` === v));
+  else load(LEVELS.find(l => l.id === v));
+});
+// a region: the port's harbour, programs and clock give way to the region's chart, fleet and month
+const regionScreen = createRegionScreen({ root: $("region"), brief: $("brief") });
+function openRegion(R) {
+  if (!R) return;
+  stop();
+  $("app").classList.add("hb-regional");
+  regionScreen.open(R);
+  write("harbour:level", `region:${R.id}`);
+}
+function closeRegion() {
+  if (!regionScreen.active()) return;
+  regionScreen.close();
+  $("app").classList.remove("hb-regional");
+}
 // the map: in 3D where the device can draw it and the player hasn't asked for it flat, flat otherwise
 let mapView = null;
 async function makeMap() {
@@ -816,7 +842,9 @@ async function makeMap() {
 new MutationObserver(() => mapView?.theme()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => mapView?.theme());
 
-const first = LEVELS.find(l => l.id === read("harbour:level", "")) || LEVELS[0];
+const lastOpened = read("harbour:level", ""), lastRegion = REGIONS.find(r => `region:${r.id}` === lastOpened);
+const first = LEVELS.find(l => l.id === lastOpened) || LEVELS[0];
 levelSel.value = first.id;
 await makeMap();
 load(first);
+if (lastRegion) { levelSel.value = `region:${lastRegion.id}`; levelSel.dispatchEvent(new Event("change", { bubbles: true })); }

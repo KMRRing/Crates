@@ -83,9 +83,9 @@ export const LEVELS = [
   },
   {
     id: "rundown", name: "Rundown",
-    chapter: "baltic", teaches: "a tank's rhythm",
-    rev: 2,              // pumps of two an hour and a tank of ten since the 10-unit Handy: plans and bests from before don't carry over
-    brief: "The refinery's tank (L) fills a unit an hour and holds ten. Both jetties pump two units an hour. Twenty-four units to the customer (D).",
+    chapter: "baltic", teaches: "a tank's rhythm: two ships taking turns",
+    rev: 3,              // a forty-hour window since one ship could do it all: plans and bests from before don't carry over
+    brief: "The refinery's tank (L) fills a unit an hour and holds ten. Both jetties pump two units an hour. Twenty-four units to the customer (D) within forty hours: more than one ship can carry alone.",
     map: [
       "#####",
       "#.L.#",
@@ -94,14 +94,19 @@ export const LEVELS = [
     ],
     products: { diesel: { name: "Diesel", price: 0 } },
     jetties: { L: { kind: "load", product: "diesel", parcel: 2, tank: { start: 0, rate: 1, cap: 10 } }, D: { kind: "discharge", parcel: 2 } },
-    fleet: { coaster: 3, handy: 1 }, target: 24, maxCycles: 400,
-    par: { cost: 20, hours: 31, water: 8, instructions: 6 },
+    fleet: { coaster: 3, handy: 1 }, target: 24, deadline: 40, maxCycles: 400,
+    // one ship's best is 49 hours; two coasters on one loop, half a turn apart, take turns at the tank: one lifts while
+    // the other delivers (39 hours, the cheapest of 174 two-ship fleets that make it); three coasters are quickest
+    par: { cost: 40, hours: 31, water: 8, instructions: 13 },
     plans: [
-      { par: ["cost", "water", "instructions"], ships: [{ x: 2, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)A(3S)") }] },
+      { par: ["cost", "water", "instructions"], ships: [
+        { x: 2, y: 3, h: 3, type: "coaster", prog: program("A(3S)(2L)A(3S)(2D)") },
+        { x: 3, y: 3, h: 4, type: "coaster", prog: program("S(2D)A(3S)(2L)A(2S)") },
+      ] },
       { par: ["hours"], ships: [
-        { x: 2, y: 1, h: 0, type: "coaster", prog: program("LA(3S)(2D)A(3S)L") },
+        { x: 2, y: 3, h: 3, type: "coaster", prog: program("A(3S)(2L)A(3S)(2D)") },
         { x: 4, y: 2, h: 5, type: "coaster", prog: program("(2S)(2D)A(3S)(2L)AS") },
-        { x: 2, y: 3, h: 3, type: "handy", prog: program("DA(3S)(2L)A(3S)D") },
+        { x: 2, y: 1, h: 0, type: "coaster", prog: program("LA(3S)(2D)A(3S)L") },
       ] },
     ],
   },

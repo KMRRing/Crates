@@ -2,7 +2,7 @@
 // level's par on each measure (so a change to the rules can't quietly make a level easier, harder or impossible).
 import { start, step, run, score, period, invalid, flatten, total, instructions } from "../harbour-engine.js";
 import * as T from "../harbour-tape.js";
-import { LEVELS, program } from "../harbour-levels.js";
+import { LEVELS, CHAPTERS, program } from "../harbour-levels.js";
 
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -147,5 +147,17 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   let st = start(H, wrong), refused = null;
   for (let t = 0; t < 60 && !refused; t++) { st = step(H, wrong, st); refused = st.events.find(e => e.kind === "refused"); }
   check(refused && /FAME/i.test(refused.why), `heels: a FAME heel is refused by the pure customer (${refused?.why})`); }
-console.log(bad ? `${bad} FAILED` : `harbour: rules, tape and ${LEVELS.length} levels' pars hold`);
+// the regions: each par plan reaches its par, the calm plan never runs the tank dry, and one ship can't keep Muuga supplied
+{ const { REGIONS, simulate, measures, loadsFor } = await import("../harbour-region.js");
+  for (const R of REGIONS) {
+    for (const p of R.plans) {
+      const r = simulate(R, p.ships), m = measures(r);
+      for (const k of p.par) check(m[k] === R.par[k], `${R.id}: the ${k} plan reaches its par (${m[k]} against ${R.par[k]})`);
+      check(p.ships.every(s => loadsFor(R, s.type).includes(s.load)) && Object.keys(R.fleet).every(t => p.ships.filter(s => s.type === t).length <= R.fleet[t]), `${R.id}: the ${p.par} plan's ships are ones the region offers`);
+    }
+    const one = simulate(R, [{ type: "handy", load: 10, start: 0 }]);
+    check(one.short > 0 && one.profit < 0, `${R.id}: one Handy alone runs the tank dry and loses money (${one.profit})`);
+  }
+  check(REGIONS.every(R => R.chapter && CHAPTERS.some(c => c.id === R.chapter)), "every region belongs to a chapter"); }
+console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars and the regions' pars hold`);
 process.exitCode = bad ? 1 : 0;
