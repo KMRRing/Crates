@@ -94,7 +94,7 @@ function showResults() {
 const REL = { clue: ["A clue to", "Clues to it"], link: ["Linked to", "Linked from"], in: ["In", "Within it"],
   "painted-by": ["Painted by", "Paintings"], "hangs-in": ["Hangs in", "On its walls"], movement: ["Movement", "Works"],
   "designed-by": ["Designed by", "Designs"], style: ["Style", "In this style"], city: ["Stands in", "Buildings here"],
-  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"] };
+  from: ["From", "From here"], "led-to": ["Led to", "Grew out of"], "in-work": ["From the work", "Lines"], "written-by": ["Written by", "Works"] };
 const ORDER = ["clue", "link", "painted-by", "hangs-in", "movement", "designed-by", "style", "city", "from", "led-to", "in"];
 function groupsOf(id) {
   const rels = new Set([...(OUT.get(id) || []), ...(IN.get(id) || [])].map(l => l.rel));
@@ -128,6 +128,10 @@ function open(id, push = true) {
   const said = [];
   if (e.note) said.push(e.note);
   if (e.def) said.push(e.def.replace(/^./, c => c.toUpperCase()) + ".");
+  if (e.rendering) said.push(`In English: ${e.rendering}.`);
+  if (e.literal) said.push(`Literally: ${e.literal}.`);
+  if (e.meaning) said.push(`Means ${e.meaning}.`);
+  if (e.who) said.push(e.who.replace(/^./, c => c.toUpperCase()) + ".");
   if (e.region || e.country) said.push([e.country && e.country !== e.name ? e.country : "", e.region].filter(Boolean).join(", "));
   if (e.year) said.push(`${e.circa ? "Around " : ""}${e.year}`);
   for (const s of said) box.append(el("p", "lx-note", s));

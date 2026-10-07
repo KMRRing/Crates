@@ -8,7 +8,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const root = path.resolve(new URL("..", import.meta.url).pathname);
-export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches"];
+export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
   ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
@@ -84,7 +84,7 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     const options = order(p.id + lv, [right, ...pool.slice(0, 3)]);
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
-  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], quotes: [], pins: [] };
+  const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], lit: [], sayings: [], quotes: [], pins: [] };
   for (const p of paintings) {
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
     if (!painter || !museum || !movement) continue;
@@ -371,6 +371,39 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
       return { id: `AH-T-${t.id}-${kind}`, lv: "parts", d: 3, area: "Reading a building", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [t.id] }; };
     out.arch.push(mk("what", `${t.name}: what is it?`, t.def, others(t).map(u => u.def)));
     out.arch.push(mk("name", `What do you call ${t.def}?`, t.name, others(t).map(u => u.name)));
+  }
+  // Literature: a line, asked two ways: who wrote it, and which work it's from. A line in another language shows its
+  // English rendering beside it unless it's iconic (alea iacta est: that one you should know as it stands); the
+  // explanation gives the rendering either way. Wrong authors write in the same language, nearest in time first, so
+  // Goethe stands against Schiller and Heine, not Dickens; wrong works are the author's own others, then the same
+  // language's nearest in year.
+  const LIT = new Map(), byAuthor = new Map();
+  for (const l of LINKS) if (l.rel === "in-work" || l.rel === "written-by") LIT.set(`${l.from}|${l.rel}`, E.get(l.to));
+  const works = ENTITIES.filter(e => e.sets.includes("work") && LIT.get(`${e.id}|written-by`));
+  for (const w of works) { const a = LIT.get(`${w.id}|written-by`); (byAuthor.get(a.id) || byAuthor.set(a.id, []).get(a.id)).push(w); }
+  const writers = [...byAuthor.keys()].map(id => E.get(id));
+  const lang = a => byAuthor.get(a.id)[0].lang, when = a => a.born ?? Math.min(...byAuthor.get(a.id).map(w => w.year)) - 30;
+  const D = { 1: 3, 2: 5, 3: 7 };
+  for (const qn of ENTITIES.filter(e => e.sets.includes("quotation"))) {
+    const work = LIT.get(`${qn.id}|in-work`), author = work && LIT.get(`${work.id}|written-by`);
+    if (!author || !byAuthor.has(author.id)) continue;
+    const peers = writers.filter(a => a !== author).sort((p, q) => (lang(q) === lang(author)) - (lang(p) === lang(author)) || Math.abs(when(p) - when(author)) - Math.abs(when(q) - when(author)) || (p.id < q.id ? -1 : 1));
+    const otherWorks = [...byAuthor.get(author.id).filter(w => w !== work),
+      ...works.filter(w => LIT.get(`${w.id}|written-by`) !== author).sort((p, q) => (q.lang === work.lang) - (p.lang === work.lang) || Math.abs(p.year - work.year) - Math.abs(q.year - work.year) || (p.id < q.id ? -1 : 1))];
+    const shown = `“${qn.text}”${qn.rendering && !qn.iconic ? ` (${qn.rendering})` : ""}`;
+    const x = `${author.name}, ${work.name} (${work.year})${qn.who ? `, ${qn.who}` : ""}.${qn.rendering ? ` In English: ${qn.rendering}.` : ""}${qn.note ? ` ${qn.note}` : ""}`;
+    const mk = (kind, q, right, pool) => { const options = order(qn.id + kind, [right, ...pool.slice(0, 3)]);
+      return { id: `LT-${qn.id}-${kind}`, lv: qn.stage, d: D[qn.d] || 5, area: "Literature", q, o: options, a: [options.indexOf(right)], s: 1, x, about: [qn.id, work.id, author.id] }; };
+    out.lit.push(mk("author", `Who wrote this? ${shown}`, author.name, peers.map(a => a.name)));
+    out.lit.push(mk("work", `Which work is this from? ${shown}`, work.name, [...new Set(otherWorks.map(w => w.name))].filter(n => n !== work.name)));
+  }
+  // Sayings: what one means. A saying in another language shows its literal rendering unless it's iconic; the wrong
+  // meanings are written for it, the misreadings someone might really make.
+  for (const s of ENTITIES.filter(e => e.sets.includes("saying") && e.meaning && (e.wrong || []).length >= 3)) {
+    const shown = `“${s.text}”${s.literal && !s.iconic ? ` (literally: ${s.literal})` : ""}`;
+    const options = order(s.id, [s.meaning, ...s.wrong.slice(0, 3)]);
+    out.sayings.push({ id: `SY-${s.id}`, lv: s.stage, d: D[s.d] || 5, area: "Sayings", q: `What does this mean? ${shown}`, o: options, a: [options.indexOf(s.meaning)], s: 1,
+      x: `${s.meaning[0].toUpperCase()}${s.meaning.slice(1)}.${s.literal ? ` Literally: ${s.literal}.` : ""}${s.origin ? ` ${s.origin}` : ""}`, about: [s.id] });
   }
   return out;
 }
