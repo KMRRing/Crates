@@ -106,8 +106,41 @@ export const LEVELS = [
     ],
   },
   {
+    id: "first-blend", name: "First blend",
+    chapter: "baltic", teaches: "blending to a spec",
+    rev: 4,              // FAME at $5k (the Handy's exact blend cheapest again): plans and bests from before don't carry over
+    brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $5k. The customer (D) takes two an hour, at least 20% FAME. Twenty units.",
+    map: [
+      "#######",
+      "#.G.F.#",
+      "#.####.",
+      "#...D.#",
+    ],
+    products: { gasoil: { name: "Gasoil", price: 1 }, fame: { name: "FAME", price: 5 } },
+    jetties: {
+      G: { kind: "load", product: "gasoil", parcel: 2 },
+      F: { kind: "load", product: "fame", parcel: 1 },
+      D: { kind: "discharge", parcel: 2, spec: { fame: [0.2, 1] } },
+    },
+    fleet: { coaster: 2, handy: 1 }, target: 20, maxCycles: 400,
+    par: { cost: 66, hours: 30, water: 12, instructions: 7 },
+    plans: [
+      { par: ["hours", "water"], ships: [
+        { x: 2, y: 1, h: 0, type: "handy", prog: program("(2L)(2A)LA(3S)(3D)(3A)(3S)") },
+        { x: 4, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)(3A)(3S).L(2A)") },
+        { x: 5, y: 1, h: 0, type: "coaster", prog: program("(3S)(2D)(3A)(3S).L(2A)(2L)A") },
+      ] },
+      { par: ["cost", "water"], ships: [
+        { x: 2, y: 1, h: 0, type: "handy", prog: program("(4L)(2A)(2L)A(3S)(5D)(3A)(3S)") },
+      ] },
+      { par: ["water", "instructions"], ships: [
+        { x: 4, y: 1, h: 0, type: "handy", prog: program("(10L)A(3S)(5D)(3A)(3S)(2A)") },
+      ] },
+    ],
+  },
+  {
     id: "roundabout", name: "Roundabout",              // found by the level lab
-    chapter: "baltic", teaches: "ships sharing one route",
+    chapter: "nwe", teaches: "ships sharing one route",
     brief: "Both berths are dead ends off a ring round a little island: the refinery (L) to the east, the customer (D) to the west, taking four units an hour. Sixteen units.",
     map: [
       "#######",
@@ -198,39 +231,6 @@ export const LEVELS = [
       ] },
       { par: ["water", "instructions"], ships: [
         { x: 4, y: 2, h: 1, type: "handy", prog: program("(2D)B(7L)A") },
-      ] },
-    ],
-  },
-  {
-    id: "first-blend", name: "First blend",
-    chapter: "nwe", teaches: "blending to a spec",
-    rev: 4,              // FAME at $5k (the Handy's exact blend cheapest again): plans and bests from before don't carry over
-    brief: "Blend in the ship. G: gasoil, two units a lift at $1k each. F: FAME, one at $5k. The customer (D) takes two an hour, at least 20% FAME. Twenty units.",
-    map: [
-      "#######",
-      "#.G.F.#",
-      "#.####.",
-      "#...D.#",
-    ],
-    products: { gasoil: { name: "Gasoil", price: 1 }, fame: { name: "FAME", price: 5 } },
-    jetties: {
-      G: { kind: "load", product: "gasoil", parcel: 2 },
-      F: { kind: "load", product: "fame", parcel: 1 },
-      D: { kind: "discharge", parcel: 2, spec: { fame: [0.2, 1] } },
-    },
-    fleet: { coaster: 2, handy: 1 }, target: 20, maxCycles: 400,
-    par: { cost: 66, hours: 30, water: 12, instructions: 7 },
-    plans: [
-      { par: ["hours", "water"], ships: [
-        { x: 2, y: 1, h: 0, type: "handy", prog: program("(2L)(2A)LA(3S)(3D)(3A)(3S)") },
-        { x: 4, y: 1, h: 0, type: "coaster", prog: program("(2L)A(3S)(2D)(3A)(3S).L(2A)") },
-        { x: 5, y: 1, h: 0, type: "coaster", prog: program("(3S)(2D)(3A)(3S).L(2A)(2L)A") },
-      ] },
-      { par: ["cost", "water"], ships: [
-        { x: 2, y: 1, h: 0, type: "handy", prog: program("(4L)(2A)(2L)A(3S)(5D)(3A)(3S)") },
-      ] },
-      { par: ["water", "instructions"], ships: [
-        { x: 4, y: 1, h: 0, type: "handy", prog: program("(10L)A(3S)(5D)(3A)(3S)(2A)") },
       ] },
     ],
   },
