@@ -327,6 +327,21 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
   display: grid; place-items: center; font-size: .65rem; font-weight: 800;
   background: var(--ink); color: var(--yard); pointer-events: none;
 }
+/* marks: your note of a tile's crate, in its bottom-left corner; on a selected tile the swatch is a button that marks it
+   and moves the mark on through the crates' colours to none */
+.cell .mark { position: absolute; left: 6px; bottom: 6px; width: 11px; height: 11px; border-radius: 3px; pointer-events: none; box-shadow: 0 0 0 1.5px var(--yard); }
+.cell .mark.pick {
+  pointer-events: auto; left: 5px; bottom: 5px; width: 14px; height: 14px; min-width: 0; min-height: 0; padding: 0; margin: 0;
+  border-radius: 4px; cursor: pointer; z-index: 1; background: none; box-shadow: none; line-height: 0;
+  border: 1.5px dashed color-mix(in srgb, var(--ink) 60%, transparent); -webkit-tap-highlight-color: transparent;
+}
+.cell .mark.pick::before { content: ""; position: absolute; inset: -9px; }     /* a finger-sized target around a small swatch */
+.cell .mark.pick[class*=" m"] { border: 1.5px solid var(--yard); box-shadow: 0 0 0 1.5px var(--ink); }
+.cell .mark.m0 { background: var(--c0); }
+.cell .mark.m1 { background: var(--c1); }
+.cell .mark.m2 { background: var(--c2); }
+.cell .mark.m3 { background: var(--c3); }
+.cell.psel .mark { left: 26px; }                 /* your partner's initial has the corner: the mark sits beside it */
 .hint {
   position: absolute; top: 0; right: 0; width: 30px; height: 30px; padding: 0; border: 0;
   background: none; cursor: pointer; display: grid; place-items: center; z-index: 1;

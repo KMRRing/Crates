@@ -228,7 +228,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
     return {
       mode: "coop", category: board.cat, pool: room.pool, label: b.n, boardKey: `${b.code}#${b.n}`,
       brief: hidden() ? "" : null,           // hidden mode shows no description
-      groupsInfo: info, solved, cells, clue, players: players(),
+      boardKey: b.code, groupsInfo: info, solved, cells, clue, players: players(),
       team: { lives: b.lives, maxLives: LIVES, clues: b.clues, maxClues: CLUES },
       pending: b.pending ? { g: b.pending.g, mine: b.pending.namer === uid } : null,
       status,

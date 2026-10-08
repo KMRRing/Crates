@@ -235,8 +235,26 @@ const BADGE_LABEL = {
   offer: "Use a clue on this tile", spent: "No clues left", open: "Show the clue", used: "A clue was used on this word",
 };
 
+// ---------- marks: your note of which crate a tile goes in ----------
+// A selected tile shows a swatch in its bottom-left corner: a tap marks it with a crate's colour (ochre, verdigris,
+// cobalt, oxblood) and the next tap moves it on, to none after the last. The colour stays in that corner once the tile
+// is let go, a note of where you think it belongs. Marks are yours alone: kept on this device by board, never sent to
+// a partner, the last few boards remembered.
+const MARKS_KEY = "crates:marks", MARK_NAMES = ["ochre", "verdigris", "cobalt", "oxblood"];
+const readMarks = () => { try { return JSON.parse(localStorage.getItem(MARKS_KEY)) || {}; } catch { return {}; } };
+function cycleMark(board, word) {
+  const all = readMarks(), m = { ...(all[board] || {}) }, now = m[word];
+  if (now == null) m[word] = 0; else if (now >= MARK_NAMES.length - 1) delete m[word]; else m[word] = now + 1;
+  delete all[board];
+  all[board] = m;                                               // the board marked last is the newest
+  const boards = Object.keys(all);
+  while (boards.length > 8) delete all[boards.shift()];
+  try { localStorage.setItem(MARKS_KEY, JSON.stringify(all)); } catch { /* private mode */ }
+}
+
 /** cells: [{ id, text, sealed, peek, sel, psel: [{ slot, name }], badge: { kind, level } | null }] */
 function renderGrid(vm) {
+  const board = vm.boardKey && vm.boardKey !== "lobby" ? String(vm.boardKey) : null, marks = board ? readMarks()[board] || {} : {};
   el.grid.innerHTML = "";
   vm.cells.forEach(c => {
     const partners = c.psel || [];
@@ -258,6 +276,20 @@ function renderGrid(vm) {
       tag.textContent = partners[0].name.slice(0, 1).toUpperCase();
       tag.setAttribute("aria-hidden", "true");
       cell.appendChild(tag);
+    }
+    const mark = marks[c.id];
+    if (board && c.sel && !c.sealed) {                        // selected: the swatch, to mark it or move the mark on
+      const pick = document.createElement("button");
+      pick.type = "button";
+      pick.className = "mark pick" + (mark != null ? ` m${mark}` : "");
+      pick.setAttribute("aria-label", mark != null ? `Marked ${MARK_NAMES[mark]}: tap for the next colour` : "Mark the crate you think it goes in");
+      pick.addEventListener("click", e => { e.stopPropagation(); cycleMark(board, c.id); renderGrid(vm); });
+      cell.appendChild(pick);
+    } else if (mark != null && !c.sealed) {                   // let go: the note stays in the corner
+      const dot = document.createElement("span");
+      dot.className = `mark m${mark}`;
+      dot.setAttribute("aria-hidden", "true");
+      cell.appendChild(dot);
     }
     if (c.badge) {
       const hint = document.createElement("button");
