@@ -15,7 +15,7 @@ const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 4
                                        // the products meet crossings in the same order they would at speed 1
 const FILL_SCORED = 4;                 // and the time bonus counts that time as if pumped at ×4
 
-let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", kit: { plan, clear, pump }, market: { crude, gas }, tool }
+let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", offers: [{ id, price, uses }], market: { crude, hvo }, tool }
 let L = null;        // the level
 let R = null;        // the run
 let clock = { last: 0, planLeft: 0, flowing: 0, filling: false };   // flowing: the time the bonus counts
@@ -23,12 +23,22 @@ let raf = 0;
 const cells = new Map();   // "x,y" -> { g, flows: [] }
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
-// the kit bought between levels with what you've earned: more time to plan, a rock cleared, a pump fitted where you like
-const KIT = {
-  plan: { name: "+5 s to plan", cost: 150, about: "Five more seconds before the oil comes, on the next level." },
-  clear: { name: "Clear a rock", cost: 120, about: "Tap a rock during planning: it becomes a straight." },
-  pump: { name: "Fit a pump", cost: 200, about: "Tap a pipe during planning: it becomes a pump of the same shape." },
+// tools bought during the match with points: each map offers three, at its own prices, each a few uses only
+const TOOLS = {
+  clear: { name: "Clear rock", icon: "⛏", price: [80, 160], uses: [1, 2], about: "Tap a rock: it becomes a random pipe." },
+  pump: { name: "Add pump", icon: "⛽", price: [120, 220], uses: [1, 2], about: "Tap a straight or a bend: it becomes a pump." },
+  bend: { name: "Curve", icon: "↱", price: [60, 120], uses: [1, 3], about: "Tap a straight or a crossing: it becomes a curve." },
+  cross: { name: "Crossover", icon: "✚", price: [80, 160], uses: [1, 2], about: "Tap a straight or a curve: it becomes a crossing." },
+  pause: { name: "5 s pause", icon: "⏸", price: [100, 200], uses: [1, 2], about: "Everything waits five seconds: the countdown or the flow." },
 };
+const PAUSE_MS = 5000;
+/** A map's offers: three of the tools at its own prices and uses, the same for everyone on the same board. */
+function offersFor(seed) {
+  let a = seed >>> 0;
+  const r = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const ids = Object.keys(TOOLS).map(id => [r(), id]).sort((x, y) => x[0] - y[0]).slice(0, 3).map(([, id]) => id);
+  return ids.map(id => { const t = TOOLS[id], pick = ([lo, hi], step) => lo + step * Math.floor(r() * ((hi - lo) / step + 1)); return { id, price: pick(t.price, 10), uses: pick(t.uses, 1) }; });
+}
 /** Prices drift between levels, a few per cent either way, within 70% and 140% of the list price. */
 const drift = (m, r) => Math.min(1.4, Math.max(0.7, +(m * (1 + (r - 0.5) * 0.24)).toFixed(3)));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -38,7 +48,7 @@ const levelInfo = () => levelOf(S?.n || 1);
 
 // ---------- the run ----------
 function start(mode) {
-  S = { seed: mode === "daily" ? today() : randomSeed(), mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan", kit: { plan: 0, clear: 0, pump: 0 }, market: { crude: 1, gas: 1 }, tool: null };
+  S = { seed: mode === "daily" ? today() : randomSeed(), mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan", market: { crude: 1, hvo: 1 }, tool: null };
   save();
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
   beginLevel();
@@ -49,18 +59,18 @@ function beginLevel() {
   R = newRun(L);
   S.phase = "plan";
   save();
-  S.kit ??= { plan: 0, clear: 0, pump: 0 }; S.market ??= { crude: 1, gas: 1 }; S.tool = null;
-  clock = { last: performance.now(), planLeft: L.level.plan + 5000 * S.kit.plan, flowing: 0, filling: false };
-  S.kit.plan = 0;                                    // the extra time is spent on this level
+  S.market = { crude: S.market?.crude ?? 1, hvo: S.market?.hvo ?? 1 }; S.tool = null;
+  S.offers = offersFor(S.seed + 7919 * S.attempt + 104729 * S.n);
+  clock = { last: performance.now(), planLeft: L.level.plan, flowing: 0, filling: false, paused: 0 };
   drawHud();
   buildBoard();
   $("goBtn").hidden = true;
   $("fillBtn").hidden = false;                       // there from the first moment: fill as soon as the route is ready
   // the note has three lines: each level's news must fit them
-  $("note").textContent = L.n === 1 ? `Tap a tile to turn it, hold to turn it back. The lit line shows where the oil will go and the pressure left: only a pump refills it. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
+  $("note").textContent = L.n === 1 ? `Tap a tile to turn it, hold to turn it back. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: "dry" marks where a line would run out. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
     : L.n === 3 ? "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more."
     : L.level.place === 0 && L.level.act > 1 ? `Act ${L.level.act}, ${ACTS[L.level.act - 1].name}. ${ACTS[L.level.act - 1].news}` : "";
-  drawKit();
+  drawTools();
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
 }
@@ -68,6 +78,11 @@ function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(100, now - clock.last);
   clock.last = now;
+  if (clock.paused > 0 && (S.phase === "plan" || S.phase === "flow")) {   // a pause holds the countdown and the flow alike
+    clock.paused -= dt;
+    $("status").textContent = `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`;
+    return;
+  }
   if (S.phase === "plan") {
     clock.planLeft -= dt;
     $("status").textContent = `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · level ${L.n}`;
@@ -106,10 +121,12 @@ function endLevel() {
       // a new act gives a life back; prices drift for the next level
       if (levelOf(S.n).place === 0 && S.lives < LIVES) { S.lives++; toast(`Act ${actOf(S.n)}: a life back`); }
       const r = Math.random, m = S.market;
-      S.market = { crude: drift(m.crude, r()), gas: drift(m.gas, r()) };
+      S.market = { crude: drift(m.crude, r()), hvo: drift(m.hvo, r()) };
       save(); beginLevel();
     };
-    drawKit(true);
+    drawTools();
+    const m = S.market, pct = v => `${v >= 1 ? "+" : ""}${Math.round((v - 1) * 100)}%`;
+    $("note").textContent += ` Prices now: crude ${pct(m.crude)}, HVO ${pct(m.hvo)} on list.`;
   } else {
     S.lives--;
     const why = { "no opening": "a dead end", "the edge": "the edge of the field", "already full": "a pipe that was already full", "wrong product": "the wrong terminal: contamination", pressure: "no pressure left: it needed a pump" }[R.over.why] || R.over.why;
@@ -118,7 +135,7 @@ function endLevel() {
     navigator.vibrate?.([60, 40, 60]);
     markSpill();
     if (S.lives <= 0) { S.phase = "over"; $("goBtn").hidden = false; $("goBtn").textContent = "See how it went"; $("goBtn").onclick = over; }
-    else { S.phase = "done"; $("goBtn").hidden = false; $("goBtn").textContent = `Try level ${S.n} again`; $("goBtn").onclick = () => { S.attempt++; save(); beginLevel(); }; drawKit(true); }
+    else { S.phase = "done"; $("goBtn").hidden = false; $("goBtn").textContent = `Try level ${S.n} again`; $("goBtn").onclick = () => { S.attempt++; save(); beginLevel(); }; drawTools(); }
   }
   save();
   drawHud();
@@ -210,9 +227,15 @@ function drawTile(x, y) {
     g.appendChild(stub(o[0]));
     const end = L[t.kind === "well" ? "heads" : "terminals"].find(h => h.at[0] === x && h.at[1] === y);
     const colour = PRODUCTS[end?.product]?.colour || "#888";
-    if (t.kind === "well") {
+    if (t.kind === "well" && end?.product === "crude") {                   // a wellhead's derrick
       g.appendChild(el("path", { d: "M18 46 L30 14 L42 46 Z M22 36 H38", fill: "none", stroke: colour, "stroke-width": 3.5, "stroke-linejoin": "round" }));
       g.appendChild(el("rect", { x: 14, y: 44, width: 32, height: 5, rx: 2, fill: colour }));
+    } else if (t.kind === "well" && end?.product === "hvo") {               // the HVO plant: a column and its leaf
+      g.appendChild(el("rect", { x: 20, y: 14, width: 14, height: 32, rx: 5, fill: colour, stroke: "#fff", "stroke-width": 2 }));
+      g.appendChild(el("path", { d: "M36 30 C36 20 46 16 50 16 C50 24 46 30 36 30 Z", fill: colour, stroke: "#fff", "stroke-width": 1.5 }));
+    } else if (t.kind === "well") {                                          // the used-cooking-oil tank
+      g.appendChild(el("rect", { x: 15, y: 18, width: 30, height: 28, rx: 4, fill: colour, stroke: "#fff", "stroke-width": 2 }));
+      g.appendChild(el("path", { d: "M15 26 H45 M15 38 H45", stroke: "#fff", "stroke-width": 1.5, opacity: 0.7 }));
     } else {
       // a terminal shows what it pays, so a route can be weighed against what it costs
       g.appendChild(el("rect", { x: 7, y: 17, width: 46, height: 27, rx: 6, fill: colour, stroke: "#fff", "stroke-width": 2, class: "term-face" }));
@@ -222,14 +245,14 @@ function drawTile(x, y) {
     }
     return;
   }
-  if (t.kind === "separator") {
+  if (t.kind === "unit") {
     for (const d of o) g.appendChild(stub(d));
-    // a horizontal vessel: gas above the liquid, crude below; its outlets coloured by what leaves them
+    // the HVO unit: a reactor fed with used cooking oil at the top; HVO leaves one side, bio-naphtha the other
     const v = el("g", { transform: `rotate(${t.rot * 90} 30 30)` });
-    v.appendChild(el("rect", { x: 9, y: 17, width: 42, height: 26, rx: 13, fill: PRODUCTS.fluid.colour, stroke: "#fff", "stroke-width": 2 }));
-    v.appendChild(el("path", { d: "M14 33 h32", stroke: "#fff", "stroke-width": 1.5, "stroke-dasharray": "3 2" }));
-    v.appendChild(el("circle", { cx: 9, cy: 30, r: 4, fill: PRODUCTS.crude.colour, stroke: "#fff", "stroke-width": 1.5 }));
-    v.appendChild(el("circle", { cx: 51, cy: 30, r: 4, fill: PRODUCTS.gas.colour, stroke: "#fff", "stroke-width": 1.5 }));
+    v.appendChild(el("rect", { x: 15, y: 11, width: 30, height: 38, rx: 10, fill: PRODUCTS.uco.colour, stroke: "#fff", "stroke-width": 2 }));
+    v.appendChild(el("path", { d: "M20 22 h20 M20 30 h20 M20 38 h20", stroke: "#fff", "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
+    v.appendChild(el("circle", { cx: 12, cy: 30, r: 4.5, fill: PRODUCTS.hvo.colour, stroke: "#fff", "stroke-width": 1.5 }));
+    v.appendChild(el("circle", { cx: 48, cy: 30, r: 4.5, fill: PRODUCTS.naphtha.colour, stroke: "#fff", "stroke-width": 1.5 }));
     g.appendChild(v);
     return;
   }
@@ -284,62 +307,59 @@ function markSpill() {
 function tap(x, y, by = 1) {
   if (S.phase !== "plan" && S.phase !== "flow") return;
   const t = R.tiles[y][x];
-  if (S.tool && S.phase === "plan") {                 // the kit: clear a rock, or fit a pump to a pipe
-    if (S.tool === "clear" && t.kind === "rock") { Object.assign(t, { kind: "straight", fixed: false }); S.kit.clear--; }
-    else if (S.tool === "pump" && ["straight", "bend"].includes(t.kind) && !t.locked) { Object.assign(t, { kind: "pump", shape: t.kind }); S.kit.pump--; }
-    else return toast(S.tool === "clear" ? "Tap a rock to clear it." : "Tap a straight or a bend to make it a pump.");
-    S.tool = null; save(); drawTile(x, y); drawTrace(); drawKit();
+  if (S.tool) {                                       // a tool in hand: it works on the tile, if it's the right kind
+    const offer = S.offers.find(o => o.id === S.tool);
+    if (t.locked) return toast("That tile's full");
+    const ok = { clear: t.kind === "rock", pump: ["straight", "bend"].includes(t.kind), bend: ["straight", "cross"].includes(t.kind), cross: ["straight", "bend"].includes(t.kind) }[S.tool];
+    if (!ok) return toast(TOOLS[S.tool].about);
+    if (S.tool === "clear") Object.assign(t, { kind: ["straight", "bend", "bend", "cross"][Math.floor(Math.random() * 4)], rot: Math.floor(Math.random() * 4), fixed: false, shape: undefined });
+    else if (S.tool === "pump") Object.assign(t, { kind: "pump", shape: t.kind });
+    else Object.assign(t, { kind: S.tool, shape: undefined });
+    S.score -= offer.price; offer.uses--; S.tool = null;
+    save(); drawHud(); drawTile(x, y); drawTrace(); drawTools();
     return;
   }
   if (turn(R, x, y, by)) { drawTile(x, y); drawTrace(); }
   else if (t.locked) toast("That tile's full");
 }
 
-// ---------- the trace: where each product will go as the board stands, and the pressure it'll have ----------
+// ---------- the warning: where a line, as the board stands, will run out of pressure ----------
 function drawTrace() {
   const layer = $("board").querySelector(".pi-trace");
   if (!layer) return;
   layer.replaceChildren();
   for (const line of trace(L, R.tiles)) {
-    const pts = [line.from, ...line.cells.map(c => [c.x, c.y])].map(([x, y]) => `${x * TILE + TILE / 2},${y * TILE + TILE / 2}`);
-    if (pts.length > 1) {                           // a pale halo under the product's colour, so even crude shows on the dark field
-      layer.appendChild(el("polyline", { points: pts.join(" "), class: `pi-trace-halo ${line.end}` }));
-      layer.appendChild(el("polyline", { points: pts.join(" "), class: `pi-trace-line ${line.end}`, stroke: PRODUCTS[line.product].colour }));
-    }
-    const last = line.cells[line.cells.length - 1] || { x: line.from[0], y: line.from[1], pressure: L.level.pressure };
-    if (line.end === "separated") continue;
-    // at the end of the line: delivered, or why not, with the pressure left
-    const [cx, cy] = [last.x * TILE + TILE / 2, last.y * TILE + TILE / 2];
-    const tag = line.end === "delivered" ? "✓" : line.end === "dry" ? "dry" : line.end === "wrong" ? "✗" : String(last.pressure);
-    const badge = el("g", { class: `pi-trace-end ${line.end}`, transform: `translate(${cx + 16} ${cy - (line.end === "delivered" ? 24 : 15)})` });   // clear of a terminal's price
-    badge.appendChild(el("circle", { r: 11 }));
-    const t = el("text", { y: 4, "text-anchor": "middle" }); t.textContent = tag; badge.appendChild(t);
+    if (line.end !== "dry") continue;
+    const last = line.cells[line.cells.length - 1] || { x: line.from[0], y: line.from[1] };
+    const badge = el("g", { class: "pi-dry", transform: `translate(${last.x * TILE + TILE / 2} ${last.y * TILE + TILE / 2})` });
+    badge.appendChild(el("circle", { r: 15 }));
+    const t = el("text", { y: 4, "text-anchor": "middle" }); t.textContent = "dry"; badge.appendChild(t);
     layer.appendChild(badge);
   }
 }
 
-// ---------- the kit: bought between levels, used while planning ----------
-function drawKit(shop = false) {
+// ---------- the tools: this map's offers, bought with points as you go ----------
+function drawTools() {
   const box = $("kit");
   box.replaceChildren();
-  if (shop) {                                        // between levels: the market and the shop
-    const m = S.market, pct = v => `${v >= 1 ? "+" : ""}${Math.round((v - 1) * 100)}%`;
-    const mk = document.createElement("p"); mk.className = "pi-market";
-    mk.textContent = `Prices now: crude ${pct(m.crude)}, gas ${pct(m.gas)} on list. Spend on kit, or keep it on the board.`;
-    box.append(mk);
-    for (const [id, k] of Object.entries(KIT)) {
-      const b = document.createElement("button"); b.type = "button"; b.className = "pi-kit-buy";
-      b.textContent = `${k.name} · ${k.cost}${S.kit[id] ? ` (have ${S.kit[id]})` : ""}`; b.title = k.about;
-      b.disabled = S.score < k.cost;
-      b.addEventListener("click", () => { if (S.score < k.cost) return; S.score -= k.cost; S.kit[id]++; save(); drawHud(); drawKit(true); toast(`${k.name}: bought`); });
-      box.append(b);
-    }
-    return;
-  }
-  for (const id of ["clear", "pump"]) if (S.kit[id] > 0 && S.phase === "plan") {    // while planning: the kit in hand
-    const b = document.createElement("button"); b.type = "button"; b.className = `pi-kit-use${S.tool === id ? " on" : ""}`;
-    b.textContent = `${KIT[id].name} ×${S.kit[id]}`;
-    b.addEventListener("click", () => { S.tool = S.tool === id ? null : id; drawKit(); });
+  if (S.phase !== "plan" && S.phase !== "flow") return;
+  for (const o of S.offers || []) {
+    const t = TOOLS[o.id], b = document.createElement("button");
+    b.type = "button"; b.className = `pi-tool${S.tool === o.id ? " on" : ""}`;
+    b.innerHTML = `<span class="ic"></span><span class="nm"></span><span class="pr"></span>`;
+    b.querySelector(".ic").textContent = t.icon; b.querySelector(".nm").textContent = t.name; b.querySelector(".pr").textContent = `${o.price} · ×${o.uses}`;
+    b.title = t.about;
+    b.disabled = !o.uses || S.score < o.price;
+    b.addEventListener("click", () => {
+      if (o.id === "pause") {                          // the pause works at once
+        if (!o.uses || S.score < o.price) return;
+        S.score -= o.price; o.uses--; clock.paused = PAUSE_MS; save(); drawHud(); drawTools();
+        return;
+      }
+      S.tool = S.tool === o.id ? null : o.id;
+      if (S.tool) toast(t.about);
+      drawTools();
+    });
     box.append(b);
   }
 }

@@ -15,9 +15,9 @@ for (let seed = 1; seed <= 10; seed++) for (let n = 1; n <= 20; n++) {
   if (!P.solved(lv).over?.win) fail("the solution doesn't deliver");
   for (const route of lv.routes) if (!P.runWith(lv, P.rotsFor(lv.solution, route)).over?.win) fail("a designed route doesn't deliver");
   for (const d of lv.directs) if (P.runWith(lv, P.rotsFor(lv.solution, d.route)).over?.why !== "pressure") fail("a direct line doesn't run dry");
-  detours += lv.directs.length; lines += lv.level.products + (lv.level.separator ? 2 : 0);
+  detours += lv.directs.length; lines += lv.level.products + (lv.level.unit ? 2 : 0);
   if (!lv.directs.length) fail("no pump detour");
-  if (lv.heads.length === 1 && !lv.level.separator && P.reachableDry(lv, lv.heads[0], lv.terminals[0].at)) fail("the far terminal can be reached without a pump");
+  if (lv.heads.length === 1 && !lv.level.unit && P.reachableDry(lv, lv.heads[0], lv.terminals[0].at)) fail("the far terminal can be reached without a pump");
   if (lv.terminals.some(t => !(t.price > 0))) fail("a terminal without a price");
   if (lv.level.terminals === 2) {
     if (lv.terminals.length !== 2 || !lv.choice) fail("a two-terminal level without its choice");
@@ -25,7 +25,7 @@ for (let seed = 1; seed <= 10; seed++) for (let n = 1; n <= 20; n++) {
   }
   lv.tiles.flat().forEach(t => { kinds[t.kind] = (kinds[t.kind] || 0) + 1; });
   if (lv.level.products === 2 && !lv.tiles.flat().some(t => t.kind === "cross")) fail("a two-product level without a crossing");
-  if (lv.level.separator && (!lv.tiles.flat().some(t => t.kind === "separator") || lv.terminals.length !== 2)) fail("a separator level without its separator and two terminals");
+  if (lv.level.unit && (!lv.tiles.flat().some(t => t.kind === "unit") || lv.terminals.length !== 2)) fail("an HVO unit level without its unit and two terminals");
   // the trace of the solved board delivers every line; of the scrambled board, it rarely does
   const solvedTiles = lv.tiles.map((row, y) => row.map((t, x) => ({ ...t, rot: lv.solution[y][x] })));
   if (!P.trace(lv, solvedTiles).every(l => l.end === "delivered" || l.end === "separated")) fail("the trace of the solution doesn't deliver");
@@ -36,7 +36,7 @@ for (let seed = 1; seed <= 10; seed++) for (let n = 1; n <= 20; n++) {
   if (run.over?.win) scrambledWins++;
   if (!run.over) fail("a scrambled run never ends");
 }
-check(problems === 0, `${built} levels: repeatable; routes deliver; ${detours} detours on ${lines} product lines, every direct line runs dry; one product needs a pump for its far terminal; crossings on two-product levels, separators on theirs, the trace of every solution delivering (tiles: ${JSON.stringify(kinds)})`);
+check(problems === 0, `${built} levels: repeatable; routes deliver; ${detours} detours on ${lines} product lines, every direct line runs dry; one product needs a pump for its far terminal; crossings on two-product levels, HVO units on theirs, the trace of every solution delivering (tiles: ${JSON.stringify(kinds)})`);
 check(picks.near > 0 && picks.far > 0, `two-terminal levels: either terminal can be the better pick (near ${picks.near}, far ${picks.far})`);
 check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck (${scrambledWins} of ${built})`);
 
@@ -49,13 +49,13 @@ check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck 
   for (let i = 0; i < 4000 && !spilt.over; i++) P.advance(lv, spilt, 250);
   check(spilt.over?.win || P.score(lv, spilt, 30000).total === 0, "a spill pays nothing");
 }
-// alone, crude sets off at once; sharing the board with gas, it waits
+// alone, crude sets off at once; sharing the board with HVO, it waits
 {
   const one = P.makeLevel(1, 1), r1 = P.newRun(one);
   P.advance(one, r1, 500);
   const two = P.makeLevel(1, P.ACT_LENGTH + 1), r2 = P.newRun(two);   // the first level of act 2: two products
   P.advance(two, r2, 500);
-  check(r1.heads[0].progress > 0 && r2.heads.find(h => h.product === "crude").progress === 0, "crude goes at once alone, and waits behind gas when they share the board");
+  check(r1.heads[0].progress > 0 && r2.heads.find(h => h.product === "crude").progress === 0, "crude goes at once alone, and waits behind HVO when they share the board");
 }
 // turning: a locked or fixed tile won't turn; a pressure stall ends the run
 {
