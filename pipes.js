@@ -4,7 +4,7 @@ import { LIVES, PRODUCTS, COSTS, DIRS, ACTS, ACT_LENGTH, actOf, makeLevel, newRu
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
-import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { today, IN_FRAME } from "./suite.js";          // the day, the same for everyone (UTC); a partner watching's frame
 
 const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
@@ -15,7 +15,7 @@ const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 4
                                        // the products meet crossings in the same order they would at speed 1
 const FILL_SCORED = 4;                 // and the time bonus counts that time as if pumped at ×4
 
-let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", offers: [{ id, price, uses }], market: { crude, hvo }, tool }
+let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", after: "next" | "retry" (once done), offers: [{ id, price, uses }], market: { crude, hvo }, tool, live (below) }
 let L = null;        // the level
 let R = null;        // the run
 let clock = { last: 0, planLeft: 0, flowing: 0, filling: false };   // flowing: the time the bonus counts
@@ -49,7 +49,6 @@ const levelInfo = () => levelOf(S?.n || 1);
 // ---------- the run ----------
 function start(mode) {
   S = { seed: mode === "daily" ? today() : randomSeed(), mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan", market: { crude: 1, hvo: 1 }, tool: null };
-  save();
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
   beginLevel();
 }
@@ -58,52 +57,92 @@ function beginLevel() {
   L = makeLevel(S.seed + 7919 * S.attempt, S.n);
   R = newRun(L);
   S.phase = "plan";
-  save();
+  S.after = null;
   S.market = { crude: S.market?.crude ?? 1, hvo: S.market?.hvo ?? 1 }; S.tool = null;
   S.offers = offersFor(S.seed + 7919 * S.attempt + 104729 * S.n);
   clock = { last: performance.now(), planLeft: L.level.plan, flowing: 0, filling: false, paused: 0 };
+  keepLive();
   drawHud();
   buildBoard();
   $("goBtn").hidden = true;
   $("fillBtn").hidden = false;                       // there from the first moment: fill as soon as the route is ready
-  // the note has three lines: each level's news must fit them
-  $("note").textContent = L.n === 1 ? `Tap a tile to turn it, hold to turn it back. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: "dry" marks where a line would run out. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
-    : L.n === 3 ? "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more."
-    : L.level.place === 0 && L.level.act > 1 ? `Act ${L.level.act}, ${ACTS[L.level.act - 1].name}. ${ACTS[L.level.act - 1].news}` : "";
+  $("note").textContent = levelNote();
   drawTools();
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
 }
+/** The level's news under the board while it's played. The note has three lines: each level's news must fit them. */
+const levelNote = () => (L.n === 1 ? `Tap a tile to turn it, hold to turn it back. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: "dry" marks where a line would run out. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
+  : L.n === 3 ? "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more."
+  : L.level.place === 0 && L.level.act > 1 ? `Act ${L.level.act}, ${ACTS[L.level.act - 1].name}. ${ACTS[L.level.act - 1].news}` : "");
 function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(100, now - clock.last);
   clock.last = now;
-  if (clock.paused > 0 && (S.phase === "plan" || S.phase === "flow")) {   // a pause holds the countdown and the flow alike
-    clock.paused -= dt;
-    $("status").textContent = `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`;
-    return;
-  }
-  if (S.phase === "plan") {
-    clock.planLeft -= dt;
-    $("status").textContent = `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · level ${L.n}`;
-    if (clock.planLeft <= 0) S.phase = "flow";
-    return;
-  }
+  if (S.phase !== "plan" && S.phase !== "flow") return;
+  const was = S.phase, filled = R.tilesFilled;
+  step(dt);
+  drawStatus();
+  if (S.phase === "flow" && clock.paused <= 0) { drawFlow(); drawGauges(); }
+  // kept as the oil enters each tile (Fill it now enters several a frame: a few times a second is plenty to watch)
+  if (S.phase !== was || (R.tilesFilled !== filled && now - keptAt > 250)) keepLive();
+  if (R.over) endLevel();
+}
+/** The level's clock moved on by dt ms: a pause holds the countdown and the flow alike; then the countdown, then the
+ *  flow (at ×80 while filling, its time counted as if pumped at ×4). */
+function step(dt) {
+  if (clock.paused > 0) { clock.paused -= dt; return; }
+  if (S.phase === "plan") { clock.planLeft -= dt; if (clock.planLeft <= 0) S.phase = "flow"; return; }
   if (S.phase !== "flow") return;
   if (clock.filling) {
     for (let left = dt * FILL_SPEED; left > 0 && !R.over; left -= FILL_STEP) {
-      const step = Math.min(FILL_STEP, left);
-      advance(L, R, step);
-      clock.flowing += step / FILL_SCORED;
+      const s = Math.min(FILL_STEP, left);
+      advance(L, R, s);
+      clock.flowing += s / FILL_SCORED;
     }
   } else {
     clock.flowing += dt;
     advance(L, R, dt);
   }
+}
+function drawStatus() {
+  $("status").textContent = clock.paused > 0 ? `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`
+    : S.phase === "plan" ? `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · level ${L.n}`
+    : `${clock.filling ? "Filling, time at ×4" : "Flowing"} · level ${L.n}`;
+}
+
+// ---------- the level as it stands, for a partner watching ----------
+// Kept in the run's save at every turn of a tile, every tile the oil enters and the level's end: the board, the flow, the
+// clock. A partner's watching frame picks it up and runs on from it. Here a level left mid-way still starts over, fresh
+// (so hiding the app can't buy time to plan); a finished level comes back as it ended, its result and its button.
+let keptAt = 0;
+function keepLive(extra = {}) {
+  keptAt = performance.now();
+  S.live = { n: S.n, attempt: S.attempt, R, planLeft: Math.round(clock.planLeft), flowing: Math.round(clock.flowing), filling: clock.filling,
+    paused: Math.max(0, Math.round(clock.paused)), at: Date.now(), ...extra };
+  save();
+}
+/** The level as it was kept: in a watching frame, run on by the second or two since; here, a finished level's end. */
+function resumeLive() {
+  const v = S.live;
+  L = makeLevel(S.seed + 7919 * S.attempt, S.n);
+  R = v.R;
+  clock = { last: performance.now(), planLeft: v.planLeft, flowing: v.flowing, filling: v.filling, paused: v.paused };
+  // in a frame, the clock runs on by the time since it was kept (a player thinking over the board saves nothing for a
+  // while), but not past half a minute: an older copy is a player who has gone, not one still playing
+  if (IN_FRAME && (S.phase === "plan" || S.phase === "flow")) for (let gone = Math.min(30000, Math.max(0, Date.now() - v.at)); gone > 0 && !R.over; gone -= 50) step(Math.min(50, gone));
+  drawHud();
+  buildBoard();
   drawFlow();
   drawGauges();
-  $("status").textContent = `${clock.filling ? "Filling, time at ×4" : "Flowing"} · level ${L.n}`;
-  if (R.over) endLevel();
+  drawTools();
+  $("fillBtn").hidden = !(S.phase === "plan" || S.phase === "flow") || clock.filling;
+  $("goBtn").hidden = true;
+  if (S.phase === "plan" || S.phase === "flow") { drawStatus(); $("note").textContent = levelNote(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); return; }
+  $("status").textContent = v.status || "";
+  $("note").textContent = v.note || "";
+  markSpill();
+  goButton();
 }
 function endLevel() {
   const msLeft = Math.max(0, BONUS_WINDOW - clock.flowing);
@@ -114,16 +153,8 @@ function endLevel() {
     S.phase = "done";
     $("status").textContent = `Delivered: +${earned}`;
     $("note").textContent = `${net.revenue} at the terminal${R.reached.length > 1 ? "s" : ""}, −${net.pipe} for ${R.tilesFilled} tiles of pipe, −${net.pumps} for ${R.pumpsFired} pump${R.pumpsFired === 1 ? "" : "s"}, +${net.time} for time.${pickNote()}`;
-    $("goBtn").hidden = false;
-    $("goBtn").textContent = `Level ${S.n + 1}`;
-    $("goBtn").onclick = () => {
-      S.n++; S.attempt = 0;
-      // a new act gives a life back; prices drift for the next level
-      if (levelOf(S.n).place === 0 && S.lives < LIVES) { S.lives++; toast(`Act ${actOf(S.n)}: a life back`); }
-      const r = Math.random, m = S.market;
-      S.market = { crude: drift(m.crude, r()), hvo: drift(m.hvo, r()) };
-      save(); beginLevel();
-    };
+    S.after = "next";
+    goButton();
     drawTools();
     const m = S.market, pct = v => `${v >= 1 ? "+" : ""}${Math.round((v - 1) * 100)}%`;
     $("note").textContent += ` Prices now: crude ${pct(m.crude)}, HVO ${pct(m.hvo)} on list.`;
@@ -134,12 +165,31 @@ function endLevel() {
     $("note").textContent = "Nothing delivered, nothing paid.";
     navigator.vibrate?.([60, 40, 60]);
     markSpill();
-    if (S.lives <= 0) { S.phase = "over"; $("goBtn").hidden = false; $("goBtn").textContent = "See how it went"; $("goBtn").onclick = over; }
-    else { S.phase = "done"; $("goBtn").hidden = false; $("goBtn").textContent = `Try level ${S.n} again`; $("goBtn").onclick = () => { S.attempt++; save(); beginLevel(); }; drawTools(); }
+    if (S.lives <= 0) S.phase = "over";
+    else { S.phase = "done"; S.after = "retry"; drawTools(); }
+    goButton();
   }
-  save();
+  keepLive({ status: $("status").textContent, note: $("note").textContent });
   drawHud();
 }
+/** The button under a finished level: the next level, the same one again, or how the run went. */
+function goButton() {
+  const b = $("goBtn");
+  b.hidden = false;
+  if (S.phase === "over") { b.textContent = "See how it went"; b.onclick = over; return; }
+  b.textContent = S.after === "next" ? `Level ${S.n + 1}` : `Try level ${S.n} again`;
+  b.onclick = S.after === "next" ? nextLevel : retryLevel;
+}
+/** On to the next level: a new act gives a life back, and prices drift. */
+function nextLevel() {
+  S.n++; S.attempt = 0;
+  if (levelOf(S.n).place === 0 && S.lives < LIVES) { S.lives++; toast(`Act ${actOf(S.n)}: a life back`); }
+  const r = Math.random, m = S.market;
+  S.market = { crude: drift(m.crude, r()), hvo: drift(m.hvo, r()) };
+  beginLevel();
+}
+/** The same level again, on a fresh board. */
+function retryLevel() { S.attempt++; beginLevel(); }
 /** On a two-terminal level, a word on the pick: the board was priced so one nets more. */
 function pickNote() {
   if (!L.choice) return "";
@@ -316,10 +366,10 @@ function tap(x, y, by = 1) {
     else if (S.tool === "pump") Object.assign(t, { kind: "pump", shape: t.kind });
     else Object.assign(t, { kind: S.tool, shape: undefined });
     S.score -= offer.price; offer.uses--; S.tool = null;
-    save(); drawHud(); drawTile(x, y); drawTrace(); drawTools();
+    keepLive(); drawHud(); drawTile(x, y); drawTrace(); drawTools();
     return;
   }
-  if (turn(R, x, y, by)) { drawTile(x, y); drawTrace(); }
+  if (turn(R, x, y, by)) { drawTile(x, y); drawTrace(); keepLive(); }
   else if (t.locked) toast("That tile's full");
 }
 
@@ -353,7 +403,7 @@ function drawTools() {
     b.addEventListener("click", () => {
       if (o.id === "pause") {                          // the pause works at once
         if (!o.uses || S.score < o.price) return;
-        S.score -= o.price; o.uses--; clock.paused = PAUSE_MS; save(); drawHud(); drawTools();
+        S.score -= o.price; o.uses--; clock.paused = PAUSE_MS; keepLive(); drawHud(); drawTools();
         return;
       }
       S.tool = S.tool === o.id ? null : o.id;
@@ -425,12 +475,13 @@ $("fillBtn").addEventListener("click", () => {
   clock.planLeft = 0;
   clock.filling = true;
   $("fillBtn").hidden = true;
+  keepLive();
 });
 // the menu holds the oil where it is: no frames while it's open, and no catching up after
 let heldFrame = false;
 onPause(() => { if (S?.phase === "plan" || S?.phase === "flow") { cancelAnimationFrame(raf); heldFrame = true; } },
   () => { if (!heldFrame) return; heldFrame = false; clock.last = performance.now(); raf = requestAnimationFrame(frame); });
-document.addEventListener("visibilitychange", () => { if (document.hidden && (S?.phase === "plan" || S?.phase === "flow")) { S.attempt++; save(); beginLevel(); } });   // a level left mid-flow starts over, fresh
+document.addEventListener("visibilitychange", () => { if (document.hidden && !IN_FRAME && (S?.phase === "plan" || S?.phase === "flow")) retryLevel(); });   // a level left mid-flow starts over, fresh
 
 // for tests and debugging
 window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, tap, start, skipPlanning: () => { clock.planLeft = 0; }, applySolution: () => { R.tiles.forEach((row, y) => row.forEach((t, x) => { if (!t.locked && !t.fixed) t.rot = L.solution[y][x]; drawTile(x, y); })); } };
@@ -438,6 +489,9 @@ window.__pipes = { get state() { return S; }, get level() { return L; }, get run
 S = read(RUN, null);
 const hash = new URLSearchParams(location.hash.slice(1));
 const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
-if (linked && !(S && S.seed === linked && S.mode === mode)) { S = { seed: linked, mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan" }; save(); beginLevel(); }
+const kept = S?.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
+if (IN_FRAME && kept) resumeLive();
+else if (linked && !(S && S.seed === linked && S.mode === mode)) { S = { seed: linked, mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan" }; beginLevel(); }
 else if (!S || S.phase === "over") start("random");
+else if (S.phase === "done" && kept && S.after) resumeLive();
 else beginLevel();

@@ -7,12 +7,12 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, onPause } from "./menu.js";
-import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { today, IN_FRAME } from "./suite.js";          // the day, the same for everyone (UTC); a partner watching's frame
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
-const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating";
+const BEST = "rush:best", DAILY = "rush:daily", RATING = "rush:rating", RUN = "rush:run";
 const MODES = { three: { label: "3 min, 5 s delay", ms: 180000, grace: 5000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
 const STRIKES = 3;
 
@@ -115,12 +115,52 @@ async function serve() {
   if (S !== run || S.over) return;
   S.current = p;
   S.at++;
+  mount(p);
+}
+/** A puzzle on the board: from its first move, or from a step part-way (a run picked up). */
+function mount(p, step = 0) {
   const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";
   $("line").className = "ru-line";
   $("line").textContent = S.warming ? `${side} to move. Solve this one to start the clock.` : `${side} to move`;
   $("meta").textContent = "";
   board?.destroy();
-  board = mountPuzzle($("board"), p, { interactive: true, replyMs: 300, firstMs: 450, onDone: solved => settle(p, solved) });
+  board = mountPuzzle($("board"), p, { interactive: true, replyMs: 300, firstMs: 450, startStep: step, onStep: keepRun, onDone: solved => settle(p, solved) });
+  keepRun(step);
+}
+
+// ---------- the run, kept ----------
+// as it stands after every move: a partner watching sees the puzzle on the board, how far into it, the count, the strikes
+// and the clock; and an untimed run (or one still on its warm-up) comes back after a reload. A timed run can't be paused,
+// so leaving the page ends it (below).
+function keepRun(step = S.step || 0) {
+  S.step = step;
+  const timed = S.started != null, g = MODES[S.mode]?.grace || 0;
+  write(RUN, { mode: S.mode, daily: S.daily, seed: S.seed, at: S.at, used: [...S.used], solved: S.solved, strikes: S.strikes, misses: S.misses,
+    ratings: S.ratings, warming: S.warming, over: S.over, why: S.why || null, ratingAtStart: S.ratingAtStart, current: S.current || null, step,
+    spent: timed ? Math.round(spent()) : null,
+    grace: timed && g && S.puzzleAt != null ? Math.round(Math.min(g, performance.now() - S.puzzleAt)) : null,   // of this puzzle's delay, used
+    savedAt: Date.now() });
+}
+/** Picks a kept run up where it was: in a watching frame whatever your partner is playing, a moment late (their clock
+ *  run on by the time since they moved), finished runs too; here, an untimed run, or one still on its warm-up. */
+function resumeRun() {
+  const r = read(RUN, null);
+  if (!r || !MODES[r.mode] || !r.current || (r.over && !IN_FRAME)) return false;
+  if (!IN_FRAME && MODES[r.mode].ms && !r.warming) return false;
+  S = { ...r, used: new Set(r.used || []), over: false, started: null, puzzleAt: null, free: 0 };
+  if (r.spent != null) {                                     // the clock as it stood, the puzzle's delay with it
+    const now = performance.now(), lag = IN_FRAME ? Math.max(0, Date.now() - r.savedAt) : 0, used = r.grace ?? 0;
+    if (r.grace != null) S.puzzleAt = now - used - lag;
+    S.started = now - r.spent - lag - used;
+  }
+  $("mode").value = S.mode;
+  $("startBtn").hidden = true;
+  clearInterval(tick);
+  tick = setInterval(clock, 250);
+  drawHud();
+  mount(S.current, r.step || 0);
+  if (r.over) finish(r.why || "time");                       // a frame: the run as it ended, its summary open
+  return true;
 }
 function settle(p, solved) {
   if (S.over) return;
@@ -166,6 +206,8 @@ function settle(p, solved) {
 function finish(why) {
   if (S.over) return;
   S.over = true;
+  S.why = why;
+  keepRun();
   clearInterval(tick);
   board?.destroy();
   const elapsed = performance.now() - (S.started ?? performance.now());
@@ -254,13 +296,13 @@ $("mode").addEventListener("change", () => { if (S && !S.over) { if (confirm("St
 let heldTick = false;
 onPause(() => { if (S && !S.over && S.started != null) { clearInterval(tick); heldTick = true; } },
   ms => { if (!heldTick) return; heldTick = false; if (S && !S.over && S.started != null) { S.started += ms; if (S.puzzleAt != null) S.puzzleAt += ms; tick = setInterval(clock, 250); clock(); } });
-document.addEventListener("visibilitychange", () => { if (document.hidden && S && !S.over && S.started != null && MODES[S.mode].ms) finish("time"); });   // a timed run can't be paused
+document.addEventListener("visibilitychange", () => { if (document.hidden && !IN_FRAME && S && !S.over && S.started != null && MODES[S.mode].ms) finish("time"); });   // a timed run can't be paused
 
 // for tests and debugging
 window.__rush = { get state() { return S; }, start, finish, get puzzle() { return S?.current; } };
 
 drawHud();
-start(false);
+if (!resumeRun()) start(false);
 // Standard's delay: each puzzle's first 5 seconds don't run the clock, and nothing is ever added back, so the clock
 // never shows more than its 3 minutes. Time spent is the run's time less the delays used, the current puzzle's included.
 function spent() {

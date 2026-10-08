@@ -80,9 +80,12 @@ things are wide spaced capitals (`font-stretch: var(--wide); text-transform: upp
 `suite.js` syncs every `localStorage` key between devices on the same solo code (except `suite:`, Crates' run keys and
 Firebase's own). Keep a game's keys under its own prefix (`manifest:run2`, `quote:best`): a change from another device
 to the open game's keys reloads it. A game's best goes in `<game>:best` (a number, a `{ score }`, or bests by level) to
-show on the games screen. The same prefix is what a partner watches: everything a game needs to draw its solo state
-must be in its own keys (`<game>:…`, Slate's `glyph:…`), read at start-up; a game in `?watch` mode reads the
-partner's copy and its writes go nowhere, so don't keep state that matters anywhere else.
+show on the games screen. The same prefix is what a partner watches: everything a game shows must be in its own keys
+(`<game>:…`; a game keeping keys under another prefix lists it in `PREFIXES` in `suite.js`, as Slate's `glyph:` and
+Blend's `blend2:`), written as it changes and read at start-up, or the watcher's frame draws a screen of its own
+(Calibre's design, Rush's position, Parley's card and Pipes' board were once kept only in memory). A watching frame
+(`IN_FRAME` from `suite.js`) reads the partner's copy and its writes go nowhere, so don't keep state that matters
+anywhere else, and don't end or restart a run on `visibilitychange` there.
 
 ## Dailies
 

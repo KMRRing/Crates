@@ -16,17 +16,34 @@ import { today, noteDayCount } from "./suite.js";          // the day, the same 
 dropdown(document.getElementById("course"));   // the header dropdown in the suite's style (see dropdown.js)
 
 const $ = id => document.getElementById(id);
-const SAVE = "parley:save";
+const SAVE = "parley:save", SESSION = "parley:session";
 const NEW_A_DAY = 12, REVIEW_CAP = 30;
 const DRILLS = ["recognise", "listen", "produce", "cloze"];   // by pile level
 
 let P = read(SAVE, { course: "zh", met: {}, day: {}, grammarSeen: {} });   // met: course -> [keys]; day: course -> { d: yyyymmdd, n }
 let C = null;          // the course
-let session = null;    // { items: [{ kind, key, word, unit, drill }], at, right, wrong }
+let session = null;    // { items: [{ kind, key, w, unit, drill }], at, right, wrong, newUnit, answered: { right, note, learned } | null }
 let picked = null;
 
 function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(P)); } catch { /* private mode */ } }
+/** The session under way, kept by its words' keys: a reload comes back to its card, and a partner watching sees it. */
+function keepSession() {
+  try {
+    if (!session) { localStorage.removeItem(SESSION); return; }
+    localStorage.setItem(SESSION, JSON.stringify({ course: C.id, at: session.at, right: session.right, wrong: session.wrong, answered: session.answered || null,
+      items: session.items.map(it => ({ kind: it.kind, key: it.key, drill: it.drill || null })) }));
+  } catch { /* private mode */ }
+}
+/** The kept session, rebuilt from the course; null if there's none, it's another course's, or the course changed under it. */
+function keptSession() {
+  const s = read(SESSION, null);
+  if (!s || s.course !== C.id || !Array.isArray(s.items)) return null;
+  const byKey = new Map(allWords().map(x => [x.key, x]));
+  const items = s.items.filter(x => byKey.has(x.key)).map(x => ({ ...byKey.get(x.key), kind: x.kind, drill: x.drill || undefined }));
+  if (items.length !== s.items.length || !(s.at < items.length)) return null;
+  return { items, at: s.at, right: s.right || 0, wrong: s.wrong || 0, newUnit: null, answered: s.answered || null };
+}
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const shuffle = (r, xs) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
 const keyOf = (unit, w) => `${C.id}:${unit.id}:${w.w}`;
@@ -91,7 +108,8 @@ function startStudy(unit = null) {
     if (day < NEW_A_DAY && next) { fresh = unmet(next).slice(0, NEW_A_DAY - day); fresh.unit = next; }
   }
   if (!items.length && !fresh.length) { toast("Nothing to study right now."); return; }
-  session = { items: [...items, ...fresh], at: 0, right: 0, wrong: 0, newUnit: fresh.unit && !P.grammarSeen[`${C.id}:${fresh.unit.id}`] ? fresh.unit : null };
+  session = { items: [...items, ...fresh], at: 0, right: 0, wrong: 0, newUnit: fresh.unit && !P.grammarSeen[`${C.id}:${fresh.unit.id}`] ? fresh.unit : null, answered: null };
+  keepSession();
   $("home").hidden = true; $("session").hidden = false; $("reader").hidden = true;
   if (session.newUnit) { const u = session.newUnit; P.grammarSeen[`${C.id}:${u.id}`] = true; save(); grammar(u, () => show()); return; }
   show();
@@ -99,6 +117,7 @@ function startStudy(unit = null) {
 function show() {
   const it = session.items[session.at];
   if (!it) { finish(); return; }
+  keepSession();
   picked = null;
   $("progress").textContent = `${session.at + 1} of ${session.items.length}`;
   $("verdict").textContent = ""; $("verdict").className = "pa-verdict";
@@ -270,20 +289,29 @@ function typed(it) {
   setTimeout(() => input.focus(), 50);
 }
 function settle(it, right, note) {
-  const { w } = it;
   const after = pile.answer("parley", it.key, right);
   session[right ? "right" : "wrong"]++;
+  session.answered = { right, note: note || null, learned: !!after?.learned };
+  keepSession();
+  showVerdict(it);
+  if (!right) speak(it.w.w);
+}
+/** The verdict on the card in hand, and Next. Picked up after a reload, the card is answered already: its answers are
+ *  locked, so it can't be answered (and counted) twice. */
+function showVerdict(it, locked = false) {
+  const { w } = it, { right, note, learned } = session.answered;
   const v = $("verdict");
   v.className = `pa-verdict ${right ? "good" : "bad"}`;
-  v.textContent = right ? (after?.learned ? "Right: learned." : "Right.") : "Not quite.";
+  v.textContent = right ? (learned ? "Right: learned." : "Right.") : "Not quite.";
   $("note").textContent = note || `${w.w}${w.py ? ` (${w.py})` : ""}: ${w.en}. ${w.ex.l2}${w.ex.py ? ` ${w.ex.py}` : ""} — ${w.ex.en}`;
-  if (!right) speak(w.w);
+  if (locked) $("answerBox").querySelectorAll("button, input").forEach(x => { x.disabled = true; });
   $("nextBtn").hidden = false;
   $("nextBtn").textContent = session.at + 1 < session.items.length ? "Next" : "Finish";
 }
-function next() { session.at++; show(); }
+function next() { session.at++; session.answered = null; show(); }
 function finish() {
   const s = session; session = null;
+  keepSession();
   home();
   if (s && s.right + s.wrong > 0) noteDayCount("parley");          // lessons done today, on the games screen
   if (s) toast(`${s.right} right, ${s.wrong} wrong this session.`, 4000);
@@ -366,7 +394,16 @@ function openMenu() {
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "parley");
 document.querySelector(".pa-mark").innerHTML = APPS.find(a => a.id === "parley").logo;
-function setCourse(id) { C = COURSES.find(c => c.id === id) || COURSES[0]; P.course = C.id; save(); $("course").value = C.id; session = null; home(); }
+/** Opens a course. Another course ends the session under way; on opening the page (resume), a kept session comes back. */
+function setCourse(id, resume = false) {
+  C = COURSES.find(c => c.id === id) || COURSES[0]; P.course = C.id; save(); $("course").value = C.id;
+  session = resume ? keptSession() : null;
+  if (!resume) keepSession();
+  if (!session) { home(); return; }
+  $("home").hidden = true; $("session").hidden = false; $("reader").hidden = true;
+  show();
+  if (session.answered) showVerdict(session.items[session.at], true);
+}
 $("course").addEventListener("change", e => setCourse(e.target.value));
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
@@ -374,4 +411,4 @@ $("studyBtn").addEventListener("click", () => startStudy());
 $("nextBtn").addEventListener("click", next);
 $("readClose").addEventListener("click", home);
 window.__parley = { get session() { return session; }, get course() { return C; }, startStudy, home, pile, speak };
-setCourse(P.course || "zh");
+setCourse(P.course || "zh", true);

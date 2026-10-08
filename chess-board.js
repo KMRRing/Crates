@@ -18,7 +18,8 @@ export function solutionSan(puzzle) {
 }
 
 /**
- * Mounts a puzzle board in `container`. opts: { onDone(solved), interactive, revealSolution }. Returns
+ * Mounts a puzzle board in `container`. opts: { onDone(solved), interactive, revealSolution, startStep (the moves
+ * already made, to pick a puzzle up part-way), onStep(step) (after every move, either side's) }. Returns
  * { destroy() }. The board plays the opponent's first move after a beat, then waits for taps.
  */
 export function mountPuzzle(container, puzzle, opts = {}) {
@@ -106,6 +107,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     selected = null; premove = null;
     if (!right) { fail(mv); return true; }
     play(uci(mv)); step++;
+    opts.onStep?.(step);
     draw();
     if (step >= puzzle.moves.length) { finish(true); return true; }
     later(reply, opts.replyMs ?? 350);
@@ -114,6 +116,7 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   /** The opponent's reply, then any premove the solver has waiting. */
   function reply() {
     play(puzzle.moves[step]); step++;
+    opts.onStep?.(step);
     draw();
     if (step >= puzzle.moves.length) { finish(true); return; }
     if (premove) { const p = premove; premove = null; if (!attempt(p.from, p.to)) draw(); }
@@ -183,10 +186,17 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   }
 
   draw();
-  // the opponent's move comes after a beat so the position registers first; a revealed board shows the whole line
+  // the opponent's move comes after a beat so the position registers first; a revealed board shows the whole line; a
+  // puzzle picked up part-way (opts.startStep: a run after a reload, or as a partner watching sees it) replays the moves
+  // already made, and if the opponent is to move, their move comes as it would have
   if (opts.revealSolution) {
     for (const m of puzzle.moves) play(m);
     step = puzzle.moves.length; done = true; draw();
+  } else if (opts.startStep > 0) {
+    step = Math.min(opts.startStep, puzzle.moves.length - 1);
+    for (const m of puzzle.moves.slice(0, step)) play(m);
+    draw();
+    if (step % 2 === 0) later(reply, opts.replyMs ?? 350);           // the opponent's moves are the even ones
   } else later(reply, opts.firstMs ?? 500);
   return { destroy() { timers.forEach(clearTimeout); }, get solver() { return solver; } };
 }

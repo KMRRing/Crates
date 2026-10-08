@@ -9,7 +9,8 @@ import "./pwa.js";
 
 const $ = id => document.getElementById(id);
 const NS = "http://www.w3.org/2000/svg";
-const PROGRESS = "calibre:progress", AT = "calibre:at", SPEED = "calibre:speed";
+const PROGRESS = "calibre:progress", AT = "calibre:at", SPEED = "calibre:speed", WORK = "calibre:work";
+const KEEP_WORK = 12;                   // levels whose design is kept, the most recently changed
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.append(e); return e; };
@@ -31,12 +32,14 @@ const running = () => sim.state !== "stopped";
 const barrelOf = () => design.arbors.find(a => (a.parts || []).some(p => p.kind === "barrel"));
 const progress = () => read(PROGRESS, {});
 
-function load(id) {
+/** Opens a level: your design on it where you left it (fresh: as the level starts, your design on it forgotten). */
+function load(id, fresh = false) {
   level = LEVELS.find(l => l.id === id) || LEVELS[0];
   write(AT, level.id);
   design = startDesign(level);
   tray = level.tray.map(t => ({ ...t, left: t.n }));
   chosen = null; selected = null; nextId = 1; history = []; hintAt = 0; showWork = false; scene = 0;
+  restoreWork(fresh);
   sim = { angles: {}, base: {}, wound: 0, windAngle: 0, balance: 0, fork: 0, state: "stopped", t: 0, hours: 0 };
   layer = Math.min(...level.tray.filter(t => t.kind !== "balance").map(() => 1), 1);
   const R = plateReach() + 0.8;
@@ -51,6 +54,32 @@ const shown = () => (level.scenarios ? inState(design, level.scenarios[scene]) :
 const curOut = () => (verdict.runs ? verdict.runs[scene].v.out : verdict.out);
 /** How far the plate reaches from the centre: its radius, or a rectangle's half-diagonal. */
 const plateReach = () => (typeof level.plate === "number" ? level.plate : Math.max(level.plate.w, level.plate.h) / 2);
+
+// ---------- your work: the design on each level, kept as it changes ----------
+// so it comes back after a reload or a visit to another level, and a partner watching sees the plate as it stands
+/** A level's fingerprint: its fixed arbors and its tray. A design saved against another version of a level isn't restored. */
+const sigOf = l => { let h = 0x811c9dc5; for (const ch of JSON.stringify([l.fixed, l.tray])) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; };
+const workOf = () => JSON.stringify([design.arbors, tray.map(t => t.left), nextId]);
+let savedWork = null;                   // the design as last kept: only a change is written
+function restoreWork(fresh) {
+  const all = read(WORK, {}), w = all[level.id];
+  if (fresh && w) { delete all[level.id]; write(WORK, all); }
+  else if (w && w.sig === sigOf(level) && Array.isArray(w.arbors) && w.left?.length === tray.length) {
+    design.arbors = w.arbors;
+    tray.forEach((t, i) => { t.left = w.left[i]; });
+    nextId = w.nextId || nextId;
+  }
+  savedWork = workOf();
+}
+/** Keeps the design if it changed since it was last kept: every change ends in a redraw, which calls this. */
+function keepWork() {
+  const now = workOf();
+  if (now === savedWork) return;
+  savedWork = now;
+  const all = read(WORK, {});
+  all[level.id] = { sig: sigOf(level), arbors: design.arbors, left: tray.map(t => t.left), nextId, at: Date.now() };
+  write(WORK, Object.fromEntries(Object.entries(all).sort((a, b) => b[1].at - a[1].at).slice(0, KEEP_WORK)));
+}
 
 // ---------- undo: every change can be taken back ----------
 function remember() { history.push({ arbors: JSON.stringify(design.arbors), left: tray.map(t => t.left), nextId }); if (history.length > 80) history.shift(); }
@@ -299,6 +328,7 @@ function render() {
   }
   frame();
   renderBrief(); renderTray(); renderLayers(); renderInspect(); showPower();
+  keepWork();
 }
 /** Moves what moves: wheels, hands, the spring, the fork and the balance, from the simulation's state. */
 function frame() { for (const [, update] of dyn) update(sim); }
@@ -775,7 +805,7 @@ function openCourse() {
 }
 function openMenu() {
   const body = $("menuBody"); body.replaceChildren();
-  part(body, "play").append(action("Start this level again", () => { $("menuDlg").close(); load(level.id); }, "primary"),
+  part(body, "play").append(action("Start this level again", () => { $("menuDlg").close(); load(level.id, true); }, "primary"),
     action("Undo", () => { $("menuDlg").close(); undo(); }), action("How it works", () => { $("menuDlg").close(); openPrimer(); }),
     action("Glossary", () => { $("menuDlg").close(); openGlossary(); }));
   part(body, "content").append(choice("Speed", SPEEDS, read(SPEED, 60), v => write(SPEED, v)));
@@ -802,7 +832,7 @@ $("workBtn").addEventListener("click", () => { showWork = !showWork; $("workBtn"
 $("undoBtn").addEventListener("click", undo);
 $("index").addEventListener("input", e => {
   const bal = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "balance" && p.adjustable);
-  if (bal) { bal.index = +e.target.value; verdict = judge(level, design); renderBrief(); }
+  if (bal) { bal.index = +e.target.value; verdict = judge(level, design); renderBrief(); keepWork(); }
 });
 document.addEventListener("keydown", e => {
   if (e.target.closest?.("input, textarea") || document.querySelector("dialog[open]")) return;

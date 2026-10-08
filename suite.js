@@ -92,7 +92,7 @@ export function unlink() { localStorage.removeItem(PAIR); }
 // every write to this device's storage is noted with its time, and goes up a moment later
 function touched(k, v) {
   if (typeof k !== "string") return;
-  if (!WATCHING && duoCode() && k.startsWith(storePrefix(pageGame())) && !mirrorTimer) mirrorTimer = setTimeout(() => { mirrorTimer = null; mirror(); }, PUSH_DELAY);
+  if (!WATCHING && duoCode() && gamesKey(pageGame(), k) && !mirrorTimer) mirrorTimer = setTimeout(() => { mirrorTimer = null; mirror(); }, PUSH_DELAY);
   if (!syncing() || LOCAL.test(k)) return;
   meta[k] = Date.now();
   put(META, meta);
@@ -365,18 +365,21 @@ async function listen() {
 // their own solo state is never touched; a veil keeps their taps off the board, and the page reloads when you move.
 // So any game can be watched, without code of its own. Keys of the suite, Crates' run link and Firebase's stay out.
 let mirrorTimer = null, watched = null;           // watched: inside a frame, the partner's copy { name, game, at, keys: Map }
-/** The prefix of a game's keys in storage: the game's id, but Slate keeps its old name, Glyph. */
-const storePrefix = game => (game === "slate" ? "glyph:" : `${game}:`);
+/** The prefixes of a game's keys in storage: the game's id; but Slate keeps its old name, Glyph, and Blend's rebuild
+ *  saves under blend2: (so its first version's saves were never misread), its stars under blend:. A key under none of
+ *  them isn't the game's: it isn't mirrored, and a watching frame reads the watcher's own. */
+const PREFIXES = { slate: ["glyph:"], blend: ["blend:", "blend2:"] };
+const gamesKey = (game, k) => !!game && (PREFIXES[game] || [`${game}:`]).some(p => k.startsWith(p));
 // what never goes to a watcher: the suite's own keys, Crates' run link (watching must not join their run), Firebase's
 const WATCH_SKIP = /^(suite:|crates:run|crates:updated|firebase:)/;
 const MIRROR_MAX = 300000;                        // a key larger than this (a long history) isn't mirrored
 async function mirror() {
   const code = duoCode();
   if (!code || WATCHING || !pageGame()) return;            // home has no game to show
-  const prefix = storePrefix(pageGame()), keys = {};
+  const game = pageGame(), keys = {};
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
-    if (!k.startsWith(prefix) || WATCH_SKIP.test(k)) continue;
+    if (!gamesKey(game, k) || WATCH_SKIP.test(k)) continue;
     const v = raw.get(k);
     if (v != null && v.length <= MIRROR_MAX) keys[enc(k)] = v;
   }
@@ -397,11 +400,13 @@ function readCopy() {
   const copy = window.parent !== window ? window.parent.__watchCopy : null;
   if (!copy) return;
   watched = copy;
-  const prefix = storePrefix(pageGame());
+  const game = pageGame();
   Storage.prototype.getItem = function (k) {
-    if (this === localStorage && watched) { if (watched.keys.has(k)) return watched.keys.get(k); if (k.startsWith(prefix) || WATCH_SKIP.test(k)) return null; }
+    if (this === localStorage && watched) { if (watched.keys.has(k)) return watched.keys.get(k); if (gamesKey(game, k) || WATCH_SKIP.test(k)) return null; }
     return raw.getItem.call(this, k);
   };
+  // a frame is redrawn every time your partner moves: it stays silent (Parley speaks each card as it shows it)
+  try { speechSynthesis.speak = () => {}; } catch { /* no speech here */ }
 }
 /** The watching page: your partner's game in frames that swap in place as they move. Never returns (the game itself stays held). */
 async function watchInFrames() {
