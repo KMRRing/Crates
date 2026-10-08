@@ -1,29 +1,35 @@
 // Calibre: learn watchmaking by drafting movements on the calibre plan. Each level gives a plate, the parts already
 // fixed there and a tray; you place wheels and pinions on layers, the engine runs the train as it would really turn,
 // and winding sets it going in time-lapse. Goals are met only when the watch truly keeps time.
-import { judge, inState, MONTHS, CENTURIES, EOT, amplitudeOf, startDesign, solved, partsUsed, snap, snapEscapement, radius, rateText, workings, MODULE, DIAL_LAYERS, ESCAPE_R, FORK_LENGTH, BALANCE_R, MAINSPRING_TURNS } from "./calibre-engine.js";
+import { judge, inState, MONTHS, CENTURIES, amplitudeOf, startDesign, solved, partsUsed, snap, snapEscapement, radius, rateText, workings, MODULE, DIAL_LAYERS, MAINSPRING_TURNS } from "./calibre-engine.js";
 import { LEVELS, CHAPTERS, GLOSSARY } from "./calibre-levels.js";
+import { LAYER_NAMES, partName, chipName, arborName, drawDesign, reachOf, extentOf } from "./calibre-draw.js";
+import { draw3d, CAM } from "./calibre-3d.js";
+import { lessonFor, TEACHES } from "./calibre-lessons.js";
+import { playScene, drawThumb, workAround } from "./calibre-scenes.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const NS = "http://www.w3.org/2000/svg";
-const PROGRESS = "calibre:progress", AT = "calibre:at", SPEED = "calibre:speed", WORK = "calibre:work";
+const PROGRESS = "calibre:progress", AT = "calibre:at", SPEED = "calibre:speed", WORK = "calibre:work", VIEW = "calibre:view";
 const KEEP_WORK = 12;                   // levels whose design is kept, the most recently changed
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); parent?.append(e); return e; };
-const LAYER_NAMES = { 1: "1", 2: "2", 3: "3", 4: "4", 5: "5", 6: "D1", 7: "D2", 8: "D3", 11: "A1", 12: "A2" };   // D: the dial side; A: the automatic module
 // parts that can only sit at one height: the barrel at the bottom, the ratchet on top of it, the escapement above the
 // train, calendar fingers and discs on the dial side
 const FORCED = { barrel: 1, ratchet: 5, escape: 9, fork: 9, balance: 10, finger: 8, star: 8, heart: 6, rotor: 12, reverser: 11, cam: 8, snail: 8, column: 7, cage: 9, trip: 8, lever: 6, fusee: 5, remontoire: 5, mainspring: 5, kidney: 8, century: 8 };
-const HANDS = { centre: "minute", hours: "hour", seconds: "seconds", h24: "gmt", chrono: "chrono", counter: "counter", local: "hour" };
 const SPEEDS = [[1, "Real time"], [60, "A minute a second"], [720, "Twelve minutes a second"]];
 
 // ---------- state ----------
 let level = null, design = null, tray = [], chosen = null, layer = 1, selected = null, view = null, nextId = 1, history = [], hintAt = 0, showWork = false, scene = 0;
+// what the plan isolates, drawing it full and the rest faint: a step of the workings ({ by: "work", at }: its two
+// arbors and their mesh lit, or the whole path), or an arbor with what drives it and what it drives ({ by: "arbor", id })
+let isolate = null, viewBefore = null;                         // viewBefore: the plan's view before it framed what's isolated
 let verdict = null, last = 0, toastTimer = 0;
+// the view: the plan, or the stack in 3D (cam: its angles in degrees, zoom and pan; scene3d: the drawing's handle)
+let view3d = !!read(VIEW, false), cam = { ...CAM }, scene3d = null, camAnim = 0;
+const SELECTABLE = [1, 2, 3, 4, 5, 6, 7, 8, 11, 12];             // the layers you choose (9 and 10 go with their parts)
 // The simulation: the angle of every arbor (in turns), how wound the mainspring is (0 to 1), the barrel arbor's turn
 // while winding, the balance's swing and the fork's rock (degrees), and what the movement is doing.
 const TURNS = MAINSPRING_TURNS;                                   // a fully wound mainspring gives the barrel five turns
@@ -38,22 +44,30 @@ function load(id, fresh = false) {
   write(AT, level.id);
   design = startDesign(level);
   tray = level.tray.map(t => ({ ...t, left: t.n }));
-  chosen = null; selected = null; nextId = 1; history = []; hintAt = 0; showWork = false; scene = 0;
+  chosen = null; selected = null; nextId = 1; history = []; hintAt = 0; showWork = false; scene = 0; isolate = null; viewBefore = null;
+  $("workBtn").textContent = "Workings";
   restoreWork(fresh);
   sim = { angles: {}, base: {}, wound: 0, windAngle: 0, balance: 0, fork: 0, state: "stopped", t: 0, hours: 0 };
-  layer = Math.min(...level.tray.filter(t => t.kind !== "balance").map(() => 1), 1);
+  layer = sideOf(level) === "dial" ? 6 : 1;                     // the first layer of the side the level is worked on
   const R = plateReach() + 0.8;
   view = { x: -R, y: -R, w: 2 * R, h: 2 * R };
+  cam = { ...cam, zoom: 1, panX: 0, panY: 0 };                   // a new plate: the whole of it in view, at the same angle
   render();
   $("windBtn").textContent = barrelOf() ? "Wind" : "Turn";
-  if (!progress()[level.id]?.seen) openPrimer();
+  if (!progress()[level.id]?.seen) openLesson();
 }
 
+/** The side of the plate a level is worked on, where its solution puts most of its parts (or its fixed ones, for a
+ *  level of settings): under the dial, or the train's. The 3D view stands it face up, and building starts on it. */
+const sideOf = l => {
+  const added = (l.solution?.add || []).map(s => s.part.layer), layers = added.length ? added : (l.fixed || []).flatMap(a => (a.parts || []).map(p => p.layer));
+  return layers.filter(x => DIAL_LAYERS.includes(x)).length * 2 > layers.length ? "dial" : "train";
+};
 /** The design in the state on show (a chronograph started or stopped, the rotor one way or the other), and its run. */
 const shown = () => (level.scenarios ? inState(design, level.scenarios[scene]) : design);
 const curOut = () => (verdict.runs ? verdict.runs[scene].v.out : verdict.out);
 /** How far the plate reaches from the centre: its radius, or a rectangle's half-diagonal. */
-const plateReach = () => (typeof level.plate === "number" ? level.plate : Math.max(level.plate.w, level.plate.h) / 2);
+const plateReach = () => reachOf(level.plate);
 
 // ---------- your work: the design on each level, kept as it changes ----------
 // so it comes back after a reload or a visit to another level, and a partner watching sees the plate as it stands
@@ -89,246 +103,38 @@ function undo() {
   stop(); design.arbors = JSON.parse(h.arbors); tray.forEach((t, i) => { t.left = h.left[i]; }); nextId = h.nextId; selected = null; render();
 }
 
-// ---------- drawing: each part as itself ----------
-const toothCache = new Map();
-/** A gear's outline: teeth round the pitch circle, as a cutter leaves them; pinions have fewer, deeper, rounder leaves. */
-function toothPath(teeth, pinion, m = MODULE) {
-  const key = `${teeth}${pinion ? "p" : ""}${m}`;
-  if (toothCache.has(key)) return toothCache.get(key);
-  const r = radius(teeth, m), out = r + m * (pinion ? 0.9 : 1), inn = r - m * (pinion ? 1.6 : 1.25), step = (2 * Math.PI) / teeth;
-  const shape = pinion ? [[-0.3, inn], [-0.18, out], [0.18, out], [0.3, inn]] : [[-0.25, inn], [-0.12, out], [0.12, out], [0.25, inn]];
-  const pts = [];
-  for (let i = 0; i < teeth; i++) for (const [da, rr] of shape) pts.push([Math.cos((i + da) * step) * rr, Math.sin((i + da) * step) * rr]);
-  const d = `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
-  toothCache.set(key, d);
-  return d;
-}
-/** A Swiss lever escape wheel: club teeth leaning the way it turns, cut to its own larger module. */
-function escapePath(teeth) {
-  const key = `e${teeth}`;
-  if (toothCache.has(key)) return toothCache.get(key);
-  const R = ESCAPE_R, step = (2 * Math.PI) / teeth, pts = [];
-  for (let i = 0; i < teeth; i++) {
-    const a = i * step;
-    for (const [da, rr] of [[0, R * 0.72], [0.18, R * 0.78], [0.62, R], [0.72, R * 0.97], [0.5, R * 0.8], [0.75, R * 0.72]]) pts.push([Math.cos(a + da * step) * rr, Math.sin(a + da * step) * rr]);
-  }
-  const d = `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
-  toothCache.set(key, d);
-  return d;
-}
-/** A flat spiral from radius r0 to r1 over the given turns, its radius running by the shape function f(s) on 0..1. */
-function spiralPath(r0, r1, turns, f = s => s, twist = 0) {
-  const n = Math.max(60, Math.round(turns * 48)), pts = [];
-  for (let i = 0; i <= n; i++) { const s = i / n, a = s * turns * 2 * Math.PI + twist * (1 - s), r = r0 + (r1 - r0) * f(s); pts.push(`${(Math.cos(a) * r).toFixed(3)} ${(Math.sin(a) * r).toFixed(3)}`); }
-  return `M${pts.join("L")}`;
-}
-/** The mainspring in its barrel: wound, its coils wrap tight round the arbor; let down, they lie against the drum wall. */
-const springShape = (wound, ra, rw) => s => wound * Math.pow(s, 3) + (1 - wound) * (1 - Math.pow(1 - s, 3));
-
+// ---------- drawing: the plan (each part's artwork is calibre-draw.js's) ----------
 const dyn = [];                                                  // what each frame moves: [element, update(state)]
-function drawPart(svg, a, p, clash) {
-  const g = el("g", { class: `cb-part cb-${p.kind}${p.layer === layer ? " on" : ""}${DIAL_LAYERS.includes(p.layer) ? " dial" : ""}${clash ? " clash" : ""}` }, svg);
-  const spin = el("g", {}, g);
-  dyn.push([spin, st => spin.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`)]);
-  if (p.kind === "barrel") {
-    const r = radius(p.teeth);
-    el("path", { d: toothPath(p.teeth), class: "cb-drum" }, spin);
-    el("circle", { r: r - MODULE * 2.4, class: "cb-cavity" }, spin);
-    const spring = el("path", { class: "cb-mainspring" }, g), ra = 0.62, rw = r - MODULE * 2.6;
-    dyn.push([spring, st => { spring.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`); spring.setAttribute("d", spiralPath(ra, rw, 6 + 6 * st.wound, springShape(st.wound, ra, rw), -st.wound * 9)); }]);
-    const arbor = el("g", {}, g);
-    el("circle", { r: ra, class: "cb-barrel-arbor" }, arbor); el("rect", { x: -0.24, y: -0.24, width: 0.48, height: 0.48, class: "cb-square" }, arbor);
-    dyn.push([arbor, st => arbor.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${st.windAngle * 360})`)]);
-  } else if (p.kind === "escape") {
-    el("path", { d: escapePath(p.teeth) }, spin);
-    for (let k = 0; k < 4; k++) el("line", { x1: 0, y1: 0, x2: Math.cos(k * Math.PI / 2) * ESCAPE_R * 0.7, y2: Math.sin(k * Math.PI / 2) * ESCAPE_R * 0.7, class: "cb-spoke" }, spin);
-  } else if (p.kind === "fork") {
-    const e = design.arbors.find(x => (x.parts || []).some(q => q.kind === "escape"));
-    const base = e ? Math.atan2(a.y - e.y, a.x - e.x) * 180 / Math.PI : 0;  // the lever points away from the escape wheel
-    const lever = el("g", {}, g);
-    // the anchor: two arms reaching back to the escape wheel with their pallet stones, the lever out to the fork's horns
-    el("path", { d: `M0 -0.18L${FORK_LENGTH - 0.45} -0.12L${FORK_LENGTH - 0.45} -0.32L${FORK_LENGTH} -0.32L${FORK_LENGTH} -0.1L${FORK_LENGTH - 0.25} -0.1L${FORK_LENGTH - 0.25} 0.1L${FORK_LENGTH} 0.1L${FORK_LENGTH} 0.32L${FORK_LENGTH - 0.45} 0.32L${FORK_LENGTH - 0.45} 0.12L0 0.18Z`, class: "cb-fork" }, lever);
-    el("path", { d: "M0 -0.2L-0.9 -1.15L-1.2 -0.95L-0.35 0L-1.2 0.95L-0.9 1.15L0 0.2Z", class: "cb-fork" }, lever);
-    el("rect", { x: -1.32, y: -1.2, width: 0.32, height: 0.22, class: "cb-stone", transform: "rotate(-35 -1.16 -1.09)" }, lever);
-    el("rect", { x: -1.32, y: 0.98, width: 0.32, height: 0.22, class: "cb-stone", transform: "rotate(35 -1.16 1.09)" }, lever);
-    dyn.push([lever, st => lever.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${base + (st.fork || 0)})`)]);
-  } else if (p.kind === "balance") {
-    const R = BALANCE_R, bal = el("g", {}, g), hair = el("path", { class: "cb-hairspring" }, g);
-    el("circle", { r: R - 0.14, class: "cb-rim" }, bal);
-    for (let k = 0; k < 3; k++) el("line", { x1: 0, y1: 0, x2: Math.cos(k * 2 * Math.PI / 3) * (R - 0.2), y2: Math.sin(k * 2 * Math.PI / 3) * (R - 0.2), class: "cb-arm" }, bal);
-    for (let k = 0; k < 8; k++) el("circle", { cx: Math.cos(k * Math.PI / 4 + 0.39) * (R - 0.14), cy: Math.sin(k * Math.PI / 4 + 0.39) * (R - 0.14), r: 0.13, class: "cb-screw" }, bal);
-    el("circle", { r: 0.42, class: "cb-roller" }, bal);
-    const f = design.arbors.find(x => (x.parts || []).some(q => q.kind === "fork"));
-    const toward = f ? Math.atan2(f.y - a.y, f.x - a.x) : 0;    // at rest the impulse pin sits in the fork's horns
-    el("circle", { cx: Math.cos(toward) * 0.42, cy: Math.sin(toward) * 0.42, r: 0.11, class: "cb-stone" }, bal);
-    dyn.push([bal, st => bal.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${st.balance || 0})`)]);
-    dyn.push([hair, st => { hair.setAttribute("transform", `translate(${a.x} ${a.y})`); hair.setAttribute("d", spiralPath(0.3, R * 0.68, 9, s => s, ((st.balance || 0) * Math.PI) / 180)); }]);
-  } else if (p.kind === "ratchet") {
-    const r = radius(p.teeth), step = (2 * Math.PI) / p.teeth, pts = [];
-    for (let i = 0; i < p.teeth; i++) { pts.push([Math.cos(i * step) * (r - 0.18), Math.sin(i * step) * (r - 0.18)]); pts.push([Math.cos((i + 0.85) * step) * (r + 0.1), Math.sin((i + 0.85) * step) * (r + 0.1)]); }
-    el("path", { d: `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`, class: "cb-ratchet" }, spin);
-    el("circle", { r: 0.5, class: "cb-hub" }, spin);
-    // the click rides on the teeth from outside, on its own little spring
-    el("path", { d: `M${(a.x + r + 0.9).toFixed(2)} ${(a.y - 0.6).toFixed(2)}L${(a.x + r - 0.05).toFixed(2)} ${(a.y + 0.05).toFixed(2)}L${(a.x + r + 0.6).toFixed(2)} ${(a.y + 0.2).toFixed(2)}Z`, class: "cb-click" }, g);
-  } else if (p.kind === "star" && p.internal) {
-    // the date ring: teeth on its inside, the dates printed round it
-    const step = (2 * Math.PI) / p.teeth, pts = [];
-    for (let i = 0; i < p.teeth; i++) { pts.push([Math.cos(i * step) * (p.r + 0.3), Math.sin(i * step) * (p.r + 0.3)]); pts.push([Math.cos((i + 0.5) * step) * (p.r - 0.15), Math.sin((i + 0.5) * step) * (p.r - 0.15)]); }
-    el("path", { d: `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}ZM${p.r + 1.3} 0A${p.r + 1.3} ${p.r + 1.3} 0 1 0 ${-(p.r + 1.3)} 0A${p.r + 1.3} ${p.r + 1.3} 0 1 0 ${p.r + 1.3} 0Z`, class: "cb-ring", "fill-rule": "evenodd" }, spin);
-    for (let i = 0; i < p.teeth; i++) { const t = el("text", { x: Math.cos((i + 0.5) * step) * (p.r + 0.85), y: Math.sin((i + 0.5) * step) * (p.r + 0.85), class: "cb-date", transform: `rotate(${(((i + 0.5) * step) * 180) / Math.PI + 90} ${Math.cos((i + 0.5) * step) * (p.r + 0.85)} ${Math.sin((i + 0.5) * step) * (p.r + 0.85)})` }, spin); t.textContent = i + 1; }
-  } else if (p.kind === "star" || (p.m && p.teeth >= 100)) {
-    // a moon disc (two moons on a night sky), or a star wheel pushed a tooth at a time
-    const r = p.kind === "star" ? p.r : radius(p.teeth, p.m), moon = p.teeth === 59 || p.teeth >= 100;
-    el("path", { d: p.kind === "star" ? starPath(p.teeth, r) : toothPath(p.teeth, false, p.m), class: moon ? "cb-moondisc" : "cb-star" }, spin);
-    if (moon) for (const k of [0, 1]) el("circle", { cx: Math.cos(k * Math.PI) * r * 0.55, cy: Math.sin(k * Math.PI) * r * 0.55, r: r * 0.28, class: "cb-moon" }, spin);
-  } else if (p.kind === "rotor") {
-    // the rotor: a half-moon weight over the whole movement, seen through
-    const rr = plateReach() * 0.92;
-    el("path", { d: `M${-rr} 0A${rr} ${rr} 0 0 1 ${rr} 0L${rr * 0.72} 0A${rr * 0.72} ${rr * 0.72} 0 0 0 ${-rr * 0.72} 0Z`, class: "cb-rotor" }, spin);
-    el("line", { x1: 0, y1: 0, x2: 0, y2: -rr * 0.72, class: "cb-rotor-arm" }, spin);
-  } else if (p.kind === "reverser") {
-    // a reverser: its wheel, and on the same arbor its pinion, joined by a one-way clutch (the small pawls between)
-    el("path", { d: toothPath(p.teeth) }, spin);
-    for (let k = 0; k < 3; k++) el("path", { d: `M${(Math.cos(k * 2.094) * 0.55).toFixed(2)} ${(Math.sin(k * 2.094) * 0.55).toFixed(2)}l${(Math.cos(k * 2.094 + 1.2) * 0.4).toFixed(2)} ${(Math.sin(k * 2.094 + 1.2) * 0.4).toFixed(2)}`, class: "cb-pawl" }, spin);
-    const pin = el("g", {}, g);
-    el("path", { d: toothPath(p.out, true) }, pin);
-    dyn.push([pin, st => pin.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[`${a.id}~`] || 0) * 360})`)]);
-  } else if (p.kind === "cam") {
-    // the calendar cam: a notch for every short month, deeper the shorter
-    const R2 = 2.6, n = p.notches.length, pts = [];
-    for (let i = 0; i < n; i++) for (const f of [0.15, 0.5, 0.85]) { const ang = ((i + f) / n) * 2 * Math.PI - Math.PI / 2, dep = f === 0.5 ? (31 - p.notches[i]) * 0.28 : 0; pts.push([Math.cos(ang) * (R2 - dep), Math.sin(ang) * (R2 - dep)]); }
-    el("path", { d: `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`, class: "cb-cam" }, spin);
-  } else if (p.kind === "snail") {
-    // the hour snail: twelve steps, the radius falling a step per hour
-    const pts = [];
-    for (let i = 0; i < 12; i++) { const r2 = 0.7 + (13 - p.steps[i]) * 0.17; for (const f of [0.02, 0.98]) { const ang = ((i + f) / 12) * 2 * Math.PI - Math.PI / 2 - Math.PI / 12; pts.push([Math.cos(ang) * r2, Math.sin(ang) * r2]); } }
-    el("path", { d: `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`, class: "cb-snail" }, spin);
-  } else if (p.kind === "column") {
-    // the column wheel: castellations standing round a disc
-    el("circle", { r: 1.25, class: "cb-colbase" }, spin);
-    for (let i = 0; i < p.columns; i++) { const ang = (i / p.columns) * 2 * Math.PI; el("rect", { x: -0.22, y: -1.25, width: 0.44, height: 0.5, transform: `rotate(${(ang * 180) / Math.PI})`, class: "cb-column" }, spin); }
-  } else if (p.kind === "cage") {
-    // the tourbillon: the fixed wheel stands still; the cage turns, carrying the escape wheel round it and the balance at its heart
-    const rs = radius(p.sun), rp = radius(p.pinion);
-    el("path", { d: toothPath(p.sun), class: "cb-sun", transform: `translate(${a.x} ${a.y})` }, g);
-    for (let k = 0; k < 3; k++) el("line", { x1: 0, y1: 0, x2: Math.cos(k * 2.094) * (rs + rp + 0.8), y2: Math.sin(k * 2.094) * (rs + rp + 0.8), class: "cb-cagearm" }, spin);
-    el("circle", { r: rs + rp + 0.8, class: "cb-cagering" }, spin);
-    const ew = el("g", { transform: `translate(${rs + rp} 0)` }, spin);
-    el("path", { d: toothPath(p.pinion, true) }, ew); el("path", { d: escapePath(p.escape), class: "cb-escape-in-cage", transform: "scale(0.7)" }, ew);
-    const bal = el("g", {}, g);
-    el("circle", { r: 1.4, class: "cb-rim" }, bal); el("line", { x1: -1.4, y1: 0, x2: 1.4, y2: 0, class: "cb-arm" }, bal);
-    dyn.push([bal, st => bal.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${((st.angles[a.id] || 0) * 360) + (st.balance || 0)})`)]);
-  } else if (p.kind === "fusee") {
-    // the fusée: a cone seen from above, its chain's groove spiralling in, beside the barrel
-    const fx = radius(80) + 1.6, fusee = el("g", { transform: `translate(${a.x + fx} ${a.y})` }, g);
-    for (let r2 = 1.5; r2 > 0.3; r2 -= 0.25) el("circle", { r: r2, class: "cb-fusee" }, fusee);
-    el("path", { d: spiralPath(0.35, 1.5, 4), class: "cb-chain" }, fusee);
-    el("line", { x1: a.x, y1: a.y - radius(80) + 0.3, x2: a.x + fx, y2: a.y - 1.5, class: "cb-chain" }, g);
-  } else if (p.kind === "remontoire") {
-    el("path", { d: spiralPath(0.2, 1.1, 5), class: "cb-remontoire", transform: `translate(${a.x} ${a.y})` }, g);
-  } else if (p.kind === "mainspring") {
-    el("circle", { r: radius(80) - 0.5, class: "cb-strongspring", transform: `translate(${a.x} ${a.y})` }, g);
-  } else if (p.kind === "lever") {
-    el("circle", { r: 0.45, class: p.flyback ? "cb-flyback" : "cb-plainlever", transform: `translate(${a.x} ${a.y})` }, g);
-  } else if (p.kind === "kidney") {
-    // the kidney cam: its radius each month the equation of time, as you've set it
-    const pts = [];
-    for (let i = 0; i <= 96; i++) { const t = (i / 96) * 12, m0 = Math.floor(t) % 12, m1 = (m0 + 1) % 12, f = t - Math.floor(t), v = p.values[m0] * (1 - f) + p.values[m1] * f, ang = (t / 12) * 2 * Math.PI - Math.PI / 2, r2 = 2.4 + v * 0.07; pts.push([Math.cos(ang) * r2, Math.sin(ang) * r2]); }
-    el("path", { d: `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`, class: "cb-kidney" }, spin);
-  } else if (p.kind === "century") {
-    el("circle", { r: 2, class: "cb-cam" }, spin);
-    p.leaps.forEach((leap, i) => { if (!leap) el("rect", { x: -0.3, y: -2.05, width: 0.6, height: 0.6, transform: `rotate(${i * 90})`, class: "cb-notch" }, spin); });
-  } else if (p.kind === "trip") {
-    const r2 = p.on === "hour" ? 1.9 : 1.1;
-    el("line", { x1: 0, y1: 0, x2: 0, y2: -r2, class: "cb-trip" }, spin);
-    el("circle", { cx: 0, cy: -r2, r: 0.2, class: "cb-trippin" }, spin);
-  } else if (p.kind === "heart") {
-    el("path", { d: "M0 0.9C-0.9 0.3 -1.15 -0.35 -0.75 -0.75C-0.4 -1.1 0 -0.85 0 -0.55C0 -0.85 0.4 -1.1 0.75 -0.75C1.15 -0.35 0.9 0.3 0 0.9Z", class: "cb-heart" }, spin);
-  } else if (p.kind === "finger") {
-    el("path", { d: `M0 -0.12L${p.len - 0.2} -0.08L${p.len} 0L${p.len - 0.2} 0.08L0 0.12Z`, class: "cb-finger" }, spin);
-  } else {
-    el("path", { d: toothPath(p.teeth, p.kind === "pinion", p.m) }, spin);
-    const r = radius(p.teeth, p.m);
-    if (p.kind === "wheel" && r > 1.2) {                       // a wheel's rim and its five crossings
-      el("circle", { r: r - MODULE * 2.2, class: "cb-rimline" }, spin);
-      for (let k = 0; k < 5; k++) { const ang = (k * 2 * Math.PI) / 5; el("line", { x1: Math.cos(ang) * 0.4, y1: Math.sin(ang) * 0.4, x2: Math.cos(ang) * (r - MODULE * 2.2), y2: Math.sin(ang) * (r - MODULE * 2.2), class: "cb-crossing" }, spin); }
-      el("circle", { r: 0.45, class: "cb-hub" }, spin);
-    }
-  }
-  el("title", {}, g).textContent = partName(p);
-}
-function starPath(teeth, r) {
-  const step = (2 * Math.PI) / teeth, pts = [];
-  for (let i = 0; i < teeth; i++) { pts.push([Math.cos(i * step) * r, Math.sin(i * step) * r]); pts.push([Math.cos((i + 0.5) * step) * (r - 0.35), Math.sin((i + 0.5) * step) * (r - 0.35)]); }
-  return `M${pts.map(q => q.map(v => v.toFixed(3)).join(" ")).join("L")}Z`;
-}
-const partName = p => p.kind === "balance" ? (p.inertia != null ? `Balance, inertia ${p.inertia}${p.adjustable ? ", with an index" : ""}` : `Balance, ${p.vph.toLocaleString("en-GB")} vph`)
-  : p.kind === "lever" ? (p.flyback ? "Flyback lever: keeps the coupling in at reset" : "Coupling lever: lifts the coupling at reset") : p.kind === "fusee" ? "Fusée and chain"
-  : p.kind === "remontoire" ? "Remontoire" : p.kind === "mainspring" ? `Stronger mainspring ×${p.strength}` : p.kind === "kidney" ? "Equation-of-time kidney cam" : p.kind === "century" ? "Century wheel"
-  : p.kind === "trip" ? (p.on === "hour" ? "Alarm trip on the hour wheel" : "Alarm trip on the cannon pinion") : p.kind === "cam" ? `Calendar cam, ${p.notches.length} months` : p.kind === "snail" ? "Hour snail" : p.kind === "column" ? `Column wheel, ${p.columns} columns` : p.kind === "cage" ? `Tourbillon cage: ${p.sun}-tooth fixed wheel, ${p.pinion}-leaf escape pinion` : p.kind === "rotor" ? "Rotor" : p.kind === "reverser" ? `Reverser: ${p.teeth}-tooth wheel, ${p.out}-leaf pinion, one-way` : p.kind === "heart" ? "Heart cam" : p.kind === "fork" ? "Pallet fork" : p.kind === "escape" ? `${p.teeth}-tooth escape wheel`
-  : p.kind === "barrel" ? `Barrel with its mainspring, ${p.teeth} teeth` : p.kind === "ratchet" ? `Ratchet wheel, ${p.teeth} teeth, with its click` : p.kind === "finger" ? "Driving finger"
-  : p.kind === "star" ? (p.internal ? `Date ring, ${p.teeth} inner teeth` : p.teeth === 59 ? "Moon disc, 59 teeth" : `${p.teeth}-tooth star wheel`)
-  : `${p.teeth}-${p.kind === "pinion" ? "leaf pinion" : "tooth wheel"}${p.m ? " (fine)" : ""}, layer ${LAYER_NAMES[p.layer] || p.layer}`;
 /** Minutes after twelve as a time on the dial. */
 const clock = t => `${Math.floor(t / 60) || 12}:${String(t % 60).padStart(2, "0")}`;
-/** A tray part in a few words, as its chip shows it. */
-const chipName = t => t.kind === "lever" ? (t.flyback ? "Flyback lever" : "Coupling lever") : t.kind === "fusee" ? "Fusée and chain" : t.kind === "remontoire" ? "Remontoire"
-  : t.kind === "mainspring" ? `Stronger mainspring ×${t.strength}` : t.kind === "trip" ? (t.on === "hour" ? "Hour trip" : "Minute trip") : t.kind === "column" ? `Column wheel ${t.columns}` : t.kind === "cage" ? `Cage ${t.sun}/${t.pinion}` : t.kind === "balance" ? (t.inertia != null ? `Balance, inertia ${t.inertia}` : `Balance ${t.vph.toLocaleString("en-GB")} vph`) : t.kind === "reverser" ? `Reverser ${t.teeth}/${t.out}` : t.kind === "heart" ? "Heart cam" : t.kind === "fork" ? "Pallet fork" : t.kind === "escape" ? `Escape wheel ${t.teeth}`
-  : t.kind === "barrel" ? `Barrel ${t.teeth}` : t.kind === "finger" ? "Finger" : t.kind === "star" ? (t.teeth === 59 ? "Moon disc 59" : `Star ${t.teeth}`)
-  : `${t.teeth}${t.m ? " fine" : ""} ${t.kind === "pinion" ? "leaves" : "teeth"}`;
 
 function render() {
   const svg = $("plan");
-  svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`);
   svg.replaceChildren();
   dyn.length = 0;
   verdict = judge(level, design);
-  const R = typeof level.plate === "number" ? level.plate : Math.min(level.plate.w, level.plate.h) / 2;
-  if (typeof level.plate === "number") {
-    el("circle", { cx: 0, cy: 0, r: R, class: "cb-plate" }, svg);
-    for (let r = 1.2; r < R; r += 0.9) el("circle", { cx: 0, cy: 0, r, class: "cb-perlage" }, svg);   // the plate's circular graining
-    for (let k = 1; k <= 12; k++) { const a = (k / 12) * 2 * Math.PI; el("line", { x1: Math.sin(a) * (R - 0.5), y1: -Math.cos(a) * (R - 0.5), x2: Math.sin(a) * R, y2: -Math.cos(a) * R, class: "cb-tick" }, svg); }
-  } else {
-    const { w, h } = level.plate;
-    el("rect", { x: -w / 2, y: -h / 2, width: w, height: h, rx: 1.2, class: "cb-plate" }, svg);
-    for (let y = -h / 2 + 0.9; y < h / 2; y += 0.9) el("line", { x1: -w / 2 + 0.3, y1: y, x2: w / 2 - 0.3, y2: y, class: "cb-perlage" }, svg);   // Côtes de Genève, straight
-  }
-  // with a gear in hand, faint circles show where its arbor would have to stand to mesh with each wheel on this layer
-  const t = tray[chosen];
-  if (t && t.teeth && !["escape", "star", "finger", "balance", "fork"].includes(t.kind)) {
-    const rr = radius(t.teeth, t.m), lay = FORCED[t.kind] || layer;
-    for (const a of design.arbors) for (const q of a.parts || []) if (q.layer === lay && q.teeth && !["escape", "star"].includes(q.kind) && (q.m || MODULE) === (t.m || MODULE))
-      el("circle", { cx: a.x, cy: a.y, r: radius(q.teeth, q.m) + rr, class: "cb-guide" }, svg);
-  }
-  const out = curOut(), arbors = shown().arbors, clashing = new Set(out.clashes.flatMap(c => c.arbors));
-  // a lever's arm, from its pivot to the arbor it carries, drawn under the parts
-  for (const a of arbors) if (a.lever) el("line", { x1: a.lever.x, y1: a.lever.y, x2: a.x, y2: a.y, class: "cb-lever" }, svg);
-  // parts from the lowest layer up, so higher ones lie on top as they do in the movement
-  const parts = arbors.flatMap(a => (a.parts || []).map(p => ({ a, p }))).sort((u, v) => u.p.layer - v.p.layer);
-  for (const { a, p } of parts) drawPart(svg, a, p, clashing.has(a.id));
-  for (const m of out.meshes) {
-    const A = arbors.find(a => a.id === m.a) || arbors.find(a => `${a.id}~` === m.a), B = arbors.find(a => a.id === m.b) || arbors.find(a => `${a.id}~` === m.b), k = m.ra / (m.ra + m.rb);
-    if (!A || !B) continue;
-    el("circle", { cx: A.x + (B.x - A.x) * k, cy: A.y + (B.y - A.y) * k, r: 0.16, class: "cb-mesh" }, svg);
-  }
-  for (const a of arbors) {                                       // hands on the arbors that carry them
-    const hand = HANDS[a.id];
-    if (!hand || !(a.parts || []).length) continue;
-    const len = { hour: R * 0.42, minute: R * 0.62, gmt: R * 0.22, chrono: R * 0.78, counter: R * 0.14 }[hand] || R * 0.18, g = el("g", { class: `cb-hand cb-${hand}` }, svg);
-    el("line", { x1: 0, y1: hand === "seconds" ? len * 0.25 : 0, x2: 0, y2: -len }, g);
-    dyn.push([g, st => g.setAttribute("transform", `translate(${a.x} ${a.y}) rotate(${(st.angles[a.id] || 0) * 360})`)]);
-  }
-  for (const a of arbors) {                                       // pivots: jewels in their chatons; posts plain
-    const train = (a.parts || []).some(p => !DIAL_LAYERS.includes(p.layer));
-    const pin = el("g", { "data-arbor": a.id, class: `cb-pivot${a.fixed ? " fixed" : ""}${selected === a.id ? " sel" : ""}${a.noParts ? " post" : ""}` }, svg);
-    if (a.noParts) el("circle", { cx: a.x, cy: a.y, r: 0.4, class: "cb-post" }, pin);
-    else { el("circle", { cx: a.x, cy: a.y, r: 0.3, class: "cb-chaton" }, pin); el("circle", { cx: a.x, cy: a.y, r: 0.17, class: train ? "cb-jewel" : "cb-stud" }, pin); }
-    el("title", {}, pin).textContent = a.label || "Arbor";
-    if (a.label && a.fixed && !a.on) { const t = el("text", { x: a.x, y: a.y + 0.95, class: "cb-label" }, svg); t.textContent = a.label.replace(/ \(.*\)$/, ""); }
-  }
+  const lens = lensOf();
+  const o = { plate: level.plate, arbors: shown().arbors, out: curOut(), layer, selected, guides: guides(), labels: true, dyn, focus: lens?.ids || null, lit: lens?.lit || null };
+  if (view3d) scene3d = draw3d(svg, { ...o, target: chosenLayer(), cam, up: sideOf(level) });
+  else { scene3d = null; svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`); drawDesign(svg, o); }
   frame();
   renderBrief(); renderTray(); renderLayers(); renderInspect(); showPower();
+  if (scene3d) {                                                  // in 3D the stack keeps clear of the inspector
+    const insp = $("inspect"), cover = insp.hidden ? 0 : Math.min(0.6, (insp.offsetHeight + 8) / Math.max(1, svg.clientHeight));
+    if (cover !== scene3d.inset) { scene3d.inset = cover; scene3d.update(cam); }
+  }
   keepWork();
+}
+/** The layer the part in hand goes on: its own (a barrel's, an escape wheel's) or the one chosen. */
+const chosenLayer = () => { const t = tray[chosen]; return t ? FORCED[t.kind] || layer : null; };
+/** With a gear in hand, faint circles where its arbor would have to stand to mesh with each wheel on its layer. */
+function guides() {
+  const t = tray[chosen];
+  if (!t?.teeth || ["escape", "star", "finger", "balance", "fork"].includes(t.kind)) return [];
+  const rr = radius(t.teeth, t.m), lay = FORCED[t.kind] || layer, out = [];
+  for (const a of design.arbors) for (const q of a.parts || []) if (q.layer === lay && q.teeth && !["escape", "star"].includes(q.kind) && (q.m || MODULE) === (t.m || MODULE))
+    out.push({ x: a.x, y: a.y, r: radius(q.teeth, q.m) + rr });
+  return out;
 }
 /** Moves what moves: wheels, hands, the spring, the fork and the balance, from the simulation's state. */
 function frame() { for (const [, update] of dyn) update(sim); }
@@ -383,23 +189,86 @@ function renderBrief() {
   $("indexRow").hidden = !bal;
   if (bal) { $("index").value = bal.index || 0; $("indexOut").textContent = `${(bal.index || 0) >= 0 ? "+" : ""}${(bal.index || 0).toFixed(3)}`; }
   renderEditor();
-  // the workings: how the first goal that isn't met is driven, step by step, ratio by ratio
-  const work = $("work");
-  work.hidden = !showWork;
-  if (showWork) {
-    const g = verdict.goals.find(x => !x.ok && x.goal.arbor) || verdict.goals.find(x => x.goal.arbor);
-    const steps = g && workings(design, verdict.out, g.goal.arbor), name = id => (design.arbors.find(a => a.id === id)?.label || "your arbor").replace(/ \(.*\)$/, "");
-    if (!g) work.textContent = "";
-    else if (!steps) work.textContent = `${name(g.goal.arbor)} isn't connected to anything that turns yet.`;
-    else {
-      let total = 1;
-      const parts = steps.map(st => { const k = st.finger ? 1 / st.finger : st.driver / st.driven; total *= st.finger ? k : -k;
-        return st.finger ? `${name(st.from)} → ${name(st.to)}: a finger, a tooth a turn of ${st.finger}` : `${name(st.from)} ${st.driver} → ${st.driven} ${name(st.to)}: ×${+(st.driver / st.driven).toFixed(4)}, reversed`; });
-      work.textContent = `${parts.join(" · ")}. In all ×${+Math.abs(total).toFixed(5)}, ${total > 0 ? "same way as the source" : "the other way"}.`;
-    }
-  }
+  renderWork();
   $("hintBtn").textContent = level.hints.length ? (hintAt ? `Hint ${Math.min(hintAt + 1, level.hints.length)}/${level.hints.length}` : "Hint") : "";
   $("hintBtn").hidden = !level.hints.length;
+}
+
+// ---------- the workings and the lens: how an arbor is driven, a mesh at a time, the parts in question isolated ----------
+const bare = id => id.replace(/~$/, "");                         // a reverser's pinion is its arbor's
+/** An arbor in a sentence: its name, or for one of yours what it carries ("your 10/75 arbor"). */
+const nameOf = id => { const a = shown().arbors.find(x => x.id === bare(id)); return !a ? "it" : a.label ? arborName(a) : `your ${teethOf(a) || "new"} arbor`; };
+/** The same, short, for a chip: no bracket, no "wheel". */
+const shortOf = id => { const a = shown().arbors.find(x => x.id === bare(id)); return !a ? "?" : a.label ? arborName(a).replace(/(.) wheel$/, "$1") : teethOf(a) || "yours"; };
+const teethOf = a => (a.parts || []).filter(p => p.teeth).map(p => p.teeth).join("/");
+/** A ratio as it reads: ×8 speeding up, ÷3 slowing down. */
+const times = k => { const m = Math.abs(k); return m >= 1 - 1e-9 ? `×${+m.toFixed(3)}` : `÷${+(1 / m).toFixed(3)}`; };
+/** A step of the workings in words: what drives what, the arithmetic, and which way round. */
+function stepWords(st) {
+  if (st.finger) return `A finger on ${nameOf(st.from)} pushes ${nameOf(st.to)} on one tooth of ${st.finger} each turn: ${times(st.k)}, by fits and starts.`;
+  if (st.clutch) return `${nameOf(st.from)}'s one-way clutch passes its wheel's turning to its pinion: turned this way round, it drives.`;
+  if (st.link) return `${nameOf(st.to)} is held to ${nameOf(st.from)} and turns with it.`;
+  const part = (id, teeth) => { const p = (shown().arbors.find(x => x.id === bare(id))?.parts || []).find(q => q.layer === st.layer); return id.endsWith("~") || p?.kind === "pinion" ? `${teeth}-leaf pinion` : p?.kind === "barrel" ? `barrel's ${teeth} teeth` : `${teeth}-tooth wheel`; };
+  const from = part(st.from, st.driver), subject = from.startsWith("barrel") ? `The ${from}` : `The ${from} on ${nameOf(st.from)}`;
+  const up = Math.abs(st.k) > 1 + 1e-9, down = Math.abs(st.k) < 1 - 1e-9;   // as a watchmaker says it: 80 over 10, 10 into 30
+  return `${subject} ${from.startsWith("barrel") ? "drive" : "drives"} the ${part(st.to, st.driven)} on ${nameOf(st.to)}: ${st.driver} ${down ? "into" : "over"} ${st.driven} is ${times(st.k)}, ${up ? "faster" : down ? "slower" : "as fast"}, and the other way round.`;
+}
+/** The goal the workings explain (the first not yet met in the state on show; all met, the one at the end of the longest
+ *  path), and the path that drives its arbor. */
+function workPath() {
+  const sc = level.scenarios?.[scene]?.id, here = verdict.goals.filter(x => x.goal.arbor && (!x.goal.in || x.goal.in === sc));
+  const paths = here.map(g => ({ g, steps: workings(shown(), curOut(), g.goal.arbor) }));
+  return paths.find(x => !x.g.ok) || paths.reduce((m, x) => ((x.steps?.length ?? -1) > (m?.steps?.length ?? -1) ? x : m), null) || { g: null, steps: null };
+}
+/** How an arbor is driven and what it drives, in the state on show; ids: those arbors. */
+function relationsOf(id) {
+  const d = shown(), out = curOut(), path = workings(d, out, id), from = path?.length ? path[path.length - 1] : null, drives = [];
+  for (const body of [id, `${id}~`]) for (const [to] of out.edges.get(body) || []) {
+    if (to === from?.from) continue;
+    const p = workings(d, out, to), last = p?.[p.length - 1];
+    if (last?.from === body) drives.push(last);
+  }
+  return { from, drives, source: !!path && !path.length, ids: [from?.from, ...drives.map(st => st.to)].filter(Boolean).map(bare) };
+}
+/** What the plan isolates now, from what was asked for: recomputed every draw, so it follows the design as it changes. */
+function lensOf() {
+  if (isolate?.by === "work" && showWork) {
+    const { steps } = workPath();
+    if (!steps?.length || isolate.at > steps.length) return null;
+    if (isolate.at === steps.length) return { ids: new Set(steps.flatMap(st => [bare(st.from), bare(st.to)])), lit: null };
+    const st = steps[isolate.at], a = bare(st.from), b = bare(st.to);
+    return { ids: new Set([a, b]), lit: st.driver ? { a, b } : null };
+  }
+  if (isolate?.by === "arbor" && design.arbors.some(a => a.id === isolate.id)) return { ids: new Set([isolate.id, ...relationsOf(isolate.id).ids]), lit: null };
+  return null;
+}
+/** The workings: a chip for each step from the power to the goal's arbor and one for the whole, the chosen one in words. */
+function renderWork() {
+  const box = $("work");
+  box.hidden = !showWork;
+  if (!showWork) return;
+  box.replaceChildren();
+  const say = text => { const p = document.createElement("p"); p.className = "cb-work-say"; p.textContent = text; box.append(p); };
+  const { g, steps } = workPath();
+  if (!g) return say("No train to follow here: the goals say what to watch.");
+  if (!steps) return say(`${nameOf(g.goal.arbor)} isn't turned by anything yet${level.scenarios ? " in this state" : ""}.`);
+  if (!steps.length) return say(`${nameOf(g.goal.arbor)} is the power: everything else turns from it.`);
+  const total = steps.reduce((m, st) => m * st.k, 1), at = isolate?.by === "work" ? isolate.at : null, rate = curOut().rates[g.goal.arbor];
+  // the train as a chain: each arbor's name, and between them the step's ratio, a tap to see that mesh alone
+  const row = document.createElement("div"); row.className = "cb-work-steps";
+  const name = id => { const e = document.createElement("span"); e.className = "cb-work-name"; e.textContent = shortOf(id); row.append(e); };
+  const chip = (i, text, title) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = `cb-work-step${i === at ? " on" : ""}${i === steps.length ? " all" : ""}`; b.textContent = text; b.title = title;
+    b.setAttribute("aria-pressed", String(i === at));
+    b.addEventListener("click", () => setIsolate(i === at ? null : { by: "work", at: i }));
+    row.append(b);
+  };
+  name(steps[0].from);
+  steps.forEach((st, i) => { chip(i, st.clutch ? "clutch" : st.link ? "held" : times(st.k), `${shortOf(st.from)} to ${shortOf(st.to)}`); name(st.to); });
+  chip(steps.length, `= ${times(total)}`, "The whole train");
+  box.append(row);
+  say(at != null && at < steps.length ? stepWords(steps[at])
+    : `${nameOf(steps[0].from)} to ${nameOf(g.goal.arbor)}: ${times(total)} in all, ${total > 0 ? "the same way round" : "the other way round"}${rate ? `: ${rateText(rate)}` : ""}. Tap a ratio to see its mesh alone.`);
 }
 
 function renderTray() {
@@ -432,28 +301,40 @@ function renderLayers() {
   }));
 }
 
+/** The arbor selected: its rate, what drives it and what it drives (mesh by mesh), its parts, and its tools. Isolated, it
+ *  keeps to its rate and its neighbours, out of the way of the plan. */
 function renderInspect() {
   const box = $("inspect"), a = design.arbors.find(x => x.id === selected);
   if (!a) { box.hidden = true; return; }
   box.hidden = false;
   box.replaceChildren();
-  const h = document.createElement("p"); h.className = "cb-in-head"; h.textContent = `${a.label || "Arbor"} · ${rateText(curOut().rates[a.id])}`;
-  box.append(h);
-  for (const [i, p] of (a.parts || []).entries()) {
-    const row = document.createElement("p"); row.className = "cb-in-row";
-    row.textContent = partName(p);
+  const on = isolate?.by === "arbor" && isolate.id === a.id, rel = relationsOf(a.id);
+  const line = (text, cls) => { const p = document.createElement("p"); p.className = cls; p.textContent = text; box.append(p); return p; };
+  line(`${a.label || "Arbor"} · ${rateText(curOut().rates[a.id])}`, "cb-in-head");
+  // how it works: what turns it and what it turns, each mesh's counts and ratio
+  const how = (st, lead, who) => `${lead} ${nameOf(who)}${st.driver ? `: ${st.driver} → ${st.driven}, ${times(st.k)}` : st.finger ? `: a finger, ${times(st.k)}` : ""}`;
+  for (const t of [...(rel.from ? [how(rel.from, "Driven by", rel.from.from)] : rel.source ? ["The power: the rest turns from here"] : []), ...rel.drives.map(st => how(st, "Drives", st.to))]) line(t, "cb-in-how");
+  if (!on) for (const [i, p] of (a.parts || []).entries()) {
+    const row = line(partName(p), "cb-in-row");
     if (!p.fixed) {
       const x = document.createElement("button"); x.type = "button"; x.className = "cb-x"; x.textContent = "Remove";
       x.addEventListener("click", () => removePart(a, i));
       row.append(x);
     }
-    box.append(row);
   }
-  if (a.placed) {
+  const tools = document.createElement("p"); tools.className = "cb-in-tools";
+  if (rel.ids.length) {                                           // it and its neighbours alone: the rest drawn faint
+    const b = document.createElement("button");
+    b.type = "button"; b.className = `cb-x${on ? " on" : ""}`; b.textContent = on ? "Show all" : "Isolate"; b.setAttribute("aria-pressed", String(on));
+    b.addEventListener("click", () => setIsolate(on ? null : { by: "arbor", id: a.id }));
+    tools.append(b);
+  }
+  if (a.placed && !on) {
     const x = document.createElement("button"); x.type = "button"; x.className = "cb-x"; x.textContent = "Take out the whole arbor";
-    x.addEventListener("click", () => { remember(); design.arbors = design.arbors.filter(y => y !== a); selected = null; render(); });
-    box.append(x);
+    x.addEventListener("click", () => { remember(); design.arbors = design.arbors.filter(y => y !== a); selected = null; setIsolate(null); });
+    tools.append(x);
   }
+  if (tools.children.length) box.append(tools);
 }
 
 // ---------- editors: cutting a cam, numbering a snail; and striking the hours ----------
@@ -602,6 +483,36 @@ function place(x, y) {
   render();
 }
 
+/** Selects an arbor (or none); an arbor isolated in the inspector hands the isolation on to the one selected (framed once
+ *  the caller has drawn the inspector it leaves room for). */
+function select(id) {
+  selected = id;
+  if (isolate?.by === "arbor" && isolate.id !== id) { isolate = id ? { by: "arbor", id } : null; queueMicrotask(() => { frameIsolated(); render(); }); }
+}
+/** Isolates something (or nothing) and frames the plan on it. */
+function setIsolate(next) {
+  isolate = next;
+  render();                                                       // the inspector first: the frame leaves room for it
+  frameIsolated();
+  render();
+}
+/** Frames the plan on what's isolated, in the room above the inspector; with nothing isolated, back to the view before. */
+function frameIsolated() {
+  if (view3d) return;
+  const lens = lensOf();
+  if (!lens) { if (viewBefore) { view = viewBefore; viewBefore = null; } return; }
+  const b = svg.getBoundingClientRect(), reach = plateReach();
+  if (!b.width || !b.height) return;
+  viewBefore ??= { ...view };
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const a of shown().arbors.filter(x => lens.ids.has(x.id))) {
+    const r = Math.max(0.6, ...(a.parts || []).filter(p => p.kind !== "rotor").map(p => extentOf(p, reach)));
+    x0 = Math.min(x0, a.x - r); x1 = Math.max(x1, a.x + r); y0 = Math.min(y0, a.y - r); y1 = Math.max(y1, a.y + r);
+  }
+  const insp = $("inspect"), room = insp.hidden ? b.height : Math.max(b.height * 0.4, Math.min(b.height, insp.getBoundingClientRect().top - b.top - 6));
+  const pad = 0.8, k = Math.max((x1 - x0 + 2 * pad) / b.width, (y1 - y0 + 2 * pad) / room, 4 / b.width);   // plan units a pixel
+  view = { x: (x0 + x1) / 2 - (b.width / 2) * k, y: (y0 + y1) / 2 - (room / 2) * k, w: b.width * k, h: b.height * k };
+}
 function arborAt(x, y) {
   let best = null, bd = Infinity;
   for (const a of design.arbors) { const d = Math.hypot(a.x - x, a.y - y); if (d < bd) { bd = d; best = a; } }
@@ -609,10 +520,18 @@ function arborAt(x, y) {
 }
 
 // ---------- the plate: tap, drag, pinch, wheel ----------
+// On the plan a drag pans (or moves an arbor of yours) and a tap places or selects. In 3D a drag turns the view (or
+// moves an arbor of yours on its layer's plane), a tap on the rail chooses a layer, a tap on a part selects it and its
+// layer, and with a part in hand a tap places it on its layer's plane, where the finger meets it.
 const svg = $("plan"), pointers = new Map();
 let gesture = null;
 const toPlan = (cx, cy) => { const b = svg.getBoundingClientRect(), k = Math.max(view.w / b.width, view.h / b.height); return [view.x + (cx - b.left - (b.width - view.w / k) / 2) * k, view.y + (cy - b.top - (b.height - view.h / k) / 2) * k]; };
+/** A point of the page in the 3D view's own units. */
+const toView = (cx, cy) => { const q = new DOMPoint(cx, cy).matrixTransform(svg.getScreenCTM().inverse()); return [q.x, q.y]; };
+/** How near a part's centre a tap in 3D must land to pick it: about a finger's width. */
+const reach3d = () => { const b = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal; return Math.max(0.6, (22 * vb.width) / Math.max(1, b.width)); };
 function zoomAt(f, cx, cy) {
+  if (view3d) { cam = { ...cam, zoom: Math.min(6, Math.max(0.6, cam.zoom / f)) }; scene3d?.update(cam); return; }
   const [px, py] = cx == null ? [view.x + view.w / 2, view.y + view.h / 2] : toPlan(cx, cy), R = plateReach() + 0.8;
   const w = Math.min(2 * R * 1.5, Math.max(3, view.w * f)), k = w / view.w;
   view = { x: px - (px - view.x) * k, y: py - (py - view.y) * k, w, h: view.h * k };
@@ -622,10 +541,14 @@ svg.addEventListener("pointerdown", e => {
   svg.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   const pts = [...pointers.values()];
-  if (pts.length === 1) {
-    const [x, y] = toPlan(e.clientX, e.clientY), a = arborAt(x, y);
-    gesture = { kind: a && !a.fixed && chosen == null ? "move" : "pan", a, from: pts[0], view: { ...view }, moved: false };
-  } else gesture = { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), w: view.w };
+  if (pts.length > 1) { gesture = { kind: "pinch", d: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y), w: view.w, zoom: cam.zoom }; return; }
+  if (view3d && scene3d) {
+    const rail = scene3d.layerAt(e.target), hit = rail ? null : scene3d.arborAt(...toView(e.clientX, e.clientY), reach3d());
+    gesture = { kind: rail ? "rail" : hit && !hit.a.fixed && chosen == null ? "move" : "turn", rail, a: hit?.a, layer: hit?.layer, from: pts[0], cam: { ...cam }, moved: false };
+    return;
+  }
+  const [x, y] = toPlan(e.clientX, e.clientY), a = arborAt(x, y);
+  gesture = { kind: a && !a.fixed && chosen == null ? "move" : "pan", a, from: pts[0], view: { ...view }, moved: false };
 });
 svg.addEventListener("pointermove", e => {
   if (!pointers.has(e.pointerId) || !gesture) return;
@@ -633,6 +556,7 @@ svg.addEventListener("pointermove", e => {
   const pts = [...pointers.values()];
   if (gesture.kind === "pinch" && pts.length >= 2) {
     const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    if (view3d) { cam = { ...cam, zoom: Math.min(6, Math.max(0.6, gesture.zoom * d / Math.max(1, gesture.d))) }; scene3d?.update(cam); return; }
     zoomAt(gesture.w * gesture.d / Math.max(1, d) / view.w, (pts[0].x + pts[1].x) / 2, (pts[0].y + pts[1].y) / 2);
     return;
   }
@@ -640,11 +564,19 @@ svg.addEventListener("pointermove", e => {
   if (!gesture.moved) return;
   if (gesture.kind === "move") {
     if (!gesture.saved) { remember(); gesture.saved = true; }
-    const [x, y] = toPlan(e.clientX, e.clientY), first = gesture.a.parts.find(p => p.teeth);
+    const first = gesture.a.parts.find(p => p.teeth);
+    const [x, y] = view3d ? scene3d.toPlane(first?.layer ?? gesture.layer ?? layer, ...toView(e.clientX, e.clientY)) : toPlan(e.clientX, e.clientY);
     const s = first && snap(design, x, y, first.teeth, first.layer, gesture.a.id, first.m);
     gesture.a.x = s ? s.x : x; gesture.a.y = s ? s.y : y;
     render();
-  } else {
+  } else if (gesture.kind === "turn") {
+    // across turns it about the stack, down and up tilts it: from the dial side over to the back and round again
+    let el = gesture.cam.el - (pts[0].y - gesture.from.y) * 0.35;
+    el = Math.max(-85, Math.min(85, el));
+    if (Math.abs(el) < 8) el = el < 0 ? -8 : 8;                  // edge on, the layers would collapse into lines
+    cam = { ...cam, az: gesture.cam.az + (pts[0].x - gesture.from.x) * 0.45, el };
+    scene3d?.update(cam);
+  } else if (gesture.kind === "pan") {
     const b = svg.getBoundingClientRect(), k = Math.max(view.w / b.width, view.h / b.height);
     view = { ...gesture.view, x: gesture.view.x - (pts[0].x - gesture.from.x) * k, y: gesture.view.y - (pts[0].y - gesture.from.y) * k };
     render();
@@ -654,9 +586,21 @@ const lift = e => {
   if (!pointers.has(e.pointerId)) return;
   pointers.delete(e.pointerId);
   if (gesture && !gesture.moved && gesture.kind !== "pinch" && e.type === "pointerup") {
-    const [x, y] = toPlan(e.clientX, e.clientY);
-    if (chosen != null) place(x, y);
-    else { const a = arborAt(x, y); selected = a ? a.id : null; render(); }
+    if (gesture.kind === "rail") { if (SELECTABLE.includes(gesture.rail)) { layer = gesture.rail; render(); } }
+    else if (view3d && scene3d) {
+      const target = chosenLayer();
+      if (chosen != null) place(...scene3d.toPlane(target, ...toView(e.clientX, e.clientY)));
+      else {
+        const hit = gesture.a ? { a: gesture.a, layer: gesture.layer } : null;
+        select(hit ? hit.a.id : null);
+        if (hit && SELECTABLE.includes(hit.layer)) layer = hit.layer;   // a part tapped: its layer is the one in hand
+        render();
+      }
+    } else {
+      const [x, y] = toPlan(e.clientX, e.clientY);
+      if (chosen != null) place(x, y);
+      else { const a = arborAt(x, y); select(a ? a.id : null); render(); }
+    }
   }
   if (!pointers.size) gesture = null;
 };
@@ -665,6 +609,26 @@ svg.addEventListener("pointercancel", lift);
 svg.addEventListener("wheel", e => { e.preventDefault(); zoomAt(Math.exp(e.deltaY * 0.0015), e.clientX, e.clientY); }, { passive: false });
 $("zoomIn").addEventListener("click", () => zoomAt(1 / 1.5));
 $("zoomOut").addEventListener("click", () => zoomAt(1.5));
+/** Plan or 3D: the camera swings between straight down (where the 3D view is the plan) and the stack tilted. */
+function setView(to3d) {
+  cancelAnimationFrame(camAnim);
+  write(VIEW, to3d);
+  $("view3dBtn").textContent = to3d ? "Plan" : "3D";
+  $("view3dBtn").setAttribute("aria-pressed", String(to3d));
+  const flat = { az: 0, el: 89.5, zoom: 1, panX: 0, panY: 0 }, from = view3d ? { ...cam } : flat, to = to3d ? { ...CAM } : flat;
+  view3d = true; cam = { ...from }; render();
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { cam = to; view3d = to3d; render(); return; }
+  const t0 = performance.now(), D = 560;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / D), e = k < 0.5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2;
+    cam = Object.fromEntries(Object.keys(to).map(key => [key, from[key] + (to[key] - from[key]) * e]));
+    scene3d?.update(cam);
+    if (k < 1) camAnim = requestAnimationFrame(step);
+    else if (!to3d) { view3d = false; render(); }
+  };
+  camAnim = requestAnimationFrame(step);
+}
+$("view3dBtn").addEventListener("click", () => setView(!view3d));
 
 // ---------- winding and running: the movement as it would really behave ----------
 // A barrel-driven movement is wound first: the barrel arbor turns, the mainspring coils tight round it. Then the
@@ -763,50 +727,137 @@ $("windBtn").addEventListener("click", () => {
   else { wind(); $("windBtn").textContent = "Stop"; }
 });
 
-// ---------- sheets ----------
-function openPrimer() {
-  $("primerTitle").textContent = `${level.id} ${level.title}`;
-  const body = $("primerBody"); body.replaceChildren();
-  const ch = CHAPTERS.find(c => c.id === level.chapter);
-  if (LEVELS.find(l => l.chapter === level.chapter) === level) { const c = document.createElement("p"); c.className = "cb-chapter"; c.textContent = `Chapter ${ch.id}, ${ch.title}: ${ch.about}`; body.append(c); }
-  for (const t of level.primer) { const p = document.createElement("p"); p.textContent = t; body.append(p); }
-  if (level.watch?.length) {
-    const h = document.createElement("p"); h.className = "cb-watch-head"; h.textContent = "Watch out for"; body.append(h);
-    const ul = document.createElement("ul"); ul.className = "cb-watch";
-    for (const w of level.watch) { const li = document.createElement("li"); li.textContent = w; ul.append(li); }
-    body.append(ul);
-  }
-  const how = document.createElement("p"); how.className = "cb-how";
-  how.textContent = "Choose a part below and pick its layer: faint circles show where it would mesh. Tap an arbor to add it there, or tap near a wheel to set a new arbor in mesh. Drag your own arbors to move them; tap one to see how it turns or take a part off. Wind runs it. Workings shows the ratios step by step; Hint gives a nudge (and costs a star). Keys: 1–8 layers, W wind, Z undo, H hint, Delete removes, Esc lets go.";
-  body.append(how);
+// ---------- the lesson: the level's ideas one at a time, each with the part it's about on its own and running ----------
+const HOW = "Choose a part in the tray, then its layer: faint circles show where it would mesh. Tap an arbor to put the part on it, or tap near a wheel to stand a new arbor in mesh with it. Drag your own arbors to move them. Tap an arbor to see what drives it and what it drives; Isolate shows it with just those. 3D pulls the layers apart: drag to turn it, tap a layer's name to build on it, tap a part to pick it and its layer. Wind runs the watch. Workings follows the train mesh by mesh; Hint gives a nudge, and costs a star. Keys: 1–8 layers, W wind, Z undo, H hint, Delete removes, Esc lets go.";
+let lesson = null;                       // the lesson open: { steps, at (the step on show), player (its scene, running) }
+/** Opens the level's lesson at a step (the first, unless asked), and counts the level as seen. */
+function openLesson(at = 0) {
+  lesson?.player?.stop();
+  const steps = lessonFor(level);
+  lesson = { steps, at: Math.max(0, Math.min(at, steps.length - 1)), player: null };
+  $("lessonTitle").textContent = `${level.id} ${level.title}`;
   const all = progress(); all[level.id] = { ...(all[level.id] || {}), seen: true }; write(PROGRESS, all);
-  if (!$("primerDlg").open) $("primerDlg").showModal();
+  if (!$("lessonDlg").open) $("lessonDlg").showModal();          // open first: the picture is framed to the room it has
+  showStep();
+}
+/** Shows the lesson's step: its picture playing, the line under it, its words; the dots and the way on. */
+function showStep() {
+  const { steps, at } = lesson, st = steps[at], last = steps.length - 1;
+  lesson.player?.stop();
+  $("lessonDots").replaceChildren(...steps.map((x, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = `cb-dot${i === at ? " on" : i < at ? " done" : ""}${x.task ? " task" : ""}`;
+    b.setAttribute("aria-label", x.task ? "The task" : `Step ${i + 1}`);
+    if (i === at) b.setAttribute("aria-current", "step");
+    b.addEventListener("click", () => { lesson.at = i; showStep(); });
+    return b;
+  }));
+  const ch = CHAPTERS.find(c => c.id === level.chapter);
+  $("lessonCount").textContent = st.task ? "Your task" : `${ch.title} · ${at + 1} of ${last}`;
+  const say = $("lessonSay"), p = (text, cls) => { const e = document.createElement("p"); if (cls) e.className = cls; e.textContent = text; say.append(e); return e; };
+  say.replaceChildren();
+  // a chapter's first level opens with what the chapter is about
+  if (at === 0 && LEVELS.find(l => l.chapter === level.chapter) === level) p(`Chapter ${ch.id}: ${ch.about}`, "cb-ch-intro");
+  if (st.task) {
+    const t = p("", "cb-task-say"), tag = document.createElement("span");
+    tag.className = "cb-tag"; tag.textContent = "Your task"; t.append(tag, " ", st.say);
+    if (st.watch.length) {
+      p("Watch out for", "cb-watch-head");
+      const ul = document.createElement("ul"); ul.className = "cb-watch";
+      for (const w of st.watch) { const li = document.createElement("li"); li.textContent = w; ul.append(li); }
+      say.append(ul);
+    }
+    const how = document.createElement("details"), sum = document.createElement("summary");
+    how.className = "cb-how"; sum.textContent = "How to build"; how.append(sum); say.append(how);
+    const hp = document.createElement("p"); hp.textContent = HOW; how.append(hp);
+  } else p(st.say);
+  say.scrollTop = 0;
+  $("lessonBack").disabled = at === 0;
+  $("lessonNext").textContent = st.task ? "Build it" : at === last - 1 ? "The task" : "Next";
+  // the words first: the picture is framed to the room they leave it
+  $("lessonReadout").textContent = "";
+  lesson.player = playScene($("lessonScene"), st.scene, level, t => { $("lessonReadout").textContent = t; });
+}
+/** A step on or back; on from the task closes the lesson, to build. */
+function stepLesson(d) {
+  if (!lesson) return;
+  const to = lesson.at + d;
+  if (to > lesson.steps.length - 1) { $("lessonDlg").close(); return; }
+  if (to < 0) return;
+  lesson.at = to;
+  showStep();
 }
 function openGlossary() {
-  $("primerTitle").textContent = "Glossary";
-  const body = $("primerBody"); body.replaceChildren();
-  for (const [term, def] of GLOSSARY) { const p = document.createElement("p"); p.innerHTML = `<b></b> `; p.querySelector("b").textContent = term; p.append(def); body.append(p); }
-  if (!$("primerDlg").open) $("primerDlg").showModal();
+  const body = $("glossBody"); body.replaceChildren();
+  for (const [term, def] of GLOSSARY) { const p = document.createElement("p"), b = document.createElement("b"); b.textContent = term; p.append(b, " ", def); body.append(p); }
+  if (!$("glossDlg").open) $("glossDlg").showModal();
 }
+
+// ---------- the course: every chapter and level, each level a picture of its plate and the idea it teaches ----------
+/** The design to picture a level by: your own as you left it, else its solution once it runs, else its start. */
+function designFor(L, all, work) {
+  const w = work[L.id];
+  if (w && w.sig === sigOf(L) && Array.isArray(w.arbors)) return { plate: L.plate, arbors: w.arbors };
+  return all[L.id]?.stars ? solved(L) : startDesign(L);
+}
+/** A level's picture for the course: its plate as it stands, framed on where its work happens. */
+const thumbOf = (svg, L, all, work) => drawThumb(svg, designFor(L, all, work), workAround(L, !!all[L.id]?.stars));
 function openCourse() {
-  const body = $("courseBody"), all = progress(); body.replaceChildren();
+  const body = $("courseBody"), all = progress(), work = read(WORK, {});
+  body.replaceChildren();
+  const running = LEVELS.filter(L => all[L.id]?.stars).length, stars = LEVELS.reduce((n, L) => n + (all[L.id]?.stars || 0), 0);
+  const next = LEVELS.find(L => !all[L.id]?.stars);
+  // where you stand: levels running, stars, and the way on
+  const head = document.createElement("div"); head.className = "cb-course-head";
+  const line1 = document.createElement("p"); line1.className = "cb-course-line";
+  line1.textContent = `${running} of ${LEVELS.length} levels running · ${stars} of ${LEVELS.length * 3} stars`;
+  const bar = document.createElement("div"), fill = document.createElement("i");
+  bar.className = "cb-bar"; fill.style.width = `${(100 * running) / LEVELS.length}%`; bar.append(fill);
+  head.append(line1, bar);
+  if (next && next !== level) {
+    const go = document.createElement("button"); go.type = "button"; go.className = "btn primary cb-continue";
+    go.textContent = `Continue: ${next.id} ${next.title}`;
+    go.addEventListener("click", () => { $("courseDlg").close(); load(next.id); });
+    head.append(go);
+  }
+  body.append(head);
   for (const ch of CHAPTERS) {
-    const h = document.createElement("h3"); h.textContent = `${ch.id}. ${ch.title}`; body.append(h);
-    const about = document.createElement("p"); about.className = "cb-ch-about"; about.textContent = ch.about; body.append(about);
-    for (const L of LEVELS.filter(l => l.chapter === ch.id)) {
-      const b = document.createElement("button"); b.type = "button"; b.className = `cb-level${L.id === level.id ? " here" : ""}`;
-      const st = all[L.id]?.stars;
-      b.innerHTML = `<span>${L.id} ${L.title}</span><span class="cb-stars">${st ? "★".repeat(st) + "☆".repeat(3 - st) : ""}</span>`;
-      b.addEventListener("click", () => { $("courseDlg").close(); load(L.id); });
-      body.append(b);
+    const levels = LEVELS.filter(l => l.chapter === ch.id), done = levels.filter(L => all[L.id]?.stars).length, got = levels.reduce((n, L) => n + (all[L.id]?.stars || 0), 0);
+    const det = document.createElement("details"), sum = document.createElement("summary");
+    det.className = `cb-ch${done === levels.length ? " all" : ""}`;
+    sum.innerHTML = `<span class="cb-ch-num"></span><span class="cb-ch-title"></span><span class="cb-ch-prog"></span>`;
+    sum.children[0].textContent = ch.id; sum.children[1].textContent = ch.title;
+    sum.children[2].textContent = `${done}/${levels.length}${got ? ` · ★${got}` : ""}`;
+    det.append(sum);
+    const about = document.createElement("p"); about.className = "cb-ch-about"; about.textContent = ch.about; det.append(about);
+    const thumbs = [];
+    for (const L of levels) {
+      const p = all[L.id] || {}, b = document.createElement("button");
+      b.type = "button"; b.className = `cb-level${L.id === level.id ? " here" : ""}${p.stars ? " done" : ""}`;
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "cb-thumb"); svg.setAttribute("aria-hidden", "true");
+      const words = document.createElement("span"), title = document.createElement("b"), teach = document.createElement("small"), state = document.createElement("span");
+      words.className = "cb-level-words"; title.textContent = `${L.id} ${L.title}`; teach.textContent = TEACHES[L.id] || ""; words.append(title, teach);
+      state.className = "cb-level-state";
+      state.textContent = p.stars ? "★".repeat(p.stars) + "☆".repeat(3 - p.stars) : L.id === level.id ? "Here" : work[L.id] ? "Started" : p.seen ? "Seen" : "";
+      b.append(svg, words, state);
+      b.addEventListener("click", () => { $("courseDlg").close(); if (L.id !== level.id) load(L.id); });
+      det.append(b);
+      thumbs.push([svg, L]);
     }
+    // the pictures are drawn the first time their chapter opens
+    const draw = () => { for (const [svg, L] of thumbs.splice(0)) thumbOf(svg, L, all, work); };
+    det.addEventListener("toggle", () => { if (det.open) draw(); });
+    det.open = ch.id === level.chapter;
+    body.append(det);
   }
   $("courseDlg").showModal();
+  body.querySelector(".cb-level.here")?.scrollIntoView({ block: "center" });
 }
 function openMenu() {
   const body = $("menuBody"); body.replaceChildren();
   part(body, "play").append(action("Start this level again", () => { $("menuDlg").close(); load(level.id, true); }, "primary"),
-    action("Undo", () => { $("menuDlg").close(); undo(); }), action("How it works", () => { $("menuDlg").close(); openPrimer(); }),
+    action("Undo", () => { $("menuDlg").close(); undo(); }), action("Lesson", () => { $("menuDlg").close(); openLesson(); }),
     action("Glossary", () => { $("menuDlg").close(); openGlossary(); }));
   part(body, "content").append(choice("Speed", SPEEDS, read(SPEED, 60), v => write(SPEED, v)));
   part(body, "about").append(action("Show a solution", () => {
@@ -821,14 +872,17 @@ function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("on
 // ---------- wiring ----------
 document.querySelector(".cb-mark").innerHTML = APPS.find(a => a.id === "calibre")?.logo || "";
 bindSwitcher($("appsBtn"), "calibre");
-$("primerBtn").addEventListener("click", openPrimer);
+$("lessonBtn").addEventListener("click", () => openLesson());
 $("hintBtn").addEventListener("click", () => {
   if (!level.hints.length) return;
   const t = level.hints[Math.min(hintAt, level.hints.length - 1)];
   hintAt = Math.min(hintAt + 1, level.hints.length);
   $("hint").hidden = false; $("hint").textContent = t; renderBrief();
 });
-$("workBtn").addEventListener("click", () => { showWork = !showWork; $("workBtn").textContent = showWork ? "Hide workings" : "Workings"; renderBrief(); });
+$("workBtn").addEventListener("click", () => {
+  showWork = !showWork; $("workBtn").textContent = showWork ? "Hide workings" : "Workings";
+  if (!showWork && isolate?.by === "work") setIsolate(null); else render();
+});
 $("undoBtn").addEventListener("click", undo);
 $("index").addEventListener("input", e => {
   const bal = design.arbors.flatMap(a => a.parts || []).find(p => p.kind === "balance" && p.adjustable);
@@ -840,16 +894,39 @@ document.addEventListener("keydown", e => {
   else if (e.key >= "1" && e.key <= "8") { layer = +e.key; render(); }
   else if (e.key === "w" || e.key === "W" || e.key === " ") { e.preventDefault(); $("windBtn").click(); }
   else if (e.key === "h" || e.key === "H") $("hintBtn").click();
-  else if (e.key === "Escape") { chosen = null; selected = null; render(); }
+  else if (e.key === "Escape") { chosen = null; selected = null; setIsolate(null); }
   else if (e.key === "Delete" || e.key === "Backspace") {
     const a = design.arbors.find(x => x.id === selected), i = a ? a.parts.map(p => !p.fixed).lastIndexOf(true) : -1;
     if (a && i >= 0) removePart(a, i);
   }
 });
-$("primerClose").addEventListener("click", () => $("primerDlg").close());
+$("lessonClose").addEventListener("click", () => $("lessonDlg").close());
+$("lessonNext").addEventListener("click", () => stepLesson(1));
+$("lessonBack").addEventListener("click", () => stepLesson(-1));
+$("lessonDlg").addEventListener("close", () => { lesson?.player?.stop(); lesson = null; });
+$("lessonDlg").addEventListener("keydown", e => {
+  if (e.key === "ArrowRight") { e.preventDefault(); stepLesson(1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); stepLesson(-1); }
+});
+{ // a swipe across the picture steps on or back
+  let from = null;
+  $("lessonScene").addEventListener("pointerdown", e => { from = { x: e.clientX, y: e.clientY }; });
+  $("lessonScene").addEventListener("pointerup", e => {
+    if (!from) return;
+    const dx = e.clientX - from.x, dy = e.clientY - from.y;
+    from = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > 1.5 * Math.abs(dy)) stepLesson(dx < 0 ? 1 : -1);
+  });
+}
+$("glossClose").addEventListener("click", () => $("glossDlg").close());
 $("courseBtn").addEventListener("click", openCourse);
 $("courseClose").addEventListener("click", () => $("courseDlg").close());
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
+$("view3dBtn").textContent = view3d ? "Plan" : "3D";
+$("view3dBtn").setAttribute("aria-pressed", String(view3d));
 load(read(AT, null) || (LEVELS.find(l => !progress()[l.id]?.stars) || LEVELS[0]).id);
+// for tests and debugging: the state, and where a point of the plan (of a layer's plane, in 3D) is on the page
+window.__calibre = { get state() { return { level: level.id, layer, selected, chosen, view3d, cam, ok: verdict?.ok, arbors: design.arbors, isolate, lesson: lesson && { at: lesson.at, of: lesson.steps.length } }; },
+  screenOf(lay, x, y) { const [u, v] = scene3d ? scene3d.toView(lay, x, y) : [x, y], q = new DOMPoint(u, v).matrixTransform(svg.getScreenCTM()); return [q.x, q.y]; } };

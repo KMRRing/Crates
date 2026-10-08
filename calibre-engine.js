@@ -334,16 +334,28 @@ export function reserveOf(design, out) {
   return r ? MAINSPRING_TURNS / Math.abs(r) : null;
 }
 
-/** How an arbor is driven: the path of meshes from the power (crank, barrel or escapement) to it, each step a ratio. */
+/**
+ * How an arbor is driven: the path from the power (crank, barrel or rotor) to it, a step for each mesh (the driver's
+ * teeth, the driven's, the layer they meet on), finger (the star's teeth) or link (a jumper or friction holding two
+ * bodies together), each with k, the driven's turns for one of the driver's (negative: the other way). An empty path:
+ * the target is the power itself; null: nothing turns it.
+ */
 export function workings(design, out, target) {
   const sources = design.arbors.filter(a => a.drive != null || a.power != null).map(a => a.id);
   const prev = new Map(sources.map(id => [id, null])), queue = [...sources];
-  while (queue.length) { const id = queue.shift(); for (const [to] of out.edges.get(id) || []) if (!prev.has(to)) { prev.set(to, id); queue.push(to); } }
+  // a reverser's wheel passes its turning to its pinion through the one-way clutch, only the way the clutch passes
+  const clutch = id => { const ow = out.byId?.get(id)?.oneway, r = out.rates[id] || out.relative?.[id]; return ow && r && Math.sign(r) === ow.passes ? ow.to : null; };
+  while (queue.length) {
+    const id = queue.shift();
+    for (const to of [...(out.edges.get(id) || []).map(([t]) => t), clutch(id)]) if (to && !prev.has(to)) { prev.set(to, id); queue.push(to); }
+  }
   if (!prev.has(target)) return null;
   const steps = [];
   for (let at = target; prev.get(at) != null; at = prev.get(at)) {
-    const from = prev.get(at), m = out.meshes.find(x => (x.a === from && x.b === at) || (x.b === from && x.a === at)), f = out.fingers.find(x => x.a === from && x.b === at);
-    steps.unshift(m ? { from, to: at, driver: m.a === from ? m.ta : m.tb, driven: m.a === from ? m.tb : m.ta } : { from, to: at, finger: f?.teeth });
+    const from = prev.get(at), k = (out.edges.get(from) || []).find(([to]) => to === at)?.[1] ?? 1;
+    const m = out.meshes.find(x => (x.a === from && x.b === at) || (x.b === from && x.a === at)), f = out.fingers.find(x => x.a === from && x.b === at);
+    steps.unshift(m ? { from, to: at, k, driver: m.a === from ? m.ta : m.tb, driven: m.a === from ? m.tb : m.ta, layer: m.layer }
+      : f ? { from, to: at, k, finger: f.teeth } : clutch(from) === at ? { from, to: at, k: 1, clutch: true } : { from, to: at, k, link: true });
   }
   return steps;
 }

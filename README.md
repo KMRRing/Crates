@@ -481,6 +481,17 @@ side). Choose a part from the tray: faint circles show where its arbor would hav
 that layer; tap an arbor to add it there, or near a wheel to set a new arbor that snaps into mesh. Drag your own arbors;
 tap one to see how it turns or take a part off.
 
+3D (the button over the zoom, October 2026) pulls the movement apart: each layer at a height of its own, drawn with the
+plan's own artwork under one axonometric map (turned by the azimuth, tilted by the elevation, lifted by its height), so
+straight down it is the plan and the button swings the camera between the two. The main plate is the floor and the side
+the level is worked on faces up (the train's layers rising, the dial side's hanging under it with the hands below, or
+the other way up for a level under the dial), so nothing is mirrored and every wheel turns as on the plan. Each part
+keeps its thickness, the arbors stand through the layers as steel staffs, a bridge's post stands up through the train,
+and a rail at the left names each layer at its height: a tap on a name builds on that layer, a tap on a part picks it
+and its layer, and with a part in hand a tap places it on its layer's plane, where the finger meets it. A drag turns the
+view (across about the stack, down and up from the dial side over to the back), pinch and the buttons zoom, and the
+parts on the layer in hand are named where they sit. The view you chose is kept (`calibre:view`).
+
 The engine (`calibre-engine.js`) runs the plan as it would really turn, at real size (one module, 0.1 mm a tooth, or a
 gear's own finer module, which meshes only its own kind): ratios and directions through every mesh, a finger pushing a
 star wheel or a date ring one tooth a turn, locked loops, no wheel over another arbor's pivot on its side of the plate,
@@ -490,10 +501,34 @@ the spring runs away, a fork alone locks after one tick, both and the balance's 
 mainspring in its barrel; the watch then runs down over its power reserve, the balance swinging in real time and its
 amplitude falling as the spring weakens, the escape wheel stepping half a tooth a beat at real speed.
 
-Teaching: every level opens with a primer that defines its terms and names what usually goes wrong ("watch out for");
-the goals show live what each arbor does and what it should; Workings shows how the first unmet goal is driven, mesh by
-mesh, ratio by ratio; Hint gives two or three graded nudges (a hint caps the stars at two); a Glossary of the craft's
-words; Undo; keys (1–8 layers, W wind, Z undo, H hint, Delete, Esc). Stars for par (fewest parts).
+Teaching (October 2026). Every level opens with its lesson (`calibre-lessons.js`), its ideas a step at a time, each
+with a picture of the part it's about on its own and running (`calibre-scenes.js`): two wheels with the mesh between
+them lit, a wheel and pinion on one arbor in 3D, a train turning in time-lapse with its turns or rates counted under
+it, a mainspring winding and letting down, an escapement ticking in slow motion (or at its real beat) with its beats
+counted, a balance's amplitude falling as the spring runs down, a finger stepping a star, a locked triangle straining.
+A picture is a small mechanism of its own, the level's plate as it starts (its problem, never its answer), or an
+earlier level's finished work, framed close on what it's about (the rest drawn faint or left out), with names of its
+own on its parts; the demonstrations use other counts than the level's (an 80 driving a 40 where the level wants a
+60 and a 30) so they show the idea and leave the arithmetic to you. A chapter's first level opens with what the
+chapter is about. The last step is the task: the level's plate with what drives it and what each goal's arbor should
+do written on it, what usually goes wrong ("watch out for"), and how to build, folded away; Build it closes it. Step
+with Next and Back, the dots, the arrow keys or a swipe across the picture; Lesson, in the brief and the menu, opens
+it again.
+
+On the plate: the goals show live what each arbor does and what it should. Workings follows the train to the first
+goal not yet met (all met: to the end of the longest path) as a chain, each arbor's name and between them the step's
+ratio (×8 speeding up, ÷3 slowing down, a finger, a reverser's clutch, a jumper holding two together): a tap on a
+ratio isolates that mesh, its two arbors drawn full and the rest faint, the mesh lit, the plan framed on them, and says
+it in words ("The 80-tooth wheel on Centre wheel drives the 10-leaf pinion on Third wheel: 80 over 10 is ×8, faster,
+and the other way round"); the last chip takes the whole path. Tap an arbor and the inspector says what drives it and
+what it drives, mesh by mesh; Isolate shows it with just those, framed above the inspector (in 3D the stack keeps clear
+of it too), and follows the arbor you tap next. Hint gives two or three graded nudges (a hint caps the stars at two); a
+Glossary of the craft's words; Undo; keys (1–8 layers, W wind, Z undo, H hint, Delete, Esc). Stars for par (fewest
+parts).
+
+The course is a map of every chapter, folded, the one you're in open: how many levels run and the stars won, Continue
+to the first level not yet running, and each level a picture of its plate (your design as you left it, the solution
+once it runs, else its start), framed on where its work happens, with a line on what it teaches and its stars.
 
 Your design is kept on each level as it changes (October 2026; the twelve levels last changed), so a reload, another
 device on your solo code or a visit to another level brings the plate back as you left it, and a partner watching sees
@@ -523,8 +558,13 @@ annual calendar's twelve-notch cam, the perpetual calendar's four-year cam with 
 editor, the equation of time on a kidney cam, a secular calendar that knows 2100 isn't a leap year), 14 Striking (the hour snail read by the rack from twelve o'clock, numbered in an editor and struck on a
 synthesised gong; the quarter snail, and the whole repeater: hours low, quarters double, minutes high), 15 The tourbillon (Breguet's cage: the fixed fourth wheel and the escape pinion rolling round it).
 Mechanisms with states (started and stopped, the rotor either way, running and pressed) are judged in each, with
-buttons to switch between them. `tests/calibre.mjs` proves the engine's rules and that every level is unsolved at the
-start and solved by its worked solution, from its tray, within par.
+buttons to switch between them. The chronograph levels' empty coupling arbors are under the dial, so they no longer
+start with a clash over the train's pivots; the quarter snail is drawn with its four steps (it was drawn as twelve,
+eight of them broken); a reverser is drawn gilt and steel (it was black); the workings follow a reverser's one-way
+clutch, the way it passes. `tests/calibre.mjs` proves the engine's rules, that every level is unsolved at the start and
+solved by its worked solution, from its tray, within par, that the workings multiply to the train's ratio, and that
+every lesson step builds its picture from parts it holds, names nothing missing, shows no solution of its own level or
+a later one, and turns no faster than two turns a second.
 
 ## The games screen's figures (October 2026)
 

@@ -31,12 +31,12 @@
     <div id="editor" class="cb-editor" hidden></div>
     <label id="indexRow" class="cb-index" hidden><span>Index − slow</span><input id="index" type="range" min="-1" max="1" step="0.001" value="0"><span>fast +</span><b id="indexOut"></b></label>
     <p id="hint" class="cb-hint" hidden></p>
-    <p id="work" class="cb-work" hidden></p>
-    <div class="cb-help"><button id="primerBtn" class="cb-link" type="button">How it works</button><button id="workBtn" class="cb-link" type="button">Workings</button><button id="hintBtn" class="cb-link" type="button">Hint</button></div>
+    <div id="work" class="cb-work" hidden></div>
+    <div class="cb-help"><button id="lessonBtn" class="cb-link" type="button">Lesson</button><button id="workBtn" class="cb-link" type="button">Workings</button><button id="hintBtn" class="cb-link" type="button">Hint</button></div>
   </section>
   <div id="stage" class="cb-stage fit-grow">
     <svg id="plan" class="cb-plan" aria-label="The calibre plan: tap to place the chosen part; drag to move, pinch to zoom"></svg>
-    <div class="cb-zoom"><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button></div>
+    <div class="cb-zoom"><button type="button" id="view3dBtn" class="cb-3dbtn" aria-pressed="false" title="The movement in 3D: each layer at its height">3D</button><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomOut" aria-label="Zoom out">−</button></div>
     <div id="inspect" class="cb-inspect" hidden></div>
   </div>
   <div id="tray" class="cb-tray" aria-label="Parts"></div>
@@ -46,11 +46,19 @@
     <button id="windBtn" class="btn cb-wind" type="button">Wind</button>
   </div>
 </div>
-<dialog id="primerDlg" class="sheet" aria-label="How it works">
-  <div class="pick-head"><h2 id="primerTitle">How it works</h2><button class="btn" type="button" id="primerClose">Close</button></div>
-  <div id="primerBody" class="cb-primer"></div>
+<dialog id="lessonDlg" class="sheet cb-lesson" aria-labelledby="lessonTitle">
+  <div class="pick-head"><h2 id="lessonTitle">Lesson</h2><button class="btn" type="button" id="lessonClose">Close</button></div>
+  <div class="cb-lesson-steps"><div id="lessonDots" class="cb-dots" aria-label="Steps"></div><span id="lessonCount" class="cb-count"></span></div>
+  <svg id="lessonScene" class="cb-lesson-scene" role="img" aria-label="The part this step is about, on its own and running"></svg>
+  <p id="lessonReadout" class="cb-readout"></p>
+  <div id="lessonSay" class="cb-say"></div>
+  <div class="cb-lesson-nav"><button class="btn" type="button" id="lessonBack">Back</button><button class="btn primary" type="button" id="lessonNext">Next</button></div>
 </dialog>
-<dialog id="courseDlg" class="sheet" aria-label="Course">
+<dialog id="glossDlg" class="sheet cb-scrolls" aria-label="Glossary">
+  <div class="pick-head"><h2>Glossary</h2><button class="btn" type="button" id="glossClose">Close</button></div>
+  <div id="glossBody" class="cb-primer"></div>
+</dialog>
+<dialog id="courseDlg" class="sheet cb-scrolls" aria-label="Course">
   <div class="pick-head"><h2>Course</h2><button class="btn" type="button" id="courseClose">Close</button></div>
   <div id="courseBody" class="cb-course"></div>
 </dialog>
