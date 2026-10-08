@@ -154,9 +154,10 @@ const J = await import("../pipes-run.js");
     [T("none", ["window"]).bonusWindow === 120000 && T("none", ["fill"]).fillRate === 6 && T("none", ["hedge"]).floor === 1, "Long window, Fast fill, Hedge"],
     [JSON.stringify(T("none", ["kit", "supplier", "restock", "parts"]).tools) === JSON.stringify({ count: 4, price: 0.7, uses: 1, turn: true }), "the kit's upgrades"],
     [T("none", ["insurance", "prelaid"]).insurance && T("none", ["insurance", "prelaid"]).prelaid, "Insurance and Pre-laid"],
+    [T("none", ["model"]).warnDry === true && t0.warnDry === false && J.UPGRADES.model.tier === 3, "Hydraulic model, a rare: the dry warning, which nothing else shows"],
   ];
   const fails = expect.filter(([ok]) => !ok).map(([, what]) => what);
-  check(!fails.length, `a job's terms: twists, finales and all eighteen upgrades as their cards say${fails.length ? `: ${fails.join("; ")}` : ""}`);
+  check(!fails.length, `a job's terms: twists, finales and all nineteen upgrades as their cards say${fails.length ? `: ${fails.join("; ")}` : ""}`);
 }
 {
   let boards = 0, drier = 0, directs = 0;

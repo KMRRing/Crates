@@ -7,7 +7,7 @@
 import { levelOf, actOf, ACT_LENGTH, COSTS } from "./pipes-engine.js";
 
 /** The upgrades, by tier: 1 common (a door with no twist), 2 uncommon (most twisted doors), 3 rare (act finales, and
- *  a twisted door one time in three). Each is held at most once a run: six of each tier. */
+ *  a twisted door one time in three). Each is held at most once a run: six common, six uncommon, seven rare. */
 export const UPGRADES = {
   survey: { tier: 1, name: "Survey team", about: "5 s more planning every level." },
   steel: { tier: 1, name: "Cheap steel", about: "Pipe costs 7 a tile, not 10." },
@@ -27,6 +27,7 @@ export const UPGRADES = {
   leverage: { tier: 3, name: "Leverage", about: "Terminals pay 50% more, but a spill costs two lives." },
   broker: { tier: 3, name: "Broker", about: "Four jobs to choose from, not three." },
   contracts: { tier: 3, name: "Big contracts", about: "Act finales pay triple, not double." },
+  model: { tier: 3, name: "Hydraulic model", about: "A red “dry” marks where a line, as the board stands, would run out of pressure." },
 };
 export const TIERS = ["Cargo", "Common", "Uncommon", "Rare"];
 /** What a door's job does to its level, short enough to share a line with its name on the card. */
@@ -101,6 +102,7 @@ export function termsFor(job, owned, n) {
     spill: has("leverage") ? 2 : 1,
     insurance: has("insurance"),
     prelaid: has("prelaid"),
+    warnDry: has("model"),                   // the dry warning, which the board shows only with Hydraulic model
   };
 }
 

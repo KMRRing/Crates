@@ -58,7 +58,7 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 /* the brief: the level's tools over the board for its first seconds, before its clock starts. It covers the board's
    whole box, so the seconds go on the tools, not on planning; a short box keeps names and prices, not explanations */
 .pi-fit { position: relative; }
-.pi-brief { position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; justify-content: safe center; gap: .65rem; overflow-y: auto;
+.pi-brief { position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; justify-content: safe center; gap: .55rem; overflow-y: auto;
   padding: .8rem .9rem; border-radius: 6px; background: var(--tile); border: 1px solid var(--brass); color: var(--ink); cursor: pointer;
   -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .pi-brief[hidden] { display: none; }
@@ -69,14 +69,14 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 .pi-brief-row .pr { font-size: .82rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .pi-brief-row .ab { grid-column: 2 / -1; font-size: .78rem; line-height: 1.25; color: var(--ink-soft); }
 .pi-brief-row.dear { opacity: .45; }
-.pi-brief-foot { display: grid; gap: .35rem; font-size: .74rem; color: var(--ink-soft); text-align: center; }
-.pi-brief-go { justify-self: center; padding: .15rem .5rem; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
-.pi-brief-bar { display: block; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
-.pi-brief-bar i { display: block; height: 100%; background: var(--pi-in); }
+.pi-brief-foot { display: grid; }
+/* the clock waits for this: the main action, so the plate */
+.pi-brief-go { min-height: 2.4rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); cursor: pointer; }
 @container (max-height: 15.5rem) { .pi-brief { gap: .45rem; } .pi-brief-row .ab { display: none; } }
 /* four tools (Wide kit): explanations only in a tall box; on the shortest screens, smaller icons and spacing */
 @container (max-height: 22rem) { .pi-brief.four { gap: .45rem; } .pi-brief.four .ab { display: none; } }
-@container (max-height: 15.5rem) { .pi-brief.four { gap: .4rem; padding: .55rem .8rem; } .pi-brief.four .pi-brief-row { grid-template-columns: 1.9rem minmax(0, 1fr) auto; }
+@container (max-height: 15.5rem) { .pi-brief.four { gap: .3rem; padding: .5rem .8rem; } .pi-brief.four .pi-brief-row { grid-template-columns: 1.9rem minmax(0, 1fr) auto; }
   .pi-brief.four .pi-brief-row .ic { width: 1.9rem; height: 1.9rem; font-size: 1.05rem; } }
 
 /* the doors: the jobs on offer before a level, over the board's box like the brief. Each is edged in its reward's tier,
