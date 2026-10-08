@@ -7,7 +7,7 @@ export const CAPACITY = { coaster: 4, handy: 10 };
 
 export const REGIONS = [
   {
-    id: "estonia", chapter: "baltic", name: "Klaipėda to Muuga", teaches: "how many ships, and how big",
+    id: "klaipeda-muuga", chapter: "world", name: "Klaipėda to Muuga", teaches: "a fleet and a month's P&L, the world screen's first sketch",
     brief: "A month of ORLEN diesel from Klaipėda to Muuga, near Tallinn, unblended: Estonia meets its renewables target largely with biomethane. Trucks draw six units a day from Muuga's sixteen-unit tank. Keep it from running dry.",
     refinery: { name: "Klaipėda", lat: 55.71, lon: 21.13, parcel: 2, price: 1.6 },     // one berth, two units an hour; $k a unit
     customer: { name: "Muuga", lat: 59.5, lon: 24.96, hours: 30, parcel: 4, price: 2.2, penalty: 1, tank: { cap: 16, start: 12, use: 0.25 } },

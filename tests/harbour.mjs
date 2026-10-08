@@ -159,5 +159,18 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
     check(one.short > 0 && one.profit < 0, `${R.id}: one Handy alone runs the tank dry and loses money (${one.profit})`);
   }
   check(REGIONS.every(R => R.chapter && CHAPTERS.some(c => c.id === R.chapter)), "every region belongs to a chapter"); }
-console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars and the regions' pars hold`);
+// the regions on squares: each reference plan for the feeding harbour replays to the month stored for it, the par is the
+// fastest's, a harbour's bests become the plant's feed, and with the harbour unfinished the par's fleet can't keep up
+{ const { SQUARE_REGIONS, simulate, feedOf } = await import("../harbour-squares.js");
+  for (const R of SQUARE_REGIONS) {
+    check(LEVELS.some(l => l.id === R.feeds) && CHAPTERS.some(c => c.id === R.chapter), `${R.id}: fed by a harbour that exists, in a chapter that does`);
+    for (const x of R.rundown) { const r = simulate(R, { ...x.plan, feed: { hours: x.hours, ships: x.ships } }); check(Math.abs(r.profit - x.best) < 0.05 && r.short === 0, `${R.id}: ${x.name} (${x.hours} h) replays to its month (${r.profit} against ${x.best})`); }
+    const fastest = R.rundown.reduce((a, b) => (b.hours < a.hours ? b : a));
+    check(R.par.profit === fastest.best && Math.max(...R.rundown.map(x => x.best)) === fastest.best, `${R.id}: the par is the fastest harbour plan's month, and the best`);
+    for (const p of R.plans) { const r = simulate(R, p); check(Math.abs(r.profit - R.par.profit) < 0.05, `${R.id}: the par plan reaches its par (${r.profit})`); }
+    check(feedOf(R, {}) === null && feedOf(R, { hours: 39 }).ships.coaster === 2 && feedOf(R, { hours: 33, hoursFleet: { coaster: 3 } }).hours === 33, `${R.id}: a harbour's bests become the plant's feed (none until it's finished)`);
+    const idle = simulate(R, { ...R.plans[0], feed: undefined });
+    check(idle.short > 0 && idle.profit < 0, `${R.id}: with the harbour unfinished, the par's fleet leaves the towns short (${idle.profit})`);
+  } }
+console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars and the regions' pars hold, on charts and on squares`);
 process.exitCode = bad ? 1 : 0;
