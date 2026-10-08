@@ -13,6 +13,7 @@
 // Loaded by every page (through pwa.js), so the sync and the presence run whichever game you open.
 import { getSync } from "./net.js";
 import { roomInAddress } from "./rooms.js";
+import { today, movedToDates, bestOfDay } from "./days.js";
 
 const SOLO = "suite:solo", META = "suite:meta", PULLED = "suite:pulled";
 const WATCHING = new URLSearchParams(location.search).has("watch");   // this page shows your partner's game (see below)
@@ -32,6 +33,9 @@ const raw = { getItem: Storage.prototype.getItem, set: Storage.prototype.setItem
 raw.get = k => raw.getItem.call(localStorage, k);
 const json = (k, fallback) => { try { return JSON.parse(raw.get(k)) ?? fallback; } catch { return fallback; } };
 const put = (k, v) => { try { raw.set.call(localStorage, k, typeof v === "string" ? v : JSON.stringify(v)); } catch { /* private mode */ } };
+/** A figure a game's tile shows, kept like any game's own save: synced with your solo code, so every device shows it.
+ *  (Written with put, as they once were, they never left the device, and an older copy from elsewhere could win.) */
+const keep = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
 export const cleanCode = s => String(s || "").toUpperCase().replace(/[^A-Z]/g, "");
 export const soloCode = () => { const c = raw.get(SOLO); return c && c.length === 8 ? c : null; };
@@ -122,14 +126,16 @@ export async function pull() {
   if (!code) return;
   let remote;
   try { remote = await once(await getSync(), storePath(code)); } catch (e) { console.error(e); return; }
-  let mine = false;
+  let mine = false, came = false;
   for (const [ek, x] of Object.entries(remote || {})) {
     const k = decodeURIComponent(ek);
     if (LOCAL.test(k) || !x || (meta[k] || 0) >= x.t) continue;
     if (x.v == null) raw.remove.call(localStorage, k); else raw.set.call(localStorage, k, x.v);
     meta[k] = x.t;
+    came = true;
     if (own(k)) mine = true;
   }
+  if (came) dispatchEvent(new Event("suite:pulled"));     // the games screen redraws its tiles from what came in
   for (const [k, t] of Object.entries(meta)) if (!(remote?.[enc(k)]?.t >= t)) dirty.set(k, { v: raw.get(k), t });
   put(META, meta);
   if (dirty.size) push();
@@ -137,9 +143,9 @@ export async function pull() {
 }
 
 // ---------- comparable results ----------
-/** The day, the same for everyone: the UTC date as YYYYMMDD. It seeds every game's daily, which is dealt on the device
- *  (offline too) and is the same set wherever you are, rolling over at the same moment for everyone. */
-export const today = () => { const d = new Date(); return d.getUTCFullYear() * 10000 + (d.getUTCMonth() + 1) * 100 + d.getUTCDate(); };
+// The day, the same for everyone (days.js): the UTC date as YYYYMMDD. It seeds every game's daily, which is dealt on the
+// device (offline too) and is the same set wherever you are, rolling over at the same moment for everyone.
+export { today };
 /** Games whose best counts only comparable runs: the daily, and the Standard preset (everything in, default settings,
  *  nothing from your pile or your history dealt in). The games screen and your partner see only these. */
 export const RANKED = new Set(["chart", "quote", "punt", "crates"]);
@@ -182,24 +188,39 @@ export function noteStreak(app, won) {
   const s = json(`${app}:streak`, null) || { now: 0, best: 0 };
   s.now = won ? s.now + 1 : 0;
   s.best = Math.max(s.best, s.now);
-  put(`${app}:streak`, s);
+  keep(`${app}:streak`, s);
 }
 /** Today's puzzle solved, in seconds: the first solve counts, a second is a replay. */
-export function noteDayTime(app, secs, day = today()) { if (json(`${app}:today`, null)?.key !== day) put(`${app}:today`, { key: day, v: Math.round(secs) }); }
+export function noteDayTime(app, secs, day = today()) { if (json(`${app}:today`, null)?.key !== day) keep(`${app}:today`, { key: day, v: Math.round(secs) }); }
 /** One more done today: a card revised, a lesson finished. */
-export function noteDayCount(app, day = today()) { const r = json(`${app}:count`, null); put(`${app}:count`, { key: day, v: r?.key === day ? r.v + 1 : 1 }); }
+export function noteDayCount(app, day = today()) { const r = json(`${app}:count`, null); keep(`${app}:count`, { key: day, v: r?.key === day ? r.v + 1 : 1 }); }
 /** Stars collected, in all. */
-export function noteStars(app, n) { put(`${app}:stars`, n); }
+export function noteStars(app, n) { if (json(`${app}:stars`, null) !== n) keep(`${app}:stars`, n); }   // only a change goes up
 const calibreStars = () => Object.values(json("calibre:progress", {}) || {}).reduce((n, p) => n + (p?.stars || 0), 0);
-// a daily game's best and today's: Quote, Chart and Punt keep them as comparable results; Origin and Order keep each
-// day's total by the day, and Order's best leaves its History runs out
+// a daily game's best and today's: Quote, Chart and Punt keep them as comparable results; Origin keeps each day's total
+// by the day (YYYYMMDD), Order each day's by the day and the mode (YYYYMMDD/dates: it has a daily for each), its tile
+// today's best of them; Order's best leaves its History runs out
 function dailyOf(app) {
   if (RANKED.has(app)) return comparableOf(app);
-  const day = json(`${app}:daily`, {})?.[today()] ?? null;
+  const day = bestOfDay(json(`${app}:daily`, {}), today());
   if (app !== "order") return { best: bestOf(app), today: day };
   const xs = Object.entries(json("order:best", {}) || {}).filter(([k]) => !k.startsWith("s:")).map(([, v]) => v).filter(Number.isFinite);
   return { best: xs.length ? Math.max(...xs) : null, today: day };
 }
+/** Opened from the games screen's tile with #today in the address: today's daily is still to play, so the game opens
+ *  on it. True once; the address is cleared for the game's own. */
+export function arrivedForToday() {
+  if (location.hash !== "#today") return false;
+  history.replaceState(null, "", `${location.pathname}${location.search}`);
+  return true;
+}
+/** Whether today's daily of a game is still to play: the games screen's tile then opens it (#today). */
+export const dailyDue = app => {
+  const kind = MARKS[app];
+  if (kind === "time") return markOf(app) == null;
+  if (kind === "daily") return markOf(app)?.today == null;
+  return false;
+};
 /** A game's figure for its tile, as data: { kind, v }, or for a daily game { kind, best, day, today }; null if none yet. */
 export function markOf(app) {
   const kind = MARKS[app] || "best", k = keyOf(app), d = today();
@@ -451,6 +472,11 @@ export const watchHref = game => `${DUO_GAMES[game] || `${game}.html`}?watch=1`;
     if (solo.length === 8 && solo !== soloCode()) { await chooseSolo(solo); location.reload(); }
   }
 }
+// Origin, Order and Arb once counted their days on the phone's own clock (days since 1970), so their dailies were kept
+// by a day the games screen never asked for. They go by the suite's day now; what they kept moves over once, by its date
+// (days.js): today's run stays today's. Here, after everything a synced write touches is declared: earlier in the
+// module, a partner code made the write throw and every page with it.
+if (!WATCHING) for (const k of ["origin:daily", "order:daily", "arb:daily"]) { const moved = movedToDates(json(k, null)); if (moved) keep(k, moved); }
 // a page that opens catches up, and again when it comes back into view; a paired page says where it is and listens
 {
   const old = raw.get("suite:duo");                       // the per-device duo memory before pairing became a link

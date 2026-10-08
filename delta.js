@@ -1,7 +1,7 @@
 // Delta: join the numbers in pairs with paths whose operations turn one into the other (rules in delta-gen.js).
 // Solo boards are saved in this browser; together games live in the room's delta branch (together.js) and both
 // players draw on the same board.
-import { today, noteDayTime } from "./suite.js";
+import { today, noteDayTime, arrivedForToday } from "./suite.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -567,14 +567,21 @@ $("app").querySelector(".d-mark").innerHTML = APPS.find(a => a.id === "delta").l
 // for tests and debugging
 window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, evaluate, get together() { return together; } };
 
-// start: a shared board (#s=…&d=…), the saved one, or a fresh Easy board for a first visit
+// start: a shared board (#s=…&d=…), today's from the games screen's tile (#today) while it's still to play, the saved
+// one, or a fresh Easy board for a first visit
+const forToday = arrivedForToday();
 const hash = new URLSearchParams(location.hash.slice(1));
 const params = new URLSearchParams(location.search);
 const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
 const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
 if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
+else if (!S && forToday && !code) { await soloBoard(today(), DAILY_LEVEL); if (S) { S.daily = today(); saveSolo(); render(); } }
 else if (!S) await soloBoard(null, "easy");
-else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level); }
+else {
+  shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level);
+  // today's, once the board you left is drawn (it asks before leaving one you've started)
+  if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
+}
 if (code.length === 4) joinRoom(code);
 

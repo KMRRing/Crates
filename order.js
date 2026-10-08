@@ -10,6 +10,7 @@ import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
+import { today, arrivedForToday, dailyDue } from "./suite.js";   // the day, the same for everyone (UTC)
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -17,7 +18,6 @@ const LIVES = 3, DATES_PER_RUN = 16;
 const RUN = "order:run", BEST = "order:best", DAILY = "order:daily";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const shuffle = (r, xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -45,7 +45,7 @@ function newRun(mode, daily) {
   else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
   else { const fam = FAMILIES[Math.floor(r() * FAMILIES.length)]; unit = fam.unit; ids = shuffle(r, fam.ids); }
   // the line starts with one card face up
-  S = { seed, daily, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
+  S = { seed, daily, day: daily ? today() : null, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
   save(); render();
 }
 const truth = id => BY_ID.get(id).truth;
@@ -67,7 +67,7 @@ function end() {
   S.over = true;
   const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;
   if (!(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }
-  if (S.daily) { const d = read(DAILY, {}), k = `${today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
+  if (S.daily) { const d = read(DAILY, {}), k = `${S.day ?? today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
   setTimeout(finish, 700);
 }
 // a card's own words, without the question's lead-in. A picture goes by its title ("this" means the picture), and its
@@ -134,7 +134,8 @@ function finish() {
   p.textContent = `${S.placed} placed${S.lives <= 0 ? ", then out of lives" : ", the whole deck"}.`;
   body.append(p);
   if (S.mode === "stories") { const n = document.createElement("p"); n.className = "or-note"; n.textContent = STORIES.get(S.story).note; body.append(n); }
-  body.append(action("Another run", () => { $("doneDlg").close(); newRun(S.mode, false); }, "primary"));
+  if (dailyDue("order")) body.append(action("Today's run", () => { $("doneDlg").close(); newRun(S.mode, true); }, "primary"));
+  body.append(action("Another run", () => { $("doneDlg").close(); newRun(S.mode, false); }, dailyDue("order") ? "" : "primary"));
   $("doneDlg").showModal();
 }
 let toastTimer;
@@ -145,7 +146,7 @@ let pick = null;
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  pick ??= { mode: S?.mode || "dates", daily: !!S?.daily };
+  pick ??= { mode: S?.mode || "dates", daily: (!!S?.daily && !S.over) || dailyDue("order") };   // today's first, while it's still to play
   part(body, "play").append(action("New run", () => newRun(pick.mode, pick.daily), "primary"));
   part(body, "content").append(
     choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; }),
@@ -161,4 +162,12 @@ bindSwitcher($("appsBtn"), "order");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
-if (S?.over) newRun(S.mode, false); else render();
+/** Today's run, still to play: asks before leaving a run you've started. */
+function openToday() {
+  if (S && !S.over && S.line.length > 1 && !confirm("Start today's run? This one isn't finished.")) return;
+  newRun(S?.mode || "dates", true);
+}
+// opening: from the tile, today's; a finished run gives way to today's while it's still to play, else a random one
+if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
+else if (!S || S.over) newRun(S?.mode || "dates", dailyDue("order"));
+else render();

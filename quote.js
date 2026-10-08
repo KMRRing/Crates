@@ -17,7 +17,7 @@ function picture(q) {
 }
 import "./pwa.js";
 import { part, choice, toggle, action, line } from "./menu.js";
-import { today, noteComparable } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
+import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
 
 const $ = id => document.getElementById(id);
 const APP = 1;                       // this code's version of the together state
@@ -84,7 +84,15 @@ function quote() {
   S.log.push({ id: q.id, bid, ask, delta: r.delta, inside: r.inside, width: r.width, beyond: r.beyond, grade: r.grade });
   S.phase = "reveal";
   save();
+  if (S.index + 1 >= S.set.length) count();         // the last quote settled: the book is final
   render();
+}
+/** A set's final book counts at once, for your best and today's, not when the closing bell is rung; the bell counts
+ *  it again, which changes nothing. Returns the best it's measured against. */
+function count() {
+  const best = S.mode === "daily" ? bestDaily(S.book) : bestEver(S.book);
+  if (S.ranked) noteComparable("quote", S.book, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
+  return best;
 }
 /** Together: the taker's choice on the maker's market. */
 function take(kind) {
@@ -354,8 +362,7 @@ function finish() {
   // (An "average width" mixed units, doublings for ratios and plain units for years and counts, and printed 2 to the
   // power of their mean: a 76-year market came out as ×7.6e+22.)
   const inside = S.log.filter(e => e.inside).length, sharp = S.log.filter(e => e.inside && adequate(e.grade)).length;
-  const best = S.mode === "daily" ? bestDaily(S.book) : bestEver(S.book);
-  if (S.ranked) noteComparable("quote", S.book, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
+  const best = count();
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
@@ -415,7 +422,7 @@ function openMenu() {
   if (together.room) {
     part(body, "together").append(action("A fresh set", startRoomSet, "primary"), action("Back to solo", () => together.leave(), "link"));
   } else {
-    pick ??= { mode: S?.mode === "daily" ? "daily" : "random", focus: S?.focus || null };
+    pick ??= { mode: S?.mode === "daily" || dailyDue("quote") ? "daily" : "random", focus: S?.focus || null };   // today's first, while it's still to play
     const play = part(body, "play");
     play.append(action("Start a set", () => confirmStart(pick.mode, pick.focus), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
@@ -471,11 +478,13 @@ window.__quote = { get state() { return S; }, quote, next, start, get together()
 
 S = read(RUN, null);
 if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;    // the bank changed under a saved run
+const forToday = arrivedForToday();         // from the games screen's tile: today's set, still to play
 const hash = new URLSearchParams(location.hash.slice(1));
 if (!load(hash)) {
-  if (!S) start("random");
+  if (!S) start(forToday ? "daily" : "random");
   else { history.replaceState(null, "", hashFor(S)); render(); }
 }
-if (S.done) finish();
+if (forToday && !(S.mode === "daily" && S.seed === today())) setTimeout(() => confirmStart("daily"), 0);   // it asks before leaving a set you've started
+else if (S.done) finish();
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 if (code.length === 4) together.join(code);

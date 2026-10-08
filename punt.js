@@ -16,7 +16,7 @@ import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
 import { gameHref, GAMES } from "./rooms.js";
 import { part, choice, toggle as menuToggle, action, mirror, line, weights, ticks } from "./menu.js";
-import { today, noteComparable } from "./suite.js";   // the day, the same for everyone; comparable results
+import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
@@ -284,6 +284,15 @@ function place(passing) {
     g.bets[id] = bet;
     settleIfReady(g, together.room ? seatsOf(g).map(([x]) => x) : [ME]);
   });
+  if (!together.room) countIfOver();
+}
+/** A run's last bet settled (or the pot gone): its average is final, so it counts at once, not when its summary is
+ *  opened. An endless run goes on until you stop it, and counts then. */
+function countIfOver() {
+  if (S.phase !== "reveal" || !(S.pot <= 0 || (lengthOf(S) !== "endless" && S.index + 1 >= S.questions.length))) return;
+  const avg = averageReturn(S.log) ?? 0;
+  recordBest(avg);
+  if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);
 }
 
 async function next() {
@@ -860,13 +869,16 @@ window.__punt = { get state() { return S; }, get together() { return together; }
 const hash = new URLSearchParams(location.hash.slice(1));
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 S = loadSolo();
+const forToday = arrivedForToday() && !code;       // from the games screen's tile: today's run, still to play
 const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard", linkedDay = Number(hash.get("day"));
-if (linkedDay && !(S?.daily && S.seed === linkedDay)) soloSession(linkedDay, "mix", "standard", null, true);
+if (forToday && !S) soloSession(today(), "mix", "standard", null, true);
+else if (linkedDay && !(S?.daily && S.seed === linkedDay)) soloSession(linkedDay, "mix", "standard", null, true);
 else if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) || linkedLevel === "mix" ? picksFromHash(hash, linkedLevel) : null);
 else if (!S) soloSession(randomSeed(), "mix", "standard");
 else {
   shownDone = S.done ? JSON.stringify(S.done) : null;
   history.replaceState(null, "", `${location.search}${linkOf(S)}`);
   render();
+  if (forToday && !(S.daily && S.seed === today())) setTimeout(newDaily, 0);   // it asks before leaving a run you've started
 }
 if (code.length === 4) together.join(code);

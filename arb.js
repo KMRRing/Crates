@@ -7,6 +7,7 @@ import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
+import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -14,7 +15,6 @@ const PER_RUN = 5;
 const RUN = "arb:run", BEST = "arb:best", DAILY = "arb:daily";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
 // ---------- the graph ----------

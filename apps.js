@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
+import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
 import { choice, RETE } from "./menu.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -329,7 +329,9 @@ function bindCodes(dlg) {
       ${duo ? `<button class="partner-line${partner?.online ? " on" : ""}" type="button" data-pair></button>` : ""}`;
     if (duo) head.querySelector("[data-pair]").textContent = status(partner);
     for (const el of dlg.querySelectorAll("[data-best]")) {
-      const id = el.dataset.best, mine = bestOf(id), them = theirs[id];
+      const id = el.dataset.best, mine = bestOf(id), them = theirs[id], a = el.closest("a"), app = APPS.find(x => x.id === id);
+      // a game whose daily you haven't played today opens on it: the tile's the way in to today's puzzle or run
+      if (a && app && a.getAttribute("aria-current") !== "page") a.setAttribute("href", dailyDue(id) ? `${app.href}#today` : app.href);
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
       const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
       const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : scoreText(id, d.best)}` : `Duo ${d.mine}–${d.theirs}`;
@@ -418,6 +420,8 @@ function bindCodes(dlg) {
     if (e.target.closest("[data-pair]")) openSheet();
   });
   draw();
+  // your other devices' results, once they've come in: drawn here, and passed on to your partner's tiles
+  addEventListener("suite:pulled", () => { draw(); if (duoCode() && !IN_FRAME) shareBests(APPS.map(a => a.id)).catch(() => {}); });
   if (duoCode() && !IN_FRAME) {
     shareBests(APPS.map(a => a.id)).catch(() => {});
     watchPartner(p => { partner = p; draw(); }).catch(() => {});
@@ -466,8 +470,9 @@ export function bindSwitcher(button, current) {
   dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); pop.close(); dlg.close(); }));
   APPS.forEach(a => {
     if (a.id === current) return;
-    // a tile always opens the game solo: a duo match only starts when your partner says Play
-    dlg.querySelectorAll(`.app-row[href="${a.href}"]`).forEach(row => row.addEventListener("click", e => { e.preventDefault(); location.href = a.href; }));
+    // a tile always opens the game solo: a duo match only starts when your partner says Play. Its link as it stands when
+    // tapped: today's (#today) while that's still to play
+    dlg.querySelectorAll(`.app-row[href="${a.href}"]`).forEach(row => row.addEventListener("click", e => { e.preventDefault(); location.href = row.getAttribute("href"); }));
   });
   const redraw = bindCodes(dlg);
   button.addEventListener("click", () => { redraw(); dlg.showModal(); });

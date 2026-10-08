@@ -84,6 +84,17 @@ show on the games screen. The same prefix is what a partner watches: everything 
 must be in its own keys (`<game>:…`, Slate's `glyph:…`), read at start-up; a game in `?watch` mode reads the
 partner's copy and its writes go nowhere, so don't keep state that matters anywhere else.
 
+## Dailies
+
+- **One day for every game:** `today()` from `suite.js` (the UTC date, YYYYMMDD, `days.js`). Never count days yourself:
+  Origin, Order and Arb once used the phone's own clock and their dailies never reached the games screen
+  (`tests/days.mjs` fails on a day of a game's own).
+- **Count a daily the moment its result is final** (the solve, the last answer settling), not when its summary opens:
+  leaving after the last answer must not lose the day. Record it where the games screen reads it (`markOf` in
+  `suite.js`): `noteComparable`, `noteDayTime`, or `<game>:daily` by the day.
+- **The tile opens today's** while it's still to play (`#today`): a game with a daily takes it with
+  `arrivedForToday()` at start-up and opens today's, asking before it leaves a run you've started.
+
 ## Playing together
 
 Players pair once on the games screen; a duo match is the game opened with `?room=CODE` (the pair's room), which the

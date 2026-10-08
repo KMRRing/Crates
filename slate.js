@@ -6,7 +6,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { sextant } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
-import { reportDuo, today, noteDayTime } from "./suite.js";
+import { reportDuo, today, noteDayTime, arrivedForToday } from "./suite.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
@@ -1067,11 +1067,17 @@ bindSwitcher($("appsBtn"), GAME);
 buildKeyboard();
 const params = new URLSearchParams(location.search);
 const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
+const forToday = arrivedForToday();          // from the games screen's tile: today's puzzle, still to play
 const hash = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
 S = loadSolo();
 if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d)) soloBoard(+hash.s, ["easy", "medium", "hard"].includes(hash.d) ? hash.d : "easy");
+else if (!S && forToday && !code) { soloBoard(today(), DAILY_LEVEL); S.daily = today(); saveSolo(); render(); }
 else if (!S) soloBoard(randomSeed(), "easy");
-else { shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render(); }
+else {
+  shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render();
+  // today's, once the board you left is drawn (it asks before leaving one you've started)
+  if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
+}
 clockRun();
 if (code.length === 4) join(code).then(ok => { if (!ok) setRoomParam(null); });
 window.__slate = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };

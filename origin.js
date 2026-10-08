@@ -8,6 +8,7 @@ import { LINKS } from "./kb/links.js";
 import { COUNTRIES } from "./chart-countries.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
+import { today, arrivedForToday, dailyDue } from "./suite.js";   // the day, the same for everyone (UTC)
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -15,7 +16,6 @@ const PER_RUN = 5, FULL = 100, PER_CLUE = 10, PER_GUESS = 5, LEAST = 5, MAX_CLUE
 const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const today = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60000) / 86400000);
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const shuffle = (r, xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -238,7 +238,7 @@ const save = () => write(RUN, S);
 function newRun(daily) {
   const seed = daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
   const picks = shuffle(r, ANSWERS).slice(0, PER_RUN);
-  S = { seed, daily, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r), shown: 1, guesses: [], done: null, points: 0 })) };
+  S = { seed, daily, day: daily ? today() : null, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r), shown: 1, guesses: [], done: null, points: 0 })) };
   save(); render();
 }
 const round = () => S.rounds[S.index];
@@ -251,17 +251,29 @@ function guess(text) {
   if (!id) { toast("Not a country on the map"); return; }
   if (R.guesses.includes(id)) { toast("Already guessed"); return; }
   chosen = null;
-  if (id === R.id) { R.done = "found"; R.points = pointsNow(R); S.total += R.points; }
+  if (id === R.id) { R.done = "found"; R.points = pointsNow(R); S.total += R.points; count(); }
   else { R.guesses.push(id); if (R.shown < R.clues.length) R.shown++; }          // a wrong guess turns up the next clue
   save(); render();
 }
+/** The last country decided: the run's total is final, so it counts at once, for your best and today's, not when
+ *  Finish is pressed (which counts it again, changing nothing). */
+function count() {
+  if (!S.rounds.every(R => R.done)) return;
+  const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
+  if (S.daily) { const d = read(DAILY, {}), day = S.day ?? today(); if (!(d[day] >= S.total)) { d[day] = S.total; write(DAILY, d); } }
+}
+/** Today's run, still to play: asks before leaving a run you've started. */
+function openToday() {
+  const R = S && round();
+  if (S && !S.over && (S.index > 0 || R?.guesses.length || R?.shown > 1 || R?.done) && !confirm("Start today's run? This one isn't finished.")) return;
+  newRun(true);
+}
 function another() { const R = round(); if (R && !R.done && R.shown < R.clues.length) { R.shown++; save(); render(); } }
-function giveUp() { const R = round(); if (R && !R.done) { R.done = "gave up"; R.points = 0; save(); render(); } }
+function giveUp() { const R = round(); if (R && !R.done) { R.done = "gave up"; R.points = 0; count(); save(); render(); } }
 function next() {
   if (S.index + 1 < S.rounds.length) { S.index++; save(); render(); return; }
   S.over = true; save();
-  const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
-  if (S.daily) { const d = read(DAILY, {}); if (!(d[today()] >= S.total)) { d[today()] = S.total; write(DAILY, d); } }
+  count();
   finish();
 }
 
@@ -306,7 +318,8 @@ function finish() {
   const p = document.createElement("p");
   p.className = "og-sum";
   p.textContent = `${S.total} of ${PER_RUN * FULL}: ${S.rounds.filter(R => R.done === "found").length} of ${S.rounds.length} found.`;
-  body.append(p, action("Another run", () => { $("doneDlg").close(); newRun(false); }, "primary"));
+  body.append(p, ...(dailyDue("origin") ? [action("Today's run", () => { $("doneDlg").close(); newRun(true); }, "primary")] : []),
+    action("Another run", () => { $("doneDlg").close(); newRun(false); }, dailyDue("origin") ? "" : "primary"));
   $("doneDlg").showModal();
 }
 let toastTimer;
@@ -317,7 +330,7 @@ let pick = null;
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  pick ??= S?.daily ? "daily" : "random";
+  pick ??= (S?.daily && !S.over) || dailyDue("origin") ? "daily" : "random";   // today's first, while it's still to play
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
@@ -344,4 +357,6 @@ $("nextBtn").addEventListener("click", next);
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
-if (S?.over) newRun(false); else render();
+if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
+else if (!S || S.over) newRun(dailyDue("origin"));
+else render();

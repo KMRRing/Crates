@@ -48,7 +48,7 @@ function picture(p) {
   if (pic.dataset.title !== p.pic) { pic.dataset.title = p.pic; showPicture(pic, p.pic, { width: 480 }); }
 }
 import "./pwa.js";
-import { today, noteComparable } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
+import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
 
 const $ = id => document.getElementById(id);
 const APP = 1;
@@ -124,7 +124,15 @@ function confirmPin() {
   else if (pile.has("chart", p.id)) pile.answer("chart", p.id, true);
   S.phase = "reveal";
   save();
+  if (S.index + 1 >= S.set.length) count();          // the last pin is in: the set's score is final
   render();
+}
+/** A set's final score counts at once, for your best and today's, not when its summary is opened; the summary counts it
+ *  again, which changes nothing. Returns the best it's measured against. */
+function count() {
+  const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
+  if (S.ranked) noteComparable("chart", S.score, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
+  return best;
 }
 /** A clue for the current place: the region, then the country, then the description with the name hidden. */
 function takeClue() {
@@ -506,8 +514,7 @@ function summary(add, pairs, rowText) {
   requestAnimationFrame(() => drawSummary(canvas, pairs));
 }
 function finish() {
-  const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
-  if (S.ranked) noteComparable("chart", S.score, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
+  const best = count();
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
@@ -652,7 +659,7 @@ function openMenu() {
   if (together.room) {
     part(body, "together").append(action("A fresh set", startRoomSet, "primary"), action("Back to solo", () => together.leave(), "link"));
   } else {
-    pick ??= { mode: S?.mode === "daily" ? "daily" : "random" };
+    pick ??= { mode: S?.mode === "daily" || dailyDue("chart") ? "daily" : "random" };   // today's first, while it's still to play
     const play = part(body, "play");
     play.append(action("Start a set", () => confirmStart(pick.mode), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
@@ -741,11 +748,13 @@ window.__chart = { get state() { return S; }, get views() { return views; }, set
 
 S = read(RUN, null);
 if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;
+const forToday = arrivedForToday();         // from the games screen's tile: today's set, still to play
 const hash = new URLSearchParams(location.hash.slice(1));
 if (!load(hash)) {
-  if (!S) start("random");
+  if (!S) start(forToday ? "daily" : "random");
   else { history.replaceState(null, "", hashOf(S)); showSelection(); render(); }
 }
-if (S.done) finish();
+if (forToday && !(S.mode === "daily" && S.seed === today())) setTimeout(() => confirmStart("daily"), 0);   // it asks before leaving a set you've started
+else if (S.done) finish();
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 if (code.length === 4) together.join(code);
