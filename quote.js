@@ -17,7 +17,7 @@ function picture(q) {
 }
 import "./pwa.js";
 import { part, choice, toggle, action, line } from "./menu.js";
-import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { today, noteComparable } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
 
 const $ = id => document.getElementById(id);
 const APP = 1;                       // this code's version of the together state
@@ -102,6 +102,15 @@ function take(kind) {
 }
 function next() {
   if (inRoom()) {
+    // the last question's closing bell opens the summary at once, from what's settled here (the last trade is in), and
+    // marks the set done for both; pressed again after closing it, it opens it again. It used to wait on the room's
+    // answer, and the press was dead whenever none came: the set already done (nothing changed), the connection, a
+    // newer version on the other device.
+    if (S.phase === "reveal" && S.index + 1 >= S.set.length) {
+      if (!S.done) together.act(g => (g.phase !== "reveal" || g.done ? false : void (g.done = true)));
+      finishRoom(true);
+      return;
+    }
     together.act(g => {
       if (g.phase !== "reveal") return false;
       if (g.index + 1 >= g.set.length) { g.done = true; return; }
@@ -109,6 +118,7 @@ function next() {
     });
     return;
   }
+  if (S.done) { finish(); return; }                       // the set is over: the closing bell shows it again
   if (S.phase !== "reveal") return;
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
   S.index++;
@@ -242,9 +252,11 @@ function renderRoom() {
 }
 
 let shownBell = null;
-function finishRoom() {
+/** Opens the closing bell's summary, as a modal on top: a dialog left open somehow (not shown as a modal) is reopened. */
+function bell() { const d = $("doneDlg"); if (d.open) d.close(); d.showModal(); }
+function finishRoom(asked = false) {                    // asked: the closing bell was pressed, so show it even if shown
   const g = S, me = mySeat(), key = `${g.seed}/${g.index}`;
-  if (shownBell === key) return;
+  if (shownBell === key && !asked) return;
   shownBell = key;
   const books = Object.values(g.books), mine = books[me], theirs = books[1 - me];
   const body = $("doneBody");
@@ -274,7 +286,7 @@ function finishRoom() {
   const leave = add("button", "btn wide", "Back to solo");
   leave.type = "button";
   leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
-  if (!$("doneDlg").open) $("doneDlg").showModal();
+  bell();
 }
 
 // ---------- together ----------
@@ -374,7 +386,7 @@ function finish() {
   const link = add("button", "btn wide", "Copy a link to this set");
   link.type = "button";
   link.addEventListener("click", copyLink);
-  if (!$("doneDlg").open) $("doneDlg").showModal();
+  bell();
 }
 const bestKey = () => (S.focus ? `${BEST}:${S.focus}` : BEST);
 const dailyKey = () => (S.focus ? `${today()}/${S.focus}` : String(today()));

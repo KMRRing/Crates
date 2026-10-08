@@ -48,7 +48,7 @@ function picture(p) {
   if (pic.dataset.title !== p.pic) { pic.dataset.title = p.pic; showPicture(pic, p.pic, { width: 480 }); }
 }
 import "./pwa.js";
-import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { today, noteComparable } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
 
 const $ = id => document.getElementById(id);
 const APP = 1;
