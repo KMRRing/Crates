@@ -52,6 +52,29 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 .pi-trace { pointer-events: none; }
 .pi-dry circle { fill: var(--pi-bad, #A8402F); stroke: #fff; stroke-width: 2; }
 .pi-dry text { font-size: 11px; font-weight: 800; fill: #fff; font-family: var(--font, sans-serif); }
+/* Auto-turn's marks in a tile's corner, on the board's navy in any theme: turned the right way, and off the route */
+.pi-board .pi-set { fill: none; stroke: #7FC2A8; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.pi-board .pi-off { fill: none; stroke: #E8806F; stroke-width: 3; stroke-linecap: round; }
+/* the brief: the level's tools over the board for its first seconds, before its clock starts. It covers the board's
+   whole box, so the seconds go on the tools, not on planning; a short box keeps names and prices, not explanations */
+.pi-fit { position: relative; }
+.pi-brief { position: absolute; inset: 0; z-index: 2; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; gap: .65rem;
+  padding: .8rem .9rem; border-radius: 6px; background: var(--tile); border: 1px solid var(--brass); color: var(--ink); cursor: pointer;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.pi-brief[hidden] { display: none; }
+.pi-brief-head { margin: 0; font-size: .74rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); color: var(--ink-soft); }
+.pi-brief-row { display: grid; grid-template-columns: 2.3rem minmax(0, 1fr) auto; column-gap: .6rem; row-gap: .1rem; align-items: center; }
+.pi-brief-row .ic { grid-row: span 2; display: grid; place-items: center; width: 2.3rem; height: 2.3rem; border-radius: 5px; background: var(--sheet); border: 1px solid var(--tile-edge); font-size: 1.25rem; }
+.pi-brief-row .nm { font-size: .95rem; font-weight: 800; }
+.pi-brief-row .pr { font-size: .82rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.pi-brief-row .ab { grid-column: 2 / -1; font-size: .78rem; line-height: 1.25; color: var(--ink-soft); }
+.pi-brief-row.dear { opacity: .45; }
+.pi-brief-foot { display: grid; gap: .35rem; font-size: .74rem; color: var(--ink-soft); text-align: center; }
+.pi-brief-go { justify-self: center; padding: .15rem .5rem; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.pi-brief-bar { display: block; height: 4px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.pi-brief-bar i { display: block; height: 100%; background: var(--pi-in); }
+@container (max-height: 15.5rem) { .pi-brief { gap: .45rem; } .pi-brief-row .ab { display: none; } }
+
 /* the tools: this map's offers */
 .pi-kit { display: flex; flex-wrap: nowrap; gap: .3rem; justify-content: center; min-height: 0; }
 .pi-kit:empty { display: none; }

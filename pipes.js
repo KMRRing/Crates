@@ -1,6 +1,6 @@
 // Pipes: turn tiles ahead of the flow. The engine (pipes-engine.js) builds levels and moves the flow; this file
 // draws the board, takes taps and runs the clock.
-import { LIVES, PRODUCTS, COSTS, DIRS, ACTS, ACT_LENGTH, actOf, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf, trace } from "./pipes-engine.js";
+import { LIVES, PRODUCTS, COSTS, DIRS, ACTS, ACT_LENGTH, actOf, makeLevel, newRun, turn, advance, score, openings, shapeOf, levelOf, trace, rightTurn } from "./pipes-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
@@ -18,7 +18,7 @@ const FILL_SCORED = 4;                 // and the time bonus counts that time as
 let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", after: "next" | "retry" (once done), offers: [{ id, price, uses }], market: { crude, hvo }, tool, live (below) }
 let L = null;        // the level
 let R = null;        // the run
-let clock = { last: 0, planLeft: 0, flowing: 0, filling: false };   // flowing: the time the bonus counts
+let clock = { last: 0, brief: 0, planLeft: 0, flowing: 0, filling: false };   // brief: the tools shown before the countdown; flowing: the time the bonus counts
 let raf = 0;
 const cells = new Map();   // "x,y" -> { g, flows: [] }
 
@@ -30,8 +30,12 @@ const TOOLS = {
   bend: { name: "Curve", icon: "↱", price: [60, 120], uses: [1, 3], about: "Tap a straight or a crossing: it becomes a curve." },
   cross: { name: "Crossover", icon: "✚", price: [80, 160], uses: [1, 2], about: "Tap a straight or a curve: it becomes a crossing." },
   pause: { name: "5 s pause", icon: "⏸", price: [100, 200], uses: [1, 2], about: "Everything waits five seconds: the countdown or the flow." },
+  turn: { name: "Auto-turn", icon: "🧭", price: [20, 40], uses: [2, 4], about: "Tap a pipe: it turns the way the route runs, or shows ✕ if the route doesn't use it." },
 };
 const PAUSE_MS = 5000;
+// a level opens on its tools, for this long, before its countdown starts: time to take them in that costs none of the
+// planning (the board stays covered); a tap starts it sooner, and there's none when none of them is affordable
+const BRIEF_MS = 3000;
 /** A map's offers: three of the tools at its own prices and uses, the same for everyone on the same board. */
 function offersFor(seed) {
   let a = seed >>> 0;
@@ -60,14 +64,17 @@ function beginLevel() {
   S.after = null;
   S.market = { crude: S.market?.crude ?? 1, hvo: S.market?.hvo ?? 1 }; S.tool = null;
   S.offers = offersFor(S.seed + 7919 * S.attempt + 104729 * S.n);
-  clock = { last: performance.now(), planLeft: L.level.plan, flowing: 0, filling: false, paused: 0 };
+  const affordable = S.offers.some(o => o.uses && S.score >= o.price);
+  clock = { last: performance.now(), brief: affordable ? BRIEF_MS : 0, planLeft: L.level.plan, flowing: 0, filling: false, paused: 0 };
   keepLive();
   drawHud();
   buildBoard();
   $("goBtn").hidden = true;
-  $("fillBtn").hidden = false;                       // there from the first moment: fill as soon as the route is ready
+  $("fillBtn").hidden = clock.brief > 0;             // there from the countdown's first moment: fill as soon as the route is ready
   $("note").textContent = levelNote();
   drawTools();
+  drawBrief();
+  drawStatus();
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
 }
@@ -80,17 +87,19 @@ function frame(now) {
   const dt = Math.min(100, now - clock.last);
   clock.last = now;
   if (S.phase !== "plan" && S.phase !== "flow") return;
-  const was = S.phase, filled = R.tilesFilled;
+  const was = S.phase, filled = R.tilesFilled, briefing = clock.brief > 0;
   step(dt);
   drawStatus();
+  if (briefing) { if (clock.brief > 0) drawBrief(); else endBrief(); }
   if (S.phase === "flow" && clock.paused <= 0) { drawFlow(); drawGauges(); }
   // kept as the oil enters each tile (Fill it now enters several a frame: a few times a second is plenty to watch)
   if (S.phase !== was || (R.tilesFilled !== filled && now - keptAt > 250)) keepLive();
   if (R.over) endLevel();
 }
-/** The level's clock moved on by dt ms: a pause holds the countdown and the flow alike; then the countdown, then the
- *  flow (at ×80 while filling, its time counted as if pumped at ×4). */
+/** The level's clock moved on by dt ms: the brief (the tools on show) and a pause hold the countdown and the flow
+ *  alike; then the countdown, then the flow (at ×80 while filling, its time counted as if pumped at ×4). */
 function step(dt) {
+  if (clock.brief > 0) { clock.brief = Math.max(0, clock.brief - dt); return; }
   if (clock.paused > 0) { clock.paused -= dt; return; }
   if (S.phase === "plan") { clock.planLeft -= dt; if (clock.planLeft <= 0) S.phase = "flow"; return; }
   if (S.phase !== "flow") return;
@@ -106,7 +115,8 @@ function step(dt) {
   }
 }
 function drawStatus() {
-  $("status").textContent = clock.paused > 0 ? `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`
+  $("status").textContent = clock.brief > 0 && S.phase === "plan" ? `Clock starts in ${Math.ceil(clock.brief / 1000)} s · level ${L.n}`
+    : clock.paused > 0 ? `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`
     : S.phase === "plan" ? `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · level ${L.n}`
     : `${clock.filling ? "Filling, time at ×4" : "Flowing"} · level ${L.n}`;
 }
@@ -118,7 +128,7 @@ function drawStatus() {
 let keptAt = 0;
 function keepLive(extra = {}) {
   keptAt = performance.now();
-  S.live = { n: S.n, attempt: S.attempt, R, planLeft: Math.round(clock.planLeft), flowing: Math.round(clock.flowing), filling: clock.filling,
+  S.live = { n: S.n, attempt: S.attempt, R, brief: Math.round(clock.brief), planLeft: Math.round(clock.planLeft), flowing: Math.round(clock.flowing), filling: clock.filling,
     paused: Math.max(0, Math.round(clock.paused)), at: Date.now(), ...extra };
   save();
 }
@@ -127,7 +137,7 @@ function resumeLive() {
   const v = S.live;
   L = makeLevel(S.seed + 7919 * S.attempt, S.n);
   R = v.R;
-  clock = { last: performance.now(), planLeft: v.planLeft, flowing: v.flowing, filling: v.filling, paused: v.paused };
+  clock = { last: performance.now(), brief: v.brief || 0, planLeft: v.planLeft, flowing: v.flowing, filling: v.filling, paused: v.paused };
   // in a frame, the clock runs on by the time since it was kept (a player thinking over the board saves nothing for a
   // while), but not past half a minute: an older copy is a player who has gone, not one still playing
   if (IN_FRAME && (S.phase === "plan" || S.phase === "flow")) for (let gone = Math.min(30000, Math.max(0, Date.now() - v.at)); gone > 0 && !R.over; gone -= 50) step(Math.min(50, gone));
@@ -136,7 +146,8 @@ function resumeLive() {
   drawFlow();
   drawGauges();
   drawTools();
-  $("fillBtn").hidden = !(S.phase === "plan" || S.phase === "flow") || clock.filling;
+  drawBrief();
+  $("fillBtn").hidden = !(S.phase === "plan" || S.phase === "flow") || clock.filling || clock.brief > 0;
   $("goBtn").hidden = true;
   if (S.phase === "plan" || S.phase === "flow") { drawStatus(); $("note").textContent = levelNote(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); return; }
   $("status").textContent = v.status || "";
@@ -149,6 +160,7 @@ function endLevel() {
   const net = score(L, R, msLeft, S.market), earned = net.total;
   S.score += earned;
   $("fillBtn").hidden = true;
+  drawBrief();
   if (R.over.win) {
     S.phase = "done";
     $("status").textContent = `Delivered: +${earned}`;
@@ -319,7 +331,13 @@ function drawTile(x, y) {
       g.appendChild(el("path", { d: "M25 30 l10 -6 v12 z", fill: "#fff" }));
     }
   }
-  if (!t.fixed && !t.locked) g.appendChild(el("circle", { cx: TILE - 9, cy: 9, r: 2.5, fill: "var(--pi-tile-edge)" }));
+  // the corner: a dot for a tile that turns; Auto-turn's mark in its place, ✓ turned the right way (until turned by
+  // hand), ✕ a pipe the route doesn't use
+  if (!t.fixed && !t.locked) {
+    if (t.off) g.appendChild(el("path", { d: "M45 4 l11 11 M56 4 l-11 11", class: "pi-off" }));
+    else if (t.set) g.appendChild(el("path", { d: "M44 10 l4.5 4.5 l8.5 -9", class: "pi-set" }));
+    else g.appendChild(el("circle", { cx: TILE - 9, cy: 9, r: 2.5, fill: "var(--pi-tile-edge)" }));
+  }
   drawFlowIn(x, y);
 }
 /** The flow in one tile: full for filled tiles, partial for a head's tile, along the pipe it took. */
@@ -355,21 +373,32 @@ function markSpill() {
   c.g.appendChild(el("rect", { x: 3, y: 3, width: TILE - 6, height: TILE - 6, rx: 8, fill: "none", stroke: "var(--pi-bad)", "stroke-width": 4 }));
 }
 function tap(x, y, by = 1) {
-  if (S.phase !== "plan" && S.phase !== "flow") return;
+  if ((S.phase !== "plan" && S.phase !== "flow") || clock.brief > 0) return;
   const t = R.tiles[y][x];
   if (S.tool) {                                       // a tool in hand: it works on the tile, if it's the right kind
     const offer = S.offers.find(o => o.id === S.tool);
     if (t.locked) return toast("That tile's full");
-    const ok = { clear: t.kind === "rock", pump: ["straight", "bend"].includes(t.kind), bend: ["straight", "cross"].includes(t.kind), cross: ["straight", "bend"].includes(t.kind) }[S.tool];
+    const ok = { clear: t.kind === "rock", pump: ["straight", "bend"].includes(t.kind), bend: ["straight", "cross"].includes(t.kind), cross: ["straight", "bend"].includes(t.kind), turn: !t.fixed }[S.tool];
     if (!ok) return toast(TOOLS[S.tool].about);
-    if (S.tool === "clear") Object.assign(t, { kind: ["straight", "bend", "bend", "cross"][Math.floor(Math.random() * 4)], rot: Math.floor(Math.random() * 4), fixed: false, shape: undefined });
-    else if (S.tool === "pump") Object.assign(t, { kind: "pump", shape: t.kind });
-    else Object.assign(t, { kind: S.tool, shape: undefined });
+    if (S.tool === "turn") {
+      // Auto-turn always charges for what it tells: a pipe it can't turn would otherwise show the route for free, tile
+      // by tile. A pipe already marked has nothing new to tell, so that tap is free.
+      if (t.off || t.set) return toast(t.off ? "The route doesn't use that pipe: it's marked" : "Already turned the right way");
+      const right = rightTurn(L, t, x, y);
+      if (right.rot != null) { toast(right.rot === t.rot ? "Already the right way" : "Turned the right way"); t.rot = right.rot; t.set = true; }
+      else if (right.why === "off") { t.off = true; toast("The route doesn't use this pipe"); }
+      else toast("The route runs here, but needs another shape");
+    } else {
+      if (S.tool === "clear") Object.assign(t, { kind: ["straight", "bend", "bend", "cross"][Math.floor(Math.random() * 4)], rot: Math.floor(Math.random() * 4), fixed: false, shape: undefined });
+      else if (S.tool === "pump") Object.assign(t, { kind: "pump", shape: t.kind });
+      else Object.assign(t, { kind: S.tool, shape: undefined });
+      delete t.set;                                    // a new shape: its right turn may be another
+    }
     S.score -= offer.price; offer.uses--; S.tool = null;
     keepLive(); drawHud(); drawTile(x, y); drawTrace(); drawTools();
     return;
   }
-  if (turn(R, x, y, by)) { drawTile(x, y); drawTrace(); keepLive(); }
+  if (turn(R, x, y, by)) { delete t.set; drawTile(x, y); drawTrace(); keepLive(); }   // turned by hand: no longer vouched for
   else if (t.locked) toast("That tile's full");
 }
 
@@ -399,7 +428,7 @@ function drawTools() {
     b.innerHTML = `<span class="ic"></span><span class="nm"></span><span class="pr"></span>`;
     b.querySelector(".ic").textContent = t.icon; b.querySelector(".nm").textContent = t.name; b.querySelector(".pr").textContent = `${o.price} · ×${o.uses}`;
     b.title = t.about;
-    b.disabled = !o.uses || S.score < o.price;
+    b.disabled = !o.uses || S.score < o.price || clock.brief > 0;    // bought once the clock starts
     b.addEventListener("click", () => {
       if (o.id === "pause") {                          // the pause works at once
         if (!o.uses || S.score < o.price) return;
@@ -412,6 +441,41 @@ function drawTools() {
     });
     box.append(b);
   }
+}
+
+// ---------- the brief: the level's tools, over the board before its clock starts ----------
+let briefFor = "";
+/** The card over the board while the clock waits: each tool on offer with its price, uses and what it does (one
+ *  that costs more than the points in hand dimmed), and the seconds left as a bar. */
+function drawBrief() {
+  const box = $("brief"), on = S.phase === "plan" && clock.brief > 0;
+  box.hidden = !on;
+  if (!on) return;
+  const key = `${S.seed}/${S.n}/${S.attempt}`;
+  if (briefFor !== key) {
+    briefFor = key;
+    const make = (tag, cls, text) => { const n = document.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
+    const rows = (S.offers || []).map(o => {
+      const t = TOOLS[o.id], row = make("div", `pi-brief-row${!o.uses || S.score < o.price ? " dear" : ""}`);
+      row.append(make("span", "ic", t.icon), make("b", "nm", t.name), make("span", "pr", `${o.price} · ×${o.uses}`), make("span", "ab", t.about));
+      return row;
+    });
+    const bar = make("span", "pi-brief-bar"), foot = make("div", "pi-brief-foot"), go = make("button", "pi-brief-go", "Tap to start now");
+    bar.append(document.createElement("i"));
+    go.type = "button";
+    foot.append(bar, go);
+    box.replaceChildren(make("p", "pi-brief-head", "Tools on offer"), ...rows, foot);
+  }
+  box.querySelector(".pi-brief-bar i").style.width = `${(100 * clock.brief / BRIEF_MS).toFixed(1)}%`;
+}
+/** The tools have had their seconds, or a tap cut them short: the board shows, the countdown starts, the kit opens. */
+function endBrief() {
+  clock.brief = 0;
+  drawBrief();
+  $("fillBtn").hidden = (S.phase !== "plan" && S.phase !== "flow") || clock.filling;
+  drawTools();
+  drawStatus();
+  keepLive();
 }
 
 // ---------- hud ----------
@@ -467,10 +531,12 @@ bindSwitcher($("appsBtn"), "pipes");
 document.querySelector(".pi-mark").innerHTML = APPS.find(a => a.id === "pipes").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+// a tap anywhere on the tools' card starts the clock (its button is the way in from a keyboard); never in a frame
+$("brief").addEventListener("click", () => { if (!IN_FRAME && clock.brief > 0) endBrief(); });
 /** Fill it now: the oil goes at once (planning ends there), the whole route fills in a moment, and the time it would
  *  have taken counts as if pumped at ×4. A route that isn't ready spills just the same. */
 $("fillBtn").addEventListener("click", () => {
-  if (S.phase !== "plan" && S.phase !== "flow") return;
+  if ((S.phase !== "plan" && S.phase !== "flow") || clock.brief > 0) return;
   S.phase = "flow";
   clock.planLeft = 0;
   clock.filling = true;
@@ -484,7 +550,8 @@ onPause(() => { if (S?.phase === "plan" || S?.phase === "flow") { cancelAnimatio
 document.addEventListener("visibilitychange", () => { if (document.hidden && !IN_FRAME && (S?.phase === "plan" || S?.phase === "flow")) retryLevel(); });   // a level left mid-flow starts over, fresh
 
 // for tests and debugging
-window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, tap, start, skipPlanning: () => { clock.planLeft = 0; }, applySolution: () => { R.tiles.forEach((row, y) => row.forEach((t, x) => { if (!t.locked && !t.fixed) t.rot = L.solution[y][x]; drawTile(x, y); })); } };
+window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, get clock() { return clock; }, tap, start, skipBrief: () => { if (clock.brief > 0) endBrief(); },
+  skipPlanning: () => { if (clock.brief > 0) endBrief(); clock.planLeft = 0; }, applySolution: () => { R.tiles.forEach((row, y) => row.forEach((t, x) => { if (!t.locked && !t.fixed) t.rot = L.solution[y][x]; drawTile(x, y); })); } };
 
 S = read(RUN, null);
 const hash = new URLSearchParams(location.hash.slice(1));

@@ -414,6 +414,25 @@ export function turn(run, x, y, by = 1) {
   t.rot = (t.rot + by + 4) % 4;
   return true;
 }
+/**
+ * How the Auto-turn tool turns `tile` at (x, y): the level's designed route there joined by the tile's shape, as
+ * { rot } (its present turn when that already joins it). Where two routes share the cell, the better one's (the
+ * junction of a near and a far terminal). Otherwise { why: "off" } when no route passes the cell (filler, a bypassed
+ * direct line), or { why: "shape" } when one does but this shape can't join its sides (a tool made a straight a curve).
+ */
+export function rightTurn(level, tile, x, y) {
+  const routes = level.choice?.better === "near" ? [level.routes[1], level.routes[0], ...level.routes.slice(2)] : level.routes;
+  let on = false;
+  for (const route of routes) {
+    const i = route.findIndex(([cx, cy]) => cx === x && cy === y);
+    if (i < 1 || i > route.length - 2) continue;              // its ends are the fixed wellhead, unit or terminal
+    on = true;
+    const need = sidesAt(route, i), joins = rot => need.every(d => openings({ ...tile, rot }).includes(d));
+    if (joins(tile.rot)) return { rot: tile.rot };
+    for (let rot = 0; rot < 4; rot++) if (joins(rot)) return { rot };
+  }
+  return { why: on ? "shape" : "off" };
+}
 /** Where a head leaves a tile it entered by `into`: the exit direction, null for a terminal or the HVO unit's inlet,
  *  undefined for no way on (a spill). */
 function exitOf(tile, into) {

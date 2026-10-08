@@ -70,5 +70,40 @@ check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck 
   long.tiles[5][0].kind = "pump"; long.tiles[5][0].shape = "straight"; long.tiles[10][0].kind = "pump"; long.tiles[10][0].shape = "straight";
   check(P.solved(long).over?.win, "with pumps on the way, it delivers");
 }
+// Auto-turn: every pipe on a designed route turns to join it, and a board turned that way (the rest left scrambled)
+// delivers; a pipe no route uses has no right way; a route straight a tool made a curve can't join its route; and a
+// pipe already joining its route keeps its turn
+{
+  let routeCells = 0, offCells = 0, curves = 0, picksTurned = 0;
+  const wrongs = [];
+  for (let seed = 1; seed <= 6; seed++) for (let n = 1; n <= 20; n++) {
+    const lv = P.makeLevel(seed, n), on = new Set(lv.routes.flatMap(r => r.slice(1, -1).map(([x, y]) => `${x},${y}`)));
+    const rots = lv.tiles.map(row => row.map(t => t.rot));
+    for (let y = 0; y < lv.h; y++) for (let x = 0; x < lv.w; x++) {
+      const t = lv.tiles[y][x];
+      if (t.fixed) continue;
+      const right = P.rightTurn(lv, t, x, y);
+      if (on.has(`${x},${y}`)) {
+        routeCells++;
+        if (right.rot == null) wrongs.push(`no turn for a route pipe (seed ${seed}, level ${n})`);
+        else {
+          rots[y][x] = right.rot;
+          if (P.rightTurn(lv, { ...t, rot: right.rot }, x, y).rot !== right.rot) wrongs.push(`a right turn doesn't hold (seed ${seed}, level ${n})`);
+        }
+      } else { offCells++; if (right.why !== "off") wrongs.push(`a turn for a pipe no route uses (seed ${seed}, level ${n})`); }
+    }
+    const turned = P.runWith(lv, rots);
+    if (!turned.over?.win) wrongs.push(`a board turned by Auto-turn doesn't deliver (seed ${seed}, level ${n})`);
+    // two terminals: the junction turns towards the better pick (index 0 is the far terminal)
+    else if (lv.choice) { picksTurned++; if (turned.reached[0] !== (lv.choice.better === "far" ? 0 : 1)) wrongs.push(`Auto-turn led to the worse terminal (seed ${seed}, level ${n})`); }
+    const straight = [...on].map(k => k.split(",").map(Number)).find(([x, y]) => lv.tiles[y][x].kind === "straight");
+    if (straight) {
+      curves++;
+      const [x, y] = straight;
+      if (P.rightTurn(lv, { ...lv.tiles[y][x], kind: "bend" }, x, y).why !== "shape") wrongs.push(`a curved route straight still turns (seed ${seed}, level ${n})`);
+    }
+  }
+  check(!wrongs.length, `Auto-turn: ${routeCells} route pipes turn to join their routes, and 120 boards turned that way deliver (the ${picksTurned} with two terminals to the better one); ${offCells} pipes off every route have no right way; ${curves} route straights made curves can't join${wrongs.length ? `: ${wrongs.slice(0, 3).join("; ")}` : ""}`);
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;
