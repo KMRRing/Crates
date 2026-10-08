@@ -5,12 +5,12 @@ import { steer, flatten, neighbour, limitOf, ASTERN, LOAD, DISCHARGE, WAIT, CLAS
 import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
-import { CHAPTERS, LEVELS } from "./harbour-levels.js";
+import { LEVELS } from "./harbour-levels.js";
 import { noteStars } from "./suite.js";
-import { SQUARE_REGIONS, feedOf } from "./harbour-squares.js";
-import { createSquaresScreen } from "./harbour-squares-ui.js";
-import { WORLDS, connect, flows } from "./harbour-world.js";
+import { REGIONS, regionOf, newCompany, feedOf, engineOf, PAR } from "./harbour-season.js";
+import { createSeasonScreen } from "./harbour-season-ui.js";
 import { createWorldScreen } from "./harbour-world-ui.js";
+import { stepOf, isOpen, isDone, lockedWhy, continueTo, chaptersShown, nextChapter, openSet, openedSince, nameOf } from "./harbour-campaign.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -77,18 +77,22 @@ let repeat = { delay: 0, every: 0, at: 0 };   // a shift arrow being held
 let viewing = null;                   // a par plan on show in place of yours: { k (its measure), mine (your plan), history }
 let shipType = null;                  // the class the next ship placed will be
 
-// v2: the harbour went from squares to hexes, and plans and bests from before don't carry over; a level whose rules
-// changed since carries a rev, and its plans and bests from before the change are left behind the same way
-const levelKey = () => `${L.id}${L.rev ? `@${L.rev}` : ""}`;
-const solKey = () => `harbour:v2:sol:${levelKey()}`, bestKey = () => `harbour:v2:best:${levelKey()}`;
+// v3: the campaign starts over, a step at a time, as a new player meets it (v2's plans and bests stay where they were,
+// unread). A level whose rules changed carries a rev, and its plans and bests from before the change are left behind.
+const KEY = "harbour:v3:";
+const keyOf = l => `${l.id}${l.rev ? `@${l.rev}` : ""}`;
+const levelKey = () => keyOf(L);
+const solKey = () => `${KEY}sol:${levelKey()}`, bestKey = () => `${KEY}best:${levelKey()}`;
 const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k => pick.r0 + k).filter(r => sol.ships[r]) : []);
 
 // ---------- the level ----------
 function load(level) {
   stop();
-  closeRegion();
+  closeScreen();
   L = level; G = grid(L);
-  write("harbour:level", L.id);
+  write(`${KEY}at`, L.id);
+  shown = L.id;
+  nextOff();
   const saved = read(solKey(), null);
   sol = saved?.ships && !invalid(L, saved) ? saved : { ships: [] };
   history = []; future = []; sel = -1; sim = null; frames = []; seen = 0; pick = null; notice = ""; viewing = null; shipType = Object.keys(L.fleet)[0];
@@ -111,6 +115,14 @@ function view(k) {
   banner();
   render(true);
 }
+/** The cheat: the par plan on show becomes your plan (one edit, so Undo takes it back), ready to run. */
+function usePar() {
+  if (!viewing) return;
+  const plan = JSON.parse(JSON.stringify(sol));
+  unview();
+  edit(() => { sol = plan; sel = -1; pick = null; });
+  notice = "The par plan is yours now: run it."; status();
+}
 function unview() {
   if (!viewing) return;
   stop();
@@ -121,7 +133,7 @@ function unview() {
 }
 // the brief, or while a par plan is on show, which one it is and the way back
 function banner() {
-  $("brief").hidden = !!viewing;
+  $("brief").hidden = !!viewing || !$("next").hidden;
   $("viewing").hidden = !viewing;
   if (!viewing) return;
   const [, name, f] = MEASURES.find(([k]) => k === viewing.k);
@@ -376,15 +388,14 @@ function stepOnce() {
 const bests = () => { const b = read(bestKey(), {}); if (b.hire != null && b.cost == null) b.cost = b.hire; return b; };   // level 1's first bests said hire
 function keepBests() {
   if (viewing) return;                                        // watching a par plan earns nothing
-  const sc = score(L, sol, sim), best = bests();
-  // the fleet of the fastest finish (or as fast and cheaper): a region fed by this harbour runs at its pace and pays its hire
-  if (best.hours == null || sc.hours < best.hours || (sc.hours === best.hours && sc.cost < (best.hoursCost ?? Infinity))) {
-    best.hoursFleet = {}; for (const sh of sol.ships) best.hoursFleet[sh.type] = (best.hoursFleet[sh.type] || 0) + 1;
-    best.hoursCost = sc.cost;
-  }
+  const sc = score(L, sol, sim), best = bests(), faster = best.hours != null && sc.hours < best.hours;
   for (const [k] of MEASURES) if (best[k] == null || sc[k] < best[k]) best[k] = sc[k];
   write(bestKey(), best);
   noteStars("harbour", starsAll());
+  // what the finish opened (the next level, a region), or, for a harbour that feeds a region, what the pace is worth there
+  const opened = progressChanged(), fed = REGIONS.find(R => R.feed.level === L.id && company.regions[R.id]);
+  if (opened.length) nextOn(`${listOf(opened.map((id, i) => (i ? nameOf(id).replace(/^The /, "the ") : nameOf(id))))} ${opened.length > 1 ? "are" : "is"} open.`, opened.find(id => id.startsWith("region:")) || opened[0]);
+  else if (faster && fed) nextOn(`Faster: the ${fed.feed.name.toLowerCase()} now ${fed.feed.name.endsWith("s") ? "feed" : "feeds"} ${fed.terminal.name} ${feedOf(fed, best.hours)} a week.`, `region:${fed.id}`);
 }
 
 // ---------- drawing ----------
@@ -540,41 +551,70 @@ function status() {
   el.className = `hb-status${tone ? ` ${tone}` : ""}${sim?.crash ? " back" : ""}`;
 }
 
+// the menu: Play (Continue, while there's somewhere further to go), Content (the campaign: every chapter you've reached,
+// each step done, here, open or locked, and why), Settings, About (this step's bests against its par, the par a button
+// to watch: a level's plan, a region's par run)
 function openMenu() {
-  const R = regionOn?.active();
-  const best = bests();
-  const rows = MEASURES.map(([k, name, f]) => `<tr><th>${name}</th><td>${best[k] != null ? f(best[k]) : "–"}</td>`
-    + `<td><button type="button" class="hb-par" data-k="${k}" aria-label="Watch the par plan for ${name.toLowerCase()}">${f(L.par[k])}</button></td></tr>`).join("");
-  // the menu: About (this level's bests against par), Settings (clear its ships)
-  const body = $("menuBody");
+  const body = $("menuBody"), f = facts(), next = continueTo(f);
   body.replaceChildren();
-  const table = document.createElement("table");
-  table.className = "hb-bests";
-  table.innerHTML = `<thead><tr><th>${L.name}</th><th>Your best</th><th>Par</th></tr></thead><tbody>${rows}</tbody>`;
-  // the levels by chapter, each under its heading: the region and what it teaches (the shared mirror leaves headings out)
-  const content = part(body, "content"), pickLevel = v => { $("menuDlg")?.close(); levelSel.value = v; levelSel.dispatchEvent(new Event("change", { bubbles: true })); };
-  for (const c of CHAPTERS) {
-    const ls = LEVELS.filter(l => l.chapter === c.id).map(l => [l.id, `${LEVELS.indexOf(l) + 1} · ${l.name}`]);
-    const rs = ALL_REGIONS.filter(r => r.chapter === c.id).map(r => [`region:${r.id}`, `Region · ${r.name}`]);
-    content.append(choice(`${c.name}: ${c.note}`, [...ls, ...rs], R ? `region:${R.id}` : L.id, pickLevel));
+  if (next && next !== shown) part(body, "play").append(action(`Continue: ${nameOf(next)}`, () => goTo(next), "primary"));
+  const camp = document.createElement("div");
+  camp.className = "hb-camp";
+  for (const c of chaptersShown(f)) {
+    const box = document.createElement("section");
+    box.className = "hb-chapter";
+    box.innerHTML = `<h5>${esc(c.name)}: ${esc(c.note)}</h5>` + c.steps.map(st => {
+      const open = isOpen(st, f), done = open && isDone(st, f), here = st.id === shown;
+      return `<button type="button" class="hb-step${done ? " done" : ""}${here ? " here" : ""}" data-step="${st.id}" ${open && !here ? "" : "disabled"}${here ? ' aria-current="true"' : ""}>`
+        + `<b>${esc(labelOf(st.id))}</b><span>${esc(open ? noteOf(st.id, done) : lockedWhy(st))}</span></button>`;
+    }).join("");
+    camp.append(box);
   }
-  part(body, "settings").append(R ? action("Let this region's ships go", () => { regionOn.clear(); $("menuDlg").close(); }, "link")
-    : action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"),
-    action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); $("menuDlg").close(); }, "link"),
-    action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
-      write("harbour:flat", !mapView.flat);
-      $("menuDlg").close();
-      await makeMap();
-      mapView.setLevel(L, G);
-      render(true);
-    }, "link"));
-  const bestsTable = R ? regionOn.menuTable() : table;
-  bestsTable.addEventListener("click", e => { const b = e.target.closest(".hb-par"); if (b) { $("menuDlg").close(); (R ? regionOn.view : view)(b.dataset.k); } });
-  const note = document.createElement("p");
+  const later = nextChapter(f);
+  if (later) {
+    const box = document.createElement("section");
+    box.className = "hb-chapter later";
+    box.innerHTML = `<h5>${esc(later.name)}: ${esc(later.note)}</h5><p>Opens ${esc(later.why)}.</p>`;
+    camp.append(box);
+  }
+  camp.addEventListener("click", e => { const b = e.target.closest("[data-step]"); if (b) { $("menuDlg").close(); goTo(b.dataset.step); } });
+  part(body, "content").append(camp);
+  const set = part(body, "settings");
+  if (screenOn === SEASON) set.append(action("Start this region over", () => { if (confirm(`Start ${nameOf(shown)} over? Its weeks, vehicles, contracts and coins all go.`)) SEASON.restart(); }, "link"));
+  else if (!screenOn) set.append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
+  set.append(action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); }, "link"));
+  if (!screenOn) set.append(action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {
+    write("harbour:flat", !mapView.flat);
+    await makeMap();
+    mapView.setLevel(L, G);
+    render(true);
+  }, "link"));
+  set.append(action("Start Harbour over", () => {
+    if (!confirm("Start Harbour over from the first level? Every plan, best and region goes.")) return;
+    for (const k of Object.keys(localStorage)) if (k.startsWith(KEY)) localStorage.removeItem(k);
+    location.reload();
+  }, "link"));
+  const about = part(body, "about"), note = document.createElement("p");
   note.className = "hb-note";
-  note.textContent = "Tap a par to watch the plan that reaches it.";
-  part(body, "about").append(bestsTable, note);
+  if (screenOn === SEASON) {
+    const R = SEASON.active(), b = read(`${KEY}best:region:${R.id}`, {}), t = document.createElement("table");
+    t.className = "hb-bests";
+    t.innerHTML = `<thead><tr><th>${esc(R.name)}</th><th>Your best</th><th>Par</th></tr></thead><tbody><tr><th>Engine, a week</th><td>${b.engine != null ? b.engine : "–"}</td>`
+      + `<td><button type="button" class="hb-par" aria-label="Watch the par run">${PAR.engine[R.id]}</button></td></tr></tbody>`;
+    t.addEventListener("click", e => { if (e.target.closest(".hb-par")) { $("menuDlg").close(); SEASON.view(); } });
+    note.textContent = "The engine is what a region makes a week once it runs on its own. Tap the par to watch the par run, week by week.";
+    about.append(t, note);
+  } else if (!screenOn) {
+    const best = bests(), t = document.createElement("table");
+    t.className = "hb-bests";
+    t.innerHTML = `<thead><tr><th>${esc(L.name)}</th><th>Your best</th><th>Par</th></tr></thead><tbody>` + MEASURES.map(([k, name, fmt]) => `<tr><th>${name}</th><td>${best[k] != null ? fmt(best[k]) : "–"}</td>`
+      + `<td><button type="button" class="hb-par" data-k="${k}" aria-label="Watch the par plan for ${name.toLowerCase()}">${fmt(L.par[k])}</button></td></tr>`).join("") + `</tbody>`;
+    t.addEventListener("click", e => { const p = e.target.closest(".hb-par"); if (p) { $("menuDlg").close(); view(p.dataset.k); } });
+    note.textContent = "Tap a par to watch the plan that reaches it; Use this plan makes it yours.";
+    about.append(t, note);
+  }
   $("menuDlg").showModal();
+  $("menuDlg").scrollTop = 0;                                // opened again, it starts at the top, not where a par was tapped
 }
 
 // ---------- wiring ----------
@@ -776,6 +816,8 @@ $("scrub").addEventListener("input", e => scrubTo(+e.target.value));
 $("status").addEventListener("click", () => { if (sim?.crash) scrubTo(sim.t - 1); });
 $("menuBtn").addEventListener("click", openMenu);
 $("mineBtn").addEventListener("click", unview);
+$("useBtn").addEventListener("click", usePar);
+$("nextBtn").addEventListener("click", () => { const to = $("nextBtn").dataset.to; nextOff(); goTo(to); });
 $("classes").addEventListener("click", e => {
   const b = e.target.closest(".hb-class");
   if (!b) return;
@@ -789,7 +831,7 @@ $("menuDlg").addEventListener("click", e => { if (e.target === $("menuDlg")) $("
 // keys on a computer: Ctrl/Cmd with C, X, V, A and Z copy, cut, paste, pick everything and undo; Delete deletes the
 // picked hours; Escape stops picking; space runs and pauses, S steps, R goes back to the start
 addEventListener("keydown", e => {
-  if ($("menuDlg").open || e.target.closest?.("input, textarea") || regionOn?.active()) return;
+  if ($("menuDlg").open || e.target.closest?.("input, textarea") || screenOn || document.querySelector("dialog[open]")) return;
   const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
   if (mod && (k === "y" || (k === "z" && e.shiftKey))) { e.preventDefault(); redo(); }
   else if (mod && k === "z") { e.preventDefault(); undo(); }
@@ -810,58 +852,98 @@ addEventListener("keydown", e => {
   else if (k === "r" && !mod) { stop(); render(true); }
 });
 
-// two kinds of screen above the harbours, one open at a time: a region's square map (its network, fed by a harbour's pace
-// and by the world desk's cargoes) and the world (the desk's cargoes between the regions, on the forward curve)
-const harbourBest = id => { const l = LEVELS.find(x => x.id === id); return l ? read(`harbour:v2:best:${l.id}${l.rev ? `@${l.rev}` : ""}`, {}) : {}; };
-const goToLevel = id => { levelSel.value = id; levelSel.dispatchEvent(new Event("change", { bubbles: true })); };
-// a region's plan as saved, with its feeding harbour's pace; the world desk's cargoes as each region sees them, landings
-// counting only what the export region actually lifted
-const regionPlan = id => {
-  const R = SQUARE_REGIONS.find(r => r.id === id), saved = read(`harbour:v2:squares:${id}:plan`, null) || { built: { road: [], rail: [], pipe: [] }, depots: [], vehicles: [], flows: [] };
-  return { ...saved, feed: R.feeds ? feedOf(R, harbourBest(R.feeds)) || undefined : undefined };
-};
-const worldFlows = id => {
-  const W = WORLDS.find(w => w.from.region === id || w.to.region === id), plan = W && read(`harbour:v2:world:${W.id}:plan`, null);
-  if (!plan) return {};
-  if (id === W.from.region) return flows(W, plan)[id];
-  const c = connect(W, plan, regionPlan);
-  return flows(W, plan, new Map(c.from.lifts.map(x => [x.day, x.lifted])))[id];
-};
-const goToRegion = id => goToLevel(`region:${id}`);
-const SCREENS = {
-  squares: createSquaresScreen({ root: $("region"), brief: $("brief"), harbourBest, openLevel: goToLevel, worldFlows, openWorld: () => goToRegion(WORLDS[0].id) }),
-  world: createWorldScreen({ root: $("region"), brief: $("brief"), regionPlan, openRegion: goToRegion }),
-};
-const SCREEN_OF = new Map([...SQUARE_REGIONS.map(r => [r, "squares"]), ...WORLDS.map(w => [w, "world"])]);
-const ALL_REGIONS = [...SCREEN_OF.keys()];
-let regionOn = null;                                          // the screen showing a region, if one is
-function openRegion(R) {
-  if (!R) return;
-  stop();
-  closeRegion();
-  $("app").classList.add("hb-regional");
-  regionOn = SCREENS[SCREEN_OF.get(R)];
-  regionOn.open(R);
-  write("harbour:level", `region:${R.id}`);
+// ---------- the campaign: what's open, the screens above the harbours, the picker ----------
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const listOf = names => (names.length < 2 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
+const harbourBest = id => { const l = LEVELS.find(x => x.id === id); return l ? read(`${KEY}best:${keyOf(l)}`, {}) : {}; };
+let company = read(`${KEY}company`, null) || newCompany();
+const facts = () => ({ finished: id => harbourBest(id).hours != null, company });
+/** Drops a week each region's harbour feeds its terminal, from your fastest plan for it. */
+const feeds = () => Object.fromEntries(REGIONS.map(R => [R.id, feedOf(R, harbourBest(R.feed.level).hours)]));
+const harbourInfo = id => { const l = LEVELS.find(x => x.id === id); return { name: l.name, hours: harbourBest(id).hours ?? null, par: l.par.hours }; };
+let shown = null;                                            // the step on screen: a level's id, "region:id" or "world"
+let openNow = openSet(facts());
+/** After anything that could open something: the picker again, and what opened since last time. */
+function progressChanged() {
+  const opened = openedSince(openNow, facts());
+  openNow = openSet(facts());
+  buildPicker();
+  return opened;
 }
-function closeRegion() {
-  if (!regionOn) return;
-  regionOn.close();
-  regionOn = null;
+function saveCompany(c) { company = c; write(`${KEY}company`, c); }
+/** After a week: each solved region's engine against its best, and the news of what the week opened. */
+function onWeek(before, after, reports, news) {
+  const F = feeds();
+  for (const R of REGIONS) if (after.regions[R.id]?.solved) {
+    const e = engineOf(after, R.id, F), k = `${KEY}best:region:${R.id}`, b = read(k, {});
+    if (e != null && (b.engine == null || e > b.engine)) write(k, { ...b, engine: e });
+  }
+  const opened = progressChanged(), actions = [];
+  if (opened.includes("first-blend")) { news.push(["North-West Europe is open", "The long-term contracts here need more diesel than the plant and ORLEN can bring. Build a terminal of your own in ARA: its harbours come first."]); actions.push(["Go to First blend", "first-blend"]); }
+  if (opened.includes("roundabout")) { news.push(["The Straits are open", "The Baltic runs on its own, on the company's clock, while you play on: four harbours of timing at its hardest."]); actions.push(["Go to Roundabout", "roundabout"]); }
+  SEASON.news(news, actions);
+}
+const SEASON = createSeasonScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, harbour: harbourInfo, goTo, onWeek });
+const WORLD = createWorldScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, goTo });
+let screenOn = null;                                         // the screen above the harbours that's showing, if one is
+function openScreen(screen, arg, id) {
+  stop();
+  closeScreen();
+  nextOff();
+  $("app").classList.add("hb-regional");
+  screenOn = screen;
+  screen.open(arg);
+  shown = id;
+  write(`${KEY}at`, id);
+  levelSel.value = id; dd.sync();
+}
+function closeScreen() {
+  if (!screenOn) return;
+  screenOn.close();
+  screenOn = null;
   $("app").classList.remove("hb-regional");
+}
+/** Goes to a step, if it's open: a level, a region or the world. */
+function goTo(id) {
+  const st = stepOf(id);
+  if (!st || !isOpen(st, facts())) return;
+  if (id === "world") openScreen(WORLD, null, id);
+  else if (id.startsWith("region:")) openScreen(SEASON, regionOf(id.slice(7)), id);
+  else { load(LEVELS.find(l => l.id === id)); levelSel.value = id; dd.sync(); }
+}
+// a step's name in the picker and the menu, and what it says under the name: what it teaches, or how far you've got
+const labelOf = id => (id === "world" ? "The world" : id.startsWith("region:") ? `Region · ${nameOf(id)}` : `${LEVELS.findIndex(l => l.id === id) + 1} · ${nameOf(id)}`);
+function noteOf(id, done) {
+  if (id === "world") return done ? "your regions joined" : "joining your regions";
+  if (id.startsWith("region:")) { const R = regionOf(id.slice(7)), s = company.regions[R.id]; return s?.solved ? "runs on its own" : s ? `${R.teaches} · ★ ${s.stars}` : R.teaches; }
+  const l = LEVELS.find(x => x.id === id), b = harbourBest(id), stars = MEASURES.filter(([k]) => b[k] != null && b[k] <= l.par[k]).length;
+  return done ? `${l.teaches} · ${"★".repeat(stars)}${"☆".repeat(MEASURES.length - stars)}` : l.teaches;
 }
 
 const levelSel = $("level");
-// a heading for each chapter (it can't be picked), then its levels, each with the idea it teaches under its name
-levelSel.innerHTML = CHAPTERS.map(c => `<option disabled>${c.name}: ${c.note}</option>`
-  + LEVELS.filter(l => l.chapter === c.id).map(l => `<option value="${l.id}" data-note="${l.teaches}">${LEVELS.indexOf(l) + 1} · ${l.name}</option>`).join("")
-  + ALL_REGIONS.filter(r => r.chapter === c.id).map(r => `<option value="region:${r.id}" data-note="${r.teaches}">Region · ${r.name}</option>`).join("")).join("");
-dropdown(levelSel);
-levelSel.addEventListener("change", () => {
-  const v = levelSel.value;
-  if (v.startsWith("region:")) openRegion(ALL_REGIONS.find(r => `region:${r.id}` === v));
-  else load(LEVELS.find(l => l.id === v));
-});
+// the picker: a heading for each chapter reached (it can't be picked), then its steps, the locked ones greyed with why
+function buildPicker() {
+  const f = facts();
+  levelSel.innerHTML = chaptersShown(f).map(c => `<option disabled>${esc(c.name)}: ${esc(c.note)}</option>` + c.steps.map(st => {
+    const open = isOpen(st, f), done = open && isDone(st, f);
+    return `<option value="${st.id}" data-note="${esc(open ? noteOf(st.id, done) : lockedWhy(st))}"${open ? "" : " disabled"}>${esc(labelOf(st.id))}${done ? " ✓" : ""}</option>`;
+  }).join("")).join("");
+  if (shown) levelSel.value = shown;
+  dd?.sync();
+}
+let dd = null;
+buildPicker();
+dd = dropdown(levelSel);
+levelSel.addEventListener("change", () => goTo(levelSel.value));
+// the banner in the brief's place: what a finish opened, and the way there
+function nextOn(text, to) {
+  $("nextText").textContent = text;
+  $("nextBtn").dataset.to = to;
+  $("nextBtn").textContent = to === shown ? "Stay" : `Go to ${nameOf(to).replace(/^The /, "the ")}`;
+  $("next").hidden = false;
+  banner();
+}
+function nextOff() { if ($("next").hidden) return; $("next").hidden = true; banner(); }
 // a region: the port's harbour, programs and clock give way to the region's chart, fleet and month
 // the map: in 3D where the device can draw it and the player hasn't asked for it flat, flat otherwise
 let mapView = null;
@@ -879,16 +961,15 @@ async function makeMap() {
 new MutationObserver(() => mapView?.theme()).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => mapView?.theme());
 
-const lastOpened = read("harbour:level", ""), lastRegion = ALL_REGIONS.find(r => `region:${r.id}` === lastOpened);
-const first = LEVELS.find(l => l.id === lastOpened) || LEVELS[0];
-levelSel.value = first.id;
+// where you were, if it's still open; else where Continue goes: for a new player, the first level
+const at = read(`${KEY}at`, null), startAt = at && stepOf(at) && isOpen(stepOf(at), facts()) ? at : continueTo(facts()) || LEVELS[0].id;
 await makeMap();
-load(first);
-if (lastRegion) { levelSel.value = `region:${lastRegion.id}`; levelSel.dispatchEvent(new Event("change", { bubbles: true })); }
+load(LEVELS.find(l => l.id === startAt) || LEVELS[0]);    // a level is always loaded, under a region or the world if one's on top
+if (startAt !== L.id) goTo(startAt);
 // stars collected: a measure met at par or under is a star, as a run's line marks it, over every level
 function starsAll() {
   return LEVELS.reduce((n, l) => {
-    const b = read(`harbour:v2:best:${l.id}${l.rev ? `@${l.rev}` : ""}`, {});
+    const b = read(`${KEY}best:${keyOf(l)}`, {});
     if (b.hire != null && b.cost == null) b.cost = b.hire;
     return n + MEASURES.filter(([k]) => b[k] != null && l.par?.[k] != null && b[k] <= l.par[k]).length;
   }, 0);

@@ -147,35 +147,62 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   let st = start(H, wrong), refused = null;
   for (let t = 0; t < 60 && !refused; t++) { st = step(H, wrong, st); refused = st.events.find(e => e.kind === "refused"); }
   check(refused && /FAME/i.test(refused.why), `heels: a FAME heel is refused by the pure customer (${refused?.why})`); }
-// the world: the desk's par is exact and its plan checks out; a cargo too soon or a day taken twice is refused; and the
-// company's month couples the regions, landing only what was lifted
-{ const { WORLDS, evaluate, best, pars, connect, flows } = await import("../harbour-world.js");
-  const { SQUARE_REGIONS, simulate } = await import("../harbour-squares.js");
-  for (const W of WORLDS) {
-    const P = pars(W), dp = evaluate(W, best(W, 2));
-    check(P.profit.ev.profit === 23.4 && P.lean.ev.ships === 1 && Math.abs(P.lean.ev.profit - 13.2) < 1e-9 && dp.profit === 23.4, `${W.id}: the desk's pars (23.4 with two MRs; 13.2 with one, per MR)`);
-    check(evaluate(W, { ships: [[0, 5]] }).errors.length === 1 && evaluate(W, { ships: [[3], [3]] }).errors.length === 1, `${W.id}: a cargo before its MR is back, or a day taken twice, is refused`);
-    check([W.from.region, W.to.region].every(id => SQUARE_REGIONS.some(r => r.id === id)) && CHAPTERS.some(c => c.id === W.chapter), `${W.id}: joins two regions that exist, in a chapter that does`);
-    const R1 = SQUARE_REGIONS.find(r => r.id === W.from.region), none = { built: { road: [], rail: [], pipe: [] }, depots: [], vehicles: [], flows: [] };
-    const c = connect(W, P.profit.plan, id => (id === R1.id ? R1.plans[0] : none));
-    const lifted = c.from.lifts.reduce((a, x) => a + x.lifted, 0);
-    check(lifted >= 170 && c.to.lands.length === c.from.lifts.length && c.to.lands.every((x, i) => x.delivered <= c.from.lifts[i].lifted + 1e-9), `${W.id}: with the export region's par plan, the par cargoes are lifted (${lifted} of ${c.from.lifts.length * W.cargo}), and no more lands than was lifted`);
-    const empty = connect(W, P.profit.plan, () => none), liftedNow = empty.from.lifts.map(x => x.lifted);
-    check(liftedNow[0] === 30 && liftedNow[1] === 30 && liftedNow.slice(2).every(x => x < 30) && empty.to.lands.every((x, i) => x.delivered <= liftedNow[i] + 1e-9), `${W.id}: with nothing gathered, only the opening stock is lifted, and only what's lifted lands (${liftedNow.join(", ")})`);
-    const R = R1, r = simulate(R, R.plans[0]); check(Math.abs(r.profit - R.par.profit) < 0.05, `${R.id}: the export region's par plan reaches its par (${r.profit})`);
-  } }
-// the regions on squares: each reference plan for the feeding harbour replays to the month stored for it, the par is the
-// fastest's, a harbour's bests become the plant's feed, and with the harbour unfinished the par's fleet can't keep up
-{ const { SQUARE_REGIONS, simulate, feedOf } = await import("../harbour-squares.js");
-  for (const R of SQUARE_REGIONS.filter(R => R.feeds)) {
-    check(LEVELS.some(l => l.id === R.feeds) && CHAPTERS.some(c => c.id === R.chapter), `${R.id}: fed by a harbour that exists, in a chapter that does`);
-    for (const x of R.rundown) { const r = simulate(R, { ...x.plan, feed: { hours: x.hours, ships: x.ships } }); check(Math.abs(r.profit - x.best) < 0.05 && r.short === 0, `${R.id}: ${x.name} (${x.hours} h) replays to its month (${r.profit} against ${x.best})`); }
-    const fastest = R.rundown.reduce((a, b) => (b.hours < a.hours ? b : a));
-    check(R.par.profit === fastest.best && Math.max(...R.rundown.map(x => x.best)) === fastest.best, `${R.id}: the par is the fastest harbour plan's month, and the best`);
-    for (const p of R.plans) { const r = simulate(R, p); check(Math.abs(r.profit - R.par.profit) < 0.05, `${R.id}: the par plan reaches its par (${r.profit})`); }
-    check(feedOf(R, {}) === null && feedOf(R, { hours: 39 }).ships.coaster === 2 && feedOf(R, { hours: 33, hoursFleet: { coaster: 3 } }).hours === 33, `${R.id}: a harbour's bests become the plant's feed (none until it's finished)`);
-    const idle = simulate(R, { ...R.plans[0], feed: undefined });
-    check(idle.short > 0 && idle.profit < 0, `${R.id}: with the harbour unfinished, the par's fleet leaves the towns short (${idle.profit})`);
-  } }
-console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars, the regions' pars and the world's hold`);
+// the regions, a week at a time: the par run reaches both regions' engines, ARA's lane is what lets the Baltic finish,
+// Rundown's speed star is worth a star (and a contract) in the Baltic's first season, and the rules case by case
+{ const S = await import("../harbour-season.js");
+  const B = S.regionOf("baltic"), A = S.regionOf("ara");
+  const { company: C, weeks } = S.parRun();
+  check(C.regions.baltic.solved && C.regions.ara.solved, "the par run solves both regions");
+  check(C.regions.baltic.solvedAt === 14 && weeks[13].reports.baltic.solved, `the par run: the Baltic solved in its 14th week, the week after ARA's first cargo lands (${C.regions.baltic.solvedAt})`);
+  for (const id of ["baltic", "ara"]) { const e = S.engineOf(C, id, S.PAR.feeds); check(Math.abs(e - S.PAR.engine[id]) < 0.05, `${id}: the par run's engine is the par (${e} against ${S.PAR.engine[id]})`); }
+  check(weeks.every(w => Object.values(w.reports).every(r => r.age < 4 || r.star >= 0 || r.event)), "the par run breaks no contract outside an event week");
+  // without the lane: the same moves, no MR on it, and the Baltic's long-term contracts can't be kept
+  { let c = S.startRegion(S.newCompany(), "baltic");
+    for (const w of S.PAR.weeks) { for (const id of ["baltic", "ara"]) for (const a of w[id] || []) c = S.act(c, id, a); c = S.playCompany(c, S.PAR.feeds).company; }
+    check(!c.regions.baltic.solved && c.regions.baltic.held.some(h => h.endsWith("-2")), "without ARA's lane the Baltic takes its long-term contracts and can't keep them: never solved"); }
+  // Rundown's speed star: eight drops a week instead of six; the par's first season at six ends a star short
+  check(S.feedOf(B, 31) === 8 && S.feedOf(B, 39) === 6 && S.feedOf(B, 36) === 7 && S.feedOf(A, 56) === 7 && S.feedOf(A, 100) === 4 && S.feedOf(B, null) === 0, "a harbour's pace feeds its terminal: Rundown 31 h 8 a week, 39 h 6; Two refineries 56 h 7; unfinished, nothing");
+  { const stars = feed => { let c = S.startRegion(S.newCompany(), "baltic"); for (const w of S.PAR.weeks.slice(0, 4)) { for (const a of w.baltic || []) c = S.act(c, "baltic", a); c = S.playCompany(c, { baltic: feed }).company; } return c.regions.baltic.stars; };
+    check(stars(8) === 3 && stars(6) === 2, `the first season: ★${stars(8)} at Rundown's speed star, ★${stars(6)} at its cost star (Rakvere's contract wants ★3)`); }
+  // the rules, case by case
+  let s = S.newRegion(B);
+  check(S.pick(B, S.pick(B, s, "truck"), "tank") === S.pick(B, s, "truck") || S.pick(B, S.pick(B, s, "truck"), "tank").pool.truck === 2 && S.pick(B, S.pick(B, s, "truck"), "tank").cap === 12, "one offer a week");
+  check(S.pick(B, s, "ship") === s, "only this week's offers can be taken");
+  { const full = { ...S.newRegion(B), tank: 12 }, out = S.playWeek(B, full, { feed: 8 }).report;
+    check(out.arrived.feed === 0 && out.turned === 8 && out.coins === 0, `a full tank turns the plant away and pays nothing for it (${JSON.stringify(out.arrived)}, ${out.coins})`); }
+  { let r = S.newRegion(B); r.stars = 3; r.age = 4; r = S.accept(B, r, "tallinn-1");
+    const out = S.playWeek(B, r, { feed: 8 });
+    check(out.report.towns.tallinn.got === 0 && out.report.star === -1 && out.state.stars === 2, "a contract left short (no vehicle on the road) costs a star");
+    check(S.accept(B, { ...S.newRegion(B), age: 4, stars: 1 }, "tallinn-1").held.length === 0, "a contract wants its stars"); }
+  { let c = S.startRegion(S.startRegion(S.newCompany(), "baltic"), "ara"); c = S.setMRs(c, "ara-baltic", 1);
+    c = S.act(c, "ara", ["place", "rotterdam", "truck"]);
+    const room = x => ({ ...x, regions: { ...x.regions, baltic: { ...x.regions.baltic, tank: 0 } } });
+    const w1 = S.playCompany(c, { ara: 7 }), w2 = S.playCompany(room(w1.company), { ara: 7 });
+    check(w1.reports.ara.exported > 0 && !w1.reports.baltic.arrived.lane && w2.reports.baltic.arrived.lane === w1.reports.ara.exported, `a lane's cargo loads one week and lands the next (${w1.reports.ara.exported} loaded, ${w2.reports.baltic.arrived.lane} landed)`);
+    const w2full = S.playCompany(w1.company, { ara: 7 });       // the Baltic's tank, six in twelve: room for six
+    check(w2full.reports.baltic.arrived.lane === 6 && w2full.reports.ara.exported === 6 && w2full.company.lanes["ara-baltic"].aboard === 8, "lane cargo that doesn't fit waits aboard, and the MR loads only what it has room for");
+    check(w1.company.regions.baltic.age === 1 && w1.company.regions.ara.age === 1 && w1.company.week === 1, "a company week plays every region started"); }
+  check(!S.playCompany(S.startRegion(S.newCompany(), "baltic"), {}).company.regions.ara, "a region not opened yet doesn't run");
+  check(S.setMRs(S.startRegion(S.newCompany(), "baltic"), "ara-baltic", 1).lanes["ara-baltic"].mrs === 0, "no MR on a lane until both its ends run"); }
+// the campaign: a new player meets one level; each finish opens the next; the regions, North-West Europe, the world and
+// the Straits open when they should; Continue passes over the Baltic while it waits on ARA
+{ const K = await import("../harbour-campaign.js"), S = await import("../harbour-season.js");
+  const run = S.parRun(), f = (done, company = S.newCompany()) => ({ finished: id => done.includes(id), company });
+  const open = x => K.STEPS.filter(s => K.isOpen(s, x)).map(s => s.id);
+  check(new Set(K.STEPS.map(s => s.id)).size === K.STEPS.length && LEVELS.every(l => K.STEPS.some(s => s.id === l.id)) && S.REGIONS.every(r => K.STEPS.some(s => s.id === `region:${r.id}`)), "every level and region is in the campaign once");
+  check(K.STEPS.every(s => CHAPTERS.some(c => c.id === K.chapterOf(s.id))), "every step is in a chapter");
+  check(open(f([])).join() === "first-cargo" && K.continueTo(f([])) === "first-cargo" && K.chaptersShown(f([])).length === 1, "a new player meets First cargo alone");
+  check(open(f(["first-cargo", "up-the-creek", "rundown"])).includes("region:baltic") && !open(f(["first-cargo", "up-the-creek"])).includes("region:baltic"), "the Baltic opens with Rundown finished");
+  const harbours = ["first-cargo", "up-the-creek", "rundown"];
+  check(!open(f(harbours, run.weeks[6].after)).includes("first-blend") && open(f(harbours, run.weeks[7].after)).includes("first-blend"), "North-West Europe opens when the Baltic reaches its long-term contracts");
+  const nwe = [...harbours, "first-blend", "two-refineries"];
+  check(["region:ara", "world", "trickle"].every(id => open(f(nwe, run.weeks[8].after)).includes(id)) && K.continueTo(f(nwe, run.weeks[8].after)) === "region:ara", "ARA, the world and Trickle open with Two refineries; Continue goes to ARA, not the waiting Baltic");
+  check(K.continueTo(f(nwe, run.weeks[12].after)) === "region:baltic", "with the lane running, Continue goes back to the Baltic");
+  check(!open(f(nwe, run.weeks[12].after)).includes("roundabout") && open(f(nwe, run.weeks[13].after)).includes("roundabout"), "the Straits open when the Baltic runs on its own");
+  check(/^Finish Up the creek$/.test(K.lockedWhy(K.stepOf("rundown"))) && /the Baltic/.test(K.lockedWhy(K.stepOf("first-blend"))), "a locked step says why");
+  // the menu's glimpse of the chapter ahead, and what opens it
+  const ahead = x => { const c = K.nextChapter(x); return c && `${c.id}: ${c.why}`; };
+  check(ahead(f([])) === "nwe: when the Baltic reaches its long-term contracts" && ahead(f(harbours, run.weeks[7].after)) === "world: when you finish Two refineries"
+    && ahead(f(nwe, run.weeks[8].after)) === "straits: when the Baltic runs on its own" && ahead(f(nwe, run.weeks[13].after)) === null, `the chapter ahead, and what opens it (${ahead(f([]))})`); }
+console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars, the regions' engines and the campaign hold`);
 process.exitCode = bad ? 1 : 0;

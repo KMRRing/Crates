@@ -1,84 +1,101 @@
-// Harbour's world screen: the forward curve, ARA against Muuga, and the desk's cargoes on it as arrows from the day an MR
-// lifts at your export terminal to the day it lands at your import terminal. Tap a day to fix a cargo for the MR picked.
-// Under the chart: what each cargo really did once both regions played their months with it, and the three books with
-// their sum. The month itself comes from harbour-world.js.
-import { cargo, connect, pars } from "./harbour-world.js";
+// Harbour's world: a chart of the oceans with every region a trading house could work, yours lit and the rest waiting
+// for later chapters, and the lanes between yours. A lane's MRs carry diesel from one of your terminals to another, a
+// cargo a week each; the world is where you put them on, and where you see the whole company at once. The lanes' rules
+// are in harbour-season.js, with the regions'.
+import { REGIONS, LANES, SEASONS, regionOf, seasonOf, weekOf, setMRs, engineOf } from "./harbour-season.js";
+import { coins as whole } from "./harbour-season-ui.js";
 
-const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
-const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const money = v => `${v < 0 ? "−" : ""}$${Math.abs(v).toFixed(1)}k`;
-const MR = ["#2F6F9F", "#B8742A"];
+const num = v => (Math.round(v * 10) / 10).toString();
 
-/** regionPlan(id): a region's saved plan (with its feed); openRegion(id): go to a region. */
-export function createWorldScreen({ root, brief, regionPlan, openRegion }) {
-  let W = null, plan = null, mine = null, ship = 0, hover = -1, hints = false, viewing = null, P = null, month = null;
-  const planKey = () => `harbour:v2:world:${W.id}:plan`, bestKey = () => `harbour:v2:world:${W.id}:best`;
+// the chart: longitude −100 to 125, latitude 72 to −40, 1.6 units a degree
+const X = lon => (lon + 100) * 1.6, Y = lat => (72 - lat) * 1.6;
+const ring = pts => pts.map(([lo, la]) => `${X(lo).toFixed(1)},${Y(la).toFixed(1)}`).join(" ");
+const LAND = [
+  [[-100, 68], [-80, 72], [-62, 60], [-55, 50], [-65, 45], [-75, 38], [-80, 30], [-81, 25], [-90, 29], [-97, 26], [-100, 20]],
+  [[-100, 20], [-90, 16], [-83, 9], [-77, 8], [-80, 12], [-88, 20], [-97, 24], [-100, 24]],
+  [[-80, 10], [-62, 11], [-50, 0], [-35, -8], [-40, -22], [-48, -28], [-57, -38], [-65, -40], [-72, -40], [-75, -15], [-81, -5]],
+  [[-55, 60], [-42, 60], [-20, 70], [-35, 72], [-60, 72]],
+  // Europe, the North Sea and the Baltic cut into it (the lane runs through the Danish straits)
+  [[-9, 37], [-9, 43], [-2, 43.5], [-4.5, 48.5], [0, 49.5], [2, 51], [4.3, 52], [5, 53.3], [8, 54], [8.3, 57], [10.5, 57.7], [10.5, 56.5],
+    [12.4, 55.6], [11, 54.5], [14, 54], [18.5, 54.8], [21, 55.5], [21, 57], [24, 57], [23.5, 58.5], [24, 59.4], [28, 59.5], [30, 60], [28, 60.5],
+    [22.5, 60], [21.5, 61.5], [25, 65], [24, 66], [21, 64.5], [17, 62], [18.5, 60], [18, 59], [16.5, 57], [14.5, 56], [13, 55.5], [12.8, 56],
+    [12, 57.7], [11, 59], [8, 58], [5, 59], [5, 62], [10, 64], [15, 69], [25, 71], [33, 69], [40, 66], [44, 68], [60, 68], [60, 45], [42, 42],
+    [28, 41], [26, 38], [20, 40], [15, 38], [12, 44], [8, 44], [3, 43], [-5, 36]],
+  [[-10, 51.5], [-6, 58], [-2, 58.5], [1.5, 52.5], [-5, 50]],
+  [[-17, 21], [-17, 15], [-8, 5], [5, 4], [9, 4], [10, -2], [13, -12], [12, -17], [18, -35], [28, -33], [35, -22], [40, -12], [40, -2], [51, 11], [43, 12], [37, 22], [33, 31], [25, 32], [11, 37], [-6, 36], [-10, 30]],
+  [[35, 32], [36, 37], [42, 42], [60, 45], [60, 68], [125, 72], [125, 40], [122, 30], [121, 22], [110, 20], [105, 10], [103, 1.5], [100, 13], [97, 17], [92, 22], [80, 15], [77, 8], [72, 20], [66, 25], [57, 25], [56, 22], [52, 17], [45, 13], [42, 16], [35, 28]],
+  [[95, 5], [105, -6], [120, -8], [119, 5], [110, 2]],
+  [[114, -22], [125, -14], [125, -36], [115, -34]],
+];
+// where each region sits; the ones with no region yet are the campaign still to come
+const PLACES = {
+  baltic: [25, 59.5], ara: [4.3, 51.9],
+  med: [14, 37, "The Med"], waf: [3.4, 6.4, "West Africa"], usg: [-95, 29.7, "US Gulf"], bra: [-46, -24, "Brazil"], ind: [69, 22.4, "India"], sgp: [103.8, 1.3, "Singapore"],
+};
+// each lane's way round the coasts: ARA to the Baltic up the North Sea, round Skagen and through the Sound
+const WAYS = { "ara-baltic": [[4.3, 51.9], [4, 54], [7.5, 57.5], [9.5, 58], [11.6, 57], [12.7, 55.8], [15, 55.2], [19.5, 57], [22, 59], [24.5, 59.75], [25, 59.5]] };
+
+/** company(): the company as it stands; save(company); feeds(): drops a week each region's harbour feeds it;
+ *  goTo(step): a region ("region:id") or a level. */
+export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
+  let on = false;
   function chart() {
-    const N = W.muuga.length, x0 = 46, x1 = 624, y0 = 26, y1 = 226, all = [...W.ara, ...W.muuga], Hh = hints ? 292 : 252;
-    const lo = Math.min(...all) - .03, hi = Math.max(...all) + .03, X = d => x0 + (d / (N - 1)) * (x1 - x0), Y = v => y1 - ((v - lo) / (hi - lo)) * (y1 - y0);
-    const line = (arr, cls) => `<polyline class="${cls}" points="${arr.map((v, d) => `${X(d).toFixed(1)},${Y(v).toFixed(1)}`).join(" ")}"/>`;
-    const arrow = (c, cls, col, below) => `<g class="${cls}"><line x1="${X(c.load)}" y1="${Y(c.buy)}" x2="${X(c.sell)}" y2="${Y(c.price)}" stroke="${col}" marker-end="url(#hwArr)"/><circle cx="${X(c.load)}" cy="${Y(c.buy)}" r="3.5" fill="${col}"/><text class="hw-lab${c.margin < 0 ? " neg" : ""}" x="${(X(c.load) + X(c.sell)) / 2 + (below ? 16 : 0)}" y="${below ? (Y(c.buy) + Y(c.price)) / 2 + 16 : Math.min(Y(c.buy), Y(c.price)) - 7}">${money(c.margin)}</text></g>`;
-    let s = `<svg class="hw-chart" viewBox="0 0 640 ${Hh}" role="img" aria-label="The forward curve: ARA and Muuga, day by day"><defs><marker id="hwArr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.6"/></marker></defs>`;
-    s += `<rect class="hw-month" x="${X(0) - 6}" y="${y0 - 8}" width="${X(W.days - 1) - X(0) + 12}" height="${y1 - y0 + 16}"/>`;
-    for (let d = 0; d < N; d += 7) s += `<line class="hw-grid" x1="${X(d)}" y1="${y0 - 8}" x2="${X(d)}" y2="${y1 + 8}"/><text class="hw-ax" x="${X(d)}" y="${y1 + 22}">day ${d + 1}</text>`;
-    s += line(W.ara, "hw-ara") + line(W.muuga, "hw-muu") + `<text class="hw-key ara" x="${x1}" y="${Y(W.ara[N - 1]) + 16}">ARA</text><text class="hw-key muu" x="${x1}" y="${Y(W.muuga[N - 1]) - 8}">Muuga</text>`;
-    for (const c of month.desk.cargoes) s += arrow(c, "hw-cargo", MR[c.ship], c.ship === 1);
-    if (hover >= 0 && !month.desk.cargoes.some(c => c.load === hover)) s += arrow(cargo(W, hover), "hw-preview", MR[ship], false);
-    if (hints) for (let d = 0; d < W.days; d++) { const m = cargo(W, d).margin, h = Math.min(22, Math.abs(m) * 1.4); s += `<rect class="${m < 0 ? "hw-neg" : "hw-pos"}" x="${X(d) - 5}" y="${m < 0 ? 266 : 266 - h}" width="10" height="${h}"/>`; }
-    for (let d = 0; d < W.days; d++) s += `<rect class="hw-hit" data-day="${d}" x="${X(d) - (X(1) - X(0)) / 2}" y="0" width="${X(1) - X(0)}" height="${Hh}"/>`;
-    return s + `</svg>`;
+    const c = company();
+    let g = `<svg class="hw-world" viewBox="0 0 360 180" role="group" aria-label="The world: your regions and the lanes between them"><rect class="hw-sea" width="360" height="180" rx="4"/>`;
+    g += LAND.map(r => `<polygon class="hw-land" points="${ring(r)}"/>`).join("");
+    for (const L of LANES) {
+      const live = c.regions[L.from] && c.regions[L.to], mrs = live ? c.lanes[L.id].mrs : 0, way = WAYS[L.id];
+      if (!live) continue;
+      g += `<polyline class="hw-lane${mrs ? " on" : ""}" points="${ring(way)}"/>`;
+      // an MR halfway, heading the way the lane runs
+      if (mrs) { const i = way.length >> 1, [lo, la] = way[i], [no, na] = way[i + 1], turn = Math.atan2(Y(na) - Y(la), X(no) - X(lo)) * 180 / Math.PI;
+        g += `<g transform="translate(${X(lo).toFixed(1)} ${Y(la).toFixed(1)}) rotate(${turn.toFixed(0)})"><path class="hw-mr" d="M-6,-2H3L6,0L3,2H-6Z"/></g>`; }
+    }
+    for (const [id, [lo, la, name]] of Object.entries(PLACES)) {
+      const R = regionOf(id), mine = R && c.regions[id], x = X(lo), y = Y(la);
+      if (mine) g += `<g class="hw-tap" data-go="region:${id}" role="button" tabindex="0" aria-label="${esc(R.name)}"><circle class="hw-halo" cx="${x}" cy="${y}" r="7"/><circle class="hw-mine" cx="${x}" cy="${y}" r="4"/></g>`;
+      else g += `<circle class="hw-later" cx="${x}" cy="${y}" r="2.6"/><text class="hw-later-name" x="${x + 5}" y="${y + 3}">${esc(name || R?.name || "")}</text>`;
+    }
+    // your regions' names, set where they don't sit on each other
+    const tag = (id, dx, dy, anchor) => c.regions[id] ? `<text class="hw-name" x="${(X(PLACES[id][0]) + dx).toFixed(1)}" y="${(Y(PLACES[id][1]) + dy).toFixed(1)}" style="text-anchor:${anchor}">${esc(regionOf(id).name)}</text>` : "";
+    g += tag("baltic", 8, -6, "start") + tag("ara", -8, 10, "end");
+    return g + `</svg>`;
   }
   function draw() {
-    month = connect(W, plan, regionPlan);
-    if (!viewing && !month.desk.errors.length) { const b = read(bestKey(), {}); if (b.desk == null || month.desk.profit > b.desk) b.desk = month.desk.profit; if (b.total == null || month.total > b.total) b.total = month.total; write(bestKey(), b); }
-    const d = month.desk, edit = !viewing;
-    const ships = plan.ships.map((days, i) => `<button type="button" class="hw-mr${ship === i ? " on" : ""}" data-mr="${i}" style="--c:${MR[i]}">MR ${i + 1}: ${days.length} cargo${days.length === 1 ? "" : "es"}</button>`).join("");
-    const rows = month.cargoes.map(c => { const l = c.landed, short = c.units < W.cargo - 1e-9; return `<tr><td><i class="hw-dot" style="background:${MR[c.ship]}"></i>MR ${c.ship + 1}</td><td>day ${c.load + 1} → ${c.sell + 1}</td><td class="${short ? "hw-bad" : ""}">lifted ${c.units} of ${W.cargo}</td><td class="${l && l.waited > 12 ? "hw-bad" : ""}">${l ? (l.end >= 0 ? `landed by day ${Math.floor(l.end / 24) + 1}${l.waited ? `, ${l.waited} h waiting for room` : ""}` : `${l.delivered} of ${c.units} in by month's end`) : ""}</td><td class="num">${money(c.margin)}</td></tr>`; }).join("");
-    const book = (name, v, id) => `<tr><th>${name}</th><td class="num">${money(v)}</td><td>${id ? `<button type="button" class="hw-go" data-region="${id}">Open</button>` : ""}</td></tr>`;
-    brief.textContent = W.brief;
-    root.innerHTML = `<p class="hs-viewing"${viewing ? "" : " hidden"}>Watching the desk's par plan. <button type="button" class="hb-mine" data-mine="1">Back to your plan</button></p>
-      <div class="hw-bar">${ships}${edit ? `<label class="hw-check"><input type="checkbox" data-two ${plan.ships.length > 1 ? "checked" : ""}> A second MR</label>` : ""}<label class="hw-check"><input type="checkbox" data-hints ${hints ? "checked" : ""}> What each day's cargo makes</label></div>
-      ${chart()}
-      <p class="hw-hint">${edit ? "Tap a day to fix a cargo for the MR picked, or tap its dot to drop it." : ""} A round takes ${W.turn} days; ARA sells one cargo a day; $${W.costs}k a voyage; hire $${W.hire}k a day an MR.</p>
-      ${d.errors.length ? `<p class="hw-bad">${d.errors.map(esc).join("<br>")}</p>` : ""}
-      ${rows ? `<table class="hs-ledger hw-cargoes"><tbody>${rows}</tbody></table>` : `<p class="hs-soft">No cargoes fixed yet.</p>`}
-      <table class="hs-ledger hw-books"><caption>The month across the company</caption><tbody>${book("Your export terminal (Maasvlakte)", month.from.profit, W.from.region)}${book(`The desk: cargoes ${money(d.made)}, hire ${money(-d.hire)}`, d.profit)}${book("Your terminal (Muuga)", month.to.profit, W.to.region)}<tr class="total"><th>The company</th><td class="num">${money(month.total)}</td><td></td></tr></tbody></table>
-      <p class="hs-soft">Desk par ${money(P.profit.ev.profit)} with ${P.profit.ev.ships} MRs; each region plays its own plan with these cargoes, so a region left as it was may not want them: re-plan it to take them.</p>`;
+    const c = company(), F = feeds();
+    const coins = Object.values(c.regions).reduce((a, s) => a + s.coins, 0);
+    const lanes = LANES.filter(L => c.regions[L.from] && c.regions[L.to]).map(L => {
+      const l = c.lanes[L.id];
+      return `<div class="hw-card"><div class="hw-card-head"><b>${esc(L.name)}</b><span class="hw-step"><button type="button" data-mrs="${L.id}:-1" ${l.mrs > 0 ? "" : "disabled"} aria-label="One MR fewer">−</button><output>${l.mrs}</output><button type="button" data-mrs="${L.id}:1" ${l.mrs < L.mr.max ? "" : "disabled"} aria-label="One more MR">+</button></span></div>`
+        + `<p>${l.mrs ? `${l.mrs * L.mr.drops} a week of ${esc(regionOf(L.from).name)}'s diesel to ${esc(regionOf(L.to).name.replace(/^The /, "the "))}` : "No MR on it yet"}: ${L.mr.drops} a week an MR, ${num(L.mr.hire)} a week to hire, at ${num(L.price)} a drop. A cargo loads after ${esc(regionOf(L.from).name)}'s contracts and lands the week after.</p></div>`;
+    }).join("");
+    const regions = REGIONS.filter(R => c.regions[R.id]).map(R => {
+      const s = c.regions[R.id], e = s.solved ? engineOf(c, R.id, F) : null;
+      return `<div class="hw-card hw-region"><div><b>${esc(R.name)}</b><span>${s.solved ? `Runs on its own · ${num(e)} a week` : `${SEASONS[seasonOf(s)]}, week ${weekOf(s) + 1}`} · ★ ${s.stars} · ${whole(s.coins)} coins</span></div><button type="button" class="btn" data-go="region:${R.id}">Open</button></div>`;
+    }).join("");
+    const L = LANES[0], lane = c.lanes[L.id], to = c.regions[L.to];
+    const hint = !c.regions[L.from] ? `Open ${regionOf(L.from).name} to start its terminal.`
+      : !lane.mrs ? `Put an MR on the lane: ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts need ${regionOf(L.from).name}'s diesel.`
+      : to && !to.solved && seasonOf(to) >= 2 ? `The lane's running: take ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts.`
+      : "Every region runs on the company's clock: a week played in one is played in all.";
+    root.innerHTML = `<div class="hs-hud"><span class="hs-when"><b>The world</b> · week ${c.week}</span><span class="hs-score"><span class="hs-coins" title="Coins, every region together">${whole(coins)}</span></span></div>
+      <div class="hs-boardbox">${chart()}</div>${lanes}${regions}<p class="hs-status hb-status" aria-live="polite">${esc(hint)}</p>`;
   }
-  const redraw = () => { const c = root.querySelector(".hw-chart"); if (c) c.outerHTML = chart(); };
-  function changed() { if (viewing) return; mine = plan; write(planKey(), mine); draw(); }
-  root.addEventListener("pointermove", e => { if (!W) return; const t = e.target.closest?.(".hw-hit"), d = t ? +t.dataset.day : -1; if (d !== hover) { hover = d; redraw(); } });
   root.addEventListener("click", e => {
-    if (!W) return;
-    const t = e.target.closest(".hw-hit"), b = e.target.closest("button");
-    if (t && !viewing) {
-      const d = +t.dataset.day, k = plan.ships[ship].indexOf(d), other = plan.ships.findIndex((s, i) => i !== ship && s.includes(d));
-      if (k >= 0) plan.ships[ship].splice(k, 1); else if (other >= 0) plan.ships[other].splice(plan.ships[other].indexOf(d), 1); else plan.ships[ship].push(d);
-      changed(); return;
-    }
-    if (!b) return;
-    if (b.dataset.mr) { ship = +b.dataset.mr; draw(); }
-    else if (b.dataset.region) openRegion(b.dataset.region);
-    else if (b.dataset.mine) { viewing = null; plan = mine; draw(); }
+    if (!on) return;
+    const t = e.target.closest("[data-go], [data-mrs]");
+    if (!t) return;
+    if (t.dataset.go) { goTo(t.dataset.go); return; }
+    const [lane, by] = t.dataset.mrs.split(":");
+    save(setMRs(company(), lane, company().lanes[lane].mrs + +by));
+    draw();
   });
-  root.addEventListener("change", e => {
-    if (!W) return;
-    if (e.target.dataset.two !== undefined) { plan.ships = e.target.checked ? [plan.ships[0], []] : [plan.ships[0]]; ship = 0; changed(); }
-    if (e.target.dataset.hints !== undefined) { hints = e.target.checked; redraw(); }
-  });
+  root.addEventListener("keydown", e => { if (on && (e.key === "Enter" || e.key === " ") && e.target.dataset?.go) { e.preventDefault(); goTo(e.target.dataset.go); } });
   return {
-    open(world) { W = world; P = pars(W); viewing = null; ship = 0; hover = -1; mine = read(planKey(), null) || { ships: [[]] }; plan = mine; root.hidden = false; root.scrollTop = 0; draw(); },
-    close() { W = null; root.hidden = true; root.innerHTML = ""; },
-    active: () => W,
-    clear() { if (!W) return; viewing = null; plan = mine = { ships: plan.ships.map(() => []) }; changed(); },
-    view(k) { viewing = k; plan = JSON.parse(JSON.stringify(P[k === "lean" ? "lean" : "profit"].plan)); draw(); },
-    /** The menu's table: the desk's best against its par, and the company's best month. */
-    menuTable() {
-      const b = read(bestKey(), {}), t = document.createElement("table");
-      t.className = "hb-bests";
-      t.innerHTML = `<thead><tr><th>${esc(W.name)}</th><th>Your best</th><th>Par</th></tr></thead><tbody><tr><th>The desk</th><td>${b.desk != null ? money(b.desk) : "–"}</td><td><button type="button" class="hb-par" data-k="profit" aria-label="Watch the desk's par plan">${money(P.profit.ev.profit)}</button></td></tr><tr><th>The company</th><td>${b.total != null ? money(b.total) : "–"}</td><td>–</td></tr></tbody>`;
-      return t;
-    },
+    open() { on = true; brief.textContent = "Your regions on the world's chart, the lanes between them, and the regions still to come."; root.hidden = false; root.scrollTop = 0; draw(); },
+    close() { on = false; root.hidden = true; root.innerHTML = ""; },
+    active: () => on,
+    redraw() { if (on) draw(); },
   };
 }
