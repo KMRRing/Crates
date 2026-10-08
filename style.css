@@ -670,6 +670,9 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .app-settings .app-name, .app-name.long { letter-spacing: calc(.05em * var(--track)); }   /* long names (Settings, Refinery, Manifest) fit their tiles */   /* "Settings" fits its tile in spaced capitals */
 .app-settings .app-logo svg:not(.rete):not(.k-ico) { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 .settings-body { padding: .2rem 0 .6rem; }
+/* Settings' "Start a game over": the games three across, and quiet while one is being cleared */
+.settings-reset .menu-grid { grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); }
+.settings-reset .menu-grid button:disabled { opacity: .45; cursor: default; }
 .apps-pop-list .app-settings { width: 100%; }   /* a button, stretched like the game tiles beside it */
 
 

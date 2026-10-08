@@ -49,6 +49,7 @@ const page = () => (location.pathname.split("/").pop() || "index.html").replace(
 const own = k => page() !== "index" && (k.startsWith("pile:") || k.startsWith(`${page()}:`));
 
 let meta = json(META, {}), dirty = new Map(), timer = null;
+let frozen = null;                                // the keys of a game being started over (resetGame): not written again before the reload
 const syncing = () => !!soloCode();
 
 /** Starts a solo code on this device (a new one, or one you chose that nobody has yet): everything here goes up, as of now. */
@@ -102,6 +103,7 @@ function touched(k, v) {
 }
 Storage.prototype.setItem = function (k, v) {
   if (this === localStorage && WATCHING && !k.startsWith("suite:")) return;      // watching: their game, nothing of yours is written
+  if (this === localStorage && frozen?.some(p => k.startsWith(p))) return;        // a game just started over: nothing of it comes back before the reload
   raw.set.call(this, k, v);
   if (this === localStorage) touched(k, String(v));
 };
@@ -140,6 +142,41 @@ export async function pull() {
   put(META, meta);
   if (dirty.size) push();
   if (mine && !sessionStorage.getItem(PULLED)) { sessionStorage.setItem(PULLED, "1"); location.reload(); }
+}
+
+// ---------- starting a game over (Settings) ----------
+/** A game's keys, for starting it over: its own prefix, and the other names a game keeps (Slate's glyph:, Blend's
+ *  blend2:). Nothing of the suite's (LOCAL) and nothing shared (the review pile, the pictures). */
+const RESET_PREFIXES = { glyph: ["glyph:", "slate:"], blend: ["blend:", "blend2:"] };
+/**
+ * Starts a game over: every key under its prefixes goes, here and, with a solo code, on the code, so your other devices
+ * drop them too (a removal syncs like any change, the newer winning: their older copies can't come back). Keys only
+ * another device had are taken from the code and removed there as well. Until the page reloads, the game's keys can't
+ * be written again, so a page still showing the game can't save it back. Resolves how many keys went.
+ */
+export async function resetGame(app) {
+  if (WATCHING) return 0;
+  const prefixes = RESET_PREFIXES[app] || [`${app}:`], ours = k => prefixes.some(p => k.startsWith(p)) && !LOCAL.test(k);
+  const gone = new Set();
+  for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (k && ours(k)) gone.add(k); }
+  for (const k of gone) localStorage.removeItem(k);             // noted with its time, and sent up as a removal
+  frozen = prefixes;
+  const code = soloCode();
+  if (!code) return gone.size;
+  try {
+    const remote = await Promise.race([getSync().then(sync => once(sync, storePath(code))), new Promise((_, no) => setTimeout(() => no(new Error("offline")), 6000))]);
+    for (const [ek, x] of Object.entries(remote || {})) {
+      const k = decodeURIComponent(ek);
+      if (!ours(k) || gone.has(k) || x?.v == null) continue;
+      meta[k] = Date.now();
+      dirty.set(k, { v: null, t: meta[k] });
+      gone.add(k);
+    }
+    put(META, meta);
+  } catch (e) { console.error(e); }                            // offline: this device's keys go now, and their removals go up later
+  clearTimeout(timer);
+  await push();
+  return gone.size;
 }
 
 // ---------- comparable results ----------

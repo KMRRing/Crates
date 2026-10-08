@@ -2,7 +2,7 @@
 // that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
-import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME } from "./suite.js";
+import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
 import { choice, RETE } from "./menu.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -264,8 +264,39 @@ function openSettings(host) {
   }
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
-    choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")));
+    choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")),
+    startOver());
   sheet.showModal();
+}
+// The games a reset can start over: all but Crates (its run is synced on its own, and it resets its learning in its own
+// Settings), Deck (its pile is every game's misses) and Ledger and Lexicon (records of the others, not games of their own)
+const KEEP_ON_RESET = new Set(["crates", "deck", "ledger", "lexicon"]);
+/** Settings' "Start a game over", folded away: a game's name, a confirmation, and every level, save and setting of it
+ *  goes, here and on your other devices. The game open in this page starts again at once. */
+function startOver() {
+  const box = document.createElement("details"), grid = document.createElement("div"), note = document.createElement("p");
+  box.className = "menu-stages settings-reset";
+  box.innerHTML = "<summary>Start a game over</summary>";
+  grid.className = "menu-grid";
+  note.className = "menu-line";
+  note.textContent = "Its levels, stars, saves and settings go, on this device and every other with your solo code. Crates resets its learning in its own Settings.";
+  const here = (location.pathname.split("/").pop() || "index.html");
+  for (const a of APPS.filter(x => !KEEP_ON_RESET.has(x.id))) {
+    const b = document.createElement("button");
+    b.type = "button"; b.textContent = a.name;
+    b.addEventListener("click", async () => {
+      if (!confirm(`Start ${a.name} over? Every level, star, save and setting of it goes, here and on your other devices. This can't be undone.`)) return;
+      for (const x of grid.children) x.disabled = true;
+      await resetGame(a.id);
+      if (a.href.endsWith(here)) { location.reload(); return; }        // the game on screen: it starts again now
+      note.textContent = `${a.name} starts over.`;
+      for (const x of grid.children) x.disabled = false;
+      dispatchEvent(new Event("suite:pulled"));                          // the games screen redraws its tiles
+    });
+    grid.appendChild(b);
+  }
+  box.append(grid, note);
+  return box;
 }
 
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
