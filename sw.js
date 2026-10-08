@@ -2,7 +2,7 @@
 // Keeps every file of every game on the device, so the games open and play offline. The version changes with
 // any file, so devices fetch the new set in the background; it waits until the app is off screen to take over
 // (see pwa.js). Requests to other sites (Firebase, for playing together) go straight to the network.
-const VERSION = "2263cbfc4cc3";
+const VERSION = "c838254c294b";
 const CACHE = `crates-${VERSION}`;
 const FILES = [
   "./",
@@ -26,8 +26,12 @@ const FILES = [
   "brut.css",
   "brut.html",
   "brut.js",
+  "calibre-3d.js",
+  "calibre-draw.js",
   "calibre-engine.js",
+  "calibre-lessons.js",
   "calibre-levels.js",
+  "calibre-scenes.js",
   "calibre.css",
   "calibre.html",
   "calibre.js",
