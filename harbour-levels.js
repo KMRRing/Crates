@@ -26,7 +26,7 @@ export const CHAPTERS = [
   { id: "baltic", name: "The Baltic", note: "learning to move" },
   { id: "nwe", name: "North-West Europe", note: "learning to trade and blend" },
   { id: "straits", name: "The Straits", note: "mastering timing" },
-  { id: "world", name: "The world", note: "learning to trade (a preview)" },
+  { id: "world", name: "The world", note: "learning to trade" },
 ];
 
 export const LEVELS = [

@@ -147,22 +147,27 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   let st = start(H, wrong), refused = null;
   for (let t = 0; t < 60 && !refused; t++) { st = step(H, wrong, st); refused = st.events.find(e => e.kind === "refused"); }
   check(refused && /FAME/i.test(refused.why), `heels: a FAME heel is refused by the pure customer (${refused?.why})`); }
-// the regions: each par plan reaches its par, the calm plan never runs the tank dry, and one ship can't keep Muuga supplied
-{ const { REGIONS, simulate, measures, loadsFor } = await import("../harbour-region.js");
-  for (const R of REGIONS) {
-    for (const p of R.plans) {
-      const r = simulate(R, p.ships), m = measures(r);
-      for (const k of p.par) check(m[k] === R.par[k], `${R.id}: the ${k} plan reaches its par (${m[k]} against ${R.par[k]})`);
-      check(p.ships.every(s => loadsFor(R, s.type).includes(s.load)) && Object.keys(R.fleet).every(t => p.ships.filter(s => s.type === t).length <= R.fleet[t]), `${R.id}: the ${p.par} plan's ships are ones the region offers`);
-    }
-    const one = simulate(R, [{ type: "handy", load: 10, start: 0 }]);
-    check(one.short > 0 && one.profit < 0, `${R.id}: one Handy alone runs the tank dry and loses money (${one.profit})`);
-  }
-  check(REGIONS.every(R => R.chapter && CHAPTERS.some(c => c.id === R.chapter)), "every region belongs to a chapter"); }
+// the world: the desk's par is exact and its plan checks out; a cargo too soon or a day taken twice is refused; and the
+// company's month couples the regions, landing only what was lifted
+{ const { WORLDS, evaluate, best, pars, connect, flows } = await import("../harbour-world.js");
+  const { SQUARE_REGIONS, simulate } = await import("../harbour-squares.js");
+  for (const W of WORLDS) {
+    const P = pars(W), dp = evaluate(W, best(W, 2));
+    check(P.profit.ev.profit === 23.4 && P.lean.ev.ships === 1 && Math.abs(P.lean.ev.profit - 13.2) < 1e-9 && dp.profit === 23.4, `${W.id}: the desk's pars (23.4 with two MRs; 13.2 with one, per MR)`);
+    check(evaluate(W, { ships: [[0, 5]] }).errors.length === 1 && evaluate(W, { ships: [[3], [3]] }).errors.length === 1, `${W.id}: a cargo before its MR is back, or a day taken twice, is refused`);
+    check([W.from.region, W.to.region].every(id => SQUARE_REGIONS.some(r => r.id === id)) && CHAPTERS.some(c => c.id === W.chapter), `${W.id}: joins two regions that exist, in a chapter that does`);
+    const R1 = SQUARE_REGIONS.find(r => r.id === W.from.region), none = { built: { road: [], rail: [], pipe: [] }, depots: [], vehicles: [], flows: [] };
+    const c = connect(W, P.profit.plan, id => (id === R1.id ? R1.plans[0] : none));
+    const lifted = c.from.lifts.reduce((a, x) => a + x.lifted, 0);
+    check(lifted >= 170 && c.to.lands.length === c.from.lifts.length && c.to.lands.every((x, i) => x.delivered <= c.from.lifts[i].lifted + 1e-9), `${W.id}: with the export region's par plan, the par cargoes are lifted (${lifted} of ${c.from.lifts.length * W.cargo}), and no more lands than was lifted`);
+    const empty = connect(W, P.profit.plan, () => none), liftedNow = empty.from.lifts.map(x => x.lifted);
+    check(liftedNow[0] === 30 && liftedNow[1] === 30 && liftedNow.slice(2).every(x => x < 30) && empty.to.lands.every((x, i) => x.delivered <= liftedNow[i] + 1e-9), `${W.id}: with nothing gathered, only the opening stock is lifted, and only what's lifted lands (${liftedNow.join(", ")})`);
+    const R = R1, r = simulate(R, R.plans[0]); check(Math.abs(r.profit - R.par.profit) < 0.05, `${R.id}: the export region's par plan reaches its par (${r.profit})`);
+  } }
 // the regions on squares: each reference plan for the feeding harbour replays to the month stored for it, the par is the
 // fastest's, a harbour's bests become the plant's feed, and with the harbour unfinished the par's fleet can't keep up
 { const { SQUARE_REGIONS, simulate, feedOf } = await import("../harbour-squares.js");
-  for (const R of SQUARE_REGIONS) {
+  for (const R of SQUARE_REGIONS.filter(R => R.feeds)) {
     check(LEVELS.some(l => l.id === R.feeds) && CHAPTERS.some(c => c.id === R.chapter), `${R.id}: fed by a harbour that exists, in a chapter that does`);
     for (const x of R.rundown) { const r = simulate(R, { ...x.plan, feed: { hours: x.hours, ships: x.ships } }); check(Math.abs(r.profit - x.best) < 0.05 && r.short === 0, `${R.id}: ${x.name} (${x.hours} h) replays to its month (${r.profit} against ${x.best})`); }
     const fastest = R.rundown.reduce((a, b) => (b.hours < a.hours ? b : a));
@@ -172,5 +177,5 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
     const idle = simulate(R, { ...R.plans[0], feed: undefined });
     check(idle.short > 0 && idle.profit < 0, `${R.id}: with the harbour unfinished, the par's fleet leaves the towns short (${idle.profit})`);
   } }
-console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars and the regions' pars hold, on charts and on squares`);
+console.log(bad ? `${bad} FAILED` : `harbour: rules, tape, ${LEVELS.length} levels' pars, the regions' pars and the world's hold`);
 process.exitCode = bad ? 1 : 0;

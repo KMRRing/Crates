@@ -7,10 +7,10 @@ import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
 import { CHAPTERS, LEVELS } from "./harbour-levels.js";
 import { noteStars } from "./suite.js";
-import { REGIONS } from "./harbour-region.js";
-import { createRegionScreen } from "./harbour-region-ui.js";
-import { SQUARE_REGIONS } from "./harbour-squares.js";
+import { SQUARE_REGIONS, feedOf } from "./harbour-squares.js";
 import { createSquaresScreen } from "./harbour-squares-ui.js";
+import { WORLDS, connect, flows } from "./harbour-world.js";
+import { createWorldScreen } from "./harbour-world-ui.js";
 import { dropdown } from "./dropdown.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -810,15 +810,29 @@ addEventListener("keydown", e => {
   else if (k === "r" && !mod) { stop(); render(true); }
 });
 
-// two kinds of region screen, one open at a time: the square map (a region's network, fed by a harbour's pace) and the
-// chart (the world's trade, for now a preview)
+// two kinds of screen above the harbours, one open at a time: a region's square map (its network, fed by a harbour's pace
+// and by the world desk's cargoes) and the world (the desk's cargoes between the regions, on the forward curve)
 const harbourBest = id => { const l = LEVELS.find(x => x.id === id); return l ? read(`harbour:v2:best:${l.id}${l.rev ? `@${l.rev}` : ""}`, {}) : {}; };
 const goToLevel = id => { levelSel.value = id; levelSel.dispatchEvent(new Event("change", { bubbles: true })); };
-const SCREENS = {
-  squares: createSquaresScreen({ root: $("region"), brief: $("brief"), harbourBest, openLevel: goToLevel }),
-  chart: createRegionScreen({ root: $("region"), brief: $("brief") }),
+// a region's plan as saved, with its feeding harbour's pace; the world desk's cargoes as each region sees them, landings
+// counting only what the export region actually lifted
+const regionPlan = id => {
+  const R = SQUARE_REGIONS.find(r => r.id === id), saved = read(`harbour:v2:squares:${id}:plan`, null) || { built: { road: [], rail: [], pipe: [] }, depots: [], vehicles: [], flows: [] };
+  return { ...saved, feed: R.feeds ? feedOf(R, harbourBest(R.feeds)) || undefined : undefined };
 };
-const SCREEN_OF = new Map([...SQUARE_REGIONS.map(r => [r, "squares"]), ...REGIONS.map(r => [r, "chart"])]);
+const worldFlows = id => {
+  const W = WORLDS.find(w => w.from.region === id || w.to.region === id), plan = W && read(`harbour:v2:world:${W.id}:plan`, null);
+  if (!plan) return {};
+  if (id === W.from.region) return flows(W, plan)[id];
+  const c = connect(W, plan, regionPlan);
+  return flows(W, plan, new Map(c.from.lifts.map(x => [x.day, x.lifted])))[id];
+};
+const goToRegion = id => goToLevel(`region:${id}`);
+const SCREENS = {
+  squares: createSquaresScreen({ root: $("region"), brief: $("brief"), harbourBest, openLevel: goToLevel, worldFlows, openWorld: () => goToRegion(WORLDS[0].id) }),
+  world: createWorldScreen({ root: $("region"), brief: $("brief"), regionPlan, openRegion: goToRegion }),
+};
+const SCREEN_OF = new Map([...SQUARE_REGIONS.map(r => [r, "squares"]), ...WORLDS.map(w => [w, "world"])]);
 const ALL_REGIONS = [...SCREEN_OF.keys()];
 let regionOn = null;                                          // the screen showing a region, if one is
 function openRegion(R) {

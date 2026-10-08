@@ -4,10 +4,15 @@
 // for a harbour level (Rundown): the region prices that harbour's speed. The month runs hour by hour: towns draw their
 // station tanks and pay for what they draw, a unit they can't have costs a penalty, and the month's change in stock is
 // valued at its cheapest cost, so nothing is gained by ending it full. Pure: no page, no clock. (Solvers: the level lab.)
-const MAIN = [[20.95, 55.0], [21.05, 55.4], [21.13, 55.71], [21.07, 55.92], [21.0, 56.51], [21.18, 56.89], [21.56, 57.39], [22.0, 57.6], [22.59, 57.76], [22.8, 57.5], [23.2, 57.2], [23.6, 56.97], [24.1, 57.02], [24.4, 57.26], [24.36, 57.75], [24.45, 58.1], [24.5, 58.38], [24.0, 58.3], [23.51, 58.57], [23.54, 58.94], [23.68, 59.22], [24.05, 59.35], [24.4, 59.47], [24.75, 59.44], [24.96, 59.5], [25.7, 59.58], [26.53, 59.5], [27.2, 59.45], [27.76, 59.4], [28.04, 59.46], [28.4, 59.4], [28.4, 55.0]];
-const ISLANDS = [[[21.85, 58.32], [22.2, 58.55], [22.65, 58.6], [23.25, 58.55], [23.35, 58.36], [22.95, 58.2], [22.55, 58.12], [22.2, 57.95], [22.05, 57.91], [22.0, 58.15]], [[22.05, 58.95], [22.45, 59.08], [22.9, 59.0], [22.95, 58.8], [22.55, 58.72], [22.2, 58.8]], [[23.1, 58.66], [23.3, 58.7], [23.35, 58.58], [23.15, 58.55]]];
-const FINLAND = [[20.0, 60.4], [21.5, 60.3], [22.4, 60.05], [22.95, 59.82], [23.6, 59.98], [24.4, 60.1], [24.95, 60.15], [25.66, 60.3], [26.4, 60.4], [26.94, 60.45], [27.8, 60.5], [28.4, 60.6], [28.4, 61], [20.0, 61]];
-const PEIPUS = [[27.05, 58.95], [27.6, 58.98], [27.9, 58.75], [27.85, 58.35], [27.55, 57.98], [27.35, 58.15], [27.1, 58.55]];
+const EE_MAIN = [[20.95, 55.0], [21.05, 55.4], [21.13, 55.71], [21.07, 55.92], [21.0, 56.51], [21.18, 56.89], [21.56, 57.39], [22.0, 57.6], [22.59, 57.76], [22.8, 57.5], [23.2, 57.2], [23.6, 56.97], [24.1, 57.02], [24.4, 57.26], [24.36, 57.75], [24.45, 58.1], [24.5, 58.38], [24.0, 58.3], [23.51, 58.57], [23.54, 58.94], [23.68, 59.22], [24.05, 59.35], [24.4, 59.47], [24.75, 59.44], [24.96, 59.5], [25.7, 59.58], [26.53, 59.5], [27.2, 59.45], [27.76, 59.4], [28.04, 59.46], [28.4, 59.4], [28.4, 55.0]];
+const EE_ISLANDS = [[[21.85, 58.32], [22.2, 58.55], [22.65, 58.6], [23.25, 58.55], [23.35, 58.36], [22.95, 58.2], [22.55, 58.12], [22.2, 57.95], [22.05, 57.91], [22.0, 58.15]], [[22.05, 58.95], [22.45, 59.08], [22.9, 59.0], [22.95, 58.8], [22.55, 58.72], [22.2, 58.8]], [[23.1, 58.66], [23.3, 58.7], [23.35, 58.58], [23.15, 58.55]]];
+const EE_FINLAND = [[20.0, 60.4], [21.5, 60.3], [22.4, 60.05], [22.95, 59.82], [23.6, 59.98], [24.4, 60.1], [24.95, 60.15], [25.66, 60.3], [26.4, 60.4], [26.94, 60.45], [27.8, 60.5], [28.4, 60.6], [28.4, 61], [20.0, 61]];
+const EE_PEIPUS = [[27.05, 58.95], [27.6, 58.98], [27.9, 58.75], [27.85, 58.35], [27.55, 57.98], [27.35, 58.15], [27.1, 58.55]];
+// the Rhine–Scheldt delta, roughly: the coast from Knokke past Walcheren and Goeree to The Hague; the Nieuwe Waterweg and
+// the Maas up to Rotterdam, and the Westerschelde up to Antwerp, cut through it as water
+const NL_LAND = [[3.3, 51.15], [3.3, 51.34], [3.45, 51.38], [3.55, 51.43], [3.45, 51.52], [3.55, 51.6], [3.7, 51.67], [3.85, 51.74], [3.95, 51.8], [4.0, 51.86], [3.98, 51.93], [4.05, 52.0], [4.12, 51.99], [4.2, 52.05], [4.3, 52.11], [4.4, 52.15], [5.0, 52.15], [5.0, 51.15]];
+const NL_MAAS = [[4.0, 51.995], [4.2, 52.0], [4.3, 51.96], [4.5, 51.93], [4.5, 51.865], [4.3, 51.87], [4.15, 51.935], [4.0, 51.94]];
+const NL_SCHELDT = [[3.48, 51.46], [3.75, 51.44], [4.0, 51.41], [4.2, 51.39], [4.31, 51.34], [4.37, 51.29], [4.31, 51.255], [4.22, 51.31], [4.0, 51.345], [3.75, 51.37], [3.48, 51.38]];
 const inside = ([x, y], poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c; } return c; };
 
 export const WATER = 0, LAND = 1, OFF = 2;   // a square: sea or lake; land to build on; land out of play (Finland, over the border)
@@ -26,6 +31,7 @@ export const SQUARE_REGIONS = [
     id: "estonia", chapter: "baltic", name: "Your terminal", teaches: "what a faster harbour is worth",
     brief: "Your terminal at Muuga takes a domestic plant's rundown as fast as your plan for Rundown moves it: 24 units a round. The rest has to be imported from Klaipėda. Tallinn, Rakvere and Tartu draw their station tanks every day: keep them from running dry.",
     grid: { lon0: 22.9, lat1: 60.12, dlon: 0.19, dlat: 0.1, cols: 28, rows: 21 },
+    geo: { land: [EE_MAIN, ...EE_ISLANDS], water: [EE_PEIPUS], off: [EE_FINLAND, [[27.97, 55], [28.4, 55], [28.4, 60], [27.97, 60]]] },   // over the border, out of play
     places: {
       klaipeda: { name: "Klaipėda", kind: "source", at: [0, 4], offmap: 22 },              // off the map's west edge: 22 h to it
       muuga: { name: "Muuga", kind: "terminal", at: [10, 6], domestic: true, tank: { cap: 40, start: 24 } },   // yours: no fee
@@ -52,6 +58,31 @@ export const SQUARE_REGIONS = [
   },
 ];
 
+// North-West Europe: your export terminal at Maasvlakte, gathering from two refineries for the world desk's cargoes
+SQUARE_REGIONS.push({
+  id: "ara", chapter: "nwe", name: "Your export terminal", teaches: "gathering cargoes for the world",
+  brief: "Your terminal at Maasvlakte gathers diesel from two refineries, Pernis in Rotterdam and Antwerp, and loads the world desk's MRs on the days their cargoes are fixed: thirty units each. A refinery whose tank isn't emptied backs up and loses its output.",
+  grid: { lon0: 3.3, lat1: 52.15, dlon: 0.0809, dlat: 0.05, cols: 21, rows: 20 },
+  geo: { land: [NL_LAND], water: [NL_MAAS, NL_SCHELDT], off: [] },
+  places: {
+    maasvlakte: { name: "Maasvlakte", kind: "terminal", at: [8, 4], exports: true, tank: { cap: 90, start: 60 } },     // two cargoes ready as the month opens
+    pernis: { name: "Pernis", kind: "plant", at: [13, 6], rate: 0.2, price: 1.35, tank: { cap: 20, start: 10 } },
+    antwerp: { name: "Antwerp", kind: "plant", at: [12, 18], rate: 0.15, price: 1.33, tank: { cap: 20, start: 10 } },
+  },
+  prices: { buy: 1.5, sell: 0, short: 0, domestic: 1.35 },
+  build: { road: 0.2, rail: 0.6, pipe: 4, depot: 3 },
+  depot: { cap: 20 },
+  vehicles: {
+    barge: { name: "Barge", mode: "sea", cap: 6, speed: 2, rate: 3, hire: 0.3, run: 0, max: 4 },
+    truck: { name: "Truck", mode: "road", cap: 2, speed: 4, rate: 2, hire: 0.1, run: 0.02, max: 10 },
+  },
+  pipe: { rate: 0.5 },
+  // the par: the best month known against the world desk's par cargoes (its liftings frozen into the plan, to watch)
+  par: { profit: 18.1 },
+  plans: [{ par: ["profit"], ...{"built":{"road":[],"rail":[],"pipe":[]},"depots":[],"vehicles":[{"type":"barge","from":"pernis","to":"maasvlakte","start":0}],"flows":[],"exports":[{"day":0,"units":30,"price":1.5,"at":"maasvlakte"},{"day":1,"units":30,"price":1.508,"at":"maasvlakte"},{"day":10,"units":30,"price":1.508,"at":"maasvlakte"},{"day":11,"units":30,"price":1.5,"at":"maasvlakte"},{"day":21,"units":30,"price":1.492,"at":"maasvlakte"},{"day":22,"units":30,"price":1.5,"at":"maasvlakte"}]} }],
+  days: 28,
+});
+
 /** The plant's feed for a harbour's bests: the hours of the fastest finish and the fleet that did it (older bests
  *  without a fleet are read as Rundown's reference plan of those hours or slower). None until the harbour is finished. */
 export function feedOf(R, best) {
@@ -61,12 +92,13 @@ export function feedOf(R, best) {
   return { hours: best.hours, ships };
 }
 
-/** The squares: sea, land, or out of play, from the coastline. */
+/** The squares: sea, land, or out of play, from the region's coastlines: its water cut out of its land, its land out of
+ *  play, its land, and sea everywhere else. */
 export function terrain(R) {
-  const { lon0, lat1, dlon, dlat, cols, rows } = R.grid, t = new Uint8Array(cols * rows);
+  const { lon0, lat1, dlon, dlat, cols, rows } = R.grid, g = R.geo, t = new Uint8Array(cols * rows);
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const p = [lon0 + (c + .5) * dlon, lat1 - (r + .5) * dlat];
-    t[r * cols + c] = inside(p, PEIPUS) ? WATER : inside(p, FINLAND) ? OFF : ISLANDS.some(i => inside(p, i)) ? LAND : inside(p, MAIN) ? (p[0] > 27.97 ? OFF : LAND) : WATER;
+    t[r * cols + c] = g.water.some(w => inside(p, w)) ? WATER : g.off.some(o => inside(p, o)) ? OFF : g.land.some(l => inside(p, l)) ? LAND : WATER;
   }
   return t;
 }
@@ -129,13 +161,21 @@ export function simulate(R, plan, record = false) {
     return { ...v, V, path, legs: path ? far + (path.length - 1) / V.speed : 0, state: path ? "pre" : "stuck", t: v.start || 0, aboard: 0, idle: 0, along: 0 };
   });
   const flows = (plan.flows || []).map(f => ({ ...f, path: route(R, plan, T, "pipe", f.from, f.to) }));
-  let revenue = 0, bought = 0, short = 0, running = 0, fees = 0, domestic = 0, domesticCost = 0;
+  let revenue = 0, bought = 0, short = 0, running = 0, fees = 0, domestic = 0, domesticCost = 0, made = 0, madeCost = 0, lost = 0;
+  // the world desk's cargoes: liftings from an export terminal, arrivals into a terminal; each loads or discharges four
+  // units an hour from the start of its day, a lifting for that day only (what isn't there by its end stays behind), an
+  // arrival until it's all in (waiting for room as it must)
+  const lifts = (plan.exports || []).map(x => ({ ...x, done: 0, end: -1 })), lands = (plan.imports || []).map(x => ({ ...x, done: 0, end: -1, waited: 0 }));
+  let exported = 0, imported = 0;
   // the plant's rundown reaches the terminal as fast as the player's plan for the harbour moves it: a round's units
   const rd = plan.feed || null, home = Object.keys(P).find(id => P[id].domestic);
   const rdRate = rd ? R.round / rd.hours : 0;
   const rec = record ? { pos: veh.map(() => new Float32Array(H * 2)), state: veh.map(() => new Uint8Array(H)), tank: Object.fromEntries(Object.keys(tank).map(k => [k, new Float32Array(H)])), revenue: new Float32Array(H), bought: new Float32Array(H), short: new Float32Array(H) } : null;
   const S = { pre: 0, load: 1, go: 2, unload: 3, back: 4, wait: 5, stuck: 6 };
   for (let h = 0; h < H; h++) {
+    for (const [id, p] of Object.entries(P)) if (p.kind === "plant") { const m = Math.min(p.rate, p.tank.cap - tank[id]); made += m; madeCost += m * p.price; lost += p.rate - m; tank[id] += m; }
+    for (const x of lifts) if (h >= x.day * 24 && h < (x.day + 1) * 24 && x.done < x.units) { const m = Math.min(4, x.units - x.done, tank[x.at]); if (m > 1e-9) { tank[x.at] -= m; x.done += m; exported += m * x.price; if (x.done >= x.units - 1e-9) x.end = h; } }
+    for (const x of lands) if (h >= x.day * 24 && x.done < x.units) { const m = Math.min(4, x.units - x.done, P[x.at].tank.cap - tank[x.at]); if (m > 1e-9) { tank[x.at] += m; x.done += m; imported += m * x.price; if (x.done >= x.units - 1e-9) x.end = h; } else x.waited++; }
     if (rd && home) { const m = Math.min(rdRate, P[home].tank.cap - tank[home]); if (m > 1e-9) { tank[home] += m; domestic += m; domesticCost += m * pr.domestic; } }   // what can't be taken backs up at the plant
     for (const [id, p] of Object.entries(P)) if (p.kind === "town") { const u = Math.min(tank[id], p.tank.use); tank[id] -= u; revenue += u * pr.sell; short += p.tank.use - u; }
     // pipelines: each flow takes what its line has left this hour, square by square (a trunk shared by two flows carries
@@ -180,7 +220,9 @@ export function simulate(R, plan, record = false) {
   const hire = veh.reduce((a, v) => a + v.V.hire * R.days, 0) + rdHire, build = buildCost(R, plan), penalty = short * pr.short, stockChange = (stock1 - stock0) * (pr.domestic ?? pr.buy);   // at the cheapest cost it could have had: no gain in ending full
   const r1 = x => Math.round(x * 10) / 10;
   const squares = ["road", "rail", "pipe"].reduce((a, m) => a + (plan.built?.[m] || []).length, 0);
-  return { profit: r1(revenue - bought - domesticCost - hire - build - penalty - running - fees + stockChange), domestic: r1(domestic), domesticCost: r1(domesticCost), rdHire: r1(rdHire), rdRate: +rdRate.toFixed(3), revenue: r1(revenue), bought: r1(bought), hire: r1(hire), build: r1(build), running: r1(running), fees: r1(fees),
+  return { profit: r1(revenue + exported - imported - bought - domesticCost - madeCost - hire - build - penalty - running - fees + stockChange), domestic: r1(domestic), domesticCost: r1(domesticCost), rdHire: r1(rdHire), rdRate: +rdRate.toFixed(3),
+    exported: r1(exported), imported: r1(imported), made: r1(made), madeCost: r1(madeCost), lost: r1(lost),
+    lifts: lifts.map(x => ({ day: x.day, lifted: r1(x.done), end: x.end })), lands: lands.map(x => ({ day: x.day, delivered: r1(x.done), end: x.end, waited: x.waited })), revenue: r1(revenue), bought: r1(bought), hire: r1(hire), build: r1(build), running: r1(running), fees: r1(fees),
     penalty: r1(penalty), short: r1(short), vehicles: veh.length, squares,
     stockChange: r1(stockChange), stuck: veh.filter(v => !v.path).length, idle: veh.reduce((a, v) => a + v.idle, 0), rec, S };
 }

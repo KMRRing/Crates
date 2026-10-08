@@ -20,12 +20,14 @@ const ICON = {
 };
 
 /** harbourBest(id): the player's bests for a harbour level; openLevel(id): go to it. */
-export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
+/** harbourBest(id): the player's bests for a harbour level; openLevel(id): go to it; worldFlows(id): the world desk's
+ *  liftings and landings for a region; openWorld(): go to the world. */
+export function createSquaresScreen({ root, brief, harbourBest, openLevel, worldFlows, openWorld }) {
   let R = null, T = null, mine = null, plan = null, viewing = null, res = null, tool = "road", now = 0, speed = 0, playing = false, raf = 0, down = false, lastSq = -1;
   const planKey = () => `harbour:v2:squares:${R.id}:plan`, bestKey = () => `harbour:v2:squares:${R.id}:best`;
   const $ = sel => root.querySelector(sel), H = () => R.days * 24;
   const empty = () => ({ built: { road: [], rail: [], pipe: [] }, depots: [], vehicles: [], flows: [] });
-  const feed = () => viewing ? plan.feed : feedOf(R, harbourBest(R.feeds));   // your harbour's pace, or the watched plan's
+  const feed = () => viewing ? plan.feed : R.feeds ? feedOf(R, harbourBest(R.feeds)) : null;   // your harbour's pace, or the watched plan's
 
   // ---------- the map ----------
   function map() {
@@ -47,6 +49,7 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
       if (p.kind === "source") s += `<text class="hs-name" x="${x + 4}" y="${y - 9}" style="text-anchor:start">← ${esc(p.name)}, ${p.offmap} h</text>`;
       else if (p.kind === "town") s += `<circle class="hs-town" cx="${x}" cy="${y}" r="6"/>${name}${gauge(x + 9, y - 9, id, p.tank.cap)}`;
       else if (p.kind === "depot") s += `<rect class="hs-depot" x="${x - 7}" y="${y - 7}" width="14" height="14" rx="2"/>${gauge(x + 9, y - 9, id, p.tank.cap)}`;
+      else if (p.kind === "plant") s += `<path class="hs-plant" d="M${x - 8},${y + 7}V${y - 2}L${x - 3},${y - 6}V${y - 2}L${x + 2},${y - 6}V${y - 10}H${x + 6}V${y + 7}Z"/>${name}${gauge(x + 10, y - 9, id, p.tank.cap)}<text class="hs-name small" x="${x + 21}" y="${y + 4}" style="text-anchor:start">+${p.rate} an hour</text>`;
       else s += `<rect class="hs-term" x="${x - 8}" y="${y - 8}" width="16" height="16" rx="2"/>${name}${gauge(x + 10, y - 9, id, p.tank.cap)}`;
       if (p.domestic) { const f = feed(); s += `<text class="hs-name small" x="${x + 24}" y="${y + 22}" style="text-anchor:start">${f ? `+${(R.round / f.hours).toFixed(2)} an hour from the plant` : "the plant is idle"}</text>`; }
     }
@@ -71,30 +74,37 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
   // ---------- the vehicles and flows ----------
   function cards() {
     const P = placesOf(R, plan), editable = !viewing, n = t => plan.vehicles.filter(v => v.type === t).length;
-    const ends = mode => Object.entries(P).filter(([, p]) => mode === "sea" ? p.kind === "source" || p.kind === "terminal" : p.kind !== "source");
+    const endsOf = mode => Object.entries(P).filter(([, p]) => mode === "sea" ? ["source", "terminal", "plant"].includes(p.kind) : p.kind !== "source");   // ships and barges reach refineries by water too
     const opt = (list, cur) => list.map(([id, p]) => `<option value="${id}"${id === cur ? " selected" : ""}>${esc(p.name)}${p.kind === "depot" ? ` ${id.slice(5)}` : ""}</option>`).join("");
     const way = (mode, a, b, speedSq) => { const p = route(R, plan, T, mode, a, b); if (!p) return `<span class="hs-bad">no way yet: build ${mode === "pipe" ? "a pipeline" : `a ${mode}`} between them</span>`; const far = a === "klaipeda" || b === "klaipeda" ? R.places.klaipeda.offmap : 0; return `${p.length - 1} squares${speedSq ? `, ${(far + (p.length - 1) / speedSq).toFixed(1)} h each way` : ""}`; };
     const step = (i, k, v, lo, hi) => `<span class="hs-step"><button type="button" data-i="${i}" data-k="${k}" data-d="-1" ${editable && v > lo ? "" : "disabled"} aria-label="An hour earlier">−</button><output>${v}</output><button type="button" data-i="${i}" data-k="${k}" data-d="1" ${editable && v < hi ? "" : "disabled"} aria-label="An hour later">+</button></span>`;
     const vs = plan.vehicles.map((v, i) => { const V = R.vehicles[v.type]; return `<div class="hs-card" style="--c:${COLORS[i % COLORS.length]}" data-v="${i}"><b>${V.name}</b> <span class="hs-soft">holds ${V.cap} · $${V.hire}k a day</span>
       ${editable ? `<button type="button" class="hs-x" data-drop="${i}" aria-label="Let it go">×</button>` : ""}
-      <div class="hs-row"><select data-k="from" ${editable ? "" : "disabled"} aria-label="From">${opt(ends(V.mode), v.from)}</select> → <select data-k="to" ${editable ? "" : "disabled"} aria-label="To">${opt(ends(V.mode), v.to)}</select><span class="hs-soft">first hour</span>${step(i, "start", v.start, 0, LAST)}</div>
+      <div class="hs-row"><select data-k="from" ${editable ? "" : "disabled"} aria-label="From">${opt(endsOf(V.mode), v.from)}</select> → <select data-k="to" ${editable ? "" : "disabled"} aria-label="To">${opt(endsOf(V.mode), v.to)}</select><span class="hs-soft">first hour</span>${step(i, "start", v.start, 0, LAST)}</div>
       <div class="hs-soft">${way(V.mode, v.from, v.to, V.speed)}</div></div>`; }).join("");
     const fs = plan.flows.map((f, i) => `<div class="hs-card" style="--c:#7A5A12" data-f="${i}"><b>Pipeline flow</b> <span class="hs-soft">up to ${R.pipe.rate * 24} a day</span>
       ${editable ? `<button type="button" class="hs-x" data-fdrop="${i}" aria-label="Stop this flow">×</button>` : ""}
-      <div class="hs-row"><select data-k="from" ${editable ? "" : "disabled"} aria-label="From">${opt(ends("pipe").filter(([, p]) => p.tank), f.from)}</select> → <select data-k="to" ${editable ? "" : "disabled"} aria-label="To">${opt(ends("pipe").filter(([, p]) => p.tank), f.to)}</select></div>
+      <div class="hs-row"><select data-k="from" ${editable ? "" : "disabled"} aria-label="From">${opt(endsOf("pipe").filter(([, p]) => p.tank), f.from)}</select> → <select data-k="to" ${editable ? "" : "disabled"} aria-label="To">${opt(endsOf("pipe").filter(([, p]) => p.tank), f.to)}</select></div>
       <div class="hs-soft">${way("pipe", f.from, f.to, 0)}</div></div>`).join("");
     const add = editable ? Object.entries(R.vehicles).map(([t, V]) => `<button type="button" class="hs-add" data-add="${t}" ${n(t) >= V.max ? "disabled" : ""}>+ ${V.name}</button>`).join("") + `<button type="button" class="hs-add" data-addflow="1">+ Pipeline flow</button>` : "";
     return (vs + fs || `<p class="hs-soft">Nothing hired yet.</p>`) + `<div class="hs-adds">${add}</div>`;
   }
 
   // ---------- the feeding harbour: your plan's pace, what the faster ones are worth, the way back ----------
+  // the world desk's cargoes here: lifted from this terminal, or landing at it
+  function world() {
+    const w = worldFlows(R.id) || {}, out = w.exports || [], inn = w.imports || [], days = xs => xs.map(x => x.day + 1).join(", ");
+    const what = out.length ? `The world desk lifts ${out.length} cargo${out.length > 1 ? "es" : ""} here this month, on days ${days(out)}: thirty units each.` : inn.length ? `World cargoes land here on days ${days(inn)}.` : `No world cargoes ${R.places.maasvlakte ? "to lift" : "land"} here yet.`;
+    return `<p>${what} <button type="button" class="hs-back" data-world="1">Open the world</button></p>`;
+  }
   function harbour() {
+    if (!R.feeds) return `<div class="hs-harbour">${world()}</div>`;
     const f = feedOf(R, harbourBest(R.feeds)), refs = [...R.rundown].sort((a, b) => b.hours - a.hours);
     const yours = f ? `Your Rundown: ${f.hours} hours with ${fleetText(f.ships)}, so the plant feeds ${(R.round / f.hours).toFixed(2)} an hour into Muuga.` : "You haven't finished Rundown yet, so the plant's tank isn't moving: everything has to be imported.";
     const rows = refs.map(x => `<tr${f && x.hours === f.hours ? ' class="mine"' : ""}><td>${x.hours} h, ${fleetText(x.ships)}${x.note ? ` <span class="hs-soft">· ${esc(x.note)}</span>` : ""}</td><td class="num">${(R.round / x.hours).toFixed(2)}/h</td><td class="num">${money(x.best)}</td></tr>`).join("");
     const star = refs.find(x => /speed star/.test(x.note || "")), mineBest = f ? refs.filter(x => x.hours >= f.hours).sort((a, b) => a.hours - b.hours)[0] : null;
     const nudge = star && (!f || f.hours > star.hours) ? `<p class="hs-nudge">Rundown's speed star (${star.hours} hours, ${fleetText(star.ships)}) would feed ${(R.round / star.hours).toFixed(2)} an hour: this region's best month with it is ${money(star.best)}${mineBest ? `, against ${money(mineBest.best)} at your pace` : ""}. <button type="button" class="hs-back" data-level="${R.feeds}">Back to Rundown</button></p>` : "";
-    return `<div class="hs-harbour"><p>${yours}</p>${nudge}<details><summary>Rundown's plans, priced here</summary><table class="hs-ledger"><thead><tr><th>Rundown</th><th>Plant</th><th>Best month</th></tr></thead><tbody>${rows}</tbody></table></details></div>`;
+    return `<div class="hs-harbour"><p>${yours}</p>${nudge}${world()}<details><summary>Rundown's plans, priced here</summary><table class="hs-ledger"><thead><tr><th>Rundown</th><th>Plant</th><th>Best month</th></tr></thead><tbody>${rows}</tbody></table></details></div>`;
   }
 
   // ---------- the month ----------
@@ -102,7 +112,8 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
     if (!res) return "";
     const end = Math.floor(now) >= H() - 1, r = res, row = (k, v, cls = "") => `<tr class="${cls}"><th>${k}</th><td>${v}</td></tr>`;
     return `<table class="hs-ledger"><caption>${end ? "The month" : `Day ${Math.floor(now / 24) + 1} of ${R.days}: the month, as it will end`}</caption>
-      ${row("Sold at the towns", money(r.revenue))}${row(`From the plant, ${r.domestic} units`, money(-r.domesticCost))}${row("Imported from Klaipėda", money(-r.bought))}
+      ${r.revenue ? row("Sold at the towns", money(r.revenue)) : ""}${r.exported ? row("Sold to the world desk, at ARA", money(r.exported)) : ""}${r.madeCost ? row(`Bought from the refineries, ${r.made} units${r.lost ? ` (${r.lost} lost at full tanks)` : ""}`, money(-r.madeCost)) : ""}
+      ${r.domesticCost ? row(`From the plant, ${r.domestic} units`, money(-r.domesticCost)) : ""}${r.imported ? row("Bought from the world desk, at Muuga", money(-r.imported)) : ""}${r.bought ? row("Imported from Klaipėda", money(-r.bought)) : ""}
       ${row(`Hire${r.rdHire ? ` (Rundown's fleet ${money(r.rdHire)})` : ""}`, money(-r.hire))}${row("Running: trucks and trains", money(-r.running))}${row("Building", money(-r.build))}
       ${row(`Shortfall, ${r.short} units`, money(-r.penalty))}${row("Stock, end against start", money(r.stockChange))}${row("Profit", money(r.profit), "total")}</table>`;
   }
@@ -110,7 +121,8 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
     const st = $(".hs-status"); if (!st) return;
     if (!res) { st.className = "hs-status hb-status"; st.textContent = "Hire a ship to start the month."; return; }
     st.className = `hs-status hb-status ${res.short > 0 || res.profit < 0 ? "bad" : "good"}`;
-    st.textContent = `${ended ? "The month is done" : "This plan's month"}: profit ${money(res.profit)} (par ${money(R.par.profit)})${res.short ? ` · ${res.short} units short` : " · no town ran dry"}${res.stuck ? ` · ${res.stuck} with no way to run` : ""}`;
+    const towns = Object.values(R.places).some(p => p.kind === "town"), lifted = res.lifts.reduce((a, x) => a + x.lifted, 0), wanted = (worldFlows(R.id)?.exports || []).reduce((a, x) => a + x.units, 0);
+    st.textContent = `${ended ? "The month is done" : "This plan's month"}: profit ${money(res.profit)} (par ${money(R.par.profit)})${towns ? (res.short ? ` · ${res.short} units short` : " · no town ran dry") : ` · ${lifted} of ${wanted} lifted for the desk`}${res.stuck ? ` · ${res.stuck} with no way to run` : ""}`;
   }
   function finish() {
     verdict(true);
@@ -121,7 +133,8 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
   function evaluate() {
     pause(); now = 0;
     const f = feed();
-    res = plan.vehicles.length || plan.flows.length ? simulate(R, { ...plan, feed: f || undefined }, true) : null;
+    const w = viewing ? {} : worldFlows(R.id) || {};
+    res = plan.vehicles.length || plan.flows.length || w.exports?.length || w.imports?.length ? simulate(R, { ...plan, feed: f || undefined, ...w }, true) : null;
     draw();
   }
   function draw() {
@@ -133,7 +146,7 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
       <input class="hs-scrub hb-scrub" type="range" min="0" max="${H() - 1}" step="1" value="${Math.floor(now)}" ${res ? "" : "disabled"} aria-label="The month, hour by hour">
       <div class="hs-run"><button type="button" class="hb-ctl" data-run="reset" aria-label="Back to the month's start" ${res ? "" : "disabled"}>${ICON.reset}</button><button type="button" class="hb-ctl primary" data-run="play" aria-label="Play the month" ${res ? "" : "disabled"}>${playing ? ICON.pause : ICON.play}</button><button type="button" class="hb-ctl" data-run="speed" aria-label="Speed">${[1, 4, 16][speed]}×</button><button type="button" class="hb-ctl" data-run="end" aria-label="To the month's end" ${res ? "" : "disabled"}>${ICON.end}</button></div>
       <p class="hs-status hb-status" aria-live="polite"></p>
-      <div class="hs-cols"><div class="hs-fleet">${cards()}</div><div>${ledger()}<p class="hs-soft">Building: road $${R.build.road}k, rail $${R.build.rail}k, pipeline $${R.build.pipe}k a square; a depot $${R.build.depot}k. Diesel $${R.prices.domestic}k from the plant, $${R.prices.buy}k from Klaipėda, sold at $${R.prices.sell}k; $${R.prices.short}k a unit a town can't have.</p></div></div>`;
+      <div class="hs-cols"><div class="hs-fleet">${cards()}</div><div>${ledger()}<p class="hs-soft">Building: road $${R.build.road}k, rail $${R.build.rail}k, pipeline $${R.build.pipe}k a square; a depot $${R.build.depot}k. ${R.feeds ? `Diesel $${R.prices.domestic}k from the plant, $${R.prices.buy}k from Klaipėda, sold at $${R.prices.sell}k; $${R.prices.short}k a unit a town can't have.` : `Refineries: ${Object.values(R.places).filter(p => p.kind === "plant").map(p => `${esc(p.name)} $${p.price}k a unit`).join(", ")}; the desk pays ARA's price.`}</p></div></div>`;
     root.scrollTop = scrollTop;
     verdict(false);
   }
@@ -149,6 +162,14 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
   }
   function pause() { playing = false; cancelAnimationFrame(raf); const b = $('[data-run="play"]'); if (b) b.innerHTML = ICON.play; }
 
+  // a new vehicle's (or flow's) ends: from a source or plant to a terminal; by land, from a terminal to a town if there is one
+  function ends(mode) {
+    const P = Object.entries(placesOf(R, plan)), of = (...k) => P.find(([, p]) => k.includes(p.kind))?.[0];
+    const term = of("terminal"), town = of("town");
+    if (mode === "sea") return { from: of("source", "plant"), to: term };
+    return town ? { from: term, to: town } : { from: of("plant"), to: term };
+  }
+
   // ---------- taps, drags and picks ----------
   root.addEventListener("pointerdown", e => { if (!R || !e.target.closest(".hs-map") || viewing) return; e.preventDefault(); down = true; lastSq = -1; e.target.closest(".hs-map").setPointerCapture?.(e.pointerId); build(square(e)); });
   root.addEventListener("pointermove", e => { if (down) build(square(e)); });
@@ -156,8 +177,8 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
   root.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b || !R) return;
     if (b.dataset.tool) { tool = b.dataset.tool; draw(); }
-    else if (b.dataset.add) { const V = R.vehicles[b.dataset.add]; plan.vehicles.push(V.mode === "sea" ? { type: b.dataset.add, from: "klaipeda", to: "muuga", start: 0 } : { type: b.dataset.add, from: "muuga", to: "tallinn", start: 0 }); changed(); }
-    else if (b.dataset.addflow) { plan.flows.push({ from: "muuga", to: "tallinn" }); changed(); }
+    else if (b.dataset.add) { plan.vehicles.push({ type: b.dataset.add, ...ends(R.vehicles[b.dataset.add].mode), start: 0 }); changed(); }
+    else if (b.dataset.addflow) { plan.flows.push(ends("pipe")); changed(); }
     else if (b.dataset.drop) { plan.vehicles.splice(+b.dataset.drop, 1); changed(); }
     else if (b.dataset.fdrop) { plan.flows.splice(+b.dataset.fdrop, 1); changed(); }
     else if (b.dataset.d) { const v = plan.vehicles[+b.dataset.i]; v.start = Math.max(0, Math.min(LAST, v.start + +b.dataset.d)); changed(); }
@@ -167,6 +188,7 @@ export function createSquaresScreen({ root, brief, harbourBest, openLevel }) {
     else if (b.dataset.run === "speed") { speed = (speed + 1) % SPEEDS.length; b.textContent = `${[1, 4, 16][speed]}×`; }
     else if (b.dataset.mine) back();
     else if (b.dataset.level) openLevel(b.dataset.level);
+    else if (b.dataset.world) openWorld();
   });
   root.addEventListener("change", e => {
     const t = e.target, card = t.closest(".hs-card"); if (!card || !t.dataset.k || viewing) return;

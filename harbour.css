@@ -164,51 +164,6 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .harbour.hb-regional .hb-brief { height: auto; }
 .hb-region { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-bottom: .4rem; }
 .hb-region[hidden] { display: none; }
-.hr-chart { width: 100%; height: auto; max-height: 46vh; display: block; margin: 0 auto; border-radius: 10px; background: var(--hb-water); }
-.hr-water { fill: var(--hb-water); } .hr-land { fill: var(--hb-land); stroke: color-mix(in srgb, var(--ink) 25%, transparent); stroke-width: .8; }
-.hr-name { font: 600 12px var(--font); fill: var(--ink-soft); opacity: .7; text-anchor: middle; font-style: italic; }
-.hr-name.caps { font-style: normal; letter-spacing: .18em; font-size: 12px; opacity: .45; }
-.hr-lane { fill: none; stroke: var(--brass); stroke-width: 2; stroke-dasharray: 6 4; opacity: .85; }
-.hr-lane-t { font: 700 12px var(--font); fill: var(--ink-soft); text-anchor: start; }
-.hr-port text { font: 700 15px var(--font); fill: var(--ink); } .hr-port text.small, .hr-gauge text { font: 600 11.5px var(--font); fill: var(--ink-soft); }
-.hr-port.refinery rect { fill: var(--c0); stroke: var(--ink); stroke-width: 1; } .hr-port.customer circle { fill: var(--c2, #2F6F9F); stroke: var(--ink); stroke-width: 1; }
-.hr-gauge-box { fill: color-mix(in srgb, var(--hb-hull) 80%, transparent); stroke: var(--ink); stroke-width: 1; }
-.hr-gauge-fill { fill: var(--c0); transition: fill .2s; } .hr-gauge.dry .hr-gauge-box { stroke: var(--c3); stroke-width: 2; }
-.hr-boat path { fill: var(--hb-hull); stroke: var(--ship); stroke-width: 1.6; } .hr-boat rect { fill: var(--ship); }
-.hr-boat.waiting path { stroke: var(--c3); stroke-dasharray: 2 1.5; }
-.hr-fleet { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: .4rem; margin: .5rem 0; }
-.hr-fleet .hr-hires, .hr-fleet .hr-empty { grid-column: 1 / -1; }
-.hr-card { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: .25rem .5rem; padding: .45rem .55rem;
-  border: 1.5px solid color-mix(in srgb, var(--ship) 55%, transparent); border-radius: 6px; font-size: .86rem; }
-.hr-card .hr-soft { grid-column: 3; } .hr-card .hr-x { grid-column: 4; grid-row: 1; }
-.hr-card .hr-field { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
-.hr-chip { width: .8rem; height: .8rem; border-radius: 2px; background: var(--ship); }
-.hr-soft { color: var(--ink-soft); font-size: .8rem; }
-.hr-step { display: inline-flex; align-items: center; gap: .2rem; }
-.hr-step button, .hr-x { width: 34px; height: 30px; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: 700 1rem/1 var(--font); cursor: pointer; }
-.hr-step button:disabled { opacity: .3; cursor: default; }
-.hr-step output { min-width: 2.2em; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; }
-.hr-x { width: 30px; border-color: transparent; color: var(--ink-soft); }
-.hr-hires { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: .35rem; }
-.hr-hire { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .3rem; padding: .5rem .6rem; border: 1.5px dashed var(--brass); border-radius: 6px; background: none; color: var(--ink); font: 700 .86rem var(--font); cursor: pointer; text-align: left; }
-.hr-hire:disabled { opacity: .4; cursor: default; }
-.hr-empty { margin: .2rem 0 .5rem; }
-.hr-ledger { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; margin-top: .6rem; }
-.hr-ledger caption { text-align: left; font-weight: 700; color: var(--ink-soft); font-size: .78rem; padding-bottom: .15rem; }
-.hr-ledger th { text-align: left; font-weight: 500; padding: .12rem 0; } .hr-ledger td { text-align: right; padding: .12rem 0; }
-.hr-ledger tr.total th, .hr-ledger tr.total td { font-weight: 800; border-top: 1px solid var(--ink-soft); padding-top: .25rem; }
-.hr-rules { margin: .5rem 0 .3rem; }
-.hr-timeline svg { width: 100%; height: 86px; display: block; background: color-mix(in srgb, var(--hb-water) 35%, transparent); border-radius: 4px; cursor: pointer; touch-action: none; }
-.tl-sea { fill: color-mix(in srgb, var(--hb-water) 85%, var(--ink) 15%); } .tl-load { fill: var(--c0); } .tl-dis { fill: var(--ink); } .tl-wait { fill: var(--c3); }
-.tl-tankbg { fill: color-mix(in srgb, var(--hb-hull) 60%, transparent); } .tl-level { fill: none; stroke: var(--c0); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-.tl-week { stroke: var(--ink); stroke-width: 1; opacity: .25; vector-effect: non-scaling-stroke; } .tl-now { stroke: var(--ink); stroke-width: 2; vector-effect: non-scaling-stroke; }
-.hr-key { margin: .25rem 0 0; font-size: .74rem; color: var(--ink-soft); } .hr-key i { display: inline-block; width: .75em; height: .75em; border-radius: 2px; margin: 0 .25em 0 .7em; vertical-align: -.05em; }
-.hr-key i:first-child { margin-left: 0; } .hr-key i.tl-load { background: var(--c0); } .hr-key i.tl-sea { background: color-mix(in srgb, var(--hb-water) 85%, var(--ink) 15%); }
-.hr-key i.tl-dis { background: var(--ink); } .hr-key i.tl-wait { background: var(--c3); } .hr-key i.tl-tank { height: 2px; background: var(--c0); vertical-align: .2em; }
-.hr-run { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: .45rem; }
-.hr-status { text-align: center; }
-.hr-status.bad { color: var(--c3); } .hr-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
-.hr-viewing { margin: 0 0 .4rem; font-size: .84rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
 
 /* a region on squares (harbour-squares-ui.js): the map with its networks and tanks, the build tools, cards, the ledger */
 .hs-harbour { margin: 0 0 .5rem; padding: .5rem .65rem; border: 1.5px solid var(--brass); border-radius: 6px; font-size: .86rem; }
@@ -241,3 +196,19 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-ledger th { text-align: left; font-weight: 500; padding: .1rem 0; } .hs-ledger td { text-align: right; padding: .1rem 0; } .hs-ledger tr.total th, .hs-ledger tr.total td { font-weight: 800; border-top: 1px solid var(--ink-soft); }
 .hs-ledger tr.mine td { background: color-mix(in srgb, var(--brass) 18%, transparent); }
 .hs-viewing { margin: 0 0 .4rem; font-size: .84rem; display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; } .hs-viewing[hidden] { display: none; }
+
+/* the world (harbour-world-ui.js): the forward curve with the desk's cargoes, what each did, the company's books */
+.hw-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 .3rem; }
+.hw-mr { padding: 6px 12px; border-radius: 4px; border: 1.5px solid var(--c); background: none; color: var(--ink); font: 700 .82rem var(--font); cursor: pointer; } .hw-mr.on { background: var(--c); color: #fff; }
+.hw-check { font-size: .8rem; color: var(--ink-soft); display: inline-flex; gap: .3rem; align-items: center; }
+.hw-chart { width: 100%; height: auto; display: block; user-select: none; touch-action: manipulation; }
+.hw-month { fill: color-mix(in srgb, var(--hb-water) 40%, transparent); } .hw-grid { stroke: var(--ink); stroke-opacity: .12; } .hw-ax { font: 10px var(--font); fill: var(--ink-soft); text-anchor: middle; }
+.hw-ara, .hw-muu { fill: none; stroke-width: 2.2; } .hw-ara { stroke: var(--c0); } .hw-muu { stroke: var(--c2, #2F6F9F); }
+.hw-key { font: 700 11px var(--font); text-anchor: end; } .hw-key.ara { fill: var(--c0); } .hw-key.muu { fill: var(--c2, #2F6F9F); }
+.hw-cargo line, .hw-preview line { stroke-width: 2.2; } .hw-preview { opacity: .5; }
+.hw-lab { font: 700 11px var(--font); fill: color-mix(in srgb, var(--c1) 80%, var(--ink)); text-anchor: middle; paint-order: stroke; stroke: var(--yard); stroke-width: 3px; } .hw-lab.neg { fill: var(--c3); }
+.hw-pos { fill: var(--c1); opacity: .7; } .hw-neg { fill: var(--c3); opacity: .7; } .hw-hit { fill: transparent; cursor: pointer; }
+.hw-hint { font-size: .8rem; color: var(--ink-soft); margin: .2rem 0 .4rem; } .hw-bad { color: var(--c3); }
+.hw-dot { display: inline-block; width: .7em; height: .7em; border-radius: 50%; margin-right: .3em; } .hw-cargoes td { font-size: .8rem; padding: .15rem .3rem .15rem 0; text-align: left; }
+.hw-books { margin-top: .6rem; } .hw-go { padding: 2px 10px; border-radius: 999px; border: 1.5px solid var(--ink); background: none; color: var(--ink); font: 700 .75rem var(--font); cursor: pointer; }
+.hs-plant { fill: var(--c0); stroke: var(--ink); stroke-width: 1; }
