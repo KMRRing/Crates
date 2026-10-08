@@ -266,7 +266,7 @@ function openSettings(host) {
 }
 
 const tiles = (apps, current) => apps.map(a => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b>${a.id === current ? '<small class="app-now">Playing</small>' : ""}<small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
+      <span class="app-logo">${a.logo}${a.id === current ? '<i class="app-now" role="img" aria-label="Playing" title="Playing"></i>' : ""}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b><small class="app-best" data-best="${a.id}"></small></a></li>`).join("");
 const short = n => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}m` : n >= 1e4 ? `${Math.round(n / 1e3)}k` : Number.isInteger(n) ? n.toLocaleString("en-GB") : n.toFixed(2));
 /**
  * A tile's line: your figure and your partner's (by initial). A streak, today's time or count, stars, or a best; today's

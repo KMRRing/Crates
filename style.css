@@ -231,8 +231,17 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .app-row.cur .app-logo, .app-row:hover .app-logo, .app-row:active .app-logo, .app-row:focus-visible .app-logo { --wire: 1.5; }
 .app-logo svg *, .mark-icon svg * { transition: stroke-width .15s ease; }
 .app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.1; }
-.app-now { font-size: .62rem; font-weight: 800; letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); padding: .05rem .45rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); }
-@container (max-height: 6.6rem) { .app-now { display: none; } }
+/* the game you're playing: a small play mark on the top-right corner of its icon */
+.app-logo { position: relative; }
+.app-now {
+  position: absolute; top: -5px; right: -8px; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--brass); box-shadow: 0 0 0 2px var(--sheet); pointer-events: none;   /* ringed in the tile's own colour */
+}
+.apps-pop-list .app-now { box-shadow: 0 0 0 2px var(--yard); }
+.app-now::after {                                   /* the play triangle */
+  content: ""; position: absolute; left: 5.5px; top: 4px; border-style: solid;
+  border-width: 3.5px 0 3.5px 5.5px; border-color: transparent transparent transparent var(--yard);
+}
 /* "…" opens the other games in a popup over the screen of games */
 dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-box; margin: auto; padding: 1rem; border: 1.5px solid var(--brass); border-radius: 10px;
   background: var(--sheet); color: var(--ink); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); overflow-y: auto; overscroll-behavior: contain; }
