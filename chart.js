@@ -141,6 +141,13 @@ const missed = (p, d, pin) => (p.cat === "countries" ? d > 0 : d > 500 && !(d <=
 const cluesTaken = () => (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues);
 function next() {
   if (inRoom()) {
+    // the last place's button opens the summary at once, from what's settled here, and marks the set done for both;
+    // pressed again after closing, it opens it again (waiting on the room's answer left it dead whenever none came)
+    if (S.phase === "reveal" && S.index + 1 >= S.set.length) {
+      if (!S.done) together.act(g => (g.phase !== "reveal" || g.done ? false : void (g.done = true)));
+      finishRoom(true);
+      return;
+    }
     together.act(g => {
       if (g.phase !== "reveal") return false;
       if (g.index + 1 >= g.set.length) { g.done = true; return; }
@@ -149,6 +156,7 @@ function next() {
     pin = null; views = { world: startView() };
     return;
   }
+  if (S.done) { finish(); return; }                       // the set is over: its summary again
   if (S.phase !== "reveal") return;
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
   S.index++;
@@ -517,7 +525,7 @@ function finish() {
   daily.type = "button"; daily.addEventListener("click", () => { $("doneDlg").close(); start(S.mode === "daily" ? "random" : "daily", selOf(S)); });
   const link = add("button", "btn wide", "Copy a link to this set");
   link.type = "button"; link.addEventListener("click", copyLink);
-  if (!$("doneDlg").open) $("doneDlg").showModal();
+  bell();
 }
 // bests are kept by selection: { "topic/region": best }; a best from before the dropdowns was everything everywhere
 const bests = () => { const b = read(BEST, {}); return typeof b === "number" ? { "all/world": b } : b; };
@@ -546,9 +554,11 @@ function startRoomSet() {
   pin = null; views = { world: startView() };
 }
 let shownBell = null;
-function finishRoom() {
+/** Opens the set's summary, as a modal on top: a dialog left open somehow (not shown as a modal) is reopened. */
+function bell() { const d = $("doneDlg"); if (d.open) d.close(); d.showModal(); }
+function finishRoom(asked = false) {                    // asked: the button was pressed, so show it even if shown
   const g = S, me = mySeat(), key = `${g.seed}/${g.index}`;
-  if (shownBell === key) return;
+  if (shownBell === key && !asked) return;
   shownBell = key;
   const scores = Object.values(g.scores);
   const body = $("doneBody");
@@ -566,7 +576,7 @@ function finishRoom() {
   again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(); });
   const leave = add("button", "btn wide", "Back to solo");
   leave.type = "button"; leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
-  if (!$("doneDlg").open) $("doneDlg").showModal();
+  bell();
 }
 function onState(val) {
   const was = S;
