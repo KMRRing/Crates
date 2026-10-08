@@ -392,14 +392,16 @@ function price(level, r) {
 /**
  * A run of a level: { tiles (with rot as turned), heads: [{ product, x, y, into (the direction it entered by),
  * progress 0–1, pressure, done, stalled }], fill: { "x,y": [{ product, into, out }] } (what's in each tile),
- * delivered, reached (the terminals delivered to, by index), tilesFilled, pumpsFired, over: null | { win, why },
- * spill: { x, y, why } | null }.
+ * trail: [{ x, y, kind, product, second, marked }] (every tile the oil entered, in order: its shape, or term or unit;
+ * second, a crossing's second channel; marked, a tile carrying a ✓), delivered, reached (the terminals delivered to, by
+ * index), tilesFilled, pumpsFired, over: null | { win, why }, spill: { x, y, why } | null }.
  */
 export function newRun(level) {
   return {
     tiles: level.tiles.map(row => row.map(t => ({ ...t, locked: false }))),
     heads: level.heads.map(h => ({ product: h.product, x: h.at[0], y: h.at[1], into: opposite(h.dir), progress: 0, pressure: level.level.pressure, done: false })),
     fill: {},
+    trail: [],
     delivered: 0,
     reached: [],
     tilesFilled: 0,
@@ -503,6 +505,7 @@ function enter(level, run, h, nx, ny, into) {
   if (there.length && !room) { spill(run, h, "already full", nx, ny); return false; }
   run.fill[k] = [...there, { product: h.product, into, out: next.kind === "term" || next.kind === "unit" ? null : exitOf(next, into) }];
   run.tilesFilled++;
+  (run.trail ||= []).push({ x: nx, y: ny, kind: next.kind, product: h.product, second: there.length > 0, marked: !!next.set });
   next.locked = true;
   return true;
 }
