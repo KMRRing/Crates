@@ -203,10 +203,13 @@ const LOOK = document.documentElement.dataset.theme;
 // Kontor's in line, its scale and index arm in green: three versions of the same sextant
 const BRAND = LOOK === "modern" ? '<img src="logo-modern.svg" alt="">'
   : LOOK === "kontor" ? '<svg class="k-ico k-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8L3.9 19.1A17.3 17.3 0 0 0 20.1 19.1Z"/><path d="M7.7 11.9A9.1 9.1 0 0 0 16.3 11.9"/><path class="a" d="M6.1 20.1L6.7 18.5M9 20.8L9.3 19.2M12 21.1V19.4M15 20.8L14.7 19.2M17.9 20.1L17.3 18.5M12 3.8L14.5 19.5"/><circle class="f" cx="12" cy="3.8" r="1.2"/></svg>'
+  : LOOK === "office" ? ""                              // Office: the name alone, no mark
   : '<img src="logo.svg" alt="">';
 // Settings' tile: in Almanac the rete, the device every game's options button wears; in Kontor the sliders in line
 const K_SETTINGS = '<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><path class="a" d="M14 5h4v4h-4zM8 15h4v4H8z"/></svg>';
-const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LOOK === "kontor" ? KONTOR_LOGOS[id] : null) || almanac;
+// Office wears Kontor's line drawings, restyled in themes.css: thin, rounded, monochrome, like an Office app's icons
+const LINE = LOOK === "kontor" || LOOK === "office";
+const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LINE ? KONTOR_LOGOS[id] : null) || almanac;
 
 export const APPS = [
   { id: "crates", name: "Crates", href: "./crates.html", logo: LOGO("crates", CRATES_LOGO), score: "board" },   // its best: today's board, points then time
@@ -236,9 +239,9 @@ export const APPS = [
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
-// Settings, behind More: the theme (Deco, Modern or Kontor; each with a day and a night that follow the system).
+// Settings, behind More: the theme (Deco, Modern, Kontor or Office; each with a day and a night that follow the system).
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
-const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"]];
+const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
 export const theme = () => document.documentElement.dataset.theme || "deco";
 const mode = () => document.documentElement.dataset.mode || "auto";
@@ -442,7 +445,7 @@ export function bindSwitcher(button, current) {
   pop.setAttribute("aria-label", "More games");
   pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></div>
     <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}<li><button class="app-row app-settings" type="button" data-settings>
-      <span class="app-logo">${LOOK === "modern" ? ICON.settings : LOOK === "kontor" ? K_SETTINGS : RETE}</span><b class="app-name">Settings</b></button></li></ul>`;
+      <span class="app-logo">${LOOK === "modern" ? ICON.settings : LINE ? K_SETTINGS : RETE}</span><b class="app-name">Settings</b></button></li></ul>`;
   dlg.appendChild(pop);
   pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
   pop.addEventListener("click", e => { if (e.target === pop) pop.close(); });    // a tap on the backdrop

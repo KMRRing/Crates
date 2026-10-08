@@ -198,7 +198,7 @@ function upgrade() {
   if (btn && look !== "modern") {                                                     // the rete stands still, and turns while the menu is open
     btn.classList.add("rete-btn");
     btn.setAttribute("aria-label", "Menu");
-    btn.innerHTML = look === "kontor" ? KONTOR_MENU : RETE;
+    btn.innerHTML = look === "kontor" || look === "office" ? KONTOR_MENU : RETE;   // Office: the same three rules, rounded in themes.css
     new MutationObserver(() => btn.classList.toggle("turning", dlg.open)).observe(dlg, { attributes: true, attributeFilter: ["open"] });
   }
   const body = document.getElementById("menuBody") || dlg;

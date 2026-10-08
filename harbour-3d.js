@@ -34,6 +34,16 @@ const SKINS = {
       tank: 0x52606b, pier: 0x46545f, empty: 0x3a4651, sky: 0xa4b8c9, ground: 0x1a2228, hemi: 1.15, sun: 0xc8dbef, sunI: 1.8, sunAt: [-5, 11, -3], exposure: 1.2,
       night: true, lamp: 0xcfe8ff },
   },
+  // Office: Fluent's neutrals and its blue; flat light greys by day, charcoal at night
+  office: {
+    day: { land: 0xf5f5f5, grass: null, side: .92, plate: 0x8a8a8a, water: [0xdcebfa, 0xd3e5f8], decor: null,
+      hull: 0x242424, boot: 0x0f6cbd, deck: 0x424242, house: 0xffffff, glass: 0x242424, funnel: 0x242424, band: 0x0f6cbd,
+      tank: 0xffffff, pier: 0x8a8a8a, empty: 0xd1d1d1, edge: [0x0f6cbd, .45], landEdge: [0x616161, .14], sky: 0xffffff, ground: 0xd1d1d1, hemi: 1.75, sun: 0xffffff, sunI: 1.25, sunAt: [4, 12, 6], exposure: 1 },
+    night: { land: 0x2e2e2e, grass: null, side: .8, plate: 0x0a0a0a, water: [0x163454, 0x14304e], seaGlow: .25, decor: null,
+      hull: 0x1f1f1f, boot: 0x479ef5, deck: 0x2b2b2b, house: 0x333333, houseGlow: .18, glass: 0x9ccbfa, funnel: 0x1f1f1f, band: 0x479ef5,
+      tank: 0x2b2b2b, pier: 0x3d3d3d, empty: 0x333333, edge: [0x479ef5, .9], landEdge: [0x479ef5, .18], sky: 0x3a4c60, ground: 0x141414, hemi: .9, sun: 0xcfe4fb, sunI: 1.2, sunAt: [-4, 12, -3], exposure: 1,
+      night: true, lamp: 0x9ccbfa },
+  },
   kontor: {
     day: { land: 0xe4eae6, grass: null, side: .9, plate: 0x93a39a, water: [0xb2cabd, 0xabc4b6], decor: null,
       hull: 0x111a15, boot: 0x2eb36a, deck: 0x2e3b33, house: 0xffffff, glass: 0x111a15, funnel: 0x111a15, band: 0x2eb36a,
