@@ -5,17 +5,21 @@ import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 import { today, IN_FRAME } from "./suite.js";          // the day, the same for everyone (UTC); a partner watching's frame
+import { UPGRADES, TIERS, doorsFor, termsFor, describe, cargoFor, isFinale } from "./pipes-run.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
 const SVG = "http://www.w3.org/2000/svg";
 const TILE = 60, PIPE = 18;            // drawing units
-const BONUS_WINDOW = 90000;             // ms: the time bonus counts down from here once the flow starts
 const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 40 s flow in half a second), in 50 ms steps so
-                                       // the products meet crossings in the same order they would at speed 1
-const FILL_SCORED = 4;                 // and the time bonus counts that time as if pumped at ×4
+                                       // the products meet crossings in the same order they would at speed 1; the time
+                                       // bonus (counting down from its window) counts that time at the job's fill rate
 
-let S = null;        // { seed, mode, n, score, lives, attempt, phase: "plan" | "flow" | "done" | "over", after: "next" | "retry" (once done), offers: [{ id, price, uses }], market: { crude, hvo }, tool, live (below) }
+// the run: { seed, mode, n, score, lives, maxLives, attempt, phase: "pick" | "plan" | "flow" | "done" | "over", after:
+// "next" | "retry" (once done), upgrades (ids, as taken), doors (the jobs on offer while picking), job: { twist, reward,
+// paid } (the level under way), insuredAct, offers: [{ id, price, uses }], market: { crude, hvo }, tool, live (below) }
+let S = null;
+let terms = null;    // the level's terms: its job with the run's upgrades (pipes-run.js)
 let L = null;        // the level
 let R = null;        // the run
 let clock = { last: 0, brief: 0, planLeft: 0, flowing: 0, filling: false };   // brief: the tools shown before the countdown; flowing: the time the bonus counts
@@ -36,34 +40,68 @@ const PAUSE_MS = 5000;
 // a level opens on its tools, for this long, before its countdown starts: time to take them in that costs none of the
 // planning (the board stays covered); a tap starts it sooner, and there's none when none of them is affordable
 const BRIEF_MS = 3000;
-/** A map's offers: three of the tools at its own prices and uses, the same for everyone on the same board. */
-function offersFor(seed) {
+/** A map's offers: some of the tools at its own prices and uses, the same for everyone on the same board. The run's
+ *  upgrades widen the kit, cut the prices, add a use or keep Auto-turn on offer; a job with no tools has none. */
+function offersFor(seed, tools) {
+  if (!tools) return [];
   let a = seed >>> 0;
   const r = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const ids = Object.keys(TOOLS).map(id => [r(), id]).sort((x, y) => x[0] - y[0]).slice(0, 3).map(([, id]) => id);
-  return ids.map(id => { const t = TOOLS[id], pick = ([lo, hi], step) => lo + step * Math.floor(r() * ((hi - lo) / step + 1)); return { id, price: pick(t.price, 10), uses: pick(t.uses, 1) }; });
+  const ids = Object.keys(TOOLS).map(id => [r(), id]).sort((x, y) => x[0] - y[0]).slice(0, tools.count).map(([, id]) => id);
+  if (tools.turn && !ids.includes("turn")) ids[ids.length - 1] = "turn";
+  return ids.map(id => {
+    const t = TOOLS[id], pick = ([lo, hi], step) => lo + step * Math.floor(r() * ((hi - lo) / step + 1));
+    return { id, price: Math.max(10, Math.round(pick(t.price, 10) * tools.price / 10) * 10), uses: pick(t.uses, 1) + tools.uses };
+  });
 }
 /** Prices drift between levels, a few per cent either way, within 70% and 140% of the list price. */
 const drift = (m, r) => Math.min(1.4, Math.max(0.7, +(m * (1 + (r - 0.5) * 0.24)).toFixed(3)));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const save = () => write(RUN, S);
-const levelInfo = () => levelOf(S?.n || 1);
 
 // ---------- the run ----------
-function start(mode) {
-  S = { seed: mode === "daily" ? today() : randomSeed(), mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan", market: { crude: 1, hvo: 1 }, tool: null };
+// A run is a string of jobs (pipes-run.js): before each level, three doors, each a job's twist and the upgrade that
+// delivering it earns; a spill retries the same job on a fresh board.
+function start(mode, seed = mode === "daily" ? today() : randomSeed()) {
+  S = { seed, mode, n: 1, score: 0, lives: LIVES, maxLives: LIVES, attempt: 0, phase: "pick", market: { crude: 1, hvo: 1 }, tool: null, upgrades: [], job: null };
   history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
+  L = R = null;
+  offerJobs();
+}
+/** Before every level: the jobs on offer, the same for everyone on this seed who has made the same choices. */
+function offerJobs() {
+  S.phase = "pick"; S.after = null; S.tool = null; S.attempt = 0;
+  S.doors = doorsFor(S.seed, S.n, S.upgrades);
+  save();
+  showJobs();
+}
+/** A job taken: its level begins. */
+function chooseJob(i) {
+  if (S.phase !== "pick" || !S.doors?.[i] || IN_FRAME) return;
+  S.job = S.doors[i];
+  S.doors = null;
   beginLevel();
+}
+/** The level as its job builds it: the board under the twist's terms (the engine proves it under them), then played
+ *  under the run's (planning, flow speed, pressure). */
+function buildLevel() {
+  terms = termsFor(S.job, S.upgrades, S.n);
+  const lv = makeLevel(S.seed + 7919 * S.attempt, S.n, terms.build);
+  lv.level = { ...lv.level, ...terms.flow };
+  return lv;
 }
 /** A level begins: the board, a planning countdown, then the flow. A retry after a spill gets a fresh board. */
 function beginLevel() {
-  L = makeLevel(S.seed + 7919 * S.attempt, S.n);
+  S.job ??= { twist: "none", reward: null };             // a run saved before jobs carries on with a plain one
+  $("doors").hidden = true;
+  L = buildLevel();
   R = newRun(L);
+  if (terms.prelaid) prelay();
   S.phase = "plan";
   S.after = null;
-  S.market = { crude: S.market?.crude ?? 1, hvo: S.market?.hvo ?? 1 }; S.tool = null;
-  S.offers = offersFor(S.seed + 7919 * S.attempt + 104729 * S.n);
+  const m = S.market || {};
+  S.market = { crude: Math.max(terms.floor, m.crude ?? 1), hvo: Math.max(terms.floor, m.hvo ?? 1) }; S.tool = null;
+  S.offers = offersFor(S.seed + 7919 * S.attempt + 104729 * S.n, terms.tools);
   const affordable = S.offers.some(o => o.uses && S.score >= o.price);
   clock = { last: performance.now(), brief: affordable ? BRIEF_MS : 0, planLeft: L.level.plan, flowing: 0, filling: false, paused: 0 };
   keepLive();
@@ -78,10 +116,23 @@ function beginLevel() {
   cancelAnimationFrame(raf);
   raf = requestAnimationFrame(frame);
 }
-/** The level's news under the board while it's played. The note has three lines: each level's news must fit them. */
-const levelNote = () => (L.n === 1 ? `Tap a tile to turn it, hold to turn it back. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: "dry" marks where a line would run out. Pipe costs ${COSTS.tile} a tile, a pump ${COSTS.pump}.`
+/** Pre-laid: each designed route's first two pipes start turned the right way, marked as Auto-turn marks them. */
+function prelay() {
+  for (const route of L.routes) for (const [x, y] of route.slice(1, 3)) {
+    const t = R.tiles[y][x], right = t.fixed ? {} : rightTurn(L, t, x, y);
+    if (right.rot != null) { t.rot = right.rot; t.set = true; }
+  }
+}
+/** The level's news under the board while it's played, or, on a level with none, the job under way. The note has
+ *  three lines: each level's news must fit them. */
+const levelNote = () => (L.n === 1 ? `Tap a tile to turn it, hold to turn it back. Pressure lasts ${L.level.pressure} tiles and only a pump refills it: "dry" marks where a line would run out. Pipe costs ${terms.tile} a tile, a pump ${terms.pump}.`
   : L.n === 3 ? "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more."
-  : L.level.place === 0 && L.level.act > 1 ? `Act ${L.level.act}, ${ACTS[L.level.act - 1].name}. ${ACTS[L.level.act - 1].news}` : "");
+  : L.level.place === 0 && L.level.act > 1 ? `Act ${L.level.act}, ${ACTS[L.level.act - 1].name}. ${ACTS[L.level.act - 1].news}` : jobNote());
+function jobNote() {
+  if (!S.job?.reward || S.job.paid) return "";
+  const d = describe(S.job, S.n, S.upgrades);
+  return `Delivering this ${d.job.toLowerCase()} earns ${d.reward.tier ? d.reward.name : "a bonus cargo"}. ${d.reward.about}`;
+}
 function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(100, now - clock.last);
@@ -107,7 +158,7 @@ function step(dt) {
     for (let left = dt * FILL_SPEED; left > 0 && !R.over; left -= FILL_STEP) {
       const s = Math.min(FILL_STEP, left);
       advance(L, R, s);
-      clock.flowing += s / FILL_SCORED;
+      clock.flowing += s / terms.fillRate;
     }
   } else {
     clock.flowing += dt;
@@ -118,7 +169,7 @@ function drawStatus() {
   $("status").textContent = clock.brief > 0 && S.phase === "plan" ? `Clock starts in ${Math.ceil(clock.brief / 1000)} s · level ${L.n}`
     : clock.paused > 0 ? `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`
     : S.phase === "plan" ? `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · level ${L.n}`
-    : `${clock.filling ? "Filling, time at ×4" : "Flowing"} · level ${L.n}`;
+    : `${clock.filling ? `Filling, time at ×${terms.fillRate}` : "Flowing"} · level ${L.n}`;
 }
 
 // ---------- the level as it stands, for a partner watching ----------
@@ -135,7 +186,7 @@ function keepLive(extra = {}) {
 /** The level as it was kept: in a watching frame, run on by the second or two since; here, a finished level's end. */
 function resumeLive() {
   const v = S.live;
-  L = makeLevel(S.seed + 7919 * S.attempt, S.n);
+  L = buildLevel();
   R = v.R;
   clock = { last: performance.now(), brief: v.brief || 0, planLeft: v.planLeft, flowing: v.flowing, filling: v.filling, paused: v.paused };
   // in a frame, the clock runs on by the time since it was kept (a player thinking over the board saves nothing for a
@@ -156,25 +207,28 @@ function resumeLive() {
   goButton();
 }
 function endLevel() {
-  const msLeft = Math.max(0, BONUS_WINDOW - clock.flowing);
-  const net = score(L, R, msLeft, S.market), earned = net.total;
+  const msLeft = Math.max(0, terms.bonusWindow - clock.flowing);
+  const net = score(L, R, msLeft, S.market, terms), earned = net.total;
   S.score += earned;
   $("fillBtn").hidden = true;
   drawBrief();
   if (R.over.win) {
     S.phase = "done";
+    const got = collect();
     $("status").textContent = `Delivered: +${earned}`;
-    $("note").textContent = `${net.revenue} at the terminal${R.reached.length > 1 ? "s" : ""}, −${net.pipe} for ${R.tilesFilled} tiles of pipe, −${net.pumps} for ${R.pumpsFired} pump${R.pumpsFired === 1 ? "" : "s"}, +${net.time} for time.${pickNote()}`;
+    $("note").textContent = `${got}${net.revenue} at the terminal${R.reached.length > 1 ? "s" : ""}, −${net.pipe} for ${R.tilesFilled} tiles of pipe, −${net.pumps} for ${R.pumpsFired} pump${R.pumpsFired === 1 ? "" : "s"}, +${net.time} for time.${pickNote()}`;
     S.after = "next";
     goButton();
     drawTools();
-    const m = S.market, pct = v => `${v >= 1 ? "+" : ""}${Math.round((v - 1) * 100)}%`;
-    $("note").textContent += ` Prices now: crude ${pct(m.crude)}, HVO ${pct(m.hvo)} on list.`;
   } else {
-    S.lives--;
+    // Insurance covers the act's first spill; Leverage makes a spill cost two lives
+    const insured = terms.insurance && S.insuredAct !== actOf(S.n);
+    if (insured) S.insuredAct = actOf(S.n);
+    else S.lives = Math.max(0, S.lives - terms.spill);
     const why = { "no opening": "a dead end", "the edge": "the edge of the field", "already full": "a pipe that was already full", "wrong product": "the wrong terminal: contamination", pressure: "no pressure left: it needed a pump" }[R.over.why] || R.over.why;
     $("status").textContent = `Spill: ${why}.`;
-    $("note").textContent = "Nothing delivered, nothing paid.";
+    $("note").textContent = insured ? "Insurance paid out: no life lost. Nothing delivered, nothing paid."
+      : terms.spill > 1 ? "Leverage: that cost two lives. Nothing delivered, nothing paid." : "Nothing delivered, nothing paid.";
     navigator.vibrate?.([60, 40, 60]);
     markSpill();
     if (S.lives <= 0) S.phase = "over";
@@ -189,16 +243,28 @@ function goButton() {
   const b = $("goBtn");
   b.hidden = false;
   if (S.phase === "over") { b.textContent = "See how it went"; b.onclick = over; return; }
-  b.textContent = S.after === "next" ? `Level ${S.n + 1}` : `Try level ${S.n} again`;
+  b.textContent = S.after === "next" ? "Choose the next job" : `Try level ${S.n} again`;
   b.onclick = S.after === "next" ? nextLevel : retryLevel;
 }
-/** On to the next level: a new act gives a life back, and prices drift. */
+/** Delivered: the job's reward, kept for the run (Spare crew's life at once), or its cargo paid in points. Marked
+ *  paid, so a reload of the finished level can't pay it twice. Returns its line for the note. */
+function collect() {
+  const id = S.job?.reward;
+  if (!id || S.job.paid) return "";
+  S.job = { ...S.job, paid: true };
+  if (id === "cargo") { const c = cargoFor(S.n); S.score += c; toast(`Bonus cargo: +${c}`); return `+${c} for the cargo. `; }
+  S.upgrades.push(id);
+  if (id === "crew") { S.maxLives = LIVES + 1; S.lives = Math.min(S.maxLives, S.lives + 1); }
+  toast(`${UPGRADES[id].name}: yours for the run`);
+  return `+ ${UPGRADES[id].name}. `;
+}
+/** On to the next level: a new act gives a life back, prices drift, and the next jobs are offered. */
 function nextLevel() {
   S.n++; S.attempt = 0;
-  if (levelOf(S.n).place === 0 && S.lives < LIVES) { S.lives++; toast(`Act ${actOf(S.n)}: a life back`); }
+  if (levelOf(S.n).place === 0 && S.lives < (S.maxLives ?? LIVES)) { S.lives++; toast(`Act ${actOf(S.n)}: a life back`); }
   const r = Math.random, m = S.market;
   S.market = { crude: drift(m.crude, r()), hvo: drift(m.hvo, r()) };
-  beginLevel();
+  offerJobs();
 }
 /** The same level again, on a fresh board. */
 function retryLevel() { S.attempt++; beginLevel(); }
@@ -219,6 +285,11 @@ function over() {
   for (const [v, label] of [[S.n, "level reached"], [best.score.toLocaleString("en-GB"), S.mode === "daily" ? "today's best" : "your best"], [best.n, "best level"]]) {
     const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
     b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
+  }
+  if (S.upgrades?.length) {                          // the build: what the run earned, by tier
+    add("p", "pi-build-head", "Your build");
+    const list = add("p", "pi-build");
+    for (const id of S.upgrades) { const u = document.createElement("span"); u.className = `t${UPGRADES[id].tier}`; u.textContent = UPGRADES[id].name; list.append(u); }
   }
   const again = add("button", "btn primary wide", "Again");
   again.type = "button"; again.addEventListener("click", () => { $("menuDlg").close(); start("random"); });
@@ -422,6 +493,8 @@ function drawTools() {
   const box = $("kit");
   box.replaceChildren();
   if (S.phase !== "plan" && S.phase !== "flow") return;
+  if (!terms.tools) { const none = document.createElement("p"); none.className = "pi-kit-none"; none.textContent = "No tools on this job"; box.append(none); return; }
+  box.classList.toggle("four", (S.offers || []).length > 3);       // Wide kit: four to a row, names without icons
   for (const o of S.offers || []) {
     const t = TOOLS[o.id], b = document.createElement("button");
     b.type = "button"; b.className = `pi-tool${S.tool === o.id ? " on" : ""}`;
@@ -465,6 +538,7 @@ function drawBrief() {
     go.type = "button";
     foot.append(bar, go);
     box.replaceChildren(make("p", "pi-brief-head", "Tools on offer"), ...rows, foot);
+    box.classList.toggle("four", rows.length > 3);
   }
   box.querySelector(".pi-brief-bar i").style.width = `${(100 * clock.brief / BRIEF_MS).toFixed(1)}%`;
 }
@@ -478,16 +552,58 @@ function endBrief() {
   keepLive();
 }
 
+// ---------- the doors: the jobs on offer before a level ----------
+const lowerFirst = t => t.charAt(0).toLowerCase() + t.slice(1);
+/** Between levels: no clock, no board to play; the doors over the board's box, the market and the build in the note. */
+function showJobs() {
+  S.doors ??= doorsFor(S.seed, S.n, S.upgrades);       // the same doors again, from the seed, if the save lost them
+  cancelAnimationFrame(raf);
+  if (!L) $("board").replaceChildren();                // a run's first jobs: no board yet
+  $("brief").hidden = true; $("fillBtn").hidden = true; $("goBtn").hidden = true;
+  $("kit").replaceChildren();
+  drawHud();
+  const m = S.market || { crude: 1, hvo: 1 }, pct = v => { const p = Math.round((v - 1) * 100); return p ? `${p < 0 ? "−" : "+"}${Math.abs(p)}% on list` : "at list"; };
+  $("status").textContent = isFinale(S.n) ? `Act ${actOf(S.n)} finale · level ${S.n}` : `Choose your ${S.n === 1 ? "first" : "next"} job · level ${S.n}`;
+  $("note").textContent = [S.n > 1 ? `Prices: crude ${pct(m.crude)}, HVO ${pct(m.hvo)}.` : "Deliver a job to earn its upgrade, kept for the rest of the run.",
+    S.upgrades.length ? `Your build: ${S.upgrades.map(id => UPGRADES[id].name).join(", ")}.` : ""].filter(Boolean).join(" ");
+  drawDoors();
+}
+/** The doors: each its job's twist and the upgrade delivering it earns, edged in its tier's colour. A finale's are the
+ *  same big contract, so its terms go once at the top and the doors are its three rewards. */
+function drawDoors() {
+  const box = $("doors");
+  box.hidden = S.phase !== "pick" || !S.doors;
+  if (box.hidden) return;
+  const make = (tag, cls, text) => { const n = document.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
+  // the status line above names the choice; a finale's card adds its terms, the same for all three doors
+  const finale = isFinale(S.n), head = [];
+  if (finale) { const d = describe(S.doors[0], S.n, S.upgrades); head.push(make("p", "pi-doors-terms", `${d.job}: ${lowerFirst(d.twist)}. Pick what it earns.`)); }
+  const doors = S.doors.map((door, i) => {
+    const d = describe(door, S.n, S.upgrades), b = make("button", `pi-door t${d.reward.tier}`), top = make("span", "pi-door-head"), name = make("b", "rw", d.reward.name);
+    b.type = "button";
+    // a finale's doors share their job, so the reward's name heads each one; otherwise the job does, over its reward
+    if (finale) top.append(name);
+    else top.append(make("b", "job", d.job), ...(d.twist ? [make("span", "tw", d.twist)] : []));
+    top.append(make("span", "tier", TIERS[d.reward.tier]));
+    b.append(top, ...(finale ? [] : [name]), make("span", "ab", d.reward.about));
+    b.addEventListener("click", () => chooseJob(i));
+    return b;
+  });
+  box.replaceChildren(...head, ...doors);
+  box.classList.toggle("four", doors.length > 3);          // Broker's fourth door
+}
+
 // ---------- hud ----------
 function drawHud() {
   $("level").textContent = `Act ${actOf(S.n)} · level ${S.n}`;
   $("score").textContent = S.score.toLocaleString("en-GB");
-  $("lives").replaceChildren(...Array.from({ length: LIVES }, (_, k) => { const i = document.createElement("i"); i.className = `pi-life${k >= S.lives ? " gone" : ""}`; return i; }));
+  $("lives").replaceChildren(...Array.from({ length: S.maxLives ?? LIVES }, (_, k) => { const i = document.createElement("i"); i.className = `pi-life${k >= S.lives ? " gone" : ""}`; return i; }));
   drawGauges();
 }
 function drawGauges() {
   const box = $("gauges");
   box.replaceChildren();
+  if (!R) return;                                      // a run's first jobs: nothing on the board yet
   for (const h of R.heads) {
     const g = document.createElement("span");
     g.className = "pi-gauge";
@@ -519,6 +635,7 @@ function openMenu() {
   part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
   const best = read(BEST, null), daily = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best.score.toLocaleString("en-GB")}, level ${best.n}` : "No finished run yet"}${daily ? `, today ${daily.score.toLocaleString("en-GB")}` : ""}`));
+  if (S?.upgrades?.length && S.phase !== "over") part(body, "about").append(line(`This run's build: ${S.upgrades.map(id => UPGRADES[id].name).join(", ")}.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(mode) {
@@ -550,15 +667,18 @@ onPause(() => { if (S?.phase === "plan" || S?.phase === "flow") { cancelAnimatio
 document.addEventListener("visibilitychange", () => { if (document.hidden && !IN_FRAME && (S?.phase === "plan" || S?.phase === "flow")) retryLevel(); });   // a level left mid-flow starts over, fresh
 
 // for tests and debugging
-window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, get clock() { return clock; }, tap, start, skipBrief: () => { if (clock.brief > 0) endBrief(); },
+window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, get clock() { return clock; }, get terms() { return terms; }, tap, start, choose: chooseJob, skipBrief: () => { if (clock.brief > 0) endBrief(); },
   skipPlanning: () => { if (clock.brief > 0) endBrief(); clock.planLeft = 0; }, applySolution: () => { R.tiles.forEach((row, y) => row.forEach((t, x) => { if (!t.locked && !t.fixed) t.rot = L.solution[y][x]; drawTile(x, y); })); } };
 
 S = read(RUN, null);
+if (S) { S.upgrades ??= []; S.maxLives ??= LIVES; }      // a run saved before jobs
 const hash = new URLSearchParams(location.hash.slice(1));
 const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
 const kept = S?.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
-if (IN_FRAME && kept) resumeLive();
-else if (linked && !(S && S.seed === linked && S.mode === mode)) { S = { seed: linked, mode, n: 1, score: 0, lives: LIVES, attempt: 0, phase: "plan" }; beginLevel(); }
+if (IN_FRAME && S?.phase === "pick") showJobs();
+else if (IN_FRAME && kept) resumeLive();
+else if (linked && !(S && S.seed === linked && S.mode === mode)) start(mode, linked);
 else if (!S || S.phase === "over") start("random");
+else if (S.phase === "pick") showJobs();
 else if (S.phase === "done" && kept && S.after) resumeLive();
 else beginLevel();

@@ -105,5 +105,79 @@ check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck 
   }
   check(!wrongs.length, `Auto-turn: ${routeCells} route pipes turn to join their routes, and 120 boards turned that way deliver (the ${picksTurned} with two terminals to the better one); ${offCells} pipes off every route have no right way; ${curves} route straights made curves can't join${wrongs.length ? `: ${wrongs.slice(0, 3).join("; ")}` : ""}`);
 }
+// The run as a roguelike (pipes-run.js): the doors, a job's terms, boards under every twist, scoring under terms
+const J = await import("../pipes-run.js");
+{
+  const wrong = [], ids = Object.keys(J.UPGRADES), tierOf = id => J.UPGRADES[id]?.tier;
+  for (let seed = 1; seed <= 30; seed++) {
+    const owned = [];
+    for (let n = 1; n <= 16; n++) {
+      const doors = J.doorsFor(seed, n, owned), again = J.doorsFor(seed, n, [...owned]);
+      if (JSON.stringify(doors) !== JSON.stringify(again)) wrong.push(`doors not repeatable (seed ${seed}, level ${n})`);
+      if (doors.length !== (owned.includes("broker") ? 4 : 3)) wrong.push(`${doors.length} doors (seed ${seed}, level ${n})`);
+      const rewards = doors.map(d => d.reward).filter(r => r !== "cargo");
+      if (new Set(rewards).size !== rewards.length) wrong.push(`a reward twice among the doors (seed ${seed}, level ${n})`);
+      if (rewards.some(r => owned.includes(r))) wrong.push(`an upgrade already held on offer (seed ${seed}, level ${n})`);
+      if (n === 1 && !doors.every(d => d.twist === "none" && tierOf(d.reward) === 1)) wrong.push("level 1 isn't three standard jobs for common upgrades");
+      else if (J.isFinale(n)) {                             // as many rares as are left, up to one a door
+        const rares = ids.filter(id => tierOf(id) === 3 && !owned.includes(id)).length;
+        if (!doors.every(d => d.twist === "finale") || doors.filter(d => tierOf(d.reward) === 3).length !== Math.min(doors.length, rares)) wrong.push(`finale ${n} isn't big contracts for the rares left`);
+      }
+      else if (n > 1 && !J.isFinale(n)) {
+        const [plain, ...twisted] = doors;
+        if (plain.twist !== "none" || twisted.some(d => d.twist === "none" || d.twist === "finale") || new Set(twisted.map(d => d.twist)).size !== twisted.length) wrong.push(`level ${n}'s jobs aren't one standard and different twists`);
+      }
+      owned.push(doors[(seed + n) % 3].reward);                // a run taking doors in turn
+    }
+  }
+  const allHeld = J.doorsFor(5, 7, ids);
+  if (!allHeld.every(d => d.reward === "cargo")) wrong.push("with every upgrade held, the doors don't offer cargo");
+  check(!wrong.length, `doors: 30 runs of 16 levels, repeatable, three each (four with Broker), never an upgrade held or twice on offer; level 1 standard for commons, finales big contracts for the rares left, otherwise one standard and the rest twisted; cargo once every upgrade is held${wrong.length ? `: ${wrong.slice(0, 3).join("; ")}` : ""}`);
+}
+{
+  const n = 7, base = P.levelOf(n), T = (twist, owned = []) => J.termsFor({ twist, reward: "steel" }, owned, n), t0 = T("none");
+  const expect = [
+    [t0.flow.plan === base.plan && t0.flow.tick === base.tick && t0.flow.pressure === base.pressure && t0.pay === 1 && t0.tile === 10 && t0.tools.count === 3 && t0.spill === 1, "a standard job plays as the level does"],
+    [T("rush").flow.plan === Math.round(base.plan * 0.75), "rush: 25% less planning"],
+    [T("fast").flow.tick === Math.round(base.tick * 0.8), "fast flow: a 20% quicker tick"],
+    [T("rocky").build.rock === Math.min(0.24, base.rock * 2), "rocky ground: twice the rock"],
+    [T("thin").build.pressure === base.pressure - 1 && T("thin").flow.pressure === base.pressure - 1, "low pressure: built and played a tile shorter"],
+    [T("bare").tools === null, "no tools: none on offer"],
+    [T("finale").pay === 2 && T("finale").flow.plan === Math.round(base.plan * 0.75), "a finale pays double with 25% less planning"],
+    [T("none", ["survey"]).flow.plan === base.plan + 5000 && T("rush", ["survey"]).flow.plan === Math.round((base.plan + 5000) * 0.75), "Survey team: 5 s more, before a rush's cut"],
+    [T("none", ["pumps"]).flow.pressure === base.pressure + 2 && !T("none", ["pumps"]).build.pressure, "High-pressure pumps: played two tiles longer, built as ever"],
+    [T("none", ["choke"]).flow.tick === Math.round(base.tick * 1.15), "Choke valve: a 15% slower tick"],
+    [T("none", ["steel"]).tile === 7, "Cheap steel: 7 a tile"],
+    [Math.abs(T("finale", ["buyers", "leverage"]).pay - 2 * 1.15 * 1.5) < 1e-9 && T("none", ["leverage"]).spill === 2, "Premium buyers, Leverage and a finale multiply; Leverage's spill costs two"],
+    [T("finale", ["contracts"]).pay === 3 && T("none", ["contracts"]).pay === 1 && J.describe({ twist: "finale", reward: "crew" }, 5, ["contracts"]).twist.includes("triple"), "Big contracts: finales pay triple, and say so"],
+    [J.doorsFor(9, 4, ["broker"]).length === 4 && J.doorsFor(9, 5, ["broker"]).length === 4 && J.doorsFor(9, 4).length === 3, "Broker: four doors"],
+    [T("none", ["window"]).bonusWindow === 120000 && T("none", ["fill"]).fillRate === 6 && T("none", ["hedge"]).floor === 1, "Long window, Fast fill, Hedge"],
+    [JSON.stringify(T("none", ["kit", "supplier", "restock", "parts"]).tools) === JSON.stringify({ count: 4, price: 0.7, uses: 1, turn: true }), "the kit's upgrades"],
+    [T("none", ["insurance", "prelaid"]).insurance && T("none", ["insurance", "prelaid"]).prelaid, "Insurance and Pre-laid"],
+  ];
+  const fails = expect.filter(([ok]) => !ok).map(([, what]) => what);
+  check(!fails.length, `a job's terms: twists, finales and all eighteen upgrades as their cards say${fails.length ? `: ${fails.join("; ")}` : ""}`);
+}
+{
+  let boards = 0, drier = 0, directs = 0;
+  const wrong = [];
+  for (let seed = 1; seed <= 3; seed++) for (let n = 1; n <= 20; n++) for (const twist of ["rocky", "thin"]) {
+    const t = J.termsFor({ twist }, [], n);
+    let lv;
+    try { lv = P.makeLevel(seed, n, t.build); } catch (e) { wrong.push(`${twist} level ${n} (seed ${seed}) can't be built`); continue; }
+    boards++;
+    if (!P.solved(lv).over?.win) wrong.push(`${twist} level ${n} (seed ${seed}) doesn't deliver`);
+    if (twist === "rocky") {                                         // High-pressure pumps lets some direct lines deliver
+      const strong = { ...lv, level: { ...lv.level, pressure: lv.level.pressure + 2 } };
+      for (const d of lv.directs) { directs++; if (P.runWith(strong, P.rotsFor(lv.solution, d.route)).over?.win) drier++; }
+    }
+  }
+  check(!wrong.length && drier > 0, `${boards} boards under rocky ground and low pressure build and deliver; with High-pressure pumps ${drier} of ${directs} direct lines stop running dry${wrong.length ? `: ${wrong.slice(0, 3).join("; ")}` : ""}`);
+}
+{
+  const lv = P.makeLevel(4, 2), run = P.solved(lv), plain = P.score(lv, run, 30000), t = P.score(lv, run, 30000, {}, { tile: 7, pay: 2 });
+  check(t.pipe === 7 * run.tilesFilled && t.revenue === Math.round(2 * plain.revenue) && t.total === Math.max(0, t.revenue - t.pipe - t.pumps + t.time),
+    `scored under a job's terms: ${t.revenue} (double ${plain.revenue}) − ${t.pipe} pipe at 7 a tile − ${t.pumps} pumps + ${t.time} time = ${t.total}`);
+}
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

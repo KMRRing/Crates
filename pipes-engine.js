@@ -113,10 +113,11 @@ const round10 = v => Math.round(v / 10) * 10;
  * their wellheads), terminals (each with its price), routes (the designed routes, as cells), directs (the lines that
  * run dry), choice (two terminals: which nets more, and by how much), level }. Carves a line per product, gives lines
  * a detour through a pump, places pumps where pressure needs them, fills the rest, scrambles the rotations, and
- * accepts the board only once running it proves the routes deliver and the direct lines stall.
+ * accepts the board only once running it proves the routes deliver and the direct lines stall. `over` replaces what
+ * the board is built with (a job's twist: more rock, less pressure), and the proof holds under it.
  */
-export function makeLevel(seed, n) {
-  const L = levelOf(n), r = rng(mix(seed, n));
+export function makeLevel(seed, n, over = {}) {
+  const L = { ...levelOf(n), ...over }, r = rng(mix(seed, n));
   for (let attempt = 0; attempt < 400; attempt++) {
     const built = L.unit ? buildUnit(r, L) : L.products === 2 ? buildTwo(r, L) : buildOne(r, L);
     if (!built) continue;
@@ -511,12 +512,14 @@ function spill(run, h, why, x = h.x, y = h.y) {
 }
 /**
  * A level's netback: what the terminals reached pay, less 10 a tile of pipe filled and 40 a pump fired, plus the time
- * left of the bonus window in tenths of a second; never below nothing, and nothing for a spill.
+ * left of the bonus window in tenths of a second; never below nothing, and nothing for a spill. `terms` (a job's, with
+ * the run's upgrades) may change the costs (tile, pump) and scale what terminals pay (pay).
  */
-export function score(level, run, msLeft, market = {}) {
+export function score(level, run, msLeft, market = {}, terms = {}) {
   if (!run.over?.win) return { total: 0, revenue: 0, pipe: 0, pumps: 0, time: 0 };
-  const revenue = Math.round(run.reached.reduce((s, i) => s + level.terminals[i].price * (market[level.terminals[i].product] ?? 1), 0));
-  const pipe = COSTS.tile * run.tilesFilled, pumps = COSTS.pump * run.pumpsFired, time = Math.round(msLeft / 100);
+  const pay = terms.pay ?? 1, tile = terms.tile ?? COSTS.tile, pump = terms.pump ?? COSTS.pump;
+  const revenue = Math.round(pay * run.reached.reduce((s, i) => s + level.terminals[i].price * (market[level.terminals[i].product] ?? 1), 0));
+  const pipe = tile * run.tilesFilled, pumps = pump * run.pumpsFired, time = Math.round(msLeft / 100);
   return { total: Math.max(0, revenue - pipe - pumps + time), revenue, pipe, pumps, time };
 }
 
