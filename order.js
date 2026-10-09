@@ -73,7 +73,7 @@ function end() {
 // a card's own words, without the question's lead-in. A picture goes by its title ("this" means the picture), and its
 // question says what happened to it: "The year this was painted", "…was completed" (a painting, a building); a
 // picture's quantity keeps its own words, the title for "this" ("This building's height" → "Ulm Minster's height").
-const titleOf = q => q.pic.replace(/_/g, " ").replace(/\s*\(.*\)$/, "");
+const titleOf = q => q.title || q.pic.replace(/_/g, " ").replace(/\s*\(.*\)$/, "");   // its name, kept with it by the build
 const doneTo = q => q.q.match(/\bthis was (\w+)/i)?.[1] || "made";
 const withTitle = q => q.q.replace(/^This (\w+)'s/i, `${titleOf(q)}'s`).replace(/\bthis\b/i, titleOf(q));
 const short = id => {

@@ -45,6 +45,8 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
   new clues go at the end; nothing is reordered or removed.
 - **The build writes questions** for a painting (Punt's who, where, movement; Quote's year) and a pin for a museum, when
   kb/ has the facts and no hand-written ones exist: to add a painting, add the entity and its three links, nothing else.
+  Its `note` is told with the answers. A movement option must be wrong: mark a movement `within` its parent (Rococo
+  in the Baroque) and a painting `notWith` a movement it could fairly be said to be (View of Toledo: Baroque).
 - **Items** (Chart's pins, Quote's estimates, Punt's choices) point at the entities they're about; misses carry those
   entities into the pile, and the other games' learning modes deal questions about them.
 - **Kinds:** a clue thing's kind (`kind:person`, `kind:food`…) is either set by hand or given by `tools/kb-kinds.mjs`

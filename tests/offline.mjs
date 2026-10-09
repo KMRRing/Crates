@@ -56,7 +56,8 @@ const RUNTIME = [
   ["pwa.js", /^fetch\(u, \{ cache: "reload" \}/, "Update: refreshes every kept file from the network, online only"],
   ["pwa.js", /^fetch\(`\.\/sw\.js\?check=/, "Update's check that the site answers: the network, on purpose"],
   ["pics.js", /^fetch\(file \?/, "Wikipedia's answer naming a picture: remembered by pics.js once seen"],
-  ["pics.js", /^img\.src = urls\./, "a Wikipedia picture: kept by sw.js once shown"],
+  ["pics.js", /^img\.src = tries\[/, "a Wikipedia picture: kept by sw.js once shown, or by Settings' Keep pictures offline"],
+  ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
   ["sync.js", /^fetch\(url \+/, "Firebase: playing together, watching and syncing need a connection"],
 ];
 const unknown = built.filter(b => !RUNTIME.some(([file, re]) => b.file === file && re.test(b.load)));

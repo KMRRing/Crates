@@ -3,7 +3,8 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
-import { choice, RETE } from "./menu.js";
+import { choice, toggle, line, RETE } from "./menu.js";
+import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
 // times --wire, which style.css raises on the selected game; the engraved detail keeps its own fine weight.
@@ -265,9 +266,38 @@ function openSettings(host) {
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
     choice("Appearance", MODES, mode(), m => keep("suite:mode", m, "auto")),
+    picturesPart(sheet),
     startOver());
   sheet.showModal();
 }
+/** Settings' "Keep pictures offline": every picture the games show, kept on this device (pics.js), and how far it's got. */
+function picturesPart(sheet) {
+  const box = document.createElement("div"), status = line("");
+  let last = null;
+  const say = p => {
+    last = p;
+    status.textContent = !keepingPictures() ? `On this device: every painting, building and place the games show, about ${Math.round(p.total * 0.07)} MB from Wikipedia. Pictures you've seen are kept anyway.`
+      : p.checking ? "Checking the pictures kept on this device…"
+      : !p.done ? `Keeping pictures offline: ${p.kept} of ${p.total}`
+      : p.kept >= p.total ? `All ${p.total} pictures are kept on this device.`
+      : `${p.kept} of ${p.total} kept: ${p.offline ? "the rest come when there's a connection" : `${p.missing} wouldn't download, tried again next time`}.`;
+  };
+  const stop = onPictures(say);
+  sheet.addEventListener("close", stop, { once: true });
+  box.append(toggle("Keep pictures offline", keepingPictures(), on => {
+    setKeepingPictures(on);
+    if (last) say({ ...last, done: !on, checking: on });          // at once: the first count comes once Wikipedia answers
+    if (on) keepPicturesOffline();
+  }), status);
+  import("./pics-list.js").then(({ PICTURES }) => {
+    say({ kept: 0, total: PICTURES.length, missing: 0, done: false, checking: true });
+    if (keepingPictures()) keepPicturesOffline();            // where it stands: a quick check when it's all there
+  });
+  return box;
+}
+// once it's on, pictures not kept yet (added to the games since, or a download cut short) come down a few seconds
+// after a page opens, while there's a connection; a partner's watching frame never downloads
+if (!IN_FRAME && keepingPictures() && navigator.onLine) setTimeout(() => keepPicturesOffline(), 5000);
 // The games a reset can start over: all but Crates (its run is synced on its own, and it resets its learning in its own
 // Settings), Deck (its pile is every game's misses) and Ledger and Lexicon (records of the others, not games of their own)
 const KEEP_ON_RESET = new Set(["crates", "deck", "ledger", "lexicon"]);

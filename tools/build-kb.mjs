@@ -11,7 +11,7 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
-  ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
+  pics: "pics-list.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
 /** An object without its undefined fields. */
@@ -49,7 +49,9 @@ export async function build() {
   const QUOTES = [...estimates.ESTIMATES, ...gen.quotes].map(({ fact, ...q }) => {
     if (!fact) return q;
     const e = of(q.about);
-    return defined({ ...q, truth: q.truth ?? e[fact], pic: q.pic ?? (fact === "year" ? e.pic : undefined) });
+    // a picture's own name goes with it (Order asks "When was … painted?"): a Wikipedia page or file name can carry
+    // the very year asked ("Number 1, 1950 (Lavender Mist)", "File:… (1853).jpg")
+    return defined({ ...q, truth: q.truth ?? e[fact], pic: q.pic ?? (fact === "year" ? e.pic : undefined), title: fact === "year" && e.pic ? e.name : undefined });
   });
 
   // Punt: the questions as written, with what they're about
@@ -58,17 +60,27 @@ export async function build() {
     const m = await load(`items/choice/${b}.js`);
     choice[b] = { STAGES: m.STAGES, MATHS: [...m.ITEMS, ...(gen[b] || [])] };
   }
-  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, index: await subjects(ENTITIES, LINKS) };
+  // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
+  // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of them)
+  const pictures = [...new Set([...ENTITIES, ...PLACES, ...QUOTES, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic).filter(Boolean))].sort();
+  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, pictures, index: await subjects(ENTITIES, LINKS) };
 }
 
 // Questions the knowledge base writes itself. A painting with its painter, museum, movement, year and picture gets Punt's
 // who, where and movement questions and Quote's year, unless it already has hand-written ones; a museum with a position
 // gets Chart's pin unless it has one. So a painting added to kb/ (an entity and three links) reaches all three games at
 // once. Wrong options are things of the same kind, nearest first: painters of the same movement, then of the nearest
-// years; movements of the nearest years; museums Chart can pin, then the rest. The options' order and the ids come from
+// years; movements of the nearest years (never one its own is part of, or one it could fairly be said to belong to as
+// well); museums Chart can pin, then the rest. A painting's note, the story of the picture, closes the explanation of
+// who painted it and Quote's note on its year (Lexicon shows it too). The options' order and the ids come from
 // the entity, so the same build always writes the same questions, and the pile keeps track of them.
 function written(ENTITIES, LINKS, E, art, estimates, pins) {
-  const one = (from, rel) => E.get(LINKS.find(l => l.from === from && l.rel === rel)?.to);
+  // each thing's first link of each kind, indexed once: the wrong options below ask for the movement of every painter's
+  // every painting, for each painting, and a scan of every link each time made the build take fourteen seconds once
+  // there were 200 paintings
+  const first = new Map();
+  for (const l of LINKS) { const k = `${l.from}|${l.rel}`; if (!first.has(k)) first.set(k, l); }
+  const one = (from, rel) => E.get(first.get(`${from}|${rel}`)?.to);
   const has = new Set(art.flatMap(q => (q.about || []).map(id => `${id}:${q.lv}`)));
   const quoted = new Set(estimates.filter(q => q.fact === "year").map(q => q.about));
   const pinned = new Set(pins.map(p => p.about));
@@ -85,28 +97,32 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
     return { id: `AR-G-${p.id}-${lv}`, lv, d: 3, area, q, o: options, a: [options.indexOf(right)], s: 1, x, pic: p.pic, about: [p.id] };
   };
   const out = { art: [], arch: [], myth: [], merchants: [], titles: [], artmarket: [], bavaria: [], britain: [], china: [], skiing: [], watches: [], lit: [], sayings: [], quotes: [], pins: [] };
+  const meanYear = new Map([...byPainter, ...byMovement].map(([id, ps]) => [id, mean(ps.map(x => x.year))]));
   for (const p of paintings) {
+    // a painting in no one museum (a print in many, a picture in two versions) is asked who and when, but not where
     const painter = one(p.id, "painted-by"), museum = one(p.id, "hangs-in"), movement = one(p.id, "movement");
-    if (!painter || !museum || !movement) continue;
-    const dated = `${p.name}, ${painter.name}, ${p.circa ? "c. " : ""}${p.year}`;
+    if (!painter || !movement) continue;
+    const dated = `${p.name}, ${painter.name}, ${p.circa ? "c. " : ""}${p.year}`, told = `${dated}.${p.note ? ` ${p.note}` : ""}`;
     if (!has.has(`${p.id}:who`)) {
-      const pool = [...byPainter.keys()].filter(id => id !== painter.id).map(id => E.get(id))
-        .sort((a, b) => (byPainter.get(a.id).some(x => one(x.id, "movement") === movement) ? 0 : 1e4) + Math.abs(mean(byPainter.get(a.id).map(x => x.year)) - p.year)
-          - ((byPainter.get(b.id).some(x => one(x.id, "movement") === movement) ? 0 : 1e4) + Math.abs(mean(byPainter.get(b.id).map(x => x.year)) - p.year)));
-      out.art.push(ask(p, "who", painter.name, pool.map(e => e.name), "Who painted this?", "Who painted it", `${dated}.`));
+      const near = id => (byPainter.get(id).some(x => one(x.id, "movement") === movement) ? 0 : 1e4) + Math.abs(meanYear.get(id) - p.year);
+      const pool = [...byPainter.keys()].filter(id => id !== painter.id).map(id => [near(id), E.get(id)]).sort((a, b) => a[0] - b[0]).map(([, e]) => e);
+      out.art.push(ask(p, "who", painter.name, pool.map(e => e.name), "Who painted this?", "Who painted it", told));
     }
-    if (!has.has(`${p.id}:where`)) {
+    if (museum && !has.has(`${p.id}:where`)) {
       const pool = order(p.id, museums.filter(m => m !== museum)).sort((a, b) => (a.lat === undefined) - (b.lat === undefined));
       out.art.push(ask(p, "where", museum.short, pool.map(m => m.short), "Where does this hang?", "Where it hangs", `${p.name} (${painter.name}) hangs in ${museum.short}.`));
     }
     if (!has.has(`${p.id}:when`)) {
-      const pool = [...byMovement.keys()].filter(id => id !== movement.id).map(id => E.get(id))
-        .sort((a, b) => Math.abs(mean(byMovement.get(a.id).map(x => x.year)) - p.year) - Math.abs(mean(byMovement.get(b.id).map(x => x.year)) - p.year));
+      // never offered against it: a movement its own is part of (the Dutch Golden Age is Baroque; De Stijl is abstract
+      // art), nor one the painting could fairly be said to belong to as well (notWith: Giotto's Gothic is also where the
+      // Renaissance starts; Ingres' Neoclassicism leans to the Romantic)
+      const fair = id => id !== movement.id && id !== movement.within && !(p.notWith || []).includes(id);
+      const pool = [...byMovement.keys()].filter(fair).map(id => [Math.abs(meanYear.get(id) - p.year), E.get(id)]).sort((a, b) => a[0] - b[0]).map(([, e]) => e);
       out.art.push(ask(p, "when", movement.name, pool.map(e => e.name), "Which movement or period does this belong to?", "Movement & period", `${dated}: ${movement.name}.`));
     }
-    if (!quoted.has(p.id)) out.quotes.push({ id: `ar-g-${p.id}`, cat: "art", q: "The year this was painted", unit: "year", scale: 25, tol: 5, note: `${dated}.`,
+    if (!quoted.has(p.id)) out.quotes.push({ id: `ar-g-${p.id}`, cat: "art", q: "The year this was painted", unit: "year", scale: 25, tol: 5, note: told,
       tiers: { SS: 0, S: 5, A: 15, B: 30 }, d: 4, about: p.id, fact: "year" });
-    if (museum.lat !== undefined && !pinned.has(museum.id)) { out.pins.push({ id: `ar-g-${museum.id}`, cat: "art", about: museum.id }); pinned.add(museum.id); }
+    if (museum && museum.lat !== undefined && !pinned.has(museum.id)) { out.pins.push({ id: `ar-g-${museum.id}`, cat: "art", about: museum.id }); pinned.add(museum.id); }
   }
   // every museum with a position gets Chart's pin, whether or not a painting hangs in it: art museums in Art, the rest
   // (history, archaeology, science, natural history, memorials) in Museums, as their pinCat says
@@ -484,6 +500,7 @@ export async function render(out) {
 // Written by tools/build-kb.mjs from kb/: edit kb/, not this file.
 export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
 export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
+  files[OUTPUTS.pics] = `${head(OUTPUTS.pics)}export const PICTURES = ${lines(out.pictures)};\n`;
   for (const b of CHOICE_BANKS) files[OUTPUTS[b]] = `${head(OUTPUTS[b])}export const STAGES = ${JSON.stringify(out.choice[b].STAGES)};\nexport const MATHS = ${lines(out.choice[b].MATHS)};\n`;
   return files;
 }

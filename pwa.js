@@ -52,8 +52,9 @@ export async function reloadFresh() {
 
 /**
  * The Update button: throws away every stored copy of the app and loads it fresh from the network. Saves,
- * stats and settings are kept. Checks the connection first, since without one, emptying the store would leave
- * no app at all; returns false (and changes nothing) when offline.
+ * stats and settings are kept, and so are Wikipedia's pictures (they aren't the app, and may have been kept offline
+ * on purpose). Checks the connection first, since without one, emptying the store would leave no app at all;
+ * returns false (and changes nothing) when offline.
  */
 export async function hardUpdate() {
   // the device says whether it's offline; sw.js is never stored, so this request also proves the site answers
@@ -62,6 +63,7 @@ export async function hardUpdate() {
   const urls = new Set([location.href.split("#")[0]]);
   if ("caches" in window) {
     for (const key of await caches.keys()) {
+      if (key.startsWith("crates-pics")) continue;              // Wikipedia's pictures aren't the app: they stay
       const cache = await caches.open(key);
       for (const request of await cache.keys()) urls.add(request.url);
       await caches.delete(key);
