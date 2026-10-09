@@ -495,7 +495,9 @@ the other way up for a level under the dial), so nothing is mirrored and every w
 keeps its thickness, the arbors stand through the layers as steel staffs, a bridge's post stands up through the train,
 and a rail at the left names each layer at its height: a tap on a name builds on that layer, a tap on a part picks it
 and its layer, and with a part in hand a tap places it on its layer's plane, where the finger meets it. A drag turns the
-view (across about the stack, down and up from the dial side over to the back), pinch and the buttons zoom, and the
+movement the way the finger goes, as any 3D viewer does: across spins it about its staffs with the near edge following
+the finger, down tips its top towards you, up tips it away and over to show the back. (Until October 2026 a drag moved
+the camera instead, so the movement turned against the finger and down flattened it.) Pinch and the buttons zoom, and the
 parts on the layer in hand are named where they sit. The view you chose is kept (`calibre:view`).
 
 The engine (`calibre-engine.js`) runs the plan as it would really turn, at real size (one module, 0.1 mm a tooth, or a

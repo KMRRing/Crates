@@ -574,11 +574,13 @@ svg.addEventListener("pointermove", e => {
     gesture.a.x = s ? s.x : x; gesture.a.y = s ? s.y : y;
     render();
   } else if (gesture.kind === "turn") {
-    // across turns it about the stack, down and up tilts it: from the dial side over to the back and round again
-    let el = gesture.cam.el - (pts[0].y - gesture.from.y) * 0.35;
+    // the movement goes the way the finger does, as in any 3D viewer: across spins it about its staffs, the near edge
+    // following the finger; down tips its top towards you, up tips it away and over to show the back. (It once moved
+    // the camera instead, which turned the movement against the finger.)
+    let el = gesture.cam.el + (pts[0].y - gesture.from.y) * 0.35;
     el = Math.max(-85, Math.min(85, el));
     if (Math.abs(el) < 8) el = el < 0 ? -8 : 8;                  // edge on, the layers would collapse into lines
-    cam = { ...cam, az: gesture.cam.az + (pts[0].x - gesture.from.x) * 0.45, el };
+    cam = { ...cam, az: gesture.cam.az - (pts[0].x - gesture.from.x) * 0.45, el };
     scene3d?.update(cam);
   } else if (gesture.kind === "pan") {
     const b = svg.getBoundingClientRect(), k = Math.max(view.w / b.width, view.h / b.height);
