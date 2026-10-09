@@ -6,7 +6,8 @@ import { LEVELS, CHAPTERS, GLOSSARY } from "./calibre-levels.js";
 import { LAYER_NAMES, partName, chipName, arborName, drawDesign, reachOf, extentOf } from "./calibre-draw.js";
 import { draw3d, CAM } from "./calibre-3d.js";
 import { lessonFor, TEACHES } from "./calibre-lessons.js";
-import { playScene, drawThumb, workAround } from "./calibre-scenes.js";
+import { playScene, drawThumb, workAround, ringAround, arborUnder } from "./calibre-scenes.js";
+import { buildTest, isRight, rightAnswer, missedTap, passMark } from "./calibre-quiz.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import "./pwa.js";
@@ -192,6 +193,9 @@ function renderBrief() {
   renderWork();
   $("hintBtn").textContent = level.hints.length ? (hintAt ? `Hint ${Math.min(hintAt + 1, level.hints.length)}/${level.hints.length}` : "Hint") : "";
   $("hintBtn").hidden = !level.hints.length;
+  const tested = progress()[level.id];
+  $("testBtn").hidden = !tested?.stars;
+  $("testBtn").textContent = tested?.test ? `Test ${tested.test.passed ? "✓" : `${tested.test.right}/${tested.test.of}`}` : "Test";
 }
 
 // ---------- the workings and the lens: how an arbor is driven, a mesh at a time, the parts in question isolated ----------
@@ -664,9 +668,10 @@ function won() {
   const body = $("doneBody"); body.replaceChildren();
   const p = document.createElement("p"); p.className = "cb-done-stars"; p.textContent = "★".repeat(stars) + "☆".repeat(3 - stars); body.append(p);
   const q = document.createElement("p"); q.textContent = `${used} part${used === 1 ? "" : "s"}, par ${level.par}.${hinted ? " A hint was used: two stars at most." : stars < 3 ? " Fewer parts would earn all three stars." : ""}`; body.append(q);
-  if (next) body.append(action(`Next: ${next.id} ${next.title}`, () => { $("doneDlg").close(); load(next.id); }, "primary"));
+  body.append(action("Test yourself", () => { $("doneDlg").close(); openTest(); }, "primary"));
+  if (next) body.append(action(`Next: ${next.id} ${next.title}`, () => { $("doneDlg").close(); load(next.id); }));
   else body.append(line("That's the course so far. More chapters are coming."));
-  body.append(action("Watch it run", () => $("doneDlg").close()));
+  body.append(action("Watch it run", () => $("doneDlg").close(), "link"));
   renderBrief();
   $("doneDlg").showModal();
 }
@@ -770,6 +775,13 @@ function showStep() {
     const how = document.createElement("details"), sum = document.createElement("summary");
     how.className = "cb-how"; sum.textContent = "How to build"; how.append(sum); say.append(how);
     const hp = document.createElement("p"); hp.textContent = HOW; how.append(hp);
+    // what follows: once it runs, a test on what you made and what this lesson taught (now, if it runs already)
+    const after = p(progress()[level.id]?.stars ? "It runs already: " : "Once it runs, a test asks about what you made and what this lesson taught.", "cb-after");
+    if (progress()[level.id]?.stars) {
+      const t = document.createElement("button"); t.type = "button"; t.className = "cb-link"; t.textContent = "test yourself on it";
+      t.addEventListener("click", () => { $("lessonDlg").close(); openTest(); });
+      after.append(t, ".");
+    }
   } else p(st.say);
   say.scrollTop = 0;
   $("lessonBack").disabled = at === 0;
@@ -793,6 +805,157 @@ function openGlossary() {
   if (!$("glossDlg").open) $("glossDlg").showModal();
 }
 
+// ---------- the test: once a level runs, what you made and what its lesson taught, a question at a time ----------
+let test = null;                         // the test open: { qs, at, given, right (one each, as answered), player, built (an order being put together) }
+/** Opens the level's test: on your design if it runs (else on the level's worked solution), dealt afresh. */
+function openTest() {
+  if (running()) stop();
+  const made = judge(level, design).ok ? design : solved(level);
+  test = { qs: buildTest(level, JSON.parse(JSON.stringify(made))), at: 0, given: [], right: [], player: null, built: [] };
+  $("testTitle").textContent = `${level.id} ${level.title}`;
+  if (!$("testDlg").open) $("testDlg").showModal();
+  showQuestion();
+}
+/** The dots: one a question, right or wrong once answered, the one on show larger. */
+function testDots() {
+  $("testDots").replaceChildren(...test.qs.map((q, i) => {
+    const d = document.createElement("span");
+    d.className = `cb-dot${i === test.at ? " on" : ""}${test.right[i] === true ? " ok" : test.right[i] === false ? " bad" : ""}`;
+    return d;
+  }));
+}
+/** Shows the question on show: its words, its picture, a way to answer it, and what was said if it's answered. */
+function showQuestion() {
+  const q = test.qs[test.at], box = $("testAnswer");
+  testDots();
+  $("testCount").textContent = `Test · ${test.at + 1} of ${test.qs.length}`;
+  $("testAsk").textContent = q.ask;
+  $("testSays").replaceChildren();
+  box.replaceChildren();
+  test.built = [];
+  if (q.kind === "choice") q.options.forEach((o, i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "cb-option"; b.textContent = o;
+    b.addEventListener("click", () => answerWith(i));
+    box.append(b);
+  });
+  else if (q.kind === "number" || q.kind === "word") {
+    const row = document.createElement("label"), input = document.createElement("input");
+    row.className = "cb-entry"; input.id = "testInput"; input.autocomplete = "off"; input.spellcheck = false;
+    input.setAttribute("enterkeyhint", "done"); input.setAttribute("autocapitalize", "none");
+    if (q.kind === "number") { input.inputMode = "decimal"; input.placeholder = "0"; } else input.placeholder = "a word";
+    input.addEventListener("input", () => { $("testNext").disabled = !input.value.trim(); });
+    row.append(input);
+    if (q.unit) { const u = document.createElement("span"); u.textContent = q.unit; row.append(u); }
+    box.append(row);
+  } else if (q.kind === "tap") {
+    const p = document.createElement("p"); p.className = "cb-tap-hint"; p.textContent = "Tap it on the picture."; box.append(p);
+  } else if (q.kind === "order") {
+    const built = document.createElement("div"), pool = document.createElement("div");
+    built.className = "cb-order cb-order-built"; pool.className = "cb-order cb-order-pool"; built.id = "testBuilt"; pool.id = "testPool";
+    box.append(built, pool);
+    drawOrder();
+  }
+  const next = $("testNext");
+  next.textContent = q.kind === "choice" || q.kind === "tap" ? "Next" : "Check";
+  next.disabled = true;
+  $("testAlt").hidden = true;
+  // the words first: the picture is framed to the room they leave
+  test.player?.stop();
+  $("testScene").toggleAttribute("hidden", !q.scene);
+  if (q.scene) test.player = playScene($("testScene"), q.scene, level);
+  $("testBody").scrollTop = 0;
+  if (q.kind === "number" || q.kind === "word") $("testInput").focus({ preventScroll: true });
+}
+/** An order being put together: the names placed so far, in turn, and those still to place. */
+function drawOrder() {
+  const q = test.qs[test.at], done = test.at < test.right.length, chip = (name, onTap) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "cb-order-chip"; b.textContent = name; b.disabled = done;
+    b.addEventListener("click", onTap);
+    return b;
+  };
+  $("testBuilt").replaceChildren(...test.built.map((name, i) => chip(`${i + 1}. ${name}`, () => { test.built.splice(i, 1); drawOrder(); })));
+  $("testPool").replaceChildren(...q.options.filter(name => !test.built.includes(name)).map(name => chip(name, () => { test.built.push(name); drawOrder(); })));
+  if (!done) $("testNext").disabled = test.built.length !== q.items.length;
+}
+/** Takes an answer: right or wrong, marked where it was given, then the right answer and why. */
+function answerWith(given) {
+  const q = test.qs[test.at];
+  if (test.at < test.right.length) return;
+  const right = isRight(q, given);
+  test.given.push(given); test.right.push(right);
+  if (q.kind === "choice") [...$("testAnswer").children].forEach((b, i) => { b.disabled = true; b.classList.toggle("ok", i === q.answer); b.classList.toggle("bad", i === given && !right); });
+  if (q.kind === "tap" && test.player) {
+    // both named on the picture: what you tapped, and what you were asked for
+    const taken = [];
+    ringAround($("testScene"), test.player.design, q.answer[0], "ok", { name: q.names?.[q.answer[0]], taken });
+    if (!right) ringAround($("testScene"), test.player.design, given, "bad", { name: q.names?.[given], taken });
+  }
+  if (q.kind === "number" || q.kind === "word") { const input = $("testInput"); input.disabled = true; input.classList.add(right ? "ok" : "bad"); }
+  if (q.kind === "order") drawOrder();
+  const says = $("testSays"), verdict = document.createElement("b");
+  verdict.className = right ? "ok" : "bad";
+  verdict.textContent = right ? "Right." : q.kind === "tap" ? missedTap(q, given) : `Not quite: ${rightAnswer(q)}.`;
+  says.replaceChildren(verdict, ...(q.explain ? [" ", q.explain] : []));
+  testDots();
+  const next = $("testNext");
+  next.textContent = test.at === test.qs.length - 1 ? "See how you did" : "Next";
+  next.disabled = false;
+  says.scrollIntoView({ block: "nearest" });
+}
+/** The test's button: check the answer typed or put together, or go on to the next question, or to the score. */
+function testOn() {
+  const q = test.qs[test.at];
+  if (test.at >= test.qs.length) return testAfter();
+  if (test.at === test.right.length) {
+    if (q.kind === "number" || q.kind === "word") { const v = $("testInput").value; if (v.trim()) answerWith(v); }
+    else if (q.kind === "order" && test.built.length === q.items.length) answerWith([...test.built]);
+    return;
+  }
+  test.at++;
+  if (test.at < test.qs.length) showQuestion(); else showScore();
+}
+/** The score: how many were right, whether that passes (three in four), what was missed; kept, the best of them. */
+function showScore() {
+  test.player?.stop();
+  const n = test.qs.length, right = test.right.filter(Boolean).length, passed = right >= passMark(n);
+  const all = progress(), was = all[level.id]?.test;
+  all[level.id] = { ...(all[level.id] || {}), test: { right: Math.max(right, was?.right || 0), of: n, passed: passed || !!was?.passed } };
+  write(PROGRESS, all);
+  testDots();
+  $("testCount").textContent = "How you did";
+  $("testScene").toggleAttribute("hidden", true);
+  $("testAsk").textContent = `${right} of ${n} right`;
+  const box = $("testAnswer"); box.replaceChildren();
+  const verdict = document.createElement("p"); verdict.className = `cb-score ${passed ? "ok" : "bad"}`;
+  verdict.textContent = passed ? (right === n ? "Every one: passed." : "Passed.") : `Not yet: ${passMark(n)} of ${n} pass. The questions change each time.`;
+  box.append(verdict);
+  const missed = test.qs.map((q, i) => ({ q, i })).filter(({ i }) => !test.right[i]);
+  if (missed.length) {
+    const h = document.createElement("p"); h.className = "cb-watch-head"; h.textContent = "To look at again"; box.append(h);
+    const ul = document.createElement("ul"); ul.className = "cb-missed";
+    for (const { q } of missed) {
+      const li = document.createElement("li"), b = document.createElement("b"), ans = rightAnswer(q);
+      b.textContent = ans; li.append(q.ask);
+      if (!q.ask.toLowerCase().includes(ans.toLowerCase())) li.append(" ", b);
+      ul.append(li);
+    }
+    box.append(ul);
+  }
+  $("testSays").replaceChildren();
+  const next = LEVELS[LEVELS.indexOf(level) + 1];
+  $("testNext").textContent = next ? `Next: ${next.id} ${next.title}` : "Close";
+  $("testNext").disabled = false;
+  $("testAlt").hidden = false;
+  test.at = n;
+  renderBrief();
+}
+/** After the score: on to the next level (or close, at the end of the course). */
+function testAfter() {
+  const next = LEVELS[LEVELS.indexOf(level) + 1];
+  $("testDlg").close();
+  if (next) load(next.id);
+}
+
 // ---------- the course: every chapter and level, each level a picture of its plate and the idea it teaches ----------
 /** The design to picture a level by: your own as you left it, else its solution once it runs, else its start. */
 function designFor(L, all, work) {
@@ -805,12 +968,12 @@ const thumbOf = (svg, L, all, work) => drawThumb(svg, designFor(L, all, work), w
 function openCourse() {
   const body = $("courseBody"), all = progress(), work = read(WORK, {});
   body.replaceChildren();
-  const running = LEVELS.filter(L => all[L.id]?.stars).length, stars = LEVELS.reduce((n, L) => n + (all[L.id]?.stars || 0), 0);
+  const running = LEVELS.filter(L => all[L.id]?.stars).length, stars = LEVELS.reduce((n, L) => n + (all[L.id]?.stars || 0), 0), passed = LEVELS.filter(L => all[L.id]?.test?.passed).length;
   const next = LEVELS.find(L => !all[L.id]?.stars);
   // where you stand: levels running, stars, and the way on
   const head = document.createElement("div"); head.className = "cb-course-head";
   const line1 = document.createElement("p"); line1.className = "cb-course-line";
-  line1.textContent = `${running} of ${LEVELS.length} levels running · ${stars} of ${LEVELS.length * 3} stars`;
+  line1.textContent = `${running} of ${LEVELS.length} levels running · ${stars} of ${LEVELS.length * 3} stars${passed ? ` · ${passed} test${passed === 1 ? "" : "s"} passed` : ""}`;
   const bar = document.createElement("div"), fill = document.createElement("i");
   bar.className = "cb-bar"; fill.style.width = `${(100 * running) / LEVELS.length}%`; bar.append(fill);
   head.append(line1, bar);
@@ -840,6 +1003,7 @@ function openCourse() {
       words.className = "cb-level-words"; title.textContent = `${L.id} ${L.title}`; teach.textContent = TEACHES[L.id] || ""; words.append(title, teach);
       state.className = "cb-level-state";
       state.textContent = p.stars ? "★".repeat(p.stars) + "☆".repeat(3 - p.stars) : L.id === level.id ? "Here" : work[L.id] ? "Started" : p.seen ? "Seen" : "";
+      if (p.test) { const t = document.createElement("small"); t.className = `cb-level-test${p.test.passed ? " ok" : ""}`; t.textContent = p.test.passed ? "Test ✓" : `Test ${p.test.right}/${p.test.of}`; state.append(t); }
       b.append(svg, words, state);
       b.addEventListener("click", () => { $("courseDlg").close(); if (L.id !== level.id) load(L.id); });
       det.append(b);
@@ -859,6 +1023,7 @@ function openMenu() {
   part(body, "play").append(action("Start this level again", () => { $("menuDlg").close(); load(level.id, true); }, "primary"),
     action("Undo", () => { $("menuDlg").close(); undo(); }), action("Lesson", () => { $("menuDlg").close(); openLesson(); }),
     action("Glossary", () => { $("menuDlg").close(); openGlossary(); }));
+  if (progress()[level.id]?.stars) part(body, "play").append(action("Test yourself", () => { $("menuDlg").close(); openTest(); }));
   part(body, "content").append(choice("Speed", SPEEDS, read(SPEED, 60), v => write(SPEED, v)));
   part(body, "about").append(action("Show a solution", () => {
     $("menuDlg").close();
@@ -919,6 +1084,24 @@ $("lessonDlg").addEventListener("keydown", e => {
   });
 }
 $("glossClose").addEventListener("click", () => $("glossDlg").close());
+$("testBtn").addEventListener("click", openTest);
+$("testClose").addEventListener("click", () => $("testDlg").close());
+$("testNext").addEventListener("click", testOn);
+$("testAlt").addEventListener("click", openTest);
+$("testDlg").addEventListener("close", () => { test?.player?.stop(); test = null; });
+$("testDlg").addEventListener("keydown", e => {
+  if (!test) return;
+  const q = test.qs[test.at];
+  if (e.key === "Enter" && !$("testNext").disabled) { e.preventDefault(); testOn(); }
+  else if (q?.kind === "choice" && /^[1-9]$/.test(e.key) && e.target.tagName !== "INPUT") { const i = +e.key - 1; if (i < q.options.length) answerWith(i); }
+});
+// a tap on the test's picture answers a tap question: the arbor under the finger
+$("testScene").addEventListener("pointerup", e => {
+  const q = test?.qs[test.at];
+  if (q?.kind !== "tap" || test.at < test.right.length || !test.player) return;
+  const id = arborUnder($("testScene"), test.player.design, e.clientX, e.clientY);
+  if (id) answerWith(id);
+});
 $("courseBtn").addEventListener("click", openCourse);
 $("courseClose").addEventListener("click", () => $("courseDlg").close());
 $("menuBtn").addEventListener("click", openMenu);
@@ -928,5 +1111,5 @@ $("view3dBtn").textContent = view3d ? "Plan" : "3D";
 $("view3dBtn").setAttribute("aria-pressed", String(view3d));
 load(read(AT, null) || (LEVELS.find(l => !progress()[l.id]?.stars) || LEVELS[0]).id);
 // for tests and debugging: the state, and where a point of the plan (of a layer's plane, in 3D) is on the page
-window.__calibre = { get state() { return { level: level.id, layer, selected, chosen, view3d, cam, ok: verdict?.ok, arbors: design.arbors, isolate, lesson: lesson && { at: lesson.at, of: lesson.steps.length } }; },
+window.__calibre = { get state() { return { level: level.id, layer, selected, chosen, view3d, cam, ok: verdict?.ok, arbors: design.arbors, isolate, lesson: lesson && { at: lesson.at, of: lesson.steps.length }, test: test && { at: test.at, qs: test.qs, right: test.right } }; },
   screenOf(lay, x, y) { const [u, v] = scene3d ? scene3d.toView(lay, x, y) : [x, y], q = new DOMPoint(u, v).matrixTransform(svg.getScreenCTM()); return [q.x, q.y]; } };

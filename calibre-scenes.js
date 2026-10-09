@@ -197,9 +197,52 @@ export function playScene(svg, spec, here, readout = () => {}) {
     else if (spec.show === "beats" && esc) say(`${Math.floor(2 * beatHz * t + 0.25)} beats · the escape wheel ${(Math.floor(2 * beatHz * t + 0.25) / 2).toFixed(1)} teeth on${spec.beat === "real" ? ` · ${Math.round(vph / 3600)} beats a second` : ""}`);
     else if (spec.show === "amp" && (motion === "running" || motion === "swing")) say(`Amplitude ${Math.round(ampAt((t % 8) / 8))}°`);
   };
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { update(1.3); return { stop() {} }; }
+  // a part pointed at: a ring round it (a test's "the part in the ring")
+  if (spec.ring && !scene3d) ringAround(svg, design, spec.ring.id, "point", { layer: spec.ring.layer });
+  const still = { stop() {}, design };
+  if (motion === "still") { update(0); return still; }            // drawn once: nothing moves
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { update(1.3); return still; }
   let raf = 0, t0 = null;
   const tick = now => { t0 ??= now; update((now - t0) / 1000); raf = requestAnimationFrame(tick); };
   raf = requestAnimationFrame(tick);
-  return { stop() { cancelAnimationFrame(raf); } };
+  return { stop() { cancelAnimationFrame(raf); }, design };
+}
+
+/** How far an arbor's parts reach (one part's, given its layer): what a ring goes round and a tap may land on. */
+const reachOfArbor = (a, plate, layer) => Math.max(0.6, ...(a.parts || []).filter(p => p.kind !== "rotor" && (layer == null || p.layer === layer)).map(p => extentOf(p, reachOf(plate))));
+/**
+ * A ring round an arbor's parts on a flat picture: pointing at it (point), or marking a tap right (ok) or wrong (bad),
+ * with its name written over it (under it if that's off the picture or taken: pass the same taken list to every ring).
+ */
+export function ringAround(svg, design, id, how, { layer, name, taken = [] } = {}) {
+  const a = design.arbors.find(x => x.id === id);
+  if (!a) return null;
+  const vb = svg.viewBox.baseVal, w = Math.max(0.12, vb.width * 0.011), r = reachOfArbor(a, design.plate, layer) + 0.35;
+  const ring = el("circle", { cx: a.x, cy: a.y, r, "stroke-width": w, "stroke-dasharray": how === "point" ? `${4 * w} ${2.5 * w}` : "none", class: `cb-quiz-ring ${how}` }, svg);
+  if (!name) return ring;
+  // about 13 px high whatever the scale, as the pictures' own names are
+  const box = svg.getBoundingClientRect(), px = box.width > 0 ? Math.min(box.width / vb.width, box.height / vb.height) : 0, fs = px ? 13 / px : vb.width * 0.046;
+  const t = el("text", { "font-size": fs, "stroke-width": fs * 0.24, class: `cb-pic-label cb-quiz-name ${how}` }, svg);
+  t.textContent = name;
+  const tw = t.getComputedTextLength?.() || name.length * fs * 0.55, pad = fs * 0.3;
+  const at = ([x, y]) => [Math.min(Math.max(x, vb.x + tw / 2 + pad), vb.x + vb.width - tw / 2 - pad), Math.min(Math.max(y, vb.y + fs + pad), vb.y + vb.height - pad)];
+  const fits = ([x, y]) => !taken.some(q => Math.abs(q.x - x) < (q.w + tw) / 2 && Math.abs(q.y - y) < fs * 1.05);
+  const spots = [[a.x, a.y - r - fs * 0.35], [a.x, a.y + r + fs * 1.05]].filter(([, y]) => y - fs > vb.y && y < vb.y + vb.height);
+  const [x, y] = at(spots.find(sp => fits(at(sp))) || spots[0] || [a.x, a.y]);
+  t.setAttribute("x", x.toFixed(3)); t.setAttribute("y", y.toFixed(3));
+  taken.push({ x, y, w: tw });
+  return ring;
+}
+/**
+ * The arbor a tap on a flat picture lands on (its id, or null on bare plate): one whose pivot is within a finger's width,
+ * the nearest; else the smallest part covering the spot, so a tap on a pinion inside a wheel's reach finds the pinion.
+ */
+export function arborUnder(svg, design, clientX, clientY) {
+  const q = new DOMPoint(clientX, clientY).matrixTransform(svg.getScreenCTM().inverse()), box = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal;
+  const finger = Math.max(0.5, 20 * Math.max(vb.width / Math.max(1, box.width), vb.height / Math.max(1, box.height)));
+  const near = design.arbors.map(a => ({ a, d: Math.hypot(a.x - q.x, a.y - q.y) })).filter(x => (x.a.parts || []).length || x.a.noParts);
+  const pivot = near.filter(x => x.d <= finger).sort((u, v) => u.d - v.d)[0];
+  if (pivot) return pivot.a.id;
+  const over = near.map(x => ({ ...x, r: reachOfArbor(x.a, design.plate) })).filter(x => x.d <= x.r).sort((u, v) => u.r - v.r)[0];
+  return over ? over.a.id : null;
 }

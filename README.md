@@ -526,6 +526,27 @@ of it too), and follows the arbor you tap next. Hint gives two or three graded n
 Glossary of the craft's words; Undo; keys (1–8 layers, W wind, Z undo, H hint, Delete, Esc). Stars for par (fewest
 parts).
 
+Tests (October 2026): once a level runs, It runs offers a test on what you made and what its lesson taught (Test, in
+the brief and the menu, takes it again; the lesson's last step says it's coming). About ten questions of five kinds:
+pick one of several, type a number or a word, tap a part on the picture, name the part in the ring (picked or typed),
+put a train in order. The arithmetic comes from your own design, so its numbers are yours: a mesh you put in and its
+ratio (asked so the answer is at least one: how many times the pinion turns for a turn of its wheel, or how many turns
+of a pinion make a turn of the wheel it drives), how far apart two arbors stand, the train's ratio in all, how fast
+the goal's arbor turns from the train's first, which way it turns, the beat, the power reserve, a finger's star. Then
+reading the movement: a part to tap (one you put in, or one the goals are about, or the arbor that turns once a
+minute), a part to name (its arbor drawn with that part alone, ringed, the rest faint), the train in order, the layer
+two parts meet on, read off the 3D view. Then the level's own questions on its ideas (two to four a level, the history
+and the arithmetic of the lesson), and a word or two the level brought in, from the glossary, asked one of three ways:
+type it from its meaning, pick it, or pick its meaning. An arbor you added is named for what it is (the third wheel)
+when it stands where the solution's does on the train, else for what it carries ("your 10/75 arbor"). A typed number
+reads the English way or the European (7,5 is 7.5; 18,000 is eighteen thousand); a typed word forgives case, accents,
+an article and a plural. After each answer: right or not, the right answer, and why; a tap that misses rings and names
+both parts on the picture, what you tapped and what was asked for, so a wrong tap still teaches a name. Three in four
+pass; the best is kept (in calibre:progress, so it syncs) and shown on the brief's Test link and in the course. The
+glossary has grown to 75 words, and no definition says its own word or carries a figure: a test offers a definition
+among others, and a lone figure would mark the right one out. Questions follow the subject banks' rule
+(tests/banks.mjs): the right option mustn't stand out as the longest or the only one with a figure.
+
 The course is a map of every chapter, folded, the one you're in open: how many levels run and the stars won, Continue
 to the first level not yet running, and each level a picture of its plate (your design as you left it, the solution
 once it runs, else its start), framed on where its work happens, with a line on what it teaches and its stars.
@@ -562,9 +583,12 @@ buttons to switch between them. The chronograph levels' empty coupling arbors ar
 start with a clash over the train's pivots; the quarter snail is drawn with its four steps (it was drawn as twelve,
 eight of them broken); a reverser is drawn gilt and steel (it was black); the workings follow a reverser's one-way
 clutch, the way it passes. `tests/calibre.mjs` proves the engine's rules, that every level is unsolved at the start and
-solved by its worked solution, from its tray, within par, that the workings multiply to the train's ratio, and that
+solved by its worked solution, from its tray, within par, that the workings multiply to the train's ratio, that
 every lesson step builds its picture from parts it holds, names nothing missing, shows no solution of its own level or
-a later one, and turns no faster than two turns a second.
+a later one, and turns no faster than two turns a second, and that every level's test, dealt three times, asks five to
+eleven questions whose pictures hold what they name and whose right answers are right (typed either way) and wrong
+ones wrong, with no choice giving itself away; a test on 2.3 built the other way round from its solution (80 into 8,
+then 72 into 12) asks those counts.
 
 ## The games screen's figures (October 2026)
 

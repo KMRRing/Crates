@@ -227,6 +227,8 @@ dialog.cb-scrolls .pick-head { position: -webkit-sticky; position: sticky; top: 
 .cb-say > :last-child { margin-bottom: 0; }
 .cb-task-say { font-weight: 700; }
 .cb-ch-intro { font-size: .84rem; line-height: 1.4; color: var(--brass-lo, var(--brass)); font-weight: 600; }
+.cb-after { margin-top: .6rem; font-size: .86rem; color: var(--ink-soft); }
+.cb-after .cb-link { margin: 0; font-size: inherit; }
 .cb-tag { display: inline-block; margin-right: .15rem; padding: .05rem .35rem; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font-size: .66rem; font-weight: 800;
   text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); vertical-align: .12em; }
 details.cb-how { margin-top: .6rem; padding-top: .45rem; border-top: 1px solid var(--tile-edge); color: var(--ink-soft); font-size: .86rem; }
@@ -234,6 +236,7 @@ details.cb-how summary { cursor: pointer; font-weight: 700; color: var(--ink); }
 details.cb-how p { margin: .4rem 0 0; }
 .cb-lesson-nav { display: flex; justify-content: space-between; gap: .6rem; }
 .cb-lesson-nav .btn { min-width: 6.5rem; }
+.cb-lesson-nav .btn.primary { margin-left: auto; }               /* the way on stays at the right, alone or not */
 /* a scene draws every part full (no layer is in hand), with names of its own on the parts they name */
 .cb-pic .cb-part { opacity: 1; }
 .cb-pic-label { text-anchor: middle; fill: var(--ink); font-family: var(--font, sans-serif); font-weight: 700; paint-order: stroke; stroke: var(--sheet); stroke-linejoin: round; pointer-events: none; }
@@ -288,12 +291,65 @@ details.cb-ch.all .cb-ch-num { background: var(--brass); color: var(--sheet); }
 .cb-mesh.lit { fill: #2F7D5B; stroke: var(--sheet); stroke-width: .08; animation: cb-lit 1.1s ease-in-out infinite alternate; }
 @keyframes cb-lit { to { opacity: .45; } }
 
+/* the test: one height on the screen like the lesson; the picture, the question, a way to answer it, and what it says
+   after. Choices are full-width plates, a number or a word is typed, a part is tapped on the picture, an order is put
+   together from chips; right is verdigris, wrong oxblood */
+#testDlg[open] { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; row-gap: .4rem; box-sizing: border-box; height: min(92vh, 46rem); height: min(92svh, 46rem); overflow: hidden; }
+.cb-test-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: .5rem; }
+.cb-test-scene { flex: 1 1 11rem; min-height: 8.5rem; max-height: 22rem; height: auto; touch-action: manipulation; cursor: pointer; }
+.cb-test-scene[hidden] { display: none; }
+.cb-qdots .cb-dot { width: 1.05rem; cursor: default; }
+.cb-qdots .cb-dot::before { width: .42rem; height: .42rem; }
+.cb-qdots .cb-dot.ok::before { background: #2F7D5B; border-color: #2F7D5B; }
+.cb-qdots .cb-dot.bad::before { background: #A8382B; border-color: #A8382B; }
+.cb-ask { margin: 0; font-weight: 700; line-height: 1.4; flex: none; }
+.cb-answer { flex: none; display: grid; gap: .35rem; }
+.cb-option { text-align: left; padding: .5rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; line-height: 1.3; cursor: pointer; }
+.cb-option:disabled { cursor: default; opacity: .7; }
+.cb-option.ok { border-color: #2F7D5B; background: color-mix(in srgb, #2F7D5B 14%, var(--tile)); opacity: 1; }
+.cb-option.bad { border-color: #A8382B; background: color-mix(in srgb, #A8382B 12%, var(--tile)); opacity: 1; }
+#testDlg .cb-entry { display: flex; align-items: center; gap: .5rem; margin: 0; color: var(--ink-soft); }
+#testDlg .cb-entry input { flex: 0 1 9rem; width: auto; min-width: 0; margin: 0; font: inherit; font-size: 1.15rem; font-variant-numeric: tabular-nums; padding: .45rem .6rem; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard); color: var(--ink); }
+#testDlg .cb-entry input.ok { border-color: #2F7D5B; }
+#testDlg .cb-entry input.bad { border-color: #A8382B; }
+.cb-tap-hint { margin: 0; color: var(--ink-soft); font-size: .88rem; }
+.cb-order { display: flex; flex-wrap: wrap; gap: .35rem; min-height: 2.2rem; }
+.cb-order-built { padding: .35rem; border: 1.5px dashed var(--brass); border-radius: 6px; }
+.cb-order-chip { border: 1.5px solid var(--tile-edge); border-radius: 4px; padding: .3rem .55rem; background: var(--tile); color: var(--ink); font: inherit; font-size: .9rem; cursor: pointer; }
+.cb-order-built .cb-order-chip { border-color: var(--brass); }
+.cb-says { margin: 0; flex: none; line-height: 1.45; font-size: .92rem; }
+.cb-says b.ok, .cb-score.ok { color: #2F7D5B; }
+.cb-says b.bad, .cb-score.bad { color: #A8382B; }
+.cb-score { margin: 0; font-weight: 700; }
+.cb-missed { margin: 0; padding-left: 1.1rem; font-size: .88rem; line-height: 1.4; }
+.cb-missed li { margin-bottom: .3rem; }
+.cb-quiz-ring { fill: none; pointer-events: none; }
+.cb-quiz-ring.point { stroke: var(--brass); }
+.cb-quiz-ring.ok { stroke: #2F7D5B; }
+.cb-quiz-ring.bad { stroke: #A8382B; }
+.cb-quiz-name.ok { fill: #2F7D5B; }
+.cb-quiz-name.bad { fill: #A8382B; }
+.cb-level-test { display: block; font-size: .7rem; color: var(--ink-soft); letter-spacing: 0; text-align: right; }
+.cb-level-test.ok { color: #2F7D5B; }
+
 /* by night: the verdigris and oxblood of good and bad, lightened to read on the dark sheet */
 @media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .cb-says b.ok, html:not([data-mode="day"]) .cb-score.ok, html:not([data-mode="day"]) .cb-level-test.ok { color: #7FC2A8; }
+  html:not([data-mode="day"]) .cb-says b.bad, html:not([data-mode="day"]) .cb-score.bad { color: #E8806F; }
+  html:not([data-mode="day"]) .cb-quiz-ring.ok { stroke: #7FC2A8; }
+  html:not([data-mode="day"]) .cb-quiz-ring.bad { stroke: #E8806F; }
+  html:not([data-mode="day"]) .cb-quiz-name.ok { fill: #7FC2A8; }
+  html:not([data-mode="day"]) .cb-quiz-name.bad { fill: #E8806F; }
   html:not([data-mode="day"]) .cb-goals li.ok { color: #7FC2A8; }
   html:not([data-mode="day"]) .cb-goals li.bad, html:not([data-mode="day"]) .cb-watch { color: #E8806F; }
   html:not([data-mode="day"]) .cb-mesh.lit { fill: #7FC2A8; }
 }
+html[data-mode="night"] .cb-says b.ok, html[data-mode="night"] .cb-score.ok, html[data-mode="night"] .cb-level-test.ok { color: #7FC2A8; }
+html[data-mode="night"] .cb-says b.bad, html[data-mode="night"] .cb-score.bad { color: #E8806F; }
+html[data-mode="night"] .cb-quiz-ring.ok { stroke: #7FC2A8; }
+html[data-mode="night"] .cb-quiz-ring.bad { stroke: #E8806F; }
+html[data-mode="night"] .cb-quiz-name.ok { fill: #7FC2A8; }
+html[data-mode="night"] .cb-quiz-name.bad { fill: #E8806F; }
 html[data-mode="night"] .cb-goals li.ok { color: #7FC2A8; }
 html[data-mode="night"] .cb-goals li.bad, html[data-mode="night"] .cb-watch { color: #E8806F; }
 html[data-mode="night"] .cb-mesh.lit { fill: #7FC2A8; }

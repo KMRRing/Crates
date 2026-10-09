@@ -32,7 +32,7 @@
     <label id="indexRow" class="cb-index" hidden><span>Index − slow</span><input id="index" type="range" min="-1" max="1" step="0.001" value="0"><span>fast +</span><b id="indexOut"></b></label>
     <p id="hint" class="cb-hint" hidden></p>
     <div id="work" class="cb-work" hidden></div>
-    <div class="cb-help"><button id="lessonBtn" class="cb-link" type="button">Lesson</button><button id="workBtn" class="cb-link" type="button">Workings</button><button id="hintBtn" class="cb-link" type="button">Hint</button></div>
+    <div class="cb-help"><button id="lessonBtn" class="cb-link" type="button">Lesson</button><button id="workBtn" class="cb-link" type="button">Workings</button><button id="hintBtn" class="cb-link" type="button">Hint</button><button id="testBtn" class="cb-link" type="button" hidden>Test</button></div>
   </section>
   <div id="stage" class="cb-stage fit-grow">
     <svg id="plan" class="cb-plan" aria-label="The calibre plan: tap to place the chosen part; drag to move, pinch to zoom"></svg>
@@ -53,6 +53,17 @@
   <p id="lessonReadout" class="cb-readout"></p>
   <div id="lessonSay" class="cb-say"></div>
   <div class="cb-lesson-nav"><button class="btn" type="button" id="lessonBack">Back</button><button class="btn primary" type="button" id="lessonNext">Next</button></div>
+</dialog>
+<dialog id="testDlg" class="sheet cb-test" aria-labelledby="testTitle">
+  <div class="pick-head"><h2 id="testTitle">Test</h2><button class="btn" type="button" id="testClose">Close</button></div>
+  <div class="cb-lesson-steps"><div id="testDots" class="cb-dots cb-qdots" aria-hidden="true"></div><span id="testCount" class="cb-count"></span></div>
+  <div id="testBody" class="cb-test-body">
+    <svg id="testScene" class="cb-lesson-scene cb-test-scene" role="img" aria-label="The movement the question is about"></svg>
+    <p id="testAsk" class="cb-ask"></p>
+    <div id="testAnswer" class="cb-answer"></div>
+    <p id="testSays" class="cb-says" aria-live="polite"></p>
+  </div>
+  <div class="cb-lesson-nav"><button class="btn" type="button" id="testAlt" hidden>Test again</button><button class="btn primary" type="button" id="testNext">Next</button></div>
 </dialog>
 <dialog id="glossDlg" class="sheet cb-scrolls" aria-label="Glossary">
   <div class="pick-head"><h2>Glossary</h2><button class="btn" type="button" id="glossClose">Close</button></div>
