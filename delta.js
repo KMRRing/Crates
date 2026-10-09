@@ -57,16 +57,24 @@ function withPath(paths, id, colour, cells) {
 const newId = () => Math.random().toString(36).slice(2, 8);
 
 // ---------- dealing ----------
-// Boards are found in a worker so the screen stays responsive (a hard one can take a second or two on a phone).
-let worker = null, dealt = 0;
-const waiting = new Map();
+// Boards are found in a worker so the screen stays responsive (a hard one can take a second or two on a phone). Where
+// there's no worker (no module workers, or its script wouldn't load), boards are dealt on the page: a board asked of
+// a worker that failed is dealt there too, instead of never coming.
+let worker = null, workerless = false, dealt = 0;
+const waiting = new Map();            // id -> { resolve, seed, level }
 function deal(seed, level) {
+  if (workerless) return Promise.resolve(generate(seed, level));
   try {
     worker ||= new Worker(new URL("./delta-worker.js", import.meta.url), { type: "module" });
-    worker.onmessage = e => { waiting.get(e.data.id)?.(e.data.board); waiting.delete(e.data.id); };
-  } catch { return Promise.resolve(generate(seed, level)); }    // no module workers here: deal on the page
+    worker.onmessage = e => { waiting.get(e.data.id)?.resolve(e.data.board); waiting.delete(e.data.id); };
+    worker.onerror = () => {
+      workerless = true; worker = null;
+      for (const w of waiting.values()) w.resolve(generate(w.seed, w.level));
+      waiting.clear();
+    };
+  } catch { workerless = true; return Promise.resolve(generate(seed, level)); }
   const id = ++dealt;
-  return new Promise(resolve => { waiting.set(id, resolve); worker.postMessage({ id, seed, level }); });
+  return new Promise(resolve => { waiting.set(id, { resolve, seed, level }); worker.postMessage({ id, seed, level }); });
 }
 
 // A spare board per level is dealt in the background and kept, so New board is instant even on Hard.

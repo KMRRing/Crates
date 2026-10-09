@@ -87,6 +87,15 @@ Blend's `blend2:`), written as it changes and read at start-up, or the watcher's
 (`IN_FRAME` from `suite.js`) reads the partner's copy and its writes go nowhere, so don't keep state that matters
 anywhere else, and don't end or restart a run on `visibilitychange` there.
 
+## Offline
+
+Every page must open with no connection, from the home screen too. `sw.js` keeps whatever the pages load:
+`tools/offline.mjs` finds it by reading them (scripts, styles, imports, workers, fetches, any string naming one of
+the app's files), wherever it lives, `kb/` included (Origin, Arb, Lexicon and Order once imported `kb/` files the list
+left out, and never opened offline). A load whose path is built as the code runs (a template with `${}`, a variable)
+can't be followed: make sure what it loads is kept (`offlineFiles` in `tools/offline.mjs`), then add it to `RUNTIME`
+in `tests/offline.mjs`, which fails until you do. The service worker's logic is `tools/service-worker.js`.
+
 ## Dailies
 
 - **One day for every game:** `today()` from `suite.js` (the UTC date, YYYYMMDD, `days.js`). Never count days yourself:
