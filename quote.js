@@ -8,12 +8,23 @@ import { createTogether, seatsOf } from "./together.js";
 import { gameHref, GAMES } from "./rooms.js";
 import * as pile from "./pile.js";
 import { noteMarket } from "./ledger-log.js";
-import { showPicture } from "./pics.js";
+import { showPicture, askedWith, nameIn, pictureName } from "./pics.js";
+/** The question as asked: about "this" picture, or naming the painting once its picture couldn't be shown. */
+const questionOf = q => askedWith(q.q, q.pic, q.title);
+/** The question with the thing named, where no picture stands beside it (the list at the closing bell). */
+const namedQ = q => (q.pic ? nameIn(q.q, q.title || pictureName(q.pic)) : q.q);
 /** A picture with the question, when it has one: a painting to date. */
 function picture(q) {
   const pic = $("picture");
-  if (!q.pic) { pic.hidden = true; pic.dataset.title = ""; return; }
-  if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic); }
+  if (!q.pic) { showPicture(pic, null); pic.dataset.title = ""; return; }
+  if (pic.dataset.title === q.pic) return;
+  pic.dataset.title = q.pic;
+  // once it shows or can't, the question asks about "this" or names the painting: the question showing then, which
+  // can be another with the same picture (a building's year, then its height)
+  showPicture(pic, q.pic).then(shown => {
+    const now = S && current();
+    if (shown !== null && now?.pic === q.pic) $("question").textContent = questionOf(now);
+  });
 }
 import "./pwa.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -154,7 +165,7 @@ function render() {
   $("takeBox").hidden = true;
   $("market").hidden = false;
   $("cat").textContent = CATS[q.cat];
-  $("question").textContent = q.q;
+  $("question").textContent = questionOf(q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   const entry = S.log[S.index];
@@ -222,7 +233,7 @@ function renderRoom() {
     books.appendChild(b);
   }
   $("cat").textContent = CATS[q.cat];
-  $("question").textContent = q.q;
+  $("question").textContent = questionOf(q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
   $("fault").textContent = "";
@@ -282,7 +293,8 @@ function finishRoom(asked = false) {                    // asked: the closing be
     if (!q) continue;                                      // a question the bank has since dropped: its money still counts above
     const li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
     const mineD = e.maker === me ? e.deltaMaker : e.deltaTaker;
-    name.textContent = `${e.maker === me ? "Made" : e.take === "pass" ? "Passed" : e.take === "hit" ? "Hit" : "Lifted"}: ${q.q.length > 36 ? `${q.q.slice(0, 34)}…` : q.q}`;
+    const said = namedQ(q);
+    name.textContent = `${e.maker === me ? "Made" : e.take === "pass" ? "Passed" : e.take === "hit" ? "Hit" : "Lifted"}: ${said.length > 36 ? `${said.slice(0, 34)}…` : said}`;
     delta.textContent = signed(mineD);
     delta.className = mineD >= 0 ? "good" : "bad";
     li.append(name, delta);
@@ -377,7 +389,8 @@ function finish() {
     const q = byId.get(e.id);
     if (!q) continue;                                      // a question the bank has since dropped: its money still counts above
     const li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
-    name.textContent = q.q.length > 44 ? `${q.q.slice(0, 42)}…` : q.q;
+    const said = namedQ(q);
+    name.textContent = said.length > 44 ? `${said.slice(0, 42)}…` : said;
     delta.textContent = signed(e.delta);
     delta.className = e.delta >= 0 ? "good" : "bad";
     li.append(name, delta);

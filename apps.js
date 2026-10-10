@@ -276,11 +276,13 @@ function picturesPart(sheet) {
   let last = null;
   const say = p => {
     last = p;
+    // a page Wikipedia has no image for isn't kept, and isn't counted as kept either: said, so "all kept" is true
+    const none = p.none || 0, without = none ? ` ${none} ${none === 1 ? "has" : "have"} no picture on Wikipedia (a question about one names it).` : "";
     status.textContent = !keepingPictures() ? `On this device: every painting, building and place the games show, about ${Math.round(p.total * 0.07)} MB from Wikipedia. Pictures you've seen are kept anyway.`
       : p.checking ? "Checking the pictures kept on this device…"
       : !p.done ? `Keeping pictures offline: ${p.kept} of ${p.total}`
-      : p.kept >= p.total ? `All ${p.total} pictures are kept on this device.`
-      : `${p.kept} of ${p.total} kept: ${p.offline ? "the rest come when there's a connection" : `${p.missing} wouldn't download, tried again next time`}.`;
+      : p.kept + none >= p.total ? `All ${p.kept} pictures are kept on this device.${without}`
+      : `${p.kept} of ${p.total - none} kept: ${p.offline ? "the rest come when there's a connection" : `${p.missing} wouldn't download, tried again next time`}.${without}`;
   };
   const stop = onPictures(say);
   sheet.addEventListener("close", stop, { once: true });
@@ -290,7 +292,7 @@ function picturesPart(sheet) {
     if (on) keepPicturesOffline();
   }), status);
   import("./pics-list.js").then(({ PICTURES }) => {
-    say({ kept: 0, total: PICTURES.length, missing: 0, done: false, checking: true });
+    say({ kept: 0, total: PICTURES.length, missing: 0, none: 0, done: false, checking: true });
     if (keepingPictures()) keepPicturesOffline();            // where it stands: a quick check when it's all there
   });
   return box;

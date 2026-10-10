@@ -45,20 +45,27 @@ export async function build() {
     return defined({ id, name, kind, region, country, note, lat, lon, ...over, about, ...GEOMETRY[about] });
   });
 
+  // a picture's own name goes with its questions (Order asks "When was … painted?", and a game whose picture can't be
+  // shown names the thing instead of "this"): a Wikipedia page or file name can carry the very year asked ("Number 1,
+  // 1950 (Lavender Mist)", "File:… (1853).jpg"). As it reads mid-sentence: a painting's title keeps its capital ("Who
+  // painted The Night Watch?"), a building takes a small "the" ("When was the Parthenon completed?")
+  const titleOf = e => (e.sets.includes("building") && !e.sets.includes("painting") ? e.name.replace(/^The /, "the ") : e.name);
   // Quote: a number that's an entity's fact comes from the entity
   const QUOTES = [...estimates.ESTIMATES, ...gen.quotes].map(({ fact, ...q }) => {
     if (!fact) return q;
-    const e = of(q.about);
-    // a picture's own name goes with it (Order asks "When was … painted?"): a Wikipedia page or file name can carry
-    // the very year asked ("Number 1, 1950 (Lavender Mist)", "File:… (1853).jpg")
-    return defined({ ...q, truth: q.truth ?? e[fact], pic: q.pic ?? (fact === "year" ? e.pic : undefined), title: fact === "year" && e.pic ? e.name : undefined });
+    const e = of(q.about), pic = q.pic ?? (fact === "year" ? e.pic : undefined);
+    return defined({ ...q, truth: q.truth ?? e[fact], pic, title: pic && pic === e.pic ? titleOf(e) : undefined });
   });
 
-  // Punt: the questions as written, with what they're about
+  // Punt: the questions as written, with what they're about, and the name of a picture that's one of theirs
   const choice = {};
+  const named = q => {
+    const e = q.pic && !q.title && (q.about || []).map(id => E.get(id)).find(x => x?.pic === q.pic);
+    return e ? titleOf(e) : undefined;
+  };
   for (const b of CHOICE_BANKS) {
     const m = await load(`items/choice/${b}.js`);
-    choice[b] = { STAGES: m.STAGES, MATHS: [...m.ITEMS, ...(gen[b] || [])] };
+    choice[b] = { STAGES: m.STAGES, MATHS: [...m.ITEMS, ...(gen[b] || [])].map(q => { const title = named(q); return title ? { ...q, title } : q; }) };
   }
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of them)

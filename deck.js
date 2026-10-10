@@ -18,7 +18,7 @@ import { tiersOf, withUnit, tierText } from "./quote-engine.js";
 import { mountPuzzle, solutionSan } from "./chess-board.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { setRich } from "./rich.js";
-import { showPicture } from "./pics.js";
+import { showPicture, askedWith } from "./pics.js";
 import { SUBJECTS, SUBJECT } from "./kb-index.js";
 import { speak } from "./voice.js";
 import { check } from "./typing.js";
@@ -128,6 +128,15 @@ function startReview() {
   $("review").hidden = false;
   ask();
 }
+/** A card's picture, in a box of its own; once it shows or can't, `asked` words the question again while the card is
+ *  still up: about "this" picture, or naming the thing when it couldn't be shown. */
+function figure(pic, it, asked) {
+  const box = document.createElement("div");
+  box.className = "dk-figure";
+  $("figure").replaceChildren(box);
+  $("figure").hidden = false;
+  showPicture(box, pic).then(shown => { if (shown !== null && session?.items[session.at] === it && box.isConnected) asked(); });
+}
 function ask() {
   const it = session.items[session.at];
   board?.destroy(); board = null;
@@ -148,9 +157,10 @@ function ask() {
   else if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
     $("ask").textContent = p.ask || "";
-    setRich($("prompt"), p.prompt);
+    const asked = () => setRich($("prompt"), askedWith(p.prompt, p.pic, p.title, p.options));
+    asked();
     if (p.svg) { $("figure").innerHTML = p.svg; $("figure").hidden = false; }
-    if (p.pic) { const box = document.createElement("div"); box.className = "dk-figure"; $("figure").replaceChildren(box); $("figure").hidden = false; showPicture(box, p.pic); }
+    if (p.pic) figure(p.pic, it, asked);
     if (p.code) { const pre = document.createElement("pre"); pre.className = "dk-code"; pre.textContent = p.code; $("figure").replaceChildren(pre); $("figure").hidden = false; }
     const fresh = freshChoices(r, p) || { labels: p.options, right: p.right };
     const mixed = mix(r, fresh.labels, fresh.right);
@@ -195,8 +205,9 @@ function ask() {
     const q = quoteById.get(it.key);
     if (!q) { skip(); return; }
     $("ask").textContent = `Quote · an A is ${tierText(q, "A")}`;
-    $("prompt").textContent = `${q.q}${q.unit && q.unit !== "year" ? ` (${q.unit})` : ""}`;
-    if (q.pic) { const box = document.createElement("div"); box.className = "dk-figure"; $("figure").replaceChildren(box); $("figure").hidden = false; showPicture(box, q.pic); }
+    const asked = () => { $("prompt").textContent = `${askedWith(q.q, q.pic, q.title)}${q.unit && q.unit !== "year" ? ` (${q.unit})` : ""}`; };
+    asked();
+    if (q.pic) figure(q.pic, it, asked);
     const { wrap, input, go } = numberField();
     input.value = "";
     go.disabled = false;
@@ -561,7 +572,7 @@ async function refreshPunt() {
       const q = byId.get(id);
       if (!q) continue;
       const fresh = { ...it.payload, prompt: q.q, options: q.o, right: q.a, need: q.s || q.a.length, note: `${q.a.map(i => q.o[i]).join(" and ")}: ${q.x || ""}`,
-        svg: q.svg || null, pic: q.pic || null, code: q.code || null };
+        svg: q.svg || null, pic: q.pic || null, ...(q.title && { title: q.title }), code: q.code || null };
       if (JSON.stringify(fresh) !== JSON.stringify(it.payload)) pile.refresh("punt", it.key, fresh);
     }
   }));

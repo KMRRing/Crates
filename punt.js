@@ -7,7 +7,7 @@ import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
 import { setRich } from "./rich.js";
-import { showPicture } from "./pics.js";
+import { showPicture, askedWith } from "./pics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { dropdown } from "./dropdown.js";
 import "./pwa.js";
@@ -310,6 +310,13 @@ async function next() {
 }
 
 // ---------- rendering ----------
+/** The question as asked: about "this" picture, or naming the thing once its picture couldn't be shown (not when the
+ *  name is one of the options). */
+function drawPrompt(q) {
+  const text = askedWith(q.prompt, q.pic, q.title, q.options?.map(o => o.label));
+  setRich($("prompt"), text);
+  $("prompt").classList.toggle("long", text.length > 30);
+}
 function render() {
   if (!S) return;
   $("level").value = S.level;
@@ -326,15 +333,22 @@ function render() {
   pot.className = reveal && last ? (last.change > 0 ? "up" : last.change < 0 ? "down" : "") : "";
 
   $("ask").textContent = q.ask;
-  setRich($("prompt"), q.prompt);
+  drawPrompt(q);
   $("figure").hidden = !q.svg;
   if (q.svg) $("figure").innerHTML = q.svg;                       // a drawing from the bank, for patterns
   $("code").hidden = !q.code;
   if (q.code) $("code").textContent = q.code;                 // a snippet to read, for the code bank
   const pic = $("picture");
-  if (q.pic) { if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic, { alt: "" }); } }
-  else { pic.hidden = true; pic.dataset.title = ""; }
-  $("prompt").classList.toggle("long", q.prompt.length > 30);
+  if (!q.pic) { showPicture(pic, null); pic.dataset.title = ""; }
+  else if (pic.dataset.title !== q.pic) {
+    pic.dataset.title = q.pic;
+    // once it shows or can't, the question asks about "this" or names the painting or building: the question showing
+    // then, which can be another about the same picture (who painted it, then where it hangs)
+    showPicture(pic, q.pic, { alt: "" }).then(shown => {
+      const now = S && (question() || S.questions[S.questions.length - 1]);
+      if (shown !== null && now?.pic === q.pic) drawPrompt(now);
+    });
+  }
   drawMathsBar();
   const need = rightCount(q);
   $("need").hidden = need === 1;
@@ -649,7 +663,7 @@ function bankLatest(last) {
   if (asName && q.pair) known.named(q.pair, right === true);
   else if (right && mine.pct > 0 && q.pairs?.length) known.recognised(q.pairs);
   const lv = q.src || S.level, key = asName ? `${lv}/name/${q.key}` : `${lv}/${q.key}`;
-  const payload = asName ? { name: true, prompt: q.prompt, ask: q.ask, answer: q.answer, note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "" } : { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, code: q.code || null, level: S.level , about: q.about };
+  const payload = asName ? { name: true, prompt: q.prompt, ask: q.ask, answer: q.answer, note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "" } : { prompt: q.prompt, ask: q.ask, options: q.options.map(o => o.label), right: q.options.map((o, i) => (o.right ? i : -1)).filter(i => i >= 0), need: rightCount(q), note: q.notes?.[0] ? `${q.notes[0].label}: ${q.notes[0].text}` : "", svg: q.svg || null, pic: q.pic || null, ...(q.title && { title: q.title }), code: q.code || null, level: S.level, about: q.about };
   if (!mine.pct) pile.record("punt", key, payload, "pass");
   else if (!right) pile.record("punt", key, payload, "wrong");
   else if (mine.pct <= 20) pile.record("punt", key, payload, "lowStake");

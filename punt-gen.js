@@ -379,7 +379,7 @@ function mathsQuestions(seed, pool, stages, count, start, dueKeys = [], seenKeys
     out.push({
       kind: "maths", cat: "maths", prompt: q.q, ask: "",           // no stage-and-level marker over the question: the slip is for the question
       options: right, need: q.s, notes: [{ label: right.filter(o => o.right).map(o => o.label).join(" and "), text: q.x }],
-      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
+      ...(q.svg && { svg: q.svg }), ...(q.pic && { pic: q.pic }), ...(q.title && { title: q.title }), ...(q.code && { code: q.code }), ...(q.about && { about: q.about }), d: q.d, ...odds(q.a.map(() => knowsMaths(q.d)), q.o.length, m[i] / mean), key: q.id,
     });
   }
   if (priced) priceBatch(L, out);

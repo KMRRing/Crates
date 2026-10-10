@@ -75,11 +75,13 @@ self.addEventListener("activate", event => event.waitUntil((async () => {
 self.addEventListener("message", event => { if (event.data === "take-over") self.skipWaiting(); });
 
 // pictures from Wikipedia (the API's answers and the images, thumbnails from thumb.wikimedia.org): an image fetched
-// by an <img> comes back opaque (no CORS), which can still be kept and given back to an <img>
+// by an <img> comes back opaque (no CORS), which can still be kept and given back to an <img>. A kept copy is found by
+// its address alone: Settings keeps them with a plain request, and a reply that Varies on a header the <img>'s request
+// sends differently would otherwise never match it, offline least of all
 const isPicture = url => (url.hostname === "en.wikipedia.org" && url.pathname === "/w/api.php" && url.searchParams.get("prop") === "pageimages")
   || url.hostname === "upload.wikimedia.org" || url.hostname === "thumb.wikimedia.org";
 async function picture(request) {
-  const cache = await caches.open(PICS), hit = await cache.match(request);
+  const cache = await caches.open(PICS), hit = await cache.match(request, { ignoreVary: true });
   if (hit) return hit;
   const res = await fetch(request);
   if (res.ok || res.type === "opaque") cache.put(request, res.clone()).catch(() => {});   // kept as it's shown, not before

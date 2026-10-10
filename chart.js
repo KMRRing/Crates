@@ -44,7 +44,7 @@ import { showPicture } from "./pics.js";
 function picture(p) {
   const pic = $("picture");
   if (!pic) return;
-  if (!p.pic) { pic.hidden = true; pic.dataset.title = ""; return; }
+  if (!p.pic) { showPicture(pic, null); pic.dataset.title = ""; return; }   // and the last place's, if still on its way, stays away
   if (pic.dataset.title !== p.pic) { pic.dataset.title = p.pic; showPicture(pic, p.pic, { width: 480 }); }
 }
 import "./pwa.js";

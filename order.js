@@ -7,7 +7,7 @@
 import { QUOTES } from "./quote-bank.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
 import { withUnit } from "./quote-engine.js";
-import { showPicture } from "./pics.js";
+import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
@@ -74,12 +74,12 @@ function end() {
 // a card's own words, without the question's lead-in. A picture goes by its title ("this" means the picture), and its
 // question says what happened to it: "The year this was painted", "…was completed" (a painting, a building); a
 // picture's quantity keeps its own words, the title for "this" ("This building's height" → "Ulm Minster's height").
-const titleOf = q => q.title || q.pic.replace(/_/g, " ").replace(/\s*\(.*\)$/, "");   // its name, kept with it by the build
+const titleOf = q => q.title || pictureName(q.pic);   // its name, kept with it by the build
 const doneTo = q => q.q.match(/\bthis was (\w+)/i)?.[1] || "made";
-const withTitle = q => q.q.replace(/^This (\w+)'s/i, `${titleOf(q)}'s`).replace(/\bthis\b/i, titleOf(q));
+const withTitle = q => nameIn(q.q, titleOf(q));
 const short = id => {
   const q = BY_ID.get(id);
-  if (q.pic) return q.unit === "year" ? `${titleOf(q)}, ${doneTo(q)}` : withTitle(q);
+  if (q.pic) return q.unit === "year" ? `${titleOf(q)}, ${doneTo(q)}`.replace(/^./, c => c.toUpperCase()) : withTitle(q);   // "the Parthenon" opening a line
   return q.q.replace(/^(The )?(year|number of|share of|population of|area of|land area of|size of|energy in|energy to|power of|length of|volume of)\s+(the\s+)?/i, "").replace(/^./, c => c.toUpperCase());
 };
 const cardText = q => (q.pic ? (q.unit === "year" ? `When was ${titleOf(q)} ${doneTo(q)}?` : withTitle(q)) : q.q);
@@ -97,7 +97,7 @@ function render() {
     $("card").textContent = cardText(q);
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
-    if (!q.pic) { pic.hidden = true; pic.replaceChildren(); delete pic.dataset.title; }
+    if (!q.pic) { showPicture(pic, null); delete pic.dataset.title; }
     else if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic, { width: sideways() ? 960 : 500, alt: titleOf(q) }); }   // sideways it's drawn large
   }
   const box = $("line");
