@@ -8,6 +8,7 @@ import { QUOTES } from "./quote-bank.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
 import { withUnit } from "./quote-engine.js";
 import { showPicture } from "./pics.js";
+import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue } from "./suite.js";   // the day, the same for everyone (UTC)
@@ -97,7 +98,7 @@ function render() {
     // a painting's card shows the painting (fetched once per card, like Quote's: not again on every redraw)
     const pic = $("cardPic");
     if (!q.pic) { pic.hidden = true; pic.replaceChildren(); delete pic.dataset.title; }
-    else if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic, { width: 500, alt: titleOf(q) }); }
+    else if (pic.dataset.title !== q.pic) { pic.dataset.title = q.pic; showPicture(pic, q.pic, { width: sideways() ? 960 : 500, alt: titleOf(q) }); }   // sideways it's drawn large
   }
   const box = $("line");
   box.replaceChildren();

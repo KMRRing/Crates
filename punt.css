@@ -41,8 +41,8 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
   padding: 0; margin-top: .4rem; display: flex; flex-direction: column; }
 /* the ticket's torn edge sits outside the slip, so the scrolling happens on a body inside it */
 .pt-slip-body { flex: 1 1 auto; min-height: 0; padding: 1.1rem 1rem 1rem; border-radius: 0 0 14px 14px; }
-.pt-slip::before { content: ""; position: absolute; left: -1px; right: -1px; top: -9px; height: 10px;
-  background: radial-gradient(circle at 6px 0, transparent 6px, var(--pt-ticket) 6.5px) 0 0 / 12px 10px repeat-x; }
+.pt-slip::before { content: ""; position: absolute; left: -1px; right: -1px; top: -.5625rem; height: .625rem;
+  background: radial-gradient(circle at .375rem 0, transparent .375rem, var(--pt-ticket) .40625rem) 0 0 / .75rem .625rem repeat-x; }   /* in rem, so the teeth grow with the ticket */
 .pt-ask { margin: 0; color: var(--ink-soft); font-size: .95rem; }
 .pt-prompt { margin: .2rem 0 1rem; font-size: 2rem; font-weight: 800; font-stretch: 108%; line-height: 1.1; letter-spacing: -.01em; overflow-wrap: anywhere; hyphens: auto; }
 .pt-prompt.long { font-size: 1.3rem; font-weight: 750; font-stretch: 100%; line-height: 1.3; letter-spacing: 0; hyphens: none; }
@@ -51,7 +51,7 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-maths .pick { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
 .pt-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: .4rem; margin: .3rem 0 .6rem; }
 .pt-chips-10 { grid-template-columns: repeat(5, 1fr); }
-.pt-chips .btn { min-height: 42px; padding: .3rem .2rem; }
+.pt-chips .btn { min-height: 2.625rem; padding: .3rem .2rem; }
 .pt-chips .btn[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 #mathsDlg h3 { margin: .8rem 0 .2rem; }
 .pt-need { margin: -.6rem 0 .8rem; font-weight: 750; color: var(--pt-turf); }
@@ -65,7 +65,7 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-code { margin: -.3rem 0 .9rem; padding: .6rem .75rem; border-radius: 10px; background: var(--sheet); font: .88rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre; overflow-x: auto; }
 .pt-code[hidden] { display: none; }
 .pt-options { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-.pt-option { min-height: 52px; padding: .5rem .7rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge); background: var(--sheet);
+.pt-option { min-height: 3.25rem; padding: .5rem .7rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge); background: var(--sheet);
   font-weight: 700; font-size: 1.02rem; line-height: 1.2; text-align: center; cursor: pointer; overflow-wrap: anywhere; }
 .pt-option[aria-checked="true"] { border-color: var(--pt-pick); box-shadow: inset 0 0 0 2px var(--pt-pick); }
 .pt-option.right { border-color: var(--pt-win); background: color-mix(in srgb, var(--pt-win) 16%, var(--sheet)); }
@@ -78,14 +78,14 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-odds-row span { color: var(--ink-soft); }
 .pt-odds { display: inline-block; padding: .1rem .7rem; border-radius: 3px; background: var(--pt-turf); color: var(--pt-turf-ink);
   font-size: 1.6rem; font-weight: 800; font-stretch: var(--stretch-btn); font-variant-numeric: tabular-nums; }
-#stake { width: 100%; margin: .55rem 0 .25rem; accent-color: var(--pt-turf); height: 28px; }
+#stake { width: 100%; margin: .55rem 0 .25rem; accent-color: var(--pt-turf); height: 1.75rem; }
 .pt-chips { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .35rem; }
-.pt-chips .btn { min-height: 36px; padding: .2rem .2rem; font-size: .9rem; white-space: nowrap; }
+.pt-chips .btn { min-height: 2.25rem; padding: .2rem .2rem; font-size: .9rem; white-space: nowrap; }
 /* the stake in words sits beside the odds, so the panel leaves the question more room */
 .pt-stake { margin: 0 0 0 auto; font-size: .92rem; line-height: 1.25; text-align: right; min-width: 0; }
 .pt-stake b { font-variant-numeric: tabular-nums; }
 .pt-buttons { display: grid; grid-template-columns: 1fr 2fr; gap: .6rem; margin-top: .55rem; }
-.pt-buttons .btn { min-height: 48px; }
+.pt-buttons .btn { min-height: 3rem; }
 
 /* what happened */
 .pt-result { margin-top: .7rem; display: flex; flex-direction: column; min-height: 0; max-height: 52%; }
@@ -138,6 +138,18 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-buttons { grid-template-columns: auto 1fr; }
 .pt-buttons #passBtn { padding-left: .9rem; padding-right: .9rem; }
 .pt-buttons #betBtn { font-size: .78rem; letter-spacing: .02em; font-stretch: 100%; padding-left: .5rem; padding-right: .5rem; white-space: nowrap; }
+/* held sideways (#app.beside): the ticket on the left, the picture as large as the column lets it be; beside it where
+   you stand (the question, the pot) at the top, and the stake or the result at the bottom, where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.punt { --beside: 24rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  .pt-partner { grid-column: 2; grid-row: 2; }
+  .pt-ledger { grid-column: 2; grid-row: 3; margin-top: 1.2rem; }
+  .pt-avg { grid-column: 2; grid-row: 4; }
+  .pt-slip { grid-column: 1; grid-row: 2 / -1; margin-top: 1.6rem; }
+  .pt-picture img { max-height: 44vh; max-height: 44svh; }
+  .pt-betting { grid-column: 2; grid-row: 6; }
+  .pt-result { grid-column: 2; grid-row: 5 / 7; align-self: end; max-height: 100%; }
+}
 
 /* a painting takes the room the question and its answers leave, never more: the slip is a column, the picture its one
    stretchy part, and the image is contained in it (a drop shadow follows the painting's own edges) */
@@ -154,17 +166,17 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
   .pt-prompt { margin-bottom: .55rem; }
   .pt-prompt.long { font-size: 1.12rem; line-height: 1.25; }
   .pt-options { gap: .4rem; }
-  .pt-options > * { min-height: 44px; padding-top: .35rem; padding-bottom: .35rem; font-size: .92rem; }
+  .pt-options > * { min-height: 2.75rem; padding-top: .35rem; padding-bottom: .35rem; font-size: .92rem; }
   .pt-slip-body > .pt-picture:not([hidden]) { min-height: 3rem; }   /* the painting gives way before anything scrolls */
 }
 
 /* a name-it question with typing on: one box across the options' width to type the name in (16px or more, so a phone
    doesn't zoom in on it); at the reveal, the name in the winning colour, and what was typed if it was spelled otherwise */
-.pt-typed { grid-column: 1 / -1; min-height: 52px; padding: .5rem .8rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge);
+.pt-typed { grid-column: 1 / -1; min-height: 3.25rem; padding: .5rem .8rem; border-radius: 10px; border: 2px solid var(--pt-ticket-edge);
   background: var(--sheet); color: var(--ink); font: 700 1.05rem var(--font); }
 .pt-typed:focus { outline: none; border-color: var(--pt-pick); box-shadow: inset 0 0 0 2px var(--pt-pick); }
 .pt-typed:disabled { opacity: .7; }
-.pt-typed-result { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; gap: .2rem; min-height: 52px;
+.pt-typed-result { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; gap: .2rem; min-height: 3.25rem;
   padding: .5rem .8rem; border-radius: 10px; border: 2px solid var(--pt-win); background: color-mix(in srgb, var(--pt-win) 16%, var(--sheet)); }
 .pt-typed-result b { font-size: 1.05rem; }
 .pt-typed-result .close, .pt-typed-result .wrong { font-size: .85rem; font-weight: 700; }

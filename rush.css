@@ -16,7 +16,7 @@ html[data-mode="night"] { --ru-in: #C49A6C; --ru-good: #7FC2A8; --ru-bad: #E8806
 .ru-clock { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ru-clock.low { color: var(--ru-bad); }
 .ru-strikes { display: flex; gap: .3rem; }
-.ru-strike { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--ru-edge); }
+.ru-strike { width: .875rem; height: .875rem; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--ru-edge); }
 .ru-strike.hit { background: var(--ru-bad); box-shadow: none; }
 
 /* the stage bleeds to the screen's edges so the board is the full width of the phone */
@@ -30,8 +30,19 @@ html[data-mode="night"] { --ru-in: #C49A6C; --ru-good: #7FC2A8; --ru-bad: #E8806
 .ru-board .ch-board { width: min(100cqw, 100cqh); }
 .ru-board:empty { display: grid; place-items: center; color: var(--ink-soft); }
 .ru-meta { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
-.ru-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.ru-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .ru-go[hidden] { display: none; }
+/* held sideways (#app.beside): the board on the left as tall as the screen allows; the score and clock, what to do and
+   the button beside it, the button at the bottom where a thumb is (the stage's sheet gives way to the board's own) */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.rush { --beside: 20rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  .ru-stage { display: contents; }
+  .ru-hud { grid-column: 2; grid-row: 2; margin-top: 1rem; }
+  .ru-stage > .ru-line { grid-column: 2; grid-row: 3; margin: .6rem 0 0; }
+  .ru-stage > .ru-meta { grid-column: 2; grid-row: 4; margin: .4rem 0 0; }
+  .ru-board { grid-column: 1; grid-row: 2 / -1; padding-top: .8rem; }
+  .ru-stage > .ru-go { grid-column: 2; grid-row: 6; margin: 0; }
+}
 
 /* the board: parchment and bronze, maple and walnut in the suite's brass (a mid-tone dark square, so black pieces read
    on it as well as white); highlights are translucent layers over the squares */

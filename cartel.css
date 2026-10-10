@@ -59,15 +59,15 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-log-line.bid { color: #F6EEE6; font-weight: 800; }
 .ct-log-line.bad { color: #FF9C8A; font-weight: 800; }
 .ct-log-line.fresh { animation: ct-in .35s ease-out; }
-@keyframes ct-in { from { opacity: 0; transform: translateY(-3px); } }
+@keyframes ct-in { from { opacity: 0; transform: translateY(-.1875rem); } }
 @media (prefers-reduced-motion: reduce) { .ct-log-line.fresh { animation: none; } }
 .ct-plaque b { display: block; font-weight: 800; font-size: 1rem; letter-spacing: .01em; }
 .ct-plaque span { font-size: .72rem; opacity: .7; }
 /* two rows of dice, always: the dice shrink as a hand grows, so the seats keep their height */
-.ct-seat .ct-dice { justify-content: center; align-content: flex-start; gap: 3px; height: calc(2 * var(--seat-die, 18px) + 3px); overflow: hidden; }
+.ct-seat .ct-dice { justify-content: center; align-content: flex-start; gap: .1875rem; height: calc(2 * var(--seat-die, 1.125rem) + .1875rem); overflow: hidden; }
 
 /* dice: pips on ivory or gold; a die you can't see is a dark cup */
-.ct-dice { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ct-dice { display: flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
 .ct-die { display: block; flex: none; }
 .ct-die.pickable { cursor: pointer; }
 .ct-die.picked { outline: 3px solid #E9C46A; outline-offset: 2px; border-radius: 8px; }
@@ -100,7 +100,7 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ct-mine.turn .ct-plaque b { color: #E9C46A; }
 /* one row of dice, always: they shrink as your hand grows */
-.ct-mine .ct-dice { justify-content: center; flex-wrap: nowrap; gap: var(--mine-gap, 7px); min-height: calc(var(--mine-die, 36px) + .8rem); align-items: flex-start; }
+.ct-mine .ct-dice { justify-content: center; flex-wrap: nowrap; gap: var(--mine-gap, .4375rem); min-height: calc(var(--mine-die, 2.25rem) + .8rem); align-items: flex-start; }
 .ct-mine .ct-dice figure { margin: 0; display: grid; justify-items: center; gap: .1rem; }
 .ct-mine .ct-dice figcaption { font-size: .62rem; font-weight: 700; opacity: .75; }
 /* what you know: one line along the table's near edge that scrolls sideways, so it never pushes anything */
@@ -115,31 +115,39 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-controls { display: grid; gap: .5rem; align-content: start; flex: 0 1 clamp(16rem, 36svh, 17.5rem); min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .ct-tray { display: grid; gap: .3rem; padding: .5rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .ct-tray-title { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -.01em; }
-.ct-tray-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 34px; }
+.ct-tray-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; min-height: 2.125rem; }
 .ct-tray-head h3 { margin: 0; font-size: 1.05rem; font-weight: 800; letter-spacing: -.01em; }
+/* held sideways (#app.beside): the table takes the left, all the height under the header; your turn's panel stands
+   beside it, its full height, scrolling inside if a long choice needs it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.cartel { --beside: 24rem; grid-template-rows: auto minmax(0, 1fr); }
+  .ct-table { grid-column: 1; grid-row: 2; min-height: 0; }
+  .ct-controls { grid-column: 2; grid-row: 2; margin-top: .4rem; display: flex; flex-direction: column; }
+  .ct-controls > :first-child { margin-top: auto; }   /* low, where a thumb is; a long panel still scrolls from its top */
+}
 .ct-free { display: flex; gap: .35rem; flex-wrap: wrap; justify-content: flex-end; }
-.ct-chip { display: inline-flex; align-items: center; gap: .3rem; min-height: 32px; padding: 0 .65rem; border-radius: 4px; cursor: pointer;
+.ct-chip { display: inline-flex; align-items: center; gap: .3rem; min-height: 2rem; padding: 0 .65rem; border-radius: 4px; cursor: pointer;
   border: 1.5px solid var(--ct-plain-edge); background: var(--yard); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 750; }
 .ct-chip small { font-size: .62rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.04em * var(--track)); color: var(--ct-ox); }
 .ct-chip[aria-pressed="true"] { border-color: var(--ct-ox-fill); background: var(--ct-ox-fill); color: #fff; }
 .ct-chip[aria-pressed="true"] small { color: #fff; opacity: .8; }
 
 .ct-grid { display: grid; gap: .45rem; }
-.ct-action { display: grid; justify-items: center; align-content: center; gap: .1rem; min-height: 46px; padding: .25rem .2rem; border-radius: 6px; cursor: pointer;
+.ct-action { display: grid; justify-items: center; align-content: center; gap: .1rem; min-height: 2.875rem; padding: .25rem .2rem; border-radius: 6px; cursor: pointer;
   border: 1.5px solid transparent; background: var(--yard); color: var(--ink); font: inherit; font-size: .82rem; font-weight: 750; }
-.ct-icon { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ct-icon { width: 1.375rem; height: 1.375rem; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 .ct-action[aria-pressed="true"] { background: var(--ct-ox-fill); color: #fff; }
 .ct-action:disabled, .ct-role:disabled, .ct-go:disabled { opacity: .38; cursor: default; }
 
 .ct-panel { display: grid; gap: .4rem; padding: .45rem; border-radius: 6px; background: var(--yard); }
 .ct-label { margin: .1rem 0 0; font-size: .72rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--ink-soft); }
 .ct-note { margin: 0; font-size: .84rem; color: var(--ink-soft); line-height: 1.35; }
-.ct-choice { display: grid; place-items: center; min-height: 38px; padding: .3rem .4rem; border-radius: 5px; cursor: pointer;
+.ct-choice { display: grid; place-items: center; min-height: 2.375rem; padding: .3rem .4rem; border-radius: 5px; cursor: pointer;
   border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: .88rem; font-weight: 750; }
 .ct-choice[aria-pressed="true"] { border-color: var(--ct-ox); box-shadow: inset 0 0 0 1.5px var(--ct-ox); }
-.ct-face { min-height: 38px; }
+.ct-face { min-height: 2.375rem; }
 /* role cards, three to a row: the die, the role's name in green (you hold it) or red (a bluff), the power in brief */
-.ct-role { display: flex; align-items: center; gap: .3rem; padding: .3rem .3rem; border-radius: 5px; cursor: pointer; text-align: left; min-height: 43px;
+.ct-role { display: flex; align-items: center; gap: .3rem; padding: .3rem .3rem; border-radius: 5px; cursor: pointer; text-align: left; min-height: 2.6875rem;
   border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink); font: inherit; min-width: 0; }
 .ct-role.free { border-style: dashed; }
 .ct-role[aria-pressed="true"] { border-color: var(--ct-ox); box-shadow: inset 0 0 0 1.5px var(--ct-ox); }
@@ -149,12 +157,12 @@ html[data-mode="night"] { --ct-ox: #D9707F; --ct-ox-fill: #A63A4B; --ct-ox-ink: 
 .ct-role-text b.held { color: var(--ct-win); }
 .ct-role-text b.bluff { color: #C0392B; }
 .ct-role-text span { font-size: .66rem; color: var(--ink-soft); line-height: 1.2; }
-.ct-stepper { display: grid; grid-template-columns: 44px 3rem 44px 1fr; align-items: center; gap: .45rem; }
-.ct-step-btn { height: 44px; border-radius: 5px; cursor: pointer; border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink);
+.ct-stepper { display: grid; grid-template-columns: 2.75rem 3rem 2.75rem 1fr; align-items: center; gap: .45rem; }
+.ct-step-btn { height: 2.75rem; border-radius: 5px; cursor: pointer; border: 1.5px solid var(--ct-plain-edge); background: var(--sheet); color: var(--ink);
   font: inherit; font-size: 1.4rem; font-weight: 700; line-height: 1; }
 .ct-count { text-align: center; font-size: 1.7rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ct-stepper .ct-note { padding-left: .3rem; }
-.ct-go { min-height: 44px; padding: 0 .6rem; border-radius: 4px; cursor: pointer; border: 0; background: var(--plate); color: var(--plate-ink); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
+.ct-go { min-height: 2.75rem; padding: 0 .6rem; border-radius: 4px; cursor: pointer; border: 0; background: var(--plate); color: var(--plate-ink); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px;
   font: inherit; font-size: .95rem; font-weight: 800; line-height: 1.15; }
 .ct-go-quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ct-plain-edge); }
 .ct-go small { display: block; font-size: .7rem; font-weight: 650; opacity: .85; margin-top: .1rem; }

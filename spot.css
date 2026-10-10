@@ -37,7 +37,7 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
 .sp-mod.new { animation: pop .3s ease-out; }
 .sp-sum em { position: absolute; top: -.45rem; right: -.3rem; padding: .05rem .4rem; border-radius: 3px; background: var(--sp-or); color: #fff;
   font-size: .72rem; font-weight: 800; font-style: normal; }
-.sp-life { width: 14px; height: 14px; border-radius: 50%; background: var(--sp-or); transition: transform .2s, opacity .2s; }
+.sp-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--sp-or); transition: transform .2s, opacity .2s; }
 .sp-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--sp-token-edge); }
 .sp-life.hit { animation: hit .5s; }
 @keyframes hit { 30% { transform: scale(1.8); } }
@@ -49,7 +49,7 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
   background: var(--sp-card); color: var(--sp-card-ink); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums;
   box-shadow: 0 4px 12px rgba(0, 0, 0, .3); will-change: transform; }
 .sp-sum i { overflow: hidden; }
-.sp-sum i { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--sp-or); }
+.sp-sum i { position: absolute; left: 0; bottom: 0; height: .25rem; background: var(--sp-or); }
 .sp-sum.late { background: #FFD9C7; }
 .sp-sum.tappable { width: 36%; padding: .8rem .3rem .9rem; font: inherit; font-size: 1.35rem; font-weight: 800; border: 0; cursor: pointer;
   touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -59,7 +59,7 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
   color: #fff; pointer-events: none; animation: burst .7s ease-out forwards; }
 .sp-burst.good { color: #7EE2A6; }
 .sp-burst.bad { color: #FF8C7E; }
-@keyframes burst { to { opacity: 0; transform: var(--at) translateY(-28px) scale(1.15); } }
+@keyframes burst { to { opacity: 0; transform: var(--at) translateY(-1.75rem) scale(1.15); } }
 
 /* the shelf: eight fixed places, so your thumb learns them */
 .sp-shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; padding-bottom: max(.6rem, env(safe-area-inset-bottom, 0px)); }
@@ -71,7 +71,7 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
 .sp-token.good { background: var(--sp-good); border-color: var(--sp-good); color: #fff; }
 .sp-token.bad { background: var(--sp-bad); border-color: var(--sp-bad); color: #fff; animation: shake .35s; }
 @keyframes pop { from { transform: scale(.6); opacity: 0; } }
-@keyframes shake { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+@keyframes shake { 20%, 60% { transform: translateX(-.375rem); } 40%, 80% { transform: translateX(.375rem); } }
 
 /* start, countdown and the end of a run */
 .sp-overlay { position: absolute; inset: 0; display: grid; place-items: center; padding: 1rem; border-radius: 8px; background: rgba(16, 24, 31, .55); z-index: 5; }
@@ -81,11 +81,19 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
 .sp-card h2 { margin: 0; font-size: 1.6rem; font-weight: 800; }
 .sp-card p { margin: 0; color: var(--ink-soft); line-height: 1.4; }
 .sp-card .sp-big { font-size: 4.5rem; font-weight: 800; color: var(--sp-or); line-height: 1; }
+/* held sideways (#app.wide): the field takes the left, all the height under the score; the shelf of answers stands
+   beside it, two across and low, where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  .sp-main { display: grid; grid-template-columns: minmax(0, 1fr) 18rem; grid-template-rows: auto minmax(0, 1fr); column-gap: 1.6rem; }
+  .sp-hud { grid-column: 1 / -1; }
+  .sp-field { grid-column: 1; grid-row: 2; min-height: 0; }
+  .sp-shelf { grid-column: 2; grid-row: 2; grid-template-columns: repeat(2, 1fr); align-content: end; }
+}
 .sp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .sp-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); }
 .sp-stats b { display: block; font-size: 1.3rem; font-weight: 800; }
 .sp-stats span { font-size: .75rem; color: var(--ink-soft); }
-.sp-go { min-height: 50px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
+.sp-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: 106%; outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font: inherit; font-size: 1.05rem; font-weight: 800; cursor: pointer; }
 .sp-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .sp-go:disabled { opacity: .45; cursor: default; }
 

@@ -27,3 +27,12 @@
 .lx-toast { display: none; }
 .lx-mark { display: inline-block; }
 .lx-mark svg { width: 100%; height: 100%; display: block; }
+/* held sideways (#app.beside): the search and what it found on the left, the entry beside it, wider, so you can open
+   one thing after another from the list without losing it; with no entry open the list takes the whole width */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.lexicon { --beside-cols: minmax(0, 1fr) minmax(0, 1.5fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  .lx-search { grid-column: 1; grid-row: 2; }
+  #app.lexicon .lx-results, #app.lexicon .lx-results[hidden] { display: block !important; grid-column: 1; grid-row: 3; }
+  .lx-entry { grid-column: 2; grid-row: 2 / -1; padding-top: .3rem; }
+  #app.lexicon:has(#entry[hidden]) .lx-search, #app.lexicon:has(#entry[hidden]) .lx-results { grid-column: 1 / -1; }
+}

@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="quote fit-screen">
+<div id="app" class="quote fit-screen wide">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon qt-mark" aria-hidden="true"></span>Quote</button></h1>
@@ -28,11 +28,14 @@
   <div class="qt-strip"><span id="where"></span><span class="qt-book" id="books">Book <b id="book">1,000</b></span></div>
 
   <section class="qt-card fit-col fit-grow" id="card">
+    <div class="qt-ask fit-half">
     <span id="cat" class="qt-cat"></span>
     <h2 id="question" class="qt-q"></h2>
     <div id="picture" class="qt-picture" hidden></div>
     <p id="unit" class="qt-unit"></p>
+    </div>
 
+    <div class="qt-trade fit-half">
     <div id="market" class="qt-market">
       <label class="qt-side"><span>Bid</span><input id="bid" inputmode="decimal" autocomplete="off" aria-label="Bid"></label>
       <span class="qt-dash" aria-hidden="true">–</span>
@@ -53,6 +56,7 @@
       <div class="qt-tape" id="tape"></div>
       <p class="qt-note fit-scroll" id="note"></p>
       <button class="qt-go" type="button" id="nextBtn">Next</button>
+    </div>
     </div>
   </section>
 </div>

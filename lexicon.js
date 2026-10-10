@@ -70,8 +70,12 @@ function entityButton(e, extra) {
   return b;
 }
 function showResults() {
+  $("entry").hidden = true; $("results").hidden = false;
+  listResults();
+}
+/** What the search finds, in the results box (shown or not: held sideways, the list stays beside an open entry). */
+function listResults() {
   const text = $("q").value, box = $("results");
-  $("entry").hidden = true; box.hidden = false;
   box.replaceChildren();
   if (!text.trim()) {
     box.append(el("p", "lx-lead", `${ENTITIES.length.toLocaleString("en-GB")} things, ${LINKS.length.toLocaleString("en-GB")} links between them. Try:`));
@@ -187,4 +191,4 @@ addEventListener("popstate", () => { const id = new URLSearchParams(location.has
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 const start = new URLSearchParams(location.hash.slice(1)).get("e");
-if (start && ENT.has(start)) open(start, false); else showResults();
+if (start && ENT.has(start)) { listResults(); open(start, false); } else showResults();

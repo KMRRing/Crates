@@ -13,9 +13,9 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 .pi-score { flex: 1 1 auto; min-width: 0; text-align: center; white-space: nowrap; }
 .pi-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .pi-lives { flex: none; display: flex; gap: .3rem; }
-.pi-life { width: 14px; height: 14px; border-radius: 50%; background: var(--pi-in); }
+.pi-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--pi-in); }
 .pi-lives.four { gap: .25rem; }
-.pi-lives.four .pi-life { width: 12px; height: 12px; }
+.pi-lives.four .pi-life { width: .75rem; height: .75rem; }
 .pi-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--pi-edge); }
 .pi-score b.long { font-size: 1.25rem; }
 .pi-score b.longer { font-size: 1.05rem; }
@@ -32,8 +32,8 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 .pi-gauges { display: flex; gap: .8rem; margin: 0 0 .5rem; min-height: 1.2rem; font-size: .8rem; color: var(--ink-soft); }
 /* one line whatever ticks: three products' names and their ✓ shrink the bars rather than wrap (the board keeps its size) */
 .pi-gauge { display: flex; align-items: center; gap: .35rem; min-width: 0; white-space: nowrap; }
-.pi-gauge i { flex: none; width: 10px; height: 10px; border-radius: 3px; }
-.pi-gauge .bar { flex: 0 1 54px; width: 54px; min-width: 16px; height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
+.pi-gauge i { flex: none; width: .625rem; height: .625rem; border-radius: 3px; }
+.pi-gauge .bar { flex: 0 1 3.375rem; width: 3.375rem; min-width: 1rem; height: .375rem; border-radius: 3px; background: var(--yard); overflow: hidden; }
 .pi-gauge .bar i { display: block; height: 100%; width: 100%; border-radius: 0; transition: width .2s; }
 
 .pi-stage { padding: .7rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); gap: .55rem; }
@@ -55,8 +55,8 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 .pi-board .pipe-dark { stroke: var(--pi-pipe-dark); fill: none; }
 .pi-board .flow { fill: none; stroke-linecap: butt; }
 /* the buttons and the note keep their room whether or not they're showing, so the board never changes size mid-level */
-.pi-actions { display: grid; gap: .45rem; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-height: 48px; }
-.pi-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.pi-actions { display: grid; gap: .45rem; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-height: 3rem; }
+.pi-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .pi-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 /* the other themes letter .pi-go in white on their accent; a quiet one sits on the page, so it keeps the ink */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pi-go.quiet { color: var(--ink); }
@@ -187,7 +187,7 @@ html[data-theme="office"][data-mode="night"] .pi-board { --pi-pop-c: #8FD8B8; --
 .pi-ledger.fresh { animation: pi-fade .25s .25s both; }
 .pi-ledger.fresh :is(.pi-l, .pi-ledger-total, .pi-ledger-more, .pi-ledger-reward) { animation: pi-line .28s calc(.35s + var(--i, 0) * 70ms) both; }
 @keyframes pi-fade { from { opacity: 0; } }
-@keyframes pi-line { from { opacity: 0; transform: translateY(4px); } }
+@keyframes pi-line { from { opacity: 0; transform: translateY(.25rem); } }
 @media (prefers-reduced-motion: reduce) { .pi-ledger.fresh, .pi-ledger.fresh * { animation: none; } }
 /* a box too short for it (pipes.js measures; no container query, whose styles restart these animations) tightens */
 .pi-ledger.tight { gap: .3rem; padding: .45rem .7rem; }
@@ -215,6 +215,17 @@ html[data-theme="office"][data-mode="night"] .pi-board { --pi-pop-c: #8FD8B8; --
 .pi-kit.four .pi-tool { flex: 1 1 0; min-width: 0; grid-template-columns: minmax(0, 1fr); justify-items: center; padding: .25rem .3rem; }
 .pi-kit.four .ic { display: none; }
 .pi-kit.four .nm, .pi-kit.four .pr { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* held sideways (#app.wide): the board takes the stage's left side, as tall as the stage; what's happening, the tools
+   and the note stand at the right, the buttons at the bottom where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  .pi-stage { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; column-gap: 1.6rem; padding: 1rem; }
+  .pi-stage > * { grid-column: 2; }
+  .pi-stage .pi-fit { grid-column: 1; grid-row: 1 / -1; }
+  .pi-stage .pi-status { grid-row: 1; }
+  .pi-stage .pi-kit { grid-row: 2; flex-wrap: wrap; justify-content: flex-start; }
+  .pi-stage .pi-note { grid-row: 3; height: auto; -webkit-line-clamp: 8; }
+  .pi-stage .pi-actions { grid-row: 5; grid-auto-flow: row; }
+}
 .pi-tool.on { background: var(--ink); color: var(--sheet); }
 .pi-tool.on .pr { color: var(--sheet); }
 .pi-tool:disabled { opacity: .4; cursor: default; }

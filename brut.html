@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="brut fit-screen">
+<div id="app" class="brut fit-screen wide">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon br-mark" aria-hidden="true"></span>Brut</button></h1>
@@ -32,35 +32,47 @@
   </header>
 
   <section id="blind" class="br-blind fit-col fit-grow">
+    <div class="br-taste fit-half">
     <div class="br-head"><span id="flightPos"></span><span class="br-score">Score <b id="score">0</b></span></div>
     <ol class="br-stages" id="stages"></ol>
     <div class="br-pour fit-grow">
       <div id="glass" class="br-glass-box"></div>
       <div id="note" class="br-note fit-scroll"></div>
     </div>
+    </div>
+    <div class="br-guess fit-half">
     <p class="br-line" id="line"></p>
     <div id="options" class="br-options"></div>
     <div class="br-buttons">
       <button class="br-go quiet" type="button" id="tasteBtn">Taste further</button>
       <button class="br-go" type="button" id="nextBtn" hidden>Next wine</button>
     </div>
+    </div>
   </section>
 
   <section id="study" class="br-study fit-col fit-grow" hidden>
     <div id="studyHome" class="fit-col fit-grow">
+      <div class="br-about fit-half">
       <p class="br-intro">Twelve units, from the grapes to the trade. Each card is a fact to learn, then a question on it; what you miss comes back until you know it.</p>
       <div class="br-stats" id="stats"></div>
       <button class="br-go" type="button" id="studyBtn">Study</button>
+      </div>
+      <div class="br-list fit-half">
       <h3 class="br-h">Units</h3>
       <div class="br-units fit-grow fit-scroll" id="units"></div>
+      </div>
     </div>
     <div id="studyCard" class="fit-col fit-grow" hidden>
+      <div class="br-face fit-half">
       <div class="br-head"><span id="studyPos"></span><span id="studyKind"></span></div>
       <div class="br-card fit-grow fit-scroll" id="card"></div>
+      </div>
+      <div class="br-reply fit-half">
       <div id="answers" class="br-answers"></div>
       <p class="br-verdict" id="verdict"></p>
       <p class="br-explain" id="explain"></p>
       <button class="br-go" type="button" id="studyNext" hidden>Next</button>
+      </div>
     </div>
   </section>
 </div>

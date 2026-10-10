@@ -7,7 +7,7 @@
    <html> before the page draws. Generated once from the old stylesheets, maintained by hand from here. */
 
 /* ---------- Modern's palette (and the logos' colours), day and night ---------- */
-html[data-theme="modern"] { --gap: 6px; --tile-ratio: .8; --yard: #E4E7E7; --ink: #1C2A34; --ink-soft: #5A6B77; --tile: #F7F8F7; --tile-edge: #C9D1D5; --c0: #E1AB24; --c1: #3F7A50; --c2: #2D5E88; --c3: #A23C30; --on-c0: #2A2005; --on-c: #F7F5EF; --sheet: #F4F5F4; --focus: #2D5E88; --p0: #2D5E88; --p1: #C06A1B; --learn: #3F7A50; --font: "Archivo", "Helvetica Neue", Arial, sans-serif; --cr-logo-tint: #F3E1BA; --cr-logo-edge: #A2690F; --sl-logo-tint: #D3DEE7; --sl-logo-edge: #3F5A70; --d-logo-tint: #CBE7E4; --d-logo-edge: #17807C; --pt-logo-tint: #CFE6D8; --pt-logo-edge: #2E6B4A; --ct-logo-tint: #F1D7DC; --ct-logo-edge: #8E2C3B; --sp-logo-tint: #FBDCCB; --sp-logo-edge: #C2511F; --qt-logo-tint: #DCDFF5; --qt-logo-edge: #3F4DAE; --mf-logo-tint: #D2ECEA; --mf-logo-edge: #137C77; --ch-logo-tint: #D5E7F1; --ch-logo-edge: #1F6F9A; --sv-logo-tint: #F3E6CF; --sv-logo-edge: #9A6B1E; --bl-logo-tint: #E6EFD2; --bl-logo-edge: #5B7A1E; --pi-logo-tint: #F4DCD1; --pi-logo-edge: #B4532A; --rf-logo-tint: #D8E4EC; --rf-logo-edge: #35607E; --ru-logo-tint: #EADFD2; --ru-logo-edge: #6B4A2B; --dk-logo-tint: #EEDFF2; --dk-logo-edge: #6D3B7A; --pa-logo-tint: #D8EEEC; --pa-logo-edge: #1E7A74; --br-logo-tint: #F5D9E3; --br-logo-edge: #7A1638; --lg-logo-tint: #F2E6C8; --lg-logo-edge: #8A6A1E; --hb-logo-tint: #DCE3F0; --hb-logo-edge: #263A63;
+html[data-theme="modern"] { --gap: .375rem; --tile-ratio: .8; --yard: #E4E7E7; --ink: #1C2A34; --ink-soft: #5A6B77; --tile: #F7F8F7; --tile-edge: #C9D1D5; --c0: #E1AB24; --c1: #3F7A50; --c2: #2D5E88; --c3: #A23C30; --on-c0: #2A2005; --on-c: #F7F5EF; --sheet: #F4F5F4; --focus: #2D5E88; --p0: #2D5E88; --p1: #C06A1B; --learn: #3F7A50; --font: "Archivo", "Helvetica Neue", Arial, sans-serif; --cr-logo-tint: #F3E1BA; --cr-logo-edge: #A2690F; --sl-logo-tint: #D3DEE7; --sl-logo-edge: #3F5A70; --d-logo-tint: #CBE7E4; --d-logo-edge: #17807C; --pt-logo-tint: #CFE6D8; --pt-logo-edge: #2E6B4A; --ct-logo-tint: #F1D7DC; --ct-logo-edge: #8E2C3B; --sp-logo-tint: #FBDCCB; --sp-logo-edge: #C2511F; --qt-logo-tint: #DCDFF5; --qt-logo-edge: #3F4DAE; --mf-logo-tint: #D2ECEA; --mf-logo-edge: #137C77; --ch-logo-tint: #D5E7F1; --ch-logo-edge: #1F6F9A; --sv-logo-tint: #F3E6CF; --sv-logo-edge: #9A6B1E; --bl-logo-tint: #E6EFD2; --bl-logo-edge: #5B7A1E; --pi-logo-tint: #F4DCD1; --pi-logo-edge: #B4532A; --rf-logo-tint: #D8E4EC; --rf-logo-edge: #35607E; --ru-logo-tint: #EADFD2; --ru-logo-edge: #6B4A2B; --dk-logo-tint: #EEDFF2; --dk-logo-edge: #6D3B7A; --pa-logo-tint: #D8EEEC; --pa-logo-edge: #1E7A74; --br-logo-tint: #F5D9E3; --br-logo-edge: #7A1638; --lg-logo-tint: #F2E6C8; --lg-logo-edge: #8A6A1E; --hb-logo-tint: #DCE3F0; --hb-logo-edge: #263A63;
   --brass: var(--tile-edge); --brass-hi: var(--sheet); --brass-lo: var(--ink-soft); --rule: var(--tile-edge); --plate: var(--ink); --plate-ink: var(--yard); --logo-edge: var(--ink-soft);
   --caps: none; --track: 0; --stretch-btn: 100%; --wide: 100%; }
 @media (prefers-color-scheme: dark) { html[data-theme="modern"]:not([data-mode="day"]) { --yard: #141B20; --ink: #E3E8EB; --ink-soft: #93A3AE; --tile: #1D262D; --tile-edge: #33414B; --sheet: #1D262D; --focus: #8EB9DE; --p0: #6FA3D6; --p1: #E39A55; --learn: #86C79A; } }
@@ -226,7 +226,7 @@ html[data-theme="kontor"][data-mode="night"] {
   --yard: #0B100D; --ink: #D3E2D8; --ink-soft: #8A9E91; --tile: #131B16; --tile-edge: #24322A; --sheet: #121915;
   --c1: #2EB36A; --brass: #2EB36A; --brass-hi: #04110A; --brass-lo: #48C67F; --rule: #1E2A23; --plate: #2EB36A; --plate-ink: #04110A;
   --focus: #48C67F; --p0: #6FA6D8; --p1: #E39A55; --learn: #48C67F; --logo-edge: #D3E2D8; }
-html[data-theme="kontor"] body { font-family: var(--font); font-size: 15px; font-variant-numeric: tabular-nums; }
+html[data-theme="kontor"] body { font-family: var(--font); font-size: .9375rem; font-variant-numeric: tabular-nums; }
 html[data-theme="kontor"] :is(.btn, .pick, .tile, .app-row, .menu-seg, .menu-grid button, .menu-switch, .menu-switch::after, dialog.sheet, dialog.menu-sheet, dialog.apps-pop, .code-chip, .icon-btn, input, select, [class*="-go"]) { border-radius: 2px; }
 html[data-theme="kontor"] :is(.btn, .pick, .tile, .app-row, .code-chip, .icon-btn) { border-width: 1px; box-shadow: none; }
 html[data-theme="kontor"] :is(.btn, .pick, .menu-h, .pick-head h2, .app-name, .sheet h4, .menu-label, [class*="-go"], .menu-seg button) {
@@ -240,7 +240,7 @@ html[data-theme="kontor"] .menu-h { color: var(--brass-lo); }
 .k-ico { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: square; stroke-linejoin: miter; color: var(--ink); }
 .k-ico .a { stroke: var(--brass); }
 .k-ico .f { fill: var(--brass); stroke: none; }
-.k-menu { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; }
+.k-menu { width: 1.625rem; height: 1.625rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: square; }
 /* Modern's ornaments: none (its plain Menu button is the game's own) */
 html[data-theme="modern"] .top, html[data-theme="modern"] .apps-brand { background: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.btn.primary, [class*="-go"]) { outline: 0; }
@@ -311,7 +311,7 @@ html[data-theme="office"][data-mode="night"] {
   --of-hover: #333333; --of-selected: #0E2A47; --of-shadow: 0 2px 4px rgba(0, 0, 0, .5), 0 0 2px rgba(0, 0, 0, .4); }
 
 /* lettering: Segoe UI, 14 px, sentence case everywhere; headings semibold, never tracked or stretched */
-html[data-theme="office"] body { font-family: var(--font); font-size: 14px; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+html[data-theme="office"] body { font-family: var(--font); font-size: .875rem; font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
 html[data-theme="office"] :is(h1, h2, h3, h4, .btn, .pick, .menu-h, .pick-head h2, .app-name, .sheet h4, .menu-label, [class*="-go"], .menu-seg button, .mark, .mark-btn,
   [class*="-label"], [class*="-tag"], [class*="-cat"], [class*="-chip"], [class*="-note"] b, .apps-brand) {
   font-family: var(--font); text-transform: none; letter-spacing: normal; font-stretch: 100%; }

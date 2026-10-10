@@ -12,7 +12,7 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-round { font-size: .95rem; font-weight: 750; color: var(--ink-soft); }
 .mf-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .mf-lives { display: flex; gap: .3rem; }
-.mf-life { width: 14px; height: 14px; border-radius: 50%; background: var(--mf-in); }
+.mf-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--mf-in); }
 .mf-life.gone { background: none; box-shadow: inset 0 0 0 2px var(--mf-edge); }
 
 /* the stage fits the screen: the stack takes the room the questions leave (and steps aside when a question
@@ -36,7 +36,7 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-book.strip .mf-chiplet { padding: .2rem .55rem; border-radius: 3px; background: var(--yard); font-size: .82rem; font-weight: 700; }
 .mf-book.strip .mf-chiplet b { color: var(--mf-in); margin-left: .3rem; }
 
-.mf-timer { height: 6px; border-radius: 3px; background: var(--yard); overflow: hidden; }
+.mf-timer { height: .375rem; border-radius: 3px; background: var(--yard); overflow: hidden; }
 .mf-timer i { display: block; height: 100%; width: 100%; background: var(--mf-in); transform-origin: left; }
 .mf-timer.run i { animation: drain var(--mf-ms, 5s) linear forwards; }
 @keyframes drain { to { transform: scaleX(0); } }
@@ -54,7 +54,7 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 @keyframes appear { from { opacity: 0; } to { opacity: 1; } }
 /* a container drops from above and lands with a bounce; delays stagger them by the round's order */
 .cube.drop { animation: land .5s cubic-bezier(.3, 1.4, .5, 1) both; }
-@keyframes land { from { transform: translateY(-70px); opacity: 0; } 60% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }
+@keyframes land { from { transform: translateY(-4.375rem); opacity: 0; } 60% { opacity: 1; } to { transform: translateY(0); opacity: 1; } }
 .mf-view .tap .mf-cell { cursor: pointer; }
 .mf-note { margin: 0; font-weight: 750; color: var(--ink-soft); }
 .mf-note[hidden] { display: none; }
@@ -79,11 +79,11 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-answers { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: .4rem; }   /* every answer in one row */
 .with-pic .mf-answers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 /* beside a picture, a colour is one line (swatch, then name), so the answers are no taller than the picture */
-.with-pic .mf-chip.colour { grid-auto-flow: column; justify-content: start; gap: .35rem; min-height: 38px; padding: .3rem .45rem; }
-.with-pic .mf-chip i { width: 16px; height: 16px; }
-.mf-chip { min-height: 42px; border-radius: 5px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
+.with-pic .mf-chip.colour { grid-auto-flow: column; justify-content: start; gap: .35rem; min-height: 2.375rem; padding: .3rem .45rem; }
+.with-pic .mf-chip i { width: 1rem; height: 1rem; }
+.mf-chip { min-height: 2.625rem; border-radius: 5px; border: 2px solid var(--mf-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.2rem; font-weight: 800; cursor: pointer; display: grid; place-items: center; gap: .15rem; }
 .mf-chip.colour { font-size: .78rem; font-weight: 750; padding: .35rem .15rem; }
-.mf-chip i { width: 18px; height: 18px; border-radius: 5px; display: block; }
+.mf-chip i { width: 1.125rem; height: 1.125rem; border-radius: 5px; display: block; }
 .mf-chip.good { border-color: var(--mf-good); background: var(--mf-good); color: #fff; }
 .mf-chip.bad { border-color: var(--mf-bad); background: var(--mf-bad); color: #fff; }
 .mf-chip:disabled { cursor: default; }
@@ -94,7 +94,17 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-mini svg { width: 100%; height: auto; max-height: 4.6rem; display: block; }
 
 .mf-buttons { display: grid; grid-template-columns: 1fr; gap: .4rem; }
-.mf-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+/* the stage's two halves, what you're shown and what you answer (.fit-half: on a phone not boxes at all, their parts
+   lying in the stage's column as they always have); held sideways (#app.wide) they stand side by side, the picture
+   large on the left and the questions and buttons on the right, the buttons at the bottom */
+@media (orientation: landscape) and (min-width: 700px) {
+  .mf-stage { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; grid-template-rows: minmax(0, 1fr); column-gap: 1.6rem; padding: 1rem; }
+  .mf-look, .mf-answer { display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+  .mf-answer .mf-asks { flex: 1 1 auto; max-height: none; }
+  .mf-answer .mf-buttons { margin-top: auto; }
+  .mf-view svg { width: min(100cqw, calc(100cqh * var(--aspect, 1.3))); }
+}
+.mf-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .mf-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .mf-go[hidden] { display: none; }
 .mf-big { font-size: 3rem; font-weight: 800; color: var(--mf-in); text-align: center; margin: .2rem 0; }

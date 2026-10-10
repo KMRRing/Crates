@@ -41,12 +41,12 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-crash { fill: none; stroke: var(--c3); stroke-width: .8; stroke-dasharray: 1.6 1.1; }
 
 /* the programs: a row per ship, a column per hour; the loop ends at the last instruction, and cells past it are faded */
-.hb-tape { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; margin-top: .5rem; padding: 4px 6px 6px 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
+.hb-tape { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; margin-top: .5rem; padding: .25rem .375rem .375rem 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain;
   touch-action: pan-x;   /* sideways only: an up-or-down swipe on the programs moves nothing */
   scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--ink) 30%, transparent) transparent;   /* a laptop's bar, thin and in the theme */
   background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 10px; -webkit-overflow-scrolling: touch; }
 .hb-grid { display: grid; grid-template-columns: 1.9rem repeat(var(--cols), 1.7rem); grid-template-rows: .95rem repeat(4, 1.7rem);
-  gap: 3px; width: max-content; }
+  gap: .1875rem; width: max-content; }
 .hb-lab, .hb-corner { position: sticky; left: 0; z-index: 1; background: var(--tile); }
 .hb-lab { border: 0; padding: 0; border-radius: 0 6px 6px 0; font: 800 .85rem var(--font); color: var(--ink); cursor: pointer; }
 .hb-lab.on { background: var(--ink); color: var(--yard); }
@@ -59,31 +59,48 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-cell.now { box-shadow: 0 0 0 2px var(--focus); }
 .hb-cell.op-L, .hb-tool.op-L { background: var(--c0); color: var(--on-c0); }
 .hb-cell.op-D, .hb-tool.op-D { background: var(--c2); color: var(--on-c); }
-.hb-cell svg, .hb-tool svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.hb-cell svg, .hb-tool svg { width: .9375rem; height: .9375rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* the instructions to paint with, then the clock */
-.hb-tools { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: 4px; margin-top: .5rem; }
-.hb-tool { height: 38px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 8px;
+.hb-tools { display: grid; grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr)); gap: .25rem; margin-top: .5rem; }
+.hb-tool { height: 2.375rem; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--ink-soft); border-radius: 8px;
   background: none; color: var(--ink); font: 800 1rem var(--font); cursor: pointer; }
 .hb-tool[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
-.hb-run { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: .45rem; }
-.hb-ctl { height: 40px; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--brass); border-radius: 4px;
+.hb-run { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .375rem; margin-top: .45rem; }
+.hb-ctl { height: 2.5rem; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--brass); border-radius: 4px;
   background: none; color: var(--ink); font: 800 .95rem var(--font); cursor: pointer; }
 .hb-ctl.primary { background: var(--plate); color: var(--plate-ink); }
 .hb-ctl:disabled { opacity: .35; cursor: default; }
-.hb-ctl svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.hb-ctl svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .hb-ctl svg .solid { fill: currentColor; }
 .hb-status { margin: .4rem 0 0; min-height: 1.35em; text-align: center; font-size: .84rem; font-weight: 700;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hb-status.bad { color: var(--c3); }
 .hb-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
+/* held sideways (#app.beside): the harbour (or the region) takes the left, all the height under the header; the
+   brief, the fleet, the programs and the controls stand beside it, the run's buttons at the bottom where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.harbour { --beside: 26rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto auto auto auto; }
+  #app.harbour > * { grid-column: 2; }
+  #app.harbour > .top { grid-column: 1 / -1; }
+  .hb-brief { grid-row: 2; }
+  #viewing { grid-row: 3; }
+  #next { grid-row: 4; }
+  .hb-classes { grid-row: 5; }
+  .hb-tape { grid-row: 6; align-self: start; max-height: 100%; overflow-y: auto; }
+  .hb-tools { grid-row: 7; }
+  .hb-scrub { grid-row: 8; }
+  .hb-run { grid-row: 9; }
+  .hb-status { grid-row: 10; }
+  #app.harbour > .hb-sea, #app.harbour > .hb-region { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
+}
 
 /* picking hours: what's picked is tinted, the first end of a pick still waiting for the other is ringed */
 .hb-cell.picked { background: color-mix(in srgb, var(--focus) 24%, transparent); box-shadow: inset 0 0 0 1.5px var(--focus); }
 .hb-cell.anchor { box-shadow: inset 0 0 0 2.5px var(--focus); }
 .hb-act { font: 750 .66rem/1 var(--font); font-stretch: 87.5%; letter-spacing: -.01em; }
 .hb-tool:disabled { opacity: .35; cursor: default; }
-.hb-tool svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.hb-tool svg { width: 1.0625rem; height: 1.0625rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .hb-picktool[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 
 /* loops: the body boxed in the loop colour; its later passes faded, the first of them showing the count */
@@ -100,29 +117,29 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-bests th, .hb-bests td { padding: .4rem .2rem; text-align: left; border-bottom: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
 .hb-bests thead th { font-size: .75rem; letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) { .hb-ship { transition: none; } }
-.hb-tape::-webkit-scrollbar { height: 6px; }
+.hb-tape::-webkit-scrollbar { height: .375rem; }
 .hb-tape::-webkit-scrollbar-track { background: transparent; }
 .hb-tape::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--ink) 30%, transparent); border-radius: 3px; }
 /* a par plan on show: which one, and the way back (in the brief's place) */
-.hb-viewing { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: .5rem 0 .4rem; height: calc(3.9 * .86rem);   /* the brief's space exactly: nothing moves */
+.hb-viewing { display: flex; align-items: center; justify-content: space-between; gap: .625rem; margin: .5rem 0 .4rem; height: calc(3.9 * .86rem);   /* the brief's space exactly: nothing moves */
   box-sizing: border-box; font-size: .92rem; font-weight: 600; color: var(--ink); }
 .hb-viewing[hidden] { display: none; }
-.hb-mine { flex: none; font: inherit; font-size: .82rem; font-weight: 700; padding: 6px 10px; border-radius: 4px; border: 1.5px solid var(--brass); background: var(--tile); color: var(--ink); cursor: pointer; }
+.hb-mine { flex: none; font: inherit; font-size: .82rem; font-weight: 700; padding: .375rem .625rem; border-radius: 4px; border: 1.5px solid var(--brass); background: var(--tile); color: var(--ink); cursor: pointer; }
 .hb-mine.primary, #useBtn { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
-.hb-btns { display: flex; gap: 6px; flex: none; }
+.hb-btns { display: flex; gap: .375rem; flex: none; }
 .hb-next span { min-width: 0; }
 /* the menu's pars: each opens the plan that reaches it */
-.hb-par { appearance: none; border: 0; background: none; font: inherit; color: inherit; padding: 2px 6px; margin: -2px -6px; border-radius: 6px;
+.hb-par { appearance: none; border: 0; background: none; font: inherit; color: inherit; padding: 2px .375rem; margin: -2px -.375rem; border-radius: 6px;
   text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 .hb-par:hover, .hb-par:focus-visible { background: color-mix(in srgb, var(--ink) 9%, transparent); }
-.hb-note { margin: 8px 0 0; font-size: .85rem; color: var(--ink-soft); }
+.hb-note { margin: .5rem 0 0; font-size: .85rem; color: var(--ink-soft); }
 /* the fleet: a chip per class, what it holds and costs, and how many are left */
-.hb-classes { display: flex; gap: 6px; margin-top: .45rem; }
-.hb-class { flex: 1 1 0; max-width: calc(50% - 3px); min-width: 0; display: flex; align-items: center; gap: 5px; padding: 5px 7px;
+.hb-classes { display: flex; gap: .375rem; margin-top: .45rem; }
+.hb-class { flex: 1 1 0; max-width: calc(50% - .1875rem); min-width: 0; display: flex; align-items: center; gap: .3125rem; padding: .3125rem .4375rem;
   border-radius: 10px; border: 1.5px solid var(--tile-edge); background: var(--tile); color: var(--ink); font: inherit; font-size: .76rem;
   line-height: 1.2; cursor: pointer; text-align: left; }
 .hb-class.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-.hb-class svg { flex: none; width: 20px; height: 14px; }
+.hb-class svg { flex: none; width: 1.25rem; height: .875rem; }
 .hb-class svg .hb-hull { fill: var(--hb-hull); stroke: var(--hb-ship-ink, var(--ink)); stroke-width: .7; }
 .hb-class b { font-weight: 700; }
 .hb-class span { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -132,21 +149,21 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
 .hb-sea { position: relative; touch-action: none; }
 .hb-3d { position: absolute; inset: 0; display: block; width: 100%; height: 100%; touch-action: none;
   /* the land fades into the page over the box's last 18px on every side, rather than stopping at its edge */
-  --fade: 18px;
+  --fade: 1.125rem;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent), linear-gradient(to bottom, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
   -webkit-mask-composite: source-in;
   mask-image: linear-gradient(to right, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent), linear-gradient(to bottom, transparent, #000 var(--fade), #000 calc(100% - var(--fade)), transparent);
   mask-composite: intersect; }
 .hb-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .hb-tag { position: absolute; left: 0; top: 0; font: 800 .68rem/1 var(--font); white-space: nowrap; will-change: transform; }
-.hb-tag-ship { padding: 2px 5px; border-radius: 999px; background: var(--sheet, var(--tile)); color: var(--ink); border: 1.5px solid var(--ink); }
-.hb-tag-jetty { padding: 3px 6px; border-radius: 6px; background: var(--tag); color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
+.hb-tag-ship { padding: 2px .3125rem; border-radius: 999px; background: var(--sheet, var(--tile)); color: var(--ink); border: 1.5px solid var(--ink); }
+.hb-tag-jetty { padding: .1875rem .375rem; border-radius: 6px; background: var(--tag); color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .25); }
 html[data-theme="kontor"] .hb-tag { border-radius: 2px; }
 html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 /* the scrubber: the run's hours played so far; Undo and Redo share a cell; a crash's hour in the programs */
-.hb-scrub { display: block; width: 100%; height: 22px; margin: .35rem 0 0; accent-color: var(--ink); background: none; }
+.hb-scrub { display: block; width: 100%; height: 1.375rem; margin: .35rem 0 0; accent-color: var(--ink); background: none; }
 .hb-scrub:disabled { opacity: .35; }
-.hb-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; min-width: 0; }
+.hb-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .25rem; min-width: 0; }
 .hb-pair .hb-ctl { padding-left: 0; padding-right: 0; min-width: 0; }
 .hb-cell.wreck { box-shadow: inset 0 0 0 2.5px #D8432F; }
 .hb-status.back { cursor: pointer; }
@@ -156,7 +173,7 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hb-pentool[aria-pressed="true"] { background: var(--ink); color: var(--yard); border-color: var(--ink); }
 /* dragging an instruction in: the tool follows the finger (lifted clear of it), and a mark shows where it would go */
 .hb-tools .hb-tool[data-op] { touch-action: none; }
-.hb-ghost { position: fixed; z-index: 60; width: 40px; height: 40px; transform: translate(-50%, -125%); pointer-events: none;
+.hb-ghost { position: fixed; z-index: 60; width: 2.5rem; height: 2.5rem; transform: translate(-50%, -125%); pointer-events: none;
   box-shadow: 0 8px 18px rgb(0 0 0 / .28); opacity: .96; }
 .hb-dropmark { position: fixed; z-index: 59; pointer-events: none; border-radius: 3px; }
 .hb-dropmark.cell { box-shadow: 0 0 0 2.5px var(--ink), 0 0 0 5px color-mix(in srgb, var(--yard, #fff) 70%, transparent); }
@@ -176,9 +193,9 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-coins::before { content: ""; display: inline-block; width: .72em; height: .72em; margin-right: .3em; vertical-align: -.04em; border-radius: 50%;
   background: var(--c0); box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
 .hs-stars { color: var(--brass-lo); }
-.hs-pips { display: inline-flex; gap: 3px; margin-left: .5rem; vertical-align: .02em; }
-.hs-pips i { width: 7px; height: 7px; border: 1.3px solid var(--brass-lo); border-radius: 1.5px; } .hs-pips i.on { background: var(--brass-lo); }
-.hb-region > .hs-boardbox { flex: 1 1 auto; min-height: 150px; container-type: size; display: grid; place-items: center; }
+.hs-pips { display: inline-flex; gap: .1875rem; margin-left: .5rem; vertical-align: .02em; }
+.hs-pips i { width: .4375rem; height: .4375rem; border: 1.3px solid var(--brass-lo); border-radius: 1.5px; } .hs-pips i.on { background: var(--brass-lo); }
+.hb-region > .hs-boardbox { flex: 1 1 auto; min-height: 9.375rem; container-type: size; display: grid; place-items: center; }
 .hs-board, .hw-world { width: min(100cqw, calc(100cqh / var(--tall, .90625))); height: auto; display: block; border: 1.5px solid var(--tile-edge); border-radius: 6px;
   user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .hw-world { width: min(100cqw, calc(100cqh * 2)); }
@@ -219,26 +236,26 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-tap { cursor: pointer; } .hs-tap:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .hs-hit { fill: transparent; }
 /* this week's three offers, the one picked on the plate */
-.hs-offers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-.hs-offer { display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 62px; padding: 5px 4px; border: 1.5px solid var(--brass); border-radius: 6px;
+.hs-offers { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .375rem; }
+.hs-offer { display: grid; justify-items: center; align-content: center; gap: 1px; min-height: 3.875rem; padding: .3125rem .25rem; border: 1.5px solid var(--brass); border-radius: 6px;
   background: var(--tile); color: var(--ink); font: inherit; text-align: center; cursor: pointer; }
-.hs-offer svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.hs-offer svg { width: 1.375rem; height: 1.375rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
 .hs-offer svg .w { fill: currentColor; }
 .hs-offer b { font-size: .76rem; font-weight: 800; line-height: 1.15; }
 .hs-offer span { font-size: .68rem; line-height: 1.2; color: var(--ink-soft); }
 .hs-offer.on { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
 .hs-offer.on span { color: inherit; opacity: .8; }
 .hs-offer:disabled:not(.on) { opacity: .38; cursor: default; }
-.hs-play { min-height: 44px; border: 1.5px solid var(--plate); border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 750; font-size: .9rem;
+.hs-play { min-height: 2.75rem; border: 1.5px solid var(--plate); border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 750; font-size: .9rem;
   font-stretch: var(--stretch-btn); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer;
   outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; }
 .hs-play:disabled { opacity: .4; cursor: default; }
 .hb-region .hs-status { margin: 0; height: 2.6em; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
 .hb-region .hs-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); } .hb-region .hs-status.bad { color: var(--c3); }
-.hs-viewing { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; font-size: .84rem; font-weight: 700; }
-.hs-viewing .hb-btns { flex: 1 0 100%; } .hs-viewing .hb-btns button { flex: 1; min-height: 34px; }
-.hs-pair { display: flex; gap: 4px; }
-.hs-small { width: 34px; height: 32px; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: 800 .9rem var(--font); cursor: pointer; }
+.hs-viewing { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .375rem .5rem; font-size: .84rem; font-weight: 700; }
+.hs-viewing .hb-btns { flex: 1 0 100%; } .hs-viewing .hb-btns button { flex: 1; min-height: 2.125rem; }
+.hs-pair { display: flex; gap: .25rem; }
+.hs-small { width: 2.125rem; height: 2rem; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: 800 .9rem var(--font); cursor: pointer; }
 .hs-small:disabled { opacity: .3; cursor: default; }
 /* a town's or the terminal's sheet */
 dialog.hs-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
@@ -246,13 +263,13 @@ dialog.hs-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .hs-sheet h4 { margin: .9rem 0 .35rem; }
 .hs-line { margin: .25rem 0 .5rem; line-height: 1.4; }
 .hs-soft { margin: .35rem 0; color: var(--ink-soft); font-size: .85rem; line-height: 1.35; }
-.hs-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.hs-chip { padding: 6px 10px; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
+.hs-chips { display: flex; flex-wrap: wrap; gap: .375rem; }
+.hs-chip { padding: .375rem .625rem; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
 .hs-chip:disabled { cursor: default; opacity: .6; }
-.hs-sends { display: grid; gap: 6px; margin: .45rem 0; } .hs-sends .btn { min-height: 40px; }
+.hs-sends { display: grid; gap: .375rem; margin: .45rem 0; } .hs-sends .btn { min-height: 2.5rem; }
 .hs-deal { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .5rem 0; border-bottom: 1px solid var(--rule); }
 .hs-deal > div { display: grid; gap: 2px; min-width: 0; } .hs-deal span { color: var(--ink-soft); font-size: .82rem; line-height: 1.3; }
-.hs-deal .btn { flex: none; min-height: 38px; padding: .35rem .75rem; }
+.hs-deal .btn { flex: none; min-height: 2.375rem; padding: .35rem .75rem; }
 .hs-how { margin: .4rem 0 .6rem; padding-left: 1.3rem; line-height: 1.45; } .hs-how li { margin: .3rem 0; }
 /* the world: the chart, your regions lit, the regions to come in ink, the lanes */
 .hw-sea { fill: var(--hb-water); }
@@ -270,9 +287,9 @@ dialog.hs-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .hw-card-head { display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
 .hw-region { display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
 .hw-region > div { display: grid; gap: 2px; min-width: 0; } .hw-region span { color: var(--ink-soft); font-size: .8rem; }
-.hw-region .btn { flex: none; min-height: 36px; padding: .3rem .8rem; }
-.hw-step { display: inline-flex; align-items: center; gap: 4px; }
-.hw-step button { width: 34px; height: 32px; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: 800 1rem var(--font); cursor: pointer; }
+.hw-region .btn { flex: none; min-height: 2.25rem; padding: .3rem .8rem; }
+.hw-step { display: inline-flex; align-items: center; gap: .25rem; }
+.hw-step button { width: 2.125rem; height: 2rem; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: 800 1rem var(--font); cursor: pointer; }
 .hw-step button:disabled { opacity: .3; cursor: default; } .hw-step output { min-width: 1.6em; text-align: center; font-weight: 800; }
 /* the menu's campaign: each chapter reached, its steps done, here, open or locked (and why) */
 .hb-camp { display: grid; gap: .7rem; }

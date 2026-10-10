@@ -9,7 +9,7 @@
 
 :root {
   --caps: uppercase; --track: 1; --stretch-btn: 112%;   /* the Deco lettering; the other themes reset these */
-  --gap: 6px;             /* between tiles, and between solved crates */
+  --gap: .375rem;             /* between tiles, and between solved crates */
   --tile-ratio: .8;       /* tile height / width */
   /* Almanac's look: brass instruments on an almanac's page. Light is the page (parchment, navy ink, brass rules);
      dark is the instrument (a night-navy dial, parchment lettering, bright brass). The four crate colours are
@@ -170,11 +170,44 @@ html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 body > #app { max-height: 100%; box-sizing: border-box; overflow-y: auto; overscroll-behavior: none; }
 * { touch-action: manipulation; }   /* no double-tap zoom anywhere (phones only honour this on the touched element itself); pinch still works */
 input, textarea, select { font-size: max(1em, 16px); }   /* iPhones zoom into a field smaller than 16px when it's focused */
-body { font-family: var(--font); font-size: 17px; line-height: 1.4; font-weight: 500; -webkit-text-size-adjust: 100%; }
+body { font-family: var(--font); font-size: 1.0625rem; line-height: 1.4; font-weight: 500; -webkit-text-size-adjust: 100%; }
 button, input { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 #app { max-width: 34rem; margin: 0 auto; padding: 1.1rem 1rem 2rem; }
+
+/* Bigger screens. The phone held upright is the design, and matches none of the queries below, so it looks as it
+   always has. Sizes are in rem wherever they should grow with the screen (borders and hairlines stay in px).
+   - A tablet held upright draws the phone's layout larger: the root's font size, and with it every rem, grows until
+     the screen holds the layout as a large phone does, 35rem across and 50rem down (an 11-inch iPad, 1.46 times), so
+     the board, the type and the buttons fill the screen together instead of a phone's column standing in its middle.
+   - Held sideways (a tablet, a computer's window, a phone turned over), the root grows with the height alone, and a
+     game lays its parts out beside its board, in its own stylesheet under the third query: #app.beside sets the frame
+     (the header across the top, the board's column taking what the side column, --beside wide, leaves). */
+@media (orientation: portrait) and (min-width: 600px) and (min-height: 860px) {
+  html { font-size: clamp(16px, min(100vw / 35, 100vh / 50), 26px); font-size: clamp(16px, min(100vw / 35, 100svh / 50), 26px); }
+}
+@media (orientation: landscape) and (min-width: 900px) and (min-height: 600px) {
+  html { font-size: clamp(16px, 100vh / 50, 24px); font-size: clamp(16px, 100svh / 50, 24px); }
+}
+@media (orientation: landscape) and (min-width: 700px) {
+  /* "html" outranks a game's own #app.<game> { display: flex }; a game tunes the frame through --beside (the side
+     column's width), --beside-gap, or --beside-cols (columns of its own), and places its parts with grid-row and
+     grid-column */
+  html #app.beside { display: grid; grid-template-columns: var(--beside-cols, minmax(0, 1fr) var(--beside, 22rem)); column-gap: var(--beside-gap, 2rem);
+    align-content: stretch; max-width: 84rem; height: 100vh; height: 100svh; min-height: 0; overflow: hidden; box-sizing: border-box;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + .8rem); }
+  html #app.beside > .top { grid-column: 1 / -1; }
+  html #app.beside > * { min-width: 0; }
+  /* #app.wide: the whole width as one column, for a game whose card divides itself (Quote's question and market) */
+  html #app.wide { max-width: 84rem; padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px)); }
+}
+/* a phone on its side is too short for every game's parts: what doesn't fit scrolls inside the app, as it always
+   has there, rather than being cut off */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  html #app.beside, html #app.wide { overflow-y: auto; overscroll-behavior: contain; }
+}
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-bottom: .6rem;
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
@@ -214,7 +247,12 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr));
   flex: 1; min-height: 0; grid-auto-rows: minmax(4.6rem, 1fr); overflow-y: auto; }
 @media (min-width: 36rem) { .apps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@media (min-width: 46rem) { .apps-list { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+/* six across only on a screen held sideways: upright, a tablet keeps four, its tiles about as square as a phone's */
+@media (min-width: 46rem) and (orientation: landscape) {
+  .apps-list { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .apps-pop-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }   /* More's popup keeps its own four */
+  .apps-inner { max-width: 84rem; }
+}
 .apps-list li { min-height: 0; }
 .app-row { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; height: 100%; min-height: 0;
   box-sizing: border-box; padding: .4rem; border-radius: 6px; text-decoration: none; color: var(--ink); background: var(--sheet);
@@ -231,15 +269,20 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .app-row.cur .app-logo, .app-row:hover .app-logo, .app-row:active .app-logo, .app-row:focus-visible .app-logo { --wire: 1.5; }
 .app-logo svg *, .mark-icon svg * { transition: stroke-width .15s ease; }
 .app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.1; }
+/* a tablet's tiles are larger than a phone's: the logos and names grow into them (a phone's stop at their tile's height) */
+@media (min-width: 600px) and (min-height: 600px) {
+  .app-logo { width: min(4.8rem, 48cqh); height: min(4.8rem, 48cqh); }
+  .app-name { font-size: clamp(.66rem, 13cqh, 1.05rem); }
+}
 /* the game you're playing: a small play mark on the top-right corner of its icon */
 .app-logo { position: relative; }
 .app-now {
-  position: absolute; top: -5px; right: -8px; width: 15px; height: 15px; border-radius: 50%;
+  position: absolute; top: -.3125rem; right: -.5rem; width: .9375rem; height: .9375rem; border-radius: 50%;
   background: var(--brass); box-shadow: 0 0 0 2px var(--sheet); pointer-events: none;   /* ringed in the tile's own colour */
 }
 .apps-pop-list .app-now { box-shadow: 0 0 0 2px var(--yard); }
 .app-now::after {                                   /* the play triangle */
-  content: ""; position: absolute; left: 5.5px; top: 4px; border-style: solid;
+  content: ""; position: absolute; left: .34375rem; top: .25rem; border-style: solid;
   border-width: 3.5px 0 3.5px 5.5px; border-color: transparent transparent transparent var(--yard);
 }
 /* "…" opens the other games in a popup over the screen of games */
@@ -259,6 +302,11 @@ dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
 #app.fit-screen > *, .fit-col > * { flex: none; }
 #app.fit-screen > .fit-grow, .fit-col > .fit-grow { flex: 1 1 auto; min-height: 0; }
 .fit-col[hidden], .fit-grow[hidden], .fit-box[hidden] { display: none; }
+/* part of a .fit-col that is a box of its own only where a game makes it one (held sideways, its halves side by side):
+   otherwise it isn't a box at all, and its children share the column's height as the column's own children do */
+.fit-half { display: contents; }
+.fit-half > * { flex: none; }
+.fit-half > .fit-grow { flex: 1 1 auto; min-height: 0; }
 /* a part that scrolls inside itself when its contents are longer than its room */
 .fit-scroll { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 /* a box whose contents size themselves to it (container units: 100cqw × 100cqh is the room they have) */
@@ -268,7 +316,7 @@ dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
 .math.display { display: block; text-align: center; margin: .35rem 0; }
 math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math", serif; }
 .pool {
-  appearance: none; -webkit-appearance: none; min-height: 36px; border: 0; border-radius: 4px; cursor: pointer;
+  appearance: none; -webkit-appearance: none; min-height: 2.25rem; border: 0; border-radius: 4px; cursor: pointer;
   padding: .3rem 1.9rem .3rem .75rem; background-color: var(--plate); color: var(--plate-ink);
   font-weight: 700; font-stretch: 87.5%; max-width: 12.5rem; min-width: 0; text-overflow: ellipsis; white-space: nowrap;
   background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
@@ -278,7 +326,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .pick {
   background: none; border: 1.5px solid var(--brass); border-radius: 4px; color: var(--ink);
   padding: .3rem .7rem; font-weight: 750; font-size: .8rem; font-stretch: var(--stretch-btn); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps);
-  cursor: pointer; min-height: 36px; white-space: nowrap; flex-shrink: 0;
+  cursor: pointer; min-height: 2.25rem; white-space: nowrap; flex-shrink: 0;
 }
 @media (max-width: 400px) {
   .mark { font-size: 1.06rem; gap: .5rem; }
@@ -292,24 +340,24 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .status { margin: .7rem 0 0; font-weight: 650; color: var(--ink); text-align: center; }
 .brief p { margin: 0; color: var(--ink-soft); max-width: 23rem; font-size: 1rem; }
 .mode-note { display: block; margin-top: .3rem; font-size: .85rem; font-weight: 700; color: var(--learn); }
-.players { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex: none; }
+.players { display: flex; flex-direction: column; gap: .375rem; align-items: flex-end; flex: none; }
 .coop .players { align-items: flex-start; }
-.names { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
-.pl-name { font-weight: 700; font-stretch: 87.5%; font-size: .9rem; display: flex; align-items: center; gap: 5px; }
-.pl-name::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--p0); flex: none; }
+.names { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .875rem; }
+.pl-name { font-weight: 700; font-stretch: 87.5%; font-size: .9rem; display: flex; align-items: center; gap: .3125rem; }
+.pl-name::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--p0); flex: none; }
 .pl-name.s1::before { background: var(--p1); }
 .pl-name.away { opacity: .55; }
 .pl-waiting { color: var(--ink-soft); font-size: .88rem; }
 /* Solo: hearts above clue marks. Together: one team row. */
-.team { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
-.coop .team { flex-direction: row; align-items: center; gap: 14px; }
-.lives, .clue-dots { display: flex; gap: 5px; }
-.lives svg, .clue-dots i { width: 14px; height: 14px; flex: none; display: block; box-sizing: border-box; }
+.team { display: flex; flex-direction: column; gap: .375rem; align-items: flex-end; }
+.coop .team { flex-direction: row; align-items: center; gap: .875rem; }
+.lives, .clue-dots { display: flex; gap: .3125rem; }
+.lives svg, .clue-dots i { width: .875rem; height: .875rem; flex: none; display: block; box-sizing: border-box; }
 .lives svg { fill: none; stroke: var(--ink-soft); stroke-width: 2.2; stroke-linejoin: round; }
 .lives svg.on { fill: var(--ink); stroke: var(--ink); }
 .clue-dots i {
   border-radius: 50%; border: 1.5px solid var(--ink-soft); display: grid; place-items: center;
-  font-style: normal; font-size: 8.5px; font-weight: 800; line-height: 1; color: var(--ink-soft);
+  font-style: normal; font-size: .53125rem; font-weight: 800; line-height: 1; color: var(--ink-soft);
 }
 .clue-dots i.on { background: var(--ink); border-color: var(--ink); color: var(--yard); }
 
@@ -326,38 +374,38 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .tile[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 2px var(--brass); background: color-mix(in srgb, var(--brass) 14%, var(--tile)); }
 .tile:active { transform: scale(.97); }
 .grid.shake .tile[aria-pressed="true"] { animation: shake .35s; }
-@keyframes shake { 25% { transform: translateX(-5px);} 75% { transform: translateX(5px);} }
+@keyframes shake { 25% { transform: translateX(-.3125rem);} 75% { transform: translateX(.3125rem);} }
 
 /* Your partner's picks look exactly like yours (no player colours: those read as crate colours).
    Where you both see the same tiles, a small initial says whose pick it is. */
 .cell.psel .tile { border-color: var(--brass); box-shadow: inset 0 0 0 2px var(--brass); background: color-mix(in srgb, var(--brass) 14%, var(--tile)); }
 .ptag {
-  position: absolute; left: 5px; bottom: 5px; width: 17px; height: 17px; border-radius: 50%;
+  position: absolute; left: .3125rem; bottom: .3125rem; width: 1.0625rem; height: 1.0625rem; border-radius: 50%;
   display: grid; place-items: center; font-size: .65rem; font-weight: 800;
   background: var(--ink); color: var(--yard); pointer-events: none;
 }
 /* marks: your note of a tile's crate, in its bottom-left corner; on a selected tile the swatch is a button that marks it
    and moves the mark on through the crates' colours to none */
-.cell .mark { position: absolute; left: 6px; bottom: 6px; width: 11px; height: 11px; border-radius: 3px; pointer-events: none; box-shadow: 0 0 0 1.5px var(--yard); }
+.cell .mark { position: absolute; left: .375rem; bottom: .375rem; width: .6875rem; height: .6875rem; border-radius: 3px; pointer-events: none; box-shadow: 0 0 0 1.5px var(--yard); }
 .cell .mark.pick {
-  pointer-events: auto; left: 5px; bottom: 5px; width: 14px; height: 14px; min-width: 0; min-height: 0; padding: 0; margin: 0;
+  pointer-events: auto; left: .3125rem; bottom: .3125rem; width: .875rem; height: .875rem; min-width: 0; min-height: 0; padding: 0; margin: 0;
   border-radius: 4px; cursor: pointer; z-index: 1; background: none; box-shadow: none; line-height: 0;
   border: 1.5px dashed color-mix(in srgb, var(--ink) 60%, transparent); -webkit-tap-highlight-color: transparent;
 }
-.cell .mark.pick::before { content: ""; position: absolute; inset: -9px; }     /* a finger-sized target around a small swatch */
+.cell .mark.pick::before { content: ""; position: absolute; inset: -.5625rem; }     /* a finger-sized target around a small swatch */
 .cell .mark.pick[class*=" m"] { border: 1.5px solid var(--yard); box-shadow: 0 0 0 1.5px var(--ink); }
 .cell .mark.m0 { background: var(--c0); }
 .cell .mark.m1 { background: var(--c1); }
 .cell .mark.m2 { background: var(--c2); }
 .cell .mark.m3 { background: var(--c3); }
-.cell.psel .mark { left: 26px; }                 /* your partner's initial has the corner: the mark sits beside it */
+.cell.psel .mark { left: 1.625rem; }                 /* your partner's initial has the corner: the mark sits beside it */
 .hint {
-  position: absolute; top: 0; right: 0; width: 30px; height: 30px; padding: 0; border: 0;
+  position: absolute; top: 0; right: 0; width: 1.875rem; height: 1.875rem; padding: 0; border: 0;
   background: none; cursor: pointer; display: grid; place-items: center; z-index: 1;
   -webkit-tap-highlight-color: transparent;
 }
 .hint span {
-  width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  width: 1.125rem; height: 1.125rem; border-radius: 50%; display: grid; place-items: center;
   font-size: .7rem; font-weight: 800; line-height: 1;
   background: var(--ink); color: var(--yard);
 }
@@ -425,7 +473,7 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .btn {
   border: 1.5px solid var(--brass); background: transparent; border-radius: 4px; color: var(--ink);
   padding: .5rem 1.1rem; font-weight: 750; font-size: .86rem; font-stretch: var(--stretch-btn); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps);
-  cursor: pointer; min-height: 44px;
+  cursor: pointer; min-height: 2.75rem;
 }
 .btn.primary { background: var(--plate); color: var(--plate-ink); border-color: var(--plate);
   outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; }
@@ -433,11 +481,11 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 
 .result { margin-top: 1rem; text-align: center; }
 .sub-line { color: var(--ink-soft); margin: -.2rem 0 .7rem; }
-.feed { list-style: none; padding: 0; margin: 1.1rem 0 0; display: grid; gap: 4px; }
+.feed { list-style: none; padding: 0; margin: 1.1rem 0 0; display: grid; gap: .25rem; }
 .guess { display: grid; grid-template-columns: auto auto 1fr; gap: .15rem .6rem; align-items: baseline;
   padding: .45rem .6rem; border-radius: 6px; background: var(--sheet); font-size: .92rem; }
-.g-who { font-weight: 700; display: flex; align-items: center; gap: 5px; }
-.g-who::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--p0); }
+.g-who { font-weight: 700; display: flex; align-items: center; gap: .3125rem; }
+.g-who::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--p0); }
 .g-who.s1::before { background: var(--p1); }
 .g-res { font-weight: 700; }
 .guess.r-right .g-res { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
@@ -459,6 +507,25 @@ math { font-family: "Temml", "Latin Modern Math", "STIX Two Math", "Cambria Math
 .room-link { font-size: .85rem; color: var(--ink-soft); overflow-wrap: anywhere; margin: .7rem 0 1rem; }
 .result-line { font-weight: 700; font-size: 1.1rem; margin: 0 0 .5rem; }
 .share-grid { font-family: inherit; font-size: 1.3rem; line-height: 1.15; margin: 0 0 1rem; }
+/* Crates held sideways (#app.beside): the crates and the tiles on the left, as wide as the height lets four rows of
+   tiles be (a tile is 4:5) and lettered in proportion; beside them the brief, what's happening, your guesses so far, and
+   the buttons at the bottom, where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.crates { grid-template-rows: auto auto auto auto auto minmax(0, 1fr) auto auto; }
+  .crates .cr-board { grid-column: 1; grid-row: 2 / -1; align-self: start; justify-self: center; margin-top: 1rem;
+    width: min(100%, (100vh - 7.5rem) * 1.25); width: min(100%, (100svh - 7.5rem) * 1.25); container-type: inline-size; }
+  .crates .tile { font-size: clamp(.7rem, 3.4cqw, 1.6rem); }
+  .crates .crate-name { font-size: clamp(1.05rem, 2.6cqw, 1.5rem); }
+  .crates .crate-meta { font-size: clamp(.82rem, 1.9cqw, 1.05rem); }
+  .crates .brief { grid-column: 2; grid-row: 2; margin-top: 1rem; }
+  .crates .status { grid-column: 2; grid-row: 3; }
+  .crates .clue { grid-column: 2; grid-row: 4; }
+  .crates .toast { grid-column: 2; grid-row: 5; }
+  .crates .feed { grid-column: 2; grid-row: 6; align-self: start; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: .4rem 0; }
+  .crates .controls { grid-column: 2; grid-row: 7; }
+  .crates .controls .btn { flex: 1 1 0; padding-inline: .4rem; }
+  .crates .result { grid-column: 2; grid-row: 8; margin-top: .5rem; }
+}
 
 dialog.sheet {
   border: 0; border-radius: 12px 12px 0 0; padding: 1.2rem 1.1rem calc(1.2rem + env(safe-area-inset-bottom, 0px));
@@ -536,9 +603,9 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .app-best:empty { display: none; }
 
 /* the partner sheet, over the games screen */
-.pair-sheet { position: relative; width: min(92vw, 420px); border: 1.5px solid var(--tile-edge); border-radius: 16px; padding: 1rem; background: var(--sheet); color: var(--ink); }
+.pair-sheet { position: relative; width: min(92vw, 26.25rem); border: 1.5px solid var(--tile-edge); border-radius: 16px; padding: 1rem; background: var(--sheet); color: var(--ink); }
 .pair-sheet h3 { padding-right: 2.6rem; }
-.pair-sheet .sheet-x { position: absolute; top: .6rem; right: .6rem; width: 34px; height: 34px; }
+.pair-sheet .sheet-x { position: absolute; top: .6rem; right: .6rem; width: 2.125rem; height: 2.125rem; }
 .pair-sheet .btn.wide { display: block; width: 100%; }
 .pair-sheet .link { display: block; margin: .7rem auto 0; }
 .pair-sheet::backdrop { background: rgba(0, 0, 0, .35); }
@@ -548,7 +615,7 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .pair-ask { position: fixed; left: .5rem; right: .5rem; top: calc(env(safe-area-inset-top, 0px) + .5rem); z-index: 1000; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
   padding: .6rem .75rem; border-radius: 14px; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--tile-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); font-size: .92rem; }
 .pair-ask span { flex: 1 1 12rem; }
-.pair-ask .btn { min-height: 38px; }
+.pair-ask .btn { min-height: 2.375rem; }
 
 /* your partner, in every game's title: one small line that never changes the header's height */
 .partner-pill { display: inline-block; margin-left: .45rem; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle;
@@ -564,16 +631,16 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .watch-bar { position: fixed; z-index: 1; left: .5rem; right: .5rem; bottom: calc(env(safe-area-inset-bottom, 0px) + .5rem); display: flex; align-items: center; gap: .6rem;
   padding: .5rem .75rem; border-radius: 14px; background: var(--sheet); color: var(--ink); border: 1.5px solid var(--tile-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .3); font-size: .9rem; }
 .watch-bar span { flex: 1; }
-.watch-bar .btn { min-height: 36px; }
+.watch-bar .btn { min-height: 2.25rem; }
 
 .code-chip svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; flex: none; }
 .partner-line { min-width: 0; flex: 1 1 auto; border: 0; background: none; padding: .3rem .1rem; font: inherit; font-size: .78rem; font-weight: 700;
   color: var(--ink-soft); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .partner-line.on { color: var(--learn); }
 /* the head's icon buttons: update (it turns while it fetches) and close */
-.icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1.5px solid var(--brass); border-radius: 50%;
+.icon-btn { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: none; border: 1.5px solid var(--brass); border-radius: 50%;
   background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
-.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn:disabled { opacity: .6; }
 .icon-btn.spin svg { animation: icon-spin 1s linear infinite; }
 @keyframes icon-spin { to { transform: rotate(360deg); } }
@@ -582,12 +649,12 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
    the × at the top right (the game's own Close button, reshaped by menu.js); a tap outside closes it */
 dialog.menu-sheet { border-radius: 10px 10px 0 0; padding: 0 1.1rem calc(1rem + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 30px rgba(0, 0, 0, .18); }
 dialog.menu-sheet[open] { animation: menu-up .22s cubic-bezier(.2, .8, .2, 1); }
-@keyframes menu-up { from { transform: translateY(24px); opacity: .4; } }
+@keyframes menu-up { from { transform: translateY(1.5rem); opacity: .4; } }
 @media (prefers-reduced-motion: reduce) { dialog.menu-sheet[open] { animation: none; } }
 @media (min-width: 640px) { dialog.menu-sheet { margin: auto; border-radius: 10px; border: 1.5px solid var(--brass); max-width: 30rem; box-shadow: 0 16px 48px rgba(0, 0, 0, .25); } }
 dialog.menu-sheet .pick-head { align-items: center; padding: .9rem 0 .5rem; }
 dialog.menu-sheet .pick-head h2 { font-size: 1rem; }
-dialog.menu-sheet .menu-x { width: 36px; height: 36px; }
+dialog.menu-sheet .menu-x { width: 2.25rem; height: 2.25rem; }
 /* the standard parts, each under the same small heading */
 .menu-part { margin-top: .9rem; padding-top: .7rem; border-top: 1px solid color-mix(in srgb, var(--ink-soft) 25%, transparent); }
 .menu-part:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
@@ -631,10 +698,10 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
   .menu-seg button { font-size: clamp(.72rem, 3.5vw, .88rem); padding-inline: clamp(.3rem, 1.9vw, .7rem); }
 }
 .menu-seg button[aria-checked="true"] { background: var(--ink); color: var(--sheet); }
-.menu-switch { position: relative; width: 46px; height: 28px; flex: none; border-radius: 999px; border: 1.5px solid var(--tile-edge); background: var(--yard); cursor: pointer; padding: 0; }
-.menu-switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 19px; height: 19px; border-radius: 50%; background: var(--ink-soft); transition: transform .15s; }
+.menu-switch { position: relative; width: 2.875rem; height: 1.75rem; flex: none; border-radius: 999px; border: 1.5px solid var(--tile-edge); background: var(--yard); cursor: pointer; padding: 0; }
+.menu-switch::after { content: ""; position: absolute; top: .1875rem; left: .1875rem; width: 1.1875rem; height: 1.1875rem; border-radius: 50%; background: var(--ink-soft); transition: transform .15s; }
 .menu-switch[aria-checked="true"] { background: var(--ink); }
-.menu-switch[aria-checked="true"]::after { transform: translateX(18px); background: var(--sheet); }
+.menu-switch[aria-checked="true"]::after { transform: translateX(1.125rem); background: var(--sheet); }
 .menu-line { margin: .35rem 0; color: var(--ink-soft); font-size: .9rem; }
 .menu-part .btn.wide { margin-top: .45rem; }
 .menu-link { display: block; margin: .6rem auto 0; }
@@ -652,8 +719,8 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 /* in a game's header: the dropdowns live in the menu now (under Content), and the menu button is the rete */
 .top .dd, .top select.pool, .ch-pick { display: none !important; }   /* Chart's topic and region too */
 /* the menu button: the rete, large and unboxed (no frame or fill round it, as an instrument sits on the page) */
-.rete-btn { display: inline-grid; place-items: center; width: 44px; height: 44px; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 50%; }
-.rete-btn .rete { width: 40px; height: 40px; display: block; }
+.rete-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 50%; }
+.rete-btn .rete { width: 2.5rem; height: 2.5rem; display: block; }
 .rete .rete-turn, .rete .rete-rule { transform-box: view-box; transform-origin: 50px 50px; }
 .rete-btn.turning .rete-turn { animation: rete-turn 9s linear infinite; }
 .rete-btn.turning .rete-rule { animation: rete-turn 15s linear infinite reverse; }

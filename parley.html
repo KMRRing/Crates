@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="parley fit-screen">
+<div id="app" class="parley fit-screen wide">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon pa-mark" aria-hidden="true"></span>Parley</button></h1>
@@ -33,20 +33,28 @@
   </header>
 
   <section id="home" class="pa-home fit-col fit-grow">
+    <div class="pa-about fit-half">
     <p class="pa-intro" id="intro"></p>
     <div class="pa-stats" id="stats"></div>
     <button class="pa-go" type="button" id="studyBtn">Study</button>
+    </div>
+    <div class="pa-list fit-half">
     <h3 class="pa-h">Units</h3>
     <div class="pa-units fit-grow fit-scroll" id="units"></div>
+    </div>
   </section>
 
   <section id="session" class="pa-session fit-col fit-grow" hidden>
+    <div class="pa-face fit-half">
     <div class="pa-head"><span id="progress"></span><span id="kind"></span></div>
     <div class="pa-card fit-grow fit-scroll" id="card"></div>
+    </div>
+    <div class="pa-reply fit-half">
     <div id="answerBox" class="pa-answer"></div>
     <p class="pa-verdict" id="verdict"></p>
     <p class="pa-note" id="note"></p>
     <button class="pa-go" type="button" id="nextBtn" hidden>Next</button>
+    </div>
   </section>
 
   <section id="reader" class="pa-session fit-col fit-grow" hidden>

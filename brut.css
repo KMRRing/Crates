@@ -20,7 +20,7 @@ html[data-mode="night"] { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806
 .br-pour .br-note { max-height: 100%; align-self: stretch; align-content: start; }
 .br-glass-box svg { width: 100%; height: auto; display: block; }
 .br-glass-box .bubble { fill: rgba(255, 255, 255, .85); animation: br-rise 2.4s linear infinite; }
-@keyframes br-rise { from { transform: translateY(0); opacity: .9; } to { transform: translateY(-46px); opacity: 0; } }
+@keyframes br-rise { from { transform: translateY(0); opacity: .9; } to { transform: translateY(-2.875rem); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .br-glass-box .bubble { animation: none; } }
 .br-note { display: grid; gap: .45rem; font-size: .92rem; line-height: 1.4; }
 .br-note b { display: block; font-size: .72rem; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); color: var(--br-in); }
@@ -33,14 +33,14 @@ html[data-mode="night"] { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806
 .br-line.good { color: var(--br-good); }
 .br-line.bad { color: var(--br-bad); }
 .br-options { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
-.br-option { min-height: 50px; padding: .45rem .55rem; border-radius: 5px; border: 1.5px solid var(--br-edge); background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.br-option { min-height: 3.125rem; padding: .45rem .55rem; border-radius: 5px; border: 1.5px solid var(--br-edge); background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .br-option b { display: block; font-weight: 800; font-size: .95rem; line-height: 1.2; }
 .br-option span { display: block; font-size: .76rem; color: var(--ink-soft); margin-top: .1rem; }
 .br-option.struck { opacity: .38; text-decoration: line-through; }
 .br-option.right { border-color: var(--br-good); background: color-mix(in srgb, var(--br-good) 15%, var(--sheet)); }
 .br-option:disabled { cursor: default; }
-.br-buttons { margin-top: .5rem; min-height: 48px; display: grid; grid-template-columns: 1fr; gap: .4rem; }
-.br-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.br-buttons { margin-top: .5rem; min-height: 3rem; display: grid; grid-template-columns: 1fr; gap: .4rem; }
+.br-go { width: 100%; min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .br-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .br-go:disabled { opacity: .45; cursor: default; }
 .br-go[hidden] { display: none; }
@@ -56,20 +56,32 @@ html[data-mode="night"] { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806
 .br-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 5px; background: var(--sheet); }
 .br-unit b { font-weight: 800; }
 .br-unit small { display: block; color: var(--ink-soft); font-size: .8rem; }
-.br-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
+.br-unit .bar { height: .3125rem; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
 .br-unit .bar i { display: block; height: 100%; background: var(--br-in); }
-.br-unit button { min-height: 36px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--br-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.br-unit button { min-height: 2.25rem; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--br-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
 .br-card { align-content: start; padding: 1rem .9rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: grid; gap: .4rem; font-size: 1.05rem; line-height: 1.45; }
 .br-card .fact { font-size: 1.2rem; font-weight: 800; line-height: 1.35; }
 .br-card .q { font-size: 1.15rem; font-weight: 800; }
 .br-card .ask { font-size: .82rem; color: var(--ink-soft); }
 .br-answers { display: grid; gap: .45rem; margin-top: .5rem; }
-.br-answers .br-option { min-height: 48px; font-weight: 750; }
+.br-answers .br-option { min-height: 3rem; font-weight: 750; }
 .br-answers .br-option.wrong { border-color: var(--br-bad); background: color-mix(in srgb, var(--br-bad) 12%, var(--sheet)); }
 .br-verdict { margin: .5rem 0 0; min-height: 1.3em; font-weight: 800; }
 .br-verdict.good { color: var(--br-good); }
 .br-verdict.bad { color: var(--br-bad); }
 .br-explain { margin: .2rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); line-height: 1.45; }
+/* held sideways (#app.wide): each screen's halves (.fit-half) side by side. Tasting: the glass and its notes on the
+   left, your guess beside them, the buttons at the bottom where a thumb is. Study: the course on the left and its units
+   beside it; a card on the left and its answers beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  .br-blind, #studyHome, #studyCard { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; grid-template-rows: minmax(0, 1fr); column-gap: 1.8rem; }
+  .br-taste, .br-guess, .br-about, .br-list, .br-face, .br-reply { display: flex; flex-direction: column; min-height: 0; }
+  .br-guess > :first-child { margin-top: auto; }   /* low, where a thumb is (an auto margin, so a tall guess overflows downwards, not over the header) */
+  .br-pour { grid-template-columns: 9rem minmax(0, 1fr); gap: 1.2rem; padding: 1rem; }
+  .br-list .br-h { margin-top: .4rem; }
+  .br-reply { padding-top: 2rem; }
+  .br-reply #studyNext { margin-top: auto; }
+}
 .br-flight { margin: .4rem 0; padding: 0; list-style: none; display: grid; gap: .35rem; font-size: .9rem; }
 .br-flight li { display: grid; grid-template-columns: 1fr auto; gap: .5rem; }
 .br-flight li small { grid-column: 1 / -1; color: var(--ink-soft); }

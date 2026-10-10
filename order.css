@@ -8,6 +8,17 @@
 .or-pic { margin-top: .5rem; display: grid; place-items: center; min-height: 18vh; }
 .or-pic[hidden] { display: none; }
 .or-pic img { max-height: 24vh; max-width: 100%; object-fit: contain; border-radius: 4px; }
+/* held sideways (#app.beside): the card in hand on the left, its picture large; your line beside it, a column you
+   scroll down, smallest at the top */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.order { --beside: 26rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  .or-strip { grid-column: 2; grid-row: 2; }
+  .or-line { grid-column: 2; grid-row: 3; }
+  .or-deal { grid-column: 1; grid-row: 2 / -1; display: flex; flex-direction: column; min-height: 0; margin: .6rem 0 0; padding: 1.2rem 1.4rem; }
+  .or-card { font-size: 1.6rem; }
+  .or-pic { flex: 1 1 auto; min-height: 0; margin-top: .9rem; display: flex; flex-direction: column; }
+  .or-pic img { flex: 1 1 auto; min-height: 0; width: 100%; max-height: none; object-fit: contain; }
+}
 /* a painting in the line, small at the right */
 .or-item.has-pic { grid-template-columns: minmax(4.5rem, auto) 1fr 2.6rem; align-items: center; }
 .or-thumb { display: block; width: 2.6rem; height: 2.6rem; }
@@ -15,9 +26,9 @@
 .or-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block; }
 .or-line { list-style: none; margin: 0; padding: 0 0 .6rem; min-height: 0; overflow-y: auto; }
 .or-gap { display: flex; }
-.or-slot { flex: 1; height: 26px; margin: 2px 0; border: 1.5px dashed var(--tile-edge); border-radius: 6px; background: none; cursor: pointer; }
+.or-slot { flex: 1; height: 1.625rem; margin: 2px 0; border: 1.5px dashed var(--tile-edge); border-radius: 6px; background: none; cursor: pointer; }
 .or-slot:hover:not(:disabled), .or-slot:focus-visible { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 12%, transparent); }
-.or-slot:disabled { border-color: transparent; height: 6px; cursor: default; }
+.or-slot:disabled { border-color: transparent; height: .375rem; cursor: default; }
 .or-item { display: grid; grid-template-columns: minmax(4.5rem, auto) 1fr; gap: .7rem; align-items: baseline; padding: .5rem .7rem; background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 8px; }
 .or-item b { font-variant-numeric: tabular-nums; font-size: 1.02rem; }
 .or-item span { font-size: .9rem; color: var(--ink-soft); line-height: 1.3; }

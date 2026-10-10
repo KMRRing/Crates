@@ -3,7 +3,7 @@
 select.dd-native { display: none !important; }
 
 .dd {
-  display: inline-flex; align-items: center; gap: .5rem; flex: 0 1 auto; min-width: 0; max-width: 12.5rem; min-height: 36px;
+  display: inline-flex; align-items: center; gap: .5rem; flex: 0 1 auto; min-width: 0; max-width: 12.5rem; min-height: 2.25rem;
   box-sizing: border-box; padding: .3rem .6rem .3rem .75rem; border-radius: 4px; cursor: pointer;
   font: inherit; font-weight: 700; font-stretch: 87.5%; line-height: 1.2; text-align: left;
   background: var(--dd-tint, var(--tile)); border: 1.5px solid var(--dd-edge, var(--tile-edge));
@@ -12,23 +12,23 @@ select.dd-native { display: none !important; }
 .dd-label { display: grid; grid-template-columns: minmax(0, max-content); min-width: 0; }
 .dd-label > span { grid-area: 1 / 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; visibility: hidden; }
 .dd-label > .cur { visibility: visible; }
-.dd-chev { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
+.dd-chev { width: .75rem; height: .75rem; flex: none; fill: none; stroke: currentColor; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round; transition: transform .15s ease; }
 .dd[aria-expanded="true"] .dd-chev { transform: rotate(180deg); }
 .dd:disabled { opacity: .45; cursor: default; }
 @media (max-width: 400px) { .dd { font-size: .9rem; padding: .3rem .5rem .3rem .6rem; } }
 
 .dd-list {
-  position: fixed; inset: auto; margin: 0; box-sizing: border-box; padding: 5px;
+  position: fixed; inset: auto; margin: 0; box-sizing: border-box; padding: .3125rem;
   border: 1.5px solid var(--brass); border-radius: 6px; background: var(--sheet); color: var(--ink);
   box-shadow: 0 14px 34px rgba(20, 40, 60, .18), 0 2px 6px rgba(20, 40, 60, .08);
   overflow-y: auto; overscroll-behavior: contain; font-family: var(--font);
 }
 .dd-list:focus, .dd-list:focus-visible { outline: none; }   /* the highlighted row shows where the keyboard is */
 .dd-list:popover-open { animation: dd-in .13s ease-out; }
-@keyframes dd-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes dd-in { from { opacity: 0; transform: translateY(-.25rem); } }
 .dd-opt {
-  display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 44px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.75rem; box-sizing: border-box;
   padding: .45rem .65rem .45rem .7rem; border-radius: 4px; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .dd-opt.on, .dd-opt:active { background: color-mix(in srgb, var(--brass) 14%, transparent); }
@@ -36,7 +36,7 @@ select.dd-native { display: none !important; }
 .dd-text { display: flex; flex-direction: column; min-width: 0; }
 .dd-name { font-weight: 700; font-stretch: 87.5%; line-height: 1.2; }
 .dd-note { margin-top: 2px; font-size: .82rem; line-height: 1.25; color: var(--ink-soft); }
-.dd-tick { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--dd-edge, var(--ink)); stroke-width: 2.2;
+.dd-tick { width: 1rem; height: 1rem; flex: none; fill: none; stroke: var(--dd-edge, var(--ink)); stroke-width: 2.2;
   stroke-linecap: round; stroke-linejoin: round; visibility: hidden; }
 .dd-opt[aria-selected="true"] .dd-tick { visibility: visible; }
 

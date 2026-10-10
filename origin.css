@@ -11,7 +11,7 @@
   background: color-mix(in srgb, var(--heat) 28%, var(--sheet)); }
 .og-guess { display: flex; gap: .4rem; flex: none; }
 .og-guess input { flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: .6rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 8px; background: var(--tile); color: var(--ink); }
-.og-go { min-height: 46px; padding: 0 1.1rem; border: 0; border-radius: 8px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; cursor: pointer; }
+.og-go { min-height: 2.875rem; padding: 0 1.1rem; border: 0; border-radius: 8px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; cursor: pointer; }
 .og-more { display: flex; justify-content: space-between; align-items: center; flex: none; }
 .og-quiet { border: 1.5px solid var(--tile-edge); background: none; color: var(--ink); border-radius: 8px; padding: .45rem .8rem; font: inherit; font-weight: 700; cursor: pointer; }
 .og-quiet:disabled { opacity: .45; cursor: default; }
@@ -32,18 +32,27 @@
   background: color-mix(in srgb, var(--c2, #2C5B8A) 14%, var(--sheet)); }
 .og-map svg { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .og-map svg:active { cursor: grabbing; }
+/* held sideways (#app.wide): the map takes the card's left side, all its height; the clues, the guesses and the box to
+   type in stand at the right, high, clear of a tablet's keyboard */
+@media (orientation: landscape) and (min-width: 700px) {
+  .og-card { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; grid-template-rows: auto auto auto auto auto minmax(0, 1fr); column-gap: 1.6rem; padding: 1rem; }
+  .og-card > * { grid-column: 2; }
+  .og-card .og-mapwrap { grid-column: 1; grid-row: 1 / -1; }
+  .og-map { height: 100%; }
+  .og-clues { max-height: 42vh; max-height: 42svh; }
+}
 .og-c { fill: var(--tile); stroke: var(--tile-edge); stroke-width: calc(.6px * var(--k, 1)); vector-effect: non-scaling-stroke; }
 .og-c:hover { fill: color-mix(in srgb, var(--brass) 18%, var(--tile)); }
 .og-c.og-chosen { fill: color-mix(in srgb, var(--brass) 45%, var(--tile)); stroke: var(--ink); stroke-width: 1.4px; }
 .og-c.og-scorching { fill: #D2462E; } .og-c.og-hot { fill: #E07A3A; } .og-c.og-c.og-answer { fill: #2E8B57; stroke: var(--ink); stroke-width: 1.4px; }
 .og-names text { font: 600 calc(9px * var(--k, 1)) var(--font, sans-serif); fill: var(--ink-soft); pointer-events: none; paint-order: stroke; stroke: var(--tile); stroke-width: calc(2.4px * var(--k, 1)); }
 .og-zoom { position: absolute; top: .45rem; right: .45rem; display: grid; gap: .25rem; z-index: 2; }
-.og-zoom button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; }
+.og-zoom button { width: 2.125rem; height: 2.125rem; border-radius: 8px; border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; }
 .og-zoom button:disabled { opacity: .4; cursor: default; }
 /* the suggestions as you type: the app's list, opening upwards from the field */
 .og-field { position: relative; flex: 1; min-width: 0; display: flex; }
 .og-field input { flex: 1; }
-.og-suggest { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); margin: 0; padding: .25rem; list-style: none; z-index: 5; max-height: 40vh; overflow-y: auto;
+.og-suggest { position: absolute; left: 0; right: 0; bottom: calc(100% + .25rem); margin: 0; padding: .25rem; list-style: none; z-index: 5; max-height: 40vh; overflow-y: auto;
   background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
 .og-suggest li { padding: .55rem .7rem; border-radius: 6px; cursor: pointer; font-weight: 600; }
 .og-suggest li.on, .og-suggest li:hover { background: var(--tile); }

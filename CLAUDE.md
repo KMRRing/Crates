@@ -15,7 +15,7 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    `tests/<game>.mjs`. Change only those, and only that game's section of README.md.
 2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
    is in them: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
-   `rich.js`, `pics.js`, `tools/`, `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`,
+   `rich.js`, `pics.js`, `wide.js`, `tools/`, `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`,
    `chart-geo.js`, `quote-bank.js`, `kb-index.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`,
    `phil`, `rel`, `refining` banks), and this file.
 3. **Pull before you push:** `git pull --rebase`. Never force-push, never rewrite `main`'s history: that is how one
@@ -60,10 +60,26 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
 - **The page never scrolls.** Every game fits the screen from 390×600 up; anything long scrolls inside its own box
   (dialogs may scroll). Use `style.css`'s frame: `#app.fit-screen`, `.fit-col`, `.fit-grow`, `.fit-box`, `.fit-scroll`.
   Nothing should change size mid-game.
-- **Look before you push** a visible change: a browser at 390×664 and 390×844 (Playwright works in the container).
+- **Look before you push** a visible change: a browser at 390×664 and 390×844 (Playwright works in the container),
+  and on an iPad both ways, 820×1180 and 1180×820 (README, Bigger screens).
 - **Clean code as you go**, don't just flag it; comments say why, not what.
 - **Write the README** for every change: plain prose, what it does and why, in the game's section.
 - He's a biofuels trader and wants expert, terse engagement; define a technical term the first time you use it.
+
+## Bigger screens
+
+A phone held upright is the design, and must look exactly as it did; a tablet draws it larger, and a screen held
+sideways puts a game's parts beside its board (README, "Bigger screens"; `style.css`).
+- **Sizes in rem**, not px, for anything that should grow: a tablet grows the root's font size. n px is n/16 rem, the
+  same on a phone. Borders, radii, strokes and shadows stay px, and so does text in an SVG drawn to a viewBox.
+  `tests/wide.mjs` fails on a px size of 3 or more.
+- **Sideways** is `@media (orientation: landscape) and (min-width: 700px)`, exactly (`SIDEWAYS` in `wide.js`, which
+  `tests/wide.mjs` checks every stylesheet against). Give `#app` the class `beside` (header across, the board's column
+  and a side column `--beside` wide) and place your parts in it in your own stylesheet; or `wide`, the whole width, for
+  a card that divides itself. A half that's only a box sideways is a `.fit-half` (on a phone it isn't a box at all).
+  Buttons low in the side column, boxes to type in high (a tablet's keyboard covers the bottom).
+- **Sizes in script** multiply by `scale()` from `wide.js`; ask `sideways()` for which layout is showing, and redraw on
+  `resize` (the screen turns).
 
 ## The look
 

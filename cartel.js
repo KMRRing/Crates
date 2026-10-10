@@ -9,6 +9,7 @@ import { part, choice, action, onPause, ticks } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 import { noteStreak } from "./suite.js";
+import { scale } from "./wide.js";
 const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
 // How the computer players' moves come: each shown for a while, or each held until you tap.
 const PACES = {
@@ -351,8 +352,8 @@ function renderSeats() {
   const aim = targeting(), turns = lastTurns();
   // the dice at every seat take two rows: as the biggest hand grows, all of them shrink to fit (the seats keep their height)
   const opponents = g.players.filter(p => p.i !== ME), most = Math.max(1, ...opponents.map(p => mind.known(p.i).length));
-  const width = ($("seats").clientWidth || 340) / Math.max(1, opponents.length) - 14, perRow = Math.ceil(most / 2);
-  $("seats").style.setProperty("--seat-die", `${Math.max(13, Math.min(18, Math.floor((width - (perRow - 1) * 3) / perRow)))}px`);
+  const k = scale(), width = ($("seats").clientWidth || 340) / Math.max(1, opponents.length) - 14 * k, perRow = Math.ceil(most / 2);
+  $("seats").style.setProperty("--seat-die", `${Math.max(13 * k, Math.min(18 * k, Math.floor((width - (perRow - 1) * 3 * k) / perRow)))}px`);
   $("seats").replaceChildren(...g.players.filter(p => p.i !== ME).map(p => {
     const seat = document.createElement("div");
     const canTarget = aim && !p.out;
@@ -443,9 +444,10 @@ function renderMine() {
   if (shaken.size) shookAt = last.n;
   const fixing = ui.panel === "claim" && ui.claim.ability === "reroll", picking = ui.panel === "reroll" || fixing;
   // one row of dice, always: they shrink as your hand grows
-  const count = me.dice.length, room = (box.clientWidth || 340) - 8, gap = count > 7 ? 4 : 7;
+  // (sizes in px on a phone, larger where the page is drawn larger)
+  const k = scale(), count = me.dice.length, room = (box.clientWidth || 340) - 8 * k, gap = (count > 7 ? 4 : 7) * k;
   box.style.setProperty("--mine-gap", `${gap}px`);
-  box.style.setProperty("--mine-die", `${Math.max(22, Math.min(36, Math.floor((room - (count - 1) * gap) / count)))}px`);
+  box.style.setProperty("--mine-die", `${Math.max(22 * k, Math.min(36 * k, Math.floor((room - (count - 1) * gap) / count)))}px`);
   const dice = document.createElement("div");
   dice.className = "ct-dice";
   dice.append(...byKind(me.dice).map(d => {
@@ -822,6 +824,9 @@ $("proofDlg").addEventListener("cancel", e => e.preventDefault());   // a choice
 $("allowBtn").addEventListener("click", () => answer(false));
 $("challengeDlg").addEventListener("cancel", e => e.preventDefault());   // a claim against you needs an answer
 $("app").addEventListener("click", tapOn);
+// the dice are sized to their seats in script: turning the screen (or the page drawn larger) sizes them again
+let refit = 0;
+addEventListener("resize", () => { cancelAnimationFrame(refit); refit = requestAnimationFrame(() => { if (g && mind) render(); }); });
 
 window.__cartel = { get game() { return g; }, get mind() { return mind; }, get ais() { return ais; }, loop: () => loop() };
 

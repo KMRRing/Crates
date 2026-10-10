@@ -53,3 +53,8 @@ html[data-mode="night"] { --lg-in: #79A9D6; --lg-good: #7FC2A8; --lg-bad: #E8806
 .lg-two b { display: block; font-size: 1.15rem; color: var(--ink); font-variant-numeric: tabular-nums; }
 .lg-sizes { margin-top: .3rem; }
 .lg-sub { margin: .7rem 0 .3rem; }
+/* held sideways (#app.wide): the cards side by side, as many across as fit, the note under them all */
+@media (orientation: landscape) and (min-width: 700px) {
+  .lg-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); align-content: start; }
+  .lg-body > .lg-note { grid-column: 1 / -1; }
+}

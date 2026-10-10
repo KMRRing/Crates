@@ -14,7 +14,7 @@ html[data-mode="night"] { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806
 .pa-stats b { display: block; font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .pa-stats b.due { color: var(--pa-in); }
 .pa-stats span { font-size: .72rem; color: var(--ink-soft); }
-.pa-go { width: 100%; min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.pa-go { width: 100%; min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .pa-go:disabled { opacity: .45; cursor: default; }
 .pa-go[hidden] { display: none; }
 .pa-h { margin: 1rem 0 .4rem; font-size: 1rem; font-weight: 800; }
@@ -22,9 +22,9 @@ html[data-mode="night"] { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806
 .pa-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: .5rem; padding: .55rem .7rem; border-radius: 5px; background: var(--sheet); }
 .pa-unit b { font-weight: 800; }
 .pa-unit small { display: block; color: var(--ink-soft); font-size: .8rem; }
-.pa-unit .bar { height: 5px; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
+.pa-unit .bar { height: .3125rem; border-radius: 3px; background: var(--yard); margin-top: .35rem; overflow: hidden; }
 .pa-unit .bar i { display: block; height: 100%; background: var(--pa-in); }
-.pa-unit button { min-height: 36px; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--pa-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.pa-unit button { min-height: 2.25rem; padding: 0 .7rem; border-radius: 10px; border: 1.5px solid var(--pa-edge); background: var(--yard); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
 /* the unit's pattern, in its line of small print: a link, not a button */
 .pa-unit .pa-gram { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; color: inherit; font: inherit; font-weight: 650; text-align: left; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 
@@ -47,18 +47,18 @@ html[data-mode="night"] { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806
 .pa-card .gram b { display: block; font-size: 1.1rem; margin-bottom: .2rem; }
 .pa-card .gram ul { margin: .4rem 0 0; padding-left: 1.1rem; }
 .pa-card .text { font-size: 1.2rem; line-height: 1.6; font-weight: 650; }
-.pa-speak { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--pa-in-soft); color: var(--pa-in); font-size: 1.3rem; cursor: pointer; justify-self: start; }
-.pa-speak.big { width: 64px; height: 64px; font-size: 1.8rem; justify-self: center; }
+.pa-speak { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; border: 0; background: var(--pa-in-soft); color: var(--pa-in); font-size: 1.3rem; cursor: pointer; justify-self: start; }
+.pa-speak.big { width: 4rem; height: 4rem; font-size: 1.8rem; justify-self: center; }
 .pa-answer { display: grid; gap: .45rem; }
 .pa-answer.two { grid-template-columns: 1fr 1fr; }
-.pa-option { min-height: 50px; padding: .6rem .7rem; border-radius: 5px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
+.pa-option { min-height: 3.125rem; padding: .6rem .7rem; border-radius: 5px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-weight: 750; cursor: pointer; }
 .pa-option .py { display: block; font-size: .8rem; color: var(--pa-in); font-weight: 700; }
 .pa-option.right { border-color: var(--pa-good); background: color-mix(in srgb, var(--pa-good) 15%, var(--sheet)); }
 .pa-option.wrong { border-color: var(--pa-bad); background: color-mix(in srgb, var(--pa-bad) 12%, var(--sheet)); }
 .pa-option:disabled { cursor: default; }
 .pa-type { display: grid; grid-template-columns: 1fr auto; gap: .4rem; }
-.pa-type input { min-height: 48px; padding: 0 .7rem; border-radius: 5px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
-.pa-type button { min-height: 48px; padding: 0 1rem; border: 0; border-radius: 5px; background: var(--pa-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.pa-type input { min-height: 3rem; padding: 0 .7rem; border-radius: 5px; border: 1.5px solid var(--pa-edge); background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.1rem; font-weight: 750; }
+.pa-type button { min-height: 3rem; padding: 0 1rem; border: 0; border-radius: 5px; background: var(--pa-in); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
 .pa-articles { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
 .pa-articles .pa-option[aria-pressed="true"] { border-color: var(--pa-in); background: var(--pa-in-soft); }
 .pa-verdict { margin: 0; min-height: 1.3em; font-weight: 800; }
@@ -69,3 +69,13 @@ html[data-mode="night"] { --pa-in: #6CC0B5; --pa-good: #7FC2A8; --pa-bad: #E8806
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .pa-toast.show { opacity: 1; }
+/* held sideways (#app.wide): each screen's halves (.fit-half) side by side. Home: the course and Study on the left, the
+   units beside; a card on the left, the answers beside it; the reader across the whole width, its text in columns */
+@media (orientation: landscape) and (min-width: 700px) {
+  #home, #session { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; grid-template-rows: minmax(0, 1fr); column-gap: 2rem; }
+  .pa-about, .pa-list, .pa-face, .pa-reply { display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+  .pa-list .pa-h { margin-top: .4rem; }
+  .pa-reply { padding-top: 2rem; }
+  .pa-reply #nextBtn { margin-top: auto; }
+  #reader { width: 100%; max-width: 46rem; margin: 0 auto; }   /* a reading line stays a reading line */
+}

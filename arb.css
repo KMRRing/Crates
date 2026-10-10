@@ -24,9 +24,19 @@
 .ab-verdict { margin: 0; font-size: 1.25rem; font-weight: 800; }
 .ab-verdict.good { color: #2E8B57; }
 .ab-note { margin: 0; color: var(--ink-soft); }
-.ab-go { min-height: 46px; border: 0; border-radius: 8px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; cursor: pointer; flex: none; }
+.ab-go { min-height: 2.875rem; border: 0; border-radius: 8px; background: var(--plate); color: var(--plate-ink); font: inherit; font-weight: 800; cursor: pointer; flex: none; }
 .ab-sum { font-size: 1.1rem; }
 .ab-toast { position: fixed; left: 50%; bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: .5rem .9rem; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .ab-toast.on { opacity: 1; }
 .ab-mark { display: inline-block; }
 .ab-mark svg { width: 100%; height: 100%; display: block; }
+/* held sideways (#app.beside): your route, where you've been and where you're going, on the left with room to show it
+   all; the links to choose from (or how it went) beside it, the whole height */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.arb { --beside: 24rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  .ab-strip { grid-column: 2; grid-row: 2; }
+  .ab-route { grid-column: 1; grid-row: 2 / -1; align-self: start; max-height: 100%; overflow-y: auto; margin: .6rem 0 0; padding: 1.1rem 1.3rem; }
+  .ab-route .ab-ends { font-size: 1.3rem; }
+  .ab-route .ab-path { max-height: none; }
+  .ab-pick, .ab-result { grid-column: 2; grid-row: 3; }
+}

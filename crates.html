@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app">
+<div id="app" class="crates beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon cr-mark" aria-hidden="true"></span>Crates</button>
@@ -37,8 +37,10 @@
     <div id="players" class="players" aria-label="Lives and clues"></div>
   </div>
 
-  <section id="solved" class="solved" aria-live="polite"></section>
-  <section id="grid" class="grid" aria-label="Words"></section>
+  <div class="cr-board">
+    <section id="solved" class="solved" aria-live="polite"></section>
+    <section id="grid" class="grid" aria-label="Words"></section>
+  </div>
   <p id="status" class="status" aria-live="polite" hidden></p>
   <p id="clue" class="clue" aria-live="polite" hidden></p>
   <p id="toast" class="toast" role="status" aria-live="polite"></p>

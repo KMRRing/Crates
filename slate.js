@@ -10,6 +10,7 @@ import { reportDuo, today, noteDayTime, arrivedForToday } from "./suite.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
+import { sideways, scale } from "./wide.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -21,7 +22,7 @@ const STORE = "glyph:solo";
 const CHECKS = 2, REVEALS = 2, HINTS = 2;
 /** Checks, rule reveals and suggestions per board: unlimited on Easy, two each otherwise. */
 const limitsFor = level => (level === "easy" ? { checks: Infinity, reveals: Infinity, hints: Infinity } : { checks: CHECKS, reveals: REVEALS, hints: HINTS });
-const GAP = 6;
+let GAP = 6;          // between cells, in px: 6 on a phone, more where the page is drawn larger (fitLayout)
 const PALETTE = { single: ["s", ["Blue", "Green", "Teal"]], pair: ["p", ["Yellow", "Orange", "Sand"]], whole: ["w", ["Violet", "Pink", "Plum"]] };
 const KIND = { single: "single letters", pair: "pairs", whole: "whole field" };
 const HOW = {
@@ -630,25 +631,37 @@ function drawBoard(g, fs, letters, slot) {
 }
 
 /**
- * Sizes the board and the keyboard to the visible screen (Safari's bars included): the board as large as the width
- * allows while the keyboard keeps its minimum height, then the keys grow into whatever height is left.
+ * Sizes the board and the keyboard to the visible screen (Safari's bars included). Upright, the board is as large as
+ * the width allows while the keyboard keeps its minimum height, then the keys grow into whatever height is left.
+ * Sideways (#app.beside), the board has the left column under the header to itself and the keys stand beside it, as
+ * tall as that column lets them be. Every size grows with the page where it's drawn larger (an upright tablet).
  */
 function fitLayout(g) {
-  const vh = window.visualViewport?.height || window.innerHeight;
-  // measured from what sits above the board, since the board centres itself in the space it gets
-  const above = $("partner").hidden ? document.querySelector("#app > .top") : $("partner");
-  const top = above.getBoundingClientRect().bottom + window.scrollY + 12;
+  const k = scale(), vh = window.visualViewport?.height || window.innerHeight, side = sideways();
+  GAP = 6 * k;
+  // measured from what sits above the board, since the board centres itself in the space it gets (beside it, the
+  // partner's line is in the other column)
+  const above = $("partner").hidden || side ? document.querySelector("#app > .top") : $("partner");
+  const top = above.getBoundingClientRect().bottom + window.scrollY + 12 * k;
   const app = getComputedStyle($("app"));
-  const width = $("app").clientWidth - parseFloat(app.paddingLeft) - parseFloat(app.paddingRight);
   const bottom = parseFloat(app.paddingBottom) || 0;
-  const fixed = $("actions").offsetHeight + 12 + 12 + 2 * KEY_GAP;    // actions and the gaps around and between rows
-  const boardRoom = vh - top - bottom - fixed - 3 * MIN_KEY;
-  const size = Math.max(34, Math.min((width - GAP * (g.W - 1)) / g.W, (boardRoom - GAP * (g.H - 1)) / g.H, 84));
+  const [minKey, maxKey, keyGap] = [MIN_KEY * k, MAX_KEY * k, KEY_GAP * k];
+  // a small board's cells stop at 84px on a phone; beside the keys, the larger column lets them grow to 100
+  const fit = (width, height) => Math.max(34 * k, Math.min((width - GAP * (g.W - 1)) / g.W, (height - GAP * (g.H - 1)) / g.H, (side ? 100 : 84) * k));
+  if (side) {
+    const width = parseFloat(app.gridTemplateColumns), room = vh - top - bottom;   // the first column's width
+    const keys = (room - $("actions").offsetHeight - 12 * k - 2 * keyGap) / 3;
+    document.documentElement.style.setProperty("--g-key-h", `${Math.max(minKey, Math.min(maxKey, keys))}px`);
+    return fit(width, room);
+  }
+  const width = $("app").clientWidth - parseFloat(app.paddingLeft) - parseFloat(app.paddingRight);
+  const fixed = $("actions").offsetHeight + 24 * k + 2 * keyGap;    // actions and the gaps around and between rows
+  const size = fit(width, vh - top - bottom - fixed - 3 * minKey);
   const spare = vh - top - bottom - fixed - (g.H * size + (g.H - 1) * GAP);
-  document.documentElement.style.setProperty("--g-key-h", `${Math.max(MIN_KEY, Math.min(MAX_KEY, spare / 3))}px`);
+  document.documentElement.style.setProperty("--g-key-h", `${Math.max(minKey, Math.min(maxKey, spare / 3))}px`);
   return size;
 }
-const MIN_KEY = 44, MAX_KEY = 66, KEY_GAP = 6;
+const MIN_KEY = 44, MAX_KEY = 66, KEY_GAP = 6;   // px on a phone
 
 /** The field of the clicked cell, if it has one and the board is in play. */
 function cursorField(fs) {

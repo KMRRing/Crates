@@ -35,7 +35,7 @@ html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806
 .ch-actions.two:has(#clueBtn[hidden]) { grid-template-columns: 1fr; }
 .ch-clues { margin: 0; padding-left: 1.2rem; display: grid; gap: .2rem; font-size: .9rem; line-height: 1.35; max-height: 4.2em; }
 .ch-clues:empty { display: none; }
-.ch-go { min-height: 48px; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.ch-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .ch-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0;
   font-stretch: 96%; letter-spacing: .03em; white-space: nowrap; }   /* the clue's cost fits on one line */
 .ch-go:disabled { opacity: .45; cursor: default; }
@@ -69,3 +69,13 @@ html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806
 .ch-picture { margin: .1rem 0 .5rem; display: grid; place-items: center; }
 .ch-picture[hidden] { display: none; }
 .ch-picture img { max-width: 100%; max-height: 16vh; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+/* held sideways (#app.wide): the map takes the card's left side, all its height, and the place to find, its picture
+   and the buttons stand at the right, the buttons at the bottom where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  .ch-card { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; column-gap: 1.6rem; padding: 1rem; }
+  .ch-card > * { grid-column: 2; }
+  .ch-card .ch-maps { grid-column: 1; grid-row: 1 / -1; }
+  .ch-card .ch-bottom { grid-row: 6; }
+  .ch-picture img { max-height: 30vh; max-height: 30svh; }
+  .ch-place { font-size: 1.45rem; }
+}
