@@ -30,6 +30,7 @@ export const GAMES = {
   parley: { name: "Parley", page: "./parley.html" },
   stow: { name: "Stow", page: "./stow.html" },
   hong: { name: "Hong", page: "./hong.html" },
+  tribute: { name: "Tribute", page: "./tribute.html" },
   brut: { name: "Brut", page: "./brut.html" },
 };
 

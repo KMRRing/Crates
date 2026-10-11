@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Tribute</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="tribute.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="tribute fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon tb-mark" aria-hidden="true"></span>Tribute</button></h1>
+    <div class="top-right">
+      <button id="helpBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div id="strip" class="tb-strip"></div>
+  <section id="table" class="tb-table fit-grow" aria-label="The table">
+    <div class="tb-seat tb-top" id="seat2"></div>
+    <div class="tb-seat tb-left" id="seat3"></div>
+    <div class="tb-seat tb-right" id="seat1"></div>
+    <div class="tb-seat tb-me" id="seat0"></div>
+    <div id="news" class="tb-news" aria-live="polite"></div>
+  </section>
+  <div id="counter" class="tb-counter" hidden></div>
+  <div id="hand" class="tb-hand" aria-label="Your cards"></div>
+  <section class="tb-bar" aria-label="Your move">
+    <p id="say" class="tb-say" hidden></p>
+    <div id="actions" class="tb-actions"></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet tb-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="tb-rules"></div>
+</dialog>
+
+<dialog id="resultDlg" class="sheet tb-sheet" aria-labelledby="resultHead">
+  <h2 id="resultHead" class="tb-result-head"></h2>
+  <div id="resultBody" class="tb-result"></div>
+  <div class="tb-result-go"><button class="tb-go quiet" type="button" id="tableBtn">The table</button><button class="tb-go primary" type="button" id="nextBtn">Next hand</button></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog" id="nameForm">
+    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
+</dialog>
+
+<p id="toast" class="tb-toast" role="status" aria-live="polite"></p>
+<script type="module" src="tribute.js"></script>
+</body>
+</html>

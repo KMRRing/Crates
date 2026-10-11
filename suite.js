@@ -217,7 +217,7 @@ export function bestOf(app) {
 // streak (Crates, Cartel), today's time (Slate, Delta) or count (Deck's cards, Parley's lessons), stars collected (the
 // level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
-export const MARKS = { crates: "streak", cartel: "streak", glyph: "time", delta: "time", punt: "daily", quote: "daily", origin: "daily",
+export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", punt: "daily", quote: "daily", origin: "daily",
   order: "daily", chart: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
 /** A game won or lost, in a game that counts streaks: the current run, and the longest. */
@@ -335,7 +335,7 @@ export async function watchBests(cb) {
 
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
-export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html" };
+export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html" };
 const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 export const duoHref = game => `${DUO_GAMES[game]}?room=${duoCode()}`;

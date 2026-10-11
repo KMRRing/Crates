@@ -1,0 +1,125 @@
+/* Tribute: Guan Dan on a cobalt-washed table under brass, the cards ivory with red and black, the jokers lettered
+   down their side, the two wild cards starred, the level cards underlined in brass. Your cards stand in columns by
+   rank, the strongest on the left (tribute.js places them to fit the row). */
+:root {
+  --tb-in: #2F5D8C;                                             /* cobalt: the game's accent */
+  --tb-in-soft: color-mix(in srgb, var(--tb-in) 15%, var(--sheet));
+  --tb-felt: color-mix(in srgb, var(--tb-in) 7%, var(--sheet));
+  --tb-face: #FCF9F1; --tb-edge: #C9B78E; --tb-red: #B3302A; --tb-black: #1E2730; --tb-star: #C8923A;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); --tb-face: #ECE6D6; --tb-edge: #7E6C4B; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); --tb-face: #ECE6D6; --tb-edge: #7E6C4B; }
+
+.tb-mark { display: inline-block; }
+.tb-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the levels ---------- */
+.tb-strip { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .2rem .7rem; margin: .55rem 0 .4rem; font-size: .84rem; color: var(--ink-soft); }
+.tb-strip b { color: var(--ink); font-weight: 800; }
+.tb-wild { color: var(--tb-red); font-weight: 800; }
+.tb-score { font-variant-numeric: tabular-nums; }
+
+/* ---------- the table: your partner across, the others either side, you at the foot ---------- */
+.tb-table { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: ". top ." "left news right" ". me ."; gap: .35rem .4rem; padding: .5rem; border-radius: 6px; background: var(--tb-felt);
+  border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--tb-felt), inset 0 0 0 5px var(--rule); min-height: 0; overflow: hidden; }
+.tb-top { grid-area: top; }
+.tb-left { grid-area: left; align-self: center; }
+.tb-right { grid-area: right; align-self: center; }
+.tb-me { grid-area: me; }
+.tb-seat { display: grid; justify-items: center; gap: .25rem; min-width: 0; }
+.tb-who { display: flex; align-items: center; gap: .3rem; font-size: .86rem; max-width: 100%; }
+.tb-who b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-who.mate b { color: var(--tb-in); }
+.tb-who.on b { text-decoration: underline 2px var(--brass); text-underline-offset: .2rem; }
+.tb-n { min-width: 1.5rem; padding: .05rem .3rem; border-radius: 4px; background: var(--sheet); border: 1px solid var(--rule); font-size: .8rem; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+.tb-place { padding: .05rem .35rem; border-radius: 4px; background: var(--tb-in); color: var(--sheet); font-size: .72rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); }
+.tb-dots { color: var(--tb-in); font-weight: 800; }
+.tb-play { min-height: 2.6rem; display: grid; place-items: center; max-width: 100%; }
+.tb-play.pass { font-size: .78rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+.tb-play.best .tb-cards { filter: drop-shadow(0 0 0 var(--tb-in)) drop-shadow(0 2px 0 var(--tb-in)); }
+.tb-news { grid-area: news; align-self: center; display: grid; gap: .15rem; text-align: center; font-size: .8rem; color: var(--ink-soft); }
+.tb-news p { margin: 0; }
+
+/* ---------- cards ---------- */
+.tb-card { box-sizing: border-box; width: 2.6rem; height: 3.6rem; padding: .16rem .2rem; border-radius: 5px; background: var(--tb-face); border: 1px solid var(--tb-edge);
+  color: var(--tb-black); display: flex; flex-direction: column; align-items: flex-start; font: 800 .95rem/1 var(--font); text-align: left;
+  box-shadow: 0 1px 2px rgba(28, 42, 52, .18); -webkit-user-select: none; user-select: none; }
+.tb-card .r { letter-spacing: -.03em; }
+.tb-card .s { font-size: .82rem; margin-top: .05rem; }
+.tb-card.red { color: var(--tb-red); }
+.tb-card.joker .r { font-size: .5rem; line-height: .98; letter-spacing: 0; }
+.tb-card.joker.big { color: var(--tb-red); }
+.tb-card.joker.small { color: var(--tb-black); }
+.tb-card .w { position: absolute; right: .18rem; bottom: .12rem; font-size: .78rem; color: var(--tb-star); }
+.tb-card.wild { background: color-mix(in srgb, var(--tb-star) 14%, var(--tb-face)); }
+.tb-card.level { box-shadow: inset 0 -.2rem 0 color-mix(in srgb, var(--brass) 70%, transparent), 0 1px 2px rgba(28, 42, 52, .18); }
+/* your hand: cards placed by tribute.js in columns, the column's cards each showing its corner */
+.tb-hand { position: relative; margin-top: .5rem; flex: none; }
+.tb-hand .tb-card { position: absolute; width: var(--tb-cw, 2.6rem); height: var(--tb-ch, 3.6rem); cursor: pointer; transition: transform .1s; }
+.tb-hand .tb-card.sel { background: color-mix(in srgb, var(--tb-in) 24%, var(--tb-face)); border-color: var(--tb-in); box-shadow: 0 0 0 1.5px var(--tb-in); transform: translateY(-.3rem); }
+.tb-hand .tb-card.dim { opacity: .38; }
+/* a play on the table: small cards fanned */
+.tb-cards { display: inline-flex; max-width: 100%; }
+.tb-cards .tb-card { position: relative; width: 1.75rem; height: 2.45rem; padding: .1rem .12rem; font-size: .72rem; border-radius: 4px; }
+.tb-cards .tb-card .s { font-size: .64rem; }
+.tb-cards .tb-card + .tb-card { margin-left: -1rem; }
+.tb-cards .tb-card .w { font-size: .58rem; right: .1rem; bottom: .05rem; }
+.tb-cards .tb-card.joker .r { font-size: .38rem; }
+.tb-left .tb-cards .tb-card + .tb-card, .tb-right .tb-cards .tb-card + .tb-card { margin-left: -1.2rem; }
+
+/* the card counter: what you haven't seen, by rank */
+.tb-counter { display: flex; gap: .1rem; margin-top: .4rem; font-size: .62rem; font-variant-numeric: tabular-nums; }
+.tb-counter span { flex: 1 1 0; display: inline-grid; justify-items: center; min-width: 0; padding: .05rem 0; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); line-height: 1.1; }
+.tb-counter b { font-weight: 800; }
+.tb-counter .gone { opacity: .35; }
+
+/* ---------- your move ---------- */
+.tb-bar { display: grid; gap: .35rem; padding-top: .45rem; }
+.tb-say { margin: 0; font-size: .84rem; line-height: 1.35; }
+.tb-say b { margin-right: .3rem; color: var(--tb-in); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.tb-thinking { color: var(--ink-soft); }
+.tb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; min-height: 2.75rem; }
+.tb-actions .tb-go:last-child { margin-left: auto; }
+.tb-go { min-height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.tb-go.primary { background: var(--tb-in); color: var(--sheet); outline-color: color-mix(in srgb, var(--sheet) 50%, transparent); }
+.tb-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
+.tb-go:disabled { opacity: .45; cursor: default; }
+.tb-wait { margin: 0; font-size: .9rem; color: var(--ink-soft); }
+
+/* ---------- the sheets ---------- */
+dialog.tb-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+#rulesDlg { padding-top: 0; }
+#rulesDlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding-top: 1rem; }
+.tb-rules p { margin: .5rem 0; font-size: .92rem; line-height: 1.45; }
+.tb-result-head { margin: 0 0 .5rem; font-size: 1.1rem; }
+.tb-order { margin: .3rem 0; padding: 0; list-style: none; display: grid; gap: .2rem; }
+.tb-order li { display: flex; gap: .5rem; font-size: .95rem; }
+.tb-order li span { min-width: 2.2rem; color: var(--ink-soft); font-weight: 700; }
+.tb-order li.us { font-weight: 800; color: var(--tb-in); }
+.tb-gain, .tb-levels, .tb-next, .tb-final { margin: .4rem 0; font-size: .95rem; }
+.tb-final { font-weight: 800; }
+.tb-result-go { display: flex; gap: .5rem; margin-top: .8rem; }
+.tb-result-go .tb-go { flex: 1 1 0; margin: 0; }
+
+.tb-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.tb-toast.show { opacity: 1; }
+
+/* held sideways: the table on the left with your cards under it, the levels and your move beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.tribute { --beside: 18rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  #app.tribute .tb-table { grid-column: 1; grid-row: 2 / span 2; margin-top: .6rem; }
+  #app.tribute .tb-hand { grid-column: 1; grid-row: 4; }
+  #app.tribute .tb-strip { grid-column: 2; grid-row: 2; flex-direction: column; margin-top: .8rem; }
+  #app.tribute .tb-counter { grid-column: 2; grid-row: 3; align-self: start; flex-wrap: wrap; }
+  #app.tribute .tb-counter span { flex: 0 0 auto; min-width: 1.8rem; }
+  #app.tribute .tb-cards .tb-card { width: 2.3rem; height: 3.2rem; font-size: .9rem; }
+  #app.tribute .tb-cards .tb-card + .tb-card { margin-left: -1.3rem; }
+  #app.tribute .tb-bar { grid-column: 2; grid-row: 3 / span 2; align-content: end; }
+}
