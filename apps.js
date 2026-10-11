@@ -473,17 +473,19 @@ function bindCodes(dlg) {
     {
       const said = status(partner);
       add("p", "stats", `Code ${duo}. ${said[0].toUpperCase()}${said.slice(1)}.`);
-      const them = partner?.online && partner.game, mine = here;
+      const them = partner?.online && partner.game, mine = here, first = (partner?.name || "them").split(" ")[0];
       const askFor = game => async () => {
         sheet.close();
         const b = head.querySelector("[data-pair] em");
         if (b) b.textContent = `Asking to play ${GAME_NAME(game)}…`;
         const answer = await ask(game);
-        if (answer === "yes") location.href = duoHref(game);
-        else { draw(); alert(answer === "no" ? "Not now, they said." : "No answer."); }
+        if (answer === "yes") return;                    // ask() is taking this page to the table
+        draw(); alert(answer === "no" ? "Not now, they said." : "No answer.");
       };
-      if (them && partner.mode === "solo") button(`Watch ${(partner.name || "them").split(" ")[0]}'s ${GAME_NAME(them)}`, () => { location.href = watchHref(them); }, "btn primary wide");
+      if (them && partner.mode === "solo") button(`Watch ${first}'s ${GAME_NAME(them)}`, () => { location.href = watchHref(them); }, "btn primary wide");
       if (them && DUO_GAMES[them] && partner.mode === "solo") button(`Ask to play ${GAME_NAME(them)} together`, askFor(them));
+      // they're at your table and you aren't (you went back to solo, or came in on another device): sit down again
+      if (them && DUO_GAMES[them] && partner.mode === "duo" && !(inDuo && mine === them)) button(`Join ${first} in ${GAME_NAME(them)}`, () => { location.href = duoHref(them); }, "btn primary wide");
       if (partner?.online && DUO_GAMES[mine] && mine !== them && !inDuo) button(`Ask to play ${GAME_NAME(mine)} together`, askFor(mine));   // only someone who's here can say Play
       if (inDuo) button("Back to solo", () => { location.href = soloHref(); });
       button("Unlink", () => { if (confirm("Unlink from your partner on all your devices?")) { unlink(); location.reload(); } }, "link");

@@ -8,8 +8,8 @@
 // solo code, so your phone and laptop both know your partner. Every page you open tells the room what you're doing
 // (live/PLAYER/DEVICE: the game, solo or duo, online while the page is), so your partner always sees it; either of you
 // can ask the other to play a game together (ask), which shows a banner wherever the other is, and Play takes both of
-// you into the duo match: the game opened in the room (?room=CODE), the solo game kept where it was. Nothing about
-// multiplayer is set up inside a game.
+// you into the duo match: the game opened in the room (?room=CODE&new=the request's time), at a new table, the solo
+// game kept where it was. Nothing about multiplayer is set up inside a game.
 // Loaded by every page (through pwa.js), so the sync and the presence run whichever game you open.
 import { getSync } from "./net.js";
 import { roomInAddress } from "./rooms.js";
@@ -338,8 +338,11 @@ export async function watchBests(cb) {
 export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html" };
 const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
-export const duoHref = game => `${DUO_GAMES[game]}?room=${duoCode()}`;
-export const soloHref = () => { const u = new URL(location.href); u.searchParams.delete("room"); return u.pathname.split("/").pop() + u.search; };
+const FOLLOW_FOR = 10 * 60 * 1000;              // its yes takes the device that asked to the table this long after (it may have slept through it)
+const FOLLOWED = "suite:followed";              // the request this device last went to the table for (suite: keys stay on the device)
+/** A duo match's address: the game in the pair's room; `asked`, the time of the request it answers, deals a new table there. */
+export const duoHref = (game, asked = null) => `${DUO_GAMES[game]}?room=${duoCode()}${asked ? `&new=${asked}` : ""}`;
+export const soloHref = () => { const u = new URL(location.href); u.searchParams.delete("room"); u.searchParams.delete("new"); return u.pathname.split("/").pop() + u.search; };
 
 /** Watches your partner: cb({ name, game, mode, online, at } | null) whenever it changes. Their freshest device counts. */
 export async function watchPartner(cb) {
@@ -352,47 +355,136 @@ export async function watchPartner(cb) {
     cb(devices[0] || null);
   });
 }
-/** Asks your partner to play a game together; resolves "yes", "no" or "late". */
+/**
+ * Asks your partner to play a game together; resolves "yes" (and this page goes to the table), "no" or "late". Every
+ * answer is a transaction (Play, Not now, or this device after two minutes), so only the first lands: a Play can't
+ * arrive after you were told nobody answered. If this page has moved on before the yes, listen (below) takes the
+ * device that asked to the table from whatever page it's on.
+ */
 export async function ask(game) {
   const code = duoCode(), sync = await getSync(), me = playerId();
-  const asked = { from: me, name: raw.get("crates:name") || "Your partner", game, at: Date.now(), answer: null };
+  const asked = { from: me, device: sync.uid, name: raw.get("crates:name") || "Your partner", game, at: Date.now(), answer: null };
   await sync.update(`crates/rooms/${code}`, { ask: asked });
   return new Promise(resolve => {
-    const late = setTimeout(() => { stop?.(); resolve("late"); }, ASK_FOR);
-    const stop = sync.watch(`crates/rooms/${code}/ask`, a => {
-      if (!a || a.at !== asked.at || !a.answer) return;
-      clearTimeout(late); setTimeout(() => stop?.(), 0); resolve(a.answer);
-    });
+    let stop = null, settled = false;
+    const done = said => {
+      if (settled) return;
+      settled = true; clearTimeout(late); setTimeout(() => stop?.(), 0);
+      if (said === "yes" && raw.get(FOLLOWED) !== String(asked.at)) go(asked);     // unless listen has already gone
+      resolve(said);
+    };
+    const late = setTimeout(() => answer(sync, code, asked.at, "late").then(r => done(r.now), e => { console.error(e); done("late"); }), ASK_FOR);
+    stop = sync.watch(`crates/rooms/${code}/ask`, a => { if (a?.at === asked.at && a.answer && a.answer !== "late") done(a.answer); });
   });
 }
+/**
+ * Answers the request made at `at` with `said`, in one transaction, unless it has an answer already or a newer
+ * request has replaced it. Resolves { now, mine }: the request's answer now, and whether it's this one.
+ */
+async function answer(sync, code, at, said) {
+  let now = "late", mine = false;
+  const r = await sync.tx(`crates/rooms/${code}/ask`, cur => {
+    mine = false;
+    if (cur === null) { now = "late"; return null; }      // the cache may be cold: null makes Firebase ask the server
+    if (cur.at !== at) { now = "late"; return undefined; }
+    if (cur.answer) { now = cur.answer; return undefined; }
+    now = said; mine = true;
+    return { ...cur, answer: said };
+  });
+  return { now, mine: mine && r.committed };
+}
+/** To the table for a request, noted on this device so that it goes once (Back to solo stays solo). */
+function go(a) {
+  put(FOLLOWED, String(a.at));
+  location.href = duoHref(a.game, a.at);
+}
+/**
+ * Whether this device should still go to the table for your own request, answered yes, from wherever it is now:
+ * the device that asked, within ten minutes, not gone yet, and able to note that it has (with nothing kept, as in
+ * some private browsing, every page it opened would go again).
+ */
+function toFollow(a, uid) {
+  if (a.answer !== "yes" || a.device !== uid || Date.now() - a.at >= FOLLOW_FOR || raw.get(FOLLOWED) === String(a.at)) return false;
+  put("suite:probe", "1");
+  return raw.get("suite:probe") === "1";
+}
+let say = null;                                  // present's: says where this page is (sayWhere, below)
 /** Says where you are: this page's game, solo or duo, online while the page is open. */
 async function present() {
   const code = duoCode();
   if (!code) return;
   const sync = await getSync(), path = `crates/rooms/${code}/live/${playerId()}/${sync.uid}`;
-  const say = () => sync.update(path, { name: raw.get("crates:name") || "", game: pageGame(), mode: WATCHING ? "watch" : roomInAddress() ? "duo" : "solo", at: Date.now() });
+  say = () => sync.update(path, { name: raw.get("crates:name") || "", game: pageGame(), mode: WATCHING ? "watch" : roomInAddress() ? "duo" : "solo", at: Date.now() });
   await say();
   sync.presence(path);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") say(); });
 }
-/** A request from your partner shows as a banner wherever you are: Play takes you both into the duo match. */
+/** Says where you are again, after this page sat down at a table or left one without reloading (together.js): else
+ *  your partner's sheet would still offer to join a table you've left, or to ask you to one you're at. */
+export function sayWhere() { say?.()?.catch?.(e => console.error(e)); }
+/**
+ * A request from your partner shows as a banner wherever you are, while it stands: Play takes you both into the duo
+ * match, at a new table. Your own request, once answered yes, takes the device that asked there too, from whatever
+ * page it's on by then (the page that asked may have closed, or the phone slept through the answer).
+ */
 async function listen() {
   const code = duoCode();
   if (!code) return;
   const sync = await getSync(), me = playerId();
+  let lapse = null;
   sync.watch(`crates/rooms/${code}/ask`, a => {
-    document.querySelector(".pair-ask")?.remove();
-    if (!a || a.from === me || a.answer || Date.now() - a.at > ASK_FOR || !DUO_GAMES[a.game]) return;
+    clearTimeout(lapse);
+    banner(null);
+    if (!a || !DUO_GAMES[a.game]) return;
+    if (a.from === me) {
+      if (toFollow(a, sync.uid)) go(a);
+      return;
+    }
+    const left = ASK_FOR - (Date.now() - a.at);
+    if (a.answer || left <= 0) return;
     const bar = document.createElement("div");
     bar.className = "pair-ask";
     bar.setAttribute("role", "alertdialog");
     const name = a.game === "crates" ? "Crates" : a.game[0].toUpperCase() + a.game.slice(1);
     bar.innerHTML = `<span><b></b> wants to play ${name} together</span><button class="btn primary" type="button" data-yes>Play</button><button class="btn" type="button" data-no>Not now</button>`;
     bar.querySelector("b").textContent = a.name || "Your partner";
-    bar.querySelector("[data-yes]").addEventListener("click", async () => { await sync.update(`crates/rooms/${code}/ask`, { answer: "yes" }); location.href = duoHref(a.game); });
-    bar.querySelector("[data-no]").addEventListener("click", () => { sync.update(`crates/rooms/${code}/ask`, { answer: "no" }); bar.remove(); });
-    document.body.appendChild(bar);
+    bar.querySelector("[data-yes]").addEventListener("click", async () => {
+      for (const b of bar.querySelectorAll("button")) b.disabled = true;
+      const r = await answer(sync, code, a.at, "yes").catch(e => { console.error(e); return { mine: false, now: null }; });
+      if (r.mine) { go(a); return; }
+      // too late (they gave up waiting, or asked again), or another of your devices said Play first
+      bar.querySelector("span").textContent = r.now === "yes" ? "Your other device is on its way" : "That request lapsed: ask them again";
+      for (const b of bar.querySelectorAll("button")) b.remove();
+      banner(bar);                                  // the change that made it too late took it down: up again, to say so
+      lapse = setTimeout(() => banner(null), 2500);
+    });
+    bar.querySelector("[data-no]").addEventListener("click", () => { answer(sync, code, a.at, "no").catch(e => console.error(e)); banner(null); });
+    banner(bar);
+    lapse = setTimeout(() => banner(null), left);   // the request lapses for them at two minutes: its banner goes with it
   });
+}
+/**
+ * Puts up the request's banner (null takes it down). It lives in the topmost open modal dialog when there is one
+ * (the games screen, a menu, a sheet), since a modal dialog leaves everything outside it out of sight and out of
+ * reach: on the games screen, where you'd often be when asked, a banner on the page could be neither seen nor tapped.
+ * It moves as dialogs open and close.
+ */
+let shown = null, moves = null;
+function banner(bar) {
+  if (shown && shown !== bar) shown.remove();
+  shown = bar;
+  if (!bar) { moves?.disconnect(); moves = null; return; }
+  const place = () => {
+    if (!shown) return;
+    const modal = [...document.querySelectorAll("dialog[open]")].filter(d => { try { return d.matches(":modal"); } catch { return true; } }).pop();
+    const home = modal || document.body;
+    if (shown.parentNode !== home) home.appendChild(shown);
+  };
+  place();
+  if (!moves) {
+    moves = new MutationObserver(place);
+    moves.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["open"] });
+  }
 }
 
 // ---------- watching your partner ----------
@@ -496,7 +588,7 @@ async function watchInFrames() {
 export function codesLink(kind) {
   const u = new URL(location.href);
   u.hash = "";
-  for (const k of ["room", "watch", "solo", "duo"]) u.searchParams.delete(k);
+  for (const k of ["room", "new", "watch", "solo", "duo"]) u.searchParams.delete(k);
   if (kind === "solo" && soloCode()) u.searchParams.set("solo", soloCode());
   if (duoCode()) u.searchParams.set("duo", duoCode());
   return u.toString();

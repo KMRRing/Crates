@@ -6,11 +6,12 @@
 import * as E from "./tribute-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
-import { GAMES } from "./rooms.js";
+import { GAMES, roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sideways } from "./wide.js";
+import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "tribute:run", OPTS = "tribute:opts", STATS = "tribute:stats";
@@ -389,7 +390,10 @@ function render() {
 function closeDialogs() { if ($("resultDlg").open) $("resultDlg").close(); }
 
 // ---------- together: partners across the table, against two computer players ----------
-let roomData = null;
+// The two of you sit at seats 0 and 2, which are one side (the first to sit down at 0, the other across), so you
+// always play as partners; the computer players take 1 and 3.
+let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
+const seated = () => { joining?.(); joining = null; };
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
 function freshRoom(players) {
   const names = ["", BOTS[0], "", BOTS[2]];
@@ -402,12 +406,14 @@ function onRoomState(g) {
   me = mySlot() === 1 ? 2 : 0;
   const names = [...(g.table?.names || [])];
   for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
+  for (const s of [0, 2]) names[s] ||= "Your partner";           // a seat kept for them until they sit down
   S = { ...g.table, names, humans: [0, 2] };
   const was = G ? `${G.handNo}:${G.log.length}` : "";
   G = normalize(clone(g.game));
   if (`${G.handNo}:${G.log.length}` !== was) { gen++; selected.clear(); hint = null; }
   if (G.phase !== "over" && $("resultDlg").open) $("resultDlg").close();
   render();
+  seated();
   kick(0);
 }
 async function applyTogether(seat, act) {
@@ -457,7 +463,7 @@ const together = createTogether({
   fresh: freshRoom,
   onState: onRoomState,
   onPresence: render,
-  onLeave: () => { roomData = null; load(); },
+  onLeave: () => { roomData = null; seated(); load(); },
   // a match played to its end: the pair's record, as a team
   result: g => {
     const game = g.game;
@@ -536,6 +542,10 @@ function load() {
   }
   newMatch();
 }
-load();
-const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-if (code.length === 4) together.join(code);
+// Opened for a duo match: your solo match isn't dealt or played on while you sit down (its computer players would
+// move on without you); it waits as you left it, for Back to solo, or for a join that doesn't come off.
+const code = roomInAddress();
+if (code) {
+  joining = busy("Joining your partner", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { seated(); load(); } });
+} else load();

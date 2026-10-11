@@ -6,7 +6,7 @@ import { makeField, placements, fits, filledBy, put, marksLeft, anyFits, tray, s
 import { CHAPTERS, LEVELS } from "./stow-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
-import { GAMES } from "./rooms.js";
+import { GAMES, roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
 import { today, noteStars } from "./suite.js";
@@ -381,7 +381,10 @@ function roomLevel(g, id) {
   const level = byId.get(id) || LEVELS[0], f = makeField(level.field);
   Object.assign(g, { id: level.id, board: [...startBoard(level, f)], tint: new Array(f.n).fill(0), hands: [{ tray: 0, slots: [true, true, true] }, { tray: 0, slots: [true, true, true] }], turn: 0, used: 0, done: false, created: Date.now() });
 }
+let joining = null;                                              // the rete while you sit down, until the shared hold's drawn
+const seated = () => { joining?.(); joining = null; };
 function onState(g) {
+  seated();
   const level = byId.get(g.id) || LEVELS[0];
   if (L?.id !== level.id || !F) setLevel(level);
   const before = S?.board, was = S?.used;
@@ -440,7 +443,7 @@ const together = createTogether({
   fresh: freshRoom,
   onState,
   onPresence: drawPartner,
-  onLeave: () => { S = read(RUN, null); start(); },
+  onLeave: () => { seated(); S = read(RUN, null); start(); },
   result: g => (g.done ? { match: `${g.id}-${g.created}`, score: g.used, won: !!g.done.won, coop: true, lower: true } : null),
 });
 
@@ -526,5 +529,10 @@ function start() {
 S = read(RUN, null);
 start();
 noteStars("stow", starsAll());
-const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-if (code.length === 4) together.join(code);
+// Opened for a duo match: the rete covers your own hold while you sit down (a new hold starts at your level), so
+// nothing is placed in it by mistake; it waits as you left it, for Back to solo.
+const code = roomInAddress();
+if (code) {
+  joining = busy("Joining your partner", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) seated(); });
+}

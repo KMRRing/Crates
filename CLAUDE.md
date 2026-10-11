@@ -129,8 +129,10 @@ in `tests/offline.mjs`, which fails until you do. The service worker's logic is 
 
 Players pair once on the games screen; a duo match is the game opened with `?room=CODE` (the pair's room), which the
 partner sheet and the request banner do. Don't add room setup (start, join, share a code) to a game's menu: a game
-only joins the room in its address, and offers "Back to solo" while in it. A game that gets a duo match goes in
-`DUO_GAMES` in `suite.js`. A finished duo match is recorded for the pair: on `together.js`,
+only joins the room in its address, and offers "Back to solo" while in it. A request's yes adds `&new=` (its time):
+`together.js` then deals a new table, and seats belong to players, not devices (`sitDown` in `rooms.js`). Don't run
+the solo game while a room in the address is being joined (Hong, Tribute: `busy` until the room's state is drawn).
+A game that gets a duo match goes in `DUO_GAMES` in `suite.js`. A finished duo match is recorded for the pair: on `together.js`,
 give `createTogether` a `result(state)` returning `{ match, score, won, coop, lower }` once the match is over; otherwise
 call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on each player's device.
 
