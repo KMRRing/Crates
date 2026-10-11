@@ -13,6 +13,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import { busy } from "./loading.js";
+import { SIDEWAYS } from "./wide.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "hong:run", OPTS = "hong:opts", STATS = "hong:stats", BEST = "hong:best";
@@ -36,6 +37,8 @@ const nameOf = seat => S?.names?.[seat] || BOTS[seat % 3];
 const windName = seat => E.WIND_NAMES[E.windOf(G, seat)];
 const windGlyph = seat => E.WINDS[E.windOf(G, seat)];
 const keyNow = () => (G ? `${G.hand}:${G.log.length}:${G.phase}` : "");
+/** A phone held sideways (hong.css's last query): the table takes the screen, your tiles lie along its edge. */
+const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
 
 /** A state read from the room (or an old save) put back in shape: Firebase drops empty lists and nulls, and turns an
  *  object of seats into a list with holes. */
@@ -216,13 +219,14 @@ function flow(groups, x0, y0, width, w, h, gap = 3) {
   }
   return { tiles: out, height: groups.length ? y + h - y0 : 0 };
 }
-/** One player's label: their wind (the dealer's in jade), name and score, and the tiles in their hand. */
-function label(seat, x, y, width, active) {
-  const dealer = E.windOf(G, seat) === 0;
+/** One player's label: their wind (the dealer's in jade), name and score, and the tiles in their hand (at the end of
+ *  its width, or, `tight`, straight after the score). */
+function label(seat, x, y, width, active, tight = false) {
+  const dealer = E.windOf(G, seat) === 0, held = busyWith === seat ? "…" : `${G.seats[seat].hand.length} held`;
   let svg = `<g class="hk-label${active ? " on" : ""}${busyWith === seat ? " thinking" : ""}">`;
   svg += `<rect class="hk-badge${dealer ? " dealer" : ""}" x="${x}" y="${y}" width="15" height="15" rx="2.5"/><text class="hk-badge-t" x="${x + 7.5}" y="${y + 11.6}">${windGlyph(seat)}</text>`;
-  svg += `<text class="hk-name" x="${x + 19}" y="${y + 11.2}">${esc(nameOf(seat))}<tspan class="hk-score" dx="5">${signed(G.scores[seat])}</tspan></text>`;
-  svg += `<text class="hk-count" x="${x + width - 2}" y="${y + 11.2}">${busyWith === seat ? "…" : `${G.seats[seat].hand.length} held`}</text>`;
+  svg += `<text class="hk-name" x="${x + 19}" y="${y + 11.2}">${esc(nameOf(seat))}<tspan class="hk-score" dx="5">${signed(G.scores[seat])}</tspan>${tight ? `<tspan class="hk-count" dx="7">${held}</tspan>` : ""}</text>`;
+  if (!tight) svg += `<text class="hk-count" x="${x + width - 2}" y="${y + 11.2}">${held}</text>`;
   return `${svg}</g>`;
 }
 /** A player's flowers and sets in rows within a width; centred, for the player across. */
@@ -253,9 +257,55 @@ function riverOf(seat) {
   const r = G.seats[seat].river, lastAt = G.last && G.last.seat === seat && G.last.e === "discard" ? r.length - 1 : -1;
   return r.map((d, i) => ({ k: d.k, last: i === lastAt && d.by === undefined, by: d.by })).filter(d => d.by === undefined);
 }
+/** The round's dial: its wind, and a pointer to whoever is to move. */
+function dial(cx, cy, r) {
+  const right = (me + 1) % 4, top = (me + 2) % 4, left = (me + 3) % 4;
+  const at = G.phase === "act" ? G.turn : busyWith ?? -1;
+  let out = "";
+  if (at >= 0) {
+    const ang = { [me]: 90, [right]: 0, [top]: -90, [left]: 180 }[at] * Math.PI / 180, d = r + 6;
+    const px = cx + Math.cos(ang) * d, py = cy + Math.sin(ang) * d;
+    out += `<path class="hk-pointer" d="M${px + Math.cos(ang) * 6} ${py + Math.sin(ang) * 6}L${px + Math.cos(ang + 2.3) * 5} ${py + Math.sin(ang + 2.3) * 5}L${px + Math.cos(ang - 2.3) * 5} ${py + Math.sin(ang - 2.3) * 5}Z"/>`;
+  }
+  return out;
+}
+/**
+ * A phone on its side: the table as it lies. The four rivers round the dial, yours below it and the one across above
+ * it in rows, the others' in columns of six either side, each starting next to the dial and growing away from it;
+ * each player's name and sets at their own edge. Drawn to the height (300 units, about a pixel each), so the tiles
+ * keep their size however wide the phone, and the extra width goes between the players.
+ */
+function drawLow(svg) {
+  const bw = svg.clientWidth || 560, bh = svg.clientHeight || 300;
+  const H = 302, W = Math.max(440, Math.round(H * bw / bh));
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const right = (me + 1) % 4, top = (me + 2) % 4, left = (me + 3) % 4;
+  const turn = G.phase === "act" ? G.turn : -1;
+  const on = seat => seat === turn || busyWith === seat;
+  const row = W >= 560 ? 8 : 6, pond = row * (RW + 1) - 1, cx = W / 2, cy = 174, r = 23;
+  const lay = (seat, at) => riverOf(seat).map((d, i) => {
+    const { x, y } = at(i);
+    return use(d.k, x, y, RW, RH) + (d.last ? `<rect class="hk-last-ring" x="${x - 1}" y="${y - 1}" width="${RW + 2}" height="${RH + 2}" rx="3"/>` : "");
+  }).join("");
+  let out = label(top, cx - 60, 3, 150, on(top), true) + sets(top, cx - 160, 21, 320, true).svg;
+  out += lay(top, i => ({ x: cx - pond / 2 + (i % row) * (RW + 1), y: cy - r - 8 - RH - Math.floor(i / row) * (RH + 1) }));
+  out += lay(me, i => ({ x: cx - pond / 2 + (i % row) * (RW + 1), y: cy + r + 8 + Math.floor(i / row) * (RH + 1) }));
+  const inner = pond / 2 + 9, colTop = cy - 3 * (RH + 1);
+  out += lay(left, i => ({ x: cx - inner - RW - Math.floor(i / 6) * (RW + 1), y: colTop + (i % 6) * (RH + 1) }));
+  out += lay(right, i => ({ x: cx + inner + Math.floor(i / 6) * (RW + 1), y: colTop + (i % 6) * (RH + 1) }));
+  // the players either side: from the edge to where four columns of their river would reach
+  const zone = Math.max(96, cx - inner - 4 * (RW + 1) - 10);
+  out += label(left, 4, colTop, zone - 4, on(left), true) + sets(left, 4, colTop + 19, zone - 4).svg;
+  out += label(right, W - zone, colTop, zone - 4, on(right), true) + sets(right, W - zone, colTop + 19, zone - 4).svg;
+  // the dial: the round's wind over the tiles left in the wall (the round and the hand are in the console)
+  out += `<g class="hk-dial"><circle cx="${cx}" cy="${cy}" r="${r}"/><text class="hk-dial-wind" x="${cx}" y="${cy + 3}">${E.WINDS[G.round]}</text>`;
+  out += `<text class="hk-dial-t" x="${cx}" y="${cy + 15}">${E.wallLeft(G)}</text>${dial(cx, cy, r)}</g>`;
+  svg.innerHTML = out;
+}
 function drawTable() {
   const svg = $("board"), box = $("table");
   if (!G) { svg.innerHTML = ""; return; }
+  if (low()) { drawLow(svg); return; }
   const bw = box.clientWidth || 380, bh = box.clientHeight || 400;
   // the table takes the box's proportions: a phone's is about square, and a wider box (a tablet on its side) gets wider
   // side columns, eight discards to a row, rather than bare cloth either side
@@ -290,13 +340,7 @@ function drawTable() {
   out += `<g class="hk-dial"><circle cx="${cx}" cy="${cy}" r="25"/><text class="hk-dial-wind" x="${cx}" y="${cy + 8}">${E.WINDS[G.round]}</text>`;
   out += `<text class="hk-dial-t" x="${cx}" y="${cy + 44}">${E.WIND_NAMES[G.round]} round · hand ${G.hand + 1}</text>`;
   out += `<text class="hk-dial-t" x="${cx}" y="${cy + 56}">${E.wallLeft(G)} in the wall</text>`;
-  const at = turn >= 0 ? turn : busyWith ?? -1;
-  if (at >= 0) {
-    const ang = { [me]: 90, [right]: 0, [top]: -90, [left]: 180 }[at] * Math.PI / 180;
-    const px = cx + Math.cos(ang) * 31, py = cy + Math.sin(ang) * 31;
-    out += `<path class="hk-pointer" d="M${px + Math.cos(ang) * 6} ${py + Math.sin(ang) * 6}L${px + Math.cos(ang + 2.3) * 5} ${py + Math.sin(ang + 2.3) * 5}L${px + Math.cos(ang - 2.3) * 5} ${py + Math.sin(ang - 2.3) * 5}Z"/>`;
-  }
-  out += "</g>";
+  out += `${dial(cx, cy, 25)}</g>`;
   svg.innerHTML = out;
 }
 
@@ -306,9 +350,11 @@ function drawMine() {
   if (!G) { box.replaceChildren(); return; }
   const s = G.seats[me];
   const myTurn = G.phase === "act" && G.turn === me;
+  // on a phone on its side the dial has room only for the wind and the wall: the round and the hand are said here
+  const round = low() ? ` · ${E.WIND_NAMES[G.round]} round, hand ${G.hand + 1}` : "";
   box.innerHTML = `<span class="hk-me${myTurn ? " on" : ""}"><b class="hk-wind${E.windOf(G, me) === 0 ? " dealer" : ""}">${windGlyph(me)}</b><span class="hk-me-name">${esc(nameOf(me))}</span><span class="hk-me-score">${signed(G.scores[me])}</span></span>`
     + `<span class="hk-me-flowers">${s.flowers.map(f => tileSvg(f, "hk-mini")).join("")}</span>`
-    + `<span class="hk-me-rule">${opts.minFan} fan to win${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`;
+    + `<span class="hk-me-rule">${opts.minFan} fan to win${round}${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`;
 }
 function drawHand() {
   const box = $("hand");
@@ -320,9 +366,13 @@ function drawHand() {
   if (myTurn && G.drawn !== null && tiles.includes(G.drawn)) { drawn = G.drawn; tiles.splice(tiles.lastIndexOf(drawn), 1); }
   const rec = coachOn() && advice?.key === keyNow() && advice.decision?.action?.t === "discard" ? advice.decision.action.k : null;
   const units = tiles.length + (drawn >= 0 ? 1.35 : 0) + s.melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0) + (s.melds.length ? 0.3 : 0);
-  const room = box.clientWidth || 360;
-  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), parseFloat(getComputedStyle(document.documentElement).fontSize) * 3.1));
+  const pad = getComputedStyle(box), room = (box.clientWidth || 360) - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  // on a phone on its side the row lies on the table, which leaves room for it at its foot (--hk-reserve): on the
+  // shortest phones a little smaller, so the table keeps its share of the height
+  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? Math.min(rem * 2.3, innerHeight * 0.095) : rem * 3.1));
   box.style.setProperty("--hk-t", `${tw.toFixed(1)}px`);
+  if (low()) $("app").style.setProperty("--hk-reserve", `${(tw * 4 / 3 + 1.25 * rem).toFixed(1)}px`);
   const btn = (k, extra = "") => {
     const cls = ["hk-tile"];
     if (picked === k && myTurn) cls.push("picked");
@@ -528,9 +578,10 @@ function review() {
 // ---------- drawing ----------
 function render() {
   if (!G) return;
+  if (low()) drawHand();                       // on a phone on its side the table leaves your row its room: sized first
   drawTable();
   drawMine();
-  drawHand();
+  if (!low()) drawHand();
   drawActions();
   drawPartner();
 }

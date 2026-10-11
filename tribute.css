@@ -123,3 +123,53 @@ dialog.tb-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.tribute .tb-cards .tb-card + .tb-card { margin-left: -1.3rem; }
   #app.tribute .tb-bar { grid-column: 2; grid-row: 3 / span 2; align-content: end; }
 }
+
+/* A phone on its side is a card table: the cloth takes the whole height on the left, the partner across at its far
+   edge, the others either side, and your cards fanned along its near edge as if you sat at it (tribute.js lays them
+   in one row here). Beside it a console: the header at the top (the logo stands for the name), the levels and the
+   counter, then your move, its buttons lowest, under the thumb. Everything fits; nothing scrolls. */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  html #app.tribute { --beside-cols: minmax(0, 1fr) 10.75rem; --beside-gap: .7rem; grid-template-rows: auto auto auto minmax(0, 1fr); overflow: hidden;
+    padding: max(.45rem, env(safe-area-inset-top, 0px)) max(.6rem, env(safe-area-inset-right, 0px)) max(.45rem, env(safe-area-inset-bottom, 0px)) max(.6rem, env(safe-area-inset-left, 0px)); }
+  html #app.tribute.beside > .top { grid-column: 2; grid-row: 1; padding-bottom: .45rem; }
+  #app.tribute .top .mark-btn { font-size: 0; gap: 0; }
+  #app.tribute .top .partner-pill { display: none; }     /* no room to say it here: at the table your partner sits across */
+  #app.tribute .top .mark-icon { width: 2.1rem; height: 2.1rem; }
+  #app.tribute .top .top-right { gap: .35rem; }
+  #app.tribute .top .pick { min-height: 2rem; padding: .2rem .5rem; font-size: .72rem; }
+  #app.tribute .top .rete-btn { width: 2.25rem; height: 2.25rem; }
+  #app.tribute .top .rete-btn .rete { width: 2.1rem; height: 2.1rem; }
+
+  /* the cloth, all the height, room left at its foot for your cards */
+  #app.tribute { --tb-felt: color-mix(in srgb, #2F5D8C 21%, var(--sheet)); }               /* a deeper cloth for the whole screen */
+  @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.tribute { --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); } }
+  html[data-mode="night"] #app.tribute { --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); }
+  #app.tribute .tb-table { grid-column: 1; grid-row: 1 / -1; margin: 0; gap: .2rem .4rem; padding: .4rem .6rem calc(var(--tb-ch, 3.2rem) + 1.05rem);
+    background: radial-gradient(ellipse 70% 65% at 50% 42%, color-mix(in srgb, var(--tb-felt) 55%, var(--sheet)), var(--tb-felt)); }
+  #app.tribute .tb-hand { grid-column: 1; grid-row: 4; align-self: end; z-index: 1; margin: 0 1.1rem .5rem; }
+  #app.tribute .tb-hand .tb-card { padding: .14rem .16rem; font-size: .9rem; }
+  #app.tribute .tb-hand .tb-card .s { font-size: .76rem; }
+  #app.tribute .tb-hand .tb-card .w { right: auto; left: .2rem; bottom: .16rem; }      /* the star where the fan leaves it showing */
+  #app.tribute .tb-hand .tb-card.sel { transform: translateY(-.45rem); }
+  #app.tribute .tb-play { min-height: 2.85rem; }
+  #app.tribute .tb-cards .tb-card { width: 2.05rem; height: 2.85rem; padding: .12rem .14rem; font-size: .82rem; }
+  #app.tribute .tb-cards .tb-card .s { font-size: .7rem; }
+  #app.tribute .tb-cards .tb-card + .tb-card, #app.tribute .tb-left .tb-cards .tb-card + .tb-card, #app.tribute .tb-right .tb-cards .tb-card + .tb-card { margin-left: -.95rem; }
+  #app.tribute .tb-news { font-size: .76rem; }
+  /* the others' hands: a card's back beside how many they hold */
+  #app.tribute .tb-n { display: inline-flex; align-items: center; gap: .3rem; }
+  #app.tribute .tb-n::before { content: ""; width: .62rem; height: .86rem; border-radius: 2px; background: var(--tb-in);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--sheet) 85%, transparent), 1.5px -1.5px 0 0 color-mix(in srgb, var(--tb-in) 55%, var(--sheet)); }
+
+  /* the console */
+  #app.tribute .tb-strip { grid-column: 2; grid-row: 2; flex-direction: column; flex-wrap: nowrap; gap: .1rem; margin: .45rem 0 .35rem; font-size: .78rem; }
+  #app.tribute .tb-counter { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .12rem; margin: 0 0 .3rem; font-size: .6rem; }
+  #app.tribute .tb-counter span { min-width: 0; }
+  #app.tribute .tb-bar { grid-column: 2; grid-row: 4; display: flex; flex-direction: column; justify-content: flex-end; gap: .35rem; min-height: 0; padding: 0; }
+  #app.tribute .tb-say { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: .76rem; line-height: 1.3; }
+  #app.tribute .tb-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .4rem; min-height: 0; flex: none; }
+  #app.tribute .tb-actions .tb-go { min-height: 2.5rem; margin: 0; padding: 0 .35rem; font-size: .76rem; }
+  #app.tribute .tb-actions .tb-go:last-child, #app.tribute .tb-actions .tb-wait { grid-column: 1 / -1; }
+  #app.tribute .tb-wait { font-size: .8rem; }
+  .tb-toast { top: 46%; bottom: auto; left: calc(50% - 5.7rem); max-width: min(56vw, 26rem); }   /* over the cloth's middle, not your cards */
+}

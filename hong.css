@@ -135,3 +135,43 @@ dialog.hk-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
   #app.hong .hk-bar { grid-column: 2; grid-row: 3 / span 2; align-content: end; }
   #app.hong .hk-coach { font-size: .9rem; }
 }
+
+/* A phone on its side is a mahjong table: the cloth takes the whole height on the left, the rivers round the dial and
+   each player at their own edge (hong.js draws it to the height), your tiles along its near edge as if you sat at it.
+   Beside it a console: the header at the top (the logo stands for the name), your seat with the round, the coach, and
+   your move, its buttons lowest, under the thumb. Everything fits; nothing scrolls. */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  html #app.hong { --beside-cols: minmax(0, 1fr) 11.5rem; --beside-gap: .7rem; grid-template-rows: auto auto minmax(0, 1fr); overflow: hidden;
+    --hk-felt: color-mix(in srgb, #4E8A5E 19%, var(--sheet));                             /* a deeper cloth for the whole screen */
+    padding: max(.45rem, env(safe-area-inset-top, 0px)) max(.6rem, env(safe-area-inset-right, 0px)) max(.45rem, env(safe-area-inset-bottom, 0px)) max(.6rem, env(safe-area-inset-left, 0px)); }
+  @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) #app.hong { --hk-felt: color-mix(in srgb, #2F6E58 26%, var(--sheet)); } }
+  html[data-mode="night"] #app.hong { --hk-felt: color-mix(in srgb, #2F6E58 26%, var(--sheet)); }
+  html #app.hong.beside > .top { grid-column: 2; grid-row: 1; padding-bottom: .45rem; }
+  #app.hong .top .mark-btn { font-size: 0; gap: 0; }
+  #app.hong .top .partner-pill { display: none; }        /* no room to say it here: at the table your partner sits across */
+  #app.hong .top .mark-icon { width: 2.1rem; height: 2.1rem; }
+  #app.hong .top .top-right { gap: .35rem; }
+  #app.hong .top .pick { min-height: 2rem; padding: .2rem .5rem; font-size: .72rem; }
+  #app.hong .top .rete-btn { width: 2.25rem; height: 2.25rem; }
+  #app.hong .top .rete-btn .rete { width: 2.1rem; height: 2.1rem; }
+
+  /* the cloth is the section, all the height; the drawing fills it but for the room your row needs at its foot */
+  #app.hong .hk-table { grid-column: 1; grid-row: 1 / -1; margin: 0; padding: .5rem .55rem; place-items: start center; border-radius: 6px; border: 1px solid var(--tile-edge);
+    background: radial-gradient(ellipse 70% 65% at 50% 45%, color-mix(in srgb, var(--hk-felt) 55%, var(--sheet)), var(--hk-felt));
+    box-shadow: inset 0 0 0 4px var(--hk-felt), inset 0 0 0 5px var(--rule); }
+  #app.hong .hk-board { height: calc(100cqh - var(--hk-reserve, 4.3rem)); background: none; border: 0; border-radius: 0; box-shadow: none; }
+  #app.hong .hk-board text.hk-dial-wind { font-size: 18px; }       /* the drawing's own units, which grow with it */
+  #app.hong .hk-board text.hk-dial-t { font-size: 9px; }
+  #app.hong .hk-hand { grid-column: 1; grid-row: 3; align-self: end; justify-content: center; z-index: 1; padding: .55rem .8rem .7rem; }
+
+  /* the console */
+  #app.hong .hk-mine { grid-column: 2; grid-row: 2; flex-wrap: wrap; gap: .2rem .5rem; margin: .45rem 0 .3rem; }
+  #app.hong .hk-me-rule { margin-left: 0; flex-basis: 100%; text-align: left; font-size: .74rem; line-height: 1.3; }
+  #app.hong .hk-bar { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; justify-content: flex-end; gap: .4rem; min-height: 0; padding: 0; }
+  #app.hong .hk-coach { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: .76rem; line-height: 1.3; }
+  #app.hong .hk-actions { flex: none; gap: .35rem; min-height: 0; }
+  #app.hong .hk-go { flex: 1 1 auto; min-height: 2.5rem; padding: 0 .5rem; font-size: .74rem; }
+  #app.hong .hk-go.chow { flex: 0 1 auto; }
+  #app.hong .hk-wait, #app.hong .hk-claim { font-size: .8rem; }
+  .hk-toast { top: 46%; bottom: auto; left: calc(50% - 6.1rem); max-width: min(56vw, 26rem); }    /* over the cloth's middle, not your tiles */
+}

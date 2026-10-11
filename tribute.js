@@ -10,7 +10,7 @@ import { GAMES, roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
-import { sideways } from "./wide.js";
+import { sideways, SIDEWAYS } from "./wide.js";
 import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
@@ -33,6 +33,8 @@ let hint = null;                                                 // { key, list,
 const isHuman = seat => !!S?.humans?.includes(seat);
 const nameOf = seat => (seat === me && !together.room ? "You" : S?.names?.[seat] || "?");
 const keyNow = () => (G ? `${G.handNo}:${G.log.length}` : "");
+/** A phone held sideways (tribute.css's last query): the table takes the screen, your cards lie along its edge. */
+const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
 const FACE = r => (r === 15 ? "lvl" : ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"][r] || "");
 
 /** A state read from the room put back in shape: Firebase drops empty lists and nulls. */
@@ -249,28 +251,48 @@ function columns(hand, level) {
   }
   return [...cols.entries()].sort((a, b) => b[0] - a[0]).map(([v, ids]) => ids.sort((a, b) => E.suitOf(a) - E.suitOf(b)));
 }
+/** Upright, or a tablet's height: a column to a rank, its cards each showing at least their corner. Held sideways the
+ *  cards are larger, with the width to spare. */
+function stacked(cols, rem, room) {
+  const big = sideways(), W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
+  const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
+  const deepest = Math.max(1, ...cols.map(c => c.length));
+  const drop = deepest > 1 ? Math.max(1.12 * rem, Math.min(1.3 * rem, (Math.max(H * 1.9, 7.6 * rem) - H) / (deepest - 1))) : 0;
+  const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
+  const at = [];
+  cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
+  return { W, H, at, height: H + (deepest - 1) * drop + 0.3 * rem };
+}
+/** A phone on its side has the width and not the height: the hand fanned in one row along the table's edge, each card
+ *  showing its corner, a little more room between ranks than within one, as a hand is held. */
+function fanned(cols, rem, room) {
+  const W = 2.25 * rem, H = 3.2 * rem, n = cols.reduce((s, c) => s + c.length, 0), breaks = Math.max(0, cols.length - 1);
+  const least = 1.05 * rem;                                     // a corner, still readable and still a target
+  let gap = 0.22 * rem, pitch = n > 1 ? (room - W - breaks * gap) / (n - 1) : 0;
+  if (pitch < least && n > 1) { gap = breaks ? Math.max(0, (room - W - (n - 1) * least) / breaks) : 0; pitch = Math.max((room - W - breaks * gap) / (n - 1), 0.6 * rem); }
+  pitch = Math.min(pitch, W * 0.66);
+  const x0 = Math.max(0, (room - W - (n - 1) * pitch - breaks * gap) / 2), at = [];
+  let k = 0;
+  cols.forEach((col, c) => col.forEach(id => { at.push({ id, x: x0 + k * pitch + c * gap, y: 0, z: k + 1 }); k++; }));
+  return { W, H, at, height: H };
+}
 function drawHand() {
   const box = $("hand");
   const hand = G.hands[me], level = G.level, cols = columns(hand, level);
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  // held sideways the cards are larger, with the width to spare; a column's cards each show at least their corner
-  const big = sideways(), W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem, room = box.clientWidth || 360;
-  box.style.setProperty("--tb-cw", `${W}px`); box.style.setProperty("--tb-ch", `${H}px`);
-  const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
-  const deepest = Math.max(1, ...cols.map(c => c.length));
-  const drop = deepest > 1 ? Math.max(1.12 * rem, Math.min(1.3 * rem, (Math.max(H * 1.9, 7.6 * rem) - H) / (deepest - 1))) : 0;
+  const lay = low() ? fanned(cols, rem, box.clientWidth || 480) : stacked(cols, rem, box.clientWidth || 360);
+  // on the page, so the table can leave room for the cards at its foot when they lie on it (a phone on its side)
+  $("app").style.setProperty("--tb-cw", `${lay.W}px`); $("app").style.setProperty("--tb-ch", `${lay.H}px`);
   const ask = E.asked(G, me), ok = ask === "return" ? new Set(E.returnable(hand, level)) : null;
-  const used = cols.length ? (cols.length - 1) * pitch + W : 0;
-  const x0 = Math.max(0, (room - used) / 2);
   let html = "";
-  cols.forEach((col, c) => col.forEach((id, i) => {
+  for (const { id, x, y, z } of lay.at) {
     const cls = [cardClass(id, level)];
     if (selected.has(id)) cls.push("sel");
     if (ok && !ok.has(id)) cls.push("dim");
-    html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${(x0 + c * pitch).toFixed(1)}px;top:${(i * drop).toFixed(1)}px;z-index:${i + 1}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${face(id, level)}</button>`;
-  }));
+    html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;z-index:${z}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${face(id, level)}</button>`;
+  }
   box.innerHTML = html;
-  box.style.height = `${(H + (deepest - 1) * drop + 0.3 * rem).toFixed(0)}px`;
+  box.style.height = `${lay.height.toFixed(0)}px`;
 }
 $("hand").addEventListener("click", e => {
   const b = e.target.closest(".tb-card");
