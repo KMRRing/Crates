@@ -335,7 +335,7 @@ export async function watchBests(cb) {
 
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
-export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html" };
+export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html" };
 const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 export const duoHref = game => `${DUO_GAMES[game]}?room=${duoCode()}`;

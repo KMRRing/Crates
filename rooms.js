@@ -29,6 +29,7 @@ export const GAMES = {
   deck: { name: "Deck", page: "./deck.html" },
   parley: { name: "Parley", page: "./parley.html" },
   stow: { name: "Stow", page: "./stow.html" },
+  hong: { name: "Hong", page: "./hong.html" },
   brut: { name: "Brut", page: "./brut.html" },
 };
 

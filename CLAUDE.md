@@ -1,7 +1,7 @@
 # Working on Crates
 
 Almanac: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
-Parley, Blend, Refinery, Brut, Stow), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
+Parley, Blend, Refinery, Brut, Stow, Hong), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
 Every push to `main` is tested by `.github/workflows/pages.yml`; GitHub Pages serves `main` at
 https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
 `sw.js`, which it does only when every test passes.
