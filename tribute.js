@@ -71,8 +71,8 @@ function startWorker() {
 }
 /** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
 const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
-/** The computer's choice in a seat now: { action, why }; `kind`: "decide" or "hints" (its choice and the others;
- *  the hint is always hard's). */
+/** The computer's choice in a seat now: { action, why }; `kind`: "decide", or "hints": the plays weighed, hard's choice
+ *  first, each with what speaks for and against it (tribute-bot.js's weigh). */
 async function think(state, seat, kind = "decide") {
   state.names = [0, 1, 2, 3].map(s => (s === seat ? "you" : nameOf(s)));   // for the reasons it gives
   startWorker();
@@ -80,7 +80,7 @@ async function think(state, seat, kind = "decide") {
   if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, kind, skill: skill() }); });
   if (reply?.decision) return reply.decision;
   local ||= await import("./tribute-bot.js");
-  return kind === "hints" ? local.hints(state, seat) : local.decide(state, seat, { skill: skill(), search: skill() === "hard" ? 12 : 0 });
+  return kind === "hints" ? local.hints(state, seat, { search: 12 }) : local.decide(state, seat, { skill: skill(), search: skill() === "hard" ? 12 : 0 });
 }
 
 // ---------- the match ----------
@@ -177,6 +177,37 @@ async function showHint() {
   render();
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+/** The plays the hint weighed, side by side: each one's numbers, what speaks for it and against it; Pick takes its cards. */
+function showWhy() {
+  const list = hint?.key === keyNow() ? hint.list : null;
+  if (!list?.length) return;
+  const pctOf = x => `${Math.round(x * 100)}%`;
+  const looked = list.some(o => o.levels != null);
+  let html = `<p class="tb-why-lead">${esc(list[0].why)}</p><ol class="tb-opts">`;
+  list.forEach((o, i) => {
+    const stats = [];
+    if (o.plays != null) stats.push(o.plays ? `${o.plays} play${o.plays === 1 ? "" : "s"} to go out after it` : "out");
+    if (o.holds != null && o.plays) stats.push(`holds ${pctOf(o.holds)}`);
+    if (o.levels != null) stats.push(`${o.levels >= 0 ? "+" : "−"}${Math.abs(o.levels).toFixed(1)} levels`);
+    const pc = [...o.pros.map(x => `<li class="pro">${esc(cap(x))}</li>`), ...o.cons.map(x => `<li class="con">${esc(cap(x))}</li>`)].join("");
+    html += `<li class="tb-opt${i === 0 ? " best" : ""}"><div class="tb-opt-head"><b>${esc(o.title)}</b><span class="tb-stat">${stats.join(" · ")}</span>${o.action.t === "pass" ? "" : `<button type="button" class="link" data-pick="${i}">Pick</button>`}</div>${pc ? `<ul class="tb-pc">${pc}</ul>` : ""}</li>`;
+  });
+  html += `</ol><p class="tb-why-note">The computer's choice is first. Plays to go out: what your hand needs after it, split as the computer would. Holds: the chance no opponent beats it except with a bomb, from the cards you haven't seen and how many each holds.${looked ? " Levels: the rest of the hand played out in deals of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average." : ""}</p>`;
+  $("whyBody").innerHTML = html;
+  $("whyDlg").showModal();
+  $("whyDlg").scrollTop = 0;
+}
+$("whyBody").addEventListener("click", e => {
+  const b = e.target.closest("[data-pick]");
+  if (!b || !hint?.list) return;
+  hint.at = Number(b.dataset.pick);
+  const h = hint.list[hint.at];
+  selected.clear();
+  if (h.action.t === "play") for (const id of h.action.cards) selected.add(id);
+  if (h.action.t === "return") selected.add(h.action.card);
+  $("whyDlg").close();
+  render();
+});
 
 // ---------- the table ----------
 const pos = seat => ["me", "right", "top", "left"][(seat - me + 4) % 4];
@@ -313,7 +344,11 @@ function drawActions() {
   box.replaceChildren();
   const h = hint?.key === keyNow() && hint.list ? hint.list[hint.at] : null;
   say.hidden = !h;
-  if (h) say.innerHTML = `<b>Hint</b> ${esc(h.why)}`;
+  if (h) {
+    const n = hint.list.length;
+    say.innerHTML = `<b>Hint${n > 1 ? ` ${hint.at + 1}/${n}` : ""}</b> ${esc(h.why)}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
+    say.querySelector(".tb-why-btn")?.addEventListener("click", showWhy);
+  }
   if (G.phase === "over") { box.append(goBtn(G.result.over ? "The final score" : "Next hand", () => showResult(), "primary")); return; }
   const ask = E.asked(G, me);
   if (!ask) {
@@ -412,7 +447,7 @@ function render() {
   drawActions();
   drawPartner();
 }
-function closeDialogs() { if ($("resultDlg").open) $("resultDlg").close(); }
+function closeDialogs() { for (const id of ["resultDlg", "whyDlg"]) if ($(id).open) $(id).close(); }
 
 // ---------- together: partners across the table, against two computer players ----------
 // The two of you sit at seats 0 and 2, which are one side (the first to sit down at 0, the other across), so you
@@ -545,6 +580,8 @@ bindSwitcher($("appsBtn"), "tribute");
 document.querySelector(".tb-mark").innerHTML = APPS.find(a => a.id === "tribute")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("whyClose").addEventListener("click", () => $("whyDlg").close());
+$("whyDlg").addEventListener("click", e => { if (e.target === $("whyDlg")) $("whyDlg").close(); });
 $("helpBtn").addEventListener("click", () => { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); });
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", nextHand);

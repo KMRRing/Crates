@@ -471,6 +471,14 @@ function showWhy(d) {
   if (!d) return;
   const body = $("whyBody");
   let html = `<p class="hk-why-lead">${esc(d.why)}</p>`;
+  // the choices in words: the coach's first, each with what speaks for it (+) and against it (−)
+  if (d.options?.length > 1) {
+    const up = x => x.charAt(0).toUpperCase() + x.slice(1);
+    html += `<ol class="hk-opts">${d.options.map((o, i) => {
+      const pc = [...o.pros.map(x => `<li class="pro">${esc(up(x))}</li>`), ...o.cons.map(x => `<li class="con">${esc(up(x))}</li>`)].join("");
+      return `<li class="hk-opt${i === 0 ? " best" : ""}"><b>${esc(o.title)}</b>${pc ? `<ul class="hk-pc">${pc}</ul>` : ""}</li>`;
+    }).join("")}</ol>`;
+  }
   if (d.rows?.length) {
     html += `<table class="hk-cands"><thead><tr><th>Let go</th><th>Keeps</th><th>From ready</th><th>Tiles that help</th><th>Win</th><th>Danger</th></tr></thead><tbody>`;
     for (const r of d.rows.slice(0, 7)) {

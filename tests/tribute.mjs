@@ -182,6 +182,19 @@ for (const skill of ["hard", "medium"]) {
   }
 }
 {
+  // the hint weighs the plays: hard's choice first, each with what speaks for it and against it
+  const four = position(["4s 4c 4d 4h 9s 10s Jd Qd 3h 5h 6c", "Ks Kc 5c 6c 7c 8d 9d 10d Jc Qc", "3s 3c 7s 7d 10d Jd Ah Ad", "2c 3d 4h' 6d 9c 10c Jh Qh Kh"], { turn: 3 });
+  E.act(four, 3, { t: "play", cards: C("9c 10c Jh Qh Kh") });
+  const h = B.hints(four, 0);
+  const bomb = h.find(o => o.title.startsWith("Bomb"));
+  check(h[0].action.t === "pass" && h[0].pros.some(x => /bomb/.test(x)) && bomb?.cons.some(x => /火不炸四/.test(x)) && /Next best/.test(h[0].why),
+    `the hint at four cards: pass first, for keeping the bomb; the bomb against it, as his four may be a bomb (${h[0].why})`);
+  const lead = position(["3s 3c 9d 5s 5c 5d 7h 7d Ks", "Qs Qc 4c 4d", "4s 6s 8s 10s Js Qs Kd Ah", "2c 3d 4d 6d 8d 9h 10h Jh"]);
+  const l = B.hints(lead, 0);
+  check(l.length >= 3 && l.every(o => o.pros.length + o.cons.length > 0 && o.plays >= 0) && l.slice(1).every(o => o.why.startsWith(o.title)),
+    `leading, every play weighed has its case and its numbers (${l.map(o => o.title).join(" · ")})`);
+}
+{
   // the partner leads a low single and the opponent after you has one card: hard plays a card he can't beat (顶牌)
   const st = position(["9s Ad 5s 6s 7d 10h Kd Ks", "Qc", "4s 3s Jd Qd 8c 8h 9h", "2c 3d 4h' 6d 9c 10c Jh Qh Kh 5d"], { turn: 2 });
   E.act(st, 2, { t: "play", cards: C("4s") }); E.act(st, 3, { t: "pass" });

@@ -181,6 +181,9 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   E.act(st, 0, { t: "discard", k: T("Rd")[0] });
   const d = B.decide(st, 1);
   check(d.action.t === "pung" && d.why.length > 10, `a red dragon to a pair of them: pung (${d.why})`);
+  const [pung, pass] = d.options || [];
+  check(pung?.action.t === "pung" && pung.pros.some(x => /value honour/.test(x)) && pass?.action.t === "pass" && pass.pros.length && pass.cons.length,
+    `…its choices in words: the pung for its fan, the pass for what it keeps and against it, what it's slower to (${pass?.cons[0]})`);
 }
 {
   // a full flush in dots shown across the table, three sets down, late: a dots tile is the last thing to let go
@@ -191,6 +194,8 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   check(d.action.t === "discard" && E.suitOf(d.action.k) !== 1, `facing a dots flush with three sets down, it keeps its dots (${d.why})`);
   const dots = d.rows.filter(r => E.suitOf(r.k) === 1), safest = Math.min(...d.rows.map(r => r.risk));
   check(dots.every(r => r.risk > safest + 2), "…its dots weigh as the dangerous tiles");
+  const alt = d.options.find(o => E.suitOf(o.action.k) === 1);
+  check(d.options.length >= 2 && d.options.every(o => o.pros.length + o.cons.length > 0) && (!alt || alt.cons.some(x => /danger/.test(x))), "…and says, discard by discard, what speaks for and against each");
 }
 {
   // a hand that can't reach three fan off a discard waits for a self-draw, and says so

@@ -536,21 +536,13 @@ const COUNT_TABLE = {
   5: { pair: 1, triple: 1, single: -1, full: -1, straight: -1 },
   4: { single: 1, pair: -1 },
 };
-function lead(state, seat, K, cfg, r) {
+/** The leads worth weighing: the split's plays, and (breakLead) a single or a pair taken from a combination. */
+function leadOptions(state, seat, K, breakLead) {
   const level = state.level, hand = state.hands[seat];
   const sp = split(hand, level);
-  const combos = sp.combos.map(c => ({ ...c, hold: hold(c.reading, K) }));
-  if (combos.length === 1) return play(combos[0].cards, `Lead ${playName(combos[0].reading)}: it's your last play.`);
-  // two plays left: a bomb is kept to win the lead back; a sure play goes first, then out on the other
-  if (combos.length === 2) {
-    const bomb = combos.find(c => c.reading.bomb), sure = combos.find(c => !c.reading.bomb && c.hold >= 0.97);
-    if (combos.every(c => c.reading.bomb)) { const c = combos.sort((a, b) => power(a.reading) - power(b.reading))[0]; return play(c.cards, `Lead ${playName(c.reading)}: two bombs left, the smaller first.`); }
-    if (bomb) { const c = combos.find(x => x !== bomb); return play(c.cards, `Lead ${playName(c.reading)}: if it's beaten, ${playName(bomb.reading)} wins the lead back and takes you out.`); }
-    if (sure) { const c = combos.find(x => x !== sure); return play(sure.cards, `Lead ${playName(sure.reading)}: nothing beats it but a bomb; then ${playName(c.reading)} takes you out.`); }
-  }
-  // otherwise the play that sheds most, shaped by the table
-  const opts = combos.map(c => ({ ...c, shed: c.cost, broken: false }));
-  if (cfg.breakLead) {
+  const combos = sp.combos.map(c => ({ ...c, hold: hold(c.reading, K), shed: c.cost, broken: false }));
+  const opts = combos.slice();
+  if (breakLead) {
     // plays taken from a combination: a single from a pair, a pair from a triple or a run of pairs, a triple bare
     const seen = new Set(opts.map(o => o.cards.slice().sort().join(",")));
     for (const c of combos) {
@@ -564,10 +556,24 @@ function lead(state, seat, K, cfg, r) {
         const k = cards.slice().sort().join(",");
         if (seen.has(k)) continue;
         seen.add(k);
-        opts.push({ cards, reading: rd, cost: costOf(rd), hold: hold(rd, K), shed: sp.total - totalOf(minus(hand, cards), level), broken: true });
+        opts.push({ cards, reading: rd, cost: costOf(rd), hold: hold(rd, K), shed: sp.total - totalOf(minus(hand, cards), level), broken: true, from: c });
       }
     }
   }
+  return { sp, combos, opts };
+}
+function lead(state, seat, K, cfg, r) {
+  const hand = state.hands[seat];
+  const { sp, combos, opts } = leadOptions(state, seat, K, cfg.breakLead);
+  if (combos.length === 1) return play(combos[0].cards, `Lead ${playName(combos[0].reading)}: it's your last play.`);
+  // two plays left: a bomb is kept to win the lead back; a sure play goes first, then out on the other
+  if (combos.length === 2) {
+    const bomb = combos.find(c => c.reading.bomb), sure = combos.find(c => !c.reading.bomb && c.hold >= 0.97);
+    if (combos.every(c => c.reading.bomb)) { const c = combos.sort((a, b) => power(a.reading) - power(b.reading))[0]; return play(c.cards, `Lead ${playName(c.reading)}: two bombs left, the smaller first.`); }
+    if (bomb) { const c = combos.find(x => x !== bomb); return play(c.cards, `Lead ${playName(c.reading)}: if it's beaten, ${playName(bomb.reading)} wins the lead back and takes you out.`); }
+    if (sure) { const c = combos.find(x => x !== sure); return play(sure.cards, `Lead ${playName(sure.reading)}: nothing beats it but a bomb; then ${playName(c.reading)} takes you out.`); }
+  }
+  // otherwise the play that sheds most, shaped by the table
   const scored = opts.map(o => ({ o, s: leadScore(o, K, cfg, hand.length) + jitter(r, cfg.noise) })).sort((a, b) => b.s - a.s);
   const pick = scored[0].o;
   return play(pick.cards, leadWhy(pick, K, state, combos, sp));
@@ -626,6 +632,25 @@ function leadWhy(pick, K, state, combos, sp) {
 // ---------- following ----------
 // How much nearer an opponent's count brings the danger of his going out (炸五不炸四, 打七不打八).
 const URGENT = [0, 1.6, 1.5, 1.3, 0.9, 1.1, 0.8, 0.7, 0.45, 0.35, 0.25];
+/**
+ * The plays that beat the one down, each with the hand after it, the cost it sheds (gain: less what breaking costs),
+ * its chance of holding, and its worth as a beat (value); the bombs apart; how near the opponents are to going out.
+ */
+function followOptions(state, seat, K, block) {
+  const level = state.level, hand = state.hands[seat], from = state.top.seat;
+  const E0 = split(hand, level).total;
+  const evals = candidates(hand, level, state.top.reading).map(c => { const rest = minus(hand, c.cards); return { ...c, rest, after: split(rest, level), hold: hold(c.reading, K) }; });
+  for (const e of evals) e.gain = E0 - e.after.total;
+  const plain = evals.filter(e => !e.reading.bomb), bombs = evals.filter(e => e.reading.bomb).sort((a, b) => power(a.reading) - power(b.reading));
+  const urgency = Math.max(0, ...K.opps.map(o => (K.counts[o] && K.counts[o] <= 10 ? URGENT[K.counts[o]] * (o === from ? 1 : 0.5) : 0)));
+  const nxt = K.next, nxtShort = block && from !== nxt && K.counts[nxt] > 0 && K.counts[nxt] <= 5;
+  for (const e of plain) {
+    e.value = e.gain + TUNE.tempo * e.hold;
+    if (nxtShort) e.value += 0.5 * hold(e.reading, K, nxt);      // 顶牌: a short opponent after you must not follow cheaply
+  }
+  plain.sort((a, b) => b.value - a.value || a.reading.key - b.reading.key);
+  return { E0, evals, plain, bombs, urgency, nxtShort };
+}
 function follow(state, seat, K, cfg, r) {
   const level = state.level, hand = state.hands[seat];
   const top = state.top.reading, from = state.top.seat;
@@ -633,19 +658,9 @@ function follow(state, seat, K, cfg, r) {
   if (!cands.length) return pass(`Pass: nothing beats ${playName(top)}.`);
   const out = cands.find(c => c.cards.length === hand.length);
   if (out) return play(out.cards, `Play ${playName(out.reading)}: it takes you out.`);
-  const E0 = split(hand, level).total;
-  const evals = cands.map(c => ({ ...c, rest: minus(hand, c.cards) })).map(c => ({ ...c, after: split(c.rest, level), hold: hold(c.reading, K) }));
-  for (const e of evals) e.gain = E0 - e.after.total;            // the cost the play sheds (less what breaking costs)
+  const { E0, evals, plain, bombs, urgency, nxtShort } = followOptions(state, seat, K, cfg.block);
   if (from === K.mate) return partnerPlay(state, seat, K, cfg, evals, top);
-  const n = K.counts[from];
-  const plain = evals.filter(e => !e.reading.bomb), bombs = evals.filter(e => e.reading.bomb).sort((a, b) => power(a.reading) - power(b.reading));
-  const urgency = Math.max(...K.opps.map(o => (K.counts[o] && K.counts[o] <= 10 ? URGENT[K.counts[o]] * (o === from ? 1 : 0.5) : 0)));
-  const nxt = K.next, nxtShort = cfg.block && from !== nxt && K.counts[nxt] > 0 && K.counts[nxt] <= 5;
-  for (const e of plain) {
-    e.value = e.gain + TUNE.tempo * e.hold;
-    if (nxtShort) e.value += 0.5 * hold(e.reading, K, nxt);      // 顶牌: a short opponent after you must not follow cheaply
-  }
-  plain.sort((a, b) => b.value - a.value || a.reading.key - b.reading.key);
+  const n = K.counts[from], nxt = K.next;
   let need = TUNE.follow + cfg.eager - urgency + jitter(r, cfg.noise * 0.5);
   // the controls aren't spent early on small plays
   const best = plain[0];
@@ -720,31 +735,33 @@ function partnerPlay(state, seat, K, cfg, evals, top) {
     const free = plain.find(e => e.gain >= 0 && e.after.plays <= 1 && K.counts[K.mate] > 3);
     if (free) return play(free.cards, `Play ${playName(free.reading)} over your partner: it leaves you one play from out.`);
   }
-  return pass(`Pass: your partner's ${playName(top)} holds; don't take it from him (让牌).`);
+  return pass(`Pass: your partner's play (${playName(top)}) holds; don't take it from him (让牌).`);
 }
 
 // ---------- the return (还贡) ----------
-function giveBack(state, seat, cfg) {
+/** The cards a seat may give back, best first: { id, rank, copies, after (the hand's split without it), toMate }. */
+function returnOptions(state, seat, cfg) {
   const level = state.level, hand = state.hands[seat];
   const ret = state.tribute.returns.find(r => r.from === seat && r.card === null);
   const toMate = ret.to === partnerOf(seat);
-  const ok = returnable(hand, level);
   const copies = r => hand.filter(id => rankOf(id) === r && !isWild(id, level)).length;
-  const scored = ok.map(id => {
-    const r = rankOf(id);
-    let s = totalOf(minus(hand, [id]), level) * 10;
+  return returnable(hand, level).map(id => {
+    const r = rankOf(id), after = split(minus(hand, [id]), level);
+    let s = after.total * 10;
     if (toMate) s -= r * 0.6;                                     // to a partner: the highest he can use
     else {
       s += r * 0.6;                                              // to an opponent: low,
       if (copies(r) === 1) s += 1.5;                              // from a rank held more than once (less likely to make his bomb)
       if (cfg.table && (r === 5 || r === 10)) s += 1;             // not a card every straight needs
     }
-    return { id, s };
+    return { id, rank: r, copies: copies(r), after, toMate, to: ret.to, s };
   }).sort((a, b) => a.s - b.s);
-  const id = scored[0].id;
-  const why = toMate ? `Return ${cardName(id)} to your partner: the most useful card you can give that your hand can spare.`
-    : `Return ${cardName(id)}: low, and your hand misses it least${copies(rankOf(id)) > 1 ? "; you hold another, so it's less likely to make his bomb" : ""}.`;
-  return { action: { t: "return", card: id }, why };
+}
+function giveBack(state, seat, cfg) {
+  const [o] = returnOptions(state, seat, cfg);
+  const why = o.toMate ? `Return ${cardName(o.id)} to your partner: the most useful card you can give that your hand can spare.`
+    : `Return ${cardName(o.id)}: low, and your hand misses it least${o.copies > 1 ? "; you hold another, so it's less likely to make his bomb" : ""}.`;
+  return { action: { t: "return", card: o.id }, why };
 }
 
 // ---------- looking ahead: the rest of the hand played out in deals that fit what's been seen ----------
@@ -868,7 +885,7 @@ function lookAhead(state, seat, d, K, worlds, seed, budget, r0) {
     n++;
   }
   if (!n) return d;
-  const avg = sums.map(s => s / n);
+  const avg = sums.map(s => s / n), tried = opts.map((a, i) => ({ action: a, value: avg[i] }));
   // the rules' own choice unless another is clearly better over the same deals; among near-equals, any
   let bi = 0, bestGain = 0;
   for (let i = 1; i < opts.length; i++) {
@@ -877,22 +894,180 @@ function lookAhead(state, seat, d, K, worlds, seed, budget, r0) {
     const margin = Math.max(0.1, sd / Math.sqrt(ds.length));
     if (mean > margin && mean > bestGain) { bi = i; bestGain = mean; }
   }
-  if (bi === 0) return { ...d, looked: { worlds: n, value: avg[0] } };
+  if (bi === 0) return { ...d, looked: { worlds: n, value: avg[0], tried } };
   const a = opts[bi];
   const what = a.t === "pass" ? "Pass" : `Play ${playName(bestReading(a.cards, level) || { type: "single", key: 0 })}`;
   const lv = x => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
-  return { action: a, why: `${what}: tried in ${n} deals of the cards you can't see, it does best, ${lv(avg[bi])} levels to your side on average against ${lv(avg[0])} for ${d.action.t === "pass" ? "passing" : "the usual play"}.`, looked: { worlds: n, value: avg[bi] } };
+  return { action: a, why: `${what}: tried in ${n} deals of the cards you can't see, it does best, ${lv(avg[bi])} levels to your side on average against ${lv(avg[0])} for ${d.action.t === "pass" ? "passing" : "the usual play"}.`, looked: { worlds: n, value: avg[bi], tried } };
 }
 
-/** The hint's alternatives for the seat now: the bot's choice first, then other plays that would do (for cycling). */
-export function hints(state, seat, opts = {}) {
-  const d = decide(state, seat, { noise: false, ...opts });
-  if (!d) return [];
-  const out = [d];
-  if (asked(state, seat) !== "play") return out;
+// ---------- the hint: the plays weighed, and what speaks for and against each ----------
+const KINDS = { single: "singles", pair: "pairs", triple: "triples", full: "full houses", straight: "straights", tube: "runs of three pairs", plate: "runs of two triples", bomb: "bombs" };
+const pct = x => `${Math.round(x * 100)}%`;
+const lv = x => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
+const toGo = n => (n === 1 ? "one play" : `${n} plays`);
+const bombName = r => playName(r).replace(/^a bomb of /, "");     // "four Ks", "a straight flush to the 9", "the four jokers"
+/** The combination in the split that a play takes cards from without being it: what it breaks. */
+const brokenBy = (sp, cards) => sp.combos.find(c => c.cards.some(id => cards.includes(id)) && !(c.cards.length === cards.length && c.cards.every(id => cards.includes(id))));
+
+/**
+ * The plays worth weighing for a seat now, hard's choice first (with a look-ahead in `search` deals late in the hand),
+ * each with what speaks for it and against it: [{ action, title, why, pros, cons, plays, holds, levels }]. plays: the
+ * plays the hand needs after it (0: out); holds: its chance of standing against the opponents' plays of its kind
+ * (null for a pass); levels: its average in the look-ahead, when that ran. why: for the choice its reason and why the
+ * next best fell short; for the others their case in a line.
+ */
+export function weigh(state, seat, { search = 0, seed = 1, budget = Infinity } = {}) {
+  const ask = asked(state, seat);
+  if (!ask) return [];
+  const d = decide(state, seat, { search, seed, budget, noise: false });
+  if (ask === "return") return weighReturn(state, seat, d);
+  const K = knowledge(state, seat);
+  const list = state.top ? followChoices(state, seat, K) : leadChoices(state, seat, K);
+  // the choice first (the look-ahead may have taken one the rules ranked lower), with the look-ahead's averages
+  const tried = d.looked?.tried || [];
+  for (const o of list) o.levels = tried.find(t => sameAction(t.action, o.action))?.value ?? null;
+  const i = list.findIndex(o => sameAction(o.action, d.action));
+  const best = i >= 0 ? list.splice(i, 1)[0] : { action: d.action, title: d.why.split(":")[0], pros: [], cons: [], plays: null, holds: null, levels: null };
+  list.unshift(best);
+  const top = Math.max(...list.map(o => o.levels ?? -Infinity));
+  for (const o of list) {
+    if (o.levels === null) continue;
+    if (o.levels >= top - 0.1) o.pros.unshift(`as good as any in the look-ahead (${lv(o.levels)} levels to your side, over ${d.looked.worlds} deals)`);
+    else o.cons.unshift(`${(top - o.levels).toFixed(1)} levels a hand worse in the look-ahead`);
+  }
+  const next = list[1];
+  sumUp(list, d.why);
+  return list.slice(0, 8);
+}
+function leadChoices(state, seat, K) {
   const level = state.level, hand = state.hands[seat];
-  const more = state.top ? candidates(hand, level, state.top.reading) : split(hand, level).combos;
-  for (const c of more) if (!out.some(x => x.action.cards && x.action.cards.length === c.cards.length && x.action.cards.every(id => c.cards.includes(id)))) out.push({ action: { t: "play", cards: c.cards }, why: `${playName(c.reading)}.` });
-  return out.slice(0, 8);
+  const { sp, opts } = leadOptions(state, seat, K, true);
+  const name = o => nameOf(state, o);
+  return opts.map(o => {
+    const rd = o.reading, t = rd.type, rest = minus(hand, o.cards), after = rest.length ? split(rest, level) : { plays: 0 };
+    const pros = [], cons = [];
+    if (!after.plays) pros.push("it takes you out");
+    else if (rd.bomb) cons.push(sp.combos.filter(c => c.reading.bomb).length > 1 ? "spends a bomb, a way back to the lead you may need later" : "spends your only bomb, your one sure way back to the lead");
+    else {
+      if (o.broken) cons.push(`breaks ${playName(o.from.reading)}, so your hand then needs ${toGo(after.plays)} to go out, not ${sp.plays - 1}`);
+      else if (o.cost >= 0.85) pros.push("the hardest play in your hand to be rid of: sooner or later it needs a lead of its own, and you have one");
+      if (rd.n >= 5) pros.push(`sheds ${rd.n} cards at once`);
+      if (o.hold >= 0.97) {
+        pros.push("nothing unseen beats it but a bomb, so the lead stays yours");
+        if (after.plays > 1) cons.push("it holds whenever you lead it, so it doesn't need this lead: one spent on a weaker play gains more");
+      } else if (o.hold >= 0.6) pros.push(`likely to hold (about ${pct(o.hold)})`);
+      if (hand.length >= 20 && ["full", "straight", "tube", "plate"].includes(t) && worth(rd) > 0.05) cons.push(`early in a hand the others still hold the ${KINDS[t]} to beat it, and it wins nothing back; it does more later`);
+    }
+    for (const op of K.opps) {
+      const n = K.counts[op];
+      if (!n || n > 10) continue;
+      const sure = hold(rd, K, op) >= 0.95;
+      if (n <= 3) {
+        if (rd.n > n) pros.push(`more cards than ${name(op)} holds (${n}), so he can't follow it, and has too few for a bomb`);
+        else if (rd.n === n && !sure) cons.push(`${name(op)}, with ${n} left, could follow it and go out`);
+        else if (!sure) cons.push(`${name(op)}, with ${n} left, may follow it`);
+      } else if ((n === 5 || n === 6) && rd.n === n && !sure) cons.push(`${name(op)}, with ${n} left, could go out on ${n === 5 ? "a full house or a straight" : "a run"} over it`);
+      const said = op === K.next ? COUNT_TABLE[n]?.[t] : 0;
+      if (said > 0) pros.push(`${name(op)}, next with ${n} left, seldom has the ${KINDS[t]} to follow it (京报)`);
+      if (said < 0) cons.push(`a hand of ${n} like ${name(op)}'s, next to play, often has ${KINDS[t]} to follow it (京报)`);
+    }
+    const m = K.counts[K.mate];
+    if (m > 0 && m <= 2) {
+      if (rd.n <= m && rd.key <= 10 && !rd.bomb) pros.push(`low enough for your partner, with ${m} left, to follow it`);
+      else if (rd.n > m) cons.push(`your partner, with ${m} left, can't follow it`);
+    }
+    for (const op of [K.next, K.prev]) {
+      if (!K.counts[op]) continue;
+      const ps = K.table[op].passes[t] || 0, ls = K.table[op].leads[t] || 0;
+      if (ps) pros.push(`${name(op)} has passed on ${KINDS[t]} ${ps === 1 ? "once" : `${ps} times`} when he had cards to spare`);
+      if (ls >= 2) cons.push(`${name(op)} leads ${KINDS[t]} himself`);
+    }
+    return { action: { t: "play", cards: o.cards }, title: rd.bomb ? `Lead ${bombName(rd)}` : `Lead ${playName(rd)}`, pros, cons, plays: after.plays, holds: rd.bomb ? 1 : o.hold, score: leadScore(o, K, SETTINGS.hard, hand.length) };
+  }).sort((a, b) => b.score - a.score);
+}
+function followChoices(state, seat, K) {
+  const level = state.level, hand = state.hands[seat], top = state.top.reading, from = state.top.seat;
+  const sp = split(hand, level), name = o => nameOf(state, o), n = K.counts[from], mine = from === K.mate;
+  const { plain, bombs, urgency, nxtShort } = followOptions(state, seat, K, true);
+  const out = [];
+  {
+    const pros = [], cons = [];
+    if (mine) pros.push("your partner's play stands (让牌): he leads next unless an opponent beats it");
+    else pros.push(`keeps your hand as it is: ${toGo(sp.plays)} to go out`);
+    if (!plain.length && bombs.length) pros.push(`keeps your bomb for when it matters more${n === 4 ? `: ${name(from)}'s four may be a bomb of his own (火不炸四)` : ""}`);
+    if (!mine) cons.push(`${name(from)} keeps the lead${n && n <= 10 ? `, with ${n} left` : ""}${urgency >= 0.9 ? ", close enough to go out on his next lead" : ""}`);
+    else if (K.counts[K.next] > 0 && K.counts[K.next] <= 2 && hold(top, K, K.next) < 0.8) cons.push(`${name(K.next)}, with ${K.counts[K.next]} left, may follow it and go out`);
+    out.push({ action: { t: "pass" }, title: "Pass", pros, cons, plays: sp.plays, holds: null, score: mine ? 1 : TUNE.follow - urgency });
+  }
+  for (const e of plain) {
+    const pros = [], cons = [], natural = e.gain >= costOf(e.reading) - 0.05;
+    if (!e.rest.length) pros.push("it takes you out");
+    else {
+      pros.push(e.hold >= 0.97 ? "nothing unseen beats it but a bomb, so the lead is yours" : `takes the lead if it stands (about ${pct(e.hold)})`);
+      if (natural) pros.push("a play your hand already has, made without breaking anything");
+      else if (e.gain > 0) pros.push("uses a card your hand has little use for");
+      else {
+        const b = brokenBy(sp, e.cards);
+        cons.push(b ? `breaks ${playName(b.reading)}${e.after.plays > sp.plays - 1 ? `, so your hand then needs ${toGo(e.after.plays)} to go out, not ${sp.plays - 1}` : ""}` : "loosens your hand's shape");
+      }
+      if (nxtShort && hold(e.reading, K, K.next) >= 0.9) pros.push(`${name(K.next)}, after you with ${K.counts[K.next]} left, can't follow it (顶牌)`);
+      if (!mine && urgency >= 0.9) pros.push(`stops ${name(from)}, who has ${n} left`);
+      if (worth(e.reading) >= 0.6 && (top.type === "single" || top.type === "pair") && top.key <= 11 && sp.plays > 5) cons.push(`spends ${playName(e.reading)}, a control worth keeping, on ${playName(top)}`);
+      if (mine) cons.push("takes the trick from your partner");
+      else if (e.hold < 0.4) cons.push(`may be beaten in turn (it stands about ${pct(e.hold)})`);
+    }
+    out.push({ action: { t: "play", cards: e.cards }, title: mine ? `Play ${playName(e.reading)} over your partner` : `Beat it with ${playName(e.reading)}`, pros, cons, plays: e.after.plays, holds: e.hold, score: mine ? e.value - 2 : e.value });
+  }
+  const bombsHeld = Math.max(bombs.length, sp.combos.filter(c => c.reading.bomb).length);
+  for (const b of bombs) {
+    const pros = [], cons = [];
+    if (!b.rest.length) pros.push("it takes you out");
+    else {
+      pros.push("wins the trick unless someone holds a bigger bomb");
+      if (b.after.plays <= 1) pros.push("then one more play takes you out");
+      else if (canRunOut(b.rest, K, level)) pros.push("then your hand can run out by itself");
+      if (!mine && n > 0 && n <= 7 && n !== 4) pros.push(`stops ${name(from)}, who has ${n} left${n === 5 ? " and could go out on a full house or a straight" : n === 7 ? ", two plays from out" : ""}`);
+      cons.push(bombsHeld > 1 ? "spends a bomb you may need later" : "spends your only bomb, your one sure way back to the lead");
+      if (!mine && n === 4) cons.push(`${name(from)}'s four may be a bomb of his own (火不炸四)`);
+      else if (!mine && n > 10 && b.after.plays > 1) cons.push(`${name(from)} is far from out (${n} left): early, a bomb does more kept`);
+      if (mine) cons.push("bombs your own partner's play");
+    }
+    out.push({ action: { t: "play", cards: b.cards }, title: `Bomb with ${bombName(b.reading)}`, pros, cons, plays: b.after.plays, holds: 1, score: -1 - power(b.reading) / 1000 });
+  }
+  return out.sort((a, b) => b.score - a.score);
+}
+function weighReturn(state, seat, d) {
+  const level = state.level, sp = split(state.hands[seat], level);
+  const list = returnOptions(state, seat, SETTINGS.hard).slice(0, 6).map(o => {
+    const pros = [], cons = [], name = cardName(o.id);
+    if (o.after.plays <= sp.plays) pros.push(`your hand doesn't miss it (${toGo(o.after.plays)} to go out)`);
+    else cons.push(`your hand needs ${toGo(o.after.plays)} to go out without it, not ${sp.plays}`);
+    if (o.toMate) {
+      if (o.rank >= 8) pros.push("high enough to be some use to your partner");
+      else cons.push("low: little use to your partner");
+    } else {
+      if (o.rank <= 6) pros.push("low: little use to him");
+      else if (o.rank >= 9) cons.push("high enough to help him");
+      if (o.copies > 1) pros.push("you hold another of it, so it's less likely to complete a bomb of his");
+      else cons.push("a rank you hold just once: the card most likely to complete a bomb of his");
+      if (o.rank === 5 || o.rank === 10) cons.push("every straight needs a 5 or a 10");
+    }
+    return { action: { t: "return", card: o.id }, title: `Return ${name}`, pros, cons, plays: o.after.plays, holds: null, levels: null };
+  });
+  const i = list.findIndex(o => o.action.card === d.action.card);
+  if (i > 0) list.unshift(list.splice(i, 1)[0]);
+  sumUp(list, d.why);
+  return list;
+}
+/** Each option's line: the choice's reason and what told against the next best; the others' case for and against. */
+function sumUp(list, why) {
+  const [best, next] = list;
+  best.why = next ? `${why} Next best: ${next.title}${next.cons[0] ? `; against it: ${next.cons[0]}` : ""}.` : why;
+  for (const o of list.slice(1)) o.why = `${o.title}.${o.pros[0] ? ` For it: ${o.pros[0]}.` : ""}${o.cons[0] ? ` Against it: ${o.cons[0]}.` : ""}`;
+}
+/** The hint for the seat now: the plays weighed (weigh), hard's choice first; the others in turn as the hint is tapped again. */
+export function hints(state, seat, opts = {}) {
+  return weigh(state, seat, opts);
 }
 export { rankName };

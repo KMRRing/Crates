@@ -93,8 +93,27 @@ html[data-mode="night"] { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8
 
 /* ---------- the sheets ---------- */
 dialog.tb-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
-#rulesDlg { padding-top: 0; }
-#rulesDlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding-top: 1rem; }
+#rulesDlg, #whyDlg { padding-top: 0; }
+#rulesDlg .pick-head, #whyDlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding-top: 1rem; }
+.tb-why-btn { margin-left: .2rem; font-size: inherit; }
+/* the plays weighed: each with its numbers, what speaks for it (+) and against it (−) */
+.tb-why-lead { margin: .2rem 0 .6rem; font-size: .92rem; font-weight: 650; line-height: 1.45; }
+.tb-opts { margin: 0; padding: 0; list-style: none; display: grid; gap: .5rem; }
+.tb-opt { padding: .5rem .6rem; border: 1px solid var(--rule); border-radius: 5px; }
+.tb-opt.best { border-color: var(--tb-in); background: color-mix(in srgb, var(--tb-in) 9%, var(--sheet)); }
+.tb-opt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; }
+.tb-opt-head b { font-size: .92rem; }
+.tb-opt-head .link { margin-left: auto; font-size: .8rem; }
+.tb-stat { font-size: .76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.tb-pc { margin: .3rem 0 0; padding: 0; list-style: none; display: grid; gap: .15rem; font-size: .84rem; line-height: 1.38; }
+.tb-pc li { position: relative; padding-left: 1rem; }
+.tb-pc li::before { position: absolute; left: 0; top: 0; font-weight: 800; }
+.tb-pc .pro::before { content: "+"; color: #2F7D5B; }
+.tb-pc .con::before { content: "−"; color: #A8382B; }
+.tb-why-note { margin: .8rem 0 0; font-size: .78rem; line-height: 1.4; color: var(--ink-soft); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tb-pc .pro::before { color: #7FC2A8; } html:not([data-mode="day"]) .tb-pc .con::before { color: #E8806F; } }
+html[data-mode="night"] .tb-pc .pro::before { color: #7FC2A8; }
+html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
 .tb-rules p { margin: .5rem 0; font-size: .92rem; line-height: 1.45; }
 .tb-result-head { margin: 0 0 .5rem; font-size: 1.1rem; }
 .tb-order { margin: .3rem 0; padding: 0; list-style: none; display: grid; gap: .2rem; }

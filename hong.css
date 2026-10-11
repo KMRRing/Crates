@@ -111,6 +111,18 @@ dialog.hk-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .hk-result-go { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .8rem; }
 .hk-result-go .hk-go { flex: 1 1 0; }
 .hk-why-lead { font-weight: 650; }
+/* the choices in words: the coach's first, each with what speaks for it (+) and against it (−) */
+.hk-opts { margin: .4rem 0 .6rem; padding: 0; list-style: none; display: grid; gap: .45rem; }
+.hk-opt { padding: .45rem .6rem; border: 1px solid var(--rule); border-radius: 5px; font-size: .9rem; }
+.hk-opt.best { border-color: var(--hk-in); background: var(--hk-in-soft); }
+.hk-pc { margin: .25rem 0 0; padding: 0; list-style: none; display: grid; gap: .12rem; font-size: .84rem; line-height: 1.38; }
+.hk-pc li { position: relative; padding-left: 1rem; }
+.hk-pc li::before { position: absolute; left: 0; top: 0; font-weight: 800; }
+.hk-pc .pro::before { content: "+"; color: #2F7D5B; }
+.hk-pc .con::before { content: "−"; color: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .hk-pc .pro::before { color: #7FC2A8; } html:not([data-mode="day"]) .hk-pc .con::before { color: #E8806F; } }
+html[data-mode="night"] .hk-pc .pro::before { color: #7FC2A8; }
+html[data-mode="night"] .hk-pc .con::before { color: #E8806F; }
 .hk-cands { font-size: .82rem; }
 .hk-cands th { font-size: .66rem; font-weight: 800; text-align: left; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
 .hk-cands tr.best td { background: var(--hk-in-soft); font-weight: 700; }
