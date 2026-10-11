@@ -26,7 +26,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // ---------- state ----------
 // G: the hand in play (the engine's state, the match's levels in it). S: the table: { names, humans }.
 let G = null, S = null;
-let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, ...read(OPTS, {}) };
+let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", ...read(OPTS, {}) };
 let me = 0;
 const selected = new Set();
 let hint = null;                                                 // { key, list, at }: the hint's plays, cycling
@@ -69,15 +69,18 @@ function startWorker() {
     worker.onerror = () => { worker = false; for (const done of answers.values()) done({ decision: null }); answers.clear(); };
   } catch { worker = false; }
 }
-/** The computer's choice in a seat now: { action, why }; `kind`: "decide" or "hints" (its choice and the others). */
+/** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
+const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
+/** The computer's choice in a seat now: { action, why }; `kind`: "decide" or "hints" (its choice and the others;
+ *  the hint is always hard's). */
 async function think(state, seat, kind = "decide") {
   state.names = [0, 1, 2, 3].map(s => (s === seat ? "you" : nameOf(s)));   // for the reasons it gives
   startWorker();
   let reply = null;
-  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, kind }); });
+  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, kind, skill: skill() }); });
   if (reply?.decision) return reply.decision;
   local ||= await import("./tribute-bot.js");
-  return kind === "hints" ? local.hints(state, seat) : local.decide(state, seat, { search: 12 });
+  return kind === "hints" ? local.hints(state, seat) : local.decide(state, seat, { skill: skill(), search: skill() === "hard" ? 12 : 0 });
 }
 
 // ---------- the match ----------
@@ -421,7 +424,7 @@ function freshRoom(players) {
   const names = ["", BOTS[0], "", BOTS[2]];
   for (const [, p] of Object.entries(players)) names[p.slot === 1 ? 2 : 0] = p.name;
   const game = toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
-  return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans: [0, 2], started: Date.now() } };
+  return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans: [0, 2], started: Date.now(), bots: opts.bots } };
 }
 function onRoomState(g) {
   roomData = g;
@@ -512,7 +515,12 @@ function openMenu() {
   const content = part(body, "content");
   content.append(choice("Match", [["deals", "Six hands"], ["toA", "To the ace"]], opts.mode, v => set("mode", v)));
   if (G && G.opts.mode !== opts.mode) content.append(line("This takes effect with a new match."));
+  const bots = together.room ? S?.bots || "hard" : opts.bots;
   part(body, "settings").append(
+    choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], bots, v => {
+      set("bots", v);
+      if (together.room) together.act(g => { if (!g.table) return false; g.table.bots = v; });
+    }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Card counter", opts.counter, v => set("counter", v)),
   );

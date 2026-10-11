@@ -1,6 +1,7 @@
 // Tribute: the cards, every kind of play and how they compare (the wilds, the ace low and high, the bomb ladder), the
 // trick and the partner's lead after going out, tribute, its return and resistance, the levels and passing the ace;
-// then whole matches of computer players, every card accounted for, and the computer players against greedy ones.
+// then how the computer players organise a hand and judge a position, at both strengths, whole matches of them (every
+// card accounted for), against greedy players, and hard against medium.
 import * as E from "../tribute-engine.js";
 import * as B from "../tribute-bot.js";
 
@@ -131,6 +132,62 @@ function table(hands, { level = 2, turn = 0, levels = [2, 2], declarer = -1 } = 
   check(st && st.turn === 0 && st.phase === "play" && [1, 3].reduce((n, s) => n + st.hands[s].filter(id => E.rankOf(id) === E.BJ).length, 0) === 2, "resistance: the payers holding both big jokers pay nothing; the first out leads");
 }
 
+// ---------- the computer players' judgement ----------
+// How a hand is organised: the plays it's split into, as cards.
+const parts = (s, level = 2) => B.split(C(s), level).combos.map(c => c.cards.slice().sort((a, b) => a - b).join(",")).sort();
+const same = (s, groups, level = 2) => { const want = groups.map(g => C(g).sort((a, b) => a - b).join(",")).sort(); const got = parts(s, level); return got.length === want.length && got.every((g, i) => g === want[i]); };
+check(same("4s 4c 4d 5s 5d As Ac Ad 2h", ["4s 4c 4d 2h", "As Ac Ad 5s 5d"]), "a wild makes the weak triple a bomb and the strong one keeps its full house (444★ and AAA55, not AAA★ and 44455)");
+check(same("3s 5s 6c 7d 8h 9s 9c 9d 9h", ["5s 6c 7d 8h 9s", "9c 9d 9h", "3s"]), "a bomb broken for a straight when keeping it leaves too many singles (一火保两单: 3 5678 9999 plays 56789 999 3)");
+check(same("3s 9s 9c 9d 9h Ks Kc", ["3s", "9s 9c 9d 9h", "Ks Kc"]), "…and kept when it leaves only one");
+check(same("3s 4c 6d 7h 2h Ks Kc", ["3s 4c 2h 6d 7h", "Ks Kc"]), "a wild fills the gap in a straight that would leave four singles");
+/** A position: the hands as given, the rest of the deck already played, so what's unseen is just the others' cards. */
+function position(hands, { level = 2, turn = 0 } = {}) {
+  const st = table(hands, { level, turn });
+  const held = new Set(st.hands.flat());
+  for (let id = 0; id < 108; id++) if (!held.has(id)) st.played[1 + (id % 3)].push(id);
+  return st;
+}
+const choice = (st, seat, skill = "hard") => B.decide(st, seat, { skill, noise: false }).action;
+const plays = (a, s) => a.t === "play" && a.cards.length === C(s).length && C(s).every(id => a.cards.includes(id));
+for (const skill of ["hard", "medium"]) {
+  {
+    // the next opponent down to two: lead more cards than he holds
+    const st = position(["3s 3c 9d 5s 5c 5d 7h 7d", "Ks Kc", "4s 6s 8s 10s Js Qs Kd Ah", "2c 3d 4d 6d 8d 9h 10h Jh"]);
+    check(choice(st, 0, skill).cards?.length === 5, `${skill}: the next opponent on two cards, it leads its full house, more than he can follow`);
+  }
+  {
+    // partner down to one: the lowest single
+    const st = position(["3s 9d Ks Kc Qd Qc 7h 7d", "4s 6s 8s 10s Js Qs Kd Ah 5h 5d", "8c", "2c 3d 4d 6d 8d 9h 10h Jh 6c 6h"]);
+    check(plays(choice(st, 0, skill), "3s"), `${skill}: its partner on one card, it leads its lowest single`);
+  }
+  {
+    // two plays left, one a bomb: the other first, the bomb kept to win the lead back
+    const st = position(["4s 4c 4d 4h 9s", "Ks Kc 5c 6c 7c 8d", "3s 3c 7s 7d 10d Jd", "2c 3d 4h' 6d 8h"]);
+    check(plays(choice(st, 0, skill), "9s"), `${skill}: a bomb and one more play, it leads the play and keeps the bomb`);
+  }
+  {
+    // the opponent before you plays a straight: down to five he could go out on the next, so bomb; down to four his
+    // four may be a bomb of his own (火不炸四), so wait
+    const five = position(["4s 4c 4d 4h 9s 10s Jd Qd 3h 5h 6c", "Ks Kc 5c 6c 7c 8d 9d 10d Jc Qc", "3s 3c 7s 7d 10d Jd Ah Ad", "2c 3d 4h' 6d 8h 9c 10c Jh Qh Kh"], { turn: 3 });
+    E.act(five, 3, { t: "play", cards: C("9c 10c Jh Qh Kh") });
+    const four = position(["4s 4c 4d 4h 9s 10s Jd Qd 3h 5h 6c", "Ks Kc 5c 6c 7c 8d 9d 10d Jc Qc", "3s 3c 7s 7d 10d Jd Ah Ad", "2c 3d 4h' 6d 9c 10c Jh Qh Kh"], { turn: 3 });
+    E.act(four, 3, { t: "play", cards: C("9c 10c Jh Qh Kh") });
+    check(choice(five, 0, skill).cards?.length === 4 && choice(four, 0, skill).t === "pass", `${skill}: it bombs an opponent left with five, and not one left with four`);
+  }
+  {
+    // the partner's pair stands (让牌)
+    const st = position(["9s 9c 5s 6s 7d 10h Kd Ks", "3c 4c 5c 6c 7c 8d 9d 10d Jc Qc", "8s 8c 3s 4s Jd Qd Ah Ad", "2c 3d 4h' 6d 9h 10c Jh Qh Kh 5d"], { turn: 2 });
+    E.act(st, 2, { t: "play", cards: C("8s 8c") }); E.act(st, 3, { t: "pass" });
+    check(choice(st, 0, skill).t === "pass", `${skill}: it lets its partner's pair stand`);
+  }
+}
+{
+  // the partner leads a low single and the opponent after you has one card: hard plays a card he can't beat (顶牌)
+  const st = position(["9s Ad 5s 6s 7d 10h Kd Ks", "Qc", "4s 3s Jd Qd 8c 8h 9h", "2c 3d 4h' 6d 9c 10c Jh Qh Kh 5d"], { turn: 2 });
+  E.act(st, 2, { t: "play", cards: C("4s") }); E.act(st, 3, { t: "pass" });
+  const a = choice(st, 0);
+  check(a.t === "play" && E.valueOf(a.cards[0], 2) > 12, "hard: its partner's low single, an opponent after it on one card: it plays over him with a card he can't beat (顶牌)");
+}
 // ---------- whole matches of computer players ----------
 {
   let ok = 0, conserved = 0, hands = 0;
@@ -166,6 +223,16 @@ function table(hands, { level = 2, turn = 0, levels = [2, 2], declarer = -1 } = 
   }
   check(first / n >= 0.85, `against greedy players, the computer players' side is out first in ${first} of ${n} hands`);
 }
+{
+  // hard against medium, the same deals with the sides swapped: hard's side rises more
+  let swing = 0, n = 0;
+  for (let d = 0; d < 40; d++) for (const hardSide of [0, 1]) {
+    const st = E.deal({ v: 1, opts: E.DEFAULTS, levels: [2, 2], declarer: -1, handNo: 0, lastOrder: null, results: [] }, 71000 + d);
+    for (let g = 0; g < 5000 && st.phase !== "over"; g++) { const seat = E.waitingOn(st)[0]; E.act(st, seat, B.decide(st, seat, { skill: E.teamOf(seat) === hardSide ? "hard" : "medium", seed: seat + 1 + d }).action); }
+    n++; swing += st.result.team === hardSide ? st.result.gain : -st.result.gain;
+  }
+  check(swing / n >= 0.15, `hard against medium: hard's side ${swing >= 0 ? "+" : ""}${(swing / n).toFixed(2)} levels a hand over ${n} hands`);
+}
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, and whole matches");
+else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, the computer players' judgement at both strengths, and whole matches");

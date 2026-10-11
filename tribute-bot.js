@@ -1,17 +1,43 @@
 // Tribute's computer players, and the hint that explains them. A player sees its own cards, every play and pass, the
-// counts, and the tribute; it remembers every card played. It decides as a strong player does:
-//  - the hand is split into the plays that empty it fastest (手数, the fewest plays), keeping bombs whole and the
-//    controls (jokers, level cards, aces, bombs) as ways back to the lead; a wild goes where it does most: a triple
-//    into a bomb, a straight or straight flush completed, a single into a pair
-//  - leading: the cheapest play in the split that isn't a way back, longer ones and low ones first; nothing an opponent
-//    about to go out could follow with his last cards; small cards of his type for a partner about to go out
-//  - following an opponent: the cheapest play that beats it, if it costs the hand little; a bomb when he's close to
-//    going out, or when a bomb and one more play would take you out; following a partner: let it stand (让牌) unless it
-//    takes you out
-//  - the last few plays looked ahead: when the hand can go out in two plays, it plays so the last one can't be stopped
-//  - a return (还贡): the card that costs the split least, low, from a rank held more than once (so it's less likely
-//    to finish the payer's bomb); to a partner, the card that helps most.
-import { classify, beats, power, rankOf, suitOf, isWild, isJoker, valueOf, orderOf, teamOf, partnerOf, returnable, playName, rankName, cardName, SJ, BJ, asked, act } from "./tribute-engine.js";
+// counts and the tribute; it remembers every card played and reads the others by what they've done. Two strengths:
+// hard (the default) plays every idea below and looks ahead; medium leaves the finer ones out and errs now and then.
+//  - The hand is organised (split) into the plays that cost it fewest leads. Each play is worth the chance it's played
+//    without a lead of its own (a low single nearly always needs one, a big joker almost never), each bomb a way back
+//    to the lead; so a level card goes into a sequence only when that saves plays, a wild where it saves most (a weak
+//    triple made a bomb before a strong one, a gap in a straight filled when it saves singles), and full houses carry
+//    the smallest pairs.
+//  - What the table holds: the unseen cards, each opponent's count, the tribute (a payer held nothing above the card
+//    he paid), and the kinds of play each opponent passes on cheaply or leads, so a play's chance of holding is
+//    reckoned against the cards that could still beat it.
+//  - Leading: the play that sheds the most of the hand's cost, longer ones first, shaped by the next opponent's count
+//    (京报: what a hand of 9, 7 or 5 cards can't follow), more cards than a short opponent holds (he can't follow and
+//    can't bomb), low singles and pairs for a partner close to out, and the kinds the opponents have shown they lack
+//    (a pair or a single taken from a bigger combination when that suits the table); with two plays left, a bomb is
+//    kept to win the lead back and a sure play goes first.
+//  - Following an opponent: contest the trick (the lead is worth more than a little of the hand's shape): the play
+//    that beats him and costs the hand least, the controls kept from small plays early; a short opponent after you
+//    blocked with a high card (顶牌); a bomb by his count (炸五不炸四, 打七不打八), or when it and one more play take you
+//    out. Following a partner: his play stands (让牌), unless taking it blocks an opponent about to go out, or holds
+//    and leaves your hand able to run out.
+//  - Hard looks ahead late in a hand: each choice worth considering is tried in deals of the unseen cards that fit
+//    what the table has shown, the rest of the hand played out, and scored by what it does to the levels.
+//  - A return (还贡): low, from a rank held more than once and not a 5 or a 10 (the cards straights need), the card
+//    the hand misses least; to a partner, the most useful one it can spare.
+import { classify, beats, power, rankOf, suitOf, isWild, isJoker, valueOf, orderOf, teamOf, partnerOf, returnable, playName, rankName, cardName, SJ, BJ, asked, act, rng } from "./tribute-engine.js";
+
+export const SKILLS = ["medium", "hard"];
+/** The weights the organisation and the choices use; tools/tribute-arena.mjs plays versions of them against each other. */
+export const TUNE = {
+  bomb4: 1.0, bomb5: 1.2, sf: 1.25, big: 1.35, jokers: 1.5,     // a bomb's worth, in leads
+  eps: 0.02,                                                     // each play's own cost, so fewer plays win a tie
+  tempo: 0.25,                                                   // the lead won by a play that holds
+  follow: -0.5,                                                  // what beating an opponent must be worth (below 0: beat unless it costs the hand)
+  holdLong: 0.25,                                                // long plays kept back while the hand is long
+  len: 0.1,                                                      // a lead's worth for each card it sheds
+  countTable: 0.35,                                              // the next opponent's count, by kind of lead (京报)
+  control: 0.35,                                                 // a control kept from a small single or pair early
+  voidEarly: 0.5, voidLate: 0.3,                                 // an opponent's chance of beating a kind he passed on
+};
 
 // ---------- a hand by rank ----------
 function profile(hand, level) {
@@ -29,74 +55,120 @@ const CHAINS = [];                                               // every sequen
 for (let low = 1; low <= 10; low++) CHAINS.push({ type: "straight", len: 5, each: 1, low });
 for (let low = 1; low <= 12; low++) CHAINS.push({ type: "tube", len: 3, each: 2, low });
 for (let low = 1; low <= 13; low++) CHAINS.push({ type: "plate", len: 2, each: 3, low });
+const SIZE_TIER = { 4: 1, 5: 2, 6: 4, 7: 5, 8: 6, 9: 7, 10: 8 };
 
-// ---------- the split: the plays that empty the hand fastest ----------
+// ---------- what a play is worth ----------
+// The chance a play is made without a lead of its own (it holds when led, or goes on someone else's play), by kind
+// and height, before the table says more: low singles and pairs almost never, the big joker almost always.
+const SINGLE = [0, 0, 0, 0, 0, 0, 0, 0.04, 0.08, 0.13, 0.19, 0.27, 0.35, 0.44, 0.54, 0.66, 0.8, 0.93];
+const PAIR = [0, 0, 0, 0, 0, 0, 0.03, 0.06, 0.1, 0.15, 0.21, 0.28, 0.36, 0.46, 0.58, 0.72, 0.9, 1];
+const STRAIGHT = [0, 0, 0, 0, 0, 0, 0.06, 0.12, 0.18, 0.25, 0.32, 0.4, 0.5, 0.62, 0.85];
+/** The worth of each kind of play by its key (a sequence's by its top), before the table says more. */
+const STATIC = {
+  single: SINGLE, pair: PAIR, triple: PAIR.map(x => Math.min(0.95, x + 0.08)), straight: STRAIGHT,
+  tube: Array.from({ length: 15 }, (_, k) => (k >= 14 ? 0.88 : k >= 3 ? 0.05 + 0.06 * (k - 3) : 0)),
+  plate: Array.from({ length: 15 }, (_, k) => (k >= 14 ? 0.92 : k >= 2 ? 0.1 + 0.06 * (k - 2) : 0)),
+};
+STATIC.full = STATIC.triple;
+export const worth = r => (r.bomb ? 1 : STATIC[r.type]?.[r.key] ?? 0);
+function bombWorth(r) {
+  if (r.bomb === 9) return TUNE.jokers;
+  if (r.bomb === 1) return TUNE.bomb4 + 0.012 * (r.key - 2);
+  if (r.bomb === 2) return TUNE.bomb5;
+  if (r.bomb === 3) return TUNE.sf;
+  return TUNE.big;
+}
+/** A play's cost to the hand, in leads: 1 for a play that needs a lead of its own, less the better it is; a bomb's
+ *  is below nothing (it wins the lead back). */
+const costOf = r => (r.bomb ? -bombWorth(r) : 1 - worth(r)) + TUNE.eps;
+
+// ---------- the split: the plays that cost the hand fewest leads ----------
 /**
- * The best split of a hand into plays: { combos: [{ cards, reading }], plays, score }. Fewer plays is better; a bomb
- * counts as a way back to the lead; small singles are the hardest to be rid of.
+ * The best split of a hand into plays: { combos: [{ cards, reading, cost }], plays, total } — total, the sum of the
+ * plays' costs, is what the split minimises: sequences tried in every combination up to four (a bomb broken for one
+ * only when that saves more than the bomb is worth: 3 5678 9999 plays 56789 999 3), straight flushes first, the
+ * wilds placed where they cost least, triples carrying the cheapest pairs.
  */
 export function split(hand, level) {
-  const key = `${level}:${hand.slice().sort((a, b) => a - b).join(",")}`;
+  const key = handKey(hand, level);
   const hit = SPLITS.get(key);
   if (hit) return hit;
   const P = profile(hand, level);
+  const memo = new Map();
   let best = null;
-  const tryRest = (cnt, w, chosen, sfs) => {
-    const rest = remainder(cnt, w, P);
-    const plays = chosen.length + sfs.length + rest.plays;
-    const score = plays + rest.score - 0.6 * sfs.length;
-    if (!best || score < best.score - 1e-9) best = { chosen: chosen.slice(), sfs: sfs.slice(), rest, plays, score };
+  const rest = (cnt, w) => {
+    const k = `${cnt.join("")}|${w}`;
+    let r = memo.get(k);
+    if (!r) { r = remainder(cnt, w, P); memo.set(k, r); }
+    return r;
   };
-  // the sequences, chosen in a fixed order so each set is tried once, at most four
-  const dfs = (cnt, w, chosen, from, sfs) => {
-    tryRest(cnt, w, chosen, sfs);
+  const consider = (cnt, w, chosen, sfs, fixed) => {
+    const r = rest(cnt, w), total = fixed + r.total;
+    if (!best || total < best.total - 1e-9) best = { total, chosen: chosen.slice(), sfs, rest: r };
+  };
+  const dfs = (cnt, w, chosen, from, sfs, fixed) => {
+    consider(cnt, w, chosen, sfs, fixed);
     if (chosen.length >= 4) return;
     for (let i = from; i < CHAINS.length; i++) {
       const ch = CHAINS[i];
-      let need = 0, ok = true;
-      for (let p = ch.low; p < ch.low + ch.len; p++) {
-        const r = nat(p);
-        if (cnt[r] >= 4) { ok = false; break; }                  // never break a bomb for a sequence
-        need += Math.max(0, ch.each - cnt[r]);
-      }
-      if (!ok || need > Math.min(w, 1) || need >= ch.len * ch.each / 2) continue;
+      let need = 0;
+      for (let p = ch.low; p < ch.low + ch.len; p++) need += ch.each - Math.min(ch.each, cnt[nat(p)]);
+      if (need > w || need > 2 || need * 2 >= ch.len * ch.each) continue;
       const used = [];
       for (let p = ch.low; p < ch.low + ch.len; p++) { const r = nat(p), take = Math.min(ch.each, cnt[r]); cnt[r] -= take; used.push([r, take]); }
+      const c = costOf({ type: ch.type, key: ch.low + ch.len - 1, bomb: 0 });
       chosen.push({ ...ch, need });
-      dfs(cnt, w - need, chosen, i, sfs);
+      dfs(cnt, w - need, chosen, i, sfs, fixed + c);
       chosen.pop();
       for (const [r, take] of used) cnt[r] += take;
     }
   };
-  // straight flushes first (each a bomb): none, or one, or two that don't share cards
+  // straight flushes first (each a bomb): none, one, or two that don't share cards
   const sfs = straightFlushes(hand, level);
-  const base = P.cnt.slice();
-  dfs(base, P.wilds.length, [], 0, []);
+  const base = P.cnt.slice(), nw = P.wilds.length;
+  dfs(base, nw, [], 0, [], 0);
   for (let i = 0; i < sfs.length; i++) {
-    const a = sfs[i];
-    const c1 = takeCards(base, a.cards, level);
+    const a = sfs[i], c1 = takeCards(base, a.cards, level);
     if (!c1) continue;
-    dfs(c1, P.wilds.length - a.wilds, [], 0, [a]);
+    const ca = -bombWorth({ bomb: 3 }) + TUNE.eps;
+    dfs(c1, nw - a.wilds, [], 0, [a], ca);
     for (let j = i + 1; j < sfs.length; j++) {
       const b = sfs[j];
-      if (a.wilds + b.wilds > P.wilds.length || b.cards.some(id => a.cards.includes(id))) continue;
+      if (a.wilds + b.wilds > nw || b.cards.some(id => a.cards.includes(id))) continue;
       const c2 = takeCards(c1, b.cards, level);
-      if (c2) dfs(c2, P.wilds.length - a.wilds - b.wilds, [], 0, [a, b]);
+      if (c2) dfs(c2, nw - a.wilds - b.wilds, [], 0, [a, b], 2 * ca);
     }
   }
   const out = concretize(best, P, hand, level);
-  if (SPLITS.size > 4000) SPLITS.clear();
+  if (SPLITS.size > 6000) SPLITS.clear();
   SPLITS.set(key, out);
   return out;
 }
 const SPLITS = new Map();
+/** A hand's key in the caches: its cards as bits, and the level. */
+function handKey(hand, level) {
+  let a = 0, b = 0, c = 0, d = 0;
+  for (const id of hand) {
+    if (id < 27) a |= 1 << id; else if (id < 54) b |= 1 << (id - 27); else if (id < 81) c |= 1 << (id - 54); else d |= 1 << (id - 81);
+  }
+  return `${level}:${a.toString(36)}:${b.toString(36)}:${c.toString(36)}:${d.toString(36)}`;
+}
 function takeCards(cnt, cards, level) {
   const c = cnt.slice();
   for (const id of cards) { if (isWild(id, level) || isJoker(id)) continue; const r = rankOf(id); if (c[r] <= 0) return null; c[r]--; }
   return c;
 }
-/** The straight flushes a hand could make: natural, or with one or two wilds (and not breaking two bombs to make one). */
+/** The straight flushes a hand could make: natural, or with one or two wilds, breaking at most one bomb. */
 function straightFlushes(hand, level) {
+  const key = handKey(hand, level), hit = SFS.get(key);
+  if (hit) return hit;
+  const out = findFlushes(hand, level);
+  if (SFS.size > 6000) SFS.clear();
+  SFS.set(key, out);
+  return out;
+}
+const SFS = new Map();
+function findFlushes(hand, level) {
   const out = [], wilds = hand.filter(id => isWild(id, level));
   const bySuit = [0, 1, 2, 3].map(() => new Map());
   for (const id of hand) if (!isWild(id, level) && !isJoker(id)) { const m = bySuit[suitOf(id)], r = rankOf(id); if (!m.has(r)) m.set(r, id); }
@@ -104,57 +176,61 @@ function straightFlushes(hand, level) {
   for (const id of hand) if (!isWild(id, level) && !isJoker(id)) cnt[rankOf(id)]++;
   for (let s = 0; s < 4; s++) for (let low = 1; low <= 10; low++) {
     const cards = [];
-    let gaps = 0, bombsBroken = 0;
+    let gaps = 0, broken = 0;
     for (let p = low; p < low + 5; p++) {
       const r = nat(p), id = bySuit[s].get(r);
       if (id === undefined) gaps++;
-      else { cards.push(id); if (cnt[r] >= 4) bombsBroken++; }
+      else { cards.push(id); if (cnt[r] >= 4) broken++; }
     }
-    if (gaps > wilds.length || gaps > 2 || bombsBroken >= 2) continue;
+    if (gaps > wilds.length || gaps > 2 || broken >= 2) continue;
     out.push({ suit: s, low, cards: [...cards, ...wilds.slice(0, gaps)], wilds: gaps, key: low + 4 });
   }
   return out.sort((a, b) => a.wilds - b.wilds || b.key - a.key).slice(0, 6);
 }
 /**
- * What's left after the sequences, grouped: a bomb of each rank held four or more, triples, pairs and singles; the
- * wilds placed where they do most; triples carrying the smallest pairs as full houses.
+ * What's left after the sequences, grouped: a bomb of each rank held four or more, triples, pairs and singles, the
+ * jokers (the four of them a bomb or two pairs, whichever costs less); the wilds placed where they cost least (a
+ * wild left alone is a level card); triples carrying the costliest pairs below the ace as full houses.
  */
 function remainder(cnt, w, P) {
+  const W = STATIC;
   const level = P.level;
-  let best = null;
-  const targets = [-1];                                          // -1: a wild kept as it is (a level card)
-  for (let r = 2; r <= 14; r++) if (cnt[r]) targets.push(r);
+  const targets = [];
+  for (let r = 2; r <= 14; r++) if (cnt[r] || r === level) targets.push(r);
   const options = w === 0 ? [[]] : w === 1 ? targets.map(t => [t]) : targets.flatMap((t, i) => targets.slice(i).map(u => [t, u]));
+  const sj = P.sjs.length, bj = P.bjs.length;
+  let best = null;
   for (const opt of options) {
     const c = cnt.slice();
-    let kept = 0;
-    for (const t of opt) { if (t < 0) kept++; else c[t]++; }
-    let bombs = 0, triples = [], pairs = [], singles = [], controls = 0, small = 0;
+    for (const t of opt) c[t]++;
+    let total = 0, plays = 0;
+    const triples = [], pairs = [];
     for (let r = 2; r <= 14; r++) {
       const n = c[r];
       if (!n) continue;
       const v = orderOf(r, level);
-      if (n >= 4) bombs++;
+      if (n >= 4) { total -= bombWorth({ bomb: SIZE_TIER[n], key: v }); plays++; }
       else if (n === 3) triples.push(v);
-      else if (n === 2) { pairs.push(v); if (v >= 14) controls++; }
-      else { singles.push(v); if (v >= 14) controls++; else if (v <= 7) small++; }
+      else if (n === 2) pairs.push(v);
+      else { total += 1 - W.single[v]; plays++; }
     }
-    if (kept === 2) { pairs.push(15); controls++; }
-    else if (kept === 1) { singles.push(15); controls++; }
-    const sj = P.sjs.length, bj = P.bjs.length;
-    let jokerBomb = 0;
-    if (sj === 2 && bj === 2) jokerBomb = 1;
-    else {
-      if (sj === 2) { pairs.push(SJ); controls += 1.5; } else if (sj === 1) { singles.push(SJ); controls++; }
-      if (bj === 2) { pairs.push(BJ); controls += 2; } else if (bj === 1) { singles.push(BJ); controls += 1.2; }
+    for (const jokerBomb of sj === 2 && bj === 2 ? [true, false] : [false]) {
+      let t = total, pl = plays;
+      const ps = pairs.slice();
+      if (jokerBomb) { t -= TUNE.jokers; pl++; }
+      else {
+        if (sj === 2) ps.push(SJ); else if (sj === 1) { t += 1 - W.single[SJ]; pl++; }
+        if (bj === 2) ps.push(BJ); else if (bj === 1) { t += 1 - W.single[BJ]; pl++; }
+      }
+      // full houses: the triples carry the costliest pairs (the lowest), never the ace pair or better
+      const carry = ps.filter(v => v < 14).sort((a, b) => a - b).slice(0, triples.length);
+      for (const v of triples) { t += 1 - W.triple[v]; pl++; }
+      for (const v of ps) t += 1 - W.pair[v];
+      pl += ps.length;
+      for (const v of carry) { t -= 1 - W.pair[v]; pl--; }
+      t += TUNE.eps * pl;
+      if (!best || t < best.total - 1e-9) best = { total: t, plays: pl, opt, jokerBomb, carry: carry.length };
     }
-    // full houses: each triple takes the smallest pair below the controls
-    const plainPairs = pairs.filter(v => v < 14).sort((a, b) => a - b);
-    const fulls = Math.min(triples.length, plainPairs.length);
-    const plays = bombs + jokerBomb + triples.length + pairs.length + singles.length - fulls;
-    const score = -0.6 * bombs - 1.2 * jokerBomb - 0.2 * controls + 0.12 * small;
-    const total = plays + score;
-    if (!best || total < best.total) best = { plays, score, total, opt, c };
   }
   return best;
 }
@@ -164,15 +240,22 @@ function concretize(best, P, hand, level) {
   const combos = [];
   const used = new Set();
   const take = (r, n) => { const out = []; while (out.length < n && pool[r].length) out.push(pool[r].shift()); return out; };
-  const add = cards => { for (const id of cards) used.add(id); const reading = bestReading(cards, level); if (reading) combos.push({ cards, reading }); };
+  const add = cards => {
+    for (const id of cards) used.add(id);
+    const reading = bestReading(cards, level);
+    if (reading) combos.push({ cards, reading, cost: costOf(reading) });
+  };
   for (const sf of best.sfs) {
-    for (const id of sf.cards) { if (isWild(id, level)) { const i = wilds.indexOf(id); if (i >= 0) wilds.splice(i, 1); } else { const r = rankOf(id); const i = pool[r].indexOf(id); if (i >= 0) pool[r].splice(i, 1); } }
+    for (const id of sf.cards) {
+      if (isWild(id, level)) { const i = wilds.indexOf(id); if (i >= 0) wilds.splice(i, 1); }
+      else { const r = rankOf(id), i = pool[r].indexOf(id); if (i >= 0) pool[r].splice(i, 1); }
+    }
     add(sf.cards);
   }
   for (const ch of best.chosen) {
     const cards = [];
     for (let p = ch.low; p < ch.low + ch.len; p++) {
-      const r = nat(p), got = take(r, ch.each);
+      const got = take(nat(p), ch.each);
       cards.push(...got);
       for (let i = got.length; i < ch.each; i++) cards.push(wilds.shift());
     }
@@ -180,19 +263,17 @@ function concretize(best, P, hand, level) {
   }
   // the rest by rank, with the wilds where the remainder placed them
   const extra = {};
-  let kept = 0;
-  for (const t of best.rest.opt) { if (t < 0) kept++; else extra[t] = (extra[t] || 0) + 1; }
+  for (const t of best.rest.opt) extra[t] = (extra[t] || 0) + 1;
   const groups = [];
   for (let r = 2; r <= 14; r++) {
     const cards = take(r, 99);
     for (let i = 0; i < (extra[r] || 0); i++) cards.push(wilds.shift());
     if (cards.length) groups.push(cards);
   }
-  if (kept) groups.push(wilds.splice(0, kept));
-  const sj = P.sjs, bj = P.bjs;
-  if (sj.length === 2 && bj.length === 2) groups.push([...sj, ...bj]);
-  else { if (sj.length) groups.push(sj.slice()); if (bj.length) groups.push(bj.slice()); }
-  // triples carry the smallest plain pairs
+  if (wilds.length) groups.push(wilds.splice(0));
+  if (best.rest.jokerBomb) groups.push([...P.sjs, ...P.bjs]);
+  else { if (P.sjs.length) groups.push(P.sjs.slice()); if (P.bjs.length) groups.push(P.bjs.slice()); }
+  // triples carry the cheapest pairs below the ace
   const read = groups.map(cards => ({ cards, reading: bestReading(cards, level) })).filter(g => g.reading);
   const triples = read.filter(g => g.reading.type === "triple").sort((a, b) => a.reading.key - b.reading.key);
   const pairs = read.filter(g => g.reading.type === "pair" && g.reading.key < 14).sort((a, b) => a.reading.key - b.reading.key);
@@ -204,37 +285,144 @@ function concretize(best, P, hand, level) {
     add([...t.cards, ...p.cards]);
   });
   for (const g of read) if (!merged.has(g)) add(g.cards);
-  // anything the split left out (it shouldn't), as singles
-  for (const id of hand) if (!used.has(id)) add([id]);
-  return { combos, plays: combos.length, score: best.score };
+  for (const id of hand) if (!used.has(id)) add([id]);            // anything the split left out (it shouldn't)
+  const total = combos.reduce((t, c) => t + c.cost, 0);
+  return { combos, plays: combos.length, total };
 }
 /** The strongest reading of a group of cards (a straight flush as the bomb it is). */
 function bestReading(cards, level) {
   const rs = classify(cards, level);
   return rs.sort((a, b) => power(b) - power(a) || b.key - a.key)[0] || null;
 }
+/** The split's total for a hand (0 for none). */
+const totalOf = (hand, level) => (hand.length ? split(hand, level).total : 0);
+const minus = (hand, cards) => { const out = hand.slice(); for (const id of cards) { const i = out.indexOf(id); if (i >= 0) out.splice(i, 1); } return out; };
 
 // ---------- what a seat knows ----------
-/** The cards this seat hasn't seen: not in its hand, not played, not shown in tribute. */
+/** The cards this seat hasn't seen: not in its hand, not played. */
 export function unseen(state, seat) {
-  const seen = new Set(state.hands[seat]);
-  for (const p of state.played) for (const id of p) seen.add(id);
+  const seen = new Uint8Array(108);
+  for (const id of state.hands[seat]) seen[id] = 1;
+  for (const p of state.played) for (const id of p) seen[id] = 1;
   const out = [];
-  for (let id = 0; id < 108; id++) if (!seen.has(id)) out.push(id);
+  for (let id = 0; id < 108; id++) if (!seen[id]) out.push(id);
   return out;
 }
-/** Whether a play is the top of its kind: nothing unseen could make a higher one of its type (bombs aside). */
-function isTop(reading, others, level) {
-  if (reading.bomb) return true;
-  if (reading.type === "single") return !others.some(id => valueOf(id, level) > reading.key);
-  if (reading.type === "pair") {
-    const c = {};
-    for (const id of others) { const v = isWild(id, level) ? 15 : valueOf(id, level); c[v] = (c[v] || 0) + 1; }
-    const w = others.filter(id => isWild(id, level)).length;
-    return !Object.entries(c).some(([v, n]) => Number(v) > reading.key && (n >= 2 || (n === 1 && w > 0 && Number(v) < SJ)));
+/**
+ * The table as a seat sees it: the unseen cards by rank (those known to be with the partner left out of the
+ * opponents' share), each player's count, the tribute's caps, and what each player has led and passed on.
+ */
+function knowledge(state, seat, deep = true) {
+  const level = state.level, mate = partnerOf(seat);
+  const opps = [0, 1, 2, 3].filter(s => teamOf(s) !== teamOf(seat));
+  const counts = state.hands.map(h => h.length);
+  const known = new Map();                                       // card → the seat known to hold it (tribute, return)
+  if (state.tribute) for (const x of [...(state.tribute.pays || []), ...(state.tribute.returns || [])]) if (x.card != null) known.set(x.card, x.to);
+  const others = unseen(state, seat);
+  const nat = new Array(15).fill(0);
+  let wilds = 0, sj = 0, bj = 0, total = 0;
+  for (const id of others) {
+    if (known.size && known.get(id) === mate) continue;          // with the partner, not the opponents
+    total++;
+    if (isWild(id, level)) wilds++;
+    else if (rankOf(id) === SJ) sj++;
+    else if (rankOf(id) === BJ) bj++;
+    else nat[rankOf(id)]++;
   }
-  return false;
+  // what each player has led, passed on cheaply, and how many cards he held then
+  const table = [0, 1, 2, 3].map(() => ({ leads: {}, passes: {} }));
+  const voids = [0, 1, 2, 3].map(() => ({}));                  // a kind a player passed on from the other side: { key, f }
+  const held = [27, 27, 27, 27];
+  let top = null, lead = true;
+  const passes = [];
+  if (deep) for (const e of state.log) {
+    if (e.e === "play") {
+      const type = e.bomb ? "bomb" : e.type;
+      if (lead) table[e.seat].leads[type] = (table[e.seat].leads[type] || 0) + 1;
+      held[e.seat] -= e.cards.length;
+      top = { seat: e.seat, type, key: e.key, n: e.cards.length, bomb: e.bomb };
+      lead = false;
+    } else if (e.e === "pass" && top) {
+      passes.push({ seat: e.seat, top: { ...top }, held: held[e.seat], before: 27 - held[e.seat] });
+      // a pass on an opponent's cheap play, with cards to spare: a sign he lacks that kind
+      const cheap = top.type === "single" ? top.key <= 10 : top.type === "pair" ? top.key <= 10 : !top.bomb && top.key <= 11;
+      if (teamOf(top.seat) !== teamOf(e.seat) && !top.bomb && cheap && held[e.seat] >= 6) table[e.seat].passes[top.type] = (table[e.seat].passes[top.type] || 0) + 1;
+      // he had nothing of that kind above it, most likely: plays of it at that height or more will hold against him
+      if (teamOf(top.seat) !== teamOf(e.seat) && !top.bomb && held[e.seat] >= top.n) {
+        const v = voids[e.seat][top.type], f = held[e.seat] <= 10 ? TUNE.voidLate : TUNE.voidEarly;
+        voids[e.seat][top.type] = { key: Math.min(v?.key ?? 99, top.key), f: Math.min(v?.f ?? 1, f) };
+      }
+    } else if (e.e === "trick") { top = null; lead = true; }
+  }
+  const caps = [null, null, null, null];                        // a payer held nothing above the card he paid (wilds aside)
+  if (state.tribute?.pays) for (const p of state.tribute.pays) if (p.card != null) caps[p.from] = valueOf(p.card, level);
+  return {
+    level, seat, mate, opps, counts, next: (seat + 1) % 4, prev: (seat + 3) % 4, others, known, nat, wilds, sj, bj, total,
+    table, voids, passes, caps, resisted: state.tribute?.kind === "resisted" ? state.tribute.payers : null,
+  };
 }
+
+// ---------- will a play hold? ----------
+const tail = (n, p, m) => {                                      // the chance of at least m of n, each with chance p
+  if (m <= 0) return 1;
+  if (n < m) return 0;
+  let below = 0, term = (1 - p) ** n;
+  for (let k = 0; k < m; k++) { below += term; term *= ((n - k) / (k + 1)) * (p / (1 - p || 1e-9)); }
+  return Math.max(0, Math.min(1, 1 - below));
+};
+/**
+ * The chance a play stands against the opponents' plays of its kind (bombs aside), reckoned from the unseen cards and
+ * each opponent's count; `only`: against that opponent alone.
+ */
+export function hold(r, K, only = null) {
+  if (r.bomb) return 1;
+  let none = 1;
+  for (const o of K.opps) {
+    if (only !== null && o !== only) continue;
+    const h = K.counts[o];
+    if (!h || h < r.n || !K.total) continue;
+    const v = K.voids?.[o][r.type];
+    none *= 1 - beatChance(r, K, Math.min(1, h / K.total)) * (v && r.key >= v.key ? v.f : 1);
+  }
+  return none;
+}
+function beatChance(r, K, p) {
+  const k = r.key, level = K.level;
+  const pw = 1 - (1 - p) ** K.wilds;                              // he holds a wild
+  const nOf = v => (v === SJ ? K.sj : v === BJ ? K.bj : v === 15 ? K.nat[level] + K.wilds : orderToRank(v, level) ? K.nat[orderToRank(v, level)] : 0);
+  switch (r.type) {
+    case "single": {
+      let m = 0;
+      for (let v = k + 1; v <= BJ; v++) m += nOf(v);
+      return 1 - (1 - p) ** m;
+    }
+    case "pair": case "triple": case "full": {
+      const need = r.type === "pair" ? 2 : 3;
+      let none = 1;
+      for (let v = k + 1; v <= (r.type === "pair" ? BJ : 15); v++) {
+        const n = nOf(v);
+        if (!n) continue;
+        const natural = tail(n, p, need), helped = v < SJ && v !== 15 ? (tail(n, p, need - 1) - natural) * pw : 0;
+        none *= 1 - Math.min(1, natural + helped);
+      }
+      return 1 - none;
+    }
+    default: {                                                   // a sequence: a higher one of its kind
+      const len = r.type === "straight" ? 5 : r.type === "tube" ? 3 : 2, each = r.type === "straight" ? 1 : r.type === "tube" ? 2 : 3;
+      let none = 1;
+      for (let topP = k + 1; topP <= 14; topP++) {
+        let all = 1, oneShort = 0;
+        const qs = [];
+        for (let pos = topP - len + 1; pos <= topP; pos++) qs.push(tail(K.nat[nat(pos)], p, each));
+        for (const q of qs) all *= q;
+        for (let i = 0; i < qs.length; i++) { let o = 1 - qs[i]; for (let j = 0; j < qs.length; j++) if (j !== i) o *= qs[j]; oneShort += o; }
+        none *= 1 - Math.min(1, all + oneShort * pw);
+      }
+      return 1 - none;
+    }
+  }
+}
+const orderToRank = (v, level) => (v === 15 ? level : v === level ? 0 : v >= 2 && v <= 14 ? v : 0);
 
 // ---------- the moves ----------
 /** Every play of the type and length of `top` (any type when leading: from the split) that beats it, cheapest ways. */
@@ -305,236 +493,400 @@ export function candidates(hand, level, top) {
   return out;
 }
 const BY_VALUE = {};
-/** How much a play costs the hand: the plays left after it, against the split's own count less one. */
-function cost(hand, level, cards, before) {
-  const rest = hand.filter(id => !cards.includes(id));
-  if (!rest.length) return -10;                                  // it takes you out
-  const s = split(rest, level);
-  return (s.plays + s.score) - (before.plays + before.score - 1);
-}
 
-/** The view a decision needs. */
-function situation(state, seat) {
-  const level = state.level, hand = state.hands[seat], mate = partnerOf(seat);
-  const opps = [0, 1, 2, 3].filter(s => teamOf(s) !== teamOf(seat));
-  const counts = state.hands.map(h => h.length);
-  return { level, hand, mate, opps, counts, others: unseen(state, seat), next: (seat + 1) % 4, prev: (seat + 3) % 4 };
-}
+// ---------- deciding ----------
+export const SETTINGS = {
+  // hard: every idea, its choices only nudged among near-equals
+  hard: { noise: 0.08, eager: 0, table: true, block: true, breakLead: true, bombRead: true, overtake: true, slip: 0 },
+  // medium: slower to contest a trick, no reading of the table, no blocking, a plainer bomb rule, and a hand that wanders
+  medium: { noise: 0.55, eager: 0.75, table: false, block: false, breakLead: false, bombRead: false, overtake: false, slip: 0.12 },
+  // the look-ahead's players: hard's, without the reading of the table, which costs the time of a deal's worth of plays
+  rollout: { noise: 0, eager: 0, table: false, block: true, breakLead: false, bombRead: true, overtake: true, slip: 0 },
+};
+const nameOf = (state, seat) => state.names?.[seat] || ["South", "East", "North", "West"][seat];
 
 /**
- * The decision for a seat now, with its reason: { action, why, alts? } — a play ({ t: "play", cards }), a pass, or a
- * return ({ t: "return", card }).
+ * The decision for a seat now, with its reason: { action, why } — a play ({ t: "play", cards }), a pass, or a return
+ * ({ t: "return", card }). opts: skill ("hard" or "medium"), search (deals to look ahead in; hard only), seed,
+ * budget (milliseconds for the look-ahead), noise (false: the same choice every time).
  */
-export function decide(state, seat, { search = 0, seed = 1, budget = Infinity } = {}) {
+export function decide(state, seat, { skill = "hard", search = 0, seed = 1, budget = Infinity, noise = true } = {}) {
   const ask = asked(state, seat);
   if (!ask) return null;
-  if (ask === "return") return decideReturn(state, seat);
-  const s = situation(state, seat);
-  const d = state.top ? decideFollow(state, seat, s) : decideLead(state, seat, s);
-  if (search > 0 && worthSearching(state, seat, s)) return lookAhead(state, seat, d, search, seed, budget);
+  const cfg = SETTINGS[skill] || SETTINGS.hard;
+  const r = noise ? rng((seed * 2654435761 + state.log.length * 97 + state.handNo * 7919 + seat * 131 + state.hands[seat].length) >>> 0) : null;
+  if (ask === "return") return giveBack(state, seat, cfg);
+  const K = knowledge(state, seat, cfg.table || search > 0);
+  const d = state.top ? follow(state, seat, K, cfg, r) : lead(state, seat, K, cfg, r);
+  if (search > 0 && skill === "hard" && worthSearching(state, seat, K)) return lookAhead(state, seat, d, K, search, seed, budget, r);
   return d;
 }
-
-// ---------- looking ahead: the rest of the hand played out in worlds that fit what's been seen ----------
-// Late in a hand, or when someone is close to going out, the choice is tried: the unseen cards dealt to the others
-// (their counts, and the tribute cards where they're known to be), the rest of the hand played by these same rules,
-// the result scored as the level swing for this seat's side, over many such worlds.
-function worthSearching(state, seat, s) {
-  const total = s.counts.reduce((a, b) => a + b, 0);
-  return total <= 60 || s.counts.some((n, i) => n > 0 && n <= 8) || s.hand.length <= 12;
-}
-/** Deals the cards this seat can't see to the others, as many as each holds, the known ones where they are. */
-function sampleWorld(state, seat, r) {
-  const hands = state.hands.map(h => h.slice());
-  const known = new Map();
-  for (const e of state.log) if (e.e === "tribute" || e.e === "return") known.set(e.card, e.to);
-  const pool = [];
-  for (const id of unseen(state, seat)) {
-    const at = known.get(id);
-    if (at !== undefined && at !== seat) continue;               // stays where it's known to be
-    pool.push(id);
-  }
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  for (let o = 0; o < 4; o++) {
-    if (o === seat) continue;
-    const need = state.hands[o].length;
-    const keep = [];
-    for (const [id, at] of known) if (at === o && !state.played.some(p => p.includes(id)) && state.hands[seat].indexOf(id) < 0) keep.push(id);
-    const fill = pool.splice(0, Math.max(0, need - keep.length));
-    hands[o] = [...keep.slice(0, need), ...fill];
-  }
-  return hands;
-}
-function rollout(state, hands) {
-  const st = { ...state, hands: hands.map(h => h.slice()), played: state.played.map(p => p.slice()), out: state.out.slice(), log: state.log.slice(-40), top: state.top ? { ...state.top } : null };
-  for (let g = 0; g < 400 && st.phase === "play"; g++) {
-    const seat = st.turn;
-    const d = decide(st, seat);
-    try { act(st, seat, d.action); } catch { return null; }
-  }
-  return st.result;
-}
-/** The decision `d` the rules made, tested against the other plays worth considering in sampled worlds. */
-function lookAhead(state, seat, d, worlds, seed, budget) {
-  const t0 = Date.now();
-  const level = state.level, hand = state.hands[seat];
-  const opts = [d.action];
-  const same = (a, b) => a.t === b.t && (a.t === "pass" || (a.cards.length === b.cards.length && a.cards.every(id => b.cards.includes(id))));
-  const add = a => { if (!opts.some(o => same(o, a))) opts.push(a); };
-  if (state.top) {
-    add({ t: "pass" });
-    const cs = candidates(hand, level, state.top.reading);
-    const before = split(hand, level);
-    cs.map(c => ({ c, k: cost(hand, level, c.cards, before) })).sort((a, b) => a.k - b.k).slice(0, 4).forEach(({ c }) => add({ t: "play", cards: c.cards }));
-  } else {
-    for (const c of split(hand, level).combos) add({ t: "play", cards: c.cards });
-  }
-  if (opts.length < 2) return d;
-  const r = rngOf(seed + hand.length * 7919 + state.log.length);
-  const totals = opts.map(() => 0);
-  let n = 0;
-  for (let k = 0; k < worlds && (k < 6 || Date.now() - t0 < budget); k++) {
-    const hands = sampleWorld(state, seat, r);
-    const res = opts.map(a => {
-      const st = { ...state, hands: hands.map(h => h.slice()), played: state.played.map(p => p.slice()), out: state.out.slice(), log: state.log.slice(), top: state.top ? { ...state.top } : null, tribute: state.tribute };
-      try { act(st, seat, a); } catch { return null; }
-      const end = st.phase === "over" ? st.result : rollout(st, st.hands);
-      return end ? (teamOf(end.order[0]) === teamOf(seat) ? end.gain : -end.gain) : null;
-    });
-    if (res.some(x => x === null)) continue;
-    res.forEach((x, i) => { totals[i] += x; });
-    n++;
-  }
-  if (!n) return d;
-  const avg = totals.map(t => t / n);
-  let bi = 0;
-  for (let i = 1; i < opts.length; i++) if (avg[i] > avg[bi] + 0.15) bi = i;   // the rules' own choice unless clearly beaten
-  if (bi === 0) return { ...d, looked: { worlds: n, value: avg[0] } };
-  const a = opts[bi];
-  const what = a.t === "pass" ? "Pass" : `Play ${playName(classify(a.cards, level).sort((x, y) => power(y) - power(x))[0] || { type: "single", key: 0 })}`;
-  const lv = x => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
-  return { action: a, why: `${what}: tried in ${n} deals of the cards you can't see, it does best, ${lv(avg[bi])} levels to your side on average against ${lv(avg[0])} for ${d.action.t === "pass" ? "passing" : "the usual play"}.`, looked: { worlds: n, value: avg[bi] } };
-}
-function rngOf(seed) {
-  let a = seed >>> 0;
-  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
-
+const jitter = (r, size) => (r && size ? (r() * 2 - 1) * size : 0);
+const play = (cards, why) => ({ action: { t: "play", cards }, why });
+const pass = why => ({ action: { t: "pass" }, why });
 
 // ---------- leading ----------
-function decideLead(state, seat, s) {
-  const { level, hand, counts, mate, opps, others } = s;
+// What the next opponent's count says about a lead (京报): + a kind a hand of that size can't easily follow, − one it can.
+const COUNT_TABLE = {
+  10: { triple: 1, pair: 1, full: -1, straight: -1, single: -1 },
+  9: { triple: 1, pair: 1, full: -1, straight: -1, single: -1 },
+  8: { straight: 1, tube: 1, plate: 1, full: 1, triple: -1, pair: -1, single: -1 },
+  7: { straight: 1, tube: 1, plate: 1, full: 1, triple: -1, pair: -1, single: -1 },
+  6: { triple: 1, straight: 1, full: 1, pair: -1, tube: -1, plate: -1 },
+  5: { pair: 1, triple: 1, single: -1, full: -1, straight: -1 },
+  4: { single: 1, pair: -1 },
+};
+function lead(state, seat, K, cfg, r) {
+  const level = state.level, hand = state.hands[seat];
   const sp = split(hand, level);
-  const combos = sp.combos;
-  if (combos.length === 1) return { action: { t: "play", cards: combos[0].cards }, why: `Lead ${playName(combos[0].reading)}: it's your last play.` };
-  const control = c => c.reading.bomb > 0 || (c.reading.key >= 15 && (c.reading.type === "single" || c.reading.type === "pair")) || isTop(c.reading, others, level);
-  const oppMin = Math.min(...opps.map(o => counts[o] || 99).filter(n => n > 0));
-  // two plays left and one is sure: lead the other, then the sure one
+  const combos = sp.combos.map(c => ({ ...c, hold: hold(c.reading, K) }));
+  if (combos.length === 1) return play(combos[0].cards, `Lead ${playName(combos[0].reading)}: it's your last play.`);
+  // two plays left: a bomb is kept to win the lead back; a sure play goes first, then out on the other
   if (combos.length === 2) {
-    const sure = combos.find(c => c.reading.bomb || isTop(c.reading, others, level));
-    if (sure) { const other = combos.find(c => c !== sure); return { action: { t: "play", cards: other.cards }, why: `Lead ${playName(other.reading)}: ${playName(sure.reading)} is sure to win the lead back, and takes you out.` }; }
+    const bomb = combos.find(c => c.reading.bomb), sure = combos.find(c => !c.reading.bomb && c.hold >= 0.97);
+    if (combos.every(c => c.reading.bomb)) { const c = combos.sort((a, b) => power(a.reading) - power(b.reading))[0]; return play(c.cards, `Lead ${playName(c.reading)}: two bombs left, the smaller first.`); }
+    if (bomb) { const c = combos.find(x => x !== bomb); return play(c.cards, `Lead ${playName(c.reading)}: if it's beaten, ${playName(bomb.reading)} wins the lead back and takes you out.`); }
+    if (sure) { const c = combos.find(x => x !== sure); return play(sure.cards, `Lead ${playName(sure.reading)}: nothing beats it but a bomb; then ${playName(c.reading)} takes you out.`); }
   }
-  const mateClose = counts[mate] > 0 && counts[mate] <= 4;
-  const scored = combos.map(c => {
-    const r = c.reading;
-    let score = r.key + { straight: -4, tube: -4, plate: -4, full: -2, single: 0, pair: 0.5, triple: 1, bomb: 40 }[r.type];
-    if (control(c)) score += 25;
-    // an opponent about to go out: nothing he could follow with his last cards
-    for (const o of opps) {
-      const n = counts[o];
-      if (!n) continue;
-      if (n <= 5 && r.n === n && !isTop(r, others, level)) score += 30 - n;
-      if (n === 1 && r.type === "single" && !isTop(r, others, level)) score += 20;
-      if (n === 2 && r.type === "pair" && !isTop(r, others, level)) score += 12;
+  // otherwise the play that sheds most, shaped by the table
+  const opts = combos.map(c => ({ ...c, shed: c.cost, broken: false }));
+  if (cfg.breakLead) {
+    // plays taken from a combination: a single from a pair, a pair from a triple or a run of pairs, a triple bare
+    const seen = new Set(opts.map(o => o.cards.slice().sort().join(",")));
+    for (const c of combos) {
+      const t = c.reading.type, parts = [];
+      if (t === "pair" && c.reading.key < 15) parts.push([c.cards[0]]);
+      if (t === "triple" || t === "full") { const trip = c.cards.filter(id => valueOf(id, level) === c.reading.key || isWild(id, level)).slice(0, 3); parts.push(trip.slice(0, 2)); if (t === "full") { parts.push(trip); parts.push(c.cards.filter(id => !trip.includes(id))); } }
+      if (t === "tube") parts.push(c.cards.slice(0, 2));
+      for (const cards of parts) {
+        const rd = bestReading(cards, level);
+        if (!rd || rd.bomb) continue;
+        const k = cards.slice().sort().join(",");
+        if (seen.has(k)) continue;
+        seen.add(k);
+        opts.push({ cards, reading: rd, cost: costOf(rd), hold: hold(rd, K), shed: sp.total - totalOf(minus(hand, cards), level), broken: true });
+      }
     }
-    // a partner about to go out: low singles and pairs he can follow
-    if (mateClose && (r.type === "single" || r.type === "pair") && r.n <= counts[mate]) score -= 8 - Math.min(8, r.key / 2);
-    return { c, score };
-  }).sort((a, b) => a.score - b.score);
-  const pick = scored[0].c;
-  let why = `Lead ${playName(pick.reading)}`;
-  const backs = combos.filter(c => c !== pick && control(c));
-  if (mateClose && pick.reading.n <= counts[mate]) why += `: low, for your partner, who has ${counts[mate]} left`;
-  else if (oppMin <= 5 && scored[0].score < 30) why += `: nothing an opponent with ${oppMin} left can follow with`;
-  else if (pick.reading.n >= 5) why += ": a long play sheds the most cards while you hold the lead";
-  else why += ": the cheapest play in your hand";
-  if (backs.length) why += `; ${backs.length === 1 ? playName(backs[0].reading) : `${backs.length} strong plays`} stay to win the lead back`;
-  return { action: { t: "play", cards: pick.cards }, why: `${why}. Your hand goes out in ${combos.length} plays.` };
+  }
+  const scored = opts.map(o => ({ o, s: leadScore(o, K, cfg, hand.length) + jitter(r, cfg.noise) })).sort((a, b) => b.s - a.s);
+  const pick = scored[0].o;
+  return play(pick.cards, leadWhy(pick, K, state, combos, sp));
+}
+function leadScore(o, K, cfg, size) {
+  const rd = o.reading, t = rd.type;
+  if (rd.bomb) return -5;
+  let s = o.shed;
+  // long plays held back while the hand is long (they're hard to follow, but nothing wins them back), unless lead-only
+  if (size >= 20 && (t === "full" || t === "straight" || t === "tube" || t === "plate") && worth(rd) > 0.05) s -= TUNE.holdLong;
+  s += TUNE.len * rd.n;
+  // the opponents' counts
+  for (const op of K.opps) {
+    const n = K.counts[op];
+    if (!n || n > 10) continue;
+    const wgt = op === K.next ? 1 : 0.6, top = hold(rd, K, op) >= 0.95;
+    if (n <= 3) {
+      if (rd.n > n) s += 1.2 * wgt;                              // more cards than he holds: he can't follow, nor bomb
+      else if (rd.n === n && !top) s -= 2.5 * wgt;               // his last cards could follow it
+      else if (!top) s -= 0.5 * wgt;
+    } else if ((n === 5 && rd.n === 5) || (n === 6 && rd.n === 6)) { if (!top) s -= 2 * wgt; }
+    if (cfg.table && COUNT_TABLE[n]) s += TUNE.countTable * wgt * (COUNT_TABLE[n][t] || 0);
+  }
+  // a partner close to out: what he can follow
+  const m = K.counts[K.mate];
+  if (m > 0 && m <= 5) {
+    if (m === 1) s += t === "single" ? (rd.key <= 10 ? 1.5 : 0.4) : -0.5;
+    else if (m === 2) s += t === "pair" ? (rd.key <= 10 ? 1.2 : 0.3) : t === "single" ? 0.3 : -0.5;
+    else s += rd.n <= m && rd.key <= 10 ? 0.4 : rd.n > m ? -0.3 : 0;
+  }
+  // the table: kinds the opponents pass on cheaply, kinds the partner leads
+  if (cfg.table) {
+    const T = K.table, live = o => K.counts[o] > 0;
+    if (live(K.next)) s += 0.2 * Math.min(3, T[K.next].passes[t] || 0) - 0.08 * Math.min(3, T[K.next].leads[t] || 0);
+    if (live(K.prev)) s += 0.12 * Math.min(3, T[K.prev].passes[t] || 0) - 0.08 * Math.min(3, T[K.prev].leads[t] || 0);
+    if (live(K.mate)) s += 0.12 * Math.min(2, T[K.mate].leads[t] || 0);
+  }
+  return s;
+}
+function leadWhy(pick, K, state, combos, sp) {
+  const rd = pick.reading, m = K.counts[K.mate];
+  let why = `Lead ${playName(rd)}`;
+  const short = K.opps.filter(o => K.counts[o] > 0 && K.counts[o] <= 3);
+  if (short.length && rd.n > Math.max(...short.map(o => K.counts[o]))) why += `: more cards than ${nameOf(state, short[0])} holds, so he can't follow it`;
+  else if (m > 0 && m <= 2 && rd.n <= m) why += `: low, for your partner, who has ${m} left`;
+  else if (pick.broken) {
+    const lacks = K.opps.filter(o => K.counts[o] > 0 && (K.table[o].passes[rd.type] || 0) >= 1);
+    why += lacks.length ? `, from a bigger combination: ${nameOf(state, lacks[0])} has passed on ${rd.type === "single" ? "singles" : rd.type + "s"}` : ", from a bigger combination: it suits the table better";
+  } else if (pick.cost >= 0.9) why += ": the hardest play in your hand to be rid of, and you hold the lead";
+  else why += ": it sheds the most of what your hand still needs";
+  const backs = combos.filter(c => c.cards !== pick.cards && (c.reading.bomb || c.hold >= 0.9));
+  if (backs.length) why += `; ${backs.length === 1 ? playName(backs[0].reading) : `${backs.length} strong plays`} stay${backs.length === 1 ? "s" : ""} to win the lead back`;
+  return `${why}. Your hand goes out in ${sp.plays} plays.`;
 }
 
 // ---------- following ----------
-function decideFollow(state, seat, s) {
-  const { level, hand, counts, mate, others } = s;
+// How much nearer an opponent's count brings the danger of his going out (炸五不炸四, 打七不打八).
+const URGENT = [0, 1.6, 1.5, 1.3, 0.9, 1.1, 0.8, 0.7, 0.45, 0.35, 0.25];
+function follow(state, seat, K, cfg, r) {
+  const level = state.level, hand = state.hands[seat];
   const top = state.top.reading, from = state.top.seat;
   const cands = candidates(hand, level, top);
-  if (!cands.length) return { action: { t: "pass" }, why: `Pass: nothing beats ${playName(top)}.` };
-  const before = split(hand, level);
-  // a play that takes you out is always taken
+  if (!cands.length) return pass(`Pass: nothing beats ${playName(top)}.`);
   const out = cands.find(c => c.cards.length === hand.length);
-  if (out) return { action: { t: "play", cards: out.cards }, why: `Play ${playName(out.reading)}: it takes you out.` };
-  const fromMate = from === mate;
-  const fromLeft = counts[from];                                 // cards the player who played it has left
-  const plain = cands.filter(c => !c.reading.bomb).map(c => ({ ...c, cost: cost(hand, level, c.cards, before) })).sort((a, b) => a.cost - b.cost || a.reading.key - b.reading.key);
-  const bombs = cands.filter(c => c.reading.bomb).map(c => ({ ...c, cost: cost(hand, level, c.cards, before) })).sort((a, b) => power(a.reading) - power(b.reading));
-  if (fromMate) {
-    // your partner's play: let it stand, unless a free play of yours takes you to one play from out
-    const free = plain.find(c => c.cost <= 0 && hand.length - c.cards.length > 0 && split(hand.filter(id => !c.cards.includes(id)), level).plays <= 1 && counts[mate] > 3);
-    if (free) return { action: { t: "play", cards: free.cards }, why: `Play ${playName(free.reading)} over your partner: it leaves you one play from out.` };
-    return { action: { t: "pass" }, why: `Pass: your partner's ${playName(top)} holds; don't take it from him (让牌).` };
+  if (out) return play(out.cards, `Play ${playName(out.reading)}: it takes you out.`);
+  const E0 = split(hand, level).total;
+  const evals = cands.map(c => ({ ...c, rest: minus(hand, c.cards) })).map(c => ({ ...c, after: split(c.rest, level), hold: hold(c.reading, K) }));
+  for (const e of evals) e.gain = E0 - e.after.total;            // the cost the play sheds (less what breaking costs)
+  if (from === K.mate) return partnerPlay(state, seat, K, cfg, evals, top);
+  const n = K.counts[from];
+  const plain = evals.filter(e => !e.reading.bomb), bombs = evals.filter(e => e.reading.bomb).sort((a, b) => power(a.reading) - power(b.reading));
+  const urgency = Math.max(...K.opps.map(o => (K.counts[o] && K.counts[o] <= 10 ? URGENT[K.counts[o]] * (o === from ? 1 : 0.5) : 0)));
+  const nxt = K.next, nxtShort = cfg.block && from !== nxt && K.counts[nxt] > 0 && K.counts[nxt] <= 5;
+  for (const e of plain) {
+    e.value = e.gain + TUNE.tempo * e.hold;
+    if (nxtShort) e.value += 0.5 * hold(e.reading, K, nxt);      // 顶牌: a short opponent after you must not follow cheaply
   }
-  // an opponent's play
-  const danger = fromLeft > 0 && fromLeft <= 7;                   // he's close to going out
-  const afterMe = (seat + 1) % 4;
-  const mateStillToPlay = counts[mate] > 0 && state.passes < 2 && (from === afterMe || from === (seat + 1) % 4);
-  const allowed = danger ? 3 : before.plays <= 4 ? 1.5 : 0.8;
+  plain.sort((a, b) => b.value - a.value || a.reading.key - b.reading.key);
+  let need = TUNE.follow + cfg.eager - urgency + jitter(r, cfg.noise * 0.5);
+  // the controls aren't spent early on small plays
   const best = plain[0];
-  if (best && best.cost <= allowed) {
-    // the controls aren't spent early on small plays unless it matters
-    const spendsControl = best.reading.key >= 15 && (top.type === "single" || top.type === "pair") && top.key <= 11 && !danger && fromLeft > 10 && before.plays > 5;
-    if (!spendsControl) {
-      const why = danger ? `Beat it with ${playName(best.reading)}: ${nameOf(state, from)} has only ${fromLeft} left.` : best.cost <= 0 ? `Beat it with ${playName(best.reading)}: it's already a play in your hand.` : `Beat it with ${playName(best.reading)}: the cheapest that does.`;
-      return { action: { t: "play", cards: best.cards }, why };
+  if (best) {
+    const control = worth(best.reading) >= 0.6 && (top.type === "single" || top.type === "pair") && top.key <= 11;
+    if (control && urgency < 0.3 && split(hand, level).plays > 5) need += TUNE.control;
+    if (r && cfg.slip && r() < cfg.slip) need += r() < 0.5 ? 0.5 : -0.5;   // medium: now and then a misjudged trick
+    if (best.value >= need) {
+      const why = urgency >= 0.9 ? `Beat it with ${playName(best.reading)}: ${nameOf(state, from)} has only ${n} left.`
+        : nxtShort && hold(best.reading, K, nxt) >= 0.9 ? `Beat it with ${playName(best.reading)}: high enough that ${nameOf(state, nxt)}, with ${K.counts[nxt]} left, can't follow it.`
+        : best.gain >= costOf(best.reading) - 0.05 ? `Beat it with ${playName(best.reading)}: it's already a play in your hand.`
+        : best.gain > 0 ? `Beat it with ${playName(best.reading)}: of the cards that beat it, the one your hand misses least.`
+        : `Beat it with ${playName(best.reading)}: it costs your hand a little, but the lead is worth more.`;
+      return play(best.cards, why);
     }
   }
-  // a bomb: when he's close to going out, or when a bomb and one more play would take you out
   if (bombs.length) {
     const b = bombs[0];
-    const restPlays = split(hand.filter(id => !b.cards.includes(id)), level).plays;
-    const finishing = restPlays <= 1;
-    const fourTrap = fromLeft === 4 && !finishing;                // 火不炸四: four left may be a bomb
-    if ((danger && !fourTrap) || finishing || (top.bomb && danger)) {
-      const why = finishing ? `Bomb with ${playName(b.reading)}: then one more play takes you out.` : `Bomb with ${playName(b.reading)}: ${nameOf(state, from)} is down to ${fromLeft}.`;
-      return { action: { t: "play", cards: b.cards }, why };
+    const restPlays = b.after.plays, finishing = restPlays <= 1 || canRunOut(b.rest, K, level);
+    let fire = finishing;
+    if (!fire && cfg.bombRead) {
+      // by his count: at 5 he could go out on a full house or a straight; at 4 his four may be a bomb (火不炸四);
+      // at 7 he's two plays from out, at 8 usually three (打七不打八); a bomb over a bomb only when it matters
+      if (n <= 3 || n === 5 || n === 7) fire = true;
+      else if (n === 6 && top.n >= 2) fire = true;
+      else if (n === 4) fire = false;
+      else if (n <= 10 && E0 <= 1.5) fire = true;                // a strong hand takes the lead to run
+      if (top.bomb && n > 7) fire = false;
+      // his partner one or two from out: whoever wins this leads to him, so take the lead and lead what he can't follow
+      const other = K.opps.find(o => o !== from), m2 = K.counts[other];
+      if (!fire && m2 > 0 && m2 <= 2 && split(b.rest, level).combos.some(c => c.reading.n > m2)) fire = true;
+      // the partner still to play may beat it without a bomb: leave it to him while it isn't urgent
+      if (fire && n > 5 && from === K.prev && K.counts[K.mate] > 0) {
+        const mateBeats = beatChance(top, K, Math.min(1, K.counts[K.mate] / Math.max(1, K.total)));
+        if (mateBeats > 0.5) fire = false;
+      }
+    } else if (!fire) fire = (n > 0 && n <= 7 && n !== 4) || (top.bomb && n <= 7);
+    if (fire) {
+      const why = finishing ? `Bomb with ${playName(b.reading)}: then ${restPlays <= 1 ? "one more play takes" : "your hand can run"} you out.`
+        : n === 0 ? `Bomb with ${playName(b.reading)}: ${nameOf(state, from)} went out on it, and his partner would lead next.`
+        : `Bomb with ${playName(b.reading)}: ${nameOf(state, from)} is down to ${n}${n === 5 ? ", and could go out on a full house or a straight" : n === 7 ? ", two plays from out" : n <= 3 ? ", too few cards to hold a bomb of his own" : ""}.`;
+      return play(b.cards, why);
     }
   }
-  if (best && best.cost <= allowed + 1.5 && danger) return { action: { t: "play", cards: best.cards }, why: `Beat it with ${playName(best.reading)}, though it breaks your hand: ${nameOf(state, from)} has ${fromLeft} left.` };
-  const why = best ? `Pass: beating ${playName(top)} would cost your hand ${best.cost > 1.5 ? "too much" : "a control you'll want later"}.` : bombs.length ? `Pass: keep your bomb; ${nameOf(state, from)} has ${fromLeft} left.` : `Pass: nothing beats ${playName(top)}.`;
-  return { action: { t: "pass" }, why, mateStillToPlay };
+  const why = best ? `Pass: beating ${playName(top)} would cost your hand ${best.gain < 0 ? "too much" : "a control you'll want later"}.`
+    : bombs.length ? `Pass: keep your bomb; ${nameOf(state, from)} has ${n} left${n === 4 ? ", and four may be a bomb of his own" : ""}.` : `Pass: nothing beats ${playName(top)}.`;
+  return pass(why);
 }
-const nameOf = (state, seat) => state.names?.[seat] || ["South", "East", "North", "West"][seat];
+/** Whether a hand could go out by itself from the lead: its weak plays no more than its bombs and one. */
+function canRunOut(hand, K, level) {
+  if (!hand.length) return true;
+  const sp = split(hand, level);
+  let bombs = 0, weak = 0;
+  for (const c of sp.combos) { if (c.reading.bomb) bombs++; else if (hold(c.reading, K) < 0.97) weak++; }
+  return weak <= bombs + 1;
+}
+function partnerPlay(state, seat, K, cfg, evals, top) {
+  const level = state.level;
+  const plain = evals.filter(e => !e.reading.bomb);
+  if (cfg.overtake) {
+    // an opponent after you about to go out, and your partner's play low enough for him to follow: block it (顶牌)
+    const nxt = K.next, n = K.counts[nxt];
+    if (n > 0 && n <= 2 && (top.type === "single" || top.type === "pair") && top.n <= n && hold(top, K, nxt) < 0.8) {
+      const block = plain.filter(e => hold(e.reading, K, nxt) >= 0.9).sort((a, b) => a.reading.key - b.reading.key)[0];
+      if (block) return play(block.cards, `Play ${playName(block.reading)} over your partner: ${nameOf(state, nxt)} has ${n} left and could follow ${playName(top)}.`);
+    }
+    // taking it leaves you able to run out, and your partner isn't the nearer to going out
+    const m = K.counts[K.mate];
+    const run = plain.filter(e => e.gain >= 0 && canRunOut(e.rest, K, level) && e.hold >= 0.9 && m > e.rest.length).sort((a, b) => a.reading.key - b.reading.key)[0];
+    if (run) return play(run.cards, `Play ${playName(run.reading)} over your partner: it holds, and then your hand can run out.`);
+  } else {
+    const free = plain.find(e => e.gain >= 0 && e.after.plays <= 1 && K.counts[K.mate] > 3);
+    if (free) return play(free.cards, `Play ${playName(free.reading)} over your partner: it leaves you one play from out.`);
+  }
+  return pass(`Pass: your partner's ${playName(top)} holds; don't take it from him (让牌).`);
+}
 
 // ---------- the return (还贡) ----------
-function decideReturn(state, seat) {
+function giveBack(state, seat, cfg) {
   const level = state.level, hand = state.hands[seat];
   const ret = state.tribute.returns.find(r => r.from === seat && r.card === null);
   const toMate = ret.to === partnerOf(seat);
   const ok = returnable(hand, level);
   const copies = r => hand.filter(id => rankOf(id) === r && !isWild(id, level)).length;
   const scored = ok.map(id => {
-    const rest = hand.filter(x => x !== id), sp = split(rest, level);
     const r = rankOf(id);
-    // to an opponent: low, cheap to the hand, from a rank held twice or more (less likely to finish his bomb)
-    let score = (sp.plays + sp.score) * 10 + r * (toMate ? -0.6 : 0.6) + (copies(r) === 1 && !toMate ? 1.5 : 0);
-    return { id, score };
-  }).sort((a, b) => a.score - b.score);
+    let s = totalOf(minus(hand, [id]), level) * 10;
+    if (toMate) s -= r * 0.6;                                     // to a partner: the highest he can use
+    else {
+      s += r * 0.6;                                              // to an opponent: low,
+      if (copies(r) === 1) s += 1.5;                              // from a rank held more than once (less likely to make his bomb)
+      if (cfg.table && (r === 5 || r === 10)) s += 1;             // not a card every straight needs
+    }
+    return { id, s };
+  }).sort((a, b) => a.s - b.s);
   const id = scored[0].id;
-  const why = toMate ? `Return ${cardName(id)} to your partner: the most useful card you can give that your hand can spare.` : `Return ${cardName(id)}: low, and your hand misses it least${copies(rankOf(id)) > 1 ? "; you hold another, so it's less likely to make his bomb" : ""}.`;
+  const why = toMate ? `Return ${cardName(id)} to your partner: the most useful card you can give that your hand can spare.`
+    : `Return ${cardName(id)}: low, and your hand misses it least${copies(rankOf(id)) > 1 ? "; you hold another, so it's less likely to make his bomb" : ""}.`;
   return { action: { t: "return", card: id }, why };
 }
 
+// ---------- looking ahead: the rest of the hand played out in deals that fit what's been seen ----------
+// Late in a hand, or when someone is close to going out, each choice worth considering is tried: the unseen cards
+// dealt to the others (their counts; the tribute cards where they're known to be; nothing above a payer's tribute
+// card in his hand; deals where someone passed on a play he'd surely have made weighed down), the rest of the hand
+// played by these same rules, and the result scored by what it does to the levels, over many such deals.
+function worthSearching(state, seat, K) {
+  const total = K.counts.reduce((a, b) => a + b, 0);
+  return total <= 64 || K.counts.some(n => n > 0 && n <= 10) || state.hands[seat].length <= 12;
+}
+/** Deals the cards this seat can't see to the others, to fit what the table has shown. */
+function sampleWorld(state, seat, K, r) {
+  const level = state.level;
+  const hands = state.hands.map(h => h.slice());
+  const room = [0, 1, 2, 3].map(o => (o === seat ? 0 : state.hands[o].length));
+  const placed = [[], [], [], []];
+  const pool = [];
+  for (const id of K.others) {
+    const at = K.known.get(id);
+    if (at !== undefined && at !== seat && room[at] > 0) { placed[at].push(id); room[at]--; continue; }
+    pool.push(id);
+  }
+  // who may hold each card: not a payer above his tribute card; the big jokers with the payers who resisted
+  const seats = [0, 1, 2, 3].filter(o => o !== seat);
+  const allowed = id => seats.filter(o => !(K.caps[o] !== null && !isWild(id, level) && valueOf(id, level) > K.caps[o]) && !(K.resisted && rankOf(id) === BJ && !K.resisted.includes(o)));
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  // the restricted cards first, so the others fill what's left
+  const ways = pool.map(id => ({ id, can: allowed(id) }));
+  ways.sort((a, b) => a.can.length - b.can.length);
+  for (const { id, can: all } of ways) {
+    let can = all.filter(o => room[o] > 0);
+    if (!can.length) can = seats.filter(o => room[o] > 0);       // nowhere it fits (it shouldn't happen): anywhere with room
+    if (!can.length) break;
+    let tot = 0;
+    for (const s of can) tot += room[s];
+    let x = r() * tot, o = can[can.length - 1];
+    for (const s of can) { x -= room[s]; if (x < 0) { o = s; break; } }
+    placed[o].push(id); room[o]--;
+  }
+  for (let o = 0; o < 4; o++) if (o !== seat) hands[o] = placed[o];
+  return hands;
+}
+/** How well a dealt world fits the passes made: someone who passed on a play his cards then beat, the less likely. */
+function fit(state, seat, K, hands) {
+  const level = state.level;
+  let w = 1;
+  const recent = K.passes.slice(-12);
+  for (const p of recent) {
+    if (p.seat === seat || teamOf(p.seat) === teamOf(p.top.seat) || p.top.bomb || !hands[p.seat].length) continue;
+    // his hand then: what he holds in this deal and what he has played since
+    const then = hands[p.seat].concat(state.played[p.seat].slice(p.before));
+    const top = { type: p.top.type, key: p.top.key, n: p.top.n, bomb: 0 };
+    const cs = candidates(then, level, top).filter(c => !c.reading.bomb);
+    if (!cs.length) continue;
+    if (cs.some(c => c.cards.length === then.length)) w *= 0.03;  // it would have taken him out
+    else if (p.held <= 6) w *= 0.45;
+    else if (p.held <= 12) w *= 0.8;
+  }
+  return w;
+}
+function rollout(st) {
+  for (let g = 0; g < 400 && st.phase === "play"; g++) {
+    const s = st.turn;
+    const d = decide(st, s, { skill: "rollout", noise: false });
+    try { act(st, s, d.action); } catch { return null; }
+  }
+  return st.result;
+}
+/** What a hand's end is worth to a seat's side: the levels each side rises (the ace caps them), the match won or
+ *  lost, and the tribute owed in the next hand. */
+export function outcomeValue(state, res, seat) {
+  const us = teamOf(seat), them = 1 - us;
+  let v = (res.levels[us] - state.levels[us]) - (res.levels[them] - state.levels[them]);
+  if (res.over) v += res.winner === us ? 4 : -4;
+  else if (res.gain === 3) v += teamOf(res.order[0]) === us ? 0.5 : -0.5;   // both of the other side pay
+  else if (res.gain === 2) v += teamOf(res.order[0]) === us ? 0.25 : -0.25; // their last pays
+  return v;
+}
+const sameAction = (a, b) => a.t === b.t && (a.t === "pass" || (a.cards.length === b.cards.length && a.cards.every(id => b.cards.includes(id))));
+/** The decision `d` the rules made, tested against the other plays worth considering in sampled deals. */
+function lookAhead(state, seat, d, K, worlds, seed, budget, r0) {
+  const t0 = Date.now();
+  const level = state.level, hand = state.hands[seat];
+  const opts = [d.action];
+  const add = a => { if (!opts.some(o => sameAction(o, a))) opts.push(a); };
+  if (state.top) {
+    add({ t: "pass" });
+    const cs = candidates(hand, level, state.top.reading);
+    const E0 = split(hand, level).total;
+    cs.map(c => ({ c, k: totalOf(minus(hand, c.cards), level) - E0 + (c.reading.bomb ? 0.5 : 0) })).sort((a, b) => a.k - b.k).slice(0, 5).forEach(({ c }) => add({ t: "play", cards: c.cards }));
+  } else {
+    const sp = split(hand, level);
+    for (const c of sp.combos) add({ t: "play", cards: c.cards });
+    // and a few taken from combinations: a single from a pair, a pair from a triple
+    for (const c of sp.combos) {
+      if (opts.length >= 10) break;
+      if (c.reading.type === "pair" && c.reading.key < 15) add({ t: "play", cards: [c.cards[0]] });
+      else if (c.reading.type === "full" || c.reading.type === "triple") {
+        const trip = c.cards.filter(id => valueOf(id, level) === c.reading.key || isWild(id, level)).slice(0, 3);
+        add({ t: "play", cards: trip.slice(0, 2) });
+      }
+    }
+  }
+  if (opts.length < 2) return d;
+  const r = rng((seed * 7919 + hand.length * 131 + state.log.length * 17 + state.handNo) >>> 0);
+  const sums = opts.map(() => 0), diffs = opts.map(() => []);
+  let n = 0;
+  for (let k = 0; k < worlds * 3 && n < worlds && (n < 6 || Date.now() - t0 < budget); k++) {
+    const hands = sampleWorld(state, seat, K, r);
+    const w = fit(state, seat, K, hands);
+    if (w < 1 && r() > w) continue;                              // weighed by how well it fits the passes
+    const res = opts.map(a => {
+      const st = { ...state, hands: hands.map(h => h.slice()), played: state.played.map(p => p.slice()), out: state.out.slice(), log: state.log.slice(-60), top: state.top ? { ...state.top } : null, tribute: state.tribute };
+      try { act(st, seat, a); } catch { return null; }
+      const end = st.phase === "over" ? st.result : rollout(st);
+      return end ? outcomeValue(state, end, seat) : null;
+    });
+    if (res.some(x => x === null)) continue;
+    res.forEach((x, i) => { sums[i] += x; diffs[i].push(x - res[0]); });
+    n++;
+  }
+  if (!n) return d;
+  const avg = sums.map(s => s / n);
+  // the rules' own choice unless another is clearly better over the same deals; among near-equals, any
+  let bi = 0, bestGain = 0;
+  for (let i = 1; i < opts.length; i++) {
+    const ds = diffs[i], mean = ds.reduce((a, b) => a + b, 0) / ds.length;
+    const sd = Math.sqrt(ds.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, ds.length - 1));
+    const margin = Math.max(0.1, sd / Math.sqrt(ds.length));
+    if (mean > margin && mean > bestGain) { bi = i; bestGain = mean; }
+  }
+  if (bi === 0) return { ...d, looked: { worlds: n, value: avg[0] } };
+  const a = opts[bi];
+  const what = a.t === "pass" ? "Pass" : `Play ${playName(bestReading(a.cards, level) || { type: "single", key: 0 })}`;
+  const lv = x => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
+  return { action: a, why: `${what}: tried in ${n} deals of the cards you can't see, it does best, ${lv(avg[bi])} levels to your side on average against ${lv(avg[0])} for ${d.action.t === "pass" ? "passing" : "the usual play"}.`, looked: { worlds: n, value: avg[bi] } };
+}
+
 /** The hint's alternatives for the seat now: the bot's choice first, then other plays that would do (for cycling). */
-export function hints(state, seat) {
-  const d = decide(state, seat);
+export function hints(state, seat, opts = {}) {
+  const d = decide(state, seat, { noise: false, ...opts });
   if (!d) return [];
   const out = [d];
   if (asked(state, seat) !== "play") return out;

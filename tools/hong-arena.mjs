@@ -1,8 +1,9 @@
 // Hong's arena: computer players against each other over the same deals, every player in every seat (each deal played
 // four times, the seats rotated), so luck evens out and only play shows. Prints each player's average points a hand,
-// its win and deal-in rates. Run: node tools/hong-arena.mjs [deals] [unused] ['{"danger":1.5}' | other-bot.js]: with a
-// tuning, the bot as it is plays that variant of itself, two seats each; with a path, it plays that other version of
-// the bot; without either, three plain efficiency players. ARENA_SEED moves the deals (9000 by default).
+// its win and deal-in rates. Run: node tools/hong-arena.mjs [deals] [unused] ['{"danger":1.5}' | medium | other-bot.js]:
+// with a tuning, the bot as it is (hard) plays that variant of itself, two seats each; with medium, the bot at medium;
+// with a path, that other version of the bot; without any, three plain efficiency players. ARENA_SEED moves the deals
+// (9000 by default).
 import * as E from "../hong-engine.js";
 import * as B from "../hong-bot.js";
 
@@ -33,12 +34,12 @@ function plain(state, seat) {
   }
   return { t: "discard", k: best.k };
 }
-const smart = (bot, tune) => (state, seat) => bot.decide(state, seat, { tune: { ...bot.TUNE, ...tune } }).action;
+const smart = (bot, tune, skill = "hard") => (state, seat) => bot.decide(state, seat, { tune, skill, seed: seat + 1 }).action;
 // the lineup: two players' names and their tunings, two seats each (or the bot against three plain players)
 const arg = process.argv[4] || "";
 const other = arg.endsWith(".js") ? await import(new URL(arg, `file://${process.cwd()}/`).href) : null;
-const variant = other ? {} : arg ? JSON.parse(arg) : null;
-const players = variant ? { base: smart(B, {}), variant: smart(other || B, variant) } : { smart: smart(B, {}), plain };
+const variant = other || arg === "medium" ? {} : arg ? JSON.parse(arg) : null;
+const players = variant ? { base: smart(B, {}), variant: smart(other || B, variant, arg === "medium" ? "medium" : "hard") } : { smart: smart(B, {}), plain };
 const lineup = variant ? ["base", "variant", "base", "variant"] : ["smart", "plain", "plain", "plain"];
 const tally = Object.fromEntries(Object.keys(players).map(p => [p, { points: 0, hands: 0, wins: 0, dealIns: 0 }]));
 const t0 = Date.now();

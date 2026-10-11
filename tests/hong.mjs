@@ -202,16 +202,31 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   check(d.action.t === "discard" && typeof d.why === "string" && d.rows.length >= 3 && d.rows.every(r => Number.isFinite(r.score) && r.p >= 0 && r.p <= 1), `every discard weighed, with its chance (${d.why})`);
 }
 {
-  // whole hands among four computer players: every move legal, every hand ended and paid
+  // three concealed pungs and two pairs, offered one of the pair tiles: off a discard that pung is an exposed one and
+  // the hand is six fan (128 points); self-drawn it's four concealed pungs, the limit. Hard passes and waits; medium
+  // takes it; a plain three-fan hand is always taken
+  const offered = (hand, k) => {
+    const st = table({ hand, seat: 1, flags: { firstTurn: [false, false, false, false] } });
+    st.seats[0].hand.push(T(k)[0]); st.turn = 0; st.phase = "act"; st.drawn = null;
+    E.act(st, 0, { t: "discard", k: T(k)[0] });
+    return st;
+  };
+  const st = offered("111m 333p Rd Rd Rd 5s 5s 9m 9m", "9m");
+  const hard = B.decide(st, 1, { noise: false }), medium = B.decide(st, 1, { skill: "medium", noise: false });
+  check(hard.action.t === "pass" && /self-draw/.test(hard.why) && medium.action.t === "win", `four concealed pungs in the waiting: hard passes the discard win for the self-draw (${hard.why}); medium takes it`);
+  check(B.decide(offered("123m 456m 789m 234p 5s", "5s"), 1, { noise: false }).action.t === "win", "…a plain hand's three-fan win is taken");
+}
+{
+  // whole hands among four computer players, two hard and two medium: every move legal, every hand ended and paid
   let ended = 0, won = 0, paid = 0;
   for (let i = 0; i < 24; i++) {
     const st = E.deal({ seed: 3100 + i, dealer: i % 4, opts: { flowers: i % 3 !== 2, minFan: [3, 3, 1, 0][i % 4] } });
-    for (let g = 0; g < 3000 && st.phase !== "over"; g++) { const seat = E.waitingOn(st)[0]; E.act(st, seat, B.decide(st, seat).action); }
+    for (let g = 0; g < 3000 && st.phase !== "over"; g++) { const seat = E.waitingOn(st)[0]; E.act(st, seat, B.decide(st, seat, { skill: seat % 2 ? "medium" : "hard", seed: seat + i }).action); }
     if (st.phase === "over") ended++;
     if (st.result?.kind === "win") won++;
     if (st.result && st.result.pay.reduce((a, b) => a + b, 0) === 0) paid++;
   }
-  check(ended === 24 && paid === 24 && won >= 10, `24 hands among computer players, each legal move by move, ended and paid (${won} won)`);
+  check(ended === 24 && paid === 24 && won >= 10, `24 hands among computer players, hard and medium, each legal move by move, ended and paid (${won} won)`);
 }
 {
   // against three plain efficiency players (the tile that leaves the fewest from ready, a win whenever there's one, a

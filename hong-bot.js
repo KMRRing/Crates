@@ -11,7 +11,7 @@
 //  - calls, kongs, wins and flowers decided the same way, and every decision explained for the learning mode.
 // Rollouts were tried first: at four or five tiles from ready a few hundred playouts are mostly noise, and the bots
 // that used them dawdled; this reckoning is exact for a ready hand and smooth everywhere else.
-import { counts, complete, orphans, scoreWin, windOf, wallLeft, isHonour, isWind, isDragon, isTerminal, suitOf, base, tileName, SUIT_NAMES, WIND_NAMES, legal } from "./hong-engine.js";
+import { counts, complete, orphans, scoreWin, windOf, wallLeft, isHonour, isWind, isDragon, isTerminal, suitOf, base, tileName, SUIT_NAMES, WIND_NAMES, legal, rng } from "./hong-engine.js";
 
 // ---------- what a seat can see ----------
 /** The seat's own tiles and everything public: who has shown what, the discards, the wall's count; never another hand. */
@@ -147,6 +147,14 @@ function ukeire(v, route, c, sh) {
 // danger: how much a point of danger weighs against a point of value; claimMargin, claimBonus: how much better a call
 // must look than letting the tile go.
 export const TUNE = { discardRate: 0.7, oppWin: 0.13, ready: 1, danger: 1, claimMargin: 1, claimBonus: 0.3, eta: 1, calls: 1, flex: 0.3 };
+// The two strengths, as what each adds to the knobs. hard: a discard win passed up when waiting for the self-draw is
+// worth much more (wait), its discards nudged at random only among those within a quarter of a point (near); medium:
+// takes every win, defends at six tenths of hard's weight (defence), and wanders among discards within five points,
+// the better likelier (temper).
+export const SKILLS = {
+  hard: { wait: 1, near: 0.25, temper: 0 },
+  medium: { wait: 0, near: 5, temper: 2.5, defence: 0.6 },
+};
 
 // ---------- the table as a seat reads it ----------
 function context(v, tune = TUNE, extraDraws = 0) {
@@ -385,6 +393,8 @@ const readyAny = (m, t) => (m >= 4 ? 1 : m === 3 ? Math.min(0.8, 0.2 + 0.02 * t)
 export function threats(v, tune = TUNE) {
   const out = [];
   const passed = passedSince(v), cap = v.opts.cap;
+  // my discard after the wall's last tile is the hand's last: a win on it earns one fan more (海底), so more can take it
+  const lastDiscard = v.wall === 0 ? 1 : 0;
   for (const o of v.others) {
     const melds = o.melds, turns = o.river.length;
     const suits = new Set(melds.flatMap(m => meldTiles(m)).filter(k => k < 27).map(suitOf));
@@ -394,7 +404,7 @@ export function threats(v, tune = TUNE) {
     let fanNow = value;
     if (v.opts.flowers) fanNow += o.flowers.length ? o.flowers.filter(k => k === 34 + o.wind || k === 38 + o.wind).length : 1;
     const flushSuit = melds.length >= 2 && suits.size === 1 ? [...suits][0] : -1;
-    let maxFan = fanNow + (melds.length === 0 ? 1 : 0);
+    let maxFan = fanNow + (melds.length === 0 ? 1 : 0) + lastDiscard;
     if (suits.size <= 1) maxFan += suits.size === 1 && honoursDown ? 3 : 7;   // still could be a flush
     if (melds.every(m => m.t !== "chow")) maxFan += 3;            // still could be all pungs
     else if (melds.every(m => m.t === "chow")) maxFan += 1;       // all chows
@@ -471,21 +481,53 @@ export function weighDiscards(v, { tune = TUNE, ctx = context(v, tune) } = {}) {
 /**
  * The decision for a seat now, with its reasons: { action, why, rows (the discards weighed), threats, stay }.
  */
-export function decide(state, seat, { tune = TUNE } = {}) {
+export function decide(state, seat, { tune = {}, skill = "hard", seed = 1, noise = true } = {}) {
   const options = legal(state, seat);
   if (!options.length) return null;
   const v = view(state, seat);
+  const t = { ...TUNE, ...(SKILLS[skill] || SKILLS.hard), ...tune };
+  t.danger *= t.defence ?? 1;
+  const r = noise ? rng((seed * 2654435761 + state.log.length * 97 + (state.hand || 0) * 7919 + seat * 131) >>> 0) : null;
   const win = options.find(a => a.t === "win");
-  if (win) return { action: { t: "win" }, why: `Win: ${win.fan} fan.`, fan: win.fan };
+  if (win) {
+    const wait = state.phase === "claim" && t.wait ? waitForSelf(state, v, win, t) : null;
+    if (wait) return wait;
+    return { action: { t: "win" }, why: `Win: ${win.fan} fan.`, fan: win.fan };
+  }
   if (options.some(a => a.t === "flowers")) return { action: { t: "flowers" }, why: "Seven flowers: win now, three fan, paid as a self-draw." };
   if (state.phase === "rob") return { action: { t: "pass" }, why: "Nothing to rob." };
-  if (state.phase === "claim") return decideClaim(state, v, options, tune);
-  return decideTurn(state, v, options, tune);
+  if (state.phase === "claim") return decideClaim(state, v, options, t);
+  return decideTurn(state, v, options, t, r);
+}
+/**
+ * A discard win passed up for the self-draw (the pass block then bars discard wins until my next draw): when what
+ * waiting is worth (each wait's self-draw, scored by the rules, by its live tiles and the draws left, against the
+ * chance someone else wins first) beats taking it by a margin. Four concealed pungs is the common case: off a discard
+ * the pung it completes is an exposed one, and the limit is lost.
+ */
+function waitForSelf(state, v, win, tune) {
+  if (v.wall < 16) return null;
+  const take = 4 * base(Math.min(v.opts.cap, win.fan));
+  const ctx = context(v, tune), c = counts(v.hand);
+  const r = readyChance(v, c, ctx);
+  if (!(r.ev > take * 1.3 + 8)) return null;
+  const best = r.waits.filter(w => w.n > 0).sort((a, b) => b.fanS - a.fanS)[0];
+  return { action: { t: "pass" }, why: `Pass the win (${win.fan} fan off the discard, ${take} points): a self-draw${best ? ` on ${tileName(best.k)} would be ${best.fanS} fan` : ""}, and waiting for it is worth about ${Math.round(r.ev)} points (${pct(r.self)} to self-draw).`, stay: r };
 }
 
-function decideTurn(state, v, options, tune) {
+function decideTurn(state, v, options, tune, r = null) {
   const ctx = context(v, tune);
   const rows = weighDiscards(v, { tune, ctx });
+  // among discards the reckoning can't tell apart, any (medium wanders further, and the further the less likely)
+  if (r && rows.length > 1) {
+    const near = rows.filter(x => x.score >= rows[0].score - tune.near);
+    if (near.length > 1) {
+      const w = near.map(x => (tune.temper ? Math.exp((x.score - rows[0].score) / tune.temper) : 1));
+      let pick = r() * w.reduce((a, b) => a + b, 0), i = 0;
+      while (i < near.length - 1 && (pick -= w[i]) > 0) i++;
+      if (i) { const chosen = near[i]; rows.splice(rows.indexOf(chosen), 1); rows.unshift(chosen); }
+    }
+  }
   const best = rows[0];
   // kongs: an extra draw, worth taking when what's left of the hand loses nothing by it
   for (const a of options.filter(x => x.t === "kong")) {

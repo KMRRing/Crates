@@ -28,7 +28,7 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // G: the hand in play (the engine's state). S: the game around it: { seed, firstDealer, names, humans, results }.
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
-let opts = { flowers: true, minFan: 3, rounds: 1, coach: true, pace: "steady", numbers: true, ...read(OPTS, {}) };
+let opts = { flowers: true, minFan: 3, rounds: 1, coach: true, pace: "steady", numbers: true, bots: "hard", ...read(OPTS, {}) };
 let me = 0;                                                      // your seat
 let picked = null;                                               // the tile you've lifted to discard
 let advice = null;                                               // { key, decision }: the coach's view of your decision now
@@ -79,15 +79,19 @@ function startWorker() {
     worker.onerror = () => { worker = false; for (const done of answers.values()) done({ decision: null }); answers.clear(); };
   } catch { worker = false; }
 }
-/** What the computer would do in a seat now: { action, why, rows, threats }. */
+/** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
+const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
+/** What the computer would do in a seat now: { action, why, rows, threats }. A computer player plays at the strength
+ *  chosen; the coach, in your seat, is always hard's, and gives the same answer every time it's asked. */
 async function think(state, seat) {
+  const how = isHuman(seat) ? { skill: "hard", noise: false } : { skill: skill(), seed: seat + 1 };
   startWorker();
   let reply = null;
-  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat }); });
+  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, how }); });
   if (reply?.decision) return reply.decision;
   // no worker (or it failed): think here
   local ||= await import("./hong-bot.js");
-  return local.decide(state, seat);
+  return local.decide(state, seat, how);
 }
 
 // ---------- the game: a hand, then the next, to the end of its rounds ----------
@@ -600,7 +604,7 @@ function freshRoom(players) {
   const names = ["", BOTS[0], "", BOTS[2]];
   for (const [, p] of Object.entries(players)) names[p.slot === 1 ? 2 : 0] = p.name;
   const game = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds } });
-  return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans: [0, 2], results: [], started: Date.now() } };
+  return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans: [0, 2], results: [], started: Date.now(), bots: opts.bots } };
 }
 function onRoomState(g) {
   roomData = g;
@@ -699,6 +703,10 @@ function openMenu() {
   );
   if (G && (G.opts.flowers !== opts.flowers || G.opts.minFan !== opts.minFan || (G.opts.rounds || 1) !== opts.rounds)) content.append(line("These take effect with a new game."));
   part(body, "settings").append(
+    choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], together.room ? S?.bots || "hard" : opts.bots, v => {
+      set("bots", v);
+      if (together.room) together.act(g => { if (!g.session) return false; g.session.bots = v; });
+    }),
     toggle("Coach (learning mode)", opts.coach, v => { set("coach", v); if (v) askCoach(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Numbers on the tiles", opts.numbers, v => set("numbers", v)),
