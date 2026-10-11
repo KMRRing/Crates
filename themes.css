@@ -138,6 +138,15 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-dark { fill: #E4ECF3; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-stats div { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-toast { border-radius: 10px; }
+/* Stow without Almanac's wood: the cargo a neutral grey, the stamp in the theme's own accent */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --sw-cell: color-mix(in srgb, var(--ink) 7%, var(--sheet)); --sw-cargo: color-mix(in srgb, var(--ink) 30%, var(--sheet)); --sw-stamp: var(--sw-in); --sw-stamp-edge: var(--sheet); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-board { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-slot { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-go { border-radius: 14px; background: var(--sw-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-row button { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-chapter, html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-strip #where { font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-toast { border-radius: 10px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .g-actions .btn { letter-spacing: normal; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .g-krow button.place { background: var(--ink); color: var(--yard); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .g-defs .pos { text-transform: uppercase; letter-spacing: .05em; }
@@ -275,6 +284,9 @@ html[data-theme="modern"][data-mode="night"] .harbour { --hb-water: #1F3E4D; --h
 
 /* Kontor: a schematic. Pipes on a near-black screen in pale grey lines, the inlet and a good flow in the green; Harbour
    a chart in greys with a green grid, land as flat grey blocks, hulls white */
+html[data-theme="kontor"] { --sw-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --sw-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --sw-in: #2EB36A; }
 html[data-theme="kontor"] { --pi-in: #2EB36A; --pi-in-soft: color-mix(in srgb, #2EB36A 16%, var(--sheet)); --pi-ground: #0C120E; --pi-tile: #141C17;
   --pi-tile-edge: #26342C; --pi-pipe: #A9BDB0; --pi-pipe-dark: #5E7368; --pi-rock: #070B09; --pi-good: #2EB36A; --pi-bad: #E06C5A; --pi-edge: var(--tile-edge); }
 html[data-theme="kontor"] .harbour { --hb-water: #D3E1D8; --hb-grid: rgba(30, 122, 69, .16); --hb-land: #C3CDC6; --hb-hull: #FFFFFF; --hb-ship-ink: #111A15; }
@@ -363,6 +375,9 @@ html[data-theme="office"] .ct-die.picked { outline-color: #479EF5; border-radius
 html[data-theme="office"] .ct-notes li { border-color: rgba(71, 158, 245, .4); color: #FFFFFF; border-radius: 4px; }
 
 /* Pipes: a light grid of white tiles and grey pipes by day, charcoal at night; the flow's inlet and a good run in blue */
+html[data-theme="office"] { --sw-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --sw-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --sw-in: #479EF5; }
 html[data-theme="office"] { --pi-in: #0F6CBD; --pi-in-soft: #EBF3FC; --pi-ground: #E0E0E0; --pi-tile: #FFFFFF; --pi-tile-edge: #D1D1D1;
   --pi-pipe: #8A8A8A; --pi-pipe-dark: #616161; --pi-rock: #BDBDBD; --pi-good: #107C10; --pi-bad: #C50F1F; --pi-edge: var(--tile-edge); }
 @media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --pi-in: #479EF5; --pi-in-soft: #0E2A47; --pi-ground: #141414;

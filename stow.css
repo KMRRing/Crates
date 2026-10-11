@@ -1,0 +1,112 @@
+/* Stow: the hold, and three pieces at a time to drag into it. A hull's anti-fouling red is the house colour; the
+   pieces wear the four enamels, the cargo already aboard is crate-wood, a consignment carries a brass stamp. */
+:root {
+  --sw-in: #8A3B24;
+  --sw-in-soft: color-mix(in srgb, var(--sw-in) 15%, var(--sheet));
+  --sw-cell: color-mix(in srgb, var(--yard) 84%, var(--brass));
+  --sw-cargo: color-mix(in srgb, var(--brass) 62%, var(--sheet));
+  --sw-stamp: var(--brass);
+  --sw-stamp-edge: var(--ink);
+  --sw-gap: var(--sheet);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--yard) 80%, var(--brass)); --sw-cargo: color-mix(in srgb, var(--brass) 52%, var(--tile)); }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--yard) 80%, var(--brass)); --sw-cargo: color-mix(in srgb, var(--brass) 52%, var(--tile)); }
+
+.sw-mark { display: inline-block; }
+.sw-mark svg { width: 100%; height: 100%; display: block; }
+.sw-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.sw-strip #where { font-weight: 800; color: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-size: .82rem; }
+.sw-tally { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw-left { color: var(--sw-in); font-weight: 800; }
+
+/* the hold: as large as its room allows at its own proportions (--ar, set by stow.js), a sheet in a brass frame */
+.sw-hold { position: relative; place-items: start center; }   /* under the tally; the room below is the finger's */
+.sw-board { width: min(100cqw, 100cqh * var(--ar, 1)); height: min(100cqh, 100cqw / var(--ar, 1)); display: block; box-sizing: border-box; touch-action: none; overflow: visible;
+  border-radius: 6px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+.sw-board .c { fill: var(--sw-cell); stroke: var(--sw-gap); stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .12s; }
+.sw-board[data-kind="tri"] .c { stroke-width: 1.5px; }
+.sw-board .c.cargo { fill: var(--sw-cargo); }
+/* a consignment: a crate like the rest, stamped (in brass), the one thing on the board that has to go */
+.sw-board .c.mark { fill: var(--sw-cargo); }
+.sw-board .c.full.t1, .sw-piece.t1 polygon { fill: var(--c2); }
+.sw-board .c.full.t2, .sw-piece.t2 polygon { fill: var(--c1); }
+.sw-board .c.full.t3, .sw-piece.t3 polygon { fill: var(--c0); }
+.sw-board .c.full.t4, .sw-piece.t4 polygon { fill: var(--c3); }
+.sw-board .c.ghost.t1 { fill: color-mix(in srgb, var(--c2) 55%, var(--sw-cell)); }
+.sw-board .c.ghost.t2 { fill: color-mix(in srgb, var(--c1) 55%, var(--sw-cell)); }
+.sw-board .c.ghost.t3 { fill: color-mix(in srgb, var(--c0) 55%, var(--sw-cell)); }
+.sw-board .c.ghost.t4 { fill: color-mix(in srgb, var(--c3) 55%, var(--sw-cell)); }
+/* a line the piece would fill: lit, so you see what goes before you let go */
+.sw-board .c.clear { fill: color-mix(in srgb, var(--brass) 45%, var(--sheet)); }
+.sw-board .c.clear.ghost { fill: color-mix(in srgb, var(--brass) 70%, var(--sheet)); }
+.sw-board .c.gone { animation: sw-gone .38s ease-out forwards; }
+@keyframes sw-gone { 0% { fill: var(--brass-hi, var(--brass)); } 45% { fill: var(--brass); } 100% { fill: var(--sw-cell); fill-opacity: .4; } }
+.sw-board .stamp { fill: var(--sw-stamp); stroke: var(--sw-stamp-edge); stroke-width: 1.4px; vector-effect: non-scaling-stroke; stroke-linejoin: round; pointer-events: none; }
+.sw-board .stamp.going { fill: var(--sheet); }
+.sw-board .stamp.gone { animation: sw-stamp .38s ease-out forwards; }
+@keyframes sw-stamp { to { opacity: 0; transform: scale(1.6); } }
+.sw-board .stamp.gone { transform-box: fill-box; transform-origin: center; }
+
+/* the tray: three pieces, all on one scale; a used place is an empty outline */
+.sw-side { display: flex; flex-direction: column; gap: .5rem; padding-top: .6rem; }
+.sw-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; height: 7.4rem; }
+.sw-tray[hidden] { display: none; }
+.sw-slot { display: grid; place-items: center; min-width: 0; padding: .35rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet);
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.sw-slot svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+.sw-slot.used { background: transparent; border-style: dashed; cursor: default; }
+.sw-slot.nofit svg { opacity: .35; }
+.sw-slot.lifted svg { opacity: .18; }
+.sw-slot.picked { border-color: var(--sw-in); box-shadow: inset 0 0 0 2px var(--sw-in); }
+.sw-slot:disabled:not(.used) { cursor: default; }
+.sw-tray.waiting .sw-slot:not(.used) { opacity: .55; }
+.sw-piece polygon { stroke: var(--sw-gap); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+/* the piece in your hand, over everything, at the hold's scale */
+.sw-float { position: fixed; z-index: 30; pointer-events: none; overflow: visible; filter: drop-shadow(0 6px 8px rgba(28, 42, 52, .28)); }
+/* together: your partner's tray, face down */
+.sw-theirs { height: 1.6rem; gap: .5rem; }
+.sw-slot.back { padding: 0; border-radius: 4px; cursor: default; background: repeating-linear-gradient(45deg, var(--sw-in-soft) 0 4px, var(--sheet) 4px 8px); }
+.sw-slot.back.used { background: transparent; }
+.sw-partner { margin: 0; font-size: .92rem; }
+.sw-partner b { color: var(--sw-in); }
+
+/* a level over: how it went, in the tray's place */
+.sw-result { display: grid; gap: .45rem; align-content: center; min-height: 7.4rem; }
+.sw-result[hidden] { display: none; }
+.sw-verdict { margin: 0; text-align: center; font-size: 1.15rem; font-weight: 800; }
+.sw-stars { margin: 0; text-align: center; font-size: 1.5rem; letter-spacing: .2em; color: var(--brass); line-height: 1; }
+.sw-stars:empty { display: none; }
+.sw-actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: .5rem; }
+.sw-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.sw-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
+.sw-go[hidden] { display: none; }
+
+/* the menu's campaign: each chapter's levels, five to a row, their stars under them */
+.sw-levels { display: grid; gap: .3rem; }
+.sw-chapter { margin: .35rem 0 0; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); color: var(--ink-soft); }
+.sw-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .35rem; }
+.sw-row button { display: grid; place-items: center; gap: .05rem; min-height: 2.75rem; padding: .2rem 0; border: 1px solid var(--rule); border-radius: 5px; background: var(--sheet); color: var(--ink); cursor: pointer; }
+.sw-row button b { font-size: 1rem; font-variant-numeric: tabular-nums; }
+.sw-row button span { min-height: .8rem; font-size: .62rem; line-height: 1; letter-spacing: .08em; color: var(--brass); }
+.sw-row button.done { background: var(--sw-in-soft); }
+.sw-row button[aria-current] { border-color: var(--sw-in); box-shadow: inset 0 0 0 1.5px var(--sw-in); }
+.sw-row button:disabled { opacity: .38; cursor: default; }
+
+.sw-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.sw-toast.show { opacity: 1; }
+
+/* held sideways: the hold on the left with all the height, the tally and the tray beside it, the pieces stacked */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.stow { --beside: 19rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.stow .sw-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .2rem; margin-top: 1rem; }
+  #app.stow .sw-hold { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; place-items: center; }
+  #app.stow .sw-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+  #app.stow .sw-tray:not(.sw-theirs) { grid-template-columns: 1fr; grid-auto-rows: minmax(0, 1fr); height: auto; flex: 1 1 auto; max-height: 26rem; min-height: 0; }
+  #app.stow .sw-result { min-height: 0; }
+}

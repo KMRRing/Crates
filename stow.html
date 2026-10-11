@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Stow</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="stow.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="stow fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon sw-mark" aria-hidden="true"></span>Stow</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+
+  <div class="sw-strip"><span id="where"></span><span id="tally" class="sw-tally"></span></div>
+  <section id="hold" class="sw-hold fit-grow fit-box" aria-label="The hold">
+    <svg id="board" class="sw-board" xmlns="http://www.w3.org/2000/svg"></svg>
+  </section>
+
+  <section class="sw-side">
+    <p id="partner" class="sw-partner" hidden></p>
+    <div id="tray" class="sw-tray" aria-label="Your pieces: drag one into the hold"></div>
+    <div id="theirs" class="sw-tray sw-theirs" aria-label="Your partner's pieces" hidden></div>
+    <div id="result" class="sw-result" hidden>
+      <p id="verdict" class="sw-verdict"></p>
+      <p id="stars" class="sw-stars" aria-hidden="true"></p>
+      <div class="sw-actions">
+        <button class="sw-go quiet" type="button" id="retryBtn">Again</button>
+        <button class="sw-go" type="button" id="nextBtn">Next</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog" id="nameForm">
+    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
+</dialog>
+
+<p id="toast" class="sw-toast" role="status" aria-live="polite"></p>
+<script type="module" src="stow.js"></script>
+</body>
+</html>
