@@ -70,6 +70,7 @@ html[data-mode="night"] { --hk-in: #79C4A6; --hk-felt: color-mix(in srgb, #2F6E5
 .hk-coach { margin: 0; font-size: .84rem; line-height: 1.35; color: var(--ink); }
 .hk-coach b { margin-right: .3rem; color: var(--hk-in); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
 .hk-coach .hk-thinking { color: var(--ink-soft); }
+@media (max-width: 599px) { .hk-coach.rush { min-height: calc(3em * 1.35); } }   /* on a phone a puzzle's question and its verdict take the same room */
 .hk-why-btn { font-size: .84rem; }
 .hk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; min-height: 2.75rem; }
 .hk-go { min-height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
@@ -123,6 +124,26 @@ dialog.hk-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .hk-pc .pro::before { color: #7FC2A8; } html:not([data-mode="day"]) .hk-pc .con::before { color: #E8806F; } }
 html[data-mode="night"] .hk-pc .pro::before { color: #7FC2A8; }
 html[data-mode="night"] .hk-pc .con::before { color: #E8806F; }
+/* the puzzle rush: where you are in the run, the verdict, your move among the coach's options, the score */
+.hk-rush { font-variant-numeric: tabular-nums; }
+.hk-rush b { color: var(--hk-in); }
+.hk-strikes { letter-spacing: .08em; color: #A8382B; }
+.hk-coach b.hk-hit { color: #2F7D5B; }
+.hk-coach b.hk-miss { color: #A8382B; }
+.hk-yours { margin-left: .4rem; padding: 0 .3rem; border: 1px solid var(--rule); border-radius: 3px; font-size: .7rem; font-weight: 700; color: var(--ink-soft);
+  text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.hk-opt.missed { border-color: #A8382B; }
+.hk-rush-score { margin: .2rem 0; font-size: 1rem; }
+.hk-rush-score b { font-size: 2.2rem; font-weight: 800; color: var(--hk-in); margin-right: .3rem; }
+.hk-rush-sub { margin: .2rem 0 .4rem; font-size: .9rem; color: var(--ink-soft); }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .hk-strikes, html:not([data-mode="day"]) .hk-coach b.hk-miss { color: #E8806F; }
+  html:not([data-mode="day"]) .hk-coach b.hk-hit { color: #7FC2A8; }
+  html:not([data-mode="day"]) .hk-opt.missed { border-color: #E8806F; }
+}
+html[data-mode="night"] .hk-strikes, html[data-mode="night"] .hk-coach b.hk-miss { color: #E8806F; }
+html[data-mode="night"] .hk-coach b.hk-hit { color: #7FC2A8; }
+html[data-mode="night"] .hk-opt.missed { border-color: #E8806F; }
 .hk-cands { font-size: .82rem; }
 .hk-cands th { font-size: .66rem; font-weight: 800; text-align: left; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
 .hk-cands tr.best td { background: var(--hk-in-soft); font-weight: 700; }

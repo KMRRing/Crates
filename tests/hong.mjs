@@ -2,7 +2,7 @@
 // bump, the pass block, robbing a kong, liability, the seven flowers; then hundreds of hands played through by
 // computer players without a refused move, every tile accounted for and every payment balanced; then the computer
 // players: their reading of a hand, the calls and defence a good player makes, whole hands among themselves, and the
-// computer player against plain efficiency players over the same deals in every seat.
+// computer player against plain efficiency players over the same deals in every seat; and the puzzle rush's bank.
 import * as E from "../hong-engine.js";
 import * as B from "../hong-bot.js";
 
@@ -263,6 +263,46 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   check(bot / hands > 8 && bot / hands > others / hands / 3 + 8, `against plain efficiency players: ${(bot / hands).toFixed(1)} points a hand to their ${(others / hands / 3).toFixed(1)}`);
 }
 
+{
+  // the puzzle rush: every puzzle replays to its seat to move, its best is a legal move and still the coach's choice
+  // (a change to the coach that changes an answer means running tools/hong-puzzles.mjs again), the verdict and its
+  // reasons, and a run's order
+  const R = await import("../hong-rush.js"), { PUZZLES } = await import("../hong-puzzles.js");
+  let replays = 0, legalBest = 0, agree = 0, coded = 0;
+  const ids = new Set(PUZZLES.map(p => p.id));
+  for (const p of PUZZLES) {
+    const st = R.replay(p);
+    replays++;
+    const best = R.decodeAction(p.best);
+    if (E.legal(st, p.seat).some(a => R.sameAct(a, best))) legalBest++;
+    if (R.sameAct(B.decide(st, p.seat, { noise: false }).action, best)) agree++;
+    if (R.decodeActions(p.acts).map(R.encodeAction).join("") === p.acts) coded++;
+  }
+  const n = PUZZLES.length;
+  check(n >= 300 && ids.size === n && replays === n && coded === n, `${n} puzzles, each replaying to its seat to move, its moves written back as they were read`);
+  check(legalBest === n && agree === n, `every puzzle's best is a legal move and the coach's choice at its table (${agree} of ${n})`);
+  const byRating = [...Array(10)].map((_, i) => PUZZLES.filter(p => p.r === i + 1).length);
+  check(byRating.slice(0, 9).every(x => x >= 20), `puzzles at every rating from 1 to 9 (${byRating.join(" ")})`);
+  check(new Set(PUZZLES.map(p => p.th)).size === 5 && PUZZLES.filter(p => p.th === "call").length <= n / 5, "puzzles on live tiles, value, shape, defence and calls, no more than a fifth calls");
+  // the verdict: the best is best; another legal move is wrong, and its reasons say so in the coach's words
+  const p = PUZZLES.find(x => x.th === "value" && x.r >= 6), st = R.replay(p), best = R.decodeAction(p.best);
+  const other = E.legal(st, p.seat).find(a => a.t === "discard" && !R.sameAct(a, best));
+  const right = R.judge(p, st, best), wrong = R.judge(p, st, other);
+  check(right.verdict === "best" && wrong.verdict === "wrong" && R.verdictOf(p, other) === "wrong", `a ${p.id} answer: the coach's discard is best, ${E.tileName(other.k)} isn't`);
+  check(wrong.gap > 0 && wrong.mine && wrong.options.some(o => R.sameAct(o.action, other)) && wrong.mine.cons.length > 0 && /^Discard /.test(wrong.why),
+    `and why: yours among the options, ${wrong.gap.toFixed(1)} points worse ("${wrong.mine.cons[0]}")`);
+  const call = PUZZLES.find(x => x.th === "call"), cst = R.replay(call), cBest = R.decodeAction(call.best);
+  const cOther = E.legal(cst, call.seat).find(a => !R.sameAct(a, cBest) && a.t !== "win");
+  const cj = R.judge(call, cst, cOther);
+  check(cj.verdict === "wrong" && cj.options.length >= 2 && cj.best.pros.length > 0, `a call: ${cj.best.title} over ${cj.mine?.title || cOther.t}`);
+  // a run: four at each rating, rising, then the rest hardest first; puzzles seen lately kept for later
+  const order = R.runOrder(PUZZLES, 7), rated = order.map(id => PUZZLES.find(x => x.id === id).r);
+  check(order.length === n && new Set(order).size === n && rated.slice(0, 4).every(r => r === 1) && rated.slice(0, 36).every((r, i, a) => !i || r >= a[i - 1]),
+    `a run deals every puzzle once, rising four at a rating (${rated.slice(0, 12).join(" ")} …)`);
+  const recent = order.slice(0, 4), again = R.runOrder(PUZZLES, 7, recent);
+  check(again.slice(0, 4).every(id => !recent.includes(id)), "puzzles seen lately come after the others of their rating");
+}
+
 export { T, table };
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("hong: the fan, the deal, the claims, liability, flowers, whole hands played through, and the computer players");
+else console.log("hong: the fan, the deal, the claims, liability, flowers, whole hands played through, the computer players, and the puzzle rush");

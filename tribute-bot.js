@@ -518,7 +518,7 @@ export function decide(state, seat, { skill = "hard", search = 0, seed = 1, budg
   if (ask === "return") return giveBack(state, seat, cfg);
   const K = knowledge(state, seat, cfg.table || search > 0);
   const d = state.top ? follow(state, seat, K, cfg, r) : lead(state, seat, K, cfg, r);
-  if (search > 0 && skill === "hard" && worthSearching(state, seat, K)) return lookAhead(state, seat, d, K, search, seed, budget, r);
+  if (search > 0 && skill === "hard" && worthSearching(state, seat, K)) return lookAhead(state, seat, d, K, search, seed, budget);
   return d;
 }
 const jitter = (r, size) => (r && size ? (r() * 2 - 1) * size : 0);
@@ -842,9 +842,34 @@ export function outcomeValue(state, res, seat) {
   return v;
 }
 const sameAction = (a, b) => a.t === b.t && (a.t === "pass" || (a.cards.length === b.cards.length && a.cards.every(id => b.cards.includes(id))));
-/** The decision `d` the rules made, tested against the other plays worth considering in sampled deals. */
-function lookAhead(state, seat, d, K, worlds, seed, budget, r0) {
+/**
+ * Each action tried in the same deals of the unseen cards (dealt to fit what the table has shown, weighed by how well
+ * they fit the passes), the rest of the hand played out by the rules: { vals: [[what it was worth, deal by deal] per
+ * action], n: deals }. At most `worlds` deals, at least six, within `budget` milliseconds.
+ */
+export function playOut(state, seat, actions, { worlds = 32, seed = 1, budget = Infinity, K = knowledge(state, seat) } = {}) {
   const t0 = Date.now();
+  const r = rng((seed * 7919 + state.hands[seat].length * 131 + state.log.length * 17 + state.handNo) >>> 0);
+  const vals = actions.map(() => []);
+  let n = 0;
+  for (let k = 0; k < worlds * 3 && n < worlds && (n < 6 || Date.now() - t0 < budget); k++) {
+    const hands = sampleWorld(state, seat, K, r);
+    const w = fit(state, seat, K, hands);
+    if (w < 1 && r() > w) continue;                              // weighed by how well it fits the passes
+    const res = actions.map(a => {
+      const st = { ...state, hands: hands.map(h => h.slice()), played: state.played.map(p => p.slice()), out: state.out.slice(), log: state.log.slice(-60), top: state.top ? { ...state.top } : null, tribute: state.tribute };
+      try { act(st, seat, a); } catch { return null; }
+      const end = st.phase === "over" ? st.result : rollout(st);
+      return end ? outcomeValue(state, end, seat) : null;
+    });
+    if (res.some(x => x === null)) continue;
+    res.forEach((x, i) => vals[i].push(x));
+    n++;
+  }
+  return { vals, n };
+}
+/** The decision `d` the rules made, tested against the other plays worth considering in sampled deals. */
+function lookAhead(state, seat, d, K, worlds, seed, budget) {
   const level = state.level, hand = state.hands[seat];
   const opts = [d.action];
   const add = a => { if (!opts.some(o => sameAction(o, a))) opts.push(a); };
@@ -867,23 +892,8 @@ function lookAhead(state, seat, d, K, worlds, seed, budget, r0) {
     }
   }
   if (opts.length < 2) return d;
-  const r = rng((seed * 7919 + hand.length * 131 + state.log.length * 17 + state.handNo) >>> 0);
-  const sums = opts.map(() => 0), diffs = opts.map(() => []);
-  let n = 0;
-  for (let k = 0; k < worlds * 3 && n < worlds && (n < 6 || Date.now() - t0 < budget); k++) {
-    const hands = sampleWorld(state, seat, K, r);
-    const w = fit(state, seat, K, hands);
-    if (w < 1 && r() > w) continue;                              // weighed by how well it fits the passes
-    const res = opts.map(a => {
-      const st = { ...state, hands: hands.map(h => h.slice()), played: state.played.map(p => p.slice()), out: state.out.slice(), log: state.log.slice(-60), top: state.top ? { ...state.top } : null, tribute: state.tribute };
-      try { act(st, seat, a); } catch { return null; }
-      const end = st.phase === "over" ? st.result : rollout(st);
-      return end ? outcomeValue(state, end, seat) : null;
-    });
-    if (res.some(x => x === null)) continue;
-    res.forEach((x, i) => { sums[i] += x; diffs[i].push(x - res[0]); });
-    n++;
-  }
+  const { vals, n } = playOut(state, seat, opts, { worlds, seed, budget, K });
+  const sums = vals.map(v => v.reduce((a, b) => a + b, 0)), diffs = vals.map(v => v.map((x, j) => x - vals[0][j]));
   if (!n) return d;
   const avg = sums.map(s => s / n), tried = opts.map((a, i) => ({ action: a, value: avg[i] }));
   // the rules' own choice unless another is clearly better over the same deals; among near-equals, any
@@ -897,7 +907,6 @@ function lookAhead(state, seat, d, K, worlds, seed, budget, r0) {
   if (bi === 0) return { ...d, looked: { worlds: n, value: avg[0], tried } };
   const a = opts[bi];
   const what = a.t === "pass" ? "Pass" : `Play ${playName(bestReading(a.cards, level) || { type: "single", key: 0 })}`;
-  const lv = x => `${x >= 0 ? "+" : "−"}${Math.abs(x).toFixed(1)}`;
   return { action: a, why: `${what}: tried in ${n} deals of the cards you can't see, it does best, ${lv(avg[bi])} levels to your side on average against ${lv(avg[0])} for ${d.action.t === "pass" ? "passing" : "the usual play"}.`, looked: { worlds: n, value: avg[bi], tried } };
 }
 
@@ -1004,7 +1013,10 @@ function followChoices(state, seat, K) {
     const pros = [], cons = [], natural = e.gain >= costOf(e.reading) - 0.05;
     if (!e.rest.length) pros.push("it takes you out");
     else {
-      pros.push(e.hold >= 0.97 ? "nothing unseen beats it but a bomb, so the lead is yours" : `takes the lead if it stands (about ${pct(e.hold)})`);
+      if (e.hold >= 0.97) pros.push("nothing unseen beats it but a bomb, so the lead is yours");
+      else if (e.hold >= 0.25) pros.push(`takes the lead if it stands (about ${pct(e.hold)})`);
+      // a play that seldom stands still does something: whoever follows must pay more than the play it beat
+      if (!mine && from !== K.next && e.hold < 0.6 && K.counts[K.next] > 0 && e.reading.key - top.key >= 2) pros.push(`${name(K.next)}, next to play, must now beat ${playName(e.reading)}, not ${playName(top)}`);
       if (natural) pros.push("a play your hand already has, made without breaking anything");
       else if (e.gain > 0) pros.push("uses a card your hand has little use for");
       else {
@@ -1015,7 +1027,7 @@ function followChoices(state, seat, K) {
       if (!mine && urgency >= 0.9) pros.push(`stops ${name(from)}, who has ${n} left`);
       if (worth(e.reading) >= 0.6 && (top.type === "single" || top.type === "pair") && top.key <= 11 && sp.plays > 5) cons.push(`spends ${playName(e.reading)}, a control worth keeping, on ${playName(top)}`);
       if (mine) cons.push("takes the trick from your partner");
-      else if (e.hold < 0.4) cons.push(`may be beaten in turn (it stands about ${pct(e.hold)})`);
+      else if (e.hold < 0.4) cons.push(e.hold < 0.05 ? "almost sure to be beaten in turn" : `may be beaten in turn (it stands about ${pct(e.hold)})`);
     }
     out.push({ action: { t: "play", cards: e.cards }, title: mine ? `Play ${playName(e.reading)} over your partner` : `Beat it with ${playName(e.reading)}`, pros, cons, plays: e.after.plays, holds: e.hold, score: mine ? e.value - 2 : e.value });
   }

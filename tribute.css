@@ -21,6 +21,21 @@ html[data-mode="night"] { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8
 .tb-strip b { color: var(--ink); font-weight: 800; }
 .tb-wild { color: var(--tb-red); font-weight: 800; }
 .tb-score { font-variant-numeric: tabular-nums; }
+/* the puzzle rush: where you are in the run, and the verdict */
+.tb-rush { font-variant-numeric: tabular-nums; }
+.tb-rush b { color: var(--tb-in); }
+.tb-strikes { letter-spacing: .08em; color: #A8382B; }
+.tb-hit { color: #2F7D5B !important; }
+.tb-miss { color: #A8382B !important; }
+.tb-yours { padding: 0 .3rem; border: 1px solid var(--rule); border-radius: 3px; font-size: .7rem; font-weight: 700; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.tb-opt.missed { border-color: #A8382B; }
+.tb-rush-score { margin: .2rem 0; font-size: 1rem; }
+.tb-rush-score b { font-size: 2.2rem; font-weight: 800; color: var(--tb-in); margin-right: .3rem; }
+.tb-rush-sub { margin: .2rem 0 .4rem; font-size: .9rem; color: var(--ink-soft); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tb-strikes, html:not([data-mode="day"]) .tb-miss { color: #E8806F !important; } html:not([data-mode="day"]) .tb-hit { color: #7FC2A8 !important; } html:not([data-mode="day"]) .tb-opt.missed { border-color: #E8806F; } }
+html[data-mode="night"] .tb-strikes, html[data-mode="night"] .tb-miss { color: #E8806F !important; }
+html[data-mode="night"] .tb-hit { color: #7FC2A8 !important; }
+html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 
 /* ---------- the table: your partner across, the others either side, you at the foot ---------- */
 .tb-table { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;

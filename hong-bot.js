@@ -604,11 +604,14 @@ const waitsOf = r => {
   const live = (r.waits || []).filter(w => w.n > 0);
   return live.length ? `waiting on ${live.map(w => tileName(w.k)).join(", ")} (${live.reduce((a, w) => a + w.n, 0)} left)` : "waiting on tiles all gone";
 };
-/** The discards weighed, the choice and the next three, each with what speaks for it and against it. */
-function discardOptions(v, rows, ctx) {
+/** The discards weighed, the choice and the next three (and the tile `also`, if it isn't among them), each with what
+ *  speaks for it and against it. */
+function discardOptions(v, rows, ctx, also = null) {
   const b = rows[0], bOther = b.routes?.find(x => x.route !== b.route && x.ev > 0);
   const fastest = rows.reduce((a, x) => (x.ev > a.ev ? x : a)), safest = rows.reduce((a, x) => (x.risk < a.risk ? x : a));
-  return rows.slice(0, 4).map((r, i) => {
+  const shown = rows.slice(0, 4);
+  if (also !== null && !shown.some(r => r.k === also)) shown.push(...rows.filter(r => r.k === also));
+  return shown.map((r, i) => {
     const pros = [], cons = [], other = r.routes?.find(x => x.route !== r.route && x.ev > 0);
     if (i === 0) {
       pros.push(r.sh <= 0 ? `ready on ${routeName(r.route)}, ${waitsOf(r)}: ${pct(r.p)} to win` : `keeps ${routeName(r.route)}, ${shantenWords(r.sh)}, with ${r.uk.n} tiles to help: ${pct(r.p)} to win`);
@@ -643,7 +646,10 @@ function discardOptions(v, rows, ctx) {
           const y = r.routes?.find(z => z.route === x.route), d = x.ev - (y?.ev || 0);
           if (d > drop) { drop = d; worst = { x, y }; }
         }
-        if (worst) cons.push(`${gap >= 0.5 ? "weakens" : "a shade less for"} ${routeName(worst.x.route)}${worst.y ? ` (${pct(worst.y.p)} to win that way, against ${pct(worst.x.p)})` : ", which it ends"}`);
+        // a route can win as often and still be worth less: its ready hands would wait on cheaper tiles
+        const { x, y } = worst || {};
+        if (worst && (!y || y.p < x.p - 0.005)) cons.push(`${gap >= 0.5 ? "weakens" : "a shade less for"} ${routeName(x.route)}${y ? ` (${pct(y.p)} to win that way, against ${pct(x.p)})` : ", which it ends"}`);
+        else if (worst) cons.push(`wins ${y.p > x.p + 0.005 ? "a little more often" : "as often"} (${pct(y.p)} against ${pct(x.p)}), but its wins would pay less: about ${points(y.ev)} points to expect from ${routeName(x.route)}, against ${points(x.ev)}`);
         else if (r.risk > b.risk) cons.push(`a shade riskier (about ${points(r.risk)} points of danger against ${points(b.risk)})`);
       }
       if (gap >= 0.5) cons.push(`about ${points(gap)} points worse on balance`);
@@ -682,10 +688,28 @@ function claimOptions(v, k, stay, passValue, weighed, chosen) {
     else if (-gap >= 0.5 && !sameAct(a, chosen)) pros.push(`about ${points(-gap)} points better than passing, short of the margin a call must clear`);
     out.push({ action: a, title: what, pros, cons, value });
   }
-  for (const o of out.slice(1)) if (o.value > passValue + 0.5) pass.cons.push(`slower than ${o.title.toLowerCase()} (${pct(stay.p)} to win as it is)`);
+  for (const o of out.slice(1)) if (o.value > passValue + 0.5) pass.cons.push(`slower than ${o.title.charAt(0).toLowerCase() + o.title.slice(1)} (${pct(stay.p)} to win as it is)`);
+  pass.value = passValue;
   const i = out.findIndex(o => sameAct(o.action, chosen));
   if (i > 0) out.unshift(out.splice(i, 1)[0]);
-  return out.map(({ value, ...o }) => o);
+  return out;
+}
+/**
+ * The coach's choice set against a move of yours (the rush's verdict): { decision, options, best, mine, gap } — the
+ * options weighed in words (title, pros, cons; yours among them), best and mine two of them, gap the points of expected
+ * winnings between them (null when it can't say).
+ */
+export function explainMove(state, seat, action) {
+  const d = decide(state, seat, { noise: false });
+  if (d.rows && action.t === "discard" && d.action.t === "discard") {
+    const list = discardOptions(view(state, seat), d.rows, { ts: d.threats }, action.k), row = d.rows.find(r => r.k === action.k);
+    return { decision: d, options: list, best: list[0], mine: list.find(o => o.action.k === action.k) || null, gap: row ? Math.max(0, d.rows[0].score - row.score) : null };
+  }
+  const opts = d.options || [];
+  const best = opts.find(o => sameAct(o.action, d.action)) || { action: d.action, title: d.why.split(":")[0], pros: [], cons: [] };
+  const mine = opts.find(o => sameAct(o.action, action)) || null;
+  const gap = best.value != null && mine?.value != null ? Math.max(0, best.value - mine.value) : null;
+  return { decision: d, options: opts.length ? opts : [best], best, mine, gap };
 }
 const sameAct = (a, b) => a.t === b.t && (a.k ?? null) === (b.k ?? null);
 

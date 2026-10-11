@@ -83,15 +83,17 @@ function startWorker() {
 const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
 /** What the computer would do in a seat now: { action, why, rows, threats }. A computer player plays at the strength
  *  chosen; the coach, in your seat, is always hard's, and gives the same answer every time it's asked. */
-async function think(state, seat) {
-  const how = isHuman(seat) ? { skill: "hard", noise: false } : { skill: skill(), seed: seat + 1 };
+const think = (state, seat) => ask(state, seat, { how: isHuman(seat) ? { skill: "hard", noise: false } : { skill: skill(), seed: seat + 1 } });
+/** The coach's choice set against a move of yours, in words (a puzzle's verdict): hong-bot.js's explainMove. */
+const explain = (state, seat, action) => ask(state, seat, { kind: "explain", action });
+async function ask(state, seat, extra) {
   startWorker();
   let reply = null;
-  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, how }); });
+  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, ...extra }); });
   if (reply?.decision) return reply.decision;
   // no worker (or it failed): think here
   local ||= await import("./hong-bot.js");
-  return local.decide(state, seat, how);
+  return extra.kind === "explain" ? local.explainMove(state, seat, extra.action) : local.decide(state, seat, extra.how);
 }
 
 // ---------- the game: a hand, then the next, to the end of its rounds ----------
@@ -115,7 +117,11 @@ function nextHand() {
   afterChange();
 }
 const gameOver = () => G?.phase === "over" && !E.nextHand(G, { seed: S.seed, firstDealer: S.firstDealer });
-function save() { if (!together.room && !IN_FRAME) write(RUN, { G, S, R }); }
+function save() {
+  if (together.room || IN_FRAME) return;
+  if (rush) write(RUSH, rush);                                    // a puzzle's table is the bank's: the game waits as it was
+  else write(RUN, { G, S, R });
+}
 
 // ---------- the turn: who's to move, and moving them ----------
 let timer = null, busyWith = null, gen = 0;
@@ -132,6 +138,7 @@ function afterChange() {
 function step() {
   timer = null;
   if (!G || IN_FRAME) return;
+  if (rush) { render(); return; }                                // a puzzle: nobody else moves
   if (G.phase === "over") { handOver(); return; }
   // a seat with nothing it could do but pass passes at once (the engine leaves them while a win is pending)
   for (const s of E.waitingOn(G)) {
@@ -165,6 +172,7 @@ function mine(act) {
   if (!G) return;
   const seat = me;
   if (!E.legal(G, seat).some(a => a.t === act.t && (a.k ?? null) === (act.k ?? null) && (a.how ?? null) === (act.how ?? null))) { toast("That move isn't allowed now"); return; }
+  if (rush) { rushAnswer(act); return; }
   note(act);
   picked = null;
   apply(seat, act);
@@ -203,6 +211,7 @@ function note(act) {
   R.push(entry);
 }
 const sameAct = (a, b) => !!a && !!b && a.t === b.t && (a.k ?? null) === (b.k ?? null);
+const pts = x => (Math.abs(x) >= 10 ? `${Math.round(x)}` : x.toFixed(1)).replace("-", "−");
 
 // ---------- the table ----------
 const RW = 18, RH = 24, MW = 15, MH = 20, FW = 9.5, FH = 12.7;  // a discard, a meld's tile and a flower, in the table's units
@@ -358,7 +367,7 @@ function drawMine() {
   const round = low() ? ` · ${E.WIND_NAMES[G.round]} round, hand ${G.hand + 1}` : "";
   box.innerHTML = `<span class="hk-me${myTurn ? " on" : ""}"><b class="hk-wind${E.windOf(G, me) === 0 ? " dealer" : ""}">${windGlyph(me)}</b><span class="hk-me-name">${esc(nameOf(me))}</span><span class="hk-me-score">${signed(G.scores[me])}</span></span>`
     + `<span class="hk-me-flowers">${s.flowers.map(f => tileSvg(f, "hk-mini")).join("")}</span>`
-    + `<span class="hk-me-rule">${opts.minFan} fan to win${round}${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`;
+    + (rush ? rushStatus() : `<span class="hk-me-rule">${G.opts.minFan} fan to win${round}${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`);
 }
 function drawHand() {
   const box = $("hand");
@@ -368,7 +377,8 @@ function drawHand() {
   // the tile just drawn sits apart at the right
   let drawn = -1;
   if (myTurn && G.drawn !== null && tiles.includes(G.drawn)) { drawn = G.drawn; tiles.splice(tiles.lastIndexOf(drawn), 1); }
-  const rec = coachOn() && advice?.key === keyNow() && advice.decision?.action?.t === "discard" ? advice.decision.action.k : null;
+  // the coach's tile: in a puzzle, the best, once you've answered
+  const rec = rush ? rushBest()?.k ?? null : coachOn() && advice?.key === keyNow() && advice.decision?.action?.t === "discard" ? advice.decision.action.k : null;
   const units = tiles.length + (drawn >= 0 ? 1.35 : 0) + s.melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0) + (s.melds.length ? 0.3 : 0);
   const pad = getComputedStyle(box), room = (box.clientWidth || 360) - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
@@ -398,7 +408,9 @@ function drawActions() {
   const box = $("actions"), coach = $("coach");
   box.replaceChildren();
   coach.hidden = true;
+  coach.classList.remove("rush");
   if (!G) return;
+  if (rush) { drawRush(box, coach); return; }
   if (G.phase === "over") {
     box.append(goBtn(gameOver() ? "The final score" : "Next hand", () => $("resultDlg").open ? null : showResult(), "primary"));
     return;
@@ -419,7 +431,11 @@ function drawActions() {
     box.append(p);
     return;
   }
-  const hint = !coachOn() ? goBtn("Hint", () => { hintFor = keyNow(); askCoach(); render(); }, "quiet") : null;
+  moveButtons(box, legal);
+  if (!coachOn()) box.append(goBtn("Hint", () => { hintFor = keyNow(); askCoach(); render(); }, "quiet"));
+}
+/** Your moves now as buttons: a win, flowers, kongs and the tile you've lifted; offered a discard, its calls. */
+function moveButtons(box, legal) {
   if (G.phase === "act") {
     const win = legal.find(a => a.t === "win"), flowers = legal.find(a => a.t === "flowers");
     if (win) box.append(goBtn(`Win · ${win.fan} fan`, () => mine({ t: "win" }), "primary"));
@@ -427,15 +443,10 @@ function drawActions() {
     for (const k of legal.filter(a => a.t === "kong")) box.append(goBtn(`Kong ${E.tileName(k.k)}`, () => mine({ t: "kong", k: k.k, how: k.how }), ""));
     if (picked !== null) box.append(goBtn(`Discard ${E.tileName(picked)}`, () => mine({ t: "discard", k: picked }), win ? "" : "primary"));
     else if (!win && !flowers) { const p = document.createElement("p"); p.className = "hk-wait"; p.textContent = "Your turn: tap a tile to let it go"; box.append(p); }
-    if (hint) box.append(hint);
     return;
   }
   // a discard (or a kong being added) you could claim
-  const k = G.last.k, from = nameOf(G.last.seat);
-  const head = document.createElement("p");
-  head.className = "hk-claim";
-  head.innerHTML = `${esc(from)} ${G.phase === "rob" ? "adds to a kong" : "lets go"} ${tileSvg(k, "hk-mini")}`;
-  box.append(head);
+  box.append(claimHead());
   const win = legal.find(a => a.t === "win");
   if (win) box.append(goBtn(G.phase === "rob" ? `Rob it · ${win.fan} fan` : `Win · ${win.fan} fan`, () => mine({ t: "win" }), "primary"));
   for (const a of legal.filter(x => x.t === "kong")) box.append(goBtn("Kong", () => mine({ t: "kong", k: a.k, how: a.how }), ""));
@@ -447,7 +458,13 @@ function drawActions() {
     box.append(b);
   }
   box.append(goBtn("Pass", () => mine({ t: "pass" }), "quiet"));
-  if (hint) box.append(hint);
+}
+/** The discard on offer: who let it go, and the tile. */
+function claimHead() {
+  const head = document.createElement("p");
+  head.className = "hk-claim";
+  head.innerHTML = `${esc(nameOf(G.last.seat))} ${G.phase === "rob" ? "adds to a kong" : "lets go"} ${tileSvg(G.last.k, "hk-mini")}`;
+  return head;
 }
 function goBtn(text, fn, kind = "") {
   const b = document.createElement("button");
@@ -459,7 +476,7 @@ function goBtn(text, fn, kind = "") {
 }
 $("hand").addEventListener("click", e => {
   const b = e.target.closest(".hk-tile");
-  if (!b || !G || G.phase !== "act" || G.turn !== me) return;
+  if (!b || !G || G.phase !== "act" || G.turn !== me || rush?.answer || rush?.over) return;
   const k = Number(b.dataset.k);
   if (picked === k) { mine({ t: "discard", k }); return; }   // a second tap lets it go
   picked = k;
@@ -467,7 +484,9 @@ $("hand").addEventListener("click", e => {
 });
 
 // ---------- the coach's reasons ----------
-function showWhy(d) {
+/** The coach's reasons: its choice and the others in words, the discards side by side, what the others look to be up
+ *  to. `yours`: in a puzzle, the move you made, marked among them. */
+function showWhy(d, yours = null) {
   if (!d) return;
   const body = $("whyBody");
   let html = `<p class="hk-why-lead">${esc(d.why)}</p>`;
@@ -476,18 +495,22 @@ function showWhy(d) {
     const up = x => x.charAt(0).toUpperCase() + x.slice(1);
     html += `<ol class="hk-opts">${d.options.map((o, i) => {
       const pc = [...o.pros.map(x => `<li class="pro">${esc(up(x))}</li>`), ...o.cons.map(x => `<li class="con">${esc(up(x))}</li>`)].join("");
-      return `<li class="hk-opt${i === 0 ? " best" : ""}"><b>${esc(o.title)}</b>${pc ? `<ul class="hk-pc">${pc}</ul>` : ""}</li>`;
+      const mineToo = yours && sameAct(o.action, yours);
+      return `<li class="hk-opt${i === 0 ? " best" : ""}${mineToo && i ? " missed" : ""}"><b>${esc(o.title)}</b>${mineToo ? '<span class="hk-yours">yours</span>' : ""}${pc ? `<ul class="hk-pc">${pc}</ul>` : ""}</li>`;
     }).join("")}</ol>`;
   }
   if (d.rows?.length) {
-    html += `<table class="hk-cands"><thead><tr><th>Let go</th><th>Keeps</th><th>From ready</th><th>Tiles that help</th><th>Win</th><th>Danger</th></tr></thead><tbody>`;
-    for (const r of d.rows.slice(0, 7)) {
+    const rows = d.rows.slice(0, 7);
+    if (yours?.t === "discard" && !rows.some(r => r.k === yours.k)) rows.push(...d.rows.filter(r => r.k === yours.k));
+    html += `<table class="hk-cands"><thead><tr><th>Let go</th><th>Keeps</th><th>From ready</th><th>Tiles that help</th><th>Win</th><th>Danger</th>${yours ? "<th>Points</th>" : ""}</tr></thead><tbody>`;
+    for (const r of rows) {
       const other = r.routes?.find(x => x.route !== r.route && x.ev > 0);
       const or = other ? `<small>or ${esc(routeName(other.route).replace(/^a /, ""))}, ${other.sh <= 0 ? "ready" : `${other.sh} away`}</small>` : "";
-      html += `<tr${sameAct(d.action, { t: "discard", k: r.k }) ? ' class="best"' : ""}><td>${tileSvg(r.k, "hk-mini")}</td><td>${esc(routeName(r.route).replace(/^a /, ""))}${or}</td><td>${r.sh <= 0 ? "ready" : r.sh}</td><td>${r.uk?.n ?? ""}</td><td>${Math.round((r.p || 0) * 100)}%</td><td>${r.risk >= 0.5 ? r.risk.toFixed(0) : "—"}</td></tr>`;
+      const mineToo = yours && sameAct(yours, { t: "discard", k: r.k });
+      html += `<tr${sameAct(d.action, { t: "discard", k: r.k }) ? ' class="best"' : ""}><td>${tileSvg(r.k, "hk-mini")}${mineToo ? "<small>yours</small>" : ""}</td><td>${esc(routeName(r.route).replace(/^a /, ""))}${or}</td><td>${r.sh <= 0 ? "ready" : r.sh}</td><td>${r.uk?.n ?? ""}</td><td>${Math.round((r.p || 0) * 100)}%</td><td>${r.risk >= 0.5 ? r.risk.toFixed(0) : "—"}</td>${yours ? `<td>${pts(r.score)}</td>` : ""}</tr>`;
     }
     html += "</tbody></table>";
-    html += `<p class="hk-note">Win: the chance this hand wins, from its live tiles, the draws left and how soon the others look to win. Danger: the points the tile is likely to cost, if someone ready can take it.</p>`;
+    html += `<p class="hk-note">Tiles that help: those still unseen (not in your hand, on the table or in a set) that would bring the hand a step nearer. Win: the chance this hand wins, from its live tiles, the draws left and how soon the others look to win. Danger: the points the tile is likely to cost, if someone ready can take it.${yours ? " Points: what the hand is worth after it on average (each win it could make, by what it pays and how likely it comes; a little more with a second way open), less the danger." : ""}</p>`;
   }
   if (d.threats?.length) {
     html += `<h3 class="hk-sub">The others</h3><ul class="hk-threats">`;
@@ -590,14 +613,165 @@ function review() {
 // ---------- drawing ----------
 function render() {
   if (!G) return;
+  const box = $("table"), size = () => `${box.clientWidth}x${box.clientHeight}`;
   if (low()) drawHand();                       // on a phone on its side the table leaves your row its room: sized first
   drawTable();
+  const drawnFor = size();
   drawMine();
   if (!low()) drawHand();
   drawActions();
   drawPartner();
+  // the rows under the table changed height (a claim's buttons, a verdict, the first draw after a reload): the table's
+  // box changed with them, and the drawing takes its proportions
+  if (size() !== drawnFor) drawTable();
 }
-function closeDialogs() { for (const id of ["resultDlg", "whyDlg"]) if ($(id).open) $(id).close(); }
+function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg"]) if ($(id).open) $(id).close(); }
+
+// ---------- puzzle rush ----------
+// Positions from the computer players' own hands where one discard (or one call) is clearly best by the coach's
+// reckoning, which is exact this near ready (hong-rush.js; the bank, hong-puzzles.js, loads with the first rush). Find it
+// while five minutes run: the clock stands while you read a verdict and while the menu or the rules are open; three
+// misses end the run. The verdict is the puzzle's; its reasons are the coach's, worked out again at the table. The run is
+// kept as it goes (hong:rush), the best score in hong:rushBest; your game waits as you left it.
+const RUSH = "hong:rush", RUSH_BEST = "hong:rushBest", RUSH_SEEN = "hong:rushSeen", RUSH_MS = 5 * 60 * 1000;
+let rush = null, bank = null, rushLib = null, ticking = null, savedAt = 0;
+let words = null;                                                // { at, j }: the coach's reasons for the puzzle answered
+const here = () => `${rush.seed}:${rush.i}`;                      // which puzzle of which run
+async function loadRush() {
+  rushLib ||= await import("./hong-rush.js");
+  bank ||= (await import("./hong-puzzles.js")).PUZZLES;
+}
+const rushPuzzle = () => (rush && bank ? bank.find(p => p.id === rush.order[rush.i]) : null);
+/** The best move, once you've answered. */
+const rushBest = () => (rush?.answer && rushPuzzle() ? rushLib.decodeAction(rushPuzzle().best) : null);
+const clockText = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+function rushStatus() {
+  const marks = "✗".repeat(rush.strikes) + "○".repeat(Math.max(0, 3 - rush.strikes));
+  return `<span class="hk-me-rule hk-rush"><b>Puzzle ${rush.i + 1}</b> · ✓ ${rush.score} · <span class="hk-strikes" aria-label="${rush.strikes} of 3 missed">${marks}</span> · <span id="rushClock">${clockText(rush.left)}</span></span>`;
+}
+async function startRush() {
+  const done = busy("Dealing the puzzles", { delay: 150 });
+  try { await loadRush(); } finally { done(); }
+  const seed = (Math.random() * 2 ** 32) >>> 0;
+  rush = { v: 1, seed, order: rushLib.runOrder(bank, seed, read(RUSH_SEEN, [])), i: 0, score: 0, strikes: 0, left: RUSH_MS, answer: null, over: false, log: [] };
+  closeDialogs();
+  showRushPuzzle();
+}
+/** The puzzle in hand laid on the table: its seat yours, the others named as at your own table. */
+function showRushPuzzle() {
+  const p = rushPuzzle();
+  if (!p) { endRush(); return; }
+  G = rushLib.replay(p); me = p.seat;
+  const names = []; names[me] = "You";
+  for (let k = 1; k < 4; k++) names[(me + k) % 4] = BOTS[k - 1];
+  S = { v: 1, seed: p.s, firstDealer: p.dl, names, humans: [me], results: [], started: 0 };
+  R = []; advice = null; hintFor = null; gen++;
+  picked = rush.answer?.action.t === "discard" ? rush.answer.action.k : null;
+  save(); render(); tick();
+  if (rush.answer && words?.at !== here()) explainRush();
+}
+function tick() {
+  clearInterval(ticking);
+  if (!rush || rush.over || IN_FRAME) return;
+  let last = Date.now();
+  ticking = setInterval(() => {
+    const now = Date.now(), dt = now - last;
+    last = now;
+    if (!rush || rush.answer || rush.over || isPaused() || document.hidden) return;
+    rush.left -= dt;
+    const el = $("rushClock");
+    if (el) el.textContent = clockText(rush.left);
+    if (rush.left <= 0) { rush.left = 0; endRush(); }
+    else if (now - savedAt > 3000) { savedAt = now; save(); }
+  }, 250);
+}
+/** Your answer: judged at once from the puzzle, then the coach's reasons, yours among the options it weighed. */
+function rushAnswer(act) {
+  if (!rush || rush.answer || rush.over) return;
+  const p = rushPuzzle(), verdict = rushLib.verdictOf(p, act);
+  rush.answer = { action: act, verdict };
+  if (verdict === "wrong") rush.strikes++; else rush.score++;
+  rush.log.push({ id: p.id, verdict });
+  write(RUSH_SEEN, [...read(RUSH_SEEN, []).filter(id => id !== p.id), p.id].slice(-150));
+  if (rush.strikes >= 3) rush.over = true;
+  picked = act.t === "discard" ? act.k : null;
+  save(); render();
+  explainRush();
+}
+async function explainRush() {
+  const at = here(), j = await explain(clone(G), me, rush.answer.action);
+  if (!rush || here() !== at || !rush.answer) return;
+  words = { at, j };
+  render();
+}
+function nextRush() {
+  if (!rush) return;
+  if (rush.over || rush.left <= 0) { endRush(); return; }
+  rush.i++; rush.answer = null;
+  showRushPuzzle();
+}
+function endRush() {
+  if (!rush) return;
+  rush.over = true;
+  clearInterval(ticking);
+  const before = read(RUSH_BEST, 0), best = Math.max(before, rush.score);
+  if (best > before) write(RUSH_BEST, best);
+  save(); render();
+  $("rushHead").textContent = rush.left <= 0 ? "Time" : rush.strikes >= 3 ? "Three misses" : "The end of the bank";
+  const missed = rush.log.filter(x => x.verdict === "wrong").length;
+  $("rushBody").innerHTML = `<p class="hk-rush-score"><b>${rush.score}</b> solved${rush.score > before ? " · your best" : before ? ` · best ${before}` : ""}</p>`
+    + `<p class="hk-rush-sub">${rush.log.length} answered, ${missed} missed, ${clockText(rush.left)} left on the clock.</p>`;
+  if (!$("rushDlg").open) $("rushDlg").showModal();
+}
+function leaveRush() {
+  rush = null; words = null;
+  clearInterval(ticking);
+  try { localStorage.removeItem(RUSH); } catch { /* private mode */ }
+  closeDialogs();
+  load();
+}
+/** A rush left open: back where it was (an answer and its reasons too), or its score if it was over. */
+async function resumeRush(r) {
+  await loadRush();
+  rush = r;
+  if (!rushPuzzle()) { leaveRush(); return; }
+  showRushPuzzle();
+  if (rush.over) endRush();
+}
+const worse = gap => (gap == null ? "" : gap >= 0.5 ? `about ${pts(gap)} points worse` : "a shade worse");
+/** The question while it's open, and your moves; then the verdict, its reasons and the next puzzle. */
+function drawRush(box, coach) {
+  const a = rush.answer;
+  coach.hidden = false;
+  coach.classList.add("rush");
+  if (!a) {
+    const ask = G.phase === "act" ? ["Find the best discard", "Which tile goes?"] : ["Find the best call", "Call it, or let it go by?"];
+    coach.innerHTML = `<b>${ask[0]}</b> ${G.opts.minFan} fan to win, ${E.wallLeft(G)} tiles in the wall. ${ask[1]}`;
+    if (rush.over) { box.append(goBtn("See the score", endRush, "primary")); return; }
+    moveButtons(box, E.legal(G, me));
+    return;
+  }
+  const j = words?.at === here() ? words.j : null;
+  let html;
+  if (a.verdict === "best") html = `<b class="hk-hit">✓ Best</b> ${j ? esc(j.decision.why) : ""}`;
+  else if (a.verdict === "fine") html = `<b class="hk-hit">✓ As good</b> ${j ? `${esc(j.decision.why)} Yours does as well${j.gap >= 0.05 ? `, within ${pts(j.gap)} points` : ""}.` : ""}`;
+  else {
+    // what tells most against yours: further from ready, then fewer wins, then whatever the coach says first
+    const cons = (j?.mine?.cons || []).filter(c => !/on balance$/.test(c));
+    const against = cons.find(c => c.includes("further from ready")) || cons.find(c => c.startsWith("wins less")) || cons[0];
+    html = `<b class="hk-miss">✗ Not the best</b> ${j ? `${esc(j.decision.why)} Yours: ${against ? `${esc(against)}, ` : ""}${worse(j.gap)}.` : ""}`;
+  }
+  coach.innerHTML = `${html}${j ? ' <button type="button" class="link hk-why-btn">Why?</button>' : ' <span class="hk-thinking">…</span>'}`;
+  coach.querySelector(".hk-why-btn")?.addEventListener("click", () => showWhy(rushReasons(j), a.action));
+  if (G.phase !== "act") box.append(claimHead());
+  box.append(goBtn(rush.over ? "See the score" : "Next puzzle", nextRush, "primary"));
+}
+/** The coach's decision for the Why sheet, its options the best first, then yours, then the rest as it ranked them. */
+function rushReasons(j) {
+  const best = j.options.find(o => sameAct(o.action, j.best.action)) || j.options[0];
+  const yours = j.options.find(o => o !== best && sameAct(o.action, rush.answer.action));
+  return { ...j.decision, options: [best, ...(yours ? [yours] : []), ...j.options.filter(o => o !== best && o !== yours)] };
+}
 
 // ---------- together: you, your partner across the table, and two computer players ----------
 // The room holds the hand and the game: { game, session }. Either device may move a computer player once its turn has
@@ -702,14 +876,18 @@ function openMenu() {
   body.replaceChildren();
   const set = (k, v) => { opts[k] = v; write(OPTS, opts); applyLook(); render(); };
   if (together.room) part(body, "together").append(line(`You and your partner sit across the table; ${BOTS[0]} and ${BOTS[2]} play the other two seats.`), action("Back to solo", () => together.leave(), "link"));
-  else part(body, "play").append(action("New game", () => newGame(), "primary"));
-  const content = part(body, "content");
-  content.append(
-    choice("Flowers", [[true, "With"], [false, "Without"]], opts.flowers, v => set("flowers", v)),
-    choice("Minimum", [[3, "3 fan"], [1, "1 fan"], [0, "None"]], opts.minFan, v => set("minFan", v)),
-    choice("Length", [[1, "East round"], [2, "Two rounds"], [4, "Four rounds"]], opts.rounds, v => set("rounds", v)),
-  );
-  if (G && (G.opts.flowers !== opts.flowers || G.opts.minFan !== opts.minFan || (G.opts.rounds || 1) !== opts.rounds)) content.append(line("These take effect with a new game."));
+  else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the game", () => leaveRush(), "link"));
+  else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""));
+  // a puzzle's table keeps its own rules: the game's are for the game
+  if (!rush) {
+    const content = part(body, "content");
+    content.append(
+      choice("Flowers", [[true, "With"], [false, "Without"]], opts.flowers, v => set("flowers", v)),
+      choice("Minimum", [[3, "3 fan"], [1, "1 fan"], [0, "None"]], opts.minFan, v => set("minFan", v)),
+      choice("Length", [[1, "East round"], [2, "Two rounds"], [4, "Four rounds"]], opts.rounds, v => set("rounds", v)),
+    );
+    if (G && (G.opts.flowers !== opts.flowers || G.opts.minFan !== opts.minFan || (G.opts.rounds || 1) !== opts.rounds)) content.append(line("These take effect with a new game."));
+  }
   part(body, "settings").append(
     choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], together.room ? S?.bots || "hard" : opts.bots, v => {
       set("bots", v);
@@ -721,6 +899,8 @@ function openMenu() {
   );
   const st = read(STATS, null), best = read(BEST, null);
   if (st?.hands) part(body, "about").append(line(`${st.hands} hand${st.hands === 1 ? "" : "s"}: won ${st.wins} (${st.self} self-drawn), dealt in ${st.dealIns}${st.bestFan ? ` · biggest ${st.bestFan} fan` : ""}${st.games ? ` · ${st.games} game${st.games === 1 ? "" : "s"}, first in ${st.firsts}` : ""}${best != null ? ` · best game ${signed(best)}` : ""}`));
+  const rushBest = read(RUSH_BEST, 0);
+  if (rushBest) part(body, "about").append(line(`Puzzle rush: best ${rushBest} solved`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function applyLook() { $("app").style.setProperty("--hk-num", opts.numbers ? "1" : "0"); }
@@ -756,6 +936,8 @@ $("whyClose").addEventListener("click", () => $("whyDlg").close());
 $("nextBtn").addEventListener("click", () => { if (gameOver() && !together.room) { $("resultDlg").close(); newGame(); } else nextHand(); });
 $("tableBtn").addEventListener("click", () => $("resultDlg").close());
 for (const id of ["rulesDlg", "whyDlg"]) $(id).addEventListener("click", e => { if (e.target === $(id)) $(id).close(); });
+$("rushAgain").addEventListener("click", () => startRush());
+$("rushLeave").addEventListener("click", () => leaveRush());
 onPause(() => { clearTimeout(timer); render(); }, () => kick(0));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
@@ -764,10 +946,13 @@ addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setT
 
 // for tests and debugging
 window.__hong = { get state() { return G; }, get session() { return S; }, get review() { return R; }, get advice() { return advice; }, get me() { return me; }, get together() { return together; },
+  get rush() { return rush; }, get words() { return words; }, startRush, nextRush, leaveRush,
   mine, newGame, nextHand, set(o) { Object.assign(opts, o); write(OPTS, opts); applyLook(); render(); } };
 
-/** Back to where you were: your game as you left it, else a new one. */
+/** Back to where you were: a puzzle rush left open, else your game as you left it, else a new one. */
 function load() {
+  const r = read(RUSH, null);
+  if (r?.v === 1) { resumeRush(r); return; }
   const run = read(RUN, null);
   if (run?.G && run?.S && run.G.v === 1) {
     G = normalize(run.G); S = run.S; R = run.R || []; me = 0;

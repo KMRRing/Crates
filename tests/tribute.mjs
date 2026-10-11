@@ -1,7 +1,7 @@
 // Tribute: the cards, every kind of play and how they compare (the wilds, the ace low and high, the bomb ladder), the
 // trick and the partner's lead after going out, tribute, its return and resistance, the levels and passing the ace;
 // then how the computer players organise a hand and judge a position, at both strengths, whole matches of them (every
-// card accounted for), against greedy players, and hard against medium.
+// card accounted for), against greedy players, and hard against medium; and the puzzle rush's bank.
 import * as E from "../tribute-engine.js";
 import * as B from "../tribute-bot.js";
 
@@ -247,5 +247,47 @@ for (const skill of ["hard", "medium"]) {
   check(swing / n >= 0.15, `hard against medium: hard's side ${swing >= 0 ? "+" : ""}${(swing / n).toFixed(2)} levels a hand over ${n} hands`);
 }
 
+{
+  // the puzzle rush: every puzzle replays to its seat to move, every play it weighed is legal there and a different
+  // answer from the others, the best is the one worth most, and its margin is what the generator kept (0.3 levels a
+  // hand); the verdict on the best, on the worst, and on a play it never weighed; a run's order
+  const R = await import("../tribute-rush.js"), { PUZZLES } = await import("../tribute-puzzles.js");
+  const clone = x => JSON.parse(JSON.stringify(x));
+  let replays = 0, legal = 0, distinct = 0, bestIsBest = 0, clear = 0, coded = 0;
+  for (const p of PUZZLES) {
+    const st = R.replay(p);
+    replays++;
+    const { opts, best } = R.weighed(p);
+    if (opts.every(o => { try { E.act(clone(st), p.seat, o.action); return true; } catch { return false; } })) legal++;
+    if (new Set(opts.map(o => R.signature(o.action, st.level))).size === opts.length) distinct++;
+    if (opts.every(o => o.value <= best.value) && p.ok.includes(p.best)) bestIsBest++;
+    if (opts.every(o => o === best || p.ok.includes(opts.indexOf(o)) || best.value - o.value >= 0.25)) clear++;
+    if (R.decodeActions(p.acts).map(R.encodeAction).join("") === p.acts) coded++;
+  }
+  const n = PUZZLES.length;
+  check(n >= 150 && new Set(PUZZLES.map(p => p.id)).size === n && replays === n && coded === n, `${n} puzzles, each replaying to its seat to move, its moves written back as they were read`);
+  check(legal === n && distinct === n, "every play a puzzle weighed is legal at its table, and no two are the same answer");
+  check(bestIsBest === n && clear === n, "the best is the play worth most, every other a clear step behind or as good");
+  const byRating = [...Array(10)].map((_, i) => PUZZLES.filter(p => p.r === i + 1).length);
+  check(byRating.filter(x => x >= 5).length >= 7, `puzzles across the ratings (${byRating.join(" ")})`);
+  const p = PUZZLES.find(x => x.opts.length >= 4 && x.r >= 6), st = R.replay(p), { opts, best } = R.weighed(p);
+  const worst = opts.slice().sort((a, b) => a.value - b.value)[0];
+  const right = R.judge(p, st, best.action), wrong = R.judge(p, st, worst.action);
+  check(right.verdict === "best" && right.gap === 0 && wrong.verdict === "wrong" && Math.abs(wrong.gap - (best.value - worst.value)) < 1e-9,
+    `a ${p.id} answer: the best is best, the worst ${wrong.gap.toFixed(2)} levels a hand behind`);
+  // a play it never weighed (another way to beat the play on the table) goes to a look-ahead of its own
+  let outside = null;
+  for (const q of PUZZLES) {
+    const t = R.replay(q);
+    if (!t.top) continue;
+    const seen = R.weighed(q).opts.map(o => R.signature(o.action, t.level));
+    const a = B.candidates(t.hands[q.seat], t.level, t.top.reading).map(c => ({ t: "play", cards: c.cards })).find(x => !seen.includes(R.signature(x, t.level)));
+    if (a) { outside = R.judge(q, t, a); break; }
+  }
+  check(outside?.verdict === "unweighed" && outside.mine === null, "a play outside those weighed is tried against the best by a look-ahead of its own");
+  const order = R.runOrder(PUZZLES, 7), rated = order.map(id => PUZZLES.find(x => x.id === id).r);
+  check(order.length === n && new Set(order).size === n && rated.slice(0, 12).every((r, i, a) => !i || r >= a[i - 1]), `a run deals every puzzle once, the easiest first (${rated.slice(0, 12).join(" ")} …)`);
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, the computer players' judgement at both strengths, and whole matches");
+else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, the computer players' judgement at both strengths, whole matches, and the puzzle rush");
