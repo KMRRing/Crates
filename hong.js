@@ -16,7 +16,7 @@ import { busy } from "./loading.js";
 import { SIDEWAYS, sideways } from "./wide.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "hong:run", OPTS = "hong:opts", STATS = "hong:stats", BEST = "hong:best";
+const RUN = "hong:run", OPTS = "hong:opts", STATS = "hong:stats", BEST = "hong:best", BEST_NOFAN = "hong:bestNoFan";
 const COACH = ["off", "hints", "check", "on"];                  // the coach's ways: see coachOn
 const APP = 1;                                                   // this code's version of the together state
 const BOTS = ["Mei", "Wing", "Lok"];
@@ -29,7 +29,7 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // G: the hand in play (the engine's state). S: the game around it: { seed, firstDealer, names, humans, results }.
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
-let opts = { flowers: true, minFan: 3, rounds: 1, coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, ...read(OPTS, {}) };
+let opts = { flowers: true, minFan: 3, rounds: 1, scoring: "fan", coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, ...read(OPTS, {}) };
 // the coach was on or off (with Hint) until October 2026, and "differ" for a day: kept as the way it means now
 const coachWas = opts.coach;
 opts.coach = coachWas === true ? "on" : coachWas === false ? "hints" : coachWas === "differ" ? "check" : COACH.includes(coachWas) ? coachWas : "on";
@@ -78,7 +78,7 @@ function newGame() {
   const seed = (Math.random() * 2 ** 32) >>> 0, firstDealer = Math.floor(Math.random() * 4);
   me = 0;
   S = { v: 1, seed, firstDealer, names: ["You", ...BOTS], humans: [0], results: [], started: Date.now() };
-  G = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds } });
+  G = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds, scoring: opts.scoring } });
   R = [];
   closeDialogs();
   afterChange();
@@ -362,7 +362,7 @@ function drawMine() {
   const round = low() ? ` · ${E.WIND_NAMES[G.round]} round, hand ${G.hand + 1}` : "";
   box.innerHTML = `<span class="hk-me${myTurn ? " on" : ""}"><b class="hk-wind${E.windOf(G, me) === 0 ? " dealer" : ""}">${windGlyph(me)}</b><span class="hk-me-name">${esc(nameOf(me))}</span><span class="hk-me-score">${signed(G.scores[me])}</span></span>`
     + `<span class="hk-me-flowers">${s.flowers.map(f => tileSvg(f, "hk-mini")).join("")}</span>`
-    + (rush ? rushStatus() : `<span class="hk-me-rule">${G.opts.minFan} fan to win${round}${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`);
+    + (rush ? rushStatus() : `<span class="hk-me-rule">${E.noFan(G.opts) ? "No fan: any hand wins" : `${G.opts.minFan} fan to win`}${round}${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`);
 }
 /** Upright, your tiles in a row (one), two rows filled down the columns (two: 1 3 5 / 2 4 6), or three with each
  *  suit, the winds and the dragons a section of its own (suits); held sideways, always in a row (Menu). */
@@ -553,7 +553,7 @@ function showWhy(d, yours = null) {
       const other = r.routes?.find(x => x.route !== r.route && x.ev > 0);
       const or = other ? `<small>or ${esc(routeName(other.route).replace(/^a /, ""))}, ${other.sh <= 0 ? "ready" : `${other.sh} away`}</small>` : "";
       const mineToo = yours && sameAct(yours, { t: "discard", k: r.k });
-      html += `<tr${sameAct(d.action, { t: "discard", k: r.k }) ? ' class="best"' : ""}><td>${tileSvg(r.k, "hk-mini")}${mineToo ? "<small>yours</small>" : ""}</td><td>${esc(routeName(r.route).replace(/^a /, ""))}${or}</td><td>${r.sh <= 0 ? "ready" : r.sh}</td><td>${r.uk?.n ?? ""}</td><td>${Math.round((r.p || 0) * 100)}%</td><td>${r.risk >= 0.5 ? r.risk.toFixed(0) : "—"}</td>${yours ? `<td>${pts(r.score)}</td>` : ""}</tr>`;
+      html += `<tr${sameAct(d.action, { t: "discard", k: r.k }) ? ' class="best"' : ""}><td>${tileSvg(r.k, "hk-mini")}${mineToo ? "<small>yours</small>" : ""}</td><td>${esc(routeName(r.route).replace(/^a /, ""))}${or}</td><td>${r.sh <= 0 ? "ready" : r.sh}</td><td>${r.uk?.n ?? ""}</td><td>${Math.round((r.p || 0) * 100)}%</td><td>${E.noFan(G?.opts) ? (r.risk >= 0.05 ? r.risk.toFixed(1) : "—") : r.risk >= 0.5 ? r.risk.toFixed(0) : "—"}</td>${yours ? `<td>${pts(r.score)}</td>` : ""}</tr>`;
     }
     html += "</tbody></table>";
     html += `<p class="hk-note">Tiles that help: those still unseen (not in your hand, on the table or in a set) that would bring the hand a step nearer. Win: the chance this hand wins, from its live tiles, the draws left and how soon the others look to win. Danger: the points the tile is likely to cost, if someone ready can take it.${yours ? " Points: what the hand is worth after it on average (each win it could make, by what it pays and how likely it comes; a little more with a second way open), less the danger." : ""}</p>`;
@@ -566,7 +566,7 @@ function showWhy(d, yours = null) {
       if (t.flushSuit >= 0) bits.push(`on a ${E.SUIT_NAMES[t.flushSuit]} flush, likely`);
       else if (t.pungish) bits.push("all pungs, likely");
       if (!t.canTake) bits.push("can't reach the minimum off a discard");
-      else bits.push(`ready ${Math.round(t.ready * 100)}%, about ${t.fanEst} fan`);
+      else bits.push(`ready ${Math.round(t.ready * 100)}%${E.noFan(G?.opts) ? "" : `, about ${t.fanEst} fan`}`);
       html += `<li><b>${esc(nameOf(t.seat))}</b> (${windName(t.seat)}): ${bits.join(", ")}.</li>`;
     }
     html += "</ul>";
@@ -599,8 +599,9 @@ function record() {
     st.games++;
     const mineScore = G.scores[me];
     if (G.scores.every((x, i) => i === me || x < mineScore)) st.firsts++;
-    const best = read(BEST, null);
-    if (best == null || mineScore > best) write(BEST, mineScore);
+    // no fan's wins pay a few points where fan's pay tens: its best is kept apart (the menu says it), the games screen's is fan's
+    const key = E.noFan(G.opts) ? BEST_NOFAN : BEST, best = read(key, null);
+    if (best == null || mineScore > best) write(key, mineScore);
   }
   write(STATS, st);
   save();
@@ -616,15 +617,28 @@ function showResult() {
     head.textContent = `${who}, ${how}`;
     const s = G.seats[r.seat];
     html += `<div class="hk-win-hand">${s.hand.map(k => tileSvg(k, k === r.tile ? "hk-won" : "")).join("")}${s.melds.length ? `<span class="hk-gap"></span>${s.melds.map(m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k)).join("")}</span>`).join("")}` : ""}${s.flowers.length ? `<span class="hk-gap"></span>${s.flowers.map(f => tileSvg(f, "hk-mini")).join("")}` : ""}</div>`;
-    html += `<table class="hk-fan"><tbody>${r.items.map(i => `<tr><td class="zh">${esc(i.zh)}</td><td>${esc(i.en)}</td><td class="n">${i.fan}</td></tr>`).join("")}`;
-    html += `<tr class="total"><td></td><td>${r.limit ? "A limit hand" : r.raw > r.fan ? `${r.raw} fan, capped at ${r.fan}` : "Fan"}</td><td class="n">${r.fan}</td></tr></tbody></table>`;
-    const payer = r.liable >= 0 ? `${nameOf(r.liable)} pays it all (liable)` : r.how === "self" || r.how === "flowers" ? "each of the others pays 2 × base" : `${nameOf(r.from)} pays 4 × base`;
-    html += `<p class="hk-pay-line">${r.fan} fan is ${r.base} base: ${payer}.</p>`;
+    if (E.noFan(G.opts)) {
+      // no fan: nothing counted; who paid what, the dealer's share doubled
+      // the dealer is in every win: the winner, or one who pays (the discarder or not)
+      const d = G.dealer, dealerIn = r.seat === d ? `${d === me ? "you deal" : `${esc(nameOf(d))} deals`}, so each pays double`
+        : `${d === me ? "you deal, so pay" : `${esc(nameOf(d))} deals, so pays`} double`;
+      const payer = r.how === "self" ? "each of the others pays 2" : `${r.from === me ? "you pay" : `${esc(nameOf(r.from))} pays`} 2, each of the others 1`;
+      html += `<p class="hk-pay-line">No fan: ${payer}; ${dealerIn}.</p>`;
+    } else {
+      html += `<table class="hk-fan"><tbody>${r.items.map(i => `<tr><td class="zh">${esc(i.zh)}</td><td>${esc(i.en)}</td><td class="n">${i.fan}</td></tr>`).join("")}`;
+      html += `<tr class="total"><td></td><td>${r.limit ? "A limit hand" : r.raw > r.fan ? `${r.raw} fan, capped at ${r.fan}` : "Fan"}</td><td class="n">${r.fan}</td></tr></tbody></table>`;
+      const payer = r.liable >= 0 ? `${nameOf(r.liable)} pays it all (liable)` : r.how === "self" || r.how === "flowers" ? "each of the others pays 2 × base" : `${nameOf(r.from)} pays 4 × base`;
+      html += `<p class="hk-pay-line">${r.fan} fan is ${r.base} base: ${payer}.</p>`;
+    }
   } else {
     head.textContent = "A drawn hand: the wall ran dry";
     html += `<p class="hk-pay-line">No one won; ${G.dealer === me ? "you keep" : `${esc(nameOf(G.dealer))} keeps`} the deal.</p>`;
   }
-  html += `<table class="hk-scores"><tbody>${[0, 1, 2, 3].map(s => `<tr${s === me ? ' class="me"' : ""}><td>${E.WINDS[E.windOf(G, s)]}</td><td>${esc(nameOf(s))}</td><td class="n">${r.pay[s] ? signed(r.pay[s]) : ""}</td><td class="n tot">${signed(G.scores[s])}</td></tr>`).join("")}</tbody></table>`;
+  // paid within the hand (no fan): kongs, a point from each, and the dealer followed (跟莊), a point to each
+  const paid = G.paid || [];
+  if (paid.length) html += `<p class="hk-pay-line">${paid.map(e => (e.e === "follow" ? `The first four discards were all ${esc(E.tileName(e.k))}: ${e.seat === me ? "you" : esc(nameOf(e.seat))}, dealing, paid each of the others 1.` : `${e.seat === me ? "Your" : `${esc(nameOf(e.seat))}'s`} kong of ${esc(E.tileName(e.k))}: 1 from each of the others.`)).join(" ")}</p>`;
+  const hand = [0, 1, 2, 3].map(i => r.pay[i] + paid.reduce((a, e) => a + e.pay[i], 0));
+  html += `<table class="hk-scores"><tbody>${[0, 1, 2, 3].map(s => `<tr${s === me ? ' class="me"' : ""}><td>${E.WINDS[E.windOf(G, s)]}</td><td>${esc(nameOf(s))}</td><td class="n">${hand[s] ? signed(hand[s]) : ""}</td><td class="n tot">${signed(G.scores[s])}</td></tr>`).join("")}</tbody></table>`;
   html += review();
   if (over) {
     const order = [0, 1, 2, 3].sort((a, b) => G.scores[b] - G.scores[a]);
@@ -810,7 +824,7 @@ function drawRush(box, coach) {
   coach.classList.add("rush");
   if (!a) {
     const ask = G.phase === "act" ? ["Find the best discard", "Which tile goes?"] : ["Find the best call", "Call it, or let it go by?"];
-    coach.innerHTML = `<b>${ask[0]}</b> ${G.opts.minFan} fan to win, ${E.wallLeft(G)} tiles in the wall. ${ask[1]}`;
+    coach.innerHTML = `<b>${ask[0]}</b> ${E.noFan(G.opts) ? "No fan" : `${G.opts.minFan} fan to win`}, ${E.wallLeft(G)} tiles in the wall. ${ask[1]}`;
     if (rush.over) { box.append(goBtn("See the score", endRush, "primary")); return; }
     moveButtons(box, E.legal(G, me));
     return;
@@ -857,7 +871,7 @@ function freshRoom(players) {
   const seed = (Math.random() * 2 ** 32) >>> 0, firstDealer = Math.floor(Math.random() * 4);
   const names = ["", BOTS[0], "", BOTS[2]];
   for (const [, p] of Object.entries(players)) names[p.slot === 1 ? 2 : 0] = p.name;
-  const game = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds } });
+  const game = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds, scoring: opts.scoring } });
   return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans: [0, 2], results: [], started: Date.now(), bots: opts.bots } };
 }
 function onRoomState(g) {
@@ -977,12 +991,16 @@ function openMenu() {
   // a puzzle's table keeps its own rules: the game's are for the game
   if (!rush) {
     const content = part(body, "content");
-    content.append(
+    const nofan = opts.scoring === "nofan";
+    content.append(choice("Scoring", [["fan", "Fan"], ["nofan", "No fan"]], nofan ? "nofan" : "fan", v => { set("scoring", v); openMenu(); }));
+    if (!nofan) content.append(
       choice("Flowers", [[true, "With"], [false, "Without"]], opts.flowers, v => set("flowers", v)),
       choice("Minimum", [[3, "3 fan"], [1, "1 fan"], [0, "None"]], opts.minFan, v => set("minFan", v)),
-      choice("Length", [[1, "East round"], [2, "Two rounds"], [4, "Four rounds"]], opts.rounds, v => set("rounds", v)),
     );
-    if (G && (G.opts.flowers !== opts.flowers || G.opts.minFan !== opts.minFan || (G.opts.rounds || 1) !== opts.rounds)) content.append(line("These take effect with a new game."));
+    content.append(choice("Length", [[1, "East round"], [2, "Two rounds"], [4, "Four rounds"]], opts.rounds, v => set("rounds", v)));
+    // what the game in hand plays against what's chosen (no fan has no flowers and no minimum of its own)
+    const differs = G && (E.noFan(G.opts) !== nofan || (G.opts.rounds || 1) !== opts.rounds || (!nofan && (G.opts.flowers !== opts.flowers || G.opts.minFan !== opts.minFan)));
+    if (differs) content.append(line("These take effect with a new game."));
   }
   part(body, "settings").append(
     choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], together.room ? S?.bots || "hard" : opts.bots, v => {
@@ -995,8 +1013,8 @@ function openMenu() {
     choice("Your tiles, upright", [["one", "One row"], ["two", "Two rows"], ["suits", "By suit"]], opts.rows === "two" || opts.rows === "suits" ? opts.rows : "one", v => set("rows", v)),
     toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
   );
-  const st = read(STATS, null), best = read(BEST, null);
-  if (st?.hands) part(body, "about").append(line(`${st.hands} hand${st.hands === 1 ? "" : "s"}: won ${st.wins} (${st.self} self-drawn), dealt in ${st.dealIns}${st.bestFan ? ` · biggest ${st.bestFan} fan` : ""}${st.games ? ` · ${st.games} game${st.games === 1 ? "" : "s"}, first in ${st.firsts}` : ""}${best != null ? ` · best game ${signed(best)}` : ""}`));
+  const st = read(STATS, null), best = read(BEST, null), bestNoFan = read(BEST_NOFAN, null);
+  if (st?.hands) part(body, "about").append(line(`${st.hands} hand${st.hands === 1 ? "" : "s"}: won ${st.wins} (${st.self} self-drawn), dealt in ${st.dealIns}${st.bestFan ? ` · biggest ${st.bestFan} fan` : ""}${st.games ? ` · ${st.games} game${st.games === 1 ? "" : "s"}, first in ${st.firsts}` : ""}${best != null ? ` · best game ${signed(best)}` : ""}${bestNoFan != null ? ` · best without fan ${signed(bestNoFan)}` : ""}`));
   const rushBest = read(RUSH_BEST, 0);
   if (rushBest) part(body, "about").append(line(`Puzzle rush: best ${rushBest} solved`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -1005,6 +1023,7 @@ function applyLook() { $("app").style.setProperty("--hk-num", opts.numbers ? "1"
 
 // ---------- the rules ----------
 function rules() {
+  const nofan = E.noFan(G && !rush ? G.opts : opts);              // the table's own rules: the game in hand, else the menu's
   const fan = [
     ["自摸", "Self-drawn", 1], ["門前清", "Concealed hand (nothing called)", 1], ["無花", "No flowers", 1], ["正花", "Own flower or season (each)", 1], ["一台花", "All four flowers, or all four seasons", 2],
     ["平糊", "All chows", 1], ["對對糊", "All pungs", 3], ["混一色", "Half flush: one suit and honours", 3], ["清一色", "Full flush: one suit only", 7],
@@ -1013,13 +1032,14 @@ function rules() {
     ["槓上開花", "Win on a kong's replacement", 1], ["槓上槓自摸", "Win on a second kong's replacement", 8], ["海底撈月", "Win on the last tile", 1], ["搶槓", "Robbing a kong", 1], ["花糊", "Seven flowers: an instant win", 3],
   ];
   const limits = [["天糊", "Heavenly hand: the dealer's deal is complete"], ["地糊", "Earthly hand: won off the dealer's first discard"], ["十三么", "Thirteen orphans"], ["九子連環", "Nine gates"], ["字一色", "All honours"], ["清么九", "All terminals"], ["大四喜", "Big four winds"], ["十八羅漢", "Four kongs"], ["坎坎糊", "Four concealed pungs"], ["大花糊", "All eight flowers"]];
-  return `<p><b>The tiles.</b> Three suits, characters (萬), dots and bamboo, 1 to 9, four of each; the honours, four winds (東南西北) and three dragons (中發白), four of each${opts.flowers ? "; and eight flowers and seasons, one of each, set aside when drawn and replaced from the wall's end" : ""}.</p>
-<p><b>A hand</b> is four sets and a pair: a set is a chow (three in a row in one suit), a pung (three alike) or a kong (four alike, which draws a replacement). Draw, then let one tile go; first to complete a hand that scores the minimum wins.</p>
+  return `<p><b>The tiles.</b> Three suits, characters (萬), dots and bamboo, 1 to 9, four of each; the honours, four winds (東南西北) and three dragons (中發白), four of each${opts.flowers && !nofan ? "; and eight flowers and seasons, one of each, set aside when drawn and replaced from the wall's end" : ""}.</p>
+<p><b>A hand</b> is four sets and a pair: a set is a chow (three in a row in one suit), a pung (three alike) or a kong (four alike, which draws a replacement). Draw, then let one tile go; first to complete a hand ${nofan ? "wins" : "that scores the minimum wins"}.</p>
 <p><b>Calls.</b> Anyone may take a discard to win, or to make a pung or kong; only the next player may take it for a chow. A win comes first, then a pung or kong, then a chow; of two wins, the player first after the discarder takes it. Pass a win you could take and you can't win off a discard until you draw again. A kong added to a called pung can be robbed by anyone who wins on that tile.</p>
-<p><b>Fan.</b> A win needs ${opts.minFan ? `${opts.minFan} fan` : "no fan (a chicken hand will do)"}; ten is the most a hand pays. Your seat's wind turns each time the deal passes; the dealer (東) keeps the deal on a win or a drawn hand.</p>
+${nofan ? `<p><b>No fan.</b> Any complete hand wins, and every win pays alike: self-drawn, 2 from each of the others; off a discard, 2 from its discarder and 1 from each of the others. The dealer (東) pays and receives double, and keeps the deal on a win or a drawn hand; your seat's wind turns each time the deal passes. A kong takes 1 from each of the others when it's made (one added to a pung, once no one has robbed it). If the first four discards are all the same tile (跟莊), the dealer pays each of the others 1. No flowers.</p>`
+  : `<p><b>Fan.</b> A win needs ${opts.minFan ? `${opts.minFan} fan` : "no fan (a chicken hand will do)"}; ten is the most a hand pays. Your seat's wind turns each time the deal passes; the dealer (東) keeps the deal on a win or a drawn hand.</p>
 <table class="hk-fan"><tbody>${fan.map(([z, e, n]) => `<tr><td class="zh">${z}</td><td>${e}</td><td class="n">${n}</td></tr>`).join("")}</tbody></table>
 <p><b>Limit hands</b> pay the most a hand pays, and nothing else counts: ${limits.map(([z, e]) => `${e} (${z})`).join(", ")}.</p>
-<p><b>Paying.</b> Each fan doubles the base up to four, then every two (1 2 4 8 16 24 32 48 64 96 128 at ten). Off a discard, its discarder pays 4 × base; self-drawn, each of the others pays 2 × base. Let go the tile that makes someone's fourth set, or their third dragon set, and you pay all of their self-drawn win (包).</p>`;
+<p><b>Paying.</b> Each fan doubles the base up to four, then every two (1 2 4 8 16 24 32 48 64 96 128 at ten). Off a discard, its discarder pays 4 × base; self-drawn, each of the others pays 2 × base. Let go the tile that makes someone's fourth set, or their third dragon set, and you pay all of their self-drawn win (包).</p>`}`;
 }
 
 // ---------- wiring ----------

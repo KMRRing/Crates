@@ -1,9 +1,13 @@
 // Hong: Hong Kong mahjong (香港麻雀), four players, the rules as played in Hong Kong homes and clubs (新派清章): 144
 // tiles with flowers or 136 without, three fan to win (or one, or none: a chicken hand), ten fan the cap, half-spicy
 // payouts, the discarder paying the whole of a win off his discard (全銃), a self-drawn win paid by all three, the head
-// bump (only the first claimant after the discarder wins), play to the last tile. The referee: the wall, the deal, the
-// turn and the claims, kongs and flowers, the fan of a winning hand, who pays what, and the rounds of a session. Pure;
-// the page, the computer players, the worker and the tests all play through it.
+// bump (only the first claimant after the discarder wins), play to the last tile. Or no fan (opts.scoring "nofan", the
+// way of a table that doesn't count fan, 雞糊): any complete hand wins and every win pays alike, 2 from each by self-draw,
+// else 2 from the discarder and 1 from each of the others; the dealer pays and receives double; a kong takes 1 from
+// each; when the first four discards are one tile (跟莊), the dealer pays each of the others 1; no flowers, no
+// liability. The referee: the wall, the deal, the turn and the claims, kongs and flowers, the fan of a winning hand,
+// who pays what, and the rounds of a session. Pure; the page, the computer players, the worker and the tests all play
+// through it.
 
 // ---------- tiles ----------
 // A tile is its kind: 0–8 characters (萬) 1–9, 9–17 dots (筒), 18–26 bamboo (索), 27–30 the winds 東南西北, 31–33 the
@@ -56,7 +60,22 @@ export function rng(seed) {
 }
 
 // ---------- the rules this table plays ----------
-export const DEFAULTS = { flowers: true, minFan: 3, cap: 10, rounds: 1 };
+export const DEFAULTS = { flowers: true, minFan: 3, cap: 10, rounds: 1, scoring: "fan" };
+/** No fan: any complete hand wins, every win pays alike (see the top of this file). */
+export const noFan = opts => opts?.scoring === "nofan";
+/** The rules a table plays, filled in: no fan has no flowers and no minimum. */
+const rulesOf = o => { const opts = { ...DEFAULTS, ...(o || {}) }; if (noFan(opts)) { opts.flowers = false; opts.minFan = 0; } return opts; };
+/** No fan: what a win pays, seat by seat (2 from each by self-draw, else 2 from the discarder and 1 from each of the
+ *  others; any payment the dealer makes or receives doubled). */
+export function payNoFan(dealer, winner, self, from) {
+  const pay = [0, 0, 0, 0];
+  for (let o = 0; o < 4; o++) {
+    if (o === winner) continue;
+    const n = (self || o === from ? 2 : 1) * (o === dealer || winner === dealer ? 2 : 1);
+    pay[o] -= n; pay[winner] += n;
+  }
+  return pay;
+}
 /** Base points for a fan count, half spicy (半辣上): doubling to four fan, then doubling every two. */
 export const BASE = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256, 384];
 export const base = f => BASE[Math.max(0, Math.min(f, BASE.length - 1))];
@@ -245,7 +264,7 @@ const nextSeat = s => (s + 1) % 4;
  * replaced from the tail (the dealer's first, then round the table). cfg: { seed, dealer, round, hand, opts, scores }.
  */
 export function deal(cfg) {
-  const opts = { ...DEFAULTS, ...(cfg.opts || {}) };
+  const opts = rulesOf(cfg.opts);
   const wall = [];
   for (let k = 0; k < 34; k++) for (let n = 0; n < 4; n++) wall.push(k);
   if (opts.flowers) for (let k = 34; k < 42; k++) wall.push(k);
@@ -256,8 +275,8 @@ export function deal(cfg) {
     scores: (cfg.scores || [0, 0, 0, 0]).slice(), wall, head: 0, tail: wall.length,
     seats: [0, 1, 2, 3].map(() => ({ hand: [], melds: [], flowers: [], river: [], passBlock: false })),
     turn: cfg.dealer, phase: "act", drawn: null, last: null, claims: {}, liable: [-1, -1, -1, -1],
-    flags: { afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false, heavenly: true, earthly: false, firstTurn: [true, true, true, true], calls: 0 },
-    log: [], result: null,
+    flags: { afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false, heavenly: true, earthly: false, firstTurn: [true, true, true, true], calls: 0, follow: 0, followK: -1 },
+    log: [], result: null, paid: [],
   };
   for (let round = 0; round < 3; round++) for (let i = 0; i < 4; i++) for (let n = 0; n < 4; n++) state.seats[(cfg.dealer + i) % 4].hand.push(wall[state.head++]);
   for (let i = 0; i < 4; i++) state.seats[(cfg.dealer + i) % 4].hand.push(wall[state.head++]);
@@ -389,6 +408,7 @@ export function act(state, seat, action) {
     state.phase = "claim";
     state.claims = {};
     log(state, { e: "discard", seat, k: action.k });
+    if (noFan(state.opts)) follow(state, seat, action.k);
     return settleClaims(state);
   }
   // answering a discard or a kong: passing a win you could have taken bars your discard wins until you next draw
@@ -414,6 +434,7 @@ function settleClaims(state) {
   if (state.phase === "rob") {                                    // nobody robbed the kong: it stands, and its replacement comes
     const seat = state.last.seat;
     state.claims = {};
+    kongPaid(state, seat, state.last.k);
     return kongDraw(state, seat);
   }
   const from = state.last.seat;
@@ -429,6 +450,32 @@ function settleClaims(state) {
   const d = draw(state, seat, false);
   if (d !== true) return finishDraw(state);
   return state;
+}
+/** No fan, 跟莊: the dealer's first discard followed by the same tile from each of the others in turn, nothing called
+ *  between (flags.follow: how many of the four so far, −1 once it's broken; followK the tile): the dealer pays each 1. */
+function follow(state, seat, k) {
+  const f = state.flags;
+  if (f.follow < 0) return;
+  if (f.calls > 0 || seat !== (state.dealer + f.follow) % 4 || (f.follow > 0 && k !== f.followK)) { f.follow = -1; return; }
+  if (f.follow === 0) f.followK = k;
+  if (++f.follow < 4) return;
+  f.follow = -1;
+  const pay = [0, 0, 0, 0];
+  for (let o = 0; o < 4; o++) if (o !== state.dealer) { pay[o] += 1; pay[state.dealer] -= 1; }
+  settle(state, { e: "follow", seat: state.dealer, k, pay });
+}
+/** No fan: a kong that stands takes 1 from each of the others, there and then. */
+function kongPaid(state, seat, k) {
+  if (!noFan(state.opts)) return;
+  const pay = [0, 0, 0, 0];
+  for (let o = 0; o < 4; o++) if (o !== seat) { pay[o] -= 1; pay[seat] += 1; }
+  settle(state, { e: "kong-paid", seat, k, pay });
+}
+/** A payment within the hand (a kong, the follow): into the scores now, and kept for the hand's account. */
+function settle(state, entry) {
+  for (let i = 0; i < 4; i++) state.scores[i] += entry.pay[i];
+  state.paid.push(entry);
+  log(state, { e: entry.e, seat: entry.seat, k: entry.k });
 }
 // The claim itself (pung, kong, chow), recorded when the claims are settled.
 function applyClaim(state, seat, from, action) {
@@ -448,7 +495,7 @@ function applyClaim(state, seat, from, action) {
   if (sets === 4 || (dragons === 3 && isDragon(k) && action.t !== "chow")) state.liable[seat] = from;
   log(state, { e: action.t, seat, k: action.t === "chow" ? action.k : k, from });
   state.turn = seat; state.phase = "act"; state.drawn = null;
-  if (action.t === "kong") { state.flags.kongChain = 0; return kongDraw(state, seat); }
+  if (action.t === "kong") { kongPaid(state, seat, k); state.flags.kongChain = 0; return kongDraw(state, seat); }
   return state;
 }
 /** A kong in your own turn: concealed (four in hand) or added to a pung (which the others may rob). */
@@ -460,6 +507,7 @@ function kong(state, seat, action) {
     if (seat === state.dealer && state.flags.firstTurn[seat]) state.flags.dealerKong = true;
     state.flags.heavenly = false;
     log(state, { e: "kong", seat, k: action.k, how: "concealed" });
+    kongPaid(state, seat, action.k);
     return kongDraw(state, seat);
   }
   // added: the others may rob it (搶槓) before it stands
@@ -485,10 +533,17 @@ function kongDraw(state, seat) {
 /** A win: the fan, who pays (the discarder all of it; a self-draw, all three; a liable seat, the whole self-draw). */
 function finishWin(state, win) {
   const sc = scoreWin(state, win);
-  const b = base(sc.fan), pay = [0, 0, 0, 0];
+  const b = base(sc.fan);
+  let pay = [0, 0, 0, 0];
   const self = win.how === "self" || win.how === "flowers";
   let liable = -1;
-  if (self) {
+  if (noFan(state.opts)) {
+    pay = payNoFan(state.dealer, win.seat, self, self ? -1 : win.how === "rob" ? state.last.seat : win.from);
+    if (win.how === "rob") {                                      // the robbed kong goes back to a pung
+      const m = state.seats[state.last.seat].melds.find(x => x.t === "kong" && x.k === win.tile && x.added);
+      if (m) { m.t = "pung"; delete m.added; }
+    }
+  } else if (self) {
     liable = state.liable[win.seat];
     if (liable >= 0) { pay[liable] -= 6 * b; pay[win.seat] += 6 * b; }
     else for (let o = 0; o < 4; o++) if (o !== win.seat) { pay[o] -= 2 * b; pay[win.seat] += 2 * b; }
@@ -503,7 +558,8 @@ function finishWin(state, win) {
   if (!self) state.seats[win.seat].hand.push(win.tile), state.seats[win.seat].hand.sort((a, b) => a - b);
   for (let i = 0; i < 4; i++) state.scores[i] += pay[i];
   state.phase = "over";
-  state.result = { kind: "win", seat: win.seat, how: win.how, from: self ? -1 : (win.how === "rob" ? state.last.seat : win.from), tile: win.tile, fan: sc.fan, raw: sc.raw, items: sc.items, limit: sc.limit, base: b, pay, liable };
+  const nf = noFan(state.opts);                                   // no fan: nothing counted, every win alike
+  state.result = { kind: "win", seat: win.seat, how: win.how, from: self ? -1 : (win.how === "rob" ? state.last.seat : win.from), tile: win.tile, fan: nf ? 0 : sc.fan, raw: nf ? 0 : sc.raw, items: nf ? [] : sc.items, limit: nf ? false : sc.limit, base: nf ? 1 : b, pay, liable };
   log(state, { e: "win", seat: win.seat, how: win.how });
   return state;
 }
@@ -551,7 +607,8 @@ export function fromRoom(g) {
   for (const [k, v] of Object.entries(g.claims || {})) if (v) claims[k] = v;
   g.claims = claims;
   g.liable = [0, 1, 2, 3].map(i => g.liable?.[i] ?? -1);
-  g.flags = { afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false, heavenly: false, earthly: false, calls: 0, ...(g.flags || {}) };
+  g.flags = { afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false, heavenly: false, earthly: false, calls: 0, follow: -1, followK: -1, ...(g.flags || {}) };
+  g.paid = (g.paid || []).map(e => ({ ...e, pay: [0, 1, 2, 3].map(i => e.pay?.[i] || 0) }));
   g.flags.firstTurn = [0, 1, 2, 3].map(i => !!g.flags.firstTurn?.[i]);
   g.log = g.log || [];
   g.scores = [0, 1, 2, 3].map(i => g.scores?.[i] || 0);
@@ -560,6 +617,6 @@ export function fromRoom(g) {
     g.result.pay = [0, 1, 2, 3].map(i => g.result.pay?.[i] || 0);
     g.result.items = g.result.items || [];
   }
-  g.opts = { ...DEFAULTS, ...(g.opts || {}) };
+  g.opts = rulesOf(g.opts);
   return g;
 }

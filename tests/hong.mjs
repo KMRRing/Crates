@@ -137,6 +137,71 @@ for (const flowers of [true, false]) {
   check(st.result?.fan === 3 && st.result.how === "flowers" && st.result.pay.filter(x => x < 0).length === 3, "…three fan, paid as a self-drawn win");
 }
 
+// ---------- no fan (雞糊): any hand wins, every win alike, the dealer double, kongs and the follow paid there and then ----------
+{
+  const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+  check(same(E.payNoFan(0, 1, true, -1), [-4, 8, -2, -2]) && same(E.payNoFan(0, 0, true, -1), [12, -4, -4, -4]),
+    "no fan, self-drawn: 2 from each of the others, the dealer's share doubled, paying or paid");
+  check(same(E.payNoFan(0, 1, false, 2), [-2, 5, -2, -1]) && same(E.payNoFan(0, 1, false, 0), [-4, 6, -1, -1]) && same(E.payNoFan(0, 0, false, 2), [8, -2, -4, -2]),
+    "…off a discard: 2 from the discarder and 1 from each of the others, the dealer's doubled");
+  const st = E.deal({ seed: 42, dealer: 2, opts: { scoring: "nofan", flowers: true, minFan: 3 } });
+  const all = st.seats.flatMap(x => [...x.hand, ...x.flowers]).concat(st.wall.slice(st.head, st.tail));
+  check(!st.opts.flowers && st.opts.minFan === 0 && all.length === 136 && !all.some(E.isFlower), "a no-fan deal has no flowers and no minimum, whatever the fan game's settings");
+  // a chicken hand off a discard: a win, paid as no fan pays it
+  const ch = table({ hand: "234m 678m 345p 5s", melds: [{ t: "pung", k: T("7s")[0], open: true, from: 0 }], seat: 1, opts: { scoring: "nofan" } });
+  ch.seats[3].hand = T("5s 1m 1m 2m 3m 4m 5m 6m 7m 8m 9m E E S");
+  ch.turn = 3; ch.phase = "act"; ch.drawn = null;
+  E.act(ch, 3, { t: "discard", k: T("5s")[0] });
+  check(E.legal(ch, 1).some(a => a.t === "win"), "no fan: a chicken hand may win off a discard");
+  E.act(ch, 1, { t: "win" });
+  check(ch.result?.kind === "win" && same(ch.result.pay, E.payNoFan(0, 1, false, 3)) && ch.result.fan === 0 && !ch.result.items.length && ch.result.liable === -1,
+    `…and is paid as no fan pays it, nothing counted (${ch.result?.pay.join(" ")})`);
+  // kongs: concealed, at once; claimed off a discard, at once; added, once no one robs it, and not if someone does
+  const kc = table({ hand: "1m 1m 1m 1m 234p 567p 89s E E", seat: 1, opts: { scoring: "nofan" } });
+  kc.turn = 1; kc.phase = "act"; kc.drawn = T("E")[0];
+  E.act(kc, 1, { t: "kong", k: T("1m")[0], how: "concealed" });
+  check(same(kc.scores, [-1, 3, -1, -1]) && kc.paid.length === 1 && kc.paid[0].e === "kong-paid", "no fan: a concealed kong takes 1 from each of the others, there and then");
+  const ke = table({ hand: "5p 5p 5p 1m 2m 3m 7s 8s 9s E E S N", seat: 2, opts: { scoring: "nofan" } });
+  ke.seats[1].hand = T("5p 1s 2s 3s 4s 6s 7s 8s 9s W W N N S");
+  ke.turn = 1; ke.phase = "act"; ke.drawn = null;
+  E.act(ke, 1, { t: "discard", k: T("5p")[0] });
+  for (const o of [3, 0]) if (E.legal(ke, o).length > 1) E.act(ke, o, { t: "pass" });
+  E.act(ke, 2, { t: "kong", k: T("5p")[0], how: "exposed" });
+  check(same(ke.scores, [-1, -1, 3, -1]), "…a kong claimed off a discard, the same");
+  const ka = table({ hand: "5p 1s 2s 3s 7s 8s 9s E E S S", seat: 2, melds: [{ t: "pung", k: T("5p")[0], open: true, from: 0 }], opts: { scoring: "nofan" } });
+  ka.turn = 2; ka.phase = "act"; ka.drawn = T("5p")[0];
+  E.act(ka, 2, { t: "kong", k: T("5p")[0], how: "added" });
+  check(ka.phase === "act" && same(ka.scores, [-1, -1, 3, -1]), "…an added kong, once no one robs it");
+  const kr = table({ hand: "123m 456m 789m 34p 5s 5s", seat: 1, opts: { scoring: "nofan" } });
+  kr.seats[2] = { hand: T("5p 1s 2s 3s 7s 8s 9s E E S S"), melds: [{ t: "pung", k: T("5p")[0], open: true, from: 0 }], flowers: [], river: [], passBlock: false };
+  kr.turn = 2; kr.phase = "act"; kr.drawn = T("5p")[0];
+  E.act(kr, 2, { t: "kong", k: T("5p")[0], how: "added" });
+  E.act(kr, 1, { t: "win" });
+  check(kr.result?.how === "rob" && !kr.paid.length && same(kr.result.pay, E.payNoFan(0, 1, false, 2)), "…a robbed kong pays nothing, and the robber is paid as off a discard");
+  // the follow (跟莊): the dealer's first discard, the same tile from each of the others in turn: the dealer pays each 1
+  const fo = E.deal({ seed: 7, dealer: 0, opts: { scoring: "nofan" } });
+  const give = (seat, keep) => { const h = fo.seats[seat].hand; for (let i = 0; i < h.length; i++) if (h[i] === T("E")[0] && !keep) h[i] = T("9p")[0]; };
+  for (let seat = 0; seat < 4; seat++) { give(seat); const h = fo.seats[seat].hand; h[0] = T("E")[0]; h.sort((a, b) => a - b); }
+  for (let i = 0; i < 4 && fo.phase !== "over"; i++) {
+    const seat = E.waitingOn(fo)[0];
+    if (fo.phase !== "act") { E.act(fo, seat, { t: "pass" }); i--; continue; }
+    E.act(fo, seat, { t: "discard", k: T("E")[0] });
+  }
+  check(fo.paid.some(e => e.e === "follow") && same(fo.scores, [-3, 1, 1, 1]), `no fan: four East winds to begin, the dealer's and the others' in turn: the dealer pays each 1 (${fo.scores.join(" ")})`);
+  const fb = E.deal({ seed: 7, dealer: 0, opts: { scoring: "nofan" } });
+  for (let seat = 0; seat < 4; seat++) { const h = fb.seats[seat].hand; for (let i = 0; i < h.length; i++) if (h[i] === T("E")[0] || h[i] === T("S")[0]) h[i] = T("9p")[0]; h[0] = seat === 2 ? T("S")[0] : T("E")[0]; h.sort((a, b) => a - b); }
+  for (let i = 0; i < 4 && fb.phase !== "over"; i++) {
+    const seat = E.waitingOn(fb)[0];
+    if (fb.phase !== "act") { E.act(fb, seat, { t: "pass" }); i--; continue; }
+    E.act(fb, seat, { t: "discard", k: seat === 2 ? T("S")[0] : T("E")[0] });
+  }
+  check(!fb.paid.some(e => e.e === "follow") && fb.flags.follow === -1, "…not when one of them lets go another tile");
+  // the deal stays with a dealer who wins
+  const dw = E.deal({ seed: 9, dealer: 1, opts: { scoring: "nofan", rounds: 1 } });
+  dw.phase = "over"; dw.result = { kind: "win", seat: 1, pay: [0, 0, 0, 0] };
+  check(E.nextHand(dw, { seed: 9, firstDealer: 1 })?.dealer === 1, "the dealer who wins keeps the deal");
+}
+
 // ---------- whole hands: random but legal play ----------
 function randomPlay(seed, opts = {}) {
   const st = E.deal({ seed, dealer: seed % 4, opts });
@@ -152,10 +217,10 @@ function randomPlay(seed, opts = {}) {
 }
 let over = 0, wins = 0, balanced = 0, tilesOk = 0;
 for (let i = 0; i < 400; i++) {
-  const st = randomPlay(1000 + i, { flowers: i % 2 === 0, minFan: [0, 1, 3][i % 3] });
+  const st = randomPlay(1000 + i, { flowers: i % 2 === 0, minFan: [0, 1, 3][i % 3], scoring: i % 5 === 4 ? "nofan" : "fan" });
   if (st.phase === "over") over++;
   if (st.result?.kind === "win") wins++;
-  if (st.result && st.result.pay.reduce((a, b) => a + b, 0) === 0) balanced++;
+  if (st.result && st.result.pay.reduce((a, b) => a + b, 0) === 0 && st.scores.reduce((a, b) => a + b, 0) === 0) balanced++;
   const total = st.seats.reduce((n, s) => n + s.hand.length + s.flowers.length + s.river.filter(x => x.by === undefined).length + s.melds.reduce((m, x) => m + (x.t === "kong" ? 4 : 3), 0), 0) + E.wallLeft(st);
   const claimed = st.seats.reduce((n, s) => n + s.melds.filter(m => m.open && m.from >= 0).length, 0);
   if (total - (st.result?.kind === "win" && st.result.how !== "self" && st.result.how !== "flowers" ? 1 : 0) === (st.opts.flowers ? 144 : 136)) tilesOk++;
@@ -223,16 +288,53 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   check(B.decide(offered("123m 456m 789m 234p 5s", "5s"), 1, { noise: false }).action.t === "win", "…a plain hand's three-fan win is taken");
 }
 {
+  // no fan, the computer players: every win taken at once (four concealed pungs waiting too: no limit to wait for), a
+  // kong taken for its point from each, and the dealer's first discard followed when it's the last to follow
+  const offered = (hand, k) => {
+    const st = table({ hand, seat: 1, opts: { scoring: "nofan" }, flags: { firstTurn: [false, false, false, false], follow: -1 } });
+    st.seats[0].hand.push(T(k)[0]); st.turn = 0; st.phase = "act"; st.drawn = null;
+    E.act(st, 0, { t: "discard", k: T(k)[0] });
+    return st;
+  };
+  const w = B.decide(offered("111m 333p Rd Rd Rd 5s 5s 9m 9m", "9m"), 1, { noise: false });
+  check(w.action.t === "win" && /points/.test(w.why) && !/fan/.test(w.why), `no fan: four concealed pungs in the waiting win off the discard at once (${w.why})`);
+  const kc = table({ hand: "1m 1m 1m 1m 234p 567p 89s E E", seat: 1, opts: { scoring: "nofan" }, flags: { follow: -1 } });
+  kc.turn = 1; kc.phase = "act"; kc.drawn = T("E")[0];
+  const kd = B.decide(kc, 1, { noise: false });
+  check(kd.action.t === "kong" && /a point from each/.test(kd.why), `…a kong, for its point from each of the others (${kd.why})`);
+  const fo = E.deal({ seed: 7, dealer: 0, opts: { scoring: "nofan" } });
+  for (let seat = 0; seat < 4; seat++) { const h = fo.seats[seat].hand; for (let i = 0; i < h.length; i++) if (h[i] === T("E")[0]) h[i] = T("9p")[0]; h[0] = T("E")[0]; h.sort((a, b) => a - b); }
+  for (let i = 0; i < 3; i++) {
+    const seat = E.waitingOn(fo)[0];
+    if (fo.phase !== "act") { E.act(fo, seat, { t: "pass" }); i--; continue; }
+    E.act(fo, seat, { t: "discard", k: T("E")[0] });
+  }
+  while (fo.phase !== "act") E.act(fo, E.waitingOn(fo)[0], { t: "pass" });
+  const fd = B.decide(fo, 3, { noise: false });
+  check(fo.turn === 3 && fo.flags.follow === 3 && fd.action.t === "discard" && fd.action.k === T("E")[0] && /dealer pays each of the others/.test(fd.why),
+    `…the fourth East wind after the dealer's: let go, for the point the dealer pays each (${fd.why})`);
+  // the bot that knows no fan, against the fan game's bot playing it (the same, reading the table as if fan counted),
+  // over the same deals with the seats rotated: speed and kongs over hands that pay no more
+  const asFan = st => ({ ...st, opts: { ...st.opts, scoring: "fan" } });
+  let gain = 0, hands = 0;
+  for (let d = 0; d < 12; d++) for (let rot = 0; rot < 4; rot++) {
+    const st = E.deal({ seed: 9500 + d, dealer: d % 4, opts: { scoring: "nofan" } });
+    for (let g = 0; g < 4000 && st.phase !== "over"; g++) { const seat = E.waitingOn(st)[0]; E.act(st, seat, B.decide(seat === rot ? st : asFan(st), seat, { seed: seat + 1 }).action); }
+    gain += st.scores[rot] - (st.scores.reduce((a, b) => a + b, 0) - st.scores[rot]) / 3; hands++;
+  }
+  check(gain / hands > 2, `no fan: the computer player that knows it against the fan game's, ${(gain / hands).toFixed(1)} points a hand ahead (five and a half in the arena, over 1,600 hands)`);
+}
+{
   // whole hands among four computer players, two hard and two medium: every move legal, every hand ended and paid
   let ended = 0, won = 0, paid = 0;
   for (let i = 0; i < 24; i++) {
-    const st = E.deal({ seed: 3100 + i, dealer: i % 4, opts: { flowers: i % 3 !== 2, minFan: [3, 3, 1, 0][i % 4] } });
+    const st = E.deal({ seed: 3100 + i, dealer: i % 4, opts: { flowers: i % 3 !== 2, minFan: [3, 3, 1, 0][i % 4], scoring: i % 3 === 1 ? "nofan" : "fan" } });
     for (let g = 0; g < 3000 && st.phase !== "over"; g++) { const seat = E.waitingOn(st)[0]; E.act(st, seat, B.decide(st, seat, { skill: seat % 2 ? "medium" : "hard", seed: seat + i }).action); }
     if (st.phase === "over") ended++;
     if (st.result?.kind === "win") won++;
-    if (st.result && st.result.pay.reduce((a, b) => a + b, 0) === 0) paid++;
+    if (st.result && st.result.pay.reduce((a, b) => a + b, 0) === 0 && st.scores.reduce((a, b) => a + b, 0) === 0) paid++;
   }
-  check(ended === 24 && paid === 24 && won >= 10, `24 hands among computer players, hard and medium, each legal move by move, ended and paid (${won} won)`);
+  check(ended === 24 && paid === 24 && won >= 10, `24 hands among computer players, hard and medium, fan and no fan, each legal move by move, ended and paid (${won} won)`);
 }
 {
   // against three plain efficiency players (the tile that leaves the fewest from ready, a win whenever there's one, a
@@ -324,7 +426,7 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   const { roundTrip, same } = await import("./rtdb.js");
   let moves = 0, refused = null, changed = null;
   for (let h = 0; h < 12 && !refused; h++) {
-    let g = E.deal({ seed: 700 + h, dealer: h % 4, round: 0, hand: 0, opts: { flowers: h % 2 === 0, minFan: [3, 1, 0][h % 3] } });
+    let g = E.deal({ seed: 700 + h, dealer: h % 4, round: 0, hand: 0, opts: { flowers: h % 2 === 0, minFan: [3, 1, 0][h % 3], scoring: h % 4 === 3 ? "nofan" : "fan" } });
     for (let k = 0; k < 3000 && g.phase !== "over"; k++, moves++) {
       let back;
       try { back = E.fromRoom(roundTrip(g)); } catch (e) { refused = `move ${k} of hand ${h}: ${e.message}`; break; }

@@ -11,7 +11,7 @@
 //  - calls, kongs, wins and flowers decided the same way, and every decision explained for the learning mode.
 // Rollouts were tried first: at four or five tiles from ready a few hundred playouts are mostly noise, and the bots
 // that used them dawdled; this reckoning is exact for a ready hand and smooth everywhere else.
-import { counts, complete, orphans, scoreWin, windOf, wallLeft, isHonour, isWind, isDragon, isTerminal, suitOf, base, tileName, SUIT_NAMES, WIND_NAMES, legal, rng } from "./hong-engine.js";
+import { counts, complete, orphans, scoreWin, windOf, wallLeft, isHonour, isWind, isDragon, isTerminal, suitOf, base, tileName, SUIT_NAMES, WIND_NAMES, legal, rng, noFan, payNoFan } from "./hong-engine.js";
 
 // ---------- what a seat can see ----------
 /** The seat's own tiles and everything public: who has shown what, the discards, the wall's count; never another hand. */
@@ -102,8 +102,10 @@ function shantenOrphans(c, m) {
 
 // ---------- routes: the ways a hand can reach the minimum ----------
 // any: whatever comes (its fan from flowers, the concealed hand, self-draw, value pungs); flush s: one suit (half with
-// honours, full without); pungs: all pungs; orphans: thirteen orphans.
+// honours, full without); pungs: all pungs; orphans: thirteen orphans. With no fan every win pays alike, so a flush or
+// all pungs is only a slower way to the same win: any hand, or the orphans' other shape.
 export const ROUTES = ["any", "flush0", "flush1", "flush2", "full0", "full1", "full2", "pungs", "orphans"];
+const NOFAN_ROUTES = ["any", "orphans"];
 const allows = (route, k) => {
   if (route.startsWith("flush")) return isHonour(k) || suitOf(k) === Number(route[5]);
   if (route.startsWith("full")) return k < 27 && suitOf(k) === Number(route[4]);
@@ -147,6 +149,9 @@ function ukeire(v, route, c, sh) {
 // danger: how much a point of danger weighs against a point of value; claimMargin, claimBonus: how much better a call
 // must look than letting the tile go.
 export const TUNE = { discardRate: 0.7, oppWin: 0.13, ready: 1, danger: 1, claimMargin: 1, claimBonus: 0.3, eta: 1, calls: 1, flex: 0.3 };
+// No fan pays a win four to twelve points where the fan game's minimum pays thirty-two and more: the margins below that
+// are counted in points (a call's bonus, the discards alike enough to choose among, what's worth saying) shrink by this
+const UNIT = 0.15;
 // The two strengths, as what each adds to the knobs. hard: a discard win passed up when waiting for the self-draw is
 // worth much more (wait), its discards nudged at random only among those within a quarter of a point (near); medium:
 // takes every win, defends at six tenths of hard's weight (defence), and wanders among discards within five points,
@@ -165,7 +170,13 @@ function context(v, tune = TUNE, extraDraws = 0) {
   const h = Math.min(0.4, ts.reduce((n, t) => n + t.readyAny * tune.oppWin, 0));
   // late in the hand the others hold on to what might be dangerous: a wait comes off a discard less often
   const discardRate = tune.discardRate * Math.min(1, 0.3 + v.wall / 80);
-  return { ts, U, D, h, tune, discardRate, probe: probe(v), flowerDist: flowerFan(v, D), min: v.opts.minFan, cap: v.opts.cap };
+  const nofan = noFan(v.opts);
+  return { ts, U, D, h, tune, discardRate, probe: probe(v), flowerDist: flowerFan(v, D), min: v.opts.minFan, cap: v.opts.cap, nofan, unit: nofan ? UNIT : 1, ...(nofan ? winsNoFan(v) : {}) };
+}
+/** No fan: what a win brings this seat, by self-draw and off a discard (the discarder's share averaged over who lets it go). */
+function winsNoFan(v) {
+  const others = [0, 1, 2, 3].filter(o => o !== v.seat);
+  return { winS: payNoFan(v.dealer, v.seat, true, -1)[v.seat], winD: others.reduce((a, o) => a + payNoFan(v.dealer, v.seat, false, o)[v.seat], 0) / 3 };
 }
 /** A seat at the scoring table, for scoring this seat's possible wins: its tiles swapped in for each. */
 function probe(v) {
@@ -228,6 +239,7 @@ function fanDist(v, route, c, ctx) {
 }
 /** What a win on a route would pay, and how likely it reaches the minimum, off a discard and by self-draw. */
 function payOf(dist, ctx) {
+  if (ctx.nofan) return { rD: 1, vD: ctx.winD, rS: 1, vS: ctx.winS, fan: 0 };   // any hand, every win alike
   let rD = 0, vD = 0, rS = 0, vS = 0;
   dist.forEach((p, f) => {
     if (!p) return;
@@ -246,6 +258,9 @@ const family = route => (route.startsWith("flush") ? "flush" : route.startsWith(
 // keeps honours for their fan, and pairs of them improve little), measured in the bots' own play
 const ETA = { any: [1, 0.9, 0.47, 0.47, 0.47, 0.47, 0.47, 0.47, 0.47], flush: [1, 0.95, 0.75, 0.88, 0.85, 0.85, 0.85, 0.85, 0.85],
   full: [1, 0.9, 0.9, 1, 1, 1, 1, 1, 1], pungs: [1, 0.75, 0.7, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6], orphans: [1, 0.85, 0.85, 0.8, 0.85, 0.9, 0.9, 0.9, 0.9] };
+// with no fan a plain hand two or more from ready is reckoned slower still: against the reckoning above, a seat that
+// did so came out about a point a hand ahead over 3,000 hands (0.47, 0.35, 0.25, 0.2 and 0.12 tried; 0.2 best)
+const ETA_NOFAN_ANY = [1, 0.9, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2];
 // a ready hand is named by its most particular route: "a half flush in bamboo, ready", not "a plain hand"
 const SPECIFIC = { any: 0, orphans: 1, pungs: 2, flush: 3, full: 4 };
 /**
@@ -285,6 +300,12 @@ function readyParams(v, c, ctx) {
     const ok = complete(c, need) || (need === 4 && orphans(c));
     c[k]--;
     if (!ok) continue;
+    if (ctx.nofan) {                                              // every wait alike: what a win pays here
+      const n = v.unseen[k];
+      waits.push({ k, n, fanD: 0, fanS: 0 });
+      if (n) { nS += n; sS += n * ctx.winS; if (!v.passBlock) { nD += n; sD += n * ctx.winD; } }
+      continue;
+    }
     seat.hand = tiles;
     const d = scoreWin(ctx.probe, { seat: v.seat, tile: k, how: "discard" }).fan;
     seat.hand = [...tiles, k];
@@ -347,9 +368,9 @@ function routeChance(v, route, sh, uk, c, ctx) {
   const T = TYPICAL[family(route)], t = ctx.tune;
   const cf = route === "orphans" ? 0 : (v.melds.length || route !== "any" ? 0.3 : 0.1) * t.calls;
   const qs = [];
-  const eta = ETA[family(route)];
+  const eta = ctx.nofan && route === "any" ? ETA_NOFAN_ANY : ETA[family(route)];
   for (let s = sh; s >= 1; s--) qs.push(Math.min(0.8, (s === sh ? uk / ctx.U : T[s]) * (1 + cf) * eta[s] * t.eta));
-  const pay = payOf(fanDist(v, route, c, ctx), ctx), n0 = T[0];
+  const pay = payOf(ctx.nofan ? null : fanDist(v, route, c, ctx), ctx), n0 = T[0];
   const ready = { pS: pay.rS * n0, vS: pay.vS, pD: pay.rD * 3 * ctx.discardRate * (showsFlush(v) ? 0.35 : 1) * n0, vD: pay.vD };
   return { ...chance(qs, ready, ctx.D, ctx.h), fan: Math.round(pay.fan * 10) / 10 };
 }
@@ -360,7 +381,7 @@ function routeChance(v, route, sh, uk, c, ctx) {
 export function evaluate(v, c, ctx) {
   const routes = [];
   let ready = null, near;
-  for (const route of ROUTES) {
+  for (const route of ctx.nofan ? NOFAN_ROUTES : ROUTES) {
     const sh = routeShanten(route, c, v.melds);
     if (sh >= 7) continue;
     if (sh <= 0) {                                                // ready on this route: the hand's waits, exactly
@@ -409,9 +430,20 @@ export function threats(v, tune = TUNE) {
     if (melds.every(m => m.t !== "chow")) maxFan += 3;            // still could be all pungs
     else if (melds.every(m => m.t === "chow")) maxFan += 1;       // all chows
     maxFan += melds.length < 4 ? 2 : 0;                           // hidden value pungs, at most a couple
+    const dragonSets = melds.filter(m => m.t !== "chow" && isDragon(m.k)).length;
+    if (noFan(v.opts)) {
+      // no fan: any hand takes a discard and none is worth chasing a flush for; dealing in costs twice my share (doubled
+      // when the dealer is the winner or me), less what I'd pay anyway if they won another way
+      const x = o.seat === v.dealer || v.seat === v.dealer ? 2 : 1;
+      out.push({
+        seat: o.seat, canTake: true, flushSuit: -1, fanEst: 0, dragonSets, melds: melds.length, river: o.river, passed: passed[o.seat],
+        ready: Math.min(1, readyDisc(melds.length, turns) * tune.ready), readyAny: Math.min(1, readyAny(melds.length, turns) * tune.ready),
+        pungish: melds.length >= 2 && melds.every(m => m.t !== "chow"), loss: 2 * x - 0.3 * 1.5 * x,
+      });
+      continue;
+    }
     const canTake = maxFan >= v.opts.minFan;
     const fanEst = Math.min(cap, Math.max(v.opts.minFan, fanNow + (flushSuit >= 0 ? (honoursDown ? 3 : 5) : 0) + (melds.length ? 1 : 2)));
-    const dragonSets = melds.filter(m => m.t !== "chow" && isDragon(m.k)).length;
     out.push({
       seat: o.seat, canTake, flushSuit, fanEst, dragonSets, melds: melds.length, river: o.river, passed: passed[o.seat],
       ready: canTake ? Math.min(1, readyDisc(melds.length, turns) * tune.ready + (flushSuit >= 0 ? 0.08 : 0)) : 0,
@@ -455,6 +487,7 @@ function danger(v, k, ts) {
   let d = 0;
   for (const t of ts) {
     d += t.ready * hitChance(v, k, t) * t.loss;
+    if (noFan(v.opts)) continue;                                   // no liability without fan
     // liability (包): handing them a fourth set, or a third dragon set, makes me pay the whole of their self-drawn win
     const pairLikely = v.unseen[k] >= 2 ? 0.12 : 0;
     const chowable = t.seat === (v.seat + 1) % 4 && k < 27 ? 0.12 : 0;
@@ -472,12 +505,29 @@ export function weighDiscards(v, { tune = TUNE, ctx = context(v, tune) } = {}) {
     c[k]--;
     const e = evaluate(v, c, ctx);
     c[k]++;
-    const risk = danger(v, k, ctx.ts) * tune.danger;
-    return { k, ...e, risk, score: e.value - risk };
+    const risk = danger(v, k, ctx.ts) * tune.danger, follow = followWorth(v, k, ctx);
+    return { k, ...e, risk, follow, score: e.value - risk + follow };
   });
   return rows.sort((a, b) => b.score - a.score || a.risk - b.risk || a.sh - b.sh || b.uk.n - a.uk.n || a.k - b.k);
 }
 
+/**
+ * No fan, 跟莊: the dealer's first discard followed by the same tile from each of the others in turn, the dealer pays
+ * each of them 1. Following, while all before have: worth that point by the chance the rest follow too (the last of
+ * them, certain; the others are taken to follow about a third of the time). The dealer's first discard: what being
+ * followed would cost, by the chance each of the others holds the tile and lets it go.
+ */
+function followWorth(v, k, ctx) {
+  const f = v.flags;
+  if (!ctx.nofan || !f || f.calls > 0 || f.follow < 0 || f.follow > 3) return 0;
+  if (f.follow === 0) {
+    if (v.seat !== v.dealer) return 0;
+    const q = Math.min(0.6, 13 * v.unseen[k] / ctx.U) * (isHonour(k) ? 0.9 : 0.5);
+    return -3 * q ** 3;
+  }
+  if (k !== f.followK || v.seat !== (v.dealer + f.follow) % 4) return 0;
+  return f.follow === 3 ? 1 : f.follow === 2 ? 0.35 : 0.12;
+}
 /**
  * The decision for a seat now, with its reasons: { action, why, rows (the discards weighed), threats, stay }.
  */
@@ -487,8 +537,15 @@ export function decide(state, seat, { tune = {}, skill = "hard", seed = 1, noise
   const v = view(state, seat);
   const t = { ...TUNE, ...(SKILLS[skill] || SKILLS.hard), ...tune };
   t.danger *= t.defence ?? 1;
+  const nofan = noFan(v.opts);
+  if (nofan) { t.near *= UNIT; t.temper *= UNIT; t.claimBonus *= UNIT; }   // the margins in points, at no fan's scale
   const r = noise ? rng((seed * 2654435761 + state.log.length * 97 + (state.hand || 0) * 7919 + seat * 131) >>> 0) : null;
   const win = options.find(a => a.t === "win");
+  if (nofan && win) {
+    // every win pays alike and a self-draw only a little more: taken at once
+    const self = state.phase === "act", pts = payNoFan(v.dealer, seat, self, self ? -1 : state.last.seat)[seat];
+    return { action: { t: "win" }, why: `Win: ${pts} points, ${self ? "self-drawn" : `off ${seatName(v, state.last.seat)}'s ${state.phase === "rob" ? "kong" : "discard"}`}.`, fan: 0, value: pts };
+  }
   if (win) {
     const w = state.phase === "claim" ? weighWait(v, win, t) : null;
     if (w?.wait && t.wait) return w.wait;
@@ -544,18 +601,20 @@ function decideTurn(state, v, options, tune, r = null) {
     const melds = a.how === "concealed" ? [...v.melds, { t: "kong", k: a.k, open: false }] : v.melds.map(m => (m.t === "pung" && m.k === a.k ? { ...m, t: "kong" } : m));
     const v2 = { ...v, melds };
     const e = evaluate(v2, c, context(v2, tune, 1));
-    const rob = a.how === "added" ? danger(v, a.k, ctx.ts) * 1.25 * tune.danger : 0, value = e.value - rob;
-    const kong = { action: a, title: `Kong ${tileName(a.k)}`, value, pros: ["a free draw from the end of the wall, and a win on it is a fan more"], cons: [] };
-    if (a.how === "added" && rob >= 1) kong.cons.push(`someone waiting on ${tileName(a.k)} could rob it: about ${Math.round(rob)} points of danger`);
-    if (value >= best.score - 0.25) {
-      const why = a.how === "added" ? `Kong: add the fourth ${tileName(a.k)} to the pung for an extra draw${rob > 1 ? "" : " (no one looks ready to rob it)"}.`
-        : `Kong: four ${tileName(a.k)} make a set either way, and the kong brings a free draw.`;
+    // no fan: a kong that stands takes a point from each of the others, there and then
+    const rob = a.how === "added" ? danger(v, a.k, ctx.ts) * 1.25 * tune.danger : 0, value = e.value - rob + (ctx.nofan ? 3 : 0);
+    const kong = { action: a, title: `Kong ${tileName(a.k)}`, value, pros: [ctx.nofan ? "a point from each of the others now, and a free draw from the end of the wall" : "a free draw from the end of the wall, and a win on it is a fan more"], cons: [] };
+    if (a.how === "added" && rob >= ctx.unit) kong.cons.push(`someone waiting on ${tileName(a.k)} could rob it: about ${points(rob)} points of danger`);
+    if (value >= best.score - 0.25 * ctx.unit) {
+      const paid = ctx.nofan ? " and a point from each of the others" : "";
+      const why = a.how === "added" ? `Kong: add the fourth ${tileName(a.k)} to the pung for an extra draw${paid}${rob > ctx.unit ? "" : " (no one looks ready to rob it)"}.`
+        : `Kong: four ${tileName(a.k)} make a set either way; the kong brings a free draw${paid}.`;
       return { action: a, why, rows, threats: ctx.ts, options: [kong, ...discardOptions(v, rows, ctx), ...kongs] };
     }
     // what what's left of the hand loses by it, against the discard
     if (e.sh > best.sh) kong.cons.push(`what's left is a step further from ready (${shantenWords(e.sh)})`);
     if (e.p <= best.p - 0.02) kong.cons.push(`wins less often (${pct(e.p)} against ${pct(best.p)})`);
-    if (best.score - value >= 0.5) kong.cons.push(`about ${points(best.score - value)} points worse on balance than letting go ${tileName(best.k)}`);
+    if (best.score - value >= 0.5 * ctx.unit) kong.cons.push(`about ${points(best.score - value)} points worse on balance than letting go ${tileName(best.k)}`);
     kongs.push(kong);
   }
   return { action: { t: "discard", k: best.k }, why: explainDiscard(v, best, rows, ctx), rows, threats: ctx.ts, options: [...discardOptions(v, rows, ctx), ...kongs] };
@@ -581,20 +640,20 @@ function decideClaim(state, v, options, tune) {
     const v2 = { ...v, hand: tilesOf(cc), melds: [...v.melds, meld] };
     let value, row = null;
     let e = null;
-    if (a.t === "kong") { e = evaluate(v2, cc, context(v2, tune, 1)); value = e.value; }   // and a replacement draw
+    if (a.t === "kong") { e = evaluate(v2, cc, context(v2, tune, 1)); value = e.value + (ctx.nofan ? 3 : 0); }   // and a replacement draw (no fan: a point from each)
     else { row = weighDiscards(v2, { tune, ctx: context(v2, tune) })[0]; value = row.score; }
     weighed.push({ a, value, row, e });
     if (value > best.value * tune.claimMargin + tune.claimBonus) { best = { action: a, value }; bestRow = row; }
   }
-  const choices = claimOptions(v, k, stay, passValue, weighed, best.action);
+  const choices = claimOptions(v, k, stay, passValue, weighed, best.action, ctx);
   if (best.action.t === "pass") {
-    const why = stay.ev < 0.5 ? `Pass: calling ${tileName(k)} doesn't bring the hand within reach of the minimum fan.`
+    const why = stay.ev < 0.5 * ctx.unit ? `Pass: calling ${tileName(k)} doesn't bring the hand within reach of ${ctx.nofan ? "a win" : "the minimum fan"}.`
       : `Pass: the hand does better as it is (${pct(stay.p)} to win) than with ${tileName(k)} called.`;
     return { action: best.action, why, stay, options: choices };
   }
   const a = best.action;
   const what = a.t === "chow" ? `Chow ${tileName(a.k)} to ${tileName(a.k + 2)}` : `${a.t === "pung" ? "Pung" : "Kong"} ${tileName(k)}`;
-  const value = isValue(v, k) && a.t !== "chow" ? ": a value honour, one fan" : "";
+  const value = ctx.nofan ? (a.t === "kong" ? ": a point from each of the others" : "") : isValue(v, k) && a.t !== "chow" ? ": a value honour, one fan" : "";
   const then = bestRow ? `; then ${tileName(bestRow.k)} goes, ${shantenWords(bestRow.sh)} on ${routeName(bestRow.route)}, ${pct(bestRow.p)} to win` : "";
   return { action: a, why: `${what}${value}${then} (${pct(stay.p)} without it).`, stay, rows: bestRow ? [bestRow] : undefined, options: choices };
 }
@@ -606,7 +665,7 @@ function dangerFrom(v, k, ts) {
   for (const t of ts) { const d = t.ready * hitChance(v, k, t) * t.loss; if (d > most) { most = d; worst = t; } }
   return worst;
 }
-const points = x => (x >= 10 ? `${Math.round(x)}` : x.toFixed(1));
+const points = x => (x >= 10 ? `${Math.round(x)}` : x >= 0.095 ? x.toFixed(1) : x.toFixed(2));
 const waitsOf = r => {
   const live = (r.waits || []).filter(w => w.n > 0);
   return live.length ? `waiting on ${live.map(w => tileName(w.k)).join(", ")} (${live.reduce((a, w) => a + w.n, 0)} left)` : "waiting on tiles all gone";
@@ -614,6 +673,7 @@ const waitsOf = r => {
 /** The discards weighed, the choice and the next three (and the tile `also`, if it isn't among them), each with what
  *  speaks for it and against it. */
 function discardOptions(v, rows, ctx, also = null) {
+  const u = ctx.unit ?? (noFan(v.opts) ? UNIT : 1);                // a point's weight at this table (no fan: smaller wins)
   const b = rows[0], bOther = b.routes?.find(x => x.route !== b.route && x.ev > 0);
   const fastest = rows.reduce((a, x) => (x.ev > a.ev ? x : a)), safest = rows.reduce((a, x) => (x.risk < a.risk ? x : a));
   const shown = rows.slice(0, 4);
@@ -625,10 +685,11 @@ function discardOptions(v, rows, ctx, also = null) {
       if (other) pros.push(`${routeName(other.route)} stays open too (${shantenWords(other.sh)})`);
       const passer = ctx.ts.find(t => t.ready >= 0.3 && t.passed.has(r.k));
       if (passer) pros.push(`certain against ${seatName(v, passer.seat)}, who let it go since drawing`);
-      else if (r.risk < 0.5) pros.push("safe: no one who looks ready is likely to want it");
-      if (fastest !== r && fastest.ev > r.ev + 0.5) cons.push(`${tileName(fastest.k)} would win more often (${pct(fastest.p)}), but it carries about ${points(fastest.risk)} points of danger`);
-      else if (safest !== r && r.risk - safest.risk >= 1) cons.push(`${tileName(safest.k)} is safer, by about ${points(r.risk - safest.risk)} points of danger, but slower`);
-      if (r.risk >= 1) { const t = dangerFrom(v, r.k, ctx.ts); cons.push(`about ${points(r.risk)} points of danger${t ? `, mostly from ${seatName(v, t.seat)}` : ""}`); }
+      else if (r.risk < 0.5 * u) pros.push("safe: no one who looks ready is likely to want it");
+      if (r.follow > 0) pros.push(followWords(v, r));
+      if (fastest !== r && fastest.ev > r.ev + 0.5 * u) cons.push(`${tileName(fastest.k)} would win more often (${pct(fastest.p)}), but it carries about ${points(fastest.risk)} points of danger`);
+      else if (safest !== r && r.risk - safest.risk >= u) cons.push(`${tileName(safest.k)} is safer, by about ${points(r.risk - safest.risk)} points of danger, but slower`);
+      if (r.risk >= u) { const t = dangerFrom(v, r.k, ctx.ts); cons.push(`about ${points(r.risk)} points of danger${t ? `, mostly from ${seatName(v, t.seat)}` : ""}`); }
     } else {
       if (r.route !== b.route) (r.ev >= b.ev ? pros : cons).push(`aims at ${routeName(r.route)} instead`);
       if (r.sh < b.sh) pros.push(r.sh <= 0 ? `ready at once, ${waitsOf(r)}` : `a step nearer ready (${shantenWords(r.sh)})`);
@@ -639,13 +700,15 @@ function discardOptions(v, rows, ctx, also = null) {
       else if (r.p <= b.p - 0.02) cons.push(`wins less often (${pct(r.p)} against ${pct(b.p)})`);
       if (r.fan >= b.fan + 0.5) pros.push(`a bigger hand (about ${r.fan} fan against ${b.fan})`);
       else if (r.fan <= b.fan - 0.5) cons.push(`a smaller hand (about ${r.fan} fan against ${b.fan})`);
-      if (r.risk >= b.risk + 1) { const t = dangerFrom(v, r.k, ctx.ts); cons.push(`riskier: about ${points(r.risk)} points of danger${t ? `, mostly from ${seatName(v, t.seat)}` : ""}`); }
-      else if (r.risk <= b.risk - 1) pros.push(`safer, by about ${points(b.risk - r.risk)} points of danger`);
+      if (r.risk >= b.risk + u) { const t = dangerFrom(v, r.k, ctx.ts); cons.push(`riskier: about ${points(r.risk)} points of danger${t ? `, mostly from ${seatName(v, t.seat)}` : ""}`); }
+      else if (r.risk <= b.risk - u) pros.push(`safer, by about ${points(b.risk - r.risk)} points of danger`);
+      if (r.follow > b.follow + 0.05) pros.push(followWords(v, r));
+      else if (b.follow > r.follow + 0.05) cons.push(`doesn't follow the dealer's ${tileName(v.flags.followK)}, as ${tileName(b.k)} does`);
       if (other && !b.routes?.some(x => x.route === other.route && x.ev > 0)) pros.push(`keeps ${routeName(other.route)} open`);
       if (bOther && bOther.route !== r.route && !r.routes?.some(x => x.route === bOther.route && x.ev > 0)) cons.push(`closes ${routeName(bOther.route)}, the hand's other way`);
       if (r.route === b.route && r.sh === b.sh && Math.abs(r.uk.n - b.uk.n) < 3) pros.push(`leaves the hand as far along: ${shantenWords(r.sh)} on ${routeName(r.route)}, ${r.uk.n} tiles to help`);
       const gap = b.score - r.score;
-      if (gap > 0.05 && !cons.length) {
+      if (gap > 0.05 * u && !cons.length) {
         // nothing above says why: the way it weakens most, or its danger
         let worst = null, drop = 0.01;
         for (const x of b.routes || []) {
@@ -655,47 +718,53 @@ function discardOptions(v, rows, ctx, also = null) {
         }
         // a route can win as often and still be worth less: its ready hands would wait on cheaper tiles
         const { x, y } = worst || {};
-        if (worst && (!y || y.p < x.p - 0.005)) cons.push(`${gap >= 0.5 ? "weakens" : "a shade less for"} ${routeName(x.route)}${y ? ` (${pct(y.p)} to win that way, against ${pct(x.p)})` : ", which it ends"}`);
+        if (worst && (!y || y.p < x.p - 0.005)) cons.push(`${gap >= 0.5 * u ? "weakens" : "a shade less for"} ${routeName(x.route)}${y ? ` (${pct(y.p)} to win that way, against ${pct(x.p)})` : ", which it ends"}`);
         else if (worst) cons.push(`wins ${y.p > x.p + 0.005 ? "a little more often" : "as often"} (${pct(y.p)} against ${pct(x.p)}), but its wins would pay less: about ${points(y.ev)} points to expect from ${routeName(x.route)}, against ${points(x.ev)}`);
         else if (r.risk > b.risk) cons.push(`a shade riskier (about ${points(r.risk)} points of danger against ${points(b.risk)})`);
       }
-      if (gap >= 0.5) cons.push(`about ${points(gap)} points worse on balance`);
-      else if (gap <= 0.05) pros.push("as good on balance: either would do");
+      if (gap >= 0.5 * u) cons.push(`about ${points(gap)} points worse on balance`);
+      else if (gap <= 0.05 * u) pros.push("as good on balance: either would do");
     }
     return { action: { t: "discard", k: r.k }, title: `Discard ${tileName(r.k)}`, pros, cons, value: r.score };
   });
 }
+/** A discard that follows the dealer's first, in words (no fan, 跟莊). */
+function followWords(v, r) {
+  const t = tileName(v.flags.followK);
+  return v.flags.follow === 3 ? `the fourth ${t} in a row, after the dealer's: the dealer pays each of the others a point`
+    : `follows the dealer's ${t}: if the rest follow too, the dealer pays each of the others a point`;
+}
 /** A claim's choices: letting the tile go, and each call, with what the hand would be after it. */
-function claimOptions(v, k, stay, passValue, weighed, chosen) {
-  const concealed = !v.melds.length;
+function claimOptions(v, k, stay, passValue, weighed, chosen, ctx = {}) {
+  const concealed = !v.melds.length, nofan = noFan(v.opts), u = nofan ? UNIT : 1;
   const pass = { action: { t: "pass" }, title: "Pass", pros: [], cons: [] };
-  pass.pros.push(stay.ev < 0.5 ? "the hand keeps its shape, though it's far from the minimum either way" : `the hand as it is: ${shantenWords(stay.sh)} on ${routeName(stay.route)}, ${pct(stay.p)} to win`);
-  if (concealed) pass.pros.push("stays concealed: a fan for that, and nothing shown to read");
+  pass.pros.push(stay.ev < 0.5 * u ? `the hand keeps its shape, though it's far from ${nofan ? "a win" : "the minimum"} either way` : `the hand as it is: ${shantenWords(stay.sh)} on ${routeName(stay.route)}, ${pct(stay.p)} to win`);
+  if (concealed) pass.pros.push(nofan ? "stays concealed: nothing shown to read" : "stays concealed: a fan for that, and nothing shown to read");
   const out = [pass];
   for (const { a, value, row, e } of weighed) {
     const what = a.t === "chow" ? `Chow ${tileName(a.k)} to ${tileName(a.k + 2)}` : `${a.t === "pung" ? "Pung" : "Kong"} ${tileName(k)}`;
     const pros = [], cons = [], after = row || e;
-    if (a.t !== "chow" && isValue(v, k)) pros.push("a value honour: a fan for the set");
-    if (a.t === "kong") pros.push("a free draw from the end of the wall");
+    if (a.t !== "chow" && isValue(v, k) && !nofan) pros.push("a value honour: a fan for the set");
+    if (a.t === "kong") pros.push(nofan ? "a point from each of the others, and a free draw from the end of the wall" : "a free draw from the end of the wall");
     if (after) {
       const at = after.sh <= 0 ? "ready" : shantenWords(after.sh);
       pros.push(`${row ? `then ${tileName(row.k)} goes: ` : ""}${at} on ${routeName(after.route)}, ${pct(after.p)} to win`);
-      if (after.route !== stay.route && stay.ev >= 0.5) cons.push(`gives up ${routeName(stay.route)} for ${routeName(after.route)}`);
+      if (after.route !== stay.route && stay.ev >= 0.5 * u) cons.push(`gives up ${routeName(stay.route)} for ${routeName(after.route)}`);
       if (after.fan <= stay.fan - 0.5) cons.push(`a smaller hand (about ${after.fan} fan against ${stay.fan})`);
       else if (after.fan >= stay.fan + 0.5) pros.push(`a bigger hand (about ${after.fan} fan against ${stay.fan})`);
       if (after.sh < stay.sh) pros.push(`a step nearer ready than passing (${shantenWords(stay.sh)})`);
       if (after.p <= stay.p - 0.02) cons.push(`wins less often than passing (${pct(after.p)} against ${pct(stay.p)})`);
       else if (after.p >= stay.p + 0.02) pros.push(`wins more often than passing (${pct(after.p)} against ${pct(stay.p)})`);
-      if (row && row.risk >= 1) cons.push(`the discard after it carries about ${points(row.risk)} points of danger`);
+      if (row && row.risk >= u) cons.push(`the discard after it carries about ${points(row.risk)} points of danger`);
     }
-    if (concealed) cons.push("opens the hand: the concealed hand's fan goes, and the others see a set to read");
+    if (concealed) cons.push(nofan ? "opens the hand: the others see a set to read" : "opens the hand: the concealed hand's fan goes, and the others see a set to read");
     if (a.t === "chow" && v.melds.length >= 2) cons.push("a third set shown leaves few tiles to defend with");
     const gap = passValue - value;
-    if (gap >= 0.5) cons.push(`about ${points(gap)} points worse on balance than passing`);
-    else if (-gap >= 0.5 && !sameAct(a, chosen)) pros.push(`about ${points(-gap)} points better than passing, short of the margin a call must clear`);
+    if (gap >= 0.5 * u) cons.push(`about ${points(gap)} points worse on balance than passing`);
+    else if (-gap >= 0.5 * u && !sameAct(a, chosen)) pros.push(`about ${points(-gap)} points better than passing, short of the margin a call must clear`);
     out.push({ action: a, title: what, pros, cons, value });
   }
-  for (const o of out.slice(1)) if (o.value > passValue + 0.5) pass.cons.push(`slower than ${o.title.charAt(0).toLowerCase() + o.title.slice(1)} (${pct(stay.p)} to win as it is)`);
+  for (const o of out.slice(1)) if (o.value > passValue + 0.5 * u) pass.cons.push(`slower than ${o.title.charAt(0).toLowerCase() + o.title.slice(1)} (${pct(stay.p)} to win as it is)`);
   pass.value = passValue;
   const i = out.findIndex(o => sameAct(o.action, chosen));
   if (i > 0) out.unshift(out.splice(i, 1)[0]);
@@ -707,17 +776,17 @@ function claimOptions(v, k, stay, passValue, weighed, chosen) {
  * two of them, gap the points of expected winnings between them (null when it can't say).
  */
 export function explainMove(state, seat, action) {
-  const d = decide(state, seat, { noise: false });
+  const d = decide(state, seat, { noise: false }), unit = noFan(state.opts) ? UNIT : 1;
   if (d.rows && action.t === "discard" && d.action.t === "discard") {
-    const list = [...discardOptions(view(state, seat), d.rows, { ts: d.threats }, action.k), ...d.options.filter(o => o.action.t === "kong")];
+    const list = [...discardOptions(view(state, seat), d.rows, { ts: d.threats, unit }, action.k), ...d.options.filter(o => o.action.t === "kong")];
     const row = d.rows.find(r => r.k === action.k);
-    return { decision: d, options: list, best: list[0], mine: list.find(o => sameAct(o.action, action)) || null, gap: row ? Math.max(0, d.rows[0].score - row.score) : null };
+    return { decision: d, options: list, best: list[0], mine: list.find(o => sameAct(o.action, action)) || null, gap: row ? Math.max(0, d.rows[0].score - row.score) : null, unit };
   }
   const opts = d.options ? d.options.slice() : [];
   let best = opts.find(o => sameAct(o.action, d.action));
   if (!best) {
     // a win on your own draw: what it pays now, all three paying
-    const v = view(state, seat), value = d.action.t === "win" && state.phase === "act" ? 6 * base(Math.min(v.opts.cap, d.fan)) : undefined;
+    const v = view(state, seat), value = d.action.t === "win" && state.phase === "act" ? (unit < 1 ? d.value : 6 * base(Math.min(v.opts.cap, d.fan))) : undefined;
     best = { action: d.action, title: d.why.split(":")[0], pros: value ? [`${value} points now, certain`] : [], cons: [], value };
     opts.unshift(best);
   }
@@ -731,7 +800,7 @@ export function explainMove(state, seat, action) {
     }
   }
   const gap = best.value != null && mine?.value != null ? Math.max(0, best.value - mine.value) : null;
-  return { decision: d, options: opts, best, mine, gap };
+  return { decision: d, options: opts, best, mine, gap, unit };
 }
 const sameAct = (a, b) => a.t === b.t && (a.k ?? null) === (b.k ?? null);
 /**
@@ -740,12 +809,12 @@ const sameAct = (a, b) => a.t === b.t && (a.k ?? null) === (b.k ?? null);
  * worse by (null when it can't say), against: what tells most against yours, at most two reasons }.
  */
 export function differ(j, action) {
-  const best = j.best?.action || j.decision.action;
-  if (sameAct(best, action) || (j.gap != null && j.gap < 0.1)) return null;
+  const best = j.best?.action || j.decision.action, unit = j.unit ?? 1;
+  if (sameAct(best, action) || (j.gap != null && j.gap < 0.1 * unit)) return null;
   // what the points come from first: further from ready, fewer wins, a smaller hand, more danger; then the rest in turn
   const weight = c => { const i = WEIGHED.findIndex(re => re.test(c)); return i < 0 ? WEIGHED.length : i; };
   const against = (j.mine?.cons || []).filter(c => !/on balance/.test(c)).map((c, i) => ({ c, i })).sort((x, y) => weight(x.c) - weight(y.c) || x.i - y.i);
-  return { coach: best, gap: j.gap, against: against.slice(0, 2).map(x => x.c) };
+  return { coach: best, gap: j.gap, against: against.slice(0, 2).map(x => x.c), unit };
 }
 const WEIGHED = [/further from ready/, /wins less often/, /smaller hand/, /danger/];
 const NOUN = {
@@ -757,10 +826,10 @@ const VERB = {
   chow: a => `chow ${tileName(a.k)} to ${tileName(a.k + 2)}`, win: () => "win", flowers: () => "win on the flowers",
 };
 /** differ's answer in words: "Your 5 dots: about 2.3 points worse than the coach's 9 bamboo. A step further from ready…" */
-export function differWords(mine, { coach, gap, against = [] }) {
+export function differWords(mine, { coach, gap, against = [], unit = 1 }) {
   const yours = `Your ${NOUN[mine.t]?.(mine) ?? mine.t}`;
   const head = gap == null ? `${yours}: the coach would rather ${VERB[coach.t]?.(coach) ?? coach.t}`
-    : `${yours}: ${gap >= 0.5 ? `about ${points(gap)} points` : "a shade"} worse than the coach's ${NOUN[coach.t]?.(coach) ?? coach.t}`;
+    : `${yours}: ${gap >= 0.5 * unit ? `about ${points(gap)} points` : "a shade"} worse than the coach's ${NOUN[coach.t]?.(coach) ?? coach.t}`;
   return `${head}.${against.length ? ` ${against.join("; ").replace(/^./, c => c.toUpperCase())}.` : ""}`;
 }
 
@@ -781,16 +850,17 @@ function explainDiscard(v, best, rows, ctx) {
   const scary = ctx.ts.filter(x => x.ready >= 0.3).sort((a, b) => b.ready * b.loss - a.ready * a.loss)[0];
   const who = scary ? seatName(v, scary.seat) : "";
   // the fastest discard, if safety made it another
-  const fastest = rows.reduce((a, b) => (b.ev > a.ev ? b : a));
-  if (best.ev < 0.5) return `Discard ${t}: no way to the minimum fan in time, so it plays the safest tile${scary ? ` (${who} looks ready)` : ""}.`;
+  const fastest = rows.reduce((a, b) => (b.ev > a.ev ? b : a)), u = ctx.unit;
+  if (best.ev < 0.5 * u) return `Discard ${t}: no way to ${ctx.nofan ? "a win" : "the minimum fan"} in time, so it plays the safest tile${scary ? ` (${who} looks ready)` : ""}.`;
   let s;
   if (best.sh === 0) {
     const live = best.waits.filter(w => w.n > 0 && w.fanS >= ctx.min);
     const names = live.length ? live.map(w => tileName(w.k)).join(", ") : best.waits.map(w => tileName(w.k)).join(", ");
     const n = live.reduce((a, w) => a + w.n, 0);
-    s = `Discard ${t}: ready, waiting on ${names} (${n} left)${best.selfOnly ? ", by self-draw only" : `, ${best.fan} fan`}; ${pct(best.p)} to win.`;
+    s = `Discard ${t}: ready, waiting on ${names} (${n} left)${best.selfOnly ? ", by self-draw only" : ctx.nofan ? "" : `, ${best.fan} fan`}; ${pct(best.p)} to win.`;
   } else s = `Discard ${t}: keeps ${routeName(best.route)}, ${shantenWords(best.sh)}, ${best.uk.n} tiles would help; ${pct(best.p)} to win.`;
-  if (fastest !== best && fastest.ev - best.ev > 0.5 && fastest.risk > best.risk) s += ` ${tileName(fastest.k)} would be faster but could feed ${who || "someone"}.`;
+  if (best.follow > 0) s += ` ${followWords(v, best).replace(/^./, c => c.toUpperCase())}.`;
+  else if (fastest !== best && fastest.ev - best.ev > 0.5 * u && fastest.risk > best.risk) s += ` ${tileName(fastest.k)} would be faster but could feed ${who || "someone"}.`;
   else if (scary && scary.passed.has(best.k)) s += ` It's safe against ${who}, who let it go since drawing.`;
   else {
     // several tiles the route doesn't need, alike to it: the one chosen is the least use to the hand's other way
