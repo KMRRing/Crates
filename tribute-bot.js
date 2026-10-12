@@ -309,8 +309,8 @@ export function unseen(state, seat) {
   return out;
 }
 /**
- * The table as a seat sees it: the unseen cards by rank (those known to be with the partner left out of the
- * opponents' share), each player's count, the tribute's caps, and what each player has led and passed on.
+ * The table as a seat sees it: the cards it hasn't seen, and of each other player what's known to be his and what
+ * could be (view), each player's count, the tribute's caps, and what each player has led and passed on.
  */
 function knowledge(state, seat, deep = true) {
   const level = state.level, mate = partnerOf(seat);
@@ -319,16 +319,6 @@ function knowledge(state, seat, deep = true) {
   const known = new Map();                                       // card → the seat known to hold it (tribute, return)
   if (state.tribute) for (const x of [...(state.tribute.pays || []), ...(state.tribute.returns || [])]) if (x.card != null) known.set(x.card, x.to);
   const others = unseen(state, seat);
-  const nat = new Array(15).fill(0);
-  let wilds = 0, sj = 0, bj = 0, total = 0;
-  for (const id of others) {
-    if (known.size && known.get(id) === mate) continue;          // with the partner, not the opponents
-    total++;
-    if (isWild(id, level)) wilds++;
-    else if (rankOf(id) === SJ) sj++;
-    else if (rankOf(id) === BJ) bj++;
-    else nat[rankOf(id)]++;
-  }
   // what each player has led, passed on cheaply, and how many cards he held then
   const table = [0, 1, 2, 3].map(() => ({ leads: {}, passes: {} }));
   const voids = [0, 1, 2, 3].map(() => ({}));                  // a kind a player passed on from the other side: { key, f }
@@ -356,10 +346,47 @@ function knowledge(state, seat, deep = true) {
   }
   const caps = [null, null, null, null];                        // a payer held nothing above the card he paid (wilds aside)
   if (state.tribute?.pays) for (const p of state.tribute.pays) if (p.card != null) caps[p.from] = valueOf(p.card, level);
+  const resisted = state.tribute?.kind === "resisted" ? state.tribute.payers : null;
+  const view = [];
+  for (let o = 0; o < 4; o++) if (o !== seat) view[o] = viewOf(o, level, others, known, caps, resisted, counts[o]);
   return {
-    level, seat, mate, opps, counts, next: (seat + 1) % 4, prev: (seat + 3) % 4, others, known, nat, wilds, sj, bj, total,
-    table, voids, passes, caps, resisted: state.tribute?.kind === "resisted" ? state.tribute.payers : null,
+    level, seat, mate, opps, counts, next: (seat + 1) % 4, prev: (seat + 3) % 4, others, known, view,
+    table, voids, passes, caps, resisted,
   };
+}
+/**
+ * What another player may hold, counting every card played: the cards known to be his (a tribute card paid to him, a
+ * card given back to him), and the share of the rest of the unseen that could be his: not a card known to be someone
+ * else's, nothing above the card he paid in tribute (wilds aside), the big jokers only if he's among the payers who
+ * resisted. By value (to beat a play of the same kind), by natural rank and suit (sequences, straight flushes), the
+ * wilds; p, the chance any one card of that share is his.
+ */
+function viewOf(o, level, others, known, caps, resisted, count) {
+  const byVal = new Array(18).fill(0), kVal = new Array(18).fill(0), byRank = new Array(15).fill(0), kRank = new Array(15).fill(0);
+  const suit = Array.from({ length: 15 }, () => [0, 0, 0, 0]), kSuit = Array.from({ length: 15 }, () => [0, 0, 0, 0]);
+  const may = id => !(caps[o] !== null && !isWild(id, level) && valueOf(id, level) > caps[o]) && !(resisted && rankOf(id) === BJ && !resisted.includes(o));
+  let w = 0, kw = 0, share = 0, own = 0;
+  const jokers = [];
+  for (const id of others) {
+    const at = known.get(id), his = at === o;
+    if ((at !== undefined && !his) || (!his && !may(id))) continue;
+    if (his) own++; else share++;
+    if (isJoker(id)) jokers.push(his);
+    if (isWild(id, level)) { if (his) kw++; else w++; continue; }
+    const v = valueOf(id, level), r = rankOf(id);
+    if (his) kVal[v]++; else byVal[v]++;
+    if (r <= 14) { if (his) { kRank[r]++; kSuit[r][suitOf(id)]++; } else { byRank[r]++; suit[r][suitOf(id)]++; } }
+  }
+  const p = share ? Math.min(1, Math.max(0, count - own) / share) : 0;
+  // the four jokers all his: each known to be his, or his by chance; none played or known elsewhere
+  const allJokers = jokers.length === 4 ? jokers.reduce((a, his) => a * (his ? 1 : p), 1) : 0;
+  return { p, byVal, kVal, byRank, kRank, suit, kSuit, w, kw, allJokers };
+}
+/** The wilds a player holds, as chances of none, one, two: those known to be his, and each unseen one by chance. */
+function wildsOf(V) {
+  const d = [1, 0, 0];
+  for (let i = 0; i < V.w; i++) { d[2] = d[2] + d[1] * V.p; d[1] = d[1] * (1 - V.p) + d[0] * V.p; d[0] *= 1 - V.p; }
+  return V.kw >= 2 ? [0, 0, 1] : V.kw === 1 ? [0, d[0], d[1] + d[2]] : d;
 }
 
 // ---------- will a play hold? ----------
@@ -371,8 +398,9 @@ const tail = (n, p, m) => {                                      // the chance o
   return Math.max(0, Math.min(1, 1 - below));
 };
 /**
- * The chance a play stands against the opponents' plays of its kind (bombs aside), reckoned from the unseen cards and
- * each opponent's count; `only`: against that opponent alone.
+ * The count's chance that no opponent holds a play of its kind to beat r (bombs aside): from each one's view (viewOf)
+ * and count, less for a kind he has passed on (voids); `only`: that opponent alone. The rules decide by it; what's
+ * shown is `stands`. Exactly 1 (SURE) only when no card that could beat it can be with them.
  */
 export function hold(r, K, only = null) {
   if (r.bomb) return 1;
@@ -380,49 +408,186 @@ export function hold(r, K, only = null) {
   for (const o of K.opps) {
     if (only !== null && o !== only) continue;
     const h = K.counts[o];
-    if (!h || h < r.n || !K.total) continue;
+    if (!h || h < r.n) continue;
     const v = K.voids?.[o][r.type];
-    none *= 1 - beatChance(r, K, Math.min(1, h / K.total)) * (v && r.key >= v.key ? v.f : 1);
+    none *= 1 - beatChance(r, K, o) * (v && r.key >= v.key ? v.f : 1);
   }
   return none;
 }
-function beatChance(r, K, p) {
-  const k = r.key, level = K.level;
-  const pw = 1 - (1 - p) ** K.wilds;                              // he holds a wild
-  const nOf = v => (v === SJ ? K.sj : v === BJ ? K.bj : v === 15 ? K.nat[level] + K.wilds : orderToRank(v, level) ? K.nat[orderToRank(v, level)] : 0);
+const SURE = 1 - 1e-9;
+/**
+ * The chance a play stands, no opponent beating it but with a bomb, as the computer players play: `hold` (held, from
+ * the count) as their own play bears it out, by kind, leading or following, against Hard's players or Medium's. The
+ * count takes the unseen cards as dealt at random, when players keep their pairs and high cards together; and a player
+ * doesn't beat all he could: breaking his hand to beat a full house costs him more than the trick, so a full house the
+ * count gave 1% stood 41% of the time against Hard, and plays it gave 40% stood 59%. Fitted by logistic regression
+ * (each kind its own intercept and slope on the count's log-odds; -ln(1 - held) and leading shared) to what happened
+ * next to 8,000 plays against Hard as it plays (with its look-ahead) and 55,000 against Medium; on other hands within
+ * about 1 point on average against either, where the count was 16 and 23 points out. Sure stays sure; anything less
+ * shows at most 99%. The numbers come from tools/tribute-chances.mjs stands hard, and stands medium.
+ */
+const STANDS = {                                                 // by kind: intercept, slope; then -ln(1 - held), leading
+  hard: {
+    single: [-0.6139, 0.1888], pair: [0.2396, 0.2095], triple: [0.8563, 0.4475], full: [1.2535, 0.2403], straight: [0.9052, 0.2297],
+    tube: [1.2341, 0.2248], plate: [1.2341, 0.2248], sure: 0.5129, lead: -0.2644,            // too few plates to fit: as tubes
+  },
+  medium: {
+    single: [-0.2301, 0.1245], pair: [0.7032, 0.158], triple: [1.7841, 0.1261], full: [1.6232, 0.1499], straight: [1.4629, 0.178],
+    tube: [1.8749, 0.1704], plate: [3.0306, 0.2051], sure: 0.3199, lead: -0.4113,
+  },
+};
+export function stands(r, held, lead, against = "hard") {
+  if (r.bomb || held > SURE) return 1;
+  const f = STANDS[against] || STANDS.hard, k = f[r.type];
+  if (!k) return Math.min(0.99, held);
+  const x = Math.min(1 - 1e-4, Math.max(1e-4, held));
+  return Math.min(0.99, 1 / (1 + Math.exp(-(k[0] + k[1] * Math.log(x / (1 - x)) - f.sure * Math.log(1 - x) + (lead ? f.lead : 0)))));
+}
+/** The chance a player (o) holds a play of the same kind that beats r, bombs aside: from his view (viewOf). */
+function beatChance(r, K, o) {
+  const V = K.view[o];
+  if (!V || K.counts[o] < r.n) return 0;
+  const { p } = V, k = r.key, wd = wildsOf(V);
+  const atLeast = (n, kn, need) => (need <= 0 || kn >= need ? 1 : tail(n, p, need - kn));
   switch (r.type) {
     case "single": {
-      let m = 0;
-      for (let v = k + 1; v <= BJ; v++) m += nOf(v);
-      return 1 - (1 - p) ** m;
+      let none = k < 15 ? wd[0] : 1;                             // a wild is a level card: above anything up to the ace
+      for (let v = k + 1; v <= BJ; v++) none *= V.kVal[v] ? 0 : (1 - p) ** V.byVal[v];
+      return 1 - none;
     }
     case "pair": case "triple": case "full": {
       const need = r.type === "pair" ? 2 : 3;
       let none = 1;
       for (let v = k + 1; v <= (r.type === "pair" ? BJ : 15); v++) {
-        const n = nOf(v);
-        if (!n) continue;
-        const natural = tail(n, p, need), helped = v < SJ && v !== 15 ? (tail(n, p, need - 1) - natural) * pw : 0;
-        none *= 1 - Math.min(1, natural + helped);
+        let q = 0;
+        if (v >= SJ) q = atLeast(V.byVal[v], V.kVal[v], need);   // jokers pair only with their like
+        else for (let x = 0; x < 3; x++) q += wd[x] * atLeast(V.byVal[v], V.kVal[v], need - x);   // wilds standing in
+        none *= 1 - Math.min(1, q);
       }
       return 1 - none;
     }
     default: {                                                   // a sequence: a higher one of its kind
       const len = r.type === "straight" ? 5 : r.type === "tube" ? 3 : 2, each = r.type === "straight" ? 1 : r.type === "tube" ? 2 : 3;
+      const pw = 1 - wd[0];
       let none = 1;
       for (let topP = k + 1; topP <= 14; topP++) {
         let all = 1, oneShort = 0;
         const qs = [];
-        for (let pos = topP - len + 1; pos <= topP; pos++) qs.push(tail(K.nat[nat(pos)], p, each));
+        for (let pos = topP - len + 1; pos <= topP; pos++) qs.push(atLeast(V.byRank[nat(pos)], V.kRank[nat(pos)], each));
         for (const q of qs) all *= q;
-        for (let i = 0; i < qs.length; i++) { let o = 1 - qs[i]; for (let j = 0; j < qs.length; j++) if (j !== i) o *= qs[j]; oneShort += o; }
+        for (let i = 0; i < qs.length; i++) { let x = 1 - qs[i]; for (let j = 0; j < qs.length; j++) if (j !== i) x *= qs[j]; oneShort += x; }
         none *= 1 - Math.min(1, all + oneShort * pw);
       }
       return 1 - none;
     }
   }
 }
-const orderToRank = (v, level) => (v === 15 ? level : v === level ? 0 : v >= 2 && v <= 14 ? v : 0);
+
+// ---------- the bombs still out there ----------
+/** Whether a bomb of this tier and key beats `over` (null: any play that isn't a bomb). */
+const outranks = (tier, key, over) => !over?.bomb || tier > over.bomb || (tier === over.bomb && key > over.key);
+/**
+ * The chance a player (o) holds a bomb (one that beats `over`, if given): bombCount, as the computer players' own play
+ * bears it out. They keep their bombs while they shed the rest, so late in a hand the cards of a rank still unseen are
+ * together far more often than a random deal says: where it said 1%, a player of 4 to 8 cards held a bomb a third of the
+ * time. Early, a random deal counts the same wilds in every rank and says a little too much. Fitted by logistic
+ * regression on the log-odds of the count, the log of his count and (for a bomb bigger than one of ours) its tier, to
+ * 89,000 positions in 4,500 hands of Hard's rules (quick to play). Fitted to two thirds of them, it was within 1 point
+ * on average for any bomb and 2 for a bigger one on the rest (the count was 17 and 12 out), and within 2 or 3 against
+ * Hard as it plays, with its look-ahead, and against Medium. A bomb the count rules out stays ruled out; one it makes
+ * certain stays certain.
+ * The numbers come from tools/tribute-chances.mjs bombs.
+ */
+const BOMB_FIT = { any: [0.1178, 0.3494, 0.4563, 0], bigger: [3.4491, 0.4262, -0.7614, -0.6187] };   // 1, logit, ln count, tier
+export function bombChance(K, o, over = null) {
+  const q = bombCount(K, o, over);
+  if (q < 1e-9 || q > SURE) return q;
+  const [a, b, c, d] = over?.bomb ? BOMB_FIT.bigger : BOMB_FIT.any, x = Math.min(1 - 1e-6, Math.max(1e-6, q));
+  return 1 / (1 + Math.exp(-(a + b * Math.log(x / (1 - x)) + c * Math.log(K.counts[o]) + d * (over?.bomb || 0))));
+}
+/**
+ * The chance a player (o) holds a bomb (one that beats `over`, if given) in a random deal of what he can't be shown
+ * not to hold: four or more alike (wilds standing in), a straight flush, the four jokers; from his view, so a rank with
+ * three cards left unseen and no wilds out there makes no bomb at all.
+ */
+export function bombCount(K, o, over = null) {
+  const V = K.view[o], h = K.counts[o];
+  if (!V || h < 4 || over?.jokers) return 0;
+  const { p } = V, wd = wildsOf(V);
+  const atLeast = (n, kn, need) => (need <= 0 || kn >= need ? 1 : tail(n, p, need - kn));
+  let none = 1;
+  for (let v = 2; v <= 15; v++) {
+    let need = 4;
+    while (need <= 10 && !outranks(SIZE_TIER[need], v, over)) need++;
+    if (need > Math.min(10, h)) continue;
+    let q = 0;
+    for (let x = 0; x < 3; x++) q += wd[x] * atLeast(V.byVal[v], V.kVal[v], need - x);
+    none *= 1 - Math.min(1, q);
+  }
+  if (h >= 5) for (let s = 0; s < 4; s++) for (let low = 1; low <= 10; low++) {
+    if (!outranks(3, low + 4, over)) continue;
+    const qs = [];
+    for (let pos = low; pos < low + 5; pos++) { const r = nat(pos); qs.push(V.kSuit[r][s] ? 1 : 1 - (1 - p) ** V.suit[r][s]); }
+    let all = 1, one = 0, two = 0;
+    for (const q of qs) all *= q;
+    for (let i = 0; i < 5; i++) for (let j = i; j < 5; j++) {
+      let x = (1 - qs[i]) * (i === j ? 1 : 1 - qs[j]);
+      for (let m = 0; m < 5; m++) if (m !== i && m !== j) x *= qs[m];
+      if (i === j) one += x; else two += x;
+    }
+    none *= 1 - Math.min(1, all + one * (wd[1] + wd[2]) + two * wd[2]);   // a gap or two, filled by his wilds
+  }
+  none *= 1 - V.allJokers;
+  return 1 - none;
+}
+/**
+ * The chance either opponent holds a bomb (that beats `over`). A bomb bigger than one of ours, theirs are as good as
+ * independent. Any bomb, they aren't: where both could hold one, taken as independent their chances said 74% where
+ * one of them held a bomb 59% of the time, so that case has a fit of its own (within 1 or 2 points on other hands,
+ * from 2 or 3).
+ */
+const EITHER_FIT = [-1.1049, 1.3246];                            // 1, logit of the independent chance (the same tool)
+function anyBomb(K, over = null) {
+  const cs = K.opps.map(o => bombChance(K, o, over)), e = 1 - cs.reduce((a, c) => a * (1 - c), 1);
+  if (over?.bomb || cs.length < 2 || cs.some(c => c < 1e-9) || e > SURE) return e;
+  const x = Math.max(1e-6, e);
+  return 1 / (1 + Math.exp(-(EITHER_FIT[0] + EITHER_FIT[1] * Math.log(x / (1 - x)))));
+}
+/** Why no bomb can be left with the opponents (when none can, counting what's gone): the reasons that hold. */
+function noBombWhy(K) {
+  if (K.opps.every(o => K.counts[o] < 4)) return "they have too few cards left to hold one";
+  const level = K.level, byVal = new Array(18).fill(0), suit = Array.from({ length: 15 }, () => [0, 0, 0, 0]);
+  let wilds = 0, jokers = 0;
+  for (const id of K.others) {
+    if (K.known.get(id) === K.mate) continue;
+    if (isWild(id, level)) { wilds++; continue; }
+    byVal[valueOf(id, level)]++;
+    if (isJoker(id)) jokers++; else suit[rankOf(id)][suitOf(id)]++;
+  }
+  let run = false;                                               // five in a row in a suit, the wilds filling gaps
+  for (let s = 0; s < 4 && !run; s++) for (let low = 1; low <= 10 && !run; low++) {
+    let gaps = 0;
+    for (let pos = low; pos < low + 5; pos++) if (!suit[nat(pos)][s]) gaps++;
+    run = gaps <= wilds;
+  }
+  const parts = [Math.max(...byVal.slice(2, 16)) + wilds < 4 ? (wilds ? "no rank has four left, even with the wilds" : "no rank has four cards left") : "neither of them can hold four alike"];
+  if (jokers < 4) parts.push("the four jokers aren't all out there");
+  parts.push(run ? "neither can hold a straight flush" : "no suit has five in a row left");
+  return `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}`;
+}
+/** An opponent down to four (火不炸四): whether his four could be a bomb, counted. */
+function fourOf(K, o, who) {
+  const q = bombChance(K, o);
+  return q < 1e-9 ? `${who}'s four can't be a bomb, counting what's gone: he needs two plays more` : `${who}'s four may be a bomb of his own (火不炸四${q < 0.9 ? `; ${about(q)}` : ""})`;
+}
+/** A chance in words, never "about 0%" or "about 100%". */
+const about = q => (q < 0.01 ? "under 1%" : q > 0.99 ? "over 99%" : `about ${pct(q)}`);
+/** The words for a play nothing unseen beats but a bomb: whether one could still be out there, and how likely. */
+function noneButBomb(K, then) {
+  const q = anyBomb(K);
+  if (q < 1e-9) return `nothing left out there can beat it, not even a bomb, ${then} (counting what's gone: ${noBombWhy(K)})`;
+  return `nothing unseen beats it but a bomb, ${then}${q < 0.9 ? ` (${about(q)} that one of them still holds one)` : ""}`;
+}
 
 // ---------- the moves ----------
 /** Every play of the type and length of `top` (any type when leading: from the split) that beats it, cheapest ways. */
@@ -571,7 +736,10 @@ function lead(state, seat, K, cfg, r) {
     const bomb = combos.find(c => c.reading.bomb), sure = combos.find(c => !c.reading.bomb && c.hold >= 0.97);
     if (combos.every(c => c.reading.bomb)) { const c = combos.sort((a, b) => power(a.reading) - power(b.reading))[0]; return play(c.cards, `Lead ${playName(c.reading)}: two bombs left, the smaller first.`); }
     if (bomb) { const c = combos.find(x => x !== bomb); return play(c.cards, `Lead ${playName(c.reading)}: if it's beaten, ${playName(bomb.reading)} wins the lead back and takes you out.`); }
-    if (sure) { const c = combos.find(x => x !== sure); return play(sure.cards, `Lead ${playName(sure.reading)}: nothing beats it but a bomb; then ${playName(c.reading)} takes you out.`); }
+    if (sure) {
+      const c = combos.find(x => x !== sure), why = sure.hold <= SURE ? "all but sure to hold" : anyBomb(K) < 1e-9 ? "nothing left out there can beat it, not even a bomb" : "nothing beats it but a bomb";
+      return play(sure.cards, `Lead ${playName(sure.reading)}: ${why}; then ${playName(c.reading)} takes you out.`);
+    }
   }
   // otherwise the play that sheds most, shaped by the table
   const scored = opts.map(o => ({ o, s: leadScore(o, K, cfg, hand.length) + jitter(r, cfg.noise) })).sort((a, b) => b.s - a.s);
@@ -670,7 +838,7 @@ function follow(state, seat, K, cfg, r) {
     if (r && cfg.slip && r() < cfg.slip) need += r() < 0.5 ? 0.5 : -0.5;   // medium: now and then a misjudged trick
     if (best.value >= need) {
       const why = urgency >= 0.9 ? `Beat it with ${playName(best.reading)}: ${nameOf(state, from)} has only ${n} left.`
-        : nxtShort && hold(best.reading, K, nxt) >= 0.9 ? `Beat it with ${playName(best.reading)}: high enough that ${nameOf(state, nxt)}, with ${K.counts[nxt]} left, can't follow it.`
+        : nxtShort && hold(best.reading, K, nxt) >= 0.9 ? `Beat it with ${playName(best.reading)}: high enough that ${nameOf(state, nxt)}, with ${K.counts[nxt]} left, ${hold(best.reading, K, nxt) > SURE ? "can't follow it" : "isn't likely to be able to follow it"}.`
         : best.gain >= costOf(best.reading) - 0.05 ? `Beat it with ${playName(best.reading)}: it's already a play in your hand.`
         : best.gain > 0 ? `Beat it with ${playName(best.reading)}: of the cards that beat it, the one your hand misses least.`
         : `Beat it with ${playName(best.reading)}: it costs your hand a little, but the lead is worth more.`;
@@ -694,19 +862,19 @@ function follow(state, seat, K, cfg, r) {
       if (!fire && m2 > 0 && m2 <= 2 && split(b.rest, level).combos.some(c => c.reading.n > m2)) fire = true;
       // the partner still to play may beat it without a bomb: leave it to him while it isn't urgent
       if (fire && n > 5 && from === K.prev && K.counts[K.mate] > 0) {
-        const mateBeats = beatChance(top, K, Math.min(1, K.counts[K.mate] / Math.max(1, K.total)));
+        const mateBeats = beatChance(top, K, K.mate);
         if (mateBeats > 0.5) fire = false;
       }
     } else if (!fire) fire = (n > 0 && n <= 7 && n !== 4) || (top.bomb && n <= 7);
     if (fire) {
-      const why = finishing ? `Bomb with ${playName(b.reading)}: then ${restPlays <= 1 ? "one more play takes" : "your hand can run"} you out.`
-        : n === 0 ? `Bomb with ${playName(b.reading)}: ${nameOf(state, from)} went out on it, and his partner would lead next.`
-        : `Bomb with ${playName(b.reading)}: ${nameOf(state, from)} is down to ${n}${n === 5 ? ", and could go out on a full house or a straight" : n === 7 ? ", two plays from out" : n <= 3 ? ", too few cards to hold a bomb of his own" : ""}.`;
+      const why = finishing ? `Bomb with ${bombName(b.reading)}: then ${restPlays <= 1 ? "one more play takes" : "your hand can run"} you out.`
+        : n === 0 ? `Bomb with ${bombName(b.reading)}: ${nameOf(state, from)} went out on it, and his partner would lead next.`
+        : `Bomb with ${bombName(b.reading)}: ${nameOf(state, from)} is down to ${n}${n === 5 ? ", and could go out on a full house or a straight" : n === 7 ? ", two plays from out" : n <= 3 ? ", too few cards to hold a bomb of his own" : ""}.`;
       return play(b.cards, why);
     }
   }
   const why = best ? `Pass: beating ${playName(top)} would cost your hand ${best.gain < 0 ? "too much" : "a control you'll want later"}.`
-    : bombs.length ? `Pass: keep your bomb; ${nameOf(state, from)} has ${n} left${n === 4 ? ", and four may be a bomb of his own" : ""}.` : `Pass: nothing beats ${playName(top)}.`;
+    : bombs.length ? `Pass: keep your bomb; ${nameOf(state, from)} has ${n} left${n === 4 ? (bombChance(K, from) < 1e-9 ? ", and counting what's gone his four can't be a bomb: he needs two plays more" : ", and four may be a bomb of his own") : ""}.` : `Pass: nothing beats ${playName(top)}.`;
   return pass(why);
 }
 /** Whether a hand could go out by itself from the lead: its weak plays no more than its bombs and one. */
@@ -730,7 +898,7 @@ function partnerPlay(state, seat, K, cfg, evals, top) {
     // taking it leaves you able to run out, and your partner isn't the nearer to going out
     const m = K.counts[K.mate];
     const run = plain.filter(e => e.gain >= 0 && canRunOut(e.rest, K, level) && e.hold >= 0.9 && m > e.rest.length).sort((a, b) => a.reading.key - b.reading.key)[0];
-    if (run) return play(run.cards, `Play ${playName(run.reading)} over your partner: it holds, and then your hand can run out.`);
+    if (run) return play(run.cards, `Play ${playName(run.reading)} over your partner: it ${run.hold > SURE ? "holds" : "should hold"}, and then your hand can run out.`);
   } else {
     const free = plain.find(e => e.gain >= 0 && e.after.plays <= 1 && K.counts[K.mate] > 3);
     if (free) return play(free.cards, `Play ${playName(free.reading)} over your partner: it leaves you one play from out.`);
@@ -922,17 +1090,17 @@ const brokenBy = (sp, cards) => sp.combos.find(c => c.cards.some(id => cards.inc
 /**
  * The plays worth weighing for a seat now, hard's choice first (with a look-ahead in `search` deals late in the hand),
  * each with what speaks for it and against it: [{ action, title, why, pros, cons, plays, holds, levels }]. plays: the
- * plays the hand needs after it (0: out); holds: its chance of standing against the opponents' plays of its kind
- * (null for a pass); levels: its average in the look-ahead, when that ran. why: for the choice its reason and why the
- * next best fell short; for the others their case in a line.
+ * plays the hand needs after it (0: out); holds: its chance of standing, no opponent beating it but with a bomb, as
+ * players of the skill `against` play (stands; null for a pass); levels: its average in the look-ahead, when that ran.
+ * why: for the choice its reason and why the next best fell short; for the others their case in a line.
  */
-export function weigh(state, seat, { search = 0, seed = 1, budget = Infinity } = {}) {
+export function weigh(state, seat, { search = 0, seed = 1, budget = Infinity, against = "hard" } = {}) {
   const ask = asked(state, seat);
   if (!ask) return [];
   const d = decide(state, seat, { search, seed, budget, noise: false });
   if (ask === "return") return weighReturn(state, seat, d);
   const K = knowledge(state, seat);
-  const list = state.top ? followChoices(state, seat, K) : leadChoices(state, seat, K);
+  const list = state.top ? followChoices(state, seat, K, against) : leadChoices(state, seat, K, against);
   // the choice first (the look-ahead may have taken one the rules ranked lower), with the look-ahead's averages
   const tried = d.looked?.tried || [];
   for (const o of list) o.levels = tried.find(t => sameAction(t.action, o.action))?.value ?? null;
@@ -945,27 +1113,48 @@ export function weigh(state, seat, { search = 0, seed = 1, budget = Infinity } =
     if (o.levels >= top - 0.1) o.pros.unshift(`as good as any in the look-ahead (${lv(o.levels)} levels to your side, over ${d.looked.worlds} deals)`);
     else o.cons.unshift(`${(top - o.levels).toFixed(1)} levels a hand worse in the look-ahead`);
   }
-  const next = list[1];
   sumUp(list, d.why);
+  if (list.length) list[0].out = stillOut(K);
   return list.slice(0, 8);
 }
-function leadChoices(state, seat, K) {
+const NUM = ["no", "a", "two", "three", "four", "five", "six", "seven", "eight"];
+/** What's still out, counted as a player counts: the high cards you haven't seen, and whether a bomb could be with them. */
+function stillOut(K) {
+  const level = K.level, lv = rankName(level), n = { bj: 0, sj: 0, wild: 0, level: 0, a: 0, k: 0 };
+  for (const id of K.others) {
+    const r = rankOf(id);
+    if (isWild(id, level)) n.wild++;
+    else if (r === BJ) n.bj++;
+    else if (r === SJ) n.sj++;
+    else if (r === level) n.level++;
+    else if (r === 14) n.a++;
+    else if (r === 13) n.k++;
+  }
+  const a = one => (one.startsWith("other ") ? `an${one}` : /^[aeiou]/.test(one) ? `an ${one}` : `a ${one}`);   // "another 2", "an ace"
+  const say = (k, one, many) => (!k ? null : k === 1 ? a(one) : `${k === 2 && /joker|wild/.test(one) ? "both" : NUM[k] || k} ${many}`);
+  const items = [say(n.bj, "big joker", "big jokers"), say(n.sj, "small joker", "small jokers"), say(n.wild, `wild ♥${lv}`, `wild ♥${lv}s`),
+    say(n.level, `other ${lv}`, `other ${lv}s`), level !== 14 && say(n.a, "ace", "aces"), level !== 13 && say(n.k, "king", "kings")].filter(Boolean);
+  const cards = items.length ? `${items.slice(0, -1).join(", ")}${items.length > 1 ? " and " : ""}${items.at(-1)}` : "none of the jokers, wilds, aces or kings";
+  const q = anyBomb(K);
+  const bombs = q < 1e-9 ? `No bomb can be left with the opponents: ${noBombWhy(K)}.` : `A bomb: ${about(q)} that one of the opponents holds one.`;
+  return `Still out (not in your hand, not played): ${cards}. ${bombs}`;
+}
+function leadChoices(state, seat, K, against) {
   const level = state.level, hand = state.hands[seat];
   const { sp, opts } = leadOptions(state, seat, K, true);
   const name = o => nameOf(state, o);
   return opts.map(o => {
     const rd = o.reading, t = rd.type, rest = minus(hand, o.cards), after = rest.length ? split(rest, level) : { plays: 0 };
-    const pros = [], cons = [];
+    const pros = [], cons = [], st = stands(rd, o.hold, true, against);
     if (!after.plays) pros.push("it takes you out");
     else if (rd.bomb) cons.push(sp.combos.filter(c => c.reading.bomb).length > 1 ? "spends a bomb, a way back to the lead you may need later" : "spends your only bomb, your one sure way back to the lead");
     else {
       if (o.broken) cons.push(`breaks ${playName(o.from.reading)}, so your hand then needs ${toGo(after.plays)} to go out, not ${sp.plays - 1}`);
       else if (o.cost >= 0.85) pros.push("the hardest play in your hand to be rid of: sooner or later it needs a lead of its own, and you have one");
       if (rd.n >= 5) pros.push(`sheds ${rd.n} cards at once`);
-      if (o.hold >= 0.97) {
-        pros.push("nothing unseen beats it but a bomb, so the lead stays yours");
-        if (after.plays > 1) cons.push("it holds whenever you lead it, so it doesn't need this lead: one spent on a weaker play gains more");
-      } else if (o.hold >= 0.6) pros.push(`likely to hold (about ${pct(o.hold)})`);
+      if (o.hold > SURE) pros.push(noneButBomb(K, "so the lead stays yours"));
+      else if (st >= 0.6) pros.push(`likely to hold (about ${pct(st)})`);
+      if (o.hold >= 0.97 && after.plays > 1) cons.push(`it ${o.hold > SURE ? "holds" : "should hold"} whenever you lead it, so it doesn't need this lead: one spent on a weaker play gains more`);
       if (hand.length >= 20 && ["full", "straight", "tube", "plate"].includes(t) && worth(rd) > 0.05) cons.push(`early in a hand the others still hold the ${KINDS[t]} to beat it, and it wins nothing back; it does more later`);
     }
     for (const op of K.opps) {
@@ -992,10 +1181,10 @@ function leadChoices(state, seat, K) {
       if (ps) pros.push(`${name(op)} has passed on ${KINDS[t]} ${ps === 1 ? "once" : `${ps} times`} when he had cards to spare`);
       if (ls >= 2) cons.push(`${name(op)} leads ${KINDS[t]} himself`);
     }
-    return { action: { t: "play", cards: o.cards }, title: rd.bomb ? `Lead ${bombName(rd)}` : `Lead ${playName(rd)}`, pros, cons, plays: after.plays, holds: rd.bomb ? 1 : o.hold, score: leadScore(o, K, SETTINGS.hard, hand.length) };
+    return { action: { t: "play", cards: o.cards }, title: rd.bomb ? `Lead ${bombName(rd)}` : `Lead ${playName(rd)}`, pros, cons, plays: after.plays, holds: st, score: leadScore(o, K, SETTINGS.hard, hand.length) };
   }).sort((a, b) => b.score - a.score);
 }
-function followChoices(state, seat, K) {
+function followChoices(state, seat, K, against) {
   const level = state.level, hand = state.hands[seat], top = state.top.reading, from = state.top.seat;
   const sp = split(hand, level), name = o => nameOf(state, o), n = K.counts[from], mine = from === K.mate;
   const { plain, bombs, urgency, nxtShort } = followOptions(state, seat, K, true);
@@ -1004,44 +1193,45 @@ function followChoices(state, seat, K) {
     const pros = [], cons = [];
     if (mine) pros.push("your partner's play stands (让牌): he leads next unless an opponent beats it");
     else pros.push(`keeps your hand as it is: ${toGo(sp.plays)} to go out`);
-    if (!plain.length && bombs.length) pros.push(`keeps your bomb for when it matters more${n === 4 ? `: ${name(from)}'s four may be a bomb of his own (火不炸四)` : ""}`);
+    if (!plain.length && bombs.length) pros.push(`keeps your bomb for when it matters more${n === 4 ? `: ${fourOf(K, from, name(from))}` : ""}`);
     if (!mine) cons.push(`${name(from)} keeps the lead${n && n <= 10 ? `, with ${n} left` : ""}${urgency >= 0.9 ? ", close enough to go out on his next lead" : ""}`);
     else if (K.counts[K.next] > 0 && K.counts[K.next] <= 2 && hold(top, K, K.next) < 0.8) cons.push(`${name(K.next)}, with ${K.counts[K.next]} left, may follow it and go out`);
     out.push({ action: { t: "pass" }, title: "Pass", pros, cons, plays: sp.plays, holds: null, score: mine ? 1 : TUNE.follow - urgency });
   }
   for (const e of plain) {
-    const pros = [], cons = [], natural = e.gain >= costOf(e.reading) - 0.05;
+    const pros = [], cons = [], natural = e.gain >= costOf(e.reading) - 0.05, st = stands(e.reading, e.hold, false, against);
     if (!e.rest.length) pros.push("it takes you out");
     else {
-      if (e.hold >= 0.97) pros.push("nothing unseen beats it but a bomb, so the lead is yours");
-      else if (e.hold >= 0.25) pros.push(`takes the lead if it stands (about ${pct(e.hold)})`);
+      if (e.hold > SURE) pros.push(noneButBomb(K, "so the lead is yours"));
+      else if (st >= 0.25) pros.push(`takes the lead if it stands (about ${pct(st)})`);
       // a play that seldom stands still does something: whoever follows must pay more than the play it beat
-      if (!mine && from !== K.next && e.hold < 0.6 && K.counts[K.next] > 0 && e.reading.key - top.key >= 2) pros.push(`${name(K.next)}, next to play, must now beat ${playName(e.reading)}, not ${playName(top)}`);
+      if (!mine && from !== K.next && st < 0.6 && K.counts[K.next] > 0 && e.reading.key - top.key >= 2) pros.push(`${name(K.next)}, next to play, must now beat ${playName(e.reading)}, not ${playName(top)}`);
       if (natural) pros.push("a play your hand already has, made without breaking anything");
       else if (e.gain > 0) pros.push("uses a card your hand has little use for");
       else {
         const b = brokenBy(sp, e.cards);
         cons.push(b ? `breaks ${playName(b.reading)}${e.after.plays > sp.plays - 1 ? `, so your hand then needs ${toGo(e.after.plays)} to go out, not ${sp.plays - 1}` : ""}` : "loosens your hand's shape");
       }
-      if (nxtShort && hold(e.reading, K, K.next) >= 0.9) pros.push(`${name(K.next)}, after you with ${K.counts[K.next]} left, can't follow it (顶牌)`);
+      if (nxtShort && hold(e.reading, K, K.next) >= 0.9) pros.push(`${name(K.next)}, after you with ${K.counts[K.next]} left, ${hold(e.reading, K, K.next) > SURE ? "can't" : "isn't likely to be able to"} follow it (顶牌)`);
       if (!mine && urgency >= 0.9) pros.push(`stops ${name(from)}, who has ${n} left`);
       if (worth(e.reading) >= 0.6 && (top.type === "single" || top.type === "pair") && top.key <= 11 && sp.plays > 5) cons.push(`spends ${playName(e.reading)}, a control worth keeping, on ${playName(top)}`);
       if (mine) cons.push("takes the trick from your partner");
-      else if (e.hold < 0.4) cons.push(e.hold < 0.05 ? "almost sure to be beaten in turn" : `may be beaten in turn (it stands about ${pct(e.hold)})`);
+      else if (st < 0.4) cons.push(st < 0.05 ? "almost sure to be beaten in turn" : `may be beaten in turn (it stands about ${pct(st)})`);
     }
-    out.push({ action: { t: "play", cards: e.cards }, title: mine ? `Play ${playName(e.reading)} over your partner` : `Beat it with ${playName(e.reading)}`, pros, cons, plays: e.after.plays, holds: e.hold, score: mine ? e.value - 2 : e.value });
+    out.push({ action: { t: "play", cards: e.cards }, title: mine ? `Play ${playName(e.reading)} over your partner` : `Beat it with ${playName(e.reading)}`, pros, cons, plays: e.after.plays, holds: st, score: mine ? e.value - 2 : e.value });
   }
   const bombsHeld = Math.max(bombs.length, sp.combos.filter(c => c.reading.bomb).length);
   for (const b of bombs) {
     const pros = [], cons = [];
     if (!b.rest.length) pros.push("it takes you out");
     else {
-      pros.push("wins the trick unless someone holds a bigger bomb");
+      const bigger = anyBomb(K, b.reading);
+      pros.push(bigger < 1e-9 ? "nothing left out there can beat it: counting what's gone, no bigger bomb can be made" : `wins the trick unless someone holds a bigger bomb (${about(bigger)})`);
       if (b.after.plays <= 1) pros.push("then one more play takes you out");
       else if (canRunOut(b.rest, K, level)) pros.push("then your hand can run out by itself");
       if (!mine && n > 0 && n <= 7 && n !== 4) pros.push(`stops ${name(from)}, who has ${n} left${n === 5 ? " and could go out on a full house or a straight" : n === 7 ? ", two plays from out" : ""}`);
       cons.push(bombsHeld > 1 ? "spends a bomb you may need later" : "spends your only bomb, your one sure way back to the lead");
-      if (!mine && n === 4) cons.push(`${name(from)}'s four may be a bomb of his own (火不炸四)`);
+      if (!mine && n === 4) cons.push(fourOf(K, from, name(from)));
       else if (!mine && n > 10 && b.after.plays > 1) cons.push(`${name(from)} is far from out (${n} left): early, a bomb does more kept`);
       if (mine) cons.push("bombs your own partner's play");
     }
@@ -1082,4 +1272,4 @@ function sumUp(list, why) {
 export function hints(state, seat, opts = {}) {
   return weigh(state, seat, opts);
 }
-export { rankName };
+export { rankName, knowledge };

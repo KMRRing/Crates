@@ -116,6 +116,8 @@ dialog.tb-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .tb-why-btn { margin-left: .2rem; font-size: inherit; }
 /* the plays weighed: each with its numbers, what speaks for it (+) and against it (−) */
 .tb-why-lead { margin: .2rem 0 .6rem; font-size: .92rem; font-weight: 650; line-height: 1.45; }
+/* the count: what's still out, and whether a bomb could be */
+.tb-why-out { margin: -.2rem 0 .7rem; padding: .4rem .55rem; border-left: 2px solid var(--brass); font-size: .84rem; line-height: 1.4; color: var(--ink); background: color-mix(in srgb, var(--brass) 8%, var(--sheet)); }
 .tb-opts { margin: 0; padding: 0; list-style: none; display: grid; gap: .5rem; }
 .tb-opt { padding: .5rem .6rem; border: 1px solid var(--rule); border-radius: 5px; }
 .tb-opt.best { border-color: var(--tb-in); background: color-mix(in srgb, var(--tb-in) 9%, var(--sheet)); }

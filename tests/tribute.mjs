@@ -188,12 +188,47 @@ for (const skill of ["hard", "medium"]) {
   E.act(four, 3, { t: "play", cards: C("9c 10c Jh Qh Kh") });
   const h = B.hints(four, 0);
   const bomb = h.find(o => o.title.startsWith("Bomb"));
-  check(h[0].action.t === "pass" && h[0].pros.some(x => /bomb/.test(x)) && bomb?.cons.some(x => /火不炸四/.test(x)) && /Next best/.test(h[0].why),
-    `the hint at four cards: pass first, for keeping the bomb; the bomb against it, as his four may be a bomb (${h[0].why})`);
+  check(h[0].action.t === "pass" && h[0].pros.some(x => /bomb/.test(x)) && bomb?.cons.some(x => /West's four can't be a bomb, counting what's gone/.test(x)) && /Next best/.test(h[0].why),
+    `the hint at four cards: pass first, for keeping the bomb; against the bomb, that counting what's gone his four can't be one anyway, so he needs two plays (${h[0].why})`);
   const lead = position(["3s 3c 9d 5s 5c 5d 7h 7d Ks", "Qs Qc 4c 4d", "4s 6s 8s 10s Js Qs Kd Ah", "2c 3d 4d 6d 8d 9h 10h Jh"]);
   const l = B.hints(lead, 0);
   check(l.length >= 3 && l.every(o => o.pros.length + o.cons.length > 0 && o.plays >= 0) && l.slice(1).every(o => o.why.startsWith(o.title)),
     `leading, every play weighed has its case and its numbers (${l.map(o => o.title).join(" · ")})`);
+}
+{
+  // counting what's left: every card played, where tribute put a card, what a payer can't hold, and the bombs that
+  // can still be made
+  const K = (st, seat = 0) => B.knowledge(st, seat);
+  const single = id => E.classify([id], 2)[0];
+  // every A, every 2 (the level) and the jokers gone: a K single can be beaten by nothing but a bomb, and no bomb can
+  // be made (no rank has four left, no suit five in a row); with one A out, it can
+  const clean = position(["Ks 5d 6c", "3s 4c 7d 8s 9h 10c", "3c 4d 7s 8d 9c 10h", "Qs Qc Jd Jh 5s 6h"]);
+  const king = B.weigh(clean, 0).find(o => o.title === "Lead a K");
+  check(king?.holds === 1 && B.bombChance(K(clean), 1) === 0 && B.bombChance(K(clean), 3) === 0 && king.pros.some(x => /nothing left out there can beat it, not even a bomb/.test(x)),
+    `counting: every card above a K gone and no bomb left to make, the hint says nothing left can beat it (${king?.pros.find(x => /bomb/.test(x))})`);
+  const oneAce = position(["Ks 5d 6c", "3s 4c 7d 8s 9h Ad", "3c 4d 7s 8d 9c 10h", "Qs Qc Jd Jh 5s 6h"]);
+  const king1 = B.weigh(oneAce, 0).find(o => o.title === "Lead a K");
+  check(B.hold(single(C("Ks")[0]), K(oneAce)) < 1 && king1?.holds <= 0.99 && !king1.pros.some(x => /nothing (unseen|left)/.test(x)),
+    `…and with one ace unseen, that it may be beaten: no "nothing beats it" (holds ${Math.round(king1?.holds * 100)}%)`);
+  check(/Still out/.test(B.weigh(clean, 0)[0].out) && /No bomb can be left/.test(B.weigh(clean, 0)[0].out), `the Why sheet's count: ${B.weigh(clean, 0)[0].out}`);
+  // the A you paid in tribute to West is his: your K can't stand against him
+  const paid = position(["Ks 5d 6c 7c", "3s 4c 7d 8s 9h 10c", "3c 4d 7s 8d 9c 10h", "As Qc Jd Jh 5s 6h"]);
+  paid.tribute = { kind: "single", payers: [0], pays: [{ from: 0, to: 3, card: C("As")[0] }], returns: [] };
+  check(B.hold(single(C("Ks")[0]), K(paid), 3) === 0, "a card known to be an opponent's (the ace you paid him) counts as his");
+  // East paid his highest, a Q: nothing of his can beat your K (no wilds left to stand in)
+  const capped = position(["Ks 5d 6c 7c", "3s 4c 7d 8s 9h 10c", "3c 4d 7s 8d 9c 10h Qd", "As Qc Jd Jh 5s 6h"]);
+  capped.tribute = { kind: "single", payers: [1], pays: [{ from: 1, to: 2, card: C("Qd")[0] }], returns: [] };
+  check(B.hold(single(C("Ks")[0]), K(capped), 1) === 1 && B.hold(single(C("Ks")[0]), K(capped), 3) < 1, "a payer holds nothing above the card he paid: your K stands against him, not against West");
+  // a bomb still possible: four 9s could be with them
+  const nines = position(["Ks 5d 6c 7c", "9s 9c 9d 8s 3h 10c", "3c 4d 7s 8d 10h Qd", "9h Qc Jd Jh 5s 6h"]);
+  check(B.bombChance(K(nines), 1) > 0 && B.bombChance(K(nines), 3) > 0, "four 9s unseen: a bomb could still be with either opponent");
+  // the chances as the computer players' play bears them out: late in a hand they're likelier to be keeping a bomb
+  // than a random deal of the unseen cards says; a play stands more often than the count of the cards says, the more
+  // against Medium, who contests less; what the count makes certain stays so, and nothing less shows as certain
+  check(B.bombChance(K(nines), 1) > 2 * B.bombCount(K(nines), 1), `six cards each: a bomb ${Math.round(B.bombChance(K(nines), 1) * 100)}% as they play, ${Math.round(B.bombCount(K(nines), 1) * 100)}% by a random deal`);
+  const full = { type: "full", key: 5, n: 5, bomb: 0 }, low = single(C("5s")[0]);
+  check(B.stands(full, 0.01, false) > 0.2 && B.stands(low, 0.3, false, "medium") > B.stands(low, 0.3, false, "hard") && B.stands(low, 1, true) === 1 && B.stands(low, 0.9999, true) <= 0.99,
+    `a full house the count gives 1% stands ${Math.round(B.stands(full, 0.01, false) * 100)}% against Hard; a single it gives 30%, ${Math.round(B.stands(low, 0.3, false, "medium") * 100)}% against Medium and ${Math.round(B.stands(low, 0.3, false) * 100)}% against Hard`);
 }
 {
   // the partner leads a low single and the opponent after you has one card: hard plays a card he can't beat (顶牌)

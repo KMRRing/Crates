@@ -61,7 +61,7 @@ async function think(state, seat, kind = "decide", extra = {}) {
   if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, kind, skill: skill(), ...extra }); });
   if (reply?.decision) return reply.decision;
   local ||= await import("./tribute-bot.js");
-  if (kind === "hints") return local.hints(state, seat, { search: 12 });
+  if (kind === "hints") return local.hints(state, seat, { search: 12, against: skill() });
   if (kind === "weigh") return local.weigh(state, seat);
   if (kind === "playout") return local.playOut(state, seat, extra.actions, { worlds: 40 });
   return local.decide(state, seat, { skill: skill(), search: skill() === "hard" ? 12 : 0 });
@@ -185,7 +185,7 @@ function showWhy(list = hint?.key === keyNow() ? hint.list : null) {
   const picks = !rush;
   const pctOf = x => `${Math.round(x * 100)}%`;
   const looked = list.some(o => o.levels != null);
-  let html = `${list[0].why ? `<p class="tb-why-lead">${esc(list[0].why)}</p>` : ""}<ol class="tb-opts">`;
+  let html = `${list[0].why ? `<p class="tb-why-lead">${esc(list[0].why)}</p>` : ""}${list[0].out ? `<p class="tb-why-out">${esc(list[0].out)}</p>` : ""}<ol class="tb-opts">`;
   list.forEach((o, i) => {
     const stats = [];
     if (o.plays != null) stats.push(o.plays ? `${o.plays} play${o.plays === 1 ? "" : "s"} to go out after it` : "out");
@@ -195,7 +195,7 @@ function showWhy(list = hint?.key === keyNow() ? hint.list : null) {
     const tag = o.yours ? '<span class="tb-yours">yours</span>' : "";
     html += `<li class="tb-opt${i === 0 ? " best" : ""}${o.yours && i ? " missed" : ""}"><div class="tb-opt-head"><b>${esc(o.title)}</b>${tag}<span class="tb-stat">${stats.join(" · ")}</span>${o.action.t === "pass" || !picks ? "" : `<button type="button" class="link" data-pick="${i}">Pick</button>`}</div>${pc ? `<ul class="tb-pc">${pc}</ul>` : ""}</li>`;
   });
-  html += `</ol><p class="tb-why-note">${rush ? "The best play first." : "The computer's choice is first."} Plays to go out: what your hand needs after it, split as the computer would. Holds: the chance no opponent beats it except with a bomb, from the cards you haven't seen and how many each holds.${looked ? ` Levels: the rest of the hand played out in ${rush ? `${rushPuzzle()?.n || "hundreds of"} deals` : "deals"} of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average.` : ""}</p>`;
+  html += `</ol><p class="tb-why-note">${rush ? "The best play first." : "The computer's choice is first."} Plays to go out: what your hand needs after it, split as the computer would. Holds: the chance no opponent beats it except with a bomb, from every card played, what the tribute showed (a card paid or given back is with the player who got it; a payer holds nothing above the card he paid) and how often the computer's players beat a play like it.${looked ? ` Levels: the rest of the hand played out in ${rush ? `${rushPuzzle()?.n || "hundreds of"} deals` : "deals"} of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average.` : ""}</p>`;
   $("whyBody").innerHTML = html;
   $("whyDlg").showModal();
   $("whyDlg").scrollTop = 0;
@@ -358,7 +358,7 @@ function drawActions() {
   if (h) {
     const n = hint.list.length;
     say.innerHTML = `<b>Hint${n > 1 ? ` ${hint.at + 1}/${n}` : ""}</b> ${esc(h.why)}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
-    say.querySelector(".tb-why-btn")?.addEventListener("click", showWhy);
+    say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy());   // not the click itself as the list
   }
   if (G.phase === "over") { box.append(goBtn(G.result.over ? "The final score" : "Next hand", () => showResult(), "primary")); return; }
   const ask = E.asked(G, me);
@@ -569,6 +569,7 @@ async function explainRush(p, at) {
   top.why = a.verdict === "best" ? `You found it: ${mid(top.title)}, ${lv(best.value)} levels a hand over ${over}.`
     : a.verdict === "fine" ? `Yours, ${mid(yours?.title || "your play")}${also}, did as well as the best, ${mid(top.title)}: ${lv(a.mine)} levels a hand against ${lv(best.value)} over ${over}.`
     : `The best was ${mid(top.title)}: ${lv(best.value)} levels a hand over ${over}; yours, ${mid(yours?.title || "your play")}${also}, ${lv(a.mine)}.`;
+  top.out = (Array.isArray(list) ? list[0]?.out : null) || null;
   rush.answer.list = [top, ...rest];
   save(); render();
 }

@@ -10,7 +10,7 @@ onmessage = e => {
   const { id, state, seat, kind, skill = "hard", actions } = e.data;
   let decision = null, error = null;
   try {
-    if (kind === "hints") decision = hints(state, seat, { search: 32, seed: seat + 1, budget: 700 });
+    if (kind === "hints") decision = hints(state, seat, { search: 32, seed: seat + 1, budget: 700, against: skill });
     else if (kind === "weigh") decision = weigh(state, seat);
     else if (kind === "playout") decision = playOut(state, seat, actions, { worlds: 80, seed: seat + 1, budget: 2500 });
     else decision = decide(state, seat, { skill, search: skill === "hard" ? 32 : 0, seed: seat + 1, budget: 450 });
