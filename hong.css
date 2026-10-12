@@ -70,7 +70,14 @@ html[data-mode="night"] { --hk-in: #79C4A6; --hk-felt: color-mix(in srgb, #2F6E5
 .hk-coach { margin: 0; font-size: .84rem; line-height: 1.35; color: var(--ink); }
 .hk-coach b { margin-right: .3rem; color: var(--hk-in); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
 .hk-coach .hk-thinking { color: var(--ink-soft); }
-@media (max-width: 599px) { .hk-coach.rush { min-height: calc(3em * 1.35); } }   /* on a phone a puzzle's question and its verdict take the same room */
+/* a coach that speaks unasked keeps its room, so the table holds its size as it speaks and falls quiet: on a phone four
+   lines, all it says but now and then a longer reason, which scrolls in its box; a puzzle's question and its verdict
+   take three */
+.hk-coach.kept { min-height: calc(2em * 1.35); }
+@media (max-width: 599px) {
+  .hk-coach.rush { min-height: calc(3em * 1.35); }
+  .hk-coach.kept { height: calc(4em * 1.35); overflow-y: auto; overscroll-behavior: contain; }
+}
 .hk-why-btn { font-size: .84rem; }
 .hk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; min-height: 2.75rem; }
 .hk-go { min-height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
@@ -108,7 +115,6 @@ dialog.hk-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .hk-review { margin: .3rem 0; padding-left: 1.1rem; font-size: .88rem; line-height: 1.4; }
 .hk-review li { margin: .3rem 0; }
 .hk-when { color: var(--ink-soft); font-size: .8rem; margin-right: .2rem; }
-.hk-cost { color: var(--hk-in); font-weight: 700; white-space: nowrap; }
 .hk-result-go { display: flex; gap: .5rem; justify-content: flex-end; margin-top: .8rem; }
 .hk-result-go .hk-go { flex: 1 1 0; }
 .hk-why-lead { font-weight: 650; }

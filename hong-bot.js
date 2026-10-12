@@ -513,8 +513,8 @@ function weighWait(v, win, tune) {
   const top = r.waits.filter(w => w.n > 0).sort((a, b) => b.fanS - a.fanS)[0];
   const better = v.wall >= 16 && r.ev > take * 1.3 + 8;
   const options = [
-    { action: { t: "win" }, title: `Win: ${win.fan} fan`, pros: [`${take} points now, certain`], cons: better ? [`gives up the self-draw${top ? ` (${top.fanS} fan on ${tileName(top.k)})` : ""}, worth about ${Math.round(r.ev)} points waited for`] : [] },
-    { action: { t: "pass" }, title: "Pass and wait for the self-draw", pros: top && top.fanS > win.fan ? [`a self-draw on ${tileName(top.k)} would be ${top.fanS} fan, paid by all three`] : [],
+    { action: { t: "win" }, title: `Win: ${win.fan} fan`, value: take, pros: [`${take} points now, certain`], cons: better ? [`gives up the self-draw${top ? ` (${top.fanS} fan on ${tileName(top.k)})` : ""}, worth about ${Math.round(r.ev)} points waited for`] : [] },
+    { action: { t: "pass" }, title: "Pass and wait for the self-draw", value: r.ev, pros: top && top.fanS > win.fan ? [`a self-draw on ${tileName(top.k)} would be ${top.fanS} fan, paid by all three`] : [],
       cons: [`about ${Math.round(r.ev)} points waited for (${pct(r.self)} to self-draw before the hand ends)${better ? "" : `, less than the ${take} in hand`}`, "until you draw, the pass block bars winning off any discard", "meanwhile someone else may win, and you must keep discarding"] },
   ];
   if (better) options.reverse();
@@ -537,21 +537,28 @@ function decideTurn(state, v, options, tune, r = null) {
   }
   const best = rows[0];
   // kongs: an extra draw, worth taking when what's left of the hand loses nothing by it
+  const kongs = [];
   for (const a of options.filter(x => x.t === "kong")) {
     const c = counts(v.hand);
     c[a.k] -= a.how === "concealed" ? 4 : 1;
     const melds = a.how === "concealed" ? [...v.melds, { t: "kong", k: a.k, open: false }] : v.melds.map(m => (m.t === "pung" && m.k === a.k ? { ...m, t: "kong" } : m));
     const v2 = { ...v, melds };
     const e = evaluate(v2, c, context(v2, tune, 1));
-    const rob = a.how === "added" ? danger(v, a.k, ctx.ts) * 1.25 * tune.danger : 0;
-    if (e.value - rob >= best.score - 0.25) {
+    const rob = a.how === "added" ? danger(v, a.k, ctx.ts) * 1.25 * tune.danger : 0, value = e.value - rob;
+    const kong = { action: a, title: `Kong ${tileName(a.k)}`, value, pros: ["a free draw from the end of the wall, and a win on it is a fan more"], cons: [] };
+    if (a.how === "added" && rob >= 1) kong.cons.push(`someone waiting on ${tileName(a.k)} could rob it: about ${Math.round(rob)} points of danger`);
+    if (value >= best.score - 0.25) {
       const why = a.how === "added" ? `Kong: add the fourth ${tileName(a.k)} to the pung for an extra draw${rob > 1 ? "" : " (no one looks ready to rob it)"}.`
         : `Kong: four ${tileName(a.k)} make a set either way, and the kong brings a free draw.`;
-      const kong = { action: a, title: `Kong ${tileName(a.k)}`, pros: ["a free draw from the end of the wall, and a win on it is a fan more"], cons: a.how === "added" && rob >= 1 ? [`someone waiting on ${tileName(a.k)} could rob it: about ${Math.round(rob)} points of danger`] : [] };
-      return { action: a, why, rows, threats: ctx.ts, options: [kong, ...discardOptions(v, rows, ctx)] };
+      return { action: a, why, rows, threats: ctx.ts, options: [kong, ...discardOptions(v, rows, ctx), ...kongs] };
     }
+    // what what's left of the hand loses by it, against the discard
+    if (e.sh > best.sh) kong.cons.push(`what's left is a step further from ready (${shantenWords(e.sh)})`);
+    if (e.p <= best.p - 0.02) kong.cons.push(`wins less often (${pct(e.p)} against ${pct(best.p)})`);
+    if (best.score - value >= 0.5) kong.cons.push(`about ${points(best.score - value)} points worse on balance than letting go ${tileName(best.k)}`);
+    kongs.push(kong);
   }
-  return { action: { t: "discard", k: best.k }, why: explainDiscard(v, best, rows, ctx), rows, threats: ctx.ts, options: discardOptions(v, rows, ctx) };
+  return { action: { t: "discard", k: best.k }, why: explainDiscard(v, best, rows, ctx), rows, threats: ctx.ts, options: [...discardOptions(v, rows, ctx), ...kongs] };
 }
 
 function decideClaim(state, v, options, tune) {
@@ -655,7 +662,7 @@ function discardOptions(v, rows, ctx, also = null) {
       if (gap >= 0.5) cons.push(`about ${points(gap)} points worse on balance`);
       else if (gap <= 0.05) pros.push("as good on balance: either would do");
     }
-    return { action: { t: "discard", k: r.k }, title: `Discard ${tileName(r.k)}`, pros, cons };
+    return { action: { t: "discard", k: r.k }, title: `Discard ${tileName(r.k)}`, pros, cons, value: r.score };
   });
 }
 /** A claim's choices: letting the tile go, and each call, with what the hand would be after it. */
@@ -695,23 +702,67 @@ function claimOptions(v, k, stay, passValue, weighed, chosen) {
   return out;
 }
 /**
- * The coach's choice set against a move of yours (the rush's verdict): { decision, options, best, mine, gap } — the
- * options weighed in words (title, pros, cons; yours among them), best and mine two of them, gap the points of expected
- * winnings between them (null when it can't say).
+ * The coach's choice set against a move of yours (a puzzle's verdict, the coach's word on your move): { decision,
+ * options, best, mine, gap } — the options weighed in words (title, pros, cons, value; yours among them), best and mine
+ * two of them, gap the points of expected winnings between them (null when it can't say).
  */
 export function explainMove(state, seat, action) {
   const d = decide(state, seat, { noise: false });
   if (d.rows && action.t === "discard" && d.action.t === "discard") {
-    const list = discardOptions(view(state, seat), d.rows, { ts: d.threats }, action.k), row = d.rows.find(r => r.k === action.k);
-    return { decision: d, options: list, best: list[0], mine: list.find(o => o.action.k === action.k) || null, gap: row ? Math.max(0, d.rows[0].score - row.score) : null };
+    const list = [...discardOptions(view(state, seat), d.rows, { ts: d.threats }, action.k), ...d.options.filter(o => o.action.t === "kong")];
+    const row = d.rows.find(r => r.k === action.k);
+    return { decision: d, options: list, best: list[0], mine: list.find(o => sameAct(o.action, action)) || null, gap: row ? Math.max(0, d.rows[0].score - row.score) : null };
   }
-  const opts = d.options || [];
-  const best = opts.find(o => sameAct(o.action, d.action)) || { action: d.action, title: d.why.split(":")[0], pros: [], cons: [] };
-  const mine = opts.find(o => sameAct(o.action, action)) || null;
+  const opts = d.options ? d.options.slice() : [];
+  let best = opts.find(o => sameAct(o.action, d.action));
+  if (!best) {
+    // a win on your own draw: what it pays now, all three paying
+    const v = view(state, seat), value = d.action.t === "win" && state.phase === "act" ? 6 * base(Math.min(v.opts.cap, d.fan)) : undefined;
+    best = { action: d.action, title: d.why.split(":")[0], pros: value ? [`${value} points now, certain`] : [], cons: [], value };
+    opts.unshift(best);
+  }
+  let mine = opts.find(o => sameAct(o.action, action)) || null;
+  if (!mine && action.t === "discard" && best.value != null) {
+    // a discard where the coach would win: the hand it leaves, against the win in hand
+    const v = view(state, seat), row = weighDiscards(v).find(r => r.k === action.k);
+    if (row) {
+      mine = { action, title: `Discard ${tileName(action.k)}`, value: row.score, pros: [`${shantenWords(row.sh)} on ${routeName(row.route)}, ${pct(row.p)} to win`], cons: [`gives up the win in hand (${points(best.value)} points) for a hand worth about ${points(Math.max(0, row.score))} on average`] };
+      opts.push(mine);
+    }
+  }
   const gap = best.value != null && mine?.value != null ? Math.max(0, best.value - mine.value) : null;
-  return { decision: d, options: opts.length ? opts : [best], best, mine, gap };
+  return { decision: d, options: opts, best, mine, gap };
 }
 const sameAct = (a, b) => a.t === b.t && (a.k ?? null) === (b.k ?? null);
+/**
+ * Whether the coach would have done otherwise (explainMove's answer, j, to your move): null when it would have made the
+ * same move, or values yours as well (within a tenth of a point); else { coach: its move, gap: the points yours was
+ * worse by (null when it can't say), against: what tells most against yours, at most two reasons }.
+ */
+export function differ(j, action) {
+  const best = j.best?.action || j.decision.action;
+  if (sameAct(best, action) || (j.gap != null && j.gap < 0.1)) return null;
+  // what the points come from first: further from ready, fewer wins, a smaller hand, more danger; then the rest in turn
+  const weight = c => { const i = WEIGHED.findIndex(re => re.test(c)); return i < 0 ? WEIGHED.length : i; };
+  const against = (j.mine?.cons || []).filter(c => !/on balance/.test(c)).map((c, i) => ({ c, i })).sort((x, y) => weight(x.c) - weight(y.c) || x.i - y.i);
+  return { coach: best, gap: j.gap, against: against.slice(0, 2).map(x => x.c) };
+}
+const WEIGHED = [/further from ready/, /wins less often/, /smaller hand/, /danger/];
+const NOUN = {
+  discard: a => tileName(a.k), pass: () => "pass", pung: a => `pung of ${tileName(a.k)}`, kong: a => `kong of ${tileName(a.k)}`,
+  chow: a => `chow, ${tileName(a.k)} to ${tileName(a.k + 2)}`, win: () => "win", flowers: () => "flower win",
+};
+const VERB = {
+  discard: a => `let go ${tileName(a.k)}`, pass: () => "pass", pung: a => `pung ${tileName(a.k)}`, kong: a => `kong ${tileName(a.k)}`,
+  chow: a => `chow ${tileName(a.k)} to ${tileName(a.k + 2)}`, win: () => "win", flowers: () => "win on the flowers",
+};
+/** differ's answer in words: "Your 5 dots: about 2.3 points worse than the coach's 9 bamboo. A step further from ready…" */
+export function differWords(mine, { coach, gap, against = [] }) {
+  const yours = `Your ${NOUN[mine.t]?.(mine) ?? mine.t}`;
+  const head = gap == null ? `${yours}: the coach would rather ${VERB[coach.t]?.(coach) ?? coach.t}`
+    : `${yours}: ${gap >= 0.5 ? `about ${points(gap)} points` : "a shade"} worse than the coach's ${NOUN[coach.t]?.(coach) ?? coach.t}`;
+  return `${head}.${against.length ? ` ${against.join("; ").replace(/^./, c => c.toUpperCase())}.` : ""}`;
+}
 
 // ---------- the words ----------
 const pct = x => `${Math.round((x || 0) * 100)}%`;

@@ -1,10 +1,10 @@
 // Hong: Hong Kong mahjong at a table of four, you and three computer players (or you, your partner and two of them).
 // The rules are hong-engine.js's, the players hong-bot.js's (they think in hong-worker.js, off this thread); this file
 // lays the table, takes your tiles and calls, runs the players at a pace you can follow, keeps the score over a game of
-// one, two or four rounds of wind, and coaches: what the computer would do in your seat and why, and after each hand
-// where your play and its parted.
+// one, two or four rounds of wind, and coaches: what the computer would do in your seat and why, or only where your move
+// parted from its, by how many points and why; and after each hand, where your play and its parted.
 import * as E from "./hong-engine.js";
-import { routeName, shantenWords } from "./hong-bot.js";
+import { routeName, shantenWords, differ, differWords } from "./hong-bot.js";
 import { installTiles, tileSvg } from "./hong-tiles.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -28,7 +28,8 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // G: the hand in play (the engine's state). S: the game around it: { seed, firstDealer, names, humans, results }.
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
-let opts = { flowers: true, minFan: 3, rounds: 1, coach: true, pace: "steady", numbers: true, bots: "hard", ...read(OPTS, {}) };
+let opts = { flowers: true, minFan: 3, rounds: 1, coach: "on", pace: "steady", numbers: true, bots: "hard", ...read(OPTS, {}) };
+if (typeof opts.coach !== "string") opts.coach = opts.coach === false ? "off" : "on";   // on or off until October 2026
 let me = 0;                                                      // your seat
 let picked = null;                                               // the tile you've lifted to discard
 let advice = null;                                               // { key, decision }: the coach's view of your decision now
@@ -163,27 +164,28 @@ function askCoach() {
     render();
   });
 }
-/** Your decision beside the coach's: kept for the hand's review (what it would have done, and what that was worth). */
+/**
+ * Your decision beside the coach's, for the hand's review and the coach's word on it: what it would have done, and
+ * where it would have done otherwise, how many points worse it values yours and why (hong-bot.js's explainMove and
+ * differ). The words are kept in the note, so they're there after a reload; the coach's reckoning, for Why?, isn't.
+ */
+const reckoned = new WeakMap();                                  // a note → the coach's answer it came from
 function note(act) {
-  const d = advice?.key === keyNow() ? advice.decision : null;
-  const entry = { wall: E.wallLeft(G), phase: G.phase, mine: act, coach: d?.action || null, why: d?.why || "", cost: 0 };
-  if (d?.rows && act.t === "discard" && d.action.t === "discard") {
-    const best = d.rows[0], mineRow = d.rows.find(r => r.k === act.k);
-    entry.cost = mineRow ? Math.max(0, best.score - mineRow.score) : 0;
-    entry.alt = mineRow ? { route: mineRow.route, sh: mineRow.sh, p: mineRow.p } : null;
-  }
-  if (!d) {                                                      // the coach hadn't answered yet: ask, and fill it in later
-    const snap = clone(G), i = R.length;
-    think(snap, me).then(x => {
-      const e = R[i];
-      if (!e || e.coach) return;
-      e.coach = x.action; e.why = x.why;
-      if (x.rows && act.t === "discard" && x.action.t === "discard") { const m = x.rows.find(r => r.k === act.k); e.cost = m ? Math.max(0, x.rows[0].score - m.score) : 0; }
-    });
-  }
+  const entry = { wall: E.wallLeft(G), phase: G.phase, mine: act, coach: null, why: "", gap: null, against: [] }, notes = R;
   R.push(entry);
+  explain(clone(G), me, act).then(j => {
+    if (!j || notes !== R) return;                               // a new hand since
+    const o = differ(j, act);
+    entry.coach = o?.coach || act;
+    entry.why = j.decision.why;
+    if (o) { entry.gap = o.gap; entry.against = o.against; }
+    reckoned.set(entry, j);
+    save(); render();
+  }).catch(e => console.error(e));
 }
 const sameAct = (a, b) => !!a && !!b && a.t === b.t && (a.k ?? null) === (b.k ?? null);
+/** A noted decision the coach would have made otherwise. */
+const differed = e => !!e?.coach && !sameAct(e.mine, e.coach);
 const pts = x => (Math.abs(x) >= 10 ? `${Math.round(x)}` : x.toFixed(1)).replace("-", "−");
 
 // ---------- the table ----------
@@ -372,9 +374,21 @@ function drawHand() {
   if (s.melds.length) html += `<span class="hk-melds">${s.melds.map(m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k)).join("")}</span>`).join("")}</span>`;
   box.innerHTML = html;
 }
-// the coach speaks at every decision when it's on; off, a Hint asks it about this one decision only
+// The coach: "on", it says what it would do at every decision; "differ", it says nothing until you've moved, and then
+// only where it would have done otherwise: what, how many points worse it values yours, and why; "off", a Hint asks it
+// about one decision. Either way, the hand's review at its end.
 let hintFor = null;
-const coachOn = () => opts.coach || hintFor === keyNow();
+const coachOn = () => opts.coach === "on" || hintFor === keyNow();
+/** The coach's word on your last move it would have made otherwise, until a turn of yours it agrees with (a claim you
+ *  pass on as it would doesn't end it: there may be one before you've read it). */
+function lesson() {
+  if (opts.coach === "off" || rush) return null;
+  for (let i = R.length - 1; i >= 0; i--) {
+    if (differed(R[i])) return R[i];
+    if (R[i].phase === "act" && R[i].coach) return null;
+  }
+  return null;
+}
 
 // ---------- what you can do now ----------
 function drawActions() {
@@ -382,6 +396,8 @@ function drawActions() {
   box.replaceChildren();
   coach.hidden = true;
   coach.classList.remove("rush");
+  // a coach that speaks unasked keeps its room under your tiles, so the table doesn't change size as it speaks and falls quiet
+  coach.classList.toggle("kept", opts.coach !== "off" && !rush && G?.phase !== "over");
   if (!G) return;
   if (rush) { drawRush(box, coach); return; }
   if (G.phase === "over") {
@@ -391,11 +407,17 @@ function drawActions() {
   const waiting = E.waitingOn(G);
   const legal = waiting.includes(me) ? E.legal(G, me) : [];
   const d = advice?.key === keyNow() ? advice.decision : null;
+  const last = lesson();
   if (legal.length && coachOn()) {
     coach.hidden = false;
     coach.innerHTML = d ? `<b>Coach</b> ${esc(d.why)} <button type="button" class="link hk-why-btn">Why?</button>` : `<b>Coach</b> <span class="hk-thinking">thinking…</span>`;
     coach.querySelector(".hk-why-btn")?.addEventListener("click", () => showWhy(d));
-  }
+  } else if (last) {
+    const j = reckoned.get(last);
+    coach.hidden = false;
+    coach.innerHTML = `<b class="hk-miss">Coach</b> ${esc(differWords(last.mine, last))}${j ? ' <button type="button" class="link hk-why-btn">Why?</button>' : ""}`;
+    coach.querySelector(".hk-why-btn")?.addEventListener("click", () => showWhy(reasonsFor(j, last.mine), last.mine));
+  } else if (coach.classList.contains("kept")) { coach.hidden = false; coach.replaceChildren(); }
   if (!legal.length) {
     const who = busyWith !== null ? busyWith : waiting.find(s => !isHuman(s) || s !== me);
     const p = document.createElement("p");
@@ -565,19 +587,16 @@ function showResult() {
   dlg.scrollTop = 0;                                             // from the top: who won, before the review
   $("nextBtn").focus({ preventScroll: true });
 }
-/** The coach's review of your hand: how often you and it agreed, and where it would have gone another way. */
+/** The coach's review of your hand: how often it would have done as you did (or valued yours as well), and the costliest
+ *  decisions where it wouldn't: what yours was worth against its move, why, and its move's reason. */
 function review() {
   if (!R.length) return "";
-  const decided = R.filter(e => e.coach);
-  const agree = decided.filter(e => sameAct(e.mine, e.coach) || (e.mine.t === "pass" && e.coach.t === "pass"));
-  const differ = decided.filter(e => !agree.includes(e)).sort((a, b) => b.cost - a.cost).slice(0, 3);
-  let html = `<h3 class="hk-sub">Your play</h3><p class="hk-review-lead">You and the coach agreed on ${agree.length} of ${decided.length} decision${decided.length === 1 ? "" : "s"}.</p>`;
-  if (differ.length) {
+  const decided = R.filter(e => e.coach), differs = decided.filter(differed);
+  const worst = differs.slice().sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0)).slice(0, 3);
+  let html = `<h3 class="hk-sub">Your play</h3><p class="hk-review-lead">You and the coach agreed on ${decided.length - differs.length} of ${decided.length} decision${decided.length === 1 ? "" : "s"}${differs.length > worst.length ? `; the ${worst.length} that cost most:` : "."}</p>`;
+  if (worst.length) {
     html += `<ul class="hk-review">`;
-    for (const e of differ) {
-      const yours = e.mine.t === "discard" ? `You let go ${E.tileName(e.mine.k)}` : e.mine.t === "pass" ? "You passed" : `You called ${e.mine.t}`;
-      html += `<li><span class="hk-when">${e.wall} in the wall</span> ${yours}. <b>Coach:</b> ${esc(e.why)}${e.cost >= 1 ? ` <span class="hk-cost">About ${Math.round(e.cost)} points better.</span>` : ""}</li>`;
-    }
+    for (const e of worst) html += `<li><span class="hk-when">${e.wall} in the wall</span> ${esc(differWords(e.mine, e))} <b>Coach:</b> ${esc(e.why)}</li>`;
     html += "</ul>";
   }
   return html;
@@ -735,14 +754,15 @@ function drawRush(box, coach) {
     html = `<b class="hk-miss">✗ Not the best</b> ${j ? `${esc(j.decision.why)} Yours: ${against ? `${esc(against)}, ` : ""}${worse(j.gap)}.` : ""}`;
   }
   coach.innerHTML = `${html}${j ? ' <button type="button" class="link hk-why-btn">Why?</button>' : ' <span class="hk-thinking">…</span>'}`;
-  coach.querySelector(".hk-why-btn")?.addEventListener("click", () => showWhy(rushReasons(j), a.action));
+  coach.querySelector(".hk-why-btn")?.addEventListener("click", () => showWhy(reasonsFor(j, a.action), a.action));
   if (G.phase !== "act") box.append(claimHead());
   box.append(goBtn(rush.over ? "See the score" : "Next puzzle", nextRush, "primary"));
 }
-/** The coach's decision for the Why sheet, its options the best first, then yours, then the rest as it ranked them. */
-function rushReasons(j) {
+/** The coach's decision for the Why sheet, set against a move of yours: its options the best first, then yours, then
+ *  the rest as it ranked them. */
+function reasonsFor(j, act) {
   const best = j.options.find(o => sameAct(o.action, j.best.action)) || j.options[0];
-  const yours = j.options.find(o => o !== best && sameAct(o.action, rush.answer.action));
+  const yours = j.options.find(o => o !== best && sameAct(o.action, act));
   return { ...j.decision, options: [best, ...(yours ? [yours] : []), ...j.options.filter(o => o !== best && o !== yours)] };
 }
 
@@ -897,7 +917,7 @@ function openMenu() {
       set("bots", v);
       if (together.room) together.act(g => { if (!g.session) return false; g.session.bots = v; });
     }),
-    toggle("Coach (learning mode)", opts.coach, v => { set("coach", v); if (v) askCoach(); }),
+    choice("Coach", [["off", "Off"], ["differ", "If you differ"], ["on", "Always"]], opts.coach, v => { set("coach", v); if (v === "on") askCoach(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Numbers on the tiles", opts.numbers, v => set("numbers", v)),
   );

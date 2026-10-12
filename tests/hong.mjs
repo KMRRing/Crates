@@ -296,6 +296,20 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   const cOther = E.legal(cst, call.seat).find(a => !R.sameAct(a, cBest) && a.t !== "win");
   const cj = R.judge(call, cst, cOther);
   check(cj.verdict === "wrong" && cj.options.length >= 2 && cj.best.pros.length > 0, `a call: ${cj.best.title} over ${cj.mine?.title || cOther.t}`);
+  // the coach's word on a move it would have made otherwise (the coach's mode "when you differ", and the review): what
+  // it would have done, how many points worse it values yours, and why; nothing on its own move
+  const o = B.differ(wrong, other), said = o && B.differWords(other, o);
+  check(o && R.sameAct(o.coach, best) && o.gap > 0 && o.against.length > 0 && B.differ(right, best) === null
+    && new RegExp(`^Your ${E.tileName(other.k)}: (about [0-9.]+ points|a shade) worse than the coach's ${E.tileName(best.k)}\\. [A-Z]`).test(said),
+    `the coach on a discard it wouldn't have made: "${said}"`);
+  const co = B.differ(cj, cOther);
+  check(co && co.gap !== null && /worse than the coach's/.test(B.differWords(cOther, co)), `…on a call: "${co && B.differWords(cOther, co)}"`);
+  // a win on your own draw let go for a discard: the win in hand against the hand the discard leaves
+  const self = table({ hand: "123m 456m 789m 234p 5s 5s", seat: 1 });
+  self.turn = 1; self.phase = "act"; self.drawn = T("5s")[0];
+  const sj = B.explainMove(self, 1, { t: "discard", k: T("5s")[0] }), so = B.differ(sj, { t: "discard", k: T("5s")[0] });
+  check(E.legal(self, 1).some(a => a.t === "win") && so?.coach.t === "win" && so.gap > 10 && so.against.some(x => /gives up the win in hand/.test(x)),
+    `…on a self-drawn win let go: "${so && B.differWords({ t: "discard", k: T("5s")[0] }, so)}"`);
   // a run: four at each rating, rising, then the rest hardest first; puzzles seen lately kept for later
   const order = R.runOrder(PUZZLES, 7), rated = order.map(id => PUZZLES.find(x => x.id === id).r);
   check(order.length === n && new Set(order).size === n && rated.slice(0, 4).every(r => r === 1) && rated.slice(0, 36).every((r, i, a) => !i || r >= a[i - 1]),
