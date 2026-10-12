@@ -29,7 +29,7 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // G: the hand in play (the engine's state). S: the game around it: { seed, firstDealer, names, humans, results }.
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
-let opts = { flowers: true, minFan: 3, rounds: 1, coach: "on", pace: "steady", numbers: true, bots: "hard", ...read(OPTS, {}) };
+let opts = { flowers: true, minFan: 3, rounds: 1, coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, ...read(OPTS, {}) };
 // the coach was on or off (with Hint) until October 2026, and "differ" for a day: kept as the way it means now
 const coachWas = opts.coach;
 opts.coach = coachWas === true ? "on" : coachWas === false ? "hints" : coachWas === "differ" ? "check" : COACH.includes(coachWas) ? coachWas : "on";
@@ -233,7 +233,7 @@ function sets(seat, x, y, width, centre = false) {
   let svg = "";
   s.flowers.forEach((f, i) => { svg += use(f, x0 + i * FW, y + (MH - FH), FW, FH, "hk-flower"); });
   for (const t of md.tiles) svg += use(t.k, x0 + fw + t.x, y + t.y, MW, MH);
-  return { svg, height: Math.max(MH, md.height) + 4 };
+  return { svg, height: Math.max(MH, md.height) + 4, right: x0 + fw + used };
 }
 /** A player's discards in rows (of six, or eight in a wide side column). */
 function river(seat, x, y, perRow = 6) {
@@ -295,11 +295,20 @@ function drawLow(svg) {
   out += `<text class="hk-dial-t" x="${cx}" y="${cy + 15}">${E.wallLeft(G)}</text>${dial(cx, cy, r)}</g>`;
   svg.innerHTML = out;
 }
+/** Where the header's buttons lie over the drawing (W by H, drawn to fit its box and centred), in its units: { x, y },
+ *  their left edge and their foot; x is W when they lie above it all (a tall box centres the drawing lower). */
+function clearOfHeader(svg, W, H) {
+  const head = document.querySelector("header.top"), s = svg.getBoundingClientRect(), h = head?.getBoundingClientRect();
+  if (!h || !s.width) return { x: W, y: 0 };
+  const k = Math.min(s.width / W, s.height / H), dx = (s.width - W * k) / 2, dy = (s.height - H * k) / 2;
+  const y = (h.bottom - s.top - dy) / k + 3;
+  return y > 2 ? { x: (h.left - s.left - dx) / k - 4, y } : { x: W, y: 0 };
+}
 function drawTable() {
   const svg = $("board"), box = $("table");
   if (!G) { svg.innerHTML = ""; return; }
   if (low()) { drawLow(svg); return; }
-  const bw = box.clientWidth || 380, bh = box.clientHeight || 400;
+  const bw = svg.clientWidth || box.clientWidth || 380, bh = svg.clientHeight || box.clientHeight || 400;   // the drawing's own box: in full screen the section has a band and a frame
   // the table takes the box's proportions: a phone's is about square, and a wider box (a tablet on its side) gets wider
   // side columns, eight discards to a row, rather than bare cloth either side
   const wide = bw / bh > 0.95;
@@ -311,12 +320,18 @@ function drawTable() {
   // across the table: its label and sets across the whole width, its discards in the middle column; the players either
   // side in their columns below; mine at the foot of the middle column; the round's dial between
   const sideRow = W >= 470 ? 8 : 6, colW = sideRow * (RW + 1) + 4, midX = (W - 118) / 2;
-  let out = label(top, (W - 150) / 2, 2, 150, on(top));
-  const topSets = sets(top, 0, 21, W, true);
+  // full screen: the header's buttons lie over the cloth's top right; what the drawing puts there keeps clear of them
+  // (in its units): the label of the player across left of them, its count after the score; his sets centred left of
+  // them; his discards, and the column of the player on the right, below them
+  const clear = opts.full ? clearOfHeader(svg, W, H) : { x: W, y: 0 };
+  let out = clear.x < (W + 150) / 2 + 4 ? label(top, Math.min((W - 150) / 2, clear.x - 132), 2, 150, on(top), true) : label(top, (W - 150) / 2, 2, 150, on(top));
+  let topSets = sets(top, 0, 21, W, true);
+  if (topSets.right > clear.x) topSets = sets(top, 0, 21, clear.x, true);
   out += topSets.svg;
-  const topRiverY = 21 + topSets.height + (topSets.height ? 0 : 2);
+  const below = (x, y) => (x > clear.x ? Math.max(y, clear.y) : y);
+  const topRiverY = below(midX + 2 + 6 * (RW + 1), 21 + topSets.height + (topSets.height ? 0 : 2));
   out += river(top, midX + 2, topRiverY);
-  const sideY = Math.max(64, 21 + topSets.height + 4);
+  const sideY = below(W, Math.max(64, 21 + topSets.height + 4));
   for (const [seat, x] of [[left, 0], [right, W - colW]]) {
     out += label(seat, x, sideY, colW, on(seat));
     const st = sets(seat, x, sideY + 19, colW);
@@ -364,7 +379,9 @@ function drawHand() {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   // on a phone on its side the row lies on the table, which leaves room for it at its foot (--hk-reserve): on the
   // shortest phones a little smaller, so the table keeps its share of the height
-  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? Math.min(rem * 2.3, innerHeight * 0.095) : rem * 3.1));
+  // in full screen the row has the whole width under the console too, and takes a little more of the height
+  const most = opts.full ? Math.min(rem * 2.75, innerHeight * 0.112) : Math.min(rem * 2.3, innerHeight * 0.095);
+  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? most : rem * 3.1));
   box.style.setProperty("--hk-t", `${tw.toFixed(1)}px`);
   if (low()) $("app").style.setProperty("--hk-reserve", `${(tw * 4 / 3 + 1.25 * rem).toFixed(1)}px`);
   const btn = (k, extra = "") => {
@@ -610,7 +627,28 @@ function review() {
 }
 
 // ---------- drawing ----------
+// ---------- full screen ----------
+/**
+ * Full screen (Menu): the header's buttons go onto the table, the cloth then the whole section with a band along its
+ * top for them; on a phone held sideways the console lies on the cloth too, the buttons at its top, and your tiles
+ * take the whole width under it, larger. Where the browser can, the page goes full screen as well (an app on the home
+ * screen already is).
+ */
+function placeFull() {
+  const app = $("app"), table = $("table"), top = document.querySelector("header.top"), on = !!opts.full;
+  app.classList.toggle("full", on);
+  if (on && top.parentElement !== table) table.append(top);
+  else if (!on && top.parentElement !== app) app.prepend(top);
+}
+function fullScreen(on) {
+  try {
+    if (on && document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch { /* a browser without it: the layout alone */ }
+}
+
 function render() {
+  placeFull();
   if (!G) return;
   const box = $("table"), size = () => `${box.clientWidth}x${box.clientHeight}`;
   if (low()) drawHand();                       // on a phone on its side the table leaves your row its room: sized first
@@ -927,6 +965,7 @@ function openMenu() {
     choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); if (v === "on") askCoach(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Numbers on the tiles", opts.numbers, v => set("numbers", v)),
+    toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
   );
   const st = read(STATS, null), best = read(BEST, null);
   if (st?.hands) part(body, "about").append(line(`${st.hands} hand${st.hands === 1 ? "" : "s"}: won ${st.wins} (${st.self} self-drawn), dealt in ${st.dealIns}${st.bestFan ? ` · biggest ${st.bestFan} fan` : ""}${st.games ? ` · ${st.games} game${st.games === 1 ? "" : "s"}, first in ${st.firsts}` : ""}${best != null ? ` · best game ${signed(best)}` : ""}`));

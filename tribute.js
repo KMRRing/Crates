@@ -30,7 +30,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // ---------- state ----------
 // G: the hand in play (the engine's state, the match's levels in it). S: the table: { names, humans }.
 let G = null, S = null;
-let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", ...read(OPTS, {}) };
+let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, ...read(OPTS, {}) };
 if (!COACH.includes(opts.coach)) opts.coach = "hints";
 let me = 0;
 const selected = new Set();
@@ -43,6 +43,10 @@ const who = seat => (seat === me ? "You" : nameOf(seat));
 const keyNow = () => (G ? `${G.handNo}:${G.log.length}` : "");
 /** A phone held sideways (tribute.css's last query): the table takes the screen, your cards lie along its edge. */
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
+/** Held sideways, your cards in a row along the table's edge or stacked in columns as upright (Menu): on a phone (its
+ *  short side a phone's, whichever way it's held, so the menu says the same either way) in a row, on a tablet stacked,
+ *  unless you choose. */
+const sideOf = () => opts.side || (Math.min(innerWidth, innerHeight) <= 500 ? "row" : "stack");
 const FACE = r => (r === 15 ? "lvl" : ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"][r] || "");
 
 // ---------- the computer players and the coach, each in a worker ----------
@@ -360,10 +364,10 @@ function columns(hand, level) {
   }
   return [...cols.entries()].sort((a, b) => b[0] - a[0]).map(([v, ids]) => ids.sort((a, b) => E.suitOf(a) - E.suitOf(b)));
 }
-/** Upright, or a tablet's height: a column to a rank, its cards each showing at least their corner. Held sideways the
- *  cards are larger, with the width to spare. */
+/** Upright, or a tablet's height: a column to a rank, its cards each showing at least their corner. A tablet held
+ *  sideways draws them larger, with the width to spare; a phone held sideways (stacked, by choice) at a phone's size. */
 function stacked(cols, rem, room) {
-  const big = sideways(), W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
+  const big = sideways() && !low(), W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
   const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
   const deepest = Math.max(1, ...cols.map(c => c.length));
   // each card behind another shows its whole corner, the rank and the suit under it: with the rank alone, a straight
@@ -377,10 +381,12 @@ function stacked(cols, rem, room) {
   cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
   return { W, H, at, tight, height: H + (deepest - 1) * drop + 0.3 * rem };
 }
-/** A phone on its side has the width and not the height: the hand fanned in one row along the table's edge, each card
- *  showing its corner, a little more room between ranks than within one, as a hand is held. */
+/** Held sideways, in a row (a phone's way, by choice a tablet's): the hand fanned along the table's edge, each card
+ *  showing its corner, a little more room between ranks than within one, as a hand is held. On a phone, larger in full
+ *  screen, where the row has the whole width; on a tablet as large as its stacked cards. */
 function fanned(cols, rem, room) {
-  const W = 2.25 * rem, H = 3.2 * rem, n = cols.reduce((s, c) => s + c.length, 0), breaks = Math.max(0, cols.length - 1);
+  const big = !low() ? 1.4 : opts.full ? 1.1 : 1, W = 2.25 * big * rem, H = 3.2 * big * rem;
+  const n = cols.reduce((s, c) => s + c.length, 0), breaks = Math.max(0, cols.length - 1);
   const least = 1.05 * rem;                                     // a corner, still readable and still a target
   let gap = 0.22 * rem, pitch = n > 1 ? (room - W - breaks * gap) / (n - 1) : 0;
   if (pitch < least && n > 1) { gap = breaks ? Math.max(0, (room - W - (n - 1) * least) / breaks) : 0; pitch = Math.max((room - W - breaks * gap) / (n - 1), 0.6 * rem); }
@@ -395,10 +401,13 @@ function drawHand() {
   const box = $("hand");
   const hand = G.hands[me], level = G.level, cols = columns(hand, level);
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  const lay = low() ? fanned(cols, rem, box.clientWidth || 480) : stacked(cols, rem, box.clientWidth || 360);
+  const fan = sideways() && sideOf() === "row";
+  const lay = fan ? fanned(cols, rem, box.clientWidth || 480) : stacked(cols, rem, box.clientWidth || 360);
   handH = lay.H;
+  box.classList.toggle("fan", fan);
+  $("app").classList.toggle("fanned", fan);                      // full screen on a phone: a row goes under the console too
   // on the page, so the table can leave room for the cards at its foot when they lie on it (a phone on its side)
-  $("app").style.setProperty("--tb-cw", `${lay.W}px`); $("app").style.setProperty("--tb-ch", `${lay.H}px`);
+  $("app").style.setProperty("--tb-cw", `${lay.W}px`); $("app").style.setProperty("--tb-ch", `${lay.H}px`); $("app").style.setProperty("--tb-hh", `${lay.height}px`);
   const ask = E.asked(G, me), ok = ask === "return" ? new Set(E.returnable(hand, level)) : null;
   // the coach's play, marked while it's advice (Always), until a Hint picks it
   const adv = hint?.auto && hint.key === keyNow() ? hint.list?.[0]?.action : null;
@@ -578,7 +587,29 @@ function review() {
   return html;
 }
 
+// ---------- full screen ----------
+/**
+ * Full screen (Menu): the header's buttons go onto the table, at its top right, and the levels at its top left, in a
+ * band along its top; on a phone held sideways the console lies on the cloth too, above your cards, which take the
+ * whole width. Where the browser can, the page goes full screen as well (an app on the home screen already is).
+ */
+function placeFull() {
+  const app = $("app"), table = $("table"), top = document.querySelector("header.top"), strip = $("strip"), on = !!opts.full;
+  app.classList.toggle("full", on);
+  if (on) {
+    if (top.parentElement !== table) table.append(top);
+    if (low() ? strip.parentElement !== app : strip.parentElement !== table) (low() ? table.before(strip) : table.append(strip));
+  } else if (top.parentElement !== app) { app.prepend(top); top.after(strip); }
+}
+function fullScreen(on) {
+  try {
+    if (on && document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch { /* a browser without it: the layout alone */ }
+}
+
 function render() {
+  placeFull();
   if (!G) return;
   drawStrip();
   drawSeats();
@@ -921,6 +952,8 @@ function openMenu() {
     choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); hint = null; advise(); render(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Card counter", opts.counter, v => set("counter", v)),
+    toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
+    choice("Held sideways, your cards", [["row", "In a row"], ["stack", "Stacked"]], sideOf(), v => set("side", v)),
   );
   const st = read(STATS, null), rushBest = read(RUSH_BEST, 0);
   if (rushBest) part(body, "about").append(line(`Puzzle rush: best ${rushBest} solved`));
