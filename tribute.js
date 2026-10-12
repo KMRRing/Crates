@@ -295,11 +295,16 @@ function stacked(cols, rem, room) {
   const big = sideways(), W = (big ? 3.2 : 2.6) * rem, H = (big ? 4.4 : 3.6) * rem;
   const pitch = cols.length > 1 ? Math.min(W + 0.2 * rem, (room - W) / (cols.length - 1)) : W;
   const deepest = Math.max(1, ...cols.map(c => c.length));
-  const drop = deepest > 1 ? Math.max(1.12 * rem, Math.min(1.3 * rem, (Math.max(H * 1.9, 7.6 * rem) - H) / (deepest - 1))) : 0;
+  // each card behind another shows its whole corner, the rank and the suit under it: with the rank alone, a straight
+  // flush (five ranks in a row in one suit) couldn't be seen in the hand. A deep column (five or more of a rank) has
+  // its corners drawn smaller (tight), so it doesn't take the table's room.
+  const index = 2.1 * rem, small = 1.8 * rem, most = H + 7.2 * rem;
+  const tight = deepest > 1 && (most - H) / (deepest - 1) < index;
+  const drop = deepest > 1 ? (tight ? small : index) : 0;
   const x0 = Math.max(0, (room - (cols.length ? (cols.length - 1) * pitch + W : 0)) / 2);
   const at = [];
   cols.forEach((col, c) => col.forEach((id, i) => at.push({ id, x: x0 + c * pitch, y: i * drop, z: i + 1 })));
-  return { W, H, at, height: H + (deepest - 1) * drop + 0.3 * rem };
+  return { W, H, at, tight, height: H + (deepest - 1) * drop + 0.3 * rem };
 }
 /** A phone on its side has the width and not the height: the hand fanned in one row along the table's edge, each card
  *  showing its corner, a little more room between ranks than within one, as a hand is held. */
@@ -330,6 +335,7 @@ function drawHand() {
     html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;z-index:${z}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${face(id, level)}</button>`;
   }
   box.innerHTML = html;
+  box.classList.toggle("tight", !!lay.tight);
   box.style.height = `${lay.height.toFixed(0)}px`;
 }
 $("hand").addEventListener("click", e => {

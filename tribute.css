@@ -77,6 +77,9 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-hand .tb-card { position: absolute; width: var(--tb-cw, 2.6rem); height: var(--tb-ch, 3.6rem); cursor: pointer; transition: transform .1s; }
 .tb-hand .tb-card.sel { background: color-mix(in srgb, var(--tb-in) 24%, var(--tb-face)); border-color: var(--tb-in); box-shadow: 0 0 0 1.5px var(--tb-in); transform: translateY(-.3rem); }
 .tb-hand .tb-card.dim { opacity: .38; }
+/* a deep column (five of a rank or more): its corners smaller, so every card's suit still shows in its step */
+.tb-hand.tight .tb-card { font-size: .82rem; }
+.tb-hand.tight .tb-card .s { font-size: .7rem; margin-top: 0; }
 /* a play on the table: small cards fanned */
 .tb-cards { display: inline-flex; max-width: 100%; }
 .tb-cards .tb-card { position: relative; width: 1.75rem; height: 2.45rem; padding: .1rem .12rem; font-size: .72rem; border-radius: 4px; }
