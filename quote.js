@@ -242,7 +242,7 @@ function renderRoom() {
   $("market").hidden = !(making || g.phase === "reveal");
   $("quoteBtn").hidden = !making;
   if (!making) { $("bid").disabled = $("ask").disabled = true; }
-  if (making) { $("bid").disabled = $("ask").disabled = false; if (document.activeElement !== $("ask")) $("bid").value = $("bid").value; drawWidths(q); }
+  if (making) { $("bid").disabled = $("ask").disabled = false; if (document.activeElement !== $("ask")) $("bid").value = $("bid").value; }
   if (g.phase === "reveal" && entry) { $("bid").value = fmt(entry.bid, q); $("ask").value = fmt(entry.ask, q); }
   const waiting = $("waiting");
   waiting.hidden = !((g.phase === "make" && !isMaker) || (g.phase === "take" && isMaker));

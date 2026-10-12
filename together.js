@@ -4,7 +4,7 @@
 // where, reconnecting after the phone sleeps, updating a device running older code, and leaving. A game supplies its
 // fresh state and draws whatever state arrives.
 import { getSync } from "./net.js";
-import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, pickSeat, otherHere, seatsOf, sitDown } from "./rooms.js";
+import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, pickSeat, otherHere, seatsOf, sitDown } from "./rooms.js";
 import { reloadFresh } from "./pwa.js";
 import { reportDuo, playerId, sayWhere } from "./suite.js";
 
@@ -43,6 +43,22 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     return at && a?.at === at && a.game === game && a.answer === "yes" ? at : null;
   }
 
+  /**
+   * A state as the database will take it. It refuses a whole write for one undefined (or NaN) anywhere in it, and
+   * every move after would fail the same way (Tribute's first lead of every duo hand once did): any a game leaves are
+   * dropped here, with a warning in the console, rather than the move lost.
+   */
+  function storable(state) {
+    let odd = null;
+    const json = JSON.stringify(state, function (k, v) {
+      if (v === undefined && Array.isArray(this) && !Object.hasOwn(this, k)) return null;   // a gap the database left in a list
+      if (v === undefined || (typeof v === "number" && !Number.isFinite(v))) { odd ||= k; return v === undefined ? undefined : null; }
+      return v;
+    });
+    if (odd) console.warn(`${game}: dropped ${odd} (undefined or not a number) from the state before saving it`);
+    return JSON.parse(json);
+  }
+
   /** Starts a new room with a fresh game in it. */
   async function start() {
     const name = await askName();
@@ -51,7 +67,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     if (!sync) return false;
     try {
       const pid = playerId();
-      const code = await createRoom(sync, game, await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } }));
+      const code = await createRoom(sync, game, storable(await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } })));
       if (!code) { toast("Couldn't start a game, try again"); return false; }
       enter(code, sync, name, pid);
       return true;
@@ -71,8 +87,10 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     const solo = msg => { if (msg) toast(msg); setRoomParam(null); return false; };
     const sync = await connect();
     if (!sync) return solo();
+    // the branch held in this page's cache while joining, so the joining transaction takes one round trip, not two
+    const warm = sync.watch(path(code), () => {}, () => {});
     try {
-      const shared = await openRoom(sync, code);
+      const shared = await openBranch(sync, code, game);
       if (!shared) return solo("No game with that code");
       const before = shared[game] || null, seats = seatsOf(before), pid = playerId(), asked = askedFor(shared);
       if ((before?.app || 0) > app) { updateApp(); return false; }
@@ -89,13 +107,15 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
       let newer = false;
       const r = await sync.tx(path(code), cur => {
         newer = !!cur && (cur.app || 0) > app;
-        return newer ? undefined : sitDown(cur, { uid: sync.uid, pid, name }, { initial, asked, takeover, valid });
+        const next = newer ? undefined : sitDown(cur, { uid: sync.uid, pid, name }, { initial, asked, takeover, valid });
+        return next ? storable(next) : next;
       });
       if (newer) { updateApp(); return false; }
       if (!r.committed || !r.value) return solo(r.value && valid(r.value) && seatsOf(r.value).length >= 2 ? "Someone else just took the free seat" : "No game with that code");
       enter(code, sync, name, pid);
       return true;
     } catch (e) { explain(e); return solo(); }
+    finally { setTimeout(() => warm?.(), 0); }                 // once the room's own watch has it
   }
 
   function enter(code, sync, name, pid) {
@@ -152,7 +172,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
         if (!valid(cur)) return undefined;
         if ((cur.app || 0) > app) { newer = true; return undefined; }
         cur.app = app;
-        return change(cur) === false ? undefined : cur;
+        return change(cur) === false ? undefined : storable(cur);
       });
       if (newer) { updateApp(); return false; }
       return !!(r.committed && r.value && valid(r.value));

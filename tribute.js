@@ -32,31 +32,12 @@ const selected = new Set();
 let hint = null;                                                 // { key, list, at }: the hint's plays, cycling
 const isHuman = seat => !!S?.humans?.includes(seat);
 const nameOf = seat => (seat === me && !together.room ? "You" : S?.names?.[seat] || "?");
+/** A seat as a sentence's subject: you as "You" at a table together too, where your seat is labelled with your name. */
+const who = seat => (seat === me ? "You" : nameOf(seat));
 const keyNow = () => (G ? `${G.handNo}:${G.log.length}` : "");
 /** A phone held sideways (tribute.css's last query): the table takes the screen, your cards lie along its edge. */
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
 const FACE = r => (r === 15 ? "lvl" : ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"][r] || "");
-
-/** A state read from the room put back in shape: Firebase drops empty lists and nulls. */
-function normalize(g) {
-  if (!g) return g;
-  g.hands = [0, 1, 2, 3].map(i => g.hands?.[i] || []);
-  g.played = [0, 1, 2, 3].map(i => g.played?.[i] || []);
-  g.out = g.out || [];
-  g.log = (g.log || []).map(e => ({ ...e, cards: e.cards || (e.e === "play" ? [] : undefined) }));
-  g.top = g.top ? { ...g.top, cards: g.top.cards || [] } : null;
-  g.levels = [0, 1].map(i => g.levels?.[i] ?? 2);
-  g.results = g.results || [];
-  g.result = g.result ?? null;
-  if (g.tribute) g.tribute = { ...g.tribute, payers: g.tribute.payers || [], pays: g.tribute.pays || [], returns: (g.tribute.returns || []).map(r => ({ ...r, card: r.card ?? null })) };
-  g.opts = { ...E.DEFAULTS, ...(g.opts || {}) };
-  g.passes = g.passes || 0;
-  return g;
-}
-
-/** A state as the room keeps it: each seat's cards under its own key, so a seat with none (out, or not yet played)
- *  doesn't shift the others along when an empty list is dropped. */
-const toRoom = g => ({ ...g, hands: { ...g.hands }, played: { ...g.played } });
 
 // ---------- the computer players, in a worker ----------
 let worker = null, asked = 0, local = null;
@@ -120,6 +101,14 @@ function afterChange() {
   render();
   kick(0);
 }
+/**
+ * At a table together, the device that sat down first moves the computer players while its player is here; the
+ * other steps in only when a move hasn't come for a few seconds (that page asleep, or gone). Both used to work out
+ * every move and race to save it: twice the work on each phone, and the loser's try thrown away.
+ */
+const BACKUP_MS = 4000;
+const backup = () => !!together.room && mySlot() !== 0 && !!together.partner()?.online && !together.partner()?.game;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 function step() {
   timer = null;
   if (rush) { render(); return; }                               // a puzzle: nobody else moves
@@ -131,12 +120,14 @@ function step() {
   const g0 = gen, snap = clone(G), slow = PACE[opts.pace] || PACE.steady;
   busyWith = bot;
   render();
-  Promise.all([think(snap, bot), new Promise(r => setTimeout(r, slow))]).then(([d]) => {
-    busyWith = null;
-    if (g0 !== gen || !G || paused()) { render(); kick(0); return; }
-    if (!d?.action) { console.error("no decision", d); render(); return; }
-    apply(bot, d.action);
-  }).catch(e => { busyWith = null; console.error(e); toast("A computer player stumbled"); render(); });
+  sleep(backup() ? BACKUP_MS : 0)
+    .then(() => (g0 !== gen ? [null] : Promise.all([think(snap, bot), sleep(slow)])))
+    .then(([d]) => {
+      busyWith = null;
+      if (g0 !== gen || !G || paused()) { render(); kick(0); return; }
+      if (!d?.action) { console.error("no decision", d); render(); return; }
+      apply(bot, d.action);
+    }).catch(e => { busyWith = null; console.error(e); toast("A computer player stumbled"); render(); });
 }
 function apply(seat, act) {
   if (rush) { if (seat === me) rushAnswer(act); return; }
@@ -278,10 +269,10 @@ function drawNews() {
   const box = $("news");
   const lines = [];
   for (const e of G.log) {
-    if (e.e === "lead") lines.push(`${nameOf(e.seat)} ${e.seat === me ? "hold" : "holds"} the turned-up ${E.cardName(e.card)}, and ${e.seat === me ? "lead" : "leads"}.`);
-    else if (e.e === "resist") lines.push(`${e.seats.map(nameOf).join(" and ")} ${e.seats.length > 1 ? "hold" : "holds"} both big jokers: no tribute.`);
-    else if (e.e === "tribute") lines.push(`${nameOf(e.from)} ${e.from === me ? "pay" : "pays"} ${e.to === me ? "you" : nameOf(e.to)} ${E.cardName(e.card)}.`);
-    else if (e.e === "return") lines.push(`${nameOf(e.from)} ${e.from === me ? "give" : "gives"} back ${E.cardName(e.card)}.`);
+    if (e.e === "lead") lines.push(`${who(e.seat)} ${e.seat === me ? "hold" : "holds"} the turned-up ${E.cardName(e.card)}, and ${e.seat === me ? "lead" : "leads"}.`);
+    else if (e.e === "resist") lines.push(`${e.seats.map(who).join(" and ")} ${e.seats.length > 1 || e.seats[0] === me ? "hold" : "holds"} both big jokers: no tribute.`);
+    else if (e.e === "tribute") lines.push(`${who(e.from)} ${e.from === me ? "pay" : "pays"} ${e.to === me ? "you" : nameOf(e.to)} ${E.cardName(e.card)}.`);
+    else if (e.e === "return") lines.push(`${who(e.from)} ${e.from === me ? "give" : "gives"} back ${E.cardName(e.card)}.`);
   }
   const playing = G.log.some(e => e.e === "play" || e.e === "pass");
   box.hidden = !lines.length || playing;
@@ -636,7 +627,7 @@ const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === to
 function freshRoom(players) {
   const names = ["", BOTS[0], "", BOTS[2]];
   for (const [, p] of Object.entries(players)) names[p.slot === 1 ? 2 : 0] = p.name;
-  const game = toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
+  const game = E.toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
   return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans: [0, 2], started: Date.now(), bots: opts.bots } };
 }
 function onRoomState(g) {
@@ -644,34 +635,58 @@ function onRoomState(g) {
   me = mySlot() === 1 ? 2 : 0;
   const names = [...(g.table?.names || [])];
   for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
-  for (const s of [0, 2]) names[s] ||= "Your partner";           // a seat kept for them until they sit down
+  // a seat kept for your partner until they sit down: theirs by the name they go by here, if they're about
+  const partner = together.partner()?.name;
+  for (const s of [0, 2]) names[s] ||= s === me ? together.room?.name || "You" : partner || "Your partner";
   S = { ...g.table, names, humans: [0, 2] };
-  const was = G ? `${G.handNo}:${G.log.length}` : "";
-  G = normalize(clone(g.game));
-  if (`${G.handNo}:${G.log.length}` !== was) { gen++; selected.clear(); hint = null; }
+  // your own move already on the table, on its way: an older state meanwhile (a seat coming online) doesn't take it back
+  const behind = pending && g.game?.handNo === pending.handNo && (g.game.log?.length || 0) < pending.len;
+  if (!behind) {
+    const was = G ? `${G.handNo}:${G.log.length}` : "";
+    G = E.fromRoom(clone(g.game));
+    if (`${G.handNo}:${G.log.length}` !== was) { gen++; selected.clear(); hint = null; }
+  }
   if (G.phase !== "over" && $("resultDlg").open) $("resultDlg").close();
   render();
   seated();
-  kick(0);
+  if (!behind) kick(0);
 }
+let pending = null;                                              // your move on its way to the room: { handNo, len } it makes
+/** A move at the table together, as one transaction on the room's copy. Your own shows at once: the room's answer is a
+ *  round trip away (seconds, from far enough), and only you move your seat, so it comes back as you made it or not at
+ *  all (then the room's state is put back). */
 async function applyTogether(seat, act) {
   const len = G.log.length, handNo = G.handNo;
+  let shown = null;
+  if (seat === me) {
+    try {
+      const next = clone(G);
+      E.act(next, seat, act);
+      G = next; gen++; selected.clear(); hint = null;
+      pending = shown = { handNo, len: G.log.length };
+      render();
+    } catch { /* not a move the rules allow: the room's own check turns it down */ }
+  }
   const ok = await together.act(g => {
-    const game = normalize(g.game);
+    const game = E.fromRoom(g.game);
     if (game.handNo !== handNo || game.log.length !== len) return false;   // someone moved first
     try { E.act(game, seat, act); } catch { return false; }
-    g.game = toRoom(game);
+    g.game = E.toRoom(game);
   });
-  if (!ok) { render(); kick(300); }
+  if (pending === shown) pending = null;
+  if (!ok) {
+    if (roomData) G = E.fromRoom(clone(roomData.game));
+    render(); kick(300);
+  }
 }
 async function nextTogether() {
   const handNo = G.handNo;
   $("resultDlg").close();
   await together.act(g => {
-    const game = normalize(g.game);
+    const game = E.fromRoom(g.game);
     if (game.handNo !== handNo || game.phase !== "over") return false;
     if (game.result.over) { const fresh = freshRoom(g.players); g.game = fresh.game; g.table = fresh.table; }
-    else g.game = toRoom(E.nextHand(game, (Math.random() * 2 ** 32) >>> 0));
+    else g.game = E.toRoom(E.nextHand(game, (Math.random() * 2 ** 32) >>> 0));
   });
 }
 function drawPartner() {
@@ -785,7 +800,7 @@ function load() {
   if (r?.v === 1) { resumeRush(r); return; }
   const run = read(RUN, null);
   if (run?.G?.v === 1 && run?.S) {
-    G = normalize(run.G); S = run.S; me = 0;
+    G = E.fromRoom(run.G); S = run.S; me = 0;
     closeDialogs();
     gen++;
     render();

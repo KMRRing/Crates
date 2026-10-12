@@ -2,7 +2,8 @@
 // bump, the pass block, robbing a kong, liability, the seven flowers; then hundreds of hands played through by
 // computer players without a refused move, every tile accounted for and every payment balanced; then the computer
 // players: their reading of a hand, the calls and defence a good player makes, whole hands among themselves, and the
-// computer player against plain efficiency players over the same deals in every seat; and the puzzle rush's bank.
+// computer player against plain efficiency players over the same deals in every seat; hands together through the
+// shared room (as the database keeps it, tests/rtdb.js); and the puzzle rush's bank.
 import * as E from "../hong-engine.js";
 import * as B from "../hong-bot.js";
 
@@ -303,6 +304,26 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   check(again.slice(0, 4).every(id => !recent.includes(id)), "puzzles seen lately come after the others of their rating");
 }
 
+{
+  // hands together go through the shared room move by move (fromRoom): every write one the database accepts, every
+  // state back from it exactly as written
+  const { roundTrip, same } = await import("./rtdb.js");
+  let moves = 0, refused = null, changed = null;
+  for (let h = 0; h < 12 && !refused; h++) {
+    let g = E.deal({ seed: 700 + h, dealer: h % 4, round: 0, hand: 0, opts: { flowers: h % 2 === 0, minFan: [3, 1, 0][h % 3] } });
+    for (let k = 0; k < 3000 && g.phase !== "over"; k++, moves++) {
+      let back;
+      try { back = E.fromRoom(roundTrip(g)); } catch (e) { refused = `move ${k} of hand ${h}: ${e.message}`; break; }
+      if (!changed && !same(back, JSON.parse(JSON.stringify(g)))) changed = `move ${k} of hand ${h}`;
+      g = back;
+      const seat = E.waitingOn(g)[0];
+      E.act(g, seat, B.decide(g, seat, { seed: seat + 1 }).action);
+    }
+  }
+  check(!refused, `hands together: every write one the database accepts${refused ? ` (refused at ${refused})` : ` (${moves} moves)`}`);
+  check(!changed, `and every state comes back from the room as it was written${changed ? ` (not at ${changed})` : ""}`);
+}
+
 export { T, table };
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("hong: the fan, the deal, the claims, liability, flowers, whole hands played through, the computer players, and the puzzle rush");
+else console.log("hong: the fan, the deal, the claims, liability, flowers, whole hands played through, the computer players, the shared room, and the puzzle rush");

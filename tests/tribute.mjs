@@ -1,7 +1,8 @@
 // Tribute: the cards, every kind of play and how they compare (the wilds, the ace low and high, the bomb ladder), the
 // trick and the partner's lead after going out, tribute, its return and resistance, the levels and passing the ace;
 // then how the computer players organise a hand and judge a position, at both strengths, whole matches of them (every
-// card accounted for), against greedy players, and hard against medium; and the puzzle rush's bank.
+// card accounted for), against greedy players, and hard against medium; a match together through the shared room (as
+// the database keeps it, tests/rtdb.js); and the puzzle rush's bank.
 import * as E from "../tribute-engine.js";
 import * as B from "../tribute-bot.js";
 
@@ -289,5 +290,27 @@ for (const skill of ["hard", "medium"]) {
   check(order.length === n && new Set(order).size === n && rated.slice(0, 12).every((r, i, a) => !i || r >= a[i - 1]), `a run deals every puzzle once, the easiest first (${rated.slice(0, 12).join(" ")} …)`);
 }
 
+{
+  // a match together goes through the shared room move by move (fromRoom and toRoom): every write is one the database
+  // accepts (one undefined anywhere and it refuses the move: the first lead of every duo hand once failed so), and every
+  // state comes back from it exactly as it was written, whole matches long, both kinds of match
+  const { roundTrip, same } = await import("./rtdb.js");
+  let moves = 0, refused = null, changed = null;
+  for (const seed of [1, 2, 3, 4]) {
+    let g = E.newGame({ mode: seed % 2 ? "deals" : "ace", deals: 6 }, 900 + seed);
+    for (let k = 0; k < 4000 && !refused; k++, moves++) {
+      let back;
+      try { back = E.fromRoom(roundTrip(E.toRoom(g))); } catch (e) { refused = `move ${k} of match ${seed}: ${e.message}`; break; }
+      if (!changed && !same(back, JSON.parse(JSON.stringify(g)))) changed = `move ${k} of match ${seed}`;
+      g = back;                                               // played on from what the room gives back, as the other device does
+      if (g.phase === "over") { if (g.result.over) break; g = E.nextHand(g, seed * 1000 + k); continue; }
+      const seat = E.waitingOn(g)[0];
+      E.act(g, seat, B.decide(g, seat, { noise: false }).action);
+    }
+  }
+  check(!refused, `a duo match's every write is one the database accepts${refused ? ` (refused at ${refused})` : ` (${moves} moves)`}`);
+  check(!changed, `and every state comes back from the room as it was written${changed ? ` (not at ${changed})` : ""}`);
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, the computer players' judgement at both strengths, whole matches, and the puzzle rush");
+else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, the computer players' judgement at both strengths, whole matches, the shared room, and the puzzle rush");

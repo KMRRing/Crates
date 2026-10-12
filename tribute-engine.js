@@ -350,3 +350,30 @@ export function nextHand(state, seed) {
   const game = { v: 1, opts: state.opts, levels: r.levels, declarer: r.team, handNo: state.handNo + 1, lastOrder: r.order, results: state.results };
   return deal(game, seed);
 }
+
+// ---------- the state as a shared room keeps it ----------
+/** A state as the room keeps it: each seat's cards under its own key, so a seat with none (out, or not yet played)
+ *  doesn't shift the others along when the database drops an empty list. */
+export const toRoom = g => ({ ...g, hands: { ...g.hands }, played: { ...g.played } });
+/**
+ * A state read from the room put back as it was written: the database keeps no nulls and no empty lists, and gives
+ * seats kept by key back as a list with holes. Nothing in it may be undefined: the database refuses a whole write for
+ * one undefined anywhere in it, and every move after it would fail.
+ */
+export function fromRoom(g) {
+  if (!g) return g;
+  g.hands = [0, 1, 2, 3].map(i => g.hands?.[i] || []);
+  g.played = [0, 1, 2, 3].map(i => g.played?.[i] || []);
+  g.out = g.out || [];
+  g.log = (g.log || []).map(e => (e.e === "play" ? { ...e, cards: e.cards || [] } : e));
+  g.top = g.top ? { ...g.top, cards: g.top.cards || [] } : null;
+  g.levels = [0, 1].map(i => g.levels?.[i] ?? 2);
+  g.results = g.results || [];
+  g.result = g.result ?? null;
+  g.tribute = g.tribute ? { ...g.tribute, payers: g.tribute.payers || [], pays: g.tribute.pays || [], returns: (g.tribute.returns || []).map(r => ({ ...r, card: r.card ?? null })) } : null;
+  g.lastOrder = g.lastOrder ?? null;
+  g.shown = g.shown ?? null;
+  g.opts = { ...DEFAULTS, ...(g.opts || {}) };
+  g.passes = g.passes || 0;
+  return g;
+}

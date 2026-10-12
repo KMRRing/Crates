@@ -59,16 +59,49 @@ function lift(cur) {
   return null;
 }
 
-/** Opens a room by code: its contents (lifted into the shared layout if older), or null if there's none. */
-export async function openRoom(sync, code) {
-  let found = null;
-  await sync.tx(rootPath(code), cur => {
-    found = null;
-    if (cur === null) return null;                 // cache cold: let the server hand us the real room
-    found = lift(cur);
-    return found && found !== cur ? found : undefined;     // write only when lifting an older room
+/** The value at a path, read once: a listener's first answer (the server's, unless this page holds it already). */
+function readOnce(sync, path) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const stop = sync.watch(path, v => {
+      if (done) return;
+      done = true;
+      resolve(v ?? null);
+      setTimeout(() => stop?.(), 0);             // not from inside its own callback
+    }, e => { if (!done) { done = true; reject(e); } });
   });
-  return found;
+}
+
+/**
+ * Opens a room by code: its contents (lifted into the shared layout if older), or null if there's none. It's read,
+ * not run as a transaction: a transaction on the whole room took two round trips at least, and was run again for every
+ * write anywhere in it meanwhile (each page saying where it is), which on a slow connection made joining slow. Only an
+ * older room is written, lifted in a transaction so two devices can't both lift it.
+ */
+export async function openRoom(sync, code) {
+  const cur = await readOnce(sync, rootPath(code));
+  if (cur === null) return null;
+  const found = lift(cur);
+  if (!found || found === cur) return found;
+  let lifted = null;
+  await sync.tx(rootPath(code), c => {
+    lifted = null;
+    if (c === null) return null;                 // cache cold: let the server hand us the real room
+    lifted = lift(c);
+    return lifted && lifted !== c ? lifted : undefined;
+  });
+  return lifted;
+}
+
+/**
+ * What a game needs of a room to sit down in it, { suite, ask, [game] }, read as those three alone: the whole room
+ * holds every game's branch and what each of you has open (mirrored for watching), far more than a join needs. A room
+ * with none of them is an older one, or none: that's opened whole (openRoom).
+ */
+export async function openBranch(sync, code, game) {
+  const [suite, ask, branch] = await Promise.all([readOnce(sync, `${rootPath(code)}/suite`), readOnce(sync, `${rootPath(code)}/ask`), readOnce(sync, branchPath(code, game))]);
+  if (suite === null && ask === null && branch === null) return openRoom(sync, code);
+  return { ...(suite !== null ? { suite } : {}), ...(ask !== null ? { ask } : {}), ...(branch !== null ? { [game]: branch } : {}) };
 }
 
 /** Starts a new room holding this game's state; returns its code, or null if no free code turned up. */

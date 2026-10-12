@@ -4,7 +4,7 @@
 // nobody is dealt over without one; a third player changes nothing unless they chose a seat. A pair's room opens as a
 // room from its first request (it once had to be made by a game first). And otherHere, which says where your partner
 // is, doesn't mistake your own other devices, or a page left open, for them.
-import { sitDown, seatsOf, otherHere, openRoom } from "../rooms.js";
+import { sitDown, seatsOf, otherHere, openRoom, openBranch } from "../rooms.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -76,7 +76,10 @@ check(sitDown(legacy, { uid: "x", name: "Old" }, { takeover: "a1", valid }).play
 // opening a room: a pair's room is one from its first request, before any game has a branch in it
 const roomOf = async root => {
   const writes = [];
-  const sync = { async tx(path, fn) { const v = fn(root === null ? null : structuredClone(root)); if (v !== undefined) writes.push(v); return { committed: v !== undefined, value: v ?? root }; } };
+  const sync = {
+    async tx(path, fn) { const v = fn(root === null ? null : structuredClone(root)); if (v !== undefined) writes.push(v); return { committed: v !== undefined, value: v ?? root }; },
+    watch(path, cb) { setTimeout(() => cb(root === null ? null : structuredClone(root)), 0); return () => {}; },
+  };
   return { room: await openRoom(sync, "ABCD"), writes };
 };
 const pair = await roomOf({ live: { pa: { d1: { game: "tribute", mode: "solo" } } }, ask: { from: "pa", game: "tribute", at: 1, answer: "yes" } });
@@ -85,6 +88,17 @@ check((await roomOf({ suite: 1, tribute: { v: 1 } })).room?.tribute?.v === 1, "a
 const lifted = await roomOf({ v: 3, players: {} });
 check(lifted.room?.suite === 1 && lifted.room.crates?.v === 3 && lifted.writes.length === 1, "an old Crates room is lifted into its branch");
 check((await roomOf({ something: "else" })).room === null && (await roomOf(null)).room === null, "anything else isn't a room");
+
+// joining reads what it needs of a room, not the whole of it (every game's branch, and what each of you has open)
+const big = { suite: 1, ask: { game: "tribute", at: 5, answer: "yes" }, tribute: { v: 1, players: {} }, crates: { v: 3, log: [1, 2, 3] }, watch: { pa: { keys: { "rush:x": "…" } } } };
+const readPaths = [];
+const pathSync = {
+  async tx() { throw new Error("joining doesn't write to open a room"); },
+  watch(path, cb) { readPaths.push(path); const v = path.split("/").slice(3).reduce((o, k) => (o == null ? undefined : o[k]), big); setTimeout(() => cb(v ?? null), 0); return () => {}; },
+};
+const opened = await openBranch(pathSync, "ABCD", "tribute");
+check(opened?.tribute?.v === 1 && opened.ask?.answer === "yes" && opened.suite === 1 && !opened.crates && !opened.watch && !readPaths.includes("crates/rooms/ABCD"),
+  `a join reads the room's game branch, its request and its mark (${readPaths.map(p => p.split("/").slice(3).join("/")).join(", ")}), not the whole room`);
 
 // where your partner is: not your own other devices, a page open now before one left open, this game before another
 const here = {

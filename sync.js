@@ -20,11 +20,18 @@ const DB_URLS = [
   "https://croatiabio-default-rtdb.firebaseio.com",
 ];
 
+// where the database was found, so later connections skip asking (a whole request each time, slow from far away);
+// kept on this device only (suite: keys don't sync)
+const FOUND = "suite:db";
 async function resolveDbUrl() {
+  try { const known = localStorage.getItem(FOUND); if (DB_URLS.includes(known)) return known; } catch { /* private mode */ }
   for (const url of DB_URLS) {
     try {
       const res = await fetch(url + "/.json?shallow=true");
-      if (res.status !== 404) return url;      // 200/401/403 all mean the instance exists
+      if (res.status !== 404) {                // 200/401/403 all mean the instance exists
+        try { localStorage.setItem(FOUND, url); } catch { /* private mode */ }
+        return url;
+      }
     } catch { /* try the next one */ }
   }
   return DB_URLS[0];

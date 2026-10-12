@@ -531,3 +531,35 @@ export function nextHand(state, session) {
   if (round >= (state.opts.rounds || 1)) return null;
   return { seed: (session.seed + (state.hand + 1) * 7919) >>> 0, dealer, round, hand: state.hand + 1, opts: state.opts, scores: state.scores };
 }
+
+// ---------- the state as a shared room keeps it ----------
+/**
+ * A state read from the room put back as it was written: the database keeps no nulls and no empty lists, and turns
+ * an object of seats into a list with holes. Nothing in it may be undefined: the database refuses a whole write for one
+ * undefined anywhere in it.
+ */
+export function fromRoom(g) {
+  if (!g) return g;
+  g.seats = [0, 1, 2, 3].map(i => {
+    const s = g.seats?.[i] || {};
+    return { hand: s.hand || [], melds: (s.melds || []).map(m => ({ ...m })), flowers: s.flowers || [], river: (s.river || []).map(d => ({ ...d })), passBlock: !!s.passBlock, ...(s.declinedFlowers ? { declinedFlowers: s.declinedFlowers } : {}) };
+  });
+  g.wall = g.wall || [];
+  g.drawn = g.drawn ?? null;
+  g.last = g.last ?? null;
+  const claims = {};
+  for (const [k, v] of Object.entries(g.claims || {})) if (v) claims[k] = v;
+  g.claims = claims;
+  g.liable = [0, 1, 2, 3].map(i => g.liable?.[i] ?? -1);
+  g.flags = { afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false, heavenly: false, earthly: false, calls: 0, ...(g.flags || {}) };
+  g.flags.firstTurn = [0, 1, 2, 3].map(i => !!g.flags.firstTurn?.[i]);
+  g.log = g.log || [];
+  g.scores = [0, 1, 2, 3].map(i => g.scores?.[i] || 0);
+  g.result = g.result ?? null;
+  if (g.result) {
+    g.result.pay = [0, 1, 2, 3].map(i => g.result.pay?.[i] || 0);
+    g.result.items = g.result.items || [];
+  }
+  g.opts = { ...DEFAULTS, ...(g.opts || {}) };
+  return g;
+}

@@ -40,34 +40,6 @@ const keyNow = () => (G ? `${G.hand}:${G.log.length}:${G.phase}` : "");
 /** A phone held sideways (hong.css's last query): the table takes the screen, your tiles lie along its edge. */
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
 
-/** A state read from the room (or an old save) put back in shape: Firebase drops empty lists and nulls, and turns an
- *  object of seats into a list with holes. */
-function normalize(g) {
-  if (!g) return g;
-  g.seats = [0, 1, 2, 3].map(i => {
-    const s = g.seats?.[i] || {};
-    return { hand: s.hand || [], melds: (s.melds || []).map(m => ({ ...m })), flowers: s.flowers || [], river: (s.river || []).map(d => ({ ...d })), passBlock: !!s.passBlock, ...(s.declinedFlowers ? { declinedFlowers: s.declinedFlowers } : {}) };
-  });
-  g.wall = g.wall || [];
-  g.drawn = g.drawn ?? null;
-  g.last = g.last ?? null;
-  const claims = {};
-  for (const [k, v] of Object.entries(g.claims || {})) if (v) claims[k] = v;
-  g.claims = claims;
-  g.liable = [0, 1, 2, 3].map(i => g.liable?.[i] ?? -1);
-  g.flags = { afterKong: false, kongChain: 0, lastDraw: false, finalDiscard: false, heavenly: false, earthly: false, calls: 0, ...(g.flags || {}) };
-  g.flags.firstTurn = [0, 1, 2, 3].map(i => !!g.flags.firstTurn?.[i]);
-  g.log = g.log || [];
-  g.scores = [0, 1, 2, 3].map(i => g.scores?.[i] || 0);
-  g.result = g.result ?? null;
-  if (g.result) {
-    g.result.pay = [0, 1, 2, 3].map(i => g.result.pay?.[i] || 0);
-    g.result.items = g.result.items || [];
-  }
-  g.opts = { ...E.DEFAULTS, ...(g.opts || {}) };
-  return g;
-}
-
 // ---------- the computer players, in a worker ----------
 let worker = null, asked = 0, local = null;
 const answers = new Map();
@@ -149,16 +121,17 @@ function step() {
   askCoach();
   const bot = waiting.find(s => !isHuman(s));
   if (bot === undefined || busyWith !== null || paused()) { render(); return; }
-  if (together.room && !runsBots()) { render(); return; }
   const g0 = gen, snap = clone(G), slow = G.phase === "act" ? PACE[opts.pace] || PACE.steady : (PACE[opts.pace] || PACE.steady) * 0.45;
   busyWith = bot;
   render();
-  Promise.all([think(snap, bot), new Promise(r => setTimeout(r, slow))]).then(([d]) => {
-    busyWith = null;
-    if (g0 !== gen || !G || paused()) { render(); kick(0); return; }
-    if (!d?.action) { console.error("no decision", d); render(); return; }
-    apply(bot, d.action);
-  }).catch(e => { busyWith = null; console.error(e); toast("A computer player stumbled; tap to carry on"); render(); });
+  sleep(backup() ? BACKUP_MS : 0)
+    .then(() => (g0 !== gen ? [null] : Promise.all([think(snap, bot), sleep(slow)])))
+    .then(([d]) => {
+      busyWith = null;
+      if (g0 !== gen || !G || paused()) { render(); kick(0); return; }
+      if (!d?.action) { console.error("no decision", d); render(); return; }
+      apply(bot, d.action);
+    }).catch(e => { busyWith = null; console.error(e); toast("A computer player stumbled; tap to carry on"); render(); });
 }
 /** A move: a seat's action applied (in a room, as one transaction on the room's copy). */
 function apply(seat, act) {
@@ -780,7 +753,14 @@ function rushReasons(j) {
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
 let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
 const seated = () => { joining?.(); joining = null; };
-const runsBots = () => !!together.room;                           // both devices may; the transaction keeps one
+/**
+ * At a table together, the device that sat down first moves the computer players while its player is here; the
+ * other steps in only when a move hasn't come for a few seconds (that page asleep, or gone). Both used to work out
+ * every move and race to save it: twice the work on each phone, and the loser's try thrown away.
+ */
+const BACKUP_MS = 4000;
+const backup = () => !!together.room && mySlot() !== 0 && !!together.partner()?.online && !together.partner()?.game;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 function freshRoom(players) {
   const seed = (Math.random() * 2 ** 32) >>> 0, firstDealer = Math.floor(Math.random() * 4);
   const names = ["", BOTS[0], "", BOTS[2]];
@@ -793,32 +773,56 @@ function onRoomState(g) {
   me = mySlot() === 1 ? 2 : 0;
   const names = [...(g.session?.names || [])];
   for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
-  for (const s of [0, 2]) names[s] ||= "Your partner";           // a seat kept for them until they sit down
+  // a seat kept for your partner until they sit down: theirs by the name they go by here, if they're about
+  const partner = together.partner()?.name;
+  for (const s of [0, 2]) names[s] ||= s === me ? together.room?.name || "You" : partner || "Your partner";
   S = { ...g.session, names, humans: [0, 2], results: g.session?.results || [] };
-  const was = G ? `${G.hand}:${G.log.length}` : "";
-  G = normalize(clone(g.game));
-  if (`${G.hand}:${G.log.length}` !== was) { gen++; picked = null; }
+  // your own discard already on the table, on its way: an older state meanwhile doesn't take it back
+  const behind = pending && g.game?.hand === pending.hand && (g.game.log?.length || 0) < pending.len;
+  if (!behind) {
+    const was = G ? `${G.hand}:${G.log.length}` : "";
+    G = E.fromRoom(clone(g.game));
+    if (`${G.hand}:${G.log.length}` !== was) { gen++; picked = null; }
+  }
   if (G.phase !== "over" && $("resultDlg").open) $("resultDlg").close();
   render();
   seated();
-  kick(0);
+  if (!behind) kick(0);
 }
+let pending = null;                                              // your discard on its way to the room: { hand, len } it makes
+/** A move at the table together, as one transaction on the room's copy. Your own discard shows at once: the room's
+ *  answer is a round trip away, and on your turn nobody else can move, so it comes back as you made it or not at all
+ *  (then the room's state is put back). A call waits for the room: your partner may be answering the same discard. */
 async function applyTogether(seat, act) {
   const len = G.log.length, hand = G.hand;
+  let shown = null;
+  if (seat === me && G.phase === "act" && G.turn === me) {
+    try {
+      const next = clone(G);
+      E.act(next, seat, act);
+      G = next; gen++; picked = null;
+      pending = shown = { hand, len: G.log.length };
+      render();
+    } catch { /* not a move the rules allow: the room's own check turns it down */ }
+  }
   const ok = await together.act(g => {
-    const game = normalize(g.game);
+    const game = E.fromRoom(g.game);
     if (game.hand !== hand || game.log.length !== len) return false;   // someone moved first
     if (!E.legal(game, seat).some(a => a.t === act.t && (a.k ?? null) === (act.k ?? null) && (a.how ?? null) === (act.how ?? null))) return false;
     E.act(game, seat, act);
     g.game = game;
   });
-  if (!ok) { render(); kick(300); }
+  if (pending === shown) pending = null;
+  if (!ok) {
+    if (roomData) G = E.fromRoom(clone(roomData.game));
+    render(); kick(300);
+  }
 }
 async function nextTogether() {
   const hand = G.hand;
   $("resultDlg").close();
   await together.act(g => {
-    const game = normalize(g.game);
+    const game = E.fromRoom(g.game);
     if (game.hand !== hand || game.phase !== "over") return false;
     const cfg = E.nextHand(game, { seed: g.session.seed, firstDealer: g.session.firstDealer });
     if (cfg) g.game = E.deal(cfg);
@@ -855,7 +859,7 @@ const together = createTogether({
   onLeave: () => { roomData = null; seated(); load(); },
   // a game played to its end: the pair's record, by points; each of you for yourself against the other
   result: g => {
-    const game = normalize(clone(g.game));
+    const game = E.fromRoom(clone(g.game));
     if (game.phase !== "over" || E.nextHand(game, { seed: g.session.seed, firstDealer: g.session.firstDealer })) return null;
     const mineS = game.scores[mySlot() === 1 ? 2 : 0], theirs = game.scores[mySlot() === 1 ? 0 : 2];
     return { match: `${g.session.started}`, score: mineS, won: mineS > theirs ? true : mineS < theirs ? false : null, coop: false, lower: false };
@@ -955,7 +959,7 @@ function load() {
   if (r?.v === 1) { resumeRush(r); return; }
   const run = read(RUN, null);
   if (run?.G && run?.S && run.G.v === 1) {
-    G = normalize(run.G); S = run.S; R = run.R || []; me = 0;
+    G = E.fromRoom(run.G); S = run.S; R = run.R || []; me = 0;
     closeDialogs();
     gen++;
     render();
