@@ -1,8 +1,10 @@
 // Stow: three pieces at a time, dragged into the hold; a line full from end to end clears, and a level is won once
 // every consignment (the stamped cargo) has gone out with a line. The rules, the deals and the solver are in
-// stow-engine.js, the campaign in stow-levels.js; this file draws the hold, moves the pieces and keeps your progress.
-// Together, the two of you fill one hold, each from a tray of your own the other can't see, taking turns.
-import { makeField, placements, fits, filledBy, put, marksLeft, anyFits, tray, startBoard, starsFor, pool } from "./stow-engine.js";
+// stow-engine.js, the campaign in stow-levels.js, a hold in decks drawn in 3D in stow-3d.js; this file draws the hold,
+// moves the pieces and keeps your progress. Together, the two of you fill one hold, each from a tray of your own the
+// other can't see, taking turns.
+import { makeField, placements, options, filledBy, put, marksLeft, anyFits, tray, startBoard, starsFor, pool } from "./stow-engine.js";
+import { holdScene, drawPiece, VIEW, EL_MIN, EL_MAX } from "./stow-3d.js";
 import { CHAPTERS, LEVELS } from "./stow-levels.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -11,10 +13,11 @@ import "./pwa.js";
 import { part, action, line } from "./menu.js";
 import { today, noteStars } from "./suite.js";
 import { busy } from "./loading.js";
+import { scale } from "./wide.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "stow:run", PROGRESS = "stow:progress", DAILY = "stow:daily", DAYLEVEL = "stow:day";
+const RUN = "stow:run", PROGRESS = "stow:progress", DAILY = "stow:daily", DAYLEVEL = "stow:day", TURNED = "stow:view";
 const APP = 1;                                                   // this code's version of the together state
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -24,6 +27,8 @@ const byId = new Map(LEVELS.map(l => [l.id, l]));
 // S: the level in play, as you left it: { id, board, tint, tray, slots, used, done } (tint: each placed cell's colour,
 // 1–4; cargo and empty cells 0). L: that level, F: its field. In a room S is the room's state, hands and all.
 let S = null, L = null, F = null;
+// a hold in decks: its scene (stow-3d.js) and the way it's turned (kept, so a reload and a watching partner see it so)
+let scene = null, view = { ...VIEW, ...read(TURNED, {}) };
 let progress = read(PROGRESS, {});                               // { levelId: { stars, best } }
 const levelOf = id => (typeof id === "string" && id.startsWith("d") ? read(DAYLEVEL, null)?.level : byId.get(id)) || null;
 
@@ -58,7 +63,15 @@ const colourOf = p => (p.n % 4) + 1;                            // each shape ke
 let cellEls = [];
 const unitsPer = () => { const m = $("board").getScreenCTM(); return m ? m.a : 30; };
 function buildBoard() {
-  const svg = $("board"), pad = F.kind === "hex" ? 0.55 : F.kind === "tri" ? 0.3 : 0.35;
+  const svg = $("board");
+  if (F.decks) {
+    svg.dataset.kind = "deck";
+    scene = holdScene(svg, F, view);
+    frameHold();
+    return;
+  }
+  scene = null;
+  const pad = F.kind === "hex" ? 0.55 : F.kind === "tri" ? 0.3 : 0.35;
   const w = F.box.w + 2 * pad, h = F.box.h + 2 * pad;
   svg.setAttribute("viewBox", `${F.box.x - pad} ${F.box.y - pad} ${w} ${h}`);
   svg.style.setProperty("--ar", (w / h).toFixed(4));               // the frame hugs the hold at its own proportions
@@ -76,8 +89,26 @@ function buildBoard() {
   stamps.setAttribute("class", "stamps");
   svg.appendChild(stamps);
 }
+/**
+ * Everything a move in a hold would clear, every wave of it, lit where it stands now: the lines it fills, and those the
+ * settling after them would fill, which no eye could be asked to foresee. Each crate is followed through the move by
+ * its own number (put carries it), so a crate cleared in the second wave is lit in its place before the first.
+ */
+function foresee(idx, board) {
+  const r = put(F, board, idx, Array.from({ length: F.n }, (_, i) => i + 1), true), out = new Set();
+  for (const w of r.waves) for (const i of w.cleared) out.add(w.carried[i] - 1);
+  return out;
+}
+/** The 3D hold's frame hugs it at this tilt, as the flat hold's hugs its outline. */
+function frameHold() { const [, , w, h] = scene.frame; $("board").style.setProperty("--ar", (w / h).toFixed(4)); scene.px = unitsPer() / scale(); }
 /** The hold as it stands, with what a piece held over it would do: its cells (ghost) and the lines it would fill. */
 function drawBoard(ghost = null, clearing = null, board = S.board) {
+  if (scene) {
+    scene.px = unitsPer() / scale();
+    const ghostTint = drag?.colour || (picked != null ? colourOf(piecesOf(mySlot())[picked]) : 1);
+    scene.draw({ board, tint: S.tint, ghost, ghostTint, lit: ghost && foresee(ghost, board), gone: clearing });
+    return;
+  }
   const will = new Set(), mine = new Set(ghost || []);
   if (ghost) for (const li of filledBy(F, board, ghost)) for (const i of F.lines[li].cells) will.add(i);
   const stamps = $("board").querySelector(".stamps");
@@ -125,6 +156,13 @@ function extent(kind) {
   return extents.get(kind);
 }
 function pieceSvg(p, { fit = null } = {}) {
+  if (F.decks) {                                                 // in the hold's own view; shape: its frame and middle
+    const svg = document.createElementNS(SVG, "svg");
+    svg.setAttribute("class", "sw-piece deck");
+    svg.dataset.kind = "deck";
+    svg.shape = drawPiece(svg, F, p, view, { fit: !!fit, tint: colourOf(p) });
+    return svg;
+  }
   const s = shapeOf(p), svg = document.createElementNS(SVG, "svg");
   if (fit) {                                                     // the tray: every piece on the same scale, centred
     const e = extent(F.kind), w = e.w + 0.4, h = e.h + 0.4;
@@ -150,7 +188,7 @@ function drawTray() {
     b.type = "button";
     b.className = "sw-slot";
     if (!hand.slots[k]) { b.classList.add("used"); b.disabled = true; b.setAttribute("aria-label", "Placed"); box.appendChild(b); return; }
-    const fitsNow = placements(F, p).some(idx => fits(S.board, idx));
+    const fitsNow = options(F, S.board, p).length > 0;
     if (!fitsNow) b.classList.add("nofit");
     if (drag?.slot === k) b.classList.add("lifted");
     if (picked === k) b.classList.add("picked");
@@ -173,15 +211,17 @@ function drawTray() {
 // ---------- dragging (and tapping: a piece picked up, then a tap in the hold) ----------
 let drag = null, picked = null, flashing = null;
 function clearDrag() { drag?.el?.remove(); drag = null; picked = null; }
-/** The valid placements of a piece now, each with its centre: for snapping to the nearest. */
+/** The valid placements of a piece now, each with its centre (in a hold, where it comes to rest, as drawn): for
+ *  snapping to the nearest. */
 function targets(p) {
-  return placements(F, p).filter(idx => fits(S.board, idx)).map(idx => {
+  return options(F, S.board, p).map(idx => {
     let x = 0, y = 0;
-    for (const i of idx) { x += F.cells[i].x; y += F.cells[i].y; }
+    for (const i of idx) { const [cx, cy] = scene ? scene.centre(i) : [F.cells[i].x, F.cells[i].y]; x += cx; y += cy; }
     return { idx, x: x / idx.length, y: y / idx.length };
   });
 }
-const spacing = () => (F.kind === "hex" ? Math.sqrt(3) : F.kind === "tri" ? 0.58 : 1);
+// how far apart two places are, about: a hold's drops lie a crate apart, nearer as the view looks along them
+const spacing = () => (F.decks ? 1.2 : F.kind === "hex" ? Math.sqrt(3) : F.kind === "tri" ? 0.58 : 1);
 function toBoard(px, py) {
   const svg = $("board"), m = svg.getScreenCTM();
   if (!m) return null;
@@ -200,7 +240,7 @@ function startDrag(k, p, e) {
   e.preventDefault();
   const was = picked;
   clearDrag();
-  const scale = unitsPer(), shapeInfo = shapeOf(p), el = pieceSvg(p);
+  const scale = unitsPer(), el = pieceSvg(p), shapeInfo = el.shape || shapeOf(p);
   el.classList.add("sw-float");
   el.style.width = `${shapeInfo.box.w * scale}px`;
   el.style.height = `${shapeInfo.box.h * scale}px`;
@@ -218,10 +258,14 @@ function moveDrag(e) {
   const cx = e.clientX, cy = e.clientY - (drag.moved ? lift : 0);
   el.style.left = `${cx - (s.cx - s.box.x) * scale}px`;
   el.style.top = `${cy - (s.cy - s.box.y) * scale}px`;
-  el.style.visibility = drag.moved ? "visible" : "hidden";
   drag.button.classList.toggle("lifted", drag.moved);
-  const t = drag.moved ? nearest(drag.list, toBoard(cx, cy)) : null;
+  const t = drag.moved ? nearest(drag.list, toBoard(cx, cy)) : null, same = t === drag.place && drag.drawn;
   drag.place = t;
+  // in a hold, a piece with a place to go is drawn there, among the crates (in front of what it's in front of and
+  // behind what hides it); held anywhere else, it's in hand
+  el.style.visibility = drag.moved && !(scene && t) ? "visible" : "hidden";
+  if (same) return;                                               // the same place: the hold as it's drawn
+  drag.drawn = true;
   drawBoard(t?.idx || null);
 }
 function endDrag(e) {
@@ -253,23 +297,24 @@ addEventListener("pointerup", endDrag);
 addEventListener("pointercancel", e => { if (drag && e.pointerId === drag.id) { clearDrag(); drawTray(); render(); } });
 
 // ---------- a move ----------
+const sameCells = (a, b) => a.length === b.length && a.every((v, j) => v === b[j]);
 function placePiece(k, idx) {
   if (together.room) { moveTogether(k, idx); return; }
   const p = piecesOf(0)[k];
-  if (!S.slots[k] || !fits(S.board, idx)) return;
-  const r = put(F, S.board, idx);
+  if (!S.slots[k] || !options(F, S.board, p).some(x => sameCells(x, idx))) return;
   const tint = S.tint.slice();
   for (const i of idx) tint[i] = colourOf(p);
-  for (const i of r.cleared) tint[i] = 0;
-  const before = S.board;
+  const r = put(F, S.board, idx, tint, !!F.decks);
+  const before = S.board, tintBefore = S.tint;
   S.board = [...r.board];
-  S.tint = tint;
+  S.tint = [...r.extra];
   S.used++;
   S.slots = S.slots.slice(); S.slots[k] = false;
   if (!S.slots.some(Boolean)) { S.tray++; S.slots = [true, true, true]; }
   settle();
   save();
-  flash(before, idx, r.cleared);
+  if (scene) lower(before, tintBefore, idx, colourOf(p), r.waves);
+  else flash(before, idx, r.cleared);
 }
 /** The lines a move filled go out where they stood (the board just before, the piece in), then the hold is as it is. */
 function flash(before, idx, cleared) {
@@ -279,6 +324,34 @@ function flash(before, idx, cleared) {
   flashing = { cells: new Set(cleared), board: shown };
   render();
   setTimeout(() => { flashing = null; render(); }, 380);
+}
+/**
+ * A move in a hold, shown as it happens: the piece lowered from over the hatch to where it rests, then each wave of the
+ * clearing: the lines lit and gone, and the crates over them settling down, which may fill more. Taps wait meanwhile.
+ */
+function lower(before, tintBefore, idx, colour, waves) {
+  const ease = t => 1 - (1 - t) * (1 - t), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const withPiece = [...before], tint = [...tintBefore];
+  for (const i of idx) { withPiece[i] = 1; tint[i] = colour; }
+  const low = Math.min(...[...idx].map(i => Math.floor(i / F.n2))), rise = F.decks + 0.6 - low;
+  const phases = [{ ms: 170, draw: t => scene.draw({ board: withPiece, tint, lift: new Map([...idx].map(i => [i, rise * (1 - ease(t))])) }) }];
+  for (const w of waves) {
+    phases.push({ ms: 300, once: true, draw: () => scene.draw({ board: w.before, tint: w.carried, gone: new Set(w.cleared) }) });
+    if (w.moved.length) phases.push({ ms: 190, draw: t => scene.draw({ board: w.after, tint: w.carry, lift: new Map(w.moved.map(([a, b]) => [b, (Math.floor(a / F.n2) - Math.floor(b / F.n2)) * (1 - ease(t))])) }) });
+  }
+  if (still) { render(); return; }
+  flashing = { anim: true };
+  render();                                                       // the tally, the tray (or how it went) at once
+  let at = 0, t0 = null;
+  const step = now => {
+    const ph = phases[at];
+    t0 ??= now;
+    const t = Math.min(1, (now - t0) / ph.ms);
+    if (!ph.once || !ph.shown) { ph.draw(t); ph.shown = true; }
+    if (t >= 1) { at++; t0 = null; if (at >= phases.length) { flashing = null; render(); return; } }
+    requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 /** After a move: won when the last consignment has gone, stuck when nothing left in hand fits. */
 function settle() {
@@ -305,7 +378,7 @@ function render() {
   $("tally").replaceChildren();
   const m = document.createElement("b"); m.className = "sw-left"; m.textContent = `◆ ${left}`;
   $("tally").append(m, ` · ${S.used} piece${S.used === 1 ? "" : "s"} · par ${L.par}`);
-  drawBoard(null, flashing?.cells, flashing?.board);
+  if (!flashing?.anim) drawBoard(null, flashing?.cells, flashing?.board);
   drawTray();
   drawResult();
   drawPartner();
@@ -387,12 +460,16 @@ function onState(g) {
   seated();
   const level = byId.get(g.id) || LEVELS[0];
   if (L?.id !== level.id || !F) setLevel(level);
-  const before = S?.board, was = S?.used;
+  const before = S?.board, tintBefore = S?.tint, was = S?.used;
   S = { ...g, board: [...(g.board || [])], tint: [...(g.tint || [])], hands: [0, 1].map(s => ({ tray: g.hands?.[s]?.tray || 0, slots: [0, 1, 2].map(k => !!g.hands?.[s]?.slots?.[k]) })), done: g.done || null };
   if (drag) return;                                              // your piece in the air: the hold redraws when it lands
   picked = null;
   // your partner's move: their lines go out as yours do
-  if (before && was != null && S.used === was + 1 && before.length === S.board.length) {
+  if (scene && before && was != null && S.used === was + 1 && before.length === S.board.length && g.last?.idx) {
+    const tint = [...tintBefore];
+    for (const i of g.last.idx) tint[i] = g.last.colour;
+    lower(before, tintBefore, g.last.idx, g.last.colour, put(F, Uint8Array.from(before), Int16Array.from(g.last.idx), tint, true).waves);
+  } else if (!scene && before && was != null && S.used === was + 1 && before.length === S.board.length) {
     const cleared = [], placed = [];
     S.board.forEach((v, i) => { if (before[i] && !v) cleared.push(i); if (!before[i] && v) placed.push(i); });
     flash(before, placed, cleared);
@@ -406,15 +483,16 @@ async function moveTogether(k, idx) {
     const hand = { tray: g.hands?.[slot]?.tray || 0, slots: [0, 1, 2].map(j => !!g.hands?.[slot]?.slots?.[j]) };
     const pieces = tray(level, hand.tray, slot), board = Uint8Array.from(g.board || []);
     const p = pieces[k];
-    if (!hand.slots[k] || !p || !placements(f, p).some(x => x.length === idx.length && x.every((v, j) => v === idx[j])) || !fits(board, idx)) return false;
-    const r = put(f, board, idx), tint = [...(g.tint || new Array(f.n).fill(0))];
+    if (!hand.slots[k] || !p || !options(f, board, p).some(x => sameCells(x, idx))) return false;
+    const tint = [...(g.tint || new Array(f.n).fill(0))];
     for (const i of idx) tint[i] = colourOf(p);
-    for (const i of r.cleared) tint[i] = 0;
+    const r = put(f, board, idx, tint);
     hand.slots[k] = false;
     if (!hand.slots.some(Boolean)) { hand.tray++; hand.slots = [true, true, true]; }
     g.hands = g.hands || [];
     g.hands[slot] = hand;
-    g.board = [...r.board]; g.tint = tint; g.used = (g.used || 0) + 1; g.turn = 1 - slot;
+    g.board = [...r.board]; g.tint = [...r.extra]; g.used = (g.used || 0) + 1; g.turn = 1 - slot;
+    g.last = { idx: [...idx], colour: colourOf(p) };                // so the partner's hold can lower it as it went
     if (marksLeft(r.board) === 0) g.done = { won: true, at: Date.now() };
     else {
       const next = 1 - slot, h = g.hands[next] || { tray: 0, slots: [true, true, true] };
@@ -502,7 +580,49 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("retryBtn").addEventListener("click", () => { if (together.room) together.act(g => roomLevel(g, g.id)); else play(L.day ? L : byId.get(L.id)); });
 $("nextBtn").addEventListener("click", () => { const n = nextLevel(); if (!n) return; if (together.room) together.act(g => roomLevel(g, n.id)); else play(n); });
-$("board").addEventListener("click", tapHold);
+$("board").addEventListener("click", e => { if (!scene) tapHold(e); });
+// A hold in decks turns: a drag across it turns it round, a drag up or down tilts it; a tap that doesn't drag puts a
+// picked piece down there. The turn is kept (stow:view) once you let go.
+let turning = null, queued = 0;
+/** An eighth of a turn from the arrows, eased over a quarter of a second. */
+function turnBy(dir) {
+  if (turning || flashing?.anim) return;
+  const from = view.az, to = from + 45 * dir, t0 = performance.now() - (matchMedia("(prefers-reduced-motion: reduce)").matches ? 1e6 : 0);
+  const step = now => {
+    const k = Math.min(1, (now - t0) / 260), e = k < 0.5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k);
+    view = { ...view, az: Math.round((((from + (to - from) * e) % 360) + 360) % 360) };
+    scene.setCam(view);
+    drawBoard(); drawTray();
+    if (k < 1) requestAnimationFrame(step); else write(TURNED, view);
+  };
+  requestAnimationFrame(step);
+}
+$("board").addEventListener("pointerdown", e => {
+  if (!scene || e.button > 0 || drag) return;                    // not while a piece is in hand: its places are for this view
+  const arrow = e.target.closest?.(".turn");
+  if (arrow) { e.preventDefault(); turnBy(+arrow.dataset.turn); return; }
+  turning = { id: e.pointerId, x0: e.clientX, y0: e.clientY, az: view.az, el: view.el, moved: false };
+  try { $("board").setPointerCapture(e.pointerId); } catch { /* synthetic */ }
+});
+$("board").addEventListener("pointermove", e => {
+  if (!turning || e.pointerId !== turning.id) return;
+  const dx = e.clientX - turning.x0, dy = e.clientY - turning.y0;
+  if (!turning.moved && Math.hypot(dx, dy) < 8) return;
+  turning.moved = true;
+  view = { az: Math.round(((turning.az - dx * 0.45) % 360 + 360) % 360), el: Math.round(Math.max(EL_MIN, Math.min(EL_MAX, turning.el + dy * 0.3))) };
+  scene.setCam(view);
+  frameHold();
+  queued ||= requestAnimationFrame(() => { queued = 0; if (!flashing?.anim) drawBoard(); drawTray(); });
+});
+const endTurn = e => {
+  if (!turning || e.pointerId !== turning.id) return;
+  const was = turning;
+  turning = null;
+  if (was.moved) write(TURNED, view);
+  else if (e.type === "pointerup") tapHold(e);
+};
+$("board").addEventListener("pointerup", endTurn);
+$("board").addEventListener("pointercancel", endTurn);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 addEventListener("resize", () => { if (!drag) render(); });
@@ -510,7 +630,7 @@ addEventListener("resize", () => { if (!drag) render(); });
 // for tests and debugging
 window.__stow = { get state() { return S; }, get level() { return L; }, get field() { return F; }, get together() { return together; }, play, placePiece, LEVELS,
   // a move by its tray slot and the cell its first cell goes to (the levels' solutions are kept this way)
-  placeAt(k, at) { const idx = placements(F, piecesOf(mySlot())[k]).find(x => x[0] === at); if (!idx || !fits(S.board, idx)) return false; placePiece(k, idx); return true; },
+  placeAt(k, at) { const idx = options(F, S.board, piecesOf(mySlot())[k]).find(x => x[0] === at); if (!idx) return false; placePiece(k, idx); return true; },
   targetOf(k, at) { return targets(piecesOf(mySlot())[k]).find(t => t.idx[0] === at) || null; } };
 
 /** Back to where you were: your level as you left it, else the first you haven't won. */

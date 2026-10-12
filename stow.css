@@ -50,6 +50,51 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--
 @keyframes sw-stamp { to { opacity: 0; transform: scale(1.6); } }
 .sw-board .stamp.gone { transform-box: fill-box; transform-origin: center; }
 
+/* a hold in decks, in 3D (stow-3d.js): the floor and the far walls in the hold's own tones, the decks marked on the
+   walls, the rim in brass; crates lit from the upper left (tops lightest, the sides in light and in shade) */
+.sw-board[data-kind="deck"] { cursor: grab; }
+[data-kind="deck"] .floor { fill: var(--sw-cell); stroke: var(--sw-gap); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+/* a square hold's far walls ruled a crate apart, like squared paper; a hexagon's zigzag would only be busy */
+[data-kind="deck"] .wall { fill: color-mix(in srgb, var(--sw-cell) 55%, var(--sheet)); }
+[data-kind="deck"] .wall.ruled { stroke: color-mix(in srgb, var(--brass) 40%, transparent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+[data-kind="deck"] .deck { stroke: color-mix(in srgb, var(--brass) 55%, transparent); stroke-width: 1px; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+[data-kind="deck"] .rim { stroke: var(--brass); stroke-width: 1.6px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+/* the hatch's near edge, over the crates: there, but not across them */
+[data-kind="deck"] .rim.near { stroke-width: 1.2px; stroke-opacity: .45; }
+[data-kind="deck"] .cr polygon { stroke: var(--sw-gap); stroke-width: 1px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+[data-kind="deck"] .cr { --f: var(--sw-cargo); }
+[data-kind="deck"] .cr.t1 { --f: var(--c2); }
+[data-kind="deck"] .cr.t2 { --f: var(--c1); }
+[data-kind="deck"] .cr.t3 { --f: var(--c0); }
+[data-kind="deck"] .cr.t4 { --f: var(--c3); }
+/* a crate a move would clear takes the colour of the piece in hand (as in Block Blast), edged in gilt */
+[data-kind="deck"] .cr.lit.l1, [data-kind="deck"] .xray.l1 { --f: var(--c2); }
+[data-kind="deck"] .cr.lit.l2, [data-kind="deck"] .xray.l2 { --f: var(--c1); }
+[data-kind="deck"] .cr.lit.l3, [data-kind="deck"] .xray.l3 { --f: var(--c0); }
+[data-kind="deck"] .cr.lit.l4, [data-kind="deck"] .xray.l4 { --f: var(--c3); }
+[data-kind="deck"] .cr.lit polygon { stroke: var(--brass-hi, var(--brass)); }
+[data-kind="deck"] .cr .ft { fill: var(--f); }
+[data-kind="deck"] .cr .fl { fill: color-mix(in srgb, var(--f) 80%, var(--ink)); }
+[data-kind="deck"] .cr .fr { fill: color-mix(in srgb, var(--f) 64%, var(--ink)); }
+[data-kind="deck"] .cr.ghost polygon { fill-opacity: .82; }
+[data-kind="deck"] .cr.ghost.lit polygon { fill-opacity: .92; }
+[data-kind="deck"] .cr.gone { animation: sw-crate .3s ease-out forwards; }
+@keyframes sw-crate { 0% { opacity: 1; } 35% { opacity: 1; } 100% { opacity: 0; } }
+[data-kind="deck"] .cr.gone { --f: var(--brass); }
+[data-kind="deck"] .stamp { fill: var(--sw-stamp); stroke: var(--sw-stamp-edge); stroke-width: 1.2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+/* a consignment the cargo hides, seen through it */
+[data-kind="deck"] .xray { fill: color-mix(in srgb, var(--sw-stamp) 45%, transparent); stroke: var(--sw-stamp-edge); stroke-width: 1.3px; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; pointer-events: none; }
+[data-kind="deck"] .xray.going { fill: var(--sheet); }
+/* a crate a move would clear, and where the piece would rest, seen through the crates in front */
+[data-kind="deck"] .xray.lit { fill: color-mix(in srgb, var(--f) 30%, transparent); stroke: var(--f); stroke-width: 1.6px; }
+[data-kind="deck"] .xray.ghost { fill: none; stroke: var(--f); stroke-width: 1.8px; stroke-dasharray: 4 2.5; }
+/* the turning arrows: a brass ring and arrow, quiet until pressed */
+[data-kind="deck"] .turn { cursor: pointer; }
+[data-kind="deck"] .turn circle { fill: color-mix(in srgb, var(--sheet) 80%, transparent); stroke: color-mix(in srgb, var(--brass) 70%, transparent); stroke-width: 1.2px; vector-effect: non-scaling-stroke; }
+[data-kind="deck"] .turn path { fill: none; stroke: var(--brass); stroke-width: 1.8px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+[data-kind="deck"] .turn polygon { fill: var(--brass); }
+[data-kind="deck"] .turn:active circle { fill: var(--sw-in-soft); }
+
 /* the tray: three pieces, all on one scale; a used place is an empty outline */
 .sw-side { display: flex; flex-direction: column; gap: .5rem; padding-top: .6rem; }
 .sw-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; height: 7.4rem; }
