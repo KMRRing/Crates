@@ -13,7 +13,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import { busy } from "./loading.js";
-import { SIDEWAYS } from "./wide.js";
+import { SIDEWAYS, sideways } from "./wide.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "hong:run", OPTS = "hong:opts", STATS = "hong:stats", BEST = "hong:best";
@@ -364,6 +364,11 @@ function drawMine() {
     + `<span class="hk-me-flowers">${s.flowers.map(f => tileSvg(f, "hk-mini")).join("")}</span>`
     + (rush ? rushStatus() : `<span class="hk-me-rule">${G.opts.minFan} fan to win${round}${s.passBlock ? " · passed a win: none off a discard till you draw" : ""}</span>`);
 }
+/** Upright, your tiles in a row (one), two rows filled down the columns (two: 1 3 5 / 2 4 6), or three with each
+ *  suit, the winds and the dragons a section of its own (suits); held sideways, always in a row (Menu). */
+const rowsOf = () => (sideways() ? "one" : opts.rows === "two" || opts.rows === "suits" ? opts.rows : "one");
+/** Which section of the hand a tile goes in, by suit: characters, dots, bamboo, then the winds and the dragons. */
+const section = k => (k < 27 ? Math.floor(k / 9) : k < 31 ? 3 : 4);
 function drawHand() {
   const box = $("hand");
   if (!G) { box.replaceChildren(); return; }
@@ -374,15 +379,26 @@ function drawHand() {
   if (myTurn && G.drawn !== null && tiles.includes(G.drawn)) { drawn = G.drawn; tiles.splice(tiles.lastIndexOf(drawn), 1); }
   // the coach's tile: in a puzzle, the best, once you've answered
   const rec = rush ? rushBest()?.k ?? null : coachOn() && advice?.key === keyNow() && advice.decision?.action?.t === "discard" ? advice.decision.action.k : null;
-  const units = tiles.length + (drawn >= 0 ? 1.35 : 0) + s.melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0) + (s.melds.length ? 0.3 : 0);
+  const layout = rowsOf(), rows = layout === "two" ? 2 : layout === "suits" ? 3 : 1;
+  // the tiles' size from what the hand holds between calls (13 less three a set, and room for the one drawn), not from
+  // what it holds this moment: the row used to shrink a tenth as you drew and grow back as you let a tile go
+  const slots = 13 - 3 * s.melds.length, meldUnits = s.melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0);
+  const units = rows === 1 ? slots + 1.35 + meldUnits + (s.melds.length ? 0.3 : 0)
+    // in rows, the columns the most the hand can need, fixed for the layout so the tiles keep their size: two rows, seven
+    // columns, the drawn tile's and the sets'; by suit, about eight and the gaps between sections
+    : rows === 2 ? 9 : 10.5;
   const pad = getComputedStyle(box), room = (box.clientWidth || 360) - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   // on a phone on its side the row lies on the table, which leaves room for it at its foot (--hk-reserve): on the
   // shortest phones a little smaller, so the table keeps its share of the height
   // in full screen the row has the whole width under the console too, and takes a little more of the height
   const most = opts.full ? Math.min(rem * 2.75, innerHeight * 0.112) : Math.min(rem * 2.3, innerHeight * 0.095);
-  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? most : rem * 3.1));
+  // in rows, no more than about a quarter of the screen's height for them all, so the table keeps its share
+  const tall = rows > 1 ? (innerHeight * 0.24 / rows) * 0.72 : Infinity;
+  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? most : rem * 3.1, tall));
   box.style.setProperty("--hk-t", `${tw.toFixed(1)}px`);
+  box.style.setProperty("--rows", rows);
+  box.classList.toggle("grid", rows > 1);
   if (low()) $("app").style.setProperty("--hk-reserve", `${(tw * 4 / 3 + 1.25 * rem).toFixed(1)}px`);
   const btn = (k, extra = "") => {
     const cls = ["hk-tile"];
@@ -390,10 +406,21 @@ function drawHand() {
     if (rec === k && myTurn) cls.push("advised");
     return `<button type="button" class="${cls.join(" ")}${extra}" data-k="${k}" aria-label="${E.tileName(k)}"${myTurn ? "" : " tabindex=\"-1\""}>${tileSvg(k)}</button>`;
   };
-  let html = `<span class="hk-concealed${myTurn ? " live" : ""}">${tiles.map(k => btn(k)).join("")}`;
-  if (drawn >= 0) html += btn(drawn, " drawn");
-  html += "</span>";
-  if (s.melds.length) html += `<span class="hk-melds">${s.melds.map(m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k)).join("")}</span>`).join("")}</span>`;
+  const meld = m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k)).join("")}</span>`;
+  let html;
+  if (rows === 1) {
+    html = `<span class="hk-concealed${myTurn ? " live" : ""}">${tiles.map(k => btn(k)).join("")}`;
+    if (drawn >= 0) html += btn(drawn, " drawn");
+    html += "</span>";
+  } else {
+    // sections filled down their columns: the whole hand (two rows), or each suit, the winds, the dragons (by suit);
+    // the drawn tile a section of its own at the right
+    const groups = rows === 2 ? [tiles] : [0, 1, 2, 3, 4].map(g => tiles.filter(k => section(k) === g)).filter(g => g.length);
+    html = `<span class="hk-concealed${myTurn ? " live" : ""}">${groups.map(g => `<span class="hk-grid">${g.map(k => btn(k)).join("")}</span>`).join("")}`;
+    if (drawn >= 0) html += `<span class="hk-grid">${btn(drawn, " drawn")}</span>`;
+    html += "</span>";
+  }
+  if (s.melds.length) html += `<span class="hk-melds">${s.melds.map(meld).join("")}</span>`;
   box.innerHTML = html;
 }
 // The coach: "off", silent; "hints", a Hint asks it about one decision; "check", a Hint too, and once you've moved, a
@@ -629,9 +656,9 @@ function review() {
 // ---------- drawing ----------
 // ---------- full screen ----------
 /**
- * Full screen (Menu): the header's buttons go onto the table, the cloth then the whole section with a band along its
- * top for them; on a phone held sideways the console lies on the cloth too, the buttons at its top, and your tiles
- * take the whole width under it, larger. Where the browser can, the page goes full screen as well (an app on the home
+ * Full screen (Menu): the header's buttons go onto the table, over the cloth's top right (the cloth then the whole
+ * section, the drawing keeping clear of them); on a phone held sideways the console lies on the cloth too, the buttons
+ * at its top, and your tiles take the whole width under it, larger. Where the browser can, the page goes full screen as well (an app on the home
  * screen already is).
  */
 function placeFull() {
@@ -965,6 +992,7 @@ function openMenu() {
     choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); if (v === "on") askCoach(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Numbers on the tiles", opts.numbers, v => set("numbers", v)),
+    choice("Your tiles, upright", [["one", "One row"], ["two", "Two rows"], ["suits", "By suit"]], opts.rows === "two" || opts.rows === "suits" ? opts.rows : "one", v => set("rows", v)),
     toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
   );
   const st = read(STATS, null), best = read(BEST, null);

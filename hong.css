@@ -64,6 +64,15 @@ html[data-mode="night"] { --hk-in: #79C4A6; --hk-felt: color-mix(in srgb, #2F6E5
 .hk-melds { display: flex; align-items: flex-end; gap: calc(var(--hk-t) * .22); }
 .hk-meld { display: flex; }
 .hk-meld .hk-t { width: calc(var(--hk-t) * .74); }
+/* your tiles in rows (Menu, upright; hong.js's drawHand): sections filled down their columns, two rows (1 3 5 / 2 4 6)
+   or three by suit, the drawn tile a section of its own and your sets one more, each row the same height whatever the
+   hand holds, so the rows never change the table's size between calls */
+.hk-hand.grid { align-items: flex-start; gap: calc(var(--hk-t) * .35); min-height: calc(var(--rows) * var(--hk-t) * 4 / 3 + (var(--rows) - 1) * .4rem + .55rem); }
+.hk-hand.grid .hk-concealed { align-items: flex-start; gap: calc(var(--hk-t) * .35); }
+.hk-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--rows), calc(var(--hk-t) * 4 / 3)); row-gap: .4rem; }
+.hk-hand.grid .hk-tile.drawn { margin-left: 0; }
+.hk-hand.grid .hk-tile.picked { transform: translateY(-.3rem); }
+.hk-hand.grid .hk-melds { display: grid; grid-auto-flow: column; grid-template-rows: repeat(var(--rows), auto); align-content: start; row-gap: .4rem; column-gap: calc(var(--hk-t) * .22); }
 
 /* ---------- your move ---------- */
 .hk-bar { display: grid; gap: .4rem; padding-top: .5rem; min-height: 3.1rem; }
