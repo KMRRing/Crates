@@ -243,15 +243,15 @@ export const APPS = [
   { id: "blend", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO), more: true },
   { id: "pipes", name: "Pipes", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO) },
   { id: "refinery", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO), more: true },
-  { id: "rush", name: "Rush", href: "./rush.html", logo: LOGO("rush", RUSH_LOGO) },
+  { id: "hong", name: "Hong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO) },
   { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
-  { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
+  { id: "tribute", name: "Tribute", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO) },
   { id: "brut", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO), more: true },
   { id: "lexicon", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO), more: true },
   { id: "ledger", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), more: true },
   { id: "stow", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), more: true },
-  { id: "hong", name: "Hong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO), more: true },
-  { id: "tribute", name: "Tribute", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO), more: true },
+  { id: "rush", name: "Rush", href: "./rush.html", logo: LOGO("rush", RUSH_LOGO), more: true },
+  { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO), more: true },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
