@@ -110,11 +110,19 @@ const paused = () => !together.room && isPaused();
 function kick(ms = 0) { clearTimeout(timer); timer = setTimeout(step, ms); }
 function afterChange() {
   gen++;
-  selected.clear();
+  keepPicked();
   hint = null;
   save();
   render();
   kick(0);
+}
+/** The cards you've picked, kept as the others play, so you can pick yours while they think (each of their moves used
+ *  to drop them): those still in your hand, none carried into another hand. Your own move takes them (mine). */
+let pickedIn = "";
+function keepPicked() {
+  if (pickedIn !== handId()) { selected.clear(); pickedIn = handId(); return; }
+  const hand = new Set(G?.hands[me] || []);
+  for (const id of selected) if (!hand.has(id)) selected.delete(id);
 }
 /**
  * At a table together, the device that sat down first moves the computer players while its player is here; the
@@ -177,6 +185,7 @@ function returnSelected() {
 /** Your move: checked by the coach (check, always) against the table as it was, then made. */
 function mine(act) {
   if (!rush && (opts.coach === "check" || opts.coach === "on")) check(act);
+  selected.clear();
   apply(me, act);
 }
 // ---------- the coach ----------
@@ -333,7 +342,7 @@ function drawNews() {
   for (const e of G.log) {
     if (e.e === "lead") lines.push(`${who(e.seat)} ${e.seat === me ? "hold" : "holds"} the turned-up ${E.cardName(e.card)}, and ${e.seat === me ? "lead" : "leads"}.`);
     else if (e.e === "resist") lines.push(`${e.seats.map(who).join(" and ")} ${e.seats.length > 1 || e.seats[0] === me ? "hold" : "holds"} both big jokers: no tribute.`);
-    else if (e.e === "tribute") lines.push(`${who(e.from)} ${e.from === me ? "pay" : "pays"} ${e.to === me ? "you" : nameOf(e.to)} ${E.cardName(e.card)}.`);
+    else if (e.e === "tribute") lines.push(`${who(e.from)} ${e.from === me ? "pay" : "pays"} ${e.to === me ? "you" : nameOf(e.to)} ${E.isJoker(e.card) ? "the " : ""}${E.cardName(e.card)}.`);
     else if (e.e === "return") lines.push(`${who(e.from)} ${e.from === me ? "give" : "gives"} back ${E.cardName(e.card)}.`);
   }
   const playing = G.log.some(e => e.e === "play" || e.e === "pass");
@@ -381,11 +390,13 @@ function fanned(cols, rem, room) {
   cols.forEach((col, c) => col.forEach(id => { at.push({ id, x: x0 + k * pitch + c * gap, y: 0, z: k + 1 }); k++; }));
   return { W, H, at, height: H };
 }
+let handH = 0;                                                   // your cards' height as last laid out, for the plays'
 function drawHand() {
   const box = $("hand");
   const hand = G.hands[me], level = G.level, cols = columns(hand, level);
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const lay = low() ? fanned(cols, rem, box.clientWidth || 480) : stacked(cols, rem, box.clientWidth || 360);
+  handH = lay.H;
   // on the page, so the table can leave room for the cards at its foot when they lie on it (a phone on its side)
   $("app").style.setProperty("--tb-cw", `${lay.W}px`); $("app").style.setProperty("--tb-ch", `${lay.H}px`);
   const ask = E.asked(G, me), ok = ask === "return" ? new Set(E.returnable(hand, level)) : null;
@@ -404,14 +415,36 @@ function drawHand() {
   box.classList.toggle("tight", !!lay.tight);
   box.style.height = `${lay.height.toFixed(0)}px`;
 }
-$("hand").addEventListener("click", e => {
-  const b = e.target.closest(".tb-card");
-  if (!b || !G) return;
+// Tap a card to pick it or put it back; drag across your cards, along the row or down a column, to pick (or put back,
+// as the first card went) every one you pass. A return takes one card: the last you touch.
+let drag = null;                                                 // { pick: picking or putting back, done: ids this drag }
+function touch(b) {
   const id = Number(b.dataset.id);
+  if (drag.done.has(id)) return;
+  drag.done.add(id);
   if (E.asked(G, me) === "return") { selected.clear(); selected.add(id); }
-  else if (selected.has(id)) selected.delete(id);
-  else selected.add(id);
+  else if (drag.pick) selected.add(id);
+  else selected.delete(id);
   render();
+}
+const startDrag = b => { drag = { pick: !selected.has(Number(b.dataset.id)), done: new Set() }; touch(b); };
+$("hand").addEventListener("pointerdown", e => {
+  const b = e.target.closest(".tb-card");
+  if (!b || !G || e.button > 0) return;
+  $("hand").setPointerCapture(e.pointerId);                     // the drag stays the hand's as its cards are redrawn
+  startDrag(b);
+});
+$("hand").addEventListener("pointermove", e => {
+  const b = drag && document.elementFromPoint(e.clientX, e.clientY)?.closest("#hand .tb-card");
+  if (b) touch(b);
+});
+for (const end of ["pointerup", "pointercancel"]) $("hand").addEventListener(end, () => { drag = null; });
+// a card picked from the keyboard (Enter, Space): a pointer's tap is the pointerdown above, so its click is passed over
+$("hand").addEventListener("click", e => {
+  const b = !e.detail && e.target.closest(".tb-card");
+  if (!b || !G) return;
+  startDrag(b);
+  drag = null;
 });
 
 // ---------- the buttons ----------
@@ -460,11 +493,17 @@ function drawActions() {
 /** Pass (when there's a play to answer), Clear, and the play your picked cards make. */
 function moveButtons(box) {
   if (G.top) box.append(goBtn("Pass", pass, ""));
-  if (selected.size) box.append(goBtn("Clear", () => { selected.clear(); render(); }, "quiet"));
+  if (selected.size) {
+    const clear = goBtn("", () => { selected.clear(); render(); }, "quiet tb-clear");
+    clear.innerHTML = '<span class="long">Clear</span><span class="short" aria-hidden="true">×</span>';
+    clear.setAttribute("aria-label", "Clear");
+    box.append(clear);
+  }
   const top = G.top?.reading || null, reading = selected.size ? E.readingFor([...selected], G.level, top) : null;
   const play = goBtn(reading ? `Play ${E.playName(reading).replace(/^an? /, "")}` : G.top ? "Beat it" : "Lead", playSelected, "primary");
   play.disabled = !reading;
   box.append(play);
+  if (play.scrollWidth > play.clientWidth + 1) play.classList.add("two");   // its name in two lines, in the row's height
 }
 function goBtn(text, fn, kind = "") {
   const b = document.createElement("button");
@@ -548,6 +587,41 @@ function render() {
   drawHand();
   drawActions();
   drawPartner();
+  fitPlays();
+}
+
+// ---------- the plays on the table: as large as your cards, larger where the table has the room ----------
+/**
+ * The size the plays' cards are drawn at (--tb-pf, the font their cards are measured in): three rows of plays in the
+ * table's height, its names and gaps taken out; a play of six cards, each showing its corner, in half its width (the
+ * two at the sides share a row); and at most a quarter larger than your own cards. A short table (a small phone, the
+ * counter on, the coach's room kept) puts your partner's name and yours beside your plays (flat), not over and under
+ * them, where that keeps the plays nearer their size. Worked out when a hand first shows and kept, so the plays don't
+ * grow as your hand shrinks and the table with it; made smaller only if the table must (a hint's words taking its
+ * room). A row too long even so (a bomb of eight) draws its cards closer.
+ */
+const PLAY = { w: 2.74, h: 3.79, step: 1.5 };                    // a play's card and the corner it shows, in its em
+let fit = { key: "", pf: 0, flat: false };
+function fitPlays() {
+  const t = $("table"), cs = getComputedStyle(t), px = v => parseFloat(v) || 0;
+  const w = t.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight), h = t.clientHeight - px(cs.paddingTop) - px(cs.paddingBottom);
+  if (w <= 0 || h <= 0) return;                                  // not laid out (a frame's first moment): nothing to fit
+  const rem = px(getComputedStyle(document.documentElement).fontSize) || 16;
+  const name = (t.querySelector(".tb-who")?.offsetHeight || 1.4 * rem) + px(getComputedStyle($("seat0")).rowGap);
+  const half = w / 2 - .2 * rem;                                 // .tb-left and .tb-right: up to half, less a gap
+  const most = Math.min(half / (PLAY.w + 5 * PLAY.step), (handH || 3.6 * rem) * 1.25 / PLAY.h), rows = h - 2 * px(cs.rowGap);
+  const tall = Math.min(most, (rows - 3 * name) / 3 / PLAY.h), flat = Math.min(most, (rows - name) / 3 / PLAY.h);
+  const key = `${rush ? `rush:${here()}` : `${S?.started}:${G.handNo}`}@${innerWidth}x${innerHeight}`;
+  if (key !== fit.key) fit = { key, flat: tall < .9 * most, pf: 0 };
+  fit.pf = Math.max(6, fit.pf ? Math.min(fit.pf, fit.flat ? flat : tall) : fit.flat ? flat : tall);
+  t.classList.toggle("flat", fit.flat);
+  t.style.setProperty("--tb-pf", `${fit.pf.toFixed(2)}px`);
+  // flat, the plays across and yours keep clear of the names at their left: as far again on the right, so they centre
+  const named = fit.flat ? 2 * (Math.max(...["seat2", "seat0"].map(id => $(id).querySelector(".tb-who")?.offsetWidth || 0)) + .4 * rem) : 0;
+  for (const row of t.querySelectorAll(".tb-cards")) {
+    const n = row.children.length, room = row.closest(".tb-left, .tb-right") ? half : w - named;
+    if (n > 1 && fit.pf * (PLAY.w + (n - 1) * PLAY.step) > room) row.style.setProperty("--tb-step", `${Math.max(.6 * fit.pf, (room - PLAY.w * fit.pf) / (n - 1)).toFixed(2)}px`);
+  }
 }
 function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg"]) if ($(id).open) $(id).close(); }
 
@@ -738,7 +812,7 @@ function onRoomState(g) {
   if (!behind) {
     const was = G ? `${G.handNo}:${G.log.length}` : "";
     G = E.fromRoom(clone(g.game));
-    if (`${G.handNo}:${G.log.length}` !== was) { gen++; selected.clear(); hint = null; }
+    if (`${G.handNo}:${G.log.length}` !== was) { gen++; keepPicked(); hint = null; }
   }
   if (G.phase !== "over" && $("resultDlg").open) $("resultDlg").close();
   render();

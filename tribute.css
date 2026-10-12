@@ -38,25 +38,33 @@ html[data-mode="night"] .tb-hit { color: #7FC2A8 !important; }
 html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 
 /* ---------- the table: your partner across, the others either side, you at the foot ---------- */
-.tb-table { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
-  grid-template-areas: ". top ." "left news right" ". me ."; gap: .35rem .4rem; padding: .5rem; border-radius: 6px; background: var(--tb-felt);
+/* Three rows: your partner's play, the two others' side by side (each up to half the width, at its own edge), yours;
+   each name at its player's edge of the table. tribute.js sizes the plays' cards to the room (--tb-pf). */
+.tb-table { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "top" "mid" "me"; gap: .35rem; padding: .5rem; border-radius: 6px; background: var(--tb-felt);
   border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--tb-felt), inset 0 0 0 5px var(--rule); min-height: 0; overflow: hidden; }
+.tb-seat { position: relative; display: grid; justify-items: center; gap: .25rem; min-width: 0; }
 .tb-top { grid-area: top; }
-.tb-left { grid-area: left; align-self: center; }
-.tb-right { grid-area: right; align-self: center; }
+.tb-left { grid-area: mid; justify-self: start; align-self: center; justify-items: start; max-width: calc(50% - .2rem); }
+.tb-right { grid-area: mid; justify-self: end; align-self: center; justify-items: end; max-width: calc(50% - .2rem); }
 .tb-me { grid-area: me; }
-.tb-seat { display: grid; justify-items: center; gap: .25rem; min-width: 0; }
-.tb-who { display: flex; align-items: center; gap: .3rem; font-size: .86rem; max-width: 100%; }
+.tb-me .tb-who { order: 1; }                                   /* your name at your edge, under your play */
+/* a short table (tribute.js: flat): your partner's name and yours at the left edge, beside the plays, not over and under */
+.tb-table.flat .tb-top .tb-who, .tb-table.flat .tb-me .tb-who { position: absolute; left: 0; top: 50%; transform: translateY(-50%); max-width: 28%; }
+.tb-who { position: relative; display: flex; align-items: center; gap: .3rem; font-size: .86rem; max-width: 100%; }
 .tb-who b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tb-who.mate b { color: var(--tb-in); }
 .tb-who.on b { text-decoration: underline 2px var(--brass); text-underline-offset: .2rem; }
 .tb-n { min-width: 1.5rem; padding: .05rem .3rem; border-radius: 4px; background: var(--sheet); border: 1px solid var(--rule); font-size: .8rem; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
 .tb-place { padding: .05rem .35rem; border-radius: 4px; background: var(--tb-in); color: var(--sheet); font-size: .72rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); }
-.tb-dots { color: var(--tb-in); font-weight: 800; }
-.tb-play { min-height: 2.6rem; display: grid; place-items: center; max-width: 100%; }
+/* a player thinking: beside the name, outside it, so the name doesn't move (inward of the right-hand player's) */
+.tb-dots { position: absolute; left: 100%; margin-left: .3rem; color: var(--tb-in); font-weight: 800; }
+.tb-right .tb-dots { left: auto; right: 100%; margin: 0 .3rem 0 0; }
+.tb-play { min-height: calc(var(--tb-pf, .95rem) * 3.79); display: grid; place-items: center; max-width: 100%; }
 .tb-play.pass { font-size: .78rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
 .tb-play.best .tb-cards { filter: drop-shadow(0 0 0 var(--tb-in)) drop-shadow(0 2px 0 var(--tb-in)); }
-.tb-news { grid-area: news; align-self: center; display: grid; gap: .15rem; text-align: center; font-size: .8rem; color: var(--ink-soft); }
+/* who led, who paid and gave back: between the two at the sides, before anyone has played (their plays' room) */
+.tb-news { grid-area: mid; justify-self: center; align-self: center; max-width: 54%; display: grid; gap: .15rem; text-align: center; font-size: .8rem; color: var(--ink-soft); }
 .tb-news p { margin: 0; }
 
 /* ---------- cards ---------- */
@@ -73,7 +81,7 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-card.wild { background: color-mix(in srgb, var(--tb-star) 14%, var(--tb-face)); }
 .tb-card.level { box-shadow: inset 0 -.2rem 0 color-mix(in srgb, var(--brass) 70%, transparent), 0 1px 2px rgba(28, 42, 52, .18); }
 /* your hand: cards placed by tribute.js in columns, the column's cards each showing its corner */
-.tb-hand { position: relative; margin-top: .5rem; flex: none; }
+.tb-hand { position: relative; margin-top: .5rem; flex: none; touch-action: none; -webkit-touch-callout: none; }   /* a drag picks cards */
 .tb-hand .tb-card { position: absolute; width: var(--tb-cw, 2.6rem); height: var(--tb-ch, 3.6rem); cursor: pointer; transition: transform .1s; }
 .tb-hand .tb-card.sel { background: color-mix(in srgb, var(--tb-in) 24%, var(--tb-face)); border-color: var(--tb-in); box-shadow: 0 0 0 1.5px var(--tb-in); transform: translateY(-.3rem); }
 /* the coach's play (Always): its cards ringed in the accent until a Hint picks them */
@@ -82,14 +90,14 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 /* a deep column (five of a rank or more): its corners smaller, so every card's suit still shows in its step */
 .tb-hand.tight .tb-card { font-size: .82rem; }
 .tb-hand.tight .tb-card .s { font-size: .7rem; margin-top: 0; }
-/* a play on the table: small cards fanned */
-.tb-cards { display: inline-flex; max-width: 100%; }
-.tb-cards .tb-card { position: relative; width: 1.75rem; height: 2.45rem; padding: .1rem .12rem; font-size: .72rem; border-radius: 4px; }
-.tb-cards .tb-card .s { font-size: .64rem; }
-.tb-cards .tb-card + .tb-card { margin-left: -1rem; }
-.tb-cards .tb-card .w { font-size: .58rem; right: .1rem; bottom: .05rem; }
-.tb-cards .tb-card.joker .r { font-size: .38rem; }
-.tb-left .tb-cards .tb-card + .tb-card, .tb-right .tb-cards .tb-card + .tb-card { margin-left: -1.2rem; }
+/* a play on the table: cards as large as your own or larger, all in em of --tb-pf (tribute.js fits it to the table),
+   each one behind the next showing its whole corner, closer (--tb-step) only where a long bomb needs it */
+.tb-cards { display: inline-flex; max-width: 100%; font-size: var(--tb-pf, .95rem); }
+.tb-cards .tb-card { position: relative; flex: none; width: 2.74em; height: 3.79em; padding: .17em .21em; font-size: 1em; }
+.tb-cards .tb-card .s { font-size: .86em; }
+.tb-cards .tb-card + .tb-card { margin-left: calc(var(--tb-step, 1.5em) - 2.74em); }
+.tb-cards .tb-card .w { font-size: .82em; right: .19em; bottom: .13em; }
+.tb-cards .tb-card.joker .r { font-size: .53em; }
 
 /* the card counter: what you haven't seen, by rank */
 .tb-counter { display: flex; gap: .1rem; margin-top: .4rem; font-size: .62rem; font-variant-numeric: tabular-nums; }
@@ -98,7 +106,7 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-counter .gone { opacity: .35; }
 
 /* ---------- your move ---------- */
-.tb-bar { display: grid; gap: .35rem; padding-top: .45rem; }
+.tb-bar { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; padding-top: .45rem; }
 .tb-say { margin: 0; font-size: .84rem; line-height: 1.35; }
 .tb-say b { margin-right: .3rem; color: var(--tb-in); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
 .tb-thinking { color: var(--ink-soft); }
@@ -108,8 +116,21 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-say.kept { min-height: calc(2em * 1.35); }
 @media (max-width: 599px) { .tb-say.kept { height: calc(4em * 1.35); overflow-y: auto; overscroll-behavior: contain; } }
 @media (max-width: 599px) and (max-height: 699px) { .tb-say.kept { height: calc(3em * 1.35); } }
-.tb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; min-height: 2.75rem; }
-.tb-actions .tb-go:last-child { margin-left: auto; }
+/* your buttons in one row, so the row, and your cards over it, keep their place as you pick: a play's name that
+   doesn't fit beside the others in two smaller lines (two), and on a phone Clear as × (they used to wrap, and the
+   cards jumped up a row's height as you picked the first one) */
+.tb-actions { display: flex; flex-wrap: nowrap; align-items: center; gap: .45rem; min-height: 2.75rem; }
+.tb-actions > * { flex: none; }
+.tb-actions .tb-wait { flex: 1 1 auto; min-width: 0; }
+.tb-actions .tb-go:last-child { margin-left: auto; flex: 0 1 auto; min-width: 0; max-height: 2.75rem; overflow: hidden; white-space: nowrap; }
+.tb-actions .tb-go.two { white-space: normal; font-size: .7rem; line-height: 1.1; }
+.tb-clear .short { display: none; }
+@media (max-width: 599px) {
+  .tb-go { padding: 0 .65rem; }
+  .tb-clear { min-width: 2.75rem; }
+  .tb-clear .long { display: none; }
+  .tb-clear .short { display: inline; font-size: 1.2rem; line-height: 1; }
+}
 .tb-go { min-height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .tb-go.primary { background: var(--tb-in); color: var(--sheet); outline-color: color-mix(in srgb, var(--sheet) 50%, transparent); }
@@ -174,8 +195,7 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
   #app.tribute .tb-strip { grid-column: 2; grid-row: 2; flex-direction: column; margin-top: .8rem; }
   #app.tribute .tb-counter { grid-column: 2; grid-row: 3; align-self: start; flex-wrap: wrap; }
   #app.tribute .tb-counter span { flex: 0 0 auto; min-width: 1.8rem; }
-  #app.tribute .tb-cards .tb-card { width: 2.3rem; height: 3.2rem; font-size: .9rem; }
-  #app.tribute .tb-cards .tb-card + .tb-card { margin-left: -1.3rem; }
+  #app.tribute .tb-actions { flex-wrap: wrap; }                    /* beside the table: room to grow upward */
   #app.tribute .tb-bar { grid-column: 2; grid-row: 3 / span 2; align-content: end; }
 }
 
@@ -206,10 +226,6 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
   #app.tribute .tb-hand .tb-card .s { font-size: .76rem; }
   #app.tribute .tb-hand .tb-card .w { right: auto; left: .2rem; bottom: .16rem; }      /* the star where the fan leaves it showing */
   #app.tribute .tb-hand .tb-card.sel { transform: translateY(-.45rem); }
-  #app.tribute .tb-play { min-height: 2.85rem; }
-  #app.tribute .tb-cards .tb-card { width: 2.05rem; height: 2.85rem; padding: .12rem .14rem; font-size: .82rem; }
-  #app.tribute .tb-cards .tb-card .s { font-size: .7rem; }
-  #app.tribute .tb-cards .tb-card + .tb-card, #app.tribute .tb-left .tb-cards .tb-card + .tb-card, #app.tribute .tb-right .tb-cards .tb-card + .tb-card { margin-left: -.95rem; }
   #app.tribute .tb-news { font-size: .76rem; }
   /* the others' hands: a card's back beside how many they hold */
   #app.tribute .tb-n { display: inline-flex; align-items: center; gap: .3rem; }
