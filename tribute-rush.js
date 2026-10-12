@@ -35,14 +35,9 @@ export function replay(p) {
 }
 
 // ---------- telling plays apart ----------
-/** What a play is, whichever cards of a rank make it: its reading and its ranks (a wild as such). Two plays alike in
- *  this are the same answer. */
-export function signature(a, level) {
-  if (a.t !== "play") return a.t;
-  const r = E.readingFor(a.cards, level, null) || { type: "?", key: 0 };
-  const ranks = a.cards.map(id => (E.isWild(id, level) ? "w" : E.rankOf(id))).sort().join(",");
-  return `${r.bomb ? (r.sf ? "sf" : "bomb") : r.type}:${r.key}:${ranks}`;
-}
+// Two plays alike by the engine's signature are the same answer (a pair of 9s is a pair of 9s in any suits).
+const { signature } = E;
+export { signature };
 /** The puzzle's plays weighed: [{ action, value }], and which is best and which do as well. */
 export function weighed(p) {
   const opts = p.opts.map((s, i) => ({ action: decodeActions(s)[0], value: p.vals[i] }));

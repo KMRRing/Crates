@@ -2,7 +2,8 @@
 // players, or you and your partner together against them. The rules are tribute-engine.js's, the players
 // tribute-bot.js's (they think in tribute-worker.js, off this thread); this file deals, shows the table and your
 // cards in their columns, takes your plays, runs the others at a pace you can follow, keeps the levels over a match,
-// and gives a hint: the computer's play in your seat and why.
+// and coaches as you choose: a hint when you ask, the computer's play in your seat and why; a check of each move of
+// yours, where it would have played otherwise, by how much and why; or its play at every decision.
 import * as E from "./tribute-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -15,6 +16,9 @@ import { busy } from "./loading.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "tribute:run", OPTS = "tribute:opts", STATS = "tribute:stats";
+// The coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
+// otherwise; on (Always), its play at every decision as well.
+const COACH = ["off", "hints", "check", "on"];
 const APP = 1;
 const BOTS = ["Wei", "Lin", "Fang"];                             // right, across (your partner), left
 const PACE = { quick: 420, steady: 850, slow: 1500 };
@@ -26,10 +30,12 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // ---------- state ----------
 // G: the hand in play (the engine's state, the match's levels in it). S: the table: { names, humans }.
 let G = null, S = null;
-let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", ...read(OPTS, {}) };
+let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", ...read(OPTS, {}) };
+if (!COACH.includes(opts.coach)) opts.coach = "hints";
 let me = 0;
 const selected = new Set();
-let hint = null;                                                 // { key, list, at }: the hint's plays, cycling
+let hint = null;                                                 // { key, list, at, auto, ready }: the coach's plays now
+let C = [];                                                      // the coach's checks of your moves this hand (check, always)
 const isHuman = seat => !!S?.humans?.includes(seat);
 const nameOf = seat => (seat === me && !together.room ? "You" : S?.names?.[seat] || "?");
 /** A seat as a sentence's subject: you as "You" at a table together too, where your seat is labelled with your name. */
@@ -39,16 +45,24 @@ const keyNow = () => (G ? `${G.handNo}:${G.log.length}` : "");
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
 const FACE = r => (r === 15 ? "lvl" : ["", "", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"][r] || "");
 
-// ---------- the computer players, in a worker ----------
-let worker = null, asked = 0, local = null;
-const answers = new Map();
-function startWorker() {
-  if (worker !== null) return;
-  try {
-    worker = new Worker(new URL("./tribute-worker.js", import.meta.url), { type: "module" });
-    worker.onmessage = e => { const done = answers.get(e.data.id); answers.delete(e.data.id); done?.(e.data); };
-    worker.onerror = () => { worker = false; for (const done of answers.values()) done({ decision: null }); answers.clear(); };
-  } catch { worker = false; }
+// ---------- the computer players and the coach, each in a worker ----------
+// Two workers, so the coach's thinking (a check takes up to three seconds) never holds up a player's move.
+const workers = { players: null, coach: null };
+let asked = 0, local = null;
+const answers = new Map();                                       // id → [the worker's role, its answer's callback]
+function workerFor(role) {
+  if (workers[role] === null) {
+    try {
+      const w = new Worker(new URL("./tribute-worker.js", import.meta.url), { type: "module" });
+      w.onmessage = e => { const [, done] = answers.get(e.data.id) || []; answers.delete(e.data.id); done?.(e.data); };
+      w.onerror = () => {
+        workers[role] = false;
+        for (const [id, [r, done]] of answers) if (r === role) { answers.delete(id); done({ decision: null }); }
+      };
+      workers[role] = w;
+    } catch { workers[role] = false; }
+  }
+  return workers[role];
 }
 /** How strong the computer players are: the room's setting at a table together, so both devices play the same. */
 const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "medium" : "hard");
@@ -56,12 +70,13 @@ const skill = () => ((together.room ? S?.bots : opts.bots) === "medium" ? "mediu
  *  first, each with what speaks for and against it (tribute-bot.js's weigh). */
 async function think(state, seat, kind = "decide", extra = {}) {
   state.names = [0, 1, 2, 3].map(s => (s === seat ? "you" : nameOf(s)));   // for the reasons it gives
-  startWorker();
+  const role = kind === "decide" ? "players" : "coach", worker = workerFor(role);
   let reply = null;
-  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, res); worker.postMessage({ id, state, seat, kind, skill: skill(), ...extra }); });
+  if (worker) reply = await new Promise(res => { const id = ++asked; answers.set(id, [role, res]); worker.postMessage({ id, state, seat, kind, skill: skill(), ...extra }); });
   if (reply?.decision) return reply.decision;
   local ||= await import("./tribute-bot.js");
   if (kind === "hints") return local.hints(state, seat, { search: 12, against: skill() });
+  if (kind === "check") return local.checkMove(state, seat, extra.action, { search: 12, worlds: 40, outBudget: 1500, against: skill() });
   if (kind === "weigh") return local.weigh(state, seat);
   if (kind === "playout") return local.playOut(state, seat, extra.actions, { worlds: 40 });
   return local.decide(state, seat, { skill: skill(), search: skill() === "hard" ? 12 : 0 });
@@ -86,7 +101,7 @@ function nextHand() {
 function save() {
   if (IN_FRAME) return;
   if (rush) write(RUSH, rush);
-  else if (!together.room) write(RUN, { G, S });
+  else if (!together.room) write(RUN, { G, S, C });
 }
 
 // ---------- the turn ----------
@@ -115,6 +130,7 @@ function step() {
   if (!G || IN_FRAME) return;
   if (G.phase === "over") { handOver(); return; }
   const waiting = E.waitingOn(G);
+  advise();
   const bot = waiting.find(s => !isHuman(s));
   if (bot === undefined || busyWith !== null || paused()) { render(); return; }
   const g0 = gen, snap = clone(G), slow = PACE[opts.pace] || PACE.steady;
@@ -148,33 +164,79 @@ function playSelected() {
     toast(!any ? "Those cards don't make a play" : top ? `${cap(E.playName(any))} doesn't beat ${E.playName(top)}` : "That isn't a play");
     return;
   }
-  apply(me, { t: "play", cards, as: reading });
+  mine({ t: "play", cards, as: reading });
 }
-function pass() { if (G && E.asked(G, me) === "play" && G.top) apply(me, { t: "pass" }); }
+function pass() { if (G && E.asked(G, me) === "play" && G.top) mine({ t: "pass" }); }
 function returnSelected() {
   if (!G || E.asked(G, me) !== "return") return;
   const ok = E.returnable(G.hands[me], G.level);
   const pick = [...selected].filter(id => ok.includes(id));
   if (pick.length !== 1) { toast("Pick one card of 10 or lower to give back"); return; }
-  apply(me, { t: "return", card: pick[0] });
+  mine({ t: "return", card: pick[0] });
 }
-async function showHint() {
-  if (!G || !E.asked(G, me)) return;
+/** Your move: checked by the coach (check, always) against the table as it was, then made. */
+function mine(act) {
+  if (!rush && (opts.coach === "check" || opts.coach === "on")) check(act);
+  apply(me, act);
+}
+// ---------- the coach ----------
+/** The coach's plays for your decision now (hard's choice first), worked out once for the hint and the advice. */
+function plays(auto) {
   const key = keyNow();
   if (hint?.key !== key) {
-    hint = { key, list: null, at: 0 };
-    $("say").hidden = false;
-    $("say").innerHTML = '<b>Hint</b> <span class="tb-thinking">thinking…</span>';
-    const list = await think(clone(G), me, "hints");
-    if (hint?.key !== key) return;
-    hint.list = Array.isArray(list) ? list : list ? [list] : [];
-  } else if (hint.list) hint.at = (hint.at + 1) % Math.max(1, hint.list.length);
-  const h = hint.list?.[hint.at];
-  if (!h) return;
-  selected.clear();
-  if (h.action.t === "play") for (const id of h.action.cards) selected.add(id);
-  if (h.action.t === "return") selected.add(h.action.card);
+    const h = { key, list: null, at: 0, auto };
+    h.ready = think(clone(G), me, "hints").then(list => { h.list = Array.isArray(list) ? list : list ? [list] : []; if (hint === h) render(); });
+    hint = h;
+  }
+  return hint;
+}
+/** Hint: the coach's play, its cards picked for you; tapped again, the others it weighed. */
+async function showHint() {
+  if (!G || !E.asked(G, me) || opts.coach === "off") return;
+  const fresh = hint?.key !== keyNow(), h = plays(false);
+  if (h.auto) h.auto = false;                                    // its advice, now taken as a hint: the same play, picked
+  else if (!fresh && h.list) h.at = (h.at + 1) % Math.max(1, h.list.length);
   render();
+  await h.ready;
+  const p = hint === h ? h.list?.[h.at] : null;
+  if (!p) return;
+  selected.clear();
+  if (p.action.t === "play") for (const id of p.action.cards) selected.add(id);
+  if (p.action.t === "return") selected.add(p.action.card);
+  render();
+}
+/** Always: the coach's play at each of your decisions, its cards marked, nothing picked. */
+function advise() { if (opts.coach === "on" && !rush && G && E.asked(G, me)) plays(true); }
+/**
+ * Check and Always: your move set against the coach's, from the table as it was (tribute-bot.js's checkMove): kept for
+ * the coach's word on it and the hand's review, in the run, so it's there after a reload; the plays weighed, for Why?,
+ * only in memory.
+ */
+const checked = new WeakMap();
+const handId = () => `${S?.started}:${G?.handNo}`;
+function check(act) {
+  const hand = handId(), note = { hand, mine: act, done: false, differs: false, words: "", gap: null, more: 0 };
+  if (C[0]?.hand !== hand) C = [];
+  C.push(note);
+  think(clone(G), me, "check", { action: act }).then(c => {
+    note.done = true;
+    if (c) {
+      note.differs = !!c.differs;
+      if (c.differs) Object.assign(note, { words: c.words, gap: c.sure ? c.gap : null, more: c.more });
+      checked.set(note, c);
+    }
+    if (C.includes(note)) { save(); render(); }
+  });
+}
+/** The coach's word on your last move it would have made otherwise, until a move of yours it agrees with. */
+function verdict() {
+  if ((opts.coach !== "check" && opts.coach !== "on") || rush) return null;
+  for (let i = C.length - 1; i >= 0; i--) {
+    if (C[i].hand !== handId()) return null;
+    if (C[i].differs) return C[i];
+    if (C[i].done) return null;
+  }
+  return null;
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const mid = s => s.charAt(0).toLowerCase() + s.slice(1);  // "Beat it with a pair of As" mid-sentence, its ranks kept
@@ -182,7 +244,7 @@ const mid = s => s.charAt(0).toLowerCase() + s.slice(1);  // "Beat it with a pai
  *  Pick takes its cards (not in a puzzle, once answered). */
 function showWhy(list = hint?.key === keyNow() ? hint.list : null) {
   if (!list?.length) return;
-  const picks = !rush;
+  const mineIn = list.some(o => o.yours), picks = !rush && !mineIn;    // a puzzle's or a check's: your move's made
   const pctOf = x => `${Math.round(x * 100)}%`;
   const looked = list.some(o => o.levels != null);
   let html = `${list[0].why ? `<p class="tb-why-lead">${esc(list[0].why)}</p>` : ""}${list[0].out ? `<p class="tb-why-out">${esc(list[0].out)}</p>` : ""}<ol class="tb-opts">`;
@@ -195,7 +257,7 @@ function showWhy(list = hint?.key === keyNow() ? hint.list : null) {
     const tag = o.yours ? '<span class="tb-yours">yours</span>' : "";
     html += `<li class="tb-opt${i === 0 ? " best" : ""}${o.yours && i ? " missed" : ""}"><div class="tb-opt-head"><b>${esc(o.title)}</b>${tag}<span class="tb-stat">${stats.join(" · ")}</span>${o.action.t === "pass" || !picks ? "" : `<button type="button" class="link" data-pick="${i}">Pick</button>`}</div>${pc ? `<ul class="tb-pc">${pc}</ul>` : ""}</li>`;
   });
-  html += `</ol><p class="tb-why-note">${rush ? "The best play first." : "The computer's choice is first."} Plays to go out: what your hand needs after it, split as the computer would. Holds: the chance no opponent beats it except with a bomb, from every card played, what the tribute showed (a card paid or given back is with the player who got it; a payer holds nothing above the card he paid) and how often the computer's players beat a play like it.${looked ? ` Levels: the rest of the hand played out in ${rush ? `${rushPuzzle()?.n || "hundreds of"} deals` : "deals"} of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average.` : ""}</p>`;
+  html += `</ol><p class="tb-why-note">${rush ? "The best play first." : mineIn ? "The coach's choice first, then yours." : "The computer's choice is first."} Plays to go out: what your hand needs after it, split as the computer would. Holds: the chance no opponent beats it except with a bomb, from every card played, what the tribute showed (a card paid or given back is with the player who got it; a payer holds nothing above the card he paid) and how often the computer's players beat a play like it.${looked ? ` Levels: the rest of the hand played out in ${rush ? `${rushPuzzle()?.n || "hundreds of"} deals` : "deals"} of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average.` : ""}</p>`;
   $("whyBody").innerHTML = html;
   $("whyDlg").showModal();
   $("whyDlg").scrollTop = 0;
@@ -327,10 +389,14 @@ function drawHand() {
   // on the page, so the table can leave room for the cards at its foot when they lie on it (a phone on its side)
   $("app").style.setProperty("--tb-cw", `${lay.W}px`); $("app").style.setProperty("--tb-ch", `${lay.H}px`);
   const ask = E.asked(G, me), ok = ask === "return" ? new Set(E.returnable(hand, level)) : null;
+  // the coach's play, marked while it's advice (Always), until a Hint picks it
+  const adv = hint?.auto && hint.key === keyNow() ? hint.list?.[0]?.action : null;
+  const advised = new Set(adv?.t === "play" ? adv.cards : adv?.t === "return" ? [adv.card] : []);
   let html = "";
   for (const { id, x, y, z } of lay.at) {
     const cls = [cardClass(id, level)];
     if (selected.has(id)) cls.push("sel");
+    if (advised.has(id)) cls.push("advised");
     if (ok && !ok.has(id)) cls.push("dim");
     html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;z-index:${z}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${face(id, level)}</button>`;
   }
@@ -352,14 +418,23 @@ $("hand").addEventListener("click", e => {
 function drawActions() {
   const box = $("actions"), say = $("say");
   box.replaceChildren();
+  say.classList.remove("kept");
   if (rush) { drawRush(box, say); return; }
-  const h = hint?.key === keyNow() && hint.list ? hint.list[hint.at] : null;
-  say.hidden = !h;
-  if (h) {
-    const n = hint.list.length;
-    say.innerHTML = `<b>Hint${n > 1 ? ` ${hint.at + 1}/${n}` : ""}</b> ${esc(h.why)}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
+  // a coach that speaks unasked keeps its room under your cards, so the table doesn't change size as it speaks
+  say.classList.toggle("kept", (opts.coach === "check" || opts.coach === "on") && G.phase !== "over");
+  const now = hint?.key === keyNow() ? hint : null, h = now?.list?.[now.at], last = verdict();
+  say.hidden = !(now || last || say.classList.contains("kept"));
+  if (now) {
+    const n = now.list?.length || 0, label = now.auto ? "Coach" : `Hint${n > 1 ? ` ${now.at + 1}/${n}` : ""}`;
+    say.innerHTML = !h ? `<b>${label}</b> <span class="tb-thinking">thinking…</span>`
+      : `<b>${label}</b> ${esc(h.why)}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
     say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy());   // not the click itself as the list
-  }
+  } else if (last) {
+    const c = checked.get(last);
+    say.innerHTML = `<b class="tb-miss">Coach</b> ${esc(last.words)}${c ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
+    // the sheet leads with the verdict: its numbers are the check's deals, not the ones the coach decided in
+    say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy([{ ...c.list[0], why: last.words }, ...c.list.slice(1)]));
+  } else say.replaceChildren();
   if (G.phase === "over") { box.append(goBtn(G.result.over ? "The final score" : "Next hand", () => showResult(), "primary")); return; }
   const ask = E.asked(G, me);
   if (!ask) {
@@ -370,7 +445,7 @@ function drawActions() {
     box.append(p);
     return;
   }
-  box.append(goBtn("Hint", showHint, "quiet"));
+  if (opts.coach !== "off") box.append(goBtn("Hint", showHint, "quiet"));
   if (ask === "return") {
     const to = G.tribute.returns.find(r => r.from === me && r.card === null)?.to;
     const p = document.createElement("p");
@@ -444,12 +519,24 @@ function showResult() {
   html += `<p class="tb-levels">Us <b>${FACE(r.levels[us])}</b> · them <b>${FACE(r.levels[1 - us])}</b></p>`;
   if (r.over) html += `<p class="tb-final">${r.winner === us ? "You win the match." : "They win the match."}</p>`;
   else html += `<p class="tb-next">The next hand is played at ${ours ? "your" : "their"} level, ${FACE(r.levels[r.team])}${r.gain === 3 ? "; both of the other side pay tribute" : "; the last out pays tribute"}.</p>`;
+  html += review();
   $("resultBody").innerHTML = html;
   $("nextBtn").textContent = r.over ? "New match" : "Next hand";
   const dlg = $("resultDlg");
   dlg.showModal();
   dlg.scrollTop = 0;
   $("nextBtn").focus({ preventScroll: true });
+}
+
+/** The coach's review of your hand (check, always): how often it would have played as you did, and the moves where it
+ *  wouldn't that cost most, in its words. */
+function review() {
+  const notes = C.filter(n => n.hand === handId() && n.done);
+  if (!notes.length || (opts.coach !== "check" && opts.coach !== "on")) return "";
+  const differs = notes.filter(n => n.differs), worst = differs.slice().sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0) || b.more - a.more).slice(0, 3);
+  let html = `<h3 class="tb-sub">Your play</h3><p class="tb-review-lead">You and the coach agreed on ${notes.length - differs.length} of ${notes.length} move${notes.length === 1 ? "" : "s"}${differs.length > worst.length ? `; the ${worst.length} that cost most:` : "."}</p>`;
+  if (worst.length) html += `<ul class="tb-review">${worst.map(n => `<li>${esc(n.words)}</li>`).join("")}</ul>`;
+  return html;
 }
 
 function render() {
@@ -757,6 +844,7 @@ function openMenu() {
       set("bots", v);
       if (together.room) together.act(g => { if (!g.table) return false; g.table.bots = v; });
     }),
+    choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); hint = null; advise(); render(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Card counter", opts.counter, v => set("counter", v)),
   );
@@ -800,14 +888,15 @@ addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setT
 // for tests and debugging
 window.__tribute = { get state() { return G; }, get me() { return me; }, get together() { return together; }, get selected() { return [...selected]; },
   get rush() { return rush; }, startRush, nextRush, leaveRush,
-  apply: (seat, a) => apply(seat, a), newMatch, nextHand, select(ids) { selected.clear(); for (const id of ids) selected.add(id); render(); }, playSelected, pass, showHint };
+  apply: (seat, a) => apply(seat, a), mine, newMatch, nextHand, select(ids) { selected.clear(); for (const id of ids) selected.add(id); render(); }, playSelected, pass, showHint,
+  get checks() { return C; }, get hint() { return hint; } };
 
 function load() {
   const r = read(RUSH, null);
   if (r?.v === 1) { resumeRush(r); return; }
   const run = read(RUN, null);
   if (run?.G?.v === 1 && run?.S) {
-    G = E.fromRoom(run.G); S = run.S; me = 0;
+    G = E.fromRoom(run.G); S = run.S; C = run.C || []; me = 0;
     closeDialogs();
     gen++;
     render();

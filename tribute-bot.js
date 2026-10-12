@@ -23,7 +23,7 @@
 //    what the table has shown, the rest of the hand played out, and scored by what it does to the levels.
 //  - A return (还贡): low, from a rank held more than once and not a 5 or a 10 (the cards straights need), the card
 //    the hand misses least; to a partner, the most useful one it can spare.
-import { classify, beats, power, rankOf, suitOf, isWild, isJoker, valueOf, orderOf, teamOf, partnerOf, returnable, playName, rankName, cardName, SJ, BJ, asked, act, rng } from "./tribute-engine.js";
+import { classify, beats, power, rankOf, suitOf, isWild, isJoker, valueOf, orderOf, teamOf, partnerOf, returnable, playName, rankName, cardName, readingFor, signature, SJ, BJ, asked, act, rng } from "./tribute-engine.js";
 
 export const SKILLS = ["medium", "hard"];
 /** The weights the organisation and the choices use; tools/tribute-arena.mjs plays versions of them against each other. */
@@ -1239,9 +1239,9 @@ function followChoices(state, seat, K, against) {
   }
   return out.sort((a, b) => b.score - a.score);
 }
-function weighReturn(state, seat, d) {
+function weighReturn(state, seat, d, keep = 6) {
   const level = state.level, sp = split(state.hands[seat], level);
-  const list = returnOptions(state, seat, SETTINGS.hard).slice(0, 6).map(o => {
+  const list = returnOptions(state, seat, SETTINGS.hard).slice(0, keep).map(o => {
     const pros = [], cons = [], name = cardName(o.id);
     if (o.after.plays <= sp.plays) pros.push(`your hand doesn't miss it (${toGo(o.after.plays)} to go out)`);
     else cons.push(`your hand needs ${toGo(o.after.plays)} to go out without it, not ${sp.plays}`);
@@ -1271,5 +1271,82 @@ function sumUp(list, why) {
 /** The hint for the seat now: the plays weighed (weigh), hard's choice first; the others in turn as the hint is tapped again. */
 export function hints(state, seat, opts = {}) {
   return weigh(state, seat, opts);
+}
+
+// ---------- the coach's check: a move of yours against its own ----------
+/**
+ * A move of yours set against the coach's (hard's) choice: { list: the plays weighed, its choice first and yours next
+ * (yours: true), best, mine, gap, se, n, more, sure, differs, words }. How much worse it values yours: in levels a hand,
+ * the two tried in the same deals of the cards you can't see and the rest of the hand played out (gap, se its standard
+ * error over n deals), when the deals can tell (the gap at least a tenth of a level and twice its standard error); and
+ * by the plays your hand still needs to go out (more: how many more than after its play), unless the deals put yours
+ * within a tenth of its, standard error and all. Early in a hand two plays' deals part so far (a standard deviation of
+ * about two levels between them) that eighty can't tell a few tenths of a level apart, and the plays to go out are the
+ * coach's own measure then; late, a few dozen deals tell a tenth. A return is measured by the plays alone.
+ */
+export function checkMove(state, seat, action, { search = 32, seed = 1, budget = 700, worlds = 80, outBudget = 2500, against = "hard" } = {}) {
+  const ask = asked(state, seat);
+  if (!ask) return null;
+  const level = state.level;
+  const list = ask === "return" ? weighReturn(state, seat, decide(state, seat, { noise: false }), Infinity) : weigh(state, seat, { search, seed, budget, against });
+  if (!list.length) return null;
+  const sig = signature(action, level), best = list[0];
+  if (signature(best.action, level) === sig) return { list, best, mine: best, differs: false };
+  let mine = list.find(o => signature(o.action, level) === sig);
+  if (!mine) list.push(mine = moveOption(state, seat, action, best, against));
+  list.splice(list.indexOf(mine), 1);
+  list.splice(1, 0, mine);
+  mine.yours = true;
+  let gap = null, se = null, n = 0;
+  if (ask === "play") {
+    const out = playOut(state, seat, [best.action, action], { worlds, seed, budget: outBudget });
+    n = out.n;
+    if (n >= 6) {
+      const d = out.vals[0].map((x, i) => x - out.vals[1][i]), m = d.reduce((a, b) => a + b, 0) / n;
+      gap = m; se = Math.sqrt(d.reduce((a, b) => a + (b - m) ** 2, 0) / (n - 1) / n);
+      // the two plays' own averages over these deals; the look-ahead's (other deals) left out, numbers and words
+      for (const o of list) { o.levels = null; o.pros = o.pros.filter(x => !/look-ahead/.test(x)); o.cons = o.cons.filter(x => !/look-ahead/.test(x)); }
+      best.levels = out.vals[0].reduce((a, b) => a + b, 0) / n; mine.levels = best.levels - gap;
+    }
+  }
+  const sure = gap !== null && gap >= Math.max(0.1, 2 * se), asGood = gap !== null && gap + 2 * se < 0.1;
+  const more = mine.plays != null && best.plays != null ? mine.plays - best.plays : 0;
+  const c = { list, best, mine, gap, se, n, more, sure, differs: sure || (!asGood && more > 0) };
+  c.words = c.differs ? checkWords(c, level, state.top?.reading || null) : null;
+  return c;
+}
+/** A move of yours the coach didn't weigh, described as one it did: what it breaks, the plays your hand needs after it,
+ *  its chance of standing against the coach's play's. */
+function moveOption(state, seat, action, best, against) {
+  const level = state.level, hand = state.hands[seat], sp = split(hand, level);
+  if (action.t === "pass") return { action, title: "Pass", pros: [`keeps your hand as it is: ${toGo(sp.plays)} to go out`], cons: [], plays: sp.plays, holds: null, levels: null };
+  const top = state.top?.reading || null, rd = readingFor(action.cards, level, top) || classify(action.cards, level)[0];
+  const rest = minus(hand, action.cards), after = rest.length ? split(rest, level) : { plays: 0 };
+  const cons = [], from = brokenBy(sp, action.cards), held = stands(rd, hold(rd, knowledge(state, seat)), !top, against);
+  if (from && !rd.bomb) cons.push(`breaks ${playName(from.reading)}${after.plays > sp.plays - 1 ? `, so your hand then needs ${toGo(after.plays)} to go out, not ${sp.plays - 1}` : ""}`);
+  if (rd.bomb && !(best.action.t === "play" && readingFor(best.action.cards, level, top)?.bomb)) cons.push("spends a bomb the coach would keep");
+  if (best.holds != null && !rd.bomb && held < best.holds - 0.15) cons.push(`it stands about ${pct(held)}, against ${pct(best.holds)}`);
+  return { action, title: `${top ? "Beat it with" : "Lead"} ${rd.bomb ? bombName(rd) : playName(rd)}`, pros: [], cons, plays: after.plays, holds: rd.bomb ? 1 : held, levels: null };
+}
+/** A move in a few words: "pair of 9s", "pass", "9♠ back". */
+function moveNoun(a, level, top) {
+  if (a.t === "pass") return "pass";
+  if (a.t === "return") return `${cardName(a.card)} back`;
+  const rd = readingFor(a.cards, level, top) || classify(a.cards, level)[0];
+  return rd ? playName(rd).replace(/^an? /, "") : "play";
+}
+/** checkMove's verdict in words, in levels or else in plays: "Your 9: about 0.4 levels a hand worse than the coach's
+ *  pair of 7s. Breaks…" */
+function checkWords(c, level, top = null) {
+  const yours = `Your ${moveNoun(c.mine.action, level, top)}`, theirs = `the coach's ${moveNoun(c.best.action, level, top)}`;
+  const many = n => (n === 1 ? "a play" : `${["", "", "two", "three", "four"][n] || n} plays`);
+  const head = c.sure ? `${yours}: about ${c.gap.toFixed(1)} levels a hand worse than ${theirs}`
+    : `${yours}: ${many(c.more)} further from out than ${theirs} (${c.mine.plays} to go, against ${c.best.plays})`;
+  // what tells against yours (the plays to go out said once); failing that, what speaks for its play
+  const trim = x => (c.sure ? x : x.replace(/, so your hand then needs .*$/, ""));
+  const against = c.mine.cons.filter(x => !/look-ahead/.test(x)).slice(0, 2).map(trim);
+  const forIts = c.best.pros.filter(x => !/look-ahead|bigger bomb/.test(x))[0];   // a bomb's "unless someone holds a bigger one" is no case for it
+  const why = against.length ? against.join("; ").replace(/^./, x => x.toUpperCase()) : forIts ? `The coach's: ${forIts}` : "";
+  return `${head}.${why ? ` ${why}.` : ""}`;
 }
 export { rankName, knowledge };

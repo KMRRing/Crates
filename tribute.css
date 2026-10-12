@@ -76,6 +76,8 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-hand { position: relative; margin-top: .5rem; flex: none; }
 .tb-hand .tb-card { position: absolute; width: var(--tb-cw, 2.6rem); height: var(--tb-ch, 3.6rem); cursor: pointer; transition: transform .1s; }
 .tb-hand .tb-card.sel { background: color-mix(in srgb, var(--tb-in) 24%, var(--tb-face)); border-color: var(--tb-in); box-shadow: 0 0 0 1.5px var(--tb-in); transform: translateY(-.3rem); }
+/* the coach's play (Always): its cards ringed in the accent until a Hint picks them */
+.tb-hand .tb-card.advised:not(.sel) { outline: 2px solid var(--tb-in); outline-offset: -3px; }
 .tb-hand .tb-card.dim { opacity: .38; }
 /* a deep column (five of a rank or more): its corners smaller, so every card's suit still shows in its step */
 .tb-hand.tight .tb-card { font-size: .82rem; }
@@ -100,6 +102,12 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-say { margin: 0; font-size: .84rem; line-height: 1.35; }
 .tb-say b { margin-right: .3rem; color: var(--tb-in); font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
 .tb-thinking { color: var(--ink-soft); }
+/* a coach that speaks unasked (Check, Always) keeps its room, so the table holds its size as it speaks and falls quiet:
+   on a phone four lines, three on a short one (a deep column of cards leaves the table little room), a longer reason
+   scrolling in its box */
+.tb-say.kept { min-height: calc(2em * 1.35); }
+@media (max-width: 599px) { .tb-say.kept { height: calc(4em * 1.35); overflow-y: auto; overscroll-behavior: contain; } }
+@media (max-width: 599px) and (max-height: 699px) { .tb-say.kept { height: calc(3em * 1.35); } }
 .tb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; min-height: 2.75rem; }
 .tb-actions .tb-go:last-child { margin-left: auto; }
 .tb-go { min-height: 2.75rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
@@ -142,6 +150,11 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
 .tb-order li.us { font-weight: 800; color: var(--tb-in); }
 .tb-gain, .tb-levels, .tb-next, .tb-final { margin: .4rem 0; font-size: .95rem; }
 .tb-final { font-weight: 800; }
+/* the coach's review of the hand (Check, Always) */
+.tb-sub { margin: .9rem 0 .2rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--tb-in); }
+.tb-review-lead { margin: .35rem 0; font-size: .92rem; }
+.tb-review { margin: .3rem 0; padding-left: 1.1rem; font-size: .88rem; line-height: 1.4; }
+.tb-review li { margin: .3rem 0; }
 .tb-result-go { display: flex; gap: .5rem; margin-top: .8rem; }
 .tb-result-go .tb-go { flex: 1 1 0; margin: 0; }
 
@@ -151,6 +164,9 @@ html[data-mode="night"] .tb-pc .con::before { color: #E8806F; }
 .tb-toast.show { opacity: 1; }
 
 /* held sideways: the table on the left with your cards under it, the levels and your move beside it */
+/* the coach's four ways side by side in the menu, off to always, as a scale */
+#menuBody .menu-grid[aria-label="Coach"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
 @media (orientation: landscape) and (min-width: 700px) {
   #app.tribute { --beside: 18rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
   #app.tribute .tb-table { grid-column: 1; grid-row: 2 / span 2; margin-top: .6rem; }

@@ -17,6 +17,7 @@ import { SIDEWAYS } from "./wide.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "hong:run", OPTS = "hong:opts", STATS = "hong:stats", BEST = "hong:best";
+const COACH = ["off", "hints", "check", "on"];                  // the coach's ways: see coachOn
 const APP = 1;                                                   // this code's version of the together state
 const BOTS = ["Mei", "Wing", "Lok"];
 const PACE = { quick: 380, steady: 750, slow: 1300 };            // a computer player's turn, in ms
@@ -29,7 +30,10 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
 let opts = { flowers: true, minFan: 3, rounds: 1, coach: "on", pace: "steady", numbers: true, bots: "hard", ...read(OPTS, {}) };
-if (typeof opts.coach !== "string") opts.coach = opts.coach === false ? "off" : "on";   // on or off until October 2026
+// the coach was on or off (with Hint) until October 2026, and "differ" for a day: kept as the way it means now
+const coachWas = opts.coach;
+opts.coach = coachWas === true ? "on" : coachWas === false ? "hints" : coachWas === "differ" ? "check" : COACH.includes(coachWas) ? coachWas : "on";
+if (opts.coach !== coachWas && !IN_FRAME) write(OPTS, opts);
 let me = 0;                                                      // your seat
 let picked = null;                                               // the tile you've lifted to discard
 let advice = null;                                               // { key, decision }: the coach's view of your decision now
@@ -171,6 +175,7 @@ function askCoach() {
  */
 const reckoned = new WeakMap();                                  // a note → the coach's answer it came from
 function note(act) {
+  if (opts.coach === "off") return;
   const entry = { wall: E.wallLeft(G), phase: G.phase, mine: act, coach: null, why: "", gap: null, against: [] }, notes = R;
   R.push(entry);
   explain(clone(G), me, act).then(j => {
@@ -374,15 +379,17 @@ function drawHand() {
   if (s.melds.length) html += `<span class="hk-melds">${s.melds.map(m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k)).join("")}</span>`).join("")}</span>`;
   box.innerHTML = html;
 }
-// The coach: "on", it says what it would do at every decision; "differ", it says nothing until you've moved, and then
-// only where it would have done otherwise: what, how many points worse it values yours, and why; "off", a Hint asks it
-// about one decision. Either way, the hand's review at its end.
+// The coach: "off", silent; "hints", a Hint asks it about one decision; "check", a Hint too, and once you've moved, a
+// word only where it would have done otherwise: what, how many points worse it values yours, and why; "on" (Always),
+// what it would do at every decision, and the same word after a move it advised against; and, unless it's off, the
+// hand's review at its end.
 let hintFor = null;
 const coachOn = () => opts.coach === "on" || hintFor === keyNow();
+const checking = () => opts.coach === "check" || opts.coach === "on";
 /** The coach's word on your last move it would have made otherwise, until a turn of yours it agrees with (a claim you
  *  pass on as it would doesn't end it: there may be one before you've read it). */
 function lesson() {
-  if (opts.coach === "off" || rush) return null;
+  if (!checking() || rush) return null;
   for (let i = R.length - 1; i >= 0; i--) {
     if (differed(R[i])) return R[i];
     if (R[i].phase === "act" && R[i].coach) return null;
@@ -397,7 +404,7 @@ function drawActions() {
   coach.hidden = true;
   coach.classList.remove("rush");
   // a coach that speaks unasked keeps its room under your tiles, so the table doesn't change size as it speaks and falls quiet
-  coach.classList.toggle("kept", opts.coach !== "off" && !rush && G?.phase !== "over");
+  coach.classList.toggle("kept", checking() && !rush && G?.phase !== "over");
   if (!G) return;
   if (rush) { drawRush(box, coach); return; }
   if (G.phase === "over") {
@@ -427,7 +434,7 @@ function drawActions() {
     return;
   }
   moveButtons(box, legal);
-  if (!coachOn()) box.append(goBtn("Hint", () => { hintFor = keyNow(); askCoach(); render(); }, "quiet"));
+  if (!coachOn() && opts.coach !== "off") box.append(goBtn("Hint", () => { hintFor = keyNow(); askCoach(); render(); }, "quiet"));
 }
 /** Your moves now as buttons: a win, flowers, kongs and the tile you've lifted; offered a discard, its calls. */
 function moveButtons(box, legal) {
@@ -590,7 +597,7 @@ function showResult() {
 /** The coach's review of your hand: how often it would have done as you did (or valued yours as well), and the costliest
  *  decisions where it wouldn't: what yours was worth against its move, why, and its move's reason. */
 function review() {
-  if (!R.length) return "";
+  if (!R.length || opts.coach === "off") return "";
   const decided = R.filter(e => e.coach), differs = decided.filter(differed);
   const worst = differs.slice().sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0)).slice(0, 3);
   let html = `<h3 class="hk-sub">Your play</h3><p class="hk-review-lead">You and the coach agreed on ${decided.length - differs.length} of ${decided.length} decision${decided.length === 1 ? "" : "s"}${differs.length > worst.length ? `; the ${worst.length} that cost most:` : "."}</p>`;
@@ -917,7 +924,7 @@ function openMenu() {
       set("bots", v);
       if (together.room) together.act(g => { if (!g.session) return false; g.session.bots = v; });
     }),
-    choice("Coach", [["off", "Off"], ["differ", "If you differ"], ["on", "Always"]], opts.coach, v => { set("coach", v); if (v === "on") askCoach(); }),
+    choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); if (v === "on") askCoach(); }),
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
     toggle("Numbers on the tiles", opts.numbers, v => set("numbers", v)),
   );

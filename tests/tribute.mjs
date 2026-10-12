@@ -323,6 +323,22 @@ for (const skill of ["hard", "medium"]) {
   check(outside?.verdict === "unweighed" && outside.mine === null, "a play outside those weighed is tried against the best by a look-ahead of its own");
   const order = R.runOrder(PUZZLES, 7), rated = order.map(id => PUZZLES.find(x => x.id === id).r);
   check(order.length === n && new Set(order).size === n && rated.slice(0, 12).every((r, i, a) => !i || r >= a[i - 1]), `a run deals every puzzle once, the easiest first (${rated.slice(0, 12).join(" ")} …)`);
+
+  // the coach's check of a move of yours (Check, Always): a puzzle's worst play against the best, which Hard's rules
+  // find: how many levels a hand worse, from the two played out in the same deals, and why; nothing on its own play
+  const q = PUZZLES.find(x => x.rules && Math.max(...x.vals) - Math.min(...x.vals) >= 0.6), qs = R.replay(q), w = R.weighed(q);
+  const lowest = w.opts.reduce((a, o) => (o.value < a.value ? o : a));
+  const cw = B.checkMove(qs, q.seat, lowest.action, { search: 0, worlds: 80, outBudget: Infinity });
+  check(cw.differs && cw.sure && cw.gap >= 2 * cw.se && Math.abs(cw.gap - (w.best.value - lowest.value)) < 3 * cw.se + 0.2 && cw.list[1].yours && /^Your .+: about [0-9.]+ levels a hand worse than the coach's .+\. [A-Z]/.test(cw.words),
+    `the coach on the worst play of ${q.id}: "${cw.words}" (${cw.gap.toFixed(2)} ± ${cw.se.toFixed(2)} levels over ${cw.n} deals; the puzzle's ${(w.best.value - lowest.value).toFixed(2)})`);
+  check(B.checkMove(qs, q.seat, w.best.action, { search: 0 })?.differs === false, "…and nothing on its own");
+  // early, where a hundred deals can't tell a few tenths of a level: a card led from one of the hand's combinations, a
+  // play further from out
+  const early = E.newGame({ mode: "deals", deals: 6 }, 77);
+  early.phase = "play"; early.turn = 0; early.top = null;
+  const combo = B.split(early.hands[0], early.level).combos.find(c => !c.reading.bomb && c.cards.length >= 2);
+  const ce = B.checkMove(early, 0, { t: "play", cards: [combo.cards[0]] }, { search: 0, worlds: 20 });
+  check(ce.differs && ce.more >= 1 && /further from out than the coach's/.test(ce.words), `early: "${ce.words}"`);
 }
 
 {

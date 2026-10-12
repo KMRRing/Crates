@@ -130,6 +130,14 @@ export function readingFor(ids, level, top) {
   // a straight flush led may as well be the bomb; following, the smallest reading that beats keeps the most in hand
   return rs.sort((a, b) => (top ? power(a) - power(b) || a.key - b.key : power(b) - power(a) || b.key - a.key))[0];
 }
+/** What a move is, whichever cards of a rank make it: a play's reading and its ranks (a wild as such), a card given
+ *  back's rank. Two moves alike in this are the same: a pair of 9s in any suits, a straight flush to the 9 in any suit. */
+export function signature(a, level) {
+  if (a.t !== "play") return a.t === "return" ? `return:${isWild(a.card, level) ? "w" : rankOf(a.card)}` : a.t;
+  const r = readingFor(a.cards, level, null) || { type: "?", key: 0 };
+  const ranks = a.cards.map(id => (isWild(id, level) ? "w" : rankOf(id))).sort().join(",");
+  return `${r.bomb ? (r.sf ? "sf" : "bomb") : r.type}:${r.key}:${ranks}`;
+}
 /** What a play looks like in words: "a pair of 7s", "a straight to the 10", "a bomb of five Qs". */
 export function playName(c) {
   const rk = k => (k === 15 ? "level card" : k === SJ ? "small joker" : k === BJ ? "big joker" : FACE[k]);
