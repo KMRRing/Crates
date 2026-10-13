@@ -29,6 +29,14 @@
     <div class="cu-card" aria-live="polite">
       <p id="kind" class="cu-kind" hidden></p>
       <p id="word" class="cu-word"></p>
+      <div id="dial" class="cu-dial" role="timer" aria-live="off" data-phase="idle" hidden>
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="cu-track" cx="50" cy="50" r="43"/>
+          <circle id="dialArc" class="cu-arc" cx="50" cy="50" r="43" pathLength="100" transform="rotate(-90 50 50)"/>
+          <path class="cu-ticks" d="M50 1V9M92.4 74.5L85.5 70.5M7.6 74.5L14.5 70.5"/>
+        </svg>
+        <span id="dialNum" class="cu-num"></span>
+      </div>
       <p id="hint" class="cu-hint">Tap anywhere for a word</p>
     </div>
   </main>

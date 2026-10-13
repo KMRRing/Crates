@@ -37,6 +37,30 @@ html[data-theme="modern"] .cu-stage { border-radius: 20px; }
 @keyframes cu-burst { from { transform: scale(.35); opacity: .7; } to { transform: scale(2.3); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .cu-word.pop, .cu-stage.burst::after { animation: none; } }
 
+/* the countdown under the word: an empty ring for the second to read it, then the numeral and an arc of enamel that
+   runs out with the three seconds; at nought the ring and numeral take the enamel and the card flashes once. Sized to
+   the card, so it grows with it (cqmin: the card's shorter side). */
+.cu-dial { --cu-dial: clamp(4.5rem, 25cqmin, 9rem); position: relative; display: grid; place-items: center;
+  width: var(--cu-dial); height: var(--cu-dial); }
+.cu-dial[hidden] { display: none; }
+.cu-dial svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cu-track { fill: none; stroke: var(--rule); stroke-width: 3; }
+.cu-arc { fill: none; stroke: var(--cu-in); stroke-width: 8; stroke-dasharray: 100 100; }
+.cu-ticks { fill: none; stroke: var(--brass); stroke-width: 2.5; stroke-linecap: round; }
+/* the three seconds marked on the bezel are Almanac's ornament */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cu-ticks { display: none; }
+.cu-num { font-size: calc(var(--cu-dial) * .46); font-weight: 800; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.cu-dial:not([data-phase="count"]) .cu-arc { visibility: hidden; }
+.cu-dial[data-phase="over"] .cu-track { stroke: var(--cu-in); stroke-width: 8; }
+.cu-dial[data-phase="over"] .cu-num { color: var(--cu-in); }
+.cu-num.tick { animation: cu-tick .28s ease-out; }
+@keyframes cu-tick { from { transform: scale(.6); opacity: .3; } }
+.cu-stage::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: color-mix(in srgb, var(--cu-in) 15%, transparent); box-shadow: inset 0 0 0 4px var(--cu-in); }
+.cu-stage.ding::before { animation: cu-ding .9s ease-out; }
+@keyframes cu-ding { 0%, 25% { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cu-num.tick, .cu-stage.ding::before { animation: none; } }
+
 .cu-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.75rem; padding-top: .3rem; }
 .cu-back { min-height: 2.75rem; font-size: .95rem; }
 .cu-back:disabled { visibility: hidden; }

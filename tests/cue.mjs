@@ -1,8 +1,10 @@
-// Cue: the words (one word of letters each, none in two kinds, enough of each kind) and the deck (every word once a
+// Cue: the words (one word of letters each, none in two kinds, enough of each kind), the deck (every word once a
 // round, a step back and on again to the same word, a new round never starting with the word just seen, a deck kept on
-// the device still read back when it fits the list, and not when the list has changed under it).
+// the device still read back when it fits the list, and not when the list has changed under it) and the countdown (a
+// second to read, then 3, 2, 1, a second each).
 import { KINDS } from "../cue-words.js";
 import { deal, next, back, current, valid, wordsOf, shuffle } from "../cue-deck.js";
+import { READ, COUNT, clockAt } from "../cue-clock.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -44,5 +46,14 @@ const s = rng(11);
 for (let i = 0; i < N; i++) { const f = shuffle(words, s)[0]; firsts.set(f, (firsts.get(f) || 0) + 1); }
 check([...firsts.values()].every(n => Math.abs(n - N / 4) < N * 0.05), `a shuffle puts each word first about as often (${[...firsts.values()].join(", ")} of ${N})`);
 
+// ---------- the countdown ----------
+check(READ === 1000 && COUNT === 3000, "a second to read, then three counted down");
+check([0, 500, 999].every(ms => clockAt(ms).phase === "read" && clockAt(ms).n === null), "for the first second nothing is counted: the word alone, to read");
+const shown = [1000, 1001, 1999, 2000, 2999, 3000, 3999].map(ms => clockAt(ms).n).join();
+check(shown === "3,3,3,2,2,1,1" && clockAt(1000).left === 1, `then 3, 2 and 1, a second each, the arc full as the count starts (${shown})`);
+check(clockAt(4000).phase === "over" && clockAt(4000).n === 0 && clockAt(4000).left === 0 && clockAt(60000).phase === "over", "nought at four seconds, and over it stays");
+const lefts = [1000, 1500, 2000, 2500, 3000, 3500].map(ms => clockAt(ms).left);
+check(lefts.every((l, i) => i === 0 || Math.abs(lefts[i - 1] - l - 500 / COUNT) < 1e-9) && clockAt(3999).left > 0, "the arc runs out evenly over the three seconds");
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("cue: the words and the deck");
+else console.log("cue: the words, the deck and the countdown");
