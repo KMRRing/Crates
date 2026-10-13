@@ -194,162 +194,260 @@ const differed = e => !!e?.coach && !sameAct(e.mine, e.coach);
 const pts = x => (Math.abs(x) >= 10 ? `${Math.round(x)}` : x.toFixed(1)).replace("-", "−");
 
 // ---------- the table ----------
-const RW = 18, RH = 24, MW = 15, MH = 20, FW = 9.5, FH = 12.7;  // a discard, a meld's tile and a flower, in the table's units
-const use = (k, x, y, w, h, cls = "") => `<use href="#hk-${k < 0 ? "back" : k}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w}" height="${h}"${cls ? ` class="${cls}"` : ""}/>`;
+// The cloth is one SVG drawn in its own units, a unit as many pixels as fit (k): a discard 18 by 24, a set's tile 15 by
+// 20, a flower 9.5 by 12.7. Of the ways to lay the table out (how many discards to a row in the middle and at the
+// sides) the box gets the one that draws the tiles largest, no larger than your own (nor than 2.4rem a discard, on a
+// tablet). Every river has its room from the start, 24 discards (the most on the table in 1,800 of the computer
+// players' hands), and every player's sets theirs, so the tiles keep their size through a hand.
+const RW = 18, RH = 24, MW = 15, MH = 20, FW = 9.5, FH = 12.7;
+const PX = RW + 1, PY = RH + 1, RIVER = 24;
+const SET_ROW = MH + 2;                                          // a row of sets, and the room under it
+const use = (k, x, y, w, h, cls = "") => `<use href="#hk-${k < 0 ? "back" : k}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${+w.toFixed(2)}" height="${+h.toFixed(2)}"${cls ? ` class="${cls}"` : ""}/>`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const signed = n => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 /** A meld's tiles as they lie: a concealed kong with its ends turned down. */
 const meldTiles = m => (m.t === "chow" ? [m.k, m.k + 1, m.k + 2] : m.t === "kong" ? (m.open || m.added ? [m.k, m.k, m.k, m.k] : [-1, m.k, m.k, -1]) : [m.k, m.k, m.k]);
-/** Tiles flowing left to right in rows of a given width: [{ k, x, y }] and the height used. */
-function flow(groups, x0, y0, width, w, h, gap = 3) {
-  const out = [];
-  let x = x0, y = y0;
-  for (const g of groups) {
-    const gw = g.length * w;
-    if (x > x0 && x + gw > x0 + width) { x = x0; y += h + 2; }
-    g.forEach((k, i) => out.push({ k, x: x + i * w, y }));
-    x += gw + gap;
-  }
-  return { tiles: out, height: groups.length ? y + h - y0 : 0 };
-}
-/** One player's label: their wind (the dealer's in jade), name and score, and the tiles in their hand (at the end of
- *  its width, or, `tight`, straight after the score). */
-function label(seat, x, y, width, active, tight = false) {
-  const dealer = E.windOf(G, seat) === 0, held = busyWith === seat ? "…" : `${G.seats[seat].hand.length} held`;
-  let svg = `<g class="hk-label${active ? " on" : ""}${busyWith === seat ? " thinking" : ""}">`;
-  svg += `<rect class="hk-badge${dealer ? " dealer" : ""}" x="${x}" y="${y}" width="15" height="15" rx="2.5"/><text class="hk-badge-t" x="${x + 7.5}" y="${y + 11.6}">${windGlyph(seat)}</text>`;
-  svg += `<text class="hk-name" x="${x + 19}" y="${y + 11.2}">${esc(nameOf(seat))}<tspan class="hk-score" dx="5">${signed(G.scores[seat])}</tspan>${tight ? `<tspan class="hk-count" dx="7">${held}</tspan>` : ""}</text>`;
-  if (!tight) svg += `<text class="hk-count" x="${x + width - 2}" y="${y + 11.2}">${held}</text>`;
-  return `${svg}</g>`;
-}
-/** A player's flowers and sets in rows within a width; centred, for the player across. */
-function sets(seat, x, y, width, centre = false) {
-  const s = G.seats[seat];
-  if (!s.flowers.length && !s.melds.length) return { svg: "", height: 0 };
-  const fw = s.flowers.length ? s.flowers.length * FW + 4 : 0;
-  const md = flow(s.melds.map(meldTiles), 0, 0, width - fw, MW, MH);
-  const used = md.tiles.length ? Math.max(...md.tiles.map(t => t.x)) + MW : 0;
-  const x0 = centre ? x + (width - fw - used) / 2 : x;
-  let svg = "";
-  s.flowers.forEach((f, i) => { svg += use(f, x0 + i * FW, y + (MH - FH), FW, FH, "hk-flower"); });
-  for (const t of md.tiles) svg += use(t.k, x0 + fw + t.x, y + t.y, MW, MH);
-  return { svg, height: Math.max(MH, md.height) + 4, right: x0 + fw + used };
-}
-/** A player's discards in rows (of six, or eight in a wide side column). */
-function river(seat, x, y, perRow = 6) {
-  let svg = "";
-  riverOf(seat).forEach((d, i) => {
-    const rx = x + (i % perRow) * (RW + 1), ry = y + Math.floor(i / perRow) * (RH + 1);
-    svg += use(d.k, rx, ry, RW, RH);
-    if (d.last) svg += `<rect class="hk-last-ring" x="${rx - 1}" y="${ry - 1}" width="${RW + 2}" height="${RH + 2}" rx="3"/>`;
-  });
-  return svg;
-}
 /** A seat's discards still on the table (a claimed one went to the claimer's set), the latest marked. */
 function riverOf(seat) {
   const r = G.seats[seat].river, lastAt = G.last && G.last.seat === seat && G.last.e === "discard" ? r.length - 1 : -1;
   return r.map((d, i) => ({ k: d.k, last: i === lastAt && d.by === undefined, by: d.by })).filter(d => d.by === undefined);
 }
-/** The round's dial: its wind, and a pointer to whoever is to move. */
-function dial(cx, cy, r) {
+/** A seat's discards, each where `at(i)` puts it, the latest ringed. */
+function lay(seat, at) {
+  return riverOf(seat).map((d, i) => {
+    const { x, y } = at(i);
+    return use(d.k, x, y, RW, RH) + (d.last ? `<rect class="hk-last-ring" x="${(x - 1).toFixed(1)}" y="${(y - 1).toFixed(1)}" width="${RW + 2}" height="${RH + 2}" rx="3"/>` : "");
+  }).join("");
+}
+/** Rows of a river: room for 24 discards, or for the longest on the table if one ever runs past that. */
+const rowsFor = per => Math.ceil(Math.max(RIVER, ...[0, 1, 2, 3].map(s => riverOf(s).length)) / per);
+
+// A label's words are measured, in the drawing's units (its fonts are sized in them), to take one line or two.
+let ruler = null, rulerFont = "";
+function textW(s, font) {
+  ruler ??= document.createElement("canvas").getContext("2d");
+  const f = `${font} ${rulerFont}`;
+  if (ruler.font !== f) ruler.font = f;
+  return ruler.measureText(s).width * 1.05;                       // a little over: a web font may not be in yet
+}
+const turnNow = () => (G.phase === "act" ? G.turn : -1);
+/**
+ * A player's label in a width: their wind (the dealer's in jade), name and score, and how many tiles they hold (a figure
+ * and a tile's back); on one line, or where that's too wide on two or three (the count, or the score, under the name).
+ * It's measured with a four-figure score, so it keeps its lines as the score grows and the table keeps its size (past
+ * that it's drawn a little smaller, within its width). ts shrinks it on a big screen. { w, h } without x and y; with
+ * them, its svg too.
+ */
+function label(seat, width, ts, x = null, y = 0, centre = false) {
+  const name = nameOf(seat), score = signed(G.scores[seat]), CW = 19, nw = textW(name, "700 10.5px");
+  const ways = scoreW => [19 + nw + 5 + scoreW + 6 + CW, Math.max(19 + nw + 5 + scoreW, 19 + CW), Math.max(19 + nw + 6 + CW, 19 + scoreW), Math.max(19 + nw, 19 + scoreW, 19 + CW)];
+  const kept = ways(textW("−888", "600 10.5px"));
+  const way = Math.max(0, kept.findIndex((v, i) => v * ts <= width || i === kept.length - 1));
+  const w = kept[way] * ts, h = [15, 27, 27, 39][way] * ts;
+  if (x === null) return { w, h };
+  const dealer = E.windOf(G, seat) === 0, thinking = busyWith === seat, on = seat === turnNow() || thinking;
+  const sw = textW(score, "600 10.5px"), real = ways(sw)[way] * ts, z = ts * Math.min(1, Math.max(w, width) / real);
+  const x0 = centre ? x + (width - real * z / ts) / 2 : x;
+  // how many held: a figure ending 11 units into its slot, a tile's back after it
+  const count = (cx, base) => `<text class="hk-count" x="${(cx + 11).toFixed(1)}" y="${base}">${thinking ? "…" : G.seats[seat].hand.length}</text>`
+    + `<use href="#hk-back" x="${(cx + 12.5).toFixed(1)}" y="${(base - 8.2).toFixed(1)}" width="6.5" height="8.7"/>`;
+  let svg = `<g class="hk-label${on ? " on" : ""}${thinking ? " thinking" : ""}" transform="translate(${x0.toFixed(1)} ${y.toFixed(1)})${z < 1 ? ` scale(${z.toFixed(3)})` : ""}">`;
+  svg += `<rect class="hk-badge${dealer ? " dealer" : ""}" x="0" y="0" width="15" height="15" rx="2.5"/><text class="hk-badge-t" x="7.5" y="11.6">${windGlyph(seat)}</text>`;
+  const scored = `<tspan class="hk-score" dx="5">${score}</tspan>`, under = (base, t) => `<text class="hk-name hk-score" x="19" y="${base}">${t}</text>`;
+  if (way === 0) svg += `<text class="hk-name" x="19" y="11.2">${esc(name)}${scored}</text>${count(19 + nw + 5 + sw + 6, 11.2)}`;
+  else if (way === 1) svg += `<text class="hk-name" x="19" y="11.2">${esc(name)}${scored}</text>${count(19, 24.4)}`;
+  else if (way === 2) svg += `<text class="hk-name" x="19" y="11.2">${esc(name)}</text>${count(19 + nw + 6, 11.2)}${under(24.4, score)}`;
+  else svg += `<text class="hk-name" x="19" y="11.2">${esc(name)}</text>${under(24.4, score)}${count(19, 37.6)}`;
+  return { w, h, svg: `${svg}</g>` };
+}
+/** A player's flowers and sets in rows within a width, flowers first: at full size, or smaller where they need more
+ *  rows than the height kept for them (a fourth set in a narrow column): { svg, w, h }. */
+function setsIn(seat, x, y, width, height, align = "start") {
+  const s = G.seats[seat], groups = [];
+  for (let i = 0; i < s.flowers.length; i += 4) groups.push(s.flowers.slice(i, i + 4).map(k => ({ k, flower: true })));
+  for (const m of s.melds) groups.push(meldTiles(m).map(k => ({ k })));
+  if (!groups.length) return { svg: "", w: 0, h: 0 };
+  let f;
+  for (const z of [1, 0.9, 0.8, 0.72, 0.64, 0.56]) {
+    f = flowSets(groups, width, z);
+    if (f.h <= height + 0.5) break;
+  }
+  // a group wider than the column (a kong in a column three discards wide) reaches into the gap, never off the cloth
+  const x0 = align === "centre" ? x + (width - f.w) / 2 : align === "end" ? x + Math.min(0, width - f.w) : x;
+  return { svg: f.tiles.map(t => use(t.k, x0 + t.x, y + t.y, t.w, t.h, t.flower ? "hk-flower" : "")).join(""), w: f.w, h: f.h };
+}
+/** Groups of tiles flowing left to right in rows of a width at scale z, each group kept whole, flowers on the line. */
+function flowSets(groups, width, z) {
+  const tiles = [];
+  let x = 0, y = 0, most = 0;
+  for (const g of groups) {
+    const ws = g.map(t => (t.flower ? FW : MW) * z), gw = ws.reduce((a, b) => a + b, 0);
+    if (x > 0 && x + gw > width + 2) { x = 0; y += SET_ROW * z; }        // two units over may reach into the gap
+    g.forEach((t, i) => { const h = (t.flower ? FH : MH) * z; tiles.push({ k: t.k, x, y: y + MH * z - h, w: ws[i], h, flower: t.flower }); x += ws[i]; });
+    most = Math.max(most, x);
+    x += 3 * z;
+  }
+  return { tiles, w: most, h: y + MH * z };
+}
+/** The width of three sets and two flowers: what the player across is kept in his row. */
+const keepW = () => 9 * MW + 6 + (G.opts.flowers ? 2 * FW + 3 : 0);
+/** The round's dial: its wind with the wall's count under it, an arc on its rim toward whoever is to move, and,
+ *  upright, the round and the hand under it. */
+function dialAt(cx, cy, r, caption, ts) {
   const right = (me + 1) % 4, top = (me + 2) % 4, left = (me + 3) % 4;
   const at = G.phase === "act" ? G.turn : busyWith ?? -1;
-  let out = "";
+  let out = `<g class="hk-dial"><circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}"/>`;
   if (at >= 0) {
-    const ang = { [me]: 90, [right]: 0, [top]: -90, [left]: 180 }[at] * Math.PI / 180, d = r + 6;
-    const px = cx + Math.cos(ang) * d, py = cy + Math.sin(ang) * d;
-    out += `<path class="hk-pointer" d="M${px + Math.cos(ang) * 6} ${py + Math.sin(ang) * 6}L${px + Math.cos(ang + 2.3) * 5} ${py + Math.sin(ang + 2.3) * 5}L${px + Math.cos(ang - 2.3) * 5} ${py + Math.sin(ang - 2.3) * 5}Z"/>`;
+    const a = { [me]: 90, [right]: 0, [top]: -90, [left]: 180 }[at] * Math.PI / 180, R = r - 1;
+    const p = t => `${(cx + Math.cos(t) * R).toFixed(1)} ${(cy + Math.sin(t) * R).toFixed(1)}`;
+    out += `<path class="hk-turn" d="M${p(a - 0.62)}A${R.toFixed(1)} ${R.toFixed(1)} 0 0 1 ${p(a + 0.62)}"/>`;
   }
-  return out;
+  out += `<text class="hk-dial-wind" x="${cx.toFixed(1)}" y="${(cy + r * 0.16).toFixed(1)}" style="font-size:${(r * 0.82).toFixed(1)}px">${E.WINDS[G.round]}</text>`;
+  out += `<text class="hk-dial-t" x="${cx.toFixed(1)}" y="${(cy + r * 0.66).toFixed(1)}" style="font-size:${(r * 0.4).toFixed(1)}px">${E.wallLeft(G)}</text>`;
+  if (caption) out += `<text class="hk-dial-t" x="${cx.toFixed(1)}" y="${(cy + r + 11 * ts).toFixed(1)}" style="font-size:${(9.5 * ts).toFixed(1)}px">${E.WIND_NAMES[G.round]} round · hand ${G.hand + 1}</text>`;
+  return `${out}</g>`;
 }
+const CAPTION = 13;                                              // the round and the hand under the dial, upright
+
 /**
- * A phone on its side: the table as it lies. The four rivers round the dial, yours below it and the one across above
- * it in rows, the others' in columns of six either side, each starting next to the dial and growing away from it;
- * each player's name and sets at their own edge. Drawn to the height (300 units, about a pixel each), so the tiles
- * keep their size however wide the phone, and the extra width goes between the players.
+ * Upright: the player across along the top, his label with his sets beside it (under it, where the row is too
+ * narrow); the others in columns at the edges, each their label, their sets and their discards, c to a row (a set
+ * called moves them down a row of sets); between, his discards at the top, m to a row, the dial, and yours at the
+ * foot, near you. At scale k: { W, H } it needs, and draw(W, H) for the box's.
  */
-function drawLow(svg) {
-  const bw = svg.clientWidth || 560, bh = svg.clientHeight || 300;
-  const H = 302, W = Math.max(440, Math.round(H * bw / bh));
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const right = (me + 1) % 4, top = (me + 2) % 4, left = (me + 3) % 4;
-  const turn = G.phase === "act" ? G.turn : -1;
-  const on = seat => seat === turn || busyWith === seat;
-  const row = W >= 560 ? 8 : 6, pond = row * (RW + 1) - 1, cx = W / 2, cy = 174, r = 23;
-  const lay = (seat, at) => riverOf(seat).map((d, i) => {
-    const { x, y } = at(i);
-    return use(d.k, x, y, RW, RH) + (d.last ? `<rect class="hk-last-ring" x="${x - 1}" y="${y - 1}" width="${RW + 2}" height="${RH + 2}" rx="3"/>` : "");
-  }).join("");
-  let out = label(top, cx - 60, 3, 150, on(top), true) + sets(top, cx - 160, 21, 320, true).svg;
-  out += lay(top, i => ({ x: cx - pond / 2 + (i % row) * (RW + 1), y: cy - r - 8 - RH - Math.floor(i / row) * (RH + 1) }));
-  out += lay(me, i => ({ x: cx - pond / 2 + (i % row) * (RW + 1), y: cy + r + 8 + Math.floor(i / row) * (RH + 1) }));
-  const inner = pond / 2 + 9, colTop = cy - 3 * (RH + 1);
-  out += lay(left, i => ({ x: cx - inner - RW - Math.floor(i / 6) * (RW + 1), y: colTop + (i % 6) * (RH + 1) }));
-  out += lay(right, i => ({ x: cx + inner + Math.floor(i / 6) * (RW + 1), y: colTop + (i % 6) * (RH + 1) }));
-  // the players either side: from the edge to where four columns of their river would reach
-  const zone = Math.max(96, cx - inner - 4 * (RW + 1) - 10);
-  out += label(left, 4, colTop, zone - 4, on(left), true) + sets(left, 4, colTop + 19, zone - 4).svg;
-  out += label(right, W - zone, colTop, zone - 4, on(right), true) + sets(right, W - zone, colTop + 19, zone - 4).svg;
-  // the dial: the round's wind over the tiles left in the wall (the round and the hand are in the console)
-  out += `<g class="hk-dial"><circle cx="${cx}" cy="${cy}" r="${r}"/><text class="hk-dial-wind" x="${cx}" y="${cy + 3}">${E.WINDS[G.round]}</text>`;
-  out += `<text class="hk-dial-t" x="${cx}" y="${cy + 15}">${E.wallLeft(G)}</text>${dial(cx, cy, r)}</g>`;
-  svg.innerHTML = out;
+function upright(m, c, k, clear) {
+  const top = (me + 2) % 4, left = (me + 3) % 4, right = (me + 1) % 4;
+  const E0 = 2, GAP = 10, mw = m * PX - 1, sw = c * PX - 1, rowsM = rowsFor(m), rowsC = rowsFor(c);
+  const ts = Math.min(1, 1.6 / k);                               // words stop growing at 1.6 pixels a unit
+  const W = 2 * E0 + 2 * sw + 2 * GAP + mw;
+  // full screen: the header's buttons lie over the cloth's top right (clear, in pixels from the drawing's corner);
+  // the player across keeps left of them, the column on the right starts under them
+  const hx = clear ? clear.left / k - 4 : Infinity, hy = clear ? clear.bottom / k + 3 : 0;
+  const bandRight = W => Math.min(W, hx) - E0;
+  const lab = label(top, bandRight(W) - E0, ts);
+  const beside = lab.w + 8 + keepW() <= bandRight(W) - E0;
+  const bandH = beside ? Math.max(lab.h, MH) : lab.h + 4 + MH;
+  const T = E0 + bandH + 6;
+  // a side column's sets get two rows (four sets, two to a row) where the column is six discards wide, else three (one
+  // to a row: a fourth set, rare, draws smaller)
+  const keepSets = (c >= 6 ? 2 : 3) * SET_ROW;
+  const labL = label(left, sw, ts), labR = label(right, sw, ts), rightY = Math.max(T, hy);
+  const side = (y, l) => y + l.h + 4 + keepSets + rowsC * PY + E0;
+  const dialMin = 2 * 15 + 8 + CAPTION * ts;
+  const midTop = W => ((W + mw) / 2 > hx ? Math.max(T, hy) : T);   // the top river under the buttons too, if they reach it
+  const H = Math.max(midTop(W) + 2 * rowsM * PY + dialMin + E0, side(T, labL), side(rightY, labR));
+  return {
+    W, H,
+    draw(Wv, Hv) {
+      const gap = GAP + Math.min((Wv - W) / 2, 2 * GAP), edge = (Wv - 2 * sw - 2 * gap - mw) / 2;
+      let out = "";
+      // the player across: his label and sets in a row, or his sets under his label, centred left of the buttons
+      const br = bandRight(Wv), cw = Math.min(br - E0, beside ? lab.w + 8 + keepW() : Math.max(lab.w, keepW()));
+      const x0 = clamp(Wv / 2 - cw / 2, E0, br - cw);
+      if (beside) {
+        out += label(top, lab.w + 1, ts, x0, E0 + (MH - lab.h) / 2).svg;
+        out += setsIn(top, x0 + lab.w + 8, E0, br - x0 - lab.w - 8, MH).svg;
+      } else {
+        out += label(top, cw, ts, x0, E0, true).svg;
+        const mid = x0 + cw / 2, half = Math.min(mid - E0, br - mid);
+        out += setsIn(top, mid - half, E0 + lab.h + 4, 2 * half, MH, "centre").svg;
+      }
+      // the others in their columns: label, sets, discards in rows (the sets as small as it takes to leave the
+      // discards their room)
+      for (const [seat, x, y, l, align] of [[left, edge, T, labL, "start"], [right, Wv - edge - sw, rightY, labR, "end"]]) {
+        out += label(seat, sw, ts, x, y).svg;
+        const sy = y + l.h + 4, st = setsIn(seat, x, sy, sw, Hv - E0 - rowsC * PY - sy - 2, align);
+        out += st.svg;
+        const ry = sy + (st.h ? st.h + 4 : 0);
+        out += lay(seat, i => ({ x: x + (i % c) * PX, y: ry + Math.floor(i / c) * PY }));
+      }
+      // the middle: his discards at the top, mine at the foot, the dial between
+      const mx = (Wv - mw) / 2, ty = midTop(Wv), my = Hv - E0 - rowsM * PY + 1;
+      out += lay(top, i => ({ x: mx + (i % m) * PX, y: ty + Math.floor(i / m) * PY }));
+      out += lay(me, i => ({ x: mx + (i % m) * PX, y: my + Math.floor(i / m) * PY }));
+      // the dial and its words under it, centred between the rivers
+      const g0 = ty + rowsM * PY, room = my - g0 - CAPTION * ts;
+      const r = clamp(Math.min((room - 8) / 2, 34 / k), 13, 22);
+      out += dialAt(Wv / 2, g0 + room / 2, r, true, ts);
+      return out;
+    },
+  };
 }
-/** Where the header's buttons lie over the drawing (W by H, drawn to fit its box and centred), in its units: { x, y },
- *  their left edge and their foot; x is W when they lie above it all (a tall box centres the drawing lower). */
-function clearOfHeader(svg, W, H) {
+
+/**
+ * A phone on its side: the table as it lies. The rivers round the dial, yours below it and the one across above it in
+ * rows of eight, the others' beside it in columns of four, each starting next to the dial and growing away from it.
+ * The player across has the top row: his label left of his discards, his sets right of them; the others their own
+ * edge under it, label over their discards and sets under them. The round and the hand are said in the console.
+ */
+function lying(k) {
+  const top = (me + 2) % 4, left = (me + 3) % 4, right = (me + 1) % 4;
+  const E0 = 3, GAP = 9, m = 8, mw = m * PX - 1, per = 4, sw = rowsFor(per) * PX - 1, bh = per * PY - 1;
+  const rowsM = rowsFor(m), ts = Math.min(1, 1.6 / k);
+  const W = 2 * E0 + 2 * sw + 2 * GAP + mw;
+  const labT = label(top, sw + GAP - 8, ts), labL = label(left, sw, ts), labR = label(right, sw, ts);   // his label ends 8 short of his discards
+  const keepSets = 2 * SET_ROW;                                  // four sets, two to a row
+  const T = E0 + Math.max(labT.h, MH) + 6;                       // the top row's foot: the others start under it
+  const H = Math.max(2 * E0 + 2 * rowsM * PY + 2 * 15 + 8, T + Math.max(labL.h, labR.h) + 4 + bh + 5 + keepSets + E0);
+  return {
+    W, H,
+    draw(Wv, Hv) {
+      const gap = GAP + Math.min((Wv - W) / 2, 3 * GAP), edge = (Wv - 2 * sw - 2 * gap - mw) / 2, cx = Wv / 2, pond = cx - mw / 2;
+      let out = "";
+      // the dial in the middle, the rivers round it
+      const cy = Hv / 2, r = clamp(Math.min((Hv - 2 * E0 - 2 * rowsM * PY) / 2 - 4, 34 / k), 13, 22);
+      out += lay(top, i => ({ x: pond + (i % m) * PX, y: cy - r - 4 - RH - Math.floor(i / m) * PY }));
+      out += lay(me, i => ({ x: pond + (i % m) * PX, y: cy + r + 4 + Math.floor(i / m) * PY }));
+      // the top row, the player across's: his label ending at his discards, his sets from their other end
+      out += label(top, labT.w + 1, ts, pond - 8 - labT.w, E0 + Math.max(0, (MH - labT.h) / 2)).svg;
+      out += setsIn(top, pond + mw + 8, E0, Wv - edge - (pond + mw + 8), MH).svg;
+      // the others: their columns of four beside the dial, the first next to it; label over, sets under
+      const lh = Math.max(labL.h, labR.h), ry = clamp(cy - bh / 2, T + lh + 4, Hv - E0 - keepSets - 5 - bh);
+      for (const [seat, x, dir] of [[left, edge, -1], [right, Wv - edge - sw, 1]]) {
+        out += label(seat, sw, ts, x, ry - 4 - lh).svg;
+        const first = dir < 0 ? x + sw - RW : x;
+        out += lay(seat, i => ({ x: first + dir * Math.floor(i / per) * PX, y: ry + (i % per) * PY }));
+        const sy = ry + bh + 5;
+        out += setsIn(seat, x, sy, sw, Hv - E0 - sy, dir < 0 ? "start" : "end").svg;
+      }
+      out += dialAt(cx, cy, r, false, ts);
+      return out;
+    },
+  };
+}
+
+// The upright ways, the most like a real table's rows of six first: of those that draw the tiles within a twentieth of
+// the largest, the first is taken.
+const UPRIGHT = [[6, 6], [8, 6], [6, 4], [8, 4], [6, 3]];
+/** Where the header's buttons lie over the drawing in full screen, in pixels from its top left: { left, bottom }. */
+function headerOver(svg) {
+  if (!opts.full) return null;
   const head = document.querySelector("header.top"), s = svg.getBoundingClientRect(), h = head?.getBoundingClientRect();
-  if (!h || !s.width) return { x: W, y: 0 };
-  const k = Math.min(s.width / W, s.height / H), dx = (s.width - W * k) / 2, dy = (s.height - H * k) / 2;
-  const y = (h.bottom - s.top - dy) / k + 3;
-  return y > 2 ? { x: (h.left - s.left - dx) / k - 4, y } : { x: W, y: 0 };
+  if (!h || !s.width || h.left >= s.right || h.bottom <= s.top || h.top >= s.bottom) return null;
+  return { left: h.left - s.left, bottom: h.bottom - s.top };
 }
 function drawTable() {
   const svg = $("board"), box = $("table");
   if (!G) { svg.innerHTML = ""; return; }
-  if (low()) { drawLow(svg); return; }
-  const bw = svg.clientWidth || box.clientWidth || 380, bh = svg.clientHeight || box.clientHeight || 400;   // the drawing's own box: in full screen the section has a band and a frame
-  // the table takes the box's proportions: a phone's is about square, and a wider box (a tablet on its side) gets wider
-  // side columns, eight discards to a row, rather than bare cloth either side
-  const wide = bw / bh > 0.95;
-  const W = wide ? Math.round(Math.min(560, 400 * bw / bh)) : 380, H = wide ? 400 : Math.round(Math.max(400, Math.min(560, 380 * bh / bw)));
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  const right = (me + 1) % 4, top = (me + 2) % 4, left = (me + 3) % 4;
-  const turn = G.phase === "act" ? G.turn : -1;
-  const on = seat => seat === turn || busyWith === seat;
-  // across the table: its label and sets across the whole width, its discards in the middle column; the players either
-  // side in their columns below; mine at the foot of the middle column; the round's dial between
-  const sideRow = W >= 470 ? 8 : 6, colW = sideRow * (RW + 1) + 4, midX = (W - 118) / 2;
-  // full screen: the header's buttons lie over the cloth's top right; what the drawing puts there keeps clear of them
-  // (in its units): the label of the player across left of them, its count after the score; his sets centred left of
-  // them; his discards, and the column of the player on the right, below them
-  const clear = opts.full ? clearOfHeader(svg, W, H) : { x: W, y: 0 };
-  let out = clear.x < (W + 150) / 2 + 4 ? label(top, Math.min((W - 150) / 2, clear.x - 132), 2, 150, on(top), true) : label(top, (W - 150) / 2, 2, 150, on(top));
-  let topSets = sets(top, 0, 21, W, true);
-  if (topSets.right > clear.x) topSets = sets(top, 0, 21, clear.x, true);
-  out += topSets.svg;
-  const below = (x, y) => (x > clear.x ? Math.max(y, clear.y) : y);
-  const topRiverY = below(midX + 2 + 6 * (RW + 1), 21 + topSets.height + (topSets.height ? 0 : 2));
-  out += river(top, midX + 2, topRiverY);
-  const sideY = below(W, Math.max(64, 21 + topSets.height + 4));
-  for (const [seat, x] of [[left, 0], [right, W - colW]]) {
-    out += label(seat, x, sideY, colW, on(seat));
-    const st = sets(seat, x, sideY + 19, colW);
-    out += st.svg;
-    out += river(seat, x, sideY + 19 + st.height, sideRow);
-  }
-  // my discards at the foot of the middle column, rows from the bottom up as they grow
-  const mine = riverOf(me).length, rows = Math.max(4, Math.ceil(mine / 6)), my0 = H - rows * (RH + 1) - 2;
-  out += river(me, midX + 2, my0);
-  // the dial: the round's wind, the hand, the wall, and a pointer to whoever is to move
-  const topRows = Math.max(1, Math.ceil(riverOf(top).length / 6));
-  const dialTop = topRiverY + topRows * (RH + 1) + 6, dialBottom = my0 - 30;
-  const cx = W / 2, cy = Math.max(dialTop + 28, Math.min(dialBottom - 28, (dialTop + dialBottom) / 2));
-  out += `<g class="hk-dial"><circle cx="${cx}" cy="${cy}" r="25"/><text class="hk-dial-wind" x="${cx}" y="${cy + 8}">${E.WINDS[G.round]}</text>`;
-  out += `<text class="hk-dial-t" x="${cx}" y="${cy + 44}">${E.WIND_NAMES[G.round]} round · hand ${G.hand + 1}</text>`;
-  out += `<text class="hk-dial-t" x="${cx}" y="${cy + 56}">${E.wallLeft(G)} in the wall</text>`;
-  out += `${dial(cx, cy, 25)}</g>`;
-  svg.innerHTML = out;
+  // the drawing's own box: in full screen the section has a band and a frame
+  const bw = svg.clientWidth || box.clientWidth || 380, bh = svg.clientHeight || box.clientHeight || 400;
+  rulerFont = getComputedStyle(document.documentElement).getPropertyValue("--font").trim() || "sans-serif";
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const most = Math.min(handSize([]).tw, 2.4 * rem) / RW, clear = headerOver(svg);
+  const ways = low() ? [k => lying(k)] : UPRIGHT.map(([m, c]) => k => upright(m, c, k, clear));
+  // each way's scale: what it needs depends a little on the scale (its words stop growing; the header's buttons are a
+  // size on screen), so it's worked out again until it settles
+  const fits = ways.map(way => {
+    let k = most;
+    for (let i = 0; i < 4; i++) { const p = way(k); k = Math.min(most, bw / p.W, bh / p.H); }
+    return { way, k };
+  });
+  const largest = Math.max(...fits.map(f => f.k));
+  const { way, k } = fits.find(f => f.k >= largest * 0.95);
+  const Wv = bw / k, Hv = bh / k;
+  svg.setAttribute("viewBox", `0 0 ${Wv.toFixed(2)} ${Hv.toFixed(2)}`);
+  svg.innerHTML = way(k).draw(Wv, Hv);
 }
 
 // ---------- your hand ----------
@@ -369,6 +467,29 @@ function drawMine() {
 const rowsOf = () => (sideways() ? "one" : opts.rows === "two" || opts.rows === "suits" ? opts.rows : "one");
 /** Which section of the hand a tile goes in, by suit: characters, dots, bamboo, then the winds and the dragons. */
 const section = k => (k < 27 ? Math.floor(k / 9) : k < 31 ? 3 : 4);
+/**
+ * Your tiles' size on screen, { tw, rows }: from what the hand holds between calls (13 less three a set, and room for
+ * the one drawn), not from what it holds this moment (the row used to shrink a tenth as you drew and grow back as you
+ * let a tile go). `melds`: the sets it's sized with (the table's tiles are kept no larger than a hand's without any).
+ */
+function handSize(melds = G.seats[me].melds) {
+  const box = $("hand");
+  const layout = rowsOf(), rows = layout === "two" ? 2 : layout === "suits" ? 3 : 1;
+  const slots = 13 - 3 * melds.length, meldUnits = melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0);
+  const units = rows === 1 ? slots + 1.35 + meldUnits + (melds.length ? 0.3 : 0)
+    // in rows, the columns the most the hand can need, fixed for the layout so the tiles keep their size: two rows, seven
+    // columns, the drawn tile's and the sets'; by suit, about eight and the gaps between sections
+    : rows === 2 ? 9 : 10.5;
+  const pad = getComputedStyle(box), room = (box.clientWidth || 360) - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  // on a phone on its side the row lies on the table, which leaves room for it at its foot (--hk-reserve): on the
+  // shortest phones a little smaller, so the table keeps its share of the height; in full screen the row has the whole
+  // width under the console too, and takes a little more of the height
+  const most = opts.full ? Math.min(rem * 2.75, innerHeight * 0.112) : Math.min(rem * 2.3, innerHeight * 0.095);
+  // in rows, no more than about a quarter of the screen's height for them all, so the table keeps its share
+  const tall = rows > 1 ? (innerHeight * 0.24 / rows) * 0.72 : Infinity;
+  return { tw: Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? most : rem * 3.1, tall)), rows };
+}
 function drawHand() {
   const box = $("hand");
   if (!G) { box.replaceChildren(); return; }
@@ -379,23 +500,7 @@ function drawHand() {
   if (myTurn && G.drawn !== null && tiles.includes(G.drawn)) { drawn = G.drawn; tiles.splice(tiles.lastIndexOf(drawn), 1); }
   // the coach's tile: in a puzzle, the best, once you've answered
   const rec = rush ? rushBest()?.k ?? null : coachOn() && advice?.key === keyNow() && advice.decision?.action?.t === "discard" ? advice.decision.action.k : null;
-  const layout = rowsOf(), rows = layout === "two" ? 2 : layout === "suits" ? 3 : 1;
-  // the tiles' size from what the hand holds between calls (13 less three a set, and room for the one drawn), not from
-  // what it holds this moment: the row used to shrink a tenth as you drew and grow back as you let a tile go
-  const slots = 13 - 3 * s.melds.length, meldUnits = s.melds.reduce((n, m) => n + meldTiles(m).length * 0.74 + 0.3, 0);
-  const units = rows === 1 ? slots + 1.35 + meldUnits + (s.melds.length ? 0.3 : 0)
-    // in rows, the columns the most the hand can need, fixed for the layout so the tiles keep their size: two rows, seven
-    // columns, the drawn tile's and the sets'; by suit, about eight and the gaps between sections
-    : rows === 2 ? 9 : 10.5;
-  const pad = getComputedStyle(box), room = (box.clientWidth || 360) - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight);
-  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-  // on a phone on its side the row lies on the table, which leaves room for it at its foot (--hk-reserve): on the
-  // shortest phones a little smaller, so the table keeps its share of the height
-  // in full screen the row has the whole width under the console too, and takes a little more of the height
-  const most = opts.full ? Math.min(rem * 2.75, innerHeight * 0.112) : Math.min(rem * 2.3, innerHeight * 0.095);
-  // in rows, no more than about a quarter of the screen's height for them all, so the table keeps its share
-  const tall = rows > 1 ? (innerHeight * 0.24 / rows) * 0.72 : Infinity;
-  const tw = Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? most : rem * 3.1, tall));
+  const { tw, rows } = handSize(), rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   box.style.setProperty("--hk-t", `${tw.toFixed(1)}px`);
   box.style.setProperty("--rows", rows);
   box.classList.toggle("grid", rows > 1);
