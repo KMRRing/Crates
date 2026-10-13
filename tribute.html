@@ -70,6 +70,12 @@
   <div class="tb-result-go"><button class="tb-go quiet" type="button" id="tableBtn">The table</button><button class="tb-go primary" type="button" id="nextBtn">Next hand</button></div>
 </dialog>
 
+<dialog id="copyDlg" class="sheet tb-sheet" aria-labelledby="copyHead">
+  <div class="pick-head"><h2 id="copyHead">Copy</h2><button class="btn" type="button" id="copyClose">Close</button></div>
+  <p class="tb-why-note">This browser wouldn't copy it: select it here and copy.</p>
+  <textarea id="copyText" class="tb-copy" readonly></textarea>
+</dialog>
+
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
   <form method="dialog" id="nameForm">
     <label for="nameInput">Your name, so your partner knows who's playing</label>

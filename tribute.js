@@ -35,7 +35,7 @@ if (!COACH.includes(opts.coach)) opts.coach = "hints";
 let me = 0;
 const selected = new Set();
 let hint = null;                                                 // { key, list, at, auto, ready }: the coach's plays now
-let C = [];                                                      // the coach's checks of your moves this hand (check, always)
+let C = [];                                                      // your moves this hand with the coach's: checked (check, always) or its pick
 const isHuman = seat => !!S?.humans?.includes(seat);
 const nameOf = seat => (seat === me && !together.room ? "You" : S?.names?.[seat] || "?");
 /** A seat as a sentence's subject: you as "You" at a table together too, where your seat is labelled with your name. */
@@ -91,6 +91,7 @@ function newMatch() {
   me = 0;
   S = { v: 1, names: ["You", BOTS[0], BOTS[1], BOTS[2]], humans: [0], started: Date.now() };
   G = E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0);
+  write(MATCH_WORDS, []);
   closeDialogs();
   afterChange();
 }
@@ -99,6 +100,7 @@ function nextHand() {
   if (together.room) { nextTogether(); return; }
   $("resultDlg").close();
   if (G.result.over) { newMatch(); return; }
+  keepHand();
   G = E.nextHand(G, (Math.random() * 2 ** 32) >>> 0);
   afterChange();
 }
@@ -186,9 +188,9 @@ function returnSelected() {
   if (pick.length !== 1) { toast("Pick one card of 10 or lower to give back"); return; }
   mine({ t: "return", card: pick[0] });
 }
-/** Your move: checked by the coach (check, always) against the table as it was, then made. */
+/** Your move: noted with the coach's (checked, under Check and Always) from the table as it was, then made. */
 function mine(act) {
-  if (!rush && (opts.coach === "check" || opts.coach === "on")) check(act);
+  if (!rush) check(act);
   selected.clear();
   apply(me, act);
 }
@@ -221,22 +223,30 @@ async function showHint() {
 /** Always: the coach's play at each of your decisions, its cards marked, nothing picked. */
 function advise() { if (opts.coach === "on" && !rush && G && E.asked(G, me)) plays(true); }
 /**
- * Check and Always: your move set against the coach's, from the table as it was (tribute-bot.js's checkMove): kept for
- * the coach's word on it and the hand's review, in the run, so it's there after a reload; the plays weighed, for Why?,
- * only in memory.
+ * Your move set against the coach's, from the table as it was: under Check and Always, checked (tribute-bot.js's
+ * checkMove, the two tried in deals of the cards you can't see), for its word on it and the hand's review; otherwise
+ * only its pick (the plays weighed, as a hint), silent, for Copy game. Kept in the run with your cards then and where
+ * in the hand's log the move fell, so it's there after a reload; the plays weighed and the table then only in memory.
  */
-const checked = new WeakMap();
+const checked = new WeakMap(), weighed = new WeakMap(), shots = new WeakMap();
 const handId = () => `${S?.started}:${G?.handNo}`;
 function check(act) {
-  const hand = handId(), note = { hand, mine: act, done: false, differs: false, words: "", gap: null, more: 0 };
+  const hand = handId(), checking = opts.coach === "check" || opts.coach === "on", snap = clone(G);
+  const note = { hand, mine: act, done: false, differs: false, words: "", gap: null, more: 0, checked: checking, at: G.log.length, cards: G.hands[me].slice(), top: G.top?.reading || null, best: null };
   if (C[0]?.hand !== hand) C = [];
   C.push(note);
-  think(clone(G), me, "check", { action: act }).then(c => {
+  shots.set(note, snap);
+  think(clone(snap), me, checking ? "check" : "hints", { action: act }).then(c => {
     note.done = true;
-    if (c) {
+    if (checking && c) {
+      note.best = c.best.action;
       note.differs = !!c.differs;
       if (c.differs) Object.assign(note, { words: c.words, gap: c.sure ? c.gap : null, more: c.more });
       checked.set(note, c);
+    } else if (c) {
+      const list = Array.isArray(c) ? c : [c];
+      note.best = list[0]?.action || null;
+      weighed.set(note, list);
     }
     if (C.includes(note)) { save(); render(); }
   });
@@ -245,7 +255,7 @@ function check(act) {
 function verdict() {
   if ((opts.coach !== "check" && opts.coach !== "on") || rush) return null;
   for (let i = C.length - 1; i >= 0; i--) {
-    if (C[i].hand !== handId()) return null;
+    if (C[i].hand !== handId() || C[i].checked === false) return null;
     if (C[i].differs) return C[i];
     if (C[i].done) return null;
   }
@@ -579,7 +589,7 @@ function showResult() {
 /** The coach's review of your hand (check, always): how often it would have played as you did, and the moves where it
  *  wouldn't that cost most, in its words. */
 function review() {
-  const notes = C.filter(n => n.hand === handId() && n.done);
+  const notes = C.filter(n => n.hand === handId() && n.done && n.checked !== false);
   if (!notes.length || (opts.coach !== "check" && opts.coach !== "on")) return "";
   const differs = notes.filter(n => n.differs), worst = differs.slice().sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0) || b.more - a.more).slice(0, 3);
   let html = `<h3 class="tb-sub">Your play</h3><p class="tb-review-lead">You and the coach agreed on ${notes.length - differs.length} of ${notes.length} move${notes.length === 1 ? "" : "s"}${differs.length > worst.length ? `; the ${worst.length} that cost most:` : "."}</p>`;
@@ -654,7 +664,7 @@ function fitPlays() {
     if (n > 1 && fit.pf * (PLAY.w + (n - 1) * PLAY.step) > room) row.style.setProperty("--tb-step", `${Math.max(.6 * fit.pf, (room - PLAY.w * fit.pf) / (n - 1)).toFixed(2)}px`);
   }
 }
-function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg"]) if ($(id).open) $(id).close(); }
+function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg", "copyDlg"]) if ($(id).open) $(id).close(); }
 
 // ---------- puzzle rush ----------
 // Positions from the computer players' own hands where one play is clearly best (tribute-rush.js; the bank,
@@ -829,8 +839,14 @@ function freshRoom(players) {
   const game = E.toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
   return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans: [0, 2], started: Date.now(), bots: opts.bots } };
 }
+let roomHand = null;                                             // the table's hand last drawn here, by its seed
 function onRoomState(g) {
   roomData = g;
+  if (g.game && roomHand !== null && g.game.seed !== roomHand) {
+    if (g.game.handNo > 0) keepHand();
+    else tableHands = [];
+  }
+  if (g.game) roomHand = g.game.seed;
   me = mySlot() === 1 ? 2 : 0;
   const names = [...(g.table?.names || [])];
   for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
@@ -937,9 +953,13 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const set = (k, v) => { opts[k] = v; write(OPTS, opts); render(); };
-  if (together.room) part(body, "together").append(line(`You and your partner play together against ${BOTS[0]} and ${BOTS[2]}.`), action("Back to solo", () => together.leave(), "link"));
-  else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the match", () => leaveRush(), "link"));
-  else part(body, "play").append(action("New match", () => newMatch(), "primary"), action("Puzzle rush", () => startRush(), ""));
+  // the copies, to check the coach elsewhere: this decision (or your last) and the match so far, in words
+  const copies = () => [action("Copy turn", copyTurn, "link"), action("Copy game", copyGame, "link")];
+  if (together.room) {
+    part(body, "play").append(...copies());
+    part(body, "together").append(line(`You and your partner play together against ${BOTS[0]} and ${BOTS[2]}.`), action("Back to solo", () => together.leave(), "link"));
+  } else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the match", () => leaveRush(), "link"));
+  else part(body, "play").append(action("New match", () => newMatch(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   const content = part(body, "content");
   content.append(choice("Match", [["deals", "Six hands"], ["toA", "To the ace"]], opts.mode, v => set("mode", v)));
   if (G && G.opts.mode !== opts.mode) content.append(line("This takes effect with a new match."));
@@ -961,6 +981,194 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
+// ---------- copying it out (Menu) ----------
+// For checking the coach elsewhere. Copy turn: your decision now (between your moves, your last one, while the page is
+// open) in words as your seat saw it: the rules, the levels and the tribute, every seat's cards played and how many it
+// holds, the trick so far, your cards, and the coach's plays with what speaks for and against each and their numbers
+// (your last move checked: the two tried in deals of the cards you can't see). Copy game: every hand of the match so
+// far, move by move, your cards at each of your moves with the coach's choice beside yours, and how each hand ended. A
+// finished hand is kept as words for the match (tribute:match; at a table together, on this device).
+const MATCH_WORDS = "tribute:match";
+let tableHands = [];                                             // together: the hands before this one, as words
+const CARD_KEY = "Cards: rank then suit (♠ ♥ ♣ ♦), 10 for ten; SJ and BJ the small and big jokers; (w) marks a wild card, a heart of the hand's level.";
+const cw = (id, level) => (E.isJoker(id) ? (E.rankOf(id) === E.BJ ? "BJ" : "SJ") : `${FACE(E.rankOf(id))}${E.SUITS[E.suitOf(id)]}${E.isWild(id, level) ? "(w)" : ""}`);
+const cws = (ids, level) => E.sortHand(ids, level).map(id => cw(id, level)).join(" ");
+const whoW = (seat, start = true) => (seat === me ? (start ? "You" : "you") : nameOf(seat));
+const s3 = (seat, verb) => `${whoW(seat)} ${seat === me ? verb : `${verb}${/(s|sh|ch)$/.test(verb) ? "es" : "s"}`}`;   // "You pass", "Wei passes"
+const ORD = ["", "first", "second", "third", "fourth"];
+/** The rules, as the Rules button has them, in plain words. */
+const rulesWords = () => `Rules: ${rules().replace(/<\/p>\s*<p>/g, " ").replace(/<[^>]+>/g, "")}`;
+/** A move in words: "lead a pair of 9s (9♠ 9♦)", "beat it with three Qs (Q♠ Q♥ Q♦)", "pass", "give 4♣ back". */
+function moveWords(a, level, top) {
+  if (!a) return "?";
+  if (a.t === "pass") return "pass";
+  if (a.t === "return") return `give ${cw(a.card, level)} back`;
+  const rd = (a.as && E.classify(a.cards, level).find(r => r.type === a.as.type && r.key === a.as.key && !!r.sf === !!a.as.sf)) || E.readingFor(a.cards, level, top) || E.classify(a.cards, level)[0];
+  return `${top ? "beat it with" : "lead"} ${rd ? E.playName(rd) : "those cards"} (${cws(a.cards, level)})`;
+}
+/** A play as the log has it, in words: "a pair of 9s (9♠ 9♦)". */
+function playWords(e, level) {
+  const rd = E.classify(e.cards, level).find(r => r.type === e.type && r.key === e.key && (r.bomb || 0) === (e.bomb || 0)) || E.classify(e.cards, level)[0];
+  return `${rd ? E.playName(rd) : "a play"} (${cws(e.cards, level)})`;
+}
+/** The tribute this hand, in words, from its log. */
+function tributeWords(st) {
+  const said = [];
+  for (const e of st.log) {
+    if (e.e === "no-tribute") said.push("no tribute this hand");
+    else if (e.e === "resist") said.push(`${e.seats.map(s => whoW(s)).join(" and ")} hold both big jokers between them: no tribute`);
+    else if (e.e === "tribute") said.push(`${s3(e.from, "pay")} ${cw(e.card, st.level)} to ${whoW(e.to, false)}`);
+    else if (e.e === "return") said.push(`${s3(e.from, "give")} ${cw(e.card, st.level)} back to ${whoW(e.to, false)}`);
+  }
+  return said.length ? `Tribute: ${said.join("; ")}.` : st.handNo === 0 ? "No tribute in the first hand." : "";
+}
+/** A position as your seat saw it, in words: the levels, the tribute, every seat, the trick so far, your decision. */
+function positionWords(st) {
+  const us = E.teamOf(me), lv = st.level, mate = E.partnerOf(me), right = (me + 1) % 4, left = (me + 3) % 4;
+  const out = [`Hand ${st.handNo + 1}${st.opts.mode === "deals" ? ` of a match of ${st.opts.deals}` : ", the match played to the ace"}. Levels: your side (you and ${nameOf(mate)}) ${FACE(st.levels[us])}, the other (${nameOf(right)} and ${nameOf(left)}) ${FACE(st.levels[1 - us])}. This hand is played at ${FACE(lv)}${st.declarer >= 0 ? `, ${st.declarer === us ? "your" : "the other"} side's level` : ""}: the ${FACE(lv)}s rank above the aces, below the jokers, and the two ${FACE(lv)}♥ are wild.`,
+    `Play passes ${[0, 1, 2, 3, 0].map(i => whoW((me + i) % 4)).join(" → ")}; ${nameOf(mate)}, your partner, sits across.`];
+  const trib = tributeWords(st);
+  if (trib) out.push(trib);
+  for (const i of [0, 1, 2, 3]) {
+    const s = (me + i) % 4, n = st.hands[s].length;
+    out.push("", `${whoW(s)}${s === mate ? " (your partner)" : ""}: ${n ? `${n} card${n === 1 ? "" : "s"} left` : `out, ${ORD[st.out.indexOf(s) + 1]}`}.`);
+    if (s === me) out.push(`  Your cards: ${cws(st.hands[me], lv)}.`);
+    out.push(`  Played, in order: ${st.played[s].length ? st.played[s].map(id => cw(id, lv)).join(" ") : "nothing yet"}.`);
+  }
+  // the trick so far: the plays and passes since the last trick was taken
+  let trick = [], led = false;
+  for (const e of st.log) {
+    if (e.e === "trick") { trick = []; led = false; }
+    else if (e.e === "play") { trick.push(`${s3(e.seat, led ? "play" : "lead")} ${playWords(e, lv)}`); led = true; }
+    else if (e.e === "pass") trick.push(s3(e.seat, "pass"));
+  }
+  const ask = E.asked(st, me);
+  out.push("");
+  if (trick.length) out.push(`This trick: ${trick.join("; ")}.`);
+  if (ask === "return") {
+    const to = st.tribute.returns.find(r => r.from === me && r.card === null).to;
+    out.push(`Your move: give a card back to ${nameOf(to)}, 10 or lower and not a level card (yours that may go: ${cws(E.returnable(st.hands[me], lv), lv)}).`);
+  } else if (ask === "play") out.push(st.top ? `Your move: beat ${st.top.seat === me ? "your own" : `${nameOf(st.top.seat)}'s`} ${E.playName(st.top.reading).replace(/^an? /, "")} with a higher play of the same kind, or a bomb; or pass.` : "Your move: lead any play.");
+  else out.push("Nothing for you to decide.");
+  return out.join("\n");
+}
+/** The coach's plays in words, its choice first: its reasons, then each play's numbers and what speaks for and against
+ *  it; checked against yours (c), how the two came out in the deals played out. */
+function coachWords(list, st, c = null, top = st.top?.reading || null) {
+  const lv = st.level, out = [];
+  if (!list?.length) return "The coach had nothing to say.";
+  out.push(`The coach (the computer player's reckoning at Hard, from what your seat could see): ${list[0].why || moveWords(list[0].action, lv, top)}${list[0].out ? ` ${list[0].out}` : ""}`);
+  if (c) {
+    const same = E.signature(c.mine.action, lv) === E.signature(c.best.action, lv);
+    out.push(`Your move: ${moveWords(c.mine.action, lv, top)}. ${same ? "The same as the coach's." : c.differs ? c.words : "As good as the coach's, as near as the deals can tell."}`);
+    if (c.n) out.push(`The two played out in ${c.n} deals of the cards you can't see, the rest of the hand to its end: the coach's ${c.gap >= 0 ? "ahead" : "behind"} by ${Math.abs(c.gap).toFixed(2)} levels a hand on average (standard error ${c.se.toFixed(2)}).`);
+  }
+  out.push("", "The plays it weighed, its choice first (+ for, − against; to go out: the plays your hand needs after it, split as the computer would; holds: the chance no opponent beats it except with a bomb; levels: the rest of the hand played out in deals of the cards you can't see, and what that did to your side's levels on average):");
+  list.forEach((o, i) => {
+    const stats = [];
+    if (o.plays != null) stats.push(o.plays ? `${o.plays} to go out after it` : "goes out");
+    if (o.holds != null && o.plays) stats.push(`holds ${Math.round(o.holds * 100)}%`);
+    if (o.levels != null) stats.push(`${o.levels >= 0 ? "+" : "−"}${Math.abs(o.levels).toFixed(2)} levels`);
+    out.push(`${i + 1}. ${o.title}${o.action.t === "play" ? ` (${cws(o.action.cards, lv)})` : ""}${o.yours && i ? " (yours)" : ""}${stats.length ? `: ${stats.join("; ")}` : ""}`);
+    for (const p of o.pros) out.push(`   + ${cap(p)}`);
+    for (const x of o.cons) out.push(`   − ${cap(x)}`);
+  });
+  return out.join("\n");
+}
+/** The coach on a move of yours, in a few words. */
+function coachSaid(n, lv) {
+  if (!n.done || !n.best) return "(The coach hadn't answered.)";
+  if (E.signature(n.best, lv) === E.signature(n.mine, lv)) return "The coach: the same.";
+  const its = moveWords(n.best, lv, n.top);
+  if (n.checked === false) return `The coach's pick: ${its} (unchecked).`;
+  return n.differs ? `The coach: ${its}. ${n.words}` : `The coach: ${its}, but yours is as good, as near as its deals can tell.`;
+}
+/** A hand move by move as your seat saw it: your cards as dealt, the tribute, every play and pass, your cards at each
+ *  of your moves with the coach's beside yours, and how it ended. */
+function handWords(st, notes) {
+  const lv = st.level, us = E.teamOf(me);
+  const dealt = E.deal(st, st.seed).hands[me].slice();
+  for (const e of st.log) if (e.e === "tribute") {                // the tribute undone: the cards as they came
+    if (e.to === me) dealt.splice(dealt.indexOf(e.card), 1);
+    if (e.from === me) dealt.push(e.card);
+  }
+  const out = [`Hand ${st.handNo + 1}: played at ${FACE(lv)}${st.declarer >= 0 ? ` (${st.declarer === us ? "your" : "the other"} side's level)` : ""}; your side at ${FACE(st.levels[us])}, the other at ${FACE(st.levels[1 - us])}.`,
+    `Your cards as dealt: ${cws(dealt, lv)}.`];
+  const at = new Map();
+  for (const n of notes) if (n.at !== undefined) at.set(n.at, [...(at.get(n.at) || []), n]);
+  let i = 0, led = false;
+  const say = t => out.push(`${++i}. ${t}`);
+  for (let x = 0; x <= st.log.length; x++) {
+    let covered = null;
+    for (const n of at.get(x) || []) {
+      say(`Your cards: ${cws(n.cards, lv)}. You ${moveWords(n.mine, lv, n.top)}. ${coachSaid(n, lv)}`);
+      covered = n.mine;
+    }
+    const e = st.log[x];
+    if (!e) break;
+    const mineSaid = covered && (e.seat === me || e.from === me) && (e.e === covered.t || (e.e === "return" && covered.t === "return"));
+    if (e.e === "lead") say(`The card turned up, ${cw(e.card, lv)}, is ${e.seat === me ? "yours: you lead" : `${nameOf(e.seat)}'s: ${nameOf(e.seat)} leads`}.`);
+    else if (e.e === "no-tribute" || e.e === "resist" || e.e === "tribute") {
+      if (e.e === "tribute") say(`${s3(e.from, "pay")} ${cw(e.card, lv)} to ${whoW(e.to, false)} in tribute.`);
+      else if (e.e === "resist") say(`${e.seats.map(s => whoW(s)).join(" and ")} hold both big jokers between them: no tribute.`);
+    } else if (e.e === "return") { if (!mineSaid) say(`${s3(e.from, "give")} ${cw(e.card, lv)} back to ${whoW(e.to, false)}.`); }
+    else if (e.e === "play") { if (!mineSaid) say(`${s3(e.seat, led ? "play" : "lead")} ${playWords(e, lv)}.`); led = true; }
+    else if (e.e === "pass") { if (!mineSaid) say(`${s3(e.seat, "pass")}.`); }
+    else if (e.e === "trick") { say(`${whoW(e.seat)} take${e.seat === me ? "" : "s"} the trick${e.lead !== e.seat ? `, and being out, ${whoW(e.lead, false)} lead${e.lead === me ? "" : "s"}` : ""}.`); led = false; }
+    else if (e.e === "out") say(`${whoW(e.seat)} ${e.seat === me ? "are" : "is"} out, ${ORD[e.place]}.`);
+  }
+  const r = st.result;
+  if (r) {
+    const ours = r.team === us;
+    out.push(`Out in order: ${r.order.map(s => whoW(s)).join(", ")}. ${ours ? "Your side rises" : "The other side rises"} ${r.gain} level${r.gain > 1 ? "s" : ""}, to ${FACE(r.levels[r.team])}${r.passedA ? ", passing the ace" : ""}. Levels: yours ${FACE(r.levels[us])}, theirs ${FACE(r.levels[1 - us])}.${r.over ? ` ${r.winner === us ? "Your side wins" : "The other side wins"} the match.` : ""}`);
+  } else out.push("(The hand goes on.)");
+  const checks = notes.filter(n => n.done && n.checked !== false);
+  if (checks.length) out.push(`Checked by the coach: it agreed with ${checks.filter(n => !n.differs).length} of your ${checks.length} moves.`);
+  return out.join("\n");
+}
+/** The hand just played kept in words for Copy game. */
+function keepHand() {
+  if (!G?.log.length || rush) return;
+  const words = handWords(G, C.filter(n => n.hand === handId()));
+  if (together.room) tableHands.push(words);
+  else write(MATCH_WORDS, [...read(MATCH_WORDS, []), words]);
+}
+/** Words to the clipboard within the tap that asked for them (they may take the coach a moment: the clipboard waits);
+ *  where the browser refuses, a sheet to copy them by hand. */
+function copyOut(what, words) {
+  const sheet = text => { $("copyHead").textContent = what; $("copyText").value = text; $("copyDlg").showModal(); $("copyText").select(); };
+  const done = () => toast(`${what} copied`);
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+    navigator.clipboard.write([new ClipboardItem({ "text/plain": words.then(t => new Blob([t], { type: "text/plain" })) })]).then(done, () => words.then(sheet));
+  } else words.then(t => (navigator.clipboard?.writeText ? navigator.clipboard.writeText(t).then(done, () => sheet(t)) : sheet(t)));
+}
+function copyTurn() {
+  if (!G) return;
+  const head = st => `Guan Dan: a decision, to check the coach.\n\n${rulesWords()}\n${CARD_KEY}\n\n${positionWords(st)}`;
+  if (G.phase !== "over" && E.asked(G, me)) {
+    const st = clone(G), ready = hint?.key === keyNow() && hint.list ? hint.list : null;
+    if (!ready) toast("The coach is weighing it…");
+    const list = ready ? Promise.resolve(ready) : think(clone(st), me, "hints").then(l => (Array.isArray(l) ? l : l ? [l] : []));
+    copyOut("Your turn", list.then(l => `${head(st)}\n\n${coachWords(l, st)}`));
+    return;
+  }
+  // between your moves: your last one, as the table stood then, checked against the coach's
+  const n = C[C.length - 1], st = n && n.hand === handId() ? shots.get(n) : null;
+  if (st) {
+    const c = checked.get(n);
+    if (!c) toast("The coach is checking it…");
+    copyOut("Your last turn", (c ? Promise.resolve(c) : think(clone(st), me, "check", { action: n.mine })).then(k => `${head(st)}\n\n${k ? coachWords(k.list, st, k, n.top) : "The coach had nothing to say."}`));
+    return;
+  }
+  copyOut("The table", Promise.resolve(head(G)));
+}
+function copyGame() {
+  if (!G) return;
+  const before = together.room ? tableHands : read(MATCH_WORDS, []);
+  const head = `Guan Dan: a match, move by move, to check the coach, its choice beside each of your moves (the others' cards unseen). With the coach on Check or Always a move of yours was checked against its own, the two played out in deals of the cards you couldn't see; on Hints or Off, its pick is beside yours, unchecked.\n\n${rulesWords()}\n${CARD_KEY}`;
+  copyOut("The game", Promise.resolve([head, ...before, handWords(G, C.filter(n => n.hand === handId()))].join("\n\n")));
+}
+
 // ---------- the rules ----------
 function rules() {
   return `<p><b>Two decks, four players, two sides.</b> 108 cards, 27 each; your partner sits across from you, and play passes to the right. Be first out of cards, and get your partner out soon after.</p>
@@ -980,6 +1188,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("whyClose").addEventListener("click", () => $("whyDlg").close());
 $("rushAgain").addEventListener("click", () => startRush());
 $("rushLeave").addEventListener("click", () => leaveRush());
+$("copyClose").addEventListener("click", () => $("copyDlg").close());
 $("whyDlg").addEventListener("click", e => { if (e.target === $("whyDlg")) $("whyDlg").close(); });
 $("helpBtn").addEventListener("click", () => { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); });
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());

@@ -4,7 +4,7 @@
 // one, two or four rounds of wind, and coaches: what the computer would do in your seat and why, or only where your move
 // parted from its, by how many points and why; and after each hand, where your play and its parted.
 import * as E from "./hong-engine.js";
-import { routeName, shantenWords, differ, differWords } from "./hong-bot.js";
+import { routeName, shantenWords, differ, differWords, decide, explainMove } from "./hong-bot.js";
 import { installTiles, tileSvg } from "./hong-tiles.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -80,6 +80,7 @@ function newGame() {
   S = { v: 1, seed, firstDealer, names: ["You", ...BOTS], humans: [0], results: [], started: Date.now() };
   G = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds, scoring: opts.scoring } });
   R = [];
+  write(GAME_WORDS, []);
   closeDialogs();
   afterChange();
 }
@@ -89,8 +90,8 @@ function nextHand() {
   const cfg = E.nextHand(G, { seed: S.seed, firstDealer: S.firstDealer });
   $("resultDlg").close();
   if (!cfg) { newGame(); return; }
+  keepHand();
   G = E.deal(cfg);
-  R = [];
   afterChange();
 }
 const gameOver = () => G?.phase === "over" && !E.nextHand(G, { seed: S.seed, firstDealer: S.firstDealer });
@@ -174,16 +175,25 @@ function askCoach() {
  * differ). The words are kept in the note, so they're there after a reload; the coach's reckoning, for Why?, isn't.
  */
 const reckoned = new WeakMap();                                  // a note → the coach's answer it came from
+const shots = new WeakMap();                                     // a note → the table as you decided at it (until a reload)
+/** The coach's verdict on a move from its reckoning: { coach, best, why, gap, against } (coach: its move, or yours where
+ *  it values yours within a tenth of a point of its own; best: its own pick either way; gap and against where it
+ *  differs). */
+function verdict(j, act) {
+  const o = differ(j, act);
+  return { coach: o?.coach || act, best: j.decision.action, why: j.decision.why, ...(o ? { gap: o.gap, against: o.against, unit: o.unit } : {}) };
+}
+/** A decision of yours, noted with the coach's (kept with the coach off too, silent, for Copy game): your tiles then,
+ *  the tile drawn or the discard answered, and where in the hand's log it fell. */
 function note(act) {
-  if (opts.coach === "off") return;
-  const entry = { wall: E.wallLeft(G), phase: G.phase, mine: act, coach: null, why: "", gap: null, against: [] }, notes = R;
+  const snap = clone(G), notes = R;
+  const entry = { wall: E.wallLeft(G), phase: G.phase, mine: act, coach: null, why: "", gap: null, against: [], at: G.log.length,
+    hand: G.seats[me].hand.slice(), drawn: G.phase === "act" ? G.drawn : null, last: G.phase === "act" ? null : { seat: G.last.seat, k: G.last.k } };
   R.push(entry);
-  explain(clone(G), me, act).then(j => {
+  shots.set(entry, snap);
+  explain(clone(snap), me, act).then(j => {
     if (!j || notes !== R) return;                               // a new hand since
-    const o = differ(j, act);
-    entry.coach = o?.coach || act;
-    entry.why = j.decision.why;
-    if (o) { entry.gap = o.gap; entry.against = o.against; }
+    Object.assign(entry, verdict(j, act));
     reckoned.set(entry, j);
     save(); render();
   }).catch(e => console.error(e));
@@ -663,21 +673,19 @@ function showWhy(d, yours = null) {
     html += "</tbody></table>";
     html += `<p class="hk-note">Tiles that help: those still unseen (not in your hand, on the table or in a set) that would bring the hand a step nearer. Win: the chance this hand wins, from its live tiles, the draws left and how soon the others look to win. Danger: the points the tile is likely to cost, if someone ready can take it.${yours ? " Points: what the hand is worth after it on average (each win it could make, by what it pays and how likely it comes; a little more with a second way open), less the danger." : ""}</p>`;
   }
-  if (d.threats?.length) {
-    html += `<h3 class="hk-sub">The others</h3><ul class="hk-threats">`;
-    for (const t of d.threats) {
-      const bits = [];
-      bits.push(t.melds ? `${t.melds} set${t.melds === 1 ? "" : "s"} down` : "nothing called");
-      if (t.flushSuit >= 0) bits.push(`on a ${E.SUIT_NAMES[t.flushSuit]} flush, likely`);
-      else if (t.pungish) bits.push("all pungs, likely");
-      if (!t.canTake) bits.push("can't reach the minimum off a discard");
-      else bits.push(`ready ${Math.round(t.ready * 100)}%${E.noFan(G?.opts) ? "" : `, about ${t.fanEst} fan`}`);
-      html += `<li><b>${esc(nameOf(t.seat))}</b> (${windName(t.seat)}): ${bits.join(", ")}.</li>`;
-    }
-    html += "</ul>";
-  }
+  if (d.threats?.length) html += `<h3 class="hk-sub">The others</h3><ul class="hk-threats">${d.threats.map(t => `<li><b>${esc(nameOf(t.seat))}</b> (${windName(t.seat)}): ${threatBits(t).join(", ")}.</li>`).join("")}</ul>`;
   body.innerHTML = html;
   $("whyDlg").showModal();
+}
+
+/** How the coach reads another player: their sets, the flush or pungs they look to be on, how likely they're ready. */
+function threatBits(t) {
+  const bits = [t.melds ? `${t.melds} set${t.melds === 1 ? "" : "s"} down` : "nothing called"];
+  if (t.flushSuit >= 0) bits.push(`on a ${E.SUIT_NAMES[t.flushSuit]} flush, likely`);
+  else if (t.pungish) bits.push("all pungs, likely");
+  if (!t.canTake) bits.push("can't reach the minimum off a discard");
+  else bits.push(`ready ${Math.round(t.ready * 100)}%${E.noFan(G?.opts) ? "" : `, about ${t.fanEst} fan`}`);
+  return bits;
 }
 
 // ---------- the end of a hand ----------
@@ -808,7 +816,7 @@ function render() {
   // box changed with them, and the drawing takes its proportions
   if (size() !== drawnFor) drawTable();
 }
-function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg"]) if ($(id).open) $(id).close(); }
+function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg", "copyDlg"]) if ($(id).open) $(id).close(); }
 
 // ---------- puzzle rush ----------
 // Positions from the computer players' own hands where one discard (or one call) is clearly best by the coach's
@@ -979,8 +987,14 @@ function freshRoom(players) {
   const game = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds, scoring: opts.scoring } });
   return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans: [0, 2], results: [], started: Date.now(), bots: opts.bots } };
 }
+let roomHand = null, roomGame = null;                            // the table's hand and game last drawn here, by their seeds
 function onRoomState(g) {
   roomData = g;
+  if (g.game && roomHand !== null && g.game.seed !== roomHand) {
+    if (g.session?.seed === roomGame) keepHand();
+    else { tableHands = []; R = []; advice = null; hintFor = null; }
+  }
+  if (g.game) { roomHand = g.game.seed; roomGame = g.session?.seed ?? null; }
   me = mySlot() === 1 ? 2 : 0;
   const names = [...(g.session?.names || [])];
   for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
@@ -1090,9 +1104,13 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const set = (k, v) => { opts[k] = v; write(OPTS, opts); applyLook(); render(); };
-  if (together.room) part(body, "together").append(line(`You and your partner sit across the table; ${BOTS[0]} and ${BOTS[2]} play the other two seats.`), action("Back to solo", () => together.leave(), "link"));
-  else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the game", () => leaveRush(), "link"));
-  else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""));
+  // the copies, to check the coach elsewhere: this decision (or your last) and the game so far, in words
+  const copies = () => [action("Copy turn", copyTurn, "link"), action("Copy game", copyGame, "link")];
+  if (together.room) {
+    part(body, "play").append(...copies());
+    part(body, "together").append(line(`You and your partner sit across the table; ${BOTS[0]} and ${BOTS[2]} play the other two seats.`), action("Back to solo", () => together.leave(), "link"));
+  } else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the game", () => leaveRush(), "link"));
+  else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   // a puzzle's table keeps its own rules: the game's are for the game
   if (!rush) {
     const content = part(body, "content");
@@ -1125,6 +1143,184 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function applyLook() { $("app").style.setProperty("--hk-num", opts.numbers ? "1" : "0"); }
+
+// ---------- copying it out (Menu) ----------
+// For checking the coach elsewhere. Copy turn: your decision now (between your turns, your last one, while the page is
+// open) in words as your seat saw it: the rules, the round and the wall, every seat's flowers, sets and discards in
+// order, your tiles, what you could do, and the coach's move with its reasons and its numbers. Copy game: every hand of
+// the game so far, move by move, your tiles at each of your decisions with the coach's choice beside yours, and how
+// each ended. A finished hand is kept as words for the game (hong:game; at a table together, on this device).
+const GAME_WORDS = "hong:game";
+let tableHands = [];                                             // together: the hands before this one, as words
+const TILE_KEY = "Tiles: 1m–9m the characters (萬), 1p–9p the dots (筒), 1s–9s the bamboo (索); E S W N the winds; Rd Gd Wd the red, green and white dragons; F1–F4 the flowers (梅蘭菊竹), F5–F8 the seasons (春夏秋冬).";
+const tt = k => E.tileShort(k), tts = ks => ks.map(tt).join(" ");
+const whoOf = (seat, start = true) => (seat === me ? (start ? "You" : "you") : nameOf(seat));
+const up1 = x => x.charAt(0).toUpperCase() + x.slice(1);
+const num = x => x.toFixed(Math.abs(x) >= 100 ? 0 : Math.abs(x) >= 1 ? 1 : 2).replace("-", "−");   // a copy's points: close calls show
+/** The coach on a decision of yours, in a few words: the same, as good, or its move, how much better and why. */
+function coachSaid(n) {
+  if (!n.coach) return "(The coach hadn't answered.)";
+  if (differed(n)) return `The coach: ${moveWords(n.coach)}${n.gap != null ? `, about ${num(n.gap)} points better` : ""}${n.against?.length ? ` (${n.against.join("; ")})` : ""}. Its reason: ${n.why}`;
+  return n.best && !sameAct(n.best, n.mine) ? `The coach: ${moveWords(n.best)}, but yours is as good (within a tenth of a point).` : "The coach: the same.";
+}
+/** The rules a table plays, in words. */
+function rulesWords(o) {
+  const shared = "the head bump (of two who could win on one discard, the first after the discarder takes it), the pass block (pass a win you could take and you can't win off a discard until you next draw), robbing a kong, play to the last tile; no seven pairs";
+  if (E.noFan(o)) return `Rules: Hong Kong mahjong without fan (雞糊). Any complete hand (four sets and a pair, or the thirteen orphans) wins, and every win pays alike: self-drawn, 2 points from each of the others; off a discard, 2 from the discarder and 1 from each of the others (robbing a kong counts as off a discard). The dealer pays and receives double and keeps the deal on a win or a drawn hand. A kong takes 1 from each of the others when it stands. If the first four discards are one tile (the dealer's, then each of the others in turn, nothing called), the dealer pays each of the others 1. No flowers, no minimum, no liability; ${shared}.`;
+  return `Rules: Hong Kong mahjong (新派清章): ${o.minFan ? `${o.minFan} fan to win` : "no minimum (a chicken hand wins)"}, ${o.cap} fan the most a hand pays; half-spicy payouts (the base doubles up to four fan, then every two: 1 2 4 8 16 24 32 48 64 96 128 at ten); off a discard, its discarder pays 4 × base; self-drawn, each of the others pays 2 × base; liability (包: let go the tile that makes someone's fourth set, or third dragon set, and pay all of their self-drawn win); the dealer keeps the deal on a win or a drawn hand; ${o.flowers ? "flowers in play (set aside when drawn and replaced from the wall's end)" : "no flowers"}; ${shared}.`;
+}
+/** A move in words: "discard 5s", "pung 5s", "chow 3p 4p 5p", "kong 7s, concealed", "win", "pass". */
+function moveWords(a) {
+  if (!a) return "?";
+  if (a.t === "discard") return `discard ${tt(a.k)}`;
+  if (a.t === "chow") return `chow ${tts([a.k, a.k + 1, a.k + 2])}`;
+  if (a.t === "pung" || a.t === "kong") return `${a.t} ${tt(a.k)}${a.how === "concealed" ? ", concealed" : a.how === "added" ? ", added to the pung" : ""}`;
+  return a.t === "flowers" ? "win on the flowers" : a.t;
+}
+/** A set on the table in words: "pung of 5s off Mei", "chow 3p 4p 5p (4p off Wing)", "kong of 7s, concealed". */
+function meldWords(m) {
+  const off = m.open && m.from >= 0 ? ` off ${whoOf(m.from, false)}` : "";
+  if (m.t === "chow") return `chow ${tts([m.k, m.k + 1, m.k + 2])}${m.got !== undefined ? ` (${tt(m.got)}${off})` : off}`;
+  if (m.t === "kong") return `kong of ${tt(m.k)}${!m.open ? ", concealed" : m.added ? `, a pung${off} added to` : off}`;
+  return `pung of ${tt(m.k)}${off}`;
+}
+/** A position as your seat saw it, in words: the round, every seat in turn from yours, and what you could do. */
+function positionWords(st) {
+  const order = [0, 1, 2, 3].map(i => (st.dealer + i) % 4);
+  const out = [`${E.WIND_NAMES[st.round]} round, hand ${st.hand + 1}; ${E.wallLeft(st)} tiles left in the wall. Play goes ${order.map(s => whoOf(s)).join(" → ")}, from the dealer.`];
+  for (const i of [0, 1, 2, 3]) {
+    const s = (me + i) % 4, x = st.seats[s];
+    out.push("", `${whoOf(s)}: ${E.WIND_NAMES[E.windOf(st, s)]}${s === st.dealer ? " (the dealer)" : ""}, score ${signed(st.scores[s])}${s === me ? "" : `, ${x.hand.length} tiles in hand`}.`);
+    if (s === me) {
+      const hand = x.hand.slice(), drew = st.phase === "act" && st.turn === me && st.drawn !== null && hand.includes(st.drawn) ? st.drawn : null;
+      if (drew !== null) hand.splice(hand.lastIndexOf(drew), 1);
+      out.push(`  Your tiles: ${tts(hand)}${drew !== null ? `, and ${tt(drew)} just drawn` : ""}.`);
+    }
+    if (x.flowers.length) out.push(`  Flowers: ${tts(x.flowers)}.`);
+    if (x.melds.length) out.push(`  Sets: ${x.melds.map(meldWords).join("; ")}.`);
+    out.push(`  Discards, in order: ${x.river.length ? x.river.map(d => (d.by !== undefined ? `${tt(d.k)} (taken by ${whoOf(d.by, false)})` : tt(d.k))).join(", ") : "none"}.`);
+    if (x.passBlock) out.push("  Has passed a win since drawing: can't win off a discard until drawing again.");
+  }
+  const can = E.legal(st, me), fan = a => (a.t === "win" && a.fan !== undefined && !E.noFan(st.opts) ? `win (${a.fan} fan)` : moveWords(a));
+  if (!can.length) out.push("", "Nothing for you to decide.");
+  else if (st.phase === "act") {
+    const more = can.filter(a => a.t !== "discard").map(fan);
+    out.push("", `Your turn${st.drawn !== null ? `, ${tt(st.drawn)} just drawn` : ", after your call"}: discard a tile${more.length ? `, or ${more.join(", or ")}` : ""}.`);
+  } else out.push("", `${whoOf(st.last.seat)} has just ${st.phase === "rob" ? `added ${tt(st.last.k)} to a pung, a kong that can be robbed` : `discarded ${tt(st.last.k)}`}. You can ${can.map(fan).join(", or ")}.`);
+  return out.join("\n");
+}
+/** The coach's reckoning in words: its move and reason, yours beside it, the choices it weighed with what speaks for
+ *  and against each, its discards in numbers, and how it reads the others. */
+function coachWords(d, n = null) {
+  const out = [`The coach (the computer player's reckoning at Hard, from what your seat could see): ${d.why}`];
+  if (n) out.push(`Your move: ${moveWords(n.mine)}. ${differed(n) ? differWords(n.mine, n) : sameAct(n.mine, d.action) ? "The same as the coach's." : "As good as the coach's, within a tenth of a point."}`);
+  if (d.options?.length > 1) {
+    out.push("", "The choices it weighed, its own first (+ for, − against; points: what the hand is worth after the move on average, each win it could make by what it pays and how likely it comes, less the danger):");
+    d.options.forEach((o, i) => {
+      out.push(`${i + 1}. ${o.title}${n && i && sameAct(o.action, n.mine) ? " (yours)" : ""}${o.value != null ? `: ${num(o.value)} points` : ""}`);
+      for (const p of o.pros) out.push(`   + ${up1(p)}`);
+      for (const c of o.cons) out.push(`   − ${up1(c)}`);
+    });
+  }
+  if (d.rows?.length) {
+    out.push("", "Its discards in numbers (from ready: tiles from a ready hand; help: unseen tiles that would bring it a step nearer; win: the chance this hand wins; danger: the points the tile is likely to cost):");
+    for (const r of d.rows) {
+      const other = r.routes?.find(x => x.route !== r.route && x.ev > 0);
+      out.push(`  ${tt(r.k)}: keeps ${routeName(r.route)}${other ? ` (or ${routeName(other.route)}, ${other.sh <= 0 ? "ready" : `${other.sh} away`})` : ""}; ${r.sh <= 0 ? "ready" : `${r.sh} from ready`}; help ${r.uk?.n ?? 0}; win ${Math.round((r.p || 0) * 100)}%; danger ${num(r.risk)}; points ${num(r.score)}`);
+    }
+  }
+  if (d.threats?.length) out.push("", "How it reads the others:", ...d.threats.map(t => `  ${nameOf(t.seat)} (${windName(t.seat)}): ${threatBits(t).join(", ")}.`));
+  return out.join("\n");
+}
+/** A hand move by move as your seat saw it: your tiles after the deal, the others' discards and calls, your tiles at
+ *  each of your decisions with the coach's choice beside yours, and how it ended. */
+function handWords(st, notes) {
+  const dealt = E.deal({ seed: st.seed, dealer: st.dealer, round: st.round, hand: st.hand, opts: st.opts }).seats[me];
+  const out = [`Hand ${st.hand + 1}: ${E.WIND_NAMES[st.round]} round, ${whoOf(st.dealer)} dealing. ${[0, 1, 2, 3].map(i => (me + i) % 4).map(s => `${whoOf(s)} ${E.WIND_NAMES[E.windOf(st, s)]}`).join(", ")}.`,
+    `Your tiles after the deal: ${tts(dealt.hand)}${dealt.flowers.length ? ` (flowers set aside: ${tts(dealt.flowers)})` : ""}.`];
+  const at = new Map();
+  for (const n of notes) if (n.at !== undefined) at.set(n.at, [...(at.get(n.at) || []), n]);
+  let i = 0;
+  const say = t => out.push(`${++i}. ${t}`);
+  for (let x = 0; x <= st.log.length; x++) {
+    let covered = null;
+    for (const n of at.get(x) || []) {
+      const hand = n.hand.slice();
+      if (n.drawn !== null && hand.includes(n.drawn)) hand.splice(hand.lastIndexOf(n.drawn), 1);
+      const seen = n.phase === "act" ? `${n.drawn !== null ? `You draw ${tt(n.drawn)}. ` : ""}Your tiles: ${tts(hand)}${n.drawn !== null ? ` + ${tt(n.drawn)}` : ""}.`
+        : `On ${whoOf(n.last.seat, false) === "you" ? "your" : `${nameOf(n.last.seat)}'s`} ${tt(n.last.k)}, your tiles ${tts(hand)}:`;
+      say(`${seen} You ${moveWords(n.mine)}. ${coachSaid(n)}`);
+      covered = n.mine;
+    }
+    const e = st.log[x];
+    if (!e) break;
+    // your own move, already said with your decision
+    if (covered && e.seat === me && (e.e === covered.t || (e.e === "win" && covered.t === "flowers"))) continue;
+    const w = whoOf(e.seat), from = e.from !== undefined && e.from >= 0 ? `${whoOf(e.from, false) === "you" ? "your" : `${nameOf(e.from)}'s`}` : "";
+    if (e.e === "discard") say(`${w} discard${e.seat === me ? "" : "s"} ${tt(e.k)}.`);
+    else if (e.e === "flower") say(`${w} show${e.seat === me ? "" : "s"} a flower, ${tt(e.k)}, and draw${e.seat === me ? "" : "s"} again.`);
+    else if (e.e === "pung" || e.e === "chow") say(`${w} ${e.e}${e.seat === me ? "" : "s"} ${e.e === "chow" ? tts([e.k, e.k + 1, e.k + 2]) : tt(e.k)} off ${from} discard.`);
+    else if (e.e === "kong") say(`${w} ${e.how === "concealed" ? `declare${e.seat === me ? "" : "s"} a concealed kong of ${tt(e.k)}` : e.how === "added" ? `add${e.seat === me ? "" : "s"} ${tt(e.k)} to a pung, a kong` : `kong${e.seat === me ? "" : "s"} ${tt(e.k)} off ${from} discard`}.`);
+    else if (e.e === "kong-paid") say(`${w === "You" ? "Your" : `${w}'s`} kong of ${tt(e.k)} takes 1 from each of the others.`);
+    else if (e.e === "follow") say(`The first four discards were all ${tt(e.k)}: ${whoOf(e.seat, false)}, dealing, pay${e.seat === me ? "" : "s"} each of the others 1.`);
+    else if (e.e === "win") {
+      const by = st.result?.seat === e.seat && st.result.from >= 0 ? (st.result.from === me ? "your" : `${nameOf(st.result.from)}'s`) : "the";
+      say(`${w} win${e.seat === me ? "" : "s"}${e.how === "self" ? ", self-drawn" : e.how === "flowers" ? " on the flowers" : e.how === "rob" ? `, robbing ${by} kong` : ` off ${by} discard`}.`);
+    }
+    else if (e.e === "draw-game") say("The wall is empty: a drawn hand.");
+  }
+  const r = st.result;
+  if (r?.kind === "win") {
+    const x = st.seats[r.seat];
+    out.push(`${whoOf(r.seat)} won with ${tts(x.hand)}${x.melds.length ? `; sets: ${x.melds.map(meldWords).join("; ")}` : ""}${x.flowers.length ? `; flowers: ${tts(x.flowers)}` : ""}${E.noFan(st.opts) ? "." : `: ${r.fan} fan${r.limit ? " (a limit hand)" : ""} (${r.items.map(it => `${it.en} ${it.fan}`).join(", ")}).`}`);
+  }
+  if (r) {
+    const paid = st.paid || [], hand = [0, 1, 2, 3].map(s => r.pay[s] + paid.reduce((a, e) => a + e.pay[s], 0));
+    out.push(`This hand: ${[0, 1, 2, 3].map(s => `${whoOf(s)} ${signed(hand[s])}`).join(", ")}. Scores: ${[0, 1, 2, 3].map(s => `${whoOf(s)} ${signed(st.scores[s])}`).join(", ")}.`);
+  } else out.push("(The hand goes on.)");
+  const decided = notes.filter(n => n.coach);
+  if (decided.length) out.push(`You and the coach agreed on ${decided.filter(n => !differed(n)).length} of ${decided.length} decisions.`);
+  return out.join("\n");
+}
+/** The hand just played kept in words for Copy game, and the coach's notes begun again for the next. */
+function keepHand() {
+  if (G?.log.length && !rush) {
+    const words = handWords(G, R);
+    if (together.room) tableHands.push(words);
+    else write(GAME_WORDS, [...read(GAME_WORDS, []), words]);
+  }
+  R = []; advice = null; hintFor = null;
+}
+/** Words to the clipboard within the tap that asked for them; where the browser refuses, a sheet to copy them by hand. */
+function copyOut(what, text) {
+  const sheet = () => { $("copyHead").textContent = what; $("copyText").value = text; $("copyDlg").showModal(); $("copyText").select(); };
+  if (!navigator.clipboard?.writeText) { sheet(); return; }
+  navigator.clipboard.writeText(text).then(() => toast(`${what} copied`), sheet);
+}
+function copyTurn() {
+  if (!G) return;
+  const head = `Hong Kong mahjong: a decision, to check the coach.\n\n${rulesWords(G.opts)}\n${TILE_KEY}\n\n`;
+  if (G.phase !== "over" && E.waitingOn(G).includes(me) && E.legal(G, me).length > 1) {
+    const d = advice?.key === keyNow() && advice.decision ? advice.decision : decide(clone(G), me, { noise: false });
+    copyOut("Your turn", `${head}${positionWords(G)}\n\n${coachWords(d)}`);
+    return;
+  }
+  // between your turns: your last decision, as the table stood then
+  const n = R[R.length - 1], st = n && shots.get(n);
+  if (st) {
+    const j = reckoned.get(n) || explainMove(clone(st), me, n.mine);
+    copyOut("Your last turn", `${head}${positionWords(st)}\n\n${coachWords(reasonsFor(j, n.mine), n.coach ? n : { ...n, ...verdict(j, n.mine) })}`);
+    return;
+  }
+  copyOut("The table", `${head}${positionWords(G)}`);
+}
+function copyGame() {
+  if (!G) return;
+  const before = together.room ? tableHands : read(GAME_WORDS, []);
+  const length = ["", "the East round", "two rounds", "", "all four rounds"][G.opts.rounds || 1] || `${G.opts.rounds} rounds`;
+  const head = `Hong Kong mahjong: a game, move by move, to check the coach (its choice beside each of yours). A game is ${length}; the others' draws are unseen.\n\n${rulesWords(G.opts)}\n${TILE_KEY}`;
+  copyOut("The game", [head, ...before, handWords(G, R)].join("\n\n"));
+}
 
 // ---------- the rules ----------
 function rules() {
@@ -1161,6 +1357,7 @@ $("tableBtn").addEventListener("click", () => $("resultDlg").close());
 for (const id of ["rulesDlg", "whyDlg"]) $(id).addEventListener("click", e => { if (e.target === $(id)) $(id).close(); });
 $("rushAgain").addEventListener("click", () => startRush());
 $("rushLeave").addEventListener("click", () => leaveRush());
+$("copyClose").addEventListener("click", () => $("copyDlg").close());
 onPause(() => { clearTimeout(timer); render(); }, () => kick(0));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
