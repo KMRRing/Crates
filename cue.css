@@ -1,0 +1,51 @@
+/* Cue: one word on a card as large as the screen allows, its kind over it in the game's enamel, a ring opening behind
+   it as it pops up; tap anywhere on the card for the next. */
+:root { --cu-in: #B03A5B; }                                     /* raspberry: the game's enamel */
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --cu-in: #E8809A; } }
+html[data-mode="night"] { --cu-in: #E8809A; }
+/* Kontor and Office lend it their own accent, as their other games */
+html[data-theme="kontor"] { --cu-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --cu-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --cu-in: #2EB36A; }
+html[data-theme="office"] { --cu-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --cu-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --cu-in: #479EF5; }
+
+.cu-stage { position: relative; display: grid; place-items: center; margin-top: .6rem; overflow: hidden; container-type: size;
+  border-radius: 8px; border: 1px solid var(--tile-edge); background: var(--sheet); cursor: pointer;
+  touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+/* Almanac's inset frame, its alone */
+html:not([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cu-stage { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+html[data-theme="modern"] .cu-stage { border-radius: 20px; }
+.cu-stage:focus-visible { outline: 2px solid var(--cu-in); outline-offset: 2px; }
+
+.cu-card { display: grid; justify-items: center; gap: .7rem; width: 100%; padding: 1rem; box-sizing: border-box; text-align: center; }
+.cu-card p { margin: 0; }
+.cu-kind { font-size: .86rem; font-weight: 800; color: var(--cu-in); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.18em * var(--track)); }
+.cu-word { font-size: 4rem; font-weight: 800; line-height: 1.05; white-space: nowrap; color: var(--ink);
+  font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.04em * var(--track)); }
+.cu-word:empty { display: none; }
+.cu-word.narrow { font-stretch: 100%; letter-spacing: calc(.02em * var(--track)); }   /* a long word, upright */
+.cu-hint { font-size: 1.05rem; color: var(--ink-soft); }
+
+/* the word pops up, a ring opening behind it */
+.cu-word.pop { animation: cu-pop .34s cubic-bezier(.2, .9, .3, 1.35); }
+@keyframes cu-pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.cu-stage::after { content: ""; position: absolute; left: 50%; top: 50%; width: 40cqmin; height: 40cqmin; margin: -20cqmin 0 0 -20cqmin;
+  border-radius: 50%; border: 3px solid var(--cu-in); opacity: 0; pointer-events: none; }
+.cu-stage.burst::after { animation: cu-burst .55s ease-out; }
+@keyframes cu-burst { from { transform: scale(.35); opacity: .7; } to { transform: scale(2.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cu-word.pop, .cu-stage.burst::after { animation: none; } }
+
+.cu-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 2.75rem; padding-top: .3rem; }
+.cu-back { min-height: 2.75rem; font-size: .95rem; }
+.cu-back:disabled { visibility: hidden; }
+.cu-count { font-size: .82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+
+/* held sideways (#app.wide): the card the whole width and all the height under the header, Back and the count lying
+   on its foot, so the word can be as large as the screen is high (a phone held up to a forehead is played this way) */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.cue { position: relative; }
+  #app.cue .cu-foot { position: absolute; left: 2.2rem; right: 2.2rem; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.1rem); min-height: 0; padding: 0; pointer-events: none; }
+  #app.cue .cu-back { pointer-events: auto; }
+}
