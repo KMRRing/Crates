@@ -16,9 +16,10 @@
 // a player does on their own turn (I've said mine) can instead go straight into the state (ctx.act in party.js).
 // players: [{ uid, pid, name, seat }] in seat order, the people at the table now.
 import undercover from "./party-undercover.js";
+import whoami from "./party-whoami.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover];
+export const GAMES = [undercover, whoami];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */

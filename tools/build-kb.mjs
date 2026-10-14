@@ -11,7 +11,7 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
-  pics: "pics-list.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
+  pics: "pics-list.js", whoami: "party-whoami-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
 /** An object without its undefined fields. */
@@ -70,7 +70,9 @@ export async function build() {
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of them)
   const pictures = [...new Set([...ENTITIES, ...PLACES, ...QUOTES, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic).filter(Boolean))].sort();
-  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, pictures, index: await subjects(ENTITIES, LINKS) };
+  const whoamiDecks = (await load("items/whoami.js")).DECKS;
+  return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, pictures, index: await subjects(ENTITIES, LINKS),
+    whoami: whoami(ENTITIES, LINKS, E, whoamiDecks) };
 }
 
 // Questions the knowledge base writes itself. A painting with its painter, museum, movement, year and picture gets Punt's
@@ -450,6 +452,114 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
   return out;
 }
 
+// Who am I? (Party): each deck's identities with their names, for the guess, and their crib, the lines the others read
+// to answer the questions. A crib says what the thing is (a Greek god, a writer, a metal, a city in Japan), its own facts
+// (its note's first sentence, its years, a god's domain and symbol, a painting's year), then its links, the most telling
+// first: what it made (Wrote Hamlet), its typed links (Painted by Leonardo da Vinci, Son of Zeus), the clues it gives to
+// other answers (Argentina: The captain who won the 2022 World Cup), the things linked to it, the clues to it (easiest
+// first) and what lies in it. At most CRIB lines, each at most LINE characters. A deck by set drops a thing kb/ says too
+// little about (fewer than two lines); a deck by list keeps every one (they're there because they're well known).
+const CRIB = 6, LINE = 110;
+const WHAT = [["greek-god", "A Greek god"], ["norse-god", "A Norse god"], ["egyptian-god", "An Egyptian god"], ["myth-hero", "A hero of myth"],
+  ["myth-creature", "A creature of myth"], ["painter", "A painter"], ["architect", "An architect"], ["author", "A writer"], ["chinese-thinker", "A Chinese thinker"],
+  ["watch-brand", "A watchmaker"], ["group:met", "A metal or mineral"], ["group:nrg", "Energy"], ["group:grain", "A grain or oilseed"],
+  ["group:soft", "A soft commodity"], ["group:bio", "A biofuel or its feedstock"], ["group:chem", "A chemical"], ["group:cred", "A credit or certificate that trades"],
+  ["group:circ", "A recycled feedstock"]];
+const COUNTRY_GROUP = { "group:eu": "Europe", "group:asia": "Asia or Oceania", "group:me": "the Middle East or North Africa", "group:am": "the Americas", "group:af": "Africa" };
+// a typed link from the thing, said as its words go: "Painted by", "Hangs in"…; one whose words are its hint goes by the hint
+const FROM_REL = { "painted-by": "Painted by", "hangs-in": "Hangs in", "written-by": "Written by", "designed-by": "Designed by", "made-by": "Made by",
+  "owned-by": "Owned by", "born-in": "Born in", "based-in": "Based in", "made-in": "Made in", "died-in": "Died in", "buried-in": "Buried in", in: "In",
+  city: "In", movement: "Movement:", style: "Style:", from: "From" };
+// links to the thing that read as what it made: Hamlet written by Shakespeare is "Wrote Hamlet"
+const TO_REL = { "written-by": "Wrote", "painted-by": "Painted", "designed-by": "Designed", "made-by": "Made", "child-of": "Parent of", "parent-of": "Child of" };
+function whoami(ENTITIES, LINKS, E, DECKS) {
+  const from = new Map(), to = new Map();
+  for (const l of LINKS) { (from.get(l.from) || from.set(l.from, []).get(l.from)).push(l); (to.get(l.to) || to.set(l.to, []).get(l.to)).push(l); }
+  const of = id => { const e = E.get(id); if (!e) throw new Error(`whoami: no entity ${id}`); return e; };
+  const mid = n => n.replace(/^The /, "the ");
+  const called = id => { const e = of(id); return e.short ?? e.name; };      // as it reads mid-sentence ("the Louvre")
+  const cap = s => s[0].toUpperCase() + s.slice(1);
+  const year = y => (y < 0 ? `${-y} BC` : `${y}`);
+  const list = xs => (xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
+  const clip = s => { s = s.replace(/\s+/g, " ").trim(); if (s.length <= LINE) return s; const cut = s.slice(0, LINE - 1); return `${cut.slice(0, cut.lastIndexOf(" ")).replace(/[,;:]$/, "")}…`; };
+  const first = note => { const m = note.match(/^(.+?[.!?])(\s|$)/); return m ? m[1] : note; };
+  const byEase = (a, b) => (a.d ?? 9) - (b.d ?? 9) || (a.pos ?? 0) - (b.pos ?? 0);
+  // a typed link's words with the thing it leads to: "son of" Zeus, "strangled" the Nemean lion, "dragged up from the underworld": Cerberus
+  const phrase = (hint, name) => (/\b(of|by|with|to|at|in|from|for|on|into)$/i.test(hint) || hint.split(" ").length <= 2 ? `${cap(hint)} ${mid(name)}` : `${cap(hint)}: ${name}`);
+
+  function crib(all) {
+    const e = all[0], lines = [];
+    // a line already said in other words is left out: "In Japan" after "A city in Japan", "Made the Submariner" after
+    // "Known for the Submariner"
+    const tail = s => s.toLowerCase().replace(/^\S+\s+/, "").replace(/^[:\s]+/, "");
+    const add = s => {
+      if (!s) return;
+      s = clip(s);
+      const t = tail(s);
+      if (lines.includes(s) || (t.length >= 4 && lines.some(l => l.toLowerCase().includes(t)))) return;
+      lines.push(s);
+    };
+    const what = WHAT.find(([s]) => all.some(x => x.sets.includes(s)))?.[1];
+    if (e.sets.includes("country")) { const g = e.sets.find(s => COUNTRY_GROUP[s]); if (g) add(`A country in ${COUNTRY_GROUP[g]}`); }
+    else if (e.sets.includes("city") && e.country) add(`A city in ${e.country}${e.region && e.region !== e.country ? `, ${e.region}` : ""}`);
+    else add(what);
+    for (const x of all) {
+      if (x.note) add(first(x.note));
+      if (x.born !== undefined && x.died !== undefined) add(x.born < 0 && x.died < 0 ? `Lived ${-x.born}–${-x.died} BC` : `Lived ${year(x.born)}–${year(x.died)}`);
+      if (x.domain) add(`Domain: ${x.domain}`);
+      if (x.form && x.sets.includes("egyptian-god")) add(`Shown as ${x.form}`);
+      if (x.symbol) add(`Symbol: ${x.symbol}`);
+      if (x.roman) add(`Roman name: ${x.roman}`);
+      if (x.taught) add(`Taught ${x.taught}`);
+      if (x.founded) add(`Founded ${x.founded}${x.town ? ` in ${x.town}` : ""}`);
+      if (x.signature) add(`Known for ${x.signature}`);
+      if (x.capital) add(`Capital: ${x.capital}`);
+      if (x.year && x.sets.includes("painting")) add(`Painted in ${year(x.year)}`);
+    }
+    const out = all.flatMap(x => from.get(x.id) || []), into = all.flatMap(x => to.get(x.id) || []);
+    // what it made, grouped: "Wrote Hamlet, Macbeth and King Lear"
+    for (const [rel, verb] of Object.entries(TO_REL)) {
+      const made = into.filter(l => l.rel === rel).map(l => mid(of(l.from).name));
+      if (made.length) add(`${verb} ${list(made.slice(0, 3))}`);
+    }
+    for (const l of out) if (l.rel !== "clue" && l.rel !== "link" && l.rel !== "in-work") {
+      const t = called(l.to);
+      if (l.rel === "roman-name") add(`Roman name: ${t}`);
+      else if (l.rel === "from") add(l.hint ? `${cap(l.hint)}, from ${t}` : `From ${t}`);
+      else if (l.hint) add(phrase(l.hint, t));
+      else if (FROM_REL[l.rel]) add(`${FROM_REL[l.rel]} ${FROM_REL[l.rel].endsWith(":") ? t : mid(t)}`);
+    }
+    for (const l of out.filter(l => l.rel === "clue" || l.rel === "link").sort(byEase)) if (l.hint) add(`${of(l.to).name}: ${l.hint}`);
+    for (const l of into.filter(l => l.rel === "link")) if (l.hint) add(`${of(l.from).name}: ${l.hint}`);
+    for (const l of into.filter(l => l.rel === "clue").sort(byEase)) add(`${of(l.from).name}: ${l.hint}`);
+    // a typed link to it, said whole: "Perseus beheaded Medusa", "The Duke of Wellington defeated Napoleon"
+    for (const l of into) if (!TO_REL[l.rel] && l.rel !== "clue" && l.rel !== "link" && l.rel !== "in" && l.hint) add(`${of(l.from).name} ${l.hint} ${mid(e.name)}`);
+    const inside = into.filter(l => l.rel === "in").map(l => mid(of(l.from).name));
+    if (inside.length) add(`Home to ${list(inside.slice(0, 3))}`);
+    return lines.slice(0, CRIB);
+  }
+
+  const DECK_OUT = [], WHO = {};
+  for (const d of DECKS) {
+    const entries = d.ids ? d.ids.map(x => (Array.isArray(x) ? x : [x])) : ENTITIES.filter(e => d.sets.some(s => e.sets.includes(s))).map(e => [e.id]);
+    const ids = [];
+    for (const group of entries) {
+      const all = group.map(of), e = all[0];
+      if (WHO[e.id]) throw new Error(`whoami: ${e.id} is in two decks`);
+      const c = crib(all);
+      if (!d.ids && c.length < 2) continue;
+      // the names a guess may use: each double's, their aliases, a god's Roman name (one that differs only in case is the same)
+      const names = new Map();
+      for (const x of all) for (const n of [x.name, ...(x.aliases || []), ...(x.roman ? [x.roman] : [])]) if (!names.has(n.toLowerCase())) names.set(n.toLowerCase(), n);
+      names.delete(e.name.toLowerCase());
+      WHO[e.id] = defined({ n: e.name, a: names.size ? [...names.values()] : undefined, c, p: e.pic });
+      ids.push(e.id);
+    }
+    DECK_OUT.push({ id: d.id, name: d.name, a: d.a, ids });
+  }
+  return { DECKS: DECK_OUT, WHO };
+}
+
 // What each entity is a matter of, for coverage by subject across the games. A thing with a set the knowledge base
 // knows (a country, a city, a painting…) is in that set's subject; a clue thing with a kind (a person, a company, a
 // festival…, given by tools/kb-kinds.mjs or by hand) in its kind's; any other in the subject of its links' commonest
@@ -508,6 +618,7 @@ export async function render(out) {
 export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
 export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
   files[OUTPUTS.pics] = `${head(OUTPUTS.pics)}export const PICTURES = ${lines(out.pictures)};\n`;
+  files[OUTPUTS.whoami] = `${head(OUTPUTS.whoami)}export const DECKS = ${lines(out.whoami.DECKS)};\nexport const WHO = {\n${Object.entries(out.whoami.WHO).map(([id, w]) => `${JSON.stringify(id)}: ${JSON.stringify(w)}`).join(",\n")}\n};\n`;
   for (const b of CHOICE_BANKS) files[OUTPUTS[b]] = `${head(OUTPUTS[b])}export const STAGES = ${JSON.stringify(out.choice[b].STAGES)};\nexport const MATHS = ${lines(out.choice[b].MATHS)};\n`;
   return files;
 }

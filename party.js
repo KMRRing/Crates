@@ -140,7 +140,7 @@ function drawLobby(stage) {
   qr.innerHTML = qrSvg(joinLink(table.code), { label: `QR code to join table ${table.code}` });
   const chips = h("ul", { class: "pa-chips" }, ...players.map(p => h("li", { class: `${p.online ? "" : "away"}${p.uid === table.uid ? " me" : ""}` },
     p.name, tally[p.pid] ? h("span", { class: "pa-wins", title: "Games won tonight" }, String(tally[p.pid])) : null)));
-  const games = h("div", { class: "pa-games fit-grow fit-scroll", role: "radiogroup", "aria-label": "The game" },
+  const games = h("div", { class: "pa-games", role: "radiogroup", "aria-label": "The game" },
     ...GAMES.map(def => gameCard(def, { picked: def.id === pick.id, disabled: !host && def.id !== pick.id,
       onclick: host ? () => { opts.pick = def.id; write(OPTS, opts); table.act(b => { b.pick = def.id; }); } : () => showRules(def) })));
   const options = h("div", { class: "pa-options" }, ...(pick.options || []).map(o => {
@@ -164,8 +164,10 @@ function drawLobby(stage) {
         h("button", { type: "button", class: "btn", onclick: () => invite.open() }, "Show it larger"))),
       h("h3", { class: "pa-h" }, `At the table · ${n}`), chips),
     h("div", { class: "fit-half pa-half pa-what" },
-      h("h3", { class: "pa-h" }, "The game"), games, options,
-      host ? h("div", { class: "pa-go" }, short ? h("p", { class: "pa-wait" }, short) : null,
+      // the games and the chosen one's options scroll together (a game with many options, Who am I?'s decks, would
+      // otherwise squeeze the list of games to nothing), Start staying in view below them
+      h("h3", { class: "pa-h" }, "The game"), h("div", { class: "pa-pick fit-grow fit-scroll" }, games, options),
+      host ? h("div", { class: "pa-start" }, short ? h("p", { class: "pa-wait" }, short) : null,
         button(`Start ${pick.name}`, () => { const o = { ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) }; table.act(b => startGame(b, pick.id, o, table.now())); }, { disabled: !!short }))
         : h("p", { class: "pa-wait" }, `${hostName} picks the game and starts it`))));
 }

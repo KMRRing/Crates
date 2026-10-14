@@ -24,7 +24,7 @@ html[data-mode="night"] .party { --pa-in: #5FB7C2; }
 .pa-zh { margin-left: .5rem; font-weight: 600; letter-spacing: 0; text-transform: none; font-stretch: normal; color: var(--ink-soft); white-space: nowrap; }
 .pa-game-n { font-size: .8rem; color: var(--ink-soft); align-self: center; }
 .pa-game-blurb { grid-column: 1 / -1; font-size: .9rem; color: var(--ink-soft); }
-.pa-home .pk-btn, .pa-go .pk-btn { margin-top: .6rem; }
+.pa-home .pk-btn, .pa-start .pk-btn { margin-top: .6rem; }
 
 /* the lobby: on a phone one column, its two halves only a grouping (.fit-half; held sideways, below, side by side) */
 .pa-join { display: grid; grid-template-columns: 6.5rem 1fr; gap: .8rem; align-items: center; }
@@ -40,7 +40,8 @@ html[data-mode="night"] .party { --pa-in: #5FB7C2; }
 .pa-chips li.me { border-color: var(--pa-in); }
 .pa-chips li.away { opacity: .5; }
 .pa-wins { min-width: 1.2rem; padding: 0 .3rem; border-radius: 3px; background: var(--pa-in); color: var(--sheet); font-size: .75rem; text-align: center; }
-.pa-options { display: grid; gap: .35rem; margin-top: .4rem; }
+.pa-pick { display: grid; align-content: start; gap: .2rem; }
+.pa-options { display: grid; gap: .35rem; margin-top: .4rem; padding: 0 .1rem; }
 .pa-wait { margin: .5rem 0 0; color: var(--ink-soft); text-align: center; }
 @media (max-height: 700px) and (orientation: portrait) {
   .pa-join { grid-template-columns: 5rem 1fr; gap: .6rem; }
