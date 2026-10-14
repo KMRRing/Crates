@@ -1,0 +1,20 @@
+Fairy-Stockfish, the chess-variant engine River plays (Xiangqi, and the variants it may get later: Shogi, Makruk,
+Janggi), built from source as a single-threaded WebAssembly module.
+
+Source:   https://github.com/fairy-stockfish/Fairy-Stockfish, commit 9f778da667f6e07dae1e85d3e2ea204fc6dee94d
+          (23 September 2026), by Fabian Fichter and the authors in AUTHORS, derived from Stockfish
+Changes:  single-threaded.patch, applied to that commit: no thread is started (a search runs to its end in the caller),
+          the UCI loop takes its commands one at a time from the page's worker instead of standard input, and
+          src/wasi.cpp gives the worker its entry points (uci_init, uci_buffer, uci_command). No rule, search or
+          evaluation is changed. wasi-fstream.h stands in for file streams the WebAssembly C++ library leaves out
+          (the engine opens files only for an NNUE net, tablebases, a variants file or a debug log: never here).
+Build:    tools/fairy-stockfish.sh (clang 18 for wasm32-wasi, with the WASI C library and libc++ from Ubuntu's
+          wasi-libc and libc++-18-dev-wasm32 packages): largeboards on (Xiangqi's 9 x 10, Shogi, Janggi), no NNUE net
+          embedded, so Xiangqi plays the engine's classical evaluation. The script rebuilds this file byte for byte
+          (SHA-256 5445de08c240955e9faabcee3205c1f59f2011e6b0dcccc21a49b47e74441f13). Checked by perft from Xiangqi's start
+          (44, 1,920, 79,666, 3,290,240) and against River's own move generator (tests/river.mjs).
+Licence:  GNU General Public License, version 3 (Copying.txt)
+
+Why not the npm package fairy-stockfish-nnue.wasm@1.1.12: every published WebAssembly build of Fairy-Stockfish
+(that package, lila-stockfish-web's fsf14, fairy-stockfish-web) is multi-threaded, so it needs SharedArrayBuffer and
+with it the cross-origin isolation headers GitHub Pages can't send; it wouldn't start on Korbi's iPhone.
