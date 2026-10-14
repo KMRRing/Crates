@@ -81,15 +81,17 @@ export function pickFrom(hand, text) {
   return out;
 }
 
-/** The stage. face(id): a card's face for cards.js; label(id): its name; judge(step, ids): a pick judged. */
-export function cardStage({ face, label, judge }) {
+/**
+ * The stage. face(id): a card's face for cards.js; label(id): its name; judge(step, ids): a pick judged; hold(ids): a
+ * hand in the order the game holds it (biggest first, unless the game says otherwise).
+ */
+export function cardStage({ face, label, judge, hold = null }) {
   let box = null, api = null, step = null, st = null;
   const card = (id, cls = "") => cardHtml(face(id), { cls, label: label(id) });
   const line = ids => `<span class="cd-line${ids.length > 7 ? " many" : ""}">${ids.map(id => card(id)).join("")}</span>`;
   const backs = n => `<span class="cd-line${n > 7 ? " many" : ""}" role="img" aria-label="${n} card${n === 1 ? "" : "s"} face down">${backHtml().repeat(n)}</span>`;
   const head = (text, zh) => (text || zh ? `<small>${esc(text || "")}${zh ? ` <i>${esc(zh)}</i>` : ""}</small>` : "");
-  // a hand held biggest first, as the games hold it
-  const held = ids => [...ids].sort((a, b) => rankOf(b) - rankOf(a) || b - a);
+  const held = hold || (ids => [...ids].sort((a, b) => rankOf(b) - rankOf(a) || b - a));
   return {
     mount(b, a) {
       box = b;

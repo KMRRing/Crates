@@ -15,6 +15,9 @@ html[data-theme="office"] { --b2-in: #0F6CBD; }
 @media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --b2-in: #479EF5; } }
 html[data-theme="office"][data-mode="night"] { --b2-in: #479EF5; }
 
+/* the course's sheet (course.css) in the game's enamel */
+.ln-sheet.b2 { --ln-in: var(--b2-in); }
+
 .b2-mark { display: inline-block; }
 .b2-mark svg { width: 100%; height: 100%; display: block; }
 .b2-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); }
