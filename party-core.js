@@ -18,9 +18,10 @@
 import undercover from "./party-undercover.js";
 import whoami from "./party-whoami.js";
 import echo from "./party-echo.js";
+import decoy from "./party-decoy.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, echo];
+export const GAMES = [undercover, whoami, echo, decoy];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */

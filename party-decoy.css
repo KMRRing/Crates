@@ -1,0 +1,62 @@
+/* Decoy (Party): the question in large type (a saying in quotes, a blank as a ruled gap), the box for a lie, the answers
+   as a column of tiles in capitals (so nobody's typing gives a lie away), and the reveal: the truth in verdigris, each
+   lie with its author and whom it fooled, the game's best lie at the end. */
+.dc-center { text-align: center; }
+.dc-head { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem; font-size: .85rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.dc-double { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--pa-in); }
+.dc-q { display: grid; justify-items: center; gap: .3rem; padding: .8rem; border: 1.5px solid var(--pa-in); border-radius: 6px; background: var(--pa-soft); text-align: center; }
+.dc-q-label { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.dc-q-text { font-size: 1.2rem; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.dc-q.sayings .dc-q-text { font-size: 1.6rem; font-weight: 800; line-height: 1.2; }
+.dc-q-sub { font-size: .85rem; color: var(--ink-soft); }
+.dc-blank { display: inline-block; width: 4.5rem; height: 1em; margin-left: .1rem; vertical-align: -.15em; border-bottom: 2px solid currentColor; }
+.dc-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.dc-row .pk-btn { width: auto; padding: 0 1.1rem; }
+.dc-note { margin: 0; min-height: 1.2em; font-size: .85rem; text-align: center; color: #A8382B; }
+.dc-note:empty { display: none; }
+.dc-mine { text-transform: uppercase; letter-spacing: .04em; overflow-wrap: anywhere; }
+.dc-help { display: flex; justify-content: center; }
+.dc-help .pk-btn { width: auto; padding: 0 1.4rem; }
+.dc-opts { display: grid; gap: .45rem; }
+.dc-opt { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 3rem; padding: .5rem .8rem; border: 1.5px solid var(--tile-edge);
+  border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.dc-opt-text { font-weight: 700; text-transform: uppercase; letter-spacing: .05em; overflow-wrap: anywhere; }
+.dc-opt[aria-checked="true"] { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.dc-opt:disabled { cursor: default; }
+.dc-opt.own { opacity: .55; border-style: dashed; }
+.dc-tag { flex: none; font-size: .68rem; font-weight: 800; letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.dc-gain { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: 0; padding: .5rem .8rem; border-radius: 6px; font-weight: 700;
+  background: color-mix(in srgb, #A8382B 12%, var(--sheet)); }
+.dc-gain strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.dc-gain.up { background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); }
+.dc-reveal { margin: 0; padding: 0; list-style: none; display: grid; gap: .4rem; }
+.dc-reveal li { display: grid; gap: .1rem; padding: .45rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.dc-reveal li.truth { border-color: #2F7D5B; background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); }
+.dc-reveal li.picked { box-shadow: inset 4px 0 0 var(--pa-in); }
+.dc-opt-line { display: flex; flex-wrap: wrap; font-size: .8rem; color: var(--ink-soft); }
+.dc-opt-who { font-weight: 700; }
+.dc-opt-who + .dc-opt-picks::before { content: "·"; margin: 0 .35rem; }
+.dc-reveal li.truth .dc-opt-who { color: #2F7D5B; }
+.dc-best { display: grid; justify-items: center; gap: .2rem; margin: 0; padding: .7rem; border-radius: 6px; background: var(--pa-soft); text-align: center; }
+.dc-best .dc-opt-text { font-size: 1.2rem; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .dc-note { color: #E8806F; }
+  html:not([data-mode="day"]) .dc-gain { background: color-mix(in srgb, #E8806F 16%, var(--sheet)); }
+  html:not([data-mode="day"]) .dc-gain.up { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .dc-reveal li.truth { border-color: #7FC2A8; background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .dc-reveal li.truth .dc-opt-who { color: #7FC2A8; }
+}
+html[data-mode="night"] .dc-note { color: #E8806F; }
+html[data-mode="night"] .dc-gain { background: color-mix(in srgb, #E8806F 16%, var(--sheet)); }
+html[data-mode="night"] .dc-gain.up { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-mode="night"] .dc-reveal li.truth { border-color: #7FC2A8; background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-mode="night"] .dc-reveal li.truth .dc-opt-who { color: #7FC2A8; }
+html[data-theme="office"] :is(.dc-q, .dc-opt, .dc-gain, .dc-reveal li, .dc-best) { border-radius: 4px; }
+.dc-wrap { display: flex; flex-direction: column; gap: .7rem; }
+.dc-main { min-width: 0; }
+/* held sideways: the question on the left, staying put while the answers scroll on the right */
+@media (orientation: landscape) and (min-width: 700px) {
+  .pa-game-view .pa-play:has(.dc-side) { max-width: 60rem; }
+  .dc-wrap:has(.dc-side) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); column-gap: 1.25rem; align-items: start; }
+  .dc-side { position: sticky; top: 0; }
+}

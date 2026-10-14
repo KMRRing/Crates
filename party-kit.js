@@ -87,5 +87,5 @@ export function countdown(deadline, now, { total = null } = {}) {
 /** The scores: [{ name, score, note }] best first, the winners marked. */
 export function scoreList(rows, { winners = [] } = {}) {
   return h("ol", { class: "pk-scores" }, ...[...rows].sort((a, b) => b.score - a.score).map(r =>
-    h("li", { class: winners.includes(r.uid) ? "won" : "" }, h("span", { class: "pk-score-name" }, r.name), r.note ? h("span", { class: "pk-score-note" }, r.note) : null, h("span", { class: "pk-score-n" }, String(r.score)))));
+    h("li", { class: winners.includes(r.uid) ? "won" : "" }, h("span", { class: "pk-score-name" }, r.name), r.note ? h("span", { class: "pk-score-note" }, r.note) : null, h("span", { class: "pk-score-n" }, r.score.toLocaleString("en-GB")))));
 }

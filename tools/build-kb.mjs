@@ -11,7 +11,7 @@ const root = path.resolve(new URL("..", import.meta.url).pathname);
 export const CHOICE_BANKS = ["art", "cities", "flags", "eco", "phy", "chm", "cs", "phil", "rel", "refining", "swiss", "arch", "myth", "merchants", "titles", "artmarket", "bavaria", "britain", "china", "skiing", "watches", "lit", "sayings"];
 /** What the build writes: the bank each game reads. */
 export const OUTPUTS = { crates: "bank.js", chart: "chart-bank.js", geo: "chart-geo.js", quote: "quote-bank.js", index: "kb-index.js",
-  pics: "pics-list.js", whoami: "party-whoami-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
+  pics: "pics-list.js", whoami: "party-whoami-bank.js", decoy: "party-decoy-bank.js", ...Object.fromEntries(CHOICE_BANKS.map(b => [b, `${b}-bank.js`])) };
 
 const load = f => import(`${pathToFileURL(path.join(root, "kb", f)).href}?t=${Date.now()}`);
 /** An object without its undefined fields. */
@@ -70,9 +70,9 @@ export async function build() {
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
   // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of them)
   const pictures = [...new Set([...ENTITIES, ...PLACES, ...QUOTES, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic).filter(Boolean))].sort();
-  const whoamiDecks = (await load("items/whoami.js")).DECKS;
+  const whoamiDecks = (await load("items/whoami.js")).DECKS, decoyFacts = (await load("items/decoy.js")).FACTS;
   return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, pictures, index: await subjects(ENTITIES, LINKS),
-    whoami: whoami(ENTITIES, LINKS, E, whoamiDecks) };
+    whoami: whoami(ENTITIES, LINKS, E, whoamiDecks), decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
 }
 
 // Questions the knowledge base writes itself. A painting with its painter, museum, movement, year and picture gets Punt's
@@ -560,6 +560,48 @@ function whoami(ENTITIES, LINKS, E, DECKS) {
   return { DECKS: DECK_OUT, WHO };
 }
 
+// Decoy (Party): its questions, each with its truth and three of the house's lies (for when the players' lies are too
+// few): the sayings' meanings (kb/'s sayings: the words, their language, what they say literally, what they mean and the
+// three wrong meanings Punt offers), Quote's numbers (its questions with their truths, the house's lies spread round
+// the truth as Quote's scale has it: by ratio for magnitudes, by steps for years and the like; not the refinery's
+// specifications, which only a refiner would know to lie about) and the odd facts of kb/items/decoy.js.
+const LANG_NAMES = { en: "English", de: "German", fr: "French", zh: "Chinese", la: "Latin", "ja-latn": "Japanese", ja: "Japanese", "ko-latn": "Korean",
+  pt: "Portuguese", es: "Spanish", it: "Italian", ru: "Russian", sv: "Swedish", da: "Danish", nl: "Dutch", no: "Norwegian", sw: "Swahili", yo: "Yoruba",
+  ar: "Arabic", "ar-latn": "Arabic", "hi-latn": "Hindi" };
+const TECHNICAL = new Set(["cetane", "RON", "kPa", "MJ/L", "kg/m³"]);
+function decoy(ENTITIES, QUOTES, FACTS) {
+  const sayings = ENTITIES.filter(e => e.sets.includes("saying") && e.meaning && (e.wrong || []).length >= 3).map(e => {
+    // a Chinese saying's pinyin starts its origin ("huà shé tiān zú: a man who drew legs…")
+    const say = e.lang === "zh" && e.origin ? e.origin.split(":")[0].trim() : undefined;
+    return defined({ id: e.id, w: e.text, l: LANG_NAMES[e.lang] || undefined, say, lit: e.literal || e.rendering || undefined, t: e.meaning, x: e.wrong.slice(0, 3) });
+  });
+  const fmt = (n, unit) => (unit === "year" ? String(Math.round(n)) : Number(n.toPrecision(n >= 100 ? 4 : 3)).toLocaleString("en-GB", { maximumFractionDigits: 2 }));
+  const hash = str => { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const numbers = [];
+  for (const q of QUOTES) {
+    // a truth under a tenth (a yen in euros) is no number to write a lie for, and two places would round it away
+    if (q.cat === "refining" || TECHNICAL.has(q.unit) || typeof q.truth !== "number" || q.truth < 0.1) continue;
+    const text = q.title ? q.q.replace(/\bthis\b/, q.title) : q.q;
+    if (/\bthis\b/i.test(text)) continue;                                     // a question about a picture it can't show
+    const t = q.truth, step = q.unit === "year" ? (q.scale >= 25 ? 4 : q.scale >= 10 ? 2 : 1) : q.scale, round = q.scale >= 5 ? 5 : 1;
+    // a year's lies are near it and never to come (the year written, 2026); a magnitude's by ratio; the rest by steps.
+    // How many lie above the truth comes from its id, so the truth is as often the least as the greatest and its place
+    // among them gives nothing away (with the lies all below a year, the latest was always the truth).
+    const sides = q.unit === "year" ? [[-3, -7, -12, -18, -25], [2, 4, 9, 15, 22]].map(ks => ks.map(k => t + k * step))
+      : q.scale === "log" ? [[0.55, 0.35, 0.2], [1.6, 2.6, 4]].map(ks => ks.map(k => Number((t * k).toPrecision(2))))
+      : [[-2.4, -4, -1.2], [1.6, 3.2, 5]].map(ks => ks.map(k => Math.round((t + k * step) / round) * round));
+    const fine = v => v > 0 && !(q.unit === "%" && v > 100) && !(q.unit === "year" && v > 2025) && fmt(v, q.unit) !== fmt(t, q.unit) && fmt(v, q.unit) !== "0";
+    const [below, above] = sides.map(vs => vs.filter(fine));
+    const up = hash(q.id) % 4, lies = [...above.slice(0, up), ...below.slice(0, 3 - up)];
+    for (const v of [...above.slice(up), ...below.slice(3 - up)]) if (lies.length < 3) lies.push(v);   // a side too short
+    const shown = [...new Set(lies.map(v => fmt(v, q.unit)))];
+    if (shown.length < 3) continue;
+    numbers.push({ id: q.id, q: text, u: q.unit, t: fmt(t, q.unit), x: shown.slice(0, 3) });
+  }
+  const facts = FACTS.map(f => ({ id: f.id, q: f.text, t: f.truth, x: f.lies.slice(0, 3) }));
+  return { sayings, numbers, facts };
+}
+
 // What each entity is a matter of, for coverage by subject across the games. A thing with a set the knowledge base
 // knows (a country, a city, a painting…) is in that set's subject; a clue thing with a kind (a person, a company, a
 // festival…, given by tools/kb-kinds.mjs or by hand) in its kind's; any other in the subject of its links' commonest
@@ -618,6 +660,7 @@ export async function render(out) {
 export const SUBJECTS = ${JSON.stringify(out.index.SUBJECTS)};
 export const SUBJECT = ${JSON.stringify(out.index.SUBJECT)};\n`;
   files[OUTPUTS.pics] = `${head(OUTPUTS.pics)}export const PICTURES = ${lines(out.pictures)};\n`;
+  files[OUTPUTS.decoy] = `${head(OUTPUTS.decoy)}export const SAYINGS = ${lines(out.decoy.sayings)};\nexport const NUMBERS = ${lines(out.decoy.numbers)};\nexport const FACTS = ${lines(out.decoy.facts)};\n`;
   files[OUTPUTS.whoami] = `${head(OUTPUTS.whoami)}export const DECKS = ${lines(out.whoami.DECKS)};\nexport const WHO = {\n${Object.entries(out.whoami.WHO).map(([id, w]) => `${JSON.stringify(id)}: ${JSON.stringify(w)}`).join(",\n")}\n};\n`;
   for (const b of CHOICE_BANKS) files[OUTPUTS[b]] = `${head(OUTPUTS[b])}export const STAGES = ${JSON.stringify(out.choice[b].STAGES)};\nexport const MATHS = ${lines(out.choice[b].MATHS)};\n`;
   return files;
