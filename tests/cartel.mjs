@@ -1,5 +1,7 @@
 // Cartel: computer players play whole games against each other. Every game must finish, nobody's move may be
-// refused by the referee, and the rational player should win more than its share. Run: node tests/cartel.mjs [games]
+// refused by the referee, and the rational player should win more than its share. Then the rules one by one, and
+// Cartel at a table (cartel-rules.js on seats.js): whole games through a model of the database, whose decision it is,
+// what the database drops coming back. Run: node tests/cartel.mjs [games]
 const E = await import("../cartel-engine.js");
 const A = await import("../cartel-ai.js");
 // 100 games by default: with fewer, one personality's win rate swings by ±10 points by chance alone
@@ -212,4 +214,42 @@ if (bad) process.exitCode = 1;
   s.turn = 1; s.step = "bid";
   E.bid(s, { call: true });
   check(E.gold(s.players[0]).length === 1, "short of 3 dice to pay, a gold die goes too");
+}
+
+// Cartel at a table (cartel-rules.js on seats.js): whole games of computer players through the runner's own steps, the
+// state through a model of the database after every move (it keeps no empty list and no null, and gives a map of
+// numbers back as a list with gaps), every move the referee's
+{
+  const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) process.exitCode = 1; };
+  const { rules } = await import("../cartel-rules.js");
+  const { newRecord, applyMove, botMove } = await import("../seats.js");
+  const { roundTrip } = await import("./rtdb.js");
+  let done = 0, moves = 0, refusedAt = null;
+  for (let k = 0; k < 4; k++) {
+    let G = newRecord(rules, { seats: 3 + (k % 2), options: { opponents: ["quant", "gambler"] }, seed: 7000 + k });
+    for (let guard = 0; guard < 3000; guard++) {
+      const st = rules.restore(roundTrip(G.state));
+      if (rules.over(st)) { done++; break; }
+      const seat = rules.toMove(st), m = botMove(rules, { ...G, state: st }, seat), r = applyMove(rules, { ...G, state: st }, seat, m);
+      if (r.error) { refusedAt = `${r.error}: ${JSON.stringify(m)}`; break; }
+      G = r.G;
+      moves++;
+    }
+  }
+  check(done === 4 && !refusedAt, `four games at tables of three and four played out through the database (${moves} moves)${refusedAt ? `; refused: ${refusedAt}` : ""}`);
+  const G = newRecord(rules, { seats: 4, options: { opponents: ["hedger", "sceptic", "wildcat"] }, seed: 99 });
+  check(G.state.players.slice(1).map(p => p.persona).join() === "hedger,sceptic,wildcat" && !["hedger", "sceptic", "wildcat"].includes(G.state.players[0].persona) && typeof G.state.rstate === "number" && !("r" in G.state),
+    "the opponents chosen sit after you, your seat has a personality for when the computer plays it, and the random stream is kept as a number");
+  const st = rules.restore(roundTrip(G.state));
+  const s = structuredClone(st);
+  s.pending = { type: "challenge", claimant: 0, challenger: 2 };
+  const p = structuredClone(st);
+  p.pending = { type: "proof", claimant: 3 };
+  check(rules.toMove(st) === st.turn && rules.toMove(s) === 2 && rules.toMove(p) === 3 && rules.toMove({ ...st, over: { winner: 1 } }) === null,
+    "whose decision it is: the turn's player, a claim's challenger, a proven claimant's, nobody's once it's over");
+  const back = rules.restore({ ...st, players: st.players.map((x, i) => (i === 1 ? { ...x, dice: undefined, out: true } : x)), events: [...st.events, { n: 99, t: "banker", p: 0 }, { n: 100, t: "trader", p: 1, target: 0, none: true }] });
+  check(Array.isArray(back.players[1].dice) && back.events.at(-2).dice.length === 0 && back.events.at(-1).lost.length === 0 && back.bid === null,
+    "what the database drops comes back: a hand that's out, a banker's empty take, a steal that got nothing, no bid standing");
+  const said = rules.act(structuredClone(st), st.turn, { t: "bid", q: 1, f: 2 });
+  check(typeof said === "string" && /time to bid/i.test(said), `a move out of turn is refused in words ("${said}")`);
 }

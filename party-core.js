@@ -137,6 +137,7 @@ export const ELSEWHERE = [
   { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
   { id: "quest", name: "Quest", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the traitors before three quests fail." },
   { id: "bones", name: "Bones", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
+  { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Coup and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
   { id: "crates", name: "Crates", kind: "duo", duo: "crates", page: "crates.html", max: 2, blurb: "Sixteen words into four crates, one board between you." },
   { id: "glyph", name: "Slate", kind: "duo", duo: "glyph", page: "slate.html", max: 2, blurb: "A small crossword with secret letter rules, filled together." },
   { id: "delta", name: "Delta", kind: "duo", duo: "delta", page: "delta.html", max: 2, blurb: "The hex sums, solved together." },

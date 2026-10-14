@@ -1,40 +1,45 @@
-// Cartel: you against computer players. Rules and the referee are in cartel-engine.js, the players in
-// cartel-ai.js. Your view is built the same way theirs is: a Mind follows the events as your seat sees them,
-// so the table shows exactly what you could know, no more.
-import { newGame, act, respond, respondBlock, keepProof, freeReroll, freeAsk, bid, seen, mustHit, rng, ROLES, ABILITIES, RULES, totalDice } from "./cartel-engine.js";
-import { Player, Mind, PERSONAS } from "./cartel-ai.js";
+// Cartel: you against computer players, or friends round one table, each on their own phone, the computer in the
+// seats nobody has. Rules and the referee are in cartel-engine.js, the players in cartel-ai.js, and the game as a few
+// seats' game in cartel-rules.js, which seats.js runs solo or at a table (README, Seats). Your view is built the same
+// way the computer players' is: a Mind follows the events as your seat sees them, so the table shows exactly what you
+// could know, no more.
+import { seen, mustHit, ROLES, ABILITIES, RULES, totalDice } from "./cartel-engine.js";
+import { Mind, PERSONAS } from "./cartel-ai.js";
+import { rules } from "./cartel-rules.js";
+import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, onPause, ticks } from "./menu.js";
+import { part, choice, action, ticks } from "./menu.js";
+import { noteStreak, IN_FRAME } from "./suite.js";
+import { scale } from "./wide.js";
 
 const $ = id => document.getElementById(id);
-import { noteStreak } from "./suite.js";
-import { scale } from "./wide.js";
-const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace";
+const STORE = "cartel:game", TABLE = "cartel:table", PACE = "cartel:pace", COUNTED = "cartel:counted";
 // How the computer players' moves come: each shown for a while, or each held until you tap.
 const PACES = {
   fast: { label: "Fast", ms: 700 },
   steady: { label: "Steady", ms: 1600 },
   tap: { label: "Tap to continue", ms: null },
 };
-const ME = 0;
 
-let g = null;                 // the game (the referee's truth)
-let ais = [];                 // the computer players, by seat (null for you)
+let V = null;                 // the runner's view: { G, state, seat, seats, mode, toMove, over, code }
+let g = null;                 // the game (the referee's truth), as the view has it
+let ME = 0;                   // your seat (solo, 0); null while watching a table's game you'll sit down at next
 let mind = null;              // what you know
 let publicMind = null;        // what everyone knows (to show which of your dice the table has seen)
+let followed = "";            // the game and seat the minds follow
 let ui = null;                // your choices in progress
-let timer = null;
-let freeAsked = -1;           // the turn a computer player last considered its free reroll
-let askAsked = -1;            // and its free question
 
 const freshUi = () => ({ panel: null, reroll: new Set(), free: null, ask: { target: null, type: "count", f: 4, n: 15 }, claim: { ability: "bank", target: null, face: 4 }, hit: null, bid: null });
-const name = i => (i === ME ? "You" : g.players[i].name);
+/** A seat's name: yours "You"; at a table, whoever sits there, else the computer's personality. */
+const name = i => (i === ME ? "You" : V?.seats?.[i]?.name || g.players[i].name);
 /** "You take" / "Quant takes". */
 const verb = (i, base) => (i === ME ? base : base.endsWith("s") || base.endsWith("sh") ? `${base}es` : `${base}s`);
 const myPlain = () => g.players[ME].dice.filter(d => d.kind === "plain").length;
 const others = () => g.players.filter(p => !p.out && p.i !== ME);
 const faceLabel = f => `${f}s`;
+/** Whether a person sits in a seat (at a table), rather than the computer. */
+const person = i => V?.mode === "table" && V.seats?.[i] && !V.seats[i].bot;
 
 // ---------- games ----------
 /** The opponents chosen last time (personality ids), or three different ones at random. */
@@ -43,36 +48,26 @@ function chosenOpponents() {
   const ids = Object.keys(PERSONAS).sort(() => Math.random() - 0.5);
   return ids.slice(0, 3);
 }
-
+/** A new game with these opponents (at a table, the host's: the others' seats are theirs, the computer in the rest). */
 function startGame(opponents = chosenOpponents()) {
   try { localStorage.setItem(TABLE, JSON.stringify(opponents)); } catch { /* private mode */ }
-  const seats = [{ name: "You", persona: null }, ...opponents.map(id => ({ name: PERSONAS[id].name, persona: id }))];
-  g = newGame(Math.floor(Math.random() * 1e9), seats);
-  setup();
-  loop();
+  for (const id of ["overDlg", "challengeDlg", "proofDlg"]) if ($(id).open) $(id).close();
+  page.deal({ opponents }, 1 + opponents.length);
 }
 
-function setup() {
-  ais = g.players.map((p, i) => (p.persona ? new Player(i, g.players.length, p.persona, g.seed + 7919 * (i + 1)) : null));
-  mind = new Mind(ME, g.players.length);
-  publicMind = new Mind(null, g.players.length);
-  ui = freshUi();
-}
+// a game kept before Cartel ran on seats.js, the referee's state alone: carried on as the runner keeps one (a finished
+// one isn't, the next game starts fresh)
+try {
+  const old = JSON.parse(localStorage.getItem(STORE));
+  if (old?.players && !old.state) {
+    if (old.over) localStorage.removeItem(STORE);
+    else localStorage.setItem(STORE, JSON.stringify({ seq: 1, seed: old.seed, n: old.events.length, seats: old.players.length,
+      options: { opponents: old.players.slice(1).map(p => p.persona) }, started: Date.now(),
+      state: { ...old, players: old.players.map(p => ({ ...p, persona: p.persona || "quant" })) } }));
+  }
+} catch { /* nothing kept, or nothing readable */ }
 
-function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ ...g, r: undefined, rstate: g.r.state() })); } catch { /* private mode */ }
-}
-function load() {
-  try {
-    const s = JSON.parse(localStorage.getItem(STORE));
-    if (!s?.players || !s.events) return null;
-    s.r = rng(s.rstate);
-    delete s.rstate;
-    return s;
-  } catch { return null; }
-}
-
-// ---------- the loop: whoever is due moves ----------
+// ---------- the pace of the computer's moves ----------
 /** The pace chosen (an earlier "fast" switch carries over as Fast). */
 function pace() {
   try {
@@ -81,83 +76,64 @@ function pace() {
     return localStorage.getItem("cartel:fast") === "1" ? "fast" : "steady";
   } catch { return "steady"; }
 }
-let waiting = null;           // in Tap to continue: the next computer move, held until you tap
-/**
- * Runs the next computer move after the chosen pace: a pause, or (Tap to continue) your next tap. Once you're out,
- * the rest of the game plays itself quickly.
- */
-// the menu holds the computer's next move until it closes
-let heldMove = null, nextMove = null;
-onPause(() => { if (timer != null && nextMove) { clearTimeout(timer); timer = null; heldMove = nextMove; } },
-  () => { if (heldMove) { const fn = heldMove; heldMove = null; schedule(fn); } });
-function schedule(fn) {
-  nextMove = fn;
-  if (g.players[ME].out) { timer = setTimeout(fn, 120); return; }
-  const ms = PACES[pace()].ms;
-  if (ms != null) { timer = setTimeout(fn, ms); return; }
-  waiting = fn;
-  renderControls();
-}
-/** A tap anywhere on the table (not the header's buttons or a sheet) shows the next computer move. */
+/** How long the computer's next move stays: the pace chosen; once you're out, the rest of the game plays itself quickly. */
+const moveMs = st => (ME != null && st?.players?.[ME]?.out ? 120 : PACES[pace()].ms ?? 120);
+// Tap to continue (solo): the computer's next move waits for a tap anywhere on the table, then comes at once
+let tapped = false, movesSeen = -1;
+const holding = () => !!V?.G && V.mode === "solo" && !V.over && pace() === "tap" && !tapped && V.toMove != null
+  && !!V.seats[V.toMove]?.bot && !(ME != null && g?.players?.[ME]?.out);
 function tapOn(e) {
-  if (!waiting || e.target.closest("header, dialog")) return;
-  const fn = waiting;
-  waiting = null;
-  fn();
+  if (!holding() || e.target.closest("header, dialog")) return;
+  tapped = true;
+  renderControls();
+  page.runner.kick();
 }
 
-function loop() {
-  clearTimeout(timer);
-  waiting = null;
+// ---------- the table: solo, or with friends (seats.js) ----------
+/** Each state the runner has: what you know brought up to date, the table drawn, your answer asked for when it's yours. */
+function onView(v) {
+  V = v;
+  g = v.state;
+  if (!v.G) {
+    for (const id of ["seats", "centre", "mine", "notes"]) $(id).replaceChildren();
+    $("controls").replaceChildren();
+    if (v.mode === "solo") setTimeout(() => { if (page && !page.view.G) startGame(); }, 0);   // a first visit: a game at once
+    else { const w = document.createElement("p"); w.className = "ct-waiting"; w.textContent = "Waiting for the host to deal"; $("controls").appendChild(w); }
+    return;
+  }
+  ME = v.seat;
+  if (v.G.n !== movesSeen) { movesSeen = v.G.n; tapped = false; }
+  // what you know, followed event by event: afresh for a new game, or a seat changed (a friend took over a computer's)
+  const key = `${v.code || "solo"}:${v.G.seq}:${v.G.started}:${ME}`;
+  if (followed !== key) { followed = key; mind = new Mind(ME, g.players.length); publicMind = new Mind(null, g.players.length); ui = freshUi(); }
   mind.follow(g, e => seen(e, ME));
   publicMind.follow(g, e => ({ ...e, priv: undefined }));
-  for (const ai of ais) ai?.sync(g, seen);
-  save();
   render();
-  if (g.over) { showOver(); return; }
-  const c = g.pending;
-  if (c?.type === "proof") {                        // a proven claim: its owner keeps the die shown or puts it back
-    if (c.claimant === ME) { showProof(); return; }
-    const ai = ais[c.claimant];
-    schedule(() => { keepProof(g, ai.keepProof(g)); loop(); });
-    return;
-  }
-  if (c) {
-    if (c.challenger === ME) { showChallenge(); return; }
-    const ai = ais[c.challenger];
-    schedule(() => { if (c.type === "block") respondBlock(g, ai.challengeBlock(g)); else respond(g, ai.challenge(g)); loop(); });
-    return;
-  }
-  if (g.turn === ME) return;                        // your controls are up
-  const ai = ais[g.turn];
-  schedule(() => {
-    try {
-      // the free move first: Legal's reroll, to hide a die the table has seen (asked once a turn)
-      if (g.step === "act" && !g.freeUsed && freeAsked !== g.moves) {
-        freeAsked = g.moves;
-        const die = ai.free(g);
-        if (die != null) { freeReroll(g, die); loop(); return; }
-      }
-      if (!g.askUsed && askAsked !== g.moves && g.step === "bid") {      // a question after the move, for the bid
-        askAsked = g.moves;
-        const q = ai.ask(g);
-        if (q) { freeAsk(g, q.target, q.question); loop(); return; }
-      }
-      if (g.step === "act") act(g, ai.action(g)); else bid(g, ai.bid(g));
-    } catch (e) {
-      console.error(e);                              // a move the referee refused: fall back to the plainest legal one
-      if (g.step === "act") act(g, mustHit(g) ? { type: "hit", target: others()[0]?.i ?? alive0() } : { type: "pass" });
-      else bid(g, g.bid ? { call: true } : { q: 1, f: 2 });
-    }
-    loop();
-  });
+  // your answer, when it's asked of you: a claim or block to challenge, a proven die to keep or put back
+  const c = g.pending, mine = !v.over && ME != null && v.toMove === ME && c;
+  if (mine && c.type === "proof") showProof(); else if ($("proofDlg").open) $("proofDlg").close();
+  if (mine && c.type !== "proof") showChallenge(); else if ($("challengeDlg").open) $("challengeDlg").close();
 }
-const alive0 = () => g.players.find(p => !p.out && p.i !== g.turn).i;
+/** A game over: the streak counted once (for the seat you played), and how it went. */
+function onOver(v) {
+  const key = `${v.code || "solo"}:${v.G.seq}:${v.G.started}`;
+  if (v.seat != null && !IN_FRAME) {
+    let counted = null;
+    try { counted = localStorage.getItem(COUNTED); } catch { /* private mode */ }
+    if (counted !== key) {
+      try { localStorage.setItem(COUNTED, key); } catch { /* private mode */ }
+      noteStreak("cartel", v.state.over.winner === v.seat);
+    }
+  }
+  showOver();
+}
 
-/** Your move or bid, through the referee; a refusal shows as a message. */
-function play(fn) {
-  try { fn(); ui = freshUi(); } catch (e) { toast(e.message.replace(/^./, c => c.toUpperCase())); return; }
-  loop();
+/** Your move or answer, through the referee on the table; a refusal shows as a message. */
+async function play(move) {
+  const why = await page.move(move);
+  if (why) { toast(why); return; }
+  ui = freshUi();
+  render();
 }
 
 // ---------- rendering ----------
@@ -362,8 +338,8 @@ function renderSeats() {
     const plaque = document.createElement("div");
     plaque.className = "ct-plaque";
     const b = document.createElement("b");
-    b.textContent = p.out ? `${p.name} · out` : p.name;
-    plaque.title = PERSONAS[p.persona].trait;
+    b.textContent = p.out ? `${name(p.i)} · out` : name(p.i);
+    plaque.title = person(p.i) ? "" : PERSONAS[p.persona]?.trait || "";
     plaque.appendChild(b);
     const dice = document.createElement("div");
     dice.className = "ct-dice";
@@ -422,7 +398,18 @@ function renderCentre() {
 // ---------- you ----------
 let shookAt = -1;
 function renderMine() {
-  const me = g.players[ME], box = $("mine");
+  const box = $("mine");
+  if (ME == null) {
+    box.className = "ct-mine";
+    box.innerHTML = "";
+    const p = document.createElement("p");
+    p.className = "ct-mine-ask";
+    p.textContent = "Watching: you sit down at the next game.";
+    box.appendChild(p);
+    $("notes").replaceChildren();
+    return;
+  }
+  const me = g.players[ME];
   box.className = `ct-mine${g.turn === ME && !g.over ? " turn" : ""}`;
   box.innerHTML = "";
   const plaque = document.createElement("div");
@@ -579,9 +566,10 @@ const toggle = id => { ui.panel = ui.panel === id ? null : id; render(); };
 function renderControls() {
   const box = $("controls");
   box.innerHTML = "";
-  if (g.over) return;
+  if (!g || g.over) return;
+  if (ME == null) { el("p", "ct-waiting", box, "Watching: you sit down at the next game."); return; }
   if (g.players[ME].out) { el("p", "ct-waiting", box, "You're out: the others play on."); return; }
-  if (waiting) {
+  if (holding()) {
     el("p", "ct-waiting", box, "Tap anywhere for the next move");
     button("ct-go", box, "Next move", () => {});            // its click reaches the table's tap handler
     return;
@@ -589,7 +577,7 @@ function renderControls() {
   if (g.turn !== ME || g.pending) {
     const c = g.pending;
     el("p", "ct-waiting", box, c?.type === "proof" ? `${name(c.claimant)} ${verb(c.claimant, "decide")} whether to keep the ${ROLES[c.role]} shown…`
-      : c ? `${name(c.challenger)} ${verb(c.challenger, "decide")} whether to challenge…` : `${name(g.turn)} is thinking…`);
+      : c ? `${name(c.challenger)} ${verb(c.challenger, "decide")} whether to challenge…` : `${name(g.turn)} ${person(g.turn) ? "is to move" : "is thinking"}…`);
     return;
   }
   const tray = el("section", "ct-tray", box);
@@ -601,7 +589,7 @@ function renderControls() {
     tiles.classList.add("ct-actions");
     for (const [id, text] of [["take", "Take"], ["reroll", "Reroll"], ["claim", "Claim"], ["hit", "Hit"]]) {
       const t = button("ct-action", tiles, [icon(id), el("span", null, null, text)], () => {
-        if (id === "take") play(() => act(g, { type: "take" }));
+        if (id === "take") play({ t: "act", action: { type: "take" } });
         else toggle(id);
       }, ui.panel === id);
       t.disabled = (forced && id !== "hit") || (id === "take" && myPlain() >= RULES.cap) || (id === "hit" && myPlain() < RULES.hit);
@@ -632,9 +620,9 @@ function bidPanel(panel) {
   // the free question sits beside the bid: once a turn, after your move
   const row = grid(panel, g.askUsed ? "repeat(2, minmax(0, 1fr))" : "minmax(0, .7fr) repeat(2, minmax(0, 1fr))");
   if (!g.askUsed) button("ct-go ct-go-quiet", row, "Ask", () => { ui.panel = "ask"; render(); }).title = "One free question, about one player's whole hand";
-  const call = button("ct-go ct-go-quiet", row, b ? `Call ${b.q} × ${faceLabel(b.f)}` : "Call", () => play(() => bid(g, { call: true })));
+  const call = button("ct-go ct-go-quiet", row, b ? `Call ${b.q} × ${faceLabel(b.f)}` : "Call", () => play({ t: "bid", call: true }));
   call.disabled = !b;
-  go(row, `Bid ${ui.bid.q} × ${faceLabel(ui.bid.f)}`, () => play(() => bid(g, { q: ui.bid.q, f: ui.bid.f })));
+  go(row, `Bid ${ui.bid.q} × ${faceLabel(ui.bid.f)}`, () => play({ t: "bid", q: ui.bid.q, f: ui.bid.f }));
 }
 
 /**
@@ -659,10 +647,10 @@ function claimPanel(panel) {
   const x = ABILITIES[c.ability];
   if (c.ability === "reroll") {
     // the card just picked already says what the Fixer does; the button only claims it, like every other claim
-    go(panel, ui.free != null ? `Claim ${ROLES[x.role]}` : "Tap one of your dice", () => play(() => freeReroll(g, ui.free)), ui.free == null);
+    go(panel, ui.free != null ? `Claim ${ROLES[x.role]}` : "Tap one of your dice", () => play({ t: "free", die: ui.free }), ui.free == null);
     return;
   }
-  const claim = () => play(() => act(g, { type: "claim", ability: c.ability, target: x.target ? c.target : undefined, picks: myPicks(c) }));
+  const claim = () => play({ t: "act", action: { type: "claim", ability: c.ability, ...(x.target ? { target: c.target } : {}), picks: myPicks(c) } });
   if (c.ability === "inquiry") {
     // the face to count and the claim share one row, so the inquiry is no taller than any other claim
     const row = grid(panel, "repeat(5, minmax(0, 1fr)) minmax(0, 1.9fr)");
@@ -684,19 +672,19 @@ function askPanel(panel) {
   if (a.type === "atLeast") stepper(panel, a.n, () => { a.n = Math.max(2, a.n - 1); render(); }, () => { a.n = Math.min(60, a.n + 1); render(); });
   const row = grid(panel, "minmax(0, .45fr) minmax(0, 1fr)");
   button("ct-go ct-go-quiet", row, "Back", () => { ui.panel = null; render(); });
-  go(row, `Ask ${name(a.target)}: ${questionText(a)}`, () => play(() => freeAsk(g, a.target, { type: a.type, f: a.f, n: a.n })));
+  go(row, `Ask ${name(a.target)}: ${questionText(a)}`, () => play({ t: "ask", target: a.target, question: { type: a.type, f: a.f, n: a.n } }));
 }
 
 function rerollPanel(panel) {
   el("p", "ct-note", panel, "Tap the dice to reroll, secretly. Rerolling a gold die changes your role.");
   const n = ui.reroll.size;
-  go(panel, n ? `Reroll ${n} ${n === 1 ? "die" : "dice"}` : "Tap your dice", () => play(() => act(g, { type: "reroll", dice: [...ui.reroll] })), !n);
+  go(panel, n ? `Reroll ${n} ${n === 1 ? "die" : "dice"}` : "Tap your dice", () => play({ t: "act", action: { type: "reroll", dice: [...ui.reroll] } }), !n);
 }
 
 function hitPanel(panel) {
   ui.hit ??= others()[0]?.i;
   el("p", "ct-note", panel, `Pay ${RULES.hit} dice: they lose a gold die. Tap a player on the table to choose.`);
-  go(panel, `Hit ${name(ui.hit)}`, () => play(() => act(g, { type: "hit", target: ui.hit })));
+  go(panel, `Hit ${name(ui.hit)}`, () => play({ t: "act", action: { type: "hit", target: ui.hit } }));
 }
 
 /** Your picks for an ability: which face an inquiry counts. (A steal takes dice you can't see, at random.) */
@@ -749,7 +737,7 @@ function showProof() {
 }
 function answerProof(keep) {
   $("proofDlg").close();
-  play(() => keepProof(g, keep));
+  play({ t: "proof", keep });
 }
 /** What losing a challenge costs, in words: "pay 3 dice (a gold die if short)". */
 function stakeText(verbForm, challenger = false) {
@@ -759,38 +747,38 @@ function stakeText(verbForm, challenger = false) {
 
 function answer(decision) {
   $("challengeDlg").close();
-  const c = g.pending;
-  play(() => (c.type === "block" ? respondBlock(g, decision === true) : respond(g, decision)));
+  play(g.pending?.type === "block" ? { t: "block", challenge: decision === true } : { t: "answer", decision });
 }
 
 // ---------- the end ----------
 function showOver() {
   const w = g.over.winner;
-  if (!g.over.counted) { g.over.counted = true; noteStreak("cartel", w === ME); save(); }   // the longest win streak, once a game
-  $("overTitle").textContent = w === ME ? "You win the table" : `${g.players[w].name} wins`;
+  $("overTitle").textContent = w === ME ? "You win the table" : `${name(w)} wins`;
   const order = g.events.filter(e => e.t === "out").map(e => name(e.p));
   $("overText").textContent = `Out, in order: ${order.join(", ")}. ${g.moves} turns.`;
   if (!$("overDlg").open) $("overDlg").showModal();
 }
 
 // ---------- menu ----------
-// the menu: Play (a new game with the opponents chosen), Content (two or three opponents), Settings (the pace of the
-// computer's turns)
+// the menu: Play (a new game with the opponents chosen; Invite players, or the table's line), Content (two or three
+// opponents), Settings (the pace of the computer's turns)
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   let picked = chosenOpponents();
-  part(body, "play").append(action("New game", () => {
+  const top = part(body, "play");
+  if (page.host) top.append(action("New game", () => {
     if (picked.length < 2) { toast("Pick at least two opponents"); return; }
-    if (!g.over && g.moves > 2 && !confirm("Start a new game? This one isn't finished.")) return;
+    if (g && !g.over && g.moves > 2 && !confirm("Start a new game? This one isn't finished.")) return;
     startGame(picked);
   }, "primary"));
+  page.menu(top);
   // the opponents: tick two or three (a fourth ticked lets go of the one ticked longest ago)
   part(body, "content").append(ticks("Opponents (two or three)", Object.entries(PERSONAS).map(([id, p]) => [id, `${p.name}, ${p.trait}`]), picked, next => { picked = next; }, 3));
   part(body, "settings").append(choice("Computer turns", Object.entries(PACES).map(([id, p]) => [id, p.label]), pace(), id => {
     try { localStorage.setItem(PACE, id); } catch { /* private mode */ }
-    const c = g.pending, computerDue = c ? (c.type === "proof" ? c.claimant : c.challenger) !== ME : g.turn !== ME;
-    if (!g.over && computerDue) loop();                        // a move already waiting takes the new pace
+    page.runner.kick();                                        // a move already waiting takes the new pace
+    renderControls();
   }));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
@@ -828,7 +816,10 @@ $("app").addEventListener("click", tapOn);
 let refit = 0;
 addEventListener("resize", () => { cancelAnimationFrame(refit); refit = requestAnimationFrame(() => { if (g && mind) render(); }); });
 
-window.__cartel = { get game() { return g; }, get mind() { return mind; }, get ais() { return ais; }, loop: () => loop() };
-
-g = load();
-if (g && !g.over) { setup(); loop(); } else startGame();
+// the game itself, last: its first view is drawn as it's made, with everything above in place
+const page = seatPage({
+  rules, id: "cartel", app: 1, pace: moveMs, toast,
+  botName: (s, G) => PERSONAS[G?.state?.players?.[s]?.persona]?.name || "Quant",
+  onView, onOver, hold: holding, newGame: () => startGame(),
+});
+window.__cartel = { get game() { return g; }, get mind() { return mind; }, get view() { return V; }, page };

@@ -101,13 +101,13 @@ export function botMove(rules, G, seat, level = null) {
 /**
  * Who sits in each of a game's seats: [{ seat, uid, name, bot, away, online }]. A seat is a person's while someone
  * at the table sits in it and is here (or has been away less than `grace` ms, by `awaySince`); otherwise the
- * computer plays it, under its own name.
+ * computer plays it, under its own name (botName(seat, G): Cartel's are the game's, by its seats' personalities).
  */
 export function whoSits(G, branch, { botName = s => `Seat ${s + 1}`, awaySince = {}, grace = 30000, now = Date.now() } = {}) {
   const people = Object.entries(branch?.players || {}).filter(([, p]) => p && Number.isInteger(p.seat));
   return Array.from({ length: G?.seats || 0 }, (_, seat) => {
     const hit = people.find(([, p]) => p.seat === seat);
-    if (!hit) return { seat, uid: null, name: botName(seat), bot: true, away: false, online: true };
+    if (!hit) return { seat, uid: null, name: botName(seat, G), bot: true, away: false, online: true };
     const [uid, p] = hit, online = p.online !== false;
     const away = !online && now - (awaySince[uid] ?? now) >= grace;
     return { seat, uid, name: p.name, bot: away, away: !online, online };
@@ -152,7 +152,7 @@ export function localTable(store, { name = "You" } = {}) {
  * state the table has; use(table) moves to another (solo to a table and back).
  *
  * opts: rules; level() the computer players' strength; pace (ms a computer player takes over its move, so a person
- * can follow, or a function of the state giving it: a secret vote needn't be watched); botName(seat); paused() (solo stands still while a menu is open); onView(view); onOver(view) once for
+ * can follow, or a function of the state giving it: a secret vote needn't be watched); botName(seat, G); paused() (solo stands still while a menu is open, or while the page holds the computer's next move); onView(view); onOver(view) once for
  * each game that ends while it's watched; onError(message).
  *
  * view: { G, state, seat (yours, or null watching), seats (whoSits), mode ("solo" | "table"), me (the table's),

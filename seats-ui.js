@@ -14,11 +14,12 @@ export const fillNames = (text, seats) => String(text || "").replace(/\{s(\d+)\}
 
 /**
  * opts: rules (the game), id (its storage prefix and table branch), app (its code's version at a table), pace,
- * botName(seat), level() (the computer players' strength), voice() (the narrator on), onView(view), onOver(view),
+ * botName(seat, G), level() (the computer players' strength), voice() (the narrator on), onView(view), onOver(view),
  * toast(msg), newGame() (the page's own deal, with its options: what the host's phone deals on arriving at a party's
- * table). Returns { move, deal, view, invite, leave, menu(part), runner }.
+ * table), hold() (solo: the page holds the computer's next move, as Cartel's Tap to continue does; runner.kick()
+ * lets it go). Returns { move, deal, view, invite, leave, menu(part), runner }.
  */
-export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () => null, voice = () => true, onView = () => {}, onOver = () => {}, toast = () => {}, newGame = null }) {
+export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () => null, voice = () => true, onView = () => {}, onOver = () => {}, toast = () => {}, newGame = null, hold = () => false }) {
   const KEY = `${id}:game`;
   const store = {
     load() { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch { return null; } },
@@ -42,7 +43,7 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
 
   runner = createRunner({
     rules, table: solo, level, pace, botName,
-    paused: () => IN_FRAME || isPaused(),
+    paused: () => IN_FRAME || isPaused() || hold(),
     onView: v => {
       narrator.muted = !voice() || IN_FRAME;
       // solo, this phone speaks; at a table, the one that runs it; a seat named in a line ({s2}) by who sits there now
