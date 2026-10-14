@@ -1,12 +1,13 @@
 // Who am I? (party-whoami.js, its decks party-whoami-bank.js built from kb/), played in Node on the database in memory
-// with the host's phone running it (tests/party-harness.js): the decks and their cribs; a guess right in any case, with
-// more words, by surname, a letter off, by another name, and wrong when it's someone else; a game where a wrong guess
-// passes the turn, a right one finishes a player, a player gives up, the others count a guess right in other words, and
-// the game ends when one is left with the first to guess winning; the clock passing a turn; a player who leaves being
-// skipped; the players writing each other's identities; a mix of the decks.
+// with the host's phone running it (tests/party-harness.js): the decks and their cribs; the look over the cards (a card
+// rerolled when most of the others vote for it, with two players at one tap, its owner's vote not counting, a vote on
+// the card it replaced not counting, never dealt one that's been dealt; the questions begin when everyone at the table
+// is ready for the cards as they are, or the host starts them); the questions (Next from any phone, once a turn; the
+// rounds counted as the turn comes round; the clock passing a turn; a player who leaves skipped); the end, every card
+// told; the players writing each other's identities; a mix of the decks.
 import { partyTable } from "./party-harness.js";
 import { gameById } from "../party-core.js";
-import whoami, { rightGuess, namesOf, cribOf, WRITE, MIXED } from "../party-whoami.js";
+import whoami, { cribOf, needed, WRITE, MIXED } from "../party-whoami.js";
 import { DECKS, WHO } from "../party-whoami-bank.js";
 
 let bad = 0;
@@ -19,58 +20,86 @@ check(new Set(all).size === all.length && all.every(id => WHO[id]), `${all.lengt
 check(all.every(id => WHO[id].n && WHO[id].c.length >= 1 && WHO[id].c.length <= 6 && WHO[id].c.every(c => c.length <= 110)), "each with a name and a crib of one to six lines, none overlong");
 check(cribOf("zeus").some(c => /thunder/.test(c)) && cribOf("mona-lisa").some(c => /Leonardo/.test(c)) && cribOf("norway").length >= 4, "the crib says what kb/ knows: Zeus's thunder, the Mona Lisa's painter, Norway's clues");
 check(gameById("whoami") === whoami && whoami.options[0].choices.length === DECKS.length + 2, "in Party's list, with a choice of every deck, a mix and writing your own");
+check([1, 2, 3, 4, 5].map(needed).join() === "1,2,2,3,3", "a card is rerolled by most of the others: the other one of two, both of two, two of three, three of four or five");
 
-// ---------- guesses ----------
-const ok = (id, text, person = false) => rightGuess(namesOf({ id, n: WHO[id].n }), text, { person });
-check(ok("napoleon", "napoleon") && ok("napoleon", "  NAPOLEON! ") && ok("napoleon", "Napolean"), "a guess is right in any case, with punctuation, or one letter off");
-check(ok("einstein", "Albert Einstein") && ok("leonardo-da-vinci", "da Vinci", true) && ok("marie-curie", "Curie", true) && !ok("elvis", "Elvis Presley", true), "with a first name before the name, or by surname; a word after it is left to the others to count");
-check(ok("zeus", "Jupiter") && ok("the-starry-night", "starry night") && ok("william-shakespeare", "Shakespeare"), "by another name: a god's Roman name, without 'the', a double's");
-check(!ok("napoleon", "Caesar") && !ok("leonardo-da-vinci", "Leonardo DiCaprio", true) && !ok("the-starry-night", "night") && !ok("zeus", ""), "and wrong when it's someone else, a namesake, a fragment, or nothing");
-check(rightGuess(["Ozzy Osbourne"], "ozzy") === false && rightGuess(["Ozzy Osbourne"], "Ozzy Osbourne") && rightGuess(["Ozzy Osbourne"], "Osbourne", { person: true }), "a written name is matched the same way");
-
-// ---------- a game ----------
+// ---------- the look over the cards ----------
 const names = n => ["Korbi", "Mei", "Ana", "Bo", "Lin"].slice(0, n);
 const cur = t => t.state.order[t.state.turn];
-const asker = t => t.seatOf(cur(t));
-const done = (t, u) => t.state.done?.[u];                    // the database keeps no empty object: none done yet is none
-const guess = (t, text, i = asker(t)) => t.send(i, { guess: text, turnNo: t.state.turnNo });
+const vote = (t, i, ...targets) => t.send(i, { votes: Object.fromEntries(targets.map(u => [u, t.state.rolls?.[u] || 0])) });
+const ready = (t, i) => t.send(i, { ready: t.state.rerolls || 0 });
+const used = t => Object.values(t.state.who).map(w => w.id);
 {
   const t = await partyTable(names(4));
-  check(await t.start("whoami", { deck: "people" }) && t.state.step === "play", "Who am I? starts with four");
-  const ids = Object.values(t.state.who).map(w => w.id);
-  check(ids.length === 4 && new Set(ids).size === 4 && ids.every(id => DECKS[0].ids.includes(id)), "four different famous people dealt");
-  check(t.state.turns[cur(t)] === 1 && /starts/.test(t.branch.say.text), "the first player's turn, announced");
+  check(await t.start("whoami", { deck: "people" }) && t.state.step === "look", "Who am I? starts with four, on a look over the cards");
+  check(used(t).length === 4 && new Set(used(t)).size === 4 && used(t).every(id => DECKS[0].ids.includes(id)), "four different famous people dealt");
+  const target = t.uid(0), before = t.state.who[target].id;
+  await vote(t, 0, target);
+  await vote(t, 1, target);
+  check(t.state.who[target].id === before, "its owner's vote doesn't count, and one of the three others isn't most");
+  await vote(t, 2, target);
+  const after = t.state.who[target].id;
+  check(after !== before && t.state.rolls[target] === 1 && /Korbi's card is dealt again/.test(t.branch.say.text), "two of the three others: the card is dealt again, and the narrator says whose (not who)");
+  check(!t.branch.say.text.includes(WHO[after].n) && !t.branch.say.text.includes(WHO[before].n), "the narrator names neither the old card nor the new");
+  check(new Set(used(t)).size === 4 && DECKS[0].ids.includes(after) && t.state.used.includes(before), "the new card from the same deck, nobody else's, and the old one kept out of the deal");
+  await vote(t, 3, target);
+  check(t.state.rolls[target] === 1 && t.state.who[target].id === after, "the votes on the card it replaced don't count for the new one");
+  // everyone ready: the questions begin
+  for (let i = 0; i < 3; i++) await ready(t, i);
+  check(t.state.step === "look", "three ready of four: still looking");
+  await ready(t, 3);
+  check(t.state.step === "play" && t.state.turnNo === 1 && t.state.round === 0 && /starts/.test(t.branch.say.text), "all four ready: the first player's turn, announced, no rounds passed");
+
+  // ---------- the questions ----------
   const first = cur(t);
-  await guess(t, "Nobody at all");
-  check(t.state.last?.right === false && cur(t) !== first && t.state.turns[cur(t)] === 1 && /No\./.test(t.branch.say.text), "a wrong guess: no, and the turn passes");
-  const second = cur(t);
-  await t.send(asker(t), { next: true, turnNo: t.state.turnNo });
-  check(cur(t) !== second && !done(t, second), "Next player passes the turn");
-  // the third player gets theirs right
-  const third = cur(t), right = t.state.who[third].n;
-  await guess(t, right.toUpperCase());
-  check(done(t, third)?.how === "got" && done(t, third).rank === 1 && /Yes!/.test(t.branch.say.text), `a right guess (${right}): done, and first`);
-  // a near guess the others count
-  const fourth = cur(t), w = t.state.who[fourth];
-  await guess(t, "the famous one");
-  const no = t.state.last.no;
-  check(t.state.last.right === false, "a guess in other words isn't right by itself…");
-  await t.send(t.seatOf(fourth), { count: no });
-  check(!done(t, fourth), "…the guesser can't count their own…");
-  await t.send(t.seatOf(third), { count: no });
-  check(done(t, fourth)?.how === "got" && t.state.last.counted && /Counted/.test(t.branch.say.text), "…but one of the others can");
-  // two left: one gives up, and the game is over
-  const fifth = cur(t);
-  await t.send(t.seatOf(fifth), { giveup: true, turnNo: t.state.turnNo });
-  check(t.state.step === "over" && done(t, fifth)?.how === "gave" && t.state.winners.join() === third, "a player gives up; one is left, and the first to guess wins");
-  const last = t.state.order.find(u => !done(t, u));
-  check(t.branch.say.text.includes(`${t.state.who[last].n}`) && t.branch.say.text.includes("got there first"), "the narrator says who got there first and who the last one was");
-  check(Object.values(t.branch.tally).reduce((a, b) => a + b, 0) === 1, "one win counted for the evening");
+  await t.send(t.seatOf(t.state.order[2]), { next: t.state.turnNo });
+  check(cur(t) !== first && t.state.turnNo === 2 && /'s turn\./.test(t.branch.say.text), "Next from any phone passes the turn");
+  const no = t.state.turnNo;
+  await t.send(0, { next: no });
+  await t.send(1, { next: no });
+  check(t.state.turnNo === no + 1, "two phones tapping Next for one turn pass it once");
+  await t.send(2, { next: t.state.turnNo });
+  check(t.state.round === 0 && t.state.turn === 3, "the fourth player's turn, the first round not yet passed");
+  await t.send(2, { next: t.state.turnNo });
+  check(t.state.round === 1 && t.state.turn === 0 && /Round 2/.test(t.branch.say.text), "round the table and back to the first: a round passed, and the narrator says the round");
+  // the end: every card told
+  await t.send(0, { end: true });
+  check(t.state.step === "over" && !t.state.winners?.length, "the host ends it: game over, no winner counted (the table says who guessed)");
+  check(Object.values(t.state.who).every(w => t.branch.say.text.includes(w.n)), "the narrator says who everyone was");
+  check(!Object.values(t.branch.tally || {}).length, "no win counted for the evening");
+}
+{
+  // two players: one tap rerolls the other's card
+  const t = await partyTable(names(2));
+  await t.start("whoami", { deck: "countries" });
+  const other = t.uid(1), before = t.state.who[other].id;
+  await vote(t, 0, other);
+  check(t.state.who[other].id !== before && DECKS.find(d => d.id === "countries").ids.includes(t.state.who[other].id), "two players: one tap deals the other's card again, from the same deck");
+}
+{
+  // a Ready from before a reroll doesn't count; the host can start
+  const t = await partyTable(names(3));
+  await t.start("whoami", { deck: "people" });
+  await ready(t, 0);
+  await ready(t, 1);
+  const target = t.uid(0);
+  await vote(t, 1, target);
+  await vote(t, 2, target);
+  check(t.state.rerolls === 1 && t.state.step === "look", "three players: both others vote, the card is dealt again");
+  await ready(t, 2);
+  check(t.state.step === "look", "a Ready from before the new card doesn't count: still looking");
+  await ready(t, 0);
+  await ready(t, 1);
+  check(t.state.step === "play", "everyone ready for the cards as they are: the questions begin");
+  const u = await partyTable(names(3));
+  await u.start("whoami", { deck: "people" });
+  await u.send(0, { start: true });
+  check(u.state.step === "play", "the host's Start now begins the questions without waiting");
 }
 {
   // the clock, and a player who leaves
   const t = await partyTable(names(3));
   await t.start("whoami", { deck: "countries", timer: "60" });
+  await t.send(0, { start: true });
   const first = cur(t);
   await t.tick(30000);
   check(cur(t) === first, "the clock runs…");
@@ -78,26 +107,26 @@ const guess = (t, text, i = asker(t)) => t.send(i, { guess: text, turnNo: t.stat
   check(cur(t) !== first && /Time's up/.test(t.branch.say.text), "…and passes the turn when it runs out");
   const leaver = t.state.order[(t.state.turn + 1) % 3];
   await t.leave(t.seatOf(leaver));
-  await t.send(asker(t), { next: true, turnNo: t.state.turnNo });
-  check(cur(t) !== leaver && t.state.step === "play" && t.state.order.length === 3, "someone who left the table is skipped");
+  await t.send(t.seatOf(cur(t)), { next: t.state.turnNo });
+  check(cur(t) !== leaver && t.state.step === "play", "someone who left the table is skipped");
 }
 {
-  // the players write each other's identities
+  // the players write each other's identities: no look over the cards
   const t = await partyTable(names(3));
   await t.start("whoami", { deck: WRITE });
   check(t.state.step === "write" && Object.keys(t.state.writes).length === 3, "You write them: each writes for the next player");
   const writes = { ...t.state.writes };
   for (let i = 0; i < 3; i++) await t.send(i, { write: ["Ozzy Osbourne", "The Eiffel Tower", "My dentist"][i] });
-  check(t.state.step === "play" && t.state.who[writes[t.uid(0)]].n === "Ozzy Osbourne" && t.state.who[writes[t.uid(0)]].by === t.uid(0), "each gets what the player before wrote, and the game begins");
-  const u = cur(t), mine = t.state.who[u].n;
-  await guess(t, mine.toLowerCase().replace(/^the /, ""));
-  check(done(t, u)?.how === "got", `a written identity is guessed as a dealt one is (${mine})`);
+  check(t.state.step === "play" && t.state.who[writes[t.uid(0)]].n === "Ozzy Osbourne" && t.state.who[writes[t.uid(0)]].by === t.uid(0), "each gets what the player before wrote, and the questions begin at once");
 }
 {
   const t = await partyTable(names(5));
   await t.start("whoami", { deck: MIXED });
   const decks = new Set(Object.values(t.state.who).map(w => DECKS.find(d => d.ids.includes(w.id)).id));
   check(Object.keys(t.state.who).length === 5 && decks.size >= 2, `a mix deals from the decks together (${[...decks].join(", ")})`);
+  const target = t.uid(4);
+  for (let i = 0; i < 3; i++) await vote(t, i, target);
+  check(t.state.rolls[target] === 1 && all.includes(t.state.who[target].id), "five players: three of the four others reroll a card, from the mix");
 }
 {
   const t = await partyTable(names(1));

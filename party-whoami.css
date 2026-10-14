@@ -1,35 +1,33 @@
-/* Who am I? (Party): your own card a question mark in Party's turquoise until you've got it, the others' cards each with
-   who they are in large letters and the crib under it, the one asking edged in turquoise. */
+/* Who am I? (Party): your own card a question mark in Party's turquoise until the end, the others' cards each with who
+   they are in large letters and the crib under it, the one asking edged in turquoise; whose turn it is and the rounds
+   passed large over Next. */
 .wa-center { text-align: center; }
 .wa-me { display: grid; justify-items: center; gap: .2rem; padding: .8rem; border: 1.5px solid var(--pa-in); border-radius: 6px; background: var(--pa-soft); text-align: center; }
 .wa-me-label { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
-.wa-me-who { font-size: 2.2rem; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
-.wa-me:not(.done) .wa-me-who { color: var(--pa-in); }
+.wa-me-who { font-size: 2.2rem; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; color: var(--pa-in); }
+.wa-me-who.shown { color: var(--ink); }
 .wa-me-what { font-size: .9rem; color: var(--ink-soft); }
 /* while you answer the others, your own card is a line */
 .wa-me.small { display: flex; align-items: baseline; justify-content: center; gap: .5rem; padding: .45rem .7rem; }
 .wa-me.small .wa-me-who { font-size: 1.3rem; }
 .pk-btn.wa-small { min-height: 2.5rem; font-size: .9rem; }
-.wa-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-.wa-guess { display: grid; gap: .45rem; }
-.wa-guess-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
-.wa-guess-row .pk-btn { width: auto; padding: 0 1.1rem; }
-.wa-hints { display: flex; flex-wrap: wrap; gap: .35rem; }
-.wa-hints:empty { display: none; }
-.wa-hint { padding: .45rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
-.wa-last { margin: 0; text-align: center; }
-.wa-last strong { color: #A8382B; }
-.wa-last.right strong { color: #2F7D5B; }
+
+/* whose turn, and the rounds passed */
+.wa-turn { display: grid; justify-items: center; gap: .15rem; text-align: center; }
+.wa-turn-who { font-size: 1.6rem; font-weight: 800; line-height: 1.15; color: var(--pa-in); overflow-wrap: anywhere; }
+.wa-turn-rounds { font-size: .78rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 
 /* the others' cards */
 .wa-cards { margin: 0; padding: 0; list-style: none; display: grid; gap: .5rem; }
 .wa-card { padding: .55rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
 .wa-card.now { border-color: var(--pa-in); box-shadow: inset 0 0 0 1px var(--pa-in); }
-.wa-card.done { opacity: .7; }
-.wa-card-head { display: flex; align-items: baseline; gap: .5rem; }
+.wa-card-head { display: flex; align-items: center; gap: .5rem; }
 .wa-name { font-weight: 800; }
-.wa-status { margin-left: auto; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; }
-.wa-card.now .wa-status { color: var(--pa-in); font-weight: 800; }
+.wa-status { margin-left: auto; font-size: .78rem; color: var(--pa-in); font-weight: 800; white-space: nowrap; }
+/* a vote to reroll a card: pressed in turquoise, the votes it has of those it needs */
+.wa-reroll { margin-left: auto; min-height: 2.25rem; padding: 0 .7rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); color: var(--ink);
+  font: inherit; font-size: .82rem; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; cursor: pointer; }
+.wa-reroll[aria-pressed="true"] { border-color: var(--pa-in); background: var(--pa-soft); color: var(--pa-in); box-shadow: inset 0 0 0 1px var(--pa-in); }
 .wa-card-body { display: flex; gap: .6rem; align-items: flex-start; margin-top: .2rem; }
 .wa-card-text { display: grid; gap: .15rem; min-width: 0; }
 .wa-who { font-size: 1.3rem; font-weight: 800; line-height: 1.15; color: var(--pa-in); overflow-wrap: anywhere; }
@@ -39,19 +37,11 @@
 .wa-pic { flex: none; width: 3.6rem; }
 .wa-pic img { display: block; width: 100%; height: auto; max-height: 4.8rem; object-fit: cover; border-radius: 3px; }
 
-/* the end */
-.wa-end { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; counter-reset: wa; }
-.wa-end li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto; gap: .5rem; align-items: baseline; padding: .4rem .2rem; border-bottom: 1px solid var(--rule); }
+/* the end: everyone, and who they were */
+.wa-end { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; }
+.wa-end li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: .5rem; align-items: baseline; padding: .4rem .2rem; border-bottom: 1px solid var(--rule); }
 .wa-end-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wa-end li.won .wa-end-name::after { content: " ★"; color: var(--pa-in); }
-.wa-end li.me .wa-end-name { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
 .wa-end-who { font-weight: 800; color: var(--pa-in); overflow-wrap: anywhere; }
-.wa-end-note { font-size: .82rem; color: var(--ink-soft); white-space: nowrap; }
-.wa-end li.out .wa-end-who { color: var(--ink-soft); }
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) .wa-last strong { color: #E8806F; }
-  html:not([data-mode="day"]) .wa-last.right strong { color: #7FC2A8; }
-}
-html[data-mode="night"] .wa-last strong { color: #E8806F; }
-html[data-mode="night"] .wa-last.right strong { color: #7FC2A8; }
-html[data-theme="office"] :is(.wa-me, .wa-card, .wa-hint) { border-radius: 4px; }
+html[data-theme="modern"] .wa-reroll { border-radius: 12px; }
+html[data-theme="office"] :is(.wa-me, .wa-card, .wa-reroll) { border-radius: 4px; }
+html[data-theme="kontor"] .wa-reroll { border-radius: 2px; }
