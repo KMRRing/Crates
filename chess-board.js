@@ -200,3 +200,145 @@ export function mountPuzzle(container, puzzle, opts = {}) {
   } else later(reply, opts.firstMs ?? 500);
   return { destroy() { timers.forEach(clearTimeout); }, get solver() { return solver; } };
 }
+
+/**
+ * Mounts a board for a whole game (Gambit): the position from a FEN, from White's side or Black's, moved by tap or drag
+ * with the legal targets shown; a pawn reaching the last rank asks which piece it becomes (queen, rook, bishop or
+ * knight, in a column over the square). onMove(uci) gets a move made by hand ("e2e4", "e7e8n"). Returns { draw(view) }:
+ * view is { fen, white (White at the bottom), moves (the legal moves the hand may make now, chess.js's verbose moves; none
+ * when it isn't the hand's turn), last ({ from, to }), arrow ({ from, to }: a move to show), check (the square of a king
+ * in check), slide (the last move slides in) }. Puzzles keep mountPuzzle above.
+ */
+export function mountBoard(container, { onMove }) {
+  const svg = el("svg", { viewBox: "0 0 8 8", class: "ch-board ch-game" });
+  container.replaceChildren(svg);
+  let view = null, selected = null, drag = null, press = null, promo = null;
+  const xy = sq => { const f = FILES.indexOf(sq[0]), r = Number(sq[1]) - 1; return view.white ? [f, 7 - r] : [7 - f, r]; };
+  const squareAt = (bx, by) => {
+    if (bx < 0 || by < 0 || bx >= 8 || by >= 8) return null;
+    const col = Math.floor(bx), row = Math.floor(by);
+    return view.white ? FILES[col] + (8 - row) : FILES[7 - col] + (row + 1);
+  };
+  const local = e => { const r = svg.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * 8, (e.clientY - r.top) / r.height * 8]; };
+  const boardOf = fen => {
+    const out = {}, rows = fen.split(" ")[0].split("/");
+    rows.forEach((row, k) => { let f = 0; for (const ch of row) { if (/\d/.test(ch)) { f += Number(ch); continue; } out[FILES[f++] + (8 - k)] = (ch === ch.toUpperCase() ? "w" : "b") + ch.toUpperCase(); } });
+    return out;
+  };
+  const targetsOf = sq => (view?.moves || []).filter(m => m.from === sq);
+  const piece = (code, x, y, cls = "") => {
+    const g = el("g", { class: `piece${cls ? ` ${cls}` : ""}` });
+    g.style.transform = `translate(${x}px, ${y}px)`;
+    g.innerHTML = `<g transform="scale(${1 / 45})">${PIECES[code]}</g>`;
+    return g;
+  };
+
+  function draw(next) {
+    if (next) view = next;
+    if (!view) return;
+    const board = boardOf(view.fen), last = view.last, legal = selected ? targetsOf(selected) : [];
+    svg.replaceChildren();
+    for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) {
+      const sq = FILES[f] + (r + 1), [x, y] = xy(sq), dark = (f + r) % 2 === 0;
+      svg.appendChild(el("rect", { x, y, width: 1, height: 1, class: `sq ${dark ? "dark" : "light"}` }));
+      const marks = [last && (last.from === sq || last.to === sq) && "last", selected === sq && "sel"].filter(Boolean);
+      for (const m of marks) svg.appendChild(el("rect", { x, y, width: 1, height: 1, class: `hl ${m}` }));
+    }
+    if (view.check) { const [x, y] = xy(view.check); svg.appendChild(el("circle", { cx: x + 0.5, cy: y + 0.5, r: 0.5, class: "hl check" })); }
+    for (let i = 0; i < 8; i++) {
+      const fileSq = view.white ? FILES[i] + "1" : FILES[7 - i] + "8", rankSq = view.white ? "a" + (8 - i) : "h" + (i + 1);
+      const [fx, fy] = xy(fileSq), [rx, ry] = xy(rankSq);
+      const on = sq => ((FILES.indexOf(sq[0]) + Number(sq[1]) - 1) % 2 === 0 ? "on-dark" : "on-light");
+      const fileText = el("text", { x: fx + 0.93, y: fy + 0.95, class: `coord ${on(fileSq)}`, "text-anchor": "end" });
+      fileText.textContent = fileSq[0];
+      const rankText = el("text", { x: rx + 0.07, y: ry + 0.3, class: `coord ${on(rankSq)}` });
+      rankText.textContent = rankSq[1];
+      svg.append(fileText, rankText);
+    }
+    let sliding = null;
+    for (const [sq, code] of Object.entries(board)) {
+      if (drag?.moved && drag.from === sq) continue;
+      const [x, y] = xy(sq);
+      if (view.slide && last && sq === last.to) { const [fx, fy] = xy(last.from); sliding = { g: piece(code, fx, fy, "slide"), x, y }; svg.appendChild(sliding.g); continue; }
+      svg.appendChild(piece(code, x, y, drag && !drag.moved && drag.from === sq ? "lifted" : ""));
+    }
+    if (sliding) { requestAnimationFrame(() => requestAnimationFrame(() => { sliding.g.style.transform = `translate(${sliding.x}px, ${sliding.y}px)`; })); view = { ...view, slide: false }; }
+    for (const m of legal) {
+      const [x, y] = xy(m.to);
+      if (legal.indexOf(m) !== legal.findIndex(o => o.to === m.to)) continue;   // a promotion's four moves share a square
+      svg.appendChild(el("circle", { cx: x + 0.5, cy: y + 0.5, r: board[m.to] ? 0.42 : 0.14, class: `target${board[m.to] ? " capture" : ""}` }));
+    }
+    if (view.arrow) {
+      const [fx, fy] = xy(view.arrow.from), [tx, ty] = xy(view.arrow.to);
+      const ax = fx + 0.5, ay = fy + 0.5, bx = tx + 0.5, by = ty + 0.5, len = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / len, uy = (by - ay) / len;
+      const ex = bx - ux * 0.32, ey = by - uy * 0.32, w = 0.24;
+      svg.appendChild(el("path", { class: "arrow", d: `M${ax + ux * 0.2} ${ay + uy * 0.2}L${ex} ${ey}M${ex - ux * 0.05 - uy * w} ${ey - uy * 0.05 + ux * w}L${bx - ux * 0.08} ${by - uy * 0.08}L${ex - ux * 0.05 + uy * w} ${ey - uy * 0.05 - ux * w}Z` }));
+    }
+    if (drag?.moved) svg.appendChild(piece(board[drag.from], drag.x - 0.5, drag.y - 0.5, "dragging"));
+    if (promo) {                                                   // the four pieces a pawn may become, from its square inward
+      const [x, y] = xy(promo.to), down = y === 0 ? 1 : -1, colour = promo.colour;
+      svg.appendChild(el("rect", { x: 0, y: 0, width: 8, height: 8, class: "promo-veil" }));
+      ["q", "r", "b", "n"].forEach((p, i) => {
+        const py = y + i * down;
+        svg.appendChild(el("rect", { x, y: py, width: 1, height: 1, class: "promo-sq", "data-promo": p }));
+        svg.appendChild(piece(colour + p.toUpperCase(), x, py, "promo-pc"));
+      });
+    }
+  }
+
+  function attempt(from, to) {
+    const options = targetsOf(from).filter(m => m.to === to);
+    if (!options.length) return false;
+    selected = null;
+    if (options.some(m => m.promotion)) { promo = { from, to, colour: options[0].color }; draw(); return true; }
+    onMove(uciOf(options[0]));
+    return true;
+  }
+  function tapAt(sq) {
+    if (selected && selected !== sq && attempt(selected, sq)) return;
+    selected = sq && targetsOf(sq).length && selected !== sq ? sq : null;
+    draw();
+  }
+  svg.addEventListener("pointerdown", e => {
+    if (!view || e.button > 0) return;
+    const [bx, by] = local(e);
+    if (promo) {                                                  // a piece chosen for the pawn, or the choice put away
+      const [x, y] = xy(promo.to), col = Math.floor(bx), row = Math.floor(by), down = y === 0 ? 1 : -1, i = (row - y) * down;
+      const p = col === x && i >= 0 && i < 4 ? ["q", "r", "b", "n"][i] : null, chosen = promo;
+      promo = null;
+      if (p) onMove(chosen.from + chosen.to + p); else draw();
+      e.preventDefault();
+      return;
+    }
+    const sq = squareAt(bx, by);
+    if (!sq) return;
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, sq, was: selected };
+    try { svg.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+    if (targetsOf(sq).length) { drag = { from: sq, x: bx, y: by, moved: false }; if (selected !== sq) { selected = sq; draw(); } }
+    e.preventDefault();
+  });
+  svg.addEventListener("pointermove", e => {
+    if (!drag || !press || e.pointerId !== press.id) return;
+    const [bx, by] = local(e);
+    drag.x = Math.max(0, Math.min(8, bx)); drag.y = Math.max(0, Math.min(8, by));
+    if (!drag.moved && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 6) drag.moved = true;
+    if (drag.moved) draw();
+  });
+  const release = e => {
+    if (!press || e.pointerId !== press.id) return;
+    const was = drag, start = press;
+    drag = null; press = null;
+    const sq = squareAt(...local(e));
+    if (was?.moved) { if (!(sq && sq !== was.from && attempt(was.from, sq))) draw(); return; }
+    if (!sq) { draw(); return; }
+    if (was && sq === start.sq) { if (start.was === sq) selected = null; draw(); return; }   // a second tap on a picked piece puts it down
+    tapAt(sq);
+  };
+  svg.addEventListener("pointerup", release);
+  svg.addEventListener("pointercancel", () => { drag = null; press = null; draw(); });
+
+  return {
+    draw(next) { if (!next.moves?.length || next.fen !== view?.fen) { selected = null; promo = null; } draw(next); },
+  };
+}
+const uciOf = m => m.from + m.to + (m.promotion || "");

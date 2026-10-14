@@ -1,0 +1,166 @@
+/* River: Xiangqi on a wooden board, its lines and the river's words inked in brown, the pieces ivory discs on a brass
+   rim with their characters in cinnabar and navy. The board is drawn to an SVG viewBox (river-board.js), so its lines,
+   pieces and words grow with it; the page round it is in rem. */
+:root {
+  --rv-in: #B5452E;                                               /* cinnabar lacquer: the game's enamel */
+  --rv-in-soft: color-mix(in srgb, var(--rv-in) 15%, var(--sheet));
+  --rv-wood: #E9C98F; --rv-wood-edge: #C9A465; --rv-line: #5B3A1C;
+  --rv-face: #F8EED6; --rv-rim: #A47528; --rv-red: #B3302A; --rv-black: #1C2A34;
+  --rv-last: rgba(201, 120, 30, .95); --rv-sel: #C8923A; --rv-target: rgba(28, 42, 52, .38); --rv-hint: #2F7D5B; --rv-check: #D23B2A;
+  --rv-red-text: #A8382B; --rv-shadow: rgba(52, 30, 8, .32);
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --rv-in: #E58A6E; --rv-wood: #7C5E38; --rv-wood-edge: #5E4527; --rv-line: #1E1309; --rv-face: #E4D7B9; --rv-rim: #C99A45;
+    --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45); }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --rv-in: #E58A6E; --rv-wood: #7C5E38; --rv-wood-edge: #5E4527; --rv-line: #1E1309; --rv-face: #E4D7B9; --rv-rim: #C99A45;
+  --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45); }
+/* the brass rim is Almanac's: the other themes edge a disc in its own wood */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --rv-rim: #8E6B3C; }
+/* Kontor and Office lend it their own accent, as their other games */
+html[data-theme="kontor"] { --rv-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --rv-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --rv-in: #2EB36A; }
+/* Office: a board in Fluent's greys, the pieces white, red in Office's red */
+html[data-theme="office"] { --rv-in: #0F6CBD; --rv-wood: #F3F2F1; --rv-wood-edge: #D2D0CE; --rv-line: #605E5C; --rv-face: #FFFFFF; --rv-rim: #A19F9D;
+  --rv-red: #C50F1F; --rv-black: #242424; --rv-red-text: #C50F1F; --rv-last: rgba(15, 108, 189, .9); --rv-sel: #0F6CBD; --rv-hint: #107C10; --rv-shadow: rgba(0, 0, 0, .2); }
+@media (prefers-color-scheme: dark) {
+  html[data-theme="office"]:not([data-mode="day"]) { --rv-in: #479EF5; --rv-wood: #2E2D2C; --rv-wood-edge: #484644; --rv-line: #A19F9D; --rv-face: #E1DFDD; --rv-rim: #797775;
+    --rv-red: #C50F1F; --rv-black: #1B1A19; --rv-red-text: #F1707B; --rv-last: rgba(71, 158, 245, .95); --rv-sel: #479EF5; --rv-hint: #54B054; --rv-shadow: rgba(0, 0, 0, .5); }
+}
+html[data-theme="office"][data-mode="night"] { --rv-in: #479EF5; --rv-wood: #2E2D2C; --rv-wood-edge: #484644; --rv-line: #A19F9D; --rv-face: #E1DFDD; --rv-rim: #797775;
+  --rv-red: #C50F1F; --rv-black: #1B1A19; --rv-red-text: #F1707B; --rv-last: rgba(71, 158, 245, .95); --rv-sel: #479EF5; --rv-hint: #54B054; --rv-shadow: rgba(0, 0, 0, .5); }
+
+.rv-mark { display: inline-block; }
+.rv-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the seats over and under the board, and what's said ---------- */
+.rv-seat { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 1.7rem; font-size: .9rem; }
+.rv-far { margin-top: .45rem; }
+.rv-who { display: flex; align-items: center; gap: .4rem; min-width: 0; white-space: nowrap; color: var(--ink-soft); }
+.rv-who b { overflow: hidden; text-overflow: ellipsis; font-weight: 750; }
+.rv-who.turn { color: var(--ink); }
+.rv-who .rv-disc-pic { flex: none; }
+.rv-thinking { display: inline-flex; align-items: center; gap: .3rem; margin-left: .2rem; font-size: .78rem; color: var(--ink-soft); }
+.rv-taken { display: flex; flex-wrap: nowrap; justify-content: flex-end; min-width: 0; overflow: hidden; font-size: .92rem; line-height: 1;
+  font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; }
+.rv-taken i { font-style: normal; }
+.rv-taken .red { color: var(--rv-red-text); }
+.rv-taken .black { color: var(--ink); }
+.rv-near { margin-top: .25rem; }
+.rv-near .rv-who { flex: 1 1 auto; }
+.rv-near .rv-taken { flex: 0 1 auto; max-width: 40%; }
+.rv-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.rv-say b { font-weight: 800; }
+.rv-check { color: var(--rv-red-text); }
+.rv-wxf { font-size: .78rem; color: var(--ink-soft); }
+.rv-open { color: var(--ink-soft); }
+.rv-wait { display: inline-block; vertical-align: -.15em; margin-right: .3rem; }
+
+/* ---------- the board: as large as the room left, the full width of a phone ---------- */
+.rv-stage { margin: .3rem -1rem 0; min-height: 0; }
+.rv-board { width: min(100cqw, calc(100cqh * 9.24 / 10.96)); aspect-ratio: 9.24 / 10.96; }
+.rv-svg { display: block; width: 100%; height: 100%; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.rv-wood { fill: var(--rv-wood); stroke: var(--rv-wood-edge); stroke-width: .02; }
+.rv-frame { fill: none; stroke: var(--rv-line); stroke-width: .065; }
+.rv-grid { fill: none; stroke: var(--rv-line); stroke-width: .032; stroke-linecap: square; }
+.rv-river { fill: var(--rv-line); opacity: .78; font-weight: 600; }
+.rv-coord { fill: var(--rv-line); opacity: .72; }
+.rv-pc { cursor: pointer; }
+.rv-pc.slide { transition: transform .22s cubic-bezier(.3, .7, .3, 1); }
+@media (prefers-reduced-motion: reduce) { .rv-pc.slide { transition: none; } }
+.rv-pc-shadow { fill: var(--rv-shadow); }
+.rv-pc-edge { fill: var(--rv-rim); }
+.rv-pc-face { fill: var(--rv-face); }
+.rv-pc-ring { fill: none; stroke-width: .03; }
+.rv-pc-ch { font-weight: 700; }
+.rv-pc.red .rv-pc-ring { stroke: var(--rv-red); }
+.rv-pc.red .rv-pc-ch { fill: var(--rv-red); }
+.rv-pc.black .rv-pc-ring { stroke: var(--rv-black); }
+.rv-pc.black .rv-pc-ch { fill: var(--rv-black); }
+.rv-pc.sel .rv-pc-edge { stroke: var(--rv-sel); stroke-width: .075; }
+.rv-pc.check .rv-pc-edge { stroke: var(--rv-check); stroke-width: .09; }
+.rv-pc.drag { pointer-events: none; }
+.rv-pc.drag .rv-pc-shadow { transform: translate(.06px, .12px); }
+.rv-last-from { fill: none; stroke: var(--rv-last); stroke-width: .055; }
+.rv-last-to { fill: none; stroke: var(--rv-last); stroke-width: .06; }
+.rv-target { fill: var(--rv-target); pointer-events: none; }
+.rv-target.take { fill: none; stroke: var(--rv-target); stroke-width: .075; }
+.rv-hint { fill: none; stroke: var(--rv-hint); stroke-width: .13; stroke-linecap: round; stroke-linejoin: round; opacity: .88; pointer-events: none; }
+/* a disc in a line of words (the seats, the rules) */
+.rv-disc-pic { display: inline-block; vertical-align: middle; overflow: visible; }
+
+/* ---------- the moves: a row of the latest, Chinese over WXF ---------- */
+.rv-list { display: flex; gap: .3rem; margin: .35rem 0 0; padding: 0; list-style: none; min-height: 2.75rem; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.rv-list::-webkit-scrollbar { display: none; }
+.rv-list li { flex: none; display: flex; align-items: center; gap: .3rem; padding: .2rem .45rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); line-height: 1.12; }
+.rv-list li small { font-size: .72rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.rv-list li > span { display: flex; flex-direction: column; }
+.rv-list li b { font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; font-size: .95rem; font-weight: 700; }
+.rv-list li i { font-style: normal; font-size: .7rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.rv-list li.red b { color: var(--rv-red-text); }
+.rv-list li.last { border-color: var(--rv-in); box-shadow: inset 0 0 0 1px var(--rv-in); }
+.rv-list li.rv-none { display: block; border: 0; background: none; padding: .2rem 0; font-size: .86rem; color: var(--ink-soft); align-self: center; }
+
+/* ---------- the buttons, low ---------- */
+.rv-bar { display: flex; gap: .5rem; margin-top: .45rem; min-height: 2.75rem; }
+.rv-bar > .rv-go { flex: 1 1 0; min-width: 0; }
+.rv-go { min-height: 2.75rem; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent);
+  outline-offset: -5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
+.rv-go:disabled { opacity: .4; cursor: default; }
+/* Modern's buttons: rounded, in the game's enamel, sentence case (the gilt hairline is Almanac's) */
+html[data-theme="modern"] .rv-go { border-radius: 14px; background: var(--rv-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
+html[data-theme="modern"] .rv-go.quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+html[data-theme="modern"] .rv-list li { border-radius: 10px; }
+
+/* ---------- the sheets ---------- */
+dialog.rv-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+#rulesDlg { padding-top: 0; }
+#rulesDlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding-top: 1rem; }
+.rv-rules p { margin: .45rem 0; font-size: .92rem; line-height: 1.45; }
+.rv-rules h4 { margin: 1rem 0 .3rem; }
+.rv-rules a { color: var(--rv-in); }
+.rv-rule-piece { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .7rem; align-items: start; margin: .55rem 0; font-size: .92rem; }
+.rv-rule-piece p { margin: .15rem 0 0; }
+.rv-rule-piece i { color: var(--ink-soft); }
+.rv-pair { display: flex; gap: .15rem; }
+.rv-figure { margin: .4rem 0 .2rem; }
+.rv-diagram { display: block; max-width: 100%; height: auto; overflow: visible; }
+.rv-dg-yes { fill: var(--rv-hint); }
+.rv-dg-no { fill: none; stroke: var(--rv-check); stroke-width: .07; stroke-linecap: round; }
+.rv-dg-take { fill: none; stroke: var(--rv-hint); stroke-width: .07; }
+.rv-openings { margin: .3rem 0; padding-left: 1.1rem; font-size: .88rem; line-height: 1.45; }
+.rv-openings li { margin: .25rem 0; }
+.rv-openings i { color: var(--ink-soft); }
+.rv-end-head { margin: 0 0 .4rem; font-size: 1.15rem; }
+.rv-end p { margin: .35rem 0; font-size: .95rem; line-height: 1.45; }
+.rv-end-go { display: flex; gap: .5rem; margin-top: .9rem; }
+.rv-sub { margin: .9rem 0 .2rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--rv-in); }
+.rv-review { margin: .3rem 0; padding-left: 1.2rem; font-size: .92rem; line-height: 1.45; }
+.rv-review li { margin: .25rem 0; }
+.rv-review b { font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; }
+.rv-reviewing { color: var(--ink-soft); }
+.rv-end-go .rv-go { flex: 1 1 0; }
+
+.rv-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.rv-toast.show { opacity: 1; }
+html[data-theme="modern"] .rv-toast { border-radius: 10px; }
+
+/* held sideways (#app.beside): the board on the left with all the height; the seats, what's said and the moves beside
+   it, the moves filling the column, the buttons at the bottom where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.river { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.river .rv-stage { grid-column: 1; grid-row: 2 / -1; margin: .5rem 0 0; }
+  #app.river .rv-far { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.river .rv-near { grid-column: 2; grid-row: 3; align-items: flex-start; min-height: 3.6rem; margin-top: .45rem; }
+  #app.river .rv-near .rv-who { white-space: normal; align-items: flex-start; }
+  #app.river .rv-near .rv-say { line-height: 1.35; }
+  #app.river .rv-list { grid-column: 2; grid-row: 4; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
+  #app.river .rv-bar { grid-column: 2; grid-row: 5; }
+}

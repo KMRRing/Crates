@@ -1,0 +1,388 @@
+diff --git a/src/misc.cpp b/src/misc.cpp
+index 3dad8000..a7657b69 100644
+--- a/src/misc.cpp
++++ b/src/misc.cpp
+@@ -306,6 +306,7 @@ void dbg_print() {
+ 
+ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
+ 
++#ifndef SINGLE_THREADED
+   static std::mutex m;
+ 
+   if (sc == IO_LOCK)
+@@ -313,6 +314,9 @@ std::ostream& operator<<(std::ostream& os, SyncCout sc) {
+ 
+   if (sc == IO_UNLOCK)
+       m.unlock();
++#else
++  (void)sc;
++#endif
+ 
+   return os;
+ }
+diff --git a/src/search.cpp b/src/search.cpp
+index 651f6bd9..52b6f9a1 100644
+--- a/src/search.cpp
++++ b/src/search.cpp
+@@ -232,8 +232,10 @@ void MainThread::search() {
+   // GUI sends a "stop" or "ponderhit" command. We therefore simply wait here
+   // until the GUI sends one of those commands.
+ 
++#ifndef SINGLE_THREADED
+   while (!Threads.stop && (ponder || Limits.infinite))
+   {} // Busy wait for a stop or a ponder reset
++#endif
+ 
+   // Stop the threads if not already stopped (also raise the stop if
+   // "ponderhit" just reset Threads.ponder).
+diff --git a/src/syzygy/tbprobe.cpp b/src/syzygy/tbprobe.cpp
+index e70195aa..b773b958 100644
+--- a/src/syzygy/tbprobe.cpp
++++ b/src/syzygy/tbprobe.cpp
+@@ -26,7 +26,9 @@
+ #include <list>
+ #include <sstream>
+ #include <type_traits>
++#ifndef SINGLE_THREADED
+ #include <mutex>
++#endif
+ 
+ #include "../bitboard.h"
+ #include "../movegen.h"
+@@ -1141,14 +1143,18 @@ void set(T& e, uint8_t* data) {
+ template<TBType Type>
+ void* mapped(TBTable<Type>& e, const Position& pos) {
+ 
++#ifndef SINGLE_THREADED
+     static std::mutex mutex;
++#endif
+ 
+     // Use 'acquire' to avoid a thread reading 'ready' == true while
+     // another is still working. (compiler reordering may cause this).
+     if (e.ready.load(std::memory_order_acquire))
+         return e.baseAddress; // Could be nullptr if file does not exist
+ 
++#ifndef SINGLE_THREADED
+     std::scoped_lock<std::mutex> lk(mutex);
++#endif
+ 
+     if (e.ready.load(std::memory_order_relaxed)) // Recheck under lock
+         return e.baseAddress;
+diff --git a/src/thread.cpp b/src/thread.cpp
+index 32aaf58e..7a95b9e1 100644
+--- a/src/thread.cpp
++++ b/src/thread.cpp
+@@ -33,6 +33,29 @@ namespace Stockfish {
+ ThreadPool Threads; // Global object
+ 
+ 
++#ifdef SINGLE_THREADED
++
++/// Single-threaded build (WebAssembly without shared memory, as a static web host serves it): no thread is started.
++/// A search runs to its end in the caller, so "go" returns after "bestmove"; only Threads = 1 is offered, and "stop",
++/// "ponderhit" and "go infinite" cannot interrupt a search under way (give it a depth, nodes or a time).
++
++Thread::Thread(size_t n) : idx(n) { searching = false; }
++
++Thread::~Thread() { exit = true; }
++
++void Thread::start_searching() {
++
++  searching = true;
++  search();
++  searching = false;
++}
++
++void Thread::wait_for_search_finished() {}
++
++void Thread::idle_loop() {}
++
++#else
++
+ /// Thread constructor launches the thread and waits until it goes to sleep
+ /// in idle_loop(). Note that 'searching' and 'exit' should be already set.
+ 
+@@ -55,6 +78,8 @@ Thread::~Thread() {
+ }
+ 
+ 
++#endif // SINGLE_THREADED
++
+ /// Thread::clear() reset histories, usually before a new game
+ 
+ void Thread::clear() {
+@@ -76,6 +101,8 @@ void Thread::clear() {
+ }
+ 
+ 
++#ifndef SINGLE_THREADED
++
+ /// Thread::start_searching() wakes up the thread that will start the search
+ 
+ void Thread::start_searching() {
+@@ -131,6 +158,8 @@ void Thread::idle_loop() {
+   }
+ }
+ 
++#endif // SINGLE_THREADED
++
+ /// ThreadPool::set() creates/destroys threads to match the requested number.
+ /// Created and launched threads will immediately go to sleep in idle_loop.
+ /// Upon resizing, threads are recreated to allow for binding if necessary.
+diff --git a/src/thread.h b/src/thread.h
+index 464be79e..2e79a0a6 100644
+--- a/src/thread.h
++++ b/src/thread.h
+@@ -20,9 +20,11 @@
+ #define THREAD_H_INCLUDED
+ 
+ #include <atomic>
++#ifndef SINGLE_THREADED
+ #include <condition_variable>
+ #include <mutex>
+ #include <thread>
++#endif
+ #include <vector>
+ 
+ #include "material.h"
+@@ -30,7 +32,9 @@
+ #include "pawns.h"
+ #include "position.h"
+ #include "search.h"
++#ifndef SINGLE_THREADED
+ #include "thread_win32_osx.h"
++#endif
+ 
+ namespace Stockfish {
+ 
+@@ -41,11 +45,15 @@ namespace Stockfish {
+ 
+ class Thread {
+ 
++#ifndef SINGLE_THREADED
+   std::mutex mutex;
+   std::condition_variable cv;
++#endif
+   size_t idx;
+   bool exit = false, searching = true; // Set before starting std::thread
++#ifndef SINGLE_THREADED
+   NativeThread stdThread;
++#endif
+ 
+ public:
+   explicit Thread(size_t);
+diff --git a/src/tt.cpp b/src/tt.cpp
+index 5982d937..c183a6a2 100644
+--- a/src/tt.cpp
++++ b/src/tt.cpp
+@@ -18,7 +18,9 @@
+ 
+ #include <cstring>   // For std::memset
+ #include <iostream>
++#ifndef SINGLE_THREADED
+ #include <thread>
++#endif
+ 
+ #include "bitboard.h"
+ #include "misc.h"
+@@ -85,6 +87,9 @@ void TranspositionTable::resize(size_t mbSize) {
+ 
+ void TranspositionTable::clear() {
+ 
++#ifdef SINGLE_THREADED
++  std::memset(&table[0], 0, clusterCount * sizeof(Cluster));
++#else
+   std::vector<std::thread> threads;
+ 
+   for (size_t idx = 0; idx < Options["Threads"]; ++idx)
+@@ -107,6 +112,7 @@ void TranspositionTable::clear() {
+ 
+   for (std::thread& th : threads)
+       th.join();
++#endif
+ }
+ 
+ 
+diff --git a/src/uci.cpp b/src/uci.cpp
+index 584977aa..e5ddb57c 100644
+--- a/src/uci.cpp
++++ b/src/uci.cpp
+@@ -293,11 +293,34 @@ namespace {
+ /// run 'bench', once the command is executed the function returns immediately.
+ /// In addition to the UCI ones, also some additional debug commands are supported.
+ 
++#ifdef WASI_REACTOR
++namespace { std::deque<string> queued; }
++
++void UCI::command(const string& line) {
++
++  queued.push_back(line);
++  char name[] = "fairy-stockfish";
++  char* argv[] = { name, nullptr };
++  loop(1, argv);
++}
++#endif
++
+ void UCI::loop(int argc, char* argv[]) {
+ 
++#ifdef WASI_REACTOR
++  static Position pos;
++  static string token, cmd;
++  static StateListPtr states(new std::deque<StateInfo>(1));
++  static std::vector<Move> banmoves = {};
++  static bool started = false;
++  if (!started)
++  {
++  started = true;
++#else
+   Position pos;
+   string token, cmd;
+   StateListPtr states(new std::deque<StateInfo>(1));
++#endif
+ 
+   assert(variants.find(Options["UCI_Variant"])->second != nullptr);
+   pos.set(variants.find(Options["UCI_Variant"])->second, variants.find(Options["UCI_Variant"])->second->startFen, false, &states->back(), Threads.main());
+@@ -307,8 +330,10 @@ void UCI::loop(int argc, char* argv[]) {
+ 
+   // XBoard state machine
+   XBoard::stateMachine = new XBoard::StateMachine(pos, states);
++#ifndef WASI_REACTOR
+   // UCCI banmoves state
+   std::vector<Move> banmoves = {};
++#endif
+ 
+   if (argc > 1 && (std::strcmp(argv[1], "noautoload") == 0))
+   {
+@@ -323,9 +348,20 @@ void UCI::loop(int argc, char* argv[]) {
+           Options["VariantPath"] = std::string(envVariantPath);
+   }
+ 
++#ifdef WASI_REACTOR
++  }
++#endif
++
+   do {
++#ifdef WASI_REACTOR
++      if (queued.empty())
++          return;
++      cmd = queued.front();
++      queued.pop_front();
++#else
+       if (argc == 1 && !getline(cin, cmd)) // Block here waiting for input or EOF
+           cmd = "quit";
++#endif
+ 
+       istringstream is(cmd);
+ 
+diff --git a/src/uci.h b/src/uci.h
+index ef22a535..6d0024a2 100644
+--- a/src/uci.h
++++ b/src/uci.h
+@@ -85,6 +85,9 @@ private:
+ 
+ void init(OptionsMap&);
+ void loop(int argc, char* argv[]);
++#ifdef WASI_REACTOR
++void command(const std::string& line);
++#endif
+ std::string value(Value v);
+ std::string square(const Position& pos, Square s);
+ std::string dropped_piece(const Position& pos, Move m);
+diff --git a/src/ucioption.cpp b/src/ucioption.cpp
+index 0326e047..30e244a2 100644
+--- a/src/ucioption.cpp
++++ b/src/ucioption.cpp
+@@ -181,7 +181,11 @@ void init(OptionsMap& o) {
+   constexpr int MaxHashMB = Is64Bit ? 33554432 : 2048;
+ 
+   o["Debug Log File"]        << Option("", on_logger);
++#ifdef SINGLE_THREADED
++  o["Threads"]               << Option(1, 1, 1, on_threads);
++#else
+   o["Threads"]               << Option(1, 1, 512, on_threads);
++#endif
+   o["Hash"]                  << Option(16, 1, MaxHashMB, on_hash_size);
+   o["Clear Hash"]            << Option(on_clear_hash);
+   o["Ponder"]                << Option(false);
+diff --git a/src/variant.cpp b/src/variant.cpp
+index 9ec8c49a..c94ca7d7 100644
+--- a/src/variant.cpp
++++ b/src/variant.cpp
+@@ -2227,6 +2227,8 @@ void VariantMap::parse(std::string path) {
+ 
+ template void VariantMap::parse<true>(std::string path);
+ template void VariantMap::parse<false>(std::string path);
++template void VariantMap::parse_istream<true>(std::istream& file);
++template void VariantMap::parse_istream<false>(std::istream& file);
+ 
+ void VariantMap::add(std::string s, Variant* v) {
+   insert(std::pair<std::string, const Variant*>(s, v->conclude()));
+diff --git a/src/wasi.cpp b/src/wasi.cpp
+new file mode 100644
+index 00000000..d398eb8c
+--- /dev/null
++++ b/src/wasi.cpp
+@@ -0,0 +1,63 @@
++/*
++  Fairy-Stockfish as a WebAssembly reactor (WASI), for a web page's worker: no main(), no threads, no files.
++  The worker writes a command into uci_buffer() and calls uci_command(length); the engine answers on stdout, which
++  the worker's WASI shim passes back line by line. A "go" runs its whole search before uci_command() returns.
++
++  Fairy-Stockfish is free software: you can redistribute it and/or modify it under the terms of the GNU General
++  Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option)
++  any later version.
++*/
++
++#include <iostream>
++#include <string>
++
++#include "bitboard.h"
++#include "endgame.h"
++#include "evaluate.h"
++#include "misc.h"
++#include "piece.h"
++#include "position.h"
++#include "psqt.h"
++#include "search.h"
++#include "thread.h"
++#include "tune.h"
++#include "uci.h"
++#include "variant.h"
++
++using namespace Stockfish;
++
++static char buffer[1 << 16];
++
++extern "C" {
++
++__attribute__((export_name("uci_buffer"))) char* uci_buffer() { return buffer; }
++
++__attribute__((export_name("uci_size"))) int uci_size() { return int(sizeof(buffer)); }
++
++__attribute__((export_name("uci_init"))) void uci_init() {
++
++  char name[] = "fairy-stockfish";
++  char* argv[] = { name, nullptr };
++  std::cout << engine_info() << std::endl;
++  pieceMap.init();
++  variants.init();
++  CommandLine::init(1, argv);
++  UCI::init(Options);
++  Tune::init();
++  PSQT::init(variants.find(Options["UCI_Variant"])->second);
++  Bitboards::init();
++  Position::init();
++  Bitbases::init();
++  Endgames::init();
++  Threads.set(size_t(Options["Threads"]));
++  Search::clear();
++  Eval::NNUE::init();
++}
++
++__attribute__((export_name("uci_command"))) void uci_command(int length) {
++
++  UCI::command(std::string(buffer, buffer + length));
++  std::cout.flush();
++}
++
++}
