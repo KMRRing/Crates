@@ -1,0 +1,187 @@
+/* Boast: a table of dice cups in crimson lacquer banded in brass, the dice ivory with Chinese dice's red one and four.
+   Upright: the others' cups across the top, the bid in the middle, your dice and your bid at the foot. Sideways: the
+   table on the left, your dice and your bid beside it. */
+:root {
+  --bo-in: #9E2135;                                              /* the cups' crimson lacquer: the game's enamel */
+  --bo-soft: color-mix(in srgb, var(--bo-in) 13%, var(--sheet));
+  --bo-die: #FBF4E4; --bo-die-edge: #B9A57C; --bo-pip: #1C2A34; --bo-pip-red: #C0262D;
+  --bo-held: #2F7D5B; --bo-broke: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --bo-in: #E07A8C; --bo-die: #EDE3CC; --bo-die-edge: #8C7A55; --bo-pip: #16212B; --bo-pip-red: #B5282D; --bo-held: #7FC2A8; --bo-broke: #E8806F; }
+}
+html[data-mode="night"] { --bo-in: #E07A8C; --bo-die: #EDE3CC; --bo-die-edge: #8C7A55; --bo-pip: #16212B; --bo-pip-red: #B5282D; --bo-held: #7FC2A8; --bo-broke: #E8806F; }
+/* Kontor and Office lend it their own accent, as in their other games */
+html[data-theme="kontor"] { --bo-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --bo-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --bo-in: #2EB36A; }
+html[data-theme="office"] { --bo-in: #0F6CBD; --bo-die: #FFFFFF; --bo-die-edge: #A19F9D; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bo-in: #479EF5; --bo-die: #E1DFDD; --bo-die-edge: #797775; } }
+html[data-theme="office"][data-mode="night"] { --bo-in: #479EF5; --bo-die: #E1DFDD; --bo-die-edge: #797775; }
+
+.bo-mark { display: inline-block; }
+.bo-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the dice and the cups ---------- */
+.bo-die { width: 1.2rem; height: 1.2rem; display: block; flex: none; overflow: visible; }
+.bo-die rect { fill: var(--bo-die); stroke: var(--bo-die-edge); stroke-width: 1.3; }
+.bo-die circle { fill: var(--bo-pip); }
+.bo-die.red circle { fill: var(--bo-pip-red); }
+.bo-die.mini { width: 1.05rem; height: 1.05rem; }
+.bo-die.big { width: 2.5rem; height: 2.5rem; }
+.bo-die.lit rect { stroke: var(--bo-in); stroke-width: 2.6; }
+.bo-die.dim { opacity: .32; }
+.bo-cup { width: 1.15rem; height: 1.15rem; flex: none; }
+.bo-cup .body { fill: var(--bo-in); stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; }
+.bo-cup .band { fill: none; stroke: var(--brass); stroke-width: 1.5; }
+.bo-cup .rim { stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
+.bo-dice { display: flex; gap: .25rem; align-items: center; }
+.bo-dice.small { gap: .12rem; }
+.bo-dice.small .bo-die { width: .95rem; height: .95rem; }
+.bo-short { display: inline-flex; align-items: center; gap: .12rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bo-short .x, .bo-bid-big .x { font-weight: 500; opacity: .55; margin: 0 .05em; }
+.bo-zhai { margin-left: .2rem; padding: 0 .25rem; border-radius: 3px; background: var(--bo-in); color: var(--sheet); font-size: .78rem; font-weight: 800; line-height: 1.35; }
+.bo-zhai.big { font-size: 1.1rem; padding: .05rem .4rem; margin-left: .45rem; }
+.bo-cups { display: inline-flex; gap: .16rem; align-items: center; font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.bo-cups i { width: .5rem; height: .5rem; border-radius: 50%; border: 1.5px solid var(--brass); box-sizing: border-box; }
+.bo-cups i.on { background: var(--bo-in); border-color: var(--bo-in); }
+.bo-cups b { color: var(--ink); font-weight: 800; }
+
+/* ---------- the others round the table ---------- */
+.bo-table { display: flex; flex-direction: column; gap: .45rem; min-height: 0; padding-top: .55rem; }
+.bo-others { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.bo-others[data-n="1"] { grid-template-columns: minmax(0, 1fr); }
+.bo-others[data-n="2"], .bo-others[data-n="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.bo-p { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "head head" "cups bid" "dice dice"; gap: .2rem .3rem; align-items: center;
+  min-width: 0; padding: .35rem .45rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.bo-p.turn { border-color: var(--bo-in); box-shadow: inset 0 0 0 1.5px var(--bo-in); }
+.bo-p.loser { background: color-mix(in srgb, var(--bo-broke) 14%, var(--tile)); }
+.bo-p.away { opacity: .6; }
+.bo-p-head { grid-area: head; display: flex; align-items: center; gap: .3rem; min-width: 0; }
+.bo-p-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 750; font-size: .9rem; }
+.bo-p .bo-cups { grid-area: cups; }
+.bo-others[data-n="4"] .bo-p, .bo-others[data-n="5"] .bo-p { padding: .25rem .4rem; gap: .12rem .3rem; }
+.bo-others[data-n="4"] .bo-p-name, .bo-others[data-n="5"] .bo-p-name { font-size: .84rem; }
+.bo-others[data-n="5"] .bo-cups i { width: .42rem; height: .42rem; }
+.bo-p-bid { grid-area: bid; display: flex; align-items: center; justify-content: flex-end; min-height: 1.35rem; font-size: .92rem; }
+.bo-p .bo-dice { grid-area: dice; }
+.bo-thinking { font-size: .74rem; color: var(--ink-soft); }
+.bo-thinking::after { content: "…"; animation: bo-dots 1.2s steps(4) infinite; display: inline-block; width: 1em; overflow: hidden; vertical-align: bottom; }
+@keyframes bo-dots { from { width: 0; } to { width: 1em; } }
+.bo-call { padding: .05rem .35rem; border-radius: 3px; background: var(--bo-in); color: var(--sheet); font-weight: 800; }
+
+/* ---------- the middle: the bid as called ---------- */
+/* the middle takes the height the others leave, and its bid is drawn as large as that height allows */
+.bo-centre { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: .35rem; text-align: center;
+  overflow: hidden; container-type: size; }
+.bo-lead { max-width: 22rem; color: var(--ink-soft); }
+.bo-said { margin: 0; max-width: 100%; font-size: .82rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bo-bid { display: grid; justify-items: center; gap: .15rem; }
+.bo-bid-by, .bo-bid-round { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.bo-bid-big { display: inline-flex; align-items: center; gap: .3rem; font-size: clamp(1.6rem, min(21cqh, 16cqw), 4.6rem); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.bo-bid-big .bo-die { width: .95em; height: .95em; }
+.bo-bid-call { font-size: 1.5rem; font-weight: 800; color: var(--bo-in); }
+.bo-bid-words { font-size: 1.3rem; font-weight: 750; }
+.bo-bid-words small { font-size: .85rem; font-weight: 600; color: var(--ink-soft); }
+.bo-bid-sub { color: var(--ink-soft); font-size: .85rem; }
+.bo-bid.empty .bo-bid-words { font-size: 1.15rem; }
+.bo-bid.empty small { color: var(--ink-soft); }
+.bo-verdict { margin: 0; padding: .45rem .7rem; border-radius: 6px; font-weight: 750; }
+.bo-verdict.held { background: color-mix(in srgb, var(--bo-held) 15%, var(--sheet)); }
+.bo-verdict.broke { background: color-mix(in srgb, var(--bo-broke) 15%, var(--sheet)); }
+.bo-verdict.pi { background: var(--bo-soft); }
+.bo-odds { margin: 0; font-size: .85rem; color: var(--ink-soft); }
+.bo-trail { display: flex; flex-wrap: wrap; justify-content: center; gap: .2rem .6rem; margin: 0; font-size: .8rem; color: var(--ink-soft); }
+.bo-trail span { display: inline-flex; align-items: center; gap: .25rem; }
+.bo-trail .bo-die.mini { width: .9rem; height: .9rem; }
+@container (max-height: 12rem) { .bo-trail, .bo-odds, .bo-said { display: none; } }
+@container (max-height: 8.5rem) { .bo-bid-sub, .bo-bid-by, .bo-bid-round, .bo-bid-call { display: none; } .bo-verdict { padding: .2rem .5rem; } }
+.bo-next { display: block; width: min(14rem, 70%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.bo-next i { display: block; height: 100%; background: var(--bo-in); transform-origin: left; }
+
+/* ---------- your cup and your bid ---------- */
+.bo-side { display: flex; flex-direction: column; gap: .45rem; }
+.bo-mine { display: grid; gap: .35rem; padding: .45rem .55rem .55rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.bo-mine.turn { border-color: var(--bo-in); box-shadow: inset 0 0 0 1.5px var(--bo-in); }
+.bo-mine.loser { background: color-mix(in srgb, var(--bo-broke) 14%, var(--tile)); }
+.bo-mine-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.bo-mine-head b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bo-dice.mine { justify-content: space-between; }
+.bo-dice.mine .bo-die { width: min(3.1rem, 17%); height: auto; aspect-ratio: 1; }
+.bo-dice.shake .bo-die { animation: bo-shake .55s ease-out; }
+.bo-dice.shake .bo-die:nth-child(2n) { animation-delay: .05s; }
+@keyframes bo-shake { 0% { transform: translateY(-.4rem) rotate(-14deg); } 35% { transform: translateY(.15rem) rotate(9deg); } 70% { transform: rotate(-4deg); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .bo-dice.shake .bo-die { animation: none; } }
+.bo-watching { margin: 0; color: var(--ink-soft); text-align: center; }
+.bo-controls { display: grid; gap: .4rem; }
+.bo-status { margin: 0; min-height: 1.3em; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+.bo-row { display: grid; gap: .4rem; align-items: stretch; }
+.bo-row.bo-setter { grid-template-columns: 2.9rem 3.2rem 2.9rem minmax(0, 1fr); align-items: center; }
+.bo-row.act { grid-template-columns: minmax(0, 1fr) 4.4rem 4.4rem; }
+.bo-row.act:has(> :nth-child(2):last-child) { grid-template-columns: minmax(0, 1fr) 5.5rem; }
+.bo-row.two { grid-template-columns: 1fr 1fr; }
+.bo-step { min-height: 2.75rem; padding: 0; font-size: 1.3rem; }
+.bo-n { text-align: center; font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bo-zhai-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: .2rem .5rem; line-height: 1.1; font-size: 1.05rem; }
+.bo-zhai-btn[aria-pressed="true"] { background: var(--bo-in); border-color: var(--bo-in); color: var(--sheet); }
+.bo-faces { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .3rem; }
+.bo-face { display: grid; place-items: center; padding: .3rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); cursor: pointer; }
+.bo-face .bo-die { width: 100%; max-width: 2.3rem; height: auto; aspect-ratio: 1; }
+.bo-face[aria-pressed="true"] { border-color: var(--bo-in); background: var(--bo-soft); box-shadow: inset 0 0 0 1.5px var(--bo-in); }
+.bo-face:disabled { opacity: .35; cursor: default; }
+.bo-bid-btn, .bo-call-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: .3rem .4rem; line-height: 1.15; min-height: 3.2rem; }
+.bo-bid-btn b, .bo-call-btn b { font-size: 1.12rem; letter-spacing: .02em; }
+.bo-bid-btn small, .bo-call-btn small, .bo-zhai-btn small { font-size: .7rem; font-weight: 600; text-transform: none; letter-spacing: 0; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.bo-go { width: 100%; min-height: 3rem; }
+
+/* the round's bids in full: beside the table when it's held sideways (upright, the middle shows the last few) */
+.bo-log { display: none; list-style: none; margin: 0; padding: 0; }
+.bo-log li { display: grid; grid-template-columns: minmax(0, 5.5rem) auto minmax(0, 1fr); gap: .5rem; align-items: center; padding: .28rem .1rem; border-bottom: 1px solid var(--rule); font-size: .9rem; }
+.bo-log .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); }
+.bo-log .w { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.bo-log .bo-log-head { display: block; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); border: 0; }
+.bo-log .bo-log-end { display: block; font-weight: 800; color: var(--bo-in); border: 0; }
+
+/* ---------- the sheets ---------- */
+.bo-rules p { line-height: 1.45; }
+.bo-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.bo-talk { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.bo-talk th { text-align: left; font-size: .78rem; color: var(--ink-soft); padding: .2rem .3rem; }
+.bo-talk td { padding: .3rem; border-top: 1px solid var(--rule); vertical-align: top; }
+.bo-talk td b { font-size: 1.05rem; }
+.bo-talk small { color: var(--ink-soft); }
+.bo-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.bo-end-head { margin: .2rem 0 .6rem; }
+.bo-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.bo-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto 2rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.bo-standings li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bo-standings li.won .nm::after { content: " ★"; color: var(--bo-in); }
+.bo-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.bo-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
+.bo-end-note { color: var(--ink-soft); font-size: .9rem; }
+.bo-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.bo-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.bo-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* a short phone: the middle gives way first */
+@media (max-height: 640px) and (orientation: portrait) {
+  .bo-bid-big { font-size: 2.2rem; }
+  .bo-die.big { width: 2.1rem; height: 2.1rem; }
+  .bo-said { display: none; }
+  .bo-dice.mine .bo-die { width: min(2.6rem, 16%); }
+}
+
+/* held sideways: the table on the left, your cup and your bid beside it, the buttons low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.boast { --beside: 21rem; grid-template-rows: auto minmax(0, 1fr); }
+  #app.boast .bo-table { grid-column: 1; grid-row: 2; }
+  #app.boast .bo-side { grid-column: 2; grid-row: 2; padding-top: .55rem; min-height: 0; }
+  #app.boast .bo-log { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  #app.boast .bo-table .bo-trail { display: none; }
+  #app.boast .bo-others { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #app.boast .bo-others[data-n="1"] { grid-template-columns: minmax(0, 18rem); justify-content: center; }
+  #app.boast .bo-others[data-n="2"] { grid-template-columns: repeat(2, minmax(0, 15rem)); justify-content: center; }
+}
+html[data-theme="office"] :is(.bo-p, .bo-mine, .bo-face) { border-radius: 4px; }

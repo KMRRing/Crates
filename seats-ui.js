@@ -9,6 +9,9 @@ import { IN_FRAME } from "./suite.js";
 import { onPause, isPaused, action, line } from "./menu.js";
 import { busy } from "./loading.js";
 
+/** A line with its seats named: {s2} becomes whoever sits in seat 2. */
+export const fillNames = (text, seats) => String(text || "").replace(/\{s(\d+)\}/g, (_, i) => seats[Number(i)]?.name ?? `Seat ${Number(i) + 1}`);
+
 /**
  * opts: rules (the game), id (its storage prefix and table branch), app (its code's version at a table), pace,
  * botName(seat), level() (the computer players' strength), voice() (the narrator on), onView(view), onOver(view),
@@ -35,8 +38,9 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
     paused: () => IN_FRAME || isPaused(),
     onView: v => {
       narrator.muted = !voice() || IN_FRAME;
-      // solo, this phone speaks; at a table, the one that runs it
-      v.said = narrator.hear({ say: v.G?.say }, v.mode === "solo" ? { driver: true } : v.me) || "";
+      // solo, this phone speaks; at a table, the one that runs it; a seat named in a line ({s2}) by who sits there now
+      const say = v.G?.say ? { ...v.G.say, text: fillNames(v.G.say.text, v.seats) } : null;
+      v.said = narrator.hear({ say }, v.mode === "solo" ? { driver: true } : v.me) || "";
       onView(v);
     },
     onOver, onError: toast,

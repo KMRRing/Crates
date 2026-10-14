@@ -35,6 +35,7 @@ export const GAMES = {
   party: { name: "Party", page: "./party.html" },
   river: { name: "River", page: "./river.html" },
   gambit: { name: "Gambit", page: "./gambit.html" },
+  boast: { name: "Boast", page: "./boast.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

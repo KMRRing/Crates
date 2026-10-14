@@ -16,7 +16,8 @@
 //     wake?(state, { rng, now }) → state | null            that step moved on
 //     restore?(state) → state                              a state read back from the database made whole (it keeps no
 //                                                          empty lists or objects, and may give a list back with holes) }
-// A state may carry say: "text" or { text, lang }, a line for the narrator; the runner moves it to the record.
+// A state may carry say: "text" or { text, lang }, a line for the narrator; the runner moves it to the record. A line
+// names a seat as {s2}, filled with whoever sits there when it's said (a friend may have taken a computer's seat).
 //
 // The record of a game, wherever it's kept (solo: <id>:game on the device; at a table: the branch's game):
 //   G = { seq, seed, n (moves made), seats, options, state, started, say: { n, text, lang } }
