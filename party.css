@@ -13,20 +13,27 @@ html[data-mode="night"] .party { --pa-in: #5FB7C2; }
   transition: opacity .2s, transform .2s; z-index: 5; }
 .pa-toast.on { opacity: 1; transform: translate(-50%, 0); }
 
-/* the games, as cards */
+/* the games as the games screen shows them (style.css: .apps-sec, .apps-grid, .app-row), in their sections; in the lobby
+   the one picked heads the list with its options, and the host's tap on another picks it */
 .pa-intro { margin: 0 0 .7rem; color: var(--ink-soft); }
-/* a party game opened from its own tile: its rules, before a table's open */
+/* a game opened from its own tile: its rules, before a party's open */
 .pa-rules-box { padding: .2rem .1rem .4rem; line-height: 1.45; }
 .pa-rules-box p { margin: 0 0 .7rem; }
-.pa-games { display: grid; gap: .5rem; align-content: start; padding: .1rem .1rem .4rem; }
-.pa-game { display: grid; grid-template-columns: 1fr auto; gap: .15rem .6rem; text-align: left; padding: .65rem .8rem; border: 1.5px solid var(--tile-edge);
-  border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
-.pa-game[aria-pressed="true"] { border-color: var(--pa-in); box-shadow: inset 0 0 0 1.5px var(--pa-in); background: var(--pa-soft); }
-.pa-game:disabled { opacity: .55; cursor: default; }
+.pa-pick { display: flex; flex-direction: column; gap: .2rem; padding: .1rem .1rem .4rem; }
+.pa-pick > * { flex: none; }
+.pa-picked { display: grid; grid-template-columns: 2.8rem minmax(0, 1fr); gap: .1rem .75rem; align-items: center; padding: .6rem .75rem;
+  border: 1.5px solid var(--pa-in); border-radius: 6px; background: var(--pa-soft); }
+.pa-picked .app-logo { grid-row: 1 / span 3; align-self: start; width: 2.8rem; height: 2.8rem; }
+.pa-picked > :not(.app-logo) { grid-column: 2; }
 .pa-game-name { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
 .pa-zh { margin-left: .5rem; font-weight: 600; letter-spacing: 0; text-transform: none; font-stretch: normal; color: var(--ink-soft); white-space: nowrap; }
-.pa-game-n { font-size: .8rem; color: var(--ink-soft); align-self: center; }
-.pa-game-blurb { grid-column: 1 / -1; font-size: .9rem; color: var(--ink-soft); }
+.pa-game-n { font-size: .8rem; font-weight: 700; color: var(--ink-soft); }
+.pa-game-blurb { font-size: .9rem; color: var(--ink-soft); }
+.pa-sec { margin-top: .8rem; }
+.pa-grid { grid-auto-rows: 4.9rem; }
+button.app-row { width: 100%; font: inherit; cursor: pointer; }
+.pa-grid .app-row[aria-pressed="true"] { border-color: var(--pa-in); outline-color: var(--pa-in); background: var(--pa-soft); }
+.pa-grid .app-row[aria-pressed="true"] .app-logo { --wire: 1.5; }
 .pa-home .pk-btn, .pa-start .pk-btn { margin-top: .6rem; }
 
 /* the lobby: on a phone one column, its two halves only a grouping (.fit-half; held sideways, below, side by side) */
@@ -125,7 +132,7 @@ html[data-mode="night"] .pk-clock.low .pk-clock-bar { background: #E8806F; }
   .pa-half > .fit-grow { flex: 1 1 auto; min-height: 0; }
   .pa-what > .pa-h:first-child, .pa-who > .pa-join { margin-top: 0; }
   .pa-who .pa-chips { max-height: none; overflow-y: auto; min-height: 0; flex: 0 1 auto; }
-  .pa-home .pa-games, .pa-games { grid-template-columns: 1fr; }
+  .pa-what .pa-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .pa-game-view .pa-play { max-width: 40rem; width: 100%; margin: 0 auto; }
 }
-html[data-theme="office"] :is(.pa-game, .pk-secret, .pk-pick button, .pa-chips li, .pk-order li, .pa-qr) { border-radius: 4px; }
+html[data-theme="office"] :is(.pa-picked, .pk-secret, .pk-pick button, .pa-chips li, .pk-order li, .pa-qr) { border-radius: 4px; }

@@ -1,20 +1,26 @@
-// Party: games for a group in one room, each player on their own phone. The host opens a table here and shows its
-// QR code; the others scan it and sit down in their browser with a name, nothing to install. The host picks a game
-// and starts it; every phone shows its own player what's theirs (a word, a role, a vote to cast) and the step the game
-// is at, and the host's phone runs the game and speaks for it, a narrator in the middle of the table (table.js,
-// table-ui.js). The games are modules (party-core.js lists them); this page draws the lobby, the game in progress and
-// what's between, and moves the game on when it's this device's to run.
-import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf } from "./party-core.js";
-import { openTable, inviteSheet, createNarrator, tableInAddress, joinLink } from "./table-ui.js";
+// Party: a room for the evening, each player on their own phone. The host opens it here and shows its QR code; the
+// others scan it and sit down in their browser with a name, nothing to install. The host chooses what the party plays
+// and starts it, and every phone follows (party-link.js brings them back): one of Party's own games, played on this
+// page, every phone showing its own player what's theirs (a word, a role, a vote to cast) while the host's phone runs
+// the game and speaks for it, a narrator in the middle of the table (table.js, table-ui.js); a card, dice or board game
+// on its own page, at a table in the party's room where the computer takes the seats nobody has; or, for two, any game
+// with a duo match. The games are modules (party-core.js lists them, and what else a party can play); this page draws
+// the lobby, Party's game in progress and what's between, and moves that game on when it's this device's to run.
+import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf, ELSEWHERE, playable, fits, seatsText, tableFrom } from "./party-core.js";
+import { joins, playHref, whoOf } from "./party-href.js";
+import { openTable, inviteSheet, createNarrator, tableInAddress, setTableParam, joinLink } from "./table-ui.js";
+import { getSync } from "./net.js";
 import { qrSvg } from "./qr.js";
 import { h, button, names } from "./party-kit.js";
 import { part, choice, toggle, action, line } from "./menu.js";
-import { bindSwitcher, APPS } from "./apps.js";
-import { IN_FRAME } from "./suite.js";
+import { bindSwitcher, APPS, nameClass } from "./apps.js";
+import { IN_FRAME, playerId } from "./suite.js";
 import { busy } from "./loading.js";
 import "./pwa.js";
 
-const APP = 1;                                  // this code's version at a table: a device with older code updates
+// this code's version at a table: a device with older code updates (2: the host chooses any game, and the phones
+// follow it to that game's page)
+const APP = 2;
 const $ = id => document.getElementById(id);
 // each game's own stylesheet, named in its module (css: "party-<id>.css", a literal there, so tools/offline.mjs keeps
 // it), linked before themes.css so the themes' overrides still come last
@@ -27,12 +33,20 @@ for (const g of GAMES) if (g.css && !document.querySelector(`link[href="${g.css}
 const OPTS = "party:opts";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-// this device's choices: the narrator's voice, and the game and options last picked (the host's next table starts there)
+// this device's choices: the narrator's voice, and the game and options last picked (the host's next party starts there)
 const opts = { voice: true, pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
-// a party game's own tile opens Party on it (party.html?game=echo): the page wears that game's name and logo, and it's
-// the game picked when this phone opens a table
-const asked = gameById(new URLSearchParams(location.search).get("game"));
+// a game's own tile (party.html?game=echo), or another game's Invite players (?game=bones&invite=1), opens Party on
+// it: the page wears that game's name and logo, it's the game picked when this phone opens a party, and an invite opens
+// the party at once
+const params = new URLSearchParams(location.search);
+const asked = playable(params.get("game"));
+const inviting = !!asked && params.has("invite");
 if (asked) { opts.pick = asked.id; write(OPTS, opts); }
+if (params.has("invite")) { const u = new URL(location.href); u.searchParams.delete("invite"); history.replaceState(null, "", u); }
+// the party this tab is in, so the games screen's Party tile finds the way back to it (this tab only: it isn't synced)
+const HERE = "party:here";
+const hereCode = () => { try { return sessionStorage.getItem(HERE) || ""; } catch { return ""; } };
+const keepHere = code => { try { if (code) sessionStorage.setItem(HERE, code); else sessionStorage.removeItem(HERE); } catch { /* private mode */ } };
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -44,24 +58,37 @@ function toast(msg, ms = 2600) {
 }
 
 // ---------- the table ----------
-let branch = null, me = null, said = "";
+let branch = null, me = null, said = "", moving = false;
 const narrator = createNarrator();
 narrator.muted = !opts.voice;
 const table = openTable({
   game: "party", app: APP, max: 24, toast,
   onState(b, m) {
     branch = b; me = m;
+    keepHere(table.code);
+    if (follow()) return;
     said = narrator.hear(b, m) || said;
     invite.update();
     draw();
     drive();
   },
-  onLeave() { branch = null; me = null; said = ""; invite.close(); draw(); },
+  onLeave() { branch = null; me = null; said = ""; invite.close(); keepHere(null); draw(); },
 });
 const invite = inviteSheet(table, { title: "Invite players", note: "Scan with the camera, or open the link: no app needed, just a name." });
 
 /** The game in progress, as this page sees it: { def, g, state } or null. */
 const current = () => (branch?.game ? { def: gameById(branch.game.id), g: branch.game, state: branch.game.state } : null);
+/** Whether this phone chooses the party's games: the host's, who opened it (or took it over when they left). */
+const chooses = () => !!me?.host;
+
+/** The party is playing another page's game: this phone goes there, if it's in it. True when it's on its way. */
+function follow() {
+  const p = branch?.playing;
+  if (!p || IN_FRAME || moving || !joins(p, table.uid)) return moving;
+  moving = true;
+  location.replace(playHref(p, table.code));
+  return true;
+}
 
 // ---------- moving the game on (the device that runs the table) ----------
 // After each change, and when a game's clock runs out, the running device asks the game whether to move on (a vote
@@ -99,13 +126,14 @@ function restoreTyped(before, fresh) {
   typed = fresh;
 }
 
-/** The header: the game being played (or, before a table, the one this page was opened for), else Party. */
+const appOf = id => APPS.find(a => a.id === id) || null;
+/** The header: the game being played (or, before a party's open, the one this page was opened for), else Party. */
 let branded = "";
 function brand() {
   const id = current()?.def?.id || (!branch && asked ? asked.id : "party");
   if (id === branded) return;
   branded = id;
-  const app = APPS.find(a => a.id === id) || APPS.find(a => a.id === "party");
+  const app = appOf(id) || appOf("party");
   document.querySelector(".pa-mark").innerHTML = app?.logo || "";
   const name = [...$("appsBtn").childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
   if (name && app) name.textContent = app.name;
@@ -125,46 +153,109 @@ function draw() {
   else drawGame(stage);
 }
 
-/** A game's card: its name (and Chinese name), how many play, its line; picked or not. */
-function gameCard(def, { picked = false, onclick = null, disabled = false } = {}) {
-  return h("button", { type: "button", class: "pa-game", "aria-pressed": String(picked), onclick, disabled },
-    h("span", { class: "pa-game-name" }, def.name, def.zh ? h("span", { class: "pa-zh" }, def.zh) : null),
-    h("span", { class: "pa-game-n" }, `${def.min}–${def.max} players`),
-    h("span", { class: "pa-game-blurb" }, def.blurb));
+/** Everything a party can play, by section: [[title, entries]], only what fits n people when n is given. */
+function catalog(n = null) {
+  const all = [...GAMES.map(g => playable(g.id)), ...ELSEWHERE.map(e => playable(e.id))].filter(e => n == null || fits(e, n));
+  return [["Party games", "party"], ["Board & card games", "table"], ["For two", "duo"]]
+    .map(([title, kind]) => [title, all.filter(e => e.kind === kind)]).filter(([, list]) => list.length);
+}
+/** A game as the games screen shows it, its logo and name: picked or not. */
+function tile(entry, { picked = false, onclick = null } = {}) {
+  const logo = h("span", { class: "app-logo" });
+  logo.innerHTML = appOf(entry.id)?.logo || "";
+  return h("li", {}, h("button", { type: "button", class: "app-row pa-tile", "aria-pressed": String(picked), onclick },
+    logo, h("b", { class: nameClass(entry.name) }, entry.name)));
+}
+/** The sections of games, as tiles. */
+function tiles(sections, { picked = null, onPick }) {
+  return sections.map(([title, list]) => h("section", { class: "pa-sec" }, h("h3", { class: "apps-sec" }, title),
+    h("ul", { class: "apps-grid pa-grid" }, ...list.map(e => tile(e, { picked: e.id === picked, onclick: () => onPick(e) })))));
+}
+/** The game picked, at the head of the list: its logo, name, who plays it and what it is. */
+function pickedCard(entry) {
+  const logo = h("span", { class: "app-logo" });
+  logo.innerHTML = appOf(entry.id)?.logo || "";
+  return h("div", { class: "pa-picked" }, logo,
+    h("span", { class: "pa-game-name" }, entry.name, entry.def?.zh ? h("span", { class: "pa-zh" }, entry.def.zh) : null),
+    h("span", { class: "pa-game-n" }, seatsText(entry)),
+    h("span", { class: "pa-game-blurb" }, entry.blurb));
 }
 
 function drawHome(stage) {
-  // opened for one game (its own tile): that game, how it's played, and the way to gather the players
+  const back = !IN_FRAME && hereCode() ? button(`Back to party ${hereCode()}`, () => rejoin(hereCode())) : null;
+  const open = IN_FRAME ? null : button("Invite players", openTableHere, { primary: !back });
+  // opened for one game (its own tile, or its Invite players): that game, how it's played, and the way to gather
+  // the players
   if (asked) {
+    const how = asked.kind === "party"
+      ? `For ${asked.min}–${asked.max} players, each on their own phone: open a party, show its QR code, and this phone runs the game and speaks for it.`
+      : `${seatsText(asked)}, each on their own phone: open a party, show its QR code, and start it when everyone's in.`;
     stage.replaceChildren(h("div", { class: "pa-home fit-col" },
-      h("p", { class: "pa-intro" }, `${asked.blurb} For ${asked.min}–${asked.max} players, each on their own phone: open a table, show its QR code, and this phone runs the game and speaks for it.`),
-      h("div", { class: "pa-rules-box fit-grow fit-scroll" }, ...asked.rules.map(r => h("p", {}, r))),
-      IN_FRAME ? null : button("Invite players", openTableHere)));
+      h("p", { class: "pa-intro" }, `${asked.blurb} ${how}`),
+      h("div", { class: "pa-rules-box fit-grow fit-scroll" }, ...(asked.def?.rules || []).map(r => h("p", {}, r))),
+      back, open));
     return;
   }
   stage.replaceChildren(h("div", { class: "pa-home fit-col" },
-    h("p", { class: "pa-intro" }, "Games for a group in one room, each on their own phone. Open a table, show its QR code, and this phone runs the game and speaks for it."),
-    h("div", { class: "pa-games fit-grow fit-scroll" }, ...GAMES.map(def => gameCard(def, { onclick: () => showRules(def) }))),
-    IN_FRAME ? null : button("Invite players", openTableHere)));
+    h("p", { class: "pa-intro" }, "A party is a room for the evening, each of you on your own phone. Open one and show its QR code; whoever opens it chooses what you play, and every phone follows."),
+    h("div", { class: "pa-pick fit-grow fit-scroll" }, ...tiles(catalog(), { onPick: e => showRules(e) })),
+    back, open));
 }
 
 async function openTableHere() {
-  const done = busy("Opening a table");
+  const done = busy("Opening a party");
   try { if (await table.start({ pick: opts.pick })) invite.open(); } finally { done(); }
 }
+async function rejoin(code) {
+  setTableParam(code);
+  const done = busy("Joining the party");
+  try { if (!(await table.joinAddress())) keepHere(null); } finally { done(); draw(); }
+}
 
+/** Starts the game picked on its own page: its table (or a duo match's request, said yes to) in the party's room
+ *  first, then the party's choice, which every phone follows (this one at once). */
+async function startElsewhere(entry) {
+  if (moving) return;
+  moving = true;
+  const done = busy(`Starting ${entry.name}`);
+  try {
+    const sync = await getSync(), code = table.code, at = Math.round(table.now());
+    const who = playersOf(branch).map(p => p.uid);
+    if (entry.kind === "table") await sync.update(`crates/rooms/${code}`, { [entry.id]: tableFrom(branch, entry, at) });
+    else await sync.update(`crates/rooms/${code}`, { ask: { game: entry.duo, at, answer: "yes", from: playerId(), device: sync.uid } });
+    const playing = { id: entry.id, kind: entry.kind, page: entry.page, at, who, max: entry.max };
+    if (!(await table.act(b => { b.playing = playing; delete b.game; delete b.inputs; }))) throw new Error("the party didn't take the choice");
+    location.replace(playHref(playing, code));
+  } catch (e) {
+    console.error(e);
+    moving = false;
+    done();
+    toast(`Couldn't start ${entry.name}: try again`);
+  }
+}
+
+/** What stops the party starting a game, in words, or "". */
+function whyNot(entry, players, options) {
+  const n = players.length;
+  if (entry.kind === "party") return needOf(entry.def, players, options);
+  if (entry.kind === "duo") return n < 2 ? `${entry.name} is for two: 1 more to join` : n > 2 ? `${entry.name} is for two, and there are ${n} of you` : "";
+  return n > entry.max ? `${entry.name} seats ${entry.max}, and there are ${n} of you` : "";
+}
+
+let lastPick = null;
 function drawLobby(stage) {
-  const players = playersOf(branch), host = me?.driver;
-  const pick = gameById(branch.pick) || gameById(opts.pick) || GAMES[0];
+  const players = playersOf(branch), host = chooses(), n = players.length;
+  const pick = playable(branch.pick) || playable(opts.pick) || playable(GAMES[0].id);
   const tally = branch.tally || {};
   const qr = h("button", { type: "button", class: "pa-qr", "aria-label": "Show the QR code, larger", onclick: () => invite.open() });
-  qr.innerHTML = qrSvg(joinLink(table.code), { label: `QR code to join table ${table.code}` });
+  qr.innerHTML = qrSvg(joinLink(table.code), { label: `QR code to join party ${table.code}` });
   const chips = h("ul", { class: "pa-chips" }, ...players.map(p => h("li", { class: `${p.online ? "" : "away"}${p.uid === table.uid ? " me" : ""}` },
     p.name, tally[p.pid] ? h("span", { class: "pa-wins", title: "Games won tonight" }, String(tally[p.pid])) : null)));
-  const games = h("div", { class: "pa-games", role: "radiogroup", "aria-label": "The game" },
-    ...GAMES.map(def => gameCard(def, { picked: def.id === pick.id, disabled: !host && def.id !== pick.id,
-      onclick: host ? () => { opts.pick = def.id; write(OPTS, opts); table.act(b => { b.pick = def.id; }); } : () => showRules(def) })));
-  const options = h("div", { class: "pa-options" }, ...(pick.options || []).map(o => {
+  const hostName = players.find(p => p.uid === branch.host)?.name || "The host";
+  // the game picked and its options, then everything this many can play: the host's taps choose, a guest's show the rules
+  const choose = e => { opts.pick = e.id; write(OPTS, opts); table.act(b => { b.pick = e.id; }); };
+  const optionsOf = () => ({ ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) });
+  const options = !pick.def?.options?.length ? null : h("div", { class: "pa-options" }, ...pick.def.options.map(o => {
     const value = branch.opts?.[pick.id]?.[o.id] ?? opts.options[pick.id]?.[o.id] ?? o.value;
     const c = choice(o.label, o.choices, value, v => {
       opts.options[pick.id] = { ...(opts.options[pick.id] || {}), [o.id]: v };
@@ -174,8 +265,20 @@ function drawLobby(stage) {
     if (!host) c.querySelectorAll("button").forEach(b => { b.disabled = true; });
     return c;
   }));
-  const n = players.length, short = needOf(pick, players, { ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) });
-  const hostName = players.find(p => p.uid === branch.host)?.name || "the host";
+  const list = h("div", { class: "pa-pick fit-grow fit-scroll" }, pickedCard(pick), options,
+    ...tiles(catalog(n), { picked: pick.id, onPick: host ? choose : e => showRules(e) }));
+  // the party playing a game elsewhere that this phone isn't in (it came after a duo match began, or the table's full)
+  const away = branch.playing ? playable(branch.playing.id) : null;
+  const short = whyNot(pick, players, optionsOf());
+  const there = players.filter(p => whoOf(branch.playing).includes(p.uid)).map(p => p.name);
+  const foot = away
+    ? h("p", { class: "pa-wait" }, `${there.length ? names(there) : "The others"} ${there.length === 1 ? "is" : "are"} playing ${away.name}: you're in the next game.`)
+    : host ? h("div", { class: "pa-start" }, short ? h("p", { class: "pa-wait" }, short) : null,
+      button(`Start ${pick.name}`, () => (pick.kind === "party" ? table.act(b => startGame(b, pick.id, optionsOf(), table.now())) : startElsewhere(pick)), { disabled: !!short }))
+      : h("p", { class: "pa-wait" }, `${hostName} chooses the game and starts it`);
+  // the list keeps its place through the redraws others cause (someone joining), and goes to the top when the pick
+  // changes, where its card and options are
+  const was = stage.querySelector(".pa-pick")?.scrollTop ?? 0;
   // two halves: who's here (with the code to join) and the game; one column on a phone, side by side held sideways
   stage.replaceChildren(h("div", { class: "pa-lobby fit-col" },
     h("div", { class: "fit-half pa-half pa-who" },
@@ -183,14 +286,10 @@ function drawLobby(stage) {
         h("p", { class: "pa-code" }, table.code),
         h("p", { class: "pa-join-note" }, "Scan to join: the camera, then the link. No app needed."),
         h("button", { type: "button", class: "btn", onclick: () => invite.open() }, "Show it larger"))),
-      h("h3", { class: "pa-h" }, `At the table · ${n}`), chips),
-    h("div", { class: "fit-half pa-half pa-what" },
-      // the games and the chosen one's options scroll together (a game with many options, Who am I?'s decks, would
-      // otherwise squeeze the list of games to nothing), Start staying in view below them
-      h("h3", { class: "pa-h" }, "The game"), h("div", { class: "pa-pick fit-grow fit-scroll" }, games, options),
-      host ? h("div", { class: "pa-start" }, short ? h("p", { class: "pa-wait" }, short) : null,
-        button(`Start ${pick.name}`, () => { const o = { ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) }; table.act(b => startGame(b, pick.id, o, table.now())); }, { disabled: !!short }))
-        : h("p", { class: "pa-wait" }, `${hostName} picks the game and starts it`))));
+      h("h3", { class: "pa-h" }, `Players · ${n}`), chips),
+    h("div", { class: "fit-half pa-half pa-what" }, h("h3", { class: "pa-h" }, "The game"), list, foot)));
+  list.scrollTop = lastPick === pick.id ? was : 0;
+  lastPick = pick.id;
 }
 
 function drawGame(stage) {
@@ -210,7 +309,7 @@ function drawGame(stage) {
   try { c.def.view(play, ctx); }
   catch (e) { console.error(e); play.replaceChildren(h("p", { class: "pa-wait" }, "Something went wrong drawing this step; it's still saved.")); }
   const over = c.state.step === "over";
-  const foot = over ? (me?.driver
+  const foot = over ? (chooses()
     ? h("div", { class: "pa-host" },
       button("Play again", () => table.act(b => startGame(b, c.g.id, c.g.options, table.now()))),
       button("Another game", () => table.act(b => endGame(b)), { primary: false }))
@@ -223,16 +322,17 @@ function drawGame(stage) {
 }
 
 // ---------- rules, menu ----------
-function showRules(def = null) {
-  const d = def || current()?.def || gameById(branch?.pick) || (!branch ? asked : null);
+function showRules(entry = null) {
+  const d = entry || (current()?.def ? playable(current().def.id) : null) || playable(branch?.pick) || (!branch ? asked : null);
   $("rulesHead").textContent = d ? d.name : "Party";
   const body = $("rulesBody");
   if (!d) {
     body.replaceChildren(
-      h("p", {}, "Party games for a group in one room, each player on their own phone. The host opens a table (Invite players) and shows its QR code; the others scan it with their camera and sit down in their browser with a name: nothing to install."),
-      h("p", {}, "The host picks a game and starts it. Every phone shows its own player what's theirs (a word, a role, a vote to cast) and the step the game is at, and the host's phone runs the game and speaks for it: keep it in the middle of the table, screen up."),
-      h("p", {}, `The games: ${names(GAMES.map(g => g.name))}.`));
-  } else body.replaceChildren(h("p", { class: "pa-rules-n" }, `${d.min}–${d.max} players`), ...d.rules.map(r => h("p", {}, r)));
+      h("p", {}, "A party is a room for the evening, each player on their own phone. Whoever opens it (Invite players) shows its QR code; the others scan it with their camera and sit down in their browser with a name: nothing to install."),
+      h("p", {}, "The host chooses what the party plays and starts it, and every phone follows: to one of Party's own games, played here, where the host's phone runs the game and speaks for it (keep it in the middle of the table, screen up); to a card, dice or board game, where the computer takes the seats nobody has; or, for two, to any game you can play as a pair. From a game, the host's menu brings everyone back."),
+      h("p", {}, `Party's own games: ${names(GAMES.map(g => g.name))}.`));
+  } else if (d.def) body.replaceChildren(h("p", { class: "pa-rules-n" }, seatsText(d)), ...d.def.rules.map(r => h("p", {}, r)));
+  else body.replaceChildren(h("p", { class: "pa-rules-n" }, seatsText(d)), h("p", {}, d.blurb), h("p", {}, `Its own page has its rules in full: Rules, at the top of ${d.name}.`));
   $("rulesDlg").showModal();
 }
 
@@ -241,22 +341,24 @@ function openMenu() {
   body.replaceChildren();
   const play = part(body, "play");
   if (!branch) {
-    if (!IN_FRAME) play.append(action("Invite players", openTableHere, "primary"));
+    if (!IN_FRAME && hereCode()) play.append(action(`Back to party ${hereCode()}`, () => rejoin(hereCode()), "primary"));
+    if (!IN_FRAME) play.append(action("Invite players", openTableHere, hereCode() ? "" : "primary"));
   } else {
-    play.append(line(`Table ${table.code}: ${playersOf(branch).length} at it${me?.driver ? ", this phone runs it" : ""}.`));
+    const n = playersOf(branch).length;
+    play.append(line(`Party ${table.code}: ${n} of you${chooses() ? ", and you choose the games" : ""}.`));
     play.append(action("Invite players", () => invite.open(), "primary"));
-    if (branch.game && me?.driver) play.append(action("End this game", () => table.act(b => endGame(b))));
-    play.append(action("Leave the table", () => table.leave(), "link"));
+    if (branch.game && chooses()) play.append(action("End this game", () => table.act(b => endGame(b))));
+    play.append(action("Leave the party", () => table.leave(), "link"));
   }
   part(body, "settings").append(toggle("The narrator's voice", opts.voice, on => {
     opts.voice = on; write(OPTS, opts); narrator.muted = !on;
   }));
-  part(body, "about").append(line("The phone that runs the table speaks each step aloud; every phone shows it. Keep that phone in the middle, screen up."));
+  part(body, "about").append(line("The phone that runs a game of Party's speaks each step aloud; every phone shows it. Keep that phone in the middle, screen up."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), asked ? asked.id : "party");
+bindSwitcher($("appsBtn"), asked?.kind === "party" ? asked.id : "party");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", () => showRules());
@@ -264,6 +366,6 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.__party = { table, get branch() { return branch; }, get me() { return me; }, drive };
 draw();
 if (tableInAddress() && !IN_FRAME) {
-  const done = busy("Joining the table");
+  const done = busy("Joining the party");
   table.joinAddress().finally(done).then(() => draw());
-}
+} else if (inviting && !IN_FRAME) openTableHere();

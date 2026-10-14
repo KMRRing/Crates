@@ -99,7 +99,7 @@ let shown = { key: "", me: null, op: null, frames: [], timer: 0 };
 let page = null;
 page = seatPage({
   rules, id: "gammon", app: 1, pace: 700, botName: () => BOT, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; follow(v); draw(); }, onOver, toast,
+  onView: v => { V = v; follow(v); draw(); }, onOver, toast, newGame: newMatch,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? BOT;
 const me = () => V?.seat ?? 0;

@@ -141,9 +141,12 @@ call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on ea
 
 Several people in one place, each on their own phone (README, "Tables"): `table.js` is the table (no page in it, so
 it's tested in Node on `tests/fake-db.js`, the database in memory with many devices), `table-ui.js` what a page needs
-round it (the name a guest goes by, the QR invitation, the screen kept awake, the narrator). A game opens a table from
-its menu (Invite players, which is allowed: unlike a duo match, a table is set up where it's played) and sits down at
-the one in its address (`?table=CODE`). Computer players fill the seats nobody has, moved by the device `drive()`
+round it (the name a guest goes by, the QR invitation, the screen kept awake, the narrator). Playing with others
+goes through a party (README, "Party"): a game's Invite players opens Party with it chosen
+(`party.html?game=<id>&invite=1`), the party's host starts it and every phone comes to the table in the party's room
+(`?table=CODE&party=CODE&at=…`; `party-link.js` follows the host from there, through the menu's party part). A new
+game a party can play goes in `ELSEWHERE` in `party-core.js`. A game sits down at the table in its address
+(`?table=CODE`). Computer players fill the seats nobody has, moved by the device `drive()`
 picks; every change is an `act` transaction (pass `{ rev }` when a move was worked out on what was on the table);
 what everyone does at once goes through `send` (inputs/<uid>). The database keeps no empty arrays or objects and may
 return a list with holes: a table's state must survive that (check with `roundTrip` from `tests/rtdb.js`, which

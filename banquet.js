@@ -63,7 +63,7 @@ let ui = { key: "", hand: null, queued: null, sent: false };
 let page = null;
 page = seatPage({
   rules, id: "banquet", app: 1, pace: 650, botName: () => BOT, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast,
+  onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? BOT;
 const me = () => V?.seat ?? 0;

@@ -46,7 +46,7 @@ let V = null, sel = new Set(), selFor = "", page = null;
 let hinted = null;
 page = seatPage({
   rules, id: "bigtwo", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast,
+  onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;

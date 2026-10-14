@@ -133,12 +133,18 @@ const KONTOR_MENU = '<svg class="k-menu" viewBox="0 0 24 24" aria-hidden="true">
 // limb and hour ticks, the rete (its ring, the off-centre ecliptic, four flame-shaped star pointers) and the rule across
 // it, pinned at the centre. While the menu is open the rete turns over the plate and the rule the other way (style.css).
 export const RETE = `<svg class="rete" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#1C2A34"/><circle cx="50" cy="50" r="43" fill="none" stroke="#C8923A" stroke-width="3.2"/><path d="M85 50L90.5 50M85.74 59.58L89.12 60.48M80.31 67.5L85.07 70.25M76.16 76.16L78.64 78.64M67.5 80.31L70.25 85.07M59.58 85.74L60.48 89.12M50 85L50 90.5M40.42 85.74L39.52 89.12M32.5 80.31L29.75 85.07M23.84 76.16L21.36 78.64M19.69 67.5L14.93 70.25M14.26 59.58L10.88 60.48M15 50L9.5 50M14.26 40.42L10.88 39.52M19.69 32.5L14.93 29.75M23.84 23.84L21.36 21.36M32.5 19.69L29.75 14.93M40.42 14.26L39.52 10.88M50 15L50 9.5M59.58 14.26L60.48 10.88M67.5 19.69L70.25 14.93M76.16 23.84L78.64 21.36M80.31 32.5L85.07 29.75M85.74 40.42L89.12 39.52" stroke="#F3E1BA" stroke-width="1.9" stroke-linecap="round" opacity=".75" fill="none"/><circle cx="50" cy="50" r="17" fill="none" stroke="#F3E1BA" stroke-width="1.3" opacity=".3"/><path d="M50 21V79M21 50H79" stroke="#F3E1BA" stroke-width="1.3" opacity=".22"/><g class="rete-turn"><circle cx="50" cy="50" r="31" fill="none" stroke="#F3E1BA" stroke-width="2.4"/><circle cx="50" cy="41" r="19" fill="none" stroke="#C8923A" stroke-width="3.6"/><path d="M50 22V19M50 60V81M31 41H20.1M69 41H79.9" stroke="#F3E1BA" stroke-width="2.2" stroke-linecap="round"/><path d="M33.12 76Q33.39 71.43 35.86 66.85Q31.59 69 27.33 71.14Z" fill="#F3E1BA"/><path d="M72.67 71.14Q67.89 69 64.14 66.85Q65.51 71.43 66.88 76Z" fill="#F3E1BA"/><path d="M20.52 40.42Q25.32 40.56 30.06 40.7Q26.89 37.14 23.71 33.57Z" fill="#F3E1BA"/><path d="M76.29 33.57Q73.97 37.14 69.94 40.7Q74.71 40.56 79.48 40.42Z" fill="#F3E1BA"/></g><g class="rete-rule"><path d="M78.67 70.08L21.33 29.92" stroke="#F3E1BA" stroke-width="3.8" stroke-linecap="round"/></g><circle cx="50" cy="50" r="4.8" fill="#C8923A"/><circle cx="50" cy="50" r="1.8" fill="#1C2A34"/></svg>`;
+// a game played by a party (?party=CODE in its address): the party's part heads its menu (party-link.js, loaded only
+// then: it connects to the party to follow the host)
+let partyPart = null;
+if (/[?&]party=[A-Za-z]{4}\b/.test(location.search)) import("./party-link.js").then(m => { partyPart = m.menuPart; }).catch(e => console.error(e));
+
 let shaping = false;
 /** Lays out what the game just put in the menu: parts in order, under their headings; long explanations folded away. */
 function shape(body) {
   if (shaping) return;
   shaping = true;
   try {
+    if (partyPart && !body.querySelector(":scope > [data-party]")) body.prepend(partyPart());
     // parts in the standard order, each with its heading (Play needs none: it's the top), after anything unmarked
     for (const box of body.querySelectorAll(":scope > [data-part]")) {
       const name = box.dataset.part;

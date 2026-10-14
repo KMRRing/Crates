@@ -43,7 +43,7 @@ let ui = { key: "", sel: null };
 let page = null;
 page = seatPage({
   rules, id: "bones", app: 1, pace: 850, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.partnership)[(s + 2) % 3],
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast,
+  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;

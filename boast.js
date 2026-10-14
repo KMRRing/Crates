@@ -71,7 +71,7 @@ let shaken = "";                                  // the round whose dice last s
 let page = null;                                  // set once the runner is up (it draws its first view while starting)
 page = seatPage({
   rules, id: "boast", app: 1, pace: 1150, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
-  onView: v => { V = v; draw(); }, onOver, toast,
+  onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const lastBid = s => (s?.bids?.length ? s.bids[s.bids.length - 1] : null);
 const nameOf = seat => (V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`);

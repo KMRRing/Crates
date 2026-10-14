@@ -4,8 +4,15 @@
 // asked and six or more play, its words in English, Chinese or both; a whole game where the table finds the
 // undercover, and one where it doesn't; a tie voted again between those tied, and a second tie putting nobody out; a
 // blank voted out guessing the word; a player who leaves mid-game not holding the others up; the evening's wins.
+// What else a party plays: every table game and duo match listed has its page, its tile and room enough; which fit how
+// many; the table a party deals (partners across a four-seat table), the addresses its phones follow and who follows
+// them; a party of three seated at Bones in its own seats, the host running it, a latecomer in the computer's seat.
+import { readFileSync, existsSync } from "node:fs";
 import { partyTable } from "./party-harness.js";
-import { GAMES, gameById, seeded, shuffle } from "../party-core.js";
+import { roundTrip } from "./rtdb.js";
+import { GAMES, gameById, seeded, shuffle, ELSEWHERE, playable, fits, seatsText, tableFrom } from "../party-core.js";
+import { playHref, joins, whoOf } from "../party-href.js";
+import { createTable, seated } from "../table.js";
 import undercover, { undercoversFor, wordOf, rightGuess, winner } from "../party-undercover.js";
 import { PAIRS } from "../party-undercover-words.js";
 
@@ -113,6 +120,68 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
 {
   const t = await partyTable(names(2));
   check(!(await t.start("undercover")) && !t.branch.game, "Undercover doesn't start with two");
+}
+
+// ---------- what else a party plays: the table games on their own pages, and duo matches for two ----------
+{
+  const apps = readFileSync(new URL("../apps.js", import.meta.url), "utf8");
+  const duo = readFileSync(new URL("../suite.js", import.meta.url), "utf8").match(/DUO_GAMES = \{([^}]*)\}/)[1];
+  for (const e of ELSEWHERE) {
+    const page = existsSync(new URL(`../${e.page}`, import.meta.url));
+    const tile = new RegExp(`id: "${e.id}",[^\\n]*logo:`).test(apps);
+    let fitsPage = true;
+    if (e.kind === "table") {
+      const { rules } = await import(`../${e.id}-rules.js`);
+      fitsPage = rules.seats.max >= e.max && (!e.across || rules.seats.min === 4);
+    } else fitsPage = e.max === 2 && new RegExp(`\\b${e.id === "glyph" ? "slate" : e.id}: "${e.page}"`).test(duo);
+    check(page && tile && fitsPage && e.blurb, `${e.name}: its page, its tile, ${e.kind === "table" ? `a table of up to ${e.max}` : "a duo match"}`);
+  }
+  check(new Set([...GAMES.map(g => g.id), ...ELSEWHERE.map(e => e.id)]).size === GAMES.length + ELSEWHERE.length, "no game listed twice");
+  check(playable("echo").kind === "party" && playable("glyph").name === "Slate" && playable("bones").min === 1 && playable("crates").min === 2 && playable("nonsense") === null, "any of them found by its id");
+  check(fits(playable("crates"), 2) && !fits(playable("crates"), 1) && !fits(playable("crates"), 3), "a duo match for two only");
+  check(fits(playable("bones"), 1) && fits(playable("bones"), 4) && !fits(playable("bones"), 5) && fits(playable("quest"), 9), "a table game up to its seats, the computer in the rest");
+  check(!fits(playable("undercover"), 2) && fits(playable("undercover"), 3) && fits(playable("whoami"), 2), "Party's own between their least and most");
+  check(seatsText(playable("crates")) === "2 players" && seatsText(playable("trumps")) === "1–4 players, the computer in any empty seat", "who plays each, in words");
+}
+{
+  const party = { v: 1, host: "a", players: { a: { name: "Korbi", pid: "pa", seat: 0 }, b: { name: "Mei", pid: "pb", seat: 1 }, x: { online: false } } };
+  const b = tableFrom(party, playable("trumps"), 5);
+  check(b.v === 1 && b.host === "a" && b.players.a.seat === 0 && b.players.b.seat === 2 && b.players.a.pid === "pa" && !b.players.x,
+    "two at a table of four sit across from each other, as partners; an offline mark without a seat isn't seated");
+  check(Object.values(b.players).every(p => p.online === false && p.joined === 5) && !b.game, "each marked away until their phone sits down; no game until the host's page deals");
+  check(JSON.stringify(roundTrip(b)) === JSON.stringify(b), "a table the database keeps as it is");
+  const c = tableFrom({ ...party, players: { ...party.players, c: { name: "Ana", seat: 2 } } }, playable("bones"), 5);
+  check([c.players.a.seat, c.players.b.seat, c.players.c.seat].join() === "0,1,2" && !c.players.c.pid, "otherwise in the party's order");
+}
+{
+  const table = { id: "bones", kind: "table", page: "bones.html", at: 77, who: ["a", "b"], max: 4 };
+  const duo = { id: "crates", kind: "duo", page: "crates.html", at: 88, who: { 0: "a", 1: "b" }, max: 2 };
+  check(playHref(null, "ABCD") === "party.html?table=ABCD", "back to the party: its lobby");
+  check(playHref(table, "ABCD") === "bones.html?table=ABCD&party=ABCD&at=77", "a table game: its table in the party's room, the party and the choice with it");
+  check(playHref(duo, "ABCD") === "crates.html?room=ABCD&new=88&party=ABCD&at=88", "a duo match: the party's room, as a request said yes to");
+  check(joins(table, "a") && joins(table, "c") && joins(duo, "b") && !joins(duo, "c") && !joins(null, "a"),
+    "everyone in the party goes; one who came after, only to a table with a computer's seat");
+  check(!joins({ ...table, who: ["a", "b", "c", "d"] }, "e") && whoOf(duo).join() === "a,b", "not to a full table; the list read back as the database may give it");
+}
+{
+  // a party of three choosing Bones: the host's lobby deals the table, every phone's game page sits in its own seat,
+  // and one who joins the party afterwards takes the computer's seat
+  const t = await partyTable(names(3));
+  const code = t.seats[0].code, at = 1_000_500;
+  await t.db.device("u0").update(`crates/rooms/${code}`, { bones: tableFrom(t.branch, playable("bones"), at) });
+  await t.seats[0].act(b => { b.playing = { id: "bones", kind: "table", page: "bones.html", at, who: t.players.map(p => p.uid), max: 4 }; });
+  await t.settle();
+  check(t.seats.every(s => s.data.playing?.page === "bones.html"), "every phone in the lobby sees the party's choice");
+  const pages = [0, 1, 2].map(i => createTable({ game: "bones", app: 1, max: 4, sync: t.db.device(`u${i}`) }));
+  for (const [i, p] of pages.entries()) check(await p.join(code, { name: names(3)[i], pid: `p${i}` }) === "ok", `${names(3)[i]}'s phone sits down at the party's table`);
+  await t.settle();
+  const seats = seated(pages[0].data);
+  check(seats.map(p => `${p.name}@${p.seat}`).join() === "Korbi@0,Mei@1,Ana@2" && seats.every(p => p.online === true), "each in their seat from the party, here");
+  check(pages[0].me.host && pages[0].me.driver && !pages[1].me.host, "the party's host hosts it, and runs it");
+  const late = createTable({ game: "bones", app: 1, max: 4, sync: t.db.device("u9") });
+  const r = await late.join(code, { name: "Bo", pid: "p9" });
+  await t.settle();
+  check(r === "ok" && late.me?.seat === 3, "one who came after takes the empty seat");
 }
 
 console.log(bad ? `party: ${bad} failed` : "party: every check passed");

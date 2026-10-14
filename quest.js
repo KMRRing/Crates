@@ -80,7 +80,7 @@ page = seatPage({
   rules, id: "quest", app: 1, botName: s => NAMES[s % NAMES.length], level: () => opts.level, voice: () => opts.voice,
   // a vote or a card is secret till all are in: nothing to watch, so the computer gives its own at once
   pace: s => (s.step === "vote" || s.step === "quest" ? 240 : 1000),
-  onView: v => { V = v; draw(); }, onOver, toast,
+  onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat % NAMES.length];
 const isMe = seat => V?.seat != null && seat === V.seat;

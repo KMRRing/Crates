@@ -446,8 +446,10 @@ function startOver() {
 
 /** The games screen's sections, in order: every game is in one (APPS' sec). */
 export const SECTIONS = [["learn", "Learning"], ["puzzle", "Puzzles"], ["table", "Board & card games"], ["party", "Party"]];
+/** A tile's name: a long one (Refinery, Manifest) set closer, a longer one (Undercover) smaller too, to fit its tile. */
+export const nameClass = name => `app-name${name.length >= 10 ? " long longer" : name.length >= 8 ? " long" : ""}`;
 const tile = (a, current) => `<li><a class="app-row${a.id === current ? " cur" : ""}" href="${a.href}"${a.id === current ? ' aria-current="page"' : ""}>
-      <span class="app-logo">${a.logo}${a.id === current ? '<i class="app-now" role="img" aria-label="Playing" title="Playing"></i>' : ""}</span><b class="app-name${a.name.length >= 8 ? " long" : ""}">${a.name}</b><small class="app-best" data-best="${a.id}"></small></a></li>`;
+      <span class="app-logo">${a.logo}${a.id === current ? '<i class="app-now" role="img" aria-label="Playing" title="Playing"></i>' : ""}</span><b class="${nameClass(a.name)}">${a.name}</b><small class="app-best" data-best="${a.id}"></small></a></li>`;
 const tiles = (apps, current) => SECTIONS.map(([sec, title]) => {
   const list = apps.filter(a => a.sec === sec);
   return list.length ? `<li class="apps-group"><h3 class="apps-sec">${title}</h3><ul class="apps-grid">${list.map(a => tile(a, current)).join("")}</ul></li>` : "";

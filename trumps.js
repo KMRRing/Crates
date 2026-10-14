@@ -69,7 +69,7 @@ function suitMark(s, suit) {
 let V = null, page = null;
 page = seatPage({
   rules, id: "trumps", app: 1, pace: 650, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast,
+  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;

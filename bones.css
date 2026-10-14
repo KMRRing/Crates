@@ -44,7 +44,8 @@ html[data-theme="office"][data-mode="night"] { --bn-in: #479EF5; }
 .bn-others { display: flex; justify-content: center; gap: .3rem; }
 .bn-seat { position: relative; flex: 0 1 9rem; min-width: 0; display: grid; justify-items: center; gap: .2rem; padding: .3rem .25rem .35rem; border-radius: 6px; }
 .bn-seat.turn { box-shadow: inset 0 0 0 2px var(--bn-in); background: var(--bn-soft); }
-.bn-name { display: flex; align-items: baseline; gap: .3rem; max-width: 100%; font-weight: 800; font-size: .88rem; white-space: nowrap; overflow: hidden; }
+/* a name and its tag (partner) side by side, the tag on a line of its own when they don't fit (Marisol, at a table) */
+.bn-name { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; column-gap: .3rem; max-width: 100%; font-weight: 800; font-size: .88rem; white-space: nowrap; overflow: hidden; }
 .bn-name small { font-size: .65rem; font-weight: 700; color: var(--bn-in); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
 .bn-pts { font-variant-numeric: tabular-nums; color: var(--bn-in); }
 .bn-backs { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; min-height: .95rem; }

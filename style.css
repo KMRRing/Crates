@@ -739,6 +739,7 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }
 
 .app-name.long { letter-spacing: calc(.05em * var(--track)); }   /* long names (Refinery, Manifest) fit their tiles */
+.app-name.longer { font-size: clamp(.6rem, 11.5cqh, .76rem); }   /* and Undercover */
 /* the games screen's Settings */
 .settings-body { padding: .2rem 0 .6rem; }
 /* Settings' "Start a game over": the games three across, and quiet while one is being cleared */

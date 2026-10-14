@@ -290,6 +290,7 @@ export async function shareBests(apps) {
 export async function reportDuo(game, match, { score = null, won = null, coop = false, lower = false }) {
   const code = duoCode();
   if (!code || match == null) return;
+  if (roomInAddress() && roomInAddress() !== code) return;     // a match in a party's room: not the pair's record
   const sync = await getSync();
   await sync.update(`crates/rooms/${code}/duo/${game}/${enc(String(match))}`, { [playerId()]: { score, won, coop, lower, at: Date.now() } });
 }
