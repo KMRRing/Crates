@@ -8,14 +8,17 @@
   --rv-face: #F8EED6; --rv-rim: #A47528; --rv-red: #B3302A; --rv-black: #1C2A34;
   --rv-last: rgba(201, 120, 30, .95); --rv-sel: #C8923A; --rv-target: rgba(28, 42, 52, .38); --rv-hint: #2F7D5B; --rv-check: #D23B2A;
   --rv-red-text: #A8382B; --rv-shadow: rgba(52, 30, 8, .32);
+  --rv-good: #2F7D5B; --rv-bad: #A8382B;                          /* the rush's verdicts: verdigris and oxblood */
 }
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) { --rv-in: #E58A6E; --rv-wood: #7C5E38; --rv-wood-edge: #5E4527; --rv-line: #1E1309; --rv-face: #E4D7B9; --rv-rim: #C99A45;
-    --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45); }
+    --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45);
+    --rv-good: #7FC2A8; --rv-bad: #E8806F; }
 }
 /* night, set in Settings */
 html[data-mode="night"] { --rv-in: #E58A6E; --rv-wood: #7C5E38; --rv-wood-edge: #5E4527; --rv-line: #1E1309; --rv-face: #E4D7B9; --rv-rim: #C99A45;
-  --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45); }
+  --rv-last: rgba(240, 170, 70, .95); --rv-target: rgba(16, 24, 31, .55); --rv-hint: #7FC2A8; --rv-red-text: #E8806F; --rv-shadow: rgba(0, 0, 0, .45);
+  --rv-good: #7FC2A8; --rv-bad: #E8806F; }
 /* the brass rim is Almanac's: the other themes edge a disc in its own wood */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --rv-rim: #8E6B3C; }
 /* Kontor and Office lend it their own accent, as their other games */
@@ -252,6 +255,43 @@ html[data-theme="office"] :is(.rv-learn-ch li button, .rv-learn-opt) { border-ra
   .rv-learn-go, .rv-learn-ch, .rv-learn-rules { break-inside: avoid; }
 }
 
+/* ---------- the puzzle rush (river-rush.js): the count, the clock and the strikes over the board, what to do above it,
+   what the puzzle was under it; the game's seats, coach, moves and buttons stand aside while it's open ---------- */
+.river:not(.rushing) .rv-rush { display: none; }
+.river.rushing :is(.rv-seat, .rv-coach, .rv-list, #bar, #board) { display: none; }
+.rv-rush-hud { display: flex; justify-content: space-between; align-items: center; gap: .6rem; min-height: 2.6rem; margin-top: .35rem; }
+.rv-rush-solved { font-size: .95rem; color: var(--ink-soft); line-height: 1.1; }
+.rv-rush-solved > b { font-size: 1.6rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rv-rush-rating { display: block; font-size: .78rem; }
+.rv-rush-rating b { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.rv-rush-clock { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rv-rush-clock.low { color: var(--rv-bad); }
+.rv-rush-strikes { display: flex; gap: .3rem; }
+.rv-rush-strike { width: .875rem; height: .875rem; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--tile-edge); }
+.rv-rush-strike.hit { background: var(--rv-bad); box-shadow: none; }
+/* what to do, or what the line was: two lines kept for it, so the board doesn't move as a long line comes and goes */
+.rv-rush-line { margin: .3rem 0 0; height: calc(2 * 1.3em); overflow: hidden; font-size: 1rem; font-weight: 800; line-height: 1.3; }
+.rv-rush-line.good { color: var(--rv-good); }
+.rv-rush-line.bad { color: var(--rv-bad); }
+.rv-rush-meta { margin: .3rem 0 0; height: 1.3em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .88rem; line-height: 1.3; color: var(--ink-soft); }
+#rushBar { margin-top: .4rem; }
+/* a premove's points, waiting for the reply */
+.rv-pre { fill: rgba(150, 95, 215, .22); stroke: rgba(126, 74, 196, .85); stroke-width: .06; }
+/* the results */
+.rv-rush-big { margin: .2rem 0; font-size: 3rem; font-weight: 800; color: var(--rv-in); text-align: center; font-variant-numeric: tabular-nums; }
+.rv-rush-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .6rem 0; }
+.rv-rush-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); text-align: center; }
+.rv-rush-stats b { display: block; font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rv-rush-stats span { font-size: .75rem; color: var(--ink-soft); }
+.rv-rush-note { margin: .6rem 0 .3rem; font-size: .92rem; }
+.rv-rush-missed { margin: .3rem 0 0; padding: 0; list-style: none; display: grid; gap: .5rem; font-size: .9rem; line-height: 1.4; }
+.rv-rush-missed li { display: grid; gap: .05rem; }
+.rv-rush-missed b { font-weight: 750; }
+.rv-rush-missed span { font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; }
+.rv-rush-missed i { font-style: normal; font-family: var(--font); font-size: .78rem; color: var(--ink-soft); }
+.rv-rush-missed .link { margin-left: .35rem; font-family: var(--font); font-size: .84rem; font-weight: 700; color: var(--ink); }
+html[data-theme="modern"] .rv-rush-stats div { border-radius: 12px; }
+
 /* held sideways (#app.beside): the board on the left with all the height; the seats, what's said and the moves beside
    it, the moves filling the column, the buttons at the bottom where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
@@ -264,4 +304,8 @@ html[data-theme="office"] :is(.rv-learn-ch li button, .rv-learn-opt) { border-ra
   #app.river .rv-coach { grid-column: 2; grid-row: 4; height: calc(4em * 1.35); margin-top: .45rem; }
   #app.river .rv-list { grid-column: 2; grid-row: 5; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
   #app.river .rv-bar { grid-column: 2; grid-row: 6; }
+  /* the rush: the count and the clock, what to do and what the puzzle was beside the board, the buttons low */
+  #app.river .rv-rush-hud { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.river .rv-rush-line { grid-column: 2; grid-row: 3; height: calc(4 * 1.3em); margin-top: .6rem; }
+  #app.river .rv-rush-meta { grid-column: 2; grid-row: 4; height: calc(2 * 1.3em); white-space: normal; }
 }

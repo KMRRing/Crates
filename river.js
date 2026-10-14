@@ -17,6 +17,7 @@ import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js
 import { IN_FRAME } from "./suite.js";
 import { busy, sextant } from "./loading.js";
 import { createCourse, progress } from "./river-learn.js";
+import { createRush } from "./river-rush-ui.js";
 
 const $ = id => document.getElementById(id);
 const GAME = "river:game", OPTS = "river:opts", BEST = "river:best", RECORD = "river:record";
@@ -126,7 +127,7 @@ function onMove(from, to) {
 /** The computer's move, when it's the computer's turn and the game isn't standing still. */
 function kick() { setTimeout(think, 0); }
 async function think() {
-  if (IN_FRAME || inRoom() || G.mode !== "engine" || G.result || X.waitingOn(G) !== 1 || thinking || isPaused()) return;
+  if (IN_FRAME || inRoom() || rush.on || G.mode !== "engine" || G.result || X.waitingOn(G) !== 1 || thinking || isPaused()) return;
   const g0 = gen, t0 = performance.now();
   thinking = true;
   render();
@@ -136,7 +137,7 @@ async function think() {
     await judging;                                                // the coach's word on your move comes before the reply
     const { move } = await levelMove(engine, level, { fen: G.start, moves: X.movesOf(G) });
     await sleep(Math.max(0, PACE - (performance.now() - t0)));
-    while (isPaused()) await sleep(200);                          // the menu or the rules are open: the move waits
+    while (isPaused() || rush.on) await sleep(200);               // the menu, the rules or the rush is open: the move waits
     thinking = false;
     if (g0 !== gen || inRoom()) { render(); kick(); return; }    // taken back, or a new game, meanwhile
     const next = move && X.act(G, 1, { move });
@@ -158,7 +159,7 @@ onPause(() => render(), () => { render(); kick(); advise(); });
 // yours that gave a good deal away (a mistake, ?, or a blunder, ??) its word on it and the better moves, until your
 // next; always, the strongest moves as arrows at each of yours without asking, and the same word. Not at a table
 // together: a match is the two of you.
-const coachOn = () => !inRoom() && !IN_FRAME && opts.coach !== "off";
+const coachOn = () => !inRoom() && !IN_FRAME && !rush.on && opts.coach !== "off";
 const checking = () => coachOn() && (opts.coach === "check" || opts.coach === "on");
 const always = () => coachOn() && opts.coach === "on";
 const keyOf = g => `${g.start}|${g.moves}`;
@@ -590,11 +591,28 @@ const course = createCourse({
 });
 function showRules() { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); }
 
+// ---------- the puzzle rush ----------
+// Menu, Puzzle rush: Xiangqi tactics against the clock (river-rush-ui.js), on a board of its own in the game's place; the
+// game waits as it was (the computer's move too) and comes back with The game.
+const rush = createRush({
+  script: () => opts.script,
+  onOpen: () => { $("endDlg").close(); render(); },
+  onClose: () => { render(); kick(); advise(); },
+});
+
 // ---------- the menu ----------
 let pick = null;                                                // the next game's choices while the menu is open
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (rush.on) {                                                // the rush's own: its runs, your rating, your bests
+    rush.menu(body);
+    if (!IN_FRAME) part(body, "play").append(action("The rules on one page", showRules, "link"));
+    part(body, "settings").append(choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, setPieces),
+      choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, setScript));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   pick = { mode: opts.mode, level: opts.level, colour: opts.colour };
   if (inRoom()) {
     part(body, "together").append(line(`A match with ${partnerName()}: you play ${D.red === mySeat() ? "Red" : "Black"}.`),
@@ -606,7 +624,8 @@ function openMenu() {
       Object.assign(opts, pick); saveOpts(); newGame();
     }, "primary"), ...(!g.result && X.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     const cp = progress();
-    part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Xiangqi, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+    part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Xiangqi, from the rules", () => course.open()),
+      action("Puzzle rush", () => { closeDialogs(); rush.open(); }), action("The rules on one page", showRules, "link"));
     part(body, "content").append(
       choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
       choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
@@ -616,8 +635,8 @@ function openMenu() {
   if (!inRoom()) set.append(choice("Coach", COACH, opts.coach, setCoach));
   set.append(
     toggle("Facing each other", opts.facing, on => { opts.facing = on; saveOpts(); render(); }),
-    choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, v => { opts.pieces = v; setPictures(v === "pictures"); saveOpts(); render(); }),
-    choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, v => { opts.script = v; saveOpts(); render(); }));
+    choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, setPieces),
+    choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, setScript));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
   part(body, "about").append(line(best ? `Strongest beaten: ${LEVELS.filter(l => l.rating <= best).pop()?.name} (${rating(best)})` : "No computer level beaten yet"),
@@ -625,6 +644,8 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function closeDialogs() { for (const d of document.querySelectorAll("dialog[open]")) d.close(); }
+function setScript(v) { opts.script = v; saveOpts(); render(); rush.redraw(); }
+function setPieces(v) { opts.pieces = v; setPictures(v === "pictures"); saveOpts(); render(); rush.redraw(); }
 
 // ---------- messages ----------
 let toastTimer = 0;
@@ -702,11 +723,13 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) toge
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 addEventListener("resize", () => render());
 // for the tests and the look
-window.__river = { get game() { return cur(); }, get engineUp() { return engineUp; }, get judging() { return judging; }, onMove, newGame, takeBack, hint, setCoach, X, course };
+window.__river = { get game() { return cur(); }, get engineUp() { return engineUp; }, get judging() { return judging; }, onMove, newGame, takeBack, hint, setCoach, X, course, rush };
 
 render();
 const code = roomInAddress();
-if (code) {
+if (!code && rush.boot()) {
+  // the rush was open: it takes the page again, the game waiting under it
+} else if (code) {
   joining = busy("Joining your partner", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { seated(); kick(); } });
 } else if (!IN_FRAME && G.mode === "engine" && !G.result) {

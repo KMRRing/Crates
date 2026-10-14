@@ -10,6 +10,7 @@ import { LEVELS, SETUP, levelById } from "../river-levels.js";
 import { OPENINGS, openingOf } from "../river-openings.js";
 import { Engine, levelMove, parseInfo, choose, valueOf } from "../uci.js";
 import { createCoach } from "../uci-coach.js";
+import { MODES, STRIKES, rng as seeded, parsePuzzle, themeWords, lineOf, solverOf, answers, targetOf, nearest, rated } from "../river-rush.js";
 import { fairyWorker } from "../tools/uci-node.mjs";
 import { startWasi } from "../uci-wasi.js";
 import { roundTrip, same } from "./rtdb.js";
@@ -256,6 +257,73 @@ check(choose([{ cp: 50, pv: ["a"] }, { cp: -900, pv: ["b"] }], 60, () => 0.99) =
 }
 engine.stop();
 check(LEVELS.every((l, i) => i === 0 || l.rating > LEVELS[i - 1].rating) && LEVELS.every(l => /^(nodes|depth|movetime) \d+$/.test(l.limit)), "the levels rise in rating, each with a fixed search limit");
+
+// ---------- the puzzle rush ----------
+{
+  // the bank: every line legal from its position, the other side's mistake first and the solver's move last, a mate
+  // where it says so and the pieces it says the line takes, easiest first, each id once
+  const bank = fs.readFileSync(new URL("../river-puzzles.txt", import.meta.url), "utf8").trim().split("\n").map(parsePuzzle);
+  const problems = [], ids = new Set(), LETTER = ".KAEHRCP";
+  let mates = 0, others = 0, alternatives = 0;
+  for (const p of bank) {
+    if (ids.has(p.id) || !/^[0-9a-z]{6}$/.test(p.id)) problems.push(`${p.id}: its id`);
+    ids.add(p.id);
+    if (!(p.rating >= 300 && p.rating <= 3000)) problems.push(`${p.id}: rated ${p.rating}`);
+    if (!(p.moves.length >= 2 && p.moves.length % 2 === 0 && p.moves.length <= 8)) { problems.push(`${p.id}: ${p.moves.length} moves`); continue; }
+    let pos;
+    try { pos = X.parseFen(p.fen); } catch { problems.push(`${p.id}: its position`); continue; }
+    if (X.inCheck({ b: pos.b, red: !pos.red })) problems.push(`${p.id}: the side not to move is in check`);
+    let ok = true, mine = "", theirs = "", before = null;
+    p.moves.forEach((u, i) => {
+      if (!ok) return;
+      const m = X.parseUci(u);
+      if (!m || !X.isLegal(pos, m.from, m.to)) { problems.push(`${p.id}: ${u} isn't legal`); ok = false; return; }
+      const v = Math.abs(pos.b[m.to]);
+      if (v && i > 0) { if (i % 2) mine += LETTER[v]; else theirs += LETTER[v]; }
+      before = pos;
+      pos = X.after(pos, m.from, m.to);
+    });
+    if (!ok) continue;
+    const mated = !X.legalMoves(pos).length, order = t => [...t].sort((a, b) => "RCHAEPK".indexOf(a) - "RCHAEPK".indexOf(b)).join("");
+    const theme = mated ? "mate" : mine || theirs ? `+${order(mine)}${theirs ? `-${order(theirs)}` : ""}` : "";
+    if (theme !== p.theme) problems.push(`${p.id}: says ${p.theme || "nothing"}, the line ${theme || "takes nothing"}`);
+    // the last move: any that mates counts where the line mates; where it doesn't, only the line's
+    const last = p.moves.length - 1, finals = X.legalMoves(before).map(m => X.uciOf(m.from, m.to));
+    for (const u of finals) {
+      const m = X.parseUci(u), mates = !X.legalMoves(X.after(before, m.from, m.to)).length;
+      const right = u === p.moves[last] || (mated && mates);
+      if (answers(p, before, last, u) !== right) { problems.push(`${p.id}: ${u} judged wrongly`); break; }
+      if (u !== p.moves[last] && right) alternatives++;
+    }
+    if (mated) mates++; else others++;
+  }
+  const sorted = bank.every((p, i) => !i || bank[i - 1].rating <= p.rating);
+  const bands = {};
+  for (const p of bank) { const b = Math.max(600, Math.min(2400, Math.floor(p.rating / 200) * 200)); bands[b] = (bands[b] || 0) + 1; }
+  check(!problems.length && sorted && bank.length >= 500, `the rush's ${bank.length} puzzles: every line legal and ending on the solver's move, its theme right, easiest first (${mates} mates, ${others} that win material; by band ${Object.entries(bands).map(([b, n]) => `${b}: ${n}`).join(", ")})${problems.length ? `: ${problems.slice(0, 4).join("; ")}` : ""}`);
+  // two ways to mate: either chariot along the back rank, the third holding the rank in front; the line's is one of them
+  const twice = at({ d1: "K", e10: "k", a9: "R", c2: "R", g3: "R" }), line = { moves: ["-", "c2c10"] };
+  check(answers(line, twice, 1, "c2c10") && answers(line, twice, 1, "g3g10") && !answers(line, twice, 1, "a9a10") && !answers(line, twice, 1, "d1d2") && !answers({ moves: ["-", "c2c10", "e10e9", "g3g10"] }, twice, 1, "g3g10"),
+    `where a line mates, any mate counts (${alternatives} such in the bank), a move that doesn't mate never does, and a mate the line doesn't end on isn't the line's move`);
+  const p = bank.find(q => q.theme === "mate" && q.moves.length === 4);
+  check(themeWords(p) === "mate in 2" && themeWords({ theme: "+R", moves: [] }) === "wins a chariot" && themeWords({ theme: "+R-C", moves: [] }) === "a chariot for a cannon"
+    && themeWords({ theme: "+HP", moves: [] }) === "wins a horse and a soldier" && themeWords({ theme: "+A", moves: [] }) === "wins an advisor" && themeWords({ theme: "", moves: [] }) === "",
+    "a puzzle in words: mate in 2, wins a chariot, a chariot for a cannon, a horse and a soldier, an advisor");
+  check(lineOf(p).length === p.moves.length - 1 && lineOf(p).every(n => n.cn && n.wxf) && ["Red", "Black"].includes(solverOf(p)), `its line named in both notations (${lineOf(p).map(n => `${n.cn} ${n.wxf}`).join(", ")}), ${solverOf(p)} to solve`);
+  // a run: the warm-up easy, today's the same for everyone, a random run from below your rating up past it
+  const r = seeded(7);
+  const warm = targetOf({ warming: true }, 1500, r), daily = targetOf({ daily: true, solved: 10 }, 1500, r), low = targetOf({ solved: 0 }, 1000, r), high = targetOf({ solved: 30 }, 1000, r);
+  check(warm >= 650 && warm <= 750 && Math.abs(daily - 1400) <= 100 && Math.abs(low - 750) <= 80 && Math.abs(high - 1150) <= 80,
+    `a run's aim: the warm-up ${Math.round(warm)}, today's tenth ${Math.round(daily)}, a 1,000's first ${Math.round(low)} and thirtieth ${Math.round(high)}`);
+  const run = (seed, n) => { const used = new Set(), out = []; for (let at = 1; at <= n; at++) { const x = seeded(seed ^ (at * 7919)), q = nearest(bank, used, targetOf({ daily: true, solved: at - 1 }, 1000, x), x); used.add(q.id); out.push(q.id); } return out; };
+  const a = run(20261014, 30), b = run(20261014, 30);
+  check(a.join() === b.join() && new Set(a).size === 30 && run(20261015, 30).join() !== a.join(), "today's run: the same thirty puzzles on every device, none twice, and another tomorrow");
+  const all = new Set(bank.map(q => q.id));
+  check(all.has(nearest(bank, all, 1200, seeded(1)).id), "a run longer than the bank goes round it again");
+  const fresh = rated({ r: 1000, n: 0 }, { rating: 1000 }, true, 0), settled = rated({ r: 1000, n: 40 }, { rating: 1000 }, true, 1), miss = rated({ r: 1000, n: 40 }, { rating: 1000 }, false, 0);
+  check(fresh.r === 1015 && fresh.n === 1 && settled.r === 1002.5 && miss.r === 993, "the rating: 15 for an even solve while it settles, then 5 halved by a miss in the run, 7 lost for an even miss");
+  check(Object.keys(MODES).join() === "three,five,survival" && MODES.three.ms === 180000 && MODES.three.grace === 5000 && !MODES.survival.ms && STRIKES === 3, "three minutes with five seconds' grace, five minutes, survival; three strikes");
+}
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("river: every check passed");

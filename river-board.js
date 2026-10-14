@@ -56,7 +56,8 @@ function discMarkup(v, script, flip) {
  * Mounts a board in `host`. onMove(from, to) is called for a move made by hand; legal(from) returns the points a piece
  * there may go to (empty when it isn't the hand's to move). Returns { draw(view) }: view is { pos, bottomRed, facing,
  * script, last: { from, to }, arrows: [{ from, to, bad }] (the coach's moves in its green, a move it faults in
- * oxblood), hand (whether taps move pieces), slide (the last move animates),
+ * oxblood), pre: { from, to } (the rush's premove, its points ringed in violet), hand (whether taps move pieces), slide
+ * (the last move animates),
  * tap (a tap on any point goes to onTap(point) instead: the course asking where a piece can go), marks (the course's
  * drawing: { dots, crosses, rings, arrows: [[from, to]], ok, no, zones: ["river", "palace-red", "palace-black"] },
  * points as numbers) }. reach(point), when given, makes a tap on one of the other side's pieces while it's the hand's
@@ -133,6 +134,7 @@ export function mountBoard(host, { onMove, legal, onTap = () => {}, reach = null
       const [fx, fy] = xy(last.from), [tx, ty] = xy(last.to);
       marks.append(el("circle", { class: "rv-last-from", cx: fx, cy: fy, r: ".2" }), el("circle", { class: "rv-last-to", cx: tx, cy: ty, r: ".5" }));
     }
+    for (const q of view.pre ? [view.pre.from, view.pre.to] : []) { const [x, y] = xy(q); marks.append(el("circle", { class: "rv-pre", cx: x, cy: y, r: ".52" })); }
     const targets = selected != null && view.hand ? legal(selected) : [];
     svg.append(marks);
     if (view.marks) svg.append(courseMarks(view.marks, true));

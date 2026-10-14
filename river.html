@@ -27,14 +27,23 @@
     </div>
   </header>
 
+  <div id="rushHud" class="rv-rush rv-rush-hud">
+    <span class="rv-rush-solved"><b id="rushSolved">0</b> solved <small class="rv-rush-rating">rating <b id="rushRating"></b></small></span>
+    <span class="rv-rush-clock" id="rushClock"></span>
+    <span id="rushStrikes" class="rv-rush-strikes" role="img" aria-label="Strikes"></span>
+  </div>
+  <p id="rushLine" class="rv-rush rv-rush-line" aria-live="polite"></p>
   <div id="far" class="rv-seat rv-far"></div>
   <section id="stage" class="rv-stage fit-grow fit-box" aria-label="The board">
     <div id="board" class="rv-board"></div>
+    <div id="rushBoard" class="rv-board rv-rush"></div>
   </section>
   <div id="near" class="rv-seat rv-near" aria-live="polite"></div>
   <p id="coach" class="rv-coach" aria-live="polite" hidden></p>
   <ol id="list" class="rv-list" aria-label="The moves"></ol>
   <div id="bar" class="rv-bar"></div>
+  <p id="rushMeta" class="rv-rush rv-rush-meta"></p>
+  <div id="rushBar" class="rv-rush rv-bar"></div>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
@@ -51,6 +60,11 @@
   <h2 id="endHead" class="rv-end-head"></h2>
   <div id="endBody" class="rv-end"></div>
   <div class="rv-end-go"><button class="rv-go quiet" type="button" id="endBoard">The board</button><button class="rv-go" type="button" id="endAgain">New game</button></div>
+</dialog>
+
+<dialog id="rushDlg" class="sheet rv-sheet" aria-labelledby="rushHead">
+  <div class="pick-head"><h2 id="rushHead">Time</h2><button class="btn" type="button" id="rushClose">Close</button></div>
+  <div id="rushBody" class="rv-rush-done"></div>
 </dialog>
 
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
