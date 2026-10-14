@@ -244,21 +244,27 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
     repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
 .apps-brand img { width: 2rem; height: 2rem; display: block; }
-.apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 1; min-height: 0; grid-auto-rows: minmax(5.5rem, 1fr); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+/* the games in their sections (Learning, Puzzles, Board & card games, Party), one list that scrolls in its own box */
+.apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: flex; flex-direction: column; gap: 1.1rem;
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
   /* an edge with more tiles past it fades out (apps.js marks which) */
   --fade-top: 0rem; --fade-bottom: 0rem;
   -webkit-mask-image: linear-gradient(transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent);
   mask-image: linear-gradient(transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent); }
 .apps-list.more-above { --fade-top: 1.25rem; }
 .apps-list.more-below { --fade-bottom: 2.25rem; }
-@media (min-width: 36rem) { .apps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.apps-sec { display: flex; align-items: center; gap: .6rem; margin: 0 0 .5rem; font-size: .7rem; font-weight: 800; font-stretch: var(--wide);
+  letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.apps-sec::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+.apps-grid { list-style: none; padding: 0; margin: 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 5.5rem; }
+@media (min-width: 36rem) { .apps-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* six across only on a screen held sideways: upright, a tablet keeps four, its tiles about as square as a phone's */
 @media (min-width: 46rem) and (orientation: landscape) {
-  .apps-list { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .apps-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .apps-inner { max-width: 84rem; }
 }
 .apps-list li { min-height: 0; }
+.apps-list > li { flex: none; }                       /* a section keeps its height: the list scrolls, it doesn't squeeze them */
 .app-row { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; height: 100%; min-height: 0;
   box-sizing: border-box; padding: .4rem; border-radius: 6px; text-decoration: none; color: var(--ink); background: var(--sheet);
   border: 1px solid var(--tile-edge); outline: 1px solid var(--rule); outline-offset: -5px; text-align: center; container-type: size; overflow: hidden; }
@@ -273,7 +279,7 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.1; }
 /* a tablet's tiles are larger than a phone's: the logos and names grow into them (a phone's stop at their tile's height) */
 @media (min-width: 600px) and (min-height: 600px) {
-  .apps-list { grid-auto-rows: minmax(4.6rem, 1fr); }   /* shorter at the least, so every game fits a tablet's screen */
+  .apps-grid { grid-auto-rows: 5.4rem; }
   .app-logo { width: min(4.8rem, 48cqh); height: min(4.8rem, 48cqh); }
   .app-name { font-size: clamp(.66rem, 13cqh, 1.05rem); }
 }

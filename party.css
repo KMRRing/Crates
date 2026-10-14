@@ -15,6 +15,9 @@ html[data-mode="night"] .party { --pa-in: #5FB7C2; }
 
 /* the games, as cards */
 .pa-intro { margin: 0 0 .7rem; color: var(--ink-soft); }
+/* a party game opened from its own tile: its rules, before a table's open */
+.pa-rules-box { padding: .2rem .1rem .4rem; line-height: 1.45; }
+.pa-rules-box p { margin: 0 0 .7rem; }
 .pa-games { display: grid; gap: .5rem; align-content: start; padding: .1rem .1rem .4rem; }
 .pa-game { display: grid; grid-template-columns: 1fr auto; gap: .15rem .6rem; text-align: left; padding: .65rem .8rem; border: 1.5px solid var(--tile-edge);
   border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }

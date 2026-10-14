@@ -29,11 +29,10 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 // this device's choices: the narrator's voice, and the game and options last picked (the host's next table starts there)
 const opts = { voice: true, pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
-// a game's own tile opens Party on it (party.html?game=quest): that's the game picked when this phone opens a table
-{
-  const asked = new URLSearchParams(location.search).get("game");
-  if (gameById(asked)) { opts.pick = asked; write(OPTS, opts); }
-}
+// a party game's own tile opens Party on it (party.html?game=echo): the page wears that game's name and logo, and it's
+// the game picked when this phone opens a table
+const asked = gameById(new URLSearchParams(location.search).get("game"));
+if (asked) { opts.pick = asked.id; write(OPTS, opts); }
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -100,7 +99,21 @@ function restoreTyped(before, fresh) {
   typed = fresh;
 }
 
+/** The header: the game being played (or, before a table, the one this page was opened for), else Party. */
+let branded = "";
+function brand() {
+  const id = current()?.def?.id || (!branch && asked ? asked.id : "party");
+  if (id === branded) return;
+  branded = id;
+  const app = APPS.find(a => a.id === id) || APPS.find(a => a.id === "party");
+  document.querySelector(".pa-mark").innerHTML = app?.logo || "";
+  const name = [...$("appsBtn").childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim());
+  if (name && app) name.textContent = app.name;
+  if (app) document.title = app.name;
+}
+
 function draw() {
+  brand();
   // the narrator's strip while a game is on (in the lobby the screen is for joining and choosing)
   const sayEl = $("say");
   sayEl.hidden = !branch?.game;
@@ -121,6 +134,14 @@ function gameCard(def, { picked = false, onclick = null, disabled = false } = {}
 }
 
 function drawHome(stage) {
+  // opened for one game (its own tile): that game, how it's played, and the way to gather the players
+  if (asked) {
+    stage.replaceChildren(h("div", { class: "pa-home fit-col" },
+      h("p", { class: "pa-intro" }, `${asked.blurb} For ${asked.min}–${asked.max} players, each on their own phone: open a table, show its QR code, and this phone runs the game and speaks for it.`),
+      h("div", { class: "pa-rules-box fit-grow fit-scroll" }, ...asked.rules.map(r => h("p", {}, r))),
+      IN_FRAME ? null : button("Invite players", openTableHere)));
+    return;
+  }
   stage.replaceChildren(h("div", { class: "pa-home fit-col" },
     h("p", { class: "pa-intro" }, "Games for a group in one room, each on their own phone. Open a table, show its QR code, and this phone runs the game and speaks for it."),
     h("div", { class: "pa-games fit-grow fit-scroll" }, ...GAMES.map(def => gameCard(def, { onclick: () => showRules(def) }))),
@@ -203,7 +224,7 @@ function drawGame(stage) {
 
 // ---------- rules, menu ----------
 function showRules(def = null) {
-  const d = def || current()?.def || gameById(branch?.pick) || null;
+  const d = def || current()?.def || gameById(branch?.pick) || (!branch ? asked : null);
   $("rulesHead").textContent = d ? d.name : "Party";
   const body = $("rulesBody");
   if (!d) {
@@ -235,8 +256,7 @@ function openMenu() {
 }
 
 // ---------- wiring ----------
-bindSwitcher($("appsBtn"), "party");
-document.querySelector(".pa-mark").innerHTML = APPS.find(a => a.id === "party")?.logo || "";
+bindSwitcher($("appsBtn"), asked ? asked.id : "party");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", () => showRules());
