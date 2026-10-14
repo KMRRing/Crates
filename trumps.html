@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Trumps</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="trumps.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="trumps fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon tr-mark" aria-hidden="true"></span>Trumps</button></h1>
+    <div class="top-right">
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div id="info" class="tr-info" aria-live="polite"></div>
+  <section id="table" class="tr-table fit-grow" aria-label="The table">
+    <div id="seatTop" class="tr-seat at-top"></div>
+    <div id="seatLeft" class="tr-seat at-left"></div>
+    <div id="seatRight" class="tr-seat at-right"></div>
+    <div id="centre" class="tr-centre"></div>
+  </section>
+  <section id="side" class="tr-side" aria-label="Your hand">
+    <div id="hand" class="tr-hand cd-row" aria-label="Your cards"></div>
+    <div id="controls" class="tr-controls"></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet tr-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="tr-rules"></div>
+</dialog>
+
+<dialog id="endDlg" class="sheet tr-sheet" aria-labelledby="endHead">
+  <h2 id="endHead" class="tr-end-head"></h2>
+  <div id="endBody" class="tr-end"></div>
+  <div class="tr-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New game</button></div>
+</dialog>
+
+<p id="toast" class="tr-toast" role="status" aria-live="polite"></p>
+<script type="module" src="trumps.js"></script>
+</body>
+</html>

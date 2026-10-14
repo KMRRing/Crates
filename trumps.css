@@ -1,0 +1,119 @@
+/* Trumps: a card table in baize green under brass, four places round it: your hand along the foot, the partner (or the
+   third player) across, the others either side, the trick in the middle with each card on its player's side. The
+   Swiss and German packs' suits are drawn (bells, shields, roses, acorns; hearts, leaves); the French are cards.js's. */
+:root { --tr-in: #2E6B4F; --tr-soft: color-mix(in srgb, var(--tr-in) 13%, var(--sheet)); --tr-felt: color-mix(in srgb, #2E6B4F 14%, var(--yard)); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --tr-in: #7FC2A8; --tr-felt: color-mix(in srgb, #2E6B4F 22%, var(--yard)); } }
+html[data-mode="night"] { --tr-in: #7FC2A8; --tr-felt: color-mix(in srgb, #2E6B4F 22%, var(--yard)); }
+html[data-theme="kontor"] { --tr-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --tr-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --tr-in: #2EB36A; }
+html[data-theme="office"] { --tr-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --tr-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --tr-in: #479EF5; }
+
+.tr-mark { display: inline-block; }
+.tr-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the drawn suits: in a card's corner and large at its foot, and in a line of words */
+.tr-cd .tr-s { width: .82em; height: .82em; margin-top: .06em; }
+.tr-cd .tr-pip { position: absolute; right: .1em; bottom: .1em; width: 1.35em; height: 1.35em; }
+.tr-cd svg, .tr-icon svg { display: block; width: 100%; height: 100%; }
+.tr-icon { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -.2em; }
+.tr-fs { font-weight: 800; }
+.tr-fs.red { color: var(--cd-red); }
+
+/* the line across the top: the game, the contract, the score */
+.tr-info { display: flex; align-items: center; gap: .6rem; min-height: 2rem; padding: .25rem .1rem; border-bottom: 1px solid var(--rule); font-size: .9rem; }
+.tr-game { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); font-size: .78rem; color: var(--ink-soft); }
+.tr-contract { display: inline-flex; align-items: center; gap: .25rem; font-weight: 800; }
+.tr-contract small { font-weight: 600; color: var(--ink-soft); }
+.tr-score { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tr-score small { color: var(--ink-soft); }
+
+/* the table: three places round a middle */
+.tr-table { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "left top right" "left centre right"; gap: .4rem; min-height: 0; padding: .45rem .1rem; border-radius: 10px; background: var(--tr-felt); }
+.tr-seat { display: flex; flex-direction: column; align-items: center; gap: .2rem; min-width: 0; padding: .3rem .2rem; border-radius: 6px; text-align: center; }
+.tr-seat.at-top { grid-area: top; }
+.tr-seat.at-left { grid-area: left; align-self: center; }
+.tr-seat.at-right { grid-area: right; align-self: center; }
+.tr-seat.turn { box-shadow: inset 0 0 0 2px var(--tr-in); background: var(--tr-soft); }
+.tr-seat.partner .tr-name { color: var(--tr-in); }
+.tr-name { font-weight: 800; font-size: .9rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-dealer { display: inline-block; margin-left: .25rem; padding: 0 .25rem; border-radius: 3px; background: var(--brass); color: var(--sheet); font-size: .65rem; vertical-align: .1em; }
+.tr-role { padding: .02rem .35rem; border-radius: 3px; background: var(--tr-in); color: var(--sheet); font-size: .68rem; font-weight: 800; }
+.tr-backs { display: flex; font-size: .42rem; }
+.tr-backs > .cd + .cd { margin-left: -1.75em; }
+.tr-bubble { padding: .15rem .45rem; border-radius: 10px; background: var(--sheet); border: 1.5px solid var(--tile-edge); font-weight: 800; font-size: .82rem; white-space: nowrap; }
+.tr-weis { font-size: .74rem; font-weight: 800; color: var(--brass-lo); }
+.tr-centre { grid-area: centre; position: relative; display: grid; place-items: center; min-height: 0; container-type: size; }
+/* the trick as large as the middle allows: a cross of cards 8.4em across and 8.6em high */
+.tr-trick { position: relative; width: 8.4em; height: 8.6em; font-size: clamp(.7rem, min(11cqh, 11.5cqw), 1.7rem); }
+.tr-play { position: absolute; transition: transform .2s; }
+.tr-play.at-me { left: 50%; bottom: 0; transform: translateX(-50%); }
+.tr-play.at-top { left: 50%; top: 0; transform: translateX(-50%); }
+.tr-play.at-left { left: 0; top: 50%; transform: translateY(-50%); }
+.tr-play.at-right { right: 0; top: 50%; transform: translateY(-50%); }
+.tr-play.win .cd { box-shadow: 0 0 0 2.5px var(--tr-in), 0 1px 3px rgba(28, 42, 52, .3); }
+.tr-turned { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: .2rem; }
+.tr-turned small { font-size: .7rem; color: var(--ink-soft); white-space: nowrap; }
+.tr-bidding { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; font-size: .9rem; font-weight: 700; color: var(--ink-soft); }
+.tr-count { position: absolute; bottom: .1rem; font-size: .7rem; color: var(--ink-soft); }
+.tr-result { display: grid; justify-items: center; gap: .2rem; padding: .7rem .9rem; border-radius: 8px; background: var(--sheet); border: 1.5px solid var(--tile-edge); text-align: center; max-width: 16rem; }
+.tr-result b { font-size: 1.05rem; }
+.tr-result small { color: var(--ink-soft); }
+.tr-delta.up { color: #2F7D5B; font-weight: 800; }
+.tr-delta.down { color: #A8382B; font-weight: 800; }
+
+/* your hand and the bidding */
+.tr-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .35rem; }
+.tr-hand { justify-content: center; min-height: 4.6rem; padding-top: .45rem; }
+.tr-hand .cd { cursor: pointer; transition: transform .12s; }
+.tr-hand .cd.ok { transform: translateY(-.45em); }
+.tr-hand .cd.dim { opacity: .55; }
+.tr-controls { display: grid; gap: .35rem; }
+.tr-status { margin: 0; min-height: 1.25em; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+.tr-bids { display: grid; gap: .35rem; }
+.tr-bids.one { grid-template-columns: 1fr; }
+.tr-bids.two { grid-template-columns: 1fr 1fr; }
+.tr-bids.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tr-bids.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tr-bids.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.tr-bids.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tr-bid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .1rem; min-height: 2.8rem; padding: .25rem .3rem; line-height: 1.15; font-size: .92rem; }
+.tr-bid .tr-icon { width: 1.4em; height: 1.4em; }
+.tr-bid small { font-size: .68rem; font-weight: 600; opacity: .85; text-transform: none; letter-spacing: 0; }
+.tr-bid .tr-fs { font-size: 1.3em; }
+.tr-coinche { display: grid; grid-template-columns: 3rem 1fr 3rem; gap: .4rem; align-items: center; }
+.tr-step { min-height: 2.6rem; padding: 0; font-size: 1.3rem; }
+.tr-value { text-align: center; font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tr-go { width: 100%; min-height: 3rem; }
+
+.tr-rules p { line-height: 1.45; }
+.tr-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.tr-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.tr-end-head { margin: .2rem 0 .6rem; }
+.tr-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.tr-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.tr-standings li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-standings li.won .nm::after { content: " ★"; color: var(--tr-in); }
+.tr-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.tr-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
+.tr-end-note { color: var(--ink-soft); font-size: .9rem; }
+.tr-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.tr-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.tr-toast.on { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tr-delta.up { color: #7FC2A8; } html:not([data-mode="day"]) .tr-delta.down { color: #E8806F; } }
+html[data-mode="night"] .tr-delta.up { color: #7FC2A8; }
+html[data-mode="night"] .tr-delta.down { color: #E8806F; }
+html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4px; }
+
+/* held sideways: the table on the left, your hand and the bidding beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.trumps { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.trumps .tr-info { grid-column: 1 / -1; grid-row: 2; }
+  #app.trumps .tr-table { grid-column: 1; grid-row: 3; }
+  #app.trumps .tr-side { grid-column: 2; grid-row: 3; min-height: 0; justify-content: flex-end; }
+}
