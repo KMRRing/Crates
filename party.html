@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Party</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="table.css">
+<link rel="stylesheet" href="party.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="party fit-screen">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon pa-mark" aria-hidden="true"></span>Party</button></h1>
+    <div class="top-right">
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+  <p id="say" class="pa-say" aria-live="polite" hidden></p>
+  <main id="stage" class="pa-stage fit-grow"></main>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet pa-sheet" aria-label="Rules">
+  <div class="pick-head"><h2 id="rulesHead">Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="pa-rules"></div>
+</dialog>
+
+<p id="toast" class="pa-toast" role="status" aria-live="polite"></p>
+<script type="module" src="party.js"></script>
+</body>
+</html>

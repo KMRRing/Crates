@@ -1,7 +1,7 @@
 # Working on Crates
 
 Almanac: a suite of web games, opening on the screen of games (`index.html`, `home.js`; Crates is at `crates.html`) (Crates, Slate, Delta, Punt, Cartel, Spot, Quote, Manifest, Chart, Survey, Pipes, Rush, Deck,
-Parley, Blend, Refinery, Brut, Stow, Hong, Tribute, Cue), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
+Parley, Blend, Refinery, Brut, Stow, Hong, Tribute, Cue, Party, River, Gambit), plain HTML, CSS and JavaScript modules with no build step for the games themselves.
 Every push to `main` is tested by `.github/workflows/pages.yml`; GitHub Pages serves `main` at
 https://kmrring.github.io/Crates/, and installed copies (his phone) move to it only when the workflow publishes
 `sw.js`, which it does only when every test passes.
@@ -135,6 +135,19 @@ the solo game while a room in the address is being joined (Hong, Tribute: `busy`
 A game that gets a duo match goes in `DUO_GAMES` in `suite.js`. A finished duo match is recorded for the pair: on `together.js`,
 give `createTogether` a `result(state)` returning `{ match, score, won, coop, lower }` once the match is over; otherwise
 call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on each player's device.
+
+## Tables
+
+Several people in one place, each on their own phone (README, "Tables"): `table.js` is the table (no page in it, so
+it's tested in Node on `tests/fake-db.js`, the database in memory with many devices), `table-ui.js` what a page needs
+round it (the name a guest goes by, the QR invitation, the screen kept awake, the narrator). A game opens a table from
+its menu (Invite players, which is allowed: unlike a duo match, a table is set up where it's played) and sits down at
+the one in its address (`?table=CODE`). Computer players fill the seats nobody has, moved by the device `drive()`
+picks; every change is an `act` transaction (pass `{ rev }` when a move was worked out on what was on the table);
+what everyone does at once goes through `send` (inputs/<uid>). The database keeps no empty arrays or objects and may
+return a list with holes: a table's state must survive that (check with `roundTrip` from `tests/rtdb.js`, which
+fake-db applies to every write). Party's games are modules listed in `party-core.js` (`start` and `advance` pure,
+`view` draws); test one with `tests/party-harness.js`, which plays a table in Node with the host's phone moving it on.
 
 ## Header dropdowns
 

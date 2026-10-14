@@ -1,0 +1,127 @@
+/* Party: the lobby, the game in progress, and the party games' own parts (pk-, party-kit.js). Its enamel is a
+   turquoise, the narrator's colour: the strip under the header that says each step is tinted with it. */
+.party { --pa-in: #1E7F8C; --pa-soft: color-mix(in srgb, var(--pa-in) 14%, var(--sheet)); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .party { --pa-in: #5FB7C2; } }
+html[data-mode="night"] .party { --pa-in: #5FB7C2; }
+
+.pa-say { margin: .5rem 0 0; padding: .55rem .8rem; min-height: 2.6rem; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+  text-align: center; font-weight: 700; line-height: 1.25; background: var(--pa-soft); border-left: 3px solid var(--pa-in); border-radius: 4px; }
+.pa-stage { display: flex; flex-direction: column; min-height: 0; padding-top: .6rem; }
+.pa-stage > * { flex: 1 1 auto; min-height: 0; }
+.pa-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.pa-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* the games, as cards */
+.pa-intro { margin: 0 0 .7rem; color: var(--ink-soft); }
+.pa-games { display: grid; gap: .5rem; align-content: start; padding: .1rem .1rem .4rem; }
+.pa-game { display: grid; grid-template-columns: 1fr auto; gap: .15rem .6rem; text-align: left; padding: .65rem .8rem; border: 1.5px solid var(--tile-edge);
+  border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
+.pa-game[aria-pressed="true"] { border-color: var(--pa-in); box-shadow: inset 0 0 0 1.5px var(--pa-in); background: var(--pa-soft); }
+.pa-game:disabled { opacity: .55; cursor: default; }
+.pa-game-name { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.pa-zh { margin-left: .5rem; font-weight: 600; letter-spacing: 0; text-transform: none; font-stretch: normal; color: var(--ink-soft); white-space: nowrap; }
+.pa-game-n { font-size: .8rem; color: var(--ink-soft); align-self: center; }
+.pa-game-blurb { grid-column: 1 / -1; font-size: .9rem; color: var(--ink-soft); }
+.pa-home .pk-btn, .pa-go .pk-btn { margin-top: .6rem; }
+
+/* the lobby: on a phone one column, its two halves only a grouping (.fit-half; held sideways, below, side by side) */
+.pa-join { display: grid; grid-template-columns: 6.5rem 1fr; gap: .8rem; align-items: center; }
+.pa-qr { width: 6.5rem; aspect-ratio: 1; padding: .3rem; border: 1.5px solid var(--brass); border-radius: 6px; background: #fff; cursor: zoom-in; box-sizing: border-box; }
+.pa-qr svg { display: block; width: 100%; height: 100%; }
+.pa-join-how { display: grid; gap: .3rem; justify-items: start; }
+.pa-code { margin: 0; font-size: 1.7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.28em * var(--track)); }
+.pa-join-note { margin: 0; font-size: .85rem; color: var(--ink-soft); }
+.pa-join-how .btn { min-height: 2.5rem; }
+.pa-h { margin: .8rem 0 .35rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.pa-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; max-height: 5.6rem; overflow-y: auto; }
+.pa-chips li { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); font-weight: 700; font-size: .9rem; }
+.pa-chips li.me { border-color: var(--pa-in); }
+.pa-chips li.away { opacity: .5; }
+.pa-wins { min-width: 1.2rem; padding: 0 .3rem; border-radius: 3px; background: var(--pa-in); color: var(--sheet); font-size: .75rem; text-align: center; }
+.pa-options { display: grid; gap: .35rem; margin-top: .4rem; }
+.pa-wait { margin: .5rem 0 0; color: var(--ink-soft); text-align: center; }
+@media (max-height: 700px) and (orientation: portrait) {
+  .pa-join { grid-template-columns: 5rem 1fr; gap: .6rem; }
+  .pa-qr { width: 5rem; }
+  .pa-code { font-size: 1.4rem; }
+  .pa-join-note { display: none; }
+}
+
+/* a game in progress */
+.pa-game-head { display: flex; align-items: baseline; gap: .2rem; margin-bottom: .4rem; }
+.pa-game-title { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
+.pa-count { margin-left: auto; font-size: .85rem; color: var(--ink-soft); }
+.pa-play { padding: .1rem .1rem .4rem; }
+.pa-host { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
+.pa-host .pk-btn { margin: 0; }
+.pa-rules p { line-height: 1.45; }
+.pa-rules-n { color: var(--ink-soft); font-weight: 700; }
+
+/* the party games' parts (party-kit.js) */
+.pk-col { display: flex; flex-direction: column; gap: .7rem; }
+.pk-btn { min-height: 3rem; width: 100%; margin: 0; font-size: 1rem; }
+.pk-line { margin: 0; color: var(--ink-soft); }
+.pk-ask { margin: 0; font-weight: 800; font-size: 1.1rem; text-align: center; }
+.pk-wait { margin: 0; color: var(--ink-soft); text-align: center; min-height: 1.2em; }
+.pk-secret { display: grid; gap: .35rem; justify-items: center; width: 100%; padding: 1rem .8rem; border: 1.5px solid var(--pa-in); border-radius: 6px;
+  background: var(--pa-soft); color: var(--ink); font: inherit; cursor: pointer; }
+.pk-secret-label { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.pk-secret-body { min-height: 2.6rem; display: grid; place-items: center; font-size: 1.9rem; font-weight: 800; line-height: 1.15; text-align: center; overflow-wrap: anywhere; }
+.pk-secret[aria-expanded="false"] .pk-secret-body { visibility: hidden; position: relative; }
+.pk-secret[aria-expanded="false"] .pk-secret-body::after { content: "• • •"; visibility: visible; position: absolute; inset: 0; display: grid; place-items: center; color: var(--pa-in); font-size: 1.4rem; }
+.pk-secret-note { font-size: .8rem; color: var(--ink-soft); }
+.pk-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr)); gap: .45rem; }
+.pk-pick button { min-height: 3rem; padding: .4rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; overflow-wrap: anywhere; }
+.pk-pick button[aria-checked="true"] { border-color: var(--pa-in); background: var(--pa-in); color: var(--sheet); }
+.pk-pick button.out { opacity: .4; text-decoration: line-through; }
+.pk-order { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; counter-reset: pk; }
+.pk-order li { counter-increment: pk; padding: .35rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); font-weight: 700; }
+.pk-order li::before { content: counter(pk) ". "; color: var(--ink-soft); font-weight: 600; }
+.pk-order li.done { opacity: .45; }
+.pk-order li.now { border-color: var(--pa-in); background: var(--pa-in); color: var(--sheet); }
+.pk-order li.now::before { color: inherit; }
+.pk-verdict { padding: .9rem; border-radius: 6px; background: var(--pa-soft); text-align: center; font-size: 1.25rem; }
+.pk-verdict.under, .pk-verdict.blank { background: color-mix(in srgb, #A8382B 16%, var(--sheet)); }
+.pk-verdict.big { font-size: 1.5rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); }
+.pk-votes, .pk-roles { margin: 0; padding: 0; list-style: none; display: grid; gap: .25rem; }
+.pk-votes li { padding: .25rem 0; border-bottom: 1px solid var(--rule); }
+.pk-roles li { display: flex; justify-content: space-between; padding: .35rem .2rem; border-bottom: 1px solid var(--rule); }
+.pk-roles li.won span:first-child::after { content: " ★"; color: var(--pa-in); }
+.pk-roles li.under span:last-child, .pk-roles li.blank span:last-child { color: #A8382B; font-weight: 700; }
+.pk-input { width: 100%; box-sizing: border-box; font: inherit; font-size: 1.2rem; padding: .6rem .7rem; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard); color: var(--ink); }
+.pk-clock { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .6rem; }
+.pk-clock-n { min-width: 2ch; font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
+.pk-clock-track { height: .45rem; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.pk-clock-bar { display: block; height: 100%; background: var(--pa-in); }
+.pk-clock.low .pk-clock-bar { background: #A8382B; }
+.pk-scores { margin: 0; padding: 0; list-style: none; display: grid; gap: .2rem; }
+.pk-scores li { display: flex; gap: .6rem; align-items: baseline; padding: .35rem .2rem; border-bottom: 1px solid var(--rule); }
+.pk-score-name { flex: 1; font-weight: 700; }
+.pk-score-note { color: var(--ink-soft); font-size: .85rem; }
+.pk-score-n { font-weight: 800; font-variant-numeric: tabular-nums; }
+.pk-scores li.won .pk-score-name::after { content: " ★"; color: var(--pa-in); }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) :is(.pk-verdict.under, .pk-verdict.blank) { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
+  html:not([data-mode="day"]) :is(.pk-roles li.under, .pk-roles li.blank) span:last-child { color: #E8806F; }
+  html:not([data-mode="day"]) .pk-clock.low .pk-clock-bar { background: #E8806F; }
+}
+html[data-mode="night"] :is(.pk-verdict.under, .pk-verdict.blank) { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
+html[data-mode="night"] :is(.pk-roles li.under, .pk-roles li.blank) span:last-child { color: #E8806F; }
+html[data-mode="night"] .pk-clock.low .pk-clock-bar { background: #E8806F; }
+
+/* held sideways: the lobby in two columns, who's here on the left and the games on the right; a game in one column,
+   as wide as reads well */
+@media (orientation: landscape) and (min-width: 700px) {
+  html #app.party { max-width: 60rem; margin: 0 auto; padding-left: max(1rem, env(safe-area-inset-left, 0px)); padding-right: max(1rem, env(safe-area-inset-right, 0px)); }
+  .pa-lobby { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); column-gap: 1.5rem; }
+  .pa-half { display: flex; flex-direction: column; min-height: 0; }
+  .pa-half > * { flex: none; }
+  .pa-half > .fit-grow { flex: 1 1 auto; min-height: 0; }
+  .pa-what > .pa-h:first-child, .pa-who > .pa-join { margin-top: 0; }
+  .pa-who .pa-chips { max-height: none; overflow-y: auto; min-height: 0; flex: 0 1 auto; }
+  .pa-home .pa-games, .pa-games { grid-template-columns: 1fr; }
+  .pa-game-view .pa-play { max-width: 40rem; width: 100%; margin: 0 auto; }
+}
+html[data-theme="office"] :is(.pa-game, .pk-secret, .pk-pick button, .pa-chips li, .pk-order li, .pa-qr) { border-radius: 4px; }

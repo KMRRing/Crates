@@ -32,6 +32,7 @@ export const GAMES = {
   hong: { name: "Hong", page: "./hong.html" },
   tribute: { name: "Tribute", page: "./tribute.html" },
   brut: { name: "Brut", page: "./brut.html" },
+  party: { name: "Party", page: "./party.html" },
   river: { name: "River", page: "./river.html" },
   gambit: { name: "Gambit", page: "./gambit.html" },
 };
