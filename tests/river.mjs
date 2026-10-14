@@ -199,16 +199,21 @@ check(choose([{ cp: 50, pv: ["a"] }, { cp: -900, pv: ["b"] }], 60, () => 0.99) =
 }
 {
   // the stronger levels win: each pair plays both colours
+  // a fresh engine for each game, so what earlier searches left in its hash table can't steer this one: the match
+  // plays the same moves every run (the sampling levels draw from a seeded generator, the rest search a set number
+  // of positions), so it can't fail by bad luck and hold up publishing
   const r = rng(9);
   const match = async (strong, weak, n) => {
     let score = 0;
     for (let i = 0; i < n; i++) {
+      const engine = new Engine(fairyWorker, { setup: SETUP });
       let s = X.newGame({ red: i % 2 });
       for (let ply = 0; ply < 300 && !s.result; ply++) {
         const seat = X.waitingOn(s), level = levelById(seat === 0 ? strong : weak);
         const { move } = await levelMove(engine, level, { fen: s.start, moves: X.movesOf(s), rand: r });
         s = X.act(s, seat, { move }) || s;
       }
+      engine.stop();
       const strongColour = s.red === 0 ? "red" : "black";
       score += !s.result?.winner ? 0.5 : s.result.winner === strongColour ? 1 : 0;
     }

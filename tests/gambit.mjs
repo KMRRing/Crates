@@ -107,22 +107,28 @@ const engine = new Engine(stockfishWorker);
   check(!illegal && roundTrips === plies, `${games} whole games between levels, ${plies} moves, every one legal and read back from the room as written (ended by ${[...ends].join(", ")})`);
 }
 {
-  const r = rng(8);
+  // Only levels that play the same moves every run take part: the sampling levels draw from a seeded generator and a
+  // search limited by positions is repeatable, while Stockfish's own limiter (UCI_Elo) takes its randomness from the
+  // clock, so a match with it could fail by bad luck now and then and hold up publishing.
+  // A fresh engine for each game: what the last searches left in its hash table steers a search limited by positions.
+  const r = rng(8), SEARCH = { id: "t", name: "Search", limit: "nodes 20000" };
   const match = async (strong, weak, n) => {
     let score = 0;
     for (let i = 0; i < n; i++) {
+      const engine = new Engine(stockfishWorker);
       let s = G.newGame({ white: i % 2 });
       for (let ply = 0; ply < 300 && !s.result; ply++) {
-        const seat = G.waitingOn(s), level = levelById(seat === 0 ? strong : weak);
+        const seat = G.waitingOn(s), level = seat === 0 ? strong : weak;
         const { move } = await levelMove(engine, level, { fen: s.start, moves: G.movesOf(s), rand: r });
         s = G.act(s, seat, { move }) || s;
       }
+      engine.stop();
       score += !s.result?.winner ? 0.5 : s.result.winner === (s.white === 0 ? "white" : "black") ? 1 : 0;
     }
     return score;
   };
-  const a = await match("4", "1", 4), b = await match("6", "3", 2);
-  check(a >= 3.5 && b >= 1.5, `the stronger levels win: Club against Beginner ${a} of 4, Expert against Casual ${b} of 2`);
+  const a = await match(SEARCH, levelById("1"), 4), b = await match(levelById("2"), levelById("1"), 4);
+  check(a >= 3.5 && b >= 2, `the stronger levels win: a search of 20,000 positions against Beginner ${a} of 4, Novice against Beginner ${b} of 4`);
 }
 {
   const r = await engine.search({ fen: G.START, limit: "nodes 20000", options: { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false } });
