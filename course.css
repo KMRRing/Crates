@@ -89,3 +89,38 @@ html[data-theme="kontor"] :is(.ln-ch li button, .ln-opt, .ln-go) { border-radius
 .lc-hand .cd.sel { transform: translateY(-.45rem); background: color-mix(in srgb, var(--ln-in) 18%, var(--cd-face)); border-color: var(--ln-in); box-shadow: 0 0 0 1.5px var(--ln-in); }
 .lc-hand.done .cd { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .lc-hand .cd { transition: none; } }
+
+/* ---------- the dice games' stage (course-dice.js): cups lifted and down, bids, a bid to set ---------- */
+.ldi { --ldi-die: 2.4rem; gap: .5rem; }
+.ldi .bo-die { width: var(--ldi-die); height: var(--ldi-die); }
+.ldi-dice { display: flex; gap: calc(var(--ldi-die) * .16); }
+.ldi-die-btn { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 6px; }
+.ldi-die-btn:focus-visible { outline: 2px solid var(--ln-in); outline-offset: 2px; }
+.ldi .bo-die.lit rect { stroke: var(--ln-in); stroke-width: 2.6; }
+.ldi .bo-die.lit.hinted rect { stroke-dasharray: 3 2; }
+.ldi .bo-die.dim { opacity: .3; }
+.ldi-cups { display: flex; gap: calc(var(--ldi-die) * .2); }
+.ldi-cup { width: var(--ldi-die); height: var(--ldi-die); }
+.ldi-cup .body { fill: var(--ln-in); stroke: var(--ink); stroke-width: 1.3; stroke-linejoin: round; }
+.ldi-cup .band { fill: none; stroke: var(--brass); stroke-width: 1.5; }
+.ldi-cup .rim { stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
+.ldi-bid { display: inline-flex; align-items: center; gap: .3rem; font-size: calc(var(--ldi-die) * .7); font-weight: 800; font-variant-numeric: tabular-nums; }
+.ldi-bid .x { font-weight: 500; opacity: .55; }
+.ldi .ldi-bid .bo-die { width: calc(var(--ldi-die) * .9); height: calc(var(--ldi-die) * .9); }
+.ldi-zhai { padding: 0 .3rem; border-radius: 3px; background: var(--ln-in); color: var(--sheet); font-size: .62em; line-height: 1.35; }
+.ldi-found { margin: 0; font-size: .8rem; color: var(--ink-soft); }
+.ldi-set { display: grid; gap: .45rem; justify-items: center; width: 100%; max-width: 22rem; }
+.ldi-count { display: flex; align-items: center; gap: .5rem; }
+.ldi-step, .ldi-z, .ldi-face { min-width: 2.75rem; min-height: 2.75rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
+.ldi-step { font-size: 1.3rem; font-weight: 700; line-height: 1; }
+.ldi-n { min-width: 2.2rem; text-align: center; font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ldi-z { display: grid; justify-items: center; padding: .1rem .6rem; font-weight: 800; line-height: 1.1; }
+.ldi-z small { font-size: .62rem; font-weight: 600; color: var(--ink-soft); }
+.ldi-z[aria-pressed="true"], .ldi-face[aria-pressed="true"] { border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); background: color-mix(in srgb, var(--ln-in) 12%, var(--tile)); }
+.ldi-faces { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .35rem; width: 100%; }
+.ldi-face { display: grid; place-items: center; padding: .2rem; }
+.ldi .ldi-face .bo-die { width: min(calc(var(--ldi-die) * .8), 2rem); height: min(calc(var(--ldi-die) * .8), 2rem); }
+.ldi-step:disabled, .ldi-z:disabled, .ldi-face:disabled { opacity: .45; cursor: default; }
+.ldi-says { margin: 0; min-height: 1.1rem; font-size: .8rem; color: var(--ln-no); }
+html[data-theme="modern"] :is(.ldi-step, .ldi-z, .ldi-face) { border-radius: 12px; }
+html[data-theme="kontor"] :is(.ldi-step, .ldi-z, .ldi-face) { border-radius: 2px; }

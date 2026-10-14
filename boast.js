@@ -2,13 +2,16 @@
 // their own phone. The rules and the words are boast-rules.js's, the computer players boast-bot.js's, the running
 // seats.js's (solo, or a table through seats-ui.js). This page draws the table: the others' cups round the top, the bid
 // in the middle as it's called, your five dice and the bid you're making at the bottom.
-import { rules, bidWords, CALLS, leastAfter, plain, opening, most, LIMITS, cupCount, SHOW_MS } from "./boast-rules.js";
+import { rules, bidWords, CALLS, leastAfter, plain, opening, most, LIMITS, cupCount, canFollow, SHOW_MS } from "./boast-rules.js";
 import { LEVEL_NAMES, oddsFor } from "./boast-bot.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
+import { createCourse, progressOf } from "./course.js";
+import { diceStage } from "./course-dice.js";
+import { COURSE, judge, words as bidEnglish } from "./boast-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -340,12 +343,29 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (the header): the game taught from nothing (boast-course.js) on the course's sheet (course.js), the dice drawn
+// as the table draws them, counted by the rules (wild ones, plain bids); its last lesson starts a game against Easy.
+// The Rules sheet, every rule on one page, opens from the course's map and the menu.
+const course = createCourse({
+  id: "boast", course: COURSE, cls: "bo", inFrame: IN_FRAME, onRules: showRules,
+  stage: diceStage({ die, counts: (hand, bid) => cupCount(hand, bid), follows: (prev, bid, seats) => canFollow(prev, bid, seats), words: bidEnglish, judge }),
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.level = "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("boast", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Boast, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const next = () => { saveOpts(); };
   set.append(choice("Players", [[2, "2"], [3, "3"], [4, "4"], [5, "5"], [6, "6"]], opts.seats, v => { opts.seats = Number(v); next(); }));
@@ -368,9 +388,9 @@ bindSwitcher($("appsBtn"), "boast");
 document.querySelector(".bo-mark").innerHTML = APPS.find(a => a.id === "boast")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
+$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-window.__boast = { page, get view() { return V; }, opts, fillNames };
+window.__boast = { page, get view() { return V; }, opts, fillNames, course };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

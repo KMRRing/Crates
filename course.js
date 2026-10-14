@@ -11,9 +11,9 @@
 //
 // The stage: mount(box, { changed, answer }) once; draw(step, st) for each change (st: the step's state, which the stage
 // may keep its own fields in); task(step): whether the step asks for an answer on the stage; and either submit(step, st)
-// → { ok, msg | why } with ready(step, st) and label(step, st) for the button that submits (cards: pick, then play), or
-// the stage judging as the reader taps and calling answer({ ok, msg, done }) (dice: tap each one that counts);
-// hint(step, st) shows the answer.
+// → { ok, msg | why } with ready(step, st) and label(step, st) for the button that submits (cards: pick, then play; a
+// bid set on the dice), or the stage judging as the reader taps and calling answer({ ok, msg, done }) (dice: tap each
+// one that counts), submits(step) saying which a step is when a stage has both; hint(step, st) shows the answer.
 const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const BACK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -58,6 +58,7 @@ export function createCourse({ id, course, stage, onPlay = () => {}, onRules = n
   let L = null;                                            // { entry, i (the step), st (the step's state) }
   const step = () => L.entry.lesson.steps[L.i];
   const isTask = s => !!stage.task(s);
+  const viaButton = s => !!stage.submit && (stage.submits ? stage.submits(s) : true);
   stage.mount($(".ln-stage"), {
     changed: () => draw(),
     answer: res => { if (L && !L.st.done) settle(res); },
@@ -97,9 +98,9 @@ export function createCourse({ id, course, stage, onPlay = () => {}, onRules = n
     const act = $("[data-act]"), next = $("[data-next]"), hint = $("[data-hint]");
     hint.hidden = !task;
     hint.disabled = L.st.hint;
-    act.hidden = !(task && stage.submit);
+    act.hidden = !(task && viaButton(s));
     if (!act.hidden) { act.textContent = stage.label(s, L.st); act.disabled = !stage.ready(s, L.st); }
-    next.hidden = task && !!stage.submit;
+    next.hidden = task && viaButton(s);
     next.disabled = !L.st.done;
     const last = L.i === n - 1;
     next.textContent = s.play ? "Play a game" : last ? (LESSONS[L.entry.index + 1] ? "Next lesson" : "Finish") : "Next";
@@ -127,7 +128,7 @@ export function createCourse({ id, course, stage, onPlay = () => {}, onRules = n
     draw();
   });
   $("[data-act]").addEventListener("click", () => {
-    if (!L || L.st.done || !stage.submit) return;
+    if (!L || L.st.done || !viaButton(step())) return;
     const s = step();
     if (!stage.ready(s, L.st)) return;
     settle(stage.submit(s, L.st));

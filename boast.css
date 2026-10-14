@@ -19,6 +19,9 @@ html[data-theme="office"] { --bo-in: #0F6CBD; --bo-die: #FFFFFF; --bo-die-edge: 
 @media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bo-in: #479EF5; --bo-die: #E1DFDD; --bo-die-edge: #797775; } }
 html[data-theme="office"][data-mode="night"] { --bo-in: #479EF5; --bo-die: #E1DFDD; --bo-die-edge: #797775; }
 
+/* the course's sheet (course.css) in the game's enamel */
+.ln-sheet.bo { --ln-in: var(--bo-in); }
+
 .bo-mark { display: inline-block; }
 .bo-mark svg { width: 100%; height: 100%; display: block; }
 
