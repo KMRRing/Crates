@@ -9,6 +9,9 @@ import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
+import { createCourse, progressOf } from "./course.js";
+import { cardStage } from "./course-cards.js";
+import { COURSE, judge } from "./landlord-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -326,12 +329,28 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (the header): the game taught from nothing (landlord-course.js) on the course's sheet (course.js), the cards drawn
+// as the table draws them; its last lesson starts a game against Easy. The Rules sheet, every rule on one page, opens
+// from the course's map and the menu.
+const course = createCourse({
+  id: "landlord", course: COURSE, stage: cardStage({ face, label: cardName, judge }), cls: "ll", inFrame: IN_FRAME, onRules: showRules,
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.level = "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("landlord", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Landlord, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
   set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));
@@ -352,9 +371,9 @@ bindSwitcher($("appsBtn"), "landlord");
 document.querySelector(".ll-mark").innerHTML = APPS.find(a => a.id === "landlord")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
+$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => draw());
-window.__landlord = { page, get view() { return V; }, opts, get sel() { return sel; } };
+window.__landlord = { page, get view() { return V; }, opts, get sel() { return sel; }, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
