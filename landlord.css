@@ -1,0 +1,126 @@
+/* Landlord: a card table under a persimmon-orange enamel, the two others at its top corners with the kitty between
+   them, your cards along its foot. Upright: the table, the counter, your cards and your buttons. Sideways: the table on
+   the left, the counter, your cards and buttons beside it. */
+:root {
+  --ll-in: #C2660E;                                                /* persimmon: the game's enamel */
+  --ll-soft: color-mix(in srgb, var(--ll-in) 13%, var(--sheet));
+  --ll-felt: color-mix(in srgb, var(--ll-in) 7%, var(--sheet));
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --ll-in: #F0A04B; --ll-felt: color-mix(in srgb, #C2660E 18%, var(--sheet)); } }
+html[data-mode="night"] { --ll-in: #F0A04B; --ll-felt: color-mix(in srgb, #C2660E 18%, var(--sheet)); }
+html[data-theme="kontor"] { --ll-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ll-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --ll-in: #2EB36A; }
+html[data-theme="office"] { --ll-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ll-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --ll-in: #479EF5; }
+
+.ll-mark { display: inline-block; }
+.ll-mark svg { width: 100%; height: 100%; display: block; }
+.ll-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ll-strip b { color: var(--ink); }
+.ll-strip small { font-size: .78rem; }
+
+/* ---------- the table ---------- */
+.ll-table { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "left kitty right" "centre centre centre" "me me me"; gap: .3rem .4rem; padding: .5rem; min-height: 0; border-radius: 6px;
+  background: var(--ll-felt); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--ll-felt), inset 0 0 0 5px var(--rule); overflow: hidden; container-type: size; }
+/* the plays drawn as large as the table allows: a tablet's table shows them larger */
+.ll-table > * { --cd-line: clamp(.6rem, min(3.4cqh, 3.1cqw), 1.15rem); }
+.ll-seat { display: grid; gap: .25rem; align-content: start; min-width: 0; padding: .3rem; border-radius: 6px; }
+.ll-seat.at-left { grid-area: left; justify-items: start; }
+.ll-seat.at-right { grid-area: right; justify-items: end; }
+.ll-seat.at-me { grid-area: me; justify-items: center; }
+.ll-seat.turn { box-shadow: inset 0 0 0 1.5px var(--ll-in); }
+.ll-seat.lead .ll-play .ll-rows { filter: drop-shadow(0 0 .15rem color-mix(in srgb, var(--ll-in) 60%, transparent)); }
+.ll-who, .ll-meta { display: flex; align-items: center; gap: .35rem; max-width: 100%; min-width: 0; font-size: .86rem; }
+.ll-seat.at-right :is(.ll-who, .ll-meta) { justify-content: flex-end; }
+.ll-who b { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.ll-role { flex: none; padding: .05rem .3rem; border-radius: 3px; font-size: .72rem; font-weight: 800; line-height: 1.2; letter-spacing: calc(.04em * var(--track)); }
+.ll-role.landlord { background: var(--ll-in); color: var(--sheet); }
+.ll-role.peasant { box-shadow: inset 0 0 0 1px var(--ll-in); color: var(--ll-in); }
+.ll-n { display: inline-flex; align-items: center; gap: .2rem; font-variant-numeric: tabular-nums; }
+.ll-n .cd.back { font-size: .3rem; }
+.ll-n.low b { color: #A8382B; }
+.ll-sc { padding: 0 .3rem; border-radius: 3px; background: var(--sheet); border: 1px solid var(--rule); font-size: .76rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ll-play { min-height: calc(var(--cd-line) * 3.5); display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; max-width: 100%; }
+.ll-seat.at-right .ll-play { justify-content: flex-end; }
+/* a long play (a straight of ten, an airplane) closes up, in rows, rather than run off the table */
+.ll-rows { display: grid; gap: .2rem; justify-items: start; }
+.ll-seat.at-right .ll-rows { justify-items: end; }
+.ll-seat.at-me .ll-rows { justify-items: center; }
+.ll-rows .cd-line.many > .cd + .cd { margin-left: -1.55em; }
+.ll-word { font-size: .84rem; font-weight: 800; color: var(--ink-soft); }
+.ll-word.yes { color: var(--ll-in); }
+.ll-thinking { font-size: .76rem; color: var(--ink-soft); }
+.ll-thinking::after { content: "…"; }
+.ll-out { padding: .1rem .4rem; border-radius: 4px; background: var(--ll-in); color: var(--sheet); font-weight: 800; font-size: .82rem; }
+.ll-pay { font-weight: 800; font-variant-numeric: tabular-nums; }
+.ll-pay.up { color: #2F7D5B; }
+.ll-pay.down { color: #A8382B; }
+.ll-kitty { grid-area: kitty; display: grid; justify-items: center; align-content: start; gap: .15rem; padding-top: .25rem; }
+.ll-kitty .cd-line { font-size: calc(var(--cd-line) * .85); }
+.ll-kitty .cd-line > .cd + .cd { margin-left: -.9em; }
+.ll-kitty-name { font-size: .66rem; font-weight: 800; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.ll-centre { grid-area: centre; display: grid; align-content: center; justify-items: center; gap: .3rem; text-align: center; min-width: 0; }
+.ll-said { margin: 0; font-size: .86rem; color: var(--ink-soft); max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.ll-beat { margin: 0; font-size: .86rem; }
+.ll-next { display: block; width: min(9rem, 80%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.ll-next i { display: block; height: 100%; background: var(--ll-in); transform-origin: left; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.ll-pay.down, .ll-n.low b) { color: #E8806F; } html:not([data-mode="day"]) .ll-pay.up { color: #7FC2A8; } }
+html[data-mode="night"] :is(.ll-pay.down, .ll-n.low b) { color: #E8806F; }
+html[data-mode="night"] .ll-pay.up { color: #7FC2A8; }
+
+/* ---------- the counter, your cards and your buttons ---------- */
+.ll-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
+.ll-counter { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); overflow: hidden; }
+.ll-counter[hidden] { display: none; }
+.ll-counter span { display: grid; justify-items: center; padding: .1rem 0; line-height: 1.15; }
+.ll-counter span + span { border-left: 1px solid var(--rule); }
+.ll-counter i { font-style: normal; font-size: .62rem; color: var(--ink-soft); }
+.ll-counter b { font-size: .8rem; font-variant-numeric: tabular-nums; }
+.ll-counter .none b, .ll-counter .none i { opacity: .35; }
+.ll-counter .all b { color: var(--ll-in); }
+.ll-status { margin: 0; min-height: 1.3em; text-align: center; font-size: .9rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ll-status b { color: var(--ll-in); }
+.ll-hand { height: 4.6rem; padding-top: .45rem; box-sizing: border-box; justify-content: center; }
+.ll-hand .cd { cursor: pointer; transition: transform .1s; }
+.ll-hand .cd.sel { transform: translateY(-.4rem); background: color-mix(in srgb, var(--ll-in) 18%, var(--cd-face)); border-color: var(--ll-in); box-shadow: 0 0 0 1.5px var(--ll-in); }
+@media (prefers-reduced-motion: reduce) { .ll-hand .cd { transition: none; } }
+.ll-watch { margin: auto; color: var(--ink-soft); }
+.ll-bar { display: flex; gap: .45rem; align-items: center; }
+.ll-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ll-play-btn { flex: 1.6 1 0; }
+.ll-clear { flex: none; }
+
+/* ---------- the sheets ---------- */
+.ll-rules p { line-height: 1.45; }
+.ll-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.ll-talk { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.ll-talk th { text-align: left; font-size: .78rem; color: var(--ink-soft); padding: .2rem .3rem; }
+.ll-talk td { padding: .3rem; border-top: 1px solid var(--rule); vertical-align: top; }
+.ll-talk td b { font-size: 1.02rem; }
+.ll-talk small, .ll-rules-note { color: var(--ink-soft); }
+.ll-end-head { margin: .2rem 0 .6rem; }
+.ll-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.ll-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto 3rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.ll-standings .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ll-standings li.won .nm::after { content: " ★"; color: var(--ll-in); }
+.ll-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.ll-lords { color: var(--ink-soft); font-size: .85rem; }
+.ll-standings b { text-align: right; font-variant-numeric: tabular-nums; }
+.ll-end-note { color: var(--ink-soft); font-size: .9rem; }
+.ll-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.ll-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.ll-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the table on the left, the counter, your cards and buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.landlord { --beside: 24rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.landlord .ll-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.landlord .ll-table { grid-column: 1; grid-row: 3; }
+  #app.landlord .ll-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+}
+html[data-theme="office"] :is(.ll-table, .ll-seat) { border-radius: 4px; }

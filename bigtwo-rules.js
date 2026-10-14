@@ -173,7 +173,7 @@ export const rules = {
     const opts = { ...DEFAULTS, ...pick(options) };
     const s = { seats, opts, scores: Array(seats).fill(0), log: [], deal: 0, winner: null };
     deal(s, rng, true);
-    s.say = sayIt(opts.talk, { yue: `{s${s.turn}}有${CARD_YUE(lowest(opts))}，佢先出。`, zh: `{s${s.turn}}有${CARD_ZH(lowest(opts))}，先出。`, en: `{s${s.turn}} has the ${cardName(lowest(opts))} and leads.` });
+    s.say = sayIt(opts.talk, { yue: `{s${s.turn}}有${CARD_YUE(lowest(opts))}，佢先出。`, zh: `{s${s.turn}}有${CARD_ZH(lowest(opts))}，先出。`, en: `First to play, with the ${cardName(lowest(opts))}: {s${s.turn}}.` });
     return s;
   },
 
@@ -223,12 +223,12 @@ export const rules = {
       const top = Math.max(...s.scores);
       s.step = "over";
       s.winners = s.scores.map((v, i) => (v === top ? i : -1)).filter(i => i >= 0);
-      s.say = sayIt(s.opts.talk, { yue: `完場！${s.winners.map(i => `{s${i}}`).join("同")}贏。`, zh: `结束！${s.winners.map(i => `{s${i}}`).join("和")}赢。`, en: `Game over. ${s.winners.map(i => `{s${i}}`).join(" and ")} ${s.winners.length > 1 ? "win" : "wins"}.` });
+      s.say = sayIt(s.opts.talk, { yue: `完場！${s.winners.map(i => `{s${i}}`).join("同")}贏。`, zh: `结束！${s.winners.map(i => `{s${i}}`).join("和")}赢。`, en: `Game over. ${s.winners.length > 1 ? "Winners" : "Winner"}: ${s.winners.map(i => `{s${i}}`).join(" and ")}.` });
       delete s.until;
       return s;
     }
     deal(s, rng, false);
-    s.say = sayIt(s.opts.talk, { yue: `第${s.deal}鋪，{s${s.turn}}先出。`, zh: `第${s.deal}局，{s${s.turn}}先出。`, en: `Deal ${s.deal}. {s${s.turn}} leads.` });
+    s.say = sayIt(s.opts.talk, { yue: `第${s.deal}鋪，{s${s.turn}}先出。`, zh: `第${s.deal}局，{s${s.turn}}先出。`, en: `Deal ${s.deal}. First to play: {s${s.turn}}.` });
     return s;
   },
 
@@ -245,7 +245,7 @@ function endDeal(s, winner, now) {
   s.winner = winner;
   s.step = "shown";
   s.until = now + SHOW_MS;
-  s.say = sayIt(s.opts.talk, { yue: `{s${winner}}出晒！`, zh: `{s${winner}}出完了！`, en: `{s${winner}} is out!` });
+  s.say = sayIt(s.opts.talk, { yue: `{s${winner}}出晒！`, zh: `{s${winner}}出完了！`, en: `Out: {s${winner}}!` });
 }
 
 function pick(o) {

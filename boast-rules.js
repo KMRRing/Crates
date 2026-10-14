@@ -149,7 +149,7 @@ function sayVerdict(talk, r) {
   if (talk === "zh") return say("zh", `${call.zh}！一共${r.count === 0 ? "零" : w.zh.replace(/斋$/, "")}。${loser}喝${CUPS_ZH[r.stake]}。`);
   if (talk === "yue") return say("yue", `${call.yue}！總共${r.count === 0 ? "零" : w.yue.replace(/齋$/, "")}。${loser}飲${CUPS_YUE[r.stake]}。`);
   const what = `${enCount(r.count)} ${r.count === 1 ? EN_F1[b.f] : EN_F[b.f]}`;
-  return say("en", `${call.en}! ${what[0].toUpperCase()}${what.slice(1)} in all, against ${enCount(b.n)}. ${loser} drinks ${r.stake === 1 ? "a cup" : `${enCount(r.stake)} cups`}.`);
+  return say("en", `${call.en}! ${what[0].toUpperCase()}${what.slice(1)} in all, against ${enCount(b.n)}. ${r.stake === 1 ? "A cup" : `${enCount(r.stake)[0].toUpperCase()}${enCount(r.stake).slice(1)} cups`} for ${loser}.`);
 }
 
 // ---------- the game ----------
@@ -261,7 +261,7 @@ export const rules = {
     newRound(s, s.result.loser, rng);
     const starter = `{s${s.turn}}`;
     s.say = s.opts.talk === "zh" ? say("zh", `第${zhCount(s.round)[0]}局，${starter}先叫。`) : s.opts.talk === "yue" ? say("yue", `第${yueCount(s.round)[0]}局，${starter}先叫。`)
-      : say("en", `Round ${s.round}. ${starter} starts.`);
+      : say("en", `Round ${s.round}. First to bid: ${starter}.`);
     return s;
   },
 

@@ -1,5 +1,5 @@
 /* The playing cards of cards.js: ivory, rank and suit in the corner, the suit large at the foot, red for hearts and
-   diamonds; a joker lettered down its side. 2.5em by 3.5em: the card's size is its font size (--cd-size, or the
+   diamonds; a joker lettered down its corner. 2.5em by 3.5em: the card's size is its font size (--cd-size, or the
    font size of what it sits in). */
 :root { --cd-face: #FCF9F1; --cd-edge: #C9B78E; --cd-red: #B3302A; --cd-black: #1E2730; --cd-back: #2F4A66; --cd-back-line: #C8923A; }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --cd-face: #ECE6D6; --cd-edge: #7E6C4B; --cd-back: #23384E; } }
@@ -13,10 +13,11 @@ html[data-theme="office"] { --cd-face: #FFFFFF; --cd-edge: #C8C6C4; --cd-red: #C
 .cd-r { font-size: .95em; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .cd-s { font-size: .82em; margin-top: .04em; }
 .cd-pip { position: absolute; right: .14em; bottom: .08em; font-size: 1.45em; line-height: 1; opacity: .9; }
-.cd.joker { align-items: center; justify-content: space-between; padding: .2em 0; }
+/* a joker: JOKER down its corner (a rank's place, so a fanned hand shows it), a star at its foot; the big joker red */
+.cd.joker { padding: .2em .12em; }
 .cd.joker.big { color: var(--cd-red); }
-.cd-j { writing-mode: vertical-rl; text-orientation: upright; font-size: .5em; letter-spacing: -.12em; }
-.cd-star { font-size: .9em; }
+.cd-j { writing-mode: vertical-rl; text-orientation: upright; font-size: .46em; letter-spacing: -.2em; line-height: 1; }
+.cd.joker .cd-pip { font-size: 1.3em; opacity: 1; }
 .cd.back { background: var(--cd-back); border-color: var(--cd-back); background-image: repeating-linear-gradient(45deg, transparent 0 .22em, color-mix(in srgb, var(--cd-back-line) 35%, transparent) .22em .27em),
   repeating-linear-gradient(-45deg, transparent 0 .22em, color-mix(in srgb, var(--cd-back-line) 35%, transparent) .22em .27em);
   box-shadow: inset 0 0 0 .12em var(--cd-back), inset 0 0 0 .16em var(--cd-back-line), 0 1px 2px rgba(28, 42, 52, .2); }
