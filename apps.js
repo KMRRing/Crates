@@ -3,7 +3,7 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
-import { choice, toggle, line } from "./menu.js";
+import { choice, toggle, line, RETE } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -258,8 +258,8 @@ export const APPS = [
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
-// Settings, the sliders at the top right of the games screen: the theme (Deco, Modern, Kontor or Office; each with a day
-// and a night that follow the system).
+// Settings, at the top right of the games screen (Almanac's rete, the other themes' sliders): the theme (Deco, Modern,
+// Kontor or Office; each with a day and a night that follow the system).
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
 const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
@@ -281,6 +281,9 @@ function openSettings(host) {
     sheet.querySelector("[data-close]").addEventListener("click", () => sheet.close());
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
     host.appendChild(sheet);
+    // Almanac's rete turns while Settings is open, as a game's does while its menu is
+    const rete = host.querySelector(".rete-btn[data-settings]");
+    if (rete) new MutationObserver(() => rete.classList.toggle("turning", sheet.open)).observe(sheet, { attributes: true, attributeFilter: ["open"] });
   }
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
@@ -518,11 +521,13 @@ function bindCodes(dlg) {
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
   // A full screen of games, a tile each with its logo and name, every game on it: the tiles scroll in their own box when
-  // they don't all fit, the screen around them never does. Settings and refresh at the top right.
+  // they don't all fit, the screen around them never does. Settings (in Almanac the rete every game's menu button is) and
+  // refresh at the top right.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
   dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
-      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${ICON.settings}</button>
+      ${theme() === "deco" ? `<button class="rete-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${RETE}</button>`
+        : `<button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${ICON.settings}</button>`}
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;

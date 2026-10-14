@@ -238,7 +238,7 @@ dialog.apps[open] { animation: apps-in .16s ease-out; }
 @media (prefers-reduced-motion: reduce) { dialog.apps[open] { animation: none; } }
 .apps-inner { max-width: 46rem; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
 dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.14em * var(--track)); text-transform: var(--caps); }
-.apps-actions { display: flex; gap: .45rem; }
+.apps-actions { display: flex; align-items: center; gap: .45rem; }   /* Almanac's rete (Settings) is a game header's size, a little larger than the icons */
 .apps-brand { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 0 0 .7rem; padding-bottom: .65rem;
   font-size: 1.45rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.22em * var(--track)); text-transform: var(--caps); line-height: 1;
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
