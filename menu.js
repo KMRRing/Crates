@@ -165,7 +165,8 @@ function shape(body) {
 // ---------- the pause: a game stands still while its menu, its rules, or the games screen is open ----------
 // Games listen with onPause(pause, resume): pause() when it should stop, resume(ms) when it may go on, ms being how
 // long it stood (to move a deadline or a start on by). A duo match's shared clock doesn't stop; the games see to that.
-const PAUSERS = "#menuDlg[open], #helpDlg[open], #rulesDlg[open], dialog.apps[open], dialog.apps-pop[open]";
+// (a game's own sheet that should stop it too, River's course say, carries the class pauses)
+const PAUSERS = "#menuDlg[open], #helpDlg[open], #rulesDlg[open], dialog.apps[open], dialog.apps-pop[open], dialog.pauses[open]";
 let pausedAt = null;
 export const isPaused = () => pausedAt !== null;
 export function onPause(pause, resume) {

@@ -152,6 +152,80 @@ dialog.rv-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .rv-toast.show { opacity: 1; }
 html[data-theme="modern"] .rv-toast { border-radius: 10px; }
 
+/* ---------- the course (river-learn.js): a sheet over the whole screen, its own board, the words under it ---------- */
+dialog.rv-learn { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0;
+  background: var(--yard); color: var(--ink); overflow: hidden; }
+dialog.rv-learn::backdrop { background: var(--yard); }
+.rv-learn-in { display: flex; flex-direction: column; height: 100%; box-sizing: border-box; max-width: 40rem; margin: 0 auto;
+  padding: max(.6rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + .6rem) max(1rem, env(safe-area-inset-left, 0px)); }
+.rv-learn-head { flex: none; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 2.5rem; align-items: center; gap: .5rem; padding-bottom: .5rem; border-bottom: 1px solid var(--brass); }
+.rv-learn-title { display: grid; justify-items: center; min-width: 0; line-height: 1.2; }
+.rv-learn-title b { max-width: 100%; font-size: .92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.rv-learn-title small { color: var(--ink-soft); font-size: .8rem; }
+dialog.rv-learn:not(.map) .rv-learn-map, dialog.rv-learn.map .rv-learn-lesson { display: none; }
+/* the map */
+.rv-learn-map { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .7rem 0 .4rem; }
+.rv-learn-go { width: 100%; margin-bottom: .4rem; }
+.rv-learn-all { color: var(--ink-soft); text-align: center; }
+.rv-learn-ch h3 { margin: .9rem 0 .35rem; font-size: .76rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--rv-in); }
+.rv-learn-ch h3 span { margin-left: .4rem; letter-spacing: 0; text-transform: none; font-stretch: normal; color: var(--ink-soft); font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; }
+.rv-learn-ch ol { margin: 0; padding: 0; list-style: none; display: grid; gap: .3rem; }
+.rv-learn-ch li button { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) auto; gap: .5rem; align-items: center; width: 100%; padding: .55rem .6rem; text-align: left;
+  border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
+.rv-learn-ch li button.here { border-color: var(--rv-in); box-shadow: inset 0 0 0 1.5px var(--rv-in); }
+.rv-learn-ch li button.done { color: var(--ink-soft); }
+.rv-learn-ch .tick { font-weight: 800; color: var(--rv-hint); text-align: center; }
+.rv-learn-ch .here .tick { color: var(--rv-in); }
+.rv-learn-ch .t { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-learn-ch .zh { color: var(--ink-soft); font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; white-space: nowrap; }
+.rv-learn-rules { width: 100%; margin-top: 1rem; }
+/* a lesson: the board as large as the room the words leave it */
+.rv-learn-lesson { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: .5rem; padding-top: .45rem; }
+.rv-learn-board { flex: 1 1 auto; min-height: 11rem; container-type: size; display: grid; place-items: center; }
+.rv-learn-sq { width: min(100cqw, calc(100cqh * 9.24 / 10.96)); aspect-ratio: 9.24 / 10.96; }
+.rv-learn-side { flex: none; display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+.rv-learn-text { min-height: 4.6rem; max-height: 36vh; max-height: 36svh; overflow-y: auto; overscroll-behavior: contain; }
+.rv-learn-text p { margin: 0 0 .45rem; font-size: .95rem; line-height: 1.42; }
+.rv-learn-say { font-weight: 600; }
+.rv-learn-count { color: var(--ink-soft); font-size: .88rem !important; }
+.rv-learn-msg { padding: .45rem .6rem; border-radius: 4px; }
+.rv-learn-msg.ok { background: color-mix(in srgb, var(--rv-hint) 15%, var(--sheet)); }
+.rv-learn-msg.no { background: color-mix(in srgb, var(--rv-check) 13%, var(--sheet)); }
+.rv-learn-line { display: flex; flex-wrap: wrap; gap: .15rem .5rem; font-family: 'Songti TC', 'STSong', 'Noto Serif CJK TC', 'Noto Serif TC', 'PMingLiU', serif; }
+.rv-learn-line span { white-space: nowrap; }
+.rv-learn-line small { margin-right: .2rem; font-family: inherit; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.rv-learn-line .red b { color: var(--rv-red-text); }
+.rv-learn-line .last b { text-decoration: underline; text-decoration-color: var(--rv-in); text-underline-offset: .2em; }
+.rv-learn-note { color: var(--ink); }
+.rv-learn-whose { color: var(--ink-soft); font-size: .88rem !important; }
+.rv-learn-quiz { display: grid; gap: .4rem; margin: .2rem 0 .5rem; }
+.rv-learn-opt { min-height: 2.75rem; padding: .45rem .7rem; text-align: left; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
+.rv-learn-opt.ok { border-color: var(--rv-hint); background: color-mix(in srgb, var(--rv-hint) 15%, var(--sheet)); }
+.rv-learn-opt.no { border-color: var(--rv-check); }
+.rv-learn-opt:disabled { cursor: default; }
+.rv-learn-bar { display: flex; gap: .5rem; }
+.rv-learn-bar .rv-go { flex: 1 1 0; }
+/* the course's marks on the board */
+.rv-mk-zone { fill: var(--rv-in); opacity: .16; }
+.rv-mk-dot { fill: var(--rv-hint); pointer-events: none; }
+.rv-mk-ok { fill: var(--rv-hint); stroke: var(--rv-face); stroke-width: .04; pointer-events: none; }
+.rv-mk-ring { fill: none; stroke: var(--rv-sel); stroke-width: .07; pointer-events: none; }
+.rv-mk-x { fill: none; stroke: var(--rv-check); stroke-width: .075; stroke-linecap: round; pointer-events: none; }
+.rv-mk-x.no { stroke-width: .1; }
+.rv-mk-arrow { fill: none; stroke: var(--rv-hint); stroke-width: .13; stroke-linecap: round; stroke-linejoin: round; opacity: .88; pointer-events: none; }
+html[data-theme="modern"] :is(.rv-learn-ch li button, .rv-learn-opt) { border-radius: 12px; }
+html[data-theme="office"] :is(.rv-learn-ch li button, .rv-learn-opt) { border-radius: 4px; }
+/* held sideways: the board on the left with all the height, the words and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  .rv-learn-in { max-width: 70rem; }
+  .rv-learn-lesson { display: grid; grid-template-columns: minmax(0, 1fr) 22rem; column-gap: 1.5rem; }
+  .rv-learn-board { min-height: 0; }
+  .rv-learn-side { min-height: 0; justify-content: flex-end; }
+  .rv-learn-text { flex: 1 1 auto; max-height: none; }
+  .rv-learn-map { columns: 2; column-gap: 2rem; }
+  .rv-learn-go, .rv-learn-ch, .rv-learn-rules { break-inside: avoid; }
+}
+
 /* held sideways (#app.beside): the board on the left with all the height; the seats, what's said and the moves beside
    it, the moves filling the column, the buttons at the bottom where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {

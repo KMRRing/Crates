@@ -30,9 +30,12 @@ function discMarkup(v, script, flip) {
 /**
  * Mounts a board in `host`. onMove(from, to) is called for a move made by hand; legal(from) returns the points a piece
  * there may go to (empty when it isn't the hand's to move). Returns { draw(view) }: view is { pos, bottomRed, facing,
- * script, last: { from, to }, hint: { from, to }, hand (whether taps move pieces), slide (the last move animates) }.
+ * script, last: { from, to }, hint: { from, to }, hand (whether taps move pieces), slide (the last move animates),
+ * tap (a tap on any point goes to onTap(point) instead: the course asking where a piece can go), marks (the course's
+ * drawing: { dots, crosses, rings, arrows: [[from, to]], ok, no, zones: ["river", "palace-red", "palace-black"] },
+ * points as numbers) }.
  */
-export function mountBoard(host, { onMove, legal }) {
+export function mountBoard(host, { onMove, legal, onTap = () => {} }) {
   const svg = el("svg", { viewBox: `${VIEW.x} ${VIEW.y} ${VIEW.w} ${VIEW.h}`, class: "rv-svg", role: "img", "aria-label": "Xiangqi board" });
   host.replaceChildren(svg);
   let view = null, selected = null, drag = null, press = null;
@@ -103,6 +106,7 @@ export function mountBoard(host, { onMove, legal }) {
     }
     const targets = selected != null && view.hand ? legal(selected) : [];
     svg.append(marks);
+    if (view.marks) svg.append(courseMarks(view.marks, true));
     // a general in check glows
     const pieces = el("g", { class: "rv-pieces" });
     for (let p = 0; p < 90; p++) {
@@ -132,10 +136,41 @@ export function mountBoard(host, { onMove, legal }) {
       const sx = fx + ux * 0.3, sy = fy + uy * 0.3, ex = tx - ux * 0.32, ey = ty - uy * 0.32, w = 0.2;
       svg.append(el("path", { class: "rv-hint", d: `M${sx} ${sy}L${ex} ${ey}M${ex + (-ux * 0.28 + -uy * w)} ${ey + (-uy * 0.28 + ux * w)}L${ex + ux * 0.04} ${ey + uy * 0.04}L${ex + (-ux * 0.28 + uy * w)} ${ey + (-uy * 0.28 - ux * w)}` }));
     }
+    if (view.marks) svg.append(courseMarks(view.marks, false));
     if (drag?.moved) {
       const g = disc(pos.b[drag.from], drag.from, [drag.x, drag.y], "drag");
       svg.append(g);
     }
+  }
+
+  /** The course's marks: zones under the pieces (under), dots, rings, crosses and arrows over them. */
+  function courseMarks(m, under) {
+    const g = el("g", { class: "rv-mk" });
+    const box = (a, b, pad) => {
+      const [x1, y1] = xy(a), [x2, y2] = xy(b);
+      return { x: Math.min(x1, x2) - pad, y: Math.min(y1, y2) - pad, width: Math.abs(x2 - x1) + 2 * pad, height: Math.abs(y2 - y1) + 2 * pad };
+    };
+    if (under) {
+      for (const z of m.zones || []) {
+        if (z === "river") g.append(el("rect", { class: "rv-mk-zone", x: -0.35, y: 4.12, width: 8.7, height: 0.76, rx: ".1" }));
+        if (z === "palace-red") g.append(el("rect", { class: "rv-mk-zone", ...box(pointOf(3, 0), pointOf(5, 2), 0.38), rx: ".14" }));
+        if (z === "palace-black") g.append(el("rect", { class: "rv-mk-zone", ...box(pointOf(3, 7), pointOf(5, 9), 0.38), rx: ".14" }));
+      }
+      return g;
+    }
+    for (const p of m.rings || []) { const [x, y] = xy(p); g.append(el("circle", { class: "rv-mk-ring", cx: x, cy: y, r: ".52" })); }
+    for (const p of m.dots || []) { const [x, y] = xy(p); g.append(el("circle", { class: "rv-mk-dot", cx: x, cy: y, r: ".15" })); }
+    for (const p of m.ok || []) { const [x, y] = xy(p); g.append(el("circle", { class: "rv-mk-ok", cx: x, cy: y, r: ".22" })); }
+    for (const p of [...(m.crosses || []), ...(m.no || [])]) {
+      const [x, y] = xy(p), k = 0.2;
+      g.append(el("path", { class: `rv-mk-x${(m.no || []).includes(p) ? " no" : ""}`, d: `M${x - k} ${y - k}L${x + k} ${y + k}M${x + k} ${y - k}L${x - k} ${y + k}` }));
+    }
+    for (const [a, b] of m.arrows || []) {
+      const [fx, fy] = xy(a), [tx, ty] = xy(b), len = Math.hypot(tx - fx, ty - fy), ux = (tx - fx) / len, uy = (ty - fy) / len;
+      const sx = fx + ux * 0.3, sy = fy + uy * 0.3, ex = tx - ux * 0.32, ey = ty - uy * 0.32, w = 0.2;
+      g.append(el("path", { class: "rv-mk-arrow", d: `M${sx} ${sy}L${ex} ${ey}M${ex + (-ux * 0.28 + -uy * w)} ${ey + (-uy * 0.28 + ux * w)}L${ex + ux * 0.04} ${ey + uy * 0.04}L${ex + (-ux * 0.28 + uy * w)} ${ey + (-uy * 0.28 - ux * w)}` }));
+    }
+    return g;
   }
 
   // ---------- the hand ----------
@@ -146,6 +181,12 @@ export function mountBoard(host, { onMove, legal }) {
     draw();
   }
   svg.addEventListener("pointerdown", e => {
+    if (view?.tap && e.button <= 0) {                               // the course asks for points, not moves
+      const [x, y] = local(e), p = pointAt(x, y);
+      if (p >= 0) onTap(p);
+      e.preventDefault();
+      return;
+    }
     if (!view?.hand || e.button > 0) return;
     const [x, y] = local(e), p = pointAt(x, y);
     if (p < 0) { if (selected != null) { selected = null; draw(); } return; }

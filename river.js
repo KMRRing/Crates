@@ -14,6 +14,7 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import { busy, sextant } from "./loading.js";
+import { createCourse, progress } from "./river-learn.js";
 
 const $ = id => document.getElementById(id);
 const GAME = "river:game", OPTS = "river:opts", BEST = "river:best", RECORD = "river:record";
@@ -444,6 +445,17 @@ function openingMoves(line) {
   return line.split(" ").map((u, i) => { const m = X.parseUci(u), n = X.notate(pos, m.from, m.to, opts.script); pos = X.after(pos, m.from, m.to); return `${i % 2 ? "" : `${i / 2 + 1}. `}${n.cn}`; }).join(" ");
 }
 
+// ---------- the course ----------
+// Learn (the header): the course from the rules to the openings (river-course.js, drawn by river-learn.js); its last
+// lesson starts a game against Beginner, you as Red. The Rules sheet, every rule on one page, opens from the course's
+// map and the menu.
+const course = createCourse({
+  script: () => opts.script,
+  inFrame: IN_FRAME,
+  onPlay: () => { Object.assign(opts, { mode: "engine", level: "1", colour: "red" }); saveOpts(); newGame(); },
+});
+function showRules() { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); }
+
 // ---------- the menu ----------
 let pick = null;                                                // the next game's choices while the menu is open
 function openMenu() {
@@ -459,6 +471,8 @@ function openMenu() {
       if (!G.result && X.movesOf(G).length > 1 && !confirm("Start a new game? This one isn't finished.")) return;
       Object.assign(opts, pick); saveOpts(); newGame();
     }, "primary"), ...(!g.result && X.movesOf(g).length ? [action("Resign", resign, "link")] : []));
+    const cp = progress();
+    part(body, "play").append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Xiangqi, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
     part(body, "content").append(
       choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
       choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
@@ -541,7 +555,8 @@ bindSwitcher($("appsBtn"), "river");
 document.querySelector(".rv-mark").innerHTML = APPS.find(a => a.id === "river")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", () => { $("rulesBody").innerHTML = rules(); $("rulesDlg").showModal(); });
+$("learnBtn").addEventListener("click", () => course.open());
+document.addEventListener("click", e => { if (e.target.closest("[data-rules]")) showRules(); });
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("rulesDlg").addEventListener("click", e => { if (e.target === $("rulesDlg")) $("rulesDlg").close(); });
 $("endBoard").addEventListener("click", () => $("endDlg").close());
@@ -550,7 +565,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) toge
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 addEventListener("resize", () => render());
 // for the tests and the look
-window.__river = { get game() { return cur(); }, get engineUp() { return engineUp; }, onMove, newGame, takeBack, hint, X };
+window.__river = { get game() { return cur(); }, get engineUp() { return engineUp; }, onMove, newGame, takeBack, hint, X, course };
 
 render();
 const code = roomInAddress();
