@@ -1,6 +1,8 @@
 // Spot: sums fly across the screen.
 //
-// Alone, their answers sit on a shelf among fakes: tap an answer before its sum runs out.
+// Alone, their answers sit on a shelf among fakes: tap an answer before its sum runs out. Each number comes onto the
+// shelf at a moment of its own, up to a few seconds before its sum flies in, in a free slot picked at random, so
+// neither when nor where a number appears gives away which sum it answers: you have to work the sum out.
 //
 // Together there's no shelf. Each player sees only their own sums, and most of them come in pairs: a sum on one
 // screen and a different sum with the same result on the other, appearing up to a few seconds apart. You call out
@@ -13,6 +15,8 @@
 
 export const LIVES = 3;
 export const SHELF = 8;                       // answer slots per player
+/** How long before its sum flies in a number comes onto the shelf (each its own, between these, in ms). */
+export const LEAD = [300, 3500];
 
 // ---------- random numbers ----------
 function rng(seed) {
@@ -26,6 +30,8 @@ function rng(seed) {
   };
 }
 const int = (r, lo, hi) => lo + Math.floor(r() * (hi - lo + 1));
+/** FNV-1a: a string's 32-bit hash, for choices that must come out the same on every replay. */
+const hash = text => { let h = 0x811C9DC5; for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193); return h >>> 0; };
 const pickWeighted = (r, weights) => {
   let x = r() * weights.reduce((a, [, w]) => a + w, 0);
   for (const [v, w] of weights) { x -= w; if (x <= 0) return v; }
@@ -40,6 +46,8 @@ const pickWeighted = (r, weights) => {
 const rate = ms => 0.45 + 0.85 * Math.min(1, ms / 240000) + 0.12 * Math.max(0, ms - 240000) / 60000;   // difficulty points a second: 0.45, 1.3 at 4 min
 const lifeFor = (cost, ms) => (3600 + 1700 * cost) * (1 - 0.22 * Math.min(1, ms / 240000));
 const MAX_LIFE = 11000;
+/** How far back a new sum's numbers must differ from the others': a sum's lifetime and a tenth, and the lead. */
+export const NEAR = MAX_LIFE * 1.1 + LEAD[1];
 /** The difficulty level shown to the player: up one every 30 seconds. */
 export const levelAt = ms => 1 + Math.floor(ms / 30000);
 const ramp = (ms, from, to) => Math.min(1, Math.max(0, (ms - from) / (to - from)));
@@ -118,8 +126,9 @@ function fakeFor(r, sum, kind, n) {
 const timelines = new Map();
 /**
  * Alone: the run's sums up to time t (ms from the start): { id, at, life, kind, text, answer, mod (the modifier it
- * came under, or null), value (the answer as modified: what the shelf shows), points, fakes: [{ id, value, life }] }.
- * No two sums that can be on screen together show the same value, and no fake equals a value on screen with it.
+ * came under, or null), value (the answer as modified: what the shelf shows), points, shown (when the answer comes
+ * onto the shelf), fakes: [{ id, value, life, shown }] }. No two sums whose numbers can be on the shelf together show
+ * the same value, and no fake equals a value on the shelf with it.
  */
 export function timeline(seed, seats, t) {
   const key = `${seed}/${seats}`;
@@ -127,8 +136,9 @@ export function timeline(seed, seats, t) {
   if (!tl) { tl = { r: rng(seed), sums: [], next: 1500 }; timelines.set(key, tl); }
   while (tl.next <= t + MAX_LIFE) {
     const at = tl.next, r = tl.r, mix = mixAt(at), id = tl.sums.length, mod = modifierAt(seed, 0, at);
-    // values that might be on screen at the same time: answers (as modified) and fakes from the last 11 seconds
-    const near = tl.sums.filter(s => s.at > at - MAX_LIFE * 1.1);
+    // values that might be on the shelf at the same time: answers (as modified) and fakes from the last 11 seconds,
+    // and the few before, whose numbers come early
+    const near = tl.sums.filter(s => s.at > at - NEAR);
     const taken = new Set(near.flatMap(s => [s.value, ...s.fakes.map(f => f.value)]));
     let sum = null, kind = null, big = false;
     for (let tries = 0; tries < 40 && (!sum || taken.has(applyMod(mod, sum.answer))); tries++) { kind = pickWeighted(r, mix.kinds); big = r() < mix.big; sum = makeSum(r, kind, big); }
@@ -144,8 +154,10 @@ export function timeline(seed, seats, t) {
       for (let tries = 0; tries < 12 && (v == null || values.has(v) || wanted.includes(v)); tries++) v = fakeFor(r, sum, kind, value);
       if (v != null && !values.has(v) && !wanted.includes(v)) wanted.push(v);
     }
-    const fakes = wanted.map((v, k) => ({ id: `f${id}.${k}`, value: v, life: life * (0.75 + 0.25 * r()) }));
-    tl.sums.push({ id, at, life, kind, text: sum.text, answer: sum.answer, mod, value, points: sum.points + (mod ? 1 : 0), seat: 0, shelf: 0, fakes });
+    // when each number comes onto the shelf: from a stream of the sum's own, so drawing them leaves the sums' stream be
+    const lr = rng((seed ^ Math.imul(id + 1, 0x27D4EB2F)) >>> 0), shown = () => Math.max(0, Math.round(at - LEAD[0] - lr() * (LEAD[1] - LEAD[0])));
+    const fakes = wanted.map((v, k) => ({ id: `f${id}.${k}`, value: v, life: life * (0.75 + 0.25 * r()), shown: shown() }));
+    tl.sums.push({ id, at, life, kind, text: sum.text, answer: sum.answer, mod, value, points: sum.points + (mod ? 1 : 0), seat: 0, shelf: 0, shown: shown(), fakes });
     tl.next = at + 1000 * (cost(kind, big) + (mod ? 1 : 0)) / rate(at);
   }
   return tl.sums.filter(s => s.at <= t);
@@ -258,23 +270,30 @@ function playDuo(seed, taps, t) {
  */
 export function play({ seed, seats }, taps, t) {
   if (seats === 2) return playDuo(seed, taps, t);
-  const sums = timeline(seed, seats, t);
+  const sums = timeline(seed, seats, t + LEAD[1]);              // with the sums still to come whose numbers are out
   const happenings = [];
   for (const s of sums) {
     happenings.push({ at: s.at, order: 0, type: "spawn", s });
     happenings.push({ at: s.at + s.life, order: 2, type: "expire", s });
-    for (const f of s.fakes) happenings.push({ at: s.at + f.life, order: 2, type: "fade", s, f });
+    happenings.push({ at: s.shown, order: 0, type: "show", s, tok: { id: `s${s.id}`, value: s.value, real: true, sum: s.id } });
+    for (const f of s.fakes) {
+      happenings.push({ at: f.shown, order: 0, type: "show", s, tok: { id: f.id, value: f.value, real: false, sum: s.id } });
+      happenings.push({ at: s.at + f.life, order: 2, type: "fade", s, f });
+    }
   }
   for (const tap of taps) happenings.push({ at: tap.t, order: 1, type: "tap", tap });
   const due = happenings.filter(h => h.at <= t);                  // only what has happened by now
-  due.sort((x, y) => x.at - y.at || x.order - y.order || String(x.tap?.id ?? x.s?.id).localeCompare(String(y.tap?.id ?? y.s?.id)));
+  const key = h => String(h.tap?.id ?? h.tok?.id ?? h.f?.id ?? h.s?.id);
+  due.sort((x, y) => x.at - y.at || x.order - y.order || key(x).localeCompare(key(y)));
 
   const st = { lives: LIVES, score: 0, streak: 0, best: 0, cleared: 0, missed: 0, wrong: 0, over: null, recent: [] };
   const shelves = Array.from({ length: seats }, () => Array(SHELF).fill(null));
-  const status = new Map();                                  // sum id -> "on" | "cleared" | "missed"
+  const status = new Map();                                  // sum id -> "on" | "cleared" | "missed" (none: still to come)
+  const tappedEarly = new Map();                             // an answer tapped before its sum came -> when
   const place = (seat, token) => {
-    const shelf = shelves[seat];
-    let slot = shelf.indexOf(null);
+    const shelf = shelves[seat], free = shelf.flatMap((x, k) => (x ? [] : [k]));
+    // a free slot picked at random (the same on every replay), so where a number lands says nothing
+    let slot = free.length ? free[hash(`${seed}/${token.id}`) % free.length] : -1;
     if (slot < 0 && token.real) {                            // full: an answer always gets a place, a fake makes room
       const fakes = shelf.map((x, k) => [x, k]).filter(([x]) => x && !x.real).sort((a, b) => a[0].born - b[0].born);
       if (fakes.length) slot = fakes[0][1];
@@ -293,13 +312,12 @@ export function play({ seed, seats }, taps, t) {
     if (st.over && h.at > st.over.at) break;
     const s = h.s;
     switch (h.type) {
+      case "show":
+        if (!h.tok.real && shelves[s.shelf].some(x => x && x.value === h.tok.value)) break;   // no number twice on a shelf
+        place(s.shelf, { ...h.tok, born: h.at });
+        break;
       case "spawn":
         status.set(s.id, "on");
-        place(s.shelf, { id: `s${s.id}`, value: s.value, real: true, sum: s.id, born: s.at });
-        for (const f of s.fakes) {
-          if (shelves[s.shelf].some(x => x && x.value === f.value)) continue;   // no number twice on a shelf
-          place(s.shelf, { id: f.id, value: f.value, real: false, sum: s.id, born: s.at });
-        }
         break;
       case "expire":
         if (status.get(s.id) !== "on") break;
@@ -316,8 +334,8 @@ export function play({ seed, seats }, taps, t) {
         const k = shelves[seat]?.findIndex(x => x && x.id === token);
         if (k == null || k < 0) break;                       // already gone (a double tap, or it faded)
         const tok = shelves[seat][k];
-        shelves[seat][k] = null;
         if (tok.real && status.get(tok.sum) === "on") {
+          shelves[seat][k] = null;
           status.set(tok.sum, "cleared");
           const sum = sums[tok.sum];
           st.streak++;
@@ -325,7 +343,15 @@ export function play({ seed, seats }, taps, t) {
           st.score += Math.round(sum.points * multiplier(st.streak - 1) * 10);
           st.cleared++;
           st.recent.push({ type: "clear", sum: tok.sum, token, seat, at: h.at });
-        } else if (!tok.real) {
+        } else if (tok.real) {
+          // an answer whose sum hasn't come yet answers nothing on screen: a wrong tap (once, however fast the taps
+          // come), and the number stays for when its sum arrives
+          if (h.at - (tappedEarly.get(token) ?? -Infinity) < 500) break;
+          tappedEarly.set(token, h.at);
+          st.wrong++;
+          lose(h.at, { type: "wrong", token, seat, value: tok.value });
+        } else {
+          shelves[seat][k] = null;
           st.wrong++;
           lose(h.at, { type: "wrong", token, seat, value: tok.value });
         }

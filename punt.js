@@ -1,8 +1,8 @@
-// Punt: pick an option, stake a share of the pot at the house's odds, or pass (rules in punt-gen.js).
+// Punt: pick an option, stake a share of the pot (every bet pays 2×), or pass (rules in punt-gen.js).
 // Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
 // on their own pick, so you can back the same option or hedge against each other. A question settles once
 // everyone at the table has bet or passed.
-import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, showOdds, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
+import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
@@ -208,12 +208,12 @@ const NAME = "punt:name";
 const nameMode = () => { try { const m = localStorage.getItem(NAME); return NAME_MODES[m] ? m : "known"; } catch { return "known"; } };
 const nameDeal = () => ({ mode: nameMode(), known: known.all() });
 const typedNow = q => q?.kind === "name" && nameMode() !== "off";
-/** Whether a bet's answer was right (null: a pass with nothing chosen), and the price it was laid at: a typed answer
- * is checked against the name and pays the typed price, a pick against the options. */
+/** Whether a bet's answer was right (null: a pass with nothing chosen): a typed answer is checked against the name,
+ *  a pick against the options. */
 function judged(q, b) {
-  if (b?.typed != null) return { right: check(b.typed, [q.answer]).right, offered: q.typedOffered };
+  if (b?.typed != null) return { right: check(b.typed, [q.answer]).right };
   const p = picksOf(b?.pick);
-  return { right: p ? pickedRight(q, p) : null, offered: q.offered };
+  return { right: p ? pickedRight(q, p) : null };
 }
 // the box a name is typed into, kept across redraws so typing isn't interrupted; the phone's own suggestions are off,
 // since they would turn recalling the name back into choosing it
@@ -256,8 +256,8 @@ function settleIfReady(g, ids) {
   let total = 0;
   const bets = {};
   for (const id of ids) {
-    const b = g.bets[id], { pct: share } = b, p = picksOf(b.pick), { right, offered } = judged(q, b);
-    const { stake, change: c } = right == null || !share ? { stake: 0, change: 0 } : settle(g.pot, share, right, offered);
+    const b = g.bets[id], { pct: share } = b, p = picksOf(b.pick), { right } = judged(q, b);
+    const { stake, change: c } = right == null || !share ? { stake: 0, change: 0 } : settle(g.pot, share, right);
     bets[id] = { pick: p, ...(b.typed != null && { typed: b.typed }), pct: share, stake, change: c };
     total += c;
   }
@@ -408,8 +408,7 @@ function drawTyped(q, reveal, last) {
   box.replaceChildren(card);
 }
 function drawBetting(q, waiting) {
-  const typing = typedNow(q), offered = typing ? q.typedOffered : q.offered;
-  $("odds").textContent = showOdds(offered);
+  const typing = typedNow(q);
   const slider = $("stake");
   slider.max = maxPct();
   slider.value = pct;
@@ -424,8 +423,8 @@ function drawBetting(q, waiting) {
   }));
   $("passBtn").disabled = waiting || !(typedNow(q) ? !!typed.trim() : pick.length === rightCount(q));   // a pass needs an answer too
   $("betBtn").disabled = waiting || (typing ? !typed.trim() : pick.length !== rightCount(q)) || pct <= 0;
-  // the Bet button says it all: the stake, the odds, and what comes back if right (just the odds before a stake)
-  $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · ${showOdds(offered)} · ${showChips(Math.round(stake * offered))}` : `Pays ${showOdds(offered)}`;
+  // the Bet button says it all: the stake, and what comes back if right (every bet pays double)
+  $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · pays ${showChips(stake * ODDS)}` : "Pays double";
 }
 
 function drawResult(q, last) {
@@ -631,8 +630,8 @@ function runRecords() {
   return S.log.map(r => {
     const b = r.bets[me()], q = S.questions[r.index];
     if (!b || !q) return null;
-    const { right, offered } = judged(q, b);
-    return { o: offered, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0, g: guessChance(q, typedNow(q)) };
+    const { right } = judged(q, b);
+    return { o: ODDS, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0, g: guessChance(q, typedNow(q)) };
   }).filter(Boolean);
 }
 /** Every question settled on this device, kept for the all-runs view (the most recent 5,000). */
@@ -657,7 +656,7 @@ function bankLatest(last) {
   if (!q || !mine || !q.key) return;
   const right = judged(q, mine).right, asName = typedNow(q);
   // the Ledger: what your stake believed, what happened, and what a pure guess would have had
-  noteStake(mine.pct, asName ? q.typedOffered : q.offered, right === true, guessChance(q, asName));
+  noteStake(mine.pct, ODDS, right === true, guessChance(q, asName));
   // what's recognised one way round can be asked the other (known.js); a name-it question typed goes to the pile as one,
   // so Deck asks it again as a name to type, not as options to choose from
   if (asName && q.pair) known.named(q.pair, right === true);

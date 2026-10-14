@@ -1,5 +1,5 @@
-// Punt sessions: every level deals a full session; every question has a right and a wrong option, no option
-// or clue gives the answer away by name, and the odds are sane. Run: node tests/punt.mjs
+// Punt sessions: every level deals a full session; every question has four options, a right one and a wrong one, no
+// option or clue gives the answer away by name, and every bet pays 2×. Run: node tests/punt.mjs
 import fs from "fs";
 globalThis.window = {};
 globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
@@ -21,7 +21,7 @@ const BANKS = Object.fromEntries(await Promise.all(Object.entries(P.LEVELS).filt
 const stageMap = B => Object.fromEntries(B.STAGES.map(x => [x.id, x.label]));
 const mathsFor = lvl => (BANKS[lvl] ? { pool: BANKS[lvl].MATHS, stages: stageMap(BANKS[lvl]) } : null);
 for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {   // a run of topics has its own test, below
-  let multi = 0, total = 0, overpaid = 0, oddsSeen = [];
+  let multi = 0, total = 0;
   for (let seed = 1; seed <= 40; seed++) {
     const s = P.makeSession(seed * 7919, lvl, "standard", mathsFor(lvl));
     if (s.length !== P.LEVELS[lvl].questions) { bad++; console.log(`${lvl} seed ${seed}: ${s.length} questions`); }
@@ -29,37 +29,33 @@ for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {   // a run o
     for (const q of s) {
       total++;
       const right = q.options.filter(o => o.right).length;
-      if (![2, 4].includes(q.options.length)) { bad++; console.log(`${lvl}: a question with ${q.options.length} options`); }
+      if (q.options.length !== 4) { bad++; console.log(`${lvl}: a question with ${q.options.length} options`); }
       if (!right || right === q.options.length) { bad++; console.log(`${lvl}: a question with ${right} of ${q.options.length} right`); }
       if (right > 1) multi++;
-      if (q.offered < 1.05 || q.offered > 9.9) { bad++; console.log(`${lvl}: odds ${q.offered}`); }
-      if (q.offered > q.fair) overpaid++;
-      oddsSeen.push(q.offered);
+      if ("offered" in q || "fair" in q) { bad++; console.log(`${lvl}: a question priced on its own`); }
     }
   }
-  oddsSeen.sort((a, b) => a - b);
-  console.log(`${lvl}: ${total} questions, ${multi} with several right answers, odds ${oddsSeen[0]}× to ${oddsSeen[oddsSeen.length - 1]}× (median ${oddsSeen[oddsSeen.length >> 1]}×)`);
+  console.log(`${lvl}: ${total} questions of four options, ${multi} with several right answers`);
 }
-// the odds: every question on the scale from 1.1× to 3× (typed answers up to 4×), harder questions paying more; runs
-// still deal their full lengths (100-question and endless) without repeating a clue
+// runs deal their full lengths (100-question and endless) without repeating a clue
 for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {
   for (let seed = 1; seed <= 10; seed++) {
     let qs = P.makeSession(seed * 104729, lvl, "hundred", mathsFor(lvl));
-    const off = qs.filter(q => q.offered < 1.1 - 1e-9 || q.offered > 3 + 1e-9 || (q.typedOffered && q.typedOffered > 4 + 1e-9));
-    if (qs.length !== 100 || off.length) { bad++; console.log(`${lvl} 100-question run ${seed}: ${qs.length} questions, ${off.length} priced off the scale`); }
+    if (qs.length !== 100 || qs.some(q => q.options.length !== 4)) { bad++; console.log(`${lvl} 100-question run ${seed}: ${qs.length} questions`); }
     qs = P.makeSession(seed, lvl, "endless", mathsFor(lvl));
     for (let k = 0; k < 4; k++) qs = qs.concat(P.moreQuestions(seed, lvl, qs, mathsFor(lvl)));
     const pool = mathsFor(lvl)?.pool.length;
     if (!(pool && pool < qs.length) && new Set(qs.map(q => q.key)).size !== qs.length) { bad++; console.log(`${lvl} endless run repeats a clue`); }   // a small bank cycles by design
   }
 }
+// every bet pays 2×: a right one wins the stake again, a wrong one loses it, a pass costs nothing
 {
-  const easy = P.scaleOdds(1.05), hard = P.scaleOdds(2.5), mid = P.scaleOdds(1.35);
-  if (!(Math.abs(easy - 1.1) < 1e-9 && Math.abs(hard - 3) < 1e-9 && mid > easy && mid < hard)) { bad++; console.log("odds scale ends", { easy, mid, hard }); }
-  else console.log(`odds: the easiest ${easy}×, the hardest ${hard}×, in between by how hard the house thinks a question is`);
+  const win = P.settle(1000, 10, true), lose = P.settle(1000, 10, false), pass = P.settle(1000, 0, true), odd = P.settle(999, 25, true);
+  if (!(P.ODDS === 2 && win.change === 100 && lose.change === -100 && pass.change === 0 && odd.stake === 249 && odd.change === 249)) { bad++; console.log("settling at 2×", { win, lose, pass, odd }); }
+  else console.log("odds: every bet pays 2×, a right one winning its stake again and a wrong one losing it");
 }
-// Maths: a filter to one stage and two difficulties deals only those, cycles once the pool runs dry, keeps the
-// questions' own right answers, and prices harder questions higher
+// Maths: a filter to one stage and two difficulties deals only those, cycles once the pool runs dry and keeps the
+// questions' own right answers
 {
   const pool = M.MATHS.filter(q => q.lv === "gcse" && [1, 2].includes(q.d));
   const qs = P.makeSession(5, "maths", "hundred", { pool, stages: stageMap(M) });
@@ -69,11 +65,8 @@ for (const lvl of Object.keys(P.LEVELS).filter(l => l !== "mix")) {
   const okAnswers = qs.every(q => { const src = byId.get(q.key); return q.options.filter(o => o.right).length === src.s && q.options.length === src.o.length && q.options.every(o => src.o.includes(o.label) && o.right === src.a.includes(src.o.indexOf(o.label))); });
   const moved = qs.filter(q => q.options.some((o, k) => o.label !== byId.get(q.key).o[k])).length;
   if (moved < qs.length / 2) { bad++; console.log("maths options keep the bank's order", { moved, of: qs.length }); }
-  const easy = qs.filter(q => q.d === 1), easyPrice = easy.reduce((t, q) => t + q.fair, 0) / easy.length;
-  const hardQs = P.makeSession(5, "maths", "standard", { pool: M.MATHS.filter(q => q.d >= 9), stages: stageMap(M) });
-  const hardPrice = hardQs.reduce((t, q) => t + q.fair, 0) / hardQs.length;
-  console.log(`maths: filtered pool of ${pool.length}, 100 dealt (cycling), fair price ${easyPrice.toFixed(2)}× at difficulty 1 against ${hardPrice.toFixed(2)}× at 9–10`);
-  if (!(okFilter && okAnswers && qs.length === 100 && hardPrice > easyPrice * 1.5)) { bad++; console.log("maths deal problems", { okFilter, okAnswers, n: qs.length }); }
+  console.log(`maths: filtered pool of ${pool.length}, 100 dealt (cycling), the bank's answers in a new order`);
+  if (!(okFilter && okAnswers && qs.length === 100)) { bad++; console.log("maths deal problems", { okFilter, okAnswers, n: qs.length }); }
 }
 console.log(bad ? `${bad} problems` : "all sessions check out");
 if (bad) process.exitCode = 1;
@@ -97,7 +90,7 @@ if (bad) process.exitCode = 1;
 }
 
 // name-it questions: a clue's own hint, with its answer and topics, the clue to name; the hint never gives the name
-// away, choosing it from options has exactly one right option and it's the name, and typing it pays at least as much.
+// away, and choosing it from four options has exactly one right option and it's the name.
 // Three modes: off deals none; all deals nothing else; known (the default) only clues in the record of those recognised
 // the other way round, and until there are some, a full run without them
 {
@@ -109,8 +102,7 @@ if (bad) process.exitCode = 1;
     if (all.some(q => q.kind !== "name") || all.length !== 100) fail(`${lvl}: "all" deals ${all.filter(q => q.kind === "name").length} name-it of ${all.length}`);
     for (const q of all) {
       const right = q.options.filter(o => o.right);
-      if (right.length !== 1 || right[0].label !== q.answer) fail(`${lvl}: "${q.prompt}" offers ${right.length} right options`);
-      if (!(q.typedOffered >= q.offered)) fail(`${lvl}: "${q.prompt}" pays ${q.typedOffered} typed, ${q.offered} chosen`);
+      if (right.length !== 1 || right[0].label !== q.answer || q.options.length !== 4) fail(`${lvl}: "${q.prompt}" offers ${right.length} right of ${q.options.length} options`);
       if (normalize(q.prompt).includes(normalize(q.answer))) fail(`${lvl}: "${q.prompt}" names ${q.answer}`);
       if (!/^Name it · /.test(q.ask) || !q.pair) fail(`${lvl}: ask "${q.ask}", pair ${q.pair}`);
     }
@@ -122,19 +114,19 @@ if (bad) process.exitCode = 1;
     const mine = P.makeSession(77, lvl, "hundred", null, { mode: "known", known: record }).filter(q => q.kind === "name");
     if (!mine.length || mine.some(q => !record[q.pair])) fail(`${lvl}: "known" names ${mine.length} clues, some not in the record`);
   }
-  console.log(wrong ? `name-it: ${wrong} FAILED` : "name-it: off deals none, all only name-it, known only what's been recognised; every one asks for a name its hint doesn't give away, and typing pays more");
+  console.log(wrong ? `name-it: ${wrong} FAILED` : "name-it: off deals none, all only name-it, known only what's been recognised; every one asks for a name its hint doesn't give away");
   if (wrong) process.exitCode = 1;
 }
 
 // topics: a mixed run deals each topic by its weight (a "more" topic twice an "in" one), keeps a clue topic to its own
-// category, puts every question on the 1–10 scale and prices the run as one batch; the next block carries on
+// category and puts every question on the 1–10 scale; the next block carries on
 {
   const pool = M.MATHS.slice(0, 200), mathsStages = stageMap(M);
   const src = [{ id: "countries", label: "Countries", weight: 1, cat: "country", diffs: [] }, { id: "commodities", label: "Commodities", weight: 2, cat: "commodity", diffs: [] },
     { id: "maths", label: "Maths", weight: 1, pool, stages: mathsStages, dueKeys: [], seenKeys: new Set() }];
   const qs = P.mixQuestions(12345, src, 16);
   const by = qs.reduce((t, q) => ({ ...t, [q.src]: (t[q.src] || 0) + 1 }), {});
-  const ok = qs.length === 16 && by.commodities === 8 && by.countries === 4 && by.maths === 4 && qs.every(q => q.offered > 1 && q.d >= 1 && q.d <= 10)
+  const ok = qs.length === 16 && by.commodities === 8 && by.countries === 4 && by.maths === 4 && qs.every(q => q.options.length === 4 && q.d >= 1 && q.d <= 10)
     && qs.filter(q => q.src === "countries").every(q => q.cat === "country") && qs.filter(q => q.src === "commodities").every(q => q.cat === "commodity");
   const more = P.mixQuestions(12345, src, 8, qs), keys = [...qs, ...more].filter(q => q.src !== "maths").map(q => q.key);
   const easyOnly = P.mixQuestions(7, [{ id: "countries", label: "Countries", weight: 1, cat: "country", diffs: [1, 2] }], 12);
@@ -142,10 +134,11 @@ if (bad) process.exitCode = 1;
   if (!ok || more.length !== 8 || new Set(keys).size !== keys.length || !easyOnly.every(q => q.d <= 3) || !presetsOk) {
     console.log("topics mix problems", { by, n: qs.length, more: more.length, repeats: keys.length - new Set(keys).size, easy: easyOnly.map(q => q.d), presetsOk });
     process.exitCode = 1;
-  } else console.log("topics: a mixed run deals by weight, keeps each clue topic to its category, prices as one batch and carries on");
+  } else console.log("topics: a mixed run deals by weight, keeps each clue topic to its category, every question on the 1–10 scale, and carries on");
 }
 
-// the long run: Balanced runs of every topic average about 2×, from about 1.1× on the easiest to 3× on the hardest
+// the long run: Balanced runs of every topic, every question of four options, a clue question on the 1–10 scale like
+// any other
 {
   const sources = [];
   for (const [id, label] of P.TOPIC_LIST) {
@@ -156,8 +149,7 @@ if (bad) process.exitCode = 1;
   }
   const all = [];
   for (let seed = 1; seed <= 40; seed++) all.push(...P.mixQuestions(seed * 7919, sources, 15));
-  const odds = all.map(q => q.offered).sort((a, b) => a - b), mean = odds.reduce((a, b) => a + b, 0) / odds.length;
-  const p5 = odds[Math.floor(.05 * odds.length)], p95 = odds[Math.floor(.95 * odds.length)];
-  if (!(mean > 1.85 && mean < 2.15 && p5 <= 1.25 && p95 >= 2.8)) { console.log("long-run odds", { mean, p5, p95 }); process.exitCode = 1; }
-  else console.log(`odds over ${all.length} Balanced questions: average ${mean.toFixed(2)}×, the easiest twentieth ${p5}×, the hardest ${p95}×`);
+  const clue = all.filter(q => P.CLUE_TOPICS[q.src]), scale = new Set(clue.map(q => q.d));
+  if (!(all.every(q => q.options.length === 4) && [...scale].every(d => [3, 6, 8].includes(d)) && scale.size === 3)) { console.log("long run", { options: [...new Set(all.map(q => q.options.length))], scale: [...scale] }); process.exitCode = 1; }
+  else console.log(`${all.length} Balanced questions, every one of four options; clue questions at difficulty ${[...scale].sort().join(", ")} on the 1–10 scale`);
 }

@@ -107,7 +107,6 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-pot b { font-stretch: 112%; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-chips .btn[aria-pressed="true"] { background: var(--ink); color: var(--yard); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-picture img { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,.18); filter: none; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-odds { border-radius: 999px; font-stretch: 112%; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pt-reasons .btn[aria-checked="true"] { background: var(--ink); color: var(--yard); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-card { border-radius: 20px; box-shadow: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
