@@ -422,7 +422,7 @@ Held sideways (README, Bigger screens), the card in hand stands on the left, its
 
 ## Arb
 
-Behind More on the games screen (with Survey, Blend, Refinery, Brut, the Lexicon and Ledger), so the main screen keeps its number of games as Calibre joins it.
+On the games screen with every other game, in its one list that scrolls (it once sat behind a More button, with Survey, Blend, Refinery, Brut, the Lexicon and Ledger, while the main screen kept a fixed number of games).
 
 From one thing to another through the knowledge base's links, as cheaply as you can. Every step costs 1 + log2 of the links of the thing you step onto: an obscure thing costs 1, the United States about 9, so the cheap route runs through what you specifically know rather than the hubs. Par is the cheapest route there is (Dijkstra over the 4,329 linked things); matching it scores 100, more spent scores in proportion. Each choice shows its cost and kind, every hop the reason the two are linked, and the end the cheapest route. Dead ends aren't offered: a link appears only if it leads somewhere new (a thing linked only to where you stand, or only back onto your route, would force a step back), the goal always does. Routes run between things with 2 to 25 links, three to five hops apart and of different kinds; five a run, random or today's. `tests/arb.mjs` checks the graph.
 
