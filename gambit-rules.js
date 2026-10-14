@@ -68,7 +68,8 @@ export function act(state, seat, action) {
   return null;
 }
 /** A state read back from the room or the device, tidied: the database may drop an empty string or a null. */
+// a drawn game's winner is null, which the database doesn't keep: it's put back, so a game reads back as it was written
 export function fromRoom(stored) {
   if (!stored || typeof stored !== "object") return null;
-  return { ...stored, v: 1, start: stored.start || START, moves: typeof stored.moves === "string" ? stored.moves : "", result: stored.result || null, white: stored.white === 1 ? 1 : 0 };
+  return { ...stored, v: 1, start: stored.start || START, moves: typeof stored.moves === "string" ? stored.moves : "", result: stored.result ? { winner: null, ...stored.result } : null, white: stored.white === 1 ? 1 : 0 };
 }
