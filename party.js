@@ -16,6 +16,14 @@ import "./pwa.js";
 
 const APP = 1;                                  // this code's version at a table: a device with older code updates
 const $ = id => document.getElementById(id);
+// each game's own stylesheet, named in its module (css: "party-<id>.css", a literal there, so tools/offline.mjs keeps
+// it), linked before themes.css so the themes' overrides still come last
+for (const g of GAMES) if (g.css && !document.querySelector(`link[href="${g.css}"]`)) {
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = g.css;
+  document.head.insertBefore(l, document.querySelector('link[href="themes.css"]'));
+}
 const OPTS = "party:opts";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };

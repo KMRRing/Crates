@@ -2,6 +2,7 @@
 // tests can play a whole evening in Node. A party game is a module (party-<id>.js) whose default export is
 //
 //   { id, name, zh?, min, max, blurb, rules: [paragraphs], options: [{ id, label, choices: [[value, text]…], value }],
+//     css?: "party-<id>.css" (its own styles, linked by party.js before themes.css),
 //     need?(players, options) → what stops it starting, in words, or "" (min and max are checked otherwise),
 //     start({ players, options, rng, now }) → state,
 //     advance(state, { players, inputs, now, rng }) → { state, say } | null,
