@@ -42,6 +42,7 @@ export const GAMES = {
   gammon: { name: "Gammon", page: "./gammon.html" },
   trumps: { name: "Trumps", page: "./trumps.html" },
   quest: { name: "Quest", page: "./quest.html" },
+  bones: { name: "Bones", page: "./bones.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

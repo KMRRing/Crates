@@ -1,0 +1,123 @@
+/* Bones: dominoes on a walnut table. Ivory tiles with ink pips, the line snaking across the middle, the others along
+   the top with their tiles face down, yours along the foot. Upright: the table above your tiles; sideways: the table
+   on the left, your tiles and your part beside it. */
+:root {
+  --bn-in: #8A4B22;                                              /* walnut: the game's enamel */
+  --bn-soft: color-mix(in srgb, var(--bn-in) 14%, var(--sheet));
+  --bn-felt: color-mix(in srgb, #8A4B22 9%, var(--yard));
+  --bn-tile: #FBF4E4; --bn-pip: #1C2A34; --bn-edge: #3A3026; --bn-back: #5A3A22;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --bn-in: #DDA272; --bn-felt: color-mix(in srgb, #8A4B22 20%, var(--yard)); --bn-tile: #E8DEC8; --bn-pip: #16202A; --bn-edge: #0E141A; --bn-back: #7A5236; }
+}
+html[data-mode="night"] { --bn-in: #DDA272; --bn-felt: color-mix(in srgb, #8A4B22 20%, var(--yard)); --bn-tile: #E8DEC8; --bn-pip: #16202A; --bn-edge: #0E141A; --bn-back: #7A5236; }
+/* Kontor and Office lend it their own accent, as in their other games */
+html[data-theme="kontor"] { --bn-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --bn-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --bn-in: #2EB36A; }
+html[data-theme="office"] { --bn-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bn-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --bn-in: #479EF5; }
+
+.bn-mark { display: inline-block; }
+.bn-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the tiles (drawn to a viewBox: a tile is 1 by 2) ---------- */
+.bn-tile rect { fill: var(--bn-tile); stroke: var(--bn-edge); stroke-width: .05; }
+.bn-tile path { stroke: var(--bn-edge); stroke-width: .04; stroke-linecap: round; }
+.bn-pips circle { fill: var(--bn-pip); }
+.bn-tile.last rect { stroke: var(--bn-in); stroke-width: .11; }
+.bn-ghost { cursor: pointer; outline: none; }
+.bn-ghost .bn-tile rect { fill: color-mix(in srgb, var(--bn-in) 20%, transparent); stroke: var(--bn-in); stroke-width: .08; stroke-dasharray: .16 .1; }
+.bn-ghost .bn-tile path { stroke: var(--bn-in); }
+.bn-ghost .bn-pips circle { fill: var(--bn-in); }
+.bn-ghost:focus-visible .bn-tile rect { stroke-width: .14; }
+
+/* ---------- the line across the top: the game, the score ---------- */
+.bn-info { display: flex; align-items: center; gap: .6rem; min-height: 2rem; padding: .25rem .1rem; border-bottom: 1px solid var(--rule); font-size: .9rem; }
+.bn-game { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); font-size: .78rem; color: var(--ink-soft); }
+.bn-score { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bn-score small { color: var(--ink-soft); }
+
+/* ---------- the table: the others along the top, the line below ---------- */
+.bn-table { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .3rem; min-height: 0; padding: .4rem .25rem; border-radius: 10px; background: var(--bn-felt); }
+.bn-others { display: flex; justify-content: center; gap: .3rem; }
+.bn-seat { position: relative; flex: 0 1 9rem; min-width: 0; display: grid; justify-items: center; gap: .2rem; padding: .3rem .25rem .35rem; border-radius: 6px; }
+.bn-seat.turn { box-shadow: inset 0 0 0 2px var(--bn-in); background: var(--bn-soft); }
+.bn-name { display: flex; align-items: baseline; gap: .3rem; max-width: 100%; font-weight: 800; font-size: .88rem; white-space: nowrap; overflow: hidden; }
+.bn-name small { font-size: .65rem; font-weight: 700; color: var(--bn-in); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.bn-pts { font-variant-numeric: tabular-nums; color: var(--bn-in); }
+.bn-backs { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px; min-height: .95rem; }
+.bn-backs small { font-size: .72rem; color: var(--ink-soft); }
+.bn-back { width: .48rem; height: .9rem; border-radius: 2px; background: var(--bn-back); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
+.bn-dead { margin-left: .25rem; font-size: .68rem; color: var(--ink-soft); }
+.bn-bubble { position: absolute; top: -.35rem; right: .1rem; padding: .05rem .4rem; border-radius: 9px; background: var(--sheet); border: 1.5px solid var(--tile-edge); font-size: .72rem; font-weight: 800; white-space: nowrap; }
+.bn-bubble.pass { color: var(--ink-soft); }
+.bn-bubble.pts { border-color: var(--bn-in); color: var(--bn-in); }
+.bn-board { position: relative; min-height: 0; }
+.bn-line { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.bn-lead { margin: 0; padding: 1rem; text-align: center; color: var(--ink-soft); }
+
+/* a hand's end, over the line */
+.bn-result { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(22rem, 94%); max-height: 96%; overflow: auto; display: grid; gap: .3rem;
+  padding: .65rem .8rem; border-radius: 8px; background: var(--sheet); border: 1.5px solid var(--tile-edge); box-shadow: 0 2px 10px rgba(28, 42, 52, .18); text-align: center; }
+.bn-result-head { font-size: 1rem; }
+.bn-result > span { color: var(--bn-in); font-weight: 800; }
+.bn-lefts { list-style: none; margin: .2rem 0 0; padding: 0; display: grid; gap: .1rem; text-align: left; }
+.bn-lefts li { display: grid; grid-template-columns: 4.6rem minmax(0, 1fr) 1.8rem; gap: .4rem; align-items: center; padding: .2rem 0; border-top: 1px solid var(--rule); font-size: .85rem; }
+.bn-lefts li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bn-lefts li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.bn-lefts li b { text-align: right; font-variant-numeric: tabular-nums; }
+.bn-left { display: flex; flex-wrap: wrap; gap: .19rem; }
+.bn-left small { color: var(--ink-soft); }
+.bn-mini { width: 1.75rem; height: .875rem; display: block; }
+
+/* ---------- your tiles and your part ---------- */
+.bn-side { display: flex; flex-direction: column; gap: .3rem; padding-top: .3rem; }
+.bn-hand { display: flex; justify-content: center; align-items: flex-end; gap: .3rem; min-height: 5.3rem; padding-top: .55rem; }
+.bn-mine { flex: 0 1 2.3rem; min-width: 0; padding: 0; border: 0; background: none; cursor: pointer; transition: transform .12s; }
+.bn-mine svg { display: block; width: 100%; height: auto; }
+.bn-mine.ok { transform: translateY(-.45rem); }
+.bn-mine.ok .bn-tile rect { stroke: var(--bn-in); stroke-width: .07; }
+.bn-mine.dim { opacity: .5; }
+.bn-mine.sel .bn-tile rect { fill: color-mix(in srgb, var(--bn-in) 22%, var(--bn-tile)); stroke-width: .12; }
+.bn-mine.down { opacity: .35; cursor: default; }
+.bn-status { margin: 0; min-height: 1.25em; text-align: center; color: var(--ink-soft); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bn-controls { display: grid; gap: .35rem; min-height: 3.2rem; align-content: start; }
+.bn-hint { margin: 0; text-align: center; font-weight: 700; font-size: .9rem; }
+.bn-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.bn-endbtn { min-height: 2.8rem; }
+.bn-go { width: 100%; min-height: 3rem; }
+
+/* ---------- the sheets ---------- */
+.bn-rules p { line-height: 1.45; }
+.bn-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.bn-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.bn-end-head { margin: .2rem 0 .6rem; }
+.bn-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.bn-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.bn-standings li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bn-standings li.won .nm::after { content: " ★"; color: var(--bn-in); }
+.bn-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.bn-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
+.bn-end-note { color: var(--ink-soft); font-size: .9rem; }
+.bn-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.bn-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.bn-toast.on { opacity: 1; transform: translate(-50%, 0); }
+html[data-theme="office"] :is(.bn-seat, .bn-result) { border-radius: 4px; }
+
+/* a short phone: the narrator's line gives way */
+@media (max-height: 640px) and (orientation: portrait) {
+  .bn-status { display: none; }
+  .bn-hand { min-height: 4.8rem; }
+}
+
+/* held sideways: the table on the left, your tiles and your part beside it, the buttons low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.bones { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.bones .bn-info { grid-column: 1 / -1; grid-row: 2; }
+  #app.bones .bn-table { grid-column: 1; grid-row: 3; }
+  #app.bones .bn-side { grid-column: 2; grid-row: 3; min-height: 0; justify-content: flex-end; padding-bottom: .4rem; }
+}
