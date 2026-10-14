@@ -87,6 +87,9 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 /* the coach's play (Always): its cards ringed in the accent until a Hint picks them */
 .tb-hand .tb-card.advised:not(.sel) { outline: 2px solid var(--tb-in); outline-offset: -3px; }
 .tb-hand .tb-card.dim { opacity: .38; }
+/* a hint's plan (tribute.js's planView): your cards set out as the coach plans them, its play first, then each play
+   it counts on a column (in a row, a group), every other one shaded so what goes with what reads at a glance */
+.tb-hand.plan .tb-card.alt:not(.sel) { background: color-mix(in srgb, var(--tb-in) 11%, var(--tb-face)); border-color: color-mix(in srgb, var(--tb-in) 40%, var(--tb-edge)); }
 /* a deep column (five of a rank or more): its corners smaller, so every card's suit still shows in its step */
 .tb-hand.tight .tb-card { font-size: .82rem; }
 .tb-hand.tight .tb-card .s { font-size: .7rem; margin-top: 0; }
@@ -153,6 +156,13 @@ dialog.tb-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .tb-opt-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .2rem .6rem; }
 .tb-opt-head b { font-size: .92rem; }
 .tb-opt-head .link { margin-left: auto; font-size: .8rem; }
+/* the coach's plans in small cards: your hand as it stands, and under each play what the rest of it makes */
+.tb-plan-now, .tb-plan-then { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .5rem; font-size: .8rem; color: var(--ink-soft); }
+.tb-plan-now { margin: 0 0 .7rem; }
+.tb-plan-then { margin: .35rem 0 .1rem; }
+.tb-plan-row { display: flex; flex-wrap: wrap; gap: .25rem .45rem; }
+.tb-plan-row .tb-cards { font-size: .5rem; --tb-step: 1.3em; }
+.tb-plan-note { color: var(--ink-soft); }
 .tb-stat { font-size: .76rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .tb-pc { margin: .3rem 0 0; padding: 0; list-style: none; display: grid; gap: .15rem; font-size: .84rem; line-height: 1.38; }
 .tb-pc li { position: relative; padding-left: 1rem; }

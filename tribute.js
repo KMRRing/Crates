@@ -5,6 +5,7 @@
 // and coaches as you choose: a hint when you ask, the computer's play in your seat and why; a check of each move of
 // yours, where it would have played otherwise, by how much and why; or its play at every decision.
 import * as E from "./tribute-engine.js";
+import { split } from "./tribute-bot.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
 import { GAMES, roomInAddress } from "./rooms.js";
@@ -263,14 +264,55 @@ function verdict() {
 }
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const mid = s => s.charAt(0).toLowerCase() + s.slice(1);  // "Beat it with a pair of As" mid-sentence, its ranks kept
-/** The plays the hint weighed (or a puzzle's), side by side: each one's numbers, what speaks for it and against it;
- *  Pick takes its cards (not in a puzzle, once answered). */
-function showWhy(list = hint?.key === keyNow() ? hint.list : null) {
+// ---------- the coach's plan: what your cards make after a play ----------
+// "Plays to go out after it" is the coach's own measure of a play: the rest of your hand split, in a vacuum, into the
+// plays that cost it fewest leads (tribute-bot.js's split, the same the hint reckons by). Seeing the split is seeing
+// why it breaks a strong combination: the rest may then go out in fewer plays, or the combination may cost more leads
+// kept than broken.
+/** A group's cards as they read down a column: the most of a rank first (a full house's three, then its two), low to
+ *  high, the wilds last. */
+function ordered(cards, level) {
+  const rank = id => (E.isWild(id, level) ? -1 : E.rankOf(id)), n = new Map();
+  for (const id of cards) n.set(rank(id), (n.get(rank(id)) || 0) + 1);
+  return [...cards].sort((a, b) => (rank(a) === -1) - (rank(b) === -1) || n.get(rank(b)) - n.get(rank(a)) || E.valueOf(a, level) - E.valueOf(b, level) || E.suitOf(a) - E.suitOf(b));
+}
+/** A hand split into the coach's plays, the strongest first: the bombs by power, then by their top card. */
+function planOf(hand, level) {
+  if (!hand.length) return [];
+  const top = c => Math.max(...c.cards.map(id => E.valueOf(id, level)));
+  return split(hand, level).combos.map(c => ({ cards: ordered(c.cards, level), reading: c.reading }))
+    .sort((a, b) => E.power(b.reading) - E.power(a.reading) || top(b) - top(a));
+}
+/** What a move takes from the hand: a play's cards, a returned card, nothing for a pass. */
+const cardsOf = a => (a.t === "play" ? a.cards : a.t === "return" ? [a.card] : []);
+/** The coach's plan after a move: its cards, then the plays it counts on from the rest of the hand. */
+function planAfter(action, hand, level) {
+  const cards = cardsOf(action);
+  return { cards: ordered(cards, level), groups: planOf(hand.filter(id => !cards.includes(id)), level) };
+}
+/** The hint's plan while it stands (asked for, not the coach's unasked advice, its play still the cards picked): your
+ *  cards are set out as columns of it, the play first. */
+function planView() {
+  const now = hint?.key === keyNow() && !hint.auto ? hint : null, h = now?.list?.[now.at];
+  if (!h || rush || !G) return null;
+  const cards = cardsOf(h.action);
+  if (selected.size !== cards.length || cards.some(id => !selected.has(id))) return null;
+  return planAfter(h.action, G.hands[me], G.level);
+}
+/** A plan in small cards, each play apart: for the Why? sheet. */
+const planRow = (groups, level) => `<span class="tb-plan-row">${groups.map(g => mini(g.cards, level, "tb-plan-g")).join("")}</span>`;
+
+/** The plays the hint weighed (or a puzzle's), side by side: each one's numbers, what speaks for it and against it,
+ *  and what your hand makes after it; Pick takes its cards (not in a puzzle, once answered). `hand`: your cards as
+ *  they were when the plays were weighed (a check's are those before your move). */
+function showWhy(list = hint?.key === keyNow() ? hint.list : null, hand = G?.hands[me]) {
   if (!list?.length) return;
   const mineIn = list.some(o => o.yours), picks = !rush && !mineIn;    // a puzzle's or a check's: your move's made
   const pctOf = x => `${Math.round(x * 100)}%`;
-  const looked = list.some(o => o.levels != null);
-  let html = `${list[0].why ? `<p class="tb-why-lead">${esc(list[0].why)}</p>` : ""}${list[0].out ? `<p class="tb-why-out">${esc(list[0].out)}</p>` : ""}<ol class="tb-opts">`;
+  const looked = list.some(o => o.levels != null), level = G.level;
+  let html = `${list[0].why ? `<p class="tb-why-lead">${esc(list[0].why)}</p>` : ""}${list[0].out ? `<p class="tb-why-out">${esc(list[0].out)}</p>` : ""}`;
+  if (hand?.length) html += `<div class="tb-plan-now"><span>Your hand as it stands, as the coach splits it:</span>${planRow(planOf(hand, level), level)}</div>`;
+  html += `<ol class="tb-opts">`;
   list.forEach((o, i) => {
     const stats = [];
     if (o.plays != null) stats.push(o.plays ? `${o.plays} play${o.plays === 1 ? "" : "s"} to go out after it` : "out");
@@ -278,9 +320,11 @@ function showWhy(list = hint?.key === keyNow() ? hint.list : null) {
     if (o.levels != null) stats.push(`${o.levels >= 0 ? "+" : "−"}${Math.abs(o.levels).toFixed(1)} levels`);
     const pc = [...o.pros.map(x => `<li class="pro">${esc(cap(x))}</li>`), ...o.cons.map(x => `<li class="con">${esc(cap(x))}</li>`)].join("");
     const tag = o.yours ? '<span class="tb-yours">yours</span>' : "";
-    html += `<li class="tb-opt${i === 0 ? " best" : ""}${o.yours && i ? " missed" : ""}"><div class="tb-opt-head"><b>${esc(o.title)}</b>${tag}<span class="tb-stat">${stats.join(" · ")}</span>${o.action.t === "pass" || !picks ? "" : `<button type="button" class="link" data-pick="${i}">Pick</button>`}</div>${pc ? `<ul class="tb-pc">${pc}</ul>` : ""}</li>`;
+    const after = hand?.length ? planAfter(o.action, hand, level).groups : null;
+    const then = after ? `<div class="tb-plan-then"><span>${after.length ? "Then:" : "Then: out"}</span>${after.length ? planRow(after, level) : ""}</div>` : "";
+    html += `<li class="tb-opt${i === 0 ? " best" : ""}${o.yours && i ? " missed" : ""}"><div class="tb-opt-head"><b>${esc(o.title)}</b>${tag}<span class="tb-stat">${stats.join(" · ")}</span>${o.action.t === "pass" || !picks ? "" : `<button type="button" class="link" data-pick="${i}">Pick</button>`}</div>${then}${pc ? `<ul class="tb-pc">${pc}</ul>` : ""}</li>`;
   });
-  html += `</ol><p class="tb-why-note">${rush ? "The best play first." : mineIn ? "The coach's choice first, then yours." : "The computer's choice is first."} Plays to go out: what your hand needs after it, split as the computer would. Holds: the chance no opponent beats it except with a bomb, from every card played, what the tribute showed (a card paid or given back is with the player who got it; a payer holds nothing above the card he paid) and how often the computer's players beat a play like it.${looked ? ` Levels: the rest of the hand played out in ${rush ? `${rushPuzzle()?.n || "hundreds of"} deals` : "deals"} of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average.` : ""}</p>`;
+  html += `</ol><p class="tb-why-note">${rush ? "The best play first." : mineIn ? "The coach's choice first, then yours." : "The computer's choice is first."} Plays to go out: what your hand needs after it, split as the computer would, shown under each (Then). Holds: the chance no opponent beats it except with a bomb, from every card played, what the tribute showed (a card paid or given back is with the player who got it; a payer holds nothing above the card he paid) and how often the computer's players beat a play like it.${looked ? ` Levels: the rest of the hand played out in ${rush ? `${rushPuzzle()?.n || "hundreds of"} deals` : "deals"} of the cards you can't see, fitted to what's been played, and what that did to your side's levels on average.` : ""}</p>`;
   $("whyBody").innerHTML = html;
   $("whyDlg").showModal();
   $("whyDlg").scrollTop = 0;
@@ -409,7 +453,11 @@ function fanned(cols, rem, room) {
 let handH = 0;                                                   // your cards' height as last laid out, for the plays'
 function drawHand() {
   const box = $("hand");
-  const hand = G.hands[me], level = G.level, cols = columns(hand, level);
+  // while a hint stands, its plan: the play first, then each play of the rest a column (in a row, a group), every
+  // other one shaded; else a column to a rank
+  const hand = G.hands[me], level = G.level, plan = planView();
+  const cols = plan ? [plan.cards, ...plan.groups.map(g => g.cards)].filter(c => c.length) : columns(hand, level);
+  const shade = new Set(plan ? plan.groups.filter((g, i) => i % 2 === 1).flatMap(g => g.cards) : []);
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
   const fan = sideways() && sideOf() === "row";
   const lay = fan ? fanned(cols, rem, box.clientWidth || 480) : stacked(cols, rem, box.clientWidth || 360);
@@ -427,11 +475,13 @@ function drawHand() {
     const cls = [cardClass(id, level)];
     if (selected.has(id)) cls.push("sel");
     if (advised.has(id)) cls.push("advised");
+    if (shade.has(id)) cls.push("alt");
     if (ok && !ok.has(id)) cls.push("dim");
     html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;z-index:${z}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${face(id, level)}</button>`;
   }
   box.innerHTML = html;
   box.classList.toggle("tight", !!lay.tight);
+  box.classList.toggle("plan", !!plan);
   box.style.height = `${lay.height.toFixed(0)}px`;
 }
 // Tap a card to pick it or put it back; drag across your cards, along the row or down a column, to pick (or put back,
@@ -478,14 +528,16 @@ function drawActions() {
   say.hidden = !(now || last || say.classList.contains("kept"));
   if (now) {
     const n = now.list?.length || 0, label = now.auto ? "Coach" : `Hint${n > 1 ? ` ${now.at + 1}/${n}` : ""}`;
+    const plan = planView(), k = plan?.groups.length, plays = `${k === 1 ? "one play" : `${k} plays`} to go out`;
+    const laid = !plan ? "" : ` <span class="tb-plan-note">Your cards as it plans them: ${plan.cards.length ? `this, then ${k ? plays : "out"}` : plays}.</span>`;
     say.innerHTML = !h ? `<b>${label}</b> <span class="tb-thinking">thinking…</span>`
-      : `<b>${label}</b> ${esc(h.why)}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
+      : `<b>${label}</b> ${esc(h.why)}${laid}${h.pros ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
     say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy());   // not the click itself as the list
   } else if (last) {
     const c = checked.get(last);
     say.innerHTML = `<b class="tb-miss">Coach</b> ${esc(last.words)}${c ? ' <button type="button" class="link tb-why-btn">Why?</button>' : ""}`;
     // the sheet leads with the verdict: its numbers are the check's deals, not the ones the coach decided in
-    say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy([{ ...c.list[0], why: last.words }, ...c.list.slice(1)]));
+    say.querySelector(".tb-why-btn")?.addEventListener("click", () => showWhy([{ ...c.list[0], why: last.words }, ...c.list.slice(1)], last.cards));
   } else say.replaceChildren();
   if (G.phase === "over") { box.append(goBtn(G.result.over ? "The final score" : "Next hand", () => showResult(), "primary")); return; }
   const ask = E.asked(G, me);

@@ -141,6 +141,20 @@ check(same("4s 4c 4d 5s 5d As Ac Ad 2h", ["4s 4c 4d 2h", "As Ac Ad 5s 5d"]), "a 
 check(same("3s 5s 6c 7d 8h 9s 9c 9d 9h", ["5s 6c 7d 8h 9s", "9c 9d 9h", "3s"]), "a bomb broken for a straight when keeping it leaves too many singles (一火保两单: 3 5678 9999 plays 56789 999 3)");
 check(same("3s 9s 9c 9d 9h Ks Kc", ["3s", "9s 9c 9d 9h", "Ks Kc"]), "…and kept when it leaves only one");
 check(same("3s 4c 6d 7h 2h Ks Kc", ["3s 4c 2h 6d 7h", "Ks Kc"]), "a wild fills the gap in a straight that would leave four singles");
+{
+  // the hint's plan (tribute.js sets your cards out as it while a hint stands, and Why? shows it under each play): the
+  // split of any hand holds every card once, each group a play by the rules, so a hand set out as it loses nothing
+  let fine = 0, tried = 0;
+  for (let seed = 1; seed <= 30; seed++) {
+    const st = E.deal(E.newGame({}, seed), seed), level = st.level;
+    for (const hand of st.hands) for (const n of [27, 14, 6]) {
+      const h = hand.slice(0, n), combos = B.split(h, level).combos, sort = xs => [...xs].sort((a, b) => a - b).join();
+      tried++;
+      if (sort(combos.flatMap(c => c.cards)) === sort(h) && combos.every(c => E.classify(c.cards, level).length)) fine++;
+    }
+  }
+  check(fine === tried, `the coach's split of a hand, which the hint sets your cards out as, holds every card once, each group a play (${fine} of ${tried} hands)`);
+}
 /** A position: the hands as given, the rest of the deck already played, so what's unseen is just the others' cards. */
 function position(hands, { level = 2, turn = 0 } = {}) {
   const st = table(hands, { level, turn });
