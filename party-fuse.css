@@ -1,0 +1,67 @@
+/* Fuse (Party): the bomb, a black iron ball with a brass fuse and a flickering spark, its letters on it in large wide
+   capitals; the box to type in under it for whoever holds it, and for the others what they're typing; the table's
+   players with their lives; your letters towards a life back. */
+.fz-col { display: flex; flex-direction: column; gap: .7rem; }
+.fz-bomb { position: relative; width: 9.5rem; margin: 0 auto; padding-top: .3rem; }
+.fz-art { display: block; width: 100%; height: auto; overflow: visible; }
+.fz-ball { fill: #26282B; stroke: var(--brass); stroke-width: 2; }
+.fz-shine { fill: #FFFFFF; opacity: .14; }
+.fz-cap { fill: var(--brass); }
+.fz-fuse { fill: none; stroke: var(--brass); stroke-width: 4; stroke-linecap: round; }
+.fz-spark { fill: #F2B23A; transform-box: fill-box; transform-origin: center; animation: fz-spark 600ms steps(3) infinite; animation-delay: var(--fz-phase, 0ms); }
+@keyframes fz-spark { 0% { transform: scale(1); fill: #F2B23A; } 50% { transform: scale(1.6); fill: #E8602C; } 100% { transform: scale(.8); fill: #FFE08A; } }
+.fz-prompt { position: absolute; left: 46.7%; top: 56.7%; transform: translate(-50%, -50%); color: #F6F0E2; font-size: 2.1rem; font-weight: 800;
+  font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); white-space: nowrap; }
+.fz-bomb.mine .fz-ball { stroke: var(--pa-in); stroke-width: 4; }
+.fz-bomb.boom .fz-ball { fill: #A8382B; }
+.fz-bomb.boom { animation: fz-boom 450ms ease-out; transform-origin: 50% 65%; }
+@keyframes fz-boom { 0% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.fz-act { align-items: stretch; }
+.fz-turn { margin: 0; }
+.fz-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.fz-row .pk-btn { width: auto; padding: 0 1.3rem; }
+.fz-input { text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+.fz-input.shake { animation: fz-shake 300ms; }
+@keyframes fz-shake { 25% { transform: translateX(-.4rem); } 50% { transform: translateX(.4rem); } 75% { transform: translateX(-.2rem); } }
+.fz-note { margin: 0; min-height: 1.2em; text-align: center; font-size: .9rem; color: #A8382B; }
+.fz-typing { display: grid; justify-items: center; gap: .15rem; margin: 0; min-height: 4.2rem; }
+.fz-who { font-size: .75rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.fz-typed { font-size: 1.8rem; font-weight: 800; letter-spacing: .06em; overflow-wrap: anywhere; text-align: center; }
+.fz-caret { display: inline-block; width: .12em; height: 1em; margin-left: .08em; vertical-align: -.12em; background: var(--pa-in); }
+.fz-banner { display: grid; justify-items: center; gap: .1rem; padding: .5rem; border-radius: 6px; text-align: center; font-weight: 700; background: color-mix(in srgb, #A8382B 14%, var(--sheet)); }
+.fz-banner strong { font-size: 1.6rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: uppercase; }
+.fz-table { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; }
+.fz-table li { display: flex; align-items: baseline; gap: .35rem; padding: .3rem .55rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.fz-table li.holds { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.fz-table li.me .fz-name { text-decoration: underline; text-underline-offset: .15em; }
+.fz-table li.out { opacity: .45; }
+.fz-table li.out .fz-name { text-decoration: line-through; }
+.fz-table li.gone { opacity: .35; font-style: italic; }
+.fz-name { font-weight: 700; }
+.fz-lives { color: #A8382B; letter-spacing: .05em; font-size: .9rem; }
+.fz-last { margin: 0; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+.fz-last strong { color: var(--ink); letter-spacing: .04em; }
+.fz-letters { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: .2rem; max-width: 22rem; width: 100%; margin: 0 auto; }
+.fz-letters span { display: grid; place-items: center; height: 1.6rem; border: 1px solid var(--rule); border-radius: 4px; font-size: .75rem; font-weight: 800; color: var(--ink-soft); }
+.fz-letters span.got { background: var(--pa-in); border-color: var(--pa-in); color: var(--sheet); }
+.fz-stats { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; }
+.fz-stats li { display: flex; justify-content: space-between; padding: .35rem .2rem; border-bottom: 1px solid var(--rule); }
+.fz-n { font-weight: 800; font-variant-numeric: tabular-nums; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) :is(.fz-note, .fz-lives) { color: #E8806F; }
+  html:not([data-mode="day"]) .fz-banner { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .fz-bomb.boom .fz-ball { fill: #E8806F; }
+}
+html[data-mode="night"] :is(.fz-note, .fz-lives) { color: #E8806F; }
+html[data-mode="night"] .fz-banner { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
+html[data-mode="night"] .fz-bomb.boom .fz-ball { fill: #E8806F; }
+html[data-theme="office"] :is(.fz-banner, .fz-table li) { border-radius: 4px; }
+/* held sideways: the bomb and what's to type on the left, the table and your letters on the right */
+@media (orientation: landscape) and (min-width: 700px) {
+  .pa-game-view .pa-play:has(.fz-col) { max-width: 60rem; }
+  .fz-col:not(.over) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-auto-flow: dense; column-gap: 1.5rem; row-gap: .6rem; align-items: start; }
+  .fz-col:not(.over) > :is(.fz-bomb, .fz-act) { grid-column: 1; }
+  .fz-col:not(.over) > :not(.fz-bomb, .fz-act) { grid-column: 2; }
+  .fz-col:not(.over) > .fz-bomb { width: 8rem; }
+  .fz-col:not(.over) .fz-prompt { font-size: 1.65rem; }
+}
