@@ -90,6 +90,12 @@ html[data-mode="night"] :is(.rv-miss, .rv-list li.faulted em) { color: #E8806F; 
 .rv-pc.red .rv-pc-ch { fill: var(--rv-red); }
 .rv-pc.black .rv-pc-ring { stroke: var(--rv-black); }
 .rv-pc.black .rv-pc-ch { fill: var(--rv-black); }
+/* the pieces as pictures (Menu, Pieces): filled in the side's colour, their details cut in the face's */
+.rv-pc.red .rv-pc-pic, .rv-taken .red .rv-pic { fill: var(--rv-red); }
+.rv-pc.black .rv-pc-pic, .rv-taken .black .rv-pic { fill: var(--rv-black); }
+:is(.rv-pc-pic, .rv-pic) .cut { fill: var(--rv-face); }
+:is(.rv-pc-pic, .rv-pic) .cut-line { fill: none; stroke: var(--rv-face); stroke-width: 1.6; stroke-linecap: round; }
+.rv-pic { width: 1em; height: 1em; display: block; }
 .rv-pc.sel .rv-pc-edge { stroke: var(--rv-sel); stroke-width: .075; }
 .rv-pc.check .rv-pc-edge { stroke: var(--rv-check); stroke-width: .09; }
 .rv-pc.drag { pointer-events: none; }
@@ -98,6 +104,14 @@ html[data-mode="night"] :is(.rv-miss, .rv-list li.faulted em) { color: #E8806F; 
 .rv-last-to { fill: none; stroke: var(--rv-last); stroke-width: .06; }
 .rv-target { fill: var(--rv-target); pointer-events: none; }
 .rv-target.take { fill: none; stroke: var(--rv-target); stroke-width: .075; }
+/* one of the other side's pieces looked at: hollow dots where it could go and dashed rings round what it guards, in
+   its own colour; a ring in check's red round a piece of yours it could take */
+.rv-peek { pointer-events: none; --pk: var(--rv-black); }
+.rv-peek.red { --pk: var(--rv-red); }
+.rv-peek-go { fill: none; stroke: var(--pk); stroke-width: .055; }
+.rv-peek-guard { fill: none; stroke: var(--pk); stroke-width: .05; stroke-dasharray: .11 .07; }
+.rv-peek-take { fill: none; stroke: var(--rv-check); stroke-width: .07; }
+.rv-pc.peek .rv-pc-edge { stroke: var(--rv-sel); stroke-width: .075; stroke-dasharray: .1 .06; }
 .rv-hint { fill: none; stroke: var(--rv-hint); stroke-width: .13; stroke-linecap: round; stroke-linejoin: round; opacity: .88; pointer-events: none; }
 .rv-hint.bad { stroke: var(--rv-check); opacity: .8; }        /* the move the coach faulted, beside its own */
 /* a disc in a line of words (the seats, the rules) */

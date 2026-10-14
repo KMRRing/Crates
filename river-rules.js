@@ -161,6 +161,26 @@ export function legalMoves(pos) {
 }
 /** The legal moves from one point. */
 export const movesFrom = (pos, from) => legalMoves(pos).filter(m => m.from === from);
+/**
+ * What a piece reaches, whoever is to move (a tap on one of the other side's pieces shows it): moves, the points it
+ * could go to were it its side's move (its legal moves then, takes among them), and guards, the pieces of its own side
+ * it could take back on were they the other side's (by the pieces' paths: a pinned piece guards all the same; the
+ * general isn't guarded, it can't be taken).
+ */
+export function reachOf(pos, p) {
+  const v = pos.b[p];
+  if (!v) return null;
+  const red = v > 0, b = Int8Array.from(pos.b), guards = [];
+  const moves = movesFrom({ b, red }, p).map(m => m.to);
+  for (let q = 0; q < 90; q++) {
+    if (q === p || !b[q] || (b[q] > 0) !== red || Math.abs(b[q]) === GENERAL) continue;
+    b[q] = -b[q];
+    const raw = pseudo({ b, red });
+    for (let k = 0; k < raw.length; k += 2) if (raw[k] === p && raw[k + 1] === q) { guards.push(q); break; }
+    b[q] = -b[q];
+  }
+  return { moves, guards };
+}
 export const isLegal = (pos, from, to) => legalMoves(pos).some(m => m.from === from && m.to === to);
 /** The position after a move (not checked for legality). */
 export function after(pos, from, to) {

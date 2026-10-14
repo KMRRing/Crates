@@ -58,6 +58,22 @@ check(X.inCheck(at({ d1: "K", e10: "k", e9: "P" }, false)) && X.inCheck(at({ d1:
   "a soldier checks from in front or beside, not diagonally");
 check(X.inCheck(at({ e1: "K", d10: "k", d5: "C", d7: "P" }, false)) && !X.inCheck(at({ e1: "K", d10: "k", d5: "C" }, false)), "a cannon checks over one screen only");
 
+// ---------- a piece of the other side's, looked at ----------
+{
+  const start = X.parseFen(), names = ps => ps.map(X.nameOf).sort().join(" ");
+  const r = X.reachOf(start, X.pointNamed("a10"));
+  check(names(r.moves) === sorted("a8 a9") && names(r.guards) === sorted("a7 b10"), "Black's chariot at the start, looked at on Red's move: it could go to a9 and a8, and guards the soldier on a7 and the horse beside it");
+  const c = X.reachOf(start, X.pointNamed("b8"));
+  check(c.moves.map(X.nameOf).includes("b1") && !c.guards.length, "Black's cannon reaches over Red's cannon to take the horse on b1 (a take), and guards nothing yet");
+  const h = X.reachOf(start, X.pointNamed("h10"));
+  check(names(h.moves) === sorted("g8 i8") && !h.guards.length, "Black's horse, its leg towards the elephant blocked: g8 and i8");
+  // a pinned piece guards all the same, but can't go anywhere it would leave its general open
+  const pin = at({ e1: "K", e5: "R", e9: "n", e10: "k", c10: "b" }, true);
+  const p = X.reachOf(pin, X.pointNamed("e9"));
+  check(!p.moves.length && names(p.guards) === "c10", "a horse pinned before its general by a chariot goes nowhere, yet guards the elephant its path reaches");
+  check(X.reachOf(start, X.pointNamed("e5")) === null, "an empty point has no reach");
+}
+
 // ---------- perft ----------
 const start = X.parseFen();
 const counts = [1, 2, 3, 4].map(d => X.perft(start, d));

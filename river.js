@@ -4,7 +4,7 @@
 // coach's judgement is uci-coach.js's). The game in play is kept as it changes (river:game) and picked up on reload; a
 // partner watching draws it from there.
 import * as X from "./river-rules.js";
-import { mountBoard, discSvg, diagramSvg } from "./river-board.js";
+import { mountBoard, discSvg, diagramSvg, setPictures, pieceMark } from "./river-board.js";
 import { LEVELS, levelById, HINT, REVIEW, SETUP } from "./river-levels.js";
 import { OPENINGS, openingOf } from "./river-openings.js";
 import { Engine, WORKERS, levelMove } from "./uci.js";
@@ -31,8 +31,10 @@ const rating = n => n.toLocaleString("en-GB");
 // ---------- settings and the game ----------
 // opts: the board's look (facing, script), the coach, and the next game's choices (mode, level, colour), which the
 // menu sets.
-let opts = { facing: false, script: "traditional", mode: "engine", level: "2", colour: "red", coach: "hints", ...read(OPTS, {}) };
+let opts = { facing: false, script: "traditional", pieces: "characters", mode: "engine", level: "2", colour: "red", coach: "hints", ...read(OPTS, {}) };
 if (!["traditional", "simplified"].includes(opts.script)) opts.script = "traditional";
+if (!["characters", "pictures"].includes(opts.pieces)) opts.pieces = "characters";
+setPictures(opts.pieces === "pictures");
 if (!isCoach(opts.coach)) opts.coach = "hints";
 const saveOpts = () => write(OPTS, opts);
 /**
@@ -377,6 +379,7 @@ function drawEnd() {
 }
 
 // ---------- drawing ----------
+const PIECE_EN = ["", "general", "advisor", "elephant", "horse", "chariot", "cannon", "soldier"];
 const board = mountBoard($("board"), {
   onMove,
   legal: from => {
@@ -384,6 +387,14 @@ const board = mountBoard($("board"), {
     if (seat === null || !handSeats().includes(seat) || thinking || IN_FRAME) return [];
     const pos = played().positions.at(-1);
     return X.movesFrom(pos, from).map(m => m.to);
+  },
+  // a tap on one of the other side's pieces, on your move: where it could go and what it guards, drawn and said
+  reach: p => X.reachOf(played().positions.at(-1), p),
+  onPeek: (p, r) => {
+    if (p == null) return;
+    const v = played().positions.at(-1).b[p], takes = r.moves.filter(q => played().positions.at(-1).b[q]).length;
+    const n = (k, one, many) => `${k} ${k === 1 ? one : many}`;
+    toast(`${v > 0 ? "Red" : "Black"}'s ${PIECE_EN[Math.abs(v)]} ${X.charOf(v, opts.script)}: ${r.moves.length ? `${n(r.moves.length, "point", "points")} to go to${takes ? `, ${n(takes, "of them a take", "of them takes")}` : ""}` : "nowhere to go"}; ${r.guards.length ? `guards ${n(r.guards.length, "piece", "pieces")}` : "guards nothing"}`, 3600);
   },
 });
 /** The general's disc of a side, small, before a seat's name. */
@@ -406,7 +417,7 @@ function drawSeat(el, red, p, words = null) {
   const g = cur(), toMove = !g.result && p.positions.at(-1).red === red;
   const taken = captures(p)[red ? "red" : "black"];
   const busyHere = thinking && !inRoom() && g.mode === "engine" && (g.red !== 0) === red;   // the computer's seat, while it thinks
-  el.innerHTML = `<span class="rv-who${toMove ? " turn" : ""}">${tag(red)}${words ?? "<b></b>"}</span><span class="rv-taken" aria-label="Taken">${taken.map(v => `<i class="${v > 0 ? "red" : "black"}">${X.charOf(v, opts.script)}</i>`).join("")}</span>`;
+  el.innerHTML = `<span class="rv-who${toMove ? " turn" : ""}">${tag(red)}${words ?? "<b></b>"}</span><span class="rv-taken" aria-label="Taken">${taken.map(v => `<i class="${v > 0 ? "red" : "black"}">${pieceMark(v, opts.script)}</i>`).join("")}</span>`;
   if (words === null) el.querySelector("b").textContent = seatLabel(red);
   el.querySelector(".rv-wait")?.append(sextant());
   if (busyHere) { const s = document.createElement("span"); s.className = "rv-thinking"; s.append(sextant(), "thinking"); el.querySelector(".rv-who").append(s); }
@@ -605,6 +616,7 @@ function openMenu() {
   if (!inRoom()) set.append(choice("Coach", COACH, opts.coach, setCoach));
   set.append(
     toggle("Facing each other", opts.facing, on => { opts.facing = on; saveOpts(); render(); }),
+    choice("Pieces", [["characters", "Characters"], ["pictures", "Pictures"]], opts.pieces, v => { opts.pieces = v; setPictures(v === "pictures"); saveOpts(); render(); }),
     choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, v => { opts.script = v; saveOpts(); render(); }));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
