@@ -148,7 +148,7 @@ export function mountBoard(host, { onMove, legal }) {
     if (!view?.hand || e.button > 0) return;
     const [x, y] = local(e), p = pointAt(x, y);
     if (p < 0) { if (selected != null) { selected = null; draw(); } return; }
-    press = { id: e.pointerId, x: e.clientX, y: e.clientY, p };
+    press = { id: e.pointerId, x: e.clientX, y: e.clientY, p, was: selected };
     try { svg.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
     if (mine(p)) { drag = { from: p, x, y, moved: false }; if (selected !== p) { selected = p; draw(); } }
     e.preventDefault();
@@ -171,14 +171,13 @@ export function mountBoard(host, { onMove, legal }) {
       return;
     }
     if (p < 0) { draw(); return; }
-    if (was && p === start.p) { draw(); return; }                   // a press on your own piece: it stays picked up
+    if (was && p === start.p) { if (start.was === p) selected = null; draw(); return; }   // a tap picks a piece up; a second puts it down
     tapAt(p);
   };
   svg.addEventListener("pointerup", release);
   svg.addEventListener("pointercancel", () => { drag = null; press = null; draw(); });
 
   return {
-    draw(next) { if (next.hand === false || next.pos !== view?.pos) selected = selected != null && next.hand && next.pos === view?.pos ? selected : null; draw(next); },
-    clear() { selected = null; draw(); },
+    draw(next) { if (!next.hand || next.pos !== view?.pos) selected = null; draw(next); },
   };
 }

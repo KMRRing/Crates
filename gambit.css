@@ -1,0 +1,142 @@
+/* Gambit: chess on Rush's board (chess-board.js: parchment and bronze squares, the cburnett pieces), the page round it
+   River's: the seats over and under the board with what each has taken, the moves in a row, the buttons low. The game's
+   enamel is a malachite green. */
+:root { --gb-in: #2E6E5A; --gb-in-soft: color-mix(in srgb, var(--gb-in) 15%, var(--sheet)); --gb-hint: rgba(47, 125, 91, .82); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --gb-in: #7CC3A6; --gb-hint: rgba(127, 194, 168, .85); } }
+/* night, set in Settings */
+html[data-mode="night"] { --gb-in: #7CC3A6; --gb-hint: rgba(127, 194, 168, .85); }
+html[data-theme="kontor"] { --gb-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --gb-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --gb-in: #2EB36A; }
+html[data-theme="office"] { --gb-in: #0F6CBD; --gb-hint: rgba(16, 124, 16, .8); }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --gb-in: #479EF5; --gb-hint: rgba(84, 176, 84, .85); } }
+html[data-theme="office"][data-mode="night"] { --gb-in: #479EF5; --gb-hint: rgba(84, 176, 84, .85); }
+
+.gb-mark { display: inline-block; }
+.gb-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the board: square, as large as the room left, the full width of a phone ---------- */
+.gb-stage { margin: .3rem -1rem 0; min-height: 0; }
+.gb-board { width: min(100cqw, 100cqh); aspect-ratio: 1; }
+.gb-board .ch-board { width: 100%; height: 100%; }
+/* chess-board.js's squares, as Rush draws them (rush.css); themes.css gives Modern, Kontor and Office theirs */
+.ch-board { width: 100%; margin: 0; display: block; border-radius: 0; overflow: visible; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ch-board .sq.light { fill: #EFE3C8; }
+.ch-board .sq.dark { fill: #9C8257; }
+.ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
+.ch-board .hl.sel { fill: rgba(255, 221, 89, .75); }
+.ch-board .hl.check { fill: rgba(210, 59, 42, .75); }
+.ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
+.ch-board .coord.on-light { fill: #7A6440; }
+.ch-board .coord.on-dark { fill: #EFE3C8; }
+.gb-plain .ch-board .coord { display: none; }
+.ch-board .piece { cursor: grab; }
+.ch-board .piece.lifted { opacity: .35; }
+.ch-board .piece.slide { transition: transform .2s cubic-bezier(.3, .7, .3, 1); }
+@media (prefers-reduced-motion: reduce) { .ch-board .piece.slide { transition: none; } }
+.ch-board .piece.dragging { pointer-events: none; filter: drop-shadow(0 .08px .12px rgba(0, 0, 0, .35)); }
+.ch-board .target { fill: rgba(20, 40, 60, .22); cursor: pointer; pointer-events: none; }
+.ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
+.ch-board .arrow { fill: var(--gb-hint); stroke: var(--gb-hint); stroke-width: .17; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.ch-board .promo-veil { fill: rgba(16, 24, 31, .35); }
+.ch-board .promo-sq { fill: #FBF8F0; stroke: var(--brass); stroke-width: .03; }
+.ch-board .promo-pc { pointer-events: none; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .ch-board .sq.light { fill: #CDBF9E; }
+  html:not([data-mode="day"]) .ch-board .sq.dark { fill: #8C744B; }
+  html:not([data-mode="day"]) .ch-board .coord.on-light { fill: #6E5A38; }
+  html:not([data-mode="day"]) .ch-board .coord.on-dark { fill: #E6DAC0; }
+}
+html[data-mode="night"] .ch-board .sq.light { fill: #CDBF9E; }
+html[data-mode="night"] .ch-board .sq.dark { fill: #8C744B; }
+html[data-mode="night"] .ch-board .coord.on-light { fill: #6E5A38; }
+html[data-mode="night"] .ch-board .coord.on-dark { fill: #E6DAC0; }
+
+/* ---------- the seats over and under the board, and what's said ---------- */
+.gb-seat { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 1.7rem; font-size: .9rem; }
+.gb-far { margin-top: .45rem; }
+.gb-who { display: flex; align-items: center; gap: .4rem; min-width: 0; white-space: nowrap; color: var(--ink-soft); }
+.gb-who b { overflow: hidden; text-overflow: ellipsis; font-weight: 750; }
+.gb-who.turn { color: var(--ink); }
+.gb-thinking { display: inline-flex; align-items: center; gap: .3rem; margin-left: .2rem; font-size: .78rem; color: var(--ink-soft); }
+.gb-taken { display: flex; flex-wrap: nowrap; justify-content: flex-end; min-width: 0; overflow: hidden; line-height: 1; }
+.gb-near { margin-top: .25rem; }
+.gb-near .gb-who { flex: 1 1 auto; }
+.gb-near .gb-taken { flex: 0 1 auto; max-width: 40%; }
+.gb-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.gb-say b { font-weight: 800; }
+.gb-check { color: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .gb-check { color: #E8806F; } }
+html[data-mode="night"] .gb-check { color: #E8806F; }
+.gb-wait { display: inline-block; vertical-align: -.15em; margin-right: .3rem; }
+
+/* ---------- the moves: a row of the latest, Chinese over WXF ---------- */
+.gb-list { display: flex; gap: .3rem; margin: .35rem 0 0; padding: 0; list-style: none; min-height: 2.75rem; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.gb-list::-webkit-scrollbar { display: none; }
+.gb-list li { flex: none; display: flex; align-items: center; gap: .3rem; padding: .2rem .45rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); line-height: 1.12; }
+.gb-list li small { font-size: .72rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.gb-list li b { font-size: .92rem; font-weight: 700; }
+.gb-list li.last { border-color: var(--gb-in); box-shadow: inset 0 0 0 1px var(--gb-in); }
+.gb-list li.gb-none { display: block; border: 0; background: none; padding: .2rem 0; font-size: .86rem; color: var(--ink-soft); align-self: center; }
+
+/* ---------- the buttons, low ---------- */
+.gb-bar { display: flex; gap: .5rem; margin-top: .45rem; min-height: 2.75rem; }
+.gb-bar > .gb-go { flex: 1 1 0; min-width: 0; }
+.gb-go { min-height: 2.75rem; padding: 0 .8rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent);
+  outline-offset: -5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gb-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
+.gb-go:disabled { opacity: .4; cursor: default; }
+/* Modern's buttons: rounded, in the game's enamel, sentence case (the gilt hairline is Almanac's) */
+html[data-theme="modern"] .gb-go { border-radius: 14px; background: var(--gb-in); color: #fff; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; }
+html[data-theme="modern"] .gb-go.quiet { background: var(--sheet); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+html[data-theme="modern"] .gb-list li { border-radius: 10px; }
+
+/* ---------- the sheets ---------- */
+dialog.gb-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+#rulesDlg { padding-top: 0; }
+#rulesDlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding-top: 1rem; }
+.gb-rules p { margin: .45rem 0; font-size: .92rem; line-height: 1.45; }
+.gb-rules h4 { margin: 1rem 0 .3rem; }
+.gb-rules a { color: var(--gb-in); }
+.gb-rule-piece { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .7rem; align-items: start; margin: .55rem 0; font-size: .92rem; }
+.gb-rule-piece p { margin: .15rem 0 0; }
+.gb-end-head { margin: 0 0 .4rem; font-size: 1.15rem; }
+.gb-end p { margin: .35rem 0; font-size: .95rem; line-height: 1.45; }
+.gb-end-go { display: flex; gap: .5rem; margin-top: .9rem; }
+.gb-end-go .gb-go { flex: 1 1 0; }
+
+.gb-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.gb-toast.show { opacity: 1; }
+html[data-theme="modern"] .gb-toast { border-radius: 10px; }
+
+/* held sideways (#app.beside): the board on the left with all the height; the seats, what's said and the moves beside
+   it, the moves filling the column, the buttons at the bottom where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.gambit { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.gambit .gb-stage { grid-column: 1; grid-row: 2 / -1; margin: .5rem 0 0; }
+  #app.gambit .gb-far { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.gambit .gb-near { grid-column: 2; grid-row: 3; align-items: flex-start; min-height: 3.6rem; margin-top: .45rem; }
+  #app.gambit .gb-near .gb-who { white-space: normal; align-items: flex-start; }
+  #app.gambit .gb-near .gb-say { line-height: 1.35; }
+  #app.gambit .gb-list { grid-column: 2; grid-row: 4; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
+  #app.gambit .gb-bar { grid-column: 2; grid-row: 5; }
+}
+
+/* the pieces taken, small, and the material lead */
+.gb-mini { width: 1.05rem; height: 1.05rem; flex: none; }
+.gb-who .gb-mini { width: 1.3rem; height: 1.3rem; }
+.gb-taken { gap: 0; align-items: center; }
+.gb-taken .gb-mini { margin-left: -.32rem; }
+.gb-taken .gb-mini:first-child { margin-left: 0; }
+.gb-taken small { margin-left: .25rem; font-size: .76rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.gb-open { color: var(--ink-soft); }
+/* the review at the end */
+.gb-sub { margin: .9rem 0 .2rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--gb-in); }
+.gb-review { margin: .3rem 0; padding-left: 1.2rem; font-size: .92rem; line-height: 1.45; }
+.gb-review li { margin: .25rem 0; }
+.gb-reviewing { color: var(--ink-soft); }
+.gb-rule-pc { width: 2.1rem; height: 2.1rem; }

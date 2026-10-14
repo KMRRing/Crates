@@ -80,9 +80,13 @@ const CUE_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="46"
 // A xiangqi disc on its brass rim, the general 帥 in cinnabar on ivory, for River.
 const RIVER_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="94" rx="30" ry="3" fill="#1C2A34" opacity=".22"/><circle cx="50" cy="53" r="39" fill="#C8923A" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))"/><path d="M17.5 66A39 39 0 0 0 82.5 66" fill="none" stroke="#7A5518" stroke-width="1.3" opacity=".7"/><circle cx="50" cy="46" r="39" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))"/><circle cx="50" cy="46" r="34" fill="none" stroke="#C8923A" stroke-width="1.6"/><circle cx="50" cy="46" r="29" fill="none" stroke="#B5452E" stroke-width="2.4"/><text x="50" y="47.5" font-size="34" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="#B5452E" font-family="'Songti TC','STSong','Noto Serif CJK TC','Noto Serif TC','PMingLiU',serif">帥</text></svg>`;
 
+// A pawn, the piece a gambit gives, ivory on a malachite base, for Gambit.
+const GAMBIT_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="94" rx="32" ry="3" fill="#1C2A34" opacity=".22"/><path d="M37 75C37 61 41.5 51 46 43.5H54C58.5 51 63 61 63 75Z" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><circle cx="50" cy="23" r="13" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))"/><rect x="34" y="35.5" width="32" height="8.5" rx="4.25" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))"/><path d="M43.5 19A7.5 7.5 0 0 1 50 15.5M45.5 50.5C44 56 43 63 43 71" fill="none" stroke="#C8923A" stroke-width="1.8" stroke-linecap="round"/><rect x="27" y="73" width="46" height="8" rx="2" fill="#C8923A" stroke="#1C2A34" stroke-width="2"/><rect x="20" y="80" width="60" height="11" rx="3" fill="#2E6E5A" stroke="#1C2A34" style="stroke-width: calc(2.6 * var(--wire, 1))"/><path d="M24 85.5H76" stroke="#C8923A" stroke-width="1.3"/></svg>`;
+
 // Each theme draws the games its own way: Almanac's instruments (above), Modern's logos as they were before Almanac,
 // Kontor's technical line icons. theme.js has set the theme before this runs.
 const MODERN_LOGOS = {
+  gambit: `<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.4 15.2C7.4 12.4 8.3 10.4 9.1 9H10.9C11.7 10.4 12.6 12.4 12.6 15.2Z" fill="#DDEFE7" stroke="#2E6E5A" stroke-width="1.2" stroke-linejoin="round"/><circle cx="10" cy="5.2" r="2.7" fill="#DDEFE7" stroke="#2E6E5A" stroke-width="1.2"/><rect x="6.8" y="7.8" width="6.4" height="1.8" rx=".9" fill="#2E6E5A"/><rect x="4.6" y="15" width="10.8" height="2.6" rx="1" fill="#2E6E5A"/></svg>`,
   river: `<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10.6" r="8.4" fill="#C79A55"/><circle cx="10" cy="9.4" r="8.4" fill="#FBF1DC" stroke="#B5452E" stroke-width="1.3"/><circle cx="10" cy="9.4" r="6.1" fill="none" stroke="#B5452E" stroke-width=".9"/><text x="10" y="9.8" font-size="7.6" font-weight="700" text-anchor="middle" dominant-baseline="central" fill="#B5452E" font-family="'Songti TC','STSong','Noto Serif CJK TC','Noto Serif TC','PMingLiU',serif">帥</text></svg>`,
   cue: `<svg viewBox="0 0 20 20" aria-hidden="true"><g transform="rotate(-9 8.5 12)"><rect x="1.8" y="7" width="13.5" height="10" rx="1.6" fill="#F7DCE4" stroke="#B03A5B" stroke-width="1.3"/><rect x="4.2" y="10.4" width="8.7" height="3" rx=".8" fill="#B03A5B"/></g><path d="M16.2 1.2V3.2M16.2 6.4V8.4M12.6 4.8H14.6M17.8 4.8H19.8" stroke="#B03A5B" stroke-width="1.3" stroke-linecap="round"/></svg>`,
   tribute: `<svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3" width="9" height="13" rx="1.5" fill="#2F5D8C" transform="rotate(-12 7 9.5)"/><rect x="8" y="4" width="9.5" height="13.5" rx="1.5" fill="#FCF9F1" stroke="#2F5D8C" stroke-width="1.2" transform="rotate(8 12.75 10.75)"/><path d="M12.9 15.2c-2-1.5-3.1-2.6-3.1-3.9 0-.9.7-1.6 1.5-1.6.7 0 1.2.4 1.6.9.3-.5.9-.9 1.6-.9.8 0 1.5.7 1.5 1.6 0 1.3-1.1 2.4-3.1 3.9z" fill="#B3302A"/></svg>`,
@@ -190,6 +194,7 @@ const MODERN_LOGOS = {
   <g fill="var(--hb-logo-edge)"><circle cx="10" cy="6.3" r="1"/><circle cx="10" cy="9" r="1"/><circle cx="10" cy="11.7" r="1"/></g></g></svg>`,
 };
 const KONTOR_LOGOS = {
+  gambit: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="6" r="2.8"/><path d="M8.8 10.2h6.4M10.2 10.2 8.6 17.5h6.8l-1.6-7.3"/><path class="a" d="M6 20.5h12"/></svg>`,
   river: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="5.7"/><path class="a" d="M9.6 9.6l4.8 4.8M14.4 9.6l-4.8 4.8"/></svg>`,
   cue: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5h13.5v11H3z"/><path class="a" d="M6 15h7.5"/><path d="M19.5 2.5V5M19.5 8v2M15.5 6.2h1.5M21.5 6.2h1.5"/></svg>`,
   tribute: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5l7-1.2 2.4 13.6-7 1.2z"/><path d="M11.5 6.5h8v14h-8"/><path class="a" d="M15.5 17.5c-1.9-1.4-3-2.5-3-3.8 0-.9.7-1.6 1.5-1.6.6 0 1.1.4 1.5.9.4-.5.9-.9 1.5-.9.8 0 1.5.7 1.5 1.6 0 1.3-1.1 2.4-3 3.8z"/></svg>`,
@@ -261,6 +266,7 @@ export const APPS = [
   { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
   { id: "cue", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO) },
   { id: "river", name: "River", href: "./river.html", logo: LOGO("river", RIVER_LOGO) },
+  { id: "gambit", name: "Gambit", href: "./gambit.html", logo: LOGO("gambit", GAMBIT_LOGO) },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */

@@ -33,6 +33,7 @@ export const GAMES = {
   tribute: { name: "Tribute", page: "./tribute.html" },
   brut: { name: "Brut", page: "./brut.html" },
   river: { name: "River", page: "./river.html" },
+  gambit: { name: "Gambit", page: "./gambit.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
