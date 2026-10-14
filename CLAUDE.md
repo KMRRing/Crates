@@ -146,8 +146,11 @@ the one in its address (`?table=CODE`). Computer players fill the seats nobody h
 picks; every change is an `act` transaction (pass `{ rev }` when a move was worked out on what was on the table);
 what everyone does at once goes through `send` (inputs/<uid>). The database keeps no empty arrays or objects and may
 return a list with holes: a table's state must survive that (check with `roundTrip` from `tests/rtdb.js`, which
-fake-db applies to every write). Party's games are modules listed in `party-core.js` (`start` and `advance` pure,
-`view` draws); test one with `tests/party-harness.js`, which plays a table in Node with the host's phone moving it on.
+fake-db applies to every write). Card, dice and board games for a few seats run on `seats.js` (README, "Seats"):
+the game a module of pure functions (`deal`, `toMove`, `act`, `bot`, `over`), the runner moving it solo or at a table,
+`seats-ui.js` wiring the page; `tests/seats.mjs` shows how to test one. Party's games are modules listed in
+`party-core.js` (`start` and `advance` pure, `view` draws); test one with `tests/party-harness.js`, which plays a table
+in Node with the host's phone moving it on.
 
 ## Header dropdowns
 
