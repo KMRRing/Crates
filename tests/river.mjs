@@ -300,7 +300,7 @@ check(LEVELS.every((l, i) => i === 0 || l.rating > LEVELS[i - 1].rating) && LEVE
   const sorted = bank.every((p, i) => !i || bank[i - 1].rating <= p.rating);
   const bands = {};
   for (const p of bank) { const b = Math.max(600, Math.min(2400, Math.floor(p.rating / 200) * 200)); bands[b] = (bands[b] || 0) + 1; }
-  check(!problems.length && sorted && bank.length >= 500, `the rush's ${bank.length} puzzles: every line legal and ending on the solver's move, its theme right, easiest first (${mates} mates, ${others} that win material; by band ${Object.entries(bands).map(([b, n]) => `${b}: ${n}`).join(", ")})${problems.length ? `: ${problems.slice(0, 4).join("; ")}` : ""}`);
+  check(!problems.length && sorted && bank.length >= 1000, `the rush's ${bank.length} puzzles: every line legal and ending on the solver's move, its theme right, easiest first (${mates} mates, ${others} that win material; by band ${Object.entries(bands).map(([b, n]) => `${b}: ${n}`).join(", ")})${problems.length ? `: ${problems.slice(0, 4).join("; ")}` : ""}`);
   // two ways to mate: either chariot along the back rank, the third holding the rank in front; the line's is one of them
   const twice = at({ d1: "K", e10: "k", a9: "R", c2: "R", g3: "R" }), line = { moves: ["-", "c2c10"] };
   check(answers(line, twice, 1, "c2c10") && answers(line, twice, 1, "g3g10") && !answers(line, twice, 1, "a9a10") && !answers(line, twice, 1, "d1d2") && !answers({ moves: ["-", "c2c10", "e10e9", "g3g10"] }, twice, 1, "g3g10"),

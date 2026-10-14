@@ -80,58 +80,66 @@ const PLAUSIBLE = { limit: "nodes 2000", multipv: 10 }, CHECK = 40000, SPACING =
 
 async function find([firstArg = "1", countArg = "10", out = "river-puzzles.jsonl"]) {
   const first = Number(firstArg), count = Number(countArg);
-  const player = new Engine(worker, { setup: SETUP }), analyst = new Engine(worker, { setup: SETUP }), rater = new Engine(worker, { setup: SETUP });
+  const engines = { player: new Engine(worker, { setup: SETUP }), analyst: new Engine(worker, { setup: SETUP }), rater: new Engine(worker, { setup: SETUP }) };
   const file = fs.createWriteStream(out, { flags: "a" }), seen = new Set();
   let kept = 0;
   const t0 = Date.now();
   for (let seed = first; seed < first + count; seed++) {
-    const r = rng(seed * 7919 + 17), [red, black] = PAIRS[Math.floor(r() * PAIRS.length)];
-    const opening = 2 + Math.floor(r() * 7);                     // the first plies Novice's, so no two games open alike
-    // the game
-    const moves = [], positions = [X.parseFen()];
-    for (let ply = 0; ply < 200; ply++) {
-      const pos = positions[ply];
-      if (!X.legalMoves(pos).length || X.outcome({ start: X.START, moves: moves.join(" ") })) break;
-      const level = ply < opening ? LEVELS[1] : LEVELS[ply % 2 === 0 ? red : black];
-      const { move } = await levelMove(player, level, { fen: X.START, moves, rand: r });
-      const m = X.parseUci(move);
-      if (!m || !X.isLegal(pos, m.from, m.to)) throw new Error(`${level.name} played ${move}, not legal`);
-      moves.push(move);
-      positions.push(X.after(pos, m.from, m.to));
-    }
-    let found = 0, lastAt = -SPACING;
-    // its positions, each side's mistakes tried in turn: the moves weighed searched together (UCI's searchmoves, each
-    // with its score), the best of them the side's lead before it errs
-    for (let ply = opening + 1; ply < moves.length && found < PER_GAME; ply++) {
-      if (ply - lastAt < SPACING) continue;
-      const fen = X.toFen(positions[ply]);
-      const mover = ply < opening ? LEVELS[1] : LEVELS[ply % 2 === 0 ? red : black], strong = !mover.temper;
-      const weighed = ranked(await analyst.search({ fen, limit: PLAUSIBLE.limit, options: { ...FULL, MultiPV: PLAUSIBLE.multipv } })).map(l => l.pv[0]);
-      const own = strong ? ranked(await analyst.search({ fen, limit: mover.limit, options: { ...FULL, MultiPV: 5 } })).map(l => l.pv[0]) : [];
-      const tries = [...new Set([moves[ply], ...own, ...weighed])];
-      const nodes = strong ? 3 * CHECK : CHECK;
-      const worth = ranked(await analyst.search({ fen, limit: `nodes ${nodes} searchmoves ${tries.join(" ")}`, options: { ...FULL, MultiPV: tries.length } }));
-      if (!worth.length) continue;
-      const before = -scoreOf(worth[0]);                         // the other side's lead before the mistake
-      if (worth[0].mate < 0) continue;                           // mated already: nothing left to give away
-      const blunders = worth.slice(1).filter(l => {
-        const now = -scoreOf(l);                                 // the other side's lead after it
-        return l.mate < 0 || (now >= LEAD && before <= BEFORE && chances(now, SCALE) - chances(before, SCALE) >= JUMP);
-      }).map(l => l.pv[0]).sort(() => r() - 0.5);
-      for (const blunder of blunders) {
-        if (seen.has(`${fen}|${blunder}`)) continue;
-        seen.add(`${fen}|${blunder}`);
-        const p = await puzzle(analyst, rater, fen, blunder);
-        if (!p) continue;
-        file.write(`${JSON.stringify({ ...p, game: seed, ply, levels: [red, black] })}\n`);
-        kept++; found++; lastAt = ply;
-        break;
-      }
-    }
-    console.log(`game ${seed} (${LEVELS[red].name} against ${LEVELS[black].name}): ${moves.length} plies, ${found} puzzles; ${kept} in all, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
+    // an engine that stops answering (the machine put to sleep, say) loses that game, not the run: the next search
+    // starts it again
+    try {
+      const { found, plies, levels } = await game(seed, engines, seen, p => { file.write(`${JSON.stringify(p)}\n`); kept++; });
+      console.log(`game ${seed} (${levels}): ${plies} plies, ${found} puzzles; ${kept} in all, ${((Date.now() - t0) / 60000).toFixed(1)} min`);
+    } catch (e) { console.log(`game ${seed}: ${e.message}, passed over`); }
   }
-  for (const e of [player, analyst, rater]) e.stop();
+  for (const e of Object.values(engines)) e.stop();
   file.end();
+}
+/** One game played, and its positions' mistakes tried; each puzzle found goes to keep(). */
+async function game(seed, { player, analyst, rater }, seen, keep) {
+  const r = rng(seed * 7919 + 17), [red, black] = PAIRS[Math.floor(r() * PAIRS.length)];
+  const opening = 2 + Math.floor(r() * 7);                       // the first plies Novice's, so no two games open alike
+  const moves = [], positions = [X.parseFen()];
+  for (let ply = 0; ply < 200; ply++) {
+    const pos = positions[ply];
+    if (!X.legalMoves(pos).length || X.outcome({ start: X.START, moves: moves.join(" ") })) break;
+    const level = ply < opening ? LEVELS[1] : LEVELS[ply % 2 === 0 ? red : black];
+    const { move } = await levelMove(player, level, { fen: X.START, moves, rand: r });
+    const m = X.parseUci(move);
+    if (!m || !X.isLegal(pos, m.from, m.to)) throw new Error(`${level.name} played ${move}, not legal`);
+    moves.push(move);
+    positions.push(X.after(pos, m.from, m.to));
+  }
+  let found = 0, lastAt = -SPACING;
+  // its positions, each side's mistakes tried in turn: the moves weighed searched together (UCI's searchmoves, each
+  // with its score), the best of them the side's lead before it errs
+  for (let ply = opening + 1; ply < moves.length && found < PER_GAME; ply++) {
+    if (ply - lastAt < SPACING) continue;
+    const fen = X.toFen(positions[ply]);
+    const mover = ply < opening ? LEVELS[1] : LEVELS[ply % 2 === 0 ? red : black], strong = !mover.temper;
+    const weighed = ranked(await analyst.search({ fen, limit: PLAUSIBLE.limit, options: { ...FULL, MultiPV: PLAUSIBLE.multipv } })).map(l => l.pv[0]);
+    const own = strong ? ranked(await analyst.search({ fen, limit: mover.limit, options: { ...FULL, MultiPV: 5 } })).map(l => l.pv[0]) : [];
+    const tries = [...new Set([moves[ply], ...own, ...weighed])];
+    const nodes = strong ? 3 * CHECK : CHECK;
+    const worth = ranked(await analyst.search({ fen, limit: `nodes ${nodes} searchmoves ${tries.join(" ")}`, options: { ...FULL, MultiPV: tries.length } }));
+    if (!worth.length) continue;
+    const before = -scoreOf(worth[0]);                           // the other side's lead before the mistake
+    if (worth[0].mate < 0) continue;                             // mated already: nothing left to give away
+    const blunders = worth.slice(1).filter(l => {
+      const now = -scoreOf(l);                                   // the other side's lead after it
+      return l.mate < 0 || (now >= LEAD && before <= BEFORE && chances(now, SCALE) - chances(before, SCALE) >= JUMP);
+    }).map(l => l.pv[0]).sort(() => r() - 0.5);
+    for (const blunder of blunders) {
+      if (seen.has(`${fen}|${blunder}`)) continue;
+      seen.add(`${fen}|${blunder}`);
+      const p = await puzzle(analyst, rater, fen, blunder);
+      if (!p) continue;
+      keep({ ...p, game: seed, ply, levels: [red, black] });
+      found++; lastAt = ply;
+      break;
+    }
+  }
+  return { found, plies: moves.length, levels: `${LEVELS[red].name} against ${LEVELS[black].name}` };
 }
 
 /**
