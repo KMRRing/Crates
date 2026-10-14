@@ -1,0 +1,72 @@
+/* Gauge (Party): the dial, a brass-rimmed half disc with its scale's two ends under it, the target's bands in Party's
+   turquoise (2, 3, 4 at the middle), the needles (yours with a knob to turn, the others' with their initials, the
+   table's dashed); the clue in large type; the points of the round and the rounds played. */
+.gg-head { display: flex; justify-content: space-between; gap: .5rem; font-size: .85rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.gg-scales { display: grid; gap: .45rem; }
+.gg-scale { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: .5rem; min-height: 3rem; padding: .45rem .7rem;
+  border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; cursor: pointer; }
+.gg-scale span:first-child { text-align: left; }
+.gg-scale span:last-child { text-align: right; }
+.gg-scale[aria-checked="true"] { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.gg-arrow { color: var(--ink-soft); }
+.gg-dial-box { display: grid; gap: .3rem; width: 100%; max-width: 26rem; margin: 0 auto; }
+.gg-dial { display: block; width: 100%; aspect-ratio: 224 / 120; overflow: visible; user-select: none; -webkit-user-select: none; }
+.gg-dial.live { cursor: pointer; touch-action: none; }
+.gg-dial:focus-visible { outline: 2px solid var(--pa-in); outline-offset: 4px; }
+.gg-face { fill: var(--tile); stroke: var(--brass); stroke-width: 2; }
+.gg-ticks line { stroke: var(--brass); stroke-width: 1.2; }
+.gg-b2 { fill: color-mix(in srgb, var(--pa-in) 28%, var(--tile)); }
+.gg-b3 { fill: color-mix(in srgb, var(--pa-in) 55%, var(--tile)); }
+.gg-b4 { fill: var(--pa-in); }
+.gg-bn { font-weight: 800; fill: var(--ink); }
+.gg-bn4 { fill: var(--sheet); }
+.gg-needle { stroke: var(--ink); stroke-width: 3.5; stroke-linecap: round; }
+.gg-knob { fill: var(--pa-in); stroke: var(--sheet); stroke-width: 2; }
+.gg-hub { fill: var(--ink); }
+.gg-other { stroke: var(--ink-soft); stroke-width: 1.6; stroke-linecap: round; opacity: .55; }
+.gg-other.locked { opacity: .9; }
+.gg-other.me { stroke: var(--ink); stroke-width: 3; opacity: 1; }
+.gg-tag circle { fill: var(--sheet); stroke: var(--ink-soft); stroke-width: 1.2; }
+.gg-tag text { font-weight: 800; fill: var(--ink); }
+.gg-tag.me circle { fill: var(--ink); stroke: var(--ink); }
+.gg-tag.me text { fill: var(--sheet); }
+.gg-table-needle { stroke: var(--pa-in); stroke-width: 3.5; stroke-dasharray: 7 5; stroke-linecap: round; }
+.gg-ends { display: flex; justify-content: space-between; gap: 1rem; font-weight: 800; font-size: .95rem; line-height: 1.2; }
+.gg-ends span:last-child { text-align: right; }
+.gg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.gg-row .pk-btn { width: auto; padding: 0 1.1rem; }
+.gg-note { margin: 0; font-size: .85rem; color: var(--ink-soft); text-align: center; }
+.gg-clue { display: grid; justify-items: center; gap: .15rem; padding: .7rem; border: 1.5px solid var(--pa-in); border-radius: 6px; background: var(--pa-soft); text-align: center; }
+.gg-clue-by { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.gg-clue-text { font-size: 1.6rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.gg-verdict { display: flex; justify-content: space-between; align-items: baseline; margin: 0; padding: .5rem .8rem; border-radius: 6px; font-weight: 700;
+  background: color-mix(in srgb, #A8382B 12%, var(--sheet)); }
+.gg-verdict strong { font-size: 1.4rem; }
+.gg-verdict.up { background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); }
+.gg-pts, .gg-log { margin: 0; padding: 0; list-style: none; display: grid; gap: .1rem; }
+.gg-pts li, .gg-log li { display: flex; justify-content: space-between; gap: .6rem; padding: .3rem .2rem; border-bottom: 1px solid var(--rule); }
+.gg-pts-n { font-weight: 800; font-variant-numeric: tabular-nums; }
+.gg-psy { color: var(--ink-soft); }
+.gg-total { margin: 0; text-align: center; color: var(--ink-soft); }
+.gg-log-what { min-width: 0; overflow-wrap: anywhere; font-size: .9rem; }
+.gg-log li.skipped { color: var(--ink-soft); }
+.gg-wrap { display: flex; flex-direction: column; gap: .7rem; }
+.gg-twin.side { display: none; }
+.gg-main { min-width: 0; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .gg-verdict { background: color-mix(in srgb, #E8806F 16%, var(--sheet)); }
+  html:not([data-mode="day"]) .gg-verdict.up { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+}
+html[data-mode="night"] .gg-verdict { background: color-mix(in srgb, #E8806F 16%, var(--sheet)); }
+html[data-mode="night"] .gg-verdict.up { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-theme="office"] :is(.gg-scale, .gg-clue, .gg-verdict) { border-radius: 4px; }
+/* held sideways: the clue and the round's points on the left, the dial on the right */
+@media (orientation: landscape) and (min-width: 700px) {
+  .pa-game-view .pa-play:has(.gg-side) { max-width: 60rem; }
+  .gg-wrap:has(.gg-side) { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); column-gap: 1.25rem; align-items: start; }
+  .gg-side { position: sticky; top: 0; }
+  .gg-wrap:has(.gg-side) .gg-twin.side { display: block; }
+  .gg-wrap:has(.gg-side) .gg-twin.main { display: none; }
+  /* as wide as the height left under the header and the narrator lets it be, so the dial and its button fit */
+  .gg-dial-box { max-width: min(24rem, calc((100dvh - 16.5rem) * 1.85)); }
+}
