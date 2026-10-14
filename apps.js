@@ -3,7 +3,7 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
-import { choice, toggle, line, RETE } from "./menu.js";
+import { choice, toggle, line } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
 // (a navy contour with a brass line inside) so it holds on the page and on the dial. Each contour's width is drawn
@@ -222,8 +222,6 @@ const BRAND = LOOK === "modern" ? '<img src="logo-modern.svg" alt="">'
   : LOOK === "kontor" ? '<svg class="k-ico k-brand" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.8L3.9 19.1A17.3 17.3 0 0 0 20.1 19.1Z"/><path d="M7.7 11.9A9.1 9.1 0 0 0 16.3 11.9"/><path class="a" d="M6.1 20.1L6.7 18.5M9 20.8L9.3 19.2M12 21.1V19.4M15 20.8L14.7 19.2M17.9 20.1L17.3 18.5M12 3.8L14.5 19.5"/><circle class="f" cx="12" cy="3.8" r="1.2"/></svg>'
   : LOOK === "office" ? ""                              // Office: the name alone, no mark
   : '<img src="logo.svg" alt="">';
-// Settings' tile: in Almanac the rete, the device every game's options button wears; in Kontor the sliders in line
-const K_SETTINGS = '<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><path class="a" d="M14 5h4v4h-4zM8 15h4v4H8z"/></svg>';
 // Office wears Kontor's line drawings, restyled in themes.css: thin, rounded, monochrome, like an Office app's icons
 const LINE = LOOK === "kontor" || LOOK === "office";
 const LOGO = (id, almanac) => (LOOK === "modern" ? MODERN_LOGOS[id] : LINE ? KONTOR_LOGOS[id] : null) || almanac;
@@ -238,29 +236,30 @@ export const APPS = [
   { id: "quote", name: "Quote", href: "./quote.html", logo: LOGO("quote", QUOTE_LOGO) },
   { id: "origin", name: "Origin", href: "./origin.html", logo: LOGO("origin", ORIGIN_LOGO) },
   { id: "order", name: "Order", href: "./order.html", logo: LOGO("order", ORDER_LOGO) },
-  { id: "arb", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO), more: true },
   { id: "calibre", name: "Calibre", href: "./calibre.html", logo: LOGO("calibre", CALIBRE_LOGO) },
   { id: "manifest", name: "Manifest", href: "./manifest.html", logo: LOGO("manifest", MANIFEST_LOGO) },
   { id: "chart", name: "Chart", href: "./chart.html", logo: LOGO("chart", CHART_LOGO) },
   { id: "harbour", name: "Harbour", href: "./harbour.html", logo: LOGO("harbour", HARBOUR_LOGO) },
-  { id: "survey", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO), more: true },
-  { id: "blend", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO), more: true },
   { id: "pipes", name: "Pipes", href: "./pipes.html", logo: LOGO("pipes", PIPES_LOGO) },
-  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO), more: true },
   { id: "hong", name: "Hong", href: "./hong.html", logo: LOGO("hong", HONG_LOGO) },
   { id: "deck", name: "Deck", href: "./deck.html", logo: LOGO("deck", DECK_LOGO) },
   { id: "tribute", name: "Tribute", href: "./tribute.html", logo: LOGO("tribute", TRIBUTE_LOGO) },
-  { id: "brut", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO), more: true },
-  { id: "lexicon", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO), more: true },
-  { id: "ledger", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO), more: true },
-  { id: "stow", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO), more: true },
-  { id: "rush", name: "Rush", href: "./rush.html", logo: LOGO("rush", RUSH_LOGO), more: true },
-  { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO), more: true },
-  { id: "cue", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO), more: true },
+  { id: "arb", name: "Arb", href: "./arb.html", logo: LOGO("arb", ARB_LOGO) },
+  { id: "survey", name: "Survey", href: "./survey.html", logo: LOGO("survey", SURVEY_LOGO) },
+  { id: "blend", name: "Blend", href: "./blend.html", logo: LOGO("blend", BLEND_LOGO) },
+  { id: "refinery", name: "Refinery", href: "./refinery.html", logo: LOGO("refinery", REFINERY_LOGO) },
+  { id: "brut", name: "Brut", href: "./brut.html", logo: LOGO("brut", BRUT_LOGO) },
+  { id: "lexicon", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
+  { id: "ledger", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
+  { id: "stow", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO) },
+  { id: "rush", name: "Rush", href: "./rush.html", logo: LOGO("rush", RUSH_LOGO) },
+  { id: "parley", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
+  { id: "cue", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO) },
 ];
 
 /** Makes the title button open the switcher; current is the id of the game on screen. */
-// Settings, behind More: the theme (Deco, Modern, Kontor or Office; each with a day and a night that follow the system).
+// Settings, the sliders at the top right of the games screen: the theme (Deco, Modern, Kontor or Office; each with a day
+// and a night that follow the system).
 // The choice lives on this device and applies at once, here and on every page (theme.js reads it before drawing).
 const THEMES = [["deco", "Almanac"], ["modern", "Modern"], ["kontor", "Kontor"], ["office", "Office"]];
 const MODES = [["auto", "Auto"], ["day", "Day"], ["night", "Night"]];
@@ -382,7 +381,7 @@ const scoreText = (id, n) => {
   if (kind === "board") { const t = 99999 - (n % 100000); return `${Math.floor(n / 100000)}/8 in ${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; }   // Crates: points, then time
   return short(n);
 };
-// the head's icons: one person (your solo code), two (your partner code), refresh (update), and close
+// the head's icons: one person (your solo code), two (your partner code), settings, refresh (update), and close
 const ICON = {
   solo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.6-4 3.6-6.2 7.5-6.2s6.9 2.2 7.5 6.2"/></svg>',
   duo: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8.5" cy="8.5" r="3.1"/><path d="M2.5 19.5c.5-3.4 2.9-5.3 6-5.3s5.5 1.9 6 5.3"/><circle cx="16.5" cy="8" r="2.7"/><path d="M15.2 13.9c3.3-.3 5.7 1.5 6.3 5.1"/></svg>',
@@ -518,28 +517,29 @@ function bindCodes(dlg) {
 
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
-  // A full screen of games, a tile each with its logo and name (room for six or seven), not a sheet from the bottom.
+  // A full screen of games, a tile each with its logo and name, every game on it: the tiles scroll in their own box when
+  // they don't all fit, the screen around them never does. Settings and refresh at the top right.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
   dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
+      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${ICON.settings}</button>
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
-    <ul class="apps-list">${tiles(APPS.filter(a => !a.more), current)}<li><button class="app-row app-more${APPS.find(x => x.id === current)?.more ? " cur" : ""}" type="button" data-more aria-haspopup="dialog" aria-label="More games"><span class="app-logo app-dots" aria-hidden="true">…</span><b class="app-name">More</b></button></li></ul></div>`;
+    <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
-  // "…": the other games, in a popup over the screen of games (it scrolls inside itself if it must; the screen of
-  // games never does). Tapping outside it, or Close, puts it away.
-  const pop = document.createElement("dialog");
-  pop.className = "apps-pop";
-  pop.setAttribute("aria-label", "More games");
-  pop.innerHTML = `<div class="pick-head"><h2>More games</h2><button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></div>
-    <ul class="apps-list apps-pop-list">${tiles(APPS.filter(a => a.more), current)}<li><button class="app-row app-settings" type="button" data-settings>
-      <span class="app-logo">${LOOK === "modern" ? ICON.settings : LINE ? K_SETTINGS : RETE}</span><b class="app-name">Settings</b></button></li></ul>`;
-  dlg.appendChild(pop);
-  pop.querySelector("[data-close]").addEventListener("click", () => pop.close());
-  pop.addEventListener("click", e => { if (e.target === pop) pop.close(); });    // a tap on the backdrop
-  dlg.querySelector("[data-more]").addEventListener("click", () => pop.showModal());
-  pop.querySelector("[data-settings]").addEventListener("click", () => openSettings(dlg));
+  dlg.querySelector("[data-settings]").addEventListener("click", () => openSettings(dlg));
+  // the list's edges fade where there are more tiles past them, so a phone that shows five rows says there's a sixth
+  const list = dlg.querySelector(".apps-list");
+  const edges = () => {
+    list.classList.toggle("more-above", list.scrollTop > 1);
+    list.classList.toggle("more-below", list.scrollTop + list.clientHeight < list.scrollHeight - 1);
+  };
+  list.addEventListener("scroll", edges, { passive: true });
+  new ResizeObserver(edges).observe(list);                       // it opens, the screen turns
+  // each time the screen opens, the game you're in is in view: it may be far down the list
+  new MutationObserver(() => { if (dlg.open) dlg.querySelector(".app-row.cur")?.scrollIntoView({ block: "nearest" }); })
+    .observe(dlg, { attributes: true, attributeFilter: ["open"] });
   // after an update the app reloads: open the games screen again, where Update was pressed
   try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
   const update = dlg.querySelector("[data-update]");
@@ -551,8 +551,8 @@ export function bindSwitcher(button, current) {
     update.title = "Offline: try later";
     setTimeout(() => { update.title = "Load the newest version (keeps your progress)"; update.disabled = false; }, 2500);
   });
-  // the game you're in: its tile just closes the screen of games (and the popup, if it's one of the more games)
-  dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); pop.close(); dlg.close(); }));
+  // the game you're in: its tile just closes the screen of games
+  dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
   APPS.forEach(a => {
     if (a.id === current) return;
     // a tile always opens the game solo: a duo match only starts when your partner says Play. Its link as it stands when

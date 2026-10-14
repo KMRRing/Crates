@@ -224,9 +224,9 @@ button, input { font: inherit; color: inherit; }
 /* The title opens the game switcher. */
 .mark-btn { display: flex; align-items: center; gap: .55rem; min-width: 0; max-width: 100%; background: none; border: 0; padding: 0; margin: 0;
   font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
-/* The game switcher: a full screen of games, a tile each, two across on a phone, more on a wider screen. */
-/* It fits the screen without scrolling: the tiles share the height left under the title, and their logos and names
-   size themselves to the tile (only a screen too small for any of that scrolls). */
+/* The game switcher: a full screen of games, a tile each, three across on a phone, more on a wider screen. Every game
+   is on it: the screen itself never scrolls, the tiles do, in their own box under the head, when they don't all fit;
+   when they do (a tablet), they share the height. Their logos and names size themselves to the tile. */
 dialog.apps {
   position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0;
   box-sizing: border-box; padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem);
@@ -245,12 +245,17 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
     repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 9px) left bottom / 100% 5px no-repeat; }
 .apps-brand img { width: 2rem; height: 2rem; display: block; }
 .apps-list { list-style: none; padding: 0; margin: .8rem 0 0; display: grid; gap: .6rem; grid-template-columns: repeat(3, minmax(0, 1fr));
-  flex: 1; min-height: 0; grid-auto-rows: minmax(4.6rem, 1fr); overflow-y: auto; }
+  flex: 1; min-height: 0; grid-auto-rows: minmax(5.5rem, 1fr); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  /* an edge with more tiles past it fades out (apps.js marks which) */
+  --fade-top: 0rem; --fade-bottom: 0rem;
+  -webkit-mask-image: linear-gradient(transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent);
+  mask-image: linear-gradient(transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent); }
+.apps-list.more-above { --fade-top: 1.25rem; }
+.apps-list.more-below { --fade-bottom: 2.25rem; }
 @media (min-width: 36rem) { .apps-list { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 /* six across only on a screen held sideways: upright, a tablet keeps four, its tiles about as square as a phone's */
 @media (min-width: 46rem) and (orientation: landscape) {
   .apps-list { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .apps-pop-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }   /* More's popup keeps its own four */
   .apps-inner { max-width: 84rem; }
 }
 .apps-list li { min-height: 0; }
@@ -258,9 +263,6 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
   box-sizing: border-box; padding: .4rem; border-radius: 6px; text-decoration: none; color: var(--ink); background: var(--sheet);
   border: 1px solid var(--tile-edge); outline: 1px solid var(--rule); outline-offset: -5px; text-align: center; container-type: size; overflow: hidden; }
 .app-row.cur { border: 2px solid var(--brass); }
-.app-more { width: 100%; border-color: var(--tile-edge); border-style: dashed; cursor: pointer; font: inherit; }
-.app-more.cur { border-style: solid; border-color: var(--ink); }
-.app-dots { font-size: min(2.2rem, 32cqh); font-weight: 800; line-height: 1; color: var(--ink-soft); }
 .app-logo { flex: none; width: min(3.4rem, 48cqh); height: min(3.4rem, 48cqh); display: grid; place-items: center; }
 .app-logo svg { width: 94%; height: 94%; }
 /* the logos' contours (apps.js draws each at its width times --wire): as drawn, and heavier on the selected game (the one
@@ -271,6 +273,7 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
 .app-name { font-size: clamp(.66rem, 13cqh, .86rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); line-height: 1.1; }
 /* a tablet's tiles are larger than a phone's: the logos and names grow into them (a phone's stop at their tile's height) */
 @media (min-width: 600px) and (min-height: 600px) {
+  .apps-list { grid-auto-rows: minmax(4.6rem, 1fr); }   /* shorter at the least, so every game fits a tablet's screen */
   .app-logo { width: min(4.8rem, 48cqh); height: min(4.8rem, 48cqh); }
   .app-name { font-size: clamp(.66rem, 13cqh, 1.05rem); }
 }
@@ -280,18 +283,15 @@ dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: v
   position: absolute; top: -.3125rem; right: -.5rem; width: .9375rem; height: .9375rem; border-radius: 50%;
   background: var(--brass); box-shadow: 0 0 0 2px var(--sheet); pointer-events: none;   /* ringed in the tile's own colour */
 }
-.apps-pop-list .app-now { box-shadow: 0 0 0 2px var(--yard); }
 .app-now::after {                                   /* the play triangle */
   content: ""; position: absolute; left: .34375rem; top: .25rem; border-style: solid;
   border-width: 3.5px 0 3.5px 5.5px; border-color: transparent transparent transparent var(--yard);
 }
-/* "…" opens the other games in a popup over the screen of games */
+/* Settings, a popup over the screen of games */
 dialog.apps-pop { width: min(92vw, 28rem); max-height: 80vh; box-sizing: border-box; margin: auto; padding: 1rem; border: 1.5px solid var(--brass); border-radius: 10px;
   background: var(--sheet); color: var(--ink); box-shadow: 0 18px 50px rgba(0, 0, 0, .25); overflow-y: auto; overscroll-behavior: contain; }
 dialog.apps-pop::backdrop { background: rgba(10, 14, 18, .45); }
 dialog.apps-pop .pick-head h2 { font-size: 1.05rem; }
-.apps-pop-list { flex: none; grid-auto-rows: 7rem; overflow: visible; }
-.apps-pop-list .app-row { background: var(--yard); }
 .top-right { display: flex; align-items: center; gap: .45rem; flex: none; }
 /* A game that fits the screen: the page is exactly the screen's height and never scrolls; its parts share the
    height (the part marked .fit-grow takes what's left, in the page or in a .fit-col inside it), and anything long
@@ -637,7 +637,7 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
 .partner-line { min-width: 0; flex: 1 1 auto; border: 0; background: none; padding: .3rem .1rem; font: inherit; font-size: .78rem; font-weight: 700;
   color: var(--ink-soft); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .partner-line.on { color: var(--learn); }
-/* the head's icon buttons: update (it turns while it fetches) and close */
+/* the head's icon buttons: settings, update (it turns while it fetches) and close */
 .icon-btn { display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; flex: none; border: 1.5px solid var(--brass); border-radius: 50%;
   background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
 .icon-btn svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
@@ -730,17 +730,12 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }
 
-/* the games screen's Settings (behind More) */
-.app-settings { font: inherit; color: inherit; cursor: pointer; }
-.app-settings .app-logo svg { width: 60%; height: 60%; }
-.app-settings .app-logo svg.rete { width: 100%; height: 100%; }   /* the rete at a game logo's size */
-.app-settings .app-name, .app-name.long { letter-spacing: calc(.05em * var(--track)); }   /* long names (Settings, Refinery, Manifest) fit their tiles */   /* "Settings" fits its tile in spaced capitals */
-.app-settings .app-logo svg:not(.rete):not(.k-ico) { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.app-name.long { letter-spacing: calc(.05em * var(--track)); }   /* long names (Refinery, Manifest) fit their tiles */
+/* the games screen's Settings */
 .settings-body { padding: .2rem 0 .6rem; }
 /* Settings' "Start a game over": the games three across, and quiet while one is being cleared */
 .settings-reset .menu-grid { grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); }
 .settings-reset .menu-grid button:disabled { opacity: .45; cursor: default; }
-.apps-pop-list .app-settings { width: 100%; }   /* a button, stretched like the game tiles beside it */
 
 
 /* the header: a game's name never gives way. The title holds at least its icon and its word, and your partner's pill

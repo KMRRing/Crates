@@ -167,7 +167,6 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ma
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mark-btn { text-transform: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.apps .pick-head h2 { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-row { border-radius: 14px; border: 2px solid transparent; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-more { border-color: var(--line, #C9D1D5); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-name { font-size: clamp(.82rem, 17cqh, 1.1rem); font-stretch: 100%; letter-spacing: normal; text-transform: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .app-now { font-size: .68rem; font-weight: 750; letter-spacing: normal; text-transform: none; border-radius: 999px; background: var(--ink); color: var(--yard); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) dialog.apps-pop { border: 0; border-radius: 18px; }
