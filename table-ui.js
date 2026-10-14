@@ -221,13 +221,14 @@ export function openTable({ game, app, max, onState, onLeave = () => {}, toast =
   document.addEventListener("visibilitychange", () => { if (!document.hidden) table.resync(); });
   window.addEventListener("pageshow", e => { if (e.persisted) table.resync(); });
   return Object.assign(table, {
-    /** Opens a new table with this device as host; resolves with its code, or null. */
-    async start() {
+    /** Opens a new table with this device as host (extra: the game's own fields to start it with); resolves with its
+     *  code, or null. */
+    async start(extra = {}) {
       if (table.code) return table.code;
       const name = savedName() || await askName({ title: "Your name", note: "So the others know whose table it is.", button: "Open the table" });
       if (!name) return null;
       try {
-        const code = await table.open({ name, pid: playerId() });
+        const code = await table.open({ name, pid: playerId(), extra });
         if (!code) { toast("Couldn't open a table, try again"); return null; }
         setTableParam(code);
         return code;

@@ -4,7 +4,7 @@
 // is at, and the host's phone runs the game and speaks for it, a narrator in the middle of the table (table.js,
 // table-ui.js). The games are modules (party-core.js lists them); this page draws the lobby, the game in progress and
 // what's between, and moves the game on when it's this device's to run.
-import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf } from "./party-core.js";
+import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf } from "./party-core.js";
 import { openTable, inviteSheet, createNarrator, tableInAddress, joinLink } from "./table-ui.js";
 import { qrSvg } from "./qr.js";
 import { h, button, names } from "./party-kit.js";
@@ -21,6 +21,11 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 // this device's choices: the narrator's voice, and the game and options last picked (the host's next table starts there)
 const opts = { voice: true, pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
+// a game's own tile opens Party on it (party.html?game=quest): that's the game picked when this phone opens a table
+{
+  const asked = new URLSearchParams(location.search).get("game");
+  if (gameById(asked)) { opts.pick = asked; write(OPTS, opts); }
+}
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -116,7 +121,7 @@ function drawHome(stage) {
 
 async function openTableHere() {
   const done = busy("Opening a table");
-  try { if (await table.start()) invite.open(); } finally { done(); }
+  try { if (await table.start({ pick: opts.pick })) invite.open(); } finally { done(); }
 }
 
 function drawLobby(stage) {
@@ -140,7 +145,7 @@ function drawLobby(stage) {
     if (!host) c.querySelectorAll("button").forEach(b => { b.disabled = true; });
     return c;
   }));
-  const n = players.length, short = n < pick.min ? `${pick.name} needs ${pick.min} players: ${pick.min - n} more to join` : n > pick.max ? `${pick.name} takes at most ${pick.max}` : "";
+  const n = players.length, short = needOf(pick, players, { ...(opts.options[pick.id] || {}), ...(branch.opts?.[pick.id] || {}) });
   const hostName = players.find(p => p.uid === branch.host)?.name || "the host";
   // two halves: who's here (with the code to join) and the game; one column on a phone, side by side held sideways
   stage.replaceChildren(h("div", { class: "pa-lobby fit-col" },

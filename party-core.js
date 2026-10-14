@@ -1,7 +1,8 @@
 // Party's engine room: the games, and how one is started and moved on, with no page in it (party.js draws), so the
 // tests can play a whole evening in Node. A party game is a module (party-<id>.js) whose default export is
 //
-//   { id, name, min, max, blurb, rules: [paragraphs], options: [{ id, label, choices: [[value, text]…], value }],
+//   { id, name, zh?, min, max, blurb, rules: [paragraphs], options: [{ id, label, choices: [[value, text]…], value }],
+//     need?(players, options) → what stops it starting, in words, or "" (min and max are checked otherwise),
 //     start({ players, options, rng, now }) → state,
 //     advance(state, { players, inputs, now, rng }) → { state, say } | null,
 //     wakeAt(state) → a time (the database's, ms) to call advance again, or null,
@@ -49,13 +50,30 @@ export function inputsFor(branch, step) {
   return out;
 }
 
+/** A game's options as chosen, each one it has filled in with its default. */
+export const optionsOf = (game, options = {}) => Object.fromEntries((game.options || []).map(o => [o.id, options[o.id] ?? o.value]));
+
+/**
+ * What stops a game starting with these players and options, in words ("Undercover needs 3 players: 1 more to
+ * join"), or "" when it can start. A game with computer players to fill its seats says so with its own need().
+ */
+export function needOf(game, players, options = {}) {
+  if (!game) return "That game isn't in this version";
+  if (game.need) return game.need(players, optionsOf(game, options)) || "";
+  const n = players.length;
+  if (n < game.min) return `${game.name} needs ${game.min} players: ${game.min - n} more to join`;
+  if (n > game.max) return `${game.name} takes at most ${game.max}`;
+  return "";
+}
+
 /** Starts a game at the table (inside a transaction on the branch): false if it can't start (too few players). */
 export function startGame(branch, id, options = {}, now = Date.now()) {
   const game = gameById(id), players = playersOf(branch);
-  if (!game || players.length < game.min || players.length > game.max) return false;
+  if (!game || needOf(game, players, options)) return false;
   const seq = (branch.game?.seq || branch.played || 0) + 1, seed = (Math.random() * 2 ** 32) >>> 0;
-  const opts = Object.fromEntries((game.options || []).map(o => [o.id, options[o.id] ?? o.value]));
+  const opts = optionsOf(game, options);
   const state = game.start({ players, options: opts, rng: seeded(seed), now });
+  if (!state) return false;
   branch.game = { id, seq, seed, options: opts, state, started: now };
   branch.played = seq;
   delete branch.inputs;
