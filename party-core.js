@@ -124,7 +124,8 @@ export function endGame(branch) {
 // A party is a room for the evening, and its host chooses what it plays. Beside Party's own games (played here, on
 // this page), that is the card, dice and board games for a few seats, each on its own page at a table in the party's
 // room (seats.js: the computer takes the seats nobody has), and, for two, any game with a duo match (together.js, or
-// Crates' and Slate's own rooms), dealt fresh in the party's room as a request said yes to would be.
+// Crates' and Slate's own rooms), dealt fresh in the party's room as a request said yes to would be: Tribute and Hong
+// for up to four, the computer in the seats nobody has.
 //   kind: "table" or "duo"; page: where it's played; max: the most people it seats; across: two people sit across a
 //   four-seat table (partners); duo: the game's name in the room (its branch, and a request's game).
 export const ELSEWHERE = [
@@ -144,8 +145,8 @@ export const ELSEWHERE = [
   { id: "quote", name: "Quote", kind: "duo", duo: "quote", page: "quote.html", max: 2, blurb: "Make markets on numbers you don't know, one against the other." },
   { id: "spot", name: "Spot", kind: "duo", duo: "spot", page: "spot.html", max: 2, blurb: "Catch the flying sums together." },
   { id: "stow", name: "Stow", kind: "duo", duo: "stow", page: "stow.html", max: 2, blurb: "Fill the hold together, a line at a time." },
-  { id: "hong", name: "Hong", kind: "duo", duo: "hong", page: "hong.html", max: 2, blurb: "Hong Kong mahjong, the two of you with two computer players." },
-  { id: "tribute", name: "Tribute", kind: "duo", duo: "tribute", page: "tribute.html", max: 2, blurb: "Guan Dan: partners across the table against the computer." },
+  { id: "hong", name: "Hong", kind: "duo", duo: "hong", page: "hong.html", max: 4, blurb: "Hong Kong mahjong, four at the table." },
+  { id: "tribute", name: "Tribute", kind: "duo", duo: "tribute", page: "tribute.html", max: 4, blurb: "Guan Dan: two partnerships, across the table from each other." },
   { id: "river", name: "River", kind: "duo", duo: "river", page: "river.html", max: 2, blurb: "Xiangqi, Chinese chess, one against the other." },
   { id: "gambit", name: "Gambit", kind: "duo", duo: "gambit", page: "gambit.html", max: 2, blurb: "Chess, one against the other." },
 ];
@@ -156,10 +157,12 @@ export function playable(id) {
   const e = ELSEWHERE.find(x => x.id === id);
   return e ? { min: e.kind === "duo" ? 2 : 1, ...e } : null;
 }
-/** Whether a party of n can play it: Party's own between their least and most, a table up to its seats (the computer fills the rest), a duo match by exactly two. */
+/** Whether a party of n can play it: Party's own between their least and most, a table up to its seats (the computer
+ *  fills the rest), a duo match by two (Tribute and Hong by up to four). */
 export const fits = (entry, n) => !!entry && n >= entry.min && n <= entry.max;
 /** Who plays a game, as words on its card. */
-export const seatsText = entry => (entry.kind === "duo" ? "2 players" : entry.kind === "table" ? `1–${entry.max} players, the computer in any empty seat` : `${entry.min}–${entry.max} players`);
+export const seatsText = entry => (entry.kind === "party" ? `${entry.min}–${entry.max} players`
+  : entry.max === 2 && entry.kind === "duo" ? "2 players" : `${entry.min}–${entry.max} players, the computer in any empty seat`);
 
 /**
  * A table game's branch in the party's room, dealt by its host's page when it gets there: everyone in the party

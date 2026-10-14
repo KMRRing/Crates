@@ -172,6 +172,18 @@ export function otherHere(here, uid, pid = null, game = null) {
 /** The seated players in a game's state: [id, player] (leftovers from devices that handed a seat over are skipped). */
 export const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]) => p && p.slot != null);
 
+// ---------- a table of four (Tribute, Hong): the pair across from each other, a party's others between them ----------
+const FOUR = [0, 2, 1, 3];
+/** The seat of whoever sat down slot-th (their slot): the first two across from each other, the next two between. */
+export const seatOfSlot = slot => FOUR[slot] ?? 0;
+/** The seats kept for people at a table dealt for so many: a pair's two, a party's three or four. */
+export const peopleSeats = people => FOUR.slice(0, Math.min(4, Math.max(2, Number(people) || 2)));
+/** Whether another device moves the computer players: one whose player sat down before this one's, and is here. */
+export function runsElsewhere(state, uid) {
+  const here = seatsOf(state).filter(([, p]) => p.online !== false).sort((a, b) => a[1].slot - b[1].slot);
+  return here.length > 0 && here[0][0] !== uid;
+}
+
 /**
  * A game's state with one player's id swapped for another's, everywhere it appears (seat, log entries,
  * who named or opened what): carrying on as that player on a new device.
@@ -182,14 +194,15 @@ export function reseat(state, from, to) {
 
 /**
  * Sitting down in a game's state, inside the joining transaction: the state to write, or undefined to leave it as
- * it is (it isn't this game's, or both seats are someone else's). A seat belongs to a device (its id, uid) and to the
+ * it is (it isn't this game's, or every seat is someone else's). A seat belongs to a device (its id, uid) and to the
  * player on it (pid, the player's id, the same on all their devices), so a player always gets their own seat back,
- * moves and all, on whichever device they come in on; then the free seat; then `takeover`, the seat chosen when
- * both were taken (pickSeat). `initial` is a new table: there's none yet, or it's for `asked` (the request the pair
- * just said yes to) and the table here is older (whichever of you arrives first deals it, the other sits down at it),
- * or the state here isn't one this game can read.
+ * moves and all, on whichever device they come in on; then the lowest free seat; then `takeover`, the seat chosen
+ * when all were taken (pickSeat). `initial` is a new table: there's none yet, or it's for `asked` (the request the
+ * pair just said yes to) and the table here is older (whichever of you arrives first deals it, the others sit down at
+ * it), or the state here isn't one this game can read. `slots`: how many seats people have, two for a pair; or a
+ * function of the state (Tribute and Hong seat up to four, as many as the party that asked).
  */
-export function sitDown(cur, { uid, pid = null, name }, { initial = null, asked = null, takeover = null, valid = () => true } = {}) {
+export function sitDown(cur, { uid, pid = null, name }, { initial = null, asked = null, takeover = null, valid = () => true, slots = 2 } = {}) {
   if (cur === null) return initial;          // none yet; without a table to deal, null makes Firebase ask the server
   if (initial && ((asked && cur.asked !== asked) || !valid(cur))) return initial;
   if (!valid(cur)) return undefined;
@@ -202,9 +215,11 @@ export function sitDown(cur, { uid, pid = null, name }, { initial = null, asked 
     next.players[uid] = { ...next.players[uid], ...me };
     return next;
   }
-  const slots = Object.values(players).map(p => p.slot);
-  if (slots.length >= 2) return undefined;
-  return { ...cur, players: { ...players, [uid]: { ...me, slot: slots.includes(0) ? 1 : 0 } } };
+  const taken = Object.values(players).map(p => p.slot);
+  if (taken.length >= (typeof slots === "function" ? slots(cur) : slots)) return undefined;
+  let slot = 0;
+  while (taken.includes(slot)) slot++;
+  return { ...cur, players: { ...players, [uid]: { ...me, slot } } };
 }
 
 /**

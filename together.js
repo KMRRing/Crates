@@ -4,20 +4,22 @@
 // where, reconnecting after the phone sleeps, updating a device running older code, and leaving. A game supplies its
 // fresh state and draws whatever state arrives.
 import { getSync } from "./net.js";
-import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, pickSeat, otherHere, seatsOf, sitDown } from "./rooms.js";
+import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, pickSeat, otherHere, seatsOf, sitDown, seatOfSlot, peopleSeats, runsElsewhere } from "./rooms.js";
 import { reloadFresh } from "./pwa.js";
 import { reportDuo, playerId, sayWhere } from "./suite.js";
 
-export { seatsOf };
+export { seatsOf, seatOfSlot, peopleSeats, runsElsewhere };
 
 /**
  * game: the room branch ("delta"); app: this code's version for together games of this kind;
- * fresh(players): a new game state (or a promise of one); valid(state): whether a state is this game's; onState(state): draw it;
- * onPresence(): redraw who's where; onLeave(): back to solo; toast(msg); askName(): the player's name;
- * result(state): once a match is over, { match, score, won, coop, lower } as this player saw it (else null), recorded
- * for the pair's duo record.
+ * fresh(players, { ask }): a new game state (or a promise of one; ask: the request it's dealt for, if any);
+ * valid(state): whether a state is this game's; onState(state): draw it; onPresence(): redraw who's where; onLeave():
+ * back to solo; toast(msg); askName(): the player's name; result(state): once a match is over, { match, score, won,
+ * coop, lower } as this player saw it (else null), recorded for the pair's duo record; slots: the seats people have,
+ * two, or a function of the state (sitDown in rooms.js).
  */
-export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, toast, askName, result }) {
+export function createTogether({ game, app, fresh, valid, onState, onPresence, onLeave, toast, askName, result, slots = 2 }) {
+  const cap = state => (typeof slots === "function" ? slots(state) : slots);
   const reported = new Set();
   let room = null;   // { code, sync, uid, name, data, here, online, stop: [] }
   const path = code => branchPath(code, game);
@@ -96,22 +98,22 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
       if ((before?.app || 0) > app) { updateApp(); return false; }
       const anew = !before || !valid(before) || (!!asked && before.asked !== asked);
       let takeover = null;
-      if (!anew && seats.length >= 2 && !seats.some(([id, p]) => id === sync.uid || (p.pid && p.pid === pid))) {
+      if (!anew && seats.length >= cap(before) && !seats.some(([id, p]) => id === sync.uid || (p.pid && p.pid === pid))) {
         takeover = await pickSeat(seats);
         if (!takeover) return solo();
       }
       const name = takeover ? seats.find(([id]) => id === takeover)[1].name : await askName();
       if (!name) return solo();
       // a new table is dealt before the transaction (dealing can take a moment), marked with the request it's for
-      const initial = anew ? { ...(await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } })), ...(asked ? { asked } : {}) } : null;
+      const initial = anew ? { ...(await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } }, { ask: asked ? shared.ask : null })), ...(asked ? { asked } : {}) } : null;
       let newer = false;
       const r = await sync.tx(path(code), cur => {
         newer = !!cur && (cur.app || 0) > app;
-        const next = newer ? undefined : sitDown(cur, { uid: sync.uid, pid, name }, { initial, asked, takeover, valid });
+        const next = newer ? undefined : sitDown(cur, { uid: sync.uid, pid, name }, { initial, asked, takeover, valid, slots });
         return next ? storable(next) : next;
       });
       if (newer) { updateApp(); return false; }
-      if (!r.committed || !r.value) return solo(r.value && valid(r.value) && seatsOf(r.value).length >= 2 ? "Someone else just took the free seat" : "No game with that code");
+      if (!r.committed || !r.value) return solo(r.value && valid(r.value) && seatsOf(r.value).length >= cap(r.value) ? "Someone else just took the free seat" : "No game with that code");
       enter(code, sync, name, pid);
       return true;
     } catch (e) { explain(e); return solo(); }

@@ -7,7 +7,7 @@
 import * as E from "./tribute-engine.js";
 import { split } from "./tribute-bot.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { createTogether, seatsOf } from "./together.js";
+import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from "./together.js";
 import { GAMES, roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
@@ -132,12 +132,12 @@ function keepPicked() {
   for (const id of selected) if (!hand.has(id)) selected.delete(id);
 }
 /**
- * At a table together, the device that sat down first moves the computer players while its player is here; the
- * other steps in only when a move hasn't come for a few seconds (that page asleep, or gone). Both used to work out
- * every move and race to save it: twice the work on each phone, and the loser's try thrown away.
+ * At a table together, the device whose player sat down first, of those here, moves the computer players; the others
+ * step in only when a move hasn't come for a few seconds (that page asleep, or gone). Both used to work out every move
+ * and race to save it: twice the work on each phone, and the loser's try thrown away.
  */
 const BACKUP_MS = 4000;
-const backup = () => !!together.room && mySlot() !== 0 && !!together.partner()?.online && !together.partner()?.game;
+const backup = () => !!together.room && runsElsewhere(roomData, together.room.uid);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function step() {
   timer = null;
@@ -879,17 +879,20 @@ function drawRush(box, say) {
   box.append(goBtn(rush.over ? "See the score" : "Next puzzle", nextRush, "primary"));
 }
 
-// ---------- together: partners across the table, against two computer players ----------
-// The two of you sit at seats 0 and 2, which are one side (the first to sit down at 0, the other across), so you
-// always play as partners; the computer players take 1 and 3.
+// ---------- together: partners across the table, against two computer players or two friends ----------
+// A pair sits at seats 0 and 2, which are one side (the first to sit down at 0, the other across), so they always play
+// as partners, and the computer players take 1 and 3. A party of three or four (README, Party) seats its others at 1
+// and 3, the other side, as they sit down; the computer plays any seat nobody has.
 let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
 const seated = () => { joining?.(); joining = null; };
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
-function freshRoom(players) {
-  const names = ["", BOTS[0], "", BOTS[2]];
-  for (const [, p] of Object.entries(players)) names[p.slot === 1 ? 2 : 0] = p.name;
+/** A new match at the table, for so many people: the request's (a party's), or the table's as it was. */
+function freshRoom(players, { ask = null, people = null } = {}) {
+  const humans = peopleSeats(people ?? ask?.people);
+  const names = [0, 1, 2, 3].map(s => (humans.includes(s) ? "" : BOTS[s - 1]));
+  for (const [, p] of Object.entries(players)) names[seatOfSlot(p.slot)] = p.name;
   const game = E.toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
-  return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans: [0, 2], started: Date.now(), bots: opts.bots } };
+  return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans, started: Date.now(), bots: opts.bots } };
 }
 let roomHand = null;                                             // the table's hand last drawn here, by its seed
 function onRoomState(g) {
@@ -899,13 +902,13 @@ function onRoomState(g) {
     else tableHands = [];
   }
   if (g.game) roomHand = g.game.seed;
-  me = mySlot() === 1 ? 2 : 0;
-  const names = [...(g.table?.names || [])];
-  for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
-  // a seat kept for your partner until they sit down: theirs by the name they go by here, if they're about
-  const partner = together.partner()?.name;
-  for (const s of [0, 2]) names[s] ||= s === me ? together.room?.name || "You" : partner || "Your partner";
-  S = { ...g.table, names, humans: [0, 2] };
+  me = seatOfSlot(mySlot());
+  const humans = g.table?.humans || peopleSeats(2), names = [...(g.table?.names || [])];
+  for (const [, p] of seatsOf(g)) names[seatOfSlot(p.slot)] = p.name;
+  // a seat kept for a person until they sit down: a pair's partner by the name they go by here, if they're about
+  const partner = humans.length === 2 ? together.partner()?.name : null;
+  for (const s of humans) names[s] ||= s === me ? together.room?.name || "You" : partner || (s === E.partnerOf(me) ? "Your partner" : "On the way");
+  S = { ...g.table, names, humans };
   // your own move already on the table, on its way: an older state meanwhile (a seat coming online) doesn't take it back
   const behind = pending && g.game?.handNo === pending.handNo && (g.game.log?.length || 0) < pending.len;
   if (!behind) {
@@ -952,15 +955,17 @@ async function nextTogether() {
   await together.act(g => {
     const game = E.fromRoom(g.game);
     if (game.handNo !== handNo || game.phase !== "over") return false;
-    if (game.result.over) { const fresh = freshRoom(g.players); g.game = fresh.game; g.table = fresh.table; }
+    if (game.result.over) { const fresh = freshRoom(g.players, { people: g.table?.humans?.length }); g.game = fresh.game; g.table = fresh.table; }
     else g.game = E.toRoom(E.nextHand(game, (Math.random() * 2 ** 32) >>> 0));
   });
 }
 function drawPartner() {
   if (!together.room) return;
+  const left = (S?.humans?.length || 2) - seatsOf(roomData).length;
+  if (left > 1) { toastOnce(`Waiting for ${left} more to sit down…`); return; }
   const p = together.partner();
-  if (!p) toastOnce("Waiting for your partner to join…");
-  else if (p.game && p.game !== "tribute") toastOnce(`${p.name} is in ${GAMES[p.game]?.name || "another game"}`);
+  if (left === 1) toastOnce(S?.humans?.length > 2 ? "Waiting for one more to sit down…" : "Waiting for your partner to join…");
+  else if (p?.game && p.game !== "tribute") toastOnce(`${p.name} is in ${GAMES[p.game]?.name || "another game"}`);
 }
 let toldAt = "";
 function toastOnce(msg) { if (toldAt === msg) return; toldAt = msg; toast(msg, 3000); }
@@ -981,14 +986,15 @@ const together = createTogether({
   askName,
   valid: g => g?.v === 1 && !!g.game && !!g.table,
   fresh: freshRoom,
+  slots: g => g?.table?.humans?.length || 2,
   onState: onRoomState,
   onPresence: render,
   onLeave: () => { roomData = null; seated(); load(); },
-  // a match played to its end: the pair's record, as a team
+  // a match played to its end: the pair's record, as a team (a party's isn't recorded)
   result: g => {
-    const game = g.game;
+    const game = g.game, us = E.teamOf(seatOfSlot(mySlot()));
     if (game?.phase !== "over" || !game.result?.over) return null;
-    return { match: `${g.table?.started}`, score: game.result.levels?.[0] ?? null, won: game.result.winner === 0, coop: true, lower: false };
+    return { match: `${g.table?.started}`, score: game.result.levels?.[us] ?? null, won: game.result.winner === us, coop: true, lower: false };
   },
 });
 
@@ -1009,7 +1015,7 @@ function openMenu() {
   const copies = () => [action("Copy turn", copyTurn, "link"), action("Copy game", copyGame, "link")];
   if (together.room) {
     part(body, "play").append(...copies());
-    part(body, "together").append(line(`You and your partner play together against ${BOTS[0]} and ${BOTS[2]}.`), action("Back to solo", () => together.leave(), "link"));
+    part(body, "together").append(line(`You and ${nameOf(E.partnerOf(me))} against ${nameOf((me + 1) % 4)} and ${nameOf((me + 3) % 4)}.`), action("Back to solo", () => together.leave(), "link"));
   } else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the match", () => leaveRush(), "link"));
   else part(body, "play").append(action("New match", () => newMatch(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   const content = part(body, "content");

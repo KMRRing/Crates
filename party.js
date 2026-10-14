@@ -153,11 +153,13 @@ function draw() {
   else drawGame(stage);
 }
 
-/** Everything a party can play, by section: [[title, entries]], only what fits n people when n is given. */
+// the games screen's sections, Party's first (Quest is there too)
+const SHELVES = [["party", "Party games"], ["table", "Board & card games"], ["learn", "Learning"], ["puzzle", "Puzzles"]];
+/** Everything a party can play, by the games screen's sections: [[title, entries]], only what fits n people when n is given. */
 function catalog(n = null) {
   const all = [...GAMES.map(g => playable(g.id)), ...ELSEWHERE.map(e => playable(e.id))].filter(e => n == null || fits(e, n));
-  return [["Party games", "party"], ["Board & card games", "table"], ["For two", "duo"]]
-    .map(([title, kind]) => [title, all.filter(e => e.kind === kind)]).filter(([, list]) => list.length);
+  const shelf = e => appOf(e.id)?.sec || (e.kind === "duo" ? "learn" : e.kind);
+  return SHELVES.map(([sec, title]) => [title, all.filter(e => shelf(e) === sec)]).filter(([, list]) => list.length);
 }
 /** A game as the games screen shows it, its logo and name: picked or not. */
 function tile(entry, { picked = false, onclick = null } = {}) {
@@ -222,7 +224,7 @@ async function startElsewhere(entry) {
     const sync = await getSync(), code = table.code, at = Math.round(table.now());
     const who = playersOf(branch).map(p => p.uid);
     if (entry.kind === "table") await sync.update(`crates/rooms/${code}`, { [entry.id]: tableFrom(branch, entry, at) });
-    else await sync.update(`crates/rooms/${code}`, { ask: { game: entry.duo, at, answer: "yes", from: playerId(), device: sync.uid } });
+    else await sync.update(`crates/rooms/${code}`, { ask: { game: entry.duo, at, answer: "yes", from: playerId(), device: sync.uid, people: who.length } });
     const playing = { id: entry.id, kind: entry.kind, page: entry.page, at, who, max: entry.max };
     if (!(await table.act(b => { b.playing = playing; delete b.game; delete b.inputs; }))) throw new Error("the party didn't take the choice");
     location.replace(playHref(playing, code));
@@ -238,8 +240,9 @@ async function startElsewhere(entry) {
 function whyNot(entry, players, options) {
   const n = players.length;
   if (entry.kind === "party") return needOf(entry.def, players, options);
-  if (entry.kind === "duo") return n < 2 ? `${entry.name} is for two: 1 more to join` : n > 2 ? `${entry.name} is for two, and there are ${n} of you` : "";
-  return n > entry.max ? `${entry.name} seats ${entry.max}, and there are ${n} of you` : "";
+  if (n < entry.min) return `${entry.name} needs ${entry.min}: ${entry.min - n} more to join`;
+  if (n > entry.max) return entry.max === 2 ? `${entry.name} is for two, and there are ${n} of you` : `${entry.name} seats ${entry.max}, and there are ${n} of you`;
+  return "";
 }
 
 let lastPick = null;

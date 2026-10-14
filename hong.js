@@ -7,7 +7,7 @@ import * as E from "./hong-engine.js";
 import { routeName, shantenWords, differ, differWords, decide, explainMove } from "./hong-bot.js";
 import { installTiles, tileSvg } from "./hong-tiles.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { createTogether, seatsOf } from "./together.js";
+import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from "./together.js";
 import { GAMES, roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
@@ -965,27 +965,30 @@ function reasonsFor(j, act) {
   return { ...j.decision, options: [best, ...(yours ? [yours] : []), ...j.options.filter(o => o !== best && o !== yours)] };
 }
 
-// ---------- together: you, your partner across the table, and two computer players ----------
-// The room holds the hand and the game: { game, session }. Either device may move a computer player once its turn has
-// come; a move is a transaction that checks the hand hasn't moved on since, so the two never move one twice.
-// The two of you sit across from each other, at seats 0 and 2 (the first to sit down at 0).
+// ---------- together: you, your partner across the table, and two computer players (or two friends) ----------
+// The room holds the hand and the game: { game, session }. Any device may move a computer player once its turn has
+// come; a move is a transaction that checks the hand hasn't moved on since, so none is moved twice. A pair sits across
+// from each other, at seats 0 and 2 (the first to sit down at 0); a party of three or four (README, Party) seats its
+// others at 1 and 3, as they sit down, and the computer plays any seat nobody has.
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
 let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
 const seated = () => { joining?.(); joining = null; };
 /**
- * At a table together, the device that sat down first moves the computer players while its player is here; the
- * other steps in only when a move hasn't come for a few seconds (that page asleep, or gone). Both used to work out
- * every move and race to save it: twice the work on each phone, and the loser's try thrown away.
+ * At a table together, the device whose player sat down first, of those here, moves the computer players; the others
+ * step in only when a move hasn't come for a few seconds (that page asleep, or gone). Both used to work out every move
+ * and race to save it: twice the work on each phone, and the loser's try thrown away.
  */
 const BACKUP_MS = 4000;
-const backup = () => !!together.room && mySlot() !== 0 && !!together.partner()?.online && !together.partner()?.game;
+const backup = () => !!together.room && runsElsewhere(roomData, together.room.uid);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-function freshRoom(players) {
+/** A new game at the table, for so many people: the request's (a party's), or the table's as it was. */
+function freshRoom(players, { ask = null, people = null } = {}) {
   const seed = (Math.random() * 2 ** 32) >>> 0, firstDealer = Math.floor(Math.random() * 4);
-  const names = ["", BOTS[0], "", BOTS[2]];
-  for (const [, p] of Object.entries(players)) names[p.slot === 1 ? 2 : 0] = p.name;
+  const humans = peopleSeats(people ?? ask?.people);
+  const names = [0, 1, 2, 3].map(s => (humans.includes(s) ? "" : BOTS[s - 1]));
+  for (const [, p] of Object.entries(players)) names[seatOfSlot(p.slot)] = p.name;
   const game = E.deal({ seed, dealer: firstDealer, round: 0, hand: 0, opts: { flowers: opts.flowers, minFan: opts.minFan, rounds: opts.rounds, scoring: opts.scoring } });
-  return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans: [0, 2], results: [], started: Date.now(), bots: opts.bots } };
+  return { v: 1, app: APP, created: Date.now(), players, game, session: { v: 1, seed, firstDealer, names, humans, results: [], started: Date.now(), bots: opts.bots } };
 }
 let roomHand = null, roomGame = null;                            // the table's hand and game last drawn here, by their seeds
 function onRoomState(g) {
@@ -995,13 +998,13 @@ function onRoomState(g) {
     else { tableHands = []; R = []; advice = null; hintFor = null; }
   }
   if (g.game) { roomHand = g.game.seed; roomGame = g.session?.seed ?? null; }
-  me = mySlot() === 1 ? 2 : 0;
-  const names = [...(g.session?.names || [])];
-  for (const [, p] of seatsOf(g)) names[p.slot === 1 ? 2 : 0] = p.name;
-  // a seat kept for your partner until they sit down: theirs by the name they go by here, if they're about
-  const partner = together.partner()?.name;
-  for (const s of [0, 2]) names[s] ||= s === me ? together.room?.name || "You" : partner || "Your partner";
-  S = { ...g.session, names, humans: [0, 2], results: g.session?.results || [] };
+  me = seatOfSlot(mySlot());
+  const humans = g.session?.humans || peopleSeats(2), names = [...(g.session?.names || [])];
+  for (const [, p] of seatsOf(g)) names[seatOfSlot(p.slot)] = p.name;
+  // a seat kept for a person until they sit down: a pair's partner by the name they go by here, if they're about
+  const partner = humans.length === 2 ? together.partner()?.name : null;
+  for (const s of humans) names[s] ||= s === me ? together.room?.name || "You" : partner || (humans.length === 2 ? "Your partner" : "On the way");
+  S = { ...g.session, names, humans, results: g.session?.results || [] };
   // your own discard already on the table, on its way: an older state meanwhile doesn't take it back
   const behind = pending && g.game?.hand === pending.hand && (g.game.log?.length || 0) < pending.len;
   if (!behind) {
@@ -1051,14 +1054,16 @@ async function nextTogether() {
     if (game.hand !== hand || game.phase !== "over") return false;
     const cfg = E.nextHand(game, { seed: g.session.seed, firstDealer: g.session.firstDealer });
     if (cfg) g.game = E.deal(cfg);
-    else { const fresh = freshRoom(g.players); g.game = fresh.game; g.session = fresh.session; g.created = Date.now(); }
+    else { const fresh = freshRoom(g.players, { people: g.session?.humans?.length }); g.game = fresh.game; g.session = fresh.session; g.created = Date.now(); }
   });
 }
 function drawPartner() {
   if (!together.room) return;
+  const left = (S?.humans?.length || 2) - seatsOf(roomData).length;
+  if (left > 1) { toastOnce(`Waiting for ${left} more to sit down…`); return; }
+  if (left === 1) { toastOnce(S?.humans?.length > 2 ? "Waiting for one more to sit down…" : "Waiting for your partner to join…"); return; }
   const p = together.partner();
-  if (!p) { toastOnce("Waiting for your partner to join…"); return; }
-  if (p.game && p.game !== "hong") toastOnce(`${p.name} is in ${GAMES[p.game]?.name || "another game"}`);
+  if (p?.game && p.game !== "hong") toastOnce(`${p.name} is in ${GAMES[p.game]?.name || "another game"}`);
 }
 let toldAt = "";
 function toastOnce(msg) { if (toldAt === msg) return; toldAt = msg; toast(msg, 3000); }
@@ -1079,14 +1084,16 @@ const together = createTogether({
   askName,
   valid: g => g?.v === 1 && !!g.game && !!g.session,
   fresh: freshRoom,
+  slots: g => g?.session?.humans?.length || 2,
   onState: onRoomState,
   onPresence: render,
   onLeave: () => { roomData = null; seated(); load(); },
-  // a game played to its end: the pair's record, by points; each of you for yourself against the other
+  // a game played to its end: the pair's record, by points; each of you for yourself against the other (a party's
+  // isn't recorded)
   result: g => {
     const game = E.fromRoom(clone(g.game));
     if (game.phase !== "over" || E.nextHand(game, { seed: g.session.seed, firstDealer: g.session.firstDealer })) return null;
-    const mineS = game.scores[mySlot() === 1 ? 2 : 0], theirs = game.scores[mySlot() === 1 ? 0 : 2];
+    const mine = seatOfSlot(mySlot()), mineS = game.scores[mine], theirs = game.scores[(mine + 2) % 4];
     return { match: `${g.session.started}`, score: mineS, won: mineS > theirs ? true : mineS < theirs ? false : null, coop: false, lower: false };
   },
 });
@@ -1108,7 +1115,9 @@ function openMenu() {
   const copies = () => [action("Copy turn", copyTurn, "link"), action("Copy game", copyGame, "link")];
   if (together.room) {
     part(body, "play").append(...copies());
-    part(body, "together").append(line(`You and your partner sit across the table; ${BOTS[0]} and ${BOTS[2]} play the other two seats.`), action("Back to solo", () => together.leave(), "link"));
+    const others = [1, 2, 3].map(k => (me + k) % 4), list = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
+    const bots = others.filter(s => !isHuman(s)).map(nameOf);
+    part(body, "together").append(line(`At the table: you and ${list(others.filter(isHuman).map(nameOf))}${bots.length ? `; the computer plays ${list(bots)}` : ""}.`), action("Back to solo", () => together.leave(), "link"));
   } else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the game", () => leaveRush(), "link"));
   else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   // a puzzle's table keeps its own rules: the game's are for the game

@@ -3,8 +3,9 @@
 // a request the pair said yes to gets a new table, dealt by whichever of them arrives first and sat at by the other;
 // nobody is dealt over without one; a third player changes nothing unless they chose a seat. A pair's room opens as a
 // room from its first request (it once had to be made by a game first). And otherHere, which says where your partner
-// is, doesn't mistake your own other devices, or a page left open, for them.
-import { sitDown, seatsOf, otherHere, openRoom, openBranch } from "../rooms.js";
+// is, doesn't mistake your own other devices, or a page left open, for them. A party's table of four (Tribute, Hong)
+// seats as many as it was dealt for, the first two across from each other, and the first here moves the computer.
+import { sitDown, seatsOf, otherHere, openRoom, openBranch, seatOfSlot, peopleSeats, runsElsewhere } from "../rooms.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -112,6 +113,23 @@ check(otherHere(here, "a1", "pa", "tribute")?.id === "b2", "your partner's page 
 check(otherHere(here, "a1", "pa")?.id === "b1", "without a game to prefer, the first page of theirs that's open");
 check(otherHere({ a2: here.a2 }, "a1", "pa") === null, "your own other device is nobody");
 check(otherHere({ a1: here.a1, b0: here.b0 }, "a1")?.id === "b0", "without player ids, anyone else (as before)");
+
+// a party's table of four (Tribute, Hong): as many seats as the party, the first two across from each other
+{
+  const four = g => g?.humans?.length || 2;
+  const D = { uid: "d1", pid: "pd", name: "Mei" };
+  let t = sitDown(null, A, { initial: table({ a1: seat("Korbi", 0, "pa") }, { humans: peopleSeats(4) }), valid, slots: four });
+  for (const who of [B, C, D]) t = sitDown(t, who, { valid, slots: four });
+  check(["a1", "b1", "c1", "d1"].map(u => t.players[u]?.slot).join() === "0,1,2,3", "four sit down, each at the next seat");
+  check(sitDown(t, { uid: "e1", pid: "pe", name: "Bo" }, { valid, slots: four }) === undefined, "a fifth is turned away");
+  check([0, 1, 2, 3].map(seatOfSlot).join() === "0,2,1,3" && peopleSeats(3).join() === "0,2,1" && peopleSeats(undefined).join() === "0,2" && peopleSeats(9).length === 4,
+    "the first two across from each other, the next between them; a pair's two seats unless asked for more");
+  const three = sitDown(sitDown(sitDown(null, A, { initial: table({ a1: seat("Korbi", 0, "pa") }, { humans: peopleSeats(3) }), valid, slots: four }), B, { valid, slots: four }), C, { valid, slots: four });
+  check(seatsOf(three).length === 3 && sitDown(three, D, { valid, slots: four }) === undefined, "a table for three seats three");
+  check(sitDown(both, C, { valid, slots: four }) === undefined, "a pair's table still seats two");
+  t.players.a1.online = false;
+  check(runsElsewhere(t, "c1") && !runsElsewhere(t, "b1") && runsElsewhere(t, "a1"), "the computer players move on the device of the first to sit down who's here");
+}
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("rooms: the pair sits at one table, each in their own seat");
