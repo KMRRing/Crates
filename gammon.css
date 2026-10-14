@@ -1,0 +1,99 @@
+/* Gammon: a backgammon board as an instrument case: a brass frame, a parchment field, its points in terracotta and
+   navy, the checkers ivory (yours) and ink (theirs), the dice ivory. Upright: the other player, the board, you, and
+   the buttons under it. Sideways: the board on the left, the buttons beside it. */
+:root {
+  --gm-in: #2E6B4F;                                              /* the green of a board's felt: the game's enamel */
+  --gm-soft: color-mix(in srgb, var(--gm-in) 13%, var(--sheet));
+  --gm-frame: #6B4A2B; --gm-field: #F1E6CC; --gm-pa: #A8452F; --gm-pb: #2C4F72; --gm-bar: #5A3E24;
+  --gm-mine: #FBF4E4; --gm-mine-edge: #8C7A55; --gm-theirs: #26303A; --gm-theirs-edge: #0E151B; --gm-die: #FBF4E4; --gm-pip: #1C2A34;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --gm-in: #7FC2A8; --gm-frame: #3E2C1C; --gm-field: #2B3640; --gm-pa: #9A4A36; --gm-pb: #4B6F94; --gm-bar: #2A2017;
+    --gm-mine: #EDE3CC; --gm-mine-edge: #B9A57C; --gm-theirs: #0B1116; --gm-theirs-edge: #8C7A55; --gm-die: #EDE3CC; }
+}
+html[data-mode="night"] { --gm-in: #7FC2A8; --gm-frame: #3E2C1C; --gm-field: #2B3640; --gm-pa: #9A4A36; --gm-pb: #4B6F94; --gm-bar: #2A2017;
+  --gm-mine: #EDE3CC; --gm-mine-edge: #B9A57C; --gm-theirs: #0B1116; --gm-theirs-edge: #8C7A55; --gm-die: #EDE3CC; }
+html[data-theme="kontor"] { --gm-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --gm-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --gm-in: #2EB36A; }
+html[data-theme="office"] { --gm-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --gm-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --gm-in: #479EF5; }
+
+.gm-mark { display: inline-block; }
+.gm-mark svg { width: 100%; height: 100%; display: block; }
+
+.gm-table { display: flex; flex-direction: column; gap: .4rem; min-height: 0; padding-top: .5rem; }
+.gm-side { display: flex; flex-direction: column; gap: .4rem; }
+.gm-seat { display: flex; align-items: center; gap: .5rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); min-height: 2.3rem; }
+.gm-seat.turn { border-color: var(--gm-in); box-shadow: inset 0 0 0 1.5px var(--gm-in); }
+.gm-swatch { width: .9rem; height: .9rem; border-radius: 50%; flex: none; }
+.gm-swatch.mine { background: var(--gm-mine); border: 1.5px solid var(--gm-mine-edge); }
+.gm-swatch.theirs { background: var(--gm-theirs); border: 1.5px solid var(--gm-theirs-edge); }
+.gm-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-own { padding: .05rem .4rem; border-radius: 3px; background: var(--gm-in); color: var(--sheet); font-size: .75rem; font-weight: 800; white-space: nowrap; }
+.gm-pips { margin-left: auto; font-size: .82rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gm-score { font-weight: 800; font-variant-numeric: tabular-nums; }
+.gm-score small { color: var(--ink-soft); font-weight: 600; }
+
+/* the board fills the room the seats leave, never more than its own shape */
+.gm-board { flex: 1 1 auto; min-height: 0; display: flex; justify-content: center; align-items: center; container-type: size; }
+.gm-svg { display: block; width: min(100cqw, 120cqh); height: auto; max-height: 100cqh; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.gm-frame { fill: var(--gm-frame); }
+.gm-field { fill: var(--gm-field); }
+.gm-bar { fill: var(--gm-bar); }
+.gm-tray { fill: var(--gm-bar); }
+.gm-point.a { fill: var(--gm-pa); }
+.gm-point.b { fill: var(--gm-pb); }
+.gm-point.from { opacity: .62; }
+.gm-ck { stroke-width: 1.4; }
+.gm-ck.mine { fill: var(--gm-mine); stroke: var(--gm-mine-edge); }
+.gm-ck.theirs { fill: var(--gm-theirs); stroke: var(--gm-theirs-edge); }
+.gm-ck.sel { stroke: var(--gm-in); stroke-width: 3.2; }
+.gm-count { font-weight: 800; text-anchor: middle; }
+.gm-count.mine { fill: var(--gm-pip); }
+.gm-count.theirs { fill: var(--gm-mine); }
+.gm-off { stroke-width: 1; }
+.gm-off.mine { fill: var(--gm-mine); stroke: var(--gm-mine-edge); }
+.gm-off.theirs { fill: var(--gm-theirs); stroke: var(--gm-theirs-edge); }
+.gm-die rect { fill: var(--gm-die); stroke: var(--gm-pip); stroke-width: 1.4; }
+.gm-die circle { fill: var(--gm-pip); }
+.gm-die.used { opacity: .35; }
+.gm-cube rect { fill: var(--sheet); stroke: var(--ink); stroke-width: 1.6; }
+.gm-cube text { font-weight: 800; text-anchor: middle; fill: var(--ink); }
+.gm-target { fill: color-mix(in srgb, var(--gm-in) 35%, transparent); stroke: var(--gm-in); stroke-width: 2.2; stroke-dasharray: 3 2; pointer-events: none; }
+.gm-hit { fill: transparent; cursor: pointer; }
+
+.gm-controls { display: grid; gap: .4rem; }
+.gm-status { margin: 0; min-height: 1.3em; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+.gm-status.big { font-size: 1.05rem; font-weight: 800; color: var(--ink); }
+.gm-row { display: grid; gap: .4rem; }
+.gm-row.two { grid-template-columns: 1fr 1fr; }
+.gm-row.three { grid-template-columns: 1fr 1fr 1.4fr; }
+.gm-btn { min-height: 2.9rem; }
+.gm-go { width: 100%; min-height: 3rem; }
+
+.gm-rules p { line-height: 1.45; }
+.gm-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.gm-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.gm-end-head { margin: .2rem 0 .6rem; }
+.gm-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.gm-standings li { display: grid; grid-template-columns: minmax(0, 1fr) 2rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.gm-standings li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gm-standings li.won .nm::after { content: " ★"; color: var(--gm-in); }
+.gm-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.gm-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
+.gm-end-note { color: var(--ink-soft); font-size: .9rem; }
+.gm-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.gm-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.gm-toast.on { opacity: 1; transform: translate(-50%, 0); }
+html[data-theme="office"] :is(.gm-seat) { border-radius: 4px; }
+
+/* held sideways: the board on the left as large as the height allows, the buttons beside it, low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.gammon { --beside: 17rem; grid-template-rows: auto minmax(0, 1fr); }
+  #app.gammon .gm-table { grid-column: 1; grid-row: 2; }
+  #app.gammon .gm-side { grid-column: 2; grid-row: 2; padding-top: .5rem; min-height: 0; justify-content: flex-end; }
+}

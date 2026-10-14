@@ -219,7 +219,7 @@ export function bestOf(app) {
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", punt: "daily", quote: "daily", origin: "daily",
   order: "daily", chart: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count",
-  river: "best", gambit: "best", boast: "streak", bigtwo: "streak", landlord: "streak", banquet: "streak" };
+  river: "best", gambit: "best", boast: "streak", bigtwo: "streak", landlord: "streak", banquet: "streak", gammon: "streak" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
 /** A game won or lost, in a game that counts streaks: the current run, and the longest. */
 export function noteStreak(app, won) {
