@@ -3,10 +3,11 @@
 // plays Stockfish (vendor/stockfish), River Fairy-Stockfish (vendor/fairy-stockfish, through uci-fairy.js): both are
 // GPL, shipped unchanged or with the patch that built them, and loaded only when a game against one starts.
 //
-// An Engine starts its worker on first use and runs one search at a time. Strength comes from the engine's own limiter
-// (UCI_LimitStrength with UCI_Elo, or Skill Level) and, below the limiter's floor, from choose(): one of the engine's
-// MultiPV moves (its best few, each with its score) drawn with a weight that falls with how much the move gives up,
-// so a weak level misses what a weak player misses rather than playing at random.
+// An Engine starts its worker on first use and runs one search at a time. A level's strength comes from how far it
+// searches, from the engine's own limiter (UCI_LimitStrength with UCI_Elo, or Skill Level: Gambit's middle levels)
+// and, for the weakest, from choose(): one of the engine's MultiPV moves (its best few, each with its score) drawn
+// with a weight that falls with how much the move gives up, so a weak level misses what a weak player misses rather
+// than playing at random.
 
 /** The workers, by engine. Paths are literal so the app's offline list finds them (tools/offline.mjs). */
 export const WORKERS = {
@@ -106,11 +107,14 @@ export class Engine {
       }
       return new Promise((resolve, reject) => {
         const lines = new Map();
+        // a search that never ends (an engine wedged) lets the page go on: the worker goes, the next search starts another
+        const wedged = setTimeout(() => { this.listener = null; this.stop(); reject(new Error("the engine didn't answer")); }, this.timeout * 2);
         this.listener = line => {
-          if (line === null) { this.listener = null; reject(new Error("the engine stopped")); return; }
+          if (line === null) { clearTimeout(wedged); this.listener = null; reject(new Error("the engine stopped")); return; }
           const info = parseInfo(line);
           if (info) { lines.set(info.multipv, info); return; }
           if (line.startsWith("bestmove")) {
+            clearTimeout(wedged);
             this.listener = null;
             const best = line.split(/\s+/)[1];
             const ranked = [...lines.values()].sort((a, b) => a.multipv - b.multipv);

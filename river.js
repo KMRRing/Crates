@@ -27,7 +27,7 @@ const rating = n => n.toLocaleString("en-GB");
 
 // ---------- settings and the game ----------
 // opts: the board's look (facing, script) and the next game's choices (mode, level, colour), which the menu sets.
-let opts = { facing: false, script: "traditional", mode: "engine", level: "3", colour: "red", ...read(OPTS, {}) };
+let opts = { facing: false, script: "traditional", mode: "engine", level: "2", colour: "red", ...read(OPTS, {}) };
 if (!["traditional", "simplified"].includes(opts.script)) opts.script = "traditional";
 const saveOpts = () => write(OPTS, opts);
 /**

@@ -1,0 +1,430 @@
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":0,"plies":138,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":1,"plies":180,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":0,"plies":185,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":0,"plies":88,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":1,"plies":239,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":1,"plies":130,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":1,"plies":130,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":1,"plies":119,"why":"checkmate"}
+{"game":"river","hi":"T200 m12 n900","lo":"T300 m12 n800","score":1,"plies":148,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":0,"plies":296,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":240,"why":"stalemate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":108,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":81,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":135,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":122,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":102,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":227,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":297,"why":"stalemate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T200 m12 n900","score":1,"plies":166,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0,"plies":162,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":126,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":162,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0,"plies":98,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":137,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":148,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0,"plies":108,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0,"plies":64,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":66,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":129,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":68,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":176,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":0,"plies":70,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":181,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":200,"why":"stalemate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":126,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":87,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":147,"why":"stalemate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":100,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":197,"why":"stalemate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":126,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":124,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":0.5,"plies":67,"why":"repetition"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":0,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":122,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":107,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":151,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":1,"plies":163,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":0,"plies":117,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":1,"plies":69,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":0,"plies":228,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":1,"plies":214,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":0,"plies":95,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":1,"plies":165,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":1,"plies":101,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T50 m8 n2000","score":1,"plies":160,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":0,"plies":152,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":1,"plies":110,"why":"stalemate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":0,"plies":185,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":0.5,"plies":56,"why":"repetition"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":0,"plies":230,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":0,"plies":271,"why":"stalemate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":1,"plies":160,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":1,"plies":91,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":1,"plies":95,"why":"checkmate"}
+{"game":"river","hi":"T25 m6 n3000","lo":"T35 m6 n2500","score":1,"plies":182,"why":"stalemate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":0,"plies":124,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":1,"plies":66,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":0.5,"plies":221,"why":"repetition"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":1,"plies":91,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":0,"plies":202,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":1,"plies":82,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":1,"plies":70,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":0.5,"plies":266,"why":"repetition"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":0,"plies":90,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T25 m6 n3000","score":1,"plies":64,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":213,"why":"stalemate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":28,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":42,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":137,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":59,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":132,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":120,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":0.5,"plies":172,"why":"repetition"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":51,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1000","score":1,"plies":278,"why":"stalemate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":127,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":84,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":120,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":67,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":179,"why":"stalemate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":80,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":76,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":129,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":59,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":86,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":120,"why":"stalemate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":127,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":162,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":95,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":58,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":121,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":88,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":122,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":97,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":117,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":78,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":144,"why":"stalemate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":93,"why":"checkmate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":1,"plies":119,"why":"stalemate"}
+{"game":"river","hi":"full n500000","lo":"full n80000","score":0.5,"plies":259,"why":"repetition"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":128,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":110,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":169,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":207,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":150,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":100,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":133,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":171,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":140,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":90,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":101,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":128,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":140,"why":"checkmate"}
+{"game":"river","hi":"T65 m6 n3500","lo":"T110 m8 n2000","score":1,"plies":135,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":79,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":34,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":46,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":45,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":156,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":92,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":51,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":113,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":96,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":100,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":47,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":93,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":48,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":162,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"T65 m6 n3500","score":1,"plies":119,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":75,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":112,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":82,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":95,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":66,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":92,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":55,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":109,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":76,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":102,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":83,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"full n15000","lo":"full n3000","score":0,"plies":150,"why":"stalemate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":73,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":86,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":124,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":61,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":93,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":134,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":125,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":0.5,"plies":157,"why":"repetition"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":44,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":58,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":93,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":109,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":1,"plies":90,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":0.5,"plies":169,"why":"material"}
+{"game":"river","hi":"full n80000","lo":"full n15000","score":0.5,"plies":215,"why":"repetition"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":103,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":196,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":128,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":211,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":151,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":256,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":140,"why":"stalemate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":125,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":133,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":0,"plies":153,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":142,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":0,"plies":140,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":147,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":130,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":82,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T300 m12 n800","score":1,"plies":141,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":131,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":154,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":96,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":163,"why":"stalemate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":107,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":74,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":76,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":143,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":141,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":198,"why":"stalemate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":168,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":87,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":60,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T140 m10 n1000","score":1,"plies":155,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":155,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":112,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":134,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":159,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":129,"why":"stalemate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":154,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":100,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":155,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":110,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":134,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":127,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":89,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":174,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":134,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"T70 m8 n1500","score":1,"plies":135,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":115,"why":"stalemate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":98,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":62,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":51,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":67,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":76,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":62,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":73,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":89,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":114,"why":"stalemate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":63,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":87,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":228,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":76,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"T35 m6 n2500","score":1,"plies":67,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":138,"why":"stalemate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":0.5,"plies":253,"why":"repetition"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":59,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":0,"plies":136,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":128,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":156,"why":"stalemate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":113,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":87,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":70,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":64,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":67,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":43,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":74,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":88,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n1500","score":1,"plies":131,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":151,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":94,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":125,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":101,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":190,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":80,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":151,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":47,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":58,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":74,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":91,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":0.5,"plies":301,"why":"repetition"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":80,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":88,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n4000","score":1,"plies":73,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":1,"plies":61,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":0,"plies":267,"why":"stalemate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":1,"plies":20,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":1,"plies":63,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":0.5,"plies":131,"why":"repetition"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":0,"plies":115,"why":"stalemate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":1,"plies":114,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":1,"plies":107,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n1000","score":1,"plies":92,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":0,"plies":60,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":0,"plies":177,"why":"stalemate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":1,"plies":86,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":0,"plies":92,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":1,"plies":67,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":1,"plies":42,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":0.5,"plies":34,"why":"repetition"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":1,"plies":95,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":0,"plies":142,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n1500","score":1,"plies":174,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0,"plies":54,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0.5,"plies":280,"why":"repetition"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0,"plies":85,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0,"plies":110,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":1,"plies":47,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0,"plies":175,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0.5,"plies":171,"why":"repetition"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0.5,"plies":235,"why":"material"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":1,"plies":93,"why":"checkmate"}
+{"game":"river","hi":"full n1500","lo":"full n3000","score":0,"plies":109,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":84,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":81,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":206,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":52,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":1,"plies":216,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":63,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":126,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":124,"why":"checkmate"}
+{"game":"river","hi":"T35 m6 n2500","lo":"full n1500","score":0,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":1,"plies":55,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":1,"plies":146,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":0.5,"plies":147,"why":"repetition"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":0,"plies":160,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":1,"plies":85,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":0.5,"plies":220,"why":"repetition"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":0.5,"plies":160,"why":"repetition"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":1,"plies":75,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":1,"plies":99,"why":"checkmate"}
+{"game":"river","hi":"full n1000","lo":"T35 m6 n2500","score":1,"plies":254,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":80,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":69,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":72,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":78,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":99,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":51,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":226,"why":"stalemate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":54,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"full n1000","score":0,"plies":73,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":0,"plies":210,"why":"stalemate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":110,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":86,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":77,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":141,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":74,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":208,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":0,"plies":84,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":1,"plies":107,"why":"checkmate"}
+{"game":"river","hi":"T50 m8 n2000","lo":"T70 m8 n1500","score":0,"plies":95,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":118,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":55,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":1,"plies":126,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":96,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":100,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":215,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":111,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":1,"plies":63,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":156,"why":"checkmate"}
+{"game":"river","hi":"T140 m10 n1000","lo":"T50 m8 n2000","score":0,"plies":81,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":67,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":112,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0,"plies":109,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":0,"plies":192,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":169,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":40,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":47,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"T100 m10 n1200","lo":"T140 m10 n1000","score":1,"plies":74,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":181,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":0.5,"plies":171,"why":"repetition"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":130,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":0,"plies":96,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":0,"plies":302,"why":"stalemate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":98,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":117,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"T70 m8 n1500","lo":"T100 m10 n1200","score":1,"plies":116,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":1,"plies":165,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":1,"plies":54,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":1,"plies":115,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":0,"plies":240,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":0.5,"plies":213,"why":"repetition"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":0.5,"plies":117,"why":"repetition"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":1,"plies":161,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":1,"plies":157,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n15000","score":0,"plies":149,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":129,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":118,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":82,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":69,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":81,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":92,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":154,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":135,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":1,"plies":145,"why":"checkmate"}
+{"game":"river","hi":"full n80000","lo":"full n20000","score":0.5,"plies":302,"why":"length"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":146,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":45,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":111,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0.5,"plies":289,"why":"repetition"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":268,"why":"stalemate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":1,"plies":134,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":105,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":110,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":72,"why":"checkmate"}
+{"game":"river","hi":"full n20000","lo":"full n80000","score":0,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":88,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":103,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":99,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":104,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":86,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":123,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":59,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":40,"why":"checkmate"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0.5,"plies":21,"why":"repetition"}
+{"game":"river","hi":"full n4000","lo":"full n20000","score":0,"plies":99,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0,"plies":56,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0,"plies":41,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0,"plies":121,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":1,"plies":65,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":1,"plies":79,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0,"plies":207,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0,"plies":109,"why":"checkmate"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0.5,"plies":28,"why":"repetition"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0.5,"plies":250,"why":"repetition"}
+{"game":"river","hi":"full n3000","lo":"full n4000","score":0.5,"plies":302,"why":"length"}
