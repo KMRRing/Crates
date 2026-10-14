@@ -127,12 +127,17 @@ html[data-theme="modern"] .gb-toast { border-radius: 10px; }
 }
 
 /* the pieces taken, small, and the material lead */
+/* small pieces sit on the board's light square, so White's and Black's both read on every page, by day and by night */
 .gb-mini { width: 1.05rem; height: 1.05rem; flex: none; }
-.gb-who .gb-mini { width: 1.3rem; height: 1.3rem; }
+.gb-who .gb-mini { width: 1.35rem; height: 1.35rem; padding: .08rem; border-radius: 50%; background: #EFE3C8; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .14); }
 .gb-taken { gap: 0; align-items: center; }
+.gb-taken:has(.gb-mini) { padding: .05rem .3rem .05rem .2rem; border-radius: 3px; background: #EFE3C8; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .1); }
 .gb-taken .gb-mini { margin-left: -.32rem; }
 .gb-taken .gb-mini:first-child { margin-left: 0; }
-.gb-taken small { margin-left: .25rem; font-size: .76rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+html[data-theme="office"] :is(.gb-who .gb-mini, .gb-taken:has(.gb-mini)) { background: #F0F0F0; }
+.gb-taken small { margin-left: .25rem; font-size: .76rem; font-weight: 700; color: #5C5545; font-variant-numeric: tabular-nums; }
+.gb-taken > small:only-child { margin: 0; color: var(--ink-soft); }
+.gb-taken:has(> small:only-child) { background: none; box-shadow: none; }
 .gb-open { color: var(--ink-soft); }
 /* the review at the end */
 .gb-sub { margin: .9rem 0 .2rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--gb-in); }

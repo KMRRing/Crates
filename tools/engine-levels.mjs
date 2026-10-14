@@ -3,6 +3,7 @@
 // an Elo difference (the gap at which the stronger would expect that score: 400 · log10(score / (1 − score))) with its
 // standard error. The README names the levels by the ratings this chain gives.
 //   nice -n 10 node tools/engine-levels.mjs <river | gambit> [games per pair] [first level] [last level] [out.jsonl]
+// LADDER=file.json measures a ladder of candidate levels (a list like the game's LEVELS) in place of the game's own.
 import fs from "fs";
 import { Engine, levelMove } from "../uci.js";
 import { fairyWorker, stockfishWorker } from "./uci-node.mjs";
@@ -45,6 +46,7 @@ async function rulesOf(name) {
 }
 
 const R = await rulesOf(game);
+if (process.env.LADDER) R.levels = JSON.parse(fs.readFileSync(process.env.LADDER, "utf8")).map((l, i) => ({ id: String(i + 1), name: l.name || `L${i + 1}`, rating: i, ...l }));
 const first = Number(firstArg || 1), last = Number(lastArg || R.levels.length), n = Number(perPair);
 const engines = [R.worker(), R.worker()];
 const r = rng(20261014);

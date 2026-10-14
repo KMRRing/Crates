@@ -7,6 +7,7 @@
 import fs from "fs";
 import * as X from "../river-rules.js";
 import { LEVELS, SETUP, levelById } from "../river-levels.js";
+import { OPENINGS, openingOf } from "../river-openings.js";
 import { Engine, levelMove, parseInfo, choose, valueOf } from "../uci.js";
 import { fairyWorker } from "../tools/uci-node.mjs";
 import { startWasi } from "../uci-wasi.js";
@@ -110,6 +111,16 @@ const engineMoves = (fen, moves = []) => {
   check(X.notate(X.parseFen(X.START), X.pointNamed("b1"), X.pointNamed("c3"), "simplified").cn === "马八进七", "马八进七 in simplified");
   const back = "4k4/9/9/9/9/9/9/9/4A4/3AK4 w - - 0 1";
   check(same(n(back, "e2f1"), { cn: "仕五退四", wxf: "A5-4" }), "仕五退四 (A5−4): back is 退");
+}
+
+// ---------- the openings ----------
+{
+  const mirror = line => line.split(" ").map(u => u.replace(/[a-i]/g, f => "abcdefghi"[8 - "abcdefghi".indexOf(f)])).join(" ");
+  const named = line => { const p = X.replay({ start: X.START, moves: line }); return p.ok ? openingOf(p.positions) : undefined; };
+  const wrong = OPENINGS.filter(o => named(o.line) !== o || named(mirror(o.line)) !== o);
+  check(!wrong.length && OPENINGS.every(o => o.tc && o.sc && o.py && o.en), `${OPENINGS.length} openings, every line legal and named by its own position and its mirror's${wrong.length ? `: ${wrong.map(o => o.tc).join(", ")}` : ""}`);
+  check(named("b3e3 b10c8")?.tc === "中炮" && named("h3e3 h10g8 h1g3 b10c8 a1a2")?.tc === "中炮對屏風馬" && named("a1a2") === null,
+    "炮八平五 is the central cannon too; a game is named by its latest named position; a game off the table has none");
 }
 
 // ---------- how a game ends ----------

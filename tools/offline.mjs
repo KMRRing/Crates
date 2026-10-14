@@ -175,6 +175,9 @@ export function offlineFiles(root = ROOT) {
   const ship = /\.(?:html|js|css|webmanifest|woff2|png|svg)$/;
   const files = new Set(reach(root).reached.keys());
   for (const f of tracked) if (!NEVER(f) && !f.startsWith("kb/") && (ship.test(f) || f.startsWith("puzzles/"))) files.add(f);
+  // the engines' WebAssembly (Gambit's Stockfish, River's Fairy-Stockfish), which an engine's own script fetches by a
+  // path it builds from its own name
+  for (const f of tracked) if (/^vendor\/[^/]+\/[^/]+\.wasm$/.test(f)) files.add(f);
   for (const dir of ["fonts", "icons"]) for (const f of fs.readdirSync(root + dir)) files.add(`${dir}/${f}`);
   return [...files].filter(f => fs.existsSync(root + f) && !fs.statSync(root + f).isDirectory()).sort();
 }

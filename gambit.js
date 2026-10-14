@@ -191,6 +191,13 @@ function settle() {
   }
   showEnd();
 }
+/** Who resigned: the side that didn't win, named as the page names it. */
+function loserName(g) {
+  const loser = g.result.winner === "white" ? "black" : "white", you = yourColour();
+  if (inRoom()) return loser === you ? "You" : partnerName();
+  if (g.mode === "engine") return loser === you ? "You" : "The computer";
+  return cap(loser);
+}
 function headline(g) {
   const r = g.result;
   if (!r) return "";
@@ -248,7 +255,9 @@ function drawEnd() {
   const g = cur();
   if (!g.result) return;
   $("endHead").textContent = headline(g);
-  const n = Math.ceil(G.movesOf(g).length / 2), o = openingOf(played().fens), lines = [`<p>${esc(WHY[g.result.why] || "")}, after ${n} move${n === 1 ? "" : "s"}.${o ? ` ${esc(o.eco)} ${esc(o.name)}.` : ""}</p>`];
+  const n = Math.ceil(G.movesOf(g).length / 2), o = openingOf(played().fens);
+  const how = g.result.why === "resigned" ? `${loserName(g)} resigned` : WHY[g.result.why] || "";
+  const lines = [`<p>${esc(how)}, after ${n} move${n === 1 ? "" : "s"}.${o ? ` ${esc(o.eco)} ${esc(o.name)}.` : ""}</p>`];
   if (!inRoom() && g.mode === "engine") {
     const lv = levelById(g.level), best = read(BEST, 0);
     lines.push(`<p>Against ${esc(lv.name)} (${rating(lv.rating)}).${best ? ` The strongest you've beaten: ${esc(LEVELS.filter(l => l.rating <= best).pop()?.name || "")} (${rating(best)}).` : ""}</p>`);
@@ -311,7 +320,7 @@ function evalWords(h, whiteToMove) {
 }
 function sayLine(p) {
   const g = cur(), seat = G.waitingOn(g), whiteToMove = p.chess.turn() === "w";
-  if (g.result) return `<b>${esc(headline(g))}</b> · ${esc(WHY[g.result.why] || "")}`;
+  if (g.result) return `<b>${esc(headline(g))}</b> · ${esc(g.result.why === "resigned" ? `${loserName(g)} resigned` : WHY[g.result.why] || "")}`;
   const check = p.chess.inCheck() ? `<b class="gb-check">Check</b> · ` : "";
   if (hinting) return `${check}<span class="gb-wait"></span>The coach is looking…`;
   const h = g.hint && g.hint.at === G.movesOf(g).length ? g.hint : null;

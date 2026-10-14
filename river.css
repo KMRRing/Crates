@@ -55,6 +55,7 @@ html[data-theme="office"][data-mode="night"] { --rv-in: #479EF5; --rv-wood: #2E2
 .rv-say b { font-weight: 800; }
 .rv-check { color: var(--rv-red-text); }
 .rv-wxf { font-size: .78rem; color: var(--ink-soft); }
+.rv-open { color: var(--ink-soft); }
 .rv-wait { display: inline-block; vertical-align: -.15em; margin-right: .3rem; }
 
 /* ---------- the board: as large as the room left, the full width of a phone ---------- */
@@ -127,6 +128,9 @@ dialog.rv-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .rv-rule-piece p { margin: .15rem 0 0; }
 .rv-rule-piece i { color: var(--ink-soft); }
 .rv-pair { display: flex; gap: .15rem; }
+.rv-openings { margin: .3rem 0; padding-left: 1.1rem; font-size: .88rem; line-height: 1.45; }
+.rv-openings li { margin: .25rem 0; }
+.rv-openings i { color: var(--ink-soft); }
 .rv-end-head { margin: 0 0 .4rem; font-size: 1.15rem; }
 .rv-end p { margin: .35rem 0; font-size: .95rem; line-height: 1.45; }
 .rv-end-go { display: flex; gap: .5rem; margin-top: .9rem; }

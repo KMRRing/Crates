@@ -5,6 +5,7 @@
 import * as X from "./river-rules.js";
 import { mountBoard, discSvg } from "./river-board.js";
 import { LEVELS, levelById, HINT, SETUP } from "./river-levels.js";
+import { OPENINGS, openingOf } from "./river-openings.js";
 import { Engine, WORKERS, levelMove } from "./uci.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -195,6 +196,13 @@ function settle() {
   }
   showEnd();
 }
+/** Who resigned: the side that didn't win, named as the page names it. */
+function loserName(g) {
+  const red = g.result.winner === "black";
+  if (inRoom()) return (D.red === mySeat()) === red ? "You" : partnerName();
+  if (g.mode === "engine") return (g.red === 0) === red ? "You" : "The computer";
+  return red ? "Red" : "Black";
+}
 function headline(g) {
   const r = g.result;
   if (!r) return "";
@@ -207,7 +215,9 @@ function showEnd() {
   const g = cur();
   if (!g.result || IN_FRAME) return;
   $("endHead").textContent = headline(g);
-  const n = Math.ceil(X.movesOf(g).length / 2), lines = [`<p>${esc(WHY[g.result.why] || "")}, after ${n} move${n === 1 ? "" : "s"}.</p>`];
+  const n = Math.ceil(X.movesOf(g).length / 2), o = openingOf(played().positions);
+  const how = g.result.why === "resigned" ? `${loserName(g)} resigned` : WHY[g.result.why] || "";
+  const lines = [`<p>${esc(how)}, after ${n} move${n === 1 ? "" : "s"}.${o ? ` The opening: ${esc(opts.script === "simplified" ? o.sc : o.tc)} (${esc(o.py)}), ${esc(o.en)}.` : ""}</p>`];
   if (!inRoom() && g.mode === "engine") {
     const lv = levelById(g.level), best = read(BEST, 0);
     lines.push(`<p>Against ${esc(lv.name)} (${rating(lv.rating)}).${best ? ` The strongest you've beaten: ${esc(LEVELS.filter(l => l.rating <= best).pop()?.name || "")} (${rating(best)}).` : ""}</p>`);
@@ -254,7 +264,7 @@ function drawSeat(el, red, p, words = null) {
 }
 function sayLine(p) {
   const g = cur(), pos = p.positions.at(-1), seat = X.waitingOn(g);
-  if (g.result) return `<b>${esc(headline(g))}</b> · ${esc(WHY[g.result.why] || "")}`;
+  if (g.result) return `<b>${esc(headline(g))}</b> · ${esc(g.result.why === "resigned" ? `${loserName(g)} resigned` : WHY[g.result.why] || "")}`;
   const check = X.inCheck(pos) ? `<b class="rv-check">Check</b> (將軍) · ` : "";
   if (hinting) return `${check}<span class="rv-wait"></span>The coach is looking…`;
   const h = g.hint && g.hint.at === X.movesOf(g).length ? g.hint : null;
@@ -262,9 +272,10 @@ function sayLine(p) {
     const m = X.parseUci(h.move), n = m ? X.notate(pos, m.from, m.to, opts.script) : null;
     return `${check}Hint: <b>${esc(n?.cn || h.move)}</b> <span class="rv-wxf">${esc(n?.wxf || "")}</span> · ${esc(evalWords(h, pos.red))}`;
   }
-  if (inRoom()) return `${check}${seat === mySeat() ? "Your move" : `${esc(partnerName())} to move`}`;
-  if (g.mode === "two") return `${check}${pos.red ? "Red" : "Black"} to move`;
-  return `${check}${seat === 0 ? "Your move" : thinking ? "The computer is thinking" : "The computer's move"}`;
+  const o = openingOf(p.positions), opening = o ? ` · <span class="rv-open">${esc(opts.script === "simplified" ? o.sc : o.tc)} ${esc(o.en)}</span>` : "";
+  if (inRoom()) return `${check}${seat === mySeat() ? "Your move" : `${esc(partnerName())} to move`}${opening}`;
+  if (g.mode === "two") return `${check}${pos.red ? "Red" : "Black"} to move${opening}`;
+  return `${check}${seat === 0 ? "Your move" : thinking ? "The computer is thinking" : "The computer's move"}${opening}`;
 }
 /** What the engine's score says, in words, for the side to move (`red`): a hint is always for the side to move. */
 function evalWords(h, red) {
@@ -342,8 +353,17 @@ ${piece(X.SOLDIER, "兵 / 卒", "bīng / zú", "Soldier", "One point forward. On
 <h4>Reading the moves</h4>
 <p>A move is the piece, the file it stands on, how it moves and where to: <b>炮二平五</b> is "cannon on file two across to file five", the commonest opening (當頭炮, the central cannon). Each side counts files from its own right, Red in Chinese numerals (一 to 九), Black in figures (1 to 9). 進 (jìn) is forward, 退 (tuì) back, 平 (píng) across. A piece moving straight along its file gives the ranks moved (俥九進一: one forward), a horse, elephant or advisor the file it lands on (傌二進三). Two like pieces on one file are front and rear (前, 後). WXF writes the same in letters: K A E H R C P, + forward, − back, = across (C2=5).</p>
 <p>The river reads 楚河 漢界, "the Chu river, the Han border", after the war between the states of Chu and Han that founded the Han dynasty.</p>
+<h4>The openings</h4>
+<p>The names a club player gives the first moves, shown as you play them (each counts mirrored too: 炮八平五 is as central as 炮二平五):</p>
+<ul class="rv-openings">${OPENINGS.map(o => `<li><b>${s === "simplified" ? o.sc : o.tc}</b> <i>${o.py}</i> · ${o.en}: ${openingMoves(o.line)}</li>`).join("")}</ul>
 <h4>The computer</h4>
 <p>The computer player is Fairy-Stockfish (GPL v3: <a href="vendor/fairy-stockfish/Copying.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/fairy-stockfish/Fairy-Stockfish" target="_blank" rel="noopener">source</a>), playing at the strength you choose in the menu. Hint shows its move for you on the board and what it makes of the position.</p>`;
+}
+
+/** An opening's moves in Chinese notation, from the start. */
+function openingMoves(line) {
+  let pos = X.parseFen();
+  return line.split(" ").map((u, i) => { const m = X.parseUci(u), n = X.notate(pos, m.from, m.to, opts.script); pos = X.after(pos, m.from, m.to); return `${i % 2 ? "" : `${i / 2 + 1}. `}${n.cn}`; }).join(" ");
 }
 
 // ---------- the menu ----------
