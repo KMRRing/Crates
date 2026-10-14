@@ -34,7 +34,8 @@ const saveOpts = () => write(OPTS, opts);
 /**
  * the game in play: gambit-rules.js's state and the page's: { v, start, moves, result, white, mode ("engine" or "two"),
  * level, created, hint, review, counted }. With the computer, seat 0 is you and 1 the computer, `white` the seat
- * playing White; two players on one phone are seat 0 (White) and 1 (Black). review: the end's look back, once made.
+ * playing White; two players on one phone are seat 0 (White) and 1 (Black). review: the end's look back, once made;
+ * counted: the game has gone into your record.
  */
 function freshGame() {
   const white = opts.mode === "two" ? 0 : opts.colour === "black" ? 1 : opts.colour === "either" ? (Math.random() < 0.5 ? 0 : 1) : 0;
@@ -155,7 +156,7 @@ function takeBackCount() {
 function takeBack() {
   const n = takeBackCount();
   if (!n) return;
-  S = { ...G.act(S, 0, { undo: n }), hint: null, review: null, counted: false };
+  S = { ...G.act(S, 0, { undo: n }), hint: null, review: null };             // still counted, if it had ended
   thinking = false;
   afterMove(false);
 }
@@ -177,9 +178,20 @@ function newGame() {
 // ---------- the end, and the review ----------
 const WHY = { checkmate: "Checkmate", stalemate: "Stalemate: a draw", repetition: "The same position three times: a draw", fifty: "Fifty moves without a capture or a pawn move: a draw",
   material: "Not enough material to mate: a draw", resigned: "Resigned" };
+/**
+ * A game's end: its sheet, and once (as it first ends) its place in your record. Taking back after the end and playing
+ * on shows the new end and its review, but the record keeps the first: a take-back can't turn a loss into a level beaten.
+ */
+let endShown = null;                                             // the game whose end has been shown
 function settle() {
   const g = cur();
-  if (!g.result || inRoom() || IN_FRAME || S.counted) return;
+  if (!g.result || inRoom() || IN_FRAME || endShown === S) return;
+  if (!S.counted) recordEnd();
+  endShown = S;
+  showEnd();
+}
+function recordEnd() {
+  const g = cur();
   S = { ...S, counted: true };
   save();
   if (S.mode === "engine") {
@@ -189,7 +201,6 @@ function settle() {
     write(RECORD, rec);
     if (won) write(BEST, Math.max(read(BEST, 0) || 0, levelById(S.level).rating));
   }
-  showEnd();
 }
 /** Who resigned: the side that didn't win, named as the page names it. */
 function loserName(g) {
@@ -355,11 +366,13 @@ function drawBar() {
   };
   if (IN_FRAME) return;
   if (inRoom()) { if (g.result) button("Back to solo", () => together.leave(), "quiet"); else button("Resign", resign, "quiet"); return; }
+  // two buttons at most, Take back always first: held sideways the column has room for no more
   const yours = handSeats().includes(G.waitingOn(g));
-  button("Hint", hint, "quiet", !!g.result || !yours || thinking || hinting);
+  const retry = !g.result && g.mode === "engine" && !engineUp && G.waitingOn(g) === 1 && !thinking;
   button("Take back", takeBack, "quiet", !takeBackCount());
   if (g.result) button("New game", newGame);
-  else if (g.mode === "engine" && !engineUp && G.waitingOn(g) === 1 && !thinking) button("Retry", () => kick());
+  else if (retry) button("Retry", () => kick());
+  else button("Hint", hint, "quiet", !yours || thinking || hinting);
 }
 function render() {
   const p = played(), g = cur(), last = p.history.at(-1);

@@ -32,8 +32,9 @@ if (!["traditional", "simplified"].includes(opts.script)) opts.script = "traditi
 const saveOpts = () => write(OPTS, opts);
 /**
  * G: the game in play, river-rules.js's state and the page's: { v, start, moves, result, red, mode ("engine" or "two"),
- * level, created, hint, counted }. With the computer, seat 0 is you and 1 the computer, `red` the seat playing Red;
- * two players on one phone are seat 0 (Red) and 1 (Black). hint: the coach's move for the position it was asked in.
+ * level, created, hint, review, counted }. With the computer, seat 0 is you and 1 the computer, `red` the seat playing
+ * Red; two players on one phone are seat 0 (Red) and 1 (Black). hint: the coach's move for the position it was asked
+ * in; review: the end's look back, once made; counted: the game has gone into your record.
  */
 function freshGame() {
   const red = opts.mode === "two" ? 0 : opts.colour === "black" ? 1 : opts.colour === "either" ? (Math.random() < 0.5 ? 0 : 1) : 0;
@@ -160,7 +161,7 @@ function takeBackCount() {
 function takeBack() {
   const n = takeBackCount();
   if (!n) return;
-  G = { ...X.act(G, 0, { undo: n }), hint: null, review: null, counted: false };
+  G = { ...X.act(G, 0, { undo: n }), hint: null, review: null };             // still counted, if it had ended
   thinking = false;
   afterMove(false);
 }
@@ -183,9 +184,20 @@ function newGame() {
 const WHY = { checkmate: "Checkmate (將死)", stalemate: "No move left (困斃): the side that can't move loses", perpetual: "Perpetual check (長將) loses",
   repetition: "The same position three times: a draw", sixty: "Sixty moves each without a capture: a draw", material: "Neither side can attack: a draw", resigned: "Resigned" };
 /** Notes a finished game once: your record against the level, and the strongest level beaten for the games screen. */
+/**
+ * A game's end: its sheet, and once (as it first ends) its place in your record. Taking back after the end and playing
+ * on shows the new end and its review, but the record keeps the first: a take-back can't turn a loss into a level beaten.
+ */
+let endShown = null;                                             // the game whose end has been shown
 function settle() {
   const g = cur();
-  if (!g.result || inRoom() || IN_FRAME || G.counted) return;
+  if (!g.result || inRoom() || IN_FRAME || endShown === G) return;
+  if (!G.counted) recordEnd();
+  endShown = G;
+  showEnd();
+}
+function recordEnd() {
+  const g = cur();
   G = { ...G, counted: true };
   save();
   if (G.mode === "engine") {
@@ -195,7 +207,6 @@ function settle() {
     write(RECORD, rec);
     if (won) write(BEST, Math.max(read(BEST, 0) || 0, levelById(G.level).rating));
   }
-  showEnd();
 }
 /** Who resigned: the side that didn't win, named as the page names it. */
 function loserName(g) {
@@ -371,11 +382,13 @@ function drawBar() {
     else button("Resign", resign, "quiet");
     return;
   }
+  // two buttons at most, Take back always first: held sideways the column has room for no more
   const yours = handSeats().includes(X.waitingOn(g));
-  button("Hint", hint, "quiet", !!g.result || !yours || thinking || hinting);
+  const retry = !g.result && g.mode === "engine" && !engineUp && X.waitingOn(g) === 1 && !thinking;
   button("Take back", takeBack, "quiet", !takeBackCount());
   if (g.result) button("New game", newGame);
-  else if (g.mode === "engine" && !engineUp && X.waitingOn(g) === 1 && !thinking) button("Retry", () => { kick(); }, "");
+  else if (retry) button("Retry", () => kick());
+  else button("Hint", hint, "quiet", !yours || thinking || hinting);
 }
 function render() {
   const p = played(), g = cur(), pos = p.positions.at(-1), last = p.moves.at(-1);
