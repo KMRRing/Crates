@@ -1,0 +1,38 @@
+/* Snap (Party): the pile's card above yours (beside it, held sideways), each a white disc in a brass ring with its eight
+   pictures at their own sizes and turns; the picture two cards share ringed when a round is won, the winner's name over
+   the cards; a wrong tap greys the cards for a moment; the players' cards won (or left) in a row of chips. */
+.sn-col { --sn-size: min(84vw, calc((100dvh - 17.5rem) / 2), 24rem); }
+.sn-table { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; }
+.sn-table li { display: flex; align-items: baseline; gap: .4rem; padding: .25rem .55rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.sn-table li.won { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.sn-table li.me .sn-name { text-decoration: underline; text-underline-offset: .15em; }
+.sn-name { font-weight: 700; }
+.sn-n { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--pa-in); }
+.sn-status { margin: 0; text-align: center; color: var(--ink-soft); font-size: .9rem; }
+.sn-cards { position: relative; display: flex; flex-direction: column; align-items: center; gap: .5rem; }
+.sn-card { position: relative; width: var(--sn-size); }
+.sn-label { position: absolute; left: 50%; top: 0; z-index: 1; transform: translate(-50%, -45%); padding: .05rem .5rem; border-radius: 4px; background: var(--yard);
+  font-size: .68rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); white-space: nowrap; }
+.sn-face { position: relative; width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2.5px solid var(--brass); background: #FFFDF7; container-type: size; overflow: hidden;
+  transition: opacity .2s, filter .2s; }
+.sn-card.yours .sn-face { border-color: var(--pa-in); }
+.sn-card.held .sn-face { opacity: .45; filter: grayscale(1); }
+.sn-pic { position: absolute; transform: translate(-50%, -50%) rotate(var(--r)); padding: .08em; border: 0; border-radius: 50%; background: none; line-height: 1;
+  font-size: calc(var(--k) * 15cqw); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.sn-pic span { display: block; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
+.sn-pic.glow { background: color-mix(in srgb, var(--pa-in) 25%, transparent); box-shadow: 0 0 0 3px var(--pa-in); animation: sn-glow .8s ease-in-out infinite alternate; }
+@keyframes sn-glow { to { box-shadow: 0 0 0 6px var(--pa-in); } }
+.sn-winner { position: absolute; left: 50%; top: 50%; z-index: 2; transform: translate(-50%, -50%); margin: 0; padding: .4rem 1.1rem; border-radius: 6px;
+  background: var(--plate); color: var(--plate-ink); font-size: 1.5rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); white-space: nowrap;
+  box-shadow: 0 4px 14px rgb(0 0 0 / .25); }
+.sn-watch { text-align: center; }
+html[data-theme="office"] :is(.sn-table li, .sn-winner) { border-radius: 4px; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .sn-face { background: #F3EFE4; }
+}
+html[data-mode="night"] .sn-face { background: #F3EFE4; }
+/* held sideways: the two cards side by side */
+@media (orientation: landscape) and (min-width: 700px) {
+  .sn-col { --sn-size: min(calc((100vw - 8rem) / 2), calc(100dvh - 15.5rem), 24rem); }
+  .sn-cards { flex-direction: row; justify-content: center; gap: 2rem; }
+}

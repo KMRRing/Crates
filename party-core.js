@@ -21,9 +21,10 @@ import echo from "./party-echo.js";
 import decoy from "./party-decoy.js";
 import gauge from "./party-gauge.js";
 import fuse from "./party-fuse.js";
+import snap from "./party-snap.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse];
+export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */
