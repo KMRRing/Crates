@@ -3,8 +3,8 @@
 // computer's moves and the hints the engine's (uci.js, in a worker, loaded only when a game against it needs it).
 // The game in play is kept as it changes (river:game) and picked up on reload; a partner watching draws it from there.
 import * as X from "./river-rules.js";
-import { mountBoard, discSvg } from "./river-board.js";
-import { LEVELS, levelById, HINT, SETUP } from "./river-levels.js";
+import { mountBoard, discSvg, diagramSvg } from "./river-board.js";
+import { LEVELS, levelById, HINT, REVIEW, SETUP } from "./river-levels.js";
 import { OPENINGS, openingOf } from "./river-openings.js";
 import { Engine, WORKERS, levelMove } from "./uci.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -37,12 +37,12 @@ const saveOpts = () => write(OPTS, opts);
  */
 function freshGame() {
   const red = opts.mode === "two" ? 0 : opts.colour === "black" ? 1 : opts.colour === "either" ? (Math.random() < 0.5 ? 0 : 1) : 0;
-  return { ...X.newGame({ red }), mode: opts.mode === "two" ? "two" : "engine", level: levelById(opts.level).id, created: Date.now(), hint: null, counted: false };
+  return { ...X.newGame({ red }), mode: opts.mode === "two" ? "two" : "engine", level: levelById(opts.level).id, created: Date.now(), hint: null, review: null, counted: false };
 }
 function loadGame() {
   const g = X.fromRoom(read(GAME, null));
   if (!g || !X.replay(g).ok) return freshGame();
-  return { ...g, mode: g.mode === "two" ? "two" : "engine", level: levelById(g.level).id, created: g.created || Date.now(), hint: g.hint || null, counted: !!g.counted };
+  return { ...g, mode: g.mode === "two" ? "two" : "engine", level: levelById(g.level).id, created: g.created || Date.now(), hint: g.hint || null, review: g.review || null, counted: !!g.counted };
 }
 let G = loadGame();
 const save = () => { if (!IN_FRAME && !together.room) write(GAME, G); };
@@ -59,6 +59,7 @@ const bottomRed = () => (inRoom() ? D.red === mySeat() : G.mode === "two" ? true
 
 // ---------- the engine ----------
 const engine = new Engine(WORKERS.fairy, { setup: SETUP });
+const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     // the engine unlimited: hints and the review
 let engineUp = false;
 /** The engine, started if it isn't: the rete shows while it loads (a moment, or the first download). */
 async function ensureEngine() {
@@ -138,7 +139,7 @@ async function hint() {
   render();
   try {
     if (!(await ensureEngine())) return;
-    const r = await engine.search({ fen: g.start, moves: X.movesOf(g), limit: HINT.limit, options: { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false } });
+    const r = await engine.search({ fen: g.start, moves: X.movesOf(g), limit: HINT.limit, options: FULL });
     if (g0 !== gen || !r.best) return;
     G = { ...G, hint: { at, move: r.best, cp: r.lines[0]?.cp ?? null, mate: r.lines[0]?.mate ?? null } };
     save();
@@ -159,7 +160,7 @@ function takeBackCount() {
 function takeBack() {
   const n = takeBackCount();
   if (!n) return;
-  G = { ...X.act(G, 0, { undo: n }), hint: null, counted: false };
+  G = { ...X.act(G, 0, { undo: n }), hint: null, review: null, counted: false };
   thinking = false;
   afterMove(false);
 }
@@ -211,9 +212,59 @@ function headline(g) {
   if (g.mode === "engine") return r.winner === (g.red === 0 ? "red" : "black") ? "You win" : "The computer wins";
   return r.winner === "red" ? "Red wins" : "Black wins";
 }
+/** Your colour, when you're one side: "red", "black", or null (two players on one phone). */
+const yourColour = () => (inRoom() ? (D.red === mySeat() ? "red" : "black") : G.mode === "engine" ? (G.red === 0 ? "red" : "black") : null);
+/**
+ * The moves where you lost most, by the engine's evaluation: each position of the game searched once (REVIEW), a move's
+ * cost the score before it less the score after it, both from the mover's side (a mate counted as ten pawns, so one
+ * missed mate doesn't drown the rest). Kept in the game (review), so a reload or a partner watching shows it as it is.
+ */
+let reviewing = null;
+async function review() {
+  const g = cur(), all = X.movesOf(g);
+  if (!g.result || inRoom() || IN_FRAME || reviewing || g.review?.at === all.length || all.length < 2) return;
+  const key = `${g.start}|${g.moves}`;
+  reviewing = { done: 0, of: all.length + 1 };
+  drawEnd();
+  try {
+    if (!(await ensureEngine())) return;
+    const p = played(), scores = [], bests = [];
+    for (let i = 0; i <= all.length; i++) {
+      if (!X.legalMoves(p.positions[i]).length) { scores.push(-1000); bests.push(null); }       // no move left loses
+      else {
+        const r = await engine.search({ fen: g.start, moves: all.slice(0, i), limit: REVIEW.limit, options: FULL });
+        const l = r.lines[0], v = l?.mate != null ? (l.mate > 0 ? 1000 : -1000) : Math.max(-1000, Math.min(1000, l?.cp ?? 0));
+        scores.push(v); bests.push(r.best);
+      }
+      if (`${cur().start}|${cur().moves}` !== key) return;        // taken back meanwhile
+      reviewing.done = i + 1;
+      drawEnd();
+    }
+    const you = yourColour(), items = [];
+    p.moves.forEach((m, i) => {
+      const mover = p.positions[i].red ? "red" : "black";
+      if (you && mover !== you) return;
+      const loss = scores[i] + scores[i + 1];
+      if (loss < 50 || !bests[i] || bests[i] === m.uci) return;
+      const b = X.parseUci(bests[i]);
+      items.push({ ply: i, move: m.uci, better: b ? bests[i] : null, loss, mover });
+    });
+    items.sort((a, b) => b.loss - a.loss);
+    G = { ...G, review: { at: all.length, items: items.slice(0, 3) } };
+    save();
+  } catch (e) { console.error(e); toast("The review didn't finish"); engine.stop(); engineUp = false; }
+  finally { reviewing = null; drawEnd(); }
+}
+const lossWords = cp => (cp >= 900 ? "the game" : `about ${(cp / 100).toFixed(1)}`);
 function showEnd() {
+  if (!cur().result || IN_FRAME) return;
+  drawEnd();
+  if (!$("endDlg").open) $("endDlg").showModal();
+  review();
+}
+function drawEnd() {
   const g = cur();
-  if (!g.result || IN_FRAME) return;
+  if (!g.result) return;
   $("endHead").textContent = headline(g);
   const n = Math.ceil(X.movesOf(g).length / 2), o = openingOf(played().positions);
   const how = g.result.why === "resigned" ? `${loserName(g)} resigned` : WHY[g.result.why] || "";
@@ -222,9 +273,16 @@ function showEnd() {
     const lv = levelById(g.level), best = read(BEST, 0);
     lines.push(`<p>Against ${esc(lv.name)} (${rating(lv.rating)}).${best ? ` The strongest you've beaten: ${esc(LEVELS.filter(l => l.rating <= best).pop()?.name || "")} (${rating(best)}).` : ""}</p>`);
   }
+  const r = g.review?.at === X.movesOf(g).length ? g.review : null, p = played();
+  const named = (i, uci) => { const m = X.parseUci(uci); const n = X.notate(p.positions[i], m.from, m.to, opts.script); return `${n.cn} <span class="rv-wxf">${esc(n.wxf)}</span>`; };
+  if (r) {
+    lines.push(`<h4 class="rv-sub">${yourColour() ? "Where you lost most" : "Where each side lost most"}</h4>`);
+    if (!r.items.length) lines.push(`<p>No move ${yourColour() ? "of yours " : ""}gave away half a soldier or more, by the engine's reckoning.</p>`);
+    else lines.push(`<ol class="rv-review">${r.items.map(it => `<li><b>${Math.floor(it.ply / 2) + 1}${it.ply % 2 ? "…" : "."} ${named(it.ply, it.move)}</b>${yourColour() ? "" : ` (${cap(it.mover)})`}: ${lossWords(it.loss)} given away; better was <b>${named(it.ply, it.better)}</b>.</li>`).join("")}</ol>`);
+  } else if (reviewing) lines.push(`<p class="rv-reviewing"><span class="rv-wait"></span>Reviewing the game: ${reviewing.done} of ${reviewing.of} positions</p>`);
   $("endBody").innerHTML = lines.join("");
+  $("endBody").querySelector(".rv-wait")?.append(sextant());
   $("endAgain").hidden = inRoom();
-  if (!$("endDlg").open) $("endDlg").showModal();
 }
 
 // ---------- drawing ----------
@@ -336,16 +394,23 @@ function render() {
 // ---------- the rules ----------
 function rules() {
   const s = opts.script, d = v => discSvg(v, s, { size: 2.2 });
-  const piece = (v, name, py, en, how) => `<div class="rv-rule-piece"><span class="rv-pair">${d(v)}${d(-v)}</span><div><b>${name}</b> <i>${py}</i> · ${en}<p>${how}</p></div></div>`;
+  const piece = (v, name, py, en, how, pic = "") => `<div class="rv-rule-piece"><span class="rv-pair">${d(v)}${d(-v)}</span><div><b>${name}</b> <i>${py}</i> · ${en}<p>${how}</p>${pic ? `<figure class="rv-figure">${pic}</figure>` : ""}</div></div>`;
+  const R = X.GENERAL, H = X.HORSE, E = X.ELEPHANT, C = X.CANNON, P = X.SOLDIER, K = X.CHARIOT;
+  const pics = {
+    general: diagramSvg({ cols: 3, rows: 6, pieces: [[1, 0, -R], [1, 3, K], [1, 5, R]], dots: [[1, 1], [1, 2], [1, 4]], crosses: [[0, 3], [2, 3]], label: "The chariot between the generals can move only along their file" }, s),
+    elephant: diagramSvg({ cols: 5, rows: 5, pieces: [[2, 2, E], [1, 1, -P]], dots: [[4, 0], [0, 4], [4, 4]], crosses: [[0, 0]], label: "The elephant's eye blocked: not to the top left" }, s),
+    horse: diagramSvg({ cols: 5, rows: 5, pieces: [[2, 2, H], [2, 1, -P]], dots: [[0, 1], [4, 1], [0, 3], [4, 3], [1, 4], [3, 4]], crosses: [[1, 0], [3, 0]], label: "The horse's leg hobbled: not the two points over it" }, s),
+    cannon: diagramSvg({ cols: 6, rows: 3, pieces: [[0, 1, C], [2, 1, -P], [5, 1, -K]], dots: [[1, 1], [0, 0], [0, 2]], crosses: [[2, 1]], rings: [[5, 1]], label: "The cannon takes over one screen" }, s),
+  };
   return `
 <p>Two armies face each other across a river, on the points where the lines cross. Red moves first (紅先), then each side in turn. You win by checkmating the other general, or by leaving the other side with no move at all.</p>
 <h4>The pieces</h4>
-${piece(X.GENERAL, "帥 / 將", "shuài / jiàng", "General", "One point along a line, inside the palace (九宮, the nine points with the cross). The two generals may never face each other on an open file (將帥不能照面): a move that leaves them facing is illegal.")}
+${piece(X.GENERAL, "帥 / 將", "shuài / jiàng", "General", "One point along a line, inside the palace (九宮, the nine points with the cross). The two generals may never face each other on an open file (將帥不能照面): a move that leaves them facing is illegal, so a piece alone between them may move only along their file.", pics.general)}
 ${piece(X.ADVISOR, "仕 / 士", "shì", "Advisor", "One point diagonally, inside the palace.")}
-${piece(X.ELEPHANT, "相 / 象", "xiàng", "Elephant", "Exactly two points diagonally, never across the river. If the point in between is occupied, it can't go that way (塞象眼, blocking the elephant's eye).")}
-${piece(X.HORSE, "傌 / 馬", "mǎ", "Horse", "One point along a line, then one diagonally outward. If the point next to it in that direction is occupied, it can't go that way (蹩馬腿, hobbling the horse's leg).")}
+${piece(X.ELEPHANT, "相 / 象", "xiàng", "Elephant", "Exactly two points diagonally, never across the river. If the point in between is occupied, it can't go that way (塞象眼, blocking the elephant's eye).", pics.elephant)}
+${piece(X.HORSE, "傌 / 馬", "mǎ", "Horse", "One point along a line, then one diagonally outward. If the point next to it in that direction is occupied, it can't go that way (蹩馬腿, hobbling the horse's leg).", pics.horse)}
 ${piece(X.CHARIOT, "俥 / 車", "jū", "Chariot", "Any distance along a line, like a rook. The strongest piece.")}
-${piece(X.CANNON, "炮 / 砲", "pào", "Cannon", "Moves like a chariot, but captures only by jumping over exactly one piece of either side on the way (炮架, the cannon's screen).")}
+${piece(X.CANNON, "炮 / 砲", "pào", "Cannon", "Moves like a chariot, but captures only by jumping over exactly one piece of either side on the way (炮架, the cannon's screen).", pics.cannon)}
 ${piece(X.SOLDIER, "兵 / 卒", "bīng / zú", "Soldier", "One point forward. Once across the river (過河兵) it may also step sideways; never back.")}
 <h4>How a game ends</h4>
 <p><b>Checkmate</b> (將死): the general is attacked (將軍, check) and nothing can save it. <b>No move left</b> (困斃): the side that can't move loses; in Xiangqi there is no stalemate draw.</p>
@@ -448,7 +513,7 @@ const together = createTogether({
     slide = before >= 0 && X.movesOf(D).length === before + 1;
     render();
     slide = false;
-    if (D.result) showEnd();
+    if (D.result) { drawEnd(); if (!$("endDlg").open) $("endDlg").showModal(); }
   },
   onPresence: () => render(),
   onLeave: () => { D = null; seated(); closeDialogs(); render(); kick(); },

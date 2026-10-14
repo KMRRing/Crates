@@ -17,5 +17,7 @@ export const LEVELS = [
 export const levelById = id => LEVELS.find(l => l.id === String(id)) || LEVELS[2];
 /** The coach's search for a hint: the engine at full strength, about a second or two on a phone. */
 export const HINT = { limit: "nodes 250000" };
+/** The review's search of each position of a finished game. */
+export const REVIEW = { limit: "nodes 20000" };
 /** The engine's set-up for Xiangqi, sent once it has started: no NNUE net (it has none for Xiangqi) and the variant. */
 export const SETUP = ["setoption name UCI_Variant value xiangqi", "setoption name Use NNUE value false"];

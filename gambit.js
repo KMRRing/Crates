@@ -67,6 +67,7 @@ const played = () => {
 
 // ---------- the engine ----------
 const engine = new Engine(WORKERS.stockfish);
+const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     // the engine unlimited: hints and the review
 let engineUp = false;
 async function ensureEngine() {
   if (engineUp) return true;
@@ -78,7 +79,6 @@ async function ensureEngine() {
     return false;
   } finally { done(); }
 }
-const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };
 
 // ---------- the turn ----------
 let gen = 0, thinking = false, hinting = false, slide = false;
@@ -266,13 +266,13 @@ function drawEnd() {
   if (r) {
     lines.push(`<h4 class="gb-sub">${yourColour() ? "Where you lost most" : "Where each side lost most"}</h4>`);
     if (!r.items.length) lines.push("<p>No move of yours gave away half a pawn or more, by the engine's reckoning.</p>");
-    else lines.push(`<ol class="gb-review">${r.items.map(it => `<li><b>${Math.floor(it.ply / 2) + 1}${it.ply % 2 ? "…" : "."} ${esc(it.san)}</b>${yourColour() ? "" : ` (${it.mover})`}: about ${lossWords(it.loss)} given away; better was <b>${esc(it.better)}</b>.</li>`).join("")}</ol>`);
+    else lines.push(`<ol class="gb-review">${r.items.map(it => `<li><b>${Math.floor(it.ply / 2) + 1}${it.ply % 2 ? "…" : "."} ${esc(it.san)}</b>${yourColour() ? "" : ` (${cap(it.mover)})`}: about ${lossWords(it.loss)} given away; better was <b>${esc(it.better)}</b>.</li>`).join("")}</ol>`);
   } else if (reviewing) lines.push(`<p class="gb-reviewing"><span class="gb-wait"></span>Reviewing the game: ${reviewing.done} of ${reviewing.of} positions</p>`);
   $("endBody").innerHTML = lines.join("");
   $("endBody").querySelector(".gb-wait")?.append(sextant());
   $("endAgain").hidden = inRoom();
 }
-const lossWords = cp => (cp >= 900 ? "the game" : `${(cp / 100).toFixed(1)} pawn${cp === 100 ? "" : "s"}`);
+const lossWords = cp => (cp >= 900 ? "the game" : cp < 150 ? "a pawn" : `${(cp / 100).toFixed(1)} pawns`);
 function showEnd() {
   if (!cur().result || IN_FRAME) return;
   drawEnd();

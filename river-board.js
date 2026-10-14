@@ -76,7 +76,8 @@ export function mountBoard(host, { onMove, legal }) {
     for (let x = 0; x <= 8; x++) {
       const near = nearRed ? RED_NUM[8 - x] : BLACK_NUM[8 - x], far = nearRed ? BLACK_NUM[x] : RED_NUM[x];
       g.append(el("text", { class: "rv-coord", x, y: 9 + 0.74, "font-family": CJK, "font-size": ".28", "text-anchor": "middle", "dominant-baseline": "central" }, near));
-      g.append(el("text", { class: "rv-coord", x, y: -0.74, "font-family": CJK, "font-size": ".28", "text-anchor": "middle", "dominant-baseline": "central" }, far));
+      g.append(el("text", { class: "rv-coord", x, y: -0.74, "font-family": CJK, "font-size": ".28", "text-anchor": "middle", "dominant-baseline": "central",
+        ...(view.facing ? { transform: `rotate(180 ${x} -0.74)` } : {}) }, far));         // facing: the far numbers read from the far side
     }
     return g;
   }
@@ -180,4 +181,21 @@ export function mountBoard(host, { onMove, legal }) {
   return {
     draw(next) { if (!next.hand || next.pos !== view?.pos) selected = null; draw(next); },
   };
+}
+
+/**
+ * A small piece of board for the Rules sheet, as markup: `cols` by `rows` points, `pieces` as [x, y, v] (v as on the
+ * board, negative for Black), `dots` where the piece may go, `crosses` where it may not, `ring` a point it captures.
+ */
+export function diagramSvg({ cols, rows, pieces = [], dots = [], crosses = [], rings = [], label = "" }, script = "traditional") {
+  const pad = 0.55, w = cols - 1 + 2 * pad, h = rows - 1 + 2 * pad;
+  let d = "";
+  for (let y = 0; y < rows; y++) d += `M0 ${y}H${cols - 1}`;
+  for (let x = 0; x < cols; x++) d += `M${x} 0V${rows - 1}`;
+  const disc = ([x, y, v]) => `<g transform="translate(${x} ${y})">${discMarkup(v, script, false)}</g>`;
+  const cross = ([x, y]) => `<path class="rv-dg-no" d="M${x - 0.16} ${y - 0.16}l.32 .32M${x + 0.16} ${y - 0.16}l-.32 .32"/>`;
+  return `<svg class="rv-diagram" viewBox="${-pad} ${-pad} ${w} ${h}" width="${w * 1.45}rem" height="${h * 1.45}rem" role="img" aria-label="${label}">`
+    + `<rect class="rv-wood" x="${-pad}" y="${-pad}" width="${w}" height="${h}" rx=".1"/><path class="rv-grid" d="${d}"/>`
+    + dots.map(([x, y]) => `<circle class="rv-dg-yes" cx="${x}" cy="${y}" r=".13"/>`).join("")
+    + pieces.map(disc).join("") + rings.map(([x, y]) => `<circle class="rv-dg-take" cx="${x}" cy="${y}" r=".5"/>`).join("") + crosses.map(cross).join("") + "</svg>";
 }
