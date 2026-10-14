@@ -16,7 +16,8 @@ export const LEVELS = [
   { id: "8", name: "Full strength", rating: 3000, limit: "nodes 800000" },
 ];
 export const levelById = id => LEVELS.find(l => l.id === String(id)) || LEVELS[2];
-/** The coach's search for a hint: the engine at full strength, a second or two on a phone. */
-export const HINT = { limit: "nodes 400000" };
+/** The coach's search: a position's best three moves (a hint, the advice, the check) at full strength, a second or
+ *  two on a phone, and a move outside them searched alone (alone). */
+export const HINT = { limit: "nodes 400000", alone: "nodes 200000" };
 /** The review's search of each position of a finished game. */
 export const REVIEW = { limit: "nodes 60000" };

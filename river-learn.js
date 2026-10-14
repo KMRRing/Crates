@@ -171,7 +171,7 @@ export function createCourse({ script = () => "traditional", onPlay = () => {}, 
     let check = -1;
     if (X.inCheck(pos)) for (let q = 0; q < 90; q++) if (pos.b[q] === (pos.red ? X.GENERAL : -X.GENERAL)) check = q;
     const hand = !L.st.done && (!!s.goal || (!!s.line && lineMoves(s)[L.st.ply]?.side === s.you));
-    board.draw({ pos, bottomRed: s.you !== "black", facing: false, script: script(), last: L.st.last, hint: null, hand, check, slide: false,
+    board.draw({ pos, bottomRed: s.you !== "black", facing: false, script: script(), last: L.st.last, hand, check, slide: false,
       tap: !L.st.done && (!!s.tap || !!s.pick), marks: marksOf(s) });
     // the words: the step's, what the last answer earned, a line's moves so far
     const parts = [`<p class="rv-learn-say">${esc(T(s.say))}</p>`];

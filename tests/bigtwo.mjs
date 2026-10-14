@@ -106,6 +106,19 @@ check_([1, 9, 10, 12, 13].map(penalty).join() === "1,9,20,24,39", "penalties: a 
   check_(p.plays.length === 4 && p.plays.some(x => x.kind === "straight") && p.plays.some(x => x.kind === "fullhouse") && p.plays.some(x => x.kind === "single" && x.cards[0] === C("2♠")), `thirteen cards organised into four plays: a straight, a full house, a pair and the two kept alone (${p.plays.map(x => x.kind).join(", ")})`);
 }
 {
+  // the hint (bigtwo.js): Hard's play picked, the rest of the hand split by plan() into the plays it assumes it can
+  // make after it, as the page sets them out: every card in exactly one, each a play by the rules
+  let fine = 0, tried = 0;
+  for (let g = 0; g < 40; g++) {
+    const s = R(900 + g, 3 + (g % 2)).state, hand = s.hands[s.turn];
+    const m = botMove(s, s.turn, { level: "hard", rng: seeded(g) }), cards = m.t === "play" ? m.cards : [];
+    const groups = plan(hand.filter(c => !cards.includes(c)), s.opts).plays, sort = xs => [...xs].sort((a, b) => a - b).join();
+    tried++;
+    if (sort([...cards, ...groups.flatMap(p => p.cards)]) === sort(hand) && groups.every(p => classify(p.cards, s.opts))) fine++;
+  }
+  check_(fine === tried, `the hint's play and the plays the rest of the hand makes after it hold every card once, each a play (${fine} of ${tried} hands)`);
+}
+{
   const rng = seeded(8), pts = { hard: 0, easy: 0 };
   for (let g = 0; g < 6; g++) {
     const lv = g % 2 ? ["hard", "easy", "hard", "easy"] : ["easy", "hard", "easy", "hard"];

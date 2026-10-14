@@ -30,7 +30,8 @@ function discMarkup(v, script, flip) {
 /**
  * Mounts a board in `host`. onMove(from, to) is called for a move made by hand; legal(from) returns the points a piece
  * there may go to (empty when it isn't the hand's to move). Returns { draw(view) }: view is { pos, bottomRed, facing,
- * script, last: { from, to }, hint: { from, to }, hand (whether taps move pieces), slide (the last move animates),
+ * script, last: { from, to }, arrows: [{ from, to, bad }] (the coach's moves in its green, a move it faults in
+ * oxblood), hand (whether taps move pieces), slide (the last move animates),
  * tap (a tap on any point goes to onTap(point) instead: the course asking where a piece can go), marks (the course's
  * drawing: { dots, crosses, rings, arrows: [[from, to]], ok, no, zones: ["river", "palace-red", "palace-black"] },
  * points as numbers) }.
@@ -97,7 +98,7 @@ export function mountBoard(host, { onMove, legal, onTap = () => {} }) {
   function draw(next) {
     if (next) view = next;
     if (!view) return;
-    const { pos, last, hint } = view;
+    const { pos, last } = view;
     svg.replaceChildren(grid());
     const marks = el("g", { class: "rv-marks" });
     if (last) {
@@ -131,10 +132,10 @@ export function mountBoard(host, { onMove, legal, onTap = () => {} }) {
       dots.append(pos.b[q] ? el("circle", { class: "rv-target take", cx: x, cy: y, r: ".49" }) : el("circle", { class: "rv-target", cx: x, cy: y, r: ".13" }));
     }
     svg.append(dots);
-    if (hint) {
-      const [fx, fy] = xy(hint.from), [tx, ty] = xy(hint.to), len = Math.hypot(tx - fx, ty - fy), ux = (tx - fx) / len, uy = (ty - fy) / len;
+    for (const a of view.arrows || []) {
+      const [fx, fy] = xy(a.from), [tx, ty] = xy(a.to), len = Math.hypot(tx - fx, ty - fy), ux = (tx - fx) / len, uy = (ty - fy) / len;
       const sx = fx + ux * 0.3, sy = fy + uy * 0.3, ex = tx - ux * 0.32, ey = ty - uy * 0.32, w = 0.2;
-      svg.append(el("path", { class: "rv-hint", d: `M${sx} ${sy}L${ex} ${ey}M${ex + (-ux * 0.28 + -uy * w)} ${ey + (-uy * 0.28 + ux * w)}L${ex + ux * 0.04} ${ey + uy * 0.04}L${ex + (-ux * 0.28 + uy * w)} ${ey + (-uy * 0.28 - ux * w)}` }));
+      svg.append(el("path", { class: `rv-hint${a.bad ? " bad" : ""}`, d: `M${sx} ${sy}L${ex} ${ey}M${ex + (-ux * 0.28 + -uy * w)} ${ey + (-uy * 0.28 + ux * w)}L${ex + ux * 0.04} ${ey + uy * 0.04}L${ex + (-ux * 0.28 + uy * w)} ${ey + (-uy * 0.28 - ux * w)}` }));
     }
     if (view.marks) svg.append(courseMarks(view.marks, false));
     if (drag?.moved) {

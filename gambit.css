@@ -38,6 +38,7 @@ html[data-theme="office"][data-mode="night"] { --gb-in: #479EF5; --gb-hint: rgba
 .ch-board .target { fill: rgba(20, 40, 60, .22); cursor: pointer; pointer-events: none; }
 .ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
 .ch-board .arrow { fill: var(--gb-hint); stroke: var(--gb-hint); stroke-width: .17; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.ch-board .arrow.bad { fill: rgba(168, 56, 43, .78); stroke: rgba(168, 56, 43, .78); }   /* the move the coach faulted, beside its own */
 .ch-board .promo-veil { fill: rgba(16, 24, 31, .35); }
 .ch-board .promo-sq { fill: #FBF8F0; stroke: var(--brass); stroke-width: .03; }
 .ch-board .promo-pc { pointer-events: none; }
@@ -69,6 +70,17 @@ html[data-mode="night"] .ch-board .coord.on-dark { fill: #E6DAC0; }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .gb-check { color: #E8806F; } }
 html[data-mode="night"] .gb-check { color: #E8806F; }
 .gb-wait { display: inline-block; vertical-align: -.15em; margin-right: .3rem; }
+/* the coach's word on your last move (Check, Always): a room of its own under your seat, kept while the coach may speak,
+   so the board holds its size as it speaks and falls quiet; two lines on a phone, a longer word scrolling inside it */
+.gb-coach { margin: .3rem 0 0; height: calc(2em * 1.35); overflow-y: auto; overscroll-behavior: contain; font-size: .84rem; line-height: 1.35; color: var(--ink); }
+.gb-coach > b:first-child { margin-right: .3rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.gb-coach .link { font: inherit; font-weight: 700; color: var(--ink); }
+.gb-miss, .gb-list li.faulted i { color: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.gb-miss, .gb-list li.faulted i) { color: #E8806F; } }
+html[data-mode="night"] :is(.gb-miss, .gb-list li.faulted i) { color: #E8806F; }
+.gb-list li.faulted i { margin-left: .05rem; font-style: normal; }
+/* the coach's four ways side by side in the menu, off to always, as a scale */
+#menuBody .menu-grid[aria-label="Coach"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 /* ---------- the moves: a row of the latest, Chinese over WXF ---------- */
 .gb-list { display: flex; gap: .3rem; margin: .35rem 0 0; padding: 0; list-style: none; min-height: 2.75rem; overflow-x: auto; overflow-y: hidden;
@@ -116,14 +128,15 @@ html[data-theme="modern"] .gb-toast { border-radius: 10px; }
 /* held sideways (#app.beside): the board on the left with all the height; the seats, what's said and the moves beside
    it, the moves filling the column, the buttons at the bottom where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.gambit { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.gambit { --beside: 19rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
   #app.gambit .gb-stage { grid-column: 1; grid-row: 2 / -1; margin: .5rem 0 0; }
   #app.gambit .gb-far { grid-column: 2; grid-row: 2; margin-top: .9rem; }
   #app.gambit .gb-near { grid-column: 2; grid-row: 3; align-items: flex-start; min-height: 3.6rem; margin-top: .45rem; }
   #app.gambit .gb-near .gb-who { white-space: normal; align-items: flex-start; }
   #app.gambit .gb-near .gb-say { line-height: 1.35; }
-  #app.gambit .gb-list { grid-column: 2; grid-row: 4; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
-  #app.gambit .gb-bar { grid-column: 2; grid-row: 5; }
+  #app.gambit .gb-coach { grid-column: 2; grid-row: 4; height: calc(4em * 1.35); margin-top: .45rem; }
+  #app.gambit .gb-list { grid-column: 2; grid-row: 5; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
+  #app.gambit .gb-bar { grid-column: 2; grid-row: 6; }
 }
 
 /* the pieces taken, small, and the material lead */

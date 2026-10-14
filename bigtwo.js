@@ -2,7 +2,7 @@
 // are bigtwo-rules.js's, the computer players bigtwo-bot.js's, the running seats.js's (seats-ui.js). This page draws
 // the table: the others round it with what each played this trick, your cards along the foot, picked by a tap.
 import { rules, check, value, rankOf, suitOf, RANKS, KIND_NAMES, PLAY_TALK, DEALS, cardName, SHOW_MS } from "./bigtwo-rules.js";
-import { botMove, LEVEL_NAMES } from "./bigtwo-bot.js";
+import { botMove, plan, LEVEL_NAMES } from "./bigtwo-bot.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -37,6 +37,10 @@ const cards = (ids, cls = "") => ids.map(id => cardHtml(face(id), { cls, label: 
 const playName = k => KIND_NAMES[k.kind];
 
 let V = null, sel = new Set(), selFor = "", page = null;
+// the hint: Hard's play, picked for you, and the rest of your hand split into the plays it assumes it can make after
+// it, in a vacuum (bigtwo-bot.js's plan, as a computer player organises its own hand): { key (the hand it was asked
+// for), cards (the play; none for a pass), groups: [{ cards, kind }] }. It shows while the cards picked are its play.
+let hinted = null;
 page = seatPage({
   rules, id: "bigtwo", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
   onView: v => { V = v; draw(); }, onOver, toast,
@@ -63,7 +67,7 @@ function draw() {
   $("strip").innerHTML = `Deal <b>${s.deal}</b> of ${s.opts.deals}${s.opts.suits === "tw" ? " · ♣ lowest" : ""}`;
   drawTable(v);
   drawHand(v);
-  $("status").innerHTML = statusLine(v);
+  $("status").innerHTML = `<span>${statusLine(v)}</span>`;
   drawBar();
 }
 
@@ -112,12 +116,30 @@ function sortedHand(hand, so) {
   const o = V.state.opts;
   return [...hand].sort(so === "suit" ? (a, b) => suitOf(a) - suitOf(b) || value(a, o) - value(b, o) : (a, b) => value(a, o) - value(b, o));
 }
+/** The hint, while it stands: asked for this hand, and the cards picked still its play. */
+const liveHint = () => (hinted && hinted.key === selFor && sel.size === hinted.cards.length && hinted.cards.every(c => sel.has(c)) ? hinted : null);
+const GAP = .55;                                                 // between the hint's groups, in card widths' em
 function drawHand(v) {
   const box = $("hand");
   if (v.seat == null) { box.innerHTML = `<p class="b2-watch">Watching: you sit down at the next game.</p>`; return; }
-  const hand = sortedHand(v.state.hands[v.seat] || [], opts.sort);
-  box.innerHTML = hand.map(id => cardHtml(face(id), { cls: sel.has(id) ? "sel" : "", data: { id }, label: cardName(id) })).join("");
-  fitRow(box, hand.length, { max: 1.15 });
+  // with a hint, the play first (picked, raised), then each play the rest of the hand makes, apart, every other one
+  // shaded, low to high; else the hand by rank or suit
+  const h = liveHint();
+  const parts = h ? [sortedHand(h.cards, "rank"), ...h.groups.map(g => g.cards)].filter(g => g.length) : [sortedHand(v.state.hands[v.seat] || [], opts.sort)];
+  let html = "", n = 0;
+  parts.forEach((cards, k) => cards.forEach((id, i) => {
+    const cls = [sel.has(id) && "sel", h && k && !i && "grp", h && (k - (h.cards.length ? 1 : 0)) % 2 === 1 && !sel.has(id) && "shade"].filter(Boolean).join(" ");
+    html += cardHtml(face(id), { cls, data: { id }, label: cardName(id) });
+    n++;
+  }));
+  box.innerHTML = html;
+  fitRow(box, n, { max: 1.15 });
+  // the gaps between the groups take width the row's fitting didn't count: the cards close up to keep it
+  const gaps = parts.length - 1, size = parseFloat(box.style.getPropertyValue("--cd-size"));
+  if (gaps && size && n > 1) {
+    const cw = size * 2.5, step = Math.min(cw * 1.04, (box.clientWidth - cw - gaps * GAP * size) / (n - 1));
+    box.style.setProperty("--cd-step", `${Math.max(step, cw * 0.22)}px`);
+  }
 }
 $("hand").addEventListener("click", e => {
   const c = e.target.closest(".cd[data-id]");
@@ -127,8 +149,22 @@ $("hand").addEventListener("click", e => {
   draw();
 });
 
+const ARTICLE = { fullhouse: "a full house", four: "four of a kind" }, PLURAL = { fullhouse: "full houses", four: "fours of a kind", flush: "flushes", straightflush: "straight flushes" };
+const one = k => ARTICLE[k] || `a ${KIND_NAMES[k]}`, many = (k, n) => `${["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] || n} ${PLURAL[k] || `${KIND_NAMES[k]}s`}`;
+/** Plays in words, the longest first: "a straight, a pair and two singles". */
+function playsWords(groups) {
+  const order = ["straightflush", "four", "fullhouse", "flush", "straight", "triple", "pair", "single"], counts = new Map();
+  for (const g of groups) counts.set(g.kind, (counts.get(g.kind) || 0) + 1);
+  const words = order.filter(k => counts.has(k)).map(k => (counts.get(k) === 1 ? one(k) : many(k, counts.get(k))));
+  return words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
+}
 function statusLine(v) {
-  const s = v.state;
+  const s = v.state, h = liveHint();
+  if (h && s.step === "play" && isMe(s.turn)) {
+    const kind = h.cards.length ? check(s, v.seat, h.cards)?.play?.kind : null;
+    if (!h.cards.length) return `<b>Hint</b>: pass · your hand plays as ${esc(playsWords(h.groups))}`;
+    return `<b>Hint</b>: ${esc(kind ? one(kind) : "this")} · ${h.groups.length ? `then ${esc(playsWords(h.groups))}` : "and you're out"}`;
+  }
   if (s.step === "over") return esc(s.winners.includes(v.seat) ? "You win the game" : `${s.winners.map(nameOf).join(" and ")} ${s.winners.length > 1 ? "share it" : "wins"}`);
   if (s.step === "shown") return esc(isMe(s.result.winner) ? "You're out first!" : `${nameOf(s.result.winner)} is out`);
   if (v.seat == null) return esc(`${nameOf(s.turn)} to play`);
@@ -160,9 +196,11 @@ $("bar").addEventListener("click", async e => {
   if (act === "new") { newGame(); return; }
   if (act === "clear") { sel = new Set(); draw(); return; }
   if (act === "hint") {
-    const m = botMove(V.state, V.seat, { level: "hard" });
-    if (m.t === "pass") { toast("The computer would pass here"); return; }
-    sel = new Set(m.cards); draw();
+    const s = V.state, m = botMove(s, V.seat, { level: "hard" }), cards = m.t === "play" ? m.cards : [];
+    const rest = s.hands[V.seat].filter(c => !cards.includes(c)), byValue = (a, b) => value(a, s.opts) - value(b, s.opts);
+    const groups = (rest.length ? plan(rest, s.opts).plays : []).map(p => ({ cards: [...p.cards].sort(byValue), kind: p.kind })).sort((a, b) => byValue(a.cards[0], b.cards[0]));
+    hinted = { key: selFor, cards, groups };
+    sel = new Set(cards); draw();
     return;
   }
   const move = act === "pass" ? { t: "pass" } : { t: "play", cards: [...sel] };

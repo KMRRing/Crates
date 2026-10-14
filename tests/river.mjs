@@ -9,6 +9,7 @@ import * as X from "../river-rules.js";
 import { LEVELS, SETUP, levelById } from "../river-levels.js";
 import { OPENINGS, openingOf } from "../river-openings.js";
 import { Engine, levelMove, parseInfo, choose, valueOf } from "../uci.js";
+import { createCoach } from "../uci-coach.js";
 import { fairyWorker } from "../tools/uci-node.mjs";
 import { startWasi } from "../uci-wasi.js";
 import { roundTrip, same } from "./rtdb.js";
@@ -225,6 +226,17 @@ check(choose([{ cp: 50, pv: ["a"] }, { cp: -900, pv: ["b"] }], 60, () => 0.99) =
 {
   const r = await engine.search({ fen: X.START, limit: "nodes 20000", options: { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false } });
   check(r.best && X.isLegal(X.parseFen(), X.parseUci(r.best).from, X.parseUci(r.best).to) && r.lines[0] && Number.isFinite(valueOf(r.lines[0])), `a hint's search gives a legal move and its score (${r.best}, ${r.lines[0]?.cp} cp)`);
+}
+// ---------- the coach ----------
+{
+  // Xiangqi's scores run about 1.25 of chess's: after the central cannon (炮二平五) and a horse (馬8進7), the cannon
+  // taking the central soldier (炮五進四) is lost for it: a blunder; a horse out (傌二進三) is as good as the best
+  const coach = createCoach(engine, { limit: "nodes 120000", alone: "nodes 60000", scale: 1.25 });
+  const moves = ["h3e3", "h10g8"];
+  const grab = await coach.check(X.START, moves, "e3e7"), horse = await coach.check(X.START, moves, "h1g3");
+  const after = X.legalMoves(X.replay({ ...X.newGame(), moves: moves.join(" ") }).positions.at(-1)).map(m => X.uciOf(m.from, m.to));
+  check(grab?.mark === "??" && grab.loss >= 250 && grab.strongest.length && grab.strongest.every(m => after.includes(m)), `the coach: the cannon thrown away for a soldier is a blunder, its better moves legal (${grab?.loss} given, ${grab?.strongest.join(", ")})`);
+  check(horse && horse.mark === null, `the coach: a horse out is no word (a fall of ${horse?.drop.toFixed(2)})`);
 }
 engine.stop();
 check(LEVELS.every((l, i) => i === 0 || l.rating > LEVELS[i - 1].rating) && LEVELS.every(l => /^(nodes|depth|movetime) \d+$/.test(l.limit)), "the levels rise in rating, each with a fixed search limit");

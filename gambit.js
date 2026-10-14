@@ -1,13 +1,15 @@
 // Gambit: chess against Stockfish at a strength you choose, two players on one phone, or a match with your partner. The
 // rules are chess.js's (gambit-rules.js keeps the game as plain JSON), the board chess-board.js's, the pieces Rush's;
-// the computer's moves, the hints and the review at the end are Stockfish's (uci.js, in a worker, loaded only when a
-// game against it needs it). The game in play is kept as it changes (gambit:game) and picked up on reload.
+// the computer's moves, the coach and the review at the end are Stockfish's (uci.js, in a worker, loaded only when a
+// game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes
+// (gambit:game) and picked up on reload.
 import * as G from "./gambit-rules.js";
 import { mountBoard } from "./chess-board.js";
 import { PIECES } from "./chess-pieces.js";
 import { LEVELS, levelById, HINT, REVIEW } from "./gambit-levels.js";
 import { openingOf } from "./gambit-openings.js";
 import { Engine, WORKERS, levelMove } from "./uci.js";
+import { COACH, isCoach, createCoach } from "./uci-coach.js";
 import { Chess } from "./vendor/chess.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
@@ -29,22 +31,27 @@ const rating = n => n.toLocaleString("en-GB");
 const cap = s => s[0].toUpperCase() + s.slice(1);
 
 // ---------- settings and the game ----------
-let opts = { mode: "engine", level: "3", colour: "white", coords: true, ...read(OPTS, {}) };
+let opts = { mode: "engine", level: "3", colour: "white", coords: true, coach: "hints", ...read(OPTS, {}) };
+if (!isCoach(opts.coach)) opts.coach = "hints";
 const saveOpts = () => write(OPTS, opts);
 /**
  * the game in play: gambit-rules.js's state and the page's: { v, start, moves, result, white, mode ("engine" or "two"),
- * level, created, hint, review, counted }. With the computer, seat 0 is you and 1 the computer, `white` the seat
- * playing White; two players on one phone are seat 0 (White) and 1 (Black). review: the end's look back, once made;
- * counted: the game has gone into your record.
+ * level, created, hint, lesson, marks, review, counted }. With the computer, seat 0 is you and 1 the computer, `white`
+ * the seat playing White; two players on one phone are seat 0 (White) and 1 (Black). hint: the coach's strongest moves
+ * for the position it was asked in ({ at, moves, cp, mate, auto }: auto, its advice unasked); lesson: its word on your
+ * last move, if that gave a good deal away; marks: ? and ?? by the moves it faulted; review: the end's look back, once
+ * made; counted: the game has gone into your record.
  */
 function freshGame() {
   const white = opts.mode === "two" ? 0 : opts.colour === "black" ? 1 : opts.colour === "either" ? (Math.random() < 0.5 ? 0 : 1) : 0;
-  return { ...G.newGame({ white }), mode: opts.mode === "two" ? "two" : "engine", level: levelById(opts.level).id, created: Date.now(), hint: null, review: null, counted: false };
+  return { ...G.newGame({ white }), mode: opts.mode === "two" ? "two" : "engine", level: levelById(opts.level).id, created: Date.now(), hint: null, lesson: null, marks: {}, review: null, counted: false };
 }
 function loadGame() {
   const g = G.fromRoom(read(GAME, null));
   if (!g || !G.replay(g).ok) return freshGame();
-  return { ...g, mode: g.mode === "two" ? "two" : "engine", level: levelById(g.level).id, created: g.created || Date.now(), hint: g.hint || null, review: g.review || null, counted: !!g.counted };
+  // a hint kept before the coach showed its strongest moves had one move: it reads as a list of one
+  const hint = g.hint ? { ...g.hint, moves: g.hint.moves || (g.hint.move ? [g.hint.move] : []) } : null;
+  return { ...g, mode: g.mode === "two" ? "two" : "engine", level: levelById(g.level).id, created: g.created || Date.now(), hint, lesson: g.lesson || null, marks: g.marks || {}, review: g.review || null, counted: !!g.counted };
 }
 let S = loadGame();
 const save = () => { if (!IN_FRAME && !together.room) write(GAME, S); };
@@ -68,7 +75,8 @@ const played = () => {
 
 // ---------- the engine ----------
 const engine = new Engine(WORKERS.stockfish);
-const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     // the engine unlimited: hints and the review
+const FULL = { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false };     // the engine unlimited: the review
+const coach = createCoach(engine, { limit: HINT.limit, alone: HINT.alone });
 let engineUp = false;
 async function ensureEngine() {
   if (engineUp) return true;
@@ -80,25 +88,33 @@ async function ensureEngine() {
     return false;
   } finally { done(); }
 }
+/** The engine, started quietly (the coach thinking while you do, unasked): false if it can't start. */
+async function quietEngine() {
+  if (engineUp) return true;
+  try { await engine.start(); engineUp = true; return true; } catch { return false; }
+}
 
 // ---------- the turn ----------
-let gen = 0, thinking = false, hinting = false, slide = false;
+let gen = 0, thinking = false, hinting = null, slide = false;      // hinting: the position the coach is looking at
 function afterMove(animate = true) {
   gen++;
+  looking = false;
   slide = animate;
   save();
   render();
   slide = false;
   settle();
   kick();
+  advise();
 }
 function onMove(uci) {
   const g = cur(), seat = G.waitingOn(g);
   if (seat === null || !handSeats().includes(seat)) return;
   if (inRoom()) { moveTogether(uci); return; }
-  const next = G.act(S, seat, { move: uci });
+  const before = G.movesOf(S), next = G.act(S, seat, { move: uci });
   if (!next) { render(); return; }
-  S = { ...next, hint: null };
+  S = { ...next, hint: null, lesson: null };
+  if (checking()) checkMove(before, G.movesOf(S).at(-1));
   afterMove();
 }
 function kick() { setTimeout(think, 0); }
@@ -109,6 +125,7 @@ async function think() {
   render();
   try {
     if (!(await ensureEngine())) { thinking = false; render(); return; }
+    await judging;                                                // the coach's word on your move comes before the reply
     const { move } = await levelMove(engine, levelById(S.level), { fen: S.start, moves: G.movesOf(S) });
     await sleep(Math.max(0, PACE - (performance.now() - t0)));
     while (isPaused()) await sleep(200);
@@ -126,22 +143,83 @@ async function think() {
     render();
   }
 }
-onPause(() => render(), () => { render(); kick(); });
+onPause(() => render(), () => { render(); kick(); advise(); });
 
-async function hint() {
-  const g = cur();
-  if (hinting || thinking || g.result || inRoom()) return;
+// ---------- the coach ----------
+// Menu, Coach: off, silent (no Hint); hints, the strongest moves when you ask; check, Hint too, and after each move of
+// yours that gave a good deal away (a mistake, ?, or a blunder, ??) its word on it and the better moves, until your
+// next; always, the strongest moves as arrows at each of yours without asking, and the same word. Not at a table
+// together: a match is the two of you.
+const coachOn = () => !inRoom() && !IN_FRAME && opts.coach !== "off";
+const checking = () => coachOn() && (opts.coach === "check" || opts.coach === "on");
+const always = () => coachOn() && opts.coach === "on";
+const keyOf = g => `${g.start}|${g.moves}`;
+/** The coach's strongest moves for the position on the board, if it has given them. */
+const liveHint = g => (g.hint && g.hint.at === G.movesOf(g).length && g.hint.moves?.length ? g.hint : null);
+/** The strongest moves for the side to move, on the board as arrows with what the engine makes of the position: asked
+ *  for (Hint), or the coach's advice unasked (auto, Always). */
+async function hint(auto = false) {
+  const g = cur(), key = keyOf(g);
+  if (!coachOn() || hinting === key || thinking || g.result || !handSeats().includes(G.waitingOn(g))) return;
   const at = G.movesOf(g).length, g0 = gen;
-  hinting = true;
+  hinting = key;
   render();
   try {
-    if (!(await ensureEngine())) return;
-    const r = await engine.search({ fen: g.start, moves: G.movesOf(g), limit: HINT.limit, options: FULL });
-    if (g0 !== gen || !r.best) return;
-    S = { ...S, hint: { at, move: r.best, cp: r.lines[0]?.cp ?? null, mate: r.lines[0]?.mate ?? null } };
+    if (!(await (auto ? quietEngine() : ensureEngine()))) return;
+    const lines = await coach.analyse(g.start, G.movesOf(g));
+    if (g0 !== gen || !lines.length) return;
+    const moves = coach.strongest(lines), top = lines.find(l => l.pv[0] === moves[0]);
+    S = { ...S, hint: { at, moves, cp: top.cp ?? null, mate: top.mate ?? null, auto } };
     save();
-  } catch (e) { console.error(e); toast("The hint didn't come: try again"); engine.stop(); engineUp = false; }
-  finally { hinting = false; render(); }
+  } catch (e) { console.error(e); if (!auto) toast("The hint didn't come: try again"); engine.stop(); engineUp = false; }
+  finally { if (hinting === key) hinting = null; render(); }
+}
+/** At each of your moves, under Check and Always: the coach looks at the position while you think (Always shows what
+ *  it finds), so its word after your move comes quickly. */
+function advise() {
+  const g = cur();
+  if (!checking() || g.result || thinking || !handSeats().includes(G.waitingOn(g))) return;
+  if (always()) { if (!liveHint(g)) hint(true); return; }
+  quietEngine().then(ok => { if (ok && keyOf(cur()) === keyOf(g)) coach.analyse(g.start, G.movesOf(g)).catch(() => {}); });
+}
+/**
+ * Your move judged against the position's analysis (uci-coach.js's check): a mistake or a blunder is marked in the list
+ * and gets the coach's word, the better moves with it, until your next move. The computer's reply waits for it.
+ */
+let judging = Promise.resolve();                                // the check of your last move, while it runs
+function checkMove(before, move) {
+  const start = S.start, ply = before.length;
+  judging = (async () => {
+    if (!(await quietEngine())) return;
+    const c = await coach.check(start, before, move);
+    const now = G.movesOf(S);
+    if (!c || S.start !== start || now[ply] !== move || now.slice(0, ply).join(" ") !== before.join(" ")) return;   // taken back meanwhile
+    const marks = { ...S.marks };
+    if (c.mark) marks[ply] = c.mark; else delete marks[ply];
+    // the word is on the last move made by hand: with the computer, its reply may have come since; two on one phone,
+    // the other's move would be a newer one, with its own check coming
+    const latest = now.length - ply - 1 <= (S.mode === "two" ? 0 : 1);
+    const lesson = c.mark ? { ply, move, better: c.strongest, mark: c.mark, loss: c.loss, missed: c.missed, allows: c.allows } : null;
+    S = { ...S, marks, ...(latest ? { lesson } : {}) };
+    save();
+    render();
+  })().catch(e => { console.error(e); engine.stop(); engineUp = false; });
+}
+/** The marks and the word of moves no longer in the game, after a take-back, dropped. */
+function trimmed(state) {
+  const n = G.movesOf(state).length, marks = Object.fromEntries(Object.entries(state.marks || {}).filter(([ply]) => Number(ply) < n));
+  return { ...state, marks, lesson: state.lesson && state.lesson.ply < n ? state.lesson : null };
+}
+// Show: the board as it stood before the move the coach faulted, its better moves and yours drawn on it
+let looking = false;
+function setCoach(v) {
+  opts.coach = v;
+  saveOpts();
+  if (S.hint?.auto && v !== "on") S = { ...S, hint: null };
+  if (v === "off" || v === "hints") looking = false;
+  save();
+  render();
+  advise();
 }
 
 function takeBackCount() {
@@ -156,7 +234,7 @@ function takeBackCount() {
 function takeBack() {
   const n = takeBackCount();
   if (!n) return;
-  S = { ...G.act(S, 0, { undo: n }), hint: null, review: null };             // still counted, if it had ended
+  S = trimmed({ ...G.act(S, 0, { undo: n }), hint: null, review: null });    // still counted, if it had ended
   thinking = false;
   afterMove(false);
 }
@@ -329,16 +407,27 @@ function evalWords(h, whiteToMove) {
   const how = a < 30 ? "about level" : a < 80 ? `a little better for ${side}` : a < 200 ? `better for ${side}, about a pawn` : a < 500 ? `much better for ${side}` : `winning for ${side}`;
   return `${how} (${sign}${(a / 100).toFixed(1)})`;
 }
+/** A move in the engine's words as SAN from a position (the engine's words if chess.js won't take it). */
+function sanOf(fen, uci) {
+  try { return new Chess(fen).move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] })?.san || uci; } catch { return uci; }
+}
+/** "a", "a or b", "a, b or c". */
+const either = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} or ${xs.at(-1)}`);
+/** A move's number as the list writes it: 12. for White's, 12… for Black's. */
+function numbered(ply) {
+  const whiteFirst = new Chess(cur().start).turn() === "w", n = Math.floor((ply + (whiteFirst ? 0 : 1)) / 2) + 1;
+  return `${n}${(ply % 2 === 0) === whiteFirst ? "." : "…"}`;
+}
 function sayLine(p) {
   const g = cur(), seat = G.waitingOn(g), whiteToMove = p.chess.turn() === "w";
   if (g.result) return `<b>${esc(headline(g))}</b> · ${esc(g.result.why === "resigned" ? `${loserName(g)} resigned` : WHY[g.result.why] || "")}`;
+  if (looking && g.lesson) return `Before ${esc(numbered(g.lesson.ply))} ${esc(p.history[g.lesson.ply]?.san || "")}: the coach's ${g.lesson.better.length > 1 ? "moves" : "move"} in green`;
   const check = p.chess.inCheck() ? `<b class="gb-check">Check</b> · ` : "";
-  if (hinting) return `${check}<span class="gb-wait"></span>The coach is looking…`;
-  const h = g.hint && g.hint.at === G.movesOf(g).length ? g.hint : null;
+  if (hinting === keyOf(g)) return `${check}<span class="gb-wait"></span>The coach is looking…`;
+  const h = coachOn() ? liveHint(g) : null;
   if (h) {
-    let san = h.move;
-    try { san = new Chess(p.chess.fen()).move({ from: h.move.slice(0, 2), to: h.move.slice(2, 4), promotion: h.move[4] })?.san || h.move; } catch { /* the engine's words */ }
-    return `${check}Hint: <b>${esc(san)}</b> · ${esc(evalWords(h, whiteToMove))}`;
+    const names = h.moves.map(u => `<b>${esc(sanOf(p.chess.fen(), u))}</b>`);
+    return `${check}${h.auto ? "Coach" : "Hint"}: ${either(names)} · ${esc(evalWords(h, whiteToMove))}`;
   }
   const o = openingOf(p.fens), opening = o ? ` · <span class="gb-open">${esc(o.eco)} ${esc(o.name)}</span>` : "";
   if (inRoom()) return `${check}${seat === mySeat() ? "Your move" : `${esc(partnerName())} to move`}${opening}`;
@@ -347,9 +436,10 @@ function sayLine(p) {
 }
 function drawList(p) {
   const list = $("list"), whiteFirst = new Chess(cur().start).turn() === "w";
+  const marks = coachOn() ? cur().marks || {} : {};
   const items = p.history.map((m, i) => {
-    const white = (i % 2 === 0) === whiteFirst;
-    return `<li class="${white ? "white" : "black"}${i === p.history.length - 1 ? " last" : ""}">${white ? `<small>${Math.floor(i / 2) + 1}.</small>` : ""}<b>${esc(m.san)}</b></li>`;
+    const white = (i % 2 === 0) === whiteFirst, mark = marks[i] || "";
+    return `<li class="${white ? "white" : "black"}${i === p.history.length - 1 ? " last" : ""}${mark ? " faulted" : ""}">${white ? `<small>${Math.floor(i / 2) + 1}.</small>` : ""}<b>${esc(m.san)}${mark ? `<i>${mark}</i>` : ""}</b></li>`;
   });
   list.innerHTML = items.join("") || `<li class="gb-none">White moves first</li>`;
   list.scrollLeft = list.scrollWidth;
@@ -372,19 +462,49 @@ function drawBar() {
   button("Take back", takeBack, "quiet", !takeBackCount());
   if (g.result) button("New game", newGame);
   else if (retry) button("Retry", () => kick());
-  else button("Hint", hint, "quiet", !yours || thinking || hinting);
+  else if (opts.coach === "hints" || opts.coach === "check") button("Hint", () => hint(), "quiet", !yours || thinking || hinting === keyOf(g) || !!liveHint(g));
+}
+/** The coach's word on your last move, under Check and Always, in a room kept for it so the page holds its size as it
+ *  speaks and falls quiet; Show puts the board back as it stood before the move, the better moves drawn on it. */
+function drawCoach(p) {
+  const el = $("coach"), g = cur(), on = checking() && !g.result;
+  el.hidden = !on;
+  if (!on) return;
+  const L = g.lesson;
+  if (!L || !p.history[L.ply]) { el.replaceChildren(); return; }
+  const before = p.fens[L.ply], mover = (L.ply % 2 === 0) === (new Chess(g.start).turn() === "w") ? "white" : "black";
+  const other = g.mode === "two" ? cap(mover === "white" ? "black" : "white") : "the computer";
+  const what = L.allows ? `lets ${other} mate in ${L.allows}` : L.missed ? `misses a mate in ${L.missed}` : L.loss >= 900 ? "gives the game away"
+    : `gives away about ${L.loss < 150 ? "a pawn" : `${(L.loss / 100).toFixed(1)} pawns`}`;
+  const better = either(L.better.map(u => `<b>${esc(sanOf(before, u))}</b>`));
+  el.innerHTML = `<b class="gb-miss">Coach</b> ${esc(numbered(L.ply))} ${esc(p.history[L.ply].san)}${L.mark} ${what}; better was ${better}. <button type="button" class="link gb-look">${looking ? "Back to the game" : "Show"}</button>`;
+  el.querySelector(".gb-look").addEventListener("click", () => { looking = !looking; render(); });
+  el.scrollTop = 0;
+}
+const arrowOf = (uci, bad = false) => ({ from: uci.slice(0, 2), to: uci.slice(2, 4), bad });
+/** The square of the king in check in a position, if one is. */
+function checkSquare(chess) {
+  if (chess.inCheck()) for (const row of chess.board()) for (const sq of row) if (sq?.type === "k" && sq.color === chess.turn()) return sq.square;
+  return null;
 }
 function render() {
-  const p = played(), g = cur(), last = p.history.at(-1);
-  const hand = !IN_FRAME && !g.result && handSeats().includes(G.waitingOn(g)) && !thinking;
-  const h = g.hint && g.hint.at === G.movesOf(g).length ? { from: g.hint.move.slice(0, 2), to: g.hint.move.slice(2, 4) } : null;
-  let check = null;
-  if (p.chess.inCheck()) for (const row of p.chess.board()) for (const sq of row) if (sq?.type === "k" && sq.color === p.chess.turn()) check = sq.square;
-  board.draw({ fen: p.chess.fen(), white: bottomWhite(), moves: hand ? p.chess.moves({ verbose: true }) : [], last: last ? { from: last.from, to: last.to } : null, arrow: h, check, slide });
+  const p = played(), g = cur(), L = checking() ? g.lesson : null;
+  if (looking && !(L && p.history[L.ply])) looking = false;
+  if (looking) {
+    // before the faulted move: the coach's better moves and yours, nothing to play
+    const prev = p.history[L.ply - 1];
+    board.draw({ fen: p.fens[L.ply], white: bottomWhite(), moves: [], last: prev ? { from: prev.from, to: prev.to } : null,
+      arrows: [...L.better.map(u => arrowOf(u)), arrowOf(L.move, true)], check: checkSquare(new Chess(p.fens[L.ply])), slide: false });
+  } else {
+    const last = p.history.at(-1), hand = !IN_FRAME && !g.result && handSeats().includes(G.waitingOn(g)) && !thinking, h = coachOn() ? liveHint(g) : null;
+    board.draw({ fen: p.chess.fen(), white: bottomWhite(), moves: hand ? p.chess.moves({ verbose: true }) : [], last: last ? { from: last.from, to: last.to } : null,
+      arrows: h ? h.moves.map(u => arrowOf(u)) : [], check: checkSquare(p.chess), slide });
+  }
   $("board").classList.toggle("gb-plain", !opts.coords);
   const white = bottomWhite();
   drawSeat($("far"), !white, p);
   drawSeat($("near"), white, p, `<span class="gb-say">${sayLine(p)}</span>`);
+  drawCoach(p);
   drawList(p);
   drawBar();
 }
@@ -407,7 +527,7 @@ ${row("P", "Pawn", "One square forward, two on its first move; it captures one s
 <h4>Reading the moves</h4>
 <p>Moves are in standard algebraic notation: the piece's letter (K, Q, R, B, N; none for a pawn) and the square it goes to, x for a capture, + for check and # for mate, O-O and O-O-O for castling, =Q for a promotion: <b>Nf3</b>, <b>exd5</b>, <b>Qxf7#</b>. The opening's name, with its ECO code (the Encyclopaedia of Chess Openings' index), shows as you play.</p>
 <h4>The computer</h4>
-<p>The computer player is Stockfish (GPL v3: <a href="vendor/stockfish/Copying.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noopener">source</a>), playing at the strength you choose in the menu. Hint shows its move for you on the board and what it makes of the position; at the end, it shows where you lost most.</p>`;
+<p>The computer player is Stockfish (GPL v3: <a href="vendor/stockfish/Copying.txt" target="_blank" rel="noopener">licence</a>, <a href="https://github.com/nmrugg/stockfish.js" target="_blank" rel="noopener">source</a>), playing at the strength you choose in the menu. It's also the coach (Menu, Coach): Hints shows its strongest moves when you ask, as arrows, with what it makes of the position; Check adds a word after a move of yours that gave a good deal away, a mistake (?) or a blunder (??), with the better move, and Show puts the board back to see it; Always shows the strongest moves at each of yours without asking. At the end, it shows where you lost most.</p>`;
 }
 
 // ---------- the menu ----------
@@ -430,7 +550,9 @@ function openMenu() {
       choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
       choice("You play", [["white", "White"], ["black", "Black"], ["either", "Either"]], pick.colour, v => { pick.colour = v; }));
   }
-  part(body, "settings").append(toggle("Coordinates on the board", opts.coords, on => { opts.coords = on; saveOpts(); render(); }));
+  const set = part(body, "settings");
+  if (!inRoom()) set.append(choice("Coach", COACH, opts.coach, setCoach));
+  set.append(toggle("Coordinates on the board", opts.coords, on => { opts.coords = on; saveOpts(); render(); }));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
   part(body, "about").append(line(best ? `Strongest beaten: ${LEVELS.filter(l => l.rating <= best).pop()?.name} (${rating(best)})` : "No computer level beaten yet"),
@@ -513,7 +635,7 @@ $("endAgain").addEventListener("click", () => { $("endDlg").close(); newGame(); 
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 addEventListener("resize", () => render());
-window.__gambit = { get game() { return cur(); }, get engineUp() { return engineUp; }, onMove, newGame, takeBack, hint, review, G };
+window.__gambit = { get game() { return cur(); }, get engineUp() { return engineUp; }, get judging() { return judging; }, onMove, newGame, takeBack, hint, review, setCoach, G };
 
 render();
 const code = roomInAddress();
@@ -522,5 +644,5 @@ if (code) {
   together.join(code).then(ok => { if (!ok) { seated(); kick(); } });
 } else if (!IN_FRAME && S.mode === "engine" && !S.result) {
   if (G.waitingOn(S) === 1) kick();
-  else engine.start().then(() => { engineUp = true; render(); }, () => {});
-}
+  else engine.start().then(() => { engineUp = true; render(); advise(); }, () => {});
+} else advise();

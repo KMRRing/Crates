@@ -54,6 +54,17 @@ html[data-theme="office"][data-mode="night"] { --rv-in: #479EF5; --rv-wood: #2E2
 .rv-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
 .rv-say b { font-weight: 800; }
 .rv-check { color: var(--rv-red-text); }
+/* the coach's word on your last move (Check, Always): a room of its own under your seat, kept while the coach may speak,
+   so the board holds its size as it speaks and falls quiet; two lines on a phone, a longer word scrolling inside it */
+.rv-coach { margin: .3rem 0 0; height: calc(2em * 1.35); overflow-y: auto; overscroll-behavior: contain; font-size: .84rem; line-height: 1.35; color: var(--ink); }
+.rv-coach > b:first-child { margin-right: .3rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.rv-coach .link { font: inherit; font-weight: 700; color: var(--ink); }
+.rv-miss, .rv-list li.faulted em { color: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.rv-miss, .rv-list li.faulted em) { color: #E8806F; } }
+html[data-mode="night"] :is(.rv-miss, .rv-list li.faulted em) { color: #E8806F; }
+.rv-list li.faulted em { margin-left: .05rem; font-style: normal; font-family: var(--font); }
+/* the coach's four ways side by side in the menu, off to always, as a scale */
+#menuBody .menu-grid[aria-label="Coach"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .rv-wxf { font-size: .78rem; color: var(--ink-soft); }
 .rv-open { color: var(--ink-soft); }
 .rv-wait { display: inline-block; vertical-align: -.15em; margin-right: .3rem; }
@@ -88,6 +99,7 @@ html[data-theme="office"][data-mode="night"] { --rv-in: #479EF5; --rv-wood: #2E2
 .rv-target { fill: var(--rv-target); pointer-events: none; }
 .rv-target.take { fill: none; stroke: var(--rv-target); stroke-width: .075; }
 .rv-hint { fill: none; stroke: var(--rv-hint); stroke-width: .13; stroke-linecap: round; stroke-linejoin: round; opacity: .88; pointer-events: none; }
+.rv-hint.bad { stroke: var(--rv-check); opacity: .8; }        /* the move the coach faulted, beside its own */
 /* a disc in a line of words (the seats, the rules) */
 .rv-disc-pic { display: inline-block; vertical-align: middle; overflow: visible; }
 
@@ -229,12 +241,13 @@ html[data-theme="office"] :is(.rv-learn-ch li button, .rv-learn-opt) { border-ra
 /* held sideways (#app.beside): the board on the left with all the height; the seats, what's said and the moves beside
    it, the moves filling the column, the buttons at the bottom where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.river { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.river { --beside: 19rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
   #app.river .rv-stage { grid-column: 1; grid-row: 2 / -1; margin: .5rem 0 0; }
   #app.river .rv-far { grid-column: 2; grid-row: 2; margin-top: .9rem; }
   #app.river .rv-near { grid-column: 2; grid-row: 3; align-items: flex-start; min-height: 3.6rem; margin-top: .45rem; }
   #app.river .rv-near .rv-who { white-space: normal; align-items: flex-start; }
   #app.river .rv-near .rv-say { line-height: 1.35; }
-  #app.river .rv-list { grid-column: 2; grid-row: 4; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
-  #app.river .rv-bar { grid-column: 2; grid-row: 5; }
+  #app.river .rv-coach { grid-column: 2; grid-row: 4; height: calc(4em * 1.35); margin-top: .45rem; }
+  #app.river .rv-list { grid-column: 2; grid-row: 5; flex-wrap: wrap; align-content: flex-start; overflow-x: hidden; overflow-y: auto; min-height: 0; margin-top: .6rem; }
+  #app.river .rv-bar { grid-column: 2; grid-row: 6; }
 }

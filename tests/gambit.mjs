@@ -2,11 +2,12 @@
 // resignation) and every way a game ends (checkmate, stalemate, threefold repetition, the fifty-move rule, too little
 // material), the state as the room keeps it, the opening table (every line legal, no position named twice, a
 // transposition named as its usual order is), whole games between Stockfish's levels legal move by move through the
-// database's round trip, the stronger levels beating the weaker, and the engine kept offline.
+// database's round trip, the stronger levels beating the weaker, the coach's judgement, and the engine kept offline.
 import * as G from "../gambit-rules.js";
 import { OPENINGS, openingOf } from "../gambit-openings.js";
 import { LEVELS, levelById, HINT } from "../gambit-levels.js";
 import { Engine, levelMove, valueOf } from "../uci.js";
+import { COACH, isCoach, createCoach, judge, strongest } from "../uci-coach.js";
 import { stockfishWorker } from "../tools/uci-node.mjs";
 import { offlineFiles } from "../tools/offline.mjs";
 import { Chess } from "../vendor/chess.js";
@@ -133,6 +134,27 @@ const engine = new Engine(stockfishWorker);
 {
   const r = await engine.search({ fen: G.START, limit: "nodes 20000", options: { MultiPV: 1, "Skill Level": 20, UCI_LimitStrength: false } });
   check(r.best && G.legalUci(G.newGame()).includes(r.best) && Number.isFinite(valueOf(r.lines[0])), `a hint's search gives a legal move and its score (${r.best}, ${r.lines[0]?.cp} cp)`);
+}
+// ---------- the coach ----------
+{
+  // the judgement alone: winning chances, so the same pawn counts in a level game and not a rook up
+  const cp = (v, move = "x") => ({ cp: v, pv: [move] }), mate = (n, move = "x") => ({ mate: n, pv: [move] });
+  check(judge(cp(30), cp(-40)).mark === null && judge(cp(30), cp(-90)).mark === "?" && judge(cp(30), cp(-160)).mark === "??", "a fall in winning chances of 0.2 is a mistake (?), 0.3 a blunder (??), less no word (from level, 0.7, 1.2 and 1.9 pawns given)");
+  check(judge(cp(900), cp(600)).mark === null && judge(cp(-700), cp(-1000)).mark === null, "three pawns given away a rook up, or a rook down, is no word: the game was won, or lost, either way");
+  const allows = judge(cp(20), mate(-2)), missed = judge(mate(3), cp(150));
+  check(allows.mark === "??" && allows.allows === 2 && missed.mark === "??" && missed.missed === 3, "a move that lets in mate, or misses one, is a blunder that says so");
+  check(same(strongest([cp(31, "e2e4"), cp(20, "g1f3"), cp(5, "c2c4")]), ["e2e4", "g1f3"]) && same(strongest([mate(2, "a"), mate(3, "b"), cp(900, "c")]), ["a"]),
+    "the strongest moves: the best and any within a fifth of a pawn of it; a mate only by another as quick");
+  check(COACH.map(([k]) => k).join() === "off,hints,check,on" && isCoach("on") && !isCoach(true), "the coach's four ways, off to always");
+  // with the engine: the Scholar's mate trap (1. e4 e5 2. Qh5 Nc6 3. Bc4): ...Nf6?? lets White mate at f7
+  const coach = createCoach(engine, { limit: "nodes 120000", alone: "nodes 60000" });
+  const trap = ["e2e4", "e7e5", "d1h5", "b8c6", "f1c4"];
+  const nf6 = await coach.check(G.START, trap, "g8f6"), g6 = await coach.check(G.START, trap, "g7g6");
+  check(nf6?.mark === "??" && nf6.allows === 1 && nf6.strongest.length && !nf6.strongest.includes("g8f6") && G.legalUci(play(trap)).includes(nf6.strongest[0]),
+    `the coach: ...Nf6?? lets White mate in one, and its better move is legal (${nf6?.strongest.join(", ")})`);
+  check(g6 && g6.mark === null && g6.drop < 0.1, `the coach: ...g6 defends, no word (a fall of ${g6?.drop.toFixed(2)})`);
+  const lines = await coach.analyse(G.START, []);
+  check(lines.length === 3 && coach.strongest(lines).every(m => G.legalUci(G.newGame()).includes(m)), `an analysis gives the engine's best three, the strongest of them legal (${coach.strongest(lines).join(", ")})`);
 }
 engine.stop();
 check(LEVELS.every((l, i) => i === 0 || l.rating > LEVELS[i - 1].rating) && LEVELS.every(l => /^(nodes|depth|movetime) \d+$/.test(l.limit)) && /^nodes \d+$/.test(HINT.limit),

@@ -206,8 +206,9 @@ export function mountPuzzle(container, puzzle, opts = {}) {
  * with the legal targets shown; a pawn reaching the last rank asks which piece it becomes (queen, rook, bishop or
  * knight, in a column over the square). onMove(uci) gets a move made by hand ("e2e4", "e7e8n"). Returns { draw(view) }:
  * view is { fen, white (White at the bottom), moves (the legal moves the hand may make now, chess.js's verbose moves; none
- * when it isn't the hand's turn), last ({ from, to }), arrow ({ from, to }: a move to show), check (the square of a king
- * in check), slide (the last move slides in) }. Puzzles keep mountPuzzle above.
+ * when it isn't the hand's turn), last ({ from, to }), arrows ([{ from, to, bad }]: moves to show, the coach's in its
+ * green, a move it faults in oxblood), check (the square of a king in check), slide (the last move slides in) }.
+ * Puzzles keep mountPuzzle above.
  */
 export function mountBoard(container, { onMove }) {
   const svg = el("svg", { viewBox: "0 0 8 8", class: "ch-board ch-game" });
@@ -268,11 +269,11 @@ export function mountBoard(container, { onMove }) {
       if (legal.indexOf(m) !== legal.findIndex(o => o.to === m.to)) continue;   // a promotion's four moves share a square
       svg.appendChild(el("circle", { cx: x + 0.5, cy: y + 0.5, r: board[m.to] ? 0.42 : 0.14, class: `target${board[m.to] ? " capture" : ""}` }));
     }
-    if (view.arrow) {
-      const [fx, fy] = xy(view.arrow.from), [tx, ty] = xy(view.arrow.to);
+    for (const a of view.arrows || []) {
+      const [fx, fy] = xy(a.from), [tx, ty] = xy(a.to);
       const ax = fx + 0.5, ay = fy + 0.5, bx = tx + 0.5, by = ty + 0.5, len = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / len, uy = (by - ay) / len;
       const ex = bx - ux * 0.32, ey = by - uy * 0.32, w = 0.24;
-      svg.appendChild(el("path", { class: "arrow", d: `M${ax + ux * 0.2} ${ay + uy * 0.2}L${ex} ${ey}M${ex - ux * 0.05 - uy * w} ${ey - uy * 0.05 + ux * w}L${bx - ux * 0.08} ${by - uy * 0.08}L${ex - ux * 0.05 + uy * w} ${ey - uy * 0.05 - ux * w}Z` }));
+      svg.appendChild(el("path", { class: `arrow${a.bad ? " bad" : ""}`, d: `M${ax + ux * 0.2} ${ay + uy * 0.2}L${ex} ${ey}M${ex - ux * 0.05 - uy * w} ${ey - uy * 0.05 + ux * w}L${bx - ux * 0.08} ${by - uy * 0.08}L${ex - ux * 0.05 + uy * w} ${ey - uy * 0.05 - ux * w}Z` }));
     }
     if (drag?.moved) svg.appendChild(piece(board[drag.from], drag.x - 0.5, drag.y - 0.5, "dragging"));
     if (promo) {                                                   // the four pieces a pawn may become, from its square inward
