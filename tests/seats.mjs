@@ -94,6 +94,20 @@ const TOY = {
   check(await r.move(1) === "The game is over", "no move after the end");
 }
 
+// a move made as the page draws (a choice given before its turn, sent the moment it comes) doesn't stall the table:
+// the runner looks afresh after drawing, since the drawing may have moved the game on
+{
+  const mem = { G: null, load() { return this.G; }, save(G) { this.G = JSON.parse(JSON.stringify(G)); } };
+  const solo = localTable(mem);
+  let last = null, mine = 0;
+  const r = createRunner({ rules: TOY, table: solo, pace: 5, botName: s => `Bot ${s}`,
+    onView: v => { last = v; if (v.G && v.toMove === 0 && !v.over) { mine++; r.move(v.state.count === 8 ? 2 : 1); } } });
+  solo.onChange(() => r.update());
+  await r.deal({}, 3);
+  await until(() => last.over, 2000);
+  check(last.over && mine > 0, "a move made as the page draws doesn't stall the computer players or the timed step after it");
+}
+
 // ---------- at a table ----------
 {
   const db = fakeDb();

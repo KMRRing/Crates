@@ -152,7 +152,7 @@ export function localTable(store, { name = "You" } = {}) {
  * state the table has; use(table) moves to another (solo to a table and back).
  *
  * opts: rules; level() the computer players' strength; pace (ms a computer player takes over its move, so a person
- * can follow); botName(seat); paused() (solo stands still while a menu is open); onView(view); onOver(view) once for
+ * can follow, or a function of the state giving it: a secret vote needn't be watched); botName(seat); paused() (solo stands still while a menu is open); onView(view); onOver(view) once for
  * each game that ends while it's watched; onError(message).
  *
  * view: { G, state, seat (yours, or null watching), seats (whoSits), mode ("solo" | "table"), me (the table's),
@@ -186,7 +186,9 @@ export function createRunner({ rules, table, level = () => null, pace = 900, bot
       const key = `${t.code || "solo"}:${v.G.seq}:${v.G.started}`;
       if (!overSeen.has(key)) { overSeen.add(key); try { onOver(v); } catch (e) { console.error(e); } }
     }
-    schedule(v);
+    // a fresh look, not v: drawing may have moved the game on (a choice given before its turn, sent the moment it
+    // comes), and that move's own update, already done, mustn't be undone by this one's stale view
+    schedule();
   }
 
   function schedule(v = view()) {
@@ -206,7 +208,7 @@ export function createRunner({ rules, table, level = () => null, pace = 900, bot
           if (r.error) { console.warn(`${rules.id}: the computer's move was refused (${r.error})`, move); return false; }
           cur.game = r.G;
         }, { rev });
-      }), pace);
+      }), typeof pace === "function" ? pace(v.state) : pace);
       return;
     }
     // a timed step's end, or a person whose phone has gone away reaching the grace (the computer then takes the

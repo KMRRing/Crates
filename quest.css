@@ -1,0 +1,170 @@
+/* Quest: a round table in heraldic purple. Everyone sits round an oval, you at the foot, the five quests and the
+   refusals in the middle; your role card, the narrator's line and your part under it (beside it, held sideways). The
+   loyal are verdigris and the traitors oxblood, as good and bad are everywhere in the suite. */
+:root {
+  --qs-in: #5E3B8C;                                              /* heraldic purple: the game's enamel */
+  --qs-soft: color-mix(in srgb, var(--qs-in) 14%, var(--sheet));
+  --qs-good: #2F7D5B; --qs-evil: #A8382B;
+  --qs-felt: color-mix(in srgb, #5E3B8C 8%, var(--yard));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --qs-in: #B9A0E0; --qs-good: #7FC2A8; --qs-evil: #E8806F; --qs-felt: color-mix(in srgb, #5E3B8C 18%, var(--yard)); }
+}
+html[data-mode="night"] { --qs-in: #B9A0E0; --qs-good: #7FC2A8; --qs-evil: #E8806F; --qs-felt: color-mix(in srgb, #5E3B8C 18%, var(--yard)); }
+/* Kontor and Office lend it their own accent, as in their other games */
+html[data-theme="kontor"] { --qs-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --qs-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --qs-in: #2EB36A; }
+html[data-theme="office"] { --qs-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --qs-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
+
+.qs-mark { display: inline-block; }
+.qs-mark svg { width: 100%; height: 100%; display: block; }
+.qs-ico { display: inline-block; width: 1em; height: 1em; flex: none; vertical-align: -.14em; }
+
+/* ---------- the table: everyone round an oval, as large as the space allows ---------- */
+/* the board a container, so a tall phone's table stays nearly round rather than stretching to fill it */
+.qs-board { display: grid; place-items: center; min-height: 0; padding-top: .4rem; container-type: size; }
+.qs-ring { position: relative; width: 100%; height: min(100%, 130cqw); min-height: 0; container-type: size; border-radius: 50% / 46%; background: radial-gradient(ellipse at center, var(--qs-felt) 0 58%, transparent 72%); }
+.qs-chip { position: absolute; transform: translate(-50%, -50%); width: clamp(4.4rem, 23cqw, 8rem);
+  display: grid; justify-items: center; gap: .05em; padding: .3em .35em .32em; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile);
+  color: var(--ink); font: inherit; font-size: clamp(.66rem, 3.3cqw, .95rem); line-height: 1.2; text-align: center; cursor: default; }
+.qs-chip:disabled { opacity: 1; }
+.qs-chip[aria-pressed] { cursor: pointer; }
+.qs-name { max-width: 100%; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qs-tag { display: inline-flex; align-items: center; gap: .2em; min-height: 1.15em; max-width: 100%; font-size: .78em; font-weight: 700; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
+.qs-chip.me { border-color: var(--brass); }
+.qs-chip.me .qs-name { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .18em; }
+.qs-chip.party { border-color: var(--qs-in); background: var(--qs-soft); box-shadow: inset 0 0 0 1px var(--qs-in); }
+.qs-chip.picked { border-color: var(--qs-in); background: var(--qs-in); color: var(--sheet); }
+.qs-chip.picked .qs-tag, .qs-chip.picked.evil .qs-tag { color: var(--sheet); }
+.qs-chip.turn { box-shadow: 0 0 0 2.5px var(--qs-in); }
+.qs-chip.evil .qs-tag { color: var(--qs-evil); }
+.qs-chip.side-good { background: color-mix(in srgb, var(--qs-good) 14%, var(--tile)); border-color: var(--qs-good); }
+.qs-chip.side-evil { background: color-mix(in srgb, var(--qs-evil) 14%, var(--tile)); border-color: var(--qs-evil); }
+.qs-chip.side-good .qs-tag { color: var(--qs-good); }
+.qs-chip.side-evil .qs-tag { color: var(--qs-evil); }
+.qs-chip.struck { box-shadow: 0 0 0 2.5px var(--qs-evil); }
+/* the marks on a player's corners: the lead and the party on the left, the vote on the right */
+.qs-lead, .qs-flag { position: absolute; top: -.8em; display: grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%; background: var(--sheet); border: 1.5px solid var(--brass); }
+.qs-lead { left: -.45em; color: var(--brass); }
+.qs-flag { left: .9em; color: var(--qs-in); border-color: var(--qs-in); }
+.qs-lead .qs-ico, .qs-flag .qs-ico { width: .85em; height: .85em; }
+.qs-vote { position: absolute; top: -.8em; right: -.45em; display: grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%; color: var(--sheet); }
+.qs-vote .qs-ico { width: .8em; height: .8em; }
+.qs-vote.yes { background: var(--qs-good); }
+.qs-vote.no { background: var(--qs-evil); }
+.qs-vote.old { opacity: .5; }
+.qs-vote.done { width: .8em; height: .8em; top: -.35em; right: -.25em; background: var(--brass); border: 1.5px solid var(--sheet); }
+.qs-played { position: absolute; bottom: -.4em; right: -.3em; width: .7em; height: .95em; border-radius: 2px; background: var(--qs-in); border: 1.5px solid var(--sheet); }
+
+/* ---------- the middle: the quests, the refusals, the step ---------- */
+.qs-centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 50cqw; max-height: 60cqh; display: grid; justify-items: center; align-content: center; gap: .45em;
+  font-size: clamp(.68rem, 3.5cqw, 1.05rem); text-align: center; }
+.qs-lead-in { margin: 0; color: var(--ink-soft); }
+.qs-track { display: flex; justify-content: center; gap: .35em; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.qs-disc { position: relative; display: grid; place-items: center; width: 2.25em; height: 2.25em; border-radius: 50%; border: 1.5px solid var(--brass); background: var(--sheet); font-weight: 800; font-size: 1.05em; font-variant-numeric: tabular-nums; }
+.qs-disc.now { border-color: var(--qs-in); box-shadow: 0 0 0 2px var(--qs-in); }
+.qs-disc.success { background: var(--qs-good); border-color: var(--qs-good); color: var(--sheet); }
+.qs-disc.fail { background: var(--qs-evil); border-color: var(--qs-evil); color: var(--sheet); }
+.qs-disc .qs-ico { width: 1.1em; height: 1.1em; }
+.qs-two, .qs-fails { position: absolute; right: -.35em; bottom: -.3em; display: grid; place-items: center; min-width: 1.15em; height: 1.15em; border-radius: 50%; font-style: normal; font-size: .62em; font-weight: 800; }
+.qs-two { background: var(--qs-evil); color: var(--sheet); }
+.qs-fails { background: var(--sheet); color: var(--qs-evil); border: 1.5px solid var(--qs-evil); }
+.qs-refused { display: flex; align-items: center; gap: .3em; font-size: .78em; color: var(--ink-soft); }
+.qs-refused span { margin-right: .2em; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); font-size: .9em; }
+.qs-refused i { width: .7em; height: .7em; border-radius: 50%; border: 1.5px solid var(--brass); box-sizing: border-box; }
+.qs-refused i.last { border-color: var(--qs-evil); }
+.qs-refused i.on { background: var(--qs-evil); border-color: var(--qs-evil); }
+.qs-now { display: grid; justify-items: center; gap: .15em; min-height: 3.6em; align-content: center; }
+.qs-now small { color: var(--ink-soft); font-size: .82em; }
+.qs-now b { line-height: 1.25; }
+.qs-big { font-size: 1.2em; }
+.qs-big.good { color: var(--qs-good); }
+.qs-big.evil { color: var(--qs-evil); }
+.qs-cards { display: flex; gap: .3em; }
+.qs-card { display: grid; place-items: center; width: 1.7em; height: 2.3em; border-radius: 4px; color: var(--sheet); animation: qs-turn .35s ease-out backwards; }
+.qs-card:nth-child(2) { animation-delay: .12s; } .qs-card:nth-child(3) { animation-delay: .24s; } .qs-card:nth-child(4) { animation-delay: .36s; } .qs-card:nth-child(5) { animation-delay: .48s; }
+.qs-card.ok { background: var(--qs-good); }
+.qs-card.bad { background: var(--qs-evil); }
+@keyframes qs-turn { from { transform: rotateY(90deg); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .qs-card { animation: none; } }
+.qs-bar { display: block; width: 8em; height: .3em; margin-top: .2em; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.qs-bar i { display: block; height: 100%; background: var(--qs-in); transform-origin: left; }
+
+/* ---------- your role and your part ---------- */
+.qs-side { display: flex; flex-direction: column; gap: .4rem; padding-top: .35rem; }
+.qs-role { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 3.4rem; padding: .4rem .65rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile);
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.qs-role.good { border-color: var(--qs-good); background: color-mix(in srgb, var(--qs-good) 10%, var(--tile)); }
+.qs-role.evil { border-color: var(--qs-evil); background: color-mix(in srgb, var(--qs-evil) 10%, var(--tile)); }
+.qs-role .qs-role-ico { width: 1.9rem; height: 1.9rem; }
+.qs-role.good .qs-role-ico { color: var(--qs-good); }
+.qs-role.evil .qs-role-ico { color: var(--qs-evil); }
+.qs-hidden-ico { display: inline-block; flex: none; border-radius: 4px; background: repeating-linear-gradient(45deg, var(--brass) 0 2px, transparent 2px 6px); opacity: .6; }
+.qs-role-text { display: grid; gap: .05rem; min-width: 0; }
+.qs-role-text b { font-size: .95rem; }
+.qs-role-text small { font-size: .78rem; line-height: 1.3; color: var(--ink-soft); }
+.qs-status { margin: 0; height: 2.5em; line-height: 1.25; text-align: center; color: var(--ink-soft); font-size: .85rem; overflow: hidden;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.qs-controls { display: grid; gap: .35rem; }
+.qs-hint { margin: 0; min-height: 1.3em; text-align: center; font-weight: 700; font-size: .9rem; }
+.qs-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
+.qs-pair .btn { display: inline-flex; align-items: center; justify-content: center; gap: .4rem; min-height: 3rem; }
+.qs-vote-btn[aria-pressed="true"].yes { background: var(--qs-good); border-color: var(--qs-good); color: var(--sheet); }
+.qs-vote-btn[aria-pressed="true"].no { background: var(--qs-evil); border-color: var(--qs-evil); color: var(--sheet); }
+.qs-card-btn[aria-pressed="true"] { outline: 2.5px solid var(--qs-in); outline-offset: 2px; }
+.qs-card-btn.fail:disabled { opacity: .4; }
+.qs-go { width: 100%; min-height: 3rem; }
+
+/* ---------- the sheets ---------- */
+.qs-rules p { line-height: 1.45; }
+.qs-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.qs-role-line { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: .5rem; align-items: start; }
+.qs-role-line > .qs-ico { width: 1.4rem; height: 1.4rem; color: var(--qs-in); }
+.qs-sizes { width: 100%; border-collapse: collapse; font-size: .88rem; font-variant-numeric: tabular-nums; text-align: center; }
+.qs-sizes th { padding: .25rem; font-size: .7rem; color: var(--ink-soft); font-weight: 800; }
+.qs-sizes td { padding: .3rem .2rem; border-top: 1px solid var(--rule); }
+.qs-sizes td.n { font-weight: 800; color: var(--qs-in); }
+.qs-rules-note { font-size: .85rem; color: var(--ink-soft); }
+.qs-log-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.qs-log-list li { display: grid; gap: .2rem; padding: .5rem .2rem; border-bottom: 1px solid var(--rule); border-left: 3px solid var(--rule); padding-left: .55rem; }
+.qs-log-list li.success { border-left-color: var(--qs-good); }
+.qs-log-list li.fail { border-left-color: var(--qs-evil); }
+.qs-log-head { display: flex; gap: .5rem; align-items: baseline; flex-wrap: wrap; }
+.qs-log-head b { font-size: .75rem; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.qs-log-votes { display: grid; gap: .1rem; font-size: .85rem; }
+.qs-log-votes .y .qs-ico { color: var(--qs-good); margin-right: .3rem; }
+.qs-log-votes .n .qs-ico { color: var(--qs-evil); margin-right: .3rem; }
+.qs-log-out { font-size: .82rem; color: var(--ink-soft); font-weight: 700; }
+.qs-end-head { margin: .2rem 0 .4rem; }
+.qs-end-note { color: var(--ink-soft); font-size: .92rem; margin: 0 0 .5rem; }
+.qs-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.qs-standings li { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr) auto; gap: .55rem; align-items: center; padding: .4rem .2rem; border-bottom: 1px solid var(--rule); }
+.qs-standings li > .qs-ico { width: 1.2rem; height: 1.2rem; }
+.qs-standings li.good > .qs-ico, .qs-standings li.good b { color: var(--qs-good); }
+.qs-standings li.evil > .qs-ico, .qs-standings li.evil b { color: var(--qs-evil); }
+.qs-standings li .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qs-standings li.won .nm::after { content: " ★"; color: var(--qs-in); }
+.qs-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.qs-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.qs-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.qs-toast.on { opacity: 1; transform: translate(-50%, 0); }
+html[data-theme="office"] :is(.qs-chip, .qs-role, .qs-card) { border-radius: 4px; }
+
+/* a short phone: the role card gives way first */
+@media (max-height: 640px) and (orientation: portrait) {
+  .qs-role { min-height: 2.8rem; padding: .3rem .55rem; }
+  .qs-role-text small { display: none; }
+  .qs-status { display: none; }
+}
+
+/* held sideways: the table on the left, your role and your part beside it, the buttons low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.quest { --beside: 21rem; grid-template-rows: auto minmax(0, 1fr); }
+  #app.quest .qs-board { grid-column: 1; grid-row: 2; }
+  #app.quest .qs-side { grid-column: 2; grid-row: 2; min-height: 0; justify-content: flex-end; padding-bottom: .4rem; }
+}
