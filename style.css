@@ -238,7 +238,7 @@ dialog.apps[open] { animation: apps-in .16s ease-out; }
 @media (prefers-reduced-motion: reduce) { dialog.apps[open] { animation: none; } }
 .apps-inner { max-width: 46rem; height: 100%; margin: 0 auto; display: flex; flex-direction: column; }
 dialog.apps .pick-head h2 { font-size: 1.4rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.14em * var(--track)); text-transform: var(--caps); }
-.apps-actions { display: flex; align-items: center; gap: .45rem; }   /* Almanac's rete (Settings) is a game header's size, a little larger than the icons */
+.apps-actions { display: flex; gap: .45rem; }
 .apps-brand { display: flex; align-items: center; justify-content: center; gap: .6rem; margin: 0 0 .7rem; padding-bottom: .65rem;
   font-size: 1.45rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.22em * var(--track)); text-transform: var(--caps); line-height: 1;
   background: linear-gradient(var(--brass), var(--brass)) left bottom / 100% 1px no-repeat,
@@ -642,6 +642,8 @@ dialog.sheet::backdrop { background: rgba(10, 18, 24, .45); }
   background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
 .icon-btn svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
 .icon-btn:disabled { opacity: .6; }
+/* the rete in a ring of its own (the games screen's Settings, in Almanac): drawn in its own colours, not the line icons' */
+.icon-btn svg.rete { width: 1.75rem; height: 1.75rem; stroke: none; }
 .icon-btn.spin svg { animation: icon-spin 1s linear infinite; }
 @keyframes icon-spin { to { transform: rotate(360deg); } }
 
@@ -722,10 +724,10 @@ img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 .rete-btn { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; padding: 0 !important; border: 0 !important; background: none !important; border-radius: 50%; }
 .rete-btn .rete { width: 2.5rem; height: 2.5rem; display: block; }
 .rete .rete-turn, .rete .rete-rule { transform-box: view-box; transform-origin: 50px 50px; }
-.rete-btn.turning .rete-turn { animation: rete-turn 9s linear infinite; }
-.rete-btn.turning .rete-rule { animation: rete-turn 15s linear infinite reverse; }
+.turning .rete .rete-turn { animation: rete-turn 9s linear infinite; }
+.turning .rete .rete-rule { animation: rete-turn 15s linear infinite reverse; }
 @keyframes rete-turn { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .rete-btn.turning .rete-turn, .rete-btn.turning .rete-rule { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .turning .rete .rete-turn, .turning .rete .rete-rule { animation: none; } }
 
 /* the partner pill in a game's title: plain lettering (not the title's capitals), and the room the header now has */
 .partner-pill { text-transform: none; letter-spacing: 0; font-family: inherit; max-width: 42vw; font-size: .68rem; flex: 0 1 auto; min-width: 0; }

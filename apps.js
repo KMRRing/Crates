@@ -281,9 +281,9 @@ function openSettings(host) {
     sheet.querySelector("[data-close]").addEventListener("click", () => sheet.close());
     sheet.addEventListener("click", e => { if (e.target === sheet) sheet.close(); });
     host.appendChild(sheet);
-    // Almanac's rete turns while Settings is open, as a game's does while its menu is
-    const rete = host.querySelector(".rete-btn[data-settings]");
-    if (rete) new MutationObserver(() => rete.classList.toggle("turning", sheet.open)).observe(sheet, { attributes: true, attributeFilter: ["open"] });
+    // Almanac's rete turns while Settings is open, as a game's does while its menu is (the sliders have nothing to turn)
+    const btn = host.querySelector("[data-settings]");
+    new MutationObserver(() => btn.classList.toggle("turning", sheet.open)).observe(sheet, { attributes: true, attributeFilter: ["open"] });
   }
   sheet.querySelector(".settings-body").replaceChildren(
     choice("Theme", THEMES, theme(), t => keep("suite:theme", t, "deco")),
@@ -521,13 +521,12 @@ function bindCodes(dlg) {
 export function bindSwitcher(button, current) {
   const dlg = document.createElement("dialog");
   // A full screen of games, a tile each with its logo and name, every game on it: the tiles scroll in their own box when
-  // they don't all fit, the screen around them never does. Settings (in Almanac the rete every game's menu button is) and
-  // refresh at the top right.
+  // they don't all fit, the screen around them never does. Settings (in Almanac the rete every game's menu button is, in
+  // the ring the other icons have) and refresh at the top right.
   dlg.className = "apps";
   dlg.setAttribute("aria-label", "Games");
   dlg.innerHTML = `<div class="apps-inner"><h2 class="apps-brand">${BRAND}Almanac</h2><div class="pick-head"><div class="codes" data-codes></div><span class="apps-actions">
-      ${theme() === "deco" ? `<button class="rete-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${RETE}</button>`
-        : `<button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${ICON.settings}</button>`}
+      <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${theme() === "deco" ? RETE : ICON.settings}</button>
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
     <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
