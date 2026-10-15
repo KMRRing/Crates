@@ -1,12 +1,13 @@
 // Blend: build an order to spec at the best margin. The engine (blend-engine.js) holds the components, the
 // products and their specs, the blending maths and par; this file draws the order, the spec panel and the
-// tank farm and keeps your blends.
+// tank farm and keeps your blends. Together, the same order for everyone at the table (duel.js).
 import { COMPONENTS, PRODUCTS, PROPS, LEVELS, STEP, blendProps, blendCost, bioShare, margin, judge, solve, hint } from "./blend-engine.js";
 import { noteStars } from "./suite.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, action } from "./menu.js";
+import { part, action, mirror } from "./menu.js";
+import { createDuel } from "./duel.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -16,6 +17,7 @@ const SAVE = "blend2:save";
 let S = read(SAVE, { level: 1, blends: {}, best: {}, done: {} });   // the blend per level (per cent per component), best margins, levels certified
 let L = null;      // the level
 let par = null;    // { margin, pct, feasible }
+let D = null;      // a match's blend (duel.js), kept apart from yours: { level, pct, done, margin }
 
 function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch { /* private mode */ } }
@@ -25,6 +27,7 @@ const limitText = (p, lim) => { const u = PROPS[p].unit; const f = v => (u === "
 
 // ---------- levels ----------
 function loadLevel(n) {
+  if (duel.on) { if (!duel.newMatch()) $("level").value = String(L.id); return; }   // a new match on that order, for everyone
   L = LEVELS.find(l => l.id === n) || LEVELS[0];
   S.level = L.id;
   par = solve(L);
@@ -33,21 +36,33 @@ function loadLevel(n) {
   $("level").value = String(L.id);
   render();
 }
-const pct = () => S.blends[L.id];
+const pct = () => (D ? D.pct : S.blends[L.id]);
+/** A change to the blend in hand: yours into your save, a match's into its own keeping and to the table. */
+const keep = () => { if (D) duel.keep(D); else save(); };
 function adjust(i, delta) {
+  if (D?.done || (duel.on && !D)) return;                  // certified at a match: it stands
   const p = pct(), next = p[i] + delta;
   if (next < 0 || next > 100) return;
   if (delta > 0 && L.max?.[L.components[i]] != null && next > L.max[L.components[i]]) { toast(`${COMPONENTS[L.components[i]].name} is limited to ${L.max[L.components[i]]}% here`); return; }
   p[i] = next;
-  save();
+  keep();
   render();
 }
 function certify() {
+  if (D?.done) return;
   const p = pct(), total = p.reduce((a, b) => a + b, 0);
   if (total !== 100) { toast("The blend has to add up to 100%"); return; }
   const props = blendProps(L.components, p), verdict = judge(L.product, props);
   if (!verdict.every(x => x.ok)) { toast("Something's still off spec"); return; }
   const m = margin(L.product, L.components, p);
+  if (D) {                                                  // a match: certifying is your answer, and final
+    if (!confirm(`Certify at ${euro(m)}/m³? It's your answer for the match: you can't change it after.`)) return;
+    D.done = true; D.margin = m;
+    tell(true);
+    keep();
+    render();
+    return;
+  }
   S.best[L.id] = Math.max(S.best[L.id] ?? -Infinity, m);
   if (m >= par.margin - 5) S.done[L.id] = true;
   // stars: on spec one, within 5% of par (at least €15/m³) two, at par (certified) three
@@ -68,6 +83,7 @@ function giveHint() {
 
 // ---------- drawing ----------
 function render() {
+  if (duel.on && !D) { lobby(); return; }
   const p = pct(), total = p.reduce((a, b) => a + b, 0);
   const product = PRODUCTS[L.product];
   $("title").textContent = `${L.id}. ${L.title}`;
@@ -90,10 +106,13 @@ function render() {
   const failing = verdict.filter(x => !x.ok);
   if (total !== 100) { v.className = "bl-verdict bad"; v.textContent = `The blend adds up to ${total}%, not 100.`; }
   else if (failing.length) { v.className = "bl-verdict bad"; v.textContent = `Off spec: ${failing.map(x => PROPS[x.p].name).join(", ")}.`; }
-  else if (m >= par.margin - 5) { v.className = "bl-verdict good"; v.textContent = `On spec at par.${S.done[L.id] ? " Certified." : ""}`; }
+  else if (m >= par.margin - 5) { v.className = "bl-verdict good"; v.textContent = `On spec at par.${(D ? D.done : S.done[L.id]) ? " Certified." : ""}`; }
   else { v.className = "bl-verdict"; v.textContent = `On spec. ${euro(par.margin - m)}/m³ short of par: a cheaper blend passes too.`; }
-  $("certifyBtn").disabled = !passing;
-  $("certifyBtn").textContent = S.done[L.id] ? "Certified ✓" : "Certify";
+  $("certifyBtn").disabled = !passing || !!D?.done;
+  $("certifyBtn").textContent = (D ? D.done : S.done[L.id]) ? "Certified ✓" : "Certify";
+  $("hintBtn").hidden = !!D;                                 // no hints at a match
+  $("hintBtn").parentElement.classList.toggle("nohint", !!D);
+  $("costline").hidden = !!D;                                // the others' margins take its line
   // the specification, a chip a line in the spec's order, so nothing moves while you blend: red is off spec
   const chips = $("spec");
   chips.replaceChildren();
@@ -156,6 +175,42 @@ function whyComponent(id) {
   if (!$("whyDlg").open) $("whyDlg").showModal();
 }
 
+// ---------- together: the same order for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's order, the same product, spec and tank farm, starting from the same blend,
+// and blends on their own phone; par shows as ever, the hint doesn't. Certify is your answer, once: the highest margin
+// wins, then the quicker. The others show where the cost line was: blending, or certified at their margin. Your own
+// blends, bests and stars stay as they were.
+const duel = createDuel({
+  game: "blend", name: "Blend", accent: "--bl-in", line: $("rival"), toast,
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), level: Number($("level").value) || L?.id || 1 }),   // the header's order
+  describe: m => { const lv = LEVELS.find(l => l.id === m.level) || LEVELS[0]; return `Order ${lv.id}, ${lv.title}: the same order for everyone, certified once`; },
+  play: (match, { kept }) => {
+    L = LEVELS.find(l => l.id === match.level) || LEVELS[0];
+    par = solve(L);
+    $("level").value = String(L.id);
+    D = kept?.level === L.id && kept.pct?.length === L.components.length ? kept : { level: L.id, pct: L.components.map((c, i) => (i === 0 ? 100 : 0)), done: false, margin: null };
+    keep(); render(); tell(D.done);
+  },
+  onLobby: match => { D = null; L = LEVELS.find(l => l.id === match.level) || LEVELS[0]; par = solve(L); $("level").value = String(L.id); render(); },
+  onLeave: () => { D = null; loadLevel(S.level || 1); },
+});
+/** What the table sees of this blend: blending, or certified at a margin. */
+function tell(done = false) {
+  if (!D) return;
+  duel.report(done ? { score: Math.round(D.margin), text: `${euro(D.margin)}/m³`, done: true } : { score: -1e6, text: "blending" });
+}
+/** The order before a match: its brief, nothing to blend yet. */
+function lobby() {
+  const product = PRODUCTS[L.product];
+  $("title").textContent = `${L.id}. ${L.title}`;
+  $("product").textContent = `${product.name} · sells at €${product.price}/m³`;
+  $("margin").textContent = "–"; $("margin").className = "";
+  $("par").textContent = `par ${euro(par.margin)}`;
+  $("verdict").className = "bl-verdict"; $("verdict").textContent = "The same order for everyone.";
+  $("certifyBtn").disabled = true; $("hintBtn").hidden = true; $("hintBtn").parentElement.classList.add("nohint"); $("costline").hidden = true;
+  $("spec").replaceChildren(); $("components").replaceChildren(); $("total").textContent = "";
+}
+
 // ---------- menu and messages ----------
 let toastTimer = null;
 function toast(msg, ms = 2600) {
@@ -170,6 +225,12 @@ function toast(msg, ms = 2600) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {                                              // a match: the table's own, and the order the next one deals
+    duel.menu(part(body, "together"));
+    part(body, "content").append(mirror("Order", $("level")));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   const list = document.createElement("div");
   list.className = "bl-levels";
   for (const lv of LEVELS) {
@@ -201,9 +262,13 @@ $("certifyBtn").addEventListener("click", certify);
 $("hintBtn").addEventListener("click", giveHint);
 
 // for tests and debugging
-window.__blend = { get level() { return L; }, get par() { return par; }, get pct() { return pct(); }, adjust, certify, loadLevel, setBlend: arr => { S.blends[L.id] = [...arr]; save(); render(); } };
+window.__blend = { get level() { return L; }, get par() { return par; }, get pct() { return pct(); }, adjust, certify, loadLevel, setBlend: arr => { if (D) D.pct = [...arr]; else S.blends[L.id] = [...arr]; keep(); render(); }, duel };
 
-loadLevel(S.level || 1);
+// a match in the address: its order, with your own blend left where it was
+if (duel.inAddress) { L = LEVELS.find(l => l.id === (S.level || 1)) || LEVELS[0]; par = solve(L); duel.join().then(ok => { if (!ok) loadLevel(S.level || 1); }); }
+else loadLevel(S.level || 1);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 // stars collected: an order's stars, or for one certified before there were stars three, and one for any on-spec best
 function starsOf(id) { return S.stars?.[id] || (S.done[id] ? 3 : S.best[id] != null ? 1 : 0); }
 function starsAll() { return LEVELS.reduce((n, l) => n + starsOf(l.id), 0); }

@@ -32,6 +32,10 @@ html[data-mode="night"] { --bl-in: #A9C25A; --bl-good: #7FC2A8; --bl-bad: #E8806
 .bl-verdict.good { color: var(--bl-good); font-weight: 750; }
 .bl-verdict.bad { color: var(--bl-bad); }
 .bl-buttons { display: grid; grid-template-columns: minmax(0, 1fr) 4.6rem 6rem; gap: .4rem; }
+.bl-buttons.nohint { grid-template-columns: minmax(0, 1fr) 6rem; }
+/* together, the others where the cost line was: blending, or certified at their margin (duel.js fills it) */
+.bl-rival { margin: 0; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bl-rival[hidden], .bl-go[hidden] { display: none; }
 .bl-go { min-height: 2.625rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .bl-go.quiet { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--brass); outline: 0; }
 .bl-go:disabled { opacity: .45; cursor: default; }
