@@ -94,12 +94,13 @@ const lieAll = async (t, lies) => { for (const [i, lie] of Object.entries(lies))
   check(t.state.step === "reveal", "Next waits for everyone…");
   await t.send(3, { next: true, qn: 0 });
   check(t.state.step === "write" && t.state.at === 1, "…and then moves on before the clock");
-  // the rest: Korbi always finds the truth; on the second question Ana fools three, the best lie of the game
+  // the rest: Korbi always finds the truth; on the second question Ana fools three, the best lie of the game. The lies
+  // hold no number, nor a number's word: a fact whose truth is "3" would refuse "lie three 3" as too near it
   for (let n = 1; n < 5; n++) {
-    const before = { ...t.state.scores };
-    await lieAll(t, { 0: `lie zero ${n}`, 1: `lie one ${n}`, 2: `lie two ${n}`, 3: `lie three ${n}` });
+    const before = { ...t.state.scores }, c = "wxyz"[n - 1];
+    await lieAll(t, { 0: `kappa lie ${c}`, 1: `mu lie ${c}`, 2: `sigma lie ${c}`, 3: `rho lie ${c}` });
     const os = optsOf(t), ix = text => os.findIndex(o => o.text === text), tr = os.findIndex(o => o.truth);
-    if (n === 1) for (const i of [0, 1, 3]) await t.send(i, { pick: ix("lie two 1"), qn: n });
+    if (n === 1) for (const i of [0, 1, 3]) await t.send(i, { pick: ix("sigma lie w"), qn: n });
     else for (const i of [0, 1, 3]) await t.send(i, { pick: tr, qn: n });
     await t.send(2, { pick: tr, qn: n });
     check(t.state.step === "reveal", `question ${n + 1} answered`);
@@ -110,7 +111,7 @@ const lieAll = async (t, lies) => { for (const [i, lie] of Object.entries(lies))
   check(t.state.step === "over", "after the last question, the end");
   const top = Math.max(...Object.values(t.state.scores));
   check(Object.values(t.state.winners).every(u => t.state.scores[u] === top) && /wins|win,/.test(t.branch.say.text), `the most points wins (${top.toLocaleString("en-GB")})`);
-  check(t.state.best?.text === "lie two 1" && t.state.best.n === 3 && /best lie: lie two 1, by Ana/.test(t.branch.say.text), "the best lie: the one that fooled the most at once");
+  check(t.state.best?.text === "sigma lie w" && t.state.best.n === 3 && /best lie: sigma lie w, by Ana/.test(t.branch.say.text), "the best lie: the one that fooled the most at once");
 }
 {
   // the clock: lies not written, picks not made
@@ -142,8 +143,9 @@ const lieAll = async (t, lies) => { for (const [i, lie] of Object.entries(lies))
   await t.send(3, { lie: qOf(t).num ? "8888" : "one more", qn: 0 });
   await t.leave(4);
   check(t.state.step === "pick", "a player who leaves isn't waited for");
-  const opts = optsOf(t);
-  check(opts.some(o => o.by.includes(t.uid(0)) && o.text === helped[0]) && opts.filter(o => o.house).every(o => o.text !== helped[0]), "a lie the house gave a player is that player's, not the house's too");
+  // the lie as the table shows it (a number's written as the truth's are: 1500 as 1,500)
+  const opts = optsOf(t), given = shown(helped[0], qOf(t));
+  check(opts.some(o => o.by.includes(t.uid(0)) && o.text === given) && opts.filter(o => o.house).every(o => o.text !== given), "a lie the house gave a player is that player's, not the house's too");
 }
 {
   const t = await partyTable(NAMES.slice(0, 4));
