@@ -103,7 +103,7 @@ export function judgeCard(step, card) {
 const FACE_SUIT = [1, 0, 2, 3];
 const face = c => ({ rank: RANKS[rankOf(c)], suit: FACE_SUIT[suitOf(c)] });
 const red = s => s === 1 || s === 2;
-const mark = s => `<span class="ct-s${red(s) ? " red" : ""}">${SUITS[s]}</span>`;
+const mark = s => `<span class="bd-s${red(s) ? " red" : ""}">${SUITS[s]}</span>`;
 const callHtml = call => { const b = bidOf(call); return b ? `${b.level}${b.strain === NT ? "NT" : mark(b.strain)}` : esc(callText(call)); };
 const isTask = s => !!(s.goal || s.tap);
 
@@ -166,13 +166,16 @@ export function courseStage() {
       const c = contractOf(s.contract);
       if (c) parts.push(`<div class="lc-row"><small>The contract</small><b class="lc-word">${c.level}${c.strain === NT ? "NT" : mark(c.strain)}${c.doubled ? " X" : ""} by ${["South", "West", "North", "East"][c.declarer]}${c.declarer === 0 ? " (you)" : ""}</b></div>`);
       for (const r of s.rows || []) parts.push(`<div class="lc-row">${head(r.label)}${r.cards != null ? line(parseCards(r.cards)) : r.calls ? `<b class="lc-word">${r.calls.split(/\s+/).map(callHtml).join(" ")}</b>` : `<b class="lc-word">${esc(r.text || "")}</b>`}</div>`);
-      if (s.auction) parts.push(`<div class="lc-row lc-table">${auctionHtml(auctionOf(s.auction), s.goal === "bid")}</div>`);
+      if (s.auction) parts.push(`<div class="lc-row lc-table bd-lauction">${auctionHtml(auctionOf(s.auction), s.goal === "bid")}</div>`);
+      // dummy's cards are a row to play from when the card is dummy's, else a line as a bridge column would show them;
+      // one row of cards on the stage at a time (fitCardStage sizes the first it finds), so then yours lie as a line
+      const fromDummy = !!s.dummy && isTask(s) && s.goal === "play" && playerOf(s) === 2;
+      const dummy = s.dummy ? sortHand(parseCards(s.dummy)) : [];
       if (s.dummy) {
-        const fromDummy = isTask(s) && s.goal === "play" && playerOf(s) === 2;
-        const ids = sortHand(parseCards(s.dummy)), live = fromDummy ? new Set(legalCards(ids, trickOf(s))) : null;
+        const live = fromDummy ? new Set(legalCards(dummy, trickOf(s))) : null;
         parts.push(`<div class="lc-row">${head(s.dummyLabel || "Dummy, North")}</div>`);
-        if (fromDummy) parts.push(`<div class="cd-row lc-hand lc-dummy${t.done ? " done" : ""}">${ids.map(id => card(id, `${live.has(id) ? "" : "dim"}${t.sel === id ? " sel" : ""}`, { id })).join("")}</div>`);
-        else parts.push(`<div class="lc-row">${line(ids)}</div>`);
+        if (fromDummy) parts.push(`<div class="cd-row lc-hand lc-dummy${t.done ? " done" : ""}">${dummy.map(id => card(id, `${live.has(id) ? "" : "dim"}${t.sel === id ? " sel" : ""}`, { id })).join("")}</div>`);
+        else parts.push(`<div class="lc-row">${line(dummy)}</div>`);
       }
       const trick = trickOf(s), played = t.done && s.goal === "play" && t.sel != null ? [...trick, { seat: playerOf(s), card: t.sel }] : trick;
       if (s.trick != null) {
@@ -187,14 +190,32 @@ export function courseStage() {
         const live = fromHand && s.goal === "play" ? new Set(legalCards(mine, trick)) : null;
         parts.push(`<div class="lc-row">${head(s.handLabel || (s.hand && hcp(parseCards(s.hand)) && s.showPoints ? `Your cards: ${hcp(parseCards(s.hand))} points` : "Your cards"))}</div>`);
         const cls = id => (found.has(id) ? "ok" : no.has(id) ? "dim" : t.show && want?.has(id) ? "hinted" : t.sel === id ? "sel" : live && !live.has(id) ? "dim" : "");
-        parts.push(`<div class="cd-row lc-hand${fromHand ? "" : " still"}${t.done ? " done" : ""}">${mine.map(id => card(id, cls(id), { id })).join("")}</div>`);
+        if (fromDummy) parts.push(`<div class="lc-row">${line(mine)}</div>`);
+        else parts.push(`<div class="cd-row lc-hand${fromHand ? "" : " still"}${t.done ? " done" : ""}">${mine.map(id => card(id, cls(id), { id })).join("")}</div>`);
       }
-      if (s.goal === "bid") parts.push(`<div class="lc-row ct-lbox">${boxHtml(s, t)}</div>`);
+      if (s.goal === "bid") parts.push(`<div class="lc-row bd-lbox">${boxHtml(s, t)}</div>`);
       box.innerHTML = `<div class="lc">${parts.join("")}</div>`;
       if (box.querySelector) {
-        fitCardStage(box, mine.length, parts.length > 3, { share: s.goal === "bid" || s.dummy ? 0.3 : 0.45, floor: 0.8 });
-        const dummyRow = box.querySelector(".lc-dummy");
-        if (dummyRow) fitRow(dummyRow, dummyRow.children.length, { max: 1.1 });
+        fitCardStage(box, fromDummy ? dummy.length : mine.length, parts.length > 3, { share: s.goal === "bid" || s.dummy ? 0.3 : 0.45, floor: 0.8 });
+        const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, row = box.querySelector(".lc-hand"), kids = box.firstElementChild.children;
+        const sizeOf = () => parseFloat(row.style.getPropertyValue("--cd-size")) || rem;
+        // fitCardStage lets a card in a row show only .28 of itself; a bridge hand's tens need .52 (and a line's, in contract.css)
+        const n = row ? row.children.length : 0, fit = n > 1 ? row.clientWidth / (2.5 * (1 + 0.52 * (n - 1))) : 0;
+        if (fit && sizeOf() > fit) {
+          fitRow(row, n, { max: fit / rem });
+          row.style.height = `${sizeOf() * 3.5 + rem * 0.9}px`;
+        }
+        // and it gives room back from the row only when the stage has lines of cards to shrink first: a call's stage
+        // (the auction, the hand, the box) can run a few pixels over on a short phone, so the row gives them
+        const over = row ? kids[kids.length - 1].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top + rem * 0.6 - box.clientHeight : 0;
+        if (over > 0) {
+          const was = sizeOf() / rem;
+          row.style.height = `${Math.max(rem * 3, row.offsetHeight - over - 1)}px`;
+          fitRow(row, n, { max: was });
+        }
+        // a trick of two cards would fill a tablet's stage: no card in a line much larger than the row's
+        const most = row ? sizeOf() * 1.25 : 0;
+        if (most) for (const l of box.querySelectorAll(".lc-row > .cd-line")) if (parseFloat(l.style.fontSize) > most) l.style.fontSize = `${most}px`;
       }
     },
   };
@@ -207,15 +228,15 @@ function auctionHtml(a, yours) {
   if (yours) cells.push(`<td class="next">?</td>`);
   const rows = [];
   for (let i = 0; i < cells.length; i += 4) rows.push(`<tr>${cells.slice(i, i + 4).join("")}${"<td></td>".repeat(Math.max(0, 4 - cells.slice(i, i + 4).length))}</tr>`);
-  return `<div class="ct-auction lc-auction"><table><thead><tr>${order.map(s => `<th>${COMPASS[s]}${s === 0 ? "<small>you</small>" : ""}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
+  return `<div class="bd-auction lc-auction"><table><thead><tr>${order.map(s => `<th>${COMPASS[s]}${s === 0 ? "<small>you</small>" : ""}</th>`).join("")}</tr></thead><tbody>${rows.join("")}</tbody></table></div>`;
 }
 /** A bidding box in a lesson: the levels, the strains for the level picked, pass, double and redouble. */
 function boxHtml(s, t) {
   const a = auctionOf(s.auction), legal = new Set(legalCalls(a.calls, (a.dealer + a.calls.length) % 4)), done = t.done;
-  const levels = [1, 2, 3, 4, 5, 6, 7].map(l => `<button class="btn ct-lv${t.level === l ? " on" : ""}" type="button" data-level="${l}"${!done && [0, 1, 2, 3, 4].some(x => legal.has(bidCall(l, x))) ? "" : " disabled"}>${l}</button>`).join("");
-  const strains = [0, 1, 2, 3, 4].map(x => { const call = t.level ? bidCall(t.level, x) : null; return `<button class="btn ct-st${call && t.call === call ? " on" : ""}" type="button" data-strain="${x}"${!done && call && legal.has(call) ? "" : " disabled"}>${x === NT ? "NT" : mark(x)}</button>`; }).join("");
-  const calls = ["P", "X", "XX"].map(c => `<button class="btn ct-pass${t.call === c ? " on" : ""}" type="button" data-call="${c}"${!done && legal.has(c) ? "" : " disabled"}>${c === "P" ? "Pass" : c === "X" ? "Dbl" : "Rdbl"}</button>`).join("");
-  return `<div class="ct-box"><div class="ct-levels">${levels}</div><div class="ct-strains">${strains}</div><div class="ct-calls lc-calls">${calls}</div></div>`;
+  const levels = [1, 2, 3, 4, 5, 6, 7].map(l => `<button class="btn bd-lv${t.level === l ? " on" : ""}" type="button" data-level="${l}"${!done && [0, 1, 2, 3, 4].some(x => legal.has(bidCall(l, x))) ? "" : " disabled"}>${l}</button>`).join("");
+  const strains = [0, 1, 2, 3, 4].map(x => { const call = t.level ? bidCall(t.level, x) : null; return `<button class="btn bd-st${call && t.call === call ? " on" : ""}" type="button" data-strain="${x}"${!done && call && legal.has(call) ? "" : " disabled"}>${x === NT ? "NT" : mark(x)}</button>`; }).join("");
+  const calls = ["P", "X", "XX"].map(c => `<button class="btn bd-pass${t.call === c ? " on" : ""}" type="button" data-call="${c}"${!done && legal.has(c) ? "" : " disabled"}>${c === "P" ? "Pass" : c === "X" ? "Dbl" : "Rdbl"}</button>`).join("");
+  return `<div class="bd-box"><div class="bd-levels">${levels}</div><div class="bd-strains">${strains}</div><div class="bd-calls lc-calls">${calls}</div></div>`;
 }
 
 // ---------- the lessons ----------
@@ -229,7 +250,7 @@ export const COURSE = {
           id: "tricks", title: "Thirteen tricks", zh: "",
           steps: [
             { rows: [{ label: "North, your partner", text: "across the table" }, { label: "West and East", text: "the opponents, either side" }, { label: "South", text: "you" }], say: "Bridge is four players in two partnerships, partners sitting across from each other: North and South against East and West. The whole pack is dealt, thirteen cards each, and the game is in tricks: thirteen of them, one card from each player in turn, clockwise." },
-            { rows: [{ label: "West leads, then North, East, you", cards: "♠5 ♠K ♠2 ♠9" }], quiz: ["West's five", "North's king", "Your nine"], answer: 1, say: "Whoever leads a trick may play any card; everyone else must follow suit, playing a card of the suit led if they have one. The highest card of the suit led takes the trick. Who takes this one?", why: "North's king: the highest spade. Aces are high, then kings, queens, jacks, ten down to two." },
+            { rows: [{ label: "West leads, then North, East, you", cards: "♠5 ♠K ♠2 ♠9" }], quiz: ["West", "North", "East", "You"], answer: 1, say: "Whoever leads may play any card; everyone else must follow suit, playing the suit led if they have it. The highest card of the suit led takes the trick. Who takes this one?", why: "North's king: the highest spade. Aces are high, then kings, queens, jacks, ten down to two." },
             { trick: "♥4", led: "W", hand: "♠AQ3 ♥J82 ♦K10765 ♣Q4", tap: "legal", say: "West leads the four of hearts. Tap every card you may play.", then: "Your three hearts: with a heart in your hand, you must play one." },
             { trick: "♣7", led: "W", hand: "♠A932 ♥KQ54 ♦J1086", tap: "legal", say: "West leads the seven of clubs, and you have none. Tap every card you may play.", then: "Any card: with none of the suit led you may throw anything (a discard). It can't take the trick, unless it's a trump." },
           ],
@@ -237,7 +258,7 @@ export const COURSE = {
         {
           id: "trumps", title: "Trumps", zh: "",
           steps: [
-            { rows: [{ label: "Hearts trumps: West leads a spade", cards: "♠A ♠5 ♥2 ♠K" }], quiz: ["West's ace", "East's two of hearts", "Your king"], answer: 1, say: "Most deals are played with a trump suit, the contract's suit. A trump played to a trick of another suit beats every card of it: the lowest trump beats the ace. You may trump (ruff) only when you can't follow suit. Hearts are trumps; who takes this trick?", why: "East's two of hearts: East had no spades and ruffed. The ace of spades counts for nothing against a trump." },
+            { rows: [{ label: "Hearts trumps: West leads, then North, East, you", cards: "♠A ♠5 ♥2 ♠K" }], quiz: ["West", "North", "East", "You"], answer: 2, say: "Most deals have a trump suit, the contract's. A trump beats every card of another suit, the lowest trump the ace; you may trump (ruff) only when you can't follow suit. Hearts are trumps: who takes this trick?", why: "East's two of hearts: East had no spades and ruffed. The ace of spades counts for nothing against a trump." },
             { contract: "4♠ S", trick: "♦A ♦4 ♦Q", led: "W", hand: "♠K1094 ♥AQJ3 ♣K8652", goal: "play", answer: "♠4", accept: ["♠9", "♠10", "♠K"], say: "Spades are trumps. West leads the ace of diamonds, North plays the four, East the queen, and you have no diamonds. Take the trick.", wrong: { "♣2": "A club can't beat the ace of diamonds: only a trump can.", "♥3": "A heart can't take a diamond trick: trump it." }, then: "A trump takes it. The four does as well as the king: ruff low, and keep the high trumps for later." },
             { rows: [{ label: "Notrump: no trumps at all", text: "the highest of the suit led wins" }], say: "A contract can also be in notrump: then there are no trumps, and every trick goes to the highest card of the suit led." },
           ],

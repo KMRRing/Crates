@@ -344,7 +344,7 @@ function strongTwoResponses(ctx) {
 
 function weakTwoResponses(ctx, s) {
   const out = [], major = s >= 2;
-  out.push(rule("2N", { hcp: [15, 37], name: "feature ask", forcing: true, conv: "feature", why: "asks for an ace or king outside the suit if partner is at the top of the range" }));
+  out.push(rule("2N", { hcp: [15, 37], name: "feature ask", forcing: true, conv: "feature", why: "asks a maximum for an outside ace or king" }));
   if (major) {
     out.push(rule(bidCall(4, s), { hcp: [14, 37], len: ln(s, 3), name: "game raise" }));
     out.push(rule(bidCall(4, s), { hcp: [0, 13], len: ln(s, 4), test: f => f.short(), name: "preemptive raise" }));
@@ -396,7 +396,7 @@ function afterOvercall(ctx, o, rhoCall) {
   const sup = o >= 2 ? 3 : 4;
   if (theirs != null) {
     const cue = cheapest(ctx, theirs);
-    if (cue) out.push(rule(cue, { hcp: [10, 37], len: ln(o, sup), name: "cue-bid raise", forcing: true, conv: "cue", agreed: o, why: "a limit raise or better in partner's suit" }));
+    if (cue) out.push(rule(cue, { hcp: [10, 37], len: ln(o, sup), name: "cue-bid raise", forcing: true, conv: "cue", agreed: o, why: "a limit raise or better" }));
   }
   const raise = cheapest(ctx, o), jumpRaise = jump(ctx, o);
   if (jumpRaise) out.push(rule(jumpRaise, { hcp: [0, 7], len: ln(o, sup + 1), name: "preemptive raise", why: "weak, after their overcall" }));
@@ -559,7 +559,7 @@ function competitiveRebid(ctx) {
   const out = [], o = ctx.opener.strain, theirs = ctx.theirSuits.at(-1);
   const pardPassed = ctx.pards.length && ctx.pards.every(x => x.call === "P");
   if (theirs != null && pardPassed && ctx.lastStep?.call === "P" && ctx.legal.includes("X") && levelOf(ctx.last.call) <= 2) {
-    out.push(rule("X", { hcp: [11, 21], len: ln(theirs, 0, 2), name: "reopening double", forcing: true, conv: "takeout", why: "short in their suit: partner may pass to punish them" }));
+    out.push(rule("X", { hcp: [11, 21], len: ln(theirs, 0, 2), name: "reopening double", forcing: true, conv: "takeout", why: "partner may pass for penalties" }));
   }
   const again = cheapest(ctx, o);
   if (again && levelOf(again) <= 3) out.push(rule(again, { hcp: [11, 21], len: ln(o, 6), name: "rebids the suit" }));

@@ -22,25 +22,25 @@
 <div id="app" class="contract fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <span class="mark-icon ct-mark" aria-hidden="true"></span>Contract</button></h1>
+      <span class="mark-icon bd-mark" aria-hidden="true"></span>Contract</button></h1>
     <div class="top-right">
       <button id="learnBtn" class="pick" aria-haspopup="dialog">Learn</button>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
 
-  <div id="info" class="ct-info" aria-live="polite"></div>
-  <section id="table" class="ct-table fit-grow" aria-label="The table">
-    <div id="seatTop" class="ct-seat at-top"></div>
-    <div id="seatLeft" class="ct-seat at-left"></div>
-    <div id="seatRight" class="ct-seat at-right"></div>
-    <div id="centre" class="ct-centre"></div>
+  <div id="info" class="bd-info" aria-live="polite"></div>
+  <section id="table" class="bd-table fit-grow" aria-label="The table">
+    <div id="seatTop" class="bd-seat at-top"></div>
+    <div id="seatLeft" class="bd-seat at-left"></div>
+    <div id="seatRight" class="bd-seat at-right"></div>
+    <div id="centre" class="bd-centre"></div>
   </section>
-  <section id="side" class="ct-side" aria-label="Your hand">
-    <div id="aside" class="ct-aside" aria-label="The auction"></div>
-    <p id="say" class="ct-say" aria-live="polite"></p>
-    <div id="hand" class="ct-hand cd-row" aria-label="Your cards"></div>
-    <div id="controls" class="ct-controls"></div>
+  <section id="side" class="bd-side" aria-label="Your hand">
+    <div id="aside" class="bd-aside" aria-label="The auction"></div>
+    <p id="say" class="bd-say" aria-live="polite"></p>
+    <div id="hand" class="bd-hand cd-row" aria-label="Your cards"></div>
+    <div id="controls" class="bd-controls"></div>
   </section>
 </div>
 
@@ -49,23 +49,23 @@
   <div id="menuBody"></div>
 </dialog>
 
-<dialog id="rulesDlg" class="sheet ct-sheet" aria-label="Rules">
+<dialog id="rulesDlg" class="sheet bd-sheet" aria-label="Rules">
   <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
-  <div id="rulesBody" class="ct-rules"></div>
+  <div id="rulesBody" class="bd-rules"></div>
 </dialog>
 
-<dialog id="reviewDlg" class="sheet ct-sheet pauses" aria-labelledby="reviewHead">
+<dialog id="reviewDlg" class="sheet bd-sheet pauses" aria-labelledby="reviewHead">
   <div class="pick-head"><h2 id="reviewHead">The deal</h2><button class="btn" type="button" id="reviewClose">Close</button></div>
-  <div id="reviewBody" class="ct-review"></div>
+  <div id="reviewBody" class="bd-review"></div>
 </dialog>
 
-<dialog id="endDlg" class="sheet ct-sheet" aria-labelledby="endHead">
-  <h2 id="endHead" class="ct-end-head"></h2>
-  <div id="endBody" class="ct-end"></div>
-  <div class="ct-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New match</button></div>
+<dialog id="endDlg" class="sheet bd-sheet" aria-labelledby="endHead">
+  <h2 id="endHead" class="bd-end-head"></h2>
+  <div id="endBody" class="bd-end"></div>
+  <div class="bd-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New match</button></div>
 </dialog>
 
-<p id="toast" class="ct-toast" role="status" aria-live="polite"></p>
+<p id="toast" class="bd-toast" role="status" aria-live="polite"></p>
 <script type="module" src="contract.js"></script>
 </body>
 </html>

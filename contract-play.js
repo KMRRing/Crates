@@ -248,6 +248,18 @@ function discard(s, legal, hand) {
 }
 
 // ---------- the play by sampling ----------
+/**
+ * How hard each level thinks (contract-worker.js, tools/contract-arena.mjs): deals weighed a card at most, and the time
+ * it may take (at least four whatever the time). Easy plays by rules (playByRules) and isn't here. Every level, and the
+ * hint, leads by the rules (openingLead): over 150 deals a lead weighed by sampling (48 deals, a second) left declarer
+ * as many tricks double dummy as the rules' lead (9.29 against 9.28), so it isn't worth the wait, and the rules' lead
+ * is the one partner reads and the course teaches (README, Contract).
+ */
+export const THINK = {
+  medium: { deals: 12, ms: 450 },
+  hard: { deals: 48, ms: 1000 },
+  hint: { deals: 48, ms: 1600 },
+};
 /** The side to move's goal: declarer's side the contract's tricks, the defenders one more than declarer can spare. */
 export function goalOf(s, seat) {
   const need = 6 + s.contract.level, decl = sideOf(seat) === sideOf(s.contract.declarer);

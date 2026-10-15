@@ -5,16 +5,10 @@
 //   "par":  the tricks the contract makes with every card seen, for the review of a deal
 // A deal of 13 cards a hand takes the solver a tenth of a second or so, a late trick a few milliseconds: each level
 // weighs as many deals as its time allows.
-import { chooseCard } from "./contract-play.js";
+import { chooseCard, THINK } from "./contract-play.js";
 import { fetchSolver } from "./contract-dds.js";
 import { sideOf, partnerOf } from "./contract-core.js";
 
-/** How hard each level thinks: deals at most, and the time it may take (it weighs at least four whatever the time). */
-export const THINK = {
-  medium: { deals: 12, ms: 450 },
-  hard: { deals: 48, ms: 1000, leadBySampling: true },
-  hint: { deals: 48, ms: 1600, leadBySampling: true },
-};
 let solver = null, failed = null;
 const ready = fetchSolver().then(s => { solver = s; }, e => { failed = String(e?.message || e); });
 

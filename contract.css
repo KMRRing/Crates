@@ -1,180 +1,190 @@
 /* Contract: a card table in petrol under brass, four places round it: your hand along the foot, partner across, the
    opponents either side, the auction (and then the trick) in the middle, the bidding box under your hand. The cards
    are cards.js's; dummy's cards lie open as a hand when they're yours to play, else as a bridge column writes them. */
-:root { --ct-in: #1F5E73; --ct-soft: color-mix(in srgb, var(--ct-in) 13%, var(--sheet)); --ct-felt: color-mix(in srgb, var(--ct-in) 11%, var(--yard)); --ct-vul: #A8382B; }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --ct-in: #7CC4D6; --ct-felt: color-mix(in srgb, #1F5E73 26%, var(--yard)); --ct-vul: #E8806F; } }
-html[data-mode="night"] { --ct-in: #7CC4D6; --ct-felt: color-mix(in srgb, #1F5E73 26%, var(--yard)); --ct-vul: #E8806F; }
-html[data-theme="kontor"] { --ct-in: #1E7A45; }
-@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --ct-in: #2EB36A; } }
-html[data-theme="kontor"][data-mode="night"] { --ct-in: #2EB36A; }
-html[data-theme="office"] { --ct-in: #0F6CBD; }
-@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --ct-in: #479EF5; } }
-html[data-theme="office"][data-mode="night"] { --ct-in: #479EF5; }
+:root { --bd-in: #1F5E73; --bd-soft: color-mix(in srgb, var(--bd-in) 13%, var(--sheet)); --bd-felt: color-mix(in srgb, var(--bd-in) 11%, var(--yard)); --bd-vul: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --bd-in: #7CC4D6; --bd-felt: color-mix(in srgb, #1F5E73 26%, var(--yard)); --bd-vul: #E8806F; } }
+html[data-mode="night"] { --bd-in: #7CC4D6; --bd-felt: color-mix(in srgb, #1F5E73 26%, var(--yard)); --bd-vul: #E8806F; }
+html[data-theme="kontor"] { --bd-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --bd-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --bd-in: #2EB36A; }
+html[data-theme="office"] { --bd-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --bd-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --bd-in: #479EF5; }
 
-.ct-mark { display: inline-block; }
-.ct-mark svg { width: 100%; height: 100%; display: block; }
-.ln-sheet.ct { --ln-in: var(--ct-in); }
+.bd-mark { display: inline-block; }
+.bd-mark svg { width: 100%; height: 100%; display: block; }
+.ln-sheet.bd { --ln-in: var(--bd-in); }
+/* the course's stage: the auction and the bidding box as wide as a phone's at most, the box's buttons filling it */
+.ln-sheet.bd :is(.bd-lauction, .bd-lbox) { width: min(100%, 24rem); box-sizing: border-box; justify-items: stretch; }
+.ln-sheet.bd .lc-calls { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* a hand laid as a line shows enough of each card for a ten */
+.ln-sheet.bd .lc-row .cd-line.many > .cd + .cd { margin-left: -1.2em; }
 
 /* a suit's mark, red for hearts and diamonds, in words and in the bidding box */
-.ct-s { font-weight: 800; color: var(--cd-black); }
-.ct-s.red { color: var(--cd-red); }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .ct-s:not(.red) { color: var(--ink); } }
-html[data-mode="night"] .ct-s:not(.red) { color: var(--ink); }
-.ct-word { font-weight: 700; }
+.bd-s { font-weight: 800; color: var(--cd-black); }
+.bd-s.red { color: var(--cd-red); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .bd-s:not(.red) { color: var(--ink); } }
+html[data-mode="night"] .bd-s:not(.red) { color: var(--ink); }
+.bd-word { font-weight: 700; }
 
 /* the line across the top: the deal and its vulnerability, the contract, the tricks, the match */
-.ct-info { display: flex; align-items: center; gap: .5rem; min-height: 2.2rem; padding: .2rem .1rem; border-bottom: 1px solid var(--rule); font-size: .86rem; }
-.ct-deal { display: grid; line-height: 1.1; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); font-size: .72rem; color: var(--ink-soft); white-space: nowrap; }
-.ct-deal small { font-size: .66rem; font-weight: 700; letter-spacing: 0; text-transform: none; font-stretch: normal; }
-.ct-deal small.vul { color: var(--ct-vul); }
-.ct-contract { display: inline-flex; align-items: baseline; gap: .25rem; padding: .15rem .45rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer; white-space: nowrap; }
-.ct-contract small { font-size: .72rem; color: var(--ink-soft); }
-.ct-contract.idle { border-color: transparent; background: none; cursor: default; font-size: .82rem; color: var(--ink-soft); }
-.ct-tricks { font-variant-numeric: tabular-nums; font-size: .95rem; white-space: nowrap; }
-.ct-score { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
-.ct-score b { color: var(--ink); }
+.bd-info { display: flex; align-items: center; gap: .5rem; min-height: 2.2rem; padding: .2rem .1rem; border-bottom: 1px solid var(--rule); font-size: .86rem; }
+.bd-deal { display: grid; line-height: 1.1; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); font-size: .72rem; color: var(--ink-soft); white-space: nowrap; }
+.bd-deal small { font-size: .66rem; font-weight: 700; letter-spacing: 0; text-transform: none; font-stretch: normal; }
+.bd-deal small.vul { color: var(--bd-vul); }
+.bd-contract { display: inline-flex; align-items: baseline; gap: .25rem; padding: .15rem .45rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-weight: 800; font-size: 1rem; cursor: pointer; white-space: nowrap; }
+.bd-contract small { font-size: .72rem; color: var(--ink-soft); }
+.bd-contract.idle { border-color: transparent; background: none; cursor: default; font-size: .82rem; color: var(--ink-soft); }
+.bd-tricks { font-variant-numeric: tabular-nums; font-size: .95rem; white-space: nowrap; }
+.bd-score { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.bd-score b { color: var(--ink); }
 
 /* the table: three places round a middle */
-.ct-table { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
-  grid-template-areas: "left top right" "left centre right"; gap: .3rem; min-height: 0; padding: .35rem .2rem; border-radius: 10px; background: var(--ct-felt); }
-.ct-seat { display: flex; flex-direction: column; align-items: center; gap: .2rem; min-width: 0; padding: .25rem .15rem; border-radius: 6px; text-align: center; }
-.ct-seat.at-top { grid-area: top; }
+.bd-table { position: relative; container-type: inline-size; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2.2fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "left top right" "left centre right"; gap: .3rem; min-height: 0; padding: .35rem .2rem; border-radius: 10px; background: var(--bd-felt); }
+/* a seat's lettering in ems of its own size, which grows on a wide table (a tablet held sideways) */
+.bd-seat { display: flex; flex-direction: column; align-items: center; gap: .2em; min-width: 0; padding: .25em .15em; border-radius: 6px; text-align: center; font-size: clamp(1rem, 3cqw, 1.45rem); }
+.bd-seat.at-top { grid-area: top; }
 /* dummy's cards yours to play: across the whole table, the opponents beside the trick under it */
-.ct-table.open-top { grid-template-areas: "top top top" "left centre right"; }
-.ct-seat.at-left { grid-area: left; align-self: center; }
-.ct-seat.at-right { grid-area: right; align-self: center; }
-.ct-seat.turn { box-shadow: inset 0 0 0 2px var(--ct-in); background: var(--ct-soft); }
-.ct-name { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: .2rem .3rem; max-width: 100%; font-size: .84rem; }
-.ct-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.ct-name small { font-size: .66rem; font-weight: 800; color: var(--ink-soft); }
-.ct-name.partner b { color: var(--ct-in); }
-.ct-tag { padding: 0 .28rem; border-radius: 3px; background: var(--brass); color: var(--sheet); font-size: .62rem; font-weight: 800; line-height: 1.35; }
-.ct-tag.on { background: var(--ct-in); }
-.ct-backs { display: flex; font-size: .34rem; }
-.ct-backs > .cd + .cd { margin-left: -2em; }
-.ct-think { font-size: .74rem; color: var(--ink-soft); }
-.ct-think::after { content: "…"; }
+.bd-table.open-top { grid-template-areas: "top top top" "left centre right"; }
+.bd-seat.at-left { grid-area: left; align-self: center; }
+.bd-seat.at-right { grid-area: right; align-self: center; }
+.bd-seat.turn { box-shadow: inset 0 0 0 2px var(--bd-in); background: var(--bd-soft); }
+.bd-name { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: .2em .3em; max-width: 100%; font-size: .84em; }
+.bd-name b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.bd-name small { font-size: .79em; font-weight: 800; color: var(--ink-soft); }
+.bd-name.partner b { color: var(--bd-in); }
+.bd-tag { padding: 0 .45em; border-radius: 3px; background: var(--brass); color: var(--sheet); font-size: .74em; font-weight: 800; line-height: 1.35; }
+.bd-tag.on { background: var(--bd-in); }
+.bd-backs { display: flex; font-size: .34em; }
+.bd-backs > .cd + .cd { margin-left: -2em; }
+.bd-think { font-size: .74em; color: var(--ink-soft); }
+.bd-think::after { content: "…"; }
 /* a hand as a bridge column writes it: a suit a line, high to low */
-.ct-rows { display: grid; justify-items: start; gap: .05rem; font-size: .8rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.ct-row { display: flex; gap: .25rem; white-space: nowrap; }
-.ct-row > span:last-child { letter-spacing: .02em; }
-.ct-row i { font-style: normal; }
-.ct-row i + i { margin-left: .12em; }
-.ct-row i.lit { color: var(--ct-in); text-decoration: underline; text-underline-offset: .15em; }
+.bd-rows { display: grid; justify-items: start; gap: .05em; font-size: .8em; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.bd-row { display: flex; gap: .3em; white-space: nowrap; }
+.bd-row > span:last-child { letter-spacing: .02em; }
+.bd-row i { font-style: normal; }
+.bd-row i + i { margin-left: .08em; }
+.bd-row i.lit { color: var(--bd-in); text-decoration: underline; text-underline-offset: .15em; }
 /* dummy's cards as a hand, yours to play */
-.ct-dummy { width: 100%; justify-content: center; min-height: 3.6rem; padding-top: .35rem; }
-.ct-dummy .cd, .ct-hand .cd { cursor: pointer; transition: transform .12s; }
-.ct-dummy .cd.ok, .ct-hand .cd.ok { transform: translateY(-.4em); }
-.ct-dummy .cd.dim, .ct-hand .cd.dim { opacity: .5; }
-.cd.coach { box-shadow: 0 0 0 2.5px var(--ct-in), 0 0 0 5px color-mix(in srgb, var(--ct-in) 30%, transparent); }
+.bd-dummy { --bd-under: var(--bd-felt); width: 100%; justify-content: center; min-height: 3.6rem; padding-top: .35rem; }
+.bd-dummy .cd, .bd-hand .cd { cursor: pointer; transition: transform .12s; }
+.bd-dummy .cd.ok, .bd-hand .cd.ok { transform: translateY(-.4em); }
+/* a card you may not play fades toward what it lies on, but stays opaque: in a fanned row the card under it doesn't show through */
+:is(.bd-dummy, .bd-hand, .ln-sheet.bd .lc-hand) .cd.dim { opacity: 1; }
+:is(.bd-dummy, .bd-hand, .ln-sheet.bd .lc-hand) .cd.dim::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--bd-under, var(--yard)) 55%, transparent); }
+.cd.coach { box-shadow: 0 0 0 2.5px var(--bd-in), 0 0 0 5px color-mix(in srgb, var(--bd-in) 30%, transparent); }
 
-.ct-centre { grid-area: centre; position: relative; display: grid; place-items: center; min-height: 0; container-type: size; }
+.bd-centre { grid-area: centre; position: relative; display: grid; place-items: center; min-height: 0; container-type: size; }
 /* the auction grows down from the top of the middle, under partner */
-#app[data-step="bid"] .ct-centre { place-items: start center; }
+#app[data-step="bid"] .bd-centre { place-items: start center; }
+/* and as large as a wide middle allows (a tablet held sideways) */
+#app[data-step="bid"] .bd-centre .bd-auction { font-size: clamp(1rem, 5cqw, 1.5rem); }
 /* the trick as large as the middle allows: a cross of cards 8.4em across and 8.6em high */
-.ct-trick { position: relative; width: 8.4em; height: 8.6em; font-size: clamp(.62rem, min(10.5cqh, 11cqw), 1.6rem); }
-.ct-play { position: absolute; }
-.ct-play.at-me { left: 50%; bottom: 0; transform: translateX(-50%); }
-.ct-play.at-top { left: 50%; top: 0; transform: translateX(-50%); }
-.ct-play.at-left { left: 0; top: 50%; transform: translateY(-50%); }
-.ct-play.at-right { right: 0; top: 50%; transform: translateY(-50%); }
-.ct-play.win .cd { box-shadow: 0 0 0 2.5px var(--ct-in), 0 1px 3px rgba(28, 42, 52, .3); }
-.ct-count { position: absolute; bottom: 0; right: .1rem; font-size: .7rem; color: var(--ink-soft); }
+.bd-trick { position: relative; width: 8.4em; height: 8.6em; font-size: clamp(.62rem, min(10.5cqh, 11cqw), 2.6rem); }
+.bd-play { position: absolute; }
+.bd-play.at-me { left: 50%; bottom: 0; transform: translateX(-50%); }
+.bd-play.at-top { left: 50%; top: 0; transform: translateX(-50%); }
+.bd-play.at-left { left: 0; top: 50%; transform: translateY(-50%); }
+.bd-play.at-right { right: 0; top: 50%; transform: translateY(-50%); }
+.bd-play.win .cd { box-shadow: 0 0 0 2.5px var(--bd-in), 0 1px 3px rgba(28, 42, 52, .3); }
+.bd-count { position: absolute; bottom: 0; right: .1rem; font-size: .7rem; color: var(--ink-soft); }
 
 /* the auction: a column a seat, from your left, each call a button that says what it showed */
-.ct-auction { width: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; }
-.ct-auction table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
-.ct-auction th { padding: .1rem 0 .2rem; font-size: .74rem; font-weight: 800; color: var(--ink-soft); border-bottom: 1px solid var(--rule); }
-.ct-auction th small { display: block; font-size: .62rem; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ct-auction th.vul { color: var(--ct-vul); }
-.ct-auction td { padding: .05rem; text-align: center; height: 1.7rem; }
-.ct-auction td.next { font-weight: 800; color: var(--ct-in); }
-.ct-call { width: 100%; min-height: 1.6rem; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: .95rem; font-weight: 800; cursor: pointer; }
-.ct-call:hover, .ct-call:focus-visible { background: var(--ct-soft); }
+.bd-auction { width: 100%; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; font-size: 1rem; }
+.bd-auction table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+.bd-auction th { padding: .1em 0 .2em; font-size: .74em; font-weight: 800; color: var(--ink-soft); border-bottom: 1px solid var(--rule); }
+.bd-auction th small { display: block; font-size: .84em; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-auction th.vul { color: var(--bd-vul); }
+.bd-auction td { padding: .05em; text-align: center; height: 1.7em; }
+.bd-auction td.next { font-weight: 800; color: var(--bd-in); }
+.bd-call { width: 100%; min-height: 1.6em; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: .95em; font-weight: 800; cursor: pointer; }
+.bd-call:hover, .bd-call:focus-visible { background: var(--bd-soft); }
 
 /* a deal's result in the middle */
-.ct-result { display: grid; justify-items: center; gap: .25rem; padding: .6rem .8rem; border-radius: 8px; background: var(--sheet); border: 1.5px solid var(--tile-edge); text-align: center; max-width: 18rem; }
-.ct-result b { font-size: 1rem; }
-.ct-result small { color: var(--ink-soft); font-size: .76rem; }
-.ct-delta { font-weight: 800; font-size: 1.05rem; }
-.ct-delta.up, .ct-standings b.up { color: #2F7D5B; }
-.ct-delta.down, .ct-standings b.down { color: #A8382B; }
-.ct-next { display: block; width: 8rem; height: .25rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
-.ct-next i { display: block; height: 100%; background: var(--ct-in); transform-origin: left; animation: ct-run linear forwards; }
-@keyframes ct-run { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-.ct-review-btn { font-size: .8rem; }
+.bd-result { display: grid; justify-items: center; gap: .25rem; padding: .6rem .8rem; border-radius: 8px; background: var(--sheet); border: 1.5px solid var(--tile-edge); text-align: center; max-width: 18rem; }
+.bd-result b { font-size: 1rem; }
+.bd-result small { color: var(--ink-soft); font-size: .76rem; }
+.bd-delta { font-weight: 800; font-size: 1.05rem; }
+.bd-delta.up, .bd-standings b.up { color: #2F7D5B; }
+.bd-delta.down, .bd-standings b.down { color: #A8382B; }
+.bd-next { display: block; width: 8rem; height: .25rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.bd-next i { display: block; height: 100%; background: var(--bd-in); transform-origin: left; animation: bd-run linear forwards; }
+@keyframes bd-run { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.bd-review-btn { font-size: .8rem; }
 
 /* your hand, the line over it, the bidding box */
-.ct-side { display: flex; flex-direction: column; gap: .3rem; padding-top: .3rem; }
-.ct-aside { display: none; }
-.ct-say { margin: 0; height: 2.5em; overflow-y: auto; font-size: .82rem; line-height: 1.25; color: var(--ink-soft); text-align: center; }
-.ct-say b.ct-who { color: var(--ink); margin-right: .2rem; }
-.ct-coach { margin-right: .3rem; padding: .02rem .35rem; border-radius: 3px; background: var(--ct-in); color: var(--sheet); font-size: .66rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); vertical-align: .08em; }
-.ct-card { color: var(--cd-black); }
-.ct-card.red { color: var(--cd-red); }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .ct-card:not(.red) { color: var(--ink); } }
-html[data-mode="night"] .ct-card:not(.red) { color: var(--ink); }
-.ct-wait { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .35rem; vertical-align: -.2em; }
-.ct-hand { justify-content: center; min-height: 4.5rem; padding-top: .45rem; }
-.ct-hand.is-dummy .cd { cursor: default; }
-.ct-status { margin: 0; text-align: center; color: var(--ink-soft); font-size: .88rem; }
-.ct-controls { display: grid; gap: .3rem; }
-.ct-box { display: grid; gap: .3rem; }
-.ct-box.wait { opacity: .55; }
-.ct-levels { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; }
-.ct-strains { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .25rem; }
-.ct-calls { display: grid; grid-template-columns: 1fr 1fr auto 1.4fr; gap: .25rem; }
-.ct-box .btn { min-height: 2.5rem; padding: .1rem .2rem; font-size: 1rem; font-weight: 800; }
-.ct-box .btn.on { box-shadow: inset 0 0 0 2.5px var(--ct-in); background: var(--ct-soft); }
-.ct-box .btn.coach, .ct-bar .btn.coach { box-shadow: inset 0 0 0 2.5px var(--ct-in), 0 0 0 3px color-mix(in srgb, var(--ct-in) 30%, transparent); }
-.ct-st .ct-s { font-size: 1.25em; }
-.ct-box .ct-pass, .ct-box .ct-dbl, .ct-box .ct-hint { font-size: .84rem; }
-.ct-box .ct-bid { font-size: .9rem; }
-.ct-bid .ct-s { color: inherit; }
-.ct-bar { display: flex; gap: .35rem; }
-.ct-bar .btn { flex: 1 1 0; min-height: 2.6rem; font-size: .84rem; }
-.ct-bar .ct-hint { flex: 0 0 auto; padding: 0 1.1rem; }
-.ct-go { width: 100%; min-height: 3rem; }
+.bd-side { display: flex; flex-direction: column; gap: .3rem; padding-top: .3rem; }
+.bd-aside { display: none; }
+.bd-say { margin: 0; height: 2.5em; overflow-y: auto; font-size: .82rem; line-height: 1.25; color: var(--ink-soft); text-align: center; }
+.bd-say b.bd-who { color: var(--ink); margin-right: .2rem; }
+.bd-coach { margin-right: .3rem; padding: .02rem .35rem; border-radius: 3px; background: var(--bd-in); color: var(--sheet); font-size: .66rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); vertical-align: .08em; }
+.bd-card { color: var(--cd-black); }
+.bd-card.red { color: var(--cd-red); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .bd-card:not(.red) { color: var(--ink); } }
+html[data-mode="night"] .bd-card:not(.red) { color: var(--ink); }
+.bd-wait { display: inline-block; width: 1.1em; height: 1.1em; margin-right: .35rem; vertical-align: -.2em; }
+.bd-hand { justify-content: center; min-height: 4.5rem; padding-top: .45rem; }
+.bd-hand.is-dummy .cd { cursor: default; }
+.bd-status { margin: 0; text-align: center; color: var(--ink-soft); font-size: .88rem; }
+.bd-controls { display: grid; gap: .3rem; }
+.bd-box { display: grid; gap: .3rem; }
+.bd-box.wait { opacity: .55; }
+.bd-levels { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .25rem; }
+.bd-strains { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .25rem; }
+.bd-calls { display: grid; grid-template-columns: 1fr 1fr auto 1.4fr; gap: .25rem; }
+.bd-box .btn { min-height: 2.5rem; padding: .1rem .2rem; font-size: 1rem; font-weight: 800; }
+.bd-box .btn.on { box-shadow: inset 0 0 0 2.5px var(--bd-in); background: var(--bd-soft); }
+.bd-box .btn.coach, .bd-bar .btn.coach { box-shadow: inset 0 0 0 2.5px var(--bd-in), 0 0 0 3px color-mix(in srgb, var(--bd-in) 30%, transparent); }
+.bd-st .bd-s { font-size: 1.25em; }
+.bd-box .bd-pass, .bd-box .bd-dbl, .bd-box .bd-hint { font-size: .84rem; }
+.bd-box .bd-bid { font-size: .9rem; }
+.bd-bid .bd-s { color: inherit; }
+.bd-bar { display: flex; gap: .35rem; }
+.bd-bar .btn { flex: 1 1 0; min-height: 2.6rem; font-size: .84rem; }
+.bd-bar .bd-hint { flex: 0 0 auto; padding: 0 1.1rem; }
+.bd-go { width: 100%; min-height: 3rem; }
 
 /* sheets: the rules, the auction and its meanings, a deal's four hands, the match */
-.ct-rules p { line-height: 1.45; }
-.ct-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
-.ct-review .ct-auction { margin: .6rem 0; max-height: none; }
-.ct-meanings { margin: .5rem 0 0; padding-left: 0; list-style: none; display: grid; gap: .3rem; font-size: .86rem; line-height: 1.35; }
-.ct-meanings b { margin-right: .3rem; }
-.ct-dia { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: ". top ." "left mid right" ". me ."; gap: .4rem; align-items: center; margin: .3rem 0 .6rem; }
-.ct-dia-hand { display: grid; gap: .1rem; justify-items: start; min-width: 0; font-size: .82rem; }
-.ct-dia-hand > b { font-size: .74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.ct-dia-hand > small { font-size: .68rem; color: var(--ink-soft); }
-.ct-dia-hand .ct-row { font-weight: 700; }
-.ct-dia-hand.at-top { grid-area: top; }
-.ct-dia-hand.at-left { grid-area: left; }
-.ct-dia-hand.at-right { grid-area: right; }
-.ct-dia-hand.at-me { grid-area: me; }
-.ct-dia-mid { grid-area: mid; text-align: center; font-size: .72rem; color: var(--ink-soft); }
-.ct-review-line { margin: .3rem 0; line-height: 1.4; font-size: .9rem; }
-.ct-end-head { margin: .2rem 0 .6rem; }
-.ct-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
-.ct-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
-.ct-standings li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ct-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
-.ct-end-note { color: var(--ink-soft); font-size: .9rem; }
-.ct-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
-.ct-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+.bd-rules p { line-height: 1.45; }
+.bd-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.bd-review .bd-auction { margin: .6rem 0; max-height: none; }
+.bd-meanings { margin: .5rem 0 0; padding-left: 0; list-style: none; display: grid; gap: .3rem; font-size: .86rem; line-height: 1.35; }
+.bd-meanings b { margin-right: .3rem; }
+.bd-dia { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: ". top ." "left mid right" ". me ."; gap: .4rem; align-items: center; margin: .3rem 0 .6rem; }
+.bd-dia-hand { display: grid; gap: .1rem; justify-items: start; min-width: 0; font-size: .82rem; }
+.bd-dia-hand > b { font-size: .74rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.bd-dia-hand > small { font-size: .68rem; color: var(--ink-soft); }
+.bd-dia-hand .bd-row { font-weight: 700; }
+.bd-dia-hand.at-top { grid-area: top; }
+.bd-dia-hand.at-left { grid-area: left; }
+.bd-dia-hand.at-right { grid-area: right; }
+.bd-dia-hand.at-me { grid-area: me; }
+.bd-dia-mid { grid-area: mid; text-align: center; font-size: .72rem; color: var(--ink-soft); }
+.bd-review-line { margin: .3rem 0; line-height: 1.4; font-size: .9rem; }
+.bd-end-head { margin: .2rem 0 .6rem; }
+.bd-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.bd-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.bd-standings li .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-standings li b { text-align: right; font-variant-numeric: tabular-nums; }
+.bd-end-note { color: var(--ink-soft); font-size: .9rem; }
+.bd-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.bd-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
   max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
   transition: opacity .2s, transform .2s; z-index: 5; }
-.ct-toast.on { opacity: 1; transform: translate(-50%, 0); }
-@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.ct-delta.up, .ct-standings b.up) { color: #7FC2A8; } html:not([data-mode="day"]) :is(.ct-delta.down, .ct-standings b.down) { color: #E8806F; } }
-html[data-mode="night"] :is(.ct-delta.up, .ct-standings b.up) { color: #7FC2A8; }
-html[data-mode="night"] :is(.ct-delta.down, .ct-standings b.down) { color: #E8806F; }
-html[data-theme="office"] :is(.ct-seat, .ct-result, .ct-contract) { border-radius: 4px; }
+.bd-toast.on { opacity: 1; transform: translate(-50%, 0); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) :is(.bd-delta.up, .bd-standings b.up) { color: #7FC2A8; } html:not([data-mode="day"]) :is(.bd-delta.down, .bd-standings b.down) { color: #E8806F; } }
+html[data-mode="night"] :is(.bd-delta.up, .bd-standings b.up) { color: #7FC2A8; }
+html[data-mode="night"] :is(.bd-delta.down, .bd-standings b.down) { color: #E8806F; }
+html[data-theme="office"] :is(.bd-seat, .bd-result, .bd-contract) { border-radius: 4px; }
 
 /* held sideways: the table on the left, the auction, your hand and the bidding box beside it */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.contract { --beside: 23rem; grid-template-rows: auto auto minmax(0, 1fr); }
-  #app.contract .ct-info { grid-column: 1 / -1; grid-row: 2; }
-  #app.contract .ct-table { grid-column: 1; grid-row: 3; }
-  #app.contract .ct-side { grid-column: 2; grid-row: 3; min-height: 0; justify-content: flex-end; }
-  #app.contract .ct-aside { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  #app.contract .ct-aside .ct-auction { max-height: none; }
+  #app.contract .bd-info { grid-column: 1 / -1; grid-row: 2; }
+  #app.contract .bd-table { grid-column: 1; grid-row: 3; }
+  #app.contract .bd-side { grid-column: 2; grid-row: 3; min-height: 0; justify-content: flex-end; }
+  #app.contract .bd-aside { display: block; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  #app.contract .bd-aside .bd-auction { max-height: none; }
 }
