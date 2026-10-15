@@ -359,14 +359,22 @@ function oneAway(v, c, ctx) {
   }
   if (!n) return null;
   const ready = { pS: pS / n, vS: pS ? vS / pS : 0, pD: pD / n, vD: pD ? vD / pD : 0 };
-  const cf = (m ? 0.3 : 0.1) * ctx.tune.calls;
+  const cf = callFactor(m, "any", ctx) * ctx.tune.calls;
   const q = Math.min(0.8, n / ctx.U * (1 + cf) * 0.9 * ctx.tune.eta);
   return { ...chance([q], ready, ctx.D, ctx.h), sh: 1, uk: { n, kinds }, fan };
 }
+/**
+ * How readily a hand takes a discard to move on, as a share more chances than its draws alone: a hand already open, or
+ * after a pattern, calls what it needs; a concealed plain hand at the fan game seldom does, since calling costs it the
+ * concealed fan. With no fan nothing is lost by calling, so a concealed hand calls as readily as an open one: reckoned
+ * slower, it made opening the hand look like speed, and the coach once advised chowing 5 dots with 3 and 4 out of a
+ * made 2-3-4 (October 2026). Thirteen orphans calls nothing.
+ */
+const callFactor = (melds, route, ctx) => (route === "orphans" ? 0 : melds || route !== "any" || ctx.nofan ? 0.3 : 0.1);
 /** One route's chance from its shanten and live tiles. */
 function routeChance(v, route, sh, uk, c, ctx) {
   const T = TYPICAL[family(route)], t = ctx.tune;
-  const cf = route === "orphans" ? 0 : (v.melds.length || route !== "any" ? 0.3 : 0.1) * t.calls;
+  const cf = callFactor(v.melds.length, route, ctx) * t.calls;
   const qs = [];
   const eta = ctx.nofan && route === "any" ? ETA_NOFAN_ANY : ETA[family(route)];
   for (let s = sh; s >= 1; s--) qs.push(Math.min(0.8, (s === sh ? uk / ctx.U : T[s]) * (1 + cf) * eta[s] * t.eta));

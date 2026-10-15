@@ -323,6 +323,28 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
     gain += st.scores[rot] - (st.scores.reduce((a, b) => a + b, 0) - st.scores[rot]) / 3; hands++;
   }
   check(gain / hands > 2, `no fan: the computer player that knows it against the fan game's, ${(gain / hands).toFixed(1)} points a hand ahead (five and a half in the arena, over 1,600 hands)`);
+  // no fan, a chow off the player before: one that only turns a made set into another (2-3-4 dots into 3-4-5, the 2 left
+  // over) takes the place of a draw and brings nothing, so the coach passes it; with 3 and 4 dots alone, completing the
+  // set, it chows (Korbi's hand, October 2026: a concealed hand was reckoned slower to call than an open one, as at the
+  // fan game, and the chow looked 28% to win against 23%)
+  const chowOffered = hand => {
+    const st = E.deal({ seed: 7, dealer: 3, hand: 1, opts: { scoring: "nofan" } });
+    const left = new Array(34).fill(4);
+    for (const k of [...T(hand), ...T("Gd 5p 8p Gd 7p 8p 9p")]) left[k]--;          // the tiles in sight
+    const pool = []; for (let k = 0; k < 34; k++) for (let n = 0; n < left[k]; n++) pool.push(k);
+    st.seats[0] = { hand: T(hand).sort((a, b) => a - b), melds: [], flowers: [], river: [{ k: T("8p")[0] }], passBlock: false };
+    st.seats[1] = { hand: pool.splice(0, 13), melds: [], flowers: [], river: [{ k: T("9p")[0], by: 2 }], passBlock: false };
+    st.seats[2] = { hand: pool.splice(0, 10), melds: [{ t: "chow", k: T("7p")[0], open: true, from: 1 }], flowers: [], river: [{ k: T("Gd")[0] }], passBlock: false };
+    st.seats[3] = { hand: pool.splice(0, 13), melds: [], flowers: [], river: [{ k: T("Gd")[0] }, { k: T("5p")[0] }], passBlock: false };
+    st.head = st.tail - 80;
+    st.turn = 3; st.phase = "claim"; st.last = { seat: 3, k: T("5p")[0], e: "discard" }; st.claims = {}; st.drawn = null;
+    st.flags = { ...st.flags, heavenly: false, earthly: false, firstTurn: [false, false, false, false], calls: 1, follow: -1 };
+    return st;
+  };
+  const made = chowOffered("4m 8m 8m 9m 234p 1s 2s 5s 7s Wd Wd"), open = chowOffered("4m 8m 8m 9m 9m 34p 1s 2s 5s 7s Wd Wd");
+  const mc = B.decide(made, 0, { noise: false }), oc = B.decide(open, 0, { noise: false });
+  check(E.legal(made, 0).some(a => a.t === "chow") && mc.action.t === "pass" && oc.action.t === "chow" && oc.action.k === T("3p")[0],
+    `no fan: a chow that turns 2-3-4 into 3-4-5 is passed (${mc.why}); one that completes 3-4 is taken (${oc.why})`);
 }
 {
   // whole hands among four computer players, two hard and two medium: every move legal, every hand ended and paid
