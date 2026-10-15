@@ -14,6 +14,7 @@ import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, cardStage } from "./trumps-course.js";
+import { createRush } from "./trumps-rush-ui.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -340,6 +341,10 @@ const course = createCourse({
   },
 });
 
+// Puzzle rush (the menu): Schafkopf's best card in positions from the computer players' own games, against the clock,
+// on a sheet of its own (trumps-rush-ui.js); the game waits under it.
+const rush = createRush({ inFrame: IN_FRAME });
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -347,7 +352,9 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   const cp = progressOf("trumps", COURSE);
-  play.append(action(cp.done ? `Learn Schafkopf: ${cp.done} of ${cp.of} lessons done` : "Learn Schafkopf, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn Schafkopf: ${cp.done} of ${cp.of} lessons done` : "Learn Schafkopf, from the rules", () => course.open()));
+  if (!IN_FRAME) play.append(action(`Schafkopf ${rush.label().replace(/^P/, "p")}`, () => rush.open()));
+  play.append(action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Game", [["jass", "Jass"], ["belote", "Belote"], ["coinche", "Coinche"], ["schafkopf", "Schafkopf"]], opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
   const set = part(body, "settings"), o = opts[opts.game];
@@ -363,7 +370,7 @@ function openMenu() {
   set.append(line("The game and its settings apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 });
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."));
+  part(body, "about").append(line(`${r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."}${rush.best() ? ` Schafkopf puzzle rush best: ${rush.best()}.` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -375,6 +382,6 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => { if (V?.G) drawHand(V.state); });
-window.__trumps = { page, get view() { return V; }, opts, laufende, course };
+window.__trumps = { page, get view() { return V; }, opts, laufende, course, rush };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

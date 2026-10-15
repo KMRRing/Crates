@@ -127,10 +127,11 @@ export function createRushSheet(game, { inFrame = false } = {}) {
     if (!p) { finish(); drawIntro(act); return; }
     const step = game.stepOf(p);
     $(".ln-title small").textContent = statusText();
+    // the words first: the stage sizes itself to the room they leave
     if (!run.answer) {
       st ||= { done: false, tries: 0 };
-      stage.draw(step, st);
       $(".ln-text").innerHTML = `<p class="ln-say">${esc(game.ask(p))}</p>`;
+      stage.draw(step, st);
       act.textContent = stage.label(step, st);
       act.disabled = !stage.ready(step, st);
       return;
@@ -139,8 +140,8 @@ export function createRushSheet(game, { inFrame = false } = {}) {
     const best = { done: true };
     stage.hint(step, best);
     st = best;
-    stage.draw(step, st);
     $(".ln-text").innerHTML = game.verdict(p, game.judge(p, run.answer.name));
+    stage.draw(step, st);
     act.textContent = run.strikes >= STRIKES || run.left <= 0 ? "See the score" : "Next puzzle";
   }
   function drawIntro(act) {
