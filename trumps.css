@@ -117,6 +117,12 @@ html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4p
 .lc-hand .cd.hinted { outline: 2px dashed var(--ln-in); outline-offset: 1px; }
 .lc-hand.still .cd { cursor: default; }
 .ts-who { font-size: .72rem; color: var(--ink-soft); }
+/* a position's tricks played before: small, each card's corner showing, each taker's card ringed; what each side has */
+.ts-tricks { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem .25rem; font-size: .52rem; }
+.ts-t { display: inline-flex; }
+.ts-t > .cd + .cd { margin-left: -1.2em; }
+.ts-t > .cd.won { box-shadow: 0 0 0 1.5px var(--ln-in); }
+.ts-taken { font-size: .76rem; font-weight: 600; color: var(--ink-soft); }
 
 /* held sideways: the table on the left, your hand and the bidding beside it */
 @media (orientation: landscape) and (min-width: 700px) {

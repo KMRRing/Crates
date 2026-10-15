@@ -133,9 +133,10 @@ export function cardStage({ face, label, judge, hold = null }) {
  * the other lines all at one size, the largest at which the longest fits the width (as large as the hand at most);
  * then the whole no taller than the stage, the lines shrinking first and then the hand (a tablet draws them all
  * larger). The height is measured from the first row's top to the last's foot: the content is centred, so what
- * overflows at the top isn't in a scroll height.
+ * overflows at the top isn't in a scroll height. A stage with more to show can give the hand a smaller share of the
+ * height, and keep its lines from shrinking below a floor (in rem), the hand giving way instead.
  */
-export function fitCardStage(box, n, more) {
+export function fitCardStage(box, n, more, { share = more ? 0.4 : 0.6, floor = 0 } = {}) {
   const lc = box.firstElementChild, row = box.querySelector(".lc-hand");
   // no larger than a ninth of the stage's height: a phone's cards as the game's, a tablet's larger
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, MAX = Math.max(1.45, Math.min(2.6, box.clientHeight / 9 / rem));
@@ -143,7 +144,7 @@ export function fitCardStage(box, n, more) {
   // itself, as fitRow lays them) run wider than the stage
   const handMax = Math.min(MAX, lc.clientWidth / (2.5 * (1 + 0.28 * (n - 1))) / rem);
   if (row) {
-    row.style.height = `${Math.min(box.clientHeight * (more ? 0.4 : 0.6), rem * (handMax * 3.5 + 0.6))}px`;
+    row.style.height = `${Math.min(box.clientHeight * share, rem * (handMax * 3.5 + 0.6))}px`;
     fitRow(row, n, { max: handMax });
   }
   const lines = [...lc.querySelectorAll(".lc-row > .cd-line")];
@@ -155,9 +156,9 @@ export function fitCardStage(box, n, more) {
     const set = px => { for (const l of lines) l.style.fontSize = `${px}px`; };
     set(size);
     const kids = lc.children, over = () => kids[kids.length - 1].getBoundingClientRect().bottom - kids[0].getBoundingClientRect().top + rem * 0.6 - box.clientHeight;
-    for (let k = 0; k < 4 && over() > 0; k++) {
+    for (let k = 0; k < 4 && over() > 0 && size > rem * floor; k++) {
       const tall = lines.reduce((t, l) => t + l.offsetHeight, 0);
-      size *= Math.max(0.5, (tall - over() - 1) / tall);
+      size = Math.max(rem * floor, size * Math.max(0.5, (tall - over() - 1) / tall));
       set(size);
     }
     if (row && over() > 0) {

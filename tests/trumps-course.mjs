@@ -3,11 +3,14 @@
 // exercise has as many cards to find as its words promise; every card to play is legal and judged right, every wrong
 // one it has words for judged wrong with them, and of the cards the hand may play only the meant ones are right; every
 // trick a question shows is taken by the card its answer names; the points, the Sau you may call and what a hand pays
-// are the rules' own; the stage takes every exercise to its end by taps; the course keeps its progress.
-import { COURSE, parseCards, tokenOf, cardWords, tableOf, cardsOf, wantedOf, judge, contractOf, cardStage } from "../trumps-course.js";
+// are the rules' own; Playing well's positions could have been played, and each card it asks for is the best when the
+// cards you can't see are dealt every way they could lie and played out; the stage takes every exercise to its end by
+// taps; the course keeps its progress.
+import { COURSE, parseCards, tokenOf, cardWords, tableOf, cardsOf, wantedOf, judge, contractOf, cardStage, playedOf, positionOf } from "../trumps-course.js";
 import { lessonsOf, progressOf } from "../course.js";
-import { GAMES, laufende } from "../trumps-games.js";
+import { GAMES, laufende, sTrump } from "../trumps-games.js";
 import { cid, deckFrom } from "../trumps-cards.js";
+import { weigh, fittingDeal } from "../trumps-solve.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -75,6 +78,44 @@ check(parseCards("EO GA H10 S7").map(tokenOf).join(" ") === "EO GA H10 S7" && ca
 let threw = false;
 try { parseCards("EO EO"); } catch { threw = true; }
 check(threw, "a card written twice is refused");
+
+// ---------- playing well ----------
+// A position from play shows one pack (every card once among the tricks, the trick and the hand, eight less the tricks
+// in the hand), each trick led by whoever took the last, and a deal of the cards you can't see under which every card
+// played was legal (trumps-solve.js: the voids shown, the call, the called Sau's rules). Its card to play is the best
+// when those cards are dealt out 300 ways and each deal played to the end: an eighth of a game and three standard
+// errors of the difference clear of every card not accepted, and every card accepted within that eighth. A question
+// counting the trumps out has the position's own count.
+const MARGIN = 0.125, WORDS = ["None", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"];
+let seed = 20261015;
+const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const deep = [], weak = [];
+for (const { lesson: l } of LESSONS) l.steps.forEach((st, i) => {
+  if (st.played == null) return;
+  const where = `${l.id} step ${i + 1}`, tricksPlayed = playedOf(st), trick = parseCards(st.trick), hand = parseCards(st.hand);
+  const seen = [...tricksPlayed.flatMap(t => t.cards.map(x => x.card)), ...trick, ...hand];
+  if (new Set(seen).size !== seen.length || hand.length !== 8 - tricksPlayed.length) { weak.push(`${where}: not one pack, or the hand the wrong size`); return; }
+  const leads = [...tricksPlayed.map(t => t.cards[0].seat), (4 - trick.length) % 4];
+  if (leads.some((seat, k) => k && seat !== tricksPlayed[k - 1].winner)) weak.push(`${where}: a trick not led by whoever took the last`);
+  const s = positionOf(st);
+  if (!fittingDeal(s, 0, rng, 400)) weak.push(`${where}: no deal of the cards you can't see fits the play so far`);
+  if (st.count === "trumps") {
+    const out = deckFrom("7").filter(id => sTrump(s.contract, id) && !seen.includes(id)).length;
+    if (st.quiz[st.answer] !== WORDS[out]) weak.push(`${where}: ${out} trumps out, the answer says ${st.quiz[st.answer]}`);
+  }
+  if (st.answer == null || st.quiz) return;
+  deep.push(where);
+  const list = weigh(s, 0, { deals: 300, rng }), right = new Set([st.answer, ...(st.accept || [])]), best = list[0];
+  if (!right.has(tokenOf(best.card))) { weak.push(`${where}: ${tokenOf(best.card)} does best (${best.worth.toFixed(2)}), not ${st.answer}`); return; }
+  for (const x of list.slice(1)) {
+    const d = best.vals.map((v, j) => v - x.vals[j]), m = d.reduce((a, b) => a + b, 0) / d.length;
+    const se = Math.sqrt(d.reduce((a, b) => a + (b - m) ** 2, 0) / (d.length - 1) / d.length);
+    if (right.has(tokenOf(x.card))) { if (m >= MARGIN) weak.push(`${where}: ${tokenOf(x.card)} is accepted, ${m.toFixed(2)} below the best`); }
+    else if (m < MARGIN || m - 3 * se < 0) weak.push(`${where}: ${st.answer} beats ${tokenOf(x.card)} by only ${m.toFixed(2)} (±${se.toFixed(2)})`);
+  }
+});
+check(!weak.length && deep.length >= 8, `Playing well: ${deep.length} cards to play, each the best of the hand when the cards you can't see are dealt out 300 ways and played to the end`);
+for (const p of weak) console.log(`     ${p}`);
 
 // ---------- the stage, tapped through ----------
 function fakeBox() { const on = {}; return { innerHTML: "", addEventListener: (k, f) => { on[k] = f; }, on }; }
