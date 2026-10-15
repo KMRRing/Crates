@@ -64,6 +64,8 @@ function fill(box = null) {
     b.replaceChildren(...kids);
   }
 }
+/** Whether this phone is the party's host, who sets the rules at its tables, and the host's name; null until known. */
+export const partyHost = () => (state ? { me: state.host, name: state.hostName } : null);
 /** The party's part of the menu, at its top: filled now, and again as the party changes. */
 export function menuPart() {
   const box = document.createElement("div");

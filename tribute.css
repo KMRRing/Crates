@@ -6,12 +6,13 @@
   --tb-in-soft: color-mix(in srgb, var(--tb-in) 15%, var(--sheet));
   --tb-felt: color-mix(in srgb, var(--tb-in) 7%, var(--sheet));
   --tb-face: #FCF9F1; --tb-edge: #C9B78E; --tb-red: #B3302A; --tb-black: #1E2730; --tb-star: #C8923A;
+  --tb-go: #2F7D5B;                                             /* verdigris: your go */
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); --tb-face: #ECE6D6; --tb-edge: #7E6C4B; }
+  html:not([data-mode="day"]) { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); --tb-face: #ECE6D6; --tb-edge: #7E6C4B; --tb-go: #7FC2A8; }
 }
 /* night, set in Settings */
-html[data-mode="night"] { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); --tb-face: #ECE6D6; --tb-edge: #7E6C4B; }
+html[data-mode="night"] { --tb-in: #86AEDC; --tb-felt: color-mix(in srgb, #2F5D8C 20%, var(--sheet)); --tb-face: #ECE6D6; --tb-edge: #7E6C4B; --tb-go: #7FC2A8; }
 
 .tb-mark { display: inline-block; }
 .tb-mark svg { width: 100%; height: 100%; display: block; }
@@ -43,6 +44,14 @@ html[data-mode="night"] .tb-opt.missed { border-color: #E8806F; }
 .tb-table { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-areas: "top" "mid" "me"; gap: .35rem; padding: .5rem; border-radius: 6px; background: var(--tb-felt);
   border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--tb-felt), inset 0 0 0 5px var(--rule); min-height: 0; overflow: hidden; }
+/* your go: the table flashes verdigris as a decision comes to you (tribute.js), and fades */
+.tb-table.go { animation: tb-go 1.6s ease-out; }
+@keyframes tb-go {
+  0%, 10% { border-color: var(--tb-go); background-color: color-mix(in srgb, var(--tb-go) 16%, var(--tb-felt));
+    box-shadow: inset 0 0 0 4px var(--tb-felt), inset 0 0 0 5px var(--tb-go), inset 0 0 1.6rem .25rem color-mix(in srgb, var(--tb-go) 55%, transparent); }
+  100% { border-color: var(--tile-edge); background-color: var(--tb-felt);
+    box-shadow: inset 0 0 0 4px var(--tb-felt), inset 0 0 0 5px var(--rule), inset 0 0 0 0 transparent; }
+}
 .tb-seat { position: relative; display: grid; justify-items: center; gap: .25rem; min-width: 0; }
 .tb-top { grid-area: top; }
 .tb-left { grid-area: mid; justify-self: start; align-self: center; justify-items: start; max-width: calc(50% - .2rem); }

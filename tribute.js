@@ -22,7 +22,8 @@ const RUN = "tribute:run", OPTS = "tribute:opts", STATS = "tribute:stats";
 // The coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
 // otherwise; on (Always), its play at every decision as well.
 const COACH = ["off", "hints", "check", "on"];
-const APP = 1;
+// 2: the table's coach and card counter are the table's, kept on every phone (an older page there updates first)
+const APP = 2;
 const BOTS = ["Wei", "Lin", "Fang"];                             // right, across (your partner), left
 const PACE = { quick: 420, steady: 850, slow: 1500 };
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -36,6 +37,14 @@ let G = null, S = null;
 let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, ...read(OPTS, {}) };
 if (!COACH.includes(opts.coach)) opts.coach = "hints";
 let me = 0;
+// At a table together the coach and the card counter are the table's, the same on every phone: at a party its host sets
+// them (party-link.js knows who that is), at a pair's table either of you; solo, they're yours.
+let party = null;
+if (/[?&]party=[A-Za-z]{4}\b/.test(location.search)) import("./party-link.js").then(m => { party = m; }).catch(e => console.error(e));
+const coach = () => (together.room && COACH.includes(S?.coach) ? S.coach : opts.coach);
+const counting = () => (together.room && typeof S?.counter === "boolean" ? S.counter : !!opts.counter);
+/** Whether this phone sets the table's rules: solo, at a pair's table, or as a party's host. */
+const setsRules = () => !together.room || !party || party.partyHost()?.me === true;
 const selected = new Set();
 let hint = null;                                                 // { key, list, at, auto, ready }: the coach's plays now
 let C = [];                                                      // your moves this hand with the coach's: checked (check, always) or its pick
@@ -210,7 +219,7 @@ function plays(auto) {
 }
 /** Hint: the coach's play, its cards picked for you; tapped again, the others it weighed. */
 async function showHint() {
-  if (!G || !E.asked(G, me) || opts.coach === "off") return;
+  if (!G || !E.asked(G, me) || coach() === "off") return;
   const fresh = hint?.key !== keyNow(), h = plays(false);
   if (h.auto) h.auto = false;                                    // its advice, now taken as a hint: the same play, picked
   else if (!fresh && h.list) h.at = (h.at + 1) % Math.max(1, h.list.length);
@@ -224,7 +233,7 @@ async function showHint() {
   render();
 }
 /** Always: the coach's play at each of your decisions, its cards marked, nothing picked. */
-function advise() { if (opts.coach === "on" && !rush && G && E.asked(G, me)) plays(true); }
+function advise() { if (coach() === "on" && !rush && G && E.asked(G, me)) plays(true); }
 /**
  * Your move set against the coach's, from the table as it was: under Check and Always, checked (tribute-bot.js's
  * checkMove, the two tried in deals of the cards you can't see), for its word on it and the hand's review; otherwise
@@ -234,7 +243,7 @@ function advise() { if (opts.coach === "on" && !rush && G && E.asked(G, me)) pla
 const checked = new WeakMap(), weighed = new WeakMap(), shots = new WeakMap();
 const handId = () => `${S?.started}:${G?.handNo}`;
 function check(act) {
-  const hand = handId(), checking = opts.coach === "check" || opts.coach === "on", snap = clone(G);
+  const hand = handId(), checking = coach() === "check" || coach() === "on", snap = clone(G);
   const note = { hand, mine: act, done: false, differs: false, words: "", gap: null, more: 0, checked: checking, at: G.log.length, cards: G.hands[me].slice(), top: G.top?.reading || null, best: null };
   if (C[0]?.hand !== hand) C = [];
   C.push(note);
@@ -256,7 +265,7 @@ function check(act) {
 }
 /** The coach's word on your last move it would have made otherwise, until a move of yours it agrees with. */
 function verdict() {
-  if ((opts.coach !== "check" && opts.coach !== "on") || rush) return null;
+  if ((coach() !== "check" && coach() !== "on") || rush) return null;
   for (let i = C.length - 1; i >= 0; i--) {
     if (C[i].hand !== handId() || C[i].checked === false) return null;
     if (C[i].differs) return C[i];
@@ -525,7 +534,7 @@ function drawActions() {
   say.classList.remove("kept");
   if (rush) { drawRush(box, say); return; }
   // a coach that speaks unasked keeps its room under your cards, so the table doesn't change size as it speaks
-  say.classList.toggle("kept", (opts.coach === "check" || opts.coach === "on") && G.phase !== "over");
+  say.classList.toggle("kept", (coach() === "check" || coach() === "on") && G.phase !== "over");
   const now = hint?.key === keyNow() ? hint : null, h = now?.list?.[now.at], last = verdict();
   say.hidden = !(now || last || say.classList.contains("kept"));
   if (now) {
@@ -551,7 +560,7 @@ function drawActions() {
     box.append(p);
     return;
   }
-  if (opts.coach !== "off") box.append(goBtn("Hint", showHint, "quiet"));
+  if (coach() !== "off") box.append(goBtn("Hint", showHint, "quiet"));
   if (ask === "return") {
     const to = G.tribute.returns.find(r => r.from === me && r.card === null)?.to;
     const p = document.createElement("p");
@@ -590,7 +599,7 @@ function goBtn(text, fn, kind = "") {
 // ---------- the card counter: what's still out there, from what you've seen ----------
 function drawCounter() {
   const box = $("counter");
-  box.hidden = !(opts.counter || rush) || !G;
+  box.hidden = !(counting() || rush) || !G;
   if (box.hidden) return;
   const seen = new Set(G.hands[me]);
   for (const p of G.played) for (const id of p) seen.add(id);
@@ -644,7 +653,7 @@ function showResult() {
  *  wouldn't that cost most, in its words. */
 function review() {
   const notes = C.filter(n => n.hand === handId() && n.done && n.checked !== false);
-  if (!notes.length || (opts.coach !== "check" && opts.coach !== "on")) return "";
+  if (!notes.length || (coach() !== "check" && coach() !== "on")) return "";
   const differs = notes.filter(n => n.differs), worst = differs.slice().sort((a, b) => (b.gap ?? 0) - (a.gap ?? 0) || b.more - a.more).slice(0, 3);
   let html = `<h3 class="tb-sub">Your play</h3><p class="tb-review-lead">You and the coach agreed on ${notes.length - differs.length} of ${notes.length} move${notes.length === 1 ? "" : "s"}${differs.length > worst.length ? `; the ${worst.length} that cost most:` : "."}</p>`;
   if (worst.length) html += `<ul class="tb-review">${worst.map(n => `<li>${esc(n.words)}</li>`).join("")}</ul>`;
@@ -683,7 +692,21 @@ function render() {
   drawActions();
   drawPartner();
   fitPlays();
+  flashGo();
 }
+/** Your go: the table flashes green as a decision comes to you, and fades; once a decision, not at every redraw. */
+let flashed = "";
+function flashGo() {
+  const go = !rush && !IN_FRAME && G.phase !== "over" && !paused() && E.asked(G, me) ? keyNow() : "";
+  if (!go || go === flashed) return;
+  flashed = go;
+  const t = $("table");
+  t.classList.remove("go");
+  void t.offsetWidth;                                            // the animation starts again, even mid-fade
+  t.classList.add("go");
+}
+
+$("table").addEventListener("animationend", e => { if (e.animationName === "tb-go") e.currentTarget.classList.remove("go"); });
 
 // ---------- the plays on the table: as large as your cards, larger where the table has the room ----------
 /**
@@ -898,13 +921,15 @@ function drawRush(box, say) {
 let roomData = null, joining = null;                            // joining: the rete while you sit down, until the table's drawn
 const seated = () => { joining?.(); joining = null; };
 const mySlot = () => (together.room ? seatsOf(roomData).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
-/** A new match at the table, for so many people: the request's (a party's), or the table's as it was. */
-function freshRoom(players, { ask = null, people = null } = {}) {
+/** A new match at the table, for so many people: the request's (a party's), or the table's as it was; its rules (the
+ *  computer players, the coach, the card counter) the table's before it, or this phone's at a new table. */
+function freshRoom(players, { ask = null, people = null, rules = null } = {}) {
   const humans = peopleSeats(people ?? ask?.people);
   const names = [0, 1, 2, 3].map(s => (humans.includes(s) ? "" : BOTS[s - 1]));
   for (const [, p] of Object.entries(players)) names[seatOfSlot(p.slot)] = p.name;
   const game = E.toRoom(E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0));
-  return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans, started: Date.now(), bots: opts.bots } };
+  const kept = { bots: rules?.bots || opts.bots, coach: COACH.includes(rules?.coach) ? rules.coach : opts.coach, counter: typeof rules?.counter === "boolean" ? rules.counter : !!opts.counter };
+  return { v: 1, app: APP, created: Date.now(), players, game, table: { names, humans, started: Date.now(), ...kept } };
 }
 let roomHand = null;                                             // the table's hand last drawn here, by its seed
 function onRoomState(g) {
@@ -920,6 +945,7 @@ function onRoomState(g) {
   // a seat kept for a person until they sit down: a pair's partner by the name they go by here, if they're about
   const partner = humans.length === 2 ? together.partner()?.name : null;
   for (const s of humans) names[s] ||= s === me ? together.room?.name || "You" : partner || (s === E.partnerOf(me) ? "Your partner" : "On the way");
+  if (S && (S.coach !== g.table?.coach)) hint = null;            // the coach changed for the table: its word on the old goes
   S = { ...g.table, names, humans };
   // your own move already on the table, on its way: an older state meanwhile (a seat coming online) doesn't take it back
   const behind = pending && g.game?.handNo === pending.handNo && (g.game.log?.length || 0) < pending.len;
@@ -967,7 +993,7 @@ async function nextTogether() {
   await together.act(g => {
     const game = E.fromRoom(g.game);
     if (game.handNo !== handNo || game.phase !== "over") return false;
-    if (game.result.over) { const fresh = freshRoom(g.players, { people: g.table?.humans?.length }); g.game = fresh.game; g.table = fresh.table; }
+    if (game.result.over) { const fresh = freshRoom(g.players, { people: g.table?.humans?.length, rules: g.table }); g.game = fresh.game; g.table = fresh.table; }
     else g.game = E.toRoom(E.nextHand(game, (Math.random() * 2 ** 32) >>> 0));
   });
 }
@@ -1040,14 +1066,17 @@ function openMenu() {
     if (G && G.opts.mode !== opts.mode) content.append(line("This takes effect with a new match."));
   }
   const bots = together.room ? S?.bots || "hard" : opts.bots;
+  // the table's rules: at a table together, written to the table, for every phone at it; a party's guests see the host's
+  const rule = (k, v) => { set(k, v); if (together.room) together.act(g => { if (!g.table) return false; g.table[k] = v; }); };
+  const COACHES = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
+  const rules = setsRules()
+    ? [choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], bots, v => rule("bots", v)),
+      choice("Coach", COACHES, coach(), v => { rule("coach", v); hint = null; advise(); render(); }),
+      toggle("Card counter", counting(), v => rule("counter", v))]
+    : [line(`${party?.partyHost()?.name || "The host"} sets the table's rules: computer players ${bots === "medium" ? "Medium" : "Hard"}, coach ${COACHES.find(([k]) => k === coach())[1]}, card counter ${counting() ? "on" : "off"}.`)];
   part(body, "settings").append(
-    choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], bots, v => {
-      set("bots", v);
-      if (together.room) together.act(g => { if (!g.table) return false; g.table.bots = v; });
-    }),
-    choice("Coach", [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]], opts.coach, v => { set("coach", v); hint = null; advise(); render(); }),
+    ...rules,
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
-    toggle("Card counter", opts.counter, v => set("counter", v)),
     toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
     choice("Held sideways, your cards", [["row", "In a row"], ["stack", "Stacked"]], sideOf(), v => set("side", v)),
   );

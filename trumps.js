@@ -118,7 +118,8 @@ const paceNow = () => (want != null && ahead.key === want ? Math.max(120, PACE -
 // ---------- the table ----------
 let V = null, page = null;
 page = seatPage({
-  rules, id: "trumps", app: 1, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
+  // app 2: the table's coach is the table's (house), kept on every phone; an older page at the table updates first
+  rules, id: "trumps", app: 2, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
   level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
@@ -133,11 +134,13 @@ function placeOf(s, seat) {
 }
 const seatAt = (s, place) => [0, 1, 2, 3].find(i => placeOf(s, i) === place);
 
+let coachWas = null;
 function draw() {
   if (!page) return;
+  if (coach() !== coachWas) { coachWas = coach(); advice = said = null; }   // the table's coach changed: its words go
   const v = V;
   if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren(); $("centre").innerHTML = ""; $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
-  if (opts.coach === "on" && !v.over) { const a = adviceNow(); if (a) a.shown = true; }
+  if (coach() === "on" && !v.over) { const a = adviceNow(); if (a) a.shown = true; }
   drawInfo(v.state);
   for (const [id, place] of [["seatTop", "top"], ["seatLeft", "left"], ["seatRight", "right"]]) drawSeat($(id), v.state, seatAt(v.state, place));
   drawCentre(v.state);
@@ -283,10 +286,16 @@ function followHint(s) {
 // line keeps its room under your cards, so the table doesn't change size as it speaks.
 const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
+// At a table the coach is the table's (its house rules, kept on the table), set by its host, a party's host: the same on
+// every phone, so the host's Off is everyone's. Solo, it's yours.
+const house = () => (page?.atTable ? page.runner.table.data?.house || {} : {});
+const coach = () => (COACH.some(([k]) => k === house().coach) ? house().coach : opts.coach);
+/** Whether this phone sets the coach: solo, or the table's host. */
+const setsRules = () => !page?.atTable || !!page.runner.table.me?.host;
 let advice = null;          // its look at your decision now: { key, kind, list, shown, ready }
 let said = null;            // its word on your last move it would have made otherwise: { hand, words, kind, state, list, mine, best }
-const coaching = () => V?.state?.game === "schafkopf" && opts.coach !== "off" && V.seat != null && !IN_FRAME;
-const checking = () => coaching() && (opts.coach === "check" || opts.coach === "on");
+const coaching = () => V?.state?.game === "schafkopf" && coach() !== "off" && V.seat != null && !IN_FRAME;
+const checking = () => coaching() && (coach() === "check" || coach() === "on");
 const myTurn = s => (s.step === "play" || s.step === "bid") && s.turn === V?.seat;
 /** The coach's look at a decision: a card's weighed in its worker (here, more briefly, without one), a game's by the fit. */
 function lookAt(s, seat) {
@@ -338,7 +347,7 @@ function coachLine(s, status) {
 function coachBar(s, status) {
   const { text, why } = coachLine(s, status), turn = myTurn(s) && s.step === "play";
   // Always marks its card unasked: no Hint to ask with
-  const hint = opts.coach === "on" ? "" : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
+  const hint = coach() === "on" ? "" : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
   return `<div class="tr-coachbar"><p class="tr-say">${text}</p><span class="tr-coachgo">${hint}${why ? `<button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : ""}</span></div>`;
 }
 /** The coach's reasons, in a sheet: each card (or game) it weighed, what it wins and comes to, what it does. */
@@ -419,7 +428,7 @@ function drawControls(s) {
     html = `${say}
       ${sau.length ? `<div class="tr-bids three">${sau.map(b => btn(b, `Sauspiel ${suitMark(s, b.ace).mark}<small>auf die ${esc(PACKS.german.suits[b.ace])}-Sau</small>`)).join("")}</div>` : ""}
       <div class="tr-bids five">${wenz ? btn(wenz, "Wenz") : ""}${solo.map(b => btn(b, `Solo ${suitMark(s, b.suit).mark}`)).join("")}</div>
-      <div class="tr-bids ${coaching() && opts.coach !== "on" ? "hint-row" : "one"}">${coaching() && opts.coach !== "on" ? `<button class="btn tr-hint" type="button" data-act="hint">Hint</button>` : ""}${btn({ t: "pass" }, "Weiter")}</div>`;
+      <div class="tr-bids ${coaching() && coach() !== "on" ? "hint-row" : "one"}">${coaching() && coach() !== "on" ? `<button class="btn tr-hint" type="button" data-act="hint">Hint</button>` : ""}${btn({ t: "pass" }, "Weiter")}</div>`;
   }
   box.innerHTML = html;
 }
@@ -545,7 +554,13 @@ function openMenu() {
   set.append(line("The game and its settings apply from the next game."));
   // the coach and the cards change at once
   if (opts.game === "schafkopf") {
-    set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); advice = null; said = null; draw(); }));
+    // at a table the host's choice goes on the table for every phone; the others see it
+    if (setsRules()) set.append(choice("Coach", COACH, coach(), v => {
+      opts.coach = v; saveOpts(); advice = null; said = null;
+      if (page.atTable) page.runner.table.act(cur => { cur.house = { ...(cur.house || {}), coach: v }; });
+      draw();
+    }));
+    else set.append(line(`Coach: ${COACH.find(([k]) => k === coach())[1]}, as the host set it for the table.`));
     set.append(choice("Cards", [["drawn", "Simple"], ["pictures", "Bavarian"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
   }
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
