@@ -1,0 +1,28 @@
+# A side branch, not main: Wikimedia Commons can't be reached from where the games are written, so this branch's
+# runner looks for the Bavarian pattern's cards there (fetch/list.mjs) and commits what it finds back to this branch.
+# Nothing here is served or tested; the cards chosen are copied to main by hand, with their licences.
+name: Fetch Bavarian cards
+on:
+  push:
+    branches: [fetch/bavarian-cards]
+    paths: [fetch/*.mjs, fetch/*.json, .github/workflows/fetch.yml]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Look on Commons
+        run: node fetch/list.mjs
+      - name: Commit what was found
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A out
+          git diff --cached --quiet && { echo "nothing new"; exit 0; }
+          git commit -q -m "Found on Commons"
+          git push origin HEAD:fetch/bavarian-cards
