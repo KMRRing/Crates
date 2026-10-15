@@ -1,9 +1,19 @@
 /* Order: the card to place sits above the line; the line is gaps you tap and cards that show their value */
 .order .or-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
 .or-lives { color: var(--brass-lo, var(--ink)); letter-spacing: .15em; }
-/* together, the others' counts between where you are and your lives (duel.js fills it; a tap opens the match) */
-.or-rival { flex: 1 1 auto; min-width: 0; padding: 0 .6rem; text-align: center; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.or-rival[hidden] { display: none; }
+/* together: who's at the table, under the strip, each by the colour their cards carry; those away greyed */
+.or-team { display: flex; gap: .85rem; margin: -.3rem 0 .55rem; font-size: .82rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
+.or-team[hidden] { display: none; }
+.or-who { display: inline-flex; align-items: center; gap: .3rem; }
+.or-who.me { color: var(--ink); font-weight: 700; }
+.or-who.away { opacity: .45; }
+/* a player's dot: in the team, on each card they placed (a column at the line's left, the first card's empty), in
+   the tally at the end */
+.or-by { display: inline-block; flex: none; width: .55rem; height: .55rem; border-radius: 50%; }
+.or-line.or-shared .or-item { grid-template-columns: .55rem minmax(4.5rem, auto) 1fr; }
+.or-line.or-shared .or-item.has-pic { grid-template-columns: .55rem minmax(4.5rem, auto) 1fr 2.6rem; }
+.or-item > .or-by { align-self: baseline; margin-bottom: .1rem; }          /* on the number's line, centred on its figures */
+.or-item.has-pic > .or-by { align-self: center; margin-bottom: 0; }
 .or-deal { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .8rem .9rem; margin-bottom: .6rem; }
 .or-deal[hidden] { display: none; }
 .or-ask { margin: 0 0 .25rem; color: var(--ink-soft); font-size: .85rem; }
@@ -14,9 +24,10 @@
 /* held sideways (#app.beside): the card in hand on the left, its picture large; your line beside it, a column you
    scroll down, smallest at the top */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.order { --beside: 26rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.order { --beside: 26rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
   .or-strip { grid-column: 2; grid-row: 2; }
-  .or-line { grid-column: 2; grid-row: 3; }
+  .or-team { grid-column: 2; grid-row: 3; }
+  .or-line { grid-column: 2; grid-row: 4; }
   .or-deal { grid-column: 1; grid-row: 2 / -1; display: flex; flex-direction: column; min-height: 0; margin: .6rem 0 0; padding: 1.2rem 1.4rem; }
   .or-card { font-size: 1.6rem; }
   .or-pic { flex: 1 1 auto; min-height: 0; margin-top: .9rem; display: flex; flex-direction: column; }
@@ -30,7 +41,7 @@
 .or-line { list-style: none; margin: 0; padding: 0 0 .6rem; min-height: 0; overflow-y: auto; }
 .or-gap { display: flex; }
 .or-slot { flex: 1; height: 1.625rem; margin: 2px 0; border: 1.5px dashed var(--tile-edge); border-radius: 6px; background: none; cursor: pointer; }
-.or-slot:hover:not(:disabled), .or-slot:focus-visible { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 12%, transparent); }
+.or-slot:hover:not(:disabled), .or-slot:focus-visible, .or-slot.on { border-color: var(--brass); background: color-mix(in srgb, var(--brass) 12%, transparent); }
 .or-slot:disabled { border-color: transparent; height: .375rem; cursor: default; }
 .or-item { display: grid; grid-template-columns: minmax(4.5rem, auto) 1fr; gap: .7rem; align-items: baseline; padding: .5rem .7rem; background: var(--tile); border: 1px solid var(--tile-edge); border-radius: 8px; }
 .or-item b { font-variant-numeric: tabular-nums; font-size: 1.02rem; }
@@ -47,3 +58,9 @@
 .or-mark svg { width: 100%; height: 100%; display: block; }
 /* a story's closing note: which sources tell it in this order */
 .or-note { margin: .2rem 0 .9rem; font-size: .86rem; line-height: 1.45; color: var(--ink-soft); }
+/* together, the end: each player's right and wrong, by seat (no ranks: it was one team) */
+.or-tally { list-style: none; margin: .2rem 0 .8rem; padding: 0; display: grid; gap: .3rem; }
+.or-tally li { display: flex; align-items: baseline; gap: .6rem; padding: .55rem .7rem; border-radius: 5px; background: var(--yard); }
+.or-tally li.me { box-shadow: inset 0 0 0 1.5px var(--brass); }
+.or-tally b { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .45rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.or-tally span { flex: none; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
