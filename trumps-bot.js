@@ -2,15 +2,40 @@
 // sampling (Medium and Hard): deal the cards it can't see among the others as they could lie (each hand's size, the
 // suits a player has shown to be out of), play each card it may play to the end of the hand in each such deal, every
 // player playing by a quick rule of thumb, and play the card that did best on average for its side. Easy plays the
-// rule of thumb alone, with a wobble.
-import { GAMES, teamOf, sFollow } from "./trumps-games.js";
-import { suitOf, rankOf, cid, deckFrom } from "./trumps-cards.js";
+// rule of thumb alone, with a wobble. Schafkopf's Hard players think further (trumps-think.js): each deal played out
+// with every card seen, both sides at their best, and a game bid where it pays on average.
+import { GAMES, teamOf } from "./trumps-games.js";
+import { suitOf, rankOf, cid } from "./trumps-cards.js";
+import { sample } from "./trumps-deals.js";
+import { thinkPlay, thinkBid } from "./trumps-think.js";
 
 export const LEVEL_NAMES = [["easy", "Easy"], ["medium", "Medium"], ["hard", "Hard"]];
 const SAMPLES = { medium: 14, hard: 40 };
 
+// Moves worked out ahead, off the page's thread (trumps-worker.js), for the decision each answers: the table's move
+// takes one when it's there instead of thinking again (seats.js asks for a move then and there).
+const ahead = new Map();
+/** A decision, told apart from any other: the hand, the bidding or the trick so far, the seat, its cards, the level. */
+export const aheadKey = (s, seat, level) => [level, s.game, s.handNo, s.dealer, s.step, seat, s.bidlog?.length, s.tricks?.length, s.trick?.map(t => t.card).join(" "), s.hands[seat].join(" ")].join("|");
+export function remember(key, move) {
+  ahead.set(key, move);
+  if (ahead.size > 12) ahead.delete(ahead.keys().next().value);
+}
+/** How long Hard may think in one go where it isn't worked out ahead (ms; 0 no limit): the page's own thread sets a
+ *  limit, so a slow phone isn't held up long. */
+export const THINK = { ms: 0 };
+/** Whether Schafkopf's Hard players think further at this level (and so are worth working out ahead). */
+export const thinksAhead = (game, level) => game === "schafkopf" && level === "hard";
+
 export function botMove(s, seat, level = "medium", rng = Math.random) {
-  if (s.step === "bid") return BID[s.game](s, seat, level, rng);
+  const key = aheadKey(s, seat, level), known = ahead.get(key);
+  if (known) {
+    ahead.delete(key);
+    const g = GAMES[s.game];
+    if (s.step === "bid" ? g.bids(s, seat).some(b => JSON.stringify(b) === JSON.stringify(known)) : g.legal(s, seat).includes(known.card)) return known;
+  }
+  if (s.step === "bid") return thinksAhead(s.game, level) ? thinkBid(s, seat) : BID[s.game](s, seat, level, rng);
+  if (thinksAhead(s.game, level)) return { t: "card", card: thinkPlay(s, seat, rng, { ms: THINK.ms, prefer: thumb(GAMES.schafkopf, s, seat, knownSides(s, seat), rng) }) };
   return { t: "card", card: playCard(s, seat, level, rng) };
 }
 
@@ -127,70 +152,6 @@ function sidesOf(s, hands) {
   }
   return seat => (seat === c.declarer || seat === partner ? 0 : 1);
 }
-/** What a player's card reveals: the suits it's out of. */
-function voidsOf(s, seat) {
-  const out = new Set(), g = GAMES[s.game], c = s.contract;
-  const tricks = [...s.tricks.map(t => t.cards), s.trick];
-  for (const trick of tricks) {
-    if (!trick.length) continue;
-    const lead = trick[0].card;
-    for (let i = 1; i < trick.length; i++) {
-      if (trick[i].seat !== seat) continue;
-      const card = trick[i].card;
-      if (s.game === "schafkopf") { if (sFollow(c, card) !== sFollow(c, lead)) out.add(sFollow(c, lead)); continue; }
-      const led = suitOf(lead), T = c.mode === "trump" || s.game !== "jass" ? c.suit : -1;
-      if (suitOf(card) === led) continue;
-      if (s.game === "jass" && suitOf(card) === T && led !== T) continue;              // trumping in reveals nothing in Jass
-      out.add(led === T && s.game === "jass" ? "T-but-bauer" : led);
-      if (s.game !== "jass" && suitOf(card) !== T && T >= 0) {
-        // in Belote, not trumping when it had to (its partner not holding the trick) means no trumps
-        const partnerHeld = trick.slice(0, i).length && trick[g.winner({ ...s, trick: trick.slice(0, i) }, trick.slice(0, i))].seat === (seat + 2) % 4;
-        if (!partnerHeld) out.add(T);
-      }
-    }
-  }
-  return out;
-}
-/** Whether a card can lie in a hand that has shown these voids. */
-function fits(s, card, voids) {
-  if (!voids.size) return true;
-  if (s.game === "schafkopf") return !voids.has(sFollow(s.contract, card));
-  if (voids.has(suitOf(card))) return false;
-  if (voids.has("T-but-bauer") && suitOf(card) === s.contract.suit && rankOf(card) !== "J") return false;
-  return true;
-}
-/** One way the cards it can't see could lie. */
-function sample(s, seat, rng) {
-  const g = GAMES[s.game], seen = new Set([...s.hands[seat], ...s.tricks.flatMap(t => t.cards.map(x => x.card)), ...s.trick.map(x => x.card)]);
-  const pack = deckFrom(g.low);
-  const fixed = [[], [], [], []];
-  // Belote's turned card went to the taker
-  if (s.game === "belote" && s.contract && s.turned != null && s.contract.taker !== seat && !seen.has(s.turned) && s.hands[s.contract.taker].length) {
-    fixed[s.contract.taker].push(s.turned);
-    seen.add(s.turned);
-  }
-  const unknown = pack.filter(c => !seen.has(c));
-  const voids = [0, 1, 2, 3].map(p => (p === seat ? new Set() : voidsOf(s, p)));
-  const need = [0, 1, 2, 3].map(p => (p === seat ? 0 : s.hands[p].length - fixed[p].length));
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const hands = fixed.map(f => f.slice()), left = need.slice(), cards = [...unknown];
-    for (let i = cards.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [cards[i], cards[j]] = [cards[j], cards[i]]; }
-    // the most constrained first: cards few hands may hold
-    cards.sort((a, b) => [0, 1, 2, 3].filter(p => left[p] && fits(s, a, voids[p])).length - [0, 1, 2, 3].filter(p => left[p] && fits(s, b, voids[p])).length);
-    let ok = true;
-    for (const c of cards) {
-      const can = [0, 1, 2, 3].filter(p => left[p] > 0 && (attempt > 30 || fits(s, c, voids[p])));
-      if (!can.length) { ok = false; break; }
-      let r = rng() * can.reduce((a, p) => a + left[p], 0), pick = can[0];
-      for (const p of can) { r -= left[p]; if (r <= 0) { pick = p; break; } }
-      hands[pick].push(c);
-      left[pick]--;
-    }
-    if (ok) { hands[seat] = s.hands[seat].slice(); return hands; }
-  }
-  return null;
-}
-
 /** The rule of thumb: win a trick worth taking as cheaply as possible, give points to a partner who holds it, else throw the least. */
 function thumb(g, sim, p, side, rng, wobble = 0) {
   const cards = g.legal(sim, p);
@@ -267,4 +228,3 @@ function playCard(s, seat, level, rng) {
   if (!n) return thumb(g, s, seat, knownSides(s, seat), rng);
   return [...total.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
-export { sample, voidsOf, thumb };

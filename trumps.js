@@ -5,8 +5,12 @@
 // bidding under your hand: a tap on a card you may play plays it.
 import { rules } from "./trumps-rules.js";
 import { GAMES, teamOf, COINCHE_VALUES, laufende } from "./trumps-games.js";
-import { LEVEL_NAMES } from "./trumps-bot.js";
-import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon } from "./trumps-cards.js";
+import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
+import { weighCards, bidOptions } from "./trumps-think.js";
+import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
+import { sextant } from "./loading.js";
+import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
+import { PICS, PIC_BACK } from "./trumps-pics.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -29,6 +33,10 @@ const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "
 let opts = { game: "jass", level: "medium", voice: true, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
 const saveOpts = () => write(OPTS, opts);
+// Schafkopf's cards drawn (the suits' marks, the rank in the corner) or as the Bavarian pack's own pictures
+// (trumps-pics.js), at the table and in the course and the rush alike
+const applyLook = () => { LOOK.german = opts.look === "pictures" ? PICS : null; };
+applyLook();
 
 let toastTimer = 0;
 function toast(msg, ms = 2600) {
@@ -57,11 +65,61 @@ function suitMark(s, suit) {
   return { mark: `<span class="tr-icon">${suitIcon(pack, suit)}</span>`, name: PACKS[pack].suits[suit] };
 }
 
+// ---------- the computer players and the coach, each in a worker ----------
+// Schafkopf's Hard players think for up to a second or two a card (trumps-think.js), so they think in a worker
+// (trumps-worker.js) while the table waits its pace, and the table's move takes what they worked out; the coach in a
+// second one, so its look at your cards never holds up a move. Where a worker can't run, they think here, briefly.
+const PACE = 650;
+const workers = { players: null, coach: null };
+let asked = 0;
+const answers = new Map();                                       // id → [the worker's role, its answer's callback]
+function workerFor(role) {
+  if (workers[role] === null) {
+    try {
+      const w = new Worker(new URL("./trumps-worker.js", import.meta.url), { type: "module" });
+      w.onmessage = e => { const [, done] = answers.get(e.data.id) || []; answers.delete(e.data.id); done?.(e.data.error ? null : e.data.answer); };
+      w.onerror = () => {
+        workers[role] = false;
+        for (const [id, [r, done]] of answers) if (r === role) { answers.delete(id); done(null); }
+      };
+      workers[role] = w;
+    } catch { workers[role] = false; }
+  }
+  return workers[role];
+}
+/** A worker's answer, or null (no worker, or it failed): the caller then thinks here. */
+function ask(role, msg) {
+  const w = workerFor(role);
+  if (!w) return Promise.resolve(null);
+  return new Promise(res => { const id = ++asked; answers.set(id, [role, res]); w.postMessage({ id, ...msg }); });
+}
+THINK.ms = 600;                                                  // a move not worked out ahead thinks here this long at most
+// The computer's move worked out ahead: the decision the table waits on now (want), and the one asked for (ahead).
+// Solo, the table holds the move until it's in; at a table with others, this phone runs it and takes it if it's in
+// by the pace, else thinks briefly itself.
+let want = null, ahead = { key: null, since: 0, done: true };
+function lookAhead(v) {
+  want = null;
+  if (!v?.G || v.over || v.toMove == null || !v.seats[v.toMove]?.bot || (v.state.step !== "play" && v.state.step !== "bid")) return;
+  if (!thinksAhead(v.state.game, opts.level) || IN_FRAME || (v.mode !== "solo" && !v.me?.driver)) return;
+  want = aheadKey(v.state, v.toMove, opts.level);
+  if (ahead.key === want) return;
+  const a = ahead = { key: want, since: Date.now(), done: false };
+  ask("players", { kind: "move", state: v.state, seat: v.toMove, level: opts.level }).then(move => {
+    a.done = true;
+    if (move) remember(a.key, move);
+    if (ahead === a) page?.runner.kick();
+  });
+}
+const holding = () => want != null && !(ahead.key === want && ahead.done);
+/** The table's pace, the computer's thinking counted in it. */
+const paceNow = () => (want != null && ahead.key === want ? Math.max(120, PACE - (Date.now() - ahead.since)) : PACE);
+
 // ---------- the table ----------
 let V = null, page = null;
 page = seatPage({
-  rules, id: "trumps", app: 1, pace: 650, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
-  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast, newGame,
+  rules, id: "trumps", app: 1, pace: paceNow, hold: holding, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.jass)[(s + 3) % 3] || `Seat ${s + 1}`,
+  level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; lookAhead(v); draw(); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
 const nameOf = seat => V?.seats?.[seat]?.name ?? `Seat ${seat + 1}`;
@@ -79,6 +137,7 @@ function draw() {
   if (!page) return;
   const v = V;
   if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren(); $("centre").innerHTML = ""; $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
+  if (opts.coach === "on" && !v.over) { const a = adviceNow(); if (a) a.shown = true; }
   drawInfo(v.state);
   for (const [id, place] of [["seatTop", "top"], ["seatLeft", "left"], ["seatRight", "right"]]) drawSeat($(id), v.state, seatAt(v.state, place));
   drawCentre(v.state);
@@ -122,7 +181,8 @@ function drawSeat(box, s, seat) {
   const role = s.contract && s.game === "schafkopf" && seat === s.contract.declarer ? `<span class="tr-role">plays</span>` : s.contract && s.game === "jass" && seat === s.contract.chooser ? `<span class="tr-role">trump</span>` : s.contract && (s.game === "belote" || s.game === "coinche") && seat === s.contract.taker ? `<span class="tr-role">took</span>` : "";
   const dealer = seat === s.dealer ? `<span class="tr-dealer" title="dealer">D</span>` : "";
   box.className = `tr-seat ${box.classList[1]}${turn ? " turn" : ""}${team}`;
-  box.innerHTML = `<span class="tr-name">${esc(nameOf(seat))}${dealer}</span>${role}<span class="tr-backs">${Array.from({ length: Math.min(n, 9) }, () => backHtml()).join("")}</span>${bubble}${weisLine(s, seat)}`;
+  const back = LOOK.german && s.game === "schafkopf" ? `<span class="cd tr-cd pic tr-back"><img src="${PIC_BACK}" alt="" draggable="false"></span>` : backHtml();
+  box.innerHTML = `<span class="tr-name">${esc(nameOf(seat))}${dealer}</span>${role}<span class="tr-backs">${Array.from({ length: Math.min(n, 9) }, () => back).join("")}</span>${bubble}${weisLine(s, seat)}`;
 }
 /** A Jass player's Weis, said during the first trick (the side with the best one scores all of its own). */
 function weisLine(s, seat) {
@@ -175,7 +235,10 @@ function drawHand(s) {
   if (seat == null) { box.innerHTML = `<p class="tr-status">Watching: you sit down at the next game.</p>`; return; }
   const g = GAMES[s.game], hand = sortHand(s, s.hands[seat]);
   const mine = s.step === "play" && s.turn === seat, ok = mine ? new Set(g.legal(s, seat)) : null;
-  box.innerHTML = hand.map(id => card(id, s, { cls: mine ? (ok.has(id) ? "ok" : "dim") : "", data: { card: id } })).join("");
+  // the coach's card, once asked for (or always)
+  const a = mine && coaching() && advice?.shown && advice.kind === "play" && advice.list && advice.key === aheadKey(s, seat, "coach") ? advice : null;
+  const best = a?.list?.[0]?.card;
+  box.innerHTML = hand.map(id => card(id, s, { cls: mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "", data: { card: id } })).join("");
   fitRow(box, hand.length, { max: 1.25 });
 }
 /** A hand sorted as a player holds it: by suit, trumps together and on the right, each suit high to low. */
@@ -201,6 +264,7 @@ $("hand").addEventListener("click", async e => {
   if (!el || !s || s.step !== "play" || s.turn !== V.seat) return;
   const id = Number(el.dataset.card);
   if (!GAMES[s.game].legal(s, V.seat).includes(id)) { toast(followHint(s)); return; }
+  noteMove(s, { t: "card", card: id });
   const why = await page.move({ t: "card", card: id });
   if (why) toast(why);
 });
@@ -209,6 +273,102 @@ function followHint(s) {
   if (s.game === "belote" || s.game === "coinche") return "Follow suit; if you can't, trump (and beat a trump in), unless your partner holds the trick";
   if (s.game === "jass") return "Follow suit or trump; never under a trump already in, unless you've nothing else";
   return "Follow suit if you can";
+}
+
+// ---------- the coach ----------
+// Schafkopf's coach, as the menu sets it: off; hints, its card (or game) when you ask; check, a hint when you ask and a
+// word after each card or bid of yours it would have made otherwise, by how much and why; on (Always), its card marked
+// at each of your turns as well. Its look is trumps-think.js's (a card weighed over deals of the cards you can't see,
+// in the coach's worker; a game by the bidding's fit, trumps-bids.js), its words trumps-coach.js's. While it's on, its
+// line keeps its room under your cards, so the table doesn't change size as it speaks.
+const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
+if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
+let advice = null;          // its look at your decision now: { key, kind, list, shown, ready }
+let said = null;            // its word on your last move it would have made otherwise: { hand, words, kind, state, list, mine, best }
+const coaching = () => V?.state?.game === "schafkopf" && opts.coach !== "off" && V.seat != null && !IN_FRAME;
+const checking = () => coaching() && (opts.coach === "check" || opts.coach === "on");
+const myTurn = s => (s.step === "play" || s.step === "bid") && s.turn === V?.seat;
+/** The coach's look at a decision: a card's weighed in its worker (here, more briefly, without one), a game's by the fit. */
+function lookAt(s, seat) {
+  const a = { key: aheadKey(s, seat, "coach"), kind: s.step, list: null, shown: false };
+  if (s.step === "bid") { a.list = bidOptions(s, seat); a.ready = Promise.resolve(a.list); return a; }
+  a.ready = ask("coach", { kind: "weigh", state: s, seat }).then(list => (a.list = list || weighCards(s, seat, { deals: 12, ms: 700, keep: true })));
+  return a;
+}
+/** The coach's look at your decision now, asked for once. */
+function adviceNow() {
+  const s = V?.state;
+  if (!coaching() || !s || !myTurn(s)) return null;
+  if (advice?.key !== aheadKey(s, V.seat, "coach")) {
+    const a = advice = lookAt(s, V.seat);
+    a.ready.then(() => { if (advice === a && a.shown) draw(); });
+  }
+  return advice;
+}
+function showHint() {
+  const a = adviceNow();
+  if (!a) return;
+  a.shown = true;
+  draw();
+}
+/** Your move set against the coach's (Check, Always), from the table as it was: its word when it would have made another. */
+function noteMove(s, move) {
+  if (!checking() || !myTurn(s)) return;
+  const snap = JSON.parse(JSON.stringify(s)), seat = V.seat, key = aheadKey(snap, seat, "coach");
+  const a = advice?.key === key ? advice : lookAt(snap, seat), note = { hand: snap.handNo, pending: true };
+  said = note;
+  a.ready.then(list => {
+    if (said !== note) return;
+    const v = list && (snap.step === "bid" ? bidVerdict(snap, seat, list, move) : verdictOf(snap, seat, list, move.card));
+    if (!v) said = null;
+    else Object.assign(note, { pending: false, words: v.words, best: v.best, kind: snap.step, state: snap, list, mine: move });
+    draw();
+  });
+}
+/** The coach's line: its advice on your turn, its word on your last move, or the table's status. */
+function coachLine(s, status) {
+  const a = advice?.shown && advice.key === (myTurn(s) ? aheadKey(s, V.seat, "coach") : null) ? advice : null;
+  const word = said && !said.pending && said.hand === s.handNo ? said : null;
+  let text = esc(status), why = false;
+  if (a && !a.list) text = `<span class="tr-wait"></span>The coach is looking…`;
+  else if (a) { text = `<b class="tr-coach">Coach</b> ${esc(a.kind === "bid" ? bidAdvice(s, V.seat, a.list) : adviceWords(s, V.seat, a.list))}`; why = true; }
+  else if (word && !myTurn(s)) { text = `<b class="tr-coach miss">Coach</b> ${esc(word.words)}`; why = true; }
+  return { text, why };
+}
+function coachBar(s, status) {
+  const { text, why } = coachLine(s, status), turn = myTurn(s) && s.step === "play";
+  // Always marks its card unasked: no Hint to ask with
+  const hint = opts.coach === "on" ? "" : `<button class="btn tr-hint" type="button" data-act="hint"${turn ? "" : " disabled"}>Hint</button>`;
+  return `<div class="tr-coachbar"><p class="tr-say">${text}</p><span class="tr-coachgo">${hint}${why ? `<button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : ""}</span></div>`;
+}
+/** The coach's reasons, in a sheet: each card (or game) it weighed, what it wins and comes to, what it does. */
+function showWhy() {
+  const s = V?.state;
+  if (!s) return;
+  const turn = myTurn(s) && advice?.shown && advice.list ? advice : null;
+  const src = turn ? { kind: advice.kind, state: s, list: advice.list, mine: null, words: null } : said?.words ? said : null;
+  if (!src) return;
+  const st = src.state, seat = V.seat;
+  let rows, lead;
+  if (src.kind === "bid") {
+    rows = bidRows(st, seat, src.list);
+    lead = src.words || bidAdvice(st, seat, src.list);
+  } else {
+    rows = cardRows(st, seat, src.list);
+    lead = src.words || adviceWords(st, seat, src.list);
+  }
+  const mine = src.mine, same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const items = rows.map((r, i) => {
+    const isMine = mine && (src.kind === "bid" ? same(r.bid, mine) : r.card === mine.card);
+    const face = src.kind === "bid" ? "" : `<span class="tr-why-card">${card(r.card, st)}</span>`;
+    return `<li class="${i === 0 ? "best" : ""}${isMine ? " mine" : ""}">${face}<span class="tr-why-text"><b>${esc(r.name)}</b>${isMine ? " <small>yours</small>" : ""}${r.what ? `<span>${esc(r.what)}</span>` : ""}</span><span class="tr-why-num">${r.win != null ? `<b>${pct(r.win)}</b>` : "<b>–</b>"}<small>${signed(r.score)}</small></span></li>`;
+  }).join("");
+  const n = src.list[0]?.n;
+  const note = src.kind === "bid"
+    ? "Wins: how often a game like it, from a hand like yours, is won; on average: what it comes to on your score. Fitted to tens of thousands of games played out with every card seen, then to the computer's own play (tools/trumps-bids.mjs)."
+    : `Wins: how often your side won the game when the cards you can't see were dealt ${n ? `${n} ways` : "the ways"} they could lie (each hand's size, the Farben shown out of, the call, every card played so far legal) and as the bidding makes likely, each deal played to the end with every card seen and both sides at their best; on average: what that came to on your score.`;
+  $("whyBody").innerHTML = `<p class="tr-why-lead">${esc(lead)}</p><ol class="tr-why-list">${items}</ol><p class="tr-why-note">${esc(note)}</p>`;
+  if (!$("whyDlg").open) $("whyDlg").showModal();
 }
 
 // ---------- bidding ----------
@@ -223,11 +383,18 @@ function drawControls(s) {
   }
   if (s.step !== "bid") {
     const who = s.step === "play" ? (isMe(s.turn) ? "Your card" : `${nameOf(s.turn)}…`) : s.step === "trick" ? `${isMe(s.tricks.at(-1).winner) ? "You take" : `${nameOf(s.tricks.at(-1).winner)} takes`} it` : "";
-    box.innerHTML = `<p class="tr-status">${esc(who)}</p>`;
+    box.innerHTML = coaching() ? coachBar(s, who) : `<p class="tr-status">${esc(who)}</p>`;
+    box.querySelector(".tr-wait")?.append(sextant());
     return;
   }
-  if (s.turn !== seat) { box.innerHTML = `<p class="tr-status">${esc(nameOf(s.turn))} ${s.game === "jass" ? "chooses" : "bids"}…</p>`; return; }
-  const bids = GAMES[s.game].bids(s, seat), btn = (b, text, cls = "") => `<button class="btn tr-bid${cls ? ` ${cls}` : ""}" type="button" data-bid='${esc(JSON.stringify(b))}'>${text}</button>`;
+  if (s.turn !== seat) {
+    const status = `${nameOf(s.turn)} ${s.game === "jass" ? "chooses" : "bids"}…`;
+    box.innerHTML = coaching() ? coachBar(s, status) : `<p class="tr-status">${esc(status)}</p>`;
+    return;
+  }
+  // the coach's game, once asked for (or always): its button ringed, its words where the question was
+  const a = coaching() && advice?.shown && advice.kind === "bid" && advice.key === aheadKey(s, seat, "coach") ? advice : null, coachBid = a?.list?.[0]?.bid || null;
+  const bids = GAMES[s.game].bids(s, seat), btn = (b, text, cls = "") => `<button class="btn tr-bid${cls ? ` ${cls}` : ""}${coachBid && JSON.stringify(b) === JSON.stringify(coachBid) ? " coach" : ""}" type="button" data-bid='${esc(JSON.stringify(b))}'>${text}</button>`;
   let html = "";
   if (s.game === "jass") {
     html = `<p class="tr-status">${s.pushed ? "Your partner pushed it to you: choose" : "Choose trumps, or push to your partner"}</p><div class="tr-bids six">${bids.filter(b => b.t === "trump").map(b => {
@@ -247,10 +414,12 @@ function drawControls(s) {
       <div class="tr-bids ${special.length ? "two" : "one"}">${btn({ t: "pass" }, "Passe")}${special.map(b => btn(b, b.t === "coinche" ? "Coinche !" : "Surcoinche !", "primary")).join("")}</div>`;
   } else {
     const sau = bids.filter(b => b.type === "sau"), solo = bids.filter(b => b.type === "solo"), wenz = bids.find(b => b.type === "wenz");
-    html = `<p class="tr-status">${s.call ? `Over ${s.call.type === "sau" ? "a Sauspiel" : s.call.type === "wenz" ? "a Wenz" : "a Solo"}?` : "Play, or pass (weiter)?"}</p>
+    const ask = s.call ? `Over ${s.call.type === "sau" ? "a Sauspiel" : s.call.type === "wenz" ? "a Wenz" : "a Solo"}?` : "Play, or pass (weiter)?";
+    const say = coaching() ? `<p class="tr-say tr-bidsay">${a ? `<b class="tr-coach">Coach</b> ${esc(bidAdvice(s, seat, a.list))} <button class="link tr-why-btn" type="button" data-act="why">Why?</button>` : esc(ask)}</p>` : `<p class="tr-status">${ask}</p>`;
+    html = `${say}
       ${sau.length ? `<div class="tr-bids three">${sau.map(b => btn(b, `Sauspiel ${suitMark(s, b.ace).mark}<small>auf die ${esc(PACKS.german.suits[b.ace])}-Sau</small>`)).join("")}</div>` : ""}
       <div class="tr-bids five">${wenz ? btn(wenz, "Wenz") : ""}${solo.map(b => btn(b, `Solo ${suitMark(s, b.suit).mark}`)).join("")}</div>
-      <div class="tr-bids one">${btn({ t: "pass" }, "Weiter")}</div>`;
+      <div class="tr-bids ${coaching() && opts.coach !== "on" ? "hint-row" : "one"}">${coaching() && opts.coach !== "on" ? `<button class="btn tr-hint" type="button" data-act="hint">Hint</button>` : ""}${btn({ t: "pass" }, "Weiter")}</div>`;
   }
   box.innerHTML = html;
 }
@@ -261,6 +430,8 @@ $("controls").addEventListener("click", async e => {
   if (!b || b.disabled || !V?.G) return;
   if (b.dataset.act === "new") { newGame(); return; }
   if (b.dataset.act === "result") { showEnd(V); return; }
+  if (b.dataset.act === "hint") { showHint(); return; }
+  if (b.dataset.act === "why") { showWhy(); return; }
   if (b.dataset.act === "less" || b.dataset.act === "more") {
     const values = [...new Set(GAMES.coinche.bids(V.state, V.seat).filter(x => x.t === "bid").map(x => x.value))];
     coincheValue = values[Math.max(0, Math.min(values.length - 1, values.indexOf(coincheValue) + (b.dataset.act === "more" ? 1 : -1)))];
@@ -268,7 +439,9 @@ $("controls").addEventListener("click", async e => {
     return;
   }
   if (b.dataset.bid) {
-    const why = await page.move(JSON.parse(b.dataset.bid));
+    const m = JSON.parse(b.dataset.bid);
+    noteMove(V.state, m);
+    const why = await page.move(m);
     if (why) toast(why);
   }
 });
@@ -296,6 +469,7 @@ function showEnd(v) {
 }
 function newGame() {
   $("endDlg").open && $("endDlg").close();
+  advice = said = null;                                          // the coach's words were the last game's
   page.deal({ game: opts.game, ...opts[opts.game] }, 4);
 }
 $("endAgain").addEventListener("click", newGame);
@@ -369,10 +543,16 @@ function openMenu() {
   else set.append(choice("Deals", [[8, "8"], [16, "16"], [24, "24"]], o.deals, v => { o.deals = Number(v); saveOpts(); }));
   set.append(choice("The computer", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
   set.append(line("The game and its settings apply from the next game."));
+  // the coach and the cards change at once
+  if (opts.game === "schafkopf") {
+    set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); advice = null; said = null; draw(); }));
+    set.append(choice("Cards", [["drawn", "Drawn"], ["pictures", "Pictures"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
+  }
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 });
-  const rushBests = bestsLine(rush.bests());
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));
+  const rushBests = bestsLine(rush.bests()), about = part(body, "about");
+  about.append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));
+  if (opts.game === "schafkopf" && opts.look === "pictures") about.append(line("The pictures: J. N. Valter's Bayerisches Bild, Regensburg, 1826 (the Schellen-Zehner C. Baronsee's, 1841), in the public domain."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -383,6 +563,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+$("whyClose").addEventListener("click", () => $("whyDlg").close());
 addEventListener("resize", () => { if (V?.G) drawHand(V.state); });
 window.__trumps = { page, get view() { return V; }, opts, laufende, course, rush };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();

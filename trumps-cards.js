@@ -46,8 +46,13 @@ const SUIT_ICON = { swiss: ["bell", "shield", "rose", "acorn"], german: ["bell",
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 /** A suit's mark, drawn, in the Swiss or German pack. */
 export const suitIcon = (pack, suit) => ICONS[SUIT_ICON[pack][suit]];
-/** A Swiss or German card as markup (the French are cards.js's): its rank and suit in the corner, the suit large at its foot. */
+/** The German pack as pictures, while the page has them on: a card's id to its picture (trumps-pics.js), else null. */
+export const LOOK = { german: null };
+/** A Swiss or German card as markup (the French are cards.js's): its rank and suit in the corner, the suit large at its
+ *  foot; or, with the German pack's pictures on, the card's picture. */
 export function packCard(id, pack, { cls = "", data = {} } = {}) {
-  const icon = suitIcon(pack, suitOf(id)), attrs = Object.entries(data).map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
+  const attrs = Object.entries(data).map(([k, v]) => ` data-${k}="${esc(v)}"`).join(""), pic = pack === "german" ? LOOK.german?.[id] : null;
+  if (pic) return `<span class="cd tr-cd german pic${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(cardName(id, pack))}"><img src="${pic}" alt="" draggable="false" decoding="async"></span>`;
+  const icon = suitIcon(pack, suitOf(id));
   return `<span class="cd tr-cd ${pack}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(cardName(id, pack))}"><span class="cd-r">${PACKS[pack].rank[rankOf(id)]}</span><span class="tr-s">${icon}</span><span class="tr-pip">${icon}</span></span>`;
 }

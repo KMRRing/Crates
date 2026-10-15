@@ -1,17 +1,17 @@
-// Schafkopf solved, for the course's checks and the puzzle rush's (offline: too slow for a turn at the table). A hand's
-// rest played out with every card seen (double dummy), the players' side against the others, each doing what's best
-// for their side; and a position weighed as a player sees it: the cards they can't see dealt as they could lie (as the
-// computer players deal them, trumps-bot.js: each hand's size, the Farben a player has shown out of; then what a
-// Sauspiel's caller must hold, not the called Sau and a card of its Farbe until one is played, and every card played
-// so far legal from the hands so dealt), each deal solved after each card the player could play, and the cards' worth
-// averaged.
+// Schafkopf solved exactly, for the course's checks and the puzzle rush's (offline: too slow for a turn at the table,
+// where trumps-dd.js's search for points plays instead). A hand's rest played out with every card seen (double dummy),
+// the players' side against the others, each doing what's best for their side; and a position weighed as a player sees
+// it: the cards they can't see dealt as they could lie (trumps-deals.js: each hand's size, the Farben a player has
+// shown out of, what a Sauspiel's caller must hold, every card played so far legal from the hands so dealt), each deal
+// solved after each card the player could play, and the cards' worth averaged.
 //
 // Worth is what a hand pays, in games: a won game +1, Schneider one more, schwarz one more (each worth a tariff), for
 // the side that wins it and against the other; and a hair for each card point past 60, so that between plays alike in
 // what they pay, more points is better.
 import { GAMES } from "./trumps-games.js";
-import { cid, suitOf, rankOf } from "./trumps-cards.js";
-import { sample } from "./trumps-bot.js";
+import { sidesOf, dealFor } from "./trumps-deals.js";
+
+export { sidesOf, playedFits, fittingDeal, dealFor } from "./trumps-deals.js";
 
 const S = GAMES.schafkopf;
 const HAIR = 0.002;
@@ -73,57 +73,6 @@ function search(g, alpha, beta, tt) {
 }
 
 // ---------- weighing a position as its player sees it ----------
-/** The sides of a deal: the caller, and in a Sauspiel whoever holds (or played) the called Sau. */
-export function sidesOf(s, hands) {
-  const c = s.contract;
-  let partner = -1;
-  if (c.type === "sau") {
-    const ace = cid(c.ace, "A");
-    partner = hands.findIndex(h => h.includes(ace));
-    if (partner < 0) for (const t of [...s.tricks.flatMap(x => x.cards), ...s.trick]) if (t.card === ace) partner = t.seat;
-  }
-  return seat => (seat === c.declarer || seat === partner ? 0 : 1);
-}
-/** Whether a deal could be the real one, by what the call says: the caller holds no called Sau, and still a card of its Farbe unless one is played. */
-function callerFits(s, hands) {
-  const c = s.contract;
-  if (c.type !== "sau") return true;
-  const own = hands[c.declarer], ace = cid(c.ace, "A");
-  if (own.includes(ace)) return false;
-  const ofFarbe = id => suitOf(id) === c.ace && rankOf(id) !== "Q" && rankOf(id) !== "J";      // its Ober and Unter are trumps
-  const played = s.tricks.flatMap(x => x.cards).concat(s.trick).some(t => t.seat === c.declarer && ofFarbe(t.card));
-  return played || own.some(ofFarbe);
-}
-/**
- * Whether every card played so far was legal from the hands as a deal would have dealt them: what the bot's dealing
- * misses is the called Sau's rules (it must come when its Farbe is led, so whoever followed with another doesn't hold it).
- */
-export function playedFits(s, hands) {
-  const sim = { contract: s.contract, hands: hands.map(h => h.slice()), trick: [] }, all = [...s.tricks.map(t => t.cards), s.trick];
-  for (const t of all) for (const x of t) sim.hands[x.seat].push(x.card);
-  for (const t of all) {
-    sim.trick = [];
-    for (const x of t) {
-      if (!S.legal(sim, x.seat).includes(x.card)) return false;
-      sim.hands[x.seat] = sim.hands[x.seat].filter(id => id !== x.card);
-      sim.trick.push(x);
-    }
-  }
-  return true;
-}
-/** A deal of the cards a seat can't see that honours the call and the play so far, or null if none turns up. */
-export function fittingDeal(s, seat, rng, tries = 60) {
-  for (let k = 0; k < tries; k++) {
-    const hands = sample(s, seat, rng);
-    if (hands && callerFits(s, hands) && playedFits(s, hands)) return hands;
-  }
-  return null;
-}
-/** A deal of the cards a seat can't see, honouring the call and the play (tries a while, then lets them go). */
-export function dealFor(s, seat, rng) {
-  return fittingDeal(s, seat, rng) || sample(s, seat, rng);
-}
-
 /**
  * A position weighed as a seat sees it (a rules state, the seat to move): in each of `deals` deals of the cards it
  * can't see, every card it may play solved to the end of the hand. Returns the cards, best first: { card, worth (to
