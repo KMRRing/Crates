@@ -36,18 +36,13 @@ async function download(url, path) {
 const safe = t => t.replace(/^File:/, "").replace(/[^A-Za-z0-9._-]+/g, "_").slice(0, 120);
 
 if (what === "index") {
-  const cats = new Set(["Category:Bavarian pattern", "Category:Bavarian pattern playing cards", "Category:Schafkopf"]);
-  for (const q of ["Bavarian pattern", "Bayerisches Bild", "Schafkopf", "Bavarian playing cards", "Munich pattern", "German-suited playing cards", "Bavarian-Swabian pattern", "Tarock Bavarian"]) {
-    const r = await api({ action: "query", list: "search", srsearch: q, srnamespace: "14", srlimit: "20" });
-    for (const s of r.query?.search || []) cats.add(s.title);
-  }
-  log(`${cats.size} categories from the search`, [...cats].join(" | "));
+  // the Bavarian pattern's own category and its subcategories, and a few near it: not a search's wanderings
+  const cats = ["Category:Bavarian pattern", "Category:Schafkopf", "Category:Obers (playing cards)", "Category:Unters (playing cards)", "Category:German-suited playing cards"];
   const files = new Map(), seenCats = new Set();
   async function walk(cat, depth) {
-    if (seenCats.has(cat) || seenCats.size >= 80) return;
+    if (seenCats.has(cat) || seenCats.size >= 40) return;
     seenCats.add(cat);
-    let cont = {};
-    let n = 0;
+    let cont = {}, n = 0;
     do {
       const r = await api({ action: "query", list: "categorymembers", cmtitle: cat, cmtype: "file|subcat", cmlimit: "500", ...cont });
       for (const m of r.query?.categorymembers || []) {
@@ -55,16 +50,13 @@ if (what === "index") {
         else if (m.ns === 14 && depth > 0) await walk(m.title, depth - 1);
       }
       cont = r.continue ? { cmcontinue: r.continue.cmcontinue } : null;
-    } while (cont && files.size < 6000);
+    } while (cont && n < 600);
     log(cat, n);
   }
-  for (const c of cats) await walk(c, 1);
-  for (const q of ["Bavarian pattern Ober", "Bavarian pattern Unter", "Bavarian pattern Sau", "Bayerisches Blatt", "Schafkopf Karte", "Eichel Ober", "Gras Sau", "Herz König Spielkarte", "Schellen Daus", "Bavarian deck svg"]) {
-    const r = await api({ action: "query", list: "search", srsearch: q, srnamespace: "6", srlimit: "50" });
-    for (const s of r.query?.search || []) if (!files.has(s.title)) files.set(s.title, `search: ${q}`);
-  }
+  await walk(cats[0], 2);
+  for (const c of cats.slice(1)) await walk(c, 0);
   log(`${seenCats.size} categories walked, ${files.size} files`);
-  const titles = [...files.keys()], out = [];
+  const titles = [...files.keys()].slice(0, 900), out = [];
   for (let i = 0; i < titles.length; i += 50) {
     const r = await api({ action: "query", titles: titles.slice(i, i + 50).join("|"), prop: "imageinfo", iiprop: "url|size|mime|extmetadata", iiurlwidth: "120" });
     for (const p of r.query?.pages || []) {
@@ -74,7 +66,8 @@ if (what === "index") {
       out.push({ title: p.title, from: files.get(p.title), w: ii.width, h: ii.height, mime: ii.mime, url: ii.url, thumb: ii.thumburl,
         license: v("LicenseShortName"), artist: v("Artist"), desc: v("ImageDescription").slice(0, 160), date: v("DateTimeOriginal"), cats: v("Categories").slice(0, 200) });
     }
-    if (i % 500 === 0) log(`info ${i}/${titles.length}`);
+    log(`info ${i}/${titles.length}`);
+    await sleep(300);
   }
   out.sort((a, b) => a.title.localeCompare(b.title));
   await mkdir("out", { recursive: true });
@@ -85,13 +78,14 @@ if (what === "index") {
   const { files } = JSON.parse(await readFile("out/index.json", "utf8"));
   const cardLike = f => f.thumb && /image\/(jpeg|png|svg)/.test(f.mime) && f.h > f.w * 1.2 && f.h < f.w * 2.4
     && /ober|unter|sau|daus|ass|k[öo]nig|zehn|eichel|gras|laub|herz|schell|bav|bay|schafkopf|spielkart|card/i.test(f.title + " " + f.from + " " + f.cats);
-  const pick = files.filter(cardLike);
+  const pick = files.filter(f => /Bavarian|Schafkopf/i.test(f.from)).concat(files.filter(f => !/Bavarian|Schafkopf/i.test(f.from) && cardLike(f)).slice(0, 150));
   log(`${pick.length} card-like of ${files.length}`);
   await mkdir("out/thumbs", { recursive: true });
   let n = 0;
   for (const f of pick) {
     if (Date.now() - t0 > 15 * 60 * 1000) { log("out of time"); break; }
     if (await download(f.thumb, `out/thumbs/${safe(f.title)}.${/png|svg/.test(f.mime) ? "png" : "jpg"}`)) n++;
+    await sleep(150);
     if (n >= 500) break;
   }
   log(`${n} thumbnails`);
