@@ -28,6 +28,10 @@ jobs:
           mkdir -p out
           { date -u; curl -sS -m 20 -o /dev/null -w "api %{http_code} %{time_total}s\n" -A "AlmanacCards/1.0 (https://github.com/KMRRing/Crates)" "https://commons.wikimedia.org/w/api.php?action=query&meta=siteinfo&format=json"; } > out/probe.txt 2>&1 || true
           cat out/probe.txt
+      - name: Files by name
+        if: hashFiles('fetch/search.json') != ''
+        timeout-minutes: 10
+        run: timeout 540 node fetch/list.mjs search > out/log-search.txt 2>&1 || true
       - name: The cards wanted
         if: hashFiles('fetch/want.json') != ''
         timeout-minutes: 15

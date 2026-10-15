@@ -27,7 +27,7 @@ async function download(url, path) {
       const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(20000) });
       if (r.ok) { await writeFile(path, Buffer.from(await r.arrayBuffer())); return true; }
       log("get", r.status, url.slice(0, 160));
-      if (r.status === 429) await sleep(5000);
+      if (r.status === 429) await sleep(15000);
     } catch (e) { log("get error", e.message); }
     await sleep(1000);
   }
@@ -73,6 +73,33 @@ if (what === "index") {
   await mkdir("out", { recursive: true });
   await writeFile("out/index.json", JSON.stringify({ categories: [...seenCats], files: out }, null, 1));
   log(`index: ${out.length} files`);
+} else if (what === "search") {
+  // files found by name (fetch/search.json: { queries }), with their licences and sizes, into out/search.json
+  const { queries } = JSON.parse(await readFile("fetch/search.json", "utf8")), found = new Map();
+  for (const q of queries) {
+    let cont = {}, n = 0;
+    do {
+      const r = await api({ action: "query", list: "search", srsearch: q, srnamespace: "6", srlimit: "500", ...cont });
+      for (const x of r.query?.search || []) { if (!found.has(x.title)) found.set(x.title, q); n++; }
+      cont = r.continue ? { sroffset: r.continue.sroffset } : null;
+    } while (cont && n < 2000);
+    log(q, n);
+  }
+  const titles = [...found.keys()], out = [];
+  for (let i = 0; i < titles.length; i += 50) {
+    const r = await api({ action: "query", titles: titles.slice(i, i + 50).join("|"), prop: "imageinfo", iiprop: "size|mime|extmetadata" });
+    for (const p of r.query?.pages || []) {
+      const ii = p.imageinfo?.[0];
+      if (!ii) continue;
+      const m = ii.extmetadata || {}, v = k => (m[k]?.value || "").replace(/<[^>]+>/g, "").trim().slice(0, 200);
+      out.push({ title: p.title, q: found.get(p.title), w: ii.width, h: ii.height, license: v("LicenseShortName"), artist: v("Artist"), desc: v("ImageDescription").slice(0, 160) });
+    }
+    await sleep(300);
+  }
+  out.sort((a, b) => a.title.localeCompare(b.title));
+  await mkdir("out", { recursive: true });
+  await writeFile("out/search.json", JSON.stringify(out, null, 1));
+  log(`search: ${out.length} files`);
 } else if (what === "thumbs") {
   // single cards, not photos of packs: portrait, card-shaped, named or filed like a card
   const { files } = JSON.parse(await readFile("out/index.json", "utf8"));
@@ -102,6 +129,7 @@ if (what === "index") {
       const ext = ii.mime.includes("png") ? "png" : ii.mime.includes("svg") ? "svg" : "jpg";
       const src = ext === "svg" && want.svgOriginal ? ii.url : ii.thumburl || ii.url;
       const name = `${safe(p.title)}.${ext === "svg" && !want.svgOriginal ? "png" : ext}`;
+      await sleep(1500);                                         // upload.wikimedia.org answers 429 to a quick run
       if (await download(src, `out/cards/${name}`)) meta.push({ title: p.title, file: name, license: v("LicenseShortName"), licenseUrl: v("LicenseUrl"), artist: v("Artist"), credit: v("Credit"), w: ii.width, h: ii.height });
     }
   }
