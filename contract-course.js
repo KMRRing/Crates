@@ -377,7 +377,7 @@ export const COURSE = {
       ],
     },
     {
-      id: "nt", title: "Notrump bidding", zh: "",
+      id: "notrump", title: "Notrump bidding", zh: "",
       lessons: [
         {
           id: "stayman", title: "Stayman", zh: "",

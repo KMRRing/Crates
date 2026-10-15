@@ -6,6 +6,7 @@
 // the bidding contract-sayc.js's (Standard American Yellow Card), the computer's card play contract-play.js's, its
 // thinking contract-worker.js's (the double-dummy solver, in WebAssembly, off the page's thread).
 import { rules, aheadKey, remember, dummyOf, DEALS, DEAL_MS } from "./contract-rules.js";
+import { THINK } from "./contract-play.js";
 import { SUITS, STRAINS, RANKS, COMPASS, SEATS, SIDES, suitOf, rankOf, sortHand, legalCards, legalCalls, callText, bidOf, bidCall, contractText,
   vulText, sideOf, partnerOf, trickWinner, NT, dealScore, cardText, lengths, hcp } from "./contract-core.js";
 import { chooseCall, explainCall, showText } from "./contract-sayc.js";
@@ -63,9 +64,10 @@ function suitRows(hand, { lit = null } = {}) {
 // ---------- the computer's thinking, in a worker ----------
 // The double-dummy solver weighs a card over many deals of the hands it can't see (contract-play.js), a second or so,
 // in a worker (contract-worker.js) while the table waits its pace; the table's move takes what it worked out. Solo,
-// the table holds the computer's card until it's in; at a table this phone runs, it takes it if it's in by the pace,
-// else the computer plays by the rules of thumb. The hint asks the same worker about your seat.
-const PACE = 700, BID_PACE = 650;
+// the table holds the computer's card until it's in; at a table this phone runs (where nothing holds it), the pace
+// waits as long as the level may think and a little more, and only a card still not in by then is played by the rules
+// of thumb. The hint asks the same worker about your seat.
+const PACE = 700, BID_PACE = 650, LATE = 600;
 let worker = null, asked = 0;
 const answers = new Map();
 function workerNow() {
@@ -99,7 +101,12 @@ function lookAhead(v) {
   });
 }
 const holding = () => want != null && !(ahead.key === want && ahead.done);
-const paceNow = s => (s.step === "bid" ? BID_PACE : want != null && ahead.key === want ? Math.max(150, PACE - (Date.now() - ahead.since)) : PACE);
+function paceNow(s) {
+  if (s.step === "bid") return BID_PACE;
+  if (want == null || ahead.key !== want) return PACE;
+  const spent = Date.now() - ahead.since;
+  return Math.max(150, (ahead.done ? PACE : (THINK[opts.level]?.ms ?? PACE) + LATE) - spent);
+}
 
 // ---------- the table ----------
 let V = null, page = null;
@@ -337,9 +344,10 @@ $("seatTop").addEventListener("click", e => {
 });
 $("controls").addEventListener("click", e => {
   const b = e.target.closest("button");
-  if (!b || b.disabled || !V?.G) return;
+  if (!b || b.disabled) return;
+  if (b.dataset.act === "new") { newGame(); return; }             // also a table's first: there's no game yet
+  if (!V?.G) return;
   const s = V.state;
-  if (b.dataset.act === "new") { newGame(); return; }
   if (b.dataset.act === "result") { showEnd(V); return; }
   if (b.dataset.act === "hint") { showHint(); return; }
   if (b.dataset.act === "auction") { showAuction(); return; }
