@@ -1,4 +1,4 @@
-/* Party's drawing games (party-draw.js; Sketch): the paper, the same light paper on every phone whatever its theme (a
+/* Party's drawing games (party-draw.js; Sketch, Whispers): the paper, the same light paper on every phone whatever its theme (a
    drawing is the same drawing everywhere; at night the whole of it is dimmed, the eraser with it), and its tools under
    it on a phone, beside it held sideways; Sketch's word or its blanks, the clock, the box for a guess, the guesses, and
    the word shown with its drawing after each turn. */
@@ -81,6 +81,34 @@ html[data-mode="night"] .dr-paper { filter: brightness(.86); }
 .sk-show .sk-board { display: none; }
 .sk-over { gap: .8rem; }
 
+/* Whispers: the words to draw or the drawing to name, Done (Change once done); the books shown a page at a time, each
+   page its maker and their words or drawing, the newest at the bottom */
+.wh-words { gap: .6rem; }
+.wh-first { justify-content: flex-start; }
+.wh-note { text-align: center; font-size: .9rem; }
+.wh-side { display: grid; gap: .5rem; }
+.wh-help { justify-self: center; width: auto; padding: 0 1.4rem; }
+.wh-words-big { min-width: 0; font-size: 1.2rem; font-weight: 800; line-height: 1.25; overflow-wrap: anywhere; }
+.wh-draw .sk-top { align-items: flex-start; }
+.wh-draw .sk-label { padding-top: .3rem; }
+.wh-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .6rem; }
+.wh-row .pk-wait { text-align: left; font-size: .85rem; }
+.wh-row .pk-btn, .wh-side .sk-row .pk-btn { width: auto; min-height: 2.9rem; padding: 0 1.3rem; }
+.wh-head { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
+.wh-owner { font-size: 1.2rem; font-weight: 800; }
+.wh-pages { display: grid; align-content: start; gap: .8rem; margin: 0; padding: .1rem 0 .4rem; list-style: none; }
+.wh-page { display: grid; justify-items: center; gap: .3rem; }
+.wh-by { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.wh-page .dr-paper { width: min(100%, 17rem); }
+.wh-text { width: 100%; box-sizing: border-box; margin: 0; padding: .8rem 1rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile);
+  font-size: 1.3rem; font-weight: 800; line-height: 1.25; text-align: center; overflow-wrap: anywhere; }
+.wh-page.first .wh-text { border-color: var(--pa-in); background: var(--pa-soft); }
+.wh-page.blank .wh-text { color: var(--ink-soft); font-weight: 600; }
+.wh-books { display: flex; flex-wrap: wrap; gap: .35rem; }
+.wh-books button { min-height: 2.4rem; padding: .3rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink);
+  font: inherit; font-weight: 700; cursor: pointer; }
+.wh-books button[aria-selected="true"] { border-color: var(--pa-in); background: var(--pa-in); color: var(--sheet); }
+
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
   html:not([data-mode="day"]) .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
@@ -105,6 +133,7 @@ html[data-mode="night"] :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { colo
   .dr-side .dr-inks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .dr-side .dr-ink { height: 2.2rem; }
   .sk-show .sk-board { display: block; flex: 1 1 auto; overflow-y: auto; }
-  .sk-choose:not(:has(> .dr-side)), .sk-over { width: 100%; max-width: 36rem; margin: 0 auto; }
+  .sk-choose:not(:has(> .dr-side)), .sk-over, .wh-first, .wh-words:not(:has(> .dr-side)), .wh-show { width: 100%; max-width: 36rem; margin: 0 auto; }
+  .wh-words:has(> .dr-side) > .dr-side { flex-direction: column; }
 }
-html[data-theme="office"] :is(.sk-word, .sk-got, .sk-gains li) { border-radius: 4px; }
+html[data-theme="office"] :is(.sk-word, .sk-got, .sk-gains li, .wh-text) { border-radius: 4px; }

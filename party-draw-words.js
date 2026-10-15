@@ -160,3 +160,40 @@ export const KINDS = [
 
 /** Every word as the games deal it: { id (its English, so a party remembers it), en: [ways to say it], zh: [ways], level, kind }. */
 export const WORDS = KINDS.flatMap(k => k.words.map(([en, zh, level]) => ({ id: en.split("|")[0], en: en.split("|"), zh: zh.split("|"), level, kind: k.id })));
+
+/**
+ * Whispers' first pages, for a player who'd rather be given one (or a table that wants the book's): a picture in a few
+ * words, odd enough to be worth drawing and to come out the other end as something else.
+ */
+export const PHRASES = [
+  "a cat stuck up a tree", "a snowman on holiday", "a dog walking its owner", "a shark at the dentist", "the moon eating noodles",
+  "a robot in love", "a giraffe in a lift", "breakfast in bed", "a haunted toaster", "a penguin on a skateboard",
+  "a dragon blowing out birthday candles", "a seasick pirate", "an octopus doing the washing up", "a ghost trying on clothes", "a tortoise winning a race",
+  "an elephant hiding behind a tree", "a mermaid at the supermarket", "a wizard stuck in traffic", "a pizza with a moustache", "a volcano with hiccups",
+  "a cow jumping over the moon", "the last biscuit in the tin", "a teddy bears' picnic", "a snail in a hurry", "an alien buying a hat",
+  "a bear stealing honey", "a king who lost his crown", "a fish riding a bicycle", "a chicken crossing the road", "a monkey taking a selfie",
+  "a lighthouse in a storm", "a frog prince waiting for a kiss", "a cactus giving a hug", "a vampire at the beach", "a sheep counting people",
+  "a superhero doing the laundry", "a dinosaur at a tea party", "a pig in a puddle", "a sleepy sun", "rain at a wedding",
+  "a dog who ate the homework", "a ninja in a library", "a crab with a camera", "a giant in a tiny car", "a rocket made of cheese",
+  "a cat playing the piano", "a bird's nest on a head", "a mouse scaring an elephant", "a whale in a bathtub", "a clown at a funeral",
+  "a lion at the hairdresser", "a ghost afraid of the dark", "an owl doing homework", "a snowball fight", "a picnic in the rain",
+  "a pirate ship in a bottle", "a horse in pyjamas", "a magician's rabbit escaping", "a rainbow upside down", "a banana slipping on a person",
+  "a kangaroo with too much in its pocket", "an astronaut losing a glove", "a tree with apples and oranges", "a castle made of sand", "a hedgehog hugging a balloon",
+  "a dog on a skateboard", "a duck in a bow tie", "a submarine full of cats", "a zombie at a job interview", "a cake that's too big for the door",
+  "a dragon guarding a fridge", "a mummy unravelling", "the world's smallest horse", "a tiger in a onesie", "a sunflower taller than a house",
+  "an umbrella on a sunny day", "a camel with a suitcase", "a goldfish wanting to fly", "a bee asleep in a flower", "a baby driving a tractor",
+  "a spider knitting a jumper", "a moon with a bite out of it", "a snowman in the desert", "a parrot telling secrets", "a tired alarm clock",
+  "a penguin lost in the jungle", "a queue for the toilet", "a cat who thinks it's a dog", "a broom that sweeps by itself", "a sandwich taller than the cook",
+  "a train in the clouds", "a fox in a henhouse", "a monster under the bed", "a phone that won't stop ringing", "a squirrel with a nut too big",
+  "a wolf in sheep's clothing", "an elephant on a seesaw", "a jellyfish at a disco", "a bat hanging out the washing", "a chef crying over onions",
+  "a man who swallowed a fly", "a tooth fairy with a wheelbarrow", "a grandmother on a motorbike", "a dog chasing its tail", "a tiny boat in huge waves",
+  "a skeleton playing the xylophone", "a robot walking a dog", "a cow on a trampoline", "a lost sock's adventure", "a pumpkin turning into a coach",
+  "a fish out of water", "a cat on a hot tin roof", "an elephant in the room", "raining cats and dogs", "a storm in a teacup",
+  "a needle in a haystack", "the early bird catching the worm", "a bull in a china shop", "head in the clouds", "a frog in the throat",
+  "butterflies in the stomach", "a couch potato", "the tip of the iceberg", "a big fish in a small pond", "spilling the beans",
+  "letting the cat out of the bag", "a piece of cake", "the black sheep of the family", "a wild goose chase", "walking on eggshells",
+  "a tanker stuck in a canal", "a refinery on fire", "a trader shouting into two phones", "a barrel of oil on holiday", "a cargo ship lost at sea",
+  "a container full of rubber ducks", "the boss asleep in a meeting", "a coffee machine that's broken", "a printer eating paper", "a crane lifting a car",
+  "a dumpling with legs", "a panda eating bamboo noodles", "a dragon boat race", "a lion dance in the rain", "a red envelope full of sweets",
+  "a mooncake on the moon", "a cat in a teapot", "fireworks over the harbour", "a hotpot party", "a tea leaf swimming",
+];
