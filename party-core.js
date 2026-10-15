@@ -189,7 +189,7 @@ export const ELSEWHERE = [
   { id: "chart", name: "Chart", kind: "duo", duo: "chart", page: "chart.html", max: 6, blurb: "Everyone pins the same places on their own phone: every pin revealed, closest scores most." },
   { id: "quote", name: "Quote", kind: "duo", duo: "quote", page: "quote.html", max: 6, blurb: "Everyone makes a market on the same numbers: every range revealed against the truth." },
   { id: "spot", name: "Spot", kind: "duo", duo: "spot", page: "spot.html", max: 6, blurb: "Flying sums: the same ones for everyone, or call out yours and catch theirs." },
-  { id: "stow", name: "Stow", kind: "duo", duo: "stow", page: "stow.html", max: 2, blurb: "Fill the hold together, a line at a time." },
+  { id: "stow", name: "Stow", kind: "duo", duo: "stow", page: "stow.html", max: 6, blurb: "One hold, a hand each: take turns round the table to clear the cargo." },
   { id: "hong", name: "Hong", kind: "duo", duo: "hong", page: "hong.html", max: 4, bots: true, blurb: "Hong Kong mahjong, four at the table." },
   { id: "tribute", name: "Tribute", kind: "duo", duo: "tribute", page: "tribute.html", max: 4, bots: true, blurb: "Guan Dan: two partnerships, across the table from each other." },
   { id: "river", name: "River", kind: "duo", duo: "river", page: "river.html", max: 2, blurb: "Xiangqi, Chinese chess, one against the other." },

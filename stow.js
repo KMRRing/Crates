@@ -1,24 +1,25 @@
 // Stow: three pieces at a time, dragged into the hold; a line full from end to end clears, and a level is won once
 // every consignment (the stamped cargo) has gone out with a line. The rules, the deals and the solver are in
 // stow-engine.js, the campaign in stow-levels.js, a hold in decks drawn in 3D in stow-3d.js; this file draws the hold,
-// moves the pieces and keeps your progress. Together, the two of you fill one hold, each from a tray of your own the
-// other can't see, taking turns.
+// moves the pieces and keeps your progress. Together (a pair, or a party of up to six), everyone fills one hold, each
+// from a tray of their own the others can't see, taking turns round the table (stow-room.js).
 import { makeField, placements, options, filledBy, put, marksLeft, anyFits, tray, startBoard, starsFor, pool } from "./stow-engine.js";
 import { holdScene, drawPiece, VIEW, EL_MIN, EL_MAX } from "./stow-3d.js";
 import { CHAPTERS, LEVELS } from "./stow-levels.js";
+import { freshTable, restart, handOf as handAt, colourOf, sameCells, presentSlots, turnNow, canMove, move, stuck } from "./stow-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
-import { GAMES, roomInAddress } from "./rooms.js";
+import { GAMES, roomInAddress, otherHere } from "./rooms.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
 import { today, noteStars } from "./suite.js";
-import { busy } from "./loading.js";
-import { scale } from "./wide.js";
+import { busy, sextant } from "./loading.js";
+import { scale, sideways } from "./wide.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
 const RUN = "stow:run", PROGRESS = "stow:progress", DAILY = "stow:daily", DAYLEVEL = "stow:day", TURNED = "stow:view";
-const APP = 1;                                                   // this code's version of the together state
+const APP = 2;                                                   // this code's version of the together state (2: up to six, hands by seat)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const byId = new Map(LEVELS.map(l => [l.id, l]));
@@ -53,11 +54,12 @@ function play(level) {
 }
 
 // ---------- whose pieces, and which ----------
-const mySlot = () => (together.room ? seatsOf(S).find(([id]) => id === together.room.uid)?.[1].slot ?? 0 : 0);
-const handOf = slot => (together.room ? S.hands?.[slot] || { tray: 0, slots: [true, true, true] } : { tray: S.tray, slots: S.slots });
+const mySlot = () => (together.room ? together.slot ?? 0 : 0);
+const handOf = slot => (together.room ? handAt(S, slot) : { tray: S.tray, slots: S.slots });
 const piecesOf = slot => tray(L, handOf(slot).tray, together.room ? slot : 0);
-const myTurn = () => !together.room || (S.turn ?? 0) === mySlot();
-const colourOf = p => (p.n % 4) + 1;                            // each shape keeps one of the four enamels
+/** At a table, the seats here now (yours always); a player who's away is passed over. */
+const present = () => (together.room && S ? presentSlots(S, together.room.here, together.room.uid) : [0]);
+const myTurn = () => !together.room || turnNow(S, present()) === mySlot();
 
 // ---------- the hold ----------
 let cellEls = [];
@@ -198,15 +200,30 @@ function drawTray() {
     b.addEventListener("pointerdown", e => startDrag(k, p, e));
     box.appendChild(b);
   });
-  // together: your partner's tray, face down (theirs to describe)
+  // together: everyone else's hand, face down (theirs to describe), in turn order round the table from yours; whose turn
+  // it is outlined in their colour, anyone away dimmed (passed over until they're back)
   const theirs = $("theirs");
   theirs.hidden = !together.room;
   if (together.room) {
-    const other = handOf(1 - mine);
-    theirs.replaceChildren();
-    for (let k = 0; k < 3; k++) { const d = document.createElement("span"); d.className = `sw-slot back${other.slots[k] ? "" : " used"}`; theirs.appendChild(d); }
+    const cols = sideways() ? 2 : 3;                             // the names need the room beside the hold
+    theirs.style.setProperty("--cols", cols);
+    theirs.style.setProperty("--rows", Math.max(1, Math.ceil(((S.people || 2) - 1) / cols)));
+    const pres = new Set(present()), now = turnNow(S, [...pres]), round = s => (s > mine ? 0 : 1000) + s;   // the seats after yours first
+    const order = seatsOf(S).map(([id, p]) => ({ id, ...p })).filter(p => p.slot !== mine).sort((a, b) => round(a.slot) - round(b.slot));
+    theirs.replaceChildren(...order.map(p => {
+      const hand = handOf(p.slot), chip = document.createElement("span");
+      chip.className = `sw-hand${p.slot === now && !S.done ? " turn" : ""}${pres.has(p.slot) ? "" : " away"}`;
+      chip.style.setProperty("--seat", seatColour(p.slot));
+      const name = document.createElement("b");
+      name.textContent = firstName(p.name);
+      chip.append(name, ...hand.slots.map(full => { const d = document.createElement("i"); if (!full) d.className = "used"; return d; }));
+      chip.setAttribute("aria-label", `${p.name}: ${hand.slots.filter(Boolean).length} pieces in hand${pres.has(p.slot) ? "" : ", away"}`);
+      return chip;
+    }));
   }
 }
+const seatColour = slot => `var(--p${(slot || 0) % 6})`;
+const firstName = name => String(name || "Player").split(" ")[0];
 
 // ---------- dragging (and tapping: a piece picked up, then a tap in the hold) ----------
 let drag = null, picked = null, flashing = null;
@@ -297,7 +314,6 @@ addEventListener("pointerup", endDrag);
 addEventListener("pointercancel", e => { if (drag && e.pointerId === drag.id) { clearDrag(); drawTray(); render(); } });
 
 // ---------- a move ----------
-const sameCells = (a, b) => a.length === b.length && a.every((v, j) => v === b[j]);
 function placePiece(k, idx) {
   if (together.room) { moveTogether(k, idx); return; }
   const p = piecesOf(0)[k];
@@ -391,7 +407,8 @@ function drawResult() {
   if (!S.done) return;
   const won = S.done.won;
   const under = L.par - S.used, n = `${S.used} piece${S.used === 1 ? "" : "s"}`;
-  $("verdict").textContent = !won ? (together.room ? "Out of room: nothing in hand fits" : "Out of room")
+  const whose = S.done.by == null ? "hand" : S.done.by === mySlot() ? "your hand" : `${firstName(seatName(S.done.by))}'s hand`;
+  $("verdict").textContent = !won ? (together.room ? `Out of room: nothing in ${whose} fits` : "Out of room")
     : under > 0 ? `Stowed in ${n}, ${under} under par` : under === 0 ? `Stowed in ${n}, on par` : `Stowed in ${n} (par ${L.par})`;
   $("stars").textContent = won && !together.room ? "★★★".slice(0, S.done.stars) + "☆☆☆".slice(S.done.stars) : "";
   const next = nextLevel();
@@ -426,45 +443,58 @@ async function playDaily() {
 
 // ---------- together ----------
 const seatName = slot => seatsOf(S).find(([, p]) => p.slot === slot)?.[1].name || (slot === mySlot() ? "You" : "Your partner");
+/** A name in their seat's colour, as the hands row shows it. */
+function seatChip(name, slot) {
+  const b = document.createElement("b");
+  b.className = "sw-seat";
+  b.style.setProperty("--seat", seatColour(slot));
+  b.textContent = name;
+  return b;
+}
+/**
+ * The line over the trays at a table: whose turn it is (yours, or who's to say what they're holding), the one passed
+ * over while away; how it ended. Your partner in another game of the room: where, and a link.
+ */
 function drawPartner() {
   const el = $("partner");
   el.hidden = !together.room;
   if (!together.room) return;
-  const p = together.partner();
   el.replaceChildren();
-  if (!p) { el.textContent = "Waiting for your partner to join…"; return; }
-  if (p.game) {
-    const a = document.createElement("a");
-    a.href = (GAMES[p.game]?.page || "./") + `?room=${together.room.code}`;
-    a.textContent = "Join them";
-    el.append(`${p.name} is in ${GAMES[p.game]?.name || "another game"}. `, a);
-    return;
+  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
+  const others = together.others(), people = S?.people || 2;
+  if (people === 2) {
+    const there = otherHere(together.room.here, together.room.uid, together.room.pid, "stow");
+    if (there && there.game !== "stow" && GAMES[there.game]) {
+      const a = document.createElement("a");
+      a.href = `${GAMES[there.game].page}?room=${together.room.code}`;
+      a.textContent = "Join them";
+      el.append(seatChip(firstName(there.name), others[0]?.slot ?? 1), ` is in ${GAMES[there.game].name}. `, a);
+      return;
+    }
   }
+  if (!others.length) { el.append(sextant(), people > 2 ? "Waiting for the others to join" : "Waiting for your partner to join"); return; }
   if (S.done) { el.textContent = S.done.won ? `Stowed together in ${S.used} pieces.` : "Out of room."; return; }
-  const b = document.createElement("b");
-  b.textContent = myTurn() ? "Your turn" : `${p.name}'s turn`;
-  el.append(b, myTurn() ? `: ${p.name} sees only their own pieces.` : ": say what you're holding.");
+  const pres = present(), now = turnNow(S, pres), skipped = (S.turn ?? 0) !== now && !pres.includes(S.turn) ? seatsOf(S).find(([, p]) => p.slot === S.turn)?.[1] : null;
+  el.append(seatChip(now === mySlot() ? "Your turn" : `${firstName(seatName(now))}'s turn`, now));
+  if (skipped) el.append(`: ${firstName(skipped.name)} is away.`);              // passed over until they're back
+  else el.append(now === mySlot() ? `: ${others.length > 1 ? "the others see" : `${firstName(others[0].name)} sees`} only their own pieces.` : ": say what you're holding.");
 }
-function freshRoom(players) {
-  const level = L && !L.day ? L : LEVELS[0], f = makeField(level.field);
-  return { v: 1, app: APP, created: Date.now(), id: level.id, board: [...startBoard(level, f)], tint: new Array(f.n).fill(0),
-    hands: [{ tray: 0, slots: [true, true, true] }, { tray: 0, slots: [true, true, true] }], turn: 0, used: 0, done: false, players };
+function freshRoom(players, { ask } = {}) {
+  return freshTable(L && !L.day ? L : LEVELS[0], players, { app: APP, ask });
 }
-function roomLevel(g, id) {
-  const level = byId.get(id) || LEVELS[0], f = makeField(level.field);
-  Object.assign(g, { id: level.id, board: [...startBoard(level, f)], tint: new Array(f.n).fill(0), hands: [{ tray: 0, slots: [true, true, true] }, { tray: 0, slots: [true, true, true] }], turn: 0, used: 0, done: false, created: Date.now() });
-}
+function roomLevel(g, id) { restart(g, byId.get(id) || LEVELS[0]); }
 let joining = null;                                              // the rete while you sit down, until the shared hold's drawn
 const seated = () => { joining?.(); joining = null; };
 function onState(g) {
   seated();
   const level = byId.get(g.id) || LEVELS[0];
   if (L?.id !== level.id || !F) setLevel(level);
-  const before = S?.board, tintBefore = S?.tint, was = S?.used;
-  S = { ...g, board: [...(g.board || [])], tint: [...(g.tint || [])], hands: [0, 1].map(s => ({ tray: g.hands?.[s]?.tray || 0, slots: [0, 1, 2].map(k => !!g.hands?.[s]?.slots?.[k]) })), done: g.done || null };
+  const before = S?.board, tintBefore = S?.tint, was = S?.used, hold = S && `${S.id}/${S.created}`;
+  S = { ...g, board: [...(g.board || [])], tint: [...(g.tint || [])], done: g.done || null };
   if (drag) return;                                              // your piece in the air: the hold redraws when it lands
-  picked = null;
-  // your partner's move: their lines go out as yours do
+  // a piece you've picked up stays in hand through news that isn't a move (someone sitting down, or waking)
+  if (S.used !== was || `${S.id}/${S.created}` !== hold) picked = null;
+  // another player's move: their lines go out as yours do
   if (scene && before && was != null && S.used === was + 1 && before.length === S.board.length && g.last?.idx) {
     const tint = [...tintBefore];
     for (const i of g.last.idx) tint[i] = g.last.colour;
@@ -474,33 +504,24 @@ function onState(g) {
     S.board.forEach((v, i) => { if (before[i] && !v) cleared.push(i); if (!before[i] && v) placed.push(i); });
     flash(before, placed, cleared);
   } else render();
+  outOfRoom();
 }
 async function moveTogether(k, idx) {
-  const slot = mySlot();
-  const ok = await together.act(g => {
-    if (g.done || (g.turn ?? 0) !== slot) return false;
-    const level = byId.get(g.id), f = makeField(level.field);
-    const hand = { tray: g.hands?.[slot]?.tray || 0, slots: [0, 1, 2].map(j => !!g.hands?.[slot]?.slots?.[j]) };
-    const pieces = tray(level, hand.tray, slot), board = Uint8Array.from(g.board || []);
-    const p = pieces[k];
-    if (!hand.slots[k] || !p || !options(f, board, p).some(x => sameCells(x, idx))) return false;
-    const tint = [...(g.tint || new Array(f.n).fill(0))];
-    for (const i of idx) tint[i] = colourOf(p);
-    const r = put(f, board, idx, tint);
-    hand.slots[k] = false;
-    if (!hand.slots.some(Boolean)) { hand.tray++; hand.slots = [true, true, true]; }
-    g.hands = g.hands || [];
-    g.hands[slot] = hand;
-    g.board = [...r.board]; g.tint = [...r.extra]; g.used = (g.used || 0) + 1; g.turn = 1 - slot;
-    g.last = { idx: [...idx], colour: colourOf(p) };                // so the partner's hold can lower it as it went
-    if (marksLeft(r.board) === 0) g.done = { won: true, at: Date.now() };
-    else {
-      const next = 1 - slot, h = g.hands[next] || { tray: 0, slots: [true, true, true] };
-      const theirs = tray(level, h.tray || 0, next).filter((_, j) => h.slots?.[j] !== false);
-      if (!anyFits(f, r.board, theirs)) g.done = { won: false, at: Date.now() };
-    }
-  });
-  if (!ok) render();
+  const slot = mySlot(), pres = present();
+  if (!(await together.act(g => move(g, slot, k, idx, pres)))) render();
+}
+/**
+ * Out of room on your turn: the level is lost for the table. The device whose turn it is says so (once a turn): the
+ * turn may have come to you because the player before you went away, or you came back to it.
+ */
+let outFor = null;
+function outOfRoom() {
+  if (!together.room || !S || S.done || turnNow(S, present()) !== mySlot() || canMove(S, mySlot())) return;
+  const key = `${S.created}/${S.used}`;
+  if (outFor === key) return;
+  outFor = key;
+  const slot = mySlot(), pres = present();
+  together.act(g => stuck(g, slot, pres));
 }
 async function askName() {
   const saved = localStorage.getItem("crates:name");
@@ -518,9 +539,10 @@ const together = createTogether({
   toast,
   askName,
   valid: g => g?.v === 1 && Array.isArray(g.board),
+  slots: g => g?.people || 2,
   fresh: freshRoom,
   onState,
-  onPresence: drawPartner,
+  onPresence: () => { if (!S) return; drawPartner(); drawTray(); outOfRoom(); },   // someone away is passed over
   onLeave: () => { seated(); S = read(RUN, null); start(); },
   result: g => (g.done ? { match: `${g.id}-${g.created}`, score: g.used, won: !!g.done.won, coop: true, lower: true } : null),
 });
@@ -537,7 +559,12 @@ function toast(msg, ms = 2400) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  const pick = lv => () => { if (together.room) together.act(g => roomLevel(g, lv.id)); else play(lv); };
+  // at a table, a new hold is everyone's: asked first while this one is under way
+  const pick = lv => () => {
+    if (!together.room) { play(lv); return; }
+    if (S.used && !S.done && !confirm("Start a new hold for everyone at the table? This one isn't finished.")) return;
+    together.act(g => roomLevel(g, lv.id));
+  };
   if (together.room) part(body, "together").append(action("Start this level again", pick(L.day ? LEVELS[0] : L), "primary"), action("Back to solo", () => together.leave(), "link"));
   else {
     const play_ = part(body, "play"), next = nextLevel();
@@ -629,6 +656,7 @@ addEventListener("resize", () => { if (!drag) render(); });
 
 // for tests and debugging
 window.__stow = { get state() { return S; }, get level() { return L; }, get field() { return F; }, get together() { return together; }, play, placePiece, LEVELS,
+  get turn() { return S && together.room ? turnNow(S, present()) : null; }, get mine() { return mySlot(); },
   // a move by its tray slot and the cell its first cell goes to (the levels' solutions are kept this way)
   placeAt(k, at) { const idx = options(F, S.board, piecesOf(mySlot())[k]).find(x => x[0] === at); if (!idx) return false; placePiece(k, idx); return true; },
   targetOf(k, at) { return targets(piecesOf(mySlot())[k]).find(t => t.idx[0] === at) || null; } };
@@ -649,10 +677,10 @@ function start() {
 S = read(RUN, null);
 start();
 noteStars("stow", starsAll());
-// Opened for a duo match: the rete covers your own hold while you sit down (a new hold starts at your level), so
-// nothing is placed in it by mistake; it waits as you left it, for Back to solo.
+// Opened for a duo match or a party's table: the rete covers your own hold while you sit down (a new hold starts at
+// your level), so nothing is placed in it by mistake; it waits as you left it, for Back to solo.
 const code = roomInAddress();
 if (code) {
-  joining = busy("Joining your partner", { delay: 0 });
+  joining = busy("Joining the table", { delay: 0 });
   together.join(code).then(ok => { if (!ok) seated(); });
 }

@@ -146,5 +146,97 @@ check(strip(d1) === strip(d2) && strip(d1) !== strip(d3), "today's hold is the s
 const dBoard = E.replay(d1, d1.solution);
 check(d1.par > 0 && dBoard && E.marksLeft(dBoard) === 0, `today's hold can be won, in its par of ${d1.par} (made in ${took} ms)`);
 
+// ---------- a table of more than two (stow-room.js) ----------
+// A party's request seats as many as it asked for; each seat has a hand of its own, kept by seat (s0, s1…); turns go
+// round the table in seat order, passing over anyone away, and a party plays a level through with every move through
+// the database's round trip. Out of room on your turn, the level is lost.
+{
+  const R = await import("../stow-room.js");
+  const { sitDown, seatsOf } = await import("../rooms.js");
+  const { roundTrip } = await import("./rtdb.js");
+  const valid = g => g?.v === 1 && Array.isArray(g.board), slots = g => g?.people || 2;   // as stow.js passes them
+  const P = ["Korbi", "Sarah", "Tom", "Mei", "Bo", "Ines", "Eve"].map((name, i) => ({ uid: `u${i}`, pid: `p${i}`, name }));
+  const level = LEVELS[0], f = E.makeField(level.field);
+  const table = people => R.freshTable(level, { u0: { name: "Korbi", pid: "p0", slot: 0, online: true } }, { app: 2, ask: people ? { people } : null, now: 9 });
+  const sitAll = (t, who) => who.reduce((g, p) => (g ? sitDown(g, p, { valid, slots }) : g), t);
+  const three = sitAll(table(3), P.slice(1, 3)), six = sitAll(table(6), P.slice(1, 6)), pair = sitAll(table(null), [P[1]]);
+  check(seatsOf(three).length === 3 && sitDown(three, P[3], { valid, slots }) === undefined && seatsOf(six).length === 6 && sitDown(six, P[6], { valid, slots }) === undefined
+    && seatsOf(pair).length === 2 && sitDown(pair, P[2], { valid, slots }) === undefined, "a party's table seats as many as asked (three, six), a pair's two");
+
+  // hands: by seat, a seat's own deal, the first tray until one's been played; a pair's table from before kept a list
+  const h4 = R.handOf(six, 4);
+  check(h4.tray === 0 && h4.slots.every(Boolean) && same(R.piecesIn(six, 4), E.tray(level, 0, 4)) && !same(E.tray(level, 0, 4), E.tray(level, 0, 0)),
+    "every seat has a hand of its own, dealt for its seat");
+  const old = { ...pair, hands: [{ tray: 2, slots: [true, false, true] }, { tray: 1, slots: [false, true, true] }] };
+  check(R.handOf(old, 1).tray === 1 && !R.handOf(old, 1).slots[0], "a pair's table from before (hands kept as a list) reads as it was");
+
+  // turns: in seat order, passing over the away, staying put with nobody here
+  const g = sitAll(table(4), P.slice(1, 4));
+  check(R.seatOrder(g).join() === "0,1,2,3" && R.nextSeat(g, 1) === 2 && R.nextSeat(g, 3) === 0, "turns go round the table in seat order");
+  check(R.turnNow({ ...g, turn: 1 }, [0, 1, 2, 3]) === 1 && R.turnNow({ ...g, turn: 1 }, [0, 2, 3]) === 2 && R.turnNow({ ...g, turn: 3 }, [0, 1]) === 0 && R.turnNow({ ...g, turn: 2 }, []) === 2,
+    "a player who's away is passed over, to the next one here; with nobody here the turn stays where it is");
+  const here = { u0: { game: "stow", online: true }, u1: { game: "stow", online: true }, u2: { game: "stow", online: false }, u3: { game: "stow", online: true } };
+  const asleep = structuredClone(g);
+  asleep.players.u3.online = false;
+  check(R.presentSlots(asleep, here, "u0").join() === "0,1" && R.presentSlots(asleep, {}, "u2").join() === "2", "here: those with Stow open on a phone that's awake (your own seat always)");
+
+  // a move: only on your turn, the piece in your hand, where it fits; the turn passes on, over the away
+  {
+    const t = structuredClone(g), pres = [0, 2, 3], hand = R.piecesIn(t, 0), k = hand.findIndex(p => p && E.options(f, Uint8Array.from(t.board), p).length);
+    const idx = E.options(f, Uint8Array.from(t.board), hand[k])[0];
+    check(!R.move(structuredClone(t), 1, 0, idx, pres) && !R.move(structuredClone(t), 0, k, idx.map ? idx.map(i => i + 1000) : idx, pres), "not on someone else's turn, nor where the piece doesn't go");
+    check(R.move(t, 0, k, idx, pres) && t.turn === 1 && R.turnNow(t, pres) === 2 && t.used === 1 && t.hands.s0.slots[k] === false && !("s1" in t.hands),
+      "a move passes the turn on (Sarah, away, passed over to Tom), the piece gone from that hand alone, kept by seat");
+    const back = roundTrip(t);
+    check(R.handOf(back, 0).slots[k] === false && R.handOf(back, 2).slots.every(Boolean) && !Array.isArray(back.hands), "the hands come back through the database by seat");
+  }
+
+  // out of room on your turn: lost, whoever it falls to. A checkerboard has no line near full and no two empty cells
+  // side by side: a single crate fits anywhere empty, nothing bigger does.
+  {
+    const checker = f.cells.map(c => ((c.c[0] + c.c[1]) % 2 ? 1 : 0));
+    checker[1] = 2;                                                          // a consignment still to go
+    const trayWith = (seat, test) => { for (let n = 0; n < 200; n++) if (test(E.tray(level, n, seat))) return n; return -1; };
+    const t0 = trayWith(0, ps => ps.some(p => p.size === 1)), t1 = trayWith(1, ps => ps.every(p => p.size > 1));
+    const t = { ...structuredClone(three), board: checker, hands: { s0: { tray: t0, slots: [true, true, true] }, s1: { tray: t1, slots: [true, true, true] } } };
+    const k = E.tray(level, t0, 0).findIndex(p => p.size === 1), idx = E.options(f, Uint8Array.from(checker), E.tray(level, t0, 0)[k])[0];
+    check(t0 >= 0 && t1 >= 0 && R.move(t, 0, k, idx, [0, 1, 2]) && t.done?.won === false && t.done.by === 1, "a move after which the next player has nothing that fits loses the level, on their turn");
+    const u = { ...structuredClone(three), board: checker, turn: 1, hands: { s1: { tray: t1, slots: [true, true, true] } } };
+    check(!R.stuck(structuredClone(u), 0, [0, 1, 2]) && R.stuck(u, 1, [0, 1, 2]) && u.done.by === 1, "out of room on your own turn (come to you, or come back to), the level is lost");
+    const v = { ...structuredClone(three), board: checker, turn: 1, hands: { s1: { tray: t1, slots: [true, true, true] }, s2: { tray: t0, slots: [true, true, true] } } };
+    check(R.turnNow(v, [0, 2]) === 2 && !R.stuck(v, 2, [0, 2]), "while the one out of room is away, the next one here plays on");
+  }
+
+  // a party of three plays the first level through, every state through the database; Sarah's phone sleeps a while
+  {
+    let t = roundTrip(table(3));
+    for (const p of P.slice(1, 3)) t = roundTrip(sitDown(t, p, { valid, slots }));
+    const best = (g, seat) => {
+      const board = Uint8Array.from(g.board);
+      let top = null;
+      R.piecesIn(g, seat).forEach((p, k) => {
+        if (p) for (const idx of E.options(f, board, p)) {
+          const r = E.put(f, board, idx), score = r.marks * 1e6 + r.cleared.length * 1e3 - idx.length;
+          if (!top || score > top.score) top = { k, idx, score };
+        }
+      });
+      return top;
+    };
+    const order = [];
+    let legal = true, steps = 0;
+    while (!t.done && steps < 150) {
+      const pres = steps >= 1 && steps < 4 ? [0, 2] : [0, 1, 2];              // Sarah away for three turns
+      const seat = R.turnNow(t, pres), m = best(t, seat), cur = structuredClone(t);
+      if (!m || !R.move(cur, seat, m.k, m.idx, pres)) { legal = false; break; }
+      order.push(seat);
+      t = roundTrip(cur);
+      steps++;
+    }
+    check(legal && t.done?.won === true && t.used === steps, `three play the first level through and win it, together (${steps} pieces), every move through the database`);
+    check(order.slice(0, 5).join("") === "02020" && order.slice(5, 8).join("") === "120", `turns round the table, Sarah passed over while away and back in her turn after (${order.join("")})`);
+    check(Object.keys(t.hands).every(k => /^s[0-2]$/.test(k)) && Array.isArray(t.board) && t.board.length === f.n && t.people === 3, "the hands kept by seat, the hold whole");
+  }
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("stow: fields, holds, pieces, clearing and settling, deals, every level and today's hold");
+else console.log("stow: fields, holds, pieces, clearing and settling, deals, every level and today's hold, and a table of three");

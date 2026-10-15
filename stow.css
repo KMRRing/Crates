@@ -97,7 +97,9 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--
 
 /* the tray: three pieces, all on one scale; a used place is an empty outline */
 .sw-side { display: flex; flex-direction: column; gap: .5rem; padding-top: .6rem; }
-.sw-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; height: 7.4rem; }
+/* the row is the tray's height: sized by its pieces, a tablet's wide places grew taller than the tray and ran off the
+   screen's foot */
+.sw-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); gap: .5rem; height: 7.4rem; }
 .sw-tray[hidden] { display: none; }
 .sw-slot { display: grid; place-items: center; min-width: 0; padding: .35rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet);
   touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
@@ -111,12 +113,25 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--
 .sw-piece polygon { stroke: var(--sw-gap); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 /* the piece in your hand, over everything, at the hold's scale */
 .sw-float { position: fixed; z-index: 30; pointer-events: none; overflow: visible; filter: drop-shadow(0 6px 8px rgba(28, 42, 52, .28)); }
-/* together: your partner's tray, face down */
-.sw-theirs { height: 1.6rem; gap: .5rem; }
-.sw-slot.back { padding: 0; border-radius: 4px; cursor: default; background: repeating-linear-gradient(45deg, var(--sw-in-soft) 0 4px, var(--sheet) 4px 8px); }
-.sw-slot.back.used { background: transparent; }
-.sw-partner { margin: 0; font-size: .92rem; }
+/* together: everyone else's hand, face down, in turn order from yours: a name in their colour and a card back for each
+   piece still in hand; whose turn it is outlined in their colour, anyone away dimmed. Three to a row (two beside the
+   hold), as many rows as the table seats people for (--cols, --rows: stow.js), so nothing moves as people sit down. */
+.sw-theirs { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); grid-auto-rows: 1.6rem; gap: .4rem;
+  height: calc(var(--rows, 1) * 1.6rem + (var(--rows, 1) - 1) * .4rem); }
+.sw-theirs[hidden] { display: none; }
+.sw-hand { display: flex; align-items: center; gap: .1875rem; min-width: 0; padding: 0 .4375rem 0 .375rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
+.sw-hand::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--seat); flex: none; margin-right: .125rem; }
+.sw-hand b { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .82rem; font-weight: 750; margin-right: .1875rem; }
+.sw-hand i { flex: none; width: .5rem; height: .875rem; border-radius: 2px; background: repeating-linear-gradient(45deg, var(--sw-in-soft) 0 2px, color-mix(in srgb, var(--sw-in) 40%, var(--sheet)) 2px 4px); }
+.sw-hand i.used { background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
+.sw-hand.turn { border-color: var(--seat); box-shadow: inset 0 0 0 1.5px var(--seat); }
+.sw-hand.away { opacity: .5; }
+/* the turn: one line (the hold never moves for it), the one to play in their colour */
+.sw-partner { margin: 0; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sw-partner b { color: var(--sw-in); }
+.sw-seat { display: inline-flex; align-items: center; gap: .3125rem; }
+.sw-seat::before { content: ""; width: .5625rem; height: .5625rem; border-radius: 50%; background: var(--seat); flex: none; }
+.sw-partner .sw-seat { color: var(--ink); }
 
 /* a level over: how it went, in the tray's place */
 .sw-result { display: grid; gap: .45rem; align-content: center; min-height: 7.4rem; }
@@ -154,4 +169,5 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--
   #app.stow .sw-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
   #app.stow .sw-tray:not(.sw-theirs) { grid-template-columns: 1fr; grid-auto-rows: minmax(0, 1fr); height: auto; flex: 1 1 auto; max-height: 26rem; min-height: 0; }
   #app.stow .sw-result { min-height: 0; }
+  #app.stow .sw-partner { white-space: normal; }   /* a column of its own: the turn may take two lines */
 }
