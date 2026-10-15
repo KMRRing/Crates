@@ -338,7 +338,7 @@ export async function watchBests(cb) {
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
 export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html",
-  river: "river.html", gambit: "gambit.html", rush: "rush.html" };
+  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html" };
 const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 const FOLLOW_FOR = 10 * 60 * 1000;              // its yes takes the device that asked to the table this long after (it may have slept through it)

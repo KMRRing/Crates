@@ -2,13 +2,14 @@
 // commodities ahead of the rest; guess whenever you like. A wrong guess shows only how warm it is, blue for far,
 // red for close. Five countries a run, random or today's; fewer clues and fewer guesses score more. The clues are
 // the knowledge base's own (the ones Crates and Punt draw on, here every one of a country's, hardest first); the
-// places are Chart's.
+// places are Chart's. Together, the same five countries for everyone at the table (duel.js).
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { COUNTRIES } from "./chart-countries.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue } from "./suite.js";   // the day, the same for everyone (UTC)
+import { createDuel } from "./duel.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -234,14 +235,17 @@ function moveActive(step) {
 
 // ---------- a run ----------
 let S = read(RUN, null);
-const save = () => write(RUN, S);
+const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
+/** The five countries of a seed, each with its clues for this deal. */
+function dealRun(seed, daily) {
+  const r = rng(seed), picks = shuffle(r, ANSWERS).slice(0, PER_RUN);
+  return { seed, daily, day: daily ? today() : null, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r), shown: 1, guesses: [], done: null, points: 0 })) };
+}
 function newRun(daily) {
-  const seed = daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
-  const picks = shuffle(r, ANSWERS).slice(0, PER_RUN);
-  S = { seed, daily, day: daily ? today() : null, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r), shown: 1, guesses: [], done: null, points: 0 })) };
+  S = dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily);
   save(); render();
 }
-const round = () => S.rounds[S.index];
+const round = () => S?.rounds[S.index];
 const pointsNow = R => Math.max(LEAST, FULL - PER_CLUE * (R.shown - 1) - PER_GUESS * R.guesses.length);
 
 function guess(text) {
@@ -259,6 +263,7 @@ function guess(text) {
  *  Finish is pressed (which counts it again, changing nothing). */
 function count() {
   if (!S.rounds.every(R => R.done)) return;
+  if (S.duel) { tell(true); return; }                     // the table's result, not your best or today's
   const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
   if (S.daily) { const d = read(DAILY, {}), day = S.day ?? today(); if (!(d[day] >= S.total)) { d[day] = S.total; write(DAILY, d); } }
 }
@@ -274,14 +279,14 @@ function next() {
   if (S.index + 1 < S.rounds.length) { S.index++; save(); render(); return; }
   S.over = true; save();
   count();
-  finish();
+  if (S.duel) duel.open(); else finish();
 }
 
 // ---------- drawing ----------
 function render() {
-  if (!S) { newRun(false); return; }
+  if (!S) { if (duel.on) lobby(); else newRun(false); return; }
   const R = round();
-  $("where").textContent = `Country ${S.index + 1} of ${S.rounds.length}${S.daily ? " · today's" : ""}`;
+  $("where").textContent = `Country ${S.index + 1} of ${S.rounds.length}${S.daily ? " · today's" : S.duel ? " · together" : ""}`;
   $("score").innerHTML = `Score <b>${S.total}</b>`;
   $("clues").replaceChildren(...R.clues.slice(0, R.shown).map(c => {
     const li = document.createElement("li"), b = document.createElement("b"), p = document.createElement("span");
@@ -325,11 +330,49 @@ function finish() {
 let toastTimer;
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1800); }
 
+// ---------- together: the same five countries for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's five countries with the same clues in the same order, and plays them through
+// on their own phone; the others' scores show in the strip. The highest total wins, then the quicker. Your solo run,
+// your best and today's stay as they were.
+const duel = createDuel({
+  game: "origin", name: "Origin", line: $("rival"), toast,
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31) }),
+  describe: () => `The same ${PER_RUN} countries for everyone, clue for clue`,
+  play: (match, { kept }) => {
+    S = kept?.seed === match.seed && kept.rounds ? kept : { ...dealRun(match.seed, false), duel: true };
+    chosen = null;
+    save(); render();
+  },
+  onLobby: () => { S = null; render(); },
+  onLeave: () => { S = read(RUN, null); chosen = null; if (!S || S.over) newRun(dailyDue("origin")); else render(); },
+});
+/** What the table sees of this run: the total, and how far through. */
+function tell(done = false) {
+  const found = S.rounds.filter(R => R.done === "found").length, decided = S.rounds.filter(R => R.done).length;
+  duel.report({ score: S.total, text: done ? `${S.total}, ${found} of ${PER_RUN} found` : `${S.total} · ${decided} of ${PER_RUN}`, ...(done ? { done: true } : {}) });
+}
+/** The card before a match: nothing to guess yet. */
+function lobby() {
+  $("where").textContent = `${PER_RUN} countries, the same for everyone`;
+  $("score").innerHTML = "Score <b>0</b>";
+  $("clues").replaceChildren();
+  $("guesses").replaceChildren();
+  $("guessForm").hidden = true;
+  $("clueBtn").parentElement.hidden = true;
+  $("result").hidden = true;
+  colourMap();
+}
+
 // ---------- the menu ----------
 let pick = null;
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {
+    duel.menu(part(body, "together"));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   pick ??= (S?.daily && !S.over) || dailyDue("origin") ? "daily" : "random";   // today's first, while it's still to play
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
@@ -357,6 +400,15 @@ $("nextBtn").addEventListener("click", next);
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
-if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
-else if (!S || S.over) newRun(dailyDue("origin"));
-else render();
+function solo() {
+  if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
+  else if (!S || S.over) newRun(dailyDue("origin"));
+  else render();
+}
+if (duel.inAddress) { S = null; duel.join().then(ok => { if (!ok) { S = read(RUN, null); solo(); } }); }   // a match in the address: no solo run under it
+else solo();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
+
+// for tests and debugging
+window.__origin = { get state() { return S; }, guess, giveUp, next, another, duel };

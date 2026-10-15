@@ -190,6 +190,7 @@ export const ELSEWHERE = [
   { id: "river", name: "River", kind: "duo", duo: "river", page: "river.html", max: 2, blurb: "Xiangqi, Chinese chess, one against the other." },
   { id: "gambit", name: "Gambit", kind: "duo", duo: "gambit", page: "gambit.html", max: 2, blurb: "Chess, one against the other." },
   { id: "rush", name: "Rush", kind: "duo", duo: "rush", page: "rush.html", max: 6, race: true, blurb: "A puzzle battle: the same chess puzzles for everyone, against the clock." },
+  { id: "origin", name: "Origin", kind: "duo", duo: "origin", page: "origin.html", max: 6, race: true, blurb: "Five hidden countries, the same clues for everyone: fewest clues wins." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {
