@@ -33,8 +33,12 @@
   --plate: #1C2A34;     /* a primary button: a navy plate lettered in gilt */
   --plate-ink: #E2B865;
   --focus: #A47528;
-  --p0: #2C5B8A;        /* player colours: cobalt and copper */
+  --p0: #2C5B8A;        /* player colours: cobalt and copper; at a party's table, verdigris, plum, ochre and olive too */
   --p1: #B4632A;
+  --p2: #2F7D5B;
+  --p3: #7E3F7A;
+  --p4: #9A7420;
+  --p5: #5E6A1F;
   --learn: #3D7A66;     /* learning mode: verdigris */
   --logo-edge: #7A5518; /* every game's logo: brass wire round an enamel, as in cloisonné */
   --font: "Archivo", "Helvetica Neue", Arial, sans-serif;
@@ -98,6 +102,10 @@
     --focus: #E9C47C;
     --p0: #6FA0D2;
     --p1: #E0965A;
+    --p2: #7FC2A8;
+    --p3: #C98BC3;
+    --p4: #D9B45C;
+    --p5: #B4BF6A;
     --learn: #7FC2A8;
     --logo-edge: #D9AF62;
     --cr-logo-tint: #5A4317;
@@ -138,6 +146,10 @@ html[data-mode="night"] {
     --focus: #E9C47C;
     --p0: #6FA0D2;
     --p1: #E0965A;
+    --p2: #7FC2A8;
+    --p3: #C98BC3;
+    --p4: #D9B45C;
+    --p5: #B4BF6A;
     --learn: #7FC2A8;
     --logo-edge: #D9AF62;
     --cr-logo-tint: #5A4317;

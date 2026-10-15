@@ -166,7 +166,8 @@ export function endGame(branch) {
 // each on their own phone.
 //   kind: "table" or "duo"; page: where it's played; max: the most people it seats; across: two people sit across a
 //   four-seat table (partners); duo: the game's name in the room (its branch, and a request's game); race: everyone
-//   plays the same deal on their own phone, nobody's seat is the computer's.
+//   plays the same deal on their own phone (duel.js); bots: a duo match whose empty seats the computer takes (Hong,
+//   Tribute; every other duo match is people only).
 export const ELSEWHERE = [
   { id: "boast", name: "Boast", kind: "table", page: "boast.html", max: 6, blurb: "Liar's dice with Chinese rules: bid on all the dice under the cups, or open." },
   { id: "bigtwo", name: "Big Two", kind: "table", page: "bigtwo.html", max: 4, blurb: "鋤大D, Hong Kong's climbing card game: be first to shed your cards." },
@@ -185,20 +186,17 @@ export const ELSEWHERE = [
   { id: "quote", name: "Quote", kind: "duo", duo: "quote", page: "quote.html", max: 2, blurb: "Make markets on numbers you don't know, one against the other." },
   { id: "spot", name: "Spot", kind: "duo", duo: "spot", page: "spot.html", max: 2, blurb: "Catch the flying sums together." },
   { id: "stow", name: "Stow", kind: "duo", duo: "stow", page: "stow.html", max: 2, blurb: "Fill the hold together, a line at a time." },
-  { id: "hong", name: "Hong", kind: "duo", duo: "hong", page: "hong.html", max: 4, blurb: "Hong Kong mahjong, four at the table." },
-  { id: "tribute", name: "Tribute", kind: "duo", duo: "tribute", page: "tribute.html", max: 4, blurb: "Guan Dan: two partnerships, across the table from each other." },
+  { id: "hong", name: "Hong", kind: "duo", duo: "hong", page: "hong.html", max: 4, bots: true, blurb: "Hong Kong mahjong, four at the table." },
+  { id: "tribute", name: "Tribute", kind: "duo", duo: "tribute", page: "tribute.html", max: 4, bots: true, blurb: "Guan Dan: two partnerships, across the table from each other." },
   { id: "river", name: "River", kind: "duo", duo: "river", page: "river.html", max: 2, blurb: "Xiangqi, Chinese chess, one against the other." },
   { id: "gambit", name: "Gambit", kind: "duo", duo: "gambit", page: "gambit.html", max: 2, blurb: "Chess, one against the other." },
   { id: "rush", name: "Puzzle rush", kind: "duo", duo: "rush", page: "rush.html", max: 6, race: true, blurb: "Gambit's puzzle battle: the same chess puzzles for everyone, against the clock." },
   { id: "origin", name: "Origin", kind: "duo", duo: "origin", page: "origin.html", max: 6, race: true, blurb: "Five hidden countries, the same clues for everyone: fewest clues wins." },
   { id: "order", name: "Order", kind: "duo", duo: "order", page: "order.html", max: 6, race: true, blurb: "The same cards for everyone: dates, quantities or a story, into a line." },
-  { id: "brut", name: "Brut", kind: "duo", duo: "brut", page: "brut.html", max: 6, race: true, blurb: "A blind flight of six wines, the same for everyone: name each as early as you dare." },
-  { id: "blend", name: "Blend", kind: "duo", duo: "blend", page: "blend.html", max: 6, race: true, blurb: "The same fuel order for everyone: certify on spec at the best margin." },
   { id: "arb", name: "Arb", kind: "duo", duo: "arb", page: "arb.html", max: 6, race: true, blurb: "The same five routes through the links for everyone: cheapest wins." },
   { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same concession for everyone: claim the ore with the most credits left." },
   { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, race: true, blurb: "The same stacks for everyone: watch, then answer for the most." },
   { id: "pipes", name: "Pipes", kind: "duo", duo: "pipes", page: "pipes.html", max: 6, race: true, blurb: "The same seeded run for everyone, an act or more: the most delivered wins." },
-  { id: "refinery", name: "Refinery", kind: "duo", duo: "refinery", page: "refinery.html", max: 6, race: true, blurb: "The same plant for everyone: route every stream for the best margin." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {
@@ -211,8 +209,9 @@ export function playable(id) {
  *  fills the rest), a duo match by two (Tribute and Hong by up to four). */
 export const fits = (entry, n) => !!entry && n >= entry.min && n <= entry.max;
 /** Who plays a game, as words on its card. */
-export const seatsText = entry => (entry.kind === "party" || entry.race ? `${entry.min}–${entry.max} players`
-  : entry.max === 2 && entry.kind === "duo" ? "2 players" : `${entry.min}–${entry.max} players, the computer in any empty seat`);
+export const seatsText = entry => (entry.kind === "duo" && entry.max === 2 ? "2 players"
+  : entry.kind === "party" || (entry.kind === "duo" && !entry.bots) ? `${entry.min}–${entry.max} players`
+    : `${entry.min}–${entry.max} players, the computer in any empty seat`);
 
 /**
  * A table game's branch in the party's room, dealt by its host's page when it gets there: everyone in the party

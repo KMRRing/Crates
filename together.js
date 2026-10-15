@@ -207,6 +207,17 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     onLeave();
   }
 
+  /**
+   * Everyone else seated at the table, by the order they sat down: [{ id, slot, name, here }] (here: this game open on
+   * a device that's online). A party's table seats more than two; partner() is the other one of a pair.
+   */
+  function others() {
+    if (!room) return [];
+    return seatsOf(room.data).filter(([id, p]) => id !== room.uid && !(room.pid && p.pid === room.pid))
+      .sort((a, b) => a[1].slot - b[1].slot)
+      .map(([id, p]) => ({ id, slot: p.slot, name: p.name || "Player", here: room.here?.[id]?.game === game && room.here[id].online !== false }));
+  }
+
   /** Who else is here: { name, online, game } (game is set when they have another game of the room open), or null. */
   function partner() {
     if (!room) return null;
@@ -220,6 +231,8 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
   return {
     get room() { return room; },
     get online() { return room ? room.online : true; },
-    start, join, act, leave, resync, partner,
+    /** This device's seat at the table (0 for the first to sit down), or null when not at one. */
+    get slot() { return room?.data?.players?.[room.uid]?.slot ?? null; },
+    start, join, act, leave, resync, partner, others,
   };
 }

@@ -1,10 +1,10 @@
 /* duel.js: a head-to-head on one deal. The others' scores in a line (under the header, or where the game puts them),
    and the sheet: the lobby, the countdown, the standings and the result. Good is verdigris, as everywhere. */
-:root { --duel-ok: #2F7D5B; }
+:root { --duel-ok: #2F7D5B; --duel-bad: #A8382B; }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --duel-ok: #7FC2A8; }
+  html:not([data-mode="day"]) { --duel-ok: #7FC2A8; --duel-bad: #E8806F; }
 }
-html[data-mode="night"] { --duel-ok: #7FC2A8; }
+html[data-mode="night"] { --duel-ok: #7FC2A8; --duel-bad: #E8806F; }
 
 .duel-line { margin: .15rem 0 .35rem; font-size: .8rem; color: var(--ink-soft); min-height: 1.3em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .duel-line[hidden] { display: none; }
@@ -31,3 +31,13 @@ dialog.duel-dlg { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscr
 .duel-mid { justify-content: center; text-align: center; }
 .duel-link { display: block; margin: .8rem auto .2rem; }
 .duel-dlg .btn.wide + .btn.wide { margin-top: .3rem; }
+
+/* standings.js: a table's standings, in the same rows — each player's dot, what they did this round under the name,
+   the round's change, the total */
+.standings-who { flex: 1 1 auto; min-width: 0; display: grid; }
+.standings-who b { display: flex; align-items: center; gap: .4rem; }
+.standings-who small { color: var(--ink-soft); font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.standings-dot { flex: none; width: .55rem; height: .55rem; border-radius: 50%; }
+.standings-delta { flex: none; font-size: .82rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.standings-delta.up { color: var(--duel-ok); }
+.standings-delta.down { color: var(--duel-bad); }
