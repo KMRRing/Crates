@@ -6,7 +6,7 @@
 // on its own page, at a table in the party's room where the computer takes the seats nobody has; or, for two, any game
 // with a duo match. The games are modules (party-core.js lists them, and what else a party can play); this page draws
 // the lobby, Party's game in progress and what's between, and moves that game on when it's this device's to run.
-import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf, ELSEWHERE, playable, fits, seatsText, tableFrom, shownOf, mergeShown, recall } from "./party-core.js";
+import { GAMES, ONE_PHONE, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf, ELSEWHERE, playable, fits, seatsText, tableFrom, shownOf, mergeShown, recall } from "./party-core.js";
 import { joins, playHref, whoOf } from "./party-href.js";
 import { openTable, inviteSheet, createNarrator, tableInAddress, setTableParam, joinLink } from "./table-ui.js";
 import { getSync } from "./net.js";
@@ -24,7 +24,7 @@ const APP = 3;
 const $ = id => document.getElementById(id);
 // each game's own stylesheet, named in its module (css: "party-<id>.css", a literal there, so tools/offline.mjs keeps
 // it), linked before themes.css so the themes' overrides still come last
-for (const g of GAMES) if (g.css && !document.querySelector(`link[href="${g.css}"]`)) {
+for (const g of [...GAMES, ...ONE_PHONE]) if (g.css && !document.querySelector(`link[href="${g.css}"]`)) {
   const l = document.createElement("link");
   l.rel = "stylesheet";
   l.href = g.css;
@@ -40,8 +40,18 @@ const opts = { voice: true, pick: GAMES[0].id, options: {}, ...read(OPTS, {}) };
 // the party at once
 const params = new URLSearchParams(location.search);
 const asked = playable(params.get("game"));
-const inviting = !!asked && params.has("invite");
-if (asked) { opts.pick = asked.id; write(OPTS, opts); }
+const inviting = !!asked && asked.kind !== "phone" && params.has("invite");
+if (asked && asked.kind !== "phone") { opts.pick = asked.id; write(OPTS, opts); }
+// a game on this phone alone (Higher or Lower), open over whatever else the page shows, the party's lobby included
+let here = asked?.kind === "phone" ? asked : null;
+/** Opens a game played on this phone alone, or (null) closes it; the address says which, so a reload comes back to it. */
+function playHere(entry) {
+  here = entry;
+  const u = new URL(location.href);
+  if (entry) u.searchParams.set("game", entry.id); else if (playable(u.searchParams.get("game"))?.kind === "phone") u.searchParams.delete("game");
+  history.replaceState(null, "", u);
+  draw();
+}
 if (params.has("invite")) { const u = new URL(location.href); u.searchParams.delete("invite"); history.replaceState(null, "", u); }
 // the party this tab is in, so the games screen's Party tile finds the way back to it (this tab only: it isn't synced)
 const HERE = "party:here";
@@ -164,27 +174,34 @@ function draw() {
   brand();
   // the narrator's strip while a game is on (in the lobby the screen is for joining and choosing)
   const sayEl = $("say");
-  sayEl.hidden = !branch?.game;
+  sayEl.hidden = !branch?.game || !!here;
   sayEl.textContent = said;
   const stage = $("stage");
   if (!branch?.game) typed = new Map();
-  if (!branch) drawHome(stage);
+  // a game on this phone alone keeps its screen through the party's changes underneath it
+  if (here) { if (!stage.querySelector(`:scope > [data-here="${here.id}"]`)) drawHere(stage); }
+  else if (!branch) drawHome(stage);
   else if (!branch.game) drawLobby(stage);
   else drawGame(stage);
 }
 
-// the games screen's sections, Party's first (Quest is there too)
-const SHELVES = [["party", "Party games"], ["table", "Board & card games"], ["learn", "Learning"], ["puzzle", "Puzzles"]];
+function drawHere(stage) {
+  here.def.view(stage, { back: () => playHere(null) });
+  stage.firstElementChild?.setAttribute("data-here", here.id);
+}
+
+// the games screen's sections, Party's first (Quest is there too), after what's played on one phone
+const SHELVES = [["phone", "On one phone"], ["party", "Party games"], ["table", "Board & card games"], ["learn", "Learning"], ["puzzle", "Puzzles"]];
 /** Everything a party can play, by the games screen's sections: [[title, entries]], only what fits n people when n is given. */
 function catalog(n = null) {
-  const all = [...GAMES.map(g => playable(g.id)), ...ELSEWHERE.map(e => playable(e.id))].filter(e => n == null || fits(e, n));
+  const all = [...ONE_PHONE, ...GAMES, ...ELSEWHERE].map(g => playable(g.id)).filter(e => n == null || fits(e, n));
   const shelf = e => appOf(e.id)?.sec || (e.kind === "duo" ? "learn" : e.kind);
   return SHELVES.map(([sec, title]) => [title, all.filter(e => shelf(e) === sec)]).filter(([, list]) => list.length);
 }
 /** A game as the games screen shows it, its logo and name: picked or not. */
 function tile(entry, { picked = false, onclick = null } = {}) {
   const logo = h("span", { class: "app-logo" });
-  logo.innerHTML = appOf(entry.id)?.logo || "";
+  logo.innerHTML = appOf(entry.id)?.logo || entry.logo || "";
   return h("li", {}, h("button", { type: "button", class: "app-row pa-tile", "aria-pressed": String(picked), onclick },
     logo, h("b", { class: nameClass(entry.name) }, entry.name)));
 }
@@ -208,7 +225,7 @@ function drawHome(stage) {
   const open = IN_FRAME ? null : button("Invite players", openTableHere, { primary: !back });
   // opened for one game (its own tile, or its Invite players): that game, how it's played, and the way to gather
   // the players
-  if (asked) {
+  if (asked && asked.kind !== "phone") {
     const how = asked.kind === "party"
       ? `For ${asked.min}–${asked.max} players, each on their own phone: open a party, show its QR code, and this phone runs the game and speaks for it.`
       : `${seatsText(asked)}, each on their own phone: open a party, show its QR code, and start it when everyone's in.`;
@@ -220,7 +237,7 @@ function drawHome(stage) {
   }
   stage.replaceChildren(h("div", { class: "pa-home fit-col" },
     h("p", { class: "pa-intro" }, "A party is a room for the evening, each of you on your own phone. Open one and show its QR code; whoever opens it chooses what you play, and every phone follows."),
-    h("div", { class: "pa-pick fit-grow fit-scroll" }, ...tiles(catalog(), { onPick: e => showRules(e) })),
+    h("div", { class: "pa-pick fit-grow fit-scroll" }, ...tiles(catalog(), { onPick: e => (e.kind === "phone" ? playHere(e) : showRules(e)) })),
     back, open));
 }
 
@@ -295,7 +312,7 @@ function drawLobby(stage) {
     return c;
   }));
   const list = h("div", { class: "pa-pick fit-grow fit-scroll" }, pickedCard(pick), options,
-    ...tiles(catalog(n), { picked: pick.id, onPick: host ? choose : e => showRules(e) }));
+    ...tiles(catalog(n), { picked: pick.id, onPick: e => (e.kind === "phone" ? playHere(e) : host ? choose(e) : showRules(e)) }));
   // the party playing a game elsewhere that this phone isn't in (it came after a duo match began, or the table's full)
   const away = branch.playing ? playable(branch.playing.id) : null;
   const short = whyNot(pick, players, optionsOf());
@@ -361,7 +378,7 @@ function drawGame(stage) {
 
 // ---------- rules, menu ----------
 function showRules(entry = null) {
-  const d = entry || (current()?.def ? playable(current().def.id) : null) || playable(branch?.pick) || (!branch ? asked : null);
+  const d = entry || here || (current()?.def ? playable(current().def.id) : null) || playable(branch?.pick) || (!branch ? asked : null);
   $("rulesHead").textContent = d ? d.name : "Party";
   const body = $("rulesBody");
   if (!d) {
