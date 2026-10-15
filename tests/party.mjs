@@ -133,8 +133,12 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
     if (e.kind === "table") {
       const { rules } = await import(`../${e.id}-rules.js`);
       fitsPage = rules.seats.max >= e.max && (!e.across || rules.seats.min === 4);
-    } else fitsPage = (e.max === 2 || /slots: g =>|createDuel\(/.test(readFileSync(new URL(`../${e.id}.js`, import.meta.url), "utf8"))) && new RegExp(`\\b${e.id === "glyph" ? "slate" : e.id}: "${e.page}"`).test(duo)
-      && (!e.race || /createDuel\(/.test(readFileSync(new URL(`../${e.id}.js`, import.meta.url), "utf8")));
+    } else {
+      const name = e.id === "glyph" ? "slate" : e.id;   // Slate's id is its first name, glyph
+      const script = () => readFileSync(new URL(`../${name}.js`, import.meta.url), "utf8");
+      fitsPage = (e.max === 2 || /slots: g =>|createDuel\(/.test(script())) && new RegExp(`\\b${name}: "${e.page}"`).test(duo)
+        && (!e.race || /createDuel\(/.test(script()));
+    }
     check(page && tile && fitsPage && e.blurb, `${e.name}: its page, its tile, ${e.kind === "table" ? `a table of up to ${e.max}` : e.max > 2 ? `a duo match for up to ${e.max}` : "a duo match"}`);
   }
   check(new Set([...GAMES.map(g => g.id), ...ELSEWHERE.map(e => e.id)]).size === GAMES.length + ELSEWHERE.length, "no game listed twice");

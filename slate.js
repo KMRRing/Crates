@@ -1,12 +1,14 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
-// shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
+// shared rooms (rooms.js): the room's glyph branch holds this game's state (slate-room.js), a pair's or a party's of
+// up to six; everyone fills the one board and sees everything, each player's letters and cursor in their own colour.
 import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
-import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
+import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
+import { askedFor, freshTable, seatsFor, logOf, ownersFrom, placedBy, presentSlots, cursorsOf, storable } from "./slate-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, sextant } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
-import { reportDuo, today, noteDayTime, arrivedForToday } from "./suite.js";
+import { reportDuo, today, noteDayTime, arrivedForToday, playerId, sayWhere } from "./suite.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
@@ -35,7 +37,7 @@ const randomSeed = () => Math.floor(Math.random() * 1e9);
 
 // ---------- state ----------
 let S = null;        // { seed, level, board, log, done } — the solo save, or the room's game
-let room = null;     // together: { code, uid, sync, unwatch, data }
+let room = null;     // together: { code, uid, pid, sync, unwatch, data, here, online }
 let cursor = null;    // the cell being typed into
 let dir = "Across";   // which way typing runs; tapping the cursor's cell again turns it
 let pending = {};     // letters typed into the current word but not placed yet, by cell
@@ -74,7 +76,7 @@ function styleOf(i) {
 // Solo boards count the time spent on screen (S.ms). Together boards count from when the board was dealt
 // to when it ended, since two people come and go.
 function clockRun() {
-  if (room || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;
+  if (room || joining || !S || S.done || clockFrom != null || document.hidden || isPaused()) return;
   clockFrom = performance.now();
 }
 function clockPause() {
@@ -127,8 +129,8 @@ async function act(change) {
       if (!cur.board) return undefined;
       if ((cur.app || 0) > APP) { newer = true; return undefined; }
       cur.app = APP;
-      cur.log = Object.values(cur.log || {});
-      return change(cur) === false ? undefined : cur;
+      cur.log = logOf(cur);
+      return change(cur) === false ? undefined : storable(cur);
     });
     if (newer) { updateApp(); return false; }
     return !!r.value?.board;
@@ -139,12 +141,13 @@ async function act(change) {
   }
 }
 
-// Bumped when together games change shape, so a device still running older code reloads instead of mangling them.
-const APP = 4;
+// Bumped when together games change shape, so a device still running older code reloads instead of mangling them
+// (5: a party's table of up to six, and each player's cursor).
+const APP = 5;
 
 /** Another device runs newer code: switch to the newest version, once per session. */
 async function updateApp() {
-  try { if (sessionStorage.getItem("slate:updated")) { toast("Your partner has a newer version: close and reopen Slate"); return; }
+  try { if (sessionStorage.getItem("slate:updated")) { toast("Someone at the table has a newer version: close and reopen Slate"); return; }
     sessionStorage.setItem("slate:updated", "1"); } catch { /* private mode */ }
   toast("Updating to the newest version…");
   await reloadFresh();
@@ -366,32 +369,25 @@ async function connect() {
   catch (e) { console.error(e); toast("Couldn't reach the game server"); return null; }
 }
 
-/** Slate's state for a room: a fresh board at your own board's level (Easy before you've had one), these players seated. */
-function freshState(players) {
+/**
+ * Slate's state for a table: a fresh board at your own board's level (Easy before you've had one), these players
+ * seated, as many seats as the request asked for.
+ */
+function freshState(players, { ask = null, asked = null } = {}) {
   const seed = randomSeed(), level = S?.level || "easy";
-  return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board: generate(seed, level),
-    log: [], done: null, players };
+  return freshTable(players, { app: APP, seed, level, board: generate(seed, level), ask, asked });
 }
 
-async function together() {
-  const name = await askName();
-  if (!name) return;
-  const sync = await connect();
-  if (!sync) return;
-  try {
-    const code = await createRoom(sync, GAME, freshState({ [sync.uid]: { name, slot: 0, online: true } }));
-    if (!code) { toast("Couldn't start a game, try again"); return; }
-    enter(code, sync, name);
-    openMenu();
-  } catch (e) { explain(e); }
-}
-
-/** The players in a room: [id, player] for each seat (leftovers from devices that handed a seat over are skipped). */
-const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]) => p && p.slot != null);
+const validTable = g => !!g?.board;
+/** The request this page was opened for (?new=, its time), while it's the room's latest and was said yes to; else null. */
+const askedHere = shared => askedFor(shared.ask, Number(new URLSearchParams(location.search).get("new")) || 0);
 
 /**
- * Joins a game. When both seats are taken, you can carry on as either player, for example after moving from
- * laptop to phone: you take over that seat (and name) and the other device leaves the game.
+ * Sits down at the table in a room. Opened for a request said yes to (?new=: a party's host's, or your partner's), it's a
+ * new table, seating as many as the request asked for: whoever arrives first deals it and the others sit down at it.
+ * You get your own seat back on any of your devices (sitDown in rooms.js); when every seat is someone else's, you can
+ * carry on as one of them (say after moving from laptop to phone): you take over that seat, and their other device
+ * leaves the game.
  */
 async function join(code) {
   const sync = await connect();
@@ -402,48 +398,42 @@ async function join(code) {
   try {
     const shared = await openBranch(sync, code, GAME);
     if (!shared) { toast("No game with that code"); return false; }
-    const seen = shared.glyph || null;
-    const seats = seatsOf(seen);
+    const before = shared[GAME] || null, seats = seatsOf(before), pid = playerId(), asked = askedHere(shared);
+    if ((before?.app || 0) > APP) { updateApp(); return false; }
+    const anew = !validTable(before) || (!!asked && before.asked !== asked);
     let takeover = null;
-    if (!seats.some(([id]) => id === sync.uid) && seats.length >= 2) {
+    if (!anew && seats.length >= seatsFor(before) && !seats.some(([id, p]) => id === sync.uid || (p.pid && p.pid === pid))) {
       takeover = await pickSeat(seats);
       if (!takeover) return false;
     }
     const name = takeover ? seats.find(([id]) => id === takeover)[1].name : await askName();
     if (!name) return false;
-    let full = false;
+    // a new table is dealt before the transaction, marked with the request it's for
+    const initial = anew ? freshState({ [sync.uid]: { name, slot: 0, pid, online: true } }, { ask: asked ? shared.ask : null, asked }) : null;
+    let newer = false;
     const r = await sync.tx(roomPath(code), cur => {
-      full = false;
-      // the room began in another game: Slate starts its side of it with a fresh board
-      if (cur === null) return seen ? null : freshState({ [sync.uid]: { name, slot: 0, online: true } });
-      if (!cur.board) return undefined;
-      cur.players = Object.fromEntries(seatsOf(cur));
-      if (cur.players[sync.uid]) { cur.players[sync.uid].name = name; return cur; }
-      if (takeover && cur.players[takeover]) {
-        const next = reseat(cur, takeover, sync.uid);       // their seat, moves and all, are now this device's
-        next.players[sync.uid] = { ...next.players[sync.uid], online: true };
-        return next;
-      }
-      const slots = Object.values(cur.players).map(p => p.slot);
-      if (slots.length >= 2) { full = true; return undefined; }
-      cur.players[sync.uid] = { name, slot: slots.includes(0) ? 1 : 0, online: true };
-      return cur;
+      newer = !!cur && (cur.app || 0) > APP;
+      const next = newer ? undefined : sitDown(cur, { uid: sync.uid, pid, name }, { initial, asked, takeover, valid: validTable, slots: g => g?.people || 2 });
+      return next ? storable(next) : next;
     });
-    if (!r.committed || !r.value) { toast(full ? "Someone else just took the free seat" : "No game with that code"); return false; }
-    enter(code, sync, name);
+    if (newer) { updateApp(); return false; }
+    if (!r.committed || !r.value) {
+      toast(validTable(r.value) && seatsOf(r.value).length >= seatsFor(r.value) ? "Someone else just took the free seat" : "No game with that code");
+      return false;
+    }
+    enter(code, sync, name, pid);
     return true;
   } catch (e) { explain(e); return false; }
   finally { setTimeout(() => warm?.(), 0); }                 // once the room's own watch has it
 }
 
-function enter(code, sync, name) {
+function enter(code, sync, name, pid) {
   clockPause();
-  room = { code, sync, uid: sync.uid, data: null, here: {} };
+  room = { code, sync, uid: sync.uid, pid, data: null, here: {}, online: true };
   setRoomParam(code);
   watchRoom();
-  room.stopHere = enterRoom(sync, code, GAME, name, here => { if (room) { room.here = here; drawPartner(); } });
+  room.stopHere = enterRoom(sync, code, GAME, name, here => { if (room) { room.here = here; drawSoon(); } }, pid);
   room.stopPresence = sync.presence?.(`${roomPath(code)}/players/${sync.uid}`);
-  room.online = true;
   room.stopConnection = sync.connection?.(ok => { if (room) { room.online = ok; drawPartner(); } });
 }
 
@@ -460,15 +450,28 @@ function resync() {
 }
 
 const reportedDone = new Set();   // boards finished together, recorded once per visit
+/** A board's identity at the table: a new board (New board, or a new table) has a new seed and a new start. */
+const boardOf = s => (s ? `${s.seed}/${s.startedAt}` : null);
 function onRoom(val) {
   if (!room) return;
   if ((val?.app || 0) > APP) { updateApp(); return; }
-  if (!val?.board) { toast("That game has ended"); leave(); return; }
-  if (!seatsOf(val).some(([id]) => id === room.uid)) { toast("This game continued on another device"); leave(); return; }
+  if (!validTable(val)) { toast("That game has ended"); leave(); return; }
+  if (!seatsOf(val).some(([id]) => id === room.uid)) {
+    // your seat went to another device, or a new table was dealt for a new request (its players on their way)
+    const moved = val.asked === room.data?.asked || seatsOf(val).some(([, p]) => room.pid && p.pid === room.pid);
+    toast(moved ? "This game continued on another device" : "A new game started at the table");
+    room.data = val;
+    leave();
+    return;
+  }
+  const was = room.data;
   room.data = val;
-  const fresh = !S || S.board !== val.board && JSON.stringify(S.board) !== JSON.stringify(val.board);
-  S = { seed: val.seed, level: val.level, board: val.board, log: Object.values(val.log || {}), done: val.done || null, startedAt: val.startedAt || val.created };
+  seated();
+  const next = { seed: val.seed, level: val.level, board: val.board, log: logOf(val), done: val.done || null, startedAt: val.startedAt || val.created };
+  const fresh = boardOf(S) !== boardOf(next);
+  S = next;
   if (fresh) { resetCursor(); shownDone = null; }
+  else news(was);
   // a board finished together is a team result for the duo record: solved, in the time it took (lower is better)
   if (S.done && !reportedDone.has(`${S.seed}-${S.startedAt}`)) {
     reportedDone.add(`${S.seed}-${S.startedAt}`);
@@ -477,8 +480,8 @@ function onRoom(val) {
   }
   try {
     if (!S.done && isSolved(S.board, lettersFrom(S.board, S.log))) afterChange();
-    render();
-    if ($("menuDlg").open) drawMenu();
+    drawSoon();
+    if ($("menuDlg").open && menuDrawn !== menuKey()) drawMenu();
   } catch (e) {
     // one bad update must never freeze the screen for the rest of the game
     console.error(e);
@@ -486,13 +489,33 @@ function onRoom(val) {
   }
 }
 
+/** What the others did that the board alone doesn't say: a check's verdict, a rule revealed. */
+function news(was) {
+  if (!was || boardOf({ seed: was.seed, startedAt: was.startedAt || was.created }) !== boardOf(S)) return;
+  for (const e of S.log.slice(logOf(was).length)) {
+    if (!e.by || e.by === room.uid) continue;
+    const who = firstName(room.data.players?.[e.by]?.name);
+    if (e.check) {
+      const n = Object.keys(e.check.out || {}).length;
+      toast(n ? `${who} checked: ${n === 1 ? "the orange letter has" : `these ${n} orange letters have`} to change` : `${who} checked: all of this can still win`);
+    } else if (e.reveal != null && fields()[e.reveal]) toast(`${who} revealed the ${styleOf(e.reveal).name} field's rule`);
+  }
+}
+
 function leave() {
-  room?.unwatch?.();
-  room?.stopPresence?.();
-  room?.stopConnection?.();
-  room?.stopHere?.();
-  if (room) leaveRoom(room.sync, room.code);
+  if (room) {
+    // the others stop seeing your cursor (a seat that's no longer yours is left alone)
+    if (room.data?.players?.[room.uid]?.at) room.sync.update(`${roomPath(room.code)}/players/${room.uid}`, { at: null })?.catch?.(() => {});
+    room.unwatch?.();
+    room.stopPresence?.();
+    room.stopConnection?.();
+    room.stopHere?.();
+    leaveRoom(room.sync, room.code);
+  }
   room = null;
+  sharedAt = null;
+  clearTimeout(cursorTimer);
+  seated();
   setRoomParam(null);
   S = loadSolo();
   if (!S) { soloBoard(randomSeed(), $("level").value || "easy"); return; }
@@ -510,7 +533,37 @@ function explain(e) {
 function setRoomParam(code) {
   const u = new URL(location.href);
   if (code) { u.searchParams.set("room", code); u.hash = ""; } else u.searchParams.delete("room");
+  u.searchParams.delete("new");           // the request's table is dealt: a reload sits down at it again
   history.replaceState(null, "", u);
+  sayWhere();                             // your partner sees you at the table, or back in solo
+}
+
+// The rete covers your own board while you sit down at a table, so nothing goes into it by mistake; it waits as you
+// left it, for Back to solo.
+let joining = null;
+function seated() { joining?.(); joining = null; }
+
+// Each player's cursor, for the others to see where they're typing: written (at most every 150 ms) when it moves.
+let sharedAt = null, cursorTimer = 0;
+function shareCursor() {
+  if (!room) return;
+  const at = S.done || !cursor ? null : { k: cursor, d: dir }, said = JSON.stringify(at);
+  clearTimeout(cursorTimer);
+  if (said === sharedAt) return;
+  cursorTimer = setTimeout(() => {
+    if (!room?.data?.players?.[room.uid]) return;        // not seated (any more): a write would leave a stray entry
+    sharedAt = said;
+    room.sync.update(`${roomPath(room.code)}/players/${room.uid}`, { at })?.catch?.(e => console.error(e));
+  }, 150);
+}
+
+// A room's news redraws the board; a cell redrawn under a finger loses its tap, so while one is down on the board the
+// drawing waits for it to lift (the tap then draws anyway).
+let pressing = false, owed = false;
+function drawSoon() { if (pressing) owed = true; else render(); }
+function lifted() {
+  pressing = false;
+  if (owed) { owed = false; setTimeout(render, 0); }
 }
 
 // ---------- drawing ----------
@@ -528,35 +581,60 @@ function render() {
   const notes = notesFrom(S.board, S.log);
   drawPartner();
   drawBoard(g, fs, letters, slot);
-  drawFields(fs, notes);
+  // the fields sheet only when what it shows has changed: a ? redrawn under a finger loses its tap
+  const fieldsKey = `${boardOf(S)}|${S.log.length}|${!!S.done}`;
+  if (fieldsKey !== fieldsDrawn) { fieldsDrawn = fieldsKey; drawFields(fs, notes); }
   drawKeys(fs, notes);
+  shareCursor();
   const doneKey = S.done ? JSON.stringify(S.done) : null;
   if (doneKey && doneKey !== shownDone) { shownDone = doneKey; showDone(); }
 }
+let fieldsDrawn = null;
 
+// ---------- the table: who's at it, in their colours ----------
+const firstName = name => String(name || "Player").split(" ")[0];
+const seatColour = slot => `var(--p${(slot || 0) % 6})`;
+/** Each seated player's seat, by device id. */
+const slotsById = () => Object.fromEntries(seatsOf(room?.data).map(([id, p]) => [id, p.slot]));
+/** A player's name with the dot of their colour; dimmed while they're away. */
+function seatChip(name, slot, here = true) {
+  const b = document.createElement("b");
+  b.className = `g-seat${here ? "" : " away"}`;
+  b.style.setProperty("--seat", seatColour(slot));
+  b.textContent = here ? name : `${name} (away)`;
+  return b;
+}
+/** "a", "a and b", "a, b and c", of nodes. */
+function listOf(nodes) {
+  return nodes.flatMap((n, i) => (i === 0 ? [n] : [i === nodes.length - 1 ? " and " : ", ", n]));
+}
+
+/**
+ * The line over the board at a table: everyone at it in their colours, so each knows whose letters are whose (you
+ * first); away while their phone sleeps or they've left. Your partner in another game of the room: where, and a link.
+ */
 function drawPartner() {
   const el = $("partner");
   if (!room) { el.hidden = true; return; }
-  const seated = seatsOf(room.data).find(([id]) => id !== room.uid);
-  const there = otherHere(room.here, room.uid);
   el.hidden = false;
-  el.innerHTML = "";
-  if (room.online === false) { el.append(sextant(), "Reconnecting… moves made now may not reach your partner."); return; }
-  if (there && there.game !== GAME) {
-    // your partner has another game of the room open: say which, and offer to follow
-    const b = document.createElement("b");
-    b.textContent = there.name;
-    const go = document.createElement("a");
-    go.href = gameHref(there.game);
-    go.textContent = `Join them`;
-    el.append(b, ` is in ${GAMES[there.game].name}${there.online ? "" : " (away)"}. `, go);
-    return;
+  el.replaceChildren();
+  if (room.online === false) { el.append(sextant(), "Reconnecting… moves made now may not reach the others."); return; }
+  const g = room.data, here = new Set(presentSlots(g, room.here, room.uid));
+  const others = seatsOf(g).filter(([id, p]) => id !== room.uid && !(room.pid && p.pid === room.pid)).sort((a, b) => a[1].slot - b[1].slot);
+  if (seatsFor(g) === 2) {
+    const there = otherHere(room.here, room.uid, room.pid, GAME);
+    if (there && there.game !== GAME && GAMES[there.game]) {
+      // your partner has another game of the room open: say which, and offer to follow
+      const go = document.createElement("a");
+      go.href = gameHref(there.game);
+      go.textContent = "Join them";
+      el.append(seatChip(firstName(there.name), others[0]?.[1].slot ?? 1, there.online !== false), ` is in ${GAMES[there.game].name}. `, go);
+      return;
+    }
   }
-  if (!seated && !there) { el.append(`Game ${room.code}: waiting for your partner to join.`); return; }
-  const name = seated?.[1].name || there.name, away = there ? !there.online : seated[1].online === false;
-  const b = document.createElement("b");
-  b.textContent = name + (away ? " (away)" : "");
-  el.append("Playing with ", b, ".");
+  const mine = seatChip("You", g?.players?.[room.uid]?.slot);
+  if (!others.length) { el.append(mine, ": waiting for ", seatsFor(g) > 2 ? "the others" : "your partner", " to join"); return; }
+  el.append(...listOf([mine, ...others.map(([, p]) => seatChip(firstName(p.name), p.slot, here.has(p.slot)))]));
 }
 
 function drawBoard(g, fs, letters, slot) {
@@ -571,6 +649,16 @@ function drawBoard(g, fs, letters, slot) {
   const bad = new Set(g.slots.filter(s => s.cells.every(k => letters[k]) && !VALID.has(s.cells.map(k => letters[k]).join(""))).flatMap(s => s.cells));
   const eligible = eligibleCells(S.board, letters);   // letters in a complete real word: the only ones judged
   const nodes = fs.flatMap((f, i) => (f.rule.type === "whole" ? [cage(f.cells, styleOf(i), at, size)] : []));   // under the cells
+  // at a table: each letter in the colour of whoever put it there, and the word each of the others is on, under a bar
+  // of their colour with their initial where their cursor is
+  const placer = room ? ownersFrom(S.board, S.log) : {}, seatOf = room ? slotsById() : {};
+  const peerWord = {}, peerAt = {};
+  for (const p of room && !S.done ? cursorsOf(room.data, room.here, room.uid, room.pid) : []) {
+    const word = slotFor(p.k, p.d) || slotFor(p.k, other(p.d));
+    if (!word) continue;
+    for (const k of word.cells) peerWord[k] ??= p.slot;
+    (peerAt[p.k] ||= []).push(p);
+  }
 
   for (const k of g.cells) {
     const { x, y } = at(k), i = owner[k], cell = document.createElement("div");
@@ -585,8 +673,25 @@ function drawBoard(g, fs, letters, slot) {
     const typed = pending[k] || null;
     const ch = document.createElement("span");
     if (typed) { ch.className = "pending"; ch.textContent = typed; }
-    else if (letters[k]) { ch.className = "ch"; ch.textContent = letters[k]; }
+    else if (letters[k]) {
+      ch.className = "ch"; ch.textContent = letters[k];
+      if (seatOf[placer[k]] != null) { ch.classList.add("by"); ch.style.setProperty("--by", seatColour(seatOf[placer[k]])); }
+    }
     cell.appendChild(ch);
+    if (peerWord[k] != null) { cell.classList.add("peer"); cell.style.setProperty("--peer", seatColour(peerWord[k])); }
+    if (peerAt[k]) {
+      const tags = document.createElement("span");
+      tags.className = "g-peers";
+      tags.setAttribute("aria-hidden", "true");
+      for (const p of peerAt[k]) {
+        const t = document.createElement("i");
+        t.style.background = seatColour(p.slot);
+        t.textContent = firstName(p.name).slice(0, 1).toUpperCase();
+        tags.appendChild(t);
+      }
+      cell.appendChild(tags);
+      cell.title = `${peerAt[k].map(p => firstName(p.name)).join(" and ")} ${peerAt[k].length > 1 ? "are" : "is"} here`;
+    }
     if (!typed && letters[k]) {
       const v = verdict.cells[k];
       if (v && eligible.has(k)) cell.appendChild(mark(v.ok));
@@ -862,7 +967,12 @@ function showDone() {
   const words = document.createElement("p");
   words.className = "g-ours";
   if (!(ours && S.done.won)) words.textContent = `Our fill: ${g.slots.map(s => s.cells.map(k => S.board.sol[k]).join("")).join(", ")}`;
-  $("doneOurs").replaceChildren(words);
+  // at a table, who placed how many of the words, in their colours
+  const by = room ? placedBy(S.log) : {}, team = room ? seatsOf(room.data).sort((a, b) => a[1].slot - b[1].slot) : [];
+  const share = document.createElement("p");
+  share.className = "g-share";
+  if (team.length > 1) share.append("Words placed: ", ...team.flatMap(([id, p], n) => [n ? " · " : "", seatChip(id === room.uid ? "You" : firstName(p.name), p.slot), ` ${by[id] || 0}`]));
+  $("doneOurs").replaceChildren(...(team.length > 1 ? [share] : []), words);
   $("doneRules").replaceChildren(...fields().map((f, i) => { const li = document.createElement("li"); li.textContent = `${styleOf(i).name}: ${f.rule.text}`; return li; }));
   $("doneDlg").showModal();
 }
@@ -870,9 +980,13 @@ function showDone() {
 // ---------- the menu ----------
 function openMenu() { drawMenu(); if (!$("menuDlg").open) $("menuDlg").showModal(); }
 
-// the menu: Play (a new board, the fill or result); in a room, back to solo; else a link to this board
+// the menu: Play (a new board, the fill or result); in a room, back to solo; else a link to this board. Redrawn by the
+// room's news only when it changes, so a button isn't replaced under a finger.
+let menuDrawn = null;
+const menuKey = () => `${room?.code || ""}|${!!S?.done}`;
 function drawMenu() {
   const body = $("menuBody");
+  menuDrawn = menuKey();
   body.replaceChildren();
   $("menuTitle").textContent = room ? "Playing together" : "Menu";
   part(body, "play").append(action("New board", () => newBoard(), "primary"), action(S.done ? "Show the result" : "Show our fill", giveUp));
@@ -1053,6 +1167,7 @@ function toast(msg) {
 
 document.addEventListener("keydown", e => {
   if (e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]") || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) return;
+  if (!S || joining) return;                  // no board yet: a room is being joined (a hardware keyboard reaches under the rete)
   if (e.key === "Enter") typeKey("ENTER");
   else if (e.key === "Backspace") typeKey("BACK");
   else if (e.key.startsWith("Arrow")) arrow(e.key.slice(5));
@@ -1073,6 +1188,9 @@ $("defineClose").addEventListener("click", () => $("defineDlg").close());
 $("clearBtn").addEventListener("click", clear);
 $("level").addEventListener("change", e => newBoard(e.target.value));
 window.addEventListener("resize", () => render());
+$("board").addEventListener("pointerdown", () => { pressing = true; });
+addEventListener("pointerup", lifted);
+addEventListener("pointercancel", lifted);
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) resync(); });   // restored from Safari's page cache
 window.addEventListener("pagehide", clockPause);
@@ -1086,7 +1204,7 @@ const params = new URLSearchParams(location.search);
 const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 const forToday = arrivedForToday();          // from the games screen's tile: today's puzzle, still to play
 const hash = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
-S = loadSolo();
+S = loadSolo();                              // a table dealt as you sit down is at your own board's level
 /** Your own board: a shared link's, today's from the games screen's tile, the saved one, or a fresh Easy one. */
 function soloStart() {
   if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d)) soloBoard(+hash.s, ["easy", "medium", "hard"].includes(hash.d) ? hash.d : "easy");
@@ -1099,11 +1217,12 @@ function soloStart() {
   }
   clockRun();
 }
-// a room in the address: the board you share from the first moment, never your own while the room is joined (your
-// partner would be on another board until it was, your own clock running), and your own only if the join doesn't
-// come off
+// a room in the address: the board you share from the first moment, never your own while the room is joined (the others
+// would be on another board until it was, your own clock running), and your own only if the join doesn't come off. The
+// rete stays until the table's board is drawn (onRoom).
 if (code.length === 4) {
-  const joined = busy("Joining your partner", { delay: 0 });
-  join(code).then(ok => { joined(); if (!ok) { setRoomParam(null); soloStart(); } });
+  joining = busy("Joining the table", { delay: 0 });
+  join(code).then(ok => { if (!ok) { seated(); setRoomParam(null); soloStart(); } });
 } else soloStart();
-window.__slate = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };
+window.__slate = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; },
+  get table() { return room?.data || null; } };
