@@ -37,6 +37,7 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
   let lobbyFor = null;        // the match the board was cleared for
   let shown = null, closedFor = null, timer = 0, ticker = 0, firstDrawn = null;
   let sending = null, queued = null, finish = null;   // reports on their way; this device's finish, until it's stored
+  let said = "";              // the last report, so one that changes nothing isn't sent
 
   const now = () => Date.now() + offset;
   const me = () => together.room?.uid;
@@ -104,6 +105,9 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
   /** This player's run as it stands: { score, text (a few words: "7 solved"), done, ms, … }; done once it's over. */
   function report(run) {
     if (!cur || played !== cur.n || runOf(cur, mySlot())?.done) return;
+    const sig = `${cur.n}:${JSON.stringify(run)}`;
+    if (sig === said) return;
+    said = sig;
     queued = { n: cur.n, slot: mySlot(), run: { ...run } };
     if (run.done) {                                     // the result at once, not after the round trip
       finish = queued;

@@ -1,6 +1,9 @@
 /* Arb: the route on top (from, to, par and the steps so far), the links from where you are below, each with its cost;
    the list takes the rest of the screen and scrolls in it (.fit-grow: a column's children otherwise keep their full height) */
 .arb .ab-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .5rem; color: var(--ink-soft); }
+/* together, the others' scores between where you are and yours (duel.js fills it; a tap opens the match) */
+.ab-rival { flex: 1 1 auto; min-width: 0; padding: 0 .6rem; text-align: center; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ab-rival[hidden], .ab-route[hidden] { display: none; }
 .ab-score b { color: var(--ink); font-size: 1.25rem; }
 .ab-route { flex: none; background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .7rem .9rem; margin-bottom: .55rem; }
 .ab-ends { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: .45rem; font-size: 1.15rem; }

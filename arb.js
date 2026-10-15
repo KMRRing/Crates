@@ -2,12 +2,13 @@
 // more the better-connected the thing you step onto: an obscure link costs 1, the United States about 9 (1 + log2 of
 // its links), so the cheap route runs through what you specifically know, not through the hubs. Par is the cheapest
 // route there is; matching it scores 100. Five routes a run, random or today's; every hop shows why the two are
-// linked, and the end shows the cheapest route.
+// linked, and the end shows the cheapest route. Together, the same five routes for everyone at the table (duel.js).
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { createDuel } from "./duel.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -70,29 +71,35 @@ export function makeRoute(r) {
 
 // ---------- a run ----------
 let S = read(RUN, null);
-const save = () => write(RUN, S);
-function newRun(daily) {
-  const seed = daily ? today() * 7919 + 29 : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
-  const routes = [];
+const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
+/** The five routes of a seed. */
+function dealRun(seed, daily) {
+  const r = rng(seed), routes = [];
   while (routes.length < PER_RUN) { const x = makeRoute(r); if (x) routes.push({ ...x, path: [x.a], done: null, points: 0 }); }
-  S = { seed, daily, index: 0, total: 0, routes };
+  return { seed, daily, index: 0, total: 0, routes };
+}
+function newRun(daily) {
+  S = dealRun(daily ? today() * 7919 + 29 : Math.floor(Math.random() * 2 ** 31), daily);
   save(); render();
 }
-const R = () => S.routes[S.index];
+const R = () => S?.routes[S.index];
 const spent = path => path.slice(1).reduce((t, id) => t + cost(id), 0);
 function hop(id) {
   const x = R();
-  if (x.done) return;
+  if (!x || x.done) return;
   x.path.push(id);
-  if (id === x.b) { x.done = "arrived"; x.points = Math.round(100 * x.par / spent(x.path)); S.total += x.points; }
+  if (id === x.b) { x.done = "arrived"; x.points = Math.round(100 * x.par / spent(x.path)); S.total += x.points; settled(); }
   $("filter").value = "";
   save(); render();
 }
-function back() { const x = R(); if (!x.done && x.path.length > 1) { x.path.pop(); save(); render(); } }
-function giveUp() { const x = R(); if (!x.done) { x.done = "gave up"; x.points = 0; save(); render(); } }
+function back() { const x = R(); if (x && !x.done && x.path.length > 1) { x.path.pop(); save(); render(); } }
+function giveUp() { const x = R(); if (x && !x.done) { x.done = "gave up"; x.points = 0; settled(); save(); render(); } }
+/** A match's last route decided: its result is final at once, before Finish. */
+function settled() { if (S.duel && S.routes.every(x => x.done)) tell(true); }
 function next() {
   if (S.index + 1 < S.routes.length) { S.index++; save(); render(); return; }
   S.over = true; save();
+  if (S.duel) { duel.open(); return; }                    // the table's result, not your best or today's
   const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
   if (S.daily) { const d = read(DAILY, {}); if (!(d[today()] >= S.total)) { d[today()] = S.total; write(DAILY, d); } }
   finish();
@@ -115,9 +122,10 @@ function drawPath(box, path) {
   }));
 }
 function render() {
-  if (!S) { newRun(false); return; }
+  if (!S) { if (duel.on) lobby(); else newRun(false); return; }
   const x = R(), here = x.path[x.path.length - 1];
-  $("where").textContent = `Route ${S.index + 1} of ${S.routes.length}${S.daily ? " · today's" : ""}`;
+  $("route").hidden = false;
+  $("where").textContent = `Route ${S.index + 1} of ${S.routes.length}${S.daily ? " · today's" : S.duel ? " · together" : ""}`;
   $("score").innerHTML = `Score <b>${S.total}</b>`;
   $("from").textContent = name(x.a); $("to").textContent = name(x.b);
   $("par").textContent = `Par ${fmtCost(x.par)} · spent ${fmtCost(spent(x.path))}`;
@@ -166,11 +174,45 @@ function finish() {
   $("doneDlg").showModal();
 }
 
+// ---------- together: the same five routes for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's five routes and finds their own way on their own phone; the others' scores
+// show in the strip. The highest total wins, then the quicker. Your solo run, your best and today's stay as they were.
+const duel = createDuel({
+  game: "arb", name: "Arb", line: $("rival"), toast,
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31) }),
+  describe: () => `The same ${PER_RUN} routes for everyone, as cheaply as you can`,
+  play: (match, { kept }) => {
+    S = kept?.seed === match.seed && kept.routes ? kept : { ...dealRun(match.seed, false), duel: true };
+    $("filter").value = "";
+    save(); render();
+  },
+  onLobby: () => { S = null; render(); },
+  onLeave: () => { S = read(RUN, null); $("filter").value = ""; if (!S || S.over) newRun(false); else render(); },
+});
+/** What the table sees of this run: the total, and how many routes are done. */
+function tell(done = false) {
+  const made = S.routes.filter(x => x.done === "arrived").length, decided = S.routes.filter(x => x.done).length;
+  duel.report({ score: S.total, text: done ? `${S.total}, ${made} of ${PER_RUN} made` : `${S.total} · ${decided} of ${PER_RUN}`, ...(done ? { done: true } : {}) });
+}
+/** The page before a match: no route yet. */
+function lobby() {
+  $("where").textContent = `${PER_RUN} routes, together`;
+  $("score").innerHTML = "Score <b>0</b>";
+  $("route").hidden = true;
+  $("pick").hidden = true;
+  $("result").hidden = true;
+}
+
 // ---------- the menu ----------
 let pick = null;
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {
+    duel.menu(part(body, "together"));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   pick ??= S?.daily ? "daily" : "random";
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
@@ -189,4 +231,11 @@ $("nextBtn").addEventListener("click", next);
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
-if (S?.over) newRun(false); else render();
+// a match in the address: its routes, with no solo run dealt under it
+if (duel.inAddress) { S = null; duel.join().then(ok => { if (!ok) { S = read(RUN, null); if (S?.over) newRun(false); else render(); } }); }
+else if (S?.over) newRun(false); else render();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
+
+// for tests and debugging
+window.__arb = { get state() { return S; }, hop, giveUp, next, back, duel };

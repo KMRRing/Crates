@@ -194,6 +194,8 @@ export const ELSEWHERE = [
   { id: "order", name: "Order", kind: "duo", duo: "order", page: "order.html", max: 6, race: true, blurb: "The same cards for everyone: dates, quantities or a story, into a line." },
   { id: "brut", name: "Brut", kind: "duo", duo: "brut", page: "brut.html", max: 6, race: true, blurb: "A blind flight of six wines, the same for everyone: name each as early as you dare." },
   { id: "blend", name: "Blend", kind: "duo", duo: "blend", page: "blend.html", max: 6, race: true, blurb: "The same fuel order for everyone: certify on spec at the best margin." },
+  { id: "arb", name: "Arb", kind: "duo", duo: "arb", page: "arb.html", max: 6, race: true, blurb: "The same five routes through the links for everyone: cheapest wins." },
+  { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same concession for everyone: claim the ore with the most credits left." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {
