@@ -6,12 +6,14 @@
 import { rules } from "./trumps-rules.js";
 import { GAMES, teamOf, COINCHE_VALUES, laufende } from "./trumps-games.js";
 import { LEVEL_NAMES } from "./trumps-bot.js";
-import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName } from "./trumps-cards.js";
+import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon } from "./trumps-cards.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE, cardStage } from "./trumps-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -36,16 +38,6 @@ function toast(msg, ms = 2600) {
 }
 
 // ---------- the cards ----------
-// the Swiss and German packs' suit marks, drawn: bells, shields, roses, acorns; hearts, leaves
-const ICONS = {
-  bell: `<svg viewBox="0 0 20 20"><path d="M10 2.2a1.6 1.6 0 1 1 0 .01M4.6 9.5a5.4 5.4 0 0 1 10.8 0v3.6l1.6 2.1H3l1.6-2.1z" fill="#E1A82E" stroke="#5A3A12" stroke-width="1.1"/><path d="M4.8 11.6h10.4" stroke="#B3302A" stroke-width="1.6"/><circle cx="10" cy="16.6" r="1.6" fill="#5A3A12"/></svg>`,
-  shield: `<svg viewBox="0 0 20 20"><path d="M3.5 3h13v6.5c0 4.2-3 6.7-6.5 8.2-3.5-1.5-6.5-4-6.5-8.2z" fill="#E1A82E" stroke="#3B2A12" stroke-width="1.1"/><path d="M3.6 3.1 16.4 13.8" stroke="#B3302A" stroke-width="3"/><path d="M10 3v14.5" stroke="#1E2730" stroke-width="1.1"/></svg>`,
-  rose: `<svg viewBox="0 0 20 20"><path d="M5 15.5 2.4 18M15 15.5l2.6 2.5" stroke="#2F7D3B" stroke-width="1.6" stroke-linecap="round"/><g fill="#C2312A" stroke="#6E1610" stroke-width=".9"><circle cx="10" cy="5.2" r="3.3"/><circle cx="14.6" cy="8.6" r="3.3"/><circle cx="12.9" cy="14" r="3.3"/><circle cx="7.1" cy="14" r="3.3"/><circle cx="5.4" cy="8.6" r="3.3"/></g><circle cx="10" cy="10.2" r="2.8" fill="#E8C24A" stroke="#6E1610" stroke-width=".9"/></svg>`,
-  acorn: `<svg viewBox="0 0 20 20"><path d="M10 1.8v2.4" stroke="#4A3016" stroke-width="1.4" stroke-linecap="round"/><path d="M4.6 8.4c0-2.8 2.4-4.4 5.4-4.4s5.4 1.6 5.4 4.4z" fill="#7A5226" stroke="#3A2410" stroke-width="1"/><path d="M5.4 8.4h9.2c0 5-2 9-4.6 9.6-2.6-.6-4.6-4.6-4.6-9.6z" fill="#D9A441" stroke="#5A3A12" stroke-width="1"/><path d="M6 6.4h8M5.4 7.6h9.2" stroke="#3A2410" stroke-width=".6" opacity=".6"/></svg>`,
-  heart: `<svg viewBox="0 0 20 20"><path d="M10 17.6C4.2 13.2 2 10.2 2 7.2A4.2 4.2 0 0 1 10 5a4.2 4.2 0 0 1 8 2.2c0 3-2.2 6-8 10.4z" fill="#C2312A" stroke="#6E1610" stroke-width="1"/></svg>`,
-  leaf: `<svg viewBox="0 0 20 20"><path d="M10 18.4V10M10 2C5 5.4 4.2 10.6 10 15.6 15.8 10.6 15 5.4 10 2z" fill="#3E8E3A" stroke="#1E4A1C" stroke-width="1.1" stroke-linejoin="round"/><path d="M10 4.4v11M10 7.6 7.4 6M10 10.4 7 8.6M10 7.6 12.6 6M10 10.4 13 8.6" stroke="#1E4A1C" stroke-width=".7"/></svg>`,
-};
-const SUIT_ICON = { swiss: ["bell", "shield", "rose", "acorn"], german: ["bell", "heart", "leaf", "acorn"] };
 const packOf = s => GAMES[s.game].pack(s.opts);
 /** A card as markup, in its game's pack. */
 function card(id, s, { cls = "", data = {} } = {}) {
@@ -54,15 +46,13 @@ function card(id, s, { cls = "", data = {} } = {}) {
     const suit = s.game === "jass" ? JASS_FRENCH[suitOf(id)] : suitOf(id);
     return cardHtml({ rank: p.rank[rankOf(id)], suit }, { cls, data, label: cardName(id, "french", s.game === "jass" ? JASS_FRENCH : null) });
   }
-  const icon = ICONS[SUIT_ICON[pack][suitOf(id)]];
-  const attrs = Object.entries(data).map(([k, v]) => ` data-${k}="${esc(v)}"`).join("");
-  return `<span class="cd tr-cd ${pack}${cls ? ` ${cls}` : ""}"${attrs} role="img" aria-label="${esc(cardName(id, pack))}"><span class="cd-r">${p.rank[rankOf(id)]}</span><span class="tr-s">${icon}</span><span class="tr-pip">${icon}</span></span>`;
+  return packCard(id, pack, { cls, data });
 }
 /** A suit's mark and name in the game's pack. */
 function suitMark(s, suit) {
   const pack = packOf(s);
   if (pack === "french") { const f = s.game === "jass" ? JASS_FRENCH[suit] : suit; return { mark: `<span class="tr-fs${f === 0 || f === 2 ? " red" : ""}">${PACKS.french.suits[f]}</span>`, name: PACKS.french.en[f] }; }
-  return { mark: `<span class="tr-icon">${ICONS[SUIT_ICON[pack][suit]]}</span>`, name: PACKS[pack].suits[suit] };
+  return { mark: `<span class="tr-icon">${suitIcon(pack, suit)}</span>`, name: PACKS[pack].suits[suit] };
 }
 
 // ---------- the table ----------
@@ -326,19 +316,38 @@ const RULES = {
   schafkopf: `<p>Schafkopf, Bavaria's: four players, 32 German-suited cards (acorns, leaves, hearts, bells; Unter, Ober, King, Sau, the ace), eight each. Play passes to the left. Each player in turn says whether they'd play, and what; a Solo beats a Wenz, a Wenz a Sauspiel; if all pass, it's thrown in.</p>
     <h3>The games</h3><p>Sauspiel: hearts and all Obers and Unters are trumps; you call an ace (Sau) you don't hold, of a suit you do, and its holder is your secret partner. Wenz: only the four Unters are trumps, you alone against three. Solo: the Obers, Unters and your suit are trumps, you alone. Among trumps the Obers come first, then the Unters (each acorns, leaves, hearts, bells), then the suit's ace, ten, king, 9, 8, 7.</p>
     <h3>Playing</h3><p>Follow the suit led (trumps are one suit: an Ober or Unter is a trump, whatever its suit); if you can't, play anything. The called Sau must be played when its suit is first led, can't be thrown away before the last trick, and its holder can't lead another card of that suit (unless holding four of it).</p>
-    <h3>Scoring</h3><p>Aces 11, tens 10, kings 4, Obers 3, Unters 2: 120. The players win with 61. A Sauspiel is worth the tariff (10), a Solo or Wenz 50, with 10 more for Schneider (the losers under 31), 10 more for schwarz (no trick) and 10 for each Laufende (the top trumps one side holds unbroken, three or more, two in a Wenz). In a Sauspiel each of the losing pair pays one of the winners; a soloist is paid by, or pays, all three.</p>`,
+    <h3>Scoring</h3><p>Aces 11, tens 10, kings 4, Obers 3, Unters 2: 120. The players win with 61. A Sauspiel is worth the tariff (10), a Solo or Wenz 50, with 10 more for Schneider (the players under 31 when they lose, the others under 30 when the players win: 91 makes it, 90 doesn't), 10 more for schwarz (no trick) and 10 for each Laufende (the top trumps one side holds unbroken, three or more, two in a Wenz). In a Sauspiel each of the losing pair pays one of the winners; a soloist is paid by, or pays, all three.</p>`,
 };
 function showRules() {
   const g = V?.state?.game || opts.game;
   $("rulesBody").innerHTML = RULES[g];
   $("rulesDlg").showModal();
 }
+// ---------- the course ----------
+// Learn (the header): Schafkopf taught from nothing (trumps-course.js) on the course's sheet (course.js), the German
+// cards drawn as the table draws them and every rule the rules' own; its last lesson starts a Schafkopf against Easy.
+// The Rules sheet opens from the course's map and the menu.
+const course = createCourse({
+  id: "trumps", course: COURSE, cls: "tr", inFrame: IN_FRAME, stage: cardStage(),
+  onRules: () => { $("rulesBody").innerHTML = RULES.schafkopf; $("rulesDlg").showModal(); },
+  onPlay: step => {
+    const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
+    if (page.atTable) { toast(`Your table plays on: try a Schafkopf against ${name} when you're back to solo`); return; }
+    opts.game = "schafkopf";
+    opts.level = level;
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("trumps", COURSE);
+  play.append(action(cp.done ? `Learn Schafkopf: ${cp.done} of ${cp.of} lessons done` : "Learn Schafkopf, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Game", [["jass", "Jass"], ["belote", "Belote"], ["coinche", "Coinche"], ["schafkopf", "Schafkopf"]], opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
   const set = part(body, "settings"), o = opts[opts.game];
@@ -363,9 +372,9 @@ bindSwitcher($("appsBtn"), "trumps");
 document.querySelector(".tr-mark").innerHTML = APPS.find(a => a.id === "trumps")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
+$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", () => { if (V?.G) drawHand(V.state); });
-window.__trumps = { page, get view() { return V; }, opts, laufende };
+window.__trumps = { page, get view() { return V; }, opts, laufende, course };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

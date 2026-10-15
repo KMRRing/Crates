@@ -110,6 +110,14 @@ html[data-mode="night"] .tr-delta.up { color: #7FC2A8; }
 html[data-mode="night"] .tr-delta.down { color: #E8806F; }
 html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4px; }
 
+/* ---------- the course's stage (trumps-course.js): the card games' stage (course.css), with German cards ---------- */
+.ln-sheet.tr { --ln-in: var(--tr-in); }
+.lc-hand .cd.ok { transform: translateY(-.45em); box-shadow: 0 0 0 2px var(--ln-ok), 0 1px 3px rgba(28, 42, 52, .25); }
+.lc-hand .cd.dim { opacity: .4; }
+.lc-hand .cd.hinted { outline: 2px dashed var(--ln-in); outline-offset: 1px; }
+.lc-hand.still .cd { cursor: default; }
+.ts-who { font-size: .72rem; color: var(--ink-soft); }
+
 /* held sideways: the table on the left, your hand and the bidding beside it */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.trumps { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr); }

@@ -409,8 +409,9 @@ const schafkopf = {
   scoreHand(s) {
     const c = s.contract, side = this.side(s), pts = [0, 0], tricks = [0, 0];
     for (const t of s.tricks) { const k = side.includes(t.winner) ? 0 : 1; pts[k] += t.pts; tricks[k]++; }
+    // Schneider: the players under 31 when they lose, the others under 30 when the players win (91 makes it: 90 doesn't)
     const won = pts[0] >= 61;
-    const schneider = won ? pts[1] <= 30 : pts[0] <= 30, schwarz = won ? tricks[1] === 0 : tricks[0] === 0;
+    const schneider = won ? pts[1] < 30 : pts[0] < 31, schwarz = won ? tricks[1] === 0 : tricks[0] === 0;
     const base = c.type === "sau" ? s.opts.tariff : s.opts.solo;
     const lauf = laufende(c, s.dealt, side), counted = lauf >= (c.type === "wenz" ? 2 : 3) ? lauf : 0;
     const amount = base + (schneider ? s.opts.tariff : 0) + (schwarz ? s.opts.tariff : 0) + counted * s.opts.tariff;

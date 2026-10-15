@@ -122,19 +122,20 @@ export function cardStage({ face, label, judge, hold = null }) {
         parts.push(`<div class="cd-row lc-hand${cls}">${held(hand).map(id => cardHtml(face(id), { cls: t.sel?.has(id) ? "sel" : "", data: { id }, label: label(id) })).join("")}</div>`);
       }
       box.innerHTML = `<div class="lc">${parts.join("")}</div>`;
-      fit(box, hand.length, parts.length > 2);
+      fitCardStage(box, hand.length, parts.length > 2);
     },
   };
 }
 
 /**
- * The stage's cards as large as it allows: the hand from the stage's height (so the cards never set their own size);
+ * The stage's cards as large as it allows (a stage laid out as this one's, .lc with its .lc-row lines and the
+ * .lc-hand: Trumps' Schafkopf course draws its own cards so): the hand from the stage's height (so the cards never set their own size);
  * the other lines all at one size, the largest at which the longest fits the width (as large as the hand at most);
  * then the whole no taller than the stage, the lines shrinking first and then the hand (a tablet draws them all
  * larger). The height is measured from the first row's top to the last's foot: the content is centred, so what
  * overflows at the top isn't in a scroll height.
  */
-function fit(box, n, more) {
+export function fitCardStage(box, n, more) {
   const lc = box.firstElementChild, row = box.querySelector(".lc-hand");
   // no larger than a ninth of the stage's height: a phone's cards as the game's, a tablet's larger
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16, MAX = Math.max(1.45, Math.min(2.6, box.clientHeight / 9 / rem));

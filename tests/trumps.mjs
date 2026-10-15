@@ -99,6 +99,9 @@ const set = a => [...a].sort((x, y) => x - y).join(",");
   const sc = { contract: { type: "solo", trump: 3, declarer: 0 }, dealt: [deckFrom("7").slice(0, 8), [], [], []], tricks: [{ winner: 0, pts: 95 }, { winner: 1, pts: 25 }], scores: [0, 0, 0, 0], opts: { tariff: 10, solo: 50 } };
   const r = S.scoreHand(sc);
   check(r.won && r.schneider && r.delta[0] === 3 * r.amount && r.delta[1] === -r.amount && r.amount >= 60, `a Solo won with Schneider: paid by all three (${r.amount} each)`);
+  // Schneider's lines (pagat): the players make it with 91, not 90; they're Schneider themselves with 30, not 31
+  const sch = (a, b) => S.scoreHand({ ...sc, scores: [0, 0, 0, 0], tricks: [{ winner: 0, pts: a }, { winner: 1, pts: b }] }).schneider;
+  check(sch(91, 29) && !sch(90, 30) && sch(30, 90) && !sch(31, 89), "Schneider: 91 makes it and 90 doesn't; 30 is Schneider for the players, 31 isn't");
 }
 
 // ---------- whole games ----------
