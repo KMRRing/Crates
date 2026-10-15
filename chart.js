@@ -3,7 +3,7 @@
 // countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
 // outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
 // in private and the pins are revealed side by side.
-import { PER_SET, regionSpan, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM } from "./chart-engine.js";
+import { PER_SET, regionSpan, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
 import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
 /** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
 const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
@@ -317,8 +317,7 @@ const pinOf = seat => (S.phase === "reveal" ? Object.values(S.log || {})[S.index
 // ---------- gestures: drag to pan, pinch to zoom, tap to pin ----------
 const canPin = () => S.phase === "pin" && !(inRoom() && S.pins?.[mySeat()]);
 function gestures(name) {
-  const canvas = $(name), pointers = new Map();
-  let moved = 0, pinching = false;
+  const canvas = $(name), touch = fingers();
   const at = e => { const r = canvas.getBoundingClientRect(); const [w, h] = SIZES[name]; return [(e.clientX - r.left) / r.width * w, (e.clientY - r.top) / r.height * h]; };
   const pan = (dx, dy) => {                                   // a pixel shift becomes a shift of the view's centre
     const [w, h] = SIZES[name], win = viewWindow(views[name], w, h), v = views[name];
@@ -330,44 +329,33 @@ function gestures(name) {
     const after = projFor(name).proj.toLonLat(px, py);
     views[name] = clampView({ ...views[name], lon: views[name].lon + before[0] - after[0], my: views[name].my + merc(before[1]) - merc(after[1]) }, w, h);
   };
-  // Safari on the iPhone pinches the whole page unless it's told not to: its own gesture events, and touches of two
-  // fingers moving, are refused on the map, so the pinch reaches the pointer handlers below and zooms the map instead
+  // Pointer events alone, as every other map in the suite: touch-action: none keeps Safari's own pinch off the map.
+  // This once also cancelled a second finger's touchstart; a browser given both can lose that finger's lift, and the
+  // next one-finger drag then pinched against it, zooming and hardly panning (fingers() now forgets such a finger).
+  // Safari's gesture events are still refused, so a pinch begun beside the map can't zoom the page.
   for (const type of ["gesturestart", "gesturechange", "gestureend"]) canvas.addEventListener(type, e => e.preventDefault(), { passive: false });
-  canvas.addEventListener("touchstart", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
-  canvas.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   canvas.addEventListener("pointerdown", e => {
     try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer */ }
-    pointers.set(e.pointerId, at(e));
-    if (pointers.size === 1) { moved = 0; pinching = false; }
-    if (pointers.size === 2) pinching = true;
+    touch.down(e.pointerId, ...at(e), e.isPrimary);
   });
   canvas.addEventListener("pointermove", e => {
-    if (!pointers.has(e.pointerId)) return;
-    const prev = pointers.get(e.pointerId), now = at(e);
-    if (pointers.size === 1) { pan(now[0] - prev[0], now[1] - prev[1]); moved += Math.hypot(now[0] - prev[0], now[1] - prev[1]); }
-    else if (pointers.size === 2) {
-      const [a, b] = [...pointers.values()], other = a === prev ? b : a;
-      const d0 = Math.hypot(a[0] - b[0], a[1] - b[1]), d1 = Math.hypot(now[0] - other[0], now[1] - other[1]);
-      const mid = [(now[0] + other[0]) / 2, (now[1] + other[1]) / 2];
-      if (d0 > 0) zoomAt(d1 / d0, mid[0], mid[1]);
-      pan((now[0] - prev[0]) / 2, (now[1] - prev[1]) / 2);
-      moved += 10;
-    }
-    pointers.set(e.pointerId, now);
+    const g = touch.move(e.pointerId, ...at(e));
+    if (!g) return;
+    if (g.zoom) zoomAt(g.zoom, ...g.about);
+    pan(...g.pan);
     drawMaps();
   });
   const up = e => {
-    if (!pointers.has(e.pointerId)) return;
-    const [px, py] = pointers.get(e.pointerId);
-    pointers.delete(e.pointerId);
-    if (e.type === "pointerup" && pointers.size === 0 && !pinching && moved < 8 && canPin()) {
-      const [lon, lat] = projFor(name).proj.toLonLat(px, py);
+    const tap = touch.up(e.pointerId, e.type !== "pointerup")?.tap;
+    if (tap && canPin()) {
+      const [lon, lat] = projFor(name).proj.toLonLat(...tap);
       pin = { lat: Math.max(-LAT_MAX, Math.min(LAT_MAX, lat)), lon: Math.max(-180, Math.min(180, lon)) };
       render();
     }
   };
   canvas.addEventListener("pointerup", up);
   canvas.addEventListener("pointercancel", up);
+  canvas.addEventListener("lostpointercapture", up);         // after its pointerup, nothing; without one, the finger goes
   canvas.addEventListener("wheel", e => { e.preventDefault(); const [px, py] = at(e); zoomAt(e.deltaY < 0 ? 1.2 : 1 / 1.2, px, py); drawMaps(); }, { passive: false });
 }
 

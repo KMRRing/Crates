@@ -24,6 +24,33 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
     && clamped.lon === 160 && tiny.span === 1.5 && huge.span === 360 && huge.lon === 0 && huge.my === 0 && both.span >= 6 && both.lon > 6 && both.lon < 9,
     "views: the world shows ±180 and ±78, a close-up centres on its point, panning stops at the edges, pinching stops at 1.5° and 360°, a reveal view covers both pins");
 }
+// the fingers on the map: one pans, two pinch, a still one taps; a finger whose lift never came doesn't make the next
+// one-finger drag a pinch (Safari once lost a second finger's lift, and one finger zoomed the map)
+{
+  const f = E.fingers(), near = (a, b) => a && b && a.every((v, i) => Math.abs(v - b[i]) < 1e-9);
+  f.down(1, 100, 100, true);
+  const drag = f.move(1, 110, 100), dragUp = f.up(1);
+  f.down(2, 50, 50, true); f.move(2, 52, 51);
+  const tap = f.up(2);
+  f.down(3, 100, 100, true); f.down(4, 200, 100, false);
+  const pinch = f.move(4, 220, 100); f.up(3);
+  const pinchUp = f.up(4);
+  f.down(5, 100, 100, true);                                   // its lift never comes
+  f.down(6, 150, 150, true);
+  const after = f.move(6, 170, 150), count = f.count;
+  f.up(6); f.down(7, 10, 10, true);
+  const cancelled = f.up(7, true);
+  f.down(8, 0, 0, true); f.down(9, 100, 0, false); f.up(9);
+  const left = f.move(8, 10, 0), leftUp = f.up(8);
+  check(near(drag?.pan, [10, 0]) && !drag.zoom && dragUp === null && near(tap?.tap, [52, 51]),
+    "fingers: one finger pans by its move; one barely moved and lifted is a tap");
+  check(Math.abs(pinch?.zoom - 1.2) < 1e-9 && near(pinch.about, [160, 100]) && near(pinch.pan, [10, 0]) && pinchUp === null,
+    "fingers: two pinch about their middle, panning by half a finger's move, and lifting them is no tap");
+  check(near(after?.pan, [20, 0]) && !after.zoom && count === 1,
+    "fingers: a finger whose lift never came is forgotten when a new touch starts, so one finger pans and doesn't zoom");
+  check(cancelled === null && near(left?.pan, [10, 0]) && !left.zoom && leftUp === null,
+    "fingers: a cancelled touch is no tap; the finger left after a pinch pans, and lifting it is no tap");
+}
 // the countries: outlines that hold their own anchor, the even–odd rule (a hole is outside), the antimeridian, scoring
 {
   const { COUNTRIES, REGION_OF } = await import("../chart-countries.js");

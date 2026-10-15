@@ -202,6 +202,46 @@ export function clampView(view, w, h, minSpan = 1.5) {
   const my = mercHalf >= MERC_MAX ? 0 : Math.max(-MERC_MAX + mercHalf, Math.min(MERC_MAX - mercHalf, view.my));
   return { lon, my, span };
 }
+/**
+ * The fingers on the map, told every pointer event, saying what each means: one finger pans by its move; two pinch,
+ * zooming by how far apart they spread about their middle and panning by half each finger's move; one finger down and
+ * up again within `slop` units, and no second finger since, is a tap. A finger the browser never reported lifting
+ * can't turn the next finger's drag into a pinch: the first finger of a new touch (isPrimary, nothing else down)
+ * starts the count again. Coordinates are the map's own units.
+ */
+export function fingers(slop = 8) {
+  const at = new Map();
+  let travel = 0, pinched = false;
+  return {
+    /** A finger down; `primary` when it's the first of a new touch. */
+    down(id, x, y, primary) {
+      if (primary) at.clear();
+      at.set(id, [x, y]);
+      if (at.size === 1) { travel = 0; pinched = false; } else pinched = true;
+    },
+    /** A finger moved: { pan: [dx, dy] }, with { zoom, about: [x, y] } when two are down; null when it means nothing. */
+    move(id, x, y) {
+      const prev = at.get(id);
+      if (!prev) return null;
+      at.set(id, [x, y]);
+      const dx = x - prev[0], dy = y - prev[1];
+      if (at.size === 1) { travel += Math.hypot(dx, dy); return { pan: [dx, dy] }; }
+      if (at.size !== 2) return null;
+      const other = [...at.entries()].find(([k]) => k !== id)[1];
+      const before = Math.hypot(prev[0] - other[0], prev[1] - other[1]), after = Math.hypot(x - other[0], y - other[1]);
+      return { pan: [dx / 2, dy / 2], ...(before > 0 ? { zoom: after / before, about: [(x + other[0]) / 2, (y + other[1]) / 2] } : {}) };
+    },
+    /** A finger lifted (or its touch cancelled): { tap: [x, y] } when that made a tap, else null. */
+    up(id, cancelled = false) {
+      const last = at.get(id);
+      if (!last) return null;
+      at.delete(id);
+      return !cancelled && !at.size && !pinched && travel < slop ? { tap: last } : null;
+    },
+    /** How many fingers are down. */
+    get count() { return at.size; },
+  };
+}
 /** A view that shows every point with room around them (pad: how much wider than the points the view is). */
 export function viewFitting(points, w, h, { minSpan = 6, pad = 1.6 } = {}) {
   const lons = points.map(p => p.lon), mys = points.map(p => merc(p.lat));
