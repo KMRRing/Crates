@@ -191,6 +191,9 @@ function clue() {
 
 function clearAll() {
   if (S.done || !pathList(S.paths).length) return;
+  // at a table, Clear takes everyone's paths: asked first when some are someone else's
+  const me = together.room?.uid;
+  if (me && pathList(S.paths).some(p => p.by && p.by !== me) && !confirm("Clear every path on the board, the others' too?")) return;
   change(g => { if (g.done) return false; g.paths = {}; });
 }
 

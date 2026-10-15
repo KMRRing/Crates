@@ -305,6 +305,11 @@ function clear() {
     render();
     return;
   }
+  // at a table, emptying the board takes everyone's letters: asked first when some are someone else's
+  if (level === 3 && room) {
+    const placer = ownersFrom(S.board, S.log);
+    if (cells.some(k => placer[k] && placer[k] !== room.uid) && !confirm("Empty the whole board, the others' letters too?")) { render(); return; }
+  }
   act(g => { if (g.done) return false; g.log.push({ clear: cells, ...(room && { by: room.uid }) }); });
   toast(level === 1 ? `Cleared ${words(cells.length)} that weren't part of a real word. Press again to clear rule-breakers too.`
     : level === 2 ? `Cleared ${words(cells.length)} in words that break a rule. Press again to empty the board.`
