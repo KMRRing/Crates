@@ -4,6 +4,7 @@
 // Quantities deal one family at a time, the same unit and the same kind of thing, so the comparison means something;
 // History (the stories) deals one story's events (Heracles' labours, Odysseus's voyage home, Ragnarök…), where what's ordered is the
 // story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number.
+// Together, the same cards for everyone at the table, in the same order (duel.js).
 import { QUOTES } from "./quote-bank.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
 import { withUnit } from "./quote-engine.js";
@@ -12,6 +13,7 @@ import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue } from "./suite.js";   // the day, the same for everyone (UTC)
+import { createDuel } from "./duel.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -38,15 +40,18 @@ const MODES = { dates: "Dates", quantities: "Quantities", stories: "History" }; 
 
 // ---------- a run ----------
 let S = read(RUN, null);
-const save = () => write(RUN, S);
-function newRun(mode, daily) {
-  const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31), r = rng(seed);
+const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
+/** The cards of a seed in a mode, the line starting with one face up. */
+function dealRun(mode, seed, daily) {
+  const r = rng(seed);
   let ids, unit = "year", story = null;
   if (mode === "dates") ids = shuffle(r, DATES).slice(0, DATES_PER_RUN);
   else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
   else { const fam = FAMILIES[Math.floor(r() * FAMILIES.length)]; unit = fam.unit; ids = shuffle(r, fam.ids); }
-  // the line starts with one card face up
-  S = { seed, daily, day: daily ? today() : null, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
+  return { seed, daily, day: daily ? today() : null, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
+}
+function newRun(mode, daily) {
+  S = dealRun(mode, daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31), daily);
   save(); render();
 }
 const truth = id => BY_ID.get(id).truth;
@@ -66,6 +71,7 @@ function place(slot) {
 }
 function end() {
   S.over = true;
+  if (S.duel) { tell(true); return; }                     // the table's result, not your best or today's
   const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;
   if (!(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }
   if (S.daily) { const d = read(DAILY, {}), k = `${S.day ?? today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
@@ -86,7 +92,7 @@ const cardText = q => (q.pic ? (q.unit === "year" ? `When was ${titleOf(q)} ${do
 
 // ---------- drawing ----------
 function render() {
-  if (!S) { newRun("dates", false); return; }
+  if (!S) { if (duel.on) lobby(); else newRun("dates", false); return; }
   $("where").textContent = `${S.mode === "stories" ? STORIES.get(S.story)?.name || MODES.stories : MODES[S.mode]}${S.mode === "quantities" ? `, in ${S.unit}` : ""}${S.daily ? " · today's" : ""} · placed ${S.placed}`;
   $("lives").textContent = "●".repeat(Math.max(0, S.lives)) + "○".repeat(LIVES - Math.max(0, S.lives));
   const next = S.deck[0];
@@ -142,11 +148,49 @@ function finish() {
 let toastTimer;
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 2600); }
 
+// ---------- together: the same cards for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's deck, the same cards in the same order with the same first card face up, and
+// builds their own line on their own phone; the others' counts show in the strip. The most placed wins, then the most
+// lives left, then the quicker. Your solo run, your bests and today's stay as they were.
+let duelMode = null;                                         // the kind of order the next match deals (the menu's)
+const duel = createDuel({
+  game: "order", name: "Order", line: $("rival"), toast,
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), mode: MODES[duelMode] ? duelMode : S?.mode || "dates" }),
+  describe: m => `${MODES[m.mode] || MODES.dates}: the same cards for everyone, in the same order`,
+  compare: (a, b) => (b.score - a.score) || ((b.lives || 0) - (a.lives || 0)) || ((a.ms ?? Infinity) - (b.ms ?? Infinity)) || 0,
+  play: (match, { kept }) => {
+    const mode = MODES[match.mode] ? match.mode : "dates";
+    S = kept?.seed === match.seed && kept.line ? kept : { ...dealRun(mode, match.seed, false), duel: true };
+    duelMode = S.mode;
+    save(); render();
+  },
+  onLobby: match => { S = null; duelMode = match.mode; render(); },
+  onLeave: () => { S = read(RUN, null); if (!S || S.over) newRun(S?.mode || "dates", dailyDue("order")); else render(); },
+});
+/** What the table sees of this run: the count placed, and the lives. */
+function tell(done = false) {
+  const left = Math.max(0, S.lives);
+  duel.report({ score: S.placed, lives: left, text: `${S.placed} placed${left < LIVES ? ` ${"●".repeat(left)}${"○".repeat(LIVES - left)}` : ""}`, ...(done ? { done: true } : {}) });
+}
+/** The page before a match: nothing dealt yet. */
+function lobby() {
+  $("where").textContent = `${MODES[duelMode] || MODES.dates}: the same cards for everyone`;
+  $("lives").textContent = "●".repeat(LIVES);
+  $("deal").hidden = true;
+  $("line").replaceChildren();
+}
+
 // ---------- the menu ----------
 let pick = null;
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {                                             // a match: the table's own, and what the next one deals
+    duel.menu(part(body, "together"));
+    part(body, "content").append(choice("Order", Object.entries(MODES), duel.match?.mode || "dates", v => { duelMode = v; $("menuDlg").close(); if (!duel.newMatch()) duelMode = duel.match?.mode; }));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   pick ??= { mode: S?.mode || "dates", daily: (!!S?.daily && !S.over) || dailyDue("order") };   // today's first, while it's still to play
   part(body, "play").append(action("New run", () => newRun(pick.mode, pick.daily), "primary"));
   part(body, "content").append(
@@ -168,7 +212,17 @@ function openToday() {
   if (S && !S.over && S.line.length > 1 && !confirm("Start today's run? This one isn't finished.")) return;
   newRun(S?.mode || "dates", true);
 }
-// opening: from the tile, today's; a finished run gives way to today's while it's still to play, else a random one
-if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
-else if (!S || S.over) newRun(S?.mode || "dates", dailyDue("order"));
-else render();
+// opening: from the tile, today's; a finished run gives way to today's while it's still to play, else a random one;
+// a match in the address, the match (no solo run under it)
+function solo() {
+  if (arrivedForToday() && !(S?.daily && S.day === today())) { if (S && !S.over) render(); setTimeout(openToday, 0); }
+  else if (!S || S.over) newRun(S?.mode || "dates", dailyDue("order"));
+  else render();
+}
+if (duel.inAddress) { S = null; duel.join().then(ok => { if (!ok) { S = read(RUN, null); solo(); } }); }
+else solo();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
+
+// for tests and debugging
+window.__order = { get state() { return S; }, place, duel };
