@@ -1,6 +1,6 @@
 # A side branch, not main: Wikimedia Commons can't be reached from where the games are written, so this branch's
-# runner looks for the Bavarian pattern's cards there (fetch/list.mjs) and commits what it finds back to this branch.
-# Nothing here is served or tested; the cards chosen are copied to main by hand, with their licences.
+# runner looks for the Bavarian pattern's cards there (fetch/list.mjs) and commits what it finds back to this branch,
+# a step at a time. Nothing here is served or tested; the cards chosen are copied to main by hand, with their licences.
 name: Fetch Bavarian cards
 on:
   push:
@@ -11,18 +11,27 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Look on Commons
-        run: node fetch/list.mjs
-      - name: Commit what was found
+      - name: Commit helper
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A out
-          git diff --cached --quiet && { echo "nothing new"; exit 0; }
-          git commit -q -m "Found on Commons"
-          git push origin HEAD:fetch/bavarian-cards
+          printf '#!/bin/sh\ngit add -A out\ngit diff --cached --quiet && { echo "nothing new"; exit 0; }\ngit commit -q -m "$1"\ngit pull -q --rebase origin fetch/bavarian-cards\ngit push origin HEAD:fetch/bavarian-cards\n' > /tmp/save.sh
+          chmod +x /tmp/save.sh
+      - name: The cards wanted
+        if: hashFiles('fetch/want.json') != ''
+        timeout-minutes: 15
+        run: node fetch/list.mjs cards && /tmp/save.sh "The cards wanted, from Commons"
+      - name: Index of Commons
+        if: hashFiles('fetch/want.json') == ''
+        timeout-minutes: 12
+        run: node fetch/list.mjs index && /tmp/save.sh "Index of Commons"
+      - name: Thumbnails
+        if: hashFiles('fetch/want.json') == ''
+        timeout-minutes: 18
+        run: node fetch/list.mjs thumbs; /tmp/save.sh "Thumbnails from Commons"
