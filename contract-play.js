@@ -75,7 +75,7 @@ export function sampleDeal(s, seat, rng, { strict = 2, tries = 300, readings = n
     let left = bySuit.map(x => [...x]), ok = true;
     for (let k = 0; k < order.length - 1 && ok; k++) {
       const p = order[k], i = hidden.indexOf(p), rest = order.slice(k + 1);
-      const counts = splitCounts(left.map(x => x.length), need[i], bounds[i], rest.map(q => bounds[hidden.indexOf(q)]), rest.map(q => need[hidden.indexOf(q)]), rng);
+      const counts = splitCounts(left.map(x => x.length), need[i], bounds[i], rest.map(q => bounds[hidden.indexOf(q)]), rng);
       if (!counts) { ok = false; break; }
       for (let su = 0; su < 4; su++) {
         const from = left[su];
@@ -103,7 +103,7 @@ export function sampleDeal(s, seat, rng, { strict = 2, tries = 300, readings = n
  * share they can hold: drawn in proportion to the deals each split allows (a product of binomials), suit by suit, by
  * counting the ways to complete it.
  */
-function splitCounts(avail, n, bounds, otherBounds, otherNeed, rng) {
+function splitCounts(avail, n, bounds, otherBounds, rng) {
   // the others together must be able to take what's left: within the sum of their bounds per suit
   const restLo = [0, 1, 2, 3].map(su => otherBounds.reduce((a, b) => a + b[su][0], 0));
   const restHi = [0, 1, 2, 3].map(su => otherBounds.reduce((a, b) => a + b[su][1], 0));
@@ -117,7 +117,6 @@ function splitCounts(avail, n, bounds, otherBounds, otherNeed, rng) {
     ways[su][k] = w;
   }
   if (!ways[0][n]) return null;
-  void otherNeed;
   const out = [];
   let k = n;
   for (let su = 0; su < 4; su++) {

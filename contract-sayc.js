@@ -9,7 +9,7 @@
 // Points, as SAYC counts them: high-card points (ace 4, king 3, queen 2, jack 1); for a hand of its own, a point more
 // for each card past four in a suit (length points); for a hand raising its partner's suit, dummy points (shortness:
 // a void 5, a singleton 3, a doubleton 1 with four trumps; 3, 2, 1 with three).
-import { SUITS, SUIT_NAMES, NT, STRAINS, suitOf, rankOf, hcp as hcpOf, lengths, bidOf, bidCall, bidRank, lastBid, legalCalls, sideOf, partnerOf, callText, turnOf, doubledOf } from "./contract-core.js";
+import { SUIT_NAMES, NT, suitOf, rankOf, hcp as hcpOf, lengths, bidOf, bidCall, bidRank, lastBid, legalCalls, sideOf, partnerOf, callText, turnOf, doubledOf } from "./contract-core.js";
 
 const MAJORS = [3, 2], ALL = [0, 1, 2, 3];
 const L_KEY = { c: 0, d: 1, h: 2, s: 3 };
@@ -857,14 +857,12 @@ function afterBlackwood(ctx, asked) {
   const ans = ctx.pardLast, aces = { "5C": 0, "5D": 1, "5H": 2, "5S": 3 }[ans.call];
   if (aces == null) return null;
   const s = asked.agreed ?? NT, out = [];
-  const mineAces = f => f.aces;
   const total = f => (aces === 0 && f.aces === 0 ? 4 : aces + f.aces);
   const signOff = cheapest(ctx, s) && levelOf(cheapest(ctx, s)) === 5 ? cheapest(ctx, s) : null;
   out.push(rule("5N", { hcp: [16, 37], test: f => total(f) === 4 && ctx.R[ctx.pard].hcp[0] + f.hcp >= 36, name: "asks for kings", forcing: true, conv: "kings", agreed: s, why: "every ace is ours: a grand slam in view" }));
   out.push(rule(bidCall(6, s), { test: f => total(f) >= 3, name: "small slam", why: "at most one ace missing" }));
   if (signOff) out.push(rule(signOff, { test: f => total(f) <= 2, name: "signs off", why: "two aces missing" }));
   out.push(rule(bidCall(6, s), { name: "small slam" }));
-  void mineAces;
   return out;
 }
 function afterKings(ctx, asked) {
@@ -1078,4 +1076,3 @@ export function readingsOf(auction, dealer) {
   return readAuction(auction, dealer).R;
 }
 export { callText };
-void doubledOf; void STRAINS; void SUITS; void clamp;

@@ -12,10 +12,11 @@
 //   auction: "N: 1H P 2H P"                   the dealer, then the calls so far (P pass, X double, XX redouble)
 //   dummy: "♠…", hand: "♠…"                   dummy's cards (as declarer or a defender sees them) and yours
 //   trick: "♥4 ♥K", led: "W"                  the trick so far and who led it
+//   contractRow: false                        the contract not drawn (a puzzle says it in its own row)
 // and the exercises: goal: "bid" (make the call the system makes: answer, wrong); goal: "play" (a card: answer, accept,
 // wrong, from the hand or from dummy); tap: "legal" | "honours" (tap every card you may play, every honour); quiz.
 import { SUITS, RANKS, COMPASS, NT, suitOf, rankOf, legalCards, trickWinner, legalCalls, bidOf, bidCall, callText, sortHand, hcp, cardText } from "./contract-core.js";
-import { chooseCall, explainCall } from "./contract-sayc.js";
+import { chooseCall } from "./contract-sayc.js";
 import { cardHtml, fitRow } from "./cards.js";
 import { fitCardStage } from "./course-cards.js";
 
@@ -164,7 +165,7 @@ export function courseStage() {
       st = t;
       const parts = [];
       const c = contractOf(s.contract);
-      if (c) parts.push(`<div class="lc-row"><small>The contract</small><b class="lc-word">${c.level}${c.strain === NT ? "NT" : mark(c.strain)}${c.doubled ? " X" : ""} by ${["South", "West", "North", "East"][c.declarer]}${c.declarer === 0 ? " (you)" : ""}</b></div>`);
+      if (c && s.contractRow !== false) parts.push(`<div class="lc-row"><small>The contract</small><b class="lc-word">${c.level}${c.strain === NT ? "NT" : mark(c.strain)}${c.doubled ? " X" : ""} by ${["South", "West", "North", "East"][c.declarer]}${c.declarer === 0 ? " (you)" : ""}</b></div>`);
       for (const r of s.rows || []) parts.push(`<div class="lc-row">${head(r.label)}${r.cards != null ? line(parseCards(r.cards)) : r.calls ? `<b class="lc-word">${r.calls.split(/\s+/).map(callHtml).join(" ")}</b>` : `<b class="lc-word">${esc(r.text || "")}</b>`}</div>`);
       if (s.auction) parts.push(`<div class="lc-row lc-table bd-lauction">${auctionHtml(auctionOf(s.auction), s.goal === "bid")}</div>`);
       // dummy's cards are a row to play from when the card is dummy's, else a line as a bridge column would show them;

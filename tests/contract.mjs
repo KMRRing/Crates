@@ -4,12 +4,13 @@
 // bid and played by four computer players, every card accounted for and the score as the table says; the double-dummy
 // solver against a plain search of small endings, and on a deal whose answer is known; whole deals played by sampling;
 // the Chicago match (vulnerability and dealer by deal, a deal passed out dealt again, the end after four); the state
-// through the database's round trip; a table of two people and two computer players; and the course, every exercise
-// judged as it should be (the bids the system's own, the cards to play best with every card seen).
+// through the database's round trip; a table of two people and two computer players; the course, every exercise judged
+// as it should be (the bids the system's own, the cards to play best with every card seen); and the puzzle rush's bank
+// (contract-rush.js, contract-puzzles.js): every puzzle a position its deal reaches, its best card weighed again.
 import fs from "fs";
 import * as C from "../contract-core.js";
 import { chooseCall, readAuction, readingsOf, explainCall, features, openingSuit } from "../contract-sayc.js";
-import { playByRules, chooseCard, sampleDeal, openingLead, leadFrom, voidsOf } from "../contract-play.js";
+import { chooseCard, sampleDeal, openingLead, leadFrom, voidsOf, dealsFor, goalOf as goalOfSide } from "../contract-play.js";
 import { loadSolver } from "../contract-dds.js";
 import { rules, DEALS } from "../contract-rules.js";
 import { COURSE, parseCards, auctionOf, contractOf as lessonContract, trickOf, playerOf, holdingOf, wantedOf, systemCall, judgeCall, judgeCard } from "../contract-course.js";
@@ -203,14 +204,12 @@ const dds = await loadSolver(fs.readFileSync(new URL("../vendor/dds/dds.wasm", i
   }
   function cardTricks(hands, trick, strain, toMove, c) {
     const me = C.sideOf(toMove), h2 = hands.map((h, p) => (p === toMove ? h.filter(x => x !== c) : h)), t2 = [...trick, { seat: toMove, card: c }];
-    const left = Math.max(...hands.map(h => h.length)) + (trick.length ? 1 : 0) - (trick.length ? 0 : 0);
     if (t2.length === 4) {
       const w = t2[C.trickWinner(t2, strain)].seat, rest = h2.every(h => !h.length) ? 0 : search(h2, [], strain, w);
       const after = Math.max(...h2.map(h => h.length));
       return C.sideOf(w) === me ? 1 + rest : after - rest;
     }
-    const nx = (toMove + 1) % 4, r = search(h2, t2, strain, nx), total = Math.max(...hands.map(h => h.length)) + (trick.length ? 0 : 0);
-    void left;
+    const nx = (toMove + 1) % 4, r = search(h2, t2, strain, nx), total = Math.max(...hands.map(h => h.length));
     return C.sideOf(nx) === me ? r : total - r;
   }
   let n = 0, diff = 0;
@@ -472,6 +471,54 @@ const dds = await loadSolver(fs.readFileSync(new URL("../vendor/dds/dds.wasm", i
   store["contract:course"] = JSON.stringify({ done: { tricks: 1, trumps: 2 }, at: null });
   pr = progressOf("contract", COURSE);
   check(pr.done === 2 && pr.next.lesson.id === L[2].lesson.id, "two lessons done: the third next");
+}
+
+// ---------- the puzzle rush ----------
+{
+  const { PUZZLES } = await import("../contract-puzzles.js");
+  const { stateOf, stepOf, judge, askText, whyText, motifsOf } = await import("../contract-rush.js");
+  const problems = [], ids = new Set();
+  let declaring = 0;
+  for (const p of PUZZLES) {
+    if (ids.has(p.id)) problems.push(`${p.id}: twice`);
+    ids.add(p.id);
+    let s;
+    try { s = stateOf(p); } catch (e) { problems.push(`${p.id}: ${e.message}`); continue; }
+    const dealt = p.dealt.map(H);
+    if (dealt.some(h => h.length !== 13) || new Set(dealt.flat()).size !== 52) problems.push(`${p.id}: not one pack dealt thirteen each`);
+    if (s.step !== "play" || !(s.turn === 0 || (s.turn === 2 && s.contract.declarer === 0))) { problems.push(`${p.id}: not South's card (or dummy's, South declaring)`); continue; }
+    if (s.contract.declarer === 0) declaring++;
+    const legal = C.legalCards(s.hands[s.turn], s.trick).map(C.cardText);
+    if (legal.sort().join() !== [...p.opts].sort().join()) problems.push(`${p.id}: the cards weighed (${p.opts.join(" ")}) aren't the ones it may play (${legal.join(" ")})`);
+    const top = Math.max(...p.make), at = n => p.make[p.opts.indexOf(n)];
+    if (!p.ok.includes(p.best) || at(p.best) !== top || p.ok.some(n => !p.opts.includes(n) || top - at(n) > 1)) problems.push(`${p.id}: the best isn't the best, or one as good isn't`);
+    if (p.opts.some(n => !p.ok.includes(n) && top - at(n) < 25)) problems.push(`${p.id}: a card not as good is within 25 points of the best`);
+    if (!(p.r >= 1 && p.r <= 10)) problems.push(`${p.id}: no rating`);
+    if (motifsOf(s, H(p.best)[0]).join() !== (p.why || []).join()) problems.push(`${p.id}: what the best does isn't found again`);
+    const step = stepOf(p), wrong = p.opts.find(n => !p.ok.includes(n));
+    if (!judgeCard(step, H(p.best)[0]).ok || (wrong && judgeCard(step, H(wrong)[0]).ok) || p.ok.some(n => !judgeCard(step, H(n)[0]).ok)) problems.push(`${p.id}: the stage's judging doesn't agree`);
+    if (judge(p, p.best).verdict !== "best" || (wrong && judge(p, wrong).verdict !== "wrong") || p.ok.filter(n => n !== p.best).some(n => judge(p, n).verdict !== "fine")) problems.push(`${p.id}: the verdicts`);
+    if (!/needs \d+ of the last \d+ to (make|beat) it\. Still out: .*(Your|Dummy.s) card\.$/.test(askText(p))) problems.push(`${p.id}: the question's words`);
+    if ((p.why || []).length && !whyText(p)) problems.push(`${p.id}: no words for what it does`);
+  }
+  const byRating = Array.from({ length: 10 }, (_, r) => PUZZLES.filter(p => p.r === r + 1).length);
+  check(PUZZLES.length >= 100 && !problems.length, `${PUZZLES.length} puzzles (${declaring} declaring, the rest defending), each a position the deal reaches, South's card, the cards weighed those it may play, the best clear of the rest by 25 points of the deals, the stage and the verdict judging alike`);
+  for (const x of problems.slice(0, 12)) console.log(`     ${x}`);
+  check(byRating.every(n => n >= 5), `every rating stocked: ${byRating.join(" ")}`);
+  // a puzzle from each rating weighed again over deals of its own: the best still makes or beats it more often
+  const z = rng(77), again = [];
+  for (let r = 1; r <= 10; r++) {
+    const p = PUZZLES.find(q => q.r === r);
+    if (!p) continue;
+    const s = stateOf(p), g = goalOfSide(s, s.turn), hands = dealsFor(s, rules.toMove(s), z, 60), made = new Map(p.opts.map(n => [n, 0]));
+    for (const h of hands) {
+      const res = dds.solve(h, s.trick, s.contract.strain, s.turn);
+      for (const n of p.opts) if (g.won + res.get(H(n)[0]) >= g.need) made.set(n, made.get(n) + 1);
+    }
+    const best = made.get(p.best), rival = Math.max(...p.opts.filter(n => !p.ok.includes(n)).map(n => made.get(n)));
+    again.push({ id: p.id, ok: best > rival, best: Math.round((100 * best) / hands.length), rival: Math.round((100 * rival) / hands.length) });
+  }
+  check(again.every(x => x.ok), `a puzzle of each rating weighed again over 60 deals of its own, the best still ahead (${again.map(x => `${x.best}–${x.rival}`).join(", ")})`);
 }
 
 console.log(bad ? `\ncontract: ${bad} failed` : "\ncontract: every check passed");

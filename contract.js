@@ -7,8 +7,8 @@
 // thinking contract-worker.js's (the double-dummy solver, in WebAssembly, off the page's thread).
 import { rules, aheadKey, remember, dummyOf, DEALS, DEAL_MS } from "./contract-rules.js";
 import { THINK } from "./contract-play.js";
-import { SUITS, STRAINS, RANKS, COMPASS, SEATS, SIDES, suitOf, rankOf, sortHand, legalCards, legalCalls, callText, bidOf, bidCall, contractText,
-  vulText, sideOf, partnerOf, trickWinner, NT, dealScore, cardText, lengths, hcp } from "./contract-core.js";
+import { SUITS, RANKS, COMPASS, SEATS, SIDES, suitOf, rankOf, sortHand, legalCards, legalCalls, callText, bidOf, bidCall, contractText,
+  vulText, sideOf, NT, dealScore, cardText, hcp } from "./contract-core.js";
 import { chooseCall, explainCall, showText } from "./contract-sayc.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
@@ -17,6 +17,8 @@ import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, courseStage } from "./contract-course.js";
+import { createRush } from "./contract-rush-ui.js";
+import { bestsLine } from "./rush-core.js";
 import { sextant } from "./loading.js";
 import "./pwa.js";
 
@@ -508,6 +510,10 @@ const course = createCourse({
   },
 });
 
+// Puzzle rush (the menu): the best card in positions from the computer players' own games, against the clock, with
+// every game's rush settings, on a sheet of its own (contract-rush-ui.js); the game waits under it.
+const rush = createRush({ inFrame: IN_FRAME });
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -516,6 +522,7 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("contract", COURSE);
   play.append(action(cp.done ? `Learn bridge: ${cp.done} of ${cp.of} lessons done` : "Learn bridge, from the rules", () => course.open()));
+  if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The last deal", showReview, "link"));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
@@ -523,8 +530,8 @@ function openMenu() {
   set.append(line(opts.level === "easy" ? "Easy plays its cards by the rules of thumb." : "Medium and Hard weigh each card over deals of the hands they can't see, solved with every card seen; Hard looks at more of them."));
   set.append(toggle("Hints", opts.hints, on => { opts.hints = on; saveOpts(); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
-  const r = read(RECORD, { played: 0, won: 0 }), about = part(body, "about");
-  about.append(line(r.played ? `Won ${r.won} of ${r.played} matches.` : "No match finished yet."));
+  const r = read(RECORD, { played: 0, won: 0 }), about = part(body, "about"), rushBests = bestsLine(rush.bests());
+  about.append(line(r.played ? `Won ${r.won} of ${r.played} matches.` : "No match finished yet."), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -537,7 +544,6 @@ $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("reviewClose").addEventListener("click", () => $("reviewDlg").close());
 addEventListener("resize", () => { if (V?.G) draw(); });
-window.__contract = { page, get view() { return V; }, opts, course, ask };
+window.__contract = { page, get view() { return V; }, opts, course, rush, ask };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
-void lengths; void trickWinner; void partnerOf; void STRAINS;
