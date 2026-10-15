@@ -3,6 +3,10 @@
 // seats-ui.js). This page draws the table: the other player at the top, the hands shown in the middle with the calls
 // in large characters, your hand and your call at the foot: a tap on a hand and a tap on a call throws.
 import { rules, HUA, SHIWU, HANDS, LIMITS, SHOW_MS, callsFor } from "./banquet-rules.js";
+import { handOf } from "./banquet-draw.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE, handStage } from "./banquet-course.js";
+import { createRush } from "./banquet-rush-ui.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -30,24 +34,6 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("on"), ms);
 }
-
-// ---------- hands, drawn ----------
-// fingers raised from the thumb, as 划拳 counts (one is the thumb: pointing a finger at someone is rude)
-const FINGERS = [{ x: 22, w: 8.5, top: 9 }, { x: 31.5, w: 8.5, top: 5 }, { x: 41, w: 8, top: 8 }, { x: 50, w: 7, top: 15 }];
-/** A hand showing n fingers (0 a fist, 5 open), mirrored for the other side of the table. */
-function hand(n, { flip = false, cls = "" } = {}) {
-  const up = k => n >= k + 2;                 // index (k 0) up from two, middle from three…
-  const fingers = FINGERS.map((f, k) => up(k)
-    ? `<rect x="${f.x}" y="${f.top}" width="${f.w}" height="${44 - f.top}" rx="${f.w / 2}"/>`
-    : `<rect x="${f.x}" y="31" width="${f.w}" height="13" rx="${f.w / 2}"/>`).join("");
-  // the thumb's root inside the palm, so it grows from it; the fingers drawn first, the palm over their roots
-  const thumb = n >= 1 ? `<rect x="14" y="27" width="10.5" height="33" rx="5.2" transform="rotate(-32 19.5 58)"/>` : `<rect x="21" y="47" width="25" height="10" rx="5"/>`;
-  return `<svg class="bq-hand${cls ? ` ${cls}` : ""}" viewBox="0 0 64 82" role="img" aria-label="${n} ${n === 1 ? "finger" : "fingers"}"><g${flip ? ` transform="translate(64 0) scale(-1 1)"` : ""}>
-    ${fingers}<rect class="palm" x="19" y="36" width="38" height="38" rx="10"/>${thumb}<path class="cuff" d="M23 74h30"/></g></svg>`;
-}
-/** 十五二十's two hands: five or nothing each. */
-const pair = (total, flip = false) => `<span class="bq-pair">${hand(total >= 5 ? 5 : 0, { flip })}${hand(total >= 10 ? 5 : 0, { flip })}</span>`;
-const handOf = (mode, n, flip) => (mode === "shiwu" ? pair(n, flip) : hand(n, { flip }));
 
 /** A call's words: the verse (or the Cantonese) large, the sound and the sense beneath. */
 const callOf = (mode, c) => (mode === "shiwu" ? { zh: SHIWU[c].zh, say: SHIWU[c].jp, en: SHIWU[c].en } : { zh: HUA[c].zh, say: HUA[c].py, en: HUA[c].en });
@@ -239,12 +225,36 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (the header): 划拳 and 十五二十 taught from nothing (banquet-course.js) on the course's sheet (course.js), the hands
+// drawn as the table draws them and every rule the rules' own; each chapter's last lesson starts a game against Lao
+// Wang (Easy, then Sharp). The Rules sheet opens from the course's map and the menu.
+const course = createCourse({
+  id: "banquet", course: COURSE, cls: "bq", inFrame: IN_FRAME, onRules: showRules, stage: handStage(),
+  onPlay: step => {
+    const level = step?.level || "easy", name = LEVELS.find(([k]) => k === level)?.[1] || level;
+    if (page.atTable) { toast(`Your table plays on: try Lao Wang on ${name} when you're back to solo`); return; }
+    opts.level = level;
+    if (step?.mode) opts.mode = step.mode;
+    saveOpts();
+    newGame();
+  },
+});
+
+// Call it (the menu): the calls a banquet table wants at once, against the clock, on the rush's sheet
+// (banquet-rush-ui.js); the game waits under it.
+const rush = createRush({ inFrame: IN_FRAME });
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("banquet", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Banquet, from the rules", () => course.open()));
+  if (!IN_FRAME) play.append(action(rush.label(), () => rush.open()));
+  play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Game", GAMES, opts.mode, v => { opts.mode = v; saveOpts(); }));
   set.append(choice("A game ends at", LIMITS.map(n => [n, `${n} cups`]), opts.limit, v => { opts.limit = Number(v); saveOpts(); }));
@@ -252,7 +262,7 @@ function openMenu() {
   set.append(line("The game and its end apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("banquet:streak", { now: 0, best: 0 });
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  part(body, "about").append(line(`${r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."}${rush.best() ? ` Call it best: ${rush.best()}.` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -261,9 +271,9 @@ bindSwitcher($("appsBtn"), "banquet");
 document.querySelector(".bq-mark").innerHTML = APPS.find(a => a.id === "banquet")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
+$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-window.__banquet = { page, get view() { return V; }, opts };
+window.__banquet = { page, get view() { return V; }, opts, course, rush };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();

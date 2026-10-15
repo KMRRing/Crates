@@ -129,3 +129,40 @@ html[data-theme="office"] :is(.bq-seat, .bq-pick, .bq-callbtn, .bq-verdict, .bq-
   #app.banquet .bq-side { grid-column: 2; grid-row: 2; padding-top: .55rem; min-height: 0; justify-content: flex-end; }
   #app.banquet .bq-hands { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* the course's stage (banquet-course.js): hands with their numbers, the verses, the other's last throws, the calls as buttons */
+.ln-sheet.bq { --ln-in: var(--bq-in); }
+.lbq { display: grid; gap: .7rem; justify-items: center; align-content: center; min-height: 100%; padding: .3rem 0; }
+.lbq-row { display: grid; justify-items: center; gap: .1rem; text-align: center; }
+.lbq-row small, .lbq-hist > small { font-size: .74rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.lbq-row b { font-size: 1.05rem; color: var(--ln-in); }
+.lbq-show { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem .9rem; }
+.lbq-show figure, .lbq-throw { margin: 0; display: grid; justify-items: center; gap: .2rem; }
+.lbq-show .bq-hand { width: 2.9rem; }
+.lbq-show .bq-pair .bq-hand { width: 2.2rem; }
+.lbq-show figcaption { font-weight: 800; font-size: 1.05rem; }
+.lbq-verses { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; width: 100%; }
+.lbq-verses.few, .lbq-calls.few { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.lbq-verse, .lbq-call { display: grid; justify-items: center; padding: .3rem .15rem; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink); }
+.lbq-verse b, .lbq-call b { font-size: 1.1rem; line-height: 1.25; font-weight: 700; }
+.lbq-verse small, .lbq-call small { font-size: .68rem; color: var(--ink-soft); white-space: nowrap; }
+.lbq-table { display: flex; justify-content: center; align-items: flex-end; gap: 2.2rem; }
+.lbq-throw .bq-hand { width: 4rem; }
+.lbq-throw .bq-pair .bq-hand { width: 2.9rem; }
+.lbq-throw figcaption { display: grid; justify-items: center; gap: .1rem; font-weight: 700; font-size: .85rem; color: var(--ink-soft); }
+.lbq-said { display: grid; justify-items: center; }
+.lbq-said b { font-size: 1.2rem; color: var(--ink); }
+.lbq-said small { font-size: .7rem; }
+.lbq-hist { display: grid; justify-items: center; gap: .3rem; }
+.lbq-hist > span { display: flex; flex-wrap: wrap; justify-content: center; gap: .15rem .35rem; }
+.lbq-hist i { display: grid; justify-items: center; font-style: normal; }
+.lbq-hist .bq-hand { width: 1.7rem; }
+.lbq-hist .bq-pair .bq-hand { width: 1.2rem; }
+.lbq-hist b { font-size: .8rem; }
+.lbq-calls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3rem; width: 100%; }
+.lbq-call { cursor: pointer; font: inherit; }
+.lbq-call.sel { border-color: var(--ln-in); box-shadow: inset 0 0 0 1.5px var(--ln-in); background: color-mix(in srgb, var(--ln-in) 14%, var(--tile)); }
+.lbq-call.ok { border-color: var(--ln-ok); background: color-mix(in srgb, var(--ln-ok) 16%, var(--tile)); }
+.lbq-call.dim { opacity: .4; }
+.lbq-call.hinted { outline: 2px dashed var(--ln-in); outline-offset: 1px; }
+.lbq-calls.done .lbq-call { cursor: default; }

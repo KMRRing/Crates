@@ -41,19 +41,20 @@ export const clock = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return
  * (its puzzles, each with an id and a rating r), stage (its course stage), stepOf(p) (a puzzle as the stage's step,
  * its answer the best), picked(p, st) (the name of the play the stage has picked), judge(p, name) ({ verdict: "best" |
  * "fine" | "wrong", … }), ask(p) (the question, in words), verdict(p, j) (the verdict as markup), intro (the words before
- * a run) }; inFrame: a partner watching (nothing kept). Returns { open, label, best, isOpen, run }.
+ * a run), title (the sheet's, "Puzzle rush" unless said) }; inFrame: a partner watching (nothing kept). Returns { open,
+ * label, best, isOpen, run }.
  */
 export function createRushSheet(game, { inFrame = false } = {}) {
-  const RUN = `${game.key}:rush`, BEST = `${game.key}:rushBest`, SEEN = `${game.key}:rushSeen`;
+  const RUN = `${game.key}:rush`, BEST = `${game.key}:rushBest`, SEEN = `${game.key}:rushSeen`, TITLE = game.title || "Puzzle rush";
   const write = (k, v) => { if (!inFrame) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
   let bank = null;
   const loadBank = async () => { if (bank) return; const done = busy("The puzzles"); try { bank = await game.loadBank(); } finally { done(); } };
   const dlg = document.createElement("dialog");
   dlg.className = `ln-sheet ${game.cls} rush-sheet pauses`;       // pauses: the game stands still under it (menu.js)
-  dlg.setAttribute("aria-label", "Puzzle rush");
+  dlg.setAttribute("aria-label", TITLE);
   dlg.innerHTML = `<div class="ln-in">
     <header class="ln-head"><span aria-hidden="true"></span>
-      <div class="ln-title"><b>Puzzle rush</b><small></small></div>
+      <div class="ln-title"><b>${esc(TITLE)}</b><small></small></div>
       <button class="icon-btn" type="button" data-close aria-label="Close">${CLOSE}</button></header>
     <div class="ln-lesson"><div class="ln-stage"></div>
       <div class="ln-side"><div class="ln-text" aria-live="polite"></div>
@@ -174,7 +175,7 @@ export function createRushSheet(game, { inFrame = false } = {}) {
       draw();
     },
     /** The menu's words for it. */
-    label: () => (run && !run.over ? `Puzzle rush: puzzle ${run.i + 1}, ${clock(run.left)} left` : "Puzzle rush"),
+    label: () => (run && !run.over ? `${TITLE}: puzzle ${run.i + 1}, ${clock(run.left)} left` : TITLE),
     best: () => read(BEST, 0),
     get isOpen() { return dlg.open; },
     get run() { return run; },
