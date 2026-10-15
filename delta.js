@@ -9,7 +9,7 @@ import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, sextant } from "./loading.js";
 import "./pwa.js";
-import { gameHref, GAMES, branchPath, otherHere } from "./rooms.js";
+import { gameHref, GAMES, branchPath, otherHere, joiningWords } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
 
@@ -639,7 +639,7 @@ async function soloStart() {
 // a room in the address: the board you share from the first moment, never your own while the room is joined (the
 // others would be on another board until it was), and your own only if the join doesn't come off
 if (code.length === 4) {
-  joining = busy("Joining the table", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
 } else await soloStart();
 

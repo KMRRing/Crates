@@ -9,7 +9,7 @@ import { MODES, freshTable, modeOf, runMode, slotsOf, seatOf, tapsOf, theirTaps,
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, sextant } from "./loading.js";
 import { createTogether } from "./together.js";
-import { branchPath, gameHref, GAMES } from "./rooms.js";
+import { branchPath, gameHref, GAMES, joiningWords } from "./rooms.js";
 import { presentSlots } from "./duel-core.js";
 import { leaderboard } from "./standings.js";
 import "./pwa.js";
@@ -568,6 +568,6 @@ requestAnimationFrame(frame);
 // a room in the address: the room's lobby from the first moment, never the solo start (a tap on Play while the room
 // is joined would start a run of your own), and the solo start only if the join doesn't come off
 if (code.length === 4) {
-  joining = busy(new URLSearchParams(location.search).has("party") ? "Joining the table" : "Joining your partner", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); showStart(); } });
 } else showStart();

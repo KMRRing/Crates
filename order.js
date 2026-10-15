@@ -15,7 +15,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { createTogether } from "./together.js";
-import { roomInAddress } from "./rooms.js";
+import { roomInAddress, joiningWords } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 
@@ -280,7 +280,7 @@ function openMenu() {
       table.append(action("New game", () => dealAgain(pickMode), "primary"),
         choice("Order", Object.entries(MODES), pickMode, v => { pickMode = v; }),
         line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
-    } else { const wait = line("Joining the table"); wait.prepend(sextant()); table.append(wait); }
+    } else { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -314,7 +314,7 @@ function solo() {
 }
 // a table in the address (a duo match, a party's game): the rete until it's drawn, and no solo run under it
 const code = roomInAddress();
-if (code) { joining = busy("Joining the table", { delay: 0 }); together.join(code).then(ok => { if (!ok) { seated(); solo(); } }); }
+if (code) { joining = busy(joiningWords(), { delay: 0 }); together.join(code).then(ok => { if (!ok) { seated(); solo(); } }); }
 else solo();
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });

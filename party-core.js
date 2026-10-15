@@ -164,10 +164,11 @@ export function endGame(branch) {
 // ---------- every game a party can play ----------
 // A party is a room for the evening, and its host chooses what it plays. Beside Party's own games (played here, on
 // this page), that is the card, dice and board games for a few seats, each on its own page at a table in the party's
-// room (seats.js: the computer takes the seats nobody has), and, for two, any game with a duo match (together.js, or
-// Crates' and Slate's own rooms), dealt fresh in the party's room as a request said yes to would be: Tribute and Hong
-// for up to four, the computer in the seats nobody has; the head-to-heads on one deal (duel.js, race) for up to six,
-// each on their own phone.
+// room (seats.js: the computer takes the seats nobody has), and any game with a duo match (together.js, or Crates' and
+// Slate's own rooms), dealt fresh in the party's room as a request said yes to would be, for as many as its table
+// seats: Crates, River and Gambit two; Tribute and Hong up to four, the computer in the seats nobody has; the rest up
+// to six, each on their own phone (one board or line for the team in Slate, Delta, Origin and Order; the head-to-heads
+// on one deal, duel.js, as a race).
 //   kind: "table" or "duo"; page: where it's played; max: the most people it seats; across: two people sit across a
 //   four-seat table (partners); duo: the game's name in the room (its branch, and a request's game); race: everyone
 //   plays the same deal on their own phone (duel.js); bots: a duo match whose empty seats the computer takes (Hong,

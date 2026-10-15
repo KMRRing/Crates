@@ -23,7 +23,7 @@ export const runOf = (g, slot) => g?.runs?.[`s${slot}`] || null;
 
 /** The slots at the table now: seated, with this game open on a device that's online (this device's own always). */
 export function presentSlots(g, here, game, me = null) {
-  return seated(g).filter(([id]) => id === me || (here?.[id]?.game === game && here[id].online !== false)).map(([, p]) => p.slot);
+  return seated(g).filter(([id, p]) => id === me || (here?.[id]?.game === game && here[id].online !== false && p.online !== false)).map(([, p]) => p.slot);
 }
 /** Whether everyone at the table is ready, two at least: then the match starts. */
 export const allReady = (g, present) => present.length >= 2 && present.every(s => runOf(g, s)?.ready);

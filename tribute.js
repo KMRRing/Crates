@@ -8,7 +8,7 @@ import * as E from "./tribute-engine.js";
 import { split } from "./tribute-bot.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from "./together.js";
-import { GAMES, roomInAddress } from "./rooms.js";
+import { GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME, noteStreak, today } from "./suite.js";
@@ -1338,6 +1338,6 @@ async function resumeRush(r) {
 // move on without you); it waits as you left it, for Back to solo, or for a join that doesn't come off.
 const code = roomInAddress();
 if (code) {
-  joining = busy("Joining your partner", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) { seated(); load(); } });
 } else load();

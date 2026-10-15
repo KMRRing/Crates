@@ -14,6 +14,7 @@
 import { getSync } from "./net.js";
 import { roomInAddress } from "./rooms.js";
 import { today, movedToDates, bestOfDay } from "./days.js";
+import { duoRecordsOf } from "./duo-records.js";
 
 const SOLO = "suite:solo", META = "suite:meta", PULLED = "suite:pulled";
 const WATCHING = new URLSearchParams(location.search).has("watch");   // this page shows your partner's game (see below)
@@ -295,35 +296,12 @@ export async function reportDuo(game, match, { score = null, won = null, coop = 
   const sync = await getSync();
   await sync.update(`crates/rooms/${code}/duo/${game}/${enc(String(match))}`, { [playerId()]: { score, won, coop, lower, at: Date.now() } });
 }
-/**
- * Watches the pair's duo records: cb({ game: { n, coop, best, lower, mine, theirs } }). For a team game the best team
- * result; for a head-to-head one the wins on each side (a draw counts for neither).
- */
+/** Watches the pair's duo records: cb({ game: record }), each as `duoRecordsOf` in duo-records.js works it out. */
 export async function watchDuoRecords(cb) {
   const code = duoCode();
   if (!code) return () => {};
   const sync = await getSync(), me = playerId();
-  return sync.watch(`crates/rooms/${code}/duo`, all => {
-    const out = {};
-    for (const [game, matches] of Object.entries(all || {})) {
-      const r = out[game] = { n: 0, coop: false, best: null, lower: false, wins: 0, mine: 0, theirs: 0 };
-      for (const sides of Object.values(matches || {})) {
-        const entries = Object.entries(sides || {});
-        if (!entries.length) continue;
-        r.n++;
-        const any = entries[0][1];
-        if (any.coop) {
-          r.coop = true; r.lower ||= !!any.lower;           // a game's matches all score the same way
-          if (entries.some(([, x]) => x.won)) r.wins++;
-          for (const [, x] of entries) if (x.score != null && (r.best == null || (r.lower ? x.score < r.best : x.score > r.best))) r.best = x.score;
-        } else {
-          if (entries.some(([id, x]) => id === me && x.won)) r.mine++;
-          if (entries.some(([id, x]) => id !== me && x.won)) r.theirs++;
-        }
-      }
-    }
-    cb(out);
-  });
+  return sync.watch(`crates/rooms/${code}/duo`, all => cb(duoRecordsOf(all, me)));
 }
 /** Watches your partner's bests: cb({ app: value }, name) on every change. */
 export async function watchBests(cb) {

@@ -18,7 +18,7 @@ import "./pwa.js";
 import { check } from "./typing.js";
 import * as known from "./known.js";
 import { fileFlag, flagged, localFlags, sendFlags, allFlags, flagsAsText } from "./question-flags.js";
-import { gameHref, GAMES } from "./rooms.js";
+import { gameHref, GAMES, joiningWords } from "./rooms.js";
 import { part, choice, toggle as menuToggle, action, mirror, line, weights, ticks } from "./menu.js";
 import { today, noteComparable, arrivedForToday } from "./suite.js";   // the day, the same for everyone; comparable results
 
@@ -1103,6 +1103,6 @@ function soloStart() {
 // a room in the address: the run you share from the first moment, never your own while the room is joined (the others
 // would be on another question until it was), and your own only if the join doesn't come off
 if (code.length === 4) {
-  joining = busy(new URLSearchParams(location.search).has("party") ? "Joining the table" : "Joining your partner", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
 } else soloStart();

@@ -7,7 +7,7 @@ import { START, PER_SET, settle, fault, pickSet, withUnit, fmt, adequate } from 
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether } from "./together.js";
-import { gameHref, GAMES, roomInAddress } from "./rooms.js";
+import { gameHref, GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import { isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, quoteIn, revealNow, nextIn, moveOnNow, settleUp, makerOf, makeIn, takeIn, nextTrade, entryAt, deltasAt, books, placeRows, standingRows, resultOf, initials } from "./quote-table.js";
 import { presentSlots, seated } from "./duel-core.js";
 import { leaderboard, rank } from "./standings.js";
@@ -723,6 +723,6 @@ window.__quote = { get state() { return S; }, quote, next, start, take, get toge
 // would be on another question until it was), and your own, as you left it, only if the join doesn't come off
 const code = roomInAddress();
 if (code) {
-  joining = busy("Joining the table", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); soloStart({ opening: true }); } });
 } else soloStart({ opening: true });

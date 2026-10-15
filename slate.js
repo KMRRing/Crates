@@ -2,7 +2,7 @@
 // shared rooms (rooms.js): the room's glyph branch holds this game's state (slate-room.js), a pair's or a party's of
 // up to six; everyone fills the one board and sees everything, each player's letters and cursor in their own colour.
 import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
-import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
+import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSeat, otherHere, gameHref, GAMES, joiningWords } from "./rooms.js";
 import { askedFor, freshTable, seatsFor, logOf, ownersFrom, placedBy, presentSlots, cursorsOf, storable } from "./slate-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, sextant } from "./loading.js";
@@ -1226,7 +1226,7 @@ function soloStart() {
 // would be on another board until it was, your own clock running), and your own only if the join doesn't come off. The
 // rete stays until the table's board is drawn (onRoom).
 if (code.length === 4) {
-  joining = busy("Joining the table", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   join(code).then(ok => { if (!ok) { seated(); setRoomParam(null); soloStart(); } });
 } else soloStart();
 window.__slate = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; },

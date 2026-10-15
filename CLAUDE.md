@@ -137,13 +137,20 @@ A game that gets a duo match goes in `DUO_GAMES` in `suite.js`. A finished duo m
 give `createTogether` a `result(state)` returning `{ match, score, won, coop, lower }` once the match is over; otherwise
 call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on each player's device.
 
-A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush, Origin,
-Order, Brut, Blend, Arb, Survey, Manifest, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
+A duo match can seat up to six (a party's table; the request's `people`): give `createTogether`
+`slots: g => g?.people || 2` and deal for `people` in `fresh`. `together.others()` and `together.slot` say who's at the
+table (away: asleep, or on another page; nobody away holds a table up), each player's colour is `--p<slot>`
+(`style.css`), a round's standings are `leaderboard()` from `standings.js`, and the rete says `joiningWords()`
+(`rooms.js`). Chart, Quote and Punt show everyone's answer and the standings after each question; follow one.
+
+A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush, Brut,
+Blend, Arb, Survey, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
 `createDuel({ game, name, deal, play, describe, compare, extra, line, accent, onLobby, onLeave })` does the lobby,
 the countdown, the others' scores and the result; the game deals from the match's seed in `play`, sends
 `report({ score, text, done })` as it goes (done the moment the result is final), keeps the match's run with `keep()`,
 never in its solo run, bests or today's, joins with `duel.join()` instead of starting solo, and is listed in
-`DUO_GAMES` and in Party's `ELSEWHERE` (`race: true`, up to six). A match's clock doesn't stop for the menu.
+`DUO_GAMES` and, unless it's too long and quiet for a table of friends (Brut, Blend, Refinery), in Party's `ELSEWHERE`
+(`race: true`, up to six). A match's clock doesn't stop for the menu.
 
 ## Tables
 

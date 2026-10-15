@@ -55,6 +55,8 @@ export const roomInAddress = () => {
   const c = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "");
   return c.length === 4 ? c : null;
 };
+/** The rete's words while the room in the address is joined: a party's table, or the pair's match. */
+export const joiningWords = () => (new URLSearchParams(location.search).has("party") ? "Joining the table" : "Joining your partner");
 
 /** An older room in the shared layout, or null if it isn't a room we know. */
 function lift(cur) {
@@ -140,7 +142,9 @@ export function enterRoom(sync, code, game, name, onHere, pid = null) {
   const unwatch = sync.watch(`${rootPath(code)}/here`, val => {
     const out = {};
     for (const [id, h] of Object.entries(val || {})) {
-      if (h?.game) out[id] = { game: h.game, name: h.name, online: !h.sessions || Object.keys(h.sessions).length > 0, pid: h.pid || null };
+      // online while any page of theirs holds a session: the database drops the empty list a sleeping phone leaves,
+      // so no sessions at all is away (it read as online, and a table waited for a phone that had gone to sleep)
+      if (h?.game) out[id] = { game: h.game, name: h.name, online: Object.keys(h.sessions || {}).length > 0, pid: h.pid || null };
     }
     onHere(out);
   }, () => {});
@@ -223,14 +227,14 @@ export function sitDown(cur, { uid, pid = null, name }, { initial = null, asked 
 }
 
 /**
- * When both seats are taken: asks which player to carry on as (for example after moving from laptop to
+ * When every seat is taken: asks which player to carry on as (for example after moving from laptop to
  * phone). seats is [[id, { name, online }]]. Resolves to the chosen id, or null.
  */
 export function pickSeat(seats) {
   const dlg = document.createElement("dialog");
   dlg.className = "sheet";
   dlg.setAttribute("aria-label", "Take over a seat");
-  dlg.innerHTML = `<div class="pick-head"><h2>Two players already</h2><button class="btn" type="button" data-cancel>Cancel</button></div>
+  dlg.innerHTML = `<div class="pick-head"><h2>${["Two", "Three", "Four", "Five", "Six"][seats.length - 2] ?? seats.length} players already</h2><button class="btn" type="button" data-cancel>Cancel</button></div>
     <p class="stats">Carry on as one of them, for example after switching from your laptop to your phone. Their other device leaves the game.</p>
     <div class="seat-list"></div>`;
   const list = dlg.querySelector(".seat-list");

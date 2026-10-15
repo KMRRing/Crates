@@ -40,7 +40,7 @@ const DETAIL_BOX = Object.fromEntries(Object.entries(DETAIL).map(([k, polys]) =>
   return [k, [Math.min(...pts.map(q => q[0])), Math.max(...pts.map(q => q[0])), Math.min(...pts.map(q => q[1])), Math.max(...pts.map(q => q[1]))]]; }));
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether } from "./together.js";
-import { gameHref, GAMES, roomInAddress } from "./rooms.js";
+import { gameHref, GAMES, roomInAddress, joiningWords } from "./rooms.js";
 import * as pile from "./pile.js";
 import { showPicture } from "./pics.js";
 /** A museum's famous painting, shown with the card. */
@@ -962,6 +962,6 @@ window.__chart = { get state() { return S; }, get views() { return views; }, set
 // would be on another place until it was), and your own, as you left it, only if the join doesn't come off
 const code = roomInAddress();
 if (code) {
-  joining = busy("Joining the table", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); soloStart({ opening: true }); } });
 } else soloStart({ opening: true });

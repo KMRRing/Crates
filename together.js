@@ -215,7 +215,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     if (!room) return [];
     return seatsOf(room.data).filter(([id, p]) => id !== room.uid && !(room.pid && p.pid === room.pid))
       .sort((a, b) => a[1].slot - b[1].slot)
-      .map(([id, p]) => ({ id, slot: p.slot, name: p.name || "Player", here: room.here?.[id]?.game === game && room.here[id].online !== false }));
+      .map(([id, p]) => ({ id, slot: p.slot, name: p.name || "Player", here: room.here?.[id]?.game === game && room.here[id].online !== false && p.online !== false }));
   }
 
   /** Who else is here: { name, online, game } (game is set when they have another game of the room open), or null. */

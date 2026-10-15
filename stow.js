@@ -9,7 +9,7 @@ import { CHAPTERS, LEVELS } from "./stow-levels.js";
 import { freshTable, restart, handOf as handAt, colourOf, sameCells, presentSlots, turnNow, canMove, move, stuck } from "./stow-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
-import { GAMES, roomInAddress, otherHere } from "./rooms.js";
+import { GAMES, roomInAddress, otherHere, joiningWords } from "./rooms.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
 import { today, noteStars } from "./suite.js";
@@ -681,6 +681,6 @@ noteStars("stow", starsAll());
 // your level), so nothing is placed in it by mistake; it waits as you left it, for Back to solo.
 const code = roomInAddress();
 if (code) {
-  joining = busy("Joining the table", { delay: 0 });
+  joining = busy(joiningWords(), { delay: 0 });
   together.join(code).then(ok => { if (!ok) seated(); });
 }

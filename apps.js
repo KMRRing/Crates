@@ -3,6 +3,7 @@
 // room (rooms.js).
 import { hardUpdate } from "./pwa.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
+import { duoLine } from "./duo-records.js";
 import { choice, toggle, line, RETE } from "./menu.js";
 import { keepingPictures, setKeepingPictures, keepPicturesOffline, onPictures } from "./pics.js";
 // Every logo is its game's object at the instruments' level: navy, brass, parchment and the game's enamel, edged twice
@@ -531,9 +532,12 @@ function bindCodes(dlg) {
       const id = el.dataset.best, mine = bestOf(id), them = theirs[id], a = el.closest("a"), app = APPS.find(x => x.id === id);
       // a game whose daily you haven't played today opens on it: the tile's the way in to today's puzzle or run
       if (a && app && a.getAttribute("aria-current") !== "page") a.setAttribute("href", dailyDue(id) ? `${app.href}#today` : app.href);
-      // three scores: your solo best, your partner's (by initial), and the pair's duo record (team best, or wins each way)
-      const d = duo && duoRecords[id === "glyph" ? "slate" : id], time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
-      const duoText = !d?.n ? "" : d.coop ? `Duo ${d.best == null ? `${d.wins}/${d.n}` : d.lower ? time(d.best) : scoreText(id, d.best)}` : `Duo ${d.mine}–${d.theirs}`;
+      // three scores: your solo best, your partner's (by initial), and the pair's duo record (duo-records.js), a team's
+      // best in the game's own terms: a time (Slate, Delta), pieces (Stow, the fewest), else points or the pot (Punt's
+      // solo best is a return, which its pot isn't: 1,240 showed as +124000%)
+      const time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
+      const teamBest = n => (id === "stow" ? `${n} pieces` : id === "glyph" || id === "delta" ? time(n) : id === "punt" ? short(n) : scoreText(id, n));
+      const duoText = duo ? duoLine(duoRecords[id === "glyph" ? "slate" : id], teamBest) : "";
       // your figure and your partner's (a partner on an older version sends only a best)
       const theirMark = duo ? theirMarks[id] || (them != null ? { kind: MARKS[id] === "daily" ? "daily" : "best", v: them, best: them } : null) : null;
       el.textContent = [tileText(id, markOf(id), theirMark, (theirName || "P")[0]), duoText].filter(Boolean).join(" · ");

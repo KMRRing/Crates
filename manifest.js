@@ -11,7 +11,7 @@ import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 import { createTogether } from "./together.js";
-import { roomInAddress } from "./rooms.js";
+import { roomInAddress, joiningWords } from "./rooms.js";
 import { presentSlots } from "./duel-core.js";
 import { leaderboard } from "./standings.js";
 import { busy, sextant } from "./loading.js";
@@ -946,7 +946,7 @@ function tableMenu(body) {
 
 /** Joins the table in the address: the rete until it's drawn, and solo if it doesn't come off. */
 async function joinTable(code) {
-  const done = busy("Joining the table");
+  const done = busy(joiningWords(), { delay: 0 });
   const drawn = new Promise(res => { joined = res; setTimeout(res, 8000); });
   try {
     if (!(await together.join(code))) { solo(); return; }
