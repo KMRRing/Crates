@@ -7,7 +7,9 @@
 //     start({ players, options, rng, now, shown }) → state (with show: [what it has just shown], if it remembers),
 //     advance(state, { players, inputs, now, rng, shown }) → { state, say, show? } | null,
 //     wakeAt(state) → a time (the database's, ms) to call advance again, or null,
-//     view(stage, ctx) }
+//     view(stage, ctx),
+//     solo?(stage, { back }) → it's also played on one phone, no party needed: drawn on Party's page before a party's
+//       open, where its tile opens it (Higher or Lower) }
 //
 // start and advance are pure: advance runs inside the table's transaction on the device that runs the table (the
 // host's phone), on the freshest copy, and may run more than once, so its randomness comes from rng (seeded by the
@@ -32,11 +34,8 @@ import gallery from "./party-gallery.js";
 import hilo from "./party-hilo.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers, forger, gallery];
+export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers, forger, gallery, hilo];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
-/** The games played on one phone, no party needed (Higher or Lower): each a module whose view(stage, { back }) draws it
- *  on Party's page, its tile opening it there, with its own name, blurb, rules, css and logo. */
-export const ONE_PHONE = [hilo];
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */
 export function seeded(seed) {
@@ -208,13 +207,10 @@ export const ELSEWHERE = [
   { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, blurb: "The same stack at the same moment: against each other, or one team pooling what each saw." },
   { id: "pipes", name: "Pipes", kind: "duo", duo: "pipes", page: "pipes.html", max: 6, race: true, blurb: "The same seeded run for everyone, an act or more: the most delivered wins." },
 ];
-/** Anything a party can play, by id: { id, name, kind ("party", "table", "duo", or "phone": on this phone alone), min,
- *  max, blurb, … }, or null. */
+/** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {
   const g = gameById(id);
   if (g) return { id: g.id, name: g.name, kind: "party", min: g.min, max: g.max, blurb: g.blurb, def: g };
-  const p = ONE_PHONE.find(x => x.id === id);
-  if (p) return { id: p.id, name: p.name, kind: "phone", min: 1, max: 99, blurb: p.blurb, logo: p.logo, def: p };
   const e = ELSEWHERE.find(x => x.id === id);
   return e ? { min: e.kind === "duo" ? 2 : 1, ...e } : null;
 }
@@ -222,7 +218,7 @@ export function playable(id) {
  *  fills the rest), a duo match by two (Tribute and Hong by up to four). */
 export const fits = (entry, n) => !!entry && n >= entry.min && n <= entry.max;
 /** Who plays a game, as words on its card. */
-export const seatsText = entry => (entry.kind === "phone" ? "Any number, on one phone"
+export const seatsText = entry => (entry.def?.solo ? `Any number on one phone, or ${entry.min}–${entry.max} on their own`
   : entry.kind === "duo" && entry.max === 2 ? "2 players"
   : entry.kind === "party" || (entry.kind === "duo" && !entry.bots) ? `${entry.min}–${entry.max} players`
     : `${entry.min}–${entry.max} players, the computer in any empty seat`);

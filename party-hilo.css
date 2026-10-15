@@ -1,29 +1,36 @@
-/* Higher or Lower on one phone (party-hilo.js): the card turned as large as the room allows, the one before it under
-   it to the left with its corner showing, and what the new one did against it in a line beneath. */
+/* Higher or Lower (party-hilo.js): the card turned as large as the room allows, the one before it tilted under it to
+   the left with its corner showing, what the new one did against it beneath, and the count. */
 .hl { width: 100%; max-width: 34rem; margin: 0 auto; }
+/* at a party, Party's stage for the game is the table's column */
+.pa-play[data-game="hilo"] { display: flex; flex-direction: column; overflow: hidden; }
+.pa-play[data-game="hilo"] > .hl { flex: 1 1 auto; min-height: 0; }
 .hl-table { container-type: size; display: grid; place-items: center; }
-/* the pile: the card turned and the corner of the one before, tilted, 3.65 by 3.7 of its font size (a card is 2.5 by
-   3.5, and the tilt needs a quarter more each way) */
+/* the pile, 3.65 by 3.7 of its font size (a card is 2.5 by 3.5, and the tilt needs a quarter more each way); each card
+   is placed by its transform alone, so a card changing place glides there: the new one in from the right, the one it
+   covers to the left and under it, the one before that away */
 .hl-pile { position: relative; display: block; width: 3.65em; height: 3.7em; padding: 0; border: 0; background: none; color: inherit; cursor: pointer;
   font: inherit; font-size: min(calc(96cqh / 3.7), calc(96cqw / 3.65)); -webkit-tap-highlight-color: transparent; }
-.hl-pile .cd { position: absolute; top: .2em; padding: .12em .14em; box-shadow: 0 1px 3px rgba(28, 42, 52, .25); }
+.hl-pile .cd { position: absolute; left: 0; top: 0; padding: .12em .14em; box-shadow: 0 1px 3px rgba(28, 42, 52, .25); transform-origin: 0 100%;
+  transition: transform .55s cubic-bezier(.25, .8, .3, 1), opacity .5s; }
+.hl-pile .hl-now { transform: translate(1.15em, .2em); z-index: 3; }
+.hl-pile .hl-enter { transform: translate(2.1em, -.15em) rotate(9deg); opacity: 0; z-index: 3; }
+.hl-pile .hl-before { transform: translate(.25em, .2em) rotate(-4deg); z-index: 2; }
+.hl-pile .hl-gone { transform: translate(-.25em, .3em) rotate(-10deg); opacity: 0; z-index: 1; }
 .hl-pile .cd-r { font-size: .6em; }
 .hl-pile .cd-s { font-size: .5em; }
-.hl-pile .cd-pip { right: 50%; bottom: 50%; transform: translate(50%, 50%); font-size: 1.5em; }
+.hl-pile .cd-pip { right: 50%; bottom: 50%; transform: translate(50%, 50%); font-size: 1.5em; transition: opacity .3s; }
+.hl-pile :is(.hl-before, .hl-gone) .cd-pip { opacity: 0; }   /* only its corner shows: a sliver of its great pip would be a blot */
 .hl-foot { position: absolute; right: .14em; bottom: .12em; display: flex; flex-direction: column; align-items: flex-start; transform: rotate(180deg); }
 .hl-foot > :first-child { font-size: .6em; letter-spacing: -.04em; }
 .hl-foot > :last-child { font-size: .5em; margin-top: .04em; }
-.hl-before { left: .25em; transform: rotate(-4deg); transform-origin: 0 100%; }
-.hl-before .cd-pip { display: none; }               /* only its corner shows: a sliver of its great pip would be a blot */
-.hl-now { right: 0; }
-.hl-now.turned { animation: hl-turn .24s ease-out; }
-@keyframes hl-turn { from { transform: perspective(40em) rotateY(-75deg); opacity: .3; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .hl-now.turned { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .hl-pile .cd, .hl-pile .cd-pip { transition: none; } }
 
-.hl-say { margin: .4rem 0 .6rem; min-height: 1.6rem; text-align: center; font-size: 1.3rem; font-weight: 800; font-stretch: var(--wide);
+.hl-say { margin: .3rem 0 0; min-height: 1.6rem; text-align: center; font-size: 1.3rem; font-weight: 800; font-stretch: var(--wide);
   letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
 .hl-say:is(.higher, .lower) { color: var(--pa-in); }
 .hl-say.same { color: #A8382B; }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .hl-say.same { color: #E8806F; } }
 html[data-mode="night"] .hl-say.same { color: #E8806F; }
+.hl-note { margin: .1rem 0 .55rem; min-height: 1.1rem; text-align: center; font-size: .85rem; color: var(--ink-soft); }
 .hl-more { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
+.hl-more.one { grid-template-columns: 1fr; }

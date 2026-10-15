@@ -23,6 +23,8 @@ html.typing .pa-toast { top: calc(var(--seen-top, 0px) + .6rem); bottom: auto; }
 /* the games as the games screen shows them (style.css: .apps-sec, .apps-grid, .app-row), in their sections; in the lobby
    the one picked heads the list with its options, and the host's tap on another picks it */
 .pa-intro { margin: 0 0 .7rem; color: var(--ink-soft); }
+/* a long game's name in the header, smaller, so its two lines are no taller than its logo */
+.party .mark-btn.long { font-size: .78em; }
 /* a game opened from its own tile: its rules, before a party's open */
 .pa-rules-box { padding: .2rem .1rem .4rem; line-height: 1.45; }
 .pa-rules-box p { margin: 0 0 .7rem; }
