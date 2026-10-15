@@ -24,8 +24,14 @@ html[data-mode="night"] {
 #app.delta { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
 .d-mark { display: inline-block; }
 .d-mark svg { width: 100%; height: 100%; display: block; }
-.d-partner { margin: .5rem 0 0; font-size: .95rem; }
+/* at a table: one line naming everyone in their seat's colour (one line always, so the board never moves for it) */
+.d-partner { margin: .5rem 0 0; font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .d-partner b { font-weight: 750; }
+.d-seat { display: inline-flex; align-items: center; gap: .3125rem; }
+.d-seat::before { content: ""; width: .5625rem; height: .5625rem; border-radius: 50%; background: var(--seat); flex: none; }
+.d-seat.away { opacity: .55; font-weight: 600; }
+.d-share { margin: 0 0 .4rem; text-align: center; font-size: .92rem; color: var(--ink-soft); }
+.d-share .d-seat { color: var(--ink); }
 
 .d-board { flex: 1; display: flex; align-items: center; justify-content: center; padding: .4rem 0; min-height: 0; }
 .d-board svg { width: 100%; max-height: calc(100svh - 11rem); touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -34,6 +40,10 @@ html[data-mode="night"] {
 .d-tile.op { fill: var(--d-op-tile); }
 .d-path { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: .5; opacity: .92; }
 .d-path.wrong { stroke-dasharray: .18 .16; }
+/* another player's path under their finger, as they draw it: thinner, dashed, their initial at its head */
+.d-live { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: .22; stroke-dasharray: .3 .2; opacity: .85; pointer-events: none; }
+.d-live-head { stroke: var(--d-tile); stroke-width: .06; pointer-events: none; }
+.d-live-who { font-family: var(--font); font-weight: 800; fill: var(--d-tile); text-anchor: middle; pointer-events: none; }
 .d-arrow { fill: var(--d-tile); opacity: .9; }
 /* board text is set at 100× and scaled down (see label() in delta.js): sizes come from there, strokes are in
    those larger units */
@@ -55,7 +65,7 @@ html[data-mode="night"] {
    beside it, low, where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.delta { --beside: 11rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
-  .d-partner { grid-column: 2; grid-row: 2; }
+  .d-partner { grid-column: 2; grid-row: 2; white-space: normal; }   /* a narrow column of its own: names may wrap */
   .d-board { grid-column: 1; grid-row: 2 / -1; padding: .4rem 0 0; }
   .d-board svg { height: 100%; max-height: none; }
   .d-actions { grid-column: 2; grid-row: 4; flex-direction: column; padding: 0; }

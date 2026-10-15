@@ -1,14 +1,15 @@
 // Delta: join the numbers in pairs with paths whose operations turn one into the other (rules in delta-gen.js).
-// Solo boards are saved in this browser; together games live in the room's delta branch (together.js) and both
-// players draw on the same board.
+// Solo boards are saved in this browser; together games live in the room's delta branch (together.js, delta-room.js),
+// a pair's or a party's of up to six, and everyone draws on the same board, each in their own colour.
 import { today, noteDayTime, arrivedForToday } from "./suite.js";
 const DAILY_LEVEL = "medium";      // today's puzzle: a medium board, the same for everyone
 import { generate, LEVELS, CLUES, evaluate, isSolved, showOp, showValue, valueAlong, unkey, key, adjacent } from "./delta-gen.js";
+import { pathList, withPath, freshTable, presentSlots, drawingsOf, drawnBy } from "./delta-room.js";
 import { createTogether, seatsOf } from "./together.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, sextant } from "./loading.js";
 import "./pwa.js";
-import { gameHref, GAMES } from "./rooms.js";
+import { gameHref, GAMES, branchPath, otherHere } from "./rooms.js";
 import { dropdown } from "./dropdown.js";
 import { part, action, mirror, isPaused, onPause } from "./menu.js";
 
@@ -16,44 +17,18 @@ dropdown(document.getElementById("level"));   // the header dropdown in the suit
 
 const $ = id => document.getElementById(id);
 const STORE = "delta:solo", SPARES = "delta:spares";
-const APP = 1;                                       // together games: bumped when their shape changes
+const APP = 2;                                       // together games: bumped when their shape changes (2: up to six, paths by player)
 const COLOURS = 6;                                   // path colours (--d-p0…)
 const SQ3 = Math.sqrt(3);
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
-// S: { seed, level, board, paths: { id: { c, k: "q,r;q,r;…" } }, clues: [pair index], done, ms, startedAt }
+// S: { seed, level, board, paths: { id: { c, k: "q,r;q,r;…", by? } }, clues: [pair index], done, ms, startedAt }
 let S = null;
 let drawing = null;   // the path under the finger: { id, c, cells }
 let clockFrom = null;
 let shownDone = null;
+let joining = null;   // the rete while you sit down at a table in the address, until its board is drawn
 
-// ---------- paths ----------
-const cellsOf = rec => (rec?.k ? rec.k.split(";") : []);
-const pathList = paths => Object.entries(paths || {}).map(([id, rec]) => ({ id, c: rec.c, cells: cellsOf(rec) })).filter(p => p.cells.length);
-
-/**
- * The paths with one path set to these cells (or removed, with fewer than two). Any other path it crosses is
- * cut where they meet, keeping the part before; a number belongs to one path only. Colours stay put; a new
- * path takes the first free one.
- */
-function withPath(paths, id, colour, cells) {
-  const out = {};
-  const mine = new Set(cells);
-  for (const [pid, rec] of Object.entries(paths || {})) {
-    if (pid === id) continue;
-    const theirs = cellsOf(rec);
-    const cut = cells.length >= 2 ? theirs.findIndex(k => mine.has(k)) : -1;
-    const kept = cut < 0 ? theirs : theirs.slice(0, cut);
-    if (kept.length >= 2) out[pid] = { c: rec.c, k: kept.join(";") };
-  }
-  if (cells.length >= 2) {
-    const used = new Set(Object.values(out).map(r => r.c));
-    let c = colour;
-    if (c == null || used.has(c)) for (c = 0; used.has(c); c++);
-    out[id] = { c: c % COLOURS, k: cells.join(";") };
-  }
-  return out;
-}
 const newId = () => Math.random().toString(36).slice(2, 8);
 
 // ---------- dealing ----------
@@ -153,7 +128,7 @@ function newBoard(level = S.level) {
 }
 
 // ---------- the clock (solo: time on screen; together: dealt to finished) ----------
-function clockRun() { if (!together.room && S && !S.done && clockFrom == null && !document.hidden && !isPaused()) clockFrom = performance.now(); }
+function clockRun() { if (!together.room && !joining && S && !S.done && clockFrom == null && !document.hidden && !isPaused()) clockFrom = performance.now(); }
 onPause(() => clockPause(), () => clockRun());   // the menu stops the clock too
 function clockPause() {
   if (clockFrom == null) return;
@@ -193,9 +168,11 @@ function afterChange() {
 function commit(id, colour, cells) {
   const tidy = cells.length >= 2 ? cells : [];
   if (together.room) {
-    S.paths = withPath(S.paths, id, colour, tidy);   // shown at once; the room's copy follows
+    const by = together.room.uid;
+    S.paths = withPath(S.paths, id, colour, tidy, by);   // shown at once; the room's copy follows
     render();
-    together.act(g => { if (g.done) return false; g.paths = withPath(g.paths || {}, id, colour, tidy); });
+    // the path under your finger stops showing on the others' screens once the drawn one is there
+    together.act(g => { if (g.done) return false; g.paths = withPath(g.paths || {}, id, colour, tidy, by); }).finally(() => shareDrawing(true));
     return;
   }
   change(g => { if (g.done) return false; g.paths = withPath(g.paths, id, colour, tidy); });
@@ -286,6 +263,7 @@ function moveDraw(e) {
   if (k === head || !onBoard(k)) return;
   for (const step of adjacent(head, k) ? [k] : lineBetween(head, k)) if (!stepTo(step)) break;
   render();
+  shareDrawing();
 }
 
 /** One hex further (or back): returns false when the path can't go there. */
@@ -338,24 +316,41 @@ function render() {
   if (S.done && JSON.stringify(S.done) !== shownDone) { shownDone = JSON.stringify(S.done); showDone(); }
 }
 
-function drawPartner() {
-  const el = $("partner");
-  if (!together.room) { el.hidden = true; return; }
-  el.hidden = false;
-  el.innerHTML = "";
-  if (!together.online) { el.append(sextant(), "Reconnecting… moves made now may not reach your partner."); return; }
-  const p = together.partner();
-  if (!p) { el.append(`Game ${together.room.code}: waiting for your partner to join.`); return; }
+/** A player's name with the dot of their colour; dimmed while they're away. */
+function seatChip(name, slot, here = true) {
   const b = document.createElement("b");
-  b.textContent = p.name + (p.online ? "" : " (away)");
-  if (p.game) {
-    const go = document.createElement("a");
-    go.href = gameHref(p.game);
-    go.textContent = "Join them";
-    el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, go);
-    return;
+  b.className = `d-seat${here ? "" : " away"}`;
+  b.style.setProperty("--seat", seatColour(slot));
+  b.textContent = here ? name : `${name} (away)`;
+  return b;
+}
+/**
+ * The line over the board at a table: everyone at it in their colours, so each knows whose paths are whose (you first);
+ * away while their phone sleeps or they've left. Your partner in another game of the room: where, and a link.
+ */
+function drawPartner() {
+  const line = $("partner");
+  if (!together.room) { line.hidden = true; return; }
+  line.hidden = false;
+  line.replaceChildren();
+  if (!together.online) { line.append(sextant(), "Reconnecting… moves made now may not reach the others."); return; }
+  const g = together.room.data, people = g?.people || 2, others = together.others();
+  const here = new Set(presentSlots(g, together.room.here, together.room.uid));
+  if (people === 2) {
+    const there = otherHere(together.room.here, together.room.uid, together.room.pid, "delta");
+    if (there && there.game !== "delta" && GAMES[there.game]) {
+      // your partner has another game of the room open: say which, and offer to follow
+      const go = document.createElement("a");
+      go.href = gameHref(there.game);
+      go.textContent = "Join them";
+      line.append(seatChip(firstName(there.name), others[0]?.slot ?? 1, there.online !== false), ` is in ${GAMES[there.game].name}. `, go);
+      return;
+    }
   }
-  el.append("Playing with ", b, ".");
+  const mine = seatChip("You", together.slot);
+  if (!others.length) { line.append(mine, ": waiting for ", people > 2 ? "the others" : "your partner", " to join"); return; }
+  const chips = [mine, ...others.map(o => seatChip(firstName(o.name), o.slot, here.has(o.slot)))];
+  line.append(...chips.flatMap((n, i) => (i === 0 ? [n] : [i === chips.length - 1 ? " and " : ", ", n])));
 }
 
 const NS = "http://www.w3.org/2000/svg";
@@ -380,11 +375,18 @@ function el(tag, attrs, parent) {
   return n;
 }
 
+/** At a table, each seated player's seat, by device id (paths take their drawer's colour). */
+const seatsById = () => Object.fromEntries(seatsOf(together.room?.data).map(([id, p]) => [id, p.slot]));
+const seatColour = slot => `var(--p${(slot || 0) % 6})`;
+/** A path's colour: at a table, its drawer's; solo (or the solution, drawn by nobody), its own. */
+const pathColour = (p, seats) => (p.by && seats[p.by] != null ? seatColour(seats[p.by]) : `var(--d-p${(p.c ?? 0) % COLOURS})`);
+const firstName = name => String(name || "Player").split(" ")[0];
+
 function drawBoard() {
-  const board = S.board;
+  const board = S.board, me = together.room?.uid || null, seats = together.room ? seatsById() : {};
   let paths = pathList(S.paths);
-  if (drawing) paths = pathList(withPath(S.paths, drawing.id, drawing.c, drawing.cells.length >= 2 ? drawing.cells : []))
-    .concat(drawing.cells.length === 1 ? [{ id: drawing.id, c: drawing.c ?? 0, cells: drawing.cells }] : []);
+  if (drawing) paths = pathList(withPath(S.paths, drawing.id, drawing.c, drawing.cells.length >= 2 ? drawing.cells : [], me))
+    .concat(drawing.cells.length === 1 ? [{ id: drawing.id, c: drawing.c ?? 0, by: me, cells: drawing.cells }] : []);
   const pts = board.cells.map(centre), xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
   const pad = 1.05;
   const box = [Math.min(...xs) - pad, Math.min(...ys) - pad, Math.max(...xs) - Math.min(...xs) + 2 * pad, Math.max(...ys) - Math.min(...ys) + 2 * pad];
@@ -402,20 +404,30 @@ function drawBoard() {
   }
   const root = svg;
   root.setAttribute("viewBox", box.map(v => v.toFixed(3)).join(" "));
-  const tiles = el("g", {}), lines = el("g", {}), marks = el("g", {}), labels = el("g", {});
-  root.replaceChildren(tiles, lines, marks, labels);
+  const tiles = el("g", {}), lines = el("g", {}), live = el("g", {}), marks = el("g", {}), labels = el("g", {});
+  root.replaceChildren(tiles, lines, live, marks, labels);
   for (const k of board.cells) el("polygon", { points: corners(centre(k), 0.93), class: `d-tile${k in board.ops ? " op" : ""}` }, tiles);
+  const through = cells => cells.map(k => centre(k).map(v => v.toFixed(3)).join(",")).join(" ");
 
-  // paths: a broad current in the path's colour, with arrows the way it was drawn once it reaches a number;
-  // dashed when it's known not to add up
+  // paths: a broad current in the path's colour (at a table, its drawer's), with arrows the way it was drawn once it
+  // reaches a number; dashed when it's known not to add up
   const verdicts = new Map(), judged = showVerdicts();
   for (const p of paths) {
     if (p.cells.length < 2) continue;
     const e = evaluate(board, p.cells);
     if (judged) verdicts.set(p.id, e);
-    el("polyline", { points: p.cells.map(k => centre(k).map(v => v.toFixed(3)).join(",")).join(" "),
-      class: `d-path${judged && e.done && !e.ok ? " wrong" : ""}`, stroke: `var(--d-p${(p.c ?? 0) % COLOURS})` }, lines);
+    el("polyline", { points: through(p.cells), class: `d-path${judged && e.done && !e.ok ? " wrong" : ""}`, stroke: pathColour(p, seats) }, lines);
     if (e.done) for (let i = 0; i + 1 < p.cells.length; i += 2) arrow(centre(p.cells[i]), centre(p.cells[i + 1]), lines);
+  }
+
+  // at a table, what the others are drawing now: a thin dashed line in their colour, their initial at its head
+  if (together.room && !S.done) {
+    for (const d of drawingsOf(together.room.data, together.room.here, me, together.room.pid)) {
+      el("polyline", { points: through(d.cells), class: "d-live", stroke: seatColour(d.slot) }, live);
+      const [x, y] = centre(d.cells[d.cells.length - 1]);
+      el("circle", { cx: x, cy: y, r: 0.3, class: "d-live-head", fill: seatColour(d.slot) }, live);
+      label(live, x, y, firstName(d.name).slice(0, 1).toUpperCase(), "d-live-who", 0.34);
+    }
   }
 
   // operations, then numbers on top
@@ -428,7 +440,7 @@ function drawBoard() {
     const [x, y] = centre(k), text = showValue(v), size = [0.72, 0.72, 0.72, 0.58, 0.5, 0.44, 0.38][Math.min(text.length, 6)];
     const owner = paths.find(p => p.cells.includes(k));
     el("circle", { cx: x, cy: y, r: 0.7, class: "d-num-disc" }, labels);
-    if (owner && verdicts.get(owner.id)?.ok) el("circle", { cx: x, cy: y, r: 0.7, fill: "none", stroke: `var(--d-p${owner.c % COLOURS})`, "stroke-width": 0.14 }, labels);
+    if (owner && verdicts.get(owner.id)?.ok) el("circle", { cx: x, cy: y, r: 0.7, fill: "none", stroke: pathColour(owner, seats), "stroke-width": 0.14 }, labels);
     label(labels, x, y, text, "d-num", size);
     if (tags[k]) {
       el("circle", { cx: x + 0.56, cy: y - 0.56, r: 0.24, class: "d-tag-disc" }, labels);
@@ -494,6 +506,12 @@ function showDone() {
     box.append(dd, dt);
     return box;
   }));
+  // at a table, who drew the paths on the board, in their colours (the solution, shown, is nobody's)
+  const share = $("doneShare"), team = together.room ? seatsOf(together.room.data).sort((a, b) => a[1].slot - b[1].slot) : [];
+  const by = drawnBy(S.paths);
+  share.hidden = team.length < 2 || !S.done.won;
+  share.replaceChildren();
+  if (!share.hidden) share.append("Paths drawn: ", ...team.flatMap(([id, p], n) => [n ? " · " : "", seatChip(id === together.room.uid ? "You" : firstName(p.name), p.slot), ` ${by[id] || 0}`]));
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
 
@@ -524,9 +542,9 @@ async function askName() {
   return name;
 }
 
-// a board solved together: a team result, the time it took (lower is better)
-let joining = null;                                           // the rete over the page while a room is joined
+/** The rete over the page while a room in the address is joined goes once its board is drawn, or the join fails. */
 const joined = () => { joining?.(); joining = null; };
+// a board solved together: a team result, the time it took (lower is better); a party's table seats as many as asked
 const together = createTogether({
   result: g => (g.done?.won ? { match: `${g.seed}-${g.startedAt || ""}`, score: Math.round(((g.done.at || 0) - (g.startedAt || 0)) / 1000), won: true, coop: true, lower: true } : null),
   game: "delta",
@@ -534,9 +552,10 @@ const together = createTogether({
   toast,
   askName,
   valid: g => !!g?.board,
-  fresh: async players => {
+  slots: g => g?.people || 2,
+  fresh: async (players, { ask } = {}) => {
     const level = S?.level || "medium", { seed, board } = await nextBoard(level);
-    return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board, paths: {}, clues: [], done: null, players };
+    return freshTable(players, { app: APP, level, seed, board, ask });
   },
   onState: val => {
     joined();
@@ -544,12 +563,34 @@ const together = createTogether({
     const fresh = !S || S.seed !== val.seed;
     S = { seed: val.seed, level: val.level, board: val.board, paths: val.paths || {}, clues: Object.values(val.clues || {}), done: val.done || null, startedAt: val.startedAt || val.created };
     if (fresh) { shownDone = val.done ? JSON.stringify(val.done) : null; drawing = null; }
+    // a path of yours left showing from before a reload: gone
+    if (!drawing && val.players?.[together.room?.uid]?.draw != null) { sentDraw = undefined; shareDrawing(true); }
     if (!S.done && isSolved(S.board, pathList(S.paths).map(p => p.cells))) afterChange();
     render();
   },
-  onPresence: () => drawPartner(),
-  onLeave: () => { joined(); S = loadSolo(); if (!S) { soloBoard(null, "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render(); },
+  onPresence: () => render(),
+  onLeave: () => {
+    joined(); sentDraw = null;
+    S = loadSolo(); if (!S) { soloBoard(null, "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render();
+  },
 });
+
+// The path under your finger, shared as it's drawn (at most every 90 ms), so the others see it grow in your colour;
+// cleared once the drawn path is on the table.
+let sentDraw = null, drawTimer = 0;
+function shareDrawing(now = false) {
+  const room = together.room;
+  if (!room) return;
+  const cells = drawing && drawing.cells.length >= 2 ? drawing.cells.join(";") : null;
+  clearTimeout(drawTimer);
+  if (cells === sentDraw) return;
+  const send = () => {
+    if (!together.room?.data?.players?.[room.uid]) return;      // not seated (any more): a write would leave a stray entry
+    sentDraw = cells;
+    room.sync.update(`${branchPath(room.code, "delta")}/players/${room.uid}`, { draw: cells })?.catch?.(e => console.error(e));
+  };
+  if (now) send(); else drawTimer = setTimeout(send, 90);
+}
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "delta");
@@ -571,7 +612,7 @@ window.addEventListener("hashchange", () => {
 $("app").querySelector(".d-mark").innerHTML = APPS.find(a => a.id === "delta").logo;
 
 // for tests and debugging
-window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, evaluate, get together() { return together; } };
+window.__delta = { get state() { return S; }, get drawing() { return drawing; }, withPath, evaluate, get together() { return together; }, centre };
 
 // start: a shared board (#s=…&d=…), today's from the games screen's tile (#today) while it's still to play, the saved
 // one, or a fresh Easy board for a first visit
@@ -592,10 +633,10 @@ async function soloStart() {
     if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
   }
 }
-// a room in the address: the board you share from the first moment, never your own while the room is joined (your
-// partner would be on another board until it was), and your own only if the join doesn't come off
+// a room in the address: the board you share from the first moment, never your own while the room is joined (the
+// others would be on another board until it was), and your own only if the join doesn't come off
 if (code.length === 4) {
-  joining = busy("Joining your partner", { delay: 0 });
+  joining = busy("Joining the table", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
 } else await soloStart();
 

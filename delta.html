@@ -51,12 +51,13 @@
 <dialog id="doneDlg" class="sheet" aria-label="Board finished">
   <div class="pick-head"><h2 id="doneTitle"></h2><button class="btn" type="button" id="doneClose">Close</button></div>
   <dl id="doneStats" class="d-stats"></dl>
+  <p id="doneShare" class="d-share" hidden></p>
   <button class="btn primary wide" type="button" id="doneNew">New board</button>
 </dialog>
 
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
   <form method="dialog" id="nameForm">
-    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <label for="nameInput">Your name, so the others know who's playing</label>
     <input id="nameInput" maxlength="16" autocomplete="nickname" required>
     <button class="btn primary wide" type="submit">Continue</button>
   </form>

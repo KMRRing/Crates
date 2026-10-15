@@ -184,7 +184,7 @@ export const ELSEWHERE = [
   { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Coup and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
   { id: "crates", name: "Crates", kind: "duo", duo: "crates", page: "crates.html", max: 2, blurb: "Sixteen words into four crates, one board between you." },
   { id: "glyph", name: "Slate", kind: "duo", duo: "glyph", page: "slate.html", max: 6, blurb: "A small crossword with secret letter rules, everyone filling the one board." },
-  { id: "delta", name: "Delta", kind: "duo", duo: "delta", page: "delta.html", max: 2, blurb: "The hex sums, solved together." },
+  { id: "delta", name: "Delta", kind: "duo", duo: "delta", page: "delta.html", max: 6, blurb: "The hex sums, everyone drawing on the one board." },
   { id: "punt", name: "Punt", kind: "duo", duo: "punt", page: "punt.html", max: 6, blurb: "Trivia with a stake on every answer: a pot each, or one for the table." },
   { id: "chart", name: "Chart", kind: "duo", duo: "chart", page: "chart.html", max: 6, blurb: "Everyone pins the same places on their own phone: every pin revealed, closest scores most." },
   { id: "quote", name: "Quote", kind: "duo", duo: "quote", page: "quote.html", max: 6, blurb: "Everyone makes a market on the same numbers: every range revealed against the truth." },
