@@ -13,6 +13,7 @@ import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, boardStage } from "./gammon-course.js";
+import { createRush } from "./gammon-rush-ui.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -276,6 +277,10 @@ const course = createCourse({
   },
 });
 
+// Puzzle rush (the menu): the best play in positions from the computer players' own games, by GNU Backgammon's
+// equities, against the clock, on a sheet of its own (gammon-rush-ui.js); the match waits under it.
+const rush = createRush({ inFrame: IN_FRAME });
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -283,7 +288,9 @@ function openMenu() {
   if (page.host) play.append(action("New match", newMatch, "primary"));
   page.menu(play);
   const cp = progressOf("gammon", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Gammon, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Gammon, from the rules", () => course.open()));
+  if (!IN_FRAME) play.append(action(rush.label(), () => rush.open()));
+  play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("A match to", MATCHES.map(n => [n, n === 1 ? "1 game" : `${n} points`]), opts.match, v => { opts.match = Number(v); saveOpts(); }));
   set.append(toggle("The doubling cube", opts.cube, on => { opts.cube = on; saveOpts(); }));
@@ -291,7 +298,7 @@ function openMenu() {
   set.append(line("The match and the cube apply from the next match."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("gammon:streak", { now: 0, best: 0 });
-  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} matches${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No matches finished yet."));
+  part(body, "about").append(line(`${r.played ? `Won ${r.won} of ${r.played} matches${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No matches finished yet."}${rush.best() ? ` Puzzle rush best: ${rush.best()}.` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
@@ -302,6 +309,6 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-window.__gammon = { page, get view() { return V; }, opts, mayDouble, course };
+window.__gammon = { page, get view() { return V; }, opts, mayDouble, course, rush };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newMatch();
 draw();

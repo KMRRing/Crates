@@ -50,28 +50,39 @@ export function boardProblems(step) {
   return out;
 }
 export const diceOf = step => String(step.dice || "").trim().split(/\s+/).filter(Boolean).map(Number);
-/** A play written "8/5 6/5", "24/18(2)", "bar/22*", "6/off" as moves [from, to] (25 the bar, 0 off). */
+/**
+ * A play written "8/5 6/5", "24/18(2)", "bar/22*", "6/off", a checker moved on as "24/13" (with a star at a point it
+ * hit on the way), as moves [from, to] (25 the bar, 0 off): a checker's path a move a stretch, so a hit on the way is made.
+ */
 export function parsePlay(text) {
   const out = [];
   for (const tok of String(text || "").trim().split(/\s+/).filter(Boolean)) {
-    const m = /^(\d+|bar)\/(\d+|off)\*?(?:\((\d)\))?$/.exec(tok);
+    const m = /^((?:\d+|bar)(?:\/(?:\d+|off)\*?)+)(?:\((\d)\))?$/.exec(tok);
     if (!m) throw new Error(`no move "${tok}"`);
-    const from = m[1] === "bar" ? 25 : Number(m[1]), to = m[2] === "off" ? 0 : Number(m[2]);
-    for (let k = 0; k < Number(m[3] || 1); k++) out.push([from, to]);
+    const at = m[1].split("/").map(x => x.replace("*", "")).map(x => (x === "bar" ? 25 : x === "off" ? 0 : Number(x)));
+    for (let k = 0; k < Number(m[2] || 1); k++) for (let i = 1; i < at.length; i++) out.push([at[i - 1], at[i]]);
   }
   return out;
 }
-/** Moves written as a player writes them: "8/5 6/5", the same move twice as "13/7(2)", a hit with a star. */
+/**
+ * Moves written as a player writes them: "8/5 6/5", a hit with a star, a checker moved on written from where it
+ * started to where it ended ("24/13", the point it hit on the way kept, starred), the same move twice as "13/7(2)".
+ */
 export function playText(moves, op = null) {
-  const words = [];
+  const paths = [];
   let o = op ? op.slice() : null;
   for (const [from, to] of moves) {
-    const hit = o && to >= 1 && o[25 - to] === 1;
-    if (o && hit) { o = o.slice(); o[25 - to] = 0; }
-    words.push(`${from === 25 ? "bar" : from}/${to === 0 ? "off" : to}${hit ? "*" : ""}`);
+    const hit = !!o && to >= 1 && o[25 - to] === 1;
+    if (hit) { o = o.slice(); o[25 - to] = 0; }
+    // a checker moving on from where one of this play's stopped: that one's path, a stretch longer
+    const on = from !== 25 && paths.findLast(p => p.at.at(-1).pt === from);
+    if (on) on.at.push({ pt: to, hit });
+    else paths.push({ at: [{ pt: from, hit: false }, { pt: to, hit }] });
   }
+  const name = pt => (pt === 25 ? "bar" : pt === 0 ? "off" : String(pt));
+  const words = paths.map(p => p.at.filter((x, i) => i === 0 || i === p.at.length - 1 || x.hit).map(x => `${name(x.pt)}${x.hit ? "*" : ""}`).join("/"));
   const out = [];
-  for (const w of words) { const last = out.at(-1); if (last && last.w === w) last.n++; else out.push({ w, n: 1 }); }
+  for (const w of words) { const same = out.find(x => x.w === w); if (same) same.n++; else out.push({ w, n: 1 }); }
   return out.map(x => (x.n > 1 ? `${x.w}(${x.n})` : x.w)).join(" ");
 }
 const key = (me, op) => `${me.join(",")}|${op.join(",")}`;
@@ -251,9 +262,9 @@ export const COURSE = {
           id: "open", title: "Opening rolls", zh: "",
           steps: [
             { rows: [{ label: "3-1", text: "8/5 6/5" }, { label: "4-2", text: "8/4 6/4" }, { label: "6-1", text: "13/7 8/7" }, { label: "5-3", text: "8/3 6/3" }, { label: "6-5", text: "24/13" }], say: "Five opening rolls are played one way by everyone who knows: four make a point at once, the 5, the 4, the bar and the 3 point, best first, and 6-5 runs a back checker all the way to safety. The others build or split, and there's room for taste there." },
-            { dice: "3 1", answer: "8/5 6/5", gnubg: [["8/5 6/5", 0.219], ["13/10 24/23", -0.011], ["24/21 21/20", -0.019]], say: "Your first roll: 3-1.", then: "8/5 6/5: the 5 point, the best on the board, made at once. GNU Backgammon rates it +0.22 of a game; the next best, 13/10 24/23, −0.01.", wrong: { "13/10 24/23": "A fair play for another roll, but 3-1 makes the 5 point: 8/5 6/5.", "24/21 21/20": "A run to their bar point; 3-1 makes your 5 point instead: 8/5 6/5." } },
+            { dice: "3 1", answer: "8/5 6/5", gnubg: [["8/5 6/5", 0.219], ["13/10 24/23", -0.011], ["24/20", -0.019]], say: "Your first roll: 3-1.", then: "8/5 6/5: the 5 point, the best on the board, made at once. GNU Backgammon rates it +0.22 of a game; the next best, 13/10 24/23, −0.01.", wrong: { "13/10 24/23": "A fair play for another roll, but 3-1 makes the 5 point: 8/5 6/5.", "24/20": "A run to their 5 point; 3-1 makes your 5 point instead: 8/5 6/5." } },
             { dice: "6 1", answer: "13/7 8/7", gnubg: [["13/7 8/7", 0.126], ["24/18 24/23", -0.04], ["13/7 24/23", -0.065]], say: "6-1.", then: "13/7 8/7: the bar point, in front of their back checkers' sixes. +0.13; splitting with 24/18 24/23, −0.04.", wrong: { "24/18 24/23": "6-1 makes your bar point: 13/7 8/7." } },
-            { dice: "6 5", answer: "24/18 18/13", gnubg: [["24/18 18/13", 0.08], ["24/18 13/8", 0.041], ["13/7 13/8", -0.061]], say: "6-5.", then: "Lover's leap: one back checker all the way round to your 13 point, where it's safe. +0.08; 24/18 13/8, +0.04.", wrong: { "13/7 13/8": "Two builders, but the 7 is a blot in their sights: 6-5 runs a back checker to safety, 24/13." } },
+            { dice: "6 5", answer: "24/13", gnubg: [["24/13", 0.08], ["24/18 13/8", 0.041], ["13/7 13/8", -0.061]], say: "6-5.", then: "Lover's leap: one back checker all the way round to your 13 point, where it's safe. +0.08; 24/18 13/8, +0.04.", wrong: { "13/7 13/8": "Two builders, but the 7 is a blot in their sights: 6-5 runs a back checker to safety, 24/13." } },
           ],
         },
         {
@@ -261,21 +272,21 @@ export const COURSE = {
           steps: [
             { say: "When they leave a blot on a point you want and your roll brings two checkers there, hit it with both: the point made and their checker on the bar in one play, and coming in is harder with the point gone." },
             { op: "6:5 8:3 13:4 11:1 18:1 24:1", dice: "6 1", answer: "13/7* 8/7", gnubg: [["13/7* 8/7", 0.114], ["13/7* 24/23", -0.046], ["13/7* 7/6", -0.088]], say: "They opened 6-2 with 24/18 13/11, a checker left on your bar point. You roll 6-1.", then: "13/7* 8/7: your bar point, made on their checker. +0.11; hitting with the 6 alone, 13/7* 24/23, −0.05.", wrong: { "13/7* 24/23": "The hit, but your checker on 7 is a blot they can hit back: bring the 8 point's too, 13/7* 8/7." } },
-            { op: "6:4 5:1 8:3 13:5 20:1 24:1", dice: "3 1", answer: "8/5* 6/5", gnubg: [["8/5* 6/5", 0.256], ["24/21 21/20*", 0.102], ["24/21 6/5*", -0.085]], say: "They opened 4-1 with 24/20 6/5, a checker on your 5 point. 3-1.", then: "8/5* 6/5: your 5 point made on their checker, and they come in against three points. +0.26; hitting on their side, 24/21 21/20*, +0.10.", wrong: { "24/21 21/20*": "A hit, but on their side of the board: their blot on your 5 point stays. Point on it: 8/5* 6/5." } },
+            { op: "6:4 5:1 8:3 13:5 20:1 24:1", dice: "3 1", answer: "8/5* 6/5", gnubg: [["8/5* 6/5", 0.256], ["24/20*", 0.102], ["24/21 6/5*", -0.085]], say: "They opened 4-1 with 24/20 6/5, a checker on your 5 point. 3-1.", then: "8/5* 6/5: your 5 point made on their checker, and they come in against three points. +0.26; hitting on their side, 24/20*, +0.10.", wrong: { "24/20*": "A hit, but on their side of the board: their blot on your 5 point stays. Point on it: 8/5* 6/5." } },
           ],
         },
         {
           id: "anchor", title: "An anchor", zh: "",
           steps: [
             { say: "Two of your checkers on a point in their home board make an anchor: they can't be hit there, they wait for a shot, and they keep you in a game that goes wrong. The best is their 5 point, your 20: the golden point." },
-            { op: "6:5 8:3 13:5 24:1 14:1", dice: "4 4", answer: "24/20(2) 13/9(2)", gnubg: [["24/20(2) 13/9(2)", 0.291], ["24/20(2) 8/4(2)", 0.198], ["24/20(2) 20/16(2)", 0.195]], say: "They opened 6-4 by running a back checker, 24/14. You roll 4-4.", then: "24/20(2) 13/9(2): the golden anchor, and two builders brought down for the points to come. +0.29; the anchor with your 4 point instead, +0.20.", wrong: { "24/20(2) 8/4(2)": "The anchor, and a point, but from the 8: your builders stay stacked on the 13. Bring two down, 13/9(2)." } },
+            { op: "6:5 8:3 13:5 24:1 14:1", dice: "4 4", answer: "24/20(2) 13/9(2)", gnubg: [["24/20(2) 13/9(2)", 0.291], ["24/20(2) 8/4(2)", 0.198], ["24/16(2)", 0.195]], say: "They opened 6-4 by running a back checker, 24/14. You roll 4-4.", then: "24/20(2) 13/9(2): the golden anchor, and two builders brought down for the points to come. +0.29; the anchor with your 4 point instead, +0.20.", wrong: { "24/20(2) 8/4(2)": "The anchor, and a point, but from the 8: your builders stay stacked on the 13. Bring two down, 13/9(2)." } },
           ],
         },
         {
           id: "prime", title: "A prime", zh: "",
           steps: [
             { say: "Six points in a row is a prime: a checker behind it can't pass. Five are nearly as good. Build it from the front, a point at a time, with the checkers you've brought down for it." },
-            { me: "8:3 7:2 6:3 5:2 13:3 24:2", op: "6:4 5:2 8:3 13:4 24:2", dice: "4 2", answer: "8/4 6/4", gnubg: [["8/4 6/4", 0.693], ["24/22 22/18", 0.379], ["13/9 24/22", 0.356]], say: "Two of theirs sit on your 1 point behind your 8, 7, 6 and 5 points. 4-2.", then: "8/4 6/4: five points in a row, 8 down to 4, and their two on your 1 point can't jump it from there. +0.69; running a back checker, 24/22 22/18, +0.38." },
+            { me: "8:3 7:2 6:3 5:2 13:3 24:2", op: "6:4 5:2 8:3 13:4 24:2", dice: "4 2", answer: "8/4 6/4", gnubg: [["8/4 6/4", 0.693], ["24/18", 0.379], ["13/9 24/22", 0.356]], say: "Two of theirs sit on your 1 point behind your 8, 7, 6 and 5 points. 4-2.", then: "8/4 6/4: five points in a row, 8 down to 4, and their two on your 1 point can't jump it from there. +0.69; running a back checker, 24/18, +0.38." },
           ],
         },
         {

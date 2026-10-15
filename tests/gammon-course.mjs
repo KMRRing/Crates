@@ -59,7 +59,10 @@ const gam = step("win", s => s.quiz), gb = boardOf(gam);
 check(kindOf(gb.me, gb.op) === 2 && gam.quiz[gam.answer] === "2 points", "a gammon: none of theirs off, none on the bar or in your home");
 const closed = step("bar", s => s.quiz), cb = boardOf(closed);
 check(!plays(cb.me, cb.op, diceOf(closed))[0].moves.length && /^No/.test(closed.quiz[closed.answer]), "closed out: no move at all");
-check(playText(parsePlay("24/18(2) 13/7(2)")) === "24/18(2) 13/7(2)" && playText(parsePlay("bar/22 6/off")) === "bar/22 6/off", "plays written and read back");
+const runOn = Array(26).fill(0);
+runOn[16] = 1;                                                // a blot of theirs on your 9 point
+check(playText(parsePlay("24/18(2) 13/7(2)")) === "24/18(2) 13/7(2)" && playText(parsePlay("bar/22 6/off")) === "bar/22 6/off" && playText([[24, 18], [18, 13]]) === "24/13"
+  && playText([[13, 9], [13, 9], [9, 5], [9, 5]]) === "13/5(2)" && playText([[13, 9], [9, 5]], runOn) === "13/9*/5" && parsePlay("13/9*/5").join(" ") === "13,9 9,5", "plays written and read back, a checker moved on as one path (a hit on the way starred)");
 
 // ---------- GNU Backgammon's verdicts, as kept ----------
 // Playing well's answers are gnubg's (asked offline: tools/gammon-check.mjs asks again). Kept with each step, best
