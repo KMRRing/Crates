@@ -22,9 +22,9 @@ const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M1
  * plays, { seed, …options }, dealt on the device that starts it; play(match, { begun, kept, done, run }): starts
  * this device's run (begun: the server time it started, for a clock, against now(); kept: what keep() last saved of
  * it here; done: it's already over, so show it as it ended; run: what the table has of it, for a device that takes
- * a seat over without anything kept); describe(match): what it is, in a few words; compare: a sort
- * comparator over runs (byScore); lower: a lower score is better; extra(): the game's own lines under the result (what
- * you missed), headed extraTitle; line: where the others' scores show (else a line under the header); accent: the game's enamel
+ * a seat over without anything kept); describe(match): what it is, in a few words; compare: a sort comparator over
+ * runs (byScore); lower: a lower score is better; extra(): the game's own lines under the result (what you missed),
+ * headed extraTitle; line: where the others' scores show (else a line under the header); accent: the game's enamel
  * variable; onLobby(match): the board before a match starts; onLeave(): back to solo; toast(msg).
  */
 export function createDuel({ game, name, app = 1, deal, play, describe = () => "", compare, lower = false, extra = () => null,
@@ -210,8 +210,8 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
   function drawLobby(head, body) {
     const r = runOf(cur, mySlot()), under = !!cur.start, pres = present();
     head.textContent = cur.n > 1 ? `${name}: match ${cur.n}` : `${name} together`;
-    const said = describe(cur.match);
-    if (said) body.append(el("p", "duel-what", said));
+    const about = describe(cur.match);
+    if (about) body.append(el("p", "duel-what", about));
     const list = el("ul", "duel-seats");
     for (const [uid, p] of seated(cur)) {
       const run = runOf(cur, p.slot), here = pres.includes(p.slot);
@@ -240,9 +240,9 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
     tick();
     ticker = setInterval(tick, 100);
     const who = standings(cur, compare).filter(x => x.run.begun === r.begun).map(x => (x.uid === me() ? "you" : first(x.name)));
-    const said = describe(cur.match);
+    const about = describe(cur.match);
     body.append(big, el("p", "duel-note duel-mid", who.length > 1 ? `${list2(who)}, starting together` : "Starting"));
-    if (said) body.append(el("p", "duel-what duel-mid", said));
+    if (about) body.append(el("p", "duel-what duel-mid", about));
   }
   function drawResult(head, body) {
     const pres = present(), over = isOver(cur, pres), rows = standings(cur, compare), me0 = mySlot();
@@ -321,7 +321,7 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
   function reset() {
     clearTimeout(timer); clearInterval(ticker);
     stopOffset?.(); stopOffset = null;
-    cur = null; played = null; lobbyFor = null; shown = null; closedFor = null; queued = null; finish = null;
+    cur = null; played = null; lobbyFor = null; shown = null; closedFor = null; queued = null; finish = null; said = "";
     if (dlg?.open) dlg.close();
     drawLine();
   }
