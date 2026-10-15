@@ -2,54 +2,26 @@
 // commodities ahead of the rest; guess whenever you like. A wrong guess shows only how warm it is, blue for far,
 // red for close. Five countries a run, random or today's; fewer clues and fewer guesses score more. The clues are
 // the knowledge base's own (the ones Crates and Punt draw on, here every one of a country's, hardest first); the
-// places are Chart's. Together, the same five countries for everyone at the table (duel.js).
-import { ENTITIES } from "./kb/entities.js";
-import { LINKS } from "./kb/links.js";
+// places are Chart's; the countries, clues and scoring are origin-engine.js's.
+// Together, one run for the table (together.js): the same five countries for everyone at it, the clues, the guesses
+// and the score shared, anyone guessing, each guess marked with who made it.
 import { COUNTRIES } from "./chart-countries.js";
+import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
+  freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line } from "./menu.js";
-import { today, arrivedForToday, dailyDue } from "./suite.js";   // the day, the same for everyone (UTC)
-import { createDuel } from "./duel.js";
+import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
+import { createTogether } from "./together.js";
+import { roomInAddress } from "./rooms.js";
+import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const PER_RUN = 5, FULL = 100, PER_CLUE = 10, PER_GUESS = 5, LEAST = 5, MAX_CLUES = 12;
 const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily";
+const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own run)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-const shuffle = (r, xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-
-// ---------- the countries and their clues ----------
-const NAME = new Map(ENTITIES.map(e => [e.id, e.name]));
-const PLACE = new Map(COUNTRIES.map(c => [c.about || c.id, c]));
-const ALIASES = new Map(ENTITIES.map(e => [e.id, [e.name, ...(e.aliases || [])].map(s => s.toLowerCase())]));
-// trade and commodities first, as in the guessing game: the aspects of a clue that are about what a country makes,
-// sells and moves
-const TRADE = new Set(["nrg", "met", "agr", "mkt", "mkts", "trade", "co", "firm", "fin", "prod", "logi", "uses", "spec", "orig"]);
-// a clue gives the country away if it names the country or a place in it ("a Ponzi scheme in Gdańsk")
-const INSIDE = new Map();
-for (const l of LINKS) if (l.rel === "in" && PLACE.has(l.to) && NAME.has(l.from)) {
-  if (!INSIDE.has(l.to)) INSIDE.set(l.to, []);
-  INSIDE.get(l.to).push(NAME.get(l.from).toLowerCase());
-}
-const CLUES = new Map();
-for (const l of LINKS) {
-  if (!["clue", "link"].includes(l.rel) || !l.hint || !PLACE.has(l.to) || !NAME.has(l.from)) continue;   // a clue, or a plain link with a reason
-  const names = [...ALIASES.get(l.to), ...(INSIDE.get(l.to) || [])], said = `${NAME.get(l.from)} ${l.hint || ""}`.toLowerCase();
-  if (names.some(n => n.length > 3 && said.includes(n))) continue;
-  if (!CLUES.has(l.to)) CLUES.set(l.to, []);
-  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)) });
-}
-const ANSWERS = [...CLUES.keys()].filter(id => CLUES.get(id).length >= 6).sort();
-/** A country's clues for this deal: the most obscure first (difficulty 3 before 2 before 1), trade ahead within each. */
-function cluesFor(id, r) {
-  const all = shuffle(r, CLUES.get(id));
-  return all.sort((a, b) => b.d - a.d || Number(b.trade) - Number(a.trade)).slice(0, MAX_CLUES);
-}
-// any country on the map can be guessed, by its name or another of its names
-const GUESSABLE = new Map();
-for (const c of COUNTRIES) for (const n of [c.name, ...(ALIASES.get(c.about || c.id) || [])]) GUESSABLE.set(n.toLowerCase(), c.about || c.id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
 // ---------- how warm a wrong guess is ----------
 const rad = d => d * Math.PI / 180;
@@ -233,20 +205,15 @@ function moveActive(step) {
   $("guessIn").setAttribute("aria-activedescendant", items[active].id);
 }
 
-// ---------- a run ----------
+// ---------- the run: your own, or the table's ----------
 let S = read(RUN, null);
-const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
-/** The five countries of a seed, each with its clues for this deal. */
-function dealRun(seed, daily) {
-  const r = rng(seed), picks = shuffle(r, ANSWERS).slice(0, PER_RUN);
-  return { seed, daily, day: daily ? today() : null, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r), shown: 1, guesses: [], done: null, points: 0 })) };
-}
+const save = () => write(RUN, S);
 function newRun(daily) {
-  S = dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily);
+  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31)), daily, day: daily ? today() : null };
   save(); render();
 }
-const round = () => S?.rounds[S.index];
-const pointsNow = R => Math.max(LEAST, FULL - PER_CLUE * (R.shown - 1) - PER_GUESS * R.guesses.length);
+const current = () => G?.run || S;                              // the run on the screen: the table's while at one
+const round = () => { const run = current(); return run?.rounds[run.index]; };
 
 function guess(text) {
   const R = round();
@@ -255,51 +222,59 @@ function guess(text) {
   if (!id) { toast("Not a country on the map"); return; }
   if (R.guesses.includes(id)) { toast("Already guessed"); return; }
   chosen = null;
-  if (id === R.id) { R.done = "found"; R.points = pointsNow(R); S.total += R.points; count(); }
-  else { R.guesses.push(id); if (R.shown < R.clues.length) R.shown++; }          // a wrong guess turns up the next clue
+  if (G) { colourMap(); guessTogether(id); return; }
+  if (guessIn(S, id) === "found") count();                      // a wrong guess turns up the next clue
   save(); render();
 }
 /** The last country decided: the run's total is final, so it counts at once, for your best and today's, not when
  *  Finish is pressed (which counts it again, changing nothing). */
 function count() {
-  if (!S.rounds.every(R => R.done)) return;
-  if (S.duel) { tell(true); return; }                     // the table's result, not your best or today's
+  if (!decided(S)) return;
   const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
   if (S.daily) { const d = read(DAILY, {}), day = S.day ?? today(); if (!(d[day] >= S.total)) { d[day] = S.total; write(DAILY, d); } }
 }
 /** Today's run, still to play: asks before leaving a run you've started. */
 function openToday() {
-  const R = S && round();
+  const R = S?.rounds[S.index];
   if (S && !S.over && (S.index > 0 || R?.guesses.length || R?.shown > 1 || R?.done) && !confirm("Start today's run? This one isn't finished.")) return;
   newRun(true);
 }
-function another() { const R = round(); if (R && !R.done && R.shown < R.clues.length) { R.shown++; save(); render(); } }
-function giveUp() { const R = round(); if (R && !R.done) { R.done = "gave up"; R.points = 0; count(); save(); render(); } }
+function another() {
+  if (G) { clueTogether(); return; }
+  if (S && clueIn(S)) { save(); render(); }
+}
+function giveUp() {
+  if (G) { giveUpTogether(); return; }
+  if (S && giveUpIn(S)) { count(); save(); render(); }
+}
 function next() {
-  if (S.index + 1 < S.rounds.length) { S.index++; save(); render(); return; }
-  S.over = true; save();
+  if (G) { nextTogether(); return; }
+  nextIn(S); save();
+  if (!S.over) { render(); return; }
   count();
-  if (S.duel) duel.open(); else finish();
+  finish();
 }
 
 // ---------- drawing ----------
 function render() {
-  if (!S) { if (duel.on) lobby(); else newRun(false); return; }
-  const R = round();
-  $("where").textContent = `Country ${S.index + 1} of ${S.rounds.length}${S.daily ? " · today's" : S.duel ? " · together" : ""}`;
-  $("score").innerHTML = `Score <b>${S.total}</b>`;
+  const run = current();
+  if (!run) { newRun(false); return; }
+  const R = run.rounds[run.index];
+  $("where").textContent = `Country ${run.index + 1} of ${run.rounds.length}${run.daily ? " · today's" : ""}`;
+  $("score").innerHTML = `Score <b>${run.total}</b>`;
+  drawTeam();
   $("clues").replaceChildren(...R.clues.slice(0, R.shown).map(c => {
-    const li = document.createElement("li"), b = document.createElement("b"), p = document.createElement("span");
-    b.textContent = c.name; p.textContent = c.hint;
-    li.append(b, p); return li;
+    const li = el("li");
+    li.append(el("b", "", c.name), el("span", "", c.hint));
+    return li;
   }));
   $("clues").lastElementChild?.scrollIntoView({ block: "nearest" });
-  $("guesses").replaceChildren(...R.guesses.map(g => {
-    const t = heat(away(g, R.id).km), li = document.createElement("li");
-    li.className = "og-g";
+  $("guesses").replaceChildren(...R.guesses.map((g, i) => {
+    const t = heat(away(g, R.id).km), li = el("li", "og-g"), by = G ? R.guessedBy[i] : null;
     li.style.setProperty("--heat", heatColour(t));
-    li.textContent = PLACE.get(g).name;
-    li.setAttribute("aria-label", `${PLACE.get(g).name}: ${warmthWord(t)}`);
+    if (by != null) li.append(badge(by));                       // at a table: whose guess it was
+    li.append(PLACE.get(g).name);
+    li.setAttribute("aria-label", `${PLACE.get(g).name}: ${warmthWord(t)}${by != null ? `, guessed by ${nameOf(by)}` : ""}`);
     return li;
   }));
   colourMap();
@@ -310,66 +285,182 @@ function render() {
   $("clueBtn").disabled = R.shown >= R.clues.length;
   $("result").hidden = playing;
   if (!playing) {
-    const name = PLACE.get(R.id).name;
+    const name = PLACE.get(R.id).name, who = G && R.doneBy != null ? nameOf(R.doneBy) : null;
     $("verdict").className = `og-verdict ${R.done === "found" ? "good" : "bad"}`;
     $("verdict").textContent = R.done === "found" ? `${name}: +${R.points}` : `It was ${name}`;
-    $("note").textContent = R.done === "found" ? `${R.shown} clue${R.shown === 1 ? "" : "s"}, ${R.guesses.length} wrong guess${R.guesses.length === 1 ? "" : "es"}.` : "Every clue above points there.";
-    $("nextBtn").textContent = S.index + 1 < S.rounds.length ? "Next country" : "Finish";
+    $("note").textContent = R.done === "found" ? `${who ? `${who} found it: ` : ""}${R.shown} clue${R.shown === 1 ? "" : "s"}, ${R.guesses.length} wrong guess${R.guesses.length === 1 ? "" : "es"}.`
+      : `${who ? `${who} gave up. ` : ""}Every clue above points there.`;
+    $("nextBtn").textContent = run.index + 1 < run.rounds.length ? "Next country" : "Finish";
   }
 }
 function finish() {
   const body = $("doneBody");
   body.replaceChildren();
-  const p = document.createElement("p");
-  p.className = "og-sum";
-  p.textContent = `${S.total} of ${PER_RUN * FULL}: ${S.rounds.filter(R => R.done === "found").length} of ${S.rounds.length} found.`;
-  body.append(p, ...(dailyDue("origin") ? [action("Today's run", () => { $("doneDlg").close(); newRun(true); }, "primary")] : []),
+  body.append(el("p", "og-sum", `${S.total} of ${PER_RUN * FULL}: ${S.rounds.filter(R => R.done === "found").length} of ${S.rounds.length} found.`),
+    ...(dailyDue("origin") ? [action("Today's run", () => { $("doneDlg").close(); newRun(true); }, "primary")] : []),
     action("Another run", () => { $("doneDlg").close(); newRun(false); }, dailyDue("origin") ? "" : "primary"));
   $("doneDlg").showModal();
 }
 let toastTimer;
 function toast(text) { const t = $("toast"); t.textContent = text; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), 1800); }
 
-// ---------- together: the same five countries for everyone at the table (duel.js) ----------
-// Everyone at the table gets the match's five countries with the same clues in the same order, and plays them through
-// on their own phone; the others' scores show in the strip. The highest total wins, then the quicker. Your solo run,
-// your best and today's stay as they were.
-const duel = createDuel({
-  game: "origin", name: "Origin", line: $("rival"), toast,
-  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31) }),
-  describe: () => `The same ${PER_RUN} countries for everyone, clue for clue`,
-  play: (match, { kept }) => {
-    S = kept?.seed === match.seed && kept.rounds ? kept : { ...dealRun(match.seed, false), duel: true };
+// ---------- together: one run for the table (together.js) ----------
+// The pair's duo match, or a party's table of up to six, each on their own phone: the same country and clues on every
+// phone. Anyone guesses (typed, or a country tapped twice on their own map), takes another clue, gives up (asked
+// first) or moves on with Next; the first tap counts, and one made on a screen the table has moved on from does
+// nothing, and says so. Each guess carries its player's colour and initial; the end, the team's total. Your solo run,
+// best and today's stay as they were.
+let G = null;                  // the table as last seen, made whole (null: playing alone)
+let shownOver = null;
+let joining = null;            // the rete while this phone sits down at the table in its address, until it's drawn
+const seated = () => { joining?.(); joining = null; };
+const first = name => String(name || "Player").trim().split(/\s+/)[0];
+const initial = name => (Array.from(first(name))[0] || "?").toUpperCase();
+/** Everyone seated at the table, by seat: [{ slot, name, me, here }] (here: this game open on a phone that's online). */
+const people = () => (together.room && together.slot != null
+  ? [{ slot: together.slot, name: together.room.name, me: true, here: true }, ...together.others()].sort((a, b) => a.slot - b.slot) : []);
+const nameOf = slot => { const p = people().find(x => x.slot === slot); return p?.me ? "You" : first(p?.name); };
+/** A player's badge: their initial on their colour. */
+function badge(slot) {
+  const p = people().find(x => x.slot === slot), b = el("i", "og-by", initial(p?.name));
+  b.style.setProperty("--who", `var(--p${slot % 6})`);
+  b.setAttribute("aria-hidden", "true");
+  return b;
+}
+
+function onState(val) {
+  seated();
+  const was = G;
+  G = tidy(structuredClone(val));
+  const run = G.run, R = run.rounds[run.index];
+  // another country (or game), or this one decided: what was picked or typed for it goes
+  if (was?.n !== G.n || was.run.index !== run.index || (R.done && !was.run.rounds[run.index].done)) { chosen = null; $("guessIn").value = ""; hideSuggest(); }
+  else if (chosen && R.guesses.includes(chosen)) {                // the country picked on the map was just guessed by someone else
+    if ($("guessIn").value === PLACE.get(chosen).name) $("guessIn").value = "";
     chosen = null;
-    save(); render();
+  }
+  if (was?.n !== G.n) {
+    if ($("doneDlg").open) $("doneDlg").close();
+    if (was) toast("A new game");
+  }
+  render();
+  if (run.over && shownOver !== G.n) { shownOver = G.n; finishTogether(); }      // the end, on every phone
+}
+/** Why a tap made on country `index` of game n did nothing: someone decided that country first, or the table moved on. */
+function tooLate(g, { n, index, slot }) {
+  const R = g.n === n ? g.run.rounds[index] : null;
+  return R?.done && R.doneBy != null && R.doneBy !== slot ? `Too late: ${nameOf(R.doneBy)} ${R.done === "found" ? "found it" : "gave up on it"}` : "Too late: the table moved on";
+}
+async function guessTogether(id) {
+  const at = { n: G.n, index: G.run.index, slot: together.slot };
+  let outcome = null, why = null;
+  const ok = await together.act(g => {
+    outcome = guessAt(tidy(g), { ...at, id });
+    why = outcome === "moved" || outcome === "decided" ? tooLate(g, at) : null;
+    return outcome === "found" || outcome === "wrong";
+  });
+  if (ok) return;
+  if (outcome === "again") toast("Already guessed");
+  else if (why) toast(why);
+}
+async function clueTogether() {
+  const at = { n: G.n, index: G.run.index, slot: together.slot }, shown = G.run.rounds[at.index].shown;
+  let why = null;
+  const ok = await together.act(g => {
+    if (clueAt(tidy(g), { ...at, shown })) return true;
+    // someone else's clue (or a wrong guess) turned one up first: one clue for the two taps, not two
+    why = g.n === at.n && !g.run.over && g.run.index === at.index && !g.run.rounds[at.index].done ? "A clue just turned up" : tooLate(g, at);
+    return false;
+  });
+  if (!ok && why) toast(why);
+}
+async function giveUpTogether() {
+  const at = { n: G.n, index: G.run.index, slot: together.slot };
+  let why = null;
+  const ok = await together.act(g => { const gave = giveUpAt(tidy(g), at); why = gave ? null : tooLate(g, at); return gave; });
+  if (!ok && why) toast(why);
+}
+async function nextTogether() {
+  const n = G.n, index = G.run.index;
+  await together.act(g => nextAt(tidy(g), { n, index }));        // someone else's Next first: the next country shows anyway
+}
+/** A new game for the table: asks first while this one is under way. */
+async function dealAgain() {
+  if (!G) return;
+  const n = G.n, run = G.run, R = run.rounds[run.index];
+  if (!run.over && (run.index > 0 || R.guesses.length || R.shown > 1 || R.done) && !confirm("Deal a new game for the table? This one isn't finished.")) return;
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  await together.act(g => newGameAt(tidy(g), { n, seed }));
+}
+/** Who's at the table, by their badges (their guesses carry them); those away greyed. */
+function drawTeam() {
+  const box = $("team"), all = people();
+  box.hidden = !G;
+  if (!G) return;
+  box.setAttribute("aria-label", `At the table: ${all.map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`).join(", ")}`);
+  box.replaceChildren(...all.map(p => {
+    const b = badge(p.slot);
+    b.classList.toggle("me", !!p.me);
+    b.classList.toggle("away", !p.here);
+    b.title = `${p.me ? "You" : p.name}${p.here ? "" : " (away)"}`;
+    return b;
+  }));
+}
+/** The end of a game at the table: the team's total. */
+function finishTogether() {
+  const run = G.run, body = $("doneBody");
+  body.replaceChildren();
+  body.append(el("p", "og-sum", `${run.total} of ${PER_RUN * FULL} together: ${run.rounds.filter(R => R.done === "found").length} of ${run.rounds.length} found.`),
+    action("Another game", () => { $("doneDlg").close(); dealAgain(); }, "primary"),
+    action("Back to solo", () => { $("doneDlg").close(); together.leave(); }, "link"));
+  if (!$("doneDlg").open) $("doneDlg").showModal();
+}
+/** The name this player goes by at a table (the suite's, asked once). */
+async function askName() {
+  try { const saved = localStorage.getItem("crates:name"); if (saved) return saved; } catch { /* private mode */ }
+  const dlg = $("nameDlg");
+  dlg.showModal();
+  $("nameInput").focus();
+  const name = await new Promise(res => dlg.addEventListener("close", () => res($("nameInput").value.trim()), { once: true }));
+  if (name) try { localStorage.setItem("crates:name", name); } catch { /* private mode */ }
+  return name;
+}
+const together = createTogether({
+  game: "origin",
+  app: APP,
+  toast,
+  askName,
+  valid: isTable,
+  slots: g => g?.people || 2,
+  fresh: (players, { ask } = {}) => freshTable(players, { seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP }),
+  onState,
+  onPresence: () => { if (G) drawTeam(); },
+  onLeave: () => {
+    seated();
+    G = null; shownOver = null; chosen = null;
+    $("guessIn").value = ""; hideSuggest();
+    if ($("doneDlg").open) $("doneDlg").close();
+    S = read(RUN, null);
+    solo();
   },
-  onLobby: () => { S = null; render(); },
-  onLeave: () => { S = read(RUN, null); chosen = null; if (!S || S.over) newRun(dailyDue("origin")); else render(); },
+  result: resultOf,                                            // a team result: the total, the moment the last country is decided
 });
-/** What the table sees of this run: the total, and how far through. */
-function tell(done = false) {
-  const found = S.rounds.filter(R => R.done === "found").length, decided = S.rounds.filter(R => R.done).length;
-  duel.report({ score: S.total, text: done ? `${S.total}, ${found} of ${PER_RUN} found` : `${S.total} · ${decided} of ${PER_RUN}`, ...(done ? { done: true } : {}) });
-}
-/** The card before a match: nothing to guess yet. */
-function lobby() {
-  $("where").textContent = `${PER_RUN} countries, the same for everyone`;
-  $("score").innerHTML = "Score <b>0</b>";
-  $("clues").replaceChildren();
-  $("guesses").replaceChildren();
-  $("guessForm").hidden = true;
-  $("clueBtn").parentElement.hidden = true;
-  $("result").hidden = true;
-  colourMap();
-}
+/** Back to your own run: from the table, or from the address while still sitting down at it. */
+const backToSolo = () => { if (together.room) together.leave(); else location.replace(soloHref()); };
 
 // ---------- the menu ----------
 let pick = null;
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  if (duel.on) {
-    duel.menu(part(body, "together"));
+  if (together.room || joining) {                             // at the table: a new game for it, who's there, back to solo
+    const table = part(body, "together");
+    if (G) {
+      const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
+      table.append(action("New game", dealAgain, "primary"),
+        line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
+    } else { const wait = line("Joining the table"); wait.prepend(sextant()); table.append(wait); }
+    table.append(action("Back to solo", backToSolo, "link"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -391,7 +482,7 @@ $("guessIn").addEventListener("blur", () => setTimeout(hideSuggest, 150));
 $("guessIn").addEventListener("keydown", e => {
   if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); moveActive(e.key === "ArrowDown" ? 1 : -1); }
   else if (e.key === "Escape") hideSuggest();
-  else if (e.key === "Enter" && !$("suggest").hidden && active >= 0) { e.preventDefault(); const pick = $("suggest").children[active].textContent; hideSuggest(); guess(pick); $("guessIn").value = ""; }
+  else if (e.key === "Enter" && !$("suggest").hidden && active >= 0) { e.preventDefault(); const name = $("suggest").children[active].textContent; hideSuggest(); guess(name); $("guessIn").value = ""; }
 });
 $("guessForm").addEventListener("submit", e => { e.preventDefault(); hideSuggest(); guess($("guessIn").value); $("guessIn").value = ""; });
 $("clueBtn").addEventListener("click", another);
@@ -405,10 +496,12 @@ function solo() {
   else if (!S || S.over) newRun(dailyDue("origin"));
   else render();
 }
-if (duel.inAddress) { S = null; duel.join().then(ok => { if (!ok) { S = read(RUN, null); solo(); } }); }   // a match in the address: no solo run under it
+// a table in the address (a duo match, a party's game): the rete until it's drawn, and no solo run under it
+const code = roomInAddress();
+if (code) { joining = busy("Joining the table", { delay: 0 }); together.join(code).then(ok => { if (!ok) { seated(); solo(); } }); }
 else solo();
-document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
-window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 
 // for tests and debugging
-window.__origin = { get state() { return S; }, guess, giveUp, next, another, duel };
+window.__origin = { get state() { return S; }, get table() { return G; }, guess, giveUp, next, another, together };

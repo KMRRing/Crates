@@ -1,9 +1,15 @@
 /* Origin: the clues stack up the card; the guesses below them carry only their warmth, as a colour */
 .origin .og-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .2rem 0 .55rem; color: var(--ink-soft); }
 .og-score b { color: var(--ink); font-size: 1.25rem; }
-/* together, the others' scores between yours and where you are (duel.js fills it; a tap opens the match) */
-.og-rival { flex: 1 1 auto; min-width: 0; padding: 0 .6rem; text-align: center; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.og-rival[hidden] { display: none; }
+/* together: who's at the table, between where you are and the score, each a badge (their initial on their colour, as
+   on their guesses); yours ringed, those away greyed */
+.og-team { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; align-self: center; gap: .3rem; padding: 0 .6rem; overflow: hidden; }
+.og-team[hidden] { display: none; }
+.og-by { flex: none; display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--who, var(--p0));
+  color: var(--sheet); font-size: .68rem; font-weight: 800; font-style: normal; line-height: 1; }
+.og-team .og-by.me { box-shadow: 0 0 0 1.5px var(--sheet), 0 0 0 3px var(--who, var(--p0)); }
+.og-team .og-by.away { opacity: .4; }
+.og-g .og-by { margin: -.15rem .4rem -.15rem -.4rem; vertical-align: middle; }
 .og-card { background: var(--sheet); border: 1px solid var(--tile-edge); border-radius: 10px; padding: .9rem; gap: .6rem; min-height: 0; }
 .og-clues { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .5rem; min-height: 3.5rem; flex: 1 1 auto; overflow-y: auto; }
 .og-clues li { display: grid; gap: .1rem; padding: .45rem .6rem; border-left: 3px solid var(--brass); background: color-mix(in srgb, var(--tile) 70%, transparent); border-radius: 0 6px 6px 0; }
