@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Contract</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="course.css">
+<link rel="stylesheet" href="contract.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="contract fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon ct-mark" aria-hidden="true"></span>Contract</button></h1>
+    <div class="top-right">
+      <button id="learnBtn" class="pick" aria-haspopup="dialog">Learn</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div id="info" class="ct-info" aria-live="polite"></div>
+  <section id="table" class="ct-table fit-grow" aria-label="The table">
+    <div id="seatTop" class="ct-seat at-top"></div>
+    <div id="seatLeft" class="ct-seat at-left"></div>
+    <div id="seatRight" class="ct-seat at-right"></div>
+    <div id="centre" class="ct-centre"></div>
+  </section>
+  <section id="side" class="ct-side" aria-label="Your hand">
+    <div id="aside" class="ct-aside" aria-label="The auction"></div>
+    <p id="say" class="ct-say" aria-live="polite"></p>
+    <div id="hand" class="ct-hand cd-row" aria-label="Your cards"></div>
+    <div id="controls" class="ct-controls"></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet ct-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="ct-rules"></div>
+</dialog>
+
+<dialog id="reviewDlg" class="sheet ct-sheet pauses" aria-labelledby="reviewHead">
+  <div class="pick-head"><h2 id="reviewHead">The deal</h2><button class="btn" type="button" id="reviewClose">Close</button></div>
+  <div id="reviewBody" class="ct-review"></div>
+</dialog>
+
+<dialog id="endDlg" class="sheet ct-sheet" aria-labelledby="endHead">
+  <h2 id="endHead" class="ct-end-head"></h2>
+  <div id="endBody" class="ct-end"></div>
+  <div class="ct-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New match</button></div>
+</dialog>
+
+<p id="toast" class="ct-toast" role="status" aria-live="polite"></p>
+<script type="module" src="contract.js"></script>
+</body>
+</html>

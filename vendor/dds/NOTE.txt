@@ -1,0 +1,21 @@
+DDS, the double-dummy solver Contract's computer players, hints and reviews use (contract-dds.js, contract-worker.js):
+given the four hands and the strain, the tricks each card the player to move may play takes, every card seen and
+everyone at their best.
+
+Package:  @bridge-tools/dd@0.2.2 on npm (https://www.npmjs.com/package/@bridge-tools/dd), by Aaron Hutton,
+          https://github.com/aaron-hutton/bridge-tools (packages/dd)
+File:     wasm/compiled.wasm, shipped here unchanged as dds.wasm
+          (SHA-256 759182fa89863d73cf1efb3f24686ec492bde3b1d5d78a4396396c41d73e584e). The package's JavaScript (the
+          emscripten loader and its wrapper) isn't used: contract-dds.js starts the module itself with the few imports
+          it asks for (all refused or no-ops: it reads no file and nothing it prints is read).
+Built:    by the package's compile.sh: emscripten, MODULARIZE, 50 MB of memory, fixed; no optimisation flag (so -O0).
+          Its C wrapper (src/dds/dds_wrapper.c, MIT) exports dds_init (SetResources(40, 1): 40 MB of tables, one
+          thread) and dds_solve_board (SolveBoardPBN with target 0, solutions 3, mode 1: every card and its tricks).
+Source:   DDS 2.x by Bo Haglund and Soren Hein, https://github.com/dds-bridge/dds
+Licence:  the package: MIT (LICENSE-bridge-tools.txt, which also carries DDS's copyright notice);
+          DDS: Apache License 2.0 (LICENSE-DDS.txt, as DDS's repository has it).
+
+Why this build: it is single-threaded, so it needs no SharedArrayBuffer (and none of the cross-origin isolation headers
+GitHub Pages can't send); it starts in a Web Worker on a phone in a few hundredths of a second. Unoptimised, a deal of
+thirteen cards a hand takes it about a tenth of a second on a laptop, a late trick a few milliseconds, which is why the
+computer's thinking is budgeted by time (contract-worker.js). Binaryen's wasm-opt -O3 on this file made it no faster.
