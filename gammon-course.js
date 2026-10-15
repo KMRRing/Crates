@@ -29,6 +29,14 @@ export function parseSide(text) {
   }
   return p;
 }
+/** A side's checkers written as parseSide reads them: its points low to high, then the bar and off. */
+export function sideText(p) {
+  const out = [];
+  for (let i = 1; i <= 24; i++) if (p[i]) out.push(`${i}:${p[i]}`);
+  if (p[25]) out.push(`bar:${p[25]}`);
+  if (p[0]) out.push(`off:${p[0]}`);
+  return out.join(" ");
+}
 /** A step's board: { me, op }, the start where it says nothing. */
 export function boardOf(step) {
   const me = parseSide(step.me ?? START), op = parseSide(step.op ?? START);
@@ -229,6 +237,67 @@ export const COURSE = {
           id: "first", title: "A first match", zh: "",
           steps: [
             { say: "That's the game. Play a match against the computer at Easy: the menu sets its length and the cube.", play: true },
+          ],
+        },
+      ],
+    },
+    {
+      // every play asked for is GNU Backgammon's first choice by a clear margin and every cube answer its verdict (money
+      // play, 2-ply, asked offline: gnubg is GPL and isn't shipped; tools/gammon-check.mjs asks again): its equities
+      // kept with each step, best first (gnubg), for the tests and for the words
+      id: "well", title: "Playing well", zh: "",
+      lessons: [
+        {
+          id: "open", title: "Opening rolls", zh: "",
+          steps: [
+            { rows: [{ label: "3-1", text: "8/5 6/5" }, { label: "4-2", text: "8/4 6/4" }, { label: "6-1", text: "13/7 8/7" }, { label: "5-3", text: "8/3 6/3" }, { label: "6-5", text: "24/13" }], say: "Five opening rolls are played one way by everyone who knows: four make a point at once, the 5, the 4, the bar and the 3 point, best first, and 6-5 runs a back checker all the way to safety. The others build or split, and there's room for taste there." },
+            { dice: "3 1", answer: "8/5 6/5", gnubg: [["8/5 6/5", 0.219], ["13/10 24/23", -0.011], ["24/21 21/20", -0.019]], say: "Your first roll: 3-1.", then: "8/5 6/5: the 5 point, the best on the board, made at once. GNU Backgammon rates it +0.22 of a game; the next best, 13/10 24/23, −0.01.", wrong: { "13/10 24/23": "A fair play for another roll, but 3-1 makes the 5 point: 8/5 6/5.", "24/21 21/20": "A run to their bar point; 3-1 makes your 5 point instead: 8/5 6/5." } },
+            { dice: "6 1", answer: "13/7 8/7", gnubg: [["13/7 8/7", 0.126], ["24/18 24/23", -0.04], ["13/7 24/23", -0.065]], say: "6-1.", then: "13/7 8/7: the bar point, in front of their back checkers' sixes. +0.13; splitting with 24/18 24/23, −0.04.", wrong: { "24/18 24/23": "6-1 makes your bar point: 13/7 8/7." } },
+            { dice: "6 5", answer: "24/18 18/13", gnubg: [["24/18 18/13", 0.08], ["24/18 13/8", 0.041], ["13/7 13/8", -0.061]], say: "6-5.", then: "Lover's leap: one back checker all the way round to your 13 point, where it's safe. +0.08; 24/18 13/8, +0.04.", wrong: { "13/7 13/8": "Two builders, but the 7 is a blot in their sights: 6-5 runs a back checker to safety, 24/13." } },
+          ],
+        },
+        {
+          id: "point", title: "Point on a blot", zh: "",
+          steps: [
+            { say: "When they leave a blot on a point you want and your roll brings two checkers there, hit it with both: the point made and their checker on the bar in one play, and coming in is harder with the point gone." },
+            { op: "6:5 8:3 13:4 11:1 18:1 24:1", dice: "6 1", answer: "13/7* 8/7", gnubg: [["13/7* 8/7", 0.114], ["13/7* 24/23", -0.046], ["13/7* 7/6", -0.088]], say: "They opened 6-2 with 24/18 13/11, a checker left on your bar point. You roll 6-1.", then: "13/7* 8/7: your bar point, made on their checker. +0.11; hitting with the 6 alone, 13/7* 24/23, −0.05.", wrong: { "13/7* 24/23": "The hit, but your checker on 7 is a blot they can hit back: bring the 8 point's too, 13/7* 8/7." } },
+            { op: "6:4 5:1 8:3 13:5 20:1 24:1", dice: "3 1", answer: "8/5* 6/5", gnubg: [["8/5* 6/5", 0.256], ["24/21 21/20*", 0.102], ["24/21 6/5*", -0.085]], say: "They opened 4-1 with 24/20 6/5, a checker on your 5 point. 3-1.", then: "8/5* 6/5: your 5 point made on their checker, and they come in against three points. +0.26; hitting on their side, 24/21 21/20*, +0.10.", wrong: { "24/21 21/20*": "A hit, but on their side of the board: their blot on your 5 point stays. Point on it: 8/5* 6/5." } },
+          ],
+        },
+        {
+          id: "anchor", title: "An anchor", zh: "",
+          steps: [
+            { say: "Two of your checkers on a point in their home board make an anchor: they can't be hit there, they wait for a shot, and they keep you in a game that goes wrong. The best is their 5 point, your 20: the golden point." },
+            { op: "6:5 8:3 13:5 24:1 14:1", dice: "4 4", answer: "24/20(2) 13/9(2)", gnubg: [["24/20(2) 13/9(2)", 0.291], ["24/20(2) 8/4(2)", 0.198], ["24/20(2) 20/16(2)", 0.195]], say: "They opened 6-4 by running a back checker, 24/14. You roll 4-4.", then: "24/20(2) 13/9(2): the golden anchor, and two builders brought down for the points to come. +0.29; the anchor with your 4 point instead, +0.20.", wrong: { "24/20(2) 8/4(2)": "The anchor, and a point, but from the 8: your builders stay stacked on the 13. Bring two down, 13/9(2)." } },
+          ],
+        },
+        {
+          id: "prime", title: "A prime", zh: "",
+          steps: [
+            { say: "Six points in a row is a prime: a checker behind it can't pass. Five are nearly as good. Build it from the front, a point at a time, with the checkers you've brought down for it." },
+            { me: "8:3 7:2 6:3 5:2 13:3 24:2", op: "6:4 5:2 8:3 13:4 24:2", dice: "4 2", answer: "8/4 6/4", gnubg: [["8/4 6/4", 0.693], ["24/22 22/18", 0.379], ["13/9 24/22", 0.356]], say: "Two of theirs sit on your 1 point behind your 8, 7, 6 and 5 points. 4-2.", then: "8/4 6/4: five points in a row, 8 down to 4, and their two on your 1 point can't jump it from there. +0.69; running a back checker, 24/22 22/18, +0.38." },
+          ],
+        },
+        {
+          id: "race", title: "The race and the cube", zh: "",
+          steps: [
+            { rows: [{ label: "Double", text: "8% ahead" }, { label: "Redouble", text: "9%" }, { label: "Take", text: "12% behind" }], say: "Once the checkers are past each other it's a race: count the pips. In a long race, on roll, double when you're about 8% ahead (9% to redouble, the cube yours), and take a double when you're no more than about 12% behind: the 8-9-12 rule." },
+            { me: "9:2 8:2 6:4 5:3 4:2 3:2", op: "9:2 8:2 7:1 6:4 5:3 4:2 3:1", pips: true, quiz: ["No double", "Double: they take", "Double: they pass"], acts: ["no-double", "double/take", "double/pass"], answer: 0, gnubg: { act: "no-double", nd: 0.498, dt: 0.446 }, say: "A race, and you're on roll. Double?", why: "No double: 4 ahead is under 5%. GNU Backgammon: playing on is worth +0.50, doubled and taken +0.45." },
+            { me: "9:2 8:2 6:4 5:3 4:2 3:2", op: "9:2 8:2 7:2 6:4 5:3 4:2", pips: true, quiz: ["No double", "Double: they take", "Double: they pass"], acts: ["no-double", "double/take", "double/pass"], answer: 1, gnubg: { act: "double/take", nd: 0.737, dt: 0.779 }, say: "And now?", why: "Double, and they take: 8 ahead is 9%, enough to double, not enough to drop. Doubled and taken it's worth +0.78 to you, against +0.74 playing on and the 1 a drop would give you." },
+            { me: "9:2 8:2 6:4 5:3 4:2 3:2", op: "11:2 9:2 8:2 7:2 6:3 5:2 4:2", pips: true, quiz: ["No double", "Double: they take", "Double: they pass"], acts: ["no-double", "double/take", "double/pass"], answer: 2, gnubg: { act: "double/pass", nd: 0.975, dt: 1.443 }, say: "And now?", why: "Double, and they should pass: 19 ahead is 22%. Taken, it would be worth +1.44 to you; they lose less, 1, by dropping." },
+          ],
+        },
+        {
+          id: "safe", title: "Bear off safely", zh: "",
+          steps: [
+            { say: "Bearing off with their checkers still in your home board, safety comes before speed: take fewer off when more would leave a checker alone where they can hit it." },
+            { me: "6:3 5:4 4:3 3:2 2:1 off:2", op: "24:2 6:4 5:3 4:3 3:2 2:1", dice: "5 4", answer: "5/off 6/2", gnubg: [["5/off 6/2", 1.083], ["5/off 4/off", 0.767]], say: "They hold your 1 point and wait. 5-4.", then: "5/off 6/2: one off, nothing left alone. 5/off 4/off takes two but leaves a checker alone on your 2 point, in front of their anchor: any 1 hits it, 11 rolls in 36, and it goes back round the board. +1.08 against +0.77.", wrong: { "5/off 4/off": "Two off, but your 2 point is left with one checker on it, right in front of theirs: any 1 hits it. Take one off and keep it covered: 5/off 6/2." } },
+          ],
+        },
+        {
+          id: "hard", title: "Against Hard", zh: "",
+          steps: [
+            { say: "Now a match against Hard, which weighs each of its best plays against every roll you could answer with.", play: true, level: "hard" },
           ],
         },
       ],

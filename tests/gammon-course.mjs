@@ -61,6 +61,40 @@ const closed = step("bar", s => s.quiz), cb = boardOf(closed);
 check(!plays(cb.me, cb.op, diceOf(closed))[0].moves.length && /^No/.test(closed.quiz[closed.answer]), "closed out: no move at all");
 check(playText(parsePlay("24/18(2) 13/7(2)")) === "24/18(2) 13/7(2)" && playText(parsePlay("bar/22 6/off")) === "bar/22 6/off", "plays written and read back");
 
+// ---------- GNU Backgammon's verdicts, as kept ----------
+// Playing well's answers are gnubg's (asked offline: tools/gammon-check.mjs asks again). Kept with each step, best
+// first: every play it lists can be made with the roll, each to its own position; the first is the answer (or one
+// accepted), every play accepted is within 0.02 of it, and the best of the rest at least 0.03 below. A cube question's
+// answer is gnubg's verdict, and the verdict follows from its equities: double when taken it's worth more than playing
+// on (a drop worth 1), take when taken it's worth less than 1 to the doubler.
+const kept = [];
+let verdicts = 0;
+for (const { lesson: l } of LESSONS) l.steps.forEach((st, i) => {
+  if (!st.gnubg) return;
+  const where = `${l.id} step ${i + 1}`;
+  verdicts++;
+  if (st.quiz) {
+    const g = st.gnubg, double = Math.min(g.dt, 1) > g.nd, act = !double ? "no-double" : g.dt < 1 ? "double/take" : "double/pass";
+    if (st.acts?.[st.answer] !== g.act || g.act !== act) kept.push(`${where}: the answer ${st.acts?.[st.answer]}, gnubg's ${g.act}, its equities say ${act}`);
+    return;
+  }
+  const at = st.gnubg.map(([text]) => playOf(st, text)), right = new Set([st.answer, ...(st.accept || [])].map(t => key(playOf(st, t))));
+  if (at.some(p => !p) || new Set(at.map(key)).size !== at.length) { kept.push(`${where}: a play gnubg lists can't be made, or two make one`); return; }
+  const eq = st.gnubg.map(x => x[1]);
+  if (eq.some((e, k) => k && e > eq[k - 1])) kept.push(`${where}: gnubg's plays aren't best first`);
+  if (!right.has(key(at[0]))) kept.push(`${where}: gnubg's first, ${st.gnubg[0][0]}, isn't the answer`);
+  const rest = eq.filter((_, k) => !right.has(key(at[k])));
+  if (eq.some((e, k) => right.has(key(at[k])) && eq[0] - e > 0.02) || (rest.length && eq[0] - rest[0] < 0.03)) kept.push(`${where}: the answer isn't clear of the rest by gnubg's equities`);
+});
+check(!kept.length && verdicts >= 10, `GNU Backgammon's verdicts: ${verdicts} kept, each answer its first choice by a clear margin or its cube verdict`);
+for (const p of kept) console.log(`     ${p}`);
+{
+  // the race's figures: the leads the cube questions name, as pips and as a share of yours
+  const race = LESSONS.find(x => x.lesson.id === "race").lesson.steps.filter(s => s.acts), lead = s => { const b = boardOf(s); return [pips(b.op) - pips(b.me), (100 * (pips(b.op) - pips(b.me))) / pips(b.me)]; };
+  const [a, b, c] = race.map(lead);
+  check(a[0] === 4 && a[1] < 5 && /4 ahead is under 5%/.test(race[0].why) && b[0] === 8 && Math.round(b[1]) === 9 && /8 ahead is 9%/.test(race[1].why) && c[0] === 19 && Math.round(c[1]) === 22 && /19 ahead is 22%/.test(race[2].why) && race.every(s => s.pips), `the race's leads: ${[a, b, c].map(x => `${x[0]} (${x[1].toFixed(1)}%)`).join(", ")}, the pips shown`);
+}
+
 // ---------- the stage, tapped through ----------
 function fakeBox() { const on = {}; return { innerHTML: "", addEventListener: (k, f) => { on[k] = f; }, on }; }
 const tapOn = pt => ({ target: { closest: sel => (sel === "[data-pt]" ? { dataset: { pt: String(pt) } } : null) } });
