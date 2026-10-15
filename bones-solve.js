@@ -1,4 +1,4 @@
-// Bones solved, for the course's checks and Rush's puzzles (offline: too slow for a turn at the table). A hand's rest
+// Bones solved, for the course's checks and the puzzle rush's (offline: too slow for a turn at the table). A hand's rest
 // played out with every tile seen (double dummy: every player knowing every hand), each player choosing what does best
 // for their side; and a position weighed as a seat sees it: the tiles it can't see dealt as they could lie (as the
 // computer players deal them, bones-bot.js: hand sizes, knocks), each deal solved after each play the seat could make,

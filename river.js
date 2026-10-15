@@ -18,9 +18,11 @@ import { IN_FRAME } from "./suite.js";
 import { busy, sextant } from "./loading.js";
 import { createCourse, progress } from "./river-learn.js";
 import { createRush } from "./river-rush-ui.js";
+import { bestsLine } from "./rush-core.js";
 
 const $ = id => document.getElementById(id);
 const GAME = "river:game", OPTS = "river:opts", BEST = "river:best", RECORD = "river:record";
+const RUSH_BEST = "river:rushBest";                              // the puzzle rush's (river-rush-ui.js)
 const APP = 1;                                                   // the room's version: a device on older code updates
 const PACE = 700;                                                // the computer's move shows no sooner than this after yours
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -639,8 +641,9 @@ function openMenu() {
     choice("Characters", [["traditional", "Traditional"], ["simplified", "Simplified"]], opts.script, setScript));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
+  const rushBests = bestsLine(read(RUSH_BEST, {}), { patterns: "Patterns" });
   part(body, "about").append(line(best ? `Strongest beaten: ${LEVELS.filter(l => l.rating <= best).pop()?.name} (${rating(best)})` : "No computer level beaten yet"),
-    ...(record ? [line(`Won, drawn, lost: ${record}`)] : []));
+    ...(record ? [line(`Won, drawn, lost: ${record}`)] : []), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function closeDialogs() { for (const d of document.querySelectorAll("dialog[open]")) d.close(); }

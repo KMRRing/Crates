@@ -94,7 +94,7 @@ for (const p of problems) console.log(`     ${p}`);
 // ---------- Playing well: each position real, each tile to lay the best when the unseen tiles are dealt out ----------
 // The tiles you can't see dealt every way they could lie (each player's count, nothing they've knocked on), each deal
 // played out exactly (bones-solve.js), the same deals for every play: the lesson's tile must do best on average, by a
-// clear margin (half what Rush asks for) and three standard errors of the difference clear of every other play.
+// clear margin (half what the rush asks for) and three standard errors of the difference clear of every other play.
 const MARGIN = { partnership: 4, gaple: 6, fives: 1.5 };
 let seed = 20261015;
 const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;

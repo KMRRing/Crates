@@ -1,4 +1,4 @@
-// Schafkopf solved, for the course's checks and Rush's puzzles (offline: too slow for a turn at the table). A hand's
+// Schafkopf solved, for the course's checks and the puzzle rush's (offline: too slow for a turn at the table). A hand's
 // rest played out with every card seen (double dummy), the players' side against the others, each doing what's best
 // for their side; and a position weighed as a player sees it: the cards they can't see dealt as they could lie (as the
 // computer players deal them, trumps-bot.js: each hand's size, the Farben a player has shown out of; then what a

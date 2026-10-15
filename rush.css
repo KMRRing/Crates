@@ -1,92 +1,56 @@
-/* Rush: a board, a clock, three strikes. Walnut is the house colour. */
-:root { --ru-in: #6B4A2B; --ru-in-soft: color-mix(in srgb, var(--ru-in) 15%, var(--sheet)); --ru-good: #2F7D5B; --ru-bad: #A8382B; --ru-edge: var(--tile-edge); }
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --ru-in: #C49A6C; --ru-good: #7FC2A8; --ru-bad: #E8806F; }
-}
+/* Gambit's puzzle rush (rush.html): the count, the clock and the strikes over the board, what to do above it, what the
+   puzzle was under it, the buttons low, as River's rush stands on River's page. Gambit's enamel and buttons (gambit.css)
+   and its board (chess-board.css); verdigris and oxblood for a solve and a miss. */
+:root { --ru-good: #2F7D5B; --ru-bad: #A8382B; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --ru-good: #7FC2A8; --ru-bad: #E8806F; } }
 /* night, set in Settings */
-html[data-mode="night"] { --ru-in: #C49A6C; --ru-good: #7FC2A8; --ru-bad: #E8806F; }
+html[data-mode="night"] { --ru-good: #7FC2A8; --ru-bad: #E8806F; }
 
-.ru-mark { display: inline-block; }
-.ru-mark svg { width: 100%; height: 100%; display: block; }
-.ru-hud { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0; min-height: 2rem; }
-.ru-solved { font-size: .95rem; color: var(--ink-soft); }
+.ru-hud { display: flex; justify-content: space-between; align-items: center; gap: .6rem; min-height: 2.6rem; margin-top: .35rem; }
+.ru-solved { font-size: .95rem; color: var(--ink-soft); line-height: 1.1; }
 .ru-solved > b { font-size: 1.6rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-.ru-rating { display: block; font-size: .78rem; color: var(--ink-soft); }
+.ru-rating { display: block; font-size: .78rem; }
 .ru-rating b { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
 /* at a battle, the others' counts where the rating was (duel.js fills it; a tap opens the match) */
-.ru-rival { display: block; max-width: 48vw; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ru-rival { display: block; max-width: 48vw; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ru-rating[hidden], .ru-rival[hidden] { display: none; }
 .ru-clock { font-size: 1.4rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ru-clock.low { color: var(--ru-bad); }
 .ru-strikes { display: flex; gap: .3rem; }
-.ru-strike { width: .875rem; height: .875rem; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--ru-edge); }
+.ru-strike { width: .875rem; height: .875rem; border-radius: 50%; box-shadow: inset 0 0 0 2px var(--tile-edge); }
 .ru-strike.hit { background: var(--ru-bad); box-shadow: none; }
-
-/* the stage bleeds to the screen's edges so the board is the full width of the phone */
-.ru-stage { margin: 0 -1rem; padding: .8rem 0; border-radius: 0; background: var(--sheet); gap: .55rem; }
-.ru-stage > p, .ru-stage > button { margin-left: 1rem; margin-right: 1rem; }
-.ru-line { margin: 0; font-size: 1.1rem; font-weight: 800; min-height: 1.3em; }
-.ru-line.bad { color: var(--ru-bad); }
+/* what to do, or what the line was: two lines kept for it, so the board doesn't move as a long line comes and goes */
+.ru-line { margin: .3rem 0 0; height: calc(2 * 1.3em); overflow: hidden; font-size: 1rem; font-weight: 800; line-height: 1.3; }
 .ru-line.good { color: var(--ru-good); }
-/* the board is square: as wide as the phone, or as tall as the room left, whichever is less */
-.ru-board { min-height: 0; }
-.ru-board .ch-board { width: min(100cqw, 100cqh); }
-.ru-board:empty { display: grid; place-items: center; color: var(--ink-soft); }
-.ru-meta { margin: 0; font-size: .88rem; color: var(--ink-soft); min-height: 1.2em; }
-.ru-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.ru-go[hidden] { display: none; }
-/* held sideways (#app.beside): the board on the left as tall as the screen allows; the score and clock, what to do and
-   the button beside it, the button at the bottom where a thumb is (the stage's sheet gives way to the board's own) */
-@media (orientation: landscape) and (min-width: 700px) {
-  #app.rush { --beside: 20rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
-  .ru-stage { display: contents; }
-  .ru-hud { grid-column: 2; grid-row: 2; margin-top: 1rem; }
-  .ru-stage > .ru-line { grid-column: 2; grid-row: 3; margin: .6rem 0 0; }
-  .ru-stage > .ru-meta { grid-column: 2; grid-row: 4; margin: .4rem 0 0; }
-  .ru-board { grid-column: 1; grid-row: 2 / -1; padding-top: .8rem; }
-  .ru-stage > .ru-go { grid-column: 2; grid-row: 6; margin: 0; }
-}
+.ru-line.bad { color: var(--ru-bad); }
+/* the board: square, the full width of a phone, or as tall as the room left */
+.ru-stage { margin: .3rem -1rem 0; min-height: 0; }
+.ru-board { width: min(100cqw, 100cqh); aspect-ratio: 1; }
+.ru-board .ch-board { width: 100%; height: 100%; }
+.ru-meta { margin: .3rem 0 0; height: 1.3em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .88rem; line-height: 1.3; color: var(--ink-soft); }
+.ru-bar { display: flex; gap: .5rem; margin-top: .4rem; min-height: 2.75rem; }
+.ru-bar > .gb-go { flex: 1 1 0; min-width: 0; }
 
-/* the board: parchment and bronze, maple and walnut in the suite's brass (a mid-tone dark square, so black pieces read
-   on it as well as white); highlights are translucent layers over the squares */
-.ch-board { width: 100%; margin: 0; display: block; border-radius: 0; overflow: visible; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.ch-board .sq.light { fill: #EFE3C8; }
-.ch-board .sq.dark { fill: #9C8257; }
-.ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
-.ch-board .hl.sel { fill: rgba(255, 221, 89, .75); }
-.ch-board .hl.pre { fill: rgba(168, 104, 230, .5); }
-/* (not "hint": the suite's .hint is Crates' clue button, and its width and height would blow this square up) */
-.ch-board .hl.want { fill: rgba(46, 158, 91, .6); }
-.ch-board .hl.check { fill: rgba(210, 59, 42, .75); }
-.ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
-.ch-board .coord.on-light { fill: #7A6440; }
-.ch-board .coord.on-dark { fill: #EFE3C8; }
-.ch-board .piece { cursor: grab; }
-.ch-board .piece.lifted { opacity: .35; }
-.ch-board .piece.dragging { pointer-events: none; filter: drop-shadow(0 .08px .12px rgba(0, 0, 0, .35)); }
-.ch-board .target { fill: rgba(20, 40, 60, .22); cursor: pointer; }
-.ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) .ch-board .sq.light { fill: #CDBF9E; }
-  html:not([data-mode="day"]) .ch-board .sq.dark { fill: #8C744B; }
-  html:not([data-mode="day"]) .ch-board .coord.on-light { fill: #6E5A38; }
-  html:not([data-mode="day"]) .ch-board .coord.on-dark { fill: #E6DAC0; }
-}
-/* night, set in Settings */
-html[data-mode="night"] .ch-board .sq.light { fill: #CDBF9E; }
-html[data-mode="night"] .ch-board .sq.dark { fill: #8C744B; }
-html[data-mode="night"] .ch-board .coord.on-light { fill: #6E5A38; }
-html[data-mode="night"] .ch-board .coord.on-dark { fill: #E6DAC0; }
-
-.ru-big { font-size: 3rem; font-weight: 800; color: var(--ru-in); text-align: center; margin: .2rem 0; }
-.ru-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; margin: .6rem 0; }
+/* the results */
+.ru-big { margin: .2rem 0; font-size: 3rem; font-weight: 800; color: var(--gb-in); text-align: center; font-variant-numeric: tabular-nums; }
+.ru-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .6rem 0; }
 .ru-stats div { padding: .5rem .2rem; border-radius: 5px; background: var(--yard); text-align: center; }
-.ru-stats b { display: block; font-size: 1.25rem; font-weight: 800; }
+.ru-stats b { display: block; font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ru-stats span { font-size: .75rem; color: var(--ink-soft); }
-.ru-missed { margin: .4rem 0; padding: 0; list-style: none; display: grid; gap: .3rem; font-size: .9rem; }
+.ru-note { margin: .6rem 0 .3rem; font-size: .92rem; }
+.ru-missed { margin: .3rem 0 0; padding: 0; list-style: none; display: grid; gap: .3rem; font-size: .9rem; }
 .ru-missed li { display: flex; justify-content: space-between; gap: .6rem; }
-.ru-missed a { color: var(--ru-in); font-weight: 750; text-decoration: none; }
-.ru-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
-  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
-.ru-toast.show { opacity: 1; }
+.ru-missed a { color: var(--gb-in); font-weight: 750; text-decoration: none; }
+.ru-end-go { display: flex; gap: .5rem; margin-top: .9rem; }
+.ru-end-go .gb-go { flex: 1 1 0; }
+
+/* held sideways (#app.beside): the board on the left with all the height; the count and the clock, what to do and what
+   the puzzle was beside it, the buttons low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.rush { --beside: 19rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  #app.rush .ru-stage { grid-column: 1; grid-row: 2 / -1; margin: .5rem 0 0; }
+  #app.rush .ru-hud { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.rush .ru-line { grid-column: 2; grid-row: 3; height: calc(4 * 1.3em); margin-top: .6rem; }
+  #app.rush .ru-meta { grid-column: 2; grid-row: 4; height: calc(2 * 1.3em); white-space: normal; }
+  #app.rush .ru-bar { grid-column: 2; grid-row: 6; }
+}

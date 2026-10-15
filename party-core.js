@@ -189,7 +189,7 @@ export const ELSEWHERE = [
   { id: "tribute", name: "Tribute", kind: "duo", duo: "tribute", page: "tribute.html", max: 4, blurb: "Guan Dan: two partnerships, across the table from each other." },
   { id: "river", name: "River", kind: "duo", duo: "river", page: "river.html", max: 2, blurb: "Xiangqi, Chinese chess, one against the other." },
   { id: "gambit", name: "Gambit", kind: "duo", duo: "gambit", page: "gambit.html", max: 2, blurb: "Chess, one against the other." },
-  { id: "rush", name: "Rush", kind: "duo", duo: "rush", page: "rush.html", max: 6, race: true, blurb: "A puzzle battle: the same chess puzzles for everyone, against the clock." },
+  { id: "rush", name: "Puzzle rush", kind: "duo", duo: "rush", page: "rush.html", max: 6, race: true, blurb: "Gambit's puzzle battle: the same chess puzzles for everyone, against the clock." },
   { id: "origin", name: "Origin", kind: "duo", duo: "origin", page: "origin.html", max: 6, race: true, blurb: "Five hidden countries, the same clues for everyone: fewest clues wins." },
   { id: "order", name: "Order", kind: "duo", duo: "order", page: "order.html", max: 6, race: true, blurb: "The same cards for everyone: dates, quantities or a story, into a line." },
   { id: "brut", name: "Brut", kind: "duo", duo: "brut", page: "brut.html", max: 6, race: true, blurb: "A blind flight of six wines, the same for everyone: name each as early as you dare." },

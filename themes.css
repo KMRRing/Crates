@@ -130,13 +130,11 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pick button { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pick .head { text-transform: uppercase; letter-spacing: .06em; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-toast { border-radius: 10px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-go { border-radius: 14px; background: var(--ru-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .sq.light { fill: #E4ECF3; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .sq.dark { fill: #6B8DB0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-light { fill: #6B8DB0; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-board .coord.on-dark { fill: #E4ECF3; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-stats div { border-radius: 12px; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ru-toast { border-radius: 10px; }
 /* Stow without Almanac's wood: the cargo a neutral grey, the stamp in the theme's own accent */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) { --sw-cell: color-mix(in srgb, var(--ink) 7%, var(--sheet)); --sw-cargo: color-mix(in srgb, var(--ink) 30%, var(--sheet)); --sw-stamp: var(--sw-in); --sw-stamp-edge: var(--sheet); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sw-board { border-radius: 20px; box-shadow: none; }

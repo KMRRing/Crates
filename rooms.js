@@ -25,7 +25,7 @@ export const GAMES = {
   blend: { name: "Blend", page: "./blend.html" },
   pipes: { name: "Pipes", page: "./pipes.html" },
   refinery: { name: "Refinery", page: "./refinery.html" },
-  rush: { name: "Rush", page: "./rush.html" },
+  rush: { name: "Puzzle rush", page: "./rush.html" },     // Gambit's, on a page of its own (no tile: Gambit's menu opens it)
   deck: { name: "Deck", page: "./deck.html" },
   parley: { name: "Parley", page: "./parley.html" },
   stow: { name: "Stow", page: "./stow.html" },

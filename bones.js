@@ -13,6 +13,7 @@ import { scale } from "./wide.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE, tileStage } from "./bones-course.js";
 import { createRush } from "./bones-rush-ui.js";
+import { bestsLine } from "./rush-core.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -328,8 +329,8 @@ const course = createCourse({
   },
 });
 
-// Puzzle rush (the menu): the best tile in positions from the computer players' own games, against the clock, on a
-// sheet of its own (bones-rush-ui.js); the game waits under it.
+// Puzzle rush (the menu): the best tile in positions from the computer players' own games, against the clock, with
+// every game's rush settings, on a sheet of its own (bones-rush-ui.js); the game waits under it.
 const rush = createRush({ inFrame: IN_FRAME });
 
 function openMenu() {
@@ -340,7 +341,7 @@ function openMenu() {
   page.menu(play);
   const cp = progressOf("bones", COURSE);
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Bones, from the rules", () => course.open()));
-  if (!IN_FRAME) play.append(action(rush.label(), () => rush.open()));
+  if (!IN_FRAME) play.append(action("Puzzle rush", () => rush.open()));
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Game", Object.values(GAMES).map(g => [g.id, g.name]), opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
@@ -361,7 +362,8 @@ function openMenu() {
   set.append(line("The game and its settings apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("bones:streak", { now: 0, best: 0 });
-  part(body, "about").append(line(`${r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."}${rush.best() ? ` Puzzle rush best: ${rush.best()}.` : ""}`));
+  const rushBests = bestsLine(rush.bests());
+  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

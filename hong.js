@@ -11,7 +11,9 @@ import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from 
 import { GAMES, roomInAddress } from "./rooms.js";
 import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
-import { IN_FRAME } from "./suite.js";
+import { IN_FRAME, today } from "./suite.js";
+import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, timeUp, noteRun, bestsLine, endTitle } from "./rush-core.js";
+import { rushMenu } from "./rush-menu.js";
 import { busy } from "./loading.js";
 import { SIDEWAYS, sideways } from "./wide.js";
 
@@ -821,11 +823,12 @@ function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg", "c
 // ---------- puzzle rush ----------
 // Positions from the computer players' own hands where one discard (or one call) is clearly best by the coach's
 // reckoning, which is exact this near ready (hong-rush.js; the bank, hong-puzzles.js, loads with the first rush). Find it
-// while five minutes run: the clock stands while you read a verdict and while the menu or the rules are open; three
-// misses end the run. The verdict is the puzzle's; its reasons are the coach's, worked out again at the table. The run is
-// kept as it goes (hong:rush), the best score in hong:rushBest; your game waits as you left it.
-const RUSH = "hong:rush", RUSH_BEST = "hong:rushBest", RUSH_SEEN = "hong:rushSeen", RUSH_MS = 5 * 60 * 1000;
-let rush = null, bank = null, rushLib = null, ticking = null, savedAt = 0;
+// with every game's rush settings (rush-core.js): Random or Today's; 3 min, 5 min or Survival; three misses end the run.
+// The clock stands while you read a verdict and while the menu or the rules are open. The verdict is the puzzle's; its
+// reasons are the coach's, worked out again at the table. The run is kept as it goes (hong:rush), your bests by clock in
+// hong:rushBest, today's runs in hong:rushDaily, the next run's choices in hong:rushNext; your game waits as you left it.
+const RUSH = "hong:rush", RUSH_BEST = "hong:rushBest", RUSH_DAILY = "hong:rushDaily", RUSH_SEEN = "hong:rushSeen", RUSH_NEXT = "hong:rushNext";
+let rush = null, bank = null, rushLib = null, ticking = null, savedAt = 0, rushPick = null;   // rushPick: the menu's choices for the next run
 let words = null;                                                // { at, j }: the coach's reasons for the puzzle answered
 const here = () => `${rush.seed}:${rush.i}`;                      // which puzzle of which run
 async function loadRush() {
@@ -835,16 +838,19 @@ async function loadRush() {
 const rushPuzzle = () => (rush && bank ? bank.find(p => p.id === rush.order[rush.i]) : null);
 /** The best move, once you've answered. */
 const rushBest = () => (rush?.answer && rushPuzzle() ? rushLib.decodeAction(rushPuzzle().best) : null);
-const clockText = ms => { const t = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+const rushClock = () => (rush.left == null ? MODES.survival.label : clockText(rush.left));
 function rushStatus() {
-  const marks = "✗".repeat(rush.strikes) + "○".repeat(Math.max(0, 3 - rush.strikes));
-  return `<span class="hk-me-rule hk-rush"><b>Puzzle ${rush.i + 1}</b> · ✓ ${rush.score} · <span class="hk-strikes" aria-label="${rush.strikes} of 3 missed">${marks}</span> · <span id="rushClock">${clockText(rush.left)}</span></span>`;
+  return `<span class="hk-me-rule hk-rush"><b>Puzzle ${rush.i + 1}</b> · ✓ ${rush.score} · <span class="hk-strikes" aria-label="${rush.strikes} of 3 missed">${strikeMarks(rush.strikes)}</span> · <span id="rushClock">${rushClock()}</span></span>`;
 }
+/** The next run's kind and clock: what the rush's menu last started (Random and 3 min to begin with). */
+const rushNext = () => { const n = read(RUSH_NEXT, null); return { kind: n?.kind === "daily" ? "daily" : "random", mode: modeOf(n?.mode) }; };
+/** A run from before the clocks were chosen was a random five-minute one. */
+const upgradeRush = r => (r?.v === 1 ? { ...r, v: 2, kind: "random", mode: "five", wait: 0 } : r?.v === 2 ? r : null);
 async function startRush() {
   const done = busy("Dealing the puzzles", { delay: 150 });
   try { await loadRush(); } finally { done(); }
-  const seed = (Math.random() * 2 ** 32) >>> 0;
-  rush = { v: 1, seed, order: rushLib.runOrder(bank, seed, read(RUSH_SEEN, [])), i: 0, score: 0, strikes: 0, left: RUSH_MS, answer: null, over: false, log: [] };
+  const { kind, mode } = rushNext(), daily = kind === "daily", seed = daily ? today() : (Math.random() * 2 ** 32) >>> 0;
+  rush = { v: 2, kind, mode, seed, order: rushLib.runOrder(bank, seed, daily ? [] : read(RUSH_SEEN, [])), i: 0, score: 0, strikes: 0, ...clockFor(mode), answer: null, over: false, log: [] };
   closeDialogs();
   showRushPuzzle();
 }
@@ -869,10 +875,9 @@ function tick() {
     const now = Date.now(), dt = now - last;
     last = now;
     if (!rush || rush.answer || rush.over || isPaused() || document.hidden) return;
-    rush.left -= dt;
-    const el = $("rushClock");
-    if (el) el.textContent = clockText(rush.left);
-    if (rush.left <= 0) { rush.left = 0; endRush(); }
+    const out = runDown(rush, dt), el = $("rushClock");
+    if (el) el.textContent = rushClock();
+    if (out) endRush();
     else if (now - savedAt > 3000) { savedAt = now; save(); }
   }, 250);
 }
@@ -897,21 +902,27 @@ async function explainRush() {
 }
 function nextRush() {
   if (!rush) return;
-  if (rush.over || rush.left <= 0) { endRush(); return; }
+  if (rush.over || timeUp(rush)) { endRush(); return; }
   rush.i++; rush.answer = null;
+  graceAgain(rush);
   showRushPuzzle();
 }
+/** The run's end: noted once in your bests by clock (and today's), and its score. */
 function endRush() {
   if (!rush) return;
   rush.over = true;
   clearInterval(ticking);
-  const before = read(RUSH_BEST, 0), best = Math.max(before, rush.score);
-  if (best > before) write(RUSH_BEST, best);
+  if (rush.best == null) {
+    const res = noteRun(read(RUSH_BEST, {}), read(RUSH_DAILY, {}), { kind: rush.kind, mode: rush.mode, score: rush.score }, today());
+    write(RUSH_BEST, res.bests);
+    if (rush.kind === "daily") write(RUSH_DAILY, res.daily);
+    rush.best = res.best; rush.was = res.was;
+  }
   save(); render();
-  $("rushHead").textContent = rush.left <= 0 ? "Time" : rush.strikes >= 3 ? "Three misses" : "The end of the bank";
-  const missed = rush.log.filter(x => x.verdict === "wrong").length;
-  $("rushBody").innerHTML = `<p class="hk-rush-score"><b>${rush.score}</b> solved${rush.score > before ? " · your best" : before ? ` · best ${before}` : ""}</p>`
-    + `<p class="hk-rush-sub">${rush.log.length} answered, ${missed} missed, ${clockText(rush.left)} left on the clock.</p>`;
+  $("rushHead").textContent = endTitle(timeUp(rush) ? "time" : rush.strikes >= 3 ? "strikes" : "bank");
+  const missed = rush.log.filter(x => x.verdict === "wrong").length, was = rush.was ?? 0;
+  $("rushBody").innerHTML = `<p class="hk-rush-score"><b>${rush.score}</b> solved${rush.score > was ? " · your best" : was ? ` · best ${was}` : ""}</p>`
+    + `<p class="hk-rush-sub">${MODES[modeOf(rush.mode)].label}${rush.kind === "daily" ? ", today's run" : ""}: ${rush.log.length} answered, ${missed} missed${rush.left != null ? `, ${clockText(rush.left)} left on the clock` : ""}.</p>`;
   if (!$("rushDlg").open) $("rushDlg").showModal();
 }
 function leaveRush() {
@@ -1118,7 +1129,12 @@ function openMenu() {
     const others = [1, 2, 3].map(k => (me + k) % 4), list = a => (a.length < 2 ? a.join("") : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`);
     const bots = others.filter(s => !isHuman(s)).map(nameOf);
     part(body, "together").append(line(`At the table: you and ${list(others.filter(isHuman).map(nameOf))}${bots.length ? `; the computer plays ${list(bots)}` : ""}.`), action("Back to solo", () => together.leave(), "link"));
-  } else if (rush) part(body, "play").append(action("New puzzle rush", () => startRush(), "primary"), action("Back to the game", () => leaveRush(), "link"));
+  } else if (rush) {
+    // the rush's own, as every game's rush has it (rush-menu.js): a run and its clock, your bests
+    rushPick ??= rushNext();
+    rushMenu(body, { pick: rushPick, start: () => { write(RUSH_NEXT, rushPick); rushPick = null; startRush(); }, results: rush.over ? endRush : null, back: leaveRush,
+      bests: read(RUSH_BEST, {}), daily: read(RUSH_DAILY, {}), day: today(), inFrame: IN_FRAME });
+  }
   else part(body, "play").append(action("New game", () => newGame(), "primary"), action("Puzzle rush", () => startRush(), ""), ...copies());
   // a puzzle's table keeps its own rules: the game's are for the game
   if (!rush) {
@@ -1147,8 +1163,8 @@ function openMenu() {
   );
   const st = read(STATS, null), best = read(BEST, null), bestNoFan = read(BEST_NOFAN, null);
   if (st?.hands) part(body, "about").append(line(`${st.hands} hand${st.hands === 1 ? "" : "s"}: won ${st.wins} (${st.self} self-drawn), dealt in ${st.dealIns}${st.bestFan ? ` · biggest ${st.bestFan} fan` : ""}${st.games ? ` · ${st.games} game${st.games === 1 ? "" : "s"}, first in ${st.firsts}` : ""}${best != null ? ` · best game ${signed(best)}` : ""}${bestNoFan != null ? ` · best without fan ${signed(bestNoFan)}` : ""}`));
-  const rushBest = read(RUSH_BEST, 0);
-  if (rushBest) part(body, "about").append(line(`Puzzle rush: best ${rushBest} solved`));
+  const rushBests = rush ? "" : bestsLine(read(RUSH_BEST, {}));
+  if (rushBests) part(body, "about").append(line(rushBests));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function applyLook() { $("app").style.setProperty("--hk-num", opts.numbers ? "1" : "0"); }
@@ -1380,8 +1396,8 @@ window.__hong = { get state() { return G; }, get session() { return S; }, get re
 
 /** Back to where you were: a puzzle rush left open, else your game as you left it, else a new one. */
 function load() {
-  const r = read(RUSH, null);
-  if (r?.v === 1) { resumeRush(r); return; }
+  const r = upgradeRush(read(RUSH, null));
+  if (r) { resumeRush(r); return; }
   const run = read(RUN, null);
   if (run?.G && run?.S && run.G.v === 1) {
     G = E.fromRoom(run.G); S = run.S; R = run.R || []; me = 0;

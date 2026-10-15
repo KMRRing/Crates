@@ -6,7 +6,7 @@
 // ones it gave tools/gammon-puzzles.mjs.)
 import { PUZZLES } from "../gammon-puzzles.js";
 import { stepOf, judge, nameOf, motifsOf, worthText, whyText, askText } from "../gammon-rush.js";
-import { runOrder } from "../rush-sheet.js";
+import { runOrder } from "../rush-core.js";
 import { boardOf, boardProblems, diceOf, playOf, boardStage } from "../gammon-course.js";
 import { plays } from "../gammon-board.js";
 

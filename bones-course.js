@@ -92,7 +92,7 @@ export function playName(s, play) {
 }
 
 /**
- * What a play does, as Rush and the lessons name it: "out" (your last tile), "exact" (the target made exactly), "most"
+ * What a play does, as the rush and the lessons name it: "out" (your last tile), "exact" (the target made exactly), "most"
  * (more points now than another play), "setup" (fewer now than another: the next player's chance kept down), "knock"
  * (an opponent who has knocked on both ends it leaves: knock.seats says who), "close" (every tile of both ends'
  * numbers down: the hand blocked), "last" (an end only you can play on: the rest of its number down or yours), "own"

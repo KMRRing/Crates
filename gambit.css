@@ -1,6 +1,6 @@
-/* Gambit: chess on Rush's board (chess-board.js: parchment and bronze squares, the cburnett pieces), the page round it
-   River's: the seats over and under the board with what each has taken, the moves in a row, the buttons low. The game's
-   enamel is a malachite green. */
+/* Gambit: chess on chess-board.js's board (chess-board.css: parchment and bronze squares, the cburnett pieces), the page
+   round it River's: the seats over and under the board with what each has taken, the moves in a row, the buttons low.
+   The game's enamel is a malachite green. Its puzzle rush (rush.html) wears it too, with rush.css for its own parts. */
 :root { --gb-in: #2E6E5A; --gb-in-soft: color-mix(in srgb, var(--gb-in) 15%, var(--sheet)); --gb-hint: rgba(47, 125, 91, .82); }
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --gb-in: #7CC3A6; --gb-hint: rgba(127, 194, 168, .85); } }
 /* night, set in Settings */
@@ -19,39 +19,9 @@ html[data-theme="office"][data-mode="night"] { --gb-in: #479EF5; --gb-hint: rgba
 .gb-stage { margin: .3rem -1rem 0; min-height: 0; }
 .gb-board { width: min(100cqw, 100cqh); aspect-ratio: 1; }
 .gb-board .ch-board { width: 100%; height: 100%; }
-/* chess-board.js's squares, as Rush draws them (rush.css); themes.css gives Modern, Kontor and Office theirs */
-.ch-board { width: 100%; margin: 0; display: block; border-radius: 0; overflow: visible; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.ch-board .sq.light { fill: #EFE3C8; }
-.ch-board .sq.dark { fill: #9C8257; }
-.ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
-.ch-board .hl.sel { fill: rgba(255, 221, 89, .75); }
-.ch-board .hl.check { fill: rgba(210, 59, 42, .75); }
-.ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
-.ch-board .coord.on-light { fill: #7A6440; }
-.ch-board .coord.on-dark { fill: #EFE3C8; }
-.gb-plain .ch-board .coord { display: none; }
-.ch-board .piece { cursor: grab; }
-.ch-board .piece.lifted { opacity: .35; }
-.ch-board .piece.slide { transition: transform .2s cubic-bezier(.3, .7, .3, 1); }
-@media (prefers-reduced-motion: reduce) { .ch-board .piece.slide { transition: none; } }
-.ch-board .piece.dragging { pointer-events: none; filter: drop-shadow(0 .08px .12px rgba(0, 0, 0, .35)); }
-.ch-board .target { fill: rgba(20, 40, 60, .22); cursor: pointer; pointer-events: none; }
-.ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
+/* the board itself is chess-board.css's; the coach's arrows are Gambit's, in its green, a move it faults in oxblood */
 .ch-board .arrow { fill: var(--gb-hint); stroke: var(--gb-hint); stroke-width: .17; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-.ch-board .arrow.bad { fill: rgba(168, 56, 43, .78); stroke: rgba(168, 56, 43, .78); }   /* the move the coach faulted, beside its own */
-.ch-board .promo-veil { fill: rgba(16, 24, 31, .35); }
-.ch-board .promo-sq { fill: #FBF8F0; stroke: var(--brass); stroke-width: .03; }
-.ch-board .promo-pc { pointer-events: none; }
-@media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) .ch-board .sq.light { fill: #CDBF9E; }
-  html:not([data-mode="day"]) .ch-board .sq.dark { fill: #8C744B; }
-  html:not([data-mode="day"]) .ch-board .coord.on-light { fill: #6E5A38; }
-  html:not([data-mode="day"]) .ch-board .coord.on-dark { fill: #E6DAC0; }
-}
-html[data-mode="night"] .ch-board .sq.light { fill: #CDBF9E; }
-html[data-mode="night"] .ch-board .sq.dark { fill: #8C744B; }
-html[data-mode="night"] .ch-board .coord.on-light { fill: #6E5A38; }
-html[data-mode="night"] .ch-board .coord.on-dark { fill: #E6DAC0; }
+.ch-board .arrow.bad { fill: rgba(168, 56, 43, .78); stroke: rgba(168, 56, 43, .78); }
 
 /* ---------- the seats over and under the board, and what's said ---------- */
 .gb-seat { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 1.7rem; font-size: .9rem; }

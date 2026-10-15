@@ -7,28 +7,25 @@
 <meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Almanac">
-<title>Rush</title>
+<title>Gambit</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="dropdown.css">
 <link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="chess-board.css">
+<link rel="stylesheet" href="gambit.css">
 <link rel="stylesheet" href="rush.css">
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
+<!-- Gambit's puzzle rush (Gambit, Menu, Puzzle rush): a page of Gambit's, under its header -->
 <div id="app" class="rush fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
-      <span class="mark-icon ru-mark" aria-hidden="true"></span>Rush</button></h1>
+      <span class="mark-icon gb-mark" aria-hidden="true"></span>Gambit</button></h1>
     <div class="top-right">
-      <select id="mode" class="pool" data-accent="ru" aria-label="Mode">
-        <option value="three">3 minutes</option>
-        <option value="five">5 minutes</option>
-        <option value="survival">Survival</option>
-      </select>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
@@ -36,20 +33,19 @@
   <div class="ru-hud">
     <span class="ru-solved"><b id="solved">0</b> solved <small class="ru-rating" id="ratingLine">rating <b id="rating"></b></small><small class="ru-rival" id="rival" hidden></small></span>
     <span class="ru-clock" id="clock"></span>
-    <span id="strikes" class="ru-strikes" aria-label="Strikes"></span>
+    <span id="strikes" class="ru-strikes" role="img" aria-label="Strikes"></span>
   </div>
-
-  <section class="ru-stage fit-col fit-grow">
-    <p class="ru-line" id="line"></p>
-    <div id="board" class="ru-board fit-box fit-grow"></div>
-    <p class="ru-meta" id="meta"></p>
-    <button class="ru-go" type="button" id="startBtn">Start</button>
+  <p class="ru-line" id="line" aria-live="polite"></p>
+  <section class="ru-stage fit-grow fit-box" aria-label="The board">
+    <div id="board" class="ru-board"></div>
   </section>
+  <p class="ru-meta" id="meta"></p>
+  <div id="bar" class="ru-bar"></div>
 </div>
 
-<dialog id="doneDlg" class="sheet" aria-label="How it went">
+<dialog id="doneDlg" class="sheet gb-sheet" aria-labelledby="doneTitle">
   <div class="pick-head"><h2 id="doneTitle">Time</h2><button class="btn" type="button" id="doneClose">Close</button></div>
-  <div id="doneBody"></div>
+  <div id="doneBody" class="ru-done"></div>
 </dialog>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
@@ -57,7 +53,7 @@
   <div id="menuBody"></div>
 </dialog>
 
-<p id="toast" class="ru-toast" role="status" aria-live="polite"></p>
+<p id="toast" class="gb-toast" role="status" aria-live="polite"></p>
 <script type="module" src="rush.js"></script>
 </body>
 </html>

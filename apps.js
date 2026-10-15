@@ -51,9 +51,6 @@ const PIPES_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M14 6
 // A distillation column: its trays, its side draws and its ladder, for Refinery.
 const REFINERY_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M64 22H84V29" fill="none" stroke="#1C2A34" stroke-width="7.5" stroke-linejoin="round"/><path d="M64 22H84V29" fill="none" stroke="#D49A22" stroke-width="4" stroke-linejoin="round"/><rect x="80" y="28" width="8" height="3" rx="1" fill="#E2B865"/><path d="M64 44H84V51" fill="none" stroke="#1C2A34" stroke-width="7.5" stroke-linejoin="round"/><path d="M64 44H84V51" fill="none" stroke="#2C5B8A" stroke-width="4" stroke-linejoin="round"/><rect x="80" y="50" width="8" height="3" rx="1" fill="#E2B865"/><path d="M64 66H84V73" fill="none" stroke="#1C2A34" stroke-width="7.5" stroke-linejoin="round"/><path d="M64 66H84V73" fill="none" stroke="#7A5A36" stroke-width="4" stroke-linejoin="round"/><rect x="80" y="72" width="8" height="3" rx="1" fill="#E2B865"/><path d="M28 18V88M32 18V88M28 22H32M28 28H32M28 34H32M28 40H32M28 46H32M28 52H32M28 58H32M28 64H32M28 70H32M28 76H32M28 82H32" stroke="#C8923A" stroke-width="1.2"/><path d="M36 88V20A14 14 0 0 1 64 20V88Z" fill="#35607E" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><path d="M40 86V20.5A10 10 0 0 1 60 20.5V86" fill="none" stroke="#6e8790" stroke-width="1.2"/><path d="M44 22H61M41 32H58M44 42H61M41 52H58M44 62H61M41 72H58" stroke="#E2B865" stroke-width="1.8" stroke-linecap="round"/><rect x="30" y="86" width="40" height="8" rx="2" fill="#C8923A" stroke="#1C2A34" stroke-width="2"/></svg>`;
 
-// An ivory knight at speed, for Rush.
-const RUSH_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M74 30H94M78 42H97M74 54H92" stroke="#C8923A" stroke-width="3.2" stroke-linecap="round"/><path d="M30 72C28 60 34 51 41 46L34 44C28 47 23 48 19 46L16 39C19 30 27 21 35 17L36 9L42 15C56 13 67 23 68 38C69 50 64 60 66 72Z" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(3 * var(--wire, 1))" stroke-linejoin="round"/><path d="M46 20C55 22 61 30 62 42M48 27C54 30 57 35 57.5 42M50 34C53 37 54 40 54 44" fill="none" stroke="#C8923A" stroke-width="1.6" stroke-linecap="round"/><circle cx="33" cy="28" r="2.2" fill="#1C2A34"/><path d="M19.5 41.5L24 40" stroke="#1C2A34" stroke-width="1.6" stroke-linecap="round"/><rect x="26" y="70" width="44" height="8" rx="2" fill="#C8923A" stroke="#1C2A34" stroke-width="2"/><rect x="20" y="78" width="56" height="12" rx="3" fill="#2B3D4A" stroke="#1C2A34" style="stroke-width: calc(2.6 * var(--wire, 1))"/><path d="M24 84H72" stroke="#C8923A" stroke-width="1.3"/></svg>`;
-
 // Three cards fanned, the back one enamelled, the front one due for review, for Deck.
 const DECK_LOGO = `<svg viewBox="0 0 100 100" aria-hidden="true"><g transform="rotate(-18 50 92)"><rect x="29" y="14" width="42" height="60" rx="4" fill="#6A3D78" stroke="#1C2A34" style="stroke-width: calc(2.6 * var(--wire, 1))"/><rect x="33" y="18" width="34" height="52" rx="2" fill="none" stroke="#E2B865" stroke-width="1.2"/><path d="M50 26L60 44L50 62L40 44Z" fill="none" stroke="#E2B865" stroke-width="1.4"/><path d="M50 34L55 44L50 54L45 44Z" fill="#E2B865" opacity=".8"/></g><g transform="rotate(16 50 92)"><rect x="29" y="14" width="42" height="60" rx="4" fill="#F3E1BA" stroke="#1C2A34" style="stroke-width: calc(2.6 * var(--wire, 1))"/><rect x="33" y="18" width="34" height="52" rx="2" fill="none" stroke="#C8923A" stroke-width="1.2"/></g><g transform="rotate(0 50 92)"><rect x="29" y="14" width="42" height="60" rx="4" fill="#FBF4E4" stroke="#1C2A34" style="stroke-width: calc(2.6 * var(--wire, 1))"/><rect x="33" y="18" width="34" height="52" rx="2" fill="none" stroke="#C8923A" stroke-width="1.2"/><path d="M38 30H58M38 37H62M38 44H52" stroke="#1C2A34" stroke-width="2.4" stroke-linecap="round"/><path d="M56.5 60A7 7 0 1 1 49.5 53" fill="none" stroke="#6A3D78" stroke-width="2.6" stroke-linecap="round"/><path d="M47 50L50.5 53L47 56.5" fill="none" stroke="#6A3D78" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg>`;
 
@@ -208,12 +205,6 @@ const MODERN_LOGOS = {
   <rect x="1.5" y="2.5" width="17" height="15" rx="3.2" fill="var(--rf-logo-tint)" stroke="var(--rf-logo-edge)" stroke-width="1.6"/>
   <rect x="8" y="4.5" width="4" height="11" rx="1.6" fill="none" stroke="var(--rf-logo-edge)" stroke-width="1.5"/>
   <path d="M8 8h4M8 11h4M12 6.5h2.5M12 9.5h2.5M12 12.5h2.5M5.5 15.5h9" stroke="var(--rf-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`,
-  rush: `<svg viewBox="0 0 20 20" aria-hidden="true">
-  <rect x="4.2" y="15.8" width="11.6" height="2.4" rx=".9" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.4"/>
-  <path d="M5.6 15.8C5.6 13.4 6.9 12.2 8.6 11.3C7.6 11.6 6.4 11.9 5.4 11.6C4.4 11.3 3.7 10.4 4.1 9.4L6.3 6.4C7 5.4 8 4.9 8.9 4.6L9.6 2.6L10.9 4.5C13.9 5.2 15.6 8.2 15.6 11.6C15.6 13.4 15 14.8 14.4 15.8Z" fill="var(--ru-logo-tint)" stroke="var(--ru-logo-edge)" stroke-width="1.5" stroke-linejoin="round"/>
-  <circle cx="8.1" cy="7.3" r=".85" fill="var(--ru-logo-edge)"/>
-  <path d="M11.6 5.6C13.5 6.8 14.2 9 14.1 11.4" fill="none" stroke="var(--ru-logo-edge)" stroke-width="1.1" stroke-linecap="round"/>
-  <path d="M17 8.2h1.8M16.8 10.8h2.2M17 13.4h1.8" stroke="var(--ru-logo-edge)" stroke-width="1.3" stroke-linecap="round"/></svg>`,
   deck: `<svg viewBox="0 0 20 20" aria-hidden="true">
   <rect x="3" y="3.8" width="10" height="13.4" rx="1.8" transform="rotate(-13 8 17.2)" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
   <rect x="7" y="3" width="10.2" height="13.6" rx="1.8" transform="rotate(5 12.1 16.6)" fill="var(--dk-logo-tint)" stroke="var(--dk-logo-edge)" stroke-width="1.5"/>
@@ -278,7 +269,6 @@ const KONTOR_LOGOS = {
   chart: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z"/><rect class="f" x="10.5" y="8.5" width="3" height="3"/></svg>`,
   harbour: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5h17l-2.5 4h-12z"/><path d="M7 15.5v-5h10v5"/><path class="a" d="M10 10.5v-4h4v4"/></svg>`,
   pipes: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7h9a5 5 0 0 1 5 5v8.5"/><path class="a" d="M3.5 12h8.5v8.5"/></svg>`,
-  rush: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 3 5 13.5h6l-1 7.5 8.5-10.5h-6z"/></svg>`,
   deck: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="6.5" width="12" height="14"/><path class="a" d="M8 6.5V3.5h12v14h-4"/></svg>`,
   parley: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 4.5h11v8h-6l-3 3v-3h-2z"/><path class="a" d="M17.5 8.5h3v8h-2v3l-3-3h-5v-1.5"/></svg>`,
   survey: `<svg class="k-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="3.5" width="7" height="5"/><path d="M12 8.5v3.5M12 12l-5.5 8.5M12 12l5.5 8.5"/><path class="a" d="M12 12v8.5"/></svg>`,
@@ -324,7 +314,6 @@ export const APPS = [
   { id: "lexicon", sec: "learn", name: "Lexicon", href: "./lexicon.html", logo: LOGO("lexicon", LEXICON_LOGO) },
   { id: "ledger", sec: "learn", name: "Ledger", href: "./ledger.html", logo: LOGO("ledger", LEDGER_LOGO) },
   { id: "stow", sec: "puzzle", name: "Stow", href: "./stow.html", logo: LOGO("stow", STOW_LOGO) },
-  { id: "rush", sec: "table", name: "Rush", href: "./rush.html", logo: LOGO("rush", RUSH_LOGO) },
   { id: "parley", sec: "learn", name: "Parley", href: "./parley.html", logo: LOGO("parley", PARLEY_LOGO) },
   { id: "party", sec: "party", name: "Party", href: "./party.html", logo: LOGO("party", PARTY_LOGO) },
   // Party's games, each with a tile of its own: it opens Party on that game (the room's made there)
@@ -338,6 +327,9 @@ export const APPS = [
   { id: "cue", sec: "party", name: "Cue", href: "./cue.html", logo: LOGO("cue", CUE_LOGO) },
   { id: "river", sec: "table", name: "River", href: "./river.html", logo: LOGO("river", RIVER_LOGO) },
   { id: "gambit", sec: "table", name: "Gambit", href: "./gambit.html", logo: LOGO("gambit", GAMBIT_LOGO) },
+  // Gambit's puzzle rush: no tile (it opens from Gambit's menu), but a page of its own with Gambit's logo, so it has a name
+  // for what your partner is playing, the puzzle battle's requests and Party
+  { id: "rush", within: "gambit", name: "Puzzle rush", href: "./rush.html", logo: LOGO("gambit", GAMBIT_LOGO) },
   { id: "boast", sec: "table", name: "Boast", href: "./boast.html", logo: LOGO("boast", BOAST_LOGO) },
   { id: "bigtwo", sec: "table", name: "Big Two", href: "./bigtwo.html", logo: LOGO("bigtwo", BIGTWO_LOGO) },
   { id: "landlord", sec: "table", name: "Landlord", href: "./landlord.html", logo: LOGO("landlord", LANDLORD_LOGO) },
@@ -426,7 +418,7 @@ function startOver() {
   note.className = "menu-line";
   note.textContent = "Its levels, stars, saves and settings go, on this device and every other with your solo code. Crates resets its learning in its own Settings.";
   const here = (location.pathname.split("/").pop() || "index.html");
-  for (const a of APPS.filter(x => !KEEP_ON_RESET.has(x.id) && !x.party)) {
+  for (const a of APPS.filter(x => !KEEP_ON_RESET.has(x.id) && !x.party && !x.within)) {   // a game's mode goes with the game
     const b = document.createElement("button");
     b.type = "button"; b.textContent = a.name;
     b.addEventListener("click", async () => {

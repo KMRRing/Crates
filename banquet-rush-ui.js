@@ -1,4 +1,4 @@
-// Banquet's rush on the page (Menu, Call it): the rush's sheet (rush-sheet.js) with the course's stage
+// Banquet's puzzle rush on the page (Menu, Puzzle rush): the rush's sheet (rush-sheet.js) with the course's stage
 // (banquet-course.js: the hands, Lao Wang's last throws, the calls; tap a call, then Call), the bank banquet-rush.js deals,
 // and the verdict: the right call and why.
 import { handStage } from "./banquet-course.js";
@@ -15,10 +15,10 @@ function verdict(p, j) {
 
 /** The sheet, made once. inFrame: a partner watching (nothing kept). */
 export const createRush = ({ inFrame = false } = {}) => createRushSheet({
-  key: "banquet", cls: "bq", title: "Call it",
+  key: "banquet", cls: "bq",
   loadBank: async () => PUZZLES,
   stage: handStage(), stepOf,
   picked: (p, st) => st.sel,
   judge, ask: askText, verdict,
-  intro: "Call it, as fast as a banquet table wants it: both hands shown, the total in its verse, first with the numbers on the calls and then without; then 十五二十's Cantonese; then Lao Wang's last throws to read, and the call his habits make likeliest. They start easy and get harder.",
+  intro: "Call it as fast as a banquet table wants it: both hands shown, the total in its verse, first with the numbers on the calls and then without; then 十五二十's Cantonese; then Lao Wang's last throws to read, and the call his habits make likeliest. They start easy and get harder.",
 }, { inFrame });

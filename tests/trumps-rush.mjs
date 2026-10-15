@@ -7,7 +7,7 @@
 // nothing twice, the unseen first; the verdicts and their words.
 import { PUZZLES } from "../trumps-puzzles.js";
 import { stepOf, judge, playWords, worthText, gamesText, alike, whyText, askText } from "../trumps-rush.js";
-import { runOrder } from "../rush-sheet.js";
+import { runOrder } from "../rush-core.js";
 import { tableOf, playedOf, positionOf, parseCards, tokenOf, motifsOf } from "../trumps-course.js";
 import { GAMES } from "../trumps-games.js";
 import { weigh, fittingDeal } from "../trumps-solve.js";

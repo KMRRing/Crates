@@ -20,7 +20,7 @@ export function solutionSan(puzzle) {
 /**
  * Mounts a puzzle board in `container`. opts: { onDone(solved), interactive, revealSolution, startStep (the moves
  * already made, to pick a puzzle up part-way), onStep(step) (after every move, either side's) }. Returns
- * { destroy() }. The board plays the opponent's first move after a beat, then waits for taps.
+ * { destroy(), stop() }. The board plays the opponent's first move after a beat, then waits for taps.
  */
 export function mountPuzzle(container, puzzle, opts = {}) {
   const chess = new Chess(puzzle.fen);
@@ -198,7 +198,12 @@ export function mountPuzzle(container, puzzle, opts = {}) {
     draw();
     if (step % 2 === 0) later(reply, opts.replyMs ?? 350);           // the opponent's moves are the even ones
   } else later(reply, opts.firstMs ?? 500);
-  return { destroy() { timers.forEach(clearTimeout); }, get solver() { return solver; } };
+  return {
+    destroy() { timers.forEach(clearTimeout); },
+    /** No more moves (the run's time ran out): the board stays as it stands. */
+    stop() { timers.forEach(clearTimeout); done = true; selected = null; premove = null; drag = null; draw(); },
+    get solver() { return solver; },
+  };
 }
 
 /**

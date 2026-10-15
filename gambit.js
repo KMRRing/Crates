@@ -1,8 +1,8 @@
 // Gambit: chess against Stockfish at a strength you choose, two players on one phone, or a match with your partner. The
-// rules are chess.js's (gambit-rules.js keeps the game as plain JSON), the board chess-board.js's, the pieces Rush's;
-// the computer's moves, the coach and the review at the end are Stockfish's (uci.js, in a worker, loaded only when a
-// game against it needs it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes
-// (gambit:game) and picked up on reload.
+// rules are chess.js's (gambit-rules.js keeps the game as plain JSON), the board chess-board.js's; the computer's moves,
+// the coach and the review at the end are Stockfish's (uci.js, in a worker, loaded only when a game against it needs
+// it; the coach's judgement is uci-coach.js's). The game in play is kept as it changes (gambit:game) and picked up on
+// reload. Its puzzle rush is a page of its own under its header (Menu, Puzzle rush: rush.html, rush.js).
 import * as G from "./gambit-rules.js";
 import { mountBoard } from "./chess-board.js";
 import { PIECES } from "./chess-pieces.js";
@@ -18,9 +18,11 @@ import "./pwa.js";
 import { part, choice, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { IN_FRAME } from "./suite.js";
 import { busy, sextant } from "./loading.js";
+import { bestsLine } from "./rush-core.js";
 
 const $ = id => document.getElementById(id);
 const GAME = "gambit:game", OPTS = "gambit:opts", BEST = "gambit:best", RECORD = "gambit:record";
+const RUSH_BEST = "rush:best";                                   // the puzzle rush's (rush.html, Menu, Puzzle rush)
 const APP = 1;
 const PACE = 700;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -500,7 +502,7 @@ function render() {
     board.draw({ fen: p.chess.fen(), white: bottomWhite(), moves: hand ? p.chess.moves({ verbose: true }) : [], last: last ? { from: last.from, to: last.to } : null,
       arrows: h ? h.moves.map(u => arrowOf(u)) : [], check: checkSquare(p.chess), slide });
   }
-  $("board").classList.toggle("gb-plain", !opts.coords);
+  $("board").classList.toggle("ch-plain", !opts.coords);
   const white = bottomWhite();
   drawSeat($("far"), !white, p);
   drawSeat($("near"), white, p, `<span class="gb-say">${sayLine(p)}</span>`);
@@ -544,7 +546,8 @@ function openMenu() {
     part(body, "play").append(action("New game", () => {
       if (!S.result && G.movesOf(S).length > 1 && !confirm("Start a new game? This one isn't finished.")) return;
       Object.assign(opts, pick); saveOpts(); newGame();
-    }, "primary"), ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
+    }, "primary"), ...(IN_FRAME ? [] : [action("Puzzle rush", () => { location.href = "rush.html"; })]),
+    ...(!g.result && G.movesOf(g).length ? [action("Resign", resign, "link")] : []));
     part(body, "content").append(
       choice("Opponent", [["engine", "Computer"], ["two", "Two players"]], pick.mode, v => { pick.mode = v; }),
       choice("Strength", LEVELS.map(l => [l.id, `${l.name} ${rating(l.rating)}`]), pick.level, v => { pick.level = v; }),
@@ -555,8 +558,9 @@ function openMenu() {
   set.append(toggle("Coordinates on the board", opts.coords, on => { opts.coords = on; saveOpts(); render(); }));
   const best = read(BEST, 0), rec = read(RECORD, {});
   const record = LEVELS.filter(l => rec[l.id]).map(l => `${l.name} ${rec[l.id].w}–${rec[l.id].d}–${rec[l.id].l}`).join(", ");
+  const rushBests = bestsLine(read(RUSH_BEST, {}));
   part(body, "about").append(line(best ? `Strongest beaten: ${LEVELS.filter(l => l.rating <= best).pop()?.name} (${rating(best)})` : "No computer level beaten yet"),
-    ...(record ? [line(`Won, drawn, lost: ${record}`)] : []));
+    ...(record ? [line(`Won, drawn, lost: ${record}`)] : []), ...(rushBests ? [line(rushBests)] : []));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function closeDialogs() { for (const d of document.querySelectorAll("dialog[open]")) d.close(); }

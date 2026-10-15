@@ -128,6 +128,10 @@ html[data-theme="modern"] :is(.ldi-step, .ldi-z, .ldi-face) { border-radius: 12p
 html[data-theme="kontor"] :is(.ldi-step, .ldi-z, .ldi-face) { border-radius: 2px; }
 
 /* ---------- a puzzle rush on the course's sheet (rush-sheet.js): the run's rows before and after, the verdict ---------- */
+/* before a run: how the last one went or your best on the clock, then the next run's choices, the same controls as a
+   menu's (rush-menu.js) */
+.rush-setup { display: grid; gap: 1.1rem; align-content: center; width: min(100%, 24rem); margin: 0 auto; }
+.rush-pick > .menu-row { margin: .35rem 0; }
 .rush-rows { display: grid; gap: .55rem; justify-items: center; align-content: center; text-align: center; }
 .rush-row { display: grid; gap: .2rem; justify-items: center; }
 .rush-row > small { font-size: .74rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }

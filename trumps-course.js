@@ -95,7 +95,7 @@ export function takenOf(step) {
   return { pts, side, known: partner !== null };
 }
 /**
- * What a card does, as Rush and the lessons name it: leading, "trumpf" (a trump led), "suchen" (the called Farbe led,
+ * What a card does, as the rush and the lessons name it: leading, "trumpf" (a trump led), "suchen" (the called Farbe led,
  * to make its Sau fall), "sau" (a Sau cashed); following, "schmieren" (points on a trick your side holds), "stechen"
  * (a Farbe trumped), "take" (the trick taken where a card would let it go), "duck" (let go where a card would take it).
  */

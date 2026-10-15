@@ -4,7 +4,7 @@
 // a tap on the right call on the course's stage makes it; a run's order rising; the verdicts and their words.
 import { PUZZLES, favourite, stepOf, judge, callText, askText, whyText } from "../banquet-rush.js";
 import { handStage } from "../banquet-course.js";
-import { runOrder } from "../rush-sheet.js";
+import { runOrder } from "../rush-core.js";
 import { HANDS, callsFor } from "../banquet-rules.js";
 
 let bad = 0;

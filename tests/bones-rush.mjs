@@ -6,7 +6,7 @@
 // best still best; a run's order rising four at a time, nothing twice, the unseen first; the verdicts and their words.
 import { PUZZLES } from "../bones-puzzles.js";
 import { stepOf, judge, playWords, worthText, whyText, askText } from "../bones-rush.js";
-import { runOrder } from "../rush-sheet.js";
+import { runOrder } from "../rush-core.js";
 import { tableOf, tilesOf, playName, motifsOf, playsFor } from "../bones-course.js";
 import { legalPlays, handSize } from "../bones-rules.js";
 import { weigh, dealable } from "../bones-solve.js";

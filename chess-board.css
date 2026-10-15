@@ -1,0 +1,37 @@
+/* The chess board (chess-board.js): parchment and bronze squares, maple and walnut in the suite's brass (a mid-tone dark
+   square, so black pieces read on it as well as white), the cburnett pieces; highlights are translucent layers over the
+   squares. Gambit's game, its puzzle rush and Deck's chess cards all draw it; themes.css gives the other themes theirs. */
+.ch-board { width: 100%; margin: 0; display: block; border-radius: 0; overflow: visible; box-shadow: 0 1px 2px rgba(0, 0, 0, .12), 0 6px 18px rgba(20, 40, 60, .12); touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.ch-board .sq.light { fill: #EFE3C8; }
+.ch-board .sq.dark { fill: #9C8257; }
+.ch-board .hl.last { fill: rgba(255, 221, 89, .5); }
+.ch-board .hl.sel { fill: rgba(255, 221, 89, .75); }
+.ch-board .hl.pre { fill: rgba(168, 104, 230, .5); }                  /* a premove, waiting for the reply */
+/* the wanted move after a miss (not "hint": the suite's .hint is Crates' clue button, and its size would blow this up) */
+.ch-board .hl.want { fill: rgba(46, 158, 91, .6); }
+.ch-board .hl.check { fill: rgba(210, 59, 42, .75); }
+.ch-board .coord { font-family: var(--font); font-size: .22px; font-weight: 800; pointer-events: none; }
+.ch-board .coord.on-light { fill: #7A6440; }
+.ch-board .coord.on-dark { fill: #EFE3C8; }
+.ch-plain .ch-board .coord { display: none; }                          /* Gambit's menu: Coordinates on the board, off */
+.ch-board .piece { cursor: grab; }
+.ch-board .piece.lifted { opacity: .35; }
+.ch-board .piece.slide { transition: transform .2s cubic-bezier(.3, .7, .3, 1); }
+@media (prefers-reduced-motion: reduce) { .ch-board .piece.slide { transition: none; } }
+.ch-board .piece.dragging { pointer-events: none; filter: drop-shadow(0 .08px .12px rgba(0, 0, 0, .35)); }
+.ch-board .target { fill: rgba(20, 40, 60, .22); pointer-events: none; }
+.ch-board .target.capture { fill: none; stroke: rgba(20, 40, 60, .25); stroke-width: .09; }
+.ch-board .promo-veil { fill: rgba(16, 24, 31, .35); }
+.ch-board .promo-sq { fill: #FBF8F0; stroke: var(--brass); stroke-width: .03; }
+.ch-board .promo-pc { pointer-events: none; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .ch-board .sq.light { fill: #CDBF9E; }
+  html:not([data-mode="day"]) .ch-board .sq.dark { fill: #8C744B; }
+  html:not([data-mode="day"]) .ch-board .coord.on-light { fill: #6E5A38; }
+  html:not([data-mode="day"]) .ch-board .coord.on-dark { fill: #E6DAC0; }
+}
+/* night, set in Settings */
+html[data-mode="night"] .ch-board .sq.light { fill: #CDBF9E; }
+html[data-mode="night"] .ch-board .sq.dark { fill: #8C744B; }
+html[data-mode="night"] .ch-board .coord.on-light { fill: #6E5A38; }
+html[data-mode="night"] .ch-board .coord.on-dark { fill: #E6DAC0; }

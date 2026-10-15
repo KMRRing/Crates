@@ -1,7 +1,7 @@
 // Deck: the pile, reviewed. What the knowledge games banked comes back here in its own form: Punt's questions
 // as options (in a new order each deal, with fresh wrong answers where they come from Crates' bank), Crates' clues as
 // which-answer, Chart's places as which-country in the first pile and plotted on the map from the second, Quote's numbers as a number judged
-// in the question's own range, Rush's puzzles on the board. Right moves an item up a pile; wrong drops it back.
+// in the question's own range, Gambit's puzzles on the board. Right moves an item up a pile; wrong drops it back.
 import * as pile from "./pile.js";
 import { noteDayCount } from "./suite.js";
 import { PILES, GAMES } from "./pile.js";
@@ -50,7 +50,7 @@ function overview() {
   board?.destroy(); board = null;
   const c = pile.counts();
   $("lead").textContent = c.total ? `What you missed, passed on or barely staked on, brought back until you know it. Right moves an item up a pile; wrong drops it to the first. ${c.due ? `${c.due} due now.` : "Nothing due yet."}`
-    : "Nothing banked yet. Play Punt, Quote, Chart, Crates or Rush: what you miss, pass on or stake 20% or less on lands here, and comes back until you know it.";
+    : "Nothing banked yet. Play Punt, Quote, Chart, Crates or Gambit's puzzle rush: what you miss, pass on or stake 20% or less on lands here, and comes back until you know it.";
   $("piles").replaceChildren(...PILES.map((p, i) => {
     const d = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span"), small = document.createElement("small");
     b.textContent = String(c.piles[i]); s.textContent = p.name; small.textContent = p.gap ? gapText(p.gap) : "at once";
@@ -235,7 +235,7 @@ function ask() {
   } else if (it.game === "rush") {
     const p = it.payload;
     const side = p.fen.split(" ")[1] === "w" ? "Black" : "White";
-    $("ask").textContent = `Rush · puzzle rated ${p.rating}${p.themes?.length ? ` · ${p.themes.join(", ")}` : ""}`;
+    $("ask").textContent = `Gambit · puzzle rated ${Number(p.rating).toLocaleString("en-GB")}${p.themes?.length ? ` · ${p.themes.join(", ")}` : ""}`;
     $("prompt").textContent = `${side} to move`;
     const holder = document.createElement("div");
     box.appendChild(holder);

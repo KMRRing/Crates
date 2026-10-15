@@ -43,7 +43,7 @@ function blots(me, op) {
   return n;
 }
 /**
- * What a play does, as Rush names it: "enter" (from the bar), "hit" or "hits" (two), "point" (one made in your board
+ * What a play does, as the rush names it: "enter" (from the bar), "hit" or "hits" (two), "point" (one made in your board
  * or on your bar point), "anchor" (one made in theirs), "prime" (the longest run of points made longer, four or more),
  * "run" (a back checker brought out of their board), "off" (checkers borne off), "safe" (no blot left they can hit,
  * where the next best leaves one).
