@@ -319,7 +319,11 @@ function drawGame(stage) {
   const c = current();
   if (!c.def) { stage.replaceChildren(h("p", { class: "pa-wait" }, "This game needs a newer version: close and reopen Party.")); return; }
   const players = playersOf(branch);
-  const play = h("div", { class: "pa-play fit-grow fit-scroll" });
+  // a game that keeps its screen (keepsView: the drawing games, whose pad mustn't be rebuilt under a finger, nor the
+  // box being typed in, as moves arrive several times a second) is given its stage as it left it, while the same game
+  // is on, and updates it where it stands
+  const held = c.def.keepsView ? stage.querySelector(`:scope > .pa-game-view > .pa-play[data-seq="${c.g.seq}"]`) : null;
+  const play = held || h("div", { class: "pa-play fit-grow fit-scroll", "data-seq": String(c.g.seq), "data-game": c.def.id });
   const before = rememberTyped(), fresh = new Map();
   const ctx = {
     state: c.state, me: me || { uid: table.uid }, players, inputs: inputsFor(branch, c.state.step), seq: c.g.seq,
@@ -337,10 +341,15 @@ function drawGame(stage) {
       button("Play again", () => table.act(b => startGame(b, c.g.id, c.g.options, table.now()))),
       button("Another game", () => table.act(b => endGame(b)), { primary: false }))
     : h("p", { class: "pa-wait" }, `${players.find(p => p.uid === branch.host)?.name || "The host"} chooses what's next`)) : null;
-  stage.replaceChildren(h("div", { class: "pa-game-view fit-col" },
-    h("div", { class: "pa-game-head" }, h("span", { class: "pa-game-title" }, c.def.name), c.def.zh ? h("span", { class: "pa-zh" }, c.def.zh) : null,
-      h("span", { class: "pa-count" }, `${players.length} playing`)),
-    play, foot));
+  const head = h("div", { class: "pa-game-head" }, h("span", { class: "pa-game-title" }, c.def.name), c.def.zh ? h("span", { class: "pa-zh" }, c.def.zh) : null,
+    h("span", { class: "pa-count" }, `${players.length} playing`));
+  if (held) {
+    // the head and the foot replaced around the stage, which never leaves the page
+    const view = held.parentElement;
+    for (const n of [...view.children]) if (n !== held) n.remove();
+    view.prepend(head);
+    if (foot) view.append(foot);
+  } else stage.replaceChildren(h("div", { class: "pa-game-view fit-col" }, head, play, foot));
   restoreTyped(before, fresh);
 }
 

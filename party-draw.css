@@ -1,0 +1,110 @@
+/* Party's drawing games (party-draw.js; Sketch): the paper, the same light paper on every phone whatever its theme (a
+   drawing is the same drawing everywhere; at night the whole of it is dimmed, the eraser with it), and its tools under
+   it on a phone, beside it held sideways; Sketch's word or its blanks, the clock, the box for a guess, the guesses, and
+   the word shown with its drawing after each turn. */
+
+/* a drawing game's stage fills the game's part of the screen and doesn't scroll: the paper takes the height left */
+.pa-play:has(> .dr-wrap) { display: flex; flex-direction: column; overflow: hidden; padding: .25rem .25rem .4rem; }
+.dr-wrap { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: .45rem; }
+.dr-wrap > * { flex: none; }
+.dr-wrap > .fit-grow { flex: 1 1 auto; min-height: 0; }
+.dr-box { min-height: 8rem; }
+.dr-paper { width: min(100cqw, 100cqh); aspect-ratio: 1; box-sizing: border-box; border: 1.5px solid var(--brass); border-radius: 4px; overflow: hidden;
+  background: #FFFDF6; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dr-canvas { display: block; width: 100%; height: 100%; }
+.dr-pad .dr-canvas { touch-action: none; cursor: crosshair; }
+.dr-pad.off .dr-canvas { cursor: default; }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .dr-paper { filter: brightness(.86); } }
+html[data-mode="night"] .dr-paper { filter: brightness(.86); }
+
+/* the tools: the inks as swatches, the pens as dots their width in the ink, the eraser, undo, and clear (armed red for
+   the second tap) */
+.dr-tools { display: grid; gap: .35rem; }
+.dr-tools.off { opacity: .45; pointer-events: none; }
+.dr-inks { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: .25rem; }
+.dr-ink { height: 1.9rem; padding: 0; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--dr-ink); cursor: pointer; }
+.dr-ink[aria-checked="true"] { outline: 2.5px solid var(--ink); outline-offset: 1.5px; }
+.dr-row { display: flex; gap: .35rem; }
+.dr-pens { display: flex; gap: .35rem; flex: 3 1 0; }
+.dr-pen, .dr-tool { flex: 1 1 0; min-width: 0; min-height: 2.6rem; display: grid; place-items: center; padding: 0; border: 1.5px solid var(--tile-edge); border-radius: 4px;
+  background: var(--tile); color: var(--ink); cursor: pointer; }
+.dr-pen i { display: block; border-radius: 50%; background: var(--dr-ink); box-shadow: 0 0 0 1px rgba(0, 0, 0, .15); }
+.dr-pen0 i { width: .3rem; height: .3rem; }
+.dr-pen1 i { width: .65rem; height: .65rem; }
+.dr-pen2 i { width: 1.2rem; height: 1.2rem; }
+.dr-pen[aria-checked="true"], .dr-tool[aria-pressed="true"] { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1px var(--pa-in); }
+.dr-tool:disabled { opacity: .4; cursor: default; }
+.dr-tool.armed { border-color: #A8382B; background: color-mix(in srgb, #A8382B 18%, var(--sheet)); color: #A8382B; }
+.dr-ico { display: grid; place-items: center; }
+.dr-ico svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Sketch: what to draw, or the blanks to guess, with the clock; the box for a guess; the guesses, newest last */
+.dr-head { display: grid; gap: .3rem; }
+.sk-top { display: flex; align-items: baseline; gap: .55rem; min-width: 0; margin: 0; }
+.sk-label { flex: none; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.sk-word-big { min-width: 0; font-size: 1.35rem; font-weight: 800; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-hint { min-width: 0; font: 800 1.3rem/1.2 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .16em; white-space: nowrap; overflow: hidden; }
+.sk-clock { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .6rem; }
+.sk-count { font-size: .8rem; color: var(--ink-soft); white-space: nowrap; }
+.sk-under { display: grid; gap: .3rem; }
+.sk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
+.sk-row .pk-btn { width: auto; min-height: 2.9rem; padding: 0 1.2rem; }
+.sk-input { padding: .55rem .7rem; font-size: 1.05rem; }
+.sk-says { margin: 0; font-size: .85rem; font-weight: 700; text-align: center; color: var(--pa-in); }
+.sk-says:empty { display: none; }
+.sk-got { margin: 0; padding: .6rem .8rem; border-radius: 6px; background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); font-weight: 700; text-align: center; }
+.sk-got b { color: #2F7D5B; }
+.sk-feed { margin: 0; padding: 0; list-style: none; height: calc(2 * 1.35em); overflow: hidden; font-size: .88rem; line-height: 1.35; color: var(--ink-soft); }
+.sk-feed li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sk-feed b { color: var(--ink); font-weight: 700; }
+.sk-feed li.right { color: #2F7D5B; font-weight: 700; }
+.sk-feed li.right b { color: inherit; }
+.sk-near { margin-left: .4rem; font-size: .7rem; font-weight: 800; letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--pa-in); }
+
+/* choosing the word: three tiles, how hard each is beside it */
+.sk-choose { gap: .8rem; }
+.sk-words { display: grid; gap: .55rem; }
+.sk-word { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 3.6rem; padding: .6rem .9rem; border: 1.5px solid var(--tile-edge);
+  border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.sk-word-text { font-size: 1.35rem; font-weight: 800; overflow-wrap: anywhere; }
+.sk-word-tag { flex: none; font-size: .7rem; font-weight: 800; letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.sk-word[aria-pressed="true"] { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.sk-word:disabled { opacity: .4; cursor: default; }
+.sk-board { min-height: 0; }
+
+/* the word shown with its drawing: who got it and what each scored */
+.sk-gains { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.sk-gains li { display: inline-flex; align-items: baseline; gap: .4rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile);
+  font-size: .9rem; font-weight: 700; }
+.sk-gains li b { color: #2F7D5B; font-variant-numeric: tabular-nums; }
+.sk-gains li.me { border-color: var(--pa-in); }
+.sk-show .sk-board { display: none; }
+.sk-over { gap: .8rem; }
+
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
+  html:not([data-mode="day"]) .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+  html:not([data-mode="day"]) :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { color: #7FC2A8; }
+}
+html[data-mode="night"] .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
+html[data-mode="night"] .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-mode="night"] :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { color: #7FC2A8; }
+
+/* held sideways: the paper on the left, as tall as the screen allows; on the right what to draw or guess and the clock
+   at the top, the box for a guess high (a tablet's keyboard covers the bottom), the guesses filling the middle, the
+   tools low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  .pa-game-view .pa-play:has(> .dr-wrap) { max-width: 66rem; }
+  .dr-wrap:has(> .dr-side) { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(15rem, 1fr); grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "box head" "box side"; column-gap: 1.2rem; row-gap: .6rem; }
+  .dr-wrap > .dr-box { grid-area: box; }
+  .dr-wrap > .dr-head { grid-area: head; }
+  .dr-wrap > .dr-side { grid-area: side; display: flex; flex-direction: column; gap: .5rem; min-height: 0; }
+  .dr-side > .sk-feed { flex: 1 1 auto; height: auto; min-height: 0; overflow-y: auto; }
+  .dr-side:has(.dr-tools) { flex-direction: column-reverse; }
+  .dr-side .dr-inks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .dr-side .dr-ink { height: 2.2rem; }
+  .sk-show .sk-board { display: block; flex: 1 1 auto; overflow-y: auto; }
+  .sk-choose:not(:has(> .dr-side)), .sk-over { width: 100%; max-width: 36rem; margin: 0 auto; }
+}
+html[data-theme="office"] :is(.sk-word, .sk-got, .sk-gains li) { border-radius: 4px; }
