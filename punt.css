@@ -87,8 +87,10 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-verdict { margin: 0 0 .4rem; font-size: 1.2rem; font-weight: 800; }
 .pt-verdict.won { color: var(--pt-win); }
 .pt-verdict.lost { color: var(--pt-loss); }
-.pt-result > .pt-notes { flex: 0 1 auto; min-height: 0; }
+/* what's under the verdict scrolls in one box: at a table the standings, then the notes */
+.pt-result > .pt-reveal { flex: 0 1 auto; min-height: 0; margin: 0 0 .5rem; }
 .pt-notes { margin: 0 0 .5rem; padding-left: 1.1rem; display: grid; gap: .35rem; align-content: start; font-size: .95rem; }
+.pt-reveal > .pt-notes { margin: 0; }
 .pt-notes b { font-weight: 750; }
 
 .pt-rules { margin: .8rem 0; padding-left: 1.3rem; display: grid; gap: .55rem; }
@@ -174,3 +176,27 @@ html[data-mode="night"] { --pt-turf: #6FB28E; --pt-turf-ink: #0E1A14; --pt-win: 
 .pt-typed-result .close, .pt-typed-result .wrong { font-size: .85rem; font-weight: 700; }
 .pt-typed-result .close { color: var(--ink-soft); }
 .pt-typed-result .wrong { color: var(--pt-loss); }
+
+/* at a table (README, Punt at a table). The line under the header: everyone else in their seat's colour, their pot,
+   and a tick once they've staked; away in the soft ink. */
+.pt-partner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-partner .ld { margin-right: .35rem; }
+.pt-who .standings-dot { display: inline-block; margin-right: .25rem; vertical-align: .05em; }
+.pt-who.away { color: var(--ink-soft); }
+/* at the reveal, a dot in each player's colour on the option they picked, set on its top edge clear of the words */
+#app.punt.at-table .pt-option { position: relative; }
+.pt-pickers { position: absolute; right: .5rem; top: -.3rem; display: flex; gap: .2rem; }
+.pt-pickers:empty { display: none; }
+.pt-pickers i { width: .55rem; height: .55rem; border-radius: 50%; box-shadow: 0 0 0 2px var(--sheet); }
+/* the standings after a question and at the end: duel.css's rows, set closer so six fit over the notes */
+.pt-standings { --duel-in: var(--pt-turf); }
+.pt-standings .duel-rank { margin: 0 0 .55rem; gap: .2rem; }
+.pt-standings .duel-rank li { padding: .22rem .6rem; align-items: center; line-height: 1.2; }
+.pt-standings .standings-who small { font-size: .74rem; }
+@media (max-height: 720px) {
+  .pt-standings .duel-rank li { padding-top: .12rem; padding-bottom: .12rem; }
+}
+#doneTable .duel-rank { margin-top: .2rem; }
+.pt-done-solo { display: block; margin: .7rem auto 0; }
+/* who the table waits for, on the button that waited: a long list of names gives way at its end */
+#betBtn, #nextBtn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

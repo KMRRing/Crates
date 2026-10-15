@@ -1,10 +1,13 @@
 // Punt: pick an option, stake a share of the pot (every bet pays 2×), or pass (rules in punt-gen.js).
-// Solo sessions are saved in this browser. Together, both players share one pot; each stakes up to half of it
-// on their own pick, so you can back the same option or hedge against each other. A question settles once
-// everyone at the table has bet or passed.
-import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
-import { createTogether, seatsOf } from "./together.js";
-import { busy } from "./loading.js";
+// Solo sessions are saved in this browser. At a table (a pair's match, or a party of up to six) everyone gets the
+// same question and stakes on their own phone: Against, each on a pot of their own; Together, on one pot for the
+// table. A question settles once everyone at the table has staked, and the reveal shows what each did and where
+// everyone stands (punt-table.js has the rules of the table).
+import { makeSession, moreQuestions, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
+import { picksOf, judged, lengthOf, logOf, settleRound, advance, runOver, stake as stakeAt, pressNext, goOn, carryOn, waitingFor, goOnAt, presentIds, seatedIds, potOf, isBust, maxShare, modeOf, MODES, peopleFor, standingsAfter, resultFor, averageFor } from "./punt-table.js";
+import { createTogether } from "./together.js";
+import { leaderboard, signed } from "./standings.js";
+import { busy, sextant } from "./loading.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
 import { setRich } from "./rich.js";
@@ -21,23 +24,33 @@ import { today, noteComparable, arrivedForToday } from "./suite.js";   // the da
 
 const $ = id => document.getElementById(id);
 const STORE = "punt:solo", LENGTH = "punt:length", BEST = "punt:best", RECORDS = "punt:records", MATHS_PICKS = "punt:maths";
-const APP = 1;
+const APP = 2;                                     // 2: tables of up to six, Against or Together
 const ME = "me";                                   // the solo player's seat
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
 // S: { seed, level, length, questions, index, pot, phase: "bet" | "reveal", bets: { id: { pick, pct } }, log: [result], done }
 // A pick is a list of option indices (all of the right ones, when several are), or null for a pass.
-// a result: { index, pot (before), bets, change }
+// a result: { index, pot (before), bets, change }. At a table, S is the room's branch (punt-table.js).
 let S = null;
 let pick = [];        // the options chosen on this device for the current question
 let typed = "";       // or, for a name-it question with typing on, the answer typed
 let pct = 0;          // the stake chosen on this device, as a share of the pot
 let shownDone = null;
+let offset = 0;       // at a table: this device's distance from the database's clock, which stakes are timed by
 
 const me = () => (together.room ? together.room.uid : ME);
-const maxPct = () => (together.room ? 50 : 100);
+const maxPct = () => (together.room ? maxShare(S) : 100);
+/** This player's pot: at a table Against, their own; otherwise the one pot. */
+const myPot = () => (together.room ? potOf(S, me()) : S.pot);
 const question = () => S.questions[S.index];
-const seated = () => (together.room ? seatsOf(together.room.data).map(([id]) => id) : [ME]);
+const now = () => Date.now() + offset;
+/** Who's at the table now (this device always): the others with Punt open on a device that's online. Until the room
+ *  has said who's where (a moment after sitting down) everyone seated counts, so nobody is gone on without unseen. */
+const here = () => {
+  if (!together.room) return [ME];
+  const where = together.room.here;
+  return where?.[together.room.uid] ? presentIds(S, where, me()) : seatedIds(S);
+};
 
 // ---------- question banks (Maths, Refining): a bank module with STAGES and MATHS, filtered by stages and difficulties ----------
 const DIFFICULTIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -142,19 +155,19 @@ function picksFromHash(h, level) {
 // ---------- sessions ----------
 /** The run length chosen last (standard, 100 questions or endless), kept for the next run. */
 function chosenLength() { try { const l = localStorage.getItem(LENGTH); return LENGTHS[l] ? l : "standard"; } catch { return "standard"; } }
-const lengthOf = s => (LENGTHS[s?.length] ? s.length : "standard");
 
-async function freshState(level, length, players = null, picks = null) {
+/** A table's run, dealt on this device from its own topics: table holds the table's own (mode, people), kept as they are. */
+async function freshState(level, length, players = null, picks = null, table = {}) {
   const seed = randomSeed();
   if (level === "mix") {
     const mixPicks = picks?.weights ? picks : mixNow();
     return { v: 1, app: APP, seed, level, length, mix: mixPicks, questions: await mixSession(seed, length, mixPicks), index: 0, pot: START_POT, phase: "bet",
-      bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
+      bets: {}, log: [], done: null, created: Date.now(), ...table, ...(players && { players }) };
   }
   const bank = isMaths(level) ? await bankDeal(level, picks || chosenPicks(level)) : null;
   const deal = bank?.deal || null, maths = bank?.picks;
   return { v: 1, app: APP, seed, level, length, ...(deal && { maths }), questions: makeSession(seed, level, length, deal, nameDeal()), index: 0, pot: START_POT, phase: "bet",
-    bets: {}, log: [], done: null, created: Date.now(), ...(players && { players }) };
+    bets: {}, log: [], done: null, created: Date.now(), ...table, ...(players && { players }) };
 }
 function loadSolo() { try { const s = JSON.parse(localStorage.getItem(STORE)); return s?.questions?.length ? s : null; } catch { return null; } }
 function saveSolo() { if (!together.room) try { localStorage.setItem(STORE, JSON.stringify(S)); } catch { /* private mode */ } }
@@ -191,8 +204,15 @@ async function newSession(level = S.level, length = chosenLength(), picks = null
   if (S && !S.done && S.index > 0 && !confirm("Start a new run? This one isn't finished.")) { render(); return; }
   try { localStorage.setItem(LENGTH, length); } catch { /* private mode */ }
   if (!together.room) { soloSession(randomSeed(), level, length, picks); return; }
+  dealTable({ level, length, picks });
+}
+/** A new run at the table, dealt on this device: every pot back to 1,000 (Play again, New run, the other kind of pot). */
+async function dealTable({ level = "mix", length = lengthOf(S), picks = null, mode = modeOf(S) } = {}) {
   const next = await freshState(level, length, null, picks);
-  together.act(g => { Object.assign(g, { seed: next.seed, level, length, maths: next.maths || null, mix: next.mix || null, questions: next.questions, index: 0, pot: START_POT, phase: "bet", bets: {}, log: [], done: null }); });
+  return together.act(g => {
+    Object.assign(g, { seed: next.seed, level, length, maths: next.maths || null, mix: next.mix || null, questions: next.questions, mode, index: 0,
+      pot: START_POT, pots: null, phase: "bet", bets: {}, next: null, log: [], done: null });
+  });
 }
 
 /** Ends an endless run where it stands, to see how it went. */
@@ -209,13 +229,6 @@ const NAME = "punt:name";
 const nameMode = () => { try { const m = localStorage.getItem(NAME); return NAME_MODES[m] ? m : "known"; } catch { return "known"; } };
 const nameDeal = () => ({ mode: nameMode(), known: known.all() });
 const typedNow = q => q?.kind === "name" && nameMode() !== "off";
-/** Whether a bet's answer was right (null: a pass with nothing chosen): a typed answer is checked against the name,
- *  a pick against the options. */
-function judged(q, b) {
-  if (b?.typed != null) return { right: check(b.typed, [q.answer]).right };
-  const p = picksOf(b?.pick);
-  return { right: p ? pickedRight(q, p) : null };
-}
 // the box a name is typed into, kept across redraws so typing isn't interrupted; the phone's own suggestions are off,
 // since they would turn recalling the name back into choosing it
 const typedInput = Object.assign(document.createElement("input"), { type: "text", className: "pt-typed", placeholder: "Type the name", autocomplete: "off", spellcheck: false });
@@ -225,8 +238,6 @@ typedInput.setAttribute("enterkeyhint", "go");
 typedInput.setAttribute("aria-label", "Your answer");
 typedInput.addEventListener("input", () => { typed = typedInput.value; drawBetting(question(), !!S.bets?.[me()]); });
 typedInput.addEventListener("keydown", e => { if (e.key !== "Enter") return; e.preventDefault(); typedInput.blur(); if (pct > 0 && typed.trim()) place(false); });
-/** A saved pick as a list (sessions saved before several-right questions stored one index). */
-const picksOf = p => (p == null ? null : Array.isArray(p) ? p : Object.values(p ?? {}).length ? Object.values(p) : [p]);
 
 /**
  * Tapping an option: with one right answer it's chosen; with several it toggles, and once as many are chosen as
@@ -250,24 +261,6 @@ function change(fn) {
   return Promise.resolve(true);
 }
 
-/** Once everyone at the table has bet or passed: pay out, and show what happened. */
-function settleIfReady(g, ids) {
-  if (!ids.every(id => g.bets[id])) return;
-  const q = g.questions[g.index];
-  let total = 0;
-  const bets = {};
-  for (const id of ids) {
-    const b = g.bets[id], { pct: share } = b, p = picksOf(b.pick), { right } = judged(q, b);
-    const { stake, change: c } = right == null || !share ? { stake: 0, change: 0 } : settle(g.pot, share, right);
-    bets[id] = { pick: p, ...(b.typed != null && { typed: b.typed }), pct: share, stake, change: c };
-    total += c;
-  }
-  g.log.push({ index: g.index, pot: g.pot, bets, change: total });
-  g.pot = Math.max(0, g.pot + total);
-  g.phase = "reveal";
-  g.bets = {};
-}
-
 function place(passing) {
   if (S.done || S.phase !== "bet") return;
   const q = question(), need = rightCount(q), typing = typedNow(q), answered = typing ? !!typed.trim() : pick.length === need;
@@ -280,12 +273,18 @@ function place(passing) {
   const bet = typing ? { ...(typed.trim() && { typed: typed.trim() }), pct: share }
     : { pick: [...pick].sort((a, b) => a - b), pct: share };
   const id = me(), index = S.index;
-  change(g => {
-    if (g.done || g.phase !== "bet" || g.index !== index) return false;
-    g.bets[id] = bet;
-    settleIfReady(g, together.room ? seatsOf(g).map(([x]) => x) : [ME]);
-  });
-  if (!together.room) countIfOver();
+  if (!together.room) {
+    change(g => {
+      if (g.done || g.phase !== "bet" || g.index !== index) return false;
+      g.bets[id] = bet;
+      settleRound(g, [ME]);
+    });
+    countIfOver();
+    return;
+  }
+  // at a table it's timed on the database's clock (the slow are gone on without once the others have waited a while)
+  const at = here(), when = now();
+  together.act(g => g.index === index && stakeAt(g, id, { ...bet, at: when }, at)).then(ok => { if (!ok && S.index === index) toast("The table went on without that stake"); });
 }
 /** A run's last bet settled (or the pot gone): its average is final, so it counts at once, not when its summary is
  *  opened. An endless run goes on until you stop it, and counts then. */
@@ -296,18 +295,44 @@ function countIfOver() {
   if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);
 }
 
+/** An endless run's next block, dealt as the last question of the one before is passed (null for a run of a set length). */
+async function moreFor(s) {
+  if (lengthOf(s) !== "endless") return null;
+  if (s.level === "mix") { const sources = await topicSources(s.mix || mixNow()); return g => mixQuestions(g.seed, sources, BATCH, g.questions, nameDeal()); }
+  const deal = isMaths(s.level) ? (await bankDeal(s.level, s.maths || chosenPicks(s.level))).deal : null;
+  return g => moreQuestions(g.seed, g.level, g.questions, deal, nameDeal());
+}
 async function next() {
-  const index = S.index;
-  const deal = isMaths(S.level) && lengthOf(S) === "endless" ? (await bankDeal(S.level, S.maths || chosenPicks(S.level))).deal : null;
-  const sources = S.level === "mix" && lengthOf(S) === "endless" ? await topicSources(S.mix || mixNow()) : null;
-  change(g => {
-    if (g.phase !== "reveal" || g.index !== index) return false;
-    g.questions = Object.values(g.questions);
-    if (g.pot <= 0 || (lengthOf(g) !== "endless" && g.index + 1 >= g.questions.length)) { g.done = { at: Date.now() }; return; }
-    if (g.index + 1 >= g.questions.length) g.questions = g.questions.concat(sources ? mixQuestions(g.seed, sources, BATCH, g.questions, nameDeal()) : moreQuestions(g.seed, g.level, g.questions, deal, nameDeal()));
-    g.index++;
-    g.phase = "bet";
-  }).then(() => resetChoice());
+  const index = S.index, more = await moreFor(S);
+  if (!together.room) {
+    resetChoice();                       // before the next question is drawn, so it doesn't show this one's pick and stake
+    change(g => (g.phase === "reveal" && g.index === index ? advance(g, more) : false));
+    return;
+  }
+  const at = here(), when = now();
+  together.act(g => g.index === index && pressNext(g, me(), at, when, more));
+}
+/** Everyone else done, and the slow have had their grace: on without them (their stake is nothing). */
+async function goOnWithout() {
+  const index = S.index, phase = S.phase, more = phase === "reveal" ? await moreFor(S) : null, at = here(), when = now();
+  together.act(g => g.index === index && g.phase === phase && goOn(g, at, when, more));
+}
+/**
+ * Moves the table on when nobody's left to wait for though nobody's own move did it (the last one still to stake left,
+ * or their phone slept). A moment after the table or who's here last changed: a phone that has just sat down is seated
+ * a moment before it says it's here, and mustn't be gone on without in between.
+ */
+let carryTimer = 0;
+function carryOnSoon() {
+  clearTimeout(carryTimer);
+  if (!together.room || !S || S.done) return;
+  carryTimer = setTimeout(async () => {
+    if (!together.room || !S || S.done) return;
+    const at = here(), w = waitingFor(S, at);
+    if (w.ids.length || w.seats) return;
+    const index = S.index, phase = S.phase, more = phase === "reveal" ? await moreFor(S) : null, when = now();
+    together.act(g => g.index === index && g.phase === phase && carryOn(g, at, when, more));
+  }, 1500);
 }
 
 // ---------- rendering ----------
@@ -318,20 +343,23 @@ function drawPrompt(q) {
   setRich($("prompt"), text);
   $("prompt").classList.toggle("long", text.length > 30);
 }
+/** What the last question did to this player's pot: their own, Against; the table's, Together and solo. */
+const changeOf = last => (together.room && modeOf(S) === "against" ? last?.bets?.[me()]?.change ?? 0 : last?.change ?? 0);
 function render() {
   if (!S) return;
   $("level").value = S.level;
+  $("app").classList.toggle("at-table", !!together.room);
   drawPartner();
   const q = question() || S.questions[S.questions.length - 1];
   const last = S.log[S.log.length - 1];
   const reveal = S.phase === "reveal" || S.done;
   $("progress").textContent = lengthOf(S) === "endless" ? `Question ${S.index + 1}` : `Question ${Math.min(S.index + 1, S.questions.length)} of ${S.questions.length}`;
-  const avg = averageReturn(S.log);
+  const avg = together.room && modeOf(S) === "against" ? averageFor(S, me()) : averageReturn(S.log), over = together.room && modeOf(S) === "against" ? S.log.filter(r => r.bets?.[me()]).length : S.log.length;
   $("avg").hidden = avg === null;
-  if (avg !== null) $("avg").textContent = `Average ${showReturn(avg)} a question over ${S.log.length}`;
+  if (avg !== null) $("avg").textContent = `Average ${showReturn(avg)} a question over ${over}`;
   const pot = $("pot");
-  pot.textContent = showChips(S.pot);
-  pot.className = reveal && last ? (last.change > 0 ? "up" : last.change < 0 ? "down" : "") : "";
+  pot.textContent = showChips(myPot());
+  pot.className = reveal && last ? (changeOf(last) > 0 ? "up" : changeOf(last) < 0 ? "down" : "") : "";
 
   $("ask").textContent = q.ask;
   drawPrompt(q);
@@ -354,7 +382,9 @@ function render() {
   const need = rightCount(q);
   $("need").hidden = need === 1;
   $("need").textContent = need === 2 ? "Two of these are right: pick both." : `${need} of these are right: pick all ${need}.`;
-  const chosen = reveal ? picksOf(last?.bets[me()]?.pick) || [] : pick;
+  // at a table, once your stake is in, the options show what you staked on (after a reload too)
+  const staked = !reveal && together.room ? S.bets?.[me()] : null;
+  const chosen = reveal ? picksOf(last?.bets[me()]?.pick) || [] : staked ? picksOf(staked.pick) || [] : pick;
   const anyonePicked = i => Object.values(last?.bets || {}).some(x => picksOf(x.pick)?.includes(i));
   if (reveal ? last?.bets[me()]?.typed != null || typedNow(q) : typedNow(q)) drawTyped(q, reveal, last);
   else $("options").replaceChildren(...q.options.map((o, i) => {
@@ -368,6 +398,7 @@ function render() {
       b.disabled = true;
       if (o.right) b.classList.add("right");
       else if (anyonePicked(i)) b.classList.add("wrong");
+      if (together.room) b.append(pickers(last, i));
     } else b.addEventListener("click", () => toggle(i));
     return b;
   }));
@@ -384,6 +415,52 @@ function render() {
   else drawResult(q, last);
   if (reveal) fileLatest();
   if (S.done && JSON.stringify(S.done) !== shownDone) { shownDone = JSON.stringify(S.done); showDone(); }
+  if (together.room) wakeForGrace();
+}
+/** At the reveal, a dot in each player's colour on the option they picked. */
+function pickers(last, i) {
+  const box = document.createElement("span");
+  box.className = "pt-pickers";
+  for (const id of seatedIds(S)) {
+    if (!picksOf(last?.bets?.[id]?.pick)?.includes(i)) continue;
+    const dot = document.createElement("i"), p = S.players[id];
+    dot.style.background = `var(--p${p.slot % 6})`;
+    dot.title = id === me() ? "You" : p.name || "Player";
+    box.append(dot);
+  }
+  return box;
+}
+
+// ---------- at a table: who it waits for ----------
+/** Names as a list: "Tom", "Tom and Ana", "Tom, Ana and Bo"; seats not yet sat in as "1 more player". */
+function whoText({ ids, seats }) {
+  const names = ids.map(id => (id === me() ? "you" : firstName(id)));
+  if (seats) names.push(`${seats} more player${seats === 1 ? "" : "s"}`);
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
+}
+/** Who this device is waiting on (the others still to stake or press Next), once its own part is done; else null. */
+function waitingOthers() {
+  if (!together.room || S.done) return null;
+  const mine = S.phase === "reveal" ? !!S.next?.[me()] : !!S.bets?.[me()] || isBust(S, me());
+  if (!mine) return null;
+  const w = waitingFor(S, here());
+  return w.ids.length || w.seats ? w : null;
+}
+/** Whether the slow have had their grace, so this device may go on without them. */
+const graceOver = () => { const at = goOnAt(S, here()); return at != null && now() >= at; };
+let graceTimer = 0;
+/** Redraws once the slow's grace runs out, so Go on without them appears then. */
+function wakeForGrace() {
+  clearTimeout(graceTimer);
+  const at = waitingOthers() ? goOnAt(S, here()) : null;
+  if (at != null && now() < at) graceTimer = setTimeout(render, at - now() + 50);
+}
+/** The main button while the table waits: Waiting for Tom, then Go on without Tom. */
+function waitButton(btn, w) {
+  const go = graceOver(), bust = S.phase === "bet" && isBust(S, me());
+  btn.disabled = !go;
+  btn.textContent = go ? `Go on without ${w.ids.length ? whoText(w) : "them"}` : `${bust ? "Bust · waiting" : "Waiting"} for ${whoText(w)}`;
+  btn.dataset.go = go ? "1" : "";
 }
 
 /** A name-it question answered by typing: the box to type in; at the reveal, the name, and what was typed if it differs. */
@@ -391,7 +468,8 @@ function drawTyped(q, reveal, last) {
   const box = $("options");
   if (!reveal) {
     if (box.firstChild !== typedInput || box.children.length !== 1) box.replaceChildren(typedInput);
-    if (typedInput.value !== typed) typedInput.value = typed;
+    const staked = together.room ? S.bets?.[me()] : null, shown = staked ? staked.typed ?? "" : typed;   // at a table, what you staked on
+    if (typedInput.value !== shown) typedInput.value = shown;
     typedInput.disabled = !!S.bets?.[me()];
     return;
   }
@@ -408,40 +486,70 @@ function drawTyped(q, reveal, last) {
   }
   box.replaceChildren(card);
 }
+// the most of a shared pot one player may stake, by its name (the share: half for two, a third for three…)
+const SHARE = { 100: "All in", 50: "Half", 33: "A third", 25: "A quarter", 20: "A fifth", 16: "A sixth" };
 function drawBetting(q, waiting) {
-  const typing = typedNow(q);
+  const typing = typedNow(q), max = maxPct(), bust = !!together.room && isBust(S, me());
   const slider = $("stake");
-  slider.max = maxPct();
+  slider.max = max;
   slider.value = pct;
-  slider.disabled = waiting;
-  const stake = Math.floor(S.pot * pct / 100);
-  $("chips").replaceChildren(...[0, 5, 10, 25, 50, 100].filter(x => x <= maxPct()).map(x => {
+  slider.disabled = waiting || bust;
+  const stake = Math.floor(myPot() * pct / 100);
+  $("chips").replaceChildren(...[...[0, 5, 10, 25, 50].filter(x => x < max), max].map(x => {
     const b = document.createElement("button");
-    b.type = "button"; b.className = "btn"; b.disabled = waiting;
-    b.textContent = x === maxPct() ? (together.room ? "Half" : "All in") : `${x}%`;
+    b.type = "button"; b.className = "btn"; b.disabled = waiting || bust;
+    b.textContent = x === max ? SHARE[x] || `${x}%` : `${x}%`;
     b.addEventListener("click", () => { pct = x; render(); });
     return b;
   }));
-  $("passBtn").disabled = waiting || !(typedNow(q) ? !!typed.trim() : pick.length === rightCount(q));   // a pass needs an answer too
-  $("betBtn").disabled = waiting || (typing ? !typed.trim() : pick.length !== rightCount(q)) || pct <= 0;
-  // the Bet button says it all: the stake, and what comes back if right (every bet pays double)
-  $("betBtn").textContent = waiting ? `Waiting for ${partnerName()}` : stake > 0 ? `Bet ${showChips(stake)} · pays ${showChips(stake * ODDS)}` : "Pays double";
+  $("passBtn").disabled = waiting || bust || !(typedNow(q) ? !!typed.trim() : pick.length === rightCount(q));   // a pass needs an answer too
+  const bet = $("betBtn"), w = waitingOthers();
+  bet.dataset.go = "";
+  bet.disabled = waiting || bust || (typing ? !typed.trim() : pick.length !== rightCount(q)) || pct <= 0;
+  // the Bet button says it all: the stake, and what comes back if right (every bet pays double); at a table, once
+  // yours is in, who it waits for
+  if (w) waitButton(bet, w);
+  else bet.textContent = bust ? "Bust: watching the others" : waiting ? "Waiting" : stake > 0 ? `Bet ${showChips(stake)} · pays ${showChips(stake * ODDS)}` : "Pays double";
+}
+
+/** What one player did at a question, in a few words: their pick (✓ or ✗), and what they staked. */
+function didText(q, id, b) {
+  if (!b) return "";
+  if (b.none) return isBust(S, id) && !b.pot ? "bust" : "no stake";
+  const p = picksOf(b.pick), right = judged(q, b).right;
+  const what = b.typed != null ? `"${b.typed}"` : p?.map(i => q.options[i]?.label).filter(Boolean).join(" + ");
+  const mark = right == null ? "" : right ? "✓ " : "✗ ";
+  return `${mark}${what || "nothing picked"} · ${b.pct ? `${showChips(b.stake)} (${b.pct}%)` : "passed"}`;
+}
+/** The table after a question: everyone's pick, stake and gain or loss, ranked by pot (Together: by what each added). */
+function drawStandings(q, last) {
+  const box = $("standings");
+  box.hidden = !together.room;
+  if (!together.room) { box.replaceChildren(); return; }
+  const against = modeOf(S) === "against";
+  box.replaceChildren(leaderboard(standingsAfter(S, last).map(r => ({
+    name: r.id === me() ? "You" : r.name, value: r.value, shown: against ? showChips(r.value) : signed(r.value, showChips),
+    ...(r.bet && { delta: r.change }), seat: r.slot, me: r.id === me(), note: didText(q, r.id, r.bet),
+  })), { format: showChips }));
 }
 
 function drawResult(q, last) {
   const v = $("verdict");
   if (!last) { v.textContent = ""; return; }
   const mine = last.bets[me()];
-  v.className = "pt-verdict" + (last.change > 0 ? " won" : last.change < 0 ? " lost" : "");
-  const signed = n => `${n > 0 ? "+" : n < 0 ? "−" : ""}${showChips(Math.abs(n))}`;
-  if (together.room) {
-    const parts = Object.entries(last.bets).map(([id, b]) => `${id === me() ? "You" : nameOf(id)} ${!b.pct ? "passed" : `${signed(b.change)}`}`);
-    v.textContent = `${parts.join(", ")}. Pot ${signed(last.change)}.`;
-  } else if (!mine || !mine.pct) {
-    const would = judged(q, mine).right;
-    v.textContent = would == null ? "Passed." : would ? "Passed: your pick was right." : "Passed: your pick was wrong.";
-  }
-  else v.textContent = mine.change > 0 ? `Right! ${signed(mine.change)}` : `Wrong. ${signed(mine.change)}`;
+  v.className = "pt-verdict" + (changeOf(last) > 0 ? " won" : changeOf(last) < 0 ? " lost" : "");
+  const sign = n => `${n > 0 ? "+" : n < 0 ? "−" : ""}${showChips(Math.abs(n))}`;
+  const yours = () => {
+    if (mine?.none) return isBust(S, me()) && !mine.pot ? "You're bust: watching the others." : "No stake: the table went on.";
+    if (!mine || !mine.pct) {
+      const would = judged(q, mine).right;
+      return would == null ? "Passed." : would ? "Passed: your pick was right." : "Passed: your pick was wrong.";
+    }
+    return mine.change > 0 ? `Right! ${sign(mine.change)}` : `Wrong. ${sign(mine.change)}`;
+  };
+  // at a table, what everyone did is in the standings under it; Together, the verdict says what the pot did too
+  v.textContent = together.room && modeOf(S) === "together" ? `${yours().replace(/\.$/, "")} · pot ${sign(last.change)}` : yours();
+  drawStandings(q, last);
   $("notes").replaceChildren(...q.notes.map(n => {
     const li = document.createElement("li"), b = document.createElement("b"), t = document.createElement("span");
     setRich(b, n.label);
@@ -450,11 +558,20 @@ function drawResult(q, last) {
     return li;
   }));
   drawFlag(q);
-  $("nextBtn").hidden = !!S.done;
-  $("nextBtn").textContent = S.pot <= 0 || (lengthOf(S) !== "endless" && S.index + 1 >= S.questions.length) ? "See how you did" : "Next question";
+  const nextBtn = $("nextBtn"), w = waitingOthers();
+  nextBtn.hidden = !!S.done;
+  nextBtn.disabled = false;
+  nextBtn.dataset.go = "";
+  if (w) { waitButton(nextBtn, w); return; }
+  nextBtn.textContent = !together.room ? (S.pot <= 0 || (lengthOf(S) !== "endless" && S.index + 1 >= S.questions.length) ? "See how you did" : "Next question")
+    : runOver(S) ? "Final standings" : "Next question";
 }
 
 function showDone() {
+  if (together.room) { showTableDone(); return; }
+  $("doneTable").hidden = true;
+  $("doneSolo").hidden = true;
+  $("doneNew").textContent = "New session";
   const bets = S.log.flatMap(r => Object.entries(r.bets).filter(([id]) => id === me()).map(([, b]) => b));   // a pass is a bet of 0%
   const won = bets.filter(b => b.change > 0).length;
   $("doneTitle").textContent = S.pot <= 0 ? "Bust" : S.pot > START_POT ? "Up on the house" : S.pot < START_POT ? "Down on the day" : "Level";
@@ -462,17 +579,46 @@ function showDone() {
   const stats = [["Final pot", showChips(S.pot)], ["A question", showReturn(avg)], ["Bets won", `${won} of ${bets.length}`]];
   const best = recordBest(avg);
   if (S.ranked) noteComparable("punt", avg, S.daily ? S.seed : null);   // today's run, or a preset with every difficulty: it counts for your best
+  drawDoneStats(stats);
+  const passes = S.log.filter(r => !r.bets[me()]?.pct).length;
+  const what = `${LEVELS[S.level].label}, ${LENGTHS[lengthOf(S)].label.toLowerCase()}`;
+  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}, ${passes} pass${passes === 1 ? "" : "es"}. ` +
+    `Your best average on ${what}: ${showReturn(best)} a question. The same run for anyone with the link: ` +
+    `${location.origin}${location.pathname}${linkOf(S)}`;
+  if (!$("doneDlg").open) $("doneDlg").showModal();
+}
+function drawDoneStats(stats) {
   $("doneStats").replaceChildren(...stats.map(([label, value]) => {
     const box = document.createElement("div"), dd = document.createElement("dd"), dt = document.createElement("dt");
     dd.textContent = value; dt.textContent = label;
     box.append(dd, dt);
     return box;
   }));
-  const passes = S.log.filter(r => !r.bets[me()]?.pct).length;
-  const what = `${LEVELS[S.level].label}, ${LENGTHS[lengthOf(S)].label.toLowerCase()}`;
-  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}, ${passes} pass${passes === 1 ? "" : "es"}. ` +
-    `Your best average on ${what}: ${showReturn(best)} a question. The same run for anyone with the link: ` +
-    `${location.origin}${location.pathname}${linkOf(S)}`;
+}
+/**
+ * The end of a run at a table: the final standings (Against: who won, by pot; Together: the team's pot, and what each
+ * added to it), Play again and Back to solo. A table's run touches no best and no daily.
+ */
+function showTableDone() {
+  const against = modeOf(S) === "against", rows = standingsAfter(S), first = rows.filter(r => r.value === rows[0]?.value);
+  const won = id => S.log.filter(r => r.bets?.[id]?.change > 0).length, staked = id => S.log.filter(r => r.bets?.[id] && !r.bets[id].none).length;
+  if (against) {
+    $("doneTitle").textContent = first.length > 1 ? (first.some(r => r.id === me()) ? "A draw" : `${whoText({ ids: first.map(r => r.id), seats: 0 })} share it`)
+      : first[0]?.id === me() ? "You win" : `${first[0]?.name || "Player"} wins`;
+    drawDoneStats([["Your pot", showChips(myPot())], ["A question", showReturn(averageFor(S, me()) ?? 0)], ["Bets won", `${won(me())} of ${staked(me())}`]]);
+  } else {
+    $("doneTitle").textContent = S.pot <= 0 ? "Bust" : S.pot > START_POT ? "Up on the house" : S.pot < START_POT ? "Down on the day" : "Level";
+    drawDoneStats([["Final pot", showChips(S.pot)], ["A question", showReturn(averageReturn(S.log) ?? 0)], ["Bets won", `${won(me())} of ${staked(me())}`]]);
+  }
+  $("doneTable").hidden = false;
+  $("doneTable").replaceChildren(leaderboard(rows.map(r => ({
+    name: r.id === me() ? "You" : r.name, value: r.value, shown: against ? showChips(r.value) : signed(r.value, showChips),
+    ...(against && { delta: r.value - START_POT }), seat: r.slot, me: r.id === me(),
+    note: `${won(r.id)} of ${staked(r.id)} bets won${against ? ` · ${showReturn(averageFor(S, r.id) ?? 0)} a question` : ""}`,
+  })), { format: showChips }));
+  $("doneNote").textContent = `${S.log.length} question${S.log.length === 1 ? "" : "s"}${against ? ", each on a pot of their own" : ", one pot for the table"}.`;
+  $("doneNew").textContent = "Play again";
+  $("doneSolo").hidden = false;
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
 
@@ -626,15 +772,15 @@ async function applyMathsPicks() {
 }
 
 // ---------- stats ----------
-/** This run's settled questions, as records for knowledgeStats. */
-function runRecords() {
-  return S.log.map(r => {
-    const b = r.bets[me()], q = S.questions[r.index];
-    if (!b || !q) return null;
-    const { right } = judged(q, b);
-    return { o: ODDS, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0, g: guessChance(q, typedNow(q)) };
-  }).filter(Boolean);
+/** A settled question as a record for knowledgeStats, or null: one the table went on without you through says nothing. */
+function recordOf(r) {
+  const b = r?.bets?.[me()], q = S.questions[r?.index];
+  if (!b || b.none || !q) return null;
+  const { right } = judged(q, b);
+  return { o: ODDS, f: (b.pct || 0) / 100, r: right == null ? null : right ? 1 : 0, g: guessChance(q, typedNow(q)) };
 }
+/** This run's settled questions, as records for knowledgeStats. */
+const runRecords = () => S.log.map(recordOf).filter(Boolean);
 /** Every question settled on this device, kept for the all-runs view (the most recent 5,000). */
 function allRecords() { try { return JSON.parse(localStorage.getItem(RECORDS)) || []; } catch { return []; } }
 /** Files the latest settled question once (each is keyed by run and question). */
@@ -645,7 +791,7 @@ function fileLatest() {
   const all = allRecords();
   if (all.some(x => x.key === key)) return;
   bankLatest(last);
-  const rec = runRecords().slice(-1)[0];
+  const rec = recordOf(last);
   if (!rec) return;
   all.push({ ...rec, key, lv: S.level, n: lengthOf(S) });
   try { localStorage.setItem(RECORDS, JSON.stringify(all.slice(-5000))); } catch { /* private mode */ }
@@ -653,8 +799,8 @@ function fileLatest() {
 
 /** The pile: a wrong answer, a pass, or a stake of 20% or less banks the question; a confident right answer moves a banked one up. */
 function bankLatest(last) {
-  const q = S.questions[last.index], mine = last.bets[me()];
-  if (!q || !mine || !q.key) return;
+  const q = S.questions[last.index], mine = last.bets?.[me()];
+  if (!q || !mine || mine.none || !q.key) return;
   const right = judged(q, mine).right, asName = typedNow(q);
   // the Ledger: what your stake believed, what happened, and what a pure guess would have had
   noteStake(mine.pct, ODDS, right === true, guessChance(q, asName));
@@ -720,28 +866,41 @@ function openStats(scope = "run") {
   if (!$("statsDlg").open) $("statsDlg").showModal();
 }
 
-// ---------- together ----------
-function nameOf(id) { return together.room?.data?.players?.[id]?.name || "your partner"; }
-function partnerName() { return together.partner()?.name || "your partner"; }
+// ---------- at a table ----------
+const firstName = id => String(S?.players?.[id]?.name || "Player").split(" ")[0];
+/**
+ * The line under the header at a table: everyone else in their colour, with their pot (Against) and a tick once
+ * they've staked (at the reveal, once they've pressed Next); away for one whose phone isn't at the table. A pair's
+ * partner in another game: Join them.
+ */
 function drawPartner() {
   const el = $("partner");
-  if (!together.room) { el.hidden = true; return; }
+  if (!together.room || !S?.players) { el.hidden = true; return; }
   el.hidden = false;
-  el.innerHTML = "";
-  if (!together.online) { el.append("Reconnecting… bets made now may not reach your partner."); return; }
-  const p = together.partner();
-  if (!p) { el.append(`Game ${together.room.code}: waiting for your partner to join.`); return; }
-  const b = document.createElement("b");
-  b.textContent = p.name + (p.online ? "" : " (away)");
-  if (p.game) {
-    const go = document.createElement("a");
+  el.replaceChildren();
+  if (!together.online) { el.append(sextant(), "Reconnecting… stakes made now may not reach the table."); return; }
+  const others = together.others(), p = together.partner();
+  if (others.length <= 1 && p?.game) {
+    const b = document.createElement("b"), go = document.createElement("a");
+    b.textContent = p.name;
     go.href = gameHref(p.game);
     go.textContent = "Join them";
     el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, go);
     return;
   }
-  const theirs = Object.keys(S.bets || {}).some(id => id !== me());
-  el.append("Sharing a pot with ", b, S.phase === "bet" && theirs ? " (their bet is in)." : ".");
+  if (!others.length) { el.append(sextant(), "Waiting for the others to sit down"); return; }
+  const against = modeOf(S) === "against", ready = id => (S.phase === "reveal" ? !!S.next?.[id] : !!S.bets?.[id]);
+  if (!against) el.append("Sharing a pot with ");
+  others.forEach((o, i) => {
+    if (i) el.append(" · ");
+    const who = document.createElement("span"), dot = document.createElement("i"), b = document.createElement("b");
+    who.className = `pt-who${o.here ? "" : " away"}`;
+    dot.className = "standings-dot";
+    dot.style.background = `var(--p${o.slot % 6})`;
+    b.textContent = firstName(o.id);
+    who.append(dot, b, against ? ` ${showChips(potOf(S, o.id))}` : "", !o.here ? " away" : ready(o.id) && !S.done ? " ✓" : "");
+    el.append(who);
+  });
 }
 
 async function askName() {
@@ -755,28 +914,55 @@ async function askName() {
   return name;
 }
 
-// a run played together: one pot, a team result
+// a run at a table: the same questions for everyone, Against (a pot each, head to head) or Together (one pot, a team)
+let stopOffset = null;
 let joining = null;                                           // the rete over the page while a room is joined
 const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
-  result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: g.pot ?? null, won: (g.pot ?? 0) > START_POT, coop: true } : null),
   game: "punt",
   app: APP,
   toast,
   askName,
   valid: g => !!g?.questions,
-  fresh: players => freshState("mix", chosenLength(), players),   // a promise: the maths bank may need loading
+  slots: g => g?.people || 2,
+  // a new table, dealt on the first phone to arrive from its own topics: Against, with seats for as many as were asked
+  // (a promise: a subject bank may need loading)
+  fresh: (players, { ask } = {}) => freshState("mix", chosenLength(), players, null, { mode: "against", people: peopleFor(ask) }),
+  result: g => resultFor(g, together.room?.uid),
   onState: val => {
     joined();
+    stopOffset ??= together.room?.sync.serverOffset?.(ms => { offset = ms || 0; }) || null;
     const moved = !S || S.seed !== val.seed || S.index !== val.index || S.phase !== val.phase;
-    S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: Object.values(val.log || {}) };
+    S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: logOf(val), pots: val.pots || {}, next: val.next || {} };
     if (moved) resetChoice();
-    if (moved && !val.done) shownDone = null;
+    if (moved && !val.done) { shownDone = null; if ($("doneDlg").open) $("doneDlg").close(); }   // a new run: Play again
+    render();
+    carryOnSoon();
+  },
+  onPresence: () => { if (!S?.players) return; render(); carryOnSoon(); },
+  onLeave: () => {
+    joined();
+    stopOffset?.();
+    stopOffset = null;
+    offset = 0;
+    clearTimeout(carryTimer);
+    clearTimeout(graceTimer);
+    if ($("doneDlg").open) $("doneDlg").close();
+    S = loadSolo();
+    if (!S) { soloSession(randomSeed(), "mix", "standard"); return; }
+    shownDone = S.done ? JSON.stringify(S.done) : null;      // your solo run's summary was seen when it ended
+    resetChoice();
+    history.replaceState(null, "", `${location.search}${linkOf(S)}`);
     render();
   },
-  onPresence: () => drawPartner(),
-  onLeave: () => { joined(); S = loadSolo(); if (!S) { soloSession(randomSeed(), "easy"); return; } resetChoice(); render(); },
 });
+/** Against or Together: the other kind of pot is a new run, asked first while this one's under way. */
+function switchMode(mode) {
+  if (modeOf(S) === mode) return;
+  const started = !S.done && (S.index > 0 || S.log.length || Object.keys(S.bets || {}).length);
+  if (started && !confirm(`Start a new run ${mode === "against" ? "with a pot each" : "with one pot for the table"}? This one isn't finished.`)) { drawMenu(); return; }
+  dealTable({ level: S.level, length: lengthOf(S), picks: S.mix || S.maths || null, mode });
+}
 
 // ---------- menu and messages ----------
 let toastTimer = null;
@@ -800,7 +986,9 @@ function drawMenu() {
   body.replaceChildren();
   pickLength ??= lengthOf(S);
   const play = part(body, "play");
-  play.append(action("New run", () => newSession("mix", pickLength), "primary"), action("Today's run", newDaily),
+  // at a table a new run is the whole table's (dealt from your choices below), and today's run is played alone
+  if (together.room) play.append(action("New run", () => newSession("mix", pickLength), "primary"));
+  else play.append(action("New run", () => newSession("mix", pickLength), "primary"), action("Today's run", newDaily),
     line(S?.daily ? "Today's run: it counts for your best." : S?.ranked ? "A preset with every difficulty in: it counts for your best."
       : "Your best counts today's run, and runs on a preset (Balanced, Trader, Culture night) with every difficulty in, at any length."));
   if (lengthOf(S) === "endless" && !S.done && S.log.length) play.append(action("End this run", endRun));
@@ -838,7 +1026,12 @@ function drawMenu() {
       try { localStorage.setItem(NAME, mo); } catch { /* private mode */ }
     })] : []));
   part(body, "settings").append(menuToggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
-  if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
+  if (together.room) {
+    const max = maxShare(S);
+    part(body, "together").append(choice("Pots", Object.entries(MODES), modeOf(S), switchMode),
+      line(modeOf(S) === "against" ? "A pot each: the most at the end wins." : `One pot for the table: each stakes up to ${(SHARE[max] || `${max}%`).toLowerCase()} of it.`),
+      action("Back to solo", () => together.leave(), "link"));
+  }
   if ($("avg").textContent && !$("avg").hidden) part(body, "about").append(line($("avg").textContent));
   part(body, "about").append(action("Your stats", () => openStats("run")), action("Flagged questions", () => openFlags(false)),
     ...(together.room ? [] : [action("Copy a link to this run", async () => {
@@ -859,7 +1052,12 @@ $("flagSend").addEventListener("click", sendFlag);
 $("flagsClose").addEventListener("click", () => $("flagsDlg").close());
 sendFlags();                     // anything flagged offline goes now
 $("doneStatsBtn").addEventListener("click", () => { $("doneDlg").close(); openStats("run"); });
-$("doneNew").addEventListener("click", () => { $("doneDlg").close(); newSession("mix", lengthOf(S)); });
+$("doneNew").addEventListener("click", () => {
+  $("doneDlg").close();
+  if (together.room) dealTable({ level: S.level, length: lengthOf(S), picks: S.mix || S.maths || null });   // Play again: the table's topics
+  else newSession("mix", lengthOf(S));
+});
+$("doneSolo").addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
 dropdown($("level"));
 $("level").addEventListener("change", e => newSession(e.target.value, lengthOf(S)));
 $("stagesBtn").addEventListener("click", openMathsPicks);
@@ -868,8 +1066,9 @@ $("mathsClose").addEventListener("click", () => $("mathsDlg").close());
 $("mathsGo").addEventListener("click", applyMathsPicks);
 $("stake").addEventListener("input", e => { pct = Number(e.target.value); render(); });
 $("passBtn").addEventListener("click", () => place(true));
-$("betBtn").addEventListener("click", () => place(false));
-$("nextBtn").addEventListener("click", next);
+// at a table, once the slow have had their grace, the button that waited for them goes on without them
+$("betBtn").addEventListener("click", () => ($("betBtn").dataset.go ? goOnWithout() : place(false)));
+$("nextBtn").addEventListener("click", () => ($("nextBtn").dataset.go ? goOnWithout() : next()));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 window.addEventListener("hashchange", () => {
@@ -901,9 +1100,9 @@ function soloStart() {
     if (forToday && !(S.daily && S.seed === today())) setTimeout(newDaily, 0);   // it asks before leaving a run you've started
   }
 }
-// a room in the address: the run you share from the first moment, never your own while the room is joined (your
-// partner would be on another question until it was), and your own only if the join doesn't come off
+// a room in the address: the run you share from the first moment, never your own while the room is joined (the others
+// would be on another question until it was), and your own only if the join doesn't come off
 if (code.length === 4) {
-  joining = busy("Joining your partner", { delay: 0 });
+  joining = busy(new URLSearchParams(location.search).has("party") ? "Joining the table" : "Joining your partner", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
 } else soloStart();

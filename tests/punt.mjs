@@ -5,6 +5,103 @@ globalThis.window = {};
 globalThis.atob = b => Buffer.from(b, "base64").toString("binary");
 new Function("window", fs.readFileSync(new URL("../bank.js", import.meta.url), "utf8"))(globalThis.window);
 const P = await import("../punt-gen.js");
+
+// at a table (a pair's match, a party's of up to six): a round settled for several players, Against (a pot each) and
+// Together (one pot); who the table waits for (the slow, the seats not yet sat in, never the away or the bust); going
+// on without the slow after the grace; Next for everyone; the reveal's order; the pair's record; every state as the
+// database keeps it (read back after each change, as a transaction would see it)
+{
+  const T = await import("../punt-table.js");
+  const { roundTrip } = await import("./rtdb.js");
+  const { reseat } = await import("../rooms.js");
+  let fails = 0;
+  const ok = (cond, what) => { if (!cond) { fails++; console.log(`FAIL table: ${what}`); } };
+  const q = (right = 0) => ({ kind: "clue", options: ["Brazil", "Chile", "Peru", "Bolivia"].map((label, i) => ({ label, right: i === right })), need: 1, answer: "Brazil" });
+  const players = n => Object.fromEntries(["a", "b", "c", "d", "e", "f"].slice(0, n).map((id, slot) => [id, { name: ["Korbi", "Sarah", "Tom", "Ana", "Bo", "Lin"][slot], slot, online: true }]));
+  const table = (mode, n, people = n, questions = 3) => ({ v: 1, app: 2, seed: 7, created: 1, level: "mix", length: "standard", mode, people,
+    questions: Array.from({ length: questions }, () => q(0)), players: players(n), index: 0, phase: "bet", bets: {}, log: [], done: null, pot: 1000 });
+  /** A change as a transaction makes it: on the state the database gave back, then stored again. */
+  const tx = (g, fn) => { const cur = roundTrip(g); const r = fn(cur); return r === false ? g : roundTrip(cur); };
+  const bet = (pick, pct, at) => ({ pick: [pick], pct, at });
+
+  // Against, three at the table: each stakes on their own pot; it settles on the last stake
+  let g = table("against", 3);
+  ok(T.maxShare(g) === 100 && T.potOf(g, "c") === 1000, "Against: all of your own pot, 1,000 to start");
+  g = tx(g, x => T.stake(x, "a", bet(0, 10, 1000), ["a", "b", "c"]));
+  g = tx(g, x => T.stake(x, "b", bet(2, 50, 2000), ["a", "b", "c"]));
+  ok(g.phase === "bet" && T.waitingFor(g, ["a", "b", "c"]).ids.join() === "c", "the table waits for the one still to stake");
+  ok(T.waitingFor(g, ["a", "b"]).ids.length === 0, "and not for one who's away");
+  ok(T.goOnAt(g, ["a", "b", "c"]) === 2000 + T.GRACE && !T.mayGoOn(g, ["a", "b", "c"], 2000 + T.GRACE - 1) && T.mayGoOn(g, ["a", "b", "c"], 2000 + T.GRACE),
+    "the slow can be gone on without once everyone else has staked and the grace has passed since the last of them");
+  g = tx(g, x => T.stake(x, "c", { pick: [0], pct: 0, at: 3000 }, ["a", "b", "c"]));
+  const e = T.logOf(g).at(-1);
+  ok(g.phase === "reveal" && g.pots.a === 1100 && g.pots.b === 500 && (g.pots.c ?? 1000) === 1000, "settled on the last stake: +100 on a right 10%, −500 on a wrong half, a pass changes nothing");
+  ok(e.bets.a.pot === 1000 && e.bets.a.stake === 100 && e.bets.a.change === 100 && e.bets.b.change === -500 && e.bets.c.pct === 0 && e.bets.c.pick.join() === "0" && !e.bets.c.none,
+    "the log keeps each player's pick, stake, change and pot before");
+  const rows = T.standingsAfter(g);
+  ok(rows.map(r => r.id).join() === "a,c,b" && rows.map(r => r.value).join() === "1100,1000,500" && rows.map(r => r.change).join() === "100,0,-500", "the reveal's order: best pot first, each with this question's change");
+  // Next: once everyone here has pressed it; one gone away isn't waited for
+  g = tx(g, x => T.pressNext(x, "a", ["a", "b", "c"], 4000));
+  g = tx(g, x => T.pressNext(x, "b", ["a", "b", "c"], 5000));
+  ok(g.phase === "reveal" && T.waitingFor(g, ["a", "b", "c"]).ids.join() === "c", "Next waits for everyone at the table");
+  ok(!T.carryOn(roundTrip(g), ["a", "b", "c"], 5100) && T.carryOn(roundTrip(g), ["a", "b"], 5100), "nobody left to wait for once the last one goes away");
+  g = tx(g, x => T.carryOn(x, ["a", "b"], 5100));
+  ok(g.phase === "bet" && g.index === 1 && !g.next, "on to the next question");
+  // the slow gone on without: their stake is nothing
+  g = tx(g, x => T.stake(x, "a", bet(1, 25, 10000), ["a", "b", "c"]));
+  g = tx(g, x => T.stake(x, "b", bet(0, 20, 12000), ["a", "b", "c"]));
+  ok(!T.goOn(roundTrip(g), ["a", "b", "c"], 12000 + T.GRACE - 1), "not before the grace");
+  g = tx(g, x => T.goOn(x, ["a", "b", "c"], 12000 + T.GRACE));
+  const e2 = T.logOf(g).at(-1);
+  ok(g.phase === "reveal" && e2.bets.c.none && e2.bets.c.change === 0 && g.pots.a === 1100 - 275 && g.pots.b === 500 + 100, "gone on without the slow one, who staked nothing");
+  // all in and wrong: bust, not waited for, can't stake; the run ends when everyone is
+  g = tx(g, x => T.carryOn(x, ["a", "b"], 50000) || T.advance(x));
+  g = tx(g, x => T.stake(x, "a", bet(3, 100, 60000), ["a", "b"]));
+  g = tx(g, x => T.stake(x, "b", bet(0, 10, 61000), ["a", "b"]));
+  ok(T.isBust(g, "a") && T.potOf(g, "a") === 0 && !T.runOver({ ...g, index: 0 }), "all in and wrong: bust, the others play on");
+  const later = tx({ ...g, questions: [...g.questions, q(0)] }, x => T.advance(x));
+  ok(T.waitingFor(later, ["a", "b", "c"]).ids.join() === "b,c" && !T.stake(roundTrip(later), "a", bet(0, 10, 1), ["a", "b", "c"]), "a bust player is neither waited for nor able to stake");
+  ok(T.waitingFor(g, ["a", "b", "c"]).ids.join() === "b,c", "nor waited for to press Next: they only watch");
+  ok(T.runOver({ ...g, pots: { a: 0, b: 0, c: 0 } }) && T.runOver(g), "the run ends when everyone's bust, or after the set's last question");
+  g = tx(g, x => T.advance(x, null, 70000));
+  ok(g.done?.at === 70000, "the end of the set");
+  const ra = T.resultFor(g, "a"), rc = T.resultFor(g, "c");
+  ok(rc.won && !rc.coop && rc.score === 1000 && !T.resultFor(g, "b").won && !ra.won && ra.score === 0 && ra.match === rc.match, "the pair's record: head to head, won by the sole first");
+  ok(!T.resultFor({ ...g, pots: { a: 900, b: 900, c: 900 } }, "a").won, "a shared first place wins nobody the match");
+
+  // the first question waits for the seats kept for people who haven't sat down yet, then for nobody missing
+  let h = table("against", 2, 4);
+  h = tx(h, x => T.stake(x, "a", bet(0, 10, 1000), ["a", "b"]));
+  h = tx(h, x => T.stake(x, "b", bet(0, 10, 1500), ["a", "b"]));
+  ok(h.phase === "bet" && T.waitingFor(h, ["a", "b"]).seats === 2 && T.goOnAt(h, ["a", "b"]) === 1500 + T.GRACE, "a party's first question waits for its people to sit down, with the grace");
+  h = tx(h, x => T.goOn(x, ["a", "b"], 1500 + T.GRACE));
+  h = tx(h, x => T.advance(x));
+  ok(h.phase === "bet" && T.waitingFor(h, ["a", "b"]).seats === 0, "after the first question, an empty seat holds nothing up");
+  h.players.c = { name: "Tom", slot: 2, online: true };
+  ok(T.waitingFor(h, ["a", "b", "c"]).ids.join() === "a,b,c" && T.potOf(h, "c") === 1000, "one who sits down later is waited for, with 1,000 of their own");
+
+  // Together: one pot, an equal share each at most; the standings are what each has added to it
+  let t = table("together", 3);
+  ok(T.maxShare(t) === 33 && T.maxShare(table("together", 2)) === 50 && T.maxShare(table("together", 2, 6)) === 16, "Together: half the pot each for two, a third for three, a sixth for six");
+  t = tx(t, x => T.stake(x, "a", bet(0, 50, 1), ["a", "b", "c"]));
+  ok(t.bets.a.pct === 33, "a stake is held to the share");
+  t = tx(t, x => T.stake(x, "b", bet(1, 10, 2), ["a", "b", "c"]));
+  t = tx(t, x => T.stake(x, "c", bet(0, 0, 3), ["a", "b", "c"]));
+  const te = T.logOf(t).at(-1);
+  ok(t.pot === 1000 + 330 - 100 && te.change === 230 && te.pot === 1000 && !t.pots, "the pot takes everyone's gains and losses");
+  ok(T.standingsAfter(t).map(r => `${r.id}${r.value}`).join() === "a330,c0,b-100", "the standings: what each has added, most first");
+  t = tx(t, x => T.pressNext(x, "a", ["a"], 9) );
+  ok(t.index === 1 && t.phase === "bet", "Next alone at the table moves on");
+  ok(T.resultFor({ ...t, done: { at: 1 } }, "b").coop && T.resultFor({ ...t, done: { at: 1 } }, "b").score === t.pot, "Together, the pair's record is the team's pot");
+
+  // a player's seat taken over on another device keeps their pot, stake and log
+  const moved = reseat(roundTrip(g), "b", "z");
+  ok(moved.pots.z === g.pots.b && T.logOf(moved)[0].bets.z.change === -500 && !moved.pots.b, "a seat taken over keeps its pot and its log");
+  ok(T.peopleFor({ people: 9 }) === 6 && T.peopleFor({ people: 3 }) === 3 && T.peopleFor(null) === 2 && T.modeOf({}) === "together" && T.modeOf({ mode: "against" }) === "against",
+    "seats for two to six people; a table from before the modes had one pot");
+  console.log(fails ? `table: ${fails} FAILED` : "table: Against and Together settle for everyone at once, wait for the slow and the seats still empty but not the away or the bust, go on without the slow after the grace, rank the reveal by pot, and keep as the database does");
+  if (fails) process.exitCode = 1;
+}
 {
   const opts = n => Array.from({ length: n }, (_, i) => ({ label: `o${i}`, right: i === 0 }));
   const g = P.guessChance, ok = Math.abs(g({ options: opts(4), need: 1 }) - .25) < 1e-9 && Math.abs(g({ options: opts(4), need: 2 }) - 1 / 6) < 1e-9

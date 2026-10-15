@@ -14,6 +14,7 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="duel.css">
 <link rel="stylesheet" href="punt.css">
 <link rel="stylesheet" href="themes.css">
 </head>
@@ -82,7 +83,10 @@
 
   <div id="result" class="pt-result" hidden>
     <p id="verdict" class="pt-verdict"></p>
-    <ul id="notes" class="pt-notes fit-scroll"></ul>
+    <div class="pt-reveal fit-scroll">
+      <div id="standings" class="pt-standings" hidden></div>
+      <ul id="notes" class="pt-notes"></ul>
+    </div>
     <button id="flagBtn" class="pt-flag" type="button">Disagree with this answer? Flag it</button>
     <button id="nextBtn" class="btn primary wide">Next question</button>
   </div>
@@ -96,9 +100,11 @@
 <dialog id="doneDlg" class="sheet" aria-label="Session finished">
   <div class="pick-head"><h2 id="doneTitle"></h2><button class="btn" type="button" id="doneClose">Close</button></div>
   <dl id="doneStats" class="pt-stats"></dl>
+  <div id="doneTable" class="pt-standings" hidden></div>
   <p id="doneNote" class="stats"></p>
   <button class="btn wide" type="button" id="doneStatsBtn">Your stats</button>
   <button class="btn primary wide" type="button" id="doneNew">New session</button>
+  <button class="link pt-done-solo" type="button" id="doneSolo" hidden>Back to solo</button>
 </dialog>
 
 <dialog id="flagDlg" class="sheet" aria-label="Flag this question">
@@ -134,7 +140,7 @@
 
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
   <form method="dialog" id="nameForm">
-    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <label for="nameInput">Your name, so the others know who's playing</label>
     <input id="nameInput" maxlength="16" autocomplete="nickname" required>
     <button class="btn primary wide" type="submit">Continue</button>
   </form>
