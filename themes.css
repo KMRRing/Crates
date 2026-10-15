@@ -18,7 +18,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-margin { border-radius: 16px; box-shadow: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-go { border-radius: 14px; background: var(--bl-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-chip { border-radius: 999px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-spec { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bl-row { border-radius: 12px; }
@@ -29,7 +29,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-note .tags span { border-radius: 999px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-option { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-go { border-radius: 14px; background: var(--br-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-go.quiet { background: var(--sheet); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-go.quiet { background: var(--sheet); color: var(--ink); box-shadow: none; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-stats div { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-unit { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .br-card { border-radius: 16px; box-shadow: none; }
@@ -55,7 +55,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-cat { border-radius: 999px; font-size: .72rem; font-stretch: 100%; text-transform: uppercase; letter-spacing: .06em; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-map { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-go { border-radius: 14px; background: var(--ch-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-go.quiet { background: var(--yard); box-shadow: none; outline: none; font-stretch: 100%; letter-spacing: normal; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; font-stretch: 100%; letter-spacing: normal; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-stats div { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-summary { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .ch-toast { border-radius: 10px; }
@@ -86,7 +86,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-chip { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-mini button { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-go { border-radius: 14px; background: var(--mf-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-stats div { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mf-toast { border-radius: 10px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .pa-stats div { border-radius: 12px; }
@@ -113,14 +113,14 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-side span { text-transform: uppercase; letter-spacing: .06em; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-side input { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-go { border-radius: 14px; background: var(--qt-in); color: #fff; font-size: 1.05rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-stats div { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .qt-toast { border-radius: 10px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-about { border-radius: 999px; border: 1.5px solid var(--rf-edge, #C9D1D5); }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-margin { border-radius: 16px; box-shadow: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-margin-row span { text-transform: uppercase; letter-spacing: .06em; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-go { border-radius: 14px; background: var(--rf-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-tabs { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-pane { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .rf-chip { border-radius: 999px; }
@@ -157,7 +157,7 @@ html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-card { border-radius: 22px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-stats div { border-radius: 12px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-go { border-radius: 16px; background: var(--sp-or); color: #fff; text-transform: none; letter-spacing: normal; font-stretch: 100%; outline: none; outline-offset: 0; }
-html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-go.quiet { background: var(--yard); box-shadow: none; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-go.quiet { background: var(--yard); color: var(--ink); box-shadow: none; outline: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .sp-toast { border-radius: 10px; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .top { background: none; }
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .mark { font-size: 1.75rem; font-stretch: 100%; letter-spacing: -.02em; text-transform: none; }
