@@ -197,3 +197,38 @@ export const PHRASES = [
   "a dumpling with legs", "a panda eating bamboo noodles", "a dragon boat race", "a lion dance in the rain", "a red envelope full of sweets",
   "a mooncake on the moon", "a cat in a teapot", "fireworks over the harbour", "a hotpot party", "a tea leaf swimming",
 ];
+
+/**
+ * Gallery's titles: strange things to draw, each a title the others will try to outdo with titles of their own, so
+ * odd enough that a wrong title could pass for it, and never two alike.
+ */
+export const TITLES = [
+  "a nervous lighthouse", "the moon's day off", "a sandwich with a secret", "grandma's motorbike gang", "a dog doing its taxes",
+  "the world's angriest croissant", "a haunted bicycle", "the last dinosaur's birthday", "a shy volcano", "an octopus at a job interview",
+  "the cloud that wouldn't rain", "a cactus who wants a hug", "breakfast on the moon", "a very tired ghost", "the king of socks",
+  "a snail on the motorway", "a smug avocado", "a penguin's holiday photos", "a toaster in love", "the fridge's dream",
+  "a jellyfish learning to knit", "the loneliest traffic cone", "a pigeon with a briefcase", "a sheep who can't sleep", "the bravest teaspoon",
+  "a mermaid's first job", "a sad trombone", "a bear selling ice cream", "a teacup storm", "the rudest cloud",
+  "an owl's bad haircut", "a worm's wedding", "a goldfish's great escape", "a robot's first tear", "the dragon's dentist",
+  "a hedgehog's balloon party", "a tree that hates autumn", "a carrot with stage fright", "the sun's sunglasses", "a lobster in a hot tub",
+  "a giraffe's scarf problem", "the snowman's summer plans", "a crab's day at the office", "a bored superhero", "the vampire's breakfast",
+  "a squirrel's savings account", "a polite shark", "the moustache that ran away", "a pineapple's disguise", "a cowboy on a tortoise",
+  "a mouse's skyscraper", "the world's tallest sandwich", "a ghost's laundry day", "an alien's first selfie", "a frog's fancy dress",
+  "a monkey's to-do list", "a wizard's lost hat", "the pizza that came back", "a flamingo at the gym", "the cat who owns a bank",
+  "a sloth in a hurry", "a duck's secret identity", "a chicken's bad dream", "a sock puppet uprising", "the queue for heaven",
+  "a moose in a lift", "a banana's revenge", "a lamp afraid of the dark", "a parrot's confession", "the cheese moon landing",
+  "a spider's welcome mat", "a hamster's gym", "the umbrella that wanted sun", "a camel's packed lunch", "a robot walking a robot dog",
+  "a cloud's family portrait", "a kettle's bad mood", "a bee's day off", "a dragon afraid of fire", "a snail's racing car",
+  "the saddest birthday cake", "a pirate's shopping list", "the elephant in the lift", "a mummy's spa day", "a tortoise's motorbike",
+  "a plant with a phone", "a lighthouse in love with a ship", "a baby's business meeting", "the overconfident onion", "a walrus at the opera",
+  "a cat's job interview", "a zebra out of ink", "a giant's tiny problem", "a raindrop's long journey", "a fish's first bicycle",
+  "the noodle that got away", "a ninja's birthday surprise", "a clown's day job", "the shyest skyscraper", "a crocodile's tea party",
+  "a sunflower's bad hair day", "a knight afraid of horses", "the bin's big night out", "a pencil's last words", "a broom's retirement",
+  "a hippo's ballet class", "the world's slowest rocket", "an angry teapot", "a turtle's speeding ticket", "a toad's wedding cake",
+  "a chair that bites", "a tired alarm clock", "the moon's lost slipper", "a bat's sunglasses", "a koala's office",
+  "the tanker that lost its way", "a refinery's day off", "a barrel of oil on holiday", "a trader's lucky socks", "a crane lifting a whale",
+  "a dumpling's escape", "a panda's karaoke night", "the mooncake that fell to earth", "a lion dance in the snow", "a red envelope's secret",
+  "the noodle bridge", "a hotpot's bad temper", "a bubble tea monster", "a dragon boat's day off", "the lantern that flew away",
+  "a vegetable's protest", "a sandcastle's last stand", "the gnome's holiday", "a kangaroo's lost pocket", "a robot's day at the beach",
+  "the fastest snail alive", "a whale's tiny hat", "a dinosaur's packed lunch", "a lighthouse's night off", "a scarecrow who got scared",
+];

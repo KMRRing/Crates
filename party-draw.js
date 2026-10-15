@@ -75,8 +75,6 @@ function readStroke(t) {
   }
   return { c, w, p };
 }
-/** How many points a drawing has, for its size in words. */
-export const pointsIn = strokes => strokes.reduce((n, s) => n + s.p.length / 2, 0);
 
 /**
  * Fewer points for the same line (Ramer–Douglas–Peucker): a point stays only where leaving it out would take the line

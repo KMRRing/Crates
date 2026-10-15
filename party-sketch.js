@@ -237,7 +237,8 @@ const SCREENS = {
       top.append(h("span", { class: "sk-label" }, `${nameOf(s.drawer)} draws`), hint);
       const paintHint = () => { hint.textContent = gotIt ? word.show : hintOf(s, cur.now()); hint.className = gotIt ? "sk-word-big" : "sk-hint"; };
       paintHint();
-      timer = setInterval(paintHint, 500);
+      // the letters as the clock runs down; stopped by leave(), or once the page has gone (the game ended under it)
+      timer = setInterval(() => (hint.isConnected ? paintHint() : clearInterval(timer)), 500);
       if (role === "guesser") {
         mine = guessesOf(sentBy(cur.me.uid));
         const input = h("input", { class: "pk-input sk-input", maxlength: 40, autocomplete: "off", autocapitalize: "off", spellcheck: "false", enterkeyhint: "send",

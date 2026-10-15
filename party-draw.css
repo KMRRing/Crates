@@ -1,4 +1,4 @@
-/* Party's drawing games (party-draw.js; Sketch, Whispers, Forger): the paper, the same light paper on every phone whatever its theme (a
+/* Party's drawing games (party-draw.js; Sketch, Whispers, Forger, Gallery): the paper, the same light paper on every phone whatever its theme (a
    drawing is the same drawing everywhere; at night the whole of it is dimmed, the eraser with it), and its tools under
    it on a phone, beside it held sideways; Sketch's word or its blanks, the clock, the box for a guess, the guesses, and
    the word shown with its drawing after each turn. */
@@ -147,6 +147,48 @@ html[data-mode="night"] .dr-paper { filter: brightness(.86); }
 .fg-arrow { color: var(--ink-soft); }
 .fg-reveal .sk-board { display: none; }
 
+/* Gallery: the drawing on the wall with its artist; a title to write for it; every title in capitals (so nobody's
+   typing gives one away) to pick from; the real one in verdigris with who found it, each other title with its author
+   and whom it fooled; at the end the wall itself, each drawing with its real title */
+.gl-side { display: flex; flex-direction: column; gap: .45rem; min-height: 0; }
+.gl-note { text-align: center; }
+.gl-problem { margin: 0; font-size: .85rem; text-align: center; color: #A8382B; }
+.gl-problem:empty { display: none; }
+.gl-mine { text-align: center; font-size: .9rem; }
+.gl-mine:empty { display: none; }
+.gl-caps { font-weight: 700; text-transform: uppercase; letter-spacing: .05em; overflow-wrap: anywhere; }
+.gl-side .sk-row .pk-btn { width: auto; min-height: 2.9rem; padding: 0 1.2rem; }
+.gl-opts { display: grid; gap: .4rem; max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; }
+.gl-opt { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 2.9rem; padding: .45rem .8rem; border: 1.5px solid var(--tile-edge);
+  border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.gl-opt[aria-checked="true"] { border-color: var(--pa-in); background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.gl-opt:disabled { cursor: default; }
+.gl-opt.own { opacity: .55; border-style: dashed; }
+.gl-tag { flex: none; font-size: .68rem; font-weight: 800; letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.gl-gain { margin-left: auto; padding: .15rem .55rem; border-radius: 4px; font-size: 1.1rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, #A8382B 12%, var(--sheet)); }
+.gl-gain.up { background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); }
+/* the drawing stays in sight however many titles there are, and so do the clock and Next: the list gives way first,
+   scrolling in what room is left */
+.gl-pick > .dr-box.fit-grow { min-height: 6.5rem; }
+.gl-pick > .dr-side { flex: 0 1 auto; min-height: 0; }
+.gl-pick .gl-side > * { flex: none; }
+.gl-pick .gl-side > :is(.gl-opts, .gl-reveal) { flex: 0 1 auto; min-height: 3rem; max-height: none; }
+.gl-shown .gl-reveal li { padding: .3rem .6rem; }
+.gl-shown .gl-reveal .gl-caps { font-size: .95rem; }
+.gl-reveal { display: grid; gap: .35rem; margin: 0; padding: 0; list-style: none; max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; }
+.gl-reveal li { display: grid; gap: .1rem; padding: .4rem .7rem; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); }
+.gl-reveal li.truth { border-color: #2F7D5B; background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); }
+.gl-reveal li.picked { box-shadow: inset 4px 0 0 var(--pa-in); }
+.gl-line { font-size: .8rem; color: var(--ink-soft); }
+.gl-reveal li.truth .gl-line b { color: #2F7D5B; }
+.gl-pick .sk-board { display: none; }
+.gl-end { display: grid; align-content: start; gap: 1rem; }
+.gl-wall { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; margin: 0; padding: 0; list-style: none; }
+.gl-wall li { display: grid; justify-items: center; gap: .25rem; text-align: center; }
+.gl-wall .dr-paper { width: 100%; }
+.gl-by { font-size: .8rem; color: var(--ink-soft); }
+
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
   html:not([data-mode="day"]) .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
@@ -154,6 +196,11 @@ html[data-mode="night"] .dr-paper { filter: brightness(.86); }
   html:not([data-mode="day"]) .pk-verdict.fg-forger { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
   html:not([data-mode="day"]) .pk-verdict.fg-artists { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
   html:not([data-mode="day"]) .fg-chip.forger { color: #E8806F; }
+  html:not([data-mode="day"]) .gl-problem { color: #E8806F; }
+  html:not([data-mode="day"]) .gl-gain { background: color-mix(in srgb, #E8806F 16%, var(--sheet)); }
+  html:not([data-mode="day"]) .gl-gain.up { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .gl-reveal li.truth { border-color: #7FC2A8; background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .gl-reveal li.truth .gl-line b { color: #7FC2A8; }
 }
 html[data-mode="night"] .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
 html[data-mode="night"] .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
@@ -161,6 +208,11 @@ html[data-mode="night"] :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { colo
 html[data-mode="night"] .pk-verdict.fg-forger { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
 html[data-mode="night"] .pk-verdict.fg-artists { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
 html[data-mode="night"] .fg-chip.forger { color: #E8806F; }
+html[data-mode="night"] .gl-problem { color: #E8806F; }
+html[data-mode="night"] .gl-gain { background: color-mix(in srgb, #E8806F 16%, var(--sheet)); }
+html[data-mode="night"] .gl-gain.up { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-mode="night"] .gl-reveal li.truth { border-color: #7FC2A8; background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-mode="night"] .gl-reveal li.truth .gl-line b { color: #7FC2A8; }
 
 /* held sideways: the paper on the left, as tall as the screen allows; on the right what to draw or guess and the clock
    at the top, the box for a guess high (a tablet's keyboard covers the bottom), the guesses filling the middle, the
@@ -176,9 +228,12 @@ html[data-mode="night"] .fg-chip.forger { color: #E8806F; }
   .dr-side:has(.dr-tools) { flex-direction: column-reverse; }
   .dr-side .dr-inks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .dr-side .dr-ink { height: 2.2rem; }
-  .sk-show .sk-board, .fg-reveal .sk-board { display: block; flex: 1 1 auto; overflow-y: auto; }
+  .sk-show .sk-board, .fg-reveal .sk-board, .gl-pick .sk-board { display: block; flex: 1 1 auto; overflow-y: auto; }
+  .gl-opts, .gl-reveal { max-height: none; flex: 0 1 auto; }
+  .gl-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .gl-over { width: 100%; max-width: 60rem; margin: 0 auto; }
   .fg-look { width: 100%; max-width: 36rem; margin: 0 auto; }
   .sk-choose:not(:has(> .dr-side)), .sk-over, .wh-first, .wh-words:not(:has(> .dr-side)), .wh-show { width: 100%; max-width: 36rem; margin: 0 auto; }
   .wh-words:has(> .dr-side) > .dr-side { flex-direction: column; }
 }
-html[data-theme="office"] :is(.sk-word, .sk-got, .sk-gains li, .wh-text) { border-radius: 4px; }
+html[data-theme="office"] :is(.sk-word, .sk-got, .sk-gains li, .wh-text, .gl-opt, .gl-gain, .gl-reveal li) { border-radius: 4px; }
