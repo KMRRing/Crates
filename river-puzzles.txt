@@ -3,21 +3,21 @@ ina5dp|3akab2/9/4b4/pR2p3p/3R5/c1rn2B1P/3rP4/9/4AN3/2B1KA3 w|d6d10 e10d10|470|+R
 15e379|3k5/4a4/3a3R1/P3p1N1p/3P5/8P/4P4/B1C1B4/1r7/1N1AKAr1c b|b2e2 d1e2|470|+R
 q2uwao|4kab2/4a4/4b4/p2N1Rp2/2r6/Pn4P2/2npR3p/1r2B4/4N4/3AKAB2 w|d7c9 c6c9|470|+H
 zteorv|r3kaR1C/4a4/b1nc5/4p4/p1p6/8p/P1PNr1P2/3AB4/6n2/2BK1A3 b|d8f8 g10g5|470|mate
-etsfdn|1r3kb2/2n1a4/3ab4/3r5/4NC3/p8/6P2/4p4/4N4/3A1K3 b|d7d2 e6f8|475|mate
+etsfdn|1r3kb2/2n1a4/3ab4/3r5/4NC3/p8/6P2/4p4/4N4/3A1K3 b|d7d2 e6f8|475|mate;mahou
 5yhbqe|1rb1ka3/4a2C1/b7C/2P1p1p2/8c/9/3rPR3/4Bp3/3c5/3NK1B2 b|d4d3 i8i10|475|mate
 79u0b7|2Pa5/5k3/4CaC2/P7R/1r6P/4c1B2/2N5P/9/4A4/4K4 w|g5e3 b6b1|475|mate
-5ytylq|2b6/1N2a4/4k1P2/9/9/p3p4/9/r8/4Ap3/3K1c3 b|a3a2 b9c7|475|mate
+5ytylq|2b6/1N2a4/4k1P2/9/9/p3p4/9/r8/4Ap3/3K1c3 b|a3a2 b9c7|475|mate;duimian
 9hqwjt|2bak4/3Ra4/6R2/8p/pCp6/P7P/2P1pr3/4B4/4p4/1NB1KA3 w|e1d1 f4f1|475|mate
 we6ppd|3akn3/R3a1R2/4b4/9/6b2/2B1p1N2/3c5/4r4/C3AC3/r2AK4 b|e3e2 e1e2|475|+R
 dlty0u|4k1bn1/1CNra4/4b4/p2Np4/P5p1r/4c4/P5P2/2R6/4A4/2BAK1B1R w|g1e3 i6i1|475|mate
-or8csg|4kR3/9/4ba2R/p8/6b2/P5n2/5r3/3rBA3/2n6/3A1KB2 b|e10e9 i8i9|475|mate
+or8csg|4kR3/9/4ba2R/p8/6b2/P5n2/5r3/3rBA3/2n6/3A1KB2 b|e10e9 i8i9|475|mate;shuangche
 b3bpeh|4ka3/4a1C2/8b/4n1R2/2b6/p2pp4/2r6/4c2c1/4A4/3K5 b|i8g6 g9g10|475|mate
-shj0gx|4kab2/4a4/4b4/5N3/8p/9/p8/B8/1r3p3/c2K5 b|b2b3 f7g9|475|mate
+shj0gx|4kab2/4a4/4b4/5N3/8p/9/p8/B8/1r3p3/c2K5 b|b2b3 f7g9|475|mate;wocao,duimian
 w14kv6|4kabr1/4a4/n3b3n/2p3p1p/4p1c2/R7P/P1PCP4/3CB1Nc1/1r2A4/RNB1KA3 b|h3h1 g3h1|475|+C
 ebjkxg|5k3/3Na4/N8/1r7/P1P1R4/9/9/1R3A2B/4K4/2BA1p3 w|b3e3 b7b2|475|mate
-gqan2q|n2a1k2c/6C2/4R4/9/9/5p3/8n/p2A5/4K4/5rBr1 b|a10b8 e8f8|475|mate
+gqan2q|n2a1k2c/6C2/4R4/9/9/5p3/8n/p2A5/4K4/5rBr1 b|a10b8 e8f8|475|mate;duimian
 jyrnu6|rn1ak1b2/1R2a4/2N1b4/5RP2/p3C4/cp2P4/2P6/4B1N2/3cA4/3A1KB2 w|b9a9 a5a1|475|mate
-gw10bc|1r1ak4/3na2N1/4b4/p1p1C4/9/P1B1c1P1P/6n2/9/2r1A4/1c1K1AB2 b|b10b4 h9f8 e10f10 e7f7|480|mate
+gw10bc|1r1ak4/3na2N1/4b4/p1p1C4/9/P1B1c1P1P/6n2/9/2r1A4/1c1K1AB2 b|b10b4 h9f8 e10f10 e7f7|480|mate;mahou
 bqzzul|2bR5/4kr3/4b1C1C/9/7r1/6B2/2c1P4/B2R5/Nc2A4/3K5 w|d1d2 c4c2 d2d1 h6h1 e2f1 h1f1|480|mate
 wnnewc|2bak4/4a4/4N2R1/p1p6/8p/P1P6/3n2n2/5A3/3K5/r8 b|e9f8 e8c9 e10f10 h8f8|480|mate
 27g13l|2c1ka3/3Ca4/6R2/4p4/5Pb2/2Br5/4P2c1/1N7/4A4/R1B1KA3 w|a1a10 h4h1|480|mate
@@ -27,29 +27,29 @@ vyp1j6|3aknR1C/4a4/9/9/6b2/4p1r2/1c7/4B4/R3A4/3AK4 b|g5g1 e2f1|480|
 dzdsoy|4k4/3Na3r/N8/9/P1PR5/4R1B2/9/2c2A3/5p3/2BAK4 w|d6h6 i9i1 h6h1 i1h1|480|mate
 fhi08z|4ka3/4ar3/1c2R4/2N1c1C2/2p1p1bPp/6B1P/4P4/1n4N2/4A4/r1B1KA3 b|b8b10 g7g10|480|mate
 dg6sw2|4ka3/9/3aP4/9/3n2r1P/p3R4/9/3A3rC/3p5/2B1KAB1R b|d2d1 e1d1|480|+P
-dglacr|4kaR2/4a4/9/9/p8/4n4/p8/2n1C2r1/5K3/2B6 b|h3h1 g10f10|480|mate
+dglacr|4kaR2/4a4/9/9/p8/4n4/p8/2n1C2r1/5K3/2B6 b|h3h1 g10f10|480|mate;duimian
 i0bhe1|rnbakab2/9/1cc3n2/p1p1p3p/6p2/P1P6/4P1P1P/4B1C2/1C2A2r1/RNBAK2NR b|h2h1 i1h1|480|+R
 0cjm6l|rnbakab2/9/5c2n/4p4/p1C2rP2/P1Pc4P/4P1R2/3AB2C1/R8/4KABN1 b|f6f1 e1f1|480|+R
-spd2o1|2b1k3C/1N2a4/3ab4/8p/p8/5n3/P6r1/5R3/5K3/9 b|f5d4 f3f10|485|mate
-gx41oj|2bak1b2/9/4Pa3/5n3/6r2/p3c2p1/3R5/9/4A4/3K1A3 b|g6g1 d4d10|485|mate
+spd2o1|2b1k3C/1N2a4/3ab4/8p/p8/5n3/P6r1/5R3/5K3/9 b|f5d4 f3f10|485|mate;duimian,shuangjiang
+gx41oj|2bak1b2/9/4Pa3/5n3/6r2/p3c2p1/3R5/9/4A4/3K1A3 b|g6g1 d4d10|485|mate;duimian
 0andg9|4ka3/4a4/6R2/2n6/p8/4n4/p6C1/9/5r3/2B1K4 b|f2f6 h4h10|485|mate
 s6hu13|1n2kab2/3ra4/rcN1b1n2/p1p5p/6p2/P1P6/4P1P1P/4C1NC1/9/1RBAKAB1R b|d9d1 e1d1|490|+R
 9wqe4i|1rb1ka3/2R1a4/c3P1P2/9/5Rb1p/2Bp5/2P6/p4N3/5r3/3AKAB2 b|f2f1 e1f1|490|+R
 sotm4d|2bak4/4a4/4b4/6c2/4C4/9/2P5p/4B4/r2rA4/c1BAK2R1 b|g7g9 h1h10 g9g10 h10g10|490|mate
 5zqp08|2bakn1c1/3Ra4/r1n1br3/p7P/1P4P2/2P6/N3P2CR/4B1N2/1Cc1A4/3AK1B2 w|d9d2 c2c1|490|mate
 g9lv2i|3a1k3/4a4/4b3b/p8/2r4C1/4p3R/P3c1P2/4BC3/4A4/2B1KA3 w|i5f5 f10e10|490|
-43qsxs|3ak1b2/R3a4/4b4/3C1r3/2c6/1N3nB1P/7p1/9/3RA4/3AKNB2 w|b5a3 c6c1|490|mate
+43qsxs|3ak1b2/R3a4/4b4/3C1r3/2c6/1N3nB1P/7p1/9/3RA4/3AKNB2 w|b5a3 c6c1|490|mate;mengong
 5i4u9a|4k4/9/r1CR1R3/p1p6/6b2/P4pp2/1N4P2/3C2r2/4A4/2BAK4 w|d3c3 g3g1|490|mate
 ayut61|4kab2/2R1a4/4b4/4C4/4p1p2/1p7/4P1n1P/4BC3/1rc4r1/3AKABcR b|h2f2 c9c10|490|mate
 23cu0t|4kab2/4a4/N3b1C2/3np1PRp/P8/7NP/2rpPr3/4B4/4A4/2B1KA3 b|c4c1 e3c1|490|+R
 k8ohy1|2bak1bnr/1C2a4/r1n1c4/6pCp/p1p1p4/5NP2/PRc1P3P/2N1B4/9/2BAKAR2 b|e8e4 c3e4|495|+C
-4hjwt7|3R5/9/1P2k3b/5r3/9/6B2/9/5A2N/9/5KB2 w|d10d1 f7f3|495|mate
+4hjwt7|3R5/9/1P2k3b/5r3/9/6B2/9/5A2N/9/5KB2 w|d10d1 f7f3|495|mate;duimian
 4rlzua|3akn3/4a1R2/4b4/9/R3p1b2/2B6/3c5/4BN2r/C4C3/2rAKA3 b|c1d1 e1d1|495|+R
 njg0xg|5kc2/4a3R/1r3aP2/4R4/p7p/9/P2pP1c2/4B1N2/4A4/2B1KA3 w|g3i4 g4g1 e3g1 g10g1|495|mate
 45ht48|r1bak1b1r/4a4/2n1c1n2/p1C2Np1p/9/P3c3P/2P3P2/2N1Bp3/C3A3R/R1BAK4 b|e8e3 c1e3|495|+C
 t0l8vm|1R1Ck4/9/4P4/9/p1b1r4/9/P4c3/4B4/9/2BAKA3 b|e6h6 d10d7|500|mate
-9twy1p|1r1akC1R1/4a4/2n1b3n/2P1p4/p8/P1N5C/9/2N5c/4A4/3RKA3 w|h10i10 i3i1|500|mate
-r8tvx7|2bak4/4a4/3nb4/3N5/8p/9/3p5/R4C3/4A1r2/3AK2c1 b|e10f10 d7f8|500|mate
+9twy1p|1r1akC1R1/4a4/2n1b3n/2P1p4/p8/P1N5C/9/2N5c/4A4/3RKA3 w|h10i10 i3i1|500|mate;mengong
+r8tvx7|2bak4/4a4/3nb4/3N5/8p/9/3p5/R4C3/4A1r2/3AK2c1 b|e10f10 d7f8|500|mate;mahou
 eke55i|4ka3/3P5/3rb4/R8/9/3c2pp1/9/9/9/4K4 b|f10e9 a7a10 e9d10 a10d10|500|mate
 ap82v8|4ka3/4a4/3rc4/2P3p2/2P3b2/5r1C1/5nR2/9/3NA4/3K1AB2 b|e8e7 h5h10|500|mate
 7dzjyc|4kab1r/4a4/n7n/r1p3p1p/p1cP2b2/4P3P/P3N1c2/2C1B2C1/9/RNBAKA2R b|c6c1 e3c1|500|+C
@@ -66,114 +66,114 @@ yrkqu2|1Rncka3/9/1n6C/4r4/P3p2RP/2PN2p2/4P4/4B4/3rN4/2BAKA3 w|h6h1 d2d1|510|mate
 bis881|2b1ka1n1/4a4/2P1n3b/p3N1p2/2N1r4/P8/9/4B2p1/3RA4/3AK4 w|c6d8 e9d8|510|+H
 63vufw|2b1ka3/4a4/4b4/4C4/1P1R5/1c4P2/1r1c5/9/4A4/2BK1AB2 b|b5d5 d6d5|510|+C
 rolu4r|2bak1b2/r2na4/6n2/p1p1p1p1p/5R3/1C2P3P/P5c2/1CN1B1N2/4Ac3/4KAB2 w|f6f2 g4g1|510|mate
-sbdf47|2bak1bnr/9/3a3R1/2c2Cp1p/p7P/4PCP2/P1p6/1R2B4/3rA4/2BNKA3 w|b3b2 c7c1|510|mate
-yrfnj4|2rak3r/4a2c1/3nb3b/p3p2C1/9/P5R2/4P3R/4n1N2/4A4/3NKAB2 w|g5g9 e3c2|510|mate
+sbdf47|2bak1bnr/9/3a3R1/2c2Cp1p/p7P/4PCP2/P1p6/1R2B4/3rA4/2BNKA3 w|b3b2 c7c1|510|mate;mengong
+yrfnj4|2rak3r/4a2c1/3nb3b/p3p2C1/9/P5R2/4P3R/4n1N2/4A4/3NKAB2 w|g5g9 e3c2|510|mate;wocao
 4fh421|4k1b2/4a4/4ba3/P1n1C4/8p/P8/8P/2rr1A1RB/8n/R4K3 b|g10i8 h3h10 i8g10 h10g10|510|mate
 vppqh6|P3kab2/3na1c2/4b4/9/4C4/2P2p3/9/3A4B/1R2A2r1/4K4 b|d9c7 b2b10|510|mate
 0yw368|r3kab1r/4a3n/b3c4/p1p1n1p1p/9/8C/PRc1P1P1P/2N1B2C1/9/2BAKA1NR b|e8e4 c3e4|510|+C
 10uu4f|1Cbak4/r3a4/1R6b/5r2p/p1p1p1PC1/1N7/P2RP3P/4B1n2/9/3AKA3 w|d4d2 f7f1|515|mate
-jgjotk|2bak1b1C/4ac3/6nC1/1P2p1p2/p2N5/3c2Pp1/P3P4/4B4/2n1A4/3K1AB2 b|g10i8 h8h10|515|mate
-2wkg3z|2bak4/4a4/4N3b/9/9/P4R1p1/4p3P/9/3pA1r2/2BAK4 b|g2g4 e8c9|515|mate
-oe2hr5|3ckab2/2R1a4/4b4/4C4/4p4/1p4B2/4P1C1P/9/3r5/3AKAr2 b|g1h1 g4g10|515|mate
+jgjotk|2bak1b1C/4ac3/6nC1/1P2p1p2/p2N5/3c2Pp1/P3P4/4B4/2n1A4/3K1AB2 b|g10i8 h8h10|515|mate;chong
+2wkg3z|2bak4/4a4/4N3b/9/9/P4R1p1/4p3P/9/3pA1r2/2BAK4 b|g2g4 e8c9|515|mate;wocao
+oe2hr5|3ckab2/2R1a4/4b4/4C4/4p4/1p4B2/4P1C1P/9/3r5/3AKAr2 b|g1h1 g4g10|515|mate;mengong,tiandi
 p370t1|4k1b2/4a4/5a3/9/6b2/1RB6/9/2p6/4K4/r8 b|a1a3 b5b10|515|mate
 39wr2c|5kn1r/2N1a4/5a3/r5p2/2P6/pn2c1Pp1/PR7/2RCC4/4A4/2BAK4 w|b4i4 i10i4|515|+R
 4yzbxm|1n2k4/3Ra4/4b4/2P1p4/P8/6B1p/4P1P2/9/3K5/1r7 w|d9e9 e10e9|520|+R
 qzk4sc|2c1k4/4a1R2/9/9/4R2r1/2B6/4P4/4BA3/3N5/4KA2c w|e1e2 h6h2 g9g2 h2g2|520|mate
 yx1jpv|3ak1b2/4n4/4bC3/5P3/p1p3r2/7R1/P5P2/3K2Nc1/4C4/3A1AB2 w|e2e3 g6d6 h5d5 d6d5|520|mate
-699epk|3aka3/3R5/n2N5/p2P5/2b3b1p/2B1n4/P8/4B2r1/2C1A4/3AK4 b|e5c4 d9a9|520|mate
+699epk|3aka3/3R5/n2N5/p2P5/2b3b1p/2B1n4/P8/4B2r1/2C1A4/3AK4 b|e5c4 d9a9|520|mate;guajiao
 qyir4g|3akaR2/3c5/9/9/9/2B1P4/9/4B4/R4N3/1r1pK4 w|e1f1 d1e1|520|mate
 dd6pe9|4k4/4a4/6R2/p8/9/2B6/9/9/4K4/cr7 b|b1i1 g8g10|520|mate
 rrf1oe|3akab1C/2P6/1R7/9/2b6/9/9/4B4/4A4/2B1K2r1 w|e3g1 h1g1|525|mate
-1ju47a|4k4/1r7/9/9/9/2B2RB2/9/5AN2/4A4/c3K4 w|f5f6 b9b1|525|mate
+1ju47a|4k4/1r7/9/9/9/2B2RB2/9/5AN2/4A4/c3K4 w|f5f6 b9b1|525|mate;shuangjiang
 6m1u3l|4k4/9/R3n4/p8/6b2/P6p1/1r6P/4B3N/3NAK3/6B2 w|f2f3 b4f4|525|mate
-yeku0m|2b1ka1n1/4a4/1c2b3c/pR2p4/2P1P4/P3n2p1/9/2C1N4/4N4/2BAKA3 w|c6b6 e5d3|530|mate
+yeku0m|2b1ka1n1/4a4/1c2b3c/pR2p4/2P1P4/P3n2p1/9/2C1N4/4N4/2BAKA3 w|c6b6 e5d3|530|mate;guajiao
 rcxjs5|3P1k3/4a4/P7b/9/4p4/7R1/9/3n5/4r4/3K5 b|e2g2 h5f5 e9f8 f5f8|530|mate
-9gspbg|3akr3/2C1aRR2/b2cb4/n3p4/3N1n3/2P4pp/p3P4/1rC6/4A4/2BAK1B2 b|d8d9 c9c10 a8c10 c3c10|530|mate
-wt6t6s|3k1a3/4aP3/4b4/3C5/2b1N4/1pB6/n2p5/4B4/4K4/1c1A5 b|d4d3 e6d8|530|mate
+9gspbg|3akr3/2C1aRR2/b2cb4/n3p4/3N1n3/2P4pp/p3P4/1rC6/4A4/2BAK1B2 b|d8d9 c9c10 a8c10 c3c10|530|mate;mengong
+wt6t6s|3k1a3/4aP3/4b4/3C5/2b1N4/1pB6/n2p5/4B4/4K4/1c1A5 b|d4d3 e6d8|530|mate;mahou
 ohs7zj|4k4/2r1a4/9/9/6p1p/9/7RP/9/4K4/9 b|c9c3 h4h10|530|mate
 u0um6q|9/3ka4/9/N8/9/9/9/8B/3p5/2p1KA3 w|a7b9 c1d1|530|mate
 mqtddx|1rbaka3/9/n1c1b1n2/p3C3p/1cp6/PN2P1C2/2P3r1P/9/3RA4/2BAK1BNR b|e8g6 g5g8|535|+H
-kch6fe|3a1k3/4a4/8R/p8/9/9/4crP2/4B2C1/4A4/2B1KA3 w|i8i5 f4f1|535|mate
+kch6fe|3a1k3/4a4/8R/p8/9/9/4crP2/4B2C1/4A4/2B1KA3 w|i8i5 f4f1|535|mate;duimian
 cvpdha|c3ka3/4a4/b3b4/4C4/1P7/3R2P2/2r1c4/B8/4A4/3K1AB2 b|c4c1 a3c1|535|+R
 tl8x4k|2C1ka3/3ca1R2/3Rb1n2/2n3r2/p1b1p4/5N1p1/4P3P/8B/4A4/2BAK4 b|g7g1 i3g1|540|+R
 wymber|2bak1n2/9/3ab4/p1C5p/3Pp1p2/9/PRn5P/2N1BR3/3rAr1c1/3AK1BN1 b|d2e2 d1e2|540|+R
 9r174c|2bakr3/1R7/3ab4/2C3p1P/p3cr1C1/6P2/P1p4R1/4B4/4A4/2BNKA3 w|h4h2 f6f1|540|mate
-w2te9f|9/4ak3/9/3C5/9/2B6/7c1/4KA2B/4A4/9 w|d7d3 h4h3|540|mate
+w2te9f|9/4ak3/9/3C5/9/2B6/7c1/4KA2B/4A4/9 w|d7d3 h4h3|540|mate;mengong
 biqcb5|r1b1kab2/4a4/2n1c1nr1/2p1pRC2/6p2/2P6/pc2P1P1P/2N1B1N2/4A2C1/3RKAB2 b|h8h2 g7g10|540|mate
-g1z39p|r1bak3r/4a4/2N1b1R2/p1n1C4/4P1P2/3pc3p/P4R2c/3C5/4A4/2B1KAB2 w|g1e3 i4i1|540|mate
+g1z39p|r1bak3r/4a4/2N1b1R2/p1n1C4/4P1P2/3pc3p/P4R2c/3C5/4A4/2B1KAB2 w|g1e3 i4i1|540|mate;tiandi
 43f7i5|rn2kab2/1R2a4/4b1n2/p1P2R2p/5r3/4p1p2/P7P/3CB4/4AN3/2B1KA3 w|b9b10 a10b10|540|+R
 hsvts0|1R6C/4k4/4b4/9/9/6Bp1/4c3r/3AB4/4A4/4K4 w|b10b2 i4i1|545|mate
 7d9v2e|1nb1ka3/4a4/b8/3RR4/P5P2/4P4/4c4/B2Cr4/4A4/4KA3 b|e3d3 e2d3|545|+R
-xojpqe|4ka3/2C1a4/b3b2R1/p1CRP4/8p/P3c4/4N1r1p/B8/4A4/3AK3c w|d7d8 g4g1|545|mate
+xojpqe|4ka3/2C1a4/b3b2R1/p1CRP4/8p/P3c4/4N1r1p/B8/4A4/3AK3c w|d7d8 g4g1|545|mate;tiandi,shuangjiang
 iytfa1|r1bak4/1c2a4/2ncb1R2/4p2C1/p1P6/6B2/P3P4/2N1B3C/9/R2AKA2r w|g8g10 e8g10|545|+R
 198d0t|r3kab1r/3n5/1c2bac2/p2C1C3/2p1p4/P5R1p/1nP1P3P/N3B1N2/4A4/R1BAK4 b|b4c2 a3c2|545|+H
 84kk2n|1C7/4k4/4b4/9/8p/1p1R2B2/4c2rP/3AB4/4A4/4K4 w|d5b5 h4h1|550|mate
-qi24am|1R1aka3/9/8b/9/1Pb6/2p1n4/8P/8B/4A4/2rCKA3 w|i3g5 e5f3|550|mate
-3muk99|3akab2/4R1r2/N1P1bRn2/4p3p/9/2B6/4P2cP/3C3p1/4A4/3AK4 b|f10e9 a8c9|550|mate
-el854m|4ka3/4a4/4R4/9/1P7/9/9/1r1AB4/3KA4/9 b|b3d3 d2d3|550|mate
+qi24am|1R1aka3/9/8b/9/1Pb6/2p1n4/8P/8B/4A4/2rCKA3 w|i3g5 e5f3|550|mate;guajiao
+3muk99|3akab2/4R1r2/N1P1bRn2/4p3p/9/2B6/4P2cP/3C3p1/4A4/3AK4 b|f10e9 a8c9|550|mate;wocao
+el854m|4ka3/4a4/4R4/9/1P7/9/9/1r1AB4/3KA4/9 b|b3d3 d2d3|550|mate;kunbi
 k4z9sy|4kab2/4a4/4b4/R6R1/1r5P1/5N3/1n5p1/4B4/4A4/3AK4 w|e2f1 b4d3 e1e2 b6b2|550|mate
 4g1n1q|4kabn1/4a4/4b4/8p/R8/4C4/2P2r3/4BN3/4A4/1rB1K4 b|b1b5 a6a10 b5b10 a10b10|550|mate
 1yrqhm|C1bak4/4a4/8b/6r2/9/4c2p1/P1pp4P/4B2R1/N3A4/2BAK4 w|h3h5 g7g1|550|mate
 t3feeb|r1bak2r1/4a4/2n1bR3/p3p3p/2p6/P7P/2P1Pc3/2N1BC2N/4A4/1RBAK4 b|h10h1 i3h1|550|+R
 h1v9rz|rn1akab1r/9/1c2b1n2/p1p1p1p1p/c8/2P2N2P/P3P4/1C2B2C1/4A4/RNB1KA2R w|a4a5 a6a1|550|+R
-uhimtx|1R1ak4/4a4/3cN4/9/9/p6r1/8P/3AB4/4A4/5K3 b|h5h4 e8g9|555|mate
-6mgybu|1n1ak1b1r/8n/r4a3/3Rp1p2/p4N3/2P2cP1p/P3c4/RC2B2C1/9/2BAKA3 w|e3g1 f5e5|555|mate
+uhimtx|1R1ak4/4a4/3cN4/9/9/p6r1/8P/3AB4/4A4/5K3 b|h5h4 e8g9|555|mate;wocao,duimian
+6mgybu|1n1ak1b1r/8n/r4a3/3Rp1p2/p4N3/2P2cP1p/P3c4/RC2B2C1/9/2BAKA3 w|e3g1 f5e5|555|mate;chong
 wdopsy|3ak3R/4a4/4bC3/p1n6/9/4P4/P4r3/9/4C4/3AKAB1c b|e8g10 i10g10|555|mate
 5nlo4q|4k4/4a4/4na3/p2r5/P1p1C1R2/8P/4r1P2/4B4/4A4/2BAK4 b|e4b4 g6g10|555|mate
-p0bl35|C3kab2/4a4/2n5b/1C2p4/3N5/3c2B1p/P1c1P4/9/4A4/2BAK4 b|c4c2 b7b10|555|mate
+p0bl35|C3kab2/4a4/2n5b/1C2p4/3N5/3c2B1p/P1c1P4/9/4A4/2BAK4 b|c4c2 b7b10|555|mate;chong
 3wzm7u|R1baka3/9/c3bc3/3R5/p1p1p3p/9/P1PnP3P/N3B4/1C2ANr2/2BAK4 w|d7d5 g2g1 e2f1 g1f1|555|mate
 7ydi3j|rnbakabn1/9/1c2c4/p1p1p1p1p/9/9/P1P1P1P1P/6C2/3CA2r1/RNB1KABNR b|h2h1 i1h1|555|+R
 r4mxe5|2b1ka2P/4PR3/9/p8/9/P1B6/9/4K4/4Ap3/3A4r b|e10d10 f9f10|560|mate
 32ez5n|2b1kc3/3Ca4/1P2ba3/9/P3R3p/2BRP4/4N3P/9/4Ac1n1/1rBK5 w|d5d3 b1c1|560|mate
 8lanzz|2crka3/2Pna4/7Rb/4p4/5P3/2Br5/4P1c2/3C5/3NA4/R1B1KA3 w|h8h3 g4g1|560|mate
-sgwvpx|4kP3/4a4/4b4/3C5/2N6/9/2p6/2n1B4/3K5/1c1A5 b|e10d10 c6d8|560|mate
+sgwvpx|4kP3/4a4/4b4/3C5/2N6/9/2p6/2n1B4/3K5/1c1A5 b|e10d10 c6d8|560|mate;mahou
 o70ep8|4ka3/3Ra4/4b4/4n4/PC3cb1p/4Cr3/3n4P/3NB4/4A4/4KAB2 b|d4f3 e2f3|560|+H
 o2c2u7|4kabn1/4a3r/n3b1c2/2p3p1p/P1P1p4/2B1P2c1/6P1P/N1CC4r/4A4/R2AK1B1R w|a3c4 i3i1|560|+R
 b5nzpw|5kn1r/2N1a4/5a3/5rp2/2P6/pnR3Pp1/P3R4/3CB4/4A4/3AK4 b|f7f2 e2f1|560|
 qr1zeu|1RbakabR1/4c4/9/7n1/5n2p/1p3C3/r5p1P/4BA3/3N5/3AKNB2 w|d1e2 a4a1 d2b1 a1b1|565|mate
 2e57wo|2baka2r/9/2n1b1nc1/p3p3p/1R4p2/2PN2P2/P3P3P/4B1CC1/6c2/2BAKA1NR b|g2g1 e3g1|565|+C
-q0s9c5|2rak3r/4a2c1/3nb3b/p3p2C1/9/P5R2/4P3R/4n1N2/4A4/3NKAB2 w|g5d5 e3g2|565|mate
-cinz8r|2rak3r/4a2c1/3nb3b/p3p2C1/9/P5R2/4P3R/4n1N2/4A4/3NKAB2 w|a5a6 e3c2|565|mate
+q0s9c5|2rak3r/4a2c1/3nb3b/p3p2C1/9/P5R2/4P3R/4n1N2/4A4/3NKAB2 w|g5d5 e3g2|565|mate;wocao
+cinz8r|2rak3r/4a2c1/3nb3b/p3p2C1/9/P5R2/4P3R/4n1N2/4A4/3NKAB2 w|a5a6 e3c2|565|mate;wocao
 89o6j5|3aka3/9/4n4/8p/3N2R2/9/P8/4B4/9/2BAKA2r b|i1f1 e1f1|565|+R
 kyn7iy|3akabnr/nC2c4/2r1b4/p5p1p/9/P1C2pP2/2P2c2P/3R5/4AR3/1NBK1ABN1 b|f4d4 d3d4|565|+C
 cqf8f9|4kab1r/1c2aR3/4b3n/p5p1p/2P4c1/3r4C/P3n1P1P/4C4/9/1NBAKABNR w|e3e8 e10d10|565|
-0x8a3w|2bak4/4a4/4b1C2/3N4p/p5n2/6B1P/P2np1P2/4B4/4A4/3A1K3 b|d4b5 d7c9|570|mate
+0x8a3w|2bak4/4a4/4b1C2/3N4p/p5n2/6B1P/P2np1P2/4B4/4A4/3A1K3 b|d4b5 d7c9|570|mate;wocao,duimian
 bfeq78|3a1k3/4a4/4R3b/p8/9/9/Pr2c1P2/B3BC3/4A4/4KA3 w|e8e6 b4b1 a3c1 b1c1|570|mate
 0to0o0|3ak4/4a4/1n5P1/C8/P8/2c3B2/6P2/9/4A4/3AK4 w|a7b7 c5c1|570|mate
-m2om1t|5k3/9/4Ra3/5r3/9/9/9/9/4K4/9 b|f7a7 e8f8|570|mate
+m2om1t|5k3/9/4Ra3/5r3/9/9/9/9/4K4/9 b|f7a7 e8f8|570|mate;duimian
 74vkle|r1bak1b2/4a4/2n1c1n2/p1C3p1p/P8/8r/2P3P2/2N6/C3A4/1RB1K3R w|c1e3 i5i1|570|mate
 v4smu8|1n2kabn1/4a4/4b4/4p4/6p1p/1p1RP4/3r2P1P/7R1/5C3/1cBAK1B2 b|b1d1 d5d4|575|+R
 ipv42e|1r1ak4/1R2a1r2/b1c1b3n/p7p/2p1p4/P7P/2P1P4/4B1p2/4A4/1NB1KA1CR w|b1c3 b10b9|575|+R
 yc7jde|2b1ka3/4a2r1/2n1b1c2/1c2p3p/p1p2Pn2/1C1r2NCP/P1P6/N7B/4A4/1RBAK2R1 w|h5d5 h9h1|575|+R
-3mrb6f|2bak4/4a4/1n7/4P3p/6N2/5C2P/4c4/4B4/3cA4/2BA1K3 b|e10f10 g6f8|575|mate
-4v9qjk|2bak4/r3a4/4b4/3N4p/3RC4/1p2P4/8P/9/9/3AKA2r b|i1g1 d7f8 e10f10 e6f6|575|mate
-e11kr5|3aka3/9/bn2N4/8p/4P2R1/6P1P/4C4/2r1B4/9/3A1K2c b|i7i6 e8g9|575|mate
+3mrb6f|2bak4/4a4/1n7/4P3p/6N2/5C2P/4c4/4B4/3cA4/2BA1K3 b|e10f10 g6f8|575|mate;mahou
+4v9qjk|2bak4/r3a4/4b4/3N4p/3RC4/1p2P4/8P/9/9/3AKA2r b|i1g1 d7f8 e10f10 e6f6|575|mate;mahou
+e11kr5|3aka3/9/bn2N4/8p/4P2R1/6P1P/4C4/2r1B4/9/3A1K2c b|i7i6 e8g9|575|mate;wocao,shuangjiang
 1nord3|3akaR2/3c5/9/9/1r7/2B1P4/9/3AB4/R2p1N3/4K4 w|a2b2 b6b2|575|+R
 7vj9j1|3k5/6N2/1R2ba3/9/2b1p4/9/4r4/4B4/2c1K4/9 b|e4h4 b8d8|575|mate
-v703mg|4R4/9/3k5/9/6p1p/9/3r4P/9/4K4/9 b|d4d3 e10d10|575|mate
-w2bdci|4R4/9/3k5/9/6p1p/9/8P/3r5/4K4/9 b|d3a3 e10d10|575|mate
-xraplw|4k1b2/4a4/3abc3/1N7/P3n2P1/9/9/B3Br1R1/5K3/9 w|f2f3 e6f4|575|mate
+v703mg|4R4/9/3k5/9/6p1p/9/3r4P/9/4K4/9 b|d4d3 e10d10|575|mate;duimian
+w2bdci|4R4/9/3k5/9/6p1p/9/8P/3r5/4K4/9 b|d3a3 e10d10|575|mate;duimian
+xraplw|4k1b2/4a4/3abc3/1N7/P3n2P1/9/9/B3Br1R1/5K3/9 w|f2f3 e6f4|575|mate;mahou
 310b6u|4ka3/4a4/4b1n2/6C1p/P3c1b2/1n2Cr3/2p5P/4B4/N3A4/3RKAB2 w|e5e8 g6e8|575|+C
 s2sikh|4kab2/2rna4/4b3n/p1pc2p1p/4r4/P1P1CR2P/3R5/B1N1BC3/4A4/4KA3 b|e6e5 f5e5|575|+R
-tnmx1a|5k3/9/R4a3/9/9/9/9/3r5/4K4/9 b|d3d1 a8f8|575|mate
+tnmx1a|5k3/9/R4a3/9/9/9/9/3r5/4K4/9 b|d3d1 a8f8|575|mate;duimian
 xz1xmk|9/1R1k2N2/4ba3/9/2b1p4/9/4P3c/4B4/3r5/2B1K4 b|d9d8 g9f7|575|mate
-notlul|9/3k5/4ba3/9/2bNp4/9/9/4B4/c1r6/3RK4 b|c6a8 d6c8 c2d2 d1d2|575|mate
-1eahie|r2ak3r/4a4/b1n3n2/p3p3p/1NbR2p2/9/c3P1P1P/3CB1NC1/4A4/2c1KA2R w|d6c6 a4a1|575|mate
+notlul|9/3k5/4ba3/9/2bNp4/9/9/4B4/c1r6/3RK4 b|c6a8 d6c8 c2d2 d1d2|575|mate;chou
+1eahie|r2ak3r/4a4/b1n3n2/p3p3p/1NbR2p2/9/c3P1P1P/3CB1NC1/4A4/2c1KA2R w|d6c6 a4a1|575|mate;chong
 r5lvud|2b1ka1RC/9/2Nnb4/9/4p4/2B6/1p7/9/5p3/4KAr2 w|h10h9 e8g10|580|
-w90d6r|2bak4/9/3a5/P4C3/4N1bn1/5n3/4cN3/3AB4/4A4/4K4 b|e10f10 e6f8|580|mate
-2a8pnd|2bak4/r3a4/4b4/3N4p/3RC4/1p2P4/8P/9/9/3AKA2r b|i1i2 d7f8 e10f10 e6f6|580|mate
-gdkw2w|3a1k3/2r1a4/4R4/P8/8p/4cr3/9/4B3B/4A4/1R2KA3 w|b1b5 f5f1|580|mate
+w90d6r|2bak4/9/3a5/P4C3/4N1bn1/5n3/4cN3/3AB4/4A4/4K4 b|e10f10 e6f8|580|mate;mahou
+2a8pnd|2bak4/r3a4/4b4/3N4p/3RC4/1p2P4/8P/9/9/3AKA2r b|i1i2 d7f8 e10f10 e6f6|580|mate;mahou
+gdkw2w|3a1k3/2r1a4/4R4/P8/8p/4cr3/9/4B3B/4A4/1R2KA3 w|b1b5 f5f1|580|mate;duimian
 1vwgo7|3ak1b2/7r1/3an4/4C3p/4p4/1RB6/3r2N1P/9/2c6/2B1KA3 b|d10e9 b5b10|580|mate
 smew6j|3akabr1/1r1n5/c1c1b1n2/p1p1p3p/6p2/1C3R3/P1P1P1P1P/NC2B1N2/3RA4/2BAK4 b|b9b5 f5b5|580|+R
-jnr5wr|3k1a3/4a4/b1C1c4/4n3p/p1b6/9/P8/3r4B/2R1R4/2BAK1N2 w|c2c3 d3d1|580|mate
+jnr5wr|3k1a3/4a4/b1C1c4/4n3p/p1b6/9/P8/3r4B/2R1R4/2BAK1N2 w|c2c3 d3d1|580|mate;duimian
 znw5ci|9/4k4/2N1ba3/9/2b1p4/9/9/9/c7r/3RK1B2 b|e9e10 d1d10|580|mate
 t7xxk2|1nbak1b1r/1r2a4/6nc1/p1p1p1p1p/9/P5P1P/R1c1P4/1C4NC1/4A4/1NB1KAB1R b|b9b3 h3b3|585|+R
 iqor39|2bak3r/4an3/c1n1b4/6p1P/p3p4/2p2C3/P2RP1P2/5C3/4Ar3/2B1KABR1 b|f9e7 f5f2|585|+R
 d31q4c|2bckabrC/4a4/3r5/2n6/p3p2R1/4P4/P1P4R1/3AB4/1N7/4KABN1 b|d8b8 h6h10|585|+R
 lbyq5c|2rak1b2/4aC3/2n1b1n2/p3p4/P8/5R3/2p1P4/1c4Nr1/1C2A4/R2N1KB2 w|d1f2 h3g3|585|+H
-pwlln7|3ak4/4a4/4b1n2/4p4/3R5/P3P3P/5p3/1p1NB1c2/1C2A4/2B2K1c1 w|f1e1 g3g1|585|mate
+pwlln7|3ak4/4a4/4b1n2/4p4/3R5/P3P3P/5p3/1p1NB1c2/1C2A4/2B2K1c1 w|f1e1 g3g1|585|mate;chong
 k16so4|3ak4/9/1n3a1P1/4C4/P8/6B2/2c3P2/5A3/9/3AK4 w|f3e2 c4c1|585|mate
-hhomik|3aka1n1/3Rc4/2C1b4/p1p1p1pC1/1P4P2/4c2p1/P7r/6r2/9/2BAKABR1 b|i4c4 c8c10|585|mate
+hhomik|3aka1n1/3Rc4/2C1b4/p1p1p1pC1/1P4P2/4c2p1/P7r/6r2/9/2BAKABR1 b|i4c4 c8c10|585|mate;mengong
 ee372z|3k5/2R1P4/9/9/p8/9/4P4/3A5/4A4/2rK2B2 w|d1d2 c1c9|585|+R
 zs3ulp|4k4/4a4/4R4/9/6P2/4p4/7r1/4B4/4K3c/3A2B2 w|e8e9 e10e9|585|+R
 fl44zf|4ka3/3ca4/b1n1Ncn2/p1C1p1C2/8p/P4R3/4P3P/4B4/4A4/2B1KA1r1 b|g8h10 g7g10|585|mate
@@ -187,15 +187,15 @@ g8agoz|1r2ka3/4a4/2n1b2r1/pR2p4/5n2p/P1p3p2/2c1P1P1P/1C2N1N2/4A4/2B1KAB2 w|b7b10
 6yt3ie|1rb1kabR1/4a4/4c1n2/pCp3p1p/4C4/P3P3P/2c3P2/2N3N2/4A1n2/1RBA1KB2 b|c4c1 b1c1|590|+C
 epfxgj|1rbak4/9/3ab1nR1/p3p1C1p/2p1P1p2/2P6/P1n5P/R1N1B4/4Ar1c1/3AK1BN1 w|h8h2 f2h2|590|+R
 csog4v|2Ca3R1/1r3k3/3abc3/p2r4C/1cb1n1p2/8P/P3P4/4B4/R3A4/2BAK4 b|d7d5 h10h9|590|mate
-8l6llz|2b6/1r2a4/4k4/5R1N1/2b1p4/9/4P3c/4Bc3/9/2BK5 b|b9b1 f7e7|590|mate
+8l6llz|2b6/1r2a4/4k4/5R1N1/2b1p4/9/4P3c/4Bc3/9/2BK5 b|b9b1 f7e7|590|mate;duimian
 m5jho5|2ba2c2/1rN1ak3/2n5b/1R7/pc2p1p1p/9/2P1PCP2/4B4/4AN3/2BAK4 w|g4g5 b9b7|590|+R
 lg50qn|2rak4/4a4/4bC3/p1n1C4/7R1/4P4/P4c3/4B3c/4A4/4KA3 b|c7b9 h6h10|590|mate
 v7966o|3ak1b2/4aR3/r3br3/3R4N/9/2p1p3P/2n6/2N6/4A4/2B1KA3 w|d7d10 e10d10|590|+R
-t5rzn2|3k1ab2/4a4/4b4/C2C2n2/2N2P3/2B6/4n1c2/3A5/4A4/4K4 b|g4h4 c6d8|590|mate
-l1usg7|2b2a3/3ka4/1n7/8p/3C2P2/2B1c3P/5N3/9/2c1A4/2BAK4 w|c1e3 c2c1|595|mate
+t5rzn2|3k1ab2/4a4/4b4/C2C2n2/2N2P3/2B6/4n1c2/3A5/4A4/4K4 b|g4h4 c6d8|590|mate;mahou
+l1usg7|2b2a3/3ka4/1n7/8p/3C2P2/2B1c3P/5N3/9/2c1A4/2BAK4 w|c1e3 c2c1|595|mate;tiandi
 o51ofe|2bak4/3r1c3/4b4/4C1R2/2p1p4/P7P/2P1P4/9/4N2r1/2BAK1B2 b|e10f10 g7g10|595|mate
 axa3qm|3ak1b2/4a4/6n2/4p4/6b2/P3P3P/5p3/2p1Bc3/1CN3R2/2BA1K1c1 b|h1h2 b2b10|595|mate
-g32lyf|3k1a3/9/4P4/9/9/2B6/9/4KA3/9/3A5 b|f10e9 e8e9|595|mate
+g32lyf|3k1a3/9/4P4/9/9/2B6/9/4KA3/9/3A5 b|f10e9 e8e9|595|mate;kunbi
 1strim|4k4/R2Ca4/3Rb3b/8N/7PP/9/p3pr3/4B4/5r1n1/2B1K4 b|f4g4 a9a10 e9d10 d8e8|595|+E
 j2rv02|7R1/9/3kba3/4c3P/p5b2/6B2/P7c/2n1Bn3/4AC3/4KA3 b|c3e4 h10d10|595|mate
 k03bv8|r1b1kab2/4a4/2n3n2/p7p/9/4p2pP/PR4r2/2N1B1C2/4A4/4K1BR1 b|g10e8 b4g4|595|+R
@@ -203,70 +203,70 @@ g0ceoa|r1bk1a1n1/9/2Rcb4/p3p4/1C6p/2p3p2/c3r3P/N3B4/4A3R/4KAB2 b|a10a8 b6b10 d10
 kkdhj8|1c2kab2/4a4/r1n1b3n/1Rp1p1p1p/p2r5/1NP5P/P3PNP2/4Bc2C/4A4/2BAK2R1 w|b7b10 c8b10|600|+R
 7917vz|1nbak4/4a4/2c1b4/p3p1pCp/9/6P2/P1c1P3P/2C1B1N2/4A4/2BAK4 w|g3f5 c4c1 e3c1 c8c1|600|mate
 1c8hwc|1r1ak3r/4a2c1/c1n1b3b/p1p1p4/3R2p2/1CP3P1R/P3P1n2/2N1B1NC1/4A4/4KAB2 w|i5i8 i10i8|600|+R
-vzggp2|1rb1ka1nr/4a4/nC2b4/p1C1p1p1p/4c4/P1c6/1R4P1P/8N/9/1NBAKABR1 w|i4i5 c5e5|600|mate
+vzggp2|1rb1ka1nr/4a4/nC2b4/p1C1p1p1p/4c4/P1c6/1R4P1P/8N/9/1NBAKABR1 w|i4i5 c5e5|600|mate;chong
 jyxaji|1rbaka3/9/n1c1b4/p2Rn3p/1c7/PC2P4/2P5P/4B4/4A4/2BAK1rNR w|e3g1 c8c1|600|mate
 slst5m|2bak2n1/r3ar3/2n1b1cc1/p1p3p1p/4p4/2P6/P3PRP1P/2N1C1C2/4A4/R1BAK1BN1 w|g3f3 f9f4|600|+R
 ak9fzb|2crka3/2Pna4/6nRb/4p4/5P3/2Br5/4P1c2/3C5/3NA4/R1B1KA3 w|d3f3 g4g1|600|mate
 qhjf97|3akab2/9/4b4/p3p3p/3R5/3n2B1P/3rP4/4BA3/3R1K3/c8 b|f10e9 d2d4|600|+R
-11z95y|3c1k3/4a1r2/9/9/5N3/5R2P/9/9/9/4KA3 b|e9d8 f6g8|600|mate
+11z95y|3c1k3/4a1r2/9/9/5N3/5R2P/9/9/9/4KA3 b|e9d8 f6g8|600|mate;duimian
 e1p6kd|4k3r/4a3n/r1n1ba3/6p2/p3CN3/2P1ccP1p/P2R5/R2CB4/4A4/2BAK4 w|d4d8 i10h10|600|
 r70zp2|4ka3/4a4/b4c3/p3p4/2pn2P2/1CP6/P3P3n/2N1B2C1/5c3/2BAKA3 b|f8d8 h3h10|600|mate
 7nygn2|R2ak4/4P4/9/8p/2b1r1p2/8P/9/9/4A4/4KA3 b|e10f10 a10d10|600|mate
 ekv7iv|1R1ak4/9/9/8p/2PN5/p7P/4P4/6r2/c3AK3/3A5 w|f2f1 g3g1|605|mate
 wffju2|2bak1b2/R3a4/4n1P2/5N3/1r6p/9/c1p1c4/2p1B4/C3AC3/4KAB2 w|a9a6 b6b1|605|mate
 cogjle|2bak4/3Ca4/5c3/p3p4/9/2nN3r1/7c1/4BA3/4A4/4K1BR1 b|h4f4 h1h5|605|+R
-cy8y8i|3ak1b2/3RaR1N1/2r1b4/8p/2p3r2/4p4/2n5P/2N6/4A4/2B1KA3 b|c8b8 f9f10 e9f10 h9f8|605|mate
+cy8y8i|3ak1b2/3RaR1N1/2r1b4/8p/2p3r2/4p4/2n5P/2N6/4A4/2B1KA3 b|c8b8 f9f10 e9f10 h9f8|605|mate;guajiao
 jt7aix|4ka3/2C1a2R1/8b/9/2b6/3n1rc2/P8/3N5/4A4/2B1KA3 w|h9h4 g5g1|605|mate
 cclme5|4ka3/9/4Rar2/p3pn3/2p3p2/P8/5rP1P/3CB1N2/4A4/2BAK4 b|f8e9 e8g8|605|+R
 meqkzz|4kab2/4a4/4b4/1P2r4/3P1R3/5pBRP/9/3A5/2r6/3AK1B2 w|d1e2 c2c1|605|mate
-t6190y|9/3k5/4ba1N1/9/p8/4c1n2/P5C2/4B1n2/4A4/2BAK4 w|g4f4 g5f3|605|mate
-7o37w3|1rb1kab1r/4a4/n5n2/p5P1p/9/P1p1pN3/2P1c3P/7c1/RCC1A4/1NB1KAB1R w|e2d1 h3e3|610|mate
-1c3059|2bak4/4a4/4b4/5n1Np/p8/c1r6/8P/5A3/5C3/1R1AK4 b|e8c6 h7f8 e10f10 f2f7|610|mate
+t6190y|9/3k5/4ba1N1/9/p8/4c1n2/P5C2/4B1n2/4A4/2BAK4 w|g4f4 g5f3|605|mate;guajiao
+7o37w3|1rb1kab1r/4a4/n5n2/p5P1p/9/P1p1pN3/2P1c3P/7c1/RCC1A4/1NB1KAB1R w|e2d1 h3e3|610|mate;chong
+1c3059|2bak4/4a4/4b4/5n1Np/p8/c1r6/8P/5A3/5C3/1R1AK4 b|e8c6 h7f8 e10f10 f2f7|610|mate;mahou
 vsnl08|3ak4/3Ra4/n8/p2P1n3/2C3b1p/2B6/P8/4B2r1/4A4/3AK4 b|h3h2 c6c10|610|mate
-5s85jf|3k1a3/9/4P4/9/9/9/9/B3KA3/4A4/9 b|f10e9 e8e9|610|mate
+5s85jf|3k1a3/9/4P4/9/9/9/9/B3KA3/4A4/9 b|f10e9 e8e9|610|mate;kunbi
 tipkli|4ka3/4a4/1c2R4/2N1c1C2/2p1p1bPp/6B1P/4P4/1n7/9/2rAKN3 b|c1a1 g7g10|610|mate
 5w5whe|4kab2/3na4/4b4/2p1p4/5n2p/4PR3/6c1P/2C1B4/4AcN2/1C2KABr1 w|f5f2 g4g1|610|mate
 i4jl4w|4kab2/4a4/2c1b4/p1n6/4p4/2Br2R2/P1P1p4/R2C5/4A1N1r/1NBAK4 w|b1c3 d5g5|610|+R
-h3la3u|5k3/9/9/p8/9/2B6/9/4R4/c3K4/1r7 b|a2a6 e3f3 a6f6 f3f6|610|mate
-it9yyw|5kb2/4a4/3a5/p8/9/P8/9/4B4/4A3R/4KA1rc w|e3c1 h1f1|610|mate
+h3la3u|5k3/9/9/p8/9/2B6/9/4R4/c3K4/1r7 b|a2a6 e3f3 a6f6 f3f6|610|mate;duimian
+it9yyw|5kb2/4a4/3a5/p8/9/P8/9/4B4/4A3R/4KA1rc w|e3c1 h1f1|610|mate;duimian,shuangjiang
 kb0kum|1nbak4/4a4/rc2brn2/2C1p1p1p/p8/6P2/P1P1P3P/4BC3/3N3cR/1R1AKABN1 b|f8f3 d2f3|615|+R
 duo3mx|1rbak1rc1/4a4/2n1b1n2/p3p1pCp/P8/2P5P/2c1P1P1R/2N1C1N2/1R2A4/2BAK1B2 w|c3b1 b10b2|615|+R
 r7htr8|2Cakabr1/9/c1n1c1n2/p3p3p/9/6P2/P1P1P3P/N3Br1C1/5N2R/1RBAKA3 b|e10e9 b1b9|615|mate
 dp5wxi|2b1ka3/1C2a4/2n1c4/1R2pP2p/p1b4r1/6NCn/P5r2/N7B/7R1/2BAK4 w|d1e2 g4g1|615|mate
-mf0gi7|2bak4/4a4/9/4P3p/6N2/4C3P/3nc4/4BA3/3c5/2BA1K3 b|i7i6 g6f8 e10f10 e5f5|615|mate
-85u2j6|3a1k3/4a4/4N4/9/9/9/5n3/3A5/9/1cBAK4 w|d3e2 f4g2|615|mate
-nm30xc|3ak4/4r4/3R4b/9/6b2/9/9/3A4p/4K4/7C1 w|e2f2 e9f9 d8f8 f9f8|615|mate
+mf0gi7|2bak4/4a4/9/4P3p/6N2/4C3P/3nc4/4BA3/3c5/2BA1K3 b|i7i6 g6f8 e10f10 e5f5|615|mate;mahou
+85u2j6|3a1k3/4a4/4N4/9/9/9/5n3/3A5/9/1cBAK4 w|d3e2 f4g2|615|mate;wocao,duimian
+nm30xc|3ak4/4r4/3R4b/9/6b2/9/9/3A4p/4K4/7C1 w|e2f2 e9f9 d8f8 f9f8|615|mate;duimian
 s07bmx|9/4a4/4k4/7r1/9/9/9/3AB4/4A4/2B1K4 w|e3c5 h7h1|615|mate
 i3dw1x|9/4a4/4k4/9/9/9/9/1r2B4/4A4/4KAB2 w|e3c5 b3b1|615|mate
 8xsx6r|r2akabr1/3n5/1cc1b1n2/p3p3p/2p3p2/P1P4R1/4P1P1P/1CN3C1N/9/R1BAKAB2 w|c5c6 h10h5|615|+R
-wzm362|2bnkn3/3C3r1/3a4b/p1N1p1P1p/9/1p2c4/P7P/3A2c2/3C5/2BAKR3 w|d2a2 g3e3|620|mate
+wzm362|2bnkn3/3C3r1/3a4b/p1N1p1P1p/9/1p2c4/P7P/3A2c2/3C5/2BAKR3 w|d2a2 g3e3|620|mate;chong
 3js78y|3ak1b2/4a2r1/4n4/C7p/3rp4/1cc6/1R6P/4B4/3R3N1/2BK1A3 w|a7a10 c5c10|620|
 xj9nc7|3ak3R/4a4/9/9/p1n6/p2n5/9/4BA3/6r2/4KC3 b|g2g10 i10g10|620|+R
-nncrhi|3ak4/4a4/6C2/4R3p/9/p5B1P/P2cP4/6N1R/r4r3/4K4 w|i3i1 a2a1|620|mate
-a5eq9j|3k1a3/9/4P4/9/9/9/9/B3K4/4A4/3A5 b|f10e9 e8e9|620|mate
-rgl1xh|3k1ab2/4ac3/9/2N1C4/9/9/9/3A5/4AK1n1/9 w|e7e3 h2f3 f2f3 e9f8|620|mate
+nncrhi|3ak4/4a4/6C2/4R3p/9/p5B1P/P2cP4/6N1R/r4r3/4K4 w|i3i1 a2a1|620|mate;shuangche
+a5eq9j|3k1a3/9/4P4/9/9/9/9/B3K4/4A4/3A5 b|f10e9 e8e9|620|mate;kunbi
+rgl1xh|3k1ab2/4ac3/9/2N1C4/9/9/9/3A5/4AK1n1/9 w|e7e3 h2f3 f2f3 e9f8|620|mate;chou
 yxmkvn|9/4a4/4k4/9/9/9/9/r3BA3/4A4/4K1B2 w|e3c5 a3a1|620|mate
 pagl8z|9/4a4/4k4/9/9/r8/9/B8/4A4/4KAB2 w|a3c5 a5a1|620|mate
-zotzw6|r1bnkab2/4a1r2/9/pR2P2R1/2P5p/9/P5p1c/2C1n4/3NN4/3AKA3 w|c3d3 e3g2|620|mate
+zotzw6|r1bnkab2/4a1r2/9/pR2P2R1/2P5p/9/P5p1c/2C1n4/3NN4/3AKA3 w|c3d3 e3g2|620|mate;wocao
 mpzoad|1n1rkab2/3Ca4/4b2Rn/pcp2cp1p/3NP4/P7P/2PR2r2/2N1B2C1/9/2BAKA3 b|g4d4 d9d4|625|+R
 35bwoj|2b1ka3/4a4/1n7/4P3p/7C1/2B5P/4cN3/9/3cA4/2BA1K3 b|d2d3 h6h10|625|mate
 8zbn2m|2bak4/2r1a4/8b/2N1p2R1/P1p3n2/4P4/1C5pP/B8/4A4/4KABc1 w|h7h4 g6h4|625|+R
 xlcm0s|2r1kab2/4a1C1c/6n2/p1p1n2Rp/1R2prb2/6B2/P1cNP3P/6N2/3CA4/3AK1B2 w|g1e3 c4c1|625|mate
-q5632f|3k1a3/9/4P4/9/9/9/9/B2A1A3/4K4/9 b|f10e9 e8e9|625|mate
-h1th8g|3k5/1P2a1P2/5c3/3n5/9/6B2/6P2/5K3/4A4/4C4 w|f3e3 d7e5 e2d1 f8e8|625|mate
+q5632f|3k1a3/9/4P4/9/9/9/9/B2A1A3/4K4/9 b|f10e9 e8e9|625|mate;kunbi
+h1th8g|3k5/1P2a1P2/5c3/3n5/9/6B2/6P2/5K3/4A4/4C4 w|f3e3 d7e5 e2d1 f8e8|625|mate;mahou
 40pqv1|4k3C/1R7/4b4/9/9/7p1/4c4/3AB3r/4A4/4K4 w|i10g10 i3i1 g10g1 i1g1|625|mate
 ll5buz|4k4/4ar3/3a4b/9/6b2/9/R8/3A4p/4K4/7C1 b|f9f1 a4a10|625|mate
-jk66nk|4k4/5R3/4ba3/4cC2P/p5b2/5nB2/P7c/2n1B4/4A4/4KA3 w|f9a9 i4i1|625|mate
-kdrcof|4ka3/4a4/4b4/3N4p/1Cb2P3/8P/P4n3/4B4/4A4/4KABc1 w|e2d1 f4g2 e1e2 h1h2|625|mate
+jk66nk|4k4/5R3/4ba3/4cC2P/p5b2/5nB2/P7c/2n1B4/4A4/4KA3 w|f9a9 i4i1|625|mate;tiandi
+kdrcof|4ka3/4a4/4b4/3N4p/1Cb2P3/8P/P4n3/4B4/4A4/4KABc1 w|e2d1 f4g2 e1e2 h1h2|625|mate;mahou
 7x2o0c|4ka3/4a4/4b4/p2nC4/2R2n2p/P5P2/3pP4/4N4/4Ar3/2B1KAB2 b|f2f4 c6c10|625|mate
-fo1jql|4ka3/4a4/b1n5r/p1RP4p/4c1b1P/c5C2/2P3P2/B8/7N1/2BAKA3 w|d7e7 a5e5|625|mate
+fo1jql|4ka3/4a4/b1n5r/p1RP4p/4c1b1P/c5C2/2P3P2/B8/7N1/2BAKA3 w|d7e7 a5e5|625|mate;chong
 dp50ru|C1b1k3P/4a4/4b4/p4P3/9/P8/9/1R1cB1p2/4AK3/3Ar4 b|e9d10 b3d3|625|+C
 ll82ox|r3ka1r1/4a4/bR3cn2/C3p4/p5b1p/2p5P/P3P2n1/2N6/4AR3/2BAK1BN1 b|c5c4 a7a10|625|+R
 ecnnyb|1Cbakr3/r3a4/6c1b/n5nCp/p1p1p4/1N4P2/P2RP3P/4B4/9/3AKA1R1 b|g8h8 h7a7|630|+H
 7l75oz|1nbk1abr1/3ra4/9/p1p1C1p2/2c5P/6P2/P1c1P4/NC7/3R5/R1BAKAB2 w|b3e3 d9d2|630|+R
-ellyc3|2b1ka3/r3an3/4b4/p7p/P3p4/1RB5P/2c1P1r2/2NC5/1c2AN3/2BAK3R w|i1f1 c4c1|630|mate
+ellyc3|2b1ka3/r3an3/4b4/p7p/P3p4/1RB5P/2c1P1r2/2NC5/1c2AN3/2BAK3R w|i1f1 c4c1|630|mate;mengong
 4im3jg|3ak1b2/4a4/4b4/p2c5/1r2CR2p/4p4/P5P2/4BC3/4A4/2B1KA3 b|b6e6 f6e6|630|+R
-x2oqp1|3k1a3/9/4P4/9/9/9/9/3A1A3/9/2B1K4 b|f10e9 e8e9|630|mate
+x2oqp1|3k1a3/9/4P4/9/9/9/9/3A1A3/9/2B1K4 b|f10e9 e8e9|630|mate;kunbi
 pk89km|4k4/5c3/b4a3/5N2p/9/1p6P/9/3A5/4A1n2/2BK5 w|f7g5 f9d9|630|mate
 1kh1ku|4kab1r/4aC3/1r2b4/4p4/p6R1/P4c2p/2P1P1P1R/N3B1nC1/3cA4/4KAB2 w|i4i5 i10i5|630|+R
 h4kfvl|4kab2/4a4/4b3P/4p4/9/4P2R1/1R7/4N4/8r/cr1AKA3 b|i2f2 b4b1|630|+R
@@ -278,10 +278,10 @@ utg3k4|1Cb6/4a4/3kb4/2R6/1r2pc3/1N6p/4P3c/4B4/5N3/2B1K4 b|i4i1 c7d7|635|mate
 mo9q0j|1rbak3r/4an3/3cb4/1C2p2c1/p5p1p/P1B3PN1/2P1P3P/2R6/4A4/1RBAK4 w|b7h7 b10b1|635|+R
 30iy7v|2b1ka2r/4a4/1r1cb1n2/pC2pcp1p/2p1n2C1/P1P3P1P/N3P4/4B1N2/4A4/1RB1KA1R1 w|b7f7 b8b1|635|+R
 8jkub4|2bak3r/4a4/c1n1b1n2/2p1p1p2/p7p/P8/2P1P1P1P/R1NAB1N2/2r4cC/C2AK1B1R b|c2c3 a3c3|635|+R
-z56wg3|2bak4/4a4/9/7C1/p2nN1b2/2B6/PN4n2/1c1A5/9/4KA3 b|d6c8 e6f8 e10f10 h7f7|635|mate
+z56wg3|2bak4/4a4/9/7C1/p2nN1b2/2B6/PN4n2/1c1A5/9/4KA3 b|d6c8 e6f8 e10f10 h7f7|635|mate;mahou
 21qygh|2r1k4/3Na4/3RN1r2/9/P1P6/4R4/9/2c1BA3/5p3/2BAK4 w|e5e4 g8g1|635|mate
 2llkcj|3a1kb2/2N6/4ba3/4pR3/2cn5/4P3P/2r6/p3BC3/4A4/2NAK1B2 w|c1d3 d6f7|635|+R
-lbr9dh|3k5/4aN3/4b4/5c3/p4C3/4c1n2/P2n2C2/4B4/4A4/2BAK4 w|c1a3 d4c2|635|mate
+lbr9dh|3k5/4aN3/4b4/5c3/p4C3/4c1n2/P2n2C2/4B4/4A4/2BAK4 w|c1a3 d4c2|635|mate;wocao
 4r45vs|3rkabr1/4a4/2c1b4/p1n1p4/9/2BR4p/P1P1Pp3/3C4N/4A4/RNBAK4 w|d5d7 d10d7|635|+R
 t4nsas|r1bak4/4an3/2n1bc3/p3p2Cp/2p6/P7P/2P1P1r1c/2N1B2CN/4A4/1RBAK1R2 b|g4g3 g1g3|635|+R
 d13r9a|r3kab1r/4a4/b1c2n3/p3pC2p/3R5/P5p2/3CP3P/2c3N2/4A4/2BAK1BR1 w|d6c6 a8c6|635|+R
@@ -298,21 +298,21 @@ ye0jem|r1bak4/4a4/n7b/p1p1pC1rp/6P2/P3c3N/2P3c1n/RC2B4/4A4/1NBAKR3 b|h7f7 f1f7|6
 z3q724|rnbak1bnr/4a4/9/p1p1p1C1p/9/P8/1cP1P1P1P/1C7/4A1c2/RNBAK1BNR w|g1e3 g2g7|640|+C
 kr67dy|rnbaka3/5n3/2c1b2c1/p1p1p3p/9/2P3C2/P3P1P1P/2N1C4/7r1/1RBAKABNR w|b1b2 h2b2|640|+R
 0pl859|1R2kab1r/4a4/2n1b1n2/p1p1p3p/6p2/P3P1c2/8P/C1r6/4A1N2/1NB1KAB1R b|e8c10 b10c10|645|+E
-cnqj3q|1rba1kc2/2N1a4/2n5b/7R1/pc2pCp1p/9/2P1P1P2/4B4/4AN3/2BAK4 b|b10b9 h7f7 e9f8 f7f8|645|mate
+cnqj3q|1rba1kc2/2N1a4/2n5b/7R1/pc2pCp1p/9/2P1P1P2/4B4/4AN3/2BAK4 b|b10b9 h7f7 e9f8 f7f8|645|mate;shuangjiang
 v8thtr|1rbak1br1/4a4/2n3nc1/2c1p2Rp/2p3p2/9/p1P1P1P1P/2N1C1N2/C3A4/R1B1KAB2 w|h7h8 h10h8|645|+R
 9vqzkw|1rbak4/4a4/n7b/p1p3cCp/4P4/P5crN/2P2R3/R3B4/4A4/1NBAK4 w|f4h4 h5h4|645|+R
 ts1su9|2b1kab2/4ar3/2nc2nC1/p1p1p4/P4c2p/2P1P4/R3N1p1P/1r1NB1C2/4A4/2BAKR3 w|f1f6 f9f6|645|+R
 ymf040|2bak3r/4a4/c1n1b1n2/2p1p1p2/p7p/P8/2P1P1P1P/R1N1BAN2/2r4cC/C2AK1B1R b|c2c3 a3c3|645|+R
-der8mt|2rak1b2/4aC3/2n1b1nr1/p3p4/P8/2p5R/R3P4/1cN3N2/1C2A4/2c1KAB2 w|b2c2 b3b1|645|mate
-tij176|3a1k3/4a4/3c5/2N6/9/9/9/9/4A4/2nK5 w|c7a6 c1d3|645|mate
-f5ypjq|3nka3/3Na4/4b3n/2R6/5cN1p/1r2C3P/P3P4/4B4/4A4/4KAB2 b|b5b2 g6f8|645|mate
-pqareq|3nkn3/3C3r1/b2a4b/p1N3P1p/4p4/1p2c4/P7P/3A2c2/2C1K4/2BA1R3 w|e2e1 g3e3|645|mate
+der8mt|2rak1b2/4aC3/2n1b1nr1/p3p4/P8/2p5R/R3P4/1cN3N2/1C2A4/2c1KAB2 w|b2c2 b3b1|645|mate;chong
+tij176|3a1k3/4a4/3c5/2N6/9/9/9/9/4A4/2nK5 w|c7a6 c1d3|645|mate;mahou
+f5ypjq|3nka3/3Na4/4b3n/2R6/5cN1p/1r2C3P/P3P4/4B4/4A4/4KAB2 b|b5b2 g6f8|645|mate;guajiao
+pqareq|3nkn3/3C3r1/b2a4b/p1N3P1p/4p4/1p2c4/P7P/3A2c2/2C1K4/2BA1R3 w|e2e1 g3e3|645|mate;chong
 bkiatv|3rkabn1/4a4/1n2b4/p3p3p/6p2/Pp7/3RP1P1P/B1C1B3N/9/3AKA3 w|d1e2 d10d4|645|+R
 kys9ll|4kab1r/4aC3/1r2b4/4p1n2/p2R5/P6cp/2P1P1P1R/N3B1NC1/1c2A4/4KAB2 w|i4i5 i10i5|645|+R
 shtfns|C1bak4/4a4/9/9/2b4PP/8n/N3p4/4B1R2/4K4/2r5c b|i5g6 e3c1|645|+R
 8dag7d|1Rb1ka3/4a4/3rb4/2P6/p7p/4C4/Pr2P3P/4B4/4A4/4KAB2 w|a4a5 b4b10|650|+R
 rjtjcw|1rb1kab1r/4a4/4c1n2/pCp3p1p/4C4/P3P3P/2P2nPc1/2N3N2/4A4/1RBAK1BR1 b|h4h10 b7g7|650|+P
-l2u1wm|1rbak1C2/4a4/2n1c4/p1P1p4/4n4/P7C/4Nr2P/1cN1B4/4A4/1R2KAB1R b|e6g7 i5i10|650|mate
+l2u1wm|1rbak1C2/4a4/2n1c4/p1P1p4/4n4/P7C/4Nr2P/1cN1B4/4A4/1R2KAB1R b|e6g7 i5i10|650|mate;chong
 r77r0h|2bak2r1/4a4/n3b3c/pC2p1p1p/r1p6/6PN1/4P4/N1R1B2C1/4A4/2B1KA3 w|b7d7 h10h5|650|+H
 r3y0q9|2rak1b1r/4a2c1/6R1R/p3p2C1/2n6/P8/4P4/4B1N2/4A4/3NKA3 b|h9f9 i8i10|650|+R
 165x5i|3k1a3/1cC1a4/4b4/1N2p4/6b1p/2P6/9/3r5/1c1R5/3K5 b|b9b10 d2d3|650|+R
@@ -321,15 +321,15 @@ wc35a3|4kabPr/1r2a4/4bc3/p1n1p4/8P/P1p2N3/4P4/2N6/4A4/R1B1KAB1R b|i10i6 i1i6|650
 9qbzb7|r3ka3/4a4/2n1b1n2/p5C1p/1c2p1b2/5N1C1/P1p5P/9/N8/R1BAKAB2 b|e8c6 h5h10 g8h10 g7g10|650|mate
 el59vu|r3kabr1/3na4/4bcn2/4p1pCp/pcPN5/6P2/P3P3P/2N3C2/4A4/R1BAK1BR1 b|h10h7 h1h7|650|+R
 meybv0|rnbakab2/9/1c2c1n2/4p1p1p/p1p6/2P6/P3P1PCP/Rr4C1B/9/1NBAKA1R1 b|c6c5 a3b3|650|+R
-61eemd|2b1ka3/4ac3/b2P5/p4N3/9/P8/9/4BA3/4A4/3K5 b|f9h9 f7g9 e10d10 d8d9|655|mate
+61eemd|2b1ka3/4ac3/b2P5/p4N3/9/P8/9/4BA3/4A4/3K5 b|f9h9 f7g9 e10d10 d8d9|655|mate;duimian
 b8yrit|2b1kab2/4a4/9/7R1/4n3p/4P1B2/P1c5P/2N1B2r1/4A4/3AK4 w|e5e6 h3h7|655|+R
 nvc93c|2b2a3/1R1ka4/8b/6P2/6p2/7p1/1N2P1P2/1r7/1c7/4K4 b|d9d8 b4c6 d8e8 b9b3|655|+R
 0kh1j5|2bak1bnr/4a4/5c3/p3P3p/4pNP2/P1C1c3P/5r3/B3C4/4A4/R2AK1B1R w|g6h6 f4f1|655|mate
 nrts0j|2bak4/4a4/2C3R1b/4p3p/9/4P3P/2N1n4/8B/3p5/r2AKA3 w|g8g2 a1d1|655|mate
-93to8m|2raka1n1/9/1cC1b3b/4p1p1p/P1p6/6P2/2Pr4P/R1N3R1n/4A4/2B1KAB2 w|g3e3 i3g2|655|mate
+93to8m|2raka1n1/9/1cC1b3b/4p1p1p/P1p6/6P2/2Pr4P/R1N3R1n/4A4/2B1KAB2 w|g3e3 i3g2|655|mate;wocao
 qc42mp|2raka2R/7rN/8b/6n2/p1P6/6B1p/P8/8B/2R1A4/3AK4 w|c2c3 h9h1 i3g1 h1g1|655|mate
-iod1iq|3ak4/3Pa4/4N4/9/p8/2B6/P2ppp3/9/4A4/3AK1B2 b|e9f10 e8g9|655|mate
-qlm4gc|3ak4/3Pa4/4N4/p8/9/9/P2ppp3/B8/4A4/3AK1B2 b|e9f10 e8g9|655|mate
+iod1iq|3ak4/3Pa4/4N4/9/p8/2B6/P2ppp3/9/4A4/3AK1B2 b|e9f10 e8g9|655|mate;wocao
+qlm4gc|3ak4/3Pa4/4N4/p8/9/9/P2ppp3/B8/4A4/3AK1B2 b|e9f10 e8g9|655|mate;wocao
 hgr57t|3akrb2/4a4/4b1n2/6C2/p3p1P2/p2N4R/n3c2r1/B3R4/4A1N2/4KAB2 b|h4i4 i5i4|655|+R
 oppmvr|4ka1n1/4a4/4b1c1P/1C1C4p/9/pcB6/1RP1p4/2N2n3/4K2Rr/3A1AB2 b|a5a4 h2i2|655|+R
 wwz2gs|4kab1r/4a4/1r2b4/4pC3/p4R3/P6cp/2P1P1P1R/N3B1nC1/1c2A4/4KAB2 w|i4i5 i10i5|655|+R
@@ -341,19 +341,19 @@ j9z4ql|r1b1kabn1/4a2Cr/n8/N1p5p/1c2p1p2/9/1R2P1P1P/3CB1N2/2c1A4/2BAK2R1 b|i9h9 h
 7j5qb6|rnbak2nr/1R2a2c1/5c3/9/p1b1p3p/5CB1P/P3P1P1R/2N3NC1/4A4/2B1KA3 w|b9b10 a10b10|655|+R
 vnkncs|1nb1ka3/r3a4/2c1b1n1R/p1p1pr3/9/P1cN2p2/4PCP2/3C2N2/R3A4/2BAK1B2 w|c1a3 c5c1 a3c1 c8c1|660|mate
 l6jqyf|2r1kabr1/3C2C2/1Rc1ban2/3cp1p2/p7p/3p2P2/P3P3P/B2R3N1/4A4/3AK1B2 w|b8c8 c10c8|660|+R
-17vygu|3ak1bnr/3na4/4b4/5C2p/1Pp3pc1/R3p3P/2P1c1P2/1CN1B4/3rA4/2B1KA2R w|i1i3 h6h1|660|mate
-gm8mt0|3k1ab2/1C2a4/4b4/8p/p1p2n2P/2P1c4/5np1N/4B4/4A2C1/2B1KA3 w|h2f2 f4d3 e1d1 e5d5|660|mate
-1kgog7|3k5/4a4/4ba2b/9/2n5p/2C3N2/9/9/3pA4/1cB1K1B2 w|c1a3 d2d1|660|mate
+17vygu|3ak1bnr/3na4/4b4/5C2p/1Pp3pc1/R3p3P/2P1c1P2/1CN1B4/3rA4/2B1KA2R w|i1i3 h6h1|660|mate;tiandi
+gm8mt0|3k1ab2/1C2a4/4b4/8p/p1p2n2P/2P1c4/5np1N/4B4/4A2C1/2B1KA3 w|h2f2 f4d3 e1d1 e5d5|660|mate;mahou
+1kgog7|3k5/4a4/4ba2b/9/2n5p/2C3N2/9/9/3pA4/1cB1K1B2 w|c1a3 d2d1|660|mate;duimian,shuangjiang
 wecrst|4ka3/9/3a5/p8/9/9/9/4B4/4A3R/1r2K3c w|e3c1 b1c1|660|mate
 p8pr0x|r1bak4/9/2C1b4/p3p3p/2p6/P6RP/2P1P4/9/4Nc3/2BAK1B1r w|h5h2 i1g1|660|mate
 xnkif0|r2ak1n2/5RC2/b3PR3/9/p7p/4p2r1/P7P/2N1B4/9/4KcB2 w|c3e2 f1f9|660|+R
 pr7toj|rnbakabC1/9/1C4n2/1P2pR3/p3c1p1p/9/P3P1P1P/4B3B/1r7/3AKA1R1 b|b2f2 f7f2|660|+R
 7hdg3t|1r1akab2/1R1n1r3/2c1b1nc1/2p1p3p/p5p2/2PN4P/P3P1P2/B3C2C1/4A4/4KABNR w|h1g3 b10b9|665|+R
 rill0k|2b1ka3/4a4/4b3P/4n4/1c5rp/P1PR2n2/8P/N2CC4/1R7/2BAKAr2 w|d5g5 g1g5|665|+R
-6ziyuy|2baknb2/4ar1r1/8c/4pNP2/8p/9/c1p5P/2p1R4/C3A1C2/1RB1KAB2 b|h9h3 g2g10|665|mate
+6ziyuy|2baknb2/4ar1r1/8c/4pNP2/8p/9/c1p5P/2p1R4/C3A1C2/1RB1KAB2 b|h9h3 g2g10|665|mate;mengong
 mz8a44|3aka3/9/4P3b/p1p6/8n/9/PR2Cr3/4B1r1B/4A4/4KA3 b|d10e9 b4b10|665|mate
 k3g5ot|4ka3/r2na4/4b4/1P4p2/6b2/c1P2r1p1/CR7/4n1N2/4A1C2/4KAB2 w|g3f5 e3g2|665|+C
-b6wpft|9/4k4/1N3a3/4c4/2b6/6B2/P4n3/4B4/5K3/9 w|b8a10 e7f7|665|mate
+b6wpft|9/4k4/1N3a3/4c4/2b6/6B2/P4n3/4B4/5K3/9 w|b8a10 e7f7|665|mate;mahou
 4h8s9m|C3k3P/4a4/b3b4/p4P3/9/P2c5/9/4BAp2/1R3K3/3Ar4 w|b2c2 g3g2|665|mate
 8z3mwe|r1bk1a1n1/9/2Rcb4/p3p4/3r4p/2p3p2/cC6P/4B4/2N1A3R/4KAB2 b|a10a8 b4b10 d10d9 c8c9|665|mate
 012dli|rnb1kabnr/4a2C1/1c2c4/p3p1p2/2p5p/6C2/P1P1P1P1P/2N6/4A4/R1BAK1BNR b|i10i8 g5g10|665|mate
@@ -361,23 +361,23 @@ b6wpft|9/4k4/1N3a3/4c4/2b6/6B2/P4n3/4B4/5K3/9 w|b8a10 e7f7|665|mate
 qb4mov|1n1ak4/4a4/4b4/N1p1pC1cp/3P2p2/P7P/4P4/9/4A4/2B1KR2r b|i7i6 f1i1|670|+R
 w42vbd|2b1ka1n1/4a2R1/1c2b3c/pR2pn3/2P6/P3P2rp/9/2C1N4/4N4/2BAKA3 w|e2g3 h5h9|670|+R
 vpn4rl|2b1kabn1/4a4/2n1c4/4p1C2/5Rp2/rNP3P2/p3P3P/3RB4/4A3N/4KAr2 b|a5a6 f6a6|670|+R
-ey12iw|2baka2r/9/2n1c1n2/p4Cp1p/2p3b2/4C4/PrP1P1P1P/4B1N2/Rc1NA1R2/4KAB2 b|e8f8 f7e7|670|mate
+ey12iw|2baka2r/9/2n1c1n2/p4Cp1p/2p3b2/4C4/PrP1P1P1P/4B1N2/Rc1NA1R2/4KAB2 b|e8f8 f7e7|670|mate;chong
 4jklof|3ak1b2/4a4/5R3/9/1P4b2/1p2n4/8P/2rA4B/9/3CKA3 w|d3e2 e9f8|670|+R
 6a92uw|3ak1b2/9/4b4/p1Rr5/3c4p/P1P3p2/4P3P/6N2/9/2BAKAB2 w|e4e5 d7c7|670|+R
-cdbbty|4R4/9/3k5/9/6p1p/9/8P/4K4/3r5/9 b|d2a2 e10d10|670|mate
-mpjtvs|4c4/4a4/4bk1N1/9/P8/6B2/9/3n5/9/3K2B2 w|a6b6 e10d10|670|mate
+cdbbty|4R4/9/3k5/9/6p1p/9/8P/4K4/3r5/9 b|d2a2 e10d10|670|mate;duimian
+mpjtvs|4c4/4a4/4bk1N1/9/P8/6B2/9/3n5/9/3K2B2 w|a6b6 e10d10|670|mate;mahou
 s4fpe0|4k4/2C6/3ab1n1b/p7p/5r3/P2NcR3/1p2c3P/3A5/2C2K3/2BA5 w|f2f1 f6f5|670|+R
 hgg55t|4kab2/4a4/2c1b4/p7P/9/P1R6/2r1N4/9/4A4/2B1KAB2 b|c8b8 c5c4|670|+R
-m8c2nl|5a2P/3k5/P8/r8/1R4b2/2B6/9/9/4K4/3A5 b|d9d10 b6d6 a7d7 d6d7|670|mate
+m8c2nl|5a2P/3k5/P8/r8/1R4b2/2B6/9/9/4K4/3A5 b|d9d10 b6d6 a7d7 d6d7|670|mate;duimian
 wjoy37|R3kab2/4a4/4b4/7R1/5r1P1/3n1N3/7p1/5A3/9/3AK4 b|e8c10 a10c10|670|mate
 lixf71|r2ak4/4a4/1cn1brn2/4p1R1p/p1b3p2/3N4P/P3P1P2/3CB1N2/4A4/1R2KAB2 b|c8b6 b1b6|670|+H
 dntn45|1n2kabr1/4aC3/4b4/p1p1n1p1p/2c1C4/9/P1P1P1c1P/4B1N2/4A4/1NBAK2R1 b|e9d8 h1h10|675|+R
 bnn59d|1rb1kabn1/4a2Cr/n1N6/2p5p/3cp1p2/9/4P1P1P/3CB1N2/2RcA4/2BAK2R1 b|i9h9 h1h9|675|+R
 2kzbun|2b6/4R4/c2k3C1/2p1p1r2/2P6/3r4P/9/9/4c4/1R2KA3 w|e9b9 a8h8|675|+C
-mb6uga|3k1ab2/1C2a4/9/8p/p1b5P/4c2n1/5np1N/4B4/4AC3/2B1KA3 w|c1a3 f4d3 e1d1 e5d5|675|mate
+mb6uga|3k1ab2/1C2a4/9/8p/p1b5P/4c2n1/5np1N/4B4/4AC3/2B1KA3 w|c1a3 f4d3 e1d1 e5d5|675|mate;mahou
 atwzcn|4kab2/4a4/r1n1b3r/1RN1p1p2/p8/9/P2cPNP2/4B4/4A4/2BAK2R1 w|b7b10 c8b10|675|+R
 75vcul|4kab2/R3a4/4b4/7R1/5r1P1/5N3/7p1/4B4/2n1A4/3A1K3 w|h7b7 f6f5 e2f3 f5f3|675|mate
-gd90jg|9/2P6/3k1a3/9/2b6/4c4/9/4nA3/4A4/4K1C2 w|c9c10 e3c2 e1f1 e5f5|675|mate
+gd90jg|9/2P6/3k1a3/9/2b6/4c4/9/4nA3/4A4/4K1C2 w|c9c10 e3c2 e1f1 e5f5|675|mate;shuangjiang
 vqrrqv|1rba1kc2/2N1a4/2n5b/1cC1p2R1/p4np1p/9/2P1P1P2/4B4/5N3/2BAKA3 b|g10i10 h7f7 e9f8 f7f8|680|mate
 h0010a|3ak4/4a4/4c4/9/7r1/9/2R6/2p2A3/4A4/4K4 w|c4e4 h6h1|680|mate
 nzc83e|3akabcr/9/2C1N2P1/4p4/Nnr5P/P8/9/9/1R2p4/3AK1B1R w|e1f1 c6f6|680|mate
@@ -399,20 +399,20 @@ trvdho|2b1ka3/4a4/2n2cR2/p1p1p1p2/3r3n1/1CP3P2/P3P3P/2N1B1C2/5c3/2BAKA3 w|g8f8 e
 86d5bq|2bak4/4a2r1/4c3b/2c5C/p5p1p/2B6/PR1rN1N1P/4B4/4A4/4KA2R w|e4f6 d4b4|685|+R
 2g6ks0|2bnk2r1/4a4/4b1ncN/p3p3p/6P2/1p7/P5c1P/3CB4/1C2A4/1NBAK2R1 b|e8g6 i8h10|685|+R
 u0ua9x|2r1kab1r/4a4/2R1b1n2/9/1P6p/R3CNP1c/9/Bp2B1N2/4A4/3AK4 b|i10i9 c8c10|685|mate
-ve2kmk|3a1kb2/3c5/3ab4/8P/5C3/6P2/1n2p4/4B4/4A4/3K1AB2 w|d1e1 b4c2|685|mate
+ve2kmk|3a1kb2/3c5/3ab4/8P/5C3/6P2/1n2p4/4B4/4A4/3K1AB2 w|d1e1 b4c2|685|mate;wocao
 f667nv|3nka3/3Na4/4b3n/2R5p/2c3b2/1r2C2NP/P3P4/4B4/4A4/4KAB2 b|b5e5 e4e5|685|+R
 9yz7rx|4k1b2/4aC3/9/9/p1R6/6B2/P2p5/8B/9/1r1AKA3 b|b1b4 c6c10|685|mate
 gnl0tj|4ka3/4a4/6r2/4n1c2/6b2/2C2p2R/1RNcr4/3CB4/4A4/1NBAK4 w|i5i9 d4b4|685|+R
 7bwxfp|r1bak2nr/4a2C1/4b4/p3p1p1p/2pn5/2P1P4/P2cCc1RP/4B1N2/N3A4/R2AK1B2 w|h4f4 d4f4|685|+R
 5pcunr|r1bak2r1/4a4/4b1n2/4pnC1p/p1N6/6P2/P1c5P/2R1B1N2/4A4/2BAKR3 b|f7e5 c6e5|685|+H
-2rfyj7|rnbakabnr/9/c6c1/p1p1C3p/4p4/8P/P1P1P1P2/N3C4/9/R1BAKABNR b|a10a9 e3e6|685|mate
+2rfyj7|rnbakabnr/9/c6c1/p1p1C3p/4p4/8P/P1P1P1P2/N3C4/9/R1BAKABNR b|a10a9 e3e6|685|mate;chong
 pmyp9m|1nbakr3/3Ra4/4b1c2/p3pC3/9/6P1P/2P1P1n2/2C1B1N2/4A4/cN1AK1B2 b|f10f8 c3c10|690|mate
 jnvcom|1rbaka3/9/2n1b1c2/p1p1pC2p/9/2P5P/P3P2cR/1C2BN3/7r1/R2AKAB2 b|b10b3 f3h2|690|+R
 mop4az|2ba2c2/4k4/7n1/9/P2nN4/4P1P2/C3N4/4B4/4A4/1r2KAB2 w|e3c1 g10g1|690|mate
 x26nzk|3ak1b2/r2nac3/2c6/pR2p1r1p/2b6/C5P1P/P3P4/4B1N2/4N4/2BAKA2R b|a9b9 b7b9|690|+R
 5ioe2f|3ak4/4P4/9/4N4/p1b1p2P1/1r7/1c7/R3B4/4A4/4KcB2 b|e10f10 e7g8|690|mate
-2lds0i|3aka1nr/7R1/2n1c3b/2C1p4/2b2R3/p1P3p1p/1r2P4/4B1N2/1NC1A4/2BA1K3 b|b4b2 f6f10|690|mate
-stqxuj|3akn1RC/4a4/9/9/5R3/4p4/9/9/9/2BcKA2r b|i1i7 h10f10|690|mate
+2lds0i|3aka1nr/7R1/2n1c3b/2C1p4/2b2R3/p1P3p1p/1r2P4/4B1N2/1NC1A4/2BA1K3 b|b4b2 f6f10|690|mate;shuangche,duimian
+stqxuj|3akn1RC/4a4/9/9/5R3/4p4/9/9/9/2BcKA2r b|i1i7 h10f10|690|mate;shuangjiang
 il7d1v|3rka3/4a1rR1/bcn1c1C1b/4nCP1p/p1p6/5p3/P1P1P3P/4B1N2/1R1NA4/4KAB2 b|b8b6 h9g9|690|+R
 9xpo6h|4ka2r/3ca4/2n1bcn2/p1C1p1C2/2br4p/PN3R3/4P3P/4B4/4A4/2B1KA1R1 b|i10h10 h1h10|690|+R
 t20ieo|4ka3/4a4/4R4/9/9/9/9/4B4/9/2BAKA1cr w|e1e2 i1i2|690|mate
@@ -448,14 +448,14 @@ vvqq9l|2bakab2/3c5/9/3cC4/4R1P2/pp7/3R5/5A3/4K4/2r6 b|b5c5 d4d7|705|+C
 a83ncv|2rak1b2/4a4/1cC1b4/9/4R4/p8/1r2n4/2RC1N3/1N2A4/4K4 w|c8c4 e4c3|705|+R
 mz26c6|3ak1br1/3na4/9/2Cnp4/1r2P1b1p/6C2/2P1N3P/2N1B4/1R2A4/2B1KA3 b|d9c7 b2b6|705|+R
 otnau5|4kab2/4a4/4c3n/3P3R1/6b2/6B2/9/4B4/1r2A4/4KA3 w|h7f7 b2b1|705|mate
-p1n5hd|5a3/3ka4/b3b1n2/4p4/r5p1p/2P3P1P/4N4/4BA3/4A1CcR/4KNB2 w|i2i4 a6a1 e3c1 a1c1 e2d1 c1d1|705|mate
+p1n5hd|5a3/3ka4/b3b1n2/4p4/r5p1p/2P3P1P/4N4/4BA3/4A1CcR/4KNB2 w|i2i4 a6a1 e3c1 a1c1 e2d1 c1d1|705|mate;duimian
 3btrhc|6b2/4a2C1/3k5/6N2/6b2/9/8P/4B4/4K4/2B6 b|g6e8 g7e6|705|mate
 94ywn5|r1bak1bn1/4a4/1cn6/pCp1p1p1r/8p/9/P1P1P1P1P/4B1C1N/4A2c1/RN1AK1BR1 b|g10e8 h1h2|705|+C
 s8359c|rnb1kabnr/4a4/1cc6/p1p1p1C1p/9/9/P1P1P1P1P/6C2/9/RNBAKABNR b|g10e8 g7g10 e8g10 g3g10|705|mate
 sqt5sv|1nb1kabr1/r3a4/6n2/p1p1N1p2/2c5P/6P2/P1c1P4/NC2C4/5R3/R1BAKAB2 b|h10h2 f2h2|710|+R
 5zmex2|1rb1ka2r/4a4/cRn1b1N2/p1p1p4/6n1p/2P6/P3P1C1P/6N2/4A4/2B1KABR1 w|g8e9 b10b8|710|+R
 2sutcx|2b1ka3/4a4/1P2b1n2/4r3p/rC1R2pP1/9/4P1c2/2N1BAN2/4A4/4KCB2 b|a6b6 d6b6|710|+R
-jf6brx|2ra1kb2/2C1a4/b8/3N5/8p/9/9/4n2n1/4A2R1/3AK4 w|c9c7 e3c2|710|mate
+jf6brx|2ra1kb2/2C1a4/b8/3N5/8p/9/9/4n2n1/4A2R1/3AK4 w|c9c7 e3c2|710|mate;wocao,duimian
 rd5q81|3ak1bnr/nr2a1R2/4b4/1Np6/p3c3p/2Pcp4/PC7/3CB4/1R1NA4/3AK1B2 b|e6e7 b4b9|710|+R
 ncs2np|3akab2/9/4b4/9/1P7/2p1n4/8P/R2A4B/9/2rCKA3 w|b6b7 e5f3|710|
 3v2hu1|3akar2/8C/4br3/3Rp3p/2b2n1R1/8P/1p7/4B3B/4A4/3AK4 w|h6f6 f8f6|710|+R
@@ -473,7 +473,7 @@ dagfh3|3akab2/1r1n3r1/c1c1b4/p1p1p4/6pnp/C1PR5/P2RP1P1P/N2CB1N2/4A4/2BAK4 b|c8d8
 9391n0|3akab2/5c3/4b3n/p7p/3rpn3/P1B3p2/2C3P1P/N3B4/4A3R/3RKA1r1 b|d6d4 d1d4|715|+R
 yius1v|3akabR1/3n1r3/4b1P1c/p2c5/2p5p/P3P4/1rPC4P/RC2B4/4A4/1NB1KA3 b|b4b3 a3b3|715|+R
 vnwob0|4k3C/1R7/4b4/9/9/6Bp1/4c3r/3AB4/4A4/4K4 w|b9i9 i4i9|715|+R
-u9dqar|4ka3/4a3R/9/p3r4/8p/P2cCc3/8P/4B4/4A4/2B1KAC2 b|f5f7 g1g10|715|mate
+u9dqar|4ka3/4a3R/9/p3r4/8p/P2cCc3/8P/4B4/4A4/2B1KAC2 b|f5f7 g1g10|715|mate;tiandi
 or6oqq|4kab2/4a4/3cb1nR1/p1r1pn2r/2p3p1p/2P1P1P2/P7P/B1N1BR1N1/4A3C/3AK4 w|i2f2 f7h8|715|+R
 pan4x2|4kab2/4ac3/1c2b4/p3pn2p/9/Cp2N1P1P/P1r1P4/4B4/4A4/RNBAK4 b|b5a5 e5c4|715|+R
 fdbx3d|r1baka3/3R1n1c1/c1n1b4/2P1p3p/9/1p2P4/P1C2rp1P/4B4/3NAC2R/3AKNB2 w|d9f9 f4f9|715|+R
@@ -486,7 +486,7 @@ v41dk8|2b2k2r/2R1a4/4ba1c1/1n2P1p1p/9/6P2/4C3P/4B4/4A4/4KAB2 w|e7e8 b7c9|720|+R
 c9e61s|2bak4/4a3r/b2c5/4p4/p2n4p/2P1P1P2/P3N3P/4B4/1r2A2C1/3RKAB1R b|b2b8 d1d6|720|+H
 gt4v94|3ak1b2/r3a4/5c3/4p2cp/p1b1n2r1/4R2NP/P3P4/4B1N2/4A4/2BAK2CR b|h7g7 h1h6|720|+R
 0fccjy|3ak4/4a4/4b4/9/2b1p2PP/2r6/4P1n2/2N3R2/2C6/4KAB1c b|g4e3 c2c5|720|+R
-23vzq1|3akn2C/R3a1R2/9/9/6b2/2B1p1r2/1c7/9/C3A4/r2AK4 b|f10e8 g9g10|720|
+23vzq1|3akn2C/R3a1R2/9/9/6b2/2B1p1r2/1c7/9/C3A4/r2AK4 b|f10e8 g9g10|720|;shuangjiang
 oc4a7z|3ckab2/1R1n3r1/1r2baR2/8p/P1p1p1p2/2P6/4P1P1P/2C1B1N2/4A4/2B1KA3 w|g8f8 b8b9|720|+R
 gay618|4ka3/1r2a4/4b4/5r2p/p1p1CN3/4c1P2/P1PR2n1P/4B1N2/4A4/3RKAB2 b|f7f6 d4d10|720|mate
 jetuli|4kabnr/4a4/4b1c2/p3p1p1p/2pn4c/1CP5C/P3P1PRP/B5N2/3rA4/RN2KAB2 b|d2d3 e2d3|720|+R
@@ -500,13 +500,13 @@ b7cyrj|rn1ak4/4a4/b1c1b4/p3p3C/2pRn3p/4c4/P1P1r1P1P/N3C1N2/9/2BAKAB1R b|c8c9 g3e
 m7f3tf|2Rak4/4a4/2c6/p3p4/3n1r2p/P1B6/4P2pP/2N1B4/4A4/3AK4 w|c10c8 d6c8|725|+R
 mhxpab|2b1kab2/4a4/1c4n2/p3p1C1p/2pn5/P5C1P/2P1Pr3/2N1B4/4Ac1R1/2B1K4 b|f4f3 g7g10|725|mate
 kb0wjf|2bak4/4an2r/2n4c1/3Rp1p2/p1b2r3/6P1p/P3P2cP/2N1BC1NR/4AC3/2BAK4 b|h8f8 f2f6|725|+R
-er9e16|4k1b2/4a4/3ab4/4n1C2/3N3P1/1C4P2/1n1cp4/4B4/4A4/4KAB1c w|e1d1 b4d3|725|mate
+er9e16|4k1b2/4a4/3ab4/4n1C2/3N3P1/1C4P2/1n1cp4/4B4/4A4/4KAB1c w|e1d1 b4d3|725|mate;mahou,tiandi
 w3ba2v|4ka3/2Pn5/4ba2b/p3p4/1R3P1r1/PN6r/4P1n1c/4B1C1R/4A4/4KAB2 b|i5b5 b6b5 d9c7 b5b10|725|+R
-rrssbk|5a3/3ka4/4b2N1/p3p4/2b1c4/P3n1B2/9/4B4/1N2A4/4K4 w|h8i6 e5f3 e1f1 e6f6|725|mate
-t95873|9/9/3abk2b/9/8p/5N3/4C3P/4B4/4K4/2B6 b|d8e9 e4f4|725|mate
+rrssbk|5a3/3ka4/4b2N1/p3p4/2b1c4/P3n1B2/9/4B4/1N2A4/4K4 w|h8i6 e5f3 e1f1 e6f6|725|mate;mahou
+t95873|9/9/3abk2b/9/8p/5N3/4C3P/4B4/4K4/2B6 b|d8e9 e4f4|725|mate;mahou
 au1wvf|r1b1ka2r/1c2a4/2n1b1n2/p3p3p/2p3Pc1/8P/P1P1P4/C1N3C2/4A4/1RBAK1BR1 b|c8b6 b1b6|725|+H
 lmwbfl|r1b1kab2/4a4/n2c2n2/2R1p1p1p/p2c3r1/6PCP/P1P1P4/3C2N2/4A4/1NBAK1BR1 w|d3d8 a8c7|725|+R
-ass16t|r1bak1b1r/4a4/nc5c1/p1p1C3p/6P2/C8/P1P1n3P/9/9/RNBAKABNR b|e9f10 a5e5|725|mate
+ass16t|r1bak1b1r/4a4/nc5c1/p1p1C3p/6P2/C8/P1P1n3P/9/9/RNBAKABNR b|e9f10 a5e5|725|mate;chong
 9gx8ai|rn1ak1b2/4a4/4b4/p2R5/2p1C2rp/C8/P1c1P1n1P/2N1B2cN/4A4/4KABR1 b|a7a6 a5a10|725|+R
 aep3we|rnbak3r/4a4/1c2b1n2/2p1p2cp/p5p2/2P5P/P3P1PR1/1CN1B1NC1/4A4/R3KAB2 b|g8h6 h4h6|725|+H
 ldr789|1Rb1knb2/4a4/3r5/p7p/2p1c4/1N4B1P/4P4/9/4A4/3K1A3 w|e2d3 d8d3|730|mate
@@ -514,13 +514,13 @@ ldr789|1Rb1knb2/4a4/3r5/p7p/2p1c4/1N4B1P/4P4/9/4A4/3K1A3 w|e2d3 d8d3|730|mate
 5q2s43|2bak1r2/4an3/2c4Pb/p1n1r4/4p3p/2R3B2/P1P1P3P/2N1C4/5C2R/4KAB2 w|c5c7 e7c7|730|+R
 1a43f5|2bak1rr1/4a4/n8/N1p1p3p/6p2/P1P5P/4P1P2/1C2B4/6c2/1R1AKABcR w|i1h1 h10h1|730|+R
 mzbgb7|3R5/9/3Pk3b/5r3/9/6B2/9/4BA2N/9/5K3 b|e8f8 d10f10|730|mate
-jn7ykw|3rC2n1/2NRak1C1/5r3/5R3/PP4b1p/3N5/4P3P/3KB2c1/4A4/5A3 w|f7f3 d10d9 d3d2 d9d5 e2d3 f8f3|730|+RRH
+jn7ykw|3rC2n1/2NRak1C1/5r3/5R3/PP4b1p/3N5/4P3P/3KB2c1/4A4/5A3 w|f7f3 d10d9 d3d2 d9d5 e2d3 f8f3|730|+RRH;zhuoshuang
 pffkgz|4ka3/4a4/4b4/R8/PC4b1p/3r1n3/5N2P/9/4A3c/2B1KAB2 b|d5d7 a7d7|730|+R
 e7ewbw|r1b1ka3/4aC3/2n1br3/p1p1p4/4c1p1p/P1P6/2N2RN1P/2C6/1Rc6/2BAKAB2 w|i4i5 f8f4|730|+R
 0lcvt2|r1bakabn1/9/1cn3cCr/p1p1p1p1p/9/9/P1P1P1P1P/1C2B4/4A4/RN2KABNR w|h1i3 i8h8|730|+C
 919dvy|r2akab2/9/1cn1bc1rn/2p3p1p/P3p4/2P6/4P1P1P/2N1C3N/3RA4/2BAK1BR1 b|d10e9 h1h8|730|+R
 9uq9mu|rnb1kab1r/4a4/8n/p1p1p3p/6C1c/P1P6/R3c1P1P/4B2C1/4A4/1NB1KA1NR w|i4i5 i6i1|730|+R
-p2r333|rnbakr3/4a4/9/p6Np/1cbcR2n1/PCB6/4P4/2N1BC3/4A4/3RKA3 b|f10g10 h7f8|730|mate
+p2r333|rnbakr3/4a4/9/p6Np/1cbcR2n1/PCB6/4P4/2N1BC3/4A4/3RKA3 b|f10g10 h7f8|730|mate;guajiao
 qj47qw|2bak3r/4a4/2ncb1nc1/p3p1pCp/2p6/1rP3P2/PC2P3P/2N1B1N2/9/1RBAKA2R b|b5c5 e3c5|735|+R
 t5ticx|5k3/4c4/5a3/2N6/p5b2/9/P5n2/4B4/5K3/2B6 w|f2f3 e9f9|735|mate
 tejf9o|r1b1ka3/4a4/1cn1c1n1b/p1p1p1C1p/9/P6rP/2P1P1P2/1CN3N2/4A4/R1BAK1BR1 b|h5e5 e4e5|735|+R
@@ -549,11 +549,11 @@ fsxvkt|2bak3r/4a4/2n1b1nc1/p3p1N1p/6P2/2p6/PrcR3CP/3CB4/4A4/1NBAKR3 w|b1c3 c4c1 
 x371q1|3ak1b2/4a4/bn7/8p/3NP1R2/6P1P/4C4/2r1B4/9/3AK2c1 b|c3a3 g6g10|745|mate
 15qe1e|3aka3/9/4b4/p8/6b2/P1BN5/4P4/R8/3K1p3/r8 b|a7a6 a3a1|745|+R
 yo7ar1|4k3r/r3a4/3Cb1n2/p3p2cp/9/1n7/P2RP1pCP/4B1N2/8R/2BAK4 w|i2b2 b5d4|745|+R
-9hui4b|4k4/4a4/5c3/8p/2b6/4n3P/1p1N5/8B/9/5K3 w|d4c2 e5f3|745|mate
-3mnn8x|4ka3/9/4P4/9/9/9/9/3A1A3/4K4/2B6 b|f10e9 e8e9 e10f10 e2e3|745|mate
+9hui4b|4k4/4a4/5c3/8p/2b6/4n3P/1p1N5/8B/9/5K3 w|d4c2 e5f3|745|mate;mahou
+3mnn8x|4ka3/9/4P4/9/9/9/9/3A1A3/4K4/2B6 b|f10e9 e8e9 e10f10 e2e3|745|mate;kunbi
 s81ud5|C2akab2/9/4b1n2/6r2/9/4pc1p1/P1p5P/2N1B1nR1/1R2A4/2BAK4 b|e10e9 b2b9|745|mate
 2vhmcj|r1bcka3/4a4/n1R1b1n2/4p1p2/p1P4rp/6PCP/P2cP4/3C2N2/4A4/1NBAK1BR1 w|b1c3 d4c4|745|
-6hsgym|1nbakr3/3Ra4/4b3c/p1C1p1R2/8p/5rP2/2P1P1n1P/2C1B1N2/4A4/cN1AK1B2 b|c10a8 c7c10 a8c10 c3c10|750|mate
+6hsgym|1nbakr3/3Ra4/4b3c/p1C1p1R2/8p/5rP2/2P1P1n1P/2C1B1N2/4A4/cN1AK1B2 b|c10a8 c7c10 a8c10 c3c10|750|mate;mengong
 kwd82i|1nbk1abr1/3r5/3R5/p1p1C1p2/2c5P/2c3P2/P3P4/N3C4/9/R1BAKAB2 w|f1e2 d9d8|750|+R
 34qygc|2b1ka1r1/4a4/2n3cc1/p3p1C1p/2p3b2/P7P/RrP1P4/2N3NR1/4A4/2BAK1B2 b|a7a6 a4b4|750|+R
 xiasoz|2bakr3/4a4/2R1b1n2/2c1p1p1p/p1pn1r1c1/5NPCP/P3P4/N8/2C1A3R/2B1KAB2 w|c2c7 d6c8|750|+R
@@ -565,7 +565,7 @@ wkdxpl|3akab2/1r1n3r1/c5c1n/2p1p3p/p5b2/3R3NP/P1P1P4/N2CB2C1/4A4/4KABR1 b|h9h5 d
 vy40h7|4k1b2/3na4/4ba1R1/P3p4/8p/5Nr2/PC2rn2P/5A3/4A4/1R2K1B2 w|b1d1 g5g1|750|mate
 40fabk|4k4/4a4/4ba1N1/9/6b1p/5CB2/1n3c3/3p1A3/9/2BK5 w|f5c5 b4c2 f3e2 f4d4|750|mate
 0tli5e|4ka3/4a4/P3b4/9/6b2/2r6/5p3/9/3Rp4/4K4 w|d2e2 c5c1|750|mate
-iwxfzt|C2k5/4a4/4ba2b/9/4r4/9/3r5/9/4A4/3AK3R w|i1i2 d4d1|750|mate
+iwxfzt|C2k5/4a4/4ba2b/9/4r4/9/3r5/9/4A4/3AK3R w|i1i2 d4d1|750|mate;duimian
 k3wr67|r1bakab2/4n4/1c2n4/p1p1p3p/9/P5P2/2N1PC2P/1r2B4/4A4/R1BAK2R1 b|b8b4 f4f3|750|
 fr1238|rn1ak1br1/4a4/1c2b4/p1p5p/4p2C1/P2c5/2P5P/4N2C1/3RA4/1NBK1AR2 w|e2d3 h10h6|750|+C
 x5cljf|rnbak4/1R2an3/4b4/4pr3/p7p/C2N5/c3P1P1P/B3C3N/4A4/4KAB2 w|i4i5 a6a5|750|+C
@@ -602,7 +602,7 @@ h8s0ym|4ka3/4a4/9/2N1n4/2b3b2/4R2p1/c3r4/3N4B/4A4/2BAK4 b|a4a2 e5e4|760|+R
 d9obss|r1bak1b2/4a4/6n2/p6r1/2pnp1Pcp/c8/P1P1PN2P/1C2B4/4A4/RN1AK1BR1 w|c4c5 a5a1|760|+R
 47k6b9|2b1k4/4n4/c4a1N1/2p1pc1R1/9/2PN2rCP/4r4/9/4A4/R2AK1B2 w|a1a3 g5g1|765|mate
 ilg71y|2b1ka1R1/9/3r5/8p/R4np2/2P4N1/P4r2P/8B/4A4/3AK4 b|f6e8 h5f4|765|+R
-jg37ib|2b6/1N1ka4/3a5/3P5/2b6/2B6/9/5A3/4K4/2p6 b|e9f10 d7d8|765|mate
+jg37ib|2b6/1N1ka4/3a5/3P5/2b6/2B6/9/5A3/4K4/2p6 b|e9f10 d7d8|765|mate;duimian
 erskq5|3aka1n1/3R1c3/2C1b4/p1p1p1pC1/1P4P2/4c2p1/P7r/4r2R1/4A4/2B1KAB2 b|f10e9 c8c10|765|mate
 i8r33e|3k3r1/4a2P1/3a2P2/4pR1R1/9/Pr4B2/9/9/4A4/5K3 b|h10h9 h7h9|765|+R
 bxycbx|4k1n1r/4a4/4ba3/r5p2/2P2N3/pn2c1P1p/PR7/2RCC4/4A4/2BAK4 w|f6g8 i5h5|765|
@@ -629,7 +629,7 @@ b97nya|2bak4/1r1Ra2c1/2c1b1n2/2C1P3p/p5p2/2P6/P6rP/4B1N2/4A4/4KAB1R b|e9d8 d9b9|
 bv3313|2rak2r1/4a4/4b3C/p1n1C4/7R1/4P4/P1c6/4B3c/4A4/4KA1R1 b|c4f4 h6h10|775|+R
 3rr4dk|3a1k3/4a4/8b/4n4/p1R6/p2n5/9/4BA3/6r1R/4KC3 b|d5f6 c6f6|775|+H
 q8kgrd|3ak1b2/4a4/2r1b1n2/4p4/3R5/p8/1cC1P4/6N2/3CA2r1/2RNK1B2 b|c8c4 c1c4|775|+R
-9j2lb4|3ak1b2/4a4/3cb4/4R3p/p3C4/2B5P/P1c1P4/2N1B4/4A1r2/3AK4 b|e8c10 e7g7 e10f10 g7g2|775|+R
+9j2lb4|3ak1b2/4a4/3cb4/4R3p/p3C4/2B5P/P1c1P4/2N1B4/4A1r2/3AK4 b|e8c10 e7g7 e10f10 g7g2|775|+R;chou,zhuoshuang
 x9tfot|3ak1b2/4a4/8c/p4N3/1R4P2/P3p2rp/4r4/9/4A4/2BAK1BR1 w|a5a6 h5h1 f7g9 e10f10 b6f6 i8f8|775|+R
 0xx2ll|4ka3/4a4/4b3b/p2rP1N2/9/P1B3P2/9/4B4/4A4/4KA3 b|a7a6 e7d7|775|+R
 3q2jwv|4ka3/4a4/4b4/8p/2b2R3/6B2/4r4/8B/4A1p2/4KA3 w|f6c6 e8c6|775|+R
@@ -644,10 +644,10 @@ i0ejrn|2bak4/4a4/8r/2R5p/2n6/p1P3P2/4P3P/C1N2c2N/9/1r1AKA2R b|f3f8 c3b1|780|+R
 55btb3|2bk5/2N1a4/9/9/2p6/1R6p/9/B7B/4A1r2/4KA3 b|i5i4 b5d5 e9d8 d5d8|780|mate
 9m6ung|2rakabnr/9/4b1cc1/p3p1p2/8p/P5P2/1n2P3P/2NCB1NC1/2R1A4/2BAK3R w|c3a2 b4c2|780|+R
 6e1tc8|3Nkab2/3c5/C5R2/1r6p/p8/3r5/P1P1P3P/4B4/3NA4/4KAB2 w|g8g5 d5d2|780|+H
-jdrpsg|3ak1n2/1N3RC2/4P4/r8/p1b5p/4p4/P7P/4B4/9/4K1B2 b|a7b7 b9d8|780|mate
+jdrpsg|3ak1n2/1N3RC2/4P4/r8/p1b5p/4p4/P7P/4B4/9/4K1B2 b|a7b7 b9d8|780|mate;guajiao
 fni5uy|3ak4/4aP3/4b4/9/2b6/5nB2/9/5A3/4AK3/2B5r w|e2f1 i1i2|780|mate
 d67ugv|4ka3/9/3an1r2/9/8P/9/p3R1r2/3AB3C/4A4/2B1K3R w|i3i5 g4e4|780|+R
-gn3ksx|4kab2/3R5/4b4/4P4/6p1p/9/4c3P/3pB4/4Ar3/3CK1B2 w|d9d4 f2e2|780|+A
+gn3ksx|4kab2/3R5/4b4/4P4/6p1p/9/4c3P/3pB4/4Ar3/3CK1B2 w|d9d4 f2e2|780|+A;chuanxin
 eyr5nz|4kabr1/3c3C1/3ab2C1/4R3p/p1pN5/P7P/6P2/4B2R1/3K5/2B1r4 b|e1i1 h8h10|780|+R
 cldish|R2ak1b2/4a4/4b4/9/5r1P1/3R1N3/7p1/5A3/9/3AK4 b|e8g6 d5d10|780|mate
 qm4z03|r1bak1b1r/4a4/1cn5n/2p1p1C1p/p5c2/2P6/P3P1p1P/1C2B4/4A3N/RN2KAB1R w|g7g8 b8g8|780|+C
@@ -662,20 +662,20 @@ sp3sov|2rak1b2/4a2C1/1cn1b1n1r/p3p4/P1p6/1C4B1R/R3P4/2N3N2/4A4/2c1KA3 b|c8d6 i5i
 59sh03|4k4/4a4/4ba3/8C/p3c1b1P/5n3/PNn4c1/4B2R1/4A4/4KAB2 w|h3h4 f5h4|785|+R
 szgiys|4k4/4a4/5a3/9/P1p1r1R1P/9/4r1P2/4B4/4A4/2BAK4 w|a6b6 e6g6|785|+R
 adkp4p|4ka3/4a4/b1n5r/p1RP4p/6b2/2B3C1P/2P1c1P1N/9/9/c1BAKA3 w|c7c8 i8c8|785|+R
-6bd610|4ka3/9/3R5/p8/9/9/9/1r2B4/9/c3K4 w|d8c8 b3e3 e1d1 e3d3|785|mate
+6bd610|4ka3/9/3R5/p8/9/9/9/1r2B4/9/c3K4 w|d8c8 b3e3 e1d1 e3d3|785|mate;duimian
 ywrnwb|4kab2/4a4/4b4/p3p3p/2P4P1/P5p2/2n1P1c1N/4Br3/4A4/3NK1B1R b|g5f5 e2f3|785|+R
 spoac6|R1bk1a3/9/4bc3/9/p1p1p3p/9/c1P1P3P/N3B4/1C2KN3/2BA1r3 w|a10a7 a4a7|785|+R
 hu9eni|2b1ka3/2r6/4b1P1c/pR1C5/3P2n1p/P8/r2R4c/N8/4A4/2B1KAB2 b|g6e7 d4a4|790|+R
 ars6ss|2b1kab2/4a4/2P3nc1/2p1p4/4P3p/2Pr5/8P/3RB1p2/1N2A4/2BAK4 b|i6i5 d3d5|790|+R
 oy05dy|2b6/3ka1RC1/c5c2/2p1p1N2/9/2Pr4P/9/9/4A4/R2AK1Br1 b|d5e5 g9g8|790|+C
 6daowy|2bak4/4a4/8b/R4N2p/9/3n4P/9/4B4/9/4K4 b|d5f4 f7g9 e10f10 a7f7 e9f8 f7f8|790|mate
-mgx4kv|3RC1b1r/3R1k3/6n2/p7p/2b6/P1B1r1p2/8P/6c2/4A4/1N2KAB2 b|f9f10 e10e6|790|mate
+mgx4kv|3RC1b1r/3R1k3/6n2/p7p/2b6/P1B1r1p2/8P/6c2/4A4/1N2KAB2 b|f9f10 e10e6|790|mate;shuangche
 fpbb89|3ak1b1r/9/1r2ban2/1P5c1/9/2P1p3p/C3P3P/R1N1B4/4ACn2/3A1KBNR b|g2i1 b7b8|790|+R
 s0f7yo|3ak4/9/4ba3/8p/p1brp4/4R3P/P3P1N2/4B4/4A4/2BAK4 w|e3c5 e6e5|790|+R
 98iosa|4ka3/4a4/4b4/9/1P5R1/9/9/3AB4/4A4/2BK4r w|h6h1 i1h1|790|+R
-tt2mof|4ka3/4a4/bn7/8p/3NPR3/6P1P/2r1C4/4B4/9/3A1K2c b|c4d4 f6f10|790|mate
+tt2mof|4ka3/4a4/bn7/8p/3NPR3/6P1P/2r1C4/4B4/9/3A1K2c b|c4d4 f6f10|790|mate;duimian
 uyg3wp|4kab2/4a4/4b4/p3pR3/2P4P1/P4rN2/4P4/4B1c2/3nA4/3NK1B2 b|a7a6 f7f5|790|+R
-sh9eto|R2ck4/4a4/4b4/5N3/5Rb2/p4p2r/9/4B4/4A4/3AK1B2 b|i5i1 f7g9|790|mate
+sh9eto|R2ck4/4a4/4b4/5N3/5Rb2/p4p2r/9/4B4/4A4/3AK1B2 b|i5i1 f7g9|790|mate;wocao
 s6xvxk|r2akn3/4a4/1cn1c3b/p1p3P1p/9/3r1pB2/PCPR5/2N1C1N1B/4A4/2RAK4 b|f10h9 d4d5|790|+R
 nb2hf3|rn2kabn1/4ar3/1c2b1c2/p3p3p/5Cp2/PN7/2P1P1P1P/6N2/4A2C1/R1B1KAB1R w|f6a6 a7a6|790|+C
 dnhjxt|1n3a3/3ka4/b7b/2P3n2/6p2/1R5p1/1N2P1P2/2c2A3/5Nc2/1r1AK4 w|f3e2 c3c1|795|mate
@@ -685,24 +685,24 @@ q55afy|2b1kabr1/4a4/P5nC1/2p1p1p2/9/2Pc2P1p/2r6/1N3C2N/4Ac3/2R1KABR1 b|i5h5 c1c4
 vs8ndf|2bak1n2/9/3ab4/1n3C2p/p3p1p2/9/P2R4P/2N1BA3/4Ar1c1/4K1BN1 b|h2h3 f7f2|795|+R
 pj284m|3aka1r1/1R1n5/4b1nC1/4p1C1p/2b6/6r1P/p3P2R1/4B4/4A4/3AK1B2 b|g5g4 h4g4|795|+R
 mx7fbk|3akr3/4a4/b3b4/n4rn1p/P1p2Pp2/2P5P/1c2N1c2/3CB1N2/4A4/R3KAB1R b|c6c5 f6f7|795|+R
-svsc36|3k5/9/R3b1n2/p7p/2p6/7cP/9/9/4K4/1r3AB2 b|g8i9 a8d8 d10e10 d8e8 e10f10 e8f8|795|mate
+svsc36|3k5/9/R3b1n2/p7p/2p6/7cP/9/9/4K4/1r3AB2 b|g8i9 a8d8 d10e10 d8e8 e10f10 e8f8|795|mate;duimian
 ri3ak5|4ka3/4a4/b3P4/9/6N2/9/9/3AK4/4A4/9 b|e9d8 g6f8 e10d10 e8d8 f10e9 d8d9|795|mate
 cm90mi|4ka3/r3a4/4b4/8p/9/1p4B1P/9/4B4/2n6/3K1AR2 w|g1i1 a9d9|795|mate
 1o7o42|9/3k5/6R2/1Rc5P/4p4/6B2/4p1n2/3A1K3/9/5C3 w|g8e8 c7c3 g5e3 e4e3|795|mate
 0r3305|r1bak4/4a3r/6n2/p3pcP2/1cp4P1/5N3/P1P1P4/9/4A4/RNB1KAB1R w|h6h7 i9i1|795|+R
 qpxown|r1bak4/4a4/2n1b1nc1/p1p1p1pCp/9/6P2/PCPcP2rP/2N1B4/4A3N/1R2KAB1R b|h4f4 b4d4|795|+C
 1rrbp7|r2ak1b2/2c1a4/nR2b4/4p2R1/p1p3pr1/7N1/P1P1P1n2/2N1B1C2/4A4/4KAB2 w|h5f6 h6h7|795|+R
-d909k1|r2k1ab2/4a4/b3c4/p2r3Cp/4R4/P8/4c4/4B4/4A4/2BAKR3 w|f1f3 d7d1|795|mate
+d909k1|r2k1ab2/4a4/b3c4/p2r3Cp/4R4/P8/4c4/4B4/4A4/2BAKR3 w|f1f3 d7d1|795|mate;duimian
 pi0yfm|rnb1kac2/4a2r1/5c1C1/p1p5p/5Pbn1/2P2p3/P5P1P/2N1B2C1/4AN2R/R1B1KA3 b|h9h8 h3h8|795|+R
 yomfsn|1n1ak2n1/4a3r/3cbC1cb/rC3R2p/p1p1p4/6B2/P1P1P3P/2N5N/4A4/4KABR1 b|i9f9 h1h8|800|+C
-cu87gf|2b1k1C2/6r2/c1n2a3/2p1pc1R1/8N/2PN2P1P/4r2C1/4n4/4A4/R1BAK4 w|e1f1 e4f4 f1e1 e3c2|800|mate
+cu87gf|2b1k1C2/6r2/c1n2a3/2p1pc1R1/8N/2PN2P1P/4r2C1/4n4/4A4/R1BAK4 w|e1f1 e4f4 f1e1 e3c2|800|mate;wocao,shuangjiang
 2kuktw|2b1ka1r1/3ca4/4n1r1b/p1p1N1p2/9/4P1PCP/P8/4B1N2/4A4/2B1KA2R b|c7c6 e7g8|800|+R
 ah5mcd|2bak1n2/9/3ab4/p2C4p/3np1p2/9/PR6P/2N1BA3/3r3c1/3AK1BN1 b|e6e5 d7d2|800|+R
 k8kfcd|2bak3r/4an3/c1n1b4/6p1P/p3p4/2p6/P2RP1P2/r2C2Nc1/4AC3/2B1KAB1R b|i10h10 c1a3|800|+R
 qqhg41|3a1k3/4a4/4R3b/p8/9/9/Pr2c1P2/B3BC3/4A4/4KA3 w|e8d8 e9d8|800|+R
 aql93r|3a3r1/4k1c2/r1nNba2n/6p2/6b1p/p1P2N3/4c3P/1R2CC3/4A4/2BA1KBR1 w|h1h7 h10h7|800|+R
 yjqhs2|3ak4/4a1P2/b3b4/9/9/6B2/3n5/4BA3/4AK3/8r w|e2f1 i1i2|800|mate
-sx54xg|4k1n2/2r3C2/3aP4/2N2R3/p1b6/8p/P8/9/5K3/6B2 b|c9d9 f7f10|800|mate
+sx54xg|4k1n2/2r3C2/3aP4/2N2R3/p1b6/8p/P8/9/5K3/6B2 b|c9d9 f7f10|800|mate;duimian
 xc3bal|4ka1nr/4a4/2n1b1c2/p1C3p2/2b5p/P2c2P2/2r1P3P/B4RN2/2C1A4/3AK1B1R b|c8e7 c7c4|800|+R
 ht8uom|r1bak4/9/2C1b4/p3p3p/2p6/P6RP/2P1P4/2N1B4/9/2BAKA1cr w|e1e2 i1i2 h5h2 i2h2|800|mate
 e8djvk|r2ak4/4a3N/6r1b/2pR2n2/p7p/6B2/P1P6/8B/2R1A4/3AK4 b|g8g10 i9g10|800|+R
@@ -715,8 +715,8 @@ wlo8o0|2bak4/4a4/4b1n2/p3p3p/3n2r2/P1p1P3P/7R1/2N1BC3/4A4/2B1KACc1 b|g6g1 e3g1|8
 97cb9u|r1b1ka3/4a4/2n3n2/p5C1p/4p1br1/5N3/Pcp5P/1CN4R1/9/R1BAKAB2 b|h6h7 h3h7|805|+R
 cuoe0w|r3ka1r1/4a4/b4cn2/2C1p4/p1p3b1p/8P/P3P2n1/2N6/4A1R2/1RBAK1BN1 w|g2g6 h4g6|805|+R
 cbw9yg|1nbaka1r1/3rc4/4b1n2/p3p1p1p/2p6/6P1P/P1c1P4/2N1B1C1N/R1C5R/3AKAB2 b|h10h3 c2c4|810|+C
-c6dvbl|1nbakr3/3Ra4/4b1c2/p1C1p3R/9/5rP1P/2P1P1n2/2C1B1N2/4A4/cN1AK1B2 b|c10a8 c7c10 a8c10 c3c10|810|mate
-ycxny6|2Raka3/9/8b/5c3/9/4r4/P8/9/1N7/2BA1K3 w|c10c3 e5f5 c3f3 f5f3|810|mate
+c6dvbl|1nbakr3/3Ra4/4b1c2/p1C1p3R/9/5rP1P/2P1P1n2/2C1B1N2/4A4/cN1AK1B2 b|c10a8 c7c10 a8c10 c3c10|810|mate;mengong
+ycxny6|2Raka3/9/8b/5c3/9/4r4/P8/9/1N7/2BA1K3 w|c10c3 e5f5 c3f3 f5f3|810|mate;duimian,shuangjiang
 oam98s|2b1k3N/1r2a4/9/p6R1/n1p3P2/8p/9/4B4/4A4/2B1KA3 b|b9b1 i10g9 e10f10 h7f7 e9f8 f7f8|810|mate
 46beiw|2bakr3/4a4/4b1n2/2R1p1p1p/p1p2r1c1/6PCP/P3P4/N3B1n2/2C1A3R/4KAB2 w|g5g6 f6f1 e2f1 f10f1|810|mate
 370zb8|3ak4/4a4/4b2CP/p8/2rRp4/P1Bnr3p/9/4B4/4A4/4KAR2 w|g1g3 c6d6|810|+R
@@ -732,18 +732,18 @@ aro4aj|1r2kab2/4a4/1Cn1b1ncr/pR2p2R1/6p1p/P1pN5/2c1P1P1P/3C2N2/4A4/2B1KAB2 w|d5f
 81hxos|2bak1b2/4a3r/c1n2c3/2p1pR3/pr5nN/2P3P1P/PC2P2C1/2N1B4/4A4/R1BAK4 w|b4c4 h6f7|815|+R
 cw4hxt|2bakn3/4a4/9/4C1R1p/p1b1p2c1/P5PCP/9/4B4/1r6N/3AK1B2 b|f10e8 g7g10|815|mate
 0h8lp6|2bnkabn1/4a4/4c3r/r1p1p2C1/2C3p1p/2P2R3/pc2P1P1P/2N1B1N2/4A4/3RKAB2 b|c7c6 h7a7|815|+R
-s0pptw|3akcb2/r8/2n1ba3/9/2p1C3p/6Cc1/P1P1N3P/2N1B4/3RA2n1/2BAK4 b|e8g6 g5e5|815|mate
+s0pptw|3akcb2/r8/2n1ba3/9/2p1C3p/6Cc1/P1P1N3P/2N1B4/3RA2n1/2BAK4 b|e8g6 g5e5|815|mate;chong
 qal308|4ka1r1/9/b1na2c2/6Ccp/2R1p1bR1/8P/4P4/2N1B1N2/2r1A4/2BAK4 w|h6h7 h10h7|815|+R
 gioeaw|3ak1b2/4a3r/4n2c1/pr4p1p/1C2p1b2/P1n2R3/1R4PcP/2p1BC2N/9/3AKAB2 w|f5c5 h4b4|820|+R
 ty9w1i|3k5/4a4/9/3R5/9/9/9/3AB3B/4Cr3/3AK4 b|e9d8 d7d8|820|mate
 6gzmrg|4k4/9/3a1a3/5r2p/5Nb2/4pR2P/9/4B4/4A4/2BAK4 w|c1a3 e5f5|820|+R
 uimbnf|4ka3/4a4/9/p8/2b2R3/P8/9/2r1Rc3/9/3AKABr1 b|f3f5 e3c3|820|+R
-cw7uar|4kab2/4a4/4b4/9/6p1p/P3c4/4r1P1P/B1R1BR3/4A4/3AK4 w|e2f1 e4e3 f1e2 e3c3|820|+RE
+cw7uar|4kab2/4a4/4b4/9/6p1p/P3c4/4r1P1P/B1R1BR3/4A4/3AK4 w|e2f1 e4e3 f1e2 e3c3|820|+RE;shuangjiang,zhuoshuang
 irtl4h|4kab2/4a4/4b4/p2N2p2/2r2R3/Pn1R2P2/2n4p1/1r1pB4/4N4/3AKAB2 b|d3e3 f6c6|820|+R
-tisk9b|C1b1k4/4a4/4b4/9/4R4/9/9/3AKA2r/9/5N3 b|e9d10 e6e8 e10f10 e8f8|820|mate
+tisk9b|C1b1k4/4a4/4b4/9/4R4/9/9/3AKA2r/9/5N3 b|e9d10 e6e8 e10f10 e8f8|820|mate;duimian
 r5fw6k|rn1akab2/9/4bc2n/4p4/p1C2r3/P1Pc4P/4P1R2/3AB2CB/R3A4/4K2N1 b|d5d9 c6c10 d10e9 c10a10|820|+R
 e6u54h|rnb1kab1r/4a4/6n2/p1p1p1p2/2c5P/5NP2/P1c1P4/1C2C4/8R/RNBAKAB2 w|b3b9 c6c1|820|+E
-p2za6z|1R1ak1b1r/3RC4/6n2/p7p/2b6/P1B1r1p2/8P/6c2/4A4/1N2KAB2 b|e5f5 b10d10|825|mate
+p2za6z|1R1ak1b1r/3RC4/6n2/p7p/2b6/P1B1r1p2/8P/6c2/4A4/1N2KAB2 b|e5f5 b10d10|825|mate;shuangche
 ca71os|2b1ka2r/2r1an3/7c1/p2C2cCp/2b1p4/3N4P/P3P1P2/4B4/3R1N3/2BAKAR2 w|d2b2 g7g1|825|+R
 73u4iu|2b1kaN2/8c/b2P1a3/p8/9/P8/9/4BA3/4A4/3K5 b|i9d9 d8d9|825|+C
 p5n3mz|2bak4/4a2C1/4b4/5r3/p6n1/2B1n4/PN2NR3/9/4A4/1c2KA3 w|f4i4 h6i4|825|+R
@@ -751,7 +751,7 @@ r9w0qw|2bak4/4a4/2n1b1Nr1/1rp1p1p1N/p8/2P1P1P1P/P2cc4/1C2BC3/4A4/4KABR1 w|h1h5 h
 tlds6k|2bakr3/4a4/c3b1c2/2C1C1p2/2p4np/R4NP2/2P1P3P/2r1BA2B/4A4/4K1R2 w|g1h1 h6f5 a5f5 f10f5|825|+RH-H
 m6kdbr|2r1ka3/1R2a4/b2n4b/6p2/P8/9/9/BN7/4A4/3AK4 w|b3d4 d8b9|825|+R
 8vrh11|2r1kabn1/n1r1aR3/9/p3c1p2/P5b1p/4CR2P/2P3p2/2NA5/3K5/2B2ABN1 b|c9c6 f9f10|825|mate
-fe95jh|3ak4/4a4/b1n1b4/8P/7n1/3C2r2/5R3/1N2BK2N/cr7/5ABR1 w|d5b5 g5g3|825|mate
+fe95jh|3ak4/4a4/b1n1b4/8P/7n1/3C2r2/5R3/1N2BK2N/cr7/5ABR1 w|d5b5 g5g3|825|mate;shuangche
 sxfcu1|3ak4/9/9/3P4p/p3c4/9/P1P5P/4B4/9/r1BAK4 w|d1e2 a1c1|825|mate
 vikkyr|4ka3/4a4/7C1/p1p3P2/1P7/7p1/P2rc4/4R2r1/4A4/2B1KAB2 b|h3h1 h8h10|825|mate
 t702cb|4kab1r/3Ca4/1c2b1c1n/p1p1p3p/9/5Np2/P1P1P3P/2N1B4/9/1RBAKA3 w|f1e2 g5f5|825|+H
@@ -762,7 +762,7 @@ kum4u2|1Rb1ka3/4a4/8P/9/4n1n1p/P1P6/8P/N2CC4/4A4/2B1KArr1 b|g1g2 b10c10|830|mate
 tgxewz|2b1ka1r1/4a4/2n3c2/4p1Ccp/2p3b2/8P/RrP1P4/2N1B1NR1/4A4/2BAK4 b|g8h8 h3h7|830|+C
 8nsyfw|2b1ka3/4a4/3nb1n2/2CRp3p/p1P3p2/3N4P/P3P4/1r4N2/4A4/4KAB2 b|g8f6 d5f6|830|+H
 r5of6n|2bak4/4an3/3cb4/6p1r/pn7/3CP4/P2R2P2/4B4/4A4/2B1KA1R1 w|d5d6 d8d4|830|+R
-fqczqy|3a3n1/2N2k1C1/9/5r3/PP2C1b1p/3N5/4P3P/4B2c1/3KA4/5A3 b|f9e9 d5e7|830|mate
+fqczqy|3a3n1/2N2k1C1/9/5r3/PP2C1b1p/3N5/4P3P/4B2c1/3KA4/5A3 b|f9e9 d5e7|830|mate;mahou,tiandi
 4t24lp|3ak4/r2na2R1/1c2b1n2/4p4/2p3b2/pCP5r/4P2c1/2N1BC3/4A2N1/R1B1KA3 b|i5h5 h9h5|830|+R
 i4nma2|4ka3/1P2a4/nR2b4/8p/2br2p2/1N6P/9/4B4/4A4/4KA3 b|i7i6 b5d6|830|+R
 4r4xx2|4kab2/4a4/2N1bc3/p1r5P/9/PR7/9/2N6/4A4/2B1KAB2 b|f8f2 b5b10 e8c10 b10c10 e9d10 c10d10|830|mate
@@ -801,9 +801,9 @@ c8z51s|3ak1b2/4a4/2n6/pRNrp4/3P1R2r/P5B2/9/4B4/4A4/3AK2c1 b|c8a9 f6i6|845|+R
 vuktnj|3ak4/4a4/8b/9/1P4b2/2p6/8n/2r1R4/4A4/3CK1B2 b|c3b3 e3b3|845|+R
 bpuxk6|3akabr1/3nn4/3c5/2pcp1PCp/pr4b2/4P3P/P1P2R3/B1N1B4/3RAN3/3CKA3 w|e5e6 d8d2|845|+R
 rntib6|3k5/4a4/7R1/9/9/9/5r3/3AB3B/4C4/3AK4 b|e9f10 h8d8|845|mate
-tkq2gd|4k2C1/2R1a4/4ba1N1/2pr5/3r5/2P3P1p/P4N3/4B4/4A4/2BAK4 b|e9d10 h8g10|845|mate
+tkq2gd|4k2C1/2R1a4/4ba1N1/2pr5/3r5/2P3P1p/P4N3/4B4/4A4/2BAK4 b|e9d10 h8g10|845|mate;mahou
 giqnip|4ka3/4a4/9/2N1n4/2b1p1b2/c6p1/1R2r4/3N4B/4A4/2BAK4 b|e4g4 b4g4|845|+R
-rnga1c|4ka3/9/4P4/9/9/9/9/3AK4/4A4/2B6 b|f10e9 e8e9 e10f10 e2d1|845|mate
+rnga1c|4ka3/9/4P4/9/9/9/9/3AK4/4A4/2B6 b|f10e9 e8e9 e10f10 e2d1|845|mate;kunbi
 mkspvg|5a3/3ka4/4b4/p7p/2b3c2/P8/9/4B4/1R1cAK3/2BA3r1 w|f2f3 h1h3|845|mate
 5twyc1|1rbaka1r1/5n3/2n1b1c2/p1p1p1p1p/9/2P4NP/P3P1c1R/1C2B1C2/3N5/R2AKAB2 w|i4g4 g8g4|850|+R
 uu0s57|2bak4/1r7/3ab4/4pr3/PPR2npC1/4P4/6P2/2NcB4/4A4/2BAK4 w|h6f6 e8c6|850|+R
@@ -813,7 +813,7 @@ jwdmkh|2baka3/5r3/4b1C2/p3p3p/2P5c/9/P1n1P2cP/4B2NC/5N3/2BAKA2R b|d10e9 g8g10|85
 f7y875|3ak4/r2Ra4/4b3b/1n7/P5p2/2B6/9/3A1N3/9/3AK4 w|a6a7 a9d9|850|+R
 foi7cd|4kn3/2C6/3aP3b/p1N1r3p/2b2R3/4c4/Pp2c3P/3A5/2C2K3/2BA5 b|d8e9 e8e9|850|+A
 fvf0yw|5k3/4R4/9/9/9/9/9/4BA3/C8/1r1AK1B2 b|b1b3 a2f2|850|mate
-80kw0o|7R1/3k5/4ba3/4c3P/p4Cb2/6B2/P2n4c/2n1B4/4A4/4KA3 w|h10h4 d4f3|850|mate
+80kw0o|7R1/3k5/4ba3/4c3P/p4Cb2/6B2/P2n4c/2n1B4/4A4/4KA3 w|h10h4 d4f3|850|mate;guajiao
 z75245|r1bnkab2/4a1r2/9/p3P1c2/2P5p/1R1n5/P3N2p1/2C6/3NA3R/3AK4 b|g7g1 b5d5|850|+H
 bw82te|r2akabnr/9/n1c1b4/p1p1p1pcp/9/2P6/P3P1P1P/1CC1B4/4A2R1/RN2KABN1 b|h10g8 h2h7|850|+C
 8q5nvb|2b1ka1r1/4a4/4b1c2/2r1C2cp/7R1/5N2P/4P4/4B2R1/4A4/2BAK4 b|c7e7 f5e7 h7h3 h6h10|855|+RR-R
@@ -830,18 +830,18 @@ nazay0|2bak2r1/4a4/n8/N1p1p3p/6p2/P1P5P/4P1P2/1C2B4/4Arc2/3RKABcR w|d1d5 g2e2|86
 ym0p5g|4ka1cr/4a4/4b2P1/2C1p4/N1r5P/P8/9/2n1B4/R3K4/3A4R w|e2f2 c6f6|860|mate
 n1i0fy|4ka3/4a4/2n6/5n1rc/2b1N1b2/p3P3C/3rNR2P/4B4/4AC3/2B1KA3 b|e9d8 e6f8|860|
 j0q90u|4ka3/4a4/9/9/9/p2r5/9/4BR3/9/c1BAKA3 w|f3f2 d5d1|860|+A
-h6eq50|5kb2/4a4/3ab1P2/9/9/p3n4/9/B2A1p3/4Ap3/4K1B2 w|e2d1 e5d3|860|mate
+h6eq50|5kb2/4a4/3ab1P2/9/9/p3n4/9/B2A1p3/4Ap3/4K1B2 w|e2d1 e5d3|860|mate;guajiao
 27c9sa|r1b1ka3/4a4/4b4/R7p/P3p4/6nr1/8P/B4C3/4A4/3AK1B1R b|e6e5 a7a10 g5f3 e2f3|860|+RH-C
-pxvyjv|r1baka1r1/9/1c2c1n1b/4p3p/p1p6/2P1n1C2/P5P1P/B4CN2/4N4/2RAKA2R w|i1h1 e5f3|860|mate
+pxvyjv|r1baka1r1/9/1c2c1n1b/4p3p/p1p6/2P1n1C2/P5P1P/B4CN2/4N4/2RAKA2R w|i1h1 e5f3|860|mate;guajiao
 iuhah6|r3kab1r/4a4/2n1b1n2/pR2p1p2/2p5p/9/Pcc1P1P1P/BCN1B1C1N/4A4/4KA1R1 b|b4e4 c3e4|860|+C
 ipbute|rn1ak3r/4a4/2c1b3b/p3pC2p/2p3Cn1/4P1P2/P1P5c/4B4/1R1NA4/3AK1BNR w|i1i4 h6i4|860|+R
 ukfo92|1r2kab2/2R1a4/b3c1nC1/9/P3r1R2/4p1P2/4P4/4B1N2/4A4/2B1K4 b|e5e4 g6e6|865|+R
-itpwzd|2bak4/4aC3/n8/N1p1p3p/2P3p2/P7P/4P1r2/4B2c1/4AR3/4K4 b|e10f10 f9g9 f10e10 g9g4|865|+R
+itpwzd|2bak4/4aC3/n8/N1p1p3p/2P3p2/P7P/4P1r2/4B2c1/4AR3/4K4 b|e10f10 f9g9 f10e10 g9g4|865|+R;chou
 ptjasr|4knb2/3Ra4/4b3r/prp5p/2c6/1R6P/4P4/N3B4/4A4/4KA3 b|e8g6 b5b7|865|+R
 mri7zn|r1bak1b1r/4a4/2n1c2c1/p1p1C3p/6P2/4C1n2/P1P5P/4B3R/9/RNBAKA1N1 w|e7d7 h8h5|865|
 t16ecj|r1bak1b1r/4a4/2n3n2/p3p1p1p/2p4c1/P7P/RcP1P1P2/1CN1B1C2/4A4/2BAK2NR b|b4e4 c3e4|865|+C
 g4bvv2|rn1akab1r/9/2c1b1n2/p3p1C1p/9/8P/P1P1P1P2/1C7/7c1/RNBAKABNR w|c4c5 c8c1 d1e2 c1a1|865|+RE
-q0eq7n|1R3a3/3ka4/b7b/2P3n2/6p2/7p1/1N2P1P2/5A3/5cc2/1r1AK4 w|b10b5 b1d1|870|mate
+q0eq7n|1R3a3/3ka4/b7b/2P3n2/6p2/7p1/1N2P1P2/5A3/5cc2/1r1AK4 w|b10b5 b1d1|870|mate;duimian
 eg2900|1rb1ka1nr/4a1c2/1cn1b4/p1p1p3p/6p2/9/P1P1P1P1P/NC2B4/4A1C2/R1B1KA1NR b|a7a6 b3b10|870|+R
 6fzhcl|2bak4/4an2r/7c1/4p1p2/p1bn5/6P2/P3PN1cp/2N1BC2R/4AC3/2BAK4 w|e4e5 i4i3|870|+R
 yspk5p|3ak4/4a4/4P4/6N2/2R5p/4c2r1/8P/4r4/4A4/3RKA3 b|e3i3 e2f3|870|
@@ -863,7 +863,7 @@ obeb4x|1n2kabc1/4a4/4b4/p1P3CC1/4p1p2/1N6P/P2rP4/4B4/4A4/2B1KA3 b|e6e5 b5d4|885|
 lsehvq|3a1kb2/4a4/9/1P7/2b1r1p2/2R6/3N5/9/4A4/3AK4 b|f10e10 d4e6|885|+R
 9y7a4g|3akn3/4a4/4b4/4C1R2/P1b1p2P1/9/7p1/4B1N2/6r2/3A1KB2 b|g2g3 g7g3|885|+R
 79cq6c|4k3r/r3a4/1Cnab1n2/p3p2cp/6p2/9/P1R1P1PCP/4B1N2/9/2BAK3R b|a9b9 c4c8|885|+H
-qdpj08|4ka2r/4an3/8b/p2Np3p/1cpn2P2/P7P/2P1P4/B2C2c2/4A4/RN2KAB1R b|c6c5 d7c9|885|mate
+qdpj08|4ka2r/4an3/8b/p2Np3p/1cpn2P2/P7P/2P1P4/B2C2c2/4A4/RN2KAB1R b|c6c5 d7c9|885|mate;wocao
 8h0zls|4kabr1/4a4/2C1b4/p7p/1cP2np2/P2rC3P/R3Pc3/4B4/4A4/2BAK3R w|c6b6 f4a4|885|+R
 10q9rr|r1b1ka1nr/4a4/2n1b4/pcp1p2Cp/9/PNP3p2/4P1c1P/1C3RN2/4A4/R1B1KAB2 w|g1e3 b7b3|885|+C
 1ujdq5|r1b1kab1r/4a4/c1n1c1n2/2p1p1p2/P7p/2P3P2/4P3P/2N1C4/1C2N4/R1BAKAB1R w|c5c6 a8a1|885|+R
@@ -887,34 +887,34 @@ denodb|2bakab2/2r6/n3c4/3P2p1p/p1Rnp4/1C1N2P1P/P2cP2r1/B3B1NC1/4A4/4KA1R1 w|g3f5
 9t2jqo|2bakr3/4a4/4b4/2C6/4P3p/3C5/2PcP3P/1pR2AN2/9/cr1AK1B1R w|i4i5 b3c3|895|+R
 ro33cp|3ak4/3P5/9/8p/p3c4/9/r7P/9/4A4/4K1B2 w|g1e3 a4a1|895|mate
 humb6c|4kab2/4a4/4c4/9/p1R3b2/2pp2N2/P7P/2nAB4/4A1r2/2B1K4 w|c6g6 g2g1|895|mate
-4oqfwo|5a3/3k5/4P4/9/9/9/9/B2AK4/9/3A5 b|f10e9 e8e9 d9d8 d1e2|895|mate
+4oqfwo|5a3/3k5/4P4/9/9/9/9/B2AK4/9/3A5 b|f10e9 e8e9 d9d8 d1e2|895|mate;kunbi
 kmsb06|rn2kab2/4aR1r1/4b1n2/p1p3C1p/4P3P/6PC1/P7c/2N1B3N/4A4/3RKAB2 b|h9h5 g7g10|895|mate
 4itats|1nbak4/4a4/r3b1n2/2C1p1p1p/p4r3/6P2/P1P1P3P/1N2BC2R/1c5c1/1R1AKABN1 b|b2c2 c7c2|900|+C
 qm7wm5|1rb1ka3/4a4/5cn1b/1C2p1C1p/p1pn3P1/1c1r5/2P1P2R1/2N1B1N2/4A4/1R1AK1B2 b|b10b7 g7b7|900|+R
-ze6k37|2b1k1b2/5R3/9/P2N5/9/2B6/7p1/3A5/4A1r2/5K3 b|g2g6 f9f10|900|mate
+ze6k37|2b1k1b2/5R3/9/P2N5/9/2B6/7p1/3A5/4A1r2/5K3 b|g2g6 f9f10|900|mate;duimian
 gojbkw|2b1ka3/4a4/5cnPb/1r1C2C1p/2pnp4/pc6r/2P1P2R1/2N1B1N2/4A4/1R1AK1B2 w|h4g4 b7d7|900|+C
 y002oh|2bak3r/3Ca4/r3b2c1/p4R1C1/1R2p2np/P1p3p1P/4P1P2/4B1N2/2c1A4/1NB1KA3 w|f7f8 e9f8|900|+R
 e80vzm|3ak1b2/4a4/8b/8p/2P6/3rc4/3r5/4B4/4A4/1RNAK1B2 w|b1b4 d4d1|900|mate
 itdyd1|4k4/4an3/n3b1c1r/4pCp2/R1Cr4p/1pp6/P3P3P/2N1B3B/9/1R1AKA1N1 w|c6c9 d6a6|900|+R
 vzhbby|4ka3/3na4/1r2b4/p1c3p1p/1RbNR4/4P1P2/P7P/9/4A4/2BAK4 w|d6c4 b8b6|900|+R
-ual4vp|5a3/3k5/4P4/9/9/2B6/9/3A1A3/4K4/9 b|f10e9 e8e9 d9d8 e2e3|900|mate
+ual4vp|5a3/3k5/4P4/9/9/2B6/9/3A1A3/4K4/9 b|f10e9 e8e9 d9d8 e2e3|900|mate;kunbi
 rt90vp|5a3/3ka4/b3b4/4p3c/r5p1p/2P3P1P/4n4/5AC2/4R4/2BAKNB2 w|c1e3 a6d6|900|
 jka818|r1bak4/4a2c1/n1c1b1n2/2p1p3p/p5p2/1NP1P4/PC3rPCP/3RB1N2/4A4/4KAB1R b|a6a5 h4f4|900|+R
 anznth|r1bakab1r/9/n3c1n2/C1p1C1p1p/p8/6P2/P1P1P3P/7c1/4A4/RNB1KABNR b|d10e9 a7a10|900|+R
 t6e6n2|r2ak1b1r/4a4/2n1n2c1/pCp1pRpcp/6b2/9/P1P1P1P1P/2N1BC2N/9/1R1AKAB2 w|d1e2 h7f7|900|+R
 erb9jw|1nc1k4/4a1r2/r2cb3b/4C3p/1R2p1N1P/p2R2P2/4P4/4B1n2/4A4/2B1KA3 w|g6f8 d8f8|905|+H
 ubqtmw|2b1kab2/1r2a1n2/2n3c2/p1p1p3p/1c4pr1/1R7/P1PCP1P1P/2N3N2/3CA2R1/2B1KAB2 b|g8d8 h2h6|905|+R
-c6xq2o|2b1kab2/9/4c2Cr/2pcC4/p7p/PN4p2/2P1P1P1P/B6R1/3r5/R2AKABN1 b|f10e9 h8h10|905|mate
-ba0wk7|3Pk4/4a4/b5n2/3RPN3/2b6/6B2/5r2P/4B4/4A4/3K1A3 b|e9d10 d7d10|905|mate
+c6xq2o|2b1kab2/9/4c2Cr/2pcC4/p7p/PN4p2/2P1P1P1P/B6R1/3r5/R2AKABN1 b|f10e9 h8h10|905|mate;tiandi
+ba0wk7|3Pk4/4a4/b5n2/3RPN3/2b6/6B2/5r2P/4B4/4A4/3K1A3 b|e9d10 d7d10|905|mate;duimian
 an6afn|3ak1b2/r3a4/5c3/4p2cp/p1b1n1Pr1/4RC1NP/P3P4/4B1N2/4A4/2BAK3R b|h6h5 g3h5|905|+R
 yrlwvd|3cka1nr/4a4/b1n1b1c2/pCCr2p2/2P1p3p/P8/4P1P1P/B3R1N2/4A4/3AK1B1R b|e9d8 b7d7|905|+R
 azthxs|3rkab1r/4a4/2n1b3n/pR2p1p2/2p5p/2P6/P3P3P/1cN2CN2/4A4/4KABR1 w|b7b5 b3f3|905|+C
 ql0cwl|6b2/1R4r2/4ka3/p1r1CR2p/9/2N2p3/P5n2/9/4A4/2B1KAB1c w|c5a6 c7c1 e2d1 g9b9|905|+RE
-iebslw|1R3a3/3ka4/b7b/2P3n2/4c1p2/7p1/1N2P1P2/5A3/5Nc2/1r1AK4 w|f3e2 b1d1|910|mate
+iebslw|1R3a3/3ka4/b7b/2P3n2/4c1p2/7p1/1N2P1P2/5A3/5Nc2/1r1AK4 w|f3e2 b1d1|910|mate;duimian
 aj5mem|2b1ka3/4a4/9/3RP4/2r6/9/6p2/3An4/4A4/4KR3 w|d7d9 c6c1|910|
 a0i5qf|2b1kabn1/4a2Cr/n1N6/2p5p/1r1cp1p2/9/2RcP1P1P/C3B1N2/4A4/2BAK2R1 b|i9h9 h1h9|910|+R
 dj5le2|2bak4/2n6/3a2n1b/2N1p1C1p/p3P4/5Nr2/P2c1r1cP/4B4/4A3C/3RKABR1 w|a4a5 g5f5|910|+H
-5p0t7h|2bak4/4a2c1/5c2b/3RC4/p4Np2/2B6/P5Nrp/4BA3/5R3/3K1A3 b|c10e8 d7d10|910|mate
+5p0t7h|2bak4/4a2c1/5c2b/3RC4/p4Np2/2B6/P5Nrp/4BA3/5R3/3K1A3 b|c10e8 d7d10|910|mate;duimian
 434iww|2bakab2/9/2nn4c/3r3CR/3N5/4P1p2/9/4B4/4A4/c1CAK1B2 w|d6f7 d7f7|910|+H
 bk52xk|3ak1b2/4a1r2/2Crb1nRc/p3p3p/2p3p2/8P/P5P2/2C1B4/4AN3/R1B1KA3 b|c6c5 c8c10 e8c10 c3c10|910|mate
 g2ymtl|3rkabr1/4a4/1cn1b1n1c/p3p1CRp/2p6/9/P1P1P1P1P/3C2N2/4A4/RNB1KAB2 w|g1e3 h10h7|910|+R
@@ -924,7 +924,7 @@ jj0knz|1nbak3r/4an3/1c2b2c1/p5p2/2p2r2p/4C4/P1P1P1P1P/2N1BA3/5C3/1R1AK1BNR b|c6c
 g5fymh|1r1ak1b2/3na4/4b1n2/p3p1rc1/2p6/1C3N1R1/P1P1P4/2N1B4/4A4/R1BAK4 b|h7i7 f5g7|915|+R
 odchju|1rb1kab2/4a4/6P2/p3Nr3/8p/P2n3c1/1C2R2CP/2pA4R/4K4/1NB2AB2 b|c10e8 e7d5|915|+H
 bc0hte|2b1ka3/4a1rr1/2n1b4/4p3P/pcp5p/3n5/P1P1PR2P/2C3C1N/6R2/1NBAKAB2 w|g1e3 d5f4|915|+R
-a27cgr|2baka2r/r8/2n1b1nc1/2C5p/p3C1p2/2P6/P3P1c1P/4B1N2/3RA4/1N1AK1B1R b|f10e9 c7c10|915|mate
+a27cgr|2baka2r/r8/2n1b1nc1/2C5p/p3C1p2/2P6/P3P1c1P/4B1N2/3RA4/1N1AK1B1R b|f10e9 c7c10|915|mate;tiandi
 yqa33y|r1bak1br1/4a4/1cn3nc1/p1p1p1p1p/9/P8/2P1P1P1P/1CN4C1/4A4/R1B1KABNR b|g10e8 h3h10|915|+R
 um4xc3|rnbaka2r/5n3/2c1b2c1/p1p1p1C1p/9/9/P1P1P1P1P/2N4C1/9/R1BAKABNR w|h1g3 f9g7|915|+C
 shxnsu|1n1ak2r1/3ra4/1C2b1n2/p1c1pR3/2p3b1p/4P4/P1P5P/2N1B1C1N/3cA4/1RBAK4 w|b8g8 c7f7|920|+R
@@ -939,7 +939,7 @@ j3y2v6|4kab2/r2na4/4bc2n/2p1p3C/9/p1Pr4P/1cN1P4/4B4/C3AN2R/R3KA3 b|c7c6 a2a9|920
 5rrb5d|5a3/4a4/3k5/9/5c3/3n1R3/9/5A3/4AK3/2B4r1 w|e2f1 h1h2|920|mate
 kvnl62|1nbak2nr/rC2a4/3cb1c2/p1p1p1p1p/9/8P/P1P1P1P2/2C1B1N2/9/RN1AKAB1R w|b1d2 a9b9|925|+C
 sm3z7y|1r1akab2/8r/1cn1b1nc1/p1p1p1p1p/9/2P6/P3P1P1P/3CBC3/5N3/RNBAKA1R1 b|b8b2 h1h8|925|+C
-1ot1vi|1r2knb2/3Ra3r/4b4/pcpCR3p/9/6B2/2P1P3P/9/2N1A4/2c1KA3 w|c2a1 b7b1|925|mate
+1ot1vi|1r2knb2/3Ra3r/4b4/pcpCR3p/9/6B2/2P1P3P/9/2N1A4/2c1KA3 w|c2a1 b7b1|925|mate;chong
 ihduc5|2b1ka3/4a4/r1n1b1n2/1R2p1C1p/p1p6/6P1c/P2cP1R2/4B2rN/3CN4/3AKAB2 w|b7b4 d4g4|925|+R
 eqb20c|2baka3/9/3nr4/3R5/P1p6/2P6/9/2N1B4/4A4/2BAK4 b|e8e3 c1e3|925|+R
 xppubp|2bcka3/4a4/3rb4/2n4r1/p3p2n1/4P2R1/P1PR5/3AB3C/1N7/4KABN1 w|h5h6 h7h6 d4d8 e9d8|925|+RR-R
@@ -955,21 +955,21 @@ bqa8rg|5k3/9/3aba3/p8/6b2/P5B2/9/2N4R1/2r1p4/3K5 w|h3f3 c2c1|930|mate
 2gkywg|1nbaka1nr/r8/1c2b2R1/4p1P1c/p1p5p/9/P1P1P3P/2C1C1N2/9/RNBAKAB2 w|g3h5 b8h8|935|+R
 qiidxf|2b1ka3/4a2r1/4b4/4p3P/pcpn1nr1p/4PR3/P1P5P/N1C3C1N/6R2/2BAKAB2 w|a4a5 d6f5|935|+R
 clmgiv|2bak4/4a4/4b1Cn1/N2R4p/p1n1p4/6B1P/P2r2P2/4B4/4A4/3AK4 w|a4a5 d4d7|935|+R
-7uo5uk|4k4/4a4/9/9/8p/4c4/4r3P/R2A5/8N/4KA3 w|d3e2 e4a4 e2f3 a4a3|935|+R
+7uo5uk|4k4/4a4/9/9/8p/4c4/4r3P/R2A5/8N/4KA3 w|d3e2 e4a4 e2f3 a4a3|935|+R;chou,zhuoshuang
 gtixrq|4ka1n1/2C1a4/c3R4/p2cpP2p/1n7/5r1r1/P1P1P3P/N3B1C2/4AN2R/2B1KA3 b|f5f2 g3g10|935|mate
 vnulv3|4ka3/4a4/4b4/p3pn3/2b4Rp/P1B6/4P1P2/2C1B4/1r2A4/Rc2K4 b|b2a2 a1a2|935|+R
 krhdk1|r1bak4/4an1r1/4b4/p3p1RCp/2P2c3/4P4/P7P/4B4/N3A4/1R2K1B2 w|c6d6 f9g7|935|+R
-zoshqn|2bakab2/9/2C5P/4p4/P8/3cc4/3r2P2/4B4/4A4/3K1AB1R w|e2d3 d4d3|940|mate
+zoshqn|2bakab2/9/2C5P/4p4/P8/3cc4/3r2P2/4B4/4A4/3K1AB1R w|e2d3 d4d3|940|mate;shuangjiang
 sb9ily|3ckab2/7r1/4bR3/8p/2P1p1p2/9/1n2P1P1P/2C1B1N2/4A4/2B1KA3 w|f8f2 b4c2|940|
 xz9t7p|4ka3/4a3n/4Rc3/p5r2/8p/P2c2C2/8P/4B4/4A4/2B1KAC2 b|f8g8 g1g7|940|+R
-uf5shh|8N/4k4/4ba3/4c4/p8/9/P2n2C2/4BAn2/9/2BAK4 w|f3e2 d4c2|940|mate
+uf5shh|8N/4k4/4ba3/4c4/p8/9/P2n2C2/4BAn2/9/2BAK4 w|f3e2 d4c2|940|mate;wocao
 txir6q|r2ak2r1/4a4/4b1n2/4pRC1p/p1R6/6P2/P6cP/4B1N2/4A4/2BAK4 w|g5g6 e8c6|940|+R
 s2lnga|rnb1ka2r/1R2a4/2c1c1n1b/2p1p4/p7p/6C2/P1P1P1PCP/N8/4A4/2B1KABNR w|g5c5 c8c5|940|+C
 ce0qus|rnbak3r/3Ra4/c3b1nc1/p1P1p3p/6p2/9/P3P1P1P/N1C3NC1/9/2BAKAB1R b|i10i9 c3c10|940|mate
 6huw45|2bakab1r/4n4/r3c4/4p1P1p/p8/3R1n2P/P1c1P4/B1N1C1C2/4A4/3AK1BNR b|c4c7 d5f5|945|+H
 9hab5o|3ak4/4a4/1rn1b1n2/p2Cp1C1p/1c7/P7P/4P1P2/1R2B4/9/c2AKABN1 w|e3c1 b6e6|945|
 75eyb0|3akab2/3c5/4b4/p8/8p/P7P/2p1R4/Bn1C5/2N6/3K1pr2 w|d3d10 c4d4|945|mate
-2mji99|3akabn1/8r/n8/2P5p/P2P2b2/2B3Pc1/4C3P/N1C5B/4A4/1R1AK2c1 b|a8b6 c3e3|945|mate
+2mji99|3akabn1/8r/n8/2P5p/P2P2b2/2B3Pc1/4C3P/N1C5B/4A4/1R1AK2c1 b|a8b6 c3e3|945|mate;chong
 p3wk5w|3rk1bn1/4a2Cr/3abn3/p1c3N1p/4p2P1/P1p3p1R/1c1CP4/2R1B4/3NA4/3AK1B2 w|i5g5 c7c3|945|+R
 77cedp|1r2ka3/4a4/b2Rb3c/6P2/1P2C2c1/2B6/9/5A3/9/3K1A3 w|e6e1 i8d8|950|+R
 dx4ldg|2b1k4/4a4/2n1b2n1/4p4/2PP2p2/2R1c1B2/9/6r1R/c2rA4/3CK4 w|c5e5 a2a1|950|mate
@@ -977,7 +977,7 @@ y5gebe|2bak1r2/4an3/3c3Pb/p1n1Nr3/2p1p3p/3R2B2/P1P1Pc2P/2N1C4/4AC3/4KAB1R b|f9h8
 sa4mzz|2bak4/4a4/1Rn1b4/2N5p/p8/2P6/c3C3P/4B2r1/9/3AKA3 w|b8c8 h3e3|950|+E
 t5vh5k|2bk2nR1/9/c4a2N/2p1p1c2/9/2Pr3CP/4r4/8B/4A4/R2AK4 b|g7g3 h10g10|950|+H
 62apc2|4k4/4a4/3abn3/p8/2b4r1/P5B2/3rR3p/9/3NA4/R1BK1A3 b|h6h1 e4d4|950|+R
-k3h4fw|5a3/3k5/4P4/9/9/9/9/3AK4/4A4/2B6 b|f10e9 e8e9 d9d8 e2d1|950|mate
+k3h4fw|5a3/3k5/4P4/9/9/9/9/3AK4/4A4/2B6 b|f10e9 e8e9 d9d8 e2d1|950|mate;kunbi
 o96pxg|r2ak1bnr/3na4/4b2c1/p1p1p1p1p/8c/1C4P2/P1P1P3P/2N1B2C1/4A4/R1BAK2NR w|b5a5 i6i1|950|+R
 9e3vkw|rn1akabr1/9/1c2b1c1n/p1p3pCp/4p4/P8/2P1P1P1P/6C1N/4A4/RNBAK1B1R w|g1e3 h10h7|950|+C
 fzfghw|2bak4/4an2r/2c6/4p1p2/p1bn5/6P2/P3PN1cp/2N1BC3/4A3C/2BAK3R b|d6f7 i2i9|955|+R
@@ -998,10 +998,10 @@ abivut|2b1kab1r/4a4/n3c1nc1/2p1p1p1p/C8/P8/2P1P1P1P/2N1B1N2/3rA2C1/R1B1KA2R b|h8
 dbqnyx|2na1ab1r/r8/c4kn2/p1N1R3p/2C2c3/P1p1P1P1P/2P6/4B4/4A3R/3AK1BN1 b|c10b8 e7f7|965|mate
 dqqrx6|3ak4/4a4/4n4/p3C1P2/2b1p1N1P/Pr7/1c7/1R2B4/4A4/c3KAB2 w|e3c5 b4e4 e7e4 b5b3|965|+R-C
 qjsqzq|3rkabnr/4a4/2n1b2c1/p1p1p1p1p/8c/1CP4C1/P3P1P1P/2N3N2/4A4/R1B1KAB1R w|a1b1 i6i1|965|+R
-i9q62l|4ka3/3Ra2Cr/bcn3nR1/r1p1pN3/p1c3b2/1C6p/P3P4/4B1N2/4A4/4KAB2 b|b8b9 f7g9|965|mate
+i9q62l|4ka3/3Ra2Cr/bcn3nR1/r1p1pN3/p1c3b2/1C6p/P3P4/4B1N2/4A4/4KAB2 b|b8b9 f7g9|965|mate;wocao
 ouvoqg|1rb1kar2/1C2a4/4b3n/p1n1p4/6P1p/1c7/P1P1P2cP/2N1B1C2/4AR3/1R2KABN1 b|i8h6 g3g10|970|+R
 4mb3h7|2b1kabrC/9/2Nn5/8R/4p4/2B6/9/1p7/4Ap3/4K4 w|i10g10 h10g10|970|+C
-hpc9co|2r1kab2/5C1r1/4Ran2/3cp1p2/p7p/4C1P2/P1c1P3P/B1R4N1/4A4/3AK1B2 b|e10d10 e8d8|970|mate
+hpc9co|2r1kab2/5C1r1/4Ran2/3cp1p2/p7p/4C1P2/P1c1P3P/B1R4N1/4A4/3AK1B2 b|e10d10 e8d8|970|mate;shuangche
 e8q6qr|3a1a3/3Pk4/4bN3/5P3/9/6n1P/7R1/1c1AB4/9/2BAK2p1 b|e9f9 h4h9|970|mate
 pe1glz|3ak1b1r/4a4/2n1b1nc1/p3p1p1p/2p2c3/1C3NP1P/Pr2P4/R1N1BA1C1/5R3/2BAK4 w|c3d5 b4b5|970|+C
 jy1c6m|3aka2C/9/4b4/4p4/9/2r1n1R2/9/2NR1A3/4K4/5A3 b|e10e9 g5g9|970|mate
@@ -1030,7 +1030,7 @@ vwk444|r1b1ka1nr/2n3C2/3a4c/p3p4/6b2/9/P1P1P1P1P/4B1N1B/9/RN1AKA2R b|a10b10 g9g1
 gsc7y4|r1bak3C/4n4/4ba3/p1p5p/4P2RP/1c4P2/P1P1r4/4BN3/4A4/2BAK4 w|h6h4 e4h4|990|+R
 1ysxet|rn1ak1b2/4a4/2c1b1n2/pC2p1Crp/c8/2P5P/P3P1P2/2N1B4/7RR/3AKABN1 b|h7g7 b7g7|990|+R
 bzr3m7|3aka1cr/9/4b2P1/2C1p4/N1r5P/P8/n8/9/1R2K4/3A2B1R w|b2b7 c6e6|995|
-4ji9ir|3rkab2/4a2r1/4b1c2/3np4/4c3C/p1B3n2/2P5R/4B4/4A4/1C1RKA3 w|i4i5 g5f3|995|mate
+4ji9ir|3rkab2/4a2r1/4b1c2/3np4/4c3C/p1B3n2/2P5R/4B4/4A4/1C1RKA3 w|i4i5 g5f3|995|mate;guajiao
 ucw3w6|4ka3/1P2a4/NR2b4/8p/2b3p2/8P/9/4r4/4A4/4KA3 b|e8c10 b8b7|995|
 7gu2bs|r1b1kab2/4ar3/2n3c1n/p1p3p1p/4p4/2P3P1P/Pc2P2R1/1CN2C3/4A4/R1BAK1BN1 w|c1e3 b4h4|995|+R
 r5h4ez|rnb1k4/4a4/3cb2n1/4p1pR1/p1p6/4P4/P1P3c1N/2N1B3B/1C2Ar3/R3KA3 b|e7e6 b2f2|995|+R
@@ -1042,25 +1042,25 @@ dndxgm|3ak1b2/1R2a4/4bc3/p3r4/4pNP2/P3c3p/4Cr3/4C3B/4A4/2BAK3R b|e7d7 e3e5|1000|
 9x71fp|r1b1ka1nr/4a4/n1c1b4/p1C1p1p1p/9/P8/1cP1P1P1P/1C6N/9/RNBAKABR1 w|b1c3 a8c7|1000|+C
 bulh5d|r1baka1n1/9/1c2C3b/4p1p1p/P1p6/6P2/2Pr2n1P/R1N3R2/4A4/2B1KABN1 w|a6b6 a10a3|1000|+R
 ulxigu|rn1akab1r/9/2c1b1nc1/p3p1p1p/2p6/8C/P1P1P1P1P/1R4C1N/4A4/1NB1KAB1R b|g7g6 i5i10|1000|+R
-ujx9zb|2b1ka3/4a4/4c1n2/R3p3p/2b4r1/1CB1n3P/1p3r3/C8/4A4/2BNKA3 w|a3a1 e5f3|1005|mate
+ujx9zb|2b1ka3/4a4/4c1n2/R3p3p/2b4r1/1CB1n3P/1p3r3/C8/4A4/2BNKA3 w|a3a1 e5f3|1005|mate;guajiao
 i28p1q|3ak1b1R/4a4/4b1n2/5rC2/p3p1P2/p8/n1r6/2NR5/3KA1N2/6B2 w|c3d1 c4c2|1005|mate
 r0sn2q|3ak1b1r/3na4/4b2c1/1C2p3p/2P6/2BrP2n1/2P1NR1CP/2N6/R1c1A4/2B1KA3 w|c6b6 h5f4|1005|+R
 qcd90w|4ka3/4a4/4b4/p3N4/6b2/P8/4P4/1R2Bp3/3K5/5r3 b|f1h1 b3b10 e8c10 b10c10 e9d10 c10d10 e10e9 e7g8|1005|+AE
-huxtip|4kabr1/4a4/4b1C2/3np1RCp/p1p1cN3/P1P5P/6P2/4B2R1/4Ar3/2BK5 w|h3f3 f2e2|1005|+A
+huxtip|4kabr1/4a4/4b1C2/3np1RCp/p1p1cN3/P1P5P/6P2/4B2R1/4Ar3/2BK5 w|h3f3 f2e2|1005|+A;chuanxin
 hjurm2|r3ka3/4a4/4b4/9/P1b1C1P2/c1BR5/9/9/4A4/3K1ABc1 w|g6f6 a5d5|1005|+R
-2plyfb|1R1ak4/9/9/5N2p/2P6/p7P/4P1r2/9/2c2K3/3A1A3 w|b10b7 g4f4 f2e2 f4e4 e2f2 e4f4|1010|mate
+2plyfb|1R1ak4/9/9/5N2p/2P6/p7P/4P1r2/9/2c2K3/3A1A3 w|b10b7 g4f4 f2e2 f4e4 e2f2 e4f4|1010|mate;duimian,zhuoshuang
 iz14t9|2b1k4/4a4/9/3N5/2p3r2/4R3p/9/B7B/4A4/4KA3 b|c10e8 d7c9 e10f10 e5f5 g6f6 f5f6 e9f8 f6f8|1010|mate
 x9i298|2bakr3/4a4/c3b1c2/2C1C1p2/2p5p/6P2/2P1P1n1P/1r2BA2B/4A4/R3KNR2 b|g8h8 g1g4|1010|+H
-a07vem|3a1k3/4a4/4b4/9/p8/9/9/4R4/4Ar3/2n1K4 w|e2d3 f2f1|1010|mate
+a07vem|3a1k3/4a4/4b4/9/p8/9/9/4R4/4Ar3/2n1K4 w|e2d3 f2f1|1010|mate;duimian
 azif0z|3ak2r1/9/r1n1bac1n/6p2/6b1p/p1P2N3/3Nc3P/1R2CC3/4A4/2BA1KBR1 w|h1h8 h10h8|1010|+R
 va7ffx|6b2/3k2r2/1R3a3/p3R3p/9/2r2p3/P5n2/9/4A4/2BCKAB1c b|c5c3 e2d3|1010|mate
 cb834u|r1bak4/4a2c1/n1c1b1n2/2p1p2Cp/p5p2/1NP6/PC2PrP1P/3RB1N2/4A4/4KAB1R b|a6a5 b4f4|1010|+R
 5wxrmy|r2akabr1/9/1Cn1b1n2/p1p1p3p/6p2/P1C6/R1c1P3P/2N1B1Nc1/9/3AKAB1R b|a7a6 a4c4|1010|+C
 wafal2|1R1ak4/4a4/n3b1n1r/4p4/1c4b2/2B1P4/1r4N2/2N1B4/C3A1C2/4KA1R1 w|g2i2 a8b10|1015|+R
-78l335|1n3a3/3ka4/b3c3b/2P3n2/6p2/1R4Bp1/1N2P1P2/9/4ANc2/1r1AK4 w|b5a5 b1d1|1015|mate
+78l335|1n3a3/3ka4/b3c3b/2P3n2/6p2/1R4Bp1/1N2P1P2/9/4ANc2/1r1AK4 w|b5a5 b1d1|1015|mate;duimian
 i311qs|1rbakcRCr/4a4/n3b4/p1c1p4/9/P8/2P1P4/N3B4/4A1N2/4KABR1 w|h1h4 e8g10|1015|+R
 ljnqk9|2b1kabnr/4a4/n5cc1/2p3p1p/p1PCp4/2B1P4/P5P1P/8N/2C1A2r1/RN1AK1B1R b|c7c6 c2h2|1015|+R
-czqlhv|2b1kabr1/4a4/n7n/2p3p2/2P5p/R5B2/P2N1p3/1c7/1r2A2c1/RNBCKA3 w|a5c5 h2h1|1015|mate
+czqlhv|2b1kabr1/4a4/n7n/2p3p2/2P5p/R5B2/P2N1p3/1c7/1r2A2c1/RNBCKA3 w|a5c5 h2h1|1015|mate;mengong
 ch56dg|2bak3r/4a4/2n1b1nc1/1r2pRpC1/2p5p/R8/2P1P1P1P/3CB1N2/1c2A4/1NBAK4 w|a5f5 c8d6|1015|
 ob6kcn|2bak4/4a4/8b/2C1p3p/9/2n1P1B1P/2N3R2/9/r3K4/9 w|c4d2 c5b3|1015|
 d0aiv4|2baka3/9/9/4P4/9/1cBnR4/9/B4A3/9/4K4 w|e1e2 d5c3|1015|
@@ -1072,7 +1072,7 @@ jakqf3|3aka2C/9/4b1R2/3np4/9/2r6/9/2N1RA3/4K4/5A3 b|e10e9 g8g9|1015|mate
 j6579n|4ka3/3CaR3/8b/9/2b1c4/4r4/P8/2nN5/4A4/2BAK4 b|e10d10 d3e5|1015|+R
 kwwz8w|r3kab2/4a4/b3c4/p3C1Cnp/5R3/P5B2/4P2rc/9/4A4/2BAKR3 b|h4g4 f6f10|1015|mate
 cahcd4|rnbak1b1R/2c1r4/6n2/2p6/P2Rp1p2/2P3P2/4P4/4BCN2/4A4/4KAB2 b|c7c6 i10g10|1015|+E
-zmquwa|2ba1k3/4a4/4b4/5n1Np/p8/2P6/1R6P/9/5C3/c1rAKA3 b|f7h6 b4f4|1020|
+zmquwa|2ba1k3/4a4/4b4/5n1Np/p8/2P6/1R6P/9/5C3/c1rAKA3 b|f7h6 b4f4|1020|;shuangjiang
 9a8cpk|2rak4/4a4/4b4/2R2C3/6b2/pp2P3P/Pn2N4/4B1Nr1/4A4/3AK1B2 w|e4g5 c10c7|1020|+R
 p67b9y|3ak1b2/4a1n2/4b4/4n3C/P1p1C1pP1/3NP4/3c2Pr1/1c2B1N1R/4A4/4KA3 b|c6c5 d5e7|1020|+H
 hl4uqb|4ka2N/4a4/1P2b1n2/4p1n2/2b6/3NP1p2/5Rc2/3A3r1/4A4/4K1R2 b|h3h4 i10g9|1020|
@@ -1081,17 +1081,17 @@ md6k6z|2b1ka3/4a2r1/2n1b1c2/4p3p/p1p2P3/1CPr2NCn/P8/N7B/9/1RBAK2R1 b|c6c5 b5d5|1
 bo32qs|2b1ka3/4ar3/1cn1b1n2/1r2p4/3NP3p/1CP3P2/P5c1P/4B1N2/4A4/R3KABR1 b|g4d4 d6b7|1025|+R
 am1ncg|2b1kab1r/4a4/5r1c1/6p1p/3P5/P4nP2/4P3P/4B1R2/3CA4/1R2KAB2 w|e4e5 f5g3|1025|+R
 hccchw|2b6/4a1N2/3k5/7P1/2c1p4/p8/9/r4p3/9/3AKA3 w|f1e2 c6c1|1025|mate
-6n9c67|3a1k3/4a4/6r1b/4n4/p3R4/p1rn5/9/4B4/4A1N1R/4KC3 b|c5c7 g2f4 f10e10 f4d5|1025|+H
+6n9c67|3a1k3/4a4/6r1b/4n4/p3R4/p1rn5/9/4B4/4A1N1R/4KC3 b|c5c7 g2f4 f10e10 f4d5|1025|+H;chou
 pnmt6t|3ak1b2/4a4/bn7/8p/3N2pn1/4P1P1P/4C4/7R1/9/2rAKABc1 b|h6i4 h3h10|1025|
 cp8a51|5kb2/4a4/4ba3/2R5p/p8/2B1C3P/Pc2P2r1/3cB4/3N5/3AKA3 w|f1e2 d3c3|1025|
-1oc7x7|C1R1ka3/n8/1n1cr3b/9/P3p2RP/2P3p2/4P4/2N1B4/1r2N4/2BAKA3 b|e10e9 h6h9|1025|mate
+1oc7x7|C1R1ka3/n8/1n1cr3b/9/P3p2RP/2P3p2/4P4/2N1B4/1r2N4/2BAKA3 b|e10e9 h6h9|1025|mate;shuangche
 yx8w6x|r1bcka3/4a4/n1R1b1n2/4p1p2/p1P4r1/6PCp/P1c1P4/2NC2N2/4A2R1/2BAK1B2 w|h2f2 c4c1|1025|mate
 51h8m4|r3kab1r/4a4/1c2b1nc1/p3p1p1p/1np6/P8/R1P1P1P1P/3CB2C1/3NA4/3AK1BNR w|h1g3 b6a4|1025|+R
 5dl81r|rnb1kabnr/4a4/8c/p1p3p2/4p3P/1c3NP2/P1P1P4/1C2B2C1/9/RN1AKAB1R w|b1c3 i8i1|1025|+R
 myi2g8|1r3k3/4a4/4b3b/9/9/p4n3/9/3n1A3/3KA4/6B2 w|d2d3 b10d10|1030|mate
 ln47nb|2RNka3/3c5/C7b/5Cr1p/p1p6/7r1/P1P1P3P/4B4/3NA4/4KAB2 b|d9g9 d10c8|1030|mate
 gxxacn|2b1kaR2/4n4/1R3acr1/p3p4/2p3p2/P8/5rP1P/3CB1N2/4A4/2BAK4 w|b8b7 e9g10|1030|+R
-cuxcbe|3a5/1R7/3Nk4/8p/2P6/p7P/4P1r2/9/2c2K3/3A1A3 w|b9b2 g4f4 f2e2 f4e4 e2f2 e4f4|1035|mate
+cuxcbe|3a5/1R7/3Nk4/8p/2P6/p7P/4P1r2/9/2c2K3/3A1A3 w|b9b2 g4f4 f2e2 f4e4 e2f2 e4f4|1035|mate;duimian
 x2o7cn|4kabr1/4a2C1/4b1C2/4p1R1p/p1p1c4/P1N5P/6P2/4B2R1/3K5/2B1r4 b|a6a5 c5e6|1035|+C
 6gwaz5|5k3/4a4/3a3Nb/R7p/9/8P/9/4B4/4Ar3/2BAK4 b|f2f4 a7a10 e9d10 a10d10|1035|mate
 immlfn|3ak1b2/2r1a4/2C1b4/4p4/5n3/p8/3Rr4/1c1C5/2R1A2N1/3NK4 w|d4d10 e9d10|1040|+R
@@ -1100,7 +1100,7 @@ immlfn|3ak1b2/2r1a4/2C1b4/4p4/5n3/p8/3Rr4/1c1C5/2R1A2N1/3NK4 w|d4d10 e9d10|1040|
 rn9yum|rnb1kabr1/4a4/1c4nc1/p1p1p1p1p/9/8P/P1P1P1P2/1C5C1/4A4/RNBAK1BNR b|c10e8 h3h10|1040|+R
 c2lbsg|3a1k3/4a4/4b4/p8/P8/5r3/9/4RA3/4K4/2n6 w|e2d2 f5d5 e3d3 d5d3|1045|mate
 1sfsji|3ak3r/4a1R2/b1nc2n2/2C1p4/6b2/p1P4pp/4P4/1rC1B1N2/4AR3/2BAK4 b|i10f10 f2f10|1045|+R
-1kru3x|5a3/R2ka4/7C1/2p1n4/6n1p/2B1P3c/4N3c/9/4A4/3CKAB2 b|d9d10 h8h10|1045|mate
+1kru3x|5a3/R2ka4/7C1/2p1n4/6n1p/2B1P3c/4N3c/9/4A4/3CKAB2 b|d9d10 h8h10|1045|mate;tiandi
 66pjow|1r1ak1b2/4a4/2P1b3n/C3p3p/p8/4P3P/P8/4B4/R2NAcCr1/4KcB1R w|e2f1 f2a2|1050|+R
 mfvasn|1rbakr3/4a4/1cn1b1c2/p1C1p4/8p/6P2/P1P1P1n1P/2C1B1N1R/7R1/1N1AKAB2 w|h2h8 g4i3|1050|+R
 r7pdxj|2b1ka3/4a4/4n4/9/3R5/8p/9/9/1r1NK1N2/2Br2BR1 w|h1h4 e8d6|1050|+R
@@ -1109,14 +1109,14 @@ bs9vh6|3ak4/4a4/b8/3r2n1p/1n4b1P/1R3Nr2/4c4/3CB3N/4A4/3K1AB1R b|d7d5 b5d5 b6d5 e
 4t4hdq|3ak4/4a4/b8/9/4n4/p3p1p2/4r4/3p4R/r2N5/1NBK1A3 w|i3f3 d3d2|1050|mate
 bt6q89|3aka2C/9/4b1R2/4p4/9/2r1n4/9/2NR1A3/4K4/5A3 b|e10e9 g8g9|1050|mate
 fr0d60|r1bak4/4a4/2n3c2/p1p1p4/8p/P1PC1n2P/4P1P2/9/4r4/RNB2Kc1R w|d5d2 f5g3|1050|mate
-rmhwu1|1Cbak1b2/R3aR3/1c2r4/7n1/6p1p/P3p1P1P/9/2r1B1N2/2n1AK3/2BA5 b|b8d8 a9e9 e8e9 f9f10|1055|mate
+rmhwu1|1Cbak1b2/R3aR3/1c2r4/7n1/6p1p/P3p1P1P/9/2r1B1N2/2n1AK3/2BA5 b|b8d8 a9e9 e8e9 f9f10|1055|mate;chuanxin,duimian
 fgtxbf|1n1rkab2/1c2a2R1/4b3n/p1p3p1p/4P1r2/P2C4P/2PR5/2N1B2C1/9/2BAKA3 w|h3h7 b9h9|1055|+R
 czuvhb|1rbak1b1r/4a4/1cn3n2/p1p1p1p2/8p/P8/2P1P1PcP/1CN1B1NC1/4A4/R2AK1B1R b|b8b4 b3b10|1055|+R
 efe4om|2b1ka2r/4a4/3cb1nc1/p3p1C1p/3n5/P5P1P/2p1P4/4B1N2/3rA2CR/R1BNKA3 b|a7a6 h2d2|1055|+R
 tzy584|2b1ka3/4a4/5P3/9/9/1cB1R4/9/B1n2A3/9/4K4 w|e5e4 c3e4|1055|+R
 56lrvd|2b1ka3/9/6P2/1N7/9/p4p3/9/r8/3K5/5p3 w|d2d1 a3d3|1055|mate
-8ofmdg|2bakn1C1/4a4/2n1b2r1/P1C3P2/2p1p3p/1r7/2P1P3P/4B1N2/Rc2A4/1N2KAB1R b|e8g10 c7c10|1055|mate
-uuuydf|2n1ka3/3Ra4/2r1P4/1P7/9/9/9/4C4/9/2BAKA3 b|c8c1 e8e9|1055|mate
+8ofmdg|2bakn1C1/4a4/2n1b2r1/P1C3P2/2p1p3p/1r7/2P1P3P/4B1N2/Rc2A4/1N2KAB1R b|e8g10 c7c10|1055|mate;mengong
+uuuydf|2n1ka3/3Ra4/2r1P4/1P7/9/9/9/4C4/9/2BAKA3 b|c8c1 e8e9|1055|mate;shuangjiang
 cfm7xc|4k4/4a4/4b4/9/p3C4/1n2cNn2/P4cC2/4B4/4A4/2BAK4 w|e6h6 b5d4|1055|
 81o7xa|4k4/4a4/9/4p3p/3R2bn1/p7P/2r1PR3/1n2B1pc1/4AK3/1C7 b|b3d2 d6g6|1055|+E
 vjt1nm|r1b1kab1r/4a4/4c1n2/p1p1n1p1p/9/C8/P1c1P1P1P/2N1B2C1/9/1RBAKA1NR b|e7f5 a5a10|1055|+R
@@ -1130,29 +1130,29 @@ kwz7t4|2bak3r/4a4/4b4/r2CnC3/p1P6/1N4B2/P3P4/1c2B4/4A4/R3KA3 b|i10i6 b5a7|1060|+
 n0p5ck|3ak4/9/4bN3/2p5p/2b6/1p2n3P/7R1/3CB4/4A4/r2CKAB2 b|e10e9 h4h9|1060|mate
 0eli5o|9/2r1k4/4P4/3R3P1/p8/9/P3Pn3/9/4A4/2BK1AB2 b|e9f9 d7f7|1060|mate
 6m003c|rnbak1bn1/3ra2C1/2c6/p3p1p1p/2p6/2P2NP1P/Pc2P4/1CN1B4/4A4/R3KAB1R b|c6c5 h9d9|1060|+R
-dud1zn|2b1ka3/4a4/4b4/2P6/8p/r3C4/3RP3P/4B4/4A4/2BK1A3 b|a5a6 d4d10|1065|mate
+dud1zn|2b1ka3/4a4/4b4/2P6/8p/r3C4/3RP3P/4B4/4A4/2BK1A3 b|a5a6 d4d10|1065|mate;duimian
 3aa254|2bakc3/4a4/9/1rr2R1R1/3N1P3/2Bn4p/9/9/4A4/2BAK4 b|d5f4 d6b7|1065|+R
 9e0u48|4ka3/4a1C1r/1n1rb1n1b/p3p1C2/2p6/PR3cPcP/2P1P4/N3B1N1R/4A4/4KAB2 b|i8g6 g9g10 e8g10 g7g10|1065|mate
 w7gdcw|4kab2/3na4/4b4/2p1p4/8p/4PR3/1n4c1P/3CB1N2/4Ac3/1C2KAB2 w|f5f3 g4g1|1065|mate
 t66bbt|2baka3/9/4n4/9/3P3Rp/r4N3/9/3rBN3/9/3AK1BR1 w|f5g3 a5a1|1070|
-mdi61o|3aka3/9/4b4/4NP1P1/R1b4R1/8p/P8/4B4/3rA4/1rB1KA3 w|a6a5 b1c1 e2d1 c1d1|1070|mate
-6ey4kg|3akar2/9/bcNcC3b/1R3CP1p/p1p6/7r1/P1P1P3P/4B4/3NA4/4KAB2 b|h5c5 f7e7|1070|mate
+mdi61o|3aka3/9/4b4/4NP1P1/R1b4R1/8p/P8/4B4/3rA4/1rB1KA3 w|a6a5 b1c1 e2d1 c1d1|1070|mate;shuangche
+6ey4kg|3akar2/9/bcNcC3b/1R3CP1p/p1p6/7r1/P1P1P3P/4B4/3NA4/4KAB2 b|h5c5 f7e7|1070|mate;chong
 w6yfph|1nbak4/1R2a4/4c3b/r3C1pnC/p1p5p/6P2/P1c1P3P/2N1B4/4AN1r1/2B1KA2R w|f2h1 a7e7|1075|+C
 i96cpv|2b1k2n1/4a4/1C2ba3/4p4/2p2P2p/p4CR2/2P1Pn2P/c2A3r1/8c/1RB1K4 w|c1a3 h3h1 g5g1 h1g1|1075|mate
-ttrk66|3ak4/4a4/b5n2/C3p3p/2b3p2/2N1P4/7nP/4B3R/4A4/1r1CKA1r1 w|c5e4 h4g2|1075|mate
-3zgy6d|4ka3/4a4/4b4/9/2p6/2B1Pr3/4cn3/4B4/r3A2N1/2RAK4 w|c1a1 f4g2|1075|mate
-yqpj63|r1bakn3/1P1Ra4/4b4/4pN3/8p/p5B2/P3P2rP/2N1B4/4A4/4KA2R b|h4h3 f7g9|1075|mate
-28jrks|1nb1ka3/2r1ac1r1/3cb4/5R3/p4PC2/2P1C4/P3N1p1N/4B4/4A4/R2AK1B2 b|c9c5 g6g10|1080|mate
+ttrk66|3ak4/4a4/b5n2/C3p3p/2b3p2/2N1P4/7nP/4B3R/4A4/1r1CKA1r1 w|c5e4 h4g2|1075|mate;wocao
+3zgy6d|4ka3/4a4/4b4/9/2p6/2B1Pr3/4cn3/4B4/r3A2N1/2RAK4 w|c1a1 f4g2|1075|mate;wocao
+yqpj63|r1bakn3/1P1Ra4/4b4/4pN3/8p/p5B2/P3P2rP/2N1B4/4A4/4KA2R b|h4h3 f7g9|1075|mate;wocao
+28jrks|1nb1ka3/2r1ac1r1/3cb4/5R3/p4PC2/2P1C4/P3N1p1N/4B4/4A4/R2AK1B2 b|c9c5 g6g10|1080|mate;tiandi
 f4w6gp|2b1ka3/3Ra4/4P4/9/9/9/3nrp3/9/4R4/3AK4 w|e8d8 d4e2|1080|+R
 380x2p|2bak2C1/3ca4/3rbc3/7rn/1NpnPP2C/9/p8/4B1N2/4A4/3RKABR1 b|d8b8 h1h7|1080|+R
 2nalkr|2baka2r/9/2n1b1nc1/p3p1p1p/1rp4P1/P5P2/2P1P3c/N1C1B1C1N/4A3R/R3KAB2 w|a1d1 i4i2|1080|+R
-hddtzm|r2k1ab2/4a4/b3c4/p5CCp/5R3/P8/3r4c/4B4/4A4/2BAKR3 w|f1h1 d4d1|1080|mate
+hddtzm|r2k1ab2/4a4/b3c4/p5CCp/5R3/P8/3r4c/4B4/4A4/2BAKR3 w|f1h1 d4d1|1080|mate;duimian
 egq0k8|rnb1ka2r/4a4/1c2b1n2/p1p3p2/4p4/P1P2N2p/4P4/2C1C4/R3A2c1/1NBAK1B1R w|e3e6 h2a2|1080|+R
 1x3m28|rnbakab1r/9/6nc1/p1p1p1p1p/8c/9/P1P1P1P1P/1CN1B2C1/4A4/R3KABNR w|c4c5 i6i1|1080|+R
-iu92tu|1Ccak1b2/3Ra3r/4b2Pn/p8/9/P1B2R2p/4P4/8B/4A4/3A1K3 b|e9d8 f5f10|1085|mate
-er6b23|1rbakab2/4n4/9/6C1p/2p3c2/pR2C3P/2P1P4/4BA3/3NA3r/4KNB1R b|g10e8 g7g10|1085|mate
+iu92tu|1Ccak1b2/3Ra3r/4b2Pn/p8/9/P1B2R2p/4P4/8B/4A4/3A1K3 b|e9d8 f5f10|1085|mate;shuangche,duimian
+er6b23|1rbakab2/4n4/9/6C1p/2p3c2/pR2C3P/2P1P4/4BA3/3NA3r/4KNB1R b|g10e8 g7g10|1085|mate;mengong,tiandi
 zvpkpe|2b1ka3/4a4/b8/4PP3/P8/9/2n6/2R6/3KA2c1/2r2AB2 w|d2d3 c1c3|1085|mate
-30dkhv|4k4/4aR3/3a4b/2rC4r/P5bR1/2P1p4/4P3P/2N1B3B/4A4/3AK4 b|c7d7 h6h10 i8g10 h10g10 e9f10 g10f10|1085|mate
+30dkhv|4k4/4aR3/3a4b/2rC4r/P5bR1/2P1p4/4P3P/2N1B3B/4A4/3AK4 b|c7d7 h6h10 i8g10 h10g10 e9f10 g10f10|1085|mate;shuangche
 gwof4f|4kab2/4a4/4b4/1P2r4/2r1PR1R1/5p2P/9/3AB4/9/3AK1B2 b|c6b6 e6e7|1085|+R
 hcfnzl|r1b1kab1r/4a4/n5c1n/C1p1p1p1p/9/9/P1P1P1PcP/2C1B1N2/4A3R/RNB1KA3 b|c7c6 a7a10|1085|+R
 y6q1y5|rnbak1r2/4a4/4b2c1/p3n1p2/2p1p3p/6C2/P1P1P1PcP/4B1C2/R4N2R/1NBAKA3 b|h8f8 g5g10|1085|+R
@@ -1164,18 +1164,18 @@ ayvtrg|rnbaka1nr/9/4b1c2/pC2p1p2/2p5p/C7P/P1P1P1c2/2N3N2/9/R1BAKAB1R b|b10c8 a5a
 muxkzn|2bakab2/6n2/2n1c4/p3pr2p/2p6/P5N1P/3r2P1C/4B4/R4N3/2BAKA2R b|f7f5 i4d4|1095|+R
 kk3x05|2bnka3/1P1Ra4/4b4/8p/p1r3p2/8P/1N7/4B4/4A4/4KA3 b|i7i6 b4c6|1095|+R
 n66w3k|4ka3/4P4/1n7/8p/2b2R3/4c1P1P/9/4B1N2/9/5K3 b|e10d10 f6f10|1095|mate
-vttna4|4ka3/8C/3an1r2/9/7P1/4R4/p8/3AB4/4Ar3/2B1K3R w|i1i4 g8g1 e2f1 g1f1|1095|mate
+vttna4|4ka3/8C/3an1r2/9/7P1/4R4/p8/3AB4/4Ar3/2B1K3R w|i1i4 g8g1 e2f1 g1f1|1095|mate;shuangche
 5pj04k|3ak1b2/1c2a4/4b4/p8/2N5p/P7P/2p1R4/Bn1C5/9/3K1pr2 w|e4c4 f1e1|1100|mate
 531662|3k5/4a4/4Pa3/9/9/9/3nn4/5A3/4p1C2/5K3 w|g2g3 e4g3|1100|mate
-j671ov|R1R1ka3/1c2a4/4b1n2/9/3P2P2/1r1Cp4/9/5N3/4A4/2BK1A3 b|e9d10 c10d10 e10e9 d10d9|1100|mate
+j671ov|R1R1ka3/1c2a4/4b1n2/9/3P2P2/1r1Cp4/9/5N3/4A4/2BK1A3 b|e9d10 c10d10 e10e9 d10d9|1100|mate;shuangche
 jicxvu|1rbak4/4a4/2c1P4/2CR3cp/p4np2/2P6/P6rP/4B1N2/4A4/4KAB1R w|c7h7 f6d7|1105|+R
-g2eupr|2bR5/4kr3/4b1C1C/9/9/6B2/4P4/B2R5/Ncc6/3K1A1r1 b|h1h7 d3d9|1105|mate
+g2eupr|2bR5/4kr3/4b1C1C/9/9/6B2/4P4/B2R5/Ncc6/3K1A1r1 b|h1h7 d3d9|1105|mate;shuangche
 q2iy9f|3ak1b2/2n1a4/9/2C6/3R1Nb1P/9/9/6N2/4A4/2B1K1B2 b|c9a8 c7c10|1105|mate
 7gsp1x|3akrb1R/4a4/4b1n2/6C2/p3p1P2/p1nN5/2r6/4R4/3KA1N2/6B2 w|e2d1 c4c2|1105|mate
 oqay4u|5a3/3ka3C/R7b/3r5/2P6/8p/P3p3P/4B4/4A4/4K1B2 b|d9d10 a8a10|1105|mate
 2dwahq|rn1ak4/4a4/1c2b4/p6np/2b3r2/P7P/R4N3/4BC1c1/1C2A2N1/3AK1B1R b|b10c8 f4g6|1105|+R
 oueao9|rnbakabnr/9/1c7/p1p1p1C2/8p/9/P1P1P1PcP/6C2/9/RNBAKABNR b|g10e8 g7g10 e8g10 g3g10 f10e9 g10i10|1105|+RE-C
-0w9zg6|1R1aka2r/3R5/4b1n2/p7p/1Cb6/P1B1r1p2/8P/6c2/4A4/1N2KAB2 b|e5e3 b10d10|1110|mate
+0w9zg6|1R1aka2r/3R5/4b1n2/p7p/1Cb6/P1B1r1p2/8P/6c2/4A4/1N2KAB2 b|e5e3 b10d10|1110|mate;shuangche
 k2k1yf|1rbak3r/4a4/2n1b3n/1C6C/p1p3p2/4P4/P1P3ccP/2N1B1N2/4A4/1RB1KA2R b|c6c5 i7i10|1110|+R
 s0jznr|3k1a3/1cC1a4/4b4/1N2pR3/6b1p/2P6/9/3A4r/6nc1/3K1A3 w|f7f4 i3d3|1110|mate
 j002w2|r1baka3/9/4b1c1n/1cp1p2Cp/pn4p2/2PN2P1P/P3P4/4B1C2/4Ar3/R3KABNR w|a4a5 b6d5|1110|+H
@@ -1192,7 +1192,7 @@ labco0|2bak1r2/4a4/2n1b4/p1p5p/9/4C1r2/P1P2c2P/2N1B1R2/9/1R1AKA1N1 w|e5e4 g5g3 h
 1d4tqx|2bakr3/1rC1an1C1/2n1bc3/p1p1p1p1p/6c2/2PN4P/P3P1P2/4BRN1B/4A4/R2AK4 w|f3f8 e9f8|1120|+R
 yc8mpm|7R1/4ak3/5a3/C8/8p/4r4/6p1P/4B4/4A4/4KAB2 b|e5d5 a7f7|1120|mate
 062yp2|2b1kab2/4aN3/5n3/2NP5/1n7/4P1P2/P2r5/4B1C2/4A4/R3KAB2 b|d4a4 g3g10|1125|mate
-b4bxff|3k1ab2/4a4/9/8p/p1b4P1/4c4/5n2N/4p4/1C2A4/2B1KA3 w|b2b1 e3e2|1125|mate
+b4bxff|3k1ab2/4a4/9/8p/p1b4P1/4c4/5n2N/4p4/1C2A4/2B1KA3 w|b2b1 e3e2|1125|mate;duimian,shuangjiang
 efgzyc|4k4/4a4/3ab4/p8/2b6/2r6/5N3/6p2/3NA1n2/3K1A3 w|e2f3 c5c1|1125|mate
 yqnc4y|4kab2/4a2R1/4b1nC1/2p1n3p/p4rp2/2PCP3P/c8/B3B1N2/4A4/4KA3 w|h9g9 e7d5|1125|+C
 fvs1t6|1Rb1kn3/4a4/3rb4/p7p/2p4c1/1N2P1B1P/9/9/4A4/4KA3 w|b10b6 h6h1|1130|mate
@@ -1200,14 +1200,14 @@ drnj92|1rb1ka1r1/2R1a4/c3b1P2/4p4/5RNPp/3pP4/p1P6/4B4/2N6/3AKAB2 b|h10h6 g6f8 a8
 a8iyt5|1rbak3r/c2C1n1R1/3ab1c2/n3p1p1p/2p6/p5P2/2P1P1C1P/2N1B4/4AN3/1RBA1K3 b|f9h8 h9h8 b10b1 c3b1|1130|+RH-R
 a85bkz|3ak1b2/3Ra4/4b4/1nC6/4r3P/3N5/9/7p1/4A4/2BAKNB2 b|e6e3 c7c10|1130|mate
 j277pz|3ak4/4a4/4R4/p8/8p/P4r3/5n1pP/B8/4A4/2B1KA3 w|e8e4 f4g2 e1d1 f5d5 e4d4 d5d4 e2d3 d4d3|1130|mate
-pvwwpx|5k3/4a4/4b4/9/P8/5rB2/9/9/4K2c1/2B2p3 w|c1e3 f5f2|1130|mate
+pvwwpx|5k3/4a4/4b4/9/P8/5rB2/9/9/4K2c1/2B2p3 w|c1e3 f5f2|1130|mate;duimian,shuangjiang
 lotfw5|1rb1ka1r1/4a4/1cn1c1n1b/p1p1p1C1p/9/P7P/2P1P1P2/1C4N2/4A4/RNBAK1B1R b|b8b5 b3b10|1135|+R
 0hi4up|2b1ka3/4a4/4b3P/9/1c4n1p/P1P1R1n2/8P/N2CC4/1R2A4/2B1KArr1 w|e5e6 g5e6|1135|+R
 qplbel|r1bakab1r/9/n5n2/p3p1p2/2P5p/P5P2/c3P3P/C3B1N2/R3A4/3AK1B1R w|i4i5 a4a2|1135|+R
 h38r5v|rnbak1b1r/4a4/6n2/p3p1p1p/2p4c1/P8/R3P1c1P/1C2B1C2/4A3R/1NB1KA1N1 w|i2f2 g4a4|1135|+R
 40if3q|1Cbak2n1/4a4/4b4/4p4/2p2P2p/4R4/2P1Pn2P/3A1C3/1r3c2c/4K1B2 w|e5h5 b2b1|1140|mate
 la1ysc|1rb1kabnr/4a4/n5c2/pcp1p1p2/8p/1C7/P1P1P1P1P/2N1C1N2/9/R1BAKABR1 b|a7a6 b5b10|1140|+R
-m7562w|1rbk1a1RC/R3a3r/n3cP2n/p7p/4N1b2/2P3C2/P7P/4B1p2/4AN3/2B1KA3 b|b10b1 h10f10|1140|mate
+m7562w|1rbk1a1RC/R3a3r/n3cP2n/p7p/4N1b2/2P3C2/P7P/4B1p2/4AN3/2B1KA3 b|b10b1 h10f10|1140|mate;shuangche,shuangjiang
 t1xltj|3akr3/2C1a3R/4b4/6nC1/2P1p4/6pp1/4c4/B1nRBAr2/9/4K4 w|f3e2 g3g1|1140|mate
 vjv9td|4k4/4a4/4b4/9/P8/9/9/2r5B/4K2c1/2B2p3 w|c1e3 c3c2|1140|mate
 d28wci|rnbak4/3Can3/4b4/p2cp3p/2P3p2/5NP1P/Pc2P4/2C1B4/4A4/R3KABR1 b|a10a9 c3c10|1140|mate
@@ -1220,11 +1220,11 @@ xx66la|2bakab2/9/2n5n/r1N1p3p/P8/2c1c3P/3r2P2/2C1B1N2/4A4/R2K1AB1R w|e2d3 d4d3|1
 vm0z2v|3akab2/4n4/3cb4/p2R4p/1N1np4/P7P/3r5/4BC3/2R1A1r2/2BAK4 b|d8a8 b6a8|1145|+C
 ondzcf|3akab2/7R1/1cr6/9/2bn3N1/7r1/9/p8/4A4/2R1K4 w|c1a1 h5h1|1145|mate
 q9ssvh|4k4/4a4/3ab4/p8/2b6/2r6/5N3/6p2/3NA1n2/3K1A3 w|f4d3 c5c1|1145|mate
-fxulhh|nr2kab2/4R1c2/9/9/4R1bn1/2B1p4/p1r6/4B4/4A4/3CKA3 b|e10d10 e6d6|1145|mate
+fxulhh|nr2kab2/4R1c2/9/9/4R1bn1/2B1p4/p1r6/4B4/4A4/3CKA3 b|e10d10 e6d6|1145|mate;shuangche,shuangjiang
 npp6fk|r3kab1r/4a4/1n2bc2n/p1R1p3C/6p1P/P1p6/4P1c2/2C1B1N2/3NA4/4KAB1R b|f8f2 i7i10|1145|+R
 h31pyz|1Rb1ka2r/4a4/4bCc2/5r3/pC1np2Pp/P6n1/2P1P3P/4B4/3N5/R2AKABN1 b|d6c4 d2c4|1150|+H
-w1qx28|3ak1b2/3ca4/9/6R2/P7p/1r2p1B1P/2p3P2/2N5B/3KA2r1/5A3 w|g7b7 b5d5|1150|mate
-v4xfai|3ak4/4a4/3c5/6P2/9/9/9/B7r/4p4/4KA3 w|e1d1 i3d3|1150|mate
+w1qx28|3ak1b2/3ca4/9/6R2/P7p/1r2p1B1P/2p3P2/2N5B/3KA2r1/5A3 w|g7b7 b5d5|1150|mate;shuangjiang
+v4xfai|3ak4/4a4/3c5/6P2/9/9/9/B7r/4p4/4KA3 w|e1d1 i3d3|1150|mate;shuangjiang
 zt7unt|1r1akabnr/1C1n5/1c2b1c2/p1p1p1p1p/9/6P2/P1P1P3P/2N1B2C1/8R/1RBAKA1N1 w|h1f2 b10b9|1155|+C
 20kmcm|2Rakr3/9/4n1R2/6n2/9/9/9/4B3B/4A4/4K4 b|e8d6 g8g7|1155|+H
 0vc2dh|2b1ka1RC/4a4/3r4b/2n4R1/p3p4/4P4/P1P6/3cB4/1N7/4KABN1 b|c10a8 h10h9|1155|mate
@@ -1236,19 +1236,19 @@ ry4mtm|rnbak1b2/2c2r3/5Cn2/2p3p2/P2Rp4/2P3P1p/4P4/4B1N2/4A4/4KAB1R w|f8c8 b10c8|
 lr2c9n|1nbaknR2/2c1r4/9/2p6/4p1p2/2P2NP2/4P4/4B4/r3AC3/3RKAB2 b|a2b2 g10f10|1160|mate
 fqu3zj|1r2k4/3Na4/R2aN1r2/9/P1P6/4R4/9/2c2A3/6p2/2BAK1B2 w|c6d6 g2f2 g1i3 c3i3 e8g7 g8g7 e5e9 d8e9|1160|+RHE-A
 n5zvfa|2baka2R/3r5/4b4/4c4/9/9/2P4p1/4B4/1r2A4/c1BA1K3 w|f1f2 d9f9|1160|mate
-96ts56|3k1a3/R3a4/6C2/2p6/6n1p/2BnP3c/4N3c/9/4A4/3CKAB2 b|d5e3 g8g10|1160|mate
+96ts56|3k1a3/R3a4/6C2/2p6/6n1p/2BnP3c/4N3c/9/4A4/3CKAB2 b|d5e3 g8g10|1160|mate;tiandi
 itrzee|r1bakabnr/9/n3c2c1/C1p1p1p1p/p8/6P2/P1P1P3P/4C4/9/RNBAKABNR b|h8h7 a7a10|1160|+R
 clgygv|1Cbak2n1/9/4ba3/4p4/2p2P2p/p4C3/c1P1P3P/3A3r1/6n1c/1RB1KR3 w|e1d1 h3d3|1165|mate
-j8k8uy|2b1k1b2/5R3/9/P2N5/9/2B6/7p1/3A1K3/4A4/6r2 b|g1d1 f9f10|1165|mate
+j8k8uy|2b1k1b2/5R3/9/P2N5/9/2B6/7p1/3A1K3/4A4/6r2 b|g1d1 f9f10|1165|mate;duimian
 bv8o1z|2bak1c2/4a4/4b1R2/1r2n2r1/3Pp3p/2R6/4P1P1P/3CB1N2/1c2A4/1NBAK4 w|g4g5 e7g8|1165|+R
 mooxmd|2bak4/4a4/4b4/9/8p/9/5Cn2/R8/4AK3/c6r1 w|f2f3 h1h3|1165|mate
 99pfb3|3ak3r/4an3/b1nc3Rb/2C1p4/7R1/p1P3p1p/2C1P4/4B1N2/1r2A4/2BAK4 w|c4c3 f9h8|1165|+R
 cd1wl5|3aka3/9/9/4r4/8p/3p5/5p3/B1R6/7r1/2BAKA3 w|f1e2 h2h1|1165|mate
 qzwkda|4ka3/4aRnC1/b3b4/p3p4/2p5p/P1Br2P1P/2n1N4/9/4A4/2B1KA2R b|d5d3 h9h10|1165|mate
 sfqrml|4kaR2/2r2c3/1c3R3/p1N3p2/4p3r/P1p6/4P1P2/3C2N2/4A4/2BAK1B2 b|e10e9 f8e8|1165|mate
-5kyq5j|5a3/3ka4/b1n1cc2b/6n2/2R3p1p/2P5P/1N2P1P2/9/4A4/r2AK1BN1 w|c6b6 a1d1|1165|mate
+5kyq5j|5a3/3ka4/b1n1cc2b/6n2/2R3p1p/2P5P/1N2P1P2/9/4A4/r2AK1BN1 w|c6b6 a1d1|1165|mate;duimian
 0s30fs|r1ba1kn2/3R2C2/4ba1r1/3P1R2p/p3p4/9/P7P/2N1B4/4A3c/4K1B2 b|i7i6 d9d10|1165|+A
-2gx0x0|rC1a3C1/4k4/3cn4/p8/1N2R1b2/P7p/r7P/4B4/5R3/3A1KBN1 b|a4a2 f2f9|1165|mate
+2gx0x0|rC1a3C1/4k4/3cn4/p8/1N2R1b2/P7p/r7P/4B4/5R3/3A1KBN1 b|a4a2 f2f9|1165|mate;duimian
 qu0290|rnbak1b1r/4a4/1c4n2/p1p1p1p1p/8c/6P2/P1P1P3P/1CN1B2C1/4A4/R2AK1BNR w|h3g3 i6i1|1165|+R
 tnruw6|1Cbaka3/2C6/4P2R1/p2R5/9/P4c2p/6r1p/B5N2/4AK3/3Ac4 b|g4e4 d7d10|1170|mate
 27yyvc|2b1k3c/4a4/2r1ba3/3R5/1P2C3P/c3P4/9/B2RB2N1/4A4/4K4 b|i10i9 d7d10|1170|mate
@@ -1256,7 +1256,7 @@ hpcq7d|2bk5/4a4/4b4/5n3/1P4r2/9/9/7cB/p3A4/4KA3 w|i3g5 h3h1|1170|mate
 sjwl0t|3ak1b2/3Ra4/4b4/1nC6/8P/3N5/9/6N2/4A4/2B1K1B2 b|b7a5 c7c10|1170|mate
 ltihrv|3ak4/4a4/9/9/2b1p1b2/7p1/1r7/3nB1R2/4K4/9 w|g3g2 b4b2|1170|mate
 hjqvjv|3aka3/9/P4R3/6C1P/7N1/5C1n1/9/4B4/4A4/4K1p2 b|d10e9 g7g10|1170|mate
-1lci8m|3k1a3/2R1a4/4b3b/6P2/c4Np2/7p1/4P1P2/5r3/9/4K4 w|c9e9 a6e6|1170|mate
+1lci8m|3k1a3/2R1a4/4b3b/6P2/c4Np2/7p1/4P1P2/5r3/9/4K4 w|c9e9 a6e6|1170|mate;duimian
 oox6jd|r1bakab1r/9/4c1n2/1R2p1p1p/p2n2P2/2p6/P1c1P3P/B1N1C1C2/4A4/3AK1BNR w|b7e7 g8e7|1170|+R
 8rpat3|rn1ak1b1r/4a4/4b1n2/p3p1pcp/2p3c2/P3P4/7RP/N1C1B1C2/4A3R/2B1KA1N1 b|a10a8 h4h7|1170|+C
 gz6vj7|1Cbaka1R1/8r/3R5/9/P6P1/6B2/4N4/9/4K4/2B2A3 b|i9i1 d8e8|1175|mate
@@ -1264,13 +1264,13 @@ gz6vj7|1Cbaka1R1/8r/3R5/9/P6P1/6B2/4N4/9/4K4/2B2A3 b|i9i1 d8e8|1175|mate
 c271bb|1c3k3/4anR2/5a3/9/4NR3/P7P/4P4/B8/4A4/3AK1B2 b|b10b2 g9g10|1175|mate
 j2uay1|1c3k3/4anR2/5a3/9/5R3/P7P/4P4/B6N1/4A4/3AK1B2 b|e9d10 g9g10|1175|mate
 jxmbs9|1c3k3/4anR2/5a3/9/p4R2p/9/P3P3P/B6N1/4A4/3AK1B2 b|e9d10 g9g10|1175|mate
-yjxltn|1n2ka1r1/4a4/b3R3C/1r7/8P/PpP3P2/2N1P4/3RB1N2/4A4/3K1AB2 b|b7h7 d3d10|1175|mate
+yjxltn|1n2ka1r1/4a4/b3R3C/1r7/8P/PpP3P2/2N1P4/3RB1N2/4A4/3K1AB2 b|b7h7 d3d10|1175|mate;duimian
 qxtoxe|1nbaknR2/2c1r4/r8/2p6/P2Rp1p2/2P2NP2/4P4/4BC3/4A4/4KAB2 b|a8a7 g10f10|1175|mate
 0cqtiv|1r1a1kb2/3na4/4C1n2/p1p1p1N2/8p/P1B1c1P1P/2r6/1c2C4/4A4/4KAB2 w|g7f5 c4c1|1175|mate
 ieoryb|1r1ak1b2/3na4/1C4n2/p1p1p1N2/4c3p/P1B3P1P/2r6/1c5C1/4A4/4KAB2 w|h3e3 c4c1|1175|mate
 b3z95e|1r2kabn1/4a4/4b4/p1p1p3p/n8/2P1C1B1P/3Cr4/5A3/3R5/1N2K4 w|e1d1 b10b1|1175|mate
 ftcl26|1r2kabnr/3na4/2c1b4/p6Pp/4pN3/8P/P3C4/5p2B/4A4/c1CAK3R w|c1b1 c8c1|1175|mate
-rvhqgf|1rbak1b2/4a4/7c1/6n1p/2p6/p3pnp1P/4c4/2C1BC3/R3R2r1/1NBAKA1N1 w|a2c2 h8h1|1175|mate
+rvhqgf|1rbak1b2/4a4/7c1/6n1p/2p6/p3pnp1P/4c4/2C1BC3/R3R2r1/1NBAKA1N1 w|a2c2 h8h1|1175|mate;mengong,tiandi
 3ronno|2b1k3N/4a4/4b1r2/p8/4p3P/9/5p3/B2A5/4K4/3c1A3 w|e2f2 g8g2|1175|mate
 sz6665|2b1kab2/4a4/n6rn/2p3p2/2P5p/2R6/P2N5/9/1rC2p3/RcBcK1B2 w|a1a2 d1d2|1175|mate
 grua26|2bak1b2/4c4/2r2a3/5N3/3P4r/pn2N2p1/1R7/9/9/3AKA3 w|f1e2 i6i1|1175|mate
@@ -1278,53 +1278,53 @@ lbyfkp|2bcka2r/4a4/4b1P2/9/9/1Rp6/R1P4p1/9/p2NAr3/2BK1AB2 w|e2d3 f2f1|1175|mate
 w9lewf|2bk1ab2/9/4C3r/2pcC4/8p/pN4P2/2P1N3c/B2R5/1r7/R2AKAB2 b|b2c2 d3d7|1175|mate
 28p37i|2rak1b2/4c4/5a1r1/2n6/2bN1P3/p7p/1p7/9/3RAN3/3AK4 w|f2e4 h8h1|1175|mate
 zt2140|3a1a1C1/4k4/b1n1b4/p1C1n4/1R6p/r1P1P1P2/9/4B4/c2RA4/1N1AK1B2 b|e7d5 b6b9|1175|mate
-a5lsi0|3a1kb2/4a4/R3b1n2/4n4/1PP3pP1/5rP2/4r4/6c2/4A3c/2B1KAB2 w|a8a6 f5f1|1175|mate
-klxrj6|3a2C2/c4kR2/4b4/4p4/3n2b2/1p5RP/2p1P4/N5N2/3cAr3/2BAK1B2 b|f9f8 h5h8|1175|mate
-0s8fu3|3ak1b2/3na4/4b1n2/R8/1PP3p1P/5r3/4r1P2/2c2A3/5c3/2B1KAB2 w|e1d1 f5d5|1175|mate
+a5lsi0|3a1kb2/4a4/R3b1n2/4n4/1PP3pP1/5rP2/4r4/6c2/4A3c/2B1KAB2 w|a8a6 f5f1|1175|mate;duimian
+klxrj6|3a2C2/c4kR2/4b4/4p4/3n2b2/1p5RP/2p1P4/N5N2/3cAr3/2BAK1B2 b|f9f8 h5h8|1175|mate;shuangche
+0s8fu3|3ak1b2/3na4/4b1n2/R8/1PP3p1P/5r3/4r1P2/2c2A3/5c3/2B1KAB2 w|e1d1 f5d5|1175|mate;shuangche
 jq8wm1|3ak1b2/4a4/b8/1r7/8p/C1B3R1P/4R4/9/3NA4/2BAK4 b|b7b1 g5g10|1175|mate
 62aq7b|3ak1b2/4a4/br7/6R2/8p/2B5P/4R4/C8/3NA4/2BAK4 b|b8b4 g7g10|1175|mate
-cyffa3|3ak1b2/4aR3/4N3b/6P2/2nRP4/9/4N4/Br1pB1p2/4A4/3CKA3 b|c6d4 e8c9|1175|mate
+cyffa3|3ak1b2/4aR3/4N3b/6P2/2nRP4/9/4N4/Br1pB1p2/4A4/3CKA3 b|c6d4 e8c9|1175|mate;wocao
 hxwot7|3ak1b2/4aR3/6P1b/2N6/1C3P3/n1B6/3rN4/B3R4/4A2p1/4KA3 b|d4d2 b6b10|1175|mate
 v4c2mv|3ak4/4a4/bR2b4/p3C1n1p/2p1p4/P7P/2P5r/4B1p2/4A4/1NB1KA1R1 b|g7i6 h1h10|1175|mate
-9st0un|3ck4/4a4/2nab4/2p1R4/2b2n3/p8/1r1R5/4r4/3K5/9 w|e7e8 b4d4|1175|mate
+9st0un|3ck4/4a4/2nab4/2p1R4/2b2n3/p8/1r1R5/4r4/3K5/9 w|e7e8 b4d4|1175|mate;shuangche
 60zdkw|3k1a3/3ra4/R8/4Cc3/5N3/P1PR2N2/9/4B2r1/4A1p2/3AK1B2 b|h3i3 a8a10|1175|mate
 mgo1y4|3k1a3/4a4/8r/1CNc5/R4N3/P1P1R4/9/4B4/4A1pr1/3AK1B2 b|h2i2 a6a10|1175|mate
 bsmh1h|3k1a3/4a4/P8/6C1P/9/6C2/6N2/4B4/4n4/1R2K1p2 b|d10e10 g7g10|1175|mate
-64mhq6|4k4/3ca4/4b3b/3r5/2p1C1P1p/9/p2N5/4B4/3KR4/2r6 w|e6e4 d7d4|1175|mate
+64mhq6|4k4/3ca4/4b3b/3r5/2p1C1P1p/9/p2N5/4B4/3KR4/2r6 w|e6e4 d7d4|1175|mate;shuangche,shuangjiang
 6jo5ls|4ka3/1r2a2r1/4b3c/4C1RCp/p1R6/2N5P/P3P1P2/4B4/4AN3/2BAK4 b|b9b4 c6c10|1175|mate
 tsh1li|4ka3/2cra4/b3P4/9/9/2R3Br1/p1P3n2/N8/1R2K4/2NA1A2c w|b2c2 h5h2|1175|mate
-6lde6w|4ka3/4a4/6n2/p7r/2b5p/7c1/2p2r3/5A3/3R5/3CKA3 w|f3e2 h5h1|1175|mate
+6lde6w|4ka3/4a4/6n2/p7r/2b5p/7c1/2p2r3/5A3/3R5/3CKA3 w|f3e2 h5h1|1175|mate;mengong
 hyd4c3|4ka3/4a4/PR7/6C1P/9/5C3/5nN2/4B4/4A4/4K1p2 b|f4d5 g7g10|1175|mate
-wcaiq1|4kab2/4a4/4b4/p3p3p/2p6/2P5P/1n3CC2/2r1BA3/3r5/5K3 w|f4c4 c3c1|1175|mate
+wcaiq1|4kab2/4a4/4b4/p3p3p/2p6/2P5P/1n3CC2/2r1BA3/3r5/5K3 w|f4c4 c3c1|1175|mate;shuangche
 wlcr4z|4kabRC/4a4/b4c3/4P4/4P4/P5P2/2r1N4/2N1BR3/4A4/2B1K4 b|c4d4 i10g10|1175|mate
 sf9ph1|5aC2/4k4/9/3rP4/9/P4n3/2P6/3ABR1R1/9/3K2B2 b|d7d4 h3h9|1175|mate
-6m12x4|6c2/4ak3/1R2bC3/1RP2np2/4N4/3N5/9/4C3p/4A4/2B2KB2 b|f7d8 e3f3|1175|mate
+6m12x4|6c2/4ak3/1R2bC3/1RP2np2/4N4/3N5/9/4C3p/4A4/2B2KB2 b|f7d8 e3f3|1175|mate;chong
 hq2dqz|C2ak4/5n3/b1n1ba1cr/6p2/P1p1p3p/9/2P1P1P1P/4B1N2/3NA2R1/1R2KAB2 b|e10e9 b1b9|1175|mate
-d4legs|R2R1a3/1c2k4/4b1n2/3P5/1r4P2/4N4/9/9/3CA4/2BK1A3 b|b6b2 d10d9|1175|mate
-x1hp69|r3kab1C/4a4/b2c2R2/p3p4/2pn5/8p/P1P1rnP2/4B4/2N1A4/2B1KA3 w|i10i6 f4g2|1175|mate
-dv9eng|rcb1ka3/4a4/2n1b1n2/p1p6/4C1N2/P1P5p/4P4/4CA3/3R5/1NBAK1B1R b|g8h6 g6f8|1175|mate
+d4legs|R2R1a3/1c2k4/4b1n2/3P5/1r4P2/4N4/9/9/3CA4/2BK1A3 b|b6b2 d10d9|1175|mate;shuangche
+x1hp69|r3kab1C/4a4/b2c2R2/p3p4/2pn5/8p/P1P1rnP2/4B4/2N1A4/2B1KA3 w|i10i6 f4g2|1175|mate;wocao
+dv9eng|rcb1ka3/4a4/2n1b1n2/p1p6/4C1N2/P1P5p/4P4/4CA3/3R5/1NBAK1B1R b|g8h6 g6f8|1175|mate;guajiao
 ce7kc7|rnbakab2/9/1c5c1/p1p1p3p/5nC2/P1P6/4P1P1P/N3B4/1C2A2r1/R1BAK2NR b|c10e8 b2h2|1175|+R
-9fl8uo|2b1k3C/4a4/2Nnb4/9/4p4/2B5p/1p7/6r2/5p3/4KABR1 b|g3d3 h1h10|1180|
+9fl8uo|2b1k3C/4a4/2Nnb4/9/4p4/2B5p/1p7/6r2/5p3/4KABR1 b|g3d3 h1h10|1180|;shuangjiang
 si8f41|2b1ka3/4a4/9/9/3n1R2p/r8/7N1/3rBN3/9/3AK1BR1 w|h1h3 a5a1|1180|
 nmsogt|3ak4/9/2n1b2R1/1rp1p1p1N/p8/2P1P1P1P/P3c4/1C1cBC3/4A4/4KAB2 w|f3f8 b7b3|1180|+C
 wilpwa|4k4/4ac3/2N1b1n2/R8/3N3P1/3r5/P3P4/9/4A4/2B1KAB2 b|g8h6 a7a10 e8c10 a10c10 e9d10 c10d10|1180|mate
 zpbloy|rn1ak1b1r/4a4/1c2b3n/2p1p3C/p3c3p/9/P1P3P1P/1CN1B1N2/4A2R1/R3KAB2 b|e8c10 i7i10|1180|+R
-pbboof|5ab2/3ka4/4b4/9/9/1p2p4/9/4r4/5C3/c3KA3 w|f2e2 e5e4|1185|mate
+pbboof|5ab2/3ka4/4b4/9/9/1p2p4/9/4r4/5C3/c3KA3 w|f2e2 e5e4|1185|mate;kunbi
 6uxfn8|1rb1kab1r/4a4/6P2/p1n6/8p/P3pN3/R3c2cP/2pA4R/1C5C1/1NB1KAB2 w|b2a2 h4a4|1190|+R
 38xwai|4kab2/4a4/4b4/p1n3p2/8r/P1p1N1P2/3Np1R1p/3RB4/1n7/1r1AKAB2 w|g4e4 b2d3 e1e2 b1b2|1190|mate
 2f20u0|2bCkab2/5r3/1R4P1c/p8/2p3n1p/P3P4/r2cR3P/N3B4/4A4/2B1KA3 w|d10f10 i8b8|1195|+R
 6qo39w|3P5/4k4/5a3/9/4R4/3nPN2r/9/3AB4/3KA4/2B6 b|e9f9 f5g7 f9f10 e6e10|1195|mate
 5l5j05|3aka3/9/8b/1P7/2b3p2/2n5r/9/5N3/1R2A4/3AK4 w|b2d2 i5i1 f3g1 i1g1|1195|mate
-ptcqhy|1r1aka3/9/4C3b/4R4/2c1n4/3N2B2/4P4/4B4/4A4/4K4 b|i8g10 e8e6|1200|+H
+ptcqhy|1r1aka3/9/4C3b/4R4/2c1n4/3N2B2/4P4/4B4/4A4/4K4 b|i8g10 e8e6|1200|+H;shuangjiang
 nwspj5|2r1kab2/1R1n1C3/2c2an1c/p1p5p/4prb2/6B2/P1PNP3P/6N2/2C1A4/3AK1BR1 b|d9e7 f9f6|1200|+R
 2xjcru|3akabr1/4n4/3rb1n2/PR2p2Cp/9/4c1p1P/6Pc1/1CN1B4/4A1N2/R2AK1B2 w|h7g7 h4h1|1200|
 l529we|3nka3/4a4/3cbcn2/p1C1P2r1/8p/P3R4/8P/4B4/4A4/2B1KAC2 b|h7i7 c7i7|1200|+R
-3b9kbn|4kab1C/4a4/2R1b1n2/8C/9/1pp5P/r3P1r2/4BA3/c4R3/2cAK4 w|d1e2 a2a1|1200|mate
+3b9kbn|4kab1C/4a4/2R1b1n2/8C/9/1pp5P/r3P1r2/4BA3/c4R3/2cAK4 w|d1e2 a2a1|1200|mate;chong
 1wfn06|rn2kab1r/4a4/1c2b1n2/p1p1p1p1p/7c1/8C/P1P1P1P1P/4B1NC1/4A4/RNBAK3R b|h6g6 i5i10|1200|+R
 b86tmp|2b1ka3/4a3r/2n1b4/p1P1p3p/5R3/6C2/P1c1P1P1P/2N5B/9/1rBAKA3 w|g5i5 c4c1 d1e2 c1c2|1205|+E
-g2ckwc|2cakab2/3R3r1/1r2b4/p3p4/3R3np/P5B2/4P3P/N2C2N2/4A4/2BAK4 b|b8c8 d9d10 e10e9 d6d9|1205|mate
+g2ckwc|2cakab2/3R3r1/1r2b4/p3p4/3R3np/P5B2/4P3P/N2C2N2/4A4/2BAK4 b|b8c8 d9d10 e10e9 d6d9|1205|mate;shuangche
 h1ame8|3a1k3/4a3R/5c3/9/P5P2/2Bn5/4Nc3/1C7/4A4/4K4 b|f4f3 b3b10|1205|mate
-p6ptkd|3akn3/4a4/4b4/4P4/1P6P/2C6/3R5/4Bpcc1/3pA4/2B2K3 w|c5f5 d2e2 d4f4 h3h1 f4f3 g3g1|1205|mate
+p6ptkd|3akn3/4a4/4b4/4P4/1P6P/2C6/3R5/4Bpcc1/3pA4/2B2K3 w|c5f5 d2e2 d4f4 h3h1 f4f3 g3g1|1205|mate;chong
 yl4dwm|4ka3/4a4/4b4/3Cn3p/P3c1b2/3RCr3/2pn4P/4B4/N3A4/4KAB2 w|d7d4 e6e3 g1e3 e7d5|1205|+RE-C
 70yl48|rnbakr3/4a4/1c2b1n2/2C1p1p1p/p8/6P2/P1P1P3P/1N2BC3/4A2c1/1R1AK1BNR w|e2d3 b8b1|1205|+R
 7k2dgn|2R3b2/C3k4/2N2a3/8p/p3P4/2Br4P/P4c3/9/9/4K4 b|e9d9 c10d10|1210|mate
@@ -1336,27 +1336,27 @@ mcxjhs|3ak4/4a4/b8/3r2n1p/1n4b1P/1R3N3/4c4/3CB3N/4Ar3/4KAB1R w|e1d1 f2f1|1210|+A
 8fk6t7|3akab2/5r3/4b1P1c/pc2n4/2p5p/P3P4/2rC3RP/1R1CB4/4A4/1NB1KA3 b|f9a9 b3b7|1210|+C
 0wh5hm|3ak4/2n6/r2ab1ncb/p1C1p1p1p/9/6P2/P1c1P3P/2N3N1C/4Ar3/R1B1KABR1 b|h8h6 h1h6|1215|+C
 c8ygmb|rnbakab2/7r1/2c1c3n/p1p1p1p1p/9/6P2/P1P1P3P/4B2C1/4A1C2/RN2KABNR w|b1c3 h9h3|1215|+C
-7gu5bc|2b6/3ka4/3a5/3P5/2b6/2BN5/9/4KA3/2p6/9 b|e9f8 d5c7 d9d10 c7b9 d10d9 d7d8|1225|mate
+7gu5bc|2b6/3ka4/3a5/3P5/2b6/2BN5/9/4KA3/2p6/9 b|e9f8 d5c7 d9d10 c7b9 d10d9 d7d8|1225|mate;duimian
 gvq45a|3akab2/3c5/4b4/pn7/8p/P8/4p3P/B2C5/2NKR4/5pr2 w|d3d10 e4d4|1225|mate
 0mvmuj|3k1a3/3na1N2/9/6p1p/prbR5/4P1P1P/c8/4B4/4A4/3AK4 w|g9e8 a4a1 e3c1 b6b1|1225|
-wtbkca|rn1akabnr/7R1/4b1c2/p6C1/2p1p1p1P/9/P3P1P2/2N1C1N2/3K5/2cA1AB1R b|e8c10 h7e7 a10a8 e3e6|1225|mate
+wtbkca|rn1akabnr/7R1/4b1c2/p6C1/2p1p1p1P/9/P3P1P2/2N1C1N2/3K5/2cA1AB1R b|e8c10 h7e7 a10a8 e3e6|1225|mate;chong
 r0n8xs|2bak1bnr/1R2a4/5c3/p3P4/4pNP2/P1C1c3p/9/B3Cr2B/4A4/3AK3R w|a5a6 f3e3|1230|+C
 bhtm0a|3akNR2/4a4/4b4/4C4/P1b4P1/9/9/3p5/5r3/3AK1B2 b|f2f1 e1f1 c6a8 f10e8|1230|mate
 qmorbd|2RN1kb2/C8/5a3/4P3p/p8/2B1r3P/P1c6/9/9/3K5 w|a9e9 e5d5 d1e1 c4c10|1235|+R
 hklfgj|3ak1b2/4aR3/7Pb/5P3/N1C1n4/4R4/9/B5r2/4A2p1/4KA3 b|g3g1 c6c10|1235|mate
-3kogv9|3k1a3/4a1P2/9/9/p5r2/8p/P8/4B4/4Ar3/3AK1B2 w|e2d3 g6g1|1235|mate
+3kogv9|3k1a3/4a1P2/9/9/p5r2/8p/P8/4B4/4Ar3/3AK1B2 w|e2d3 g6g1|1235|mate;shuangche
 cuch00|4ka3/4a4/9/4R4/6b2/9/r8/3n5/9/3AK4 w|e1f1 a4f4|1235|mate
 vbopxr|r1b1kabnr/4a4/n1c6/2p1p1p1p/p8/2P4cP/P3P1P2/2N1B1CCN/4R4/R1BAKA3 b|a10b10 i3h5|1235|+C
 fw3na6|2b1ka3/1C2a4/2n1c4/1R2pP2p/p1bN3r1/6NCn/P5r2/4B3B/4K2R1/3A5 b|e8h8 d6c8|1240|+H
-svzhvc|2b1ka3/4a4/2C5b/9/1P2R4/3c5/r3c1P2/4B4/4A4/3K1AB2 w|c8f8 a4a1 e3c1 a1c1 d1d2 e4d4|1240|mate
-x97ufv|2bakn3/2C1a4/r6R1/p1p1C4/2b3p1p/8P/P1P1N2R1/4B4/4A4/3AK4 b|c10e8 c9c10|1240|mate
+svzhvc|2b1ka3/4a4/2C5b/9/1P2R4/3c5/r3c1P2/4B4/4A4/3K1AB2 w|c8f8 a4a1 e3c1 a1c1 d1d2 e4d4|1240|mate;chong
+x97ufv|2bakn3/2C1a4/r6R1/p1p1C4/2b3p1p/8P/P1P1N2R1/4B4/4A4/3AK4 b|c10e8 c9c10|1240|mate;mengong,tiandi
 bx2tvo|4kabn1/3Ca3r/n3b1c2/2p3p1p/P1P1p4/2B1P2c1/6P1P/N6rN/2C1A4/R2AK1B1R b|e6e5 d9i9|1240|+R
-gxjo4k|R2R1a3/1c2k4/4b1n2/9/3P2P2/1r2p4/9/5N3/3CA4/2BK1A3 b|g8i7 d10d9|1240|mate
+gxjo4k|R2R1a3/1c2k4/4b1n2/9/3P2P2/1r2p4/9/5N3/3CA4/2BK1A3 b|g8i7 d10d9|1240|mate;shuangche
 uh8syp|rn1akab1r/9/2c1b3n/p3p1C1p/2p6/7c1/P1P1P1P1P/N3B2C1/R8/2BAKA1NR w|h1f2 i8g7|1240|+C
 us8r7x|rnb1ka1nr/4a4/1cc1b4/p1p1p1p1p/9/4P4/P1P3P1P/6CC1/1R7/1NBAKABNR b|h10g8 b2b8|1240|+C
 puh6aq|4kabr1/4a2C1/4b1C2/3cR3p/p1p6/P7P/4N1P2/4B2R1/3K5/2B1r4 b|a6a5 e7d7|1245|+C
 qzycs0|9/3ka4/4b4/9/6b2/2B6/7n1/7C1/3p5/4K4 w|h3e3 h4f3 e1f1 d2e2 e3a3 f3h2|1245|mate
-yp28do|2b1ka3/4a4/9/9/9/3n4p/9/4N4/2rNK4/2Br2BR1 w|h1h2 c2d2|1250|mate
+yp28do|2b1ka3/4a4/9/9/9/3n4p/9/4N4/2rNK4/2Br2BR1 w|h1h2 c2d2|1250|mate;shuangche
 2v3kq8|3rkab2/4a4/4b4/p3c3p/1Cp1Cnp2/P3P3P/2R3P2/2NAB1N2/5Kn2/3A2B2 b|d10d5 c4f4 e7f7 c3d5|1250|+R
 0y79sx|4ka3/2C1a4/5c1r1/4n3R/6b2/5p3/1R1cr4/3CB4/1N2A4/1NBAK4 w|d3a3 h8h1|1250|
 csebec|r2ak1b1r/3Ra4/c1n1b1n2/pCp1p4/6pcp/2P6/P3P1P1P/2N1B1NC1/4A3R/4KAB2 b|a10a9 b7b10 c8b10 d9a9|1250|+R-C
@@ -1367,26 +1367,26 @@ nwwd2k|2bakc1R1/4a4/4b1n2/1R7/8p/3r2P2/8r/4B2N1/4A4/1NBAK4 w|b1a3 g8h10|1255|+R
 atyn0x|1n1ak1bc1/3ca1R2/3N5/4R2P1/1P3C3/p3P4/9/4B4/3rA2C1/2B1KA3 b|d2b2 g9g10|1260|mate
 rc8jo0|1nb1ka1CC/1R2a2r1/4b4/r8/4p3P/P1p3P2/2P1PR3/N3B1N2/4A4/4KAB2 b|e8g10 i10g10|1260|mate
 kwsy99|2R2ar2/3Ck4/3ab4/n8/R8/2p1C1P1p/4P1n2/9/3NA1N2/2B1K1B2 b|e9f9 a6f6|1260|mate
-49e9qb|2baka2R/2C2R3/4b4/4r4/5n1P1/p1PNCp3/P3P1c2/4B1Nr1/4A4/3AK1B2 b|h3h1 i10f10|1260|mate
+49e9qb|2baka2R/2C2R3/4b4/4r4/5n1P1/p1PNCp3/P3P1c2/4B1Nr1/4A4/3AK1B2 b|h3h1 i10f10|1260|mate;shuangche
 51giwm|2bakab2/3c5/9/3cC4/4R1P2/pp7/3n4R/5A3/4K4/2r6 w|e2e3 c1c3|1260|mate
-ke9ppz|3a1kb2/4a4/3nb4/5r3/2p6/p8/6p2/3nBA3/2C2K3/6cc1 w|c2e2 f7f3|1260|mate
+ke9ppz|3a1kb2/4a4/3nb4/5r3/2p6/p8/6p2/3nBA3/2C2K3/6cc1 w|c2e2 f7f3|1260|mate;duimian
 j6185z|3ak1b2/3Ca4/4b4/p8/3Np3p/PR2PnB2/7rP/2cA4N/4A4/2B1K4 w|b5b10 c3i3|1260|+H
-3phf6g|4k4/3na1R2/3a4P/9/P1R6/2B6/8p/4B4/4A4/4KA3 b|e9f8 c6c10|1260|mate
+3phf6g|4k4/3na1R2/3a4P/9/P1R6/2B6/8p/4B4/4A4/4KA3 b|e9f8 c6c10|1260|mate;shuangche
 phadbg|4k4/4a4/5a3/9/p5b2/P2p5/9/B1nABN3/4p1r2/5K3 w|f3e5 g2f2|1260|mate
-f9p5mw|4k4/5R3/2C2a3/2nR2N2/2b5c/1p1C5/2r1P4/4B4/4A2c1/4K1B2 b|i6d6 d7d10|1260|mate
-0rg4ni|4ka3/3na2R1/8P/9/P1R6/2B6/8p/4B4/4A4/4KA3 b|e9d8 c6c10|1260|mate
+f9p5mw|4k4/5R3/2C2a3/2nR2N2/2b5c/1p1C5/2r1P4/4B4/4A2c1/4K1B2 b|i6d6 d7d10|1260|mate;shuangche
+0rg4ni|4ka3/3na2R1/8P/9/P1R6/2B6/8p/4B4/4A4/4KA3 b|e9d8 c6c10|1260|mate;shuangche
 45p3aj|2Ca5/3Rak3/n8/p2P5/6b1p/2B1n4/P8/4B2r1/9/3AKA3 w|f1e2 h3h1 e3g1 h1g1 e2f1 g1f1 e1e2 f1f2|1265|+AE
-3go00j|3ak4/4a4/b8/9/4n4/p3p1p2/9/3R5/2rNr4/1NBK1A3 w|d3a3 c2c1|1265|mate
+3go00j|3ak4/4a4/b8/9/4n4/p3p1p2/9/3R5/2rNr4/1NBK1A3 w|d3a3 c2c1|1265|mate;shuangche
 q0s22n|4k1br1/4a3R/3a2PP1/2r1pR3/9/P5B2/9/9/4A4/4K4 b|c7b7 h8h9|1265|
 jwvht2|4k4/R2Ca4/3Rb3b/8N/7PP/9/p3pr3/4B4/5r1n1/2B1K4 b|e8c6 a9a10 e9d10 d9f9|1265|
-73wjy5|4kab2/3naR3/4C3n/prp3p1p/9/P1P5P/1r1RN4/B8/4A4/2B1KA3 b|e9f8 d4d9 b4b1 f9e9|1265|mate
+73wjy5|4kab2/3naR3/4C3n/prp3p1p/9/P1P5P/1r1RN4/B8/4A4/2B1KA3 b|e9f8 d4d9 b4b1 f9e9|1265|mate;shuangche,shuangjiang
 44x6lo|9/3k2R2/5a3/p3R3p/9/2r2p3/P2c2n2/4B4/4A4/2B1K4 b|f8e9 e7d7|1265|mate
 h3u2u1|r1b1kab2/4a1C1r/1cn6/p1p1p1n1p/6p2/4P4/P1P3c1P/2C1B1N2/3N5/R2AKABR1 w|h1h7 i9g9|1265|+C
 fxb8hh|1r2ka3/9/5R2b/p3pCP2/2b5P/4P2R1/P1r3n2/2N1cA3/9/4KABN1 b|b10b3 h5h10 i8g10 h10g10|1270|+E
 1b3xzq|1rb1ka3/4a4/1c4n1b/3Cp1C1p/p1pn3P1/1c6r/1RP1P4/2N1B1NR1/4A4/3AK1B2 w|c4c5 b8b4|1270|+R
 7dc4tz|4ka1R1/2r1P4/9/9/R8/8P/4p4/4B4/3rA4/3AK1B2 b|e10d10 h10f10|1270|mate
-vfo6ed|4kab2/4a4/4b3P/4p4/9/4P2R1/Rn7/4N4/8r/cr1AKA3 w|a4a5 b4d3|1270|mate
-cna0zw|2b1ka3/2r1a1r2/3cb4/8p/P8/3pn3P/1R1n2CR1/4B4/4A4/4KAB2 w|b4b3 d4c2|1275|mate
+vfo6ed|4kab2/4a4/4b3P/4p4/9/4P2R1/Rn7/4N4/8r/cr1AKA3 w|a4a5 b4d3|1270|mate;guajiao
+cna0zw|2b1ka3/2r1a1r2/3cb4/8p/P8/3pn3P/1R1n2CR1/4B4/4A4/4KAB2 w|b4b3 d4c2|1275|mate;wocao
 qgb45b|2bak4/r3a4/4b4/3Np3p/9/1p2P4/3R1C2P/4r4/4A4/3AK4 b|a9a1 d7c9|1275|
 yuascd|1nb1kabr1/4a4/rc2c3n/pRp1p1p1p/9/9/P1P1P1P1P/2N1B1CC1/4A4/2BAK2NR w|c4c5 h10h3|1280|+C
 hnuk5o|1Cbak4/r3a1R2/6n1b/2N1p1p2/P1p6/4P4/7pP/B8/4A4/4KABc1 b|h1h2 g9g8|1285|+H
@@ -1402,106 +1402,106 @@ obuehh|4kab2/3ca2R1/4b1n2/p1r1p3r/2pn2p1p/2P1P1P2/P7P/B1N1B2N1/4A3C/3AKR3 w|i2h2
 pbu9hf|4ka3/4a4/4b4/4P4/R6R1/4p3P/3r5/4B4/2r1A4/3AK1B2 b|d4d10 e7e8|1310|+E
 hcq2i6|2bak4/4a4/4N2R1/p1p6/8p/P1P2n3/9/5A2n/5K3/r8 b|c7c6 h8h10 e9f10 e8c9 e10e9 h10h9|1315|mate
 ggvtvp|3ak1b2/4a4/4Nc3/p8/1R4P2/P3pr2p/4r4/9/4A4/2BAK1B1R w|i1h1 g10e8|1320|+H
-lcu8ow|n2ak4/6C2/4b3c/8R/9/5p3/8n/p2AB4/5r3/4KA1r1 w|i7b7 h1f1|1320|mate
+lcu8ow|n2ak4/6C2/4b3c/8R/9/5p3/8n/p2AB4/5r3/4KA1r1 w|i7b7 h1f1|1320|mate;shuangche
 3zgqqd|r3ka3/2C1a4/4b4/4n4/6r2/3c1p1Np/2c6/2C1B4/2R1A4/1NBAKR3 w|h5i3 c4c2|1320|+R
 lnu507|2bakab2/3r5/1cn1c3n/p1p1p1p1p/7r1/9/P1P1P1P1P/2N1C1N2/3CA4/1RB1KAB1R w|d2d5 d9d5|1325|+C
-k1viik|4ka1n1/4ac3/2C1b4/p1p1p1pC1/1P4P2/3Rc2p1/P7r/7r1/4A4/2BK1AB2 b|h5h4 h7e7 h3d3 d5d3 e5d5 d3d5 i4i1 d5d10|1330|mate
+k1viik|4ka1n1/4ac3/2C1b4/p1p1p1pC1/1P4P2/3Rc2p1/P7r/7r1/4A4/2BK1AB2 b|h5h4 h7e7 h3d3 d5d3 e5d5 d3d5 i4i1 d5d10|1330|mate;duimian
 l3qs7k|r1bakab2/6n2/1cn1c4/p1p1pC2p/9/9/P1r1P1P1P/2N1B2C1/R8/2BAKA1NR w|h1f2 g9f7|1335|+C
 qkxjsz|2r1kab2/3na4/2c1b1nCc/p1p5p/4p4/6B2/P1PNP3P/6N2/2C1Ar3/1R1AK1BR1 b|e6e5 c2f2|1340|+R
-9946iw|3ck4/4a1r2/9/9/5N2p/7R1/8P/9/9/4KA3 b|g9g10 h5h9 e10f10 h9e9|1340|+A
-e1dd98|1C3ab2/5k3/3a4b/9/2C1p4/4P4/P3c4/4B4/4A1p2/2BAK4 w|c6c2 g2g1 c1a3 g1f1|1345|mate
-yebnfa|2bak4/4a4/4b4/3Np3p/3R5/r1p6/4PC2P/4r4/4A4/3AK4 b|a5a1 d7c9 e10f10 d6f6 e9f8 f6f8|1360|mate
-levsuk|4R4/9/3k5/9/6p1p/9/3r4P/9/9/4K4 b|d4e4 e10e4 g6g5 e4d4|1360|mate
-sppxm5|4k1b2/2P6/P4a3/9/4p2R1/7p1/1n7/9/4r4/3K5 w|h6e6 e2e6 a8b8 e6d6|1360|mate
+9946iw|3ck4/4a1r2/9/9/5N2p/7R1/8P/9/9/4KA3 b|g9g10 h5h9 e10f10 h9e9|1340|+A;chuanxin
+e1dd98|1C3ab2/5k3/3a4b/9/2C1p4/4P4/P3c4/4B4/4A1p2/2BAK4 w|c6c2 g2g1 c1a3 g1f1|1345|mate;duimian
+yebnfa|2bak4/4a4/4b4/3Np3p/3R5/r1p6/4PC2P/4r4/4A4/3AK4 b|a5a1 d7c9 e10f10 d6f6 e9f8 f6f8|1360|mate;shuangjiang
+levsuk|4R4/9/3k5/9/6p1p/9/3r4P/9/9/4K4 b|d4e4 e10e4 g6g5 e4d4|1360|mate;duimian
+sppxm5|4k1b2/2P6/P4a3/9/4p2R1/7p1/1n7/9/4r4/3K5 w|h6e6 e2e6 a8b8 e6d6|1360|mate;duimian
 wv61d8|R2cka3/4a4/4R4/9/9/2B1P4/9/4B4/9/1r1NK4 b|b1d1 e1d1 d10c10 a10c10|1360|mate
-vkot3p|3akabn1/2n5r/4b4/2P5p/P2P5/6Pc1/4C3P/N1C1B3B/4A4/R2AK2c1 b|i9e9 c3c9 g10i8 c9c10|1370|mate
-a4axek|1rba1kc2/2N1a4/1cn5b/7R1/p3pCp1p/9/2P1P1P2/4B4/5N3/2BAKA3 b|b10b9 h7f7 e9f8 f7f8|1375|mate
+vkot3p|3akabn1/2n5r/4b4/2P5p/P2P5/6Pc1/4C3P/N1C1B3B/4A4/R2AK2c1 b|i9e9 c3c9 g10i8 c9c10|1370|mate;mengong,tiandi
+a4axek|1rba1kc2/2N1a4/1cn5b/7R1/p3pCp1p/9/2P1P1P2/4B4/5N3/2BAKA3 b|b10b9 h7f7 e9f8 f7f8|1375|mate;shuangjiang
 5wgtn9|1nb1ka3/1CR1a4/8C/9/8P/p3r4/2c6/4BRc2/9/2BAKA1r1 b|c10e8 i8i10 h1h10 b9e9 e5f5 f3f5|1380|+RA
-yysjhx|2bakab2/3r5/2c1n1n2/p7p/1Np1p4/P5P1P/4P2R1/4B4/R2rA4/2BAKC3 w|e2f3 c8c1 d1e2 d2d1|1385|mate
+yysjhx|2bakab2/3r5/2c1n1n2/p7p/1Np1p4/P5P1P/4P2R1/4B4/R2rA4/2BAKC3 w|e2f3 c8c1 d1e2 d2d1|1385|mate;shuangjiang
 glxb7m|4kab1r/1c2a4/4b3n/p8/2c3p1p/1r3C3/P3nRP1P/4C4/4A4/1NB1KABNR w|f5f9 b9b1|1385|+H
 x9cdpr|4kab2/2r6/3c1a3/p1N1n4/2b1prp1p/P1R6/4P1P1P/4B1N2/2R1A4/4KAB2 w|c5c6 e7c6|1385|+R
 umyhrk|4kabnr/4a4/1cn1b4/p1p3p1p/3rC1c2/P1P5P/4P4/1CN3N2/9/R1BAKAB1R w|g3f5 d6e6|1385|+C
 srd6i0|r2akab1r/9/bc4nc1/p3p1p2/1nP5p/9/P3P1P1P/N1C1B1NC1/4A4/R3KAB1R b|g10e8 c6b6|1385|+H
 8pi2m4|2b1k4/9/4PnN2/9/4P4/2B6/9/4BA3/4AK3/9 b|f8e6 e8e9 e10d10 g8e7 e6d4 e7c8|1395|mate
 pzu7ji|2r1k1b2/2R1a4/3r5/p6R1/5cb1p/P1P3p2/4P3P/6N2/9/2BAKAB2 w|c1e3 c10c9|1395|+R
-wjufiq|5k3/3c5/5a3/9/5Nb2/2B5C/9/2np5/4K4/9 b|d9d4 f6g8 f10f9 g8h10 f9f10 i5i10|1395|mate
-t2bxtg|5k3/9/4Ra3/9/9/5r3/9/9/4K4/9 b|f5f2 e2f2 f10f9 e8e10|1395|mate
+wjufiq|5k3/3c5/5a3/9/5Nb2/2B5C/9/2np5/4K4/9 b|d9d4 f6g8 f10f9 g8h10 f9f10 i5i10|1395|mate;mahou
+t2bxtg|5k3/9/4Ra3/9/9/5r3/9/9/4K4/9 b|f5f2 e2f2 f10f9 e8e10|1395|mate;kunbi
 nyafm9|rnbakab2/9/3cc3n/2p1p1p2/p6r1/P1P3P1p/4P3P/2NAB2CR/6C2/R3KABN1 w|d3e2 i5i4 i3i4 h6h3|1405|+CP-P
 xyyopn|4k4/1R7/3r5/9/C1b6/9/P3c4/4B4/4A4/2B1KA3 w|b9b7 e10d10|1410|
 oi3k1j|4k4/4a4/6n2/4p3p/p5b2/8P/2r1P4/1n2B1p2/4A3R/1C1R1K1c1 w|d1d9 h1b1|1420|+C
 00vldb|4k4/5P3/2N5b/9/2n6/2B6/9/4BA3/4AK3/9 b|c6b8 f9e9 e10f10 c8e7 b8a6 e7g8|1425|mate
 tvt3i6|r1bakabnr/9/2n4c1/p1p1p1p1p/c8/9/P1P1P1P1P/1CC1B1N2/9/RN1AKAB1R w|i1h1 a6a1|1425|+R
 k9wshz|1Cbak4/4a4/6n2/6R1p/p1b1p2c1/P5PCP/8R/1r2B1N2/4Ar3/4K1B2 w|b10b9 b3b1 e3c1 b1c1|1435|+E
-nyfj82|3a5/4k4/4N4/8p/2P6/p7P/c3P1r2/5K3/4A4/1R1A5 w|e8g7 g4f4 f3e3 f4e4 e3d3 e4d4|1440|mate
-y44f78|9/3ka4/4bc1N1/9/p8/4c1n2/P2n2C2/4B4/4AC3/2BAK4 w|g4g3 d4c2 f2c2 g5f3|1445|mate
-u4e8xm|2bakr3/4a2R1/3Cn3P/p3C4/3P4p/9/P5r1P/9/4A4/3NK1B2 w|e7e3 g4g1 e2f1 f10f1 e1e2 g1g2 d1f2 g2f2|1465|mate
+nyfj82|3a5/4k4/4N4/8p/2P6/p7P/c3P1r2/5K3/4A4/1R1A5 w|e8g7 g4f4 f3e3 f4e4 e3d3 e4d4|1440|mate;duimian
+y44f78|9/3ka4/4bc1N1/9/p8/4c1n2/P2n2C2/4B4/4AC3/2BAK4 w|g4g3 d4c2 f2c2 g5f3|1445|mate;guajiao
+u4e8xm|2bakr3/4a2R1/3Cn3P/p3C4/3P4p/9/P5r1P/9/4A4/3NK1B2 w|e7e3 g4g1 e2f1 f10f1 e1e2 g1g2 d1f2 g2f2|1465|mate;shuangche
 imid82|2b1ka2r/6n2/5a1C1/r1C1Ncp2/p1b5p/5cP2/P3P3P/4B4/4A4/3RKAB1R b|f5f4 e7c8|1470|
-3ov3qi|2b1ka2r/4a2C1/3cb1n2/p3pcp1p/2p6/P1P3P1P/Nr1nP4/4B1N2/1C2A4/1RB1KA1R1 w|g3f5 d4c2 e1d1 b4d4 e2d3 d4d3|1480|mate
+3ov3qi|2b1ka2r/4a2C1/3cb1n2/p3pcp1p/2p6/P1P3P1P/Nr1nP4/4B1N2/1C2A4/1RB1KA1R1 w|g3f5 d4c2 e1d1 b4d4 e2d3 d4d3|1480|mate;shuangjiang
 9kgmzu|2bak1br1/4a4/4N1c1n/4p3p/p1Cn5/6P1C/P1P1P3P/4B4/1r1NA4/R3KAB1R b|b2d2 e8c9|1485|
-vpo13q|2b1ka3/4a4/4b4/1C7/1P1R5/c5P2/2rc5/B8/4A4/3K1AB2 b|d4i4 b7b10 e9d10 d6d10 e10e9 d10d9|1515|mate
+vpo13q|2b1ka3/4a4/4b4/1C7/1P1R5/c5P2/2rc5/B8/4A4/3K1AB2 b|d4i4 b7b10 e9d10 d6d10 e10e9 d10d9|1515|mate;duimian
 x6bdxz|r1bakabnr/9/n3c2c1/C1p1p1p1p/p8/6P2/P1P1P3P/4C4/9/RNBAKABNR b|h8h4 a7a10|1515|+R
 o271tk|2b6/4R2C1/1c1k2c2/2p1p1r2/2P6/3r4P/9/9/9/1R1AKA3 b|b8b3 h9h8|1535|
 uqzd2y|3ak1b2/9/8b/9/9/pC1Nn4/P5r2/4KR3/3C3c1/3A1A3 w|b5b3 g4e4 e3d3 e4e1|1535|mate
 58to1z|2b6/3k5/9/9/6R2/4C1B2/3c4r/3A2p2/4AK3/9 w|e5c5 i4f4 e2f3 g3f3 f2f1 f3f2 f1e1 f4e4|1545|+A
-jpun3p|3aka3/9/4br3/9/3R2c2/9/R8/4B4/4Ap3/2BAK4 w|e2f1 g6g1 f1e2 f2f1|1545|mate
+jpun3p|3aka3/9/4br3/9/3R2c2/9/R8/4B4/4Ap3/2BAK4 w|e2f1 g6g1 f1e2 f2f1|1545|mate;shuangjiang
 0tse9p|1Rck5/4a1r2/3cb3b/r7N/4p3P/6P2/p1R6/2C1B4/4A4/2B1Kn3 b|d8d2 c3c10|1550|+C
-u7tirn|2c1k4/4a4/9/7r1/4R4/2B6/4P4/4BA3/3NA1R2/4K3c w|e1d1 h7h1 g2g1 h1g1 e2f1 g1f1|1560|mate
+u7tirn|2c1k4/4a4/9/7r1/4R4/2B6/4P4/4BA3/3NA1R2/4K3c w|e1d1 h7h1 g2g1 h1g1 e2f1 g1f1|1560|mate;shuangjiang
 exu4lo|1nbakab2/8r/2c1c1n2/p3p3p/6p2/C3P4/P1r3P1P/N2CB1N2/4A4/1RBAK2R1 b|i9b9 b1b9|1565|+R
 da3276|3akabCr/4n2R1/3rb4/5P3/p1p5P/8p/P5Pc1/3N2N2/3KC4/3A1AB2 b|i10i6 h9f9|1570|
-yng1ef|3k1a3/4a4/8b/2N6/4C4/6c2/9/3An4/4AK3/9 b|e3f5 c7b9 d10d9 e6a6 e9d8 a6a9|1575|mate
-avxocc|4k4/4a4/4ba2b/4C4/9/8p/9/4nN3/3p5/2BcK4 w|f3h2 e3g2 e1f1 d2e2 e7e3 g2e1|1590|mate
+yng1ef|3k1a3/4a4/8b/2N6/4C4/6c2/9/3An4/4AK3/9 b|e3f5 c7b9 d10d9 e6a6 e9d8 a6a9|1575|mate;mahou
+avxocc|4k4/4a4/4ba2b/4C4/9/8p/9/4nN3/3p5/2BcK4 w|f3h2 e3g2 e1f1 d2e2 e7e3 g2e1|1590|mate;mahou
 26wc75|2b1kab1r/9/4c1C2/p1p1p1p1p/7c1/P2r5/2P1P1P1P/2C6/8R/RNBAKABN1 w|h1i3 e8e4|1600|+P
 7bvac7|4kabr1/4a4/4b1C2/p2np1RCp/2p1cN3/P1P5P/6P2/4B2R1/1r2A3c/2BK1A3 w|h3i3 b2d2|1610|
 b31wyl|3akr3/r8/2n1bRnC1/4p1C2/p1p3b2/8P/c1P1P2R1/N5N2/5c3/2BAKAB2 b|d10e9 f8g8|1620|+H
 isxsbi|2b1k1c2/4a4/3ab3n/4R4/7rp/4C1B2/2P1P3P/N4N3/4A4/2BA1K3 w|e7a7 h6h1|1625|
 m8ixqv|4ka1r1/9/3ab1P2/2n1N4/p5b1p/6RCP/9/Nr4c2/2p1A4/2B1KAB1R w|e7f5 g3a3|1640|+H
-p27mci|2b1ka2r/4a4/4b1n2/p3pcp1p/2pc5/P1P2NP1P/N3r4/4B2C1/1Cn1A4/1RBK1A1R1 w|a4c3 e4d4 e2d3 d4d3|1665|mate
-bzlwf6|2bakab1c/9/3n5/n1r1C3R/3N5/6p2/4P4/4B4/4A4/c1CAK1B2 b|d8e6 d6e8 d10e9 e8c7|1670|+R
+p27mci|2b1ka2r/4a4/4b1n2/p3pcp1p/2pc5/P1P2NP1P/N3r4/4B2C1/1Cn1A4/1RBK1A1R1 w|a4c3 e4d4 e2d3 d4d3|1665|mate;shuangjiang
+bzlwf6|2bakab1c/9/3n5/n1r1C3R/3N5/6p2/4P4/4B4/4A4/c1CAK1B2 b|d8e6 d6e8 d10e9 e8c7|1670|+R;chou,zhuoshuang
 5golue|2bnkn3/3C3r1/3a4b/p1N1p1P1p/9/1p7/P7P/4B1cc1/3CA4/2BAK2R1 w|e3g5 g3g7|1670|+P
-o80p4j|5k3/4a4/3c5/9/5N3/5R2P/9/9/6r2/4KA3 b|g2c2 f6g8 f10e10 f5f10|1685|mate
+o80p4j|5k3/4a4/3c5/9/5N3/5R2P/9/9/6r2/4KA3 b|g2c2 f6g8 f10e10 f5f10|1685|mate;shuangjiang
 wndx46|rnbak1b1r/4a3n/1c7/2p1p1p2/p4N2p/2P3P1P/P3Pc1R1/RC2B2C1/9/2BAKA3 b|f4a4 a3a4|1685|+C
 1if1ll|2r2abr1/4kC3/1R2ban2/3cp1p2/p7p/3C2P2/P1c1P3P/B1R4N1/4A4/3AK1B2 b|e9f9 b8e8|1705|+E
 m7jz3d|2bak4/9/3ab1nR1/p3p1C1p/2p1P1p2/2P6/P1n5P/2N1B4/2r1Ar1c1/1R1AK1BN1 w|c3e4 h2e2|1710|+A
 ggjy27|1rbak3c/4a4/2r3nRb/n2Np4/p5p1p/2CR5/1cP1P1P2/4B4/5N3/2BAKA3 b|g8f10 h8c8|1715|+R
-3np4s2|4ka3/4a4/8b/4c4/2R6/3r5/P8/9/1N2A4/2Bn1K3 w|c6c9 d5f5 e2f3 f5f3 f1e1 d1e3|1715|mate
-91r81c|C3k4/1R2a2Pr/b3b4/p8/9/P3P4/2c4p1/4BA3/5K3/3A5 b|i9i6 b9b10|1715|
+3np4s2|4ka3/4a4/8b/4c4/2R6/3r5/P8/9/1N2A4/2Bn1K3 w|c6c9 d5f5 e2f3 f5f3 f1e1 d1e3|1715|mate;mahou
+91r81c|C3k4/1R2a2Pr/b3b4/p8/9/P3P4/2c4p1/4BA3/5K3/3A5 b|i9i6 b9b10|1715|;shuangjiang
 gp2d8y|rn1akabr1/9/1c2b4/p1p5p/4p1nC1/P3c4/2P5P/4B1C2/3RAN3/1NB1KA1R1 b|h10h7 h6e6 h7e7 g3g10|1715|+EP
 0dta6t|2bakab2/9/2n5n/r1N1p3p/p8/2C1cc2P/P4rP2/2C1B1N2/4A4/R2K1AB1R w|c7a6 f5f1|1720|+A
 87qaz3|4kab2/4an3/9/p2N2c1R/2b6/P5r2/7p1/4N4/4A4/4KA3 b|g5i5 e1d1 e10d10 i7i5|1720|+R
 broot1|rnbakabnr/9/7c1/pCp1p1p2/8p/7C1/P1P1P1c1P/2N3N2/9/R1BAKAB1R b|g4c4 b7e7|1720|+P
 ip20nd|1rb1ka3/2R1a4/c5P2/4P4/5Rb1p/3p5/p1PN5/4B4/3r5/3AKAB2 w|d4e2 a8d8|1725|
-zj6jn5|3ak4/3ra4/4b1n2/6R1p/p1b1p2c1/P5PCP/8R/1C1nB1N2/4Ar3/4KAB2 w|e1d1 d3b2 d1e1 d9d1 e2d1 b2d3|1725|mate
+zj6jn5|3ak4/3ra4/4b1n2/6R1p/p1b1p2c1/P5PCP/8R/1C1nB1N2/4Ar3/4KAB2 w|e1d1 d3b2 d1e1 d9d1 e2d1 b2d3|1725|mate;guajiao,shuangjiang
 v04qwe|3rk4/4a4/4b4/2R5p/p4np2/2P6/P1r5P/6N2/4A4/3AK1BR1 b|g6g5 h1h10 e9f10 c7f7|1725|
 1wg56p|4k1b2/4a4/4b3n/P8/4c4/2p6/4c4/1R2NR3/4A1r2/2BAK4 b|e8c6 b3b10 e9d10 e1f1|1725|
 ua4zrt|1C2k1b2/4a4/4b4/8p/4p1c2/3R1N3/3nP3P/4B2r1/4A4/2B1KA3 b|d4c2 e1d1|1730|
 7r8wy7|3ak1b2/4a4/1n2b4/p3p3p/9/P1p1PNr1n/1rc2R1CP/2N3C2/R3A4/2B1KA3 w|g3i3 c4h4 f4h4 b4h4|1730|+RC-C
-754axl|2b1ka3/4a4/4b4/1C7/1P1R5/c5P2/1r2c4/4B4/4A4/3K1AB2 b|a5e5 b7b10 e9d10 d6d10 e10e9 d10d9|1760|mate
-n5m8ql|rn2kab2/4aR2r/4b1n2/p1p3C1p/2c6/4pc2P/P3P1P2/2N1BC3/4A1N2/3RKAB2 b|e9d10 g7g10 f10e9 f9f10|1780|mate
+754axl|2b1ka3/4a4/4b4/1C7/1P1R5/c5P2/1r2c4/4B4/4A4/3K1AB2 b|a5e5 b7b10 e9d10 d6d10 e10e9 d10d9|1760|mate;duimian
+n5m8ql|rn2kab2/4aR2r/4b1n2/p1p3C1p/2c6/4pc2P/P3P1P2/2N1BC3/4A1N2/3RKAB2 b|e9d10 g7g10 f10e9 f9f10|1780|mate;shuangjiang
 nx3u1g|1nbakab2/8r/2c1c1n2/p3p2Rp/6p2/C3P4/P4rP1P/N1C1B1N2/4A4/1RBAK4 b|c8c7 c3c10|1795|+E
 gal4tc|2b1kc3/3Ca4/1P2ba3/9/P3R3p/4P4/3R4P/2N4r1/7n1/2BAKABc1 w|c3e4 h2f3 e4f2 h3h2|1810|
 m0p1sh|r1b1ka1nr/4a4/n1c5b/p3p3C/9/9/P1P1P1P1P/1c2B1C2/9/RN1AKABNR b|b3b4 i7i10|1810|+R
 65jvp6|1rbak4/4a4/5P3/1R7/P4C3/2B6/4p4/2c6/4A4/4KAB2 w|b7f7 b10b1 e2d1 c3c1|1815|
 dylzog|2bk2b2/9/3P2N2/6n2/3N5/6B2/4Pc3/3ABA3/9/3K5 b|g7e6 d6c8 d10e10 d8d9 f4g4 d9e9|1850|mate
 h05m4w|2b1ka1R1/9/3rn4/6N1p/4R4/2P3p2/P4r2P/8B/4A4/3AK4 b|g5f5 g7e8|1855|+H
-iactbu|2b1ka3/4a4/4b4/1C7/1P1R5/c5P2/2rc5/B8/4A4/3K1AB2 b|d4e4 b7b10 e9d10 d6d10 e10e9 d10d9|1855|mate
+iactbu|2b1ka3/4a4/4b4/1C7/1P1R5/c5P2/2rc5/B8/4A4/3K1AB2 b|d4e4 b7b10 e9d10 d6d10 e10e9 d10d9|1855|mate;duimian
 2j2o72|1r2kCbR1/9/4bR3/p3p1P2/8P/4P4/P1r3n2/2N1cA3/9/4KABN1 b|b10b6 f10f9|1920|
 y0ixxj|2b6/4a1RC1/c2k2c2/2p1p1N2/2P6/3r4P/9/9/9/R2AKAr2 b|c7c6 h9h8|1930|
-v2bbmq|2bak4/4a4/2c6/p1N6/6N1P/PC2pnB2/2n6/5K3/c3A4/2BA5 w|c7d5 c8c6 b5e5 c4e5 g6e5 c6f6|1955|mate
+v2bbmq|2bak4/4a4/2c6/p1N6/6N1P/PC2pnB2/2n6/5K3/c3A4/2BA5 w|c7d5 c8c6 b5e5 c4e5 g6e5 c6f6|1955|mate;mahou
 hmt6zm|3a1k3/4a4/6r2/4n4/p1r1p1b2/p4C3/9/4R3R/4A1N2/1n2K1B2 b|c6c5 i3i10|1955|
-4hpmzs|1rbak2C1/4a4/n3bc3/p1c1p4/9/P5R2/2P1P3r/N3B4/4A1N2/4KABR1 b|c7d7 g5g10|1980|
-nzdpc0|R2Ck4/9/3a5/2p6/8p/2Bnn3c/3c5/6N1B/4A4/3CKA3 w|g3h1 e5f3 h1f2 i5e5 e2f3 d4e4|1985|mate
-jtnnk0|1r2kab2/4a4/c3n3b/p3N1n2/2R6/P5Bc1/4P4/C1NCB4/4A4/4K4 b|b10b4 c6c10 e9d10 e7c6 f10e9 c6b4|1990|+R
-aogid2|4ka3/9/3abP3/2n6/p5N1p/6R1P/r8/N2A3rC/3p5/2B1KAB1R w|g6e5 a4e4 g1e3 h3e3 f1e2 e3d3 g5g2 d3c3|1990|+AE
+4hpmzs|1rbak2C1/4a4/n3bc3/p1c1p4/9/P5R2/2P1P3r/N3B4/4A1N2/4KABR1 b|c7d7 g5g10|1980|;shuangjiang
+nzdpc0|R2Ck4/9/3a5/2p6/8p/2Bnn3c/3c5/6N1B/4A4/3CKA3 w|g3h1 e5f3 h1f2 i5e5 e2f3 d4e4|1985|mate;chong
+jtnnk0|1r2kab2/4a4/c3n3b/p3N1n2/2R6/P5Bc1/4P4/C1NCB4/4A4/4K4 b|b10b4 c6c10 e9d10 e7c6 f10e9 c6b4|1990|+R;zhuoshuang
+aogid2|4ka3/9/3abP3/2n6/p5N1p/6R1P/r8/N2A3rC/3p5/2B1KAB1R w|g6e5 a4e4 g1e3 h3e3 f1e2 e3d3 g5g2 d3c3|1990|+AE;zhuoshuang
 3n5hel|3ak4/4ar3/4R1C2/4p3p/9/p5B1P/P1c1P4/r5N2/4A4/4KA2R w|i1i3 a3a1 e2d1 c4c1|2090|
 1k1sq4|4k4/4a1P2/4P4/9/9/9/9/4B4/9/2BAKA2r b|e10f10 e8e9|2105|+A
 fgfvq6|2bak4/4a4/4b4/4p3p/3R1N3/rpB6/4PC2P/4B1r2/9/3AKA3 b|c10a8 f6e8|2135|+E
 m6xvrp|1RCk5/2R1ar3/3cb3b/3r4N/4p3P/6P2/p8/4B4/4A4/2B1Kn3 b|d10e10 c9d9|2140|
 sji07c|2b1ka1R1/9/2r1n4/4R1N1p/9/2P4p1/P4r2P/9/4A4/3AK1B2 b|f4i4 g7e8|2150|+H
 z96yjf|2r1ka3/4a1R2/2n1bc3/p2Rp1p2/2b3Pr1/4P4/P5N2/3CB2C1/1c7/2BAKA3 b|h6g6 h3h10 e8g10 g9g10|2150|+E
-ah2h7b|3ak4/4aP3/8b/1N7/9/6B2/3c5/1p2B1p2/4A4/3AK4 b|d4d2 e2d3 e9d8 b7c9|2240|mate
+ah2h7b|3ak4/4aP3/8b/1N7/9/6B2/3c5/1p2B1p2/4A4/3AK4 b|d4d2 e2d3 e9d8 b7c9|2240|mate;wocao
 k7mqde|1Cb6/4a4/4k4/3R5/1rb1pc3/1N6p/4P3c/4B4/5N3/2BK5 b|f6g6 f2g4|2335|
 vf8t70|C1bck3P/4a4/4b4/p4P3/9/P1B6/9/1R3K3/4A2p1/3Ar4 w|b3e3 e1i1 e3a3 i1i3 f3f2 h2g2 f2f1 i3i1|2355|mate
-1dtviv|3a2r2/1C2k4/3Pn4/3R5/p6P1/4P4/9/9/4A4/4KAB1c b|g10g3 d8d9 e9e10 b9b10 d10e9 d9d10|2375|mate
+1dtviv|3a2r2/1C2k4/3Pn4/3R5/p6P1/4P4/9/9/4A4/4KAB1c b|g10g3 d8d9 e9e10 b9b10 d10e9 d9d10|2375|mate;shuangjiang
 tmsatl|2ba5/4k4/4b1CC1/1R6p/7P1/r5B2/2c1P4/B5R2/N2c1r3/3AK4 b|c4c2 b7b9|2380|
 2tt7t5|2bak1br1/1R2a4/4n2rc/5NP2/4R3p/9/c1p5P/2p6/C3AC3/2B1KAB2 b|h8h1 e6e8|2380|+H
 1c84nd|3akab2/5r3/1R2b1P1c/p8/2p3n1p/P3P4/2rc3RP/N2CB4/4A4/2B1KA3 w|h4h7 g6f4|2380|

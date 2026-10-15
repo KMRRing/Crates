@@ -21,6 +21,7 @@
 //
 //   node tools/river-puzzles.mjs find <first game> <games> <out.jsonl>    the games' seeds run from <first game>
 //   node tools/river-puzzles.mjs merge <found.jsonl…>                    writes river-puzzles.txt
+//   node tools/river-puzzles.mjs merge --add [found.jsonl…]              adds to it (alone: names its patterns again)
 // FAIRY=<a native fairy-stockfish> searches twice as fast as the page's WebAssembly, with the same results (built from
 // the same commit: make build ARCH=x86-64-bmi2 largeboards=yes nnue=no). Two at once, on different games, use both cores.
 // TRACE=1 says why each mistake tried was turned away.
@@ -31,6 +32,8 @@ import { LEVELS, SETUP } from "../river-levels.js";
 import { Engine, levelMove, valueOf } from "../uci.js";
 import { chances, scoreOf } from "../uci-coach.js";
 import { fairyWorker } from "./uci-node.mjs";
+import { parsePuzzle, puzzleLine } from "../river-rush.js";
+import { patternsOf } from "../river-patterns.js";
 
 const SCALE = 1.25;                                              // Xiangqi's centipawns to chess's, as the coach reads them
 const GLANCE = "nodes 40000", DEEP = "nodes 200000", REPLY = "nodes 100000";
@@ -270,12 +273,18 @@ function idOf(p) {
   for (const ch of `${p.fen}|${p.moves}`) { h ^= ch.charCodeAt(0); h = Math.imul(h, 0x01000193) >>> 0; }
   return h.toString(36).padStart(7, "0").slice(-6);
 }
-/** The found puzzles as the page reads them, one a line: id|fen|moves|rating|theme, easiest first; a position found
- *  twice is kept once. */
-function merge(files) {
+/**
+ * The found puzzles as the page reads them, one a line: id|fen|moves|rating|theme;patterns, easiest first (the patterns,
+ * river-patterns.js's named mates and tricks, worked out from the line); a position found twice is kept once. With
+ * --add, the bank's own lines are kept as they stand, ratings and all, and what's found is added to them (the finds
+ * that made the bank aren't kept, so it grows this way); `merge --add` alone names the bank's patterns again.
+ */
+function merge(args) {
+  const add = args[0] === "--add", files = add ? args.slice(1) : args, bankFile = new URL("../river-puzzles.txt", import.meta.url);
   // a line still being written by a find that's running is passed over
   const all = files.flatMap(f => fs.readFileSync(f, "utf8").split("\n").filter(Boolean).flatMap(l => { try { return [JSON.parse(l)]; } catch { return []; } }));
-  const seen = new Set(), keep = [];
+  const old = add ? fs.readFileSync(bankFile, "utf8").trim().split("\n").map(parsePuzzle) : [];
+  const seen = new Set(old.map(p => X.keyOf(walk(p.fen, p.moves.slice(0, 1))))), keep = [];
   for (const p of all) {
     const key = X.keyOf(walk(p.fen, p.moves.split(" ").slice(0, 1)));
     if (seen.has(key)) continue;
@@ -283,12 +292,12 @@ function merge(files) {
     keep.push(p);
   }
   for (const p of keep) p.rating = fit(p.by);
-  keep.sort((a, b) => a.rating - b.rating || (a.fen < b.fen ? -1 : 1));
-  const lines = keep.map(p => `${idOf(p)}|${p.fen.split(" ").slice(0, 2).join(" ")}|${p.moves}|${p.rating}|${p.theme}`);
-  fs.writeFileSync(new URL("../river-puzzles.txt", import.meta.url), `${lines.join("\n")}\n`);
+  const found = keep.map(p => ({ id: idOf(p), fen: p.fen.split(" ").slice(0, 2).join(" "), moves: p.moves.split(" "), rating: p.rating, theme: p.theme }));
+  const bank = [...old, ...found].map(p => ({ ...p, patterns: patternsOf(p) })).sort((a, b) => a.rating - b.rating || (a.fen < b.fen ? -1 : 1));
+  fs.writeFileSync(bankFile, `${bank.map(puzzleLine).join("\n")}\n`);
   const bands = {};
-  for (const p of keep) { const b = Math.max(600, Math.min(2400, Math.floor(p.rating / 200) * 200)); bands[b] = (bands[b] || 0) + 1; }
-  console.log(`${keep.length} puzzles (${all.length - keep.length} found twice); by band ${Object.entries(bands).map(([b, n]) => `${b}: ${n}`).join(", ")}; mates ${keep.filter(p => p.theme === "mate").length}`);
+  for (const p of bank) { const b = Math.max(600, Math.min(2400, Math.floor(p.rating / 200) * 200)); bands[b] = (bands[b] || 0) + 1; }
+  console.log(`${bank.length} puzzles (${found.length} new, ${all.length - keep.length} found twice); by band ${Object.entries(bands).map(([b, n]) => `${b}: ${n}`).join(", ")}; mates ${bank.filter(p => p.theme === "mate").length}; with a pattern ${bank.filter(p => p.patterns.length).length}`);
 }
 
 if (process.argv[2] === "merge") merge(process.argv.slice(3));

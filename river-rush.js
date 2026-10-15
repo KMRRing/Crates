@@ -2,6 +2,7 @@
 // move answers it, and how a run chooses its puzzles and moves your rating, by the chess Rush's rules (rush.js). The bank,
 // river-puzzles.txt, is found by tools/river-puzzles.mjs; tests/river.mjs checks it and these.
 import * as X from "./river-rules.js";
+import { PATTERNS, zhOf } from "./river-patterns.js";
 
 /** The runs: three minutes with five seconds' grace for each puzzle (Standard's delay), five minutes, or no clock. */
 export const MODES = { three: { label: "3 min, 5 s delay", ms: 180000, grace: 5000 }, five: { label: "5 minutes", ms: 300000 }, survival: { label: "Survival", ms: 0 } };
@@ -11,11 +12,24 @@ export function rng(seed) {
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-/** A line of the bank (id|fen|moves|rating|theme) as a puzzle: { id, fen, moves, rating, theme }. The position is the
- *  one before the other side's mistake (moves[0]); the solver's moves and the replies follow, the solver's last. */
+/** A line of the bank (id|fen|moves|rating|theme;patterns) as a puzzle: { id, fen, moves, rating, theme, patterns }. The
+ *  position is the one before the other side's mistake (moves[0]); the solver's moves and the replies follow, the
+ *  solver's last. The patterns are river-patterns.js's ids, named mates and tricks ("mate;mahou,duimian"). */
 export function parsePuzzle(text) {
-  const [id, fen, moves, r, theme] = text.split("|");
-  return { id, fen, moves: moves.split(" "), rating: Number(r), theme: theme || "" };
+  const [id, fen, moves, r, field = ""] = text.split("|"), [theme, patterns] = field.split(";");
+  return { id, fen, moves: moves.split(" "), rating: Number(r), theme: theme || "", patterns: patterns ? patterns.split(",") : [] };
+}
+/** A puzzle as a line of the bank, as parsePuzzle reads it. */
+export const puzzleLine = p => `${p.id}|${p.fen}|${p.moves.join(" ")}|${p.rating}|${p.theme || ""}${p.patterns?.length ? `;${p.patterns.join(",")}` : ""}`;
+/** The patterns a puzzle shows, named in the reader's characters: "馬後炮 and 雙將", or "". */
+export function patternWords(p, script = "traditional") {
+  const xs = (p.patterns || []).filter(id => PATTERNS[id]).map(id => zhOf(id, script));
+  return xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`;
+}
+/** What a puzzle's first pattern is, in a line: "馬後炮: the horse is the cannon's screen and holds the general's flight". */
+export function patternSay(p, script = "traditional") {
+  const id = (p.patterns || []).find(x => PATTERNS[x]);
+  return id ? `${zhOf(id, script)}: ${PATTERNS[id].say}` : "";
 }
 
 const PIECE = { R: "chariot", C: "cannon", H: "horse", A: "advisor", E: "elephant", P: "soldier", K: "general" };

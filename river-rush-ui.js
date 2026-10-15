@@ -7,7 +7,7 @@
 // (river:rush), so a partner watching sees it and a run without a clock comes back after a reload.
 import * as X from "./river-rules.js";
 import { mountBoard } from "./river-board.js";
-import { MODES, STRIKES, rng, parsePuzzle, themeWords, lineOf, solverOf, answers, targetOf, nearest, rated } from "./river-rush.js";
+import { MODES, STRIKES, rng, parsePuzzle, puzzleLine, themeWords, patternWords, patternSay, lineOf, solverOf, answers, targetOf, nearest, rated } from "./river-rush.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 import { today, IN_FRAME } from "./suite.js";
 import { busy } from "./loading.js";
@@ -118,19 +118,21 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
   // S: the run, as rush.js keeps it: { mode, daily, seed, at, used (ids), solved, strikes, misses, ratings (of those
   // solved), started (null until the warm-up is solved), warming, over, why, ratingAtStart, current, step, puzzleAt, free }
   let S = null, puzzle = null, tick = 0, on = false, pick = null;
-  // the next run's kind: the last run's, until the menu picks another
+  // the next run's kind: the last run's, until the menu picks another (a run of patterns has no clock)
   const last = read(RUN, null);
-  let next = { mode: MODES[last?.mode] ? last.mode : "three", daily: !!last?.daily };
+  let next = { mode: MODES[last?.mode] ? last.mode : "three", daily: !!last?.daily, patterns: !!last?.patterns };
 
   // your rating: Elo-style against each puzzle's, fast for your first twenty puzzles, then slowly, and a solve's gain
   // halving with each miss in the run, so a careless run can't climb
   const rating = read(RATING, { r: 1000, n: 0 });
   function rate(p, solved, missesSoFar) { Object.assign(rating, rated(rating, p, solved, missesSoFar)); write(RATING, rating); }
 
-  /** The run's next puzzle (river-rush.js chooses it as rush.js does), its delay's clock started. */
+  /** The run's next puzzle (river-rush.js chooses it as rush.js does; a run of patterns among the named ones), its
+   *  delay's clock started. */
   function nextPuzzle() {
     graceNext();
-    const r = rng(S.seed ^ (S.at * 7919)), p = nearest(bank, S.used, targetOf(S, rating.r, r), r);
+    const pool = S.patterns ? bank.filter(q => q.patterns.length) : bank;
+    const r = rng(S.seed ^ (S.at * 7919)), p = nearest(pool, S.used, targetOf(S, rating.r, r), r);
     S.used.add(p.id);
     return p;
   }
@@ -154,8 +156,8 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     S = null;
     drawHud(); drawBar();
     if (!(await ready())) { drawBar(); return; }
-    const { mode, daily } = next;
-    S = { mode, daily, seed: daily ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [],
+    const { daily, patterns } = next, mode = patterns ? "survival" : next.mode;
+    S = { mode, daily: daily && !patterns, patterns, seed: daily && !patterns ? today() : Math.floor(Math.random() * 2 ** 31), at: 0, used: new Set(), solved: 0, strikes: 0, misses: [], ratings: [],
       started: null, warming: true, over: false, why: null, ratingAtStart: rating.r, current: null, step: 0, puzzleAt: null, free: 0 };
     tick = setInterval(clock, 250);
     drawHud(); drawBar();
@@ -198,22 +200,29 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
       return;
     }
     rate(p, solved, S.misses.length);
+    // a run of patterns says what each one is (after a miss's line has been read), and gives you time to read it
+    const told = S.patterns ? patternSay(p, script()) : "";
     if (solved) {
       S.solved++;
       S.ratings.push(p.rating);
-      say("Solved", "good");
+      say(told ? `✓ ${told}` : "Solved", "good");
     } else {
       S.strikes++;
-      S.misses.push({ id: p.id, rating: p.rating, fen: p.fen, moves: p.moves.join(" "), theme: p.theme });
+      S.misses.push({ id: p.id, rating: p.rating, fen: p.fen, moves: p.moves.join(" "), theme: p.theme, patterns: p.patterns });
       say(`Not that one: ${line}`, "bad");
       navigator.vibrate?.(70);
+      if (told) { const run = S, at = S.at; setTimeout(() => { if (S === run && S.at === at && S.strikes < STRIKES) say(told, "bad"); }, 1600); }
     }
-    const what = themeWords(p);
-    $("rushMeta").textContent = `Rated ${p.rating.toLocaleString("en-GB")}${what ? ` · ${what}` : ""}`;
+    $("rushMeta").textContent = metaOf(p);
     drawHud();
     keepRun();
     if (S.strikes >= STRIKES) { finish("strikes"); return; }
-    serveIn(solved ? 350 : 1400);
+    serveIn(S.patterns ? (solved ? 2600 : 3400) : solved ? 350 : 1400);
+  }
+  /** A puzzle's line over the board once it's done: its rating, what it comes to, its patterns by name. */
+  function metaOf(p) {
+    const what = themeWords(p), named = patternWords(p, script());
+    return `Rated ${p.rating.toLocaleString("en-GB")}${what ? ` · ${what}` : ""}${named ? ` · ${named}` : ""}`;
   }
   /** The run's end: its bests kept, the board left as it stands, and the results (not when you left it yourself). */
   function finish(why, quiet = false) {
@@ -224,17 +233,17 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     clearInterval(tick);
     clock();
     puzzle?.stop();
-    // your best in the mode, any run; and today's run's best, a record for each day
-    const bests = read(BEST, {}), daily = read(DAILY, {}), day = `${today()}/${S.mode}`;
-    bests[S.mode] = Math.max(bests[S.mode] || 0, S.solved);
+    // your best in the mode, any run (a run of patterns its own); and today's run's best, a record for each day
+    const bests = read(BEST, {}), daily = read(DAILY, {}), day = `${today()}/${S.mode}`, key = S.patterns ? "patterns" : S.mode;
+    bests[key] = Math.max(bests[key] || 0, S.solved);
     if (S.daily) daily[day] = Math.max(daily[day] || 0, S.solved);
     write(BEST, bests);
     if (S.daily) write(DAILY, daily);
-    S.best = S.daily ? daily[day] : bests[S.mode];
+    S.best = S.daily ? daily[day] : bests[key];
     drawBar();
     if (!quiet) results();
   }
-  const missOf = m => parsePuzzle(`${m.id}|${m.fen}|${m.moves}|${m.rating}|${m.theme || ""}`);
+  const missOf = m => parsePuzzle(puzzleLine({ ...m, moves: m.moves.split(" ") }));
   /** The run's results: the count, accuracy, your rating and how it moved, your best; the hardest solved; each miss with
    *  its line, and Show to see it played out. */
   function results() {
@@ -244,8 +253,8 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
       [`${Math.round(rating.r)} (${change >= 0 ? "+" : "−"}${Math.abs(change)})`, "rating"], [S.best, S.daily ? "best today" : "your best"]];
     const s = script();
     const missed = S.misses.map((m, i) => {
-      const p = missOf(m), what = themeWords(p);
-      return `<li><b>${esc(solverOf(p))} to move · ${esc(m.rating.toLocaleString("en-GB"))}${what ? ` · ${esc(what)}` : ""}</b>`
+      const p = missOf(m), what = themeWords(p), named = patternWords(p, s);
+      return `<li><b>${esc(solverOf(p))} to move · ${esc(m.rating.toLocaleString("en-GB"))}${what ? ` · ${esc(what)}` : ""}${named ? ` · ${esc(named)}` : ""}</b>`
         + `<span>${lineOf(p, s).map(n => `${esc(n.cn)} <i>${esc(n.wxf)}</i>`).join(", ")}${IN_FRAME ? "" : ` <button type="button" class="link" data-show="${i}">Show</button>`}</span></li>`;
     }).join("");
     body.innerHTML = `<p class="rv-rush-big">${S.solved}</p><div class="rv-rush-stats">${stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join("")}</div>`
@@ -262,10 +271,10 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
 
   /** A miss played out on the board, the mistake and then the line, a move a second, its moves named above it. */
   function replay(m) {
-    const p = missOf(m), what = themeWords(p);
+    const p = missOf(m);
     puzzle?.destroy();
     say(`${solverOf(p)} to move: ${lineOf(p, script()).map(n => n.cn).join(" ")}`);
-    $("rushMeta").textContent = `Rated ${p.rating.toLocaleString("en-GB")}${what ? ` · ${what}` : ""}`;
+    $("rushMeta").textContent = metaOf(p);
     puzzle = playPuzzle(host, p, { interactive: false, reveal: true, script });
   }
 
@@ -302,7 +311,7 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     S.step = step;
     const timed = S.started != null, g = MODES[S.mode]?.grace || 0;
     if (S.over && timed && S.spentAtEnd == null) S.spentAtEnd = Math.round(spent());
-    write(RUN, { open: on, mode: S.mode, daily: S.daily, seed: S.seed, at: S.at, used: [...S.used], solved: S.solved, strikes: S.strikes, misses: S.misses,
+    write(RUN, { open: on, mode: S.mode, daily: S.daily, patterns: !!S.patterns, seed: S.seed, at: S.at, used: [...S.used], solved: S.solved, strikes: S.strikes, misses: S.misses,
       ratings: S.ratings, warming: S.warming, over: S.over, why: S.why, ratingAtStart: S.ratingAtStart, current: S.current, step,
       spent: timed ? (S.over ? S.spentAtEnd : Math.round(spent())) : null,
       grace: timed && g && S.puzzleAt != null && !S.over ? Math.round(Math.min(g, performance.now() - S.puzzleAt)) : null,   // of this puzzle's delay, used
@@ -317,7 +326,7 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
       if (r.grace != null) S.puzzleAt = now - used - lag;
       S.started = now - r.spent - lag - used;
     }
-    next = { mode: S.mode, daily: !!S.daily };
+    next = { mode: S.patterns ? next.mode : S.mode, daily: !!S.daily, patterns: !!S.patterns };
     clearInterval(tick);
     tick = setInterval(clock, 250);
     drawHud(); drawBar();
@@ -381,14 +390,16 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     else start();
     return true;
   }
-  /** The menu while the rush is open: a run (random or today's, the mode), your rating, your bests. */
+  /** The menu while the rush is open: a run (random, today's or the named patterns, the mode), your rating, your bests. */
   function menu(body) {
     pick ??= { ...next };
     if (!IN_FRAME) part(body, "play").append(action("Start a run", () => { next = { ...pick }; pick = null; start(); }, "primary"),
       ...(S?.over ? [action("The run's results", results, "link")] : []), action("Back to the game", close, "link"));
+    const kind = pick.patterns ? "patterns" : pick.daily ? "daily" : "random";
     part(body, "content").append(
-      choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; }),
-      choice("Mode", Object.entries(MODES).map(([id, m]) => [id, m.label]), pick.mode, v => { pick.mode = v; }));
+      choice("Run", [["random", "Random"], ["daily", "Today's"], ["patterns", "Patterns"]], kind, v => { pick.daily = v === "daily"; pick.patterns = v === "patterns"; }),
+      choice("Mode", Object.entries(MODES).map(([id, m]) => [id, m.label]), pick.mode, v => { pick.mode = v; }),
+      line("Patterns: the named mates and tricks alone, each said after it's done, with no clock."));
     part(body, "settings").append(action("Reset my rating", () => {
       if (!confirm("Reset your puzzle rating to 1,000?")) return;
       rating.r = 1000; rating.n = 0; write(RATING, rating); drawHud();
@@ -396,7 +407,8 @@ export function createRush({ onOpen = () => {}, onClose = () => {}, script = () 
     const bests = read(BEST, {}), daily = read(DAILY, {});
     part(body, "about").append(
       line(`Rating ${Math.round(rating.r)} over ${rating.n} puzzle${rating.n === 1 ? "" : "s"}${rating.n < 20 ? " (still settling)" : ""}`),
-      ...Object.entries(MODES).map(([id, m]) => line(`${m.label}: ${bests[id] ? `best ${bests[id]}` : "no run yet"}${daily[`${today()}/${id}`] != null ? `, today's run ${daily[`${today()}/${id}`]}` : ""}`)));
+      ...Object.entries(MODES).map(([id, m]) => line(`${m.label}: ${bests[id] ? `best ${bests[id]}` : "no run yet"}${daily[`${today()}/${id}`] != null ? `, today's run ${daily[`${today()}/${id}`]}` : ""}`)),
+      line(`Patterns: ${bests.patterns ? `best ${bests.patterns}` : "no run yet"}`));
   }
 
   $("rushClose").addEventListener("click", () => $("rushDlg").close());

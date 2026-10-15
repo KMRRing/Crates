@@ -10,7 +10,8 @@ import { LEVELS, SETUP, levelById } from "../river-levels.js";
 import { OPENINGS, openingOf } from "../river-openings.js";
 import { Engine, levelMove, parseInfo, choose, valueOf } from "../uci.js";
 import { createCoach } from "../uci-coach.js";
-import { MODES, STRIKES, rng as seeded, parsePuzzle, themeWords, lineOf, solverOf, answers, targetOf, nearest, rated } from "../river-rush.js";
+import { MODES, STRIKES, rng as seeded, parsePuzzle, puzzleLine, themeWords, patternWords, patternSay, lineOf, solverOf, answers, targetOf, nearest, rated } from "../river-rush.js";
+import { PATTERNS, patternsOf } from "../river-patterns.js";
 import { fairyWorker } from "../tools/uci-node.mjs";
 import { startWasi } from "../uci-wasi.js";
 import { roundTrip, same } from "./rtdb.js";
@@ -323,6 +324,35 @@ check(LEVELS.every((l, i) => i === 0 || l.rating > LEVELS[i - 1].rating) && LEVE
   const fresh = rated({ r: 1000, n: 0 }, { rating: 1000 }, true, 0), settled = rated({ r: 1000, n: 40 }, { rating: 1000 }, true, 1), miss = rated({ r: 1000, n: 40 }, { rating: 1000 }, false, 0);
   check(fresh.r === 1015 && fresh.n === 1 && settled.r === 1002.5 && miss.r === 993, "the rating: 15 for an even solve while it settles, then 5 halved by a miss in the run, 7 lost for an even miss");
   check(Object.keys(MODES).join() === "three,five,survival" && MODES.three.ms === 180000 && MODES.three.grace === 5000 && !MODES.survival.ms && STRIKES === 3, "three minutes with five seconds' grace, five minutes, survival; three strikes");
+
+  // the patterns: each named where the bank says, worked out again from its line, a line of the bank read back whole;
+  // a run of patterns draws only on the named ones
+  const named = bank.filter(q => q.patterns.length), wrong = bank.filter(q => q.patterns.join() !== patternsOf(q).join() || q.patterns.some(id => !PATTERNS[id]));
+  const counts = Object.keys(PATTERNS).map(id => [id, bank.filter(q => q.patterns.includes(id)).length]);
+  check(!wrong.length && named.length >= 250 && bank.every(q => puzzleLine(q) === puzzleLine(parsePuzzle(puzzleLine(q)))),
+    `the patterns named in the bank are its lines' own: ${named.length} puzzles (${counts.map(([id, n]) => `${id} ${n}`).join(", ")})${wrong.length ? `; wrong: ${wrong.slice(0, 3).map(q => q.id).join(", ")}` : ""}`);
+  const pr = seeded(3), pool = new Set(), picks = [];
+  for (let k = 0; k < 40; k++) { const q = nearest(named, pool, targetOf({ solved: k }, 1000, pr), pr); pool.add(q.id); picks.push(q); }
+  check(picks.every(q => q.patterns.length) && new Set(picks.map(q => q.id)).size === 40, "a run of patterns: forty named puzzles, none twice");
+  // the patterns found on positions built for each: a mistake for the side to move, then the mate (or no move left)
+  const built = {
+    mahou: [{ d1: "K", e2: "C", d6: "N", e10: "k", a7: "p" }, "a7a6 d6e8"], chong: [{ d1: "K", e5: "C", b3: "C", e10: "k", d10: "a", f10: "a", a7: "p" }, "a7a6 b3e3"],
+    shuangche: [{ f1: "K", i9: "R", h2: "R", e10: "k", a7: "p" }, "a7a6 h2h10"], duimian: [{ e1: "K", a2: "R", f10: "k", a7: "p" }, "a7a6 a2f2"],
+    kunbi: [{ e1: "K", a8: "R", f9: "k" }, "f9f10 a8a9"], wocao: [{ e1: "K", d2: "R", f7: "N", e10: "k", e9: "a", f10: "a", a7: "p" }, "a7a6 f7g9"],
+    guajiao: [{ e1: "K", d2: "R", g6: "N", e10: "k", e9: "a", f10: "a", a7: "p" }, "a7a6 g6f8"], mengong: [{ e1: "K", a3: "C", e10: "k", d10: "a", e9: "a", f10: "r", i7: "p" }, "i7i6 a3a10"],
+  };
+  const misnamed = [];
+  for (const [id, [pieces, line]] of Object.entries(built)) {
+    const q = { fen: X.toFen(at(pieces, false)), moves: line.split(" ") };
+    let pos = X.parseFen(q.fen);
+    for (const u of q.moves) { const m = X.parseUci(u); if (!X.isLegal(pos, m.from, m.to)) misnamed.push(`${id}: ${u} isn't legal`); pos = X.after(pos, m.from, m.to); }
+    if (X.legalMoves(pos).length || patternsOf(q).join() !== id) misnamed.push(`${id}: found ${patternsOf(q).join() || "nothing"}`);
+  }
+  const plain = bank.filter(q => q.theme === "mate" && !q.patterns.length).length;
+  check(!misnamed.length && plain >= 100, `each pattern found on a position built for it; ${plain} of the bank's mates are none of them${misnamed.length ? `: ${misnamed.join("; ")}` : ""}`);
+  const both = { patterns: ["mahou", "shuangjiang"] };
+  check(patternWords(both) === "馬後炮 and 雙將" && patternWords(both, "simplified") === "马后炮 and 双将" && patternSay(both, "simplified") === `马后炮: ${PATTERNS.mahou.say}` && patternWords({ patterns: [] }) === "",
+    "patterns in words, in either set of characters");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
