@@ -27,9 +27,10 @@ import fuse from "./party-fuse.js";
 import snap from "./party-snap.js";
 import sketch from "./party-sketch.js";
 import whispers from "./party-whispers.js";
+import forger from "./party-forger.js";
 
 /** The games, in the order the lobby lists them. */
-export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers];
+export const GAMES = [undercover, whoami, echo, decoy, gauge, fuse, snap, sketch, whispers, forger];
 export const gameById = id => GAMES.find(g => g.id === id) || null;
 
 /** A seeded generator (mulberry32): the same seed gives the same numbers, on every device and every retry. */

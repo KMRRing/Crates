@@ -1,4 +1,4 @@
-/* Party's drawing games (party-draw.js; Sketch, Whispers): the paper, the same light paper on every phone whatever its theme (a
+/* Party's drawing games (party-draw.js; Sketch, Whispers, Forger): the paper, the same light paper on every phone whatever its theme (a
    drawing is the same drawing everywhere; at night the whole of it is dimmed, the eraser with it), and its tools under
    it on a phone, beside it held sideways; Sketch's word or its blanks, the clock, the box for a guess, the guesses, and
    the word shown with its drawing after each turn. */
@@ -109,14 +109,58 @@ html[data-mode="night"] .dr-paper { filter: brightness(.86); }
   font: inherit; font-weight: 700; cursor: pointer; }
 .wh-books button[aria-selected="true"] { border-color: var(--pa-in); background: var(--pa-in); color: var(--sheet); }
 
+/* Forger: the kind over everything; your card hidden until tapped; whose line it is, each player in their colour, the
+   order of play with the lines drawn struck through; the vote; the word and the forger shown */
+.fg-look { gap: .7rem; }
+.fg-kind { display: grid; justify-items: center; gap: .2rem; margin: 0; text-align: center; }
+.fg-kind strong { font-size: 1.5rem; font-weight: 800; }
+.fg-note { text-align: center; font-size: .9rem; }
+.fg-forger-card { display: grid; gap: .2rem; }
+.fg-forger-card small { font-size: .9rem; font-weight: 600; color: var(--ink-soft); }
+.fg-chip { display: inline-flex; align-items: center; gap: .35rem; font-weight: 700; white-space: nowrap; }
+.fg-dot { display: inline-block; width: .8rem; height: .8rem; border-radius: 50%; background: var(--dr-ink); box-shadow: 0 0 0 1.5px var(--sheet), 0 0 0 2.5px var(--tile-edge); }
+.fg-yours { color: var(--pa-in); }
+.fg-under { display: grid; gap: .45rem; }
+.fg-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.fg-turns { display: flex; flex-wrap: wrap; gap: .3rem .7rem; margin: 0; padding: 0; list-style: none; font-size: .85rem; }
+.fg-turns li { padding: .15rem .35rem; border-radius: 4px; }
+.fg-turns li.done { opacity: .45; }
+.fg-turns li.now { background: var(--pa-soft); box-shadow: inset 0 0 0 1.5px var(--pa-in); }
+.fg-order { display: grid; gap: .25rem; }
+.fg-draw .sk-top, .fg-votes .sk-top { flex-wrap: wrap; row-gap: .1rem; }
+/* while the lines are drawn, your card is a slim bar: still hidden until tapped */
+.fg-draw .pk-secret { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .4rem .75rem; }
+.fg-draw .pk-secret-body { min-height: 0; font-size: 1.15rem; }
+.fg-draw .pk-secret-note { display: none; }
+.fg-draw .fg-forger-card small { display: none; }
+.fg-vote .pk-pick { grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); }
+.fg-vote .pk-pick button { min-height: 2.6rem; }
+.fg-name { gap: .6rem; }
+.fg-reveal .pk-verdict { padding: .5rem .7rem; font-size: 1.05rem; font-weight: 800; }
+.pk-verdict.fg-forger { background: color-mix(in srgb, #A8382B 16%, var(--sheet)); }
+.pk-verdict.fg-artists { background: color-mix(in srgb, #2F7D5B 16%, var(--sheet)); }
+.fg-who { margin: 0; font-weight: 700; }
+.fg-chip.forger { color: #A8382B; }
+.fg-guess { color: var(--ink-soft); font-weight: 600; }
+.fg-votes-list { display: flex; flex-wrap: wrap; gap: .25rem .9rem; margin: 0; padding: 0; list-style: none; font-size: .85rem; }
+.fg-votes-list li { display: inline-flex; align-items: center; gap: .3rem; }
+.fg-arrow { color: var(--ink-soft); }
+.fg-reveal .sk-board { display: none; }
+
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
   html:not([data-mode="day"]) .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
   html:not([data-mode="day"]) :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { color: #7FC2A8; }
+  html:not([data-mode="day"]) .pk-verdict.fg-forger { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .pk-verdict.fg-artists { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+  html:not([data-mode="day"]) .fg-chip.forger { color: #E8806F; }
 }
 html[data-mode="night"] .dr-tool.armed { border-color: #E8806F; background: color-mix(in srgb, #E8806F 18%, var(--sheet)); color: #E8806F; }
 html[data-mode="night"] .sk-got { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
 html[data-mode="night"] :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { color: #7FC2A8; }
+html[data-mode="night"] .pk-verdict.fg-forger { background: color-mix(in srgb, #E8806F 18%, var(--sheet)); }
+html[data-mode="night"] .pk-verdict.fg-artists { background: color-mix(in srgb, #7FC2A8 18%, var(--sheet)); }
+html[data-mode="night"] .fg-chip.forger { color: #E8806F; }
 
 /* held sideways: the paper on the left, as tall as the screen allows; on the right what to draw or guess and the clock
    at the top, the box for a guess high (a tablet's keyboard covers the bottom), the guesses filling the middle, the
@@ -132,7 +176,8 @@ html[data-mode="night"] :is(.sk-got b, .sk-feed li.right, .sk-gains li b) { colo
   .dr-side:has(.dr-tools) { flex-direction: column-reverse; }
   .dr-side .dr-inks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .dr-side .dr-ink { height: 2.2rem; }
-  .sk-show .sk-board { display: block; flex: 1 1 auto; overflow-y: auto; }
+  .sk-show .sk-board, .fg-reveal .sk-board { display: block; flex: 1 1 auto; overflow-y: auto; }
+  .fg-look { width: 100%; max-width: 36rem; margin: 0 auto; }
   .sk-choose:not(:has(> .dr-side)), .sk-over, .wh-first, .wh-words:not(:has(> .dr-side)), .wh-show { width: 100%; max-width: 36rem; margin: 0 auto; }
   .wh-words:has(> .dr-side) > .dr-side { flex-direction: column; }
 }
