@@ -1,5 +1,6 @@
 // Refinery: route every stream and watch the margin. The engine (refinery-engine.js) runs the plant; the data
-// (refinery-data.js) describes it; the campaign (refinery-levels.js) sets each level's crude and units.
+// (refinery-data.js) describes it; the campaign (refinery-levels.js) sets each level's crude and units. Together, the
+// same level for everyone at the table (duel.js).
 import { STREAMS, UNITS, POOLS, CRUDES } from "./refinery-data.js";
 import { FEED, evaluate, destinations, streamsOf, defaultRouting, solve } from "./refinery-engine.js";
 import { LEVELS } from "./refinery-levels.js";
@@ -7,7 +8,8 @@ import { noteStars } from "./suite.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, action } from "./menu.js";
+import { part, action, mirror } from "./menu.js";
+import { createDuel } from "./duel.js";
 
 dropdown(document.getElementById("level"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -19,6 +21,7 @@ let S = read(SAVE, { level: 1, routing: {}, crude: {}, best: {}, done: {} });   
 let L = null;      // the level as played: the campaign entry plus the chosen crude
 let par = null;    // { margin, routing }
 let R = null;      // the latest evaluation
+let D = null;      // a match's plant (duel.js), kept apart from yours: { level, crude, routing, done, margin }
 
 function read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(S)); } catch { /* private mode */ } }
@@ -28,6 +31,7 @@ const fmtS = ppm => (ppm >= 10000 ? `${(ppm / 10000).toFixed(1)}%` : `${Math.rou
 
 // ---------- levels ----------
 function loadLevel(n) {
+  if (duel.on) { if (!duel.newMatch()) $("level").value = String(L.id); return; }   // a new match on that level, for everyone
   const base = LEVELS.find(l => l.id === n) || LEVELS[0];
   S.level = base.id;
   L = { ...base, crude: base.chooseCrude ? (S.crude[base.id] || base.crude) : base.crude };
@@ -39,7 +43,9 @@ function loadLevel(n) {
   $("level").value = String(L.id);
   render();
 }
-function routing() { return S.routing[L.id]; }
+function routing() { return D ? D.routing : S.routing[L.id]; }
+/** A change to the plant in hand: yours into your save, a match's into its own keeping. */
+const keep = () => { if (D) duel.keep(D); else save(); };
 /**
  * The routing with one stream sent somewhere else, and any streams that choice newly creates sent to their own
  * best destination (one level deep): so "heavy naphtha to the hydrotreater" is judged with the treated naphtha
@@ -60,8 +66,10 @@ function whatIf(stream, dest) {
 }
 /** Sends a stream somewhere; streams the choice newly creates go to their best places (what the picker's delta assumed). */
 function setDestination(stream, dest) {
-  S.routing[L.id] = whatIf(stream, dest);
-  save();
+  if (D?.done || (duel.on && !D)) return;                  // submitted at a match: it stands
+  const next = whatIf(stream, dest);
+  if (D) D.routing = next; else S.routing[L.id] = next;
+  keep();
   render();
 }
 /**
@@ -113,6 +121,7 @@ function showPar() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function chooseCrude(id) {
+  if (D) { if (!D.done) { D.crude = id; plantOf(D); keep(); render(); } return; }
   S.crude[L.id] = id;
   save();
   loadLevel(L.id);
@@ -137,6 +146,7 @@ function render() {
   const pools = Object.entries(R.pools).filter(([, p]) => p.vol > 0.05);
   const offSpec = pools.filter(([id, p]) => !p.inSpec && ["gasoline", "diesel", "jet"].includes(id));
   const reached = R.margin >= par.margin - 0.6 && !offSpec.length;
+  if (D) { duelVerdict(offSpec, reached); return; }        // a match: your bests and stars stay as they were
   if (!S.best[L.id] || R.margin > S.best[L.id]) { S.best[L.id] = R.margin; save(); }
   if (reached && !S.done[L.id]) { S.done[L.id] = true; save(); }
   const st = reached ? 3 : offSpec.length ? 0 : R.margin >= par.margin - Math.max(0.6, 0.05 * Math.abs(par.margin)) ? 2 : 1;
@@ -146,6 +156,8 @@ function render() {
   v.textContent = reached ? `Par reached with every pool in spec. Your best here: ${money(S.best[L.id])}/bbl.`
     : offSpec.length ? `${offSpec.map(([id]) => POOLS[id].name).join(" and ")} off spec. ${money(par.margin - R.margin)}/bbl short of par.` : `${money(par.margin - R.margin)}/bbl short of par.`;
   $("nextBtn").hidden = !(reached && L.id < LEVELS.length);
+  $("nextBtn").disabled = false;
+  $("nextBtn").textContent = "Next level";
   $("nextBtn").onclick = () => loadLevel(L.id + 1);
   $("hintBtn").hidden = reached;
   $("hintBtn").textContent = (S.hints?.[L.id] || 0) >= 4 ? "Show par's routing" : `Hint${S.hints?.[L.id] ? ` (${S.hints[L.id]} used)` : ""}`;
@@ -157,6 +169,82 @@ function render() {
   pt.textContent = offSpec.length ? `Pools · ${offSpec.length} off spec` : "Pools · in spec";
   pt.classList.toggle("off", offSpec.length > 0);
 }
+/** A match's verdict and its button: Submit, once, until it's in. */
+function duelVerdict(offSpec, reached) {
+  const v = $("verdict");
+  v.className = `rf-verdict${reached ? " good" : ""}`;
+  v.textContent = D.done ? `Submitted at ${money(D.margin)}/bbl.` : reached ? "At par with every pool in spec."
+    : offSpec.length ? `${offSpec.map(([id]) => POOLS[id].name).join(" and ")} off spec. ${money(par.margin - R.margin)}/bbl short of par.` : `${money(par.margin - R.margin)}/bbl short of par.`;
+  $("hintBtn").hidden = true;                              // no hints at a match
+  $("nextBtn").hidden = false;
+  $("nextBtn").disabled = D.done;
+  $("nextBtn").textContent = D.done ? "Submitted ✓" : "Submit";
+  $("nextBtn").onclick = submit;
+  drawUnits();
+  drawStreams();
+  drawPools();
+  const pt = $("tabPools");
+  pt.textContent = offSpec.length ? `Pools · ${offSpec.length} off spec` : "Pools · in spec";
+  pt.classList.toggle("off", offSpec.length > 0);
+}
+/** A match's routing submitted: your answer, final. */
+function submit() {
+  if (!D || D.done) return;
+  if (!confirm(`Submit at ${money(R.margin)}/bbl? It's your answer for the match: you can't change it after.`)) return;
+  D.done = true; D.margin = R.margin;
+  keep();
+  tell();
+  render();
+}
+
+// ---------- together: the same level for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's level, the same crude (or the same choice of crudes), units and prices,
+// starting from the same routing, and routes on their own phone; par shows as ever, the hint doesn't. Submit is your
+// answer, once: the highest margin wins, then the quicker. The others show under the margin bar: routing, or
+// submitted at their margin. Your own routings, bests and stars stay as they were.
+const duel = createDuel({
+  game: "refinery", name: "Refinery", accent: "--rf-in", line: $("rival"), toast,
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), level: Number($("level").value) || L?.id || 1 }),   // the header's level
+  describe: m => { const lv = LEVELS.find(l => l.id === m.level) || LEVELS[0]; return `Level ${lv.id}, ${lv.title}: the same plant for everyone, submitted once`; },
+  play: (match, { kept }) => {
+    const base = LEVELS.find(l => l.id === match.level) || LEVELS[0];
+    D = kept?.level === base.id && kept.routing ? kept : { level: base.id, crude: base.crude, routing: null, done: false, margin: null };
+    plantOf(D);
+    keep(); render(); tell();
+  },
+  onLobby: match => { D = null; lobby(match); },
+  onLeave: () => { D = null; loadLevel(S.level || 1); },
+});
+/** The level a match's plant runs: its crude, par for it, and a routing for every stream it makes. */
+function plantOf(d) {
+  const base = LEVELS.find(l => l.id === d.level) || LEVELS[0];
+  L = { ...base, crude: base.chooseCrude ? d.crude || base.crude : base.crude };
+  par = solve(L, base.chooseCrude ? 3 : 5, base.id);
+  d.routing ??= defaultRouting(L);
+  for (const st of streamsOf(L)) if (!d.routing[st]) d.routing[st] = defaultRouting(L)[st];
+  $("level").value = String(L.id);
+}
+/** What the table sees of this plant: routing, or submitted at a margin. */
+function tell() {
+  if (!D) return;
+  duel.report(D.done ? { score: Math.round(D.margin * 100) / 100, text: `${money(D.margin)}/bbl`, done: true } : { score: -1e6, text: "routing" });
+}
+/** The plant before a match: its brief, nothing to route yet. */
+function lobby(match) {
+  const base = LEVELS.find(l => l.id === match.level) || LEVELS[0];
+  L = { ...base };
+  par = solve(L, base.chooseCrude ? 3 : 5, base.id);
+  $("level").value = String(L.id);
+  $("title").textContent = `Level ${L.id} · ${L.title}`;
+  $("lesson").textContent = L.lesson;
+  $("margin").textContent = "–"; $("margin").className = "";
+  $("par").textContent = `par ${money(par.margin)}`;
+  $("verdict").className = "rf-verdict"; $("verdict").textContent = "The same plant for everyone.";
+  $("hintBtn").hidden = true; $("nextBtn").hidden = true;
+  for (const id of ["units", "streams", "pools", "issues"]) $(id).replaceChildren();
+  $("crudePick").hidden = true;
+}
+
 /** Streams or pools: one list at a time takes the room under the margin, scrolling inside itself. */
 let tab = "streams";
 function showTab(t) {
@@ -350,6 +438,12 @@ function toast(msg, ms = 2600) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {                                              // a match: the table's own, and the level the next one deals
+    duel.menu(part(body, "together"));
+    part(body, "content").append(mirror("Level", $("level")));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   const list = document.createElement("div");
   list.className = "rf-levels";
   for (const lv of LEVELS) {
@@ -383,9 +477,14 @@ $("aboutBtn").addEventListener("click", about);
 $("hintBtn").addEventListener("click", hint);
 
 // for tests and debugging
-window.__refinery = { get level() { return L; }, get par() { return par; }, get result() { return R; }, get routing() { return routing(); }, setDestination, loadLevel, chooseCrude };
+window.__refinery = { get level() { return L; }, get par() { return par; }, get result() { return R; }, get routing() { return routing(); }, setDestination, loadLevel, chooseCrude, submit, duel,
+  setRouting: r => { if (D) D.routing = { ...r }; else S.routing[L.id] = { ...r }; keep(); render(); } };
 
-loadLevel(S.level || 1);
+// a match in the address: its plant, with your own routing left where it was
+if (duel.inAddress) duel.join().then(ok => { if (!ok) loadLevel(S.level || 1); });
+else loadLevel(S.level || 1);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 // stars collected: a level's stars, or for one completed before there were stars three, and one for any best
 function starsOf(id) { return S.stars?.[id] || (S.done[id] ? 3 : S.best[id] != null ? 1 : 0); }
 function starsAll() { return LEVELS.reduce((n, l) => n + starsOf(l.id), 0); }

@@ -24,6 +24,9 @@ html[data-mode="night"] { --rf-in: #85B0D2; --rf-good: #7FC2A8; --rf-bad: #E8806
 .rf-margin-row b.bad { color: var(--rf-bad); }
 .rf-margin-row small { margin-left: auto; color: var(--ink-soft); font-weight: 700; }
 .rf-bar { position: relative; height: .5rem; border-radius: 4px; background: var(--yard); overflow: visible; }
+/* together, the others under the bar: routing, or submitted at their margin (duel.js fills it; a tap opens the match) */
+.rf-rival { margin: 0; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-rival[hidden] { display: none; }
 .rf-bar i { display: block; height: 100%; border-radius: 4px; background: var(--rf-in); width: 0; transition: width .3s; }
 .rf-bar em { position: absolute; top: -.25rem; width: .1875rem; height: 1rem; background: var(--ink); border-radius: 2px; }
 .rf-verdict { margin: 0; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); align-self: center; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
