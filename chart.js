@@ -1,12 +1,15 @@
 // Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
 // see the truth, the distance and the points. Two dropdowns choose what a set deals: a topic (everything, cities,
 // countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
-// outline is its target: anywhere inside it scores in full, outside nothing. Together, both of you pin the same place
-// in private and the pins are revealed side by side.
-import { PER_SET, regionSpan, distance, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, unmerc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, nearestOnFeature, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
+// outline is its target: anywhere inside it scores in full, outside nothing. At a table of two to six (a pair's duo
+// match, a party's), everyone pins the same place on their own phone, and the reveal shows every pin, each one's
+// distance and points and the standings (chart-table.js is the table's rules).
+import { PER_SET, regionSpan, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
 import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
-/** How far a pin is from a place: to the point for a place, to the nearest point of the feature for a river or range. */
-const missOf = (q, p) => (p.geo ? nearestOnFeature(q, p.geo) : { km: distance(q, p), point: { lat: p.lat, lon: p.lon } });
+import { missOf, isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, clueIn, pinIn, revealNow, nextIn, moveOnNow, settleUp, entryAt, totals, placeRows, standingRows, resultOf, initials } from "./chart-table.js";
+import { presentSlots, seated } from "./duel-core.js";
+import { leaderboard, rank } from "./standings.js";
+import { busy, sextant } from "./loading.js";
 import { PLACES as BANK_PLACES, CATS as BANK_CATS } from "./chart-bank.js";
 import { GEO } from "./chart-geo.js";
 import { COUNTRIES, REGION_OF } from "./chart-countries.js";
@@ -36,9 +39,8 @@ const ISLAND_BOX = ISLANDS.map(([ring]) => { const xs = ring.map(p => p[0]), ys 
 const DETAIL_BOX = Object.fromEntries(Object.entries(DETAIL).map(([k, polys]) => { const pts = polys.flatMap(p => p[0]);
   return [k, [Math.min(...pts.map(q => q[0])), Math.max(...pts.map(q => q[0])), Math.min(...pts.map(q => q[1])), Math.max(...pts.map(q => q[1]))]]; }));
 import { bindSwitcher, APPS } from "./apps.js";
-import { createTogether, seatsOf } from "./together.js";
-import { busy } from "./loading.js";
-import { gameHref, GAMES } from "./rooms.js";
+import { createTogether } from "./together.js";
+import { gameHref, GAMES, roomInAddress } from "./rooms.js";
 import * as pile from "./pile.js";
 import { showPicture } from "./pics.js";
 /** A museum's famous painting, shown with the card. */
@@ -52,19 +54,17 @@ import "./pwa.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked run for your best
 
 const $ = id => document.getElementById(id);
-const APP = 1;
+const APP = 2;       // this code's version of the table (2: up to six seats, everything kept by seat)
 const RUN = "chart:run", BEST = "chart:best", DAILY = "chart:daily";
 const byId = new Map(PLACES.map(p => [p.id, p]));
 
 let S = null;        // alone: { seed, mode, topic, region, set, index, score, log: [{ id, lat, lon, km, pts }], phase: "pin" | "reveal", done }
-                     // together: the room: { seed, topic, region, set, index, pins: { seat: { lat, lon } }, scores: [2], log, done, players }
+                     // at a table: the table's state (chart-table.js)
 let pin = null;      // the provisional pin { lat, lon }
-let clues = 0;       // clues taken on the current place (alone; together it's in the room, per seat)
+let clues = 0;       // clues taken on the current place (alone; at a table they're in its state, by seat)
 let views = { world: worldView() };                // what the map shows: pan and pinch move it
 const SIZES = { world: [360, Math.round(360 / worldAspect())] };
 const inRoom = () => !!together.room;
-const mySeat = () => together.room?.data?.players?.[together.room.uid]?.slot ?? 0;
-const seatName = seat => { const p = seatsOf(together.room?.data)?.find(([, x]) => x.slot === seat)?.[1]; return p ? p.name : seat === mySeat() ? "You" : "Your partner"; };
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -109,12 +109,9 @@ function start(mode, sel = chosen()) {
   render();
 }
 function confirmPin() {
+  if (inRoom()) { pinAtTable(); return; }
   if (!pin) return;
   const p = current();
-  if (inRoom()) {
-    together.act(g => { if (g.phase !== "pin") return false; g.pins = { ...(g.pins || {}), [mySeat()]: pin }; if (g.pins[0] && g.pins[1]) settleRoom(g); });
-    return;
-  }
   if (S.phase !== "pin") return;
   const m = missOf(pin, p), d = m.km, pts = Math.round(pointsFor(p, d) * clueFactor(clues));
   S.score += pts;
@@ -138,33 +135,18 @@ function count() {
 /** A clue for the current place: the region, then the country, then the description with the name hidden. */
 function takeClue() {
   if (S.phase !== "pin") return;
-  const n = (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues) + 1;
+  const n = cluesTaken() + 1;
   if (n >= CLUE_FACTOR.length) return;
-  if (inRoom()) { together.act(g => { if (g.phase !== "pin") return false; g.clues = { ...(g.clues || {}), [mySeat()]: n }; }); return; }
+  if (inRoom()) { together.act(g => clueIn(g, slotIn(g), n, CLUE_FACTOR.length - 1)); return; }
   clues = n;
   render();
 }
 // a miss for the pile: outside a country's outline; for anything else over 500 km off, unless within HOME_KM (600)
-// inside the place's own country, as Deck's review counts it (a pin is optional: rooms judge by distance alone)
+// inside the place's own country, as Deck's review counts it
 const missed = (p, d, pin) => (p.cat === "countries" ? d > 0 : d > 500 && !(d <= HOME_KM && homeOf(p, pin, COUNTRIES)));
-const cluesTaken = () => (inRoom() ? (S.clues || {})[mySeat()] || 0 : clues);
+const cluesTaken = () => (inRoom() ? Number(S.clues?.[keyOf(mySlot())]) || 0 : clues);
 function next() {
-  if (inRoom()) {
-    // the last place's button opens the summary at once, from what's settled here, and marks the set done for both;
-    // pressed again after closing, it opens it again (waiting on the room's answer left it dead whenever none came)
-    if (S.phase === "reveal" && S.index + 1 >= S.set.length) {
-      if (!S.done) together.act(g => (g.phase !== "reveal" || g.done ? false : void (g.done = true)));
-      finishRoom(true);
-      return;
-    }
-    together.act(g => {
-      if (g.phase !== "reveal") return false;
-      if (g.index + 1 >= g.set.length) { g.done = true; return; }
-      g.index++; g.pins = {}; g.phase = "pin";
-    });
-    pin = null; views = { world: startView() };
-    return;
-  }
+  if (inRoom()) { nextAtTable(); return; }
   if (S.done) { finish(); return; }                       // the set is over: its summary again
   if (S.phase !== "reveal") return;
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
@@ -179,7 +161,11 @@ function next() {
 // ---------- drawing the maps ----------
 function setup(canvas, w, h) {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
-  if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.aspectRatio = `${w} / ${h}`; canvas.style.setProperty("--aspect", String(w / h)); }
+  if (canvas.width !== Math.round(w * dpr)) {
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); canvas.style.aspectRatio = `${w} / ${h}`;
+    canvas.style.setProperty("--aspect", String(w / h));
+    canvas.parentElement?.style.setProperty("--aspect", String(w / h));     // a table's map box keeps the map's shape (chart.css)
+  }
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   return ctx;
@@ -279,14 +265,30 @@ function drawFeature(ctx, proj, g) {
   }
   ctx.restore();
 }
-function marker(ctx, x, y, kind) {
+/** A pin (yours alone, in the house blue; a player's at a table, in their seat's colour) or the truth. */
+function marker(ctx, x, y, kind, colour = null) {
   ctx.beginPath();
   if (kind === "truth") {
     ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.fillStyle = css("--ch-good"); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff"; ctx.stroke();
     ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
   } else {
-    ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = kind === "theirs" ? "#7A4BC9" : css("--ch-in"); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff"; ctx.stroke();
+    ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = colour || css("--ch-in"); ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = "#fff"; ctx.stroke();
   }
+}
+/** Ink that reads on a colour: dark on the night palette's light enamels, white on the day's deep ones. */
+function inkOn(colour) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(colour || "");
+  if (!m) return "#fff";
+  const n = parseInt(m[1], 16), lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  return lum > 0.6 ? "#10181F" : "#fff";
+}
+/** A player's pin at a table: a disc in their seat's colour with their initial in it, so the map says whose it is. */
+function seatPin(ctx, x, y, colour, label) {
+  ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.fillStyle = colour; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = "#fff"; ctx.stroke();
+  ctx.font = `800 ${label.length > 1 ? 8 : 10}px Archivo, Arial, sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillStyle = inkOn(colour);
+  ctx.fillText(label, x, y + .5);
 }
 function line(ctx, a, b, colour) {
   ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.strokeStyle = colour; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.stroke(); ctx.setLineDash([]);
@@ -296,27 +298,32 @@ const projFor = name => { const [w, h] = SIZES[name], win = viewWindow(views[nam
 /** The map as it stands: pins, and after the reveal the truth and the lines. */
 function drawMaps() {
   const p = current(), reveal = S.phase === "reveal";
-  const pins = inRoom() ? [[pinOf(mySeat()), "mine"], [pinOf(1 - mySeat()), "theirs"]] : [[reveal ? S.log[S.index] : pin, "mine"]];
   for (const name of ["world"]) {
     const canvas = $(name);
     const { proj, win, w, h } = projFor(name);
     const ctx = setup(canvas, w, h);
     drawMap(ctx, proj, win, w, h, REGIONS[S.region]?.detail, !!REGIONS[S.region]?.fineBorders);
     drawRegion(ctx, proj, S.region || "world");
-    const colour = kind => (kind === "theirs" ? "#7A4BC9" : css("--ch-in"));
     if (reveal && p.geo) drawFeature(ctx, proj, p.geo);
-    const entry = reveal ? S.log[S.index] : null;
-    const nearFor = (kind, i) => (p.geo && entry ? (inRoom() ? entry.near?.[i === 0 ? mySeat() : 1 - mySeat()] : entry.near) : null) || p;
-    if (reveal) pins.forEach(([q, kind], i) => { if (q) { const n = nearFor(kind, i); line(ctx, proj.toXY(q.lon, q.lat), proj.toXY(n.lon, n.lat), colour(kind)); } });
-    for (const [q, kind] of pins) if (q) marker(ctx, ...proj.toXY(q.lon, q.lat), kind);
-    if (reveal && !p.geo) marker(ctx, ...proj.toXY(p.lon, p.lat), "truth");
-    if (reveal && p.geo) pins.forEach(([q, kind], i) => { if (q) marker(ctx, ...proj.toXY(nearFor(kind, i).lon, nearFor(kind, i).lat), "truth"); });
+    const xy = q => proj.toXY(q.lon, q.lat);
+    if (inRoom()) {
+      // a table: while pinning, your own pin alone; at the reveal everyone's, each joined to where it should have been
+      const marks = tableMarks();
+      if (reveal) for (const m of marks) line(ctx, xy(m.at), xy(m.near || p), seatColour(m.slot));
+      if (reveal && !p.geo) marker(ctx, ...xy(p), "truth");
+      if (reveal && p.geo) for (const m of marks) marker(ctx, ...xy(m.near || p), "truth");
+      for (const m of marks) seatPin(ctx, ...xy(m.at), seatColour(m.slot), m.label);
+      continue;
+    }
+    const q = reveal ? S.log[S.index] : pin, near = (p.geo && reveal ? S.log[S.index]?.near : null) || p;
+    if (reveal && q) line(ctx, xy(q), xy(near), css("--ch-in"));
+    if (q) marker(ctx, ...xy(q), "mine");
+    if (reveal) marker(ctx, ...xy(near), "truth");
   }
 }
-const pinOf = seat => (S.phase === "reveal" ? Object.values(S.log || {})[S.index]?.pins?.[seat] : seat === mySeat() ? pin : null);
 
 // ---------- gestures: drag to pan, pinch to zoom, tap to pin ----------
-const canPin = () => S.phase === "pin" && !(inRoom() && S.pins?.[mySeat()]);
+const canPin = () => S.phase === "pin" && !(inRoom() && S.pins?.[keyOf(mySlot())]);
 function gestures(name) {
   const canvas = $(name), touch = fingers();
   const at = e => { const r = canvas.getBoundingClientRect(); const [w, h] = SIZES[name]; return [(e.clientX - r.left) / r.width * w, (e.clientY - r.top) / r.height * h]; };
@@ -363,13 +370,11 @@ function gestures(name) {
 // ---------- drawing the page ----------
 function render() {
   if (!S) return;
-  const p = current(), reveal = S.phase === "reveal";
+  const p = current(), reveal = S.phase === "reveal", room = inRoom();
   $("where").textContent = `${S.index + 1} of ${S.set.length}`;
-  const scores = $("scores");
-  if (inRoom()) {
-    scores.className = "ch-score two";
-    scores.replaceChildren(...[mySeat(), 1 - mySeat()].map(seat => { const b = document.createElement("b"); b.textContent = `${seatName(seat)} ${Object.values(S.scores || [0, 0])[seat].toLocaleString("en-GB")}`; return b; }));
-  } else {
+  if (room) drawScores();
+  else {
+    const scores = $("scores");
     scores.className = "ch-score";
     scores.replaceChildren();
     const b = document.createElement("b"); b.id = "score"; b.textContent = S.score.toLocaleString("en-GB"); scores.appendChild(b);
@@ -379,64 +384,68 @@ function render() {
   // the task in words while you pin ("Pin the Hermitage", then what the name carried and what counts); its name at the reveal
   const ask = askFor(p), told = [ask.about, ask.rule].filter(Boolean).join(" ");
   $("place").textContent = reveal ? p.name : ask.pin;
-  const waitingForThem = inRoom() && S.phase === "pin" && S.pins?.[mySeat()];
-  $("hint").textContent = reveal ? "Drag and pinch to look around." : waitingForThem ? `Pinned. Waiting for ${seatName(1 - mySeat())}…` : pin ? `${told ? `${told} ` : ""}Tap to move the pin, or pin it.` : `${told ? `${told} ` : ""}Tap to place the pin. Drag to pan, pinch to zoom.`;
-  if (reveal && !views.revealSet) {                       // the map frames the truth and the pin together
-    const e = inRoom() ? Object.values(S.log)[S.index]?.pins?.[mySeat()] : S.log[S.index];
-    if (p.geo) {
-      const [lon0, lat0, lon1, lat1] = featureBox(p.geo), q = e || p;
-      views.world = viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, revealSpan());
-    } else views.world = e ? viewCovering(e, p, ...SIZES.world, revealSpan()) : clampView(viewAround(p.lon, p.lat, REGIONS[S.region]?.sub ? regionSpan(S.region) * 2 : 20), ...SIZES.world);
+  const pinned = room && S.phase === "pin" && !!S.pins?.[keyOf(mySlot())];
+  $("hint").textContent = room && (pinned || (reveal && S.nexts?.[keyOf(mySlot())])) ? waitingText()
+    : reveal ? "Drag and pinch to look around." : pin ? `${told ? `${told} ` : ""}Tap to move the pin, or pin it.` : `${told ? `${told} ` : ""}Tap to place the pin. Drag to pan, pinch to zoom.`;
+  if (reveal && !views.revealSet) {                       // the map frames the truth and the pins together
+    views.world = room ? tableView(p) : soloView(p);
     views.revealSet = true;
   }
   if (!reveal) views.revealSet = false;
   $("pinBtn").hidden = reveal;
-  $("pinBtn").disabled = !pin || waitingForThem;
-  $("pinBtn").textContent = waitingForThem ? "Pinned" : "Pin it";
+  if (room) pinButton(pinned);
+  else { $("pinBtn").disabled = !pin; $("pinBtn").textContent = "Pin it"; }
   const taken = cluesTaken(), clueBtn = $("clueBtn"), clueBox = $("clues");
-  clueBtn.hidden = reveal || waitingForThem;
+  clueBtn.hidden = reveal || pinned;
   clueBtn.disabled = taken >= CLUE_FACTOR.length - 1;
   clueBtn.textContent = taken >= CLUE_FACTOR.length - 1 ? "No more clues" : `${["A clue", "Another clue", "A last clue"][taken]} (keeps ${Math.round(CLUE_FACTOR[taken + 1] * 100)}%)`;
   clueBox.replaceChildren(...Array.from({ length: reveal ? 0 : taken }, (_, i) => { const li = document.createElement("li"); li.textContent = clueText(p, i + 1); return li; }));
   drawMaps();
   const result = $("result");
   result.hidden = !reveal;
-  if (reveal) {
-    const v = $("verdict");
-    if (inRoom()) {
-      const e = Object.values(S.log)[S.index], me = mySeat();
-      const mine = e.km[me], theirs = e.km[1 - me], pm = e.pts[me], pt = e.pts[1 - me];
-      const cm = e.clues?.[me] || 0, ct = e.clues?.[1 - me] || 0;
-      v.className = `ch-verdict ${mine <= theirs ? "good" : "bad"}`;
-      const off = d => (p.cat === "countries" ? (d === 0 ? "inside it" : `${km(d)} outside it`) : `${km(d)} off`);
-      v.textContent = `You were ${off(mine)} (+${pm}${cm ? `, ${cm} clue${cm > 1 ? "s" : ""}` : ""}); ${seatName(1 - me)} ${off(theirs)} (+${pt}${ct ? `, ${ct} clue${ct > 1 ? "s" : ""}` : ""}).`;
-    } else {
-      const e = S.log[S.index];
-      v.className = `ch-verdict ${missed(p, e.km, e) ? "bad" : "good"}`;
-      const where = p.cat === "countries" ? (e.km === 0 ? "Inside it" : `Outside it, ${km(e.km)} from its border`) : e.km === 0 && p.geo ? "On it" : `${km(e.km)} ${p.geo ? "from it" : "off"}`;
-      v.textContent = `${where}: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
-    }
+  $("table").hidden = !(room && reveal);
+  $("verdict").hidden = $("note").hidden = room;
+  drawSeats();
+  if (reveal && room) { drawTable(); nextButton(); }
+  else if (reveal) {
+    const v = $("verdict"), e = S.log[S.index];
+    v.className = `ch-verdict ${missed(p, e.km, e) ? "bad" : "good"}`;
+    const where = p.cat === "countries" ? (e.km === 0 ? "Inside it" : `Outside it, ${km(e.km)} from its border`) : e.km === 0 && p.geo ? "On it" : `${km(e.km)} ${p.geo ? "from it" : "off"}`;
+    v.textContent = `${where}: +${e.pts}${e.clues ? ` with ${e.clues} clue${e.clues > 1 ? "s" : ""} (×${clueFactor(e.clues)})` : ""}`;
     $("note").textContent = p.note || "";
+    $("nextBtn").disabled = false;
     $("nextBtn").textContent = S.index + 1 >= S.set.length ? "The set" : "Next";
   }
-  if (inRoom() && S.done) finishRoom();
+  if (room) graceTimer();
+}
+/** The view a solo reveal opens on: your pin and the truth (a feature's whole extent) together. */
+function soloView(p) {
+  const e = S.log[S.index];
+  if (p.geo) {
+    const [lon0, lat0, lon1, lat1] = featureBox(p.geo), q = e || p;
+    return viewCovering({ lon: Math.min(lon0, q.lon), lat: Math.min(lat0, q.lat) }, { lon: Math.max(lon1, q.lon), lat: Math.max(lat1, q.lat) }, ...SIZES.world, revealSpan());
+  }
+  return e ? viewCovering(e, p, ...SIZES.world, revealSpan()) : clampView(viewAround(p.lon, p.lat, REGIONS[S.region]?.sub ? regionSpan(S.region) * 2 : 20), ...SIZES.world);
 }
 
 // ---------- the end of a set ----------
 /**
  * The set's places for the summary: each place with its legs, a pin and the point its miss was measured to (the
- * place, or a feature's nearest point), yours and, in a room, your partner's.
+ * place, or a feature's nearest point): yours alone, or at a table everyone's, each in their seat's colour.
  */
 function setPairs() {
-  const room = inRoom(), me = room ? mySeat() : 0;
-  return Object.values(S.log || {}).map((e, i) => {
-    const q = byId.get(e.id);
-    const legs = (room ? [[me, "mine"], [1 - me, "theirs"]] : [[null, "mine"]]).map(([seat, kind]) => {
-      const from = room ? e.pins?.[seat] : { lat: e.lat, lon: e.lon };
-      const to = q.geo ? (room ? e.near?.[seat] : e.near) : q;
-      return from && to ? { from, to: { lat: to.lat, lon: to.lon }, kind, km: room ? e.km[seat] : e.km } : null;
-    }).filter(Boolean);
-    return { n: i + 1, q, legs };
+  if (inRoom()) {
+    return S.set.map((id, i) => ({ i, e: entryAt(S, i) })).filter(({ e }) => e && byId.has(e.id)).map(({ i, e }) => {
+      const q = byId.get(e.id);
+      const legs = seated(S).map(([, p]) => e.res?.[keyOf(p.slot)] && { r: e.res[keyOf(p.slot)], slot: p.slot }).filter(Boolean)
+        .sort((a, b) => (a.slot === mySlot()) - (b.slot === mySlot()))                     // your own drawn last, on top
+        .map(({ r, slot }) => { const to = q.geo ? r.near || q : q; return { from: { lat: r.lat, lon: r.lon }, to: { lat: to.lat, lon: to.lon }, colour: seatColour(slot), km: r.km }; });
+      return { n: i + 1, i, q, legs };
+    });
+  }
+  return S.log.map((e, i) => {
+    const q = byId.get(e.id), to = q.geo ? e.near : q;
+    return { n: i + 1, q, legs: to ? [{ from: { lat: e.lat, lon: e.lon }, to: { lat: to.lat, lon: to.lon }, km: e.km }] : [] };
   });
 }
 /** A place's number on the summary map, in a small disc beside it. */
@@ -465,8 +474,8 @@ function drawSummary(canvas, pairs, focus = null) {
     const p = pairs[i];
     ctx.globalAlpha = focus == null || focus === i ? 1 : 0.2;
     if (p.q.geo) drawFeature(ctx, proj, p.q.geo);
-    for (const l of p.legs) line(ctx, xy(l.from), xy(l.to), l.kind === "theirs" ? "#7A4BC9" : css("--ch-in"));
-    for (const l of p.legs) marker(ctx, ...xy(l.from), l.kind);
+    for (const l of p.legs) line(ctx, xy(l.from), xy(l.to), l.colour || css("--ch-in"));
+    for (const l of p.legs) marker(ctx, ...xy(l.from), "mine", l.colour);
     for (const l of p.legs) marker(ctx, ...xy(l.to), "truth");
     const [x, y] = xy(p.legs[0]?.to || p.q);
     badge(ctx, x + 11, y - 11, String(p.n));
@@ -529,69 +538,252 @@ const dailies = () => { const d = read(DAILY, {}), day = d[today()]; return type
 function bestEver(s) { const b = bests(), k = selKey(S); b[k] = Math.max(b[k] || 0, s); write(BEST, b); return b[k]; }
 function bestDaily(s) { const day = dailies(), k = selKey(S); day[k] = Math.max(day[k] || 0, s); write(DAILY, { [today()]: day }); return day[k]; }
 
-// ---------- together ----------
-/** Both pins are in: settle the place for both, each with their own clues' discount. */
-function settleRoom(g) {
-  const p = byId.get(g.set[g.index]);
-  const misses = [0, 1].map(seat => missOf(g.pins[seat], p)), kms = misses.map(m => m.km), pts = kms.map((d, seat) => Math.round(pointsFor(p, d) * clueFactor((g.clues || {})[seat] || 0)));
-  g.scores = Object.values(g.scores || [0, 0]).map((s, seat) => s + pts[seat]);
-  g.log = Object.values(g.log || {});
-  g.log.push({ id: p.id, pins: { 0: g.pins[0], 1: g.pins[1] }, km: kms, pts, clues: { 0: (g.clues || {})[0] || 0, 1: (g.clues || {})[1] || 0 }, near: p.geo ? { 0: misses[0].point, 1: misses[1].point } : undefined });
-  g.clues = {};
-  g.phase = "reveal";
+// ---------- at a table: a pair's duo match, or a party's of up to six ----------
+let offset = 0, stopOffset = null;                     // this device's clock against the database's
+const now = () => Date.now() + offset;
+const mySlot = () => together.slot ?? 0;
+/** This device's seat in a state read inside a transaction (the table as the database has it). */
+const slotIn = g => g.players?.[together.room?.uid]?.slot;
+/** The seats at the table now: seated, with Chart open on a device that's online (yours always). Until this phone has
+ *  heard who's here, everyone seated counts, so a reload can't move the table on without the others. */
+function present() {
+  if (!inRoom() || !S) return [];
+  const here = together.room.here;
+  return here && Object.keys(here).length ? presentSlots(S, here, "chart", together.room.uid) : seated(S).map(([, p]) => p.slot);
 }
-function freshRoom(players, sel = chosen()) {
-  const seed = randomSeed();
-  return { v: 1, app: APP, seed, ...sel, set: pickSet(seed, poolOf(sel), PER_SET, capOf(sel)).map(p => p.id), index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false, created: Date.now(), players };
+const placeOf = id => byId.get(id);
+const first = name => String(name || "Player").trim().split(/\s+/)[0];
+const seatColour = slot => css(`--p${slot % 6}`) || css("--ch-in");
+/** "a", "a and b", "a, b and c". */
+const list2 = names => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+/** Those left out, for a button: one or two by name, more by number, so the button stays one line. */
+const without = names => (names.length > 2 ? `the other ${names.length}` : list2(names));
+const nameOfSlot = slot => first(seated(S).find(([, p]) => p.slot === slot)?.[1].name);
+/** Each seat's label on the map: its player's initial, two letters where two share one. */
+function labels() {
+  const seats = seated(S), out = {}, short = initials(seats.map(([, p]) => p.name));
+  seats.forEach(([, p], i) => { out[p.slot] = short[i]; });
+  return out;
 }
-function startRoomSet() {
-  const n = freshRoom(null);
-  together.act(g => { Object.assign(g, { seed: n.seed, topic: n.topic, region: n.region, set: n.set, index: 0, pins: {}, scores: [0, 0], log: [], phase: "pin", done: false }); });
-  pin = null; views = { world: startView() };
+/** The pins to draw: yours while pinning; at the reveal everyone's, from the log, yours last so it sits on top. */
+function tableMarks() {
+  const tag = labels(), me = mySlot();
+  if (S.phase === "pin") { const q = S.pins?.[keyOf(me)] || pin; return q ? [{ at: q, slot: me, label: tag[me] ?? "?" }] : []; }
+  return Object.entries(entryAt(S, S.index)?.res || {}).map(([k, r]) => ({ at: { lat: r.lat, lon: r.lon }, near: r.near || null, slot: Number(k.slice(1)), label: tag[Number(k.slice(1))] ?? "?" }))
+    .sort((a, b) => (a.slot === me) - (b.slot === me));
+}
+/** The view a table's reveal opens on: every pin and the truth (a feature's whole extent). */
+function tableView(p) {
+  const pts = tableMarks().map(m => m.at);
+  if (p.geo) { const [lon0, lat0, lon1, lat1] = featureBox(p.geo); pts.push({ lon: lon0, lat: lat0 }, { lon: lon1, lat: lat1 }); }
+  else pts.push(p);
+  return pts.length > 1 ? viewFitting(pts, ...SIZES.world, { minSpan: revealSpan(), pad: 1.4 }) : clampView(viewAround(p.lon, p.lat, 20), ...SIZES.world);
+}
+/** Who the table is waiting for, in words: "Waiting for Sarah and Tom…". */
+function waitingText() {
+  const names = waitingFor(S, present()).filter(s => s !== mySlot()).map(nameOfSlot);
+  return names.length ? `${S.phase === "pin" ? "Pinned. " : ""}Waiting for ${list2(names)}…` : S.phase === "pin" ? "Pinned." : "Drag and pinch to look around.";
+}
+/** Whether the grace for those still to pin or press Next is up, so the table may go on without them. */
+const graceUp = () => { const at = graceAt(S, present()); return at != null && now() >= at; };
+let graceTimeout = 0;
+/** Redraws when the grace runs out, so the button to go on without the rest appears without a tap. */
+function graceTimer() {
+  clearTimeout(graceTimeout);
+  const at = inRoom() && S ? graceAt(S, present()) : null;
+  if (at != null && now() < at) graceTimeout = setTimeout(render, at - now() + 50);
+}
+/** The pin button at a table: Pin it; then Pinned while the others pin, or the reveal without them once their grace is up. */
+function pinButton(pinned) {
+  const b = $("pinBtn"), late = waitingFor(S, present()).filter(s => s !== mySlot());
+  if (!pinned) { b.disabled = !pin; b.textContent = "Pin it"; return; }
+  const go = late.length && graceUp();
+  b.disabled = !go;
+  b.textContent = go ? `Reveal without ${without(late.map(nameOfSlot))}` : "Pinned";
+}
+/** Next at a table: Next (Final standings after the last place); then waiting, or on without the rest once their grace is up. */
+function nextButton() {
+  const b = $("nextBtn");
+  if (S.done) { b.disabled = false; b.textContent = "Final standings"; return; }
+  const pressed = !!S.nexts?.[keyOf(mySlot())], late = waitingFor(S, present()).filter(s => s !== mySlot()), go = pressed && late.length && graceUp();
+  b.disabled = pressed && !go;
+  b.textContent = !pressed ? "Next" : go ? `On without ${without(late.map(nameOfSlot))}` : "Waiting";
+}
+function pinAtTable() {
+  if (S.phase !== "pin") return;
+  const pres = present(), t = now();
+  if (S.pins?.[keyOf(mySlot())]) { if (graceUp()) together.act(g => revealNow(g, pres, t, placeOf)); return; }
+  if (!pin) return;
+  const mine = pin, at = { seed: S.seed, index: S.index };
+  together.act(g => pinIn(g, slotIn(g), mine, at, pres, t, placeOf));
+}
+function nextAtTable() {
+  if (S.phase !== "reveal") return;
+  if (S.done) { finishRoom(true); return; }               // the last place: the final standings, on this phone
+  const pres = present(), t = now(), at = { seed: S.seed, index: S.index };
+  if (S.nexts?.[keyOf(mySlot())]) { if (graceUp()) together.act(g => moveOnNow(g, pres, t)); return; }
+  together.act(g => nextIn(g, slotIn(g), at, pres, t));
+}
+/** What the table owes itself as people come and go: the reveal or the next place once nobody here is still to act. */
+function settleTable() {
+  if (!inRoom() || !S || waitingFor(S, present()).length) return;
+  const pres = present(), t = now();
+  together.act(g => settleUp(g, pres, t, placeOf));
+}
+/** The scores over the card: a pair's both totals, a bigger table's your total and where it stands. */
+function drawScores() {
+  const scores = $("scores"), t = totals(S), me = mySlot();
+  const rows = rank(seated(S).map(([, p]) => ({ slot: p.slot, name: first(p.name), value: t[keyOf(p.slot)] || 0 })));
+  scores.className = "ch-score two";
+  if (rows.length <= 2) {
+    scores.replaceChildren(...[...rows].sort((a, b) => (b.slot === me) - (a.slot === me)).map(r => { const b = document.createElement("b"); b.textContent = `${r.name} ${r.value.toLocaleString("en-GB")}`; return b; }));
+    return;
+  }
+  const mine = rows.find(r => r.slot === me), b = document.createElement("b"), s = document.createElement("span");
+  b.textContent = `You ${(mine?.value || 0).toLocaleString("en-GB")}`;
+  s.textContent = `${ordinal(mine?.rank || rows.length)} of ${rows.length}`;
+  scores.replaceChildren(b, s);
+}
+const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
+/** A player's mark, as on their pin: their seat's colour, their initial. */
+function seatMark(slot, label) {
+  const i = document.createElement("i");
+  i.className = "ch-seat";
+  i.style.setProperty("--seat", `var(--p${slot % 6})`);
+  i.textContent = label ?? "?";
+  return i;
+}
+/** While pinning at a table: who's at it, who has pinned and who's away, under the map. */
+function drawSeats() {
+  const box = $("seats"), show = inRoom() && S.phase === "pin";
+  box.hidden = !show;
+  if (!show) return;
+  const tag = labels(), pres = present(), me = mySlot();
+  box.replaceChildren(...seated(S).map(([, p]) => {
+    const li = document.createElement("li"), name = document.createElement("span"), done = !!S.pins?.[keyOf(p.slot)], here = pres.includes(p.slot);
+    li.className = done ? "in" : here ? "" : "away";
+    name.textContent = `${p.slot === me ? "You" : first(p.name)}${done ? " ✓" : here ? "" : ", away"}`;
+    li.append(seatMark(p.slot, tag[p.slot]), name);
+    return li;
+  }));
+}
+/** A miss in words, as the reveal says it: off, from a feature, inside or outside a country. */
+const missText = (p, d) => (p.cat === "countries" ? (d === 0 ? "inside it" : `${km(d)} outside`) : p.geo ? (d === 0 ? "on it" : `${km(d)} from it`) : `${km(d)} off`);
+/** The reveal at a table: this place's results, the best first, then the standings, then the place's description. */
+function drawTable() {
+  const box = $("table"), p = current(), me = mySlot(), tag = labels();
+  const list = document.createElement("ol");
+  list.className = "ch-rows";
+  for (const r of placeRows(S, S.index)) {
+    const li = document.createElement("li"), who = document.createElement("b"), how = document.createElement("span"), pts = document.createElement("b");
+    li.className = r.slot === me ? "me" : "";
+    const dot = seatMark(r.slot, tag[r.slot]);
+    who.textContent = r.slot === me ? "You" : first(r.name);
+    how.textContent = r.none ? "no pin" : `${missText(p, r.km)}${r.clues ? ` · ${r.clues} clue${r.clues > 1 ? "s" : ""}` : ""}`;
+    pts.className = "ch-pts";
+    pts.textContent = r.none ? "0" : `+${r.pts.toLocaleString("en-GB")}`;
+    li.append(dot, who, how, pts);
+    list.append(li);
+  }
+  const head = document.createElement("h4");
+  head.className = "ch-h";
+  head.textContent = S.done ? "Final standings" : "Standings";
+  const parts = [list, head, leaderboard(standingRows(S, S.index).map(r => ({ name: r.slot === me ? "You" : first(r.name), value: r.value, delta: r.delta, seat: r.slot, me: r.slot === me })))];
+  if (p.note) { const n = document.createElement("p"); n.className = "ch-note"; n.textContent = p.note; parts.push(n); }
+  const keep = box.dataset.at === `${S.seed}/${S.index}` ? box.scrollTop : 0;    // a redraw of the same reveal keeps its place
+  box.replaceChildren(...parts);
+  box.dataset.at = `${S.seed}/${S.index}`;
+  box.scrollTop = keep;
+}
+function freshRoom(players, ask = null) {
+  const seed = randomSeed(), sel = STANDARD;                  // a table starts on everything worldwide; the menu changes it
+  return { ...freshTable(players, { people: peopleFor(ask), seed, ...sel, set: pickSet(seed, poolOf(sel), PER_SET, capOf(sel)).map(p => p.id) }), app: APP };
+}
+/** A fresh set for the table, of the selection chosen, asking first while this one's under way. */
+function startRoomSet(sel = chosen()) {
+  if (S && !S.done && (S.index > 0 || S.phase === "reveal" || S.pins) && !confirm("Deal a fresh set for the table? This one isn't finished.")) { showSelection(); return; }
+  const seed = randomSeed(), set = pickSet(seed, poolOf(sel), PER_SET, capOf(sel)).map(p => p.id);
+  together.act(g => newSet(g, { seed, ...sel, set }));
 }
 let shownBell = null;
 /** Opens the set's summary, as a modal on top: a dialog left open somehow (not shown as a modal) is reopened. */
 function bell() { const d = $("doneDlg"); if (d.open) d.close(); d.showModal(); }
+/** The final standings: who won, the totals, every pin of the set on one map, Play again and Back to solo. */
 function finishRoom(asked = false) {                    // asked: the button was pressed, so show it even if shown
-  const g = S, me = mySeat(), key = `${g.seed}/${g.index}`;
+  const g = S, me = mySlot(), key = `${g.seed}/${g.created}`;
   if (shownBell === key && !asked) return;
   shownBell = key;
-  const scores = Object.values(g.scores);
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "ch-big", scores[me] > scores[1 - me] ? "You win" : scores[me] < scores[1 - me] ? `${seatName(1 - me)} wins` : "A draw");
-  const stats = add("div", "ch-stats");
-  for (const [v, label] of [[scores[me].toLocaleString("en-GB"), "you"], [scores[1 - me].toLocaleString("en-GB"), seatName(1 - me)], [`${Object.values(g.log).filter(e => e.km[me] < e.km[1 - me]).length}`, "places you were closer"]]) {
-    const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
-    b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
-  }
-  const log = Object.values(g.log);
-  summary(add, setPairs(), (p, i) => `you ${km(log[i].km[me])} · ${seatName(1 - me)} ${km(log[i].km[1 - me])}`);
+  const rows = rank(standingRows(g)), tops = rows.filter(r => r.rank === 1);
+  const won = tops.length > 1 ? (tops.length === rows.length ? "A draw" : `${list2(tops.map(r => (r.slot === me ? "you" : first(r.name))))} share it`.replace(/^you/, "You"))
+    : tops[0]?.slot === me ? "You win" : `${first(tops[0]?.name)} wins`;
+  add("p", "ch-big ch-won", won);
+  // how many places each was best on: the most points there, shared when level
+  const best = {};
+  g.set.forEach((_, i) => { const r = placeRows(g, i).filter(x => !x.none); if (r.length) for (const x of r.filter(x => x.pts === r[0].pts)) best[x.slot] = (best[x.slot] || 0) + 1; });
+  body.append(leaderboard(rows.map(r => ({ name: r.slot === me ? "You" : first(r.name), value: r.value, seat: r.slot, me: r.slot === me, note: `best on ${best[r.slot] || 0} of ${g.set.length}` }))));
+  // a place's row: a pair's both misses; a bigger table's best and yours
+  summary(add, setPairs(), p => {
+    const r = placeRows(g, p.i), top = r[0], mine = r.find(x => x.slot === me), them = r.find(x => x.slot !== me);
+    const say = x => (!x || x.none ? "no pin" : p.q.cat === "countries" ? (x.km === 0 ? "inside" : `${km(x.km)} out`) : km(x.km));
+    if (r.length <= 2) return `you ${say(mine)}${them ? ` · ${first(them.name)} ${say(them)}` : ""}`;
+    return top.slot === me ? `you ${say(top)}, best` : `${first(top.name)} ${say(top)} · you ${say(mine)}`;
+  });
   const again = add("button", "btn primary wide", "Play again");
-  again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(); });
+  again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(selOf(g)); });
   const leave = add("button", "btn wide", "Back to solo");
   leave.type = "button"; leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
   bell();
 }
+let joining = null;                                     // the rete while this phone sits down, until the table's drawn
+const joined = () => { joining?.(); joining = null; };
 function onState(val) {
   const was = S;
   S = val;
-  if (!was || was.index !== val.index || was.seed !== val.seed) { pin = null; clues = 0; views = { world: startView() }; }
+  joined();
+  document.getElementById("app").classList.add("at-table");
+  if (!stopOffset) stopOffset = together.room?.sync.serverOffset?.(ms => { offset = ms || 0; }) || (() => {});
+  if (!isTable(was) || was.index !== val.index || was.seed !== val.seed) { pin = null; clues = 0; views = { world: startView() }; }
+  if (isTable(was) && was.seed !== val.seed) {                             // a fresh set: the last one's summary is over
+    shownBell = null;
+    if ($("doneDlg").open) $("doneDlg").close();
+    toast("A fresh set for the table");
+  }
   showSelection();
   drawPartner();
   render();
+  settleTable();
+}
+function onPresence() {
+  drawPartner();
+  if (!S || !inRoom()) return;
+  render();
+  settleTable();
 }
 function drawPartner() {
   const el = $("partner");
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append("Reconnecting…"); return; }
+  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
+  const others = together.others(), known = Object.keys(together.room.here || {}).length > 0;   // who's here, once heard
+  if (others.length > 1) {                               // a party's table: everyone else, and who's away
+    el.append("Pinning with ");
+    others.forEach((o, i) => {
+      if (i) el.append(i === others.length - 1 ? " and " : ", ");
+      const b = document.createElement("b");
+      b.textContent = first(o.name) + (o.here || !known ? "" : " (away)");
+      el.append(b);
+    });
+    el.append(".");
+    return;
+  }
   const p = together.partner();
-  if (!p) { el.append(`Room ${together.room.code}: waiting for your partner.`); return; }
+  if (!p) { el.append(`Room ${together.room.code}: ${(S?.people || 2) > 2 ? "waiting for the others" : "waiting for your partner"}.`); return; }
   const b = document.createElement("b");
-  b.textContent = p.name + (p.online ? "" : " (away)");
+  b.textContent = p.name + (p.online && !(known && others[0] && !others[0].here) ? "" : " (away)");   // seated but gone (Back to solo): away
   if (p.game && p.game !== "chart") {
     const a = document.createElement("a");
     a.href = gameHref(p.game);
@@ -611,23 +803,31 @@ async function askName() {
   if (name) try { localStorage.setItem("crates:name", name); } catch { /* private mode */ }
   return name;
 }
-// a finished set together: your points against your partner's
-const seatScores = g => Object.values(g.scores || [0, 0]);
-let joining = null;                                           // the rete over the page while a room is joined
-const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
-  result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: seatScores(g)[mySeat()] || 0, won: (seatScores(g)[mySeat()] || 0) > (seatScores(g)[1 - mySeat()] || 0) } : null),
+  // a finished set at the pair's table: your total against your partner's (won: alone at the top)
+  result: g => resultOf(g, g.players?.[together.room?.uid]?.slot),
   game: "chart",
   app: APP,
   toast,
   askName,
-  valid: g => g?.v === 1 && Array.isArray(g.set),
-  // a table dealt as you sit down is a set of everything, worldwide (a new set from the menu deals what the dropdowns
-  // show); together.js passes the request it was asked for after the players, which isn't a selection
-  fresh: players => freshRoom(players, selOf(null)),
-  onState: val => { joined(); onState(val); },
-  onPresence: drawPartner,
-  onLeave: () => { joined(); shownBell = null; S = read(RUN, null); pin = null; views = { world: startView() }; showSelection(); drawPartner(); if (!S) start("random"); else render(); },
+  valid: isTable,
+  // a table dealt as you sit down: everything worldwide, with as many seats as the request it's dealt for asked (a
+  // party's); together.js passes that request after the players
+  fresh: (players, { ask } = {}) => freshRoom(players, ask),
+  slots: g => g?.people || 2,
+  onState,
+  onPresence,
+  onLeave: () => {
+    joined();                                             // a join that ends in leaving (the table gone) takes the rete too
+    shownBell = null;
+    clearTimeout(graceTimeout);
+    stopOffset?.(); stopOffset = null;
+    document.getElementById("app").classList.remove("at-table");
+    if ($("doneDlg").open) $("doneDlg").close();
+    pin = null; clues = 0;
+    soloStart();
+    drawPartner();
+  },
 });
 
 // ---------- menu, links, messages ----------
@@ -644,13 +844,16 @@ async function copyLink() {
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 // the menu: Play (start the set you've chosen), Content (random or today's; what it deals is in the header's
-// dropdowns), Settings (learning mode), About (your bests here, a link); in a room, what the duo match offers
+// dropdowns), Settings (learning mode), About (your bests here, a link); at a table, its topic and region (a fresh set
+// for everyone) and the table's own part
 let pick = null;                                              // the set the menu will start: { mode }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room) {
-    part(body, "together").append(action("A fresh set", startRoomSet, "primary"), action("Back to solo", () => together.leave(), "link"));
+    if (S) part(body, "content").append(mirror("Topic", $("topic")), mirror("Region", $("region")));
+    part(body, "together").append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(selOf(S)), "primary"),
+      ...(S?.done ? [action("Final standings", () => finishRoom(true))] : []), action("Back to solo", () => together.leave(), "link"));
   } else {
     pick ??= { mode: S?.mode === "daily" || dailyDue("chart") ? "daily" : "random" };   // today's first, while it's still to play
     const play = part(body, "play");
@@ -687,7 +890,7 @@ function fillRegions(topic, region) {
   sel.value = poolOf({ topic, region }).length ? region : "world";
   if (regionMenu) regionMenu.sync(); else regionMenu = dropdown(sel);
 }
-/** The dropdowns show the set's selection (or the room's). */
+/** The dropdowns show the set's selection (or the table's). */
 function showSelection() {
   if (!S) return;
   const { topic, region } = selOf(S);
@@ -695,10 +898,10 @@ function showSelection() {
   topicMenu.sync();
   fillRegions(topic, region);
 }
-/** A new choice deals a new set with it, after asking if this one's under way; together, a fresh set for both. */
+/** A new choice deals a new set with it, after asking if this one's under way; at a table, a fresh set for everyone. */
 function choose() {
   const sel = chosen();
-  if (inRoom()) { startRoomSet(); return; }
+  if (inRoom()) { startRoomSet(sel); return; }
   if (S && !S.done && S.index > 0 && !confirm("Start a new set with this? This one isn't finished.")) { showSelection(); return; }
   start(S?.mode === "daily" ? "daily" : "random", sel);
 }
@@ -720,7 +923,7 @@ window.addEventListener("resize", () => { if (S) drawMaps(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (S) drawMaps(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
-window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (h.get("s") || h.get("d")) load(h); });
+window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (!inRoom() && (h.get("s") || h.get("d"))) load(h); });
 
 function load(h) {
   const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
@@ -735,27 +938,30 @@ function load(h) {
   render();
   return true;
 }
-
-// for tests and debugging
-window.__chart = { get state() { return S; }, get views() { return views; }, setPin: (lat, lon) => { pin = { lat, lon }; render(); }, confirmPin, next, start, takeClue, get together() { return together; } };
-
-/** Your own set: a shared link's, the saved one, today's from the games screen's tile, or a fresh one. */
-function soloStart() {
+/** Your own set: a shared link's, the saved one, or a fresh one; at start-up, today's when the games screen's tile sent
+ *  you for it (opening). */
+function soloStart({ opening = false } = {}) {
   S = read(RUN, null);
   if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;
-  const forToday = arrivedForToday();         // from the games screen's tile: today's set, still to play
+  const forToday = opening && arrivedForToday();         // from the games screen's tile: today's set, still to play
   const hash = new URLSearchParams(location.hash.slice(1));
+  if (!opening) views = { world: startView() };          // back from a table: your set opens as a new place would
   if (!load(hash)) {
     if (!S) start(forToday ? "daily" : "random");
     else { history.replaceState(null, "", hashOf(S)); showSelection(); render(); }
   }
   if (forToday && !(S.mode === "daily" && S.seed === today())) setTimeout(() => confirmStart("daily"), 0);   // it asks before leaving a set you've started
-  else if (S.done) finish();
+  else if (opening && S.done) finish();
 }
-// a room in the address: the set you share from the first moment, never your own while the room is joined (your
-// partner would be on another question until it was), and your own only if the join doesn't come off
-const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-if (code.length === 4) {
-  joining = busy("Joining your partner", { delay: 0 });
-  together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
-} else soloStart();
+
+// for tests and debugging
+window.__chart = { get state() { return S; }, get views() { return views; }, setPin: (lat, lon) => { pin = { lat, lon }; render(); }, confirmPin, next, start, takeClue,
+  get together() { return together; }, present, get marks() { return inRoom() && S ? tableMarks() : null; } };
+
+// a room in the address: the set the table shares from the first moment, never your own while it's joined (the others
+// would be on another place until it was), and your own, as you left it, only if the join doesn't come off
+const code = roomInAddress();
+if (code) {
+  joining = busy("Joining the table", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { joined(); soloStart({ opening: true }); } });
+} else soloStart({ opening: true });

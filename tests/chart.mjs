@@ -98,5 +98,67 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   check(E.HOME_KM === 600 && E.homeOf(norilsk, inRussia, COUNTRIES)?.name === "Russia" && !E.homeOf(norilsk, inKazakhstan, COUNTRIES) && !E.homeOf(norilsk, null, COUNTRIES),
     "a pin inside the place's own country is found there (Norilsk, pinned in Russia); one in another country isn't; no pin, no home");
 }
+// a table of two to six (chart-table.js): everyone pins the same place, the reveal once everyone at the table has, each
+// player's points with their own clues' discount, the reveal's order, who the table waits for, the grace for the slow,
+// Next from everyone, people away left out, the standings and the pair's record; every move through the database
+{
+  const T = await import("../chart-table.js");
+  const { roundTrip, same } = await import("./rtdb.js");
+  const { COUNTRIES } = await import("../chart-countries.js");
+  const fr = COUNTRIES.find(c => c.name === "France");
+  const paris = { id: "x-paris", cat: "cities", name: "Paris", lat: 48.86, lon: 2.35 }, france = { id: "co-fr", cat: "countries", name: "France", lat: fr.lat, lon: fr.lon, geo: { rings: fr.rings } };
+  const places = { [paris.id]: paris, [france.id]: france }, placeOf = id => places[id];
+  const players = { ua: { name: "Korbi", slot: 0 }, ub: { name: "Sarah", slot: 1 }, uc: { name: "Tom", slot: 2 } };
+  let g = T.freshTable(players, { people: T.peopleFor({ people: 3 }), seed: 7, set: [paris.id, france.id, paris.id], now: 1000 });
+  const kept = () => { const r = roundTrip(g); const ok = same(r, g); g = r; return ok; };   // the table as the database gives it back
+  check([undefined, { people: 3 }, { people: 9 }, { people: "x" }, { people: 1 }].map(T.peopleFor).join() === "2,3,6,2,2" && g.people === 3 && T.isTable(g) && kept(),
+    "a table keeps as many seats as the party asked for, two to six (a pair's two), and goes through the database as it is");
+  const all = [0, 1, 2], at = { seed: 7, index: 0 };
+  const lyon = { lat: 45.76, lon: 4.84 }, berlin = { lat: 52.52, lon: 13.4 };
+  check(T.pinIn(g, 0, { lat: 48.9, lon: 2.4 }, at, all, 2000, placeOf) && !T.pinIn(g, 0, lyon, at, all, 2100, placeOf) && T.pinIn(g, 1, lyon, at, all, 3000, placeOf) && kept(),
+    "a pin goes in once per player");
+  check(g.phase === "pin" && T.waitingFor(g, all).join() === "2" && T.waitingFor(g, [0, 1]).length === 0, "two of three pinned: the table waits for the third, unless the third is away");
+  check(T.graceAt(g, all) === 33000 && !T.revealNow(g, all, 32999, placeOf) && g.phase === "pin", "the one still to pin has half a minute after the last pin before the rest may reveal without them");
+  check(T.clueIn(g, 2, 1, 3) && !T.clueIn(g, 2, 1, 3) && !T.clueIn(g, 0, 1, 3) && kept(), "a clue is its taker's own, taken once; none after pinning");
+  check(!T.pinIn(g, 2, berlin, { seed: 7, index: 1 }, all, 3500, placeOf) && !T.pinIn(g, 2, berlin, { seed: 8, index: 0 }, all, 3500, placeOf), "a pin sent for another place, or another set, counts for nothing");
+  check(T.pinIn(g, 2, berlin, at, all, 4000, placeOf) && g.phase === "reveal" && kept(), "the last pin brings the reveal");
+  const e = T.entryAt(g, 0), r = T.placeRows(g, 0);
+  const pts = s => e.res[`s${s}`].pts;
+  check(pts(0) === E.score(e.res.s0.km) && pts(1) === E.score(e.res.s1.km) && pts(2) === Math.round(E.score(e.res.s2.km) * 0.7) && e.res.s2.clues === 1 && !g.pins && !g.clues,
+    `each pin scored as alone, a clue discounting only its taker (Korbi +${pts(0)}, Sarah +${pts(1)} from Lyon, Tom +${pts(2)} from Berlin with a clue)`);
+  check(r.map(x => x.name).join() === "Korbi,Sarah,Tom" && r[0].km < r[1].km, "the reveal's order: the most points first");
+  {
+    const tie = { ...g, log: { q0: { id: paris.id, res: { s0: { lat: 0, lon: 0, km: 900, pts: 10 }, s2: { lat: 0, lon: 0, km: 400, pts: 10 } } } } };
+    check(T.placeRows(tie, 0).map(x => `${x.name}${x.none ? "-" : ""}`).join() === "Tom,Korbi,Sarah-", "level on points, the nearer first; anyone seated without a pin last, with nothing");
+  }
+  check(!T.pinIn(g, 1, lyon, at, all, 4100, placeOf), "no pin after the reveal");
+  check(T.nextIn(g, 0, at, all, 5000) && T.nextIn(g, 1, at, all, 6000) && g.phase === "reveal" && T.waitingFor(g, all).join() === "2" && T.graceAt(g, all) === 36000 && kept(),
+    "Next: the table waits for everyone at it, with the same half-minute grace");
+  check(!T.moveOnNow(g, all, 35000) && T.moveOnNow(g, all, 36000) && g.index === 1 && g.phase === "pin" && !g.nexts && kept(), "and moves on without the last once it's up");
+  // Tom's phone goes to sleep: Korbi and Sarah aren't kept waiting
+  const two = [0, 1], at1 = { seed: 7, index: 1 };
+  check(T.pinIn(g, 0, { lat: 46.5, lon: 2.5 }, at1, two, 7000, placeOf) && T.pinIn(g, 1, { lat: 40.4, lon: -3.7 }, at1, two, 8000, placeOf) && g.phase === "reveal" && kept(),
+    "someone away (their phone asleep, another game open) doesn't hold up the reveal");
+  const f = T.placeRows(g, 1);
+  check(f[0].name === "Korbi" && f[0].km === 0 && f[0].pts === E.score(0) && f[1].pts === 0 && f[2].none, "a country: inside its outline scores in full, outside nothing; Tom, away, has no pin");
+  // Tom comes back after Korbi and Sarah pressed Next: the table waits for him again, or moves on as people leave
+  check(T.nextIn(g, 0, at1, all, 9000) && T.nextIn(g, 1, at1, all, 9500) && g.phase === "reveal" && !T.settleUp(g, all, 9600, placeOf) && T.settleUp(g, two, 9700, placeOf) && g.index === 2 && kept(),
+    "back at the table he's waited for; gone again, the table moves on by itself (settleUp)");
+  check(T.graceAt({ ...g, pins: { s0: { at: 1 } } }, all) === null && T.graceAt({ ...g, pins: { s0: { at: 1 } } }, [0, 1]) === 30001, "the grace only once those in are at least as many as those still to");
+  check(T.pinIn(g, 1, lyon, { seed: 7, index: 2 }, [1], 10000, placeOf) && g.done && T.waitingFor(g, all).length === 0 && !T.nextIn(g, 0, { seed: 7, index: 2 }, all, 10100) && kept(),
+    "the last place's reveal ends the set: nobody to wait for, no Next");
+  const t = T.totals(g), st = T.standingRows(g, 2);
+  check(t.s0 === pts(0) + E.score(0) && st.find(x => x.slot === 1).delta === T.entryAt(g, 2).res.s1.pts && st.find(x => x.slot === 2).value === pts(2) && st.find(x => x.slot === 0).delta === 0,
+    `the standings: each one's total (Korbi ${t.s0}, Sarah ${t.s1}, Tom ${t.s2}) and the last place's change`);
+  const won = T.resultOf(g, 0), lost = T.resultOf(g, 1);
+  check(won.won && !lost.won && won.score === t.s0 && won.match === lost.match && T.resultOf({ ...g, done: false }, 0) === null, "the pair's record: the top total wins, once the set is over");
+  const level = { ...g, log: { q0: { id: paris.id, res: { s0: { lat: 0, lon: 0, km: 1, pts: 50 }, s1: { lat: 0, lon: 0, km: 1, pts: 50 } } } } };
+  check(!T.resultOf(level, 0).won && !T.resultOf(level, 1).won, "level at the top: a win for nobody");
+  check(T.newSet(g, { seed: 9, topic: "all", region: "world", set: [paris.id] }) && g.index === 0 && !g.log && !g.done && g.people === 3 && Object.keys(g.players).length === 3 && kept(),
+    "Play again: a fresh set at the same table, the totals from nothing");
+  check(T.initials(["Korbi", "Sarah", "Tom"]).join() === "K,S,T" && T.initials(["Sarah", "Sam", "Tom"]).join() === "S1,S2,T" && T.initials(["Sarah", "Simon", ""]).join() === "Sa,Si,?",
+    "each pin's label: an initial, two letters where two share one, a number where those match too");
+}
+
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

@@ -65,6 +65,44 @@ html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .ch-toast.show { opacity: 1; }
 
+/* at a table (#app.at-table, a pair's or a party's): the map keeps the world's shape and one size from pinning to the
+   reveal, and the space under it (all that's left on a tall phone) holds the clues and buttons while pinning and, at the
+   reveal, every player's result and the standings, scrolling inside */
+.at-table .ch-maps { flex: 0 1 auto; aspect-ratio: var(--aspect, 1.4); }
+.at-table .ch-bottom { flex: 1 1 0; min-height: 9.4rem; display: flex; flex-direction: column; justify-content: flex-end; }
+.at-table .ch-result { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.at-table .ch-result[hidden] { display: none; }
+.ch-partner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-score.two span { font-size: .85rem; font-weight: 700; color: var(--ink-soft); }
+.ch-table { flex: 1 1 auto; min-height: 0; --duel-in: var(--ch-in); }
+.ch-table[hidden] { display: none; }
+#doneDlg { --duel-in: var(--ch-in); }
+/* this place: each player's distance and points, the best first */
+.ch-rows { list-style: none; margin: 0 0 .2rem; padding: 0; display: grid; gap: .1rem; }
+.ch-rows li { display: grid; grid-template-columns: 1.4rem auto minmax(0, 1fr) auto; align-items: center; gap: .5rem; padding: .25rem .45rem; border-radius: 4px; font-size: .9rem; }
+.ch-rows li.me { background: var(--ch-in-soft); }
+.ch-rows b { max-width: 7rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-rows span { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch-rows .ch-pts { font-variant-numeric: tabular-nums; }
+/* a player's mark, as on their pin: their seat's colour, their initial */
+.ch-seat { font-style: normal; display: grid; place-items: center; width: 1.4rem; height: 1.4rem; border-radius: 50%; background: var(--seat); color: #fff; font-size: .6rem; font-weight: 800; }
+/* while pinning: who's at the table, who has pinned (ticked) and who's away (faded), as a caption under the map */
+.ch-who { list-style: none; margin: 0 0 auto; padding: .15rem 0 0; display: flex; flex-wrap: wrap; gap: .3rem .7rem; font-size: .85rem; color: var(--ink-soft); }
+.ch-who[hidden] { display: none; }
+.ch-who li { display: inline-flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.ch-who li.in { color: var(--ink); font-weight: 700; }
+.ch-who li.away { opacity: .55; }
+.ch-who .ch-seat { width: 1.15rem; height: 1.15rem; font-size: .52rem; }
+.ch-h { margin: .45rem 0 .1rem; font-size: .68rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.ch-table .duel-rank { margin: .2rem 0 .4rem; gap: .2rem; }
+.ch-table .duel-rank li { padding: .35rem .55rem; }
+.ch-table .ch-note { max-height: none; margin-top: .2rem; }
+.ch-big.ch-won { font-size: 2rem; line-height: 1.15; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) .ch-seat { color: var(--yard); }   /* the night's enamels are light: dark letters on them */
+}
+html[data-mode="night"] .ch-seat { color: var(--yard); }
+
 /* a museum's painting */
 .ch-picture { margin: .1rem 0 .5rem; display: grid; place-items: center; }
 .ch-picture[hidden] { display: none; }
@@ -78,4 +116,7 @@ html[data-mode="night"] { --ch-in: #79A9D6; --ch-good: #7FC2A8; --ch-bad: #E8806
   .ch-card .ch-bottom { grid-row: 6; }
   .ch-picture img { max-height: 30vh; max-height: 30svh; }
   .ch-place { font-size: 1.45rem; }
+  /* at a table the map fills its side as ever, and the results take the side column's height under the place */
+  .at-table .ch-maps { aspect-ratio: auto; }
+  .at-table .ch-card .ch-bottom { grid-row: 5 / 7; min-height: 0; }
 }

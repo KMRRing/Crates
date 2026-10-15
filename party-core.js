@@ -186,7 +186,7 @@ export const ELSEWHERE = [
   { id: "glyph", name: "Slate", kind: "duo", duo: "glyph", page: "slate.html", max: 2, blurb: "A small crossword with secret letter rules, filled together." },
   { id: "delta", name: "Delta", kind: "duo", duo: "delta", page: "delta.html", max: 2, blurb: "The hex sums, solved together." },
   { id: "punt", name: "Punt", kind: "duo", duo: "punt", page: "punt.html", max: 2, blurb: "Trivia with a stake on every answer, as a team." },
-  { id: "chart", name: "Chart", kind: "duo", duo: "chart", page: "chart.html", max: 2, blurb: "Pin places on the map, one against the other." },
+  { id: "chart", name: "Chart", kind: "duo", duo: "chart", page: "chart.html", max: 6, blurb: "Everyone pins the same places on their own phone: every pin revealed, closest scores most." },
   { id: "quote", name: "Quote", kind: "duo", duo: "quote", page: "quote.html", max: 2, blurb: "Make markets on numbers you don't know, one against the other." },
   { id: "spot", name: "Spot", kind: "duo", duo: "spot", page: "spot.html", max: 2, blurb: "Catch the flying sums together." },
   { id: "stow", name: "Stow", kind: "duo", duo: "stow", page: "stow.html", max: 2, blurb: "Fill the hold together, a line at a time." },

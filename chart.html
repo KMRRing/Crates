@@ -14,6 +14,7 @@
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="duel.css">
 <link rel="stylesheet" href="chart.css">
 <link rel="stylesheet" href="themes.css">
 </head>
@@ -46,6 +47,7 @@
       <canvas id="world" class="ch-map" aria-label="The world"></canvas>
     </div>
     <div class="ch-bottom">
+    <ul id="seats" class="ch-who" hidden></ul>
     <ul id="clues" class="ch-clues fit-scroll"></ul>
     <div class="ch-actions two">
       <button class="ch-go quiet" type="button" id="clueBtn">A clue</button>
@@ -53,6 +55,7 @@
     </div>
     <div id="result" class="ch-result" hidden>
       <p class="ch-verdict" id="verdict"></p>
+      <div id="table" class="ch-table fit-scroll" hidden></div>
       <p class="ch-note fit-scroll" id="note"></p>
       <button class="ch-go" type="button" id="nextBtn">Next</button>
     </div>
@@ -67,7 +70,7 @@
 
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
   <form method="dialog" id="nameForm">
-    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <label for="nameInput">Your name, so the others know who's playing</label>
     <input id="nameInput" maxlength="16" autocomplete="nickname" required>
     <button class="btn primary wide" type="submit">Continue</button>
   </form>
