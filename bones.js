@@ -2,7 +2,7 @@
 // and Fives and Threes (bones-rules.js), on seats.js. This page lays the line out as it snakes across the table
 // (bones-layout.js), the other players along the top with their tiles face down, your tiles along the foot: a tap on
 // one that fits plays it, and where it would go on either end, the two places are shown on the line, to tap.
-import { rules, GAMES, TILES, TARGETS, DEALS, legalPlays, endsOf, otherEnd, teamsOf, teamOf, fivesPoints } from "./bones-rules.js";
+import { rules, GAMES, NAMES, TILES, TARGETS, DEALS, legalPlays, endsOf, otherEnd, teamsOf, teamOf, fivesPoints } from "./bones-rules.js";
 import { LEVEL_NAMES } from "./bones-bot.js";
 import { layout, rowLenFor, tileSvg } from "./bones-layout.js";
 import { seatPage } from "./seats-ui.js";
@@ -20,8 +20,6 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const signed = n => (n > 0 ? `+${n}` : String(n));
-// the computer players, by where the game is played
-const BOTS = { partnership: ["Rosa", "Tito", "Marisol"], gaple: ["Budi", "Sari", "Agus"], fives: ["Alf", "Maggie", "Ron"] };
 
 const saved = read(OPTS, {});
 let opts = { game: GAMES[saved.game] ? saved.game : "partnership", level: LEVEL_NAMES.some(([k]) => k === saved.level) ? saved.level : "medium", voice: saved.voice ?? true };
@@ -44,7 +42,7 @@ let V = null;
 let ui = { key: "", sel: null };
 let page = null;
 page = seatPage({
-  rules, id: "bones", app: 1, pace: 850, botName: s => (BOTS[V?.state?.game || opts.game] || BOTS.partnership)[(s + 2) % 3],
+  rules, id: "bones", app: 1, pace: 850, botName: s => (NAMES[V?.state?.game || opts.game] || NAMES.partnership)[(s + 2) % 3],
   level: () => opts.level, voice: () => opts.voice, onView: v => { V = v; draw(); }, onOver, toast, newGame,
 });
 const me = () => V?.seat ?? 0;
@@ -316,13 +314,14 @@ function showRules() {
 
 // ---------- the course ----------
 // Learn (the header): dominoes taught from nothing (bones-course.js) on the course's sheet (course.js), the tiles drawn
-// as the table draws them and every play judged by the rules; its last lesson starts a game against Easy. The Rules
-// sheet, every rule on one page, opens from the course's map and the menu.
+// as the table draws them and every play judged by the rules; each chapter ends in a game, the rules' against Easy and
+// Playing well's against Hard. The Rules sheet, every rule on one page, opens from the course's map and the menu.
 const course = createCourse({
   id: "bones", course: COURSE, cls: "bn", inFrame: IN_FRAME, onRules: showRules, stage: tileStage(),
-  onPlay: () => {
-    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
-    opts.level = "easy";
+  onPlay: step => {
+    const level = step?.level || "easy", name = LEVEL_NAMES.find(([k]) => k === level)?.[1] || level;
+    if (page.atTable) { toast(`Your table plays on: try a game against ${name} when you're back to solo`); return; }
+    opts.level = level;
     saveOpts();
     newGame();
   },

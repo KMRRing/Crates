@@ -124,6 +124,13 @@ html[data-theme="office"] :is(.bn-seat, .bn-result) { border-radius: 4px; }
 .lb-empty { margin: 0; position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-soft); }
 .lb-total { margin: 0; font-size: .95rem; text-align: center; }
 .lb-total b { color: var(--bn-in); font-variant-numeric: tabular-nums; }
+.lb-seats { display: flex; justify-content: center; gap: .3rem; width: 100%; }
+.lb-seat { flex: 0 1 9rem; min-width: 0; display: grid; justify-items: center; align-content: start; gap: .2rem; padding: .25rem .2rem; border-radius: 6px; text-align: center; }
+.lb-seat b { font-size: .85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lb-seat b small { font-size: .62rem; font-weight: 700; color: var(--bn-in); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.lb-knocked { font-size: .72rem; font-weight: 700; color: var(--ln-no); }
+.lb-score { margin: 0; font-size: .85rem; font-variant-numeric: tabular-nums; }
+.lb-score small { color: var(--ink-soft); }
 .lb-handrow { width: 100%; }
 /* your tiles as the table draws them on a phone, larger on a stage with room for it */
 .lb-hand { --lb-h: clamp(2.3rem, min(9cqw, 12cqh), 3.6rem); width: 100%; min-height: calc(var(--lb-h) * 2 + .6rem); }

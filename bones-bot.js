@@ -24,7 +24,7 @@ export function botMove(s, seat, level = "medium", rng = Math.random) {
 
 // ---------- a hand played quickly: the line as its two ends ----------
 /** The state a playout needs: hands, the ends (and whether each is a double), passes, who's out, the scores. */
-function simOf(s) {
+export function simOf(s) {
   const e = endsOf(s);
   return {
     game: s.game, n: s.seats, teams: teamsOf(s), opts: s.opts, hands: s.hands.map(h => h.slice()), dead: s.dead.map(d => d.slice()),
@@ -125,7 +125,7 @@ function voidsOf(s) {
   return v;
 }
 /** The tiles this seat can't see, dealt among the others' hands, their face-down tiles and the tiles out of play, as they could lie. */
-function deal(s, seat, rng) {
+export function dealUnseen(s, seat, rng) {
   const seen = new Set([...s.hands[seat], ...s.dead[seat], ...(s.first == null ? [] : [s.first]), ...s.left.map(x => x.t), ...s.right.map(x => x.t)]);
   const pool = TILES.map((_, i) => i).filter(t => !seen.has(t)), voids = voidsOf(s);
   const holders = [];
@@ -163,7 +163,7 @@ function deal(s, seat, rng) {
 function search(s, seat, list, k, rng) {
   const sum = list.map(() => 0);
   for (let i = 0; i < k; i++) {
-    const base = deal(s, seat, rng);
+    const base = dealUnseen(s, seat, rng);
     list.forEach((p, j) => {
       const w = { ...base, hands: base.hands.map(h => h.slice()), dead: base.dead.map(d => d.slice()), out: base.out.slice(), scores: base.scores.slice(), gained: base.gained.slice() };
       if (apply(w, seat, p) !== "end") {

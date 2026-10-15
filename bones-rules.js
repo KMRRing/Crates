@@ -21,6 +21,8 @@ export const hasValue = (t, v) => TILES[t][0] === v || TILES[t][1] === v;
 export const otherEnd = (t, v) => (TILES[t][0] === v ? TILES[t][1] : TILES[t][0]);
 
 export const HAND_MS = 4600;             // a hand's result, shown before the next deal
+/** The computer players, named by where each game is played: seats 1, 2 and 3 in turn after yours. */
+export const NAMES = { partnership: ["Rosa", "Tito", "Marisol"], gaple: ["Budi", "Sari", "Agus"], fives: ["Alf", "Maggie", "Ron"] };
 const shuffle = (list, rng) => { const a = [...list]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 /**

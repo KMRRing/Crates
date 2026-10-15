@@ -5,9 +5,10 @@
 // every Fives and Threes figure quoted is what the ends make; the scores the lessons work out (a side going out, a
 // blocked hand, Gaple's chips) are what the rules' own scoring gives; the stage, on a page made of plain objects, takes
 // every exercise to its end by taps; the course keeps its progress.
-import { COURSE, parseLine, parseTiles, tableOf, tilesOf, judge, playsFor, fittingOf, scoreOf, bestScore, withPlay, tileStage, tileName } from "../bones-course.js";
+import { COURSE, parseLine, parseTiles, tableOf, tilesOf, judge, playsFor, fittingOf, scoreOf, bestScore, withPlay, tileStage, tileName, playName } from "../bones-course.js";
+import { weigh, dealable } from "../bones-solve.js";
 import { lessonsOf, progressOf } from "../course.js";
-import { rules, TILES, legalPlays, endsOf, endsTotal, fivesPoints, idOf, pipsOf } from "../bones-rules.js";
+import { rules, TILES, legalPlays, endsOf, endsTotal, fivesPoints, idOf, pipsOf, handSize } from "../bones-rules.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -16,8 +17,9 @@ const LESSONS = lessonsOf(COURSE);
 check(COURSE.chapters.length >= 1 && COURSE.chapters[0].id === "game" && COURSE.chapters.every(c => c.title), "the course starts with the game");
 check(new Set(LESSONS.map(x => x.lesson.id)).size === LESSONS.length, `${LESSONS.length} lessons, each with its own id`);
 check(LESSONS.every(x => x.lesson.steps.length && x.lesson.title), "every lesson has steps and a title");
-const first = COURSE.chapters[0].lessons.at(-1);
-check(first.steps.at(-1).play === true && LESSONS.every(x => x.lesson === first || x.lesson.steps.every(s => !s.play)), "the game's chapter ends in a game, and only it");
+const ends = COURSE.chapters.map(c => c.lessons.at(-1));
+check(ends.every(l => l.steps.at(-1).play === true) && LESSONS.every(x => ends.includes(x.lesson) ? x.lesson.steps.slice(0, -1).every(s => !s.play) : x.lesson.steps.every(s => !s.play)), "each chapter ends in a game, and nothing else does");
+check(COURSE.chapters.map(c => c.lessons.at(-1).steps.at(-1).level || "easy").join() === "easy,hard", "the rules' game against Easy, Playing well's against Hard");
 
 // ---------- every step ----------
 let lines = 0, fits = 0, lays = 0, judged = 0, goals = 0, quizzes = 0, totals = 0;
@@ -37,7 +39,7 @@ for (const { lesson: l } of LESSONS) l.steps.forEach((st, i) => {
     totals++;
     const s = tableOf(st), total = endsTotal(s), pts = fivesPoints(total);
     if (!st.hand && (!st.say.includes(String(total)) || !st.say.includes(`${pts} point`))) problems.push(`${where}: the ends make ${total}, ${pts} points, and the words don't say so`);
-    if (st.hand && !st.say.includes(`make ${total}`)) problems.push(`${where}: the ends make ${total}, and the words don't say so`);
+    if (st.goal && !st.say.includes(`make ${total}`)) problems.push(`${where}: the ends make ${total}, and the words don't say so`);
   }
   if (st.fits) {
     fits++;
@@ -88,6 +90,61 @@ for (const { lesson: l } of LESSONS) l.steps.forEach((st, i) => {
 });
 check(!problems.length, `every step works: ${lines} lines, ${fits} hands to find the fits in, ${lays} tiles to lay and ${goals} to score with (${judged} plays judged), ${quizzes} questions, ${totals} totals`);
 for (const p of problems) console.log(`     ${p}`);
+
+// ---------- Playing well: each position real, each tile to lay the best when the unseen tiles are dealt out ----------
+// The tiles you can't see dealt every way they could lie (each player's count, nothing they've knocked on), each deal
+// played out exactly (bones-solve.js), the same deals for every play: the lesson's tile must do best on average, by a
+// clear margin (half what Rush asks for) and three standard errors of the difference clear of every other play.
+const MARGIN = { partnership: 4, gaple: 6, fives: 1.5 };
+let seed = 20261015;
+const rng = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const deep = [], weak = [];
+for (const { lesson: l } of LESSONS) l.steps.forEach((st, i) => {
+  if (!st.others) return;
+  const where = `${l.id} step ${i + 1}`, s = tableOf(st), game = s.game;
+  const laid = tilesOf(st).laid.length, held = s.hands.reduce((a, h) => a + h.length, 0), dealt = game === "fives" ? 28 - s.seats * handSize("fives", s.seats, s.opts) : 0;
+  if (laid + held + s.boneyard.length !== 28 || s.boneyard.length !== dealt) weak.push(`${where}: ${laid} laid and ${held} held don't make the deal`);
+  if (!dealable(s, 0)) weak.push(`${where}: no deal honours the knocks`);
+  if (st.answer == null || st.quiz) return;
+  deep.push(l.id);
+  const list = weigh(s, 0, { deals: 300, rng }), right = new Set([st.answer, ...(st.accept || [])].flatMap(k => playsFor(st, k)).map(p => `${p.tile}${p.end}`));
+  const best = list[0], rest = list.filter(x => !right.has(`${x.tile}${x.end}`));
+  if (!right.has(`${best.tile}${best.end}`)) { weak.push(`${where}: ${playName(s, best)} does best (${best.worth.toFixed(1)}), not ${st.answer}`); return; }
+  for (const x of rest) {
+    const d = best.vals.map((v, j) => v - x.vals[j]), m = d.reduce((a, b) => a + b, 0) / d.length;
+    const se = Math.sqrt(d.reduce((a, b) => a + (b - m) ** 2, 0) / (d.length - 1) / d.length);
+    if (m < MARGIN[game] / 2 || m - 3 * se < 0) weak.push(`${where}: ${st.answer} beats ${playName(s, x)} by only ${m.toFixed(2)} (±${se.toFixed(2)})`);
+  }
+});
+check(!weak.length && deep.length >= 8, `Playing well: ${deep.length} tiles to lay, each the best of every play when the unseen tiles are dealt out 300 ways and played to the end`);
+for (const p of weak) console.log(`     ${p}`);
+{
+  // the figures the lessons quote
+  const step = id => LESSONS.find(x => x.lesson.id === id).lesson.steps.find(st => st.others && (st.answer != null || st.outOf));
+  const words = ["None", "One", "Two", "Three", "Four", "Five", "Six", "Seven"];
+  const cnt = LESSONS.find(x => x.lesson.id === "count").lesson.steps.find(st => st.outOf), t = tilesOf(cnt), v = cnt.outOf;
+  const out = TILES.filter((tt, i) => tt.includes(v) && !t.laid.includes(i) && !t.hand.includes(i)).length;
+  check(cnt.quiz[cnt.answer] === words[out], `fours out: ${out}, as the lesson says`);
+  const cl = step("close"), ct = tableOf(cl), after = withPlay(ct, playsFor(cl, cl.answer)[0]), e = endsOf(after);
+  const seen = new Set([...tilesOf(cl).laid, ...tilesOf(cl).hand]), unseen = TILES.map((_, i) => i).filter(i => !seen.has(i));
+  const mine = after.hands[0].reduce((a, x) => a + pipsOf(x), 0), theirs = unseen.reduce((a, x) => a + pipsOf(x), 0);
+  check(e.L === 6 && e.R === 6 && TILES.every((tt, i) => !tt.includes(6) || seen.has(i)) && cl.then.includes(`You hold ${mine} pips`) && cl.then.includes(`the ${unseen.length === 12 ? "twelve" : unseen.length} tiles out hold ${theirs}`), `closing: both ends 6 and every six down; you ${mine} pips, the ${unseen.length} out ${theirs}`);
+  const lt = step("light"), lp = n => withPlay(tableOf(lt), playsFor(lt, n)[0]).hands[0].reduce((a, x) => a + pipsOf(x), 0);
+  check(lt.then.includes(`you hold ${lp(lt.answer)} instead of ${lp("1-3@1")}`), `Gaple: ${lp(lt.answer)} pips left instead of ${lp("1-3@1")}`);
+  // a play ahead: what Alf could make after each, from the tiles out
+  const ah = step("ahead"), at = tableOf(ah), aseen = new Set([...tilesOf(ah).laid, ...tilesOf(ah).hand]);
+  const replies = play => {
+    const t1 = withPlay(at, play), e1 = endsOf(t1), outs = TILES.map((_, i) => i).filter(i => !aseen.has(i));
+    return outs.flatMap(x => ["L", "R"].filter(end => TILES[x].includes(end === "L" ? e1.L : e1.R)).map(end => {
+      const t2 = { ...t1, hands: [[x], [], [], []] };
+      return scoreOf(t2, { tile: x, end }).pts;
+    })).filter(Boolean);
+  };
+  const good = replies(playsFor(ah, ah.answer)[0]), bad = replies(playsFor(ah, "5-6@5")[0]).sort((a, b) => b - a);
+  check(!good.length && bad.join() === "4,3,2,2", `a play ahead: after 5–1 nothing Alf could lay scores; after 5–6, ${bad.join(", ")}`);
+  const ex = step("exact"), et = tableOf(ex), pts = k => scoreOf(et, playsFor(ex, k)[0]).pts;
+  check(et.scores[0] + pts(ex.answer) === 61 && et.scores[0] + pts("0-3@0") > 61 && pts("3-5@3") === 1 && pts("3-0@3") === 0, "61 exactly: 0–0 makes it; 0–3 goes past; 3–5 one point; 3–0 none");
+}
 
 // ---------- parsing ----------
 const L = parseLine("1-3 3-6 [6-6] 6-2");

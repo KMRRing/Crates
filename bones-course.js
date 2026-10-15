@@ -14,8 +14,9 @@
 //   goal: "most", pts                             lay the tile that scores most (Fives and Threes; pts: what it scores)
 //   quiz: [options], answer, why                  choose
 // A play is written as its tile and the end number it's laid against ("6-1@6"); a lead as the tile alone.
-import { TILES, idOf, legalPlays, endsOf, endsTotal, otherEnd, fivesPoints } from "./bones-rules.js";
-import { layout, tileSvg } from "./bones-layout.js";
+import { TILES, GAMES, NAMES, idOf, legalPlays, endsOf, endsTotal, otherEnd, fivesPoints, teamsOf } from "./bones-rules.js";
+import { layout, rowLenFor, tileSvg } from "./bones-layout.js";
+import { scale } from "./wide.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 export const tileName = t => `${TILES[t][0]}–${TILES[t][1]}`;
@@ -58,12 +59,79 @@ export function parseLine(text) {
 }
 /** A step's table as the rules see it: your tiles in seat 0, the line as written. */
 export function tableOf(step) {
-  const line = parseLine(step.line);
+  const line = parseLine(step.line), game = step.game || "partnership", others = step.others || [];
+  const seats = game === "fives" ? step.seats || 4 : 4;
+  // the others' hands as so many tiles unknown (-1), what they knocked on in the log, Fives and Threes' tiles out of play
+  const hands = [parseTiles(step.hand), ...Array.from({ length: seats - 1 }, (_, i) => Array(others[i]?.n ?? 0).fill(-1))];
+  const laid = line ? 1 + line.left.length + line.right.length : 0, held = hands.reduce((a, h) => a + h.length, 0);
+  const log = others.flatMap((o, i) => (o.knocked ? [{ seat: i + 1, pass: true, ends: o.knocked.slice() }] : []));
+  const sides = teamsOf({ game, seats }) ? 2 : seats;
   return {
-    game: step.game || "partnership", seats: 4, opts: { target: 61 }, hands: [parseTiles(step.hand), [], [], []], dead: [[], [], [], []],
-    first: line ? line.first : null, firstSides: line ? line.firstSides : null, left: line ? line.left : [], right: line ? line.right : [], log: [],
+    game, seats, opts: { ...GAMES[game].defaults, target: step.target || (game === "fives" ? 61 : 100) }, hands, dead: hands.map(() => []),
+    boneyard: game === "fives" && step.others ? Array(Math.max(0, 28 - laid - held)).fill(-1) : [], scores: step.scores ? step.scores.slice() : Array(sides).fill(0),
+    first: line ? line.first : null, firstSides: line ? line.firstSides : null, left: line ? line.left : [], right: line ? line.right : [], log,
+    passes: 0, out: [], turn: 0, step: "play",
   };
 }
+/** A table's line written as a lesson writes it, left to right as the tiles lie, the first in brackets. */
+export function lineText(s) {
+  if (s.first == null) return "";
+  const w = (a, b) => `${a}-${b}`;
+  const left = s.left.map(x => w(x.v, otherEnd(x.t, x.v))).reverse(), right = s.right.map(x => w(otherEnd(x.t, x.v), x.v));
+  return [...left, `[${w(...s.firstSides)}]`, ...right].join(" ");
+}
+/**
+ * A play as a lesson writes it: the end's number first and the end it's laid on ("6-1@6"); where both ends show the
+ * number and only one is a double, the double's end marked ("5-0@5d"); a lead, the tile ("6-4").
+ */
+export function playName(s, play) {
+  const [a, b] = TILES[play.tile];
+  if (s.first == null) return `${Math.max(a, b)}-${Math.min(a, b)}`;
+  const e = endsOf(s), n = play.end === "L" ? e.L : e.R, onDouble = play.end === "L" ? e.Ld : e.Rd;
+  return `${n}-${otherEnd(play.tile, n)}@${n}${e.L === e.R && e.Ld !== e.Rd && onDouble ? "d" : ""}`;
+}
+
+/**
+ * What a play does, as Rush and the lessons name it: "out" (your last tile), "exact" (the target made exactly), "most"
+ * (more points now than another play), "setup" (fewer now than another: the next player's chance kept down), "knock"
+ * (an opponent who has knocked on both ends it leaves: knock.seats says who), "close" (every tile of both ends'
+ * numbers down: the hand blocked), "last" (an end only you can play on: the rest of its number down or yours), "own"
+ * (an end whose number you hold more of than everyone else together), "double", "heavy" (the heaviest tile), "keep"
+ * (the most tiles left that fit).
+ */
+export function motifsOf(step, play) {
+  const s = tableOf(step), plays = placesAll(s), after = p => withPlay(s, p), tags = [];
+  const others = plays.filter(p => p.tile !== play.tile || p.end !== play.end);
+  const t = after(play), e = endsOf(t), mine = t.hands[0];
+  if (!mine.length) tags.push("out");
+  if (s.game === "fives") {
+    const pts = p => scoreOf(s, p).pts;
+    if (pts(play) && s.scores[0] + pts(play) === s.opts.target) tags.push("exact");
+    if (others.some(p => pts(p) < pts(play))) tags.push("most");
+    if (others.some(p => pts(p) > pts(play))) tags.push("setup");
+    return tags;
+  }
+  // who must knock: an opponent who has knocked on both numbers the ends show
+  const foes = s.game === "partnership" ? [1, 3] : [...Array(s.seats).keys()].slice(1);
+  const lack = seat => new Set(s.log.filter(l => l.pass && l.seat === seat).flatMap(l => l.ends));
+  const knockers = p => { const x = endsOf(after(p)); return foes.filter(f => lack(f).has(x.L) && lack(f).has(x.R)); };
+  const k = knockers(play);
+  if (k.length && others.some(p => knockers(p).length < k.length)) tags.push("knock");
+  const down = new Set([t.first, ...t.left.map(x => x.t), ...t.right.map(x => x.t)]), has = (i, v) => TILES[i][0] === v || TILES[i][1] === v;
+  const unseen = v => TILES.filter((_, i) => has(i, v) && !down.has(i) && !mine.includes(i)).length, held = v => mine.filter(i => has(i, v)).length;
+  if (!unseen(e.L) && !unseen(e.R) && !held(e.L) && !held(e.R)) tags.push("close");
+  else if ([e.L, e.R].some(v => !unseen(v) && held(v))) tags.push("last");
+  else if ([e.L, e.R].some(v => held(v) > unseen(v))) tags.push("own");
+  const pipsOfT = x => TILES[x][0] + TILES[x][1];
+  if (TILES[play.tile][0] === TILES[play.tile][1] && others.some(p => TILES[p.tile][0] !== TILES[p.tile][1])) tags.push("double");
+  else if (others.every(p => pipsOfT(p.tile) < pipsOfT(play.tile))) tags.push("heavy");
+  const fit = p => { const x = after(p), ee = endsOf(x); return x.hands[0].filter(i => has(i, ee.L) || has(i, ee.R)).length; };
+  if (!tags.length && others.every(p => fit(p) < fit(play))) tags.push("keep");
+  return tags;
+}
+/** Every play of seat 0's that makes a difference: on two ends alike, one. */
+const placesAll = s => [...new Set(legalPlays(s, 0).map(p => p.tile))].flatMap(t => placesFor(s, t));
+
 /** Every tile a step writes, line, hand and rows: a lesson's table never shows one tile twice. */
 export function tilesOf(step) {
   const line = parseLine(step.line);
@@ -74,18 +142,13 @@ export function tilesOf(step) {
 // ---------- plays ----------
 /** The same written with the end's number first ("6-1@6"), whichever way the lesson wrote the tile. */
 const norm = (s, key) => {
-  const m = /^([0-6])-([0-6])(?:@([0-6]))?$/.exec(key);
+  const m = /^([0-6])-([0-6])(?:@([0-6])(d?))?$/.exec(key);
   if (!m) throw new Error(`no play "${key}"`);
   const [a, b, n] = [Number(m[1]), Number(m[2]), m[3] == null ? null : Number(m[3])];
   if (n == null) return `${Math.max(a, b)}-${Math.min(a, b)}`;
-  return `${n}-${a === n ? b : a}@${n}`;
+  return `${n}-${a === n ? b : a}@${n}${m[4]}`;
 };
-const playKey = (s, play) => {
-  const [a, b] = TILES[play.tile];
-  if (s.first == null) return `${Math.max(a, b)}-${Math.min(a, b)}`;
-  const e = endsOf(s), n = play.end === "L" ? e.L : e.R;
-  return `${n}-${a === n ? b : a}@${n}`;
-};
+const playKey = playName;
 /** The plays a step's play could be, by its key: [{ tile, end }]. */
 export function playsFor(step, key) {
   const s = tableOf(step), want = norm(s, key);
@@ -203,7 +266,7 @@ export function tileStage() {
       const tb = tableOf(s);
       if (tb.first == null) return `Lead ${tileName(t.sel)}`;
       const e = endsOf(tb), n = t.end === "L" ? e.L : e.R;
-      return `Lay ${n}–${otherEnd(t.sel, n)} on the ${n}`;
+      return `Lay ${n}–${otherEnd(t.sel, n)} on the ${n}${(t.end === "L" ? e.Ld : e.Rd) ? `–${n}` : ""}`;
     },
     submit: (s, t) => judge(s, { tile: t.sel, end: t.end }),
     hint(s, t) {
@@ -222,6 +285,7 @@ export function tileStage() {
         const ts = r.tiles ? parseTiles(r.tiles) : null;
         parts.push(`<div class="lb-row">${head(r.label)}${ts ? `<span class="lb-tiles" style="--n:${Math.max(ts.length, 3)}">${ts.map(mini).join("")}</span>` : `<b class="lb-word">${esc(r.text || "")}</b>`}</div>`);
       }
+      if (s.others) parts.push(seatsHtml(s, tb));
       if (s.line != null) parts.push(`<div class="lb-board">${lineSvg(tb, laid ? null : t)}</div>${s.total && tb.first != null ? totalHtml(tb, laid) : ""}`);
       if (s.hand) {
         const fit = s.fits ? new Set(fittingOf(s)) : null, found = new Set(t.done ? fit || [] : t.found || []), no = new Set(t.no || []);
@@ -236,17 +300,47 @@ export function tileStage() {
         parts.push(`<div class="lb-row lb-handrow">${head(s.handLabel || "Your tiles")}<div class="bn-hand lb-hand${t.done || !isTask(s) ? " still" : ""}">${tiles.join("")}</div></div>`);
       }
       box.innerHTML = `<div class="lb${s.line != null ? " with-line" : ""}">${parts.join("")}</div>`;
+      // a long line laid out again to its board's shape, as the table does: rows as long as it lets the tiles be largest
+      const board = box.querySelector?.(".lb-board");
+      if (board && tb.first != null && board.clientWidth && board.clientHeight) board.innerHTML = lineSvg(tb, laid ? null : t, fitLen(tableOf(s), board.clientWidth, board.clientHeight));
     },
   };
+  /** The row length for a line in a board of this size: room along each arm for a tile more, tiles at most 3rem across. */
+  function fitLen(set, W, H) {
+    const units = arm => arm.reduce((a, x) => a + (TILES[x.t][0] === TILES[x.t][1] ? 1 : 2), TILES[set.first][0] === TILES[set.first][1] ? 0.5 : 1);
+    return rowLenFor(W / H, Math.max(units(set.left), units(set.right)) + 2, Math.ceil(W / (3 * 16 * scale())) - 1);
+  }
+  /** The others round the table as the game seats them (left, across, right): their tiles face down, what they've
+   *  knocked on, your partner marked; in Fives and Threes, the score. */
+  function seatsHtml(s, tb) {
+    const n = tb.seats, names = NAMES[tb.game], ccw = GAMES[tb.game].ccw;
+    const place = d => (n === 2 || (n === 4 && d === 2) ? "top" : (d === 1) === ccw ? "right" : "left");
+    const order = ["left", "top", "right"].map(p => [1, 2, 3].find(d => d < n && place(d) === p)).filter(d => d != null);
+    const seats = order.map(d => {
+      const o = s.others[d - 1] || { n: 0 }, partner = teamsOf(tb) && d === 2;
+      const backs = Array.from({ length: o.n }, () => '<i class="bn-back"></i>').join("");
+      return `<div class="lb-seat${partner ? " partner" : ""}"><b>${esc(names[d - 1])}${partner ? " <small>partner</small>" : ""}</b><span class="bn-backs">${backs || "<small>out</small>"}</span>${o.knocked ? `<small class="lb-knocked">knocked on ${o.knocked.join(" and ").replace(/ and (?=.* and )/g, ", ")}</small>` : ""}</div>`;
+    });
+    let score = "";
+    if (tb.game === "fives") {
+      const sc = tb.scores, of = `<small>to ${tb.opts.target}</small>`;
+      score = teamsOf(tb) ? `<p class="lb-score"><b>${sc[0]}</b> us · <b>${sc[1]}</b> them ${of}</p>`
+        : `<p class="lb-score"><b>${sc[0]}</b> you · ${order.map(d => `<b>${sc[d]}</b> ${esc(names[d - 1])}`).join(" · ")} ${of}</p>`;
+    }
+    return `<div class="lb-seats">${seats.join("")}</div>${score}`;
+  }
   /** The ends' total as Fives and Threes counts it, and what it scores. */
   function totalHtml(tb, laid) {
     const total = endsTotal(tb), pts = fivesPoints(total);
     return `<p class="lb-total">${laid ? "Now the ends make" : "The ends make"} <b>${total}</b>${pts ? `: <b>${pts}</b> ${pts === 1 ? "point" : "points"}` : ": nothing"}</p>`;
   }
-  /** The line, as large as its box allows, with the picked tile's places on it to tap (t: the step's state, or null). */
-  function lineSvg(tb, t) {
+  /**
+   * The line, as large as its box allows, with the picked tile's places on it to tap (t: the step's state, or null),
+   * its rows len units long.
+   */
+  function lineSvg(tb, t, len = 12) {
     if (tb.first == null) return `<p class="lb-empty">No tile laid yet: you lead.</p>`;
-    const len = 12, L = layout(tb.first, tb.firstSides, tb.left, tb.right, len), e = endsOf(tb), ghosts = [];
+    const L = layout(tb.first, tb.firstSides, tb.left, tb.right, len), e = endsOf(tb), ghosts = [];
     if (t?.sel != null) {
       for (const p of placesFor(tb, t.sel)) {
         const add = { t: p.tile, v: otherEnd(p.tile, p.end === "L" ? e.L : e.R) };
@@ -266,6 +360,17 @@ export function tileStage() {
 }
 
 // ---------- the lessons ----------
+// Playing well's positions, each as its player sees it: the line, your tiles, the others' tile counts (seats 1, 2 and 3
+// in turn after you) and what they've knocked on.
+const PASS = { line: "4-4 4-0 0-2 2-6 [6-6] 6-4 4-3 3-3 3-5 5-0 0-1", hand: "1-4 1-5 2-3 4-5", others: [{ n: 5, knocked: [0, 4] }, { n: 4 }, { n: 4 }] };
+const HANG = { line: "1-4 4-3 3-6 [6-6] 6-5 5-3 3-1 1-2 2-6 6-1 1-5", hand: "0-0 0-1 0-2 1-1", others: [{ n: 5, knocked: [1] }, { n: 5, knocked: [1, 3] }, { n: 3 }] };
+const OWN = { line: "6-5 5-1 1-3 3-2 2-0 0-6 [6-6] 6-4 4-2 2-2 2-5 5-3", hand: "0-3 0-5 3-3 3-6", others: [{ n: 4 }, { n: 4 }, { n: 4 }] };
+const CLOSE = { line: "2-5 5-4 4-0 0-6 6-4 4-3 3-6 [6-6] 6-5 5-5 5-1 1-6", hand: "0-0 0-2 1-1 2-6", others: [{ n: 4 }, { n: 4 }, { n: 4 }] };
+const KEEP = { line: "6-4 4-5 5-6 [6-6] 6-2 2-3 3-4 4-2 2-5 5-3 3-0", hand: "0-1 0-4 1-1 1-5", others: [{ n: 4 }, { n: 5, knocked: [0, 4] }, { n: 4 }] };
+const LIGHT = { game: "gaple", line: "4-4 4-3 3-2 2-1 1-1 1-4 4-0 [0-0] 0-3 3-6 6-0 0-1", hand: "1-3 2-5 4-5 5-6", others: [{ n: 4 }, { n: 4 }, { n: 4 }] };
+const AHEAD = { game: "fives", seats: 2, total: true, line: "5-4 [4-4] 4-2 2-1 1-1 1-4", hand: "1-5 1-6 2-3 5-6", others: [{ n: 4 }], scores: [7, 7] };
+const EXACT = { game: "fives", seats: 2, total: true, line: "3-3 3-6 [6-6] 6-2 2-0", hand: "0-0 0-3 3-5 5-5", others: [{ n: 5, knocked: [0, 6] }], scores: [59, 56] };
+
 export const COURSE = {
   title: "Learn Bones", zh: "",
   chapters: [
@@ -337,6 +442,90 @@ export const COURSE = {
           id: "first", title: "A first game", zh: "",
           steps: [
             { say: "That's the game. Play one against the computer at Easy; Menu chooses the game (Partnership, Gaple or Fives and Threes), its target, and how strong the computer plays when you're ready.", play: true },
+          ],
+        },
+      ],
+    },
+    {
+      // Every position here is from a game the computer players played, and every tile to lay is the one that does best
+      // when the tiles you can't see are dealt every way they could lie and each deal is played out exactly
+      // (bones-solve.js; tests/bones-course.mjs weighs them again).
+      id: "well", title: "Playing well", zh: "",
+      lessons: [
+        {
+          id: "count", title: "Count the numbers", zh: "contar",
+          steps: [
+            { ...PASS, say: "Seven tiles carry each number. Count what's down and what you hold, and you know how many are still out; the knocks tell you who can't hold them." },
+            { ...PASS, quiz: ["None", "One", "Three"], answer: 1, outOf: 4, say: "How many fours are still out?", why: "One: four are down (4–4, 4–0, 6–4 and 4–3) and you hold two (1–4 and 4–5). It's the 4–2." },
+            { ...PASS, quiz: ["Rosa", "Tito or Marisol", "Anyone"], answer: 1, say: "Rosa knocked when the ends showed 0 and 4. Who can hold the 4–2?", why: "Tito or Marisol: a knock on a 4 means Rosa has no four at all, nor any blank." },
+          ],
+        },
+        {
+          id: "pass", title: "Make them knock", zh: "pasar",
+          steps: [
+            { ...PASS, answer: "1-4@1", say: "Rosa plays next. Lay the tile that makes her knock again.", then: "Both ends show 4, and Rosa has no four: she knocks, and not one of her five tiles goes down.",
+              wrong: { "1-5@1": "That leaves a 4 and a 5: Rosa may hold fives (5–5, 2–5 and 5–6 are all out).", "4-5@4": "That leaves a 5 and a 1: Rosa has knocked on neither.", "4-1@4": "That leaves 1 and 1: Rosa has knocked on neither." } },
+            { rows: [{ label: "Aim at", text: "Rosa · Marisol" }, { label: "Spare", text: "Tito, your partner" }], say: "A knock costs a turn and keeps a tile in the knocker's hand. Aim at Rosa, who plays next, and at Marisol after your partner; and keep off the ends whatever Tito has knocked on." },
+          ],
+        },
+        {
+          id: "hang", title: "Doubles hang", zh: "el ahorcado",
+          steps: [
+            { rows: [{ label: "Each fits one number only", tiles: "1-1 4-4 6-6" }], say: "A double fits only its own number. Once the rest of its number is down, it can never be laid: it hangs (ahorcado), and you can't go out. Lay doubles while their number is still about." },
+            { ...HANG, answer: "1-1@1", say: "Five ones are down and you hold the other two, 0–1 and 1–1. Lay a tile.", then: "The double goes while a one still shows, and the 0–1 can follow it.",
+              wrong: { "1-0@1": "Then no one shows on the line again, and every other one is down: your 1–1 hangs, and you can never go out." } },
+          ],
+        },
+        {
+          id: "own", title: "Own a number", zh: "la data",
+          steps: [
+            { ...OWN, answer: "6-3@6", say: "One three is still out, the 3–4; you hold three of them. Lay a tile.", then: "Both ends show 3, and only the 3–4 can follow anyone but you: the table mostly knocks while you lay the 3–3 and the 0–3.",
+              wrong: { "3-3@3": "The double, but it leaves a 6 at the other end for everyone. Make both ends threes first: the 3–3 can follow.", "3-6@3": "That puts sixes on both ends, and the sixes are everyone's.", "3-0@3": "That leaves 6 and 0: no end is yours." } },
+            { rows: [{ label: "Most of a number", text: "la data" }], say: "Holding most of a number is power: put it on both ends and the table plays to you. Lead from it, too: your first tile tells your partner where your strength is, and a good partner keeps it open." },
+          ],
+        },
+        {
+          id: "close", title: "Close it", zh: "el tranque",
+          steps: [
+            { ...CLOSE, answer: "2-6@2", say: "Six sixes are down, and the last is yours. Lay a tile.", then: "Both ends show 6 with every six down: nobody can lay a tile, the hand is blocked. You hold 4 pips; the twelve tiles out hold 58, four of them Tito's. Unless he holds nearly all the weight, your side holds fewer, and scores the other side's.",
+              wrong: { "2-0@2": "Then the hand goes on, with your 0–0 and 1–1 still to place. You hold the last six: close it.", "6-2@6": "That leaves 2 and 2, and the twos are still out. On the 2, it makes both ends sixes." } },
+            { rows: [{ label: "Close it when", text: "your side holds fewer" }], say: "Close the hand only when your side is the lighter: count your pips and what's out. Blocked with more, you pay." },
+          ],
+        },
+        {
+          id: "keep", title: "Keep a way to play", zh: "",
+          steps: [
+            { ...KEEP, answer: "0-1@0", say: "Tito has knocked on 0 and 4. Lay a tile.", then: "Ends 6 and 1: your 1–1 and 1–5 still fit, and the 0–4 waits for a blank.",
+              wrong: { "0-4@0": "Ends 6 and 4: none of your tiles fits either, so you knock next time, and Tito, who has no four, may too." } },
+          ],
+        },
+        {
+          id: "light", title: "Keep it light", zh: "Gaple",
+          steps: [
+            { rows: [{ label: "A pip left in your hand", text: "−3 chips" }, { label: "A pip in anyone else's", text: "+1 chip" }], say: "In Gaple each pays every other the difference, so a pip left in your hand costs you three chips and a pip in anyone else's earns you one. The hand can block at any moment: shed the weight early." },
+            { ...LIGHT, answer: "4-5@4", say: "Lay a tile.", then: "The 9 goes, not the 4: should the hand end now, you hold 22 instead of 27. And the 5 it leaves suits your 2–5 and 5–6.",
+              wrong: { "1-3@1": "That sheds 4 pips and keeps the 9: lay the heavy one while it fits." } },
+          ],
+        },
+        {
+          id: "ahead", title: "A play ahead", zh: "Fives and Threes",
+          steps: [
+            { ...AHEAD, answer: "5-1@5", say: "Alf, with four tiles, plays next. 5–6 scores 2 and 5–1 scores 1. Lay one.", then: "5–1 leaves 1 and 4: nothing Alf could hold scores on them.",
+              wrong: { "5-6@5": "Two points now, but 6 and 4 hand Alf 4–6 (12: four points), 4–3 (9: three), 4–0 or 6–2 (6: two)." } },
+            { rows: [{ label: "Before you score", text: "what does it leave?" }], say: "Before you score, look at what you leave: what the next player could make on it, from the tiles still out. A point now that hands them four is a bad trade." },
+          ],
+        },
+        {
+          id: "exact", title: "61 exactly", zh: "Fives and Threes",
+          steps: [
+            { ...EXACT, answer: "0-0@0", say: "You have 59 and need exactly 2. Lay a tile.", then: "Two points, 61 exactly: the game. The 3–3 at its end counts both halves, 6, and the 0–0 nothing.",
+              wrong: { "0-3@0": "That makes 9, three points: past 61, so it counts nothing, with Alf on 56.", "3-5@3": "That makes 5: one point, 60, and you'd need exactly one more.", "3-0@3": "That makes 0: nothing." } },
+          ],
+        },
+        {
+          id: "hard", title: "A game against Hard", zh: "",
+          steps: [
+            { say: "Hard counts the numbers, remembers every knock and plays each hand out in its head before it lays a tile. Play it.", play: true, level: "hard" },
           ],
         },
       ],

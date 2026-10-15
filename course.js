@@ -32,8 +32,9 @@ function readProgress(id) {
 
 /**
  * The course's sheet, made once. id: the game's (its progress is kept under `${id}:course`); stage: as above;
- * onPlay(): the last lesson's game; onRules(): the rules on one page, from the map; inFrame: a partner watching, so
- * nothing is kept; cls: the game's class on the sheet, for its colours. Returns { open(lessonId?), isOpen }.
+ * onPlay(step): a lesson's game (the step, which may say more: Bones' says how strong a computer to play); onRules():
+ * the rules on one page, from the map; inFrame: a partner watching, so nothing is kept; cls: the game's class on the
+ * sheet, for its colours. Returns { open(lessonId?), isOpen }.
  */
 export function createCourse({ id, course, stage, onPlay = () => {}, onRules = null, inFrame = false, cls = "" }) {
   const LESSONS = lessonsOf(course), byId = lid => LESSONS.find(x => x.lesson.id === lid) || null;
@@ -138,7 +139,7 @@ export function createCourse({ id, course, stage, onPlay = () => {}, onRules = n
   $("[data-next]").addEventListener("click", () => {
     if (!L || !L.st.done) return;
     const s = step();
-    if (s.play) { finish(); dlg.close(); onPlay(); return; }
+    if (s.play) { finish(); dlg.close(); onPlay(s); return; }
     if (L.i < L.entry.lesson.steps.length - 1) { startStep(L.i + 1); return; }
     finish();
     const after = LESSONS[L.entry.index + 1];
