@@ -139,9 +139,7 @@ html[data-theme="office"] :is(.bn-seat, .bn-result) { border-radius: 4px; }
 .lb-hand .bn-mine.hinted .bn-tile rect { stroke: var(--bn-in); stroke-width: .09; stroke-dasharray: .16 .1; }
 .bn-ghost.on .bn-tile rect { fill: color-mix(in srgb, var(--bn-in) 42%, transparent); stroke-dasharray: none; stroke-width: .12; }
 html[data-theme="office"] .lb-board { border-radius: 4px; }
-/* the rush's verdict */
-.bn-hit { color: var(--ln-ok); }
-.bn-miss { color: var(--ln-no); }
+
 
 /* a short phone: the narrator's line gives way */
 @media (max-height: 640px) and (orientation: portrait) {

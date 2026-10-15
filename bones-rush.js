@@ -1,35 +1,10 @@
-// Bones' puzzle rush without its page (bones-rush-ui.js): the bank's puzzles (bones-puzzles.js, found by
-// tools/bones-puzzles.mjs), the order a run deals them, the verdict on a play, and what a puzzle comes to in words. A
+// Bones' puzzle rush without its page (bones-rush-ui.js, on rush-sheet.js): the bank's puzzles (bones-puzzles.js, found
+// by tools/bones-puzzles.mjs), the verdict on a play, and what a puzzle comes to in words. A
 // puzzle is a position as its player saw it, written as the course writes its steps (bones-course.js), so the course's
 // stage draws it and its rules judge it; with it come the plays weighed and what each was worth over hundreds of deals
 // of the tiles that player couldn't see, each played out exactly (bones-solve.js). Pure: the page and the tests share it.
 import { TILES, NAMES, endsOf, legalPlays } from "./bones-rules.js";
 import { tableOf, playsFor, withPlay, scoreOf } from "./bones-course.js";
-
-export const RUSH_MS = 5 * 60 * 1000, STRIKES = 3;
-export function rng(seed) {
-  let a = seed >>> 0;
-  return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-}
-
-/**
- * The order a run deals its puzzles: rising difficulty, four at each rating, chosen at random within a rating from
- * those not seen lately (`recent`: ids), any seen if a rating runs dry; then the rest, hardest first.
- */
-export function runOrder(bank, seed, recent = []) {
-  const r = rng(seed), seen = new Set(recent), out = [], used = new Set();
-  for (let step = 1; step <= 10; step++) {
-    const pool = bank.filter(p => p.r === step && !used.has(p.id));
-    const fresh = pool.filter(p => !seen.has(p.id)), from = fresh.length >= 4 ? fresh : pool;
-    for (let i = 0; i < 4 && from.length; i++) {
-      const p = from.splice(Math.floor(r() * from.length), 1)[0];
-      out.push(p.id);
-      used.add(p.id);
-    }
-  }
-  for (const p of bank.filter(x => !used.has(x.id)).sort((a, b) => b.r - a.r)) out.push(p.id);
-  return out;
-}
 
 /** A puzzle as a course step: its table, the best play to find and those as good. */
 export const stepOf = p => ({ ...p, answer: p.best, accept: p.ok.filter(n => n !== p.best) });

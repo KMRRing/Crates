@@ -5,7 +5,8 @@
 // from 1 to 10, every rating up to 8 stocked, every game in the bank; a sample weighed again in deals of its own, its
 // best still best; a run's order rising four at a time, nothing twice, the unseen first; the verdicts and their words.
 import { PUZZLES } from "../bones-puzzles.js";
-import { runOrder, stepOf, judge, playWords, worthText, whyText, askText } from "../bones-rush.js";
+import { stepOf, judge, playWords, worthText, whyText, askText } from "../bones-rush.js";
+import { runOrder } from "../rush-sheet.js";
 import { tableOf, tilesOf, playName, motifsOf, playsFor } from "../bones-course.js";
 import { legalPlays, handSize } from "../bones-rules.js";
 import { weigh, dealable } from "../bones-solve.js";
