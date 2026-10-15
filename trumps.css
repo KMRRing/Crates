@@ -162,7 +162,7 @@ html[data-theme="office"] :is(.tr-seat, .tr-bid, .tr-result) { border-radius: 4p
 @media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .tr-coach.miss { background: #E8806F; } }
 html[data-mode="night"] .tr-coach.miss { background: #E8806F; }
 
-/* the Bavarian pack's pictures (Schafkopf, Cards: Pictures): each woodcut whole, on a card of its paper's colour */
-.tr-cd.pic { padding: 0; background: #E1D9CE; border-color: #A8977A; }
-.tr-cd.pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
-.tr-cd.pic.tr-back img { object-fit: cover; }
+/* the whole Bavarian pack (Schafkopf, Cards: Bavarian, trumps-deck.js): each card's picture fills it, its own frame
+   drawn in; the card stays paper at night, as a pack on the table does */
+.tr-cd.pic { padding: 0; background: #FFFCF3; border-color: #B9A88A; }
+.tr-cd.pic img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }

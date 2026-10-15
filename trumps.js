@@ -10,7 +10,7 @@ import { weighCards, bidOptions } from "./trumps-think.js";
 import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, signed } from "./trumps-coach.js";
 import { sextant } from "./loading.js";
 import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
-import { PICS, PIC_BACK } from "./trumps-pics.js";
+import { deckPics } from "./trumps-deck.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -33,9 +33,9 @@ const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "
 let opts = { game: "jass", level: "medium", voice: true, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
 const saveOpts = () => write(OPTS, opts);
-// Schafkopf's cards drawn (the suits' marks, the rank in the corner) or as the Bavarian pack's own pictures
-// (trumps-pics.js), at the table and in the course and the rush alike
-const applyLook = () => { LOOK.german = opts.look === "pictures" ? PICS : null; };
+// Schafkopf's cards simple (the suits' marks, the rank in the corner) or as the whole Bavarian pack, drawn
+// (trumps-deck.js), at the table and in the course and the rush alike
+const applyLook = () => { LOOK.german = opts.look === "pictures" ? deckPics() : null; };
 applyLook();
 
 let toastTimer = 0;
@@ -181,7 +181,7 @@ function drawSeat(box, s, seat) {
   const role = s.contract && s.game === "schafkopf" && seat === s.contract.declarer ? `<span class="tr-role">plays</span>` : s.contract && s.game === "jass" && seat === s.contract.chooser ? `<span class="tr-role">trump</span>` : s.contract && (s.game === "belote" || s.game === "coinche") && seat === s.contract.taker ? `<span class="tr-role">took</span>` : "";
   const dealer = seat === s.dealer ? `<span class="tr-dealer" title="dealer">D</span>` : "";
   box.className = `tr-seat ${box.classList[1]}${turn ? " turn" : ""}${team}`;
-  const back = LOOK.german && s.game === "schafkopf" ? `<span class="cd tr-cd pic tr-back"><img src="${PIC_BACK}" alt="" draggable="false"></span>` : backHtml();
+  const back = LOOK.german && s.game === "schafkopf" ? `<span class="cd tr-cd pic tr-back"><img src="${LOOK.german.back}" alt="" draggable="false"></span>` : backHtml();
   box.innerHTML = `<span class="tr-name">${esc(nameOf(seat))}${dealer}</span>${role}<span class="tr-backs">${Array.from({ length: Math.min(n, 9) }, () => back).join("")}</span>${bubble}${weisLine(s, seat)}`;
 }
 /** A Jass player's Weis, said during the first trick (the side with the best one scores all of its own). */
@@ -546,13 +546,12 @@ function openMenu() {
   // the coach and the cards change at once
   if (opts.game === "schafkopf") {
     set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); advice = null; said = null; draw(); }));
-    set.append(choice("Cards", [["drawn", "Drawn"], ["pictures", "Pictures"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
+    set.append(choice("Cards", [["drawn", "Simple"], ["pictures", "Bavarian"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
   }
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 });
   const rushBests = bestsLine(rush.bests()), about = part(body, "about");
   about.append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."), ...(rushBests ? [line(rushBests)] : []));
-  if (opts.game === "schafkopf" && opts.look === "pictures") about.append(line("The pictures: J. N. Valter's Bayerisches Bild, Regensburg, 1826 (the Schellen-Zehner C. Baronsee's, 1841), in the public domain."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 

@@ -46,7 +46,8 @@ const SUIT_ICON = { swiss: ["bell", "shield", "rose", "acorn"], german: ["bell",
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 /** A suit's mark, drawn, in the Swiss or German pack. */
 export const suitIcon = (pack, suit) => ICONS[SUIT_ICON[pack][suit]];
-/** The German pack as pictures, while the page has them on: a card's id to its picture (trumps-pics.js), else null. */
+/** The German pack as the whole Bavarian pack, while the page has it on: a card's id to its picture (trumps-deck.js),
+ *  else null. */
 export const LOOK = { german: null };
 /** A Swiss or German card as markup (the French are cards.js's): its rank and suit in the corner, the suit large at its
  *  foot; or, with the German pack's pictures on, the card's picture. */
