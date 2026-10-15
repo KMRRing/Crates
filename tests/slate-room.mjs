@@ -102,9 +102,12 @@ check(ipad.players.u1b?.slot === 1 && !ipad.players.u1 && ipad.log.every(e => e.
   check(grid.cells.every(k => /^u[0-5]$/.test(owners[k])) && new Set(Object.values(owners)).size === Math.min(6, grid.slots.length), "every letter has its placer, in up to six colours");
   check(P.slice(0, 6).every((p, i) => g.players[p.uid].at?.k === grid.cells[i % grid.cells.length] && g.players[p.uid].slot === i), "each player's seat and cursor came back as written");
   check(same(g.board, board), "the board itself came back whole");
+  const warned = [], warn = console.warn;
+  console.warn = msg => warned.push(msg);
   const odd = storable({ ...g, oops: undefined, n: NaN, log: [...log, { slot: 0, word: "ABC", by: undefined }] });
-  check(!("oops" in odd) && odd.n === null && odd.log.at(-1).by === undefined && (() => { try { roundTrip(odd); return true; } catch { return false; } })(),
-    "what the database refuses (undefined, NaN) is dropped before a write, not the move");
+  console.warn = warn;
+  check(!("oops" in odd) && odd.n === null && odd.log.at(-1).by === undefined && warned.length === 1 && (() => { try { roundTrip(odd); return true; } catch { return false; } })(),
+    "what the database refuses (undefined, NaN) is dropped before a write, with a warning, not the move");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
