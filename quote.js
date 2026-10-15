@@ -1,12 +1,17 @@
 // Quote: ten numbers, a two-sided market on each. The engine (quote-engine.js) settles a market; this file runs
-// the set, draws the card and the tape, and keeps bests. Together, the room holds the set and you alternate: one
-// makes the market, the other hits it, lifts it or passes (together.js).
-import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, adequate } from "./quote-engine.js";
+// the set, draws the card and the tape, and keeps bests. At a table of two to six (a pair's duo match, a party's),
+// everyone makes their own market on the same question and the reveal shows them all against the truth, with the
+// standings; a pair may trade instead, one making the market and the other hitting it, lifting it or passing
+// (quote-table.js is the table's rules).
+import { START, PER_SET, settle, fault, pickSet, withUnit, fmt, adequate } from "./quote-engine.js";
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { createTogether, seatsOf } from "./together.js";
-import { busy } from "./loading.js";
-import { gameHref, GAMES } from "./rooms.js";
+import { createTogether } from "./together.js";
+import { gameHref, GAMES, roomInAddress } from "./rooms.js";
+import { isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, quoteIn, revealNow, nextIn, moveOnNow, settleUp, makerOf, makeIn, takeIn, nextTrade, entryAt, deltasAt, books, placeRows, standingRows, resultOf, initials } from "./quote-table.js";
+import { presentSlots, seated } from "./duel-core.js";
+import { leaderboard, rank } from "./standings.js";
+import { busy, sextant } from "./loading.js";
 import * as pile from "./pile.js";
 import { noteMarket } from "./ledger-log.js";
 import { showPicture, askedWith, nameIn, pictureName } from "./pics.js";
@@ -32,16 +37,13 @@ import { part, choice, toggle, action, line } from "./menu.js";
 import { today, noteComparable, arrivedForToday, dailyDue } from "./suite.js";          // the day, the same for everyone (UTC); a ranked set for your best
 
 const $ = id => document.getElementById(id);
-const APP = 1;                       // this code's version of the together state
+const APP = 2;                       // this code's version of the table (2: up to six seats, everything kept by seat)
 const RUN = "quote:run", BEST = "quote:best", DAILY = "quote:daily";
 const byId = new Map(QUOTES.map(q => [q.id, q]));
 
 let S = null;      // alone: { seed, mode: "random" | "daily", set: [ids], index, book, log: [{ id, bid, ask, delta, inside, width }], phase: "quote" | "reveal", done }
-                   // together: the room's state: { seed, set, index, phase: "make" | "take" | "reveal", market, take, books: [2], log, done, players }
+                   // at a table: the table's state (quote-table.js)
 const inRoom = () => !!together.room;
-const mySeat = () => together.room?.data?.players?.[together.room.uid]?.slot ?? 0;
-const makerOf = g => g.index % 2;            // the maker alternates each question
-const seatName = seat => { const p = seatsOf(together.room?.data)?.find(([, x]) => x.slot === seat)?.[1]; return p ? p.name : seat === mySeat() ? "You" : "Your partner"; };
 
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -77,15 +79,13 @@ function start(mode, focus = null) {
 function save() { if (!inRoom()) write(RUN, S); }
 const current = () => byId.get(S.set[S.index]);
 
-/** Your quote: alone, settles against the book; together, goes to your partner to hit, lift or pass. */
+/** Your quote: alone, settles against the book; at a table, goes in with everyone's (or, trading, to your partner). */
 function quote() {
+  if (inRoom() && S.mode === "ranges" && S.quotes?.[keyOf(mySlot())]) { revealEarly(); return; }   // quoted: the button reveals without the slow, once it may
   const q = current(), bid = parse($("bid").value), ask = parse($("ask").value);
   const why = fault(q, bid, ask);
   if (why) { $("fault").textContent = why; return; }
-  if (inRoom()) {
-    together.act(g => { if (g.phase !== "make" || makerOf(g) !== mySeat()) return false; g.market = { bid, ask }; g.take = null; g.phase = "take"; });
-    return;
-  }
+  if (inRoom()) { quoteAtTable({ bid, ask }); return; }
   if (S.phase !== "quote") return;
   const r = settle(q, bid, ask);
   noteMarket(r.grade, r.inside);   // the Ledger: the grade, and whether the truth was inside the market
@@ -106,38 +106,8 @@ function count() {
   if (S.ranked) noteComparable("quote", S.book, S.mode === "daily" ? S.seed : null);   // the daily or Standard: it counts for your best
   return best;
 }
-/** Together: the taker's choice on the maker's market. */
-function take(kind) {
-  together.act(g => {
-    if (g.phase !== "take" || makerOf(g) === mySeat()) return false;
-    const q = byId.get(g.set[g.index]), r = trade(q, g.market.bid, g.market.ask, kind), maker = makerOf(g);
-    g.books = Object.values(g.books);
-    g.books[maker] += r.maker;
-    g.books[1 - maker] += r.taker;
-    g.log = Object.values(g.log || {});
-    g.log.push({ id: q.id, bid: g.market.bid, ask: g.market.ask, take: kind, maker, deltaMaker: r.maker, deltaTaker: r.taker, inside: q.truth >= g.market.bid && q.truth <= g.market.ask, edge: r.edge });
-    g.take = kind;
-    g.phase = "reveal";
-  });
-}
 function next() {
-  if (inRoom()) {
-    // the last question's closing bell opens the summary at once, from what's settled here (the last trade is in), and
-    // marks the set done for both; pressed again after closing it, it opens it again. It used to wait on the room's
-    // answer, and the press was dead whenever none came: the set already done (nothing changed), the connection, a
-    // newer version on the other device.
-    if (S.phase === "reveal" && S.index + 1 >= S.set.length) {
-      if (!S.done) together.act(g => (g.phase !== "reveal" || g.done ? false : void (g.done = true)));
-      finishRoom(true);
-      return;
-    }
-    together.act(g => {
-      if (g.phase !== "reveal") return false;
-      if (g.index + 1 >= g.set.length) { g.done = true; return; }
-      g.index++; g.market = null; g.take = null; g.phase = "make";
-    });
-    return;
-  }
+  if (inRoom()) { nextAtTable(); return; }
   if (S.done) { finish(); return; }                       // the set is over: the closing bell shows it again
   if (S.phase !== "reveal") return;
   if (S.index + 1 >= S.set.length) { S.done = true; save(); finish(); return; }
@@ -179,20 +149,25 @@ function render() {
   result.hidden = !entry;
   $("card").classList.toggle("settled", !!entry);             // the tape shows your market against the truth
   if (entry) {
-    const v = $("verdict");
-    const grade = entry.grade || (entry.inside ? "A" : "C");
-    // A or better green, a B light green (a sound range for a number you don't know), wide but right yellow, never red
-    v.className = `qt-verdict ${adequate(grade) ? "good" : grade === "B" ? "fair" : entry.inside ? "meh" : "bad"}`;
-    const word = { SS: "exact", S: "sharp", A: "strong", B: "solid", C: "a miss" }[grade];
-    // a wide range that held the answer is in range, not a miss: said so, in yellow
-    v.textContent = grade === "C" && entry.inside ? `Wide, but in range: ${signed(entry.delta)}`
-      : `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
+    showVerdict(q, entry);
     drawTape(q, entry);
-    // the note usually opens with the figure itself; when it doesn't, lead with it
-    $("note").textContent = /^(About|Roughly|Around|[\d$£€])/.test(q.note) ? q.note : `${withUnit(q.truth, q)}. ${q.note}`;
+    $("note").textContent = noteOf(q);
     $("nextBtn").textContent = S.index + 1 >= S.set.length ? "Closing bell" : "Next";
   }
 }
+/** A market's verdict: its grade and what it earned, in the colours of how it went. */
+function showVerdict(q, entry) {
+  const v = $("verdict");
+  const grade = entry.grade || (entry.inside ? "A" : "C");
+  // A or better green, a B light green (a sound range for a number you don't know), wide but right yellow, never red
+  v.className = `qt-verdict ${adequate(grade) ? "good" : grade === "B" ? "fair" : entry.inside ? "meh" : "bad"}`;
+  const word = { SS: "exact", S: "sharp", A: "strong", B: "solid", C: "a miss" }[grade];
+  // a wide range that held the answer is in range, not a miss: said so, in yellow
+  v.textContent = grade === "C" && entry.inside ? `Wide, but in range: ${signed(entry.delta)}`
+    : `${grade}, ${word}${entry.inside ? "" : `; outside, ${beyondText(q, entry)}`}: ${signed(entry.delta)}`;
+}
+// the note usually opens with the figure itself; when it doesn't, lead with it
+const noteOf = q => (/^(About|Roughly|Around|[\d$£€])/.test(q.note) ? q.note : `${withUnit(q.truth, q)}. ${q.note}`);
 function beyondText(q, e) {
   const above = q.truth > e.ask;
   if (q.scale === "log") { const ratio = above ? q.truth / e.ask : e.bid / q.truth; return `${ratio.toFixed(ratio < 10 ? 1 : 0)}× ${above ? "above your ask" : "below your bid"}`; }
@@ -221,33 +196,217 @@ function drawTape(q, e) {
   add("lbl t", { left: x(q.truth) }, fmt(q.truth, q));
 }
 
-/** Together: what each of you sees in each phase. */
-function renderRoom() {
-  const g = S, q = current(), me = mySeat(), maker = makerOf(g), isMaker = me === maker;
-  $("where").textContent = `Question ${g.index + 1} of ${g.set.length}`;
-  const books = $("books");
-  books.className = "qt-books";
-  books.replaceChildren();
-  for (const seat of [me, 1 - me]) {
-    const b = document.createElement("b");
-    b.textContent = `${seatName(seat)} ${money(Object.values(g.books)[seat])}`;
-    books.appendChild(b);
+// ---------- at a table: a pair's duo match, or a party's of up to six ----------
+let offset = 0, stopOffset = null;                     // this device's clock against the database's
+const now = () => Date.now() + offset;
+const mySlot = () => together.slot ?? 0;
+/** This device's seat in a state read inside a transaction (the table as the database has it). */
+const slotIn = g => g.players?.[together.room?.uid]?.slot;
+/** The seats at the table now: seated, with Quote open on a device that's online (yours always). Until this phone has
+ *  heard who's here, everyone seated counts, so a reload can't move the table on without the others. */
+function present() {
+  if (!inRoom() || !S) return [];
+  const here = together.room.here;
+  return here && Object.keys(here).length ? presentSlots(S, here, "quote", together.room.uid) : seated(S).map(([, p]) => p.slot);
+}
+const questionAt = id => byId.get(id);
+const first = name => String(name || "Player").trim().split(/\s+/)[0];
+/** "a", "a and b", "a, b and c". */
+const list2 = names => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+/** Those left out, for a button: one or two by name, more by number, so the button stays one line. */
+const without = names => (names.length > 2 ? `the other ${names.length}` : list2(names));
+const nameOfSlot = slot => first(seated(S).find(([, p]) => p.slot === slot)?.[1].name);
+/** Who's in a seat, as a trade's lines say it: "You", or their name. */
+const seatName = slot => (slot === mySlot() ? "You" : nameOfSlot(slot) || "Your partner");
+/** Each seat's label: its player's initial, two letters where two share one. */
+function labels() {
+  const seats = seated(S), out = {}, short = initials(seats.map(([, p]) => p.name));
+  seats.forEach(([, p], i) => { out[p.slot] = short[i]; });
+  return out;
+}
+/** A player's mark: their seat's colour, their initial. */
+function seatMark(slot, label) {
+  const i = document.createElement("i");
+  i.className = "qt-seat";
+  i.style.setProperty("--seat", `var(--p${slot % 6})`);
+  i.textContent = label ?? "?";
+  return i;
+}
+/** Who the table is waiting for, in words: "Waiting for Sarah and Tom…". */
+function waitingText() {
+  const names = waitingFor(S, present()).filter(s => s !== mySlot()).map(nameOfSlot);
+  return names.length ? `${S.phase === "quote" ? "Quoted. " : ""}Waiting for ${list2(names)}…` : "";
+}
+/** Whether the grace for those still to quote or press Next is up, so the table may go on without them. */
+const graceUp = () => { const at = graceAt(S, present()); return at != null && now() >= at; };
+let graceTimeout = 0;
+/** Redraws when the grace runs out, so the button to go on without the rest appears without a tap. */
+function graceTimer() {
+  clearTimeout(graceTimeout);
+  const at = inRoom() && S ? graceAt(S, present()) : null;
+  if (at != null && now() < at) graceTimeout = setTimeout(render, at - now() + 50);
+}
+function quoteAtTable(market) {
+  const at = { seed: S.seed, index: S.index }, pres = present(), t = now();
+  if (S.mode === "trade") together.act(g => makeIn(g, slotIn(g), market, at));
+  else together.act(g => quoteIn(g, slotIn(g), market, at, pres, t, questionAt));
+}
+function revealEarly() {
+  if (S.phase !== "quote" || !graceUp()) return;
+  const pres = present(), t = now();
+  together.act(g => revealNow(g, pres, t, questionAt));
+}
+/** Trading: the taker's choice on the maker's market. */
+function take(kind) {
+  const t = now();
+  together.act(g => takeIn(g, slotIn(g), kind, questionAt(g.set[g.index]), t));
+}
+function nextAtTable() {
+  if (S.phase !== "reveal") return;
+  if (S.done) { finishRoom(true); return; }               // the last question: the closing bell, on this phone
+  const at = { seed: S.seed, index: S.index }, pres = present(), t = now();
+  if (S.mode === "trade") { together.act(g => nextTrade(g, at)); return; }
+  if (S.nexts?.[keyOf(mySlot())]) { if (graceUp()) together.act(g => moveOnNow(g, pres, t)); return; }
+  together.act(g => nextIn(g, slotIn(g), at, pres, t));
+}
+/** What the table owes itself as people come and go: the reveal or the next question once nobody here is still to act. */
+function settleTable() {
+  if (!inRoom() || !S || S.mode !== "ranges" || waitingFor(S, present()).length) return;
+  const pres = present(), t = now();
+  together.act(g => settleUp(g, pres, t, questionAt));
+}
+
+/** The books over the card: a pair's both, a bigger table's yours and where it stands. */
+function drawBooks() {
+  const el = $("books"), b = books(S), me = mySlot();
+  const rows = rank(seated(S).map(([, p]) => ({ slot: p.slot, name: first(p.name), value: b[keyOf(p.slot)] ?? START })));
+  el.className = "qt-books";
+  if (rows.length <= 2) {
+    el.replaceChildren(...[...rows].sort((x, y) => (y.slot === me) - (x.slot === me)).map(r => { const n = document.createElement("b"); n.textContent = `${r.name} ${money(r.value)}`; return n; }));
+    return;
   }
+  const mine = rows.find(r => r.slot === me), n = document.createElement("b"), s = document.createElement("span");
+  n.textContent = `You ${money(mine?.value ?? START)}`;
+  s.textContent = `${ordinal(mine?.rank || rows.length)} of ${rows.length}`;
+  el.replaceChildren(n, s);
+}
+const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
+/** What each of you sees at a table: Ranges (everyone's own market) or Trade. */
+function renderRoom() {
+  const g = S, q = current();
+  $("where").textContent = `Question ${g.index + 1} of ${g.set.length}`;
+  drawBooks();
   $("cat").textContent = CATS[q.cat];
   $("question").textContent = questionOf(q);
   picture(q);
   $("unit").textContent = q.unit === "year" ? "A year" : `In ${q.unit}`;   // the unit only: the grade widths gave the scale away
-  $("fault").textContent = "";
-  const entry = g.log && Object.values(g.log)[g.index];
+  if (g.mode === "trade") renderTrade(g, q); else renderRanges(g, q);
+  graceTimer();
+}
+/** Ranges: your market in private, then everyone's against the truth. */
+function renderRanges(g, q) {
+  const me = mySlot(), mine = g.quotes?.[keyOf(me)], quoting = g.phase === "quote", entry = g.phase === "reveal" ? entryAt(g, g.index) : null;
+  $("takeBox").hidden = true;
+  $("market").hidden = false;
+  $("card").classList.toggle("settled", !!entry);
+  $("bid").disabled = $("ask").disabled = !quoting || !!mine;
+  if (mine) { $("bid").value = fmt(mine.bid, q); $("ask").value = fmt(mine.ask, q); }
+  const go = $("quoteBtn"), late = waitingFor(g, present()).filter(s => s !== me), early = !!mine && late.length && graceUp();
+  go.hidden = !quoting;
+  go.disabled = !!mine && !early;
+  go.textContent = !mine ? "Quote" : early ? `Reveal without ${without(late.map(nameOfSlot))}` : "Quoted";
+  $("waiting").hidden = !(quoting && mine);
+  $("waiting").textContent = waitingText();
+  drawSeats(quoting);
+  $("result").hidden = !entry;
+  $("tape").hidden = $("note").hidden = true;
+  $("table").hidden = !entry;
+  if (!entry) return;
+  const r = entry.res?.[keyOf(me)];
+  if (r) showVerdict(q, r);
+  else { $("verdict").className = "qt-verdict"; $("verdict").textContent = "No market from you on this one."; }
+  drawTable(g, q, entry);
+  const b = $("nextBtn"), pressed = !!g.nexts?.[keyOf(me)], on = pressed && late.length && graceUp();
+  b.disabled = !g.done && pressed && !on;
+  b.textContent = g.done ? "Closing bell" : !pressed ? "Next" : on ? `On without ${without(late.map(nameOfSlot))}` : "Waiting";
+  $("nextNote").hidden = !(pressed && late.length);
+  $("nextNote").textContent = waitingText();
+}
+/** While quoting at a table: who's at it, who has quoted (ticked) and who's away (faded). */
+function drawSeats(show) {
+  const box = $("seats");
+  box.hidden = !show;
+  if (!show) return;
+  const tag = labels(), pres = present(), me = mySlot();
+  box.replaceChildren(...seated(S).map(([, p]) => {
+    const li = document.createElement("li"), name = document.createElement("span"), done = !!S.quotes?.[keyOf(p.slot)], here = pres.includes(p.slot);
+    li.className = done ? "in" : here ? "" : "away";
+    name.textContent = `${p.slot === me ? "You" : first(p.name)}${done ? " ✓" : here ? "" : ", away"}`;
+    li.append(seatMark(p.slot, tag[p.slot]), name);
+    return li;
+  }));
+}
+/**
+ * The reveal at a table: every market on one scale with the truth through them all, each in its player's colour with
+ * what it earned (the best first); then the standings; then the basis of the figure.
+ */
+function drawTable(g, q, entry) {
+  const box = $("table"), me = mySlot(), tag = labels(), rows = placeRows(g, g.index);
+  const quoted = rows.filter(r => !r.none), log = q.scale === "log", f = log ? Math.log2 : x => x;
+  const lo = Math.min(q.truth, ...quoted.map(r => r.bid)), hi = Math.max(q.truth, ...quoted.map(r => r.ask));
+  const pad = log ? 0.6 : q.scale * 0.6, left = f(lo) - pad, right = f(hi) + pad;
+  const x = v => `${((f(v) - left) / (right - left) * 100).toFixed(1)}%`;
+  const el = (tag2, cls, text) => { const n = document.createElement(tag2); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const tapes = el("div", "qt-tapes");
+  const head = el("div", "qt-tapes-row head");
+  const headTrack = el("div", "qt-track");
+  const at = (f(q.truth) - left) / (right - left), truthLbl = el("span", `qt-truth-lbl${at < 0.15 ? " lo" : at > 0.85 ? " hi" : ""}`, fmt(q.truth, q));
+  truthLbl.style.left = x(q.truth);                            // near an end, the label lies inside the scale rather than off it
+  headTrack.append(truthLbl);
+  head.append(el("i", "qt-seat blank"), headTrack, el("b", "qt-pts"));
+  tapes.append(head);
+  for (const r of rows) {
+    const row = el("div", `qt-tapes-row${r.slot === me ? " me" : ""}`), track = el("div", "qt-track");
+    track.style.setProperty("--seat", `var(--p${r.slot % 6})`);
+    if (!r.none) {
+      const bar = el("div", `qt-bar${r.ask === r.bid ? " point" : ""}${r.inside ? "" : " out"}`);
+      bar.style.left = x(r.bid);
+      if (r.ask !== r.bid) bar.style.width = `calc(${x(r.ask)} - ${x(r.bid)})`;
+      track.append(bar);
+    }
+    const truth = el("div", "qt-truth");
+    truth.style.left = x(q.truth);
+    track.append(truth);
+    row.append(seatMark(r.slot, tag[r.slot]), track, el("b", "qt-pts", r.none ? "—" : signed(r.delta)));
+    tapes.append(row);
+  }
+  const standings = leaderboard(standingRows(g, g.index).map(s => {
+    const r = entry.res?.[keyOf(s.slot)];
+    return { name: s.slot === me ? "You" : first(s.name), value: s.value, shown: money(s.value), delta: s.delta, seat: s.slot, me: s.slot === me,
+      note: r ? `${fmt(r.bid, q)}–${fmt(r.ask, q)} · ${r.grade !== "C" ? r.grade : r.inside ? "wide" : "miss"}` : "no market" };
+  }), { format: n => n.toLocaleString("en-GB") });
+  const keep = box.dataset.at === `${g.seed}/${g.index}` ? box.scrollTop : 0;    // a redraw of the same reveal keeps its place
+  box.replaceChildren(tapes, el("h4", "qt-h", g.done ? "Final standings" : "Standings"), standings, el("p", "qt-note", noteOf(q)));
+  box.dataset.at = `${g.seed}/${g.index}`;
+  box.scrollTop = keep;
+}
+/** Trade: what each of you sees in each phase, as a pair's match always has. */
+function renderTrade(g, q) {
+  const me = mySlot(), maker = makerOf(g), isMaker = me === maker, other = 1 - maker;
+  const entry = g.phase === "reveal" ? entryAt(g, g.index) : null;
   const making = g.phase === "make" && isMaker, taking = g.phase === "take" && !isMaker;
-  $("market").hidden = !(making || g.phase === "reveal");
+  $("card").classList.remove("settled");
+  $("seats").hidden = $("table").hidden = $("nextNote").hidden = true;
+  $("tape").hidden = $("note").hidden = false;
+  $("market").hidden = !(making || entry);
   $("quoteBtn").hidden = !making;
-  if (!making) { $("bid").disabled = $("ask").disabled = true; }
-  if (making) { $("bid").disabled = $("ask").disabled = false; if (document.activeElement !== $("ask")) $("bid").value = $("bid").value; }
-  if (g.phase === "reveal" && entry) { $("bid").value = fmt(entry.bid, q); $("ask").value = fmt(entry.ask, q); }
+  $("quoteBtn").disabled = false;
+  $("quoteBtn").textContent = "Quote";
+  $("bid").disabled = $("ask").disabled = !making;
+  if (entry) { $("bid").value = fmt(entry.bid, q); $("ask").value = fmt(entry.ask, q); }
   const waiting = $("waiting");
   waiting.hidden = !((g.phase === "make" && !isMaker) || (g.phase === "take" && isMaker));
-  waiting.textContent = g.phase === "make" ? `${seatName(maker)} is making the market…` : `${seatName(1 - maker)} is looking at your market…`;
+  waiting.textContent = g.phase === "make" ? `${seatName(maker)} is making the market…` : `${seatName(other)} is looking at your market…`;
   const box = $("takeBox");
   box.hidden = !taking;
   if (taking) {
@@ -255,48 +414,49 @@ function renderRoom() {
     $("hitBtn").textContent = `Hit the bid: sell at ${fmt(g.market.bid, q)}`;
     $("liftBtn").textContent = `Lift the offer: buy at ${fmt(g.market.ask, q)}`;
   }
-  const result = $("result");
-  result.hidden = g.phase !== "reveal" || !entry;
-  if (g.phase === "reveal" && entry) {
-    const mine = entry.maker === me ? entry.deltaMaker : entry.deltaTaker, theirs = entry.maker === me ? entry.deltaTaker : entry.deltaMaker;
-    const who = seatName(1 - entry.maker), makerName = seatName(entry.maker);
-    const what = entry.take === "pass" ? `${who} passed` : entry.take === "hit" ? `${who} hit ${makerName === "You" ? "your" : `${makerName}'s`} bid at ${fmt(entry.bid, q)}` : `${who} lifted ${makerName === "You" ? "your" : `${makerName}'s`} offer at ${fmt(entry.ask, q)}`;
-    const v = $("verdict");
-    v.className = `qt-verdict ${mine >= 0 ? "good" : "bad"}`;
-    v.textContent = `${what}. You ${signed(mine)}, ${seatName(1 - me)} ${signed(theirs)}.`;
-    drawTape(q, { bid: entry.bid, ask: entry.ask, inside: entry.inside });
-    $("note").textContent = /^(About|Roughly|Around|[\d$£€])/.test(q.note) ? q.note : `${withUnit(q.truth, q)}. ${q.note}`;
-    $("nextBtn").textContent = g.index + 1 >= g.set.length ? "Closing bell" : "Next";
-  }
-  if (g.done) finishRoom();
+  $("result").hidden = !entry;
+  if (!entry) return;
+  const d = deltasAt(entry), mine = d[keyOf(me)] || 0, theirs = d[keyOf(isMaker ? entry.taker ?? other : maker)] || 0;
+  const who = seatName(entry.taker ?? other), makerName = seatName(entry.maker);
+  const what = entry.take === "pass" ? `${who} passed` : entry.take === "hit" ? `${who} hit ${makerName === "You" ? "your" : `${makerName}'s`} bid at ${fmt(entry.bid, q)}` : `${who} lifted ${makerName === "You" ? "your" : `${makerName}'s`} offer at ${fmt(entry.ask, q)}`;
+  const v = $("verdict");
+  v.className = `qt-verdict ${mine >= 0 ? "good" : "bad"}`;
+  v.textContent = `${what}. You ${signed(mine)}, ${seatName(isMaker ? entry.taker ?? other : maker)} ${signed(theirs)}.`;
+  drawTape(q, { bid: entry.bid, ask: entry.ask, inside: entry.inside });
+  $("note").textContent = noteOf(q);
+  $("nextBtn").disabled = false;
+  $("nextBtn").textContent = g.done ? "Closing bell" : "Next";
 }
 
 let shownBell = null;
 /** Opens the closing bell's summary, as a modal on top: a dialog left open somehow (not shown as a modal) is reopened. */
 function bell() { const d = $("doneDlg"); if (d.open) d.close(); d.showModal(); }
+/** The closing bell at a table: who won, the books, each question's result, Play again and Back to solo. */
 function finishRoom(asked = false) {                    // asked: the closing bell was pressed, so show it even if shown
-  const g = S, me = mySeat(), key = `${g.seed}/${g.index}`;
+  const g = S, me = mySlot(), key = `${g.seed}/${g.created}`;
   if (shownBell === key && !asked) return;
   shownBell = key;
-  const books = Object.values(g.books), mine = books[me], theirs = books[1 - me];
   const body = $("doneBody");
   body.replaceChildren();
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "qt-big", mine > theirs ? "You win" : mine < theirs ? `${seatName(1 - me)} wins` : "A draw");
-  const stats = add("div", "qt-stats");
-  for (const [v, label] of [[money(mine), "you"], [money(theirs), seatName(1 - me)], [`${Object.values(g.log).filter(e => e.take !== "pass").length}`, "trades"]]) {
-    const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
-    b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
-  }
+  const rows = rank(standingRows(g)), tops = rows.filter(r => r.rank === 1);
+  add("p", "qt-big qt-won", tops.length > 1 ? (tops.length === rows.length ? "A draw" : `${list2(tops.map(r => (r.slot === me ? "you" : first(r.name))))} share it`.replace(/^you/, "You"))
+    : tops[0]?.slot === me ? "You win" : `${first(tops[0]?.name)} wins`);
+  const entries = g.set.map((id, i) => entryAt(g, i)).filter(Boolean);
+  // a note under each name: how many markets held the truth (ranges), how many trades (a pair's trading)
+  const inside = slot => entries.filter(e => e.res?.[keyOf(slot)]?.inside).length;
+  const traded = slot => `${entries.filter(e => e.maker === slot).length} made, ${entries.filter(e => e.taker === slot && e.take !== "pass").length} taken`;
+  body.append(leaderboard(rows.map(r => ({ name: r.slot === me ? "You" : first(r.name), value: r.value, shown: money(r.value), seat: r.slot, me: r.slot === me,
+    note: g.mode === "trade" ? traded(r.slot) : `${inside(r.slot)} of ${entries.length} inside` })), { format: n => n.toLocaleString("en-GB") }));
   const lines = add("ul", "qt-lines");
-  for (const e of Object.values(g.log)) {
+  for (const e of entries) {
     const q = byId.get(e.id);
     if (!q) continue;                                      // a question the bank has since dropped: its money still counts above
     const li = document.createElement("li"), name = document.createElement("span"), delta = document.createElement("b");
-    const mineD = e.maker === me ? e.deltaMaker : e.deltaTaker;
-    const said = namedQ(q);
-    name.textContent = `${e.maker === me ? "Made" : e.take === "pass" ? "Passed" : e.take === "hit" ? "Hit" : "Lifted"}: ${said.length > 36 ? `${said.slice(0, 34)}…` : said}`;
-    delta.textContent = signed(mineD);
+    const mineD = deltasAt(e)[keyOf(me)] || 0, said = namedQ(q);
+    const how = g.mode === "trade" ? `${e.maker === me ? "Made" : e.take === "pass" ? "Passed" : e.take === "hit" ? "Hit" : "Lifted"}: ` : "";
+    name.textContent = `${how}${said.length > 36 ? `${said.slice(0, 34)}…` : said}`;
+    delta.textContent = e.res && !e.res[keyOf(me)] ? "—" : signed(mineD);
     delta.className = mineD >= 0 ? "good" : "bad";
     li.append(name, delta);
     lines.appendChild(li);
@@ -310,31 +470,65 @@ function finishRoom(asked = false) {                    // asked: the closing be
   bell();
 }
 
-// ---------- together ----------
-function freshRoom(players) {
+function freshRoom(players, ask = null) {
   const seed = randomSeed();
-  return { v: 1, app: APP, seed, set: pickSet(seed, QUOTES).map(q => q.id), index: 0, phase: "make", market: null, take: null, books: [START, START], log: [], done: false, created: Date.now(), players };
+  return { ...freshTable(players, { people: peopleFor(ask), seed, set: pickSet(seed, QUOTES).map(q => q.id) }), app: APP };
 }
-function startRoomSet() {
-  const next = freshRoom(null);
-  together.act(g => { Object.assign(g, { seed: next.seed, set: next.set, index: 0, phase: "make", market: null, take: null, books: [START, START], log: [], done: false }); });
+/** A fresh set for the table (in the way to play chosen), asking first while this one's under way. */
+function startRoomSet(mode = S?.mode) {
+  if (S && !S.done && (S.index > 0 || S.log || S.quotes || S.market) && !confirm("Deal a fresh set for the table? This one isn't finished.")) return;
+  const seed = randomSeed(), set = pickSet(seed, QUOTES).map(q => q.id);
+  together.act(g => newSet(g, { seed, set, mode }));
 }
+let joining = null;                                     // the rete while this phone sits down, until the table's drawn
+const joined = () => { joining?.(); joining = null; };
 function onState(val) {
+  const was = S;
   S = val;
-  if (!S.books) S.books = [START, START];
+  joined();
+  document.getElementById("app").classList.add("at-table");
+  if (!stopOffset) stopOffset = together.room?.sync.serverOffset?.(ms => { offset = ms || 0; }) || (() => {});
+  if (!isTable(was) || was.index !== val.index || was.seed !== val.seed || was.mode !== val.mode) {
+    $("bid").value = $("ask").value = "";                // a new question: an empty market to make
+    $("fault").textContent = "";
+  }
+  if (isTable(was) && was.seed !== val.seed) {                             // a fresh set: the last one's bell has rung
+    shownBell = null;
+    if ($("doneDlg").open) $("doneDlg").close();
+    toast("A fresh set for the table");
+  }
   drawPartner();
   render();
+  settleTable();
+}
+function onPresence() {
+  drawPartner();
+  if (!S || !inRoom()) return;
+  render();
+  settleTable();
 }
 function drawPartner() {
   const el = $("partner");
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
-  if (!together.online) { el.append("Reconnecting…"); return; }
+  if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
+  const others = together.others(), known = Object.keys(together.room.here || {}).length > 0;   // who's here, once heard
+  if (others.length > 1) {                               // a party's table: everyone else, and who's away
+    el.append("Making markets with ");
+    others.forEach((o, i) => {
+      if (i) el.append(i === others.length - 1 ? " and " : ", ");
+      const b = document.createElement("b");
+      b.textContent = first(o.name) + (o.here || !known ? "" : " (away)");
+      el.append(b);
+    });
+    el.append(".");
+    return;
+  }
   const p = together.partner();
-  if (!p) { el.append(`Room ${together.room.code}: waiting for your partner.`); return; }
+  if (!p) { el.append(`Room ${together.room.code}: ${(S?.people || 2) > 2 ? "waiting for the others" : "waiting for your partner"}.`); return; }
   const b = document.createElement("b");
-  b.textContent = p.name + (p.online ? "" : " (away)");
+  b.textContent = p.name + (p.online && !(known && others[0] && !others[0].here) ? "" : " (away)");   // seated but gone (Back to solo): away
   if (p.game && p.game !== "quote") {
     const a = document.createElement("a");
     a.href = gameHref(p.game);
@@ -342,7 +536,7 @@ function drawPartner() {
     el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, a);
     return;
   }
-  el.append("Making markets with ", b, ": you take turns.");
+  el.append("Making markets with ", b, S?.mode === "trade" ? ": you take turns." : ".");
 }
 async function askName() {
   const saved = localStorage.getItem("crates:name");
@@ -354,21 +548,36 @@ async function askName() {
   if (name) try { localStorage.setItem("crates:name", name); } catch { /* private mode */ }
   return name;
 }
-// a finished set together: your book against your partner's
-const seatBooks = g => Object.values(g.books || []);
-let joining = null;                                           // the rete over the page while a room is joined
-const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
-  result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: seatBooks(g)[mySeat()] ?? null, won: (seatBooks(g)[mySeat()] ?? 0) > (seatBooks(g)[1 - mySeat()] ?? 0) } : null),
+  // a finished set at the pair's table: your book against your partner's (won: alone at the top)
+  result: g => resultOf(g, g.players?.[together.room?.uid]?.slot),
   game: "quote",
   app: APP,
   toast,
   askName,
-  valid: g => g?.v === 1 && Array.isArray(g.set),
-  fresh: freshRoom,
-  onState: val => { joined(); onState(val); },
-  onPresence: drawPartner,
-  onLeave: () => { joined(); shownBell = null; S = read(RUN, null); drawPartner(); $("books").className = "qt-book"; if (!S) start("random"); else render(); },
+  valid: isTable,
+  // a table dealt as you sit down, with as many seats as the request it's dealt for asked (a party's); together.js
+  // passes that request after the players
+  fresh: (players, { ask } = {}) => freshRoom(players, ask),
+  slots: g => g?.people || 2,
+  onState,
+  onPresence,
+  onLeave: () => {
+    joined();                                             // a join that ends in leaving (the table gone) takes the rete too
+    shownBell = null;
+    clearTimeout(graceTimeout);
+    stopOffset?.(); stopOffset = null;
+    document.getElementById("app").classList.remove("at-table");
+    if ($("doneDlg").open) $("doneDlg").close();
+    $("books").className = "qt-book";
+    for (const id of ["seats", "table", "nextNote"]) $(id).hidden = true;
+    $("tape").hidden = $("note").hidden = false;
+    $("quoteBtn").disabled = false;
+    $("quoteBtn").textContent = "Quote";
+    $("nextBtn").disabled = false;
+    soloStart();
+    drawPartner();
+  },
 });
 
 // ---------- the closing bell ----------
@@ -430,13 +639,17 @@ async function copyLink() {
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 // the menu: Play (start the set you've chosen), Content (random or today's; all questions or refining only),
-// Settings (learning mode), About (your bests, a link to this set); in a room, what the duo match offers
+// Settings (learning mode), About (your bests, a link to this set); at a table, how a pair plays (Ranges or Trade: a
+// fresh set either way) and the table's own part
 let pick = null;                                              // the set the menu will start: { mode, focus }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room) {
-    part(body, "together").append(action("A fresh set", startRoomSet, "primary"), action("Back to solo", () => together.leave(), "link"));
+    const box = part(body, "together");
+    if ((S?.people || 2) === 2) box.append(choice("Play", [["ranges", "Ranges"], ["trade", "Trade"]], S?.mode || "ranges", v => { $("menuDlg").close(); startRoomSet(v); }));
+    box.append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(), "primary"),
+      ...(S?.done ? [action("The closing bell", () => finishRoom(true))] : []), action("Back to solo", () => together.leave(), "link"));
   } else {
     pick ??= { mode: S?.mode === "daily" || dailyDue("quote") ? "daily" : "random", focus: S?.focus || null };   // today's first, while it's still to play
     const play = part(body, "play");
@@ -472,7 +685,7 @@ $("passBtn").addEventListener("click", () => take("pass"));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 for (const id of ["bid", "ask"]) $(id).addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); if (id === "bid" && !$("ask").value) $("ask").focus(); else quote(); } });
-window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (h.get("s") || h.get("d")) load(h); });
+window.addEventListener("hashchange", () => { const h = new URLSearchParams(location.hash.slice(1)); if (!inRoom() && (h.get("s") || h.get("d"))) load(h); });
 
 /** A linked set: #s=seed for a random one, #d=YYYYMMDD for a day's. */
 function load(h) {
@@ -488,27 +701,28 @@ function load(h) {
   render();
   return true;
 }
-
-// for tests and debugging
-window.__quote = { get state() { return S; }, quote, next, start, get together() { return together; } };
-
-/** Your own set: a shared link's, the saved one, today's from the games screen's tile, or a fresh one. */
-function soloStart() {
+/** Your own set: a shared link's, the saved one, or a fresh one; at start-up, today's when the games screen's tile sent
+ *  you for it (opening). */
+function soloStart({ opening = false } = {}) {
   S = read(RUN, null);
   if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;    // the bank changed under a saved run
-  const forToday = arrivedForToday();         // from the games screen's tile: today's set, still to play
+  const forToday = opening && arrivedForToday();         // from the games screen's tile: today's set, still to play
   const hash = new URLSearchParams(location.hash.slice(1));
   if (!load(hash)) {
     if (!S) start(forToday ? "daily" : "random");
     else { history.replaceState(null, "", hashFor(S)); render(); }
   }
   if (forToday && !(S.mode === "daily" && S.seed === today())) setTimeout(() => confirmStart("daily"), 0);   // it asks before leaving a set you've started
-  else if (S.done) finish();
+  else if (opening && S.done) finish();
 }
-// a room in the address: the set you share from the first moment, never your own while the room is joined (your
-// partner would be on another question until it was), and your own only if the join doesn't come off
-const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-if (code.length === 4) {
-  joining = busy("Joining your partner", { delay: 0 });
-  together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
-} else soloStart();
+
+// for tests and debugging
+window.__quote = { get state() { return S; }, quote, next, start, take, get together() { return together; }, present };
+
+// a room in the address: the set the table shares from the first moment, never your own while it's joined (the others
+// would be on another question until it was), and your own, as you left it, only if the join doesn't come off
+const code = roomInAddress();
+if (code) {
+  joining = busy("Joining the table", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { joined(); soloStart({ opening: true }); } });
+} else soloStart({ opening: true });

@@ -51,5 +51,64 @@ check(E.tiersText(year) === "S ±8 years · A ±20 · B ±35" && E.tierText(city
 const hitHigh = E.trade(city, 50, 60, "hit"), hitLow = E.trade(city, 20, 30, "hit"), lift = E.trade(city, 20, 30, "lift"), pass = E.trade(city, 35, 40, "pass");
 check(hitHigh.taker > 0 && hitHigh.maker === -hitHigh.taker && hitLow.taker < 0 && lift.taker > 0 && pass.maker === E.settle(city, 35, 40).delta && pass.taker === 0,
   `two players: hitting a bid of 50 on 37 pays the taker ${hitHigh.taker}, hitting 20 costs them ${-hitLow.taker}, lifting 30 pays them ${lift.taker}, a pass settles the maker alone`);
+// a table of two to six (quote-table.js). Ranges: everyone's own market, scored as alone; the reveal once everyone at
+// the table has quoted; the reveal's order; who the table waits for; the grace for the slow; Next from everyone; people
+// away left out; the standings and the pair's record. Trade, for a pair, on the same table. Every move through the
+// database as it gives things back.
+{
+  const T = await import("../quote-table.js");
+  const { roundTrip, same } = await import("./rtdb.js");
+  const qs = { "q-city": { ...city, id: "q-city", q: "A city", unit: "million" }, "q-year": { ...year, id: "q-year", q: "A year" } };
+  const questionOf = id => qs[id];
+  const players = { ua: { name: "Korbi", slot: 0 }, ub: { name: "Sarah", slot: 1 }, uc: { name: "Tom", slot: 2 } };
+  let g = T.freshTable(players, { people: T.peopleFor({ people: 3 }), mode: "trade", seed: 3, set: ["q-city", "q-year", "q-city"], now: 1000 });
+  const kept = () => { const r = roundTrip(g); const ok = same(r, g); g = r; return ok; };
+  check([undefined, { people: 4 }, { people: 12 }].map(T.peopleFor).join() === "2,4,6" && g.mode === "ranges" && g.phase === "quote" && T.isTable(g) && kept(),
+    "a table of three plays ranges even when trade is asked for; it keeps as many seats as the party asked for, up to six");
+  const all = [0, 1, 2], at = { seed: 3, index: 0 };
+  check(T.quoteIn(g, 0, { bid: 35, ask: 40 }, at, all, 2000, questionOf) && !T.quoteIn(g, 0, { bid: 1, ask: 2 }, at, all, 2100, questionOf)
+    && !T.quoteIn(g, 1, { bid: 50, ask: 40 }, at, all, 2200, questionOf) && !T.quoteIn(g, 1, { bid: NaN, ask: 40 }, at, all, 2200, questionOf) && kept(),
+    "a market goes in once per player, and only a sound one");
+  check(T.quoteIn(g, 1, { bid: 20, ask: 60 }, at, all, 3000, questionOf) && g.phase === "quote" && T.waitingFor(g, all).join() === "2" && T.waitingFor(g, [0, 1]).length === 0,
+    "two of three quoted: the table waits for the third, unless the third is away");
+  check(T.graceAt(g, all) === 33000 && !T.revealNow(g, all, 32999, questionOf) && T.revealNow(g, all, 33000, questionOf) && g.phase === "reveal" && kept(),
+    "half a minute after the last market, those in may reveal without the one still to quote");
+  const e0 = T.entryAt(g, 0), rows0 = T.placeRows(g, 0);
+  check(e0.res.s0.delta === E.settle(city, 35, 40).delta && e0.res.s1.delta === E.settle(city, 20, 60).delta && e0.res.s0.grade === "S" && !e0.res.s2,
+    `each market scored exactly as alone (35–40 S ${e0.res.s0.delta}, 20–60 B ${e0.res.s1.delta}); the one left out has none`);
+  check(rows0.map(r => `${r.name}${r.none ? "-" : ""}`).join() === "Korbi,Sarah,Tom-" && !T.quoteIn(g, 2, { bid: 1, ask: 2 }, at, all, 33100, questionOf),
+    "the reveal's order: the most points first, no market last; no market after the reveal");
+  check(T.nextIn(g, 2, at, all, 34000) && T.nextIn(g, 0, at, all, 35000) && T.waitingFor(g, all).join() === "1" && !T.moveOnNow(g, all, 64999) && T.moveOnNow(g, all, 65000)
+    && g.index === 1 && g.phase === "quote" && !g.nexts && kept(), "Next from everyone at the table, with the same grace for the last");
+  // Sarah's phone sleeps: Korbi and Tom aren't kept waiting; she's back and the table waits for her Next
+  const two = [0, 2], at1 = { seed: 3, index: 1 };
+  check(T.quoteIn(g, 0, { bid: 1930, ask: 1939 }, at1, two, 40000, questionOf) && T.quoteIn(g, 2, { bid: 1800, ask: 1900 }, at1, two, 41000, questionOf) && g.phase === "reveal" && kept(),
+    "someone away doesn't hold up the reveal");
+  check(T.nextIn(g, 0, at1, all, 42000) && T.nextIn(g, 2, at1, all, 43000) && g.phase === "reveal" && !T.settleUp(g, all, 43100, questionOf) && T.settleUp(g, two, 43200, questionOf) && g.index === 2 && kept(),
+    "back, she's waited for; gone again, the table moves on by itself");
+  check(T.quoteIn(g, 1, { bid: 30, ask: 45 }, { seed: 3, index: 2 }, [1], 50000, questionOf) && g.done && T.waitingFor(g, all).length === 0 && kept(), "the last question's reveal ends the set");
+  const b = T.books(g), sd = T.standingRows(g, 2);
+  check(b.s0 === E.START + E.settle(city, 35, 40).delta + E.settle(year, 1930, 1939).delta && b.s2 === E.START + E.settle(year, 1800, 1900).delta
+    && sd.find(r => r.slot === 1).delta === E.settle(city, 30, 45).delta && sd.find(r => r.slot === 0).delta === 0,
+    `the standings: each book from the 1,000 everyone starts with (Korbi ${b.s0}, Sarah ${b.s1}, Tom ${b.s2}), and the last question's change`);
+  const r0 = T.resultOf(g, 0), r2 = T.resultOf(g, 2), top = Math.max(b.s0, b.s1, b.s2);
+  check(r0.score === b.s0 && r0.won === (b.s0 === top) && !r2.won && r0.match === r2.match && T.resultOf({ ...g, done: false }, 0) === null, "the record: the top book wins, once the set is over");
+  // a pair trading: the maker alternates, a trade settles between the two, either one's Next moves both on
+  let p = T.freshTable({ ua: { name: "Korbi", slot: 0 }, ub: { name: "Sarah", slot: 1 } }, { people: T.peopleFor(null), mode: "trade", seed: 4, set: ["q-city", "q-year"], now: 1 });
+  const pk = () => { const r = roundTrip(p); const ok = same(r, p); p = r; return ok; };
+  const t0 = { seed: 4, index: 0 };
+  check(p.mode === "trade" && p.phase === "make" && T.makerOf(p) === 0 && !T.makeIn(p, 1, { bid: 50, ask: 60 }, t0) && T.makeIn(p, 0, { bid: 50, ask: 60 }, t0) && p.phase === "take" && pk(),
+    "a pair can trade: the first question's market is the first seat's to make");
+  check(!T.takeIn(p, 0, "hit", qs["q-city"], 2) && T.takeIn(p, 1, "hit", qs["q-city"], 2) && p.phase === "reveal" && pk(), "the other takes it");
+  const tr = E.trade(city, 50, 60, "hit"), pb = T.books(p);
+  check(pb.s0 === E.START + tr.maker && pb.s1 === E.START + tr.taker && T.placeRows(p, 0).every(r => r.none), `a trade settles between the two (Sarah hit 50 on 37: ${tr.taker}, Korbi ${tr.maker})`);
+  check(T.nextTrade(p, t0) && p.index === 1 && p.phase === "make" && T.makerOf(p) === 1 && T.makeIn(p, 1, { bid: 1930, ask: 1940 }, { seed: 4, index: 1 })
+    && T.takeIn(p, 0, "pass", qs["q-year"], 3) && p.done && T.books(p).s1 === pb.s1 + E.settle(year, 1930, 1940).delta && pk(),
+    "the maker alternates; a pass settles the maker alone; the last trade ends the set");
+  check(T.newSet(p, { seed: 5, set: ["q-city"], mode: "ranges" }) && p.mode === "ranges" && p.phase === "quote" && !p.log && !p.market && pk()
+    && T.newSet(p, { seed: 6, set: ["q-city"], mode: "trade" }) && p.mode === "trade" && p.phase === "make",
+    "a pair can switch between ranges and trade, a fresh set either way");
+}
+
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

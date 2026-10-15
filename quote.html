@@ -13,6 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="duel.css">
 <link rel="stylesheet" href="quote.css">
 <link rel="stylesheet" href="themes.css">
 </head>
@@ -44,6 +45,7 @@
     <p id="fault" class="qt-fault" role="alert"></p>
     <button class="qt-go" type="button" id="quoteBtn">Quote</button>
     <p id="waiting" class="qt-waiting" hidden></p>
+    <ul id="seats" class="qt-who" hidden></ul>
     <div id="takeBox" class="qt-take" hidden>
       <p class="qt-shown">Their market: <b id="shown"></b></p>
       <button class="qt-go" type="button" id="hitBtn"></button>
@@ -54,7 +56,9 @@
     <div id="result" class="qt-result" hidden>
       <p class="qt-verdict" id="verdict"></p>
       <div class="qt-tape" id="tape"></div>
+      <div id="table" class="qt-table fit-scroll" hidden></div>
       <p class="qt-note fit-scroll" id="note"></p>
+      <p id="nextNote" class="qt-waiting" hidden></p>
       <button class="qt-go" type="button" id="nextBtn">Next</button>
     </div>
     </div>
@@ -68,7 +72,7 @@
 
 <dialog id="nameDlg" class="sheet" aria-label="Your name">
   <form method="dialog" id="nameForm">
-    <label for="nameInput">Your name, so your partner knows who's playing</label>
+    <label for="nameInput">Your name, so the others know who's playing</label>
     <input id="nameInput" maxlength="16" autocomplete="nickname" required>
     <button class="btn primary wide" type="submit">Continue</button>
   </form>
