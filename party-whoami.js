@@ -4,7 +4,8 @@
 // rerolled when most of the others vote for it (with two players, the other's tap). Then, in turn, each asks the table
 // yes-or-no questions about who they are, aloud, and guesses aloud; the table says yes or no, and Next moves the turn
 // on. Nobody types anything: the phones keep the cards, whose turn it is and how many rounds have passed, and show
-// every card at the end. The crib on each card, what kb/ says of that identity, helps the others answer.
+// every card at the end. The crib on each card, what kb/ says of that identity (a person's written by hand), helps the
+// others answer.
 import { DECKS, WHO } from "./party-whoami-bank.js";
 import { h, button, countdown, waitingFor, names } from "./party-kit.js";
 import { shuffle } from "./party-core.js";
@@ -14,12 +15,19 @@ export const WRITE = "write", MIXED = "mixed";
 const deckOf = id => DECKS.find(d => d.id === id) || null;
 const homeDeck = id => DECKS.find(d => d.ids.includes(id)) || null;
 const SHOWN = 3;                      // crib lines shown before "More"
+// A mix: every deck but one kept for learning (People worth knowing), each identity once (someone marked
+// for the party and for learning is in two decks)
+const MIX = [...new Set(DECKS.filter(d => d.mix !== false).flatMap(d => d.ids))];
+/** The identities a game deals from: its deck's, or the mix's. */
+export const poolOf = deck => (deck === MIXED ? MIX : (deckOf(deck) || DECKS[0]).ids);
 
-/** What a player's identity is, as the table says it: "a famous person", or "someone Mei picked". */
-function whatOf(who, nameOfU) {
+/** What a player's identity is, as the table says it: "a famous person" (as the deck being played calls it, for
+ *  someone in two decks), or "someone Mei picked". */
+function whatOf(who, nameOfU, deck) {
   if (!who) return "";
   if (who.by) return `someone or something ${nameOfU(who.by)} picked`;
-  return (who.id && homeDeck(who.id)?.a) || "someone";
+  const played = deckOf(deck);
+  return (who.id && (played?.ids.includes(who.id) ? played : homeDeck(who.id))?.a) || "someone";
 }
 
 // ---------- the game ----------
@@ -31,9 +39,8 @@ function whole(s) {
   s.used = s.used ? Object.values(s.used) : [];
   return s;
 }
-const poolOf = s => (s.deck === MIXED ? DECKS.flatMap(d => d.ids) : (deckOf(s.deck) || DECKS[0]).ids);
 function deal(s, uids, rng) {
-  const picked = shuffle(poolOf(s), rng).slice(0, uids.length);
+  const picked = shuffle(poolOf(s.deck), rng).slice(0, uids.length);
   uids.forEach((u, i) => { s.who[u] = { id: picked[i], n: WHO[picked[i]].n }; });
   s.used = [...picked];
 }
@@ -84,7 +91,7 @@ export default {
     "Nobody types anything: the table says whether a guess is right. When you're done, the host shows every card, and the phones say who everyone was.",
   ],
   options: [
-    { id: "deck", label: "Who you are", value: "people", choices: [...DECKS.map(d => [d.id, d.name]), [MIXED, "A mix of all"], [WRITE, "You write them"]] },
+    { id: "deck", label: "Who you are", value: "people", choices: [...DECKS.map(d => [d.id, d.name]), [MIXED, "A mix"], [WRITE, "You write them"]] },
     { id: "timer", label: "A turn's clock", value: "0", choices: [["0", "None"], ["60", "1 minute"], ["120", "2 minutes"]] },
   ],
 
@@ -125,7 +132,7 @@ export default {
         if (!s.who[u]?.id) continue;
         const voters = votersFor(s, here, u);
         if (!voters.length || votesOn(s, inputs, here, u).length < needed(voters.length)) continue;
-        const id = shuffle(poolOf(s), rng).find(x => !s.used.includes(x));
+        const id = shuffle(poolOf(s.deck), rng).find(x => !s.used.includes(x));
         if (!id) continue;
         s.who[u] = { id, n: WHO[id].n };
         s.used.push(id);
@@ -192,7 +199,7 @@ export default {
     const myCard = big => (mine ? h("div", { class: `wa-me${big || over ? "" : " small"}` },
       h("span", { class: "wa-me-label" }, over ? "You were" : "You are"),
       h("span", { class: `wa-me-who${over ? " shown" : ""}` }, over ? mine.n : "?"),
-      over ? null : h("span", { class: "wa-me-what" }, whatOf(mine, nameOfU)))
+      over ? null : h("span", { class: "wa-me-what" }, whatOf(mine, nameOfU, s.deck)))
       : h("p", { class: "pk-line" }, "You joined after the cards were dealt: watch this one, play the next."));
     if (over) {
       parts.push(h("p", { class: "pk-ask" }, "Who everyone was"), myCard(true), endList(s, nameOfU, me.uid),

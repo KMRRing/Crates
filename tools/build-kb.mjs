@@ -67,12 +67,15 @@ export async function build() {
     const m = await load(`items/choice/${b}.js`);
     choice[b] = { STAGES: m.STAGES, MATHS: [...m.ITEMS, ...(gen[b] || [])].map(q => { const title = named(q); return title ? { ...q, title } : q; }) };
   }
+  const cards = await load("items/whoami.js"), decoyFacts = (await load("items/decoy.js")).FACTS;
+  const who = whoami(ENTITIES, LINKS, E, cards.DECKS, cards.PEOPLE);
   // every picture a game shows (Settings' "Keep pictures offline" downloads them all): the entities' own (Lexicon) and
-  // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of them)
-  const pictures = [...new Set([...ENTITIES, ...PLACES, ...QUOTES, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic).filter(Boolean))].sort();
-  const whoamiDecks = (await load("items/whoami.js")).DECKS, decoyFacts = (await load("items/decoy.js")).FACTS;
+  // every bank's (Chart's places, Quote's and Order's paintings, Punt's art, buildings and watches, Deck's reviews of
+  // them, Who am I's people)
+  const pictures = [...new Set([...[...ENTITIES, ...PLACES, ...QUOTES, ...Object.values(choice).flatMap(c => c.MATHS)].map(x => x.pic),
+    ...Object.values(who.WHO).map(w => w.p)].filter(Boolean))].sort();
   return { crates, chart: { CATS: pins.CATS, PLACES }, geo: { GEO }, quote: { CATS: estimates.CATS, QUOTES }, choice, pictures, index: await subjects(ENTITIES, LINKS),
-    whoami: whoami(ENTITIES, LINKS, E, whoamiDecks), decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
+    whoami: who, decoy: decoy(ENTITIES, QUOTES, decoyFacts) };
 }
 
 // Questions the knowledge base writes itself. A painting with its painter, museum, movement, year and picture gets Punt's
@@ -458,8 +461,12 @@ function written(ENTITIES, LINKS, E, art, estimates, pins) {
 // first: what it made (Wrote Hamlet), its typed links (Painted by Leonardo da Vinci, Son of Zeus), the clues it gives to
 // other answers (Argentina: The captain who won the 2022 World Cup), the things linked to it, the clues to it (easiest
 // first) and what lies in it. At most CRIB lines, each at most LINE characters. A deck by set drops a thing kb/ says too
-// little about (fewer than two lines); a deck by list keeps every one (they're there because they're well known).
+// little about (fewer than two lines); a deck by list keeps every one (they're there because they're well known). The
+// people are kb/items/whoami.js's PEOPLE, their cribs written there by hand (kb/'s lines about a person are what other
+// games ask, not what a table needs: Neil Armstrong "a writer"), dealt by their mark: Famous people deals those for the
+// party, People worth knowing those for learning, and someone marked for both is in both.
 const CRIB = 6, LINE = 110;
+const MARKS = { party: ["party"], learning: ["learning"], both: ["party", "learning"] };
 const WHAT = [["greek-god", "A Greek god"], ["norse-god", "A Norse god"], ["egyptian-god", "An Egyptian god"], ["myth-hero", "A hero of myth"],
   ["myth-creature", "A creature of myth"], ["painter", "A painter"], ["architect", "An architect"], ["author", "A writer"], ["chinese-thinker", "A Chinese thinker"],
   ["watch-brand", "A watchmaker"], ["group:met", "A metal or mineral"], ["group:nrg", "Energy"], ["group:grain", "A grain or oilseed"],
@@ -472,7 +479,7 @@ const FROM_REL = { "painted-by": "Painted by", "hangs-in": "Hangs in", "written-
   city: "In", movement: "Movement:", style: "Style:", from: "From" };
 // links to the thing that read as what it made: Hamlet written by Shakespeare is "Wrote Hamlet"
 const TO_REL = { "written-by": "Wrote", "painted-by": "Painted", "designed-by": "Designed", "made-by": "Made", "child-of": "Parent of", "parent-of": "Child of" };
-function whoami(ENTITIES, LINKS, E, DECKS) {
+function whoami(ENTITIES, LINKS, E, DECKS, PEOPLE) {
   const from = new Map(), to = new Map();
   for (const l of LINKS) { (from.get(l.from) || from.set(l.from, []).get(l.from)).push(l); (to.get(l.to) || to.set(l.to, []).get(l.to)).push(l); }
   const of = id => { const e = E.get(id); if (!e) throw new Error(`whoami: no entity ${id}`); return e; };
@@ -539,8 +546,37 @@ function whoami(ENTITIES, LINKS, E, DECKS) {
     return lines.slice(0, CRIB);
   }
 
+  // the people: each one's id (kb/'s, or their own when kb/ doesn't hold them, which must not be one of kb/'s), marks
+  // and card; the names a guess may use are kb/'s for them and their own others
+  const people = new Map();
+  for (const p of PEOPLE) {
+    const kb = p.kb === undefined ? [] : [p.kb].flat(), id = kb[0] ?? p.id;
+    const fail = what => { throw new Error(`whoami: ${id ?? p.n} ${what}`); };
+    if (!id || (p.kb !== undefined && p.id !== undefined)) fail("needs a kb or an id, and not both");
+    if (p.id && E.has(p.id)) fail(`is one of kb/'s: write kb: "${p.id}"`);
+    if (people.has(id)) fail("is in PEOPLE twice");
+    if (!MARKS[p.for]) fail(`is for ${p.for}: it's for "party", "learning" or "both"`);
+    if (!p.n || !Array.isArray(p.c) || p.c.length < 4 || p.c.length > CRIB) fail(`needs a name and a crib of four to ${CRIB} lines`);
+    for (const c of p.c) if (c.length > LINE) fail(`has a crib line over ${LINE} characters: ${c}`);
+    const names = new Map();
+    for (const x of [...kb.map(of).flatMap(e => [e.name, ...(e.aliases || [])]), ...(p.a || [])]) {
+      const n = x.replace(/\u00ad/g, "");                // kb/ breaks a long name with a soft hyphen, U+00AD
+      if (n.toLowerCase() !== p.n.toLowerCase() && !names.has(n.toLowerCase())) names.set(n.toLowerCase(), n);
+    }
+    people.set(id, { marks: MARKS[p.for], who: defined({ n: p.n, a: names.size ? [...names.values()] : undefined, c: p.c, p: p.p ?? p.n }) });
+  }
+
   const DECK_OUT = [], WHO = {};
   for (const d of DECKS) {
+    if (d.people) {
+      const ids = [...people].filter(([, x]) => x.marks.includes(d.people)).map(([id]) => id);
+      for (const id of ids) {
+        if (WHO[id] && WHO[id] !== people.get(id).who) throw new Error(`whoami: ${id} is in two decks`);
+        WHO[id] = people.get(id).who;
+      }
+      DECK_OUT.push(defined({ id: d.id, name: d.name, a: d.a, ids, mix: d.mix }));
+      continue;
+    }
     const entries = d.ids ? d.ids.map(x => (Array.isArray(x) ? x : [x])) : ENTITIES.filter(e => d.sets.some(s => e.sets.includes(s))).map(e => [e.id]);
     const ids = [];
     for (const group of entries) {
@@ -555,8 +591,9 @@ function whoami(ENTITIES, LINKS, E, DECKS) {
       WHO[e.id] = defined({ n: e.name, a: names.size ? [...names.values()] : undefined, c, p: e.pic });
       ids.push(e.id);
     }
-    DECK_OUT.push({ id: d.id, name: d.name, a: d.a, ids });
+    DECK_OUT.push(defined({ id: d.id, name: d.name, a: d.a, ids, mix: d.mix }));
   }
+  for (const id of people.keys()) if (!WHO[id]) throw new Error(`whoami: ${id} is in no deck (none deals its mark)`);
   return { DECKS: DECK_OUT, WHO };
 }
 

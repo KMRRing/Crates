@@ -1,5 +1,7 @@
 // Who am I? (party-whoami.js, its decks party-whoami-bank.js built from kb/), played in Node on the database in memory
-// with the host's phone running it (tests/party-harness.js): the decks and their cribs; the look over the cards (a card
+// with the host's phone running it (tests/party-harness.js): the decks and their cribs; the people dealt by their mark
+// (for the party, for learning, or both), their cribs written by hand, those kb/ doesn't hold kept out of it; the mix
+// leaving out the deck for learning and dealing each identity once; the look over the cards (a card
 // rerolled when most of the others vote for it, with two players at one tap, its owner's vote not counting, a vote on
 // the card it replaced not counting, never dealt one that's been dealt; the questions begin when everyone at the table
 // is ready for the cards as they are, or the host starts them); the questions (Next from any phone, once a turn; the
@@ -7,16 +9,38 @@
 // told; the players writing each other's identities; a mix of the decks.
 import { partyTable } from "./party-harness.js";
 import { gameById } from "../party-core.js";
-import whoami, { cribOf, needed, WRITE, MIXED } from "../party-whoami.js";
+import whoami, { cribOf, needed, poolOf, WRITE, MIXED } from "../party-whoami.js";
 import { DECKS, WHO } from "../party-whoami-bank.js";
+import { PEOPLE } from "../kb/items/whoami.js";
+import { ENTITIES } from "../kb/entities.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 
 // ---------- the decks ----------
-const all = DECKS.flatMap(d => d.ids);
+const all = [...new Set(DECKS.flatMap(d => d.ids))];
+const famous = DECKS.find(d => d.id === "people"), learn = DECKS.find(d => d.id === "learn");
+const rest = DECKS.filter(d => d !== famous && d !== learn).flatMap(d => d.ids);
 check(DECKS.length >= 8 && DECKS.every(d => d.ids.length >= 50 && d.name && d.a), `${DECKS.length} decks of 50 or more (${DECKS.map(d => `${d.name} ${d.ids.length}`).join(", ")})`);
-check(new Set(all).size === all.length && all.every(id => WHO[id]), `${all.length} identities, each in one deck`);
+check(all.every(id => WHO[id]) && new Set(rest).size === rest.length && rest.every(id => !famous.ids.includes(id) && !learn.ids.includes(id)),
+  `${all.length} identities, each in one deck but the people marked for both`);
+
+// ---------- the people ----------
+const idOf = p => [p.kb ?? p.id].flat()[0], mark = new Map(PEOPLE.map(p => [idOf(p), p.for]));
+check(famous === DECKS[0] && [...mark].every(([id, m]) => famous.ids.includes(id) === (m !== "learning") && learn.ids.includes(id) === (m !== "party"))
+  && famous.ids.length + learn.ids.length === [...mark.values()].reduce((n, m) => n + (m === "both" ? 2 : 1), 0),
+  `the people dealt by their mark: Famous people (${famous.ids.length}) those for the party, People worth knowing (${learn.ids.length}) those for learning, both in both`);
+check(famous.ids.includes("taylor-swift") && !learn.ids.includes("taylor-swift") && learn.ids.includes("howqua") && !famous.ids.includes("howqua")
+  && famous.ids.includes("napoleon") && learn.ids.includes("napoleon"), "Taylor Swift for the party, Howqua (a merchant of Canton) for learning, Napoleon for both");
+const own = PEOPLE.filter(p => p.id).map(p => p.id), kb = new Set(ENTITIES.map(e => e.id));
+check(own.length >= 50 && own.every(id => !kb.has(id)), `${own.length} people are Who am I's alone: kb/ doesn't hold them, so Punt and the rest never ask about them`);
+check(PEOPLE.every(p => { const w = WHO[idOf(p)]; return w.n === p.n && w.c.length >= 4 && w.c.join("|") === p.c.join("|") && w.p; }),
+  "every person's crib is the one written by hand, four lines or more, with a picture's page");
+check(cribOf("neil-armstrong")[0] === "An American astronaut" && WHO["schwarzen-egger"].n === "Arnold Schwarzenegger" && WHO.napoleon.a?.includes("Napoleon"),
+  "a person of kb/'s keeps kb/'s names as other names, not its lines (Neil Armstrong is no longer “a writer”)");
+const mix = poolOf(MIXED);
+check(new Set(mix).size === mix.length && mix.includes("napoleon") && mix.includes("taylor-swift") && mix.includes("norway") && !mix.includes("howqua")
+  && rest.every(id => mix.includes(id)), `A mix leaves out People worth knowing, and deals each identity once (${mix.length})`);
 check(all.every(id => WHO[id].n && WHO[id].c.length >= 1 && WHO[id].c.length <= 6 && WHO[id].c.every(c => c.length <= 110)), "each with a name and a crib of one to six lines, none overlong");
 check(cribOf("zeus").some(c => /thunder/.test(c)) && cribOf("mona-lisa").some(c => /Leonardo/.test(c)) && cribOf("norway").length >= 4, "the crib says what kb/ knows: Zeus's thunder, the Mona Lisa's painter, Norway's clues");
 check(gameById("whoami") === whoami && whoami.options[0].choices.length === DECKS.length + 2, "in Party's list, with a choice of every deck, a mix and writing your own");
@@ -66,6 +90,14 @@ const used = t => Object.values(t.state.who).map(w => w.id);
   check(t.state.step === "over" && !t.state.winners?.length, "the host ends it: game over, no winner counted (the table says who guessed)");
   check(Object.values(t.state.who).every(w => t.branch.say.text.includes(w.n)), "the narrator says who everyone was");
   check(!Object.values(t.branch.tally || {}).length, "no win counted for the evening");
+}
+{
+  // People worth knowing deals its own, and rerolls from them
+  const t = await partyTable(names(4));
+  await t.start("whoami", { deck: "learn" });
+  const target = t.uid(0), before = t.state.who[target].id;
+  for (let i = 1; i < 3; i++) await vote(t, i, target);
+  check(used(t).every(id => learn.ids.includes(id)) && t.state.who[target].id !== before, "People worth knowing deals its own people, and deals one again from them");
 }
 {
   // two players: one tap rerolls the other's card
