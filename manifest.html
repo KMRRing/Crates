@@ -26,7 +26,7 @@
   </header>
 
   <div class="mf-hud">
-    <span class="mf-round"><span id="round"></span><small id="rival" class="mf-rival" hidden></small></span>
+    <span class="mf-round"><span id="round"></span><small id="atTable" class="mf-at" hidden></small></span>
     <span class="mf-score"><b id="score">0</b></span>
     <span id="lives" class="mf-lives" aria-label="Lives"></span>
   </div>
@@ -52,6 +52,14 @@
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog">
+    <label for="nameInput">Your name, so the others know who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Sit down</button>
+  </form>
 </dialog>
 
 <p id="toast" class="mf-toast" role="status" aria-live="polite"></p>

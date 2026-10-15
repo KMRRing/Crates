@@ -10,9 +10,11 @@ html[data-mode="night"] { --mf-in: #6CC0B5; --mf-good: #7FC2A8; --mf-bad: #E8806
 .mf-mark svg { width: 100%; height: 100%; display: block; }
 .mf-hud { display: flex; justify-content: space-between; align-items: center; margin: .5rem 0; min-height: 2rem; }
 .mf-round { font-size: .95rem; font-weight: 750; color: var(--ink-soft); min-width: 0; }
-/* together, the others' scores under the round (duel.js fills it; a tap opens the match) */
-.mf-rival { display: block; max-width: 44vw; font-size: .78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mf-rival[hidden] { display: none; }
+/* at a table, under the round: who else is there, and how each stands (✓ done or ready, … answering, away) */
+.mf-at { display: block; max-width: 46vw; font-size: .78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mf-at[hidden] { display: none; }
+.mf-at b { font-weight: 800; color: var(--ink); }
+.mf-at .away b { color: var(--ink-soft); font-weight: 650; }
 .mf-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .mf-lives { display: flex; gap: .3rem; }
 .mf-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--mf-in); }
@@ -126,3 +128,16 @@ button.mf-row-head { cursor: pointer; }   /* the review's questions light what t
 .mf-row.done { opacity: .7; }
 .mf-row.later { opacity: .45; }
 .mf-pass { display: block; margin: .45rem 0 0 auto; border: 1px solid var(--tile-edge); border-radius: 999px; background: none; color: var(--ink-soft); font: inherit; font-size: .8rem; padding: .25rem .8rem; cursor: pointer; }
+
+/* at a table: the plate stands as a line of who the table waits for; a team's reply on its way takes no second tap;
+   the lobby's seats and the standings (duel.css, standings.js) in Manifest's teal */
+.manifest { --duel-in: var(--mf-in); }
+.mf-go:disabled { cursor: default; opacity: .6; }
+.mf-asks.sending { pointer-events: none; opacity: .6; }
+.mf-asks .duel-seats, .mf-asks .duel-rank { margin: 0; }
+.mf-asks .duel-rank li { padding: .4rem .7rem; }          /* six of them leave the questions some room on a small phone */
+.mf-seats li.me { box-shadow: inset 0 0 0 1.5px var(--mf-in); }
+/* under a question at the results: who answered it, or what everyone gave (right in verdigris, wrong in oxblood) */
+.mf-who { margin: 0; padding: 0 .7rem .5rem; display: flex; flex-wrap: wrap; gap: .15rem .7rem; font-size: .8rem; font-weight: 650; color: var(--ink-soft); }
+.mf-who .ok { color: var(--mf-good); }
+.mf-who .bad { color: var(--mf-bad); }
