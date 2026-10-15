@@ -63,6 +63,18 @@ html[data-theme="office"][data-mode="night"] { --gm-in: #479EF5; }
 .gm-cube text { font-weight: 800; text-anchor: middle; fill: var(--ink); }
 .gm-target { fill: color-mix(in srgb, var(--gm-in) 35%, transparent); stroke: var(--gm-in); stroke-width: 2.2; stroke-dasharray: 3 2; pointer-events: none; }
 .gm-hit { fill: transparent; cursor: pointer; }
+.gm-num { fill: var(--ink-soft); font-weight: 700; text-anchor: middle; pointer-events: none; }
+
+/* ---------- the course's stage (gammon-course.js): the board as large as the stage allows, its points numbered ---------- */
+.ln-sheet.gm { --ln-in: var(--gm-in); }
+.lg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .45rem; height: 100cqh; min-height: 0; box-sizing: border-box; padding: .2rem 0; }
+.lg-row { display: grid; justify-items: center; gap: .15rem; text-align: center; }
+.lg-row small { font-size: .74rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.lg-row b { font-size: 1rem; color: var(--ln-in); }
+.lg-board { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; justify-content: center; align-items: center; container-type: size; }
+.lg-board .gm-svg { width: min(100cqw, 120cqh); max-height: 100cqh; }
+.lg-pips { margin: 0; font-size: .85rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.lg-undo { min-height: 2.4rem; padding: 0 1.2rem; }
 
 .gm-controls { display: grid; gap: .4rem; }
 .gm-status { margin: 0; min-height: 1.3em; text-align: center; color: var(--ink-soft); font-size: .9rem; }
