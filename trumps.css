@@ -164,5 +164,5 @@ html[data-mode="night"] .tr-coach.miss { background: #E8806F; }
 
 /* the whole Bavarian pack (Schafkopf, Cards: Bavarian, trumps-deck.js): each card's picture fills it, its own frame
    drawn in; the card stays paper at night, as a pack on the table does */
-.tr-cd.pic { padding: 0; background: #FFFCF3; border-color: #B9A88A; }
+.tr-cd.pic { padding: 0; background: #FCF9F0; border-color: #B9A88A; }
 .tr-cd.pic img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
