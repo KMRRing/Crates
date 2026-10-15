@@ -256,9 +256,14 @@ const SCREENS = {
           says.classList.toggle("near", near);
           input.placeholder = near ? `${t}: close!` : "Your guess";
           update(cur);
+          input.focus({ preventScroll: true });
         };
         input.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
-        under.append(h("div", { class: "sk-row" }, input, button("Guess", go, { cls: "sk-go" })), says);
+        // a tap on Guess leaves the box its focus, so the keyboard stays up for the next guess (taking the focus would
+        // close it, and the page with it would jump)
+        const send = button("Guess", go, { cls: "sk-go" });
+        for (const type of ["pointerdown", "mousedown"]) send.addEventListener(type, e => e.preventDefault());
+        under.append(h("div", { class: "sk-row" }, input, send), says);
       } else under.append(h("p", { class: "pk-line" }, "You joined mid-game: watch this one."));
     }
 

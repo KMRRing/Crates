@@ -60,6 +60,12 @@ html[data-mode="night"] .dr-paper { filter: brightness(.86); }
 .sk-feed li.right { color: #2F7D5B; font-weight: 700; }
 .sk-feed li.right b { color: inherit; }
 .sk-near { margin-left: .4rem; font-size: .7rem; font-weight: 800; letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--pa-in); }
+/* guessing with the keyboard up (party.js): the blanks and the clock on one line, the drawing as large as the rest
+   allows, the latest guesses under it and the box last, on the keyboard (a near miss shows in the box itself) */
+html.typing .sk-draw > .dr-head { grid-template-columns: minmax(0, 1fr) minmax(5rem, 38%); align-items: center; column-gap: .8rem; }
+html.typing .sk-draw :is(.sk-label, .sk-count, .sk-says) { display: none; }
+html.typing .sk-draw .sk-clock { grid-template-columns: minmax(0, 1fr); }
+html.typing .sk-draw > .dr-side { display: flex; flex-direction: column-reverse; gap: .3rem; }
 
 /* choosing the word: three tiles, how hard each is beside it */
 .sk-choose { gap: .8rem; }

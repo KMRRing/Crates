@@ -12,6 +12,13 @@ html[data-mode="night"] .party { --pa-in: #5FB7C2; }
   max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
   transition: opacity .2s, transform .2s; z-index: 5; }
 .pa-toast.on { opacity: 1; transform: translate(-50%, 0); }
+/* the keyboard up (party.js): the page as tall as the part of the screen in sight, and placed in it; the header, the
+   narrator's strip and the game's name give way, so the game has the room, and a toast shows at the top */
+html.typing #app.party { position: fixed; top: var(--seen-top, 0px); left: 0; right: 0; height: var(--seen-h, 100%); max-height: none;
+  padding-top: .5rem; padding-bottom: .4rem; }
+html.typing #app.party > :is(.top, .pa-say), html.typing .pa-game-head { display: none; }
+html.typing .pa-stage { padding-top: 0; }
+html.typing .pa-toast { top: calc(var(--seen-top, 0px) + .6rem); bottom: auto; }
 
 /* the games as the games screen shows them (style.css: .apps-sec, .apps-grid, .app-row), in their sections; in the lobby
    the one picked heads the list with its options, and the host's tap on another picks it */

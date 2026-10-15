@@ -395,6 +395,39 @@ function openMenu() {
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
+// ---------- the keyboard ----------
+// A phone's keyboard covers the bottom of the page without the page being made any shorter: the browser shrinks only
+// the part in sight (the visual viewport) and slides it down to the box being typed in, so the top of the game goes out
+// of sight while you type (Sketch's drawing, while you guess it), and the page can stay slid once the keyboard goes.
+// While a box has the keyboard, the page is made the height in sight and placed in it, the header and the narrator's
+// strip giving way, and each game's parts share what's left: what you type, what it's about and the keyboard are in
+// sight together. When the keyboard goes, the page goes back to the top of the screen.
+const seen = window.visualViewport;
+const typedIn = el => !!el?.matches?.("textarea, input:not([type=checkbox], [type=radio], [type=range], [type=button], [type=submit])");
+let seenH = 0;
+function fitKeyboard() {
+  const root = document.documentElement, was = root.classList.contains("typing");
+  // a pinch's zoom shrinks the part in sight too, but leaves the page as it is
+  const up = !!seen && typedIn(document.activeElement) && Math.abs(seen.scale - 1) < 0.01 && innerHeight - seen.height > 120;
+  root.classList.toggle("typing", up);
+  if (up) {
+    const height = Math.round(seen.height);
+    root.style.setProperty("--seen-h", `${height}px`);
+    root.style.setProperty("--seen-top", `${Math.round(seen.offsetTop)}px`);
+    // the box in sight in its game's part, which scrolls if the game is longer than the room left, once the page has
+    // its new height
+    if (height !== seenH) requestAnimationFrame(() => document.activeElement?.scrollIntoView?.({ block: "nearest", inline: "nearest" }));
+    seenH = height;
+  } else {
+    seenH = 0;
+    if (was) scrollTo(0, 0);
+  }
+}
+seen?.addEventListener("resize", fitKeyboard);
+seen?.addEventListener("scroll", fitKeyboard);
+addEventListener("focusin", fitKeyboard);
+addEventListener("focusout", () => setTimeout(fitKeyboard, 0));   // once the focus has gone wherever it's going
+
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), asked?.kind === "party" ? asked.id : "party");
 $("menuBtn").addEventListener("click", openMenu);
