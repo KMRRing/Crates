@@ -5,6 +5,7 @@ import { START, PER_SET, settle, fault, trade, pickSet, withUnit, fmt, adequate 
 import { QUOTES, CATS } from "./quote-bank.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf } from "./together.js";
+import { busy } from "./loading.js";
 import { gameHref, GAMES } from "./rooms.js";
 import * as pile from "./pile.js";
 import { noteMarket } from "./ledger-log.js";
@@ -355,6 +356,8 @@ async function askName() {
 }
 // a finished set together: your book against your partner's
 const seatBooks = g => Object.values(g.books || []);
+let joining = null;                                           // the rete over the page while a room is joined
+const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
   result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: seatBooks(g)[mySeat()] ?? null, won: (seatBooks(g)[mySeat()] ?? 0) > (seatBooks(g)[1 - mySeat()] ?? 0) } : null),
   game: "quote",
@@ -363,9 +366,9 @@ const together = createTogether({
   askName,
   valid: g => g?.v === 1 && Array.isArray(g.set),
   fresh: freshRoom,
-  onState,
+  onState: val => { joined(); onState(val); },
   onPresence: drawPartner,
-  onLeave: () => { shownBell = null; S = read(RUN, null); drawPartner(); $("books").className = "qt-book"; if (!S) start("random"); else render(); },
+  onLeave: () => { joined(); shownBell = null; S = read(RUN, null); drawPartner(); $("books").className = "qt-book"; if (!S) start("random"); else render(); },
 });
 
 // ---------- the closing bell ----------
@@ -489,15 +492,23 @@ function load(h) {
 // for tests and debugging
 window.__quote = { get state() { return S; }, quote, next, start, get together() { return together; } };
 
-S = read(RUN, null);
-if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;    // the bank changed under a saved run
-const forToday = arrivedForToday();         // from the games screen's tile: today's set, still to play
-const hash = new URLSearchParams(location.hash.slice(1));
-if (!load(hash)) {
-  if (!S) start(forToday ? "daily" : "random");
-  else { history.replaceState(null, "", hashFor(S)); render(); }
+/** Your own set: a shared link's, the saved one, today's from the games screen's tile, or a fresh one. */
+function soloStart() {
+  S = read(RUN, null);
+  if (S && (!S.set || !S.set.every(id => byId.has(id)))) S = null;    // the bank changed under a saved run
+  const forToday = arrivedForToday();         // from the games screen's tile: today's set, still to play
+  const hash = new URLSearchParams(location.hash.slice(1));
+  if (!load(hash)) {
+    if (!S) start(forToday ? "daily" : "random");
+    else { history.replaceState(null, "", hashFor(S)); render(); }
+  }
+  if (forToday && !(S.mode === "daily" && S.seed === today())) setTimeout(() => confirmStart("daily"), 0);   // it asks before leaving a set you've started
+  else if (S.done) finish();
 }
-if (forToday && !(S.mode === "daily" && S.seed === today())) setTimeout(() => confirmStart("daily"), 0);   // it asks before leaving a set you've started
-else if (S.done) finish();
+// a room in the address: the set you share from the first moment, never your own while the room is joined (your
+// partner would be on another question until it was), and your own only if the join doesn't come off
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-if (code.length === 4) together.join(code);
+if (code.length === 4) {
+  joining = busy("Joining your partner", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
+} else soloStart();

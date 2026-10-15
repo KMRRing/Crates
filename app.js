@@ -5,6 +5,7 @@ import { parsePool, POOL_PARAM } from "./core.js";
 import { createSolo } from "./solo.js";
 import { createCoop } from "./coop.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { busy } from "./loading.js";
 import "./pwa.js";
 
 function setParam(key, value) {
@@ -28,8 +29,9 @@ const room = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").sli
 const runCode = params.get("run");
 if (runCode) setParam("run", null);
 
-solo.start(pool, params.get("b"), runCode);
+// a room in the address: the room's board from the first moment, never your own while the room is joined (your
+// partner would be on another board until it was), and your own only if the join doesn't come off
 if (room.length === 4) {
-  solo.suspend();
-  coop.join(room).then(ok => { if (!ok) { setRoomParam(null); solo.start(); } });
-}
+  const joined = busy("Joining your partner", { delay: 0 });
+  coop.join(room).then(ok => { joined(); if (!ok) { setRoomParam(null); solo.start(pool, params.get("b"), runCode); } });
+} else solo.start(pool, params.get("b"), runCode);

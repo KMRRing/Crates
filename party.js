@@ -243,10 +243,16 @@ async function startElsewhere(entry) {
   try {
     const sync = await getSync(), code = table.code, at = Math.round(table.now());
     const who = playersOf(branch).map(p => p.uid);
-    if (entry.kind === "table") await sync.update(`crates/rooms/${code}`, { [entry.id]: tableFrom(branch, entry, at) });
-    else await sync.update(`crates/rooms/${code}`, { ask: { game: entry.duo, at, answer: "yes", from: playerId(), device: sync.uid, people: who.length } });
     const playing = { id: entry.id, kind: entry.kind, page: entry.page, at, who, max: entry.max };
-    if (!(await table.act(b => { b.playing = playing; delete b.game; delete b.inputs; }))) throw new Error("the party didn't take the choice");
+    // the game's table (or the request a duo game answers) and the party's choice leave together, in that order: the
+    // database applies one connection's writes in the order they were sent, so nobody arrives before the table, and
+    // the host waits one round trip to the database rather than two
+    const [, took] = await Promise.all([
+      sync.update(`crates/rooms/${code}`, entry.kind === "table" ? { [entry.id]: tableFrom(branch, entry, at) }
+        : { ask: { game: entry.duo, at, answer: "yes", from: playerId(), device: sync.uid, people: who.length } }),
+      table.act(b => { b.playing = playing; delete b.game; delete b.inputs; }),
+    ]);
+    if (!took) throw new Error("the party didn't take the choice");
     location.replace(playHref(playing, code));
   } catch (e) {
     console.error(e);

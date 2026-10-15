@@ -4,7 +4,7 @@
 // the database's clock) and the taps; each device replays the same run, so only taps travel.
 import { play, LIVES, SHELF, levelAt, modifierAt, modText } from "./spot-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { sextant } from "./loading.js";
+import { busy, sextant } from "./loading.js";
 import { createTogether, seatsOf } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
 import "./pwa.js";
@@ -348,6 +348,8 @@ async function askName() {
   return name;
 }
 
+let joining = null;                                           // the rete over the page while a room is joined
+const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
   game: "spot",
   app: APP,
@@ -355,9 +357,9 @@ const together = createTogether({
   askName,
   valid: g => g?.v === 1,
   fresh: players => ({ v: 1, app: APP, players, run: null, taps: null }),
-  onState,
+  onState: val => { joined(); onState(val); },
   onPresence: () => { drawPartner(); if (together.room && !together.room.data?.run) showLobby(); },
-  onLeave: () => { stopOffset?.(); stopOffset = null; run = null; drawPartner(); showStart(); },
+  onLeave: () => { joined(); stopOffset?.(); stopOffset = null; run = null; drawPartner(); showStart(); },
 });
 
 // ---------- the screen stays awake while you play ----------
@@ -417,6 +419,10 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 window.__spot = { get run() { return run; }, get state() { return last; }, get seat() { return mySeat; }, get taps() { return taps; }, tap: tapSlot, get together() { return together; } };
 
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-showStart();
 requestAnimationFrame(frame);
-if (code.length === 4) together.join(code);
+// a room in the address: the room's lobby from the first moment, never the solo start (a tap on Play while the room
+// is joined would start a run of your own), and the solo start only if the join doesn't come off
+if (code.length === 4) {
+  joining = busy("Joining your partner", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { joined(); showStart(); } });
+} else showStart();

@@ -131,23 +131,41 @@ export function createTable({ game, app = 1, max = 4, sync: given = null, connec
     return code;
   }
 
-  /** Sits down at a table by its code. Resolves "ok", "none" (no such table), "full" or "newer" (update first). */
+  /**
+   * Sits down at a table by its code. Resolves "ok", "none" (no such table), "full" or "newer" (update first). The
+   * table is read first and held while joining: a player already in their seat (back from another page of a party, a
+   * reload, a party's phones arriving at the table their host dealt with everyone in it) sits straight down, presence
+   * marking them here, one round trip to the database in all; anyone else sits down by a transaction on the table
+   * already read, which then takes one round trip (on a cold cache it sends a blind first try the database turns down).
+   */
   async function join(code, { name, pid = null }) {
     const sync = await link();
-    let newer = false, full = false;
-    const r = await sync.tx(path(code), cur => {
-      newer = full = false;
-      if (cur === null) return null;                       // a cold cache: null makes the database answer with the real one
-      if ((cur.app || 0) > app) { newer = true; return undefined; }
-      const next = sitAt(cur, { uid: sync.uid, pid, name }, { max });
-      if (next === undefined) { full = cur.v === 1; return undefined; }
-      return storable(next, game);
-    });
-    if (newer) { onNewer(); return "newer"; }
-    if (!r.value || r.value.v !== 1) return "none";
-    if (!r.committed) return full ? "full" : "none";
-    enter(code, sync);
-    return "ok";
+    let hold = null;
+    const first = await new Promise((resolve, reject) => { hold = sync.watch(path(code), resolve, reject); });
+    try {
+      if (!first || first.v !== 1) return "none";
+      if ((first.app || 0) > app) { onNewer(); return "newer"; }
+      const mine = first.players?.[sync.uid];
+      if (sits(mine)) {
+        if (mine.name !== name || (pid && mine.pid !== pid)) sync.update(`${path(code)}/players/${sync.uid}`, { name, ...(pid ? { pid } : {}) }).catch(onError);
+        enter(code, sync);
+        return "ok";
+      }
+      let newer = false, full = false;
+      const r = await sync.tx(path(code), cur => {
+        newer = full = false;
+        if (cur === null) return null;                     // a cold cache: null makes the database answer with the real one
+        if ((cur.app || 0) > app) { newer = true; return undefined; }
+        const next = sitAt(cur, { uid: sync.uid, pid, name }, { max });
+        if (next === undefined) { full = cur.v === 1; return undefined; }
+        return storable(next, game);
+      });
+      if (newer) { onNewer(); return "newer"; }
+      if (!r.value || r.value.v !== 1) return "none";
+      if (!r.committed) return full ? "full" : "none";
+      enter(code, sync);
+      return "ok";
+    } finally { setTimeout(() => hold?.(), 0); }          // once the table's own watch (enter) has it
   }
 
   function enter(code, sync) {

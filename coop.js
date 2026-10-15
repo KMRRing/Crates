@@ -11,7 +11,7 @@ import { BANK, nameMatches, shuffled, wordsKey, RESULT_LABEL, arr, cleanSettings
 import { generate, generateSplit, encode, decode, describe, hintFor, classify, groupIndexOf } from "./gen.js";
 import { getSync } from "./net.js";
 import * as view from "./view.js";
-import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
+import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, GAMES } from "./rooms.js";
 import { reportDuo } from "./suite.js";
 import { part, action, line } from "./menu.js";
 
@@ -553,8 +553,11 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
   async function join(c) {
     let name = await askName();
     if (!(await connect())) return false;
+    // the branch held in this page's cache while joining: the joining transaction takes one round trip, not two (a
+    // cold cache sends a blind first try the database turns down), and the board is drawn the moment the room is entered
+    const warm = sync.watch(roomPath(c), () => {}, () => {});
     try {
-      const shared = await openRoom(sync, c);
+      const shared = await openBranch(sync, c, "crates");
       if (!shared) { view.toast("No game with that code", 3500); return false; }
       const before = shared.crates ? tidy(shared.crates) : null;
       if (shared.crates && !before) { view.toast("That game is from an older version, start a new one", 3500); return false; }
@@ -588,6 +591,7 @@ export function createCoop({ onLeave, setRoomParam, setPoolParam, mySettings, my
       watch(name);
       return true;
     } catch (e) { explain(e); return false; }
+    finally { setTimeout(() => warm?.(), 0); }               // once the room's own watch has it
   }
 
   function stop() {

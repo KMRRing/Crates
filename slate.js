@@ -1,9 +1,9 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state; both players see everything.
 import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
-import { branchPath, openRoom, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
+import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, reseat, pickSeat, otherHere, gameHref, GAMES } from "./rooms.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { sextant } from "./loading.js";
+import { busy, sextant } from "./loading.js";
 import { reloadFresh } from "./pwa.js";
 import { getSync } from "./net.js";
 import { reportDuo, today, noteDayTime, arrivedForToday } from "./suite.js";
@@ -366,10 +366,10 @@ async function connect() {
   catch (e) { console.error(e); toast("Couldn't reach the game server"); return null; }
 }
 
-/** Slate's state for a room: a fresh board, with these players seated. */
+/** Slate's state for a room: a fresh board at your own board's level (Easy before you've had one), these players seated. */
 function freshState(players) {
-  const seed = randomSeed();
-  return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level: S.level, seed, board: generate(seed, S.level),
+  const seed = randomSeed(), level = S?.level || "easy";
+  return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board: generate(seed, level),
     log: [], done: null, players };
 }
 
@@ -396,8 +396,11 @@ const seatsOf = data => Object.entries(data?.players || {}).filter(([, p]) => p 
 async function join(code) {
   const sync = await connect();
   if (!sync) return false;
+  // the branch held in this page's cache while joining: the joining transaction takes one round trip, not two (a cold
+  // cache sends a blind first try the database turns down), and the board is drawn the moment the room is entered
+  const warm = sync.watch(roomPath(code), () => {}, () => {});
   try {
-    const shared = await openRoom(sync, code);
+    const shared = await openBranch(sync, code, GAME);
     if (!shared) { toast("No game with that code"); return false; }
     const seen = shared.glyph || null;
     const seats = seatsOf(seen);
@@ -430,6 +433,7 @@ async function join(code) {
     enter(code, sync, name);
     return true;
   } catch (e) { explain(e); return false; }
+  finally { setTimeout(() => warm?.(), 0); }                 // once the room's own watch has it
 }
 
 function enter(code, sync, name) {
@@ -1083,14 +1087,23 @@ const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").sli
 const forToday = arrivedForToday();          // from the games screen's tile: today's puzzle, still to play
 const hash = Object.fromEntries(location.hash.slice(1).split("&").filter(Boolean).map(p => p.split("=")));
 S = loadSolo();
-if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d)) soloBoard(+hash.s, ["easy", "medium", "hard"].includes(hash.d) ? hash.d : "easy");
-else if (!S && forToday && !code) { soloBoard(today(), DAILY_LEVEL); S.daily = today(); saveSolo(); render(); }
-else if (!S) soloBoard(randomSeed(), "easy");
-else {
-  shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render();
-  // today's, once the board you left is drawn (it asks before leaving one you've started)
-  if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
+/** Your own board: a shared link's, today's from the games screen's tile, the saved one, or a fresh Easy one. */
+function soloStart() {
+  if (hash.s && hash.d && (!S || String(S.seed) !== hash.s || S.level !== hash.d)) soloBoard(+hash.s, ["easy", "medium", "hard"].includes(hash.d) ? hash.d : "easy");
+  else if (!S && forToday && !code) { soloBoard(today(), DAILY_LEVEL); S.daily = today(); saveSolo(); render(); }
+  else if (!S) soloBoard(randomSeed(), "easy");
+  else {
+    shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.pathname}${location.search}#s=${S.seed}&d=${S.level}`); render();
+    // today's, once the board you left is drawn (it asks before leaving one you've started)
+    if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
+  }
+  clockRun();
 }
-clockRun();
-if (code.length === 4) join(code).then(ok => { if (!ok) setRoomParam(null); });
+// a room in the address: the board you share from the first moment, never your own while the room is joined (your
+// partner would be on another board until it was, your own clock running), and your own only if the join doesn't
+// come off
+if (code.length === 4) {
+  const joined = busy("Joining your partner", { delay: 0 });
+  join(code).then(ok => { joined(); if (!ok) { setRoomParam(null); soloStart(); } });
+} else soloStart();
 window.__slate = { get state() { return S; }, get room() { return room; }, get slot() { return S && currentSlot(); }, get cursor() { return cursor; } };

@@ -525,6 +525,8 @@ async function askName() {
 }
 
 // a board solved together: a team result, the time it took (lower is better)
+let joining = null;                                           // the rete over the page while a room is joined
+const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
   result: g => (g.done?.won ? { match: `${g.seed}-${g.startedAt || ""}`, score: Math.round(((g.done.at || 0) - (g.startedAt || 0)) / 1000), won: true, coop: true, lower: true } : null),
   game: "delta",
@@ -537,6 +539,7 @@ const together = createTogether({
     return { v: 1, app: APP, created: Date.now(), startedAt: Date.now(), level, seed, board, paths: {}, clues: [], done: null, players };
   },
   onState: val => {
+    joined();
     clockPause();
     const fresh = !S || S.seed !== val.seed;
     S = { seed: val.seed, level: val.level, board: val.board, paths: val.paths || {}, clues: Object.values(val.clues || {}), done: val.done || null, startedAt: val.startedAt || val.created };
@@ -545,13 +548,8 @@ const together = createTogether({
     render();
   },
   onPresence: () => drawPartner(),
-  onLeave: () => { S = loadSolo(); if (!S) { soloBoard(null, "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render(); },
+  onLeave: () => { joined(); S = loadSolo(); if (!S) { soloBoard(null, "easy"); return; } shownDone = S.done ? JSON.stringify(S.done) : null; clockRun(); render(); },
 });
-
-async function joinRoom(code) {
-  clockPause();
-  if (!(await together.join(code))) { clockRun(); render(); }
-}
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "delta");
@@ -581,15 +579,23 @@ const forToday = arrivedForToday();
 const hash = new URLSearchParams(location.hash.slice(1));
 const params = new URLSearchParams(location.search);
 const code = (params.get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-S = loadSolo();
-const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
-if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
-else if (!S && forToday && !code) { await soloBoard(today(), DAILY_LEVEL); if (S) { S.daily = today(); saveSolo(); render(); } }
-else if (!S) await soloBoard(null, "easy");
-else {
-  shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level);
-  // today's, once the board you left is drawn (it asks before leaving one you've started)
-  if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
+S = loadSolo();                             // a shared board is dealt at your own board's level
+/** Your own board: a shared link's, today's from the games screen's tile, the saved one, or a fresh Easy one. */
+async function soloStart() {
+  const linked = Number(hash.get("s")), linkedLevel = hash.get("d");
+  if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel)) await soloBoard(linked, linkedLevel);
+  else if (!S && forToday && !code) { await soloBoard(today(), DAILY_LEVEL); if (S) { S.daily = today(); saveSolo(); render(); } }
+  else if (!S) await soloBoard(null, "easy");
+  else {
+    shownDone = S.done ? JSON.stringify(S.done) : null; history.replaceState(null, "", `${location.search}#s=${S.seed}&d=${S.level}`); clockRun(); render(); refill(S.level);
+    // today's, once the board you left is drawn (it asks before leaving one you've started)
+    if (forToday && !code && S.daily !== today()) setTimeout(() => newBoard("today"), 0);
+  }
 }
-if (code.length === 4) joinRoom(code);
+// a room in the address: the board you share from the first moment, never your own while the room is joined (your
+// partner would be on another board until it was), and your own only if the join doesn't come off
+if (code.length === 4) {
+  joining = busy("Joining your partner", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
+} else await soloStart();
 

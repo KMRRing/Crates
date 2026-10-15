@@ -37,9 +37,27 @@ async function resolveDbUrl() {
   return DB_URLS[0];
 }
 
+// Firebase marks every socket it opens as failed until it has proven itself (two answers from the server), and a
+// connection that starts while the mark is there begins on its slow fallback, polling over plain requests, and only
+// moves to a socket once it's up. A page left while its socket was still proving itself (moving on to a game, a
+// quick switch to the camera to scan a code, the phone locked) leaves the mark behind for the next page; from Asia,
+// polling the database in Belgium is seconds. A fresh page tries the socket first again; a network where sockets
+// really fail costs one try before Firebase falls back by itself.
+const FAILED = "firebase:previous_websocket_failure";
+// how long a page can be away (in another app, the phone locked) and keep its connection when it comes back
+const AWAY_MS = 20000;
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => { if (document.hidden) hiddenAt = Date.now(); });
+addEventListener("pagehide", () => { hiddenAt = Date.now(); });
+
 export async function connect() {
+  try { localStorage.removeItem(FAILED); } catch { /* private mode */ }
   const app = initializeApp(CONFIG, "crates");
   const db = getDatabase(app, await resolveDbUrl());
+  // the connection opened now, while the sign-in is read back (it waits only for the sign-in's token), not once the
+  // first read or write asks for it
+  let live = false;
+  onValue(ref(db, ".info/connected"), snap => { live = snap.val() === true; });
   const auth = getAuth(app);
   const user = await new Promise((resolve, reject) => {
     const off = onAuthStateChanged(auth, u => { if (u) { off(); resolve(u); } });
@@ -69,8 +87,14 @@ export async function connect() {
     connection(cb) {
       return onValue(ref(db, ".info/connected"), snap => cb(snap.val() === true));
     },
-    /** Drops and reopens the connection. Safari can resume a page whose socket died while it slept. */
+    /**
+     * Drops and reopens the connection when the page comes back from a while away, or finds itself offline: Safari can
+     * resume a page whose socket died while it slept, and Firebase's own retries are by then far apart. After a moment
+     * away (another app, the camera) a connection that's still up is kept: a new one costs several round trips to the
+     * database, and marks this device away to the others meanwhile.
+     */
     reconnect() {
+      if (live && hiddenAt && Date.now() - hiddenAt < AWAY_MS) return;
       goOffline(db);
       goOnline(db);
     },

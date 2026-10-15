@@ -4,6 +4,7 @@
 // everyone at the table has bet or passed.
 import { makeSession, moreQuestions, settle, pickedRight, rightCount, averageReturn, showReturn, knowledgeStats, guessChance, LEVELS, LENGTHS, START_POT, NAME_MODES, ODDS, showChips, mixQuestions, TOPIC_LIST, TOPIC_PRESETS, CLUE_TOPICS, MIX, BATCH } from "./punt-gen.js";
 import { createTogether, seatsOf } from "./together.js";
+import { busy } from "./loading.js";
 import * as pile from "./pile.js";
 import { noteStake } from "./ledger-log.js";
 import { setRich } from "./rich.js";
@@ -755,6 +756,8 @@ async function askName() {
 }
 
 // a run played together: one pot, a team result
+let joining = null;                                           // the rete over the page while a room is joined
+const joined = () => { joining?.(); joining = null; };
 const together = createTogether({
   result: g => (g.done ? { match: `${g.seed}-${g.created || ""}`, score: g.pot ?? null, won: (g.pot ?? 0) > START_POT, coop: true } : null),
   game: "punt",
@@ -764,6 +767,7 @@ const together = createTogether({
   valid: g => !!g?.questions,
   fresh: players => freshState("mix", chosenLength(), players),   // a promise: the maths bank may need loading
   onState: val => {
+    joined();
     const moved = !S || S.seed !== val.seed || S.index !== val.index || S.phase !== val.phase;
     S = { ...val, questions: Object.values(val.questions || {}), bets: val.bets || {}, log: Object.values(val.log || {}) };
     if (moved) resetChoice();
@@ -771,7 +775,7 @@ const together = createTogether({
     render();
   },
   onPresence: () => drawPartner(),
-  onLeave: () => { S = loadSolo(); if (!S) { soloSession(randomSeed(), "easy"); return; } resetChoice(); render(); },
+  onLeave: () => { joined(); S = loadSolo(); if (!S) { soloSession(randomSeed(), "easy"); return; } resetChoice(); render(); },
 });
 
 // ---------- menu and messages ----------
@@ -881,17 +885,25 @@ window.__punt = { get state() { return S; }, get together() { return together; }
 // start: a shared session (#s=…&d=…), the saved one, or a fresh run of the chosen topics for a first visit
 const hash = new URLSearchParams(location.hash.slice(1));
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
-S = loadSolo();
-const forToday = arrivedForToday() && !code;       // from the games screen's tile: today's run, still to play
-const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard", linkedDay = Number(hash.get("day"));
-if (forToday && !S) soloSession(today(), "mix", "standard", null, true);
-else if (linkedDay && !(S?.daily && S.seed === linkedDay)) soloSession(linkedDay, "mix", "standard", null, true);
-else if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) || linkedLevel === "mix" ? picksFromHash(hash, linkedLevel) : null);
-else if (!S) soloSession(randomSeed(), "mix", "standard");
-else {
-  shownDone = S.done ? JSON.stringify(S.done) : null;
-  history.replaceState(null, "", `${location.search}${linkOf(S)}`);
-  render();
-  if (forToday && !(S.daily && S.seed === today())) setTimeout(newDaily, 0);   // it asks before leaving a run you've started
+/** Your own run: a shared link's, today's from the games screen's tile, the saved one, or a fresh one. */
+function soloStart() {
+  S = loadSolo();
+  const forToday = arrivedForToday() && !together.room;       // from the games screen's tile: today's run, still to play
+  const linked = Number(hash.get("s")), linkedLevel = hash.get("d"), linkedLength = LENGTHS[hash.get("n")] ? hash.get("n") : "standard", linkedDay = Number(hash.get("day"));
+  if (forToday && !S) soloSession(today(), "mix", "standard", null, true);
+  else if (linkedDay && !(S?.daily && S.seed === linkedDay)) soloSession(linkedDay, "mix", "standard", null, true);
+  else if (linked && LEVELS[linkedLevel] && !(S && S.seed === linked && S.level === linkedLevel && lengthOf(S) === linkedLength)) soloSession(linked, linkedLevel, linkedLength, isMaths(linkedLevel) || linkedLevel === "mix" ? picksFromHash(hash, linkedLevel) : null);
+  else if (!S) soloSession(randomSeed(), "mix", "standard");
+  else {
+    shownDone = S.done ? JSON.stringify(S.done) : null;
+    history.replaceState(null, "", `${location.search}${linkOf(S)}`);
+    render();
+    if (forToday && !(S.daily && S.seed === today())) setTimeout(newDaily, 0);   // it asks before leaving a run you've started
+  }
 }
-if (code.length === 4) together.join(code);
+// a room in the address: the run you share from the first moment, never your own while the room is joined (your
+// partner would be on another question until it was), and your own only if the join doesn't come off
+if (code.length === 4) {
+  joining = busy("Joining your partner", { delay: 0 });
+  together.join(code).then(ok => { if (!ok) { joined(); soloStart(); } });
+} else soloStart();
