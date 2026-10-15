@@ -1,25 +1,33 @@
-// Spot: sums fly across the screen. Alone, tap their answers on the shelf; together, tap the sums on your screen
-// that make the numbers your partner calls out. The engine (spot-engine.js) replays a run from its seed and the
-// taps every frame; this file draws it and takes taps. Together, the room holds the run (seed and start time on
-// the database's clock) and the taps; each device replays the same run, so only taps travel.
+// Spot: sums fly across the screen. Alone, tap their answers on the shelf. At a table (a pair's match, or a party of
+// up to six), Versus: everyone plays the same map, the same sums thrown at the same moments, each on their own shelf;
+// Co-op: each sees different sums, calls out what theirs make, and taps the ones of theirs that make a number someone
+// else called. The engine (spot-engine.js) replays a run from its seed and the taps every frame; this file draws it
+// and takes taps. At a table the room holds the run (seed and start time on the database's clock) and the taps
+// (spot-table.js); each device replays the same run, so only taps travel.
 import { play, LIVES, SHELF, levelAt, modifierAt, modText } from "./spot-engine.js";
+import { MODES, freshTable, modeOf, runMode, slotsOf, seatOf, tapsOf, theirTaps, versusStandings, versusOver, versusResult } from "./spot-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { busy, sextant } from "./loading.js";
-import { createTogether, seatsOf } from "./together.js";
+import { createTogether } from "./together.js";
 import { branchPath, gameHref, GAMES } from "./rooms.js";
+import { presentSlots } from "./duel-core.js";
+import { leaderboard } from "./standings.js";
 import "./pwa.js";
 import { today, reportDuo } from "./suite.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 
 
 const $ = id => document.getElementById(id);
-const APP = 1;                         // this code's version of the together state
+const APP = 2;                         // this code's version of the table's state (2: up to six, Versus or Co-op)
 const BEST = "spot:best", DAILY = "spot:daily";
 
-let run = null;                        // { seed, seats, startAt (on clock()), mode: "solo" | "daily" | "duo" }
-let taps = [];                         // [{ id, t, seat, token }]
-let mySeat = 0;
-let offset = 0;                        // together: this device's distance from the database clock
+// { seed, seats (the engine's: 1 alone and Versus, one each Co-op), startAt (on clock()), mode: "solo" | "daily" |
+// "versus" | "coop", slots (at a table: the seats dealt in) }
+let run = null;
+let taps = [];                         // [{ id, t, seat, token | sum }]: alone yours; at a table everyone's, yours on their way too
+let mySeat = 0;                        // the engine's seat this device plays: 0 alone and Versus; Co-op its place among those dealt in (-1: none)
+let mySlot = 0;                        // at a table, this device's seat at it
+let offset = 0;                        // at a table: this device's distance from the database clock
 let last = null;                       // the state drawn last
 let finished = null;                   // the run whose results are showing
 let pausedAt = null;                   // solo: when the app went to the background
@@ -28,11 +36,14 @@ const cards = new Map();               // sum id -> its element on the field
 const lastAt = new Map();              // sum id -> where its card was last drawn (for the burst when it goes)
 const seen = new Set();                // happenings already animated
 
-const clock = () => (run?.mode === "duo" ? Date.now() + offset : performance.now());
+const atTable = () => run?.mode === "versus" || run?.mode === "coop";
+const clock = () => (atTable() ? Date.now() + offset : performance.now());
 const elapsed = () => clock() - run.startAt;
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
+/** The taps this device's game replays: Versus only yours, as your own game's (its one seat). */
+const myTaps = () => (run.mode === "versus" ? theirTaps(taps, mySlot) : taps);
 
 // ---------- runs ----------
 function startSolo(mode) {
@@ -42,10 +53,16 @@ function startSolo(mode) {
   reset();
 }
 function reset() {
+  clearField();
+  awake(true);
+}
+function clearField() {
   finished = null;
   shownMod = "";
   $("modifier").hidden = true;
   last = null;
+  versusRows = null;
+  shownResult = "";
   flashes.clear();
   seen.clear();
   for (const el of cards.values()) el.remove();
@@ -53,20 +70,25 @@ function reset() {
   lastAt.clear();
   flights.clear();
   $("field").querySelectorAll(".sp-burst").forEach(el => el.remove());
-  awake(true);
 }
 
-/** Alone: your tap on a shelf slot, counted at once. */
+/** Alone and Versus: your tap on a shelf slot, counted at once (Versus, sent to the table too). */
 function tapSlot(k) {
-  if (!run || !last || last.over || elapsed() < 0) return;
+  if (!run || !last || last.over || elapsed() < 0 || run.mode === "coop") return;
   const tok = last.shelves[mySeat]?.[k];
   if (!tok) return;
-  const t = elapsed();
-  const tap = { id: `${mySeat}${Math.round(t).toString(36)}${k}${Math.random().toString(36).slice(2, 5)}`, t, seat: mySeat, token: tok.id };
+  const t = elapsed(), versus = run.mode === "versus";
+  const tap = { id: `${versus ? mySlot : mySeat}${Math.round(t).toString(36)}${k}${Math.random().toString(36).slice(2, 5)}`, t, seat: versus ? mySlot : mySeat, token: tok.id };
   taps.push(tap);
+  if (versus) send(tap);
   const good = tok.real && last.sums.some(s => s.id === tok.sum);
   flashes.set(k, { until: performance.now() + 260, cls: good ? "good" : "bad", value: tok.value });
   if (!good) navigator.vibrate?.(70);
+}
+/** A tap on its way to the table: everyone replays it. */
+function send({ id, ...tap }) {
+  if (!together.room) return;
+  together.room.sync.update(`${branchPath(together.room.code, "spot")}/taps`, { [id]: tap }).catch(() => toast("A tap didn't reach the table"));
 }
 
 // ---------- flight paths ----------
@@ -96,7 +118,7 @@ function flight(id) {
   return f;
 }
 
-/** Together: your tap on a sum on your screen, saying "this makes the number my partner called". */
+/** Co-op: your tap on a sum on your screen, saying "this makes the number someone called". */
 function tapSum(id, el) {
   if (!run || !last || last.over || elapsed() < 0) return;
   const s = last.sums.find(x => x.id === id && x.seat === mySeat);
@@ -107,44 +129,47 @@ function tapSum(id, el) {
   const good = s.pair != null;
   el.classList.add(good ? "good" : "bad");
   if (!good) navigator.vibrate?.(70);
-  if (together.room) {
-    const { t: when, seat, sum } = tap;
-    together.room.sync.update(`${branchPath(together.room.code, "spot")}/taps`, { [tap.id]: { t: when, seat, sum } }).catch(() => toast("A tap didn't reach your partner"));
-  }
+  send(tap);
 }
 
 // ---------- the frame loop ----------
 function frame() {
   requestAnimationFrame(frame);
   if (!run || pausedAt != null) return;
-  const t = elapsed();
-  $("shelf").hidden = run.seats === 2;
-  if (t < 0) { showCountdown(Math.ceil(-t / 1000)); if (run.seats === 1) drawShelf(null); drawHud({ score: 0, lives: LIVES, multiplier: 1 }, 0); return; }
-  const st = play(run, taps, t);
+  const t = elapsed(), coop = run.mode === "coop";
+  $("shelf").hidden = coop;
+  if (t < 0) {
+    if (mySeat >= 0) showCountdown(Math.ceil(-t / 1000));        // one sitting a co-op run out keeps its card
+    if (!coop) drawShelf(null);
+    drawHud({ score: 0, lives: LIVES, multiplier: 1 }, 0);
+    return;
+  }
+  const st = play(run, myTaps(), t);
   last = st;
-  if (!st.over) $("overlay").hidden = true;
+  if (!st.over && mySeat >= 0) $("overlay").hidden = true;
   drawField(st);
-  if (run.seats === 1) drawShelf(st);
+  if (!coop) drawShelf(st);
   drawHud(st, t);
   animate(st);
+  if (run.mode === "versus") tickVersus(t);
   if (st.over && finished !== run) { finished = run; setTimeout(() => showResults(st), 700); }
 }
 
 function drawField(st) {
-  const field = $("field"), W = field.clientWidth, H = field.clientHeight;
+  const field = $("field"), W = field.clientWidth, H = field.clientHeight, coop = run.mode === "coop";
   const mine = st.sums.filter(s => s.seat === mySeat);
   const ids = new Set(mine.map(s => s.id));
   for (const [id, el] of cards) if (!ids.has(id)) { lastAt.set(id, { x: el.dataset.x, y: el.dataset.y }); el.remove(); cards.delete(id); }
   for (const s of mine) {
     let el = cards.get(s.id);
     if (!el) {
-      el = document.createElement(run.seats === 2 ? "button" : "div");
-      el.className = `sp-sum${run.seats === 2 ? " tappable" : ""}`;
+      el = document.createElement(coop ? "button" : "div");
+      el.className = `sp-sum${coop ? " tappable" : ""}`;
       el.dataset.id = s.id;
       el.textContent = s.text;
       if (s.mod) { const tag = document.createElement("em"); tag.textContent = modText(s.mod); el.appendChild(tag); }   // the modifier it came under
       el.appendChild(document.createElement("i"));
-      if (run.seats === 2) { el.type = "button"; el.addEventListener("pointerdown", e => { e.preventDefault(); tapSum(s.id, el); }); }
+      if (coop) { el.type = "button"; el.addEventListener("pointerdown", e => { e.preventDefault(); tapSum(s.id, el); }); }
       field.appendChild(el);
       cards.set(s.id, el);
     }
@@ -190,8 +215,8 @@ function drawHud(st, t = 0) {
   $("score").textContent = st.score.toLocaleString("en-GB");
   $("mult").textContent = st.multiplier > 1 ? `×${st.multiplier}` : "";
   $("level").textContent = t > 0 ? `LV ${levelAt(t)}` : "";
-  // the modifier new sums come under: apply it to every result first
-  const mod = t > 0 ? modText(modifierAt(run.seed, mySeat, t)) : "";
+  // the modifier new sums come under: apply it to every result first (none for one sitting a co-op run out)
+  const mod = t > 0 && mySeat >= 0 ? modText(modifierAt(run.seed, mySeat, t)) : "";
   if (mod !== shownMod) {
     shownMod = mod;
     const badge = $("modifier");
@@ -219,7 +244,7 @@ function animate(st) {
     if (h.type === "wrong" && h.seat !== mySeat) navigator.vibrate?.(40);
     if (h.sum == null) continue;
     const at = lastAt.get(h.sum) || (h.partner != null && lastAt.get(h.partner));
-    if (!at) continue;                                     // not one of your sums (together, your partner's)
+    if (!at) continue;                                     // not one of your sums (co-op, someone else's)
     const { x, y } = at;
     const burst = document.createElement("div");
     burst.className = `sp-burst ${h.type === "clear" ? "good" : "bad"}`;
@@ -231,14 +256,22 @@ function animate(st) {
   }
 }
 
-// ---------- the card: start, countdown, results, the together lobby ----------
-function card(build) {
+// ---------- the card: start, countdown, results, the table's lobby ----------
+/** Draws the card over the field; a "fill" card's list scrolls inside it, its buttons always in reach. */
+function card(build, kind = "") {
   const c = $("card");
   c.replaceChildren();
+  c.classList.toggle("fill", kind === "fill");
   $("overlay").hidden = false;
   const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; c.appendChild(n); return n; };
   const go = (text, fn, quiet = false, disabled = false) => { const b = add("button", `sp-go${quiet ? " quiet" : ""}`, text); b.type = "button"; b.disabled = disabled; b.addEventListener("click", fn); return b; };
-  build(add, go);
+  build(add, go, c);
+}
+/** Back to solo on a table's card: a link, as in every game's table (duel.js, Punt's end of a run). */
+function soloLink(add) {
+  const b = add("button", "link sp-link", "Back to solo");
+  b.type = "button";
+  b.addEventListener("click", () => together.leave());
 }
 
 function showStart() {
@@ -253,15 +286,17 @@ function showStart() {
   });
 }
 
+const COUNTDOWN_SAYS = { versus: "The same sums for everyone: tap their answers on your shelf.", coop: "Call out what yours make; tap the ones that make what the others call." };
 function showCountdown(n) {
-  card(add => { add("div", "sp-big", String(n)); add("p", null, run.mode === "duo" ? "Call out what yours make; tap the ones that match theirs." : "Get ready"); });
+  card(add => { add("div", "sp-big", String(n)); add("p", null, COUNTDOWN_SAYS[run.mode] || "Get ready"); });
 }
 
 function showResults(st) {
   awake(false);
-  const solo = run.mode !== "duo";
+  if (run.mode === "versus") { drawVersusResult(); return; }
+  const solo = !atTable();
   let best = null;
-  // a run played together is a team result: the pair's score, recorded for the duo record (each device its side)
+  // a co-op run is a team result: the table's score, recorded for the pair's duo record (each device its side)
   if (!solo) reportDuo("spot", `${run.seed}-${run.startAt}`, { score: st.score, won: null, coop: true }).catch(e => console.error(e));
   if (run.mode === "solo") { best = Math.max(read(BEST, 0), st.score); write(BEST, best); }
   if (run.mode === "daily") { const d = read(DAILY, {}); d[today()] = Math.max(d[today()] || 0, st.score); write(DAILY, d); best = d[today()]; }
@@ -269,7 +304,7 @@ function showResults(st) {
     add("h2", null, "Out of lives");
     add("div", "sp-big", st.score.toLocaleString("en-GB"));
     const stats = add("div", "sp-stats");
-    for (const [v, label] of [[st.cleared, run.seats === 2 ? "pairs" : "sums"], [st.best, "best streak"], [`${Math.round((st.over?.at || 0) / 1000)} s`, "lasted"]]) {
+    for (const [v, label] of [[st.cleared, solo ? "sums" : "pairs"], [st.best, "best streak"], [`${Math.round((st.over?.at || 0) / 1000)} s`, "lasted"]]) {
       const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
       b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
     }
@@ -278,63 +313,163 @@ function showResults(st) {
       go("Again", () => startSolo(run.mode));
       go(run.mode === "daily" ? "A random run" : "Today's run", () => startSolo(run.mode === "daily" ? "solo" : "daily"), true);
     } else {
-      go("Play again together", startTogether);
-      go("Back to solo", () => together.leave(), true);
+      go("Play again", startTogether);
+      soloLink(add);
     }
   });
 }
 
-function showLobby() {
-  const data = together.room?.data, partner = together.partner();
+// ---------- Versus: everyone's run on the one map ----------
+let versusRows = null, versusAt = 0, reportedRun = null, shownResult = "";
+/**
+ * Every player's run, replayed from their taps a few times a second: their scores in the line under the header, and
+ * once your own run is over, the standings until everyone's is. The pair's record once it's over for everyone.
+ */
+function tickVersus(t) {
+  if (performance.now() - versusAt < 400) return;
+  versusAt = performance.now();
+  versusRows = versusStandings(run, taps, t);
+  drawPartner();
+  if (finished === run && shownResult) drawVersusResult();
+  const r = versusResult(versusRows, mySlot);
+  if (r && reportedRun !== run) { reportedRun = run; reportDuo("spot", `${run.seed}-${run.startAt}`, r).catch(e => console.error(e)); }
+}
+const firstName = slot => String(seatedBySlot(slot)?.name || "Player").split(" ")[0];
+const seatedBySlot = slot => Object.values(together.room?.data?.players || {}).find(p => p && p.slot === slot) || null;
+const listed = names => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
+/** Your run is over: the standings as they stand (drawn again only when they change), Play again once everyone's is. */
+function drawVersusResult() {
+  const rows = versusRows || versusStandings(run, taps, elapsed()), over = versusOver(rows);
+  const sig = `${run.seed}/${over}/${rows.map(r => `${r.slot}:${r.score}:${r.over}`).join()}`;
+  if (sig === shownResult) return;
+  shownResult = sig;
+  const tops = rows.filter(r => r.rank === 1), playing = rows.filter(r => r.over == null);
   card((add, go) => {
-    add("h2", null, "Playing together");
-    add("p", null, "You each see your own sums, and most of them have a partner on the other screen that makes the same number, arriving within a few seconds. Call out what yours make; tap the one of yours that makes a number your partner called. Some have no partner: tapping those costs a life. From 45 s each of you gets your own modifier to apply to every result first.");
-    add("p", null, partner ? `${partner.name} is ${partner.online ? "here" : "away"}.` : `Waiting for your partner: room ${together.room?.code}.`);
-    go("Start", startTogether, false, seatsOf(data).length < 2);
-    go("Back to solo", () => together.leave(), true);
+    add("h2", null, !over ? "Out of lives" : tops.length > 1 ? (tops.some(r => r.slot === mySlot) ? "A draw" : `${listed(tops.map(r => firstName(r.slot)))} share it`)
+      : tops[0]?.slot === mySlot ? "You win" : `${firstName(tops[0]?.slot)} wins`);
+    const box = add("div", "sp-standings");
+    box.append(leaderboard(rows.map(r => ({ name: r.slot === mySlot ? "You" : firstName(r.slot), value: r.score, seat: r.slot, me: r.slot === mySlot,
+      note: r.over == null ? `playing · ${r.lives} ${r.lives === 1 ? "life" : "lives"} left` : `${r.cleared} sums · out at ${Math.round(r.over / 1000)} s` }))));
+    if (!over) { const wait = add("p", "sp-wait"); wait.append(sextant(), `${listed(playing.map(r => (r.slot === mySlot ? "you" : firstName(r.slot))))} still playing`); }
+    if (over) go("Play again", startTogether);
+    soloLink(add);
+  }, "fill");
+}
+
+// ---------- the table ----------
+const presentNow = () => (together.room ? presentSlots(together.room.data, together.room.here, "spot", together.room.uid) : []);
+/** Whether no run is under way at the table: none yet, or the last one is over for everyone (so the mode may change). */
+function runDone() {
+  if (!together.room?.data?.run || !run) return true;
+  if (run.mode === "versus") return !!versusRows && versusOver(versusRows);
+  return !!last?.over;
+}
+function showLobby() {
+  awake(false);
+  const g = together.room?.data, mode = modeOf(g), here = presentNow();
+  card((add, go) => {
+    add("h2", null, "Spot together");
+    const modes = add("div", "sp-modes");
+    modes.setAttribute("role", "radiogroup");
+    modes.setAttribute("aria-label", "Mode");
+    for (const [id, label] of Object.entries(MODES)) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", String(id === mode));
+      b.textContent = label;
+      b.addEventListener("click", () => setMode(id));
+      modes.append(b);
+    }
+    add("p", null, mode === "versus" ? "The same sums at the same moments for everyone, each on their own shelf: the most points wins."
+      : "Different sums for each: call out what yours make, tap yours that make a number someone called. One score for the table.");
+    // who's at the table, in their colours: one away faded (a run is dealt to those here)
+    const seats = add("p", "sp-seats");
+    for (const p of Object.values(g?.players || {}).filter(p => p && p.slot != null).sort((a, b) => a.slot - b.slot)) {
+      const who = document.createElement("span"), dot = document.createElement("i");
+      who.className = `sp-who${here.includes(p.slot) ? "" : " away"}`;
+      dot.className = "standings-dot";
+      dot.style.background = `var(--p${p.slot % 6})`;
+      who.append(dot, p.slot === mySlot ? "You" : firstName(p.slot), here.includes(p.slot) ? "" : " (away)");
+      seats.append(who);
+    }
+    const missing = (g?.people || 2) - seats.children.length;
+    if (missing > 0) { const wait = add("p", "sp-wait"); wait.append(sextant(), `${missing} more on their way`); }
+    go("Start", startTogether, false, here.length < 2);
+    soloLink(add);
   });
 }
-
-/** Starts a run for both: a fresh seed and a start time 4 seconds ahead on the database clock. */
+/** Versus or Co-op: chosen before a run starts (in the lobby, or once the last run is over for everyone). */
+function setMode(mode) {
+  if (!runDone()) { toast("Change it once this run is over"); return; }
+  together.act(g => { if (modeOf(g) === mode && !g.run) return false; g.mode = mode; g.run = null; g.taps = null; });
+}
+/** Starts a run for everyone at the table now: a fresh seed and a start time 4 seconds ahead on the database clock. */
 function startTogether() {
-  together.act(g => { g.run = { seed: randomSeed(), startAt: Date.now() + offset + 4000 }; g.taps = null; });
+  const slots = presentNow().sort((a, b) => a - b);
+  if (slots.length < 2) { toast("Two at the table at least"); return; }
+  together.act(g => { g.run = { seed: randomSeed(), startAt: Date.now() + offset + 4000, mode: modeOf(g), slots }; g.taps = null; });
 }
 
-// ---------- together ----------
 let stopOffset = null;
 function onState(val) {
   const room = together.room;
   if (room && !stopOffset) stopOffset = room.sync.serverOffset?.(ms => { offset = ms; }) || (() => {});
-  mySeat = val.players?.[room?.uid]?.slot ?? 0;
-  if (!val.run) { run = null; drawPartner(); showLobby(); return; }
-  if (!run || run.mode !== "duo" || run.seed !== val.run.seed || run.startAt !== val.run.startAt) {
-    run = { seed: val.run.seed, seats: 2, startAt: val.run.startAt, mode: "duo" };
+  mySlot = val.players?.[room?.uid]?.slot ?? 0;
+  if (!val.run) { if (run) { run = null; clearField(); } drawPartner(); showLobby(); return; }
+  if (!run || !atTable() || run.seed !== val.run.seed || run.startAt !== val.run.startAt) {
+    const mode = runMode(val.run), slots = slotsOf(val.run);
+    run = { seed: val.run.seed, seats: mode === "versus" ? 1 : Math.max(2, slots.length), startAt: val.run.startAt, mode, slots };
     taps = [];
     reset();
   }
-  const remote = Object.entries(val.taps || {}).map(([id, x]) => ({ id, ...x }));
+  mySeat = seatOf(run, mySlot);
+  const remote = tapsOf(val.taps);
   const known = new Set(remote.map(x => x.id));
   taps = [...remote, ...taps.filter(x => !known.has(x.id))];        // keep my taps that haven't come back yet
   drawPartner();
+  if (mySeat < 0) showSittingOut();
 }
+/** Co-op, a run dealt before you sat down has no sums for you: you're in the next one. */
+function showSittingOut() {
+  card((add, go) => {
+    add("h2", null, "A run is on");
+    add("p", null, "It was dealt before you sat down, so none of its sums are yours: you're in the next one.");
+    soloLink(add);
+  });
+}
+/**
+ * The line under the header at a table: everyone else in their colour (Versus, with their score as they play, out
+ * once their lives are gone; away for one whose phone isn't here). A pair's partner in another game: Join them.
+ */
 function drawPartner() {
   const el = $("partner");
   if (!together.room) { el.hidden = true; return; }
   el.hidden = false;
   el.replaceChildren();
   if (!together.online) { el.append(sextant(), "Reconnecting…"); return; }
-  const p = together.partner();
-  if (!p) { el.append(`Room ${together.room.code}: waiting for your partner.`); return; }
-  const b = document.createElement("b");
-  b.textContent = p.name + (p.online ? "" : " (away)");
-  if (p.game && p.game !== "spot") {
-    const a = document.createElement("a");
+  const others = together.others(), p = together.partner();
+  if (others.length <= 1 && p?.game && p.game !== "spot") {
+    const b = document.createElement("b"), a = document.createElement("a");
+    b.textContent = p.name;
     a.href = gameHref(p.game);
     a.textContent = "Join them";
     el.append(b, ` is in ${GAMES[p.game]?.name || "another game"}. `, a);
     return;
   }
-  el.append("Playing with ", b, ".");
+  if (!others.length) { el.append(sextant(), "Waiting for the others to sit down"); return; }
+  const scores = run?.mode === "versus" && versusRows ? new Map(versusRows.map(r => [r.slot, r])) : null;
+  if (!scores) el.append("Playing with ");
+  others.forEach((o, i) => {
+    if (i) el.append(" · ");
+    const who = document.createElement("span"), dot = document.createElement("i"), b = document.createElement("b"), r = scores?.get(o.slot);
+    who.className = `sp-who${o.here ? "" : " away"}`;
+    dot.className = "standings-dot";
+    dot.style.background = `var(--p${o.slot % 6})`;
+    b.textContent = firstName(o.slot);
+    who.append(dot, b, r ? ` ${r.score.toLocaleString("en-GB")}${r.over != null ? " out" : ""}` : !o.here ? " away" : "");
+    el.append(who);
+  });
 }
 
 async function askName() {
@@ -356,10 +491,11 @@ const together = createTogether({
   toast,
   askName,
   valid: g => g?.v === 1,
-  fresh: players => ({ v: 1, app: APP, players, run: null, taps: null }),
+  slots: g => g?.people || 2,
+  fresh: (players, { ask } = {}) => freshTable(players, { app: APP, ask }),
   onState: val => { joined(); onState(val); },
   onPresence: () => { drawPartner(); if (together.room && !together.room.data?.run) showLobby(); },
-  onLeave: () => { joined(); stopOffset?.(); stopOffset = null; run = null; drawPartner(); showStart(); },
+  onLeave: () => { joined(); stopOffset?.(); stopOffset = null; run = null; clearField(); drawPartner(); showStart(); },
 });
 
 // ---------- the screen stays awake while you play ----------
@@ -381,13 +517,18 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
 
-// the menu: Play (start the run you've chosen), Content (random or today's); in a room, back to solo
+// the menu: Play (start the run you've chosen), Content (random or today's); at a table, Versus or Co-op (between
+// runs) and back to solo
 let pick = null;                                              // the run the menu will start: "solo" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  if (together.room) part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
-  else {
+  if (together.room) {
+    const t = part(body, "together"), mode = run && !runDone() ? run.mode : modeOf(together.room.data);
+    if (runDone()) t.append(choice("Mode", Object.entries(MODES), mode, setMode));
+    else t.append(line(`${MODES[mode]} this run; you can change it once it's over.`));
+    t.append(action("Back to solo", () => together.leave(), "link"));
+  } else {
     pick ??= run?.mode === "daily" ? "daily" : "solo";
     part(body, "play").append(action("Start a run", () => startSolo(pick), "primary"));
     part(body, "content").append(choice("Run", [["solo", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
@@ -402,11 +543,12 @@ bindSwitcher($("appsBtn"), "spot");
 document.querySelector(".sp-mark").innerHTML = APPS.find(a => a.id === "spot").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-onPause(() => { if (run && run.mode !== "duo" && !last?.over && pausedAt == null) pausedAt = performance.now(); },
+// alone, the run stands still in the menu and in the background; at a table the clock is everyone's and doesn't stop
+onPause(() => { if (run && !atTable() && !last?.over && pausedAt == null) pausedAt = performance.now(); },
   () => { if (pausedAt != null && run && !document.hidden) { run.startAt += performance.now() - pausedAt; pausedAt = null; } });
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
-    if (run && run.mode !== "duo" && !last?.over) pausedAt = performance.now();      // solo pauses in the background
+    if (run && !atTable() && !last?.over) pausedAt = performance.now();      // solo pauses in the background
   } else {
     if (pausedAt != null && run) run.startAt += performance.now() - pausedAt;
     pausedAt = null;
@@ -416,13 +558,14 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 
 // for tests and debugging
-window.__spot = { get run() { return run; }, get state() { return last; }, get seat() { return mySeat; }, get taps() { return taps; }, tap: tapSlot, get together() { return together; } };
+window.__spot = { get run() { return run; }, get state() { return last; }, get seat() { return mySeat; }, get slot() { return mySlot; }, get taps() { return taps; },
+  get rows() { return versusRows; }, tap: tapSlot, tapSum: id => { const el = cards.get(id); if (el) tapSum(id, el); }, get together() { return together; } };
 
 const code = (new URLSearchParams(location.search).get("room") || "").toUpperCase().replace(/[^A-Z]/g, "").slice(0, 4);
 requestAnimationFrame(frame);
 // a room in the address: the room's lobby from the first moment, never the solo start (a tap on Play while the room
 // is joined would start a run of your own), and the solo start only if the join doesn't come off
 if (code.length === 4) {
-  joining = busy("Joining your partner", { delay: 0 });
+  joining = busy(new URLSearchParams(location.search).has("party") ? "Joining the table" : "Joining your partner", { delay: 0 });
   together.join(code).then(ok => { if (!ok) { joined(); showStart(); } });
 } else showStart();

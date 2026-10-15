@@ -4,10 +4,11 @@
 // shelf at a moment of its own, up to a few seconds before its sum flies in, in a free slot picked at random, so
 // neither when nor where a number appears gives away which sum it answers: you have to work the sum out.
 //
-// Together there's no shelf. Each player sees only their own sums, and most of them come in pairs: a sum on one
-// screen and a different sum with the same result on the other, appearing up to a few seconds apart. You call out
-// what your sums make; your partner taps the sum on their screen that makes the same, now or when it arrives. Some
-// sums have no partner (decoys): tapping one costs a life. A pair that leaves both screens untapped costs a life.
+// Co-op (two to six at a table) there's no shelf. Each player sees only their own sums, and most of them come in
+// pairs: a sum on one screen and a different sum with the same result on another, appearing up to a few seconds
+// apart. You call out what your sums make; whoever has the other taps the sum on their screen that makes the same,
+// now or when it arrives. Some sums have no partner (decoys): tapping one costs a life. A pair that leaves both screens
+// untapped costs a life. Versus, everyone plays the alone game on the same seed from the same start: the same map.
 //
 // Everything is worked out from a seed and the taps. The timeline (which sum appears when, with which fakes or which
 // partner) comes from the seed alone; what happened is replayed from the taps by play(). Two devices with the same
@@ -165,23 +166,28 @@ export function timeline(seed, seats, t) {
 
 // ---------- the timeline together: pairs and decoys ----------
 const duoTimelines = new Map();
+/** How much faster sums come for a table of so many than for two: more ears to call to, so a little faster, not N/2. */
+export const paceFor = seats => Math.sqrt(Math.max(2, seats) / 2);
 /**
- * Together: the run's sums up to time t, each { id, at, life, seat (whose screen), kind, text, answer, mod (that
+ * Co-op: the run's sums up to time t, each { id, at, life, seat (whose screen), kind, text, answer, mod (that
  * seat's modifier when it appeared), value (what it makes after the modifier: the number that gets called), points,
- * pair (the pair's id, or null for a decoy) }. A pair is two sums that make one value, one on each screen, the
- * second appearing 0.6–4 s after the first, each under its own seat's modifier. Values never repeat across sums
- * that can be on screen at once, so a called number always means one thing.
+ * pair (the pair's id, or null for a decoy) }. A pair is two sums that make one value, on two different screens
+ * (any two of the table's), the second appearing 0.6–4 s after the first, each under its own seat's modifier. Values
+ * never repeat across sums that can be on screen at once, so a called number always means one thing. Two seats deal
+ * exactly as they always have; more come a little faster (paceFor).
  */
-export function duoTimeline(seed, t) {
-  let tl = duoTimelines.get(seed);
-  if (!tl) { tl = { r: rng(seed ^ 0x5bd1e995), sums: [], next: 1500, pairs: 0 }; duoTimelines.set(seed, tl); }
-  const window = MAX_LIFE + 4000;
+export function duoTimeline(seed, t, seats = 2) {
+  const key = `${seed}/${seats}`;
+  let tl = duoTimelines.get(key);
+  if (!tl) { tl = { r: rng(seed ^ 0x5bd1e995), sums: [], next: 1500, pairs: 0 }; duoTimelines.set(key, tl); }
+  const window = MAX_LIFE + 4000, pace = paceFor(seats);
   while (tl.next <= t + MAX_LIFE + 4000) {
     const at = tl.next, r = tl.r, mix = mixAt(at);
     // the value that gets called out: what each seat's sum makes after that seat's own modifier
     const taken = new Set(tl.sums.filter(s => Math.abs(s.at - at) < window * 1.2).map(s => s.value));
     const decoy = r() < 0.3;
-    const first = r() < 0.5 ? 0 : 1, second = 1 - first;
+    // two screens: for a pair, one and the other (one draw, as it always was); for more, any other than the first
+    const first = Math.floor(r() * seats), second = seats === 2 ? 1 - first : (first + 1 + Math.floor(r() * (seats - 1))) % seats;
     const modFirst = modifierAt(seed, first, at), later = at + 600 + r() * 3400, modSecond = modifierAt(seed, second, later);
     let made = null, kind = null, big = false, value = null, raw = null;
     for (let tries = 0; tries < 60 && (!made || taken.has(value) || (!decoy && raw == null)); tries++) {
@@ -201,22 +207,24 @@ export function duoTimeline(seed, t) {
       push(at, first, made, modFirst, pair);
       push(later, second, other, modSecond, pair);
     }
-    tl.next = at + 1350 * (cost(kind, big) + (modFirst ? 1 : 0)) / rate(at);
+    tl.next = at + 1350 * (cost(kind, big) + (modFirst ? 1 : 0)) / rate(at) / pace;
   }
   return tl.sums.filter(s => s.at <= t).sort((a, b) => a.at - b.at);
 }
 
 /**
- * Together, the run at time t given the taps ([{ id, t, seat, sum }]): { sums: those on screen (with progress),
+ * Co-op, the run at time t given the taps ([{ id, t, seat, sum }]): { sums: those on screen (with progress),
  * lives, score, streak, multiplier, cleared (pairs), missed (pairs), wrong, best, over, recent }. A tap on a sum
  * that has a partner clears the pair (both sums go, the partner's even before it appears); a tap on a decoy costs a
  * life; a pair that leaves both screens untapped costs a life.
  */
-function playDuo(seed, taps, t) {
-  const sums = duoTimeline(seed, t + 5000);                      // partners due soon, so a tap can clear them early
+function playDuo(seed, taps, t, seats = 2) {
+  const sums = duoTimeline(seed, t + 5000, seats);               // partners due soon, so a tap can clear them early
   const byId = new Map(sums.map(s => [s.id, s]));
-  const partner = new Map();
-  for (const s of sums) if (s.pair != null) partner.set(s.id, sums.find(o => o.pair === s.pair && o.id !== s.id));
+  // each sum's partner, found through its pair (every frame replays the run: no search of the whole run per sum)
+  const pairs = new Map(), partner = new Map();
+  for (const s of sums) if (s.pair != null) pairs.set(s.pair, [...(pairs.get(s.pair) || []), s]);
+  for (const s of sums) if (s.pair != null) partner.set(s.id, pairs.get(s.pair).find(o => o.id !== s.id));
   const happenings = [];
   for (const s of sums) {
     if (s.at <= t) happenings.push({ at: s.at, order: 0, type: "spawn", s });
@@ -263,13 +271,14 @@ function playDuo(seed, taps, t) {
 
 // ---------- replaying a run ----------
 /**
- * Alone: the run as it stands at time t (ms from the start), given the taps so far: [{ id, t (ms from the start),
- * seat, token }]. Returns { sums: those on screen (with progress 0–1), shelves: per player, SHELF slots of tokens or null,
- * lives, score, streak, multiplier, cleared, missed, wrong, best (longest streak), over: { at } or null, recent:
- * what happened lately, for the animations }.
+ * Alone (and each player's own run Versus, seats 1): the run as it stands at time t (ms from the start), given the
+ * taps so far: [{ id, t (ms from the start), seat, token }]. Returns { sums: those on screen (with progress 0–1),
+ * shelves: per player, SHELF slots of tokens or null, lives, score, streak, multiplier, cleared, missed, wrong, best
+ * (longest streak), over: { at } or null, recent: what happened lately, for the animations }. Two seats or more is
+ * co-op (playDuo).
  */
 export function play({ seed, seats }, taps, t) {
-  if (seats === 2) return playDuo(seed, taps, t);
+  if (seats >= 2) return playDuo(seed, taps, t, seats);
   const sums = timeline(seed, seats, t + LEAD[1]);              // with the sums still to come whose numbers are out
   const happenings = [];
   for (const s of sums) {

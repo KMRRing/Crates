@@ -1,6 +1,7 @@
 // Spot's engine: timelines are sound (whole, positive results; no clashes on screen), replays are deterministic, a
 // perfect player never loses a life, a careless one does, the shelf gives nothing away (each number comes early, at a
-// moment and in a slot of its own), and together the answers sit on the other player's shelf.
+// moment and in a slot of its own); co-op deals pairs across two to six screens; and at a table (spot-table.js) Versus
+// is the same map for every seat, ranked from each player's own taps.
 const S = await import("../spot-engine.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -154,6 +155,82 @@ check(once.cleared === 1 && once.lives === S.LIVES, "a double tap clears once an
   check(e.cleared === 1 && !e.sums.some(x => x.id === later.id), "together: tapping a sum clears its partner too, even one still to appear");
   const idle = S.play({ seed: 21, seats: 2 }, [], 40000);
   check(idle.missed > 0 && idle.lives < S.LIVES, `together: pairs nobody taps cost lives (${idle.missed} missed by 40 s)`);
+}
+// co-op at a table of three to six: every pair is two sums making one number on two different screens, the screens'
+// shares even, no number meaning two things, and a perfect table clearing everything; a little faster than for two
+{
+  let problems = 0;
+  const counts = {};
+  for (const seats of [3, 4, 5, 6]) {
+    const per = Array(seats).fill(0);
+    let n = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      const sums = S.duoTimeline(seed * 7907, 180000, seats);
+      n += sums.length;
+      const pairs = new Map();
+      for (const x of sums) { per[x.seat]++; if (x.seat < 0 || x.seat >= seats) problems++; if (x.pair != null) pairs.set(x.pair, [...(pairs.get(x.pair) || []), x]); }
+      for (const two of pairs.values()) {
+        if (two.length !== 2) continue;
+        const [p, q] = two;
+        if (p.seat === q.seat || p.value !== q.value || S.applyMod(p.mod, p.answer) !== p.value || S.applyMod(q.mod, q.answer) !== q.value || q.at - p.at < 600 || q.at - p.at > 4000) { problems++; if (problems < 4) console.log("a bad pair", seats, p, q); }
+      }
+      for (const x of sums) {
+        const clash = sums.find(o => o !== x && o.value === x.value && Math.abs(o.at - x.at) < 13000 && !(x.pair != null && o.pair === x.pair));
+        if (clash) { problems++; if (problems < 4) console.log("a number that means two things", seats, x.text, clash.text); break; }
+      }
+    }
+    const mean = per.reduce((a, b) => a + b, 0) / seats;
+    if (per.some(c => Math.abs(c - mean) > mean * 0.3)) { problems++; console.log(`uneven screens for ${seats}`, per); }
+    counts[seats] = n / 12;
+  }
+  const two = Array.from({ length: 12 }, (_, i) => S.duoTimeline((i + 1) * 7907, 180000, 2).length).reduce((a, b) => a + b, 0) / 12;
+  console.log(`co-op: sums in three minutes, ${Math.round(two)} for two, ${[3, 4, 5, 6].map(n => `${Math.round(counts[n])} for ${n}`).join(", ")}`);
+  check(problems === 0 && JSON.stringify(S.duoTimeline(99, 60000, 2)) === JSON.stringify(S.duoTimeline(99, 60000)) && counts[6] > two * 1.4 && counts[6] < two * 2.1,
+    "co-op for three to six: pairs on two different screens, every screen its share, no number meaning two things; two deal as before, more a little faster");
+  for (const seats of [3, 6]) {
+    const until = 120000, sums = S.duoTimeline(33, until, seats), taps = [], seenPair = new Set();
+    for (const x of [...sums].reverse()) if (x.pair != null && !seenPair.has(x.pair)) { seenPair.add(x.pair); if (x.at + 800 <= until) taps.push({ id: `t${x.id}`, t: x.at + 800, seat: x.seat, sum: x.id }); }
+    const st = S.play({ seed: 33, seats }, taps, until);
+    check(st.lives === S.LIVES && !st.missed && !st.wrong && st.cleared > 15, `co-op for ${seats}: a perfect table clears every pair (${st.cleared}) and leaves the decoys alone`);
+  }
+}
+
+// at a table: the room's state as the database keeps it; Versus, the same map for every seat, each replayed from
+// their own taps, ranked by score, over once everyone's lives are gone, won by the sole first
+{
+  const T = await import("../spot-table.js");
+  const { roundTrip } = await import("./rtdb.js");
+  const g = roundTrip(T.freshTable({ a: { name: "Korbi", slot: 0 }, b: { name: "Sarah", slot: 1 }, c: { name: "Tom", slot: 2 } }, { app: 2, ask: { people: 3 } }));
+  check(g.people === 3 && T.modeOf(g) === "versus" && T.modeOf(roundTrip(T.freshTable({}, { app: 2 }))) === "coop" && T.peopleFor({ people: 8 }) === 6,
+    "a party's table plays Versus to start with, a pair's Co-op (as it always has); two to six seats");
+  const run = roundTrip({ seed: 4242, startAt: 1, mode: "versus", slots: [0, 2, 1] });
+  check(T.slotsOf(run).join() === "0,2,1" && T.engineRun(run).seats === 1 && T.seatOf(run, 2) === 0 && T.slotsOf({ seed: 1 }).join() === "0,1"
+    && T.engineRun({ seed: 1, mode: "coop", slots: [0, 1, 3] }).seats === 3 && T.seatOf({ mode: "coop", slots: [0, 1, 3] }, 3) === 2 && T.seatOf({ mode: "coop", slots: [0, 1] }, 4) === -1,
+    "a run's seats as the database keeps them: Versus each its own game, Co-op one seat each among those dealt in");
+  // three players on one map: Korbi answers every sum for 100 s, 1.5 s after it comes; Sarah the first ten, 2.5 s after;
+  // Tom never (he left)
+  const sums = S.timeline(4242, 1, 200000);
+  const answer = (who, seat, delay, list) => list.map(s => ({ id: `${who}${s.id}`, t: s.at + delay, seat, token: `s${s.id}` }));
+  const korbi = answer("k", 0, 1500, sums.filter(s => s.at < 100000)), sarah = answer("s", 1, 2500, sums.slice(0, 10));
+  const taps = T.tapsOf(roundTrip(Object.fromEntries([...korbi, ...sarah].map(({ id, ...x }) => [id, x]))));
+  // at any moment before Sarah stops, what's on each screen is the one timeline less what each has answered: Korbi's
+  // the sums of the last 1.5 s, Sarah's of the last 2.5 s
+  let same = 0;
+  for (let t = 3000; t < sums[9].at; t += 450) {
+    const on = (slot, delay) => S.play({ seed: 4242, seats: 1 }, T.theirTaps(taps, slot), t).sums.map(s => `${s.id}@${s.at}:${s.text}`).join();
+    const due = delay => sums.filter(s => s.at <= t && s.at + delay > t).map(s => `${s.id}@${s.at}:${s.text}`).join();
+    if (on(0, 1500) === due(1500) && on(1, 2500) === due(2500)) same++; else console.log("not the same map at", t, on(0), due(1500));
+  }
+  check(same > 10,
+    `Versus: the same sums thrown at the same moments for every seat, each player's taps clearing only their own (${same} moments)`);
+  const mid = T.versusStandings(run, taps, 60000);
+  check(mid.map(r => r.slot).join() === "0,1,2" && mid[2].over != null && mid[0].over == null && !T.versusOver(mid) && !T.versusResult(mid, 0),
+    "the standings at a moment: best score first, one who left out of lives on their own, the match not over while anyone plays");
+  const end = T.versusStandings(run, taps, 200000);
+  const ra = T.versusResult(end, 0), rb = T.versusResult(end, 1);
+  check(T.versusOver(end) && ra?.won && !ra.coop && ra.score === end[0].score && rb && !rb.won, `the end: everyone out of lives, the sole first wins (scores ${end.map(r => r.score).join(", ")})`);
+  const tie = T.versusStandings({ seed: 4242, slots: [0, 1], mode: "versus" }, [], 200000);
+  check(T.versusOver(tie) && tie.every(r => r.rank === 1) && !T.versusResult(tie, 0).won, "a draw wins nobody the match");
 }
 console.log(bad ? `${bad} problems` : "all checks pass");
 if (bad) process.exitCode = 1;

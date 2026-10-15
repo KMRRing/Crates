@@ -102,3 +102,29 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .sp-toast.show { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .sp-token.new, .sp-token.bad, .sp-burst, .sp-life.hit { animation: none; } }
+
+/* at a table (README, Spot at a table). The line under the header: everyone else in their seat's colour, Versus with
+   their score as they play */
+.sp-partner { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sp-partner .ld { margin-right: .35rem; }
+.sp-who b { color: var(--ink); }
+.sp-who .standings-dot { display: inline-block; margin-right: .3rem; vertical-align: .05em; }
+.sp-who.away { opacity: .7; }
+/* a table's card (its standings, who's here) scrolls inside itself on a short screen rather than leave the field */
+.sp-card { max-height: calc(100% - 2.6rem); overflow-y: auto; overscroll-behavior: contain; }
+/* Versus or Co-op, in the lobby: a segmented pair, the one chosen a plate */
+.sp-modes { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--brass); border-radius: 4px; overflow: hidden; }
+.sp-modes button { min-height: 2.6rem; border: 0; background: transparent; color: var(--ink); font: inherit; font-weight: 800; font-size: .9rem;
+  text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); cursor: pointer; }
+.sp-modes button + button { border-left: 1.5px solid var(--brass); }
+.sp-modes button[aria-checked="true"] { background: var(--plate); color: var(--plate-ink); }
+.sp-card .sp-seats { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem .9rem; color: var(--ink); font-weight: 750; }
+.sp-standings { --duel-in: var(--sp-or); text-align: left; }
+.sp-standings .duel-rank { margin: 0; gap: .2rem; }
+.sp-standings .duel-rank li { padding: .22rem .6rem; align-items: center; }
+.sp-card .sp-wait { display: flex; align-items: center; justify-content: center; gap: .1rem; font-size: .9rem; }
+/* the standings card: a column whose list scrolls inside it when six don't fit, so Play again is never out of reach */
+.sp-card.fill { display: flex; flex-direction: column; overflow: hidden; }
+.sp-card.fill > * { flex: none; }
+.sp-card.fill > .sp-standings { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sp-card .sp-link { justify-self: center; align-self: center; padding: .2rem .5rem; font: inherit; font-size: .95rem; }
