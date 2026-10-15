@@ -88,7 +88,7 @@ check(/runChoice\(/.test(src("rush-sheet.js")) && /modeChoice\(/.test(src("rush-
 const RUSHES = [...ON_PAGE, "river-rush.js", "rush-sheet.js", "hong-rush.js", "tribute-rush.js"];
 const OWN_CLOCKS = RUSHES.filter(f => /\bconst MODES\s*=|\bRUSH_MS\b|\b(?:5|five) \* 60 \* 1000\b/.test(src(f)));
 check(!OWN_CLOCKS.length, `no rush keeps clocks of its own${OWN_CLOCKS.length ? `: ${OWN_CLOCKS.join(", ")}` : ""}`);
-const GAMES = ["gambit.js", "river.js", "hong.js", "tribute.js", "trumps.js", "gammon.js", "banquet.js", "bones.js"];
+const GAMES = ["gambit.js", "river.js", "hong.js", "tribute.js", "trumps.js", "gammon.js", "banquet.js", "bones.js", "contract.js"];
 const UNNAMED = GAMES.filter(f => !/action\("Puzzle rush"/.test(src(f)));
 check(!UNNAMED.length, `every game's menu calls it Puzzle rush${UNNAMED.length ? `, but not ${UNNAMED.join(", ")}` : ""}`);
 const NO_BESTS = GAMES.filter(f => !/bestsLine\(/.test(src(f)));
