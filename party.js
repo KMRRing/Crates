@@ -6,7 +6,7 @@
 // on its own page, at a table in the party's room where the computer takes the seats nobody has; or, for two, any game
 // with a duo match. The games are modules (party-core.js lists them, and what else a party can play); this page draws
 // the lobby, Party's game in progress and what's between, and moves that game on when it's this device's to run.
-import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf, ELSEWHERE, playable, fits, seatsText, tableFrom } from "./party-core.js";
+import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf, ELSEWHERE, playable, fits, seatsText, tableFrom, shownOf, mergeShown, recall } from "./party-core.js";
 import { joins, playHref, whoOf } from "./party-href.js";
 import { openTable, inviteSheet, createNarrator, tableInAddress, setTableParam, joinLink } from "./table-ui.js";
 import { getSync } from "./net.js";
@@ -19,8 +19,8 @@ import { busy } from "./loading.js";
 import "./pwa.js";
 
 // this code's version at a table: a device with older code updates (2: the host chooses any game, and the phones
-// follow it to that game's page)
-const APP = 2;
+// follow it to that game's page; 3: the games remember what they've shown the party, and deal none of it again)
+const APP = 3;
 const $ = id => document.getElementById(id);
 // each game's own stylesheet, named in its module (css: "party-<id>.css", a literal there, so tools/offline.mjs keeps
 // it), linked before themes.css so the themes' overrides still come last
@@ -57,6 +57,25 @@ function toast(msg, ms = 2600) {
   toastTimer = setTimeout(() => t.classList.remove("on"), ms);
 }
 
+// ---------- what the party has been shown ----------
+// The games remember what they've shown the party (branch.shown: Who am I's identities, dealt or rerolled), so none
+// comes round twice. This phone keeps all it has been shown, at every party it was at (SHOWN, by game), and brings it
+// to the next: what it remembers that the party doesn't goes to the table, and what the table has shown comes home.
+const SHOWN = "party:shown";
+let brought = "";                     // what this phone last took to the table, so a write that failed isn't repeated
+function remember(b) {
+  if (IN_FRAME) return;                                          // a watching frame's writes go nowhere
+  const mine = read(SHOWN, {}), { home, missing } = recall(mine, b);
+  if (JSON.stringify(home) !== JSON.stringify(mine)) write(SHOWN, home);
+  const sig = `${table.code}:${missing.map(id => `${id}${home[id].length}`)}`;
+  if (!missing.length || sig === brought) return;
+  brought = sig;
+  table.act(cur => {
+    cur.shown ||= {};
+    for (const id of missing) cur.shown[id] = mergeShown(home[id], shownOf(cur, id));
+  });
+}
+
 // ---------- the table ----------
 let branch = null, me = null, said = "", moving = false;
 const narrator = createNarrator();
@@ -66,6 +85,7 @@ const table = openTable({
   onState(b, m) {
     branch = b; me = m;
     keepHere(table.code);
+    remember(b);
     if (follow()) return;
     said = narrator.hear(b, m) || said;
     invite.update();

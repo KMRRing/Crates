@@ -6,9 +6,10 @@
 // the card it replaced not counting, never dealt one that's been dealt; the questions begin when everyone at the table
 // is ready for the cards as they are, or the host starts them); the questions (Next from any phone, once a turn; the
 // rounds counted as the turn comes round; the clock passing a turn; a player who leaves skipped); the end, every card
-// told; the players writing each other's identities; a mix of the decks.
+// told; the players writing each other's identities; a mix of the decks; nobody twice (none dealt or rerolled at a
+// party comes round again, nor what a phone brings from other parties, until a deck is dealt out, then the oldest).
 import { partyTable } from "./party-harness.js";
-import { gameById } from "../party-core.js";
+import { gameById, mergeShown, shownOf, recall } from "../party-core.js";
 import whoami, { cribOf, needed, poolOf, WRITE, MIXED } from "../party-whoami.js";
 import { DECKS, WHO } from "../party-whoami-bank.js";
 import { PEOPLE } from "../kb/items/whoami.js";
@@ -163,6 +164,52 @@ const used = t => Object.values(t.state.who).map(w => w.id);
 {
   const t = await partyTable(names(1));
   check(!(await t.start("whoami", {})), "Who am I? doesn't start alone");
+}
+
+// ---------- nobody twice ----------
+check(mergeShown(["a", "b", "c"], ["b", "d"]).join() === "a,c,b,d" && mergeShown({ 0: "a", 2: "b" }, null, ["a"]).join() === "b,a",
+  "what's been shown, merged: each thing once, where it was shown last, a list with holes read whole");
+{
+  // a party's evening: five games of four, a card rerolled in each, and nobody dealt who's been round the table before
+  const t = await partyTable(names(4)), seen = [];
+  let again = 0;
+  for (let game = 0; game < 5; game++) {
+    await t.start("whoami", { deck: "people" });
+    again += used(t).filter(id => seen.includes(id)).length;
+    seen.push(...used(t));
+    const target = t.uid(game % 4), before = t.state.who[target].id;
+    for (let i = 1; i <= 2; i++) await vote(t, (game + i) % 4, target);
+    const after = t.state.who[target].id;
+    again += seen.includes(after) ? 1 : 0;
+    seen.push(after);
+    if (before === after) again++;
+    await t.end();
+  }
+  check(seen.length === 25 && again === 0 && new Set(seen).size === 25, "five games at one party: none of the 25 cards dealt or rerolled came round again");
+  check(shownOf(t.branch, "whoami").join() === seen.join(), "the party keeps what it was shown, oldest first, rerolled cards with the rest");
+  // a phone that was at other parties brings what it was shown there, as party.js does: none of that is dealt either,
+  // and it takes home what this party showed
+  const before = shownOf(t.branch, "whoami"), mine = { whoami: famous.ids.filter(id => !before.includes(id)).slice(0, 150) };
+  const { missing } = recall(mine, t.branch);
+  check(missing.join() === "whoami" && recall({ whoami: before.slice(0, 5) }, t.branch).missing.length === 0, "a phone knows what it remembers that the party doesn't");
+  await t.seats[2].act(b => { b.shown ||= {}; for (const id of missing) b.shown[id] = mergeShown(mine[id], shownOf(b, id)); });
+  await t.settle();
+  await t.start("whoami", { deck: "people" });
+  const fresh = famous.ids.filter(id => !before.includes(id) && !mine.whoami.includes(id)), { home } = recall(mine, t.branch);
+  check(used(t).every(id => fresh.includes(id)), `what a phone brought from other parties isn't dealt either: the four from the ${fresh.length} nobody there has seen`);
+  check(home.whoami.length === 150 + 25 + 4 && used(t).every(id => home.whoami.slice(-4).includes(id)), "and the phone takes home all the party showed, the newest last");
+  await t.end();
+}
+{
+  // a deck dealt out: its last unseen first, then those shown longest ago, never one twice in a game
+  const twelve = Array.from({ length: 12 }, (_, i) => `P${i}`), brands = DECKS.find(d => d.id === "brands").ids;
+  const t = await partyTable(twelve);
+  for (let game = 0; game < 5; game++) { await t.start("whoami", { deck: "brands" }); await t.end(); }
+  const shown = shownOf(t.branch, "whoami"), left = brands.filter(id => !shown.includes(id));
+  await t.start("whoami", { deck: "brands" });
+  const dealt = used(t), oldest = shown.slice(0, 12 - left.length);
+  check(brands.length === 63 && left.length === 3 && new Set(dealt).size === 12 && left.every(id => dealt.includes(id)) && oldest.every(id => dealt.includes(id)),
+    "brands dealt out to twelve, five times: the sixth game deals the three left, then the nine shown longest ago");
 }
 
 console.log(bad ? `party-whoami: ${bad} failed` : "party-whoami: every check passed");

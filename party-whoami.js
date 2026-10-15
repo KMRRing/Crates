@@ -39,10 +39,21 @@ function whole(s) {
   s.used = s.used ? Object.values(s.used) : [];
   return s;
 }
-function deal(s, uids, rng) {
-  const picked = shuffle(poolOf(s.deck), rng).slice(0, uids.length);
+/**
+ * The identities a deal takes from, in the order it takes them: those not yet shown to the people at the party (dealt
+ * or rerolled, in any game, at this party or one their phones were at before: `shown`, oldest first), in a random
+ * order; then, once a deck has shown every one, those shown longest ago. A face that's been round the table before
+ * would be the first guess of anyone who saw it.
+ */
+function freshest(pool, shown, rng) {
+  const when = new Map(shown.map((id, i) => [id, i]));
+  return [...shuffle(pool.filter(id => !when.has(id)), rng), ...pool.filter(id => when.has(id)).sort((a, b) => when.get(a) - when.get(b))];
+}
+function deal(s, uids, rng, shown) {
+  const picked = freshest(poolOf(s.deck), shown, rng).slice(0, uids.length);
   uids.forEach((u, i) => { s.who[u] = { id: picked[i], n: WHO[picked[i]].n }; });
   s.used = [...picked];
+  return picked;
 }
 /** The players who may vote on a card: everyone dealt one who's at the table, but its owner. */
 const votersFor = (s, here, u) => s.order.filter(v => v !== u && here.has(v) && s.who[v]);
@@ -95,7 +106,7 @@ export default {
     { id: "timer", label: "A turn's clock", value: "0", choices: [["0", "None"], ["60", "1 minute"], ["120", "2 minutes"]] },
   ],
 
-  start({ players, options, rng }) {
+  start({ players, options, rng, shown = [] }) {
     const deck = options.deck || "people", timer = Number(options.timer) || 0, uids = players.map(p => p.uid);
     const s = { step: deck === WRITE ? "write" : "look", deck, timer, names: Object.fromEntries(players.map(p => [p.uid, p.name])),
       who: {}, order: shuffle(uids, rng), turn: 0, turnNo: 0, round: 0, rolls: {}, rerolls: 0 };
@@ -105,44 +116,49 @@ export default {
       s.say = "Each of you, write who the next player will be: someone, or something, the whole table knows. Don't let them see.";
       return s;
     }
-    deal(s, uids, rng);
+    s.show = deal(s, uids, rng, shown);
     s.say = "Everyone has someone to be. Look at the others' cards, not your own: vote to reroll any too obscure to guess, and tap Ready when you've seen them all.";
     return s;
   },
 
-  advance(state, { players, inputs, now, rng }) {
+  advance(state, { players, inputs, now, rng, shown = [] }) {
     const s = whole(structuredClone(state)), here = new Set(players.map(p => p.uid));
     const nameOfU = u => players.find(p => p.uid === u)?.name || s.names[u] || "Someone";
     if (s.step === "write") {
       const writers = Object.keys(s.writes).filter(u => here.has(u));
       if (!writers.length || !writers.every(u => clean(inputs[u]?.write))) return null;
-      const spare = shuffle(DECKS[0].ids, rng);
+      const spare = freshest(DECKS[0].ids, shown, rng), show = [];
       for (const [w, t] of Object.entries(s.writes)) {
         const text = here.has(w) && clean(inputs[w]?.write);
         if (text) s.who[t] = { n: text, by: w };
-        else { const id = spare.find(x => !Object.values(s.who).some(v => v.id === x)); s.who[t] = { id, n: WHO[id].n }; }   // a writer who left: the deck's
+        else {                                                    // a writer who left: the deck's
+          const id = spare.find(x => !Object.values(s.who).some(v => v.id === x));
+          s.who[t] = { id, n: WHO[id].n };
+          show.push(id);
+        }
       }
       delete s.writes;
-      return { state: s, say: `Everyone has someone to be. ${begin(s, here, now, nameOfU)}` };
+      return { state: s, say: `Everyone has someone to be. ${begin(s, here, now, nameOfU)}`, show };
     }
     if (s.step === "look") {
-      // the cards most of the others voted down, dealt again from what nobody has had
-      const rerolled = [];
+      // the cards most of the others voted down, dealt again from what nobody has had: not in this game, nor before
+      const rerolled = [], show = [];
       for (const u of s.order) {
         if (!s.who[u]?.id) continue;
         const voters = votersFor(s, here, u);
         if (!voters.length || votesOn(s, inputs, here, u).length < needed(voters.length)) continue;
-        const id = shuffle(poolOf(s.deck), rng).find(x => !s.used.includes(x));
+        const id = freshest(poolOf(s.deck), shown, rng).find(x => !s.used.includes(x));
         if (!id) continue;
         s.who[u] = { id, n: WHO[id].n };
         s.used.push(id);
+        show.push(id);
         s.rolls[u] = (s.rolls[u] || 0) + 1;
         rerolled.push(u);
       }
       if (rerolled.length) {
         s.rerolls++;                                              // a Ready from before the new card no longer counts
         const who = rerolled.map(u => `${nameOfU(u)}'s`);
-        return { state: s, say: `${names(who)} ${rerolled.length === 1 ? "card is" : "cards are"} dealt again. Have a look.` };
+        return { state: s, say: `${names(who)} ${rerolled.length === 1 ? "card is" : "cards are"} dealt again. Have a look.`, show };
       }
       // everyone at the table has seen the cards as they are, or the host starts it
       const seated = s.order.filter(u => here.has(u) && s.who[u]);

@@ -4,8 +4,8 @@
 //   { id, name, zh?, min, max, blurb, rules: [paragraphs], options: [{ id, label, choices: [[value, text]…], value }],
 //     css?: "party-<id>.css" (its own styles, linked by party.js before themes.css),
 //     need?(players, options) → what stops it starting, in words, or "" (min and max are checked otherwise),
-//     start({ players, options, rng, now }) → state,
-//     advance(state, { players, inputs, now, rng }) → { state, say } | null,
+//     start({ players, options, rng, now, shown }) → state (with show: [what it has just shown], if it remembers),
+//     advance(state, { players, inputs, now, rng, shown }) → { state, say, show? } | null,
 //     wakeAt(state) → a time (the database's, ms) to call advance again, or null,
 //     view(stage, ctx) }
 //
@@ -14,7 +14,10 @@
 // game and the table's move number, the same every time). It gathers what the players sent (inputs: their votes,
 // clues, guesses, each tagged with the step it was for) and moves the game on, or says nothing changed (null). What
 // a player does on their own turn (I've said mine) can instead go straight into the state (ctx.act in party.js).
-// players: [{ uid, pid, name, seat }] in seat order, the people at the table now.
+// players: [{ uid, pid, name, seat }] in seat order, the people at the table now. shown: what the game has shown the
+// people at this party before, oldest first (branch.shown, where every phone also brings what it has been shown at
+// other parties: party.js), so a game that deals things (Who am I's identities) needn't deal one twice; what it
+// reports with `show` is added.
 import undercover from "./party-undercover.js";
 import whoami from "./party-whoami.js";
 import echo from "./party-echo.js";
@@ -57,6 +60,36 @@ export function inputsFor(branch, step) {
   return out;
 }
 
+// ---------- what the games have shown ----------
+// The database may give a list back as an object with holes; a game remembers at most KEEP things, the newest.
+const listOf = x => (x ? Object.values(x).filter(v => v != null) : []);
+const KEEP = 2000;
+/** What a game has shown at the party, oldest first. */
+export const shownOf = (branch, id) => listOf(branch?.shown?.[id]);
+/** Lists of what's been shown, each oldest first and each newer than the one before, as one: everything once, where
+ *  it was shown last. */
+export function mergeShown(...lists) {
+  const out = [], had = new Set();
+  for (const list of lists.reverse()) for (const x of listOf(list).reverse()) if (!had.has(x)) { had.add(x); out.push(x); }
+  return out.reverse().slice(-KEEP);
+}
+function addShown(branch, id, show) {
+  if (!listOf(show).length) return;
+  branch.shown ||= {};
+  branch.shown[id] = mergeShown(shownOf(branch, id), show);
+}
+/** A phone's memory of what it has been shown (`mine`, by game, from earlier parties) beside the party's: { home: its
+ *  memory with the party's added, missing: the games of which it remembers something the party doesn't }. */
+export function recall(mine, branch) {
+  const home = {}, missing = [];
+  for (const id of new Set([...Object.keys(mine || {}), ...Object.keys(branch?.shown || {})])) {
+    const here = shownOf(branch, id);
+    home[id] = mergeShown(mine?.[id], here);
+    if (home[id].length > here.length) missing.push(id);
+  }
+  return { home, missing };
+}
+
 /** A game's options as chosen, each one it has filled in with its default. */
 export const optionsOf = (game, options = {}) => Object.fromEntries((game.options || []).map(o => [o.id, options[o.id] ?? o.value]));
 
@@ -79,8 +112,10 @@ export function startGame(branch, id, options = {}, now = Date.now()) {
   if (!game || needOf(game, players, options)) return false;
   const seq = (branch.game?.seq || branch.played || 0) + 1, seed = (Math.random() * 2 ** 32) >>> 0;
   const opts = optionsOf(game, options);
-  const state = game.start({ players, options: opts, rng: seeded(seed), now });
+  const state = game.start({ players, options: opts, rng: seeded(seed), now, shown: shownOf(branch, id) });
   if (!state) return false;
+  addShown(branch, id, state.show);
+  delete state.show;
   branch.game = { id, seq, seed, options: opts, state, started: now };
   branch.played = seq;
   delete branch.inputs;
@@ -97,9 +132,11 @@ export function advanceGame(branch, now = Date.now()) {
   if (!g || !game) return false;
   const step = g.state?.step;
   const inputs = inputsFor(branch, step);
-  const r = game.advance(g.state, { players: playersOf(branch), inputs, now, rng: seeded((g.seed ^ Math.imul(branch.rev || 0, 2654435761)) >>> 0) });
+  const r = game.advance(g.state, { players: playersOf(branch), inputs, now, rng: seeded((g.seed ^ Math.imul(branch.rev || 0, 2654435761)) >>> 0),
+    shown: shownOf(branch, g.id) });
   if (!r || !r.state) return false;
   g.state = r.state;
+  addShown(branch, g.id, r.show);
   if (r.state.step !== step) delete branch.inputs;               // what was sent for the step just closed
   if (r.say) branch.say = { n: (branch.say?.n || 0) + 1, text: r.say, lang: r.lang || "en-GB", at: now };
   // a game over: its winners' wins counted for the evening, by player (a player's other device is the same player)
