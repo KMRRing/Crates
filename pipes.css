@@ -12,6 +12,10 @@ html[data-mode="night"] { --pi-in: #E08A5C; --pi-good: #7FC2A8; --pi-bad: #E8806
 .pi-hud { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .5rem 0 .3rem; min-height: 2.1rem; }
 .pi-score { flex: 1 1 auto; min-width: 0; text-align: center; white-space: nowrap; }
 .pi-score b { font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+/* together, the others' scores under yours (duel.js fills it; a tap opens the match) */
+.pi-rival { display: block; font-size: .72rem; font-weight: 600; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pi-rival[hidden] { display: none; }
+.pi-score .pi-rival b { font-size: inherit; letter-spacing: 0; }
 .pi-lives { flex: none; display: flex; gap: .3rem; }
 .pi-life { width: .875rem; height: .875rem; border-radius: 50%; background: var(--pi-in); }
 .pi-lives.four { gap: .25rem; }

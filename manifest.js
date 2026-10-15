@@ -1,12 +1,13 @@
 // Manifest: each round opens with an order book (the questions to come, by kind, with prices); the stack comes in,
 // holds (ship it early for a bonus) and is gone; then the questions open: answer any, pass any. Change rounds bring
 // the stack back after a blank stage with something different. The engine (manifest-engine.js) makes the rounds;
-// this file shows them and takes the answers.
+// this file shows them and takes the answers. Together, the same stacks for everyone at the table (duel.js).
 import { LIVES, ROUNDS, COLOURS, VIEWS, KINDS, makeRound, priceOf, skillFactor, recordAfter, shipBonus, turn, cubeFaces, drawOrder, isoPoint, visibleSet, boxFor } from "./manifest-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "manifest:run2", BEST = "manifest:best", DAILY = "manifest:daily", RECORD = "manifest:record";
@@ -22,7 +23,7 @@ let picked = [];              // a swap round: the containers tapped so far
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
-const save = () => write(RUN, S);
+const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
 const money = n => n.toLocaleString("en-GB");
 const node = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
@@ -36,9 +37,10 @@ function start(mode) {
 function openRound() {
   R = makeRound(S.seed, S.round);
   const record = read(RECORD, {});
+  // a match prices every order at its plain price, the same for everyone, whatever each one's record
   Object.assign(S, { phase: "orders", answers: {}, skipped: [], judged: false, bonus: 1,
-    prices: R.orders.map(o => priceOf(o.type, S.round, record[o.type])),
-    trend: R.orders.map(o => { const f = skillFactor(record[o.type]); return f < 0.9 ? "↓" : f > 1.1 ? "↑" : ""; }) });
+    prices: R.orders.map(o => priceOf(o.type, S.round, S.duel ? undefined : record[o.type])),
+    trend: R.orders.map(o => { if (S.duel) return ""; const f = skillFactor(record[o.type]); return f < 0.9 ? "↓" : f > 1.1 ? "↑" : ""; }) });
   save();
   drawOrders();
 }
@@ -256,6 +258,7 @@ const truthText = q => (q.as === "number" ? String(q.answer) : q.as === "colour"
 function reviewPhase(focus = null) {
   judge();
   S.phase = "review";
+  if (S.duel && (S.lives <= 0 || S.round >= ROUNDS)) tell(true);   // a match's last round judged: the result is final
   save();
   title();
   clear();
@@ -296,6 +299,7 @@ function reviewPhase(focus = null) {
 function over() {
   S.phase = "over";
   save();
+  if (S.duel) { tell(true); duel.open(); return; }        // the table's result, not your best or today's
   const best = S.mode === "daily" ? bestDaily(S.score) : bestEver(S.score);
   const body = $("menuBody");
   body.replaceChildren();
@@ -433,12 +437,69 @@ function stage(cells, opts = {}) {
   return { panel, drops };
 }
 
+// ---------- together: the same stacks for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's twelve rounds, the same stacks and the same questions, at the same plain
+// prices (your record moves your own prices, not a match's), and plays them through on their own phone; the others'
+// scores show in the score line. The highest score wins, then the quicker. Your solo run, bests and today's stay as they
+// were; your record still learns from your answers.
+const duel = createDuel({
+  game: "manifest", name: "Manifest", accent: "--mf-in", line: $("rival"), toast: msg => toast(msg),
+  deal: () => ({ seed: randomSeed() }),
+  describe: () => `The same ${ROUNDS} stacks for everyone, at the same prices`,
+  play: (match, { kept }) => {
+    clearTimeout(showTimer);
+    if (kept?.seed === match.seed && kept.phase) {
+      S = kept;
+      R = makeRound(S.seed, S.round);
+      drawHud();
+      if (S.phase === "orders") drawOrders();
+      else if (S.phase === "show") showStack();
+      else if (S.phase === "ask") askPhase();
+      else reviewPhase();
+    } else {
+      S = { seed: match.seed, mode: "duel", duel: true, round: 1, score: 0, lives: LIVES, right: 0, wrong: 0, passed: 0 };
+      openRound();
+    }
+    tell();
+  },
+  onLobby: () => { clearTimeout(showTimer); S = null; lobby(); },
+  onLeave: () => { clearTimeout(showTimer); solo(); },
+});
+/** What the table sees of this run: the score, and the round. */
+function tell(done = false) {
+  if (!S?.duel) return;
+  duel.report({ score: S.score, text: done ? money(S.score) : `${money(S.score)} · round ${S.round}`, ...(done ? { done: true } : {}) });
+}
+/** The stage before a match: empty. */
+function lobby() {
+  $("round").textContent = `${ROUNDS} rounds, together`;
+  $("score").textContent = "0";
+  $("lives").replaceChildren(...Array.from({ length: LIVES }, () => node("i", "mf-life")));
+  $("title").textContent = "";
+  clear();
+  viewOn(false);
+}
+let toastTimer = null;
+function toast(msg, ms = 2600) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), ms);
+}
+
 // ---------- menu and messages ----------
 // the menu: Play (start the run you've chosen), Content (random or today's), About (your bests)
 let pick = null;                                              // the run the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  $("menuDlg").querySelector("h2").textContent = "Menu";
+  if (duel.on) {
+    duel.menu(part(body, "together"));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   pick ??= S?.mode === "daily" ? "daily" : "random";
   part(body, "play").append(action("Start a run", () => confirmStart(pick), "primary"));
   part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
@@ -458,18 +519,25 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 document.addEventListener("visibilitychange", () => { if (document.hidden && S?.phase === "show") { clearTimeout(showTimer); showStack(); } });  // a hidden stack is shown again from the start
 
-window.__manifest = { get state() { return S; }, get round() { return R; }, answer, start, ship: () => endShow(1) };   // for tests and debugging
+window.__manifest = { get state() { return S; }, get round() { return R; }, answer, start, ship: () => endShow(1), over, duel };   // for tests and debugging
 
-S = read(RUN, null);
-const hash = new URLSearchParams(location.hash.slice(1));
-const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
-if (linked && !(S && S.seed === linked && S.mode === mode)) { S = { seed: linked, mode, round: 1, score: 0, lives: LIVES, right: 0, wrong: 0, passed: 0 }; openRound(); }
-else if (!S || S.phase === "over" || !S.phase) start("random");
-else {                                               // a saved run picks up where it was; a showing starts again
-  R = makeRound(S.seed, S.round);
-  drawHud();
-  if (S.phase === "orders") drawOrders();
-  else if (S.phase === "show") showStack();
-  else if (S.phase === "ask") askPhase();
-  else reviewPhase();
+function solo() {
+  S = read(RUN, null);
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
+  if (linked && !(S && S.seed === linked && S.mode === mode)) { S = { seed: linked, mode, round: 1, score: 0, lives: LIVES, right: 0, wrong: 0, passed: 0 }; openRound(); }
+  else if (!S || S.phase === "over" || !S.phase || S.duel) start("random");
+  else {                                               // a saved run picks up where it was; a showing starts again
+    R = makeRound(S.seed, S.round);
+    drawHud();
+    if (S.phase === "orders") drawOrders();
+    else if (S.phase === "show") showStack();
+    else if (S.phase === "ask") askPhase();
+    else reviewPhase();
+  }
 }
+// a match in the address: its stacks, with no solo run dealt under it
+if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
+else solo();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });

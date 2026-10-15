@@ -196,6 +196,8 @@ export const ELSEWHERE = [
   { id: "blend", name: "Blend", kind: "duo", duo: "blend", page: "blend.html", max: 6, race: true, blurb: "The same fuel order for everyone: certify on spec at the best margin." },
   { id: "arb", name: "Arb", kind: "duo", duo: "arb", page: "arb.html", max: 6, race: true, blurb: "The same five routes through the links for everyone: cheapest wins." },
   { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same concession for everyone: claim the ore with the most credits left." },
+  { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, race: true, blurb: "The same stacks for everyone: watch, then answer for the most." },
+  { id: "pipes", name: "Pipes", kind: "duo", duo: "pipes", page: "pipes.html", max: 6, race: true, blurb: "The same seeded run for everyone, an act or more: the most delivered wins." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {

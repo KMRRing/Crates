@@ -1,12 +1,13 @@
 // Pipes: turn tiles ahead of the flow. The engine (pipes-engine.js) builds levels and moves the flow; the run's rules
 // (pipes-run.js) deal the jobs and the boons and score a delivery; this file draws the board, takes taps and runs the
-// clock.
+// clock. Together, the same seeded run for everyone at the table, an act or more of it (duel.js).
 import { LIVES, PRODUCTS, DIRS, ACTS, ACT_LENGTH, makeLevel, newRun, turn, advance, openings, levelOf, trace, rightTurn } from "./pipes-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, action, line, onPause } from "./menu.js";
 import { today, IN_FRAME } from "./suite.js";          // the day, the same for everyone (UTC); a partner watching's frame
 import { BOONS, BOSSES, SLOTS, TIERS, doorsFor, termsFor, describe, cargoFor, isFinale, finaleOf, tileEffects, tally, summarize, interestOn } from "./pipes-run.js";
+import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
@@ -70,15 +71,15 @@ function offersFor(seed, tools) {
 const drift = (m, r) => Math.min(1.4, Math.max(0.7, +(m * (1 + (r - 0.5) * 0.24)).toFixed(3)));
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
-const save = () => write(RUN, S);
+const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
 
 // ---------- the run ----------
 // A run is a string of jobs (pipes-run.js): before each level, three doors, each a job's twist and the boon that
 // delivering it earns; boons sit in five slots and score as the oil passes; a failure retries the same job.
-function start(mode, seed = mode === "daily" ? today() : randomSeed()) {
+function start(mode, seed = mode === "daily" ? today() : randomSeed(), match = null) {
   S = { seed, mode, n: 1, score: 0, lives: LIVES, maxLives: LIVES, attempt: 0, phase: "pick", market: { crude: 1, hvo: 1 }, tool: null,
-    boons: [], grow: {}, streak: 0, job: null, pending: null, ledger: null, top: null };
-  history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
+    boons: [], grow: {}, streak: 0, job: null, pending: null, ledger: null, top: null, ...(match ? { duel: true, acts: match.acts } : {}) };
+  if (!match) history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
   L = R = terms = null;
   offerJobs();
 }
@@ -174,7 +175,7 @@ function frame(now) {
   raf = requestAnimationFrame(frame);
   const dt = Math.min(100, now - clock.last);
   clock.last = now;
-  if (S.phase !== "plan" && S.phase !== "flow") return;
+  if (!S || (S.phase !== "plan" && S.phase !== "flow")) return;
   const was = S.phase, filled = R.tilesFilled;
   step(dt);
   if (R.trail.length > fx.seen) fire(true);
@@ -315,6 +316,7 @@ function endLevel() {
     if (!S.top || t.total > S.top.total) S.top = { total: t.total, netback: t.netback, mult: t.mult, n: S.n };
     const reward = collect();
     S.ledger = { ...ledgerOf(t), outcome: terms.quota != null ? "met" : "delivered", quota: terms.quota, interest, reward };
+    if (S.duel && S.n >= S.acts * ACT_LENGTH) S.phase = "over";   // a match's last level delivered: its result is final
     $("status").textContent = `Delivered: +${num(S.score - before)}`;
     $("note").textContent = pickNote() || (reward?.full ? `Your ${SLOTS} slots are full: next, choose what ${BOONS[reward.id].name} replaces, or leave it.` : "");
     goButton();
@@ -334,6 +336,7 @@ function endLevel() {
     else { S.phase = "done"; S.after = "retry"; drawTools(); }
     goButton();
   }
+  if (S.phase === "over") tell(true);
   keepLive({ status: $("status").textContent, note: $("note").textContent });
   drawHud();
   drawLedger(true);
@@ -369,7 +372,7 @@ function collect() {
 function nextLevel() {
   S.n++; S.attempt = 0;
   if (levelOf(S.n).place === 0 && S.lives < (S.maxLives ?? LIVES)) { S.lives++; toast(`Act ${actNo(S.n)}: a life back`); }
-  const r = Math.random, m = S.market;
+  const r = S.duel ? seeded(S.seed * 31 + S.n) : Math.random, m = S.market;   // a match's prices drift alike for everyone
   S.market = { crude: drift(m.crude, r()), hvo: drift(m.hvo, r()) };
   offerJobs();
 }
@@ -382,6 +385,7 @@ function pickNote() {
   return took === L.choice.better ? `The ${took} terminal was the better pick here.` : `The ${L.choice.better} terminal would have netted about ${L.choice.by} more.`;
 }
 function over() {
+  if (S.duel) { tell(true); duel.open(); return; }          // the table's result, not your best or today's
   const best = S.mode === "daily" ? bestDaily() : bestEver();
   const body = $("menuBody");
   body.replaceChildren();
@@ -854,11 +858,78 @@ function toast(msg, ms = 2000) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
+// ---------- together: the same run for everyone at the table (duel.js) ----------
+// Everyone at the table plays the match's seed for an act or more (the menu's Length): the same first doors, the same
+// boards and bosses for the same choices, and the same prices, which drift between levels alike for everyone. Each
+// builds their own run on their own phone, and the others' scores and levels show under yours. A match's clock doesn't
+// stop for the menu. The highest score once the last level is delivered (or the lives are gone) wins, then the
+// quicker. Your own run, bests and today's stay as they were.
+const LENGTHS = [[1, "One act"], [2, "Two acts"], [3, "Three acts"]];
+let duelActs = read("pipes:acts", 2);
+const duel = createDuel({
+  game: "pipes", name: "Pipes", accent: "--pi-in", line: $("rival"), toast,
+  deal: () => ({ seed: randomSeed(), acts: [1, 2, 3].includes(duelActs) ? duelActs : 2 }),
+  describe: m => `${LENGTHS.find(([n]) => n === m.acts)?.[1] || "Two acts"}, ${m.acts * ACT_LENGTH} levels: the same run for everyone`,
+  extra: () => (S?.duel ? buildOf() : null), extraTitle: "Your build",
+  play: (match, { kept }) => {
+    cancelAnimationFrame(raf);
+    if (kept?.seed === match.seed && kept.phase) {           // picked up where it was, as a reload of your own run is
+      S = kept;
+      const live = S.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
+      if (S.phase === "pick") showJobs();
+      else if ((S.phase === "done" || S.phase === "over") && live) resumeLive();
+      else if (S.phase === "over") { lobby(); $("status").textContent = `Run over: ${num(S.score)}`; }
+      else beginLevel();
+    } else start("duel", match.seed, match);
+    tell(S.phase === "over");
+  },
+  onLobby: () => { cancelAnimationFrame(raf); S = null; lobby(); },
+  onLeave: () => { cancelAnimationFrame(raf); solo(); },
+});
+const seeded = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+/** What the table sees of this run: the score, and the level. */
+function tell(done = false) {
+  if (!S?.duel) return;
+  duel.report({ score: S.score, text: done ? num(S.score) : `${num(S.score)} · level ${S.n}`, ...(done ? { done: true } : {}) });
+}
+/** The boons held and the best delivery, for the match's result. */
+function buildOf() {
+  const box = document.createElement("div");
+  if (S.boons?.length) {
+    const list = document.createElement("p");
+    list.className = "pi-build";
+    for (const id of S.boons) { const u = document.createElement("span"); u.className = `t${BOONS[id].tier}`; u.textContent = `${BOONS[id].icon} ${BOONS[id].name}`; list.append(u); }
+    box.append(list);
+  }
+  if (S.top) { const p = document.createElement("p"); p.className = "pi-top"; p.textContent = `Best delivery: ${num(S.top.total)}, ${num(S.top.netback)} ${multText(S.top.mult)}, on level ${S.top.n}.`; box.append(p); }
+  return box.childElementCount ? box : null;
+}
+/** The board before a match: empty. */
+function lobby() {
+  $("boons").replaceChildren();
+  $("score").textContent = "0";
+  $("lives").replaceChildren();
+  $("gauges").replaceChildren();
+  $("board").replaceChildren();
+  for (const id of ["brief", "doors", "ledger", "fillBtn", "viewBtn", "goBtn"]) $(id).hidden = true;
+  $("kit").replaceChildren();
+  $("status").textContent = "The same run for everyone";
+  $("note").textContent = "";
+}
+
 // the menu: Play (start the run you've chosen), Content (random or today's), About (your bests)
 let pick = null;                                              // the run the menu will start: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  $("menuDlg").querySelector("h2").textContent = "Menu";
+  if (duel.on) {                                              // a match: the table's own, and how long the next one runs
+    duel.menu(part(body, "together"));
+    part(body, "settings").append(choice("Length (the next match)", LENGTHS, duelActs, v => { duelActs = v; write("pipes:acts", v); }));
+    if (S?.boons?.length && S.phase !== "over") part(body, "about").append(line(`This run: ${S.boons.map(id => `${BOONS[id].icon} ${BOONS[id].name}`).join(", ")}.`));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   pick ??= S?.mode === "daily" ? "daily" : "random";
   part(body, "play").append(action("Start a run", () => confirmStart(pick), "primary"));
   part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
@@ -895,29 +966,36 @@ $("fillBtn").addEventListener("click", () => {
 });
 // the menu holds the oil where it is: no frames while it's open, and no catching up after
 let heldFrame = false;
-onPause(() => { if (S?.phase === "plan" || S?.phase === "flow") { cancelAnimationFrame(raf); heldFrame = true; } },
+onPause(() => { if ((S?.phase === "plan" || S?.phase === "flow") && !S.duel) { cancelAnimationFrame(raf); heldFrame = true; } },   // a match's clock runs on
   () => { if (!heldFrame) return; heldFrame = false; clock.last = performance.now(); raf = requestAnimationFrame(frame); });
 // a level left mid-way starts over, fresh; not while the tools' card covers the board (no clock runs, nothing is seen)
 document.addEventListener("visibilitychange", () => { if (document.hidden && !IN_FRAME && (S?.phase === "plan" || S?.phase === "flow") && !clock.brief) retryLevel(); });
 
 // for tests and debugging
-window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, get clock() { return clock; }, get terms() { return terms; }, get fx() { return fx; }, tap, start, choose: chooseJob, swap: settleSwap,
+window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, get clock() { return clock; }, get terms() { return terms; }, get fx() { return fx; }, tap, start, choose: chooseJob, swap: settleSwap, over, duel,
   skipBrief: () => { if (clock.brief) endBrief(); }, skipPlanning: () => { if (clock.brief) endBrief(); clock.planLeft = 0; },
   applySolution: () => { R.tiles.forEach((row, y) => row.forEach((t, x) => { if (!t.locked && !t.fixed) t.rot = L.solution[y][x]; drawTile(x, y); })); } };
 
-S = read(RUN, null);
-if (S) {
-  // a run saved before boons: its upgrades become boons, the last five taken in the slots
-  if (!S.boons) { S.boons = (S.upgrades || []).filter(id => BOONS[id]).slice(-SLOTS); delete S.upgrades; S.maxLives = LIVES + (S.boons.includes("crew") ? 1 : 0); S.lives = Math.min(S.lives, S.maxLives); }
-  S.grow ??= {}; S.streak ??= 0; S.maxLives ??= LIVES;
+function solo() {
+  S = read(RUN, null);
+  if (S) {
+    // a run saved before boons: its upgrades become boons, the last five taken in the slots
+    if (!S.boons) { S.boons = (S.upgrades || []).filter(id => BOONS[id]).slice(-SLOTS); delete S.upgrades; S.maxLives = LIVES + (S.boons.includes("crew") ? 1 : 0); S.lives = Math.min(S.lives, S.maxLives); }
+    S.grow ??= {}; S.streak ??= 0; S.maxLives ??= LIVES;
+  }
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
+  const kept = S?.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
+  if (IN_FRAME && S?.phase === "pick") showJobs();
+  else if (IN_FRAME && kept) resumeLive();
+  else if (linked && !(S && S.seed === linked && S.mode === mode)) start(mode, linked);
+  else if (!S || S.phase === "over" || S.duel) start("random");
+  else if (S.phase === "pick") showJobs();
+  else if (S.phase === "done" && kept && S.after) resumeLive();
+  else beginLevel();
 }
-const hash = new URLSearchParams(location.hash.slice(1));
-const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
-const kept = S?.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
-if (IN_FRAME && S?.phase === "pick") showJobs();
-else if (IN_FRAME && kept) resumeLive();
-else if (linked && !(S && S.seed === linked && S.mode === mode)) start(mode, linked);
-else if (!S || S.phase === "over") start("random");
-else if (S.phase === "pick") showJobs();
-else if (S.phase === "done" && kept && S.after) resumeLive();
-else beginLevel();
+// a match in the address: its run, with no solo one dealt under it
+if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
+else solo();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });

@@ -13,6 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="duel.css">
 <link rel="stylesheet" href="manifest.css">
 <link rel="stylesheet" href="themes.css">
 </head>
@@ -25,7 +26,7 @@
   </header>
 
   <div class="mf-hud">
-    <span class="mf-round" id="round"></span>
+    <span class="mf-round"><span id="round"></span><small id="rival" class="mf-rival" hidden></small></span>
     <span class="mf-score"><b id="score">0</b></span>
     <span id="lives" class="mf-lives" aria-label="Lives"></span>
   </div>
