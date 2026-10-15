@@ -128,3 +128,7 @@ html[data-mode="night"] { --sp-or: #E8805A; --sp-field: #0B1218; --sp-good: #7FC
 .sp-card.fill > * { flex: none; }
 .sp-card.fill > .sp-standings { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sp-card .sp-link { justify-self: center; align-self: center; padding: .2rem .5rem; font: inherit; font-size: .95rem; }
+/* co-op has no shelf: held sideways, the field takes the shelf's column as well */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.spot.coop .sp-field { grid-column: 1 / -1; }
+}

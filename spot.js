@@ -60,6 +60,7 @@ function clearField() {
   finished = null;
   shownMod = "";
   $("modifier").hidden = true;
+  $("app").classList.remove("coop");
   last = null;
   versusRows = null;
   shownResult = "";
@@ -138,6 +139,7 @@ function frame() {
   if (!run || pausedAt != null) return;
   const t = elapsed(), coop = run.mode === "coop";
   $("shelf").hidden = coop;
+  $("app").classList.toggle("coop", coop);                      // no shelf: held sideways, the field takes its column too
   if (t < 0) {
     if (mySeat >= 0) showCountdown(Math.ceil(-t / 1000));        // one sitting a co-op run out keeps its card
     if (!coop) drawShelf(null);
