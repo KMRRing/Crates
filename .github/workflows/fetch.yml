@@ -23,15 +23,23 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           printf '#!/bin/sh\ngit add -A out\ngit diff --cached --quiet && { echo "nothing new"; exit 0; }\ngit commit -q -m "$1"\ngit pull -q --rebase origin fetch/bavarian-cards\ngit push origin HEAD:fetch/bavarian-cards\n' > /tmp/save.sh
           chmod +x /tmp/save.sh
+      - name: Can the runner reach Commons
+        run: |
+          mkdir -p out
+          { date -u; curl -sS -m 20 -o /dev/null -w "api %{http_code} %{time_total}s\n" -A "AlmanacCards/1.0 (https://github.com/KMRRing/Crates)" "https://commons.wikimedia.org/w/api.php?action=query&meta=siteinfo&format=json"; } > out/probe.txt 2>&1 || true
+          cat out/probe.txt
       - name: The cards wanted
         if: hashFiles('fetch/want.json') != ''
         timeout-minutes: 15
-        run: node fetch/list.mjs cards && /tmp/save.sh "The cards wanted, from Commons"
+        run: node fetch/list.mjs cards > out/log-cards.txt 2>&1 || true
       - name: Index of Commons
         if: hashFiles('fetch/want.json') == ''
         timeout-minutes: 12
-        run: node fetch/list.mjs index && /tmp/save.sh "Index of Commons"
+        run: timeout 600 node fetch/list.mjs index > out/log-index.txt 2>&1 || true
       - name: Thumbnails
-        if: hashFiles('fetch/want.json') == ''
+        if: hashFiles('fetch/want.json') == '' && hashFiles('out/index.json') != ''
         timeout-minutes: 18
-        run: node fetch/list.mjs thumbs; /tmp/save.sh "Thumbnails from Commons"
+        run: timeout 900 node fetch/list.mjs thumbs > out/log-thumbs.txt 2>&1 || true
+      - name: Commit what was found
+        if: always()
+        run: /tmp/save.sh "Found on Commons"
