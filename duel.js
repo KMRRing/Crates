@@ -24,11 +24,11 @@ const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M1
  * it here; done: it's already over, so show it as it ended; run: what the table has of it, for a device that takes
  * a seat over without anything kept); describe(match): what it is, in a few words; compare: a sort
  * comparator over runs (byScore); lower: a lower score is better; extra(): the game's own lines under the result (what
- * you missed); line: where the others' scores show (else a line under the header); accent: the game's enamel
+ * you missed), headed extraTitle; line: where the others' scores show (else a line under the header); accent: the game's enamel
  * variable; onLobby(match): the board before a match starts; onLeave(): back to solo; toast(msg).
  */
 export function createDuel({ game, name, app = 1, deal, play, describe = () => "", compare, lower = false, extra = () => null,
-  line = null, accent = "--brass", onLobby = () => {}, onLeave = () => {}, toast = () => {} }) {
+  extraTitle = "Your run", line = null, accent = "--brass", onLobby = () => {}, onLeave = () => {}, toast = () => {} }) {
   compare ??= byScore(lower);
   const KEEP = `${game}:duel`;
   let cur = null;             // the table as last seen, with this device's finish laid over it until the database has it
@@ -266,9 +266,14 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
         body.append(wait);
       }
     }
-    if (mine?.run.done) { try { const more = extra(); if (more) body.append(more); } catch (e) { console.error(e); } }
     if (mine?.run.done && (over || !othersPlaying())) body.append(button("Rematch", again, "primary"));
     body.append(button("Back to solo", () => together.leave(), "link"));
+    if (mine?.run.done) {                                  // the game's own lines last, under the buttons: they can be long
+      try {
+        const more = extra();
+        if (more) { const box = el("section", "duel-extra"); box.append(el("h4", "", extraTitle), more); body.append(box); }
+      } catch (e) { console.error(e); }
+    }
   }
   function button(text, fn, kind) {
     const b = el("button", kind === "link" ? "link duel-link" : `btn wide${kind === "primary" ? " primary" : ""}`, text);

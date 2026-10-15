@@ -1,6 +1,7 @@
 // Brut: wine. Blind: a flight of six classic wines, the tasting note revealed stage by stage; name the wine from
 // six candidates as early as you dare. Study: the wine bank's cards, each a fact to learn and then a question, on
-// the pile. A wine you couldn't name until the palate goes to the pile too.
+// the pile. A wine you couldn't name until the palate goes to the pile too. Together, the same flight for everyone
+// at the table (duel.js).
 import { WINES } from "./brut-data.js";
 import { STAGES, BASE, WRONG, FLIGHT, points, pickFlight, optionsFor, noteText, SWEET, LEVEL, byId } from "./brut-engine.js";
 import { STAGES as UNITS, MATHS as CARDS } from "./wine-bank.js";
@@ -10,6 +11,7 @@ import "./pwa.js";
 import { dropdown } from "./dropdown.js";
 import { part, choice, toggle, action, line, mirror } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
+import { createDuel } from "./duel.js";
 
 dropdown(document.getElementById("mode"));   // the header dropdown in the suite's style (see dropdown.js)
 
@@ -18,6 +20,7 @@ const SAVE = "brut:save";
 const NEW_A_DAY = 15, REVIEW_CAP = 30;
 let P = read(SAVE, { mode: "blind", grapes: true, flight: null, best: {}, daily: {}, met: [], day: null });
 let session = null;    // study session: { items, at, right, wrong }
+let D = null;          // a match's flight (duel.js), kept apart from yours; null when you're not in a match
 
 function read(key, fallback) { try { return { ...fallback, ...(JSON.parse(localStorage.getItem(key)) || {}) }; } catch { return fallback; } }
 function save() { try { localStorage.setItem(SAVE, JSON.stringify(P)); } catch { /* private mode */ } }
@@ -49,12 +52,14 @@ function newFlight(daily) {
   save();
   drawBlind();
 }
-const F = () => P.flight;
+const F = () => (duel.on ? D : P.flight);
+/** A change to the flight in hand: yours into your save, a match's into the match's own keeping and to the table. */
+const keepFlight = () => { if (D && duel.on) { duel.keep(D); tell(); } else save(); };
 const wine = () => byId.get(F().wines[F().at]);
 function drawBlind() {
-  if (!F()) { newFlight(false); return; }
-  const f = F(), w = wine(), settled = f.scores.length > f.at;
-  $("flightPos").textContent = `${f.daily ? "Today's flight" : "Flight"} · wine ${f.at + 1} of ${FLIGHT}`;
+  if (!F()) { if (duel.on) lobby(); else newFlight(false); return; }
+  const f = F(), w = wine(), settled = f.scores.length > f.at, grapes = f.duel ? f.grapes : P.grapes;
+  $("flightPos").textContent = `${f.daily ? "Today's flight" : f.duel ? "Together" : "Flight"} · wine ${f.at + 1} of ${FLIGHT}`;
   $("score").textContent = String(f.scores.reduce((a, b) => a + b, 0));
   $("stages").replaceChildren(...STAGES.map((s, i) => { const li = el("li", i < f.stage || settled ? "done" : i === f.stage ? "now" : ""); li.append(s, el("small", null, settled ? "" : `${BASE[i]}`)); return li; }));
   $("glass").innerHTML = glassSvg(w);
@@ -63,7 +68,7 @@ function drawBlind() {
   $("options").replaceChildren(...opts.map(id => {
     const x = byId.get(id), b = el("button", "br-option");
     b.type = "button";
-    b.append(el("b", null, x.name), el("span", null, P.grapes ? `${x.grape} · ${x.region}` : x.region));
+    b.append(el("b", null, x.name), el("span", null, grapes ? `${x.grape} · ${x.region}` : x.region));
     if (f.struck.includes(id)) b.classList.add("struck");
     if (settled && id === w.id) b.classList.add("right");
     b.disabled = settled || f.struck.includes(id);
@@ -98,10 +103,10 @@ function drawNote(w, upto) {
   } else section("Palate", el("div", "faded", "…"));
   if (upto >= 3) section("Conclusions", el("div", null, `${w.world}; ${w.climate} climate; ${w.oak}.`));
 }
-function taste() { const f = F(); if (f.stage < STAGES.length - 1) { f.stage++; save(); drawBlind(); } }
+function taste() { const f = F(); if (f && f.stage < STAGES.length - 1) { f.stage++; keepFlight(); drawBlind(); } }
 function call(id) {
-  const f = F(), w = wine();
-  if (f.scores.length > f.at) return;
+  const f = F(), w = f && wine();
+  if (!f || f.scores.length > f.at) return;
   if (id === w.id) {
     const pts = points(f.stage, f.struck.length);
     f.scores.push(pts);
@@ -109,12 +114,13 @@ function call(id) {
     const right = f.stage < 2 && f.struck.length === 0;
     if (!right) pile.record("brut", `blind:${w.id}`, blindPayload(w, f.seed + f.at), "miss");
     else if (pile.has("brut", `blind:${w.id}`)) pile.answer("brut", `blind:${w.id}`, true);
-    save();
+    if (f.duel && f.at + 1 >= FLIGHT) { f.done = true; tell(true); }   // the last wine named: the match's result is final
+    keepFlight();
     drawBlind();
     return;
   }
   f.struck.push(id);
-  save();
+  keepFlight();
   drawBlind();
   const line = $("line");
   line.className = "br-line bad";
@@ -130,7 +136,9 @@ function blindPayload(w, seed) {
 }
 function nextWine() {
   const f = F();
-  if (f.at + 1 < FLIGHT) { f.at++; f.stage = 0; f.struck = []; save(); drawBlind(); return; }
+  if (!f) return;
+  if (f.at + 1 < FLIGHT) { f.at++; f.stage = 0; f.struck = []; keepFlight(); drawBlind(); return; }
+  if (f.duel) { duel.open(); return; }
   if (!f.done) {
     f.done = true;
     const total = f.scores.reduce((a, b) => a + b, 0), key = f.daily ? "daily" : "flight";
@@ -145,14 +153,53 @@ function showFlight() {
   $("doneTitle").textContent = f.daily ? "Today's flight" : "The flight";
   const body = $("doneBody");
   body.replaceChildren(el("p", "br-big", `${total}`), el("p", "stats", `of ${FLIGHT * 100}. Your best ${f.daily ? "on today's flight" : "flight"}: ${P.best[f.daily ? "daily" : "flight"] || total}.`));
-  const list = el("ol", "br-flight");
-  f.wines.forEach((id, i) => { const w = byId.get(id), li = el("li"); li.append(el("b", null, w.name), el("span", null, `+${f.scores[i] ?? 0}`), el("small", null, `${w.grape} · ${w.region}. ${w.tell}`)); list.appendChild(li); });
-  body.appendChild(list);
+  body.appendChild(flightList(f));
   const again = el("button", "btn primary wide", "Another flight");
   again.type = "button";
   again.addEventListener("click", () => { $("doneDlg").close(); newFlight(false); });
   body.appendChild(again);
   if (!$("doneDlg").open) $("doneDlg").showModal();
+}
+
+/** The flight's wines, each with what you scored on it and its tell. */
+function flightList(f) {
+  const list = el("ol", "br-flight");
+  f.wines.forEach((id, i) => { const w = byId.get(id), li = el("li"); li.append(el("b", null, w.name), el("span", null, `+${f.scores[i] ?? 0}`), el("small", null, `${w.grape} · ${w.region}. ${w.tell}`)); list.appendChild(li); });
+  return list;
+}
+
+// ---------- together: the same flight for everyone at the table (duel.js) ----------
+// Everyone at the table gets the match's six wines in the same order, with the same candidates, grapes shown or not
+// as the one who dealt it had them; each tastes and calls on their own phone, and the others' scores show beside
+// yours. The highest total wins, then the quicker. Your own flight, bests and today's stay as they were.
+const duel = createDuel({
+  game: "brut", name: "Brut", accent: "--br-in", line: $("rival"), toast,
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), grapes: !!P.grapes }),
+  describe: m => `Six wines, the same flight for everyone${m.grapes ? ", grapes on the candidates" : ""}`,
+  play: (match, { kept }) => {
+    D = kept?.seed === match.seed && kept.wines ? kept : { seed: match.seed, daily: false, duel: true, grapes: !!match.grapes, wines: pickFlight(match.seed), at: 0, stage: 0, struck: [], scores: [], done: false };
+    if (P.mode !== "blind") setMode("blind");
+    keepFlight(); drawBlind();
+  },
+  extra: () => (D ? flightList(D) : null), extraTitle: "Your flight",
+  onLobby: () => { D = null; if (P.mode !== "blind") setMode("blind"); else drawBlind(); },
+  onLeave: () => { D = null; setMode(P.mode === "study" ? "study" : "blind"); },
+});
+/** What the table sees of this flight: the score, and how far through. */
+function tell(done = false) {
+  const f = D, total = f.scores.reduce((a, b) => a + b, 0);
+  duel.report({ score: total, text: done ? String(total) : `${total} · wine ${Math.min(f.at + 1, FLIGHT)}`, ...(done ? { done: true } : {}) });
+}
+/** The glass before a match: empty. */
+function lobby() {
+  $("flightPos").textContent = "Together · six wines, the same for everyone";
+  $("score").textContent = "0";
+  $("stages").replaceChildren();
+  $("glass").replaceChildren();
+  $("note").replaceChildren();
+  $("options").replaceChildren();
+  $("line").className = "br-line"; $("line").textContent = "";
+  $("tasteBtn").hidden = true; $("nextBtn").hidden = true;
 }
 
 // ---------- study ----------
@@ -267,6 +314,12 @@ let pick = null;                                              // the flight the 
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
+  if (duel.on) {                                              // a match: the table's own; the grapes setting deals the next one
+    duel.menu(part(body, "together"));
+    part(body, "settings").append(toggle("Grapes on the candidates (the next match)", P.grapes, on => { P.grapes = on; save(); }));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
   part(body, "content").append(mirror("Mode", $("mode")));
   if (P.mode === "blind") {
     pick ??= false;
@@ -290,7 +343,7 @@ function setMode(m) {
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "brut");
 document.querySelector(".br-mark").innerHTML = APPS.find(a => a.id === "brut").logo;
-$("mode").addEventListener("change", e => setMode(e.target.value));
+$("mode").addEventListener("change", e => setMode(e.target.value));      // at a match too: Study, and back to the flight
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
@@ -298,5 +351,9 @@ $("tasteBtn").addEventListener("click", taste);
 $("nextBtn").addEventListener("click", nextWine);
 $("studyBtn").addEventListener("click", () => startStudy());
 $("studyNext").addEventListener("click", () => { session.at++; showItem(); });
-window.__brut = { get flight() { return P.flight; }, get wine() { return P.flight && wine(); }, call, taste, newFlight, startStudy, setMode, get session() { return session; } };
-setMode(P.mode === "study" ? "study" : "blind");
+window.__brut = { get flight() { return F(); }, get wine() { return F() && wine(); }, call, taste, nextWine, newFlight, startStudy, setMode, get session() { return session; }, duel };
+// a match in the address: its flight, with no solo flight dealt under it
+if (duel.inAddress) { $("mode").value = "blind"; $("blind").hidden = false; $("study").hidden = true; duel.join().then(ok => { if (!ok) setMode(P.mode === "study" ? "study" : "blind"); }); }
+else setMode(P.mode === "study" ? "study" : "blind");
+document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });

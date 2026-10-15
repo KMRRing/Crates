@@ -12,7 +12,11 @@ html[data-mode="night"] { --duel-ok: #7FC2A8; }
 .duel-who b { font-weight: 800; }
 .duel-who.on b { color: var(--ink); }
 
+/* the sheet scrolls as one piece when the game's lines make it long; its head, with the ×, stays at the top */
+dialog.duel-dlg { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+.duel-dlg .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); }
 .duel-dlg .duel-what { margin: 0 0 .5rem; color: var(--ink-soft); }
+.duel-extra { margin-top: .6rem; border-top: 1px solid var(--rule); }
 .duel-seats, .duel-rank { list-style: none; margin: .3rem 0 .6rem; padding: 0; display: grid; gap: .3rem; }
 .duel-seats li, .duel-rank li { display: flex; align-items: baseline; gap: .6rem; padding: .55rem .7rem; border-radius: 5px; background: var(--yard); }
 .duel-seats b, .duel-rank b { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }

@@ -289,7 +289,7 @@ const duel = createDuel({
     || (duel.match?.mode === "survival" ? (a.ms ?? Infinity) - (b.ms ?? Infinity) || 0 : 0),
   play: playDuel,
   onLobby: lobby,
-  extra: () => (S?.duel && S.misses.length ? missedList(S.misses) : null),
+  extra: () => (S?.duel && S.misses.length ? missedList(S.misses) : null), extraTitle: "The ones that got away",
   onLeave: () => { S = null; clearInterval(tick); board?.destroy(); board = null; showRating(true); solo(); },
 });
 const bands0 = () => Promise.all([loadBand(600), loadBand(800), loadBand(1000)]);

@@ -10,6 +10,9 @@ html[data-mode="night"] { --br-in: #D9849F; --br-good: #7FC2A8; --br-bad: #E8806
 .br-mark svg { width: 100%; height: 100%; display: block; }
 .br-head { display: flex; justify-content: space-between; align-items: center; margin: .3rem 0 .4rem; font-size: .88rem; color: var(--ink-soft); font-weight: 700; }
 .br-score b { font-size: 1.3rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* together, the others' scores between where you are and yours (duel.js fills it; a tap opens the match) */
+.br-rival { flex: 1 1 auto; min-width: 0; padding: 0 .6rem; text-align: center; font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.br-rival[hidden] { display: none; }
 .br-stages { list-style: none; padding: 0; margin: 0 0 .5rem; display: grid; grid-template-columns: repeat(4, 1fr); gap: .3rem; }
 .br-stages li { padding: .3rem .2rem; border-radius: 8px; text-align: center; font-size: .78rem; font-weight: 800; background: var(--sheet); color: var(--ink-soft); }
 .br-stages li.done { background: var(--br-in-soft); color: var(--br-in); }
