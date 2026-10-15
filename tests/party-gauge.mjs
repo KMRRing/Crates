@@ -1,10 +1,11 @@
 // Gauge (party-gauge.js, its scales party-gauge-cards.js), played in Node on the database in memory with the host's phone
 // running it (tests/party-harness.js): the scales; the target's bands; the table's needle (the middle of everyone's);
-// the verdicts; a game each for themselves (the clue-giver's choice of scale, the clue, needles moved and locked, the
-// points, the clue-giver's average, Next, the turn passing round the table, the end); a game together (the table's
-// needle, its score and verdict, two players allowed); the clock for the clue and for the dial; a clue-giver who leaves.
+// the verdicts; the clue-giver's target covered until they ask to see it; a game each for themselves (the clue-giver's
+// choice of scale, the clue, needles moved and locked, the points, the clue-giver's average, Next, the turn passing
+// round the table, the end); a game together (the table's needle, its score and verdict, two players allowed); the
+// clock for the clue and for the dial; a clue-giver who leaves.
 import { partyTable } from "./party-harness.js";
-import gauge, { pointsFor, median, verdictOf, endsOf, wedge, BANDS } from "../party-gauge.js";
+import gauge, { pointsFor, median, verdictOf, endsOf, wedge, BANDS, seeing } from "../party-gauge.js";
 import { CARDS } from "../party-gauge-cards.js";
 
 let bad = 0;
@@ -20,6 +21,13 @@ check(BANDS.every(([w, p], i) => !i || (w > BANDS[i - 1][0] && p < BANDS[i - 1][
 check(median([10, 90, 50]) === 50 && median([10, 20]) === 15 && median([0, 0, 100]) === 0, "the table's needle is the middle of everyone's: one wild needle doesn't drag it");
 check(verdictOf(4) === "Mind readers" && verdictOf(2.6) === "In tune" && verdictOf(2.59) === "Close enough" && verdictOf(0) === "Different stations", "the verdicts by points a round");
 check(!/NaN|undefined/.test(wedge(0, 12.5, 16, 100) + wedge(87.5, 100, 16, 100)), "a band at either end of the dial draws");
+{
+  // the target on the clue-giver's phone, by the part of the turn (game, round, step) it's in
+  const atStart = !seeing("1:0:clue"), shown = seeing("1:0:clue", true), stays = seeing("1:0:clue");
+  const guessing = !seeing("1:0:dial"), again = seeing("1:0:dial", true), hidden = !seeing("1:0:dial", true), next = !seeing("1:1:clue");
+  check(atStart && shown && stays && guessing && again && hidden && next,
+    "the clue-giver's target covered as their turn begins, shown at a tap and kept through redraws, covered again once the guessing starts and at the next tap");
+}
 
 // ---------- each for themselves ----------
 const NAMES = ["Korbi", "Mei", "Ana", "Bo", "Lin"];

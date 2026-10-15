@@ -71,7 +71,7 @@ export default {
   css: "party-gauge.css",
   blurb: "Place a clue on a scale between two opposites; the others turn a dial to find it.",
   rules: [
-    "Each round one player gives the clue, in turn round the table. They choose a scale between two opposites (Cold to Hot, Underrated to Overrated) and see where the target is on it, hidden from everyone else; then they write a clue that sits there: “lukewarm tea” a little left of the middle of Cold to Hot, “Paris” somewhere towards Overrated. Then they say nothing more.",
+    "Each round one player gives the clue, in turn round the table. They choose a scale between two opposites (Cold to Hot, Underrated to Overrated) and see where the target is on it, hidden from everyone else (on their phone it stays covered until they tap Show the target, and covers itself again once the clue is given); then they write a clue that sits there: “lukewarm tea” a little left of the middle of Cold to Hot, “Paris” somewhere towards Overrated. Then they say nothing more.",
     "Everyone else turns the dial on their phone to where they think the clue sits, and locks it in. The target is a band of points: 4 in the bullseye, 3 beside it, 2 at its edge.",
     "Each for themselves: you score what your needle scored, and the clue-giver scores what the guessers scored on average, so a clue that only you would get scores little. Together: talk it over; the table's needle is the middle of everyone's, and the table plays for its score, “In tune” or better counting as a win for everyone.",
   ],
@@ -181,13 +181,13 @@ export default {
         const picks = s.offer.map((c, i) => h("button", { type: "button", role: "radio", class: "gg-scale", "aria-checked": String(choice.i === i), onclick: () => pickScale(i) },
           h("span", {}, endsOf(s.lang, c)[0]), h("span", { class: "gg-arrow", "aria-hidden": "true" }, "⟷"), h("span", {}, endsOf(s.lang, c)[1])));
         side.push(h("p", { class: "pk-ask" }, "Your clue. Choose a scale:"), h("div", { class: "gg-scales", role: "radiogroup", "aria-label": "Scales" }, ...picks));
-        d.update({ ends: endsOf(s.lang, s.offer[choice.i]), target: s.target, interactive: false, mine: null, others: [], table: null });
+        d.update({ ends: endsOf(s.lang, s.offer[choice.i]), interactive: false, mine: null, others: [], table: null });
         // the box to type in above the dial: a phone's keyboard covers the bottom of the screen
         const input = h("input", { class: "pk-input", maxlength: 40, autocomplete: "off", placeholder: "Your clue", "aria-label": "Your clue" });
         const go = () => { const t = clean(input.value); if (t) ctx.send({ clue: t, card: choice.i, rn: s.rn }); };
         input.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
         ctx.keep(input, `clue${s.rn}`);
-        main.push(h("div", { class: "gg-row" }, input, button("Send", go)), d.el,
+        main.push(h("div", { class: "gg-row" }, input, button("Send", go)), d.el, peek(d, `${key}:clue`, s.target),
           h("p", { class: "gg-note" }, "Something that sits where the target is on the scale. Then say nothing more."));
       } else {
         side.push(h("p", { class: "pk-ask" }, `${nameOfU(s.psychic)} is choosing a scale and thinking of a clue…`));
@@ -206,10 +206,11 @@ export default {
       const showOthers = psychic || s.mode === "together";
       const others = showOthers ? guessers.filter(p => p.uid !== me.uid && typeof sent(p.uid)?.needle === "number").map(p => ({ v: sent(p.uid).needle, label: initial(p.uid), locked: !!sent(p.uid).lock })) : [];
       const vs = guessers.map(p => (p.uid === me.uid ? d.value : sent(p.uid)?.needle)).filter(v => typeof v === "number");
-      d.update({ ends, target: psychic ? s.target : null, interactive: guessing && !locked, mine: guessing ? d.value : null, others,
+      d.update({ ends, target: null, veiled: false, onTap: null, interactive: guessing && !locked, mine: guessing ? d.value : null, others,
         table: s.mode === "together" && vs.length > 1 ? median(vs) : null,
         onDrop: v => ctx.send({ needle: v, lock: false, rn: s.rn }) });
       main.push(d.el);
+      if (psychic) main.push(peek(d, `${ctx.seq}:${s.rn}:dial`, s.target));
       if (guessing) both(() => (locked ? button("Locked in · Change", () => ctx.send({ needle: d.value, lock: false, rn: s.rn }), { primary: false })
         : button("Lock in", () => ctx.send({ needle: d.value, lock: true, rn: s.rn }))));
       else if (psychic) side.push(h("p", { class: "gg-note" }, s.mode === "together" ? "Say nothing: watch them argue." : "Say nothing: watch the needles."));
@@ -241,6 +242,34 @@ export default {
   },
 };
 
+// ---------- the target on the clue-giver's phone ----------
+// Covered as each part of their turn begins (choosing the clue, then the guessing), so a glance over their shoulder or
+// at the phone on the table finds nothing; shown while they ask to see it. Kept by the part's key through the redraws
+// other players' moves cause.
+const veil = { key: "", shown: false };
+/** Whether the clue-giver is looking at the target in this part of their turn (key: the game, round and step); with
+ *  `flip`, they've just tapped to show or hide it. */
+export function seeing(key, flip = false) {
+  if (veil.key !== key) Object.assign(veil, { key, shown: false });
+  if (flip) veil.shown = !veil.shown;
+  return veil.shown;
+}
+/** The clue-giver's button under the dial, Show the target or Hide the target, drawing the dial to match; a tap on the
+ *  dial does the same (on a small phone the button can sit below the fold). */
+function peek(d, key, target) {
+  const b = button("", () => flip(), { primary: false, cls: "gg-peek" });
+  const draw = () => {
+    const on = seeing(key);
+    b.textContent = on ? "Hide the target" : "Show the target";
+    b.setAttribute("aria-pressed", String(on));
+    d.update({ target: on ? target : null, veiled: !on });
+  };
+  const flip = () => { seeing(key, true); draw(); };
+  d.update({ onTap: flip });
+  draw();
+  return b;
+}
+
 // ---------- the dial ----------
 // A half disc from one end of the scale (0, on the left) to the other (100), its needle turned by a finger. One dial a
 // step lives on through the redraws other players' moves cause (they come mid-drag), keeping where your needle is.
@@ -265,10 +294,11 @@ function dialFor(key) {
   const ticks = svg("g", { class: "gg-ticks" });
   for (let v = 0; v <= 100; v += 5) { const [x0, y0] = at(v, v % 10 ? R - 3 : R - 7), [x1, y1] = at(v, R + 4); ticks.append(svg("line", { x1: x0, y1: y0, x2: x1, y2: y1 })); }
   const target = svg("g", { class: "gg-target" }), others = svg("g", { class: "gg-others" }), table = svg("g", { class: "gg-table" }), mine = svg("g", { class: "gg-mine" });
-  face.append(target, ticks, others, table, mine, svg("circle", { class: "gg-hub", r: 7 }));
+  const covered = svg("text", { class: "gg-veil", x: 0, y: -44, "text-anchor": "middle", "font-size": 11 });
+  face.append(target, covered, ticks, others, table, mine, svg("circle", { class: "gg-hub", r: 7 }));
   const left = h("span", {}), right = h("span", {});
   const el = h("div", { class: "gg-dial-box" }, face, h("div", { class: "gg-ends" }, left, right));
-  const d = { el, value: null, interactive: false, onDrop: null, update: null };
+  const d = { el, value: null, interactive: false, onDrop: null, onTap: null, update: null };
   const drawMine = () => {
     mine.replaceChildren();
     if (d.value === null || d.mineShown === false) return;
@@ -317,6 +347,8 @@ function dialFor(key) {
       if (d.interactive) { face.setAttribute("role", "slider"); face.setAttribute("tabindex", "0"); face.setAttribute("aria-valuemin", "0"); face.setAttribute("aria-valuemax", "100"); face.setAttribute("aria-label", "Your needle"); }
       else { face.removeAttribute("role"); face.removeAttribute("tabindex"); }
     }
+    if ("veiled" in o) { el.classList.toggle("veiled", !!o.veiled); covered.textContent = o.veiled ? "Tap to see the target" : ""; }
+    if ("onTap" in o) { d.onTap = o.onTap; face.classList.toggle("tap", !!o.onTap); }
     if ("onDrop" in o) d.onDrop = o.onDrop;
     if ("mine" in o) { d.mineShown = o.mine !== null; if (o.mine !== null && typeof o.mine === "number") d.value = o.mine; drawMine(); }
   };
@@ -351,6 +383,7 @@ function dialFor(key) {
     window.addEventListener("pointercancel", up);
     e.preventDefault();
   });
+  face.addEventListener("click", () => { if (!d.interactive) d.onTap?.(); });   // the clue-giver's dial: see the target, or hide it
   let keyed = 0;
   face.addEventListener("keydown", e => {
     if (!d.interactive || !["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp"].includes(e.key)) return;

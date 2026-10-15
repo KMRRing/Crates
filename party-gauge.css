@@ -31,6 +31,10 @@
 .gg-tag.me circle { fill: var(--ink); stroke: var(--ink); }
 .gg-tag.me text { fill: var(--sheet); }
 .gg-table-needle { stroke: var(--pa-in); stroke-width: 3.5; stroke-dasharray: 7 5; stroke-linecap: round; }
+/* the target covered on the clue-giver's phone until they tap to see it */
+.gg-dial-box.veiled .gg-face { fill: color-mix(in srgb, var(--pa-in) 9%, var(--tile)); }
+.gg-veil { font-weight: 800; fill: var(--ink-soft); letter-spacing: .04em; }
+.gg-dial.tap { cursor: pointer; }
 .gg-ends { display: flex; justify-content: space-between; gap: 1rem; font-weight: 800; font-size: .95rem; line-height: 1.2; }
 .gg-ends span:last-child { text-align: right; }
 .gg-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5rem; }
