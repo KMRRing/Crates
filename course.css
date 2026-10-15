@@ -44,6 +44,8 @@ dialog.ln-sheet:not(.map) .ln-map, dialog.ln-sheet.map .ln-lesson { display: non
 .ln-msg.ok { background: color-mix(in srgb, var(--ln-ok) 15%, var(--sheet)); }
 .ln-msg.no { background: color-mix(in srgb, var(--ln-no) 13%, var(--sheet)); }
 .ln-quiz { display: grid; gap: .4rem; margin: .2rem 0 .5rem; }
+.ln-quiz.row { grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.ln-quiz.row .ln-opt { padding: .45rem .3rem; text-align: center; }
 .ln-opt { min-height: 2.75rem; padding: .45rem .7rem; text-align: left; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile); color: var(--ink); font: inherit; cursor: pointer; }
 .ln-opt.ok { border-color: var(--ln-ok); background: color-mix(in srgb, var(--ln-ok) 15%, var(--sheet)); }
 .ln-opt.no { border-color: var(--ln-no); }

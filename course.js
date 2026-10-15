@@ -106,8 +106,10 @@ export function createCourse({ id, course, stage, onPlay = () => {}, onRules = n
     next.textContent = s.play ? "Play a game" : last ? (LESSONS[L.entry.index + 1] ? "Next lesson" : "Finish") : "Next";
     stage.draw(s, L.st);
   }
+  // short options (numbers, a word each) side by side: the words above them keep their room on a short phone
   function quizHtml(s) {
-    return `<div class="ln-quiz">${s.quiz.map((o, i) => {
+    const row = s.quiz.length <= 4 && s.quiz.every(o => String(o).length <= 9);
+    return `<div class="ln-quiz${row ? " row" : ""}">${s.quiz.map((o, i) => {
       const cls = L.st.done ? (i === s.answer ? " ok" : L.st.picked === i ? " no" : "") : L.st.picked === i ? " no" : "";
       return `<button type="button" class="ln-opt${cls}" data-opt="${i}" ${L.st.done ? "disabled" : ""}>${esc(o)}</button>`;
     }).join("")}</div>`;

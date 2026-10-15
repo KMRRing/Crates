@@ -109,6 +109,30 @@ html[data-theme="office"][data-mode="night"] { --bn-in: #479EF5; }
 .bn-toast.on { opacity: 1; transform: translate(-50%, 0); }
 html[data-theme="office"] :is(.bn-seat, .bn-result) { border-radius: 4px; }
 
+/* ---------- the course's stage (bones-course.js): examples, the line on its felt, your tiles ---------- */
+.ln-sheet.bn { --ln-in: var(--bn-in); }
+.lb { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .55rem; min-width: 0; min-height: 0; padding: .3rem 0; box-sizing: border-box; }
+.lb.with-line { height: 100cqh; }
+.lb-row { display: grid; justify-items: center; gap: .25rem; max-width: 100%; }
+.lb-row > small { font-size: .74rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); text-align: center; }
+/* a row's tiles as large as the stage's width allows for their number (--n), and its height, within reason */
+.lb-tiles { --lb-t: clamp(1.8rem, min(calc((100cqw - var(--n, 3) * .3rem) / var(--n, 3)), 20cqh), 4rem); display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; }
+.lb-tile { display: block; width: var(--lb-t); height: calc(var(--lb-t) / 2); }
+.lb-word { font-size: 1.05rem; font-weight: 800; color: var(--ln-in); text-align: center; }
+.lb-board { position: relative; flex: 1 1 auto; align-self: stretch; min-height: 4.5rem; max-height: 16rem; border-radius: 10px; background: var(--bn-felt); }
+.lb-line { position: absolute; inset: .35rem; width: calc(100% - .7rem); height: calc(100% - .7rem); display: block; }
+.lb-empty { margin: 0; position: absolute; inset: 0; display: grid; place-items: center; color: var(--ink-soft); }
+.lb-total { margin: 0; font-size: .95rem; text-align: center; }
+.lb-total b { color: var(--bn-in); font-variant-numeric: tabular-nums; }
+.lb-handrow { width: 100%; }
+/* your tiles as the table draws them on a phone, larger on a stage with room for it */
+.lb-hand { --lb-h: clamp(2.3rem, min(9cqw, 12cqh), 3.6rem); width: 100%; min-height: calc(var(--lb-h) * 2 + .6rem); }
+.lb-hand .bn-mine { flex-basis: var(--lb-h); }
+.lb-hand.still .bn-mine { cursor: default; }
+.lb-hand .bn-mine.hinted .bn-tile rect { stroke: var(--bn-in); stroke-width: .09; stroke-dasharray: .16 .1; }
+.bn-ghost.on .bn-tile rect { fill: color-mix(in srgb, var(--bn-in) 42%, transparent); stroke-dasharray: none; stroke-width: .12; }
+html[data-theme="office"] .lb-board { border-radius: 4px; }
+
 /* a short phone: the narrator's line gives way */
 @media (max-height: 640px) and (orientation: portrait) {
   .bn-status { display: none; }

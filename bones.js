@@ -10,6 +10,8 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { scale } from "./wide.js";
+import { createCourse, progressOf } from "./course.js";
+import { COURSE, tileStage } from "./bones-course.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -312,12 +314,28 @@ function showRules() {
   $("rulesDlg").showModal();
 }
 
+// ---------- the course ----------
+// Learn (the header): dominoes taught from nothing (bones-course.js) on the course's sheet (course.js), the tiles drawn
+// as the table draws them and every play judged by the rules; its last lesson starts a game against Easy. The Rules
+// sheet, every rule on one page, opens from the course's map and the menu.
+const course = createCourse({
+  id: "bones", course: COURSE, cls: "bn", inFrame: IN_FRAME, onRules: showRules, stage: tileStage(),
+  onPlay: () => {
+    if (page.atTable) { toast("Your table plays on: try a game against Easy when you're back to solo"); return; }
+    opts.level = "easy";
+    saveOpts();
+    newGame();
+  },
+});
+
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
+  const cp = progressOf("bones", COURSE);
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Bones, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   set.append(choice("Game", Object.values(GAMES).map(g => [g.id, g.name]), opts.game, v => { opts.game = v; saveOpts(); openMenu(); }));
   const o = opts[opts.game], put = (k, v) => { o[k] = v; saveOpts(); };
@@ -346,10 +364,10 @@ bindSwitcher($("appsBtn"), "bones");
 document.querySelector(".bn-mark").innerHTML = APPS.find(a => a.id === "bones")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-$("rulesBtn").addEventListener("click", showRules);
+$("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 addEventListener("resize", draw);
-window.__bones = { page, get view() { return V; }, opts };
+window.__bones = { page, get view() { return V; }, opts, course };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
