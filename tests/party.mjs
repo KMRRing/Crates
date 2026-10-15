@@ -133,7 +133,8 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
     if (e.kind === "table") {
       const { rules } = await import(`../${e.id}-rules.js`);
       fitsPage = rules.seats.max >= e.max && (!e.across || rules.seats.min === 4);
-    } else fitsPage = (e.max === 2 || /slots: g =>/.test(readFileSync(new URL(`../${e.id}.js`, import.meta.url), "utf8"))) && new RegExp(`\\b${e.id === "glyph" ? "slate" : e.id}: "${e.page}"`).test(duo);
+    } else fitsPage = (e.max === 2 || /slots: g =>|createDuel\(/.test(readFileSync(new URL(`../${e.id}.js`, import.meta.url), "utf8"))) && new RegExp(`\\b${e.id === "glyph" ? "slate" : e.id}: "${e.page}"`).test(duo)
+      && (!e.race || /createDuel\(/.test(readFileSync(new URL(`../${e.id}.js`, import.meta.url), "utf8")));
     check(page && tile && fitsPage && e.blurb, `${e.name}: its page, its tile, ${e.kind === "table" ? `a table of up to ${e.max}` : e.max > 2 ? `a duo match for up to ${e.max}` : "a duo match"}`);
   }
   check(new Set([...GAMES.map(g => g.id), ...ELSEWHERE.map(e => e.id)]).size === GAMES.length + ELSEWHERE.length, "no game listed twice");
@@ -143,7 +144,8 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
   check(fits(playable("bones"), 1) && fits(playable("bones"), 4) && !fits(playable("bones"), 5) && fits(playable("quest"), 9), "a table game up to its seats, the computer in the rest");
   check(!fits(playable("undercover"), 2) && fits(playable("undercover"), 3) && fits(playable("whoami"), 2), "Party's own between their least and most");
   check(seatsText(playable("crates")) === "2 players" && seatsText(playable("trumps")) === "1–4 players, the computer in any empty seat"
-    && seatsText(playable("tribute")) === "2–4 players, the computer in any empty seat" && seatsText(playable("echo")) === "3–12 players", "who plays each, in words");
+    && seatsText(playable("tribute")) === "2–4 players, the computer in any empty seat" && seatsText(playable("echo")) === "3–12 players"
+    && seatsText(playable("rush")) === "2–6 players", "who plays each, in words");
 }
 {
   const party = { v: 1, host: "a", players: { a: { name: "Korbi", pid: "pa", seat: 0 }, b: { name: "Mei", pid: "pb", seat: 1 }, x: { online: false } } };
