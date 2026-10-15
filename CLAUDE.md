@@ -137,8 +137,8 @@ A game that gets a duo match goes in `DUO_GAMES` in `suite.js`. A finished duo m
 give `createTogether` a `result(state)` returning `{ match, score, won, coop, lower }` once the match is over; otherwise
 call `reportDuo(game, match, { score, won, coop, lower })` from `suite.js` on each player's device.
 
-A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Rush, Origin, Order, Brut,
-Blend, Arb, Survey, Manifest, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
+A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush, Origin,
+Order, Brut, Blend, Arb, Survey, Manifest, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
 `createDuel({ game, name, deal, play, describe, compare, extra, line, accent, onLobby, onLeave })` does the lobby,
 the countdown, the others' scores and the result; the game deals from the match's seed in `play`, sends
 `report({ score, text, done })` as it goes (done the moment the result is final), keeps the match's run with `keep()`,
