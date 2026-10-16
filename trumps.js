@@ -2,7 +2,8 @@
 // friends each on their own phone: Jass (the Schieber), Belote, Coinche and Schafkopf. The games are trumps-games.js's,
 // the running seats.js's, the computer trumps-bot.js's. This page sets the table out the game's way round (Jass and
 // Belote pass to the right, Schafkopf to the left), deals your hand along the foot, the trick in the middle, and the
-// bidding under your hand: a tap on a card you may play plays it.
+// bidding under your hand: a tap on a card you may play plays it. The cards are as large as the screen allows, your
+// hand the trick's size (fitTable); Full screen (the menu) gives them the header's row too.
 import { rules } from "./trumps-rules.js";
 import { GAMES, teamOf, COINCHE_VALUES, laufende } from "./trumps-games.js";
 import { LEVEL_NAMES, aheadKey, remember, THINK, thinksAhead } from "./trumps-bot.js";
@@ -11,7 +12,7 @@ import { adviceWords, verdictOf, cardRows, bidAdvice, bidVerdict, bidRows, pct, 
 import { sextant } from "./loading.js";
 import { PACKS, JASS_FRENCH, suitOf, rankOf, cardName, packCard, suitIcon, LOOK } from "./trumps-cards.js";
 import { deckPics } from "./trumps-deck.js";
-import { cardHtml, backHtml, fitRow } from "./cards.js";
+import { cardHtml, backHtml } from "./cards.js";
 import { seatPage } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -20,6 +21,7 @@ import { createCourse, progressOf } from "./course.js";
 import { COURSE, cardStage } from "./trumps-course.js";
 import { createRush } from "./trumps-rush-ui.js";
 import { bestsLine } from "./rush-core.js";
+import { sideways } from "./wide.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -30,7 +32,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // the computer players, by the game's country
 const BOTS = { jass: ["Ueli", "Vreni", "Beat"], belote: ["Gérard", "Martine", "Didier"], coinche: ["Gérard", "Martine", "Didier"], schafkopf: ["Sepp", "Resi", "Xaver"] };
 
-let opts = { game: "jass", level: "medium", voice: true, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
+let opts = { game: "jass", level: "medium", voice: true, full: false, jass: { pack: "swiss", count: "simple", target: 1000, weis: true }, belote: { target: 1000 }, coinche: { target: 2000 }, schafkopf: { deals: 8 }, ...read(OPTS, {}) };
 if (!GAMES[opts.game]) opts.game = "jass";
 const saveOpts = () => write(OPTS, opts);
 // Schafkopf's cards simple (the suits' marks, the rank in the corner) or as the whole Bavarian pack, drawn
@@ -139,6 +141,7 @@ function draw() {
   if (!page) return;
   if (coach() !== coachWas) { coachWas = coach(); advice = said = null; }   // the table's coach changed: its words go
   const v = V;
+  placeFull();
   if (!v?.G) { $("info").innerHTML = ""; for (const id of ["seatTop", "seatLeft", "seatRight"]) $(id).replaceChildren(); $("centre").innerHTML = ""; $("hand").innerHTML = ""; $("controls").innerHTML = `<button class="btn primary tr-go" type="button" data-act="new">New game</button>`; return; }
   if (coach() === "on" && !v.over) { const a = adviceNow(); if (a) a.shown = true; }
   drawInfo(v.state);
@@ -146,6 +149,88 @@ function draw() {
   drawCentre(v.state);
   drawHand(v.state);
   drawControls(v.state);
+  fitTable();
+}
+
+// ---------- the sizes ----------
+// The cards as large as the screen lets them be, your hand the size of the trick's: one size for both (a card is 2.5
+// by 3.5 of it), the largest at which the trick's cross (8.4 by 8.6) fits the table's middle and your hand fits along
+// its box with each card showing its corner, for as many cards as the deal gives, so the hand keeps its size as it's
+// played out; the others' backs as large as their places let them be. The rest (the header, the line across the top,
+// the names, your status or the coach's line) keeps its size, and the cards take what's left: upright the middle and
+// your hand share the table's height, sideways your hand has the side column. Sized for the play: the bidding's
+// buttons, taller than the play's line, take their room from the table, not from the cards.
+const DEALT = { jass: 9, belote: 8, coinche: 8, schafkopf: 8 };
+const SHOW = 0.9, BACK_SHOW = 0.62, LIFT = 0.45;       // in a card's size: how much of each card a hand shows; a lifted card's rise
+let cardPx = 0;
+function fitTable() {
+  const s = V?.state;
+  if (!s) return;
+  const app = $("app"), centre = $("centre"), hand = $("hand"), side = $("side"), n = DEALT[s.game] || 8, beside = sideways();
+  const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const room = Math.min(...["seatTop", "seatLeft", "seatRight"].map(id => $(id).clientWidth * 0.92));
+  // twice: the backs are capped by the cards' size, and the cards then have what the backs leave
+  for (let pass = 0; pass < 2; pass++) {
+    // the others' backs, each fanned along its place, no larger than half your cards
+    const back = Math.min(room / (2.5 + (n - 1) * BACK_SHOW), cardPx ? cardPx * 0.5 : Infinity);
+    app.style.setProperty("--tr-back", `${back.toFixed(2)}px`);
+    // the play's line under your hand, measured as it would be drawn in the play
+    const probe = playProbe(s), spare = Math.max(0, $("controls").offsetHeight - probe);
+    const byHand = hand.clientWidth / (2.5 + (n - 1) * SHOW);
+    let byTable = centre.clientWidth / 8.4;
+    if (beside) {
+      const gap = parseFloat(getComputedStyle(side).rowGap) || 0;
+      byTable = Math.min(byTable, centre.clientHeight / 8.6, (side.clientHeight - probe - gap) / (3.5 + LIFT));
+    } else byTable = Math.min(byTable, (centre.clientHeight + spare + hand.offsetHeight) / (8.6 + 3.5 + LIFT));
+    const size = Math.max(rem, Math.min(byHand, byTable, 6 * rem));
+    // a pixel either way isn't worth redrawing the table for (and keeps a measure from chasing its own tail)
+    if (Math.abs(size - cardPx) >= 0.5) {
+      cardPx = Math.floor(size * 4) / 4;
+      app.style.setProperty("--tr-card", `${cardPx}px`);
+    }
+  }
+  spreadHand();
+}
+/** Your cards along their box: as far apart as it lets them be, up to side by side. */
+function spreadHand() {
+  const hand = $("hand"), k = hand.querySelectorAll(".cd").length, cw = 2.5 * cardPx;
+  if (!cardPx) return;
+  const step = k > 1 ? Math.min(cw * 1.04, (hand.clientWidth - cw) / (k - 1)) : 0;
+  hand.style.setProperty("--cd-size", `${cardPx}px`);
+  hand.style.setProperty("--cd-step", `${Math.max(step, cw * 0.28).toFixed(2)}px`);
+}
+/** How tall the controls are in the play (your status, or the coach's line): drawn once, unseen, beside the real ones. */
+function playProbe(s) {
+  let probe = $("ctlProbe");
+  if (!probe) {
+    probe = document.createElement("div");
+    probe.id = "ctlProbe";
+    probe.className = "tr-controls tr-probe";
+    probe.setAttribute("aria-hidden", "true");
+    $("controls").after(probe);
+  }
+  const html = coaching() ? coachBar(s, "Your card") : `<p class="tr-status">Your card</p>`;
+  if (probe.dataset.html !== html) { probe.innerHTML = html; probe.dataset.html = html; }
+  return probe.offsetHeight;
+}
+
+// ---------- full screen ----------
+/**
+ * Full screen (Menu): the line across the top goes into the header, between the game's mark and the menu, so the two
+ * rows are one and the cards have the other's room (Learn is in the menu too). Where the browser can, the page goes
+ * full screen as well (an app on the home screen already is); the setting stays when the browser leaves it.
+ */
+function placeFull() {
+  const app = $("app"), top = document.querySelector("header.top"), info = $("info"), on = !!opts.full;
+  app.classList.toggle("full", on);
+  if (on && info.parentElement !== top) top.querySelector(".top-right").before(info);
+  if (!on && info.parentElement === top) top.after(info);
+}
+function fullScreen(on) {
+  try {
+    if (on && document.fullscreenEnabled && !document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch { /* a browser without it: the layout alone */ }
 }
 
 /** The contract and the scores, along the top. */
@@ -163,7 +248,7 @@ function drawInfo(s) {
   let score;
   if (g.teams === "fixed") {
     const mine = teamOf(me());
-    score = `<span class="tr-score"><b>${s.scores[mine]}</b> us · <b>${s.scores[1 - mine]}</b> them <small>to ${s.opts.target}</small></span>`;
+    score = `<span class="tr-score"><b>${s.scores[mine]}</b> us · <b>${s.scores[1 - mine]}</b> them <small class="tr-target">to ${s.opts.target}</small></span>`;
   } else score = `<span class="tr-score"><b>${s.scores[me()] > 0 ? "+" : ""}${s.scores[me()]}</b> you <small>deal ${s.handNo} of ${s.opts.deals}</small></span>`;
   $("info").innerHTML = `<span class="tr-game">${esc(g.name)}</span>${contract ? `<span class="tr-contract">${contract}</span>` : ""}${score}`;
 }
@@ -185,7 +270,8 @@ function drawSeat(box, s, seat) {
   const dealer = seat === s.dealer ? `<span class="tr-dealer" title="dealer">D</span>` : "";
   box.className = `tr-seat ${box.classList[1]}${turn ? " turn" : ""}${team}`;
   const back = LOOK.german && s.game === "schafkopf" ? `<span class="cd tr-cd pic tr-back"><img src="${LOOK.german.back}" alt="" draggable="false"></span>` : backHtml();
-  box.innerHTML = `<span class="tr-name">${esc(nameOf(seat))}${dealer}</span>${role}<span class="tr-backs">${Array.from({ length: Math.min(n, 9) }, () => back).join("")}</span>${bubble}${weisLine(s, seat)}`;
+  // the name, the dealer's mark and the role on one line; the backs; what's said in a bubble over the table below
+  box.innerHTML = `<span class="tr-who"><span class="tr-name">${esc(nameOf(seat))}</span>${dealer}${role}</span><span class="tr-backs">${Array.from({ length: Math.min(n, 9) }, () => back).join("")}</span>${bubble}${weisLine(s, seat)}`;
 }
 /** A Jass player's Weis, said during the first trick (the side with the best one scores all of its own). */
 function weisLine(s, seat) {
@@ -242,7 +328,7 @@ function drawHand(s) {
   const a = mine && coaching() && advice?.shown && advice.kind === "play" && advice.list && advice.key === aheadKey(s, seat, "coach") ? advice : null;
   const best = a?.list?.[0]?.card;
   box.innerHTML = hand.map(id => card(id, s, { cls: mine ? `${ok.has(id) ? "ok" : "dim"}${id === best ? " coach" : ""}` : "", data: { card: id } })).join("");
-  fitRow(box, hand.length, { max: 1.25 });
+  spreadHand();
 }
 /** A hand sorted as a player holds it: by suit, trumps together and on the right, each suit high to low. */
 function sortHand(s, hand) {
@@ -563,6 +649,7 @@ function openMenu() {
     else set.append(line(`Coach: ${COACH.find(([k]) => k === coach())[1]}, as the host set it for the table.`));
     set.append(choice("Cards", [["drawn", "Simple"], ["pictures", "Bavarian"]], opts.look === "pictures" ? "pictures" : "drawn", v => { opts.look = v; saveOpts(); applyLook(); draw(); }));
   }
+  set.append(toggle("Full screen", !!opts.full, on => { fullScreen(on); opts.full = on; saveOpts(); draw(); }));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; saveOpts(); }));
   const r = read(RECORD, { played: 0, won: 0 });
   const rushBests = bestsLine(rush.bests()), about = part(body, "about");
@@ -578,7 +665,8 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("whyClose").addEventListener("click", () => $("whyDlg").close());
-addEventListener("resize", () => { if (V?.G) drawHand(V.state); });
+addEventListener("resize", () => fitTable());
+document.addEventListener("fullscreenchange", () => fitTable());
 window.__trumps = { page, get view() { return V; }, opts, laufende, course, rush };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
 draw();
