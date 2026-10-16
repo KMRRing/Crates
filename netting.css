@@ -1,0 +1,85 @@
+/* Netting: six houses round a green-baize table, an arrow for each obligation (from the debtor, its amount on it,
+   nearer the debtor), a gauge round each house for what it owes of its limit, and under it a line saying what the
+   booking held would do, and the three obligations in hand. Verdigris is the house colour. */
+:root {
+  --nt-in: var(--c1);
+  --nt-soft: color-mix(in srgb, var(--nt-in) 15%, var(--sheet));
+  --nt-danger: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --nt-danger: #E8806F; }
+}
+html[data-mode="night"] { --nt-danger: #E8806F; }
+
+.nt-mark { display: inline-block; }
+.nt-mark svg { width: 100%; height: 100%; display: block; }
+.nt-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.nt-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.nt-score b { font-size: 1.05rem; }
+.nt-lives { display: inline-flex; align-items: center; gap: .3rem; }
+.nt-lives i { width: .9rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
+.nt-lives i.on { background: var(--brass-lo); }
+
+/* the table: round, as large as its room allows */
+.nt-ring { position: relative; place-items: center; }
+.nt-board { width: min(100cqw, 100cqh); height: min(100cqh, 100cqw); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.nt-table { fill: color-mix(in srgb, var(--c1) 12%, var(--sheet)); stroke: var(--brass); stroke-width: .6; }
+.nt-arrow line { stroke: color-mix(in srgb, var(--ink) 55%, var(--sheet)); stroke-linecap: round; }
+.nt-arrow path { fill: color-mix(in srgb, var(--ink) 55%, var(--sheet)); }
+.nt-chip { fill: var(--sheet); stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .3; }
+.nt-board text.nt-amount { font-size: 3.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: central; }
+.nt-arrow.pending line { stroke: var(--brass-lo); stroke-dasharray: 2 1.2; }
+.nt-arrow.pending path { fill: var(--brass-lo); }
+.nt-arrow.lit line { stroke: var(--nt-in); stroke-dasharray: none; }
+.nt-arrow.lit path { fill: var(--nt-in); }
+.nt-arrow.lit .nt-chip { stroke: var(--nt-in); stroke-width: .6; }
+
+/* the houses */
+.nt-disc { fill: var(--sheet); stroke: var(--brass); stroke-width: .7; }
+.nt-gauge { fill: none; stroke: var(--brass); stroke-width: 1.3; stroke-linecap: round; }
+.nt-gauge.near { stroke: var(--nt-danger); }
+.nt-board text.nt-name { font-size: 4.2px; font-weight: 800; fill: var(--ink); text-anchor: middle; font-stretch: var(--wide); letter-spacing: .04em; }
+.nt-board text.nt-owed { font-size: 3px; font-weight: 650; fill: var(--ink-soft); text-anchor: middle; }
+.nt-house.debtor .nt-disc { fill: var(--nt-soft); stroke: var(--nt-in); stroke-width: 1; }
+.nt-house.creditor .nt-disc { stroke: var(--ink); stroke-width: 1; }
+.nt-house.flash .nt-disc { fill: color-mix(in srgb, var(--nt-danger) 30%, var(--sheet)); stroke: var(--nt-danger); stroke-width: 1.2; }
+.nt-board text.nt-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
+.nt-board text.nt-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
+.nt-board text.nt-pop.big { font-size: 8px; }
+
+/* under the table: what the booking held would do, and the three obligations; at the end, how it went and New game */
+.nt-side { display: grid; gap: .45rem; }
+.nt-line { margin: 0; height: 2.4rem; overflow: hidden; font-size: .9rem; line-height: 1.3; color: var(--ink-soft); }
+.nt-line[hidden] { display: none; }
+.nt-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; height: 4.4rem; }
+.nt-tray[hidden] { display: none; }
+.nt-card { display: grid; place-content: center; justify-items: center; gap: .1rem; min-width: 0; border: 1px solid var(--rule); border-radius: 6px; background: var(--nt-soft); color: var(--ink);
+  font: inherit; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.nt-card b { font-size: 1.6rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.nt-card span { font-size: .78rem; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.nt-card.picked { border-color: var(--nt-in); box-shadow: inset 0 0 0 2px var(--nt-in); }
+.nt-card.lifted { opacity: .35; }
+.nt-card:disabled { background: transparent; cursor: default; }
+.nt-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.nt-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 7.25rem; }
+.nt-result .nt-go { padding: 0 1.3rem; }
+.nt-result[hidden] { display: none; }
+.nt-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.nt-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.nt-toast.show { opacity: 1; }
+
+/* held sideways: the table on the left with all the height; the score, the line and the obligations beside it, the
+   obligations low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.netting { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.netting .nt-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.netting .nt-ring { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.netting .nt-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.netting .nt-line { height: 4rem; }
+  #app.netting .nt-tray { grid-template-columns: 1fr; grid-template-rows: repeat(3, 4.4rem); height: auto; }
+  #app.netting .nt-result { grid-template-columns: 1fr; height: auto; }
+}
