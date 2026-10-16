@@ -2,7 +2,7 @@
 // party (crates/rooms/CODE/party): when the host goes back to the lobby, or starts another game, it goes there too.
 // The menu gets the party's part (menu.js asks for it with menuPart): Back to the party for the host, who chooses for
 // the others, and Leave the party. Loaded only on a page in a party, so no other page connects for it.
-import { getSync } from "./net.js";
+import { getSync, lan } from "./net.js";
 import { standUp } from "./table.js";
 import { joins, playHref } from "./party-href.js";
 import { action, line } from "./menu.js";
@@ -46,10 +46,12 @@ async function backToParty() {
   try { await sync.update(path(), { playing: null }); } catch (e) { console.error(e); }
   go(playHref(null, partyCode));
 }
-/** Leaves the party for good: your place freed, and this phone back to the games. */
+/** Leaves the party for good: your place freed, and this phone back to the games (an offline party's host ends it). */
 async function leaveParty() {
+  if (lan?.host) { lan.leave(); return; }                              // asked first, there
   if (sync) try { await sync.tx(path(), cur => (cur === null ? null : standUp(cur, sync.uid) ?? undefined)); } catch (e) { console.error(e); }
   try { sessionStorage.removeItem("party:here"); } catch { /* private mode */ }
+  if (lan) { lan.leave(); return; }                                   // an offline party: its page round this one goes too
   go("index.html");
 }
 
@@ -60,7 +62,7 @@ function fill(box = null) {
     if (!state) kids.push(line(`Party ${partyCode}`));
     else if (state.host) kids.push(line(`Party ${partyCode}: ${state.n} of you, and you choose the games.`), action("Back to the party", backToParty));
     else kids.push(line(`Party ${partyCode}: ${state.hostName} chooses the games.`));
-    kids.push(action("Leave the party", leaveParty, "link"));
+    kids.push(action(lan?.host ? "End the offline party" : "Leave the party", leaveParty, "link"));
     b.replaceChildren(...kids);
   }
 }

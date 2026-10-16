@@ -53,6 +53,12 @@ button.app-row { width: 100%; font: inherit; cursor: pointer; }
 .pa-code { margin: 0; font-size: 1.7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.28em * var(--track)); }
 .pa-join-note { margin: 0; font-size: .85rem; color: var(--ink-soft); }
 .pa-join-how .btn { min-height: 2.5rem; }
+/* an offline party (lan.html): its lobby has no QR code to join by (a guest scans the host's phone), and its way in is a
+   sheet: what it needs, the name, Host or Join */
+.pa-join-offline { grid-template-columns: 1fr; }
+dialog.pa-offline .pa-intro { margin: .7rem 0 .9rem; }
+dialog.pa-offline .pk-btn { display: block; width: 100%; margin-top: .45rem; }
+dialog.pa-offline .pa-join-note { margin-top: .8rem; }
 .pa-h { margin: .8rem 0 .35rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .pa-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; max-height: 5.6rem; overflow-y: auto; }
 .pa-chips li { display: inline-flex; align-items: center; gap: .35rem; padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); font-weight: 700; font-size: .9rem; }

@@ -9,7 +9,7 @@
 import { GAMES, gameById, startGame, advanceGame, endGame, inputsFor, playersOf, needOf, ELSEWHERE, playable, fits, seatsText, tableFrom, shownOf, mergeShown, recall } from "./party-core.js";
 import { joins, playHref, whoOf } from "./party-href.js";
 import { openTable, inviteSheet, createNarrator, tableInAddress, setTableParam, joinLink } from "./table-ui.js";
-import { getSync } from "./net.js";
+import { getSync, lan } from "./net.js";
 import { qrSvg } from "./qr.js";
 import { h, button, names } from "./party-kit.js";
 import { part, choice, toggle, action, line } from "./menu.js";
@@ -225,8 +225,15 @@ function pickedCard(entry) {
 }
 
 function drawHome(stage) {
+  // inside an offline party (its frame) with no table: the party has gone from under this page
+  if (lan) {
+    stage.replaceChildren(h("div", { class: "pa-home fit-col" }, h("p", { class: "pa-intro" }, "You're not at the offline party's table any more."),
+      h("div", { class: "fit-grow" }), button(lan.host ? "End the offline party" : "Leave the offline party", () => lan.leave())));
+    return;
+  }
   const back = !IN_FRAME && hereCode() ? button(`Back to party ${hereCode()}`, () => rejoin(hereCode())) : null;
   const open = IN_FRAME ? null : button("Invite players", openTableHere, { primary: !back });
+  const offline = IN_FRAME ? null : button("Offline party", offlineSheet, { primary: false });
   // opened for one game (its own tile, or its Invite players): that game, how it's played, and the way to gather
   // the players
   if (asked) {
@@ -236,13 +243,38 @@ function drawHome(stage) {
     stage.replaceChildren(h("div", { class: "pa-home fit-col" },
       h("p", { class: "pa-intro" }, `${asked.blurb} ${how}`),
       h("div", { class: "pa-rules-box fit-grow fit-scroll" }, ...(asked.def?.rules || []).map(r => h("p", {}, r))),
-      back, open));
+      back, open, offline));
     return;
   }
   stage.replaceChildren(h("div", { class: "pa-home fit-col" },
     h("p", { class: "pa-intro" }, "A party is a room for the evening, each of you on your own phone. Open one and show its QR code; whoever opens it chooses what you play, and every phone follows."),
     h("div", { class: "pa-pick fit-grow fit-scroll" }, ...tiles(catalog(), { onPick: e => (e.def?.solo ? playHere(e) : showRules(e)) })),
-    back, open));
+    back, open, offline));
+}
+
+/**
+ * The offline party's way in (lan.html): for a plane, or anywhere without a signal. Every phone on the same Wi-Fi;
+ * one hosts, the others join with two scans. The name is asked here, as the codes carry it.
+ */
+function offlineSheet() {
+  const dlg = h("dialog", { class: "sheet pa-offline", "aria-label": "Offline party" });
+  const name = h("input", { id: "paOfflineName", maxlength: "16", autocomplete: "nickname", autocapitalize: "words", value: (() => { try { return localStorage.getItem("crates:name") || ""; } catch { return ""; } })() });
+  const go = role => {
+    const n = name.value.trim().slice(0, 16);
+    if (!n) { name.focus(); return; }
+    try { localStorage.setItem("crates:name", n); } catch { /* private mode */ }
+    location.href = role === "host" ? "lan.html?host=new" : "lan.html?join=new";
+  };
+  dlg.append(
+    h("div", { class: "pick-head" }, h("h2", {}, "Offline party"), h("button", { type: "button", class: "btn", onclick: () => dlg.close() }, "Close")),
+    h("p", { class: "pa-intro" }, "No internet, as on a plane: the phones play over the Wi-Fi alone. Every phone joins the same Wi-Fi (on a plane, a pocket travel router: a plane's own Wi-Fi rarely lets phones reach each other). One phone hosts; each of the others joins with two scans, theirs of the host's code, then the host's of the code on theirs."),
+    h("label", { for: "paOfflineName", class: "pa-offline-label" }, "The name the others see"), name,
+    button("Host the party", () => go("host")),
+    button("Join a party", () => go("join"), { primary: false }),
+    h("p", { class: "pa-join-note" }, "If your phone asks to find devices on your local network, allow it: that's how the phones reach each other."));
+  dlg.addEventListener("close", () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
 }
 
 async function openTableHere() {
@@ -330,12 +362,16 @@ function drawLobby(stage) {
   // changes, where its card and options are
   const was = stage.querySelector(".pa-pick")?.scrollTop ?? 0;
   // two halves: who's here (with the code to join) and the game; one column on a phone, side by side held sideways
+  const join = lan
+    ? h("div", { class: "pa-join pa-join-offline" }, h("div", { class: "pa-join-how" },
+      h("p", { class: "pa-join-note" }, host ? "An offline party, on this phone: each phone joins with two scans, theirs of your code, then yours of theirs." : `An offline party, on ${hostName}'s phone.`),
+      host ? h("button", { type: "button", class: "btn", onclick: () => invite.open() }, "Add a player") : null))
+    : h("div", { class: "pa-join" }, qr, h("div", { class: "pa-join-how" },
+      h("p", { class: "pa-code" }, table.code),
+      h("p", { class: "pa-join-note" }, "Scan to join: the camera, then the link. No app needed."),
+      h("button", { type: "button", class: "btn", onclick: () => invite.open() }, "Show it larger")));
   stage.replaceChildren(h("div", { class: "pa-lobby fit-col" },
-    h("div", { class: "fit-half pa-half pa-who" },
-      h("div", { class: "pa-join" }, qr, h("div", { class: "pa-join-how" },
-        h("p", { class: "pa-code" }, table.code),
-        h("p", { class: "pa-join-note" }, "Scan to join: the camera, then the link. No app needed."),
-        h("button", { type: "button", class: "btn", onclick: () => invite.open() }, "Show it larger"))),
+    h("div", { class: "fit-half pa-half pa-who" }, join,
       h("h3", { class: "pa-h" }, `Players · ${n}`), chips),
     h("div", { class: "fit-half pa-half pa-what" }, h("h3", { class: "pa-h" }, "The game"), list, foot)));
   list.scrollTop = lastPick === pick.id ? was : 0;
@@ -389,6 +425,7 @@ function showRules(entry = null) {
     body.replaceChildren(
       h("p", {}, "A party is a room for the evening, each player on their own phone. Whoever opens it (Invite players) shows its QR code; the others scan it with their camera and sit down in their browser with a name: nothing to install."),
       h("p", {}, "The host chooses what the party plays and starts it, and every phone follows: to one of Party's own games, played here, where the host's phone runs the game and speaks for it (keep it in the middle of the table, screen up); to a card, dice or board game, where the computer takes the seats nobody has; or, for two, to any game you can play as a pair. From a game, the host's menu brings everyone back."),
+      h("p", {}, "No internet, as on a plane? An offline party plays over the Wi-Fi alone, every phone on the same one: Offline party, here or in the menu. The others join with two scans each, theirs of the host's code and the host's of theirs."),
       h("p", {}, `Party's own games: ${names(GAMES.map(g => g.name))}.`));
   } else if (d.def) body.replaceChildren(h("p", { class: "pa-rules-n" }, seatsText(d)), ...d.def.rules.map(r => h("p", {}, r)));
   else body.replaceChildren(h("p", { class: "pa-rules-n" }, seatsText(d)), h("p", {}, d.blurb), h("p", {}, `Its own page has its rules in full: Rules, at the top of ${d.name}.`));
@@ -399,15 +436,19 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   const play = part(body, "play");
-  if (!branch) {
+  if (lan && !branch) play.append(action(lan.host ? "End the offline party" : "Leave the offline party", () => lan.leave(), "primary"));
+  else if (!branch) {
     if (!IN_FRAME && hereCode()) play.append(action(`Back to party ${hereCode()}`, () => rejoin(hereCode()), "primary"));
     if (!IN_FRAME) play.append(action("Invite players", openTableHere, hereCode() ? "" : "primary"));
+    if (!IN_FRAME) play.append(action("Offline party", offlineSheet));
   } else {
     const n = playersOf(branch).length;
-    play.append(line(`Party ${table.code}: ${n} of you${chooses() ? ", and you choose the games" : ""}.`));
-    play.append(action("Invite players", () => invite.open(), "primary"));
+    play.append(line(`${lan ? "An offline party" : `Party ${table.code}`}: ${n} of you${chooses() ? ", and you choose the games" : ""}.`));
+    if (!lan || lan.host) play.append(action(lan ? "Add a player" : "Invite players", () => invite.open(), "primary"));
     if (branch.game && chooses()) play.append(action("End this game", () => table.act(b => endGame(b))));
-    play.append(action("Leave the party", () => table.leave(), "link"));
+    if (lan?.host) play.append(action("End the offline party", () => lan.leave(), "link"));
+    else if (lan) play.append(action("Leave the party", () => table.leave().then(() => lan.leave()), "link"));
+    else play.append(action("Leave the party", () => table.leave(), "link"));
   }
   part(body, "settings").append(toggle("The narrator's voice", opts.voice, on => {
     opts.voice = on; write(OPTS, opts); narrator.muted = !on;
@@ -460,4 +501,4 @@ draw();
 if (tableInAddress() && !IN_FRAME) {
   const done = busy("Joining the party");
   table.joinAddress().finally(done).then(() => draw());
-} else if (inviting && !IN_FRAME) openTableHere();
+} else if ((inviting || lan?.host) && !IN_FRAME) openTableHere();

@@ -1,0 +1,47 @@
+/* The offline party (lan.html): Party runs in a frame over the whole screen; a guest's scan and code, and a lost link,
+   are panels over it; the host adds players in a sheet. A QR code is dark on white in every theme (a camera reads it
+   best so), framed in brass. */
+.lan-frame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: block; background: var(--yard); }
+.lan-frame[hidden] { display: none; }
+
+.lan-panel { position: fixed; inset: 0; z-index: 2; display: grid; place-items: center; box-sizing: border-box; overflow-y: auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1rem calc(env(safe-area-inset-bottom, 0px) + 1rem); background: var(--yard); }
+.lan-panel[hidden] { display: none; }
+.lan-card { width: min(100%, 24rem); display: grid; justify-items: center; gap: .55rem; text-align: center; }
+.lan-card .btn.wide { margin: .2rem 0 0; }
+.lan-h { margin: 0; font-size: 1.1rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
+.lan-note { margin: 0; min-height: 2.8em; color: var(--ink-soft); font-size: .92rem; }
+.lan-note .ld { margin-right: .4rem; vertical-align: -.15em; }
+
+/* the camera: a square of the picture, a frame to aim the code into */
+.lan-cam { position: relative; width: min(80vw, 20rem, 52svh); aspect-ratio: 1; overflow: hidden; border: 1.5px solid var(--brass); border-radius: 6px; background: #000; }
+.lan-cam video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lan-aim { position: absolute; inset: 14%; border: 2px solid rgba(255, 255, 255, .85); border-radius: 6px; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .28); pointer-events: none; }
+
+/* a code to be scanned: as large as the screen allows, for a camera held at arm's length */
+.lan-qr { display: grid; place-items: center; width: min(80vw, 20rem, 52svh); aspect-ratio: 1; box-sizing: border-box; padding: .6rem; background: #fff; border: 1.5px solid var(--brass); border-radius: 6px; }
+.lan-qr svg { display: block; width: 100%; height: 100%; }
+.lan-qr .ld { width: 2.4rem; height: 2.4rem; }
+
+/* the host's sheet: the code, how it's used, who's linked */
+dialog.lan-pair { max-height: 92vh; max-height: 92svh; overflow-y: auto; overscroll-behavior: contain; text-align: center; }
+.lan-pair #pairShow, .lan-pair #pairCamera { display: grid; justify-items: center; gap: .5rem; margin-top: .6rem; }
+.lan-pair #pairShow[hidden], .lan-pair #pairCamera[hidden] { display: none; }
+.lan-pair .lan-qr, .lan-pair .lan-cam { width: min(70vw, 16rem, 42svh); }
+.lan-pair .btn.wide { margin: .2rem 0 0; }
+.lan-pair .lan-note { margin-top: .5rem; min-height: 1.4em; }
+.lan-steps { margin: .2rem 0; padding-left: 1.3rem; text-align: left; font-size: .92rem; }
+.lan-steps li + li { margin-top: .2rem; }
+.lan-h4 { margin: .9rem 0 .35rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); text-align: left; }
+.lan-peers { display: flex; flex-wrap: wrap; gap: .35rem; margin: 0; padding: 0; list-style: none; }
+.lan-peers li { padding: .3rem .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); font-weight: 700; font-size: .9rem; }
+.lan-peers li.away { opacity: .5; }
+.lan-peers li.none { border-style: dashed; background: none; color: var(--ink-soft); font-weight: 500; }
+
+/* a page outside the party (the games screen, a game alone): the way back */
+.lan-back { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + .7rem); z-index: 3;
+  padding: .45rem .9rem; border: 1.5px solid var(--plate); border-radius: 4px; background: var(--plate); color: var(--plate-ink);
+  font: inherit; font-size: .82rem; font-weight: 800; box-shadow: 0 2px 8px rgba(10, 18, 24, .25); }
+.lan-back[hidden] { display: none; }
+
+html[data-theme="office"] :is(.lan-qr, .lan-cam, .lan-peers li, .lan-back) { border-radius: 4px; }

@@ -2,7 +2,7 @@
 // table's code in the address, the screen kept awake on the device that runs the table, and the narrator's voice.
 // A game wires them with openTable() and draws its own table; its menu offers Invite players and Leave the table.
 import { createTable } from "./table.js";
-import { getSync } from "./net.js";
+import { getSync, lan } from "./net.js";
 import { reloadFresh } from "./pwa.js";
 import { playerId } from "./suite.js";
 import { qrSvg } from "./qr.js";
@@ -177,7 +177,8 @@ export function inviteSheet(table, { title = "Invite players", note = "", deal =
       : deal && !me?.driver ? `Waiting for ${table.players.find(p => p.uid === table.data?.host)?.name || "the host"} to start` : "";
   }
   return {
-    open() { if (!dlg.isConnected) document.body.appendChild(dlg); update(); if (!dlg.open) dlg.showModal(); },
+    // an offline party's guests join by scanning codes both ways, on the page round this one (lan.html), not by a link
+    open() { if (lan) { lan.invite(); return; } if (!dlg.isConnected) document.body.appendChild(dlg); update(); if (!dlg.open) dlg.showModal(); },
     close() { if (dlg.open) dlg.close(); },
     get isOpen() { return dlg.open; },
     update,

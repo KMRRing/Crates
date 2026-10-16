@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Offline party</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="lan.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body class="lan">
+<!-- Party, and every game it plays, runs in this frame; the links between the phones stay on this page -->
+<iframe id="frame" class="lan-frame" title="Offline party" hidden></iframe>
+<button id="backToParty" class="lan-back" type="button" hidden>Back to the offline party</button>
+
+<!-- a guest's screens: the host's code scanned, then this phone's code shown to the host -->
+<section id="scanPanel" class="lan-panel" hidden aria-labelledby="scanHead">
+  <div class="lan-card">
+    <h1 id="scanHead" class="lan-h">Scan the host's code</h1>
+    <div class="lan-cam"><video id="scanVideo" playsinline muted></video><span class="lan-aim" aria-hidden="true"></span></div>
+    <p id="scanNote" class="lan-note">On the host's phone: Party › Offline party › Host, or Add a player.</p>
+    <button id="scanLeave" class="btn wide" type="button">Leave</button>
+  </div>
+</section>
+
+<section id="replyPanel" class="lan-panel" hidden aria-labelledby="replyHead">
+  <div class="lan-card">
+    <h1 id="replyHead" class="lan-h">Now the host scans this</h1>
+    <div id="replyQr" class="lan-qr"></div>
+    <p id="replyNote" class="lan-note"></p>
+    <button id="replyAgain" class="btn wide" type="button">Scan the host's code again</button>
+  </div>
+</section>
+
+<!-- a guest whose link to the host is gone (or never was), and a party that has ended -->
+<section id="lostPanel" class="lan-panel" hidden aria-labelledby="lostHead">
+  <div class="lan-card">
+    <h1 id="lostHead" class="lan-h"></h1>
+    <p id="lostNote" class="lan-note"></p>
+    <button id="lostScan" class="btn primary wide" type="button">Scan the host's code again</button>
+    <button id="lostLeave" class="btn wide" type="button">Leave the party</button>
+  </div>
+</section>
+
+<!-- the host's: a player added (their phone scans this code, this phone scans theirs) -->
+<dialog id="pairDlg" class="sheet lan-pair" aria-label="Add a player">
+  <div class="pick-head"><h2>Add a player</h2><button class="icon-btn" type="button" id="pairClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="pairShow">
+    <div id="pairQr" class="lan-qr"></div>
+    <ol class="lan-steps">
+      <li>On their phone: Party › Offline party › Join, and scan this code.</li>
+      <li>Then scan the code their phone shows.</li>
+    </ol>
+    <button id="pairScan" class="btn primary wide" type="button">Scan their code</button>
+  </div>
+  <div id="pairCamera" hidden>
+    <div class="lan-cam"><video id="pairVideo" playsinline muted></video><span class="lan-aim" aria-hidden="true"></span></div>
+    <button id="pairCancel" class="btn wide" type="button">Back to my code</button>
+  </div>
+  <p id="pairNote" class="lan-note" aria-live="polite"></p>
+  <h4 class="lan-h4">Linked to this phone</h4>
+  <ul id="pairPeers" class="lan-peers"></ul>
+</dialog>
+
+<script type="module" src="lan-ui.js"></script>
+</body>
+</html>

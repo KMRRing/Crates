@@ -16,9 +16,9 @@ The owner, Korbi, never uses a command line: do the git work yourself, and make 
    `tests/<game>.mjs`. Change only those, and only that game's section of README.md.
 2. **Shared files are one Claude at a time.** Before starting on any of these, the owner should know, so nobody else
    is in them: `style.css`, `apps.js`, `pwa.js`, `suite.js`, `pile.js`, `deck.*`, `core.js`, `rooms.js`, `together.js`,
-   `rich.js`, `pics.js`, `wide.js`, `tools/`, `.github/`, `kb/` and every bank built from it (`bank.js`, `chart-bank.js`,
-   `chart-geo.js`, `quote-bank.js`, `kb-index.js`, and Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`,
-   `phil`, `rel`, `refining` banks), and this file.
+   `rich.js`, `pics.js`, `wide.js`, `net.js`, `memdb.js`, the offline party's `lan*.js`, `tools/`, `.github/`, `kb/`
+   and every bank built from it (`bank.js`, `chart-bank.js`, `chart-geo.js`, `quote-bank.js`, `kb-index.js`, and
+   Punt's `art`, `cities`, `flags`, `eco`, `phy`, `chm`, `cs`, `phil`, `rel`, `refining` banks), and this file.
 3. **Pull before you push:** `git pull --rebase`. Never force-push, never rewrite `main`'s history: that is how one
    Claude silently deletes another's work.
 4. **Never commit `sw.js`.** It lists every file for offline play with a version from their contents, so every
@@ -143,6 +143,10 @@ table (away: asleep, or on another page; nobody away holds a table up), each pla
 (`style.css`), a round's standings are `leaderboard()` from `standings.js`, and the rete says `joiningWords()`
 (`rooms.js`). Chart, Quote and Punt show everyone's answer and the standings after each question; follow one.
 
+An offline party (`lan.html`, README "Offline party") plays every page in a frame on the host phone's database,
+through `net.js`: reach the database only through `getSync()`'s calls, keep a page's state in the party's room, and
+never navigate `window.top` (the links live on the page round the frame). `lan` from `net.js` says a page is in one.
+
 A game otherwise played alone gets its head-to-head from `duel.js` (README, Head to head; Gambit's puzzle rush, Brut,
 Blend, Arb, Survey, Pipes, Refinery): everyone gets the same deal and plays it on their own phone.
 `createDuel({ game, name, deal, play, describe, compare, extra, line, accent, onLobby, onLeave })` does the lobby,
@@ -155,7 +159,7 @@ never in its solo run, bests or today's, joins with `duel.join()` instead of sta
 ## Tables
 
 Several people in one place, each on their own phone (README, "Tables"): `table.js` is the table (no page in it, so
-it's tested in Node on `tests/fake-db.js`, the database in memory with many devices), `table-ui.js` what a page needs
+it's tested in Node on `tests/fake-db.js`, the database in memory with many devices, on `memdb.js`), `table-ui.js` what a page needs
 round it (the name a guest goes by, the QR invitation, the screen kept awake, the narrator). Playing with others
 goes through a party (README, "Party"): a game's Invite players opens Party with it chosen
 (`party.html?game=<id>&invite=1`), the party's host starts it and every phone comes to the table in the party's room

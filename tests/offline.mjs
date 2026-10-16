@@ -59,6 +59,7 @@ const RUNTIME = [
   ["pics.js", /^img\.src = tries\[/, "a Wikipedia picture: kept by sw.js once shown, or by Settings' Keep pictures offline"],
   ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
   ["sync.js", /^fetch\(url \+/, "Firebase: playing together, watching and syncing need a connection"],
+  ["lan-ui.js", /^frame\.src = (`party\.html\?table=\$\{partyCode\}`|url)$/, "an offline party's frame: Party and the pages it goes to, every one kept"],
 ];
 const unknown = built.filter(b => !RUNTIME.some(([file, re]) => b.file === file && re.test(b.load)));
 check(!unknown.length, unknown.length ? `every load built at run time is accounted for: not ${unknown.map(b => `${b.file}: ${b.load.slice(0, 60)}`).join("; ")}` : `every load built at run time is accounted for (${built.length})`);
