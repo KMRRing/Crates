@@ -1,0 +1,105 @@
+// Drift's rules (drift-engine.js): the deal from a seed, the wind (every tile slid downwind to the edge or the next
+// tile, in order, each way), lines across and down, the turn (lines checked after the wind, the wind blowing again
+// after a clear), the points, the forecast moving on, the squalls (strays making no line, more often and more of
+// them), the end with no room, a game saved and opened again, and whole games played out to their end.
+import { N, COLOURS, START, WINDS, PACE, squallEvery, squallCount, newGame, blow, lines, gale, worth, lay, moves, filled } from "../drift-engine.js";
+
+let bad = 0;
+const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+const i = (x, y) => y * N + x;
+/** A field drawn by hand: rows of characters from the top, "." empty, "0"–"3" a tile; rows not given empty. */
+const field = rows => { const c = new Array(N * N).fill(-1); rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") c[i(x, y)] = Number(ch); })); return c; };
+const row = (c, y) => [...Array(N).keys()].map(x => (c[i(x, y)] < 0 ? "." : c[i(x, y)])).join("");
+const game = (rows, next = [0, 0], winds = [1, 1, 1], extra = {}) => Object.assign(newGame(1), { cells: field(rows), next, winds, untilSquall: 99 }, extra);
+
+// ---------- the deal ----------
+{
+  const a = newGame(7), b = newGame(7), c = newGame(8);
+  check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.cells) !== JSON.stringify(c.cells), "the same seed deals the same field, another seed another");
+  check(filled(a) === START && lines(a.cells).length === 0 && a.next.length === 2 && a.winds.length === 3 && a.winds.every(w => w >= 0 && w < 4) && WINDS.length === 4, `${START} tiles, none in a line, two tiles coming and three winds forecast`);
+}
+
+// ---------- the wind ----------
+{
+  const c = field([".0.1..2"]);
+  check(row(blow(c, 1).cells, 0) === "....012" && row(blow(c, 3).cells, 0) === "012....", "east or west, every tile slides to the edge or the next tile, keeping its order");
+  const down = field(["3", ".", "2"]), s = blow(down, 2).cells, u = blow(down, 0).cells;
+  check(s[i(0, 6)] === 2 && s[i(0, 5)] === 3 && u[i(0, 0)] === 3 && u[i(0, 1)] === 2, "and south or north, down the columns");
+  check(blow(c, 1).moved.map(m => m.join(">")).join() === "3>5,1>4" && blow(field(["......0"]), 1).moved.length === 0, "what moved and where is told (what was already against the edge didn't), for the page to play out");
+}
+
+// ---------- lines ----------
+{
+  check(lines(field(["000...."])).join() === "0,1,2" && lines(field(["0000..."])).length === 4 && lines(field(["00.0..."])).length === 0, "three or more alike in a row; a gap breaks it");
+  check(lines(field(["1", "1", "1"])).length === 3 && lines(field(["111", "1.."])).length === 3, "down too, and a square in two lines counts once");
+}
+
+// ---------- a turn ----------
+{
+  const s = game(["00....."], [0, 2], [3, 2, 0]), r = lay(s, i(6, 0));
+  check(r.gusts[0].cleared.length === 3 && r.gain === worth(3) && r.state.score === 90 && row(r.state.cells, 0) === ".......", "laid at the far end, the west wind brings it up to the other two: three in a row clear, 90");
+  const not = lay(game(["00....."], [0, 0], [1, 1, 1]), i(3, 1));
+  check(not.gain === 0 && not.gusts.length === 1, "lines count after the wind: laid where the wind takes it elsewhere, it makes nothing");
+  // three noughts clear on the east wind; it blows again, the 3 slides into the corner and lines up with the two below
+  const c = lay(game(["3...00.", "......3", "......3"], [0, 1], [1, 1, 1]), i(6, 0));
+  check(c.gusts.length === 3 && c.gusts[0].cleared.length === 3 && c.gusts[1].cleared.length === 3 && c.gain === worth(6), "a clear, and the wind blows again, which can line up more: all of a turn's clears count together, 360");
+  check(s.cells[i(0, 0)] === 0 && s.turns === 0, "the game laid on is left as it was");
+  check(r.state.next[0] === 2 && r.state.winds.join() === "2,0," + r.state.winds[2] && r.state.turns === 1, "the next tile comes up and the forecast moves on a day");
+  let threw = 0;
+  try { lay(s, i(0, 0)); } catch { threw++; }
+  try { lay(Object.assign(structuredClone(s), { over: true }), i(5, 5)); } catch { threw++; }
+  check(threw === 2 && moves(s).length === N * N - 2, "a tile goes on an empty square, and not once it's over");
+  const g = gale(field(["000"]), 1);
+  check(g.cleared === 3 && g.gusts.length === 2 && g.gusts[1].cleared.length === 0, "the wind over a field until it settles, as the page shows a turn beforehand");
+  check(worth(3) === 90 && worth(6) === 360 && worth(10) === 1000, "ten times the square of all a turn clears");
+}
+
+// ---------- squalls ----------
+{
+  const s = game([], [3, 3], [1, 1, 1], { untilSquall: 1, turns: 50 }), r = lay(s, i(0, 0));
+  check(r.squall.length === squallCount(50) && r.squall.every(q => s.cells[q.at] < 0 && q.colour >= 0 && q.colour < COLOURS) && r.state.untilSquall === squallEvery(51), "a squall blows stray tiles in on empty squares, before the wind; then the count starts again");
+  check(squallEvery(0) > squallEvery(60) && squallCount(500) > squallCount(0) && PACE.every(([, e, c]) => e >= 1 && c >= 1), "squalls come more often, and with more, as the game goes on");
+}
+
+// ---------- the end ----------
+{
+  const full = Array.from({ length: N }, (_, y) => [...Array(N).keys()].map(x => ((x + 2 * y) % 4)).join(""));
+  full[0] = `.${full[0].slice(1)}`;
+  const s = game(full, [1, 1], [1, 1, 1]);
+  check(lines(s.cells).length === 0, "(a field full but for one square, no line on it)");
+  const r = lay(s, i(0, 0));
+  check(r.over && r.state.over && r.gain === 0, "no room left after the wind: the game is over");
+}
+
+// ---------- saved and opened again ----------
+{
+  let s = newGame(42);
+  for (let k = 0; k < 9; k++) s = lay(s, moves(s)[(k * 7) % moves(s).length]).state;
+  const again = JSON.parse(JSON.stringify(s)), m = moves(s)[3];
+  check(JSON.stringify(lay(s, m)) === JSON.stringify(lay(again, m)), "a game saved and opened again goes on as it would have");
+}
+
+// ---------- whole games ----------
+{
+  const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
+  let z = 3;
+  const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  const random = [], greedy = [];
+  for (let g = 0; g < 10; g++) {
+    let s = newGame(100 + g);
+    while (!s.over && s.turns < 3000) { const all = moves(s); s = lay(s, all[Math.floor(rnd() * all.length)]).state; }
+    random.push(s.turns);
+    let t = newGame(100 + g);
+    while (!t.over && t.turns < 3000) {
+      let best = null, bv = -Infinity;
+      for (const m of moves(t)) { const o = lay(t, m), v = o.gain - 6 * filled(o.state) - (o.over ? 1e6 : 0); if (v > bv) { bv = v; best = o; } }
+      t = best.state;
+    }
+    greedy.push(t.turns);
+  }
+  check(median(random) < 100, `laying anywhere: the field full in about ${median(random)} turns`);
+  check(median(greedy) > 1.5 * median(random) && Math.max(...greedy) < 3000, `laying for the wind: about ${median(greedy)} turns, and the squalls still end it`);
+}
+
+if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
+else console.log("drift: the deal, the wind, lines, a turn, squalls, the end, saving, whole games");
