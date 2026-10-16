@@ -12,6 +12,7 @@ import { createSeasonScreen } from "./harbour-season-ui.js";
 import { createWorldScreen } from "./harbour-world-ui.js";
 import { stepOf, isOpen, isDone, lockedWhy, continueTo, chaptersShown, nextChapter, openSet, openedSince, nameOf } from "./harbour-campaign.js";
 import { dropdown } from "./dropdown.js";
+import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, choice, onPause } from "./menu.js";
@@ -626,6 +627,11 @@ document.querySelector(".hb-mark").innerHTML = APPS.find(a => a.id === "harbour"
 // the hour numbers between two hours, it goes in there for every ship, a column squeezed in. One edit each, for Undo.
 let carry = null, carried = 0;          // carry: { op, id, x, y, on, ghost, mark, to, scroll } while a tool is dragged
 const EDGE = .25;                       // an hour's outer quarter, each side, counts as the edge between two hours
+// Where a drag aims: a finger aims a little above itself (2.1rem, about a row of hours), so the mark it makes shows just
+// over the fingertip rather than under it, where the line between two hours (a cell is 1.7rem, a fingertip wider)
+// couldn't be seen to place; a mouse aims with its tip. carry.x and y are this point, not the finger's.
+const LIFT = 2.1;
+const aimOf = e => ({ x: e.clientX, y: e.clientY - (e.pointerType === "mouse" ? 0 : LIFT * 16 * scale()) });
 function dropTarget(x, y) {
   const tb = tapeBox.getBoundingClientRect(), cell = (r, c) => tapeBox.querySelector(`.hb-cell[data-row="${r}"][data-col="${c}"]`);
   const a0 = cell(0, 0), a1 = cell(0, 1), b0 = cell(1, 0);
@@ -683,12 +689,12 @@ $("tools").addEventListener("pointerdown", e => {
   const b = e.target.closest(".hb-tool[data-op]");
   if (!b || mode !== "paint") return;
   endCarry(false);
-  carry = { op: b.dataset.op, id: e.pointerId, x: e.clientX, y: e.clientY, on: false, btn: b };
+  carry = { op: b.dataset.op, id: e.pointerId, ...aimOf(e), on: false, btn: b };
   b.setPointerCapture(e.pointerId);
 });
 $("tools").addEventListener("pointermove", e => {
   if (!carry || e.pointerId !== carry.id) return;
-  carry.x = e.clientX; carry.y = e.clientY;
+  Object.assign(carry, aimOf(e));
   if (!carry.on) {
     if (Math.hypot(e.clientX - carry.btn.getBoundingClientRect().left - carry.btn.offsetWidth / 2, e.clientY - carry.btn.getBoundingClientRect().top - carry.btn.offsetHeight / 2) < 14) return;
     carry.on = true;
@@ -705,8 +711,8 @@ $("tools").addEventListener("pointermove", e => {
       if (d) { tapeBox.scrollLeft += d; showDrop(dropTarget(carry.x, carry.y)); }
     }, 30);
   }
-  Object.assign(carry.ghost.style, { left: `${e.clientX}px`, top: `${e.clientY}px` });
-  showDrop(dropTarget(e.clientX, e.clientY));
+  Object.assign(carry.ghost.style, { left: `${carry.x}px`, top: `${carry.y}px` });
+  showDrop(dropTarget(carry.x, carry.y));
 });
 $("tools").addEventListener("pointerup", e => { if (carry && e.pointerId === carry.id) endCarry(true); });
 $("tools").addEventListener("pointercancel", () => endCarry(false));
