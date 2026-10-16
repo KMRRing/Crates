@@ -1,0 +1,78 @@
+/* Avalanche: the slope (seven squares across, eight down), its snow from bare to full, a tick for each layer and a
+   crack on a full square so depths read without their shade, the road along the foot, and under it a line saying
+   what the charge shown would do. The night is a wash of blue over it all. Cobalt is the house colour. */
+:root {
+  --av-in: var(--c2);
+  --av-rock: color-mix(in srgb, var(--brass) 40%, var(--sheet));
+  --av-snow: #FBFCFD;
+  --av-danger: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--sheet)); --av-snow: #DCE6EE; --av-danger: #E8806F; }
+}
+html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--sheet)); --av-snow: #DCE6EE; --av-danger: #E8806F; }
+
+.av-mark { display: inline-block; }
+.av-mark svg { width: 100%; height: 100%; display: block; }
+.av-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.av-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.av-score b { font-size: 1.05rem; }
+.av-lives { display: inline-flex; align-items: center; gap: .3rem; }
+.av-lives i { width: .9rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
+.av-lives i.on { background: var(--brass-lo); }
+
+/* the slope: as large as its room allows at its own proportions */
+.av-slope { position: relative; place-items: center; }
+.av-board { width: min(100cqw, 100cqh * 74 / 91); height: min(100cqh, 100cqw * 91 / 74); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.av-bed { fill: var(--sheet); stroke: var(--tile-edge); stroke-width: .35; }
+.av-sq { transform-box: fill-box; transform-origin: center; }
+.av-sq > rect:first-child { stroke: color-mix(in srgb, var(--ink) 18%, transparent); stroke-width: .3; }
+.av-sq.d0 > rect:first-child { fill: var(--av-rock); }
+.av-sq.d1 > rect:first-child { fill: color-mix(in srgb, var(--av-snow) 45%, var(--av-rock)); }
+.av-sq.d2 > rect:first-child { fill: color-mix(in srgb, var(--av-snow) 72%, var(--av-rock)); }
+.av-sq.d3 > rect:first-child { fill: var(--av-snow); stroke: color-mix(in srgb, var(--c2) 55%, transparent); stroke-width: .5; }
+.av-tick { fill: color-mix(in srgb, var(--c2) 70%, var(--ink)); opacity: .55; }
+.av-crack { fill: none; stroke: color-mix(in srgb, var(--c2) 75%, var(--ink)); stroke-width: .45; stroke-linecap: round; stroke-linejoin: round; }
+.av-sq.sliding > rect:first-child { animation: av-slide .32s ease-out; }
+.av-sq.sliding.natural > rect:first-child { animation-name: av-slide-night; }
+@keyframes av-slide { from { fill: var(--av-in); } }
+@keyframes av-slide-night { from { fill: var(--av-danger); } }
+.av-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.av-board text.av-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
+.av-board text.av-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
+.av-board text.av-pop.big { font-size: 8px; }
+
+/* the road along the foot, and the night's snow on it */
+.av-tarmac { fill: color-mix(in srgb, #2B3440 86%, var(--sheet)); }
+.av-lane { stroke: var(--c0); stroke-width: .5; stroke-dasharray: 2.4 1.8; }
+.av-drift { fill: var(--av-snow); stroke: color-mix(in srgb, var(--ink) 25%, transparent); stroke-width: .3; }
+.av-drift.deep { stroke: var(--av-danger); stroke-width: .6; }
+.av-night { fill: #12305A; opacity: .26; pointer-events: none; }
+.av-flake { fill: var(--av-snow); stroke: color-mix(in srgb, var(--c2) 60%, transparent); stroke-width: .3; }
+
+/* under the slope: what the charge shown would do; at the end, how it went and New game, in the same room */
+.av-side { display: grid; gap: .45rem; }
+.av-tray { display: grid; align-items: center; height: 3.4rem; }
+.av-tray[hidden] { display: none; }
+.av-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
+.av-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.av-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 3.4rem; }
+.av-result .av-go { padding: 0 1.3rem; }
+.av-result[hidden] { display: none; }
+.av-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.av-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.av-toast.show { opacity: 1; }
+
+/* held sideways: the slope on the left with all the height; the score, the lives and the line beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.avalanche { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.avalanche .av-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.avalanche .av-slope { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.avalanche .av-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.avalanche .av-tray { height: 6rem; align-items: end; }
+  #app.avalanche .av-result { grid-template-columns: 1fr; height: auto; }
+}
