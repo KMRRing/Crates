@@ -1,0 +1,85 @@
+/* Shunt: the yard (six tracks across, six down, crossing), the arrows round it where a wagon is shoved in, and under it
+   the wagon coming, the next and a line saying what the shove shown would do. The wagons wear the four enamels, each
+   cargo with a mark of its own (grain, timber, steel, oil) so they're told apart without their colour. */
+:root {
+  --sh-in: var(--c1);
+  --sh-soft: color-mix(in srgb, var(--sh-in) 15%, var(--sheet));
+  --sh-danger: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --sh-danger: #E8806F; }
+}
+html[data-mode="night"] { --sh-danger: #E8806F; }
+
+.sh-mark { display: inline-block; }
+.sh-mark svg { width: 100%; height: 100%; display: block; }
+.sh-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.sh-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.sh-score b { font-size: 1.05rem; }
+.sh-lives { display: inline-flex; align-items: center; gap: .3rem; }
+.sh-lives i { width: .9rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
+.sh-lives i.on { background: var(--brass-lo); }
+
+/* the yard: square, as large as its room allows; the sheet in a frame, the arrows on the page round it */
+.sh-yard { position: relative; place-items: center; }
+.sh-board { width: min(100cqw, 100cqh); height: min(100cqh, 100cqw); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.sh-bed { fill: var(--sheet); stroke: var(--tile-edge); stroke-width: .35; }
+.sh-rails line { stroke: var(--rule); stroke-width: .45; }
+
+/* the wagons */
+.sh-wagon { transform-box: fill-box; transform-origin: center; }
+.sh-wagon > rect { stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .35; }
+.sh-wagon.k0 > rect, .sh-arrow.on.k0 { fill: var(--c0); }
+.sh-wagon.k1 > rect, .sh-arrow.on.k1 { fill: var(--c1); }
+.sh-wagon.k2 > rect, .sh-arrow.on.k2 { fill: var(--c2); }
+.sh-wagon.k3 > rect, .sh-arrow.on.k3 { fill: var(--c3); }
+.sh-mark-line { fill: none; stroke: var(--on-c); stroke-width: .75; stroke-linecap: round; }
+.sh-mark-fill { fill: var(--on-c); stroke: none; }
+.sh-wagon.k0 .sh-mark-line { stroke: var(--on-c0); }
+.sh-wagon.k0 .sh-mark-fill { fill: var(--on-c0); }
+.sh-wagon.leaving { animation: sh-leave .7s ease-in-out infinite alternate; }
+@keyframes sh-leave { to { opacity: .55; } }
+.sh-wagon.off { opacity: .5; }
+
+/* what the shove shown would do: the wagons it sends off ringed, the one it shoves off the end crossed */
+.sh-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.sh-cross { fill: none; stroke: var(--sh-danger); stroke-width: .9; stroke-linecap: round; }
+/* brass that reads on the page in every theme (Modern's brass is its tiles' edge) */
+.sh-arrow { fill: color-mix(in srgb, var(--brass-lo) 62%, transparent); cursor: pointer; }
+.sh-arrow.full { fill: color-mix(in srgb, var(--sh-danger) 70%, transparent); }
+.sh-arrow.on { stroke: var(--ink); stroke-width: .5; stroke-linejoin: round; }
+.sh-board text.sh-pop { font-size: 5px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.2px; pointer-events: none; }
+.sh-board text.sh-pop.big { font-size: 7px; }
+
+/* under the yard: the wagon coming and the next, and the line; at the end, how it went and New game, in the same room */
+.sh-side { display: grid; gap: .45rem; }
+.sh-tray { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: .7rem; height: 4.4rem; }
+.sh-tray[hidden] { display: none; }
+.sh-coming { display: grid; grid-template-columns: auto auto; align-items: end; gap: .3rem; height: 100%; box-sizing: border-box; padding: .4rem .55rem; border-radius: 6px; background: var(--sh-soft); }
+.sh-coming svg { display: block; }
+.sh-coming svg.now { width: 3.4rem; height: 3.4rem; }
+.sh-coming svg.next { width: 1.5rem; height: 1.5rem; opacity: .85; }
+.sh-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
+.sh-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.sh-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 4.4rem; }
+.sh-result .sh-go { padding: 0 1.3rem; }
+.sh-result[hidden] { display: none; }
+.sh-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.sh-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.sh-toast.show { opacity: 1; }
+
+/* held sideways: the yard on the left with all the height; the score, the wagons coming and the line beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.shunt { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.shunt .sh-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.shunt .sh-yard { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; place-items: center; }
+  #app.shunt .sh-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.shunt .sh-tray { grid-template-columns: 1fr; grid-template-rows: 5.4rem 4.6rem; height: auto; align-items: start; }
+  #app.shunt .sh-coming { justify-self: start; }
+  #app.shunt .sh-coming svg.now { width: 4.2rem; height: 4.2rem; }
+  #app.shunt .sh-result { grid-template-columns: 1fr; height: auto; }
+}
