@@ -5,26 +5,15 @@
 // a transaction is first tried on what the device has cached (null if it watches nothing there, as Firebase does with
 // a cold cache) and tried again on the server's value until the two agree; watchers hear of every change, a moment
 // later, as they would over the network.
-import { validate, roundTrip } from "./rtdb.js";
+import { validate, memoryDb } from "../memdb.js";
 
-const parts = path => path.split("/").filter(Boolean);
 const clone = v => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export function fakeDb() {
-  let tree = null;
+  // the database itself is memdb.js's, as an offline party's host keeps it; the devices round it are this file's
+  const db = memoryDb(), get = db.get, set = db.set;
   const watchers = new Set(), devices = new Map(), tick = () => new Promise(r => setTimeout(r, 0));
-  const get = path => { let v = tree; for (const k of parts(path)) { if (v == null || typeof v !== "object") return null; v = v[k]; } return v ?? null; };
-  function set(path, value) {
-    validate(value ?? null, path);
-    const ks = parts(path), stored = value === null ? null : roundTrip(value);
-    if (!ks.length) { tree = stored; return; }
-    tree = tree && typeof tree === "object" ? tree : {};
-    let o = tree;
-    for (const k of ks.slice(0, -1)) o = (o[k] = o[k] && typeof o[k] === "object" ? o[k] : {});
-    if (stored === null || stored === undefined) delete o[ks.at(-1)]; else o[ks.at(-1)] = stored;
-    tree = roundTrip(tree) ?? null;                                   // empty objects left behind go, as they do there
-  }
   let pending = false;
   function notify() {
     if (pending) return;
