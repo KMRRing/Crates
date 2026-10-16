@@ -1,0 +1,72 @@
+/* Orrery: the brass face (twelve spokes, four orbits, the sun), the planets on it in the four enamels, each with a
+   mark of its own (a ring, bands, a crescent, a cap) so they're told apart without their colour, the foretold ones
+   dashed where they'll land, and under it a line saying what the turn shown would do. Gilt is the house colour. */
+:root {
+  --or-in: var(--c0);
+  --or-soft: color-mix(in srgb, var(--or-in) 15%, var(--sheet));
+}
+
+.or-mark { display: inline-block; }
+.or-mark svg { width: 100%; height: 100%; display: block; }
+.or-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.or-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.or-score b { font-size: 1.05rem; }
+
+/* the orrery: round, as large as its room allows */
+.or-sky { position: relative; place-items: center; }
+.or-board { width: min(100cqw, 100cqh); height: min(100cqh, 100cqw); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.or-bezel { fill: var(--sheet); stroke: var(--brass); stroke-width: .8; }
+.or-spoke { stroke: var(--rule); stroke-width: .3; }
+.or-tick { stroke: var(--brass); stroke-width: .5; }
+.or-orbit-line { fill: none; stroke: var(--brass); stroke-width: .45; opacity: .7; }
+.or-sun { fill: var(--c0); stroke: color-mix(in srgb, var(--ink) 35%, transparent); stroke-width: .4; }
+.or-sun-core { fill: color-mix(in srgb, var(--c0) 55%, #FFF6D8); }
+.or-board [data-ring] { transform-box: view-box; transform-origin: 0 0; }
+
+/* the planets */
+.or-planet { transform-box: fill-box; transform-origin: center; }
+.or-disc { stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .35; }
+.or-planet.k0 > .or-disc { fill: var(--c0); }
+.or-planet.k1 > .or-disc { fill: var(--c1); }
+.or-planet.k2 > .or-disc { fill: var(--c2); }
+.or-planet.k3 > .or-disc { fill: var(--c3); }
+.or-stroke { fill: none; stroke: var(--on-c); stroke-width: .6; stroke-linecap: round; }
+.or-planet.k0 .or-stroke { stroke: var(--on-c0); }
+.or-shade { fill: color-mix(in srgb, var(--ink) 38%, transparent); }
+.or-cap { fill: var(--on-c); opacity: .85; }
+.or-lined { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.or-foretold { fill: none; stroke-width: .7; stroke-dasharray: 1.2 .8; animation: or-fore 1.1s ease-in-out infinite alternate; }
+.or-foretold.k0 { stroke: var(--c0); }
+.or-foretold.k1 { stroke: var(--c1); }
+.or-foretold.k2 { stroke: var(--c2); }
+.or-foretold.k3 { stroke: var(--c3); }
+@keyframes or-fore { to { opacity: .45; } }
+.or-board text.or-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
+.or-board text.or-pop.big { font-size: 8px; }
+
+/* under the orrery: what a turn would do, or the first game's words; at the end, how it went and New game */
+.or-side { display: grid; gap: .45rem; }
+.or-tray { display: grid; align-items: center; height: 3.4rem; }
+.or-tray[hidden] { display: none; }
+.or-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
+.or-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.or-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 3.4rem; }
+.or-result .or-go { padding: 0 1.3rem; }
+.or-result[hidden] { display: none; }
+.or-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.or-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.or-toast.show { opacity: 1; }
+
+/* held sideways: the orrery on the left with all the height; the score and the line beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.orrery { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.orrery .or-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.orrery .or-sky { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.orrery .or-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.orrery .or-tray { height: 6rem; align-items: end; }
+  #app.orrery .or-result { grid-template-columns: 1fr; height: auto; }
+}
