@@ -1,0 +1,87 @@
+/* Polder: the sea (eight squares by eight, open sea beyond three sides, the coast at its foot), the dykes laid on it,
+   the silt, and under it the three dyke pieces to drag. Farmland's verdigris is the house colour; the board's own
+   colours (water, earth, sand) are mixed from the theme's sheet so they sit on its page by day and by night. */
+:root {
+  --pd-in: var(--c1);
+  --pd-soft: color-mix(in srgb, var(--pd-in) 15%, var(--sheet));
+  --pd-water: color-mix(in srgb, var(--c2) 30%, var(--sheet));
+  --pd-deep: color-mix(in srgb, var(--c2) 50%, var(--sheet));
+  --pd-earth: #8A6A3B;
+  --pd-sandy: color-mix(in srgb, var(--c0) 38%, var(--sheet));
+  --pd-farmland: color-mix(in srgb, var(--c1) 50%, var(--sheet));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --pd-earth: #A3824F; --pd-sandy: color-mix(in srgb, var(--c0) 52%, var(--sheet)); }
+}
+html[data-mode="night"] { --pd-earth: #A3824F; --pd-sandy: color-mix(in srgb, var(--c0) 52%, var(--sheet)); }
+
+.pd-mark { display: inline-block; }
+.pd-mark svg { width: 100%; height: 100%; display: block; }
+.pd-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.pd-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.pd-score b { font-size: 1.05rem; }
+.pd-silt { display: inline-flex; align-items: center; gap: .3rem; }
+.pd-silt i { width: .55rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
+.pd-silt i.on { background: var(--brass-lo); }
+
+/* the sea: as large as its room allows at its own proportions */
+.pd-sea { position: relative; place-items: center; }
+.pd-board { width: min(100cqw, 100cqh * 86 / 91); height: min(100cqh, 100cqw * 91 / 86); display: block; touch-action: none; overflow: visible; border-radius: 6px;
+  -webkit-user-select: none; user-select: none; }
+.pd-deep { fill: var(--pd-deep); }
+.pd-wave { fill: none; stroke: var(--pd-water); stroke-width: .45; stroke-linecap: round; }
+.pd-water { fill: var(--pd-water); }
+.pd-land { fill: var(--pd-farmland); }
+.pd-sand { fill: var(--pd-sandy); }
+.pd-grid line { stroke: color-mix(in srgb, var(--c2) 42%, var(--sheet)); stroke-width: .25; }
+
+/* dykes, silt, farmland */
+.pd-dyke, .pd-silt-sq, .pd-farm { transform-box: fill-box; transform-origin: center; }
+.pd-dyke > rect { fill: var(--pd-earth); stroke: color-mix(in srgb, var(--ink) 35%, transparent); stroke-width: .35; }
+.pd-tuft { fill: none; stroke: var(--c1); stroke-width: .7; stroke-linecap: round; stroke-linejoin: round; }
+.pd-dyke.ghost { opacity: .72; }
+.pd-seals path { fill: var(--pd-earth); }
+.pd-silt-sq > rect { fill: var(--pd-sandy); stroke: color-mix(in srgb, var(--c0) 55%, transparent); stroke-width: .3; }
+.pd-silt-sq circle { fill: color-mix(in srgb, var(--c0) 70%, var(--ink)); }
+.pd-farm > rect { fill: var(--pd-farmland); }
+.pd-farm > path { fill: none; stroke: color-mix(in srgb, var(--c1) 80%, var(--ink)); stroke-width: .45; opacity: .7; }
+.pd-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.pd-board text.pd-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
+.pd-board text.pd-pop.big { font-size: 8px; }
+.pd-board .pd-hint text { font-size: 4.2px; font-weight: 650; fill: var(--ink-soft); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--pd-water); stroke-width: 1.6px; stroke-linejoin: round; }
+
+/* under the sea: the three pieces; at the end, how it went and New game, in the same room */
+.pd-side { display: grid; gap: .45rem; }
+.pd-tray { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: .5rem; height: 7rem; }
+.pd-tray[hidden] { display: none; }
+.pd-piece { display: grid; place-items: center; min-width: 0; min-height: 0; padding: .4rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--pd-soft);
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.pd-piece svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+.pd-piece.lifted svg { opacity: .2; }
+.pd-piece.cant svg { opacity: .35; filter: grayscale(1); }
+.pd-piece:disabled { background: transparent; cursor: default; }
+.pd-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.pd-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 7rem; }
+.pd-result .pd-go { padding: 0 1.3rem; }
+.pd-result[hidden] { display: none; }
+.pd-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+/* the piece in your hand, over everything, at the sea's size */
+.pd-float { position: fixed; z-index: 30; pointer-events: none; filter: drop-shadow(0 6px 8px rgba(28, 42, 52, .3)); }
+.pd-float svg { width: 100%; height: 100%; display: block; }
+
+.pd-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.pd-toast.show { opacity: 1; }
+
+/* held sideways: the sea on the left with all the height; the score and the pieces beside it, the pieces low where a
+   thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.polder { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.polder .pd-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.polder .pd-sea { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.polder .pd-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.polder .pd-tray { grid-template-columns: 1fr; grid-template-rows: repeat(3, 7rem); height: auto; }
+  #app.polder .pd-result { grid-template-columns: 1fr; height: auto; }
+}
