@@ -1,0 +1,82 @@
+/* Settle: the tank farm (six tanks on the ground, a header pipe dropping into each), the parcels in them in four
+   enamels, each grade lettered (W, F, D, N) so it's read without its colour, heaviest at the foot; under it a line
+   saying what the pump held would do, and the two parcels offered. Cobalt, water's, is the house colour. */
+:root {
+  --st-in: var(--c2);
+  --st-soft: color-mix(in srgb, var(--st-in) 14%, var(--sheet));
+  --st-danger: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --st-danger: #E8806F; }
+}
+html[data-mode="night"] { --st-danger: #E8806F; }
+
+.st-mark { display: inline-block; }
+.st-mark svg { width: 100%; height: 100%; display: block; }
+.st-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
+.st-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.st-score b { font-size: 1.05rem; }
+.st-lives { display: inline-flex; align-items: center; gap: .3rem; }
+.st-lives i { width: .9rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
+.st-lives i.on { background: var(--brass-lo); }
+
+/* the farm: as large as its room allows at its own proportions */
+.st-farm { position: relative; place-items: center; }
+.st-board { width: min(100cqw, 100cqh * 74 / 84); height: min(100cqh, 100cqw * 84 / 74); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.st-ground { fill: color-mix(in srgb, var(--brass) 45%, var(--sheet)); }
+.st-header { fill: none; stroke: var(--brass); stroke-width: 1.6; stroke-linecap: round; }
+.st-drop { fill: none; stroke: var(--brass); stroke-width: .9; }
+.st-shell { fill: var(--sheet); stroke: var(--brass); stroke-width: .6; }
+.st-shell.aim { fill: var(--st-soft); stroke: var(--st-in); stroke-width: .9; }
+.st-parcel { transform-box: fill-box; transform-origin: center; }
+.st-parcel > rect { stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .3; }
+.st-parcel.k0 > rect { fill: var(--c2); }
+.st-parcel.k1 > rect { fill: var(--c0); }
+.st-parcel.k2 > rect { fill: var(--c3); }
+.st-parcel.k3 > rect { fill: var(--c1); }
+.st-board text.st-letter, .st-swatch text.st-letter { font-size: 3.6px; font-weight: 800; fill: var(--on-c); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.st-parcel.k1 text.st-letter { fill: var(--on-c0); }
+.st-parcel.fresh > rect { stroke: var(--ink); stroke-width: .6; }
+.st-parcel.spill > rect { stroke: var(--st-danger); stroke-width: .7; stroke-dasharray: 1.2 .8; }
+.st-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.st-board text.st-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
+.st-board text.st-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
+.st-board text.st-pop.big { font-size: 8px; }
+
+/* under the farm: what the pump held would do, and the two parcels; at the end, how it went and New game */
+.st-side { display: grid; gap: .45rem; }
+.st-line { margin: 0; height: 2.4rem; overflow: hidden; font-size: .9rem; line-height: 1.3; color: var(--ink-soft); }
+.st-line[hidden] { display: none; }
+.st-tray { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; height: 4.4rem; }
+.st-tray[hidden] { display: none; }
+.st-card { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: .6rem; align-content: center; align-items: center; min-width: 0;
+  padding: .4rem .7rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--st-soft); color: var(--ink); font: inherit; text-align: left;
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.st-swatch { grid-row: 1 / span 2; width: 2.2rem; height: 1.63rem; display: block; }
+.st-card b { font-size: 1rem; font-weight: 800; }
+.st-card span { font-size: .78rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.st-card.picked { border-color: var(--st-in); box-shadow: inset 0 0 0 2px var(--st-in); }
+.st-card.lifted { opacity: .35; }
+.st-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.st-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; height: 7.25rem; }
+.st-result .st-go { padding: 0 1.3rem; }
+.st-result[hidden] { display: none; }
+.st-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.st-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.st-toast.show { opacity: 1; }
+
+/* held sideways: the farm on the left with all the height; the score, the line and the two parcels beside it, the
+   parcels low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.settle { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.settle .st-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.settle .st-farm { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.settle .st-side { grid-column: 2; grid-row: 3; align-content: end; }
+  #app.settle .st-line { height: 4rem; }
+  #app.settle .st-tray { grid-template-columns: 1fr; grid-template-rows: repeat(2, 4.4rem); height: auto; }
+  #app.settle .st-result { grid-template-columns: 1fr; height: auto; }
+}
