@@ -30,11 +30,12 @@
   <section id="board" class="qs-board fit-grow" aria-label="The table">
     <div id="ring" class="qs-ring">
       <div id="centre" class="qs-centre" aria-live="polite"></div>
+      <div id="pop" class="qs-pop" role="dialog" hidden></div>
     </div>
   </section>
   <section id="side" class="qs-side" aria-label="Your role and your part">
     <button id="role" class="qs-role" type="button" aria-expanded="true"></button>
-    <p id="status" class="qs-status" aria-live="polite"></p>
+    <div id="status" class="qs-status"><div id="statusOld" class="qs-old"></div><p id="statusNow" class="qs-now-line" aria-live="polite"></p></div>
     <div id="controls" class="qs-controls"></div>
   </section>
 </div>

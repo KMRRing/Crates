@@ -1,6 +1,7 @@
 /* Quest: a round table in heraldic purple. Everyone sits round an oval, you at the foot, the five quests and the
-   refusals in the middle; your role card, the narrator's line and your part under it (beside it, held sideways). The
-   loyal are verdigris and the traitors oxblood, as good and bad are everywhere in the suite. */
+   refusals in the middle; your role card, the newest line said and your part under it (beside it, held sideways, with
+   more of what's been said). The loyal are verdigris and the traitors oxblood, as good and bad are everywhere in the
+   suite: so are accusations (thumbs down) and trust (thumbs up) at each player's foot. */
 :root {
   --qs-in: #5E3B8C;                                              /* heraldic purple: the game's enamel */
   --qs-soft: color-mix(in srgb, var(--qs-in) 14%, var(--sheet));
@@ -31,7 +32,8 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
   display: grid; justify-items: center; gap: .05em; padding: .3em .35em .32em; border: 1.5px solid var(--tile-edge); border-radius: 6px; background: var(--tile);
   color: var(--ink); font: inherit; font-size: clamp(.66rem, 3.3cqw, .95rem); line-height: 1.2; text-align: center; cursor: default; }
 .qs-chip:disabled { opacity: 1; }
-.qs-chip[aria-pressed] { cursor: pointer; }
+.qs-chip[aria-pressed], .qs-chip[aria-haspopup] { cursor: pointer; }
+.qs-chip.asked { border-color: var(--brass); box-shadow: 0 0 0 2px var(--brass); }
 .qs-name { max-width: 100%; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qs-tag { display: inline-flex; align-items: center; gap: .2em; min-height: 1.15em; max-width: 100%; font-size: .78em; font-weight: 700; color: var(--ink-soft); white-space: nowrap; overflow: hidden; }
 .qs-chip.me { border-color: var(--brass); }
@@ -58,6 +60,38 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
 .qs-vote.old { opacity: .5; }
 .qs-vote.done { width: .8em; height: .8em; top: -.35em; right: -.25em; background: var(--brass); border: 1.5px solid var(--sheet); }
 .qs-played { position: absolute; bottom: -.4em; right: -.3em; width: .7em; height: .95em; border-radius: 2px; background: var(--qs-in); border: 1.5px solid var(--sheet); }
+/* what's been said of a player, at their foot: how many accuse and trust them (yours ringed in brass); named as the
+   Seer while the traitors confer */
+.qs-said { position: absolute; left: 50%; bottom: -.7em; transform: translateX(-50%); display: flex; gap: .2em; pointer-events: none; }
+.qs-said i { display: inline-flex; align-items: center; gap: .15em; height: 1.3em; padding: 0 .32em; border-radius: 3px; border: 1.5px solid var(--sheet);
+  color: var(--sheet); font-style: normal; font-size: .72em; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.qs-said i .qs-ico { width: 1em; height: 1em; vertical-align: 0; }
+.qs-said .acc { background: var(--qs-evil); }
+.qs-said .tru { background: var(--qs-good); }
+.qs-said .named { background: var(--ink); }
+.qs-said .mine { border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass); }
+/* the one speaking, while their word is new */
+.qs-speak { position: absolute; top: -.85em; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 1.45em; height: 1.25em; border-radius: 4px;
+  background: var(--brass); color: var(--sheet); animation: qs-speak .3s ease-out; }
+.qs-speak .qs-ico { width: .85em; height: .85em; }
+@keyframes qs-speak { from { transform: translateX(-50%) scale(.3); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .qs-speak { animation: none; } }
+
+/* ---------- the talk card: what's said of the player tapped, and your word of them ---------- */
+.qs-pop { position: absolute; z-index: 3; width: min(16rem, calc(100% - .5rem)); box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem; padding: .55rem .6rem .6rem;
+  border: 1.5px solid var(--brass); border-radius: 6px; background: var(--sheet); color: var(--ink); box-shadow: 0 4px 16px rgba(10, 18, 24, .22); text-align: left; }
+.qs-pop[hidden] { display: none; }
+.qs-pop-name { font-size: .85rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
+.qs-pop-said { color: var(--ink-soft); font-size: .82rem; line-height: 1.3; }
+.qs-pop-note { color: var(--ink-soft); font-size: .75rem; text-align: center; }
+.qs-pop-btns { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .4rem; }
+.qs-pop-btns.one { grid-template-columns: minmax(0, 1fr); }
+.qs-pop-btns .btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 0; min-height: 2.6rem; margin: 0; padding-inline: .4rem; }
+.qs-say.acc .qs-ico { color: var(--qs-evil); }
+.qs-say.tru .qs-ico { color: var(--qs-good); }
+.qs-say.acc[aria-pressed="true"] { background: var(--qs-evil); border-color: var(--qs-evil); color: var(--sheet); }
+.qs-say.tru[aria-pressed="true"] { background: var(--qs-good); border-color: var(--qs-good); color: var(--sheet); }
+.qs-say[aria-pressed="true"] .qs-ico { color: inherit; }
 
 /* ---------- the middle: the quests, the refusals, the step ---------- */
 .qs-centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 50cqw; max-height: 60cqh; display: grid; justify-items: center; align-content: center; gap: .45em;
@@ -106,8 +140,12 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
 .qs-role-text { display: grid; gap: .05rem; min-width: 0; }
 .qs-role-text b { font-size: .95rem; }
 .qs-role-text small { font-size: .78rem; line-height: 1.3; color: var(--ink-soft); }
-.qs-status { margin: 0; height: 2.5em; line-height: 1.25; text-align: center; color: var(--ink-soft); font-size: .85rem; overflow: hidden;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+/* the newest line said, the narrator's or a player's; older ones only held sideways */
+.qs-status { height: 2.5em; line-height: 1.25; text-align: center; color: var(--ink-soft); font-size: .85rem; overflow: hidden; }
+.qs-status p { margin: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.qs-status .qs-old { display: none; }
+.qs-status b { color: var(--ink); font-weight: 800; }
+.qs-status .talk { color: var(--ink); }
 .qs-controls { display: grid; gap: .35rem; }
 .qs-hint { margin: 0; min-height: 1.3em; text-align: center; font-weight: 700; font-size: .9rem; }
 .qs-pair { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
@@ -117,6 +155,10 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
 .qs-card-btn[aria-pressed="true"] { outline: 2.5px solid var(--qs-in); outline-offset: 2px; }
 .qs-card-btn.fail:disabled { opacity: .4; }
 .qs-go { width: 100%; min-height: 3rem; }
+/* leading: Talk beside Send this party */
+.qs-lead-go { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .4rem; }
+.qs-lead-go .btn { min-height: 3rem; margin: 0; padding-inline: 1rem; }
+.qs-talk-btn[aria-pressed="true"] { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); }
 
 /* ---------- the sheets ---------- */
 .qs-rules p { line-height: 1.45; }
@@ -138,6 +180,8 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
 .qs-log-votes .y .qs-ico { color: var(--qs-good); margin-right: .3rem; }
 .qs-log-votes .n .qs-ico { color: var(--qs-evil); margin-right: .3rem; }
 .qs-log-out { font-size: .82rem; color: var(--ink-soft); font-weight: 700; }
+.qs-log-list li.qs-log-talk { display: block; padding: .2rem .2rem .2rem .55rem; border-bottom: 0; border-left-color: transparent; font-size: .85rem; line-height: 1.35; color: var(--ink-soft); }
+.qs-log-talk b { color: var(--ink); }
 .qs-end-head { margin: .2rem 0 .4rem; }
 .qs-end-note { color: var(--ink-soft); font-size: .92rem; margin: 0 0 .5rem; }
 .qs-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
@@ -153,13 +197,12 @@ html[data-theme="office"][data-mode="night"] { --qs-in: #479EF5; }
   max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
   transition: opacity .2s, transform .2s; z-index: 5; }
 .qs-toast.on { opacity: 1; transform: translate(-50%, 0); }
-html[data-theme="office"] :is(.qs-chip, .qs-role, .qs-card) { border-radius: 4px; }
+html[data-theme="office"] :is(.qs-chip, .qs-role, .qs-card, .qs-pop) { border-radius: 4px; }
 
-/* a short phone: the role card gives way first */
+/* a short phone: the role card gives way first (what's said stays: it's half the game) */
 @media (max-height: 640px) and (orientation: portrait) {
   .qs-role { min-height: 2.8rem; padding: .3rem .55rem; }
   .qs-role-text small { display: none; }
-  .qs-status { display: none; }
 }
 
 /* held sideways: the table on the left, your role and your part beside it, the buttons low */
@@ -167,4 +210,8 @@ html[data-theme="office"] :is(.qs-chip, .qs-role, .qs-card) { border-radius: 4px
   #app.quest { --beside: 21rem; grid-template-rows: auto minmax(0, 1fr); }
   #app.quest .qs-board { grid-column: 1; grid-row: 2; }
   #app.quest .qs-side { grid-column: 2; grid-row: 2; min-height: 0; justify-content: flex-end; padding-bottom: .4rem; }
+  /* what's been said, as much as the column holds, the newest last; the oldest fade at the top */
+  #app.quest .qs-status { flex: 1 1 auto; height: auto; min-height: 2.5em; display: flex; flex-direction: column; justify-content: flex-end; gap: .4em; text-align: left;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 3em); mask-image: linear-gradient(to bottom, transparent, #000 3em); }
+  #app.quest .qs-status .qs-old { display: flex; flex-direction: column; justify-content: flex-end; gap: .4em; min-height: 0; opacity: .72; }
 }
