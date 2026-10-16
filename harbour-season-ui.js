@@ -4,7 +4,7 @@
 // a town (send vehicles, call them back, take its contract), the terminal (what comes in, the yard). The rules are in
 // harbour-season.js; the company (every region on one clock) is the page's to keep.
 import { SEASONS, WEEKS, regionOf, LANES, seasonOf, weekOf, eventOf, offersOf, offerOpen, tendersOf, contractOf, demandOf, capacityOf,
-  feedOf, act, playCompany, startRegion, engineOf, parRun, PAR } from "./harbour-season.js";
+  act, playCompany, startRegion, engineOf, parRun, PAR } from "./harbour-season.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = v => (Math.round(v * 10) / 10).toString();
@@ -98,11 +98,11 @@ const ICON = {
 const icon = what => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[what]}</svg>`;
 
 /**
- * company(): the company as it stands; save(company); feeds(): drops a week each region's harbour feeds it;
- * harbour(levelId): { name, hours (your fastest, or null), par } for a feeding level; goTo(step): a level, a region
+ * company(): the company as it stands; save(company); feeds(): drops a week each region's harbours feed it;
+ * harbours(R): the harbours that feed a region, [{ id, name, drops, of (drops it has to give), open }]; goTo(step): a level, a region
  * ("region:id") or "world"; onWeek(before, after, reports): after every week played, for the page's news.
  */
-export function createSeasonScreen({ root, brief, company, save, feeds, harbour, goTo, onWeek }) {
+export function createSeasonScreen({ root, brief, company, save, feeds, harbours, goTo, onWeek }) {
   let R = null, B = null, fresh = null, viewing = null, animate = false;
   const sheet = document.createElement("dialog");
   sheet.className = "sheet menu-sheet hs-sheet";
@@ -259,10 +259,12 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbour,
     openSheet(t.name, b);
   }
   function terminalSheet() {
-    const s = S(), h = harbour(R.feed.level), fd = feed(), L = lane(), c = C(), ro = !!viewing;
+    const s = S(), fd = feed(), L = lane(), c = C(), ro = !!viewing;
     let b = `<p class="hs-line">Holds <b>${s.cap}</b>; has ${num(s.tank)}. Whatever comes in beyond what it holds is turned away, and not paid for.</p><h4>Comes in each week</h4>`;
-    b += `<div class="hs-deal"><div><b>${esc(R.feed.name)}</b><span>${fd ? `${fd} a week at ${num(R.feed.price)} a drop` : "idle"}: as fast as your ${esc(h.name)} plan${h.hours ? ` (${h.hours} hours)` : ""}</span></div>${!ro && h.hours > h.par ? `<button type="button" class="btn" data-go="${R.feed.level}">${esc(h.name)}</button>` : ""}</div>`;
-    if (!ro && h.hours > h.par) b += `<p class="hs-soft">${esc(h.name)} at its par, ${h.par} hours, would feed ${feedOf(R, h.par)} a week.</p>`;
+    b += `<div class="hs-deal"><div><b>${esc(R.feed.name)}</b><span>${fd ? `${fd} a week at ${num(R.feed.price)} a drop` : "idle"}: a drop a week for every par met in its harbours</span></div></div>`;
+    // your harbours, each with its drops, and the way back to one with pars still to meet (not while the par run's on show)
+    if (!ro) b += harbours(R).map(h => `<div class="hs-deal hs-harbour"><div><b>${esc(h.name)}</b><span>${h.open ? `${h.drops} of ${h.of} drops` : "not open yet"}</span></div>`
+      + `${h.open && h.drops < h.of ? `<button type="button" class="btn" data-go="${h.id}">Go</button>` : ""}</div>`).join("");
     if (s.ships) b += `<div class="hs-deal"><div><b>${esc(R.ship.name)}'s ${s.ships > 1 ? `${s.ships} ships` : "ship"}</b><span>${R.ship.drops * s.ships} a week from ${esc(R.ship.from)}, at ${num(Math.min(...R.ship.price))}–${num(Math.max(...R.ship.price))} a drop, ${num(R.ship.hire * s.ships)} a week to hire</span></div><button type="button" class="btn" data-release="1" ${ro ? "disabled" : ""}>Let one go</button></div>`;
     if (L && c.regions[L.from] && c.regions[L.to]) {
       const mrs = c.lanes[L.id].mrs, into = L.to === R.id, other = regionOf(into ? L.from : L.to).name;
@@ -273,11 +275,12 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbour,
     if (s.solved) { const e = engineOf(company(), R.id, feeds()); if (e != null && !ro) b += `<h4>The engine</h4><p class="hs-line">${num(e)} coins a week as it stands (par ${num(PAR.engine[R.id])}).</p>`; }
     openSheet(R.terminal.name, b);
   }
-  /** The welcome, the first time a region opens: where its diesel comes from (your harbour plan's pace, the link back
-   *  to the puzzles), how a week goes in three lines, and the seasons. The brief above the board says the rest. */
+  /** The welcome, the first time a region opens: where its diesel comes from (the pars met in its harbours, the link
+   *  back to the puzzles), how a week goes in three lines, and the seasons. The brief above the board says the rest. */
   function welcome() {
-    const h = harbour(R.feed.level), fd = feed();
-    openSheet(R.name, `<p class="hs-line"><b>${esc(R.terminal.name)}</b>, your terminal, gets ${fd} drops a week from ${esc(lower(R.feed.name))}: as fast as your ${esc(h.name)} plan runs${h.hours ? ` (${h.hours} hours)` : ""}. A faster plan feeds it more.</p>`
+    const fd = feed(), names = harbours(R).filter(h => h.open).map(h => h.name);
+    const these = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0] || "its harbours";
+    openSheet(R.name, `<p class="hs-line"><b>${esc(R.terminal.name)}</b>, your terminal, gets ${fd} drops a week from ${esc(lower(R.feed.name))}: one for every par you've met in ${esc(these)}. Every par you meet there adds one.</p>`
       + `<ol class="hs-how"><li><b>Pick one</b> of three offers each week: a vehicle, more tank, a ship.</li><li><b>Tap a town</b> to send it vehicles from the yard.</li><li><b>Play the week.</b> Supply every town for a star; stars win contracts.</li></ol>`
       + `<p class="hs-soft">A season is ${WEEKS} weeks: ${SEASONS.map(x => x.toLowerCase()).join(", then ")}. A region whose long-term contracts are all kept runs on its own.</p><button type="button" class="btn primary wide" data-close="1">Start</button>`);
   }

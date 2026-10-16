@@ -36,7 +36,7 @@ const PLACES = {
 // each lane's way round the coasts: ARA to the Baltic up the North Sea, round Skagen and through the Sound
 const WAYS = { "ara-baltic": [[4.3, 51.9], [4, 54], [7.5, 57.5], [9.5, 58], [11.6, 57], [12.7, 55.8], [15, 55.2], [19.5, 57], [22, 59], [24.5, 59.75], [25, 59.5]] };
 
-/** company(): the company as it stands; save(company); feeds(): drops a week each region's harbour feeds it;
+/** company(): the company as it stands; save(company); feeds(): drops a week each region's harbours feed it;
  *  goTo(step): a region ("region:id") or a level. */
 export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
   let on = false;

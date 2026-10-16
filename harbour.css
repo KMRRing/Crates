@@ -77,6 +77,8 @@ html[data-mode="night"] .harbour { --hb-water: #1C3443; --hb-grid: rgba(236, 226
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hb-status.bad { color: var(--c3); }
 .hb-status.good { color: color-mix(in srgb, var(--c1) 80%, var(--ink)); }
+/* a drop: a par met, after its measure in a run's line and the menu's bests, in the board's diesel blue */
+.hb-drop { width: .62em; height: .8em; margin-left: .18em; vertical-align: -.04em; fill: var(--c2); }
 /* held sideways (#app.beside): the harbour (or the region) takes the left, all the height under the header; the
    brief, the fleet, the programs and the controls stand beside it, the run's buttons at the bottom where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {

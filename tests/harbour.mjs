@@ -148,7 +148,8 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   for (let t = 0; t < 60 && !refused; t++) { st = step(H, wrong, st); refused = st.events.find(e => e.kind === "refused"); }
   check(refused && /FAME/i.test(refused.why), `heels: a FAME heel is refused by the pure customer (${refused?.why})`); }
 // the regions, a week at a time: the par run reaches both regions' engines, ARA's lane is what lets the Baltic finish,
-// Rundown's speed star is worth a star (and a contract) in the Baltic's first season, and the rules case by case
+// a region is fed a drop a week for every par met in its chapter's harbours, two drops more a week are worth a star (and
+// a contract) in the Baltic's first season, and the rules case by case
 { const S = await import("../harbour-season.js");
   const B = S.regionOf("baltic"), A = S.regionOf("ara");
   const { company: C, weeks } = S.parRun();
@@ -160,10 +161,18 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   { let c = S.startRegion(S.newCompany(), "baltic");
     for (const w of S.PAR.weeks) { for (const id of ["baltic", "ara"]) for (const a of w[id] || []) c = S.act(c, id, a); c = S.playCompany(c, S.PAR.feeds).company; }
     check(!c.regions.baltic.solved && c.regions.baltic.held.some(h => h.endsWith("-2")), "without ARA's lane the Baltic takes its long-term contracts and can't keep them: never solved"); }
-  // Rundown's speed star: eight drops a week instead of six; the par's first season at six ends a star short
-  check(S.feedOf(B, 31) === 8 && S.feedOf(B, 39) === 6 && S.feedOf(B, 36) === 7 && S.feedOf(A, 56) === 7 && S.feedOf(A, 100) === 4 && S.feedOf(B, null) === 0, "a harbour's pace feeds its terminal: Rundown 31 h 8 a week, 39 h 6; Two refineries 56 h 7; unfinished, nothing");
+  // ...unless its harbours are mastered: eleven of their twelve drops and the plant and ORLEN bring the 19 its contracts want
+  { const alone = feed => { let c = S.startRegion(S.newCompany(), "baltic");
+      for (const w of S.PAR.weeks) { for (const id of ["baltic", "ara"]) for (const a of w[id] || []) c = S.act(c, id, a); c = S.playCompany(c, { ...S.PAR.feeds, baltic: feed }).company; }
+      return c.regions.baltic.solved; };
+    check(!alone(10) && alone(11), "without the lane: on ten drops a week the Baltic is never solved, on eleven it is"); }
+  // the feed: a drop a week for every par met in the region's own chapter's harbours, and no other's
+  { const chapterOf = id => LEVELS.find(l => l.id === id).chapter, drops = { "first-cargo": 2, "up-the-creek": 3, rundown: 3, "first-blend": 4, "two-refineries": 3, trickle: 1, roundabout: 4 };
+    check(S.REGIONS.every(R => R.feed.levels.length && R.feed.levels.join() === LEVELS.filter(l => l.chapter === R.chapter).map(l => l.id).join()), "each region is fed by its own chapter's harbours, all of them");
+    check(S.feedOf(B, id => drops[id]) === 8 && S.feedOf(A, id => drops[id]) === 8 && S.feedOf(B, () => 0) === 0 && S.feedOf(B, () => 4) === 12 && S.feedOf(A, () => 4) === 20,
+      "a drop a week for every par met: the Baltic's 2 + 3 + 3 feed 8, ARA's 4 + 3 + 1 feed 8 (the Straits' drops feed neither); none, nothing; every par, 12 and 20"); }
   { const stars = feed => { let c = S.startRegion(S.newCompany(), "baltic"); for (const w of S.PAR.weeks.slice(0, 4)) { for (const a of w.baltic || []) c = S.act(c, "baltic", a); c = S.playCompany(c, { baltic: feed }).company; } return c.regions.baltic.stars; };
-    check(stars(8) === 3 && stars(6) === 2, `the first season: ★${stars(8)} at Rundown's speed star, ★${stars(6)} at its cost star (Rakvere's contract wants ★3)`); }
+    check(stars(8) === 3 && stars(6) === 2, `the first season: ★${stars(8)} on eight drops a week, ★${stars(6)} on six (Rakvere's contract wants ★3)`); }
   // the rules, case by case
   let s = S.newRegion(B);
   check(S.pick(B, S.pick(B, s, "truck"), "tank") === S.pick(B, s, "truck") || S.pick(B, S.pick(B, s, "truck"), "tank").pool.truck === 2 && S.pick(B, S.pick(B, s, "truck"), "tank").cap === 12, "one offer a week");
@@ -200,6 +209,16 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   check(K.continueTo(f(nwe, run.weeks[12].after)) === "region:baltic", "with the lane running, Continue goes back to the Baltic");
   check(!open(f(nwe, run.weeks[12].after)).includes("roundabout") && open(f(nwe, run.weeks[13].after)).includes("roundabout"), "the Straits open when the Baltic runs on its own");
   check(/^Finish Up the creek$/.test(K.lockedWhy(K.stepOf("rundown"))) && /the Baltic/.test(K.lockedWhy(K.stepOf("first-blend"))), "a locked step says why");
+  // drops: a par met is one; the plan that met it is kept, and only a better one on that measure replaces it
+  const R3 = LEVELS.find(l => l.id === "rundown"), par = R3.par;
+  check(K.parsMet(R3, {}).length === 0 && K.parsMet(R3, { ...par }).join() === "cost,hours,water,instructions" && K.parsMet(R3, { cost: par.cost, hours: par.hours + 1 }).join() === "cost", "a par met is a drop: at par or under, each measure on its own");
+  const shipsA = [{ x: 1, y: 1, h: 0, prog: ["A"] }], shipsB = [{ x: 2, y: 2, h: 0, prog: ["L"] }];
+  const k1 = K.keepPlans({}, { cost: par.cost, hours: par.hours + 5, water: par.water, instructions: par.instructions + 2 }, par, shipsA);
+  check(Object.keys(k1).join() === "cost,water" && k1.cost.v === par.cost && k1.cost.ships[0].prog[0] === "A" && k1.cost.ships !== shipsA, "a run keeps its plan for each par it meets, a copy");
+  const k2 = K.keepPlans(k1, { cost: par.cost, hours: par.hours, water: par.water - 1, instructions: par.instructions }, par, shipsB);
+  check(k2.cost === k1.cost && k2.water.v === par.water - 1 && k2.water.ships[0].prog[0] === "L" && k2.hours.v === par.hours && k2.instructions,
+    "a later run keeps its plan where it meets a new par or does better, and leaves an equal one as it was");
+  check(K.keepPlans(k2, { cost: par.cost + 1, hours: par.hours + 1, water: par.water, instructions: par.instructions }, par, shipsA) === k2, "a run that does no better keeps nothing new");
   // the menu's glimpse of the chapter ahead, and what opens it
   const ahead = x => { const c = K.nextChapter(x); return c && `${c.id}: ${c.why}`; };
   check(ahead(f([])) === "nwe: when the Baltic reaches its long-term contracts" && ahead(f(harbours, run.weeks[7].after)) === "world: when you finish Two refineries"

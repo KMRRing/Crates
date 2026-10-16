@@ -6,8 +6,9 @@
 // comes in that week. From then on its engine (its coins a week) is what there is to improve.
 // Regions share the company's clock: a week played anywhere is played in every region already started, each as it
 // stands, so a region keeps running while you're elsewhere, and the world's lanes carry cargo between them. A terminal
-// is fed by a harbour level at the pace of your fastest plan for it (Rundown feeds Muuga), so a faster harbour plan is
-// a bigger region. Pure: no page, no clock of its own. Drops are the board's diesel, coins its money.
+// is fed by its chapter's harbours: every par met in them is a drop, and a drop a week into the terminal (First cargo,
+// Up the creek and Rundown feed Muuga), so every par met is a bigger region. Pure: no page, no clock of its own. Drops
+// are the board's diesel, coins its money.
 
 export const SEASONS = ["Spot orders", "Medium contracts", "Long-term contracts"];
 export const WEEKS = 4;                                      // a season's weeks
@@ -15,10 +16,10 @@ export const WEEKS = 4;                                      // a season's weeks
 export const REGIONS = [
   {
     id: "baltic", chapter: "baltic", name: "The Baltic", teaches: "spot orders, then contracts",
-    brief: "Your terminal at Muuga, fed by the plant as fast as your Rundown plan runs. Supply every town in a week for a star; stars win contracts.",
+    brief: "Your terminal at Muuga, fed by the plant: a drop a week for every par you've met in the Baltic's harbours. Supply every town in a week for a star; stars win contracts.",
     terminal: { name: "Muuga", tank: 12, start: 6, grow: 6 },
-    // the plant: drops a week from your fastest Rundown, 24 units a round (31 hours: 8 a week; 39 hours: 6)
-    feed: { level: "rundown", units: 24, price: 2, name: "The plant" },
+    // the plant: a drop a week for every par met in the Baltic's three harbours, twelve at most
+    feed: { levels: ["first-cargo", "up-the-creek", "rundown"], price: 2, name: "The plant" },
     towns: [
       { id: "tallinn", name: "Tallinn", routes: { truck: 6 } },
       { id: "rakvere", name: "Rakvere", routes: { truck: 4 } },
@@ -53,10 +54,11 @@ export const REGIONS = [
   },
   {
     id: "ara", chapter: "nwe", name: "ARA", teaches: "a terminal that exports",
-    brief: "Your terminal at Maasvlakte, fed as fast as your Two refineries plan runs. The world's lane can take its diesel to the Baltic.",
+    brief: "Your terminal at Maasvlakte, fed by the refineries: a drop a week for every par you've met in North-West Europe's harbours. The world's lane can take its diesel to the Baltic.",
     terminal: { name: "Maasvlakte", tank: 12, start: 6, grow: 6 },
-    // the refineries: drops a week from your fastest Two refineries, 40 units a run (56 hours: 7 a week; 100 hours: 4)
-    feed: { level: "two-refineries", units: 40, price: 1.8, name: "The refineries" },
+    // the refineries: a drop a week for every par met in North-West Europe's five harbours (eight at most when ARA
+    // opens, after First blend and Two refineries; Trickle, Blend wall and Heels add theirs as they're played)
+    feed: { levels: ["first-blend", "two-refineries", "trickle", "blend-wall", "heels"], price: 1.8, name: "The refineries" },
     towns: [
       { id: "rotterdam", name: "Rotterdam", routes: { truck: 6 } },
       { id: "antwerp", name: "Antwerp", routes: { truck: 3, barge: 6 } },
@@ -97,14 +99,8 @@ export const LANES = [
   { id: "ara-baltic", from: "ara", to: "baltic", name: "ARA to the Baltic", mr: { drops: 8, hire: 3, max: 2 }, price: 2.5 },
 ];
 
-/** Drops a week a harbour plan feeds a terminal: units a round (or run) at the pace of your fastest finish, sixteen
- *  units to the drop. None until the harbour is finished. */
-export function feedOf(R, hours) { return hours > 0 ? Math.floor((R.feed.units * 168) / 16 / hours) : 0; }
-/** The fastest finish that would feed one more drop a week, if there is one. */
-export function nextFeed(R, hours) {
-  const now = feedOf(R, hours), h = Math.floor((R.feed.units * 168) / 16 / (now + 1));
-  return h > 0 ? { hours: h, drops: feedOf(R, h) } : null;
-}
+/** Drops a week a region's terminal is fed: one for every par met in its harbours (drops(levelId): the pars met there). */
+export const feedOf = (R, drops) => R.feed.levels.reduce((n, id) => n + (drops(id) || 0), 0);
 
 // ---------- a region ----------
 const clone = s => JSON.parse(JSON.stringify(s));
@@ -265,9 +261,9 @@ export function act(C, id, [move, ...args]) {
   return after === s ? C : { ...C, regions: { ...C.regions, [id]: after } };
 }
 
-// The par run: the intended path, played out with Rundown at its speed star (31 hours, eight drops a week) and Two
-// refineries at its par (56 hours, seven): the Baltic's two seasons alone, then ARA from the week it opens, the lane,
-// and both regions solved, then each engine tidied. Each entry is a company week's moves, then the week is played.
+// The par run: the intended path, played out by a player with eight of the Baltic harbours' twelve drops (eight a week)
+// and seven of the eight First blend and Two refineries offer (seven): the Baltic's two seasons alone, then ARA from the
+// week it opens, the lane, and both regions solved, then each engine tidied. Each entry is a company week's moves, then the week is played.
 // It's the regions' cheat (Menu shows it week by week) and tests/harbour.mjs holds the pars to it.
 export const PAR = {
   feeds: { baltic: 8, ara: 7 },

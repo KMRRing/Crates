@@ -1,7 +1,8 @@
 // Harbour's campaign: what opens what, so a new player meets the game a piece at a time. A level opens when the one
-// before it is finished; a region when the harbour that feeds its terminal is; North-West Europe when the Baltic reaches
-// its long-term contracts, which need more diesel than ORLEN can spare (so you build a terminal in ARA); the world with
-// ARA, the second region; the Straits once the Baltic runs on its own. Pure: the page tells it what's finished.
+// before it is finished; a region when its chapter's first harbours are (Rundown for the Baltic, Two refineries for
+// ARA); North-West Europe when the Baltic reaches its long-term contracts, which need more diesel than ORLEN can spare
+// (so you build a terminal in ARA); the world with ARA, the second region; the Straits once the Baltic runs on its own.
+// And what a level has earned: its drops, and the plans that earned them. Pure: the page tells it what's finished.
 import { LEVELS, CHAPTERS } from "./harbour-levels.js";
 import { REGIONS, LANES, seasonOf } from "./harbour-season.js";
 
@@ -89,3 +90,18 @@ export function nextChapter(f) {
 /** The steps opened since `before` (a set of step ids open then). */
 export const openedSince = (before, f) => STEPS.filter(s => isOpen(s, f) && !before.has(s.id)).map(s => s.id);
 export const openSet = f => new Set(STEPS.filter(s => isOpen(s, f)).map(s => s.id));
+
+// ---------- drops ----------
+// A par met on a level is a drop, and a drop a week for the region its chapter feeds (harbour-season.js). The plan that
+// met it is kept, to watch again and take back; short of a par, a level keeps only your plan as you left it.
+const MEASURES = ["cost", "hours", "water", "instructions"];
+/** The pars a level's bests meet, by measure: its drops. */
+export const parsMet = (level, best) => MEASURES.filter(k => best?.[k] != null && level.par?.[k] != null && best[k] <= level.par[k]);
+/** A level's kept plans after a finished run (sc its score, ships its plan): for each measure met at par, the run's plan
+ *  is kept if none is yet or it does better there ({ measure: { v, ships } }); the same object if nothing changed. */
+export function keepPlans(kept = {}, sc, par, ships) {
+  const better = MEASURES.filter(k => par?.[k] != null && sc[k] <= par[k] && !(kept[k]?.v <= sc[k]));
+  if (!better.length) return kept;
+  const plan = JSON.parse(JSON.stringify(ships));
+  return { ...kept, ...Object.fromEntries(better.map(k => [k, { v: sc[k], ships: plan }])) };
+}

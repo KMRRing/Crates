@@ -1,7 +1,7 @@
 // Harbour: plan every ship's program, then run them all at once, and deliver the cargoes as cheaply, quickly or
 // compactly as you can. The rules are in harbour-engine.js, the program edits in harbour-tape.js and the levels in
 // harbour-levels.js; this file draws the harbour and the programs, takes taps and drags, and runs the clock.
-import { steer, flatten, neighbour, limitOf, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, score, instructions, classOf, typeOf } from "./harbour-engine.js";
+import { steer, flatten, neighbour, limitOf, ASTERN, LOAD, DISCHARGE, WAIT, CLASSES, moves, grid, period, invalid, start, step, run, score, instructions, classOf, typeOf } from "./harbour-engine.js";
 import { sound } from "./harbour-sound.js";
 import { createFlat, HULL, hullScale } from "./harbour-flat.js";
 import * as T from "./harbour-tape.js";
@@ -10,7 +10,7 @@ import { noteStars } from "./suite.js";
 import { REGIONS, regionOf, newCompany, feedOf, engineOf, PAR } from "./harbour-season.js";
 import { createSeasonScreen } from "./harbour-season-ui.js";
 import { createWorldScreen } from "./harbour-world-ui.js";
-import { stepOf, isOpen, isDone, lockedWhy, continueTo, chaptersShown, nextChapter, openSet, openedSince, nameOf } from "./harbour-campaign.js";
+import { stepOf, isOpen, isDone, lockedWhy, continueTo, chaptersShown, nextChapter, openSet, openedSince, nameOf, parsMet, keepPlans } from "./harbour-campaign.js";
 import { dropdown } from "./dropdown.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -28,6 +28,8 @@ const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 
 const svg = body => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
+// a drop: a par met, as a run's line, the menu and the bests mark it (the region's board draws its diesel the same way)
+const DROP = '<svg class="hb-drop" viewBox="0 0 10 13" role="img" aria-label="a drop"><path d="M5 .6C6.9 3.6 9 5.9 9 8.6A4 4 0 0 1 1 8.6C1 5.9 3.1 3.6 5 .6Z"/></svg>';
 // the steering, drawn as the ship sees it: ahead, a curve to port, a curve to starboard, astern
 const STEERING = { A: "M8 13V3M3.8 7.2 8 3l4.2 4.2", P: "M11 13V9a4 4 0 0 0-4-4H4M6.6 2.4 4 5l2.6 2.6", S: "M5 13V9a4 4 0 0 1 4-4h3M9.4 2.4 12 5l-2.6 2.6", B: "M8 3v10M3.8 8.8 8 13l4.2-4.2" };
 const arrow = op => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${STEERING[op]}"/></svg>`;
@@ -84,6 +86,7 @@ const KEY = "harbour:v3:";
 const keyOf = l => `${l.id}${l.rev ? `@${l.rev}` : ""}`;
 const levelKey = () => keyOf(L);
 const solKey = () => `${KEY}sol:${levelKey()}`, bestKey = () => `${KEY}best:${levelKey()}`;
+const keptKey = () => `${KEY}kept:${levelKey()}`;           // the plans that met each par, to watch again
 const rowsPicked = () => (pick ? [...Array(pick.r1 - pick.r0 + 1).keys()].map(k => pick.r0 + k).filter(r => sol.ships[r]) : []);
 
 // ---------- the level ----------
@@ -101,28 +104,39 @@ function load(level) {
   banner();
   mapView.setLevel(L, G);
   render(true);
+  keepUnkept();
+}
+/** A drop earned before plans were kept has none to watch: your plan as it stands is kept for it, if it meets that par. */
+function keepUnkept() {
+  const kept = read(keptKey(), {}), missing = parsMet(L, bests()).filter(k => !kept[k]);
+  if (!missing.length || !sol.ships.length) return;
+  const end = run(L, sol);
+  if (!end.done) return;
+  const now = keepPlans(kept, score(L, sol, end), Object.fromEntries(missing.map(k => [k, L.par[k]])), sol.ships);
+  if (now !== kept) write(keptKey(), now);
 }
 
-// A par plan, shown in place of yours to watch: run it, step it, pick and copy from it (and paste into yours), but not
-// change it, and running it keeps no bests. Your plan waits, as you left it, until Back to your plan.
-function view(k) {
-  const plan = L.plans?.find(p => p.par.includes(k));
-  if (!plan) return;
+// A par plan, or the plan of yours that met a par (own), shown in place of yours to watch: run it, step it, pick and copy
+// from it (and paste into yours), but not change it, and running it keeps no bests. Your plan waits, as you left it,
+// until Back to yours.
+function view(k, own = false) {
+  const ships = own ? read(keptKey(), {})[k]?.ships : L.plans?.find(p => p.par.includes(k))?.ships;
+  if (!ships) return;
   stop();
   if (!viewing) viewing = { mine: sol, history };
-  viewing.k = k;
-  sol = JSON.parse(JSON.stringify({ ships: plan.ships }));
+  Object.assign(viewing, { k, own });
+  sol = JSON.parse(JSON.stringify({ ships }));
   history = []; sel = -1; pick = null; notice = "";
   banner();
   render(true);
 }
-/** The cheat: the par plan on show becomes your plan (one edit, so Undo takes it back), ready to run. */
+/** The plan on show becomes yours (one edit, so Undo takes it back), ready to run: the par's (the cheat) or a kept one. */
 function usePar() {
   if (!viewing) return;
-  const plan = JSON.parse(JSON.stringify(sol));
+  const plan = JSON.parse(JSON.stringify(sol)), own = viewing.own;
   unview();
   edit(() => { sol = plan; sel = -1; pick = null; });
-  notice = "The par plan is yours now: run it."; status();
+  notice = own ? "That plan is yours again: run it." : "The par plan is yours now: run it."; status();
 }
 function unview() {
   if (!viewing) return;
@@ -138,13 +152,14 @@ function banner() {
   $("viewing").hidden = !viewing;
   if (!viewing) return;
   const [, name, f] = MEASURES.find(([k]) => k === viewing.k);
-  $("viewingText").textContent = `The par plan for ${name.toLowerCase()}: ${f(L.par[viewing.k])}.`;
+  $("viewingText").textContent = viewing.own ? `Your plan that met the par for ${name.toLowerCase()}: ${f(read(keptKey(), {})[viewing.k]?.v)}.`
+    : `The par plan for ${name.toLowerCase()}: ${f(L.par[viewing.k])}.`;
 }
 
 // ---------- editing ----------
 /** Every change to the plan goes through here: back to the start if a run is on screen, Undo can take it back, and it's saved. */
 function edit(change) {
-  if (viewing) { notice = "This is the par plan, to watch. Back to your plan to change yours."; render(true); return; }
+  if (viewing) { notice = `This is ${viewing.own ? "a kept plan" : "the par plan"}, to watch. Back to yours to change yours.`; render(true); return; }
   if (sim) stop();
   history.push(JSON.stringify(sol));
   if (history.length > 100) history.shift();
@@ -386,17 +401,20 @@ function stepOnce() {
   running = false; clearTimeout(timer);
   if (begin() && !over()) tick();
 }
-const bests = () => { const b = read(bestKey(), {}); if (b.hire != null && b.cost == null) b.cost = b.hire; return b; };   // level 1's first bests said hire
+const bestsOf = l => { const b = read(`${KEY}best:${keyOf(l)}`, {}); if (b.hire != null && b.cost == null) b.cost = b.hire; return b; };   // level 1's first bests said hire
+const bests = () => bestsOf(L);
 function keepBests() {
-  if (viewing) return;                                        // watching a par plan earns nothing
-  const sc = score(L, sol, sim), best = bests(), faster = best.hours != null && sc.hours < best.hours;
+  if (viewing) return;                                        // watching a plan earns nothing
+  const sc = score(L, sol, sim), best = bests(), had = parsMet(L, best).length;
   for (const [k] of MEASURES) if (best[k] == null || sc[k] < best[k]) best[k] = sc[k];
   write(bestKey(), best);
-  noteStars("harbour", starsAll());
-  // what the finish opened (the next level, a region), or, for a harbour that feeds a region, what the pace is worth there
-  const opened = progressChanged(), fed = REGIONS.find(R => R.feed.level === L.id && company.regions[R.id]);
+  const kept = read(keptKey(), {}), now = keepPlans(kept, sc, L.par, sol.ships);
+  if (now !== kept) write(keptKey(), now);
+  noteStars("harbour", dropsAll());
+  // what the finish opened (the next level, a region), or the drops it earned and what they feed
+  const opened = progressChanged(), more = parsMet(L, best).length - had, fed = REGIONS.find(R => R.feed.levels.includes(L.id) && company.regions[R.id]);
   if (opened.length) nextOn(`${listOf(opened.map((id, i) => (i ? nameOf(id).replace(/^The /, "the ") : nameOf(id))))} ${opened.length > 1 ? "are" : "is"} open.`, opened.find(id => id.startsWith("region:")) || opened[0]);
-  else if (faster && fed) nextOn(`Faster: the ${fed.feed.name.toLowerCase()} now ${fed.feed.name.endsWith("s") ? "feed" : "feeds"} ${fed.terminal.name} ${feedOf(fed, best.hours)} a week.`, `region:${fed.id}`);
+  else if (more > 0 && fed) nextOn(`${more > 1 ? `${more} drops` : "A drop"} for ${fed.name.replace(/^The /, "the ")}: ${fed.feed.name.toLowerCase()} now ${fed.feed.name.endsWith("s") ? "feed" : "feeds"} ${fed.terminal.name} ${feedOf(fed, dropsAt)} a week.`, `region:${fed.id}`);
 }
 
 // ---------- drawing ----------
@@ -520,7 +538,7 @@ function progress(st) {
 const crashText = c => (c.kind === "aground" ? `Ship ${c.ships[0] + 1} ran aground in hour ${c.t}.` : `Ships ${c.ships[0] + 1} and ${c.ships[1] + 1} collided in hour ${c.t}.`);
 function status() {
   const el = $("status"), n = sol.ships.length;
-  let text, tone = "";
+  let text, tone = "", html = "";
   if (notice) text = notice;
   else if (!sim && mode === "pick") {
     const w = pick ? pick.c1 - pick.c0 + 1 : 0, rows = rowsPicked().length;
@@ -536,9 +554,9 @@ function status() {
     tone = "bad";
     text = `${crashText(sim.crash)} Tap for the hour before.`;
   } else if (sim.done) {
-    const sc = score(L, sol, sim), mark = k => (sc[k] <= L.par[k] ? " ★" : "");
+    const sc = score(L, sol, sim);
     tone = "good";
-    text = `Done · ${MEASURES.map(([k, , f]) => f(sc[k]) + mark(k)).join(" · ")}`;
+    html = `Done · ${MEASURES.map(([k, , f]) => esc(f(sc[k])) + (sc[k] <= L.par[k] ? DROP : "")).join(" · ")}`;
   } else if (sim.t >= limitOf(L)) { tone = "bad"; text = L.deadline ? `Out of time: ${progress(sim)} in ${L.deadline} hours.` : `Not done after ${L.maxCycles} hours.`; }
   else {
     const no = sim.events.find(e => e.kind === "refused"), tank = Object.entries(sim.tanks)[0];
@@ -548,7 +566,7 @@ function status() {
   const end = frames[seen]?.crash;
   // scrubbed back before a crash: what's coming, and when
   if (end && sim && !sim.crash) text += end.kind === "aground" ? ` · ship ${end.ships[0] + 1} runs aground in hour ${end.t}` : ` · ships ${end.ships[0] + 1} and ${end.ships[1] + 1} collide in hour ${end.t}`;
-  el.textContent = text;
+  if (html) el.innerHTML = html; else el.textContent = text;
   el.className = `hb-status${tone ? ` ${tone}` : ""}${sim?.crash ? " back" : ""}`;
 }
 
@@ -606,12 +624,15 @@ function openMenu() {
     note.textContent = "The engine is what a region makes a week once it runs on its own. Tap the par to watch the par run, week by week.";
     about.append(t, note);
   } else if (!screenOn) {
-    const best = bests(), t = document.createElement("table");
+    const best = bests(), met = parsMet(L, best), kept = read(keptKey(), {}), t = document.createElement("table");
+    const yours = (k, name, fmt) => (best[k] == null ? "–" : !met.includes(k) ? fmt(best[k])
+      : kept[k] ? `<button type="button" class="hb-par" data-mine="${k}" aria-label="Watch your plan that met the par for ${name.toLowerCase()}">${fmt(best[k])}${DROP}</button>` : `${fmt(best[k])}${DROP}`);
     t.className = "hb-bests";
-    t.innerHTML = `<thead><tr><th>${esc(L.name)}</th><th>Your best</th><th>Par</th></tr></thead><tbody>` + MEASURES.map(([k, name, fmt]) => `<tr><th>${name}</th><td>${best[k] != null ? fmt(best[k]) : "–"}</td>`
+    t.innerHTML = `<thead><tr><th>${esc(L.name)}</th><th>Your best</th><th>Par</th></tr></thead><tbody>` + MEASURES.map(([k, name, fmt]) => `<tr><th>${name}</th><td>${yours(k, name, fmt)}</td>`
       + `<td><button type="button" class="hb-par" data-k="${k}" aria-label="Watch the par plan for ${name.toLowerCase()}">${fmt(L.par[k])}</button></td></tr>`).join("") + `</tbody>`;
-    t.addEventListener("click", e => { const p = e.target.closest(".hb-par"); if (p) { $("menuDlg").close(); view(p.dataset.k); } });
-    note.textContent = "Tap a par to watch the plan that reaches it; Use this plan makes it yours.";
+    t.addEventListener("click", e => { const p = e.target.closest(".hb-par"); if (p) { $("menuDlg").close(); view(p.dataset.mine || p.dataset.k, !!p.dataset.mine); } });
+    const R = REGIONS.find(x => x.feed.levels.includes(L.id));
+    note.textContent = `A par met is a drop: ${R ? `a drop a week for ${R.name.replace(/^The /, "the ")}` : "for a region still to come"}. Tap one to watch the plan that met it, a par to watch one that reaches it.`;
     about.append(t, note);
   }
   $("menuDlg").showModal();
@@ -861,12 +882,15 @@ addEventListener("keydown", e => {
 // ---------- the campaign: what's open, the screens above the harbours, the picker ----------
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const listOf = names => (names.length < 2 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`);
-const harbourBest = id => { const l = LEVELS.find(x => x.id === id); return l ? read(`${KEY}best:${keyOf(l)}`, {}) : {}; };
+const harbourBest = id => { const l = LEVELS.find(x => x.id === id); return l ? bestsOf(l) : {}; };
+/** A level's drops: its pars met. */
+const dropsAt = id => { const l = LEVELS.find(x => x.id === id); return l ? parsMet(l, bestsOf(l)).length : 0; };
 let company = read(`${KEY}company`, null) || newCompany();
 const facts = () => ({ finished: id => harbourBest(id).hours != null, company });
-/** Drops a week each region's harbour feeds its terminal, from your fastest plan for it. */
-const feeds = () => Object.fromEntries(REGIONS.map(R => [R.id, feedOf(R, harbourBest(R.feed.level).hours)]));
-const harbourInfo = id => { const l = LEVELS.find(x => x.id === id); return { name: l.name, hours: harbourBest(id).hours ?? null, par: l.par.hours }; };
+/** Drops a week each region's harbours feed its terminal: a drop a week for every par met in them. */
+const feeds = () => Object.fromEntries(REGIONS.map(R => [R.id, feedOf(R, dropsAt)]));
+/** The harbours that feed a region, for its screen: each with its drops and whether it's open to play. */
+const harboursOf = R => R.feed.levels.map(id => ({ id, name: nameOf(id), drops: dropsAt(id), of: MEASURES.length, open: isOpen(stepOf(id), facts()) }));
 let shown = null;                                            // the step on screen: a level's id, "region:id" or "world"
 let openNow = openSet(facts());
 /** After anything that could open something: the picker again, and what opened since last time. */
@@ -889,7 +913,7 @@ function onWeek(before, after, reports, news) {
   if (opened.includes("roundabout")) { news.push(["The Straits are open", "The Baltic runs on its own, on the company's clock, while you play on: four harbours of timing at its hardest."]); actions.push(["Go to Roundabout", "roundabout"]); }
   SEASON.news(news, actions);
 }
-const SEASON = createSeasonScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, harbour: harbourInfo, goTo, onWeek });
+const SEASON = createSeasonScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, harbours: harboursOf, goTo, onWeek });
 const WORLD = createWorldScreen({ root: $("region"), brief: $("brief"), company: () => company, save: saveCompany, feeds, goTo });
 let screenOn = null;                                         // the screen above the harbours that's showing, if one is
 function openScreen(screen, arg, id) {
@@ -922,8 +946,8 @@ const labelOf = id => (id === "world" ? "The world" : id.startsWith("region:") ?
 function noteOf(id, done) {
   if (id === "world") return done ? "your regions joined" : "joining your regions";
   if (id.startsWith("region:")) { const R = regionOf(id.slice(7)), s = company.regions[R.id]; return s?.solved ? "runs on its own" : s ? `${R.teaches} · ★ ${s.stars}` : R.teaches; }
-  const l = LEVELS.find(x => x.id === id), b = harbourBest(id), stars = MEASURES.filter(([k]) => b[k] != null && b[k] <= l.par[k]).length;
-  return done ? `${l.teaches} · ${"★".repeat(stars)}${"☆".repeat(MEASURES.length - stars)}` : l.teaches;
+  const l = LEVELS.find(x => x.id === id), n = dropsAt(id);
+  return done ? `${l.teaches} · ${n} of ${MEASURES.length} drops` : l.teaches;
 }
 
 const levelSel = $("level");
@@ -972,12 +996,6 @@ const at = read(`${KEY}at`, null), startAt = at && stepOf(at) && isOpen(stepOf(a
 await makeMap();
 load(LEVELS.find(l => l.id === startAt) || LEVELS[0]);    // a level is always loaded, under a region or the world if one's on top
 if (startAt !== L.id) goTo(startAt);
-// stars collected: a measure met at par or under is a star, as a run's line marks it, over every level
-function starsAll() {
-  return LEVELS.reduce((n, l) => {
-    const b = read(`${KEY}best:${keyOf(l)}`, {});
-    if (b.hire != null && b.cost == null) b.cost = b.hire;
-    return n + MEASURES.filter(([k]) => b[k] != null && l.par?.[k] != null && b[k] <= l.par[k]).length;
-  }, 0);
-}
-noteStars("harbour", starsAll());
+// the games screen's figure: drops collected, every par met on every level
+const dropsAll = () => LEVELS.reduce((n, l) => n + parsMet(l, bestsOf(l)).length, 0);
+noteStars("harbour", dropsAll());
