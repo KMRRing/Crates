@@ -2,7 +2,7 @@
 // for later chapters, and the lanes between yours. A lane's MRs carry diesel from one of your terminals to another, a
 // cargo a week each; the world is where you put them on, and where you see the whole company at once. The lanes' rules
 // are in harbour-season.js, with the regions'.
-import { REGIONS, LANES, SEASONS, regionOf, seasonOf, weekOf, setMRs, engineOf, netOf } from "./harbour-season.js";
+import { REGIONS, LANES, SEASONS, regionOf, seasonOf, weekOf, setMRs, engineOf, netOf, lacks, laneCtx } from "./harbour-season.js";
 import { signed } from "./harbour-season-ui.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -77,7 +77,9 @@ export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
     const L = LANES[0], lane = c.lanes[L.id], to = c.regions[L.to];
     const hint = !c.regions[L.from] ? `Open ${regionOf(L.from).name} to start its terminal.`
       : !lane.mrs ? `Put an MR on the lane: ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts need ${regionOf(L.from).name}'s diesel.`
-      : to && !to.solved && seasonOf(to) >= 2 ? `The lane's running: take ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts.`
+      : to && !to.solved && seasonOf(to) >= 2 ? (lacks(regionOf(L.to), { season: 2 }, laneCtx(c, L.to, F))
+        ? `The lane's running: ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts also want more of its harbours' drops.`
+        : `The lane's running: take ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts.`)
       : "Every region runs on the company's clock: a week played in one is played in all.";
     root.innerHTML = `<div class="hs-hud"><span class="hs-when"><b>The world</b> · week ${c.week}</span><span class="hs-score"><span class="hs-coins" title="Net a week, every region together, last week">${signed(net)} a week</span></span></div>
       <div class="hs-boardbox">${chart()}</div>${lanes}${regions}<p class="hs-status hb-status" aria-live="polite">${esc(hint)}</p>`;

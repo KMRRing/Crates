@@ -157,21 +157,27 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   check(C.regions.baltic.solvedAt === 14 && weeks[13].reports.baltic.solved, `the par run: the Baltic solved in its 14th week, the week after ARA's first cargo lands (${C.regions.baltic.solvedAt})`);
   for (const id of ["baltic", "ara"]) { const e = S.engineOf(C, id, S.PAR.feeds); check(Math.abs(e - S.PAR.engine[id]) < 0.05, `${id}: the par run's engine is the par (${e} against ${S.PAR.engine[id]})`); }
   check(weeks.every(w => Object.values(w.reports).every(r => r.age < 4 || r.star >= 0 || r.event)), "the par run breaks no contract outside an event week");
-  // without the lane: the same moves, no MR on it, and the Baltic's long-term contracts can't be kept
-  { let c = S.startRegion(S.newCompany(), "baltic");
-    for (const w of S.PAR.weeks) { for (const id of ["baltic", "ara"]) for (const a of w[id] || []) c = S.act(c, id, a); c = S.playCompany(c, S.PAR.feeds).company; }
-    check(!c.regions.baltic.solved && c.regions.baltic.held.some(h => h.endsWith("-2")), "without ARA's lane the Baltic takes its long-term contracts and can't keep them: never solved"); }
-  // the Baltic runs on its own only with ARA's diesel landing and 8 of its harbours' 12 drops, however much else comes in
-  { const play = (feed, lane = true) => { let c = S.startRegion(S.newCompany(), "baltic"), short = [];
-      for (const w of S.PAR.weeks) {
-        for (const id of ["world", "baltic", "ara"]) for (const a of w[id] || []) if (lane || id !== "world") c = S.act(c, id, a);
-        const out = S.playCompany(c, { ...S.PAR.feeds, baltic: feed }); c = out.company; short = out.reports.baltic.short.length ? out.reports.baltic.short : short;
-      }
-      return { solved: c.regions.baltic.solved, short: short.join() }; };
-    check(S.dropsToSolve(B) === 8 && S.dropsToSolve(A) === 0, "the Baltic wants 2.5 drops of 4 a harbour (8 of 12) to run on its own; ARA asks nothing more");
+  // the Baltic's contracts want more than stars: its harbours' drops or ARA's lane for the medium ones (6 of 12), both
+  // for the long-term ones (8), whatever its stars; and so it runs on its own only with ARA and eight drops
+  check(S.dropsFor(B, B.needs[1]) === 6 && S.dropsFor(B, B.needs[2]) === 8 && !A.needs, "the Baltic's medium contracts want 6 of its harbours' 12 drops or the lane, its long-term ones 8 and the lane; ARA's want stars alone");
+  { const at = (season, stars) => ({ ...S.newRegion(B), age: season * S.WEEKS, stars });
+    const takes = (season, id, ctx) => S.accept(B, at(season, 9), id, ctx).held.includes(id);
+    check(!takes(1, "tallinn-1", { feed: 5 }) && takes(1, "tallinn-1", { feed: 6 }) && takes(1, "tallinn-1", { feed: 2, lane: true }), "a medium contract: six drops, or ARA's lane with fewer");
+    check(!takes(2, "tallinn-2", { feed: 12 }) && !takes(2, "tallinn-2", { feed: 7, lane: true }) && takes(2, "tallinn-2", { feed: 8, lane: true }), "a long-term contract: ARA's lane and eight drops, neither alone");
+    check(!S.accept(B, at(1, 1), "tallinn-1", { feed: 12, lane: true }).held.length && S.accept(A, { ...S.newRegion(A), age: 4, stars: 2 }, "rotterdam-1").held.length === 1, "stars still come first; ARA's contracts want nothing more"); }
+  { const play = (feed, lane = true) => { let c = S.startRegion(S.newCompany(), "baltic");
+      const feeds = { ...S.PAR.feeds, baltic: feed };
+      for (const w of S.PAR.weeks) { for (const id of ["world", "baltic", "ara"]) for (const a of w[id] || []) if (lane || id !== "world") c = S.act(c, id, a, feeds); c = S.playCompany(c, feeds).company; }
+      return { solved: c.regions.baltic.solved, longs: c.regions.baltic.held.filter(h => h.endsWith("-2")).length }; };
     const alone = play(12, false), seven = play(7), eight = play(8);
-    check(!alone.solved && /lane/.test(alone.short), `without ARA's lane, even all twelve drops (enough to keep its contracts) don't solve it (short of: ${alone.short})`);
-    check(!seven.solved && seven.short === "drops" && eight.solved, "with the lane, seven drops keep its contracts and still don't solve it; eight do"); }
+    check(!alone.solved && !alone.longs, "without ARA's lane, even on all twelve drops, the Baltic can't take its long-term contracts: never solved");
+    check(!seven.solved && !seven.longs && eight.solved && eight.longs === 3, "with the lane, on seven drops it can't take them either; on eight it takes all three and runs on its own"); }
+  // the long-term contracts held and kept, but no lane cargo landing, or too few drops: not solved, and the week says why
+  { const held = { ...S.newRegion(B), age: 8, cap: 30, tank: 0, ships: 1, held: ["tallinn-2", "tartu-2", "rakvere-2"], placed: { tallinn: ["truck", "truck"], rakvere: ["truck"], tartu: ["train"] } };
+    const week = inputs => S.playWeek(B, held, inputs).report;
+    const noLane = week({ feed: 12 }), fewDrops = week({ feed: 7, laneIn: 8 }), both = week({ feed: 8, laneIn: 8 });
+    check(noLane.star === 1 && !noLane.solved && noLane.short.join() === "lane" && !fewDrops.solved && fewDrops.short.join() === "drops" && both.solved,
+      `kept with no lane cargo landing, or on seven drops: not running on its own, and the week says what it's short of (${noLane.short}; ${fewDrops.short}); with both, it runs`); }
   // net a week, not a balance: a region keeps no running total; rented tank costs its rent every week, and the par's
   // room is the right size, a tank more only rent and stock, a tank fewer short of its contracts
   { check(!("coins" in S.newRegion(B)), "a region keeps no running balance, only each week's net");
@@ -197,7 +203,7 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   check(S.pick(B, s, "ship") === s, "only this week's offers can be taken");
   { const full = { ...S.newRegion(B), tank: 12 }, out = S.playWeek(B, full, { feed: 8 }).report;
     check(out.arrived.feed === 0 && out.turned === 8 && out.net === 0, `a full tank turns the plant away and pays nothing for it (${JSON.stringify(out.arrived)}, ${out.net})`); }
-  { let r = S.newRegion(B); r.stars = 3; r.age = 4; r = S.accept(B, r, "tallinn-1");
+  { let r = S.newRegion(B); r.stars = 3; r.age = 4; r = S.accept(B, r, "tallinn-1", { feed: 8 });
     const out = S.playWeek(B, r, { feed: 8 });
     check(out.report.towns.tallinn.got === 0 && out.report.star === -1 && out.state.stars === 2, "a contract left short (no vehicle on the road) costs a star");
     check(S.accept(B, { ...S.newRegion(B), age: 4, stars: 1 }, "tallinn-1").held.length === 0, "a contract wants its stars"); }

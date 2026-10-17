@@ -3,7 +3,8 @@
 // take the contracts your stars reach, and play the week: supply comes into the terminal (as much as it holds), the
 // vehicles carry it to the towns, and the week pays. A region climbs three seasons, spot orders, then medium contracts,
 // then long-term ones; it's solved, and runs on its own, the first week all its long-term contracts are kept on what
-// comes in that week (the Baltic also wants ARA's diesel landing by the world's lane, and most of its harbours' drops).
+// comes in that week. The Baltic's contracts want more than stars: its harbours' drops or ARA's diesel by the world's
+// lane for the medium ones, both for the long-term ones (and running on its own wants that lane's cargo landing).
 // Its score is its net a week, what a week makes after what it bought, hire, rent and penalties, not a balance that
 // grows with every week played; once it's solved, its engine (its net a week, held) is what there is to improve.
 // Regions share the company's clock: a week played anywhere is played in every region already started, each as it
@@ -23,9 +24,10 @@ export const REGIONS = [
     terminal: { name: "Muuga", tank: 12, start: 6, grow: 6, rent: 3 },    // 12 its own; each 6 more rented at 3 a week
     // the plant: a drop a week for every par met in the Baltic's three harbours, twelve at most
     feed: { levels: ["first-cargo", "up-the-creek", "rundown"], price: 2, name: "The plant" },
-    // to run on its own, beyond its long-term contracts kept: ARA's diesel landing by the world's lane, and its harbours
-    // at 2.5 drops of 4 on average (8 of their 12)
-    solve: { lane: true, drops: 2.5 },
+    // what its contracts want beyond stars: its harbours' drops (an average of so many of 4 a harbour) and ARA's diesel
+    // by the world's lane: either for the medium contracts (2 a harbour, 6 of 12), both for the long-term ones (2.5, 8),
+    // and running on its own wants the long-term ones' both, the lane's cargo landing that week
+    needs: { 1: { drops: 2, lane: "or" }, 2: { drops: 2.5, lane: "and" } },
     towns: [
       { id: "tallinn", name: "Tallinn", routes: { truck: 6 } },
       { id: "rakvere", name: "Rakvere", routes: { truck: 4 } },
@@ -124,8 +126,16 @@ export const offersOf = (R, s) => R.offers[seasonOf(s)][weekOf(s)];
 export const offerOpen = (R, s, what) => what !== "ship" || s.ships < R.ship.max;
 /** Tanks rented beyond the terminal's own. */
 export const tanksOf = (R, s) => Math.round((s.cap - R.terminal.tank) / R.terminal.grow);
-/** The drops a region's harbours must have for it to run on its own (the Baltic's 2.5 of 4 a harbour: 8), or 0. */
-export const dropsToSolve = R => (R.solve?.drops ? Math.ceil(R.solve.drops * R.feed.levels.length) : 0);
+/** The drops a region's harbours must have for a need: an average of so many of 4 a harbour (the Baltic's 2.5: 8). */
+export const dropsFor = (R, need) => Math.ceil(need.drops * R.feed.levels.length);
+/** What a contract wants beyond its stars that the region hasn't got, or null: its season's need of the harbours' drops
+ *  and ARA's lane ({ drops, lane: "or" | "and", has }). ctx: { feed: the harbours' drops, lane: an MR on a lane in }. */
+export function lacks(R, t, ctx = {}) {
+  const need = R.needs?.[t.season];
+  if (!need) return null;
+  const drops = (ctx.feed || 0) >= dropsFor(R, need), lane = !!ctx.lane;
+  return (need.lane === "or" ? drops || lane : drops && (lane || !need.lane)) ? null : { drops: dropsFor(R, need), lane: need.lane, has: ctx.feed || 0 };
+}
 /** A week's net, as its report has it (a report saved before net was kept says coins). */
 export const netOf = rep => (rep ? rep.net ?? rep.coins ?? 0 : null);
 
@@ -161,10 +171,11 @@ export function unrent(R, s) {
 /** The tenders on offer: this season's and earlier ones, for towns without one as long; your stars may not reach them. */
 export const tendersOf = (R, s) => R.tenders.filter(t => t.season <= seasonOf(s) && !s.held.includes(t.id) && !heldAsLong(R, s, t));
 const heldAsLong = (R, s, t) => s.held.some(h => { const x = R.tenders.find(y => y.id === h); return x.town === t.town && x.season >= t.season; });
-/** Takes a tender your stars reach: a town has one contract, a longer one replacing a shorter. */
-export function accept(R, s, id) {
+/** Takes a tender your stars reach, and whatever more it wants (lacks: ctx as there): a town has one contract, a longer
+ *  one replacing a shorter. */
+export function accept(R, s, id, ctx) {
   const t = R.tenders.find(x => x.id === id);
-  if (!t || !tendersOf(R, s).includes(t) || s.stars < t.stars) return s;
+  if (!t || !tendersOf(R, s).includes(t) || s.stars < t.stars || lacks(R, t, ctx)) return s;
   const n = clone(s); n.held = n.held.filter(h => R.tenders.find(x => x.id === h).town !== t.town).concat(id); return n;
 }
 export const contractOf = (R, s, town) => R.tenders.find(t => s.held.includes(t.id) && t.town === town) || null;
@@ -221,9 +232,10 @@ export function playWeek(R, s, { feed = 0, laneIn = 0, laneCap = 0, lanePrice = 
   // exporter's lane counted as one more promise); and where the region asks it, the lane's cargo landing and its
   // harbours' drops (a week that would have done it otherwise says what it's short of)
   const longs = R.tenders.filter(t => t.long), owing = longs.reduce((a, t) => a + t.drops, 0) + laneCap;
+  const need = R.needs?.[SEASONS.length - 1];
   if (!n.solved && season === SEASONS.length - 1 && longs.every(t => n.held.includes(t.id)) && kept && laneIn + feeding + shipping >= owing) {
-    if (R.solve?.lane && !(laneIn > 0)) rep.short.push("lane");
-    if (feed < dropsToSolve(R)) rep.short.push("drops");
+    if (need?.lane === "and" && !(laneIn > 0)) rep.short.push("lane");
+    if (need && feed < dropsFor(R, need)) rep.short.push("drops");
     if (!rep.short.length) { n.solved = true; n.solvedAt = n.age + 1; rep.solved = true; }
   }
   n.last = rep; n.picked = null; n.age++;
@@ -243,6 +255,8 @@ export function setMRs(C, lane, mrs) {
   if (!L || !C.regions[L.from] || !C.regions[L.to]) return C;
   const n = clone(C); n.lanes[lane].mrs = Math.max(0, Math.min(L.mr.max, mrs)); return n;
 }
+/** A region's footing for what its contracts want: its harbours' drops, and whether an MR is on a lane into it. */
+export const laneCtx = (C, id, feeds = {}) => ({ feed: feeds[id] || 0, lane: LANES.some(l => l.to === id && C.lanes?.[l.id]?.mrs > 0) });
 // importers before exporters: a cargo lands, then the next one loads
 const ORDER = REGIONS.filter(r => LANES.some(l => l.to === r.id)).concat(REGIONS.filter(r => !LANES.some(l => l.to === r.id)));
 /** A company week: every region started plays its week as it stands; each lane lands last week's cargo and loads this
@@ -271,13 +285,14 @@ export function engineOf(C, id, feeds = {}) {
   return round(sum / WEEKS);
 }
 /** One move by name, as the page and the par run make them: a region's pick, place, unplace, release, unrent or accept, or the
- *  world's MRs on a lane (region "world": ["mrs", lane, n]) or a region's start (["start"]). */
-export function act(C, id, [move, ...args]) {
+ *  world's MRs on a lane (region "world": ["mrs", lane, n]) or a region's start (["start"]). feeds: drops a week each
+ *  region's harbours feed it, as playCompany takes them (what a contract wants is weighed on them). */
+export function act(C, id, [move, ...args], feeds = {}) {
   if (move === "start") return startRegion(C, id);
   if (move === "mrs") return setMRs(C, args[0], args[1]);
   const R = regionOf(id), s = C.regions[id], fn = { pick, place, unplace, release, unrent, accept }[move];
   if (!R || !s || !fn) return C;
-  const after = fn(R, s, ...args);
+  const after = move === "accept" ? accept(R, s, args[0], laneCtx(C, id, feeds)) : fn(R, s, ...args);
   return after === s ? C : { ...C, regions: { ...C.regions, [id]: after } };
 }
 
@@ -322,7 +337,7 @@ export function parRun(k = PAR.weeks.length) {
   let C = startRegion(newCompany(), "baltic");
   const weeks = [];
   for (const w of PAR.weeks.slice(0, k)) {
-    for (const id of ["world", ...REGIONS.map(r => r.id)]) for (const a of w[id] || []) C = act(C, id, a);
+    for (const id of ["world", ...REGIONS.map(r => r.id)]) for (const a of w[id] || []) C = act(C, id, a, PAR.feeds);
     const before = C, out = playCompany(C, PAR.feeds);
     C = out.company;
     weeks.push({ before, reports: out.reports, after: C });

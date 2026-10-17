@@ -4,7 +4,7 @@
 // a town (send vehicles, call them back, take its contract), the terminal (what comes in, the yard). The rules are in
 // harbour-season.js; the company (every region on one clock) is the page's to keep.
 import { SEASONS, WEEKS, regionOf, LANES, seasonOf, weekOf, eventOf, offersOf, offerOpen, tendersOf, contractOf, demandOf, capacityOf,
-  tanksOf, dropsToSolve, netOf, act, playCompany, startRegion, engineOf, parRun, PAR } from "./harbour-season.js";
+  tanksOf, dropsFor, lacks, laneCtx, netOf, act, playCompany, startRegion, engineOf, parRun, PAR } from "./harbour-season.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = v => (Math.round(v * 10) / 10).toString();
@@ -113,6 +113,14 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
   const S = () => C().regions[R.id];
   const lane = () => LANES.find(l => l.to === R.id || l.from === R.id);
   const feed = () => (viewing ? PAR.feeds[R.id] : feeds()[R.id] || 0);
+  // what the region's contracts are weighed on beyond stars: its harbours' drops and the lane in (the par's, watching it)
+  const footing = () => laneCtx(C(), R.id, viewing ? PAR.feeds : feeds());
+  /** A contract's button: Take it, or what it still needs (stars first, then drops and ARA's lane). */
+  function needsOf(s, z) {
+    if (s.stars < z.stars) return `Needs ★${z.stars}`;
+    const l = lacks(R, z, footing());
+    return !l ? null : l.lane === "or" ? `Needs ${l.drops} drops or ARA` : l.has >= l.drops ? "Needs ARA's lane" : footing().lane || !l.lane ? `Needs ${l.drops} drops` : `Needs ARA and ${l.drops} drops`;
+  }
 
   // ---------- the board ----------
   function board() {
@@ -161,7 +169,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     for (const t of R.towns) {
       const [x, y, houses] = B.towns[t.id], d = D.find(z => z.town === t.id), was = last?.towns[t.id];
       const mood = !was ? "none" : was.got >= was.want ? "happy" : was.got > 0 ? "sad" : "sad";
-      const deal = tendersOf(R, s).filter(z => z.town === t.id), reach = deal.some(z => s.stars >= z.stars);
+      const deal = tendersOf(R, s).filter(z => z.town === t.id), reach = deal.some(z => !needsOf(s, z));
       const many = d.drops > 4, n = many ? 1 : d.drops, w = 14 + n * 10.5 + (many ? 15 : 0) + 18, bx = Math.max(3, Math.min(W - 3 - w, x - w / 2)), by = y - 42;
       // the whole town is one target, bubble to flag, not just its pictures: a finger between the houses still lands
       const hx = Math.min(bx, x - 30), hw = Math.max(bx + w, x + 30) - hx;
@@ -253,7 +261,10 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     const deals = tendersOf(R, s).filter(z => z.town === id);
     if (deals.length) {
       b += `<h4>Contracts on offer</h4>`;
-      b += deals.map(z => `<div class="hs-deal"><div><b>${esc(z.name)}</b><span>${z.drops} a week at ${num(z.price)} a drop${z.long ? ", all year" : ""}</span></div><button type="button" class="btn${s.stars >= z.stars ? " primary" : ""}" data-accept="${z.id}" ${!ro && s.stars >= z.stars ? "" : "disabled"}>${s.stars >= z.stars ? "Take it" : `Needs ★${z.stars}`}</button></div>`).join("");
+      b += deals.map(z => { const no = needsOf(s, z);
+        return `<div class="hs-deal"><div><b>${esc(z.name)}</b><span>${z.drops} a week at ${num(z.price)} a drop${z.long ? ", all year" : ""}</span></div><button type="button" class="btn${no ? "" : " primary"}" data-accept="${z.id}" ${!ro && !no ? "" : "disabled"}>${no || "Take it"}</button></div>`; }).join("");
+      const need = R.needs && deals.map(z => R.needs[z.season]).find(Boolean);
+      if (need) b += `<p class="hs-soft">${need.lane === "or" ? "Medium" : "Long-term"} contracts here want ${dropsFor(R, need)} of ${esc(lower(R.name))}'s harbours' ${R.feed.levels.length * 4} drops ${need.lane === "or" ? "or" : "and"} ARA's diesel by the world's lane (it has ${feed()} drops${footing().lane ? " and the lane" : ""}).</p>`;
       b += `<p class="hs-soft">A contract is a promise: a week short costs a star, and ${R.penalty} a drop.</p>`;
     }
     openSheet(t.name, b);
@@ -264,7 +275,8 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     let b = `<p class="hs-line">Holds <b>${s.cap}</b>; has ${num(s.tank)}. Whatever comes in beyond what it holds is turned away, and not paid for.</p>`;
     b += `<div class="hs-deal"><div><b>Room</b><span>${R.terminal.tank} its own${tanks ? `, and ${plural(tanks, "tank")} of ${R.terminal.grow} rented at ${num(R.terminal.rent)} a week each` : ""}: rent pays only for room that's used</span></div>`
       + `${tanks ? `<button type="button" class="btn" data-unrent="1" ${!ro && spare ? "" : "disabled"} title="${spare ? "" : "It holds too much to give a tank back"}">Give one back</button>` : ""}</div>`;
-    if (R.solve && !s.solved) b += `<p class="hs-soft">${esc(R.name)} runs on its own once its long-term contracts are kept on what comes in each week${R.solve.lane ? ", with ARA's diesel landing by the world's lane" : ""}${R.solve.drops ? `, and with ${dropsToSolve(R)} of its harbours' ${R.feed.levels.length * 4} drops (it has ${feed()})` : ""}.</p>`;
+    const longs = R.needs?.[SEASONS.length - 1];
+    if (longs && !s.solved) b += `<p class="hs-soft">${esc(R.name)} runs on its own once its long-term contracts are kept on what comes in each week; they want ARA's diesel by the world's lane and ${dropsFor(R, longs)} of its harbours' ${R.feed.levels.length * 4} drops (it has ${feed()}).</p>`;
     b += `<h4>Comes in each week</h4>`;
     b += `<div class="hs-deal"><div><b>${esc(R.feed.name)}</b><span>${fd ? `${fd} a week at ${num(R.feed.price)} a drop` : "idle"}: a drop a week for every par met in its harbours</span></div></div>`;
     // your harbours, each with its drops, and the way back to one with pars still to meet (not while the par run's on show)
@@ -291,14 +303,14 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
   }
 
   // ---------- moves ----------
-  function move(id, a) { if (viewing) return; save(act(company(), id, a)); fresh = null; draw(); }
+  function move(id, a) { if (viewing) return; save(act(company(), id, a, feeds())); fresh = null; draw(); }
   function play() {
     if (viewing || !S().picked) return;
     const before = company(), out = playCompany(before, feeds());
     save(out.company);
     const r = out.reports[R.id], others = Object.entries(out.reports).filter(([id]) => id !== R.id);
     const towns = R.towns.map(t => `${t.name} ${num(r.towns[t.id].got)}/${r.towns[t.id].want}`).join(" · ");
-    const short = r.short?.length ? ` · kept, but to run on its own it needs ${r.short.map(x => (x === "lane" ? "ARA's diesel by the world's lane" : `${dropsToSolve(R)} of its harbours' drops`)).join(" and ")}` : "";
+    const short = r.short?.length ? ` · kept, but to run on its own it needs ${r.short.map(x => (x === "lane" ? "ARA's diesel by the world's lane" : `${dropsFor(R, R.needs[SEASONS.length - 1])} of its harbours' drops`)).join(" and ")}` : "";
     fresh = { text: `${towns} · ${signed(r.net)}${r.star > 0 ? " · ★" : r.star < 0 ? " · a star lost" : ""}${short}${others.length ? ` · ${others.map(([id, x]) => `${regionOf(id).name} ${signed(x.net)}`).join(", ")}` : ""}`,
       tone: r.star < 0 ? "bad" : r.star > 0 ? "good" : "" };
     animate = !matchMedia("(prefers-reduced-motion: reduce)").matches;
