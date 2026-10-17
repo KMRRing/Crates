@@ -23,7 +23,7 @@ html[data-mode="night"] { --st-danger: #E8806F; }
 
 /* the farm: as large as its room allows at its own proportions */
 .st-farm { position: relative; place-items: center; }
-.st-board { width: min(100cqw, 100cqh * 74 / 84); height: min(100cqh, 100cqw * 84 / 74); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.st-board { width: min(100cqw, 100cqh * 74 / 87); height: min(100cqh, 100cqw * 87 / 74); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
 .st-ground { fill: color-mix(in srgb, var(--brass) 45%, var(--sheet)); }
 .st-header { fill: none; stroke: var(--brass); stroke-width: 1.6; stroke-linecap: round; }
 .st-drop { fill: none; stroke: var(--brass); stroke-width: .9; }
@@ -42,6 +42,16 @@ html[data-mode="night"] { --st-danger: #E8806F; }
 .st-parcel.fresh > rect { stroke: var(--ink); stroke-width: .6; }
 .st-parcel.spill > rect { stroke: var(--st-danger); stroke-width: .7; stroke-dasharray: 1.2 .8; }
 .st-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+/* a line of three standing ready for its grade's tanker: dotted in brass */
+.st-ring.wait { stroke: var(--brass); stroke-width: .5; stroke-dasharray: .1 .9; stroke-linecap: round; }
+/* the jetty, over the header pipe: the tanker in, its grade's cargo on deck, by threes; the next one's grade, and when.
+   Faint while a pump's points are shown over the tanks */
+.st-hull { fill: var(--sheet); stroke: var(--brass); stroke-width: .45; stroke-linejoin: round; }
+.st-board text.st-jetty-t { font-size: 2.9px; font-weight: 650; fill: var(--ink-soft); dominant-baseline: central; }
+.st-board text.st-jetty-t.end { text-anchor: end; }
+.st-board .st-cargo text.st-letter { font-size: 2.3px; }
+.st-cargo > rect { stroke-width: .25; }
+.st-jetty.dim { opacity: .2; }
 /* FAME on water: the pumps it has left before it sours, where they meet */
 .st-sour circle { fill: var(--sheet); stroke: var(--brass); stroke-width: .45; }
 .st-sour.due circle { stroke: var(--st-danger); stroke-width: .7; }
@@ -101,4 +111,10 @@ html[data-mode="night"] { --st-danger: #E8806F; }
   #app.settle .st-card.st-draw { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; justify-items: start; column-gap: .6rem; padding: .3rem .7rem; text-align: left; }
   #app.settle .st-card.st-draw .st-swatch { grid-row: 1 / span 2; }
   #app.settle .st-result { grid-template-columns: 1fr; height: auto; }
+}
+/* a phone on its side hasn't the height for the score in a column and a line of three rows over the cards (they rode
+   up over the score): the score along one line, the line two rows, as upright */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  #app.settle .st-strip { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: .9rem; margin-top: .5rem; }
+  #app.settle .st-line { height: 2.4rem; }
 }

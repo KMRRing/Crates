@@ -1,14 +1,17 @@
 // Settle's rules (settle-engine.js): the deal from a seed, a parcel settling by density (lifting the lighter ones),
 // lines of a grade at one level in neighbouring tanks, shipping them (what's above dropping, wave after wave), the
 // points, a spill past eight (unless the pump ships its own tank down first), the deliveries (making no line, more
-// often), slops (FAME souring on water, never lining up), the draw-off, the end at the third spill, a game saved and
-// opened again, and whole games played out to their end.
-import { TANKS, LEVELS, GRADES, LIVES, START, NAMES, DENSITY, PACE, WATER, FAME, SLOP, SOUR, DRAW, deliveryEvery, deliveryCount, newGame, upgrade, pumped, foot, lines, ship, pump, drawOff, draws, worth, moves, filled } from "../settle-engine.js";
+// often), slops (FAME souring on water, never lining up), the draw-off, the tankers (three of the jetty's grade in a
+// line, four of any other; the next coming in every ten pumps and shipping what stands ready for it), the end at the
+// third spill, a game saved and opened again, and whole games played out to their end.
+import { TANKS, LEVELS, GRADES, LIVES, START, NAMES, DENSITY, PACE, WATER, FAME, SLOP, SOUR, DRAW, TANKER, deliveryEvery, deliveryCount, newGame, upgrade, pumped, foot, need, lines, ship, pump, drawOff, draws, worth, moves, filled } from "../settle-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const sorted = t => t.every((g, k) => k === 0 || DENSITY[t[k - 1]] >= DENSITY[g]);
-const game = (tanks, hand = [0, 0], extra = {}) => Object.assign(newGame(1), { tanks: [...tanks, ...Array(TANKS - tanks.length).fill(null).map(() => [])], hand, untilDelivery: 99 }, extra);
+const DIESEL = 2, NAPHTHA = 3;
+/** A farm drawn by hand, the tanker at the jetty for water (so water ships by threes) and staying, no delivery coming. */
+const game = (tanks, hand = [0, 0], extra = {}) => Object.assign(newGame(1), { tanks: [...tanks, ...Array(TANKS - tanks.length).fill(null).map(() => [])], hand, untilDelivery: 99, want: WATER, next: FAME, untilTanker: 99 }, extra);
 
 // ---------- the deal ----------
 {
@@ -68,11 +71,11 @@ const game = (tanks, hand = [0, 0], extra = {}) => Object.assign(newGame(1), { t
     for (let k = 0; k < 120 && !t.over; k++) {
       const m = moves()[(k * 5 + g) % 12], o = pump(t, m.slot, m.t);
       seen += o.delivered.length;
-      if (lines(o.state.tanks).length || o.state.tanks.some(x => x.length > LEVELS) || !o.state.tanks.every(sorted)) quiet = false;
+      if (lines(o.state.tanks, o.state.want).length || o.state.tanks.some(x => x.length > LEVELS) || !o.state.tanks.every(sorted)) quiet = false;
       t = o.state;
     }
   }
-  check(quiet && seen > 200, `deliveries make no line and fill no tank past eight; every tank stays in order (${seen} deliveries)`);
+  check(quiet && seen > 200, `deliveries make no line that ships and fill no tank past eight; every tank stays in order (${seen} deliveries)`);
   check(deliveryEvery(0) > deliveryEvery(100) && deliveryCount(500) > deliveryCount(0) && PACE.every(([, e, c]) => e >= 1 && c >= 1), "they come more often, and more at once, as the game goes on");
 }
 
@@ -95,7 +98,7 @@ const game = (tanks, hand = [0, 0], extra = {}) => Object.assign(newGame(1), { t
 
 // ---------- the draw-off ----------
 {
-  const s = game([[WATER, SLOP, 2], [2], [2], [WATER]], [3, 3], { untilDraw: 0 }), r = drawOff(s, 0);
+  const s = game([[WATER, SLOP, 2], [2], [2], [WATER]], [3, 3], { untilDraw: 0, want: DIESEL }), r = drawOff(s, 0);
   check(r.drained.join() === `0,${SLOP}` && r.waves.length === 1 && r.waves[0].length === 3 && r.gain === 90 && r.state.tanks[0].length === 0, "a draw-off drains the water and slops from a tank's foot; the diesel drops level with its neighbours' and ships, 90");
   check(r.state.untilDraw === DRAW && r.state.pumps === 1 && r.state.hand.join() === "3,3" && draws(r.state).length === 0, `it counts as a pump, leaves the parcels offered as they were, and the next is ${DRAW} pumps away`);
   check(foot([WATER, WATER, SLOP, 1, 3]) === 3 && foot([1, 2]) === 0 && draws(s).join() === "0,3", "it takes only from a tank with water or slops at its foot");
@@ -109,6 +112,36 @@ const game = (tanks, hand = [0, 0], extra = {}) => Object.assign(newGame(1), { t
   delete was.sour; delete was.untilDraw;
   const up = upgrade(was);
   check(up.sour.length === TANKS && up.untilDraw === DRAW && !("sour" in was) && upgrade(up) === up, "a game saved before slops and draw-offs is given them");
+}
+
+// ---------- the tankers ----------
+{
+  const s = newGame(11);
+  check(s.want >= 0 && s.want < GRADES && s.next >= 0 && s.next < GRADES && s.next !== s.want && s.untilTanker === TANKER, `a tanker at the jetty for one grade from the start, the next for another, ${TANKER} pumps away`);
+  check(need(DIESEL, DIESEL) === 3 && need(NAPHTHA, DIESEL) === 4 && need(NAPHTHA) === 3, "three of the tanker's grade make a line, four of any other");
+  const three = [[DIESEL], [DIESEL], [DIESEL]], four = [[NAPHTHA], [NAPHTHA], [NAPHTHA], [NAPHTHA]];
+  check(lines(three, DIESEL).length === 3 && lines(three, NAPHTHA).length === 0 && lines(four, DIESEL).length === 4 && lines(three).length === 3, "three diesel ship with diesel's tanker in, not with another's; four naphtha ship with any; with none given, the three stand ready");
+  check(ship(three, NAPHTHA).waves.length === 0 && ship(three, DIESEL).waves[0].length === 3, "so they stay in the tanks until diesel's tanker comes");
+  // naphtha's three standing ready, diesel's tanker in, naphtha's next, after this pump
+  const ready = game([[NAPHTHA], [NAPHTHA], [NAPHTHA], [DIESEL], [DIESEL]], [DIESEL, 0], { want: DIESEL, next: NAPHTHA, untilTanker: 1 });
+  const r = pump(ready, 0, 5);
+  check(r.waves.length === 1 && r.waves[0].every(([t, , g]) => t >= 3 && g === DIESEL) && r.gain === 90, "the pump ships what lines up with the tanker it finds: three diesel, 90");
+  check(r.tanker && r.tanker.want === NAPHTHA && r.tanker.waves[0].length === 3 && r.tanker.waves[0].every(([, , g]) => g === NAPHTHA) && r.tanker.gain === 90 && r.state.score === 180, "then naphtha's tanker comes in, and the three naphtha standing ready for it ship: 90 more");
+  check(r.state.want === NAPHTHA && r.state.next !== NAPHTHA && r.state.untilTanker === TANKER && r.state.tanks.slice(0, 5).every(t => !t.length), `it's at the jetty now, the next for another grade, ${TANKER} pumps away`);
+  const quiet = pump(game([[NAPHTHA], [NAPHTHA], [NAPHTHA]], [DIESEL, 0], { want: DIESEL, next: FAME, untilTanker: 3 }), 0, 5);
+  check(!quiet.tanker && quiet.state.untilTanker === 2 && quiet.state.tanks[0].length === 1, "until then the tanker stays, a pump nearer its next, and naphtha's three wait");
+  // every tenth pump a tanker comes in, never for the grade before it, and every grade in its turn
+  let comes = [], same = 0;
+  const grades = new Set();
+  const emptiest = u => u.tanks.findIndex(x => x.length === Math.min(...u.tanks.map(y => y.length)));
+  let t = newGame(77);
+  for (let k = 0; k < 4 * TANKER; k++) { const o = pump(t, 0, emptiest(t)); if (o.tanker) { comes.push(t.pumps + 1); if (o.tanker.want === t.want) same++; } t = o.state; }
+  for (let g = 0; g < 40; g++) { let u = newGame(900 + g); grades.add(u.want); for (let k = 0; k < 3 * TANKER && !u.over; k++) { u = pump(u, k % 2, emptiest(u)).state; grades.add(u.want); } }
+  check(comes.join() === [1, 2, 3, 4].map(k => k * TANKER).join() && !same && grades.size === GRADES, `a tanker every ${TANKER} pumps (${comes.join(", ")}), never for the grade of the one before it, and every grade in its turn`);
+  const was = newGame(3);
+  delete was.want; delete was.next; delete was.untilTanker;
+  const up = upgrade(was), older = upgrade({ ...was, sour: undefined, untilDraw: undefined });
+  check(up.want >= 0 && up.next !== up.want && up.untilTanker === TANKER && !("want" in was) && upgrade(up) === up && older.sour.length === TANKS && older.want >= 0, "a game saved before the tankers is given its first, one saved before slops as well both");
 }
 
 // ---------- the end ----------
@@ -130,24 +163,29 @@ const game = (tanks, hand = [0, 0], extra = {}) => Object.assign(newGame(1), { t
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
   let z = 3;
   const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  const random = [], greedy = [];
+  const random = [], careful = [], habit = [], pairing = [];
+  // two of a grade side by side at one level: a line one parcel short
+  const pairs = tanks => { let n = 0; for (let t = 0; t + 1 < TANKS; t++) for (let l = 0; l < tanks[t].length; l++) if (tanks[t][l] !== SLOP && tanks[t][l] === tanks[t + 1][l]) n++; return n; };
+  // the pump (or draw-off) that ships most and keeps the tanks low and level and the slops few
+  const value = o => { const tall = Math.max(...o.state.tanks.map(x => x.length)); return o.gain - 4 * filled(o.state) - 6 * tall * tall - (o.spilled >= 0 ? 600 : 0) - 15 * o.state.tanks.flat().filter(x => x === SLOP).length; };
+  const play = (s, pick) => { while (!s.over && s.pumps < 3000) s = pick(s, [...moves().map(m => pump(s, m.slot, m.t)), ...draws(s).map(k => drawOff(s, k))]); return s; };
+  const best = (all, v) => all.reduce((a, o) => (v(o) > v(a) ? o : a)).state;
   for (let g = 0; g < 10; g++) {
     let s = newGame(100 + g);
     while (!s.over && s.pumps < 3000) { const m = moves()[Math.floor(rnd() * 12)]; s = pump(s, m.slot, m.t).state; }
     random.push(s.pumps);
-    // the pump (or draw-off) that ships most and keeps the tanks low and level and the slops few
-    let t = newGame(100 + g);
-    while (!t.over && t.pumps < 3000) {
-      let best = null, bv = -Infinity;
-      const all = [...moves().map(m => () => pump(t, m.slot, m.t)), ...draws(t).map(k => () => drawOff(t, k))];
-      for (const f of all) { const o = f(), tall = Math.max(...o.state.tanks.map(x => x.length)), v = o.gain - 4 * filled(o.state) - 6 * tall * tall - (o.spilled >= 0 ? 600 : 0) - 15 * o.state.tanks.flat().filter(x => x === SLOP).length; if (v > bv) { bv = v; best = o; } }
-      t = best.state;
-    }
-    greedy.push(t.pumps);
+    careful.push(play(newGame(100 + g), (t, all) => best(all, value)).pumps);
+    // the habit: whatever ships most, else the left parcel into the emptiest tank
+    habit.push(play(newGame(100 + g), (t, all) => {
+      const top = all.reduce((a, o) => (o.gain > a.gain ? o : a));
+      return top.gain ? top.state : pump(t, 0, t.tanks.findIndex(x => x.length === Math.min(...t.tanks.map(y => y.length)))).state;
+    }).score);
+    pairing.push(play(newGame(100 + g), (t, all) => best(all, o => value(o) + 25 * pairs(o.state.tanks))).score);
   }
   check(median(random) < 60, `pumping anywhere: three spills in about ${median(random)} pumps`);
-  check(median(greedy) > 1.5 * median(random) && Math.max(...greedy) < 3000, `pumping with thought: about ${median(greedy)} pumps, and the deliveries coming faster still end it`);
+  check(median(careful) > 1.5 * median(random) && Math.max(...careful) < 3000, `pumping with thought: about ${median(careful)} pumps, and the deliveries coming faster still end it`);
+  check(median(pairing) > 1.25 * median(habit), `shipping when it can, else filling the emptiest tank, scores about ${median(habit).toLocaleString("en-GB")}; laying pairs for lines to come, about ${median(pairing).toLocaleString("en-GB")}`);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("settle: the deal, settling, lines, a pump, deliveries, slops, the draw-off, the end, saving, whole games");
+else console.log("settle: the deal, settling, lines, a pump, deliveries, slops, the draw-off, the tankers, the end, saving, whole games");
