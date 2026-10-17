@@ -5,9 +5,10 @@
 // end (three quests either way, and the traitors' strike at the Seer, made by a person among them when there is one);
 // the table's talk (accusing, trusting, taking it back, its limits, the traitors naming the Seer); the state through
 // the database; the computer players (legal in every step, whole games at every size, with every role, at both levels;
-// the loyal reason from what they can know and what's said, the traitors fail together only when they must; their own
-// talk always fit to be said, the Seer's never a lie, the strike going with the traitors' names and finding a Seer who
-// gave themselves away).
+// the loyal reason from what they can know and what's said, the traitors fail together only when they must and then
+// the one the table suspects most, vote as a knight in their seat would and refuse the fourth party when the fifth is
+// theirs to name; their own talk always fit to be said, the Seer's never a lie, the strike going with the traitors'
+// names and finding a Seer who gave themselves away).
 import { rules, dealRoles, knowledge, EVIL_COUNT, SIZES, SHOW_MS, isEvil, talk, stances, named, striker, TALK_MAX } from "../quest-rules.js";
 import { questBot, questChat, suspicion, LEVEL_NAMES } from "../quest-bot.js";
 import { newRecord, applyMove, applyWake, botMove, seeded, mix } from "../seats.js";
@@ -244,12 +245,15 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   g4.q = 3; g4.quests.forEach((q, i) => { if (i < 3) Object.assign(q, { result: i === 1 ? "fail" : "success", fails: i === 1 ? 1 : 0, team: [0, 1] }); });
   const t4 = questBot(g4, 3, "medium", seeded(2)).team;
   check(t4.length === 4 && t4.includes(3) && t4.includes(4), "for the quest that needs two fails, it brings another of its own");
-  // a quest with two of them on it, one fail enough: only one fails
+  // a quest with two of them on it, one fail enough: only one fails, the one the table suspects more (with nothing
+  // to choose between them, the first round the table)
   const q = structuredClone(G.state);
   Object.assign(q, { step: "quest", q: 1, team: [0, 3, 4], cards: { 0: null, 3: null, 4: null } });
-  let both = 0;
-  for (let i = 0; i < 200; i++) { const a = questBot(q, 3, "medium", seeded(i)).success, b = questBot(q, 4, "medium", seeded(i + 999)).success; if (!a && !b) both++; if (!b) both += 100; }
-  check(both === 0, "two traitors on a quest one fail fails: the second round the table never fails it too");
+  const fails = state => { let a = 0, b = 0; for (let i = 0; i < 200; i++) { if (!questBot(state, 3, "medium", seeded(i)).success) a++; if (!questBot(state, 4, "medium", seeded(i + 999)).success) b++; } return [a, b]; };
+  const [first, second] = fails(q);
+  check(first > 150 && second === 0, `two traitors on a quest one fail fails: only one fails it, the first round the table (${first} of 200), the other never`);
+  const [spared, blamed] = fails([5, 6].reduce((s, by) => said(s, by, { t: "accuse", seat: 4 }), q));
+  check(blamed > 150 && spared === 0, `and when the table suspects the second more, the second (${blamed} of 200): a fail costs it least, and the other keeps clean`);
   // the Seer's knowledge: it doesn't approve a party it knows is foul every time, and approves clean ones mostly
   const vote = structuredClone(G.state);
   Object.assign(vote, { step: "vote", q: 1, team: [1, 2, 3], votes: Array(7).fill(null), leader: 1 });
@@ -257,10 +261,30 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   for (let i = 0; i < 200; i++) if (questBot(vote, 0, "medium", seeded(i)).yes) yes++;
   check(yes < 160, `the Seer doesn't wave a traitor's party through as a knight might (${yes} of 200)`);
   check(questBot(vote, 2, "medium", seeded(3)).yes === true || questBot(vote, 2, "medium", seeded(4)).yes === true, "a knight with nothing to go on approves a first party with itself in it");
+  // everyone approves their own party: a traitor, and a knight at ten whose best party of five is all but hopeless
+  const own = structuredClone(vote);
+  Object.assign(own, { leader: 3, team: [3, 5, 6] });
+  const ten = table(["loyal", "loyal", "traitor", "traitor", "loyal", "loyal", "traitor", "loyal", "traitor", "loyal"], 0, { seer: false }).state;
+  Object.assign(ten, { step: "vote", q: 3, team: [0, 2, 3, 6, 8], votes: Array(10).fill(null) });
+  check([...Array(10).keys()].every(i => questBot(own, 3, "medium", seeded(i)).yes && questBot(ten, 0, "medium", seeded(i)).yes), "a leader approves its own party, traitor or knight");
   // the fifth party: the loyal approve, the traitors refuse a clean one
   const fifth = structuredClone(vote);
   Object.assign(fifth, { rejects: 4, team: [0, 1, 2] });
   check(questBot(fifth, 5, "medium", seeded(5)).yes === true && questBot(fifth, 4, "medium", seeded(6)).yes === false, "the fifth party: a knight approves it, a traitor refuses a clean one");
+  // the fourth clean party in a row with one of theirs to lead next: refused, the fifth is theirs, which the loyal must send
+  const fourth = structuredClone(vote);
+  Object.assign(fourth, { rejects: 3, leader: 2, team: [0, 1, 2] });
+  check([3, 4].every(p => [...Array(20).keys()].every(i => questBot(fourth, p, "medium", seeded(i)).yes === false)), "the fourth clean party in a row, one of theirs to lead next: the traitors refuse it");
+  // a party with one of their own: a Sharp traitor votes on it exactly as a knight in its seat would, so its votes
+  // don't tie them together
+  const caught = structuredClone(vote);
+  Object.assign(caught, { leader: 1, team: [1, 4, 5] });
+  caught.quests[0] = { ...caught.quests[0], result: "fail", fails: 1, team: [2, 4] };
+  caught.log = [{ q: 0, leader: 2, team: [2, 4], votes: Array(7).fill(true), approved: true, fails: 1 }];
+  const knight = { ...caught, roles: caught.roles.map((r, p) => (p === 3 ? "loyal" : r)) };
+  let same = 0, refused = 0;
+  for (let i = 0; i < 40; i++) { const a = questBot(caught, 3, "medium", seeded(i)).yes; if (a === questBot(knight, 3, "medium", seeded(i)).yes) same++; if (!a) refused++; }
+  check(same === 40 && refused > 0, `a Sharp traitor votes on a party with its partner as a knight in its seat would (refusing it ${refused} times of 40)`);
   // the Assassin names one it doesn't know for a traitor
   const end = structuredClone(G.state);
   end.step = "assassin";
@@ -277,13 +301,19 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   let left = true;
   for (let i = 0; i < 30; i++) if (questBot(accused, 2, "medium", seeded(i)).team.includes(1)) left = false;
   check(left, "and, leading, leaves them out of the party");
-  // a player on a failed quest of two with the knight is all but caught: their accusation counts for its target
+  // a player on a failed quest of two with the knight is all but caught: their accusation says next to nothing of its
+  // target, since a traitor accuses the loyal and, once the table half suspects one of its own, that one too
   const g = structuredClone(s0);
   Object.assign(g, { q: 1, leader: 3 });
   g.quests[0] = { ...g.quests[0], result: "fail", fails: 1, team: [2, 4] };
   g.log = [{ q: 0, leader: 2, team: [2, 4], votes: [true, true, true, true, true, true, true], approved: true, fails: 1 }];
   const smear = said(g, 4, { t: "accuse", seat: 6 });
-  check(suspicion(g, 2)[4] > 0.95 && suspicion(smear, 2)[6] < suspicion(g, 2)[6], `an accusation from the one it caught makes the knight think better of its target (${suspicion(g, 2)[6].toFixed(2)} → ${suspicion(smear, 2)[6].toFixed(2)})`);
+  check(suspicion(g, 2)[4] > 0.95 && Math.abs(suspicion(smear, 2)[6] - suspicion(g, 2)[6]) < 0.02, `an accusation from the one it caught tells the knight next to nothing of its target (${suspicion(g, 2)[6].toFixed(2)} → ${suspicion(smear, 2)[6].toFixed(2)})`);
+  // with no Seer in the game, a fourth to accuse a player at seven adds nothing (they mostly repeat the first three);
+  // with the Seer, it may be the Seer's
+  const four = (rs, options) => { const s = table(rs, 2, options).state, a = [4, 5, 6].reduce((t, by) => said(t, by, { t: "accuse", seat: 1 }), s); return [suspicion(a, 2)[1], suspicion(said(a, 0, { t: "accuse", seat: 1 }), 2)[1]]; };
+  const [plain3, plain4] = four(["loyal", "loyal", "loyal", "traitor", "traitor", "loyal", "traitor"], { seer: false }), [seer3, seer4] = four(roles, {});
+  check(plain4 === plain3 && seer4 > seer3 + 0.01, `with no Seer in the game a fourth accuser at seven adds nothing (${plain3.toFixed(2)} → ${plain4.toFixed(2)}); with the Seer, it counts (${seer3.toFixed(2)} → ${seer4.toFixed(2)})`);
 }
 {
   // their own talk: nothing before the first vote; accused, a word back decided once; a word of their own a party
@@ -309,6 +339,13 @@ const said = (s, seat, m) => { const r = say(s, seat, m); if (typeof r === "stri
   check(w?.t === "accuse" && w.seat === 4 && w.why === "fail", "the knight who was on a failed quest of two with a traitor accuses them, for the fail");
   const after = said(g, 2, w);
   check([...Array(20).keys()].every(i => questChat(after, 2, "medium", seeded(i)) === null), "and says nothing more of its own until the next party");
+  // one of their own the table half suspects already: a Sharp traitor joins in against them; an Easy one doesn't
+  const g1 = structuredClone(s0);
+  Object.assign(g1, { leader: 5 });
+  g1.log = [{ q: 0, leader: 4, team: [4, 5], votes: [false, false, false, false, true, true, false], approved: false }];
+  const piled = [5, 6].reduce((s, by) => said(s, by, { t: "accuse", seat: 4 }), g1);
+  const first3 = level => { for (let i = 0; i < 20; i++) { const m = questChat(piled, 3, level, seeded(i)); if (m) return m; } return null; };
+  check(first3("medium")?.t === "accuse" && first3("medium").seat === 4 && first3("easy")?.seat !== 4, "a Sharp traitor joins in against one of its own the table half suspects already; an Easy one doesn't");
 }
 {
   // the Seer who named the traitors before any quest showed them is the one the traitors strike
