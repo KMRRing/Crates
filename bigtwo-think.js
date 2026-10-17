@@ -1,11 +1,12 @@
 // Big Two's coach: the best move it can find for a seat, worked out by playing each choice to the end of the deal in
-// many deals of the cards the seat can't see. Each deal of the unseen cards is played out by Medium's rules for every
-// seat (bigtwo-bot.js's plan and choices, on the fast plays below), or, once ten cards or fewer are left, solved exactly: every
-// seat playing to do best for itself, as far as the end, with every position remembered. The choices are first tried in
-// a few deals each, those clearly behind the best dropped, the rest tried in more, until one is left or the time is up;
-// every choice sees the same deals, so they're compared fairly, deal by deal. A choice's worth is what the seat comes out with on average: the
-// points it wins going out, or the points it pays. The same position always gets the same answer (the deals come from a
-// seed made from the position). Pure (no page), so the worker, the tests and the arena share it.
+// many deals of the cards the seat can't see (every one of them, when there are few). Each deal of the unseen cards is
+// played out by Medium's rules for every seat (bigtwo-bot.js's plan and choices, on the fast plays below), or, when
+// every choice leaves ten cards or fewer, solved exactly: every seat playing to do best for itself, as far as the end,
+// with every position remembered. The choices are first tried in a few deals each, those clearly behind the best
+// dropped, the rest tried in more, until one is left or the deals are all in; every choice sees the same deals, and is
+// worked out the same way in each, so they're compared fairly, deal by deal. A choice's worth is what the seat comes out
+// with on average: the points it wins going out, or the points it pays. The same position always gets the same answer
+// (the deals come from a seed made from the position). Pure (no page), so the worker, the tests and the arena share it.
 import { classify, beats, value, rankOf, suitOf, playsFor, penalty, KIND } from "./bigtwo-rules.js";
 
 // ---------- fast plays ----------
@@ -211,10 +212,21 @@ function playOut(t, seat, cap = 160) {
 // ---------- solving the end exactly ----------
 // Every seat plays to do best for itself, as the deal's scoring rewards it: each move made is the one leading to the
 // end best for its mover (ties broken against the coach's seat, so it isn't counting on an opponent's kindness). Every
-// position is remembered for the deal. Used once a deal is small enough to search to its end.
-const handKey = h => h.slice().sort((a, b) => a - b).join(".");
+// position is remembered for the deal (`memo`, one for each deal of the unseen cards). Used once a deal is small
+// enough to search to its end.
+// A position is remembered by the cards still held (in one deal each card has one holder, so they say who holds what)
+// and the trick: whose turn, the play to beat, who made it, how many have passed since; the cards as bits, two numbers
+// of 26 each, which is far quicker than writing the hands out.
+function posKey(t) {
+  let lo = 0, hi = 0, a = 0, b = 0;
+  for (const h of t.hands) for (const c of h) { if (c < 26) lo |= 1 << c; else hi |= 1 << (c - 26); }
+  if (t.trick.last) for (const c of t.trick.last.cards) { if (c < 26) a |= 1 << c; else b |= 1 << (c - 26); }
+  return `${t.turn}|${t.trick.by ?? "-"}|${t.trick.passes}|${lo}|${hi}|${a}|${b}`;
+}
+// a deal's hands in card order, so a hand's plays, kept by its cards, are found once for every deal it turns up in
+const byId = h => h.sort((a, b) => a - b);
 function solve(t, me, memo, budget) {
-  const k = `${t.turn}|${t.trick.last ? t.trick.last.cards.slice().sort((a, b) => a - b).join(".") : "-"}|${t.trick.by ?? "-"}|${t.trick.passes}|${t.hands.map(handKey).join("/")}`;
+  const k = posKey(t);
   const got = memo.get(k);
   if (got) return got;
   if (budget.nodes-- <= 0) throw ABANDON;
@@ -257,13 +269,35 @@ function seedOf(s, seat) {
   mix((s.trick.passes || 0) + 501);
   return h;
 }
+const unseenBy = (s, seat) => { const known = new Set([...s.hands[seat], ...(s.played || [])]), out = []; for (let c = 0; c < 52; c++) if (!known.has(c)) out.push(c); return out; };
+const shuffle = (xs, rng) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
 /** The unseen cards dealt to the others by how many each holds. */
 function dealUnseen(s, seat, rng) {
-  const known = new Set([...s.hands[seat], ...(s.played || [])]), unseen = [];
-  for (let c = 0; c < 52; c++) if (!known.has(c)) unseen.push(c);
-  for (let i = unseen.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [unseen[i], unseen[j]] = [unseen[j], unseen[i]]; }
+  const unseen = shuffle(unseenBy(s, seat), rng);
   let k = 0;
   return s.hands.map((h, i) => { if (i === seat) return [...h]; const out = unseen.slice(k, k + h.length); k += h.length; return out; });
+}
+/** Every way the unseen cards can lie among the others, each once, when there are `most` or fewer: else null. Late in
+ *  a deal there are few (seven cards held two, three and two: 210), and trying each once is exact where drawing as many
+ *  at random would try some twice and miss others. */
+function everyDeal(s, seat, most) {
+  const unseen = unseenBy(s, seat);
+  let ways = 1, left = unseen.length;
+  for (let i = 0; i < s.seats; i++) {
+    if (i === seat) continue;
+    // the ways to give this seat its cards from those left: rising to the middle, so worked out by the shorter side
+    const n = s.hands[i].length, k = Math.min(n, left - n);
+    for (let j = 0; j < k; j++) { ways = (ways * (left - j)) / (j + 1); if (ways > most + 0.5) return null; }
+    left -= n;
+  }
+  const out = [], hands = [];
+  const lay = (i, rest) => {
+    if (i === s.seats) { out.push(hands.slice()); return; }
+    if (i === seat) { hands[i] = [...s.hands[seat]]; lay(i + 1, rest); return; }
+    for (const pick of combos(rest, s.hands[i].length)) { hands[i] = pick; lay(i + 1, rest.filter(c => !pick.includes(c))); }
+  };
+  lay(0, unseen);
+  return out;
 }
 
 // ---------- the choices, weighed ----------
@@ -284,20 +318,19 @@ export function choices(s, seat) {
   if (s.trick.last) list.push({ t: "pass" });
   return list;
 }
-/** How one choice comes out in one deal of the unseen cards: the seat's worth at the end. A solve that runs past its
- *  budget is given up, and the rest of the weighing (`run`) plays its deals out instead. */
-function tryIn(t0, seat, m, run) {
+/** How one choice comes out in one deal of the unseen cards: the seat's worth at the end, solved (given the deal's
+ *  `memo`, when every choice leaves a table small enough) or played out. A solve past its budget throws ABANDON. */
+function tryIn(t0, seat, m, memo) {
   const t = copy(t0);
   if (step(t, m)) return worth(t, seat);
-  if (run.solving && small(t)) {
-    try { return solve(t, seat, new Map(), { nodes: 4000 })[seat]; } catch (e) { if (e !== ABANDON) throw e; run.solving = false; }
-  }
-  return playOut(t, seat);
+  return memo ? solve(t, seat, memo, { nodes: 4000 })[seat] : playOut(t, seat);
 }
 /**
  * The coach's weighing of a decision: every choice tried in the same deals of the unseen cards, those clearly behind
- * the best dropped as the deals add up, until one is left or the time (ms) is up. { best, list: [{ move, mean, se, n }] }, the best first.
- * `must` keeps a choice in to the end (a move of yours, to check against the coach's).
+ * the best dropped as the deals add up, until one is left, the deals are all in or the time (ms) is up.
+ * { best, list: [{ move, mean, se, n, gap, gapSe }], deals, exact, solved }, the best first; `exact` when the deals were
+ * every way the unseen cards can lie, `solved` when each was worked out exactly. `must` keeps a choice in to the end (a
+ * move of yours, to check against the coach's).
  */
 export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, must = null, seed = null } = {}) {
   const s = state, start = Date.now(), rng = seeded(seed ?? seedOf(s, seat));
@@ -305,14 +338,33 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
   if (must && !list.some(c => moveKey(c.move) === moveKey(must))) list.push({ move: must, sum: 0, sq: 0, n: 0, vals: [] });
   const all = list.slice();
   if (list.length === 1) return { best: list[0].move, list: [{ move: list[0].move, mean: 0, se: 0, n: 0 }], deals: 0, ms: 0, only: true };
-  const base = lightOf(s), deals = [], run = { solving: true };
-  const more = k => { while (deals.length < k) { const t = copy(base); t.hands = dealUnseen(s, seat, rng); deals.push(t); } };
+  const base = lightOf(s), deals = [];
+  // few enough ways for the unseen cards to lie to try them all: each once, in a random order (so a choice dropped
+  // early is dropped as fairly as from random deals)
+  const every = everyDeal(s, seat, maxDeals);
+  if (every) maxDeals = shuffle(every, rng).length;
+  const more = k => { while (deals.length < k) { const t = copy(base); t.hands = (every ? every[deals.length] : dealUnseen(s, seat, rng)).map(h => byId([...h])); deals.push(t); } };
+  // solved only when every choice leaves a small enough table, so they're all worked out the same way; a solve too big
+  // for its budget starts the weighing again, played out
+  let solving = list.every(c => { const t = copy(base); return step(t, c.move) || small(t); });
   // rounds: every choice still in plays the next deals; then those clearly behind go (a must-keep stays)
   let round = 8;
   while (true) {
     const upto = Math.min(maxDeals, list[0].n + round);
     more(upto);
-    for (const c of list) for (let d = c.n; d < upto; d++) { const v = tryIn(deals[d], seat, c.move, run); c.sum += v; c.sq += v * v; c.n++; c.vals.push(v); }
+    const add = (c, v) => { c.sum += v; c.sq += v * v; c.n++; c.vals.push(v); };
+    try {
+      // solving, a deal at a time, its choices sharing what's been worked out (their ends meet); else a choice at a time
+      if (solving) for (let d = list[0].n; d < upto; d++) { const memo = new Map(); for (const c of list) add(c, tryIn(deals[d], seat, c.move, memo)); }
+      else for (const c of list) for (let d = c.n; d < upto; d++) add(c, tryIn(deals[d], seat, c.move, null));
+    } catch (e) {
+      if (e !== ABANDON) throw e;
+      solving = false;
+      for (const c of all) Object.assign(c, { sum: 0, sq: 0, n: 0, vals: [] });
+      list = all.slice();
+      round = 8;
+      continue;
+    }
     const elapsed = Date.now() - start, n = list[0].n;
     if (n >= maxDeals || (elapsed > ms && n >= minDeals)) break;
     if (list.length > 1 && n >= 16) {
@@ -348,11 +400,11 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
     c.gapSe = n ? sd / Math.sqrt(n) : 0;
   }
   for (const c of done) delete c.vals;
-  return { best: best.move, list: [...top, ...done.filter(c => c.n !== done[0].n).sort((a, b) => b.mean - a.mean)], deals: best.n, ms: Date.now() - start };
+  return { best: best.move, list: [...top, ...done.filter(c => c.n !== done[0].n).sort((a, b) => b.mean - a.mean)], deals: best.n, exact: !!every && best.n === every.length, solved: solving, ms: Date.now() - start };
 }
 /** How far the coach weighs a decision: so many deals of the unseen cards (and a time, in ms, only as a backstop for a
- *  slow phone): for a hint or Always's advice; for a check, which nothing waits on; and on the page's own thread, where a
- *  browser has no worker, less, so the table doesn't stall. */
-export const BUDGET = { think: { maxDeals: 240, ms: 4000 }, check: { maxDeals: 320, ms: 6000 }, here: { maxDeals: 96, ms: 800 } };
+ *  slow phone), the same for a hint, Always's advice and a check, so they agree; on the page's own thread, where a
+ *  browser has no worker, fewer, so the table doesn't stall. */
+export const BUDGET = { think: { maxDeals: 480, ms: 5000 }, check: { maxDeals: 480, ms: 6000 }, here: { maxDeals: 96, ms: 800 } };
 /** Whether two moves are the same: both passes, or the same cards. */
 export const sameMove = (a, b) => moveKey(a) === moveKey(b);

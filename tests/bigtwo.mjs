@@ -162,6 +162,14 @@ check_([1, 9, 10, 12, 13].map(penalty).join() === "1,9,20,24,39", "penalties: a 
   check_(moveName({ t: "play", cards: H("9♦ 9♣ 9♥ 3♠ 3♦") }, O) === "a full house, 9s" && moveName({ t: "play", cards: H("3♦ 4♣ 5♥ 6♠ 7♦") }, O) === "a straight to the 7♦" && moveName({ t: "pass" }, O) === "pass" && /^Play the 2♠, and you're out|^Play the 2♠ · then a single/.test(adviceLine(r, st, 0)),
     `moves in words: a full house, 9s; a straight to the 7♦; and the advice (${adviceLine(r, st, 0)})`);
   check_(choices(st, 0).length === 3, "its choices there: the 5♦, the 2♠ and passing");
+  // later still, the five cards you can't see can lie only thirty ways (one, two and two): the coach tries each once
+  // and solves every one, so its answer is exact, not a sample: the 2♠ then the 5♦ goes out every time, for the 1 + 2 + 2
+  // cards the others hold
+  const late = { ...st, hands: [H("5♦ 2♠"), H("6♣"), H("7♣ 8♣"), H("3♣ 3♥")] };
+  late.played = Array.from({ length: 52 }, (_, i) => i).filter(c => !late.hands.flat().includes(c));
+  const ex = think(late, 0, { ms: 5000, maxDeals: 480, must: { t: "pass" } });
+  check_(ex.exact && ex.solved && ex.deals === 30 && cardName(ex.best.cards?.[0] ?? -1) === "2♠" && ex.list[0].mean === 5 && ex.list.find(c => c.move.t === "pass")?.n === 30,
+    `with five cards unseen, one with one player and two with each of the others, the coach tries all ${ex.deals} ways they can lie (exact: ${ex.exact}) and solves each (${ex.solved}): the 2♠, worth exactly ${ex.list[0].mean} a deal`);
 }
 {
   const rng = seeded(8), pts = { hard: 0, easy: 0 };
