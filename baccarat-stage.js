@@ -88,7 +88,7 @@ function burnHtml(card) {
   return `<div class="bs-burn"><div class="bs-burn-row">${cardHtml({ rank: RANKS[rankOf(id)], suit: id & 3 })}<span class="bs-burn-n">+</span>${Array.from({ length: n }, () => backHtml()).join("")}</div><small>${n} burned unseen</small></div>`;
 }
 function termsHtml(terms) {
-  return `<dl class="bs-terms">${terms.map(([zh, jp, en]) => `<div><dt>${esc(zh)}</dt><dd><i>${esc(jp)}</i>${esc(en)}</dd></div>`).join("")}</dl>`;
+  return `<dl class="cs-terms">${terms.map(([zh, jp, en]) => `<div><dt>${esc(zh)}</dt><dd><i>${esc(jp)}</i>${esc(en)}</dd></div>`).join("")}</dl>`;
 }
 
 export function baccaratStage() {

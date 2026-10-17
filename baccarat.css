@@ -17,9 +17,6 @@ html[data-mode="night"] { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: colo
 
 .bc-mark { display: inline-block; }
 .bc-mark svg { width: 100%; height: 100%; display: block; }
-.bc-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .45rem 0 .4rem; font-size: .86rem; color: var(--ink-soft); white-space: nowrap; }
-.bc-strip b { color: var(--ink); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
-.bc-limits, .bc-shoe { overflow: hidden; text-overflow: ellipsis; }
 
 /* the scoreboard: the screen over the table */
 .bc-board { display: grid; gap: .3rem; }
@@ -108,41 +105,9 @@ html[data-mode="night"] { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: colo
 .bc-stake.win { background: var(--bc-good); color: #fff; }
 .bc-spot.side .bc-stake { position: static; display: inline-grid; vertical-align: 1px; min-width: 0; height: .95rem; margin-right: .3rem; padding: 0 .3rem; font-size: .6rem; box-shadow: none; }
 
-/* the rail: chips to pick, and Clear, Rebet, Deal */
-.bc-rail { display: grid; gap: .45rem; margin-top: .45rem; }
-.bc-chips { display: flex; justify-content: space-between; gap: .3rem; }
-.bc-chip { position: relative; display: grid; place-items: center; width: 3.1rem; height: 3.1rem; flex: none; border: 0; border-radius: 50%; padding: 0; color: #fff; font: inherit; font-size: .74rem; font-weight: 800;
-  background: var(--chip); box-shadow: inset 0 0 0 .2rem var(--chip), inset 0 0 0 .32rem rgba(255, 255, 255, .85), 0 1px 3px rgba(0, 0, 0, .35); cursor: pointer; touch-action: manipulation; }
-.bc-chip::before { content: ""; position: absolute; inset: .12rem; border-radius: 50%; border: .18rem dashed rgba(255, 255, 255, .9); }
-.bc-chip span { position: relative; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
-.bc-chip[aria-checked="true"] { outline: 2px solid var(--ink); outline-offset: 2px; transform: translateY(-.15rem); }
-.bc-chip.c100 { --chip: #2C5B8A; } .bc-chip.c500 { --chip: #8F3328; } .bc-chip.c1000 { --chip: #C08A1E; } .bc-chip.c5000 { --chip: #3D7A66; } .bc-chip.c10000 { --chip: #1C2A34; }
-.bc-go { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: .45rem; }
-.bc-btn { min-height: 2.75rem; padding: 0 .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 800;
-  text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); cursor: pointer; }
-.bc-btn.primary { border: 0; background: var(--plate); color: var(--plate-ink); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font-stretch: 106%; }
-.bc-btn:disabled { opacity: .4; cursor: default; }
-@media (max-height: 760px) {
-  .bc-chip { width: 2.75rem; height: 2.75rem; }
-  .bc-btn { min-height: 2.45rem; }
-}
-
-.bc-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
-  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
-.bc-toast.show { opacity: 1; }
-
-/* Baccarat on one page (baccarat-rules.js) */
-.bc-rules p { line-height: 1.45; }
-.bc-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
-.bc-rules .bs-tableau { margin: .3rem auto .6rem; }
-.bc-rules table.bc-pays, .bc-rules table.bc-words { width: 100%; border-collapse: collapse; font-size: .88rem; }
-.bc-rules .bc-pays th, .bc-rules .bc-pays td, .bc-rules .bc-words td { padding: .35rem .3rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
-.bc-rules .bc-pays th { font-size: .74rem; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
-.bc-rules b.b { color: var(--bc-b); } .bc-rules b.p { color: var(--bc-p); } .bc-rules b.t { color: var(--bc-t); }
-.bc-rules .bc-words td:first-child { white-space: nowrap; font-size: 1rem; }
-.bc-rules .bc-words i { color: var(--ink-soft); }
-.bc-rules-note { font-size: .85rem; color: var(--ink-soft); }
+/* Baccarat on one page (baccarat-rules.js): the sides in their colours */
+.cs-rules b.b { color: var(--bc-b); } .cs-rules b.p { color: var(--bc-p); } .cs-rules b.t { color: var(--bc-t); }
+.cs-rules .bs-tableau { margin: .3rem auto .6rem; }
 
 /* the squeeze (baccarat-squeeze.js): over the felt, the card large and face down, peeled from an edge by the finger */
 .bq { position: absolute; inset: 0; z-index: 5; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; gap: .4rem; padding: .6rem;
@@ -195,11 +160,6 @@ dialog.ln-sheet.bc { --ln-in: var(--c3); }
 .bs-burn-row .cd.back:nth-child(3) { margin-left: 0; }
 .bs-burn-n { margin: 0 .35em; font-weight: 800; color: var(--ink-soft); }
 .bs-burn small { font-size: .78rem; color: var(--ink-soft); }
-.bs-terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: .35rem .6rem; margin: 0; }
-.bs-terms div { display: contents; }
-.bs-terms dt { font-size: 1.25rem; font-weight: 800; text-align: right; white-space: nowrap; }
-.bs-terms dd { margin: 0; font-size: .9rem; }
-.bs-terms dd i { margin-right: .45rem; color: var(--ink-soft); }
 
 /* held sideways: the table on the left with all the height; the scoreboard, the chips and the buttons beside it */
 @media (orientation: landscape) and (min-width: 700px) {

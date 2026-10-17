@@ -1,0 +1,98 @@
+/* Roulette: the screen over the table (the last numbers as coloured balls, newest first, and what the last hundred came
+   to), the layout on green felt (the numbers in red and black, zero green, the outside bets in the felt's colour, the
+   chips round with their amounts), the wheel over the layout while it spins, the modes a tap bets in, and the rail.
+   The accent is verdigris, the felt's. */
+:root {
+  --rl-in: var(--c1);
+  --rl-felt: color-mix(in srgb, var(--c1) 62%, #10231B);
+  --rl-line: color-mix(in srgb, #fff 55%, var(--rl-felt));
+  --rl-red: #A8382B; --rl-black: #1E2730; --rl-green: #2F7D5B;
+  --rl-good: #2F7D5B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --rl-felt: color-mix(in srgb, var(--c1) 40%, #0A1712); --rl-black: #0E1418; --rl-good: #7FC2A8; }
+}
+html[data-mode="night"] { --rl-felt: color-mix(in srgb, var(--c1) 40%, #0A1712); --rl-black: #0E1418; --rl-good: #7FC2A8; }
+
+.rl-mark { display: inline-block; }
+.rl-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the screen: the last numbers and the counts */
+.rl-board { display: grid; gap: .3rem; padding: .4rem .5rem; border-radius: 4px; background: var(--ink); color: var(--yard); }
+.rl-last { display: flex; gap: .2rem; overflow: hidden; min-height: 1.6rem; align-items: center; }
+.rl-ball { flex: none; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .78rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+.rl-ball.red { background: var(--rl-red); } .rl-ball.black { background: var(--rl-black); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .35); } .rl-ball.green { background: var(--rl-green); }
+.rl-last .rl-ball:first-child { width: 1.9rem; height: 1.9rem; font-size: .9rem; box-shadow: 0 0 0 2px var(--brass); }
+.rl-none { font-size: .8rem; opacity: .75; }
+.rl-stats { display: flex; flex-wrap: wrap; gap: .1rem .65rem; font-size: .72rem; opacity: .9; font-variant-numeric: tabular-nums; }
+.rl-stats i { font-style: normal; font-weight: 800; }
+.rl-stats i.red { color: #E8806F; } .rl-stats i.green { color: #7FC2A8; }
+
+/* the felt: the layout as big as its box, the wheel over it while it spins, the call */
+.rl-felt { position: relative; display: flex; flex-direction: column; margin-top: .45rem; min-height: 0; }
+.rl-layout { flex: 1 1 auto; min-height: 0; display: grid; place-items: center; overflow: hidden; touch-action: manipulation; }
+.rl-layout-svg { display: block; cursor: pointer; }
+.rl-layout-svg text { text-anchor: middle; dominant-baseline: central; font-family: inherit; pointer-events: none; }
+.rl-felt-bg { fill: var(--rl-felt); }
+.rl-cell, .rl-out { stroke: var(--rl-line); stroke-width: 1; }
+.rl-cell.red { fill: var(--rl-red); } .rl-cell.black { fill: var(--rl-black); } .rl-cell.green { fill: var(--rl-green); }
+.rl-out { fill: transparent; }
+.rl-out.lit, .rl-cell.dolly { stroke: #F2D27A; stroke-width: 2.5; }
+.rl-num { fill: #fff; font-weight: 800; }
+.rl-word { fill: #fff; font-weight: 700; letter-spacing: .04em; }
+.rl-diamond.red { fill: var(--rl-red); stroke: #fff; stroke-width: 1; } .rl-diamond.black { fill: var(--rl-black); stroke: #fff; stroke-width: 1; }
+/* a chip: ivory with a dashed edge and dark figures, by day and by night alike (it sits on the felt, not the page) */
+.rl-chip circle { fill: #F4EEDD; stroke: #1C2A34; stroke-width: 1.5; stroke-dasharray: 3 2; }
+.rl-chip text { fill: #1C2A34; font-weight: 800; font-family: system-ui, -apple-system, sans-serif; letter-spacing: -.02em; }
+.rl-chip.lit circle { fill: #F2D27A; stroke: var(--rl-good); stroke-width: 2.5; stroke-dasharray: none; }
+.rl-dolly circle, .rl-dolly rect { fill: #F4EEDD; stroke: #1C2A34; stroke-width: 1.5; }
+.rl-wheel { position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; padding: .5rem; border-radius: 6px; background: color-mix(in srgb, var(--rl-felt) 92%, transparent); }
+.rl-wheel[hidden] { display: none; }
+/* the call after a spin: over the head of the layout, the number and what it is, and what the spin paid you */
+.rl-call { position: absolute; left: 50%; top: .3rem; transform: translateX(-50%); z-index: 3; display: flex; align-items: center; gap: .45rem; margin: 0; padding: .25rem .7rem .25rem .3rem;
+  border-radius: 1.2rem; background: var(--sheet); box-shadow: 0 1px 4px rgba(0, 0, 0, .35); font-weight: 800; white-space: nowrap; pointer-events: none; }
+.rl-call:empty { display: none; }
+.rl-say { text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); font-size: .86rem; }
+.rl-call small { font-weight: 650; color: var(--ink-soft); }
+
+/* the wheel */
+.rw { width: min(100%, 22rem); height: auto; max-height: 100%; aspect-ratio: 1; }
+.rw-rim { fill: #5A3A22; stroke: var(--brass); stroke-width: 3; }
+.rw-pocket { stroke: #E9D9A8; stroke-width: .6; }
+.rw-pocket.red { fill: var(--rl-red); } .rw-pocket.black { fill: #15191D; } .rw-pocket.green { fill: var(--rl-green); }
+.rw-num { fill: #fff; font-weight: 800; text-anchor: middle; dominant-baseline: central; }
+.rw-hub { fill: #7A5230; stroke: #E9D9A8; stroke-width: 1; }
+.rw-cone { fill: #9B6B3E; }
+.rw-turret { fill: #E2C27A; }
+.rw-ball { fill: #FBFBF8; stroke: #8A8A80; stroke-width: .6; }
+.rw-pointer { fill: #F2D27A; }
+
+/* the modes: what a tap on the numbers bets */
+.rl-modes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .25rem; margin-top: .4rem; }
+.rl-mode { min-height: 2.1rem; padding: 0 .2rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .74rem; font-weight: 700;
+  text-transform: var(--caps); letter-spacing: calc(.04em * var(--track)); cursor: pointer; touch-action: manipulation; }
+.rl-mode[aria-checked="true"] { border-color: var(--ink); background: var(--ink); color: var(--yard); }
+
+/* the wheel beside the layout, held sideways (on a phone it comes over the layout while it spins) */
+.rl-dock { display: none; }
+/* held sideways: the layout on the left with all the height; the screen, the modes, the wheel, the chips and the
+   buttons beside */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.roulette { --beside: 22rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  #app.roulette .rl-strip { grid-column: 2; grid-row: 2; }
+  #app.roulette .rl-board { grid-column: 2; grid-row: 3; }
+  #app.roulette .rl-felt { grid-column: 1; grid-row: 2 / span 5; margin-top: .45rem; }
+  #app.roulette .rl-modes { grid-column: 2; grid-row: 4; }
+  #app.roulette .rl-dock { grid-column: 2; grid-row: 5; display: grid; place-items: center; min-height: 0; padding: .6rem 0; }
+  #app.roulette .rl-dock .rw { width: auto; height: 100%; max-width: 100%; }
+  #app.roulette .rl-rail { grid-column: 2; grid-row: 6; align-self: end; }
+}
+
+/* the course's sheet in the felt's colour, and its stage (roulette-stage.js): the wheel, the layout, the screen, words */
+dialog.ln-sheet.rl { --ln-in: var(--c1); }
+.rs { display: grid; gap: .7rem; align-content: center; justify-items: center; width: 100%; min-height: 0; padding: .3rem 0; }
+.rs-wheel { display: grid; justify-items: center; gap: .4rem; }
+.rs-wheel .rw { width: min(15rem, 46cqh); }
+.rs-around { display: flex; gap: .25rem; margin: 0; }
+.rs-layout { line-height: 0; }
+.rs-screen { width: 100%; }

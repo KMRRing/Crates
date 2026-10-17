@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="cards.css">
 <link rel="stylesheet" href="course.css">
+<link rel="stylesheet" href="casino.css">
 <link rel="stylesheet" href="baccarat.css">
 <link rel="stylesheet" href="themes.css">
 </head>
@@ -29,10 +30,10 @@
     </div>
   </header>
 
-  <div class="bc-strip">
-    <span class="bc-bal">HK$ <b id="balance">0</b></span>
-    <span id="limits" class="bc-limits"></span>
-    <span id="shoe" class="bc-shoe"></span>
+  <div class="cs-strip bc-strip">
+    <span>HK$ <b id="balance">0</b></span>
+    <span id="limits" class="cs-cut"></span>
+    <span id="shoe" class="cs-cut"></span>
   </div>
 
   <section id="board" class="bc-board" aria-label="The scoreboard">
@@ -53,12 +54,12 @@
     <div id="spots" class="bc-spots"></div>
   </section>
 
-  <section class="bc-rail" aria-label="Your chips">
-    <div id="chips" class="bc-chips" role="radiogroup" aria-label="Chip"></div>
-    <div class="bc-go">
-      <button id="clearBtn" class="bc-btn" type="button">Clear</button>
-      <button id="rebetBtn" class="bc-btn" type="button">Rebet</button>
-      <button id="dealBtn" class="bc-btn primary" type="button">Deal</button>
+  <section class="cs-rail bc-rail" aria-label="Your chips">
+    <div id="chips" class="cs-chips" role="radiogroup" aria-label="Chip"></div>
+    <div class="cs-go">
+      <button id="clearBtn" class="cs-btn" type="button">Clear</button>
+      <button id="rebetBtn" class="cs-btn" type="button">Rebet</button>
+      <button id="dealBtn" class="cs-btn primary" type="button">Deal</button>
     </div>
   </section>
 </div>
@@ -70,10 +71,10 @@
 
 <dialog id="rulesDlg" class="sheet bc-sheet" aria-label="The rules on one page">
   <div class="pick-head"><h2>Baccarat on one page</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
-  <div id="rulesBody" class="bc-rules"></div>
+  <div id="rulesBody" class="cs-rules"></div>
 </dialog>
 
-<p id="toast" class="bc-toast" role="status" aria-live="polite"></p>
+<p id="toast" class="cs-toast" role="status" aria-live="polite"></p>
 <script type="module" src="baccarat.js"></script>
 </body>
 </html>

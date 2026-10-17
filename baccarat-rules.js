@@ -2,8 +2,8 @@
 // Banker's chart, the shoe and the squeeze, how to read the screen over the table, the house's rules, and the words the
 // floor uses, Cantonese with Jyutping. For a glance at the table, where the course is for learning it.
 import { bankerDraws, SPOTS, EDGES, MIN, MAX, SIDE_MAX } from "./baccarat-engine.js";
+import { hk } from "./casino.js";
 
-const hk = n => `HK$${n.toLocaleString("en-GB")}`;
 // the words of the floor: [characters, Jyutping, what it means]
 export const WORDS = [
   ["莊 · 閒 · 和局", "zong1 · haan4 · wo4 guk6", "Banker (the box, not the house) · Player · a tie"],
@@ -66,8 +66,8 @@ export function rulesHtml(table = "nocommission") {
     <p><b>Third cards.</b> The Player draws on 0–5 and stands on 6–7. If the Player stood, the Banker does the same; if the Player drew, the Banker goes by the chart (its total down the side, the Player's third card across; D draws, S stands). The third card is laid sideways.</p>
     ${chart()}
     <h3>The bets</h3>
-    <table class="bc-pays"><thead><tr><th>Bet</th><th>Pays</th><th>House keeps</th></tr></thead><tbody>${bets()}</tbody></table>
-    <p class="bc-rules-note">Not every table carries every side bet: the Venetian has had Small and Big 6 since 2024, Pairs+ (in place of the two pairs) and Monkey no Monkey since April 2026. Here: ${table === "commission" ? "a commission table" : "a no-commission table, the main floor's usual kind"}, ${hk(MIN)} to ${hk(MAX)} on Player or Banker, up to ${hk(SIDE_MAX)} on each side bet, in HK$100s. Banker wins 45.9% of hands, Player 44.6%, a tie 9.5%; whatever the roads show, the next hand's odds are the same.</p>
+    <table class="cs-pays"><thead><tr><th>Bet</th><th>Pays</th><th>House keeps</th></tr></thead><tbody>${bets()}</tbody></table>
+    <p class="cs-note">Not every table carries every side bet: the Venetian has had Small and Big 6 since 2024, Pairs+ (in place of the two pairs) and Monkey no Monkey since April 2026. Here: ${table === "commission" ? "a commission table" : "a no-commission table, the main floor's usual kind"}, ${hk(MIN)} to ${hk(MAX)} on Player or Banker, up to ${hk(SIDE_MAX)} on each side bet, in HK$100s. Banker wins 45.9% of hands, Player 44.6%, a tie 9.5%; whatever the roads show, the next hand's odds are the same.</p>
     <h3>The shoe and the squeeze</h3>
     <p><b>The shoe</b> (牌靴), usually eight decks, is cut by a player or the dealer; the white cut card (白咭) goes in at least about twelve cards from the end. The burn (銷牌) takes cards off the top unseen: as many as there are decks, a set number, or what the first card counts, turned up. When the cut card comes out, that hand is the last, or one more is dealt. After a tie a Player or Banker bet may be left, taken back or moved.</p>
     <p><b>The squeeze</b> (咪牌; the rules' 持牌): at a squeeze table each side's cards go face down to its biggest seated bet, who alone touches them, at the table, a third card never with the first two. Peel a long side first: no pips, A–3 or a court card; two down it (二邊) 4–5; three (三邊) 6–8; four (四邊) 9–10. Then an end, for the middle: 6 none, 7 one, 8 two; 9 one, 10 two.</p>
@@ -78,5 +78,5 @@ export function rulesHtml(table = "nocommission") {
     <h3>The house's rules</h3>
     <p>21 and over (proof of age may be asked). No photographs or video on the floor, no phone in use at the table. No smoking but in the approved lounges; no e-cigarettes. Only the squeezer touches the cards; nobody touches a bet once the cards come out. Everything is in Hong Kong dollars.</p>
     <h3>The words</h3>
-    <table class="bc-words"><tbody>${WORDS.map(([zh, jp, en]) => `<tr><td><b>${zh}</b></td><td><i>${jp}</i></td><td>${en}</td></tr>`).join("")}</tbody></table>`;
+    <table class="cs-words"><tbody>${WORDS.map(([zh, jp, en]) => `<tr><td><b>${zh}</b></td><td><i>${jp}</i></td><td>${en}</td></tr>`).join("")}</tbody></table>`;
 }

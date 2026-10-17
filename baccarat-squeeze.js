@@ -91,7 +91,7 @@ export function squeeze(host, id, { label = "" } = {}) {
     box.innerHTML = `<p class="bq-head">${label}</p>
       ${cardSvg(id, "sq", peelPaths("bottom", 0), `class="bq-card" role="img" aria-label="A card face down: drag in from an edge to peel it"`)}
       <p class="bq-say">Drag in from an edge to peel it: a long side first shows the pips' columns</p>
-      <button class="bc-btn primary bq-turn" type="button">Turn it</button>`;
+      <button class="cs-btn primary bq-turn" type="button">Turn it</button>`;
     host.appendChild(box);
     const svg = box.querySelector(".bq-card"), clip = box.querySelector(".bq-clip"), fold = box.querySelector(".bq-fold");
     let edge = "bottom", depth = 0, done = false;

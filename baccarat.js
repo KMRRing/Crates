@@ -17,13 +17,12 @@ import { baccaratStage, layoutHtml, paysAt } from "./baccarat-stage.js";
 import { IN_FRAME } from "./suite.js";
 import { squeeze } from "./baccarat-squeeze.js";
 import { rulesHtml } from "./baccarat-rules.js";
+import { hk, short, chipsHtml, toast } from "./casino.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "baccarat:run", OPTS = "baccarat:opts";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const hk = n => `HK$${Math.abs(n).toLocaleString("en-GB")}`;
-const short = n => (n >= 1000 ? `${n / 1000}K` : String(n));
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const animate = (node, frames, o) => (node?.animate ? node.animate(frames, { fill: "both", ...o }).finished.catch(() => {}) : Promise.resolve());
 
@@ -112,7 +111,7 @@ function drawSpots() {
   });
 }
 function drawRail() {
-  $("chips").innerHTML = CHIPS.map(v => `<button type="button" class="bc-chip c${v}" role="radio" aria-checked="${opts.chip === v}" data-chip="${v}" aria-label="HK$${v.toLocaleString("en-GB")} chip"><span>${short(v)}</span></button>`).join("");
+  $("chips").innerHTML = chipsHtml(CHIPS, opts.chip);
   const any = Object.values(S.bets).some(v => v > 0);
   $("clearBtn").disabled = playing || !any;
   $("rebetBtn").disabled = playing || any || !Object.values(S.lastBets || {}).some(v => v > 0);
@@ -210,14 +209,6 @@ async function dealNow() {
 function setAsk(side) { asking = asking === side ? null : side; drawBoard(); }
 
 // ---------- messages, the menu, the course ----------
-let toastTimer = 0;
-function toast(msg) {
-  const t = $("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
-}
 function showRules() {
   $("rulesBody").innerHTML = rulesHtml(S.table);
   if (!$("rulesDlg").open) $("rulesDlg").showModal();

@@ -1,0 +1,51 @@
+/* What the Casino section's games share (Baccarat, Blackjack, Roulette; casino.js): the strip with what you hold and
+   the table's limits, the rail of chips and the buttons under it, the message along the foot, and the rules on one
+   page. Each game links it before its own stylesheet. */
+
+/* the strip: what you hold, the table's limits, where the shoe or the wheel has got to */
+.cs-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .45rem 0 .4rem; font-size: .86rem; color: var(--ink-soft); white-space: nowrap; }
+.cs-strip b { color: var(--ink); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.cs-strip .cs-cut { overflow: hidden; text-overflow: ellipsis; }
+
+/* the rail: chips to pick, and the buttons (the main one the plate) */
+.cs-rail { display: grid; gap: .45rem; margin-top: .45rem; }
+.cs-chips { display: flex; justify-content: space-between; gap: .3rem; }
+.cs-chip { position: relative; display: grid; place-items: center; width: 3.1rem; height: 3.1rem; flex: none; border: 0; border-radius: 50%; padding: 0; color: #fff; font: inherit; font-size: .74rem; font-weight: 800;
+  background: var(--chip); box-shadow: inset 0 0 0 .2rem var(--chip), inset 0 0 0 .32rem rgba(255, 255, 255, .85), 0 1px 3px rgba(0, 0, 0, .35); cursor: pointer; touch-action: manipulation; }
+.cs-chip::before { content: ""; position: absolute; inset: .12rem; border-radius: 50%; border: .18rem dashed rgba(255, 255, 255, .9); }
+.cs-chip span { position: relative; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
+.cs-chip[aria-checked="true"] { outline: 2px solid var(--ink); outline-offset: 2px; transform: translateY(-.15rem); }
+/* a chip's colour by its value, the same in every game */
+.c25 { --chip: #6E4E8C; } .c50 { --chip: #A0522D; } .c100 { --chip: #2C5B8A; } .c500 { --chip: #8F3328; } .c1000 { --chip: #C08A1E; } .c5000 { --chip: #3D7A66; } .c10000 { --chip: #1C2A34; }
+.cs-go { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: .45rem; }
+.cs-btn { min-height: 2.75rem; padding: 0 .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 800;
+  text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); cursor: pointer; touch-action: manipulation; }
+.cs-btn.primary { border: 0; background: var(--plate); color: var(--plate-ink); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font-stretch: 106%; }
+.cs-btn:disabled { opacity: .4; cursor: default; }
+@media (max-height: 760px) {
+  .cs-chip { width: 2.75rem; height: 2.75rem; }
+  .cs-btn { min-height: 2.45rem; }
+}
+
+/* a message along the foot of the screen */
+.cs-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.cs-toast.show { opacity: 1; }
+
+/* the rules on one page: its headings, the table of bets, the words of the floor */
+.cs-rules p { line-height: 1.45; }
+.cs-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.cs-rules table.cs-pays, .cs-rules table.cs-words { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.cs-rules .cs-pays th, .cs-rules .cs-pays td, .cs-rules .cs-words td { padding: .35rem .3rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.cs-rules .cs-pays th { font-size: .74rem; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.cs-rules .cs-words td:first-child { white-space: nowrap; font-size: 1rem; }
+.cs-rules .cs-words i { color: var(--ink-soft); }
+.cs-note { font-size: .85rem; color: var(--ink-soft); }
+
+/* a course's words of the floor: the characters, then the Jyutping and what they mean */
+.cs-terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: .35rem .6rem; margin: 0; width: 100%; }
+.cs-terms div { display: contents; }
+.cs-terms dt { font-size: 1.2rem; font-weight: 800; text-align: right; white-space: nowrap; }
+.cs-terms dd { margin: 0; font-size: .9rem; }
+.cs-terms dd i { margin-right: .45rem; color: var(--ink-soft); }
