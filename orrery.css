@@ -41,6 +41,15 @@
 .or-foretold.k2 { stroke: var(--c2); }
 .or-foretold.k3 { stroke: var(--c3); }
 @keyframes or-fore { to { opacity: .45; } }
+/* the comet (its tail away from the sun), its way in, the turns till it comes; and a syzygy's line through the sun */
+.or-comet-path { stroke: var(--brass-lo); stroke-width: .5; stroke-dasharray: 1.2 1.6; opacity: .55; }
+.or-comet.due .or-comet-path { stroke: var(--ink); opacity: .9; }
+.or-comet-head { fill: var(--sheet); stroke: var(--ink); stroke-width: .5; }
+.or-comet-tail { fill: color-mix(in srgb, var(--c0) 75%, transparent); }
+.or-board text.or-comet-in { font-size: 4.2px; font-weight: 800; fill: var(--ink-soft); text-anchor: middle; dominant-baseline: central; }
+.or-comet.due text.or-comet-in { fill: var(--ink); }
+.or-planet.doomed { opacity: .45; }
+.or-syzygy { stroke: var(--c0); stroke-width: 1.2; stroke-linecap: round; opacity: .85; }
 .or-board text.or-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
 .or-board text.or-pop.big { font-size: 8px; }
 
