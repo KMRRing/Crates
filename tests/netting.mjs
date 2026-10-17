@@ -1,8 +1,9 @@
 // Netting's rules (netting-engine.js): the deal from a seed, a booking (to another house, the game booked from left as
 // it was), a loop netted out (both ways between two houses, round three, the loop cancelling most first), never a loop
 // left standing, the points, a default (its debts written off, a life), a new hand after three, obligations growing,
-// the end at the third default, a game saved and opened again, and whole games played out to their end.
-import { HOUSES, N, HAND, LIMIT, LIVES, PACE, largest, newGame, owed, net, worth, book, moves } from "../netting-engine.js";
+// interest on what's left standing, contagion (a default cutting its creditors' limits, and tipping them over), the end
+// at the third default, a game saved and opened again, and whole games played out to their end.
+import { HOUSES, N, HAND, LIMIT, LIVES, PACE, INTEREST, FLOOR, largest, newGame, upgrade, owed, net, worth, book, moves } from "../netting-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -60,10 +61,46 @@ function looped(o) {
 // ---------- a default ----------
 {
   const s = game({ "3>4": 9, "3>1": 1 }, [{ from: 3, amount: 2 }, null, { from: 0, amount: 1 }]), r = book(s, 0, 5);
-  check(r.defaulted === 3 && r.state.lives === LIVES - 1 && owed(r.state.owes, 3) === 0, `a house owing more than ${LIMIT} defaults: its debts written off, a life`);
-  const saved = book(game({ "3>4": 9, "4>5": 4 }, [{ from: 5, amount: 1 }, null, null]), 0, 3);
-  check(saved.defaulted < 0 && saved.state.lives === LIVES, "netting first can keep a house within its limit");
-  check(book(game({ "3>4": 9 }, [{ from: 3, amount: 1 }, null, null]), 0, 4).defaulted < 0, `owing exactly ${LIMIT} is within it`);
+  check(r.defaulted.join() === "3" && r.state.lives === LIVES - 1 && owed(r.state.owes, 3) === 0, `a house owing more than ${LIMIT} defaults: its debts written off, a life`);
+  const saved = book(game({ "3>4": 9, "4>5": 4 }, [{ from: 5, amount: 1 }, null, { from: 0, amount: 1 }]), 0, 3);
+  check(saved.defaulted.length === 0 && saved.state.lives === LIVES, "netting first can keep a house within its limit");
+  check(book(game({ "3>4": 9 }, [{ from: 3, amount: 1 }, null, { from: 0, amount: 1 }]), 0, 4).defaulted.length === 0, `owing exactly ${LIMIT} is within it`);
+}
+
+// ---------- contagion ----------
+{
+  // HOU owes LON 4 and RTM 5, LON owes SIN 7: HOU books 2 more to SHA and defaults, LON's limit falls to 6, under what
+  // it owes
+  const s = game({ "3>1": 4, "3>4": 5, "1>2": 7 }, [{ from: 3, amount: 2 }, null, { from: 0, amount: 1 }]), r = book(s, 0, 5);
+  check(r.defaulted.join() === "3,1" && r.state.lives === LIVES - 2 && owed(r.state.owes, 1) === 0, "a default cuts each creditor's limit by what it was owed, and can tip one into default too");
+  check(r.state.limits.join() === `${LIMIT},${LIMIT},${FLOOR},${LIMIT},${FLOOR},${LIMIT - 2}`, `a defaulter's limit is whole again; every creditor's is cut, the one just booked to as well, none below ${FLOOR}`);
+  const held = book(game({ "3>1": 4, "3>4": 5, "1>2": 6 }, [{ from: 3, amount: 2 }, null, { from: 0, amount: 1 }]), 0, 5);
+  check(held.defaulted.join() === "3" && held.state.limits[1] === 6 && owed(held.state.owes, 1) === 6, "owing exactly its cut limit, a creditor holds");
+  const next = book(Object.assign(structuredClone(held.state), { hand: [null, null, { from: 0, amount: 1 }] }), 2, 5);
+  check(next.dealt && next.state.limits[1] === 7 && next.state.limits[4] === FLOOR + 1, "limits recover by one with each new hand");
+}
+
+// ---------- interest ----------
+{
+  // a hand of three that never touches GVA's debt to LON
+  const others = () => [{ from: 2, amount: 1 }, { from: 3, amount: 1 }, { from: 4, amount: 1 }];
+  const hand = s => { for (let k = 0; k < HAND; k++) s = book(s, k, 5).state; return s; };
+  let s = game({ "0>1": 2 }, others()), r = null;
+  for (let k = 1; k < INTEREST; k++) s = Object.assign(hand(s), { hand: others() });
+  check(s.owes[e(0, 1)] === 2 && s.age[e(0, 1)] === INTEREST - 1, `an obligation left standing ages a hand at a time (${INTEREST - 1} hands)`);
+  s = book(book(s, 0, 5).state, 1, 5).state;
+  r = book(s, 2, 5);
+  check(r.dealt.interest.includes(e(0, 1)) && r.state.owes[e(0, 1)] === 3 && r.state.age[e(0, 1)] === 0, `left for ${INTEREST} hands, it grows by one, and its clock starts again`);
+  check(!r.dealt.interest.includes(e(2, 5)) && r.state.age[e(2, 5)] === 1, "what was added to this hand isn't charged");
+  const old = game({ "0>1": 3, "1>2": 2 }, [{ from: 2, amount: 1 }, null, { from: 4, amount: 1 }], { age: Object.assign(new Array(N * N).fill(0), { [e(0, 1)]: 3, [e(1, 2)]: 3 }) });
+  const paid = book(old, 0, 0).state;
+  check(paid.owes[e(0, 1)] === 2 && paid.age[e(0, 1)] === 0 && paid.owes[e(1, 2)] === 1 && paid.age[e(1, 2)] === 0, "netting an obligation down starts its clock again");
+  const tipped = book(game({ "0>1": 10 }, [{ from: 2, amount: 1 }, null, null], { age: Object.assign(new Array(N * N).fill(0), { [e(0, 1)]: INTEREST - 1 }) }), 0, 3);
+  check(tipped.dealt.defaulted.join() === "0" && tipped.state.lives === LIVES - 1 && tipped.table.owes[e(0, 1)] === 10, "interest can tip a house past its limit as the new hand comes");
+  const was = newGame(3);
+  delete was.age; delete was.limits;
+  const up = upgrade(was);
+  check(up.age.length === N * N && up.limits.every(l => l === LIMIT) && !("age" in was) && upgrade(up) === up, "a game saved before interest and contagion is given them");
 }
 
 // ---------- hands and pace ----------
@@ -79,7 +116,7 @@ function looped(o) {
 // ---------- the end ----------
 {
   const r = book(game({ "3>4": 9, "3>1": 1 }, [{ from: 3, amount: 2 }, null, null], { lives: 1 }), 0, 5);
-  check(r.over && r.state.over && r.state.lives === 0, "the third default ends the game");
+  check(r.over && r.state.over && r.state.lives === 0 && !r.dealt, "the third default ends the game, with no new hand");
   let threw = false;
   try { book(r.state, 1, 2); } catch { threw = true; }
   check(threw, "nothing is booked once it's over");
@@ -98,7 +135,7 @@ function looped(o) {
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
   let z = 3;
   const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
-  const strain = o => [...Array(N).keys()].reduce((a, i) => a + (owed(o, i) / LIMIT) ** 2, 0);
+  const strain = s => [...Array(N).keys()].reduce((a, i) => a + (owed(s.owes, i) / s.limits[i]) ** 2, 0);
   // how many bookings would close a loop: pairs of houses with a way from one back to the other
   const potential = o => { let n = 0; for (let j = 0; j < N; j++) { const seen = new Set([j]), st = [j]; while (st.length) { const a = st.pop(); for (let b = 0; b < N; b++) if (o[e(a, b)] > 0 && !seen.has(b)) { seen.add(b); st.push(b); } } n += seen.size - 1; } return n; };
   const random = [], thoughtful = [];
@@ -109,14 +146,14 @@ function looped(o) {
     let t = newGame(100 + g);
     while (!t.over && t.booked < 3000) {
       let best = null, bv = -Infinity;
-      for (const m of moves(t)) { const o = book(t, m.slot, m.to), v = o.gain / 10 - 30 * strain(o.state.owes) + 3 * potential(o.state.owes) - (o.defaulted >= 0 ? 400 : 0); if (v > bv) { bv = v; best = o; } }
+      for (const m of moves(t)) { const o = book(t, m.slot, m.to), v = o.gain / 10 - 30 * strain(o.state) + 3 * potential(o.state.owes) - 400 * (o.defaulted.length + (o.dealt?.defaulted.length || 0)); if (v > bv) { bv = v; best = o; } }
       t = best.state;
     }
     thoughtful.push(t.booked);
   }
-  check(median(random) < 120, `booking anywhere: three defaults in about ${median(random)} bookings`);
-  check(median(thoughtful) > 1.5 * median(random) && Math.max(...thoughtful) < 3000, `booking to build loops and net them: about ${median(thoughtful)} bookings, and the obligations growing still end it`);
+  check(median(random) < 90, `booking anywhere: three defaults in about ${median(random)} bookings`);
+  check(median(thoughtful) > 2.5 * median(random) && Math.max(...thoughtful) < 3000, `booking to build loops and net them: about ${median(thoughtful)} bookings, and the obligations growing still end it`);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("netting: the deal, a booking, loops, a default, hands, the end, saving, whole games");
+else console.log("netting: the deal, a booking, loops, a default, contagion, interest, hands, the end, saving, whole games");
