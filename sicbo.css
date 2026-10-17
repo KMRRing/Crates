@@ -1,0 +1,124 @@
+/* Sic Bo: the screen over the table (the last totals as coloured balls, Big red, Small blue, a triple green, and what the
+   last hundred came to), the dice in their tray, the layout on green felt (every bet's dice and what it pays, the chips
+   at the corners), and the rail. The accent is oxblood, the red of a Chinese die's one and four. */
+:root {
+  --sb-in: var(--c3);
+  --sb-felt: color-mix(in srgb, var(--c1) 22%, var(--sheet));
+  --sb-felt-line: color-mix(in srgb, var(--c1) 55%, var(--sheet));
+  --sb-big: var(--c3); --sb-small: var(--c2); --sb-triple: var(--c1);
+  --sb-good: #2F7D5B; --sb-bad: #A8382B;
+  /* the lettering of Big, Small and a triple on the felt: the enamel by day, a lighter one by night */
+  --sb-big-ink: var(--sb-big); --sb-small-ink: var(--sb-small); --sb-triple-ink: var(--sb-triple);
+  /* the screen over the table is dark by day and by night, as an electronic one is */
+  --sb-screen: #141C23; --sb-screen-ink: #F1E9D6;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --sb-good: #7FC2A8; --sb-bad: #E8806F; --sb-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); --sb-big-ink: #E8806F; --sb-small-ink: #8FB4DE; --sb-triple-ink: #7FC2A8; }
+}
+html[data-mode="night"] { --sb-good: #7FC2A8; --sb-bad: #E8806F; --sb-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); --sb-big-ink: #E8806F; --sb-small-ink: #8FB4DE; --sb-triple-ink: #7FC2A8; }
+
+.sb-mark { display: inline-block; }
+.sb-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the screen: the last totals and the counts */
+.sb-board { display: grid; gap: .3rem; padding: .4rem .5rem; border-radius: 4px; background: var(--sb-screen); color: var(--sb-screen-ink); }
+.sb-last { display: flex; gap: .2rem; overflow: hidden; min-height: 1.6rem; align-items: center; }
+.sb-ball { flex: none; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .78rem; font-weight: 800; color: var(--on-c); font-variant-numeric: tabular-nums; }
+.sb-ball.big { background: var(--sb-big); } .sb-ball.small { background: var(--sb-small); } .sb-ball.triple { background: var(--sb-triple); }
+.sb-last .sb-ball:first-child { width: 1.9rem; height: 1.9rem; font-size: .9rem; box-shadow: 0 0 0 2px var(--brass); }
+.sb-none { font-size: .8rem; opacity: .75; }
+.sb-stats { display: flex; gap: .1rem .65rem; overflow: hidden; white-space: nowrap; font-size: .72rem; opacity: .9; font-variant-numeric: tabular-nums; }
+.sb-stats i { font-style: normal; font-weight: 800; }
+.sb-stats i.big { color: #E8806F; } .sb-stats i.small { color: #8FB4DE; } .sb-stats i.triple { color: #7FC2A8; }
+
+/* the dice in their tray, and the call: the total, what it is, and what the round paid you */
+.sb-tray { display: flex; align-items: center; justify-content: center; gap: 1rem; min-height: 3.7rem; margin-top: .45rem; padding: .3rem .6rem; border-radius: 6px; background: var(--sb-felt); box-shadow: inset 0 0 0 1px var(--sb-felt-line); }
+.sb-dice { display: flex; gap: .5rem; align-items: center; }
+.sb-dice .cdi { width: 2.5rem; height: 2.5rem; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
+.sb-dice .cdi.empty rect { fill: color-mix(in srgb, var(--cdi-die) 25%, transparent); stroke-dasharray: 3 2; }
+.sb-dice.rolling .cdi { animation: sb-shake .2s linear infinite; }
+.sb-dice.rolling .cdi:nth-child(2) { animation-delay: -.07s; } .sb-dice.rolling .cdi:nth-child(3) { animation-delay: -.13s; }
+.sb-dice .cdi.land { animation: sb-land .32s ease-out; }
+@keyframes sb-shake { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(.18rem, -.2rem) rotate(14deg); } 50% { transform: translate(-.12rem, .1rem) rotate(-10deg); } 75% { transform: translate(-.2rem, -.12rem) rotate(8deg); } 100% { transform: translate(0, 0) rotate(0); } }
+@keyframes sb-land { 0% { transform: scale(1.3) rotate(-12deg); } 60% { transform: scale(.94); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .sb-dice.rolling .cdi, .sb-dice .cdi.land { animation: none; } }
+.sb-call { margin: 0; min-width: 6.8rem; display: grid; gap: .08rem; font-weight: 800; line-height: 1.15; }
+.sb-call:empty { display: none; }
+.sb-call .say { font-size: 1.15rem; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); }
+.sb-call .say b { font-size: 1.4rem; margin-right: .3rem; font-variant-numeric: tabular-nums; }
+.sb-call .say.big { color: var(--sb-big-ink); } .sb-call .say.small { color: var(--sb-small-ink); } .sb-call .say.triple { color: var(--sb-triple-ink); }
+.sb-call small { font-size: .82rem; font-weight: 650; color: var(--ink-soft); }
+.sb-call small.win { color: var(--sb-good); } .sb-call small.lose { color: var(--sb-bad); }
+
+/* the layout: as big as its box allows, scrolling inside it only when a short screen gives each row less than it needs */
+.sb-felt { margin-top: .45rem; min-height: 0; display: flex; flex-direction: column; }
+.sb-layout { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .4rem .35rem .3rem; border-radius: 6px; background: var(--sb-felt); box-shadow: inset 0 0 0 1px var(--sb-felt-line); touch-action: manipulation; }
+.sb-grid { display: flex; flex-direction: column; gap: .25rem; min-height: 100%; }
+.sb-row { flex: 1 1 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: .25rem; min-height: 2.3rem; }
+.sb-row.main { flex-grow: 1.4; min-height: 3.6rem; }
+.sb-cell { position: relative; display: grid; align-content: center; justify-items: center; gap: .1rem; min-width: 0; padding: .1rem; border: 1.5px solid var(--sb-felt-line); border-radius: 6px;
+  background: color-mix(in srgb, var(--sheet) 55%, transparent); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.sb-cell .dice { display: flex; align-items: center; justify-content: center; gap: .1rem; }
+.sb-cell .pay { font-size: .66rem; line-height: 1; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sb-cell .num { font-size: 1.1rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.sb-cell .zh { font-size: 1.05rem; font-weight: 800; line-height: 1; }
+.sb-cell .en { font-size: .6rem; font-weight: 800; line-height: 1; text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: var(--wide); white-space: nowrap; }
+.sb-row.main .zh { font-size: 1.4rem; }
+.sb-row.main .en { font-size: .68rem; }
+.sb-cell.k-small .zh, .sb-cell.k-small .en { color: var(--sb-small-ink); } .sb-cell.k-big .zh, .sb-cell.k-big .en { color: var(--sb-big-ink); } .sb-cell.k-any .zh, .sb-cell.k-any .en { color: var(--sb-triple-ink); }
+.sb-cell.has { border-color: var(--ink); }
+.sb-cell.hit { border-color: var(--sb-good); box-shadow: inset 0 0 0 2px var(--sb-good); background: color-mix(in srgb, var(--sb-good) 16%, var(--sheet)); }
+.sb-grid.plain .sb-cell, .ss-layout .sb-cell { cursor: default; }
+/* a stake on a cell: a chip's amount at its corner; once paid, what the bet won or lost */
+.sb-stake { position: absolute; top: -.3rem; right: -.15rem; z-index: 1; display: grid; place-items: center; min-width: 1.7rem; height: 1.15rem; padding: 0 .28rem; border-radius: .65rem;
+  background: var(--ink); color: var(--yard); font-size: .64rem; font-weight: 800; font-variant-numeric: tabular-nums; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); pointer-events: none; }
+.sb-stake.win { background: var(--sb-good); color: #fff; } .sb-stake.lose { background: var(--sb-bad); color: #fff; }
+
+/* a short screen: a tighter tray, no counts under the totals */
+@media (max-height: 760px) {
+  .sb-tray { min-height: 3.1rem; padding: .2rem .5rem; }
+  .sb-dice .cdi { width: 2.1rem; height: 2.1rem; }
+  .sb-row { min-height: 2.1rem; }
+}
+@media (max-height: 700px) { .sb-stats { display: none; } }
+
+/* held sideways: the layout on the left with all the height; the counts, the dice (larger), the chips and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.sicbo { --beside: 22rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  #app.sicbo .sb-strip { grid-column: 2; grid-row: 2; }
+  #app.sicbo .sb-board { grid-column: 2; grid-row: 3; }
+  #app.sicbo .sb-tray { grid-column: 2; grid-row: 4; }
+  #app.sicbo .sb-felt { grid-column: 1; grid-row: 2 / span 5; margin-top: .45rem; }
+  #app.sicbo .sb-rail { grid-column: 2; grid-row: 6; align-self: end; }
+  #app.sicbo .sb-stats { display: flex; }
+}
+
+/* the course's sheet in the game's colour, and its stage (sicbo-stage.js): dice, the totals' ways, the bets by what the
+   house keeps, the layout, the screen, words */
+dialog.ln-sheet.sb { --ln-in: var(--sb-in); }
+.ss { display: grid; gap: .7rem; align-content: center; justify-items: stretch; width: 100%; min-height: 0; padding: .3rem 0; }
+.ss-dice { display: flex; align-items: center; justify-content: center; gap: .9rem; padding: .6rem; border-radius: 6px; background: var(--sb-felt); box-shadow: inset 0 0 0 1px var(--sb-felt-line); }
+.ss-dice .cdi { width: 3rem; height: 3rem; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
+.ss-sign { display: grid; justify-items: center; gap: .1rem; font-weight: 800; }
+.ss-sign b { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.ss-sign span { font-size: .9rem; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.ss-sign.big b, .ss-sign.big span { color: var(--sb-big-ink); } .ss-sign.small b, .ss-sign.small span { color: var(--sb-small-ink); } .ss-sign.triple b, .ss-sign.triple span { color: var(--sb-triple-ink); }
+.ss-ways { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); align-items: end; gap: .15rem; height: min(9rem, 30cqh); padding: .4rem .4rem 0; border-radius: 6px; background: var(--sb-felt); box-shadow: inset 0 0 0 1px var(--sb-felt-line); }
+.ss-ways div { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; align-items: end; height: 100%; font-size: .66rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.ss-ways i { display: block; width: 100%; height: calc(var(--h) * 100%); min-height: 2px; border-radius: 2px 2px 0 0; background: var(--sb-small); }
+.ss-ways div.pick i { background: var(--sb-in); } .ss-ways div.pick { color: var(--ink); font-weight: 800; }
+.ss-ways div.tri i { background: var(--sb-triple); }
+.ss-ways b { font-size: .7rem; color: var(--ink); font-weight: 800; }
+.ss-ways span { padding: .1rem 0 .25rem; }
+.ss-edges { display: grid; gap: .25rem; padding: .5rem; border-radius: 6px; background: var(--sb-felt); box-shadow: inset 0 0 0 1px var(--sb-felt-line); font-size: .8rem; }
+.ss-edges div { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 3.4rem; align-items: center; gap: .5rem; }
+.ss-edges span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-edges small { color: var(--ink-soft); margin-left: .25rem; }
+.ss-edges i { display: block; height: .7rem; border-radius: 2px; background: var(--sb-in); width: calc(var(--w) * 100%); min-width: 2px; }
+.ss-edges b { text-align: right; font-variant-numeric: tabular-nums; }
+.ss-layout { padding: .4rem; border-radius: 6px; background: var(--sb-felt); box-shadow: inset 0 0 0 1px var(--sb-felt-line); }
+.ss-layout .sb-grid { min-height: 0; }
+.ss-layout .sb-row { flex: none; min-height: 2.4rem; }
+.ss-layout .sb-row.main { min-height: 3.6rem; }
+.ss-screen { width: 100%; }
+.ss-screen .sb-stats { display: flex; }

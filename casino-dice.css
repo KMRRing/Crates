@@ -1,0 +1,18 @@
+/* A die in the casino's dice games (casino-dice.js): ivory with the red one and four, pale in the dark as Boast's are. */
+:root { --cdi-die: #FBF4E4; --cdi-edge: #B9A57C; --cdi-pip: #1C2A34; --cdi-red: #C0262D; --cdi-lit: #F2D27A; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --cdi-die: #EDE3CC; --cdi-edge: #8C7A55; --cdi-pip: #16212B; --cdi-red: #B5282D; }
+}
+html[data-mode="night"] { --cdi-die: #EDE3CC; --cdi-edge: #8C7A55; --cdi-pip: #16212B; --cdi-red: #B5282D; }
+html[data-theme="office"] { --cdi-die: #FFFFFF; --cdi-edge: #A19F9D; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --cdi-die: #E1DFDD; --cdi-edge: #797775; } }
+html[data-theme="office"][data-mode="night"] { --cdi-die: #E1DFDD; --cdi-edge: #797775; }
+
+.cdi { width: 1.2rem; height: 1.2rem; display: block; flex: none; overflow: visible; }
+.cdi rect { fill: var(--cdi-die); stroke: var(--cdi-edge); stroke-width: 1.3; }
+.cdi circle { fill: var(--cdi-pip); }
+.cdi.red circle { fill: var(--cdi-red); }
+.cdi.mini { width: 1rem; height: 1rem; }
+.cdi.big { width: 2.6rem; height: 2.6rem; }
+.cdi.lit rect { stroke: var(--cdi-lit); stroke-width: 2.6; }
+.cdi.dim { opacity: .32; }
