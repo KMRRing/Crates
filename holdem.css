@@ -1,0 +1,239 @@
+/* Texas Hold'em: a card table under a peacock-blue enamel. Upright: the other seats round the top (and flanking yours at
+   the foot), the board and the pot between them, then your two cards, the size of a raise and your buttons. Sideways:
+   the table on the left, your cards and buttons beside it. */
+:root {
+  --hd-in: #1D6A74;                                                /* peacock: the game's enamel */
+  --hd-soft: color-mix(in srgb, var(--hd-in) 14%, var(--sheet));
+  --hd-felt: color-mix(in srgb, var(--hd-in) 8%, var(--sheet));
+  --hd-good: #2F7D5B; --hd-bad: #A8382B;
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --hd-in: #5BB7C2; --hd-felt: color-mix(in srgb, #1D6A74 20%, var(--sheet)); --hd-good: #7FC2A8; --hd-bad: #E8806F; } }
+html[data-mode="night"] { --hd-in: #5BB7C2; --hd-felt: color-mix(in srgb, #1D6A74 20%, var(--sheet)); --hd-good: #7FC2A8; --hd-bad: #E8806F; }
+html[data-theme="kontor"] { --hd-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --hd-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --hd-in: #2EB36A; }
+html[data-theme="office"] { --hd-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --hd-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
+
+/* the course's sheet (course.css) in the game's enamel */
+.ln-sheet.hd { --ln-in: var(--hd-in); }
+/* the words and a choice under them (three options and what the answer says) in full, so the question stays in view */
+.ln-sheet.hd .ln-text { max-height: 44vh; max-height: 44svh; }
+
+.hd-mark { display: inline-block; }
+.hd-mark svg { width: 100%; height: 100%; display: block; }
+.hd-strip { margin: .5rem 0 .35rem; font-size: .84rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hd-strip b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* ---------- the table ---------- */
+.hd-table { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "tl tc tr" "centre centre centre" "ml me mr"; gap: .3rem; padding: .45rem; min-height: 0; border-radius: 6px;
+  background: var(--hd-felt); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--hd-felt), inset 0 0 0 5px var(--rule); overflow: hidden; container-type: size; }
+/* the cards on the table as large as it allows: a tablet's table shows them larger */
+.hd-table { --hd-board: clamp(.8rem, min(5.2cqh, 5.3cqw), 2.4rem); --hd-hole: clamp(.5rem, min(3cqh, 3cqw), 1.3rem); }
+
+.hd-seat { position: relative; display: grid; gap: .12rem; align-content: start; min-width: 0; padding: .28rem .4rem; border-radius: 6px; background: var(--sheet); border: 1px solid var(--rule); font-size: .78rem; line-height: 1.2; }
+.hd-seat.at-tl { grid-area: tl; } .hd-seat.at-tc { grid-area: tc; } .hd-seat.at-tr { grid-area: tr; }
+.hd-seat.at-ml { grid-area: ml; align-self: end; } .hd-seat.at-mr { grid-area: mr; align-self: end; } .hd-seat.at-me { grid-area: me; align-self: end; }
+.hd-seat.turn { border-color: var(--hd-in); box-shadow: 0 0 0 1.5px var(--hd-in); }
+.hd-seat.out { opacity: .5; }
+.hd-seat.win { border-color: var(--hd-in); background: var(--hd-soft); box-shadow: 0 0 0 2px var(--hd-in); }
+.hd-seat.me .hd-name { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.hd-who { display: flex; align-items: center; gap: .25rem; min-width: 0; padding-right: 1.1rem; }
+.hd-name { font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.hd-tag { flex: none; padding: 0 .22rem; border-radius: 3px; font-style: normal; font-size: .62rem; font-weight: 800; letter-spacing: calc(.05em * var(--track)); box-shadow: inset 0 0 0 1px var(--hd-in); color: var(--hd-in); }
+/* the button: a disc, as the real one is */
+.hd-dealer { position: absolute; top: .22rem; right: .25rem; display: grid; place-items: center; width: 1.05rem; height: 1.05rem; border-radius: 50%; background: var(--plate); color: var(--plate-ink); font-size: .62rem; font-weight: 800; }
+.hd-money { display: flex; align-items: center; justify-content: space-between; gap: .3rem; font-variant-numeric: tabular-nums; }
+.hd-stack { font-weight: 700; }
+.hd-bet { padding: 0 .28rem; border-radius: 3px; background: var(--hd-soft); border: 1px solid var(--brass); font-size: .72rem; font-weight: 800; }
+.hd-delta { font-size: .76rem; font-weight: 800; }
+.hd-delta.up { color: var(--hd-good); } .hd-delta.down { color: var(--hd-bad); }
+.hd-under { display: flex; align-items: center; gap: .3rem; min-height: calc(var(--hd-hole) * 3.5); min-width: 0; }
+.hd-under .cd-line { font-size: var(--hd-hole); flex: none; }
+.hd-under .cd-line > .cd + .cd { margin-left: .15em; }
+.hd-act { min-width: 0; overflow: hidden; font-size: .7rem; line-height: 1.1; font-weight: 700; color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.hd-act.say { color: var(--hd-in); }
+.hd-act.think::after { content: "…"; }
+
+/* ---------- the pot, the board, what was said ---------- */
+.hd-centre { grid-area: centre; display: grid; align-content: center; justify-items: center; gap: .3rem; min-width: 0; min-height: 0; overflow: hidden; text-align: center; }
+.hd-pot { margin: 0; font-size: .86rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hd-pot small { font-weight: 600; color: var(--ink-soft); }
+.hd-board { display: flex; justify-content: center; gap: .3rem; font-size: var(--hd-board); }
+.hd-board .cd-slot { flex: none; box-sizing: border-box; width: 2.5em; height: 3.5em; border: 1px dashed var(--rule); border-radius: .2em; }
+.hd-board .cd + .cd-slot, .hd-board .cd-slot + .cd-slot { margin: 0; }
+.hd-said { margin: 0; font-size: .84rem; color: var(--ink-soft); max-width: 100%; min-height: 2.4em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.hd-next { display: block; width: min(9rem, 80%); height: .3rem; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.hd-next i { display: block; height: 100%; background: var(--hd-in); transform-origin: left; }
+.hd-next.idle { visibility: hidden; }
+
+/* ---------- your cards, the size of a raise, your buttons ---------- */
+.hd-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .45rem; }
+.hd-hand { display: flex; align-items: center; gap: .8rem; height: 4.5rem; box-sizing: border-box; padding: .15rem .2rem; }
+.hd-hand .cd-line { font-size: 1.12rem; flex: none; }
+.hd-hand .cd-line > .cd + .cd { margin-left: .22em; }
+.hd-hand .cd-line.folded { opacity: .4; }
+.hd-read { flex: 1 1 0; min-width: 0; display: grid; gap: .12rem; }
+.hd-read b { font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-read span { font-size: .8rem; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-read .st b { color: var(--hd-in); font-size: inherit; }
+.hd-watch { margin: auto; color: var(--ink-soft); }
+.hd-size { display: grid; gap: .25rem; height: 4.1rem; align-content: start; }
+.hd-presets { display: flex; gap: .3rem; }
+.hd-presets button { flex: 1 1 0; min-width: 0; min-height: 1.95rem; padding: .1rem .15rem; font-size: .74rem; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-slide { width: 100%; height: 1.6rem; margin: 0; accent-color: var(--hd-in); touch-action: pan-y; }
+.hd-slide:disabled { opacity: .35; }
+.hd-bar { display: flex; gap: .45rem; align-items: center; }
+.hd-go { flex: 1 1 0; min-width: 0; min-height: 2.9rem; padding: .3rem .4rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-go.raise { flex: 1.7 1 0; }
+.hd-go.call { flex: 1.3 1 0; }
+
+/* ---------- the sheets ---------- */
+.hd-rules p, .hd-rules li { line-height: 1.45; }
+.hd-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.hd-rules ul { margin: .3rem 0; padding-left: 1.2rem; }
+.hd-ranks { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.hd-ranks td { padding: .3rem .25rem; border-top: 1px solid var(--rule); vertical-align: middle; }
+.hd-ranks td:first-child { color: var(--ink-soft); font-variant-numeric: tabular-nums; width: 1.4rem; }
+.hd-ranks .cd-line { font-size: .5rem; }
+.hd-ranks .cd-line > .cd + .cd { margin-left: .12em; }
+.hd-ranks small, .hd-rules-note { color: var(--ink-soft); }
+.hd-end-head { margin: .2rem 0 .6rem; }
+.hd-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.hd-standings li { display: grid; grid-template-columns: minmax(0, 1fr) auto 4.4rem; gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.hd-standings .nm { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hd-standings li.won .nm::after { content: " ★"; color: var(--hd-in); }
+.hd-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.hd-small { color: var(--ink-soft); font-size: .82rem; }
+.hd-standings b { text-align: right; font-variant-numeric: tabular-nums; }
+.hd-standings b.up { color: var(--hd-good); } .hd-standings b.down { color: var(--hd-bad); }
+.hd-end-note { color: var(--ink-soft); font-size: .9rem; }
+.hd-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.hd-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.hd-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* held sideways: the table on the left, your cards and buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.holdem { --beside: 24rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.holdem .hd-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.holdem .hd-table { grid-column: 1; grid-row: 3; }
+  #app.holdem .hd-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
+  #app.holdem .hd-hand { height: 6.2rem; }
+  #app.holdem .hd-hand .cd-line { font-size: 1.6rem; }
+}
+html[data-theme="office"] :is(.hd-table, .hd-seat) { border-radius: 4px; }
+
+/* ---------- the course's stage (holdem-stage.js): the cards as the table draws them, then the figures a lesson counts ---------- */
+/* the cards as large as the stage allows each row (--rows: how many rows of cards the step draws), five across the width at most */
+.hx { --cd-line: clamp(.5rem, min(calc((100cqh - var(--x, 0rem) - var(--n, 3) * 1.8rem) / (var(--n, 3) * 3.5)), 6.6cqw), 1.7rem);
+  display: flex; flex-direction: column; justify-content: center; gap: .3rem; min-width: 0; min-height: 0; max-height: 100cqh; }
+.hx.fill { height: 100cqh; }
+.hx-row { display: grid; justify-items: center; gap: .2rem; padding: .3em 0 0; min-width: 0; }
+.hx-who { display: flex; align-items: baseline; justify-content: center; gap: .5rem; max-width: 100%; min-width: 0; line-height: 1.15; }
+.hx-who small { flex: none; font-size: .7rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.hx-name { min-width: 0; font-size: .82rem; font-weight: 800; color: var(--ln-in); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hx-row.you .hx-name { color: var(--ink); }
+.hx-pair { display: inline-flex; }
+.hx-pair > .cd + .cd { margin-left: -1.2em; }
+.hx .cd-line { gap: .2em; flex-wrap: nowrap; min-width: 0; }
+.hx .cd-line > .cd + .cd, .hx .cd-line > .cd + .cd-slot, .hx .cd-line > .cd-slot + .cd-slot { margin-left: 0; }
+.hx .cd-slot { flex: none; box-sizing: border-box; width: 2.5em; height: 3.5em; border: 1px dashed var(--rule); border-radius: .2em; }
+/* the outs: nine cards of one suit overlap to show their ranks */
+.hx-row.outs .cd-line { gap: 0; }
+.hx-row.outs .cd-line > .cd + .cd { margin-left: -1em; }
+.hx .cd[data-id] { cursor: pointer; }
+.hx .cd.sel { background: color-mix(in srgb, var(--ln-in) 18%, var(--cd-face)); border-color: var(--ln-in); box-shadow: 0 0 0 1.5px var(--ln-in); }
+
+.hx-panel { box-sizing: border-box; min-width: 0; padding: .4rem .6rem; border-radius: 6px; border: 1px solid var(--tile-edge); background: color-mix(in srgb, var(--ln-in) 7%, var(--sheet)); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.hx > .hx-panel, .hx > .hx-veil:not(.hx-row) { width: min(100%, 36rem); align-self: center; }   /* a wide stage doesn't stretch a table of figures */
+.hx-veil, .hx .veil { visibility: hidden; }
+.hx-note { margin: 0; font-size: .76rem; color: var(--ink-soft); text-align: center; }
+
+/* each hand's share of the pot, as one bar */
+.hx-equity { display: flex; gap: 2px; padding: .25rem; }
+.hx-equity i { display: grid; align-items: center; flex: calc(var(--w, 50)) 1 0; min-width: 3.9rem; height: 1.7rem; padding: 0 .4rem; border-radius: 3px; overflow: hidden; font-style: normal; color: var(--plate-ink); background: var(--ln-in); }
+.hx-equity i.e1 { background: color-mix(in srgb, var(--ink) 55%, var(--sheet)); color: var(--sheet); }
+.hx-equity i.e2 { background: color-mix(in srgb, var(--brass) 80%, var(--sheet)); color: var(--ink); }
+.hx-equity b { font-size: .74rem; white-space: nowrap; }
+
+/* what a call costs against what it can win: the figures, then the price as a tick on a scale of 0 to 100% and your equity as the fill */
+.hx-odds { display: grid; gap: .45rem; padding: .4rem .6rem; }
+.hx-figs { display: flex; justify-content: center; gap: .5rem; }
+.hx-figs > span { display: grid; justify-items: center; flex: 1 1 0; min-width: 0; padding: .2rem; border-radius: 4px; background: var(--sheet); border: 1px solid var(--rule); font-size: .66rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); }
+.hx-figs b { font-size: 1.15rem; font-stretch: normal; letter-spacing: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+/* beside cards the figures go in one line: the cards need the room */
+.hx-odds.compact { gap: .3rem; padding: .3rem .6rem .4rem; }
+.hx-odds.compact .hx-figs { flex-wrap: wrap; gap: 0 .7rem; }
+.hx-odds.compact .hx-figs > span { display: inline-flex; flex: none; align-items: baseline; gap: .25rem; padding: 0; border: 0; background: none; font-size: .76rem; font-weight: 600; font-stretch: normal; letter-spacing: 0; text-transform: none; }
+.hx-odds.compact .hx-figs b { font-size: .9rem; }
+.hx-figs .ok b { color: var(--ln-ok); } .hx-figs .no b { color: var(--ln-no); }
+.hx-meter { position: relative; height: .8rem; border-radius: 3px; background: var(--rule); }
+.hx-meter .have { position: absolute; inset: 0 auto 0 0; width: var(--have); border-radius: 3px; background: var(--ln-in); }
+.hx-meter .have.ok { background: var(--ln-ok); } .hx-meter .have.no { background: var(--ln-no); }
+.hx-meter .need { position: absolute; top: -.25rem; bottom: -.25rem; left: var(--need); width: 2px; background: var(--ink); }
+.hx-meter.bare .need { top: 0; bottom: 0; left: 0; width: var(--need); background: var(--ln-in); opacity: .7; }
+
+/* the pot in the layers all-ins make */
+.hx-layers { display: grid; gap: .35rem; }
+.hx-layers > div { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr) 3.4rem; gap: .5rem; align-items: center; }
+.hx-layers span { display: grid; line-height: 1.15; font-weight: 700; }
+.hx-layers small { font-size: .68rem; font-weight: 600; color: var(--ink-soft); }
+.hx-layers i { display: block; height: .8rem; width: calc(var(--w) * 100%); min-width: .2rem; border-radius: 3px; background: var(--ln-in); }
+.hx-layers .back i { background: transparent; box-shadow: inset 0 0 0 1.5px var(--ln-no); }
+.hx-layers i.ask { background: transparent; outline: 1.5px dashed var(--ln-in); outline-offset: -1.5px; }
+.hx-layers b { text-align: right; }
+
+/* the commission and the quick rule, as tables */
+.hx-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.hx-table th { padding: .15rem .25rem; font-size: .68rem; font-weight: 800; color: var(--ink-soft); font-stretch: var(--wide); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); text-align: right; border-bottom: 1px solid var(--brass); }
+.hx-table td { padding: .2rem .25rem; text-align: right; border-top: 1px solid var(--rule); }
+.hx-table th:first-child, .hx-table td:first-child { text-align: left; font-weight: 700; }
+.hx-table tbody tr:first-child td { border-top: 0; }
+
+/* the words of the table, with how they're said */
+.hx-terms { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; margin: 0; }
+.hx-terms > div { display: grid; justify-items: center; gap: .05rem; padding: .35rem .7rem; border-radius: 6px; border: 1px solid var(--tile-edge); background: color-mix(in srgb, var(--ln-in) 7%, var(--sheet)); text-align: center; }
+.hx-terms dt { font-size: 1.35rem; font-weight: 800; line-height: 1.1; }
+.hx-terms dd { margin: 0; display: grid; font-size: .74rem; line-height: 1.2; color: var(--ink-soft); }
+.hx-terms dd i { color: var(--ln-in); }
+/* a word on its own: large */
+.hx > .hx-terms:only-child > div { padding: .8rem 1.6rem; gap: .2rem; }
+.hx > .hx-terms:only-child dt { font-size: 3.4rem; }
+.hx > .hx-terms:only-child dd { font-size: .9rem; }
+
+/* the ten hands, scrolling in their own box where the stage is short */
+.hx-ranks { --cd-line: .55rem; display: grid; gap: 0; max-height: 100cqh; overflow-y: auto; overscroll-behavior: contain; padding-block: .15rem; }
+.hx-ranks > div { display: grid; grid-template-columns: 1.1rem auto minmax(0, 1fr); gap: .5rem; align-items: center; padding: .15rem 0; border-top: 1px solid var(--rule); }
+.hx-ranks > div:first-child { border-top: 0; }
+.hx-ranks .n { color: var(--ink-soft); text-align: center; }
+.hx-ranks .cd-line { gap: 0; } .hx-ranks .cd-line > .cd + .cd { margin-left: -1.2em; }
+.hx-ranks .t { display: grid; line-height: 1.15; min-width: 0; }
+.hx-ranks .t small { font-size: .68rem; color: var(--ink-soft); }
+
+/* starting hands with their count */
+.hx-chen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem .8rem; }
+.hx-chen > div { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.hx-chen:has(> div:only-child) { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+.hx-chen:has(> div:only-child) > div { gap: 1rem; }
+.hx-chen .cd-line { font-size: 1.3rem; }
+.hx-chen:has(> div:only-child) .cd-line { font-size: 1.7rem; }
+.hx-chen b { font-size: 1.5rem; min-width: 1.6rem; text-align: right; color: var(--ln-in); }
+
+/* a table seen from above */
+.hx-ring { flex: 1 1 8rem; min-height: 0; width: 100%; max-height: 26rem; }
+.hx-felt { fill: color-mix(in srgb, var(--ln-in) 12%, var(--sheet)); stroke: var(--brass); stroke-width: 1.2; }
+.hx-seat { fill: var(--sheet); stroke: var(--ink-soft); stroke-width: 1; }
+.hx-ring text { fill: var(--ink); font-size: 9px; font-weight: 700; }
+.hx-ring .lit .hx-seat { fill: color-mix(in srgb, var(--ln-in) 22%, var(--sheet)); stroke: var(--ln-in); stroke-width: 2; }
+.hx-dealer { fill: var(--plate); }
+.hx-ring text.hx-dtext { fill: var(--plate-ink); font-size: 8px; font-weight: 800; }
+.hx-ring text.hx-tag { fill: var(--ln-in); font-size: 7.5px; font-weight: 800; letter-spacing: .03em; }
+
+html[data-theme="modern"] .hx-panel, html[data-theme="modern"] .hx-terms > div { border-radius: 12px; }
+html[data-theme="office"] .hx-panel, html[data-theme="office"] .hx-terms > div { border-radius: 4px; }
+html[data-theme="kontor"] .hx-panel, html[data-theme="kontor"] .hx-terms > div { border-radius: 2px; }

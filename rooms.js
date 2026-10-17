@@ -38,6 +38,7 @@ export const GAMES = {
   boast: { name: "Boast", page: "./boast.html" },
   bigtwo: { name: "Big Two", page: "./bigtwo.html" },
   landlord: { name: "Landlord", page: "./landlord.html" },
+  holdem: { name: "Texas Hold'em", page: "./holdem.html" },
   banquet: { name: "Banquet", page: "./banquet.html" },
   gammon: { name: "Gammon", page: "./gammon.html" },
   trumps: { name: "Trumps", page: "./trumps.html" },

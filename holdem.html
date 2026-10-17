@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Texas Hold'em</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="course.css">
+<link rel="stylesheet" href="holdem.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="holdem fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon hd-mark" aria-hidden="true"></span>Hold'em</button></h1>
+    <div class="top-right">
+      <button id="learnBtn" class="pick" aria-haspopup="dialog">Learn</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <p id="strip" class="hd-strip"></p>
+  <section id="table" class="hd-table fit-grow" aria-label="The table"></section>
+  <section id="side" class="hd-side" aria-label="Your cards">
+    <div id="hand" class="hd-hand"></div>
+    <div id="size" class="hd-size"></div>
+    <div id="bar" class="hd-bar"></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet hd-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Hold'em on one page</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="hd-rules"></div>
+</dialog>
+
+<dialog id="endDlg" class="sheet hd-sheet" aria-labelledby="endHead">
+  <h2 id="endHead" class="hd-end-head"></h2>
+  <div id="endBody" class="hd-end"></div>
+  <div class="hd-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New game</button></div>
+</dialog>
+
+<p id="toast" class="hd-toast" role="status" aria-live="polite"></p>
+<script type="module" src="holdem.js"></script>
+</body>
+</html>
