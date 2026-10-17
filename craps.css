@@ -1,0 +1,143 @@
+/* Craps: the screen over the table (the last totals as balls, a seven picked out, and what the last hundred came to), the
+   two dice in their tray, the layout on green felt (the lines with the odds behind them, come and don't come, the numbers
+   with the puck on the point, the field, the Big bets, the hard ways and the one-roll bets), and the rail. The accent is
+   oxblood, the red of a Chinese die's one and four. */
+:root {
+  --cr-in: var(--c3);
+  --cr-felt: color-mix(in srgb, var(--c1) 22%, var(--sheet));
+  --cr-felt-line: color-mix(in srgb, var(--c1) 55%, var(--sheet));
+  --cr-seven: var(--c3); --cr-ball: var(--c2);
+  --cr-good: #2F7D5B; --cr-bad: #A8382B;
+  /* the lettering of a call on the felt: the enamel by day, a lighter one by night */
+  --cr-pass-ink: var(--cr-good); --cr-dont-ink: var(--cr-bad);
+  /* the screen over the table is dark by day and by night, as an electronic one is */
+  --cr-screen: #141C23; --cr-screen-ink: #F1E9D6;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --cr-good: #7FC2A8; --cr-bad: #E8806F; --cr-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); }
+}
+html[data-mode="night"] { --cr-good: #7FC2A8; --cr-bad: #E8806F; --cr-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); }
+
+.cr-mark { display: inline-block; }
+.cr-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the screen: the last totals and the counts */
+.cr-board { display: grid; gap: .3rem; padding: .4rem .5rem; border-radius: 4px; background: var(--cr-screen); color: var(--cr-screen-ink); }
+.cr-last { display: flex; gap: .2rem; overflow: hidden; padding: .125rem; min-height: 2.15rem; align-items: center; }
+.cr-ball { flex: none; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .78rem; font-weight: 800; color: var(--on-c); font-variant-numeric: tabular-nums; background: var(--cr-ball); }
+.cr-ball.seven { background: var(--cr-seven); }
+.cr-last .cr-ball:first-child { width: 1.9rem; height: 1.9rem; font-size: .9rem; box-shadow: 0 0 0 2px var(--brass); }
+.cr-none { font-size: .8rem; opacity: .75; }
+.cr-stats { display: flex; gap: .1rem .65rem; overflow: hidden; white-space: nowrap; font-size: .72rem; opacity: .9; font-variant-numeric: tabular-nums; }
+.cr-stats i { font-style: normal; font-weight: 800; }
+.cr-stats i.seven { color: #E8806F; }
+
+/* the dice in their tray, and the call: the total, what the stickman calls it, and what the roll paid you */
+.cr-tray { display: flex; align-items: center; justify-content: center; gap: 1rem; min-height: 3.7rem; margin-top: .45rem; padding: .3rem .6rem; border-radius: 6px; background: var(--cr-felt); box-shadow: inset 0 0 0 1px var(--cr-felt-line); }
+.cr-dice { display: flex; gap: .55rem; align-items: center; }
+.cr-dice .cdi { width: 2.5rem; height: 2.5rem; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
+.cr-dice .cdi.empty rect { fill: color-mix(in srgb, var(--cdi-die) 25%, transparent); stroke-dasharray: 3 2; }
+.cr-dice.rolling .cdi { animation: cr-shake .2s linear infinite; }
+.cr-dice.rolling .cdi:nth-child(2) { animation-delay: -.09s; }
+.cr-dice .cdi.land { animation: cr-land .32s ease-out; }
+@keyframes cr-shake { 0% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(.18rem, -.2rem) rotate(14deg); } 50% { transform: translate(-.12rem, .1rem) rotate(-10deg); } 75% { transform: translate(-.2rem, -.12rem) rotate(8deg); } 100% { transform: translate(0, 0) rotate(0); } }
+@keyframes cr-land { 0% { transform: scale(1.3) rotate(-12deg); } 60% { transform: scale(.94); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .cr-dice.rolling .cdi, .cr-dice .cdi.land { animation: none; } }
+.cr-call { margin: 0; min-width: 7.4rem; display: grid; gap: .08rem; font-weight: 800; line-height: 1.15; }
+.cr-call:empty { display: none; }
+.cr-call .say { font-size: 1.1rem; text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); }
+.cr-call .say b { font-size: 1.4rem; margin-right: .3rem; font-variant-numeric: tabular-nums; }
+.cr-call .say.pass { color: var(--cr-pass-ink); } .cr-call .say.dont { color: var(--cr-dont-ink); }
+.cr-call small { font-size: .82rem; font-weight: 650; color: var(--ink-soft); }
+.cr-call small.win { color: var(--cr-good); } .cr-call small.lose { color: var(--cr-bad); }
+
+/* the layout: as big as its box allows, scrolling inside it only when a short screen gives each row less than it needs */
+.cr-felt { margin-top: .45rem; min-height: 0; display: flex; flex-direction: column; }
+.cr-layout { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .4rem .35rem .3rem; border-radius: 6px; background: var(--cr-felt); box-shadow: inset 0 0 0 1px var(--cr-felt-line); touch-action: manipulation; }
+.cr-grid { display: flex; flex-direction: column; gap: .25rem; min-height: 100%; }
+.cr-row { flex: 1 1 0; display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: .25rem; min-height: 2.2rem; }
+.cr-row.line { min-height: 2.5rem; } .cr-row.numbers { flex-grow: 1.7; min-height: 4.5rem; gap: .2rem; }
+.cr-row.props:last-child, .cr-row.hards { min-height: 2.6rem; }
+.cr-cell { position: relative; display: grid; align-content: center; justify-items: center; gap: .1rem; min-width: 0; padding: .1rem; border: 1.5px solid var(--cr-felt-line); border-radius: 6px;
+  background: color-mix(in srgb, var(--sheet) 55%, transparent); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.cr-cell .dice { display: flex; align-items: center; justify-content: center; gap: .1rem; }
+.cr-cell .zh { font-size: 1rem; font-weight: 800; line-height: 1; }
+.cr-cell .en { font-size: .62rem; font-weight: 800; line-height: 1; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); font-stretch: var(--wide); white-space: nowrap; }
+.cr-cell .rg { font-size: .62rem; line-height: 1; color: var(--ink-soft); white-space: nowrap; }
+.cr-cell .pay { font-size: .64rem; line-height: 1; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cr-row.line .cr-cell, .cr-row.come .cr-cell { grid-template-columns: auto auto; grid-template-rows: auto auto; justify-content: center; align-items: center; column-gap: .35rem; }
+.cr-row.line .cr-cell .pay, .cr-row.come .cr-cell .pay { grid-column: 1 / -1; }
+.cr-cell.k-pass .zh, .cr-cell.k-pass .en, .cr-cell.k-come .zh, .cr-cell.k-come .en { color: var(--cr-pass-ink); }
+.cr-cell.k-dont .zh, .cr-cell.k-dont .en, .cr-cell.k-dcome .zh, .cr-cell.k-dcome .en { color: var(--cr-dont-ink); }
+.cr-cell.has, .cr-half.has { border-color: var(--ink); }
+.cr-cell.hit { border-color: var(--cr-good); box-shadow: inset 0 0 0 2px var(--cr-good); background: color-mix(in srgb, var(--cr-good) 16%, var(--sheet)); }
+.cr-cell.off, .cr-half.off { opacity: .45; }
+.cr-grid.plain .cr-cell, .cps-layout .cr-cell, .cps-layout .cr-half { cursor: default; }
+
+/* the numbers, where come bets travel: the number (and the puck, ON, when it is the point) over a come half and a don't come half */
+.cr-box { display: grid; grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr); gap: .15rem; min-width: 0; padding: .15rem; border: 1.5px solid var(--cr-felt-line); border-radius: 6px; background: color-mix(in srgb, var(--sheet) 55%, transparent); }
+.cr-box.on { border-color: var(--ink); background: var(--sheet); }
+.cr-box.hit { border-color: var(--cr-good); box-shadow: inset 0 0 0 2px var(--cr-good); }
+.cr-n { position: relative; display: block; text-align: center; font-size: 1.05rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cr-puck { position: absolute; top: -.1rem; right: -.1rem; display: grid; place-items: center; width: 1.05rem; height: 1.05rem; border-radius: 50%; background: #FBF4E4; color: #141C23; box-shadow: 0 0 0 1.5px #141C23; font-size: .44rem; font-style: normal; font-weight: 900; letter-spacing: 0; }
+.cr-half { position: relative; display: grid; align-content: center; justify-items: center; gap: .05rem; min-width: 0; padding: 0; border: 1px solid var(--cr-felt-line); border-radius: 4px; font: inherit; color: var(--ink); cursor: pointer; touch-action: manipulation; }
+.cr-half.come { background: color-mix(in srgb, var(--cr-pass-ink) 12%, transparent); } .cr-half.dcome { background: color-mix(in srgb, var(--cr-dont-ink) 12%, transparent); }
+.cr-lbl { font-size: .5rem; line-height: 1; text-transform: var(--caps); letter-spacing: calc(.04em * var(--track)); color: var(--ink-soft); }
+.cr-st { font-size: .62rem; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cr-st.o { color: var(--ink-soft); }
+/* a stake on a cell: a chip's amount at its corner; once paid, what the bet won or lost */
+.cr-stake { position: absolute; top: -.5rem; right: -.1rem; z-index: 1; display: grid; place-items: center; min-width: 1.6rem; height: 1.05rem; padding: 0 .26rem; border-radius: .6rem;
+  background: var(--ink); color: var(--yard); font-size: .6rem; font-weight: 800; font-variant-numeric: tabular-nums; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); pointer-events: none; }
+.cr-stake.win { background: var(--cr-good); color: #fff; } .cr-stake.lose { background: var(--cr-bad); color: #fff; }
+.cr-half .cr-stake { top: auto; right: auto; position: static; min-width: 0; height: auto; padding: .05rem .2rem; border-radius: 3px; font-size: .58rem; box-shadow: none; }
+
+/* a short screen: a tighter tray, no counts under the totals */
+@media (max-height: 760px) {
+  .cr-tray { min-height: 3.1rem; padding: .2rem .5rem; }
+  .cr-dice .cdi { width: 2.1rem; height: 2.1rem; }
+  .cr-row { min-height: 2rem; }
+  .cr-row.numbers { min-height: 4.2rem; }
+}
+@media (max-height: 700px) { .cr-stats { display: none; } }
+
+/* held sideways: the layout on the left with all the height; the counts, the dice (larger), the chips and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.craps { --beside: 22rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  #app.craps .cr-strip { grid-column: 2; grid-row: 2; }
+  #app.craps .cr-board { grid-column: 2; grid-row: 3; }
+  #app.craps .cr-tray { grid-column: 2; grid-row: 4; }
+  #app.craps .cr-felt { grid-column: 1; grid-row: 2 / span 5; margin-top: .45rem; }
+  #app.craps .cr-rail { grid-column: 2; grid-row: 6; align-self: end; }
+  #app.craps .cr-stats { display: flex; }
+}
+
+/* the course's sheet in the game's colour, and its stage (craps-stage.js): dice, the totals' ways, bets by what the house
+   keeps, the layout, the screen, words */
+dialog.ln-sheet.cr { --ln-in: var(--cr-in); }
+.cps { display: grid; gap: .7rem; align-content: center; justify-items: stretch; width: 100%; min-height: 0; padding: .3rem 0; }
+.cps-dice { display: flex; align-items: center; justify-content: center; gap: .9rem; padding: .6rem; border-radius: 6px; background: var(--cr-felt); box-shadow: inset 0 0 0 1px var(--cr-felt-line); }
+.cps-dice .cdi { width: 3rem; height: 3rem; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
+.cps-sign { display: grid; justify-items: center; gap: .1rem; font-weight: 800; }
+.cps-sign b { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.cps-sign span { font-size: .9rem; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.cps-sign.pass b, .cps-sign.pass span { color: var(--cr-pass-ink); } .cps-sign.dont b, .cps-sign.dont span { color: var(--cr-dont-ink); }
+.cps-ways { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); align-items: end; gap: .2rem; height: min(9rem, 30cqh); padding: .4rem .4rem 0; border-radius: 6px; background: var(--cr-felt); box-shadow: inset 0 0 0 1px var(--cr-felt-line); }
+.cps-ways div { display: grid; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; align-items: end; height: 100%; font-size: .66rem; font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.cps-ways i { display: block; width: 100%; height: calc(var(--h) * 100%); min-height: 2px; border-radius: 2px 2px 0 0; background: var(--cr-ball); }
+.cps-ways div.pick i { background: var(--cr-in); } .cps-ways div.pick { color: var(--ink); font-weight: 800; }
+.cps-ways div.seven i { background: var(--cr-seven); }
+.cps-ways b { font-size: .7rem; color: var(--ink); font-weight: 800; }
+.cps-ways span { padding: .1rem 0 .25rem; }
+.cps-edges { display: grid; gap: .25rem; padding: .5rem; border-radius: 6px; background: var(--cr-felt); box-shadow: inset 0 0 0 1px var(--cr-felt-line); font-size: .8rem; }
+.cps-edges div { display: grid; grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr) 3.4rem; align-items: center; gap: .5rem; }
+.cps-edges span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cps-edges small { color: var(--ink-soft); margin-left: .25rem; }
+.cps-edges i { display: block; height: .7rem; border-radius: 2px; background: var(--cr-in); width: calc(var(--w) * 100%); min-width: 2px; }
+.cps-edges div.fair i { background: var(--cr-good); }
+.cps-edges b { text-align: right; font-variant-numeric: tabular-nums; }
+.cps-layout { padding: .4rem; border-radius: 6px; background: var(--cr-felt); box-shadow: inset 0 0 0 1px var(--cr-felt-line); }
+.cps-layout .cr-grid { min-height: 0; }
+.cps-layout .cr-row { flex: none; min-height: 2.4rem; }
+.cps-layout .cr-row.numbers { min-height: 4.5rem; }
+.cps-screen { width: 100%; }
+.cps-screen .cr-stats { display: flex; }
