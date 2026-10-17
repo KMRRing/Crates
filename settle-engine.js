@@ -4,13 +4,21 @@
 // or more parcels of one grade at one level, in neighbouring tanks, ship out; what floated above them drops a level,
 // which can line up more. Two parcels are offered at a time; you choose which and where. Every few pumps a delivery
 // comes in of its own, more often as the game goes on. A tank pumped past eight spills its top parcel, a life lost,
-// and the third spill ends the game. The page (settle.js) draws it; tests/settle.mjs checks this.
+// and the third spill ends the game. FAME left standing on water sours: after five pumps the parcel touching the water
+// turns to slops, an emulsion heavier than FAME and lighter than water, which never lines up. Every few pumps a
+// draw-off is ready: spent on a tank, it drains the water and slops from its foot, and what's above drops, which can
+// line up and ship. The page (settle.js) draws it; tests/settle.mjs checks this.
 //
-// A game is one object, as saved: { v, seed, n (draws made), tanks (six lists of grades 0–3, bottom up, each in
-// order), hand (the two parcels offered), pumps, untilDelivery, lives, score, over }.
+// A game is one object, as saved: { v, seed, n (draws made), tanks (six lists of grades 0–4, bottom up, each in order
+// of density), hand (the two parcels offered), pumps (moves made, draw-offs too), untilDelivery, sour (for each tank,
+// pumps its FAME has stood on water), untilDraw (pumps until a draw-off is ready; 0, ready), lives, score, over }.
 
 export const TANKS = 6, LEVELS = 8, GRADES = 4, LIVES = 3, START = 14;
-export const NAMES = ["Water", "FAME", "Diesel", "Naphtha"], DENSITY = [999, 883, 835, 700];   // kg/m³ at 15 °C
+// slops (SLOP) aren't one of the GRADES offered or delivered: only FAME standing on water makes them
+export const WATER = 0, FAME = 1, SLOP = 4;
+export const NAMES = ["Water", "FAME", "Diesel", "Naphtha", "Slops"], DENSITY = [999, 883, 835, 700, 950];   // kg/m³ at 15 °C
+// FAME on water for SOUR pumps turns to slops; a draw-off is ready DRAW pumps after the last
+export const SOUR = 5, DRAW = 10;
 // the deliveries: until so many pumps, every so many pumps, so many parcels
 export const PACE = [[25, 3, 1], [60, 2, 1], [120, 1, 1], [200, 1, 2], [Infinity, 1, 3]];
 const paceAt = pumps => PACE.find(([until]) => pumps < until);
@@ -26,13 +34,17 @@ function draw(seed, n) {
 }
 const pick = (s, k) => Math.floor(draw(s.seed, s.n++) * k);
 
+/** The level a parcel of grade g settles at in a tank: on everything as heavy or heavier. */
+export const settles = (tank, g) => tank.filter(x => DENSITY[x] >= DENSITY[g]).length;
 /** The tanks with a parcel of grade g pumped into tank t: it settles on what's as heavy or heavier. */
 export function pumped(tanks, t, g) {
-  const out = tanks.map(x => x.slice()), at = out[t].filter(x => x <= g).length;
-  out[t].splice(at, 0, g);
+  const out = tanks.map(x => x.slice());
+  out[t].splice(settles(out[t], g), 0, g);
   return out;
 }
-/** The parcels in a line: three or more of a grade at one level in neighbouring tanks ([t, level] pairs). */
+/** How many parcels a draw-off would take from a tank: the water and slops at its foot (the two heaviest). */
+export const foot = tank => tank.filter(x => x === WATER || x === SLOP).length;
+/** The parcels in a line: three or more of a grade at one level in neighbouring tanks ([t, level] pairs); slops never. */
 export function lines(tanks) {
   const out = [];
   for (let level = 0; level < LEVELS + 1; level++) {
@@ -40,7 +52,7 @@ export function lines(tanks) {
     for (let t = 1; t <= tanks.length; t++) {
       const g = tanks[start]?.[level];
       if (t < tanks.length && g != null && tanks[t][level] === g) continue;
-      if (g != null && t - start >= 3) for (let k = start; k < t; k++) out.push([k, level]);
+      if (g != null && g !== SLOP && t - start >= 3) for (let k = start; k < t; k++) out.push([k, level]);
       start = t;
     }
   }
@@ -69,31 +81,44 @@ function delivery(s) {
 
 /** A new game from a seed: START parcels about the tanks, no line standing, two parcels offered. */
 export function newGame(seed) {
-  const s = { v: 1, seed: seed >>> 0, n: 0, tanks: Array.from({ length: TANKS }, () => []), hand: [], pumps: 0, untilDelivery: deliveryEvery(0), lives: LIVES, score: 0, over: false };
+  const s = { v: 1, seed: seed >>> 0, n: 0, tanks: Array.from({ length: TANKS }, () => []), hand: [], pumps: 0, untilDelivery: deliveryEvery(0), sour: new Array(TANKS).fill(0), untilDraw: DRAW, lives: LIVES, score: 0, over: false };
   for (let k = 0; k < START; k++) { const d = delivery(s); if (d) s.tanks = pumped(s.tanks, d.t, d.g); }
   s.hand = [pick(s, GRADES), pick(s, GRADES)];
   return s;
 }
+/** A game saved before slops and draw-offs, given their clocks. */
+export const upgrade = game => (Array.isArray(game.sour) && game.untilDraw != null ? game : { ...structuredClone(game), sour: new Array(TANKS).fill(0), untilDraw: DRAW });
 /** Ten times the square of the parcels shipped in one pump, all its waves together. */
 export const worth = n => 10 * n * n;
 
 /**
- * Pumps the offered parcel in hand slot `slot` into tank t: the game after it, and what happened, for the page to
- * show: grade, level (where it settled), waves (as ship gives them), gain, spilled (the grade spilled over, or -1),
- * delivered ([{ t, g }]), over. Pure.
+ * Where FAME stands on water (the parcel over a tank's top water), a pump nearer souring; at SOUR the FAME touching
+ * the water turns to slops, which then stand between them. The parcels that turned, [t, level].
  */
-export function pump(game, slot, t) {
-  const s = structuredClone(game), g = s.hand[slot];
-  if (s.over || g == null) throw new Error("no parcel there");
-  if (!(t >= 0 && t < TANKS)) throw new Error("no such tank");
-  const level = s.tanks[t].filter(x => x <= g).length, r = ship(pumped(s.tanks, t, g));
+function sour(s) {
+  const turned = [];
+  s.tanks.forEach((tank, t) => {
+    const w = tank.lastIndexOf(WATER);
+    if (w < 0 || tank[w + 1] !== FAME) { s.sour[t] = 0; return; }
+    if (++s.sour[t] < SOUR) return;
+    tank[w + 1] = SLOP;
+    s.sour[t] = 0;
+    turned.push([t, w + 1]);
+  });
+  return turned;
+}
+/**
+ * The rest of a move, a pump or a draw-off: what lines up ships, the tank pumped into (t, or -1) spills past eight,
+ * a delivery may come, FAME on water sours, and a draw-off comes nearer (or, just spent, starts again).
+ */
+function settle(s, t, drew) {
+  const r = ship(s.tanks);
   s.tanks = r.tanks;
   const n = r.waves.reduce((a, w) => a + w.length, 0), gain = n ? worth(n) : 0;
   s.score += gain;
   // past eight the top parcel spills over
   let spilled = -1;
-  if (s.tanks[t].length > LEVELS) { spilled = s.tanks[t].pop(); s.lives--; }
-  s.hand[slot] = pick(s, GRADES);
+  if (t >= 0 && s.tanks[t].length > LEVELS) { spilled = s.tanks[t].pop(); s.lives--; }
   s.pumps++;
   const delivered = [];
   if (--s.untilDelivery <= 0) {
@@ -103,9 +128,41 @@ export function pump(game, slot, t) {
     }
     s.untilDelivery = deliveryEvery(s.pumps);
   }
+  const soured = sour(s);
+  s.untilDraw = drew ? DRAW : Math.max(0, s.untilDraw - 1);
   s.over = s.lives <= 0;
-  return { state: s, grade: g, level, waves: r.waves, gain, spilled, delivered, over: s.over };
+  return { state: s, waves: r.waves, gain, spilled, delivered, soured, over: s.over };
+}
+/**
+ * Pumps the offered parcel in hand slot `slot` into tank t: the game after it, and what happened, for the page to
+ * show: grade, level (where it settled), waves (as ship gives them), gain, spilled (the grade spilled over, or -1),
+ * delivered ([{ t, g }]), soured ([t, level]: FAME turned to slops), over. Pure.
+ */
+export function pump(game, slot, t) {
+  const s = structuredClone(game), g = s.hand[slot];
+  if (s.over || g == null) throw new Error("no parcel there");
+  if (!(t >= 0 && t < TANKS)) throw new Error("no such tank");
+  const level = settles(s.tanks[t], g);
+  s.tanks = pumped(s.tanks, t, g);
+  s.hand[slot] = pick(s, GRADES);
+  return { grade: g, level, ...settle(s, t, false) };
+}
+/**
+ * Spends the draw-off on tank t: the water and slops at its foot drained, what's above dropping into their place.
+ * The game after it, and what happened: drained (the grades taken, bottom up), then as a pump's. Pure; throws if no
+ * draw-off is ready or the tank has nothing at its foot.
+ */
+export function drawOff(game, t) {
+  const s = structuredClone(game);
+  if (s.over || s.untilDraw > 0) throw new Error("no draw-off ready");
+  if (!(t >= 0 && t < TANKS)) throw new Error("no such tank");
+  const k = foot(s.tanks[t]);
+  if (!k) throw new Error("nothing at its foot");
+  const drained = s.tanks[t].splice(0, k);
+  return { drained, ...settle(s, -1, true) };
 }
 /** Every pump there is: [{ slot, t }]. For the tests and the tuning players. */
 export const moves = () => [0, 1].flatMap(slot => [...Array(TANKS).keys()].map(t => ({ slot, t })));
+/** The tanks a draw-off could be spent on now (none while it isn't ready). */
+export const draws = s => (s.over || s.untilDraw > 0 ? [] : [...Array(TANKS).keys()].filter(t => foot(s.tanks[t]) > 0));
 export const filled = s => s.tanks.reduce((a, x) => a + x.length, 0);
