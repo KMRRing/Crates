@@ -6,6 +6,8 @@
 // strengths against each other.
 import { rules, classify, beats, allPlays, playsFor, check, penalty, value, lowest, RANKS, SUITS, cardName } from "../bigtwo-rules.js";
 import { botMove, plan } from "../bigtwo-bot.js";
+import { think, choices, quickPlays, quickPlan, sameMove } from "../bigtwo-think.js";
+import { verdict, moveName, adviceLine, MARGIN } from "../bigtwo-coach.js";
 import { newRecord, applyMove, applyWake, seeded } from "../seats.js";
 import { roundTrip } from "./rtdb.js";
 
@@ -105,18 +107,61 @@ check_([1, 9, 10, 12, 13].map(penalty).join() === "1,9,20,24,39", "penalties: a 
   const p = plan(H("3♦ 4♣ 5♥ 6♠ 7♦ 9♣ 9♥ K♠ K♦ K♣ 2♠ A♦ A♥"), O);
   check_(p.plays.length === 4 && p.plays.some(x => x.kind === "straight") && p.plays.some(x => x.kind === "fullhouse") && p.plays.some(x => x.kind === "single" && x.cards[0] === C("2♠")), `thirteen cards organised into four plays: a straight, a full house, a pair and the two kept alone (${p.plays.map(x => x.kind).join(", ")})`);
 }
+// ---------- the coach ----------
 {
-  // the hint (bigtwo.js): Hard's play picked, the rest of the hand split by plan() into the plays it assumes it can
-  // make after it, as the page sets them out: every card in exactly one, each a play by the rules
-  let fine = 0, tried = 0;
-  for (let g = 0; g < 40; g++) {
-    const s = R(900 + g, 3 + (g % 2)).state, hand = s.hands[s.turn];
-    const m = botMove(s, s.turn, { level: "hard", rng: seeded(g) }), cards = m.t === "play" ? m.cards : [];
-    const groups = plan(hand.filter(c => !cards.includes(c)), s.opts).plays, sort = xs => [...xs].sort((a, b) => a - b).join();
+  // the fast plays the coach plays out with: real plays, every one the rules allow but for a five-card hand's
+  // spare cards (each straight by its top card, each full house's three, each four, every flush of a suit's lowest
+  // eight), so following, the play-outs miss no strength of play
+  let real = true, covered = true, hands = 0;
+  for (let g = 0; g < 120; g++) {
+    const hand = R(2000 + g, 3 + (g % 2)).state.hands[0];
+    const quick = quickPlays(hand, O), all = allPlays(hand, O), key = p => `${p.n}:${p.kind}:${p.key.join(",")}`;
+    if (!quick.every(p => classify(p.cards, O) && all.some(q => q.cards.length === p.cards.length && q.cards.every(c => p.cards.includes(c))))) real = false;
+    if ([0, 1, 2, 3].some(st => hand.filter(c => (c & 3) === st).length > 8)) continue;
+    const have = new Set(quick.map(key));
+    if (!all.every(p => have.has(key(p)))) covered = false;
+    hands++;
+  }
+  check_(real && covered, `the coach's fast plays: every one a real play, and every kind and strength of play the rules allow found (${hands} hands)`);
+  let whole = 0;
+  for (let g = 0; g < 60; g++) {
+    const hand = R(3000 + g, 3 + (g % 2)).state.hands[1], p = quickPlan(hand, O), sort = xs => [...xs].sort((a, b) => a - b).join();
+    if (sort(p.plays.flatMap(x => x.cards)) === sort(hand) && p.plays.every(x => classify(x.cards, O))) whole++;
+  }
+  check_(whole === 60, `its plan of a hand holds every card once, each a play (${whole} of 60 hands)`);
+}
+{
+  // the hint (bigtwo.js): the coach's play picked, the rest of the hand split into the plays it counts on after it, as
+  // the page sets them out: every card in exactly one, each a play by the rules; and the coach's play a legal one, the
+  // same each time it's asked
+  let fine = 0, legal = 0, same = 0, tried = 0;
+  for (let g = 0; g < 16; g++) {
+    let G = R(900 + g, 3 + (g % 2));
+    for (let k = 0; k < (g * 3) % 17; k++) { const who = rules.toMove(G.state); G = applyMove(rules, G, who, botMove(G.state, who, { level: "medium" }), 0).G; }
+    const s = G.state, seat = s.turn, hand = s.hands[seat];
+    if (s.step !== "play") continue;
+    const r = think(s, seat, { ms: 40, maxDeals: 24 }), again = think(s, seat, { ms: 40, maxDeals: 24 }), m = r.best, cards = m.t === "play" ? m.cards : [];
+    const groups = quickPlan(hand.filter(c => !cards.includes(c)), s.opts).plays, sort = xs => [...xs].sort((a, b) => a - b).join();
     tried++;
     if (sort([...cards, ...groups.flatMap(p => p.cards)]) === sort(hand) && groups.every(p => classify(p.cards, s.opts))) fine++;
+    if (m.t === "pass" ? !!s.trick.last : playsFor(s, seat).some(p => sort(p.cards) === sort(cards))) legal++;
+    if (sameMove(r.best, again.best)) same++;
   }
-  check_(fine === tried, `the hint's play and the plays the rest of the hand makes after it hold every card once, each a play (${fine} of ${tried} hands)`);
+  check_(fine === tried && legal === tried && same === tried, `the coach's play: legal (${legal} of ${tried}), the same each time it's asked (${same}), and with the plays the rest of the hand makes after it holding every card once (${fine})`);
+}
+{
+  // the end of a deal, worked out exactly: Kit, next, on his last card, has led... no: Ming led the 4♦; you hold the 5♦
+  // and the 2♠. The 5 lets Kit out with anything over it; the 2 takes the trick, and the 5 goes out after it
+  const st = { seats: 4, opts: { ...O, top: false }, hands: [H("5♦ 2♠"), H("6♣"), H("7♣ 8♣ 9♣ 10♣ J♣ Q♣ K♣"), H("3♣ 3♥ 9♦ 10♦")], played: [], trick: { plays: [], last: { ...classify(H("4♦"), O), cards: H("4♦") }, by: 3, passes: 0 }, mustLead: null, turn: 0, step: "play", deal: 1 };
+  st.played = Array.from({ length: 52 }, (_, i) => i).filter(c => !st.hands.flat().includes(c));
+  const r = think(st, 0, { ms: 200 });
+  check_(r.best.t === "play" && cardName(r.best.cards[0]) === "2♠" && r.list[0].mean > 0, `next to a player on his last card, the coach takes the trick with the 2♠ and goes out on the 5♦ (+${r.list[0].mean.toFixed(1)} a deal)`);
+  const five = verdict(r, { t: "play", cards: H("5♦") }, st, 0), pass = verdict(r, { t: "pass" }, st, 0);
+  check_(five && five.gap > MARGIN && /Your 5♦: about [\d.]+ points a deal worse than playing the 2♠/.test(five.words) && pass && /Seat 2 has one card left/.test(pass.words) && verdict(r, r.best, st, 0) === null,
+    `the check: the 5♦ (${five?.words}) and a pass (${pass?.words}) set against it; its own move no word`);
+  check_(moveName({ t: "play", cards: H("9♦ 9♣ 9♥ 3♠ 3♦") }, O) === "a full house, 9s" && moveName({ t: "play", cards: H("3♦ 4♣ 5♥ 6♠ 7♦") }, O) === "a straight to the 7♦" && moveName({ t: "pass" }, O) === "pass" && /^Play the 2♠, and you're out|^Play the 2♠ · then a single/.test(adviceLine(r, st, 0)),
+    `moves in words: a full house, 9s; a straight to the 7♦; and the advice (${adviceLine(r, st, 0)})`);
+  check_(choices(st, 0).length === 3, "its choices there: the 5♦, the 2♠ and passing");
 }
 {
   const rng = seeded(8), pts = { hard: 0, easy: 0 };

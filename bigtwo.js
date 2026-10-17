@@ -1,8 +1,13 @@
 // Big Two (鋤大D) against computer players, or at a table with friends each on their own phone. The rules and words
-// are bigtwo-rules.js's, the computer players bigtwo-bot.js's, the running seats.js's (seats-ui.js). This page draws
-// the table: the others round it with what each played this trick, your cards along the foot, picked by a tap.
+// are bigtwo-rules.js's, the computer players bigtwo-bot.js's, the running seats.js's (seats-ui.js), the coach
+// bigtwo-think.js's (in bigtwo-worker.js, off this thread) with its words from bigtwo-coach.js. This page draws the
+// table: the others round it with what each played this trick, your cards along the foot, picked by a tap; and the
+// coach as you choose: a hint when you ask, a word on each move of yours it would have made otherwise, or its play at
+// each of your decisions.
 import { rules, check, value, rankOf, suitOf, RANKS, KIND_NAMES, PLAY_TALK, DEALS, cardName, SHOW_MS } from "./bigtwo-rules.js";
-import { botMove, plan, LEVEL_NAMES } from "./bigtwo-bot.js";
+import { LEVEL_NAMES } from "./bigtwo-bot.js";
+import { think, quickPlan, sameMove, BUDGET } from "./bigtwo-think.js";
+import { one, playsWords, moveSaid, adviceLine, after, pts, verdict } from "./bigtwo-coach.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -21,8 +26,12 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const NAMES = ["Ah Wing", "Kit", "Mei", "Ming"];                          // the computer players, by seat
 const TALK = [["yue", "廣東話"], ["zh", "普通话"], ["en", "English"]];
 
-let opts = { seats: 4, level: "hard", deals: 8, suits: "hk", triples: true, top: true, talk: "yue", voice: true, sort: "rank", ...read(OPTS, {}) };
+// the coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
+// otherwise; on (Always), its play at each of your decisions as well
+const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
+let opts = { seats: 4, level: "hard", deals: 8, suits: "hk", triples: true, top: true, talk: "yue", voice: true, sort: "rank", coach: "hints", ...read(OPTS, {}) };
 if (!DEALS.includes(opts.deals)) opts.deals = 8;
+if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 const saveOpts = () => write(OPTS, opts);
 const gameOptions = () => ({ deals: opts.deals, suits: opts.suits, triples: opts.triples, top: opts.top, talk: opts.talk });
 
@@ -40,9 +49,9 @@ const cards = (ids, cls = "") => ids.map(id => cardHtml(face(id), { cls, label: 
 const playName = k => KIND_NAMES[k.kind];
 
 let V = null, sel = new Set(), selFor = "", page = null;
-// the hint: Hard's play, picked for you, and the rest of your hand split into the plays it assumes it can make after
-// it, in a vacuum (bigtwo-bot.js's plan, as a computer player organises its own hand): { key (the hand it was asked
-// for), cards (the play; none for a pass), groups: [{ cards, kind }] }. It shows while the cards picked are its play.
+// the hint: the coach's play, picked for you, and the rest of your hand split into the plays the coach counts on after
+// it, in a vacuum (its plan of a hand: the fewest leads it needs): { key (the decision it was asked for), cards (the play;
+// none for a pass), groups: [{ cards, kind }], r (the coach's weighing) }. It shows while the cards picked are its play.
 let hinted = null;
 page = seatPage({
   rules, id: "bigtwo", app: 1, pace: 950, botName: s => NAMES[s] || `Seat ${s + 1}`, level: () => opts.level, voice: () => opts.voice,
@@ -50,6 +59,76 @@ page = seatPage({
 });
 const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1}`;
 const isMe = seat => V?.seat != null && seat === V.seat;
+
+// ---------- the coach ----------
+// It thinks in a worker of its own (bigtwo-worker.js), so the table never waits on it: a hint or Always's advice in
+// under a second mostly, a check a little longer. Where a browser has no worker, it thinks here, in fewer deals.
+// (a partner's frame, watched from the games screen, shows their table and coaches nobody)
+const coaching = () => opts.coach !== "off" && !IN_FRAME;
+const speaks = () => (opts.coach === "check" || opts.coach === "on") && !IN_FRAME;
+const decisionOf = v => `${v.G.seq}:${v.G.n}`;
+const myTurn = v => !!(v?.G && v.seat != null && v.state.step === "play" && v.state.turn === v.seat);
+let worker = null, asked = 0;
+const answers = new Map();
+function coachWorker() {
+  if (worker === null) {
+    try {
+      worker = new Worker(new URL("./bigtwo-worker.js", import.meta.url), { type: "module" });
+      worker.onmessage = e => { const f = answers.get(e.data.id); answers.delete(e.data.id); f?.(e.data); };
+      worker.onerror = () => { worker = false; for (const f of answers.values()) f({ error: "no worker" }); answers.clear(); };
+    } catch { worker = false; }
+  }
+  return worker;
+}
+function ask(kind, state, seat, move = null) {
+  const w = coachWorker();
+  if (!w) {
+    try { return Promise.resolve({ result: think(state, seat, { ...BUDGET.here, must: kind === "check" ? move : null }) }); }
+    catch (err) { return Promise.resolve({ error: String(err) }); }
+  }
+  return new Promise(res => { const id = ++asked; answers.set(id, res); w.postMessage({ id, kind, state, seat, move }); });
+}
+// the coach's weighing of your decision now ({ key, r, state, seat }), asked for once: by a Hint, or unasked (Always);
+// a decision it couldn't weigh (no answer came) is noted, so nothing waits on it
+let advice = null, weighing = null, hintAsked = null, failed = null;
+function weigh(v) {
+  const key = decisionOf(v);
+  if (advice?.key === key) return Promise.resolve(advice);
+  if (weighing?.key === key) return weighing.promise;
+  const state = structuredClone(v.state), seat = v.seat;
+  const promise = ask("think", state, seat).then(({ result }) => {
+    if (weighing?.key === key) weighing = null;
+    if (!result) { failed = key; return null; }
+    const a = { key, r: result, state, seat };
+    if (V && decisionOf(V) === key) advice = a;
+    return a;
+  });
+  weighing = { key, promise };
+  return promise;
+}
+// the check's word on your last move it would have made otherwise ({ words, r, mine, state }), until a move of yours
+// it agrees with; and this deal's moves of yours, each with the coach's verdict, for the review at the deal's end
+let word = null, notes = [], notesDeal = 0;
+async function checkMove(state, seat, move) {
+  const { result } = await ask("check", state, seat, move);
+  if (!result || state.deal !== V?.state?.deal) return;
+  const v = verdict(result, move, state, seat, Array.from({ length: state.seats }, (_, i) => nameOf(i)));
+  notes.push(v ? { mine: move, agreed: false, gap: v.gap, words: v.words } : { mine: move, agreed: true });
+  word = v ? { words: v.words, r: result, mine: move, state } : null;
+  draw();
+}
+/** Asked by Always at each of your decisions: the coach's play, its cards marked. */
+function advise(v) {
+  if (opts.coach !== "on" || IN_FRAME || !myTurn(v) || [advice?.key, weighing?.key, failed].includes(decisionOf(v))) return;
+  weigh(v).then(a => { if (a && V && decisionOf(V) === a.key) draw(); });
+}
+/** A new deal: the last one's notes and word go. */
+function newDeal(v) {
+  if (v?.state?.deal === notesDeal || v?.state?.step !== "play") return;
+  notesDeal = v.state.deal;
+  notes = [];
+  word = null;
+}
 
 /** Where each seat sits round the table, from yours: the next to your right, then across, then to your left. */
 function placeOf(seat) {
@@ -67,11 +146,16 @@ function draw() {
   // the picked cards stay picked while the others play; a new hand, or a move of yours, clears them
   const key = `${v.G.seq}:${s.deal}:${(s.hands[v.seat ?? 0] || []).length}`;
   if (key !== selFor) { selFor = key; sel = new Set(); }
+  newDeal(v);
+  if (advice && advice.key !== decisionOf(v)) advice = null;
   $("strip").innerHTML = `Deal <b>${s.deal}</b> of ${s.opts.deals}${s.opts.suits === "tw" ? " · ♣ lowest" : ""}`;
   drawTable(v);
   drawHand(v);
+  // a coach that speaks unasked keeps its room, so the table holds its size as it speaks and falls quiet
+  $("status").classList.toggle("kept", speaks() && v.seat != null);
   $("status").innerHTML = `<span>${statusLine(v)}</span>`;
   drawBar();
+  advise(v);
 }
 
 /** The latest a seat has done in this trick: its cards, or a pass. */
@@ -119,8 +203,9 @@ function sortedHand(hand, so) {
   const o = V.state.opts;
   return [...hand].sort(so === "suit" ? (a, b) => suitOf(a) - suitOf(b) || value(a, o) - value(b, o) : (a, b) => value(a, o) - value(b, o));
 }
-/** The hint, while it stands: asked for this hand, and the cards picked still its play. */
-const liveHint = () => (hinted && hinted.key === selFor && sel.size === hinted.cards.length && hinted.cards.every(c => sel.has(c)) ? hinted : null);
+/** The hint, while it stands: asked for this decision (a pass leaves the hand as it was, so the hand can't tell), and
+ *  the cards picked still its play. */
+const liveHint = () => (hinted && V?.G && hinted.key === decisionOf(V) && sel.size === hinted.cards.length && hinted.cards.every(c => sel.has(c)) ? hinted : null);
 const GAP = .55;                                                 // between the hint's groups, in card widths' em
 function drawHand(v) {
   const box = $("hand");
@@ -129,9 +214,11 @@ function drawHand(v) {
   // shaded, low to high; else the hand by rank or suit
   const h = liveHint();
   const parts = h ? [sortedHand(h.cards, "rank"), ...h.groups.map(g => g.cards)].filter(g => g.length) : [sortedHand(v.state.hands[v.seat] || [], opts.sort)];
+  // Always: the coach's play marked in your hand, until a Hint picks it
+  const advised = !h && opts.coach === "on" && advice?.key === decisionOf(v) && advice.r.best.t === "play" ? new Set(advice.r.best.cards) : null;
   let html = "", n = 0;
   parts.forEach((cards, k) => cards.forEach((id, i) => {
-    const cls = [sel.has(id) && "sel", h && k && !i && "grp", h && (k - (h.cards.length ? 1 : 0)) % 2 === 1 && !sel.has(id) && "shade"].filter(Boolean).join(" ");
+    const cls = [sel.has(id) && "sel", advised?.has(id) && "advised", h && k && !i && "grp", h && (k - (h.cards.length ? 1 : 0)) % 2 === 1 && !sel.has(id) && "shade"].filter(Boolean).join(" ");
     html += cardHtml(face(id), { cls, data: { id }, label: cardName(id) });
     n++;
   }));
@@ -152,24 +239,28 @@ $("hand").addEventListener("click", e => {
   draw();
 });
 
-const ARTICLE = { fullhouse: "a full house", four: "four of a kind" }, PLURAL = { fullhouse: "full houses", four: "fours of a kind", flush: "flushes", straightflush: "straight flushes" };
-const one = k => ARTICLE[k] || `a ${KIND_NAMES[k]}`, many = (k, n) => `${["", "", "two", "three", "four", "five", "six", "seven", "eight"][n] || n} ${PLURAL[k] || `${KIND_NAMES[k]}s`}`;
-/** Plays in words, the longest first: "a straight, a pair and two singles". */
-function playsWords(groups) {
-  const order = ["straightflush", "four", "fullhouse", "flush", "straight", "triple", "pair", "single"], counts = new Map();
-  for (const g of groups) counts.set(g.kind, (counts.get(g.kind) || 0) + 1);
-  const words = order.filter(k => counts.has(k)).map(k => (counts.get(k) === 1 ? one(k) : many(k, counts.get(k))));
-  return words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
-}
+const WHY = ' <button type="button" class="link b2-why" data-why="1">Why?</button>';
+const WAIT = '<i class="ld" aria-hidden="true"></i>The coach is weighing it…';
 function statusLine(v) {
   const s = v.state, h = liveHint();
   if (h && s.step === "play" && isMe(s.turn)) {
     const kind = h.cards.length ? check(s, v.seat, h.cards)?.play?.kind : null;
-    if (!h.cards.length) return `<b>Hint</b>: pass · your hand plays as ${esc(playsWords(h.groups))}`;
-    return `<b>Hint</b>: ${esc(kind ? one(kind) : "this")} · ${h.groups.length ? `then ${esc(playsWords(h.groups))}` : "and you're out"}`;
+    if (!h.cards.length) return `<b>Hint</b>: pass · your hand plays as ${esc(playsWords(h.groups))}${WHY}`;
+    return `<b>Hint</b>: ${esc(kind ? one(kind) : "this")} · ${h.groups.length ? `then ${esc(playsWords(h.groups))}` : "and you're out"}${WHY}`;
   }
+  const mine = myTurn(v), key = v.G ? decisionOf(v) : "";
+  if (mine && hintAsked === key && !advice && failed !== key) return WAIT;
+  // Always: the coach's play at your decision; Check (and Always between your turns): its word on your last move
+  if (mine && opts.coach === "on" && !IN_FRAME && failed !== key) return advice?.key === key ? `<b>Coach</b>: ${esc(adviceLine(advice.r, advice.state, advice.seat))}${WHY}` : WAIT;
+  if (word && s.step === "play" && speaks()) return `<b class="b2-miss">Coach</b> ${esc(word.words)}${WHY}`;
   if (s.step === "over") return esc(s.winners.includes(v.seat) ? "You win the game" : `${s.winners.map(nameOf).join(" and ")} ${s.winners.length > 1 ? "share it" : "wins"}`);
-  if (s.step === "shown") return esc(isMe(s.result.winner) ? "You're out first!" : `${nameOf(s.result.winner)} is out`);
+  if (s.step === "shown") {
+    const out = esc(isMe(s.result.winner) ? "You're out first!" : `${nameOf(s.result.winner)} is out`);
+    // Check and Always: how this deal's moves went against the coach's
+    if (!speaks() || !notes.length) return out;
+    const agreed = notes.filter(n => n.agreed).length;
+    return `${out} · <b>Your play</b>: the coach agreed with ${agreed} of your ${notes.length} move${notes.length === 1 ? "" : "s"}${agreed < notes.length ? ' <button type="button" class="link b2-why" data-why="review">Where it differed</button>' : ""}`;
+  }
   if (v.seat == null) return esc(`${nameOf(s.turn)} to play`);
   if (!isMe(s.turn)) { const w = v.seats[s.turn]; return esc(w?.bot && !w.away ? `${w.name} is thinking…` : `${w?.name || "Someone"} to play`); }
   const nxt = (v.seat + 1) % s.seats, warn = s.opts.top && s.hands[nxt].length === 1 ? ` · <b>頂大</b>: ${esc(nameOf(nxt))} has one card` : "";
@@ -186,7 +277,7 @@ function drawBar() {
   const c = mine && picked.length ? check(v.state, v.seat, picked) : null;
   const playLabel = c?.play ? `Play ${playName(c.play)}` : picked.length ? "Play" : "Play";
   bar.innerHTML = `<button type="button" class="btn b2-go" data-act="pass" ${mine && v.state.trick.last ? "" : "disabled"}>Pass</button>
-    <button type="button" class="btn b2-go" data-act="hint" ${mine ? "" : "disabled"}>Hint</button>
+    ${coaching() ? `<button type="button" class="btn b2-go" data-act="hint" ${mine ? "" : "disabled"}>Hint</button>` : ""}
     <button type="button" class="btn primary b2-go b2-play-btn" data-act="play" ${c?.play ? "" : "disabled"}>${esc(playLabel)}</button>
     ${picked.length ? `<button type="button" class="icon-btn b2-clear" data-act="clear" aria-label="Put them back"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>` : ""}`;
   if (!v?.G) bar.innerHTML = `<button type="button" class="btn primary b2-go" data-act="new">New game</button>`;
@@ -199,18 +290,64 @@ $("bar").addEventListener("click", async e => {
   if (act === "new") { newGame(); return; }
   if (act === "clear") { sel = new Set(); draw(); return; }
   if (act === "hint") {
-    const s = V.state, m = botMove(s, V.seat, { level: "hard" }), cards = m.t === "play" ? m.cards : [];
-    const rest = s.hands[V.seat].filter(c => !cards.includes(c)), byValue = (a, b) => value(a, s.opts) - value(b, s.opts);
-    const groups = (rest.length ? plan(rest, s.opts).plays : []).map(p => ({ cards: [...p.cards].sort(byValue), kind: p.kind })).sort((a, b) => byValue(a.cards[0], b.cards[0]));
-    hinted = { key: selFor, cards, groups };
+    const key = decisionOf(V);
+    hintAsked = key;
+    draw();
+    const a = await weigh(V);
+    if (!a || !V || decisionOf(V) !== key) { draw(); return; }
+    const s = a.state, m = a.r.best, cards = m.t === "play" ? m.cards : [];
+    const rest = s.hands[a.seat].filter(c => !cards.includes(c)), byValue = (x, y) => value(x, s.opts) - value(y, s.opts);
+    const groups = (rest.length ? quickPlan(rest, s.opts).plays : []).map(p => ({ cards: [...p.cards].sort(byValue), kind: p.kind })).sort((x, y) => byValue(x.cards[0], y.cards[0]));
+    hinted = { key, cards, groups, r: a.r };
     sel = new Set(cards); draw();
     return;
   }
   const move = act === "pass" ? { t: "pass" } : { t: "play", cards: [...sel] };
+  // Check and Always: the move set against the coach's from the table as it was before it
+  const key = decisionOf(V), before = speaks() ? structuredClone(V.state) : null, seat = V.seat, known = advice?.key === key ? advice : null;
   const why = await page.move(move);
-  if (why) toast(why);
-  else { sel = new Set(); draw(); }
+  if (why) { toast(why); return; }
+  sel = new Set(); draw();
+  if (before) {
+    if (known && sameMove(known.r.best, move)) { notes.push({ mine: move, agreed: true }); word = null; draw(); }
+    else checkMove(before, seat, move);
+  }
 });
+
+// ---------- why: the coach's choices side by side ----------
+function showWhy(which) {
+  const v = V, s = v?.state;
+  if (!s) return;
+  let head = "The coach's choices", html = "";
+  const listHtml = (r, st, seat, mine) => {
+    const leading = !st.trick.last;
+    const rows = r.list.slice(0, 8).map((c, i) => {
+      const a = after(st.hands[seat], c.move, st.opts), you = mine && sameMove(c.move, mine);
+      const then = c.move.t === "pass" ? `your hand plays as ${playsWords(a.plays)}` : a.n ? `then ${playsWords(a.plays)}` : "and you're out";
+      return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSaid(c.move, st.opts, leading))}</b>${i === 0 ? " · the coach's choice" : you ? " · yours" : ""}<br><span>${esc(then)}</span><span class="b2-pts">${esc(pts(c.mean))} a deal${c.n ? ` · ${c.n} deals` : ""}</span></li>`;
+    }).join("");
+    const yours = mine && !r.list.slice(0, 8).some(c => sameMove(c.move, mine)) ? r.list.find(c => sameMove(c.move, mine)) : null;
+    const extra = yours ? `<li class="mine"><b>${esc(moveSaid(yours.move, st.opts, leading))}</b> · yours<span class="b2-pts">${esc(pts(yours.mean))} a deal · ${yours.n} deals</span></li>` : "";
+    return `<ol class="b2-choices">${rows}${extra}</ol><p class="b2-why-note">Each choice played to the end of the deal in the same ${r.deals} deals of the cards you can't see, every seat by Medium's rules, the last few cards worked out exactly; the points are what you come out of the deal with on average (what you win going out, less what you pay).</p>`;
+  };
+  if (which === "review") {
+    head = "Your play this deal";
+    const differs = notes.filter(n => !n.agreed).sort((a, b) => b.gap - a.gap);
+    html = `<p>The coach agreed with ${notes.length - differs.length} of your ${notes.length} moves. Where it would have played otherwise, the costliest first:</p><ol class="b2-review">${differs.slice(0, 3).map(n => `<li>${esc(n.words)}</li>`).join("")}</ol>`;
+  } else if (word && which !== "hint" && !(myTurn(v) && (liveHint() || opts.coach === "on"))) {
+    head = "Your last move";
+    html = `<p>${esc(word.words)}</p>${listHtml(word.r, word.state, word.state.turn, word.mine)}`;
+  } else {
+    const a = liveHint() ? { r: liveHint().r, state: s, seat: v.seat } : advice;
+    if (!a) return;
+    html = listHtml(a.r, a.state, a.seat, null);
+  }
+  $("whyHead").textContent = head;
+  $("whyBody").innerHTML = html;
+  if (!$("whyDlg").open) $("whyDlg").showModal();
+}
+$("status").addEventListener("click", e => { const b = e.target.closest(".b2-why"); if (b) showWhy(b.dataset.why === "review" ? "review" : liveHint() ? "hint" : ""); });
+$("whyClose").addEventListener("click", () => $("whyDlg").close());
 
 // ---------- a game's end ----------
 function onOver(v) {
@@ -284,6 +421,7 @@ function openMenu() {
   play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn Big Two, from the rules", () => course.open()), action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
+  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; keep(); word = null; draw(); }));
   set.append(choice("Players", [[3, "3"], [4, "4"]], opts.seats, v => { opts.seats = Number(v); keep(); }));
   set.append(choice("A game is", DEALS.map(n => [n, `${n} deals`]), opts.deals, v => { opts.deals = Number(v); keep(); }));
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
