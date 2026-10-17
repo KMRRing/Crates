@@ -1,6 +1,6 @@
 /* Topple: the table (eight squares by eight, on a felt), the dominoes standing on it in three enamels, each colour with
-   pips of its own (one, two, three a half) so they're told apart without their colour, and under it the three pieces
-   to drag. The knock's ochre is the house colour. */
+   pips of its own (one, two, three a half) so they're told apart without their colour, the bell in brass, and under it
+   the three pieces to drag. The knock's ochre is the house colour. */
 :root {
   --tp-in: var(--c0);
   --tp-soft: color-mix(in srgb, var(--tp-in) 15%, var(--sheet));
@@ -12,10 +12,9 @@
 .tp-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
 .tp-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .tp-score b { font-size: 1.05rem; }
-.tp-knocks { display: inline-flex; align-items: center; gap: .3rem; }
-.tp-knocks i { width: .7rem; height: .7rem; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
-.tp-knocks i.on { background: var(--tp-in); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 35%, transparent); }
-.tp-knocks small { margin-left: .2rem; font-size: .8rem; }
+/* when the knock comes; when it's due, lettered on the knock's ochre */
+.tp-knock { display: inline-block; padding: .1rem .45rem; border-radius: 4px; font-size: .84rem; font-weight: 700; white-space: nowrap; }
+.tp-knock.now { background: var(--tp-in); color: var(--on-c0); font-weight: 800; }
 
 /* the table: square, as large as its room allows */
 .tp-table { position: relative; place-items: center; }
@@ -35,6 +34,13 @@
 .tp-domino.k0 .tp-bar { stroke: var(--on-c0); }
 .tp-domino.ghost { opacity: .7; }
 .tp-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+/* what a knock would leave standing: a faint ring, crossed off nothing */
+.tp-stay { fill: color-mix(in srgb, var(--sheet) 45%, transparent); stroke: var(--ink-soft); stroke-width: .3; stroke-dasharray: .5 .7; }
+/* the bell: on an empty square whole; on a domino, small at its corner and the square ringed */
+.tp-bell { fill: var(--tp-in); stroke: color-mix(in srgb, var(--ink) 60%, transparent); stroke-width: .3; }
+.tp-swing { transform-box: fill-box; transform-origin: 50% 15%; }
+.tp-bell circle { fill: var(--sheet); stroke: var(--tp-in); stroke-width: .5; }
+.tp-bell-ring { fill: none; stroke: var(--tp-in); stroke-width: .7; }
 .tp-board text.tp-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
 .tp-board text.tp-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
 .tp-board text.tp-pop.big { font-size: 8px; }
@@ -49,6 +55,8 @@
 .tp-piece svg { width: 100%; height: 100%; display: block; pointer-events: none; }
 .tp-piece.lifted svg { opacity: .2; }
 .tp-piece.cant svg { opacity: .35; filter: grayscale(1); }
+/* the next hand, waiting for the knock */
+.tp-tray.waiting .tp-piece svg { opacity: .45; }
 .tp-piece:disabled { background: transparent; cursor: default; }
 .tp-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
@@ -65,7 +73,7 @@
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .tp-toast.show { opacity: 1; }
 
-/* held sideways: the table on the left with all the height; the score, the knocks and the pieces beside it, the pieces
+/* held sideways: the table on the left with all the height; the score, the knock and the pieces beside it, the pieces
    low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.topple { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
