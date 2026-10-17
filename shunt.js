@@ -1,15 +1,16 @@
 // Shunt: a rail yard of six tracks across and six down. Press an arrow at a track's end and the incoming wagon's shove
 // is shown (the train rolling up to its first gap, the wagons that would depart ringed); slide along the arrows to see
 // each one, let go on one to shove. Three or more alike in a line depart; a full track shoves its far wagon off the
-// rails, a life lost. The rules are shunt-engine.js's; this file draws the yard, plays each shove out and keeps the game.
-import { N, LIVES, newGame, roll, shove, track, worth, dropCount } from "./shunt-engine.js";
+// rails, a life lost, unless it's a scrap flat (grey, never departing), which goes for nothing. The rules are
+// shunt-engine.js's; this file draws the yard, plays each shove out and keeps the game.
+import { N, LIVES, SCRAP, newGame, roll, shove, track, worth, dropCount } from "./shunt-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "shunt:run", BEST = "shunt:best", SEEN = "shunt:seen";
+const RUN = "shunt:run", BEST = "shunt:best", SEEN = "shunt:seen", SCRAPPED = "shunt:scrapped";
 const CELL = 10, M = 9, SIZE = N * CELL + 2 * M;        // a square, and the ring of arrows round the yard
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -34,12 +35,13 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const at = i => [M + (i % N) * CELL + CELL / 2, M + Math.floor(i / N) * CELL + CELL / 2];
 // each cargo its own mark too, so they're told apart without their colour: grain's ears, timber's log ends, a steel
-// beam, oil's drop
+// beam, oil's drop; and scrap's twisted ends
 const MARKS = [
   () => el("path", { class: "sh-mark-line", d: "M-2 2.6V-1M0 2.6V-2.2M2 2.6V-1M-2-1.6V-2.4M0-2.8V-3.3M2-1.6V-2.4" }),
   () => el("g", { class: "sh-mark-fill" }, el("circle", { cx: -1.6, cy: 1.2, r: 1.35 }), el("circle", { cx: 1.6, cy: 1.2, r: 1.35 }), el("circle", { cx: 0, cy: -1.5, r: 1.35 })),
   () => el("path", { class: "sh-mark-line", d: "M-2.6-2.3H2.6M-2.6 2.3H2.6M0-2.3V2.3" }),
   () => el("path", { class: "sh-mark-fill", d: "M0-3.1C1.7-.8 2.4.4 2.4 1.2A2.4 2.4 0 0 1-2.4 1.2C-2.4.4-1.7-.8 0-3.1Z" }),
+  () => el("path", { class: "sh-mark-line", d: "M-2.8 2.2L-.6-.2L.4.8M.2 2.6L2.7.4M-1.9-1.3L.4-2.6L2.2-1.9" }),
 ];
 /** A wagon: its body in its cargo's colour, its mark; placed by an outer group so its own can move. */
 function wagonEl(c, x, y, cls = "", cell = null) {
@@ -68,16 +70,18 @@ function drawBoard() {
   if (r) {
     for (const i of r.departed) marks.append(el("rect", { class: "sh-ring", x: at(i)[0] - 4.9, y: at(i)[1] - 4.9, width: 9.8, height: 9.8, rx: 2 }));
     if (r.derailed >= 0) {
-      // the wagon that would go off the end, shown beyond it, crossed
+      // the wagon that would go off the end, shown beyond it, crossed (a scrap flat isn't: it goes for nothing)
       const [dx, dy] = dirOf(aim.side), [x, y] = at(r.derailed), c = S.cells[r.derailed];
-      marks.append(wagonEl(c, x + dx * (CELL - 1), y + dy * (CELL - 1), "off"), el("path", { class: "sh-cross", d: `M${x + dx * 9 - 3} ${y + dy * 9 - 3}l6 6m0-6l-6 6` }));
+      marks.append(wagonEl(c, x + dx * (CELL - 1), y + dy * (CELL - 1), "off"));
+      if (!r.scrapped) marks.append(el("path", { class: "sh-cross", d: `M${x + dx * 9 - 3} ${y + dy * 9 - 3}l6 6m0-6l-6 6` }));
     }
   }
   const arrows = el("g", { class: "sh-arrows" });
   for (const side of ["left", "right", "top", "bottom"]) for (let line = 0; line < N; line++) {
-    const [x, y] = arrowAt(side, line), on = aim && aim.side === side && aim.line === line;
-    const full = track(side, line).every(i => S.cells[i] >= 0);
-    arrows.append(el("path", { class: `sh-arrow${on ? ` on k${S.next[0]}` : ""}${full ? " full" : ""}`, d: ARROW[side], transform: `translate(${x} ${y})` }));
+    // red where the track is full, unless what it would send off the far end is scrap
+    const [x, y] = arrowAt(side, line), on = aim && aim.side === side && aim.line === line, t = track(side, line);
+    const full = t.every(i => S.cells[i] >= 0), scrap = full && S.cells[t[N - 1]] === SCRAP;
+    arrows.append(el("path", { class: `sh-arrow${on ? ` on k${S.next[0]}` : ""}${scrap ? " scrap" : full ? " full" : ""}`, d: ARROW[side], transform: `translate(${x} ${y})` }));
   }
   svg.setAttribute("viewBox", `0 0 ${SIZE} ${SIZE}`);
   svg.replaceChildren(el("rect", { class: "sh-bed", x: M, y: M, width: N * CELL, height: N * CELL, rx: 1.5 }), rails, wagons, marks, arrows, el("g", { id: "fx" }));
@@ -100,9 +104,13 @@ function drawTray() {
     return;
   }
   const first = !read(SEEN, false) && S.shoves < 3, r = aim ? roll(S, aim) : null;
-  $("line").textContent = r ? (r.derailed >= 0 ? "That track is full: the far wagon goes off the rails" : r.departed.length ? `${r.departed.length} wagons depart: +${fmt(worth(r.departed.length))}` : `${CARGO[S.next[0]]} wagon onto that track`)
+  // until a scrap flat has been shoved off, what one is for, while one stands in the yard
+  const scrapHint = !read(SCRAPPED, false) && S.cells.includes(SCRAP);
+  $("line").textContent = r ? (r.scrapped ? `The scrap flat goes off the end: no life lost${r.departed.length ? `, and ${r.departed.length} wagons depart: +${fmt(worth(r.departed.length))}` : ""}`
+    : r.derailed >= 0 ? "That track is full: the far wagon goes off the rails" : r.departed.length ? `${r.departed.length} wagons depart: +${fmt(worth(r.departed.length))}` : `${CARGO[S.next[0]]} wagon onto that track`)
     : first ? "Press an arrow at a track's end and slide along: each shove shows before you let go"
-      : `The goods train leaves ${dropCount(S.shoves) === 1 ? "a wagon" : `${dropCount(S.shoves)} wagons`} in ${S.untilDrop} shove${S.untilDrop === 1 ? "" : "s"}`;
+      : scrapHint ? "A scrap flat never departs, but shoved off the end of a full track it costs no life"
+        : `The goods train leaves ${dropCount(S.shoves) === 1 ? "a wagon" : `${dropCount(S.shoves)} wagons`} in ${S.untilDrop} shove${S.untilDrop === 1 ? "" : "s"}`;
 }
 function render() { drawBoard(); drawStrip(); drawTray(); }
 
@@ -118,6 +126,7 @@ async function commit(move) {
   save();
   if (S.score > read(BEST, 0)) write(BEST, S.score);
   if (S.shoves >= 3) write(SEEN, true);
+  if (r.scrapped) write(SCRAPPED, true);
   render();
   const fx = $("board").querySelector("#fx"), node = i => $("board").querySelector(`#wagons [data-cell="${i}"] .sh-wagon`);
   const from = f => (f < 0 ? (([x, y]) => [x - dx * CELL, y - dy * CELL])(at(track(move.side, move.line)[0])) : at(f));
@@ -143,7 +152,8 @@ async function commit(move) {
     const [x, y] = at(r.derailed), g = wagonEl(before.cells[r.derailed], x, y, "off");
     fx.append(g);
     animate(g.firstChild, [{ transform: "translate(0, 0) rotate(0deg)", opacity: 1 }, { transform: `translate(${dx * 14}px, ${dy * 14 + 6}px) rotate(${dx || dy ? 40 : 0}deg)`, opacity: 0 }], { duration: 420, easing: "ease-in" }).then(() => g.remove());
-    if (!S.over) toast(`Off the rails: ${S.lives} ${S.lives === 1 ? "life" : "lives"} left`);   // at the end the verdict says it
+    if (r.scrapped) toast("Scrap shoved off the end: no life lost");
+    else if (!S.over) toast(`Off the rails: ${S.lives} ${S.lives === 1 ? "life" : "lives"} left`);   // at the end the verdict says it
   }
   if (r.gain) popup(fx, r.departed, r.gain);
   // the goods train's wagons set down

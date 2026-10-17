@@ -1,6 +1,7 @@
 /* Shunt: the yard (six tracks across, six down, crossing), the arrows round it where a wagon is shoved in, and under it
    the wagon coming, the next and a line saying what the shove shown would do. The wagons wear the four enamels, each
-   cargo with a mark of its own (grain, timber, steel, oil) so they're told apart without their colour. */
+   cargo with a mark of its own (grain, timber, steel, oil) so they're told apart without their colour; a scrap flat is
+   a rusty grey, twisted ends on it. */
 :root {
   --sh-in: var(--c1);
   --sh-soft: color-mix(in srgb, var(--sh-in) 15%, var(--sheet));
@@ -37,6 +38,8 @@ html[data-mode="night"] { --sh-danger: #E8806F; }
 .sh-mark-fill { fill: var(--on-c); stroke: none; }
 .sh-wagon.k0 .sh-mark-line { stroke: var(--on-c0); }
 .sh-wagon.k0 .sh-mark-fill { fill: var(--on-c0); }
+.sh-wagon.k4 > rect { fill: color-mix(in srgb, var(--ink-soft) 78%, var(--c3)); stroke-dasharray: 1 .6; }
+.sh-wagon.k4 .sh-mark-line { stroke: var(--sheet); stroke-width: .7; }
 .sh-wagon.leaving { animation: sh-leave .7s ease-in-out infinite alternate; }
 @keyframes sh-leave { to { opacity: .55; } }
 .sh-wagon.off { opacity: .5; }
@@ -47,6 +50,8 @@ html[data-mode="night"] { --sh-danger: #E8806F; }
 /* brass that reads on the page in every theme (Modern's brass is its tiles' edge) */
 .sh-arrow { fill: color-mix(in srgb, var(--brass-lo) 62%, transparent); cursor: pointer; }
 .sh-arrow.full { fill: color-mix(in srgb, var(--sh-danger) 70%, transparent); }
+/* a full track whose far wagon is scrap: shoving it there costs nothing */
+.sh-arrow.scrap { fill: color-mix(in srgb, var(--ink-soft) 70%, transparent); }
 .sh-arrow.on { stroke: var(--ink); stroke-width: .5; stroke-linejoin: round; }
 .sh-board text.sh-pop { font-size: 5px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.2px; pointer-events: none; }
 .sh-board text.sh-pop.big { font-size: 7px; }

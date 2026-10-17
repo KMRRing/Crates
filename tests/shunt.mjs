@@ -1,13 +1,14 @@
 // Shunt's rules (shunt-engine.js): the deal from a seed, a track's squares from the end shoved in at, a shove rolling
 // the wagons up to the first gap, a full track shoving its far wagon off the rails for a life, runs across and down
 // departing (a square in two counted once) and their points, the goods train's wagons (in no run, more and more often),
-// the end at the third derailment, a game saved and opened again, and whole games played out to their end.
-import { N, LIVES, START, PACE, dropEvery, dropCount, newGame, track, runs, roll, shove, shoves, worth, filled } from "../shunt-engine.js";
+// scrap flats (never departing, shoved off a full track for no life), the end at the third derailment, a game saved and
+// opened again, and whole games played out to their end.
+import { N, CARGOES, LIVES, START, PACE, SCRAP, SCRAP_ODDS, dropEvery, dropCount, newGame, track, runs, roll, shove, shoves, worth, filled } from "../shunt-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const i = (x, y) => y * N + x;
-/** A game with a yard drawn by hand: rows of characters, "." empty, "0"–"3" a wagon, from the top. */
+/** A game with a yard drawn by hand: rows of characters, "." empty, "0"–"3" a wagon, "4" a scrap flat, from the top. */
 function yard(rows, next = [0, 0], extra = {}) {
   const s = newGame(1);
   s.cells = new Array(N * N).fill(-1);
@@ -84,6 +85,28 @@ const row = (s, y) => [...Array(N).keys()].map(x => (s.cells[i(x, y)] < 0 ? "." 
   check(quiet && seen > 100, `the goods train's wagons stand in no run (${seen} of them)`);
 }
 
+// ---------- scrap flats ----------
+{
+  check(runs(yard(["444..."]).cells).length === 0 && runs(yard(["004000"]).cells).length === 3, "scrap flats never make a run, and break one");
+  const s = yard(["012304"], [2, 0]), r = shove(s, { side: "left", line: 0 });
+  check(r.scrapped && r.derailed === 5 && r.state.lives === LIVES && row(r.state, 0) === "201230", "shoved off the end of a full track, a scrap flat costs no life");
+  const back = shove(yard(["412301"], [2, 0]), { side: "left", line: 0 });
+  check(!back.scrapped && back.state.lives === LIVES - 1 && row(back.state, 0) === "241230", "but whatever's at the far end goes: a cargo wagon there still costs one");
+  check(roll(yard(["412301"], [2, 0]), { side: "right", line: 0 }).scrapped, "from the other end, the same track sends the scrap flat off");
+  let z = 13, left = 0, scrap = 0, coming = true;
+  const rnd = () => ((z = (z * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  for (let g = 0; g < 30; g++) {
+    let st = newGame(700 + g);
+    while (!st.over && st.shoves < 150) {
+      const all = shoves(st).filter(m => m.result.derailed < 0), pick = (all.length ? all : shoves(st))[Math.floor(rnd() * (all.length || 24))];
+      for (const i of pick.result.dropped) { left++; if (pick.result.state.cells[i] === SCRAP) scrap++; }
+      if (pick.result.state.next.some(c => c >= CARGOES)) coming = false;
+      st = pick.result.state;
+    }
+  }
+  check(scrap > left / (2 * SCRAP_ODDS) && scrap < (2 * left) / SCRAP_ODDS && coming, `the goods train leaves a scrap flat about one wagon in ${SCRAP_ODDS} (${scrap} of ${left}); the wagons coming never are`);
+}
+
 // ---------- the end ----------
 {
   const s = yard(["012301"], [2, 0], { lives: 1 }), r = shove(s, { side: "left", line: 0 });
@@ -110,10 +133,11 @@ const row = (s, y) => [...Array(N).keys()].map(x => (s.cells[i(x, y)] < 0 ? "." 
     let s = newGame(100 + g);
     while (!s.over && s.shoves < 1000) { const all = shoves(s); s = all[Math.floor(rnd() * all.length)].result.state; }
     random.push(s.shoves);
-    // the best shove each turn: the most points, no derailment, the yard kept empty
+    // the best shove each turn: the most points, no derailment (bar scrap's), the yard kept empty and clear of scrap
     let t = newGame(100 + g);
+    const scrap = st => st.cells.filter(c => c === SCRAP).length;
     while (!t.over && t.shoves < 1000) {
-      t = shoves(t).map(m => ({ m, v: m.result.gain - (m.result.derailed >= 0 ? 400 : 0) - 3 * filled(m.result.state) })).sort((a, b) => b.v - a.v)[0].m.result.state;
+      t = shoves(t).map(m => ({ m, v: m.result.gain - (m.result.derailed >= 0 && !m.result.scrapped ? 400 : 0) - 3 * filled(m.result.state) - 12 * scrap(m.result.state) })).sort((a, b) => b.v - a.v)[0].m.result.state;
     }
     greedy.push(t.shoves);
   }
@@ -122,4 +146,4 @@ const row = (s, y) => [...Array(N).keys()].map(x => (s.cells[i(x, y)] < 0 ? "." 
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("shunt: the deal, the tracks, a shove, runs, the goods train, the end, saving, whole games");
+else console.log("shunt: the deal, the tracks, a shove, runs, the goods train, scrap flats, the end, saving, whole games");
