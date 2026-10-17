@@ -4,9 +4,12 @@
 // moved on from turned down. The table's changes are made inside a transaction (together.js), on the state as the
 // database gives it back (tidy).
 import { QUOTES } from "./quote-bank.js";
+import { TOPICS } from "./quote-engine.js";
+import { drawWeighted } from "./topics.js";
 import { SEQUENCES } from "./kb/items/sequences.js";
 
 export const LIVES = 3, DATES_PER_RUN = 16, MOST = 6;     // MOST: the most at one table (a party's)
+export const FEWEST = 8;          // a mix of topics with fewer dated cards than this deals from every topic instead
 export const MODES = { dates: "Dates", quantities: "Quantities", stories: "History" };   // History: the stories, once called Stories
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 const shuffle = (r, xs) => { const a = [...xs]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -21,15 +24,42 @@ export const FAMILIES = Object.entries(QUOTES.filter(q => q.unit !== "year").red
 export const STORIES = new Map(SEQUENCES.map(s => [s.id, s]));
 for (const s of SEQUENCES) s.steps.forEach((text, i) => BY_ID.set(`st:${s.id}:${i + 1}`, { id: `st:${s.id}:${i + 1}`, q: text, truth: i + 1, unit: s.unit, story: s.id }));
 
+// ---------- topics ----------
+// A card's topic is its question's category in Quote's bank (a painting's year is Art, OPEC's founding Trade), and a run
+// of dates or quantities deals from a mix of them, each out, in or more (twice as likely as in), as Quote's sets do.
+// The stories have no topics: History deals one of them.
+const topicOf = id => BY_ID.get(id).cat;
+/** The topics a mode's cards are in, in the bank's order (none for the stories). */
+export const topicsIn = mode => {
+  const ids = mode === "dates" ? DATES : mode === "quantities" ? FAMILIES.flatMap(f => f.ids) : [];
+  const cats = new Set(ids.map(topicOf));
+  return TOPICS.filter(([id]) => cats.has(id));
+};
+/** Whether a mix weighs a mode's topics alike (every one in): the run is dealt as it always was. */
+const even = (mode, weights) => !weights || topicsIn(mode).every(([id]) => (weights[id] ?? 1) === 1);
+
 // ---------- a run ----------
-/** The cards of a seed in a mode, the line starting with one face up. */
-export function dealRun(mode, seed) {
-  const r = rng(seed);
-  let ids, unit = "year", story = null;
-  if (mode === "dates") ids = shuffle(r, DATES).slice(0, DATES_PER_RUN);
-  else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
-  else { const fam = FAMILIES[Math.floor(r() * FAMILIES.length)]; unit = fam.unit; ids = shuffle(r, fam.ids); }
-  return { seed, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false };
+/**
+ * The cards of a seed in a mode, the line starting with one face up. Dates: sixteen cards, each drawn by its topic's
+ * weight; quantities: one family, drawn by its cards' mean weight, its cards in the topics in (a family needs six). A mix
+ * that leaves too few cards deals from every topic instead, and says so (wide).
+ */
+export function dealRun(mode, seed, weights = null) {
+  const r = rng(seed), w = id => weights?.[topicOf(id)] ?? 1;
+  let ids, unit = "year", story = null, wide = false;
+  if (mode === "dates") {
+    const pool = even(mode, weights) ? [] : DATES.filter(id => w(id) > 0);
+    if (pool.length >= FEWEST) ids = drawWeighted(r, pool, w, DATES_PER_RUN);
+    else { wide = !even(mode, weights); ids = shuffle(r, DATES).slice(0, DATES_PER_RUN); }
+  } else if (mode === "stories") { const s = SEQUENCES[Math.floor(r() * SEQUENCES.length)]; story = s.id; unit = s.unit; ids = shuffle(r, s.steps.map((_, i) => `st:${s.id}:${i + 1}`)); }
+  else {
+    const mixed = even(mode, weights) ? [] : FAMILIES.map(f => ({ ...f, ids: f.ids.filter(id => w(id) > 0) })).filter(f => f.ids.length >= 6);
+    const mean = f => f.ids.reduce((a, id) => a + w(id), 0) / f.ids.length;
+    const fam = mixed.length ? drawWeighted(r, mixed, mean, 1)[0] : FAMILIES[Math.floor(r() * FAMILIES.length)];
+    wide = !mixed.length && !even(mode, weights);
+    unit = fam.unit; ids = shuffle(r, fam.ids);
+  }
+  return { seed, mode, unit, story, deck: ids.slice(1), line: [{ id: ids[0], ok: true }], lives: LIVES, placed: 0, over: false, ...(wide ? { wide } : {}) };
 }
 export const truth = id => BY_ID.get(id).truth;
 /** Whether a card belongs in a slot of the line: its neighbours hold it (ties go either side). */
@@ -57,8 +87,8 @@ export function placeCard(run, slot, mark = {}) {
 const list = xs => Object.values(xs || {}).filter(x => x != null);   // a list as the database may give it back
 export const isTable = g => g?.v === 2 && !!g.run?.line;
 /** A new table with its first game. */
-export function freshTable(players, { mode = "dates", seed, people = 2, app = 1, now = Date.now() } = {}) {
-  return { v: 2, app, created: now, people: Math.min(MOST, Math.max(2, Number(people) || 2)), players, n: 1, run: dealRun(MODES[mode] ? mode : "dates", seed) };
+export function freshTable(players, { mode = "dates", seed, people = 2, app = 1, now = Date.now(), weights = null } = {}) {
+  return { v: 2, app, created: now, people: Math.min(MOST, Math.max(2, Number(people) || 2)), players, n: 1, run: dealRun(MODES[mode] ? mode : "dates", seed, weights) };
 }
 /** The table as the database gives it back, made whole (it keeps no empty lists and no nulls); changes it, and returns it. */
 export function tidy(g) {
@@ -81,11 +111,12 @@ export function placeAt(g, { n, id, len, at, slot }) {
   if (g.n !== n || run.over || run.deck[0] !== id || run.line.length !== len || !(at >= 0 && at <= len)) return null;
   return placeCard(run, at, { by: slot });
 }
-/** A new game at the table, in a mode, unless one was dealt since game n (someone else's tap got there first). */
-export function newGameAt(g, { n, mode, seed }) {
+/** A new game at the table, in a mode and a mix of topics (the dealer's), unless one was dealt since game n (someone
+ *  else's tap got there first). */
+export function newGameAt(g, { n, mode, seed, weights = null }) {
   if (g.n !== n) return false;
   g.n = n + 1;
-  g.run = dealRun(MODES[mode] ? mode : "dates", seed);
+  g.run = dealRun(MODES[mode] ? mode : "dates", seed, weights);
   return true;
 }
 /** Each player's part in the run, by seat: { [slot]: { right, wrong } }. */

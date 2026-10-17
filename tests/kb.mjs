@@ -29,6 +29,13 @@ const clueLists = new Map();
 for (const l of LINKS) if (l.rel === "clue") (clueLists.get(l.to) || clueLists.set(l.to, []).get(l.to)).push(l.pos);
 check([...clueLists.values()].every(ps => ps.sort((a, b) => a - b).every((p, i) => p === i)) && LINKS.filter(l => l.rel === "clue").every(l => l.hint && l.aspects?.length && l.d >= 1 && E.get(l.to).crates !== undefined && (l.alt || []).every(id => E.get(id).crates !== undefined)),
   "every clue links to an answer with its hint, aspects and difficulty, in unbroken list order");
+// an aspect no game knows ("history" for hist, once) is a clue no choice of topics reaches: in whatever the mix
+{
+  const { KB_TOPICS } = await import("../topics.js");
+  const known = new Set([...KB_TOPICS.country, ...KB_TOPICS.commodity].map(([id]) => id));
+  const odd = LINKS.filter(l => (l.aspects || []).some(a => !known.has(a)));
+  check(!odd.length, `every link's aspects are topics the games deal by${odd.length ? `: ${odd.slice(0, 3).map(l => `${l.from} → ${l.to} ${JSON.stringify(l.aspects)}`).join("; ")}` : ""}`);
+}
 check([...PINS, ...FEATURES].every(p => { const e = E.get(p.about); return Number.isFinite(p.lat ?? e.lat) && Number.isFinite(p.lon ?? e.lon); }) && FEATURES.every(f => GEOMETRY[f.about]),
   "every pin is on a place with a position, every feature has its shape");
 const paintings = ENTITIES.filter(e => e.sets.includes("painting"));

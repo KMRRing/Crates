@@ -7,8 +7,9 @@
 // undefined, drops what's empty and may give a list back as an object. Run: node tests/origin.mjs
 const { ENTITIES } = await import("../kb/entities.js");
 const { COUNTRIES } = await import("../chart-countries.js");
-const { PER_RUN, FULL, PER_CLUE, PER_GUESS, MOST, PLACE, ALIASES, ANSWERS, GUESSABLE, dealRun, pointsNow, guessIn, clueIn, giveUpIn, nextIn, decided,
+const { PER_RUN, FULL, PER_CLUE, PER_GUESS, MOST, PLACE, ALIASES, ANSWERS, GUESSABLE, TOPIC_LIST, TOPIC_PRESETS, FEWEST_CLUES, dealRun, pointsNow, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } = await import("../origin-engine.js");
+const { LINKS } = await import("../kb/links.js");
 const { roundTrip, same } = await import("./rtdb.js");
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -24,6 +25,27 @@ check(COUNTRIES.every(c => GUESSABLE.get(c.name.toLowerCase()) === (c.about || c
   check(run.rounds.every(R => R.clues.length >= 6 && R.shown === 1 && R.clues.every((c, i) => i === 0 || R.clues[i - 1].d >= c.d)), "each with six clues at least, one showing, the hardest first");
   const says = run.rounds.flatMap(R => R.clues.filter(c => (ALIASES.get(R.id) || []).some(n => n.length > 3 && `${c.name} ${c.hint}`.toLowerCase().includes(n))).map(c => `${names.get(R.id)}: ${c.name}`));
   check(!says.length, `no clue names its country (${says.join("; ")})`);
+}
+
+// ---------- topics ----------
+// a run's clues come from a mix of Crates' country topics (each out, in or more): the topic out never, unless a country
+// would be left with fewer than six; a topic more ahead within each difficulty
+{
+  const aspects = new Map(LINKS.filter(l => l.hint).map(l => [`${l.to}|${l.hint}`, l.aspects || []]));
+  const of = (R, c) => aspects.get(`${R.id}|${c.hint}`) || [];
+  const balanced = TOPIC_PRESETS.balanced.topics;
+  check(TOPIC_LIST.length === 19 && Object.keys(TOPIC_PRESETS).join() === "balanced,trader,culture", "the topics: Crates' nineteen country topics, its three presets");
+  check([1, 2, 3, 4].every(seed => same(dealRun(seed), dealRun(seed, balanced))), "every topic in deals as it always did: today's run is the same whatever anyone's mix");
+  const noHistory = { ...balanced, hist: 0 }, runs = [5, 6, 7, 8, 9, 10].map(seed => dealRun(seed, noHistory));
+  const onlyHistory = (R, c) => of(R, c).length && of(R, c).every(a => a === "hist");
+  check(runs.every(run => run.rounds.every(R => R.clues.length >= FEWEST_CLUES && R.clues.every(c => !onlyHistory(R, c) || R.clues.filter(x => !onlyHistory(R, x)).length < FEWEST_CLUES))),
+    "a topic out: none of its clues, unless the country would have fewer than six");
+  const ppl = { ...balanced, ppl: 2 }, first = run => run.rounds.every(R => R.clues.every((c, i) => i === 0 || R.clues[i - 1].d > c.d
+    || Math.max(...of(R, R.clues[i - 1]).map(a => ppl[a] ?? 1), 1) >= Math.max(...of(R, c).map(a => ppl[a] ?? 1), 1)));
+  check([11, 12, 13].every(seed => first(dealRun(seed, ppl))), "a topic more: its clues ahead of the rest within each difficulty");
+  const t = freshTable({}, { seed: 14, weights: noHistory }), g = freshTable({}, { seed: 15 });
+  newGameAt(g, { n: 1, seed: 16, weights: noHistory });
+  check(same(t.run, dealRun(14, noHistory)) && same(g.run, dealRun(16, noHistory)), "a table's games dealt from the dealer's mix");
 }
 
 // ---------- a run ----------

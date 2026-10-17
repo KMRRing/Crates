@@ -14,6 +14,26 @@ const a = E.pickSet(42, QUOTES), b = E.pickSet(42, QUOTES), c = E.pickSet(43, QU
 const perCat = s => Math.max(...Object.values(s.reduce((m, q) => ({ ...m, [q.cat]: (m[q.cat] || 0) + 1 }), {})));
 check(a.length === E.PER_SET && JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(c) && perCat(a) <= 2 && new Set(a.map(q => q.id)).size === a.length,
   "sets: ten questions, the same for the same seed, different for another, at most two from a category, no repeats");
+// topics: a set from a mix of the categories, each out, in or more
+{
+  const all = E.TOPIC_PRESETS.balanced.topics, count = (s, cat) => s.filter(q => q.cat === cat).length;
+  check(E.TOPICS.length === Object.keys(CATS).length && [1, 2, 3].every(seed => JSON.stringify(E.pickMixed(seed, QUOTES, all)) === JSON.stringify(E.pickSet(seed, QUOTES))),
+    "topics: the bank's categories; every one in deals the set as it always was");
+  const noArt = { ...all, art: 0 }, sets = Array.from({ length: 200 }, (_, seed) => E.pickMixed(seed, QUOTES, noArt));
+  check(sets.every(s => s.length === E.PER_SET && !count(s, "art") && perCat(s) <= 2 && new Set(s.map(q => q.id)).size === s.length), "a topic out: none of it, still ten, at most two from a topic in");
+  const tradeMore = Array.from({ length: 200 }, (_, seed) => E.pickMixed(seed, QUOTES, { ...noArt, trade: 2 }));
+  const n = xs => xs.reduce((a, s) => a + count(s, "trade"), 0), ratio = n(tradeMore) / n(sets);
+  check(tradeMore.every(s => count(s, "trade") <= 4) && ratio > 1.4 && ratio < 2.6, `a topic more: up to four, dealt about twice as often as in (${ratio.toFixed(2)} times)`);
+  const refining = E.pickMixed(5, QUOTES, Object.fromEntries(E.TOPICS.map(([id]) => [id, id === "refining" ? 1 : 0])));
+  check(refining.length === E.PER_SET && refining.every(q => q.cat === "refining"), "one topic in: all ten from it, as a refining set");
+  // the page deals from the topics in only (the rest taken out first): a set still of ten, one topic's as it always was
+  const only = ids => Object.fromEntries(E.TOPICS.map(([id]) => [id, ids.includes(id) ? 1 : 0])), poolOf = w => QUOTES.filter(q => w[q.cat] > 0);
+  const three = only(["trade", "markets", "refining"]), rf = only(["refining"]);
+  check(E.pickMixed(5, poolOf(three), three).length === E.PER_SET && JSON.stringify(E.pickMixed(5, poolOf(rf), rf)) === JSON.stringify(E.pickSet(5, poolOf(rf), E.PER_SET, E.PER_SET)),
+    "from the topics in alone: three topics fill a set of ten; one topic's set is the refining set it always was");
+  check(E.presetOf(all) === "balanced" && E.presetOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.presetOf(noArt) === "custom" && E.cleanTopics({ trade: 2, art: "x" }).art === 1,
+    "a mix is a preset's or your own; a weight it doesn't know is in");
+}
 
 // the tiers: every question has SS/S/A/B radii in order, and a difficulty 1–5
 check(QUOTES.every(q => q.tiers && q.tiers.S > 0 && q.tiers.A > q.tiers.S && q.tiers.B > q.tiers.A && (q.tiers.SS == null || q.tiers.SS < q.tiers.S) && q.d >= 1 && q.d <= 5), "every question carries tiers in order and a difficulty");

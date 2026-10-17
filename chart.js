@@ -1,11 +1,12 @@
 // Chart: pin a place on the map. Drag and pinch the world to where you want, tap to place the pin, pin it; then
-// see the truth, the distance and the points. Two dropdowns choose what a set deals: a topic (everything, cities,
-// countries, commodities, nature, culture) and a region, where each question opens on the region's map. A country's
-// outline is its target: anywhere inside it scores in full, outside nothing. At a table of two to six (a pair's duo
-// match, a party's), everyone pins the same place on their own phone, and the reveal shows every pin, each one's
-// distance and points and the standings (chart-table.js is the table's rules).
-import { PER_SET, regionSpan, pickSet, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, REGIONS, capFor, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
-import { part, choice, toggle, action, line as menuLine, mirror } from "./menu.js";
+// see the truth, the distance and the points. A set deals from your mix of topics (cities, countries, commodities,
+// art, wine… each out, in or more) in a region, where each question opens on the region's map; both are in the menu.
+// A country's outline is its target: anywhere inside it scores in full, outside nothing. At a table of two to six (a
+// pair's duo match, a party's), everyone pins the same place on their own phone, and the reveal shows every pin, each
+// one's distance and points and the standings (chart-table.js is the table's rules).
+import { PER_SET, regionSpan, pickMixed, projection, worldAspect, worldView, viewAround, viewWindow, clampView, viewCovering, viewFitting, merc, LAT_MAX, clueFactor, clueText, CLUE_FACTOR, featureBox, pointsFor, TOPICS, TOPIC_PRESETS, presetOf, OLD_TOPICS, OLD_NAMES, oldTopicOf, topicOf, LOCAL, REGIONS, regionView, regionsOfPlace, askFor, homeOf, HOME_KM, fingers } from "./chart-engine.js";
+import { part, choice, topicMix, toggle, action, line as menuLine, mirror } from "./menu.js";
+import { cleanMix, anyIn, mixParam, mixFromParam } from "./topics.js";
 import { missOf, isTable, peopleFor, freshTable, newSet, keyOf, waitingFor, graceAt, clueIn, pinIn, revealNow, nextIn, moveOnNow, settleUp, entryAt, totals, placeRows, standingRows, resultOf, initials } from "./chart-table.js";
 import { presentSlots, seated } from "./duel-core.js";
 import { leaderboard, rank } from "./standings.js";
@@ -23,13 +24,11 @@ const COUNTRY_PLACES = COUNTRIES.map(c => ({ id: `co-${c.id}`, cat: "countries",
   note: `${c.flag} ${c.name}, in ${c.regions.map(r => REGIONS[r].name).join(" and ")}. ${c.neighbours.length ? `It borders ${c.neighbours.join(", ")}.` : "It has no land neighbours."}` }));
 const withRegions = p => { const regions = p.regions || regionsOfPlace(p, REGION_OF); return { ...p, regions, region: regions.length ? REGIONS[regions[0]].name : p.region }; };
 const PLACES = [...BANK_PLACES, ...GEO.map(g => ({ id: `geo-${g.id}`, cat: "physical", name: g.name, lat: g.lat, lon: g.lon, note: g.note, country: g.country, region: g.region, kind: KIND[g.kind], geo: g, about: g.about })), ...COUNTRY_PLACES].map(withRegions);
-/** What a selection deals from: its topic's categories, in its region ("world": anywhere). */
-// a sub-region's own category (Bavaria's towns, Scotland's glens) is dealt only in sub-regions its places belong to:
-// Scottish towns in Scotland and in Britain, never in Europe or the world
-const LOCAL = new Set(Object.values(REGIONS).map(r => r.local).filter(Boolean));
-const poolOf = ({ topic = "all", region = "world" } = {}) => PLACES.filter(p => (!TOPICS[topic]?.cats || TOPICS[topic].cats.includes(p.cat))
+/** What a selection deals from: the places of its mix's topics in, in its region ("world": anywhere). */
+// a sub-region's own places (Bavaria's towns, Scotland's glens: Local places) are dealt only in sub-regions they belong
+// to: Scottish towns in Scotland and in Britain, never in Europe or the world
+const poolOf = ({ topics, region = "world" } = {}) => PLACES.filter(p => (topics?.[topicOf(p.cat)] ?? 1) > 0
   && (region === "world" || p.regions.includes(region)) && (!LOCAL.has(p.cat) || (REGIONS[region]?.sub && p.regions.includes(region))));
-const capOf = sel => capFor(sel.topic || "all", new Set(poolOf(sel).map(p => p.cat)).size);
 import { LAND, BORDERS } from "./world.js";
 import { DETAIL } from "./chart-detail.js";
 import { ISLANDS, ISLAND_DOTS } from "./chart-islands.js";
@@ -71,21 +70,47 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const save = () => { if (!inRoom()) write(RUN, S); };
 const current = () => byId.get(S.set[S.index]);
-/** The selection the dropdowns show: a topic and a region. */
-const chosen = () => ({ topic: $("topic").value || "all", region: $("region").value || "world" });
-const selOf = s => ({ topic: s?.topic || "all", region: s?.region || "world" });
+// ---------- your mix of topics, and the region ----------
+// Each topic out, in or more (twice as often), from a preset or your own, as every knowledge game deals (topics.js);
+// one topic in is that topic's set (all ten from it, as the dropdown's topics were). Kept under chart: like the run.
+const TOPICS_KEY = "chart:topics";
+/** Your topics, each 0 (out), 1 (in) or 2 (more): Balanced until you change them. */
+const mix = () => cleanMix(TOPICS, read(TOPICS_KEY, null));
+const keepMix = w => { write(TOPICS_KEY, w); fillRegions(w, $("region").value); };     // the regions' counts follow it
+/** The one topic a mix has in, if only one. */
+const focusOf = w => { const ins = TOPICS.filter(([id]) => w[id] > 0); return ins.length === 1 ? ins[0][0] : null; };
+/** What a new set deals: your mix in the dropdown's region. */
+const chosen = () => ({ topics: mix(), region: $("region").value || "world" });
+/** A set's selection: its mix (a set or a table from before the mix, its one topic as a mix) and its region. A mix with
+ *  nothing in (a link mistyped) deals as Balanced. */
+const selOf = s => {
+  const topics = s?.topics ? cleanMix(TOPICS, s.topics) : OLD_TOPICS[s?.topic] || OLD_TOPICS.all;
+  return { topics: anyIn(TOPICS, topics) ? topics : OLD_TOPICS.all, region: s?.region || "world" };
+};
+/** A mix as a link carries it (&t=): a topic of old by its name (nature), any other mix but Balanced topic by topic. */
+const topicsParam = w => oldTopicOf(w) ?? mixParam(TOPICS, w);
+const topicsFromParam = t => OLD_TOPICS[t] || (t ? mixFromParam(TOPICS, t) : OLD_TOPICS.all);
+/** A mix's name: a preset's, a topic of old's, a single topic's, or Your topics. */
+const mixName = w => { const p = presetOf(w), old = oldTopicOf(w), one = focusOf(w);
+  return p !== "custom" ? TOPIC_PRESETS[p].label : OLD_NAMES[old] || (one ? TOPICS.find(([id]) => id === one)[1] : "Your topics"); };
 /** The view a question opens on: its set's region, or the whole world. */
 const startView = () => (selOf(S).region !== "world" ? regionView(selOf(S).region, ...SIZES.world) : worldView());
-/** A set's link: its seed, and its selection where it isn't everything everywhere. */
-const hashOf = s => { const { topic, region } = selOf(s); return `#${s.mode === "daily" ? "d" : "s"}=${s.seed}${topic !== "all" ? `&t=${topic}` : ""}${region !== "world" ? `&r=${region}` : ""}`; };
-const selKey = s => { const { topic, region } = selOf(s); return `${topic}/${region}`; };
+/** A set's link: its seed, and its selection where it isn't Balanced worldwide. */
+const hashOf = s => { const { topics, region } = selOf(s), t = topicsParam(topics); return `#${s.mode === "daily" ? "d" : "s"}=${s.seed}${t !== "all" ? `&t=${t}` : ""}${region !== "world" ? `&r=${region}` : ""}`; };
+/** What a selection's bests are kept under ("all/world" for Balanced worldwide, as everything everywhere always was): a
+ *  preset's, a topic of old's or a single topic's, in a region; your own mix of several keeps none (null). */
+const selKey = s => {
+  const { topics, region } = selOf(s), p = presetOf(topics), k = oldTopicOf(topics) ?? (p !== "custom" ? `p:${p}` : focusOf(topics));
+  return k ? `${k}/${region}` : null;
+};
 const km = d => (d < 10 ? `${d.toFixed(1)} km` : `${Math.round(d).toLocaleString("en-GB")} km`);
 
 // ---------- the run ----------
-// The Standard selection: every topic, the whole world. A daily is always dealt on it, and a run counts for your best
-// (the games screen's, the one your partner sees) only if it's the daily, or Standard with nothing from your pile in.
-const STANDARD = { topic: "all", region: "world" };
-const rankedRun = (mode, sel) => mode === "daily" || selKey(sel) === selKey(STANDARD);   // today's, or everything worldwide
+// The Standard selection: Balanced, the whole world; a daily is always dealt on it. A set counts for your best (the
+// games screen's, the one your partner sees) if it's the daily, or a preset's mix (Balanced, Trader, Culture night)
+// worldwide, learning mode or not; your own mix, or a region, keeps its best here only.
+const STANDARD = { topics: OLD_TOPICS.all, region: "world" };
+const rankedRun = (mode, sel) => mode === "daily" || (presetOf(sel.topics) !== "custom" && sel.region === "world");
 /** The set for a seed and a selection, with what's due from the pile (within the selection) leading it in learning mode;
  *  a daily is the same for everyone, so nothing of yours goes into it. */
 function setFor(seed, sel, personal = true) {
@@ -93,7 +118,7 @@ function setFor(seed, sel, personal = true) {
   // and places that the other games found you weak on (a city whose clue you missed in Crates), to pin
   const own = personal && pile.learning() ? pile.due("chart").map(it => it.key).filter(id => inPool.has(id)).slice(0, Math.ceil(PER_SET / 2)) : [];
   const due = personal && pile.learning() ? pile.dealDue("chart", pool.map(p => ({ key: p.id, about: p.about ? [p.about] : [] })), own, Math.ceil(PER_SET / 2)) : [];
-  const rest = pickSet(seed, pool.filter(p => !due.includes(p.id)), PER_SET - due.length, capOf(sel)).map(p => p.id);
+  const rest = pickMixed(seed, pool.filter(p => !due.includes(p.id)), sel.topics, PER_SET - due.length).map(p => p.id);
   const set = [...rest];
   due.forEach((id, i) => set.splice(Math.min(set.length, Math.floor((i + 0.5) * PER_SET / due.length)), 0, id));
   return set;
@@ -101,6 +126,7 @@ function setFor(seed, sel, personal = true) {
 function start(mode, sel = chosen()) {
   const seed = mode === "daily" ? today() : randomSeed();
   if (mode === "daily") sel = STANDARD;                     // today's set: the same for everyone
+  else if (!poolOf(sel).length) { sel = { ...sel, topics: OLD_TOPICS.all }; toast("Nothing in your topics here: this set deals from all of them"); }
   S = { seed, mode, ...sel, ranked: rankedRun(mode, sel), set: setFor(seed, sel, mode !== "daily"), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();
   history.replaceState(null, "", hashOf(S));
@@ -535,8 +561,8 @@ function finish() {
 // bests are kept by selection: { "topic/region": best }; a best from before the dropdowns was everything everywhere
 const bests = () => { const b = read(BEST, {}); return typeof b === "number" ? { "all/world": b } : b; };
 const dailies = () => { const d = read(DAILY, {}), day = d[today()]; return typeof day === "number" ? { "all/world": day } : day || {}; };
-function bestEver(s) { const b = bests(), k = selKey(S); b[k] = Math.max(b[k] || 0, s); write(BEST, b); return b[k]; }
-function bestDaily(s) { const day = dailies(), k = selKey(S); day[k] = Math.max(day[k] || 0, s); write(DAILY, { [today()]: day }); return day[k]; }
+function bestEver(s) { const b = bests(), k = selKey(S); if (!k) return s; b[k] = Math.max(b[k] || 0, s); write(BEST, b); return b[k]; }
+function bestDaily(s) { const day = dailies(), k = selKey(S); if (!k) return s; day[k] = Math.max(day[k] || 0, s); write(DAILY, { [today()]: day }); return day[k]; }
 
 // ---------- at a table: a pair's duo match, or a party's of up to six ----------
 let offset = 0, stopOffset = null;                     // this device's clock against the database's
@@ -695,15 +721,17 @@ function drawTable() {
   box.dataset.at = `${S.seed}/${S.index}`;
   box.scrollTop = keep;
 }
+/** A table's set: from the dealer's mix, in a region. */
+const tableSet = (seed, region) => { let sel = { topics: mix(), region }; if (!poolOf(sel).length) sel = { ...sel, topics: OLD_TOPICS.all }; return pickMixed(seed, poolOf(sel), sel.topics).map(p => p.id); };
 function freshRoom(players, ask = null) {
-  const seed = randomSeed(), sel = STANDARD;                  // a table starts on everything worldwide; the menu changes it
-  return { ...freshTable(players, { people: peopleFor(ask), seed, ...sel, set: pickSet(seed, poolOf(sel), PER_SET, capOf(sel)).map(p => p.id) }), app: APP };
+  const seed = randomSeed();                                  // a table starts worldwide, on the dealer's mix; the menu changes it
+  return { ...freshTable(players, { people: peopleFor(ask), seed, region: "world", set: tableSet(seed, "world") }), app: APP };
 }
-/** A fresh set for the table, of the selection chosen, asking first while this one's under way. */
-function startRoomSet(sel = chosen()) {
+/** A fresh set for the table, in a region, asking first while this one's under way. */
+function startRoomSet(region = $("region").value || "world") {
   if (S && !S.done && (S.index > 0 || S.phase === "reveal" || S.pins) && !confirm("Deal a fresh set for the table? This one isn't finished.")) { showSelection(); return; }
-  const seed = randomSeed(), set = pickSet(seed, poolOf(sel), PER_SET, capOf(sel)).map(p => p.id);
-  together.act(g => newSet(g, { seed, ...sel, set }));
+  const seed = randomSeed(), set = tableSet(seed, region);
+  together.act(g => newSet(g, { seed, region, set }));
 }
 let shownBell = null;
 /** Opens the set's summary, as a modal on top: a dialog left open somehow (not shown as a modal) is reopened. */
@@ -732,7 +760,7 @@ function finishRoom(asked = false) {                    // asked: the button was
     return top.slot === me ? `you ${say(top)}, best` : `${first(top.name)} ${say(top)} · you ${say(mine)}`;
   });
   const again = add("button", "btn primary wide", "Play again");
-  again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(selOf(g)); });
+  again.type = "button"; again.addEventListener("click", () => { $("doneDlg").close(); startRoomSet(selOf(g).region); });
   const leave = add("button", "btn wide", "Back to solo");
   leave.type = "button"; leave.addEventListener("click", () => { $("doneDlg").close(); together.leave(); });
   bell();
@@ -843,28 +871,33 @@ async function copyLink() {
   const link = `${location.origin}${location.pathname}${hashOf(S)}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
-// the menu: Play (start the set you've chosen), Content (random or today's; what it deals is in the header's
-// dropdowns), Settings (learning mode), About (your bests here, a link); at a table, its topic and region (a fresh set
-// for everyone) and the table's own part
+// the menu: Play (start the set you've chosen), Content (random or today's; for a random set your mix of topics and the
+// region), Settings (learning mode), About (your bests here, a link); at a table, the mix and region of a fresh set for
+// everyone (the region deals it at once, the mix the next) and the table's own part
 let pick = null;                                              // the set the menu will start: { mode }
+/** Your mix of topics, in the menu: a preset, or each topic tapped out, in or more; alone, with what it counts for. */
+const topicsPart = (box, solo = false) => box.append(topicMix(TOPICS, TOPIC_PRESETS, mix(), keepMix, { note: solo ? w => (presetOf(w) !== "custom" ? null
+  : focusOf(w) || oldTopicOf(w) ? "It keeps a best of its own; today's set and the presets count for your best." : "Your own mix doesn't count for your best; today's set and the presets do.") : null }));
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room) {
-    if (S) part(body, "content").append(mirror("Topic", $("topic")), mirror("Region", $("region")));
-    part(body, "together").append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(selOf(S)), "primary"),
+    if (S) { const box = part(body, "content"); topicsPart(box); box.append(mirror("Region", $("region"))); }
+    part(body, "together").append(action(S?.done ? "Play again" : "A fresh set", () => startRoomSet(selOf(S).region), "primary"),
       ...(S?.done ? [action("Final standings", () => finishRoom(true))] : []), action("Back to solo", () => together.leave(), "link"));
   } else {
     pick ??= { mode: S?.mode === "daily" || dailyDue("chart") ? "daily" : "random" };   // today's first, while it's still to play
     const play = part(body, "play");
     play.append(action("Start a set", () => confirmStart(pick.mode), "primary"));
     if (S?.done) play.append(action("See how it went", finish));
-    part(body, "content").append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; }),
-      mirror("Topic", $("topic")), mirror("Region", $("region")));
+    const content = part(body, "content");
+    content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
+    // today's set is the same for everyone (Balanced, worldwide), so your topics and the region are for random sets
+    if (pick.mode === "random") { topicsPart(content, true); content.append(mirror("Region", $("region"))); }
     part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
-    const best = bests()[selKey(S)], daily = dailies()[selKey(S)], what = selName(selOf(S));
+    const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
-      menuLine(`${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),
+      menuLine(!key ? `${what}: your own mix keeps no best` : `${what}: ${best ? `best ${best.toLocaleString("en-GB")}` : "no finished set yet"}${daily != null ? `, today ${daily.toLocaleString("en-GB")}` : ""}`),
       action("Copy a link to this set", copyLink, "link"));
   }
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -874,39 +907,36 @@ function confirmStart(mode) {
   start(mode);
 }
 
-// ---------- the dropdowns ----------
-const selName = ({ topic, region }) => `${TOPICS[topic].name}${region === "world" ? "" : ` in ${REGIONS[region].name}`}`;
-const topicMenu = dropdown($("topic"));
+// ---------- the region's dropdown ----------
+const selName = ({ topics, region }) => `${mixName(topics)}${region === "world" ? "" : ` in ${REGIONS[region].name}`}`;
 let regionMenu = null;
-/** The region list for a topic: worldwide and every region, each noting how many places it holds (a short set below ten). */
-function fillRegions(topic, region) {
+/** The region list for a mix: worldwide and every region, each noting how many places it holds (a short set below ten).
+ *  The region shown stays, nothing in it or not: it's the set's (a link's, the table's), and a set started there deals
+ *  from every topic and says so. */
+function fillRegions(topics, region) {
   const sel = $("region");
   sel.replaceChildren(...[["world", "Worldwide"], ...Object.entries(REGIONS).map(([k, r]) => [k, r.name])].map(([k, name]) => {
-    const n = poolOf({ topic, region: k }).length, o = document.createElement("option");
-    o.value = k; o.textContent = name; o.disabled = n === 0;
+    const n = poolOf({ topics, region: k }).length, o = document.createElement("option");
+    o.value = k; o.textContent = name; o.disabled = n === 0 && k !== region;
     o.dataset.note = n === 0 ? "nothing here" : n < PER_SET ? `${n} places: a short set` : `${n} places`;
     return o;
   }));
-  sel.value = poolOf({ topic, region }).length ? region : "world";
+  sel.value = region;
   if (regionMenu) regionMenu.sync(); else regionMenu = dropdown(sel);
 }
-/** The dropdowns show the set's selection (or the table's). */
+/** The dropdown shows the set's region (or the table's), with the counts of your mix. */
 function showSelection() {
   if (!S) return;
-  const { topic, region } = selOf(S);
-  $("topic").value = topic;
-  topicMenu.sync();
-  fillRegions(topic, region);
+  fillRegions(mix(), selOf(S).region);
 }
-/** A new choice deals a new set with it, after asking if this one's under way; at a table, a fresh set for everyone. */
+/** A new region deals a new set in it, after asking if this one's under way; at a table, a fresh set for everyone. */
 function choose() {
   const sel = chosen();
-  if (inRoom()) { startRoomSet(sel); return; }
+  if (inRoom()) { startRoomSet(sel.region); return; }
   if (S && !S.done && S.index > 0 && !confirm("Start a new set with this? This one isn't finished.")) { showSelection(); return; }
   start(S?.mode === "daily" ? "daily" : "random", sel);
 }
-fillRegions("all", "world");
-$("topic").addEventListener("change", () => { fillRegions($("topic").value, $("region").value); choose(); });
+fillRegions(mix(), "world");
 $("region").addEventListener("change", choose);
 
 // ---------- wiring ----------
@@ -928,8 +958,8 @@ window.addEventListener("hashchange", () => { const h = new URLSearchParams(loca
 function load(h) {
   const seed = Number(h.get("d") || h.get("s")), mode = h.get("d") ? "daily" : "random";
   if (!seed) return false;
-  let sel = { topic: TOPICS[h.get("t")] ? h.get("t") : "all", region: REGIONS[h.get("r")] ? h.get("r") : "world" };
-  if (S && S.seed === seed && S.mode === mode && selKey(S) === selKey(sel)) return true;
+  let sel = selOf({ topics: topicsFromParam(h.get("t")), region: REGIONS[h.get("r")] ? h.get("r") : "world" });
+  if (S && S.seed === seed && S.mode === mode && hashOf(S) === hashOf({ seed, mode, ...sel })) return true;
   if (mode === "daily") sel = STANDARD;
   S = { seed, mode, ...sel, ranked: rankedRun(mode, sel), set: setFor(seed, sel, mode !== "daily"), index: 0, score: 0, log: [], phase: "pin", done: false };
   save();

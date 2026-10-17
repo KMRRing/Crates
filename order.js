@@ -5,14 +5,17 @@
 // History (the stories) deals one story's events (Heracles' labours, Odysseus's voyage home, Ragnarök…), where what's ordered is the
 // story itself, a card's place in it (kb/items/sequences.js), and the line shows 1st, 2nd… instead of a number. The
 // cards and the rules are order-engine.js's.
+// A run of dates or quantities deals from your mix of topics (Quote's categories, each out, in or more), as Quote,
+// Punt and Crates do; today's run is the same for everyone, whatever the mix.
 // Together, one run for the table (together.js): one deck and one line for everyone at it, anyone placing the card in
 // hand, the team's lives, each card marked with who placed it.
-import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, dealRun, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
-import { withUnit } from "./quote-engine.js";
+import { LIVES, MODES, BY_ID, DATES, FAMILIES, STORIES, dealRun, topicsIn, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } from "./order-engine.js";
+import { withUnit, TOPIC_PRESETS, cleanTopics } from "./quote-engine.js";
+import { presetOf } from "./topics.js";
 import { showPicture, pictureName, nameIn } from "./pics.js";
 import { sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, topicMix, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
@@ -20,7 +23,7 @@ import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "order:run", BEST = "order:best", DAILY = "order:daily";
+const RUN = "order:run", BEST = "order:best", DAILY = "order:daily", TOPICS_KEY = "order:topics";
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own deck)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -29,13 +32,24 @@ const ordinal = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st",
 /** A card's value as the line shows it: a story's place (5th), or the number with its unit. */
 const valueOf = q => (q.story ? ordinal(q.truth) : withUnit(q.truth, q));
 
+// ---------- your mix of topics ----------
+/** Your topics, each 0 (out), 1 (in) or 2 (more): Balanced until you change them. */
+const mix = () => cleanTopics(read(TOPICS_KEY, null));
+const keepMix = w => write(TOPICS_KEY, w);
+/** Your mix of a mode's topics: a preset's (its id), or "custom". */
+const presetFor = mode => presetOf(topicsIn(mode), TOPIC_PRESETS, mix());
+/** A run counts for your best if it's today's, or dealt from a preset's mix of its topics (Balanced, Trader, Culture
+ *  night); the stories have none. */
+const ranked = (mode, daily) => daily || mode === "stories" || presetFor(mode) !== "custom";
+
 // ---------- your own run ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
 function newRun(mode, daily) {
   const seed = daily ? today() * 7919 + ({ dates: 3, quantities: 5, stories: 7 }[mode] || 5) : Math.floor(Math.random() * 2 ** 31);
-  S = { ...dealRun(mode, seed), daily, day: daily ? today() : null };
+  S = { ...dealRun(mode, seed, daily ? null : mix()), daily, day: daily ? today() : null, ranked: ranked(mode, daily) };
   save(); render();
+  if (S.wide) toast("Too few cards in your topics: this run deals from all of them");
 }
 function place(slot) {
   if (G) { placeTogether(slot); return; }
@@ -47,7 +61,7 @@ function place(slot) {
 }
 function end() {
   const best = read(BEST, {}), key = S.mode === "dates" ? "dates" : S.mode === "stories" ? `s:${S.story}` : `q:${S.unit}`;
-  if (!(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }
+  if (S.ranked !== false && !(best[key] >= S.placed)) { best[key] = S.placed; write(BEST, best); }   // your own mix doesn't count
   if (S.daily) { const d = read(DAILY, {}), k = `${S.day ?? today()}/${S.mode}`; if (!(d[k] >= S.placed)) { d[k] = S.placed; write(DAILY, d); } }
   setTimeout(finish, 700);
 }
@@ -70,7 +84,7 @@ const whereIn = (line, at) => (at === 0 ? "first" : at === line.length - 1 ? "la
 function render() {
   const R = G?.run || S;
   if (!R) { newRun("dates", false); return; }
-  $("where").textContent = `${R.mode === "stories" ? STORIES.get(R.story)?.name || MODES.stories : MODES[R.mode]}${R.mode === "quantities" ? `, in ${R.unit}` : ""}${R.daily ? " · today's" : ""} · placed ${R.placed}`;
+  $("where").textContent = `${R.mode === "stories" ? STORIES.get(R.story)?.name || MODES.stories : MODES[R.mode]}${R.mode === "quantities" ? `, in ${R.unit}` : ""}${R.daily ? " · today's" : R.ranked === false ? " · your topics" : ""} · placed ${R.placed}`;
   $("lives").textContent = "●".repeat(Math.max(0, R.lives)) + "○".repeat(LIVES - Math.max(0, R.lives));
   const next = R.deck[0];
   $("deal").hidden = !next || R.over;
@@ -199,8 +213,8 @@ async function dealAgain(mode) {
   if (!G) return;
   const n = G.n;
   if (!G.run.over && G.run.line.length > 1 && !confirm("Deal a new game for the table? This one isn't finished.")) return;
-  const seed = Math.floor(Math.random() * 2 ** 31);
-  await together.act(g => newGameAt(tidy(g), { n, mode, seed }));
+  const seed = Math.floor(Math.random() * 2 ** 31), weights = mix();      // the table's next game, from the dealer's topics
+  await together.act(g => newGameAt(tidy(g), { n, mode, seed, weights }));
 }
 /** Who's at the table, each by their colour (the cards they placed carry it); those away greyed. */
 function drawTeam() {
@@ -252,7 +266,7 @@ const together = createTogether({
   askName,
   valid: isTable,
   slots: g => g?.people || 2,
-  fresh: (players, { ask } = {}) => freshTable(players, { mode: S?.mode, seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP }),
+  fresh: (players, { ask } = {}) => freshTable(players, { mode: S?.mode, seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP, weights: mix() }),
   onState,
   onPresence: () => { if (G) drawTeam(); },
   onLeave: () => {
@@ -269,6 +283,12 @@ const backToSolo = () => { if (together.room) together.leave(); else location.re
 
 // ---------- the menu ----------
 let pick = null;
+/** The mix of topics for a mode, in the menu: a preset, or each topic tapped out, in or more (none for the stories);
+ *  alone, with what your own mix counts for. */
+function topicsPart(box, mode, solo = false) {
+  const list = topicsIn(mode), note = w => (presetOf(list, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null);
+  if (list.length) box.append(topicMix(list, TOPIC_PRESETS, mix(), keepMix, { note: solo ? note : null }));
+}
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -278,8 +298,9 @@ function openMenu() {
       pickMode ??= G.run.mode;
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
       table.append(action("New game", () => dealAgain(pickMode), "primary"),
-        choice("Order", Object.entries(MODES), pickMode, v => { pickMode = v; }),
-        line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
+        choice("Order", Object.entries(MODES), pickMode, v => { pickMode = v; openMenu(); }));
+      topicsPart(table, pickMode);
+      table.append(line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
     } else { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
     if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -287,9 +308,12 @@ function openMenu() {
   }
   pick ??= { mode: S?.mode || "dates", daily: (!!S?.daily && !S.over) || dailyDue("order") };   // today's first, while it's still to play
   part(body, "play").append(action("New run", () => newRun(pick.mode, pick.daily), "primary"));
-  part(body, "content").append(
-    choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; }),
-    choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; }));
+  const content = part(body, "content");
+  content.append(
+    choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); }),
+    choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; openMenu(); }));
+  // today's run is the same for everyone, so your topics are for random runs
+  if (!pick.daily) topicsPart(content, pick.mode, true);
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => best[`q:${f.unit}`] != null) ? `, quantities ${Math.max(...FAMILIES.map(f => best[`q:${f.unit}`] ?? 0))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

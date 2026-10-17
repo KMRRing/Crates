@@ -9,6 +9,9 @@
 // Widths and distances are in the question's units: for a magnitude, doublings (log2 of the ratio), with the
 // tiers converted the same way; for a year, a count or a percentage, plain units.
 
+import { CATS } from "./quote-bank.js";
+import { cleanMix, presetOf as presetIn, drawWeighted, even } from "./topics.js";
+
 export const START = 1000;                 // the book you start with
 export const PER_SET = 10;
 const LOSS = 300;                          // the most a market can lose, approached as the miss grows
@@ -137,6 +140,42 @@ export function pickSet(seed, bank, perSet = PER_SET, perCat = 2) {
     out.push(q);
     if (out.length === perSet) break;
   }
+  return out;
+}
+
+// ---------- topics ----------
+// The bank's categories are the topics a set mixes (and Order's runs, dealt from the same questions), as Crates' and
+// Punt's are: each out, in, or more (dealt twice as often as it would be in). The presets lean towards the trade's
+// numbers or towards culture; Balanced is every topic in, the set as it always was.
+export const TOPICS = Object.entries(CATS);
+const every = w => Object.fromEntries(TOPICS.map(([id]) => [id, w]));
+export const TOPIC_PRESETS = {
+  balanced: { label: "Balanced", topics: every(1) },
+  trader: { label: "Trader", topics: { ...every(1), trade: 2, markets: 2, refining: 2 } },
+  culture: { label: "Culture night", topics: { ...every(1), art: 2, wine: 2, people: 2, cities: 2 } },
+};
+/** The preset a mix is (its id), or "custom". */
+export const presetOf = w => presetIn(TOPICS, TOPIC_PRESETS, w);
+/** A mix as kept (anything: an old save, a link), made whole. */
+export const cleanTopics = saved => cleanMix(TOPICS, saved);
+/**
+ * A set from a mix of topics: questions drawn by their topic's weight, at most two from a topic in and four from one
+ * more, topped up past those caps only if the topics in can't fill the set. Balanced is pickSet's set and one topic in
+ * is all ten from it, as they always were (Standard, and a refining set). Judged by the mix, not the bank, which may
+ * come with the topics out already taken from it.
+ */
+export function pickMixed(seed, bank, weights, perSet = PER_SET) {
+  const w = q => weights?.[q.cat] ?? 1, ins = TOPICS.filter(([id]) => (weights?.[id] ?? 1) > 0);
+  if (even(TOPICS, weights)) return pickSet(seed, bank, perSet);
+  if (ins.length === 1) return pickSet(seed, bank.filter(q => w(q) > 0), perSet, perSet);
+  const order = drawWeighted(rng(seed), bank, w), used = {}, out = [];
+  for (const q of order) {
+    if ((used[q.cat] || 0) >= 2 * w(q)) continue;
+    used[q.cat] = (used[q.cat] || 0) + 1;
+    out.push(q);
+    if (out.length === perSet) return out;
+  }
+  for (const q of order) { if (out.length >= perSet) break; if (!out.includes(q)) out.push(q); }
   return out;
 }
 

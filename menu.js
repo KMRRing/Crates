@@ -8,6 +8,8 @@
 //    bottom, so the menu shows choices and buttons, and the reading is there for whoever opens it
 // Loaded by every page through pwa.js.
 
+import { presetOf } from "./topics.js";
+
 export const PARTS = ["play", "content", "together", "settings", "about"];
 const LABEL = { play: "", content: "Content", together: "Together", settings: "Settings", about: "About" };
 const LONG = 120;                           // characters: longer than this, an explanation folds away
@@ -95,6 +97,47 @@ export function weights(label, options, values, onChange) {
   }
   wrap.append(el("span", "menu-label", label), grid);
   return wrap;
+}
+/**
+ * A mix of topics with its presets, as every knowledge game offers it: a row of presets (and Your own, while the mix is
+ * none of them) over the topics, each tapped out, in or more (weights above). list: [[id, text], …]; presets: { id:
+ * { label, topics } }; values: { id: 0 | 1 | 2 }; onChange(values) after a preset is picked or a topic tapped. Options:
+ * groups, the topics in grids of their own under labels ([[label, list], …]: a country's topics and a commodity's, as
+ * Crates shows them), else one, Topics; note(values), a line under them saying what the mix as it stands counts for
+ * (Your own mix doesn't count for your best…), or nothing. The preset row and the line follow the taps: a mix tapped
+ * back to a preset's lights it again.
+ */
+export function topicMix(list, presets, values, onChange, { groups = [["Topics", list]], note = null } = {}) {
+  const box = el("div", "menu-mix");
+  let now = { ...values }, row = null, said = null;
+  const presetRow = () => {
+    const p = presetOf(list, presets, now);
+    return choice("Preset", [...Object.entries(presets).map(([k, x]) => [k, x.label]), ...(p === "custom" ? [["custom", "Your own"]] : [])], p, k => {
+      if (k === "custom") return;
+      now = { ...now, ...Object.fromEntries(list.map(([id]) => [id, 1])), ...presets[k].topics };   // the whole preset, shown topics or not
+      onChange({ ...now });
+      draw();
+    });
+  };
+  const say = () => { const text = note?.(now) || ""; said.textContent = text; said.hidden = !text; };
+  const draw = () => {
+    row = presetRow();
+    said = el("p", "menu-line");
+    say();
+    // a grid's taps change its own topics only (each grid keeps its own copy of the mix); the last topic in stays in,
+    // going round in and more, since a mix of nothing would deal nothing
+    const tapped = (sub, w) => {
+      const next = { ...now, ...Object.fromEntries(sub.map(([id]) => [id, w[id]])) };
+      if (!list.some(([id]) => next[id] > 0)) { now = { ...next, ...Object.fromEntries(sub.filter(([id]) => now[id] > 0).map(([id]) => [id, 1])) }; onChange({ ...now }); draw(); return; }
+      now = next;
+      onChange({ ...now });
+      const fresh = presetRow(); row.replaceWith(fresh); row = fresh;
+      say();
+    };
+    box.replaceChildren(row, ...groups.map(([label, sub]) => weights(label, sub, now, w => tapped(sub, w))), said);
+  };
+  draw();
+  return box;
 }
 /** A switch: a label and on or off; onChange(on). */
 export function toggle(label, on, onChange) {

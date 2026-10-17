@@ -67,12 +67,24 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   const R = q => E.regionsOfPlace(PLACES.find(p => p.name.startsWith(q)), REGION_OF).join("+");
   check(R("Ras Tanura") === "middle-east" && R("Norilsk") === "asia" && R("The Ceyhan terminal") === "middle-east" && R("The port of Rotterdam") === "europe" && R("The port of Santos") === "south-america",
     `regions: Ras Tanura ${R("Ras Tanura")}, Norilsk ${R("Norilsk")}, Ceyhan ${R("The Ceyhan terminal")}, Rotterdam ${R("The port of Rotterdam")}, Santos ${R("The port of Santos")}`);
-  // topics: one topic deals all ten from itself; everything keeps at most two of a kind
-  const countries = COUNTRIES.map(c => ({ id: c.id, cat: "countries" }));
-  const set = E.pickSet(9, countries, E.PER_SET, E.capFor("countries", 1));
-  const lopsided = E.pickSet(3, [...countries.slice(0, 12), { id: "x", cat: "cities" }], E.PER_SET, 2);
-  check(set.length === 10 && set.every(q => q.cat === "countries") && E.capFor("all", 7) === 2 && E.capFor("nature", 2) === 6 && lopsided.length === 10,
-    "a one-category topic deals ten from it; everything worldwide still takes at most two of a kind; a lopsided bank still fills ten");
+  // topics, a mix of them (each out, in or more): Balanced and the dropdown's old topics deal exactly as they did, one
+  // topic all ten from itself, Balanced at most two of a kind; a topic out never, a topic more more often
+  const countries = COUNTRIES.map(c => ({ id: c.id, cat: "countries" })), bank = [...PLACES.filter(p => !E.LOCAL.has(p.cat)), ...countries];
+  const mixOf = (base, over = {}) => ({ ...Object.fromEntries(E.TOPICS.map(([id]) => [id, base])), ...over });
+  const pool = w => bank.filter(p => w[E.topicOf(p.cat)] > 0), cats = w => new Set(pool(w).map(p => p.cat)).size;
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  const asBefore = [11, 12, 13].every(seed => same(E.pickMixed(seed, bank, E.OLD_TOPICS.all), E.pickSet(seed, bank, E.PER_SET, Math.max(2, Math.ceil(E.PER_SET / cats(E.OLD_TOPICS.all)))))
+    && same(E.pickMixed(seed, pool(E.OLD_TOPICS.nature), E.OLD_TOPICS.nature), E.pickSet(seed, pool(E.OLD_TOPICS.nature), E.PER_SET, 6))
+    && same(E.pickMixed(seed, pool(E.OLD_TOPICS.culture), E.OLD_TOPICS.culture), E.pickSet(seed, pool(E.OLD_TOPICS.culture), E.PER_SET, Math.ceil(E.PER_SET / 6) + 1)));
+  const set = E.pickMixed(9, pool(E.OLD_TOPICS.countries), E.OLD_TOPICS.countries);
+  const lopsided = E.pickMixed(3, [...countries.slice(0, 12), { id: "x", cat: "cities" }], mixOf(1));
+  check(asBefore && set.length === 10 && set.every(q => q.cat === "countries") && perCat(E.pickMixed(5, bank, mixOf(1))) <= 2 && lopsided.length === 10,
+    "Balanced, Nature and Culture deal the sets they did as the dropdown's topics; one topic deals ten from it; Balanced at most two of a kind; a lopsided bank still fills ten");
+  const count = (w, cat) => { let n = 0; for (let seed = 1; seed <= 300; seed++) n += E.pickMixed(seed, pool(w), w).filter(q => q.cat === cat).length; return n / 300; };
+  const noArt = mixOf(1, { art: 0 }), artMore = mixOf(1, { art: 2 }), even = count(mixOf(1), "art"), more = count(artMore, "art");
+  check(count(noArt, "art") === 0 && more > even * 1.5 && E.TOPICS.every(([id]) => E.TOPIC_PRESETS.balanced.topics[id] === 1) && Object.keys(E.OLD_TOPICS).every(k => E.oldTopicOf(E.OLD_TOPICS[k]) === k)
+    && E.presetOf(E.TOPIC_PRESETS.culture.topics) === "culture" && E.topicOf("bavaria") === "local" && E.topicOf("art") === "art",
+    `a mix: Art out never deals it, Art more ${more.toFixed(1)} a set (in, ${even.toFixed(1)}); every old topic and preset known as itself; a region's own places are Local places`);
   // a region's opening view shows its whole window
   const ok = Object.entries(E.REGIONS).every(([k, r]) => { const v = E.viewWindow(E.regionView(k, 360, 240), 360, 240), [lon0, lon1, lat0, lat1] = r.window; return v.lon0 <= lon0 + 0.5 && v.lon1 >= lon1 - 0.5 && v.lat0 <= lat0 + 0.5 && v.lat1 >= lat1 - 0.5; });
   check(ok, "each region's opening view shows its whole window");
@@ -154,7 +166,7 @@ check(Math.abs(lon - 6.14) < 0.01 && Math.abs(lat - 46.2) < 0.01 && x > 180 && y
   check(won.won && !lost.won && won.score === t.s0 && won.match === lost.match && T.resultOf({ ...g, done: false }, 0) === null, "the pair's record: the top total wins, once the set is over");
   const level = { ...g, log: { q0: { id: paris.id, res: { s0: { lat: 0, lon: 0, km: 1, pts: 50 }, s1: { lat: 0, lon: 0, km: 1, pts: 50 } } } } };
   check(!T.resultOf(level, 0).won && !T.resultOf(level, 1).won, "level at the top: a win for nobody");
-  check(T.newSet(g, { seed: 9, topic: "all", region: "world", set: [paris.id] }) && g.index === 0 && !g.log && !g.done && g.people === 3 && Object.keys(g.players).length === 3 && kept(),
+  check(T.newSet({ ...g, topic: "nature" }, { seed: 9, region: "world", set: [paris.id] }) && T.newSet(g, { seed: 9, region: "world", set: [paris.id] }) && g.index === 0 && !g.log && !g.done && !("topic" in g) && g.people === 3 && Object.keys(g.players).length === 3 && kept(),
     "Play again: a fresh set at the same table, the totals from nothing");
   check(T.initials(["Korbi", "Sarah", "Tom"]).join() === "K,S,T" && T.initials(["Sarah", "Sam", "Tom"]).join() === "S1,S2,T" && T.initials(["Sarah", "Simon", ""]).join() === "Sa,Si,?",
     "each pin's label: an initial, two letters where two share one, a number where those match too");

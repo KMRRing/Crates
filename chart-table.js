@@ -6,7 +6,7 @@
 // of them may reveal without the rest (a missing pin scores nothing); Next the same way.
 //
 // The table's state, in the room's branch (together.js):
-//   { v: 2, app, created, people (seats for people), players, seed, topic, region, set: [ids], index, phase: "pin" |
+//   { v: 2, app, created, people (seats for people), players, seed, region, set: [ids], index, phase: "pin" |
 //     "reveal", pins: { s<slot>: { lat, lon, at } }, clues: { s<slot>: n }, nexts: { s<slot>: at },
 //     log: { q<index>: { id, at, res: { s<slot>: { lat, lon, km, pts, clues?, near? } } } }, done }
 // Everything a player does is kept by their seat (s0, s1…) and the log by the question (q0, q1…), never in a list by
@@ -27,14 +27,15 @@ export const isTable = g => g?.v === V && Array.isArray(g.set);
  *  country's outline (zero inside one). { km, point }. */
 export const missOf = (pin, place) => (place.geo ? nearestOnFeature(pin, place.geo) : { km: distance(pin, place), point: { lat: place.lat, lon: place.lon } });
 
-/** A new table: its first set, dealt by whoever sits down first. */
-export function freshTable(players, { people = 2, seed, topic = "all", region = "world", set, now = Date.now() }) {
-  return { v: V, created: now, people, players, seed, topic, region, set, index: 0, phase: "pin", done: false };
+/** A new table: its first set, dealt by whoever sits down first (from their mix of topics: the set is what's shared). */
+export function freshTable(players, { people = 2, seed, region = "world", set, now = Date.now() }) {
+  return { v: V, created: now, people, players, seed, region, set, index: 0, phase: "pin", done: false };
 }
-/** A fresh set at the same table (Play again, a new topic): everyone's totals start again. */
-export function newSet(g, { seed, topic, region, set }) {
-  Object.assign(g, { seed, topic, region, set, index: 0, phase: "pin", done: false });
-  for (const k of ["pins", "clues", "nexts", "log"]) delete g[k];
+/** A fresh set at the same table (Play again, a new region): everyone's totals start again. A table from before the
+ *  mix of topics kept the topic it dealt from too; it goes, with the old set. */
+export function newSet(g, { seed, region, set }) {
+  Object.assign(g, { seed, region, set, index: 0, phase: "pin", done: false });
+  for (const k of ["pins", "clues", "nexts", "log", "topic"]) delete g[k];
   return true;
 }
 

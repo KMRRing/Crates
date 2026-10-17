@@ -1,5 +1,6 @@
 // Chart: pin a place on the map; score by how close you were. Distances are great-circle; points fall off
 // smoothly with distance, so a near miss on a city and a rough fix on a mine are both worth something.
+import { drawWeighted, even, presetOf as presetIn } from "./topics.js";
 
 export const PER_SET = 10;
 const R = 6371;                                  // km
@@ -113,9 +114,13 @@ function rng(seed) {
 export function pickSet(seed, bank, perSet = PER_SET, cap = 2) {
   const r = rng(seed), order = [...bank];
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return fill(order, perSet, () => cap);
+}
+// the first perSet of an order, at most capOf(place) of its category, then topped up from the rest of it
+function fill(order, perSet, capOf) {
   const used = {}, out = [];
   for (const p of order) {
-    if ((used[p.cat] || 0) >= cap) continue;
+    if ((used[p.cat] || 0) >= capOf(p)) continue;
     used[p.cat] = (used[p.cat] || 0) + 1;
     out.push(p);
     if (out.length === perSet) break;
@@ -125,18 +130,37 @@ export function pickSet(seed, bank, perSet = PER_SET, cap = 2) {
 }
 
 // ---------- what a set deals: topics and regions ----------
-/** The topics a set can be drawn from: their name and the bank categories in them. */
-export const TOPICS = {
-  all: { name: "Everything", cats: null },
-  cities: { name: "Cities", cats: ["cities"] },
-  countries: { name: "Countries", cats: ["countries"] },
-  commodities: { name: "Commodities", cats: ["trade"] },
-  nature: { name: "Nature", cats: ["geo", "physical"] },
-  culture: { name: "Culture", cats: ["art", "architecture", "myth", "history", "people", "wine"] },
+/** The topics a set deals from, each out, in or more (twice as often), as every knowledge game deals them (topics.js):
+ *  the bank's categories, and a region's own places (Bavaria's towns, the Alps' runs, dealt only in that region) as one. */
+export const TOPICS = [["cities", "Cities"], ["countries", "Countries"], ["trade", "Commodities"], ["geo", "Geography"], ["physical", "Physical"],
+  ["art", "Art"], ["museums", "Museums"], ["architecture", "Architecture"], ["myth", "Myth"], ["history", "History"], ["people", "People"],
+  ["wine", "Wine"], ["local", "Local places"]];
+const every = w => Object.fromEntries(TOPICS.map(([id]) => [id, w]));
+const only = ids => ({ ...every(0), ...Object.fromEntries(ids.map(id => [id, 1])) });
+export const TOPIC_PRESETS = {
+  balanced: { label: "Balanced", topics: every(1) },
+  trader: { label: "Trader", topics: { ...every(1), trade: 2, cities: 2, countries: 2 } },
+  culture: { label: "Culture night", topics: { ...every(1), art: 2, museums: 2, architecture: 2, myth: 2, history: 2, people: 2, wine: 2 } },
 };
-/** A selection's cap per category, so a set spreads across what it holds: everything worldwide at two each, as it always
- *  was; a topic of several categories a little over its share; a single category, all ten. */
-export const capFor = (topic, cats) => (cats <= 1 ? Infinity : topic === "all" ? Math.max(2, Math.ceil(PER_SET / cats)) : Math.ceil(PER_SET / cats) + 1);
+export const presetOf = w => presetIn(TOPICS, TOPIC_PRESETS, w);
+/** The one topic Chart's dropdown chose before it had a mix (a link's &t=, a set saved then), as the mix it was. */
+export const OLD_TOPICS = { all: every(1), cities: only(["cities"]), countries: only(["countries"]), commodities: only(["trade"]),
+  nature: only(["geo", "physical"]), culture: only(["art", "architecture", "myth", "history", "people", "wine"]) };
+export const OLD_NAMES = { all: "Everything", cities: "Cities", countries: "Countries", commodities: "Commodities", nature: "Nature", culture: "Culture" };
+/** The old topic a mix is, if it's one ("all" for Balanced). */
+export const oldTopicOf = w => Object.keys(OLD_TOPICS).find(k => TOPICS.every(([id]) => (w?.[id] ?? 1) === OLD_TOPICS[k][id])) || null;
+/** The topic a place is dealt under: its category, or a region's own places under local. */
+export const topicOf = cat => (LOCAL.has(cat) ? "local" : cat);
+/** The set for a seed from a mix: its topics' places, a few of a category at most while others can fill the set, topped
+ *  up from anything in if the bank is lopsided. A mix of only in and out (Balanced, one topic, a topic of old) deals as
+ *  Chart always did: a seeded shuffle, at most two of a kind in Balanced, a little over a category's share otherwise,
+ *  all ten from a single one. A topic more is drawn twice as often, and may have twice as many in the set. */
+export function pickMixed(seed, bank, weights, perSet = PER_SET) {
+  const w = p => weights?.[topicOf(p.cat)] ?? 1, pool = bank.filter(p => w(p) > 0);
+  const cats = new Set(pool.map(p => p.cat)).size, base = cats <= 1 ? Infinity : even(TOPICS, weights) ? Math.max(2, Math.ceil(perSet / cats)) : Math.ceil(perSet / cats) + 1;
+  if (pool.every(p => w(p) === 1)) return pickSet(seed, pool, perSet, base);
+  return fill(drawWeighted(rng(seed), pool, w), perSet, p => base * w(p));
+}
 /** The regions a set can be narrowed to, each with the window a question opens on: [lon0, lon1, lat0, lat1]. */
 export const REGIONS = {
   europe: { name: "Europe", window: [-25, 45, 34, 72] },
@@ -164,6 +188,9 @@ export const REGIONS = {
   bavaria: { name: "Bavaria", sub: true, window: [8.9, 13.9, 47.2, 50.6], state: "Bavaria", local: "bavaria", context: ["danube", "constance"],
     outline: [[9.02, 50.05], [9.1, 50.21], [9.5, 50.24], [9.73, 50.42], [9.95, 50.42], [10.06, 50.55], [10.45, 50.4], [10.73, 50.38], [11.0, 50.42], [11.27, 50.45], [11.48, 50.5], [11.7, 50.4], [11.95, 50.4], [12.1, 50.32], [12.25, 50.2], [12.1, 50.1], [12.48, 49.98], [12.4, 49.75], [12.55, 49.55], [12.8, 49.33], [13.2, 49.15], [13.5, 48.97], [13.84, 48.77], [13.73, 48.52], [13.44, 48.56], [13.3, 48.3], [12.95, 48.2], [12.85, 48.1], [12.95, 47.95], [13.03, 47.8], [13.08, 47.65], [12.98, 47.45], [12.75, 47.6], [12.5, 47.68], [12.2, 47.6], [11.9, 47.6], [11.6, 47.58], [11.35, 47.43], [11.05, 47.4], [10.85, 47.48], [10.55, 47.53], [10.45, 47.4], [10.18, 47.27], [9.97, 47.53], [9.65, 47.53], [9.56, 47.54], [9.85, 47.7], [10.1, 47.85], [10.13, 48.1], [10.03, 48.4], [10.25, 48.55], [10.35, 48.75], [10.25, 49.0], [10.2, 49.2], [10.1, 49.4], [9.95, 49.55], [9.62, 49.62], [9.4, 49.65], [9.1, 49.58], [9.02, 49.75]] },
 };
+
+/** The categories of a region's own places: dealt only in a sub-region they belong to, never in a continent or the world. */
+export const LOCAL = new Set(Object.values(REGIONS).map(r => r.local).filter(Boolean));
 
 // ---------- the map's projection: Mercator, clipped near the poles ----------
 export const LAT_MAX = 78;

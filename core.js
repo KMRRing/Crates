@@ -1,4 +1,5 @@
 // Word bank, topics, settings and the rules shared by solo and together play.
+import { KB_TOPICS as TOPICS, KB_PRESETS as PRESETS } from "./topics.js";
 const RAW = JSON.parse(new TextDecoder().decode(
   Uint8Array.from(atob(window.CRATES_BANK), c => c.charCodeAt(0))));
 
@@ -23,21 +24,9 @@ export const PLURAL = { country: "Countries", commodity: "Commodities" };
 export const SQUARES = ["🟨", "🟩", "🟦", "🟥"];
 export const RESULT_LABEL = { right: "Right", one: "One away", miss: "Miss", hidden: "Wrong" };
 
-/** Each category has its own topics: a country clue and a commodity clue ask different things. */
-export const TOPICS = {
-  country: [
-    ["geo", "Geography"], ["nat", "Nature"], ["nrg", "Energy"], ["met", "Metals & mining"],
-    ["agr", "Agriculture"], ["food", "Food & drink"], ["mkt", "Money & economy"], ["fin", "Finance"], ["trade", "Trade & shipping"],
-    ["co", "Companies & brands"], ["pol", "Policy & institutions"], ["hist", "History"], ["cult", "Culture & arts"],
-    ["screen", "Film, TV & games"], ["style", "Craft & style"],
-    ["sport", "Sport"], ["ppl", "People"], ["sci", "Science & tech"], ["lang", "Language & names"],
-  ],
-  commodity: [
-    ["orig", "Origins"], ["prod", "Production"], ["uses", "Uses"], ["spec", "Specs & science"],
-    ["mkts", "Markets"], ["logi", "Trade & logistics"], ["reg", "Policy"], ["firm", "Companies"],
-    ["past", "History"], ["life", "Culture & language"],
-  ],
-};
+/** Each category has its own topics (a country clue and a commodity clue ask different things), and the presets that
+ *  weight them: the knowledge base's own, kept in topics.js, so the games that deal from it load them without the bank. */
+export { TOPICS, PRESETS };
 export const ALL_TOPICS = [...TOPICS.country, ...TOPICS.commodity];
 /** Which categories a pool deals from. */
 export const POOL_CATS = { country: ["country"], commodity: ["commodity"], mixed: ["country", "commodity"] };
@@ -46,15 +35,6 @@ export const GROUPS = {
   country: [["eu", "Europe"], ["me", "Middle East & N. Africa"], ["af", "Sub-Saharan Africa"], ["asia", "Asia & Pacific"], ["am", "Americas"]],
   commodity: [["nrg", "Energy"], ["bio", "Biofuels & low-carbon"], ["met", "Metals & minerals"], ["grain", "Grains & oilseeds"],
     ["soft", "Softs, fibres & livestock"], ["chem", "Chemicals"], ["circ", "Circular & recycled"], ["cred", "Credits & freight"]],
-};
-
-const all = w => Object.fromEntries(ALL_TOPICS.map(([k]) => [k, w]));
-export const PRESETS = {
-  trader: { label: "Trader", topics: { ...all(1), nrg: 2, met: 2, agr: 2, mkt: 2, fin: 2, trade: 2, co: 2, pol: 1, sci: 1, geo: 1, lang: 1,
-    mkts: 2, logi: 2, reg: 2, firm: 2, orig: 1, prod: 1, uses: 1, spec: 1 } },
-  balanced: { label: "Balanced", topics: all(1) },
-  culture: { label: "Culture night", topics: { ...all(1), cult: 2, screen: 2, style: 2, food: 2, sport: 2, ppl: 2, hist: 2, nat: 2, mkt: 1, fin: 1, nrg: 1, met: 1, trade: 1, sci: 1, pol: 1,
-    life: 2, past: 2, uses: 2, spec: 1, mkts: 1, logi: 1, reg: 1 } },
 };
 
 export function defaultSettings() {

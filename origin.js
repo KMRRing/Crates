@@ -6,10 +6,11 @@
 // Together, one run for the table (together.js): the same five countries for everyone at it, the clues, the guesses
 // and the score shared, anyone guessing, each guess marked with who made it.
 import { COUNTRIES } from "./chart-countries.js";
-import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
+import { PER_RUN, FULL, PER_CLUE, PLACE, ALIASES, ANSWERS, GUESSABLE, TOPIC_LIST, TOPIC_PRESETS, dealRun, guessIn, clueIn, giveUpIn, nextIn, decided,
   freshTable, isTable, tidy, guessAt, clueAt, giveUpAt, nextAt, newGameAt, resultOf } from "./origin-engine.js";
+import { cleanMix, presetOf } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, topicMix, action, line } from "./menu.js";
 import { today, arrivedForToday, dailyDue, soloHref } from "./suite.js";   // the day, the same for everyone (UTC)
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
@@ -17,7 +18,7 @@ import { busy, sextant } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily";
+const RUN = "origin:run", BEST = "origin:best", DAILY = "origin:daily", TOPICS_KEY = "origin:topics";
 const APP = 2;                 // the table's version: one run for everyone (1 was a head-to-head, each on their own run)
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -205,11 +206,18 @@ function moveActive(step) {
   $("guessIn").setAttribute("aria-activedescendant", items[active].id);
 }
 
+// ---------- your mix of topics ----------
+// a country's clues come from your mix of Crates' country topics (each out, in or more); today's run is the same for
+// everyone, whatever the mix, and your own mix doesn't count for your best (today's run and the presets do)
+const mix = () => cleanMix(TOPIC_LIST, read(TOPICS_KEY, null));
+const keepMix = w => write(TOPICS_KEY, w);
+const presetNow = () => presetOf(TOPIC_LIST, TOPIC_PRESETS, mix());
+
 // ---------- the run: your own, or the table's ----------
 let S = read(RUN, null);
 const save = () => write(RUN, S);
 function newRun(daily) {
-  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31)), daily, day: daily ? today() : null };
+  S = { ...dealRun(daily ? today() * 7919 + 17 : Math.floor(Math.random() * 2 ** 31), daily ? null : mix()), daily, day: daily ? today() : null, ranked: daily || presetNow() !== "custom" };
   save(); render();
 }
 const current = () => G?.run || S;                              // the run on the screen: the table's while at one
@@ -230,7 +238,7 @@ function guess(text) {
  *  Finish is pressed (which counts it again, changing nothing). */
 function count() {
   if (!decided(S)) return;
-  const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
+  const best = read(BEST, 0); if (S.ranked !== false && S.total > best) write(BEST, S.total);
   if (S.daily) { const d = read(DAILY, {}), day = S.day ?? today(); if (!(d[day] >= S.total)) { d[day] = S.total; write(DAILY, d); } }
 }
 /** Today's run, still to play: asks before leaving a run you've started. */
@@ -389,8 +397,8 @@ async function dealAgain() {
   if (!G) return;
   const n = G.n, run = G.run, R = run.rounds[run.index];
   if (!run.over && (run.index > 0 || R.guesses.length || R.shown > 1 || R.done) && !confirm("Deal a new game for the table? This one isn't finished.")) return;
-  const seed = Math.floor(Math.random() * 2 ** 31);
-  await together.act(g => newGameAt(tidy(g), { n, seed }));
+  const seed = Math.floor(Math.random() * 2 ** 31), weights = mix();      // the table's next game, from the dealer's topics
+  await together.act(g => newGameAt(tidy(g), { n, seed, weights }));
 }
 /** Who's at the table, by their badges (their guesses carry them); those away greyed. */
 function drawTeam() {
@@ -432,7 +440,7 @@ const together = createTogether({
   askName,
   valid: isTable,
   slots: g => g?.people || 2,
-  fresh: (players, { ask } = {}) => freshTable(players, { seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP }),
+  fresh: (players, { ask } = {}) => freshTable(players, { seed: Math.floor(Math.random() * 2 ** 31), people: ask?.people, app: APP, weights: mix() }),
   onState,
   onPresence: () => { if (G) drawTeam(); },
   onLeave: () => {
@@ -457,7 +465,7 @@ function openMenu() {
     const table = part(body, "together");
     if (G) {
       const all = people().map(p => `${p.me ? "you" : p.name}${p.here ? "" : " (away)"}`);
-      table.append(action("New game", dealAgain, "primary"),
+      table.append(action("New game", dealAgain, "primary"), topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix),
         line(`At the table: ${all.length > 1 ? `${all.slice(0, -1).join(", ")} and ${all.at(-1)}` : all.join("")}`));
     } else { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait); }
     table.append(action("Back to solo", backToSolo, "link"));
@@ -466,7 +474,11 @@ function openMenu() {
   }
   pick ??= (S?.daily && !S.over) || dailyDue("origin") ? "daily" : "random";   // today's first, while it's still to play
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
-  part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+  const content = part(body, "content");
+  content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
+  // today's run is the same for everyone, so your topics are for random runs: the clues they bring first, or leave out
+  if (pick === "random") content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix,
+    { note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null) }));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${ANSWERS.length} countries`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

@@ -2,84 +2,33 @@
 // more the better-connected the thing you step onto: an obscure link costs 1, the United States about 9 (1 + log2 of
 // its links), so the cheap route runs through what you specifically know, not through the hubs. Par is the cheapest
 // route there is; matching it scores 100. Five routes a run, random or today's; every hop shows why the two are
-// linked, and the end shows the cheapest route. Together, the same five routes for everyone at the table (duel.js).
-import { ENTITIES } from "./kb/entities.js";
-import { LINKS } from "./kb/links.js";
+// linked, and the end shows the cheapest route. A random run's routes run between things of your mix of the knowledge
+// base's topics (each out, in or more, as Crates deals its clues); today's is the same for everyone, whatever the mix.
+// Together, the same five routes for everyone at the table (duel.js), from the dealer's mix.
+import { PER_RUN, NEAR, cost, name, kind, TOPIC_LIST, TOPIC_GROUPS, TOPIC_PRESETS, dealRun } from "./arb-engine.js";
+import { cleanMix, presetOf, mixParam, mixFromParam } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
-import { part, choice, action, line } from "./menu.js";
+import { part, choice, topicMix, action, line } from "./menu.js";
 import { today } from "./suite.js";          // the day, the same for everyone (UTC)
 import { createDuel } from "./duel.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const PER_RUN = 5;
-const RUN = "arb:run", BEST = "arb:best", DAILY = "arb:daily";
+const RUN = "arb:run", BEST = "arb:best", DAILY = "arb:daily", TOPICS_KEY = "arb:topics";
 const read = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 
-// ---------- the graph ----------
-const ENT = new Map(ENTITIES.map(e => [e.id, e]));
-const CANON = id => ENT.get(id)?.same || id;   // a duplicate entry stands for the one it duplicates
-const NEAR = new Map();                                     // id → Map(neighbour → why they're linked)
-for (const l of LINKS) {
-  if (!ENT.has(l.from) || !ENT.has(l.to) || l.from === l.to) continue;
-  const why = l.hint || ({ in: "is in", "painted-by": "painted by", "hangs-in": "hangs in", movement: "belongs to", "designed-by": "designed by", style: "in the style of", city: "stands in" }[l.rel] || "");
-  const [f, t] = [CANON(l.from), CANON(l.to)];
-  if (f === t) continue;
-  for (const [a, b] of [[f, t], [t, f]]) {
-    if (!NEAR.has(a)) NEAR.set(a, new Map());
-    if (!NEAR.get(a).has(b)) NEAR.get(a).set(b, { why, from: f });
-  }
-}
-const degree = id => NEAR.get(id)?.size || 0;
-/** What stepping onto a thing costs: 1 for an obscure one, more the better-connected it is. */
-export const cost = id => 1 + Math.log2(Math.max(1, degree(id)));
-const name = id => { const e = ENT.get(id); return e ? (e.qualifier ? `${e.name} (${e.qualifier})` : e.name) : id; };
-const kind = id => (ENT.get(id)?.sets || []).find(s => !s.startsWith("group:")) || "";
-/** The cheapest route from a to everything (Dijkstra, paying for each thing stepped onto). */
-function cheapest(a) {
-  const dist = new Map([[a, 0]]), prev = new Map(), hops = new Map([[a, 0]]), done = new Set();
-  const queue = [[0, a]];
-  while (queue.length) {
-    let bi = 0;
-    for (let i = 1; i < queue.length; i++) if (queue[i][0] < queue[bi][0]) bi = i;
-    const [d, u] = queue.splice(bi, 1)[0];
-    if (done.has(u)) continue;
-    done.add(u);
-    for (const v of NEAR.get(u)?.keys() || []) {
-      const nd = d + cost(v);
-      if (nd < (dist.get(v) ?? Infinity)) { dist.set(v, nd); prev.set(v, u); hops.set(v, hops.get(u) + 1); queue.push([nd, v]); }
-    }
-  }
-  return { dist, prev, hops };
-}
-const routeTo = (prev, a, b) => { const r = [b]; while (r[0] !== a) r.unshift(prev.get(r[0])); return r; };
-// the ends of a route: things with a few links (not hubs, not dead ends)
-const ENDS = [...NEAR.keys()].filter(id => degree(id) >= 2 && degree(id) <= 25).sort();
-/** A route for this seed: a start, and an end three to five hops away by the cheapest route. */
-export function makeRoute(r) {
-  for (let tries = 0; tries < 60; tries++) {
-    const a = ENDS[Math.floor(r() * ENDS.length)], { dist, prev, hops } = cheapest(a);
-    const far = ENDS.filter(b => b !== a && hops.get(b) >= 3 && hops.get(b) <= 5 && kind(b) !== kind(a) && !NEAR.get(a).has(b));
-    if (!far.length) continue;
-    const b = far[Math.floor(r() * far.length)];
-    return { a, b, par: dist.get(b), parRoute: routeTo(prev, a, b) };
-  }
-  return null;
-}
+// ---------- your mix of topics ----------
+const mix = () => cleanMix(TOPIC_LIST, read(TOPICS_KEY, null));
+const keepMix = w => write(TOPICS_KEY, w);
+const presetNow = () => presetOf(TOPIC_LIST, TOPIC_PRESETS, mix());
 
 // ---------- a run ----------
 let S = read(RUN, null);
 const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
-/** The five routes of a seed. */
-function dealRun(seed, daily) {
-  const r = rng(seed), routes = [];
-  while (routes.length < PER_RUN) { const x = makeRoute(r); if (x) routes.push({ ...x, path: [x.a], done: null, points: 0 }); }
-  return { seed, daily, index: 0, total: 0, routes };
-}
 function newRun(daily) {
-  S = dealRun(daily ? today() * 7919 + 29 : Math.floor(Math.random() * 2 ** 31), daily);
+  // your own mix doesn't count for your best: today's run and the presets do
+  S = { ...dealRun(daily ? today() * 7919 + 29 : Math.floor(Math.random() * 2 ** 31), daily, daily ? null : mix()), ranked: daily || presetNow() !== "custom" };
   save(); render();
 }
 const R = () => S?.routes[S.index];
@@ -100,7 +49,7 @@ function next() {
   if (S.index + 1 < S.routes.length) { S.index++; save(); render(); return; }
   S.over = true; save();
   if (S.duel) { duel.open(); return; }                    // the table's result, not your best or today's
-  const best = read(BEST, 0); if (S.total > best) write(BEST, S.total);
+  const best = read(BEST, 0); if (S.ranked !== false && S.total > best) write(BEST, S.total);
   if (S.daily) { const d = read(DAILY, {}); if (!(d[today()] >= S.total)) { d[today()] = S.total; write(DAILY, d); } }
   finish();
 }
@@ -179,10 +128,11 @@ function finish() {
 // show in the strip. The highest total wins, then the quicker. Your solo run, your best and today's stay as they were.
 const duel = createDuel({
   game: "arb", name: "Arb", line: $("rival"), toast,
-  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31) }),
+  // the match carries the dealer's mix (unless Balanced), so every phone deals the same routes from it
+  deal: () => ({ seed: Math.floor(Math.random() * 2 ** 31), ...(presetNow() === "balanced" ? {} : { t: mixParam(TOPIC_LIST, mix()) }) }),
   describe: () => `The same ${PER_RUN} routes for everyone, as cheaply as you can`,
   play: (match, { kept }) => {
-    S = kept?.seed === match.seed && kept.routes ? kept : { ...dealRun(match.seed, false), duel: true };
+    S = kept?.seed === match.seed && kept.routes ? kept : { ...dealRun(match.seed, false, match.t ? mixFromParam(TOPIC_LIST, match.t) : null), duel: true };
     $("filter").value = "";
     save(); render();
   },
@@ -209,13 +159,19 @@ function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {
-    duel.menu(part(body, "together"));
+    const table = part(body, "together");
+    duel.menu(table);
+    table.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix, { groups: TOPIC_GROUPS }));     // the next match's routes come from your mix
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
   pick ??= S?.daily ? "daily" : "random";
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
-  part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+  const content = part(body, "content");
+  content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
+  // today's run is the same for everyone, so your topics are for random runs: what the routes run between
+  if (pick === "random") content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix,
+    { groups: TOPIC_GROUPS, note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null) }));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${NEAR.size.toLocaleString("en-GB")} things, linked`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

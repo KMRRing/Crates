@@ -6,7 +6,8 @@
 // trip (tests/rtdb.js), which refuses undefined, drops what's empty and may give a list back as an object.
 // Run: node tests/order.mjs
 const { QUOTES } = await import("../quote-bank.js");
-const { LIVES, MOST, BY_ID, dealRun, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
+const { LIVES, MOST, BY_ID, FEWEST, dealRun, topicsIn, fits, placeCard, freshTable, isTable, tidy, placeAt, newGameAt, tallies, resultOf } = await import("../order-engine.js");
+const { TOPICS, TOPIC_PRESETS, presetOf, cleanTopics } = await import("../quote-engine.js");
 const { roundTrip, same } = await import("./rtdb.js");
 let bad = 0;
 const check = (ok, what) => { if (!ok) { bad++; console.log(`FAIL ${what}`); } };
@@ -35,6 +36,35 @@ const wrongGap = run => [...run.line.keys(), run.line.length].find(s => !fits(ru
   check(ok.ok && run.placed === 1 && run.lives === LIVES && run.line.length === 2 && run.line[ok.at].fresh && sorted(run.line), "a card in its gap counts, marked as asked");
   const miss = placeCard(run, wrongGap(run));
   check(!miss.ok && run.placed === 1 && run.lives === LIVES - 1 && sorted(run.line) && !run.line[miss.at].ok, "a card in the wrong gap costs a life and goes where it belongs");
+}
+
+// ---------- topics ----------
+// a run of dates or quantities deals from a mix of Quote's categories, each out (0), in (1) or more (2)
+{
+  const cat = id => BY_ID.get(id).cat, cards = run => [run.line[0].id, ...run.deck];
+  const balanced = TOPIC_PRESETS.balanced.topics, none = Object.fromEntries(TOPICS.map(([id]) => [id, 0]));
+  check(topicsIn("dates").map(([id]) => id).join() === "trade,wine,art,people,markets" && topicsIn("quantities").length === TOPICS.length && !topicsIn("stories").length,
+    "each mode's topics: the categories its cards are in (none for the stories)");
+  check([11, 12, 13].every(seed => same(dealRun("dates", seed), dealRun("dates", seed, balanced)) && same(dealRun("quantities", seed), dealRun("quantities", seed, balanced))),
+    "every topic in deals a run as it always was, so today's run is the same whatever anyone's mix");
+  const noArt = { ...balanced, art: 0 };
+  check([1, 2, 3, 4, 5].every(seed => { const r = dealRun("dates", seed, noArt); return cards(r).length === 16 && cards(r).every(id => cat(id) !== "art") && !r.wide; }),
+    "a topic out: none of its cards, still sixteen");
+  let more = 0, inn = 0;
+  for (let seed = 0; seed < 300; seed++) { more += cards(dealRun("dates", seed, { ...noArt, trade: 2 })).filter(id => cat(id) === "trade").length; inn += cards(dealRun("dates", seed, noArt)).filter(id => cat(id) === "trade").length; }
+  check(more / inn > 1.6 && more / inn < 2.3, `a topic more is dealt about twice as often as in (${(more / inn).toFixed(2)} times)`);
+  const refining = { ...none, refining: 1 }, q = dealRun("quantities", 7, refining);
+  check(cards(q).length >= 6 && cards(q).every(id => cat(id) === "refining" && BY_ID.get(id).unit === q.unit), "quantities: one family with six cards or more in the topics in, and only those cards");
+  const wine = dealRun("dates", 9, { ...none, wine: 1 });
+  check(wine.wide && cards(wine).length === 16 && topicsIn("dates").length && [...new Set(cards(wine).map(cat))].length > 1 && FEWEST > 5,
+    "a mix that leaves too few cards deals from every topic, and says so");
+  check(presetOf(balanced) === "balanced" && presetOf(TOPIC_PRESETS.trader.topics) === "trader" && presetOf(noArt) === "custom" && presetOf(cleanTopics({ art: 7, wine: 0 })) === "custom"
+    && cleanTopics({ art: 7, wine: 0 }).art === 1 && cleanTopics(null).trade === 1, "a mix is a preset's or your own; a weight it doesn't know is in");
+  const t = freshTable({}, { seed: 3, weights: noArt });
+  check(cards(t.run).every(id => cat(id) !== "art"), "a table's first game dealt from the dealer's mix");
+  const g = freshTable({}, { seed: 4 });
+  newGameAt(g, { n: 1, mode: "dates", seed: 5, weights: noArt });
+  check(g.n === 2 && cards(g.run).every(id => cat(id) !== "art"), "and its next game too");
 }
 
 // ---------- the table ----------
@@ -100,5 +130,5 @@ const seat = (name, slot) => ({ name, slot, pid: `p${slot}`, online: true });
     "the record counts the cards placed, each player's share adding up to it");
 }
 
-console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${fams.length} quantity families (${fams.map(([u, qs]) => `${u} ${qs.length}`).join(", ")}); a run and a table of three played through`);
+console.log(bad ? `order: ${bad} problems` : `order: ${dates.length} dated cards, ${fams.length} quantity families (${fams.map(([u, qs]) => `${u} ${qs.length}`).join(", ")}); a run, its topics and a table of three played through`);
 if (bad) process.exitCode = 1;

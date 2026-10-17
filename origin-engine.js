@@ -7,6 +7,7 @@
 import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { COUNTRIES } from "./chart-countries.js";
+import { KB_TOPICS, KB_PRESETS } from "./topics.js";
 
 export const PER_RUN = 5, FULL = 100, PER_CLUE = 10, PER_GUESS = 5, LEAST = 5, MAX_CLUES = 12, MOST = 6;   // MOST: the most at one table
 const rng = seed => () => { seed |= 0; seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -31,23 +32,37 @@ for (const l of LINKS) {
   const names = [...ALIASES.get(l.to), ...(INSIDE.get(l.to) || [])], said = `${NAME.get(l.from)} ${l.hint || ""}`.toLowerCase();
   if (names.some(n => n.length > 3 && said.includes(n))) continue;
   if (!CLUES.has(l.to)) CLUES.set(l.to, []);
-  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)) });
+  CLUES.get(l.to).push({ name: NAME.get(l.from), hint: l.hint || "", d: l.d || 2, trade: (l.aspects || []).some(a => TRADE.has(a)), aspects: l.aspects || [] });
 }
 export const ANSWERS = [...CLUES.keys()].filter(id => CLUES.get(id).length >= 6).sort();
-/** A country's clues for this deal: the most obscure first (difficulty 3 before 2 before 1), trade ahead within each. */
-function cluesFor(id, r) {
-  const all = shuffle(r, CLUES.get(id));
-  return all.sort((a, b) => b.d - a.d || Number(b.trade) - Number(a.trade)).slice(0, MAX_CLUES);
+
+// ---------- topics ----------
+// A clue is about its link's aspects, Crates' country topics, and a run's clues come from your mix of them, each out,
+// in or more, as Crates deals them: within each difficulty a clue of a topic more comes first, and a clue only of
+// topics out never comes, unless its country would be left with fewer than six. The presets are Crates' own.
+export const TOPIC_LIST = KB_TOPICS.country;
+export const TOPIC_PRESETS = Object.fromEntries(["balanced", "trader", "culture"].map(k => [k, { label: KB_PRESETS[k].label, topics: Object.fromEntries(TOPIC_LIST.map(([id]) => [id, KB_PRESETS[k].topics[id] ?? 1])) }]));
+export const FEWEST_CLUES = 6;
+/**
+ * A country's clues for this deal: the most obscure first (difficulty 3 before 2 before 1), and within each, a clue
+ * of a topic more ahead of the rest (a clue counts as its likeliest topic), trade ahead among equals.
+ */
+function cluesFor(id, r, weights = null) {
+  const weightOf = c => (weights && c.aspects.length ? Math.max(...c.aspects.map(a => weights[a] ?? 1)) : 1);
+  const all = shuffle(r, CLUES.get(id)).map(c => ({ c, w: weightOf(c) }));
+  const order = (a, b) => b.c.d - a.c.d || b.w - a.w || Number(b.c.trade) - Number(a.c.trade);
+  const ins = all.filter(x => x.w > 0).sort(order), outs = all.filter(x => x.w === 0).sort(order);
+  return (ins.length >= FEWEST_CLUES ? ins : [...ins, ...outs]).slice(0, MAX_CLUES).map(({ c: { aspects, ...clue } }) => clue);
 }
 // any country on the map can be guessed, by its name or another of its names
 export const GUESSABLE = new Map();
 for (const c of COUNTRIES) for (const n of [c.name, ...(ALIASES.get(c.about || c.id) || [])]) GUESSABLE.set(n.toLowerCase(), c.about || c.id);
 
 // ---------- a run ----------
-/** The five countries of a seed, each with its clues for this deal. */
-export function dealRun(seed) {
+/** The five countries of a seed, each with its clues for this deal, from a mix of topics (none: every topic in). */
+export function dealRun(seed, weights = null) {
   const r = rng(seed), picks = shuffle(r, ANSWERS).slice(0, PER_RUN);
-  return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r), shown: 1, guesses: [], done: null, points: 0 })) };
+  return { seed, index: 0, total: 0, rounds: picks.map(id => ({ id, clues: cluesFor(id, r, weights), shown: 1, guesses: [], done: null, points: 0 })) };
 }
 /** What the country scores if found now: 100, less 10 a clue after the first and 5 a wrong guess, at least 5. */
 export const pointsNow = R => Math.max(LEAST, FULL - PER_CLUE * (R.shown - 1) - PER_GUESS * R.guesses.length);
@@ -95,8 +110,8 @@ export const decided = run => run.rounds.every(R => R.done);
 const list = xs => Object.values(xs || {}).filter(x => x != null);   // a list as the database may give it back
 export const isTable = g => g?.v === 2 && !!g.run?.rounds;
 /** A new table with its first game. */
-export function freshTable(players, { seed, people = 2, app = 1, now = Date.now() } = {}) {
-  return { v: 2, app, created: now, people: Math.min(MOST, Math.max(2, Number(people) || 2)), players, n: 1, run: dealRun(seed) };
+export function freshTable(players, { seed, people = 2, app = 1, now = Date.now(), weights = null } = {}) {
+  return { v: 2, app, created: now, people: Math.min(MOST, Math.max(2, Number(people) || 2)), players, n: 1, run: dealRun(seed, weights) };
 }
 /** The table as the database gives it back, made whole (it keeps no empty lists and no nulls); changes it, and returns it. */
 export function tidy(g) {
@@ -128,11 +143,11 @@ export function nextAt(g, { n, index }) {
   nextIn(g.run);
   return true;
 }
-/** A new game at the table, unless one was dealt since game n. */
-export function newGameAt(g, { n, seed }) {
+/** A new game at the table, from a mix of topics (the dealer's), unless one was dealt since game n. */
+export function newGameAt(g, { n, seed, weights = null }) {
   if (g.n !== n) return false;
   g.n = n + 1;
-  g.run = dealRun(seed);
+  g.run = dealRun(seed, weights);
   return true;
 }
 /** A finished game as the pair's record keeps it, the moment the last country is decided: a team result, the total
