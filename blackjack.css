@@ -1,0 +1,121 @@
+/* Blackjack: a felt of the table's green with the dealer's cards at its head, the rules printed in an arc, your hands
+   below (a split's side by side, the one in play lifted), the circle with your bet and Over/Under 13 either side of it,
+   and the rail: chips and Deal while you bet, your plays while you play (each with the signal the dealer reads), the
+   one the chart says ringed when the coach is on. The accent is ochre. */
+:root {
+  --bj-in: var(--c0);
+  --bj-felt: color-mix(in srgb, var(--c1) 22%, var(--sheet));
+  --bj-felt-line: color-mix(in srgb, var(--c1) 55%, var(--sheet));
+  --bj-good: #2F7D5B; --bj-bad: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --bj-good: #7FC2A8; --bj-bad: #E8806F; --bj-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); }
+}
+html[data-mode="night"] { --bj-good: #7FC2A8; --bj-bad: #E8806F; --bj-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); }
+
+.bj-mark { display: inline-block; }
+.bj-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the felt */
+.bj-felt { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: .2rem; margin-top: .45rem; padding: .5rem; border-radius: 6px 6px 40% 40% / 6px 6px 12% 12%;
+  background: var(--bj-felt); box-shadow: inset 0 0 0 1px var(--bj-felt-line); min-height: 0; --bj-card: 1.2rem; }
+.bj-dealer { flex: none; display: grid; justify-items: center; gap: .25rem; }
+.bj-head { display: flex; align-items: center; gap: .4rem; font-size: .74rem; font-weight: 700; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); font-stretch: var(--wide); }
+.bj-total { display: inline-grid; place-items: center; min-width: 1.8rem; height: 1.45rem; padding: 0 .35rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-style: normal; font-size: .92rem; font-weight: 800;
+  letter-spacing: 0; font-stretch: normal; font-variant-numeric: tabular-nums; }
+.bj-total:empty { visibility: hidden; }
+.bj-total.bust, .bj-hand.lost .bj-total { background: var(--bj-bad); color: #fff; }
+.bj-cards { display: flex; justify-content: center; min-height: 3.5em; font-size: var(--bj-card); }
+.bj-cards .cd + .cd { margin-left: -1.1em; }
+.bj-cards .cd.doubled { transform: rotate(90deg) translateX(.4em); margin-left: -.3em; }
+/* the rules as the felt prints them, in an arc under the dealer */
+.bj-arc { flex: none; width: 100%; max-width: 26rem; height: auto; align-self: center; }
+@media (max-height: 520px) { .bj-arc { max-width: 17rem; } }
+.bj-arc text { fill: color-mix(in srgb, var(--ink) 55%, var(--bj-felt)); font-weight: 800; letter-spacing: .08em; }
+.bj-arc text.small { font-weight: 700; letter-spacing: .06em; }
+/* your hands, and the circle with your bet */
+.bj-hands { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; }
+.bj-row { display: flex; justify-content: center; align-items: flex-end; gap: .9rem; }
+.bj-hand { display: grid; justify-items: center; gap: .3rem; padding: .3rem; border-radius: 6px; }
+.bj-hand.active { box-shadow: 0 0 0 2px var(--brass); background: color-mix(in srgb, var(--sheet) 35%, transparent); }
+.bj-under { display: flex; align-items: center; gap: .35rem; font-size: .8rem; }
+.bj-stake { display: grid; place-items: center; min-width: 1.8rem; height: 1.25rem; padding: 0 .3rem; border-radius: .7rem; background: var(--sheet); color: var(--ink); font-size: .7rem; font-weight: 800;
+  box-shadow: inset 0 0 0 1.5px var(--brass); }
+.bj-why { font-size: .8rem; font-weight: 800; }
+.bj-hand.won .bj-why { color: var(--bj-good); } .bj-hand.lost .bj-why { color: var(--bj-bad); }
+.bj-spots { display: flex; align-items: center; justify-content: center; gap: .9rem; }
+.bj-spot { display: grid; place-content: center; justify-items: center; gap: .05rem; padding: 0; border: 2px solid var(--bj-felt-line); background: none; color: var(--ink-soft); font: inherit; font-weight: 800; cursor: pointer; touch-action: manipulation; }
+.bj-spot.main { width: 5.2rem; height: 5.2rem; border-radius: 50%; font-size: .8rem; }
+.bj-spot.over, .bj-spot.under { width: 4.1rem; height: 3.3rem; border-radius: 5px; font-size: .64rem; text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.bj-spot small { font-size: .66rem; font-weight: 700; text-transform: none; letter-spacing: 0; }
+.bj-spot.on { border-color: var(--brass); color: var(--ink); background: color-mix(in srgb, var(--sheet) 40%, transparent); }
+.bj-spot.main.on { font-size: .92rem; }
+.bj-spot.on small { font-size: .78rem; font-weight: 800; }
+.bj-spots.after .bj-spot.main { width: 3.9rem; height: 3.9rem; }
+.bj-spots.after .bj-spot.over, .bj-spots.after .bj-spot.under { height: 2.7rem; }
+/* Over/Under 13 settled on your first two cards */
+.bj-ou { margin: 0; font-size: .8rem; font-weight: 700; color: var(--ink-soft); }
+.bj-ou .won { color: var(--bj-good); } .bj-ou .lost { color: var(--bj-bad); }
+.bj-call { flex: none; display: flex; justify-content: center; align-items: baseline; gap: .5rem; min-height: 1.4rem; margin: 0; font-weight: 800; }
+.bj-call small { font-weight: 650; color: var(--ink-soft); }
+
+/* the rail while you play: the plays, each with how you'd show it at the table; the chart's ringed */
+.bj-rail .cs-go { grid-template-columns: 1fr 1fr 1.6fr; }
+.bj-plays { display: grid; gap: .45rem; }
+.bj-plays[hidden], .bj-betting[hidden] { display: none; }
+.bj-betting { display: grid; gap: .45rem; }
+.bj-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; }
+.bj-two { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
+.bj-plays .cs-btn { display: grid; place-content: center; gap: .05rem; min-height: 3.1rem; }
+.bj-plays .cs-btn.big { min-height: 2.75rem; }
+.bj-plays .cs-btn small { font-size: .62rem; font-weight: 650; color: var(--ink-soft); text-transform: none; letter-spacing: 0; }
+.bj-plays .cs-btn.chart { border-color: var(--bj-good); box-shadow: inset 0 0 0 2px var(--bj-good); }
+.bj-ask { margin: 0; font-size: .86rem; line-height: 1.35; text-align: center; min-height: 3.1rem; display: grid; place-items: center; }
+@media (max-height: 760px) {
+  .bj-plays .cs-btn { min-height: 2.75rem; }
+  .bj-plays .cs-btn.big { min-height: 2.45rem; }
+  .bj-ask { min-height: 2.75rem; }
+}
+
+/* the chart beside the felt: only held sideways, with the coach on */
+.bj-chartbox { display: none; }
+/* held sideways: the felt on the left with all the height; the strip, the chart, the chips and the plays beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.blackjack { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  #app.blackjack .bj-strip { grid-column: 2; grid-row: 2; }
+  #app.blackjack .bj-felt { grid-column: 1; grid-row: 2 / span 3; }
+  #app.blackjack .bj-chartbox { grid-column: 2; grid-row: 3; display: grid; align-content: center; justify-items: center; gap: .4rem; min-height: 0; overflow: auto; }
+  #app.blackjack .bj-chartbox[hidden] { display: none; }
+  #app.blackjack .bj-rail { grid-column: 2; grid-row: 4; align-self: end; }
+}
+
+/* the course's sheet in ochre, and its stage (blackjack-stage.js): hands on a scrap of felt, the chart, the felt's
+   words, the signals */
+dialog.ln-sheet.bj { --ln-in: var(--c0); }
+.bjs { display: grid; gap: .7rem; align-content: center; justify-items: center; width: 100%; min-height: 0; padding: .3rem 0; }
+.bjs-felt { display: grid; justify-items: center; gap: .3rem; width: 100%; padding: .5rem; border-radius: 6px; background: var(--bj-felt); box-shadow: inset 0 0 0 1px var(--bj-felt-line); --bj-card: 1.05rem; }
+.bjs-who { font-size: .7rem; font-weight: 700; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); font-stretch: var(--wide); }
+.bjs-hand { display: flex; align-items: center; gap: .45rem; }
+.bjs-yours { display: flex; justify-content: center; gap: 1rem; }
+.bjs-chart { border-collapse: collapse; font-size: .74rem; font-variant-numeric: tabular-nums; }
+.bjs-chart caption { caption-side: top; padding-bottom: .3rem; color: var(--ink-soft); font-size: .72rem; }
+.bjs-chart th, .bjs-chart td { min-width: 1.45rem; height: 1.4rem; padding: 0 .1rem; text-align: center; border: 1px solid var(--rule); }
+.bjs-chart th { color: var(--ink-soft); font-weight: 700; white-space: nowrap; }
+.bjs-chart td { font-weight: 800; }
+.bjs-chart tr.on th, .bjs-chart th.on { color: var(--ink); background: color-mix(in srgb, var(--brass) 25%, var(--sheet)); }
+.bjs-chart td.here { box-shadow: inset 0 0 0 2px var(--ink); }
+/* each play its colour: hitting plain, standing grey, doubling ochre, splitting verdigris, surrendering oxblood */
+.p-H { background: var(--sheet); } .p-S { background: color-mix(in srgb, var(--ink) 14%, var(--sheet)); }
+.p-D, .p-Ds { background: color-mix(in srgb, var(--c0) 38%, var(--sheet)); } .p-P { background: color-mix(in srgb, var(--c1) 34%, var(--sheet)); }
+.p-R, .p-Rs, .p-Rp { background: color-mix(in srgb, var(--c3) 30%, var(--sheet)); }
+.bjs-key { display: flex; flex-wrap: wrap; justify-content: center; gap: .2rem .45rem; margin: 0; font-size: .72rem; color: var(--ink-soft); }
+.bjs-key > span { white-space: nowrap; }
+.bjs-key i { display: inline-grid; place-items: center; min-width: 1.3rem; padding: 0 .15rem; border: 1px solid var(--rule); font-style: normal; font-weight: 800; color: var(--ink); }
+.bjs-print { display: grid; justify-items: center; gap: .2rem; padding: .6rem .9rem; border-radius: 6px; background: var(--bj-felt); box-shadow: inset 0 0 0 1px var(--bj-felt-line);
+  color: color-mix(in srgb, var(--ink) 65%, var(--bj-felt)); text-align: center; letter-spacing: .06em; font-weight: 800; }
+.bjs-print span { font-size: .72rem; font-weight: 700; }
+.bjs-signals { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; width: 100%; }
+.bjs-signals div { display: grid; justify-items: center; gap: .15rem; padding: .5rem; border-radius: 6px; background: var(--bj-felt); text-align: center; }
+.bjs-icon { width: 2.4rem; height: 2.4rem; fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bjs-icon .f { fill: var(--brass); stroke: var(--ink); }
+.bjs-signals small { font-size: .74rem; color: var(--ink-soft); }

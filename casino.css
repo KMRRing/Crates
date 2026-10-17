@@ -39,6 +39,7 @@
 .cs-rules table.cs-pays, .cs-rules table.cs-words { width: 100%; border-collapse: collapse; font-size: .88rem; }
 .cs-rules .cs-pays th, .cs-rules .cs-pays td, .cs-rules .cs-words td { padding: .35rem .3rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
 .cs-rules .cs-pays th { font-size: .74rem; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.cs-rules .cs-odds { white-space: nowrap; }
 .cs-rules .cs-words td:first-child { white-space: nowrap; font-size: 1rem; }
 .cs-rules .cs-words i { color: var(--ink-soft); }
 .cs-note { font-size: .85rem; color: var(--ink-soft); }

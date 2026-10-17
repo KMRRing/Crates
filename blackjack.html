@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Blackjack</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="cards.css">
+<link rel="stylesheet" href="course.css">
+<link rel="stylesheet" href="casino.css">
+<link rel="stylesheet" href="blackjack.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="blackjack fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon bj-mark" aria-hidden="true"></span>Blackjack</button></h1>
+    <div class="top-right">
+      <button id="learnBtn" class="pick" aria-haspopup="dialog">Learn</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div class="cs-strip bj-strip">
+    <span>HK$ <b id="balance">0</b></span>
+    <span id="limits" class="cs-cut"></span>
+    <span id="shoe" class="cs-cut"></span>
+  </div>
+
+  <section id="felt" class="bj-felt fit-grow" aria-label="The table">
+    <div class="bj-dealer">
+      <div class="bj-head"><span>Dealer</span><i class="bj-total" id="dtotal"></i></div>
+      <div class="bj-cards" id="dcards"></div>
+    </div>
+    <svg class="bj-arc" viewBox="0 0 300 58" aria-hidden="true"><path id="bjArc1" d="M24 6Q150 50 276 6" fill="none"/><path id="bjArc2" d="M30 22Q150 64 270 22" fill="none"/>
+      <text font-size="11.5"><textPath href="#bjArc1" startOffset="50%" text-anchor="middle" id="arcText1"></textPath></text>
+      <text font-size="7.6" class="small"><textPath href="#bjArc2" startOffset="50%" text-anchor="middle" id="arcText2"></textPath></text></svg>
+    <div id="hands" class="bj-hands"></div>
+    <p id="call" class="bj-call" aria-live="polite"></p>
+  </section>
+
+  <section id="chartBox" class="bj-chartbox" aria-label="The chart, the hand in play picked out" hidden></section>
+
+  <section class="cs-rail bj-rail" aria-label="Your chips and plays">
+    <div id="betting" class="bj-betting">
+      <div id="chips" class="cs-chips" role="radiogroup" aria-label="Chip: tap the circle or a side bet to put it there"></div>
+      <div class="cs-go">
+        <button id="clearBtn" class="cs-btn" type="button">Clear</button>
+        <button id="rebetBtn" class="cs-btn" type="button">Rebet</button>
+        <button id="dealBtn" class="cs-btn primary" type="button">Deal</button>
+      </div>
+    </div>
+    <div id="plays" class="bj-plays" hidden></div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet" aria-label="The rules on one page">
+  <div class="pick-head"><h2>Blackjack on one page</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="cs-rules"></div>
+</dialog>
+
+<p id="toast" class="cs-toast" role="status" aria-live="polite"></p>
+<script type="module" src="blackjack.js"></script>
+</body>
+</html>
