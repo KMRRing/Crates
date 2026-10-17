@@ -15,3 +15,31 @@ export function parseDice(text) {
   if (!d.length || d.some(x => !(Number.isInteger(x) && x >= 1 && x <= 6))) throw new Error(`no dice "${text}"`);
   return d;
 }
+
+const element = html => { const t = document.createElement("template"); t.innerHTML = html; return t.content.firstElementChild; };
+/**
+ * The dice tumbling in `box` for `ms`, each landing on its face (`faces`, one per die) one after another, the last at
+ * the end. Dice that land get the `land` class (casino-dice.css animates it); the box has `rolling` while they tumble.
+ * With reduced motion the dice don't turn, they just land.
+ */
+export async function tumble(box, faces, ms) {
+  const still = matchMedia("(prefers-reduced-motion: reduce)").matches, n = faces.length;
+  box.classList.toggle("rolling", !still);
+  const any = () => dieSvg(1 + Math.floor(Math.random() * 6));
+  box.innerHTML = faces.map(any).join("");
+  const at = faces.map((_, i) => (n === 1 ? 1 : 0.55 + (0.45 * i) / (n - 1)) * ms), t0 = performance.now(), landed = faces.map(() => false);
+  await new Promise(done => {
+    const tick = () => {
+      const t = performance.now() - t0;
+      [...box.children].forEach((el, i) => {
+        if (landed[i]) return;
+        if (t >= at[i]) { landed[i] = true; el.replaceWith(element(dieSvg(faces[i], "land"))); }
+        else if (!still) el.replaceWith(element(any()));
+      });
+      if (landed.every(Boolean)) { done(); return; }
+      setTimeout(tick, 90);
+    };
+    tick();
+  });
+  box.classList.remove("rolling");
+}

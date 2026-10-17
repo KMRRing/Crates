@@ -22,7 +22,7 @@ html[data-mode="night"] { --sb-good: #7FC2A8; --sb-bad: #E8806F; --sb-felt: colo
 
 /* the screen: the last totals and the counts */
 .sb-board { display: grid; gap: .3rem; padding: .4rem .5rem; border-radius: 4px; background: var(--sb-screen); color: var(--sb-screen-ink); }
-.sb-last { display: flex; gap: .2rem; overflow: hidden; min-height: 1.6rem; align-items: center; }
+.sb-last { display: flex; gap: .2rem; overflow: hidden; padding: .125rem; min-height: 2.15rem; align-items: center; }
 .sb-ball { flex: none; display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: .78rem; font-weight: 800; color: var(--on-c); font-variant-numeric: tabular-nums; }
 .sb-ball.big { background: var(--sb-big); } .sb-ball.small { background: var(--sb-small); } .sb-ball.triple { background: var(--sb-triple); }
 .sb-last .sb-ball:first-child { width: 1.9rem; height: 1.9rem; font-size: .9rem; box-shadow: 0 0 0 2px var(--brass); }

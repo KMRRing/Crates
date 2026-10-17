@@ -5,7 +5,7 @@
 // layout drawn by sicbo-layout.js; this file keeps the game and plays each round out on the page.
 import { START, CHIPS, LIMITS, UNIT, LAYOUT, nameOf, paysText, maxOf, valid, multiple, betsProblem, newGame, roll, stats, totalOf, sizeOf } from "./sicbo-engine.js";
 import { layoutHtml, lastHtml, statsHtml, statsLabel } from "./sicbo-layout.js";
-import { dieSvg } from "./casino-dice.js";
+import { dieSvg, tumble } from "./casino-dice.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line, toggle } from "./menu.js";
@@ -120,28 +120,6 @@ function clearBets() { if (rolling) return; S.bets = {}; placed = []; save(); dr
 
 // ---------- a round ----------
 const wait = ms => new Promise(r => setTimeout(r, ms));
-const element = html => { const t = document.createElement("template"); t.innerHTML = html; return t.content.firstElementChild; };
-/** The dice tumbling in the tray for `ms`, landing one after another on their faces. */
-async function tumble(dice, ms) {
-  const box = $("dice"), still = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  box.classList.toggle("rolling", !still);
-  box.innerHTML = dice.map(() => dieSvg(1 + Math.floor(Math.random() * 6))).join("");
-  const at = [0.55, 0.78, 1].map(f => f * ms), t0 = performance.now(), landed = [false, false, false];
-  await new Promise(done => {
-    const tick = () => {
-      const t = performance.now() - t0;
-      [...box.children].forEach((el, i) => {
-        if (landed[i]) return;
-        if (t >= at[i]) { landed[i] = true; el.replaceWith(element(dieSvg(dice[i], "land"))); }
-        else if (!still) el.replaceWith(element(dieSvg(1 + Math.floor(Math.random() * 6))));
-      });
-      if (landed.every(Boolean)) { done(); return; }
-      setTimeout(tick, 90);
-    };
-    tick();
-  });
-  box.classList.remove("rolling");
-}
 async function rollNow() {
   if (rolling) return;
   const problem = betsProblem(S.bets, S.balance);
@@ -154,7 +132,7 @@ async function rollNow() {
   shown = null;
   drawRail();
   $("call").innerHTML = `<span class="say">No more bets</span>`;
-  await tumble(r.dice, opts.fast ? 700 : 1500);
+  await tumble($("dice"), r.dice, opts.fast ? 700 : 1500);
   await wait(opts.fast ? 200 : 450);
   rolling = false;
   const net = r.settled.net;
