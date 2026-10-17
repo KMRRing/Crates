@@ -1,7 +1,7 @@
 /* Drift: the field (seven squares by seven) and its tiles in the four enamels, each with a mark of its own (a dot, a
    ring, a bar, a chevron) so they're told apart without their colour, the edge the wind will pile them against drawn
-   in brass; under it the tile to lay and the next, the three winds forecast, and a line saying what the turn shown
-   would do. Ochre is the house colour. */
+   in brass, a staked tile with a pin in its corner; under it the tile to lay and the next, the three winds forecast,
+   and a line saying what the turn shown would do. Ochre is the house colour. */
 :root {
   --dr-in: var(--c0);
   --dr-soft: color-mix(in srgb, var(--dr-in) 15%, var(--sheet));
@@ -29,6 +29,9 @@
 .dr-stroke { fill: none; stroke: var(--on-c); stroke-width: .8; stroke-linecap: round; stroke-linejoin: round; }
 .dr-tile.k0 .dr-fill { fill: var(--on-c0); }
 .dr-tile.k0 .dr-stroke { stroke: var(--on-c0); }
+/* a stake: a pin's head in the corner, and a firmer edge */
+.dr-tile.staked > rect { stroke: var(--ink); stroke-width: .7; }
+.dr-pin { fill: var(--sheet); stroke: var(--ink); stroke-width: .5; }
 .dr-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
 .dr-board text.dr-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
 .dr-board text.dr-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }

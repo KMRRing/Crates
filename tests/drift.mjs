@@ -1,8 +1,9 @@
 // Drift's rules (drift-engine.js): the deal from a seed, the wind (every tile slid downwind to the edge or the next
 // tile, in order, each way), lines across and down, the turn (lines checked after the wind, the wind blowing again
 // after a clear), the points, the forecast moving on, the squalls (strays making no line, more often and more of
-// them), the end with no room, a game saved and opened again, and whole games played out to their end.
-import { N, COLOURS, START, WINDS, PACE, squallEvery, squallCount, newGame, blow, lines, gale, worth, lay, moves, filled } from "../drift-engine.js";
+// them), stakes (a staked tile staying put, the wind piling tiles against it, its stake going with it when it clears),
+// the end with no room, a game saved and opened again, and whole games played out to their end.
+import { N, COLOURS, START, WINDS, PACE, STAKE_EVERY, squallEvery, squallCount, newGame, upgrade, blow, lines, gale, worth, lay, moves, filled } from "../drift-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -61,6 +62,27 @@ const game = (rows, next = [0, 0], winds = [1, 1, 1], extra = {}) => Object.assi
   check(squallEvery(0) > squallEvery(60) && squallCount(500) > squallCount(0) && PACE.every(([, e, c]) => e >= 1 && c >= 1), "squalls come more often, and with more, as the game goes on");
 }
 
+// ---------- stakes ----------
+{
+  const c = field([".0.1..2"]), at3 = [i(3, 0)];
+  check(row(blow(c, 1, at3).cells, 0) === "..01..2" && row(blow(c, 3, at3).cells, 0) === "0..12..", "a staked tile stays put, and the wind piles the tiles upwind of it against it, as against an edge");
+  const down = blow(field(["3", ".", "0"]), 2, [i(0, 0)]).cells;
+  check(blow(c, 1, at3).moved.map(m => m.join(">")).join() === "1>2" && down[i(0, 0)] === 3 && down[i(0, 6)] === 0, "only what moved is told; down a column the same");
+  const g = gale(field(["11..1.1"]), 1, [i(1, 0)]);
+  check(g.cleared === 0 && row(g.cells, 0) === "11...11" && g.stakes.join() === String(i(1, 0)), "a stake can keep a line apart: the two on the right can't reach the two held against it");
+  const clear = gale(field(["1.1..1."]), 3, [i(2, 0)]);
+  check(clear.cleared === 0 && row(clear.cells, 0) === "1.11...", "and blown the other way, the third piles against the stake, beside its pair but for the gap the stake holds open");
+  const s = game(["......."], [2, 0], [3, 1, 1], { untilStake: 0 }), r = lay(s, i(5, 0));
+  check(r.staked && r.state.stakes.join() === String(i(5, 0)) && r.state.cells[i(5, 0)] === 2 && r.state.untilStake === STAKE_EVERY - 1, `the tile laid with a stake stays where it's laid, even with the wind; the next comes ${STAKE_EVERY} tiles on`);
+  const t = lay(game(["22....."], [2, 0], [3, 1, 1], { untilStake: 0 }), i(2, 0));
+  check(t.gain === 90 && t.state.stakes.length === 0 && row(t.state.cells, 0) === ".......", "a staked tile in a line clears like any other, and its stake goes with it");
+  check(lay(game([], [1, 0], [1, 1, 1], { untilStake: 3 }), i(0, 0)).state.untilStake === 2 && !lay(game([], [1, 0], [1, 1, 1], { untilStake: 3 }), i(0, 0)).staked, "the count to the next stake goes down a tile at a time");
+  const was = newGame(4);
+  delete was.stakes; delete was.untilStake;
+  const up = upgrade(was);
+  check(up.stakes.length === 0 && up.untilStake === STAKE_EVERY - 1 && !("stakes" in was) && upgrade(up) === up, "a game saved before stakes is given none, and the count to the first");
+}
+
 // ---------- the end ----------
 {
   const full = Array.from({ length: N }, (_, y) => [...Array(N).keys()].map(x => ((x + 2 * y) % 4)).join(""));
@@ -102,4 +124,4 @@ const game = (rows, next = [0, 0], winds = [1, 1, 1], extra = {}) => Object.assi
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("drift: the deal, the wind, lines, a turn, squalls, the end, saving, whole games");
+else console.log("drift: the deal, the wind, lines, a turn, squalls, stakes, the end, saving, whole games");

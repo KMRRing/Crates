@@ -1,15 +1,16 @@
 // Drift: a field of tiles and the wind, forecast three turns ahead. Press an empty square and the turn is shown before
 // you let go: the tile laid there, the field after the wind has blown, the lines that would clear ringed and what
-// the turn would score. Slide to another square to see it; let go on one to lay the tile. The rules are
-// drift-engine.js's; this file draws the field, plays each turn out and keeps the game.
-import { N, WINDS, newGame, lay, blow, lines, gale, worth, squallCount } from "./drift-engine.js";
+// the turn would score. Slide to another square to see it; let go on one to lay the tile. A staked tile wears a pin and
+// stays put in the wind. The rules are drift-engine.js's; this file draws the field, plays each turn out and keeps the
+// game.
+import { N, WINDS, newGame, upgrade, lay, blow, lines, gale, worth, squallCount } from "./drift-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "drift:run", BEST = "drift:best", SEEN = "drift:seen";
+const RUN = "drift:run", BEST = "drift:best", SEEN = "drift:seen", STAKED = "drift:staked";
 const CELL = 10;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -39,10 +40,14 @@ const MARKS = [
   () => el("path", { class: "dr-stroke", d: "M2.8 5H7.2" }),
   () => el("path", { class: "dr-stroke", d: "M3 6.2L5 3.8L7 6.2" }),
 ];
-/** A tile; placed by an outer group so its own can move. */
-function tileEl(c, i, cls = "", [x, y] = at(i)) {
-  return el("g", { transform: `translate(${x} ${y})`, "data-cell": i }, el("g", { class: `dr-tile k${c} ${cls}`.trim() }, el("rect", { x: .5, y: .5, width: 9, height: 9, rx: 1.6 }), MARKS[c]()));
+/** A tile (a staked one with a pin in its corner); placed by an outer group so its own can move. */
+function tileEl(c, i, cls = "", [x, y] = at(i), staked = false) {
+  const body = el("g", { class: `dr-tile k${c}${staked ? " staked" : ""} ${cls}`.trim() }, el("rect", { x: .5, y: .5, width: 9, height: 9, rx: 1.6 }), MARKS[c]());
+  if (staked) body.append(el("circle", { class: "dr-pin", cx: 2.5, cy: 2.5, r: 1.15 }));
+  return el("g", { transform: `translate(${x} ${y})`, "data-cell": i }, body);
 }
+/** The stakes standing (S's), with the tile to lay on square i if it comes with one. */
+const stakesWith = i => (S.untilStake === 0 && i >= 0 ? [...S.stakes, i] : S.stakes);
 const ARROW = ["M0 3.2V-3.2M-2.4-.9L0-3.2L2.4-.9", "M-3.2 0H3.2M.9-2.4L3.2 0L.9 2.4", "M0-3.2V3.2M-2.4 .9L0 3.2L2.4 .9", "M3.2 0H-3.2M-.9-2.4L-3.2 0L-.9 2.4"];
 /** The edge the wind piles the tiles against, drawn on the field. */
 function lee(wind) {
@@ -51,13 +56,13 @@ function lee(wind) {
 }
 /**
  * The field: these tiles, with extra: { ghost (a square the tile is shown on), ring (squares to ring), tag ([text,
- * square]), fresh (squares just filled), wind (the edge to mark) }.
+ * square]), fresh (squares just filled), wind (the edge to mark), stakes (the staked squares, S's by default) }.
  */
 function drawBoard(cells, extra = {}) {
-  const grid = el("g", { class: "dr-grid" });
+  const grid = el("g", { class: "dr-grid" }), stakes = new Set(extra.stakes || S.stakes);
   for (let k = 1; k < N; k++) grid.append(el("line", { x1: k * CELL, x2: k * CELL, y1: 0, y2: 70 }), el("line", { y1: k * CELL, y2: k * CELL, x1: 0, x2: 70 }));
   const tiles = el("g", { id: "tiles" });
-  cells.forEach((c, i) => { if (c >= 0) tiles.append(tileEl(c, i, extra.fresh?.includes(i) ? "fresh" : i === extra.ghost ? "ghost" : "")); });
+  cells.forEach((c, i) => { if (c >= 0) tiles.append(tileEl(c, i, extra.fresh?.includes(i) ? "fresh" : i === extra.ghost ? "ghost" : "", at(i), stakes.has(i))); });
   const marks = el("g", {});
   for (const i of extra.ring || []) { const [x, y] = at(i); marks.append(el("rect", { class: "dr-ring", x: x + .15, y: y + .15, width: 9.7, height: 9.7, rx: 1.9 })); }
   if (extra.tag) {
@@ -76,7 +81,7 @@ function drawBoard(cells, extra = {}) {
   kids.push(el("g", { id: "fx" }));
   $("board").replaceChildren(...kids);
 }
-const small = (c, cls) => el("svg", { viewBox: "0 0 10 10", class: cls, "aria-hidden": "true" }, tileEl(c, 0, "", [0, 0]));
+const small = (c, cls, staked) => el("svg", { viewBox: "0 0 10 10", class: cls, "aria-hidden": "true" }, tileEl(c, 0, "", [0, 0], staked));
 const arrow = (w, cls) => el("svg", { viewBox: "-5 -5 10 10", class: cls, "aria-hidden": "true" }, el("path", { class: "dr-arrow", d: ARROW[w] }));
 function drawStrip() {
   $("score").textContent = fmt(S.score);
@@ -94,19 +99,22 @@ function drawSide(text) {
   const forecast = document.createElement("div");
   forecast.className = "dr-forecast";
   forecast.append(arrow(S.winds[0], "now"), arrow(S.winds[1], "then"), arrow(S.winds[2], "then"));
-  $("coming").replaceChildren(small(S.next[0], "now"), small(S.next[1], "next"), forecast);
-  $("coming").setAttribute("aria-label", `The tile to lay and the next; the wind blows ${WINDS[S.winds[0]]}, then ${WINDS[S.winds[1]]}, then ${WINDS[S.winds[2]]}`);
+  const staking = S.untilStake === 0;
+  $("coming").replaceChildren(small(S.next[0], "now", staking), small(S.next[1], "next", S.untilStake === 1), forecast);
+  $("coming").setAttribute("aria-label", `The tile to lay${staking ? ", with a stake," : ""} and the next; the wind blows ${WINDS[S.winds[0]]}, then ${WINDS[S.winds[1]]}, then ${WINDS[S.winds[2]]}`);
   const squall = S.untilSquall === 1;
-  $("line").textContent = text ?? (squall ? `The wind blows ${WINDS[S.winds[0]]}, and a squall brings ${squallCount(S.turns) === 1 ? "a stray tile" : `${squallCount(S.turns)} stray tiles`} with it`
-    : `The wind blows ${WINDS[S.winds[0]]}; a squall in ${S.untilSquall} turns`);
+  // a stake explained the first times one comes, then just said
+  $("line").textContent = text ?? (staking && !read(STAKED, false) ? "This tile is staked: it stays put, and tiles pile against it"
+    : (squall ? `The wind blows ${WINDS[S.winds[0]]}, and a squall brings ${squallCount(S.turns) === 1 ? "a stray tile" : `${squallCount(S.turns)} stray tiles`} with it`
+      : `The wind blows ${WINDS[S.winds[0]]}; a squall in ${S.untilSquall} turns`) + (staking ? "; this tile is staked" : ""));
 }
 function render() { drawBoard(S.cells); drawStrip(); drawSide(); }
 /** The turn a square would make (the squall aside: where it blows its tiles is anyone's guess), shown. */
 function show(i) {
-  const c = S.cells.slice();
+  const c = S.cells.slice(), stakes = stakesWith(i);
   c[i] = S.next[0];
-  const first = blow(c, S.winds[0]).cells, g = gale(c, S.winds[0]);
-  drawBoard(first, { ring: lines(first), tag: g.cleared ? [`+${fmt(worth(g.cleared))}`, i] : null });
+  const first = blow(c, S.winds[0], stakes).cells, g = gale(c, S.winds[0], stakes);
+  drawBoard(first, { ring: lines(first), tag: g.cleared ? [`+${fmt(worth(g.cleared))}`, i] : null, stakes });
   drawSide(g.cleared ? `${g.cleared} tiles clear${g.gusts.length > 2 ? ` in ${g.gusts.length - 1} gusts` : ""}: +${fmt(worth(g.cleared))}` : `Blown ${WINDS[S.winds[0]]}: nothing lines up`);
 }
 
@@ -123,26 +131,29 @@ async function commit(i) {
   save();
   if (S.score > read(BEST, 0)) write(BEST, S.score);
   if (S.turns >= 3) write(SEEN, true);
+  if (r.staked) write(STAKED, true);
   drawSide(" ");
-  // the tile laid, the squall's strays, then the wind gust by gust
-  let cells = before.cells.slice();
+  // the tile laid, the squall's strays, then the wind gust by gust, the stakes going with their tiles as they clear
+  let cells = before.cells.slice(), stakes = r.staked ? [...before.stakes, i] : before.stakes.slice();
   cells[i] = before.next[0];
-  drawBoard(cells, { fresh: [i], wind: before.winds[0] });
+  const wind = before.winds[0];
+  drawBoard(cells, { fresh: [i], wind, stakes });
   await animate(node(i), [{ transform: "scale(.4)", opacity: .3 }, { transform: "scale(1)", opacity: 1 }], { duration: 160, easing: "ease-out" });
   if (r.squall.length) {
     for (const { at: j, colour } of r.squall) cells[j] = colour;
-    drawBoard(cells, { fresh: r.squall.map(q => q.at), wind: before.winds[0] });
+    drawBoard(cells, { fresh: r.squall.map(q => q.at), wind, stakes });
     await Promise.all(r.squall.map(q => animate(node(q.at), [{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1)", opacity: 1 }], { duration: 220, easing: "ease-out" })));
   }
   for (const gust of r.gusts) {
-    const b = blow(cells, before.winds[0]);
+    const b = blow(cells, wind, stakes);
     cells = b.cells;
-    drawBoard(cells, { wind: before.winds[0] });
+    drawBoard(cells, { wind, stakes });
     await Promise.all(b.moved.map(([f, t]) => { const [fx, fy] = at(f), [tx, ty] = at(t); return animate(node(t), [{ transform: `translate(${fx - tx}px, ${fy - ty}px)` }, { transform: "translate(0, 0)" }], { duration: 200, easing: "ease-in" }); }));
     if (!gust.cleared.length) break;
-    drawBoard(cells, { ring: gust.cleared, wind: before.winds[0] });
+    drawBoard(cells, { ring: gust.cleared, wind, stakes });
     await Promise.all(gust.cleared.map(j => animate(node(j), [{ transform: "scale(1)", opacity: 1 }, { transform: "scale(1.4)", opacity: 0 }], { duration: 260, easing: "ease-in" })));
     for (const j of gust.cleared) cells[j] = -1;
+    stakes = stakes.filter(j => cells[j] >= 0);
   }
   render();
   if (r.gain) popup(r.gusts.flatMap(g => g.cleared), r.gain);
@@ -214,4 +225,4 @@ window.__drift = { get state() { return S; }, commit, cellAt, newRun };
 
 S = read(RUN, null);
 if (!valid(S)) newRun();
-else render();
+else { S = upgrade(S); render(); }
