@@ -6,7 +6,9 @@
 // already cut is skipped, so a dial kept in the rosette's symmetry takes every repeat. A ring cut all round, or a spoke
 // cut from the centre to the rim, is finished: faced off (turned flat, bare again) and scored, ten times the square of
 // the cells one cut finishes, a band cut all in one pattern counting twice. The cuts grow as the game goes on (six
-// cells at most at first, repeats and all, a ring's worth in the end). A hand with nowhere to go ends the game.
+// cells at most at first, repeats and all, a ring's worth in the end), and from the thirtieth hand the cutter is worn:
+// each new hand nicks bare cells at random (one, two from the sixtieth, three from the hundredth), never finishing a
+// band. A hand with nowhere to go ends the game.
 // The page (rosette.js) draws it; tests/rosette.mjs checks this.
 //
 // A game is one object, as saved: { v, seed, n (draws made), cells (a pattern 0–3, or -1 bare: ring by ring from the
@@ -18,6 +20,10 @@ export const PATTERN_NAMES = ["grain d'orge", "clous de Paris", "soleil", "vague
 // the most cells a cut engraves, its repeats and all: until so many hands dealt, so many; in the end a ring's worth
 export const PACE = [[4, 6], [10, 8], [20, 10], [Infinity, SECTORS]];
 export const maxCells = sets => (PACE.find(([until]) => sets < until) ?? PACE.at(-1))[1];
+// the worn cutter: from so many hands dealt, each new hand nicks so many bare cells (so a careful game doesn't go on
+// for ever once the cuts stop growing)
+export const NICKS = [[30, 1], [60, 2], [100, 3]];
+export const nicksFor = sets => NICKS.reduce((a, [from, k]) => (sets >= from ? k : a), 0);
 // how often each rosette comes, given the shape allows it (its repeats can't overlap, and engrave a ring at most)
 export const LOBES = [[1, 2], [2, 3], [3, 3], [4, 3], [6, 2]];
 
@@ -124,7 +130,8 @@ export const worth = n => 10 * n * n;
 /**
  * Makes the cut in hand slot `slot` with its first copy at (ring, sector): the game after it, and what happened, for
  * the page to show: copies (as echo gives them), bands (as bands gives them, before they're faced off), gain, dealt (a
- * new hand came), over. Pure; throws if the cut isn't there or its first copy doesn't fit.
+ * new hand came), nicked (the cells the worn cutter nicked as it came), over. Pure; throws if the cut isn't there or
+ * its first copy doesn't fit.
  */
 export function cut(game, slot, ring, sector) {
   const s = structuredClone(game), h = s.hand[slot];
@@ -140,10 +147,21 @@ export function cut(game, slot, ring, sector) {
   s.bands += found.length;
   s.cuts++;
   s.hand[slot] = null;
-  const dealt = s.hand.every(k => !k);
-  if (dealt) deal(s);
+  const dealt = s.hand.every(k => !k), nicked = [];
+  if (dealt) {
+    deal(s);
+    // the worn cutter nicks bare cells, in a pattern at random, none where it would finish a band
+    for (let k = nicksFor(s.sets); k > 0; k--) {
+      const free = [];
+      for (let i = 0; i < s.cells.length; i++) if (s.cells[i] < 0) { s.cells[i] = 0; if (!bands(s.cells).length) free.push(i); s.cells[i] = -1; }
+      if (!free.length) break;
+      const i = free[Math.floor(draw(s.seed, s.n++) * free.length)];
+      s.cells[i] = Math.floor(draw(s.seed, s.n++) * PATTERNS);
+      nicked.push(i);
+    }
+  }
   s.over = stuck(s);
-  return { state: s, copies, bands: found, gain, dealt, over: s.over };
+  return { state: s, copies, bands: found, gain, dealt, nicked, over: s.over };
 }
 /** Every cut there is: [{ slot, ring, sector }]. For the tests and the tuning players. */
 export function moves(s) {

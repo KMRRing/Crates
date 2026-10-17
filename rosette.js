@@ -4,7 +4,7 @@
 // press on the dial then shows it there, cut on letting go. With no cut in hand, a drag across the dial turns it in the
 // light. The rules are rosette-engine.js's; the watch is drawn by rosette-3d.js (flat, in SVG, where there's no
 // WebGL); this file plays each cut out and keeps the game.
-import { RINGS, SECTORS, SHAPES, PATTERN_NAMES, newGame, echo, cut, bands, counted, worth, fitsAnywhere, maxCells } from "./rosette-engine.js";
+import { RINGS, SECTORS, SHAPES, PATTERN_NAMES, newGame, echo, cut, bands, counted, worth, fitsAnywhere, maxCells, nicksFor } from "./rosette-engine.js";
 import { createDial, GEO, RING_W, cellMiddle } from "./rosette-3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -256,7 +256,16 @@ async function commit(slot, ring, sector) {
       view.set(cutCells, { faced, lit: t < 250 ? lit : [] });
     });
   }
+  // the worn cutter slips as the new hand comes: its nicks scratched in
+  if (r.nicked.length) {
+    const after = S.cells.slice(), nicked = new Set(r.nicked);
+    await play(420, t => { const faced = {}; for (const i of nicked) faced[i] = 1 - clamp(t / 380); view.set(after, { faced, lit: t < 300 ? r.nicked : [] }); });
+  }
   render();
+  if (r.nicked.length) {
+    const n = nicksFor(S.sets), cells = k => (k === 1 ? "a cell" : `${k} cells`);
+    say(n > nicksFor(S.sets - 1) ? `The cutter ${n === 1 ? "is worn" : "wears"}: each hand now nicks ${cells(n)}` : `The worn cutter nicked ${cells(r.nicked.length)}`);
+  }
   playing = false;
 }
 function popup(cells, gain, found) {

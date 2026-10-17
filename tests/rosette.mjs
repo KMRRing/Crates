@@ -1,9 +1,9 @@
 // Rosette's rules (rosette-engine.js): the deal from a seed, the shapes, a cut's repeats (a lobe apart round the dial,
 // past twelve o'clock, skipped over metal already cut, the first having to fit), where a cut fits, the bands finished
 // (rings and spokes, in one pattern or not, crossing), a cut made (repeats engraved, bands faced off, the points, the
-// hand, the game cut from left as it was), the cuts growing as the game goes on, the end with nowhere to go, a game
-// saved and opened again, and whole games played out to their end.
-import { RINGS, SECTORS, HAND, PATTERNS, PATTERN_NAMES, SHAPES, LOBES, PACE, maxCells, lobesFor, newGame, cellAt, echo, places, fitsAnywhere, bands, counted, worth, cut, moves, engraved } from "../rosette-engine.js";
+// hand, the game cut from left as it was), the cuts growing as the game goes on, the worn cutter's nicks, the end with
+// nowhere to go, a game saved and opened again, and whole games played out to their end.
+import { RINGS, SECTORS, HAND, PATTERNS, PATTERN_NAMES, SHAPES, LOBES, PACE, NICKS, maxCells, nicksFor, lobesFor, newGame, cellAt, echo, places, fitsAnywhere, bands, counted, worth, cut, moves, engraved } from "../rosette-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -100,6 +100,42 @@ const DOT = shapeOf(["#"]), ARC2 = shapeOf(["##"]), ARC3 = shapeOf(["###"]), RAY
   check(late > maxCells(0), `late in a game a cut engraves up to ${late} cells`);
 }
 
+// ---------- the worn cutter ----------
+{
+  check(nicksFor(29) === 0 && nicksFor(30) === 1 && nicksFor(59) === 1 && nicksFor(60) === 2 && nicksFor(99) === 2 && nicksFor(100) === 3 && nicksFor(1e4) === 3 && NICKS.length === 3, "the cutter is worn from the 30th hand: a nick a hand, two from the 60th, three from the 100th");
+  // two rings a cell short of finished (ring 0 at eleven o'clock, ring 1 at five), the rest bare; three dots in hand
+  const rows = ["00000000000.", "00000.000000"], short = [cellAt(0, 11), cellAt(1, 5)];
+  const dots = () => Array.from({ length: HAND }, () => ({ shape: DOT, pattern: 1, lobes: 1 }));
+  /** The hand's last dot cut, at ring 4, with `sets` hands dealt before the next. */
+  const last = (sets, seed = 1) => {
+    let g = game(rows, dots(), { seed, sets });
+    g = cut(g, 0, 4, 0).state;
+    g = cut(g, 1, 4, 4).state;
+    return { g, r: cut(g, 2, 4, 8) };
+  };
+  const mid = cut(game(rows, dots(), { sets: 99 }), 0, 4, 0);
+  check(!mid.dealt && mid.nicked.length === 0 && last(28).r.nicked.length === 0, "no nick while a hand is still in play, nor before the 30th hand");
+  check(last(29).r.nicked.length === 1 && last(59).r.nicked.length === 2 && last(99).r.nicked.length === 3, "the 30th hand comes with a nick, the 60th with two, the 100th with three");
+  let fair = true, finished = false;
+  const where = new Set(), patterns = new Set();
+  for (let seed = 0; seed < 200; seed++) {
+    const { g, r } = last(99, seed), was = g.cells.slice();
+    was[cellAt(4, 8)] = 1;
+    finished ||= r.nicked.some(i => short.includes(i)) || bands(r.state.cells).length > 0;
+    fair &&= r.nicked.length === 3 && new Set(r.nicked).size === 3 && r.state.cells.every((p, i) => (r.nicked.includes(i) ? was[i] < 0 && p >= 0 && p < PATTERNS : p === was[i]));
+    for (const i of r.nicked) { where.add(i); patterns.add(r.state.cells[i]); }
+  }
+  check(fair, "a nick lands on bare metal, in a pattern, and touches nothing else");
+  check(!finished, "and never where it would finish a band");
+  check(where.size > 30 && patterns.size === PATTERNS, `nicks fall all over the dial (${where.size} of the 33 cells that finish nothing), in every pattern`);
+  // every bare cell the last of its spoke: a nick anywhere would finish one, so there's none
+  const spoky = Array.from({ length: RINGS }, (_, r) => [...Array(SECTORS).keys()].map(k => (k % RINGS === r || (r === 0 && k === 1) ? "." : "0")).join(""));
+  const none = cut(game(spoky, [null, null, { shape: DOT, pattern: 2, lobes: 1 }], { sets: 99 }), 2, 0, 1);
+  check(none.dealt && none.bands.length === 0 && none.nicked.length === 0 && bands(none.state.cells).length === 0, "with every bare cell finishing a band, the cutter nicks nothing");
+  const { g } = last(99, 5), again = JSON.parse(JSON.stringify(g));
+  check(JSON.stringify(cut(g, 2, 4, 8)) === JSON.stringify(cut(again, 2, 4, 8)), "the nicks come from the game's seed: a game opened again is nicked as it would have been");
+}
+
 // ---------- the end ----------
 {
   // bare like a chessboard's dark squares: no two bare cells together round a ring or along a spoke, no band finished
@@ -141,4 +177,4 @@ const DOT = shapeOf(["#"]), ARC2 = shapeOf(["##"]), ARC3 = shapeOf(["###"]), RAY
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("rosette: the deal, the shapes, repeats, bands, a cut, the growing cuts, the end, saving, whole games");
+else console.log("rosette: the deal, the shapes, repeats, bands, a cut, the growing cuts, the worn cutter, the end, saving, whole games");

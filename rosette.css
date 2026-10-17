@@ -88,3 +88,9 @@
   #app.rosette .ro-tray { grid-template-columns: 1fr; grid-template-rows: repeat(3, 7rem); height: auto; }
   #app.rosette .ro-result { grid-template-columns: 1fr; height: auto; }
 }
+/* a phone on its side hasn't the height for three cuts one above another (they rode up over the score): side by side
+   under the line, as upright, the score along one line */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  #app.rosette .ro-strip { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: .9rem; margin-top: .5rem; }
+  #app.rosette .ro-tray { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); height: 7rem; }
+}
