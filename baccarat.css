@@ -68,27 +68,45 @@ html[data-mode="night"] { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: colo
 .bc-call .b { color: var(--bc-b); } .bc-call .p { color: var(--bc-p); } .bc-call .t { color: var(--bc-t); }
 .bc-call small { font-weight: 650; color: var(--ink-soft); }
 
-/* the layout: pairs and the tie above, Player and Banker below, Super 6 at a no-commission table */
-.bc-spots { flex: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .3rem; }
-.bc-spot { position: relative; display: grid; align-content: center; justify-items: center; gap: .05rem; min-width: 0; min-height: 2.6rem; padding: .2rem;
+/* the layout: the side bets above (the Tie first, three to a row), Player and Banker below, nearest the player. A side
+   bet is its name (with its Chinese where the floor letters it so) over what it pays; Player and Banker large */
+.bc-spots { flex: none; display: grid; gap: .3rem; }
+.bc-sides { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: .3rem; }
+.bc-main { display: grid; grid-template-columns: 1fr 1fr; gap: .3rem; }
+.bc-spot { position: relative; display: grid; align-content: center; justify-items: center; gap: .1rem; min-width: 0; min-height: 2.15rem; padding: .22rem .2rem;
   border: 1.5px solid var(--bc-felt-line); border-radius: 6px; background: color-mix(in srgb, var(--sheet) 55%, transparent); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
-.bc-spot.side { grid-column: span 2; }
-.bc-spot.main { grid-column: span 3; min-height: 3.2rem; }
-.bc-spot.wide { grid-column: span 6; min-height: 2.4rem; grid-auto-flow: column; gap: .5rem; }
-.bc-spot .zh { font-size: 1.05rem; font-weight: 800; line-height: 1; }
-.bc-spot.main .zh { font-size: 1.4rem; }
-.bc-spot .en { font-size: .64rem; font-weight: 700; text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-stretch: var(--wide); color: var(--ink-soft); white-space: nowrap; }
+.bc-spot.main { min-height: 2.75rem; gap: .05rem; }
+.bc-spot .name { display: flex; align-items: baseline; justify-content: center; gap: .3rem; max-width: 100%; white-space: nowrap; }
+.bc-spot .zh { font-size: .98rem; font-weight: 800; line-height: 1; }
+.bc-spot.main .zh { font-size: 1.35rem; }
+.bc-spot .en { font-size: .64rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.07em * var(--track)); font-stretch: var(--wide); white-space: nowrap; }
+.bc-spot.main .en { font-weight: 700; color: var(--ink-soft); }
+.bc-spot.main .en i { font-style: normal; font-weight: 650; text-transform: none; letter-spacing: 0; font-stretch: normal; margin-left: .2rem; }
 .bc-spot .odds { font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bc-spot.player .zh, .bc-spot.ppair .zh { color: var(--bc-p); }
-.bc-spot.banker .zh, .bc-spot.bpair .zh, .bc-spot.super6 .zh { color: var(--bc-b); }
-.bc-spot.tie .zh { color: var(--bc-t); }
+.bc-spot.side .odds { display: inline-flex; align-items: center; min-height: .95rem; }
+/* a short screen: the side bets tighter, Player and Banker each on one line, the chips and buttons a little smaller, so
+   the cards keep their room (the scoreboard's squares are smaller too: baccarat.js) */
+@media (max-height: 760px) {
+  .bc-spot.side { min-height: 0; gap: .05rem; padding: .14rem .2rem; }
+  .bc-spot.side .zh { font-size: .86rem; }
+  .bc-spot.side .en { font-size: .6rem; }
+  .bc-spot.side .odds { font-size: .6rem; line-height: 1.1; min-height: .95rem; }
+  .bc-spot.main { display: flex; justify-content: center; align-items: baseline; align-content: center; gap: .4rem; min-height: 2.3rem; padding: .12rem .3rem; }
+  .bc-spot.main .zh { font-size: 1.2rem; }
+  .bc-spot.main .bc-stake { top: -.6rem; }
+}
+/* each bet in the colour of the side it's on: the Banker's sixes red, the Player's sevens blue */
+.bc-spot.player .zh, .bc-spot.ppair .name, .bc-spot.lucky7 .name, .bc-spot.small7 .name, .bc-spot.big7 .name, .bc-spot.superlucky7 .name { color: var(--bc-p); }
+.bc-spot.banker .zh, .bc-spot.bpair .name, .bc-spot.lucky6 .name, .bc-spot.small6 .name, .bc-spot.big6 .name { color: var(--bc-b); }
+.bc-spot.tie .name { color: var(--bc-t); }
 .bc-spot.won { border-color: var(--bc-good); box-shadow: inset 0 0 0 2px var(--bc-good); }
 .bc-spot.lost { opacity: .55; }
 .bc-spot:disabled { cursor: default; }
-/* a stake on a spot: a chip with its amount, at the spot's corner */
+/* a stake on a spot: a chip with its amount, at the corner of Player or Banker; on a side bet, before what it pays */
 .bc-stake { position: absolute; top: -.35rem; right: -.25rem; display: grid; place-items: center; min-width: 1.9rem; height: 1.25rem; padding: 0 .3rem; border-radius: .7rem;
   background: var(--ink); color: var(--yard); font-size: .68rem; font-weight: 800; font-variant-numeric: tabular-nums; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); pointer-events: none; }
 .bc-stake.win { background: var(--bc-good); color: #fff; }
+.bc-spot.side .bc-stake { position: static; display: inline-grid; vertical-align: 1px; min-width: 0; height: .95rem; margin-right: .3rem; padding: 0 .3rem; font-size: .6rem; box-shadow: none; }
 
 /* the rail: chips to pick, and Clear, Rebet, Deal */
 .bc-rail { display: grid; gap: .45rem; margin-top: .45rem; }
@@ -104,11 +122,27 @@ html[data-mode="night"] { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: colo
   text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); cursor: pointer; }
 .bc-btn.primary { border: 0; background: var(--plate); color: var(--plate-ink); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font-stretch: 106%; }
 .bc-btn:disabled { opacity: .4; cursor: default; }
+@media (max-height: 760px) {
+  .bc-chip { width: 2.75rem; height: 2.75rem; }
+  .bc-btn { min-height: 2.45rem; }
+}
 
 .bc-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .bc-toast.show { opacity: 1; }
+
+/* Baccarat on one page (baccarat-rules.js) */
+.bc-rules p { line-height: 1.45; }
+.bc-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.bc-rules .bs-tableau { margin: .3rem auto .6rem; }
+.bc-rules table.bc-pays, .bc-rules table.bc-words { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.bc-rules .bc-pays th, .bc-rules .bc-pays td, .bc-rules .bc-words td { padding: .35rem .3rem; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.bc-rules .bc-pays th { font-size: .74rem; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.bc-rules b.b { color: var(--bc-b); } .bc-rules b.p { color: var(--bc-p); } .bc-rules b.t { color: var(--bc-t); }
+.bc-rules .bc-words td:first-child { white-space: nowrap; font-size: 1rem; }
+.bc-rules .bc-words i { color: var(--ink-soft); }
+.bc-rules-note { font-size: .85rem; color: var(--ink-soft); }
 
 /* the squeeze (baccarat-squeeze.js): over the felt, the card large and face down, peeled from an edge by the finger */
 .bq { position: absolute; inset: 0; z-index: 5; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; gap: .4rem; padding: .6rem;
@@ -116,7 +150,7 @@ html[data-mode="night"] { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: colo
 .bq-head { margin: 0; font-weight: 800; font-size: .95rem; }
 .bq-card { height: 100%; max-width: 100%; aspect-ratio: 5 / 7; touch-action: none; cursor: grab; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35)); }
 .bq-card text { font-family: system-ui, -apple-system, sans-serif; }
-.bq-fold { fill: color-mix(in srgb, var(--cd-back) 45%, #fff); opacity: .9; }
+.bq-fold { fill: color-mix(in srgb, var(--cd-back) 45%, #fff); }
 .bq-say { margin: 0; font-size: .82rem; color: var(--ink-soft); text-align: center; }
 .bq-turn { min-width: 9rem; }
 
@@ -128,6 +162,8 @@ dialog.ln-sheet.bc { --ln-in: var(--c3); }
 .bs-hand { display: grid; gap: .3rem; }
 .bs-hand.b .bc-hand-head { flex-direction: row-reverse; }
 .bs-hand.b .bc-total { margin-left: 0; margin-right: auto; }
+.bs-hand.p .bc-hand-head b, .bs-hand.p .bc-total { background: var(--bc-p); }
+.bs-hand.b .bc-hand-head b, .bs-hand.b .bc-total { background: var(--bc-b); }
 .bs-cards { display: flex; justify-content: center; align-items: center; gap: .25em; min-height: 4em; }
 .bs-cards .cd.third { transform: rotate(90deg); margin: 0 .5em; }
 .bs-road { border-radius: 4px; background: var(--sheet); line-height: 0; }
@@ -147,9 +183,21 @@ dialog.ln-sheet.bc { --ln-in: var(--c3); }
 .bs-tableau td.d { background: color-mix(in srgb, var(--bc-good) 18%, var(--sheet)); font-weight: 800; }
 .bs-tableau td.s { color: var(--ink-soft); }
 .bs-tableau td.here { box-shadow: inset 0 0 0 2px var(--ink); }
-.bs-terms { display: grid; gap: .35rem; margin: 0; }
-.bs-terms div { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); align-items: baseline; gap: .6rem; }
-.bs-terms dt { font-size: 1.25rem; font-weight: 800; text-align: right; }
+/* the squeeze in stills: cards part peeled, each named under it; the burn: the first card and those it sends away */
+.bs-peel { display: flex; justify-content: center; gap: .6rem; }
+.bs-peel figure { flex: 0 1 8.5rem; margin: 0; display: grid; justify-items: center; gap: .3rem; min-width: 0; }
+.bs-peel svg { display: block; width: 100%; height: auto; max-height: 42cqh; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .3)); }
+.bs-peel svg text { font-family: system-ui, -apple-system, sans-serif; }
+.bs-peel figcaption { max-width: 6.5rem; font-size: .74rem; line-height: 1.25; color: var(--ink-soft); text-align: center; }
+.bs-burn { display: grid; justify-items: center; gap: .3rem; padding: .5rem; border-radius: 6px; background: var(--bc-felt); box-shadow: inset 0 0 0 1px var(--bc-felt-line); }
+.bs-burn-row { display: flex; align-items: center; font-size: 1.05rem; }
+.bs-burn-row .cd.back { margin-left: -1.6em; }
+.bs-burn-row .cd.back:nth-child(3) { margin-left: 0; }
+.bs-burn-n { margin: 0 .35em; font-weight: 800; color: var(--ink-soft); }
+.bs-burn small { font-size: .78rem; color: var(--ink-soft); }
+.bs-terms { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: .35rem .6rem; margin: 0; }
+.bs-terms div { display: contents; }
+.bs-terms dt { font-size: 1.25rem; font-weight: 800; text-align: right; white-space: nowrap; }
 .bs-terms dd { margin: 0; font-size: .9rem; }
 .bs-terms dd i { margin-right: .45rem; color: var(--ink-soft); }
 

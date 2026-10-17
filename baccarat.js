@@ -1,20 +1,22 @@
-// Baccarat: a Macau table, as at the Venetian. Chips on the layout (Player, Banker, the Tie, the pairs, Super 6 at a
-// no-commission table), Deal, and the hand comes out as the dealer deals it: Player, Banker, Player, Banker, the third
-// cards sideways by the tableau; the call, the payouts, and the hand on the roads of the scoreboard over the table. With
-// Squeeze on, the cards of the side you're on come face down for you to turn, as the biggest bet on a side squeezes
-// them. Learn, in the header, is the course on everything the floor shows. The rules are baccarat-engine.js's, the
-// roads drawn by baccarat-roads.js; this file deals each hand out on the page and keeps the game.
-import { START, MIN, MAX, SIDE_MAX, CHIPS, RANKS, SPOTS, rankOf, suitOf, total, newGame, changeShoe, deal, betsProblem, counts } from "./baccarat-engine.js";
+// Baccarat: a Macau table, as at the Venetian. Chips on the layout (Player and Banker, the Tie, and whichever of Sands
+// China's side bets the menu puts on it, to match the table in front of you), Deal, and the hand comes out as the dealer
+// deals it: Player, Banker, Player, Banker, the third cards sideways by the tableau; the call, the payouts, and the hand
+// on the roads of the scoreboard over the table. With Squeeze on, the cards of the side you're on come face down for
+// you to turn, as the biggest bet on a side squeezes them. Learn, in the header, is the course on everything the floor
+// shows. The rules are baccarat-engine.js's, the roads drawn by baccarat-roads.js, the layout by baccarat-stage.js; this
+// file deals each hand out on the page and keeps the game.
+import { START, MIN, MAX, SIDE_MAX, CHIPS, RANKS, SPOTS, SIDES, MAIN, rankOf, suitOf, total, newGame, upgrade, changeShoe, deal, betsProblem, counts } from "./baccarat-engine.js";
 import { scoreboard, askMarks } from "./baccarat-roads.js";
 import { cardHtml } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice, toggle } from "./menu.js";
+import { part, action, line, choice, toggle, ticks } from "./menu.js";
 import { createCourse, progressOf } from "./course.js";
 import { COURSE } from "./baccarat-course.js";
-import { baccaratStage } from "./baccarat-stage.js";
+import { baccaratStage, layoutHtml, paysAt } from "./baccarat-stage.js";
 import { IN_FRAME } from "./suite.js";
 import { squeeze } from "./baccarat-squeeze.js";
+import { rulesHtml } from "./baccarat-rules.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "baccarat:run", OPTS = "baccarat:opts";
@@ -26,15 +28,27 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const animate = (node, frames, o) => (node?.animate ? node.animate(frames, { fill: "both", ...o }).finished.catch(() => {}) : Promise.resolve());
 
 let S = null;                       // the game (baccarat-engine.js's), as saved
-const opts = { squeeze: false, chip: 1000, ...read(OPTS, {}) };
+// the side bets on the layout (SIDES' ids): by default those the Venetian's main floor has carried since April 2026
+const SIDE_ROOM = 5;                // spots beside the Tie: two rows of three
+const room = ids => SIDES.filter(sd => ids.includes(sd.id)).reduce((a, sd) => a + sd.spots.length, 0);
+/** Side bets as kept: only sets a table has, and no more than the layout holds (the last ones go). */
+function fitSides(ids) {
+  let keep = Array.isArray(ids) ? ids.filter(id => SIDES.some(sd => sd.id === id)) : [];
+  while (room(keep) > SIDE_ROOM) keep = keep.slice(0, -1);
+  return keep;
+}
+const opts = { squeeze: false, chip: 1000, sides: ["pairsplus", "lucky6", "six", "monkey"], ...read(OPTS, {}) };
+opts.sides = fitSides(opts.sides);
 let playing = false;                // a hand being dealt out
-let shown = null;                   // the last hand on the felt: { hand, open (cards turned), settled, done }
+let shown = null;                   // the last hand on the felt: { hand, bets (on it), open (cards turned), settled, done }
 let asking = null;                  // the ask button held: "B" or "P", the scoreboard showing where it would go
 
-const valid = g => g && g.v === 1 && Array.isArray(g.shoe) && g.shoe.length === 416 && Array.isArray(g.results);
+const valid = g => g && g.v === 2 && Array.isArray(g.shoe) && g.shoe.length === 416 && Array.isArray(g.results);
 function save() { write(RUN, S); }
 function saveOpts() { write(OPTS, opts); }
-const spotsHere = () => SPOTS.filter(s => s.id !== "super6" || S.table === "nocommission");
+/** The spots on the layout now: Player, Banker, the Tie, and the side bets of the sets chosen. */
+const spotsHere = () => ["player", "banker", "tie", ...SIDES.filter(sd => opts.sides.includes(sd.id)).flatMap(sd => sd.spots)];
+const spotName = id => SPOTS.find(sp => sp.id === id).name;
 
 // ---------- drawing ----------
 function drawStrip() {
@@ -45,8 +59,9 @@ function drawStrip() {
 }
 /** The scoreboard: the roads, the shoe's counts, and the ask buttons with what each derived road would show next. */
 function drawBoard() {
-  const wide = matchMedia("(orientation: landscape) and (min-width: 700px)").matches;
-  $("roads").innerHTML = scoreboard(S.results, { w: wide ? 22 : 26, bead: 6, flash: asking });
+  // as many squares across as fit: fewer held sideways (the board is a column), more on a short phone (less height)
+  const wide = matchMedia("(orientation: landscape) and (min-width: 700px)").matches, short = matchMedia("(max-height: 760px)").matches;
+  $("roads").innerHTML = scoreboard(S.results, { w: wide ? 22 : short ? 28 : 26, bead: 6, flash: asking });
   const c = counts(S.results);
   $("counts").innerHTML = `<span class="b">莊<b>${c.B}</b></span><span class="p">閒<b>${c.P}</b></span><span class="t">和<b>${c.T}</b></span><span>莊對<b>${c.bp}</b></span><span>閒對<b>${c.pp}</b></span>`;
   $("counts").setAttribute("aria-label", `This shoe: Banker ${c.B}, Player ${c.P}, Tie ${c.T}, Banker pairs ${c.bp}, Player pairs ${c.pp}`);
@@ -83,17 +98,18 @@ function fitCards() {
 }
 /** The layout: each spot with its name, what it pays, and the chips on it (or what it won, once the hand is done). */
 function drawSpots() {
-  const settled = shown?.done ? shown.settled : null;
-  const html = spotsHere().map(sp => {
-    const cls = sp.id === "player" || sp.id === "banker" ? "main" : sp.id === "super6" ? "wide" : "side";
-    const stake = S.bets[sp.id] || 0, res = settled?.lines.find(l => l.spot === sp.id);
-    const pays = sp.id === "banker" && S.table === "nocommission" ? "1:1 · 6 pays ½" : sp.pays.replace(" to ", ":");
-    const mark = res ? `<span class="bc-stake${res.net > 0 ? " win" : ""}">${res.net > 0 ? `+${short(res.net)}` : res.net === 0 ? "push" : `−${short(res.stake)}`}</span>`
-      : stake ? `<span class="bc-stake">${short(stake)}</span>` : "";
-    const state = res ? (res.net > 0 ? " won" : res.net < 0 ? " lost" : "") : "";
-    return `<button type="button" class="bc-spot ${cls} ${sp.id}${state}" data-spot="${sp.id}" ${playing ? "disabled" : ""} aria-label="${sp.name}, pays ${sp.pays}${stake ? `, HK$${stake} on it` : ""}"><span class="zh">${sp.zh}</span><span class="en">${sp.name}</span><span class="odds">${pays}</span>${mark}</button>`;
-  }).join("");
-  $("spots").innerHTML = html;
+  const settled = shown?.done ? shown.settled : null, res = id => settled?.lines.find(l => l.spot === id);
+  $("spots").innerHTML = layoutHtml({
+    table: S.table, sides: opts.sides, buttons: true, disabled: playing,
+    chip: id => {
+      // while a hand is dealt its bets stay on the layout; once it's done, what each made
+      const r = res(id), stake = (shown && !shown.done ? shown.bets[id] : S.bets[id]) || 0;
+      if (r) return `<span class="bc-stake${r.net > 0 ? " win" : ""}">${r.net > 0 ? `+${short(r.net)}` : r.net === 0 ? "push" : `−${short(r.stake)}`}</span>`;
+      return stake ? `<span class="bc-stake">${short(stake)}</span>` : "";
+    },
+    state: id => { const r = res(id); return r ? (r.net > 0 ? " won" : r.net < 0 ? " lost" : "") : ""; },
+    label: id => `${spotName(id)}, pays ${paysAt(SPOTS.find(sp => sp.id === id), S.table)}${S.bets[id] ? `, HK$${S.bets[id]} on it` : ""}`,
+  });
 }
 function drawRail() {
   $("chips").innerHTML = CHIPS.map(v => `<button type="button" class="bc-chip c${v}" role="radio" aria-checked="${opts.chip === v}" data-chip="${v}" aria-label="HK$${v.toLocaleString("en-GB")} chip"><span>${short(v)}</span></button>`).join("");
@@ -111,8 +127,8 @@ function bet(spot) {
   const now = S.bets[spot] || 0, onTable = Object.values(S.bets).reduce((a, v) => a + v, 0);
   if (onTable + opts.chip > S.balance) { toast("That's more than you hold"); return; }
   if ((spot === "player" && S.bets.banker) || (spot === "banker" && S.bets.player)) { toast("Player or Banker, not both"); return; }
-  const cap = spot === "player" || spot === "banker" ? MAX : SIDE_MAX;
-  if (now + opts.chip > cap) { toast(`${SPOTS.find(s => s.id === spot).name} takes up to ${hk(cap)}`); return; }
+  const cap = MAIN.has(spot) ? MAX : SIDE_MAX;
+  if (now + opts.chip > cap) { toast(`${spotName(spot)} takes up to ${hk(cap)}`); return; }
   S.bets = { ...S.bets, [spot]: now + opts.chip };
   save();
   drawSpots();
@@ -124,7 +140,7 @@ function rebet() {
   const sum = Object.values(S.lastBets).reduce((a, v) => a + v, 0);
   if (sum > S.balance) { toast("Not enough left for the same bets"); return; }
   if (shown?.done) { shown = null; $("call").innerHTML = ""; drawHands(); }
-  S.bets = Object.fromEntries(Object.entries(S.lastBets).filter(([k]) => spotsHere().some(s => s.id === k)));
+  S.bets = Object.fromEntries(Object.entries(S.lastBets).filter(([k]) => spotsHere().includes(k)));
   save();
   drawSpots();
   drawRail();
@@ -159,7 +175,7 @@ async function dealNow() {
   playing = true;
   // the squeeze: the cards of the side you're on (the bigger bet, if both), turned by you
   const mine = before.bets.player > 0 ? "player" : before.bets.banker > 0 ? "banker" : null;
-  shown = { hand: r.hand, open: [], dealt: [], settled: r.settled, done: false, squeeze: opts.squeeze && mine ? [0, 1, 2].map(k => `${mine}${k}`) : [] };
+  shown = { hand: r.hand, bets: before.bets, open: [], dealt: [], settled: r.settled, done: false, squeeze: opts.squeeze && mine ? [0, 1, 2].map(k => `${mine}${k}`) : [] };
   $("call").innerHTML = "";
   drawSpots();
   drawRail();
@@ -169,13 +185,14 @@ async function dealNow() {
   if (r.hand.natural) { $("call").innerHTML = `<small>${Math.max(r.hand.pt, r.hand.bt) === 9 ? "Natural 9" : "Natural 8"}: no third cards</small>`; await wait(500); }
   for (const side of ["player", "banker"]) if (r.hand[side].length === 3) { await wait(250); await lay(side, 2); await turn(side, 2); }
   await wait(250);
-  // the call and the payouts
-  const [zh, en, cls] = SIDE_ZH[r.hand.winner], pairs = [r.hand.ppair && "Player pair", r.hand.bpair && "Banker pair"].filter(Boolean);
-  const net = r.settled.net;
+  // the call and the payouts: the pairs as the scoreboard counts them, and any side bet of yours that came in
+  const [zh, en, cls] = SIDE_ZH[r.hand.winner], won = r.settled.lines.filter(l => l.net > 0 && !MAIN.has(l.spot) && l.spot !== "tie" && l.spot !== "ppair" && l.spot !== "bpair").map(l => spotName(l.spot));
+  const notes = [r.hand.ppair && "Player pair", r.hand.bpair && "Banker pair", ...won].filter(Boolean), net = r.settled.net;
   shown.done = true;
   playing = false;
-  $("call").innerHTML = `<span class="zh ${cls}">${zh}</span>${en}${r.hand.winner === "T" ? `, ${r.hand.pt} each` : `, ${Math.max(r.hand.pt, r.hand.bt)} to ${Math.min(r.hand.pt, r.hand.bt)}`}${pairs.length ? ` <small>· ${pairs.join(", ")}</small>` : ""} <small>· ${net > 0 ? `+${hk(net)}` : net < 0 ? `−${hk(net)}` : "even"}</small>`;
+  $("call").innerHTML = `<span class="zh ${cls}">${zh}</span>${en}${r.hand.winner === "T" ? `, ${r.hand.pt} each` : `, ${Math.max(r.hand.pt, r.hand.bt)} to ${Math.min(r.hand.pt, r.hand.bt)}`}${notes.length ? ` <small>· ${notes.join(", ")}</small>` : ""} <small>· ${net > 0 ? `+${hk(net)}` : net < 0 ? `−${hk(net)}` : "even"}</small>`;
   render();
+  if (r.hand.winner === "T" && Object.keys(S.bets).length) toast(`A tie: your ${spotName(Object.keys(S.bets)[0])} bet stays. Leave it, clear it or add to it`);
   if (r.cutCame) toast("The cut card's out: one more hand, then a new shoe");
   if (r.shoeDone) {
     await wait(1400);
@@ -201,7 +218,11 @@ function toast(msg) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2800);
 }
-const course = createCourse({ id: "baccarat", course: COURSE, stage: baccaratStage(), cls: "bc", inFrame: IN_FRAME, onPlay: () => {} });
+function showRules() {
+  $("rulesBody").innerHTML = rulesHtml(S.table);
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+}
+const course = createCourse({ id: "baccarat", course: COURSE, stage: baccaratStage(), cls: "bc", inFrame: IN_FRAME, onRules: showRules, onPlay: () => {} });
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
@@ -209,13 +230,32 @@ function openMenu() {
   play.append(action("New shoe", () => { if (playing) return; S = changeShoe(S); shown = null; $("call").innerHTML = ""; save(); render(); toast(`A new shoe: ${S.burn.count} burned`); }, "primary"));
   if (S.balance < START) play.append(action(`Top up to ${hk(START)}`, () => { S.balance = START; S.toppedUp++; save(); render(); }));
   const cp = progressOf("baccarat", COURSE);
-  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the bets, the cards, the roads", () => course.open()));
-  part(body, "content").append(choice("Table", [["commission", "Commission 佣金"], ["nocommission", "No commission 免佣"]], S.table, v => {
+  play.append(action(cp.done ? `Learn: ${cp.done} of ${cp.of} lessons done` : "Learn the floor: the bets, the cards, the roads", () => course.open()), action("Baccarat on one page", showRules, "link"));
+  const content = part(body, "content");
+  content.append(choice("Table", [["nocommission", "No commission 免佣"], ["commission", "Commission 佣金"]], S.table, v => {
     if (playing) return;
     S.table = v;
-    if (v === "commission" && S.bets.super6) { const { super6, ...rest } = S.bets; S.bets = rest; }
     save();
     render();
+  }));
+  // the side bets, as many as two rows hold: one ticked past that pushes out the earliest
+  content.append(ticks("Side bets", SIDES.map(sd => [sd.id, sd.name]), opts.sides, picked => {
+    const added = picked.find(id => !opts.sides.includes(id));
+    let keep = picked;
+    while (room(keep) > SIDE_ROOM) {
+      const out = opts.sides.find(old => keep.includes(old) && old !== added);
+      if (!out) break;
+      keep = keep.filter(id => id !== out);
+    }
+    const trimmed = keep.length < picked.length;
+    opts.sides = keep;
+    saveOpts();
+    if (!playing) {
+      const off = Object.keys(S.bets).filter(id => !spotsHere().includes(id));
+      if (off.length) { S.bets = Object.fromEntries(Object.entries(S.bets).filter(([id]) => spotsHere().includes(id))); save(); }
+    }
+    render();
+    if (trimmed) openMenu();
   }));
   part(body, "settings").append(toggle("Squeeze my cards", opts.squeeze, on => { opts.squeeze = on; saveOpts(); }));
   part(body, "about").append(line(`${S.hands} hand${S.hands === 1 ? "" : "s"} dealt; you hold ${hk(S.balance)}${S.toppedUp ? `, topped up ${S.toppedUp} time${S.toppedUp === 1 ? "" : "s"}` : ""}. Play money: nothing real is staked.`));
@@ -228,6 +268,7 @@ document.querySelector(".bc-mark").innerHTML = APPS.find(a => a.id === "baccarat
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("learnBtn").addEventListener("click", () => course.open());
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("spots").addEventListener("click", e => { const b = e.target.closest("[data-spot]"); if (b) bet(b.dataset.spot); });
 $("chips").addEventListener("click", e => { const b = e.target.closest("[data-chip]"); if (!b) return; opts.chip = Number(b.dataset.chip); saveOpts(); drawRail(); });
 $("clearBtn").addEventListener("click", clearBets);
@@ -240,6 +281,7 @@ addEventListener("resize", () => { drawBoard(); fitCards(); });
 // for tests and debugging
 window.__baccarat = { get state() { return S; }, dealNow, bet, course };
 
-S = read(RUN, null);
-if (!valid(S)) { S = newGame(Math.floor(Math.random() * 2 ** 31)); save(); }
+S = upgrade(read(RUN, null));
+if (!valid(S)) S = newGame(Math.floor(Math.random() * 2 ** 31));
+save();
 render();

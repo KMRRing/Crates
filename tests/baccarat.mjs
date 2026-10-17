@@ -1,10 +1,11 @@
 // Baccarat's rules (baccarat-engine.js): what cards count and a hand's total, the tableau (every case of the Banker's
 // third card against the standard table, written out here on its own), hands dealt (naturals, the Player's draw, the
-// Banker's by the tableau, pairs), the odds and the house's edge worked out exactly, what each bet pays at both tables,
-// which bets may go down, the shoe (eight decks, the burn, the cut card, the last hand), the roads (the bead plate, the big
-// road with its ties and dragon's tails, the three derived roads and the ask road on a worked example), the counts, a game
-// saved and opened again, and whole shoes dealt through.
-import { DECKS, CUT_FROM_END, START, MIN, UNIT, rankOf, value, total, bankerDraws, dealHand, payout, settle, betsProblem, newGame, changeShoe, deal, beadPlate, bigColumns, layout, derived, runs, ask, counts, toCut } from "../baccarat-engine.js";
+// Banker's by the tableau, pairs), the odds and every bet's edge worked out exactly over an eight-deck shoe and held to the
+// published figures, what each bet pays at both tables, which bets may go down, a tie leaving the main bet on the table,
+// the shoe (eight decks, the burn, the cut card, the last hand), the roads (the bead plate, the big road with its ties and
+// dragon's tails, the three derived roads and the ask road on two worked examples), the counts, a game saved and opened
+// again (an old one brought up to date), and whole shoes dealt through.
+import { DECKS, CUT_FROM_END, START, MIN, UNIT, SPOTS, SIDES, MAIN, EDGES, rankOf, value, total, bankerDraws, burnCount, dealHand, payout, settle, betsProblem, newGame, upgrade, changeShoe, deal, beadPlate, bigColumns, layout, derived, runs, ask, counts, toCut } from "../baccarat-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -49,20 +50,32 @@ const cards = text => text.split(" ").map(t => c(t));
 
 // ---------- the odds, exactly ----------
 {
-  // every hand of six cards weighed by how likely its values are (an endless shoe: a 0 four times as likely as any other),
-  // which is what eight decks come to within a few thousandths
-  const P = [4 / 13, 1 / 13, 1 / 13, 1 / 13, 1 / 13, 1 / 13, 1 / 13, 1 / 13, 1 / 13, 1 / 13];
-  const card = v => (v === 0 ? c("K") : c(R[v - 1]));
-  const out = { B: 0, P: 0, T: 0, B6: 0 };
-  const go = (vals, p) => {
-    if (vals.length === 6) { const h = dealHand(vals.map(card)); out[h.winner] += p; if (h.winner === "B" && h.bt === 6) out.B6 += p; return; }
-    for (let v = 0; v < 10; v++) go([...vals, v], p * P[v]);
+  // every deal from a full shoe of eight decks, by rank, each weighed by its chance with the cards drawn without
+  // replacement; a fifth and sixth card dealt only when the hand takes them. Every bet paid by payout() on every deal, so
+  // the edges below are the engine's own, held to the published ones (Wizard of Odds; Ryan Ho in Inside Asian Gaming)
+  const left = new Array(13).fill(32), ids = [], ev = Object.fromEntries(SPOTS.map(sp => [sp.id, 0]));
+  let cards = 416, B = 0, P = 0, T = 0, free = 0;
+  const go = (p, depth) => {
+    if (depth >= 4 && dealHand([...ids, 0, 0]).used <= depth) {
+      const h = dealHand(ids);
+      if (h.winner === "B") B += p; else if (h.winner === "P") P += p; else T += p;
+      for (const sp of SPOTS) ev[sp.id] += p * payout(sp.id, 100, h, "commission") / 100;
+      free += p * payout("banker", 100, h, "nocommission") / 100;
+      return;
+    }
+    for (let r = 0; r < 13; r++) {
+      if (!left[r]) continue;
+      const q = p * left[r] / cards;
+      left[r]--; cards--; ids.push(r * 4 + 3);
+      go(q, depth + 1);
+      left[r]++; cards++; ids.pop();
+    }
   };
-  go([], 1);
-  const near = (a, b, d = 0.002) => Math.abs(a - b) < d;
-  check(near(out.B, 0.4586) && near(out.P, 0.4462) && near(out.T, 0.0952), `the Banker wins ${(out.B * 100).toFixed(2)}%, the Player ${(out.P * 100).toFixed(2)}%, a tie ${(out.T * 100).toFixed(2)}% (eight decks: 45.86, 44.62, 9.52)`);
-  const banker = out.B * 0.95 - out.P, player = out.P - out.B, tie = out.T * 8 - (1 - out.T), free = (out.B - out.B6) + out.B6 / 2 - out.P;
-  check(near(banker, -0.0106, 0.001) && near(player, -0.0124, 0.001) && near(tie, -0.1436, 0.003) && near(free, -0.0146, 0.001), `the house's edge: Banker ${(-banker * 100).toFixed(2)}%, Player ${(-player * 100).toFixed(2)}%, Tie ${(-tie * 100).toFixed(1)}%, no-commission Banker ${(-free * 100).toFixed(2)}%`);
+  go(1, 0);
+  const near = (a, b, d) => Math.abs(a - b) < d;
+  check(near(B, 0.4586, 0.0001) && near(P, 0.4462, 0.0001) && near(T, 0.0952, 0.0001), `the Banker wins ${(B * 100).toFixed(2)}%, the Player ${(P * 100).toFixed(2)}%, a tie ${(T * 100).toFixed(2)}% (45.86, 44.62, 9.52)`);
+  const off = SPOTS.filter(sp => !near(-ev[sp.id] * 100, EDGES[sp.id], 0.006));
+  check(!off.length && near(-free * 100, EDGES.nocommission, 0.006), `every bet's edge as published: ${SPOTS.map(sp => `${sp.name} ${(-ev[sp.id] * 100).toFixed(2)}%`).join(", ")}; no-commission Banker ${(-free * 100).toFixed(2)}%${off.length ? ` (off: ${off.map(sp => sp.id).join(", ")})` : ""}`);
 }
 
 // ---------- what bets pay ----------
@@ -70,11 +83,36 @@ const cards = text => text.split(" ").map(t => c(t));
   const b6 = dealHand(cards("2 3 2 3 8 A")), b7 = dealHand(cards("2 3 2 3 7 A")), tie = dealHand(cards("Q 4 7 3"));
   check(payout("banker", 1000, b7, "commission") === 950 && payout("banker", 1000, b7, "nocommission") === 1000 && payout("banker", 1000, b6, "nocommission") === 500, "the Banker pays 0.95 at a commission table; 1 to 1 without, but half when it wins with six");
   check(payout("player", 1000, tie, "commission") === 0 && payout("banker", 1000, tie, "commission") === 0 && payout("tie", 1000, tie, "commission") === 8000, "a tie pushes Player and Banker, and pays the Tie 8 to 1");
-  check(payout("super6", 500, b6, "nocommission") === 6000 && payout("super6", 500, b7, "nocommission") === -500, "Super 6 pays 12 to 1 on the Banker winning with six");
+  // the sixes: two cards (b6 above), three (K 2 K 2 2 2: the Player 0 draws a 2, the Banker's 4 draws against it, and a 2 makes 6)
+  const b6three = dealHand(cards("K 2 K 2 2 2"));
+  check(b6three.winner === "B" && b6three.bt === 6 && b6three.banker.length === 3, "a three-card six: K 2 K 2 2 2");
+  check(payout("lucky6", 100, b6, "nocommission") === 1200 && payout("lucky6", 100, b6three, "nocommission") === 2000 && payout("lucky6", 100, b7, "nocommission") === -100, "Lucky 6: 12 to 1 on the Banker's two-card six, 20 to 1 on three");
+  check(payout("small6", 100, b6, "nocommission") === 2200 && payout("small6", 100, b6three, "nocommission") === -100 && payout("big6", 100, b6three, "nocommission") === 5000 && payout("big6", 100, b6, "nocommission") === -100, "Small 6 only on two cards, 22 to 1; Big 6 only on three, 50 to 1");
+  // the sevens: the Player's seven over the Banker's six on two cards each, on three against two, on three each
+  const two = dealHand(cards("7 6 K K")), threeTwo = dealHand(cards("2 K 3 6 2")), three = dealHand(cards("2 K 3 3 2 3"));
+  check([two, threeTwo, three].every(h => h.winner === "P" && h.pt === 7 && h.bt === 6) && two.player.length + two.banker.length === 4 && threeTwo.player.length === 3 && threeTwo.banker.length === 2 && three.banker.length === 3, "the Player's seven against the Banker's six on four, five and six cards");
+  check(payout("lucky7", 100, two, "") === 600 && payout("lucky7", 100, threeTwo, "") === 1500 && payout("small7", 100, two, "") === 1500 && payout("small7", 100, threeTwo, "") === -100 && payout("big7", 100, threeTwo, "") === 3000 && payout("big7", 100, two, "") === -100, "Lucky 7: 6 to 1 on two cards, 15 to 1 on three; Small 7 15 to 1 on two; Big 7 30 to 1 on three");
+  check(payout("superlucky7", 100, two, "") === 3000 && payout("superlucky7", 100, threeTwo, "") === 4000 && payout("superlucky7", 100, three, "") === 10000 && payout("superlucky7", 100, b7, "") === -100, "Super Lucky 7: 30 to 1, 40 to 1 with one third card, 100 to 1 with both");
+  // the pairs and Pairs+ (7 9 7 9: a pair each, different; 7 7 7 7: the same pair twice; 7 9 7 2: one; 7 6 K K: none)
+  const each = dealHand(cards("7 9 7 9")), same = dealHand(cards("7 7 7 7 K K")), one = dealHand(cards("7 9 7 2 5 3"));
+  check(payout("ppair", 100, each, "") === 1100 && payout("bpair", 100, one, "") === -100 && payout("pairsplus", 100, one, "") === 300 && payout("pairsplus", 100, each, "") === 3000 && payout("pairsplus", 100, same, "") === 30000 && payout("pairsplus", 100, two, "") === -100,
+    "a pair 11 to 1; Pairs+ 3 to 1 for one, 30 to 1 for one in each hand, 300 to 1 for the same pair in each");
+  // Monkey no Monkey: the first four cards (K Q J K all court cards; 2 3 4 5 none; K 3 4 5 one)
+  check(payout("monkey", 100, dealHand(cards("K Q J K 2 3")), "") === 5000 && payout("monkey", 100, dealHand(cards("2 3 4 5 2 2")), "") === 100 && payout("monkey", 100, dealHand(cards("K 3 4 5 2 2")), "") === -100 && payout("monkey", 100, dealHand(cards("10 3 4 5 2 2")), "") === 100,
+    "Monkey no Monkey: even money with no court card in the first four (a ten isn't one), 50 to 1 with four, nothing between");
   const s = settle({ banker: 1000, bpair: 100 }, dealHand(cards("7 9 7 9 2 2")), "commission");
   check(s.net === 950 + 1100 && s.back === 1950 + 1200, "everything on the table settled together: what it won, and what comes back with the stakes");
   check(betsProblem({}, START) && betsProblem({ player: 300 }, START) && betsProblem({ player: 550 }, START) && betsProblem({ player: 500, banker: 500 }, START) && betsProblem({ banker: 600 }, 500) && betsProblem({ tie: 20000 }, START) && !betsProblem({ banker: MIN, tie: UNIT }, START),
     `Player and Banker from HK$${MIN}, in HK$${UNIT}s, never both, the side bets up to their own limit, never more than you hold`);
+  const sided = SIDES.flatMap(sd => sd.spots), loose = SPOTS.filter(sp => !MAIN.has(sp.id) && sp.id !== "tie" && sided.filter(id => id === sp.id).length !== 1);
+  check(sided.every(id => SPOTS.some(sp => sp.id === id)) && !loose.length, "every side bet belongs to exactly one of the sets a layout may carry");
+  // a tie leaves the Player or Banker bet on the table; the rest is settled
+  const g = newGame(5);
+  g.shoe = [...cards("Q 4 7 3"), ...g.shoe.slice(4)];
+  g.pos = 0;
+  g.bets = { banker: 1000, tie: 100, lucky6: 100 };
+  const r = deal(g);
+  check(r.hand.winner === "T" && JSON.stringify(r.state.bets) === JSON.stringify({ banker: 1000 }) && r.state.balance === g.balance + 800 - 100, "a tie: the Banker bet stays for the next hand (to leave, take back or move), the Tie is paid, Lucky 6 lost");
 }
 
 // ---------- the shoe ----------
@@ -82,7 +120,8 @@ const cards = text => text.split(" ").map(t => c(t));
   const s = newGame(7), each = new Map();
   for (const id of s.shoe) each.set(id, (each.get(id) || 0) + 1);
   check(s.shoe.length === 52 * DECKS && each.size === 52 && [...each.values()].every(n => n === DECKS), "eight decks: every card eight times");
-  check(s.pos === 1 + s.burn.count && s.burn.shown === s.shoe[0] && s.burn.count === (value(s.shoe[0]) || 10), "the first card turned, and as many burned as it counts (a ten or a court card ten)");
+  check(s.pos === 1 + s.burn.count && s.burn.shown === s.shoe[0] && s.burn.count === (value(s.shoe[0]) || 10) && burnCount(c("Q")) === 10 && burnCount(c("7")) === 7, "the first card turned, and as many burned as it counts (a ten or a court card ten)");
+  check(s.table === "nocommission" && s.v === 2, "a new game sits at a no-commission table, the main floor's usual one");
   check(s.cut === s.shoe.length - CUT_FROM_END && toCut(s) === s.cut - s.pos && JSON.stringify(newGame(7)) === JSON.stringify(s) && JSON.stringify(newGame(8).shoe) !== JSON.stringify(s.shoe), `the cut card ${CUT_FROM_END} from the back; the same seed shuffles the same shoe, another another`);
   let g = newGame(11), cut = -1, done = -1, k = 0;
   while (done < 0) {
@@ -118,12 +157,21 @@ const cards = text => text.split(" ").map(t => c(t));
   const a = ask(res("BBBPPBPPPBB"));
   check(a.B.join() === "red,red,blue" && a.P.join() === "blue,blue,red", "the ask road: what each would show next, a Banker or a Player (always opposite colours)");
   check([...ask(res("B")).B, ...ask(res("B")).P].every(m => m === null) && ask(res("BP")).B[0] === "red" && ask(res("BP")).B[1] === null, "a road that hasn't started has nothing to say (the big eye boy starts at the top of the third column)");
+  // a second example, worked out independently for the research behind the course: a dragon of eight and a tie in a run
+  const ex2 = bigColumns(res("BBBPPBPTPPPBBBBBBBBPBP")).cols, rb = m => m.map(x => x[0].toUpperCase()).join("");
+  check(ex2.map(col => col.length).join() === "3,2,1,4,8,1,1,1" && rb(derived(ex2, 1)) === "RBBBRRBRRRBRRRBBR" && rb(derived(ex2, 2)) === "BRBRBBRRRRRRBBB" && rb(derived(ex2, 3)) === "RRBBRBRRRRRBRB",
+    "the three derived roads on a shoe with a dragon of eight: as worked out independently");
+  const a2 = ask(res("BBBPPBPTPPPBBBBBBBBPBP"));
+  check(rb(a2.B) === "RRB" && rb(a2.P) === "BBR", "and its ask road");
   const n = counts([...res("BBPT"), { w: "B", pp: true, bp: true, nat: true }]);
   check(n.hands === 5 && n.B === 3 && n.P === 1 && n.T === 1 && n.pp === 1 && n.bp === 1 && n.nat === 1, "the counts: hands, wins each way, ties, pairs, naturals");
 }
 
 // ---------- saved and opened again ----------
 {
+  const old = { ...newGame(9, "commission"), v: 1, bets: { super6: 500, banker: 1000 }, lastBets: { super6: 500, tie: 100 } };
+  const up = upgrade(old);
+  check(up.v === 2 && JSON.stringify(up.bets) === JSON.stringify({ banker: 1000 }) && JSON.stringify(up.lastBets) === JSON.stringify({ tie: 100 }) && up.table === "commission" && upgrade(up) === up, "a game from the first version: its Super 6 bets dropped (Macau has no such bet), its table kept");
   let s = newGame(42);
   for (let k = 0; k < 6; k++) s = deal({ ...s, bets: { player: 500 } }).state;
   const again = JSON.parse(JSON.stringify(s));

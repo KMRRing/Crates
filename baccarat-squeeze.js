@@ -2,8 +2,9 @@
 // drawn large with its pips laid out as a real card's (the squeeze is about the pips: peeling a long side shows
 // whether there's a column of pips there at all, then how many), face down; drag in from any edge and the back peels
 // away from that edge as far as the finger goes, the bent part showing a lighter band; let go and it lies flat again,
-// unless it's mostly peeled, when it turns over. Turn it turns it at once. The page (baccarat.js) opens it over the
-// felt and waits for the card to be turned.
+// unless it's mostly peeled, when it turns over. The two corners with the index stay pressed down, as a squeezer's
+// thumbs keep them, or the first peel would give the card away. Turn it turns it at once. The page (baccarat.js) opens
+// it over the felt and waits for the card to be turned; the course (baccarat-stage.js) draws stills of it.
 import { RANKS, rankOf, suitOf } from "./baccarat-engine.js";
 
 const W = 250, H = 350;                              // the card, in its own units (2.5 by 3.5, as cards.js's)
@@ -22,6 +23,19 @@ const PIPS = {
   9: [[L, .2], [R, .2], [L, .4], [R, .4], [C, .5], [L, .6], [R, .6], [L, .8], [R, .8]],
   10: [[L, .2], [R, .2], [C, .3], [L, .4], [R, .4], [L, .6], [R, .6], [C, .7], [L, .8], [R, .8]],
 };
+// the corners with the index (top left, and bottom right, upside down), held flat while the rest is peeled
+const THUMBS = [[0, 0, 50, 92], [W - 50, H - 92, 50, 92]];
+
+/** How many pips run down one long side of a card of this rank ("7", "K"…): what a squeezer sees first. */
+export function sidePips(rank) {
+  const pips = PIPS[RANKS.indexOf(rank) + 1];
+  return pips ? pips.filter(([x]) => x === R).length : 0;
+}
+/** The pips in the middle column of a card of this rank, top to bottom, as fractions of its length. */
+export function middlePips(rank) {
+  const pips = PIPS[RANKS.indexOf(rank) + 1];
+  return pips ? pips.filter(([x]) => x === C).map(([, y]) => y) : [];
+}
 
 /** A card's face as SVG content (W × H units): its corners, and its pips or, for a court card, a framed picture. */
 export function faceSvg(id) {
@@ -37,8 +51,35 @@ export function faceSvg(id) {
   }
   return `<rect width="${W}" height="${H}" rx="18" fill="var(--cd-face)" stroke="var(--cd-edge)" stroke-width="3"/>${corner}<g transform="rotate(180 ${W / 2} ${H / 2})">${corner}</g>${body}`;
 }
-/** The card's back: the same blue and gilt lattice the table's backs wear. */
-const BACK = `<pattern id="sq-lattice" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="16" height="16" fill="var(--cd-back)"/><path d="M0 0H16M0 0V16" stroke="var(--cd-back-line)" stroke-width="1.6" opacity=".45"/></pattern>`;
+
+const box = ([x, y, w, h]) => `M${x} ${y}h${w}v${h}h${-w}Z`;
+/**
+ * The card `d` units peeled from `edge`: `clip`, the outline of what the back still covers (the unpeeled part and the
+ * two index corners under the thumbs, until it's turned), and `fold`, the bent strip just past the peel line.
+ */
+export function peelPaths(edge, d) {
+  const along = edge === "left" || edge === "right" ? W : H, k = Math.max(0, Math.min(d, along)), band = Math.min(k, 26);
+  const rest = { bottom: [0, 0, W, H - k], top: [0, k, W, H - k], left: [k, 0, W - k, H], right: [0, 0, W - k, H] }[edge];
+  const strip = { bottom: [0, H - k, W, band], top: [0, k - band, W, band], left: [k - band, 0, band, H], right: [W - k, 0, band, H] }[edge];
+  return { clip: [rest, ...(k < along ? THUMBS : [])].map(box).join(""), fold: k > 0 && k < along ? box(strip) : "" };
+}
+
+/** The card face down over its face, `uid` keeping its pattern and clip apart from any other card's on the page. */
+function cardSvg(id, uid, { clip, fold }, attrs) {
+  return `<svg ${attrs} viewBox="0 0 ${W} ${H}"><defs>
+      <pattern id="${uid}-lattice" width="16" height="16" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="16" height="16" fill="var(--cd-back)"/><path d="M0 0H16M0 0V16" stroke="var(--cd-back-line)" stroke-width="1.6" opacity=".45"/></pattern>
+      <clipPath id="${uid}-hide"><path class="bq-clip" d="${clip}"/></clipPath></defs>
+    <g class="bq-face">${faceSvg(id)}</g>
+    <g class="bq-back" clip-path="url(#${uid}-hide)"><rect width="${W}" height="${H}" rx="18" fill="url(#${uid}-lattice)" stroke="var(--cd-back-line)" stroke-width="3"/><rect x="12" y="12" width="${W - 24}" height="${H - 24}" rx="10" fill="none" stroke="var(--cd-back-line)" stroke-width="2.4" opacity=".8"/></g>
+    <path class="bq-fold" d="${fold}"/></svg>`;
+}
+
+let stills = 0;
+/** A still of card `id` with `frac` of it peeled back from `edge` (the course's pictures of a squeeze): SVG markup. */
+export function peeledSvg(id, edge = "right", frac = .5, label = "") {
+  const along = edge === "left" || edge === "right" ? W : H;
+  return cardSvg(id, `sqs${++stills}`, peelPaths(edge, frac * along), `class="bq-still" role="img" aria-label="${label.replace(/"/g, "&quot;")}"`);
+}
 
 /**
  * Opens the squeeze over `host` for card `id`; label says whose card it is. Resolves once the card has been turned.
@@ -48,26 +89,18 @@ export function squeeze(host, id, { label = "" } = {}) {
     const box = document.createElement("div");
     box.className = "bq";
     box.innerHTML = `<p class="bq-head">${label}</p>
-      <svg class="bq-card" viewBox="0 0 ${W} ${H}" role="img" aria-label="A card face down: drag in from an edge to peel it"><defs>${BACK}<clipPath id="sq-hide"><path class="bq-clip" d=""/></clipPath></defs>
-        <g class="bq-face">${faceSvg(id)}</g>
-        <g class="bq-back" clip-path="url(#sq-hide)"><rect width="${W}" height="${H}" rx="18" fill="url(#sq-lattice)" stroke="var(--cd-back-line)" stroke-width="3"/><rect x="12" y="12" width="${W - 24}" height="${H - 24}" rx="10" fill="none" stroke="var(--cd-back-line)" stroke-width="2.4" opacity=".8"/></g>
-        <path class="bq-fold" d=""/></svg>
+      ${cardSvg(id, "sq", peelPaths("bottom", 0), `class="bq-card" role="img" aria-label="A card face down: drag in from an edge to peel it"`)}
       <p class="bq-say">Drag in from an edge to peel it: a long side first shows the pips' columns</p>
       <button class="bc-btn primary bq-turn" type="button">Turn it</button>`;
     host.appendChild(box);
     const svg = box.querySelector(".bq-card"), clip = box.querySelector(".bq-clip"), fold = box.querySelector(".bq-fold");
-    let edge = null, depth = 0, done = false;
-    /** The back as it lies with `d` units peeled from an edge; the bent strip shown as a lighter band past the line. */
+    let edge = "bottom", depth = 0, done = false;
     function draw(d) {
       depth = Math.max(0, d);
-      const e = edge || "bottom", k = Math.min(depth, e === "left" || e === "right" ? W : H), band = Math.min(k, 26);
-      const rect = { bottom: [0, 0, W, H - k], top: [0, k, W, H - k], left: [k, 0, W - k, H], right: [0, 0, W - k, H] }[e];
-      clip.setAttribute("d", `M${rect[0]} ${rect[1]}h${rect[2]}v${rect[3]}h${-rect[2]}Z`);
-      // the bent part: a strip just past the peel line, its underside catching the light
-      const strip = { bottom: [0, H - k, W, band], top: [0, k - band, W, band], left: [k - band, 0, band, H], right: [W - k, 0, band, H] }[e];
-      fold.setAttribute("d", k > 0 ? `M${strip[0]} ${strip[1]}h${strip[2]}v${strip[3]}h${-strip[2]}Z` : "");
+      const p = peelPaths(edge, depth);
+      clip.setAttribute("d", p.clip);
+      fold.setAttribute("d", p.fold);
     }
-    draw(0);
     const toCard = ev => { const m = svg.getScreenCTM(); return m ? new DOMPoint(ev.clientX, ev.clientY).matrixTransform(m.inverse()) : null; };
     let start = null;
     svg.addEventListener("pointerdown", ev => {
@@ -99,7 +132,6 @@ export function squeeze(host, id, { label = "" } = {}) {
     function turn() {
       if (done) return;
       done = true;
-      edge = edge || "bottom";
       draw(edge === "left" || edge === "right" ? W : H);
       setTimeout(() => { box.remove(); resolve(); }, 380);
     }

@@ -1,10 +1,10 @@
 // Baccarat's rules, pure (no page): punto banco as Macau deals it. Eight decks in a shoe, shuffled from a seed; the first
 // card turned and as many burned as it counts; a cut card near the back, after which one more hand is dealt and the
 // shoe is changed. Each hand two cards to the Player (閒) and two to the Banker (莊), a third by the tableau (no choice
-// anyone makes), the total nearer nine winning; bets on either, on a Tie, on either hand's first two cards making a
-// pair, and on the Banker winning with six. The roads the scoreboard draws from the results (the bead plate, the big
-// road, the three roads derived from it, and what each would show next) are worked out here too. The page (baccarat.js)
-// draws it; tests/baccarat.mjs checks this.
+// anyone makes), the total nearer nine winning; bets on either, on a Tie, and on the side bets Sands China's tables
+// carry (the pairs, Pairs+, the sixes, the sevens, Monkey no Monkey). The roads the scoreboard draws from the results (the
+// bead plate, the big road, the three roads derived from it, and what each would show next) are worked out here too.
+// The page (baccarat.js) draws it; tests/baccarat.mjs checks this.
 //
 // A game is one object, as saved: { v, seed, n (draws made), shoe (card ids, the order they come), pos (the next card),
 // cut (where the cut card lies), last (the cut card has come out: this is the shoe's last hand), shoeNo, burn ({ shown,
@@ -24,14 +24,39 @@ export const value = id => (rankOf(id) < 9 ? rankOf(id) + 1 : 0);
 /** A hand's total: the last digit of the sum. */
 export const total = cards => cards.reduce((a, id) => a + value(id), 0) % 10;
 
-// the bets: where they go on the layout, what they're called, what they pay (the table's own rule for the Banker)
+// the bets: what they're called (tag, shorter, on the layout), in Chinese where the rules or the floor letter it so, what
+// they pay, in full and as the layout prints it short
 export const SPOTS = [
-  { id: "player", name: "Player", zh: "閒", pays: "1 to 1" },
-  { id: "banker", name: "Banker", zh: "莊", pays: "0.95 to 1" },
-  { id: "tie", name: "Tie", zh: "和", pays: "8 to 1" },
-  { id: "ppair", name: "Player pair", zh: "閒對", pays: "11 to 1" },
-  { id: "bpair", name: "Banker pair", zh: "莊對", pays: "11 to 1" },
-  { id: "super6", name: "Super 6", zh: "超級六", pays: "12 to 1" },
+  { id: "player", name: "Player", zh: "閒", pays: "1 to 1", odds: "1:1" },
+  { id: "banker", name: "Banker", zh: "莊", pays: "0.95 to 1", odds: "0.95:1" },
+  { id: "tie", name: "Tie", zh: "和", pays: "8 to 1", odds: "8:1" },
+  { id: "ppair", name: "Player pair", tag: "P pair", zh: "閒對", pays: "11 to 1", odds: "11:1" },
+  { id: "bpair", name: "Banker pair", tag: "B pair", zh: "莊對", pays: "11 to 1", odds: "11:1" },
+  { id: "pairsplus", name: "Pairs+", zh: "", pays: "3 to 1 for a pair, 30 to 1 for one in each hand, 300 to 1 for the same pair in each", odds: "3, 30, 300:1" },
+  { id: "lucky6", name: "Lucky 6", zh: "幸運6", pays: "12 to 1 on two cards, 20 to 1 on three", odds: "12 or 20:1" },
+  { id: "small6", name: "Small 6", zh: "", pays: "22 to 1", odds: "22:1" },
+  { id: "big6", name: "Big 6", zh: "", pays: "50 to 1", odds: "50:1" },
+  { id: "lucky7", name: "Lucky 7", zh: "", pays: "6 to 1 on two cards, 15 to 1 on three", odds: "6 or 15:1" },
+  { id: "small7", name: "Small 7", zh: "", pays: "15 to 1", odds: "15:1" },
+  { id: "big7", name: "Big 7", zh: "", pays: "30 to 1", odds: "30:1" },
+  { id: "superlucky7", name: "Super Lucky 7", zh: "", pays: "30 to 1, 40 to 1 with one third card, 100 to 1 with both", odds: "30, 40, 100:1" },
+  { id: "monkey", name: "Monkey", zh: "", pays: "1 to 1 with no court card in the first four, 50 to 1 with four", odds: "1:1 or 50:1" },
+];
+// what the house keeps of each bet on average, per cent of the stake, with eight decks: as published (Wizard of Odds;
+// Ryan Ho in Inside Asian Gaming), and as tests/baccarat.mjs works out exactly from every deal (nocommission: the
+// Banker at a no-commission table)
+export const EDGES = { player: 1.24, banker: 1.06, nocommission: 1.46, tie: 14.36, ppair: 10.36, bpair: 10.36, pairsplus: 17.14, lucky6: 16.68, small6: 14.33, big6: 15.25, lucky7: 18.30, small7: 13.05, big7: 15.41, superlucky7: 14.83, monkey: 16.50 };
+// the side bets a layout may carry, as a table offers them: some come in twos (a pair for each hand, the small and big
+// six or seven)
+export const SIDES = [
+  { id: "pairs", name: "Pairs", spots: ["ppair", "bpair"] },
+  { id: "pairsplus", name: "Pairs+", spots: ["pairsplus"] },
+  { id: "lucky6", name: "Lucky 6", spots: ["lucky6"] },
+  { id: "six", name: "Small and Big 6", spots: ["small6", "big6"] },
+  { id: "lucky7", name: "Lucky 7", spots: ["lucky7"] },
+  { id: "seven", name: "Small and Big 7", spots: ["small7", "big7"] },
+  { id: "superlucky7", name: "Super Lucky 7", spots: ["superlucky7"] },
+  { id: "monkey", name: "Monkey no Monkey", spots: ["monkey"] },
 ];
 export const MAIN = new Set(["player", "banker"]);
 
@@ -85,24 +110,45 @@ export function dealHand(cards) {
 }
 
 // ---------- what a bet pays ----------
+const court = id => rankOf(id) >= 10;                 // a J, Q or K (公, gung1): the monkey of Monkey no Monkey
 /**
  * What a bet on a spot wins or loses on a hand, net of the stake (a push 0): the Player 1 to 1; the Banker 0.95 to 1 at
  * a commission table, 1 to 1 at a no-commission one but half when it wins with six; both pushed by a tie; the Tie 8 to 1;
- * a pair 11 to 1; Super 6 (the Banker winning with six) 12 to 1.
+ * a pair 11 to 1. The side bets, each on what its name says: Pairs+ on a pair in either hand's first two cards (3 to 1,
+ * 30 to 1 for a pair in each, 300 to 1 for the same pair in each); the sixes on the Banker winning with six (Lucky 6 12 to
+ * 1 on two cards and 20 to 1 on three, Small 6 only on two, 22 to 1, Big 6 only on three, 50 to 1); the sevens on the
+ * Player winning with seven (Lucky 7 6 to 1 on two cards and 15 to 1 on three, Small 7 15 to 1 on two, Big 7 30 to 1 on
+ * three), Super Lucky 7 on the Player's seven beating the Banker's six (30 to 1, 40 to 1 if one of them took a third card,
+ * 100 to 1 if both did); Monkey no Monkey on the first four cards, even money if none is a court card and 50 to 1 if all
+ * four are.
  */
 export function payout(spot, stake, hand, table) {
-  const w = hand.winner;
+  const w = hand.winner, np = hand.player.length, nb = hand.banker.length, lose = -stake;
+  const b6 = w === "B" && hand.bt === 6, p7 = w === "P" && hand.pt === 7;
   switch (spot) {
-    case "player": return w === "P" ? stake : w === "T" ? 0 : -stake;
+    case "player": return w === "P" ? stake : w === "T" ? 0 : lose;
     case "banker":
       if (w === "T") return 0;
-      if (w !== "B") return -stake;
+      if (w !== "B") return lose;
       if (table === "commission") return Math.floor(stake * 0.95);
       return hand.bt === 6 ? Math.floor(stake / 2) : stake;
-    case "tie": return w === "T" ? stake * 8 : -stake;
-    case "ppair": return hand.ppair ? stake * 11 : -stake;
-    case "bpair": return hand.bpair ? stake * 11 : -stake;
-    case "super6": return w === "B" && hand.bt === 6 ? stake * 12 : -stake;
+    case "tie": return w === "T" ? stake * 8 : lose;
+    case "ppair": return hand.ppair ? stake * 11 : lose;
+    case "bpair": return hand.bpair ? stake * 11 : lose;
+    case "pairsplus":
+      if (hand.ppair && hand.bpair) return stake * (rankOf(hand.player[0]) === rankOf(hand.banker[0]) ? 300 : 30);
+      return hand.ppair || hand.bpair ? stake * 3 : lose;
+    case "lucky6": return b6 ? stake * (nb === 2 ? 12 : 20) : lose;
+    case "small6": return b6 && nb === 2 ? stake * 22 : lose;
+    case "big6": return b6 && nb === 3 ? stake * 50 : lose;
+    case "lucky7": return p7 ? stake * (np === 2 ? 6 : 15) : lose;
+    case "small7": return p7 && np === 2 ? stake * 15 : lose;
+    case "big7": return p7 && np === 3 ? stake * 30 : lose;
+    case "superlucky7": return hand.pt === 7 && hand.bt === 6 ? stake * [30, 40, 100][np + nb - 4] : lose;
+    case "monkey": {
+      const courts = [hand.player[0], hand.player[1], hand.banker[0], hand.banker[1]].filter(court).length;
+      return courts === 0 ? stake : courts === 4 ? stake * 50 : lose;
+    }
     default: throw new Error(`no such bet: ${spot}`);
   }
 }
@@ -128,6 +174,8 @@ export function betsProblem(bets, balance) {
 }
 
 // ---------- the shoe ----------
+/** How many cards the shoe's first card burns: as many as it counts, a ten or a court card ten. */
+export const burnCount = id => value(id) || 10;
 /** A fresh shoe: eight decks shuffled (Fisher–Yates on the seed), the cut card CUT_FROM_END from the back. */
 function newShoe(s) {
   const shoe = [];
@@ -135,18 +183,24 @@ function newShoe(s) {
   for (let i = shoe.length - 1; i > 0; i--) { const j = pick(s, i + 1); [shoe[i], shoe[j]] = [shoe[j], shoe[i]]; }
   s.shoe = shoe;
   s.cut = shoe.length - CUT_FROM_END;
-  // the burn: the first card turned face up, and as many burned face down as it counts (a ten or a court card ten)
-  const shown = shoe[0], count = value(shown) || 10;
+  // the burn: the first card turned face up, and as many burned face down as it counts
+  const shown = shoe[0], count = burnCount(shown);
   s.burn = { shown, count };
   s.pos = 1 + count;
   s.last = false;
   s.results = [];
 }
 /** A new game from a seed: a shoe burned and ready, your bankroll, nothing on the table. */
-export function newGame(seed, table = "commission") {
-  const s = { v: 1, seed: seed >>> 0, n: 0, shoe: [], pos: 0, cut: 0, last: false, shoeNo: 1, burn: null, results: [], table, balance: START, bets: {}, lastBets: {}, hands: 0, peak: START, toppedUp: 0 };
+export function newGame(seed, table = "nocommission") {
+  const s = { v: 2, seed: seed >>> 0, n: 0, shoe: [], pos: 0, cut: 0, last: false, shoeNo: 1, burn: null, results: [], table, balance: START, bets: {}, lastBets: {}, hands: 0, peak: START, toppedUp: 0 };
   newShoe(s);
   return s;
+}
+/** A game as saved by an older version, brought up to this one: the first had a Super 6 bet, which Macau's tables don't. */
+export function upgrade(game) {
+  if (!game || game.v === 2) return game;
+  const keep = bets => Object.fromEntries(Object.entries(bets || {}).filter(([spot]) => SPOTS.some(sp => sp.id === spot)));
+  return { ...game, v: 2, bets: keep(game.bets), lastBets: keep(game.lastBets) };
 }
 /** A new shoe on the same game (the table changes it at the end, or you ask for one). */
 export function changeShoe(game) {
@@ -159,7 +213,8 @@ export function changeShoe(game) {
 /**
  * Deals a hand on the bets on the table: the game after it, and what happened, for the page to show: hand (as dealHand),
  * settled (as settle), cutCame (the cut card came out in this hand: the next is the shoe's last), shoeDone (this was the
- * last hand: the next deal is from a new shoe). Pure; throws when the bets can't go down (betsProblem's reason).
+ * last hand: the next deal is from a new shoe). A tie leaves a bet on Player or Banker on the table for the next hand, as
+ * Macau's rules do (to be left, taken back or moved). Pure; throws when the bets can't go down (betsProblem's reason).
  */
 export function deal(game) {
   const s = structuredClone(game), problem = betsProblem(s.bets, s.balance);
@@ -172,7 +227,7 @@ export function deal(game) {
   s.balance += settled.net;
   s.peak = Math.max(s.peak, s.balance);
   s.lastBets = s.bets;
-  s.bets = {};
+  s.bets = hand.winner === "T" ? Object.fromEntries(Object.entries(s.bets).filter(([spot, v]) => MAIN.has(spot) && v > 0)) : {};
   s.hands++;
   s.results.push({ w: hand.winner, pp: hand.ppair, bp: hand.bpair, pt: hand.pt, bt: hand.bt, nat: hand.natural });
   return { state: s, hand, settled, cutCame, shoeDone: wasLast };
