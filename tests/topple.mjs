@@ -1,8 +1,9 @@
 // Topple's rules (topple-engine.js): the deal from a seed, the pieces, where a piece fits, the chain a knock sets off
 // (along sides in its colour, round corners, down forks, in steps, each from the one that knocked it), a knock's
-// clearing and its points, a piece laid and a new hand with its knock, the knocks coming more rarely, the end (no room
-// and no knock), a game saved and opened again, and whole games played out to their end.
-import { N, HAND, MAX_KNOCKS, PIECES, PACE, knockEvery, newGame, cover, fitsAnywhere, chain, chains, worth, lay, knock, moves, filled } from "../topple-engine.js";
+// clearing and its points (the dominoes times the steps they take: a snake from its end beats a blob), the best knock
+// on a chain, a piece laid and a new hand with its knock, the knocks coming more rarely, the end (no room and no
+// knock), a game saved and opened again, and whole games played out to their end.
+import { N, HAND, MAX_KNOCKS, PIECES, PACE, knockEvery, newGame, cover, fitsAnywhere, chain, chains, stepsOf, longest, worth, lay, knock, moves, filled } from "../topple-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -48,14 +49,25 @@ const game = (rows, hand = [piece("0.0"), piece("0.0"), piece("0.0")], extra = {
 
 // ---------- a knock ----------
 {
-  const s = game(["000.....", "1......."]), r = knock(s, i(1, 0));
-  check(r.fell.length === 3 && r.gain === worth(3) && r.state.score === 90 && r.state.cells.slice(0, 3).every(c => c === -1) && r.state.cells[i(0, 1)] === 1, "the chain falls and clears, ten times the square of how many fell: 90");
+  const s = game(["000.....", "1......."]), r = knock(s, i(0, 0));
+  check(r.fell.length === 3 && r.steps === 3 && r.gain === 90 && r.state.score === 90 && r.state.cells.slice(0, 3).every(c => c === -1) && r.state.cells[i(0, 1)] === 1, "the chain falls and clears: ten times how many fell times the steps they took, a run of three from its end 90");
+  check(knock(s, i(1, 0)).gain === 60, "knocked in the middle it falls both ways at once, in two steps: 60");
   check(r.state.knocks === 0 && r.state.felled === 3 && s.knocks === 1 && s.cells[0] === 0, "a knock used; the game knocked from is left as it was");
   let threw = 0;
   try { knock(r.state, i(0, 1)); } catch { threw++; }
   try { knock(s, i(5, 5)); } catch { threw++; }
   check(threw === 2, "no knock without one in store, nor on an empty square");
-  check(worth(1) === 10 && worth(10) === 1000 && worth(20) === 4000, "one big chain beats several small ones");
+  check(worth(1) === 10 && worth(10) === 1000 && worth(20, 10) === 2000, "one big chain beats several small ones");
+}
+
+// ---------- snakes and blobs ----------
+{
+  const run = game(["00000..."]), blob = game(["00......", "00......"]), four = game(["0000...."]);
+  check(knock(run, i(0, 0)).gain === 250 && knock(run, i(2, 0)).gain === 150, "a run of five: 250 from its end, 150 from its middle");
+  check(knock(blob, i(0, 0)).steps === 3 && knock(blob, i(0, 0)).gain === 120 && knock(four, i(0, 0)).gain === 160, "a square of four falls in three steps from a corner, 120; a run of four from its end, 160: the snake beats the blob");
+  const ell = table(["0000....", "...0....", "...0....", "1......."]), b = longest(ell, i(2, 0));
+  check(b.steps === 6 && b.gain === 360 && [i(0, 0), i(3, 2)].includes(b.at) && stepsOf(chain(ell, b.at)) === 6, "the best knock on a chain: from one far end of its longest way, here six steps round the corner, 360");
+  check(chains(ell)[0].best.gain === 360 && chains(ell)[1].best.gain === 10, "each chain standing with its best knock");
 }
 
 // ---------- a piece laid ----------
@@ -120,7 +132,7 @@ const game = (rows, hand = [piece("0.0"), piece("0.0"), piece("0.0")], extra = {
     let t = newGame(100 + g);
     while (!t.over && t.laid < 1000) {
       const top = chains(t.cells)[0], fits = t.hand.some(h => h && fitsAnywhere(t.cells, h.piece));
-      if (t.knocks > 0 && top && (!fits || filled(t) > 40 || top.length >= 18 || (t.knocks === MAX_KNOCKS && t.hand.filter(Boolean).length === 1))) { t = knock(t, top.at).state; continue; }
+      if (t.knocks > 0 && top && (!fits || filled(t) > 40 || top.length >= 18 || (t.knocks === MAX_KNOCKS && t.hand.filter(Boolean).length === 1))) { t = knock(t, top.best.at).state; continue; }
       let best = null, bv = -Infinity;
       for (const m of moves(t)) { const o = lay(t, m.slot, m.x, m.y), v = join(o.state.cells, o.laid, t.hand[m.slot].colour) - (o.over ? 1e6 : 0); if (v > bv) { bv = v; best = o; } }
       t = best.state;
@@ -132,4 +144,4 @@ const game = (rows, hand = [piece("0.0"), piece("0.0"), piece("0.0")], extra = {
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("topple: the deal, where pieces fit, chains, knocks, laying, the knocks' pace, the end, saving, whole games");
+else console.log("topple: the deal, where pieces fit, chains, knocks, snakes and blobs, laying, the knocks' pace, the end, saving, whole games");

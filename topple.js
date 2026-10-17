@@ -2,7 +2,7 @@
 // it fits, the chain it would join is ringed. Press a domino and the chain a knock there would fell is ringed, with its
 // points; let go on it to knock. The rules are topple-engine.js's; this file draws the table, plays each move out and
 // keeps the game.
-import { N, PIECES, MAX_KNOCKS, newGame, cover, lay, knock, chain, fitsAnywhere, worth } from "./topple-engine.js";
+import { N, PIECES, MAX_KNOCKS, newGame, cover, lay, knock, chain, fitsAnywhere, worth, stepsOf, longest } from "./topple-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
@@ -50,8 +50,8 @@ function dominoEl(c, x, y, cls = "", cell = null) {
 }
 const ringEl = i => el("rect", { class: "tp-ring", x: at(i)[0] + .9, y: at(i)[1] + .1, width: 8.2, height: 9.8, rx: 1.8 });
 function tagEl(text, i) {
-  // above its square, kept on the table
-  const [x, y] = at(i), t = el("text", { class: "tp-tag", x: Math.min(64, Math.max(16, x + CELL / 2)), y: Math.max(3.2, y - 1.6) });
+  // above its square, kept on the table: half its width (about 1.25 units a letter) from either edge
+  const half = Math.max(16, text.length * 1.25 + 1), [x, y] = at(i), t = el("text", { class: "tp-tag", x: Math.min(80 - half, Math.max(half, x + CELL / 2)), y: Math.max(3.2, y - 1.6) });
   t.textContent = text;
   return t;
 }
@@ -71,7 +71,7 @@ function drawBoard(extra = {}) {
   if (extra.tag) marks.append(tagEl(...extra.tag));
   const kids = [el("rect", { class: "tp-felt", x: -2, y: -2, width: 84, height: 84, rx: 2 }), grid, stand, marks, el("g", { id: "fx" })];
   if (!read(SEEN, false) && S.laid < 3 && !ghost && !extra.ring && !S.over) {
-    kids.push(el("g", { class: "tp-hint" }, ...["Drag a piece onto the table;", "a tap on a domino knocks it,", "and its whole chain falls"].map((t, k) => {
+    kids.push(el("g", { class: "tp-hint" }, ...["Drag a piece onto the table;", "a tap on a domino knocks it,", "and its whole chain falls:", "knocked from an end, it scores most"].map((t, k) => {
       const n = el("text", { x: 40, y: 35 + k * 6 });
       n.textContent = t;
       return n;
@@ -111,10 +111,10 @@ function drawTray() {
   }
 }
 function render(extra) { drawBoard(extra); drawStrip(); drawTray(); }
-/** The table with the chain a knock on square i would fell ringed, and what it would score. */
+/** The table with the chain a knock on square i would fell ringed, how many steps it would take, and what it would score. */
 function showKnock(i) {
-  const fell = chain(S.cells, i);
-  drawBoard({ ring: fell.map(f => f[0]), tag: [S.knocks > 0 ? `+${fmt(worth(fell.length))}` : "No knock left", i] });
+  const fell = chain(S.cells, i), k = stepsOf(fell);
+  drawBoard({ ring: fell.map(f => f[0]), tag: [S.knocks > 0 ? `${fell.length} in ${k} step${k === 1 ? "" : "s"}: +${fmt(worth(fell.length, k))}` : "No knock left", i] });
 }
 
 // ---------- a piece laid, a knock ----------
@@ -218,8 +218,9 @@ function moveDrag(e) {
   // the chain it would join, ringed, and how long that chain would be
   const laid = cover(S.cells, drag.piece, spot.x, spot.y), cells = S.cells.slice();
   for (const i of laid) cells[i] = drag.colour;
-  const joined = chain(cells, laid[0]).map(f => f[0]);
-  drawBoard({ ghost: { laid, colour: drag.colour }, ring: joined.length > laid.length ? joined : [], tag: joined.length > laid.length ? [`a chain of ${joined.length}`, Math.min(...laid)] : null });
+  // its length end to end too: the steps its best knock would take
+  const joined = chain(cells, laid[0]).map(f => f[0]), grew = joined.length > laid.length;
+  drawBoard({ ghost: { laid, colour: drag.colour }, ring: grew ? joined : [], tag: grew ? [`a chain of ${joined.length}, ${longest(cells, laid[0]).steps} long`, Math.min(...laid)] : null });
 }
 function endDrag(e) {
   if (!drag || e.pointerId !== drag.id) return;

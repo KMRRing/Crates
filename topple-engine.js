@@ -1,7 +1,9 @@
 // Topple's rules, pure (no page): a table eight squares by eight. Dominoes stand on it in three colours, a piece of
 // them at a time: three pieces in hand, laid anywhere they fit, in the order you like, the next three dealt when all
 // three are down. A knock is a tap on a standing domino: it falls, and every domino of its colour touching it along a
-// side falls after it, round corners and down every fork, all of them cleared, ten times the square of how many fell.
+// side falls after it, round corners and down every fork, all of them cleared. It scores ten times how many fell times
+// the steps they took to fall, so a long snake knocked from its end beats a blob of as many, and where it's knocked
+// matters (a snake knocked in the middle falls both ways in half the steps).
 // Knocks come with new hands (three kept at most), every hand at first and more rarely as the game goes on: waiting
 // builds a bigger chain, and fills the table. A hand that fits nowhere with no knock left ends the game. The page
 // (topple.js) draws it; tests/topple.mjs checks this.
@@ -91,8 +93,20 @@ export function chain(cells, start) {
   }
   return queue.map(i => [i, step.get(i), by.get(i)]);
 }
-/** Ten times the square of the dominoes felled by one knock. */
-export const worth = n => 10 * n * n;
+/** The steps a chain takes to fall (as chain gives it): from the one knocked, counting it. */
+export const stepsOf = fell => (fell.length ? Math.max(...fell.map(f => f[1])) + 1 : 0);
+/** Ten times the dominoes felled by one knock times the steps they take (a straight run from its end: its length). */
+export const worth = (n, steps = n) => 10 * n * steps;
+/**
+ * The best knock on the chain through square i: { at (the square to knock, the far end of its longest way), steps,
+ * gain }. Every square of the chain tried: a chain is at most the table, so this is quick.
+ */
+export function longest(cells, i) {
+  const fell = chain(cells, i);
+  let best = { at: -1, steps: 0 };
+  for (const [j] of fell) { const k = stepsOf(chain(cells, j)); if (k > best.steps) best = { at: j, steps: k }; }
+  return { ...best, gain: worth(fell.length, best.steps) };
+}
 
 /**
  * Lays the piece in hand slot `slot` with its top left on (x, y): the game after it, and what happened, for the page
@@ -117,8 +131,8 @@ export function lay(game, slot, x, y) {
   return { state: s, laid, dealt, knocked, over: s.over };
 }
 /**
- * Knocks the domino on a square: the game after it, the chain (as chain gives it) and the gain. Pure; throws without a
- * knock or a domino there.
+ * Knocks the domino on a square: the game after it, the chain (as chain gives it), the steps it took to fall and the
+ * gain. Pure; throws without a knock or a domino there.
  */
 export function knock(game, i) {
   const s = structuredClone(game);
@@ -126,12 +140,12 @@ export function knock(game, i) {
   const fell = chain(s.cells, i);
   if (!fell.length) throw new Error("no domino there");
   for (const [j] of fell) s.cells[j] = -1;
-  const gain = worth(fell.length);
+  const steps = stepsOf(fell), gain = worth(fell.length, steps);
   s.score += gain;
   s.felled += fell.length;
   s.knocks--;
   s.over = stuck(s) && s.knocks === 0;
-  return { state: s, fell, gain, over: s.over };
+  return { state: s, fell, steps, gain, over: s.over };
 }
 /** Every way to lay a piece in hand: [{ slot, x, y }]. For the tests and the tuning players. */
 export function moves(s) {
@@ -142,14 +156,14 @@ export function moves(s) {
   });
   return out;
 }
-/** The chains standing: one square of each, with its length, longest first. */
+/** The chains standing: one square of each, with its length and its best knock (longest's), longest first. */
 export function chains(cells) {
   const seen = new Set(), out = [];
   cells.forEach((c, i) => {
     if (c < 0 || seen.has(i)) return;
     const fell = chain(cells, i);
     for (const [j] of fell) seen.add(j);
-    out.push({ at: i, length: fell.length });
+    out.push({ at: i, length: fell.length, best: longest(cells, i) });
   });
   return out.sort((a, b) => b.length - a.length);
 }
