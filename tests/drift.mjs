@@ -1,9 +1,10 @@
 // Drift's rules (drift-engine.js): the deal from a seed, the wind (every tile slid downwind to the edge or the next
 // tile, in order, each way), lines across and down, the turn (lines checked after the wind, the wind blowing again
-// after a clear), the points, the forecast moving on, the squalls (strays making no line, more often and more of
-// them), stakes (a staked tile staying put, the wind piling tiles against it, its stake going with it when it clears),
-// the end with no room, a game saved and opened again, and whole games played out to their end.
-import { N, COLOURS, START, WINDS, PACE, STAKE_EVERY, squallEvery, squallCount, newGame, upgrade, blow, lines, gale, worth, lay, moves, filled } from "../drift-engine.js";
+// after a clear), the points, the forecast moving on, the squalls (forecast a turn ahead, their strays on empty squares
+// where nothing can be laid, landing there, making no line, more often and more of them), stakes (a staked tile staying
+// put, the wind piling tiles against it, its stake going with it when it clears), the end with no room, a game saved
+// and opened again, and whole games played out to their end.
+import { N, COLOURS, START, WINDS, PACE, STAKE_EVERY, squallEvery, squallCount, newGame, upgrade, forecast, blow, lines, gale, worth, lay, moves, filled } from "../drift-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -57,8 +58,25 @@ const game = (rows, next = [0, 0], winds = [1, 1, 1], extra = {}) => Object.assi
 
 // ---------- squalls ----------
 {
-  const s = game([], [3, 3], [1, 1, 1], { untilSquall: 1, turns: 50 }), r = lay(s, i(0, 0));
-  check(r.squall.length === squallCount(50) && r.squall.every(q => s.cells[q.at] < 0 && q.colour >= 0 && q.colour < COLOURS) && r.state.untilSquall === squallEvery(51), "a squall blows stray tiles in on empty squares, before the wind; then the count starts again");
+  const s = game([], [3, 3], [1, 1, 1], { untilSquall: 1, turns: 50 });
+  s.strays = forecast(s);
+  const coming = new Set(s.strays.map(q => q.at));
+  check(s.strays.length === squallCount(50) && s.strays.every(q => s.cells[q.at] < 0 && q.colour >= 0 && q.colour < COLOURS) && coming.size === s.strays.length && !moves(s).some(m => coming.has(m)),
+    "a squall is forecast the turn before it comes: its strays on empty squares, and no tile can be laid where one is coming");
+  let threw = false;
+  try { lay(s, s.strays[0].at); } catch { threw = true; }
+  const m = moves(s)[0], r = lay(s, m);
+  check(threw && r.squall.map(q => `${q.at}:${q.colour}`).join() === s.strays.map(q => `${q.at}:${q.colour}`).join() && r.state.untilSquall === squallEvery(51), "laid there, refused; the strays land where they were forecast, before the wind, and the count starts again");
+  const c = s.cells.slice();
+  c[m] = s.next[0];
+  for (const q of s.strays) c[q.at] = q.colour;
+  check(JSON.stringify(gale(c, s.winds[0], s.stakes).cells) === JSON.stringify(r.state.cells), "so the turn shown beforehand, the strays in it, is the turn played");
+  check(r.state.strays.length === (r.state.untilSquall === 1 ? squallCount(51) : 0) && lay(game([], [3, 3], [1, 1, 1], { untilSquall: 3 }), 0).state.strays.length === 0, "the next squall is forecast once it's a turn away, and not before");
+  const two = Array.from({ length: N }, (_, y) => [...Array(N).keys()].map(x => ((x + 2 * y) % 4)).join(""));
+  two[0] = `..${two[0].slice(2)}`;
+  const last = game(two, [1, 1], [1, 1, 1], { untilSquall: 1, turns: 500 });
+  last.strays = forecast(last);
+  check(last.strays.length === 1 && moves(last).length === 1, "never on the last empty square: a tile can always be laid");
   check(squallEvery(0) > squallEvery(60) && squallCount(500) > squallCount(0) && PACE.every(([, e, c]) => e >= 1 && c >= 1), "squalls come more often, and with more, as the game goes on");
 }
 
@@ -81,6 +99,10 @@ const game = (rows, next = [0, 0], winds = [1, 1, 1], extra = {}) => Object.assi
   delete was.stakes; delete was.untilStake;
   const up = upgrade(was);
   check(up.stakes.length === 0 && up.untilStake === STAKE_EVERY - 1 && !("stakes" in was) && upgrade(up) === up, "a game saved before stakes is given none, and the count to the first");
+  const unforecast = Object.assign(newGame(6), { untilSquall: 1 });
+  delete unforecast.strays;
+  const told = upgrade(unforecast);
+  check(told.strays.length === squallCount(told.turns) && !("strays" in unforecast) && upgrade(Object.assign(newGame(6), { strays: undefined, untilSquall: 2 })).strays.length === 0, "one saved before the squall was forecast is given its forecast, when it's a turn away");
 }
 
 // ---------- the end ----------
