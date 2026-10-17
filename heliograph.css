@@ -64,6 +64,10 @@ html[data-mode="night"] { --hg-glass: color-mix(in srgb, var(--tile) 35%, #A9C4D
 .hg-path.c2, .hg-beam.c2, .hg-glow.c2 { stroke: var(--c2); }
 .hg-path.c3, .hg-beam.c3, .hg-glow.c3 { stroke: var(--c3); }
 .hg-hit { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+/* a pair that would relay the beam: ringed whole, and lit as the beam passes through */
+.hg-relay { fill: none; stroke: var(--ink); stroke-width: .7; }
+.hg-gem.relay { animation: hg-relay .5s ease-out; }
+@keyframes hg-relay { 40% { transform: scale(1.18); filter: brightness(1.35); } }
 .hg-beam, .hg-glow { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
 .hg-beam { stroke-width: 1.5; }
 .hg-glow { stroke-width: 4.5; opacity: .35; }

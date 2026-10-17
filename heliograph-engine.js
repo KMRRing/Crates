@@ -1,7 +1,9 @@
 // Heliograph's rules, pure (no page): gems hang from the top of a board and creep down; a signal mirror at the foot (a
 // heliograph) fires a beam each turn, in the colour at the head of a queue. You lay small angled mirrors, / or \, to
-// turn the beam; it shatters every gem of its colour it passes and stops at the first of another, and whatever then
-// hangs from nothing falls. The page (heliograph.js) draws it and lays the mirrors; tests/heliograph.mjs checks this.
+// turn the beam; it shatters every gem of its colour it passes and stops at the first of another, unless that one has
+// a gem of its own colour just beyond it: two side by side relay the beam, which takes their colour, passes through
+// them and goes on, shattering gems of the new colour. Whatever then hangs from nothing falls. The page
+// (heliograph.js) draws it and lays the mirrors; tests/heliograph.mjs checks this.
 //
 // A game is one object, as saved: { v, seed, n (draws made from the seed), gems (a colour 0–3 a cell, -1 empty; row 0
 // is the top, which holds the field up), mirrors [{ x, y, t: "/" or "\", life }], aim ("up", "right" or "left"),
@@ -11,7 +13,7 @@
 export const COLS = 7, ROWS = 12, COLOURS = 4;
 export const START_ROWS = 5;          // rows of gems at the start, and after a board is cleared
 // shots between the field's drops: unhurried at first, then closer together, so a long game ends
-export const PACE = [[30, 5], [80, 4], [150, 3], [Infinity, 2]];
+export const PACE = [[30, 5], [70, 4], [120, 3], [Infinity, 2]];
 export const dropEvery = shots => PACE.find(([until]) => shots < until)[1];
 export const LIFE = 3;                // the shots a mirror takes part in (the one it's laid for included)
 export const SOURCE = { x: Math.floor(COLS / 2), y: ROWS - 1 };
@@ -80,29 +82,39 @@ export const nextAim = aim => AIMS[(AIMS.indexOf(aim) + 1) % AIMS.length];
 
 /**
  * The beam this turn, with `extra` (a mirror being laid: { x, y, t }) as if it were there: { points (the corners of its
- * path, in cells: the heliograph, each mirror it turns at, then where it ends), shattered (the cells of the gems it
- * shatters, in the order it reaches them), stop (the cell of the gem that stops it, or null), end ("gem", "edge",
- * "source" when it comes back to the heliograph, or "loop" when mirrors send it round for ever), colour }.
+ * path, in cells: the heliograph, each mirror it turns at, each relay it enters, then where it ends), legs (its
+ * colours along the way: [{ colour, from (the point it starts at) }], one more at each relay), shattered (the cells of
+ * the gems it shatters, in the order it reaches them), relays (the cells of the pairs it passed through, two by two),
+ * stop (the cell of the gem that stops it, or null), end ("gem", "edge", "source" when it comes back to the
+ * heliograph, or "loop" when mirrors send it round for ever), colour (the heliograph's), last (the colour it ends in) }.
+ * A gem it has shattered is gone for the rest of its way, so a beam crossing its own path doesn't count one twice.
  */
 export function trace(s, extra = null, aim = s.aim) {
-  const colour = s.queue[0];
-  let [x, y] = [SOURCE.x, SOURCE.y], dir = DIRS[aim];
-  const points = [[x, y]], shattered = [], seen = new Set();
+  let colour = s.queue[0], [x, y] = [SOURCE.x, SOURCE.y], dir = DIRS[aim];
+  const points = [[x, y]], legs = [{ colour, from: 0 }], shattered = [], gone = new Set(), relays = [], seen = new Set();
+  const gemAt = (gx, gy) => (inside(gx, gy) && !gone.has(idx(gx, gy)) && !mirrorAt(s, gx, gy, extra) && !(gx === SOURCE.x && gy === SOURCE.y) ? s.gems[idx(gx, gy)] : -1);
+  const done = (end, stop = null) => ({ points, legs, shattered, relays, stop, end, colour: s.queue[0], last: colour });
   for (;;) {
     const nx = x + dir[0], ny = y + dir[1];
-    if (!inside(nx, ny)) { points.push([x + dir[0] / 2, y + dir[1] / 2]); return { points, shattered, stop: null, end: "edge", colour }; }
-    if (nx === SOURCE.x && ny === SOURCE.y) { points.push([nx, ny]); return { points, shattered, stop: null, end: "source", colour }; }
+    if (!inside(nx, ny)) { points.push([x + dir[0] / 2, y + dir[1] / 2]); return done("edge"); }
+    if (nx === SOURCE.x && ny === SOURCE.y) { points.push([nx, ny]); return done("source"); }
     const key = `${nx},${ny},${dir}`;
-    if (seen.has(key)) { points.push([nx, ny]); return { points, shattered, stop: null, end: "loop", colour }; }
+    if (seen.has(key)) { points.push([nx, ny]); return done("loop"); }
     seen.add(key);
     x = nx; y = ny;
     const m = mirrorAt(s, x, y, extra);
     if (m) { dir = reflect(dir, m.t); points.push([x, y]); continue; }
-    const g = s.gems[idx(x, y)];
+    const g = gemAt(x, y);
     if (g < 0) continue;
-    if (g === colour) { shattered.push(idx(x, y)); continue; }
+    if (g === colour) { shattered.push(idx(x, y)); gone.add(idx(x, y)); continue; }
     points.push([x - dir[0] / 2, y - dir[1] / 2]);             // its near face
-    return { points, shattered, stop: idx(x, y), end: "gem", colour };
+    // two of another colour side by side in its way relay it: it takes their colour and passes through, and they stay
+    if (gemAt(x + dir[0], y + dir[1]) !== g) return done("gem", idx(x, y));
+    relays.push(idx(x, y), idx(x + dir[0], y + dir[1]));
+    legs.push({ colour: g, from: points.length - 1 });
+    colour = g;
+    x += dir[0];
+    y += dir[1];
   }
 }
 

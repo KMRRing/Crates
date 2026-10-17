@@ -9,7 +9,7 @@ import { part, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "heliograph:run", BEST = "heliograph:best", SEEN = "heliograph:seen";
+const RUN = "heliograph:run", BEST = "heliograph:best", SEEN = "heliograph:seen", RELAY = "heliograph:relay";
 const CELL = 10;                                   // a cell in the board's own units (its viewBox is COLS by ROWS cells)
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -69,6 +69,17 @@ function sourceEl() {
     el("path", { class: "hg-glint", d: "M-1.7-1.6Q-.8-2.4.4-2.3" }), el("path", { class: "hg-arrow", d: ARROW[S.aim] }));
 }
 const pts = points => points.map(([x, y]) => `${cx(x).toFixed(2)},${cy(y).toFixed(2)}`).join(" ");
+/** A beam's path in its legs, one a colour, each with its points (the relay's face in both) and how far along it starts. */
+function legsOf(path) {
+  const len = (a, b) => Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]);
+  let run = 0;
+  return path.legs.map((leg, k) => {
+    const points = path.points.slice(leg.from, k + 1 < path.legs.length ? path.legs[k + 1].from + 1 : path.points.length);
+    const start = run, length = points.slice(1).reduce((a, p, j) => a + len(points[j], p), 0);
+    run += length;
+    return { colour: leg.colour, points, start, length };
+  });
+}
 
 /** The field as it stands, with `extra` (a mirror being laid, shown as it will be) and the beam's path drawn. */
 function drawBoard(extra = null) {
@@ -82,12 +93,15 @@ function drawBoard(extra = null) {
   }
   for (const m of S.mirrors) if (!(extra && extra.x === m.x && extra.y === m.y)) mirrors.append(mirrorEl(m));
   if (extra) mirrors.append(mirrorEl({ ...extra, life: LIFE }, "ghost"));
-  // the beam's way as it would go now: through the gems it would shatter (ringed), to where it stops
+  // the beam's way as it would go now, in its colours: through the gems it would shatter (ringed) and the pairs that
+  // would relay it (ringed whole), to where it stops
   const preview = el("g", { id: "preview" });
   if (!S.over) {
     const path = trace(S, extra);
-    preview.append(el("polyline", { class: `hg-path c${path.colour}`, points: pts(path.points) }));
+    for (const leg of legsOf(path)) preview.append(el("polyline", { class: `hg-path c${leg.colour}`, points: pts(leg.points) }));
     for (const i of path.shattered) preview.append(el("circle", { class: "hg-hit", cx: cx(i % COLS), cy: cy(Math.floor(i / COLS)), r: 4.9 }));
+    for (const i of path.relays) preview.append(el("circle", { class: "hg-relay", cx: cx(i % COLS), cy: cy(Math.floor(i / COLS)), r: 4.9 }));
+    if (path.relays.length && (drag || picked || pending) && !read(RELAY, false)) { write(RELAY, true); toast("Two alike side by side relay the beam: it takes their colour and goes on"); }
   }
   const danger = el("line", { class: `hg-danger${lowest(S) >= ROWS - 3 ? " near" : ""}`, x1: 0, x2: COLS * CELL, y1: (ROWS - 1) * CELL, y2: (ROWS - 1) * CELL });
   svg.classList.toggle("dragging", !!(drag || picked));
@@ -158,22 +172,24 @@ async function shoot(extra) {
   drawBoard(extra);
   $("board").querySelector("#preview")?.remove();
   const fx = $("board").querySelector("#fx"), path = r.path, { at, total } = along(path.points);
-  // the flash: the beam drawn out from the heliograph, each gem it passes shattering as it gets there
-  const ms = Math.min(520, 140 + total * 26), cls = `c${path.colour}`;
-  const glow = el("polyline", { class: `hg-glow ${cls}`, points: pts(path.points), pathLength: 1 });
-  const beam = el("polyline", { class: `hg-beam ${cls}`, points: pts(path.points), pathLength: 1 });
-  fx.append(glow, beam);
-  const draw = [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }];
-  animate(glow, draw, { duration: ms, easing: "linear" });
-  animate(beam, draw, { duration: ms, easing: "linear" });
+  // the flash: the beam drawn out from the heliograph, a leg at a time in its colours, each gem it passes shattering
+  // as it gets there and each pair that relays it lighting up
+  const ms = Math.min(620, 140 + total * 26), when = d => ms * (d / Math.max(1, total)), lines = [];
+  for (const leg of legsOf(path)) {
+    const glow = el("polyline", { class: `hg-glow c${leg.colour}`, points: pts(leg.points), pathLength: 1 });
+    const beam = el("polyline", { class: `hg-beam c${leg.colour}`, points: pts(leg.points), pathLength: 1 });
+    fx.append(glow, beam);
+    lines.push(glow, beam);
+    for (const line of [glow, beam]) animate(line, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Math.max(1, when(leg.length)), delay: when(leg.start), easing: "linear" });
+  }
   const gemNode = i => $("board").querySelector(`#gems [data-cell="${i}"] .hg-gem`);
-  for (const i of r.shattered) setTimeout(() => { gemNode(i)?.classList.add("shatter"); shards(fx, i, path.colour); }, ms * ((at.get(i) ?? total) / Math.max(1, total)));
+  for (const i of r.shattered) setTimeout(() => { gemNode(i)?.classList.add("shatter"); shards(fx, i, S.gems[i]); }, when(at.get(i) ?? total));
+  for (const i of path.relays) setTimeout(() => gemNode(i)?.classList.add("relay"), when(at.get(i) ?? total));
   await wait(ms + 60);
   // what hung from nothing falls
   r.fallen.forEach((i, k) => setTimeout(() => gemNode(i)?.classList.add("fall"), k * 18));
   if (r.gain) popup(fx, r, path);
-  animate(glow, [{ opacity: 0.6 }, { opacity: 0 }], { duration: 260, delay: 60 });
-  animate(beam, [{ opacity: 1 }, { opacity: 0 }], { duration: 260, delay: 60 });
+  for (const line of lines) animate(line, [{ opacity: line.classList.contains("hg-glow") ? 0.6 : 1 }, { opacity: 0 }], { duration: 260, delay: 60 });
   await wait(r.fallen.length ? 480 : 300);
   S = r.state;
   save();
@@ -317,7 +333,7 @@ $("againBtn").addEventListener("click", newRun);
 addEventListener("resize", () => { if (!playing) render(); });      // the screen turned
 
 // for tests and debugging
-window.__heliograph = { get state() { return S; }, get pending() { return pending; }, shoot, cellAt, newRun };
+window.__heliograph = { get state() { return S; }, set state(s) { S = s; render(); }, get pending() { return pending; }, shoot, cellAt, newRun };
 
 S = read(RUN, null);
 if (!valid(S)) newRun();

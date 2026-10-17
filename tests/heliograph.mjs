@@ -1,8 +1,9 @@
 // Heliograph's rules (heliograph-engine.js): the deal from a seed, the beam (straight up, turned by each kind of
-// mirror, through the gems of its colour, stopped by another, out at the edge, back at the heliograph, round a loop of
-// mirrors for ever), what a shot shatters and what then falls, the points, a mirror's three shots, where a mirror may
-// go, the field coming down (on a mirror, onto the heliograph's row), a cleared field, the queue's colours, a game
-// saved and opened again, and whole games played out to their end.
+// mirror, through the gems of its colour, stopped by another, relayed by two of another colour side by side, out at
+// the edge, back at the heliograph, round a loop of mirrors for ever, never counting a gem twice), what a shot
+// shatters and what then falls, the points, a mirror's three shots, where a mirror may go, the field coming down (on a
+// mirror, onto the heliograph's row), a cleared field, the queue's colours, a game saved and opened again, and whole
+// games played out to their end.
 import { COLS, ROWS, SOURCE, LIFE, START_ROWS, CLEAR_BONUS, dropEvery, newGame, trace, fire, canPlace, nextAim, loose, worth, lowest, turns, reflect } from "../heliograph-engine.js";
 
 let bad = 0;
@@ -35,9 +36,22 @@ function board(rows, colour = 0, extra = {}) {
   const s = board(rows, 2), t = trace(s);
   check(t.end === "gem" && t.stop === i(3, 1) && t.shattered.join() === [i(3, 5), i(3, 4), i(3, 2)].join(), "straight up: through every gem of its colour, across a gap, stopped by the first of another");
   check(t.points[0].join() === `${SOURCE.x},${SOURCE.y}` && t.points.at(-1).join() === "3,1.5", "its path from the heliograph to the stopping gem's near face");
-  const other = trace(board(rows, 1));
-  check(other.shattered.length === 0 && other.stop === i(3, 5), "another colour: stopped by the first gem, nothing shattered");
+  const alone = trace(board([".......", ".......", ".......", ".......", "...1...", "...2..."], 1));
+  check(alone.shattered.length === 0 && alone.stop === i(3, 5) && alone.legs.length === 1, "one gem of another colour: stopped by it, nothing shattered");
   check(trace(board(["......."], 0)).end === "edge", "nothing in its way: out at the top");
+  // the two 2s at the foot relay a beam of 1s: it takes their colour, goes through them, shatters the 2 beyond
+  const relay = trace(board(rows, 1));
+  check(relay.relays.join() === [i(3, 5), i(3, 4)].join() && relay.shattered.join() === `${i(3, 2)}` && relay.stop === i(3, 1) && relay.last === 2 && relay.colour === 1,
+    "two gems of another colour side by side relay the beam: it takes their colour, passes through them and shatters that colour beyond");
+  check(relay.legs.map(l => l.colour).join() === "1,2" && relay.points[relay.legs[1].from].join() === "3,5.5", "its path changes colour at the pair's near face");
+  const twice = trace(board(["...1...", "...3...", "...3...", "...3...", "...2...", "...2..."], 1));
+  check(twice.legs.map(l => l.colour).join() === "1,2,3" && twice.relays.length === 4 && twice.shattered.join() === `${i(3, 1)}` && twice.stop === i(3, 0), "one relay can lead to another: 1s to 2s to 3s, the last 3 shattered, the 1 at the top stopping it");
+  // up column 3 through a 0, round three mirrors and back along row 8 through where it was, on to another 0
+  const cross = board(["......."], 0);
+  cross.gems[i(3, 8)] = 0;
+  cross.gems[i(6, 8)] = 0;
+  cross.mirrors = [{ x: 3, y: 7, t: "\\", life: 3 }, { x: 1, y: 7, t: "/", life: 3 }, { x: 1, y: 8, t: "\\", life: 3 }];
+  check(trace(cross).shattered.join() === [i(3, 8), i(6, 8)].join(), "a beam crossing its own path goes through where it shattered a gem: none counted twice");
 }
 {
   check(reflect([0, -1], "/").join() === "1,0" && reflect([1, 0], "/").join() === "0,-1" && reflect([0, -1], "\\").join() === "-1,0" && reflect([-1, 0], "\\").join() === "0,-1",
@@ -107,7 +121,7 @@ function board(rows, colour = 0, extra = {}) {
   check(r.dropped && r.state.gems.slice(COLS, 3 * COLS).every(c => c === 1) && r.state.gems.slice(0, COLS).every(c => c >= 0), "the field comes down a row, a new row above it");
   check(r.crushed.length === 1 && r.crushed[0].y === 2 && r.state.mirrors.length === 1, "a mirror the field comes down on is crushed");
   check(r.state.untilDrop === dropEvery(r.state.shots) && dropEvery(0) > dropEvery(100) && dropEvery(1000) >= 2, "the next drop counted afresh, the gap shorter as the game goes on");
-  const low = board(["1111111", ...Array(ROWS - 2).fill("...1...")], 3, { untilDrop: 1 });
+  const low = board(["1111111", ...Array.from({ length: ROWS - 2 }, (_, k) => (k % 2 ? "...1..." : "...2..."))], 3, { untilDrop: 1 });
   check(lowest(low) === ROWS - 2 && fire(low).over && fire(low).state.over, "a gem reaching the heliograph's row ends the game");
   check(fire(fire(low).state).path === null, "nothing fires once it's over");
 }
