@@ -1,0 +1,75 @@
+/* Slipway: the yard, the dock and the ship on the berth, drawn in 3D by slipway-3d.js on a canvas the page puts in the
+   field (flat, in SVG, where there's no WebGL); under it a line saying what the part in hand would do, and what the
+   ship still needs, a chip for each kind in its enamel. Verdigris is the house colour. */
+:root {
+  --sw-in: var(--c1);
+  --sw-soft: color-mix(in srgb, var(--sw-in) 13%, var(--sheet));
+}
+
+.sw-mark { display: inline-block; }
+.sw-mark svg { width: 100%; height: 100%; display: block; }
+.sw-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .2rem; font-size: .92rem; color: var(--ink-soft); }
+.sw-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.sw-score b { font-size: 1.05rem; }
+
+/* the yard: the canvas fills the room, the scene framed in it */
+.sw-field { position: relative; }
+.sw-3d, .sw-flat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-user-select: none; user-select: none; }
+.sw-flat[hidden] { display: none; }
+.sw-fx { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.sw-slot { position: absolute; transform: translate(-50%, 1.6rem); font-size: .68rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track));
+  text-transform: var(--caps); color: var(--ink-soft); pointer-events: none; }
+.sw-pop { position: fixed; z-index: 20; transform: translate(-50%, -50%); font-weight: 800; font-size: 1.1rem; color: var(--ink); pointer-events: none; white-space: nowrap;
+  text-shadow: 0 0 .25rem var(--sheet), 0 0 .25rem var(--sheet), 0 0 .5rem var(--sheet); }
+.sw-pop.big { font-size: 1.45rem; }
+.sw-pop small { display: block; font-size: .72rem; font-weight: 750; text-align: center; color: var(--ink-soft); }
+/* two lines, always, so nothing moves when the words change */
+.sw-line { margin: .15rem 0 .3rem; height: 2.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  font-size: .9rem; line-height: 1.25rem; text-align: center; color: var(--ink-soft); }
+.sw-line b { color: var(--ink); }
+
+/* what she still needs: a chip a kind, its enamel, how many fitted of how many */
+.sw-side { display: grid; }
+/* one row, always: the names go where they won't all fit (the colours are the yard's pallets) */
+.sw-needs { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: .3rem; height: 2.1rem; overflow: hidden; }
+.sw-needs[hidden] { display: none; }
+.sw-need { display: inline-flex; flex: none; align-items: center; gap: .3rem; padding: .2rem .42rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet);
+  font-size: .8rem; font-weight: 650; color: var(--ink); white-space: nowrap; }
+.sw-needs.tight .sw-need span { display: none; }
+.sw-need i { width: .7rem; height: .7rem; border-radius: 2px; background: var(--k); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent); }
+.sw-need b { font-variant-numeric: tabular-nums; }
+.sw-need.done { color: var(--ink-soft); background: transparent; }
+.sw-need.done b::after { content: " ✓"; }
+
+.sw-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.sw-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 3.4rem; }
+.sw-result .sw-go { padding: 0 1.3rem; }
+.sw-result[hidden] { display: none; }
+.sw-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+
+.sw-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.sw-toast.show { opacity: 1; }
+
+/* the flat yard, where there's no WebGL */
+.sw-flat .tile { fill: var(--tile); stroke: var(--rule); stroke-width: .02; }
+.sw-flat .slot { fill: none; stroke: var(--brass); stroke-width: .03; }
+.sw-flat .hover { fill: none; stroke: var(--ink); stroke-width: .05; }
+.sw-flat .pallet { stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .02; }
+.sw-flat text { font-size: .3px; font-weight: 800; text-anchor: middle; dominant-baseline: central; fill: var(--ink); }
+.sw-flat .pip { fill: var(--brass); }
+.sw-flat .berth { fill: color-mix(in srgb, var(--c2) 18%, var(--sheet)); }
+.sw-flat .shipname { font-size: .42px; }
+
+/* held sideways: the yard on the left with all the height; the score, the line and what she needs beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.slipway { --beside: 17rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
+  #app.slipway .sw-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.slipway .sw-field { grid-column: 1; grid-row: 2 / span 3; margin-top: .4rem; }
+  #app.slipway .sw-line { grid-column: 2; grid-row: 3; height: auto; max-height: 6rem; white-space: normal; text-align: left; }
+  #app.slipway .sw-side { grid-column: 2; grid-row: 4; align-content: start; }
+  #app.slipway .sw-needs { justify-content: flex-start; flex-wrap: wrap; height: auto; }
+  #app.slipway .sw-result { grid-template-columns: 1fr; }
+}
