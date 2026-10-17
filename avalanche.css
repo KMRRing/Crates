@@ -37,6 +37,13 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
 .av-sq.sliding.natural > rect:first-child { animation-name: av-slide-night; }
 @keyframes av-slide { from { fill: var(--av-in); } }
 @keyframes av-slide-night { from { fill: var(--av-danger); } }
+/* the chalets (red-ringed when a slide would carry one away), and the wind's streaks on the side it blows from */
+.av-chalet { transform-box: view-box; transform-origin: 0 0; }
+.av-wall { fill: var(--sheet); stroke: color-mix(in srgb, var(--ink) 60%, transparent); stroke-width: .35; }
+.av-roof { fill: var(--c3); stroke: color-mix(in srgb, var(--ink) 60%, transparent); stroke-width: .35; stroke-linejoin: round; }
+.av-door { fill: none; stroke: color-mix(in srgb, var(--ink) 60%, transparent); stroke-width: .35; }
+.av-chalet.struck .av-wall, .av-chalet.struck .av-roof { stroke: var(--av-danger); stroke-width: .7; }
+.av-wind path { fill: none; stroke: var(--c2); stroke-width: .6; stroke-linecap: round; opacity: .55; }
 .av-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
 .av-board text.av-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
 .av-board text.av-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }

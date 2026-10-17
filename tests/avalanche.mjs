@@ -2,7 +2,7 @@
 // the edges and onto the road at the foot), a chain of them and a square sliding twice, the snow kept count of, the
 // day's charge and its points, the night's snow, the road buried by three layers in a night (and not by the day's
 // slide), the snow coming faster, the end at the third burial, a game saved and opened again, and whole games.
-import { W, H, CAP, LIVES, BURY, PACE, snowfall, newGame, settle, worth, charge, charges, loaded } from "../avalanche-engine.js";
+import { W, H, CAP, LIVES, BURY, PACE, CHALETS, snowfall, newGame, upgrade, settle, worth, scored, struck, charge, charges, loaded } from "../avalanche-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -34,7 +34,7 @@ const total = c => c.reduce((a, d) => a + d, 0);
 
 // ---------- a day and a night ----------
 {
-  const s = Object.assign(newGame(3), { cells: slope(["", "", "", "3333333"]) }), r = charge(s, i(3, 3));
+  const s = Object.assign(newGame(3), { cells: slope(["", "", "", "3333333"]), chalets: [], wind: 0 }), r = charge(s, i(3, 3));
   check(r.slide.size === 7 && r.gain === worth(7) && r.state.score === 490 && r.state.days === 1, "the day's charge sets off the row: seven slides, 490");
   check(s.cells[i(3, 3)] === 3 && s.days === 0, "the game charged from is left as it was");
   check(r.night.length === snowfall(0) && total(r.state.cells) === total(r.slide.cells) + r.night.length - r.road - r.night.reduce((a, n) => a + (n.slide?.lost || 0), 0), "then the night's snow falls, layer by layer, each slide settling before the next layer");
@@ -49,6 +49,25 @@ const total = c => c.reduce((a, d) => a + d, 0);
   check(worth(1) === 10 && worth(10) === 1000 && worth(20) === 4000, "ten times the square of an avalanche's size");
   check(charges(s).length === W * H && charges(s)[i(3, 3)].size === 7 && loaded(s) === 7, "what each square's charge would set off, and how many squares are full");
   check(snowfall(0) === 2 && snowfall(30) === 3 && snowfall(60) === 4 && snowfall(500) === 5 && PACE.length === 4, "more snow each night as the winter goes on");
+}
+
+// ---------- chalets and the wind ----------
+{
+  const s = newGame(9);
+  check(s.chalets.length === CHALETS && new Set(s.chalets).size === CHALETS && s.chalets.every(c => c < W * (H - 1)) && [0, 1, 2].includes(s.wind), "two chalets on the slope, off the foot, and tonight's wind forecast");
+  const row = Object.assign(newGame(3), { cells: slope(["", "", "", "3333333"]), chalets: [i(5, 3), i(0, 0)], wind: 0 });
+  const r = charge(row, i(1, 3));
+  check(r.carried.join() === `${i(5, 3)}` && r.gain === Math.floor(worth(7) / 2) && r.state.score === 245, "a slide of yours through a chalet carries it away and scores half: 245 for seven");
+  check(!r.state.chalets.includes(i(5, 3)) && r.state.chalets.includes(i(0, 0)) && r.state.chalets.length === CHALETS, "the chalet is built again elsewhere; the other stands");
+  check(scored(7, 2) === Math.floor(worth(7) / 4) && scored(7, 0) === worth(7) && scored(0, 1) === 0, "two chalets quarter it; none leaves it whole");
+  check(struck([i(5, 3), i(6, 6)], settle(Object.assign(slope(["", "", "", "3333333"]), { [i(1, 3)]: 4 }), i(1, 3))).join() === `${i(5, 3)}`, "the chalets struck are those whose squares slide");
+  // a hundred nights each way on a bare slope: where does the snow fall?
+  const where = wind => { let e = 0, w = 0; for (let k = 0; k < 100; k++) { const n = charge(Object.assign(newGame(k), { cells: new Array(W * H).fill(0), wind }), 0); for (const f of n.night) { if (f.at % W > 3) e++; if (f.at % W < 3) w++; } } return [w, e]; };
+  const [w1, e1] = where(1), [w2, e2] = where(2), [w0, e0] = where(0);
+  check(e1 > 2 * w1 && w2 > 2 * e2 && Math.abs(w0 - e0) < (w0 + e0) / 3, `a wind from the west loads the east side (${e1} to ${w1}), from the east the west (${w2} to ${e2}); a still night spreads it (${w0}, ${e0})`);
+  const next = new Set([...Array(40).keys()].map(k => charge(newGame(k), 0).state.wind));
+  check(next.size === 3, "and the next night's wind is forecast, still, from the west or from the east");
+  check(upgrade({ ...newGame(2), chalets: undefined, wind: undefined }).chalets.length === CHALETS, "a game saved before chalets is given them");
 }
 
 // ---------- the end ----------
@@ -92,4 +111,4 @@ const total = c => c.reduce((a, d) => a + d, 0);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("avalanche: the deal, a slide, a day and a night, the road, the end, saving, whole games");
+else console.log("avalanche: the deal, a slide, a day and a night, the road, chalets and the wind, the end, saving, whole games");
