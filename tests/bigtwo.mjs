@@ -7,7 +7,7 @@
 import { rules, classify, beats, allPlays, playsFor, check, penalty, value, lowest, RANKS, SUITS, cardName } from "../bigtwo-rules.js";
 import { botMove, plan } from "../bigtwo-bot.js";
 import { think, choices, quickPlays, quickPlan, sameMove } from "../bigtwo-think.js";
-import { verdict, moveName, adviceLine, MARGIN } from "../bigtwo-coach.js";
+import { verdict, moveName, moveNames, adviceLine, MARGIN } from "../bigtwo-coach.js";
 import { newRecord, applyMove, applyWake, seeded } from "../seats.js";
 import { roundTrip } from "./rtdb.js";
 
@@ -159,8 +159,31 @@ check_([1, 9, 10, 12, 13].map(penalty).join() === "1,9,20,24,39", "penalties: a 
   const five = verdict(r, { t: "play", cards: H("5♦") }, st, 0), pass = verdict(r, { t: "pass" }, st, 0);
   check_(five && five.gap > MARGIN && /Your 5♦: about [\d.]+ points a deal worse than playing the 2♠/.test(five.words) && pass && /Seat 2 has one card left/.test(pass.words) && verdict(r, r.best, st, 0) === null,
     `the check: the 5♦ (${five?.words}) and a pass (${pass?.words}) set against it; its own move no word`);
-  check_(moveName({ t: "play", cards: H("9♦ 9♣ 9♥ 3♠ 3♦") }, O) === "a full house, 9s" && moveName({ t: "play", cards: H("3♦ 4♣ 5♥ 6♠ 7♦") }, O) === "a straight to the 7♦" && moveName({ t: "pass" }, O) === "pass" && /^Play the 2♠, and you're out|^Play the 2♠ · then a single/.test(adviceLine(r, st, 0)),
-    `moves in words: a full house, 9s; a straight to the 7♦; and the advice (${adviceLine(r, st, 0)})`);
+  check_(moveName({ t: "play", cards: H("9♦ 9♣ 9♥ 3♠ 3♦") }, O) === "a full house, 9s over 3s" && moveName({ t: "play", cards: H("3♦ 4♣ 5♥ 6♠ 7♦") }, O) === "a straight to the 7♦" && moveName({ t: "pass" }, O) === "pass" && /^Play the 2♠, and you're out|^Play the 2♠ · then a single/.test(adviceLine(r, st, 0)),
+    `moves in words: a full house, 9s over 3s; a straight to the 7♦; and the advice (${adviceLine(r, st, 0)})`);
+  // just above where the end used to be solved (eleven cards): you hold 3♣ 4♦ 4♠ K♦ over the 10♥, the next seat on one
+  // card. Medium's play-outs had passing ahead by 0.9; solved in all 140 ways the cards can lie, the K♦ is 0.46 ahead
+  // (and with Hard in every seat on, 0.53): the coach takes the trick, and its check doesn't fault the K♦
+  const six = { ...st, hands: [H("6♥ 7♠ Q♠"), H("3♣ 4♦ 4♠ K♦"), H("7♦"), H("3♠ J♣ K♣")], trick: { plays: [], last: { ...classify(H("10♥"), O), cards: H("10♥") }, by: 0, passes: 0 }, turn: 1, opts: O };
+  six.played = Array.from({ length: 52 }, (_, i) => i).filter(c => !six.hands.flat().includes(c));
+  const sixR = think(six, 1, { ms: 5000, maxDeals: 480 }), sixCheck = think(six, 1, { ms: 5000, maxDeals: 480, must: { t: "play", cards: H("K♦") } });
+  check_(sixR.solved && cardName(sixR.best.cards?.[0] ?? -1) === "K♦" && verdict(sixCheck, { t: "play", cards: H("K♦") }, six, 1) === null,
+    `eleven cards left, solved (${sixR.solved}): the K♦ over the 10♥ (${sixR.list.map(c => `${c.move.t === "pass" ? "pass" : cardName(c.move.cards[0])} ${c.mean.toFixed(2)}`).join(", ")}), and no word on it`);
+  // names that would read the same are told apart: the two straights topped by a two by their runs, any two moves of
+  // the same name by their cards; aces and the other court cards in words
+  const say = c => moveName({ t: "play", cards: H(c) }, O), two = moveNames([{ t: "play", cards: H("2♦ 2♠") }, { t: "play", cards: H("2♣ 2♠") }], O);
+  check_(say("2♦ 3♣ 4♥ 5♠ 6♠") === "a straight, 2 to 6, the 2♦ high" && say("A♦ 2♠ 3♣ 4♥ 5♠") === "a straight, A to 5, the 2♠ high" && say("A♦ A♠") === "a pair of aces" && say("K♦ K♣ K♥") === "three kings"
+    && two[0] === "a pair of 2s (2♦ 2♠)" && two[1] === "a pair of 2s (2♣ 2♠)", `names apart: ${say("2♦ 3♣ 4♥ 5♠ 6♠")}; ${say("A♦ 2♠ 3♣ 4♥ 5♠")}; ${say("A♦ A♠")}; ${two.join(" against ")}`);
+  // the check's reasons: a pass that turns down going out says so, and nothing about plays to go out; on five cards
+  // nobody with fewer is named as able to take the trick
+  const out = { ...st, hands: [H("K♠"), H("3♦ 4♦ 5♦ 6♦ 7♦"), H("3♣ 4♣ 5♣ 6♣ 7♣ 8♣"), H("3♥ 4♥ 5♥ 6♥ 7♥ 8♥ 9♥")], trick: { plays: [], last: { ...classify(H("Q♦"), O), cards: H("Q♦") }, by: 3, passes: 0 } };
+  out.played = Array.from({ length: 52 }, (_, i) => i).filter(c => !out.hands.flat().includes(c));
+  const passOut = verdict(think(out, 0, { ms: 5000, maxDeals: 120, must: { t: "pass" } }), { t: "pass" }, out, 0);
+  const onFive = { ...st, hands: [H("3♥ 4♥ 6♥ 9♥ K♥ 5♣ 7♦"), H("J♠ Q♠"), H("3♦ 4♦ 5♦ 6♦ 8♦ 9♦ 10♦ J♦ 3♣"), H("4♣ 6♣ 8♣ 10♣ Q♣ A♣ 2♣ 2♦")], trick: { plays: [], last: { ...classify(H("5♠ 6♠ 7♠ 8♠ 9♣"), O), cards: H("5♠ 6♠ 7♠ 8♠ 9♣") }, by: 3, passes: 0 } };
+  onFive.played = Array.from({ length: 52 }, (_, i) => i).filter(c => !onFive.hands.flat().includes(c));
+  const passFive = verdict(think(onFive, 0, { ms: 5000, maxDeals: 160, must: { t: "pass" } }), { t: "pass" }, onFive, 0);
+  check_(passOut && /The K♠ would have put you out\.$/.test(passOut.words) && !/plays to go out/.test(passOut.words) && !/Seat 2 has 2 cards/.test(passFive?.words || ""),
+    `the check's reasons: ${passOut?.words}; on a straight to beat: ${passFive?.words || "no word"}`);
   check_(choices(st, 0).length === 3, "its choices there: the 5♦, the 2♠ and passing");
   // later still, the five cards you can't see can lie only thirty ways (one, two and two): the coach tries each once
   // and solves every one, so its answer is exact, not a sample: the 2♠ then the 5♦ goes out every time, for the 1 + 2 + 2

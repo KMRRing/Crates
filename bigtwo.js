@@ -7,7 +7,7 @@
 import { rules, check, value, rankOf, suitOf, RANKS, KIND_NAMES, PLAY_TALK, DEALS, cardName, SHOW_MS } from "./bigtwo-rules.js";
 import { LEVEL_NAMES } from "./bigtwo-bot.js";
 import { think, quickPlan, sameMove, BUDGET } from "./bigtwo-think.js";
-import { one, playsWords, moveSaid, adviceLine, after, pts, verdict } from "./bigtwo-coach.js";
+import { one, playsWords, moveSaid, moveNames, adviceLine, after, pts, verdict } from "./bigtwo-coach.js";
 import { seatPage } from "./seats-ui.js";
 import { cardHtml, backHtml, fitRow } from "./cards.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -323,13 +323,15 @@ function showWhy(which) {
     const leading = !st.trick.last;
     // how many deals a choice was tried in: every way the unseen cards can lie, when the coach tried them all
     const seen = c => (c.n ? ` · ${r.exact && c.n === r.deals ? `all ${c.n} ways` : `${c.n} deals`}` : "");
-    const rows = r.list.slice(0, 8).map((c, i) => {
+    const shown = r.list.slice(0, 8), yours = mine && !shown.some(c => sameMove(c.move, mine)) ? r.list.find(c => sameMove(c.move, mine)) : null;
+    // two moves that would read the same (two pairs of 2s) are told apart by their cards
+    const names = moveNames([...shown, ...(yours ? [yours] : [])].map(c => c.move), st.opts);
+    const rows = shown.map((c, i) => {
       const a = after(st.hands[seat], c.move, st.opts), you = mine && sameMove(c.move, mine);
       const then = c.move.t === "pass" ? `your hand plays as ${playsWords(a.plays)}` : a.n ? `then ${playsWords(a.plays)}` : "and you're out";
-      return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSaid(c.move, st.opts, leading))}</b>${i === 0 ? " · the coach's choice" : you ? " · yours" : ""}<br><span>${esc(then)}</span><span class="b2-pts">${esc(pts(c.mean))} a deal${seen(c)}</span></li>`;
+      return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSaid(c.move, st.opts, leading, names[i]))}</b>${i === 0 ? " · the coach's choice" : you ? " · yours" : ""}<br><span>${esc(then)}</span><span class="b2-pts">${esc(pts(c.mean))} a deal${seen(c)}</span></li>`;
     }).join("");
-    const yours = mine && !r.list.slice(0, 8).some(c => sameMove(c.move, mine)) ? r.list.find(c => sameMove(c.move, mine)) : null;
-    const extra = yours ? `<li class="mine"><b>${esc(moveSaid(yours.move, st.opts, leading))}</b> · yours<span class="b2-pts">${esc(pts(yours.mean))} a deal${seen(yours)}</span></li>` : "";
+    const extra = yours ? `<li class="mine"><b>${esc(moveSaid(yours.move, st.opts, leading, names.at(-1)))}</b> · yours<span class="b2-pts">${esc(pts(yours.mean))} a deal${seen(yours)}</span></li>` : "";
     const how = r.only ? "The only move the rules allow."
       : `Each choice tried in ${r.exact ? `every one of the ${r.deals} ways the cards you can't see can lie` : `the same ${r.deals} deals of the cards you can't see`}, ${r.solved ? "worked out exactly to the end, every seat playing its best" : "played to the end by Medium's rules for every seat"}; the points are what you come out of the deal with on average (what you win going out, less what you pay).`;
     return `<ol class="b2-choices">${rows}${extra}</ol><p class="b2-why-note">${how}</p>`;

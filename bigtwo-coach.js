@@ -1,5 +1,5 @@
 // Big Two's coach in words, for the page's Hint, Check and Always: what bigtwo-think.js's weighing of a decision comes
-// to. A move by name ("a pair of 7s", "a full house, 9s"), the plays the rest of the hand makes after it (as the coach
+// to. A move by name ("a pair of 7s", "a full house, 9s over 3s"), the plays the rest of the hand makes after it (as the coach
 // plans a hand: the fewest leads it needs), what a choice comes to over the deals (the points the seat comes out of the
 // deal with, on average), and the check's verdict on a move of yours: as good, or how much worse and why. Pure, so the
 // tests read it as the page does.
@@ -17,26 +17,42 @@ export function playsWords(groups) {
   return words.length < 2 ? words.join("") : `${words.slice(0, -1).join(", ")} and ${words.at(-1)}`;
 }
 const topOf = (cards, opts) => [...cards].sort((a, b) => value(b, opts) - value(a, opts))[0];
-/** A move by name: "pass", "the 3♦", "a pair of 7s", "three 9s", "a straight to the Q♠", "a full house, 9s". */
-export function moveName(m, opts) {
+// ranks in the plural: jacks, queens, kings and aces in words, the rest as numbers (7s, 2s)
+const RANKS_OF = { J: "jacks", Q: "queens", K: "kings", A: "aces" }, ranks = r => RANKS_OF[RANKS[r]] || `${RANKS[r]}s`;
+// the two straights the two tops (23456 and A2345) by their runs, as the rest by their top card
+const RUNS = { "0,1,2,3,12": "2 to 6", "0,1,2,11,12": "A to 5" };
+/** A move by name: "pass", "the 3♦", "a pair of 7s", "three aces", "a straight to the Q♠", "a full house, 9s over 3s".
+ *  With `cards`, its cards after it ("a pair of 2s (2♣ 2♠)"), for telling apart two moves of the same name. */
+export function moveName(m, opts, cards = false) {
   if (!m || m.t === "pass") return "pass";
-  const k = classify(m.cards, opts), top = topOf(m.cards, opts), r = RANKS[rankOf(top)];
+  const k = classify(m.cards, opts), top = topOf(m.cards, opts), r = rankOf(top);
   if (!k) return m.cards.map(cardName).join(" ");
+  const shown = () => ` (${[...m.cards].sort((a, b) => value(a, opts) - value(b, opts)).map(cardName).join(" ")})`;
+  let name;
   if (k.kind === "single") return `the ${cardName(top)}`;
-  if (k.kind === "pair") return `a pair of ${r}s`;
-  if (k.kind === "triple") return `three ${r}s`;
-  if (k.kind === "straight") return `a straight to the ${cardName(top)}`;
-  if (k.kind === "straightflush") return `a straight flush to the ${cardName(top)}`;
-  if (k.kind === "flush") return `a flush, ${cardName(top)} high`;
-  const counts = {};
-  for (const c of m.cards) counts[rankOf(c)] = (counts[rankOf(c)] || 0) + 1;
-  const big = Number(Object.keys(counts).find(x => counts[x] >= 3));
-  return k.kind === "fullhouse" ? `a full house, ${RANKS[big]}s` : `four ${RANKS[big]}s`;
+  if (k.kind === "pair") name = `a pair of ${ranks(r)}`;
+  else if (k.kind === "triple") name = `three ${ranks(r)}`;
+  else if (k.kind === "straight" || k.kind === "straightflush") {
+    const run = RUNS[m.cards.map(rankOf).sort((a, b) => a - b).join()], what = k.kind === "straight" ? "a straight" : "a straight flush";
+    name = run ? `${what}, ${run}, the ${cardName(top)} high` : `${what} to the ${cardName(top)}`;
+  } else if (k.kind === "flush") name = `a flush, ${cardName(top)} high`;
+  else {
+    const counts = {};
+    for (const c of m.cards) counts[rankOf(c)] = (counts[rankOf(c)] || 0) + 1;
+    const big = Number(Object.keys(counts).find(x => counts[x] >= 3)), small = Number(Object.keys(counts).find(x => counts[x] < 3));
+    name = k.kind === "fullhouse" ? `a full house, ${ranks(big)} over ${ranks(small)}` : `four ${ranks(big)}`;
+  }
+  return cards ? name + shown() : name;
 }
-/** A move as an instruction: "Pass", "Lead the 3♦", "Play a pair of 7s". */
-export function moveSaid(m, opts, leading) {
+/** Names for several moves, side by side: any two that would read the same are given their cards. */
+export function moveNames(moves, opts) {
+  const plain = moves.map(m => moveName(m, opts));
+  return moves.map((m, i) => (plain.some((x, j) => j !== i && x === plain[i]) ? moveName(m, opts, true) : plain[i]));
+}
+/** A move as an instruction: "Pass", "Lead the 3♦", "Play a pair of 7s" (or by the name given). */
+export function moveSaid(m, opts, leading, name = null) {
   if (!m || m.t === "pass") return "Pass";
-  return `${leading ? "Lead" : "Play"} ${moveName(m, opts)}`;
+  return `${leading ? "Lead" : "Play"} ${name ?? moveName(m, opts)}`;
 }
 /** The rest of a hand after a move, as the coach plans it: { plays (the plan's plays), n (how many: leads it needs) }. */
 export function after(hand, m, opts) {
@@ -56,11 +72,14 @@ export function adviceLine(r, s, seat) {
   return `${moveSaid(m, s.opts, leading)} · ${m.t === "pass" ? "your hand plays as" : "then"} ${playsWords(a.plays)}`;
 }
 
-/** The two (at most) things that tell most against a move of yours, set against the coach's, in words. */
-function against(s, seat, mine, best, names) {
+/** The two (at most) things that tell most against a move of yours, set against the coach's (named `bestName`), in
+ *  words. */
+function against(s, seat, mine, best, names, bestName) {
   const opts = s.opts, hand = s.hands[seat], out = [];
   const a = after(hand, mine, opts), b = after(hand, best, opts);
   const name = i => names?.[i] || `Seat ${i + 1}`;
+  // the coach's move would have put you out: nothing else matters
+  if (best.t !== "pass" && !b.n) return [`${bestName[0].toUpperCase()}${bestName.slice(1)} would have put you out.`];
   // a two spent where the coach keeps them
   const twos = m => (m.t === "pass" ? 0 : m.cards.filter(c => rankOf(c) === 12).length);
   if (twos(mine) > twos(best)) out.push(`It spends ${twos(mine) - twos(best) === 1 ? "a two" : "your twos"}, which win${twos(mine) - twos(best) === 1 ? "s" : ""} a lead back later.`);
@@ -69,11 +88,12 @@ function against(s, seat, mine, best, names) {
   const breaks = m => m.t !== "pass" && plan.find(p => m.cards.some(c => p.cards.includes(c)) && !p.cards.every(c => m.cards.includes(c)));
   const broke = breaks(mine);
   if (broke && !breaks(best)) out.push(`It breaks your ${moveName({ t: "play", cards: broke.cards }, opts).replace(/^a /, "")}.`);
-  // further from out
-  if (a.n > b.n) out.push(`Your hand then needs ${a.n} plays to go out, against ${b.n}.`);
-  // passing while someone is close to out
+  // further from out (a pass always leaves one play more than playing one of them: that says nothing)
+  if (mine.t !== "pass" && a.n > b.n) out.push(`Your hand then needs ${a.n} plays to go out, against ${b.n}.`);
+  // passing while someone close to out could take the trick
   if (mine.t === "pass" && best.t !== "pass") {
-    const short = s.hands.map((h, i) => [i, h.length]).filter(([i, n]) => i !== seat && n <= 3).sort((x, y) => x[1] - y[1])[0];
+    const need = s.trick.last?.n || 1;
+    const short = s.hands.map((h, i) => [i, h.length]).filter(([i, n]) => i !== seat && n <= 3 && n >= need).sort((x, y) => x[1] - y[1])[0];
     if (short) out.push(`${name(short[0])} has ${short[1] === 1 ? "one card" : `${short[1]} cards`} left: passing lets the trick run on.`);
   }
   if (best.t === "pass" && mine.t !== "pass" && !out.length) out.push("The coach keeps its cards for a better moment.");
@@ -90,9 +110,11 @@ export function verdict(r, mine, s, seat, names) {
   if (!m || sameMove(best.move, mine) || r.only) return null;
   if (!(m.gap > MARGIN && m.gap > 2 * m.gapSe)) return null;
   const opts = s.opts, leading = !s.trick.last, b = best.move;
-  const theirs = b.t === "pass" ? "passing" : `${leading ? "leading" : "playing"} ${moveName(b, opts)}`;
-  const why = against(s, seat, mine, b, names);
-  const yours = mine.t === "pass" ? "pass" : moveName(mine, opts).replace(/^(a|the) /, "");
+  // the two by name, with their cards when the names alone would read the same
+  const [mineName, bestName] = moveNames([mine, b], opts);
+  const theirs = b.t === "pass" ? "passing" : `${leading ? "leading" : "playing"} ${bestName}`;
+  const why = against(s, seat, mine, b, names, bestName);
+  const yours = mine.t === "pass" ? "pass" : mineName.replace(/^(a|the) /, "");
   const words = `Your ${yours}: about ${m.gap.toFixed(1)} points a deal worse than ${theirs}.${why.length ? ` ${why.join(" ")}` : ""}`;
   return { gap: m.gap, se: m.gapSe, words, best: b };
 }

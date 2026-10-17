@@ -247,9 +247,11 @@ export function __solveSize(state, limit) {
   const t = lightOf(state), budget = { nodes: limit };
   try { solve(t, t.turn, new Map(), budget); return { nodes: limit - budget.nodes, done: true }; } catch (e) { if (e !== ABANDON) throw e; return { nodes: limit, done: false }; }
 }
-/** Whether a deal is small enough to solve: ten cards left or fewer, no hand over five (a few thousand positions at
- *  most; fourteen cards took tens of thousands, too many to solve in every deal). */
-const small = t => { let n = 0, most = 0; for (const h of t.hands) { n += h.length; most = Math.max(most, h.length); } return n <= 10 && most <= 5; };
+/** Whether a deal is small enough to solve: twelve cards left or fewer, no hand over six (a few thousand positions
+ *  for most, tens of thousands for a few; so each solve has a budget, SOLVE, and so has the whole weighing). */
+const small = t => { let n = 0, most = 0; for (const h of t.hands) { n += h.length; most = Math.max(most, h.length); } return n <= 12 && most <= 6; };
+/** The positions a solve may visit, and all of a decision's solves together (about a second's work on a phone). */
+const SOLVE = { one: 20000, all: 400000 };
 
 // ---------- deals of the unseen cards ----------
 /** A seeded random number source (mulberry32). */
@@ -319,11 +321,14 @@ export function choices(s, seat) {
   return list;
 }
 /** How one choice comes out in one deal of the unseen cards: the seat's worth at the end, solved (given the deal's
- *  `memo`, when every choice leaves a table small enough) or played out. A solve past its budget throws ABANDON. */
-function tryIn(t0, seat, m, memo) {
+ *  `memo`, when every choice leaves a table small enough, from the weighing's `run.left` positions) or played out. A
+ *  solve past its budget throws ABANDON. */
+function tryIn(t0, seat, m, memo, run) {
   const t = copy(t0);
   if (step(t, m)) return worth(t, seat);
-  return memo ? solve(t, seat, memo, { nodes: 4000 })[seat] : playOut(t, seat);
+  if (!memo) return playOut(t, seat);
+  const allowed = Math.min(SOLVE.one, run.left), budget = { nodes: allowed };
+  try { return solve(t, seat, memo, budget)[seat]; } finally { run.left -= allowed - budget.nodes; }
 }
 /**
  * The coach's weighing of a decision: every choice tried in the same deals of the unseen cards, those clearly behind
@@ -344,9 +349,12 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
   const every = everyDeal(s, seat, maxDeals);
   if (every) maxDeals = shuffle(every, rng).length;
   const more = k => { while (deals.length < k) { const t = copy(base); t.hands = (every ? every[deals.length] : dealUnseen(s, seat, rng)).map(h => byId([...h])); deals.push(t); } };
-  // solved only when every choice leaves a small enough table, so they're all worked out the same way; a solve too big
-  // for its budget starts the weighing again, played out
+  // solved only when every choice leaves a small enough table, so they're all worked out the same way; a solve, or all
+  // of them, past its budget starts the weighing again, played out
   let solving = list.every(c => { const t = copy(base); return step(t, c.move) || small(t); });
+  const run = { left: SOLVE.all };
+  // the rules' own move (Medium's), a likely one, kept in through the early cuts
+  const plain = moveKey(medium(copy(base), seat));
   // rounds: every choice still in plays the next deals; then those clearly behind go (a must-keep stays)
   let round = 8;
   while (true) {
@@ -355,7 +363,7 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
     const add = (c, v) => { c.sum += v; c.sq += v * v; c.n++; c.vals.push(v); };
     try {
       // solving, a deal at a time, its choices sharing what's been worked out (their ends meet); else a choice at a time
-      if (solving) for (let d = list[0].n; d < upto; d++) { const memo = new Map(); for (const c of list) add(c, tryIn(deals[d], seat, c.move, memo)); }
+      if (solving) for (let d = list[0].n; d < upto; d++) { const memo = new Map(); for (const c of list) add(c, tryIn(deals[d], seat, c.move, memo, run)); }
       else for (const c of list) for (let d = c.n; d < upto; d++) add(c, tryIn(deals[d], seat, c.move, null));
     } catch (e) {
       if (e !== ABANDON) throw e;
@@ -368,9 +376,12 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
     const elapsed = Date.now() - start, n = list[0].n;
     if (n >= maxDeals || (elapsed > ms && n >= minDeals)) break;
     if (list.length > 1 && n >= 16) {
-      // a choice goes once it's clearly behind the best so far, deal by deal over the same deals (more than two and a
-      // half standard errors, and a twentieth of a point); never more than sixteen kept on
-      const kept = c => must && moveKey(c.move) === moveKey(must);
+      // a choice goes once it's clearly behind the best so far, deal by deal over the same deals: by more than three and
+      // a half standard errors in the first hundred deals, two and a half after, and a twentieth of a point; never more
+      // than sixteen kept on. The early cuts are the strict ones because a deal's points are lopsided (thirteen cards
+      // left cost 39): a few deals can make a good choice look bad, and at three players about one decision in a
+      // hundred lost its best choice at the first cut, at 24 deals
+      const kept = c => (must && moveKey(c.move) === moveKey(must)) || (n < 100 && moveKey(c.move) === plain);
       list.sort((a, b) => b.sum / b.n - a.sum / a.n);
       const best = list[0];
       list = list.filter((c, i) => {
@@ -378,7 +389,7 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
         let sum = 0, sq = 0;
         for (let d = 0; d < n; d++) { const x = best.vals[d] - c.vals[d]; sum += x; sq += x * x; }
         const gap = sum / n, se = Math.sqrt(Math.max(0, (sq - n * gap * gap) / (n - 1)) / n);
-        return gap - 2.5 * se <= 0.05;
+        return gap - (n < 100 ? 3.5 : 2.5) * se <= 0.05;
       }).filter((c, i) => i < 16 || kept(c));
       if (list.length === 1 && !must) break;
     }
@@ -388,17 +399,20 @@ export function think(state, seat, { ms = 1200, minDeals = 24, maxDeals = 400, m
     const mean = c.sum / c.n, sd = Math.sqrt(Math.max(0, c.sq / c.n - mean * mean));
     return { move: c.move, mean, se: sd / Math.sqrt(c.n), n: c.n, vals: c.vals };
   }).sort((a, b) => b.n - a.n || b.mean - a.mean);
-  // the best: of the choices that saw the most deals, the highest on average
-  const top = done.filter(c => c.n === done[0].n).sort((a, b) => b.mean - a.mean), best = top[0];
-  // each choice against the best, deal by deal over the deals both saw: how far behind, and how sure
-  for (const c of done) {
-    const n = Math.min(c.n, best.n);
+  // how far one choice is behind another, deal by deal over the deals both saw, and how sure
+  const behind = (a, c) => {
+    const n = Math.min(c.n, a.n);
     let sum = 0, sq = 0;
-    for (let d = 0; d < n; d++) { const x = best.vals[d] - c.vals[d]; sum += x; sq += x * x; }
+    for (let d = 0; d < n; d++) { const x = a.vals[d] - c.vals[d]; sum += x; sq += x * x; }
     const gap = n ? sum / n : 0, sd = n > 1 ? Math.sqrt(Math.max(0, (sq - n * gap * gap) / (n - 1))) : 0;
-    c.gap = gap;
-    c.gapSe = n ? sd / Math.sqrt(n) : 0;
-  }
+    return { gap, se: n ? sd / Math.sqrt(n) : 0 };
+  };
+  // the best: of the choices that saw the most deals, the highest on average. (Preferring the rules' own move when
+  // the deals couldn't tell it from the best was tried, so a hint would read as the natural play: but the rules' move
+  // can be far worse, as leading a straight to the J♦ from 4♣ 7♣ 7♠ 8♠ 9♥ 10♣ J♦ Q♦ Q♥ Q♠ A♦ 2♦ 2♥, 3.9 points a deal
+  // behind the 2♦ the coach leads, when Hard plays every seat on.)
+  const top = done.filter(c => c.n === done[0].n).sort((a, b) => b.mean - a.mean), best = top[0];
+  for (const c of done) { const { gap, se } = behind(best, c); c.gap = gap; c.gapSe = se; }
   for (const c of done) delete c.vals;
   return { best: best.move, list: [...top, ...done.filter(c => c.n !== done[0].n).sort((a, b) => b.mean - a.mean)], deals: best.n, exact: !!every && best.n === every.length, solved: solving, ms: Date.now() - start };
 }
