@@ -1,0 +1,163 @@
+/* Baccarat: the scoreboard over the table as a Macau table's screen shows it (the big road, the bead plate, the derived
+   roads; Banker red, Player blue, a tie green), the felt with the Player's and the Banker's cards (the third dealt
+   sideways), the betting layout lettered in Chinese as the tables are, and the rail of chips. Oxblood, the Banker's, is
+   the house colour; the felt is verdigris. */
+:root {
+  --bc-in: var(--c3);
+  --bc-soft: color-mix(in srgb, var(--bc-in) 14%, var(--sheet));
+  --bc-b: var(--c3); --bc-p: var(--c2); --bc-t: var(--c1);
+  --bc-felt: color-mix(in srgb, var(--c1) 20%, var(--sheet));
+  --bc-felt-line: color-mix(in srgb, var(--c1) 55%, var(--sheet));
+  --bc-good: #2F7D5B; --bc-bad: #A8382B;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); }
+}
+html[data-mode="night"] { --bc-good: #7FC2A8; --bc-bad: #E8806F; --bc-felt: color-mix(in srgb, var(--c1) 26%, var(--sheet)); }
+
+.bc-mark { display: inline-block; }
+.bc-mark svg { width: 100%; height: 100%; display: block; }
+.bc-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .45rem 0 .4rem; font-size: .86rem; color: var(--ink-soft); white-space: nowrap; }
+.bc-strip b { color: var(--ink); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.bc-limits, .bc-shoe { overflow: hidden; text-overflow: ellipsis; }
+
+/* the scoreboard: the screen over the table */
+.bc-board { display: grid; gap: .3rem; }
+.bc-roads-box { border-radius: 4px; background: var(--sheet); line-height: 0; }
+.bc-roads { width: 100%; height: auto; display: block; }
+.bc-grid { fill: none; stroke: var(--rule); stroke-width: .35; }
+.bc-frame { fill: none; stroke: var(--brass); stroke-width: .7; }
+.bc-roads text { text-anchor: middle; dominant-baseline: central; font-weight: 800; }
+.bc-bead-zh { fill: var(--on-c); }
+.bc-tie-n { fill: var(--sheet); paint-order: stroke; stroke: var(--bc-t); stroke-width: .9px; }
+.bc-dot { stroke: var(--sheet); stroke-width: .4; }
+.bc-flash { animation: bc-blink .9s steps(2, jump-none) infinite; }
+@keyframes bc-blink { 50% { opacity: .1; } }
+.bc-stats { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .4rem; font-size: .8rem; color: var(--ink-soft); }
+.bc-counts { display: flex; gap: .5rem; overflow: hidden; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bc-counts b { margin-left: .12rem; font-weight: 800; }
+.bc-counts .b { color: var(--bc-b); } .bc-counts .p { color: var(--bc-p); } .bc-counts .t { color: var(--bc-t); }
+.bc-ask { display: inline-flex; align-items: center; gap: .2rem; min-height: 1.9rem; padding: 0 .4rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .78rem; cursor: pointer; touch-action: manipulation; }
+.bc-ask b { font-weight: 800; }
+.bc-ask.b b { color: var(--bc-b); } .bc-ask.p b { color: var(--bc-p); }
+.bc-ask[aria-pressed="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.bc-ask-marks { display: inline-flex; gap: .1rem; }
+.bc-ask-mark { width: .85rem; height: .85rem; display: block; }
+
+/* the felt: the two hands, what the dealer calls, and the layout to bet on */
+.bc-felt { position: relative; display: flex; flex-direction: column; gap: .4rem; margin-top: .45rem; padding: .5rem; border-radius: 6px; background: var(--bc-felt); box-shadow: inset 0 0 0 1px var(--bc-felt-line); min-height: 0; }
+.bc-hands { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.bc-hand { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: .25rem; min-height: 0; }
+.bc-hand-head { display: flex; align-items: center; gap: .35rem; font-size: .78rem; color: var(--ink-soft); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-stretch: var(--wide); }
+.bc-hand-head b { display: grid; place-items: center; width: 1.45rem; height: 1.45rem; border-radius: 50%; color: var(--on-c); font-size: .86rem; letter-spacing: 0; font-stretch: normal; }
+.bc-hand.p b { background: var(--bc-p); } .bc-hand.b b { background: var(--bc-b); }
+.bc-hand.b .bc-hand-head { flex-direction: row-reverse; }
+/* each hand's total in its own colour, at the outer end of its head */
+.bc-total { display: grid; place-items: center; min-width: 1.75rem; height: 1.6rem; margin-left: auto; padding: 0 .3rem; border-radius: 4px; font-style: normal; font-size: 1.1rem; font-weight: 800;
+  color: var(--on-c); letter-spacing: 0; font-stretch: normal; font-variant-numeric: tabular-nums; }
+.bc-total:empty { visibility: hidden; }
+.bc-hand.p .bc-total { background: var(--bc-p); } .bc-hand.b .bc-total { background: var(--bc-b); }
+.bc-hand.b .bc-total { margin-left: 0; margin-right: auto; }
+.bc-hand.won .bc-total { box-shadow: 0 0 0 2px var(--bc-good); }
+.bc-cards { position: relative; display: flex; align-items: center; justify-content: center; gap: .25em; min-height: 0; font-size: var(--bc-card, 1rem); container-type: size; }
+.bc-cards .cd { flex: none; transition: transform .2s; }
+.bc-cards .cd.third { transform: rotate(90deg); margin: 0 .5em; }
+.bc-cards .cd.squeeze { cursor: pointer; box-shadow: 0 0 0 2px var(--brass), 0 1px 2px rgba(28, 42, 52, .2); }
+.bc-call { flex: none; margin: 0; min-height: 1.4rem; text-align: center; font-weight: 800; font-size: .95rem; letter-spacing: .02em; }
+.bc-call .zh { margin-right: .35rem; }
+.bc-call .b { color: var(--bc-b); } .bc-call .p { color: var(--bc-p); } .bc-call .t { color: var(--bc-t); }
+.bc-call small { font-weight: 650; color: var(--ink-soft); }
+
+/* the layout: pairs and the tie above, Player and Banker below, Super 6 at a no-commission table */
+.bc-spots { flex: none; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .3rem; }
+.bc-spot { position: relative; display: grid; align-content: center; justify-items: center; gap: .05rem; min-width: 0; min-height: 2.6rem; padding: .2rem;
+  border: 1.5px solid var(--bc-felt-line); border-radius: 6px; background: color-mix(in srgb, var(--sheet) 55%, transparent); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.bc-spot.side { grid-column: span 2; }
+.bc-spot.main { grid-column: span 3; min-height: 3.2rem; }
+.bc-spot.wide { grid-column: span 6; min-height: 2.4rem; grid-auto-flow: column; gap: .5rem; }
+.bc-spot .zh { font-size: 1.05rem; font-weight: 800; line-height: 1; }
+.bc-spot.main .zh { font-size: 1.4rem; }
+.bc-spot .en { font-size: .64rem; font-weight: 700; text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-stretch: var(--wide); color: var(--ink-soft); white-space: nowrap; }
+.bc-spot .odds { font-size: .66rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bc-spot.player .zh, .bc-spot.ppair .zh { color: var(--bc-p); }
+.bc-spot.banker .zh, .bc-spot.bpair .zh, .bc-spot.super6 .zh { color: var(--bc-b); }
+.bc-spot.tie .zh { color: var(--bc-t); }
+.bc-spot.won { border-color: var(--bc-good); box-shadow: inset 0 0 0 2px var(--bc-good); }
+.bc-spot.lost { opacity: .55; }
+.bc-spot:disabled { cursor: default; }
+/* a stake on a spot: a chip with its amount, at the spot's corner */
+.bc-stake { position: absolute; top: -.35rem; right: -.25rem; display: grid; place-items: center; min-width: 1.9rem; height: 1.25rem; padding: 0 .3rem; border-radius: .7rem;
+  background: var(--ink); color: var(--yard); font-size: .68rem; font-weight: 800; font-variant-numeric: tabular-nums; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); pointer-events: none; }
+.bc-stake.win { background: var(--bc-good); color: #fff; }
+
+/* the rail: chips to pick, and Clear, Rebet, Deal */
+.bc-rail { display: grid; gap: .45rem; margin-top: .45rem; }
+.bc-chips { display: flex; justify-content: space-between; gap: .3rem; }
+.bc-chip { position: relative; display: grid; place-items: center; width: 3.1rem; height: 3.1rem; flex: none; border: 0; border-radius: 50%; padding: 0; color: #fff; font: inherit; font-size: .74rem; font-weight: 800;
+  background: var(--chip); box-shadow: inset 0 0 0 .2rem var(--chip), inset 0 0 0 .32rem rgba(255, 255, 255, .85), 0 1px 3px rgba(0, 0, 0, .35); cursor: pointer; touch-action: manipulation; }
+.bc-chip::before { content: ""; position: absolute; inset: .12rem; border-radius: 50%; border: .18rem dashed rgba(255, 255, 255, .9); }
+.bc-chip span { position: relative; text-shadow: 0 1px 1px rgba(0, 0, 0, .35); }
+.bc-chip[aria-checked="true"] { outline: 2px solid var(--ink); outline-offset: 2px; transform: translateY(-.15rem); }
+.bc-chip.c100 { --chip: #2C5B8A; } .bc-chip.c500 { --chip: #8F3328; } .bc-chip.c1000 { --chip: #C08A1E; } .bc-chip.c5000 { --chip: #3D7A66; } .bc-chip.c10000 { --chip: #1C2A34; }
+.bc-go { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: .45rem; }
+.bc-btn { min-height: 2.75rem; padding: 0 .6rem; border: 1.5px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 800;
+  text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); cursor: pointer; }
+.bc-btn.primary { border: 0; background: var(--plate); color: var(--plate-ink); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; font-stretch: 106%; }
+.bc-btn:disabled { opacity: .4; cursor: default; }
+
+.bc-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.bc-toast.show { opacity: 1; }
+
+/* the squeeze (baccarat-squeeze.js): over the felt, the card large and face down, peeled from an edge by the finger */
+.bq { position: absolute; inset: 0; z-index: 5; display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; justify-items: center; gap: .4rem; padding: .6rem;
+  border-radius: 6px; background: color-mix(in srgb, var(--bc-felt) 94%, transparent); backdrop-filter: blur(2px); }
+.bq-head { margin: 0; font-weight: 800; font-size: .95rem; }
+.bq-card { height: 100%; max-width: 100%; aspect-ratio: 5 / 7; touch-action: none; cursor: grab; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .35)); }
+.bq-card text { font-family: system-ui, -apple-system, sans-serif; }
+.bq-fold { fill: color-mix(in srgb, var(--cd-back) 45%, #fff); opacity: .9; }
+.bq-say { margin: 0; font-size: .82rem; color: var(--ink-soft); text-align: center; }
+.bq-turn { min-width: 9rem; }
+
+/* the course's sheet in the Banker's colour, and its stage (baccarat-stage.js): hands, a road, the layout, a sign, the
+   Banker's chart, words of the floor */
+dialog.ln-sheet.bc { --ln-in: var(--c3); }
+.bs { display: grid; gap: .7rem; align-content: center; justify-items: stretch; width: 100%; min-height: 0; padding: .3rem 0; }
+.bs-hands { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; padding: .5rem; border-radius: 6px; background: var(--bc-felt); box-shadow: inset 0 0 0 1px var(--bc-felt-line); }
+.bs-hand { display: grid; gap: .3rem; }
+.bs-hand.b .bc-hand-head { flex-direction: row-reverse; }
+.bs-hand.b .bc-total { margin-left: 0; margin-right: auto; }
+.bs-cards { display: flex; justify-content: center; align-items: center; gap: .25em; min-height: 4em; }
+.bs-cards .cd.third { transform: rotate(90deg); margin: 0 .5em; }
+.bs-road { border-radius: 4px; background: var(--sheet); line-height: 0; }
+.bs-road .bc-roads { max-height: 38cqh; }
+.bs-road.board .bc-roads { max-height: 60cqh; }
+.bs-spots { padding: .5rem; border-radius: 6px; background: var(--bc-felt); box-shadow: inset 0 0 0 1px var(--bc-felt-line); }
+.bs-spots .bc-spot { cursor: default; }
+.bs-sign { justify-self: center; display: grid; justify-items: center; gap: .15rem; min-width: 12rem; padding: .7rem 1.2rem; border-radius: 6px; background: var(--ink); color: var(--yard);
+  box-shadow: inset 0 0 0 2px var(--brass); font-variant-numeric: tabular-nums; }
+.bs-sign b { font-size: 1rem; letter-spacing: .04em; }
+.bs-sign span { font-size: 1.15rem; font-weight: 800; }
+.bs-sign small { font-size: .78rem; opacity: .85; }
+.bs-tableau { justify-self: center; border-collapse: collapse; font-size: .78rem; font-variant-numeric: tabular-nums; }
+.bs-tableau caption { caption-side: top; padding-bottom: .3rem; color: var(--ink-soft); font-size: .74rem; }
+.bs-tableau th, .bs-tableau td { min-width: 1.5rem; height: 1.55rem; padding: 0 .15rem; text-align: center; border: 1px solid var(--rule); }
+.bs-tableau th { color: var(--ink-soft); font-weight: 700; }
+.bs-tableau td.d { background: color-mix(in srgb, var(--bc-good) 18%, var(--sheet)); font-weight: 800; }
+.bs-tableau td.s { color: var(--ink-soft); }
+.bs-tableau td.here { box-shadow: inset 0 0 0 2px var(--ink); }
+.bs-terms { display: grid; gap: .35rem; margin: 0; }
+.bs-terms div { display: grid; grid-template-columns: 4.2rem minmax(0, 1fr); align-items: baseline; gap: .6rem; }
+.bs-terms dt { font-size: 1.25rem; font-weight: 800; text-align: right; }
+.bs-terms dd { margin: 0; font-size: .9rem; }
+.bs-terms dd i { margin-right: .45rem; color: var(--ink-soft); }
+
+/* held sideways: the table on the left with all the height; the scoreboard, the chips and the buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.baccarat { --beside: 24rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.baccarat .bc-strip { grid-column: 2; grid-row: 2; }
+  #app.baccarat .bc-board { grid-column: 2; grid-row: 3; }
+  #app.baccarat .bc-felt { grid-column: 1; grid-row: 2 / span 4; margin-top: .45rem; }
+  #app.baccarat .bc-rail { grid-column: 2; grid-row: 5; align-self: end; }
+}
