@@ -98,7 +98,7 @@ export const COURSE = {
           ],
         },
         {
-          id: "sevens", title: "The sevens", zh: "幸運7",
+          id: "sevens", title: "The sevens", zh: "七點",
           steps: [
             { say: "The same for the Player winning with 7. Lucky 7: 6 to 1 on two cards, 15 to 1 on three. Small 7: two cards, 15 to 1; Big 7: three, 30 to 1. Super Lucky 7 wants the Player's 7 to beat the Banker's 6: 30 to 1, 40 to 1 if one of them took a third card, 100 to 1 if both did.", layout: { table: "nocommission", sides: ["lucky7", "seven", "superlucky7"] } },
             { say: "Player 7 on three cards, Banker 6 on two. HK$100 on Super Lucky 7 wins…", hands: { player: "2 3 2", banker: "K 6" }, layout: { table: "nocommission", sides: ["lucky7", "seven", "superlucky7"], stakes: { superlucky7: 100 } }, quiz: ["HK$3,000", "HK$4,000", "HK$10,000"], answer: 1, why: "One third card between them: 40 to 1. Lucky 7 pays 15 to 1 here and Big 7 30 to 1; Small 7 loses.", check: { pays: { spot: "superlucky7", stake: 100, hand: "2 K 3 6 2", table: "nocommission", net: 4000 } } },
@@ -229,7 +229,7 @@ export const COURSE = {
           steps: [
             { say: "Macau's casinos play in Hong Kong dollars: the limits, the chips (籌碼, cau4 maa5) and the payouts are all HK$. The pataca (MOP) is Macau's own money, and some casinos have pataca chips, but the tables count in HK$." },
             { say: "A sign says 1,000. That's…", sign: { min: 1000, max: 100000, side: 10000 }, quiz: ["HK$1,000", "1,000 patacas", "1,000 yuan"], answer: 0, why: "Hong Kong dollars: Macau's gaming currency." },
-            { say: "Chips come from the cage, the casino's cashier. Reports differ on whether the Venetian's tables take cash, and in which currency, so ask before you sit down. A transaction of MOP500,000 or more is reported to the regulator." },
+            { say: "Chips come from the cage, the casino's cashier. Reports differ on whether the Venetian's tables take cash, and in which currency, so ask before you sit down. A transaction of MOP500,000 or more is reported." },
           ],
         },
         {
