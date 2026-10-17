@@ -161,11 +161,29 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   { let c = S.startRegion(S.newCompany(), "baltic");
     for (const w of S.PAR.weeks) { for (const id of ["baltic", "ara"]) for (const a of w[id] || []) c = S.act(c, id, a); c = S.playCompany(c, S.PAR.feeds).company; }
     check(!c.regions.baltic.solved && c.regions.baltic.held.some(h => h.endsWith("-2")), "without ARA's lane the Baltic takes its long-term contracts and can't keep them: never solved"); }
-  // ...unless its harbours are mastered: eleven of their twelve drops and the plant and ORLEN bring the 19 its contracts want
-  { const alone = feed => { let c = S.startRegion(S.newCompany(), "baltic");
-      for (const w of S.PAR.weeks) { for (const id of ["baltic", "ara"]) for (const a of w[id] || []) c = S.act(c, id, a); c = S.playCompany(c, { ...S.PAR.feeds, baltic: feed }).company; }
-      return c.regions.baltic.solved; };
-    check(!alone(10) && alone(11), "without the lane: on ten drops a week the Baltic is never solved, on eleven it is"); }
+  // the Baltic runs on its own only with ARA's diesel landing and 8 of its harbours' 12 drops, however much else comes in
+  { const play = (feed, lane = true) => { let c = S.startRegion(S.newCompany(), "baltic"), short = [];
+      for (const w of S.PAR.weeks) {
+        for (const id of ["world", "baltic", "ara"]) for (const a of w[id] || []) if (lane || id !== "world") c = S.act(c, id, a);
+        const out = S.playCompany(c, { ...S.PAR.feeds, baltic: feed }); c = out.company; short = out.reports.baltic.short.length ? out.reports.baltic.short : short;
+      }
+      return { solved: c.regions.baltic.solved, short: short.join() }; };
+    check(S.dropsToSolve(B) === 8 && S.dropsToSolve(A) === 0, "the Baltic wants 2.5 drops of 4 a harbour (8 of 12) to run on its own; ARA asks nothing more");
+    const alone = play(12, false), seven = play(7), eight = play(8);
+    check(!alone.solved && /lane/.test(alone.short), `without ARA's lane, even all twelve drops (enough to keep its contracts) don't solve it (short of: ${alone.short})`);
+    check(!seven.solved && seven.short === "drops" && eight.solved, "with the lane, seven drops keep its contracts and still don't solve it; eight do"); }
+  // net a week, not a balance: a region keeps no running total; rented tank costs its rent every week, and the par's
+  // room is the right size, a tank more only rent and stock, a tank fewer short of its contracts
+  { check(!("coins" in S.newRegion(B)), "a region keeps no running balance, only each week's net");
+    // steady: a region's net a week over two seasons' offers, once a change of room has settled (its stock drawn down
+    // or filled), from where the par run ends
+    const steady = (k, d) => { let c = JSON.parse(JSON.stringify(C)), sum = 0; const r = c.regions[k]; r.cap += d; r.tank = Math.min(r.tank, r.cap);
+      for (let w = 0; w < 12; w++) { const out = S.playCompany(c, S.PAR.feeds); c = out.company; if (w >= 4) sum += out.reports[k].net; } return Math.round(sum / 8 * 10) / 10; };
+    for (const k of ["baltic", "ara"]) { const [fewer, par, more] = [-6, 0, 6].map(d => steady(k, d));
+      check(par > fewer && par > more, `${k}: the par's room, ${C.regions[k].cap}, is the best size: ${par} a week, a tank fewer ${fewer}, a tank more ${more}`); }
+    const r = { ...S.newRegion(B), cap: 24 }, out = S.playWeek(B, r, {}).report;
+    check(S.tanksOf(B, r) === 2 && out.rent === 6 && out.net === -6, "two rented tanks cost 6 a week, whatever comes in");
+    check(S.unrent(B, { ...r, tank: 18 }).cap === 18 && S.unrent(B, { ...r, tank: 19 }).cap === 24 && S.unrent(B, S.newRegion(B)).cap === 12, "a tank goes back when what's in the terminal fits without it, and only a rented one"); }
   // the feed: a drop a week for every par met in the region's own chapter's harbours, and no other's
   { const chapterOf = id => LEVELS.find(l => l.id === id).chapter, drops = { "first-cargo": 2, "up-the-creek": 3, rundown: 3, "first-blend": 4, "two-refineries": 3, trickle: 1, roundabout: 4 };
     check(S.REGIONS.every(R => R.feed.levels.length && R.feed.levels.join() === LEVELS.filter(l => l.chapter === R.chapter).map(l => l.id).join()), "each region is fed by its own chapter's harbours, all of them");
@@ -178,7 +196,7 @@ for (const prog of ["L(2A)(2L)A(3S)(2D)(3A)(3S)", "L(2A)LA(3S)(2D)(3A)(3S)"]) {
   check(S.pick(B, S.pick(B, s, "truck"), "tank") === S.pick(B, s, "truck") || S.pick(B, S.pick(B, s, "truck"), "tank").pool.truck === 2 && S.pick(B, S.pick(B, s, "truck"), "tank").cap === 12, "one offer a week");
   check(S.pick(B, s, "ship") === s, "only this week's offers can be taken");
   { const full = { ...S.newRegion(B), tank: 12 }, out = S.playWeek(B, full, { feed: 8 }).report;
-    check(out.arrived.feed === 0 && out.turned === 8 && out.coins === 0, `a full tank turns the plant away and pays nothing for it (${JSON.stringify(out.arrived)}, ${out.coins})`); }
+    check(out.arrived.feed === 0 && out.turned === 8 && out.net === 0, `a full tank turns the plant away and pays nothing for it (${JSON.stringify(out.arrived)}, ${out.net})`); }
   { let r = S.newRegion(B); r.stars = 3; r.age = 4; r = S.accept(B, r, "tallinn-1");
     const out = S.playWeek(B, r, { feed: 8 });
     check(out.report.towns.tallinn.got === 0 && out.report.star === -1 && out.state.stars === 2, "a contract left short (no vehicle on the road) costs a star");

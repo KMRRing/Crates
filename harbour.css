@@ -197,6 +197,7 @@ html[data-theme="modern"] .hb-tag-jetty { border-radius: 999px; }
 .hs-coins::before { content: ""; display: inline-block; width: .72em; height: .72em; margin-right: .3em; vertical-align: -.04em; border-radius: 50%;
   background: var(--c0); box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
 .hs-stars { color: var(--brass-lo); }
+.hs-coins small { font-size: .72em; font-weight: 700; color: var(--ink-soft); }   /* net a week: the week is the unit */
 .hs-pips { display: inline-flex; gap: .1875rem; margin-left: .5rem; vertical-align: .02em; }
 .hs-pips i { width: .4375rem; height: .4375rem; border: 1.3px solid var(--brass-lo); border-radius: 1.5px; } .hs-pips i.on { background: var(--brass-lo); }
 .hb-region > .hs-boardbox { flex: 1 1 auto; min-height: 9.375rem; container-type: size; display: grid; place-items: center; }

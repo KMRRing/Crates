@@ -599,7 +599,7 @@ function openMenu() {
   camp.addEventListener("click", e => { const b = e.target.closest("[data-step]"); if (b) { $("menuDlg").close(); goTo(b.dataset.step); } });
   part(body, "content").append(camp);
   const set = part(body, "settings");
-  if (screenOn === SEASON) set.append(action("Start this region over", () => { if (confirm(`Start ${nameOf(shown)} over? Its weeks, vehicles, contracts and coins all go.`)) SEASON.restart(); }, "link"));
+  if (screenOn === SEASON) set.append(action("Start this region over", () => { if (confirm(`Start ${nameOf(shown)} over? Its weeks, vehicles, tanks and contracts all go.`)) SEASON.restart(); }, "link"));
   else if (!screenOn) set.append(action("Clear this level's ships", () => edit(() => { sol.ships = []; sel = -1; pick = null; }), "link"));
   set.append(action(sound.on ? "Sound off" : "Sound on", () => { sound.on = !sound.on; write("harbour:sound", sound.on); }, "link"));
   if (!screenOn) set.append(action(mapView.flat ? "Draw the harbour in 3D" : "Draw the harbour flat", async () => {

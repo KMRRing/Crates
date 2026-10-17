@@ -2,8 +2,8 @@
 // for later chapters, and the lanes between yours. A lane's MRs carry diesel from one of your terminals to another, a
 // cargo a week each; the world is where you put them on, and where you see the whole company at once. The lanes' rules
 // are in harbour-season.js, with the regions'.
-import { REGIONS, LANES, SEASONS, regionOf, seasonOf, weekOf, setMRs, engineOf } from "./harbour-season.js";
-import { coins as whole } from "./harbour-season-ui.js";
+import { REGIONS, LANES, SEASONS, regionOf, seasonOf, weekOf, setMRs, engineOf, netOf } from "./harbour-season.js";
+import { signed } from "./harbour-season-ui.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = v => (Math.round(v * 10) / 10).toString();
@@ -64,7 +64,7 @@ export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
   }
   function draw() {
     const c = company(), F = feeds();
-    const coins = Object.values(c.regions).reduce((a, s) => a + s.coins, 0);
+    const net = Object.values(c.regions).reduce((a, s) => a + (netOf(s.last) || 0), 0);   // the company's net a week, last week
     const lanes = LANES.filter(L => c.regions[L.from] && c.regions[L.to]).map(L => {
       const l = c.lanes[L.id];
       return `<div class="hw-card"><div class="hw-card-head"><b>${esc(L.name)}</b><span class="hw-step"><button type="button" data-mrs="${L.id}:-1" ${l.mrs > 0 ? "" : "disabled"} aria-label="One MR fewer">−</button><output>${l.mrs}</output><button type="button" data-mrs="${L.id}:1" ${l.mrs < L.mr.max ? "" : "disabled"} aria-label="One more MR">+</button></span></div>`
@@ -72,14 +72,14 @@ export function createWorldScreen({ root, brief, company, save, feeds, goTo }) {
     }).join("");
     const regions = REGIONS.filter(R => c.regions[R.id]).map(R => {
       const s = c.regions[R.id], e = s.solved ? engineOf(c, R.id, F) : null;
-      return `<div class="hw-card hw-region"><div><b>${esc(R.name)}</b><span>${s.solved ? `Runs on its own · ${num(e)} a week` : `${SEASONS[seasonOf(s)]}, week ${weekOf(s) + 1}`} · ★ ${s.stars} · ${whole(s.coins)} coins</span></div><button type="button" class="btn" data-go="region:${R.id}">Open</button></div>`;
+      return `<div class="hw-card hw-region"><div><b>${esc(R.name)}</b><span>${s.solved ? `Runs on its own · ${num(e)} a week` : `${SEASONS[seasonOf(s)]}, week ${weekOf(s) + 1}`} · ★ ${s.stars}${s.last && !s.solved ? ` · ${signed(netOf(s.last))} a week` : ""}</span></div><button type="button" class="btn" data-go="region:${R.id}">Open</button></div>`;
     }).join("");
     const L = LANES[0], lane = c.lanes[L.id], to = c.regions[L.to];
     const hint = !c.regions[L.from] ? `Open ${regionOf(L.from).name} to start its terminal.`
       : !lane.mrs ? `Put an MR on the lane: ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts need ${regionOf(L.from).name}'s diesel.`
       : to && !to.solved && seasonOf(to) >= 2 ? `The lane's running: take ${regionOf(L.to).name.replace(/^The /, "the ")}'s long-term contracts.`
       : "Every region runs on the company's clock: a week played in one is played in all.";
-    root.innerHTML = `<div class="hs-hud"><span class="hs-when"><b>The world</b> · week ${c.week}</span><span class="hs-score"><span class="hs-coins" title="Coins, every region together">${whole(coins)}</span></span></div>
+    root.innerHTML = `<div class="hs-hud"><span class="hs-when"><b>The world</b> · week ${c.week}</span><span class="hs-score"><span class="hs-coins" title="Net a week, every region together, last week">${signed(net)} a week</span></span></div>
       <div class="hs-boardbox">${chart()}</div>${lanes}${regions}<p class="hs-status hb-status" aria-live="polite">${esc(hint)}</p>`;
   }
   root.addEventListener("click", e => {

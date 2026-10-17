@@ -4,12 +4,11 @@
 // a town (send vehicles, call them back, take its contract), the terminal (what comes in, the yard). The rules are in
 // harbour-season.js; the company (every region on one clock) is the page's to keep.
 import { SEASONS, WEEKS, regionOf, LANES, seasonOf, weekOf, eventOf, offersOf, offerOpen, tendersOf, contractOf, demandOf, capacityOf,
-  act, playCompany, startRegion, engineOf, parRun, PAR } from "./harbour-season.js";
+  tanksOf, dropsToSolve, netOf, act, playCompany, startRegion, engineOf, parRun, PAR } from "./harbour-season.js";
 
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const num = v => (Math.round(v * 10) / 10).toString();
-const signed = v => `${v < 0 ? "−" : "+"}${num(Math.abs(v))}`;
-export const coins = v => (Math.abs(v) >= 100 ? String(Math.round(v)) : num(v));
+export const signed = v => `${v < 0 ? "−" : "+"}${num(Math.abs(v))}`;
 const plural = (n, one, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
 const lower = name => name.replace(/^The /, "the ");
 
@@ -190,7 +189,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
       const open = offerOpen(R, s, what), on = picked === what;
       const [name, more] = {
         truck: ["A truck", "into the yard"], train: ["A train", "into the yard"], barge: ["A barge", "into the yard"],
-        tank: ["More tank", `holds ${s.cap + R.terminal.grow}`], ship: [`${R.ship.name}'s ship`, open ? `${R.ship.drops} a week` : "none to spare"],
+        tank: ["More tank", `holds ${s.cap + R.terminal.grow}, ${num(R.terminal.rent)} a week`], ship: [`${R.ship.name}'s ship`, open ? `${R.ship.drops} a week` : "none to spare"],
         cargo: ["A cheap cargo", `${R.cargo.drops} drops now`],
       }[what];
       return `<button type="button" class="hs-offer${on ? " on" : ""}" data-offer="${what}" ${(picked && !on) || !open || viewing ? "disabled" : ""} aria-pressed="${on}">${icon(what)}<b>${name}</b><span>${more}</span></button>`;
@@ -199,7 +198,8 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
   function hud() {
     const s = S(), season = seasonOf(s);
     const pips = Array.from({ length: WEEKS }, (_, k) => `<i${k <= weekOf(s) ? ' class="on"' : ""}></i>`).join("");
-    return `<div class="hs-hud"><span class="hs-when"><b>${SEASONS[season]}</b><span class="hs-pips" role="img" aria-label="Week ${weekOf(s) + 1} of ${WEEKS}" title="Week ${weekOf(s) + 1} of ${WEEKS}">${pips}</span></span><span class="hs-score"><span class="hs-coins" title="Coins">${coins(s.coins)}</span><span class="hs-stars" title="Stars">★ ${s.stars}</span></span></div>`;
+    // the season in a word or two (Medium, Long-term: the board's flags say they're contracts), room beside it for the net
+    return `<div class="hs-hud"><span class="hs-when"><b title="${SEASONS[season]}">${SEASONS[season].replace(/ contracts$/, "")}</b><span class="hs-pips" role="img" aria-label="Week ${weekOf(s) + 1} of ${WEEKS}" title="Week ${weekOf(s) + 1} of ${WEEKS}">${pips}</span></span><span class="hs-score"><span class="hs-coins" title="Net a week: last week's takings, less what it bought, hire, rent and penalties">${s.last ? `${signed(netOf(s.last))}<small>/wk</small>` : "–"}</span><span class="hs-stars" title="Stars">★ ${s.stars}</span></span></div>`;
   }
   /** The status line: last week's result while it's fresh, else what to do next. */
   function status() {
@@ -260,7 +260,12 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
   }
   function terminalSheet() {
     const s = S(), fd = feed(), L = lane(), c = C(), ro = !!viewing;
-    let b = `<p class="hs-line">Holds <b>${s.cap}</b>; has ${num(s.tank)}. Whatever comes in beyond what it holds is turned away, and not paid for.</p><h4>Comes in each week</h4>`;
+    const tanks = tanksOf(R, s), spare = tanks && s.tank <= s.cap - R.terminal.grow;
+    let b = `<p class="hs-line">Holds <b>${s.cap}</b>; has ${num(s.tank)}. Whatever comes in beyond what it holds is turned away, and not paid for.</p>`;
+    b += `<div class="hs-deal"><div><b>Room</b><span>${R.terminal.tank} its own${tanks ? `, and ${plural(tanks, "tank")} of ${R.terminal.grow} rented at ${num(R.terminal.rent)} a week each` : ""}: rent pays only for room that's used</span></div>`
+      + `${tanks ? `<button type="button" class="btn" data-unrent="1" ${!ro && spare ? "" : "disabled"} title="${spare ? "" : "It holds too much to give a tank back"}">Give one back</button>` : ""}</div>`;
+    if (R.solve && !s.solved) b += `<p class="hs-soft">${esc(R.name)} runs on its own once its long-term contracts are kept on what comes in each week${R.solve.lane ? ", with ARA's diesel landing by the world's lane" : ""}${R.solve.drops ? `, and with ${dropsToSolve(R)} of its harbours' ${R.feed.levels.length * 4} drops (it has ${feed()})` : ""}.</p>`;
+    b += `<h4>Comes in each week</h4>`;
     b += `<div class="hs-deal"><div><b>${esc(R.feed.name)}</b><span>${fd ? `${fd} a week at ${num(R.feed.price)} a drop` : "idle"}: a drop a week for every par met in its harbours</span></div></div>`;
     // your harbours, each with its drops, and the way back to one with pars still to meet (not while the par run's on show)
     if (!ro) b += harbours(R).map(h => `<div class="hs-deal hs-harbour"><div><b>${esc(h.name)}</b><span>${h.open ? `${h.drops} of ${h.of} drops` : "not open yet"}</span></div>`
@@ -293,13 +298,14 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     save(out.company);
     const r = out.reports[R.id], others = Object.entries(out.reports).filter(([id]) => id !== R.id);
     const towns = R.towns.map(t => `${t.name} ${num(r.towns[t.id].got)}/${r.towns[t.id].want}`).join(" · ");
-    fresh = { text: `${towns} · ${signed(r.coins)}${r.star > 0 ? " · ★" : r.star < 0 ? " · a star lost" : ""}${others.length ? ` · ${others.map(([id, x]) => `${regionOf(id).name} ${signed(x.coins)}`).join(", ")}` : ""}`,
+    const short = r.short?.length ? ` · kept, but to run on its own it needs ${r.short.map(x => (x === "lane" ? "ARA's diesel by the world's lane" : `${dropsToSolve(R)} of its harbours' drops`)).join(" and ")}` : "";
+    fresh = { text: `${towns} · ${signed(r.net)}${r.star > 0 ? " · ★" : r.star < 0 ? " · a star lost" : ""}${short}${others.length ? ` · ${others.map(([id, x]) => `${regionOf(id).name} ${signed(x.net)}`).join(", ")}` : ""}`,
       tone: r.star < 0 ? "bad" : r.star > 0 ? "good" : "" };
     animate = !matchMedia("(prefers-reduced-motion: reduce)").matches;
     draw();
     // news: a new season, the region solved; the page adds what this opened elsewhere
     const s = S(), news = [];
-    if (r.solved) news.push([`${R.name} runs on its own`, `All its long-term contracts kept. It keeps running while you play elsewhere; tidy it (vehicles it doesn't need, ships it no longer wants) to make more a week.`]);
+    if (r.solved) news.push([`${R.name} runs on its own`, `All its long-term contracts kept. It keeps running while you play elsewhere; tidy it (vehicles it doesn't need, ships it no longer wants, tanks it doesn't use) to make more a week.`]);
     else if (seasonOf(s) !== r.season) news.push([SEASONS[seasonOf(s)], seasonOf(s) === 1 ? `The towns now offer contracts: tap one with a ★ flag. A contract is steadier than spot orders and bigger, but it's a promise.` : `The long-term contracts are open: bigger still, for a region that runs on its own once they're all kept.`]);
     onWeek(before, out.company, out.reports, news);
   }
@@ -329,6 +335,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     if (m === "unplace") return `calls a ${v(a[1])} back from ${town(a[0])}`;
     if (m === "accept") return `takes ${R.tenders.find(t => t.id === a[0]).name}`;
     if (m === "release") return `lets a ship go`;
+    if (m === "unrent") return `gives a tank back`;
     return "";
   }
 
@@ -354,6 +361,7 @@ export function createSeasonScreen({ root, brief, company, save, feeds, harbours
     else if (b.dataset.unplace) { move(R.id, ["unplace", town, type]); townSheet(town); }
     else if (b.dataset.accept) { const id = R.tenders.find(z => z.id === b.dataset.accept).town; move(R.id, ["accept", b.dataset.accept]); townSheet(id); }
     else if (b.dataset.release) { move(R.id, ["release"]); terminalSheet(); }
+    else if (b.dataset.unrent) { move(R.id, ["unrent"]); terminalSheet(); }
   });
 
   return {

@@ -3,12 +3,15 @@
 // take the contracts your stars reach, and play the week: supply comes into the terminal (as much as it holds), the
 // vehicles carry it to the towns, and the week pays. A region climbs three seasons, spot orders, then medium contracts,
 // then long-term ones; it's solved, and runs on its own, the first week all its long-term contracts are kept on what
-// comes in that week. From then on its engine (its coins a week) is what there is to improve.
+// comes in that week (the Baltic also wants ARA's diesel landing by the world's lane, and most of its harbours' drops).
+// Its score is its net a week, what a week makes after what it bought, hire, rent and penalties, not a balance that
+// grows with every week played; once it's solved, its engine (its net a week, held) is what there is to improve.
 // Regions share the company's clock: a week played anywhere is played in every region already started, each as it
 // stands, so a region keeps running while you're elsewhere, and the world's lanes carry cargo between them. A terminal
 // is fed by its chapter's harbours: every par met in them is a drop, and a drop a week into the terminal (First cargo,
-// Up the creek and Rundown feed Muuga), so every par met is a bigger region. Pure: no page, no clock of its own. Drops
-// are the board's diesel, coins its money.
+// Up the creek and Rundown feed Muuga), so every par met is a bigger region. Tank beyond the terminal's own is rented by
+// the week, so more of it pays only while it's used. Pure: no page, no clock of its own. Drops are the board's diesel,
+// coins its money.
 
 export const SEASONS = ["Spot orders", "Medium contracts", "Long-term contracts"];
 export const WEEKS = 4;                                      // a season's weeks
@@ -17,9 +20,12 @@ export const REGIONS = [
   {
     id: "baltic", chapter: "baltic", name: "The Baltic", teaches: "spot orders, then contracts",
     brief: "Your terminal at Muuga, fed by the plant: a drop a week for every par you've met in the Baltic's harbours. Supply every town in a week for a star; stars win contracts.",
-    terminal: { name: "Muuga", tank: 12, start: 6, grow: 6 },
+    terminal: { name: "Muuga", tank: 12, start: 6, grow: 6, rent: 3 },    // 12 its own; each 6 more rented at 3 a week
     // the plant: a drop a week for every par met in the Baltic's three harbours, twelve at most
     feed: { levels: ["first-cargo", "up-the-creek", "rundown"], price: 2, name: "The plant" },
+    // to run on its own, beyond its long-term contracts kept: ARA's diesel landing by the world's lane, and its harbours
+    // at 2.5 drops of 4 on average (8 of their 12)
+    solve: { lane: true, drops: 2.5 },
     towns: [
       { id: "tallinn", name: "Tallinn", routes: { truck: 6 } },
       { id: "rakvere", name: "Rakvere", routes: { truck: 4 } },
@@ -50,12 +56,12 @@ export const REGIONS = [
       5: { text: "Ice in the gulf: ORLEN's ship brings half", ship: .5 },
       10: { text: "Turnaround at the plant: it runs at half", feed: .5 },
     },
-    start: { coins: 20, pool: { truck: 1 } },
+    start: { pool: { truck: 1 } },
   },
   {
     id: "ara", chapter: "nwe", name: "ARA", teaches: "a terminal that exports",
     brief: "Your terminal at Maasvlakte, fed by the refineries: a drop a week for every par you've met in North-West Europe's harbours. The world's lane can take its diesel to the Baltic.",
-    terminal: { name: "Maasvlakte", tank: 12, start: 6, grow: 6 },
+    terminal: { name: "Maasvlakte", tank: 12, start: 6, grow: 6, rent: 3 },
     // the refineries: a drop a week for every par met in North-West Europe's five harbours (eight at most when ARA
     // opens, after First blend and Two refineries; Trickle, Blend wall and Heels add theirs as they're played)
     feed: { levels: ["first-blend", "two-refineries", "trickle", "blend-wall", "heels"], price: 1.8, name: "The refineries" },
@@ -88,7 +94,7 @@ export const REGIONS = [
       6: { text: "Low water on the Rhine: barges carry half", vehicle: "barge", carry: .5 },
       9: { text: "A refinery trips: it runs at half", feed: .5 },
     },
-    start: { coins: 20, pool: { truck: 1 } },
+    start: { pool: { truck: 1 } },
   },
 ];
 export const regionOf = id => REGIONS.find(r => r.id === id);
@@ -106,7 +112,7 @@ export const feedOf = (R, drops) => R.feed.levels.reduce((n, id) => n + (drops(i
 const clone = s => JSON.parse(JSON.stringify(s));
 const round = v => Math.round(v * 10) / 10;
 export function newRegion(R) {
-  return { age: 0, tank: R.terminal.start, cap: R.terminal.tank, coins: R.start.coins, stars: 0, owed: 0,
+  return { age: 0, tank: R.terminal.start, cap: R.terminal.tank, stars: 0, owed: 0,
     pool: { ...Object.fromEntries(Object.keys(R.vehicles).map(t => [t, 0])), ...R.start.pool },
     placed: Object.fromEntries(R.towns.map(t => [t.id, []])), ships: 0, held: [], picked: null, solved: false, solvedAt: null, last: null };
 }
@@ -116,6 +122,12 @@ export const eventOf = (R, s) => R.events[s.age] || null;
 export const offersOf = (R, s) => R.offers[seasonOf(s)][weekOf(s)];
 /** Whether an offer can be taken: a supply ship only while there's one to spare. */
 export const offerOpen = (R, s, what) => what !== "ship" || s.ships < R.ship.max;
+/** Tanks rented beyond the terminal's own. */
+export const tanksOf = (R, s) => Math.round((s.cap - R.terminal.tank) / R.terminal.grow);
+/** The drops a region's harbours must have for it to run on its own (the Baltic's 2.5 of 4 a harbour: 8), or 0. */
+export const dropsToSolve = R => (R.solve?.drops ? Math.ceil(R.solve.drops * R.feed.levels.length) : 0);
+/** A week's net, as its report has it (a report saved before net was kept says coins). */
+export const netOf = rep => (rep ? rep.net ?? rep.coins ?? 0 : null);
 
 /** Takes this week's offer: a vehicle into the yard, more tank, a ship hired, a cargo in (paid for with the week). */
 export function pick(R, s, what) {
@@ -141,6 +153,11 @@ export function unplace(R, s, town, type) {
 }
 /** Lets a supply ship go: no more of its hire, or its cargo. */
 export function release(R, s) { if (!s.ships) return s; const n = clone(s); n.ships--; return n; }
+/** Gives a rented tank back, no more of its rent, if what's in the terminal still fits without it. */
+export function unrent(R, s) {
+  if (!tanksOf(R, s) || s.tank > s.cap - R.terminal.grow) return s;
+  const n = clone(s); n.cap -= R.terminal.grow; return n;
+}
 /** The tenders on offer: this season's and earlier ones, for towns without one as long; your stars may not reach them. */
 export const tendersOf = (R, s) => R.tenders.filter(t => t.season <= seasonOf(s) && !s.held.includes(t.id) && !heldAsLong(R, s, t));
 const heldAsLong = (R, s, t) => s.held.some(h => { const x = R.tenders.find(y => y.id === h); return x.town === t.town && x.season >= t.season; });
@@ -174,13 +191,14 @@ export function capacityOf(R, s, town) {
  */
 export function playWeek(R, s, { feed = 0, laneIn = 0, laneCap = 0, lanePrice = 0, laneHire = 0 } = {}) {
   const n = clone(s), ev = eventOf(R, n), week = weekOf(n), season = seasonOf(n);
-  const rep = { age: n.age, season, week, event: ev?.text || null, arrived: {}, turned: 0, towns: {}, exported: 0, coins: 0, star: 0, solved: false };
+  const rep = { age: n.age, season, week, event: ev?.text || null, arrived: {}, turned: 0, towns: {}, exported: 0, net: 0, rent: 0, star: 0, solved: false, short: [] };
   let bought = n.owed;
   const take = (key, drops, price) => { const m = Math.min(drops, n.cap - n.tank); n.tank += m; bought += m * price; rep.arrived[key] = m; return drops - m; };
   const feeding = feed * (ev?.feed ?? 1), shipping = n.ships * R.ship.drops * (ev?.ship ?? 1);
   const waiting = take("lane", laneIn, lanePrice);           // lane cargo that doesn't fit waits aboard: it isn't turned away
   rep.turned = round(take("feed", feeding, R.feed.price) + take("ship", shipping, R.ship.price[week]));
-  const hire = Object.values(n.placed).flat().reduce((a, t) => a + R.vehicles[t].hire, 0) + n.ships * R.ship.hire + laneHire;
+  rep.rent = tanksOf(R, n) * R.terminal.rent;
+  const hire = Object.values(n.placed).flat().reduce((a, t) => a + R.vehicles[t].hire, 0) + n.ships * R.ship.hire + laneHire + rep.rent;
   let earned = 0, penalty = 0, kept = true, allMet = true;
   const serve = d => {
     const got = Math.min(d.drops, capacityOf(R, n, d.town), n.tank);
@@ -197,14 +215,16 @@ export function playWeek(R, s, { feed = 0, laneIn = 0, laneCap = 0, lanePrice = 
   // order was never promised, so it only costs the star), so a bad start can always be made good
   rep.star = !kept ? -1 : allMet && D.some(d => d.drops > 0) ? 1 : 0;
   n.stars = Math.max(0, n.stars + rep.star);
-  rep.coins = round(earned - bought - hire - penalty);
-  n.coins = round(n.coins + rep.coins);
+  rep.net = round(earned - bought - hire - penalty);
   n.owed = 0;
   // solved: every long-term contract held and kept, on what comes in each week, not on stock that will run out (an
-  // exporter's lane counted as one more promise)
+  // exporter's lane counted as one more promise); and where the region asks it, the lane's cargo landing and its
+  // harbours' drops (a week that would have done it otherwise says what it's short of)
   const longs = R.tenders.filter(t => t.long), owing = longs.reduce((a, t) => a + t.drops, 0) + laneCap;
   if (!n.solved && season === SEASONS.length - 1 && longs.every(t => n.held.includes(t.id)) && kept && laneIn + feeding + shipping >= owing) {
-    n.solved = true; n.solvedAt = n.age + 1; rep.solved = true;
+    if (R.solve?.lane && !(laneIn > 0)) rep.short.push("lane");
+    if (feed < dropsToSolve(R)) rep.short.push("drops");
+    if (!rep.short.length) { n.solved = true; n.solvedAt = n.age + 1; rep.solved = true; }
   }
   n.last = rep; n.picked = null; n.age++;
   return { state: n, report: rep, laneLeft: round(waiting), exported: rep.exported };
@@ -242,28 +262,28 @@ export function playCompany(C, feeds = {}) {
   n.week++;
   return { company: n, reports };
 }
-/** A solved region's engine: its coins a week, averaged over the next season as everything stands (no offers taken).
+/** A solved region's engine: its net a week, averaged over the next season as everything stands (no offers taken).
  *  Null until it's solved. */
 export function engineOf(C, id, feeds = {}) {
   if (!C.regions[id]?.solved) return null;
   let c = C, sum = 0;
-  for (let k = 0; k < WEEKS; k++) { const out = playCompany(c, feeds); sum += out.reports[id].coins; c = out.company; }
+  for (let k = 0; k < WEEKS; k++) { const out = playCompany(c, feeds); sum += out.reports[id].net; c = out.company; }
   return round(sum / WEEKS);
 }
-/** One move by name, as the page and the par run make them: a region's pick, place, unplace, release or accept, or the
+/** One move by name, as the page and the par run make them: a region's pick, place, unplace, release, unrent or accept, or the
  *  world's MRs on a lane (region "world": ["mrs", lane, n]) or a region's start (["start"]). */
 export function act(C, id, [move, ...args]) {
   if (move === "start") return startRegion(C, id);
   if (move === "mrs") return setMRs(C, args[0], args[1]);
-  const R = regionOf(id), s = C.regions[id], fn = { pick, place, unplace, release, accept }[move];
+  const R = regionOf(id), s = C.regions[id], fn = { pick, place, unplace, release, unrent, accept }[move];
   if (!R || !s || !fn) return C;
   const after = fn(R, s, ...args);
   return after === s ? C : { ...C, regions: { ...C.regions, [id]: after } };
 }
 
 // The par run: the intended path, played out by a player with eight of the Baltic harbours' twelve drops (eight a week)
-// and seven of the eight First blend and Two refineries offer (seven): the Baltic's two seasons alone, then ARA from the
-// week it opens, the lane, and both regions solved, then each engine tidied. Each entry is a company week's moves, then the week is played.
+// and seven of the eight First blend and Two refineries offer (seven), renting only the tank each region uses: the
+// Baltic's two seasons alone, then ARA from the week it opens, the lane, and both regions solved, then each engine tidied. Each entry is a company week's moves, then the week is played.
 // It's the regions' cheat (Menu shows it week by week) and tests/harbour.mjs holds the pars to it.
 export const PAR = {
   feeds: { baltic: 8, ara: 7 },
@@ -271,29 +291,31 @@ export const PAR = {
     { baltic: [["pick", "truck"], ["place", "tallinn", "truck"], ["place", "rakvere", "truck"]] },
     { baltic: [["pick", "truck"], ["place", "tartu", "truck"]] },
     { baltic: [["pick", "train"]] },
-    { baltic: [["pick", "tank"]] },
+    { baltic: [["pick", "tank"]] },                          // 18 of room for the medium contracts' 13 a week
     { baltic: [["pick", "ship"], ["accept", "tallinn-1"], ["accept", "tartu-1"], ["accept", "rakvere-1"], ["unplace", "tartu", "truck"], ["place", "tartu", "train"]] },
     { baltic: [["pick", "truck"]] },
-    { baltic: [["pick", "tank"]] },
+    { baltic: [["pick", "tank"]] },                          // 24: room for the long-term contracts' 19 a week, and no more
     { baltic: [["pick", "train"]] },
-    // the Baltic's long-term contracts need more than the plant and ORLEN: North-West Europe opens, and ARA after it
-    { ara: [["start"], ["pick", "barge"], ["place", "rotterdam", "truck"], ["place", "duisburg", "barge"]], baltic: [["pick", "tank"]] },
+    // the Baltic's long-term contracts need ARA's diesel: North-West Europe opens, and ARA after it. A vehicle left in
+    // the yard costs nothing, so a week with nothing to add picks one rather than a tank that would only be rent
+    { ara: [["start"], ["pick", "barge"], ["place", "rotterdam", "truck"], ["place", "duisburg", "barge"]], baltic: [["pick", "truck"]] },
     { ara: [["pick", "truck"], ["place", "antwerp", "truck"]], baltic: [["pick", "truck"]] },
-    { ara: [["pick", "tank"]], baltic: [["pick", "tank"]] },
+    { ara: [["pick", "tank"]], baltic: [["pick", "train"]] },
     { ara: [["pick", "ship"]], baltic: [["pick", "truck"]] },
     { ara: [["pick", "ship"], ["accept", "rotterdam-1"], ["accept", "duisburg-1"]], world: [["mrs", "ara-baltic", 1]], baltic: [["pick", "truck"]] },
     { ara: [["pick", "tank"]], baltic: [["pick", "train"], ["accept", "tallinn-2"], ["accept", "tartu-2"], ["accept", "rakvere-2"], ["place", "tallinn", "truck"]] },
-    { ara: [["pick", "barge"]], baltic: [["pick", "tank"]] },
-    { ara: [["pick", "tank"]], baltic: [["pick", "truck"]] },
-    { ara: [["pick", "barge"], ["place", "duisburg", "barge"], ["accept", "antwerp-1"]], baltic: [["pick", "tank"]] },
     { ara: [["pick", "barge"]], baltic: [["pick", "truck"]] },
-    { ara: [["pick", "tank"]], baltic: [["pick", "tank"]] },
+    // ARA stays at 24: a third tank would carry the lane's last two a week, worth less to ARA than its rent
+    { ara: [["pick", "truck"]], baltic: [["pick", "truck"]] },
+    { ara: [["pick", "barge"], ["place", "duisburg", "barge"], ["accept", "antwerp-1"]], baltic: [["pick", "truck"]] },
+    { ara: [["pick", "barge"]], baltic: [["pick", "truck"]] },
+    { ara: [["pick", "barge"]], baltic: [["pick", "truck"]] },
     { ara: [["pick", "truck"], ["accept", "rotterdam-2"], ["accept", "duisburg-2"], ["place", "rotterdam", "truck"]], baltic: [["pick", "truck"]] },
-    { ara: [["pick", "tank"], ["accept", "antwerp-2"], ["unplace", "antwerp", "truck"], ["place", "antwerp", "barge"]], baltic: [["pick", "truck"]] },
+    { ara: [["pick", "barge"], ["accept", "antwerp-2"], ["unplace", "antwerp", "truck"], ["place", "antwerp", "barge"]], baltic: [["pick", "truck"]] },
     // tidying the engines: the low water's past, so Duisburg needs one barge, not two
-    { ara: [["pick", "tank"], ["unplace", "duisburg", "barge"]], baltic: [["pick", "truck"]] },
+    { ara: [["pick", "barge"], ["unplace", "duisburg", "barge"]], baltic: [["pick", "truck"]] },
   ],
-  engine: { baltic: 31.3, ara: 27 },
+  engine: { baltic: 25.1, ara: 21.3 },
 };
 /** The par run played to week k (all of it by default): the company after each week's moves and the week. */
 export function parRun(k = PAR.weeks.length) {
