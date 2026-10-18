@@ -39,8 +39,13 @@ function raiseTo(s, seat, me, to) {
   return { t: "raise", to: left < Math.max(BLINDS.big, 0.35 * (me.pot + to)) ? me.maxTo : Math.min(me.maxTo, Math.max(me.minTo, to)) };
 }
 
-export function botMove(s, seat, { level = "hard", rng = Math.random } = {}) {
-  const L = LEVELS[level] || LEVELS.hard, me = legal(s, seat), hole = s.hole[seat];
+/**
+ * A computer player's move. `equity`, `samples` and `tune` are for the coach, which plays hands out against these rules many
+ * times over: it gives the count of chances a faster, remembered one (the same cards, board and opponents, the same number),
+ * and may change a level's settings for the seat it speaks for.
+ */
+export function botMove(s, seat, { level = "hard", rng = Math.random, samples = null, equity = vsRandom, tune = null } = {}) {
+  const L = { ...(LEVELS[level] || LEVELS.hard), ...tune }, me = legal(s, seat), hole = s.hole[seat];
   const foes = alive(s).filter(i => i !== seat);
   const stack = s.stacks[seat], bb = BLINDS.big;
   const fold = () => (me.canCheck ? { t: "check" } : { t: "fold" });
@@ -49,6 +54,8 @@ export function botMove(s, seat, { level = "hard", rng = Math.random } = {}) {
   if (s.seen === 0) {
     const c = chen(hole) + L.loose, place = placeOf(s, seat), toCallBB = me.toCall / bb;
     const late = place === "button" || place === "button and small blind" || place === "cutoff";
+    // a hand worth a stack calls an all-in: the price rules below turn every shove down, aces included
+    if (me.toCall && !me.canRaise && c >= 12) return { t: "call" };
     // the least a hand must count to open the betting from each place: the nearer the button the wider
     const open = place === "button" || place === "button and small blind" ? 5.5 : place === "cutoff" ? 6.5 : place === "small blind" ? 7 : place === "hijack" ? 7.5 : place === "big blind" ? 99 : 8.5;
     if (me.maxTo <= 15 * bb) {                                  // fifteen big blinds or fewer: all in or out
@@ -82,7 +89,7 @@ export function botMove(s, seat, { level = "hard", rng = Math.random } = {}) {
 
   // ---------- after the flop ----------
   const board = s.board.slice(0, s.seen);
-  const eq = vsRandom(hole, board, foes.length, { rng, samples: L.samples });
+  const eq = equity(hole, board, foes.length, { rng, samples: samples ?? L.samples });
   const potBefore = Math.max(1, me.pot - me.toCall), bet = me.toCall / potBefore;   // the bet faced, as a share of the pot before it
   // whoever bets or raises holds more than a random hand: the bigger the bet, the less the hand is worth
   const eAdj = me.toCall ? Math.pow(eq, 1 + L.shrink * Math.min(bet, 1.5)) : eq;

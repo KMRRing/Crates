@@ -1,9 +1,13 @@
 // Texas Hold'em (德州撲克) against computer players, or at a table with friends each on their own phone. The rules and
-// words are holdem-rules.js's, the computer players holdem-bot.js's, the running seats.js's (seats-ui.js). This page
-// draws the table: the other seats round its top, flanking yours at the foot, the pot and the board between them; your
-// two cards, the size of a raise, and your buttons below.
+// words are holdem-rules.js's, the computer players holdem-bot.js's, the running seats.js's (seats-ui.js), the coach
+// holdem-think.js's (in holdem-worker.js, off this thread) with its words from holdem-coach.js. This page draws the
+// table: the other seats round its top, flanking yours at the foot, the pot and the board between them; your two cards,
+// the coach as you choose (a hint when you ask, a word on each move of yours it would have made otherwise, or its move at
+// every decision), the size of a raise, and your buttons below.
 import { rules, alive, legal, sizes, blindsOf, potOf, HANDS, RAKES, DEFAULTS, STACK, SHOW_MS, FOLDED_MS } from "./holdem-rules.js";
 import { LEVEL_NAMES } from "./holdem-bot.js";
+import { think, sameMove, BUDGET } from "./holdem-think.js";
+import { moveSaid, adviceLine, verdict, gain, near } from "./holdem-coach.js";
 import { score, describe, equity, vsRandom, rankOf, suitOf, RANKS, RANK_WORDS, RANK_PLURAL, cardName } from "./holdem-eval.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { seeded, mix } from "./seats.js";
@@ -26,7 +30,11 @@ const fmt = n => Number(n).toLocaleString("en-GB");
 const signed = n => (n > 0 ? "+" : n < 0 ? "−" : "") + fmt(Math.abs(n));
 const NAMES = ["Ah Keung", "Mei Ling", "Lao Ho", "Siu Ming", "Ah Lan", "Dai Lo"];   // the computer players, by seat
 
-let opts = { level: "hard", hands: DEFAULTS.hands, rake: DEFAULTS.rake, seats: 5, odds: false, voice: true, ...read(OPTS, {}) };
+// the coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
+// otherwise; on (Always), its move at each of your decisions as well
+const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
+let opts = { level: "hard", hands: DEFAULTS.hands, rake: DEFAULTS.rake, seats: 5, odds: false, voice: true, coach: "hints", ...read(OPTS, {}) };
+if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 if (!HANDS.includes(opts.hands)) opts.hands = DEFAULTS.hands;
 if (!RAKES.includes(opts.rake)) opts.rake = DEFAULTS.rake;
 if (!(opts.seats >= 2 && opts.seats <= 6)) opts.seats = 5;
@@ -56,6 +64,117 @@ const nameOf = seat => V?.seats?.[seat]?.name ?? NAMES[seat] ?? `Seat ${seat + 1
 const isMe = seat => V?.seat != null && seat === V.seat;
 const who = seat => (isMe(seat) ? "You" : nameOf(seat));
 
+// ---------- the coach ----------
+// It thinks in a worker of its own (holdem-worker.js), so the table never waits on it: a hint or Always's advice in a second
+// or two, a check a little longer. Where a browser has no worker, it thinks here, in fewer deals.
+// (a partner's frame, watched from the games screen, shows their table and coaches nobody)
+const coaching = () => opts.coach !== "off" && !IN_FRAME;
+const speaks = () => (opts.coach === "check" || opts.coach === "on") && !IN_FRAME;
+const decisionOf = v => `${v.G.seq}:${v.G.n}`;
+let worker = null, asked = 0;
+const answers = new Map();
+function coachWorker() {
+  if (worker === null) {
+    try {
+      worker = new Worker(new URL("./holdem-worker.js", import.meta.url), { type: "module" });
+      worker.onmessage = e => { const f = answers.get(e.data.id); answers.delete(e.data.id); f?.(e.data); };
+      worker.onerror = () => { worker = false; for (const f of answers.values()) f({ error: "no worker" }); answers.clear(); };
+    } catch { worker = false; }
+  }
+  return worker;
+}
+function ask(kind, state, seat, move = null) {
+  const w = coachWorker();
+  if (!w) {
+    try { return Promise.resolve({ result: think(state, seat, { ...BUDGET.here, must: kind === "check" ? move : null }) }); }
+    catch (err) { return Promise.resolve({ error: String(err) }); }
+  }
+  return new Promise(res => { const id = ++asked; answers.set(id, res); w.postMessage({ id, kind, state, seat, move }); });
+}
+// the coach's weighing of your decision now ({ key, r, state, seat }), asked for once: by a Hint, or unasked (Always); a
+// decision it couldn't weigh (no answer came) is noted, so nothing waits on it
+let advice = null, weighing = null, hintAsked = null, hinted = null, failed = null;
+function weigh(v) {
+  const key = decisionOf(v);
+  if (advice?.key === key) return Promise.resolve(advice);
+  if (weighing?.key === key) return weighing.promise;
+  const state = structuredClone(v.state), seat = v.seat;
+  const promise = ask("think", state, seat).then(({ result }) => {
+    if (weighing?.key === key) weighing = null;
+    if (!result) { failed = key; return null; }
+    const a = { key, r: result, state, seat };
+    if (V?.G && decisionOf(V) === key) advice = a;
+    return a;
+  });
+  weighing = { key, promise };
+  return promise;
+}
+// the check's word on your last move it would have made otherwise ({ words, r, mine, state }), until your next move; and
+// this hand's moves of yours, each with the coach's verdict, for the review at the hand's end
+let word = null, notes = [], notesHand = 0;
+async function checkMove(state, seat, move) {
+  const { result } = await ask("check", state, seat, move);
+  if (!result || state.hand !== V?.state?.hand) return;
+  const v = verdict(result, move, state, seat);
+  notes.push(v ? { mine: move, agreed: false, gap: v.gap, words: v.words } : { mine: move, agreed: true });
+  word = v ? { words: v.words, r: result, mine: move, state } : null;
+  draw();
+}
+/** Asked by Always at each of your decisions: the coach's move, ringed on the button that plays it, the slider set to its raise unless you have moved it. */
+function advise(v) {
+  if (opts.coach !== "on" || IN_FRAME || !mine() || [advice?.key, weighing?.key, failed].includes(decisionOf(v))) return;
+  weigh(v).then(a => {
+    if (!a || !V?.G || decisionOf(V) !== a.key) return;
+    if (a.r.best.t === "raise" && mine() && (raiseTo == null || raiseTo === legal(V.state, V.seat).minTo)) raiseTo = a.r.best.to;
+    draw();
+  });
+}
+/** A new hand: the last one's notes and word go. */
+function newHand(v) {
+  if (v.state.hand === notesHand || v.state.step !== "bet") return;
+  notesHand = v.state.hand;
+  notes = [];
+  word = null;
+}
+/** The coach's move at this decision, while it stands: the hint asked for, or Always's advice. */
+function advised(v) {
+  const key = decisionOf(v);
+  if (hinted?.key === key) return hinted.r.best;
+  return opts.coach === "on" && advice?.key === key ? advice.r.best : null;
+}
+const WHY = ' <button type="button" class="link hd-why" data-why="1">Why?</button>';
+const WAIT = '<i class="ld" aria-hidden="true"></i>The coach is weighing it…';
+/** What the coach says now: its move when asked or in Always, its word on your last move, or how the hand went by its lights. */
+function coachLine(v) {
+  const s = v.state, key = decisionOf(v), turn = mine();
+  if (turn && hinted?.key === key) return `<b>Hint</b>: ${esc(adviceLine(hinted.r, s, v.seat))}${WHY}`;
+  if (turn && hintAsked === key && !advice && failed !== key) return WAIT;
+  if (turn && opts.coach === "on" && failed !== key) return advice?.key === key ? `<b>Coach</b>: ${esc(adviceLine(advice.r, advice.state, advice.seat))}${WHY}` : WAIT;
+  if (!speaks()) return "";
+  if (word && s.step === "bet") return `<b class="hd-miss">Coach</b> ${esc(word.words)}${WHY}`;
+  if ((s.step === "shown" || s.step === "over") && notes.length) {
+    const agreed = notes.filter(n => n.agreed).length;
+    return `<b>Your play</b>: the coach agreed with ${agreed} of your ${notes.length} move${notes.length === 1 ? "" : "s"}${agreed < notes.length ? ' <button type="button" class="link hd-why" data-why="review">Where it differed</button>' : ""}`;
+  }
+  return "";
+}
+function drawCoach(v) {
+  const box = $("coach");
+  box.hidden = !coaching() || v.seat == null;
+  if (!box.hidden) box.innerHTML = `<span class="hd-says">${coachLine(v)}</span><button type="button" class="btn hd-hint" data-act="hint" ${mine() ? "" : "disabled"}>Hint</button>`;
+}
+/** A Hint: the coach's move, with the slider set to its size when it raises. */
+async function hint() {
+  const key = decisionOf(V);
+  hintAsked = key;
+  draw();
+  const a = await weigh(V);
+  if (!a || !V?.G || decisionOf(V) !== key) { draw(); return; }
+  hinted = { key, r: a.r };
+  if (a.r.best.t === "raise") { raiseTo = a.r.best.to; syncSlide(); }
+  draw();
+}
+
 // ---------- where each seat sits ----------
 // Clockwise from you (the next seat to act is on your left, as at a real table): up the left side, across the top, down the right.
 const SLOTS = { 2: ["tc"], 3: ["tl", "tr"], 4: ["ml", "tc", "mr"], 5: ["ml", "tl", "tr", "mr"], 6: ["ml", "tl", "tc", "tr", "mr"] };
@@ -64,13 +183,18 @@ const slotOf = (seat, n, me) => { const k = (seat - me + n) % n; return k === 0 
 function draw() {
   if (!page) return;
   const v = V;
-  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("strip").textContent = ""; $("size").innerHTML = ""; $("size").dataset.sig = ""; drawBar(); return; }
+  if (!v?.G) { $("table").innerHTML = ""; $("hand").innerHTML = ""; $("coach").hidden = true; $("strip").textContent = ""; $("size").innerHTML = ""; $("size").dataset.sig = ""; drawBar(); return; }
   const s = v.state;
+  newHand(v);
+  if (advice && advice.key !== decisionOf(v)) advice = null;
+  if (hinted && hinted.key !== decisionOf(v)) hinted = null;
   $("strip").innerHTML = stripLine(s);
   drawTable(v);
   drawHand(v);
+  drawCoach(v);
   drawSize(v);
   drawBar();
+  advise(v);
 }
 
 /** What the hand's pot was once it was paid: the chips contested, the house's share with them, not the bet nobody called. */
@@ -237,10 +361,12 @@ function drawBar() {
   const to = raise ? Math.max(me.minTo, Math.min(me.maxTo, raiseTo)) : 0;
   const rLabel = !raise ? "Raise" : to >= me.maxTo ? `All in ${fmt(to)}` : `${s.bet ? "Raise to" : "Bet"} ${fmt(to)}`;
   const cLabel = !on ? "Call" : me.toCall ? (me.toCall >= s.stacks[v.seat] ? `All in ${fmt(me.toCall)}` : `Call ${fmt(me.toCall)}`) : "Check";
+  // the coach's move, ringed on the button that plays it
+  const adv = on && coaching() ? advised(v) : null, ring = (...ts) => (adv && ts.includes(adv.t) ? " advised" : "");
   // a fold is for when there's something to call: a free fold is never right, so it waits
-  bar.innerHTML = `<button type="button" class="btn hd-go" data-act="fold" ${on && me.toCall ? "" : "disabled"}>Fold</button>
-    <button type="button" class="btn hd-go call" data-act="${on && !me.toCall ? "check" : "call"}" ${on ? "" : "disabled"}>${esc(cLabel)}</button>
-    <button type="button" class="btn primary hd-go raise" data-act="raise" ${raise ? "" : "disabled"}>${esc(rLabel)}</button>`;
+  bar.innerHTML = `<button type="button" class="btn hd-go${ring("fold")}" data-act="fold" ${on && me.toCall ? "" : "disabled"}>Fold</button>
+    <button type="button" class="btn hd-go call${ring("check", "call")}" data-act="${on && !me.toCall ? "check" : "call"}" ${on ? "" : "disabled"}>${esc(cLabel)}</button>
+    <button type="button" class="btn primary hd-go raise${ring("raise")}" data-act="raise" ${raise ? "" : "disabled"}>${esc(rLabel)}</button>`;
 }
 $("bar").addEventListener("click", async e => {
   const b = e.target.closest("button");
@@ -248,10 +374,56 @@ $("bar").addEventListener("click", async e => {
   const act = b.dataset.act;
   if (act === "new") { newGame(); return; }
   const move = act === "raise" ? { t: "raise", to: raiseTo } : { t: act };
+  // Check and Always: the move set against the coach's, from the table as it was before it
+  const key = decisionOf(V), before = speaks() ? structuredClone(V.state) : null, seat = V.seat, known = advice?.key === key ? advice : null;
   raiseTo = null;
   const why = await page.move(move);
-  if (why) toast(why);
+  if (why) { toast(why); return; }
+  if (before) {
+    if (known && sameMove(known.r.best, move)) { notes.push({ mine: move, agreed: true }); word = null; draw(); }
+    else checkMove(before, seat, move);
+  }
 });
+
+// ---------- why: the coach's choices side by side ----------
+const pc = x => `${Math.round(100 * x)}%`;
+function showWhy(which) {
+  const v = V, s = v?.state;
+  if (!s) return;
+  let head = "The coach's choices", html = "";
+  const listHtml = (r, st, seat, mineMove) => {
+    const rows = r.list.slice(0, 8).map((c, i) => {
+      const you = mineMove && sameMove(c.move, mineMove);
+      const figs = c.move.t === "fold" ? "what folding comes to" : `${gain(c.mean)} (±${near(c.se)}) beyond folding · wins the pot ${pc(c.won)}${c.alone >= 0.01 ? ` · everyone folds ${pc(c.alone)}` : ""}`;
+      return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSaid(c.move, st, seat))}</b>${i === 0 ? " · the coach's choice" : you ? " · yours" : ""}<span class="hd-fig">${esc(figs)}${c.n ? ` · ${c.n} deals` : ""}</span></li>`;
+    }).join("");
+    const yours = mineMove && !r.list.slice(0, 8).some(c => sameMove(c.move, mineMove)) ? r.list.find(c => sameMove(c.move, mineMove)) : null;
+    const extra = yours ? `<li class="mine"><b>${esc(moveSaid(yours.move, st, seat))}</b> · yours<span class="hd-fig">${esc(`${gain(yours.mean)} (±${near(yours.se)}) beyond folding`)} · ${yours.n} deals</span></li>` : "";
+    return `<ol class="hd-choices">${rows}${extra}</ol><p class="hd-why-note">Each move played to the end of the hand in the same ${r.deals} deals of the cards you can't see (the others' drawn from the hands their betting shows), every seat by Medium's rules, the house's commission taken; the figure is the chips it comes to beyond folding, on average.</p>`;
+  };
+  if (which === "review") {
+    head = "Your play this hand";
+    const differs = notes.filter(n => !n.agreed).sort((a, b) => b.gap - a.gap);
+    html = `<p>The coach agreed with ${notes.length - differs.length} of your ${notes.length} moves. Where it would have played otherwise, the costliest first:</p><ol class="hd-review">${differs.slice(0, 3).map(n => `<li>${esc(n.words)}</li>`).join("")}</ol>`;
+  } else if (word && which !== "hint" && !(mine() && (hinted?.key === decisionOf(v) || opts.coach === "on"))) {
+    head = "Your last move";
+    html = `<p>${esc(word.words)}</p>${listHtml(word.r, word.state, word.state.turn, word.mine)}`;
+  } else {
+    const a = hinted?.key === decisionOf(v) ? { r: hinted.r, state: s, seat: v.seat } : advice;
+    if (!a) return;
+    html = listHtml(a.r, a.state, a.seat, null);
+  }
+  $("whyHead").textContent = head;
+  $("whyBody").innerHTML = html;
+  if (!$("whyDlg").open) $("whyDlg").showModal();
+}
+$("coach").addEventListener("click", e => {
+  if (e.target.closest("[data-act=hint]")) { if (mine()) hint(); return; }
+  // the line itself opens Why? too: a long word is clamped, and its link may be cut off with the end of it
+  const b = e.target.closest(".hd-why") || e.target.closest(".hd-says")?.querySelector(".hd-why");
+  if (b) showWhy(b.dataset.why === "review" ? "review" : hinted?.key === (V?.G && decisionOf(V)) ? "hint" : "");
+});
+$("whyClose").addEventListener("click", () => $("whyDlg").close());
 
 // ---------- a game's end ----------
 function onOver(v) {
@@ -311,6 +483,7 @@ function openMenu() {
   play.append(action("The rules on one page", showRules, "link"));
   const set = part(body, "settings");
   const keep = () => saveOpts();
+  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; keep(); word = null; hinted = null; draw(); }));
   set.append(choice("A game is", HANDS.map(n => [n, `${n} hands`]), opts.hands, v => { opts.hands = Number(v); keep(); }));
   set.append(choice("House commission", RAKES.map(n => [n, n ? `${n}%` : "None"]), opts.rake, v => { opts.rake = Number(v); keep(); }));
   set.append(choice("Seats at the table", [2, 3, 4, 5, 6].map(n => [n, String(n)]), opts.seats, v => { opts.seats = Number(v); keep(); }));

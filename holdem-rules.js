@@ -109,6 +109,7 @@ function startHand(s, rng, now, fixed = null) {
   s.last = Array(n).fill("");
   s.open = false;
   s.raises = 0;                                              // bets and raises so far this round (the blinds aren't): the computer players read it
+  s.log = [];                                                // every check, call and raise of the hand, in order: the coach reads what each seat has shown
   s.result = null;
   const post = (seat, amount, label) => {
     const a = Math.min(amount, s.stacks[seat]);
@@ -268,6 +269,9 @@ export function fresh({ seats, options = {}, rng, now = 0, fixed = null }) {
 function act(s, seat, m, { now }) {
   if (s.step !== "bet" || s.turn !== seat) return "It isn't your turn";
   const stack = s.stacks[seat], toCall = Math.max(0, s.bet - s.bets[seat]), me = `{s${seat}}`;
+  const before = { pot: potOf(s), was: s.bet, seen: s.seen };
+  // what a seat did, for the record: its bet this round after it, what it faced, and the pot and the bet it met
+  const note = t => s.log.push({ i: seat, t, to: s.bets[seat], faced: toCall, ...before, ...(s.stacks[seat] === 0 ? { all: 1 } : {}) });
   const put = (amount, label) => {
     s.stacks[seat] -= amount; s.bets[seat] += amount; s.put[seat] += amount;
     s.last[seat] = s.stacks[seat] === 0 ? `allin ${s.bets[seat]}` : `${label} ${s.bets[seat]}`;
@@ -282,6 +286,7 @@ function act(s, seat, m, { now }) {
       if (toCall) return `There's ${money(toCall)} to call: call, raise or fold`;
       s.acted[seat] = true;
       s.last[seat] = "check";
+      note("check");
       s.say = `${me} checks.`;
       break;
     case "call": {
@@ -289,6 +294,7 @@ function act(s, seat, m, { now }) {
       const a = Math.min(toCall, stack);
       put(a, "call");
       s.acted[seat] = true;
+      note("call");
       s.say = s.stacks[seat] === 0 ? `${me} calls and is all in.` : `${me} calls ${money(a)}.`;
       break;
     }
@@ -313,6 +319,7 @@ function act(s, seat, m, { now }) {
       s.raises++;
       s.acted[seat] = true;
       s.closed[seat] = false;
+      note("raise");
       s.say = allIn ? `${me} is all in for ${money(to)}.` : `${me} ${verb} ${money(to)}.`;
       break;
     }
@@ -348,6 +355,7 @@ export const rules = {
   restore(s) {
     s.rebought ||= [];
     s.raises ??= 0;
+    s.log ||= [];
     s.house ??= 0;
     s.wins ||= Array(s.seats).fill(0);
     s.turn ??= null;

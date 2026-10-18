@@ -91,6 +91,44 @@ html[data-theme="office"][data-mode="night"] { --hd-in: #479EF5; }
 .hd-go.raise { flex: 1.7 1 0; }
 .hd-go.call { flex: 1.3 1 0; }
 
+/* ---------- the coach ---------- */
+/* up to three lines under your cards, and a Hint button; while it is on it keeps its room, so the table holds its size as the coach speaks and falls quiet */
+.hd-coach { display: flex; align-items: center; gap: .5rem; height: 3.1rem; padding: 0 .2rem; font-size: .78rem; line-height: 1.25; color: var(--ink-soft); }
+.hd-coach[hidden] { display: none; }
+.hd-says { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.hd-hint { flex: none; min-height: 2.3rem; padding: .2rem .9rem; }
+.hd-says b { color: var(--hd-in); }
+.hd-says:has(.hd-why) { cursor: pointer; }
+/* a 390×600 phone: the coach's box takes two lines, and the table, now too short for the pot, the board and two lines of narrator, draws
+   the board smaller and leaves the pot to the strip above (the table's own size is what is asked, so a taller phone never changes) */
+@media (max-height: 640px) and (orientation: portrait) {
+  .hd-coach { height: 2.2rem; }
+  .hd-says { -webkit-line-clamp: 2; }
+}
+@container (max-height: 16.5rem) {
+  .hd-pot { display: none; }
+  .hd-board { font-size: min(.56rem, var(--hd-board)); }
+  .hd-said { font-size: .8rem; }
+  .hd-centre { gap: .1rem; }
+}
+/* its word on a move it would not have made, in oxblood, so it isn't taken for advice */
+.hd-says b.hd-miss { color: var(--hd-bad); }
+.hd-says .ld { margin-right: .4em; }
+.hd-says .hd-why { margin-left: .25em; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* its move, ringed on the button that plays it */
+.hd-go.advised:not(:disabled) { outline: 2px solid var(--hd-in); outline-offset: -4px; }
+/* the coach's choices side by side (Why?), and its review of a hand */
+.hd-choices, .hd-review { margin: .4rem 0; padding-left: 1.2rem; font-size: .9rem; line-height: 1.4; }
+.hd-choices li { margin: .45rem 0; }
+.hd-choices li span { color: var(--ink-soft); }
+.hd-choices li.best b { color: var(--hd-in); }
+.hd-choices li.mine:not(.best) b { color: var(--hd-bad); }
+.hd-choices .hd-fig { display: block; font-variant-numeric: tabular-nums; }
+.hd-why-note { margin: .6rem 0 0; font-size: .8rem; line-height: 1.4; color: var(--ink-soft); }
+.hd-review li { margin: .4rem 0; }
+/* the coach's four ways side by side in the menu, off to always, as a scale */
+#menuBody .menu-grid[aria-label="Coach"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
 /* ---------- the sheets ---------- */
 .hd-rules p, .hd-rules li { line-height: 1.45; }
 .hd-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }

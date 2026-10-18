@@ -33,6 +33,7 @@
   <section id="table" class="hd-table fit-grow" aria-label="The table"></section>
   <section id="side" class="hd-side" aria-label="Your cards">
     <div id="hand" class="hd-hand"></div>
+    <div id="coach" class="hd-coach" aria-live="polite" hidden></div>
     <div id="size" class="hd-size"></div>
     <div id="bar" class="hd-bar"></div>
   </section>
@@ -46,6 +47,11 @@
 <dialog id="rulesDlg" class="sheet hd-sheet" aria-label="Rules">
   <div class="pick-head"><h2>Hold'em on one page</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
   <div id="rulesBody" class="hd-rules"></div>
+</dialog>
+
+<dialog id="whyDlg" class="sheet hd-sheet" aria-labelledby="whyHead">
+  <div class="pick-head"><h2 id="whyHead">The coach's choices</h2><button class="btn" type="button" id="whyClose">Close</button></div>
+  <div id="whyBody" class="hd-whybody"></div>
 </dialog>
 
 <dialog id="endDlg" class="sheet hd-sheet" aria-labelledby="endHead">
