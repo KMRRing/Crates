@@ -1,24 +1,24 @@
-// Orrery in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): a brass instrument on a
-// dial of navy enamel. Five drums of brass stand round a glowing sun, the inner one highest, each turning on its own;
-// planets sit in seats on them and are lit by the sun at the middle, so the side turned to it is bright. Nothing is a
-// model or a texture: the brass, the seats cut in it, the dial's spokes and the planets' marks are all worked out in
-// shaders, and the shapes are lathed in code. A line of planets that is charging is drawn as beams from the sun,
-// and one that clears flares, bursts into sparks and is gone. The camera goes round the orrery under a finger on the dial
-// (not on a ring) and tips from low to nearly overhead. The page (orrery.js) steps the game and draws it every frame:
-// frame, event, pick, angleAt, at, orbit; orrery-flat.js answers to the same calls where there is no WebGL.
+// Orrery in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): an armillary of brass.
+// Five thin hoops pivot on an axle that runs from twelve o'clock to six through a glowing sun, each tipped as the
+// game has it; planets are beads strung on the hoops, lit by the sun at the middle, so the side turned to it is
+// bright. A horizon ring with a scale of degrees holds the axle's ends, and the sun stands on a column. Nothing is a
+// model or a texture: the brass, the scale and the planets' marks are all worked out in shaders, and the shapes are
+// lathed in code. A line of planets that clears is drawn as beams from the sun, flares, bursts into sparks and is gone.
+// The camera goes round the orrery under a finger on the empty sky and tips from low to nearly overhead. The page
+// (orrery.js) steps the game and draws it every frame: frame, event, select, pick, angleAt, at, orbit; orrery-flat.js
+// answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { RINGS, PLACES, COLOURS, STEP, TAU, FORETELL } from "./orrery-engine.js";
+import { RINGS, PLACES, COLOURS, STEP, TAU, TILT_MAX, FORETELL, dirOf } from "./orrery-engine.js";
 
 const DEG = Math.PI / 180;
-// ---------- measures (units of the dial; a place is a twelfth of a ring) ----------
-export const RADIUS = [2.0, 3.1, 4.2, 5.3, 6.4];            // each drum's middle
-const HALF = 0.48;                                            // half a drum's width, and a seat's room: 0.14 between drums
-const TOP = [0.8, 0.64, 0.48, 0.32, 0.16];                   // each drum's top: the inner highest, stepping down to the rim
-const PR = [0.34, 0.37, 0.4, 0.43, 0.45];                     // a planet's radius on each (bigger outward, where there's room)
-const SEAT = RADIUS.map((_, k) => TOP[k] + PR[k] * 0.82);     // its middle's height: sunk a little in its seat
-const SUN_Y = 1.62, SUN_R = 0.7, PLATE = 7.65;
+// ---------- measures (units of the orrery; the sun is the middle, a place is a twelfth of a hoop) ----------
+export const RADIUS = [1.9, 3.0, 4.1, 5.2, 6.3];             // each hoop's radius
+const PR = [0.36, 0.4, 0.44, 0.47, 0.5];                      // a planet's radius on each (bigger outward, where there's room)
+const WIRE = 0.055, BEAD = 0.15;                              // a hoop's wire, and the brass beads that mark its twelve places
+const SUN_R = 0.85, HORIZON = [6.95, 7.6], FOOT_Y = -6.3;    // the horizon ring's inner and outer edge; where the stand rests
 const BACK = 1, DOUBLE = 2, ADD = 2;                          // THREE.BackSide, DoubleSide, AdditiveBlending (not in the bundle's exports)
-const MIN_EL = 24 * DEG, MAX_EL = 86 * DEG;
+const MIN_EL = 18 * DEG, MAX_EL = 86 * DEG;
+const SPEED_HI = 0xffe3a0, TILT_HI = 0x8fe0cf;                // what a chosen hoop glows with, spinning and tipping
 
 // ---------- the skins ----------
 // The brass, the enamel and the light for each theme and day or night; the planets' enamels come from the theme's own colours.
@@ -42,7 +42,7 @@ export function skinNow() {
 
 // ---------- shaders: one lighting for everything, the sun at the middle its main light ----------
 const LIGHT = {
-  uSun: { value: new THREE.Vector3(0, SUN_Y, 0) }, uSunCol: { value: new THREE.Color() }, uKeyDir: { value: new THREE.Vector3(-0.35, 0.85, 0.55).normalize() },
+  uSun: { value: new THREE.Vector3(0, 0, 0) }, uSunCol: { value: new THREE.Color() }, uKeyDir: { value: new THREE.Vector3(-0.35, 0.85, 0.55).normalize() },
   uKeyCol: { value: new THREE.Color() }, uSky: { value: new THREE.Color() }, uGround: { value: new THREE.Color() }, uAmb: { value: 0.7 }, uTime: { value: 0 },
   uBrass: { value: new THREE.Color() }, uPlate: { value: new THREE.Color() },
 };
@@ -75,7 +75,12 @@ function surface({ main, own = {}, decl = "", ...opts }) {
   m.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, LIGHT, own);
     shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vW; varying vec3 vNw; varying vec3 vL;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvL = position; vNw = normalize(mat3(modelMatrix) * normal); vW = (modelMatrix * vec4(position, 1.)).xyz;");
+      .replace("#include <begin_vertex>", `#include <begin_vertex>
+#ifdef USE_INSTANCING
+  vL = position; vNw = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * normal); vW = (modelMatrix * instanceMatrix * vec4(position, 1.)).xyz;
+#else
+  vL = position; vNw = normalize(mat3(modelMatrix) * normal); vW = (modelMatrix * vec4(position, 1.)).xyz;
+#endif`);
     shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `#include <common>\n${COMMON}\n${decl}`)
       .replace("#include <opaque_fragment>", `${main}\n#include <opaque_fragment>`);
   };
@@ -83,35 +88,21 @@ function surface({ main, own = {}, decl = "", ...opts }) {
   return m;
 }
 const BRASS_MAIN = "outgoingLight = lit(uBrass, normalize(vNw), .9, 40., .85);";
-/** A drum's top: brass brushed round, two hairlines near its edges, a seat cut for each of the twelve planets, a stud between them. */
-const DRUM_MAIN = `{
+/** A hoop's wire: brass, lighter and glowing in `uHi` when it's the one chosen (`uSel`, 0 to 1). */
+const HOOP_MAIN = "outgoingLight = lit(uBrass * (1. + .45 * uSel), normalize(vNw), .9, 40., .85) + uHi * uSel * .4;";
+/** The horizon ring: navy enamel between brass edges, a scale of degrees on it (a mark every five, a long one every thirty), a long mark at each quarter. */
+const HORIZON_MAIN = `{
   vec3 N = normalize(vNw);
   float rr = length(vL.xz), ang = atan(vL.x, -vL.z), aa = fwidth(rr) * 1.1 + 1e-4;
-  float top = step(.85, N.y), d = rr - uR;
-  vec3 col = uBrass * (.9 + .09 * (.5 + .5 * sin(rr * 170. + sin(ang * 7.) * 2.)));
-  col = mix(col, uBrass * .5, (1. - smoothstep(0., aa * 1.5, abs(abs(d) - .385) - .006)) * .8 * top);
-  float cell = 6.2831853 / 12., pa = mod(ang + cell * .5, cell) - cell * .5;
-  float sd = length(vec2(d, pa * rr));
-  col = mix(col, uBrass * .42 + uPlate * .2, (1. - smoothstep(uSeat - aa, uSeat + aa, sd)) * top);
-  col = mix(col, uBrass * 1.3, (1. - smoothstep(0., aa * 1.5, abs(sd - uSeat - .02) - .012)) * top);
-  col = mix(col, uBrass * 1.35, (1. - smoothstep(.055 - aa, .055 + aa, length(vec2(d, (cell * .5 - abs(pa)) * rr)))) * top);
-  outgoingLight = lit(col, N, .9, 40., .8);
-}`;
-/** The dial: navy enamel with twelve spokes and a brass rim, a scale of degrees round its edge. */
-const PLATE_MAIN = `{
-  vec3 N = normalize(vNw);
-  float rr = length(vL.xz), ang = atan(vL.x, -vL.z), aa = fwidth(rr) * 1.1 + 1e-4;
-  float cell = 6.2831853 / 12., da = abs(mod(ang + cell * .5, cell) - cell * .5);
-  float inner = smoothstep(.9, .95, rr) * (1. - smoothstep(6.93, 6.97, rr));
-  float spoke = (1. - smoothstep(.012, .012 + aa, da * rr)) * inner;
-  float t5 = 6.2831853 / 72., dt = abs(mod(ang + t5 * .5, t5) - t5 * .5);
-  float scale = (1. - smoothstep(.012, .012 + aa, dt * rr)) * smoothstep(6.93, 6.95, rr) * (1. - smoothstep(7.03, 7.05, rr));
-  float major = (1. - smoothstep(.02, .02 + aa, da * rr)) * smoothstep(6.93, 6.95, rr) * (1. - smoothstep(7.07, 7.09, rr));
-  float ring = (1. - smoothstep(0., aa * 1.5, abs(rr - 1.3) - .008)) + (1. - smoothstep(0., aa * 1.5, abs(rr - 6.93) - .008));
-  float rim = smoothstep(7.1 - aa, 7.1 + aa, rr);
-  float mark = max(max(spoke * .8, max(scale, major)), min(ring, 1.) * .8);
-  vec3 col = mix(mix(uPlate, uBrass * .95, mark), uBrass, rim);
-  outgoingLight = lit(col, N, mix(.25, .9, max(rim, mark)), mix(18., 40., rim), max(rim, mark) * .8);
+  float t5 = 6.2831853 / 72., d5 = abs(mod(ang + t5 * .5, t5) - t5 * .5), t30 = 6.2831853 / 12., d30 = abs(mod(ang + t30 * .5, t30) - t30 * .5), t90 = 6.2831853 / 4., d90 = abs(mod(ang + t90 * .5, t90) - t90 * .5);
+  float small = (1. - smoothstep(.011, .011 + aa, d5 * rr)) * smoothstep(7.34, 7.34 + aa, rr) * (1. - smoothstep(7.47, 7.47 + aa, rr));
+  float major = (1. - smoothstep(.018, .018 + aa, d30 * rr)) * smoothstep(7.2, 7.2 + aa, rr) * (1. - smoothstep(7.47, 7.47 + aa, rr));
+  float quarter = (1. - smoothstep(.04, .04 + aa, d90 * rr)) * smoothstep(7.1, 7.1 + aa, rr) * (1. - smoothstep(7.47, 7.47 + aa, rr));
+  float hair = 1. - smoothstep(0., aa * 1.5, abs(rr - 7.27) - .008);
+  float edge = max(1. - smoothstep(7.03, 7.03 + aa, rr), smoothstep(7.52 - aa, 7.52, rr));
+  float mark = max(max(small, major), max(quarter, hair * .7));
+  vec3 col = mix(mix(uPlate, uBrass * .95, mark), uBrass, edge);
+  outgoingLight = lit(col, N, mix(.25, .9, max(edge, mark)), mix(18., 40., max(edge, mark)), max(edge, mark) * .8);
 }`;
 /** A planet: its enamel with a mark of its own in the picture's frame (the planet faces the camera): bands, a shaded crescent, a cap; the first has a ring (a mesh). */
 const PLANET_MAIN = `{
@@ -122,6 +113,12 @@ const PLANET_MAIN = `{
   outgoingLight = lit(col, N, .6, 55., 0.) + uSky * pow(1. - max(dot(N, V), 0.), 3.) * .18;
 }`;
 const RING_MAIN = "outgoingLight = lit(uOn, vec3(0., 1., 0.) * (normalize(vNw).y < 0. ? -1. : 1.), .4, 30., .1);";
+/** The stand's foot: brass with an inlay of navy enamel. */
+const FOOT_MAIN = `{
+  vec3 N = normalize(vNw);
+  float inl = step(.8, N.y) * (1. - smoothstep(1.26, 1.3, length(vL.xz)));
+  outgoingLight = lit(mix(uBrass, uPlate * 1.4, inl), N, mix(.9, .2, inl), mix(40., 18., inl), mix(.85, 0., inl));
+}`;
 const SUN_MAIN = `{
   vec3 N = normalize(vNw), V = normalize(cameraPosition - vW);
   float f = pow(1. - max(dot(N, V), 0.), 1.7), g = sin(vL.x * 9. + uTime * .7) * sin(vL.y * 8. - uTime * .5) * sin(vL.z * 10. + uTime * .4);
@@ -154,8 +151,12 @@ function revolve(profile, segs = 96) {
   return g;
 }
 const S2 = Math.SQRT1_2;
-/** A brass drum: a bevelled band from the dial up to a height. */
-const drum = (inner, outer, h, b = 0.05) => revolve([[inner, 0, -1, 0], [inner, h - b, -1, 0], [inner, h - b, -S2, S2], [inner + b, h, -S2, S2], [inner + b, h, 0, 1], [outer - b, h, 0, 1], [outer - b, h, S2, S2], [outer, h - b, S2, S2], [outer, h - b, 1, 0], [outer, 0, 1, 0]], 160);
+/** A torus lying flat: a wire of radius r bent round a circle of radius R. */
+function tube(R, r, segs = 192, round = 10) {
+  const profile = [];
+  for (let i = 0; i <= round; i++) { const t = (i / round) * TAU; profile.push([R + r * Math.cos(t), r * Math.sin(t), Math.cos(t), Math.sin(t)]); }
+  return revolve(profile, segs);
+}
 /** A flat ring in the horizontal plane. */
 const annulus = (r0, r1, segs = 48) => revolve([[r0, 0, 0, 1], [r1, 0, 0, 1]], segs);
 function quad() {
@@ -182,31 +183,52 @@ export function createOrrery(host) {
   camera.isPerspectiveCamera = true;
   camera.updateProjectionMatrix = () => {};
 
-  // the instrument
+  // the instrument: a horizon ring held by the axle, the sun on a column, five hoops pivoting on the axle
   const brass = surface({ main: BRASS_MAIN });
-  const plate = new THREE.Mesh(revolve([[0, 0, 0, 1], [7.1, 0, 0, 1], [7.14, 0.08, -0.5, 0.87], [7.3, 0.13, 0, 1], [7.55, 0.1, 0.6, 0.8], [PLATE, 0, 1, 0], [PLATE, -0.3, 1, 0], [PLATE, -0.3, 0, -1], [0, -0.3, 0, -1]], 160), surface({ main: PLATE_MAIN }));
-  scene.add(plate);
-  const hub = new THREE.Mesh(revolve([[0, 0.1, 0, 1], [0.5, 0.1, 0, 1], [0.5, 0.1, S2, S2], [0.6, 0.02, S2, S2], [0.6, 0, 1, 0], [0.6, 0, 0, -1]], 48), brass), stem = new THREE.Mesh(revolve([[0.1, 0.05, 1, 0], [0.1, SUN_Y - SUN_R + 0.2, 1, 0]], 20), brass);
-  scene.add(hub, stem);
-  const drums = RADIUS.map((r, k) => {
-    const m = new THREE.Mesh(drum(r - HALF, r + HALF, TOP[k]), surface({ main: DRUM_MAIN, decl: "uniform float uR; uniform float uSeat;", own: { uR: { value: r }, uSeat: { value: PR[k] * 1.14 } } }));
-    scene.add(m);
-    return m;
+  const [h0, h1, hy, hb] = [HORIZON[0], HORIZON[1], 0.05, 0.025];
+  scene.add(new THREE.Mesh(revolve([[h0, -0.06, -1, 0], [h0, hy - hb, -1, 0], [h0, hy - hb, -S2, S2], [h0 + hb, hy, -S2, S2], [h0 + hb, hy, 0, 1], [h1 - hb, hy, 0, 1], [h1 - hb, hy, S2, S2], [h1, hy - hb, S2, S2], [h1, hy - hb, 1, 0], [h1, -0.06, 1, 0], [h1, -0.06, 0, -1], [h0, -0.06, 0, -1]], 160), surface({ main: HORIZON_MAIN })));
+  const along = (geo, z) => { geo.rotateX(Math.PI / 2); const m = new THREE.Mesh(geo, brass); m.position.z = z; scene.add(m); return m; };
+  along(new THREE.CylinderGeometry(0.05, 0.05, 2 * (h0 + 0.1), 12), 0);                       // the axle, twelve o'clock to six
+  for (const z of [-1, 1]) {
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), brass);                // its ends, where it meets the horizon ring
+    cap.position.z = z * (h0 + 0.05);
+    scene.add(cap);
+    for (const r of RADIUS) along(new THREE.CylinderGeometry(0.125, 0.125, 0.26, 16), z * r);  // and a knuckle where each hoop crosses it
+  }
+  scene.add(new THREE.Mesh(revolve([[0.085, FOOT_Y + 0.2, 1, 0], [0.085, -SUN_R * 0.5, 1, 0]], 24), brass));
+  scene.add(new THREE.Mesh(revolve([[0, FOOT_Y + 0.2, 0, 1], [1.35, FOOT_Y + 0.2, 0, 1], [1.35, FOOT_Y + 0.2, S2, S2], [1.6, FOOT_Y + 0.08, S2, S2], [1.6, FOOT_Y + 0.08, 1, 0], [1.6, FOOT_Y - 0.12, 1, 0], [1.6, FOOT_Y - 0.12, 0, -1], [0, FOOT_Y - 0.12, 0, -1]], 64), surface({ main: FOOT_MAIN })));
+  const beadGeo = new THREE.SphereGeometry(1, 14, 10), cursor = new THREE.Matrix4();
+  const hoops = RADIUS.map((r, k) => {
+    const tilt = new THREE.Group(), spin = new THREE.Group(), u = { uSel: { value: 0 }, uHi: { value: new THREE.Color() } };
+    tilt.add(new THREE.Mesh(tube(r, WIRE), surface({ main: HOOP_MAIN, decl: "uniform float uSel; uniform vec3 uHi;", own: u })));
+    const beads = new THREE.InstancedMesh(beadGeo, brass, PLACES);                           // a bead at each place, turning with the hoop
+    for (let p = 0; p < PLACES; p++) beads.setMatrixAt(p, cursor.compose(new THREE.Vector3(r * Math.sin(p * STEP), 0, -r * Math.cos(p * STEP)), new THREE.Quaternion(), new THREE.Vector3(BEAD, BEAD, BEAD)));
+    beads.frustumCulled = false;
+    spin.add(beads);
+    tilt.add(spin);
+    const halo = new THREE.Mesh(tube(r, 0.15, 128, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: ADD, depthWrite: false, opacity: 0 }));
+    halo.visible = false; halo.renderOrder = 3;
+    tilt.add(halo);
+    const level = new THREE.Mesh(tube(r, 0.018, 128, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: ADD, depthWrite: false, opacity: 0.5 }));   // where it would lie flat
+    level.visible = false; level.renderOrder = 3;
+    scene.add(tilt, level);
+    return { tilt, spin, u, halo, level, sel: 0 };
   });
-  // the shadow the instrument throws on the page: a dark disc beneath, clear at its edge
-  const shadow = new THREE.Mesh(annulus(0, PLATE + 0.45, 64), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }));
-  shadow.position.y = -0.34;
+  // the shadow the instrument throws on the page: a dark disc beneath, clear at its edge. It lies just under the horizon
+  // and no wider than it: lower or wider, a screen that fits the orrery by its height cuts the shadow off in a line.
+  const FLOOR = 7.6;
+  const shadow = new THREE.Mesh(annulus(0, FLOOR, 64), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false }));
+  shadow.position.y = -1.2;
   shadow.renderOrder = -2;
   shadow.material.onBeforeCompile = shader => {
     shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vL;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvL = position;");
-    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vL;").replace("#include <color_fragment>", `#include <color_fragment>\ndiffuseColor.a *= 1. - smoothstep(${(PLATE - 0.5).toFixed(2)}, ${(PLATE + 0.45).toFixed(2)}, length(vL.xz));`);
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vL;").replace("#include <color_fragment>", `#include <color_fragment>\ndiffuseColor.a *= 1. - smoothstep(${(FLOOR - 4.2).toFixed(2)}, ${FLOOR.toFixed(2)}, length(vL.xz));`);
   };
   scene.add(shadow);
 
   // the sun: a disc with a glow round it
   const sunU = { uCore: { value: new THREE.Color() }, uEdge: { value: new THREE.Color() } };
   const sun = new THREE.Mesh(new THREE.SphereGeometry(SUN_R, 36, 24), surface({ main: SUN_MAIN, decl: "uniform vec3 uCore; uniform vec3 uEdge;", own: sunU }));
-  sun.position.set(0, SUN_Y, 0);
   scene.add(sun);
   const quadGeo = quad();
   const makeGlow = (power, parent = scene) => {
@@ -282,7 +304,7 @@ export function createOrrery(host) {
     LIGHT.uKeyCol.value.set(skin.key).multiplyScalar(skin.keyI);
     LIGHT.uSky.value.set(skin.sky); LIGHT.uGround.value.set(skin.ground); LIGHT.uAmb.value = skin.amb;
     LIGHT.uBrass.value.set(skin.brass); LIGHT.uPlate.value.set(skin.plate);
-    sunU.uCore.value.set(0xffe9a6).multiplyScalar(0.9); sunU.uEdge.value.set(0xff8a1c);
+    sunU.uCore.value.set(0xffb94d).multiplyScalar(0.95); sunU.uEdge.value.set(0xe8650a);
     halo.material.color.set(skin.halo); halo2.material.color.set(skin.halo);
     for (let c = 0; c < COLOURS; c++) {
       enamel[c].set(skin.enamel[c]);
@@ -293,11 +315,13 @@ export function createOrrery(host) {
   }
 
   // ---------- the camera ----------
-  const LOOK = new THREE.Vector3(0, 0.3, 0), DIST = 30;
+  const LOOK = new THREE.Vector3(0, -0.4, 0), DIST = 40;
+  // what must stay in view whatever the tips: each hoop level and tipped both ways, the horizon ring, the stand, the sun's glow
   const outline = [];
-  for (let k = 0; k < 48; k++) { const a = (k / 48) * TAU; outline.push([(PLATE + 0.2) * Math.sin(a), -0.3, (PLATE + 0.2) * Math.cos(a)]); }
-  outline.push([0, SUN_Y + SUN_R + 0.5, 0]);
-  let width = 1, height = 1, az = 0, el = 58 * DEG, auto = true;       // auto: the camera as high as the room asks (a phone held upright is taller than the dial is wide)
+  RADIUS.forEach(r => { for (const t of [-TILT_MAX, 0, TILT_MAX]) for (let k = 0; k < 40; k++) { const d = dirOf(t, (k / 40) * TAU); outline.push([r * d[0], r * d[1], r * d[2]]); } });
+  for (let k = 0; k < 48; k++) { const a = (k / 48) * TAU; outline.push([(HORIZON[1] + 0.1) * Math.sin(a), 0, (HORIZON[1] + 0.1) * Math.cos(a)], [1.65 * Math.sin(a), FOOT_Y - 0.12, 1.65 * Math.cos(a)]); }
+  outline.push([0, SUN_R + 0.6, 0]);
+  let width = 1, height = 1, az = 0, el = 52 * DEG, auto = true;       // auto: the camera as high as the room asks (a phone held upright is taller than the orrery is wide)
   function pose() {
     camera.position.set(Math.sin(az) * Math.cos(el) * DIST, Math.sin(el) * DIST, Math.cos(az) * Math.cos(el) * DIST).add(LOOK);
     camera.up.set(0, 1, 0);
@@ -305,9 +329,9 @@ export function createOrrery(host) {
     camera.updateMatrixWorld();
     camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
   }
-  /** The camera, and a view that fits the dial in the room there is (it grows as the camera tips overhead, where the dial is round). */
+  /** The camera, and a view that fits the orrery in the room there is (it grows as the camera tips overhead, where the horizon ring is round). */
   function fit() {
-    if (auto) el = Math.max(44 * DEG, Math.min(62 * DEG, Math.asin(Math.min(1, (height / width) * 0.92))));
+    if (auto) el = Math.max(40 * DEG, Math.min(62 * DEG, Math.asin(Math.min(1, (height / width) * 0.92))));
     pose();
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
     for (const [x, y, z] of outline) {
@@ -332,10 +356,11 @@ export function createOrrery(host) {
 
   // ---------- where things are ----------
   const place = new THREE.Vector3(), white = new THREE.Color(0xffffff);
-  /** The middle of a planet in a seat (a scratch vector, to use at once). */
-  function worldOf(s, ring, p) { const t = s.rings[ring].a + p * STEP; return place.set(RADIUS[ring] * Math.sin(t), SEAT[ring], -RADIUS[ring] * Math.cos(t)); }
+  /** The middle of a planet in a place (a scratch vector, to use at once). */
+  function worldOf(s, ring, p) { const r = s.rings[ring], d = dirOf(r.tilt, r.a + p * STEP); return place.set(d[0], d[1], d[2]).multiplyScalar(RADIUS[ring]); }
   const landT = new Float32Array(RINGS * PLACES).fill(9), pos = Array.from({ length: RINGS * PLACES }, () => new THREE.Vector3());
-  let overT = 9, kick = 9, clock = 0;
+  let overT = 9, kick = 9, clock = 0, tick = performance.now();
+  const sel = { ring: -1, mode: "speed" };
 
   // ---------- beams, glows, sparks ----------
   let nBeams = 0, nGlows = 0;
@@ -402,7 +427,10 @@ export function createOrrery(host) {
     clock += dt;
     LIGHT.uTime.value = clock;
     nBeams = 0; nGlows = 0;
-    for (let k = 0; k < RINGS; k++) drums[k].rotation.y = -s.rings[k].a;     // our angles go clockwise, a positive turn about the vertical the other way
+    for (let k = 0; k < RINGS; k++) {
+      hoops[k].tilt.rotation.z = s.rings[k].tilt;                              // the three o'clock side up for a positive tip
+      hoops[k].spin.rotation.y = -s.rings[k].a;                                // our angles go clockwise, a positive turn about the vertical the other way
+    }
     for (let k = 0; k < RINGS; k++) for (let p = 0; p < PLACES; p++) {
       const i = k * PLACES + p, c = s.rings[k].places[p], pl = seats[k][p];
       landT[i] += dt;
@@ -410,8 +438,9 @@ export function createOrrery(host) {
       const u = clamp01(landT[i] / 0.5), w = worldOf(s, k, p);
       pos[i].copy(w);
       pl.show(c);
-      // a planet that has landed drops on, with a little bounce
-      pl.put(w.x, w.y + (u < 1 ? 1.5 * (1 - u) ** 2 + 0.1 * Math.sin(u * Math.PI) * (1 - u) : 0), w.z, PR[k] * (u < 1 ? Math.min(1, 0.3 + u * 3) : 1));
+      // a planet that has landed slides in from outside and swells onto its wire
+      const out = u < 1 ? 1 + 0.3 * (1 - u) ** 2 : 1;
+      pl.put(w.x * out, w.y * out, w.z * out, PR[k] * (u < 1 ? Math.min(1, 0.3 + u * 3) : 1));
     }
     // the planet foretold, a moment before it lands: faint where it will, pulsing, brighter as it nears
     const nx = s.next, due = nx.due - s.t;
@@ -420,7 +449,8 @@ export function createOrrery(host) {
       ghost.show(nx.colour, true);
       ghost.put(w.x, w.y, w.z, PR[nx.ring] * (0.55 + 0.4 * u));
       ghostRing.visible = true;
-      ghostRing.position.set(w.x, TOP[nx.ring] + 0.03, w.z);
+      ghostRing.position.copy(w);
+      ghostRing.quaternion.copy(camera.quaternion);
       ghostRing.scale.setScalar(PR[nx.ring] * (1.5 + 0.5 * (1 - u)) * pulse);
       ghostRing.material.color.copy(enamel[nx.colour]).lerp(white, 0.2);
       ghostRing.material.opacity = 0.35 + 0.5 * u;
@@ -454,10 +484,25 @@ export function createOrrery(host) {
     sun.scale.setScalar(swell);
     const dim = s.over ? 1 - 0.55 * clamp01(overT / 1.2) : 1;
     halo.visible = halo2.visible = true;
-    halo.scale.setScalar(2.2 * swell); halo.quaternion.copy(camera.quaternion); halo.material.opacity = skin.haloI * 0.6 * dim;
+    halo.scale.setScalar(2.6 * swell); halo.quaternion.copy(camera.quaternion); halo.material.opacity = skin.haloI * 0.6 * dim;
     halo2.scale.setScalar(5.2); halo2.quaternion.copy(camera.quaternion); halo2.material.opacity = skin.haloI * 0.22 * dim;
     LIGHT.uSunCol.value.set(skin.sunCol).multiplyScalar(skin.sunI * dim * (1 + (kick < 0.4 ? 0.5 * Math.sin((kick / 0.4) * Math.PI) : 0)));
     stepMotes(dt);
+    // the hoop chosen glows (the page's clock, not the game's: a hoop is chosen while the game stands still too)
+    const now = performance.now(), ui = Math.min(0.1, (now - tick) / 1000);
+    tick = now;
+    const tipping = sel.mode === "tilt", pulse2 = 0.5 + 0.5 * Math.sin(now / 280);
+    for (let k = 0; k < RINGS; k++) {
+      const h = hoops[k], on = k === sel.ring && !s.over;
+      h.sel += ((on ? 1 : 0) - h.sel) * Math.min(1, ui * 12);
+      h.u.uSel.value = h.sel;
+      h.u.uHi.value.set(tipping ? TILT_HI : SPEED_HI);
+      h.halo.visible = h.sel > 0.02;
+      h.halo.material.color.set(tipping ? TILT_HI : SPEED_HI);
+      h.halo.material.opacity = h.sel * (0.16 + 0.12 * pulse2);
+      h.level.visible = on && tipping;
+      h.level.material.color.set(TILT_HI);
+    }
     renderer.render(scene, camera);
   }
 
@@ -485,38 +530,50 @@ export function createOrrery(host) {
     const o = camera.position.clone(), d = ndc.clone().sub(o).normalize();
     return { o, d };
   }
-  /** The ring under a point of the screen (a planet first, then the drum's top, the gaps between taken by the nearer ring), or -1 for the dial. */
-  function pick(px, py) {
-    const { o, d } = rayAt(px, py);
-    let best = Infinity, ring = -1;
+  const screenOf = (x, y, z) => { vec.set(x, y, z).project(camera); return [((vec.x + 1) / 2) * width, ((1 - vec.y) / 2) * height]; };
+  const onSegment = (x, y, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy, t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
+    return Math.hypot(x - ax - t * dx, y - ay - t * dy);
+  };
+  /** How many pixels a unit is across at a point in the world. */
+  function pixelsAt(c) { vec.copy(c).applyMatrix4(camera.matrixWorldInverse); return (camera.projectionMatrix.elements[0] * (width / 2)) / Math.max(1e-6, -vec.z); }
+  /**
+   * The hoop nearest a point of the screen (its wire, or the edge of a planet on it), if within `reach` pixels of it, else -1:
+   * a tap on the sky.
+   */
+  function pick(px, py, reach = 18) {
+    const r = canvas.getBoundingClientRect(), x = px - r.left, y = py - r.top;
+    let best = reach, ring = -1;
     for (let k = 0; k < RINGS; k++) {
-      for (let p = 0; p < PLACES; p++) {
-        if (!seats[k][p].mesh.visible) continue;
-        const c = pos[k * PLACES + p], oc = place.copy(o).sub(c), b = oc.dot(d), disc = b * b - (oc.dot(oc) - (PR[k] * 1.3) ** 2);
-        if (disc < 0) continue;
-        const t = -b - Math.sqrt(disc);
-        if (t > 0 && t < best) { best = t; ring = k; }
+      const tilt = last ? last.rings[k].tilt : 0, R = RADIUS[k], at0 = dirOf(tilt, 0);
+      let [ax, ay] = screenOf(R * at0[0], R * at0[1], R * at0[2]);
+      for (let i = 1; i <= 72; i++) {
+        const d = dirOf(tilt, (i / 72) * TAU), [bx, by] = screenOf(R * d[0], R * d[1], R * d[2]), dist = onSegment(x, y, ax, ay, bx, by);
+        if (dist < best) { best = dist; ring = k; }
+        ax = bx; ay = by;
       }
-      if (Math.abs(d.y) < 1e-6) continue;
-      const t = (TOP[k] - o.y) / d.y;
-      if (t <= 0 || t >= best) continue;
-      const rho = Math.hypot(o.x + d.x * t, o.z + d.z * t);
-      if (Math.abs(rho - RADIUS[k]) <= HALF + 0.07) { best = t; ring = k; }
+      if (!last) continue;
+      for (let p = 0; p < PLACES; p++) {
+        if (last.rings[k].places[p] < 0) continue;
+        const c = pos[k * PLACES + p], [cx, cy] = screenOf(c.x, c.y, c.z), dist = Math.hypot(x - cx, y - cy) - PR[k] * pixelsAt(c);
+        if (dist < best) { best = dist; ring = k; }
+      }
     }
     return ring;
   }
-  /** Where a point of the screen lies round the sun, on the plane of a ring's planets: clockwise from twelve o'clock, or null. */
+  /** Where a point of the screen lies round the sun, in the plane of a hoop: clockwise from twelve o'clock round the hoop, or null. */
   function angleAt(ring, px, py) {
-    const { o, d } = rayAt(px, py);
-    if (Math.abs(d.y) < 1e-6) return null;
-    const t = (SEAT[ring] - o.y) / d.y;
-    if (t <= 0) return null;
-    return (Math.atan2(o.x + d.x * t, -(o.z + d.z * t)) + TAU) % TAU;
+    const { o, d } = rayAt(px, py), t = last ? last.rings[ring].tilt : 0, c = Math.cos(t), sn = Math.sin(t);
+    const den = -sn * d.x + c * d.y;                       // the hoop's plane holds the axle and (cos t, sin t, 0): its normal is (-sin t, cos t, 0)
+    if (Math.abs(den) < 1e-5) return null;
+    const k = (sn * o.x - c * o.y) / den;
+    if (k <= 0) return null;
+    return (Math.atan2((o.x + d.x * k) * c + (o.y + d.y * k) * sn, -(o.z + d.z * k)) + TAU) % TAU;
   }
-  /** A point on a ring at an angle (and a height above its planets' middles) on the canvas, in pixels from its top left. */
+  /** A point on a hoop at an angle (and a height above it) on the canvas, in pixels from its top left. */
   function at(ring, angle, lift = 0) {
-    vec.set(RADIUS[ring] * Math.sin(angle), SEAT[ring] + lift, -RADIUS[ring] * Math.cos(angle)).project(camera);
-    return [((vec.x + 1) / 2) * width, ((1 - vec.y) / 2) * height];
+    const d = dirOf(last ? last.rings[ring].tilt : 0, angle), R = RADIUS[ring];
+    return screenOf(R * d[0], R * d[1] + lift, R * d[2]);
   }
   /** The sun's place on the canvas. */
   function sunAt() { vec.copy(sun.position).project(camera); return [((vec.x + 1) / 2) * width, ((1 - vec.y) / 2) * height]; }
@@ -545,6 +602,8 @@ export function createOrrery(host) {
 
   return {
     canvas, frame, event, pick, angleAt, at, sunAt, orbit, setView, applySkin,
+    /** The hoop chosen (-1: none) and what its buttons do ("speed" or "tilt"): it glows. */
+    select(ring, mode = "speed") { sel.ring = ring; sel.mode = mode; if (last) frame(last, 0); },
     redraw() { if (last) frame(last, 0); },
     get skin() { return skin; },
     get angles() { return [az, el]; },

@@ -1,5 +1,6 @@
-/* Orrery: a brass instrument on a navy dial, drawn by orrery-3d.js on a canvas (flat, by orrery-flat.js, where there is
-   no WebGL), with what the page says over it in the screen's own pixels (score pops, the first game's words). The
+/* Orrery: a brass armillary instrument (five hoops on an axle round a sun, planets on their wires, a horizon ring below),
+   drawn by orrery-3d.js on a canvas (flat, by orrery-flat.js, where there is no WebGL), with what the page says over it in
+   the screen's own pixels (score pops, the first game's words) and the seven buttons that set the hoop chosen under it. The
    planets are in the four enamels, each with a mark of its own (a ring, bands, a crescent, a cap) so they're told apart
    without their colour. Gilt is the house colour. */
 :root {
@@ -29,7 +30,10 @@
 /* the flat orrery, where there's no WebGL: a navy dial, bands of brass, the sun */
 .or-flat-plate { fill: #1c2a34; stroke: #c39a3e; stroke-width: 1.4; }
 .or-flat-spoke { stroke: #c39a3e; stroke-width: .3; opacity: .55; }
-.or-flat-band { fill: none; stroke: #c9a043; opacity: .92; }
+.or-flat-axle { stroke: #c9a043; stroke-width: .7; }
+.or-flat-band { fill: none; stroke: #c9a043; stroke-width: .8; opacity: .95; }
+.or-flat-band.on { stroke: #ffe3a0; stroke-width: 1.6; }
+.or-flat-band.tip.on { stroke: #8fe0cf; }
 .or-flat-sun { fill: #f2a52e; }
 .or-flat-sun-core { fill: #fff0bd; }
 .or-flat-beam { stroke-linecap: round; mix-blend-mode: screen; }
@@ -53,22 +57,41 @@
 .or-foretold.k3 { stroke: var(--c3); }
 @keyframes or-fore { to { opacity: .45; } }
 
-/* under the orrery: a line of counts; at the end, how it went and New game, in the same room */
-.or-side { display: grid; gap: .45rem; align-content: start; min-height: 3.4rem; }
-.or-line { margin: 0; overflow: hidden; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
-.or-line[hidden] { display: none; }
+/* under the orrery: which ring is chosen and what its buttons do, the seven buttons; at the end, how it went and New game, in the same room */
+.or-side { display: grid; align-content: start; min-height: 6.6rem; }
+.or-side > * { grid-area: 1 / 1; }
+.or-controls { display: grid; gap: .45rem; align-content: start; }
+.or-controls[hidden], .or-result[hidden] { display: none; }
+.or-aim { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 1.9rem; }
+.or-line { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
+.or-line b { color: var(--ink); font-weight: 800; }
+.or-mode { display: flex; flex: none; border: 1px solid var(--tile-edge); border-radius: 4px; overflow: hidden; }
+.or-seg { min-width: 3.4rem; min-height: 1.9rem; padding: 0 .6rem; border: 0; background: var(--tile); color: var(--ink-soft); font: inherit; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
+  text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+.or-seg + .or-seg { border-left: 1px solid var(--tile-edge); }
+.or-seg[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
+.or-controls.none .or-mode { visibility: hidden; }
+.or-pad { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
+.or-key { display: grid; place-items: center; min-height: 3.2rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; }
+.or-key svg { width: 2.1rem; height: 1.5rem; display: block; }
+.or-key svg * { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.or-key svg .fill { fill: currentColor; stroke: none; }
+.or-key.hold { background: color-mix(in srgb, var(--or-in) 15%, var(--tile)); }
+.or-key[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
+.or-key:disabled { opacity: .4; cursor: default; }
 .or-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.or-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 3.4rem; }
+.or-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; align-self: start; min-height: 3.4rem; }
 .or-result .or-go { padding: 0 1.3rem; }
-.or-result[hidden] { display: none; }
 .or-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
 
-/* held sideways: the orrery on the left with all the height; the score and the counts beside it, New game low where a thumb is */
+/* held sideways: the orrery on the left with all the height; the score and the buttons beside it, low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.orrery { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.orrery .or-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
   #app.orrery .or-sky { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.orrery .or-side { grid-column: 2; grid-row: 3; align-content: end; }
-  #app.orrery .or-result { grid-template-columns: 1fr; }
+  #app.orrery .or-controls { align-content: end; }
+  #app.orrery .or-aim { flex-wrap: wrap; }
+  #app.orrery .or-result { grid-template-columns: 1fr; align-self: end; }
 }

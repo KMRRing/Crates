@@ -37,7 +37,16 @@
   </section>
 
   <section class="or-side">
-    <p id="line" class="or-line"></p>
+    <div id="controls" class="or-controls">
+      <div class="or-aim">
+        <p id="line" class="or-line"></p>
+        <div class="or-mode" role="group" aria-label="What the buttons do to the chosen ring">
+          <button class="or-seg" type="button" id="spinBtn" aria-pressed="true">Spin</button>
+          <button class="or-seg" type="button" id="tiltBtn" aria-pressed="false">Tilt</button>
+        </div>
+      </div>
+      <div id="pad" class="or-pad" role="group" aria-label="Set the chosen ring"></div>
+    </div>
     <div id="result" class="or-result" hidden>
       <p id="verdict" class="or-verdict"></p>
       <button class="or-go" type="button" id="againBtn">New game</button>

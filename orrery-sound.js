@@ -1,7 +1,7 @@
 // Orrery's sounds, made as they play (Web Audio: sine decays and short noise bursts, no files, so they're there offline):
-// a planet landing (a tink, higher on the outer rings), a ring taken in the hand, an alignment taking hold, and
-// a bell struck up a chord when it clears (a longer line is a longer chord, a combo a higher one), the end. Off, and
-// nothing is made at all.
+// a planet landing (a tink, higher on the outer rings), a hoop chosen, a button pressed (higher for a stronger one), a hoop
+// tipping, and a bell struck up a chord when an alignment clears (a longer line is a longer chord, a combo a higher one),
+// the end. Off, and nothing is made at all.
 let ctx = null, master = null, on = true;
 const pans = typeof StereoPannerNode !== "undefined";
 
@@ -72,27 +72,20 @@ const VOICES = {
     ping(c, t, { freq: f * 2.01, gain: 0.05 * power, dur: 0.12, pan });
     click(c, t, { freq: 1400, gain: 0.12 * power, dur: 0.02, pan });
   },
-  /** A ring taken in the hand: a small click of brass on brass. */
-  grab(c, t, { power = 0.5, pan = 0 }) {
+  /** A hoop chosen: a small click of brass on brass, lower on the inner hoops. */
+  pick(c, t, { ring = 2, power = 0.5, pan = 0 }) {
     click(c, t, { freq: 2100, gain: 0.2 * power, dur: 0.014, pan });
-    ping(c, t, { freq: 190, gain: 0.16 * power, dur: 0.07, pan, drop: 0.8 });
+    ping(c, t, { freq: 230 - ring * 14, gain: 0.16 * power, dur: 0.07, pan, drop: 0.8 });
   },
-  /** A ring let go: softer, lower. */
-  let(c, t, { power = 0.5, pan = 0 }) {
-    click(c, t, { freq: 1500, gain: 0.12 * power, dur: 0.012, pan });
-    ping(c, t, { freq: 150, gain: 0.1 * power, dur: 0.06, pan, drop: 0.8 });
+  /** A button pressed: a tick that climbs with the strength (0 is hold: a dull knock), a rising whirr for a spin sent faster. */
+  press(c, t, { strength = 1, power = 0.5, pan = 0 }) {
+    if (strength === 0) { click(c, t, { freq: 900, gain: 0.2 * power, dur: 0.02, pan }); ping(c, t, { freq: 120, gain: 0.2 * power, dur: 0.09, pan, drop: 0.7 }); return; }
+    click(c, t, { freq: 1500 + strength * 300, gain: 0.14 * power, dur: 0.012, pan });
+    ping(c, t, { freq: 300 * semitone(strength * 3), gain: 0.1 * power, dur: 0.1 + strength * 0.05, pan, drop: 1.12 });
   },
-  /** A line taking hold: a rising blip, the charge begun. */
-  charge(c, t, { power = 0.5 }) {
-    const o = c.createOscillator(), g = out(c, 0);
-    o.frequency.setValueAtTime(420, t);
-    o.frequency.exponentialRampToValueAtTime(840, t + 0.16);
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.09 * power, t + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.24);
-    o.connect(g);
-    o.start(t);
-    o.stop(t + 0.28);
+  /** A hoop tipping: a low creak, gliding. */
+  tip(c, t, { power = 0.5, up = 1 }) {
+    ping(c, t, { freq: up > 0 ? 170 : 220, gain: 0.12 * power, dur: 0.45, drop: up > 0 ? 1.4 : 0.7, type: "triangle", attack: 0.03 });
   },
   /** An alignment clearing: a bell struck up a chord, a note for each planet; a combo starts it higher. */
   lock(c, t, { n = 3, combo = 1, power = 0.8 }) {

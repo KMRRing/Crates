@@ -1,8 +1,8 @@
-// Orrery drawn flat, in SVG, where there's no WebGL: the same dial seen from above, drums as bands, planets as discs with
-// the marks they have in 3D (a ring, bands, a crescent, a cap) so they're told apart without their colour. It
-// answers to the same calls as the 3D one (orrery-3d.js), so the page doesn't know which it has: frame, event, pick,
-// angleAt, at, orbit (which does nothing without a third dimension).
-import { RINGS, PLACES, STEP, TAU, FORETELL } from "./orrery-engine.js";
+// Orrery drawn flat, in SVG, where there's no WebGL: the same orrery seen from straight above, each hoop an ellipse as
+// narrow as it is tipped, planets as discs with the marks they have in 3D (a ring, bands, a crescent, a cap) so they're
+// told apart without their colour. It answers to the same calls as the 3D one (orrery-3d.js), so the page doesn't know
+// which it has: frame, event, select, pick, angleAt, at, orbit (which does nothing without a third dimension).
+import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf } from "./orrery-engine.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, ...kids) => {
@@ -11,8 +11,8 @@ const el = (tag, attrs = {}, ...kids) => {
   n.append(...kids);
   return n;
 };
-const RADIUS = [20, 31, 42, 53, 64], HALF = 4.8, PR = [3, 3.3, 3.6, 3.9, 4.2], PLATE = 76, SUN = 7;       // tenths of the 3D dial's units
-const polar = (r, a) => [r * Math.sin(a), -r * Math.cos(a)];
+const RADIUS = [19, 30, 41, 52, 63], PR = [3.6, 4, 4.4, 4.7, 5], PLATE = 76, SUN = 8.5;       // tenths of the 3D orrery's units
+const P = 72;                                                                                  // points to a hoop's outline, for picking
 /** A planet's mark, in the picture's frame (as the 3D planets have it) at radius r. */
 function mark(c, r) {
   return [
@@ -28,22 +28,21 @@ export function createFlat(host) {
   svg.append(world);
   host.prepend(svg);
   world.append(el("circle", { class: "or-flat-plate", r: PLATE }));
-  for (let p = 0; p < PLACES; p++) { const [x, y] = polar(PLATE - 1, p * STEP), [x0, y0] = polar(SUN + 4, p * STEP); world.append(el("line", { class: "or-flat-spoke", x1: x0, y1: y0, x2: x, y2: y })); }
-  RADIUS.forEach(r => world.append(el("circle", { class: "or-flat-band", r, "stroke-width": HALF * 2 - 0.5 })));
-  const rings = RADIUS.map(() => el("g"));
-  world.append(...rings);
+  world.append(el("line", { class: "or-flat-axle", x1: 0, y1: -(PLATE - 4), x2: 0, y2: PLATE - 4 }));
+  const bands = RADIUS.map(() => el("ellipse", { class: "or-flat-band" }));
+  world.append(...bands);
   world.append(el("circle", { class: "or-flat-sun", r: SUN }), el("circle", { class: "or-flat-sun-core", r: SUN * 0.55 }));
-  const fx = el("g"), beamsG = el("g");
-  const seats = rings.map((g, k) => Array.from({ length: PLACES }, (_, p) => {
+  const fx = el("g"), beamsG = el("g"), planetsG = el("g");
+  const seats = Array.from({ length: RINGS }, (_, k) => Array.from({ length: PLACES }, () => {
     const planet = el("g", { class: "or-planet" }), body = el("g");
     planet.append(body);
-    g.append(planet);
-    return { planet, body, colour: -1, kind: null };
+    planetsG.append(planet);
+    return { planet, body, colour: -1 };
   }));
   const ghost = el("circle", { class: "or-foretold", visibility: "hidden" });
-  world.append(beamsG, ghost, fx);
+  world.append(beamsG, planetsG, ghost, fx);
 
-  let W = 1, H = 1, s = 1, last = null, skin = { name: "flat", night: false };
+  let W = 1, H = 1, s = 1, last = null, skin = { name: "flat", night: false }, chosen = { ring: -1, mode: "speed" };
   function resize() {
     const r = host.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
@@ -51,9 +50,16 @@ export function createFlat(host) {
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     world.setAttribute("transform", `translate(${(W / 2).toFixed(2)} ${(H / 2).toFixed(2)}) scale(${s.toFixed(4)})`);
   }
-  const place = (ring, angle) => polar(RADIUS[ring], angle);
+  const tiltOf = ring => (last ? last.rings[ring].tilt : 0);
+  /** Where a place is, seen from above: the world's x and z. */
+  const place = (ring, angle) => { const d = dirOf(tiltOf(ring), angle); return [RADIUS[ring] * d[0], RADIUS[ring] * d[2]]; };
   function frame(state, dt) {
     last = state;
+    bands.forEach((b, k) => {
+      const t = state.rings[k].tilt;
+      b.setAttribute("rx", (RADIUS[k] * Math.cos(t)).toFixed(2)); b.setAttribute("ry", RADIUS[k]);
+      b.setAttribute("class", `or-flat-band${k === chosen.ring && !state.over ? " on" : ""}${chosen.mode === "tilt" ? " tip" : ""}`);
+    });
     for (let k = 0; k < RINGS; k++) for (let p = 0; p < PLACES; p++) {
       const c = state.rings[k].places[p], seat = seats[k][p];
       if (c < 0) { seat.planet.setAttribute("visibility", "hidden"); continue; }
@@ -76,7 +82,7 @@ export function createFlat(host) {
     const lines = [];
     for (const c of state.live?.clusters ?? []) for (const m of c.members) {
       const [x, y] = place(m.ring, state.rings[m.ring].a + m.place * STEP);
-      lines.push(el("line", { class: `or-flat-beam k${c.colour}`, x1: 0, y1: 0, x2: x.toFixed(2), y2: y.toFixed(2), "stroke-width": (0.6 + 1.6 * c.progress).toFixed(2), opacity: (0.35 + 0.6 * c.progress).toFixed(2) }));
+      lines.push(el("line", { class: `or-flat-beam k${c.colour}`, x1: 0, y1: 0, x2: x.toFixed(2), y2: y.toFixed(2), "stroke-width": 1.6, opacity: 0.8 }));
     }
     beamsG.replaceChildren(...lines);
   }
@@ -91,19 +97,39 @@ export function createFlat(host) {
     }
   }
   const toLocal = (px, py) => { const r = host.getBoundingClientRect(); return [(px - r.left - W / 2) / s, (py - r.top - H / 2) / s]; };
-  /** The ring under a point of the screen, the gaps between taken by the nearer: or -1. */
-  function pick(px, py) {
-    const [x, y] = toLocal(px, py), d = Math.hypot(x, y);
-    const k = RADIUS.reduce((b, r, j) => (Math.abs(r - d) < Math.abs(RADIUS[b] - d) ? j : b), 0);
-    return Math.abs(RADIUS[k] - d) <= HALF + 0.7 ? k : -1;
+  const onSegment = (x, y, ax, ay, bx, by) => {
+    const dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy, t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
+    return Math.hypot(x - ax - t * dx, y - ay - t * dy);
+  };
+  /** The hoop nearest a point of the screen (its wire, or the edge of a planet on it), if within `reach` pixels of it, else -1. */
+  function pick(px, py, reach = 18) {
+    const [x, y] = toLocal(px, py);
+    let best = reach / s, ring = -1;
+    for (let k = 0; k < RINGS; k++) {
+      let [ax, ay] = place(k, 0);
+      for (let i = 1; i <= P; i++) {
+        const [bx, by] = place(k, (i / P) * TAU), d = onSegment(x, y, ax, ay, bx, by);
+        if (d < best) { best = d; ring = k; }
+        ax = bx; ay = by;
+      }
+      if (!last) continue;
+      for (let p = 0; p < PLACES; p++) {
+        if (last.rings[k].places[p] < 0) continue;
+        const [cx, cy] = place(k, last.rings[k].a + p * STEP), d = Math.hypot(x - cx, y - cy) - PR[k];
+        if (d < best) { best = d; ring = k; }
+      }
+    }
+    return ring;
   }
-  const angleAt = (ring, px, py) => { const [x, y] = toLocal(px, py); return (Math.atan2(x, -y) + TAU) % TAU; };
+  /** Where a point of the screen lies round the sun, in the plane of a hoop: clockwise from twelve o'clock round the hoop. */
+  const angleAt = (ring, px, py) => { const [x, y] = toLocal(px, py); return (Math.atan2(x / Math.max(0.2, Math.cos(tiltOf(ring))), -y) + TAU) % TAU; };
   const at = (ring, angle) => { const [x, y] = place(ring, angle); return [W / 2 + x * s, H / 2 + y * s]; };
 
   new ResizeObserver(() => { resize(); if (last) frame(last, 0); }).observe(host);
   resize();
   return {
     canvas: svg, frame, event, pick, angleAt, at, sunAt: () => [W / 2, H / 2], orbit() {}, setView() {}, applySkin() {}, redraw() { if (last) frame(last, 0); },
+    select(ring, mode = "speed") { chosen = { ring, mode }; if (last) frame(last, 0); },
     get skin() { return skin; }, get angles() { return [0, Math.PI / 2]; }, get live() { return { motes: 0, exits: fx.children.length, beams: beamsG.children.length }; }, size: () => [W, H],
   };
 }

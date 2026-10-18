@@ -1,12 +1,14 @@
-// Orrery: five brass rings turning round a sun, each at a pace of its own, planets of four colours riding on them
-// (orrery-3d.js draws it; flat, in orrery-flat.js, where there's no WebGL). Put a finger on a ring and turn it: it
-// follows the finger; let go still and it stops, flick it and it goes faster; left alone it drifts back to its own pace
-// over some seconds. Three to five planets of one colour, one to a ring, on one line out from the sun and held there
-// for seven tenths of a second, clear and score. A new planet lands every few seconds, quicker as the game goes on; when there is no
-// place for one, it is over. The rules are orrery-engine.js's; this file runs the clock, moves the rings under the
-// fingers and keeps the game. The clock starts at the first touch of a ring and stops with the menu, with the tab and with
-// the game over.
-import { PLACES, STEP, AWARD, COMBO_WINDOW, newGame, valid, copy, grab, turnTo, release, step, between, norm, room, multiplier } from "./orrery-engine.js";
+// Orrery: five brass hoops on an axle round a sun, planets of four colours strung on them (orrery-3d.js draws it; flat,
+// in orrery-flat.js, where there's no WebGL). Tap a hoop to choose it, and the seven buttons under the orrery set it:
+// left, right, each slow, strong or very strong, and a hold in the middle that stops it. Tap the same hoop again and the
+// same buttons tip its orbit instead, to the left or the right by 15, 30 or 45 degrees, the middle one making it level.
+// A swipe on a hoop is a hand's way of the same: along a hoop it sets its speed by how fast the finger goes, across it
+// (once it's tipping) it tips it. A hoop keeps its speed until it's set to another. Three to five planets of one colour,
+// one to a hoop, in one direction from the sun clear at once and score; a new planet lands every few seconds, quicker as the
+// game goes on; when there is no place for one, it is over. The rules are orrery-engine.js's; this file runs the clock,
+// takes the taps, buttons and swipes and keeps the game. The clock starts at the first hoop chosen or button pressed and stops
+// with the menu, with the tab and with the game over.
+import { PLACES, STEP, SPEED, TILT, AWARD, COMBO_WINDOW, newGame, valid, copy, setSpeed, setTilt, step, between, norm, room, multiplier } from "./orrery-engine.js";
 import { createOrrery } from "./orrery-3d.js";
 import { sound } from "./orrery-sound.js";
 import { scale } from "./wide.js";
@@ -17,19 +19,20 @@ import { IN_FRAME } from "./suite.js";                      // a partner watchin
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "orrery:run", BEST = "orrery:best", SEEN = "orrery:seen", SOUND = "orrery:sound", VIEW = "orrery:view", ERA = "orrery:era", TURNS = "orrery:turns";
+const RUN = "orrery:run", BEST = "orrery:best", SEEN = "orrery:seen", SOUND = "orrery:sound", VIEW = "orrery:view", ERA = "orrery:era", TURNS = "orrery:turns", CHOSEN = "orrery:sel";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const SAVE_EVERY = 5000;                                    // ms between saves of a game in play (a partner watching sees it that often)
+const DEG = 180 / Math.PI;
 
 let S = null;            // the game (orrery-engine.js's), as saved
-let running = false;     // the clock going: from the first touch of a ring
+let running = false;     // the clock going: from the first hoop chosen or button pressed
 let paused = false;      // the menu, the rules or the games screen open
 let best = 0;            // the best score, as stored
-const holds = new Map(); // fingers on rings: pointer id -> { ring, offset (the ring's turn from the finger's), a (the finger's angle), at (when), w (its speed, smoothed) }
-let orbiting = null;     // a finger turning the view: { id, x, y }
+let chosen = null;       // the hoop the buttons are for: { ring, mode ("speed" or "tilt") }, or null
+const swipes = new Map();// fingers down: pointer id -> { ring (-1: on the sky), x0, y0, t0, x, y, moved, trail }
 let savedAt = 0;
 let frozen = false;      // for tests: the clock held while a picture is taken
 
@@ -53,14 +56,14 @@ catch (err) {
 
 function save() { if (IN_FRAME) return; write(RUN, copy(S)); savedAt = performance.now(); }
 function newRun() {
-  holds.clear();
+  swipes.clear();
   S = newGame(Math.floor(Math.random() * 2 ** 31));
   running = false;
-  seen.clear();
+  choose(-1);
   save();
   redrawOver();
 }
-/** A saved game, made ready to go on: nothing held, nothing charging until the next step finds it. */
+/** A saved game, made ready to go on: nothing held, nothing standing until the next step finds it. */
 function resume(g) {
   g.live = { clusters: [] };
   for (const r of g.rings) r.held = false;
@@ -82,14 +85,14 @@ const text = (cls, s, x, y, size) => {
 };
 const plaqueG = el("g"), fxG = el("g");
 over.append(plaqueG, fxG);
-const HINT = ["Turn a ring with a finger on it.", "Let go still and it stops; flick it, it speeds.", "Line up 3 to 5 planets of one colour", "on a line out from the sun: they clear.", "A new planet lands every few seconds."];
+const HINT = ["Tap a hoop, then press a button to spin it.", "Tap the same hoop again: the buttons tip it.", "The middle button holds it still.", "Line up 3 to 5 planets of one colour with the sun,", "along the axle or on hoops tipped alike:", "they clear at once."];
 /** The words over the orrery while the clock is stopped: the first games' rules, then only how to go on. */
 function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
   over.setAttribute("viewBox", `0 0 ${w} ${h}`);
   if (!S || running || S.over || IN_FRAME) { plaqueG.replaceChildren(); return; }
-  const first = !read(SEEN, false), head = S.t > 0 ? "Touch a ring to go on" : "Touch a ring to begin", rows = first ? [...HINT, head] : [head];
-  const u = scale(), line = 15 * u, bw = (first ? 292 : 216) * u, bh = rows.length * line + 24 * u, y0 = h / 2 - bh / 2;
+  const first = !read(SEEN, false), head = S.t > 0 ? "Tap a hoop to go on" : "Tap a hoop to begin", rows = first ? [...HINT, head] : [head];
+  const u = scale(), line = 15 * u, bw = (first ? 318 : 216) * u, bh = rows.length * line + 24 * u, y0 = h / 2 - bh / 2;
   plaqueG.replaceChildren(
     el("rect", { class: "or-plaque", x: (w / 2 - bw / 2).toFixed(1), y: y0.toFixed(1), width: bw.toFixed(1), height: bh.toFixed(1), rx: 5 }),
     ...rows.map((t, k) => text(k === rows.length - 1 ? "or-hint head" : "or-hint", t, w / 2, y0 + 12 * u + (k + 1) * line - 4 * u, k === rows.length - 1 ? 10.5 : 11)),
@@ -107,7 +110,7 @@ function popup(ev) {
   for (const n of nodes) animate(n, [{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${-34 * u}px)`, opacity: 0 }], { duration: 1300, easing: "ease-out" }).then(() => n.remove());
 }
 
-// ---------- the strip, the line under the orrery ----------
+// ---------- the strip, the hoop chosen and its buttons ----------
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
 function drawStrip() {
@@ -118,14 +121,59 @@ function drawStrip() {
   put("combo", on ? `×${multiplier(S.combo)}` : "");
   $("combo").classList.toggle("on", on);
 }
+const KEYS = [-3, -2, -1, 0, 1, 2, 3];
+const SPIN_WORDS = ["Spin left very fast", "Spin left fast", "Spin left slowly", "Hold still", "Spin right slowly", "Spin right fast", "Spin right very fast"];
+const TIP_WORDS = ["Tip 45° left", "Tip 30° left", "Tip 15° left", "Level", "Tip 15° right", "Tip 30° right", "Tip 45° right"];
+/** A button's picture: one to three chevrons for a strength, a square to hold, a bar with a dot to lie level. */
+function glyph(level, mode) {
+  if (level === 0) return mode === "speed" ? '<rect class="fill" x="9" y="6" width="12" height="12" rx="1.5"/>' : '<path d="M4 12H26"/><circle class="fill" cx="15" cy="12" r="2.6"/>';
+  const n = Math.abs(level), d = Math.sign(level), x0 = 15 - 3 * n;
+  return Array.from({ length: n }, (_, i) => { const x = x0 + 6 * i; return d < 0 ? `<path d="M${x + 6} 4L${x} 12L${x + 6} 20"/>` : `<path d="M${x} 4L${x + 6} 12L${x} 20"/>`; }).join("");
+}
+const keys = KEYS.map(level => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = `or-key${level === 0 ? " hold" : ""}`;
+  b.dataset.level = level;
+  b.innerHTML = '<svg viewBox="0 0 30 24" aria-hidden="true"></svg>';
+  b.addEventListener("click", () => press(level));
+  $("pad").append(b);
+  return b;
+});
+/** Which of the seven a hoop's setting is, or null when it's none of them (a swipe sent it at its own speed). */
+function levelOf(r, mode) {
+  const x = mode === "speed" ? r.w : r.tiltTo, table = mode === "speed" ? SPEED : TILT;
+  for (const k of KEYS) if (Math.abs(x - Math.sign(k) * table[Math.abs(k)]) < 1e-6) return k;
+  return null;
+}
+function drawAim(force = false) {
+  const r = chosen && !S.over ? S.rings[chosen.ring] : null, mode = chosen?.mode ?? "speed", set = r ? (mode === "speed" ? r.w : r.tiltTo) : 0;
+  const key = `${r ? chosen.ring : -1}|${mode}|${Math.round(set * 1e4)}|${S.over}`;
+  if (!force && shown.aim === key) return;
+  shown.aim = key;
+  $("controls").hidden = S.over;
+  $("result").hidden = !S.over;
+  $("controls").classList.toggle("none", !r);
+  $("spinBtn").setAttribute("aria-pressed", String(mode === "speed"));
+  $("tiltBtn").setAttribute("aria-pressed", String(mode === "tilt"));
+  const now = r ? levelOf(r, mode) : null;
+  keys.forEach((b, i) => {
+    b.disabled = !r;
+    b.setAttribute("aria-pressed", String(now === KEYS[i]));
+    b.setAttribute("aria-label", (mode === "speed" ? SPIN_WORDS : TIP_WORDS)[i]);
+    b.title = b.getAttribute("aria-label");
+    b.firstElementChild.innerHTML = glyph(KEYS[i], mode);
+  });
+  if (!r) $("line").textContent = S.over ? "" : "Tap a hoop to choose it";
+  else if (mode === "speed") $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${Math.abs(r.w) < 1e-6 ? "held still" : `${r.w > 0 ? "▶" : "◀"} ${(Math.abs(r.w) * DEG).toFixed(r.w * r.w * DEG * DEG < 4 ? 1 : 0)}°/s`}`;
+  else $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${Math.abs(r.tiltTo) < 1e-6 ? "level" : `tipped ${r.tiltTo > 0 ? "+" : "−"}${Math.round(Math.abs(r.tiltTo) * DEG)}°`}`;
+}
 function drawSide() {
-  const key = `${S.over}|${running}|${S.t > 0}|${S.aligned}|${S.cleared}|${S.score}`;
+  drawAim();
+  const key = `${S.over}|${S.score}`;
   if (shown.side === key) return;
   shown.side = key;
-  $("result").hidden = !S.over;
-  $("line").hidden = S.over;
   if (S.over) $("verdict").textContent = `No room left: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
-  else $("line").textContent = S.aligned ? `${plural(S.aligned, "alignment")}, ${plural(S.cleared, "planet")} cleared${running ? "" : " — paused"}` : running ? "Line up three or more of one colour" : S.t > 0 ? "Paused" : "";
 }
 
 // ---------- events of the game ----------
@@ -140,22 +188,14 @@ function handle(ev) {
     redrawOver();
   } else if (ev.type === "over") {
     sound.play("over");
-    for (const [, h] of holds) release(S, h.ring, 0);
-    holds.clear();
     settle();
+    redrawOver();
   }
 }
 function settle() {
   if (S.score > best) { best = S.score; write(BEST, best); }
   if (S.aligned >= 1) write(SEEN, true);
   save();
-}
-const seen = new Set();         // the alignments charging last frame, to sound a new one
-function detectCharge() {
-  const now = new Set((S.live?.clusters ?? []).map(c => c.members.map(m => m.ring * PLACES + m.place).sort((a, b) => a - b).join()));
-  for (const k of now) if (!seen.has(k)) { sound.play("charge"); break; }
-  seen.clear();
-  for (const k of now) seen.add(k);
 }
 
 // ---------- the clock ----------
@@ -168,7 +208,6 @@ function tick(ts) {
   const go = running && !paused && !frozen && !S.over && !IN_FRAME;
   if (go) {
     for (const ev of step(S, dt)) handle(ev);
-    detectCharge();
     if (performance.now() - savedAt > SAVE_EVERY) save();
   }
   view.frame(S, go ? dt : 0);
@@ -184,62 +223,81 @@ function start() {
 function stop() {
   if (!running) return;
   running = false;
-  for (const [, h] of holds) release(S, h.ring, 0);
-  holds.clear();
   save();
   redrawOver();
 }
 
-// ---------- fingers on rings ----------
-/** The ring under a finger comes down: the ring is the finger's from here (the clock starts if it hadn't). */
-function takeRing(e) {
-  const ring = S.over ? -1 : view.pick(e.clientX, e.clientY);
-  if (ring < 0 || S.rings[ring].held) return false;
-  const a = view.angleAt(ring, e.clientX, e.clientY);
-  if (a == null) return false;
+// ---------- the hoop chosen, the buttons, swipes ----------
+/** Chooses a hoop (-1: none) and what the buttons do to it; the page and the picture both show it. */
+function choose(ring, mode = "speed") {
+  chosen = ring < 0 ? null : { ring, mode };
+  if (!IN_FRAME) write(CHOSEN, chosen);
+  view.select(ring, mode);
+  drawAim(true);
+}
+/** A tap on a hoop: it's chosen; tapped again, what the buttons do to it changes from spin to tip and back. */
+function tapHoop(ring) {
+  if (S.over) return;
   start();
-  grab(S, ring);
-  holds.set(e.pointerId, { ring, offset: between(a, S.rings[ring].a), a, at: e.timeStamp, w: 0 });
-  sound.play("grab", { pan: Math.sin(a) * 0.5 });
-  return true;
+  choose(ring, chosen?.ring === ring && chosen.mode === "speed" ? "tilt" : "speed");
+  sound.play("pick", { ring });
 }
-function moveHold(e) {
-  const h = holds.get(e.pointerId);
-  if (!h) return;
-  const a = view.angleAt(h.ring, e.clientX, e.clientY);
-  if (a == null) return;
-  const now = e.timeStamp, dt = Math.max(0.004, (now - h.at) / 1000), k = 1 - Math.exp(-dt / 0.06);
-  h.w += (Math.max(-12, Math.min(12, between(h.a, a) / dt)) - h.w) * k;       // the finger's speed round the sun, smoothed
-  h.a = a;
-  h.at = now;
-  turnTo(S, h.ring, a + h.offset, h.w);
+/** A button: the chosen hoop is set to the speed or the tip it stands for. */
+function press(level) {
+  if (!chosen || S.over || paused || IN_FRAME) return;
+  sound.unlock();
+  start();
+  const { ring, mode } = chosen, n = Math.abs(level), sign = Math.sign(level);
+  if (mode === "speed") setSpeed(S, ring, sign * SPEED[n]);
+  else { setTilt(S, ring, sign * TILT[n]); sound.play("tip", { up: sign }); }
+  sound.play("press", { strength: n });
+  drawAim(true);
 }
-/** The finger lets go: a ring that is still in the hand stops; one that was moving goes on at the finger's speed. */
-function dropHold(e) {
-  const h = holds.get(e.pointerId);
-  if (!h) return;
-  holds.delete(e.pointerId);
-  release(S, h.ring, e.timeStamp - h.at > 90 || Math.abs(h.w) < 0.25 ? 0 : h.w);        // the events' own times (a slow frame must not make a flick look like a rest); a slow turn is placing it, not sending it
-  sound.play("let", { pan: Math.sin(h.a) * 0.5 });
+/** A finger lifted after moving on a hoop: where it went sets the hoop. */
+function swipe(g) {
+  const a = g.trail[0], b = g.trail[g.trail.length - 1], dt = Math.max(0.03, (b[0] - a[0]) / 1000), ring = g.ring;
+  start();
+  if (chosen?.ring === ring && chosen.mode === "tilt") {
+    const dx = b[1] - a[1], dy = b[2] - a[2];
+    if (Math.abs(dx) < 2 * Math.abs(dy)) return;                          // not across: not for tipping
+    const n = Math.abs(dx) / dt < 500 * scale() ? 1 : Math.abs(dx) / dt < 1100 * scale() ? 2 : 3;
+    setTilt(S, ring, Math.sign(dx) * TILT[n]);
+    sound.play("tip", { up: Math.sign(dx) });
+  } else {
+    const p = view.angleAt(ring, a[1], a[2]), q = view.angleAt(ring, b[1], b[2]);
+    if (p == null || q == null) return;
+    const w = between(p, q) / dt;                                         // how fast the finger went round the sun, rad/s
+    const to = Math.sign(w) * Math.max(SPEED[1], Math.min(SPEED[3], Math.abs(w) * 0.07));   // the slowest the hoop goes, or as fast as the hand: a swipe never stops one (that's the middle button)
+    setSpeed(S, ring, to);
+    choose(ring, "speed");
+    sound.play("press", { strength: Math.abs(to) > SPEED[2] * 1.2 ? 3 : Math.abs(to) > SPEED[1] * 1.5 ? 2 : to ? 1 : 0 });
+  }
+  drawAim(true);
 }
 stage.addEventListener("pointerdown", e => {
   sound.unlock();
   if (e.button > 0 || IN_FRAME || paused) return;
   e.preventDefault();
   try { stage.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
-  if (takeRing(e)) return;
-  if (!orbiting) orbiting = { id: e.pointerId, x: e.clientX, y: e.clientY };        // elsewhere on the dial a drag turns the view
+  const ring = S.over ? -1 : view.pick(e.clientX, e.clientY, 20 * scale());
+  swipes.set(e.pointerId, { ring, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, moved: false, trail: [[e.timeStamp, e.clientX, e.clientY]] });
 });
 addEventListener("pointermove", e => {
-  moveHold(e);
-  if (orbiting && e.pointerId === orbiting.id) {
-    view.orbit(-(e.clientX - orbiting.x) * 0.0075, (e.clientY - orbiting.y) * 0.005);
-    orbiting.x = e.clientX; orbiting.y = e.clientY;
-  }
+  const g = swipes.get(e.pointerId);
+  if (!g) return;
+  g.trail.push([e.timeStamp, e.clientX, e.clientY]);
+  while (g.trail.length > 2 && (g.trail.length > 8 || e.timeStamp - g.trail[0][0] > 160)) g.trail.shift();      // the last moments: how fast it went as it let go
+  if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 10 * scale()) g.moved = true;
+  if (g.ring < 0 && g.moved) view.orbit(-(e.clientX - g.x) * 0.0075, (e.clientY - g.y) * 0.005);                // on the sky a drag turns the view
+  g.x = e.clientX; g.y = e.clientY;
 });
 function lift(e) {
-  dropHold(e);
-  if (orbiting && e.pointerId === orbiting.id) { orbiting = null; write(VIEW, view.angles); }
+  const g = swipes.get(e.pointerId);
+  if (!g) return;
+  swipes.delete(e.pointerId);
+  if (g.ring < 0) { if (g.moved) write(VIEW, view.angles); return; }
+  if (e.type === "pointercancel") return;
+  if (g.moved) swipe(g); else tapHoop(g.ring);
 }
 addEventListener("pointerup", lift);
 addEventListener("pointercancel", lift);
@@ -265,18 +323,21 @@ document.querySelector(".or-mark").innerHTML = APPS.find(a => a.id === "orrery")
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", newRun);
-onPause(() => { paused = true; sound.hold(); for (const [, h] of holds) release(S, h.ring, 0); holds.clear(); save(); }, () => { paused = false; sound.release(); });
+for (const [id, mode] of [["spinBtn", "speed"], ["tiltBtn", "tilt"]]) $(id).addEventListener("click", () => { if (chosen && !S.over && !IN_FRAME) { choose(chosen.ring, mode); sound.play("pick", { ring: chosen.ring }); } });
+onPause(() => { paused = true; sound.hold(); swipes.clear(); save(); }, () => { paused = false; sound.release(); });
 
 // for tests and debugging
 window.__orrery = {
-  get state() { return S; }, set state(g) { S = resume(g); holds.clear(); redrawOver(); }, view, newRun, start, stop,
+  get state() { return S; }, set state(g) { S = resume(g); swipes.clear(); redrawOver(); }, view, newRun, start, stop,
   get running() { return running; },
   set frozen(v) { frozen = !!v; },
+  get chosen() { return chosen; },
+  choose, press, tapHoop,
   /** Plays `seconds` of the game at once (as the clock would), events and all. */
   advance(seconds) { for (let t = 0; t < seconds - 1e-9 && !S.over; t += 0.05) for (const ev of step(S, 0.05)) handle(ev); view.frame(S, 0); drawStrip(); drawSide(); },
-  /** Where a planet's seat is on the page, in the client coordinates a pointer event carries (the view's own are the canvas's). */
+  /** Where a place is on the page, in the client coordinates a pointer event carries (the view's own are the canvas's). */
   seatOf(ring, place = 0) { const [x, y] = view.at(ring, S.rings[ring].a + place * STEP, 0), r = stage.getBoundingClientRect(); return [x + r.left, y + r.top]; },
-  /** Where a ring's angle is on the page. */
+  /** Where a hoop's angle is on the page. */
   spotOf(ring, angle) { const [x, y] = view.at(ring, angle, 0), r = stage.getBoundingClientRect(); return [x + r.left, y + r.top]; },
   AWARD, norm,
 };
@@ -285,4 +346,5 @@ best = read(BEST, 0);
 S = read(RUN, null);
 if (!valid(S)) newRun();
 else { S = resume(S); redrawOver(); }
+{ const c = read(CHOSEN, null); if (c && Number.isInteger(c.ring) && c.ring >= 0 && c.ring < S.rings.length && !S.over) choose(c.ring, c.mode === "tilt" ? "tilt" : "speed"); else choose(-1); }
 requestAnimationFrame(tick);
