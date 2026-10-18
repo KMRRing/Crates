@@ -1,0 +1,204 @@
+/* Factor: an island under an olive enamel. Upright: the players across the top, a line saying what's asked, the island,
+   then your cards and your buttons. Sideways: the island on the left, the players, your cards and buttons beside it.
+   The land's colours are the game's own (timber, clay, wool, grain, iron, dunes, the sea): they are pieces, not chrome, so
+   they take a day and a night version and ignore the theme. */
+:root {
+  --fc-in: #6B7A2A;                                               /* olive: the game's enamel */
+  --fc-soft: color-mix(in srgb, var(--fc-in) 15%, var(--sheet));
+  --fc-good: #2F7D5B; --fc-bad: #A8382B;
+  --fc-mix: #14110A;                                               /* what a mark is darkened toward: ink on a day tile */
+  --r0: #3F7F50; --r1: #B5573B; --r2: #B9CF86; --r3: #DDB84C; --r4: #7B8896; --r5: #DCCB9B;   /* timber, clay, wool, grain, iron, dunes */
+  --sea: #C9D9DA;
+  --disc: #F4EBD3; --disc-ink: #2A2418; --disc-hot: #A8382B;
+}
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) {
+  --fc-in: #B5C46A; --fc-good: #7FC2A8; --fc-bad: #E8806F; --fc-mix: #F2E8CC;
+  --r0: #2F6A41; --r1: #96472F; --r2: #7E9457; --r3: #A98A2F; --r4: #566270; --r5: #8F8564; --sea: #17303A;
+  --disc: #E8DFC9; --disc-hot: #B5392B; } }
+html[data-mode="night"] {
+  --fc-in: #B5C46A; --fc-good: #7FC2A8; --fc-bad: #E8806F; --fc-mix: #F2E8CC;
+  --r0: #2F6A41; --r1: #96472F; --r2: #7E9457; --r3: #A98A2F; --r4: #566270; --r5: #8F8564; --sea: #17303A;
+  --disc: #E8DFC9; --disc-hot: #B5392B; }
+html[data-theme="kontor"] { --fc-in: #1E7A45; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --fc-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --fc-in: #2EB36A; }
+html[data-theme="office"] { --fc-in: #0F6CBD; }
+@media (prefers-color-scheme: dark) { html[data-theme="office"]:not([data-mode="day"]) { --fc-in: #479EF5; } }
+html[data-theme="office"][data-mode="night"] { --fc-in: #479EF5; }
+/* a resource's mark: its colour, mixed toward the ink (dark by day, light by night), so it reads on its own tile */
+:root { --rd0: color-mix(in srgb, var(--r0) 38%, var(--fc-mix)); --rd1: color-mix(in srgb, var(--r1) 38%, var(--fc-mix)); --rd2: color-mix(in srgb, var(--r2) 38%, var(--fc-mix));
+  --rd3: color-mix(in srgb, var(--r3) 38%, var(--fc-mix)); --rd4: color-mix(in srgb, var(--r4) 38%, var(--fc-mix)); --rd5: color-mix(in srgb, var(--r5) 38%, var(--fc-mix)); }
+
+.fc-mark { display: inline-block; }
+.fc-mark svg { width: 100%; height: 100%; display: block; }
+
+/* a resource's mark as a picture of its own: a small enamel tile (the hand, the trade sheet, the rules, a line of words) */
+.fc-ic { display: block; flex: none; width: 1.4rem; height: 1.4rem; padding: .2rem; box-sizing: border-box; border-radius: 4px; background: var(--fc-soft); color: var(--fc-in); }
+.fc-ic.r0 { background: var(--r0); color: var(--rd0); } .fc-ic.r1 { background: var(--r1); color: var(--rd1); } .fc-ic.r2 { background: var(--r2); color: var(--rd2); }
+.fc-ic.r3 { background: var(--r3); color: var(--rd3); } .fc-ic.r4 { background: var(--r4); color: var(--rd4); } .fc-ic.r5 { background: var(--r5); color: var(--rd5); }
+.fc-ic.in { display: inline-block; width: 1.05em; height: 1.05em; padding: .12em; margin: 0 .1em 0 .05em; vertical-align: -.2em; border-radius: 3px; }
+
+/* ---------- the players ---------- */
+.fc-seats { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); gap: .3rem; margin-top: .5rem; height: 3.9rem; }
+.fc-seat { display: grid; align-content: space-between; min-width: 0; padding: .22rem .32rem .2rem; border-radius: 6px; background: var(--sheet); border: 1px solid var(--rule); font-size: .66rem; line-height: 1.15; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.fc-seat.turn { border-color: var(--fc-in); box-shadow: 0 0 0 1.5px var(--fc-in); }
+.fc-seat.ask:not(.turn) { border-style: dashed; border-color: var(--fc-in); }
+.fc-who { display: flex; align-items: center; gap: .22rem; min-width: 0; color: var(--ink); }
+.fc-sw { flex: none; width: .55rem; height: .55rem; border-radius: 2px; background: var(--ink-soft); }
+.fc-sw.p0 { background: var(--p0); } .fc-sw.p1 { background: var(--p1); } .fc-sw.p2 { background: var(--p2); } .fc-sw.p3 { background: var(--p3); }
+.fc-name { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .7rem; font-weight: 800; }
+.fc-seat.me .fc-name { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.fc-pts { flex: none; min-width: 1.1rem; padding: 0 .2rem; border-radius: 3px; background: var(--plate); color: var(--plate-ink); font-size: .72rem; font-weight: 800; text-align: center; }
+.fc-sub { display: flex; justify-content: space-between; gap: .2rem; white-space: nowrap; overflow: hidden; }
+.fc-sub .hold { color: var(--fc-in); font-weight: 800; }
+
+/* ---------- what's asked, or what just happened ---------- */
+.fc-strip { display: flex; align-items: center; justify-content: space-between; gap: .5rem; height: 2.5rem; margin: .35rem 0 .25rem; font-size: .84rem; line-height: 1.25; color: var(--ink-soft); }
+.fc-strip b { color: var(--ink); }
+.fc-say { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.fc-dice { flex: none; display: flex; gap: .25rem; }
+.fc-dice i { display: grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 5px; background: var(--tile); border: 1.5px solid var(--brass); color: var(--ink); font-style: normal; font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.fc-dice.seven i { background: var(--fc-bad); border-color: var(--fc-bad); color: var(--sheet); }
+
+/* ---------- the island ---------- */
+/* the picture is as large as the box allows, whichever way the box is short (its shape, --aspect, is set by the page) */
+.fc-board { display: grid; place-items: center; min-height: 0; overflow: hidden; container-type: size; }
+.fc-svg { display: block; width: min(100cqw, 100cqh * var(--aspect, 1)); height: min(100cqh, 100cqw / var(--aspect, 1)); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.fc-sea { fill: var(--sea); stroke: var(--brass); stroke-width: .05; }
+.fc-jetty { fill: none; stroke: var(--brass); stroke-width: .07; stroke-linejoin: round; stroke-linecap: round; }
+.fc-sign { fill: var(--sheet); stroke: var(--brass); stroke-width: .045; }
+text.fc-rate { fill: var(--ink); font-weight: 800; font-family: inherit; }
+.fc-pmark.r0 { fill: var(--rd0); } .fc-pmark.r1 { fill: var(--rd1); } .fc-pmark.r2 { fill: var(--rd2); } .fc-pmark.r3 { fill: var(--rd3); } .fc-pmark.r4 { fill: var(--rd4); }
+.fc-hex polygon { stroke: var(--sea); stroke-width: .05; stroke-linejoin: round; }
+.fc-hex.t0 polygon { fill: var(--r0); } .fc-hex.t1 polygon { fill: var(--r1); } .fc-hex.t2 polygon { fill: var(--r2); }
+.fc-hex.t3 polygon { fill: var(--r3); } .fc-hex.t4 polygon { fill: var(--r4); } .fc-hex.t5 polygon { fill: var(--r5); }
+.fc-mark-ic.r0 { fill: var(--rd0); color: var(--rd0); } .fc-mark-ic.r1 { fill: var(--rd1); color: var(--rd1); } .fc-mark-ic.r2 { fill: var(--rd2); color: var(--rd2); }
+.fc-mark-ic.r3 { fill: var(--rd3); color: var(--rd3); } .fc-mark-ic.r4 { fill: var(--rd4); color: var(--rd4); } .fc-mark-ic.r5 { color: var(--rd5); }
+.fc-mark-ic { opacity: .9; }
+.fc-disc circle:first-child { fill: var(--disc); stroke: var(--rd5); stroke-width: .025; }
+.fc-disc text { fill: var(--disc-ink); font-weight: 800; font-family: inherit; font-variant-numeric: tabular-nums; }
+.fc-disc .fc-pip { fill: var(--disc-ink); }
+.fc-disc.hot text { fill: var(--disc-hot); } .fc-disc.hot .fc-pip { fill: var(--disc-hot); }
+.fc-hex.blocked .fc-disc { opacity: .3; }
+.fc-road .o { stroke: var(--ink); stroke-width: .2; stroke-linecap: round; opacity: .9; }
+.fc-road .c { stroke-width: .12; stroke-linecap: round; }
+.fc-road.p0 .c, .fc-b.p0 { stroke: var(--p0); fill: var(--p0); } .fc-road.p1 .c, .fc-b.p1 { stroke: var(--p1); fill: var(--p1); }
+.fc-road.p2 .c, .fc-b.p2 { stroke: var(--p2); fill: var(--p2); } .fc-road.p3 .c, .fc-b.p3 { stroke: var(--p3); fill: var(--p3); }
+.fc-b { stroke: var(--ink); stroke-width: .06; stroke-linejoin: round; paint-order: stroke; }
+.fc-ship .hull { fill: #3B2B1D; stroke: var(--sheet); stroke-width: .035; stroke-linejoin: round; }
+.fc-ship .mast { fill: none; stroke: #3B2B1D; stroke-width: .05; }
+.fc-ship .sail { fill: var(--disc); stroke: #3B2B1D; stroke-width: .03; stroke-linejoin: round; }
+.fc-last { fill: none; stroke: var(--sheet); stroke-width: .06; stroke-dasharray: .12 .1; opacity: .9; }
+/* where a tap may go */
+.fc-spot { cursor: pointer; }
+.fc-spot .ring { pointer-events: none; }
+.fc-spot.v .ring { fill: color-mix(in srgb, var(--sheet) 82%, transparent); stroke: var(--ink); stroke-width: .05; }
+.fc-spot.e .ring { fill: none; stroke: var(--sheet); stroke-width: .17; stroke-linecap: round; opacity: .92; }
+/* a corner's target is its fill alone (a stroke, even none, counts for "all" and would reach the neighbours: corners are one unit apart) */
+.fc-spot.v .hit { fill: transparent; stroke: none; pointer-events: fill; }
+.fc-spot.e .hit { stroke: transparent; stroke-width: .46; stroke-linecap: round; pointer-events: stroke; }
+polygon.fc-spot.h { fill: color-mix(in srgb, var(--sheet) 22%, transparent); stroke: var(--sheet); stroke-width: .09; stroke-linejoin: round; pointer-events: all; }
+@media (prefers-reduced-motion: no-preference) {
+  .fc-spot.v .ring, .fc-spot.e .ring, polygon.fc-spot.h { animation: fc-beat 1.5s ease-in-out infinite; }
+  @keyframes fc-beat { 50% { opacity: .55; } }
+}
+
+/* ---------- your cards and your buttons ---------- */
+.fc-side { display: flex; flex-direction: column; gap: .35rem; padding-top: .4rem; }
+.fc-hand { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .3rem; height: 3.7rem; }
+.fc-res { position: relative; display: grid; grid-template-columns: auto 1fr; grid-template-rows: 1fr auto; align-items: center; justify-items: end; column-gap: .15rem; padding: .28rem .3rem .2rem; border-radius: 6px; background: var(--tile); border: 1px solid var(--tile-edge); color: var(--ink); cursor: pointer; min-width: 0; }
+.fc-res .fc-ic { grid-row: 1; width: 1.35rem; height: 1.35rem; }
+.fc-res .n { grid-row: 1; grid-column: 2; font-size: 1.3rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.fc-res small { grid-row: 2; grid-column: 1 / -1; justify-self: stretch; text-align: center; font-size: .58rem; font-weight: 700; color: var(--ink-soft); letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-res.chosen { border-color: var(--fc-bad); box-shadow: 0 0 0 1.5px var(--fc-bad); }
+.fc-delta { position: absolute; top: -.4rem; right: -.15rem; padding: 0 .28rem; border-radius: 3px; font-style: normal; font-size: .68rem; font-weight: 800; line-height: 1.2; color: var(--sheet); background: var(--ink-soft); }
+.fc-delta.up { background: var(--fc-good); } .fc-delta.down { background: var(--fc-bad); }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) .fc-delta { color: #10181F; } }
+html[data-mode="night"] .fc-delta { color: #10181F; }
+.fc-watch { grid-column: 1 / -1; align-self: center; margin: 0; text-align: center; color: var(--ink-soft); }
+.fc-bar { display: flex; gap: .3rem; align-items: stretch; height: 2.9rem; }
+/* six words in one row: sentence case and the normal width, where the suite's buttons are spaced capitals */
+html #bar .fc-go { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem 0; font-size: .76rem; font-stretch: normal; letter-spacing: 0; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html #bar .fc-go.primary { flex: 1.4 1 0; }
+.fc-go.on { background: var(--fc-soft); border-color: var(--fc-in); box-shadow: inset 0 0 0 1.5px var(--fc-in); }
+.fc-go.off { opacity: .4; cursor: default; }
+.fc-prompt { flex: 1 1 0; align-self: center; margin: 0; text-align: center; color: var(--ink-soft); font-size: .88rem; }
+
+/* ---------- the sheets ---------- */
+.fc-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+.fc-rules p, .fc-rules li { line-height: 1.45; }
+.fc-rules h3, .fc-trade h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.fc-rules ul, .fc-rules ol { margin: .3rem 0; padding-left: 1.2rem; }
+.fc-costs { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.fc-costs td { padding: .3rem .25rem; border-top: 1px solid var(--rule); vertical-align: middle; }
+.fc-costs td:nth-child(2) { display: flex; flex-wrap: wrap; gap: .25rem; }
+.fc-costs td:last-child { color: var(--ink-soft); font-size: .8rem; }
+.fc-cost { display: inline-flex; align-items: center; gap: .15rem; font-weight: 800; }
+.fc-note, .fc-tnote, .fc-end-note { color: var(--ink-soft); font-size: .84rem; line-height: 1.4; }
+.fc-tnote { margin: .7rem 0 0; }
+
+.fc-seg { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--brass); border-radius: 4px; overflow: hidden; margin-bottom: .2rem; }
+.fc-seg button { min-height: 2.4rem; background: none; border: 0; border-left: 1.5px solid var(--brass); font-weight: 750; font-stretch: var(--stretch-btn); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); font-size: .82rem; cursor: pointer; }
+.fc-seg button:first-child { border-left: 0; }
+.fc-seg button.on { background: var(--plate); color: var(--plate-ink); }
+.fc-chips, .fc-steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .3rem; }
+.fc-chip { display: grid; justify-items: center; gap: .15rem; padding: .35rem .1rem; border-radius: 6px; background: var(--tile); border: 1px solid var(--tile-edge); color: var(--ink); cursor: pointer; min-width: 0; }
+.fc-chip .fc-ic { width: 1.5rem; height: 1.5rem; }
+.fc-chip b { font-size: 1rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fc-chip small { font-size: .62rem; font-weight: 600; color: var(--ink-soft); }
+.fc-chip.on { border-color: var(--fc-in); box-shadow: 0 0 0 1.5px var(--fc-in); background: var(--fc-soft); }
+.fc-chip:disabled { opacity: .35; cursor: default; }
+.fc-step { display: grid; justify-items: center; gap: .2rem; }
+.fc-step .fc-ic { width: 1.5rem; height: 1.5rem; }
+.fc-step button { width: 100%; min-height: 2.1rem; border-radius: 5px; border: 1px solid var(--brass); background: var(--tile); color: var(--ink); font-size: 1.1rem; font-weight: 800; cursor: pointer; }
+.fc-step button:disabled { opacity: .3; cursor: default; }
+.fc-step b { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+.fc-offer { width: 100%; margin-top: .8rem; }
+
+.fc-card-list { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; }
+.fc-card-list li { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: .6rem .1rem; border-top: 1px solid var(--rule); }
+.fc-card-list li:first-child { border-top: 0; }
+.fc-card-list p { margin: .15rem 0 0; font-size: .84rem; line-height: 1.35; color: var(--ink-soft); }
+.fc-card-list .btn { flex: none; min-height: 2.4rem; padding: .3rem 1rem; }
+.fc-card-list .btn.off { opacity: .4; cursor: default; }
+.fc-x { color: var(--ink-soft); font-weight: 700; }
+.fc-hid { flex: none; font-size: .74rem; color: var(--ink-soft); font-style: italic; }
+.fc-cards [data-back] { width: 100%; margin-top: .8rem; }
+
+.fc-end-head { margin: .2rem 0 .6rem; }
+.fc-standings { list-style: none; margin: 0; padding: 0; display: grid; gap: .1rem; }
+.fc-standings li { display: grid; grid-template-columns: minmax(0, 1fr) 2.6rem; grid-template-areas: "nm pts" "sm pts"; column-gap: .6rem; align-items: center; padding: .45rem .2rem; border-bottom: 1px solid var(--rule); }
+.fc-standings .nm { grid-area: nm; display: flex; align-items: center; gap: .35rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-standings li.won .nm::after { content: " ★"; color: var(--fc-in); }
+.fc-standings li.me .nm { text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: .2em; }
+.fc-small { grid-area: sm; color: var(--ink-soft); font-size: .8rem; }
+.fc-standings b { grid-area: pts; text-align: right; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
+.fc-end-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .8rem; }
+.fc-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translate(-50%, 1rem); opacity: 0; pointer-events: none;
+  max-width: min(90vw, 26rem); padding: .55rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  transition: opacity .2s, transform .2s; z-index: 5; }
+.fc-toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+/* what things cost: in the room a tall phone leaves under the island, and beside it when held sideways; a short phone has none to spare
+   (the build buttons say what's lacking) */
+.fc-ref { display: none; grid-template-columns: 1fr 1fr; gap: .25rem .8rem; padding: .4rem .6rem; border-radius: 6px; border: 1px solid var(--rule); background: var(--sheet); font-size: .8rem; }
+.fc-ref-row { display: flex; align-items: center; justify-content: space-between; gap: .4rem; }
+.fc-ref-row > span { display: inline-flex; align-items: center; }
+.fc-ref .fc-ic.in { width: 1.2em; height: 1.2em; }
+@media (orientation: portrait) and (min-height: 760px) { .fc-ref { display: grid; } }
+/* held sideways: the island on the left; the players, your cards and your buttons beside it */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.factor { --beside: 24rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
+  #app.factor .fc-strip { grid-column: 1 / -1; grid-row: 2; }
+  #app.factor .fc-board { grid-column: 1; grid-row: 3 / 5; }
+  #app.factor .fc-seats { grid-column: 2; grid-row: 3; grid-template-columns: repeat(2, minmax(0, 1fr)); height: auto; margin-top: 0; }
+  #app.factor .fc-seat { gap: .15rem; padding: .3rem .4rem; }
+  #app.factor .fc-side { grid-column: 2; grid-row: 4; justify-content: flex-end; min-height: 0; }
+  #app.factor .fc-ref { display: grid; margin-bottom: auto; }
+  #app.factor .fc-hand { height: 4.6rem; }
+  #app.factor .fc-bar { flex-wrap: wrap; height: auto; }
+  #app.factor .fc-go { flex: 1 1 30%; min-height: 2.8rem; font-size: .8rem; }
+  #app.factor .fc-go.primary { flex: 1 1 30%; }
+}
+html[data-theme="office"] .fc-seat, html[data-theme="office"] .fc-res, html[data-theme="office"] .fc-chip { border-radius: 4px; }
+html[data-theme="kontor"] .fc-seat, html[data-theme="kontor"] .fc-res, html[data-theme="kontor"] .fc-chip { border-radius: 2px; }

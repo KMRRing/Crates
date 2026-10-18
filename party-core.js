@@ -181,6 +181,7 @@ export const ELSEWHERE = [
   { id: "bigtwo", name: "Big Two", kind: "table", page: "bigtwo.html", max: 4, blurb: "鋤大D, Hong Kong's climbing card game: be first to shed your cards." },
   { id: "landlord", name: "Landlord", kind: "table", page: "landlord.html", max: 3, blurb: "斗地主: the landlord against the two peasants." },
   { id: "holdem", name: "Texas Hold'em", kind: "table", page: "holdem.html", max: 6, blurb: "德州撲克: Macau's rules, no limit, a commission to the house; up to six at the felt." },
+  { id: "factor", name: "Factor", kind: "table", page: "factor.html", max: 4, blurb: "Settle an island and trade for what it lacks: roads, posts and factories, first to ten points." },
   { id: "banquet", name: "Banquet", kind: "table", page: "banquet.html", max: 2, blurb: "划拳 and 十五二十, the hand games of a banquet table." },
   { id: "gammon", name: "Gammon", kind: "table", page: "gammon.html", max: 2, blurb: "Backgammon: a match, with the doubling cube." },
   { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
