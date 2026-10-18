@@ -1,170 +1,228 @@
-// Topple's rules (topple-engine.js): the deal from a seed, the pieces, where a piece fits, how dominoes fall (straight
-// on, turning only where a line ends, both ways at a fork; a blob's middle left standing; each from the one before it),
-// a knock's clearing and its points (the dominoes times the steps they take: a snake from its end beats a blob), the
-// bell doubling a fall that passes it and moving on, the knock on the table's time (due when a hand's last piece is
-// down, every hand and then every second, nothing laid until it's made), the end (no room and no knock due), a game
-// saved before the knock was the table's, a game saved and opened again, and whole games played out to their end.
-import { N, HAND, PIECES, PACE, knockEvery, newGame, upgrade, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, moves } from "../topple-engine.js";
+// Topple's rules (topple-engine.js): the table of sixty-one hexagons, the deal from a seed, the pieces (chains of one to
+// five), where a piece fits, how dominoes fall (straight on, onto the two at sixty degrees only where nothing stands
+// ahead, never sideways or back; each the way it was knocked), a push's clearing and its points (the dominoes times the
+// steps they take: a long chain from its end beats a blob), the bell doubling a fall that passes it and moving on, the
+// knock on the table's time (a knock every hand at first, then fewer, nothing laid until it's made), the end (no room
+// and no knock due), a game saved and opened again, and whole games played out to their end.
+import { R, CELLS, SIZE, DIRS, HAND, PIECES, PACE, rate, untilKnock, newGame, at, next, cover, fitsAnywhere, chain, group, chains, stepsOf, longest, knockOn, worth, lay, knock, moves } from "../topple-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const i = (x, y) => y * N + x;
-/** A table drawn by hand: rows of characters from the top, "." empty, "0"–"2" a domino of that colour. */
-function table(rows) {
-  const cells = new Array(N * N).fill(-1);
-  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") cells[i(x, y)] = Number(ch); }));
+const E = 0, NE = 1, W = 3, SE = 5;
+const hex = (q, r) => at(q, r);
+/** A table drawn by hand: [[q, r, colour]…], or a line: [q, r, direction, how many, colour] marked by a fifth entry. */
+function table(...marks) {
+  const cells = new Array(SIZE).fill(-1);
+  for (const m of marks) {
+    if (m.length === 3) cells[hex(m[0], m[1])] = m[2];
+    else for (let k = 0; k < m[3]; k++) cells[hex(m[0] + k * DIRS[m[2]][0], m[1] + k * DIRS[m[2]][1])] = m[4];
+  }
   return cells;
 }
 const piece = (p, colour = 0) => ({ piece: p, colour });
-const game = (rows, hand = [piece("0.0"), piece("0.0"), piece("0.0")], extra = {}) => Object.assign(newGame(1), { cells: table(rows), hand, due: true, untilKnock: 0, bell: i(7, 7) }, extra);
-const fallen = (rows, x, y) => chain(table(rows), i(x, y)).map(f => f[0]).sort((a, b) => a - b).join();
+const SINGLE = "0,0", PAIR = "0,0;1,0";
+const game = (cells, hand = [piece(SINGLE), piece(SINGLE), piece(SINGLE)], extra = {}) => Object.assign(newGame(1), { cells, hand, due: true, bell: hex(R, 0) }, extra);
+const fell = (cells, q, r, dir) => chain(cells, hex(q, r), dir).map(f => f[0]).sort((a, b) => a - b).join();
+const at_ = (...qr) => qr.map(([q, r]) => hex(q, r)).sort((a, b) => a - b).join();
+
+// ---------- the table ----------
+{
+  check(SIZE === 61 && CELLS.length === 61 && at(0, 0) >= 0 && at(R, 0) >= 0 && at(R, 1) === -1 && at(-R, -R) === -1 && CELLS.every(([q, r], i) => at(q, r) === i), "sixty-one hexagons, four out from the middle, each numbered row by row");
+  const ring = n => [...Array(6).keys()].filter(d => next(n, d) >= 0).length;
+  check(ring(hex(0, 0)) === 6 && ring(hex(R, 0)) === 3 && ring(hex(0, -R)) === 3 && ring(hex(2, -R)) === 4 && CELLS.every((_, i) => [...Array(6).keys()].every(d => next(i, d) < 0 || next(next(i, d), (d + 3) % 6) === i)),
+    "six neighbours in the middle, three in a corner (six of them), four on an edge, and each is its neighbour's neighbour back the other way");
+}
 
 // ---------- the deal ----------
 {
   const a = newGame(7), b = newGame(7), hands = new Set([...Array(10).keys()].map(k => JSON.stringify(newGame(k).hand)));
   check(JSON.stringify(a) === JSON.stringify(b) && hands.size > 5, "the same seed deals the same game, another seed another");
-  check(a.v === 2 && a.cells.every(c => c === -1) && a.hand.length === HAND && a.hand.every(h => PIECES[h.piece] && h.colour >= 0 && h.colour < 3) && !a.due && a.untilKnock === 1 && a.sets === 1 && !a.over,
-    "an empty table, three pieces in three colours, a knock after the first hand");
-  check(new Set([...Array(30).keys()].map(k => newGame(k).bell)).size > 10 && newGame(3).bell >= 0, "the bell on a square of the table, a different one game to game");
-  const names = Object.keys(PIECES);
-  check(names.length > 30 && names.every(k => PIECES[k].cells.length <= 5 && Math.min(...PIECES[k].cells.map(c => c[0])) === 0 && Math.min(...PIECES[k].cells.map(c => c[1])) === 0), `${names.length} pieces of up to five dominoes, each measured from its top left`);
+  check(a.v === 3 && a.cells.length === SIZE && a.cells.every(c => c === -1) && a.hand.length === HAND && a.hand.every(h => PIECES[h.piece] && h.colour >= 0 && h.colour < 3) && !a.due && a.credit === 0 && a.sets === 1 && !a.over,
+    "an empty table, three pieces in three colours, no knock yet owed");
+  check(new Set([...Array(30).keys()].map(k => newGame(k).bell)).size > 10 && newGame(3).bell >= 0, "the bell on a hexagon of the table, a different one game to game");
+}
+
+// ---------- the pieces ----------
+{
+  const names = Object.keys(PIECES), size = Object.fromEntries([1, 2, 3, 4, 5].map(n => [n, names.filter(k => PIECES[k].cells.length === n).length]));
+  const touching = (a, b) => DIRS.some(([dq, dr]) => a[0] + dq === b[0] && a[1] + dr === b[1]);
+  const joined = cells => { const seen = new Set([0]); for (let k = 0; k < seen.size + 1; k++) cells.forEach((c, i) => { if (!seen.has(i) && [...seen].some(j => touching(cells[j], c))) seen.add(i); }); return seen.size === cells.length; };
+  const degree = cells => Math.max(...cells.map(c => cells.filter(d => d !== c && touching(c, d)).length));
+  const triangle = cells => cells.some(a => cells.some(b => cells.some(c => a !== b && b !== c && a !== c && touching(a, b) && touching(b, c) && touching(a, c))));
+  check(JSON.stringify(size) === JSON.stringify({ 1: 1, 2: 3, 3: 9, 4: 29, 5: 99 }), `${names.length} pieces, each way a chain lies: one of one, three of two, nine of three, 29 of four, 99 of five`);
+  check(names.every(k => joined(PIECES[k].cells) && degree(PIECES[k].cells) <= 3 && !triangle(PIECES[k].cells) && PIECES[k].cells[0].join() === "0,0" && k === PIECES[k].cells.map(c => c.join(",")).join(";")),
+    "every piece is a chain (joined, none touching more than three, no three all touching), named by its hexagons from its first");
+  const straight = k => new Set(PIECES[k].cells.map(c => c[1])).size === 1 || new Set(PIECES[k].cells.map(c => c[0])).size === 1 || new Set(PIECES[k].cells.map(c => c[0] + c[1])).size === 1;
+  const weigh = f => names.filter(k => PIECES[k].cells.length === 3 && f(k)).reduce((total, k) => total + PIECES[k].weight, 0);
+  check(Math.abs(weigh(straight) / weigh(k => !straight(k)) - 2) < 1e-9, "a straight line of three is dealt twice as often as the bend");
+  const tally = {};
+  for (let k = 0; k < 400; k++) for (const h of newGame(k).hand) tally[PIECES[h.piece].cells.length] = (tally[PIECES[h.piece].cells.length] || 0) + 1;
+  check(tally[1] > 20 && tally[4] > tally[3] && tally[3] > tally[2] && tally[5] > 40, `dealt by size as they weigh: ${[1, 2, 3, 4, 5].map(n => tally[n]).join(", ")} of 1200 in ones to fives`);
 }
 
 // ---------- where a piece fits ----------
 {
-  const cells = table(["0......."]);
-  check(cover(cells, "0.0", 1, 0)?.join() === "1" && cover(cells, "0.0", 0, 0) === null && cover(cells, "4.0", 5, 2) === null && cover(cells, "4.0", 4, 2)?.length === 4, "a piece goes on empty squares, not on a domino or off the table");
-  check(fitsAnywhere(cells, "9.0") && !fitsAnywhere(table(Array(N).fill("0.1.0.1.")), "1.0"), "a piece fits somewhere, or nowhere");
+  const cells = table([0, 0, 0]);
+  check(cover(cells, SINGLE, 1, 0)?.join() === String(hex(1, 0)) && cover(cells, SINGLE, 0, 0) === null && cover(cells, SINGLE, R, 1) === null, "a piece goes on empty hexagons, not on a domino or off the table");
+  check(cover(cells, PAIR, -1, 0) === null && cover(cells, PAIR, 1, 0)?.join() === `${hex(1, 0)},${hex(2, 0)}` && cover(cells, PAIR, R, 0) === null, "all of it must fit: a pair over a domino, or half off the edge, doesn't");
+  check(fitsAnywhere(cells, "0,0;1,0;2,0;3,0;4,0") && !fitsAnywhere(table(...CELLS.map(([q, r], i) => [q, r, i % 2])), SINGLE), "a piece fits somewhere, or nowhere");
 }
 
 // ---------- how dominoes fall ----------
 {
-  const run = chain(table(["0000...."]), 0);
-  check(run.length === 4 && stepsOf(run) === 4 && run.map(f => f[1]).join() === "0,1,2,3" && run[0][2] === -1, "a line knocked at its end falls end to end, a step a domino, the one knocked first");
-  check(stepsOf(chain(table(["0000...."]), i(1, 0))) === 3 && chain(table(["0000...."]), i(1, 0)).length === 4, "knocked in the middle it falls both ways at once");
-  const ell = chain(table(["000.....", "..0.....", "..0....."]), 0);
-  check(ell.length === 5 && stepsOf(ell) === 5, "it turns where its line ends: round a corner, the whole L in five steps");
-  check(fallen(["000.....", ".0......"], 1, 1) === `${i(0, 0)},${i(1, 0)},${i(2, 0)},${i(1, 1)}` && fallen(["000.....", ".0......"], 0, 0) === `${i(0, 0)},${i(1, 0)},${i(2, 0)}`,
-    "a T knocked from its stem falls both ways along its bar; knocked from an end of the bar, the stem stays standing");
-  check(fallen(["00......", "00......"], 0, 0).split(",").length === 4 && stepsOf(chain(table(["00......", "00......"]), 0)) === 3, "a square of four falls whole from a corner, in three steps");
-  const block = table(["000.....", "000.....", "000....."]), b = chain(block, 0).map(f => f[0]);
-  check(b.length === 8 && !b.includes(i(1, 1)) && group(block, 0).length === 9, "a block of nine falls round its edge and leaves its middle standing");
-  const fork = chain(table(["0.......", "0.......", "000.....", "0.......", "0......."]), 0), steps = Object.fromEntries(fork.map(([sq, st]) => [sq, st]));
-  const across = chain(table(["0.......", "0.......", "000.....", "0.......", "0......."]), i(2, 2));
-  check(fork.length === 5 && steps[i(0, 4)] === 4 && !(i(1, 2) in steps) && across.length === 7 && stepsOf(across) === 5,
-    "at a fork: run into along the line it goes straight on and the branch stays standing; run into end-on from the branch, it splits both ways and all of it falls");
-  const c = chain(table(["0.......", "0..0....", "0000....", "...0....", "1......."]), 0), st = Object.fromEntries(c.map(([sq, k]) => [sq, k]));
-  check(c.every(([sq, k, by]) => by < 0 || (st[by] === k - 1 && Math.abs((sq % N) - (by % N)) + Math.abs(Math.floor(sq / N) - Math.floor(by / N)) === 1)), "each falls from a neighbour a step before it");
-  check(!c.some(([sq]) => sq === i(0, 4)) && chain(table(["0.", ".0"]), 0).length === 1 && chain(table(["0......."]), i(5, 5)).length === 0, "another colour stops it, so does a corner, and an empty square sets nothing off");
-  check(chains(table(["0000....", "1......."])).map(k => k.length).join() === "4,1", "the dominoes standing, joined by colour, most first");
+  const line = table([-2, 0, E, 4, 0]), run = chain(line, hex(-2, 0), E);
+  check(run.length === 4 && stepsOf(run) === 4 && run.map(f => f[1]).join() === "0,1,2,3" && run[0][2] === -1 && run.map(f => f[0]).join() === [-2, -1, 0, 1].map(q => hex(q, 0)).join(),
+    "a line pushed from its end falls end to end, a step a domino, the one pushed first");
+  check(fell(line, 0, 0, E) === at_([0, 0], [1, 0]) && stepsOf(chain(line, hex(0, 0), E)) === 2 && fell(line, 1, 0, E) === at_([1, 0]),
+    "pushed in the middle only what's ahead of it falls, the rest of the line stays; at the end of the line, only itself");
+  check(fell(line, -2, 0, W) === at_([-2, 0]), "pushed against its line, only the one pushed falls");
+  check(fell(line, -2, 0, NE) === fell(line, -2, 0, E) && fell(line, -2, 0, SE) === fell(line, -2, 0, E) && fell(line, -1, 0, SE) === at_([-1, 0], [0, 0], [1, 0]),
+    "pushed a sixty degrees off its line, with nothing there, a domino falls on the two at sixty degrees: the line beside it goes whole, from the end or ahead of the middle");
+  const bend = table([-2, 0, E, 3, 1], [1, -1, 1], [1, 0, 0]);
+  const turned = chain(bend, hex(-2, 0), E);
+  check(turned.length === 4 && stepsOf(turned) === 4 && fell(bend, -2, 0, E) === at_([-2, 0], [-1, 0], [0, 0], [1, -1]),
+    "where its line ends it goes on to a sixty degrees either side: here the one up and to the right (the one straight on is another colour, so it stays)");
+  // straight on beats the sixty degrees: with a domino ahead, the two beside the way stay standing
+  const ahead = table([-1, 0, 1], [0, 0, 1], [1, 0, 1], [0, -1, 1], [-1, 1, 1]);
+  check(fell(ahead, -1, 0, E) === at_([-1, 0], [0, 0], [1, 0]), "with one of its colour straight ahead, a domino takes that one and the two at sixty degrees stay standing");
+  const both = table([-1, 0, 1], [0, 0, 1], [1, -1, 1], [0, 1, 1]);
+  const forked = chain(both, hex(-1, 0), E);
+  check(forked.length === 4 && stepsOf(forked) === 3 && forked.filter(f => f[1] === 2).length === 2, "with none ahead, both at sixty degrees fall at once: a fork, three steps");
+  const side = table([0, 0, 1], [0, -1, 1], [-1, 1, 1], [-1, 0, 1]);
+  check(fell(side, 0, 0, E) === at_([0, 0]), "a domino at a hundred and twenty degrees, or behind, is never taken: pushed east, the centre of those falls alone");
+  const flower = table([0, 0, 1], ...DIRS.map(([dq, dr]) => [dq, dr, 1])), flowered = chain(flower, hex(-1, 0), E);
+  check(group(flower, hex(0, 0)).length === 7 && flowered.length === 3 && fell(flower, -1, 0, E) === at_([-1, 0], [0, 0], [1, 0]),
+    "a flower of seven pushed from a petal falls along its line and leaves four standing");
+  const wall = table([0, 0, 1], [1, 0, 0]);
+  check(fell(wall, 0, 0, E) === at_([0, 0]) && fell(table([R, 0, 2]), R, 0, E) === at_([R, 0]) && chain(table([0, 0, 1]), hex(3, 0), E).length === 0, "another colour stops it, so does the table's edge, and an empty hexagon sets nothing off");
+  const web = table([-3, 0, E, 4, 0], [0, -1, E, 3, 0], [1, 1, NE, 2, 0], [2, -1, 0]), webbed = chain(web, hex(-3, 0), E), st = Object.fromEntries(webbed.map(([sq, k]) => [sq, k]));
+  const heading = (a, b) => DIRS.findIndex(([dq, dr], d) => next(a, d) === b);
+  check(webbed.every(([sq, k, by]) => by < 0 || (st[by] === k - 1 && heading(by, sq) >= 0)) && new Set(webbed.map(f => f[0])).size === webbed.length, "each falls from a neighbour a step before it, and none twice");
+  check(chains(table([0, 0, E, 4, 0], [-3, 2, 1]), -1).map(k => k.length).join() === "4,1", "the dominoes standing, joined by colour, most first");
 }
 
-// ---------- a knock, its points, the bell ----------
+// ---------- a push, its points, the bell ----------
 {
-  const s = game(["000.....", "1......."]), r = knock(s, i(0, 0));
-  check(r.fell.length === 3 && r.steps === 3 && r.gain === 90 && r.state.score === 90 && r.state.cells.slice(0, 3).every(c => c === -1) && r.state.cells[i(0, 1)] === 1, "the dominoes fall and clear: ten times how many fell times the steps they took, a line of three from its end 90");
-  check(knock(s, i(1, 0)).gain === 60 && worth(1) === 10 && worth(10) === 1000 && worth(20, 10) === 2000, "knocked in the middle, two steps: 60; one long line beats several short ones");
-  check(!r.state.due && r.state.untilKnock === knockEvery(s.sets) && r.state.felled === 3 && s.due && s.cells[0] === 0, "the knock made; the next counted from here; the game knocked from left as it was");
+  const s = game(table([-3, 0, E, 3, 0], [-3, 1, 1])), r = knock(s, hex(-3, 0), E);
+  check(r.fell.length === 3 && r.steps === 3 && r.gain === 90 && r.state.score === 90 && r.state.cells[hex(-3, 0)] === -1 && r.state.cells[hex(-3, 1)] === 1,
+    "the dominoes fall and clear: ten times how many fell times the steps they took, a line of three from its end 90");
+  check(knock(s, hex(-2, 0), E).gain === 40 && worth(1) === 10 && worth(10) === 1000 && worth(20, 10) === 2000, "pushed in the middle only two fall, two steps: 40; one long line beats several short ones");
+  check(!r.state.due && r.state.felled === 3 && s.due && s.cells[hex(-3, 0)] === 0, "the knock made; the game knocked from left as it was");
   let threw = 0;
-  try { knock(r.state, i(0, 1)); } catch { threw++; }
-  try { knock(s, i(5, 5)); } catch { threw++; }
-  check(threw === 2, "no knock when none is due, nor on an empty square");
-  const five = game(["00000..."]), blob = game(["00......", "00......"]), four = game(["0000...."]);
-  check(knock(five, i(0, 0)).gain === 250 && knock(five, i(2, 0)).gain === 150 && knock(blob, i(0, 0)).gain === 120 && knock(four, i(0, 0)).gain === 160, "a line of five: 250 from its end, 150 from its middle; a square of four 120 against a line of four's 160");
-  const ell = table(["0000....", "...0....", "...0....", "1......."]), best = longest(ell, i(2, 0));
-  check(best.steps === 6 && best.gain === 360 && best.size === 6 && [i(0, 0), i(3, 2)].includes(best.at) && longest(table(["000.....", "000.....", "000....."]), 0).fell === 8, "the best knock on what's joined: from a far end, here round the corner in six, 360; on a block, all but its middle");
-  const rung = knock(game(["0000...."], undefined, { bell: i(2, 0) }), 0);
-  check(rung.rang && rung.gain === 320 && rung.state.rung === 1 && rung.state.bell !== i(2, 0) && rung.state.cells[rung.state.bell] === -1, "a fall past the bell scores double (a line of four 320) and the bell moves to an empty square");
-  const missed = knock(game(["0000....", "........", "1......."], undefined, { bell: i(0, 2) }), 0);
-  check(!missed.rang && missed.gain === 160 && missed.state.bell === i(0, 2) && knockOn(table(["0000...."]), 0, i(3, 0)).rings, "a fall that doesn't pass it leaves it where it hangs");
+  try { knock(r.state, hex(-3, 1), E); } catch { threw++; }
+  try { knock(s, hex(3, 3), E); } catch { threw++; }
+  check(threw === 2, "no knock when none is due, nor on an empty hexagon");
+  const five = game(table([-2, 0, E, 5, 0])), four = game(table([-2, 0, E, 4, 0]));
+  check(knock(five, hex(-2, 0), E).gain === 250 && knock(four, hex(-2, 0), E).gain === 160 && knock(four, hex(-2, 0), W).gain === 10, "a line of five from its end 250; of four 160; pushed the wrong way, 10");
+  const arc = table([-3, 0, E, 4, 0], [1, -1, NE, 3, 0]), best = longest(arc, hex(-3, 0));
+  check(best.size === 7 && best.fell === 7 && best.steps === 7 && best.gain === 490 && [hex(-3, 0), hex(3, -3)].includes(best.at), "the best push on what's joined: from a far end, round the bend in seven, 490");
+  check(longest(table([0, 0, 0]), hex(0, 0)).gain === 10 && longest(table(), 0).at === -1, "it tries every domino and every way: a lone domino is 10, an empty table nothing");
+  const rung = knock(game(table([-2, 0, E, 4, 0]), undefined, { bell: hex(0, 0) }), hex(-2, 0), E);
+  check(rung.rang && rung.gain === 320 && rung.state.rung === 1 && rung.state.bell !== hex(0, 0) && rung.state.cells[rung.state.bell] === -1, "a fall past the bell scores double (a line of four 320) and the bell moves to an empty hexagon");
+  const missed = knock(game(table([-2, 0, E, 4, 0], [-1, 2, 1]), undefined, { bell: hex(-1, 2) }), hex(-2, 0), E);
+  check(!missed.rang && missed.gain === 160 && missed.state.bell === hex(-1, 2) && knockOn(table([-2, 0, E, 4, 0]), hex(-2, 0), E, hex(1, 0)).rings, "a fall that doesn't pass it leaves it where it hangs");
+}
+
+// ---------- the pace of the knocks ----------
+{
+  const rates = [1, 2, 11, 12, 13, 30, 47, 48, 49, 500].map(rate);
+  check(rates.slice(0, 4).every(v => v === 1) && rates[8] === PACE.end && rates[9] === PACE.end && rates.every((v, k) => k === 0 || v <= rates[k - 1]) && rates[5] > PACE.end && rates[5] < 1, `a knock every hand for twelve, then fewer and fewer to one in ${1 / PACE.end} from the ${PACE.to}th hand`);
+  // hands played on a table cleared after each, so the game can't end: which hands' ends brought a knock, and what
+  // untilKnock said at the start of each
+  let s = newGame(3);
+  const brought = [], told = [];
+  for (let hand = 1; hand <= 100; hand++) {
+    told[hand] = hand + untilKnock(s) - 1;
+    for (let k = 0; k < HAND; k++) { const m = moves(s)[0]; s = lay(s, m.slot, m.q, m.r).state; }
+    brought[hand] = s.due;
+    if (s.due) s = knock(s, s.cells.findIndex(c => c >= 0), E).state;
+    s.cells.fill(-1);
+  }
+  const dueFrom = h => { let k = h; while (!brought[k]) k++; return k; };
+  check(brought.slice(1, 13).every(Boolean), "a knock after each of the first twelve hands");
+  const later = brought.slice(49);
+  check(Math.abs(later.filter(Boolean).length / later.length - PACE.end) < .1, "from the forty-ninth hand about every second");
+  check(told.slice(1, 90).every((n, k) => n === dueFrom(k + 1)), "untilKnock says, at the start of a hand, which hand's end brings the knock");
+  check(untilKnock(Object.assign(newGame(1), { due: true })) === 0 && untilKnock(newGame(1)) === 1, "0 when it's due, 1 after the first hand");
 }
 
 // ---------- laying, and the knock on the table's time ----------
 {
-  const s = game([], [piece("1.0", 2), piece("0.0", 1), piece("2.1", 0)], { due: false, untilKnock: 2 });
-  const r = lay(s, 0, 3, 3);
-  check(r.laid.join() === `${i(3, 3)},${i(4, 3)}` && r.state.cells[i(3, 3)] === 2 && r.state.hand[0] === null && r.state.laid === 1 && !r.dealt && !r.due, "a piece stands its dominoes in its colour; the others wait");
+  const s = game(table(), [piece("0,0;1,0", 2), piece(SINGLE, 1), piece("0,0;0,1", 0)], { due: false });
+  const r = lay(s, 0, 0, 0);
+  check(r.laid.join() === `${hex(0, 0)},${hex(1, 0)}` && r.state.cells[hex(0, 0)] === 2 && r.state.hand[0] === null && r.state.laid === 1 && !r.dealt && !r.due, "a piece stands its dominoes in its colour; the others wait");
   let threw = false;
-  try { lay(r.state, 1, 3, 3); } catch { threw = true; }
-  check(threw && s.cells[i(3, 3)] === -1, "not where a domino stands; the game laid from left as it was");
-  const all = lay(lay(r.state, 1, 0, 0).state, 2, 7, 0);
-  check(all.dealt && all.state.hand.every(Boolean) && all.state.sets === s.sets + 1 && !all.due && all.state.untilKnock === 1, "the third laid, three more are dealt, and the knock a hand nearer");
-  const due = lay(lay(lay(all.state, 0, 0, 2).state, 1, 4, 4).state, 2, 0, 6);
-  check(due.due && due.state.due && !moves(due.state).length, "a hand's last piece down when the knock is due: the knock first, nothing laid until it's made");
+  try { lay(r.state, 1, 1, 0); } catch { threw = true; }
+  check(threw && s.cells[hex(0, 0)] === -1, "not where a domino stands; the game laid from left as it was");
+  const all = lay(lay(r.state, 1, -2, 0).state, 2, 0, -2);
+  check(all.dealt && all.state.hand.every(Boolean) && all.state.sets === s.sets + 1 && all.due === all.state.due && all.state.credit < 1, "the third laid, three more are dealt");
+  check(all.due && !moves(all.state).length, "the hand's last piece down with a knock owed: the knock first, nothing laid until it's made");
   threw = false;
-  try { lay(due.state, 0, 6, 6); } catch { threw = true; }
+  try { lay(all.state, 0, 3, 0); } catch { threw = true; }
   check(threw, "a piece can't be laid over it");
-  const after = knock(due.state, i(0, 0));
-  check(!after.state.due && moves(after.state).length > 0 && after.state.untilKnock === knockEvery(after.state.sets), "made, the next hand is laid");
-  check(knockEvery(1) === 1 && knockEvery(PACE[0][0] - 1) === 1 && knockEvery(PACE[0][0]) === 2 && knockEvery(500) === 2, `a knock every hand for the first ${PACE[0][0] - 1}, then every second`);
+  const after = knock(all.state, hex(0, 0), E);
+  check(!after.state.due && moves(after.state).length > 0, "made, the next hand is laid");
+  const later = game(table(), [piece(SINGLE), null, null], { due: false, sets: 60, credit: 0 }), l2 = lay(later, 0, 0, 0);
+  check(!l2.due && l2.state.credit === PACE.end && lay(Object.assign(structuredClone(l2.state), { hand: [piece(SINGLE), null, null] }), 0, 1, 0).due, "later a hand's end only adds half a knock to the credit: the second brings it due");
 }
 
 // ---------- the end ----------
 {
-  const board = Array.from({ length: N }, (_, y) => [...Array(N).keys()].map(x => ((x + y) % 2 ? "1" : "0")).join(""));
-  board[0] = `.${board[0].slice(1)}`;
-  const hand = [piece("0.0", 2), piece("4.0", 0), piece("4.1", 1)];
-  const stuck = lay(game(board, hand, { due: false, untilKnock: 2 }), 0, 0, 0);
+  const hole = hex(0, 0), full = new Array(SIZE).fill(0);
+  full[hole] = -1;
+  const hand = [piece(SINGLE, 2), piece(PAIR, 0), piece("0,0;0,1", 1)];
+  const stuck = lay(game(full, hand, { due: false }), 0, 0, 0);
   check(stuck.over && stuck.state.over, "no room for any piece in hand, and no knock due: the game is over");
-  const knocks = lay(game(board, [piece("0.0", 2), piece("0.0", 0), piece("0.0", 1)], { due: false, untilKnock: 1 }), 0, 0, 0);
-  check(knocks.over && !knocks.state.due, "the knock comes only once a hand is finished: pieces left that fit nowhere end it first");
-  const lastDue = game(board, [piece("0.0", 2), null, null], { due: false, untilKnock: 1 });
-  const done = lay(lastDue, 0, 0, 0);
-  check(done.due && !done.over, "a hand finished with the knock due isn't over, the knock may make room");
-}
-
-// ---------- a game saved before the knock was the table's ----------
-{
-  const old = { v: 1, seed: 5, n: 40, cells: table(["0000....", "1......."]), hand: [piece("0.0"), null, piece("1.0", 2)], knocks: 2, untilKnock: 1, sets: 7, laid: 19, felled: 30, score: 4200, over: false };
-  const s = upgrade(old);
-  check(s.v === 2 && !("knocks" in s) && !s.due && s.untilKnock === 1 && s.bell >= 0 && s.cells[s.bell] === -1 && s.score === 4200 && s.hand[2].piece === "1.0", "it keeps its table, its hand and its score; its stored knocks go, a knock comes after the hand in play, and the bell is hung");
-  check(upgrade(s) === s && upgrade(null) === null, "a game of now is left as it is");
+  const done = lay(game(full, [piece(SINGLE, 2), null, null], { due: false }), 0, 0, 0);
+  check(done.dealt && done.due && !done.over, "a hand finished with the knock due isn't over, the knock may make room");
+  const made = knock(done.state, 0, E);
+  check(made.state.cells.filter(c => c < 0).length >= 5, "and made, there is room again");
 }
 
 // ---------- saved and opened again ----------
 {
   let s = newGame(42);
-  for (let k = 0; k < 9; k++) { if (s.due) { s = knock(s, s.cells.findIndex(c => c >= 0)).state; continue; } const m = moves(s)[(k * 5) % moves(s).length]; s = lay(s, m.slot, m.x, m.y).state; }
+  for (let k = 0; k < 9; k++) { if (s.due) { s = knock(s, s.cells.findIndex(c => c >= 0), k % 6).state; continue; } const m = moves(s)[(k * 5) % moves(s).length]; s = lay(s, m.slot, m.q, m.r).state; }
   const again = JSON.parse(JSON.stringify(s));
-  const step = g => (g.due ? knock(g, g.cells.findIndex(c => c >= 0)) : lay(g, moves(g)[0].slot, moves(g)[0].x, moves(g)[0].y));
+  const step = g => (g.due ? knock(g, g.cells.findIndex(c => c >= 0), 0) : lay(g, moves(g)[0].slot, moves(g)[0].q, moves(g)[0].r));
   check(JSON.stringify(step(s)) === JSON.stringify(step(again)), "a game saved and opened again goes on as it would have");
 }
 
 // ---------- whole games ----------
 {
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
-  // the knock that fells most
-  const most = s => chains(s.cells, s.bell).reduce((a, c) => (!a || c.best.fell > a.fell || (c.best.fell === a.fell && c.best.gain > a.gain) ? c.best : a), null).at;
-  // the corner: every piece as near the top left as it goes
+  // the push that scores most
+  const most = s => chains(s.cells, s.bell).reduce((a, c) => (!a || c.best.gain > a.gain ? c.best : a), null);
+  // the corner: every piece as near the top as it goes
   const corner = s => moves(s)[0];
   // keeping what a piece joins falling whole, and room for the rest of the hand
   const careful = s => {
-    let best = null, bv = -Infinity;
+    let pick = null, bv = -Infinity;
     for (const m of moves(s)) {
-      const h = s.hand[m.slot], sq = cover(s.cells, h.piece, m.x, m.y), cells = s.cells.slice();
+      const h = s.hand[m.slot], sq = cover(s.cells, h.piece, m.q, m.r), cells = s.cells.slice();
       for (const k of sq) cells[k] = h.colour;
       const b = longest(cells, sq[0]);
       let room = 0;
       for (const k of s.hand) if (k && k !== h && fitsAnywhere(cells, k.piece)) room++;
       const v = b.fell * 3 - (b.size - b.fell) * 4 + room * 25;
-      if (v > bv) { bv = v; best = m; }
+      if (v > bv) { bv = v; pick = m; }
     }
-    return best;
+    return pick;
   };
   const play = (seed, choose) => {
     let s = newGame(seed);
     while (!s.over && s.laid < 1000) {
-      if (s.due) { s = knock(s, most(s)).state; continue; }
+      if (s.due) { const b = most(s); s = knock(s, b.at, b.dir).state; continue; }
       const m = choose(s);
-      s = lay(s, m.slot, m.x, m.y).state;
+      s = lay(s, m.slot, m.q, m.r).state;
     }
     return s.laid;
   };
   const corners = [], cares = [];
   for (let g = 0; g < 8; g++) { corners.push(play(100 + g, corner)); cares.push(play(100 + g, careful)); }
-  check(median(corners) < 70, `laying every piece in the corner: over after about ${median(corners)} pieces`);
-  check(median(cares) > 1.5 * median(corners) && Math.max(...cares) < 1000, `keeping lines that fall whole: about ${median(cares)} pieces, and still over in the end`);
+  check(median(corners) < 60, `laying every piece in the corner: over after about ${median(corners)} pieces`);
+  check(median(cares) > 2 * median(corners) && Math.max(...cares) < 1000, `keeping lines that fall whole: about ${median(cares)} pieces, and still over in the end`);
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("topple: the deal, where pieces fit, how dominoes fall, knocks and the bell, the knock on the table's time, the end, old games, saving, whole games");
+else console.log("topple: the table, the deal, the pieces, where they fit, how dominoes fall, pushes and the bell, the pace of the knocks, the end, saving, whole games");

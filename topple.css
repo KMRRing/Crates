@@ -1,6 +1,6 @@
-/* Topple: the table (eight squares by eight, on a felt), the dominoes standing on it in three enamels, each colour with
-   pips of its own (one, two, three a half) so they're told apart without their colour, the bell in brass, and under it
-   the three pieces to drag. The knock's ochre is the house colour. */
+/* Topple: the table (sixty-one hexagons, on a felt, in a brass rim), the dominoes standing on it in three enamels, each
+   colour with pips of its own (one, two, three a half) so they're told apart without their colour, the bell in brass, and
+   under it the three pieces to drag. The knock's ochre is the house colour. */
 :root {
   --tp-in: var(--c0);
   --tp-soft: color-mix(in srgb, var(--tp-in) 15%, var(--sheet));
@@ -16,32 +16,36 @@
 .tp-knock { display: inline-block; padding: .1rem .45rem; border-radius: 4px; font-size: .84rem; font-weight: 700; white-space: nowrap; }
 .tp-knock.now { background: var(--tp-in); color: var(--on-c0); font-weight: 800; }
 
-/* the table: square, as large as its room allows */
+/* the table: as large as its room allows, in the shape of its drawing (page script sets --ratio, its width over its height) */
 .tp-table { position: relative; place-items: center; }
-.tp-board { width: min(100cqw, 100cqh); height: min(100cqh, 100cqw); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
-.tp-felt { fill: var(--tp-felt); stroke: var(--tile-edge); stroke-width: .35; }
-.tp-grid line { stroke: color-mix(in srgb, var(--c1) 26%, var(--sheet)); stroke-width: .25; }
+.tp-board { --ratio: 1.1; width: min(100cqw, calc(100cqh * var(--ratio))); aspect-ratio: var(--ratio); display: block; touch-action: none; overflow: visible; -webkit-user-select: none; user-select: none; }
+.tp-felt > path:first-child { fill: var(--tp-felt); stroke: color-mix(in srgb, var(--c1) 26%, var(--sheet)); stroke-width: .25; stroke-linejoin: round; }
+.tp-rim { fill: none; stroke: var(--brass); stroke-width: .8; stroke-linecap: round; }
 
-/* the dominoes, standing on their foot, so they fall from it */
-.tp-domino { transform-box: fill-box; transform-origin: 50% 100%; }
-.tp-domino > rect { stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .35; }
-.tp-domino.k0 > rect { fill: var(--c0); }
-.tp-domino.k1 > rect { fill: var(--c1); }
-.tp-domino.k2 > rect { fill: var(--c2); }
+/* the dominoes, tipping over from where they stand */
+.tp-domino { transform-box: fill-box; transform-origin: 50% 50%; }
+.tp-body { stroke: color-mix(in srgb, var(--ink) 45%, transparent); stroke-width: .35; stroke-linejoin: round; }
+.tp-domino.k0 .tp-body { fill: var(--c0); }
+.tp-domino.k1 .tp-body { fill: var(--c1); }
+.tp-domino.k2 .tp-body { fill: var(--c2); }
 .tp-domino circle { fill: var(--on-c); }
-.tp-bar { fill: none; stroke: var(--on-c); stroke-width: .4; opacity: .7; }
+.tp-bar { fill: none; stroke: var(--on-c); stroke-width: .4; stroke-linecap: round; opacity: .7; }
 .tp-domino.k0 circle { fill: var(--on-c0); }
 .tp-domino.k0 .tp-bar { stroke: var(--on-c0); }
 .tp-domino.ghost { opacity: .7; }
-.tp-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; }
+.tp-ring { fill: none; stroke: var(--ink); stroke-width: .55; stroke-dasharray: 1.4 .9; stroke-linejoin: round; }
 /* what a knock would leave standing: a faint ring, crossed off nothing */
-.tp-stay { fill: color-mix(in srgb, var(--sheet) 45%, transparent); stroke: var(--ink-soft); stroke-width: .3; stroke-dasharray: .5 .7; }
-/* the bell: on an empty square whole; on a domino, small at its corner and the square ringed */
+.tp-stay { fill: color-mix(in srgb, var(--sheet) 45%, transparent); stroke: var(--ink-soft); stroke-width: .3; stroke-dasharray: .5 .7; stroke-linejoin: round; }
+/* the six ways to push a pressed domino, round it; the one slid to filled */
+.tp-arrow { fill: color-mix(in srgb, var(--sheet) 80%, transparent); stroke: var(--ink); stroke-width: .35; stroke-linejoin: round; }
+.tp-arrow.on { fill: var(--ink); }
+/* the bell: on an empty hexagon whole; on a domino, small at its corner and the hexagon ringed */
 .tp-bell { fill: var(--tp-in); stroke: color-mix(in srgb, var(--ink) 60%, transparent); stroke-width: .3; }
 .tp-swing { transform-box: fill-box; transform-origin: 50% 15%; }
 .tp-bell circle { fill: var(--sheet); stroke: var(--tp-in); stroke-width: .5; }
-.tp-bell-ring { fill: none; stroke: var(--tp-in); stroke-width: .7; }
+.tp-bell-ring { fill: none; stroke: var(--tp-in); stroke-width: .7; stroke-linejoin: round; }
 .tp-board text.tp-tag { font-size: 4.4px; font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.4px; stroke-linejoin: round; }
+.tp-board text.tp-gain { font-size: 3.6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
 .tp-board text.tp-pop { font-size: 6px; font-weight: 800; fill: var(--ink); text-anchor: middle; dominant-baseline: middle; paint-order: stroke; stroke: var(--sheet); stroke-width: 1.3px; pointer-events: none; }
 .tp-board text.tp-pop.big { font-size: 8px; }
 .tp-board .tp-hint text { font-size: 4.2px; font-weight: 650; fill: var(--ink-soft); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--tp-felt); stroke-width: 1.6px; stroke-linejoin: round; }
@@ -66,7 +70,7 @@
 .tp-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
 /* the piece in your hand, over everything, at the table's size */
 .tp-float { position: fixed; z-index: 30; pointer-events: none; filter: drop-shadow(0 6px 8px rgba(28, 42, 52, .3)); }
-.tp-float svg { width: 100%; height: 100%; display: block; }
+.tp-float svg { width: 100%; height: 100%; display: block; overflow: visible; }
 
 .tp-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
