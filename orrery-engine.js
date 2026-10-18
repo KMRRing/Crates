@@ -1,22 +1,45 @@
-// Orrery's rules, pure (no page): four brass rings of twelve places round a sun, planets of four colours standing in
-// some of them. A move turns one ring one place, either way. Three or more planets of one colour on one spoke, in
-// neighbouring rings, are a conjunction, and they clear. Then the planets foretold arrive: each was shown a turn ahead
-// at its place and lands there, or, if the turn has put a planet in it, on the next empty place clockwise round its
-// ring (then the rings beyond); a landing can complete a conjunction too. More are foretold as the game goes on, and
-// an orrery with no empty place left ends it. Conjunctions on both ends of a diameter in one turn are a syzygy, a
-// line through the sun, and double the turn's score. And every few turns a comet, foretold on its spoke from the
-// moment the last one passed, comes in along it to the sun, and whatever stands on that spoke is swept away, unscored.
-// The page (orrery.js) draws it; tests/orrery.mjs checks this.
+// Orrery's rules, pure (no page): five brass rings turn round a sun, each at a speed of its own, each with twelve places
+// for planets of four colours. Rings carry their planets round, so what lines up with what changes all the time:
+// three, four or five planets of one colour, one to a ring, on one line out from the sun, held there for a moment, are
+// an alignment, and they clear and score. You turn a ring by hand, hold it still to stop it, or send it round faster
+// than it goes; a ring you let go of drifts back to its own pace (its mainspring), so a line has to be made and held
+// before the rings carry it apart. Every few seconds a new planet lands on a ring, foretold a moment before; more
+// often as the game goes on; an orrery with no place left for one ends the game.
+// The page (orrery.js) draws it and moves the rings under a finger; tests/orrery.mjs checks this.
 //
-// A game is one object, as saved: { v, seed, n (draws made), places (a colour 0–3 or -1 empty, ring by ring from the
-// sun, each ring from twelve o'clock clockwise), coming ([{ ring, place, colour }], foretold), comet ({ spoke, in }:
-// where the next comes, and in how many turns), turns, score, over }.
+// Angles are in radians clockwise from twelve o'clock, as a clock's. A game is one object, as saved: { v, seed, n
+// (draws made), t (seconds played), rings ([{ a (the ring's turn), w (its speed, radians a second), held (a finger on
+// it: the page moves it), places (twelve colours 0–3 or -1 empty, from the ring's own twelve o'clock clockwise) }]),
+// next ({ due (when it lands), ring, place, colour }: the planet foretold; ring -1 where no place was free then),
+// locks ([{ ids, t }]: the alignments that are charging, and for how long), score, cleared (planets), aligned
+// (alignments made), combo, lastLock (when), over }. `live` is what a step worked out for the page to draw: not saved.
 
-export const RINGS = 4, PLACES = 12, COLOURS = 4, START = 16, COMET_EVERY = 9;
-// how many planets are foretold a turn: until so many turns, so many
-export const PACE = [[25, 1], [70, 2], [130, 3], [Infinity, 4]];
-export const foretold = turns => PACE.find(([until]) => turns < until)[1];
-export const at = (ring, place) => ring * PLACES + place;
+export const RINGS = 5, PLACES = 12, COLOURS = 4, START = 14;
+export const TAU = Math.PI * 2, STEP = TAU / PLACES;
+/** Each ring's own speed (radians a second, clockwise positive): the inner ring fastest, neighbours opposite ways, the outer all
+ *  but still. No two are within 0.28 of each other, so two rings pass a line-up faster than DWELL allows: it takes a hand. */
+export const PACE = [0.62, -0.54, 0.3, -0.26, 0.02];
+export const SPRING = 10;                    // seconds a ring takes to settle back (to 1/e of the way) to its pace
+export const WMAX = 1.6;                     // the fastest a ring can be sent
+export const TOL = 0.08;                     // half the spread (radians, 4.6 degrees) planets may have and still be in line
+export const DWELL = 0.7;                    // seconds in line before they clear; 2 × TOL over the smallest gap in PACE (0.57) must stay clear of it, or chance clears lines
+/** What an alignment of 3, 4 or 5 planets is worth, before the combo. */
+export const AWARD = [0, 0, 0, 100, 300, 700];
+export const COMBO_WINDOW = 4;               // seconds after one alignment in which the next counts on the combo
+export const FORETELL = 1.2;                 // seconds a planet is shown before it lands
+/** Seconds between planets at game time t: 4 at first, 0.7 at the quickest (from the fifth minute). */
+export const gap = t => Math.max(0.7, 4 - t / 90);
+/** The score multiplier at a combo (1, then a quarter more for each alignment in a run, to three times). */
+export const multiplier = combo => Math.min(3, 1 + 0.25 * Math.max(0, combo - 1));
+
+export const norm = a => ((a % TAU) + TAU) % TAU;
+/** The shortest turn from angle a to angle b (-π to π). */
+export const between = (a, b) => ((((b - a) % TAU) + 3 * Math.PI) % TAU) - Math.PI;
+export const id = (ring, place) => ring * PLACES + place;
+/** Where a place is now, clockwise from twelve o'clock. */
+export const angleOf = (s, ring, place) => norm(s.rings[ring].a + place * STEP);
+export const room = s => s.rings.reduce((n, r) => n + r.places.filter(c => c < 0).length, 0);
+export const planets = s => RINGS * PLACES - room(s);
 
 function draw(seed, n) {
   let a = (Math.imul((seed >>> 0) ^ 0x9E3779B9, 0x85EBCA6B) ^ Math.imul((n >>> 0) + 0x632BE5AB, 0xC2B2AE35)) >>> 0;
@@ -25,116 +48,134 @@ function draw(seed, n) {
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
-const pick = (s, k) => Math.floor(draw(s.seed, s.n++) * k);
+const rnd = s => draw(s.seed, s.n++);
+const pick = (s, k) => Math.floor(rnd(s) * k);
 
-/** The places in conjunctions: three or more of a colour on a spoke, in neighbouring rings (each place once). */
-export function conjunctions(places) {
+// ---------- alignments ----------
+/**
+ * The alignments standing: planets of one colour, three or more, one to a ring, all within 2 × TOL of each other
+ * round the sun: [{ colour, ids, members ([{ ring, place }]), angle (their middle), spread }], the largest first.
+ */
+export function clusters(s) {
+  const by = Array.from({ length: COLOURS }, () => []);
+  s.rings.forEach((r, ring) => r.places.forEach((c, place) => { if (c >= 0) by[c].push({ ring, place, a: angleOf(s, ring, place) }); }));
   const out = [];
-  for (let p = 0; p < PLACES; p++) {
-    let start = 0;
-    for (let r = 1; r <= RINGS; r++) {
-      if (r < RINGS && places[at(r, p)] >= 0 && places[at(r, p)] === places[at(start, p)]) continue;
-      if (places[at(start, p)] >= 0 && r - start >= 3) for (let k = start; k < r; k++) out.push(at(k, p));
-      start = r;
+  by.forEach((pool, colour) => {
+    for (;;) {
+      let best = null;
+      for (const anchor of pool) {
+        const win = pool.filter(q => (q.a - anchor.a + TAU) % TAU <= 2 * TOL), spread = Math.max(...win.map(q => (q.a - anchor.a + TAU) % TAU));
+        if (win.length >= 3 && (!best || win.length > best.win.length || (win.length === best.win.length && spread < best.spread))) best = { anchor, win, spread };
+      }
+      if (!best) break;
+      pool = pool.filter(q => !best.win.includes(q));
+      out.push({ colour, ids: best.win.map(q => id(q.ring, q.place)).sort((a, b) => a - b), members: best.win.map(q => ({ ring: q.ring, place: q.place })), angle: norm(best.anchor.a + best.spread / 2), spread: best.spread });
+    }
+  });
+  return out.sort((a, b) => b.ids.length - a.ids.length);
+}
+
+// ---------- a game ----------
+/** The place a planet could land on: of two rings picked at random the one with more room, then a free place on it, or null. */
+function spot(s) {
+  const open = s.rings.flatMap((r, ring) => (r.places.includes(-1) ? [ring] : []));
+  if (!open.length) return null;
+  const free = ring => s.rings[ring].places.filter(c => c < 0).length;
+  const a = open[pick(s, open.length)], b = open[pick(s, open.length)], ring = free(b) > free(a) ? b : a;
+  const places = s.rings[ring].places.flatMap((c, p) => (c < 0 ? [p] : []));
+  return { ring, place: places[pick(s, places.length)] };
+}
+/** A colour for a newcomer: any, but the scarcer ones likelier, so every colour stays in play. */
+function colourFor(s) {
+  const count = new Array(COLOURS).fill(0);
+  for (const r of s.rings) for (const c of r.places) if (c >= 0) count[c]++;
+  const top = Math.max(...count), weight = count.map(n => 1 + top - n), total = weight.reduce((a, b) => a + b, 0);
+  let x = rnd(s) * total;
+  for (let c = 0; c < COLOURS; c++) if ((x -= weight[c]) < 0) return c;
+  return COLOURS - 1;
+}
+/** Foretells the next planet, to land a gap after now. */
+function foretell(s) {
+  const at = spot(s) ?? { ring: -1, place: -1 };
+  s.next = { due: s.t + gap(s.t), ring: at.ring, place: at.place, colour: colourFor(s) };
+}
+
+/** A new game from a seed: rings turned to anywhere, START planets in places, none in line yet, the first foretold. */
+export function newGame(seed) {
+  const s = { v: 2, seed: seed >>> 0, n: 0, t: 0, rings: [], next: null, locks: [], score: 0, cleared: 0, aligned: 0, combo: 0, lastLock: -1e9, over: false };
+  for (let r = 0; r < RINGS; r++) s.rings.push({ a: rnd(s) * TAU, w: PACE[r], held: false, places: new Array(PLACES).fill(-1) });
+  // the colours in turn, so each is dealt as often as the others (to within one) and can line up
+  for (let k = 0; k < START; k++) {
+    const at = spot(s);
+    s.rings[at.ring].places[at.place] = k % COLOURS;
+  }
+  // none in line at the start: swap colours with another planet until nothing is, which keeps the count of each
+  const all = () => s.rings.flatMap((r, ring) => r.places.flatMap((c, place) => (c >= 0 ? [{ ring, place, c }] : [])));
+  for (let guard = 0; guard < 500 && clusters(s).length; guard++) {
+    const c = clusters(s)[0], m = c.members[pick(s, c.members.length)], other = all().filter(q => q.c !== c.colour);
+    const o = other[pick(s, other.length)];
+    s.rings[m.ring].places[m.place] = o.c;
+    s.rings[o.ring].places[o.place] = c.colour;
+  }
+  foretell(s);
+  s.live = { clusters: [] };
+  return s;
+}
+export const valid = g => !!g && g.v === 2 && Array.isArray(g.rings) && g.rings.length === RINGS && g.rings.every(r => Array.isArray(r.places) && r.places.length === PLACES && Number.isFinite(r.a) && Number.isFinite(r.w)) && !!g.next && Number.isFinite(g.t);
+/** A copy of a game, to try something on. */
+export const copy = s => structuredClone({ ...s, live: undefined });
+
+// ---------- the hand on a ring ----------
+const clamp = w => Math.max(-WMAX, Math.min(WMAX, w));
+/** A finger comes down on a ring: it's the finger's to move (turnTo) until release. */
+export function grab(s, ring) { s.rings[ring].held = true; }
+/** The finger turns the ring to angle a, at speed w. */
+export function turnTo(s, ring, a, w = 0) { const r = s.rings[ring]; r.a = norm(a); r.w = clamp(w); }
+/** The finger lets go, the ring carrying on at speed w (0: stopped), and drifting back to its pace from there. */
+export function release(s, ring, w = 0) { const r = s.rings[ring]; r.held = false; r.w = clamp(w); }
+
+// ---------- time passing ----------
+/**
+ * Lets `dt` seconds pass, in place: the rings turn (those with no finger on them drifting back to their pace),
+ * the planet foretold lands when it's due, alignments are looked for and charge, and those that have held long enough
+ * clear. Returns what happened for the page to show and sound: { type: "land", ring, place, colour } | { type: "lock",
+ * colour, members, angle, n, gain, combo } | { type: "over" }. Small steps, a twentieth of a second or so, so that no
+ * alignment is stepped over.
+ */
+export function step(s, dt) {
+  const events = [];
+  if (s.over) return events;
+  s.t += dt;
+  const k = 1 - Math.exp(-dt / SPRING);
+  s.rings.forEach((r, i) => { if (!r.held) { r.w += (PACE[i] - r.w) * k; r.a = norm(r.a + r.w * dt); } });
+  while (s.next && s.t >= s.next.due) {
+    let { ring, place, colour } = s.next;
+    if (ring < 0 || s.rings[ring].places[place] >= 0) { const at = spot(s); if (!at) { s.over = true; events.push({ type: "over" }); s.live = { clusters: [] }; return events; } ({ ring, place } = at); }
+    s.rings[ring].places[place] = colour;
+    events.push({ type: "land", ring, place, colour });
+    foretell(s);
+  }
+  // alignments: each charges while it holds (and keeps its charge as it gains a planet or loses one)
+  const now = clusters(s), before = s.locks, locks = [];
+  const live = [];
+  for (const c of now) {
+    const prev = before.filter(b => b.ids.every(x => c.ids.includes(x)) || c.ids.every(x => b.ids.includes(x))).reduce((m, b) => Math.max(m, b.t), 0);
+    const t = prev + dt;
+    if (t >= DWELL) {
+      s.combo = s.t - s.lastLock <= COMBO_WINDOW ? s.combo + 1 : 1;
+      s.lastLock = s.t;
+      const n = c.ids.length, gain = Math.round(AWARD[n] * multiplier(s.combo));
+      for (const m of c.members) s.rings[m.ring].places[m.place] = -1;
+      s.score += gain;
+      s.cleared += n;
+      s.aligned++;
+      events.push({ type: "lock", colour: c.colour, members: c.members, angle: c.angle, n, gain, combo: s.combo });
+    } else {
+      locks.push({ ids: c.ids, t });
+      live.push({ colour: c.colour, members: c.members, angle: c.angle, spread: c.spread, progress: t / DWELL, n: c.ids.length });
     }
   }
-  return out.sort((a, b) => a - b);
+  s.locks = locks;
+  s.live = { clusters: live };
+  return events;
 }
-/** A colour for an empty place that makes no conjunction there as things stand. */
-function quiet(s, places, i) {
-  const ok = [...Array(COLOURS).keys()].filter(c => { const t = places.slice(); t[i] = c; return !conjunctions(t).includes(i); });
-  return ok.length ? ok[pick(s, ok.length)] : pick(s, COLOURS);
-}
-const empties = places => places.flatMap((c, i) => (c < 0 ? [i] : []));
-/** Foretells the next turn's planets: on empty places, none making a conjunction as things stand. */
-function foretell(s) {
-  s.coming = [];
-  const free = empties(s.places);
-  for (let k = foretold(s.turns); k > 0 && free.length; k--) {
-    const i = free.splice(pick(s, free.length), 1)[0];
-    s.coming.push({ ring: Math.floor(i / PLACES), place: i % PLACES, colour: quiet(s, s.places, i) });
-  }
-}
-
-const comet = s => ({ spoke: pick(s, PLACES), in: COMET_EVERY });
-/** A new game from a seed: START planets in place, none in a conjunction, the first foretold, and a comet. */
-export function newGame(seed) {
-  const s = { v: 1, seed: seed >>> 0, n: 0, places: new Array(RINGS * PLACES).fill(-1), coming: [], comet: null, turns: 0, score: 0, over: false };
-  for (let k = 0; k < START; k++) {
-    const free = empties(s.places), i = free[pick(s, free.length)];
-    s.places[i] = quiet(s, s.places, i);
-  }
-  foretell(s);
-  s.comet = comet(s);
-  return s;
-}
-/** A game saved before comets came in, given one. */
-export function upgrade(game) {
-  if (game.comet) return game;
-  const s = structuredClone(game);
-  s.comet = comet(s);
-  return s;
-}
-/** The diameters (spokes p and p + 6) with a conjunction at both ends, among these cleared places: a syzygy each. */
-export function syzygies(cleared) {
-  const spokes = new Set(cleared.map(i => i % PLACES)), out = [];
-  for (let p = 0; p < PLACES / 2; p++) if (spokes.has(p) && spokes.has(p + PLACES / 2)) out.push(p);
-  return out;
-}
-/** Ten times the square of the planets cleared in one turn. */
-export const worth = n => 10 * n * n;
-
-/** The orrery with one ring turned so many places clockwise (nothing cleared yet). */
-export function turned(places, ring, by) {
-  const out = places.slice(), k = ((by % PLACES) + PLACES) % PLACES;
-  for (let p = 0; p < PLACES; p++) out[at(ring, (p + k) % PLACES)] = places[at(ring, p)];
-  return out;
-}
-
-/** Where a foretold planet lands: its own place if it's empty, else the next empty one clockwise, ring by ring out. */
-export function landing(places, ring, place) {
-  for (let k = 0; k < RINGS * PLACES; k++) {
-    const r = (ring + Math.floor((place + k) / PLACES)) % RINGS, i = at(r, (place + k) % PLACES);
-    if (places[i] < 0) return i;
-  }
-  return -1;
-}
-/**
- * Turns a ring a place ({ ring, by }: 1 clockwise, -1 back) and plays the turn out: the game after it, and what happened,
- * for the page to show: first (the conjunctions the turn made), landed ([{ ...foretold, at }]: where each came down),
- * then (the conjunctions the landings made), syzygy (the diameters lined up at both ends, doubling the gain), gain,
- * swept (the places a comet cleared, if one came), over. Pure: the game passed in is left as it was.
- */
-export function turn(game, { ring, by }) {
-  if (Math.abs(by) !== 1 || !(ring >= 0 && ring < RINGS)) throw new Error("a ring turns one place a move");
-  const s = structuredClone(game);
-  if (s.over) return { state: s, first: [], landed: [], then: [], syzygy: [], gain: 0, swept: [], over: true };
-  s.places = turned(s.places, ring, by);
-  const first = conjunctions(s.places);
-  for (const i of first) s.places[i] = -1;
-  const landed = [];
-  for (const c of s.coming) {
-    const i = landing(s.places, c.ring, c.place);
-    if (i < 0) break;
-    s.places[i] = c.colour;
-    landed.push({ ...c, at: i });
-  }
-  const then = conjunctions(s.places);
-  for (const i of then) s.places[i] = -1;
-  const syzygy = syzygies([...first, ...then]);
-  const gain = first.length + then.length ? worth(first.length + then.length) * (syzygy.length ? 2 : 1) : 0;
-  s.score += gain;
-  s.turns++;
-  // the comet: down its spoke to the sun, sweeping it clear
-  const swept = [];
-  if (--s.comet.in <= 0) {
-    for (let r = 0; r < RINGS; r++) { const i = at(r, s.comet.spoke); if (s.places[i] >= 0) { s.places[i] = -1; swept.push(i); } }
-    s.comet = comet(s);
-  }
-  foretell(s);
-  s.over = !s.places.some(c => c < 0);
-  return { state: s, first, landed, then, syzygy, gain, swept, over: s.over };
-}
-/** Every turn there is, each ring a place either way: [{ ring, by }]. For the tests and the tuning players. */
-export const moves = () => [...Array(RINGS).keys()].flatMap(ring => [{ ring, by: 1 }, { ring, by: -1 }]);
-export const filled = s => s.places.filter(c => c >= 0).length;

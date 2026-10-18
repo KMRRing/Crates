@@ -26,17 +26,18 @@
 
   <div class="or-strip">
     <span class="or-score">Score <b id="score">0</b></span>
+    <span id="combo" class="or-combo" aria-live="polite"></span>
     <span class="or-room">Room <b id="room">0</b></span>
     <span class="or-best">Best <b id="best">0</b></span>
   </div>
   <section id="sky" class="or-sky fit-grow fit-box" aria-label="The orrery">
-    <svg id="board" class="or-board" xmlns="http://www.w3.org/2000/svg" viewBox="-67 -67 134 134" role="img" aria-label="The orrery"></svg>
+    <div id="stage" class="or-stage">
+      <svg id="over" class="or-over" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+    </div>
   </section>
 
   <section class="or-side">
-    <div id="tray" class="or-tray">
-      <p id="line" class="or-line"></p>
-    </div>
+    <p id="line" class="or-line"></p>
     <div id="result" class="or-result" hidden>
       <p id="verdict" class="or-verdict"></p>
       <button class="or-go" type="button" id="againBtn">New game</button>
@@ -49,7 +50,6 @@
   <div id="menuBody"></div>
 </dialog>
 
-<p id="toast" class="or-toast" role="status" aria-live="polite"></p>
 <script type="module" src="orrery.js"></script>
 </body>
 </html>
