@@ -1,12 +1,12 @@
 // Heliograph in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): a glass tube on a
 // brass-rimmed plate, open at the top under a frame of spokes; the port in the frame lets the light fall; a crown on a
-// spindle in the middle hangs the chandelier of crystals, a string under each of its places; the two colour crystals
+// spindle in the middle, skirted in smoked glass, hangs the chandelier of crystals, a string under each of its places; the two colour crystals
 // turn slowly low in the tube; the mirrors stand on brass stems from the floor. Nothing is a model or a texture: the shapes
 // are made in code and the brass, glass and crystal are worked out in shaders. The camera is heliograph-view.js's, so
 // what the page picks is what is drawn. The page calls draw() whenever anything changes and shot() to play a shot out;
 // heliograph-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { R, H, PR, CR, MR, PORT, CROWN_Y, CROWN_R, CELLS, LOSE_Y, LY, CRYSTALS, pieces, crystalsAt } from "./heliograph-engine.js";
+import { R, H, PR, CR, MR, PORT, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, CELLS, LOSE_Y, LY, CRYSTALS, pieces, crystalsAt } from "./heliograph-engine.js";
 
 const TAU = Math.PI * 2, DOUBLE = 2, ADD = 2;                 // THREE.DoubleSide, AdditiveBlending (not in the bundle's exports)
 const UP = new THREE.Vector3(0, 1, 0);
@@ -233,6 +233,18 @@ export function createScene(host, view) {
   const crown = new THREE.Mesh(revolve([[0, 0.09, 0, 1], [CROWN_R * 0.55, 0.09, 0, 1], [CROWN_R * 0.55, 0.09, 0.3, 0.95], [CROWN_R, 0.02, 0.3, 0.95], [CROWN_R, 0.02, 1, 0], [CROWN_R, -0.05, 1, 0], [CROWN_R, -0.05, 0, -1], [0, -0.05, 0, -1]], 64), brass);
   crown.position.y = CROWN_Y;
   scene.add(crown);
+  // the skirt round the crown: smoked glass in a brass frame, so the top layers show through it but the light can't
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(SKIRT_R, SKIRT_R, CROWN_Y - SKIRT_Y, 72, 1, true),
+    surface({ main: "outgoingLight = lit(uBrass * .55, normalize(vNw), .6, 30., .5); diffuseColor.a = .5;", transparent: true, depthWrite: false }));
+  skirt.position.y = (CROWN_Y + SKIRT_Y) / 2;
+  skirt.renderOrder = 5;
+  scene.add(skirt);
+  for (const y of [SKIRT_Y, CROWN_Y]) { const h = new THREE.Mesh(torus(SKIRT_R, 0.05, 96, 8), brass); h.position.y = y; scene.add(h); }
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * TAU, m = new THREE.Mesh(rod, brass);
+    rodTo(m, new THREE.Vector3(Math.sin(a) * SKIRT_R, SKIRT_Y, Math.cos(a) * SKIRT_R), new THREE.Vector3(Math.sin(a) * SKIRT_R, CROWN_Y, Math.cos(a) * SKIRT_R), 0.025);
+    scene.add(m);
+  }
   // the line the cluster must not cross, faint on the glass
   const danger = new THREE.Mesh(torus(R - 0.01, 0.025, 128, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false }));
   danger.position.y = LOSE_Y;

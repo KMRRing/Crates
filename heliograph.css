@@ -40,7 +40,7 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 /* under the tube: a line, then the colours coming, the mirrors in hand, Take back, Fire; at the end, how it went */
 .hg-side { display: grid; gap: .4rem; }
 .hg-say { margin: .2rem 0 0; height: 1.3rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .9rem; font-weight: 650; color: var(--ink-soft); text-align: center; }
-.hg-tray { display: grid; grid-template-columns: 1fr 1.1fr 1fr 1.45fr; gap: .45rem; height: 4rem; }
+.hg-tray { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1.4fr; gap: .45rem; height: 4rem; }
 .hg-tray[hidden] { display: none; }
 .hg-colour { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; justify-items: center; gap: .15rem; padding: .3rem .35rem; border-radius: 6px; background: var(--hg-soft); }
 .hg-colour svg.now { width: 2.2rem; max-width: 100%; height: 2.2rem; }

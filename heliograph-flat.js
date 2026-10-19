@@ -1,7 +1,7 @@
 // Heliograph drawn flat, for a device without WebGL: the same tube, crystals, mirrors and light as heliograph-3d.js, in
 // a canvas, by the same camera (heliograph-view.js), farthest first. It answers to the same calls, so the page plays the
 // same either way; a shot shows at once rather than played out.
-import { R, H, PR, CR, MR, PORT, CROWN_Y, CROWN_R, LOSE_Y, pieces, crystalsAt } from "./heliograph-engine.js";
+import { R, H, PR, CR, MR, PORT, CROWN_Y, CROWN_R, SKIRT_R, SKIRT_Y, LOSE_Y, pieces, crystalsAt } from "./heliograph-engine.js";
 
 const TAU = Math.PI * 2;
 const SHAPES = [6, 4, 4, 6];                          // each colour's cut as a polygon's corners, turned as below
@@ -57,6 +57,10 @@ export function createFlat(host, view) {
     }
     ring(LOSE_Y, R, k.danger, 1, [5, 4]);
     ring(CROWN_Y, CROWN_R, k.brass, 2);
+    const skirt = () => {             // the skirt round the crown, drawn over the top layers it hides
+      ring(SKIRT_Y, SKIRT_R, k.brass, 2);
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * TAU, [x0, y0] = P([Math.sin(a) * SKIRT_R, SKIRT_Y, Math.cos(a) * SKIRT_R]), [x1, y1] = P([Math.sin(a) * SKIRT_R, CROWN_Y, Math.cos(a) * SKIRT_R]); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.strokeStyle = k.brass; ctx.lineWidth = 1; ctx.stroke(); }
+    };
     const [px, py] = P(PORT);
     ctx.beginPath(); ctx.arc(px, py, 5, 0, TAU); ctx.fillStyle = k.brass; ctx.fill();
     // everything with a place, farthest first
@@ -68,6 +72,7 @@ export function createFlat(host, view) {
     });
     for (const m of s.mirrors) items.push({ z: P(m.p)[2], draw: () => mirror(m, m.id === frame.sel) });
     items.sort((a, b) => b.z - a.z).forEach(i => i.draw());
+    skirt();
     // the light
     for (const leg of frame.path.legs) {
       const [x0, y0] = P(leg.a), [x1, y1] = P(leg.b);

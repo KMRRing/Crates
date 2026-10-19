@@ -4,10 +4,10 @@
 // carry the light through a colour crystal, which colours it and is spent (a new one appears), and on into the cluster:
 // the beam shatters every crystal of its colour it passes and stops at the first of another colour; through both colour
 // crystals it carries both colours and shatters either. White light does nothing to the cluster. Everything on a string
-// below a crystal shattered falls. Each chandelier hangs in a shape of its own (a cone, a bowl, a star…). Every few shots
-// it comes down a layer, a new crystal at the top of every string; when it reaches the line low on the glass the game is
-// over. The page (heliograph.js) draws it in 3D (heliograph-3d.js) or flat (heliograph-flat.js); tests/heliograph.mjs
-// checks this.
+// below a crystal shattered falls; a skirt round the crown hides the top two layers from the side. Each chandelier hangs
+// in a shape of its own (a cone, a bowl, a star…). Every few shots it comes down a layer, a new crystal at the top of
+// every string; when it reaches the line low on the glass the game is over. The page (heliograph.js) draws it in 3D
+// (heliograph-3d.js) or flat (heliograph-flat.js); tests/heliograph.mjs checks this.
 //
 // Space: y up from the floor (0) to the ceiling (H), the tube's axis at x = z = 0. A mirror is a disc silvered both
 // sides, where it stands and the way it faces: the player turns them freely, but may set, move or take back only two each
@@ -27,6 +27,9 @@ export const MR = 0.5;                             // a mirror's
 export const MIRRORS = 6;                          // mirrors to hand
 export const PORT = [0, H, 3.4];                   // where the light comes in, falling straight down
 export const CROWN_Y = H - 0.5, CROWN_R = 2.15;    // the crown the cluster hangs from: a disc the light stops at
+// a brass skirt round the crown, hiding the chandelier's top layers from the side: light reaches them only from below,
+// up through the chandelier, so cutting a string high (which brings the most down) has to be worked for
+export const SKIRT_R = 2.4, SKIRT_LAYERS = 2;
 export const TOP_Y = H - 1.05;                     // the top layer's height
 export const LY = 0.84;                            // between layers
 export const SPACING = 0.92;                       // between neighbours in a layer
@@ -34,6 +37,10 @@ export const START_LAYERS = 7;                     // the deepest a chandelier h
 export const MOVES = 2;                            // mirrors set, moved or taken back each shot (turning one is free)
 export const LOSE_Y = 2.2;                         // a crystal's foot below this ends the game
 export const CLEAR_BONUS = 1000;
+export const SKIRT_Y = TOP_Y - (SKIRT_LAYERS - 0.5) * LY;   // the skirt's foot
+/** A shot's points: ten times the square of the crystals the light shatters (a long run of a colour is worth most), and ten
+ *  for each that falls: cutting a string high brings it down, which buys time, but the points are in the runs. */
+export const worth = (shattered, fallen) => 10 * shattered * shattered + 10 * fallen;
 // shots between the cluster's drops: unhurried at first, then closer together, so a long game ends
 export const PACE = [[30, 6], [70, 5], [120, 4], [180, 3], [Infinity, 2]];
 export const dropEvery = shots => PACE.find(([until]) => shots < until)[1];
@@ -103,7 +110,7 @@ function newLayer(s, near, here = i => s.depth[i] > 0) {
   for (let i = 0; i < N; i++) {
     if (!here(i)) continue;
     const r = roll(s), set = CELLS[i].nb.filter(j => j < i && c[j] >= 0);
-    c[i] = near && near[i] >= 0 && r < 0.4 ? near[i] : set.length && r < 0.75 ? c[set[pick(s, set.length)]] : pick(s, COLOURS);
+    c[i] = near && near[i] >= 0 && r < 0.2 ? near[i] : set.length && r < 0.75 ? c[set[pick(s, set.length)]] : pick(s, COLOURS);
   }
   return { s: s.serial++, c };
 }
@@ -204,7 +211,7 @@ export const copy = s => JSON.parse(JSON.stringify(s));
  *  crystals and the other mirrors (`except`, the one being moved). */
 export function cantPlace(s, p, except = null) {
   if (radial(p) > R - MR - 0.1 || p[1] < MR + 0.1 || p[1] > H - 1.1) return "inside the tube";
-  if (radial(p) < CROWN_R + MR && p[1] > CROWN_Y - MR - 0.1) return "clear of the crown";
+  if (radial(p) < SKIRT_R + MR && p[1] > SKIRT_Y - MR - 0.1) return "clear of the crown";
   if (pieces(s).some(q => dist(q.p, p) < PR + MR * 0.9)) return "clear of the cluster";
   if (s.crystals.some(c => dist(at(c), p) < CR + MR + 0.1)) return "clear of the colour crystals";
   if (s.mirrors.some(m => m.id !== except && dist(m.p, p) < 2 * MR + 0.1)) return "clear of the other mirrors";
@@ -274,6 +281,19 @@ function hitSphere(o, d, c, r) {
   const t = -b - Math.sqrt(disc);
   return t > EPS ? t : Infinity;
 }
+/** Where a ray from o along d first meets the skirt round the crown (an open cylinder), or Infinity. */
+function hitSkirt(o, d) {
+  const a = d[0] * d[0] + d[2] * d[2], r = SKIRT_R, foot = SKIRT_Y;
+  if (a < EPS) return Infinity;
+  const b = 2 * (o[0] * d[0] + o[2] * d[2]), c = o[0] * o[0] + o[2] * o[2] - r * r, disc = b * b - 4 * a * c;
+  if (disc < 0) return Infinity;
+  for (const t of [(-b - Math.sqrt(disc)) / (2 * a), (-b + Math.sqrt(disc)) / (2 * a)]) {
+    if (t <= EPS) continue;
+    const y = o[1] + d[1] * t;
+    if (y >= foot && y <= CROWN_Y) return t;
+  }
+  return Infinity;
+}
 /** Where a ray from o along d leaves the tube (its wall, the floor, the ceiling), and which. */
 function leave(o, d) {
   let t = Infinity, what = "wall";
@@ -303,6 +323,11 @@ export function trace(s) {
     if (Math.abs(d[1]) > EPS) {
       const t = (CROWN_Y - o[1]) / d[1];
       if (t > EPS && t < best.t) { const q = add(o, mul(d, t)); if (radial(q) <= CROWN_R) { best = { t }; hit = { kind: "crown" }; } }
+    }
+    // its skirt, from either side
+    {
+      const t = hitSkirt(o, d);
+      if (t < best.t) { best = { t }; hit = { kind: "skirt" }; }
     }
     for (const m of s.mirrors) {
       if (m.id === from) continue;
@@ -362,8 +387,7 @@ export function fire(state) {
   removeIds(s, path.shattered);
   const fallen = unsupported(s);
   removeIds(s, fallen);
-  const n = path.shattered.length + fallen.length;
-  let gain = 10 * n * n;
+  let gain = worth(path.shattered.length, fallen.length);
   s.shots++;
   s.moves = MOVES; s.touched = []; s.placed = [];
   for (const k of path.crossed) spawnCrystal(s, k);
@@ -441,7 +465,7 @@ export function plan(state, how = "best", rnd = Math.random) {
   const look = how === "glance" ? Array.from({ length: 4 }, () => targets[Math.floor(rnd() * targets.length)]) : targets;
   let best = t, bestN = -1;
   for (const q of look) {
-    const u = tryAim(q), f = fire(u), n = f.shattered.length + f.fallen.length;
+    const u = tryAim(q), f = fire(u), n = f.gain;
     if (n > bestN) { best = u; bestN = n; }
   }
   return best;

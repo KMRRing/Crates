@@ -3,7 +3,7 @@
 // another, white light doing nothing), what a shot shatters and what falls from the strings, the points, the colour
 // crystals spent and replaced, where a mirror may stand, the cluster coming down (a new layer, mirrors under it back in
 // hand, the end), a game saved and opened again, and whole games by simple players.
-import { R, H, PR, MR, PORT, LY, LOSE_Y, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
+import { R, H, PR, MR, PORT, LY, LOSE_Y, SKIRT_R, SKIRT_Y, SKIRT_LAYERS, worth, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
   addMirror, moveMirror, turnMirror, takeMirror, pointMirror, cantPlace, clampInside, reflect, anglesOf, fromAngles, crystalsAt, plan } from "../heliograph-engine.js";
 
 let bad = 0;
@@ -72,7 +72,7 @@ function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to =
     "the light passes the colour crystal under the port, takes its colour, and two mirrors carry it");
   check(t.shattered.length === 5 && t.shattered.every(id => row.includes(id % 19)) && t.stop.what === "wall", "across the layer through all five crystals of its colour in a line, out to the glass");
   const f = fire(s);
-  check(f.fallen.length === 5 * (START_LAYERS - LAYER - 1) && f.gain === 10 * (5 + f.fallen.length) ** 2, `everything below them on their strings falls (${f.fallen.length}); the shot is ten times the square of all it brought down (+${f.gain})`);
+  check(f.fallen.length === 5 * (START_LAYERS - LAYER - 1) && f.gain === 10 * 5 * 5 + 10 * f.fallen.length && worth(5, 20) === 450, `everything below them on their strings falls (${f.fallen.length}); the shot is ten times the square of the run the light shattered and ten for each that fell (+${f.gain})`);
   check(pieces(f.state).length === 19 * START_LAYERS - 5 - f.fallen.length && f.state.shots === 1 && f.state.score === f.gain, "they're gone from the cluster; a shot counted, the points added");
   check(!near(crystalsAt(f.state)[0], [0, 3, 3.4]) && near(crystalsAt(f.state)[1], [-3, 2, -1]), "the colour crystal passed is spent and another stands somewhere; the other stays");
 
@@ -84,6 +84,18 @@ function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to =
   const two = across({ paint: (k, i) => (k === LAYER && row.includes(i) ? (i === row[2] ? 2 : 1) : null) }, [0, 3, 3.4, 1], [0, 6, 3.4, 2]), w = trace(two);
   check(w.crossed.join() === "1,0" && w.legs[1].cs.join() === "2" && w.legs.at(-1).cs.join() === "2,1" && w.shattered.length === 5, "through both colour crystals the light carries both colours and shatters crystals of either");
   check(fire(two).state.crystals.every((c, k) => !near([c.x, c.y, c.z], [[0, 3, 3.4], [0, 6, 3.4]][k])), "both crystals passed are spent");
+}
+
+// ---------- the skirt ----------
+{
+  // light sent level at the top layer's height meets the skirt round the crown; at the third layer it gets in
+  const top = across({ paint: () => 1 }, [0, 3, 3.4, 1], [-3, 2, -1, 2], [4.2, layerY(0), 0]);
+  const b = setUp({ paint: () => 1 });
+  check(SKIRT_Y > layerY(SKIRT_LAYERS) && SKIRT_Y < layerY(SKIRT_LAYERS - 1), `the skirt hides the top ${SKIRT_LAYERS} layers`);
+  const lvl = (y) => { let s = setUp({ paint: () => 1 }); s = addMirror(s, [0, 1.2, 3.4]); s = addMirror(s, [-4.2, y, 0]); s = pointMirror(s, 0, [-4.2, y, 0]); return trace(pointMirror(s, 1, [4.2, y, 0])); };
+  check(lvl(layerY(0)).stop.what === "skirt" && lvl(layerY(0)).shattered.length === 0 && lvl(layerY(2)).shattered.length === 5, "level light at the top layers meets the skirt; lower down it runs through");
+  check(/crown/.test(cantPlace(b, [SKIRT_R + 0.2, layerY(1), 0])) && cantPlace(b, [SKIRT_R + 0.8, layerY(1), 0]) === null, "no mirror stands against the skirt");
+  void top;
 }
 
 // ---------- where a mirror may stand ----------
@@ -114,13 +126,13 @@ function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to =
   deep.untilDrop = 1;
   check(!deep.over && fire(deep).state.over && fire(fire(deep).state).state.shots === fire(deep).state.shots, "a crystal reaching the line ends the game, and nothing more is fired");
   check([0, 29, 30, 70, 120, 180, 400].map(dropEvery).join() === "6,6,5,4,3,2,2", "the cluster comes down every six shots at first, then five, four, three and two");
-  const one = setUp({ layers: 1, paint: (k, i) => (row.includes(i) ? 1 : 2) });
-  one.layers[0].c = one.layers[0].c.map((c, i) => (row.includes(i) ? 1 : -1));
-  one.crystals = [{ x: 0, y: 3, z: 3.4, c: 1 }, { x: -3, y: 2, z: -1, c: 2 }];
-  let t = addMirror(addMirror(one, [0, 1.2, 3.4]), [-4.2, layerY(0), 0]);
-  t = pointMirror(pointMirror(t, 0, [-4.2, layerY(0), 0]), 1, [4.2, layerY(0), 0]);
+  // one string of three in the middle, shot straight up from under it: the light runs up inside the skirt
+  const mid = CELLS.findIndex(c => c.q === 0 && c.r === 0), one = setUp({ layers: 3, fill: 1 });
+  for (const l of one.layers) l.c = l.c.map((c, i) => (i === mid ? 1 : -1));
+  let t = addMirror(addMirror(one, [0, 1.2, 3.4]), [0, 1.2, 0], [0, 1, 1]);
+  t = pointMirror(pointMirror(t, 0, [0, 1.2, 0]), 1, [0, 13, 0]);
   const cl = fire(t);
-  check(cl.cleared && cl.gain === 10 * 25 + CLEAR_BONUS && cl.state.layers.length === Math.max(...cl.state.depth) && pieces(cl.state).length === cl.state.depth.reduce((x, y) => x + y, 0),
+  check(cl.cleared && cl.gain === 10 * 9 + CLEAR_BONUS && cl.state.layers.length === Math.max(...cl.state.depth) && pieces(cl.state).length === cl.state.depth.reduce((x, y) => x + y, 0),
     `a cluster cleared is 1,000 more, and a new one hangs from the crown (a ${cl.state.shape})`);
   const drop = setUp({ layers: 3 });
   drop.depth = CELLS.map((_, i) => (i % 2 ? 3 : 0));
