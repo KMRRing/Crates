@@ -24,6 +24,7 @@ const NAMES = ["Hinrich", "Gesa", "Claus", "Wiebke"];                  // the co
 
 let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, voice: true, flat: false, ...read(OPTS, {}) };
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
+if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "medium";      // Easy is gone (October 2026)
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
 const saveOpts = () => write(OPTS, opts);
 

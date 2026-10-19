@@ -362,9 +362,7 @@ export function createIsland(host) {
     return d;
   });
   // the dice lie on the table in the frame's free corner, bottom right as you look, whichever way the island sits
-  const AP = APO + RIM;
-  const DICE_SPOTS = { flat: [[FR * 0.66, APO * 0.97], [FR * 0.86, APO * 0.8]], turned: [[AP * 0.6, FR * 0.93], [AP * 0.9, FR * 0.72]] };
-  let DICE_AT = DICE_SPOTS.flat;
+  let DICE_AT = [[FR * 0.66, APO * 0.97, DIE / 2 - 0.22], [FR * 0.86, APO * 0.8, DIE / 2 - 0.22]];   // [x, z, y]: set by the camera's fit
 
   // ---------- the skin ----------
   let skin = skinNow();
@@ -396,13 +394,16 @@ export function createIsland(host) {
     invalidate();
   }
 
-  // ---------- the camera, fitted to the frame and the dice ----------
+  // ---------- the camera: the island across the whole width, and a zoom ----------
+  // The fit is to the land and the harbours, not the frame or the dice: the island fills the width (the frame and the
+  // table run off the edges), unless the box is too short for that, when it fills the height instead.
   const DIST = 30, LOOK = new THREE.Vector3(0, 0, 0.15);
   const outline = [];
-  for (let k = 0; k < 6; k++) { const a = 60 * k * DEG; outline.push([FR * Math.cos(a), 0.1, FR * Math.sin(a)], [FR * Math.cos(a), -0.25, FR * Math.sin(a)]); }
-  const diceOutline = yaw => (yaw ? DICE_SPOTS.turned : DICE_SPOTS.flat).flatMap(([x, z]) => [[x + 0.4, DIE, z + 0.4], [x - 0.4, -0.2, z + 0.4]]);
+  for (const v of VERTS) outline.push([v.x, TOP, v.y], [v.x, -0.05, v.y]);
+  PORT_AT.forEach((_, i) => { const [px, pz] = portPos(i); for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; outline.push([px + 0.36 * Math.cos(a), SEA + 0.1, pz + 0.36 * Math.sin(a)]); } });
   outline.push([0, 0.6, -APO + 0.3]);                                    // a factory's chimney on the top row
   let width = 1, height = 1, elev = 55 * DEG, spin = 0;
+  let base = { cu: 0, cv: 0, hu: 1, hv: 1 }, zoom = 1, panU = 0, panV = 0;   // the fitted view, and how far the player has zoomed and moved it
   function pose(e) {
     camera.position.set(0, Math.sin(e) * DIST, Math.cos(e) * DIST).add(LOOK);
     camera.up.set(0, 1, 0);
@@ -414,38 +415,84 @@ export function createIsland(host) {
     pose(e);
     const c = Math.cos(yaw), n = Math.sin(yaw);
     let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
-    const look = (x, y, z) => {
-      V.set(x, y, z).applyMatrix4(camera.matrixWorldInverse);
+    for (const [x, y, z] of outline) {
+      V.set(x * c + z * n, y, -x * n + z * c).applyMatrix4(camera.matrixWorldInverse);
       const u = V.x / -V.z, v = V.y / -V.z;
       u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v);
-    };
-    for (const [x, y, z] of outline) look(x * c + z * n, y, -x * n + z * c);
-    for (const [x, y, z] of diceOutline(yaw)) look(x, y, z);
+    }
     return { u0, u1, v0, v1 };
   }
   /**
    * The way the island sits (flat side toward you, or turned a quarter so a point is) and the height of the camera, from
-   * 46° to 64°, that fill the room best: lower shows the land better, higher fits a short box.
+   * 46° to 72°, that make it largest: lower shows the land better, higher fits a short box.
    */
   function fit() {
     let best = { scale: 0, deg: 55, yaw: 0 };
-    for (const yaw of [0, Math.PI / 2]) for (let deg = 46; deg <= 64; deg += 1) {
-      const x = extent(deg * DEG, yaw), scale = Math.min(width / (x.u1 - x.u0), height / (x.v1 - x.v0)) * (yaw ? 0.97 : 1);   // flat-on wins a near tie
+    for (const yaw of [0, Math.PI / 2]) for (let deg = 46; deg <= 72; deg += 1) {
+      const x = extent(deg * DEG, yaw), scale = Math.min(width / (x.u1 - x.u0), height / (x.v1 - x.v0)) * (yaw ? 0.97 : 1) * (1 + (60 - Math.abs(deg - 54)) * 0.0004);   // flat-on wins a near tie, and a middling height
       if (scale > best.scale * 1.004) best = { scale, deg, yaw };
     }
     elev = best.deg * DEG;
     spin = best.yaw;
     world.rotation.y = spin;
     world.updateMatrixWorld(true);
-    DICE_AT = spin ? DICE_SPOTS.turned : DICE_SPOTS.flat;
     ship.rotation.y = -spin + 0.3;                                         // broadside on, so her sails are seen
-    dice.forEach((d, k) => { if (d.visible && !d.userData.rolling) d.position.set(DICE_AT[k][0], d.position.y, DICE_AT[k][1]); });
-    const x = extent(elev, spin), pad = 0.02, aspect = width / height;
+    const x = extent(elev, spin), pad = 0.015, aspect = width / height;
     const cu = (x.u0 + x.u1) / 2, cv = (x.v0 + x.v1) / 2;
     let hu = ((x.u1 - x.u0) / 2) * (1 + pad), hv = ((x.v1 - x.v0) / 2) * (1 + pad);
     if (hu / hv < aspect) hu = hv * aspect; else hv = hu / aspect;
+    base = { cu, cv, hu, hv };
+    project0();
+    // the dice in the corner of the view furthest from the land (bottom right when they're alike), on the table or the frame
+    const land = [...VERTS.map(v => [v.x, v.y]), ...PORT_AT.map((_, i) => portPos(i))].map(([x, z]) => [x * Math.cos(spin) + z * Math.sin(spin), -x * Math.sin(spin) + z * Math.cos(spin)]);
+    const clear = ([x, z]) => Math.min(...land.map(([a, b]) => Math.hypot(a - x, b - z)));
+    const corner = [[0.9, 0.9], [0.1, 0.9], [0.9, 0.1], [0.1, 0.1]].map(([fx, fy], i) => ({ fx, fy, room: clear(groundAt(fx * width, fy * height)) + (i === 0 ? 0.25 : 0) }))
+      .sort((a, b) => b.room - a.room)[0];
+    const ix = corner.fx > 0.5 ? -1 : 1, iy = corner.fy > 0.5 ? -1 : 1;
+    DICE_AT = [[corner.fx + ix * 0.1, corner.fy], [corner.fx, corner.fy + iy * 0.12]].map(([fx, fy]) => groundAt(fx * width, fy * height));
+    dice.forEach((d, k) => { if (d.visible && !d.userData.rolling) d.position.set(DICE_AT[k][0], DICE_AT[k][2], DICE_AT[k][1]); });
+    applyView();
+  }
+  /** The camera's projection for the fit with the zoom and the move: the view never leaves the fitted one. */
+  function applyView() {
+    zoom = Math.max(1, Math.min(3.2, zoom));
+    const hu = base.hu / zoom, hv = base.hv / zoom;
+    panU = Math.max(-(base.hu - hu), Math.min(base.hu - hu, panU));
+    panV = Math.max(-(base.hv - hv), Math.min(base.hv - hv, panV));
+    const cu = base.cu + panU, cv = base.cv + panV;
     camera.projectionMatrix.makePerspective(cu - hu, cu + hu, cv + hv, cv - hv, 1, 200);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    paintOver();
+    invalidate();
+  }
+  function project0() {
+    camera.projectionMatrix.makePerspective(base.cu - base.hu, base.cu + base.hu, base.cv + base.hv, base.cv - base.hv, 1, 200);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+  }
+  /** Where a point of the (unzoomed) view meets the frame's top, or the table beyond the frame: [x, z, y], in the scene. */
+  function groundAt(px, py) {
+    const o = camera.position.clone(), d = new THREE.Vector3((px / width) * 2 - 1, 1 - (py / height) * 2, 0.5).unproject(camera).sub(o).normalize();
+    const meet = y => { const t = (y - o.y) / d.y; return [o.x + d.x * t, o.z + d.z * t]; };
+    const [fx, fz] = meet(0.085), inFrame = hexR([Math.abs(fx), Math.abs(fz)]) <= APO + RIM && !spin || (spin && hexR([Math.abs(fz), Math.abs(fx)]) <= APO + RIM);
+    const y = inFrame ? 0.085 : -0.22, [x, z] = inFrame ? [fx, fz] : meet(-0.22);
+    return [x, z, y + DIE / 2];
+  }
+  /** Zooms by a factor about a point of the view (pixels), keeping the island's point under it there. */
+  function zoomAt(factor, px, py) {
+    const hu = base.hu / zoom, hv = base.hv / zoom;
+    const u = base.cu + panU + ((px / width) * 2 - 1) * hu, v = base.cv + panV - ((py / height) * 2 - 1) * hv;
+    zoom *= factor;
+    zoom = Math.max(1, Math.min(3.2, zoom));
+    const hu2 = base.hu / zoom, hv2 = base.hv / zoom;
+    panU = u - base.cu - ((px / width) * 2 - 1) * hu2;
+    panV = v - base.cv + ((py / height) * 2 - 1) * hv2;
+    applyView();
+  }
+  /** Moves the zoomed view by a drag (pixels). */
+  function panBy(dx, dy) {
+    panU -= (dx / width) * 2 * (base.hu / zoom);
+    panV += (dy / height) * 2 * (base.hv / zoom);
+    applyView();
   }
   function resize() {
     const r = host.getBoundingClientRect();
@@ -453,9 +500,50 @@ export function createIsland(host) {
     renderer.setSize(width, height, false);
     over.setAttribute("viewBox", `0 0 ${width} ${height}`);
     fit();
-    paintOver();
-    invalidate();
   }
+
+  // ---------- the hand on the island: two fingers pinch and move it, the wheel zooms, one finger moves it once zoomed;
+  // a double tap puts it back. A tap that didn't move is still a tap on a ringed place. ----------
+  const touches = new Map();                                               // each finger: where it went down, where it is
+  let pinch = null, dragged = false, lastTap = 0;
+  host.addEventListener("pointerdown", e => {
+    touches.set(e.pointerId, { from: [e.clientX, e.clientY], at: [e.clientX, e.clientY] });
+    if (touches.size === 1) dragged = false;
+    if (touches.size === 2) {
+      const [a, b] = [...touches.values()].map(t => t.at);
+      pinch = { gap: Math.hypot(a[0] - b[0], a[1] - b[1]), mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] };
+      dragged = true;
+    }
+  });
+  host.addEventListener("pointermove", e => {
+    const t = touches.get(e.pointerId);
+    if (!t) return;
+    const last = t.at;
+    t.at = [e.clientX, e.clientY];
+    if (touches.size === 2 && pinch) {
+      const r = host.getBoundingClientRect(), [a, b] = [...touches.values()].map(x => x.at);
+      const gap = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      panBy(mid[0] - pinch.mid[0], mid[1] - pinch.mid[1]);
+      if (pinch.gap > 10) zoomAt(gap / pinch.gap, mid[0] - r.left, mid[1] - r.top);
+      pinch = { gap, mid };
+    } else if (touches.size === 1 && zoom > 1.01) {
+      if (!dragged && Math.hypot(t.at[0] - t.from[0], t.at[1] - t.from[1]) > 6) dragged = true;
+      if (dragged) panBy(t.at[0] - last[0], t.at[1] - last[1]);
+    }
+  });
+  const lift = e => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; };
+  host.addEventListener("pointerup", e => {
+    lift(e);
+    if (dragged || touches.size) return;
+    const now = performance.now();
+    if (now - lastTap < 300 && zoom > 1.01) { zoom = 1; panU = panV = 0; applyView(); }
+    lastTap = now;
+  });
+  host.addEventListener("pointercancel", lift);
+  // a drag or a pinch is not a tap on what lay under it
+  host.addEventListener("click", e => { if (dragged) { e.stopPropagation(); e.preventDefault(); dragged = false; } }, true);
+  host.addEventListener("wheel", e => { e.preventDefault(); const r = host.getBoundingClientRect(); zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top); }, { passive: false });
+
   /** A point of the island (x, y up, z) on the view, in pixels from the top left. */
   function project(x, y, z) {
     V.set(x, y, z).applyMatrix4(world.matrixWorld).project(camera);
@@ -497,7 +585,7 @@ export function createIsland(host) {
   function roll(a, b, animate) {
     const yaw = [(a * 37 + b * 11) % 7 * 0.4 - 1.2, (b * 29 + a * 5) % 7 * 0.4 - 1.2];
     [a, b].forEach((value, k) => {
-      const d = dice[k], [x, z] = DICE_AT[k], end = showing(value, yaw[k]), rest = DIE / 2 - 0.22;
+      const d = dice[k], [x, z, rest] = DICE_AT[k], end = showing(value, yaw[k]);
       d.visible = true;
       if (!animate) { d.position.set(x, rest, z); d.quaternion.copy(end); return; }
       const t0 = performance.now() + k * 70, from = [x - 1.6 - k * 0.3, z - 1.5 + k * 0.4], axis = new THREE.Vector3(Math.random() - 0.5, 0.3, Math.random() - 0.5).normalize();
