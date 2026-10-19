@@ -111,6 +111,15 @@ test("a seat that could respond is asked, and a spell waits for it", () => {
   const s = cast(scene({ hand: [["Take Inventory"], ["Memory Lapse"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2)] }), 0, "Take Inventory");
   return toMove(s) === 1 && stackNames(s).join() === "Take Inventory";
 });
+test("holding priority: the caster may cast again before the other player has answered the first spell", () => {
+  const base = () => scene({ hand: [["Quicken", "Brainstorm"], ["Memory Lapse"]], bf: [...islandsOf(0, 4), ...islandsOf(1, 2)] });
+  const plain = go(base(), 0, { t: "cast", card: idIn(base(), 0, "Quicken"), from: "hand", targets: [] });
+  const held = go(base(), 0, { t: "cast", card: idIn(base(), 0, "Quicken"), from: "hand", targets: [], hold: true });
+  if (toMove(plain) !== 1) return "without the flag the other player should be asked first";
+  if (toMove(held) !== 0) return "with the flag the caster should keep priority";
+  const again = go(held, 0, { t: "cast", card: idIn(held, 0, "Brainstorm"), from: "hand", targets: [] });
+  return again.stack.length === 2;
+});
 test("Memory Lapse: the spell goes on top of the library, and whoever draws next draws it", () => {
   let s = cast(scene({ hand: [["Take Inventory", "Island"], ["Memory Lapse"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2)] }), 0, "Take Inventory");
   const ti = s.stack[0].card;
