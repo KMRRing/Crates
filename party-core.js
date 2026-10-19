@@ -205,7 +205,7 @@ export const ELSEWHERE = [
   { id: "origin", name: "Origin", kind: "duo", duo: "origin", page: "origin.html", max: 6, blurb: "Five hidden countries from their clues, as one team: anyone guesses." },
   { id: "order", name: "Order", kind: "duo", duo: "order", page: "order.html", max: 6, blurb: "One line for the whole table: dates, quantities or a story, anyone placing the next card." },
   { id: "arb", name: "Arb", kind: "duo", duo: "arb", page: "arb.html", max: 6, race: true, blurb: "The same five routes through the links for everyone: cheapest wins." },
-  { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same concession for everyone: claim the ore with the most credits left." },
+  { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same block of rock for everyone: chip away the waste, the fastest clear wins." },
   { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, blurb: "The same stack at the same moment: against each other, or one team pooling what each saw." },
   { id: "pipes", name: "Pipes", kind: "duo", duo: "pipes", page: "pipes.html", max: 6, race: true, blurb: "The same seeded run for everyone, an act or more: the most delivered wins." },
 ];

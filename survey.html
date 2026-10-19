@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="survey fit-screen wide">
+<div id="app" class="survey fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon sv-mark" aria-hidden="true"></span>Survey</button></h1>
@@ -34,20 +34,28 @@
     </div>
   </header>
 
-  <div class="sv-strip"><span id="brief"></span><span id="rival" class="sv-rival" hidden></span><span class="sv-credits">Credits <b id="credits"></b></span></div>
+  <div class="sv-strip">
+    <span class="sv-score">Score <b id="score">0:00</b><small id="penalty"></small></span>
+    <span class="sv-left">Rock left <b id="left">0</b></span>
+    <span id="rival" class="sv-rival" hidden></span>
+  </div>
 
-  <section class="sv-card fit-col fit-grow">
-    <div class="sv-fit fit-box fit-grow"><div id="board" class="sv-board"></div></div>
-    <div class="sv-tools" id="tools">
-      <button class="sv-tool" type="button" data-tool="mark" aria-pressed="true"><b>Mark</b><small>free</small></button>
-      <button class="sv-tool" type="button" data-tool="magnet"><b>Magnet</b><small>3 credits</small></button>
-      <button class="sv-tool" type="button" data-tool="drill"><b>Drill</b><small>5 credits</small></button>
+  <section class="sv-card sv-sky fit-grow fit-box" aria-label="The block of rock">
+    <div id="stage" class="sv-stage"></div>
+  </section>
+
+  <section class="sv-side">
+    <div id="controls" class="sv-controls">
+      <p id="line" class="sv-line" aria-live="polite"></p>
+      <div class="sv-tools" id="tools" role="group" aria-label="Tool">
+        <button class="sv-tool" type="button" data-tool="chip" aria-pressed="true"><b>Chip</b><small>waste away</small></button>
+        <button class="sv-tool" type="button" data-tool="mark" aria-pressed="false"><b>Mark</b><small>keep as ore</small></button>
+        <button class="sv-tool" type="button" id="hintBtn"><b>Hint</b><small>+30 s</small></button>
+      </div>
     </div>
-    <p class="sv-hint" id="hint"></p>
-    <button class="sv-go" type="button" id="claimBtn">File the claim</button>
     <div id="result" class="sv-result" hidden>
       <p class="sv-verdict" id="verdict"></p>
-      <button class="sv-go" type="button" id="nextBtn">Another concession</button>
+      <button class="sv-go" type="button" id="nextBtn">Another block</button>
     </div>
   </section>
 </div>

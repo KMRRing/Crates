@@ -1,5 +1,6 @@
-/* Survey: a concession grid with readings along its edges and in its cells. Ochre is the house colour. */
-:root { --sv-in: #A47528; --sv-in-soft: color-mix(in srgb, var(--sv-in) 15%, var(--sheet)); --sv-ore: #C8923A; --sv-good: #2F7D5B; --sv-bad: #A8382B; --sv-edge: var(--tile-edge); --sv-cell: var(--tile); --sv-head: var(--yard); }
+/* Survey: a block of rock in three dimensions on a brass plinth (survey-3d.js draws it on a canvas), with the readings of
+   its rows as small plates laid over the canvas where each row comes out of the block. Ochre is the house colour. */
+:root { --sv-in: #A47528; --sv-in-soft: color-mix(in srgb, var(--sv-in) 15%, var(--sheet)); --sv-good: #2F7D5B; --sv-bad: #A8382B; --sv-edge: var(--tile-edge); }
 @media (prefers-color-scheme: dark) {
   html:not([data-mode="day"]) { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806F; }
 }
@@ -8,60 +9,65 @@ html[data-mode="night"] { --sv-in: #D9AF62; --sv-good: #7FC2A8; --sv-bad: #E8806
 
 .sv-mark { display: inline-block; }
 .sv-mark svg { width: 100%; height: 100%; display: block; }
-.sv-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); }
-.sv-credits b { font-size: 1.4rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
-/* together, the others' credits on a line of their own under the brief and yours, which leave it no room beside
-   them (duel.js fills it; a tap opens the match) */
+.sv-strip { display: flex; justify-content: space-between; align-items: baseline; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
+.sv-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.sv-score b { font-size: 1.4rem; }
+.sv-score small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--sv-bad); font-variant-numeric: tabular-nums; }
+/* together, the others' times on a line of their own under yours (duel.js fills it; a tap opens the match) */
 .sv-strip:has(.sv-rival:not([hidden])) { flex-wrap: wrap; row-gap: .1rem; }
 .sv-rival { order: 3; flex: 1 0 100%; min-width: 0; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sv-rival[hidden] { display: none; }
-.sv-card { padding: .8rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); gap: .6rem; }
 
-/* the board: a header row and column of line buttons, then the cells */
-/* the board is square: as wide as the room allows, or as tall, whichever is less */
-.sv-fit { width: 100%; }
-.sv-board { display: grid; gap: .1875rem; grid-template-columns: var(--cols); width: min(100cqw, 100cqh); }
-.sv-head { display: grid; place-items: center; min-height: 0; aspect-ratio: 1; border-radius: 8px; background: var(--sv-head); color: var(--ink); font: inherit; font-size: .95rem; font-weight: 800; border: 0; cursor: pointer; font-variant-numeric: tabular-nums; }
-.sv-head.read { background: var(--sv-in-soft); color: var(--sv-in); cursor: default; }
-.sv-head small { font-size: .62rem; font-weight: 700; color: var(--ink-soft); }
-.sv-corner { background: none; }
-.sv-cell { position: relative; aspect-ratio: 1; border-radius: 8px; background: var(--sv-cell); border: 1.5px solid var(--sv-edge); cursor: pointer; display: grid; place-items: center; font: inherit; font-weight: 800; color: var(--ink); -webkit-tap-highlight-color: transparent; }
-.sv-cell.ore-mark::after { content: ""; width: 42%; height: 42%; transform: rotate(45deg); border: 3px solid var(--sv-ore); border-radius: 3px; }
-.sv-cell.barren-mark::after { content: ""; width: 18%; height: 18%; border-radius: 50%; background: var(--ink-soft); }
-.sv-cell.drilled-ore { background: var(--sv-ore); border-color: var(--sv-ore); }
-.sv-cell.drilled-ore::after { content: ""; width: 42%; height: 42%; transform: rotate(45deg); background: #fff; border-radius: 3px; }
-.sv-cell.drilled-barren::after { content: "×"; font-size: 1.4rem; color: var(--ink-soft); }
-.sv-cell .mag { position: absolute; top: 2px; right: .25rem; font-size: .68rem; font-weight: 800; color: var(--sv-in); }
-.sv-cell.magnet { box-shadow: inset 0 0 0 2px var(--sv-in-soft); }
-.sv-cell.truth-ore { background: var(--sv-good); border-color: var(--sv-good); }
-.sv-cell.truth-ore::after { content: ""; width: 42%; height: 42%; transform: rotate(45deg); background: #fff; border-radius: 3px; }
-.sv-cell.wrong { border-color: var(--sv-bad); box-shadow: inset 0 0 0 2px var(--sv-bad); }
+/* the block: as large as its room allows; the canvas draws it, the plates over it say what its rows hold */
+.sv-card { border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); }
+.sv-sky { position: relative; overflow: hidden; padding: 0; }
+.sv-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; cursor: grab; }
+.sv-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sv-labels { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+/* a reading: the ore cubes in a row. A plain plate is one seam (one run of ore), a ring two, a box three or more.
+   --cell (set by the script) is a cube's width on the screen, so the plates grow with the block */
+.sv-lab { --b: clamp(.95rem, calc(var(--cell, 2rem) * .52), 1.5rem); position: absolute; left: 0; top: 0; display: grid; place-items: center; box-sizing: border-box;
+  width: var(--b); height: var(--b); border-radius: 4px; background: color-mix(in srgb, var(--sheet) 90%, transparent); color: var(--ink);
+  font-size: calc(var(--b) * .64); font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
+.sv-lab.ring { border-radius: 50%; box-shadow: 0 0 0 2px var(--sv-in); }
+.sv-lab.box { border-radius: 2px; box-shadow: 0 0 0 2px var(--ink); }
+.sv-lab.hot { background: var(--plate); color: var(--plate-ink); box-shadow: 0 0 0 2px var(--sv-in), 0 0 0 4px color-mix(in srgb, var(--sv-in) 35%, transparent); z-index: 1; }
+.sv-nogl { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 1.5rem; text-align: center; color: var(--ink-soft); font-weight: 650; line-height: 1.4; }
 
+/* under the block: a line of what to do or what happened, the tools; at the end, how it went and the way on, in the same room */
+.sv-side { display: grid; align-content: start; margin-top: .6rem; min-height: 7.4rem; }
+.sv-side > * { grid-area: 1 / 1; }
+.sv-controls { display: grid; gap: .5rem; align-content: start; }
+.sv-controls[hidden], .sv-result[hidden] { display: none; }
+.sv-line { margin: 0; min-height: 2.7em; font-size: .88rem; line-height: 1.35; color: var(--ink-soft); }
+.sv-line b { color: var(--ink); font-weight: 800; }
+.sv-line.bad { color: var(--sv-bad); }
+.sv-line.good { color: var(--sv-good); }
 .sv-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
-.sv-tool { display: grid; gap: .05rem; min-height: 3.25rem; border-radius: 5px; border: 2px solid var(--sv-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; }
+.sv-tool { display: grid; gap: .05rem; align-content: center; min-height: 3.25rem; border-radius: 5px; border: 2px solid var(--sv-edge); background: var(--yard); color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
 .sv-tool b { font-weight: 800; }
 .sv-tool small { font-size: .72rem; color: var(--ink-soft); }
 .sv-tool[aria-pressed="true"] { border-color: var(--sv-in); background: var(--sv-in-soft); }
-.sv-hint { margin: 0; min-height: 1.3em; font-size: .88rem; color: var(--ink-soft); line-height: 1.35; }
-.sv-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.sv-go:disabled { opacity: .45; cursor: default; }
-.sv-result { display: grid; gap: .5rem; }
-.sv-result[hidden] { display: none; }
-/* held sideways (#app.wide): the concession takes the card's left side, square and as tall as the card; the tools,
-   what they found and the claim stand at the right, the claim at the bottom where a thumb is */
-@media (orientation: landscape) and (min-width: 700px) {
-  .sv-card { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; grid-template-rows: auto auto minmax(0, 1fr) auto auto; column-gap: 1.6rem; padding: 1rem; }
-  .sv-card > * { grid-column: 2; }
-  .sv-card .sv-fit { grid-column: 1; grid-row: 1 / -1; }
-  .sv-card .sv-tools { grid-row: 1; grid-template-columns: 1fr; }
-  .sv-card .sv-hint { grid-row: 2; }
-  .sv-card .sv-go { grid-row: 4; }
-  .sv-card .sv-result { grid-row: 5; }
-}
-.sv-verdict { margin: 0; font-size: 1.1rem; font-weight: 800; }
+.sv-tool:disabled { opacity: .45; cursor: default; }
+.sv-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps);
+  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.sv-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-self: start; gap: .8rem; min-height: 3.4rem; }
+.sv-result .sv-go { padding: 0 1.3rem; }
+.sv-verdict { margin: 0; font-size: 1rem; font-weight: 750; line-height: 1.3; }
 .sv-verdict.good { color: var(--sv-good); }
-.sv-verdict.bad { color: var(--sv-bad); }
 .sv-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .sv-toast.show { opacity: 1; }
+
+/* held sideways: the block on the left with all the height; the score, the line and the tools beside it, low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.survey { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.survey .sv-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.survey .sv-sky { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.survey .sv-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
+  #app.survey .sv-controls { align-content: end; }
+  #app.survey .sv-tools { grid-template-columns: 1fr; }
+  #app.survey .sv-tool { min-height: 2.9rem; }
+  #app.survey .sv-result { grid-template-columns: 1fr; align-self: end; }
+}

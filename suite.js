@@ -218,7 +218,7 @@ export function bestOf(app) {
 // streak (Crates, Cartel), today's time (Slate, Delta) or count (Deck's cards, Parley's lessons), stars collected (the
 // level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
-export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", punt: "daily", quote: "daily", origin: "daily",
+export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
   order: "daily", chart: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count",
   river: "best", gambit: "best", boast: "streak", bigtwo: "streak", landlord: "streak", banquet: "streak", gammon: "streak", trumps: "streak", quest: "streak", bones: "streak",
   contract: "streak" };
