@@ -1,165 +1,144 @@
-// Heliograph's rules (heliograph-engine.js): the deal from a seed, the beam (straight up, turned by each kind of
-// mirror, through the gems of its colour, stopped by another, relayed by two of another colour side by side, out at
-// the edge, back at the heliograph, round a loop of mirrors for ever, never counting a gem twice), what a shot
-// shatters and what then falls, the points, a mirror's three shots, where a mirror may go, the field coming down (on a
-// mirror, onto the heliograph's row), a cleared field, the queue's colours, a game saved and opened again, and whole
-// games played out to their end.
-import { COLS, ROWS, SOURCE, LIFE, START_ROWS, CLEAR_BONUS, dropEvery, newGame, trace, fire, canPlace, nextAim, loose, worth, lowest, turns, reflect } from "../heliograph-engine.js";
+// Heliograph's rules (heliograph-engine.js): the deal from a seed, the light (down from the port, off mirrors by the law
+// of reflection, coloured by each colour crystal it passes, through the cluster's crystals of its colours, stopped by
+// another, white light doing nothing), what a shot shatters and what falls from the strings, the points, the colour
+// crystals spent and replaced, where a mirror may stand, the cluster coming down (a new layer, mirrors under it back in
+// hand, the end), a game saved and opened again, and whole games by simple players.
+import { R, H, PR, MR, PORT, LY, LOSE_Y, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
+  addMirror, moveMirror, turnMirror, takeMirror, pointMirror, cantPlace, clampInside, reflect, anglesOf, fromAngles, crystalsAt, plan } from "../heliograph-engine.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
-const i = (x, y) => y * COLS + x;
-/** A game with a field drawn by hand: rows of characters, "." empty, "0"–"3" a gem, from the top. */
-function board(rows, colour = 0, extra = {}) {
+const near = (a, b, e = 1e-6) => a.every((v, k) => Math.abs(v - b[k]) < e);
+/** A game set by hand: every crystal of the cluster colour `fill`, `paint` (k, i) → a colour to change some; the colour
+ *  crystals where given, nothing coming down for a while. */
+function setUp({ fill = 3, paint = () => null, crystals = [[0, 3, 3.4, 1], [-3, 2, -1, 2]], layers = START_LAYERS } = {}) {
   const s = newGame(1);
-  s.gems = new Array(COLS * ROWS).fill(-1);
-  rows.forEach((r, y) => [...r].forEach((ch, x) => { if (ch !== ".") s.gems[i(x, y)] = Number(ch); }));
+  s.layers = Array.from({ length: layers }, (_, k) => ({ s: 100 + k, c: CELLS.map((_, i) => paint(k, i) ?? fill) }));
+  s.crystals = crystals.map(([x, y, z, c]) => ({ x, y, z, c }));
   s.mirrors = [];
-  s.queue = [colour, colour];
   s.untilDrop = 99;
-  return Object.assign(s, extra);
+  return s;
 }
+const row = CELLS.map((c, i) => [c, i]).filter(([c]) => c.r === 0).sort(([a], [b]) => a.q - b.q).map(([, i]) => i);   // the places along x, z = 0
 
 // ---------- the deal ----------
 {
   const a = newGame(7), b = newGame(7), c = newGame(8);
-  check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.gems) !== JSON.stringify(c.gems), "the same seed deals the same field, another seed another");
-  const full = y => [...Array(COLS).keys()].every(x => a.gems[i(x, y)] >= 0 && a.gems[i(x, y)] < 4), empty = y => [...Array(COLS).keys()].every(x => a.gems[i(x, y)] === -1);
-  check([...Array(START_ROWS).keys()].every(full) && [...Array(ROWS - START_ROWS).keys()].every(k => empty(START_ROWS + k)), `${START_ROWS} rows of gems from the top, the rest empty`);
-  check(a.aim === "up" && a.queue.length === 2 && a.queue.every(q => a.gems.includes(q)) && a.untilDrop === dropEvery(0), "the heliograph facing up, two colours coming, both on the field");
+  check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.layers) !== JSON.stringify(c.layers), "the same seed deals the same game, another seed another");
+  check(a.layers.length === START_LAYERS && a.layers.every(l => l.c.length === 19 && l.c.every(x => x >= 0 && x < 4)), `${START_LAYERS} layers of 19 crystals, a string under each place of the crown`);
+  const cols = new Set(pieces(a).map(p => p.c));
+  check(a.crystals.length === CRYSTALS && a.crystals.every(x => cols.has(x.c)) && a.crystals[0].c !== a.crystals[1].c, "two colour crystals, of two colours the cluster has");
+  check(crystalsAt(a).every(p => Math.hypot(p[0], p[2]) < R - 0.8 && p[1] >= 0.9 && p[1] < lowest(a) - 1) && a.untilDrop === dropEvery(0) && cols.has(a.next), "low in the tube, clear of the wall and the cluster; the next colour one the cluster has");
 }
 
-// ---------- the beam ----------
+// ---------- the light ----------
 {
-  // column 3 from the foot: two 2s, a gap, a 2, then a 1
-  const rows = [".......", "...1...", "...2...", ".......", "...2...", "...2..."];
-  const s = board(rows, 2), t = trace(s);
-  check(t.end === "gem" && t.stop === i(3, 1) && t.shattered.join() === [i(3, 5), i(3, 4), i(3, 2)].join(), "straight up: through every gem of its colour, across a gap, stopped by the first of another");
-  check(t.points[0].join() === `${SOURCE.x},${SOURCE.y}` && t.points.at(-1).join() === "3,1.5", "its path from the heliograph to the stopping gem's near face");
-  const alone = trace(board([".......", ".......", ".......", ".......", "...1...", "...2..."], 1));
-  check(alone.shattered.length === 0 && alone.stop === i(3, 5) && alone.legs.length === 1, "one gem of another colour: stopped by it, nothing shattered");
-  check(trace(board(["......."], 0)).end === "edge", "nothing in its way: out at the top");
-  // the two 2s at the foot relay a beam of 1s: it takes their colour, goes through them, shatters the 2 beyond
-  const relay = trace(board(rows, 1));
-  check(relay.relays.join() === [i(3, 5), i(3, 4)].join() && relay.shattered.join() === `${i(3, 2)}` && relay.stop === i(3, 1) && relay.last === 2 && relay.colour === 1,
-    "two gems of another colour side by side relay the beam: it takes their colour, passes through them and shatters that colour beyond");
-  check(relay.legs.map(l => l.colour).join() === "1,2" && relay.points[relay.legs[1].from].join() === "3,5.5", "its path changes colour at the pair's near face");
-  const twice = trace(board(["...1...", "...3...", "...3...", "...3...", "...2...", "...2..."], 1));
-  check(twice.legs.map(l => l.colour).join() === "1,2,3" && twice.relays.length === 4 && twice.shattered.join() === `${i(3, 1)}` && twice.stop === i(3, 0), "one relay can lead to another: 1s to 2s to 3s, the last 3 shattered, the 1 at the top stopping it");
-  // up column 3 through a 0, round three mirrors and back along row 8 through where it was, on to another 0
-  const cross = board(["......."], 0);
-  cross.gems[i(3, 8)] = 0;
-  cross.gems[i(6, 8)] = 0;
-  cross.mirrors = [{ x: 3, y: 7, t: "\\", life: 3 }, { x: 1, y: 7, t: "/", life: 3 }, { x: 1, y: 8, t: "\\", life: 3 }];
-  check(trace(cross).shattered.join() === [i(3, 8), i(6, 8)].join(), "a beam crossing its own path goes through where it shattered a gem: none counted twice");
-}
-{
-  check(reflect([0, -1], "/").join() === "1,0" && reflect([1, 0], "/").join() === "0,-1" && reflect([0, -1], "\\").join() === "-1,0" && reflect([-1, 0], "\\").join() === "0,-1",
-    "a / turns a beam going up to the right and one going right up; a \\ turns up to the left and left up");
-  // a / at the foot of column 3 sends it right along row 9, another / at column 5 sends it up column 5 into a 0
-  const s = board(["....0.0"], 0);
-  s.gems[i(5, 3)] = 0;
-  s.mirrors = [{ x: 3, y: 9, t: "/", life: 3 }, { x: 5, y: 9, t: "/", life: 3 }];
-  const t = trace(s);
-  check(t.shattered.includes(i(5, 3)) && t.points.map(p => p.join()).slice(0, 3).join(" ") === "3,11 3,9 5,9", "two mirrors: up, right along a row, up another column");
-  const ghost = trace(board(["...0..."], 0), { x: 3, y: 6, t: "\\" });
-  check(ghost.end === "edge" && ghost.points[1].join() === "3,6", "a mirror being laid is in the beam's way as if it were there");
-  const side = trace({ ...board(["......."], 0), aim: "right" });
-  check(side.end === "edge" && side.points.at(-1).join() === `${COLS - 0.5},${SOURCE.y}`, "the heliograph turned right: along its own row to the edge");
-  // a beam's way back is its way out (each turn undone by the same mirror), so it can't be caught in a ring of mirrors:
-  // it always ends, at a gem, the edge or the heliograph
-  let ends = true;
-  for (let k = 0; k < 300; k++) {
-    const g = board(["0123012"], k % 4);
-    for (let y = 1; y < ROWS; y++) for (let x = 0; x < COLS; x++) if (!(x === SOURCE.x && y === SOURCE.y) && (x * 7 + y * 13 + k * 5) % 3 === 0) g.mirrors.push({ x, y, t: (x + y + k) % 2 ? "/" : "\\", life: 3 });
-    for (const aim of ["up", "right", "left"]) { const t = trace({ ...g, aim }); if (!["gem", "edge", "source"].includes(t.end)) ends = false; }
-  }
-  check(ends, "a field full of mirrors: the beam always ends, at a gem, the edge or back at the heliograph");
-  const back = board(["......."], 0);
-  back.mirrors = [{ x: 3, y: 9, t: "/", life: 3 }, { x: 5, y: 9, t: "\\", life: 3 }, { x: 5, y: 11, t: "/", life: 3 }];
-  check(trace(back).end === "source", "a beam turned back onto the heliograph ends there");
+  const s = setUp(), t = trace(s);
+  check(t.legs.length === 1 && near(t.legs[0].a, PORT) && t.stop.what === "floor" && near(t.legs[0].b, [PORT[0], 0, PORT[2]], 1e-9) || t.legs.length === 2,
+    "with no mirror the light falls from the port to the floor (through a crystal under it, if one is)");
+  check(near(reflect([0, -1, 0], [0, 1, 0]), [0, 1, 0]) && near(reflect([0, -1, 0], [Math.SQRT1_2, Math.SQRT1_2, 0]), [1, 0, 0], 1e-9), "reflection: straight back off a level mirror, level off one at 45°");
+  const [y, p] = anglesOf([0, 1, 0]);
+  check(Math.abs(p - Math.PI / 2) < 1e-9 && near(fromAngles(...anglesOf([0.6, 0.8, 0])), [0.6, 0.8, 0], 1e-9) && near(fromAngles(0, 0), [0, 0, 1]) && Number.isFinite(y), "a facing to two angles and back");
+  // a mirror under the port, at 45°, sends the light level across the tube to the wall
+  const flat = addMirror(setUp({ crystals: [[0, 9, -3, 1], [3, 9, 0, 2]] }), [PORT[0], 1.5, PORT[2]], [0, Math.SQRT1_2, -Math.SQRT1_2]), f = trace(flat);
+  check(f.legs.length === 2 && f.lit.join() === "0" && f.stop.what === "wall" && Math.abs(f.legs[1].b[1] - 1.5) < 1e-9 && Math.abs(Math.hypot(f.legs[1].b[0], f.legs[1].b[2]) - R) < 1e-9,
+    "off a mirror at 45° under the port, level across the tube to the glass");
+  const off = turnMirror(flat, 0, [0, 1, 0.2]);
+  check(trace(off).legs.length === 2 && trace(off).legs[1].b[1] > 1.5, "turned, the mirror sends it another way");
+  const moved = moveMirror(flat, 0, [0, 1.5, 1]);
+  check(trace(moved).lit.length === 0 && trace(moved).stop.what === "floor", "moved out of the light, the mirror is passed by");
 }
 
-// ---------- a shot ----------
-{
-  // a column of 1s hangs from a 2 that is all that holds it; a beam of 2s from the side shatters it and the 1s fall
-  const s = board(["2222222", "...2...", "...1...", "...1...", "..11..."], 2);
-  s.gems[i(3, 0)] = 2;
-  const r = fire(s, { x: 3, y: 6, t: "/" });
-  check(r.shattered.length === 0, "a mirror below the column turns the beam away, into nothing");
-  const cut = board(["0000000", "...0...", "...1...", "...1...", "..11..."], 0, { aim: "right" });
-  cut.mirrors = [{ x: 4, y: 11, t: "/", life: 3 }, { x: 4, y: 1, t: "\\", life: 3 }];
-  const r2 = fire(cut);
-  check(r2.shattered.includes(i(3, 1)) && r2.fallen.length === 4 && r2.fallen.every(k => cut.gems[k] === 1), "a gem holding others up shattered: what hung from it falls");
-  check(r2.gain === worth(r2.shattered.length + r2.fallen.length) && worth(1) === 10 && worth(5) === 250 && r2.state.score === r2.gain, "ten times the square of all a shot brings down");
-  check(loose(cut.gems).length === 0 && r2.state.gems.every((c, k) => c === -1 || !r2.fallen.includes(k)), "nothing loose before, nothing left hanging after");
-  check(JSON.stringify(cut.gems) === JSON.stringify(board(["0000000", "...0...", "...1...", "...1...", "..11..."], 0).gems), "the game a shot was fired from is left as it was");
+// a mirror under the port pointed at another level with the second layer, which sends the light across it along z = 0
+const LAYER = 2, Y = layerY(LAYER);
+function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to = [4.2, Y, 0]) {
+  let t = setUp(s);
+  t.crystals = [colourCrystal, second].map(([x, y, z, c]) => ({ x, y, z, c }));
+  t = addMirror(addMirror(t, [0, 1.2, 3.4]), [-4.2, Y, 0]);
+  t = pointMirror(t, 0, [-4.2, Y, 0]);
+  return pointMirror(t, 1, to);
 }
 {
-  // a mirror lasts its three shots, the one it was laid for included
-  let s = board(["0000000"], 1);
-  s = fire(s, { x: 1, y: 8, t: "/" }).state;
-  const lives = [s.mirrors[0]?.life];
-  s = fire(s).state; lives.push(s.mirrors[0]?.life);
-  const r = fire(s); lives.push(r.state.mirrors.length);
-  check(LIFE === 3 && lives.join() === "2,1,0" && r.faded.length === 1, "a mirror takes part in three shots, then it's gone");
-  const replace = fire({ ...board(["0000000"], 1), mirrors: [{ x: 1, y: 8, t: "/", life: 1 }] }, { x: 1, y: 8, t: "\\" });
-  check(replace.state.mirrors.length === 1 && replace.state.mirrors[0].t === "\\" && replace.state.mirrors[0].life === LIFE - 1, "a mirror laid on another replaces it, fresh");
-  const g = board(["0000000"], 1);
-  check(canPlace(g, 0, 5) && !canPlace(g, 0, 0) && !canPlace(g, SOURCE.x, SOURCE.y) && !canPlace(g, -1, 3) && !canPlace(g, COLS, 3), "a mirror goes on an empty square, not on a gem, the heliograph or off the field");
-  let threw = false;
-  try { fire(g, { x: 0, y: 0, t: "/" }); } catch { threw = true; }
-  check(threw, "a mirror on a gem isn't fired");
-  check(nextAim("up") === "right" && nextAim("right") === "left" && nextAim("left") === "up", "the heliograph turns up, right, left");
+  const red = (k, i) => (k === LAYER && row.includes(i) ? 1 : null);
+  const s = across({ paint: red }), t = trace(s);
+  check(t.lit.join() === "0,1" && t.crossed.join() === "0" && t.legs[0].cs.length === 0 && t.legs.at(-1).cs.join() === "1",
+    "the light passes the colour crystal under the port, takes its colour, and two mirrors carry it");
+  check(t.shattered.length === 5 && t.shattered.every(id => row.includes(id % 19)) && t.stop.what === "wall", "across the layer through all five crystals of its colour in a line, out to the glass");
+  const f = fire(s);
+  check(f.fallen.length === 5 * (START_LAYERS - LAYER - 1) && f.gain === 10 * (5 + f.fallen.length) ** 2, `everything below them on their strings falls (${f.fallen.length}); the shot is ten times the square of all it brought down (+${f.gain})`);
+  check(pieces(f.state).length === 19 * START_LAYERS - 5 - f.fallen.length && f.state.shots === 1 && f.state.score === f.gain, "they're gone from the cluster; a shot counted, the points added");
+  check(!near(crystalsAt(f.state)[0], [0, 3, 3.4]) && near(crystalsAt(f.state)[1], [-3, 2, -1]), "the colour crystal passed is spent and another stands somewhere; the other stays");
+
+  const stopped = across({ paint: (k, i) => (k === LAYER && row.includes(i) ? (i === row[2] ? 0 : 1) : null) }), u = trace(stopped);
+  check(u.shattered.length === 2 && u.stop.what === "piece" && u.stop.id % 19 === row[2], "a crystal of another colour stops it");
+  const white = across({ paint: red }, [3, 3, -2, 1]);
+  check(trace(white).shattered.length === 0 && trace(white).crossed.length === 0 && trace(white).stop.what === "piece", "light that missed the colour crystals is white: the first crystal it meets stops it, nothing shatters");
+  // both colour crystals in its way: it carries both colours and shatters either
+  const two = across({ paint: (k, i) => (k === LAYER && row.includes(i) ? (i === row[2] ? 2 : 1) : null) }, [0, 3, 3.4, 1], [0, 6, 3.4, 2]), w = trace(two);
+  check(w.crossed.join() === "1,0" && w.legs[1].cs.join() === "2" && w.legs.at(-1).cs.join() === "2,1" && w.shattered.length === 5, "through both colour crystals the light carries both colours and shatters crystals of either");
+  check(fire(two).state.crystals.every((c, k) => !near([c.x, c.y, c.z], [[0, 3, 3.4], [0, 6, 3.4]][k])), "both crystals passed are spent");
 }
 
-// ---------- the field coming down ----------
+// ---------- where a mirror may stand ----------
 {
-  const s = board(["1111111", "1111111"], 3, { untilDrop: 1 });
-  s.mirrors = [{ x: 0, y: 2, t: "/", life: 3 }, { x: 6, y: 5, t: "/", life: 3 }];
-  const r = fire(s);
-  check(r.dropped && r.state.gems.slice(COLS, 3 * COLS).every(c => c === 1) && r.state.gems.slice(0, COLS).every(c => c >= 0), "the field comes down a row, a new row above it");
-  check(r.crushed.length === 1 && r.crushed[0].y === 2 && r.state.mirrors.length === 1, "a mirror the field comes down on is crushed");
-  check(r.state.untilDrop === dropEvery(r.state.shots) && dropEvery(0) > dropEvery(100) && dropEvery(1000) >= 2, "the next drop counted afresh, the gap shorter as the game goes on");
-  const low = board(["1111111", ...Array.from({ length: ROWS - 2 }, (_, k) => (k % 2 ? "...1..." : "...2..."))], 3, { untilDrop: 1 });
-  check(lowest(low) === ROWS - 2 && fire(low).over && fire(low).state.over, "a gem reaching the heliograph's row ends the game");
-  check(fire(fire(low).state).path === null, "nothing fires once it's over");
-}
-{
-  const s = board(["...0..."], 0);
-  const r = fire(s);
-  check(r.cleared && r.state.score === worth(1) + CLEAR_BONUS && lowest(r.state) === START_ROWS - 1, `a field cleared: ${CLEAR_BONUS} more, and a new field`);
-  const q = board(["...0...", "...1..."], 2);
-  check(fire(q).state.queue.every(c => c === 0 || c === 1), "the colours coming are colours on the field");
+  const s = setUp();
+  check(cantPlace(s, [0, 2, 0]) === null && /tube/.test(cantPlace(s, [R, 2, 0])) && /tube/.test(cantPlace(s, [0, 0.2, 0])) && /tube/.test(cantPlace(s, [4, H - 0.5, 0])),
+    "a mirror stands inside the tube, off the floor and under the frame");
+  check(/cluster/.test(cantPlace(s, [0, layerY(3), 0])) && /colour/.test(cantPlace(s, [0, 3.3, 3.4])) && /other mirrors/.test(cantPlace(addMirror(s, [1, 2, 0]), [1.5, 2, 0])),
+    "clear of the cluster, the colour crystals and the other mirrors");
+  check(cantPlace(addMirror(s, [1, 2, 0]), [1.5, 2, 0], 0) === null, "a mirror being moved isn't in its own way");
+  const c = clampInside([9, -3, 0]);
+  check(Math.abs(Math.hypot(c[0], c[2]) - (R - MR - 0.12)) < 1e-9 && c[1] > MR && cantPlace(s, c) === null, "a point outside the tube is brought in to where a mirror may stand");
+  const t = takeMirror(addMirror(addMirror(s, [1, 2, 0]), [-1, 2, 0]), 0);
+  check(t.mirrors.length === 1 && t.mirrors[0].id === 1, "a mirror taken back");
 }
 
-// ---------- saved and opened again ----------
+// ---------- the cluster coming down ----------
+{
+  const s = setUp();
+  s.untilDrop = 1;
+  const low = lowest(s), f = fire(s);
+  check(f.dropped && f.state.layers.length === START_LAYERS + 1 && Math.abs(lowest(f.state) - (low - LY)) < 1e-9 && f.state.untilDrop === dropEvery(1), "every few shots a new layer under the crown, and the cluster a layer lower");
+  const under = addMirror(setUp(), [0, lowest(s) - LY - 0.3, 0]);
+  under.untilDrop = 1;
+  const g = fire(under);
+  check(g.crushed.join() === "0" && g.state.mirrors.length === 0, "a mirror the cluster comes down on goes back to hand");
+  const deep = setUp({ layers: 1 + Math.floor((layerY(0) - LOSE_Y - PR) / LY) });
+  deep.untilDrop = 1;
+  check(!deep.over && fire(deep).state.over && fire(fire(deep).state).state.shots === fire(deep).state.shots, "a crystal reaching the line ends the game, and nothing more is fired");
+  check([0, 29, 30, 70, 120, 180, 400].map(dropEvery).join() === "6,6,5,4,3,2,2", "the cluster comes down every six shots at first, then five, four, three and two");
+  const one = setUp({ layers: 1, paint: (k, i) => (row.includes(i) ? 1 : 2) });
+  one.layers[0].c = one.layers[0].c.map((c, i) => (row.includes(i) ? 1 : -1));
+  one.crystals = [{ x: 0, y: 3, z: 3.4, c: 1 }, { x: -3, y: 2, z: -1, c: 2 }];
+  let t = addMirror(addMirror(one, [0, 1.2, 3.4]), [-4.2, layerY(0), 0]);
+  t = pointMirror(pointMirror(t, 0, [-4.2, layerY(0), 0]), 1, [4.2, layerY(0), 0]);
+  const cl = fire(t);
+  check(cl.cleared && cl.gain === 10 * 25 + CLEAR_BONUS && cl.state.layers.length === START_LAYERS, "a cluster cleared is 1,000 more, and a new one hangs from the crown");
+}
+
+// ---------- kept and opened again ----------
 {
   let s = newGame(42);
-  for (let k = 0; k < 6; k++) s = fire(s, k % 2 ? { x: k, y: 9, t: "/" } : null).state;
+  for (let k = 0; k < 9; k++) s = fire(plan(s, "glance", () => 0.3)).state;
   const again = JSON.parse(JSON.stringify(s));
-  check(JSON.stringify(fire(s, { x: 2, y: 8, t: "\\" })) === JSON.stringify(fire(again, { x: 2, y: 8, t: "\\" })), "a game saved and opened again goes on as it would have");
+  const a = fire(plan(s, "best")), b = fire(plan(again, "best"));
+  check(JSON.stringify(a.state) === JSON.stringify(b.state), "a game saved and opened again goes on as it would have (the colour crystals, the new layers)");
+  const before = copy(s);
+  fire(s);
+  check(JSON.stringify(s) === JSON.stringify(before), "firing leaves the game passed in as it was");
 }
 
 // ---------- whole games ----------
 {
-  // without mirrors the beam only ever reaches one column: the field soon wins
-  let s = newGame(5);
-  while (!s.over && s.shots < 400) s = fire({ ...s, aim: ["up", "right", "left"].map(aim => ({ aim, r: fire({ ...s, aim }) })).sort((a, b) => b.r.gain - a.r.gain)[0].aim }).state;
-  check(s.over && s.shots < 60, `no mirrors: the field reaches the heliograph in ${s.shots} shots`);
-  // laying mirrors, the best shot each turn: a long game, ended by the pace
-  let g = newGame(9), most = 0;
-  while (!g.over && g.shots < 400) {
-    const best = turns(g).sort((a, b) => b.gain - a.gain)[0];
-    most = Math.max(most, best.gain);
-    g = fire({ ...g, aim: best.aim }, best.extra).state;
-  }
-  check(g.over && g.shots > 100 && g.shots < 400 && g.score > 2000, `the best shot each turn: ${g.shots} shots, ${g.score} points, the best shot ${most}`);
-  // the first shot: with a mirror the beam reaches every column's lowest gem; without, only the heliograph's own column
-  const reach = list => new Set(list.flatMap(t => [t.result.path.stop, ...t.result.shattered].filter(k => k != null).map(k => k % COLS)));
-  const all = turns(newGame(9));
-  check(reach(all).size === COLS && reach(all.filter(t => !t.extra)).size === 1, "from the first shot, a mirror lets the beam reach every column; without one, only the heliograph's own");
+  const rnd = (() => { let a = 99; return () => { a = (a * 1103515245 + 12345) >>> 0; return a / 4294967296; }; })();
+  const play = (how, seed) => { let s = newGame(seed), n = 0; while (!s.over && n < 800) { s = fire(plan(s, how, rnd)).state; n++; } return s; };
+  const none = [1, 2, 3].map(k => play("none", k)), glance = [1, 2, 3, 4, 5, 6].map(k => play("glance", k)), best = [1, 2, 3].map(k => play("best", k));
+  const avg = (g, f) => g.reduce((a, s) => a + f(s), 0) / g.length;
+  check(none.every(s => s.over && s.shots < 50 && s.score === 0), `doing nothing, the cluster reaches the line in ${none[0].shots} shots`);
+  check(avg(glance, s => s.shots) > 1.3 * none[0].shots && glance.every(s => s.over), `someone glancing over a few crystals lasts longer (${avg(glance, s => s.shots).toFixed(0)} shots) and every game ends`);
+  check(avg(best, s => s.shots) > avg(glance, s => s.shots) && avg(best, s => s.score) > avg(glance, s => s.score) && best.every(s => s.over),
+    `the best shot each turn lasts longer still (${avg(best, s => s.shots).toFixed(0)} shots, ${avg(best, s => s.score).toFixed(0)} points), and ends`);
 }
 
-console.log(bad ? `heliograph: ${bad} failed` : "heliograph: every check passed");
+console.log(bad ? `\n${bad} failed` : "\nheliograph: the deal, the light and its colours, a shot and its falls, mirrors, the cluster coming down, saving, whole games");
 process.exit(bad ? 1 : 0);

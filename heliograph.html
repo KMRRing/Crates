@@ -29,16 +29,18 @@
     <span id="drop" class="hg-drop"></span>
     <span class="hg-best">Best <b id="best">0</b></span>
   </div>
-  <section id="field" class="hg-field fit-grow fit-box" aria-label="The field">
-    <svg id="board" class="hg-board" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 120" role="img" aria-label="The field"></svg>
+  <section id="field" class="hg-field fit-grow fit-box" aria-label="The tube">
+    <div id="stage" class="hg-stage" role="img" aria-label="The tube, its crystals, mirrors and light"></div>
+    <p id="pop" class="hg-pop" aria-hidden="true"></p>
   </section>
 
   <section class="hg-side">
+    <p id="say" class="hg-say" role="status" aria-live="polite"></p>
     <div id="tray" class="hg-tray">
-      <button class="hg-piece" type="button" data-t="/" aria-label="A mirror, /: drag it onto the field"></button>
-      <button class="hg-piece" type="button" data-t="\" aria-label="A mirror, \: drag it onto the field"></button>
-      <div class="hg-queue" id="queue" aria-label="The beam's colour, and the next"></div>
-      <button class="hg-go" type="button" id="flashBtn">Flash</button>
+      <div class="hg-colour" id="colour" aria-label="The colour crystal's colour, and the next"></div>
+      <button class="hg-piece" type="button" id="mirrorBtn" aria-label="A mirror: drag it into the tube"></button>
+      <button class="btn hg-take" type="button" id="takeBtn">Take back</button>
+      <button class="hg-go" type="button" id="fireBtn">Fire</button>
     </div>
     <div id="result" class="hg-result" hidden>
       <p id="verdict" class="hg-verdict"></p>

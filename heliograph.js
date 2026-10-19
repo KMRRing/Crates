@@ -1,302 +1,299 @@
-// Heliograph: gems creep down from the top; the heliograph at the foot fires a beam each turn, in the colour at the
-// head of the queue. Lay a mirror (drag one from the tray onto the field, the beam's path drawn as you go) to turn it;
-// let go and it fires. Tap the heliograph to turn it (up, right, left), Flash to fire without a new mirror. The rules
-// are heliograph-engine.js's; this file draws the field, lays the mirrors, plays each shot out and keeps the game.
-import { COLS, ROWS, SOURCE, LIFE, newGame, trace, fire, canPlace, nextAim, lowest, dropEvery } from "./heliograph-engine.js";
+// Heliograph: white light falls from a port in the top of a glass tube; set mirrors in it to carry the light through a
+// colour crystal, which colours it, and on into the chandelier of crystals hanging in the middle, where it shatters
+// every crystal of its colour it meets until one of another colour stops it, and everything below on those strings
+// falls; through both colour crystals it carries both colours. Fire takes a turn; setting the mirrors doesn't. The rules
+// are heliograph-engine.js's; this file handles the hand (turning round the tube, setting, moving and turning mirrors,
+// the light's way drawn as they move) and keeps the game. The tube is drawn by
+// heliograph-3d.js, or heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
+import { MIRRORS, MR, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery } from "./heliograph-engine.js";
+import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
+import { createFlat } from "./heliograph-flat.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
-const SVG = "http://www.w3.org/2000/svg";
-const RUN = "heliograph:run", BEST = "heliograph:best", SEEN = "heliograph:seen", RELAY = "heliograph:relay";
-const CELL = 10;                                   // a cell in the board's own units (its viewBox is COLS by ROWS cells)
+const RUN = "heliograph:run2", BEST = "heliograph:best", SEEN = "heliograph:seen2", MOVED = "heliograph:v2";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const fmt = n => n.toLocaleString("en-GB");
 
+// The game on a flat field (to October 2026) scored on another scale and can't be carried over: its run and its best go,
+// once, so the games screen doesn't show a best this game can't be measured against.
+if (!read(MOVED, false)) {
+  for (const k of ["heliograph:run", "heliograph:best", "heliograph:seen", "heliograph:relay"]) { try { localStorage.removeItem(k); } catch { /* private mode */ } }
+  write(MOVED, true);
+}
+
 // ---------- state ----------
 let S = null;            // the game (heliograph-engine.js's), as saved
-let playing = false;     // a shot being played out: the field takes no hand meanwhile
-let drag = null;         // a mirror in hand, dragged from the tray
-let picked = null;       // a mirror picked up with a tap ("/" or "\"), to lay with a tap on the field
-let pending = null;      // a mirror laid with a tap, { x, y, t }: a second tap on it (or Flash) fires
-
-const valid = g => g && g.v === 1 && Array.isArray(g.gems) && g.gems.length === COLS * ROWS && Array.isArray(g.mirrors) && Array.isArray(g.queue);
+let sel = null;          // the id of the mirror chosen: its handle shows, to turn it by
+let hand = null;         // what a finger is doing: { kind, id, x0, y0, x, y, moved, draft, why, … }
+let playing = false;     // a shot being played out
+const valid = g => g && g.v === 3 && Array.isArray(g.layers) && Array.isArray(g.mirrors) && Array.isArray(g.crystals);
 function save() { write(RUN, S); }
 function newRun() {
   S = newGame(randomSeed());
-  pending = picked = null;
+  sel = null;
   save();
   render();
 }
 
-// ---------- drawing ----------
-const el = (tag, attrs = {}, ...kids) => {
-  const n = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) if (v != null) n.setAttribute(k, v);
-  n.append(...kids);
-  return n;
-};
-const cx = x => x * CELL + CELL / 2, cy = y => y * CELL + CELL / 2;
-const hex = r => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 6 + (i * Math.PI) / 3; return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`; }).join("L");
-// each colour its own cut too, so the colours can be told apart without their colour
-const CUTS = [
-  () => el("circle", { r: 3.9 }),
-  () => el("path", { d: "M0-4.4L4.4 0L0 4.4L-4.4 0Z" }),
-  () => el("rect", { x: -3.5, y: -3.5, width: 7, height: 7, rx: 1.1 }),
-  () => el("path", { d: `M${hex(4.2)}Z` }),
-];
-/** A gem: its cut in its colour, a glint; placed by an outer group so its own can be animated. */
-function gemEl(c, x, y, cls = "") {
-  const inner = el("g", { class: `hg-gem c${c} ${cls}`.trim() }, CUTS[c](), el("path", { class: "hg-glint", d: "M-2.3-2.2Q-1.1-3.3.6-3.2" }));
-  return el("g", { transform: `translate(${cx(x)} ${cy(y)})`, "data-cell": y * COLS + x }, inner);
-}
-const MIRROR = { "/": "M-3.7 3.7L3.7-3.7", "\\": "M-3.7-3.7L3.7 3.7" };
-/** A mirror in its cell: the glass on a dark back, and a pip for each shot it has left. */
-function mirrorEl(m, cls = "") {
-  const g = el("g", { class: `hg-mir ${cls}`.trim(), transform: `translate(${cx(m.x)} ${cy(m.y)})` },
-    el("path", { class: "hg-mir-back", d: MIRROR[m.t] }), el("path", { class: "hg-mir-face", d: MIRROR[m.t] }));
-  for (let i = 0; i < (m.life ?? LIFE); i++) g.append(el("circle", { class: "hg-pip", cx: (i - 1) * 1.7, cy: 4.1, r: 0.6 }));
-  return g;
-}
-const ARROW = { up: "M0-6.6L1.8-4.6H-1.8Z", right: "M6.6 0L4.6 1.8V-1.8Z", left: "M-6.6 0L-4.6-1.8V1.8Z" };
-/** The heliograph: a brass ring, its glass the colour of this shot, a notch the way it faces. */
-function sourceEl() {
-  return el("g", { class: "hg-source", transform: `translate(${cx(SOURCE.x)} ${cy(SOURCE.y)})` },
-    el("circle", { class: "hg-ring", r: 4.4 }), el("circle", { class: `hg-face c${S.queue[0]}`, r: 3 }),
-    el("path", { class: "hg-glint", d: "M-1.7-1.6Q-.8-2.4.4-2.3" }), el("path", { class: "hg-arrow", d: ARROW[S.aim] }));
-}
-const pts = points => points.map(([x, y]) => `${cx(x).toFixed(2)},${cy(y).toFixed(2)}`).join(" ");
-/** A beam's path in its legs, one a colour, each with its points (the relay's face in both) and how far along it starts. */
-function legsOf(path) {
-  const len = (a, b) => Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]);
-  let run = 0;
-  return path.legs.map((leg, k) => {
-    const points = path.points.slice(leg.from, k + 1 < path.legs.length ? path.legs[k + 1].from + 1 : path.points.length);
-    const start = run, length = points.slice(1).reduce((a, p, j) => a + len(points[j], p), 0);
-    run += length;
-    return { colour: leg.colour, points, start, length };
-  });
+// ---------- the tube ----------
+const view = createView();
+let scene;
+try {
+  scene = (await import("./heliograph-3d.js")).createScene($("stage"), view);
+} catch {
+  scene = createFlat($("stage"), view);
 }
 
-/** The field as it stands, with `extra` (a mirror being laid, shown as it will be) and the beam's path drawn. */
-function drawBoard(extra = null) {
-  const svg = $("board");
-  svg.setAttribute("viewBox", `0 0 ${COLS * CELL} ${ROWS * CELL}`);
-  const dots = el("g", { class: "hg-dots" }), gems = el("g", { id: "gems" }), mirrors = el("g", { id: "mirrors" });
-  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
-    const c = S.gems[y * COLS + x];
-    if (c >= 0) gems.append(gemEl(c, x, y));
-    else if (canPlace(S, x, y)) dots.append(el("circle", { class: "hg-dot", cx: cx(x), cy: cy(y), r: 0.45 }));
-  }
-  for (const m of S.mirrors) if (!(extra && extra.x === m.x && extra.y === m.y)) mirrors.append(mirrorEl(m));
-  if (extra) mirrors.append(mirrorEl({ ...extra, life: LIFE }, "ghost"));
-  // the beam's way as it would go now, in its colours: through the gems it would shatter (ringed) and the pairs that
-  // would relay it (ringed whole), to where it stops
-  const preview = el("g", { id: "preview" });
-  if (!S.over) {
-    const path = trace(S, extra);
-    for (const leg of legsOf(path)) preview.append(el("polyline", { class: `hg-path c${leg.colour}`, points: pts(leg.points) }));
-    for (const i of path.shattered) preview.append(el("circle", { class: "hg-hit", cx: cx(i % COLS), cy: cy(Math.floor(i / COLS)), r: 4.9 }));
-    for (const i of path.relays) preview.append(el("circle", { class: "hg-relay", cx: cx(i % COLS), cy: cy(Math.floor(i / COLS)), r: 4.9 }));
-    if (path.relays.length && (drag || picked || pending) && !read(RELAY, false)) { write(RELAY, true); toast("Two alike side by side relay the beam: it takes their colour and goes on"); }
-  }
-  const danger = el("line", { class: `hg-danger${lowest(S) >= ROWS - 3 ? " near" : ""}`, x1: 0, x2: COLS * CELL, y1: (ROWS - 1) * CELL, y2: (ROWS - 1) * CELL });
-  svg.classList.toggle("dragging", !!(drag || picked));
-  svg.replaceChildren(el("rect", { class: "hg-bed", width: COLS * CELL, height: ROWS * CELL }), dots, danger, gems, mirrors, preview, hintEl(), sourceEl(), el("g", { id: "fx" }));
+/** Where the chosen mirror's handle stands: a step out from its face, on the side the eye sees. */
+function knobOf(s) {
+  const m = s.mirrors.find(x => x.id === sel);
+  if (!m) return null;
+  const toEye = [view.eye[0] - m.p[0], view.eye[1] - m.p[1], view.eye[2] - m.p[2]];
+  const k = m.n[0] * toEye[0] + m.n[1] * toEye[1] + m.n[2] * toEye[2] < 0 ? -1.1 : 1.1;
+  return [m.p[0] + m.n[0] * k, m.p[1] + m.n[1] * k, m.p[2] + m.n[2] * k];
 }
-
-/** A first game's first shots: how a mirror is laid, written on the field's empty middle (the drawn path says the
- *  rest), so nothing moves when it goes. */
-function hintEl() {
-  const g = el("g", { class: "hg-hint" });
-  if (read(SEEN, false) || S.over || S.shots >= 3 || lowest(S) > 6) return g;
-  const lines = picked || pending ? ["Now tap where it goes,", "and tap it again to fire"] : ["Drag a mirror onto the field", "to turn the beam; tap the", "heliograph to turn it"];
-  lines.forEach((t, k) => { const n = el("text", { x: (COLS * CELL) / 2, y: 7.4 * CELL + k * 6 }); n.textContent = t; g.append(n); });
-  return g;
+let shown = null;        // what's drawn: { s, path, knob }
+function render(s = hand?.draft || S) {
+  const path = trace(s);
+  shown = { s, path, knob: knobOf(s) };
+  scene.draw({ s, path, sel, knob: shown.knob, targets: path.shattered });
+  drawStrip();
+  drawTray();
+  say(s, path);
 }
 function drawStrip() {
   $("score").textContent = fmt(S.score);
   $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
-  // the shots before the field comes down a row: one pip each, out of the gap between drops now
   const drop = $("drop"), of = dropEvery(S.shots);
   drop.replaceChildren(...Array.from({ length: of }, (_, i) => { const p = document.createElement("i"); if (i < S.untilDrop) p.className = "on"; return p; }));
-  drop.setAttribute("aria-label", `The field comes down in ${S.untilDrop} shot${S.untilDrop === 1 ? "" : "s"}`);
+  drop.setAttribute("aria-label", `The cluster comes down in ${S.untilDrop} shot${S.untilDrop === 1 ? "" : "s"}`);
 }
-const smallGem = (c, cls) => { const s = el("svg", { viewBox: "-5.5 -5.5 11 11", class: cls, "aria-hidden": "true" }); s.append(el("g", { class: `hg-gem c${c}` }, CUTS[c](), el("path", { class: "hg-glint", d: "M-2.3-2.2Q-1.1-3.3.6-3.2" }))); return s; };
-const pieceSvg = t => el("svg", { viewBox: "-5 -5 10 10", "aria-hidden": "true" }, el("path", { class: "hg-mir-back", d: MIRROR[t] }), el("path", { class: "hg-mir-face", d: MIRROR[t] }));
+// each colour its own cut too, so the colours can be told apart without their colour
+const SVG = "http://www.w3.org/2000/svg";
+const el = (tag, attrs = {}, ...kids) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); n.append(...kids); return n; };
+const hexPath = r => Array.from({ length: 6 }, (_, i) => { const a = Math.PI / 6 + (i * Math.PI) / 3; return `${(r * Math.cos(a)).toFixed(2)} ${(r * Math.sin(a)).toFixed(2)}`; }).join("L");
+const CUTS = [() => el("circle", { r: 3.9 }), () => el("path", { d: "M0-4.6L3.6 0L0 4.6L-3.6 0Z" }), () => el("rect", { x: -3.5, y: -3.5, width: 7, height: 7, rx: 0.8 }), () => el("path", { d: `M${hexPath(4.2)}Z` })];
+const gem = (c, cls) => el("svg", { viewBox: "-5.5 -5.5 11 11", class: cls, "aria-hidden": "true" }, el("g", { class: `hg-gem c${c}` }, CUTS[c](), el("path", { class: "hg-glint", d: "M-2.3-2.2Q-1.1-3.3.6-3.2" })));
+const MIRROR_ICON = () => el("svg", { viewBox: "-10 -12 20 24", "aria-hidden": "true" },
+  el("path", { class: "hg-stem", d: "M0 2V10M-4 10.5H4" }), el("ellipse", { class: "hg-disc", cx: 0, cy: -3, rx: 7.5, ry: 4.6, transform: "rotate(-24 0 -3)" }));
 function drawTray() {
-  $("queue").replaceChildren(smallGem(S.queue[0], "now"), smallGem(S.queue[1], "next"));
-  for (const b of document.querySelectorAll(".hg-piece")) {
-    if (!b.firstChild) b.append(pieceSvg(b.dataset.t));
-    b.classList.toggle("picked", picked === b.dataset.t);
-    b.classList.toggle("lifted", drag?.t === b.dataset.t && drag.moved);
-    b.disabled = S.over;
-  }
-  $("flashBtn").disabled = S.over;
+  const left = MIRRORS - S.mirrors.length;
+  $("colour").replaceChildren(gem(S.crystals[0].c, "now"), gem(S.crystals[1].c, "now"), gem(S.next, "next"));
+  const b = $("mirrorBtn");
+  if (!b.firstChild) b.append(MIRROR_ICON(), Object.assign(document.createElement("b"), { className: "hg-count" }));
+  b.querySelector(".hg-count").textContent = `×${left}`;
+  b.disabled = S.over || playing || left <= 0;
+  b.classList.toggle("lifted", hand?.kind === "new" && hand.moved);
+  $("takeBtn").disabled = S.over || playing || sel == null;
+  $("fireBtn").disabled = S.over || playing;
   $("tray").hidden = S.over;
   $("result").hidden = !S.over;
   if (S.over) {
     const best = read(BEST, 0);
-    $("verdict").textContent = `The field reached the heliograph: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
+    $("verdict").textContent = `The chandelier reached the line: ${fmt(S.score)}${S.score >= best && S.score > 0 ? ", your best" : ""}`;
   }
 }
-function render() {
-  drawBoard(drag?.cell ? { ...drag.cell, t: drag.t } : pending);
-  drawStrip();
-  drawTray();
+/** The line under the tube: what a finger is doing, a first game's next step, or what Fire would do now. */
+function say(s, path) {
+  let text;
+  if (hand?.why) text = `A mirror must stand ${hand.why}`;
+  else if (S.over) text = "";
+  else if (!read(SEEN, false) && S.shots < 4) text = firstSteps(s, path);
+  else if (path.shattered.length) {
+    const f = fire(s), n = f.shattered.length + f.fallen.length;
+    text = `Fire brings down ${n}${f.fallen.length ? ` (${f.fallen.length} falling)` : ""}: +${fmt(f.gain)}`;
+  } else if (path.crossed.length) text = "The light is coloured: turn a mirror to send it into the cluster";
+  else if (sel != null) text = "Drag the mirror to move it, its handle to turn it";
+  else text = "Set mirrors to carry the light through a colour crystal";
+  $("say").textContent = text;
+}
+function firstSteps(s, path) {
+  if (!s.mirrors.length) return "Drag a mirror into the light under the port";
+  if (!path.crossed.length) return "Turn it by its handle: light a colour crystal";
+  if (!path.shattered.length) return "Set a mirror in the coloured light; turn it into the cluster";
+  return "Fire";
+}
+
+// ---------- picking ----------
+const local = e => { const r = $("stage").getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+/** The mirror under a point of the tube's frame, the nearest the eye. */
+function mirrorAt(x, y, s = S) {
+  let best = null, bz = Infinity;
+  for (const m of s.mirrors) {
+    const [sx, sy, z] = view.project(m.p);
+    if (Math.hypot(sx - x, sy - y) <= view.pixels(z) * MR + 8 && z < bz) { best = m; bz = z; }
+  }
+  return best;
+}
+/**
+ * Where a mirror goes for a point of the frame: onto the light where the point is near it (the light as it would be
+ * without this mirror), else on the upright plane facing the eye through `through`. { p, on (the leg it's on), why }.
+ */
+function placeFor(x, y, id, through) {
+  const ray = view.ray(x, y), without = id == null ? S : takeMirror(S, id);
+  let best = null, bd = 30;
+  for (const leg of trace(without).legs) {
+    const q = nearestOnSegment(ray, leg.a, leg.b), [sx, sy] = view.project(q), d = Math.hypot(sx - x, sy - y);
+    if (d < bd && !cantPlace(S, q, id)) { best = { p: q, on: leg }; bd = d; }
+  }
+  if (best) return { ...best, why: null };
+  const p = clampInside(onPlane(ray, through, view.facingFlat()) ?? through);
+  return { p, on: null, why: cantPlace(S, p, id) };
+}
+/** A new mirror's first facing: in the light, turned to send it level toward the middle of the tube, where there's room
+ *  for the next mirror; out of it, facing the eye. */
+function firstFacing(p, leg) {
+  const flat = view.facingFlat();
+  if (!leg) return [-flat[0], 0, -flat[2]];
+  const d = [leg.b[0] - leg.a[0], leg.b[1] - leg.a[1], leg.b[2] - leg.a[2]], l = Math.hypot(...d), r = Math.hypot(p[0], p[2]);
+  const inward = r > 0.5 ? [-p[0] / r, 0, -p[2] / r] : [flat[0], 0, flat[2]];
+  return facing(d.map(v => v / l), p, [p[0] + inward[0], p[1], p[2] + inward[2]]) || [0, 1, 0];
+}
+/** A direction turned about an axis (a unit vector) by an angle. */
+function rotate(v, k, a) {
+  const c = Math.cos(a), s = Math.sin(a), d = k[0] * v[0] + k[1] * v[1] + k[2] * v[2];
+  const x = [k[1] * v[2] - k[2] * v[1], k[2] * v[0] - k[0] * v[2], k[0] * v[1] - k[1] * v[0]];
+  return [0, 1, 2].map(i => v[i] * c + x[i] * s + k[i] * d * (1 - c));
+}
+
+// ---------- the hand ----------
+const LIFT = 44;         // a mirror brought from the tray is held this far above a finger, so it can be seen
+function down(e) {
+  if (hand || e.button > 0) return;
+  const [x, y] = local(e);
+  const knob = sel != null && shown?.knob ? view.project(shown.knob) : null;
+  let kind = "empty", id = null, grab = [0, 0];
+  if (!playing && !S.over && knob && Math.hypot(knob[0] - x, knob[1] - y) < 26) { kind = "turn"; id = sel; }
+  else if (!playing && !S.over) {
+    const m = mirrorAt(x, y);
+    if (m) { kind = "mirror"; id = m.id; const [sx, sy] = view.project(m.p); grab = [sx - x, sy - y]; }
+  }
+  hand = { kind, id, grab, x0: x, y0: y, x, y, moved: false, draft: null, why: null, pid: e.pointerId };
+  try { $("stage").setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+  e.preventDefault();
+}
+function move(e) {
+  if (!hand || e.pointerId !== hand.pid) return;
+  const [x, y] = local(e), dx = x - hand.x, dy = y - hand.y;
+  hand.x = x; hand.y = y;
+  if (!hand.moved && Math.hypot(x - hand.x0, y - hand.y0) < 7) return;
+  hand.moved = true;
+  if (hand.kind === "empty") { view.orbit(-dx * 0.009, dy * 0.006); render(); return; }
+  if (hand.kind === "mirror") {
+    const m = S.mirrors.find(k => k.id === hand.id), at = placeFor(x + hand.grab[0], y + hand.grab[1], m.id, m.p);
+    hand.draft = moveMirror(S, m.id, at.p);
+    hand.why = at.why;
+    sel = m.id;
+  } else if (hand.kind === "turn") {
+    // the handle follows the finger as on a ball: across the screen turns the mirror about the screen's upright, up and
+    // down about its level; slowly, so a beam can be laid on a crystal by hand
+    const m = (hand.draft || S).mirrors.find(k => k.id === hand.id), TURN = 0.009;
+    const n = rotate(rotate(m.n, view.u, dx * TURN), view.r, dy * TURN);
+    hand.draft = turnMirror(hand.draft || S, m.id, n);
+  } else if (hand.kind === "new") placeNew(e);
+  render();
+}
+function up(e) {
+  if (!hand || e.pointerId !== hand.pid) return;
+  const h = hand;
+  hand = null;
+  if (h.kind === "new") { dropNew(h, e); return; }
+  if (!h.moved) tap(h);
+  else if (h.kind === "mirror") { if (!h.why && h.draft) S = h.draft; else if (h.why) toast(`A mirror must stand ${h.why}`); }
+  else if (h.kind === "turn" && h.draft) S = h.draft;
+  save();
+  render();
+}
+function cancel(e) { if (hand && e.pointerId === hand.pid) { hand = null; render(); } }
+/** A tap: on a mirror, chooses it (or lets it go); elsewhere, lets the mirror go. */
+function tap(h) {
+  if (playing || S.over) return;
+  if (h.kind === "mirror" || h.kind === "turn") { sel = sel === h.id && h.kind === "mirror" ? null : h.id; return; }
+  sel = null;
+}
+
+// a mirror from the tray: dragged into the tube (onto the light where it's near), or with a tap, set in the light where
+// it ends; it comes turned to send the light level toward the middle, to be turned from there
+function trayDown(e) {
+  if (hand || playing || S.over || S.mirrors.length >= MIRRORS || e.button > 0) return;
+  hand = { kind: "new", pid: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, draft: null, why: null, lift: e.pointerType === "mouse" ? 0 : LIFT };
+  try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+  e.preventDefault();
+}
+function placeNew(e) {
+  const r = $("stage").getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top - hand.lift;
+  if (x < 0 || y < 0 || x > r.width || y > r.height) { hand.draft = null; hand.why = null; return; }
+  const at = placeFor(x, y, null, [0, view.look[1], 0]);
+  const s = addMirror(S, at.p, firstFacing(at.p, at.on));
+  hand.draft = s;
+  hand.why = at.why;
+  hand.newId = s.mirrors[s.mirrors.length - 1].id;
+}
+function trayMove(e) {
+  if (!hand || hand.kind !== "new" || e.pointerId !== hand.pid) return;
+  if (!hand.moved && Math.hypot(e.clientX - hand.x0, e.clientY - hand.y0) < 7) return;
+  hand.moved = true;
+  placeNew(e);
+  render();
+}
+function dropNew(h) {
+  if (!h.moved) { autoPlace(); return; }
+  if (h.draft && !h.why) { S = h.draft; sel = h.newId; save(); }
+  else if (h.why) toast(`A mirror must stand ${h.why}`);
+  render();
+}
+/** A mirror set with a tap: in the light, near where it ends (or failing that, further back along it). */
+function autoPlace() {
+  const legs = trace(S).legs;
+  for (let k = legs.length - 1; k >= 0; k--) {
+    const { a, b } = legs[k];
+    for (const f of [0.72, 0.55, 0.85, 0.4, 0.25]) {
+      const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+      if (cantPlace(S, p)) continue;
+      S = addMirror(S, p, firstFacing(p, legs[k]));
+      sel = S.mirrors[S.mirrors.length - 1].id;
+      save();
+      render();
+      return;
+    }
+  }
+  toast("There's no room in the light for a mirror");
 }
 
 // ---------- a shot ----------
-const wait = ms => new Promise(r => setTimeout(r, ms));
-const animate = (node, frames, opts) => (node.animate ? node.animate(frames, { fill: "forwards", ...opts }).finished.catch(() => {}) : Promise.resolve());
-/** How far along the beam's path (in cells) it reaches each cell it crosses, to time each gem's shattering. */
-function along(points) {
-  const at = new Map();
-  let run = 0;
-  for (let k = 1; k < points.length; k++) {
-    const [ax, ay] = points[k - 1], [bx, by] = points[k], len = Math.abs(bx - ax) + Math.abs(by - ay);
-    const steps = Math.round(len), dx = Math.sign(bx - ax), dy = Math.sign(by - ay);
-    for (let s = 1; s <= steps; s++) { const x = Math.round(ax + dx * s), y = Math.round(ay + dy * s); if (!at.has(y * COLS + x)) at.set(y * COLS + x, run + s); }
-    run += len;
-  }
-  return { at, total: run };
-}
-async function shoot(extra) {
+async function shoot() {
   if (playing || S.over) return;
-  const r = fire(S, extra);
+  const before = S, r = fire(S);
   playing = true;
-  pending = picked = null;
-  drawBoard(extra);
-  $("board").querySelector("#preview")?.remove();
-  const fx = $("board").querySelector("#fx"), path = r.path, { at, total } = along(path.points);
-  // the flash: the beam drawn out from the heliograph, a leg at a time in its colours, each gem it passes shattering
-  // as it gets there and each pair that relays it lighting up
-  const ms = Math.min(620, 140 + total * 26), when = d => ms * (d / Math.max(1, total)), lines = [];
-  for (const leg of legsOf(path)) {
-    const glow = el("polyline", { class: `hg-glow c${leg.colour}`, points: pts(leg.points), pathLength: 1 });
-    const beam = el("polyline", { class: `hg-beam c${leg.colour}`, points: pts(leg.points), pathLength: 1 });
-    fx.append(glow, beam);
-    lines.push(glow, beam);
-    for (const line of [glow, beam]) animate(line, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: Math.max(1, when(leg.length)), delay: when(leg.start), easing: "linear" });
-  }
-  const gemNode = i => $("board").querySelector(`#gems [data-cell="${i}"] .hg-gem`);
-  for (const i of r.shattered) setTimeout(() => { gemNode(i)?.classList.add("shatter"); shards(fx, i, S.gems[i]); }, when(at.get(i) ?? total));
-  for (const i of path.relays) setTimeout(() => gemNode(i)?.classList.add("relay"), when(at.get(i) ?? total));
-  await wait(ms + 60);
-  // what hung from nothing falls
-  r.fallen.forEach((i, k) => setTimeout(() => gemNode(i)?.classList.add("fall"), k * 18));
-  if (r.gain) popup(fx, r, path);
-  for (const line of lines) animate(line, [{ opacity: line.classList.contains("hg-glow") ? 0.6 : 1 }, { opacity: 0 }], { duration: 260, delay: 60 });
-  await wait(r.fallen.length ? 480 : 300);
+  sel = null;
+  render();
+  await scene.shot(before, r);
   S = r.state;
   save();
   if (S.score > read(BEST, 0)) write(BEST, S.score);           // the games screen shows it at once
-  if (S.shots >= 3) write(SEEN, true);
-  render();
-  if (r.dropped || r.cleared) await animate($("board").querySelector("#gems"), [{ transform: `translateY(${-CELL}px)` }, { transform: "translateY(0)" }], { duration: 260, easing: "ease-out" });
-  if (r.cleared) toast("A clear field: 1,000 more");
-  else if (r.crushed.length) toast(r.crushed.length === 1 ? "The field came down on a mirror" : `The field came down on ${r.crushed.length} mirrors`);
+  if (S.shots >= 4) write(SEEN, true);
   playing = false;
-}
-/** Splinters of a shattered gem. */
-function shards(fx, i, c) {
-  const x = cx(i % COLS), y = cy(Math.floor(i / COLS));
-  for (let k = 0; k < 5; k++) {
-    const a = (k / 5) * Math.PI * 2 + Math.random() * 0.8, d = 5 + Math.random() * 4;
-    const s = el("path", { class: `hg-shard c${c}`, d: "M0-1.1L.9.7L-.9.7Z", transform: `translate(${x} ${y})` });
-    fx.append(s);
-    animate(s, [{ transform: `translate(${x}px, ${y}px) rotate(0deg)`, opacity: 1 }, { transform: `translate(${x + Math.cos(a) * d}px, ${y + Math.sin(a) * d}px) rotate(${180 + Math.random() * 180}deg)`, opacity: 0 }],
-      { duration: 360 + Math.random() * 160, easing: "ease-out" }).then(() => s.remove());
-  }
+  render();
+  if (r.gain) pop(r, before);
+  if (r.cleared) toast(`The chandelier is cleared: ${fmt(1000)} more`);
+  else if (r.crushed.length) toast(r.crushed.length === 1 ? "The cluster came down on a mirror: it's back in hand" : `The cluster came down on ${r.crushed.length} mirrors: they're back in hand`);
+  else if (!r.path.crossed.length && !r.gain) toast("The light never reached a colour crystal");
 }
 /** What the shot brought in, rising from where it did most. */
-function popup(fx, r, path) {
-  const cells = [...r.shattered, ...r.fallen], x = cells.reduce((a, i) => a + cx(i % COLS), 0) / cells.length, y = cells.reduce((a, i) => a + cy(Math.floor(i / COLS)), 0) / cells.length;
-  const t = el("text", { class: `hg-pop${cells.length >= 6 ? " big" : ""}`, x: x.toFixed(1), y: y.toFixed(1) });
-  t.textContent = `+${fmt(r.gain)}`;
-  fx.append(t);
-  animate(t, [{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(-12px)", opacity: 0 }], { duration: 900, easing: "ease-out" });
-}
-
-// ---------- laying a mirror ----------
-/** The cell under a point on the screen, or null off the field. */
-function cellAt(px, py) {
-  const svg = $("board"), m = svg.getScreenCTM();
-  if (!m) return null;
-  const p = new DOMPoint(px, py).matrixTransform(m.inverse()), x = Math.floor(p.x / CELL), y = Math.floor(p.y / CELL);
-  return x >= 0 && x < COLS && y >= 0 && y < ROWS ? { x, y } : null;
-}
-const screenCell = () => $("board").getBoundingClientRect().width / COLS;
-function floatEl(t) {
-  const d = document.createElement("div"), size = screenCell();
-  d.className = "hg-float";
-  d.style.width = d.style.height = `${size}px`;
-  d.append(pieceSvg(t));
-  document.body.append(d);
-  return d;
-}
-function startDrag(e, t) {
-  if (playing || S.over || e.button > 0) return;
-  e.preventDefault();
-  drag?.float.remove();
-  // held above the finger, so the cell it's going to is in sight (a mouse needs no lift)
-  drag = { t, id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, lift: e.pointerType === "mouse" ? 0 : Math.max(48, screenCell() * 1.4), cell: null, float: floatEl(t) };
-  try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
-  moveDrag(e);
-}
-function moveDrag(e) {
-  if (!drag || e.pointerId !== drag.id) return;
-  if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 8) drag.moved = true;
-  const px = e.clientX, py = e.clientY - (drag.moved ? drag.lift : 0), c = drag.moved ? cellAt(px, py) : null;
-  const cell = c && canPlace(S, c.x, c.y) ? c : null, size = screenCell();
-  drag.float.style.left = `${px - size / 2}px`;
-  drag.float.style.top = `${py - size / 2}px`;
-  drag.float.style.visibility = drag.moved && !cell ? "visible" : "hidden";   // on the field it's drawn in its cell
-  if (cell?.x === drag.cell?.x && cell?.y === drag.cell?.y && drag.drawn) return;
-  drag.cell = cell;
-  drag.drawn = true;
-  render();
-}
-function endDrag(e) {
-  if (!drag || e.pointerId !== drag.id) return;
-  const { t, cell, moved } = drag;
-  drag.float.remove();
-  drag = null;
-  if (moved && cell) { shoot({ ...cell, t }); return; }
-  // a tap, not a drag: the mirror picked up (or put back), to lay with a tap on the field
-  if (!moved) { picked = picked === t ? null : t; pending = null; }
-  render();
-}
-function cancelDrag(e) {
-  if (!drag || e.pointerId !== drag.id) return;
-  drag.float.remove();
-  drag = null;
-  render();
-}
-/** A tap on the field: the heliograph turns; with a mirror picked up, it's laid where tapped, and a second tap fires. */
-function tapField(e) {
-  if (playing || S.over || drag) return;
-  const c = cellAt(e.clientX, e.clientY);
-  if (!c) return;
-  if (c.x === SOURCE.x && c.y === SOURCE.y) { S.aim = nextAim(S.aim); save(); render(); return; }
-  if (pending && pending.x === c.x && pending.y === c.y) { shoot(pending); return; }
-  const t = picked || pending?.t;
-  if (!t) return;
-  if (!canPlace(S, c.x, c.y)) { toast("A mirror goes on an empty square"); return; }
-  pending = { ...c, t };
-  picked = null;
-  render();
-}
-/** With a mouse and a mirror picked up, it's shown where it would go. */
-function hoverField(e) {
-  if (e.pointerType !== "mouse" || !picked || drag || playing) return;
-  const c = cellAt(e.clientX, e.clientY), cell = c && canPlace(S, c.x, c.y) ? { ...c, t: picked } : null;
-  if (cell?.x === pending?.x && cell?.y === pending?.y) return;
-  pending = cell;
-  drawBoard(pending);
+function pop(r, before) {
+  const by = new Map(pieces(before).map(p => [p.id, p])), at = [...r.shattered, ...r.fallen].map(id => by.get(id)).filter(Boolean);
+  if (!at.length) return;
+  const [x, y] = view.project([0, 1, 2].map(k => at.reduce((a, p) => a + p.p[k], 0) / at.length));
+  const p = $("pop");
+  p.textContent = `+${fmt(r.gain)}`;
+  p.style.left = `${x}px`; p.style.top = `${y}px`;
+  p.classList.toggle("big", at.length >= 8);
+  p.classList.remove("go"); void p.offsetWidth; p.classList.add("go");
 }
 
 // ---------- messages, the menu ----------
@@ -306,7 +303,7 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
 }
 function openMenu() {
   const body = $("menuBody");
@@ -322,18 +319,20 @@ bindSwitcher($("appsBtn"), "heliograph");
 document.querySelector(".hg-mark").innerHTML = APPS.find(a => a.id === "heliograph").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-for (const b of document.querySelectorAll(".hg-piece")) b.addEventListener("pointerdown", e => startDrag(e, b.dataset.t));
-addEventListener("pointermove", moveDrag);
-addEventListener("pointerup", endDrag);
-addEventListener("pointercancel", cancelDrag);
-$("board").addEventListener("pointerup", tapField);
-$("board").addEventListener("pointermove", hoverField);
-$("flashBtn").addEventListener("click", () => shoot(pending));
+$("stage").addEventListener("pointerdown", down);
+$("stage").addEventListener("pointermove", move);
+$("stage").addEventListener("pointerup", up);
+$("stage").addEventListener("pointercancel", cancel);
+$("mirrorBtn").addEventListener("pointerdown", trayDown);
+$("mirrorBtn").addEventListener("pointermove", trayMove);
+$("mirrorBtn").addEventListener("pointerup", e => { if (hand?.kind === "new" && e.pointerId === hand.pid) { const h = hand; hand = null; dropNew(h); } });
+$("mirrorBtn").addEventListener("pointercancel", cancel);
+$("takeBtn").addEventListener("click", () => { if (sel == null) return; S = takeMirror(S, sel); sel = null; save(); render(); });
+$("fireBtn").addEventListener("click", shoot);
 $("againBtn").addEventListener("click", newRun);
-addEventListener("resize", () => { if (!playing) render(); });      // the screen turned
 
 // for tests and debugging
-window.__heliograph = { get state() { return S; }, set state(s) { S = s; render(); }, get pending() { return pending; }, shoot, cellAt, newRun };
+window.__heliograph = { get state() { return S; }, set state(s) { S = s; sel = null; render(); }, get sel() { return sel; }, set sel(id) { sel = id; render(); }, view, shoot, newRun, project: p => view.project(p), get shown() { return shown; } };
 
 S = read(RUN, null);
 if (!valid(S)) newRun();
