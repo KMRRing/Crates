@@ -19,6 +19,11 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 .hg-drop { display: inline-flex; align-items: center; gap: .3rem; }
 .hg-drop i { width: .55rem; height: .55rem; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--brass); }
 .hg-drop i.on { background: var(--brass); }
+/* the moves left this shot, before the drop's pips: squares, in the game's enamel, so the two counts aren't confused */
+.hg-pips { display: inline-flex; align-items: center; gap: .9rem; }
+.hg-moves { display: inline-flex; align-items: center; gap: .3rem; }
+.hg-moves i { width: .6rem; height: .6rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--hg-in); }
+.hg-moves i.on { background: var(--hg-in); }
 
 /* the tube: the whole of its room; a finger on it turns round the tube, sets and aims the mirrors */
 .hg-field { position: relative; overflow: hidden; }

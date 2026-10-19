@@ -3,7 +3,7 @@
 // another, white light doing nothing), what a shot shatters and what falls from the strings, the points, the colour
 // crystals spent and replaced, where a mirror may stand, the cluster coming down (a new layer, mirrors under it back in
 // hand, the end), a game saved and opened again, and whole games by simple players.
-import { R, H, PR, MR, PORT, LY, LOSE_Y, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
+import { R, H, PR, MR, PORT, LY, LOSE_Y, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
   addMirror, moveMirror, turnMirror, takeMirror, pointMirror, cantPlace, clampInside, reflect, anglesOf, fromAngles, crystalsAt, plan } from "../heliograph-engine.js";
 
 let bad = 0;
@@ -15,8 +15,10 @@ function setUp({ fill = 3, paint = () => null, crystals = [[0, 3, 3.4, 1], [-3, 
   const s = newGame(1);
   s.layers = Array.from({ length: layers }, (_, k) => ({ s: 100 + k, c: CELLS.map((_, i) => paint(k, i) ?? fill) }));
   s.crystals = crystals.map(([x, y, z, c]) => ({ x, y, z, c }));
+  s.depth = CELLS.map(() => layers);
   s.mirrors = [];
   s.untilDrop = 99;
+  s.moves = 99;                       // set by hand: as many moves as a test needs
   return s;
 }
 const row = CELLS.map((c, i) => [c, i]).filter(([c]) => c.r === 0).sort(([a], [b]) => a.q - b.q).map(([, i]) => i);   // the places along x, z = 0
@@ -25,7 +27,12 @@ const row = CELLS.map((c, i) => [c, i]).filter(([c]) => c.r === 0).sort(([a], [b
 {
   const a = newGame(7), b = newGame(7), c = newGame(8);
   check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.layers) !== JSON.stringify(c.layers), "the same seed deals the same game, another seed another");
-  check(a.layers.length === START_LAYERS && a.layers.every(l => l.c.length === 19 && l.c.every(x => x >= 0 && x < 4)), `${START_LAYERS} layers of 19 crystals, a string under each place of the crown`);
+  const strings = CELLS.map((_, i) => a.layers.filter(l => l.c[i] >= 0).length);
+  check(SHAPES[a.shape] && strings.join() === a.depth.join() && a.layers.every(l => l.c.length === 19 && l.c.every(x => x >= -1 && x < 4)) && Math.max(...a.depth) <= 9,
+    `a chandelier in a shape (${a.shape}): under each place of the crown a string as deep as the shape has it`);
+  const shapes = new Set(Array.from({ length: 40 }, (_, k) => newGame(k).shape));
+  check(shapes.size >= 5 && [...shapes].every(n => CELLS.some(c => SHAPES[n](c) !== SHAPES[n](CELLS[0])) || n === "column"), `games hang chandeliers of different shapes (${[...shapes].join(", ")})`);
+  check(a.moves === MOVES && MOVES === 2, "two moves a shot");
   const cols = new Set(pieces(a).map(p => p.c));
   check(a.crystals.length === CRYSTALS && a.crystals.every(x => cols.has(x.c)) && a.crystals[0].c !== a.crystals[1].c, "two colour crystals, of two colours the cluster has");
   check(crystalsAt(a).every(p => Math.hypot(p[0], p[2]) < R - 0.8 && p[1] >= 0.9 && p[1] < lowest(a) - 1) && a.untilDrop === dropEvery(0) && cols.has(a.next), "low in the tube, clear of the wall and the cluster; the next colour one the cluster has");
@@ -113,7 +120,33 @@ function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to =
   let t = addMirror(addMirror(one, [0, 1.2, 3.4]), [-4.2, layerY(0), 0]);
   t = pointMirror(pointMirror(t, 0, [-4.2, layerY(0), 0]), 1, [4.2, layerY(0), 0]);
   const cl = fire(t);
-  check(cl.cleared && cl.gain === 10 * 25 + CLEAR_BONUS && cl.state.layers.length === START_LAYERS, "a cluster cleared is 1,000 more, and a new one hangs from the crown");
+  check(cl.cleared && cl.gain === 10 * 25 + CLEAR_BONUS && cl.state.layers.length === Math.max(...cl.state.depth) && pieces(cl.state).length === cl.state.depth.reduce((x, y) => x + y, 0),
+    `a cluster cleared is 1,000 more, and a new one hangs from the crown (a ${cl.state.shape})`);
+  const drop = setUp({ layers: 3 });
+  drop.depth = CELLS.map((_, i) => (i % 2 ? 3 : 0));
+  drop.untilDrop = 1;
+  check(fire(drop).state.layers[0].c.every((c, i) => (i % 2 ? c >= 0 : c < 0)), "coming down, a crystal more at the top of every string of the shape, none where it has none");
+}
+
+// ---------- two moves a shot ----------
+{
+  let s = newGame(5);
+  s = addMirror(s, [1, 2, 0]);
+  s = addMirror(s, [-1, 2, 0]);
+  check(s.moves === 0 && !canMove(s) && addMirror(s, [0, 4, 0]) === s, "two mirrors set: no moves left, and a third can't be set");
+  const a = moveMirror(s, 0, [1, 3, 0]);
+  check(a.mirrors[0].p[1] === 3 && a.moves === 0, "a mirror set this shot moves again free");
+  const turned = turnMirror(s, 1, [1, 1, 0]);
+  check(Math.abs(turned.mirrors[1].n[0] - Math.SQRT1_2) < 1e-9, "turning a mirror is always free");
+  const back = takeMirror(s, 1);
+  check(back.moves === 1 && back.mirrors.length === 1, "taking back a mirror set this shot gives its move back");
+  let n = fire(s).state;
+  check(n.moves === MOVES && n.touched.length === 0 && n.mirrors.length === 2, "after a shot two moves again; the mirrors stay where they are");
+  n = moveMirror(n, 0, [1, 4, 0]);
+  n = takeMirror(n, 1);
+  check(n.moves === 0 && moveMirror(n, 0, [1, 5, 0]).mirrors[0].p[1] === 5 && n.mirrors.length === 1, "moving one and taking another back spends both; the one moved still moves");
+  n = fire(addMirror(n, [2, 2, 2])).state;
+  check(n.mirrors.length === 1, "and no mirror can be set until the next shot");
 }
 
 // ---------- kept and opened again ----------

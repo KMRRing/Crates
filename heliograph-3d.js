@@ -509,7 +509,7 @@ export function createScene(host, view) {
   // ---- the clock: runs while something moves, so a still table costs nothing ----
   let raf = 0, tick = 0, idle = 0;
   function loop(now) {
-    const dt = Math.min(0.05, (now - tick) / 1000 || 0);
+    const dt = Math.min(0.2, (now - tick) / 1000 || 0);       // a slow frame still moves the shot on in time
     tick = now;
     clock += dt;
     if (play) advance(dt);
