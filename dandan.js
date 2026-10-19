@@ -1,0 +1,667 @@
+// Dandan: the communal-deck game of Forgetful Fish, played against the computer or a friend at a table. The rules are
+// dandan-engine.js's, the cards dandan-cards.js's and dandan-spells.js's, the computer player dandan-bot.js's, the running
+// seats.js's (solo, or a table through seats-ui.js). This page draws the table: the other player's side across the top,
+// the stack and the piles between, yours below, then your hand and the buttons. A card is picked by tapping it; what it
+// can do now is a button, and a spell that needs a target lights the legal ones on the table.
+import { rules } from "./dandan-rules.js";
+import { LEVEL_NAMES } from "./dandan-bot.js";
+import { moves } from "./dandan-engine.js";
+import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
+import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType } from "./dandan-core.js";
+import { same } from "./dandan-spells.js";
+import { seatPage, fillNames } from "./seats-ui.js";
+import { bindSwitcher, APPS } from "./apps.js";
+import { part, choice, toggle, action, line } from "./menu.js";
+import { IN_FRAME, noteStreak } from "./suite.js";
+import "./pwa.js";
+
+const $ = id => document.getElementById(id);
+const OPTS = "dandan:opts", RECORD = "dandan:record";
+const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+let opts = { level: "hard", hold: false, ...read(OPTS, {}) };
+const saveOpts = () => write(OPTS, opts);
+
+let toastTimer = 0;
+function toast(msg, ms = 2600) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), ms);
+}
+
+// ---------- words ----------
+/** A card's name short enough for a small card; the full name is on its detail and in the log. */
+const SHORT = {
+  "Narset's Reversal": "Reversal", "Izzet Boilerworks": "Izzet", "Mystic Sanctuary": "Sanctuary", "Mystic Retrieval": "Retrieval",
+  "Lórien Revealed": "Lórien", "Halimar Depths": "Halimar", "Thundering Falls": "Falls", "Lonely Sandbar": "Sandbar", "Chart a Course": "Chart",
+  "Deem Inferior": "Deem", "Take Inventory": "Inventory", "Gone Missing": "Missing", "Memory Lapse": "Lapse", "Piracy Charm": "Charm",
+  "Commit // Memory": "Commit", "Flood Plain": "Flood Plain", "Remote Isle": "Remote Isle",
+};
+/** Where a long name may break on a small card (a soft hyphen shows only when the line does break). */
+const SOFT = { Brainstorm: "Brain­storm", Inventory: "Inven­tory", Sanctuary: "Sanc­tuary", Retrieval: "Retrie­val", Reversal: "Rever­sal", Missing: "Miss­ing", Repulse: "Re­pulse", Halimar: "Hali­mar", Sandbar: "Sand­bar" };
+const short = name => SHORT[name] || name;
+const LAND_CODE = { "Flood Plain": "Fld", "Halimar Depths": "Hal", "Izzet Boilerworks": "Izz", "Lonely Sandbar": "Sbr", "Mystic Sanctuary": "Sct", "Remote Isle": "Rem", "Thundering Falls": "Fls" };
+const STEP_WORDS = { upkeep: "upkeep", draw: "draw", main1: "main phase", attackers: "attack", blockers: "blocks", damage: "combat", main2: "second main", end: "end step" };
+const MODE_WORDS = ["Islandwalk", "+2/−1", "Discard"];
+const STACK_WORDS = { "@fetch": "Flood Plain’s search", "@isle": "Islandcycling", "@cycle": "Cycling", "@clue": "Clue", "@dandan": "Dandân sacrificed",
+  "@depths": "Halimar Depths", "@falls": "Thundering Falls", "@boil": "Izzet Boilerworks", "@sanct": "Mystic Sanctuary" };
+const TYPE_WORDS = { land: "Land", creature: "Creature", instant: "Instant", sorcery: "Sorcery", token: "Token" };
+const TYPE_ORDER = { land: 0, creature: 1, instant: 2, sorcery: 3 };
+
+/** A cost as mana pips: generic in grey, blue and red in their colours. */
+function pips(cost) {
+  const out = [...String(cost || "").matchAll(/\{(\w)\}/g)].map(([, x]) => `<i class="dd-pip ${/\d/.test(x) ? "g" : x}">${x}</i>`).join("");
+  return out ? `<span class="dd-pips" aria-label="cost ${esc(costWords(cost))}">${out}</span>` : "";
+}
+
+let V = null;                                      // the view on screen
+let page = null;                                   // set once the runner is up
+const S = () => V?.state;
+const nameOf = seat => V?.seats?.[seat]?.name ?? (seat === 0 ? "You" : "Gill");
+const isMe = seat => V?.seat != null && seat === V.seat;
+const IRREGULAR = { has: "have", is: "are", fetches: "fetch" };
+/** A log line in words: the seats named, and when the viewer's name is the stock "You" the grammar follows it. */
+function words(text) {
+  const t = fillNames(text, V.seats);
+  if (V.seat == null || V.seats[V.seat]?.name !== "You") return t;
+  return t.replace(/\bYou's\b/g, "Your").replace(/\bYou ([a-z]+)\b/g, (m, verb) => `You ${IRREGULAR[verb] || (verb.endsWith("s") ? verb.slice(0, -1) : verb)}`);
+}
+
+// ---------- what's on screen, apart from the game: the pick being made ----------
+const blank = () => ({ look: null, arm: null, picks: [], atk: [], blk: [], blkSel: null, order: [], bend: null, dlgOff: false, yard: false });
+let ui = blank(), uiKey = "";
+let MV = [];                                       // the moves the viewer could make now (every card once)
+
+page = seatPage({
+  rules, id: "dandan", app: 1, pace: 1000, botName: () => "Gill", level: () => opts.level, voice: () => false,
+  onView: v => {
+    V = v;
+    const key = v.G ? `${v.G.seq}:${v.G.n}` : "";
+    if (key !== uiKey) {
+      // a move was made: the picks it was for are over; a card being read stays up while it's still there
+      const look = ui.look;
+      ui = blank();
+      uiKey = key;
+      if (look && v.state && (v.state.bf.some(p => p.id === look.id) || v.state.hand[v.seat ?? 0]?.includes(look.id))) ui.look = look;
+    }
+    draw();
+  },
+  onOver, toast, newGame,
+});
+
+// ---------- the table, drawn ----------
+const canAct = () => V?.G && V.seat != null && !S().over && !S().pending && S().prio === V.seat;
+
+function draw() {
+  if (!page) return;
+  const v = V;
+  document.body.classList.toggle("dd-watch", !!v?.G && v.seat == null);
+  if (!v?.G) {
+    for (const id of ["foe", "me", "hand", "log"]) $(id).replaceChildren();
+    $("mid").innerHTML = `<p class="dd-lead">One deck of eighty cards, one library, one graveyard, shared. Win with Dandâns, which can only attack across an Island.</p>`;
+    $("controls").innerHTML = `<button class="btn primary dd-go" type="button" data-act="new">New game</button>`;
+    return;
+  }
+  const s = S(), me = v.seat ?? 0;
+  MV = canAct() ? moves(s, v.seat) : [];
+  const q = question();
+  drawZone($("foe"), 1 - me, q);
+  drawZone($("me"), me, q);
+  drawMid(q);
+  drawHand(q);
+  drawLog();
+  drawControls(q);
+  syncDialogs(q);
+}
+
+// ---------- the two sides ----------
+const targetKey = t => `${t.k}:${t.sid ?? t.id ?? t.seat}`;
+const armedKeys = () => new Set((ui.arm?.moves || []).map(m => targetKey(m.targets[0])));
+
+function drawZone(box, seat, q) {
+  const s = S(), armed = armedKeys();
+  const mine = s.bf.filter(p => p.ctl === seat);
+  const cre = mine.filter(isCreature), lnd = mine.filter(isLand), tok = mine.filter(p => !isLand(p) && !isCreature(p));
+  const untapped = lnd.filter(p => !p.tapped).length;
+  const turn = s.active === seat && !s.over && s.step !== "mull";
+  const them = seat !== (V.seat ?? 0);
+  box.className = `dd-zone ${them ? "foe" : "me"}${turn ? " turn" : ""}${V.toMove === seat ? " move" : ""}`;
+  box.innerHTML = `<header class="dd-zh${armed.has(`p:${seat}`) ? " tgt" : ""}" data-tk="p:${seat}">
+      <b class="dd-who">${esc(nameOf(seat))}</b>
+      <span class="dd-meta">${them ? `hand ${s.hand[seat].length} · ` : ""}${untapped} of ${lnd.length} lands ready</span>
+      <span class="dd-life" aria-label="${s.life[seat]} life">${s.life[seat]}</span></header>
+    <div class="dd-cres">${cre.map(p => creTile(p, q, armed)).join("")}</div>
+    <div class="dd-lands">${[...lnd, ...tok].sort(landOrder).map(p => landChip(p, armed)).join("")}</div>`;
+}
+const landOrder = (a, b) => (nm(a.id) === "Clue") - (nm(b.id) === "Clue") || (nm(a.id) === "Island" ? 0 : 1) - (nm(b.id) === "Island" ? 0 : 1) || a.id - b.id;
+
+/** A Dandân: its power and toughness as they stand, and what's been done to it. */
+function creTile(p, q, armed) {
+  const s = S(), [a, b] = pt(p), base = defOf(p.id).pt;
+  const att = s.combat?.att.includes(p.id), pairs = s.combat?.blk || [];
+  const link = pairs.findIndex(([x, y]) => x === p.id || y === p.id);
+  const mineBlk = ui.blk.findIndex(([x, y]) => x === p.id || y === p.id);
+  const pending = q?.pick;
+  const can = (pending === "attack" && S().pending.ids.includes(p.id)) || (pending === "block" && (S().pending.blockers.includes(p.id) || S().pending.attackers.includes(p.id)));
+  const chosen = ui.atk.includes(p.id) || ui.blkSel === p.id;
+  const tags = [att ? "attacking" : "", p.tapped && !att ? "tapped" : "", p.walk ? "islandwalk" : "", needType(p) !== "Island" ? `wants ${needType(p)}` : "", p.ent >= s.turn && p.ctl === s.active ? "new" : ""].filter(Boolean);
+  const num = link >= 0 ? link + 1 : mineBlk >= 0 ? mineBlk + 1 : 0;
+  return `<button type="button" class="dd-cre${p.tapped ? " tapped" : ""}${att ? " att" : ""}${can ? " can" : ""}${chosen ? " sel" : ""}${armed.has(`c:${p.id}`) ? " tgt" : ""}${ui.look?.id === p.id ? " look" : ""}" data-perm="${p.id}" data-tk="c:${p.id}" aria-label="Dandân ${a} ${b}${tags.length ? `, ${tags.join(", ")}` : ""}">
+    <span class="dd-pt"><b class="${a !== base[0] ? "chg" : ""}">${a}</b>/<b class="${b !== base[1] ? "chg" : ""}">${b}</b></span>
+    <span class="dd-cn">Dandân</span><span class="dd-tags">${tags.map(esc).join(" · ")}</span>${num ? `<i class="dd-link">${num}</i>` : ""}</button>`;
+}
+
+/** A land (or a Clue): its mana, tapped or not; a basic Island is only its colour, the rest carry a short name. */
+function landChip(p, armed) {
+  const clue = nm(p.id) === "Clue", alts = clue ? [] : manaAlts(p), cols = [...new Set(alts.flat())];
+  const basic = nm(p.id) === "Island" && !p.tc;
+  const mana = alts.map(a => a.join("")).join("/");
+  const text = clue ? "Clue" : basic ? "U" : LAND_CODE[nm(p.id)] || mana;
+  const cls = clue ? "dd-clue" : cols.length > 1 ? "duo" : cols.length ? `m${cols[0]}` : "m0";
+  return `<button type="button" class="dd-land ${cls}${p.tapped ? " tapped" : ""}${p.tc ? " bent" : ""}${armed.has(`c:${p.id}`) ? " tgt" : ""}${ui.look?.id === p.id ? " look" : ""}" data-perm="${p.id}" data-tk="c:${p.id}" aria-label="${esc(nm(p.id))}${p.tapped ? ", tapped" : ""}">${esc(text)}</button>`;
+}
+
+// ---------- the middle: what's happening, the stack, the piles ----------
+function waitLine() {
+  const s = S(), tm = V.toMove;
+  if (s.over || tm == null) return "";
+  if (V.seat == null) return `${nameOf(tm)} to move`;
+  if (tm === V.seat) return s.pending ? "Your answer" : s.stack.length ? "Your priority: answer, or let it resolve" : "Your move";
+  return `<span class="dd-thinking">${esc(nameOf(tm))} is ${s.pending ? "choosing" : "thinking"}</span>`;
+}
+function headline() {
+  const s = S();
+  if (s.over) return s.winner < 0 ? "A drawn game" : isMe(s.winner) ? "You won" : `${nameOf(s.winner)} won`;
+  if (s.step === "mull") return "Opening hands";
+  return `Turn ${s.turn} · ${isMe(s.active) ? "your" : `${esc(nameOf(s.active))}’s`} ${STEP_WORDS[s.step] || s.step}`;
+}
+/** A stack item's name and what it's aimed at. */
+function itemWords(it) {
+  const tw = t => (t.k === "s" ? stackName(S().stack.find(x => x.sid === t.sid)) : t.k === "p" ? nameOf(t.seat) : t.k === "g" ? nm(t.id) : nm(t.id));
+  const to = it.targets.map(tw).filter(Boolean).join(", ");
+  return { name: stackName(it), to };
+}
+const stackName = it => (it ? STACK_WORDS[it.name] || it.name : "a spell");
+
+function drawMid(q) {
+  const s = S(), box = $("mid"), armed = armedKeys();
+  const lib = s.lib.length, known = topKnown(s, V.seat ?? 0);
+  const stack = [...s.stack].reverse().map(it => {
+    const w = itemWords(it);
+    return `<button type="button" class="dd-st ${isMe(it.ctl) ? "mine" : "theirs"}${armed.has(`s:${it.sid}`) ? " tgt" : ""}" data-tk="s:${it.sid}" data-sid="${it.sid}">
+      <b>${esc(w.name)}</b><span>${esc(nameOf(it.ctl))}${w.to ? ` → ${esc(w.to)}` : ""}</span></button>`;
+  }).join("");
+  box.innerHTML = `<div class="dd-mh"><div class="dd-mt"><b>${headline()}</b><span class="dd-wait">${waitLine()}</span></div>
+      <button type="button" class="dd-pile" data-act="lib" aria-label="Library, ${lib} cards"><b>${lib}</b><small class="${known ? "known" : ""}">${known != null ? `▲ ${esc(short(nm(known)))}` : "Library"}</small></button>
+      <button type="button" class="dd-pile" data-act="yard" aria-label="Graveyard, ${s.yard.length} cards"><b>${s.yard.length}</b><small>Graveyard</small></button></div>
+    ${stack ? `<div class="dd-stack" aria-label="The stack, top first">${stack}</div>` : ""}
+    <div class="dd-mb fit-scroll">${midBody(q)}</div>`;
+}
+
+function midBody(q) {
+  const s = S();
+  if (q) return q.say;
+  if (ui.arm) return `<p class="dd-q">${esc(ui.arm.label)}: choose ${ui.arm.moves[0].targets[0].k === "p" ? "a player" : ui.arm.moves[0].targets[0].k === "g" ? "a card in the graveyard" : "a target"}</p><p class="dd-sub">The lit ones on the table are legal.</p>`;
+  if (ui.look) return detail(ui.look.id);
+  if (s.over) return `<p class="dd-q">${esc(words(s.log[s.log.length - 1]?.t || ""))}</p>`;
+  if (s.pending) return `<p class="dd-sub">${esc(nameOf(s.pending.seat))} is deciding…</p>${miniLog()}`;
+  return miniLog();
+}
+/** The last few lines, under the stack (sideways, the log has its own column). */
+function miniLog() {
+  return `<ol class="dd-minilog">${S().log.slice(-5).map(e => `<li>${esc(words(e.t))}</li>`).join("")}</ol>`;
+}
+
+/** A card read in full: the halves of a split card, the text in our words, and what's been done to it on the table. */
+function detail(id) {
+  const full = nm(id), p = perm(S(), id);
+  const state = p ? [p.tapped ? "Tapped" : "Untapped", isCreature(p) && p.ent >= S().turn && p.ctl === S().active ? "came this turn" : "", p.walk ? "has islandwalk" : "",
+    ...(p.tc || []).map(([a, b]) => `its text now says ${b} for ${a}`), p.pump ? `${p.pump[0] >= 0 ? "+" : ""}${p.pump[0]}/${p.pump[1] >= 0 ? "+" : ""}${p.pump[1]} this turn` : "",
+    `under ${isMe(p.ctl) ? "your" : `${esc(nameOf(p.ctl))}’s`} control`].filter(Boolean).join(" · ") : "";
+  return (HALVES[full] || [full]).map(h => {
+    const d = CARDS[h];
+    const type = d.type === "creature" ? `Creature · ${d.pt[0]}/${d.pt[1]} Fish` : d.type === "land" ? (d.subs.length ? `Land — ${d.subs.join(" ")}` : "Land") : TYPE_WORDS[d.type] + (d.aftermath ? " · aftermath" : "");
+    return `<div class="dd-detail"><div class="dd-dh"><b>${esc(h)}</b>${pips(d.cost)}</div><div class="dd-dt">${esc(type)}</div><p>${esc(d.text)}</p></div>`;
+  }).join("") + (state ? `<p class="dd-state">${esc(state)}</p>` : "");
+}
+
+// ---------- your hand ----------
+function drawHand(q) {
+  const box = $("hand"), s = S();
+  if (V.seat == null) { box.innerHTML = `<p class="dd-watching">Watching: you sit down at the next game.</p>`; return; }
+  const ids = [...s.hand[V.seat]].sort((a, b) => TYPE_ORDER[defOf(a).type] - TYPE_ORDER[defOf(b).type] || total(parseCost(defOf(a).cost)) - total(parseCost(defOf(b).cost)) || a - b);
+  const usable = new Set(MV.filter(m => m.from !== "yard").map(m => DECK[m.card]));
+  box.dataset.n = ids.length;
+  box.className = `dd-hand${canAct() ? " act" : ""}`;
+  box.innerHTML = ids.map(id => {
+    const d = defOf(id), pick = ui.picks.indexOf(id);
+    return `<button type="button" class="dd-card ${d.type}${usable.has(DECK[id]) ? " can" : ""}${ui.look?.id === id ? " look" : ""}${pick >= 0 ? " sel" : ""}" data-card="${id}" aria-label="${esc(DECK[id])}">
+      ${pips(d.cost)}<span class="dd-cn">${esc(SOFT[short(DECK[id])] || short(DECK[id]))}</span><span class="dd-ct">${TYPE_WORDS[d.type]}</span>${pick >= 0 ? `<i class="dd-link">${q?.ordered ? pick + 1 : "✓"}</i>` : ""}</button>`;
+  }).join("");
+}
+
+function drawLog() {
+  const box = $("log");
+  box.innerHTML = S().log.map(e => `<li>${esc(words(e.t))}</li>`).join("");
+  box.scrollTop = box.scrollHeight;
+}
+
+// ---------- the questions put to you ----------
+/**
+ * Your pending question as the page asks it: { say (html for the middle), buttons, pick (a choice made on the table or in
+ * the hand), ordered, dlg ({ title, html, choices }: a list to choose from, in a sheet) }.
+ */
+function question() {
+  const s = S(), q = s.pending, me = V.seat;
+  if (!q || q.seat !== me) return null;
+  const send = m => act(m);
+  const say = (t, sub = "") => `<p class="dd-q">${t}</p>${sub ? `<p class="dd-sub">${sub}</p>` : ""}`;
+  const picked = ui.picks.length;
+  switch (q.t) {
+    case "mull": {
+      const shown = s.reveal && s.reveal.seat !== me ? `<p class="dd-sub">${esc(nameOf(s.reveal.seat))} showed ${s.reveal.cards.map(id => esc(nm(id))).join(", ")} and took a free mulligan.</p>` : "";
+      return {
+        say: say("Keep this hand?", q.free ? "Fewer than two lands or two spells: a free mulligan, and the hand is shown." : q.taken ? `After ${q.taken} mulligan${q.taken > 1 ? "s" : ""}: keep it and put ${q.taken} on the bottom.` : "") + shown,
+        buttons: [
+          { label: "Mulligan", sub: q.free ? "free · shown" : `bottom ${q.taken + 1}`, off: s.mull.n[me] >= 6 && !q.free, fn: () => send({ t: "mull" }) },
+          { label: "Keep", kind: "primary", fn: () => send({ t: "keep" }) }],
+      };
+    }
+    case "bottom": return handPick(q, "bottom", `Put ${q.n} on the bottom of the library`, "Tap the cards to put away.", "Bottom", { t: "bottom", cards: ui.picks });
+    case "discard": return handPick(q, "discard", `Discard ${q.n === 1 ? "a card" : `${q.n} cards`}`, q.why ? `${q.why}.` : "", "Discard", { t: "discard", cards: ui.picks });
+    case "putback": return {
+      ...handPick(q, "putback", `Put ${q.n} back on top of the library`, q.n > 1 ? "The first you tap goes on top, the second under it." : "", "Put back", { t: "putback", cards: ui.picks }), ordered: true,
+    };
+    case "attack": return {
+      pick: "attack", say: say("Attack?", "Tap the Dandâns that attack. One that is blocked trades with its blocker: 4 damage each way, and both die."),
+      buttons: [
+        { label: "No attack", fn: () => send({ t: "attack", ids: [] }) },
+        { label: ui.atk.length ? `Attack with ${ui.atk.length}` : "Attack", kind: "primary", off: !ui.atk.length, fn: () => send({ t: "attack", ids: ui.atk }) }],
+    };
+    case "block": return {
+      pick: "block", say: say(`${esc(nameOf(s.active))} attacks with ${q.attackers.length}`, "Tap one of your Dandâns, then the attacker it blocks. Tap a paired one to take it off."),
+      buttons: [
+        { label: "No blocks", fn: () => send({ t: "block", pairs: [] }) },
+        { label: ui.blk.length ? `Block with ${ui.blk.length}` : "Block", kind: "primary", off: !ui.blk.length, fn: () => send({ t: "block", pairs: ui.blk }) }],
+    };
+    case "order": {
+      const ids = q.cards, chosen = ui.order;
+      return {
+        say: say("Order the top of the library", "Tap them from the top down.") + `<div class="dd-chips">${ids.map(id => `<button type="button" class="dd-chip${chosen.includes(id) ? " sel" : ""}" data-qc="${id}">${chosen.includes(id) ? `<i>${chosen.indexOf(id) + 1}</i>` : ""}${esc(nm(id))}</button>`).join("")}</div>`,
+        buttons: [
+          { label: "Keep order", fn: () => send({ t: "order", cards: ids }) },
+          { label: "Set order", kind: "primary", off: chosen.length !== ids.length, fn: () => send({ t: "order", cards: chosen }) }],
+      };
+    }
+    case "surveil": return {
+      say: say("Surveil 1", `The top card is <b>${esc(nm(q.card))}</b>. Keep it there, or put it in the graveyard?`),
+      buttons: [{ label: "Graveyard", fn: () => send({ t: "surveil", yard: true }) }, { label: "Keep on top", kind: "primary", fn: () => send({ t: "surveil", yard: false }) }],
+    };
+    case "owner": return {
+      say: say(`${esc(nm(q.target))} goes into the library`, "As its owner you choose where."),
+      buttons: [{ label: "Bottom", fn: () => send({ t: "owner", bottom: true }) }, { label: "Second from top", kind: "primary", fn: () => send({ t: "owner", bottom: false }) }],
+    };
+    default: return dialogQuestion(q, send, say);
+  }
+}
+/** A choice of cards from the hand (bottom, discard, put back): tapped in the hand, then confirmed. */
+function handPick(q, pick, title, sub, label, move) {
+  return {
+    pick, n: q.n, say: `<p class="dd-q">${esc(title)}</p>${sub ? `<p class="dd-sub">${esc(sub)}</p>` : ""}`,
+    buttons: [{ label, sub: `${ui.picks.length} of ${q.n}`, kind: "primary", off: ui.picks.length !== q.n, fn: () => act(move) }],
+  };
+}
+
+/** The questions with a list to choose from open in a sheet over the table (and come back from its button if it's closed). */
+function dialogQuestion(q, send, say) {
+  const s = S(), group = ids => {
+    const by = new Map();
+    for (const id of ids) { const k = nm(id); if (!by.has(k)) by.set(k, []); by.get(k).push(id); }
+    return [...by];
+  };
+  const list = (rows, none) => ({ rows, none });
+  switch (q.t) {
+    case "search": {
+      const rows = group(q.ids).map(([name, ids]) => ({ label: name, sub: ids.length > 1 ? `× ${ids.length}` : "", fn: () => send({ t: "search", card: ids[0] }) }));
+      return { say: say(q.to === "bf" ? "Fetch a land" : "Find an Island"), buttons: [reopen()], dlg: { title: q.to === "bf" ? "Fetch a land" : "Find an Island", ...list(rows, { label: "Find nothing", fn: () => send({ t: "search", card: null }) }) } };
+    }
+    case "pick": {
+      if (q.for === "boil") {
+        const rows = q.ids.map(id => { const p = perm(s, id); return { label: nm(id), sub: p?.tapped ? "tapped" : "untapped", fn: () => send({ t: "pick", card: id }) }; });
+        return { say: say("Return a land you control to your hand"), buttons: [reopen()], dlg: { title: "Return a land to your hand", ...list(rows) } };
+      }
+      const title = q.for === "drop" ? "Put a creature or land from your hand onto the battlefield" : "Put an instant or sorcery from the graveyard on top of the library";
+      const rows = group(q.ids).map(([name, ids]) => ({ label: name, sub: ids.length > 1 ? `× ${ids.length}` : "", fn: () => send({ t: "pick", card: ids[0] }) }));
+      return { say: say(title), buttons: [reopen()], dlg: { title, ...list(rows, q.optional ? { label: "None", fn: () => send({ t: "pick", card: null }) } : null) } };
+    }
+    case "bend": {
+      const p = perm(s, q.target), from = q.froms.length === 1 ? q.froms[0] : ui.bend;
+      const title = `Mind Bend: ${nm(q.target)}`, rows = [];
+      if (q.froms.length > 1) rows.push({ head: "Change which land type?" }, ...q.froms.map(f => ({ label: f, on: f === from, fn: () => { ui.bend = f; draw(); } })));
+      if (from) rows.push({ head: `${from} becomes` }, ...BASICS.filter(t => t !== from).map(t => ({ label: t, fn: () => send({ t: "bend", from, to: t }) })));
+      const note = nm(q.target) === "Dandân" ? "Its text will name the new type in place of Island: it attacks only a player who controls one, and it is sacrificed when its controller has none."
+        : p && isLand(p) ? "Wherever the land’s text names the type, it names the new one, for good: an Island turned into a Swamp no longer counts as an Island." : "";
+      return { say: say(title), buttons: [reopen()], dlg: { title, note, rows } };
+    }
+    case "name": {
+      const seen = new Map();
+      for (const id of [...s.hand[V.seat], ...s.yard, ...s.exile, ...s.bf.map(p => p.id), ...s.stack.map(i => i.card).filter(c => c != null)]) { const k = DECK[id]; if (k) seen.set(k, (seen.get(k) || 0) + 1); }
+      const rows = NAMES.map(n => ({ label: n, sub: `${DECK.filter(x => x === n).length - (seen.get(n) || 0)} unseen`, fn: () => send({ t: "name", name: n }) }));
+      return { say: say("Name a card"), buttons: [reopen()], dlg: { title: "Name a card", note: "Unseen: not in your hand, the graveyard, exile or on the table. Those are in the library or the other hand.", rows, cols: true } };
+    }
+    case "retarget": {
+      const labels = q.options.map(o => o.map(tword).join(", ")), seen = {};
+      const rows = q.options.map((o, i) => ({ label: labels.filter(l => l === labels[i]).length > 1 ? `${labels[i]} · ${(seen[labels[i]] = (seen[labels[i]] || 0) + 1)}` : labels[i], fn: () => send({ t: "retarget", targets: o }) }));
+      return { say: say("Choose new targets for the copy"), buttons: [reopen()], dlg: { title: "New target for the copy", ...list(rows, { label: "Keep the targets", fn: () => send({ t: "retarget" }) }) } };
+    }
+  }
+  return null;
+}
+const reopen = () => ({ label: "Answer", sub: "reopen the question", kind: "primary", fn: () => { ui.dlgOff = false; draw(); } });
+/** A target in words. */
+function tword(t) {
+  const s = S();
+  if (t.k === "s") return stackName(s.stack.find(x => x.sid === t.sid));
+  if (t.k === "p") return nameOf(t.seat);
+  const p = perm(s, t.id);
+  return p && !isLand(p) && nm(t.id) !== "Clue" ? `${nm(t.id)} (${isMe(p.ctl) ? "yours" : "theirs"})` : p ? `${nm(t.id)} (${isMe(p.ctl) ? "yours" : "theirs"})` : nm(t.id);
+}
+
+// ---------- the buttons ----------
+let BTN = [];                                      // this draw's buttons, by position (the page's data-b)
+function drawControls(q) {
+  const box = $("controls"), s = S();
+  if (V.seat == null) { box.innerHTML = `<p class="dd-status">${s.over ? headline() : "Watching"}</p>`; BTN = []; return; }
+  let list = [];
+  if (s.over) list = [{ label: "The result", kind: "primary", fn: () => showEnd(V) }, ...(page.host ? [{ label: "New game", fn: newGame }] : [])];
+  else if (q) list = q.buttons;
+  else if (ui.arm) list = [{ label: "Cancel", fn: () => { ui.arm = null; closeView(); draw(); } }];
+  else if (canAct()) {
+    list = lookActions();
+    list.push({ label: "Pass", sub: passWords(), kind: list.length ? "" : "primary", fn: () => act({ t: "pass" }) });
+  }
+  else list = [{ label: "Wait", sub: s.pending ? "their choice" : "their move", off: true, fn: () => {} }];
+  BTN = list;
+  box.dataset.n = list.length;
+  box.innerHTML = list.map((b, i) => `<button type="button" class="btn dd-btn${b.kind === "primary" ? " primary" : ""}" data-b="${i}" ${b.off ? "disabled" : ""}><b>${esc(b.label)}</b>${b.sub ? `<small>${b.sub}</small>` : ""}</button>`).join("");
+}
+function passWords() {
+  const s = S();
+  if (s.stack.length) return "let it resolve";
+  return { main1: "move on", attackers: "no change", blockers: "no change", main2: "to the end step", end: "end turn" }[s.step] || "";
+}
+
+/** The buttons for the card or permanent being read: what it can do now. */
+function lookActions() {
+  const id = ui.look?.id;
+  if (id == null) return [];
+  const out = [];
+  const inHand = S().hand[V.seat].includes(id);
+  if (inHand) {
+    const name = DECK[id], mine = MV.filter(m => m.from !== "yard" && DECK[m.card] === name);
+    const land = mine.find(m => m.t === "land");
+    if (land) out.push({ label: "Play", sub: "land", fn: () => act({ ...land, card: id }) });
+    const casts = mine.filter(m => m.t === "cast"), modes = [...new Set(casts.map(m => m.mode ?? 0))];
+    for (const mode of modes) {
+      const cands = casts.filter(m => (m.mode ?? 0) === mode).map(m => ({ ...m, card: id }));
+      const label = modes.length > 1 ? MODE_WORDS[mode] : "Cast";
+      out.push({ label, sub: pips(defOf(id).cost), fn: () => cast(cands, modes.length > 1 ? `${nm(id)}: ${MODE_WORDS[mode]}` : nm(id)) });
+    }
+    const cyc = mine.find(m => m.t === "cycle");
+    if (cyc) out.push({ label: "Cycle", sub: esc(costWords(defOf(id).cycling)), fn: () => act({ ...cyc, card: id }) });
+  } else {
+    const ab = MV.find(m => m.t === "ability" && m.id === id);
+    if (ab) out.push({ label: nm(id) === "Clue" ? "Crack" : "Fetch", sub: nm(id) === "Clue" ? "2 · draw" : "sacrifice", fn: () => act(ab) });
+  }
+  return out;
+}
+
+/** A spell ready to cast: with one possible target (or none) it goes at once; with several, the table lights them to choose from. */
+function cast(cands, label) {
+  if (cands.length === 1) { act(cands[0]); return; }
+  ui.arm = { moves: cands, label };
+  if (cands[0].targets[0].k === "g") openYard();
+  draw();
+}
+
+async function act(m) {
+  const why = await page.move(m.t === "cast" && opts.hold ? { ...m, hold: true } : m);
+  if (why) toast(why);
+  else closeView();
+}
+
+// ---------- taps ----------
+$("controls").addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b || b.disabled) return;
+  if (b.dataset.act === "new") { newGame(); return; }
+  BTN[Number(b.dataset.b)]?.fn();
+});
+$("board").addEventListener("click", e => {
+  const el = e.target.closest("button, [data-tk]");
+  if (!el) return;
+  if (el.dataset.act === "yard") { openYard(); return; }
+  if (el.dataset.act === "lib") { openLibrary(); return; }
+  if (el.dataset.qc) { orderTap(Number(el.dataset.qc)); return; }
+  const tk = el.dataset.tk;
+  if (ui.arm && tk) {
+    const hit = ui.arm.moves.find(m => targetKey(m.targets[0]) === tk);
+    if (hit) act(hit);
+    else toast("That isn’t a legal target");
+    return;
+  }
+  if (el.dataset.perm != null) { permTap(Number(el.dataset.perm)); return; }
+  if (el.dataset.sid) { const it = S().stack.find(x => x.sid === Number(el.dataset.sid)); if (it) look(it.card ?? it.src); }
+});
+$("hand").addEventListener("click", e => {
+  const b = e.target.closest("[data-card]");
+  if (b) cardTap(Number(b.dataset.card));
+});
+
+function look(id) {
+  if (id == null) return;
+  ui.look = ui.look?.id === id ? null : { id };
+  draw();
+}
+function cardTap(id) {
+  const q = question();
+  if (q && ["bottom", "discard", "putback"].includes(q.pick)) {
+    const i = ui.picks.indexOf(id);
+    if (i >= 0) ui.picks.splice(i, 1);
+    else if (q.n === 1) ui.picks = [id];
+    else if (ui.picks.length < q.n) ui.picks.push(id);
+    draw();
+    return;
+  }
+  // a second tap on a card with exactly one thing to do does it
+  if (ui.look?.id === id && canAct()) {
+    const a = lookActions();
+    if (a.length === 1) { a[0].fn(); return; }
+  }
+  look(id);
+}
+function permTap(id) {
+  const q = question(), p = perm(S(), id);
+  if (!p) return;
+  if (q?.pick === "attack") {
+    if (!S().pending.ids.includes(id)) { look(id); return; }
+    ui.atk = ui.atk.includes(id) ? ui.atk.filter(x => x !== id) : [...ui.atk, id];
+    draw();
+    return;
+  }
+  if (q?.pick === "block") {
+    const pend = S().pending;
+    if (pend.blockers.includes(id)) {
+      if (ui.blk.some(([b]) => b === id)) ui.blk = ui.blk.filter(([b]) => b !== id);
+      else ui.blkSel = ui.blkSel === id ? null : id;
+    } else if (pend.attackers.includes(id) && ui.blkSel != null) {
+      ui.blk = [...ui.blk.filter(([b]) => b !== ui.blkSel), [ui.blkSel, id]];
+      ui.blkSel = null;
+    } else look(id);
+    draw();
+    return;
+  }
+  look(id);
+}
+function orderTap(id) {
+  ui.order = ui.order.includes(id) ? ui.order.filter(x => x !== id) : [...ui.order, id];
+  draw();
+}
+
+// ---------- sheets: the question's list, the graveyard, the library ----------
+function syncDialogs(q) {
+  const dlg = $("askDlg");
+  if (q?.dlg && !ui.dlgOff) {
+    $("askHead").textContent = q.dlg.title;
+    const d = q.dlg, rows = d.rows || [];
+    ASK = [];
+    const btn = r => `<button type="button" class="btn dd-opt${r.on ? " primary" : ""}" data-d="${ASK.push(r) - 1}"><b>${esc(r.label)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</button>`;
+    const sections = [];                           // a heading starts a new list of options
+    for (const r of rows) { if (r.head || !sections.length) sections.push({ head: r.head, rows: [] }); if (!r.head) sections[sections.length - 1].rows.push(r); }
+    $("askBody").innerHTML = `${d.note ? `<p class="dd-ask-note">${esc(d.note)}</p>` : ""}${sections.map(sec => `${sec.head ? `<h4>${esc(sec.head)}</h4>` : ""}<div class="dd-opts${d.cols ? " cols" : ""}">${sec.rows.map(btn).join("")}</div>`).join("")}${d.none ? `<div class="dd-opts none">${btn(d.none)}</div>` : ""}`;
+    if (!dlg.open) { dlg.showModal(); document.activeElement?.blur?.(); }   // opened by the game, not a tap: no focus ring on its first button
+  } else if (dlg.open) dlg.close();
+  if ($("viewDlg").open) fillView();
+}
+let ASK = [];
+$("askBody").addEventListener("click", e => {
+  const b = e.target.closest("[data-d]");
+  if (b) ASK[Number(b.dataset.d)]?.fn();
+});
+// closing the question's sheet to look at the table leaves its button in the controls
+$("askLook").addEventListener("click", () => { ui.dlgOff = true; draw(); });
+$("askDlg").addEventListener("cancel", e => { e.preventDefault(); ui.dlgOff = true; draw(); });
+
+let VIEW = "";                                     // "yard" | "lib" while that sheet is open
+function openYard() { VIEW = "yard"; fillView(); if (!$("viewDlg").open) $("viewDlg").showModal(); }
+function openLibrary() { VIEW = "lib"; fillView(); if (!$("viewDlg").open) $("viewDlg").showModal(); }
+function closeView() { if ($("viewDlg").open) $("viewDlg").close(); }
+let VROWS = [];
+function fillView() {
+  const s = S(), body = $("viewBody");
+  if (!s) return;
+  if (VIEW === "lib") {
+    $("viewHead").textContent = `Library · ${s.lib.length}`;
+    const me = V.seat ?? 0, known = s.kn.filter(([id, m]) => (m & (1 << me)) && s.lib.includes(id)).map(([id]) => id).sort((a, b) => s.lib.indexOf(a) - s.lib.indexOf(b));
+    body.innerHTML = `<p class="dd-ask-note">One library for both players. It was shuffled at the start; you know a card only if you have seen it go there or looked at it.</p>
+      ${known.length ? `<ol class="dd-known">${known.map(id => `<li><span>${s.lib.indexOf(id) + 1}</span><b>${esc(nm(id))}</b></li>`).join("")}</ol>` : `<p class="dd-sub">You know no card in it.</p>`}`;
+    VROWS = [];
+    return;
+  }
+  const armG = ui.arm && ui.arm.moves[0].targets[0].k === "g";
+  $("viewHead").textContent = armG ? "Choose a card" : `Graveyard · ${s.yard.length}`;
+  const by = new Map();
+  for (let i = s.yard.length - 1; i >= 0; i--) { const id = s.yard[i], k = DECK[id]; if (!by.has(k)) by.set(k, []); by.get(k).push(id); }
+  VROWS = [];
+  const rows = [];
+  for (const [name, ids] of by) {
+    const half = HALVES[name] ? HALVES[name][1] : name;
+    const casts = MV.filter(m => m.t === "cast" && m.from === "yard" && DECK[m.card] === name);
+    let btn = "";
+    if (armG) {
+      const hit = ui.arm.moves.find(m => m.targets[0].id === ids[0]);
+      if (!hit) continue;
+      VROWS.push(() => act2(hit));
+      btn = `<button type="button" class="btn dd-sm primary" data-v="${VROWS.length - 1}">Choose</button>`;
+    } else if (casts.length) {
+      const label = CARDS[half].flashback ? `Flashback ${costWords(CARDS[half].flashback)}` : `Cast ${half}`;
+      VROWS.push(() => { closeView(); cast(casts.map(m => ({ ...m, card: ids[0] })), half); });
+      btn = `<button type="button" class="btn dd-sm primary" data-v="${VROWS.length - 1}">${esc(label)}</button>`;
+    }
+    rows.push(`<li><b>${esc(name)}</b>${ids.length > 1 ? `<span class="n">× ${ids.length}</span>` : ""}${btn}</li>`);
+  }
+  body.innerHTML = `${rows.length ? `<ol class="dd-yard">${rows.join("")}</ol>` : `<p class="dd-sub">${armG ? "No card here is a legal target." : "Empty."}</p>`}
+    ${s.exile.length && !armG ? `<h4>Exiled</h4><p class="dd-sub">${s.exile.map(id => esc(nm(id))).join(", ")}</p>` : ""}`;
+}
+const act2 = m => { closeView(); return act(m); };
+$("viewBody").addEventListener("click", e => {
+  const b = e.target.closest("[data-v]");
+  if (b) VROWS[Number(b.dataset.v)]?.();
+});
+$("viewClose").addEventListener("click", () => { closeView(); if (ui.arm) { ui.arm = null; draw(); } });
+$("viewDlg").addEventListener("close", () => { VIEW = ""; });
+
+// ---------- a game's end ----------
+function onOver(v) {
+  if (v.seat == null || IN_FRAME) return;
+  const won = v.state.winner === v.seat;
+  const r = read(RECORD, { played: 0, won: 0 });
+  r.played++;
+  if (won) r.won++;
+  write(RECORD, r);
+  noteStreak("dandan", won);
+  setTimeout(() => { if (V?.over) showEnd(V); }, 1100);
+}
+function showEnd(v) {
+  const s = v.state, mine = s.winner === v.seat;
+  $("endHead").textContent = s.winner < 0 ? "A drawn game" : mine ? "You win" : `${nameOf(s.winner)} wins`;
+  const loser = s.winner < 0 ? "Both" : nameOf(1 - s.winner);
+  const why = s.winner < 0 ? "Both players lost on the same check." : s.why === "library" ? `${isMe(1 - s.winner) ? "You drew" : `${loser} drew`} from an empty library.` : `${isMe(1 - s.winner) ? "You are" : `${loser} is`} out of life.`;
+  $("endBody").innerHTML = `<p>${esc(why)}</p>
+    <ul class="dd-standings"><li class="${isMe(0) ? "me" : ""}"><span>${esc(nameOf(0))}</span><b>${s.life[0]}</b></li><li class="${isMe(1) ? "me" : ""}"><span>${esc(nameOf(1))}</span><b>${s.life[1]}</b></li></ul>
+    <p class="dd-end-note">${s.turn} turns. ${s.lib.length} cards were left in the library. The loser goes first next game.</p>`;
+  $("endAgain").hidden = !page.host;
+  if (!$("endDlg").open) $("endDlg").showModal();
+}
+function newGame() {
+  $("endDlg").open && $("endDlg").close();
+  page.deal({}, 2);
+}
+$("endAgain").addEventListener("click", newGame);
+$("endTable").addEventListener("click", () => $("endDlg").close());
+
+// ---------- rules, menu ----------
+function showRules() {
+  const byType = t => Object.entries(CARDS).filter(([, d]) => d.type === t);
+  const row = ([name, d]) => `<li><div class="dd-rh"><b>${esc(name)}</b>${pips(d.cost)}</div><p>${esc(d.text)}</p></li>`;
+  const count = n => DECK.filter(x => x === n).length;
+  $("rulesBody").innerHTML = `
+    <p>Dandan is a way of playing <i>Magic: The Gathering</i> with eighty cards and no deck-building: one communal deck, known in that world as Forgetful Fish. Both players draw from <b>one library</b> and every card that is used goes to <b>one graveyard</b>, which either may use. A card in your hand, or one you put on the table, is yours.</p>
+    <p><b>Winning.</b> Each starts on 20 life. The ten Dandâns are the only cards that do damage; the game ends when someone has no life left, or has to draw from an empty library.</p>
+    <p><b>The Dandân</b> is a 4/1 for two blue. It can’t attack unless the defending player controls an Island, and is sacrificed as soon as its controller controls none. So the game is about Islands: yours keep your Dandâns alive, theirs let you attack. Take their last Island away (Mind Bend can turn it into a Swamp for good) and their Dandân is gone, and yours can’t reach them.</p>
+    <p><b>A turn.</b> Untap, upkeep, draw (the player who goes first doesn’t draw on the first turn), a main phase to play one land and cast anything, attack, blocks, damage, a second main phase, the end step; a hand of more than seven is cut down. Blue instants may be cast any time you hold priority, which is why the game stops for you whenever you could act: the other player’s spell on the stack, their attack, the end of their turn. Where you could do nothing, it moves on by itself.</p>
+    <p><b>The stack.</b> A spell waits there until both players pass in a row; the last one cast resolves first. Memory Lapse counters it (to the top of the library, so the next draw is known), Narset’s Reversal copies it, Commit puts it second from the top. Menu, <i>Hold priority</i>, lets you cast a second spell before the first can be answered.</p>
+    <p><b>Mulligans.</b> A hand with fewer than two lands or fewer than two spells may be thrown back free, shown to the other player. After that each mulligan draws seven and puts one fewer on the bottom for each taken. The loser of the last game goes first.</p>
+    <h3>Where it plays differently from the paper game</h3>
+    <ul class="dd-notes">
+      <li>The game moves on by itself where nobody could act. You are asked in your own main phases, at attack and blocks, and at the end step when you hold a card that could be cast, and with anything on the stack. Priority isn’t offered at the start or end of combat, as nothing here acts in them.</li>
+      <li>Damage from a blocked attacker is dealt for you: enough to kill each blocker in turn. Two Dandâns blocking one attacker is allowed.</li>
+      <li>Mystic Sanctuary’s card is chosen as it resolves, Predict has no player to name, and Mind Bend changes land types only (the one thing the deck can use it on).</li>
+      <li>Flashback, Mystic Retrieval’s second cast and Memory are open to either player, as the graveyard is shared.</li>
+    </ul>
+    <h3>The cards</h3>
+    ${[["Creature", "creature"], ["Instants", "instant"], ["Sorceries", "sorcery"], ["Lands", "land"]].map(([t, k]) => `<h4>${t}</h4><ul class="dd-cards">${byType(k).map(row).join("")}</ul>`).join("")}
+    <p class="dd-rules-note">Eighty cards: ${["Island", "Dandân", "Memory Lapse", "Take Inventory"].map(n => `${count(n)} ${n}`).join(", ")}, and the rest in twos. Texts are in our own words; the card names and the format belong to their makers.</p>`;
+  $("rulesDlg").showModal();
+}
+function openMenu() {
+  const body = $("menuBody");
+  body.replaceChildren();
+  const play = part(body, "play");
+  if (page.host) play.append(action("New game", newGame, "primary"));
+  page.menu(play);
+  play.append(action("The rules and cards", showRules, "link"));
+  const set = part(body, "settings");
+  set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); }));
+  set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); }));
+  set.append(line("Holding priority lets you cast again before the other player can answer the first spell."));
+  const r = read(RECORD, { played: 0, won: 0 }), st = read("dandan:streak", { now: 0, best: 0 });
+  part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
+  if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- wiring ----------
+bindSwitcher($("appsBtn"), "dandan");
+document.querySelector(".dd-mark").innerHTML = APPS.find(a => a.id === "dandan")?.logo || "";
+$("menuBtn").addEventListener("click", openMenu);
+$("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+window.__dandan = { page, get view() { return V; }, get ui() { return ui; }, opts };
+// the first time, a game is dealt at once: the table is the menu
+if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
+draw();

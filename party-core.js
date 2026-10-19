@@ -187,6 +187,7 @@ export const ELSEWHERE = [
   { id: "trumps", name: "Trumps", kind: "table", page: "trumps.html", max: 4, across: true, blurb: "Jass, Belote, Coinche or Schafkopf, at a table of four." },
   { id: "quest", name: "Quest", kind: "table", page: "quest.html", max: 10, blurb: "Hidden loyalties: find the traitors before three quests fail." },
   { id: "bones", name: "Bones", kind: "table", page: "bones.html", max: 4, blurb: "Dominoes: Partnership, Gaple, or Fives and Threes." },
+  { id: "dandan", name: "Dandan", kind: "table", page: "dandan.html", max: 2, blurb: "Forgetful Fish: one shared deck of eighty cards, two players, and Dandâns that only attack across an Island." },
   { id: "cartel", name: "Cartel", kind: "table", page: "cartel.html", max: 4, blurb: "Coup and Liar's Dice in dice: claim roles you may not hold, bid on dice you can't see." },
   { id: "contract", name: "Contract", kind: "table", page: "contract.html", max: 4, across: true, blurb: "Bridge: the auction in SAYC, then the play, a Chicago match of four deals." },
   { id: "crates", name: "Crates", kind: "duo", duo: "crates", page: "crates.html", max: 2, blurb: "Sixteen words into four crates, one board between you." },
