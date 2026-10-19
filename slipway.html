@@ -25,27 +25,31 @@
   </header>
 
   <div class="sw-strip">
-    <span class="sw-score">Score <b id="score">0</b></span>
-    <span class="sw-ships">Launched <b id="ships">0</b></span>
-    <span class="sw-best">Best <b id="best">0</b></span>
+    <span class="sw-part"><b id="partName"></b><small id="partNo"></small></span>
+    <span class="sw-stars" id="partStars" aria-label="Your best for this part"></span>
   </div>
-  <section id="field" class="sw-field fit-grow fit-box" aria-label="The yard">
-    <svg id="flat" class="sw-flat" viewBox="-3.6 -3.9 7.2 11.2" role="img" aria-label="The yard" hidden></svg>
-    <div id="fx" class="sw-fx" aria-hidden="true"></div>
+  <section id="bench" class="sw-bench fit-grow" aria-label="The workbench">
+    <svg id="over" class="sw-over" aria-hidden="true"></svg>
+    <p id="nogl" class="sw-nogl" hidden>Slipway carves in 3D, and this device can't draw it.</p>
   </section>
   <p id="line" class="sw-line" role="status" aria-live="polite"></p>
   <section class="sw-side">
-    <div id="needs" class="sw-needs" aria-label="What she still needs"></div>
-    <div id="result" class="sw-result" hidden>
-      <p id="verdict" class="sw-verdict"></p>
-      <button class="sw-go" type="button" id="againBtn">New game</button>
-    </div>
+    <div id="tools" class="sw-tools" role="toolbar" aria-label="Tools"></div>
+    <div id="acts" class="sw-acts"></div>
   </section>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="doneDlg" class="sheet sw-done" aria-labelledby="doneHead">
+  <h2 id="doneHead"></h2>
+  <p id="doneStars" class="sw-big-stars" aria-hidden="true"></p>
+  <dl id="doneBody" class="sw-figures"></dl>
+  <p id="doneNote" class="sw-note"></p>
+  <div class="sw-done-go"><button class="btn" type="button" id="againBtn">Carve it again</button><button class="btn primary" type="button" id="nextBtn">Next part</button></div>
 </dialog>
 
 <p id="toast" class="sw-toast" role="status" aria-live="polite"></p>

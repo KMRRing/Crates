@@ -1,75 +1,78 @@
-/* Slipway: the yard, the dock and the ship on the berth, drawn in 3D by slipway-3d.js on a canvas the page puts in the
-   field (flat, in SVG, where there's no WebGL); under it a line saying what the part in hand would do, and what the
-   ship still needs, a chip for each kind in its enamel. Verdigris is the house colour. */
+/* Slipway: the workbench, drawn in 3D by slipway-3d.js on a canvas that fills its box; over it the saw's line; under it
+   how the part is coming on, the tools, and the buttons. Verdigris is the house colour. */
 :root {
   --sw-in: var(--c1);
   --sw-soft: color-mix(in srgb, var(--sw-in) 13%, var(--sheet));
+  --sw-bad: #A8382B;
 }
+@media (prefers-color-scheme: dark) { html:not([data-mode="day"]) { --sw-bad: #E8806F; } }
+html[data-mode="night"] { --sw-bad: #E8806F; }
 
 .sw-mark { display: inline-block; }
 .sw-mark svg { width: 100%; height: 100%; display: block; }
-.sw-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .2rem; font-size: .92rem; color: var(--ink-soft); }
-.sw-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
-.sw-score b { font-size: 1.05rem; }
+.sw-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; height: 1.8rem; margin: .5rem 0 .25rem; overflow: hidden; }
+.sw-part { display: flex; align-items: baseline; gap: .5rem; min-width: 0; }
+.sw-part b { font-size: .95rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-part small { flex: none; font-size: .78rem; color: var(--ink-soft); white-space: nowrap; }
+.sw-stars { flex: none; color: var(--sw-in); font-size: 1rem; letter-spacing: .1em; }
 
-/* the yard: the canvas fills the room, the scene framed in it */
-.sw-field { position: relative; }
-.sw-3d, .sw-flat { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; -webkit-user-select: none; user-select: none; }
-.sw-flat[hidden] { display: none; }
-.sw-fx { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
-.sw-slot { position: absolute; transform: translate(-50%, 1.6rem); font-size: .68rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track));
-  text-transform: var(--caps); color: var(--ink-soft); pointer-events: none; }
-.sw-pop { position: fixed; z-index: 20; transform: translate(-50%, -50%); font-weight: 800; font-size: 1.1rem; color: var(--ink); pointer-events: none; white-space: nowrap;
-  text-shadow: 0 0 .25rem var(--sheet), 0 0 .25rem var(--sheet), 0 0 .5rem var(--sheet); }
-.sw-pop.big { font-size: 1.45rem; }
-.sw-pop small { display: block; font-size: .72rem; font-weight: 750; text-align: center; color: var(--ink-soft); }
+/* the bench: the canvas fills it; the saw's line is drawn over it */
+.sw-bench { position: relative; min-height: 0; border-radius: 6px; overflow: hidden; border: 1px solid var(--tile-edge); }
+.sw-gl, .sw-over { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.sw-gl { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.sw-over { pointer-events: none; overflow: visible; }
+.sw-cut { stroke: #fff; stroke-width: 2px; stroke-dasharray: 6px 4px; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .8)); }
+.sw-cut-end { fill: #fff; stroke: rgba(0, 0, 0, .6); stroke-width: 1px; }
+.sw-nogl { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; padding: 1rem; text-align: center; color: var(--ink-soft); }
+.sw-nogl[hidden] { display: none; }
+
 /* two lines, always, so nothing moves when the words change */
-.sw-line { margin: .15rem 0 .3rem; height: 2.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
-  font-size: .9rem; line-height: 1.25rem; text-align: center; color: var(--ink-soft); }
-.sw-line b { color: var(--ink); }
+.sw-line { margin: .35rem 0 .3rem; height: 2.5rem; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+  font-size: .86rem; line-height: 1.25rem; text-align: center; color: var(--ink-soft); }
+.sw-line b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.sw-line b.bad { color: var(--sw-bad); }
 
-/* what she still needs: a chip a kind, its enamel, how many fitted of how many */
-.sw-side { display: grid; }
-/* one row, always: the names go where they won't all fit (the colours are the yard's pallets) */
-.sw-needs { display: flex; flex-wrap: nowrap; justify-content: center; align-items: center; gap: .3rem; height: 2.1rem; overflow: hidden; }
-.sw-needs[hidden] { display: none; }
-.sw-need { display: inline-flex; flex: none; align-items: center; gap: .3rem; padding: .2rem .42rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet);
-  font-size: .8rem; font-weight: 650; color: var(--ink); white-space: nowrap; }
-.sw-needs.tight .sw-need span { display: none; }
-.sw-need i { width: .7rem; height: .7rem; border-radius: 2px; background: var(--k); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 25%, transparent); }
-.sw-need b { font-variant-numeric: tabular-nums; }
-.sw-need.done { color: var(--ink-soft); background: transparent; }
-.sw-need.done b::after { content: " ✓"; }
+/* the tools, then the buttons */
+.sw-side { display: flex; flex-direction: column; gap: .35rem; }
+.sw-tools { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .3rem; }
+.sw-tool { display: grid; justify-items: center; gap: .1rem; min-width: 0; height: 3.3rem; padding: .3rem .1rem .25rem; border-radius: 6px; border: 1px solid var(--tile-edge); background: var(--tile); color: var(--ink); cursor: pointer; }
+.sw-tool svg { width: 1.45rem; height: 1.45rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.sw-tool span { font-size: .66rem; font-weight: 750; letter-spacing: calc(.04em * var(--track)); text-transform: var(--caps); white-space: nowrap; }
+.sw-tool.on { border-color: var(--sw-in); background: var(--sw-soft); box-shadow: inset 0 0 0 1.5px var(--sw-in); color: var(--sw-in); }
+.sw-acts { display: flex; gap: .35rem; height: 2.75rem; }
+html #acts .sw-act { flex: 1 1 0; min-width: 0; min-height: 0; padding: .2rem .3rem; font-size: .8rem; font-stretch: normal; letter-spacing: 0; text-transform: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.sw-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
-  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
-.sw-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; min-height: 3.4rem; }
-.sw-result .sw-go { padding: 0 1.3rem; }
-.sw-result[hidden] { display: none; }
-.sw-verdict { margin: 0; font-weight: 750; line-height: 1.3; }
+/* the menu's list of parts */
+.sw-parts { list-style: none; margin: 0; padding: 0; display: grid; gap: .25rem; }
+.sw-parts button { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .55rem .6rem; border-radius: 5px; border: 1px solid var(--rule); background: var(--tile); color: var(--ink); font-size: .9rem; cursor: pointer; text-align: left; }
+.sw-parts button.cur { border-color: var(--sw-in); box-shadow: inset 0 0 0 1px var(--sw-in); }
+.sw-parts button:disabled { opacity: .45; cursor: default; }
+.sw-parts small { flex: none; color: var(--sw-in); font-size: .85rem; letter-spacing: .08em; }
+.sw-parts button:disabled small { color: var(--ink-soft); letter-spacing: 0; }
 
-.sw-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
-  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
-  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+/* a part finished */
+.sw-big-stars { margin: .2rem 0 .6rem; font-size: 2rem; letter-spacing: .15em; color: var(--sw-in); }
+.sw-figures { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .8rem; margin: 0; }
+.sw-figures div { display: flex; justify-content: space-between; gap: .5rem; padding: .35rem 0; border-bottom: 1px solid var(--rule); }
+.sw-figures dt { color: var(--ink-soft); font-size: .86rem; }
+.sw-figures dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sw-note { color: var(--ink-soft); font-size: .88rem; line-height: 1.4; min-height: 1.2rem; }
+.sw-done-go { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .6rem; }
+
+.sw-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 7rem); transform: translateX(-50%); z-index: 40;
+  max-width: min(90vw, 24rem); padding: .5rem .9rem; border-radius: 6px; background: var(--plate); color: var(--plate-ink); font-weight: 700; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s; }
 .sw-toast.show { opacity: 1; }
 
-/* the flat yard, where there's no WebGL */
-.sw-flat .tile { fill: var(--tile); stroke: var(--rule); stroke-width: .02; }
-.sw-flat .slot { fill: none; stroke: var(--brass); stroke-width: .03; }
-.sw-flat .hover { fill: none; stroke: var(--ink); stroke-width: .05; }
-.sw-flat .pallet { stroke: color-mix(in srgb, var(--ink) 40%, transparent); stroke-width: .02; }
-.sw-flat text { font-size: .3px; font-weight: 800; text-anchor: middle; dominant-baseline: central; fill: var(--ink); }
-.sw-flat .pip { fill: var(--brass); }
-.sw-flat .berth { fill: color-mix(in srgb, var(--c2) 18%, var(--sheet)); }
-.sw-flat .shipname { font-size: .42px; }
-
-/* held sideways: the yard on the left with all the height; the score, the line and what she needs beside it */
+/* held sideways: the bench on the left with all the height; the part, the line, the tools and the buttons beside it */
 @media (orientation: landscape) and (min-width: 700px) {
-  #app.slipway { --beside: 17rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
-  #app.slipway .sw-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
-  #app.slipway .sw-field { grid-column: 1; grid-row: 2 / span 3; margin-top: .4rem; }
-  #app.slipway .sw-line { grid-column: 2; grid-row: 3; height: auto; max-height: 6rem; white-space: normal; text-align: left; }
-  #app.slipway .sw-side { grid-column: 2; grid-row: 4; align-content: start; }
-  #app.slipway .sw-needs { justify-content: flex-start; flex-wrap: wrap; height: auto; }
-  #app.slipway .sw-result { grid-template-columns: 1fr; }
+  #app.slipway { --beside: 22rem; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  #app.slipway .sw-bench { grid-column: 1; grid-row: 2 / 5; }
+  #app.slipway .sw-strip { grid-column: 2; grid-row: 2; }
+  #app.slipway .sw-line { grid-column: 2; grid-row: 3; align-self: end; height: 3.75rem; -webkit-line-clamp: 3; line-clamp: 3; }
+  #app.slipway .sw-side { grid-column: 2; grid-row: 4; }
+  #app.slipway .sw-tools { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #app.slipway .sw-tool { height: 3.8rem; }
 }
+html[data-theme="office"] :is(.sw-tool, .sw-parts button, .sw-bench) { border-radius: 4px; }
+html[data-theme="kontor"] :is(.sw-tool, .sw-parts button, .sw-bench) { border-radius: 2px; }

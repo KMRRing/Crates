@@ -1,279 +1,325 @@
-// Slipway: a shipyard where three alike make the next. The part in hand waits on the dock in front of the yard; drag it
-// onto an empty square (or tap a square to see what it would make there, and tap it again to lay it), and while it's
-// held the parts it would join are lifted and the line under the yard says what they'd make. A tap on the hold swaps
-// the part in hand with the one kept there. Components go to the ship on the berth as they're made, and a ship with all
-// she needs is launched. The rules are slipway-engine.js's; the yard is drawn by slipway-3d.js (flat, in SVG, where
-// there's no WebGL); this file plays each turn out and keeps the game.
-import { W, H, EMPTY, BLUEPRINT, KINDS, points, newGame, place, swap, kindOf, stageOf, shipAt, powered, partName, group } from "./slipway-engine.js";
-import { createYard } from "./slipway-3d.js";
+// Slipway: a ship's parts carved by hand, one block of timber at a time. Each part's ghost lies in the block; slide it
+// along the block (or turn it end for end) to keep the knots out of it, then work the wood away: the saw cuts straight
+// through along the line you draw, the plane shaves where you stroke it, the chisel takes chips, the drill bores
+// straight in along your line of sight, the sandpaper smooths. Two fingers (or the Turn tool) turn the block round.
+// Finish grades it: how little waste is left, how little of the part you cut into, and whether a knot is in it. The
+// cutting and the grade are slipway-carve.js's, the bench slipway-3d.js's; this file takes the strokes and keeps it.
+import { PARTS, SLACK, newBlock, place, saw, plane, chisel, drill, sand, hit, grade, pack, unpack, normalAt, steady, exposed, planeCut } from "./slipway-carve.js";
 import { bindSwitcher, APPS } from "./apps.js";
+import { part, action, line, toggle } from "./menu.js";
+import { IN_FRAME } from "./suite.js";
 import "./pwa.js";
-import { part, action, line } from "./menu.js";
 
 const $ = id => document.getElementById(id);
-const SVG = "http://www.w3.org/2000/svg";
-const RUN = "slipway:run", BEST = "slipway:best", SEEN = "slipway:seen";
+const CARVE = "slipway:carve", MADE = "slipway:parts", BEST = "slipway:best", OPTS = "slipway:opts";
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
-const fmt = n => n.toLocaleString("en-GB");
-const KIND_NAMES = { sail: ["Hull", "Masts", "Sails", "Guns", ""], power: ["Hull", "Funnels", "Engines", "Deckhouses", "Screws"] };
-const kindNames = i => KIND_NAMES[powered(i) ? "power" : "sail"];
-// the four enamels, and copper for the screws (the fifth kind, under power): a colour none of the enamels is in any theme
-const kindColour = k => (k < 4 ? `var(--c${k})` : "var(--p1)");
-const NUMBER = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
-const cap = t => t[0].toUpperCase() + t.slice(1);
-const plural = name => (name.includes(" of ") ? name.replace(/^(\w+)/, "$1s") : `${name}s`);
-const an = name => (/^[aeiou]/.test(name) ? `an ${name}` : `a ${name}`);
-/** A ship as the line names her: "the cog", "the East Indiaman", "the VLCC". */
-const the = ship => `the ${/^[A-Z]{2}|East/.test(ship.name) ? ship.name : ship.name.toLowerCase()}`;
+const write = (k, v) => { if (!IN_FRAME) try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
+const pct = x => `${Math.round(x * 100)}%`;
+const starsOf = score => (score >= 90 ? 3 : score >= 75 ? 2 : score >= 55 ? 1 : 0);
+const starText = n => "★".repeat(n) + "☆".repeat(3 - n);
 
-let S = null;            // the game (slipway-engine.js's), as saved
-let view = null;         // the yard: slipway-3d.js's, or the flat one
-let playing = false;     // a turn being played out
-let drag = null;         // the part in hand being dragged: { id, x0, y0, moved, offset, at }
-let preview = -1;        // the square a tap is showing the part on, to be laid there with a second tap
-
-const valid = g => g && g.v === 1 && Array.isArray(g.cells) && g.cells.length === W * H && Array.isArray(g.fitted) && g.fitted.length === KINDS;
-function save() { write(RUN, S); }
-function newRun() {
-  if (playing) return;
-  dropDrag();
-  preview = -1;
-  S = newGame(Math.floor(Math.random() * 2 ** 31));
-  save();
-  render();
+// Slipway was a merge game until 19 October 2026: its best was a score in the tens of thousands, which isn't a count of
+// stars, so it's kept apart where the games screen doesn't read it.
+{
+  const old = read(BEST, null);
+  if (!read(CARVE, null) && typeof old === "number" && old > PARTS.length * 3) { write("slipway:yard-best", old); write(BEST, 0); }
 }
 
-// ---------- the flat yard, where there's no WebGL ----------
-function createFlat(svg) {
-  svg.removeAttribute("hidden");
-  const SLOT = { hold: -2.05, hand: 0, next: 2.05 }, DOCK_Y = 6.15;
-  let shown = null, hovered = null, lit = [];
-  const el = (tag, attrs = {}, text) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (text != null) n.textContent = text; return n; };
-  const xy = i => [(i % W) - W / 2, Math.floor(i / W)];
-  function partEl(c, x, y, size = .8) {
-    const g = el("g", { transform: `translate(${x + .5} ${y + .5}) scale(${size / .8})` });
-    if (c === BLUEPRINT) { g.append(el("rect", { x: -.4, y: -.4, width: .8, height: .8, rx: .08, class: "pallet", fill: "var(--c2)" }), el("text", { fill: "var(--sheet)" }, "?")); return g; }
-    const k = kindOf(c), st = stageOf(c);
-    g.append(el("rect", { x: -.4, y: -.4, width: .8, height: .8, rx: .08, class: "pallet", fill: kindColour(k) }));
-    g.append(el("text", { y: -.06, fill: "var(--sheet)" }, kindNames(shown?.ship ?? 0)[k][0]));
-    for (let j = 0; j < st; j++) g.append(el("circle", { class: "pip", cx: (j - (st - 1) / 2) * .16, cy: .24, r: .055 }));
-    return g;
-  }
-  function draw() {
-    if (!shown) return;
-    const s = shown, kids = [];
-    const ship = shipAt(s.ship);
-    kids.push(el("rect", { class: "berth", x: -3.5, y: -3.8, width: 7, height: 3.4, rx: .1 }));
-    kids.push(el("text", { class: "shipname", x: 0, y: -2.6 }, `${ship.name}, ${ship.year}`));
-    kids.push(el("text", { x: 0, y: -1.7 }, ship.needs.map((n, k) => (n ? `${kindNames(s.ship)[k]} ${s.fitted[k]}/${n}` : "")).filter(Boolean).join(" · ")));
-    for (let i = 0; i < W * H; i++) { const [x, y] = xy(i); kids.push(el("rect", { class: "tile", x: x + .03, y: y + .03, width: .94, height: .94, rx: .05 })); }
-    s.cells.forEach((c, i) => { if (c !== EMPTY) { const [x, y] = xy(i); const g = partEl(c, x, y - (lit.includes(i) ? .08 : 0)); kids.push(g); } });
-    if (hovered != null) { const [x, y] = xy(hovered); kids.push(el("rect", { class: "hover", x: x + .02, y: y + .02, width: .96, height: .96, rx: .06 })); if (s.cells[hovered] === EMPTY) { const g = partEl(s.hand, x, y); g.setAttribute("opacity", ".55"); kids.push(g); } }
-    for (const [name, x] of Object.entries(SLOT)) {
-      kids.push(el("circle", { class: "slot", cx: x, cy: DOCK_Y, r: name === "next" ? .36 : .5 }));
-      const c = s[name];
-      if (c !== null && c !== undefined) kids.push(partEl(c, x - .5, DOCK_Y - .5, name === "next" ? .55 : .8));
+let opts = { sound: true, ghost: true, ...read(OPTS, {}) };
+const saveOpts = () => write(OPTS, opts);
+
+// ---------- the tools ----------
+const ICON = {
+  turn: `<path d="M5 12a7 7 0 0 1 12-5l2-2v6h-6l2.2-2.2A4.6 4.6 0 0 0 7.4 12"/><path d="M19 12a7 7 0 0 1-12 5l-2 2v-6h6l-2.2 2.2A4.6 4.6 0 0 0 16.6 12"/>`,
+  saw: `<path d="M3 15l12-12 3 3-12 12z"/><path d="M5 17l-1.5 1.5M8 14l-1.5 1.5M11 11l-1.5 1.5M14 8l-1.5 1.5"/><path d="M15 3l6 6-2 2"/>`,
+  plane: `<path d="M3 16h18v3H3z"/><path d="M6 16l3-6h7l2 6"/><path d="M12 10V6l3-2"/>`,
+  chisel: `<path d="M4 20l5-5"/><path d="M8 13l3 3 9-9-3-3z"/><path d="M17 4l3 3"/>`,
+  drill: `<path d="M4 8h9v6H4z"/><path d="M13 10h4l3 1-3 1h-4"/><path d="M6 14v6h4v-6"/>`,
+  sand: `<path d="M4 9h16v8H4z"/><path d="M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 14.5h.01M12 14.5h.01M16 14.5h.01"/>`,
+};
+const TOOLS = [["turn", "Turn"], ["saw", "Saw"], ["plane", "Plane"], ["chisel", "Chisel"], ["drill", "Drill"], ["sand", "Sand"]];
+const REACH = { plane: 3.4, chisel: 1.25, drill: 1.5, sand: 2.4 };      // the cursor's radius, in cells, as the tool cuts
+let tool = "saw";
+
+// ---------- the sounds, made as they play (no files) ----------
+let audio = null;
+function noise(ms, { lo = 200, hi = 4000, gain = 0.25, decay = 0.6, rate = 0 } = {}) {
+  if (!opts.sound) return;
+  try {
+    audio ??= new AudioContext();
+    if (audio.state === "suspended") audio.resume();
+    const n = Math.round(audio.sampleRate * ms / 1000), buf = audio.createBuffer(1, n, audio.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) {
+      const t = i / n, saw = rate ? 0.55 + 0.45 * Math.abs(Math.sin(Math.PI * t * rate)) : 1;
+      d[i] = (Math.random() * 2 - 1) * saw * (1 - t) ** decay;
     }
-    svg.replaceChildren(...kids);
-  }
-  const toSvg = (x, y) => { const m = svg.getScreenCTM(); if (!m) return null; const p = new DOMPoint(x, y).matrixTransform(m.inverse()); return p; };
-  const squareAt = (px, py) => { const cx = Math.floor(px + W / 2), cy = Math.floor(py); return cx >= 0 && cx < W && cy >= 0 && cy < H ? cy * W + cx : null; };
-  return {
-    set(s) { shown = s; hovered = null; lit = []; draw(); },
-    async play(steps, before, after, onStep) { for (const st of steps) onStep?.(st); this.set(after); },
-    async swapped(after) { this.set(after); },
-    hover(at, group = []) { hovered = at; lit = group; draw(); },
-    lift(x, y, offset = 0) { if (x == null) return null; const p = toSvg(x, y); return p ? squareAt(p.x, p.y - offset) : null; },
-    pick(x, y, offset = 0) {
-      const p = toSvg(x, y);
-      if (!p) return null;
-      for (const [name, sx] of Object.entries(SLOT)) if (Math.hypot(p.x - sx, p.y - DOCK_Y) < .6) return { dock: name };
-      const at = squareAt(p.x, p.y - offset);
-      return at == null ? null : { square: at };
-    },
-    where(at) { const m = svg.getScreenCTM(), [x, y] = typeof at === "string" ? [SLOT[at], DOCK_Y] : [xy(at)[0] + .5, xy(at)[1] + .5], p = new DOMPoint(x, y).matrixTransform(m); return { clientX: p.x, clientY: p.y }; },
-    shipWhere() { const m = svg.getScreenCTM(), p = new DOMPoint(0, -2.2).matrixTransform(m); return { clientX: p.x, clientY: p.y }; },
-    theme() { draw(); }, resize() {}, busy: () => false, flat: true,
-  };
+    const src = audio.createBufferSource(), bp = audio.createBiquadFilter(), g = audio.createGain();
+    src.buffer = buf;
+    bp.type = "bandpass"; bp.frequency.value = Math.sqrt(lo * hi); bp.Q.value = Math.sqrt(lo * hi) / (hi - lo);
+    g.gain.value = gain;
+    src.connect(bp).connect(g).connect(audio.destination);
+    src.start();
+  } catch { /* no sound here */ }
+}
+const SOUND = {
+  saw: () => noise(520, { lo: 900, hi: 5200, gain: 0.32, decay: 0.3, rate: 7 }),
+  plane: () => noise(110, { lo: 1800, hi: 9000, gain: 0.16, decay: 1.4 }),
+  chisel: () => noise(45, { lo: 600, hi: 3000, gain: 0.3, decay: 3 }),
+  drill: () => noise(420, { lo: 300, hi: 1600, gain: 0.22, decay: 0.4, rate: 30 }),
+  sand: () => noise(90, { lo: 3000, hi: 11000, gain: 0.1, decay: 1 }),
+};
+let lastSound = 0;
+const sound = kind => { const t = performance.now(); if (t - lastSound > (kind === "plane" || kind === "sand" ? 90 : 30)) { lastSound = t; SOUND[kind](); } };
+
+// ---------- the block and its keeping ----------
+let B = null;              // the block (slipway-carve.js's)
+let run = null;            // { part, seed, started }
+let undo = [];             // the block's wood before each stroke, the last ten
+let bench = null;
+const made = () => read(MADE, {});
+const unlocked = i => i === 0 || (made()[PARTS[i - 1].id] ?? 0) >= 55;
+
+let saveTimer = 0;
+function save(now = false) {
+  clearTimeout(saveTimer);
+  const go = () => write(CARVE, { v: 1, part: run.part, seed: run.seed, off: B.off, flip: B.flip, started: run.started, d: pack(B.d) });
+  if (now) go(); else saveTimer = setTimeout(go, 350);
+}
+function start(i, seed = (Math.random() * 2 ** 31) >>> 0) {
+  run = { part: i, seed, started: false };
+  B = newBlock(i, seed);
+  undo = [];
+  bench?.setBlock(B);
+  save(true);
+  render();
+}
+function load() {
+  const s = read(CARVE, null);
+  if (!s || s.v !== 1 || !PARTS[s.part]) { start(0); return; }
+  run = { part: s.part, seed: s.seed, started: !!s.started };
+  B = newBlock(s.part, s.seed);
+  place(B, s.off, s.flip);
+  if (typeof s.d === "string") B.d = unpack(s.d, B.d.length);
+  bench?.setBlock(B);
+  render();
+}
+function snapshot() { undo.push(B.d.slice()); if (undo.length > 10) undo.shift(); }
+function touched() {
+  if (!run.started) { run.started = true; render(); }
 }
 
-// ---------- the yard as it stands ----------
-const hintOn = () => !read(SEEN, false) && S.turns < 4;
-function drawStrip() {
-  $("score").textContent = fmt(S.score);
-  $("ships").textContent = fmt(S.launched);
-  $("best").textContent = fmt(Math.max(read(BEST, 0), S.score));
-}
-function drawNeeds() {
-  const box = $("needs"), ship = shipAt(S.ship), names = kindNames(S.ship);
-  box.hidden = S.over;
-  $("result").hidden = !S.over;
-  if (S.over) {
-    const best = read(BEST, 0);
-    $("verdict").textContent = `The yard is full: ${fmt(S.score)}, ${S.launched === 1 ? "one ship" : `${NUMBER[S.launched] ?? fmt(S.launched)} ships`} launched${S.score >= best && S.score > 0 ? ", your best" : ""}`;
-    return;
-  }
-  box.replaceChildren(...ship.needs.flatMap((n, k) => {
-    if (!n) return [];
-    const chip = document.createElement("span"), have = Math.min(n, S.fitted[k]);
-    chip.className = `sw-need${have >= n ? " done" : ""}`;
-    chip.style.setProperty("--k", kindColour(k));
-    chip.title = names[k];
-    chip.innerHTML = `<i></i><span>${names[k]}</span> <b>${have}/${n}</b>`;
-    return [chip];
-  }));
-  fitNeeds();
-}
-// the chips' names go where the row won't hold them all
-function fitNeeds() {
-  const box = $("needs");
-  box.classList.remove("tight");
-  if (box.scrollWidth > box.clientWidth + 1) box.classList.add("tight");
-}
-function say(html) { $("line").innerHTML = html ?? ""; }
-function idleLine() {
-  if (S.over) return say("");
-  if (hintOn()) return say("Drag the part in hand onto the yard: three alike together make the next");
-  const ship = shipAt(S.ship);
-  say(`<b>${ship.name}</b>, ${ship.year}: ${ship.note}`);
-}
-// the hold and the next part named under their places on the dock (put where the yard draws them)
-function placeLabels() {
-  for (const [slot, text] of [["hold", "Hold"], ["next", "Next"]]) {
-    let t = document.querySelector(`.sw-slot[data-slot="${slot}"]`);
-    if (!t) { t = document.createElement("span"); t.className = "sw-slot"; t.dataset.slot = slot; t.textContent = text; $("field").append(t); }
-    const at = view.where(slot), box = $("field").getBoundingClientRect();
-    t.style.left = `${at.clientX - box.left}px`;
-    t.style.top = `${at.clientY - box.top}px`;
-  }
-}
+// ---------- drawing the page ----------
 function render() {
-  view.set(S);
-  placeLabels();
-  preview = -1;
-  drawStrip();
-  drawNeeds();
-  idleLine();
+  const p = PARTS[run.part], best = made()[p.id];
+  $("partName").textContent = p.name;
+  $("partNo").textContent = `${run.part + 1} of ${PARTS.length} · the cog`;
+  $("partStars").textContent = best != null ? starText(starsOf(best)) : "";
+  $("tools").innerHTML = TOOLS.map(([id, name]) => `<button type="button" class="sw-tool${tool === id ? " on" : ""}" data-tool="${id}" aria-pressed="${tool === id}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[id]}</svg><span>${name}</span></button>`).join("");
+  const nextView = VIEW_NAMES[(viewAt + 1) % VIEW_NAMES.length];
+  $("acts").innerHTML = run.started
+    ? `<button type="button" class="btn sw-act" data-act="undo" ${undo.length ? "" : "disabled"}>Undo</button><button type="button" class="btn sw-act" data-act="view">${nextView[1]}</button><button type="button" class="btn primary sw-act" data-act="finish">Finish</button>`
+    : `<button type="button" class="btn sw-act" data-act="left" aria-label="Slide the part left" ${B.off > 0 ? "" : "disabled"}>◀</button><button type="button" class="btn sw-act" data-act="flip">End for end</button><button type="button" class="btn sw-act" data-act="right" aria-label="Slide the part right" ${B.off < SLACK ? "" : "disabled"}>▶</button><button type="button" class="btn sw-act" data-act="view">${nextView[1]}</button>`;
+  sayGrade();
 }
-
-// ---------- what the part in hand would do ----------
-/** The line for laying the part in hand on square i: what it would make, what's fitted or launched, the points. */
-function describe(s, i, r = place(s, i)) {
-  const name = c => partName(c, s.ship), ship = the(shipAt(s.ship));
-  const placed = r.steps[0], merges = r.steps.filter(x => x.type === "merge"), fit = r.steps.find(x => x.type === "fit" && x.at === i), launched = r.steps.some(x => x.type === "launch");
-  if (!merges.length) {
-    if (placed.blueprint) return `The blueprint is ${an(name(placed.part))}, with nothing to join`;
-    const n = group(r.state.cells, i).length;
-    return n <= 1 ? `${cap(an(name(placed.part)))}: three together make ${an(name(placed.part + 1))}` : `${cap(NUMBER[n])} ${plural(name(placed.part))} together: one more makes ${an(name(placed.part + 1))}`;
-  }
-  const made = merges.map(m => `${NUMBER[m.from.length]} ${plural(name(m.part - 1))} make ${an(name(m.part))}`).join(", and ");
-  let text = placed.blueprint ? `The blueprint is ${an(name(placed.part))}: ${made}` : cap(made);
-  const top = merges.at(-1).part;
-  if (stageOf(top) === 3) text += fit ? (launched ? `, and ${ship} is launched` : `, fitted to ${ship}`) : `: ${ship} doesn't need one, so it waits`;
-  return `${text} <b>+${fmt(r.gain)}</b>`;
-}
-function showPreview(at) {
-  if (at == null || S.cells[at] !== EMPTY) { view.hover(at, []); say(at == null ? "" : "That square is taken"); return; }
-  const r = place(S, at), lift = new Set();
-  for (const st of r.steps) if (st.type === "merge") for (const j of st.from) if (j !== at) lift.add(j);
-  view.hover(at, [...lift]);
-  say(describe(S, at, r));
-}
-
-// ---------- a turn ----------
-function settle() {
-  if (S.score > read(BEST, 0)) write(BEST, S.score);
-  if (S.turns >= 4) write(SEEN, true);
-  save();
-}
-async function commit(at) {
-  if (playing || S.over || S.cells[at] !== EMPTY) return;
-  playing = true;
-  preview = -1;
-  const before = S, r = place(S, at);
-  S = r.state;
-  settle();
-  drawStrip();
-  say("");
-  // the points pop up as the first merge is made (all the turn's merges and fittings), and at the launch
-  const made = r.steps.reduce((a, x) => a + (x.type === "merge" ? x.gain : x.type === "fit" ? points.fit : 0), 0);
-  let shownPoints = false;
-  await view.play(r.steps, before, S, st => {
-    if (st.type === "merge" && !shownPoints) { shownPoints = true; popup(view.where(at), made, ""); }
-    if (st.type === "launch") { const ship = shipAt(st.ship); popup(view.shipWhere(), st.gain, `${ship.name} launched`, true); }
-    if (st.type === "lay") { const ship = shipAt(st.ship); toast(`Laid down: ${the(ship)}, ${ship.year}`); }
-  });
-  playing = false;
-  render();
-}
-async function doSwap() {
-  if (playing || S.over) return;
-  playing = true;
-  preview = -1;
-  const before = S;
-  S = swap(S);
-  save();
-  if (before.hold === null) toast("Kept in the hold: tap the hold to swap it back");
-  await view.swapped(S);
-  playing = false;
-  render();
-}
-function popup(at, gain, label, big = false) {
-  if (!gain && !label) return;
-  const t = document.createElement("div");
-  t.className = `sw-pop${big ? " big" : ""}`;
-  t.style.left = `${at.clientX}px`;
-  t.style.top = `${at.clientY}px`;
-  t.textContent = `+${fmt(gain)}`;
-  if (label) { const s = document.createElement("small"); s.textContent = label; t.append(s); }
-  $("fx").append(t);
-  const a = t.animate?.([{ transform: "translate(-50%, -50%)", opacity: 1 }, { transform: "translate(-50%, calc(-50% - 2.2rem))", opacity: 0 }], { duration: big ? 1800 : 1100, delay: 150, easing: "ease-out", fill: "both" });
-  if (a) a.finished.then(() => t.remove(), () => t.remove()); else setTimeout(() => t.remove(), 1500);
-}
-
-// ---------- holding the part ----------
-function dropDrag() { if (drag) view.lift(null); drag = null; }
-function onDown(e) {
-  if (playing || S.over || e.button > 0) return;
-  const touch = e.pointerType !== "mouse", hit = view.pick(e.clientX, e.clientY);
-  if (!hit) { preview = -1; showPreview(null); idleLine(); return; }
-  e.preventDefault();
-  if (hit.dock === "hand") {
-    drag = { id: e.pointerId, x0: e.clientX, y0: e.clientY, moved: false, offset: touch ? .9 : 0, at: null };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+function sayGrade() {
+  const p = PARTS[run.part];
+  if (!run.started) {
+    const g = grade(B);
+    const tools = p.tools.split(", "), list = tools.length > 1 ? `${tools.slice(0, -1).join(", ")} and ${tools.at(-1)}` : tools[0];
+    $("line").innerHTML = `${p.line}${g.knots ? ` <b>A knot is in the outline: slide it clear.</b>` : ` <b>With the ${list}.</b>`}`;
     return;
   }
-  if (hit.dock === "hold") { doSwap(); return; }
-  if (hit.dock) return;
-  // a mouse lays the part where it clicks (it's been shown there as the mouse passed); a finger sees it first
-  if (!touch || preview === hit.square) { commit(hit.square); return; }
-  preview = hit.square;
-  showPreview(hit.square);
+  const g = grade(B);
+  // the waste as a share of the block while there's lots of it, then as a share of the part, which is what's graded
+  const waste = g.over < 1 ? `Waste on it <b>${pct(g.over)}</b>` : `Waste left <b>${pct(g.waste)}</b>`;
+  $("line").innerHTML = `${waste} · into the part <b class="${g.into > 0.005 ? "bad" : ""}">${pct(g.into)}</b>${g.knots ? ` · <b class="bad">${g.knots === 1 ? "a knot" : `${g.knots} knots`} in it</b>` : ""} · <b>${starText(g.stars)}</b>`;
+}
+
+// ---------- pointing at the bench ----------
+const pointers = new Map();
+let mode = null, last = null, sawFrom = null, pinch = 0, moved = 0, refreshQueued = false;
+function queueRefresh() {
+  if (refreshQueued) return;
+  refreshQueued = true;
+  requestAnimationFrame(() => { refreshQueued = false; bench.refresh(); sayGrade(); save(); });
+}
+/**
+ * The tool at a point of the screen: true if it took wood. A stroke takes only what was open to the air when it began
+ * (the block's mask, slipway-carve.js's exposed), so it can't run away into the wood; the plane's sole keeps the facing
+ * it had where the stroke began.
+ */
+let ref = null;                                                          // the plane's facing and height for this stroke
+function cutAt(x, y) {
+  const r = bench.ray(x, y), h = hit(B, r.o, r.d);
+  if (!h) return false;
+  const p = h.p;
+  let n = h.n;
+  // the sole rests on the highest wood it has passed over this stroke, so it never sinks into a hollow and digs
+  if (tool === "plane") { if (!ref) { const f = steady(normalAt(B, ...p, 1.8)); ref = { n: f, cut: -Infinity }; } n = ref.n; ref.cut = Math.max(ref.cut, planeCut(p, n)); }
+  const took = tool === "plane" ? plane(B, p, n, ref.cut) : tool === "chisel" ? chisel(B, p, n) : sand(B, p);
+  if (took > 0.02) { touched(); sound(tool); return true; }
+  return false;
+}
+function showCursor(x, y) {
+  if (!REACH[tool]) { bench.cursor(null); return; }
+  const r = bench.ray(x, y), h = hit(B, r.o, r.d);
+  bench.cursor(h ? h.p : null, h ? h.n : null, REACH[tool]);
+}
+function sawLine(a, b) {
+  $("over").innerHTML = a ? `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="sw-cut"/><circle cx="${a[0]}" cy="${a[1]}" r="4" class="sw-cut-end"/><circle cx="${b[0]}" cy="${b[1]}" r="4" class="sw-cut-end"/>` : "";
+}
+const local = e => { const r = bench.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+function onDown(e) {
+  if (IN_FRAME || !bench) return;
+  e.preventDefault();
+  bench.canvas.setPointerCapture?.(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 2) {
+    if (mode === "saw") sawLine(null);
+    mode = "orbit2";
+    const [a, b] = [...pointers.values()];
+    pinch = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    last = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    return;
+  }
+  if (pointers.size > 2) return;
+  last = [e.clientX, e.clientY];
+  moved = 0;
+  if (tool === "turn" || e.button === 2 || e.button === 1) mode = "orbit1";      // a mouse turns the block with its right or middle button
+  else if (tool === "saw") { mode = "saw"; sawFrom = local(e); sawLine(sawFrom, sawFrom); }
+  else if (tool === "drill") mode = "drill";
+  else { mode = "stroke"; ref = null; snapshot(); B.mask = tool === "chisel" ? exposed(B) : null; if (cutAt(e.clientX, e.clientY)) queueRefresh(); }
 }
 function onMove(e) {
-  if (drag && e.pointerId === drag.id) {
-    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) > 6) drag.moved = true;
-    if (!drag.moved) return;
-    const at = view.lift(e.clientX, e.clientY, drag.offset);
-    if (at !== drag.at) { drag.at = at; showPreview(at); }
-    return;
-  }
-  if (e.pointerType === "mouse" && !playing && !S.over && !drag) {
-    const hit = view.pick(e.clientX, e.clientY), at = hit?.square ?? null;
-    if (at !== preview) { preview = at ?? -1; if (at == null) { view.hover(null); idleLine(); } else showPreview(at); }
-  }
+  if (!bench) return;
+  if (!pointers.has(e.pointerId)) { if (e.pointerType === "mouse" && !IN_FRAME) showCursor(e.clientX, e.clientY); return; }
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  moved += Math.hypot(e.clientX - prev[0], e.clientY - prev[1]);
+  if (mode === "orbit2" && pointers.size === 2) {
+    const [a, b] = [...pointers.values()], mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], gap = Math.hypot(a[0] - b[0], a[1] - b[1]);
+    bench.orbit(mid[0] - last[0], mid[1] - last[1], pinch ? gap / pinch : 1);
+    last = mid; pinch = gap;
+  } else if (mode === "orbit1") {
+    bench.orbit(e.clientX - last[0], e.clientY - last[1]);
+    last = [e.clientX, e.clientY];
+  } else if (mode === "saw") sawLine(sawFrom, local(e));
+  else if (mode === "stroke") {
+    // the stroke laid down every few pixels, so a quick swipe cuts as evenly as a slow one
+    const dist = Math.hypot(e.clientX - last[0], e.clientY - last[1]), step = tool === "chisel" ? 3 : 4;
+    let any = false;
+    for (let s = step; s <= dist; s += step) any = cutAt(last[0] + (e.clientX - last[0]) * s / dist, last[1] + (e.clientY - last[1]) * s / dist) || any;
+    if (dist >= step) last = [e.clientX, e.clientY];
+    if (any) queueRefresh();
+    showCursor(e.clientX, e.clientY);
+  } else if (mode === "drill") showCursor(e.clientX, e.clientY);
 }
 function onUp(e) {
-  if (!drag || e.pointerId !== drag.id) return;
-  const { moved, at } = drag;
-  drag = null;
-  if (moved && at != null && S.cells[at] === EMPTY) { commit(at); return; }
-  view.lift(null);
-  view.hover(null);
-  if (!moved) say("Drag it onto the yard, or tap a square to see what it would make there");
-  else idleLine();
+  if (!pointers.has(e.pointerId)) return;
+  pointers.delete(e.pointerId);
+  if (mode === "orbit2") { if (!pointers.size) mode = null; else { mode = "done"; } return; }
+  if (pointers.size) return;
+  if (mode === "saw") {
+    const end = local(e);
+    sawLine(null);
+    if (Math.hypot(end[0] - sawFrom[0], end[1] - sawFrom[1]) >= 24) cutSaw(sawFrom, end);
+  } else if (mode === "drill" && moved < 10) bore(e.clientX, e.clientY);
+  else if (mode === "stroke" && undo.length && undo[undo.length - 1].every((v, i) => v === B.d[i])) undo.pop();   // a stroke that took nothing isn't one to undo
+  mode = null;
+  B.mask = null;
+  if (e.pointerType !== "mouse") bench.cursor(null);
+  render();
 }
+/** The saw along a line drawn on the screen: the cut is the plane through your eye and that line. */
+function cutSaw(a, b) {
+  const r = bench.canvas.getBoundingClientRect(), ra = bench.ray(a[0] + r.left, a[1] + r.top), rb = bench.ray(b[0] + r.left, b[1] + r.top);
+  const n = [ra.d[1] * rb.d[2] - ra.d[2] * rb.d[1], ra.d[2] * rb.d[0] - ra.d[0] * rb.d[2], ra.d[0] * rb.d[1] - ra.d[1] * rb.d[0]];
+  const len = Math.hypot(...n);
+  if (len < 1e-6) return;
+  const u = n.map(v => v / len), o = bench.eye(), c = -(u[0] * o[0] + u[1] * o[1] + u[2] * o[2]);
+  snapshot();
+  const before = B.d.slice(), res = saw(B, u, c);
+  if (res.took < 0.5) { undo.pop(); toast("The cut missed the wood"); return; }
+  const gone = new Uint8Array(before.length);
+  for (let i = 0; i < gone.length; i++) gone[i] = before[i] - B.d[i];
+  bench.offcut(gone, u.map(v => v * res.side));
+  touched();
+  sound("saw");
+  if (res.into) toast("That cut went into the part");
+  queueRefresh();
+  setTimeout(() => bench.reframe(), 380);                                   // once the offcut is away, close in on what's left
+}
+/** The drill, straight in along the line of sight from where you tap. */
+function bore(x, y) {
+  const r = bench.ray(x, y), h = hit(B, r.o, r.d);
+  if (!h) return;
+  snapshot();
+  if (drill(B, h.p, r.d) < 0.3) { undo.pop(); return; }
+  touched();
+  sound("drill");
+  queueRefresh();
+}
+
+// ---------- the buttons ----------
+const VIEW_NAMES = [["start", "Corner"], ["side", "Side"], ["top", "Top"], ["end", "End"]];
+let viewAt = 0;
+$("tools").addEventListener("click", e => {
+  const b = e.target.closest("[data-tool]");
+  if (!b) return;
+  tool = b.dataset.tool;
+  bench?.cursor(null);
+  render();
+});
+$("acts").addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (!b || b.disabled) return;
+  const act = b.dataset.act;
+  if (act === "view") { viewAt = (viewAt + 1) % VIEW_NAMES.length; bench?.view(VIEW_NAMES[viewAt][0]); render(); return; }
+  if (act === "left" || act === "right" || act === "flip") {
+    place(B, B.off + (act === "left" ? -2 : act === "right" ? 2 : 0), act === "flip" ? !B.flip : B.flip);
+    bench?.replaced();
+    save();
+    render();
+    return;
+  }
+  if (act === "undo" && undo.length) {
+    B.d = undo.pop();
+    run.started = B.d.some(v => v < 255);
+    bench.refresh();
+    bench.reframe();
+    save();
+    render();
+    return;
+  }
+  if (act === "finish") finish();
+});
+
+// ---------- a part finished ----------
+function finish() {
+  const p = PARTS[run.part], g = grade(B), all = made(), before = all[p.id];
+  $("doneHead").textContent = g.stars ? `${p.name}: ${["", "it'll serve", "well made", "a shipwright's work"][g.stars]}` : `${p.name}: not good enough yet`;
+  $("doneStars").textContent = starText(g.stars);
+  $("doneBody").innerHTML = `<div><dt>Waste on it</dt><dd>${pct(Math.min(9.99, g.over))}</dd></div><div><dt>Cut into the part</dt><dd>${pct(g.into)}</dd></div><div><dt>Knots in it</dt><dd>${g.knots}</dd></div><div><dt>Score</dt><dd>${g.score}</dd></div>`;
+  $("doneNote").textContent = g.stars
+    ? (before != null && before >= g.score ? `Your best for it is ${before}.` : before != null ? `Better than your ${before} before.` : "")
+    : "A star needs 55: take off more of the waste, and keep the tools out of the part.";
+  if (g.stars && (before == null || g.score > before)) {
+    all[p.id] = g.score;
+    write(MADE, all);
+    write(BEST, PARTS.reduce((n, q) => n + starsOf(all[q.id] ?? 0), 0));
+  }
+  const last = run.part === PARTS.length - 1;
+  $("nextBtn").textContent = !g.stars ? "Keep carving" : last ? "Back to the first" : "Next part";
+  $("nextBtn").dataset.next = !g.stars ? "stay" : last ? "0" : String(run.part + 1);
+  $("againBtn").textContent = g.stars ? "Carve it again" : "A fresh block";
+  if (!$("doneDlg").open) $("doneDlg").showModal();
+}
+$("nextBtn").addEventListener("click", () => {
+  $("doneDlg").close();
+  const n = $("nextBtn").dataset.next;
+  if (n !== "stay") start(Number(n));
+});
+$("againBtn").addEventListener("click", () => { $("doneDlg").close(); start(run.part); });
 
 // ---------- messages, the menu ----------
 let toastTimer = 0;
@@ -282,40 +328,54 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2400);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
 }
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("New game", newRun, "primary"));
-  const best = read(BEST, 0), ship = shipAt(S.ship);
-  part(body, "about").append(line(`This game: ${fmt(S.score)}, ${S.launched === 1 ? "one ship" : `${fmt(S.launched)} ships`} launched in ${fmt(S.turns)} turns, ${the(ship)} on the slipway${best ? `; your best ${fmt(best)}` : ""}`));
+  part(body, "play").append(action("A fresh block for this part", () => start(run.part), "primary"));
+  // the cog's parts in order: done with their stars, the one you're on, and those still locked
+  const list = document.createElement("ol"), all = made();
+  list.className = "sw-parts";
+  PARTS.forEach((p, i) => {
+    const li = document.createElement("li"), b = document.createElement("button"), open = unlocked(i), score = all[p.id];
+    b.type = "button";
+    b.disabled = !open;
+    b.className = i === run.part ? "cur" : "";
+    b.innerHTML = `<span>${i + 1}. ${p.name}</span><small>${score != null ? starText(starsOf(score)) : open ? (i === run.part ? "carving" : "") : "locked"}</small>`;
+    b.addEventListener("click", () => { $("menuDlg").close(); if (i !== run.part) start(i); });
+    li.append(b);
+    list.append(li);
+  });
+  const content = part(body, "content");
+  content.append(list);
+  const set = part(body, "settings");
+  set.append(toggle("The part's ghost", opts.ghost, on => { opts.ghost = on; saveOpts(); if (bench) bench.ghost = on; }));
+  set.append(toggle("Sound", opts.sound, on => { opts.sound = on; saveOpts(); }));
+  const stars = read(BEST, 0);
+  part(body, "about").append(line(stars ? `${stars} of ${PARTS.length * 3} stars for the cog's parts.` : "No part finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 
 // ---------- wiring ----------
-try { view = createYard($("field")); }
-catch (err) { console.warn("Slipway: no WebGL here, so the yard is drawn flat.", err); view = createFlat($("flat")); }
 bindSwitcher($("appsBtn"), "slipway");
-document.querySelector(".sw-mark").innerHTML = APPS.find(a => a.id === "slipway").logo;
+document.querySelector(".sw-mark").innerHTML = APPS.find(a => a.id === "slipway")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-const surface = view.flat ? $("flat") : $("field").querySelector("canvas");
-surface.addEventListener("pointerdown", onDown);
-addEventListener("pointermove", onMove);
-addEventListener("pointerup", onUp);
-addEventListener("pointercancel", e => { if (drag?.id === e.pointerId) { dropDrag(); view.hover(null); idleLine(); } });
-surface.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !drag && preview >= 0) { preview = -1; view.hover(null); idleLine(); } });
-$("againBtn").addEventListener("click", newRun);
-// the theme (Almanac, Modern, Office, Kontor) and day or night re-skin the yard as they change
-new MutationObserver(() => { view.theme(); if (S) view.set(S); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { view.theme(); if (S) view.set(S); });
-new ResizeObserver(() => requestAnimationFrame(placeLabels)).observe($("field"));
-new ResizeObserver(() => fitNeeds()).observe($("needs"));
-
-// for tests and debugging
-window.__slipway = { get state() { return S; }, commit, doSwap, newRun, view: () => view, describe: at => describe(S, at) };
-
-S = read(RUN, null);
-if (!valid(S)) newRun();
-else render();
+try {
+  bench = (await import("./slipway-3d.js")).createBench($("bench"));
+  bench.ghost = opts.ghost;
+  const c = bench.canvas;
+  c.addEventListener("pointerdown", onDown);
+  c.addEventListener("pointermove", onMove);
+  c.addEventListener("pointerup", onUp);
+  c.addEventListener("pointercancel", onUp);
+  c.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && !pointers.size) bench.cursor(null); });
+  c.addEventListener("contextmenu", e => e.preventDefault());
+  c.addEventListener("wheel", e => { e.preventDefault(); bench.orbit(0, 0, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+} catch (err) {
+  console.warn("Slipway: no WebGL here.", err);
+  $("nogl").hidden = false;
+}
+load();
+window.__slipway = { get block() { return B; }, get run() { return run; }, bench: () => bench, start, finish, cutSaw, bore, cutAt, setTool: t => { tool = t; render(); } };
