@@ -22,7 +22,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const sum = a => a.reduce((t, x) => t + x, 0);
 const NAMES = ["Hinrich", "Gesa", "Claus", "Wiebke"];                  // the computer players, by seat: Hanseatic first names
 
-let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, voice: true, ...read(OPTS, {}) };
+let opts = { level: "medium", vp: DEFAULTS.vp, seats: DEFAULTS.seats, voice: true, flat: false, ...read(OPTS, {}) };
 if (!TARGETS.includes(opts.vp)) opts.vp = DEFAULTS.vp;
 if (![3, 4].includes(opts.seats)) opts.seats = DEFAULTS.seats;
 const saveOpts = () => write(OPTS, opts);
@@ -36,7 +36,10 @@ function toast(msg, ms = 2800) {
   toastTimer = setTimeout(() => t.classList.remove("on"), ms);
 }
 
+// declared before seatPage, which draws the saved game at once (a let below it isn't there yet)
 let V = null, page = null;
+let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulseTimer = 0;   // your hand's last change, shown a moment
+let island = null, viewReady = false;                                                         // the 3D island, once it's made
 // what the page holds between moves: the build mode, the cards picked to give up on a 7, the trade sheet's choices
 const ui = { key: "", mode: null, discard: [0, 0, 0, 0, 0], tab: "bank", give: -1, og: [0, 0, 0, 0, 0], ow: [0, 0, 0, 0, 0], pick: [] };
 page = seatPage({
@@ -53,7 +56,6 @@ const costWords = c => c.map((n, i) => (n ? `${n} ${RES[i]}` : "")).filter(Boole
 const cardWords = c => c.map((n, i) => (n ? `${n}${resIcon(i, "in")}` : "")).filter(Boolean).join(" ");
 
 // ---------- what changed in your hand, shown for a moment ----------
-let seen = { seq: -1, h: null }, pulse = { until: 0, d: [0, 0, 0, 0, 0] }, pulseTimer = 0;
 function follow(v) {
   if (!v?.G || v.seat == null) return;
   const key = `${v.G.seq}:${v.G.n}`;
@@ -156,9 +158,27 @@ function drawStrip(v) {
   $("strip").innerHTML = `<span class="fc-say">${prompt(v)}</span>${dice}`;
 }
 function drawBoard(v) {
-  const box = $("board"), sp = spots();
+  if (!viewReady) return;
+  const box = $("board"), sp = { ...spots(), mark: v.state.mark };
+  if (island) { island.set(v.state, sp); return; }
   box.style.setProperty("--aspect", ASPECT);
-  box.innerHTML = boardSvg(v.state, { ...sp, mark: v.state.mark });
+  box.innerHTML = boardSvg(v.state, sp);
+}
+
+// ---------- the island: in 3D where the device can draw it and the player hasn't asked for it flat ----------
+// Flat is the same island as an SVG (factor-draw.js), for a phone low on battery or a device without WebGL: both take
+// the same taps, so nothing else on the page knows which it has.
+async function useView() {
+  if (island && opts.flat) { island.dispose(); island = null; }
+  if (!island && !opts.flat) {
+    try { island = (await import("./factor-3d.js")).createIsland($("board")); }
+    catch (err) { console.warn("Factor: no 3D here, so the island is drawn flat.", err); island = null; }
+  }
+  $("app").classList.toggle("three", !!island);
+  $("board").classList.toggle("three", !!island);
+  viewReady = true;
+  if (!island) $("board").replaceChildren();
+  draw();
 }
 
 function drawHand(v) {
@@ -421,6 +441,7 @@ function openMenu() {
   set.append(choice("Computer players", LEVEL_NAMES, opts.level, v => { opts.level = v; keep(); }));
   set.append(line("The points and players apply from the next game."));
   set.append(toggle("The narrator's voice", opts.voice, on => { opts.voice = on; keep(); }));
+  set.append(toggle("Flat island, to save battery", opts.flat, on => { opts.flat = on; keep(); useView(); }));
   const r = read(RECORD, { played: 0, won: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -436,6 +457,6 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
-window.__factor = { page, get view() { return V; }, opts, ui, draw };
+window.__factor = { page, get view() { return V; }, opts, ui, draw, get island() { return island; } };
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();
-draw();
+await useView();
