@@ -1,0 +1,132 @@
+/* Hitori: a grid of numbers on paper tiles. Shading blacks a tile out in navy (by night a darker dial than the tiles),
+   keeping rings its number in plum, the game's enamel (on a split board, in its keeper's colour). What breaks a rule is
+   oxblood, a hint's cells gilt. The board is an SVG drawn to a viewBox, so it grows with its box. */
+:root {
+  --hi-in: #7A3B73; --hi-in-soft: color-mix(in srgb, var(--hi-in) 15%, var(--sheet));
+  --hi-good: #2F7D5B; --hi-bad: #A8382B; --hi-gilt: #C8923A;
+  --hi-tile: var(--tile); --hi-shade: var(--ink); --hi-shade-num: color-mix(in srgb, var(--yard) 30%, var(--ink));
+  --hi-hidden: color-mix(in srgb, var(--rule) 55%, var(--hi-tile));
+  --hi-logo-tint: #EAD6E5; --hi-logo-edge: var(--logo-edge);
+}
+/* by night the tiles are lifted towards the lettering and the shading is near black, so a shaded cell reads as a hole
+   in the board (on the dial's own tiles the two were too close to tell at a glance) */
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --hi-in: #CB8EC4; --hi-good: #7FC2A8; --hi-bad: #E8806F; --hi-gilt: #E2B865;
+    --hi-tile: color-mix(in srgb, var(--tile) 86%, var(--ink)); --hi-shade: #030507; --hi-shade-num: #3A4450;
+    --hi-hidden: color-mix(in srgb, var(--yard) 55%, var(--tile)); --hi-logo-tint: #40233F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --hi-in: #CB8EC4; --hi-good: #7FC2A8; --hi-bad: #E8806F; --hi-gilt: #E2B865;
+  --hi-tile: color-mix(in srgb, var(--tile) 86%, var(--ink)); --hi-shade: #030507; --hi-shade-num: #3A4450;
+  --hi-hidden: color-mix(in srgb, var(--yard) 55%, var(--tile)); --hi-logo-tint: #40233F; }
+/* Kontor's enamel is its green; Modern's logo tint and edge, as its theme gives every game's */
+html[data-theme="kontor"] { --hi-in: #1E7A45; --hi-gilt: #C8901A; }
+@media (prefers-color-scheme: dark) { html[data-theme="kontor"]:not([data-mode="day"]) { --hi-in: #2EB36A; } }
+html[data-theme="kontor"][data-mode="night"] { --hi-in: #2EB36A; }
+html[data-theme="modern"] { --hi-logo-tint: #F1DDEC; --hi-logo-edge: #7A3B73; }
+
+.hi-mark { display: inline-block; }
+.hi-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the strip: your time and what you're solving; under it, at most one line: the computer's progress, the others' in a
+   race, or who has which half of a split board (shown from the start of a puzzle, so the board never moves for it) */
+.hi-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .1rem .6rem; margin: .6rem 0 .5rem;
+  font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
+.hi-time b { color: var(--ink); font-weight: 800; font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.hi-time small { margin-left: .4rem; font-size: .78rem; font-weight: 700; color: var(--hi-bad); font-variant-numeric: tabular-nums; }
+.hi-kind { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .74rem; font-weight: 800; font-stretch: var(--wide);
+  letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.hi-rival, .hi-duel { flex: 1 0 100%; display: flex; align-items: center; gap: .45rem; margin: 0; min-width: 0; font-size: .8rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hi-rival[hidden], .hi-duel[hidden] { display: none; }
+#app.pairing .hi-duel { display: none !important; }              /* a split board shows its own line, not the race's */
+.hi-bar { flex: none; width: 3.5rem; height: .375rem; border-radius: 2px; background: linear-gradient(90deg, var(--hi-in) calc(var(--to, 0) * 100%), var(--rule) 0); }
+.hi-seat { display: inline-flex; align-items: center; gap: .3rem; color: var(--ink); font-weight: 750; }
+.hi-seat::before { content: ""; width: .5625rem; height: .5625rem; border-radius: 50%; background: var(--seat); flex: none; }
+.hi-seat.away { opacity: .55; font-weight: 600; }
+
+/* the board: the stage, framed in a double rule (a brass edge, a hairline four pixels inside it) */
+.hi-card { position: relative; border-radius: 6px; background: var(--sheet); padding: .5rem;
+  box-shadow: inset 0 0 0 1px var(--brass), inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+.hi-board { width: 100%; height: 100%; display: grid; place-items: center; min-height: 0; }
+.hi-svg { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: pointer; }
+.hi-tile { fill: var(--hi-tile); stroke: var(--tile-edge); stroke-width: .03; }
+.hi-svg.hex .hi-tile { stroke-width: .045; }
+/* numbers are set at 100x and scaled down (hitori.js), so their sizes come from there */
+.hi-num { font-family: var(--font); font-weight: 750; fill: var(--ink); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
+.hi-ring { fill: none; stroke: none; stroke-width: .075; pointer-events: none; }
+.hi-svg.hex .hi-ring { stroke-width: .11; }
+.hi-cell.kept .hi-ring { stroke: var(--keeper, var(--hi-in)); }
+.hi-cell.shaded .hi-tile { fill: var(--hi-shade); stroke: var(--hi-shade); }
+.hi-cell.shaded .hi-num { fill: var(--hi-shade-num); }
+/* on a split board, a cell whose number your partner sees: blank paper, a shade darker */
+.hi-cell.hidden:not(.shaded) .hi-tile { fill: var(--hi-hidden); }
+/* a rule broken: the cells that break it, in oxblood; the cells cut off from the rest, tinted */
+.hi-cell.bad .hi-tile { stroke: var(--hi-bad); stroke-width: .09; }
+.hi-cell.bad.shaded .hi-tile { fill: var(--hi-bad); stroke: var(--hi-bad); }
+.hi-cell.bad.kept .hi-ring { stroke: var(--hi-bad); }
+.hi-cell.cut:not(.shaded) .hi-tile { fill: color-mix(in srgb, var(--hi-bad) 18%, var(--hi-tile)); }
+/* a hint: what it settled in gilt, the cells that say so dashed in the enamel */
+.hi-cell.lit .hi-tile { stroke: var(--hi-gilt); stroke-width: .11; }
+.hi-cell.why:not(.lit) .hi-tile { stroke: var(--hi-in); stroke-width: .08; stroke-dasharray: .14 .09; }
+/* a cell pointed at on a split board, in the pointer's colour */
+.hi-cell.ping .hi-tile { stroke: var(--pinger); stroke-width: .14; animation: hi-ping 1s ease-in-out infinite; }
+@keyframes hi-ping { 50% { stroke-width: .05; } }
+/* the solve: a wave of gilt across the kept cells */
+.hi-svg.solved .hi-cell:not(.shaded) .hi-tile { animation: hi-wave .8s ease-out var(--d, 0ms) both; }
+/* every keyframe written out: an implicit one took SVG's default fill, black, while a cell waited for its turn */
+@keyframes hi-wave { 0%, 100% { fill: var(--hi-tile); } 40% { fill: color-mix(in srgb, var(--hi-gilt) 50%, var(--hi-tile)); } }
+@media (prefers-reduced-motion: reduce) { .hi-cell.ping .hi-tile, .hi-svg.solved .hi-cell .hi-tile { animation: none; } }
+
+/* under the board: a line of what to do or what happened, three tools; at the end, how it went and the way on, in the
+   same room. The line keeps three lines' height, so a long hint never moves the board. */
+.hi-side { display: grid; align-content: start; margin-top: .6rem; }
+.hi-side > * { grid-area: 1 / 1; }
+.hi-controls { display: grid; gap: .45rem; align-content: start; }
+.hi-controls[hidden], .hi-result[hidden] { display: none; }
+.hi-line { margin: 0; height: 4.05em; overflow: hidden; font-size: .86rem; line-height: 1.35; color: var(--ink-soft); }
+.hi-line.bad { color: var(--hi-bad); }
+.hi-line.good { color: var(--hi-good); }
+.hi-tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4rem; }
+.hi-tool { display: grid; gap: .05rem; align-content: center; min-height: 3.25rem; border-radius: 5px; border: 2px solid var(--tile-edge); background: var(--yard);
+  color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.hi-tool[hidden] { display: none; }
+.hi-tool b { font-weight: 800; }
+.hi-tool small { font-size: .72rem; color: var(--ink-soft); }
+.hi-tool[aria-pressed="true"] { border-color: var(--hi-in); background: var(--hi-in-soft); }
+.hi-tool:disabled { opacity: .45; cursor: default; }
+.hi-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-self: start; gap: .8rem; min-height: 6.6rem; }
+.hi-verdict { margin: 0; font-size: .98rem; font-weight: 750; line-height: 1.3; color: var(--hi-good); }
+.hi-go { min-height: 3.125rem; padding: 0 1.2rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem;
+  font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps);
+  outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.hi-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.hi-toast.show { opacity: 1; }
+
+/* held sideways: the board on the left with all the height; the strip, the line and the tools beside it, the tools low */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.hitori { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.hitori .hi-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; white-space: normal; }
+  #app.hitori .hi-rival, #app.hitori .hi-duel { flex: none; width: 100%; }
+  #app.hitori .hi-card { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.hitori .hi-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
+  #app.hitori .hi-controls { align-content: end; }
+  #app.hitori .hi-line { height: auto; max-height: 8.2em; }
+  #app.hitori .hi-tools { grid-template-columns: 1fr; }
+  #app.hitori .hi-tool { min-height: 2.9rem; }
+  #app.hitori .hi-result { grid-template-columns: 1fr; align-self: end; }
+}
+
+/* the themes beyond Almanac: no double rule, rounder corners, the main action in the enamel (as themes.css does for the
+   other games) */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hi-card { border-radius: 20px; box-shadow: none; border: 1px solid var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="office"]) .hi-tool { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hi-go { border-radius: 14px; background: var(--hi-in); color: #fff; font-size: 1.02rem; font-stretch: 100%;
+  letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hi-toast { border-radius: 10px; }
+html[data-theme="kontor"] .hi-card { border-radius: 2px; }
+html[data-theme="kontor"] .hi-tool { border-radius: 2px; border-width: 1px; }
+html[data-theme="kontor"] .hi-go { border-radius: 2px; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .hi-kind { font-stretch: 100%; }
