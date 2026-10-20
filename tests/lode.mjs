@@ -232,10 +232,18 @@ const boards = [], timings = [];
   check(open0.every((x, c) => x + open1[c] + open2[c] === 1), "with all three here, each letter is read by exactly one of them");
   check(b.words.every(w => w.cells.some(c => !open0[c]) && w.cells.some(c => !open1[c])), "no player can read a whole word alone");
   check(T.readable(g, 0, [0, 1]).every((x, c) => x || T.holders(g)[c] === 1), "a seat whose player is away opens its letters to the rest");
-  check(act(x => T.traceAt(x, { n: 1, slot: 1, cells: b.words[2].cells.slice(0, 3), now: now0 + 4000 })) && T.tracesOf(g, 0, now0 + 5000).length === 1 && T.tracesOf(g, 1, now0 + 5000).length === 0 && T.tracesOf(g, 0, now0 + 60_000).length === 0,
-    "what a player traces shows on the others' boards (not their own), for a few seconds at most");
+  const here = { u0: { game: "lode", online: true }, u1: { game: "lode", online: true }, u2: { game: "lode", online: true } };
+  check(same(T.presentSlots(g, here, "u0"), [0, 1, 2]) && same(T.presentSlots(g, { u1: { game: "crates" } }, "u0"), [0]), "who's at the table: those with Lode open, and this phone");
+  g.players.u1.trace = T.traceText(1, b.words[2].cells.slice(0, 3));
+  g = T.tidy(roundTrip(g));
+  const seen0 = T.tracesOf(g, here, "u0");
+  check(seen0.length === 1 && seen0[0].slot === 1 && same(seen0[0].cells, b.words[2].cells.slice(0, 3)) && !T.tracesOf(g, here, "u1").length
+    && !T.tracesOf(g, { u0: here.u0 }, "u0").length, "what a player traces shows on the others' boards, not their own, and only while they're here");
   const o1 = act(x => T.submitAt(x, { n: 1, slot: 1, cells: b.words[2].cells, now: now0 + 6000 }));
-  check(o1.kind === "theme" && g.by.w2 === 1 && !g.traces.s1 && T.readable(g, 0, all).every((x, c) => x || !b.words[2].cells.includes(c)), "a word found by one is the table's: its finder kept, its letters open to all, the trace gone");
+  check(o1.kind === "theme" && g.by.w2 === 1 && T.readable(g, 0, all).every((x, c) => x || !b.words[2].cells.includes(c)), "a word found by one is the table's: its finder kept, its letters open to all");
+  g.players.u1.trace = T.traceText(1, b.words[2].cells);
+  check(!act(x => T.newGameAt(x, { n: 9, board: b, mode: "team", now: now0 })) && T.tracesOf({ ...g, n: 2 }, here, "u0").length === 0, "a trace from an earlier board shows on none");
+  delete g.players.u1.trace;
   check(act(x => T.submitAt(x, { n: 0, slot: 0, cells: b.words[3].cells, now: now0 + 7000 })).kind === "moved", "a trace made on a board the table has moved on from does nothing");
   for (const [i, w] of b.words.entries()) if (i !== 2) act(x => T.submitAt(x, { n: 1, slot: i % 3, cells: w.cells, now: now0 + 60_000 + i }));
   const res = T.resultOf(g, 0, all, now0 + 70_000);

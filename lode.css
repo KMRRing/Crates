@@ -1,0 +1,159 @@
+/* Lode: a board of letters on the page's stage, the words found as enamel paths through it, the spanning word in gold
+   (the mother lode). Lapis is the house colour. The letters are drawn in an SVG to the board's own units (lode-board.js),
+   so their sizes below are the drawing's, not the page's. */
+:root { --lo-in: #34508F; --lo-in-soft: color-mix(in srgb, var(--lo-in) 15%, var(--sheet)); --lo-gold: #D49A22; --lo-gold-ink: #2A2005; --lo-on: #F7F1E3;
+  --lo-good: #2F7D5B; --lo-bad: #A8382B; --lo-logo-tint: #D6DDF0; --lo-logo-edge: var(--logo-edge); }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --lo-in: #8EA9E0; --lo-gold: #E2B865; --lo-on: #10181F; --lo-good: #7FC2A8; --lo-bad: #E8806F; --lo-logo-tint: #2A3550; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --lo-in: #8EA9E0; --lo-gold: #E2B865; --lo-on: #10181F; --lo-good: #7FC2A8; --lo-bad: #E8806F; --lo-logo-tint: #2A3550; }
+html[data-theme="modern"] { --lo-logo-tint: #D8E0F3; --lo-logo-edge: #34508F; }
+
+.lo-mark { display: inline-block; }
+.lo-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the theme: what the board is about, as a clue (the title), or every word's clue one at a time; always two lines high,
+   so nothing under it moves as a clue changes */
+.lo-theme { margin: .6rem 0 0; padding: .5rem .75rem .55rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); }
+.lo-kind { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: 0; min-height: 1.4rem;
+  font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--lo-in); }
+.lo-nav { display: inline-flex; align-items: center; gap: .2rem; font-stretch: 100%; letter-spacing: normal; color: var(--ink-soft); }
+.lo-nav[hidden] { display: none; }
+.lo-nav button { width: 2rem; height: 1.6rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--yard); color: var(--ink); font: inherit; font-size: 1rem; line-height: 1; cursor: pointer; }
+.lo-nav span { min-width: 3.4rem; text-align: center; }
+/* a title is the board's own, one line or two; Every word's clues change as you step through them, so they keep two */
+.lo-title { margin: .1rem 0 0; max-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  font-size: .98rem; line-height: 1.3; font-weight: 650; font-style: italic; }
+.lo-title.lo-clue { height: 2.6em; font-style: normal; font-weight: 600; font-size: .92rem; }
+
+.lo-strip { display: flex; align-items: baseline; gap: .6rem; margin: .5rem 0 .2rem; font-size: .88rem; color: var(--ink-soft); white-space: nowrap; }
+.lo-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.lo-count { flex: none; }
+.lo-others { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .8rem; }
+.lo-others[hidden] { display: block; visibility: hidden; }
+.lo-who b { font-weight: 750; }
+.lo-who.away { opacity: .55; }
+.lo-dot { display: inline-block; width: .5rem; height: .5rem; border-radius: 50%; margin-right: .25rem; vertical-align: .05rem; }
+.lo-clock { flex: none; margin-left: auto; }
+.lo-clock b { font-size: 1.25rem; }
+.lo-clock small { margin-left: .3rem; font-size: .76rem; font-weight: 700; color: var(--lo-bad); font-variant-numeric: tabular-nums; }
+
+/* the board: as large as its room allows, never changing size as you play (the SVG keeps its shape inside the box) */
+.lo-stage { position: relative; margin: .2rem 0 .3rem; border-radius: 8px; background: var(--sheet); border: 1px solid var(--tile-edge); padding: .35rem; overflow: hidden;
+  touch-action: none; -webkit-user-select: none; user-select: none; }
+.lo-board { width: 100cqw; height: 100cqh; display: block; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overflow: visible; cursor: pointer; }
+.lo-cell { fill: color-mix(in srgb, var(--tile) 70%, transparent); stroke: var(--rule); stroke-width: .02; }
+.lo-l { font-family: var(--font); font-size: .5px; font-weight: 750; text-anchor: middle; dominant-baseline: central; fill: var(--ink); pointer-events: none; text-transform: none; }
+.lo-l.on { fill: var(--lo-on); }
+.lo-l.on.span { fill: var(--lo-gold-ink); }
+.lo-l.on.shown { fill: var(--ink); }
+.lo-l.picked { fill: var(--ink); }
+/* a word found: its path in enamel, the spanning word's in gold, a word given up in grey */
+.lo-vein { fill: none; stroke: var(--vein, var(--lo-in)); stroke-width: .28; stroke-linecap: round; stroke-linejoin: round; }
+.lo-disc { fill: var(--vein, var(--lo-in)); }
+.lo-vein.span, .lo-disc.span { --vein: var(--lo-gold); }
+.lo-vein.shown, .lo-disc.shown { --vein: color-mix(in srgb, var(--ink-soft) 35%, var(--sheet)); }
+.lo-disc.fresh, .lo-vein.fresh { animation: lo-strike .45s ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes lo-strike { from { opacity: .2; transform: scale(.55); } }
+/* the trace under the finger */
+.lo-path { fill: none; stroke: color-mix(in srgb, var(--lo-in) 55%, transparent); stroke-width: .2; stroke-linecap: round; stroke-linejoin: round; }
+.lo-pick { fill: color-mix(in srgb, var(--lo-in) 22%, var(--sheet)); stroke: var(--lo-in); stroke-width: .045; }
+/* a hint: the word's letters ringed, then numbered */
+.lo-ring { fill: none; stroke: var(--brass); stroke-width: .05; stroke-dasharray: .12 .07; }
+.lo-num { font-family: var(--font); font-size: .22px; font-weight: 800; text-anchor: middle; dominant-baseline: central; fill: var(--brass-lo); }
+/* a team mate's letter, sealed: where it is, to ask for it */
+.lo-seal { fill: color-mix(in srgb, var(--tile-edge) 45%, var(--sheet)); stroke: var(--tile-edge); stroke-width: .02; }
+.lo-coord { font-family: var(--font); font-size: .19px; font-weight: 700; text-anchor: middle; dominant-baseline: central; fill: var(--ink-soft); pointer-events: none; letter-spacing: .01px; }
+/* what the others at the table are tracing, in their colours */
+.lo-other { fill: none; stroke-width: .07; stroke-dasharray: .14 .09; stroke-linecap: round; opacity: .85; }
+.lo-other-ring { fill: none; stroke-width: .05; opacity: .85; }
+.lo-who-t { font-family: var(--font); font-size: .2px; font-weight: 800; text-anchor: middle; dominant-baseline: central; fill: #fff; pointer-events: none; }
+
+/* under the board: the word being traced or what happened, then the tools; at the end, how it went, in the same room,
+   so the board never changes size as a board ends */
+.lo-side { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: 6.25rem; }
+.lo-word { grid-area: 1 / 1; margin: 0 0 .45rem; height: 2.5em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  font-size: .9rem; line-height: 1.25; color: var(--ink-soft); }
+.lo-word[hidden] { display: none; }
+.lo-word.tracing { font-size: 1.35rem; line-height: 2.5rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track) + .02em); color: var(--lo-in); text-align: center; }
+.lo-word.good { color: var(--ink); }
+.lo-word.gold { color: var(--ink); font-weight: 700; }
+.lo-word.bad { color: var(--lo-bad); }
+.lo-tools { grid-area: 2 / 1; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: .5rem; }
+.lo-result { grid-area: 1 / 1 / 3 / 2; min-height: 0; }
+.lo-tools[hidden], .lo-result[hidden] { display: none; }
+.lo-tools .btn, .lo-result .btn { margin: 0; min-height: 3rem; padding-inline: .6rem; }
+.lo-hint { display: flex; align-items: center; justify-content: center; gap: .6rem; }
+.lo-meter { display: inline-flex; gap: .25rem; }
+.lo-meter i { width: .5rem; height: .5rem; border-radius: 50%; border: 1.5px solid var(--brass); }
+.lo-meter i.on { background: var(--brass); }
+.lo-result { display: grid; grid-template-rows: minmax(0, 1fr) auto; gap: .45rem; }
+.lo-verdict { margin: 0; min-height: 0; overflow-y: auto; font-size: .9rem; font-weight: 650; line-height: 1.3; }
+.lo-verdict.good { color: var(--ink); }
+.lo-result-btns { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+
+/* the words, with what links each to the theme */
+.lo-words-body { padding: 0 .1rem .4rem; }
+.lo-wlist { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.lo-wlist li { display: grid; gap: .1rem; padding: .45rem .6rem; border-radius: 5px; background: var(--yard); border-left: 4px solid var(--rule); }
+.lo-wlist li.got { border-left-color: var(--lo-in); }
+.lo-wlist li.span.got { border-left-color: var(--lo-gold); }
+.lo-wlist li.shown { border-left-color: var(--ink-soft); }
+.lo-wtext { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); }
+.lo-why { font-size: .9rem; color: var(--ink); }
+.lo-wlist li.hidden .lo-why { color: var(--ink-soft); }
+.lo-tags { font-size: .76rem; color: var(--ink-soft); }
+.lo-extra { margin: .7rem 0 0; font-size: .86rem; color: var(--ink-soft); }
+.lo-include { display: grid; }
+.lo-allnone { margin: -.2rem 0 .3rem; font-size: .8rem; color: var(--ink-soft); }
+.lo-allnone .link { font-size: .8rem; }
+
+.lo-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.lo-toast.show { opacity: 1; }
+
+/* Almanac's double rule round the theme and the board; the other themes keep their own frames */
+html:not([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.lo-theme, .lo-stage) { box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.lo-theme, .lo-stage) { border-radius: 16px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .lo-wlist li { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .lo-toast { border-radius: 10px; }
+
+@media (prefers-reduced-motion: reduce) { .lo-disc.fresh, .lo-vein.fresh { animation: none; } }
+
+/* a short phone: everything round the board drawn closer, so the board keeps letters a thumb can hit */
+@media (orientation: portrait) and (max-height: 700px) {
+  .lo-theme { margin-top: .45rem; padding: .3rem .65rem .35rem; }
+  .lo-kind { min-height: 1.1rem; font-size: .64rem; }
+  .lo-title { font-size: .9rem; line-height: 1.25; max-height: 2.5em; }
+  .lo-title.lo-clue { height: 2.5em; }
+  .lo-strip { margin: .3rem 0 .1rem; font-size: .84rem; }
+  .lo-clock b { font-size: 1.08rem; }
+  .lo-stage { margin: .15rem 0 .25rem; padding: .2rem; }
+  .lo-side { height: 5.75rem; }
+  .lo-word { margin-bottom: .3rem; font-size: .85rem; }
+  .lo-word.tracing { font-size: 1.2rem; }
+  .lo-tools .btn, .lo-result .btn { min-height: 2.75rem; }
+}
+
+/* held sideways: the board on the left with all the height; the theme, the count and the clock beside it, high, and
+   the word line with the tools low, where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.lode { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto; }
+  #app.lode .lo-stage { grid-column: 1; grid-row: 2 / -1; margin: .8rem 0 0; }
+  #app.lode .lo-theme { grid-column: 2; grid-row: 2; margin-top: .8rem; }
+  #app.lode .lo-title { height: auto; max-height: 5.2em; -webkit-line-clamp: 4; }
+  #app.lode .lo-strip { grid-column: 2; grid-row: 3; flex-wrap: wrap; row-gap: .3rem; margin-top: .8rem; }
+  #app.lode .lo-others { order: 3; flex-basis: 100%; }
+  #app.lode .lo-side { grid-column: 2; grid-row: 5; height: 8.2rem; }
+  #app.lode .lo-word { height: 3.75em; -webkit-line-clamp: 3; }
+  #app.lode .lo-word.tracing { line-height: 3.75rem; }
+  /* the room between, the words found so far with what links each to the theme, the newest first */
+  #app.lode .lo-found { display: grid; align-content: start; gap: .4rem; grid-column: 2; grid-row: 4; min-height: 0; margin: .7rem 0; padding: 0; list-style: none; }
+}
+.lo-found { display: none; }
+.lo-found li { display: grid; gap: .05rem; padding: .35rem .55rem; border-radius: 5px; background: var(--sheet); border-left: 4px solid var(--vein, var(--lo-in)); font-size: .84rem; line-height: 1.3; }
+.lo-found li.span { --vein: var(--lo-gold); }
+.lo-found b { font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); }
+.lo-found span { color: var(--ink-soft); }

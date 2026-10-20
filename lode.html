@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Lode</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="lode.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="lode fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon lo-mark" aria-hidden="true"></span>Lode</button></h1>
+    <div class="top-right">
+      <select id="pool" class="pool" data-accent="lo" aria-label="Themes">
+        <option value="mixed" data-note="Countries and commodities, a board of one or the other">Mixed</option>
+        <option value="countries" data-note="A country's clues: its trade, places, people and culture">Countries</option>
+        <option value="commodities" data-note="A commodity's clues: where it's from, who trades it, what it's for">Commodities</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <section class="lo-theme" id="theme" aria-live="polite">
+    <p class="lo-kind"><span id="kind">Theme</span><span id="clueNav" class="lo-nav" hidden>
+      <button type="button" id="cluePrev" aria-label="The clue before">‹</button><span id="clueAt"></span><button type="button" id="clueNext" aria-label="The next clue">›</button></span></p>
+    <p class="lo-title" id="title"></p>
+  </section>
+
+  <div class="lo-strip">
+    <span class="lo-count"><b id="count">0</b> of <b id="total">0</b> found</span>
+    <span id="others" class="lo-others" hidden></span>
+    <span class="lo-clock"><b id="clock">0:00</b><small id="penalty"></small></span>
+  </div>
+
+  <section class="lo-stage fit-grow fit-box" id="stage" aria-label="The board"></section>
+  <ol id="found" class="lo-found fit-scroll" aria-label="The words found"></ol>
+
+  <section class="lo-side">
+    <p id="word" class="lo-word" aria-live="polite"></p>
+    <div id="tools" class="lo-tools">
+      <button id="hintBtn" class="btn lo-hint" type="button" aria-describedby="meter"><span id="hintText">Hint</span>
+        <span id="meter" class="lo-meter" aria-label="Words towards a hint"><i></i><i></i><i></i></span></button>
+      <button id="wordsBtn" class="btn lo-words" type="button">Words</button>
+    </div>
+    <div id="result" class="lo-result" hidden>
+      <p class="lo-verdict" id="verdict"></p>
+      <div class="lo-result-btns">
+        <button class="btn" type="button" id="seeBtn">Words</button>
+        <button class="btn primary" type="button" id="nextBtn">New board</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="wordsDlg" class="sheet menu-sheet lo-words-dlg" aria-label="The words">
+  <div class="pick-head"><h2 id="wordsHead">The words</h2><button class="icon-btn menu-x" type="button" id="wordsClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="wordsBody" class="lo-words-body"></div>
+</dialog>
+
+<dialog id="raceDlg" class="sheet menu-sheet duel-dlg lo-race-dlg" aria-label="The race">
+  <div class="pick-head"><h2 id="raceHead">The race</h2><button class="icon-btn menu-x" type="button" id="raceClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="raceBody" class="duel-body"></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog">
+    <label for="nameInput">Your name, so the others know who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
+</dialog>
+
+<p id="toast" class="lo-toast" role="status" aria-live="polite"></p>
+<script src="bank.js"></script>
+<script type="module" src="lode.js"></script>
+</body>
+</html>

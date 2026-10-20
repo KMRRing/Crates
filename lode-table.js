@@ -40,7 +40,6 @@ export function tidy(g) {
   g.mode = MODES[g.mode] ? g.mode : "team";
   g.team = tidyRun(g.team || {});
   g.by ||= {};
-  g.traces ||= {};
   g.runs ||= {};
   if (!RIVALS[g.bot]) delete g.bot;
   return g;
@@ -60,21 +59,26 @@ export function readable(g, slot, present) {
   return open;
 }
 
+// ---------- who's here, and what they're tracing ----------
+/** The seats at the table now: seated, with this game open on a phone that's online (this device's own always). */
+export function presentSlots(g, here, me) {
+  return Object.entries(g?.players || {}).filter(([id, p]) => p && p.slot != null && (id === me || (here?.[id]?.game === "lode" && here[id].online !== false && p.online !== false)))
+    .map(([, p]) => p.slot).sort((a, b) => a - b);
+}
+/** A trace as a player's seat keeps it (written straight to the seat as it grows, not in the table's transaction): the
+ *  board it's on, and its cells. */
+export const traceText = (n, cells) => (cells?.length ? `${n}:${cells.join(".")}` : null);
+/** What the others here are tracing on this board now: [{ id, slot, name, cells }]. */
+export function tracesOf(g, here, me) {
+  const present = presentSlots(g, here, me);
+  return Object.entries(g?.players || {}).filter(([id, p]) => id !== me && p?.trace && present.includes(p.slot)).map(([id, p]) => {
+    const [n, cells] = String(p.trace).split(":");
+    return { id, slot: p.slot, name: p.name || "Player", cells: Number(n) === g.n ? String(cells || "").split(".").filter(Boolean).map(Number).filter(c => c >= 0 && c < CELLS) : [] };
+  }).filter(t => t.cells.length);
+}
+
 // ---------- the team's moves, each inside the table's transaction: false (or "moved") leaves it as it was ----------
 const on = (g, n) => g.n === n && g.mode === "team" && !g.team.done;
-/** What a player is tracing now (none: cleared), so the others see it grow. */
-export function traceAt(g, { n, slot, cells, now }) {
-  if (!on(g, n)) return false;
-  if (cells?.length) g.traces[`s${slot}`] = { c: cells.join("."), at: now };
-  else if (g.traces[`s${slot}`]) delete g.traces[`s${slot}`];
-  else return false;
-  return true;
-}
-/** The others' traces as they stand: [{ slot, cells }], each a few seconds fresh at most. */
-export function tracesOf(g, me, now, fresh = 8000) {
-  return Object.entries(g.traces || {}).map(([k, t]) => ({ slot: Number(k.slice(1)), cells: String(t?.c || "").split(".").filter(Boolean).map(Number), at: t?.at || 0 }))
-    .filter(t => t.slot !== me && t.cells.length && now - t.at < fresh);
-}
 /**
  * A trace submitted for the team (engine's submit on the table's run): its outcome, with by (who found it). A word found
  * keeps its finder; the board done, its time on the table's clock. "moved": another board by now.
@@ -83,7 +87,6 @@ export function submitAt(g, { n, slot, cells, now }) {
   if (!on(g, n)) return { kind: "moved" };
   const out = submit(g.board, g.team, cells);
   if (out.kind === "span" || out.kind === "theme") g.by[`w${out.w}`] = slot;
-  if (g.traces[`s${slot}`]) delete g.traces[`s${slot}`];
   if (g.team.done) g.team.ms = Math.max(0, now - g.start);
   return out;
 }
@@ -151,7 +154,6 @@ export function newGameAt(g, { n, board, mode, now, bot = null }) {
   g.start = now + COUNTDOWN;
   g.team = newRun();
   g.by = {};
-  g.traces = {};
   g.runs = {};
   if (g.mode === "race" && RIVALS[bot]) g.bot = bot; else delete g.bot;
   return true;
