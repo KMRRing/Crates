@@ -74,7 +74,7 @@ const TRIES = 40;
 function milliLog2(n) {
   if (n <= 1) return 0;
   const whole = 31 - Math.clz32(n), ONE = 1 << 20;
-  let x = Math.floor((n * ONE) / 2 ** whole), frac = 0;
+  let x = Math.floor((n * ONE) / (1 << whole)), frac = 0;
   for (let b = 0; b < 12; b++) {
     x = Math.floor((x * x) / ONE);
     frac *= 2;
