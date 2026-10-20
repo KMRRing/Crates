@@ -7,7 +7,7 @@
 // What else a party plays: every table game and duo match listed has its page, its tile and room enough; which fit how
 // many; the table a party deals (partners across a four-seat table), the addresses its phones follow and who follows
 // them; a party of three seated at Bones in its own seats, the host running it, a latecomer in the computer's seat.
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { partyTable } from "./party-harness.js";
 import { roundTrip } from "./rtdb.js";
 import { GAMES, gameById, seeded, shuffle, ELSEWHERE, playable, fits, seatsText, tableFrom } from "../party-core.js";
@@ -135,7 +135,9 @@ async function voteFor(t, pick) { for (const u of [...t.state.alive]) await t.se
       fitsPage = rules.seats.max >= e.max && (!e.across || rules.seats.min === 4);
     } else {
       const name = e.id === "glyph" ? "slate" : e.id;   // Slate's id is its first name, glyph
-      const script = () => readFileSync(new URL(`../${name}.js`, import.meta.url), "utf8");
+      // the page's script and its own modules (Ladder seats its table in ladder-room.js)
+      const script = () => readdirSync(new URL("..", import.meta.url)).filter(f => f === `${name}.js` || (f.startsWith(`${name}-`) && f.endsWith(".js")))
+        .map(f => readFileSync(new URL(`../${f}`, import.meta.url), "utf8")).join("\n");
       fitsPage = (e.max === 2 || /slots: g =>|createDuel\(/.test(script())) && new RegExp(`\\b${name}: "${e.page}"`).test(duo)
         && (!e.race || /createDuel\(/.test(script()));
     }
