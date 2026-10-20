@@ -15,7 +15,7 @@ import { today, arrivedForToday, IN_FRAME, soloHref } from "./suite.js";   // th
 import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
-import { scale } from "./wide.js";
+import { scale, sideways } from "./wide.js";
 import { leaderboard } from "./standings.js";
 
 const $ = id => document.getElementById(id);
@@ -171,7 +171,8 @@ function symbolsFor(variant, rows) {
   if (!SYMBOLS.has(key)) { SYMBOLS.set(key, symbolsOf(variant, rows)); if (SYMBOLS.size > 12) SYMBOLS.delete(SYMBOLS.keys().next().value); }
   return SYMBOLS.get(key);
 }
-const lockSay = (b, c) => (!b && !c ? "nothing right" : b && c ? `${b} placed · ${c} misplaced` : b ? `${b} right, placed` : `${c} right, misplaced`);
+/** A clue's score in words, as two short lines (the lock puzzles' own phrasing, cut to fit beside four digits). */
+const lockSay = (b, c) => (!b && !c ? ["nothing", "right"] : b && c ? [`${b} in place`, `${c} misplaced`] : b ? [`${b} right`, "in place"] : [`${c} right`, "misplaced"]);
 
 /** Everything the screen draws, from the game in hand. */
 function model() {
@@ -224,7 +225,7 @@ function duelModel() {
     m.rows = breakRows(info, [], { input: null, now: false });
     m.where = `Duel · ${VARIANTS[run.variant].label} · ${LEVELS[run.level].label}`;
     m.aside = "";
-    m.shield = { open: true, code: run.input.some(x => x >= 0) ? run.input : null, label: "Your code", note: "Set it for the computer to break" };
+    m.shield = { open: true, code: run.input.some(x => x >= 0) ? run.input : null, label: "Your code", note: "For the computer" };
     m.entry = true;
     m.go = { text: "Set my code", ok: true, setting: true };
     m.visible = [];
@@ -236,7 +237,7 @@ function duelModel() {
   m.aside = `You <b>${run.rows.length}</b> · Computer <b>${run.cpu.length}</b>`;
   m.tabs = [["mine", `Your guesses (${run.rows.length})`], ["theirs", `Computer's (${run.cpu.length})`]];
   m.tab = theirs ? "theirs" : "mine";
-  m.shield = theirs ? { open: true, code: run.mine, label: "Your code", note: "The computer is breaking it" }
+  m.shield = theirs ? { open: true, code: run.mine, label: "Your code", note: "" }
     : { open: done, code: done ? duelSecret(run) : null, label: "Its code", note: prefs.aid !== "off" && !done ? `${fitCount(run.variant, run.rows)} codes fit` : "" };
   m.entry = !done;
   const waiting = run.rows.length > run.cpu.length;
@@ -335,20 +336,27 @@ function drawBoard(m, auto) {
       return b;
     }));
   }
-  const sh = $("shield");
-  sh.className = `bu-shield${m.shield.open ? " open" : ""}`;
-  const code = el("span", "code");
-  for (let k = 0; k < m.p; k++) {
-    if (m.shield.open && m.shield.code) code.append(pegEl(m.shield.code[k], m.digits));
-    else code.append(el("span", "hole", "?"));
-  }
-  sh.replaceChildren(el("span", "lab", m.shield.label), code, el("span", "note", m.shield.note || ""));
-  sh.setAttribute("aria-label", m.shield.open && m.shield.code ? `${m.shield.label}: ${m.shield.code.map(x => symName(x, m.digits)).join(", ")}` : `${m.shield.label}: hidden`);
+  drawShield(m);
   const box = $("rows");
   box.replaceChildren(...m.rows.map(r => rowEl(r, m, auto)));
 }
+/** The code under its shutter, drawn again only when it changes; the shutter opening on a game's end turns its pegs over. */
+let shieldWas = null;
+function drawShield(m) {
+  const s = m.shield, code = s.open && s.code ? s.code : null, sig = JSON.stringify([s.label, code, s.note, m.p, m.digits]);
+  if (shieldWas?.sig === sig) return;
+  const opening = !!code && shieldWas && !shieldWas.code && shieldWas.game === gameKey();
+  shieldWas = { sig, code, game: gameKey() };
+  const sh = $("shield"), row = el("span", "code");
+  sh.className = `bu-shield${s.open ? " open" : ""}${opening ? " opening" : ""}`;
+  for (let k = 0; k < m.p; k++) row.append(code ? pegEl(code[k], m.digits) : el("span", "hole", "?"));
+  sh.replaceChildren(el("span", "lab", s.label), row, el("span", "note", s.note || ""));
+  sh.setAttribute("aria-label", code ? `${s.label}: ${code.map(x => symName(x, m.digits)).join(", ")}` : `${s.label}: hidden`);
+}
+/** Which game is on the board (the shutter turns its pegs over only when that game's code comes out). */
+const gameKey = () => (G ? `${G.created}/${G.n}/${work()?.view}` : run ? `${run.kind}/${run.seed}/${run.view}` : "");
 function rowEl(r, m, auto) {
-  const li = el("li", `bu-row${r.now ? " now" : ""}${r.future ? " future" : ""}${r.sealed ? " sealed" : ""}${r.hot ? " now" : ""}`);
+  const li = el("li", `bu-row${r.now || r.hot ? " now" : ""}${r.future ? " future" : ""}${r.sealed ? " sealed" : ""}${r.hidden ? " hidden-clue" : ""}`);
   const n = el("span", "n");
   if (r.by != null) n.append(badge(r.by)); else n.textContent = String(r.n);   // at a table: whose guess it was
   li.append(n);
@@ -363,7 +371,7 @@ function rowEl(r, m, auto) {
   }
   li.append(pegs);
   if (r.hidden) li.append(el("span", "say", r.hidden));
-  else if (r.say) li.append(el("span", "say", r.say));
+  else if (r.say) { const s = el("span", "say two"); s.append(el("span", "", r.say[0]), el("span", "", r.say[1])); li.append(s); }
   else if (r.left != null) li.append(el("span", "left", r.left === 1 ? "1 code" : `${r.left} codes`));
   else li.append(el("span"));
   if (r.sealed) li.append(el("span", "bu-sealed", r.sealed));
@@ -380,7 +388,9 @@ function rowEl(r, m, auto) {
 function fitRows() {
   const box = $("rows"), n = box.children.length;
   if (!n) return;
-  const s = scale(), h = Math.max(22 * s, Math.min(44 * s, box.clientHeight / n));
+  // held sideways the board has the height; a lock's few clues may take more of it
+  const s = scale(), lock = $("app").classList.contains("locking"), most = sideways() ? (lock ? 76 : 64) : lock ? 52 : 44;
+  const h = Math.floor(Math.max(22 * s, Math.min(most * s, box.clientHeight / n)));
   $("board").style.setProperty("--bu-rowh", `${h.toFixed(1)}px`);
   box.querySelector(".bu-row.now")?.scrollIntoView({ block: "nearest" });
 }
@@ -630,7 +640,7 @@ function tableModel() {
     m.rows = breakRows(m, B.rows, { input: w.input, showLeft: prefs.aid !== "off" || done, seal, by: r => r.by, now: !done });
     m.visible = B.rows.filter(r => keysShown(T, r, me));
     m.aside = done ? plural(B.rows.length, "guess", "guesses") : `Guess <b>${B.rows.length + 1}</b> of ${m.limit}`;
-    m.shield = { open: done, code: done ? targetOf(T, me) : null, label: done ? "The code" : "Code", note: done ? "" : prefs.aid !== "off" ? `${fitCount(T.variant, m.visible)} fit what you see` : "Your guesses' keys show to the others" };
+    m.shield = { open: done, code: done ? targetOf(T, me) : null, label: done ? "The code" : "Code", note: done ? "" : prefs.aid !== "off" ? `${fitCount(T.variant, m.visible)} fit what you see` : "Keys go to the others" };
     m.entry = !done;
     m.go = { text: "Guess", ok: !done };
     if (!done && B.rows.at(-1)?.by === me && !keysShown(T, B.rows.at(-1), me)) m.say = `Your guess is scored on the others' screens: ask ${list(people().filter(p => !p.me).map(p => first(p.name))) || "them"} what it got.`;
@@ -643,7 +653,7 @@ function tableModel() {
     m.rows = breakRows(m, [], { input: null, now: false });
     m.aside = "";
     const breaker = breakerOf(T, me);
-    m.shield = { open: true, code: w.input.some(x => x >= 0) ? w.input : null, label: "Your code", note: `For ${nameOf(breaker)} to break` };
+    m.shield = { open: true, code: w.input.some(x => x >= 0) ? w.input : null, label: "Your code", note: `For ${nameOf(breaker)}` };
     m.entry = true;
     m.go = { text: "Set my code", ok: true, setting: true };
     m.visible = [];
@@ -658,7 +668,7 @@ function tableModel() {
   if (theirs) {
     const b = breakerOf(T, me), theirRows = T.seats?.[`s${b}`]?.rows || [];
     m.rows = breakRows(m, theirRows, { input: null, showLeft: false, now: false });
-    m.shield = { open: true, code: T.codes[`s${me}`], label: "Your code", note: `${nameOf(b)} is breaking it` };
+    m.shield = { open: true, code: T.codes[`s${me}`], label: "Your code", note: "" };
     m.entry = false;
     m.go = { text: "Guess", ok: false };
     m.aside = `${plural(theirRows.length, "guess", "guesses")}`;
@@ -685,7 +695,7 @@ function tableLock(T, me, m, over) {
     m.rows = L.clues.map((cl, i) => (mine.includes(i) || done ? { n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c), clue: i }
       : { n: i + 1, g: null, hidden: `${list(holders(i).map(s => first(nameOf(s))))}'s clue` }));
     m.aside = `<b>${fmt(((done ? B.done.at : now()) - T.dealt) / 1000 + WRONG * B.strikes)}</b>${B.strikes ? ` <small>${plural(B.strikes, "strike")}</small>` : ""}`;
-    m.shield = { open: done, code: done ? L.secret : null, label: done ? "Opened" : "Lock", note: done ? "" : mine.length ? `You hold ${plural(mine.length, "clue")} of ${L.clues.length}` : "You came after the deal: no clues this game" };
+    m.shield = { open: done, code: done ? L.secret : null, label: done ? "Opened" : "Lock", note: done ? "" : mine.length ? `You hold ${plural(mine.length, "clue")} of ${L.clues.length}` : "No clues for you this game" };
     m.entry = !done;
     m.go = { text: "Open", ok: !done };
     const last = B.tries.at(-1);
