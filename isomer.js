@@ -67,7 +67,7 @@ function save() {
   if (IN_FRAME || !S) return;
   savedAt = performance.now();
   if (S.kind === "race") duel.keep(S);
-  else if (S.kind === "pair") { if (G) write(PAIR, { code: together.room?.code, created: G.created, n: G.n, run: S.run }); }
+  else if (S.kind === "pair") { if (G) write(PAIR, { code: together.room?.code, uid: together.room?.uid, created: G.created, n: G.n, run: S.run }); }
   else write(RUN, S);
 }
 const started = () => !!S && (S.kind === "random" || S.kind === "daily") && !S.run.done && (S.run.squares.some(sq => sq.some(k => k >= 0)) || hintsOf(S.run) > 0);
@@ -167,8 +167,11 @@ async function useHint() {
 }
 
 // ---------- the end of a puzzle ----------
-/** The last answer in: the time is final, and counts at once (your best, today's), the pile learns what you missed. */
+/** The last answer in: the time is final, and counts at once (your best, today's), the pile learns what you missed.
+ *  Once a puzzle: on the phone that put the last answer in, or the one that saw it arrive from the table. */
 function finish() {
+  if (S.counted) return;
+  S.counted = true;
   const r = S.run;
   if (S.kind === "race") r.ms = Math.max(0, duel.now() - S.begun);
   else if (S.kind === "pair") r.ms = G?.done?.ms ?? elapsed();
@@ -424,7 +427,7 @@ function onTable(val) {
   if (!was) seatedAt = serverNow();
   const kept = read(PAIR, null);
   if (!S || S.kind !== "pair" || was?.n !== G.n || was?.created !== G.created) {
-    const mine = kept && kept.code === together.room?.code && kept.created === G.created && kept.n === G.n ? kept.run : null;
+    const mine = kept && kept.code === together.room?.code && kept.uid === together.room?.uid && kept.created === G.created && kept.n === G.n ? kept.run : null;
     show({ kind: "pair", puzzle: G.puzzle, run: mine, rival: "off" });
     if (was && was.n !== G.n) toast("A new puzzle for the two of you");
   }
@@ -432,7 +435,7 @@ function onTable(val) {
   items.forEach((_, i) => { if (G.solved[itemKey(P, i)] && !S.run.solved[i]) { solveFrom(P, S.run, i); glow(i); } });
   P.finals.forEach((_, fi) => { const i = P.words.length + fi, n = G.fh[`f${fi}`] || 0; if (n) revealTo(P, S.run, i, n); });
   if (!mineToPlay(S.run.active) && !S.run.done) S.run.active = nextOpenFor(S.run.active);
-  if (G.done && !S.run.done) { S.run.done = true; finish(); }
+  if (G.done || S.run.done) { S.run.done = true; finish(); }
   maybeBegin();
   save();
   render();
@@ -516,7 +519,7 @@ async function raceInstead() {
   await together.act(g => { g.race = serverNow(); return true; });
   together.leave();
   if (!(await duel.join(code))) { switching = false; solo(); return; }
-  if (!duel.playing) duel.again();                             // a fresh match, not one the two of you raced before
+  if (duel.together.room?.data?.start) duel.again();           // a fresh match, not one the two of you raced before
 }
 
 // ---------- the menu ----------
