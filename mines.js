@@ -486,6 +486,7 @@ function drawField() {
   view.set({
     cells: G.run.cells, me: mySeat(), told: G.told, reader: seats ? i => readerOfCell(i, seats) : null,
     end: G.run.done ? { won: G.run.won } : null, hint: shownHint, focus, pings: G.pings,
+    asks: partnered() ? G.asked.filter(k => k.startsWith("ask:")).map(k => ({ cell: Number(k.slice(4)), seat: 1 })) : [],
   });
   view.label(`${describe(G)}: ${minesLeft(G.f, G.run.cells)} mines left${G.run.done ? (G.run.won ? ", cleared" : ", lost") : ""}`);
   drawZoom();

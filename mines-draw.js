@@ -106,8 +106,8 @@ export function createView(host) {
   /**
    * What to draw: { cells (the run's string), reader (cell -> the seat that reads its number, null: everyone), me (this
    * player's seat), told (a string: "1" where a number was shown to everyone), end ({ won } once over), hint ({ cells,
-   * mine, from }), focus (a number held down: its neighbours ringed), pings ([{ cell, at, seat }]), colour (seat ->
-   * the palette's seat) }. opened: cells just dug open, from `from`, which open as a wave.
+   * mine, from }), focus (a number held down: its neighbours ringed), pings ([{ cell, at, seat }]), asks ([{ cell,
+   * seat }] numbers asked for, still to be shown), colour (seat -> the palette's seat) }. opened: cells just dug open, from `from`, which open as a wave.
    */
   function set(next, opened = null, from = -1) {
     S = { ...S, ...next };
@@ -224,6 +224,14 @@ export function createView(host) {
     if (S.hint) {
       for (const i of S.hint.from || []) { path(i, gap * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = css(P.proof); ctx.stroke(); }
       for (const i of S.hint.cells || []) { path(i, gap * 2); ctx.lineWidth = 3; ctx.strokeStyle = css(S.hint.mine ? P.bad : P.good); ctx.stroke(); }
+    }
+    // a number someone asked for and hasn't been shown: a dashed ring in the asker's colour until it is
+    for (const a of S.asks || []) {
+      if (a.cell < 0 || a.cell >= f.n || S.told?.[a.cell] === "1") continue;
+      const c = cells[a.cell];
+      ctx.setLineDash([4, 3]); ctx.lineWidth = 2; ctx.strokeStyle = css(P.seats[S.colour(a.seat) % 6]);
+      ctx.beginPath(); ctx.arc(X(c.cx), Y(c.cy), s0 * 0.95, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
     }
     // a cell someone pointed at rings in their colour, pulsing, a few seconds
     for (const p of S.pings || []) {
