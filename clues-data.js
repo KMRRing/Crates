@@ -4841,7 +4841,1067 @@ worried|Anxious|Fretted
 worries|Frets|Anxieties
 writing|Penning|Script
 written|Penned|Composed`,
-``,
+`abandon|Desert|Wild freedom
+abolish|Scrap|Do away with
+aborted|Called off|Abandoned
+absorbs|Soaks up|Engrosses
+abusing|Mistreating|Misusing
+abusive|Insulting|Cruel
+abysmal|Dreadful|Appalling
+accents|Brogues|Stresses
+accused|Charged|Defendant
+accuses|Charges|Blames
+acronym|Word from initials|NATO, e.g.
+adapted|Adjusted|Modified
+addicts|Devotees|Fans
+adhered|Stuck|Abided
+adheres|Sticks|Abides
+adjusts|Alters|Adapts
+adverse|Unfavourable|Hostile
+adverts|Commercials|Promotions
+adviser|Counsellor|Consultant
+airport|Aerodrome|Terminal site
+alarmed|Frightened|Fitted with a siren
+alcohol|Drink|Spirits
+algebra|Maths branch|Equations and unknowns
+aliases|Assumed names|Pseudonyms
+aligned|Lined up|Allied
+alleged|Supposed|Claimed
+alleges|Claims|Asserts
+amateur|Novice|Unpaid
+amazing|Astonishing|Stunning
+ambient|Surrounding|Background
+amended|Revised|Corrected
+anagram|Word puzzle|Letter shuffle
+analogy|Comparison|Parallel
+analyst|Examiner|Psychiatrist
+anarchy|Lawlessness|Chaos
+anatomy|Body structure|Dissection science
+anguish|Agony|Torment
+animals|Beasts|Creatures
+anomaly|Oddity|Irregularity
+anoraks|Parkas|Obsessive enthusiasts
+antique|Old|Heirloom
+anxious|Worried|Eager
+appeals|Pleas|Attracts
+appends|Adds|Attaches
+appoint|Name|Assign
+archaic|Ancient|Old-fashioned
+archive|Records|Store
+arising|Coming up|Getting up
+arrests|Detains|Stops
+arrival|Coming|Newcomer
+artists|Painters|Performers
+ascends|Climbs|Rises
+ashamed|Embarrassed|Guilty
+assault|Attack|Onslaught
+asserts|Declares|Claims
+assigns|Allocates|Appoints
+assists|Helps|Passes, in football
+assorts|Classifies|Groups
+atheism|Unbelief|Godlessness
+atheist|Non-believer|Sceptic
+attacks|Assaults|Bouts
+audible|Within earshot|Loud enough
+awaited|Expected|Anticipated
+awarded|Granted|Presented
+awfully|Terribly|Very
+backlog|Arrears|Pile-up
+baffled|Puzzled|Mystified
+baffles|Puzzles|Mystifies
+baggage|Luggage|Emotional burden
+bananas|Yellow fruit|Crazy
+banning|Prohibiting|Barring
+bargain|Snip|Haggle
+barking|Woofing|Mad
+baroque|Ornate|Florid
+barrier|Fence|Obstacle
+barring|Except|Banning
+bashing|Hitting|Criticism
+bearded|Whiskered|Confronted
+beating|Defeat|Thrashing
+bedroom|Chamber|Boudoir
+behaved|Acted|Conducted oneself
+behaves|Acts|Conducts oneself
+beliefs|Faiths|Convictions
+beloved|Darling|Cherished
+bending|Curving|Bowing
+beneath|Below|Under
+biasing|Prejudicing|Slanting
+bicycle|Bike|Two-wheeler
+bigoted|Prejudiced|Narrow-minded
+bigotry|Prejudice|Intolerance
+billion|Thousand million|Very many
+biscuit|Cookie|Cracker
+blaming|Accusing|Censuring
+blanket|Cover|Comprehensive
+blasted|Exploded|Confounded
+blatant|Flagrant|Obvious
+blessed|Holy|Lucky
+blesses|Consecrates|Sanctifies
+blindly|Without thinking|Recklessly
+blocked|Obstructed|Clogged
+blowing|Puffing|Squandering
+bogging|Miring|Getting stuck
+boggles|Baffles|Astonishes
+boiling|Seething|Very hot
+bombing|Shelling|Flopping
+booking|Reservation|Caution, in football
+booklet|Pamphlet|Brochure
+boredom|Tedium|Ennui
+bottles|Flasks|Loses nerve, with out
+branded|Labelled|Stigmatised
+breathe|Inhale|Whisper
+bridges|Spans|Card games
+brigade|Unit|Corps
+broadly|Widely|Generally
+browsed|Skimmed|Grazed
+browses|Skims|Grazes
+buffers|Cushions|Old fogeys
+bullets|Shots|List markers
+burning|Ablaze|Urgent
+buttons|Fasteners|Switches
+cabbage|Green vegetable|Coleslaw base
+cabinet|Cupboard|Government ministers
+cabling|Wiring|Telegraphing
+cameras|Photographic devices|Snappers' tools
+cancels|Calls off|Annuls
+capture|Catch|Seize
+careers|Professions|Rushes headlong
+carrier|Bearer|Airline
+carrots|Orange vegetables|Incentives
+cartoon|Comic strip|Animation
+casting|Throwing|Selecting actors
+catered|Provided food|Pandered
+caution|Care|Warning
+ceasing|Stopping|Ending
+ceiling|Upper limit|Roof of a room
+censors|Cuts|Bans
+chamber|Room|Hall
+chaotic|Disorderly|Messy
+charity|Goodwill|Kindness
+charmed|Delighted|Enchanted
+charter|Hire|Constitution
+chasing|Pursuing|Hunting
+chatted|Talked|Nattered
+cheaply|For little|Tackily
+cheated|Swindled|Conned
+checker|Inspector|Draughts piece
+chemist|Pharmacist|Druggist
+chewing|Munching|Pondering
+chicken|Hen|Coward
+choices|Selections|Options
+chopped|Cut|Axed
+chucked|Threw|Ditched
+circles|Rings|Social sets
+clarity|Clearness|Lucidity
+clashes|Conflicts|Collides
+classed|Ranked|Categorised
+classic|Timeless|Masterpiece
+clauses|Articles|Provisions
+cleaned|Washed|Scrubbed
+cleaner|Char|Detergent
+cleanly|Neatly|Fairly
+clients|Customers|Patrons
+climate|Weather|Atmosphere
+climbed|Ascended|Scaled
+clipped|Snipped|Curt
+closure|End|Shutdown
+clothed|Dressed|Robed
+clothes|Garments|Outfit
+cluster|Group|Bunch
+cobbler|Shoemaker|Fruit pie
+coining|Inventing|Minting
+collate|Collect|Arrange
+columns|Pillars|Newspaper features
+comfort|Ease|Console
+commits|Pledges|Perpetrates
+commons|Village greens|Lower house
+compact|Small|Agreement
+compels|Forces|Obliges
+compete|Vie|Contend
+compile|Collect|Assemble
+conceal|Hide|Cover up
+concede|Admit|Yield
+concert|Gig|Recital
+concise|Brief|Succinct
+condemn|Censure|Sentence
+condone|Excuse|Overlook
+conduct|Behaviour|Lead
+confess|Admit|Own up
+confine|Restrict|Imprison
+conform|Comply|Fit in
+congest|Clog|Block
+consent|Permission|Agree
+console|Comfort|Control panel
+consult|Ask|Confer
+consume|Eat|Use up
+contend|Compete|Maintain
+contest|Competition|Dispute
+contour|Outline|Map line
+convict|Prisoner|Find guilty
+cookies|Biscuits|Web trackers
+cooking|Cuisine|Falsifying
+cooling|Chilling|Calming
+corpses|Bodies|Cadavers
+counsel|Advice|Barrister
+coupled|Joined|Linked
+couples|Pairs|Joins
+courage|Bravery|Nerve
+courier|Messenger|Tour guide
+cracked|Split|Solved
+cramped|Poky|Restricted
+crawled|Crept|Grovelled
+creator|Maker|Author
+credits|Praises|Film titles
+cricket|Chirping insect|Sport with wickets
+critics|Reviewers|Detractors
+crossed|Traversed|Thwarted
+crosses|Traverses|Hybrids
+crowded|Packed|Thronged
+crucial|Vital|Critical
+cruelty|Brutality|Savagery
+cruised|Sailed|Coasted
+cruises|Voyages|Coasts
+crushed|Squashed|Devastated
+crushes|Squashes|Infatuations
+cryptic|Mysterious|Puzzling
+crystal|Quartz|Clear
+culprit|Offender|Wrongdoer
+cunning|Crafty|Guile
+curtain|Drape|Stage screen
+custard|Sauce for pudding|Pie filling
+customs|Traditions|Border checks
+cycling|Biking|Rotating
+cyclist|Rider|Biker
+cynical|Sceptical|Mocking
+damning|Incriminating|Condemning
+dancing|Twirling|Ballet, e.g.
+dangers|Perils|Hazards
+darling|Dear|Favourite
+dashing|Rushing|Debonair
+daytime|Hours of light|Before dusk
+dealers|Traders|Card distributors
+debated|Discussed|Argued
+debates|Discussions|Argues
+decades|Ten-year periods|Tens
+decimal|Base ten|Point number
+decline|Fall|Refuse
+decoded|Deciphered|Cracked
+decodes|Deciphers|Cracks
+deduced|Inferred|Worked out
+deduces|Infers|Works out
+deepest|Most profound|Lowest
+defeats|Beats|Losses
+defects|Flaws|Deserts
+defends|Protects|Guards
+degrade|Demean|Debase
+delayed|Late|Postponed
+delight|Joy|Please
+denotes|Signifies|Indicates
+density|Thickness|Compactness
+dentist|Tooth doctor|Filler of cavities
+denying|Refusing|Refuting
+deposit|Down payment|Sediment
+depress|Sadden|Press down
+deprive|Rob|Deny
+derange|Unbalance|Upset
+descend|Go down|Drop
+deserts|Wildernesses|Abandons
+deserve|Merit|Earn
+desktop|Computer|Work surface
+despair|Hopelessness|Give up hope
+despise|Scorn|Loathe
+destine|Fate|Intend
+detract|Diminish|Take away
+devious|Sly|Underhand
+devised|Invented|Planned
+devises|Invents|Plans
+diagram|Chart|Plan
+dialect|Vernacular|Patois
+dictate|Command|Say aloud for writing
+differs|Varies|Disagrees
+digging|Excavating|Delving
+dignity|Poise|Self-respect
+dilemma|Quandary|Predicament
+disable|Incapacitate|Switch off
+discard|Throw away|Jettison
+disease|Illness|Sickness
+disgust|Revulsion|Repel
+dismiss|Sack|Reject
+dispose|Get rid, with of|Incline
+dispute|Argument|Contest
+disrupt|Interrupt|Upset
+distort|Warp|Twist
+diverse|Varied|Assorted
+diverts|Redirects|Amuses
+divorce|Separation|Split
+doctors|Physicians|Falsifies
+dollars|Bucks|Greenbacks
+donated|Gave|Contributed
+donates|Gives|Contributes
+dooming|Condemning|Sealing the fate of
+dotting|Spotting|Speckling
+doubled|Twofold|Folded
+doubles|Duplicates|Lookalikes
+drafted|Sketched|Conscripted
+dragged|Pulled|Hauled
+drained|Emptied|Exhausted
+dreaded|Feared|Awful
+dressed|Clothed|Bandaged
+dresses|Frocks|Bandages
+dripped|Trickled|Leaked
+drowned|Submerged|Swamped
+drunken|Intoxicated|Tipsy
+dumping|Tipping|Jilting
+dustbin|Rubbish bin|Trash can
+dynamic|Energetic|Forceful
+eagerly|Keenly|Avidly
+earning|Making|Deserving
+eastern|Oriental|Of the Orient
+echoing|Reverberating|Repeating
+ecology|Environment science|Green studies
+educate|Teach|Instruct
+elderly|Aged|Old
+elegant|Graceful|Stylish
+elitist|Snobbish|Exclusive
+emerged|Appeared|Came out
+emerges|Appears|Comes out
+eminent|Distinguished|Famous
+emotion|Feeling|Passion
+employs|Hires|Uses
+emptied|Drained|Cleared
+empties|Drains|Clears
+emulate|Imitate|Copy
+enabled|Allowed|Activated
+enclose|Surround|Include
+encoded|Encrypted|Ciphered
+encodes|Encrypts|Ciphers
+endings|Conclusions|Finales
+endless|Infinite|Eternal
+enemies|Foes|Opponents
+enforce|Impose|Apply
+engaged|Betrothed|Busy
+engages|Hires|Interlocks
+engines|Motors|Locomotives
+enhance|Improve|Boost
+enjoyed|Liked|Relished
+enlarge|Expand|Magnify
+entails|Involves|Requires
+episode|Instalment|Incident
+erasing|Deleting|Rubbing out
+escaped|Fled|Got away
+escapes|Flees|Getaways
+essence|Core|Extract
+eternal|Everlasting|Endless
+ethical|Moral|Principled
+evident|Obvious|Clear
+evolved|Developed|Grew
+evolves|Develops|Grows
+exceeds|Surpasses|Tops
+excepts|Excludes|Leaves out
+excited|Thrilled|Eager
+excites|Thrills|Stirs
+excuses|Pardons|Pretexts
+exhaust|Tire out|Car's fume pipe
+exhibit|Display|Show
+exiting|Leaving|Departing
+expired|Died|Lapsed
+expires|Dies|Lapses
+explode|Blow up|Burst
+exploit|Feat|Take advantage of
+explore|Investigate|Probe
+exposed|Revealed|Unprotected
+exposes|Reveals|Uncovers
+extents|Scopes|Degrees
+factory|Plant|Works
+factual|True|Real
+faculty|Ability|University department
+fainter|Dimmer|Less distinct
+fairest|Most just|Palest
+fallacy|Misconception|Error
+fantasy|Dream|Make-believe
+farmers|Growers|Ranchers
+fathers|Dads|Priests
+fatuous|Silly|Inane
+fearing|Dreading|Afraid of
+fellows|Chaps|Peers
+females|Women|Hens and cows
+fenders|Fireguards|Bumpers
+fiction|Fable|Invention
+fiddled|Fidgeted|Swindled
+fiddles|Violins|Swindles
+fifteen|Rugby team|Three fives
+fighter|Boxer|Warplane
+figured|Reckoned|Patterned
+filming|Shooting|Recording
+filters|Sieves|Strains
+finance|Fund|Money matters
+fishing|Angling|Fumbling
+flagged|Tired|Marked
+flawing|Damaging|Marring
+flipped|Tossed|Lost one's temper
+flooded|Swamped|Inundated
+flowers|Blooms|Blossoms
+flowing|Running|Fluent
+flushed|Red|Ruddy
+flushes|Blushes|Rinses
+folders|Files|Binders
+folding|Creasing|Collapsing
+fooling|Tricking|Joking
+foolish|Silly|Daft
+forbade|Banned|Prohibited
+forbids|Bans|Prohibits
+forests|Woods|Jungles
+forgave|Pardoned|Excused
+forgive|Pardon|Excuse
+formats|Layouts|Arrangements
+formula|Recipe|Equation
+founded|Established|Set up
+fragile|Delicate|Frail
+frankly|Candidly|Honestly
+frantic|Frenzied|Desperate
+freeing|Releasing|Liberating
+freeway|Motorway, in America|Highway
+freezes|Ices up|Halts
+frowned|Scowled|Glowered
+fullest|Most complete|Plumpest
+funding|Finance|Backing
+funeral|Burial service|Obsequies
+funnier|More amusing|Odder
+garbled|Muddled|Distorted
+garbles|Muddles|Distorts
+gardens|Plots|Grounds
+gateway|Entrance|Portal
+gathers|Collects|Infers
+gearing|Leverage|Equipping
+generic|General|Unbranded
+genetic|Hereditary|Inherited
+geology|Earth science|Rock study
+gesture|Signal|Wave
+ghastly|Horrible|Pale
+glasses|Spectacles|Tumblers
+gleaned|Gathered|Picked up
+glowing|Radiant|Enthusiastic
+goodbye|Farewell|Cheerio
+goodies|Treats|Heroes
+governs|Rules|Controls
+grabbed|Seized|Snatched
+gradual|Slow|Steady
+grammar|Syntax|Rules of language
+gravity|Seriousness|Pull of the earth
+grossly|Flagrantly|Excessively
+grouped|Classed|Clustered
+guarded|Protected|Cautious
+guiding|Leading|Steering
+hackers|Code breakers|Poor golfers
+hacking|Chopping|Breaking into systems
+haircut|Trim|Crop
+halting|Stopping|Hesitant
+handful|Few|Tearaway
+handler|Trainer|Manager
+happier|Gladder|More content
+hardens|Sets|Toughens
+harmony|Accord|Agreement
+hazards|Dangers|Risks
+headers|Football shots|Page-top lines
+heating|Warming|Boiler's job
+heavens|Skies|Paradise
+heavier|Weightier|More serious
+heights|Altitudes|Peaks
+herring|Silver fish|Kipper, once
+hideous|Ugly|Horrid
+highway|Main road|Route
+hinting|Suggesting|Implying
+holders|Owners|Containers
+honesty|Truthfulness|Integrity
+hooking|Catching|Snaring
+hopeful|Optimistic|Aspirant
+horizon|Skyline|Outlook
+horrify|Appal|Shock
+hostile|Unfriendly|Aggressive
+housing|Homes|Casing
+hunting|Chasing|Searching
+hurting|Aching|Injuring
+ideally|Perfectly|In a perfect world
+idiotic|Stupid|Foolish
+illness|Sickness|Disease
+immense|Huge|Vast
+immoral|Wicked|Unethical
+impairs|Damages|Weakens
+impends|Looms|Threatens
+imports|Brings in|Foreign goods
+impress|Strike|Imprint
+impulse|Urge|Whim
+indexed|Listed|Catalogued
+indexes|Lists|Catalogues
+induced|Persuaded|Caused
+induces|Persuades|Causes
+indulge|Pamper|Spoil
+inertia|Inaction|Sluggishness
+infects|Contaminates|Spreads to
+inflict|Impose|Deal out
+inhabit|Live in|Occupy
+inherit|Be left|Succeed to
+inhibit|Restrain|Hinder
+injured|Hurt|Wounded
+injures|Hurts|Wounds
+insects|Bugs|Beetles, e.g.
+insight|Understanding|Perception
+insofar|___ as (to the degree that)|
+inspect|Examine|Check
+inspire|Motivate|Stimulate
+insults|Affronts|Offends
+intense|Extreme|Passionate
+interim|Temporary|Meantime
+invaded|Occupied|Intruded on
+invades|Occupies|Intrudes on
+inverse|Opposite|Reverse
+inverts|Reverses|Upends
+invoked|Called upon|Cited
+invokes|Calls upon|Cites
+islands|Isles|Traffic refuges
+jackets|Coats|Book covers
+jamming|Blocking|Improvising, in music
+jealous|Envious|Possessive
+jellies|Jams|Wobbly desserts
+jointly|Together|In common
+journal|Diary|Periodical
+journey|Trip|Travel
+judging|Assessing|Refereeing
+jumping|Leaping|Lively
+justice|Fairness|Judge
+keyword|Search term|Password
+kicking|Booting|Giving up
+kidding|Joking|Teasing
+kidnaps|Abducts|Seizes
+kingdom|Realm|Domain
+kitchen|Galley|Cookhouse
+lasting|Enduring|Durable
+laughed|Chuckled|Chortled
+lawyers|Solicitors|Barristers
+leaders|Chiefs|Editorials
+leaflet|Pamphlet|Flyer
+leaning|Tilting|Tendency
+leather|Hide|Thrash
+legible|Readable|Clear
+leisure|Free time|Ease
+lending|Loaning|Giving
+lengths|Distances|Swims of the pool
+lengthy|Long|Prolonged
+lenient|Merciful|Tolerant
+liaison|Link|Affair
+liberal|Generous|Broad-minded
+liberty|Freedom|Cheek
+license|Permit|Authorise
+lifting|Raising|Stealing
+lighted|Lit|Illuminated
+lighter|Paler|Barge
+lightly|Gently|Casually
+linkage|Connection|Bond
+listens|Hears|Pays attention
+literal|Exact|Word for word
+locally|Nearby|In the area
+located|Found|Situated
+locates|Finds|Situates
+loosely|Slackly|Roughly
+loudest|Noisiest|Most garish
+lowered|Reduced|Frowned
+luckily|Fortunately|Happily
+luggage|Baggage|Cases
+lurking|Skulking|Lying in wait
+madness|Insanity|Folly
+magical|Enchanting|Supernatural
+mailbox|Postbox|Inbox
+mailing|Posting|Circular
+mandate|Authority|Order
+mangled|Crushed|Garbled
+mangles|Crushes|Wringers
+mankind|Humanity|The human race
+manning|Staffing|Crewing
+mapping|Charting|Plotting
+margins|Edges|Profits
+marital|Matrimonial|Conjugal
+markers|Pens|Indicators
+markets|Bazaars|Sells
+married|Wed|United
+marries|Weds|Unites
+masters|Experts|Learns thoroughly
+matched|Paired|Equalled
+mending|Repairing|Recovering
+mercury|Quicksilver|Element Hg
+merging|Combining|Blending
+messing|Fooling, with about|Dirtying
+migrate|Move|Relocate
+mileage|Distance|Advantage
+miracle|Wonder|Marvel
+mirrors|Looking glasses|Reflects
+misread|Misinterpret|Misjudge
+missile|Rocket|Projectile
+mission|Task|Calling
+mixture|Blend|Medley
+moaning|Groaning|Complaining
+modules|Units|Components
+moments|Instants|Seconds
+monarch|King or queen|Butterfly
+monkeys|Apes|Five hundreds, in slang
+monster|Beast|Huge
+monthly|Magazine|Twelve times a year
+morally|Ethically|Virtually
+mortals|Humans|People
+mothers|Mums|Tends
+motions|Movements|Proposals
+motives|Reasons|Incentives
+mounted|Climbed|Framed
+mucking|Dirtying|Cleaning stables, with out
+muddled|Confused|Jumbled
+muddles|Confuses|Jumbles
+mundane|Ordinary|Earthly
+murders|Kills|Killings
+muscles|Brawn|Biceps, e.g.
+museums|Galleries|Collections
+musical|Melodic|Show
+mutters|Mumbles|Grumbles
+mystery|Enigma|Whodunit
+nailing|Fastening|Catching
+nastier|Meaner|More unpleasant
+nations|Countries|Peoples
+natives|Locals|Inhabitants
+needles|Pins|Provokes
+neglect|Ignore|Disregard
+nesting|Roosting|Stacking
+neutral|Impartial|Colourless
+nicking|Stealing|Arresting
+nominal|Token|In name only
+notable|Remarkable|Dignitary
+notably|Particularly|Remarkably
+notions|Ideas|Whims
+novelty|Newness|Trinket
+novices|Beginners|Learners
+nuclear|Atomic|Central
+numeral|Figure|Digit
+numeric|In figures|Digital
+obeying|Complying with|Following
+obliged|Compelled|Grateful
+obliges|Compels|Helps
+obscene|Indecent|Outrageous
+offends|Insults|Breaks the law
+offhand|Casual|Curt
+offsets|Counterbalances|Compensates
+oneself|Personally|
+ongoing|Continuing|In progress
+oppress|Persecute|Weigh down
+optical|Visual|Of the eye
+optimal|Best|Ideal
+optimum|Peak|Most favourable
+orbital|Circling|Ring road
+organic|Natural|Chemical-free
+orients|Aligns|Positions
+origins|Sources|Roots
+outcome|Result|Upshot
+outline|Sketch|Summary
+outlook|View|Prospect
+outputs|Products|Yields
+outrage|Fury|Atrocity
+overdue|Late|Unpaid
+overlap|Coincide|Shared part
+packets|Parcels|Fortunes
+packing|Wadding|Filling cases
+padding|Stuffing|Waffle
+painted|Coloured|Depicted
+paradox|Contradiction|Puzzle
+parents|Mum and dad|Raises
+parking|Leaving the car|Shelving
+parsing|Analysing|Breaking down
+partner|Spouse|Colleague
+passage|Corridor|Excerpt
+passion|Ardour|Enthusiasm
+passive|Inactive|Submissive
+patched|Mended|Repaired
+patches|Mends|Plots of land
+pausing|Stopping|Hesitating
+payment|Remittance|Fee
+peanuts|Groundnuts|Very little money
+peasant|Farm labourer|Rustic
+pedants|Sticklers|Hair-splitters
+penalty|Fine|Spot kick
+pending|Awaiting|Until
+penguin|Flightless bird|Antarctic swimmer
+pennies|Coppers|Cents
+peoples|Nations|Races
+percent|In each hundred|Out of a hundred
+periods|Eras|Full stops
+persist|Persevere|Continue
+phasing|Staging|Gradual introduction
+phoenix|Mythical bird|One rising from the ashes
+phoning|Ringing|Calling
+phrased|Worded|Expressed
+physics|Science of matter|Mechanics, e.g.
+pinched|Nipped|Stole
+pinches|Nips|Steals
+pitfall|Trap|Hazard
+plagued|Pestered|Afflicted
+plagues|Epidemics|Pesters
+plainly|Clearly|Simply
+planets|Worlds|Mars and Venus
+planted|Sown|Hid, as evidence
+plaster|Daub|Dressing for a cut
+players|Performers|Participants
+plotted|Schemed|Charted
+plotter|Schemer|Conspirator
+plugged|Blocked|Promoted
+pockets|Pouches|Pinches
+pointer|Indicator|Hint
+poisons|Toxins|Venoms
+pompous|Pretentious|Self-important
+poorest|Neediest|Worst
+popping|Bursting|Nipping
+porters|Doormen|Bearers
+porting|Converting, as software|Carrying
+portion|Share|Helping
+portray|Depict|Represent
+possess|Own|Have
+postage|Stamp cost|Mailing charge
+posters|Placards|Bills
+pouring|Flowing|Raining hard
+poverty|Want|Need
+powered|Driven|Energised
+prayers|Petitions|Supplications
+praying|Worshipping|Imploring
+precede|Come before|Lead
+predict|Forecast|Foretell
+preface|Foreword|Introduction
+premise|Assumption|Basis
+premium|Bonus|High quality
+pretend|Feign|Make-believe
+prevail|Win|Triumph
+preview|Trailer|Foretaste
+pricing|Valuing|Costing
+priests|Clerics|Ministers
+privacy|Seclusion|Secrecy
+proceed|Go on|Advance
+profile|Outline|Silhouette
+profits|Gains|Benefits
+prolong|Extend|Drag out
+promote|Advertise|Upgrade
+prompts|Cues|Urges
+pronoun|He or she, e.g.|Part of speech
+prophet|Seer|Oracle
+protein|Nutrient|Muscle builder
+provoke|Incite|Goad
+pudding|Dessert|Afters
+pumping|Inflating|Throbbing
+punched|Hit|Perforated
+punches|Hits|Fruit drinks
+pursued|Chased|Followed
+pursues|Chases|Follows
+pursuit|Chase|Hobby
+puzzled|Baffled|Perplexed
+puzzles|Riddles|Baffles
+quantum|Amount|Discrete unit
+queries|Questions|Doubts
+queuing|Lining up|Waiting in line
+quibble|Cavil|Niggle
+quieter|Calmer|Softer
+rabbits|Bunnies|Chatters
+radical|Extreme|Fundamental
+railway|Track|Line
+rainbow|Arc of colours|Spectrum in the sky
+raining|Pouring|Showering
+rampant|Rife|Rearing
+ranging|Roaming|Varying
+ranting|Raving|Haranguing
+rattled|Clattered|Unnerved
+rattles|Clatters|Baby's toys
+reacted|Responded|Answered
+reactor|Nuclear plant|Atomic pile
+rebuild|Reconstruct|Restore
+rebuilt|Reconstructed|Restored
+recalls|Remembers|Brings back
+receipt|Proof of purchase|Acknowledgement
+recipes|Formulas|Methods
+reckons|Thinks|Calculates
+reclaim|Recover|Retrieve
+recruit|Enlist|New member
+rectify|Correct|Fix
+recycle|Reuse|Reprocess
+refined|Polished|Purified
+refines|Polishes|Purifies
+reforms|Improves|Changes
+refrain|Chorus|Abstain
+refresh|Revive|Reload
+refusal|Denial|Rejection
+regions|Areas|Zones
+regrets|Remorse|Apologies
+relaxed|Calm|Unwound
+relaxes|Unwinds|Loosens
+relieve|Ease|Take over from
+relying|Depending|Counting, with on
+renamed|Retitled|Rechristened
+renames|Retitles|Rechristens
+renders|Makes|Plasters
+rending|Tearing|Ripping
+renewed|Restored|Extended
+repairs|Mends|Goes, formally
+rereads|Goes over again|Studies once more
+resides|Lives|Dwells
+resigns|Quits|Accepts
+resolve|Settle|Determination
+resorts|Holiday spots|Recourses
+resting|Relaxing|Idle
+resumed|Continued|Restarted
+resumes|Continues|CVs
+retains|Keeps|Holds
+retired|Withdrew|Went to bed
+retires|Withdraws|Goes to bed
+retract|Withdraw|Take back
+revenge|Vengeance|Retaliation
+revenue|Income|Takings
+reviews|Assessments|Critiques
+revised|Amended|Studied
+revises|Amends|Studies for exams
+revolts|Rebellions|Disgusts
+rewards|Prizes|Bounties
+rewrote|Redrafted|Revised
+richest|Wealthiest|Creamiest
+rightly|Correctly|Justly
+ringing|Phoning|Resonant
+ripping|Tearing|Splendid
+risking|Venturing|Gambling
+rituals|Ceremonies|Routines
+rolling|Turning|Undulating
+romance|Love affair|Novel of love
+rotated|Turned|Alternated
+rotates|Turns|Alternates
+rounded|Curved|Full
+routing|Directing|Crushing
+ruining|Wrecking|Destroying
+rushing|Hurrying|Hasty
+sacking|Firing|Hessian
+saddens|Depresses|Upsets
+sailing|Voyaging|Yachting
+sampled|Tasted|Tried
+samples|Specimens|Tastes
+sarcasm|Irony|Mockery
+savings|Nest egg|Economies
+scaling|Climbing|Proportioning
+scandal|Outrage|Disgrace
+scanned|Looked over|Read quickly
+scanner|Reader|Imaging machine
+scaring|Frightening|Alarming
+scarlet|Bright red|Crimson
+scatter|Strew|Disperse
+scenery|Landscape|Stage set
+schemes|Plans|Plots
+scholar|Academic|Learner
+scoring|Notching|Scratching
+screams|Shrieks|Hoots
+screwed|Fastened|Twisted
+scripts|Texts|Handwritings
+scrolls|Rolls of parchment|Moves through text
+sealing|Closing|Settling
+secrets|Mysteries|Confidences
+secular|Worldly|Non-religious
+segment|Section|Slice
+selfish|Egotistic|Thoughtless
+servant|Domestic|Attendant
+servers|Waiters|Network computers
+seventh|Next after sixth|Heaven, for the happy
+shaking|Trembling|Shocking
+shallow|Superficial|Not deep
+shaping|Forming|Moulding
+sharply|Abruptly|Smartly
+shelter|Refuge|Protect
+shelves|Ledges|Postpones
+shifted|Moved|Changed
+shining|Gleaming|Excellent
+shipped|Sent|Transported
+shocked|Appalled|Jolted
+shorten|Abbreviate|Trim
+shouted|Yelled|Called
+showers|Downpours|Sprays
+sickens|Disgusts|Falls ill
+sighted|Seen|Not blind
+silence|Quiet|Hush
+silicon|Element Si|Chip material
+sillier|More foolish|Dafter
+sincere|Genuine|Heartfelt
+singers|Vocalists|Crooners
+singing|Chanting|Vocal music
+singles|Records|Unmarried people
+sinking|Going under|Foundering
+situate|Locate|Place
+sixteen|Four squared|Sweet age
+sixties|Decade of mods|Numbers after fifty-nine
+skilled|Expert|Trained
+skipped|Hopped|Missed out
+slicing|Cutting|Mis-hitting, at golf
+sliding|Gliding|Slipping
+slipped|Slid|Erred
+slowing|Decelerating|Braking
+smashed|Shattered|Hit hard
+smashes|Shatters|Hits
+smiling|Grinning|Beaming
+smokers|Puffers|Barbecue cookers
+smoking|Puffing|Curing
+sneaked|Crept|Told tales
+sockets|Power points|Eye hollows
+soldier|Fighter|Persevere
+spacing|Separation|Gaps
+spatial|Of space|Dimensional
+species|Kind|Breed
+spirits|Souls|Liquor
+spitted|Skewered|Impaled
+sponsor|Backer|Fund
+springs|Leaps|Water sources
+squared|Multiplied by itself|Settled
+squares|Plazas|Old-fashioned people
+squeeze|Press|Crush
+stagger|Reel|Astound
+stamped|Sealed|Trampled
+staring|Gazing|Gaping
+starred|Featured|Asterisked
+starter|Appetiser|Beginner
+startle|Alarm|Surprise
+starved|Famished|Deprived
+starves|Goes hungry|Deprives
+steered|Guided|Drove
+stepped|Paced|Terraced
+sterile|Germ-free|Barren
+stirred|Mixed|Moved
+stomach|Belly|Tolerate
+stories|Tales|Accounts
+strains|Stresses|Varieties
+streams|Brooks|Flows
+streets|Roads|Avenues
+stretch|Extend|Spell
+stuffed|Crammed|Full
+stumble|Trip|Falter
+stunned|Dazed|Amazed
+subways|Underpasses|Metros
+summing|Adding|Totalling
+sunrise|Dawn|Daybreak
+supreme|Highest|Ultimate
+surgery|Operation|Doctor's office
+surname|Family name|Last name
+surplus|Excess|Extra
+surveys|Polls|Studies
+sustain|Maintain|Suffer
+swallow|Gulp|Bird
+swamped|Flooded|Overwhelmed
+swapped|Exchanged|Traded
+symptom|Sign|Indication
+synonym|Equivalent word|Like term
+tacking|Pinning|Changing course
+tackled|Dealt with|Brought down
+tackles|Deals with|Gear
+tactics|Strategy|Ploys
+tailors|Outfitters|Adapts
+talents|Gifts|Abilities
+tangent|Digression|Line touching a curve
+targets|Goals|Aims at
+tasting|Sampling|Savouring
+tearing|Ripping|Rushing
+teenage|Adolescent|Youthful
+tempted|Lured|Enticed
+tending|Inclining|Looking after
+tension|Stress|Tautness
+terming|Calling|Naming
+terrify|Frighten|Petrify
+textual|Written|Verbal
+thanked|Expressed gratitude|Credited
+theorem|Proposition|Proven statement
+therapy|Treatment|Counselling
+therein|In that|In that respect
+thereof|Of that|Of it
+thieves|Robbers|Burglars
+threats|Menaces|Dangers
+throats|Gullets|Necks
+thrusts|Pushes|Gists
+tidying|Clearing up|Neatening
+tightly|Firmly|Closely
+tobacco|Snuff|Pipe filler
+toilets|Lavatories|Loos
+topical|Current|Relevant
+torture|Torment|Agony
+tourist|Sightseer|Traveller
+tracing|Copying|Hunting down
+tracked|Followed|Trailed
+trading|Dealing|Commerce
+tragedy|Disaster|Drama
+trailed|Followed|Lagged
+transit|Passage|Conveyance
+travels|Journeys|Tours
+trigger|Cause|Firing lever
+trilogy|Three-part work|Set of three books
+trinity|Trio|Threesome
+triumph|Victory|Win
+trolley|Cart|Tram
+trouser|Pocket, as winnings|One leg of a pair
+trumpet|Horn|Proclaim
+tunnels|Passages|Burrows
+twisted|Turned|Warped
+typeset|Composed for print|Laid out
+undergo|Experience|Endure
+undoing|Unfastening|Downfall
+unified|United|Merged
+unifies|Unites|Merges
+uniting|Joining|Merging
+unlocks|Opens|Releases
+unlucky|Unfortunate|Jinxed
+unsound|Unsafe|Flawed
+upgrade|Improve|Promote
+upright|Vertical|Honest
+urgency|Pressure|Haste
+vacancy|Opening|Post
+valuing|Prizing|Assessing
+variant|Version|Alternative
+vectors|Carriers|Quantities with direction
+vehicle|Car|Means
+vending|Selling|Peddling
+venture|Enterprise|Dare
+verbose|Wordy|Long-winded
+verdict|Judgement|Ruling
+vicious|Savage|Spiteful
+victims|Casualties|Sufferers
+victory|Win|Triumph
+viewing|Watching|Inspection
+village|Hamlet|Small community
+vintage|Classic|Wine year
+violate|Breach|Desecrate
+violent|Brutal|Fierce
+virtual|Simulated|Near
+virtues|Merits|Strengths
+viruses|Bugs|Malware
+visited|Called on|Stayed
+visitor|Guest|Caller
+voltage|Electrical force|Potential difference
+volumes|Books|Quantities
+wanders|Roams|Strays
+warming|Heating|Friendly
+warping|Twisting|Distorting
+warrant|Justify|Writ
+wartime|Years of conflict|Hostilities period
+washing|Cleaning|Laundry
+wealthy|Rich|Affluent
+weapons|Arms|Guns
+weasels|Small predators|Sneaks
+wedding|Marriage|Nuptials
+weekday|Working day|Monday, e.g.
+welfare|Wellbeing|Benefits
+wetting|Dampening|Soaking
+whistle|Toot|Referee's tool
+winding|Twisting|Coiling
+winners|Victors|Champions
+witness|Observer|Testify
+worship|Revere|Adore
+wrapped|Enfolded|Covered
+wrapper|Cover|Packaging
+wrecked|Ruined|Destroyed
+wrecker|Saboteur|Breakdown truck
+writers|Authors|Scribes
+wrongly|Incorrectly|Unjustly
+younger|Junior|More youthful`,
 ``],
 8: [
 `absolute|Total|Utter
