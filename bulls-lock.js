@@ -25,7 +25,7 @@ const FOR = {
   hard: g => g.digits === 4 && g.step === 2,
   expert: g => g.digits === 4 && g.step === 3,
 };
-const TRIES = 120;                            // locks tried for a level before the nearest is taken (Expert, the rarest, hits about one in twenty)
+export const TRIES = 120;                          // locks tried for a level before the nearest is taken (Expert, the rarest, hits about one in twenty)
 export const WRONG = 30;                      // seconds added for a wrong code tried
 export const HINT = 30;                       // and for a hint
 
@@ -128,7 +128,8 @@ function draw(p, seed) {
 /**
  * The lock for a level and a seed, the same on every device: tried until one grades as the level asks (TRIES at
  * most, then the nearest: the most clues read at once, then the most rounds), and always with exactly one answer.
- * minClues: at least this many clues (a team gets one each at the least).
+ * minClues: at least this many clues (a team gets one each at the least). `tries` says how many locks it took: the
+ * work, which a test can hold it to where a clock would measure the machine.
  */
 export function makeLock(level = "medium", seed = randomSeed(), { minClues = 0 } = {}) {
   const L = LOCK_LEVELS[level] || LOCK_LEVELS.medium, want = FOR[level] || FOR.medium, p = L.digits;
@@ -138,12 +139,12 @@ export function makeLock(level = "medium", seed = randomSeed(), { minClues = 0 }
     if (lock.clues.length < Math.max(2, minClues) || answers(p, lock.clues, 2).length !== 1) continue;
     const grade = gradeLock(p, lock.clues);
     if (grade.step > 3) continue;                            // beyond what a person reads at once
-    const out = { level, seed, p, secret: lock.secret, clues: lock.clues, grade };
+    const out = { level, seed, p, secret: lock.secret, clues: lock.clues, grade, tries: t + 1 };
     if (want(grade)) return out;
     const near = x => (x.grade.step === 3 ? 30 : x.grade.step * 10) + Math.min(9, x.grade.rounds);
     if (!best || near(out) > near(best)) best = out;
   }
-  return best;
+  return best && { ...best, tries: TRIES };                  // every try spent: the nearest
 }
 
 // ---------- hints: the solver's steps, in a person's order ----------

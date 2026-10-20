@@ -258,8 +258,8 @@ function duelNote() {
 }
 function lockModel() {
   const L = lockFor(run.level, run.seed), done = run.done;
-  const m = { kind: "lock", p: L.p, C: 10, digits: true, repeats: false, limit: L.clues.length, lock: L };
-  m.rows = L.clues.map((cl, i) => ({ n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c), clue: i, hot: hotClues.includes(i) }));
+  const m = { kind: "lock", p: L.p, C: 10, digits: true, repeats: false, lock: L };
+  m.rows = L.clues.map((cl, i) => ({ n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c), hot: hotClues.includes(i) }));
   m.where = `Lock · ${LOCK_LEVELS[run.level].label}`;
   const pen = WRONG * run.strikes + HINT * run.hints;
   m.aside = `<b>${fmt(done ? run.score ?? lockScore(run) : lockSecs(run) + pen)}</b>${pen ? ` <small>+${pen} s</small>` : ""}`;
@@ -403,7 +403,7 @@ function fitRows() {
   // held sideways the board has the height; a lock's few clues may take more of it
   const s = scale(), lock = $("app").classList.contains("locking"), most = sideways() ? (lock ? 76 : 64) : lock ? 52 : 44;
   const h = Math.floor(Math.max(22 * s, Math.min(most * s, box.clientHeight / n)));
-  $("board").style.setProperty("--bu-rowh", `${h.toFixed(1)}px`);
+  $("board").style.setProperty("--bu-rowh", `${h}px`);
   box.querySelector(".bu-row.now")?.scrollIntoView({ block: "nearest" });
   const other = $("other"), list = other.querySelector(".bu-rows"), k = list.children.length;
   if (!other.hidden && k) other.style.setProperty("--bu-rowh", `${Math.floor(Math.max(18 * s, Math.min(36 * s, list.clientHeight / k)))}px`);
@@ -457,7 +457,7 @@ function drawLine(m) {
   const l = $("line");
   l.className = `bu-line${message?.tone ? ` ${message.tone}` : ""}`;
   if (!m) { l.textContent = ""; return; }
-  if (m.thinking && !message) { l.replaceChildren(sextant(), m.thinkText || "The computer is working out its guess…"); return; }
+  if (m.thinking && !message) { l.replaceChildren(sextant(), "The computer is working out its guess…"); return; }
   if (m.waiting && !message) { l.replaceChildren(sextant(), m.waiting); return; }
   l.textContent = message ? message.text : m.result ? "" : m.say ?? howTo(m);
 }
@@ -661,7 +661,7 @@ function tableModel() {
     m.shield = { open: done, code: done ? targetOf(T, me) : null, label: done ? "The code" : "Code", note: done ? "" : prefs.aid !== "off" ? `${fitCount(T.variant, m.visible)} fit what you see` : "Keys go to the others" };
     m.entry = !done;
     m.go = { text: "Guess", ok: !done };
-    if (!done && B.rows.at(-1)?.by === me && !keysShown(T, B.rows.at(-1), me)) m.say = `Your guess is scored on the others' screens: ask ${list(people().filter(p => !p.me).map(p => first(p.name))) || "them"} what it got.`;
+    if (!done && B.rows.at(-1)?.by === me && !keysShown(T, B.rows.at(-1), me)) m.say = `Your guess is scored on the others' screens: ask ${list(others) || "them"} what it got.`;
     if (done) m.result = { good: B.done.how === "broken", text: B.done.how === "broken" ? `Broken together in ${B.rows.length}${B.done.by != null ? `: ${nameOf(B.done.by) === "You" ? "your" : `${nameOf(B.done.by)}'s`} guess` : ""}.` : "Not broken: the code is at the top.", small: "Every key shows to everyone now." };
     return m;
   }
@@ -710,7 +710,7 @@ function tableLock(T, me, m, over) {
   if (T.play === "team") {
     const B = T.board, mine = handOf(T, me), done = !!B.done;
     const holders = i => T.ring.filter(s => handOf(T, s).includes(i));
-    m.rows = L.clues.map((cl, i) => (mine.includes(i) || done ? { n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c), clue: i }
+    m.rows = L.clues.map((cl, i) => (mine.includes(i) || done ? { n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c) }
       : { n: i + 1, g: null, hidden: `${list(holders(i).map(s => first(nameOf(s))))}'s clue` }));
     m.aside = `<b>${fmt(((done ? B.done.at : now()) - T.dealt) / 1000 + WRONG * B.strikes)}</b>${B.strikes ? ` <small>${plural(B.strikes, "strike")}</small>` : ""}`;
     m.shield = { open: done, code: done ? L.secret : null, label: done ? "Opened" : "Lock", note: done ? "" : mine.length ? `You hold ${plural(mine.length, "clue")} of ${L.clues.length}` : "No clues for you this game" };
@@ -722,7 +722,7 @@ function tableLock(T, me, m, over) {
     return m;
   }
   const S = T.seats?.[`s${me}`], done = !!S?.done;
-  m.rows = L.clues.map((cl, i) => ({ n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c), clue: i, hot: hotClues.includes(i) }));
+  m.rows = L.clues.map((cl, i) => ({ n: i + 1, g: cl.g, b: cl.b, c: cl.c, say: lockSay(cl.b, cl.c), hot: hotClues.includes(i) }));
   const secs = S ? ((S.at ?? now()) - S.from) / 1000 + WRONG * (S.strikes + S.hints) : 0;
   m.aside = `<b>${fmt(secs)}</b>${S && (S.strikes || S.hints) ? ` <small>+${WRONG * (S.strikes + S.hints)} s</small>` : ""}`;
   m.shield = { open: done, code: done ? L.secret : null, label: done ? "Opened" : "Lock", note: `${L.p} different digits` };
@@ -825,8 +825,9 @@ function openDone() {
     const r = runOf(T, me);
     body.append(el("p", "", T.kind === "lock" ? `Opened in ${fmt(r.secs)}${T.board.strikes ? `, with ${plural(T.board.strikes, "wrong code")}` : ""}.` : T.board.done.how === "broken" ? `Broken in ${plural(r.guesses, "guess", "guesses")}, in ${fmt(r.ms / 1000)}.` : "The rows ran out."));
   } else {
+    // ranked by the standings' own rank, which breaks a tie in guesses by time, as the title does
     body.append(leaderboard(standings(T).map(r => ({ name: nameOf(r.slot), seat: r.slot, me: r.slot === me,
-      value: r.run.score ?? 999, shown: T.kind === "lock" ? fmt(r.run.secs ?? 0) : r.run.done === "broken" ? `${r.run.guesses} · ${fmt((r.run.ms || 0) / 1000)}` : "not broken",
+      value: r.rank, shown: T.kind === "lock" ? fmt(r.run.secs ?? 0) : r.run.done === "broken" ? `${r.run.guesses} · ${fmt((r.run.ms || 0) / 1000)}` : "not broken",
       note: T.kind === "lock" ? (r.run.strikes || r.run.hints ? `${[r.run.strikes ? plural(r.run.strikes, "wrong code") : "", r.run.hints ? plural(r.run.hints, "hint") : ""].filter(Boolean).join(", ")}` : "") : "" })), { lower: true }));
     body.append(el("p", "", T.kind === "lock" ? "The quickest wins: time, and 30 seconds for each wrong code or hint." : "The fewest guesses wins, then the quicker."));
   }
@@ -1018,9 +1019,8 @@ window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); }
 window.addEventListener("pagehide", () => clockStop());
 window.addEventListener("hashchange", () => { const l = linked(); if (!G && l && !sameGame(run, l)) startLinked(l); });
 setInterval(() => {
-  const m = model();
-  if (!m || m.kind !== "lock") return;
-  put("aside", m.aside || "");                                 // the clock
+  if ((G ? G.game.kind : run?.kind) !== "lock") return;          // only a lock has a clock to show
+  put("aside", model()?.aside || "");
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockStop(); clockRun(); savedAt = performance.now(); }
 }, 500);
 
