@@ -33,7 +33,10 @@ const up = w => w.toUpperCase();
 const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily", LAST = "yield:last";
 const SAVE_EVERY = 5000;                          // ms between saves of the clock while it runs
 const CLOCKS = [[0, "Untimed"], [180, "3 min"], [300, "5 min"]];
-const prefs = { level: "medium", board: "hive", secs: 0, rival: "off", together: "race", raceSecs: 180, ...read(PREFS, {}) };
+const prefs = { level: "medium", board: "hive", secs: 0, rival: "off", together: null, raceSecs: 180, ...read(PREFS, {}) };
+// what a match you deal will be, until you choose: a pair plays as a team (a centre each, each needing the other); a
+// party, a table of friends, races
+const togetherMode = () => prefs.together || (new URLSearchParams(location.search).has("party") ? "race" : "team");
 if (!LEVELS[prefs.level]) prefs.level = "medium";
 if (!BOARDS[prefs.board]) prefs.board = "hive";
 const keepPrefs = () => write(PREFS, prefs);
@@ -616,7 +619,7 @@ const matchText = m => (m.mode === "team"
   : `Race: ${BOARDS[m.board]} at ${LEVELS[m.level]}, ${m.secs / 60} minutes. The same letters for everyone: the most points wins`);
 const duel = createDuel({
   game: "yield", name: "Yield", accent: "--yd-in", line: $("duelLine"), toast,
-  deal: () => ({ seed: randomSeed(), mode: prefs.together === "team" ? "team" : "race", board: prefs.board, level: prefs.level, secs: prefs.raceSecs || 180 }),
+  deal: () => ({ seed: randomSeed(), mode: togetherMode(), board: prefs.board, level: prefs.level, secs: prefs.raceSecs || 180 }),
   describe: matchText,
   play: (m, { begun, kept, done, run, n }) => playMatch(m, { begun, kept, done, run, n }),
   onLobby: () => { clockPause(); S = null; P = null; team = null; raceTable = null; closeSheet(); render(); },
@@ -711,8 +714,8 @@ function openMenu() {
     const t = part(body, "together");
     duel.menu(t);
     if (S?.kind === "team" && !isOver()) t.append(action("Call it a day", () => { if (confirm("End this puzzle for the whole team?")) endTeam(); }, "link"));
-    t.append(choice("Next match", [["race", "Race"], ["team", "Team"]], prefs.together, v => { prefs.together = v; keepPrefs(); openMenu(); }));
-    if (prefs.together === "race") t.append(choice("Race clock", [[180, "3 min"], [300, "5 min"]], prefs.raceSecs, v => { prefs.raceSecs = v; keepPrefs(); }));
+    t.append(choice("Next match", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); openMenu(); }));
+    if (togetherMode() === "race") t.append(choice("Race clock", [[180, "3 min"], [300, "5 min"]], prefs.raceSecs, v => { prefs.raceSecs = v; keepPrefs(); }));
     part(body, "content").append(mirror("Level", $("pick")), choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); }));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -727,7 +730,7 @@ function openMenu() {
       prefs.rival = v; keepPrefs();
       if (S && (S.kind === "day" || S.kind === "run") && !S.over) { S.rival = v === "off" ? null : v; derive(); save(); render(); }
     }));
-  part(body, "together").append(choice("A match you deal", [["race", "Race"], ["team", "Team"]], prefs.together, v => { prefs.together = v; keepPrefs(); }));
+  part(body, "together").append(choice("A match you deal", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); }));
   const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
   part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; Master refiner ${st.master || 0} times, Full yield ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
