@@ -203,7 +203,7 @@ function breakModel() {
   const m = { ...info, rows: breakRows(info, run.rows, { input: w.input, showLeft: aid && run.rows.length > 0, now: !done }) };
   m.where = run.daily ? `Today's code · ${info.digits ? "Bulls and Cows" : "Classic"}` : `${VARIANTS[run.variant].label}${run.maker === "devious" ? " · devious" : ""}`;
   m.aside = done ? `${plural(run.rows.length, "guess", "guesses")}` : `Guess <b>${run.rows.length + 1}</b> of ${info.limit}`;
-  m.shield = { open: done, code: done ? revealed(run) : null, label: done ? "The code" : "Code", note: done ? "" : prefs.aid !== "off" ? `${fitCount(run.variant, run.rows)} codes fit` : run.maker === "devious" ? "It hides none: it answers to keep the most codes alive" : "" };
+  m.shield = { open: done, code: done ? revealed(run) : null, label: done ? "The code" : "Code", note: done ? "" : prefs.aid !== "off" ? `${fitCount(run.variant, run.rows)} codes fit` : run.maker === "devious" ? "No code hidden: it answers" : "" };
   m.entry = !done;
   m.go = { text: "Guess", ok: !done };
   m.visible = run.rows;
@@ -1015,6 +1015,7 @@ function solo() {
   if (arrivedForToday() && !IN_FRAME && !(run?.daily && run.day === today())) {
     if (!started() || confirm("Today's code is waiting. Leave the game you've started?")) { startBreak({ daily: true }); return; }
   }
+  if (run?.done && !dayDone() && !IN_FRAME) { startBreak({ daily: true }); return; }   // a game over gives way to today's code, while it's still to play
   if (run) {
     const resume = () => { clockRun(); render(); cpuSoon(); };
     if (run.kind === "lock" && SLOW_LOCKS.has(run.level) && !LOCK_CACHE.has(`${run.level}/${run.seed}`)) {
