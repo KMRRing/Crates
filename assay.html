@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Assay</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="assay.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="assay fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon as-mark" aria-hidden="true"></span>Assay</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+  <p id="others" class="as-others" hidden></p>
+  <div id="strip" class="as-strip">
+    <span id="what" class="as-what"></span>
+    <button id="rival" class="as-rival" type="button" hidden></button>
+    <span id="count" class="as-count"></span>
+  </div>
+  <section id="boards" class="as-boards fit-grow" aria-label="Board"></section>
+  <p id="say" class="as-say" aria-live="polite"></p>
+  <div id="keys" class="as-keys" role="group" aria-label="Keyboard"></div>
+</div>
+
+<dialog id="doneDlg" class="sheet menu-sheet as-done" aria-label="How it went">
+  <div class="pick-head"><h2 id="doneTitle"></h2><button class="icon-btn menu-x" type="button" id="doneClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="doneBody"></div>
+</dialog>
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog">
+    <label for="nameInput">Your name, so the others know who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
+</dialog>
+<p id="toast" class="as-toast" role="status" aria-live="polite"></p>
+<script type="module" src="assay.js"></script>
+</body>
+</html>

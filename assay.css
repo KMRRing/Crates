@@ -1,0 +1,161 @@
+/* Assay: letter tiles on the page, the keyboard under them. The marks are the enamels: verdigris in place, ochre
+   elsewhere, the ink's own warm grey out (high contrast: cobalt in place, so the two never hang on green against
+   yellow). Cobalt is the house colour. */
+:root {
+  --assay-in: #2C5B8A; --assay-soft: color-mix(in srgb, var(--assay-in) 15%, var(--sheet));
+  --as-hit: var(--c1); --as-hit-ink: var(--on-c);
+  --as-near: var(--c0); --as-near-ink: var(--on-c0);
+  --as-out: color-mix(in srgb, var(--ink-soft) 78%, var(--sheet)); --as-out-ink: var(--sheet);
+  --as-good: #2F7D5B; --as-bad: #A8382B;
+  --as-edge: var(--tile-edge); --as-typed: color-mix(in srgb, var(--ink) 60%, var(--tile-edge));
+  --as-gap: .3125rem;            /* between tiles */
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --assay-in: #6FA0D2; --as-out: color-mix(in srgb, var(--ink-soft) 30%, var(--tile)); --as-out-ink: var(--ink);
+    --as-good: #7FC2A8; --as-bad: #E8806F; --as-typed: color-mix(in srgb, var(--ink) 55%, var(--tile-edge)); }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --assay-in: #6FA0D2; --as-out: color-mix(in srgb, var(--ink-soft) 30%, var(--tile)); --as-out-ink: var(--ink);
+  --as-good: #7FC2A8; --as-bad: #E8806F; --as-typed: color-mix(in srgb, var(--ink) 55%, var(--tile-edge)); }
+html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); }
+
+.as-mark { display: inline-block; }
+.as-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the line over the board: what's being played, and how far; the rival (or your notes) between */
+.as-strip { display: flex; align-items: center; gap: .5rem; margin: .55rem 0 .4rem; min-height: 1.875rem; font-size: .88rem; color: var(--ink-soft); white-space: nowrap; }
+.as-what { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.as-what b, .as-count b { color: var(--ink); font-weight: 800; }
+.as-count { flex: none; font-variant-numeric: tabular-nums; }
+.as-rival, .as-notes { flex: none; display: inline-flex; align-items: center; gap: .3rem; min-height: 1.75rem; padding: 0 .45rem; border: 1px solid var(--as-edge); border-radius: 4px;
+  background: var(--sheet); color: var(--ink); font: inherit; font-size: .76rem; font-weight: 700; cursor: pointer; font-variant-numeric: tabular-nums; }
+.as-rival b { font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); font-size: .7rem; }
+.as-rival[hidden] { display: none; }
+.as-notes[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
+.as-mini { display: inline-flex; gap: 1px; }
+.as-mini i { width: .5rem; height: .5rem; border-radius: 1px; background: var(--as-out); }
+.as-mini i.h { background: var(--as-hit); } .as-mini i.n { background: var(--as-near); }
+.as-others { margin: .35rem 0 0; }
+.as-others[hidden] { display: none; }
+/* at a team's table: who's there, and the kind of mark each sees, in that mark's own colour */
+.as-team { display: flex; flex-wrap: wrap; align-items: center; gap: .15rem .4rem; font-size: .86rem; color: var(--ink-soft); }
+.as-who { display: inline-flex; align-items: center; gap: .3rem; }
+.as-who.away { opacity: .55; }
+.as-team .as-by { position: static; transform: none; }
+.as-sees { padding: 0 .3rem; border-radius: 3px; font-weight: 800; }
+.as-sees.h { background: var(--as-hit); color: var(--as-hit-ink); }
+.as-sees.n { background: var(--as-near); color: var(--as-near-ink); }
+.as-sees.g { background: var(--as-out); color: var(--as-out-ink); }
+
+/* the boards: their room is a box their tiles size themselves to (container units), never larger than a hand's
+   width allows; on a small screen several boards keep a legible tile and the box scrolls instead */
+.as-boards { container-type: size; overflow: hidden auto; overscroll-behavior: contain; scrollbar-width: none; }
+.as-boards::-webkit-scrollbar { display: none; }
+.as-grid { --side: 0rem; --bgap: .75rem; --tmax: 3.875rem; --tmin: 1.375rem;
+  --t: max(var(--tmin), min(var(--tmax),
+    (100cqw - (var(--bc) - 1) * var(--bgap) - var(--bc) * ((var(--len) - 1) * var(--as-gap) + var(--side))) / (var(--bc) * var(--len)),
+    (100cqh - (var(--br) - 1) * var(--bgap) - var(--br) * (var(--rows) - 1) * var(--as-gap)) / (var(--br) * var(--rows))));
+  display: grid; grid-template-columns: repeat(var(--bc), auto); gap: var(--bgap); justify-content: center; align-content: center; min-height: 100%; }
+.as-grid.multi { --as-gap: .1875rem; --bgap: .625rem; --tmax: 2.75rem; --tmin: 1.125rem; }
+.as-grid.team { --side: 1.5rem; }
+.as-board { display: grid; gap: var(--as-gap); padding-left: var(--side); }
+.as-row { position: relative; display: grid; grid-template-columns: repeat(var(--len), var(--t)); grid-auto-rows: var(--t); gap: var(--as-gap); }
+.as-tile { display: grid; place-items: center; box-sizing: border-box; border: 2px solid var(--as-edge); border-radius: 4px; background: var(--tile); color: var(--ink);
+  font-size: calc(var(--t) * .54); font-weight: 800; line-height: 1; text-transform: uppercase; -webkit-user-select: none; user-select: none; }
+.as-grid.multi .as-tile { border-width: 1px; border-radius: 3px; }
+.as-tile.d { border-color: var(--as-typed); animation: as-pop .09s ease-out; }
+.as-tile.h { background: var(--as-hit); border-color: var(--as-hit); color: var(--as-hit-ink); }
+.as-tile.n { background: var(--as-near); border-color: var(--as-near); color: var(--as-near-ink); }
+.as-tile.g { background: var(--as-out); border-color: var(--as-out); color: var(--as-out-ink); }
+/* together: a letter whose colour is your partner's to see, not a grey */
+.as-tile.u { background: var(--sheet); border-color: var(--as-typed); border-style: dashed; color: var(--ink); }
+.as-row.now .as-tile:not(.d) { border-color: color-mix(in srgb, var(--as-typed) 45%, var(--as-edge)); }
+.as-board.solved .as-row:not(:has(.as-tile.h, .as-tile.n, .as-tile.g, .as-tile.u)) .as-tile { opacity: .35; }
+/* who guessed a row, at a team's table: their initial on their colour */
+.as-by { position: absolute; right: calc(100% + .35rem); top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 1.1rem; height: 1.1rem; border-radius: 50%;
+  background: var(--who, var(--p0)); color: var(--sheet); font-size: .62rem; font-weight: 800; font-style: normal; }
+.as-by[hidden] { display: none; }
+
+/* a guess turning over to show its marks, a word not taken shaking, a solve bouncing */
+.as-row.turn .as-tile { animation: as-turn .5s ease both; animation-delay: calc(var(--i) * 110ms); }
+@keyframes as-turn {
+  0%, 49.9% { background: var(--tile); border-color: var(--as-typed); color: var(--ink); }
+  0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+.as-row.shake { animation: as-shake .35s ease; }
+@keyframes as-shake { 20% { transform: translateX(-.3rem); } 40% { transform: translateX(.3rem); } 60% { transform: translateX(-.2rem); } 80% { transform: translateX(.2rem); } }
+.as-row.win .as-tile { animation: as-bounce .45s ease; animation-delay: calc(var(--i) * 80ms); }
+@keyframes as-bounce { 40% { transform: translateY(-.45rem); } 70% { transform: translateY(.1rem); } }
+@keyframes as-pop { from { transform: scale(1.08); } }
+
+/* the line under the board: what to do, or what happened; one line, so it never moves the keyboard */
+.as-say { display: flex; align-items: center; justify-content: center; gap: .3rem; margin: .4rem 0 0; min-height: 1.5rem; font-size: .9rem; font-weight: 700;
+  color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.as-say.bad { color: var(--as-bad); }
+.as-say.good { color: var(--as-good); }
+.as-say .link { font: inherit; font-weight: 700; color: var(--ink); }
+
+/* the keyboard: what each letter has shown on its keys; on several boards, a patch of each board's colour */
+.as-keys { --kh: clamp(2.625rem, 7.2vh, 3.625rem); --kh: clamp(2.625rem, 7.2svh, 3.625rem); display: grid; gap: .375rem; padding-top: .45rem; touch-action: manipulation; }
+.as-krow { display: flex; gap: .3rem; }
+.as-half { flex: .5 1 0; }
+.as-key { position: relative; flex: 1 1 0; min-width: 0; height: var(--kh); padding: 0; overflow: hidden; border: 1px solid var(--as-edge); border-radius: 5px; background: var(--tile);
+  color: var(--ink); font: inherit; font-size: 1.12rem; font-weight: 800; text-transform: uppercase; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.as-key.wide { flex: 1.55 1 0; font-size: .72rem; letter-spacing: calc(.04em * var(--track)); text-transform: var(--caps); }
+.as-key.enter { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
+.as-key svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.as-key .as-l { position: relative; }
+.as-key.down { filter: brightness(.9); transform: translateY(1px); }
+.as-key[data-m="h"] { background: var(--as-hit); border-color: var(--as-hit); color: var(--as-hit-ink); }
+.as-key[data-m="n"] { background: var(--as-near); border-color: var(--as-near); color: var(--as-near-ink); }
+.as-key[data-m="g"] { background: var(--as-out); border-color: var(--as-out); color: var(--as-out-ink); }
+.as-segs { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(var(--sc, 2), 1fr); }
+.as-segs:empty { display: none; }
+.as-segs i.h { background: var(--as-hit); } .as-segs i.n { background: var(--as-near); } .as-segs i.g { background: var(--as-out); }
+.as-segs i.x { background: color-mix(in srgb, var(--ink-soft) 12%, transparent); }
+.as-keys.multi .as-key .as-l { text-shadow: 0 0 .25rem var(--tile), 0 0 .12rem var(--tile); }
+/* your own notes at a team's table: a letter you've worked out is out, struck through */
+.as-key.struck { color: color-mix(in srgb, var(--ink) 40%, transparent); }
+.as-key.struck::after { content: ""; position: absolute; left: 22%; right: 22%; top: 50%; height: 2px; background: var(--as-bad); transform: rotate(-24deg); }
+.as-keys.off .as-key { opacity: .45; pointer-events: none; }
+
+/* the sheet at the end: the words, what they mean, how you've done */
+.as-words { display: grid; gap: .3rem; justify-content: center; margin: .3rem 0 .7rem; }
+.as-word { display: flex; gap: .25rem; justify-content: center; }
+.as-word .as-tile { width: 2.25rem; height: 2.25rem; font-size: 1.15rem; }
+.as-word.missed .as-tile { background: var(--as-bad); border-color: var(--as-bad); color: var(--sheet); }
+.as-defs { margin: 0 0 .6rem; }
+.as-def { margin: 0 0 .35rem; font-size: .9rem; color: var(--ink-soft); line-height: 1.4; }
+.as-def b { color: var(--ink); font-weight: 800; margin-right: .2rem; }
+.as-def i { font-style: italic; color: var(--ink); }
+.as-vs { margin: .4rem 0 .2rem; font-weight: 700; }
+.as-vs.won { color: var(--as-good); } .as-vs.lost { color: var(--as-bad); }
+.as-their { margin: 0 0 .5rem; font-size: .84rem; color: var(--ink-soft); }
+.as-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); text-align: center; margin: .6rem 0 .4rem; }
+.as-stats b { display: block; font-size: 1.5rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.as-stats span { display: block; font-size: .7rem; color: var(--ink-soft); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.as-dist { display: grid; gap: .2rem; margin: .3rem 0 .4rem; }
+.as-dist div { display: grid; grid-template-columns: 1rem 1fr; align-items: center; gap: .4rem; font-size: .8rem; font-weight: 700; }
+.as-dist i { display: block; box-sizing: border-box; min-width: 1.4rem; padding: .12rem .35rem; border-radius: 2px; background: var(--as-out); color: var(--as-out-ink); font-style: normal; text-align: right; }
+.as-dist .now i { background: var(--as-hit); color: var(--as-hit-ink); }
+.as-buttons .btn.wide + .btn.wide { margin-top: .3rem; }
+#doneDlg { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+
+.as-toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.5rem); transform: translateX(-50%); z-index: 50; max-width: 88vw; padding: .5rem .9rem; border-radius: 5px;
+  background: var(--ink); color: var(--sheet); font-weight: 700; font-size: .9rem; text-align: center; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.as-toast.on { opacity: 1; }
+
+/* Kontor's square corners */
+html[data-theme="kontor"] .as-tile, html[data-theme="kontor"] .as-key, html[data-theme="kontor"] .as-rival, html[data-theme="kontor"] .as-notes { border-radius: 2px; }
+
+/* held sideways (#app.beside): the boards take the left column, all its height; the strip and the line stand at the
+   right, the keyboard low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.assay { --beside: 23rem; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; }
+  .assay .as-boards { grid-column: 1; grid-row: 2 / -1; margin-top: .6rem; }
+  .assay .as-grid { --tmax: 6rem; }
+  .assay .as-grid.multi { --tmax: 3.5rem; }
+  .assay .as-others { grid-column: 2; grid-row: 2; }
+  .assay .as-strip { grid-column: 2; grid-row: 3; margin-top: .9rem; flex-wrap: wrap; row-gap: .3rem; }
+  .assay .as-say { grid-column: 2; grid-row: 4; justify-content: flex-start; white-space: normal; text-align: left; min-height: 3rem; align-items: flex-start; }
+  .assay .as-keys { grid-column: 2; grid-row: 6; --kh: clamp(2.75rem, 10svh, 4.25rem); }
+}
