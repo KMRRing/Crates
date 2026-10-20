@@ -96,7 +96,7 @@ const sc = (g, c) => { const s = score(g, c); return S(s.b, s.c); };
     "Medium only ever guesses a code that could be it; Hard sometimes guesses one that can't, to split the field better (Knuth's point); Easy loses track now and then");
   check(avg.easy > avg.medium && avg.medium > avg.hard && avg.easy < 6.5 && within.easy > 0.93 && within.medium === 1,
     `the levels in order: Easy ${avg.easy.toFixed(2)}, Medium ${avg.medium.toFixed(2)}, Hard ${avg.hard.toFixed(2)} guesses a Classic code (Easy within ten rows ${Math.round(100 * within.easy)}%)`);
-  // the big boards: Hard samples its search, and stays quick
+  // the big boards: Hard samples its search, and must still win with rows to spare
   for (const [id, n] of [["digits", 8], ["super", 5]]) {
     let worst = 0, slow = 0, sum = 0;
     for (let t = 0; t < n; t++) {
