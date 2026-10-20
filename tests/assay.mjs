@@ -14,6 +14,7 @@ import { RIVALS, rivalPlan, rivalSoFar, rivalMarks, BEST_OPENER } from "../assay
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, wordOf } from "../assay-table.js";
 import { DEFS } from "../slate-defs.js";
 import { roundTrip } from "./rtdb.js";
+import { execFileSync } from "child_process";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -105,6 +106,10 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   check(new Set(words).size === words.length, "no word twice in 400 days");
   check(words.every(w => medium.has(w)), "every daily is a five-letter Medium word");
   check(dailyWord(20261020) === words[0] && dailyWord(20261020) === dailyWord(20261020), `the same day, the same word (today's begins with ${words[0][0].toUpperCase()})`);
+  // another device: a fresh process, nothing shared but the files, works out the same words (integers only, no clock)
+  const there = execFileSync(process.execPath, ["--input-type=module", "-e",
+    `import { dailyWord } from ${JSON.stringify(new URL("../assay-engine.js", import.meta.url).href)}; console.log(JSON.stringify(${JSON.stringify(days.slice(0, 60))}.map(d => dailyWord(d))));`], { encoding: "utf8" });
+  check(same(JSON.parse(there), words.slice(0, 60)), "another device works out the same sixty days' words");
   const g = newGame({ ...DAILY, words: [dailyWord(20261020)], day: 20261020 });
   check(g.len === 5 && g.boards === 1 && limitOf(g) === 6 && answersOf(g)[0] === words[0], "the daily: five letters, one board, six guesses");
 }
