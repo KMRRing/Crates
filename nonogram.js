@@ -1,12 +1,15 @@
 // Nonogram: a picture hidden in a grid, the runs of each row and column its clues. The pictures are the knowledge
 // base's (a country's outline, a flag in colour, a lake), each a puzzle with exactly one answer that reasoning reaches
-// (nonogram-pictures.js, nonogram-engine.js); nonogram-board.js draws it. This file keeps the run, the clock and the
-// strokes, names the picture, plays the computer (a partner with half the clues, or a rival on its own copy) and plays
-// together on duel.js: a race on the same picture, or the clues split between you on one grid.
+// (nonogram-pictures.js, nonogram-engine.js), on squares or on a hexagon of hexes (nonogram-hex.js), where every cell
+// has three lines; nonogram-board.js draws the one, nonogram-hexboard.js the other. This file keeps the run, the clock
+// and the strokes, names the picture, plays the computer (a partner with half the clues, or a rival on its own copy)
+// and plays together on duel.js: a race on the same picture, or the clues split between you on one grid.
 import { cellAt, withCell, emptyGrid, EMPTY, CROSS, agrees, drawn, wrongCells, knownFrom, nextStep, scoreOf, creditFor, ownerOf, MISTAKE, HINT, WRONG_NAME, CREDIT } from "./nonogram-engine.js";
 import { PICTURES, TOPICS, REGIONS, BANDS, SIZES, DAILY, puzzleOf, pictureOf, dealPicture, dailyPicture, namesOf, askOf, poolOf, madeAlready, remember } from "./nonogram-pictures.js";
+import { hexGrid, hexOwner, lineName } from "./nonogram-hex.js";
 import { PACES, createMind, botMove } from "./nonogram-bot.js";
-import { createBoard } from "./nonogram-board.js";
+import { createBoard, HOLD_SECOND } from "./nonogram-board.js";
+import { createHexBoard } from "./nonogram-hexboard.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -30,26 +33,44 @@ const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 /** Seconds as 1:05 (or 1:02:05), a minus before a score below nothing. */
 const fmt = secs => { const neg = secs < 0, s = Math.abs(Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return `${neg ? "−" : ""}${h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`}`; };
 const TOPIC_ONE = { countries: "country", flags: "flag", lakes: "lake" };
+const S3 = Math.sqrt(3);
 
 // ---------- settings (the menu's) ----------
-const DEFAULTS = { topic: "countries", region: "world", band: "any", nameIt: true, mistakes: "shown", computer: "off", pace: "medium", together: "split" };
+const DEFAULTS = { topic: "countries", region: "world", band: "any", grid: "square", nameIt: true, mistakes: "shown", computer: "off", pace: "medium", together: "split" };
 const settings = { ...DEFAULTS, ...read(SETTINGS, {}) };
 if (!TOPICS[settings.topic] && settings.topic !== "all") settings.topic = DEFAULTS.topic;
 if (!REGIONS.some(([id]) => id === settings.region)) settings.region = DEFAULTS.region;
 if (!BANDS[settings.band] && settings.band !== "any") settings.band = "any";
+if (settings.grid !== "hex") settings.grid = "square";
 if (!PACES[settings.pace]) settings.pace = "medium";
 const saveSettings = () => { if (!IN_FRAME) write(SETTINGS, settings); };
+const GRIDS = [["square", "Squares"], ["hex", "Hexes"]];
+// a flag is a rectangle and stays on squares: on hexes the menu's flags are countries, and back on squares flags again
+const topicNow = () => (settings.grid === "hex" && settings.topic === "flags" ? "countries" : settings.topic);
+const topicChoices = () => [...Object.entries(TOPICS).filter(([k]) => !(settings.grid === "hex" && k === "flags")), ["all", "All"]];
 
 // ---------- the game on the board ----------
-// S: { v, id (the picture), size, mode ("random" | "daily" | "duel"), day, play ("solo" | "split" | "race"), grid, undo,
-// redo (strokes: [[cell, before, after]…]), ms, mistakes, hints, name ({ typed, right, early, credit, hidden } once
-// named), done, score, fresh (a new best), rules ({ mistakes, nameIt, computer, pace }: as it was dealt), rival ({ grid,
-// done, ms }: the computer's own copy) }
+// S: { v, id (the picture), size, hex (on hexes), mode ("random" | "daily" | "duel"), day, play ("solo" | "split" |
+// "race"), grid, undo, redo (strokes: [[cell, before, after]…]), ms, mistakes, hints, name ({ typed, right, early,
+// credit, hidden } once named), done, score, fresh (a new best), rules ({ mistakes, nameIt, computer, pace }: as it was
+// dealt), rival ({ grid, done, ms }: the computer's own copy) }
 let S = null, P = null, pic = null;
 let tool = 1;                             // the colour that fills (1… for a flag's colours), or CROSS
-let clockFrom = null, savedAt = 0, message = null, paused = false, hintCells = [];
-let stroke = null;                        // { action, orig: Map(cell → value before), stopped }
-const board = createBoard($("board"), { onStroke, onLine, onZoom: () => drawZoom() });
+let clockFrom = null, savedAt = 0, message = null, paused = false, hintCells = [], hintLine = null;
+let stroke = null;                        // { action, orig: Map(cell → value before), stopped, at, held: [cell, value] (a mistake not yet counted), timer }
+const handlers = { onStroke, onLine, onZoom: () => drawZoom() };
+const boards = { square: createBoard($("board"), handlers), hex: createHexBoard($("hexBoard"), handlers) };
+let board = boards.square;
+/** The board a puzzle is drawn on, the square grid's or the hexagon's; the other is put away. */
+function useBoard(hex) {
+  const next = hex ? boards.hex : boards.square;
+  if (board !== next) { board.set(null, ""); board = next; }
+  $("board").hidden = hex; $("hexBoard").hidden = !hex;
+}
+/** A line's name, for a hint or a partner pointing at it. */
+const lineLabel = k => (P.hex ? lineName(P.R, k) : k < P.h ? `row ${k + 1}` : `column ${k - P.h + 1}`);
+/** With the computer as partner, the lines it reads: the columns, or on hexes every other line of each direction. */
+const computerReads = k => (P.hex ? hexOwner(P.R, k, [0, 1]) === 1 : k >= P.h);
 
 const rules = () => S?.rules || { mistakes: settings.mistakes, nameIt: settings.nameIt, computer: "off", pace: settings.pace };
 const checked = () => rules().mistakes === "shown";
@@ -78,7 +99,7 @@ function save() {
 }
 const valid = s => !!s && s.v === 1 && !!pictureOf(s.id) && !!SIZES[s.size] && typeof s.grid === "string" && Array.isArray(s.undo) && Number.isFinite(s.ms);
 const started = () => !!S && S.mode !== "duel" && !S.done && (/[^.]/.test(S.grid) || S.hints > 0);
-const bestKey = () => `${pic.topic}:${S.size}`;
+const bestKey = () => `${pic.topic}:${S.size}${S.hex ? ":hex" : ""}`;
 /** A finished picture's score as the best of its kind and size (lowest wins); true if it's a new best. In
  *  nonogram:times, not nonogram:best, which the games screen would read as highest-wins. */
 function recordBest(score) {
@@ -94,32 +115,35 @@ function noteSeen(id) {
 function bump(field) { const st = read(STATS, {}); st[field] = (st[field] || 0) + 1; write(STATS, st); }
 
 // ---------- starting ----------
-const hashFor = s => (s.mode === "daily" ? `#d=${s.day}` : `#p=${s.id}&z=${s.size}`);
+const hashFor = s => (s.mode === "daily" ? `#d=${s.day}` : `#p=${s.id}&z=${s.size}${s.hex ? "&g=hex" : ""}`);
 /**
  * A picture's puzzle, made with the rete showing when it isn't made yet: a sparse Large picture can take a moment, and
  * the page should say so rather than freeze. The yield lets the rete draw before the work starts.
  */
-async function made(id, size, label = "Drawing the picture") {
-  if (madeAlready(id, size)) return puzzleOf(id, size);
+async function made(id, size, hex = false, label = "Drawing the picture") {
+  const grid = hex ? "hex" : "square";
+  if (madeAlready(id, size, grid)) return puzzleOf(id, size, grid);
   const done = busy(label, { delay: 0 });
   await new Promise(res => setTimeout(res, 30));
-  try { return puzzleOf(id, size); } finally { done(); }
+  try { return puzzleOf(id, size, grid); } finally { done(); }
 }
 let beginning = 0;                                                // the latest begin; an older one still making its picture gives way
-/** Puts a picture on the board: `s` { id, size, mode, day?, play? }; `run` what is kept of it (else fresh). */
+/** Puts a picture on the board: `s` { id, size, hex?, mode, day?, play? }; `run` what is kept of it (else fresh). True
+ *  once it's there; false if the picture makes no puzzle at that size; null if a later begin took its place. */
 async function begin(s, run = null, at = {}) {
-  const mine = ++beginning, pz = await made(s.id, s.size);
-  if (mine !== beginning) return false;
-  if (!pz) { toast("That picture can't be drawn at this size"); return false; }
+  const mine = ++beginning, pz = await made(s.id, s.size, !!s.hex);
+  if (mine !== beginning) return null;
+  if (!pz) { toast(`That picture can't be drawn at this size${s.hex ? " on hexes" : ""}`); return false; }
   P = pz; pic = pictureOf(s.id);
   const r = rules();
-  S = run || { v: 1, id: s.id, size: s.size, mode: s.mode, day: s.day ?? null, play: s.play || "solo", grid: emptyGrid(P), undo: [], redo: [], ms: 0, mistakes: 0, hints: 0,
+  S = run || { v: 1, id: s.id, size: s.size, hex: !!s.hex, mode: s.mode, day: s.day ?? null, play: s.play || "solo", grid: emptyGrid(P), undo: [], redo: [], ms: 0, mistakes: 0, hints: 0,
     name: null, done: false, rules: s.rules || { ...r }, rival: null };
   Object.assign(S, at);
   if (S.rules.computer === "rival" && !S.rival && S.mode !== "duel") S.rival = { grid: emptyGrid(P), done: false, ms: 0 };
   tool = P.colours > 1 ? Math.min(tool > 0 ? tool : 1, P.colours) : tool === CROSS ? CROSS : 1;
-  message = null; hintCells = []; stroke = null; clockFrom = null;
+  message = null; hintCells = []; hintLine = null; stroke = null; clockFrom = null;
   $("size").value = S.size;
+  useBoard(!!P.hex);
   board.set(P, S.grid, boardExtras());
   if (S.done) board.reveal(true);
   if (S.mode !== "duel" && !IN_FRAME) history.replaceState(null, "", hashFor(S));
@@ -147,16 +171,16 @@ async function start(mode = "random", size = $("size").value) {
   if (!got) { toast("Nothing to draw there at this size: try another region or size"); return; }
   noteSeen(got.id);
   const computer = settings.computer, play = computer === "partner" ? "split" : "solo";
-  if (await begin({ id: got.id, size, mode: "random", play, rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer, pace: settings.pace } }) && got.nearest)
+  if (await begin({ id: got.id, size, hex: settings.grid === "hex", mode: "random", play, rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer, pace: settings.pace } }) && got.nearest)
     note(`No ${BANDS[settings.band].toLowerCase()} picture here at this size: this is the nearest.`);
 }
 // The next random picture is dealt (and its puzzle made) while you play this one, so Next is instant; it's dealt
 // again if the choices it was dealt for have changed by then.
 let upcoming = null;                                              // { key, got }
-const dealKey = size => JSON.stringify([settings.topic, settings.region, settings.band, size, pile.learning()]);
+const dealKey = size => JSON.stringify([topicNow(), settings.region, settings.band, settings.grid, size, pile.learning()]);
 function dealNow(size) {
   const seen = read(SEEN, []), prefer = pile.learning() ? learningPicks() : [];
-  return dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, seen, prefer });
+  return dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, seen, prefer });
 }
 async function nextPick(size) {
   const key = dealKey(size);
@@ -170,7 +194,7 @@ function prepare() {
   if (IN_FRAME || duel.on) return;
   const size = $("size").value, key = dealKey(size);
   if (upcoming?.key === key) return;
-  const args = { topic: settings.topic, region: settings.region, size, band: settings.band, seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
+  const args = { topic: topicNow(), region: settings.region, size, band: settings.band, grid: settings.grid, seen: [S?.id, ...read(SEEN, [])].filter(Boolean), prefer: pile.learning() ? learningPicks() : [] };
   try {
     maker ??= new Worker(new URL("./nonogram-worker.js", import.meta.url), { type: "module" });
     const n = ++asked;
@@ -209,12 +233,12 @@ function onStroke(phase, cells, { button } = {}) {
   if (phase === "start") {
     const v = cellAt(S.grid, cells[0]), cross = button === 2 || tool === CROSS;
     const action = cross ? { kind: v === CROSS ? "uncross" : "cross" } : { kind: v === tool ? "clear" : "fill", colour: tool };
-    stroke = { action, orig: new Map(), stopped: false };
-    hintCells = [];
+    stroke = { action, orig: new Map(), stopped: false, at: performance.now(), held: null, timer: 0 };
+    hintCells = []; hintLine = null;
     paint(cells);
   } else if (!stroke) return;
   else if (phase === "move") paint(cells);
-  else if (phase === "end") endStroke();
+  else if (phase === "end") { countHeld(); endStroke(); }
   else cancelStroke();
 }
 function paint(cells) {
@@ -224,10 +248,25 @@ function paint(cells) {
     if (stroke.orig.has(i)) continue;
     const v = cellAt(S.grid, i), next = target(stroke.action, v);
     if (next == null) continue;
-    if (checked() && isMistake(i, next)) { mistake(i, next); stroke.stopped = true; break; }
+    if (checked() && isMistake(i, next)) {
+      stroke.stopped = true;
+      // the first finger of a pinch lands on a cell too: a mistake that soon waits to see if a second finger follows
+      const soon = HOLD_SECOND - (performance.now() - stroke.at);
+      if (soon > 0) { const s = stroke; s.held = [i, next]; s.timer = setTimeout(() => { if (stroke === s) countHeld(); }, soon); }
+      else mistake(i, next);
+      break;
+    }
     stroke.orig.set(i, v);
     setCell(i, next);
   }
+  board.update(S.grid, boardExtras());
+}
+/** A mistake held back at a stroke's start, counted now the stroke is sure. */
+function countHeld() {
+  if (!stroke?.held) return;
+  const [i, v] = stroke.held;
+  stroke.held = null; clearTimeout(stroke.timer);
+  mistake(i, v);
   board.update(S.grid, boardExtras());
 }
 function endStroke() {
@@ -237,6 +276,7 @@ function endStroke() {
   changed();
 }
 function cancelStroke() {
+  clearTimeout(stroke.timer);
   for (const [i, before] of stroke.orig) setCell(i, before);
   stroke = null;
   board.update(S.grid, boardExtras());
@@ -262,7 +302,7 @@ function undo() {
   const changes = S.undo.pop(), back = [];
   for (const [i, before, after] of changes) if (cellAt(S.grid, i) === after) { setCell(i, before); back.push([i, before, after]); }
   if (back.length) S.redo.push(back);
-  hintCells = [];
+  hintCells = []; hintLine = null;
   changed(false);
 }
 function redo() {
@@ -309,15 +349,17 @@ function useHint() {
   if (S.mode === "duel" && S.play === "split") split.penalty();
   setCell(i, c || CROSS);
   hintCells = [i];
-  const where = step.line < P.h ? `row ${step.line + 1}` : `column ${step.line - P.h + 1}`;
-  const how = step.rule === "simple" ? "its runs pushed both ways overlap there" : step.rule === "line" ? "every way its runs can lie agrees" : "anything else there leads to a clash";
-  note(`Hint (+${HINT} s): ${c ? "filled" : "blank"}, from ${where}: ${how}.`, "good");
+  hintLine = P.hex && step.rule !== "contradiction" ? step.line : null;            // a slant is easier lit than named
+  // a clash comes from the lines through the cell together, so it names none
+  const why = step.rule === "contradiction" ? ": anything else there leads to a clash"
+    : `, from ${lineLabel(step.line)}: ${!P.clues[step.line].length ? "its clue is 0, so none of it is filled" : step.rule === "simple" ? "its runs pushed both ways overlap there" : "every way its runs can lie agrees"}`;
+  note(`Hint (+${HINT} s): ${c ? "filled" : "blank"}${why}.`, "good");
   changed(false);
 }
 
 // ---------- the end ----------
 function finish() {
-  message = null; hintCells = [];
+  message = null; hintCells = []; hintLine = null;
   if (S.mode === "duel") { (S.play === "split" ? split.finished : race.finished)(); return; }
   if (clockFrom != null) { S.ms += performance.now() - clockFrom; clockFrom = null; }
   S.done = true;
@@ -412,6 +454,7 @@ function learnt(right) {
 }
 /** The finished picture as an SVG, small, for Deck: a one-colour picture in the page's ink, a flag in its colours. */
 function svgOf(pz) {
+  if (pz.hex) return hexSvgOf(pz);
   const rects = [];
   for (let y = 0; y < pz.h; y++) for (let x = 0; x < pz.w;) {
     const c = pz.answer[y * pz.w + x];
@@ -423,15 +466,43 @@ function svgOf(pz) {
   const bg = pz.palette?.[0] ? `<rect width="${pz.w}" height="${pz.h}" fill="${pz.palette[0]}"/>` : "";
   return `<svg viewBox="-0.5 -0.5 ${pz.w + 1} ${pz.h + 1}" aria-hidden="true">${bg}${rects.join("")}<rect x="0" y="0" width="${pz.w}" height="${pz.h}" fill="none" stroke="currentColor" stroke-width="0.08" opacity=".4"/></svg>`;
 }
+/** A hexagon's picture for Deck: so small a hex reads as a brick (each row half a brick on from the last, as the hexes
+ *  are), so a row's run of outline or of the land inside it is one rect, the land lighter. */
+function hexSvgOf(pz) {
+  const g = hexGrid(pz.R), R = pz.R, kind = i => (pz.answer[i] ? 1 : pz.land?.[i] ? 2 : 0), rects = [];
+  for (const row of g.lines.slice(0, 2 * R + 1)) {
+    for (let a = 0; a < row.length;) {
+      const k = kind(row[a]);
+      let b = a + 1;
+      while (b < row.length && kind(row[b]) === k) b++;
+      const [q, r] = g.cells[row[a]];
+      if (k) rects.push(`<rect x="${(S3 * (q + r / 2 + R)).toFixed(2)}" y="${1.5 * (r + R)}" width="${(S3 * (b - a)).toFixed(2)}" height="1.5"${k === 2 ? ' opacity=".4"' : ""}/>`);
+      a = b;
+    }
+  }
+  return `<svg viewBox="-0.5 -0.5 ${(S3 * (2 * R + 1) + 1).toFixed(2)} ${3 * R + 2.5}" fill="currentColor" aria-hidden="true">${rects.join("")}</svg>`;
+}
 /** The picture into a small canvas: as drawn so far, or (final) as it is. */
 function drawPicture(canvas, final) {
   const dpr = window.devicePixelRatio || 1, W = canvas.clientWidth || 128, H = canvas.clientHeight || 96;
   canvas.width = W * dpr; canvas.height = H * dpr;
-  const ctx = canvas.getContext("2d"), cs = getComputedStyle(canvas), px = Math.min(W / P.w, H / P.h);
+  const ctx = canvas.getContext("2d"), cs = getComputedStyle(canvas);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, W, H);
-  const x0 = (W - px * P.w) / 2, y0 = (H - px * P.h) / 2, ink = cs.getPropertyValue("--ink").trim(), land = cs.getPropertyValue(pic.topic === "lakes" ? "--ng-water" : "--ng-land").trim();
-  ctx.fillStyle = cs.getPropertyValue("--tile").trim(); ctx.fillRect(x0, y0, px * P.w, px * P.h);
+  const ink = cs.getPropertyValue("--ink").trim(), land = cs.getPropertyValue(pic.topic === "lakes" ? "--ng-water" : "--ng-land").trim(), tile = cs.getPropertyValue("--tile").trim();
+  if (P.hex) {                                                     // hexes, the outline drawn and (final) the land inside it
+    const g = hexGrid(P.R), u = Math.min(W / (S3 * (2 * P.R + 1)), H / (3 * P.R + 2)), cx = W / 2, cy = H / 2;
+    for (let i = 0; i < g.n; i++) {
+      const [q, r] = g.cells[i], x = cx + S3 * (q + r / 2) * u, y = cy + 1.5 * r * u, v = final ? (P.answer[i] ? 1 : P.land?.[i] ? 2 : 0) : Math.max(0, cellAt(S.grid, i));
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++) { const a = (Math.PI / 3) * k - Math.PI / 2; ctx[k ? "lineTo" : "moveTo"](x + Math.cos(a) * u * 1.02, y + Math.sin(a) * u * 1.02); }
+      ctx.fillStyle = tile; ctx.fill();
+      if (v) { ctx.fillStyle = final ? land : ink; ctx.globalAlpha = v === 2 ? 0.42 : 1; ctx.fill(); ctx.globalAlpha = 1; }
+    }
+    return;
+  }
+  const px = Math.min(W / P.w, H / P.h), x0 = (W - px * P.w) / 2, y0 = (H - px * P.h) / 2;
+  ctx.fillStyle = tile; ctx.fillRect(x0, y0, px * P.w, px * P.h);
   for (let i = 0; i < P.answer.length; i++) {
     const v = final ? P.answer[i] : Math.max(0, cellAt(S.grid, i));
     const col = v ? (P.palette ? P.palette[v] : final ? land : ink) : final ? P.palette?.[0] : null;
@@ -442,15 +513,16 @@ function drawPicture(canvas, final) {
 }
 
 // ---------- the computer ----------
-// As a partner (split with the computer): you have the rows, it has the columns, and it works from the grid you share.
-// As a rival: it solves its own copy alongside you, at its pace, and the strip says how far it has got.
+// As a partner (split with the computer): you have the rows, it has the columns (on hexes, every other line of each
+// direction each), and it works from the grid you share. As a rival: it solves its own copy alongside you, at its
+// pace, and the strip says how far it has got.
 let bot = null;                                                   // { mind, queue, timer, stuck, rival }
 function botStart() {
   botSleep();
   bot = null;
   if (!S || S.done || IN_FRAME || S.mode === "duel") return;
   const who = S.rules.computer;
-  if (who === "partner") bot = { mind: createMind(P, k => k >= P.h), queue: null, timer: 0, rival: false };
+  if (who === "partner") bot = { mind: createMind(P, computerReads), queue: null, timer: 0, rival: false };
   else if (who === "rival" && S.rival && !S.rival.done) bot = { mind: createMind(P), queue: null, timer: 0, rival: true };
   botWake(900);
 }
@@ -483,10 +555,10 @@ function botTick() {
 // ---------- drawing the page ----------
 const shown = {};
 const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent = v; } };
-const myLine = k => (S?.play !== "split" ? true : S.mode === "duel" ? split.mine(k) : k < P.h);
+const myLine = k => (S?.play !== "split" ? true : S.mode === "duel" ? split.mine(k) : !computerReads(k));
 function boardExtras() {
   const hidden = S?.play === "split" ? (k => (myLine(k) ? null : S.mode === "duel" ? split.owner(k) : 1)) : null;
-  return { hidden, hint: hintCells, locked: IN_FRAME || !!S?.done, point: S?.mode === "duel" ? split.points() : [] };
+  return { hidden, hint: hintCells, hintLine, locked: IN_FRAME || !!S?.done, point: S?.mode === "duel" ? split.points() : [] };
 }
 function drawStrip() {
   if (!S || !P) { put("clock", "0:00"); put("penalty", ""); put("drawn", ""); put("what", ""); return; }
@@ -497,11 +569,11 @@ function drawStrip() {
   $("penalty").className = pen < 0 ? "good" : "";
   put("drawn", `${Math.floor(drawn(S.grid, P.answer) * 100)}%`);
   const what = S.mode === "daily" ? "Today's" : S.mode === "duel" ? (S.play === "split" ? "Split" : "Race") : TOPIC_ONE[pic.topic];
-  put("what", `${what} · ${P.w} × ${P.h} · ${BANDS[P.band]}`);
+  put("what", `${what} · ${P.hex ? `${P.n} hexes` : `${P.w} × ${P.h}`} · ${BANDS[P.band]}`);
   if (S.mode !== "duel") {                                         // the computer, as rival or partner, in the line under the strip
     const r = $("rival");
     if (S.rules.computer === "rival" && S.rival) { r.hidden = false; r.textContent = S.rival.done ? `Computer: finished in ${fmt(S.rival.ms / 1000)}` : `Computer (${PACES[S.rules.pace].label.toLowerCase()}): ${Math.floor(drawn(S.rival.grid, P.answer) * 100)}%`; }
-    else if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `Partner: the computer (${PACES[S.rules.pace].label.toLowerCase()}), reading the columns${bot?.stuck ? ", waiting on you" : ""}`; }
+    else if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `Partner: the computer (${PACES[S.rules.pace].label.toLowerCase()}), reading ${P.hex ? "the shaded lines" : "the columns"}${bot?.stuck ? ", waiting on you" : ""}`; }
     else r.hidden = true;
   }
 }
@@ -511,7 +583,10 @@ function drawLine() {
   if (!text) {
     if (!S) text = "The same picture for everyone at the table.";
     else if (S.done) text = "";
-    else if (S.play === "split") text = S.mode === "duel" ? split.help() : "You read the rows: fill what they tell you, and the computer works its columns from what you draw.";
+    else if (S.play === "split") text = S.mode === "duel" ? split.help()
+      : P.hex ? "You read the lines with numbers: fill what they tell you, and the computer works the shaded ones from what you draw."
+      : "You read the rows: fill what they tell you, and the computer works its columns from what you draw.";
+    else if (P.hex) text = "Tap a hex to fill it, or drag along any of its three lines: a row, or a slant either way. Cross out what's blank.";
     else if (P.colours > 1) text = "Pick a colour, then tap a cell or drag along a row or column. Runs of different colours may touch.";
     else text = "Tap a cell to fill it, or drag along a row or column. Cross out what you know is blank.";
   }
@@ -549,8 +624,9 @@ function drawResult() {
   $("nextBtn").textContent = S.mode === "daily" ? "A random picture" : "Next picture";
 }
 function drawZoom() {
-  const b = $("zoomBtn"), on = !!P && board.small && !S?.done;
+  const b = $("zoomBtn"), on = !!P && (board.small || board.zoomed) && !S?.done;   // pinched in, there's a way back out
   b.hidden = !on;
+  b.classList.toggle("hex", !!P?.hex);
   if (!on) return;
   const z = board.zoomed;
   b.setAttribute("aria-label", z ? "Zoom out" : "Zoom in");
@@ -617,28 +693,28 @@ function onLine(k) { if (S?.mode === "duel" && S.play === "split") split.point(k
 const inParty = /[?&]party=[A-Za-z]{4}\b/.test(location.search);
 let chosen = false;                                               // Split or Race picked in the menu this time
 function matchDeal() {
-  const size = SIZES[$("size").value] ? $("size").value : "medium";
-  const got = dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, seen: read(SEEN, []) })
-    || dealPicture({ topic: "countries", region: "world", size: "medium" });
+  const size = SIZES[$("size").value] ? $("size").value : "medium", grid = settings.grid;
+  const got = dealPicture({ topic: topicNow(), region: settings.region, size, band: settings.band, grid, seen: read(SEEN, []) })
+    || dealPicture({ topic: "countries", region: "world", size: "medium", grid });
   // a party's first match is a race (a table of friends each with a phone); a pair's is split, and the menu's choice
   // is the next match's
   const mode = inParty && !chosen ? "race" : settings.together;
-  return { seed: Math.floor(Math.random() * 2 ** 31), id: got.id, size: SIZES[size] ? size : "medium", mode, mistakes: settings.mistakes, nameIt: settings.nameIt };
+  return { seed: Math.floor(Math.random() * 2 ** 31), id: got.id, size: SIZES[size] ? size : "medium", grid, mode, mistakes: settings.mistakes, nameIt: settings.nameIt };
 }
 const describeMatch = m => {
-  const p = pictureOf(m.id), z = SIZES[m.size]?.label || "Medium";
-  return m.mode === "split" ? `Split: one ${TOPIC_ONE[p?.topic] || "picture"} (${z.toLowerCase()}) between you, the clues dealt out, so you'll have to talk`
-    : `Race: the same ${TOPIC_ONE[p?.topic] || "picture"} (${z.toLowerCase()}) for everyone, the lowest score wins`;
+  const p = pictureOf(m.id), z = `${(SIZES[m.size]?.label || "Medium").toLowerCase()}${m.grid === "hex" ? ", on hexes" : ""}`;
+  return m.mode === "split" ? `Split: one ${TOPIC_ONE[p?.topic] || "picture"} (${z}) between you, the clues dealt out, so you'll have to talk`
+    : `Race: the same ${TOPIC_ONE[p?.topic] || "picture"} (${z}) for everyone, the lowest score wins`;
 };
 const duel = createDuel({
   game: "nonogram", name: "Nonogram", accent: "--ng-in", line: $("rival"), toast, lower: true,
   deal: matchDeal, describe: describeMatch,
   play: (match, { begun, kept, n }) => {
     const size = SIZES[match.size] ? match.size : "medium", id = pictureOf(match.id) ? match.id : "c-france", play = match.mode === "split" ? "split" : "race";
-    const r = { mistakes: match.mistakes === "hidden" ? "hidden" : "shown", nameIt: match.nameIt !== false, computer: "off", pace: "medium" };
-    const same = kept?.id === id && kept.size === size && kept.play === play && valid(kept);
+    const hex = match.grid === "hex", r = { mistakes: match.mistakes === "hidden" ? "hidden" : "shown", nameIt: match.nameIt !== false, computer: "off", pace: "medium" };
+    const same = kept?.id === id && kept.size === size && kept.play === play && !!kept.hex === hex && valid(kept);
     split.stop();
-    begin({ id, size, mode: "duel", play, rules: r }, same ? kept : null, { begun, n }).then(ok => {
+    begin({ id, size, hex, mode: "duel", play, rules: r }, same ? kept : null, { begun, n }).then(ok => {
       if (!ok) return;
       if (play === "split") split.start(n); else race.tell();
     });
@@ -682,8 +758,16 @@ const split = (() => {
     const here = duel.together.others().filter(o => o.here).map(o => o.slot);
     return [...new Set([mySlot(), ...here])].sort((a, b) => a - b);
   }
-  /** The seat that reads line k (ownerOf in nonogram-engine.js): two at the table, the rows and the columns. */
-  const owner = k => ownerOf(k, P.h, seats());
+  /** The seat that reads line k (ownerOf in nonogram-engine.js): two at the table, the rows and the columns; on hexes
+   *  (hexOwner in nonogram-hex.js) every other line of each direction, or three a direction each. */
+  const owner = k => (P.hex ? hexOwner(P.R, k, seats()) : ownerOf(k, P.h, seats()));
+  /** What this seat reads, in a few words, for the others' line and the help. */
+  function reads() {
+    const s = seats();
+    if (s.length < 2) return "every line";
+    if (P.hex) return s.length === 3 ? ["the rows", "the falling slants", "the rising slants"][s.indexOf(mySlot())] : s.length === 2 ? "every other line" : "some of each";
+    return s.length === 2 ? (owner(0) === mySlot() ? "the rows" : "the columns") : "some of each";
+  }
   const encode = v => (v === EMPTY ? null : `${v === CROSS ? "x" : v}@${mySlot()}`);
   function gridFrom(g) {
     let out = emptyGrid(P);
@@ -725,8 +809,7 @@ const split = (() => {
       stopWatch = r.sync.watch(base, onData, e => console.error(e));
       if (n > 1) r.sync.update(`${branchPath(r.code, "nonogram")}/split`, { [`m${n - 1}`]: null })?.catch?.(() => {});   // the last match's grid
       // the others' line says what each reads (everyone's progress is the one grid's, on the strip already)
-      const s = seats(), reads = s.length < 2 ? "every line" : s.length === 2 ? (owner(0) === mySlot() ? "the rows" : "the columns") : "some of each";
-      duel.report({ score: 0, text: `reading ${reads}` });
+      duel.report({ score: 0, text: `reading ${reads()}` });
     },
     stop() { stopWatch?.(); stopWatch = null; base = null; data = {}; },
     write(i, v) { const r = room(); if (base && r) r.sync.update(`${base}/g`, { [`c${i}`]: encode(v) })?.catch?.(e => console.error(e)); },
@@ -740,7 +823,7 @@ const split = (() => {
     name(nm) { const r = room(); if (base && r) r.sync.tx(`${base}/name`, cur => (cur ? undefined : { ...nm, slot: mySlot() })).catch(e => console.error(e)); },
     mine: k => owner(k) === mySlot(),
     owner,
-    point(k) { const r = room(); if (base && r) r.sync.update(`${base}/look`, { [`s${mySlot()}`]: { line: k, at: duel.now() } })?.catch?.(() => {}); toast(`Pointed at ${k < P.h ? `row ${k + 1}` : `column ${k - P.h + 1}`}`); },
+    point(k) { const r = room(); if (base && r) r.sync.update(`${base}/look`, { [`s${mySlot()}`]: { line: k, at: duel.now() } })?.catch?.(() => {}); toast(`Pointed at ${lineLabel(k)}`); },
     points() {
       const now = duel.now();
       return Object.entries(data.look || {}).filter(([s, l]) => s !== `s${mySlot()}` && now - (l.at || 0) < 6000).map(([s, l]) => ({ slot: Number(s.slice(1)), line: l.line }));
@@ -748,8 +831,9 @@ const split = (() => {
     help() {
       const s = seats();
       if (s.length < 2) return "Your partner's away: their clues show until they're back.";
-      if (s.length === 2) return `You have the ${owner(0) === mySlot() ? "rows" : "columns"}; tell your partner what yours need. Tap a clue to point at it.`;
-      return "Your clues are the lines with numbers; the shaded ones are the others'. Tap a clue to point at it.";
+      if (s.length === 2 && !P.hex) return `You have the ${owner(0) === mySlot() ? "rows" : "columns"}; tell your partner what yours need. Tap a clue to point at it.`;
+      if (s.length === 3 && P.hex) return `You have the ${reads()}; the shaded clues are the others'. Tap a clue to point at it.`;
+      return `Your clues are the lines with numbers; the shaded ones are ${s.length === 2 ? "your partner's" : "the others'"}. Tap a clue to point at it.`;
     },
     finished() {
       const r = room();
@@ -769,7 +853,8 @@ function openMenu() {
   if (duel.on) {
     duel.menu(part(body, "together"));
     part(body, "together").append(choice("Next match", [["split", "Split"], ["race", "Race"]], inParty && !chosen ? "race" : settings.together, v => { settings.together = v; chosen = true; saveSettings(); }));
-    content().append(choice("Pictures", [...Object.entries(TOPICS), ["all", "All"]], settings.topic, v => { settings.topic = v; saveSettings(); }), mirror("Size", $("size")));
+    content().append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
+      choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); }), mirror("Size", $("size")));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -780,7 +865,8 @@ function openMenu() {
   const c = content();
   c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
-    c.append(choice("Pictures", [...Object.entries(TOPICS), ["all", "All"]], settings.topic, v => { settings.topic = v; saveSettings(); }),
+    c.append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
+      choice("Pictures", topicChoices(), topicNow(), v => { settings.topic = v; saveSettings(); }),
       choice("Region", REGIONS, settings.region, v => { settings.region = v; saveSettings(); }),
       mirror("Size", $("size")),
       choice("Difficulty", [["any", "Any"], ...Object.entries(BANDS)], settings.band, v => { settings.band = v; saveSettings(); }));
@@ -794,7 +880,7 @@ function openMenu() {
   const times = read(TIMES, {}), stats = read(STATS, {});
   const bests = S && pic ? times[bestKey()] : null;
   part(body, "about").append(
-    line(S && pic ? `${TOPICS[pic.topic]}, ${SIZES[S.size].label.toLowerCase()}: ${bests != null ? `best ${fmt(bests)}` : "not finished yet"}. Mistakes ${MISTAKE} s, hints ${HINT} s; naming it early takes off up to ${CREDIT[S.size]} s.` : "A picture in a grid, a clue on every line."),
+    line(S && pic ? `${TOPICS[pic.topic]}, ${SIZES[S.size].label.toLowerCase()}${S.hex ? " on hexes" : ""}: ${bests != null ? `best ${fmt(bests)}` : "not finished yet"}. Mistakes ${MISTAKE} s, hints ${HINT} s; naming it early takes off up to ${CREDIT[S.size]} s.` : "A picture in a grid, a clue on every line."),
     line(`${plural(stats.solved || 0, "picture")} drawn, ${stats.named || 0} named.`),
     action("Copy a link to this picture", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -849,7 +935,7 @@ document.addEventListener("keydown", e => {
 document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); botSleep(); } else { clockRun(); botWake(); board.redraw(); duel.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
-window.addEventListener("hashchange", () => { const h = hashPicture(); if (!duel.on && h && !(S && S.id === h.id && S.size === h.size && S.mode === h.mode)) begin(h); });
+window.addEventListener("hashchange", () => { const h = hashPicture(); if (!duel.on && h && !isShown(h)) begin(h); });
 let ticks = 0;
 setInterval(() => {
   if (!S) return;
@@ -863,13 +949,23 @@ function hashPicture() {
   const h = new URLSearchParams(location.hash.slice(1));
   const day = Number(h.get("d"));
   if (day) { const id = dailyPicture(day); return id ? { id, size: DAILY.size, mode: "daily", day, rules: { mistakes: "shown", nameIt: true, computer: "off", pace: "medium" } } : null; }
-  const id = h.get("p"), size = SIZES[h.get("z")] ? h.get("z") : "medium";
-  return id && pictureOf(id) ? { id, size, mode: "random", rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer: "off", pace: settings.pace } } : null;
+  const id = h.get("p"), size = SIZES[h.get("z")] ? h.get("z") : "medium", hex = h.get("g") === "hex";
+  return id && pictureOf(id) ? { id, size, hex, mode: "random", rules: { mistakes: settings.mistakes, nameIt: settings.nameIt, computer: "off", pace: settings.pace } } : null;
+}
+/** Whether the run on the board is the picture a link names. */
+const isShown = h => !!S && S.id === h.id && S.size === h.size && S.mode === h.mode && !!S.hex === !!h.hex;
+/** Opening on a link's picture; one that makes no puzzle there (too thin for a hexagon, say) gives way to the run
+ *  kept, or a random picture. */
+async function linked(h) {
+  if ((await begin(h)) !== false) return;
+  const kept = read(RUN, null);
+  if (valid(kept) && kept.mode !== "duel") begin({ id: kept.id, size: kept.size, hex: kept.hex, mode: kept.mode, day: kept.day, play: kept.play }, kept);
+  else start("random", h.size);
 }
 
 // for tests and debugging
 window.__nonogram = {
-  get state() { return S; }, get puzzle() { return P; }, get picture() { return pic; }, get upcoming() { return upcoming; }, board, duel, start, begin, useHint, undo, redo,
+  get state() { return S; }, get puzzle() { return P; }, get picture() { return pic; }, get upcoming() { return upcoming; }, get board() { return board; }, duel, start, begin, useHint, undo, redo,
   setTool: t => { tool = t; render(); }, openName, submitName,
 };
 
@@ -878,11 +974,11 @@ function solo() {
   S = read(RUN, null);
   if (!valid(S) || S.mode === "duel") S = null;
   const h = hashPicture();
-  if (h && !(S && S.id === h.id && S.size === h.size && S.mode === h.mode)) { begin(h); return; }
+  if (h && !isShown(h)) { linked(h); return; }
   if (forToday && !IN_FRAME && !(S?.mode === "daily" && S.day === today())) {
     if (!started() || confirm("Today's picture is waiting. Leave the one you've started?")) { start("daily"); return; }
   }
-  if (S) begin({ id: S.id, size: S.size, mode: S.mode, day: S.day, play: S.play }, S);
+  if (S) begin({ id: S.id, size: S.size, hex: S.hex, mode: S.mode, day: S.day, play: S.play }, S);
   else start("random", $("size").value || "medium");
 }
 // a match in the address: its picture, with no solo one dealt under it

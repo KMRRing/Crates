@@ -9,12 +9,21 @@ import { linesOf, cellAt, CROSS, EMPTY, lineDone } from "./nonogram-engine.js";
 const MIN_CELL = 22;           // px a cell (times scale()): smaller than this and the board offers to zoom
 const COMFY = 30;              // px a cell when zoomed in
 const MAX_CELL = 48;
-const HOLD_SECOND = 160;       // ms: a second finger this soon after the first makes a pinch, not a stroke
+/** ms: a second finger this soon after the first makes a pinch, not a stroke (the page holds back a mistake that soon). */
+export const HOLD_SECOND = 160;
 
 /** Black or white, whichever reads on a colour. */
 function inkOn(hex) {
   const n = parseInt(String(hex).slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   return 0.299 * r + 0.587 * g + 0.114 * b > 150 ? "#111" : "#fff";
+}
+/** A board's colours, from the page's tokens (they change with the theme, by day and night); the hex board's too. */
+export function tokensOf(canvas) {
+  const cs = getComputedStyle(canvas), v = n => cs.getPropertyValue(n).trim();
+  return { ink: v("--ink") || "#1C2A34", soft: v("--ink-soft") || "#5C5545", sheet: v("--sheet") || "#F5EFE1", tile: v("--tile") || "#FBF8F0",
+    edge: v("--tile-edge") || "#C2AE82", brass: v("--brass") || "#A47528", rule: v("--rule") || "#CDB98C", accent: v("--ng-in") || "#2C5B8A",
+    bad: v("--ng-bad") || "#A8382B", good: v("--ng-good") || "#2F7D5B", land: v("--ng-land") || v("--ink"), water: v("--ng-water") || "#2C5B8A",
+    font: v("--font") || "Archivo, sans-serif", players: [0, 1, 2, 3, 4, 5].map(i => v(`--p${i}`) || "#2C5B8A") };
 }
 
 /**
@@ -30,14 +39,8 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
   let hot = null;                          // { row, col } under a finger
   let raf = 0;
 
-  // ---------- colours from the page's tokens (they change with the theme, by day and night) ----------
-  function readColours() {
-    const cs = getComputedStyle(canvas), v = n => cs.getPropertyValue(n).trim();
-    colours = { ink: v("--ink") || "#1C2A34", soft: v("--ink-soft") || "#5C5545", sheet: v("--sheet") || "#F5EFE1", tile: v("--tile") || "#FBF8F0",
-      edge: v("--tile-edge") || "#C2AE82", brass: v("--brass") || "#A47528", rule: v("--rule") || "#CDB98C", accent: v("--ng-in") || "#2C5B8A",
-      bad: v("--ng-bad") || "#A8382B", good: v("--ng-good") || "#2F7D5B", land: v("--ng-land") || v("--ink"), water: v("--ng-water") || "#2C5B8A",
-      font: v("--font") || "Archivo, sans-serif", players: [0, 1, 2, 3, 4, 5].map(i => v(`--p${i}`) || "#2C5B8A") };
-  }
+  // ---------- colours from the page's tokens ----------
+  const readColours = () => { colours = tokensOf(canvas); };
   readColours();
   new MutationObserver(() => { readColours(); draw(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode", "class"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => { readColours(); draw(); });
@@ -346,8 +349,8 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
     update(g = grid, extra = null) { grid = g; if (extra) show = { ...show, ...extra }; draw(); },
     /** A mistake: its cell ringed in red a moment. */
     flash(i, ms = 900) { flash.set(i, performance.now() + ms); draw(); },
-    /** The finished picture sweeps in, in its own colours (instantly when `now`). */
-    reveal(now = false) { reveal = { t0: performance.now() - (now ? 1e6 : 0), ms: 1100 }; hot = null; draw(); },
+    /** The finished picture sweeps in, in its own colours (instantly when `now`), all of it in sight. */
+    reveal(now = false) { reveal = { t0: performance.now() - (now ? 1e6 : 0), ms: 1100 }; hot = null; zoom = 1; panX = 0; panY = 0; draw(); },
     get revealed() { return !!reveal; },
     /** Zoomed in or out: to a comfortable cell size, or the whole puzzle. */
     toggleZoom() { if (!lay) return; const z = zoom > 1.01 ? 1 : Math.min(lay.most, (COMFY * scale()) / lay.fit); zoomAbout(z, { x: lay.W / 2, y: lay.H / 2 }); onZoom(zoom > 1.01); draw(); },

@@ -7,7 +7,7 @@ onmessage = ({ data }) => {
   const { n, args } = data;
   try {
     const got = dealPicture(args);
-    postMessage({ n, got, puzzle: got ? puzzleOf(got.id, args.size) : null });
+    postMessage({ n, got, puzzle: got ? puzzleOf(got.id, args.size, args.grid) : null });
   } catch (e) {
     postMessage({ n, got: null, puzzle: null, error: String(e?.message || e) });
   }

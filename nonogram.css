@@ -1,5 +1,6 @@
-/* Nonogram: a grid of cells on a card, its clues in strips along the left and the top (nonogram-board.js draws it all
-   on a canvas, in these colours). Cobalt is the house enamel; good is verdigris, a mistake oxblood, as everywhere.
+/* Nonogram: a grid of cells on a card, its clues in strips along the left and the top, or a hexagon of hexes with its
+   clues round three sides (nonogram-board.js and nonogram-hexboard.js draw them on a canvas, in these colours). Cobalt
+   is the house enamel; good is verdigris, a mistake oxblood, as everywhere.
    --ng-land and --ng-water are the colours a finished outline or lake takes. */
 /* --ng-logo-tint and --ng-logo-edge colour the header's dropdown (dropdown.js), as each game's logo colours do */
 :root { --ng-in: #2C5B8A; --ng-in-soft: color-mix(in srgb, var(--ng-in) 15%, var(--sheet)); --ng-good: #2F7D5B; --ng-bad: #A8382B;
@@ -31,11 +32,15 @@ html[data-mode="night"] { --ng-in: #6FA0D2; --ng-good: #7FC2A8; --ng-bad: #E8806
   box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .ng-board { position: absolute; inset: .4rem; width: calc(100% - .8rem); height: calc(100% - .8rem); display: block; touch-action: none;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; cursor: crosshair; }
+/* the square grid's canvas and the hexagon's: one shows at a time */
+.ng-board[hidden] { display: none; }
 /* zoom in or out: shown when a Large picture's cells are too small to tap */
 .ng-zoom { position: absolute; right: .55rem; bottom: .55rem; z-index: 1; width: 2.6rem; height: 2.6rem; display: grid; place-items: center;
   border-radius: 50%; border: 1.5px solid var(--brass); background: var(--sheet); color: var(--ink); cursor: pointer; padding: 0; }
 .ng-zoom svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 .ng-zoom[hidden] { display: none; }
+/* on a hexagon the slants' clues fill the lower right, and the lower left is clear */
+.ng-zoom.hex { right: auto; left: .55rem; }
 
 /* under the board: a line of what to do or what happened, then the tools; at the end, how it went, in the same room */
 .ng-side { display: grid; align-content: start; margin-top: .55rem; min-height: 8.6rem; }
