@@ -215,13 +215,13 @@ export function bestOf(app) {
 }
 // ---------- what each game's tile shows ----------
 // One figure a game, kept the same way on every device, so the games screen reads yours and your partner's alike: a win
-// streak (Crates, Cartel), today's time (Slate, Delta) or count (Deck's cards, Parley's lessons), stars collected (the
-// level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
+// streak (Crates, Cartel), today's time (Slate, Delta) or count (Deck's cards, Parley's lessons), the guesses today's
+// code took (Bulls, kept as a count), stars collected (the level games), or a best; and a game with a daily (Punt, Quote, Origin, Order, Chart) shows today's instead when either
 // of you has played it.
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
   order: "daily", chart: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count",
   river: "best", gambit: "best", boast: "streak", bigtwo: "streak", landlord: "streak", banquet: "streak", gammon: "streak", trumps: "streak", quest: "streak", bones: "streak", dandan: "streak",
-  contract: "streak" };
+  contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", bulls: "guesses", assay: "daily", yield: "daily", isomer: "time", ladder: "time" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
 /** A game won or lost, in a game that counts streaks: the current run, and the longest. */
 export function noteStreak(app, won) {
@@ -257,7 +257,7 @@ export function arrivedForToday() {
 /** Whether today's daily of a game is still to play: the games screen's tile then opens it (#today). */
 export const dailyDue = app => {
   const kind = MARKS[app];
-  if (kind === "time") return markOf(app) == null;
+  if (kind === "time" || kind === "guesses") return markOf(app) == null;
   if (kind === "daily") return markOf(app)?.today == null;
   return false;
 };
@@ -268,7 +268,7 @@ export function markOf(app) {
     const r = json(`${k}:streak`, null), t = app === "crates" ? comparableOf("crates").today : null;
     return r?.best || t != null ? { kind, v: r?.best || 0, day: d, today: t } : null;
   }
-  if (kind === "time" || kind === "count") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
+  if (kind === "time" || kind === "count" || kind === "guesses") { const r = json(`${k}:${kind === "time" ? "today" : "count"}`, null); return r?.key === d ? { kind, day: d, v: r.v } : null; }
   if (kind === "stars") { const v = app === "calibre" ? calibreStars() : json(`${k}:stars`, null); return v ? { kind, v } : null; }
   if (kind === "daily") { const { best, today: t } = dailyOf(app); return best == null && t == null ? null : { kind, best, day: d, today: t }; }
   const v = bestOf(app);
@@ -317,7 +317,7 @@ export async function watchBests(cb) {
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
 export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html",
-  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", brut: "brut.html", blend: "blend.html", arb: "arb.html", survey: "survey.html", manifest: "manifest.html", pipes: "pipes.html", refinery: "refinery.html" };
+  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", brut: "brut.html", blend: "blend.html", arb: "arb.html", survey: "survey.html", manifest: "manifest.html", pipes: "pipes.html", refinery: "refinery.html", sudoku: "sudoku.html", mines: "mines.html", nonogram: "nonogram.html", hitori: "hitori.html", bulls: "bulls.html", assay: "assay.html", yield: "yield.html", isomer: "isomer.html", ladder: "ladder.html" };
 const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 const FOLLOW_FOR = 10 * 60 * 1000;              // its yes takes the device that asked to the table this long after (it may have slept through it)

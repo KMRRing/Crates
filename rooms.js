@@ -46,6 +46,15 @@ export const GAMES = {
   quest: { name: "Quest", page: "./quest.html" },
   bones: { name: "Bones", page: "./bones.html" },
   dandan: { name: "Dandan", page: "./dandan.html" },
+  sudoku: { name: "Sudoku", page: "./sudoku.html" },
+  mines: { name: "Mines", page: "./mines.html" },
+  nonogram: { name: "Nonogram", page: "./nonogram.html" },
+  hitori: { name: "Hitori", page: "./hitori.html" },
+  bulls: { name: "Bulls", page: "./bulls.html" },
+  assay: { name: "Assay", page: "./assay.html" },
+  yield: { name: "Yield", page: "./yield.html" },
+  isomer: { name: "Isomer", page: "./isomer.html" },
+  ladder: { name: "Ladder", page: "./ladder.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
