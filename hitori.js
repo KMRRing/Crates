@@ -339,7 +339,7 @@ function drawBoard() {
   const xs = board.xy.map((_, i) => centre(i)[0]), ys = board.xy.map((_, i) => centre(i)[1]);
   const hw = hex ? SQ3 / 2 : 0.5, hh = hex ? 1 : 0.5;
   const box = [Math.min(...xs) - hw - pad, Math.min(...ys) - hh - pad, Math.max(...xs) - Math.min(...xs) + 2 * (hw + pad), Math.max(...ys) - Math.min(...ys) + 2 * (hh + pad)];
-  svg = svgEl("svg", { viewBox: box.map(v => v.toFixed(3)).join(" "), role: "grid", "aria-label": `${kindText(S)}: the board`, class: `hi-svg ${hex ? "hex" : "square"}` });
+  svg = svgEl("svg", { viewBox: box.map(v => v.toFixed(3)).join(" "), role: "img", "aria-label": `${kindText(S)}: the board. Tap a cell to shade it, again to keep it.`, class: `hi-svg ${hex ? "hex" : "square"}` });
   const two = board.m >= 10;
   cellEls = board.xy.map((_, i) => {
     const [x, y] = centre(i), g = svgEl("g", { class: "hi-cell" }, svg);
