@@ -465,6 +465,9 @@ Held sideways (README, Bigger screens), your route stands on the left with room 
 
 Together (October 2026): the same five routes for everyone at the table, each finding their own way on their own phone (README, Head to head), from the partner sheet or a Party of up to six. The others' scores and how many routes they've done show in the strip. The highest total wins, then the quicker; the match counts the moment your last route is decided. Your solo run, your best and today's stay as they were.
 
+## Crossword
+(Being built, October 2026: a crossword on the knowledge base, in Learning.)
+
 ## Lexicon
 
 Everything the games know, looked up. Search any of the knowledge base's 4,396 things, a country, a company, a painting, a river, a law, by its name or another of its names, accents ignored, names that start with what you typed first and the best-connected first among them. An entry shows what the thing is (its kinds, and its region or commodity family), its picture where it has one, what's said about it (its note, its country and region, a painting's year), the numbers Quote knows about it, the topics its links touch (energy, metals, history…), and every link in groups (clues to it, a clue to, painted by, paintings, hangs in, on its walls, movement, in, within it), each with the reason and a tap through to its own entry. `#e=<id>` opens an entry, so links can be shared and the back button walks back through what you've opened.
@@ -996,6 +999,64 @@ Puzzle rush (the menu; October 2026): as the other games' rushes, on the same sh
 
 `tests/contract.mjs` checks the duplicate score of part-scores, games, slams, doubled and redoubled contracts, overtricks and undertricks by vulnerability, and where a result's points came from; the calls (what may be called, a redouble only by the doubled side, the end of the auction, a passed-out deal) and the contract and its declarer; following suit and who takes a trick; SAYC's call in sample positions and what calls show (1NT, Stayman, Jacoby 2NT, the negative and the takeout double, a pass in first seat, an unknown call read as natural); 60 deals bid and played by four computer players, every call and card legal, every card once, each scored as the table says; the solver against a plain search of small endings in every strain, mid-trick too, and on deals whose answer is known; the deals of the unseen hands (each hand's size, the known cards kept, a void known); whole deals played by sampling and a cold grand slam taking all thirteen; the opening leads; the Chicago match (four deals, the dealer clockwise, the vulnerability by deal, the running score, a passed-out deal dealt again); a match through the database's round trip; a whole deal at a table of two people and two computer players on the stand-in database, both phones seeing it the same; and the course: every call it asks for is the system's own and no other is accepted, every card to play is in the hand that plays it and judged right, every card judged right takes as many tricks as the best with every card seen where the lesson gives all four hands, every quiz's answer an option and every score it quotes the scoring's own; and the puzzle rush: every puzzle a position its deal reaches (one pack, the auction and every card legal), South's card (or dummy's, South declaring), the cards weighed exactly those it may play, the best ahead of every card not as good by 25 points of the deals, what the best does found again, the stage and the verdict judging alike, every rating stocked, and a puzzle of each rating weighed again over 60 deals of its own, the best still ahead.
 
+
+## Classics
+The canonical puzzle genres (October 2026), in a section of their own on the games screen: games you know before you open them, played by their usual rules. Korbi weighed a roster of newspaper and app puzzles and kept every one, with the crossword moved to Learning because it is built on the knowledge base (README, Crossword). What Almanac adds is the making and the company. Every puzzle is generated, not dealt from a fixed pack, and proven to have exactly one answer; difficulty is measured by the reasoning a solver needs to finish it, not by how many clues it has; each has a daily, the same for everyone (`today()`), and endless play besides. Each can be played together, mostly by splitting what each player sees (one has the row clues, the other the column clues) so that neither can finish alone, raced on the same puzzle (README, Head to head), and many at a party; the computer players are the games' own solvers, paced like a person. Where a genre has content (a picture, a theme, a final answer) it comes from the knowledge base. Everything works offline.
+
+The fifteen, with an Almanac name wherever the genre's best-known name is someone's trademark (Wordle, Spelling Bee, Strands and Connections are the New York Times's, Jumble is Tribune's, Mastermind a board game's):
+- Number grids: Sudoku, Calcudoku (the genre KenKen made famous) and Kakuro.
+- Logic grids: Hitori, Nonogram and Mines (Minesweeper).
+- Code-breaking: Bulls (Mastermind, named after Bulls and Cows, the pencil-and-paper game it came from).
+- Words: Assay (Wordle's genre: an assay tests what a sample is made of), Yield (Spelling Bee's: how many words seven letters give), Codeword, Ladder (Lewis Carroll's word ladders, his Doublets), Isomer (Jumble's: the same letters rearranged, as an isomer is the same atoms rearranged), Lode (Strands': the theme's words run through the board like ore, the word that spans it the mother lode), Lots (Connections': sixteen words sorted into lots of four by wordplay, where Crates sorts them by what they point to) and Acrostic.
+
+Fifteen games were built at once, each by its own Claude, so the pieces several of them share are each kept by one game and only used by the others: `wordlist.js`, the English word list every word game draws on (below); the clue bank for ordinary words, which Crossword and Acrostic use; the digit-grid board Sudoku made, which Calcudoku and Kakuro use; the grid filler Codeword made, which Crossword uses.
+
+`wordlist.js` holds every English word of 3 to 15 letters, lower-case a to z only (no names, abbreviations, hyphens or apostrophes), each with how common it is: the SCOWL size it first appears at (10, the commonest few thousand, then 20, 35, 40, 50, 55, 60 and 70, the widest list kept), and whether it is one spelling's only (colour, color). A game picks the commonest tiers for its answers and a wider one for what it accepts. The words themselves are in `wordlist-data.js`, written by `tools/build-wordlist.mjs` from SCOWL (Kevin Atkinson's Spell Checker Oriented Word Lists, used under its permissive licence, whose notice travels in the file); words on a list of offensive terms are left out. `tests/wordlist.mjs` checks the lists are clean, sorted and tiered, and that Slate's own common words are all among the commonest here.
+
+### Sudoku
+(Being built, October 2026.)
+
+### Calcudoku
+(Being built, October 2026.)
+
+### Kakuro
+(Being built, October 2026.)
+
+### Hitori
+(Being built, October 2026.)
+
+### Nonogram
+(Being built, October 2026.)
+
+### Mines
+(Being built, October 2026.)
+
+### Bulls
+(Being built, October 2026.)
+
+### Assay
+(Being built, October 2026.)
+
+### Yield
+(Being built, October 2026.)
+
+### Codeword
+(Being built, October 2026.)
+
+### Ladder
+(Being built, October 2026.)
+
+### Isomer
+(Being built, October 2026.)
+
+### Lode
+(Being built, October 2026.)
+
+### Lots
+(Being built, October 2026.)
+
+### Acrostic
+(Being built, October 2026.)
 
 ## Idle
 Games to play without much thought (October 2026): no puzzle to work out, but as much thinking as Block Blast, a bubble shooter or match-3 ask for, which is more than it looks. What those have in common, and what every idle game here keeps: a real choice every move among a dozen or so, a board that remembers a careless one, a reward for setting up combinations, and pressure that ends the game when you're careless. A game with less in it (a tune-the-plate idea, one slider and a pattern of sand) was turned down as too little. Each idle game changes one rule those games share for one nobody has used, and each is prototyped and tried in hand before the next.
