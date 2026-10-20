@@ -1,0 +1,85 @@
+/* Kakuro: the grid on the digit board (digits.css: its black cells, the clue cells split by their diagonal), its
+   clock and kind over it, a line of what's happening (or, with the helper on, the ways the selected cell's runs can
+   be) and the number pad under it. Verdigris is the house colour: the ink of a digit you write. */
+:root { --kakuro-in: #3D7A66; --kakuro-soft: color-mix(in srgb, var(--kakuro-in) 15%, var(--sheet)); --ka-good: #2F7D5B; --ka-bad: #A8382B;
+  --ka-logo-tint: #D3E6DE; --ka-logo-edge: var(--logo-edge); }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --kakuro-in: #7FC2A8; --ka-good: #7FC2A8; --ka-bad: #E8806F; --ka-logo-tint: #1C3F35; }
+}
+html[data-mode="night"] { --kakuro-in: #7FC2A8; --ka-good: #7FC2A8; --ka-bad: #E8806F; --ka-logo-tint: #1C3F35; }
+
+#app.kakuro { --dg-in: var(--kakuro-in); }
+.ka-mark { display: inline-block; }
+.ka-mark svg { width: 100%; height: 100%; display: block; }
+
+/* over the grid: the clock (and what hints have added), the kind of grid, and against the computer or at a table,
+   the others on a line of their own */
+.ka-strip { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: .8rem; row-gap: .1rem; margin: .55rem 0 .35rem; min-height: 1.75rem; }
+.ka-clock b { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ka-clock small { margin-left: .4rem; font-size: .76rem; font-weight: 700; color: var(--ka-bad); font-variant-numeric: tabular-nums; }
+.ka-kind { font-size: .66rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ka-rival { flex: 1 0 100%; order: 3; min-width: 0; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ka-rival[hidden] { display: none; }
+.ka-rival b { color: var(--ink); font-weight: 750; }
+
+/* the grid: as large as the room under the strip allows (a little padding for its frame's rule), in the middle of it
+   (on a tall phone the grid is as wide as the screen already, and the room left over is shared above and below it) */
+.ka-stage { padding: .4rem; place-items: center; }
+.ka-board { width: 100%; height: 100%; display: grid; place-items: center; }
+/* a sum's two digits fit its corner a little larger than the board sets them; a product's three need the room */
+.kakuro:not(.products) .dg-across, .kakuro:not(.products) .dg-down { font-size: calc(var(--cell) * .32); }
+/* a run that adds up: its clue fades, as a solver ticks a clue off */
+.kakuro .dg-across, .kakuro .dg-down { transition: opacity .3s; }
+.kakuro .ka-ok { opacity: .38; }
+/* a clue only a partner can see */
+.kakuro .ka-hid { color: color-mix(in srgb, var(--dg-block-ink) 60%, transparent); }
+
+/* under the grid: a line, then the pad; at the end the result takes the pad's place, the same height */
+.ka-side { display: grid; grid-template-rows: auto auto; margin-top: .45rem; }
+/* three lines, always: a long hint scrolls inside it rather than push the pad down and shrink the grid */
+.ka-line { margin: 0 0 .45rem; height: 3.9em; overflow-y: auto; overscroll-behavior: contain; font-size: .84rem; line-height: 1.3; color: var(--ink-soft); }
+.ka-line b { color: var(--ink); }
+.ka-line.good { color: var(--ka-good); }
+.ka-line.bad { color: var(--ka-bad); }
+.ka-line.teach { color: var(--ink); }
+/* the helper: the ways each of the selected cell's runs can be, a line each */
+.ka-line.ways { display: grid; align-content: start; }
+.ka-way { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ka-way b { font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); margin-right: .35rem; }
+.ka-way i { font-style: normal; color: var(--ink); font-variant-numeric: tabular-nums; word-spacing: .18em; }
+.ka-pad, .ka-result { grid-row: 2; grid-column: 1; }
+.ka-pad.away { visibility: hidden; }
+.ka-result { display: grid; align-content: center; gap: .55rem; }
+.ka-result[hidden] { display: none; }
+.ka-verdict { margin: 0; font-size: .98rem; font-weight: 720; line-height: 1.3; color: var(--ka-good); }
+.ka-verdict span { display: block; font-size: .84rem; font-weight: 600; color: var(--ink-soft); margin-top: .15rem; }
+.ka-next { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; }
+.ka-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%;
+  letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.ka-today { min-height: 3rem; margin: 0; }
+.ka-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20; max-width: min(92vw, 30rem); margin: 0;
+  padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.ka-toast.show { opacity: 1; }
+
+/* a short phone: the pad's keys a little lower, so the grid keeps its room; a tall one: the room the grid can't use
+   (it's as wide as the screen already) goes to the keys */
+@media (max-height: 640px) and (orientation: portrait) {
+  .kakuro .dg-pad { --key-h: 2.8rem; --tool-h: 2.6rem; gap: .3rem; }
+  .ka-line { margin-bottom: .3rem; font-size: .8rem; }
+}
+@media (min-height: 780px) and (max-width: 599px) and (orientation: portrait) {
+  .kakuro .dg-pad { --key-h: 3.7rem; --tool-h: 3.3rem; --key-font: 1.7rem; }
+}
+
+/* held sideways: the grid on the left with all the height; the clock, the line and the pad beside it, the keys
+   three across like a phone's, low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.kakuro { --beside: 19rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.kakuro .ka-stage { grid-column: 1; grid-row: 2 / span 2; margin-top: .5rem; }
+  #app.kakuro .ka-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; flex-wrap: nowrap; margin-top: 1rem; }
+  #app.kakuro .ka-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
+  #app.kakuro .dg-pad { --pad-cols: 3; --key-h: 3.7rem; --key-font: 1.75rem; }
+  #app.kakuro .ka-next { grid-auto-flow: row; }
+  .ka-line { height: 5.2em; }
+}
