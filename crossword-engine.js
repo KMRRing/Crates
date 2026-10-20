@@ -33,43 +33,56 @@ export const MODES = { classic: "Classic", theme: "Theme" };
 export const POOLS = { mixed: "Mixed", country: "Countries", commodity: "Commodities" };
 
 // ---------- the ordinary words ----------
-// the clue bank's words of a length, commonest first in two bands (gridfill tries the first band first)
-const bandsOf = len => [cluedWords(len, 0), cluedWords(len, 2).slice(cluedWords(len, 0).length)].filter(b => b.length);
-// what a knowledge entry's crossed letters ask of the words that cross it: for each length, a bitset of the clued words
-// with each letter at each place, so letters at several places are one AND per 32 words
-const bits = new Map();
-function bitsOf(len) {
-  let b = bits.get(len);
-  if (!b) {
-    const words = cluedWords(len, 2), nw = (words.length + 31) >>> 5, at = new Uint32Array(len * 26 * nw);
-    words.forEach((w, j) => { for (let i = 0; i < len; i++) at[(i * 26 + w.charCodeAt(i) - 97) * nw + (j >>> 5)] |= (1 << (j & 31)) >>> 0; });
-    b = { nw, at };
-    bits.set(len, b);
-  }
+// A deal draws on the clue bank to a tier (clues.js: 0 its commonest words, 2 all of them). Random grids take it all;
+// today's takes the two commonest tiers alone, which are complete, so the bank growing through a day can't change the
+// day's grid between one phone and the next.
+export const WHOLE_BANK = 2, DAILY_BANK = 1;
+const banks = new Map();
+/** The clue bank to a tier, as a deal reads it, worked out once a length: its words (bands), letters at places (count),
+ *  and the words it gives the same clue (sameClue). */
+function bankTo(upto) {
+  let b = banks.get(upto);
+  if (b) return b;
+  const bits = new Map(), clued = new Map();
+  // what a knowledge entry's crossed letters ask of the words that cross it: for each length, a bitset of the words with
+  // each letter at each place, so letters at several places are one AND per 32 words
+  const bitsOf = len => {
+    if (!bits.has(len)) {
+      const words = cluedWords(len, upto), nw = (words.length + 31) >>> 5, at = new Uint32Array(len * 26 * nw);
+      words.forEach((w, j) => { for (let i = 0; i < len; i++) at[(i * 26 + w.charCodeAt(i) - 97) * nw + (j >>> 5)] |= (1 << (j & 31)) >>> 0; });
+      bits.set(len, { nw, at });
+    }
+    return bits.get(len);
+  };
+  b = {
+    upto,
+    /** A length's words, commonest first in two bands (gridfill tries the first band first). */
+    bands: len => [cluedWords(len, 0), cluedWords(len, upto).slice(cluedWords(len, 0).length)].filter(x => x.length),
+    /** How many words of a length fit letters at places ([[pos, ch]…], ch lower case). */
+    count(len, fixed) {
+      const { nw, at } = bitsOf(len);
+      let n = 0;
+      for (let x = 0; x < nw; x++) {
+        let v = 0xFFFFFFFF;
+        for (const [i, ch] of fixed) v &= at[(i * 26 + ch.charCodeAt(0) - 97) * nw + x];
+        if (v) n += popcount(v >>> 0);
+      }
+      return n;
+    },
+    /** The words of a length the bank gives this clue to: an ordinary clue allows every one of them. */
+    sameClue(len, text) {
+      if (!clued.has(len)) {
+        const m = new Map();
+        for (const w of cluedWords(len, upto)) for (const c of cluesOf(w)) { const k = c.text.toLowerCase(); if (!m.has(k)) m.set(k, []); m.get(k).push(w.toUpperCase()); }
+        clued.set(len, m);
+      }
+      return clued.get(len).get(text.toLowerCase()) || [];
+    },
+  };
+  banks.set(upto, b);
   return b;
 }
 const popcount = x => { x -= (x >>> 1) & 0x55555555; x = (x & 0x33333333) + ((x >>> 2) & 0x33333333); return (((x + (x >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; };
-/** How many clued words of a length fit letters at places ([[pos, ch]…], ch lower case). */
-function patternCount(len, fixed) {
-  const { nw, at } = bitsOf(len);
-  let n = 0;
-  for (let x = 0; x < nw; x++) {
-    let v = 0xFFFFFFFF;
-    for (const [i, ch] of fixed) v &= at[(i * 26 + ch.charCodeAt(0) - 97) * nw + x];
-    if (v) n += popcount(v >>> 0);
-  }
-  return n;
-}
-// the words the bank gives the same clue to, by length and clue: an ordinary clue allows every one of them
-const sameClue = new Map();
-function wordsWithClue(len, text) {
-  if (!sameClue.has(len)) {
-    const m = new Map();
-    for (const w of cluedWords(len, 2)) for (const c of cluesOf(w)) { const k = c.text.toLowerCase(); if (!m.has(k)) m.set(k, []); m.get(k).push(w.toUpperCase()); }
-    sameClue.set(len, m);
-  }
-  return sameClue.get(len).get(text.toLowerCase()) || [];
-}
 
 // ---------- the knowledge entries a deal draws from ----------
 /**
@@ -108,14 +121,14 @@ const clash = (x, y) => x.letters === y.letters || gives(x, y) || gives(y, x);
  * fit (what the review pile has due); `rev`, how many should be named the other way round (null: as the weights
  * fall), kept to in a first pass over the slots and let go in a second if the grid is still short.
  */
-function placeKnowledge(grid, slots, pool, count, rnd, { first = null, early = [], maxLen, rev = null }) {
+function placeKnowledge(grid, slots, pool, count, rnd, { first = null, early = [], maxLen, rev = null, bank }) {
   const crossers = slots.map(s => s.cells.map(k => {
     const t = slots.find(x => x.id !== s.id && x.cells.includes(k));
     return t ? { t, j: t.cells.indexOf(k) } : null;
   }));
   const fixedIn = new Map();                                    // slot id → [[pos, ch]] the chosen entries put there
   const chosen = [];
-  const roomy = (s, letters) => crossers[s.id].every((x, i) => !x || patternCount(x.t.len, [...(fixedIn.get(x.t.id) || []), [x.j, letters[i].toLowerCase()]]) >= 10);
+  const roomy = (s, letters) => crossers[s.id].every((x, i) => !x || bank.count(x.t.len, [...(fixedIn.get(x.t.id) || []), [x.j, letters[i].toLowerCase()]]) >= 10);
   const take = (s, e) => {
     chosen.push({ slot: s, e });
     crossers[s.id].forEach((x, i) => { if (x) fixedIn.set(x.t.id, [...(fixedIn.get(x.t.id) || []), [x.j, e.letters[i].toLowerCase()]]); });
@@ -187,10 +200,10 @@ const ATTEMPTS = 40;
  * black square), entries (see entriesOf), theme ({ answer, cat } or null), grade (crossword-solve.js) }. Options:
  * level, pool (mixed, country, commodity), asks (both, fwd, rev), mode (classic, theme), topics (a mix: { aspect:
  * 0 | 1 | 2 }, null for every topic in), due and weak (learning mode's: pile keys, and entities other games found
- * you weak on).
+ * you weak on), upto (the clue bank's tier it draws on: WHOLE_BANK, or today's DAILY_BANK).
  */
-export function makePuzzle({ seed = 1, level = "medium", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null } = {}) {
-  const L = LEVELS[level] || LEVELS.medium, rnd = seeded(mix(seed, 0xC205));
+export function makePuzzle({ seed = 1, level = "medium", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, upto = WHOLE_BANK } = {}) {
+  const L = LEVELS[level] || LEVELS.medium, rnd = seeded(mix(seed, 0xC205)), bank = bankTo(upto);
   const all = candidates({ level, pool, asks: mode === "theme" ? "rev" : asks, topics, due, weak });
   // learning mode: what the review pile has due goes in first, up to half the grid's knowledge entries, the pile's
   // order kept (the most revised first)
@@ -211,14 +224,14 @@ export function makePuzzle({ seed = 1, level = "medium", pool = "mixed", asks = 
     if (theme) ({ key: keystone, stars: drawFrom } = theme);
     // the level's share named the other way round, rounded up or down at random so it averages out right
     const rev = !themes && asks === "both" ? Math.round(L.kb * L.rev + rnd() - 0.5) : null;
-    const placed = placeKnowledge(grid, slotsOf(grid), drawFrom, L.kb - (keystone ? 1 : 0), rnd, { first: keystone, early, maxLen: L.longest, rev });
+    const placed = placeKnowledge(grid, slotsOf(grid), drawFrom, L.kb - (keystone ? 1 : 0), rnd, { first: keystone, early, maxLen: L.longest, rev, bank });
     if (!placed || placed.length < (keystone ? 5 : Math.max(3, L.kb - 2))) continue;
     // an ordinary word a knowledge clue says is kept out of the grid, or the clue would give it away
     const said = new Set(placed.flatMap(p => textOf(p.e).toLowerCase().replace(/[^a-z]+/g, " ").split(" ").filter(w => w.length >= 3)));
-    const words = len => bandsOf(len).map(b => b.filter(w => !said.has(w)));
+    const words = len => bank.bands(len).map(b => b.filter(w => !said.has(w)));
     const fill = fillGrid(grid, { words, fixed: placed.map(p => ({ word: p.e.letters.toLowerCase(), slot: p.slot.id })), seed: mix(seed, 0xF111 + attempt), budget: 24000, starts: 8 });
     if (!fill) continue;
-    const puzzle = assemble(fill, placed, { seed, level, mode, pool, rnd, L });
+    const puzzle = assemble(fill, placed, { seed, level, mode, pool, rnd, L, bank });
     if (!puzzle) continue;
     puzzle.grade = grade(puzzle, { seed: mix(seed, attempt) });
     // a theme's starred clues are recall without their country, so a theme is held to the share alone, set lower
@@ -262,7 +275,7 @@ const TAGS = { fwd: e => (e.cat === "country" ? "Country" : "Commodity"), rev: (
  * with one of theirs (the harder one at the level's share), checked so no clue gives another entry away and exactly
  * one fill fits the clues. Null if that can't be had.
  */
-function assemble(fill, placed, { seed, level, mode, pool, rnd, L }) {
+function assemble(fill, placed, { seed, level, mode, pool, rnd, L, bank }) {
   const kbAt = new Map(placed.map(p => [p.slot.id, p.e]));
   const entries = fill.slots.map(s => {
     const base = { num: s.num, dir: s.dir, row: s.row, col: s.col, len: s.len, cells: s.cells, letters: s.word.toUpperCase() };
@@ -288,21 +301,25 @@ function assemble(fill, placed, { seed, level, mode, pool, rnd, L }) {
     e.d = cluesOf(e.letters).find(c => c.text === e.text)?.d || e.d;
     if (bad(e)) return null;
   }
-  const puzzle = { v: 1, seed, level, mode, pool, rows: fill.grid.map(r => r.toUpperCase()), entries, theme: null, grade: null };
+  const puzzle = { v: 1, seed, level, mode, pool, upto: bank.upto, rows: fill.grid.map(r => r.toUpperCase()), entries, theme: null, grade: null };
   if (mode === "theme") { const k = entries.find(e => e.kind === "key"); puzzle.theme = k ? { answer: k.answer, cat: k.cat } : null; }
   // exactly one fill: where an ordinary clue is shared with another word that the crossings allow, its other clue
-  if (countSolutions(puzzle, allowed(puzzle, e => wordsWithClue(e.len, e.text))) !== 1) {
-    for (const e of entries) if (e.kind === "word" && e.other && wordsWithClue(e.len, e.text).length > 1) {
+  const sameClue = e => bank.sameClue(e.len, e.text);
+  if (countSolutions(puzzle, allowed(puzzle, sameClue)) !== 1) {
+    for (const e of entries) if (e.kind === "word" && e.other && sameClue(e).length > 1) {
       [e.text, e.other] = [e.other, e.text];
       e.d = cluesOf(e.letters).find(c => c.text === e.text)?.d || e.d;
     }
-    if (countSolutions(puzzle, allowed(puzzle, e => wordsWithClue(e.len, e.text))) !== 1) return null;
+    if (countSolutions(puzzle, allowed(puzzle, sameClue)) !== 1) return null;
   }
   for (const e of entries) delete e.other;
   return puzzle;
 }
 /** Whether exactly one fill fits a puzzle's clues (for the tests: the deal has checked it already). */
-export const uniquelySolved = puzzle => countSolutions(puzzle, allowed(puzzle, e => wordsWithClue(e.len, e.text))) === 1;
+export const uniquelySolved = puzzle => {
+  const bank = bankTo(puzzle.upto ?? WHOLE_BANK);
+  return countSolutions(puzzle, allowed(puzzle, e => bank.sameClue(e.len, e.text))) === 1;
+};
 
 // ---------- reading a puzzle ----------
 export const size = puzzle => ({ R: puzzle.rows.length, C: puzzle.rows[0].length });
@@ -397,4 +414,4 @@ export function clock(secs) {
 /** The seed today's puzzle is dealt from (the day is the suite's: today() in suite.js). */
 export const dailySeed = day => (Number(day) * 7919 + 271) >>> 0;
 /** Today's puzzle: the same for everyone, whatever their settings: Medium, every topic, both ways, classic. */
-export const dailyOptions = day => ({ seed: dailySeed(day), level: "medium", pool: "mixed", asks: "both", mode: "classic", topics: null });
+export const dailyOptions = day => ({ seed: dailySeed(day), level: "medium", pool: "mixed", asks: "both", mode: "classic", topics: null, upto: DAILY_BANK });

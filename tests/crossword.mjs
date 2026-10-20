@@ -13,7 +13,7 @@ const E = await import("../crossword-engine.js");
 const S = await import("../crossword-solve.js");
 const T = await import("../crossword-table.js");
 const { gridProblems, slotsOf, halfCrossed } = await import("../gridfill.js");
-const { cluesOf } = await import("../clues.js");
+const { cluesOf, cluedWords } = await import("../clues.js");
 const { roundTrip } = await import("./rtdb.js");
 
 let bad = 0;
@@ -78,6 +78,8 @@ check(ok.every(({ p }) => { const kb = p.entries.filter(e => e.kind !== "word");
 check(same(E.makePuzzle({ seed: 4242, level: "easy" }), E.makePuzzle({ seed: 4242, level: "easy" })), "the same seed makes the same puzzle");
 const day = 20261020, d1 = E.makePuzzle(E.dailyOptions(day)), d2 = E.makePuzzle({ ...E.dailyOptions(day) });
 check(same(d1, d2) && d1.level === "medium" && !same(d1.rows, E.makePuzzle(E.dailyOptions(day + 1)).rows), "today's puzzle is the same for everyone on the day, and another tomorrow");
+check(d1.upto === E.DAILY_BANK && E.uniquelySolved(d1) && d1.entries.filter(e => e.kind === "word").every(e => cluedWords(e.len, E.DAILY_BANK).includes(e.letters.toLowerCase())),
+  "today's ordinary words come from the clue bank's complete tiers, so its growth can't change the day's grid");
 const kinds = new Set(ok.flatMap(({ p }) => p.entries.map(e => e.kind)));
 check(kinds.has("fwd") && kinds.has("rev") && kinds.has("word"), "puzzles carry ordinary words and knowledge entries both ways round");
 const countries = E.makePuzzle({ seed: 77, level: "medium", pool: "country" }), commodities = E.makePuzzle({ seed: 77, level: "medium", pool: "commodity" });
