@@ -4,8 +4,9 @@
 // a link between them, Carroll's own among them, ladder-pairs.js's; this file keeps the run, the clock and the taps.
 // Together, a team's ladder or a race (ladder-room.js).
 import { RULES, LENGTHS, LEVELS, OVER, HINT, RIVALS, analyse, generate, levelOf, newRun, place, undoLast, working,
-  words, steps, hintFor, score, rivalPlan, rivalAt } from "./ladder-engine.js";
+  words, steps, hintFor, score, rivalPlan, rivalAt, partnerMove } from "./ladder-engine.js";
 import { BOOK, THEMES, linkedFor } from "./ladder-pairs.js";
+import { lettersFor } from "./ladder-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -34,7 +35,11 @@ const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls)
 const prefs = { level: "easy", lengths: [4, 5], themes: Object.keys(THEMES), rules: "classic", rival: "off", kind: "random", ...read(PREFS, {}) };
 if (!LEVELS[prefs.level]) prefs.level = "easy";
 if (!RULES[prefs.rules]) prefs.rules = "classic";
-if (!RIVALS[prefs.rival]) prefs.rival = "off";
+// the computer: a rival racing you, or a partner holding half the letters (until October 2026's partner, rival alone)
+if (RIVALS[prefs.rival] && !prefs.computer) { prefs.computer = "rival"; prefs.cpu = prefs.rival; }
+delete prefs.rival;
+if (!["off", "rival", "partner"].includes(prefs.computer)) prefs.computer = "off";
+if (!RIVALS[prefs.cpu]) prefs.cpu = "club";
 if (!KINDS[prefs.kind] || prefs.kind === "daily") prefs.kind = "random";
 prefs.lengths = (prefs.lengths || []).filter(n => LENGTHS.includes(n));
 if (!prefs.lengths.length) prefs.lengths = [4, 5];
@@ -75,7 +80,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); }, () => { paused = false; clockRun(); });
+onPause(() => { paused = true; clockPause(); clearTimeout(partnerTimer); }, () => { paused = false; clockRun(); partnerSoon(); });
 const elapsed = () => (!G ? 0 : G.mode !== "solo" ? room.elapsed(G) : G.run.ms + (clockFrom != null ? performance.now() - clockFrom : 0));
 
 // ---------- keeping ----------
@@ -92,7 +97,7 @@ function loadSolo() {
   return g;
 }
 const started = () => !!G && G.mode === "solo" && !G.run.done && (G.run.top.length > 1 || G.run.bottom.length > 1);
-const bestKey = g => `${g.kind}:${g.P.level || levelOf(g.P)}:${g.P.rules}`;
+const bestKey = g => `${g.kind}:${g.P.level || levelOf(g.P)}:${g.P.rules}${g.partner ? ":partner" : ""}`;
 
 // ---------- dealing ----------
 /** Lets the page draw the rete before a long piece of work (a graph to build, a hard ladder to find). */
@@ -145,13 +150,19 @@ async function deal(kind = prefs.kind, { chapter = null, seed = null, level = pr
 function begin({ kind, P }, run = newRun(P), extra = {}) {
   clockPause();
   G = { kind, P, run, mode: "solo", side: "top", rival: null, ...extra };
-  if (prefs.rival !== "off" && !extra.rival && kind !== "book") G.rival = { level: prefs.rival, plan: rivalPlan(P, prefs.rival, randomSeed()) };
+  // a rival races any ladder but the book's; a partner shares a random or linked one, its letters keeping their places
+  if (prefs.computer === "rival" && !extra.rival && kind !== "book") G.rival = { level: prefs.cpu, plan: rivalPlan(P, prefs.cpu, randomSeed()) };
+  if (prefs.computer === "partner" && !extra.partner && (kind === "random" || kind === "linked") && P.rules === "classic" && P.start.length === P.end.length) {
+    G.partner = { level: prefs.cpu, owners: lettersFor(P, [0, 1], 1 + Math.floor(Math.random() * 2)) };
+    G.by = [-1];
+  }
   cursor = null; typed = ""; message = null; wrong = null;
   $("level").value = P.level || levelOf(P);
   history.replaceState(null, "", hashFor(G));
   save();
   clockRun();
   render(true);
+  partnerSoon();
 }
 const confirmLeave = () => !started() || confirm("Start a new ladder? This one isn't finished.");
 
@@ -183,6 +194,11 @@ const sameLadder = (g, x) => !!g && !!x && g.kind === x.kind && g.P.start === x.
 
 // ---------- playing ----------
 const playable = () => !!G && !G.run.done && !IN_FRAME && !paused && room.mayPlay(G);
+// who may change which letter, and who made a rung: the computer as your partner here, or a team's table
+const owns = p => (G.partner ? G.partner.owners[p] === 0 : room.mayChange(G, p));
+const ownerStyle = p => (G.partner ? { cls: G.partner.owners[p] === 0 ? "mine" : "theirs", who: `var(--p${G.partner.owners[p]})` } : room.owner?.(G, p));
+const oneEnd = () => !!G?.partner || room.oneEnd(G);
+const maker = r => (G.partner ? (r.side === "top" && G.by?.[r.i] >= 0 ? G.by[r.i] : null) : room.byOf?.(G, r) ?? null);
 const work = () => working(G.run, G.side);
 const grow = () => G?.P.rules === "grow";
 function note(text, tone = "") { message = text ? { text, tone } : null; drawLine(); }
@@ -190,14 +206,14 @@ function note(text, tone = "") { message = text ? { text, tone } : null; drawLin
 function tapLetter(pos, gap = false) {
   if (!playable()) return;
   typed = "";
-  if (!gap && !room.mayChange(G, pos)) { note(room.whyNot(G, pos), "bad"); return; }
+  if (!gap && !owns(pos)) { note(G.partner ? "That letter is the computer's to change." : room.whyNot(G, pos), "bad"); return; }
   cursor = cursor && cursor.pos === pos && cursor.gap === gap ? null : { pos, gap };
   message = null;
   render();
 }
 /** A rung of either end: work from that end. */
 function tapRung(side) {
-  if (!playable() || side === G.side || room.oneEnd(G)) return;
+  if (!playable() || side === G.side || oneEnd()) return;
   G.side = side; cursor = null; typed = ""; message = null;
   save();
   render();
@@ -222,6 +238,10 @@ function enter() {
 /** Tries a word as the next rung at the working end: placed, the ladder whole, or refused with the reason. */
 function try_(word) {
   if (G.mode === "team") { room.teamMove(G, word, outcome); return; }
+  if (G.partner) {                                         // a typed word may not change the computer's letter either
+    const w = work(), at = [...w].findIndex((c, i) => c !== word[i]);
+    if (word.length === w.length && at >= 0 && [...w].filter((c, i) => c !== word[i]).length === 1 && !owns(at)) { outcome("theirs", word); return; }
+  }
   outcome(place(G.P, G.run, G.side, word), word);
 }
 // every message fits one line on a phone, so the keys never move
@@ -236,8 +256,10 @@ const WHY = {
 function outcome(r, word) {
   if (r === "placed" || r === "done") {
     cursor = null; typed = ""; message = null; wrong = null;
+    if (G.partner) G.by.push(0);
     if (r === "done") finish(); else { save(); room.report(G); }
     render(true);
+    partnerSoon();
     return;
   }
   wrong = { word, until: performance.now() + 900 };
@@ -253,9 +275,11 @@ function useUndo() {
   if (G.mode === "team") { room.teamUndo(G); return; }
   const side = undoLast(G.run);
   if (!side) { note("Nothing to take off yet."); return; }
+  if (G.partner) G.by.length = G.run.top.length;
   G.side = side; cursor = null; typed = ""; message = null;
   save(); room.report(G);
   render();
+  partnerSoon();
 }
 function useHint() {
   if (!playable()) return;
@@ -265,13 +289,41 @@ function useHint() {
   G.run.hints++;
   const r = place(G.P, G.run, G.side, h.word, { hint: true });
   cursor = null; typed = "";
+  if (G.partner && r === "placed") G.by.push(-2);
   if (r === "done") { finish(); render(true); return; }
   note(`Hint: ${CAPS(h.word)}, then ${plural(h.left, "step")} to the ${G.side === "bottom" ? "first" : "last"} word.`, "good");
   save(); room.report(G);
   render(true);
+  partnerSoon();
+}
+
+// ---------- the computer as your partner ----------
+// It holds every other letter, dealt as a team's are (the letters that must change first, so both of you are needed),
+// and works down from the first word with you. Whenever the ladder changes it looks for a step it can make with its own
+// letters (partnerMove in ladder-engine.js) and makes it after a person's thinking, or waits for yours; it stands still
+// while the menu is open or the page is away.
+let partnerTimer = 0;
+function partnerSoon() {
+  clearTimeout(partnerTimer);
+  if (!G?.partner || G.run.done || paused || IN_FRAME || document.hidden) return;
+  const at = G.run.top.length, move = partnerMove(G.P, G.run.top, p => G.partner.owners[p] === 1, G.partner.level, randomSeed());
+  G.partner.thinking = !!move;
+  drawRival();
+  if (!move) return;
+  partnerTimer = setTimeout(() => {
+    if (!G?.partner || G.run.done || paused || G.run.top.length !== at) return;
+    const r = place(G.P, G.run, "top", move.word);
+    if (r !== "placed" && r !== "done") { partnerSoon(); return; }
+    G.by.push(1);
+    G.partner.thinking = false;
+    if (cursor && !owns(cursor.pos)) cursor = null;
+    if (r === "done") finish(); else save();
+    render(true);
+    partnerSoon();
+  }, move.think);
 }
 function flip() {
-  if (!playable() || room.oneEnd(G)) return;
+  if (!playable() || oneEnd()) return;
   G.side = G.side === "top" ? "bottom" : "top";
   cursor = null; typed = ""; message = null;
   save();
@@ -315,7 +367,7 @@ function wordRow(r) {
   li.setAttribute("aria-label", CAPS(r.w));
   if (r.end) { li.classList.add("end", r.side === "top" ? "first" : "last"); li.dataset.tag = r.side === "top" ? "first" : "last"; }
   if (G.run.hinted.includes(r.w) && !r.end) li.classList.add("hinted");
-  const by = room.byOf?.(G, r) ?? null;
+  const by = maker(r);
   const hidden = r.end && r.side === "bottom" ? room.sealed?.(G) : null;
   [...r.w].forEach((ch, p) => {
     const changed = r.prev && r.prev.length === r.w.length && r.prev[p] !== ch;
@@ -325,7 +377,7 @@ function wordRow(r) {
       b.setAttribute("aria-label", `Change ${CAPS(ch)}`);
       if (changed) b.classList.add(by != null ? "by" : "ch");
       if (cursor && !cursor.gap && cursor.pos === p) b.classList.add("cur");
-      const own = room.owner?.(G, p);
+      const own = ownerStyle(p);
       if (own) { b.classList.add(own.cls); b.style.setProperty("--who", own.who); }
       b.addEventListener("click", () => tapLetter(p));
       li.append(b);
@@ -407,11 +459,22 @@ function drawStrip() {
 function drawRival() {
   const box = $("rival");
   if (G.mode !== "solo") { room.drawLine(box, G); return; }
-  if (!G.rival) { box.hidden = true; return; }
+  let text, who = "var(--brass)";
+  if (G.partner) {
+    const name = RIVALS[G.partner.level].label, its = G.by.filter(b => b === 1).length;
+    text = G.run.done ? `${name}, your partner: ${plural(its, "rung")} of the ladder` : `${name}, your partner: ${G.partner.thinking ? "thinking" : "waiting for you"}`;
+    who = "var(--p1)";
+  } else if (G.rival) {
+    const { plan, level } = G.rival, at = rivalAt(plan, elapsed()), all = plan.route.length - 1, name = RIVALS[level].label;
+    text = at >= all ? `${name}: done in ${all}${all === G.P.par ? ", par" : `, ${all - G.P.par} over`}, ${fmt(plan.at.at(-1) / 1000)}` : `${name}: ${plural(at, "rung")}`;
+  } else { box.hidden = true; return; }
   box.hidden = false;
-  const { plan, level } = G.rival, at = rivalAt(plan, elapsed()), all = plan.route.length - 1, name = RIVALS[level].label;
-  const text = at >= all ? `${name}: done in ${all}${all === G.P.par ? ", par" : `, ${all - G.P.par} over`}, ${fmt(plan.at.at(-1) / 1000)}` : `${name}: ${plural(at, "rung")}`;
-  if (box.dataset.t !== text) { box.dataset.t = text; box.replaceChildren(Object.assign(el("span", "ld-who"), { textContent: text })); }
+  if (box.dataset.t !== text) {
+    box.dataset.t = text;
+    const s = Object.assign(el("span", "ld-who"), { textContent: text });
+    s.style.setProperty("--who", who);
+    box.replaceChildren(s);
+  }
 }
 function drawSay() {
   const P = G.P, say = $("say");
@@ -429,7 +492,7 @@ function drawLine() {
   else if (typed) text = "Typing a word: Enter puts it on the ladder.";
   else if (cursor?.gap) text = "A letter to add here, from the keys.";
   else if (cursor) text = `${CAPS(work()[cursor.pos])} to what? A key changes it${grow() ? "; ⌫ drops it" : ""}.`;
-  else if (G.mode === "team") text = `Tap one of your letters of ${CAPS(work())}, then its new letter.`;
+  else if (G.mode === "team" || G.partner) text = `Tap one of your letters of ${CAPS(work())}, then its new letter.`;
   else text = `Tap a letter of ${CAPS(work())}${grow() ? " or a gap" : ""}, then its new letter.`;
   if (l.textContent !== text) l.textContent = text;
   l.className = `ld-line${message?.tone ? ` ${message.tone}` : ""}`;
@@ -438,7 +501,7 @@ function drawTools() {
   const live = playable();
   $("undoBtn").disabled = !live || (G.run.top.length < 2 && G.run.bottom.length < 2);
   $("hintBtn").disabled = !live;
-  const one = room.oneEnd(G);
+  const one = oneEnd();
   $("flipBtn").disabled = !live || one;
   $("flipBtn").querySelector("b").textContent = G.side === "top" ? "Work up" : "Work down";
   $("flipBtn").setAttribute("aria-label", G.side === "top" ? "Work up from the last word" : "Work down from the first word");
@@ -460,7 +523,8 @@ function drawResult() {
   const best = read(BESTS, {})[bestKey(G)];
   const v = $("verdict");
   v.className = `ld-verdict${over === 0 ? " good" : ""}`;
-  const rival = G.rival ? rivalLine() : "";
+  // a partner's: who made the steps (the makers run one a step, the last one the step onto the last word)
+  const rival = G.rival ? rivalLine() : G.partner ? `You made ${plural(G.by.filter(b => b === 0).length, "step")}, ${RIVALS[G.partner.level].label} ${G.by.filter(b => b === 1).length}.` : "";
   v.replaceChildren(`${head} Score ${fmt(sc)}.`, el("small", "", `${bits.join(", ")}.${G.fresh ? " A new best." : best != null ? ` Best ${fmt(best)}.` : ""}${rival ? ` ${rival}` : ""}`));
   $("more").textContent = routesLine();
   $("nextBtn").textContent = G.kind === "book" && G.P.chapter < BOOK.length - 1 ? "Next chapter" : G.kind === "daily" ? "A random ladder" : "Another ladder";
@@ -565,7 +629,11 @@ function openMenu() {
   if (pick === "book") content.append(bookList());
   const settings = part(body, "settings");
   if (pick !== "book" && pick !== "daily") settings.append(choice("Rules", Object.entries(RULES), prefs.rules, v => { prefs.rules = v; keepPrefs(); }));
-  settings.append(choice("Race the computer", [["off", "Off"], ...Object.entries(RIVALS).map(([k, r]) => [k, r.label])], prefs.rival, v => { prefs.rival = v; keepPrefs(); }));
+  settings.append(choice("The computer", [["off", "Off"], ["rival", "Rival"], ["partner", "Partner"]], prefs.computer, v => { prefs.computer = v; keepPrefs(); openMenu(); }));
+  if (prefs.computer !== "off") {
+    settings.append(choice("Its level", Object.entries(RIVALS).map(([k, r]) => [k, r.label]), prefs.cpu, v => { prefs.cpu = v; keepPrefs(); }));
+    if (prefs.computer === "partner") settings.append(line("It holds every other letter of a random or linked Classic ladder, from the next one."));
+  }
   const pars = read(PARS, { now: 0, best: 0 }), best = G ? read(BESTS, {})[bestKey(G)] : null;
   part(body, "about").append(
     line(`${G ? `${G.kind === "daily" ? "Today's" : LEVELS[G.P.level || levelOf(G.P)].label}: ${best != null ? `best ${fmt(best)}` : "not climbed yet"}. ` : ""}Clean pars in a row ${pars.now}, most ${pars.best}. A step over par adds ${OVER} s, a hint ${HINT} s.`),
@@ -642,7 +710,7 @@ $("level").addEventListener("change", () => {
   if (confirmLeave()) deal(G.kind === "linked" ? "linked" : "random", { level });
   else $("level").value = G.P.level || levelOf(G.P);
 });
-document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); room.resync(); } });
+document.addEventListener("visibilitychange", () => { if (document.hidden) { clockPause(); clearTimeout(partnerTimer); } else { clockRun(); partnerSoon(); room.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) room.resync(); });
 window.addEventListener("pagehide", () => clockPause());
 window.addEventListener("hashchange", () => { const x = fromHash(); if (!room.on && x && !sameLadder(G, x)) begin(x); });
@@ -663,7 +731,7 @@ function solo() {
   if (forToday && !IN_FRAME && !(G?.kind === "daily" && G.P.day === today())) {
     if (!started() || confirm("Today's ladder is waiting. Leave the one you've started?")) { deal("daily"); return; }
   }
-  if (G) { history.replaceState(null, "", hashFor(G)); clockRun(); render(); }
+  if (G) { history.replaceState(null, "", hashFor(G)); clockRun(); render(); partnerSoon(); }
   else deal(dailyDue("ladder") && !IN_FRAME ? "daily" : prefs.kind);
 }
 // a table in the address: its ladder, with no solo one dealt under it

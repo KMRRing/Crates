@@ -2,9 +2,9 @@
 // at each level across many seeds, the grading, hints, the computer players, a run through JSON, the daily, and every
 // one of the book's and the linked pairs played.
 import { ACCEPT, COMMON, LENGTHS, LEVELS, LEVEL_ORDER, OVER, HINT, RIVALS, graphFor, isStep, isRung, rarity, analyse, distance, routeFrom, search, effort, fits, levelOf, generate, isEnd, inflected, apart,
-  newRun, place, undo, working, words, steps, hintFor, score, rivalPlan, rivalAt, rng } from "../ladder-engine.js";
+  newRun, place, undo, working, words, steps, hintFor, score, rivalPlan, rivalAt, partnerMove, rng } from "../ladder-engine.js";
 import { BOOK, CARROLL, KINBOTE, LINKED, THEMES, linkedFor } from "../ladder-pairs.js";
-import { dealFor, freshTable, isTable, defaultMode, startTable, teamMove, teamUndo, teamHint, teamOn, mustChange, raceReport, raceOrder, raceOver, teamResult } from "../ladder-table.js";
+import { dealFor, freshTable, isTable, defaultMode, startTable, teamMove, teamUndo, teamHint, teamOn, mustChange, lettersFor, raceReport, raceOrder, raceOver, teamResult } from "../ladder-table.js";
 import { sayReady, noteRun, runOf, standings, resultOf, rematch } from "../duel-core.js";
 import { roundTrip } from "./rtdb.js";
 
@@ -161,6 +161,42 @@ function countByHand(P, cap = 50) {
   const P = pool[0], a = rivalPlan(P, "club", 3), b = rivalPlan(P, "club", 3);
   check(JSON.stringify(a) === JSON.stringify(b) && rivalAt(a, 0) === 0 && rivalAt(a, a.at.at(-1)) === a.route.length - 1, "the same seed, the same climb; its rungs appear as their moments pass");
   check(time("master") / 1000 >= 10, "even a master takes a person's time");
+}
+
+// ---------- the computer as a partner, holding half the letters ----------
+{
+  const climb = (P, owners, level, me = null) => {
+    // the computer holds slot 1's letters; "me" plays slot 0's along the commonest route when it's my letter next
+    const ws = [P.start];
+    for (let turn = 0; turn < 40 && ws.at(-1) !== P.end; turn++) {
+      const m = partnerMove(P, ws, p => owners[p] === 1, level, 7 + turn);
+      if (m) { ws.push(m.word); continue; }
+      const next = me ? me(ws) : null;
+      if (!next) return { ws, stuck: true };
+      ws.push(next);
+    }
+    return { ws, stuck: ws.at(-1) !== P.end };
+  };
+  const mineNext = (P, owners) => ws => { const R = routeFrom(P, ws.at(-1), P.end, ws); if (!R || R.length < 2) return null; const p = [...R[0]].findIndex((c, i) => c !== R[1][i]); return owners[p] === 0 ? R[1] : null; };
+  let valid = true, theirsOnly = true, waits = 0, atPar = 0, n = 0;
+  for (let k = 0; k < 16; k++) {
+    const P = generate(900 + k, { level: k % 2 ? "medium" : "easy", lengths: [4] }), owners = lettersFor(P, [0, 1], 1 + (k % 2));
+    const res = climb(P, owners, "master", mineNext(P, owners));
+    n++;
+    if (!isLadder(P, res.ws)) valid = false;
+    for (let i = 1; i < res.ws.length; i++) {
+      const p = [...res.ws[i - 1]].findIndex((c, j) => c !== res.ws[i][j]);
+      if (partnerMove(P, res.ws.slice(0, i), q => owners[q] === 1, "master", 1)?.word === res.ws[i] && owners[p] !== 1) theirsOnly = false;
+    }
+    if (res.ws.length - 1 === P.par) atPar++;
+    if (partnerMove(P, [P.start], p => owners[p] === 1, "master", 1) === null) waits++;
+  }
+  check(valid, "a person and a master partner, each changing only their own letters, climb whole ladders");
+  check(theirsOnly, "the computer only ever changes the letters it holds");
+  check(atPar === n, `with a master partner and a careful player the team finds par (${atPar} of ${n})`);
+  check(waits > 0 && waits < n, `when the next step is yours, the computer waits for you (${waits} of ${n} first steps)`);
+  const P = analyse("cold", "warm"), m = partnerMove(P, ["cold"], () => true, "novice", 3);
+  check(m && isStep("cold", m.word) && m.think >= RIVALS.novice.think * 0.6, "a novice partner moves too, after a novice's thinking");
 }
 
 // ---------- the daily ----------

@@ -46,11 +46,13 @@ export const mustChange = P => [...P.start].map((c, p) => (c !== P.end[p] ? p : 
  * seat order, then the rest, starting a step further each game. So while there are as many letters to change as
  * players, everyone holds one that every ladder must change, and nobody can climb it alone.
  */
-export function ownersFor(g, P) {
-  const slots = seated(g).map(([, p]) => p.slot), owners = Array(P.start.length).fill(slots[0] ?? 0);
+export const ownersFor = (g, P) => lettersFor(P, seated(g).map(([, p]) => p.slot), g.n || 1);
+/** The same deal for any seats (`slots`, in order) in game n: a table's, or a solo player and the computer's. */
+export function lettersFor(P, slots, n = 1) {
+  const owners = Array(P.start.length).fill(slots[0] ?? 0);
   if (!slots.length) return owners;
   const must = mustChange(P), rest = [...P.start].map((_, p) => p).filter(p => !must.includes(p));
-  [...must, ...rest].forEach((p, k) => { owners[p] = slots[(k + (g.n || 1) - 1) % slots.length]; });
+  [...must, ...rest].forEach((p, k) => { owners[p] = slots[(k + n - 1) % slots.length]; });
   return owners;
 }
 /** Whether a ladder splits for a team of n: as many letters to change as players. */

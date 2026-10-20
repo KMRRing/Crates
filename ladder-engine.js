@@ -492,3 +492,31 @@ export function rivalPlan(P, level = "club", seed = 1) {
 }
 /** The rungs a computer player has placed by `ms` into its climb. */
 export const rivalAt = (plan, ms) => plan.at.filter(t => t <= ms).length;
+
+/**
+ * A computer partner's move in a shared ladder, where it may change only the letters it holds (`mine(p)`): the next
+ * rung it would make from the last of `words`, and how long it thinks first; or null when the way on it sees starts
+ * with someone else's letter, and it waits for them. A master takes a step of a shortest route with its own letter
+ * whenever there is one; a club player or a novice follows the route its own search finds (weightier, fewer words),
+ * which may be longer, and acts only when that route's next letter is its own.
+ */
+export function partnerMove(P, words, mine, level = "club", seed = 1) {
+  const R = RIVALS[level] || RIVALS.club, r = rng(seed), g = graphOf(P), from = words.at(-1);
+  const changedAt = (a, b) => [...a].findIndex((c, i) => c !== b[i]);
+  const think = Math.round(R.think * (0.6 + r() * 0.8));
+  if (level === "master") {
+    const s = idOf(g, from), e = idOf(g, P.end), used = new Set(words.map(w => g.at.get(w)));
+    if (s < 0 || e < 0) return null;
+    const de = reach(g, e, { ends: [s, e], avoid: new Set([...used].filter(i => i !== s && i !== e)) });
+    let best = -1;
+    for (const v of g.adj[s]) {
+      if (de[v] !== de[s] - 1 || used.has(v) || (v >= g.base && v !== e) || !mine(changedAt(from, g.words[v]))) continue;
+      if (best < 0 || g.cost[v] < g.cost[best] || (g.cost[v] === g.cost[best] && g.words[v] < g.words[best])) best = v;
+    }
+    return best < 0 ? null : { word: g.words[best], think };
+  }
+  const found = search(P, { from, vocab: R.vocab, weight: R.weight, rng: r, avoid: words }) || search(P, { from, vocab: COMMON, avoid: words });
+  if (!found || found.route.length < 2) return null;
+  const next = found.route[1];
+  return next.length === from.length && mine(changedAt(from, next)) ? { word: next, think: think + R.per * Math.min(found.tries, 20) } : null;
+}
