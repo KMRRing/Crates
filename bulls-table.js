@@ -27,10 +27,7 @@ export function dealGame({ kind = "break", play = "team", variant = "classic", l
   if (kind === "break") game.variant = VARIANTS[variant] ? variant : "classic";
   else {
     game.level = LOCK_LEVELS[level] ? level : "medium";
-    if (play === "team") {
-      const lock = makeLock(game.level, seed, { minClues: Math.min(ring.length, 4) });
-      game.hands = Object.fromEntries(shareClues(lock, ring.length).map((h, i) => [sk(ring[i]), h]));
-    }
+    if (play === "team") game.hands = Object.fromEntries(shareClues(lockOf(game), ring.length).map((h, i) => [sk(ring[i]), h]));
   }
   if (play === "team") game.board = kind === "break" ? { rows: [] } : { tries: [], strikes: 0 };
   else game.seats = {};
@@ -67,12 +64,16 @@ export function tidy(g) {
 
 // ---------- what each seat breaks, and sees ----------
 const LOCKS = new Map();
-/** The game's lock (made from its seed and level, the same on every phone; a team's with a clue for each of its seats). */
+const lockKey = G => `${G.level}/${G.seed}/${G.play === "team" ? Math.min(G.ring.length, 4) : 0}`;
+/** The game's lock (made from its seed and level, the same on every phone; a team's with a clue for each of its seats,
+ *  four at the most), made once. */
 export function lockOf(G) {
-  const key = `${G.level}/${G.seed}/${G.play === "team" ? Math.min(G.ring.length, 4) : 0}`;
+  const key = lockKey(G);
   if (!LOCKS.has(key)) { LOCKS.set(key, makeLock(G.level, G.seed, { minClues: G.play === "team" ? Math.min(G.ring.length, 4) : 0 })); if (LOCKS.size > 8) LOCKS.delete(LOCKS.keys().next().value); }
   return LOCKS.get(key);
 }
+/** Whether the game's lock is made already (an Expert takes a moment: a page shows the rete while it's made). */
+export const lockReady = G => G.kind !== "lock" || LOCKS.has(lockKey(G));
 /** Versus: the seat whose code this seat breaks (the one before it round the table). */
 export function setterOf(G, slot) {
   const i = G.ring.indexOf(slot);

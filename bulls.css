@@ -1,0 +1,195 @@
+/* Bulls: a Mastermind board as an instrument. The code hides under a brass shutter at the head of the board; the rows
+   below take every guess, each with its key pegs (a bull filled in ink, a cow a ring); the entry row, the pegs to pick
+   from and the buttons stand under the board, where a thumb is. Oxblood, the bull's colour, is the house enamel. */
+:root { --bu-in: #8F3328; --bu-good: #2F7D5B; --bu-bad: #A8382B; --bu-rowh: 1.9rem; --bu-peg-rim: rgba(28, 42, 52, .55); }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806F; --bu-peg-rim: rgba(236, 226, 203, .5); }
+
+.bu-mark { display: inline-block; }
+.bu-mark svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- the pegs: enamel domes, each colour with its own mark ---------- */
+.bu-peg { --peg: #8C8C8C; --mark: #F7F1E3; position: relative; display: inline-grid; place-items: center; box-sizing: border-box; flex: none;
+  width: var(--size, 1.5rem); height: var(--size, 1.5rem); border-radius: 50%; color: var(--mark);
+  background: radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--peg) 52%, #fff) 0, var(--peg) 46%, color-mix(in srgb, var(--peg) 72%, #000) 100%);
+  box-shadow: 0 0 0 1px var(--bu-peg-rim), 0 1px 1.5px rgba(0, 0, 0, .25); }
+.bu-peg svg { width: 72%; height: 72%; fill: currentColor; display: block; }
+.bu-peg[data-c="0"] { --peg: #B23A2C; --mark: #F7F1E3; }   /* red, a triangle */
+.bu-peg[data-c="1"] { --peg: #E2A72A; --mark: #1C2A34; }   /* yellow, a dot */
+.bu-peg[data-c="2"] { --peg: #2E7D5A; --mark: #F7F1E3; }   /* green, a square */
+.bu-peg[data-c="3"] { --peg: #2C5B95; --mark: #F7F1E3; }   /* blue, a diamond */
+.bu-peg[data-c="4"] { --peg: #F2ECDD; --mark: #1C2A34; }   /* white, a cross */
+.bu-peg[data-c="5"] { --peg: #26323D; --mark: #F2D58C; }   /* black, a star */
+.bu-peg[data-c="6"] { --peg: #7A3F86; --mark: #F7F1E3; }   /* purple, a ring */
+.bu-peg[data-c="7"] { --peg: #D06A28; --mark: #1C2A34; }   /* orange, a bar */
+/* Bulls and Cows: digits on paper tiles instead of colours */
+.bu-peg.digit { border-radius: 4px; background: var(--tile); color: var(--ink); box-shadow: inset 0 0 0 1px var(--tile-edge);
+  font-weight: 800; font-size: calc(var(--size, 1.5rem) * .62); line-height: 1; font-variant-numeric: tabular-nums; }
+.bu-peg.empty { background: none; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 22%, transparent); }
+/* notes: a symbol ruled out is faded and struck through, one known to be in is ringed in the house colour */
+.bu-peg.out { opacity: .32; }
+.bu-peg.out::after { content: ""; position: absolute; left: 12%; right: 12%; top: 50%; height: 2px; margin-top: -1px; background: var(--ink); transform: rotate(-38deg); border-radius: 1px; }
+.bu-peg.in { box-shadow: 0 0 0 2px var(--sheet), 0 0 0 3.5px var(--bu-in); }
+.bu-peg.auto.out::after { background: color-mix(in srgb, var(--ink) 60%, transparent); }
+
+/* ---------- the strip: where you are, who's at the table, what's left ---------- */
+.bu-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .5rem 0 .35rem; font-size: .9rem; color: var(--ink-soft); white-space: nowrap; min-height: 1.6rem; }
+.bu-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.bu-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.bu-aside { flex: none; font-variant-numeric: tabular-nums; }
+.bu-team { flex: 1 1 auto; min-width: 0; display: flex; justify-content: center; gap: .3rem; overflow: hidden; }
+.bu-team[hidden] { display: none; }
+.bu-by { flex: none; display: inline-grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--who, var(--p0));
+  color: var(--sheet); font-size: .68rem; font-weight: 800; font-style: normal; line-height: 1; }
+.bu-team .bu-by.me { box-shadow: 0 0 0 1.5px var(--sheet), 0 0 0 3px var(--who, var(--p0)); }
+.bu-team .bu-by.away { opacity: .4; }
+.bu-rival { margin: 0 0 .35rem; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.2em; }
+.bu-rival b { color: var(--ink); font-weight: 800; }
+.bu-rival[hidden] { display: none; }
+
+/* ---------- the board: a stage framed in a double rule ---------- */
+.bu-board { display: flex; flex-direction: column; min-height: 0; padding: .5rem .6rem .45rem; border-radius: 6px; background: var(--sheet);
+  border: 1px solid var(--brass); box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }
+.bu-tabs { display: flex; gap: .3rem; margin: 0 0 .4rem; flex: none; }
+.bu-tabs[hidden] { display: none; }
+.bu-tabs button { flex: 1 1 0; min-width: 0; padding: .32rem .4rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: none; color: var(--ink-soft);
+  font: inherit; font-size: .74rem; font-weight: 750; letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.bu-tabs button[aria-selected="true"] { background: color-mix(in srgb, var(--bu-in) 15%, var(--sheet)); border-color: var(--bu-in); color: var(--ink); }
+/* the code under its shutter: brass hatching with a hole for each peg; open, the code itself */
+.bu-shield { flex: none; display: flex; align-items: center; gap: .55rem; padding: .3rem .5rem; margin-bottom: .45rem; border-radius: 4px; min-height: 2.25rem;
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--brass) 26%, var(--sheet)) 0 6px, color-mix(in srgb, var(--brass) 14%, var(--sheet)) 6px 12px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 60%, transparent); }
+.bu-shield .lab { flex: none; font-size: .64rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.bu-shield .code { display: flex; gap: .35rem; --size: 1.55rem; }
+.bu-shield .hole { display: inline-grid; place-items: center; width: var(--size); height: var(--size); border-radius: 50%; background: color-mix(in srgb, var(--ink) 70%, var(--sheet));
+  color: var(--sheet); font-weight: 800; font-size: .8rem; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .5); }
+.bu-shield .note { margin-left: auto; font-size: .75rem; color: var(--ink-soft); text-align: right; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bu-shield.open { background: color-mix(in srgb, var(--bu-in) 10%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--bu-in); }
+.bu-shield.open .code .bu-peg { animation: bu-reveal .35s ease-out both; }
+.bu-shield.open .code .bu-peg:nth-child(2) { animation-delay: .06s; } .bu-shield.open .code .bu-peg:nth-child(3) { animation-delay: .12s; }
+.bu-shield.open .code .bu-peg:nth-child(4) { animation-delay: .18s; } .bu-shield.open .code .bu-peg:nth-child(5) { animation-delay: .24s; }
+@keyframes bu-reveal { from { transform: scale(.4) rotateY(80deg); opacity: 0; } }
+
+/* the rows: as many as the board has, sized to the room (bulls.js sets --bu-rowh), scrolling only where the room is short */
+.bu-rows { list-style: none; margin: 0; padding: 0; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
+.bu-row { --size: calc(var(--bu-rowh) * .74); display: grid; grid-template-columns: 1.5rem auto minmax(0, 1fr) auto; align-items: center; column-gap: .55rem;
+  flex: none; height: var(--bu-rowh); padding: 0 .25rem; border-radius: 4px; border-bottom: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
+.bu-row:last-child { border-bottom: 0; }
+.bu-row .n { font-size: .68rem; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; text-align: right; }
+.bu-row .pegs { display: flex; gap: calc(var(--size) * .22); }
+.bu-row .left { justify-self: end; font-size: .72rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bu-row .say { font-size: .74rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.bu-row.copyable { cursor: pointer; }
+.bu-row.now { background: color-mix(in srgb, var(--brass) 12%, transparent); }
+.bu-row.now .n { color: var(--brass-lo); }
+.bu-row.future .n { opacity: .45; }
+.bu-row.sealed .pegs { opacity: .9; }
+.bu-row .who { margin-left: .2rem; }
+.bu-row.mine-team .keys { opacity: 1; }
+/* the key pegs: a bull is a peg of ink, a cow a ring; a square of them as the board has them */
+.bu-keys { display: grid; grid-template-columns: repeat(var(--kc, 2), auto); gap: 2px; justify-self: end; place-items: center; }
+/* an empty hole is a small dimple, so it never reads as a cow's ring */
+.bu-key { width: calc(var(--bu-rowh) * .27); height: calc(var(--bu-rowh) * .27); border-radius: 50%; display: grid; place-items: center; }
+.bu-key::before { content: ""; width: 34%; height: 34%; border-radius: 50%; background: color-mix(in srgb, var(--ink) 22%, transparent); }
+.bu-key.bull { background: var(--ink); }
+.bu-key.cow { background: var(--sheet); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.bu-key.bull::before, .bu-key.cow::before { content: none; }
+/* a key you're not shown (Team: your own guess's, which the others see) */
+.bu-sealed { display: inline-grid; place-items: center; height: calc(var(--bu-rowh) * .62); padding: 0 .4rem; border-radius: 3px; font-size: .62rem; font-weight: 800; color: var(--ink-soft);
+  background: repeating-linear-gradient(135deg, var(--tile) 0 4px, color-mix(in srgb, var(--tile-edge) 60%, var(--tile)) 4px 5px); box-shadow: inset 0 0 0 1px var(--tile-edge); white-space: nowrap; }
+/* Lock: a clue you don't hold (Team) */
+.bu-row.hidden-clue .pegs { filter: blur(0); }
+.bu-row .tag { font-size: .66rem; font-weight: 800; color: var(--ink-soft); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); }
+
+/* ---------- under the board: what to do, the entry row, the pegs to pick, the buttons ---------- */
+.bu-side { display: grid; align-content: start; margin-top: .5rem; }
+.bu-side > .bu-play, .bu-side > .bu-result { grid-area: 2 / 1; }
+/* what to do or what happened: always two lines' room (three in a lock, whose hints are longer), so a message never
+   moves the board */
+.bu-line { grid-area: 1 / 1; margin: 0 0 .4rem; height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+  font-size: .86rem; line-height: 1.3; color: var(--ink-soft); }
+#app.locking .bu-line { height: 3.9em; -webkit-line-clamp: 3; }
+.bu-line b { color: var(--ink); font-weight: 800; }
+.bu-line.good { color: var(--bu-good); }
+.bu-line.bad { color: var(--bu-bad); }
+.bu-play { display: grid; gap: .45rem; }
+.bu-play[hidden], .bu-result[hidden] { display: none; }
+.bu-entry { display: flex; justify-content: center; align-items: center; gap: .55rem; min-height: 3.2rem; --size: 2.75rem; }
+.bu-entry.five { --size: 2.4rem; gap: .45rem; }
+.bu-slot { padding: 0; border: 0; background: none; border-radius: 50%; cursor: pointer; line-height: 0; -webkit-tap-highlight-color: transparent; }
+.bu-slot.digit-slot { border-radius: 6px; }
+.bu-slot[aria-pressed="true"] .bu-peg { box-shadow: 0 0 0 2px var(--sheet), 0 0 0 4px var(--brass); }
+.bu-slot[aria-pressed="true"] .bu-peg.empty { box-shadow: inset 0 0 0 2px var(--brass); }
+.bu-entry .fitmark { position: absolute; }
+/* the pegs to pick from: one row of colours, or the ten digits in two */
+.bu-pad { display: grid; grid-template-columns: repeat(var(--cols, 6), minmax(0, 1fr)); gap: .35rem; }
+.bu-pick { display: grid; place-items: center; min-height: 2.9rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 5px; background: var(--tile); cursor: pointer;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; --size: 2rem; }
+.bu-pad.digits .bu-pick { min-height: 2.5rem; --size: 2.2rem; }
+.bu-pick .bu-peg.digit { background: none; box-shadow: none; font-size: 1.35rem; }   /* the key is the tile: its digit needs none of its own */
+.bu-pad.eight .bu-pick { --size: 1.75rem; }
+.bu-pick:active { transform: scale(.96); }
+.bu-pick:disabled { cursor: default; }
+.bu-pick.used .bu-peg { opacity: .35; }
+.bu-pad.noting .bu-pick { border-style: dashed; border-color: var(--bu-in); }
+.bu-acts { display: flex; gap: .4rem; }
+.bu-acts .bu-go { flex: 1 1 auto; min-width: 0; }
+.bu-act { min-height: 2.9rem; padding: 0 .8rem; border: 1.5px solid var(--brass); border-radius: 4px; background: none; color: var(--ink); font: inherit; font-size: .8rem; font-weight: 750;
+  font-stretch: var(--stretch-btn); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer; white-space: nowrap; }
+.bu-act[hidden] { display: none; }
+.bu-act[aria-pressed="true"] { background: color-mix(in srgb, var(--bu-in) 15%, var(--sheet)); border-color: var(--bu-in); }
+.bu-act:disabled { opacity: .4; cursor: default; }
+.bu-act svg { width: 1.35rem; height: 1.35rem; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.bu-go { min-height: 2.9rem; padding: 0 1rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.bu-go:disabled { opacity: .45; cursor: default; }
+.bu-result { display: grid; gap: .5rem; align-content: start; }
+.bu-verdict { margin: 0; font-size: 1.02rem; font-weight: 750; line-height: 1.3; }
+.bu-verdict.good { color: var(--bu-good); }
+.bu-verdict small { display: block; margin-top: .2rem; font-size: .84rem; font-weight: 600; color: var(--ink-soft); }
+.bu-result-acts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .4rem; }
+.bu-result-acts .bu-act[hidden] + .bu-go { grid-column: 1 / -1; }
+
+.bu-done .duel-rank { margin-top: .5rem; }
+.bu-done p { margin: .4rem 0; }
+.bu-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.bu-toast.show { opacity: 1; }
+
+/* a short phone: the board gives the controls their room */
+@media (max-height: 620px) and (orientation: portrait) {
+  .bu-strip { margin: .3rem 0 .25rem; }
+  .bu-line { margin-bottom: .3rem; font-size: .8rem; }
+  .bu-entry { min-height: 2.9rem; --size: 2.45rem; }
+  .bu-pick { min-height: 2.6rem; }
+  .bu-pad.digits .bu-pick { min-height: 2.2rem; }
+  .bu-act, .bu-go { min-height: 2.6rem; }
+  .bu-shield { min-height: 2rem; margin-bottom: .3rem; }
+}
+
+/* held sideways: the board on the left with all the height; the strip, the line, the entry and the pegs beside it,
+   the buttons low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.bulls { --beside: 23rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
+  #app.bulls .bu-strip { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.bulls .bu-rival { grid-column: 2; grid-row: 3; }
+  #app.bulls .bu-board { grid-column: 1; grid-row: 2 / -1; margin-top: .8rem; }
+  #app.bulls .bu-side { grid-column: 2; grid-row: 4; align-content: end; margin-top: 0; }
+  #app.bulls .bu-entry { --size: 3rem; }
+}
+
+/* ---------- the themes: Almanac's ornaments (the double rule, the brass hatching, the domed enamel) are its own ---------- */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-board { box-shadow: none; border-color: var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-shield { background: color-mix(in srgb, var(--ink) 8%, var(--sheet)); box-shadow: inset 0 0 0 1px var(--tile-edge); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .bu-go { outline: 0; }
+html[data-theme="modern"] .bu-board { border-radius: 16px; }
+html[data-theme="modern"] :is(.bu-go, .bu-act, .bu-pick) { border-radius: 12px; }
+html[data-theme="modern"] .bu-go { letter-spacing: normal; text-transform: none; font-stretch: 100%; font-size: 1rem; }
+html:is([data-theme="kontor"], [data-theme="office"]) .bu-peg:not(.digit) { background: var(--peg); }
+html[data-theme="kontor"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 2px; }
+html[data-theme="kontor"] .bu-pick { border-width: 1px; }
+html[data-theme="office"] :is(.bu-board, .bu-shield, .bu-go, .bu-act, .bu-pick, .bu-tabs button) { border-radius: 4px; }

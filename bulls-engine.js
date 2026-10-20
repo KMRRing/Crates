@@ -119,7 +119,11 @@ export function fitting(id, rows) {
   for (let j = 0; j < sp.N; j++) if (rk.every(r => r.i >= 0 && keyFor(sp, r.i, j) === r.k)) out.push(j);
   return out;
 }
-export const countFitting = (id, rows) => fitting(id, rows).length;
+/** Of the codes `fit` (indices), those one more row allows: the rows' codes narrowed a row at a time. */
+export function narrow(id, fit, row) {
+  const sp = space(id), i = indexOf(sp, row.g), k = keyOf(row.b, row.c);
+  return i < 0 ? [] : fit.filter(j => keyFor(sp, i, j) === k);
+}
 /** Whether a guess could still be the code: it scores against every row as the rows were scored. */
 export function fits(id, rows, guess) {
   return rows.every(r => { const s = score(r.g, guess); return s.b === r.b && s.c === r.c; });

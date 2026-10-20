@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Bulls</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="bulls.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<!-- the mark each colour carries, so a colour reads by its shape too (and in every theme) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="bu-m0" viewBox="0 0 20 20"><path d="M10 4.6L15.6 14.4H4.4Z"/></symbol>
+  <symbol id="bu-m1" viewBox="0 0 20 20"><circle cx="10" cy="10" r="3.9"/></symbol>
+  <symbol id="bu-m2" viewBox="0 0 20 20"><path d="M6 6H14V14H6Z"/></symbol>
+  <symbol id="bu-m3" viewBox="0 0 20 20"><path d="M10 4.4L15.6 10L10 15.6L4.4 10Z"/></symbol>
+  <symbol id="bu-m4" viewBox="0 0 20 20"><path d="M8.5 4.6H11.5V8.5H15.4V11.5H11.5V15.4H8.5V11.5H4.6V8.5H8.5Z"/></symbol>
+  <symbol id="bu-m5" viewBox="0 0 20 20"><path d="M10 4.2L11.5 8L15.5 8.2L12.4 10.8L13.4 14.7L10 12.5L6.6 14.7L7.6 10.8L4.5 8.2L8.5 8Z"/></symbol>
+  <symbol id="bu-m6" viewBox="0 0 20 20"><circle cx="10" cy="10" r="4.1" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="bu-m7" viewBox="0 0 20 20"><path d="M4.8 8.4H15.2V11.6H4.8Z"/></symbol>
+</svg>
+<div id="app" class="bulls fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon bu-mark" aria-hidden="true"></span>Bulls</button></h1>
+    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+
+  <div class="bu-strip"><span id="where" class="bu-where"></span><span id="team" class="bu-team" hidden></span><span id="aside" class="bu-aside"></span></div>
+  <p id="rival" class="bu-rival" hidden></p>
+
+  <section id="board" class="bu-board fit-grow" aria-label="The board">
+    <div id="tabs" class="bu-tabs" role="tablist" hidden></div>
+    <div id="shield" class="bu-shield"></div>
+    <ol id="rows" class="bu-rows"></ol>
+  </section>
+
+  <section class="bu-side">
+    <p id="line" class="bu-line" aria-live="polite"></p>
+    <div id="play" class="bu-play">
+      <div id="entry" class="bu-entry" role="group" aria-label="Your guess"></div>
+      <div id="pad" class="bu-pad" role="group" aria-label="Colours"></div>
+      <div class="bu-acts">
+        <button id="notesBtn" class="bu-act" type="button" aria-pressed="false">Notes</button>
+        <button id="backBtn" class="bu-act" type="button" aria-label="Take the last peg out"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6H20V18H9L3.5 12Z"/><path d="M12.5 9.5L17 14.5M17 9.5L12.5 14.5"/></svg></button>
+        <button id="hintBtn" class="bu-act" type="button" hidden>Hint</button>
+        <button id="goBtn" class="bu-go" type="button">Guess</button>
+      </div>
+    </div>
+    <div id="result" class="bu-result" hidden>
+      <p id="verdict" class="bu-verdict"></p>
+      <div class="bu-result-acts"><button id="moreBtn" class="bu-act" type="button" hidden>The table</button><button id="nextBtn" class="bu-go" type="button">Another</button></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+<dialog id="doneDlg" class="sheet menu-sheet bu-done" aria-label="How it went">
+  <div class="pick-head"><h2 id="doneTitle">How it went</h2><button class="icon-btn menu-x" type="button" id="doneClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div id="doneBody"></div>
+</dialog>
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog">
+    <label for="nameInput">Your name, so the others know who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
+</dialog>
+
+<p id="toast" class="bu-toast" role="status" aria-live="polite"></p>
+<script type="module" src="bulls.js"></script>
+</body>
+</html>
