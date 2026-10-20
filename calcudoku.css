@@ -1,0 +1,81 @@
+/* Calcudoku: the grid on the digit board (digits.css), its cages drawn as heavy rules with their clues in the corner,
+   its clock and kind over it, a line of what's happening and the number pad under it. Verdigris is the house colour:
+   the ink of a digit you write. */
+:root { --calcudoku-in: #2F6F5A; --calcudoku-soft: color-mix(in srgb, var(--calcudoku-in) 15%, var(--sheet)); --cd-good: #2F7D5B; --cd-bad: #A8382B;
+  --cd-logo-tint: #D3E6DE; --cd-logo-edge: var(--logo-edge); }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --calcudoku-in: #7FC2A8; --cd-good: #7FC2A8; --cd-bad: #E8806F; --cd-logo-tint: #1F4038; }
+}
+html[data-mode="night"] { --calcudoku-in: #7FC2A8; --cd-good: #7FC2A8; --cd-bad: #E8806F; --cd-logo-tint: #1F4038; }
+
+#app.calcudoku { --dg-in: var(--calcudoku-in); }
+.cd-mark { display: inline-block; }
+.cd-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the cages' clues: no paper behind them (the rules don't need covering, and a lit cell shows through), and in the
+   cell that holds one, the pencil marks sit under it */
+#app.calcudoku .dg-l { background: none; padding: 0; margin: calc(var(--cell) * .04) 0 0 calc(var(--cell) * .06); font-size: calc(var(--cell) * .25); letter-spacing: -.01em; }
+/* every digit a little smaller and lower than Sudoku's, so it clears the clue over it, and all of a row's stay level */
+#app.calcudoku .dg-v { font-size: calc(var(--cell) * .55); translate: 0 calc(var(--cell) * .09); }
+#app.calcudoku .dg-c.tagged .dg-n { top: 31%; font-size: calc(var(--cell) * .21); }
+/* a cage whose clue someone else holds: its "?" set softer, as a label still to come */
+#app.calcudoku .dg-l.cd-unseen { color: var(--ink-soft); font-weight: 650; }
+
+/* over the grid: the clock (and what hints have added) and the kind of grid on one line that never wraps (a hint's
+   "+30 s" arriving mustn't push the grid down), and at a table or against the computer the others on a line under it */
+.cd-strip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: baseline; column-gap: .8rem; row-gap: .1rem; margin: .55rem 0 .35rem; min-height: 1.75rem; }
+.cd-clock { white-space: nowrap; }
+.cd-clock b { font-size: 1.3rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cd-clock small { margin-left: .4rem; font-size: .76rem; font-weight: 700; color: var(--cd-bad); font-variant-numeric: tabular-nums; }
+.cd-kind { justify-self: end; font-size: .66rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cd-rival { grid-column: 1 / -1; min-width: 0; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cd-rival[hidden] { display: none; }
+.cd-rival b { color: var(--ink); font-weight: 750; }
+
+/* the grid: as large as the room under the strip allows (a little padding for its frame's rule) */
+.cd-stage { padding: .4rem; place-items: start center; }
+.cd-board { width: 100%; height: 100%; display: grid; place-items: start center; }
+
+/* under the grid: a line, then the pad; at the end the result takes the pad's place, the same height */
+.cd-side { display: grid; grid-template-rows: auto auto; margin-top: .45rem; }
+.cd-line { margin: 0 0 .45rem; min-height: 2.6em; font-size: .84rem; line-height: 1.3; color: var(--ink-soft); }
+.cd-line.good { color: var(--cd-good); }
+.cd-line.bad { color: var(--cd-bad); }
+.cd-line.teach { color: var(--ink); }
+.cd-pad, .cd-result { grid-row: 2; grid-column: 1; }
+.cd-pad.away { visibility: hidden; }
+.cd-result { display: grid; align-content: center; gap: .55rem; }
+.cd-result[hidden] { display: none; }
+.cd-verdict { margin: 0; font-size: .98rem; font-weight: 720; line-height: 1.3; color: var(--cd-good); }
+.cd-verdict span { display: block; font-size: .84rem; font-weight: 600; color: var(--ink-soft); margin-top: .15rem; }
+.cd-next { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; }
+.cd-go { min-height: 3rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%;
+  letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.cd-today { min-height: 3rem; margin: 0; }
+.cd-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20; max-width: min(92vw, 30rem); margin: 0;
+  padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.cd-toast.show { opacity: 1; }
+
+/* a short phone: the pad's keys a little lower, so the grid keeps its room; a tall one: the room the grid can't use
+   (it's as wide as the screen already) goes to the keys */
+@media (max-height: 640px) and (orientation: portrait) {
+  .calcudoku .dg-pad { --key-h: 2.8rem; --tool-h: 2.6rem; gap: .3rem; }
+  .cd-line { min-height: 2.5em; margin-bottom: .3rem; font-size: .8rem; }
+}
+@media (min-height: 780px) and (max-width: 599px) and (orientation: portrait) {
+  .calcudoku .dg-pad { --key-h: 3.7rem; --tool-h: 3.3rem; --key-font: 1.7rem; }
+}
+
+/* held sideways: the grid on the left with all the height; the clock, the line and the pad beside it, the keys three
+   across like a phone's (two for a 4×4's four), low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.calcudoku { --beside: 19rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.calcudoku .cd-stage { grid-column: 1; grid-row: 2 / span 2; margin-top: .5rem; }
+  #app.calcudoku .cd-strip { grid-column: 2; grid-row: 2; grid-template-columns: minmax(0, 1fr); margin-top: 1rem; }
+  #app.calcudoku .cd-kind { justify-self: start; }
+  #app.calcudoku .cd-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
+  #app.calcudoku .dg-pad { --pad-cols: 3; --key-h: 3.7rem; --key-font: 1.75rem; }
+  #app.calcudoku.cd-n4 .dg-pad { --pad-cols: 2; }
+  #app.calcudoku .cd-next { grid-auto-flow: row; }
+}

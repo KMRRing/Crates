@@ -17,7 +17,7 @@
 import { shapeOf, rng, mix, below, shuffle, weighted, nearOf, connected, POP } from "./calcudoku-grid.js";
 import { opsFor, targetOf, holds, cagesFor } from "./calcudoku-cage.js";
 import { solver, latinSquare } from "./calcudoku-solve.js";
-import { viewFor, grade, stateOf, nextStep, apply } from "./calcudoku-logic.js";
+import { viewFor, grade, stateOf, nextStep, apply, freshCtx } from "./calcudoku-logic.js";
 
 export const RULES = {
   classic: { label: "Classic", note: "Each cage's target and operation" },
@@ -269,44 +269,54 @@ function clueFor(ds, rules, r) {
  * someone else holds shows as "?"), and what anyone places is everyone's. Half the clues each is too little to get
  * far, so every clue is dealt to one player (in reading order, round the table), and then, a few at a time and at
  * random, clues are shown to everyone, until the relay below finishes: each player works out what they can from what
- * they see, what they find goes to the others, and round again. As few are shared as that takes, so each player still
- * holds clues the others need, and the table can always finish without a word (talking is quicker).
+ * they see, what they find goes to the others, and round again. Shown at random, more are shown than the relay needs
+ * (on a hard grid a player was left holding none), so each shared clue is then offered back to whoever holds fewest,
+ * and kept private where the relay still finishes. So each player holds clues the others need, and the table can
+ * always finish without a word (talking is quicker).
  *
  * A split is a string, a character a cage: the player ("0".."5") who alone sees its clue, or "*" for everyone.
  */
 export function splitFor(p, k, seed) {
   k = Math.max(2, Math.min(6, k | 0));
-  const r = rng(mix(seed, "split", k)), shape = shapeOf(p.n), zeros = new Uint8Array(shape.cells);
+  const r = rng(mix(seed, "split", k)), shape = shapeOf(p.n), zeros = new Uint8Array(shape.cells), cache = new Map();
+  const finishes = parts => relay(p, parts.join(""), k, { cache }).done;
+  const alone = parts => [...Array(k).keys()].some(q => solver(shape, viewOf(p, parts.join(""), q, cache).view.cages).solve(zeros, { limit: 2, maxNodes: 20000 }).count < 2);
   let last = null;
   for (let deal = 0; deal < 4; deal++) {
     const parts = [], start = below(r, k);
     p.cages.forEach((c, i) => { parts[i] = String((start + i) % k); });
-    for (let t = 0; t < 200; t++) {
-      if (relay(p, parts.join(""), k).done) break;
-      // a few at once while most are still private (a whole relay is the price of each look), then one at a time
+    // a few at once while most are still private (a whole relay is the price of each look), then one at a time
+    for (let t = 0; t < 200 && !finishes(parts); t++) {
       const held = [...parts.keys()].filter(i => /\d/.test(parts[i]));
       if (!held.length) break;
       for (const i of shuffle(r, held).slice(0, Math.max(1, Math.floor(held.length / 8)))) parts[i] = "*";
     }
+    for (const i of shuffle(r, [...parts.keys()].filter(i => parts[i] === "*"))) {
+      const held = [...Array(k).keys()].map(q => parts.filter(x => x === String(q)).length), fewest = Math.min(...held);
+      const qs = [...held.keys()].filter(q => held[q] === fewest);
+      parts[i] = String(qs[below(r, qs.length)]);
+      if (!finishes(parts)) parts[i] = "*";
+    }
     last = parts.join("");
     // a split where someone could finish alone isn't one: deal again
-    if ([...Array(k).keys()].every(q => solver(shape, viewOf(p, last, q).view.cages).solve(zeros, { limit: 2, maxNodes: 20000 }).count >= 2)) return last;
+    if (!alone(parts)) return last;
   }
   return last;
 }
-/** What one player of a split sees: { view (calcudoku-logic.js), seen (by cage) }; q null sees everything. */
-export function viewOf(p, split, q) {
+/** What one player of a split sees: { view (calcudoku-logic.js), seen (by cage) }; q null sees everything. cache: the
+ *  cages' ways, kept between looks at the same grid. */
+export function viewOf(p, split, q, cache = null) {
   const shape = shapeOf(p.n), seen = p.cages.map((_, i) => !split || q == null || split[i] === "*" || split[i] === String(q));
-  return { view: viewFor(shape, cagesFor(shape, p.cages, { hidden: p.rules === "hidden", seen })), seen };
+  return { view: viewFor(shape, cagesFor(shape, p.cages, { hidden: p.rules === "hidden", seen, cache })), seen };
 }
 /**
  * The relay for a split: in each round every player works out all they can from their own view with the techniques up
  * to the grid's own level, and what they found is placed for everyone. { done, rounds, credit (cells each found
  * first; a cell two found at once counts half to each), placed }.
  */
-export function relay(p, split, k, { upTo = p.rank || 1 } = {}) {
+export function relay(p, split, k, { upTo = p.rank || 1, cache = null } = {}) {
   const cells = p.n * p.n, placed = new Uint8Array(cells), credit = new Array(k).fill(0);
-  const views = [...Array(k).keys()].map(q => viewOf(p, split, q).view), ctxs = views.map(() => ({ memo: new Map(), virt: new Map() }));
+  const views = [...Array(k).keys()].map(q => viewOf(p, split, q, cache).view), ctxs = views.map(() => freshCtx());
   let rounds = 0, left = cells;
   while (left > 0 && rounds < 40) {
     const found = new Map();                         // cell -> [digit, players]
