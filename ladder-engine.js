@@ -405,7 +405,7 @@ export function generate(seed, { level = "medium", lengths = [4, 5], rules = "cl
 // (bottom[0] is its working rung, nearest the top). The ladder is whole when a word made at one end is a word of the
 // other: the two are joined there, and any rungs past the join, a way the other end needn't have gone, are dropped.
 export const OVER = 60, HINT = 30;            // what a step over par and a hint add to a score, in seconds
-export const newRun = P => ({ top: [P.start], bottom: [P.end], hinted: [], hints: 0, ms: 0, done: false });
+export const newRun = P => ({ top: [P.start], bottom: [P.end], order: [], hinted: [], hints: 0, ms: 0, done: false });
 /** The working rung at one end: the word the next step is made from. */
 export const working = (run, side) => (side === "bottom" ? run.bottom[0] : run.top.at(-1));
 /** Every word on the ladder, top to bottom. */
@@ -434,6 +434,7 @@ export function place(P, run, side, word, { hint = false } = {}) {
   if (mine.includes(w)) return "used";
   if (side === "bottom") run.bottom.unshift(w); else run.top.push(w);
   if (hint) run.hinted.push(w);
+  (run.order ??= []).push(side);
   return "placed";
 }
 /** Takes the working rung off one end (never the first or last word). */
@@ -441,7 +442,14 @@ export function undo(run, side) {
   if (run.done) return false;
   if (side === "bottom") { if (run.bottom.length < 2) return false; run.bottom.shift(); }
   else { if (run.top.length < 2) return false; run.top.pop(); }
+  const k = (run.order ??= []).lastIndexOf(side);
+  if (k >= 0) run.order.splice(k, 1);
   return true;
+}
+/** Takes off the last rung made, at whichever end: the side it came off, or null when there's none. */
+export function undoLast(run) {
+  const side = run.order?.at(-1) || (run.top.length > 1 ? "top" : run.bottom.length > 1 ? "bottom" : null);
+  return side && undo(run, side) ? side : null;
 }
 /**
  * A hint at one end: the next rung on the commonest shortest route from its working rung towards the other end's

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Ladder</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="ladder.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="ladder fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon ld-mark" aria-hidden="true"></span>Ladder</button></h1>
+    <div class="top-right">
+      <select id="level" class="pool" data-accent="ld" aria-label="Level">
+        <option value="easy">Easy</option>
+        <option value="medium">Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div class="ld-strip">
+    <span class="ld-fig">Par <b id="par">0</b></span>
+    <span class="ld-fig">Steps <b id="steps">0</b></span>
+    <span class="ld-fig ld-clock"><b id="clock">0:00</b><small id="penalty"></small></span>
+    <span id="rival" class="ld-rival" hidden></span>
+  </div>
+  <p id="say" class="ld-say"></p>
+
+  <section class="ld-card fit-grow" aria-label="The ladder">
+    <ol id="ladder" class="ld-ladder fit-scroll"></ol>
+  </section>
+
+  <section class="ld-side" id="side">
+    <p id="line" class="ld-line" aria-live="polite"></p>
+    <div id="play" class="ld-play">
+      <div class="ld-tools" role="group" aria-label="Tools">
+        <button class="ld-tool" type="button" id="undoBtn"><b>Undo</b></button>
+        <button class="ld-tool" type="button" id="flipBtn"><b>Work up</b></button>
+        <button class="ld-tool" type="button" id="hintBtn"><b>Hint</b><small>+30 s</small></button>
+      </div>
+      <div id="kbd" class="ld-kbd" aria-label="Keyboard"></div>
+    </div>
+    <div id="result" class="ld-result">
+      <div class="ld-told"><p class="ld-verdict" id="verdict"></p><p class="ld-more" id="more"></p></div>
+      <div class="ld-result-btns">
+        <button class="btn" type="button" id="routesBtn">The routes</button>
+        <button class="ld-go" type="button" id="nextBtn">Another ladder</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="doneDlg" class="sheet menu-sheet" aria-label="The routes">
+  <div class="pick-head"><h2 id="doneTitle">The routes</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div id="doneBody" class="ld-done"></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog">
+    <label for="nameInput">Your name, so the others know who's playing</label>
+    <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="go">
+    <button class="btn primary wide" type="submit">Play</button>
+  </form>
+</dialog>
+
+<p id="toast" class="ld-toast" role="status" aria-live="polite"></p>
+<script type="module" src="ladder.js"></script>
+</body>
+</html>
