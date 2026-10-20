@@ -503,10 +503,14 @@ async function dealMatch() {
   }
   throw new Error("hitori: no puzzle for the match");
 }
-/** Whether neither half of a split board can be finished from its own numbers. */
+/**
+ * Whether neither half of a split board can be finished from its own numbers. Checked without trials, a few ms where
+ * trials took a tenth of a second and more; in 80 halves measured, trials never finished one the plain rules couldn't
+ * (tests/hitori.mjs checks halves with trials too).
+ */
 function splitHolds(puzzle, k) {
   const Q = puzzleOf(k.shape, k.size, puzzle.grid, puzzle.sol);
-  return [0, 1].every(slot => aloneSettles(Q, Array.from({ length: Q.board.cells }, (_, i) => ownerOf(Q.board, i) === slot)).includes(U));
+  return [0, 1].every(slot => aloneSettles(Q, Array.from({ length: Q.board.cells }, (_, i) => ownerOf(Q.board, i) === slot), { trials: false }).includes(U));
 }
 /** The answer to a match's puzzle, found here (the table carries the numbers only). */
 const answerOf = m => Array.from(solutions(puzzleOf(m.shape, m.size, m.grid), 1)[0] || []).join("");

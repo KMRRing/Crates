@@ -634,11 +634,11 @@ export function ownerOf(board, i) {
   return i <= Math.floor(half) ? 0 : 1;
 }
 /**
- * What a player can settle alone, seeing only the numbers of the cells `sees` marks: every rule they can apply, trials
- * included, with a hidden number never counted as a rival and a number never taken to be alone while a cell of its
- * lines is hidden and unshaded. Returns the state reached (U where it stays open).
+ * What a player can settle alone, seeing only the numbers of the cells `sees` marks: every rule they can apply (with
+ * `trials`, suppositions too), a hidden number never counted as a rival and a number never taken to be alone while a cell
+ * of its lines is hidden and unshaded. Returns the state reached (U where it stays open).
  */
-export function aloneSettles(P, sees) {
+export function aloneSettles(P, sees, { trials = true } = {}) {
   const n = P.board.cells, nbr = P.board.nbr, lines = P.board.lines, val = P.val;
   const riv = P.riv.map((r, i) => (sees[i] ? r.filter(j => sees[j]) : []));
   const hiddenIn = Array.from({ length: n }, (_, i) => [...new Set(P.board.linesOf[i].flatMap(k => lines[k]))].filter(j => j !== i && !sees[j]));
@@ -666,7 +666,7 @@ export function aloneSettles(P, sees) {
   };
   let st = new Uint8Array(n);
   settle(st);
-  for (let progress = true; progress && st.includes(U);) {
+  for (let progress = trials; progress && st.includes(U);) {
     progress = false;
     for (let i = 0; i < n && !progress; i++) {
       if (st[i] !== U) continue;
