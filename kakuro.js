@@ -186,7 +186,8 @@ const owners = by => [...by].map(ch => (ch === "." ? null : Number(ch)));
 // ---------- the board ----------
 /** The board for a grid, its clues as a player sees them ("?" for one only someone else can see). */
 function makeBoard(seen = null, key = "") {
-  const id = `${P.seed}/${P.rules}/${P.rows}/${key}`;
+  // the grid's own pattern in the id: one seed makes different grids at different levels
+  const id = `${P.seed}/${P.rules}/${P.level}/${P.black.join("")}/${key}`;
   if (board && boardFor === id) return;
   board?.destroy();
   boardFor = id;
@@ -440,7 +441,7 @@ function render() {
   drawClues(ok);
   drawStrip();
   const text = done ? "" : message ? message.text : ways ? "" : S.mode === "pair"
-    ? "You hold the across clues, Almanac the down ones (a ? is one only it can see); a few are shared. Its digits are in copper."
+    ? "The across clues are yours, the down ones Almanac's (each a ?), a few shared. Its digits are in copper."
     : defaultLine();
   drawLine(text, message?.tone, ways);
   drawResult();
