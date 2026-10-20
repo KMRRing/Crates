@@ -1,0 +1,154 @@
+/* Codeword: a numbered crossword grid, the line under it, the mystery word, and the keys, which carry the key (each
+   letter used shows its number). Cobalt is the house colour. The grid is drawn to its box with container units: a
+   square as large as the room under the strip allows, its cells a 1/n of it, so nothing is sized in script and
+   nothing changes size mid-game. */
+:root {
+  --cw-in: #2C5B8A; --cw-go-ink: #FFFFFF; --cw-in-soft: color-mix(in srgb, var(--cw-in) 15%, var(--sheet)); --cw-good: #2F7D5B; --cw-bad: #A8382B;
+  --cw-line: var(--ink); --cw-cell: var(--tile); --cw-black: #1C2A34; --cw-word: color-mix(in srgb, var(--cw-in) 9%, var(--tile));
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --cw-in: #6FA0D2; --cw-go-ink: #0E1A26; --cw-good: #7FC2A8; --cw-bad: #E8806F; --cw-line: #4E4128; --cw-black: #0B1117; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --cw-in: #6FA0D2; --cw-go-ink: #0E1A26; --cw-good: #7FC2A8; --cw-bad: #E8806F; --cw-line: #4E4128; --cw-black: #0B1117; }
+
+.cw-mark { display: inline-block; }
+.cw-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the strip: the clock (hints and checks in it), the letters found, the tools, on one row that never wraps (the
+   letters found give way first); a rival's progress, or a race's others, on a row of its own under it, there from the
+   grid's start to its end */
+.cw-strip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: .15rem .6rem; margin: .55rem 0 .45rem; font-size: .9rem; color: var(--ink-soft); white-space: nowrap; }
+.cw-time b { font-size: 1.3rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.cw-found { justify-self: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cw-tools { display: flex; gap: .3rem; }
+.cw-tool { min-height: 2.25rem; min-width: 3.4rem; padding: .2rem .55rem; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard); color: var(--ink);
+  font: inherit; font-size: .76rem; font-weight: 750; font-stretch: var(--stretch-btn); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); cursor: pointer;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cw-tool:active:not(:disabled) { background: var(--cw-in-soft); }
+.cw-tool:disabled { opacity: .4; cursor: default; }
+.cw-rival { grid-column: 1 / -1; min-width: 0; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; }
+.cw-rival[hidden] { display: none; }
+.cw-rival b { color: var(--ink); }
+/* together, the others' runs (duel.js fills it; a tap opens the match) */
+.cw-strip .duel-bar { grid-column: 1 / -1; margin: 0; }
+
+/* ---------- the grid ---------- */
+.cw-boardbox { min-height: 0; }
+.cw-board { --n: 13; --cell: calc(min(100cqw, 100cqh) / var(--n)); width: calc(var(--cell) * var(--n)); height: calc(var(--cell) * var(--n));
+  display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 1px; padding: 1px; box-sizing: border-box;
+  background: var(--cw-line); box-shadow: 0 0 0 1.5px var(--cw-line); touch-action: manipulation; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+/* no grid yet (a race's lobby): no frame either */
+.cw-board:empty { background: none; box-shadow: none; }
+.cw-c { position: relative; min-width: 0; min-height: 0; background: var(--cw-cell); cursor: pointer; overflow: hidden; }
+.cw-c.x { background: var(--cw-black); cursor: default; }
+/* a number never under half a rem (8 px), the smallest that reads on a phone; a 13×13 grid on the smallest screen
+   (390×600) has cells of 22 px */
+.cw-c i { position: absolute; left: 7%; top: 3%; font-style: normal; font-size: max(.5rem, calc(var(--cell) * .3)); font-weight: 650; line-height: 1; color: var(--ink-soft); font-variant-numeric: tabular-nums; pointer-events: none; }
+.cw-c b { position: absolute; inset: 0; display: grid; place-items: center; padding-top: 18%; font-size: calc(var(--cell) * .58); font-weight: 800; line-height: 1; color: var(--ink); text-transform: uppercase; pointer-events: none; }
+/* a given letter, and one a hint showed: fixed, in brass; a letter the last check found wrong, struck in oxblood */
+.cw-c.given b, .cw-c.shown b { color: var(--brass-lo); }
+/* a hint's letter also carries a corner, as a revealed square does in a newspaper's app (a mark on the letter itself
+   read as I with a dot under it: !) */
+.cw-c.shown::after { content: ""; position: absolute; right: 0; bottom: 0; border-style: solid; border-color: transparent var(--brass-lo) var(--brass-lo) transparent;
+  border-width: calc(var(--cell) * .13); pointer-events: none; }
+.cw-c.bad b { color: var(--cw-bad); text-decoration: line-through 2px; }
+/* the word the cursor is in, the cells of the number it's on, and the cursor */
+.cw-c.word { background: var(--cw-word); }
+.cw-c.same { background: var(--cw-in-soft); }
+.cw-c.cur { background: color-mix(in srgb, var(--cw-in) 26%, var(--tile)); box-shadow: inset 0 0 0 2px var(--cw-in); }
+/* the split key: a cell of the other's numbers shows no number, only its letter once it's in */
+.cw-c.theirs { background: color-mix(in srgb, var(--ink) 6%, var(--cw-cell)); }
+.cw-c.theirs.word { background: color-mix(in srgb, var(--cw-in) 9%, color-mix(in srgb, var(--ink) 6%, var(--cw-cell))); }
+/* a letter suggested for it, small in the corner, in the colour of whoever suggested it */
+.cw-c s { position: absolute; right: 6%; top: 3%; text-decoration: none; font-size: calc(var(--cell) * .32); font-weight: 800; line-height: 1; color: var(--sug, var(--p1)); text-transform: uppercase; pointer-events: none; }
+/* a solved grid: every word in verdigris for a moment */
+.cw-board.won .cw-c:not(.x) b { color: var(--cw-good); transition: color .4s; }
+
+/* ---------- under the grid ---------- */
+.cw-side { display: grid; grid-template-areas: "line" "mystery" "keys"; gap: .45rem; margin-top: .55rem; }
+.cw-side > .cw-line { grid-area: line; }
+.cw-side > .cw-mystery { grid-area: mystery; }
+.cw-side > .cw-kbd, .cw-side > .cw-result { grid-area: keys; }
+.cw-kbd.off { visibility: hidden; }
+.cw-line { margin: 0; min-height: 1.35em; font-size: .86rem; line-height: 1.35; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cw-line b { color: var(--ink); }
+.cw-line.bad { color: var(--cw-bad); }
+.cw-line.good { color: var(--cw-good); }
+/* the mystery word: its numbers in a row of boxes, each letter as it's cracked */
+.cw-mystery { display: flex; align-items: center; gap: .25rem; min-height: 2.25rem; overflow: hidden; }
+.cw-mystery[hidden] { display: none; }
+.cw-mystery > span { font-size: .7rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); margin-right: .25rem; white-space: nowrap; }
+.cw-mystery em { position: relative; flex: 0 1 2rem; min-width: 1.25rem; height: 2.1rem; border: 1px solid var(--tile-edge); border-radius: 3px; background: var(--tile); font-style: normal; }
+.cw-mystery em i { position: absolute; left: 8%; top: 4%; font-style: normal; font-size: .55rem; font-weight: 650; color: var(--ink-soft); line-height: 1; }
+.cw-mystery em b { position: absolute; inset: 0; display: grid; place-items: center; padding-top: .45rem; font-size: 1rem; font-weight: 800; text-transform: uppercase; }
+.cw-mystery.got em { border-color: var(--cw-good); }
+.cw-mystery.got em b { color: var(--cw-good); }
+
+/* the key table, 1 to 26 with each letter found, as a printed codeword has it: held sideways only, where the side
+   column has room (on a phone the keys carry the key); a tap takes the cursor to the number */
+.cw-keytable { display: none; }
+.cw-keytable button { position: relative; min-width: 0; height: 2.75rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 3px; background: var(--tile); color: var(--ink);
+  font: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cw-keytable button[hidden] { display: none; }
+.cw-keytable i { position: absolute; left: 0; right: 0; top: .22rem; font-style: normal; font-size: .62rem; font-weight: 650; line-height: 1; text-align: center; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.cw-keytable b { position: absolute; inset: 0; display: grid; place-items: center; padding-top: .8rem; font-size: 1.05rem; font-weight: 800; line-height: 1; text-transform: uppercase; }
+.cw-keytable .fixed b { color: var(--brass-lo); }
+.cw-keytable .bad b { color: var(--cw-bad); text-decoration: line-through 2px; }
+.cw-keytable .on { background: var(--cw-in-soft); box-shadow: inset 0 0 0 2px var(--cw-in); }
+
+/* the keys: the alphabet as a phone's keyboard, each letter in use showing the number it's on */
+.cw-kbd { display: grid; gap: .3rem; }
+.cw-krow { display: flex; gap: .25rem; justify-content: center; }
+.cw-krow button { position: relative; flex: 1 1 0; min-width: 0; height: var(--cw-key-h, 2.7rem); padding: 0; border: 0; border-radius: 5px; cursor: pointer;
+  background: var(--sheet); color: var(--ink); font: inherit; font-size: 1.12rem; font-weight: 700; text-transform: uppercase; -webkit-user-select: none; user-select: none;
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink-soft) 45%, transparent); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.cw-krow button:active:not(:disabled) { background: var(--cw-in-soft); }
+.cw-krow .half { flex: .5 1 0; visibility: hidden; }
+.cw-krow button.wide { flex: 1.5 1 0; font-size: 1.2rem; font-weight: 700; }
+.cw-krow button small { position: absolute; right: .25rem; bottom: .15rem; font-size: .62rem; font-weight: 800; color: var(--cw-in); line-height: 1; font-variant-numeric: tabular-nums; }
+/* in use: dimmed, with its number; fixed (given or shown): in brass; the cursor's letter: framed */
+.cw-krow button.used { background: color-mix(in srgb, var(--ink) 10%, var(--sheet)); color: var(--ink-soft); }
+.cw-krow button.fixed { color: var(--brass-lo); }
+.cw-krow button.fixed small { color: var(--brass-lo); }
+.cw-krow button.on { box-shadow: inset 0 0 0 2px var(--cw-in); }
+/* a letter suggested for the cursor's number, by the other: ringed in their colour */
+.cw-krow button.sug { box-shadow: inset 0 0 0 2px var(--sug, var(--p1)); }
+.cw-krow button:disabled { opacity: .45; cursor: default; }
+/* the end: how it went and the way on, in the keys' own room, so nothing moves */
+.cw-result { display: grid; align-content: center; gap: .6rem; }
+.cw-result[hidden] { display: none; }
+.cw-verdict { margin: 0; font-size: .98rem; font-weight: 700; line-height: 1.35; white-space: normal; }
+.cw-verdict.good { color: var(--cw-good); }
+.cw-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%;
+  letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.cw-toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%); z-index: 20; max-width: min(92vw, 30rem); margin: 0;
+  padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.cw-toast.show { opacity: 1; }
+
+/* the other themes' corners and buttons */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-tool { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-go { border-radius: 14px; background: var(--cw-in); color: var(--cw-go-ink); font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-toast { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-krow button { border-radius: 8px; }
+
+/* a tall phone (the home screen's app, 390×844): the grid is as wide as the screen with room to spare under it, which
+   the key table takes, between the grid and the line (at half as wide as tall or narrower: a 390-wide phone needs
+   about 756 px for the grid at full width with the table under it) */
+@media (max-aspect-ratio: 1/2) {
+  #app.codeword .cw-side { grid-template-areas: "table" "line" "mystery" "keys"; }
+  #app.codeword .cw-keytable { grid-area: table; display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: .2rem; }
+  #app.codeword .cw-keytable button { height: 2.4rem; }
+}
+
+/* held sideways: the grid on the left with all the height; beside it the strip and the key table at the top, the line,
+   the mystery and the keys at the bottom where the thumbs are */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.codeword { --beside: 25rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.codeword .cw-strip { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.codeword .cw-boardbox { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.codeword .cw-side { grid-column: 2; grid-row: 3; margin-top: 0; grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "table" "." "line" "mystery" "keys"; }
+  #app.codeword .cw-keytable { grid-area: table; display: grid; grid-template-columns: repeat(13, minmax(0, 1fr)); gap: .25rem; margin-top: .5rem; }
+  #app.codeword .cw-krow button { --cw-key-h: 3rem; }
+}
