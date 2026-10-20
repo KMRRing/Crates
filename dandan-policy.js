@@ -15,10 +15,9 @@
 import { CARDS, DECK, NAMES, BASICS, HALVES, TOKEN_AT, total } from "./dandan-cards.js";
 import { moves, halfOf, nextDrawer, costOf } from "./dandan-engine.js";
 import {
-  other, nm, isLandId, perm, isLand, isCreature, pt, lands, islands, creatures, typesOf, needType, manaAlts, topKnown, itemOf,
+  other, nm, isLandId, perm, isLand, isCreature, isToken, pt, lands, islands, creatures, typesOf, needType, manaAlts, topKnown, itemOf,
   knownIn, poolOf,
 } from "./dandan-core.js";
-import { bendable } from "./dandan-spells.js";
 import { shuffle } from "./seats.js";
 
 export const PASS = { t: "pass" };
@@ -58,7 +57,7 @@ export function facts(s, me) {
   let unknown = 0;
   for (const n of NAMES) unknown += Math.max(0, unseen[n]);
   return {
-    s, me, opp, unseen, unknown, theirKnown, hidden: Math.max(0, s.hand[opp].length - theirKnown.length),
+    s, me, opp, unseen, unknown, theirKnown, hidden: Math.max(0, s.hand[opp].length - theirKnown.length), noLapse: noLapse(s, opp),
     known: topKnown(s, me), next: nextDrawer(s), myTurn: s.active === me,
     my: openMana(s, me), their: openMana(s, opp),
     mine: creatures(s, me), theirs: creatures(s, opp), myIsl: islands(s, me).length, theirIsl: islands(s, opp).length,
@@ -79,9 +78,17 @@ export function openMana(s, seat) {
   }
   return { n, u, r };
 }
-/** The chance the other hand holds at least one card of a name (one known to be there, certainly). */
+/** Whether a seat let a Dandân of ours resolve with a Lapse's mana open, and has drawn nothing since (the engine's ev). */
+export const noLapse = (s, seat) => (s.ev?.[seat] ?? -1) >= 0 && s.ev[seat] === (s.draws?.[seat] ?? 0);
+/** How far a pass on our Dandân is taken as read: a player holding a Memory Lapse lets one through this seldom. */
+export const PASSED_LAPSE = 0.15;
+/** The chance the other hand holds at least one card of a name (one known to be there, certainly; a Lapse after a pass on our Dandân, seldom). */
 export function holds(F, name) {
   if (F.theirKnown.some(id => DECK[id] === name)) return 1;
+  if (name === "Memory Lapse" && F.noLapse) return PASSED_LAPSE * holdsAtRandom(F, name);
+  return holdsAtRandom(F, name);
+}
+function holdsAtRandom(F, name) {
   const k = Math.max(0, F.unseen[name]), n = F.hidden, U = F.unknown;
   if (k <= 0 || n <= 0 || U <= 0) return 0;
   let none = 1;
@@ -297,10 +304,11 @@ export class Player {
     const s = this.s, F = this.F, me = this.me;
     const sanctFor = islands(s, me).length >= 3 && s.yard.some(id => DECK[id] === "Memory Lapse") && F.next === me;
     const wantsRed = [...s.hand[me], ...s.yard].some(id => DECK[id] === "Mystic Retrieval") && F.my.r === 0;
+    // fetched onto the battlefield, an Island comes in untapped and Thundering Falls tapped: the Falls only for red
     const rank = id => {
       const n = DECK[id];
       if (n === "Mystic Sanctuary") return sanctFor ? 3 : p.to === "bf" && islands(s, me).length < 3 ? 0.5 : 1.5;
-      if (n === "Thundering Falls") return wantsRed ? 2.5 : p.to === "bf" ? 0.8 : 1.4;
+      if (n === "Thundering Falls") return p.to === "bf" ? (wantsRed ? 1.6 : 0.8) : wantsRed ? 2.5 : 1.4;
       return 2;
     };
     return [...p.ids].sort((a, b) => rank(b) - rank(a) || a - b)[0] ?? null;
@@ -673,13 +681,19 @@ export class Player {
     return spellWorth(F, x) + copy - keep - pay * 0.5;
   }
 
-  /** A spell that takes something away (or Piracy Charm's other modes): what it does now, by target and moment. */
+  /**
+   * A spell that takes something away (or Piracy Charm's other modes): what it does now, by target and moment. A kill
+   * (+2/−1, Mind Bend) is for good; Deem Inferior is one too, cast on our turn (its owner bottoms it rather than give us
+   * the second card); the rest are a delay, a Dandân recast and sick for a turn, the card going to whoever draws it next
+   * (on our turn they draw their own card back instead of a new one). The worse their next attack would hurt, the more
+   * an answer is worth now; and while they're tapped out on our turn, nothing can counter it, which their turn won't be.
+   */
   removal(half, m, keep, pay) {
     const s = this.s, F = this.F, me = this.me, t0 = m.targets[0];
     if (half === "Piracy Charm" && m.mode === 2) {
       // a discard: worth it on a small hand, at the end of their turn
       const n = s.hand[this.opp].length;
-      return n && n <= 2 && (this.theirEnd || this.easy) ? 0.75 - keep - pay : -1;
+      return n && n <= 3 && (this.theirEnd || this.easy) ? 0.95 - 0.1 * n - keep - pay : -1;
     }
     const p = t0?.k === "c" ? perm(s, t0.id) : null;
     if (!p) return -1;
@@ -694,22 +708,30 @@ export class Player {
     if (half === "Mind Bend") hit = isCreature(p) ? hitWorth(F, p, me) : landHit(s, p, true);
     else hit = hitWorth(F, p, me);
     // how much of the hit stays: a kill is for good; a bounce or a trip to the library is a delay
-    const STAYS = { "Piracy Charm": 1, "Mind Bend": 1, "Repulse": 0.5, "Commit": 0.7, "Gone Missing": 0.75, "Metamorphose": 0.7, "Deem Inferior": 0.65 };
+    const STAYS = { "Piracy Charm": 1, "Mind Bend": 1, "Deem Inferior": 0.95, "Repulse": 0.5, "Commit": 0.7, "Gone Missing": 0.75, "Metamorphose": 0.7 };
     let v = hit * (STAYS[half] ?? 0.7);
     if (this.easy) return isCreature(p) || hit > 0 ? v - 0.3 : -1;
-    if (hit <= 0.2) return -1;
-    // where the card goes: on top (Metamorphose, Gone Missing) to whoever draws next; second (Commit) to the one after
-    if (["Metamorphose", "Gone Missing"].includes(half)) v += F.next === me ? 0.8 * cardWorth(F, p.id) : -0.3;
-    if (half === "Commit") v += other(F.next) === me ? 0.7 * cardWorth(F, p.id) : -0.2;
+    if (hit <= 0.2 && !["Gone Missing", "Metamorphose"].includes(half)) return -1;
+    // where the card goes: on top (Metamorphose, Gone Missing) to whoever draws next, who if it's them draws their own
+    // card back in place of a new one; second from the top (Commit) to the one after
+    const owner = p.ctl;
+    if (["Metamorphose", "Gone Missing"].includes(half) && !isToken(p.id)) v += F.next === me ? 0.8 * cardWorth(F, p.id) : F.next === owner ? 0.45 : 0;
+    if (half === "Commit" && !isToken(p.id)) v += other(F.next) === me ? 0.7 * cardWorth(F, p.id) : 0.2;
     if (half === "Metamorphose") v -= 0.6 * holds(F, "Dandân") * (islands(s, this.opp).length ? 1 : 0.3);
     if (half === "Repulse") v += 0.9;
     if (half === "Gone Missing") v += 0.5;
+    if (hit <= 0.2 && v < 0.6) return -1;
     if (isCreature(p)) {
-      // a Dandân attacking us is best answered at once; otherwise at the end of their turn, or to clear our attack
+      // the attack it would make on us next: answered now (killed, or recast and sick for a turn), it never lands
+      const canHit = islandsOfType(s, me, needType(p)) > 0;
+      if (canHit) v += hitValue(s.life[me]) * (STAYS[half] >= 0.95 ? 0.5 : 1);
       const attacking = s.combat?.att.includes(p.id) && !F.myTurn;
+      const riskNow = this.stack ? 0 : counterRisk(F, half);
+      const riskLater = F.myTurn ? Math.min(0.9, 0.9 * holds(F, "Memory Lapse")) : riskNow;
       if (attacking) v += 0.5 + 0.15 * (20 - s.life[me]) / 4;
       else if (this.theirEnd) v += 0.1;
       else if (F.myTurn && s.step === "attackers" && s.combat?.att.length) v += 0.2;
+      else if (F.myTurn && riskLater - riskNow > 0.2) v += 0.3 * (riskLater - riskNow) * v;   // they're tapped out now; on their turn they won't be
       else v -= 0.35;
     } else if (!this.theirEnd && !(F.myTurn && this.myMain)) v -= 0.2;
     // casting into open mana invites a counter (on our turn the card then goes to them)
@@ -723,6 +745,11 @@ export class Player {
   }
 }
 
+/** What one more Dandân hit (4 life) costs at a life total, in cards: little at 20, everything at 4. */
+export function hitValue(life) {
+  const h = Math.max(1, Math.ceil(life / 4));
+  return h <= 1 ? 4 : 3 / h;
+}
 /** How many lands of a type a seat controls. */
 function islandsOfType(s, seat, type) { return s.bf.filter(l => l.ctl === seat && isLand(l) && typesOf(l).includes(type)).length; }
 /** Every order of a few cards. */

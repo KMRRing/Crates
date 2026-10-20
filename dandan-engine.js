@@ -27,6 +27,7 @@ function blank() {
   return {
     v: 1, turn: 0, active: 0, first: 0, step: "mull", prio: 0, passes: 0, res: 0,
     lib: [], yard: [], exile: [], hand: [[], []], bf: [], stack: [], life: [LIFE, LIFE], kn: [], kh: [], pool: ["", ""], nid: 1, nt: 0,
+    draws: [0, 0], ev: [-1, -1],
     played: 0, drawn: [0, 0], attacked: false, quick: [false, false], combat: null, pending: null, lost: [false, false],
     over: false, winner: -1, why: "", mull: { n: [0, 0], done: [false, false] }, reveal: null, log: [], ln: 0,
   };
@@ -227,7 +228,18 @@ export function wants(s, seat) {
 }
 /** Who draws next if nothing else is drawn first: the player whose draw step is next. */
 export const nextDrawer = s => (s.step === "upkeep" && s.turn > 1 ? s.active : other(s.active));
+/**
+ * What a pass shows: a seat that lets an opposing Dandân resolve with the mana for a Memory Lapse open very likely holds
+ * none. ev[seat] is its count of cards drawn when it last did; until it draws again, the computer players read its hand
+ * as holding no Lapse, mostly (dandan-think.js's deals, dandan-policy.js's odds). It is public: anyone at the table saw
+ * the pass.
+ */
+function notePass(s) {
+  const top = s.stack[s.stack.length - 1], seat = s.prio;
+  if (top && top.kind === "spell" && top.name === "Dandân" && top.ctl !== seat && affords(s, seat, parseCost("{1}{U}"))) (s.ev ||= [-1, -1])[seat] = s.draws?.[seat] ?? 0;
+}
 function passPriority(s) {
+  notePass(s);
   s.passes++;
   if (s.passes < 2) { s.prio = other(s.prio); return; }
   s.passes = 0;
@@ -645,6 +657,8 @@ export function restore(s) {
   s.kn = list(s.kn).map(list);
   s.kh = list(s.kh).map(list);
   s.pool = [0, 1].map(i => s.pool?.[i] || "");
+  s.draws = [0, 1].map(i => s.draws?.[i] || 0);
+  s.ev = [0, 1].map(i => s.ev?.[i] ?? -1);
   s.life = [0, 1].map(i => s.life?.[i] ?? LIFE);
   s.drawn = [0, 1].map(i => s.drawn?.[i] || 0);
   s.quick = [0, 1].map(i => !!s.quick?.[i]);

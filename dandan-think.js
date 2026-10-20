@@ -12,7 +12,7 @@
 import { act, toMove, moves } from "./dandan-engine.js";
 import { DECK } from "./dandan-cards.js";
 import { other, knownIn, knOf } from "./dandan-core.js";
-import { Player, policyMove, PASS } from "./dandan-policy.js";
+import { Player, policyMove, PASS, noLapse, PASSED_LAPSE } from "./dandan-policy.js";
 import { winChance } from "./dandan-eval.js";
 import { seeded, mix, shuffle } from "./seats.js";
 
@@ -45,8 +45,14 @@ export function determinize(s, seat, rng) {
   c.hand[opp].forEach((id, i) => { if (!pinned.has(id)) { pool.push(id); handSlots.push(i); } });
   c.lib.forEach((id, i) => { if (!pinned.has(id)) { pool.push(id); libSlots.push(i); } });
   // dealt from the cards in a fixed order, so the deal depends on what the seat knows and the seed, not on where the
-  // unseen cards really are (which hand, which place in the library)
-  const dealt = shuffle(pool.sort((x, y) => x - y), rng);
+  // unseen cards really are (which hand, which place in the library); a player who let our Dandân resolve with a
+  // Lapse's mana open is dealt a hand without one, mostly (dealt again, a few times at most)
+  pool.sort((x, y) => x - y);
+  let dealt = shuffle(pool, rng);
+  if (noLapse(s, opp)) {
+    const lapse = d => d.slice(0, handSlots.length).some(id => DECK[id] === "Memory Lapse");
+    for (let tries = 0; tries < 12 && lapse(dealt) && rng() > PASSED_LAPSE; tries++) dealt = shuffle(pool, rng);
+  }
   let k = 0;
   for (const i of handSlots) c.hand[opp][i] = dealt[k++];
   for (const i of libSlots) c.lib[i] = dealt[k++];
@@ -225,6 +231,15 @@ export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, mus
     const m = diffs.reduce((a, b) => a + b, 0) / k;
     const sd = Math.sqrt(diffs.reduce((a, x) => a + (x - m) ** 2, 0) / Math.max(1, k - 1));
     if (m < sd / Math.sqrt(k) + 0.005) best = list[0];
+  }
+  // each other move against the chosen one, deal by deal over the deals they share: how often the chosen one came out
+  // ahead (better), and behind (worse); what's left were even
+  for (const c of list) {
+    if (c === best) continue;
+    const k = Math.min(vals[c.i].length, vals[best.i].length);
+    let better = 0, worse = 0;
+    for (let j = 0; j < k; j++) { const g = vals[best.i][j] - vals[c.i][j]; if (g > 1e-6) better++; else if (g < -1e-6) worse++; }
+    Object.assign(c, { vs: k, better, worse });
   }
   return { best: best.move, list: [best, ...ranked.filter(c => c !== best)], deals: d, only: false };
 }

@@ -100,6 +100,15 @@ test("a deal keeps what the seat knows where it is: its hand, the table, a top c
   return true;
 });
 
+test("a player who let our Dandân resolve with a Lapse's mana open is mostly dealt no Memory Lapse", () => {
+  const s = keepOpen(), lapses = t => { let n = 0; for (let i = 0; i < 200; i++) if (determinize(t, 0, seeded(i)).hand[1].some(id => DECK[id] === "Memory Lapse")) n++; return n; };
+  const before = lapses(s);
+  const t = J(s);
+  t.ev[1] = t.draws[1];
+  const after = lapses(t);
+  return before > 60 && after < before / 3 || `${before} then ${after} of 200 deals`;
+});
+
 // ---------- the verdict ----------
 test("the coach's own move, and one as good, get no word; a clearly worse one gets how much and why", () => {
   const s = theirDandan(), seat = 0;

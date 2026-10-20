@@ -150,6 +150,7 @@ function forMove(s, seat, F, m, good) {
     case "cast": {
       if (half === "Dandân") {
         if (!F.myIsl) { if (!good) say("islands", "With no Island of yours it would be sacrificed at once."); }
+        else if (good && F.noLapse && F.their.n >= 2) say("counter-risk", "They let your last Dandân resolve with a Lapse's mana open, and haven't drawn since: they very likely hold no Memory Lapse.");
         else if (good && risk < 0.15) say("counter-risk", F.their.n < 2 ? "They are tapped out: nothing can counter it now." : "Little chance they can counter it now.");
         else if (!good && risk >= 0.25) say("counter-risk", `They have ${F.their.n} open: a Memory Lapse (they hold one about ${pc(holds(F, "Memory Lapse"))} of the time) puts it on top for them to draw.`);
         if (good && F.theirIsl) say("clock", "Once it's in, it attacks for 4 a turn: they control an Island.");
@@ -277,8 +278,9 @@ export function verdict(r, mine, s, seat) {
   if (!m || r.only || sameMove(best.move, mine)) return null;
   const gap = best.mean - m.mean, se = Math.hypot(best.se, m.se);
   if (!(gap > MARGIN && gap > 2 * se)) return null;
-  // what tells against yours first: it's your move the word is about
+  // what tells against yours first: it's your move the word is about; with no rule of thumb to say, the deals do
   const why = reasons(s, seat, best.move, mine, { againstFirst: true });
+  if (!why.length && m.vs) why.push(`Played out, ${doing(best.move, s, seat)} came out ahead in ${m.better} of the ${m.vs} deals and behind in ${m.worse}.`);
   return { gap, se, best: best.move, words: `${cap(doing(mine, s, seat))}: about ${Math.round(100 * gap)} points worse than ${doing(best.move, s, seat)} (${pc(m.mean)} to win against ${pc(best.mean)}).${why.length ? ` ${why.join(" ")}` : ""}` };
 }
 /** A move as a doing: "passing", "casting Memory Lapse on their Dandân". */

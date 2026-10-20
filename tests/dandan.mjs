@@ -244,6 +244,16 @@ test("a card drawn from a top both had seen is known in the hand it went to, unt
   return known && knownIn(r, 1, 0).includes(d) && knownIn(r, 0, 1).length === 0;
 });
 
+// ---------- what a pass shows ----------
+test("letting an opposing Dandân resolve with a Lapse's mana open is noted for the other player, until the passer draws", () => {
+  let s = scene({ active: 0, hand: [["Dandân"], ["Island"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)], hold: 0 });
+  s = cast(s, 0, "Dandân");
+  const noted = s.ev[1] === s.draws[1] && s.ev[0] === -1;
+  const tapped = cast(scene({ active: 0, hand: [["Dandân"], ["Island"]], bf: [...islandsOf(0, 2), [1, "Island", { tapped: true }], [1, "Island"]], hold: 0 }), 0, "Dandân");
+  const later = drive(s, c => c.turn === 6 && c.step === "main1");
+  return noted && tapped.ev[1] === -1 && later.draws[1] > s.draws[1] && later.ev[1] !== later.draws[1];
+});
+
 // ---------- the objects on the battlefield ----------
 test("a permanent that leaves and comes back is a new object: a spell aimed at the old one fizzles, a trigger of the old one does nothing", () => {
   let s = scene({ hand: [["Repulse"], []], bf: [...islandsOf(0, 3), [1, "Island"], [1, "Dandân"]], hold: 0 });

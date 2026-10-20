@@ -232,6 +232,7 @@ export function draw(s, seat, n = 1) {
     s.hand[seat].push(id);
     if (mask & (1 << other(seat))) khSet(s, id, mask);           // the other player saw it on top: they know where it went
     s.drawn[seat]++;
+    (s.draws ||= [0, 0])[seat]++;
     got++;
   }
   return got;

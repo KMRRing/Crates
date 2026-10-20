@@ -870,7 +870,7 @@ function showWhy(which) {
   const listHtml = (r, st, seat, mine) => {
     const rows = r.list.slice(0, 8).map((c, i) => {
       const you = mine && sameMove(c.move, mine);
-      const figs = Number.isFinite(c.mean) ? `${pc(c.mean)} to win${c.se ? ` (±${Math.max(1, Math.round(100 * c.se))})` : ""} · ${c.n} deals` : "the only move";
+      const figs = Number.isFinite(c.mean) ? `${pc(c.mean)} to win${c.se ? ` (±${Math.max(1, Math.round(100 * c.se))})` : ""} · ${c.n} deals${i && c.vs ? ` · the coach’s better in ${c.better}, worse in ${c.worse}` : ""}` : "the only move";
       return `<li class="${i === 0 ? "best" : ""}${you ? " mine" : ""}"><b>${esc(moveSaid(c.move, st, seat))}</b>${i === 0 ? " · the coach’s choice" : you ? " · yours" : ""}<span class="dd-fig">${esc(figs)}</span></li>`;
     }).join("");
     const extra = mine && !r.list.slice(0, 8).some(c => sameMove(c.move, mine)) ? r.list.find(c => sameMove(c.move, mine)) : null;
