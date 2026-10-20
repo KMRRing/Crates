@@ -13,7 +13,7 @@ import { STAGES as SAYING_STAGES } from "./kb/items/choice/sayings.js";
 import { scale, sideways } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, ticks, action, line, onPause, isPaused } from "./menu.js";
+import { part, choice, ticks, toggle, action, line, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME } from "./suite.js";
 import { busy, sextant } from "./loading.js";
 import { createDuel } from "./duel.js";
@@ -113,7 +113,7 @@ function begin(s) {
   save();
   clockRun();
   draw();
-  if (S.done && S.mode !== "team" && !IN_FRAME) showDone(false);
+  if (S.done && (S.mode === "random" || S.mode === "daily") && !IN_FRAME) showDone(false);
 }
 function seen(id) {
   const list = read(SEEN, []).filter(x => x !== id);
@@ -280,7 +280,9 @@ function finish() {
   else if (clockFrom != null) { S.ms += performance.now() - clockFrom; clockFrom = null; }
   S.done = true;
   S.score = Math.round(S.ms / 1000) + S.pen;
-  if (S.mode === "duel") { tell(true); save(); showDone(true); return; }
+  // the table hears it a moment later: its result sheet opens under the finger that typed the last letter, and that
+  // tap's click would land on the sheet's Rematch
+  if (S.mode === "duel") { save(); setTimeout(() => tell(true), 450); return; }
   S.fresh = recordBest(S);
   if (S.mode === "daily") noteDayTime("acrostic", S.score, S.day || today());   // today's: the first solve counts
   if (S.rival) recordRival(S);
@@ -371,7 +373,7 @@ function fitLayout() {
     // the text takes up to half of what's free (three rows of clues stay in sight, at the least two)
     room = Math.max(4 * rem, Math.min(free * 0.52, free - 6.5 * rem)) - 2 * 0.375 * rem - 2;
   }
-  const lo = 1.45 * rem, hi = (side ? 3.4 : 2.1) * rem;
+  const lo = 1.45 * rem, hi = (side ? 3.9 : 2.1) * rem;
   let s = hi, laid = flow(width, s);
   while (s > lo && laid.height > room) { s = Math.max(lo, s - 0.5 * k); laid = flow(width, s); }
   const widest = Math.max(...laid.at.map(p => p.x + s));
@@ -379,6 +381,7 @@ function fitLayout() {
   wordEls.forEach(({ el }, i) => { el.style.left = `${left + laid.at[i].x}px`; el.style.top = `${laid.at[i].y}px`; });
   board.style.setProperty("--sq", `${s}px`);
   board.style.height = `${laid.height}px`;
+  board.style.marginTop = side ? `${Math.max(0, (room - laid.height) / 2)}px` : "";     // sideways, in the middle of its column
   box.style.height = side ? "" : `${Math.min(laid.height, room) + 2 * 0.375 * rem + 2}px`;
   keepInView();
 }
@@ -516,35 +519,46 @@ function drawVerdict() {
   show("verdict", text);
   $("nextBtn").textContent = S.mode === "duel" ? "The result" : S.mode === "team" ? "Another together" : "New puzzle";
 }
-/** Keeps the square you're on in sight in the text's box and its clue in the clues' box. */
+/**
+ * Keeps the square you're on in sight in the text's box, and its clue in the clues' box: a clue out of sight comes to
+ * the top of the list, with the ones after it under it (the way you're likely to go).
+ */
 function keepInView() {
   if (!S) return;
-  const near = (box, el) => {
-    if (!el || !box) return;
-    const b = box.getBoundingClientRect(), r = el.getBoundingClientRect();
+  const box = $("textBox"), sq = boxes[S.at];
+  if (sq) {
+    const b = box.getBoundingClientRect(), r = sq.getBoundingClientRect();
     if (r.top < b.top + 2) box.scrollTop += r.top - b.top - 6;
     else if (r.bottom > b.bottom - 2) box.scrollTop += r.bottom - b.bottom + 6;
-  };
-  near($("textBox"), boxes[S.at]);
-  near($("clues"), rows[own[S.at].a]);
+  }
+  const list = $("clues"), row = rows[own[S.at].a];
+  if (row) {
+    const b = list.getBoundingClientRect(), r = row.getBoundingClientRect();
+    if (r.top < b.top - 1 || r.bottom > b.bottom + 1) list.scrollTop += r.top - b.top;
+  }
 }
 
 // ---------- the reveal ----------
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+/** What the text was: the knowledge base's own entry (the saying and what it means, the line and its work, the place). */
+function aboutText(into) {
+  const about = P.about || {};
+  into.append(el("p", "ac-title", about.title || P.text));
+  if (about.by) into.append(el("p", "ac-by", about.by));
+  for (const l of about.lines || []) if (l && l !== about.title) into.append(el("p", "ac-line", l));
+  return into;
+}
 function showDone(fresh) {
-  const box = $("reveal"), about = P.about || {};
+  const box = $("reveal");
   const g = S.mode === "team" ? team.room?.data : null;
   const secs = g?.done ? Math.round(g.done.ms / 1000) + (g.pen || 0) : S.score;
   box.replaceChildren();
-  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-  box.append(el("p", "ac-title", about.title || P.text));
-  if (about.by) box.append(el("p", "ac-by", about.by));
-  for (const l of about.lines || []) if (l && l !== about.title) box.append(el("p", "ac-line", l));
-  const bits = [`${fmt(g?.done ? g.done.ms / 1000 : S.ms / 1000)} on the clock`];
-  const pen = g ? g.pen || 0 : S.pen;
-  if (pen) bits.push(`+${pen} s for hints and checks`);
+  aboutText(box);
+  const pen = g ? g.pen || 0 : S.pen, clock = g?.done ? g.done.ms / 1000 : S.ms / 1000;
   const best = S.mode === "random" || S.mode === "daily" ? read(TIMES, {})[bestKey(S)] : null;
-  const verdict = el("p", "ac-score", `${fmt(secs)}: ${bits.join(", ")}.${S.fresh ? ` A new best at ${LEVELS[P.level].label}.` : best != null ? ` Your best at ${LEVELS[P.level].label}: ${fmt(best)}.` : ""}`);
-  box.append(verdict);
+  const how = pen ? ` (${fmt(clock)} on the clock, +${pen} s for hints and checks)` : "";
+  const after = S.fresh ? ` A new best at ${LEVELS[P.level].label}.` : best != null ? ` Your best at ${LEVELS[P.level].label}: ${fmt(best)}.` : "";
+  box.append(el("p", "ac-score", `${g ? "Solved together" : "Solved"} in ${fmt(secs)}${how}.${after}`));
   if (S.mode === "random" && S.rival) {
     const at = rivalDone(P, S.rival);
     box.append(el("p", "ac-line", at == null || S.score * 1000 < at ? `You beat the computer (${LEVELS[["", "easy", "medium", "hard"][S.rival]].label}), which took ${fmt((at || 0) / 1000)}.` : `The computer (${LEVELS[["", "easy", "medium", "hard"][S.rival]].label}) finished first, in ${fmt(at / 1000)}.`));
@@ -641,6 +655,7 @@ $("doneDlg").addEventListener("click", e => { if (e.target === $("doneDlg") && s
 // added) wins. Your own puzzle, bests and today's stay as they were.
 const duel = createDuel({
   game: "acrostic", name: "Acrostic", app: APP, accent: "--ac-in", line: $("rival"), lower: true, toast,
+  extraTitle: "The text", extra: () => (P ? aboutText(el("div", "ac-reveal")) : null),
   deal: async () => {
     const seed = randomSeed(), P0 = await makeIn(seed, { level: prefs.level, twist: prefs.twist, sources: prefs.sources, stages: prefs.stages });
     return { seed, level: prefs.level, twist: prefs.twist, P: P0 };
@@ -772,7 +787,7 @@ function contentPart(body, forNext = false) {
     const box = document.createElement("details"), sum = document.createElement("summary"), what = document.createElement("span");
     box.className = "menu-stages";
     const say = list => { what.textContent = list.length === all.length ? " · all" : ` · ${list.length} of ${all.length}`; };
-    sum.append(`${SOURCES.find(([x]) => x === id)[1]}: which`, what); say(on);
+    sum.append(id === "lit" ? "Which literature" : "Which sayings", what); say(on);
     box.append(sum, ticks(`${id} stages`, STAGES[id].map(s => [s.id, s.label]), on, list => {
       const keep = list.length && list.length < all.length ? list : null;
       if (keep) prefs.stages[id] = keep; else delete prefs.stages[id];
@@ -799,8 +814,10 @@ function openMenu() {
     pick ??= S?.mode === "daily" ? "daily" : "random";
     part(body, "play").append(action(pick === "daily" ? "Today's acrostic" : "New puzzle", () => confirmStart(pick), "primary"));
     contentPart(body);
-    part(body, "settings").append(choice("Race the computer", [[0, "Off"], [1, "Easy"], [2, "Medium"], [3, "Hard"]], prefs.rival, v => { prefs.rival = v; keepPrefs(); }),
-      line(prefs.rival ? "From your next puzzle: it solves the same one, as fast as a person who knows that much." : "A computer solving the same puzzle as you, beside your clock."));
+    const settings = part(body, "settings");
+    settings.append(toggle("Race the computer", !!prefs.rival, on => { prefs.rival = on ? prefs.pace || 2 : 0; keepPrefs(); openMenu(); }));
+    if (prefs.rival) settings.append(choice("Its pace", [[1, "Easy"], [2, "Medium"], [3, "Hard"]], prefs.rival, v => { prefs.rival = prefs.pace = v; keepPrefs(); }),
+      line("From your next puzzle: it solves the same one beside your clock, as fast as a person who knows that much."));
   }
   const times = read(TIMES, {}), bests = Object.keys(LEVELS).map(l => times[`${l}:classic`] != null ? `${LEVELS[l].label} ${fmt(times[`${l}:classic`])}` : null).filter(Boolean);
   const r = read(RIVALS, {}), vs = Object.entries(r).map(([k, v]) => `${LEVELS[["", "easy", "medium", "hard"][k]]?.label}: ${v.won}–${v.lost}`);

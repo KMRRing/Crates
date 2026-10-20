@@ -69,15 +69,15 @@ html[data-mode="night"] { --ac-in: #79A9D6; --ac-good: #7FC2A8; --ac-bad: #E8806
 .ac-clue { display: flex; flex-wrap: wrap; align-items: center; column-gap: .5rem; row-gap: .25rem; padding: .3rem .3rem;
   border-bottom: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); cursor: pointer; }
 .ac-clue:last-child { border-bottom: 0; }
-.ac-label { flex: none; display: grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: 3px; background: color-mix(in srgb, var(--ac-in) 85%, var(--ink));
-  color: var(--on-c); font-size: .7rem; font-weight: 800; font-stretch: var(--wide); line-height: 1; }
+/* the clue's letter: the enamel, lettered in the page's own colour (light on cobalt by day, dark on pale cobalt by night) */
+.ac-label { flex: none; display: grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: 3px; background: var(--ac-in);
+  color: var(--yard); font-size: .7rem; font-weight: 800; font-stretch: var(--wide); line-height: 1; }
 .ac-say { flex: 1 1 5rem; min-width: 0; font-size: .92rem; line-height: 1.25; overflow-wrap: anywhere; }
 .ac-blanks { flex: none; margin-left: auto; display: flex; gap: .1875rem; }
 .ac-bl { width: 1.4375rem; height: 1.5625rem; box-sizing: border-box; padding: 0; display: grid; place-items: center; border: 1px solid var(--tile-edge); border-radius: 3px;
   background: var(--tile); color: var(--ink); font: inherit; font-size: .92rem; font-weight: 750; line-height: 1; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .ac-bl.spine { border-color: var(--brass); border-width: 1.5px; }
 .ac-clue.sel { background: var(--ac-soft); }
-.ac-clue.sel .ac-label { background: var(--ac-in); }
 .ac-bl.cur { border-color: var(--ac-in); box-shadow: 0 0 0 2px var(--ac-in); }
 .ac-clue.hidden .ac-say { color: var(--ink-soft); font-style: italic; }
 .ac-clue.full:not(.sel) .ac-say { color: var(--ink-soft); }
