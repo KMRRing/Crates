@@ -13,6 +13,7 @@ import { today, arrivedForToday, dailyDue, reportDuo, IN_FRAME } from "./suite.j
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
 import { sextant } from "./loading.js";
+import { sideways } from "./wide.js";
 
 dropdown(document.getElementById("pick"));   // the header dropdown in the suite's style (dropdown.js)
 
@@ -54,8 +55,8 @@ function loadDict() {
 // centre, as shown), used (ms on the clock), secs (a sprint's length, 0 untimed), rival, top (the best rank reached),
 // over, shown (the words were revealed) } and, in a match, begun and n.
 let S = null;
-let P = null;          // what the run's puzzle gives: { words, set, total, need, mine (this player's words), centre, plan, union }
-let team = null;       // a team match as the table has it: { found: Map(word -> slot), people, over, others }
+let P = null;          // what the run's puzzle gives: { words (a team's: everyone's), set, total, need, mine (this player's words), centre, plan (a rival's) }
+let team = null;       // a team match as the table has it: { found: Map(word -> slot), people (seats), over }
 let raceTable = null;  // a race as the table has it: the others' points, for the gauge
 let message = null;    // { text, tone, pts } on the line until the next change
 let messageTimer = 0;
@@ -117,21 +118,22 @@ function drawBoard() {
     return { g, text, letter: letters[i], centre: i === centreAt, x, y };
   });
   box.replaceChildren(svg);
-  markTeam();
   drawUsed();
 }
-/** At a team's table, the other players' centre letters on this board, each ringed in its player's colour. */
+/** At a team's table, the other players' centre letters on this board, each ringed in its player's colour with their
+ *  initial: redrawn with every change, since players sit down after the board is drawn. */
 function markTeam() {
   for (const c of cells) { c.g.querySelector(".ring")?.remove(); c.g.querySelector(".tag")?.remove(); c.g.style.removeProperty("--who"); }
   if (S?.kind !== "team") return;
-  const me = duel.together.slot ?? 0;
+  const me = duel.together.slot ?? 0, wheel = S.p.board === "wheel";
   for (const o of people()) {
     if (o.slot === me) continue;
     const c = cells.find(x => !x.centre && x.letter === centreFor(S.p, o.slot));
     if (!c) continue;
     c.g.style.setProperty("--who", `var(--p${o.slot % 6})`);
-    c.g.insertBefore(svgEl("polygon", { class: "ring", points: hexPoints(c.x, c.y, R * 0.8) }), c.text);
-    const tag = svgEl("text", { class: "tag", x: c.x, y: c.y - R * 0.55 });
+    const ring = wheel ? svgEl("rect", { class: "ring", x: c.x - 34, y: c.y - 34, width: 68, height: 68, rx: 3 }) : svgEl("polygon", { class: "ring", points: hexPoints(c.x, c.y, R * 0.8) });
+    c.g.insertBefore(ring, c.text);
+    const tag = svgEl("text", { class: "tag", x: c.x, y: c.y - (wheel ? 25 : R * 0.55) });
     tag.textContent = initial(o.name);
     c.g.append(tag);
   }
@@ -311,20 +313,25 @@ function drawLine() {
     : S.p.board === "wheel" ? "Each tile once; every word uses the centre" : "Four letters or more, each with the centre";
   l.replaceChildren(idle);
 }
+// the scale is built once: a tick for each rank, your index over it, and a layer under it for the others' indexes
+const scale = $("scale"), scaleTicks = RANKS.map((_, i) => { const t = el("i", `yd-tick${i === RANKS.length - 1 ? " top" : ""}`); t.style.left = `${(i / (RANKS.length - 1)) * 100}%`; return t; });
+const myIndex = el("i", "yd-index"), theirIndexes = el("span", "yd-them");
+scale.replaceChildren(...scaleTicks, myIndex, theirIndexes);
 function drawGauge() {
   const pts = pointsNow(), total = P?.total || 0, rank = S && P ? rankOf(pts, total) : 0;
   $("rank").textContent = RANKS[rank][1];
   $("points").replaceChildren(String(pts), ...(total ? [el("small", "", ` / ${total}`)] : []));
-  const scale = $("scale");
-  if (scale.childElementCount !== RANKS.length + 1) {
-    scale.replaceChildren(...RANKS.map((_, i) => { const t = el("i", `yd-tick${i === RANKS.length - 1 ? " top" : ""}`); t.style.left = `${(i / (RANKS.length - 1)) * 100}%`; return t; }), el("i", "yd-index"));
-  }
-  [...scale.querySelectorAll(".yd-tick")].forEach((t, i) => t.classList.toggle("on", !!total && pts >= P.need[i]));
-  scale.querySelector(".yd-index:not(.them)").style.left = `${placeOf(pts) * 100}%`;
-  // the rival's index, or the others' in a race, under the scale in their colours
-  for (const x of scale.querySelectorAll(".yd-index.them")) x.remove();
-  for (const o of rivalsOnGauge()) { const x = el("i", "yd-index them"); x.style.left = `${placeOf(o.points) * 100}%`; x.style.setProperty("--who", o.colour); x.title = o.name; scale.append(x); }
+  scaleTicks.forEach((t, i) => t.classList.toggle("on", !!total && pts >= P.need[i]));
+  myIndex.style.left = `${placeOf(pts) * 100}%`;
+  drawTheirIndexes();
   $("gauge").setAttribute("aria-label", `${RANKS[rank][1]}: ${pts} of ${total} points. The ranks`);
+}
+/** The rival's index, or the others' in a race, under the scale in their colours. */
+function drawTheirIndexes() {
+  const them = rivalsOnGauge();
+  while (theirIndexes.childElementCount > them.length) theirIndexes.lastElementChild.remove();
+  while (theirIndexes.childElementCount < them.length) theirIndexes.append(el("i", "yd-index them"));
+  them.forEach((o, i) => { const x = theirIndexes.children[i]; x.style.left = `${placeOf(o.points) * 100}%`; x.style.setProperty("--who", o.colour); x.title = o.name; });
 }
 /** Where `pts` stands on the scale: the ranks are evenly spaced, the index between two of them in proportion. */
 function placeOf(pts) {
@@ -355,15 +362,14 @@ function drawFound() {
   $("foundLeft").textContent = P ? `of ${P.words.length}${S?.kind === "team" ? " for the team" : ""}` : "";
   const list = $("foundList"), latest = S?.found.at(-1);
   // newest first on a phone's one line; held sideways the box shows them all, in alphabetical order
-  const order = matchMedia("(orientation: landscape) and (min-width: 700px)").matches ? [...words].sort() : [...(S?.kind === "team" ? [...map.keys()] : S?.found || [])].filter(w => P?.set.has(w)).reverse();
+  const wide = sideways(), order = wide ? [...words].sort() : [...(S?.kind === "team" ? [...map.keys()] : S?.found || [])].filter(w => P?.set.has(w)).reverse();
   list.replaceChildren(...order.flatMap((w, i) => {
     const s = el("span", `${isFull(boardP(), w) ? "full" : ""}${w === latest ? " new" : ""}`, up(w));
     const by = map.get(w);
     if (S.kind === "team" && by != null) { s.classList.add("by"); s.style.setProperty("--who", `var(--p${by % 6})`); }
-    return i && !sidewaysNow() ? [" ", s] : [s];
+    return i && !wide ? [" ", s] : [s];
   }));
 }
-const sidewaysNow = () => matchMedia("(orientation: landscape) and (min-width: 700px)").matches;
 /** The line under the words: a rival as it plays (solo), the table's own line in a match (duel.js draws that). */
 function drawRival() {
   const v = $("vs"), show = !!S && P?.plan.length > 0 && !duel.on;
@@ -374,12 +380,13 @@ function drawRival() {
   if (v.dataset.sig === sig) return;
   v.dataset.sig = sig;
   v.replaceChildren(el("b", "", RIVALS[S.rival].label), ` ${plural(now.words.length, "word")}, ${plural(now.points, "point")} · ${RANKS[rank][1]}`);
+  drawTheirIndexes();                                // its index moves with it
 }
 function render() {
   const p = boardP();
   $("pick").options[0].disabled = duel.on;          // at a table the header deals a match at a level; today's isn't one
   if (S && P) $("pick").value = S.kind === "day" ? "today" : LEVELS[S.p.level] ? S.p.level : "medium";
-  drawBoard(); drawWord(); drawLine(); drawGauge(); drawFound(); drawClock(); drawRival();
+  drawBoard(); markTeam(); drawWord(); drawLine(); drawGauge(); drawFound(); drawClock(); drawRival();
   const off = !canType();
   setBoardOff(off);
   for (const id of ["delBtn", "enterBtn"]) $(id).disabled = off;
@@ -658,16 +665,16 @@ function watchTable() {
 function stopWatch() { tableWatch?.(); tableWatch = null; }
 function onTable(g) {
   if (!g || !S || g.n !== S.n) return;
-  const runs = g.runs || {}, seats = Object.values(g.players || {}).filter(x => x && x.slot != null);
   if (S.kind === "race") {
-    const me = duel.together.slot;
-    raceTable = seats.filter(x => x.slot !== me && runs[`s${x.slot}`]?.begun).map(x => ({ slot: x.slot, name: x.name, points: Number(runs[`s${x.slot}`]?.score) || 0 }));
+    const runs = g.runs || {}, me = duel.together.slot;
+    raceTable = Object.values(g.players || {}).filter(x => x && x.slot != null && x.slot !== me && runs[`s${x.slot}`]?.begun)
+      .map(x => ({ slot: x.slot, name: x.name, points: Number(runs[`s${x.slot}`]?.score) || 0 }));
     drawGauge();
     return;
   }
-  const people = Math.max(2, Number(g.people) || 2), was = team;
-  team = { found: teamFound(g), people, over: g.over === g.n };
-  if (!was || was.people !== people) { derive(); drawnFor = null; }
+  const places = Math.max(2, Number(g.people) || 2), was = team;      // the seats a team's yield is dealt for
+  team = { found: teamFound(g), people: places, over: g.over === g.n };
+  if (!was || was.people !== places) { derive(); drawnFor = null; }
   render();
   if (team.over && teamReported !== `${g.created}-${g.n}`) {
     teamReported = `${g.created}-${g.n}`;
@@ -694,10 +701,12 @@ function raceExtra() {
   if (missed.length) box.append(el("h4", "yd-h", "The best you missed"), el("p", "yd-note", missed.map(up).join(", ")));
   return box;
 }
+/** Who's who at a team's table: each player's colour and letter, as the words wear them. */
 function teamKey() {
-  const p = el("p", "yd-note");
+  const p = el("p", "yd-note yd-key");
   for (const o of people()) {
-    const dot = el("i", "who"); dot.style.cssText = `display:inline-block;width:.55rem;height:.55rem;border-radius:50%;margin:0 .3rem 0 .6rem;background:var(--p${o.slot % 6})`;
+    const dot = el("i", "who");
+    dot.style.setProperty("--who", `var(--p${o.slot % 6})`);
     p.append(dot, `${o.me ? "you" : first(o.name)} (${up(centreFor(S.p, o.slot))})`);
   }
   return p;
@@ -762,7 +771,7 @@ $("sheetDlg").addEventListener("click", e => {
 $("gauge").addEventListener("click", openRanks);
 // duel.js's line opens its standings, which rank teammates against each other: at a team's table it opens the words
 $("duelLine").addEventListener("click", e => { if (S?.kind === "team") { e.stopImmediatePropagation(); openWords(); } }, true);
-$("foundBtn").addEventListener("click", () => { if (!sidewaysNow()) openWords(); });
+$("foundBtn").addEventListener("click", () => { if (!sideways()) openWords(); });
 $("chartBtn").addEventListener("click", openChart);
 $("enterBtn").addEventListener("click", enter);
 $("mixBtn").addEventListener("click", shuffle);
