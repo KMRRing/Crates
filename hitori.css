@@ -54,6 +54,7 @@ html[data-theme="modern"] { --hi-logo-tint: #F1DDEC; --hi-logo-edge: #7A3B73; }
 .hi-svg.hex .hi-tile { stroke-width: .045; }
 /* numbers are set at 100x and scaled down (hitori.js), so their sizes come from there */
 .hi-num { font-family: var(--font); font-weight: 750; fill: var(--ink); text-anchor: middle; pointer-events: none; font-variant-numeric: tabular-nums; }
+.hi-num.two { font-stretch: 68%; letter-spacing: -.02em; }
 .hi-ring { fill: none; stroke: none; stroke-width: .075; pointer-events: none; }
 .hi-svg.hex .hi-ring { stroke-width: .11; }
 .hi-cell.kept .hi-ring { stroke: var(--keeper, var(--hi-in)); }

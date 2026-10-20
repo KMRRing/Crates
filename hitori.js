@@ -4,7 +4,7 @@
 // made in hitori-worker.js. This file keeps the run, the clock and the taps, draws the board, and plays it together on
 // one table (duel.js): a race, everyone the same puzzle on their own phone, or the split board, two players on one
 // board, each seeing half of its numbers.
-import { SHAPES, SIZES, LEVELS, levelsFor, levelOn, DAILY, puzzleOf, solutions, generate, emptyMarks, nextMark, withMark, solvedBy, breaks, hintFor, ownerOf, aloneSettles, rivalPlan, rivalAt, RIVALS, NONE, SHADE, KEEP, B, U } from "./hitori-engine.js";
+import { SHAPES, SIZES, LEVELS, levelsFor, levelOn, DAILY, puzzleOf, solutions, generate, nextMark, withMark, solvedBy, breaks, hintFor, ownerOf, aloneSettles, rivalPlan, rivalAt, RIVALS, NONE, SHADE, KEEP, B, U } from "./hitori-engine.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -21,7 +21,8 @@ const HINT = 30;                     // seconds a hint adds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const HOLD = 430;                    // ms a press takes to keep a cell instead of cycling it
 const PING_FOR = 4000;               // ms a cell pointed at on a split board stays lit
-const SEP = "×";                // 8×8
+const SEP = "×";                     // 8×8
+const NOBODY = "-";                  // on a split board, who marked a cell: a seat's number, or nobody yet
 const IN_PARTY = new URLSearchParams(location.search).has("party");
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
@@ -142,7 +143,7 @@ async function start(mode, k = chosenKind()) {
   if (puzzle) begin(fromPuzzle("random", seed, k, puzzle));
 }
 const fromPuzzle = (mode, seed, k, puzzle) => ({ mode, seed, shape: k.shape, size: k.size, level: k.level, came: puzzle.level, grid: puzzle.grid, sol: puzzle.sol,
-  marks: ".".repeat(puzzle.grid.length), rival: mode === "duel" || mode === "pair" || prefs.rival === "off" ? null : prefs.rival });
+  marks: NONE.repeat(puzzle.grid.length), rival: mode === "duel" || mode === "pair" || prefs.rival === "off" ? null : prefs.rival });
 function confirmStart(mode, k) {
   if (started() && !confirm("Start a new puzzle? This one isn't solved.")) return false;
   start(mode, k);
@@ -196,7 +197,7 @@ function press(i, how) {
 function setCell(i, from, to, undoable = true) {
   if (from === to) return;
   S.marks = withMark(S.marks, i, to);
-  if (S.mode === "pair") { S.by = withMark(S.by || "-".repeat(cellsOf()), i, String(S.slot)); pairWrite(i, to); }
+  if (S.mode === "pair") { S.by = withMark(S.by || NOBODY.repeat(cellsOf()), i, String(S.slot)); pairWrite(i, to); }
   if (undoable) { S.undo.push([i, from, to]); if (S.undo.length > 400) S.undo.shift(); S.redo = []; }
   S.lit = null;
   changed(i);
@@ -345,8 +346,9 @@ function drawBoard() {
     if (hex) svgEl("polygon", { points: hexPoints([x, y], 0.94), class: "hi-tile" }, g);
     else svgEl("rect", { x: (x - 0.46).toFixed(3), y: (y - 0.46).toFixed(3), width: 0.92, height: 0.92, rx: 0.1, class: "hi-tile" }, g);
     svgEl("circle", { cx: x.toFixed(3), cy: y.toFixed(3), r: hex ? 0.62 : 0.36, class: "hi-ring" }, g);
-    const size = (hex ? 0.78 : 0.56) * (two && P.val[i] >= 10 ? 0.82 : 1);
-    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: "hi-num", "font-size": size * TEXT_SCALE, transform: `translate(${x.toFixed(3)} ${y.toFixed(3)}) scale(${1 / TEXT_SCALE})` }, g);
+    // 10 to 12 are set in Archivo's narrow width at nearly full height, so they read as large as the single digits
+    const wide = two && P.val[i] >= 10, size = (hex ? 0.78 : 0.56) * (wide ? 0.94 : 1);
+    const t = svgEl("text", { x: 0, y: 0, dy: "0.36em", class: `hi-num${wide ? " two" : ""}`, "font-size": size * TEXT_SCALE, transform: `translate(${x.toFixed(3)} ${y.toFixed(3)}) scale(${1 / TEXT_SCALE})` }, g);
     t.textContent = String(P.val[i]);
     return { g, t, x, y };
   });
@@ -533,11 +535,12 @@ function tellSoon() {   // a report for every tap would be a write for every tap
 
 // the split board
 const pairOf = g => (g?.pair && g.pair.n === g.n ? g.pair : null);
+const blankPair = (n, cells) => ({ n, k: NONE.repeat(cells), b: NOBODY.repeat(cells), h: 0 });
 let tableSeen = null, tableTimer = 0;
 function playPair(match) {
   const g = tableNow(), p = pairOf(g), slot = mySlot();
   begin({ ...fromPuzzle("pair", match.seed, match, { grid: match.grid, sol: answerOf(match), level: match.came }), rival: null, mode: "pair", slot,
-    marks: p?.k || ".".repeat(match.grid.length), by: p?.b || "-".repeat(match.grid.length), hints: p?.h || 0, begun: g?.start || duel.now(), n: g?.n });
+    marks: p?.k || NONE.repeat(match.grid.length), by: p?.b || NOBODY.repeat(match.grid.length), hints: p?.h || 0, begun: g?.start || duel.now(), n: g?.n });
   tableSeen = g;
   if (p?.done) pairSeen(p);
   watchTable();
@@ -553,7 +556,8 @@ function watchTable() {
     const p = pairOf(g);
     if (p) {
       S.marks = p.k; S.by = p.b; S.hints = p.h || 0;
-      if (p.done && !S.done) pairSeen(p);
+      // the table's solve is the one time for both phones, the one that found it too
+      if (p.done) pairSeen(p);
       else if (!S.done && solvedBy(P, S.marks)) finish();
     }
     drawCells(); render();
@@ -564,7 +568,7 @@ function pairWrite(i, to) {
   const n = S.n, slot = String(S.slot), cells = cellsOf();
   duel.together.act(g => {
     if (g.n !== n) return false;
-    const p = pairOf(g) || { n, k: ".".repeat(cells), b: "-".repeat(cells), h: 0 };
+    const p = pairOf(g) || blankPair(n, cells);
     if (p.done) return false;
     p.k = withMark(p.k, i, to); p.b = withMark(p.b, i, slot);
     g.pair = p;
@@ -572,21 +576,21 @@ function pairWrite(i, to) {
 }
 function pairHint() {
   const n = S.n, cells = cellsOf();
-  duel.together.act(g => { if (g.n !== n) return false; const p = pairOf(g) || { n, k: ".".repeat(cells), b: "-".repeat(cells), h: 0 }; p.h = (p.h || 0) + 1; g.pair = p; });
+  duel.together.act(g => { if (g.n !== n) return false; const p = pairOf(g) || blankPair(n, cells); p.h = (p.h || 0) + 1; g.pair = p; });
 }
 const pairDoneMs = () => Math.max(0, duel.now() - S.begun);
 function pairDone(ms) {
-  // the board as solved goes with the solve: the mark that finished it may not be at the table yet
+  // the board as solved goes with the solve (the mark that finished it may not be at the table yet); the first phone
+  // to write it sets the team's time, which every phone then takes from the table (pairSeen), and records from there
   const n = S.n, at = S.begun + ms, k = S.marks, b = S.by;
   duel.together.act(g => { if (g.n !== n) return false; const p = pairOf(g) || { n, h: 0 }; if (p.done) return false; Object.assign(p, { k, b, done: { at } }); g.pair = p; });
-  record(ms);
 }
-/** The board solved on the other phone: the same result here. */
+/** The board's solve as the table has it: the same time and result on both phones, recorded once for the pair. */
 function pairSeen(p) {
-  const ms = Math.max(0, p.done.at - S.begun);
+  const ms = Math.max(0, p.done.at - S.begun), first = !S.done;
   S.done = { ms, score: scoreOf(ms) };
   record(ms);
-  wave();
+  if (first) wave();
 }
 const recorded = new Set();
 function record(ms) {
