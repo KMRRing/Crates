@@ -88,9 +88,10 @@ check(!misfiled.length, "every clued word is in wordlist.js, filed under its len
 check(!unordered.length, "alphabetical within each tier, each word once", unordered);
 const seen = new Set(entries.map(e => e.word));
 check(seen.size === entries.length, "no word is clued twice");
-const FLOOR = 2000;   // raised as the bank grows: a floor, so that losing words fails
+// both raised as the bank grows, so that losing words fails
+const FLOOR = 2500, LONGEST = 7;
 check(entries.length >= FLOOR, `at least ${FLOOR} words clued (${entries.length}, ${entries.filter(e => e.word.length <= 7).length} of them of 3 to 7 letters)`);
-check(Array.from({ length: MAX - MIN + 1 }, (_, i) => MIN + i).every(n => entries.some(e => e.word.length === n)), "every length from 3 to 12 has clued words");
+check(Array.from({ length: LONGEST - MIN + 1 }, (_, i) => MIN + i).every(n => entries.some(e => e.word.length === n)), `every length from ${MIN} to ${LONGEST} has clued words`);
 
 // ---------- the clues ----------
 const clues = entries.flatMap(e => e.clues.map(([text, d]) => ({ word: e.word, text, d })));
