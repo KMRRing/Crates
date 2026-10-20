@@ -223,6 +223,8 @@ export const ELSEWHERE = [
   { id: "codeword", name: "Codeword", kind: "duo", duo: "codeword", page: "codeword.html", max: 6, race: true, blurb: "The same codeword for everyone at the table: the fastest to crack it wins." },
   { id: "crossword", name: "Crossword", kind: "duo", duo: "crossword", page: "crossword.html", max: 6, blurb: "One grid for the table, its clues split between you: nobody can finish it alone." },
   { id: "acrostic", name: "Acrostic", kind: "duo", duo: "acrostic", page: "acrostic.html", max: 6, race: true, blurb: "The same hidden text for everyone: crack the clues, fill the squares, the fastest solve wins." },
+  { id: "calcudoku", name: "Calcudoku", kind: "duo", duo: "calcudoku", page: "calcudoku.html", max: 6, race: true, blurb: "The same cages for everyone, the fastest solve wins; or Together, one grid and a share of the clues each." },
+  { id: "kakuro", name: "Kakuro", kind: "duo", duo: "kakuro", page: "kakuro.html", max: 6, race: true, blurb: "The same grid of sums for everyone, the fastest solve wins; or Together, one grid and a share of the clues each." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {

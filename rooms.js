@@ -61,6 +61,8 @@ export const GAMES = {
   "codeword-split": { name: "Codeword", page: "./codeword.html" },   // its split key's table, on a branch of its own
   crossword: { name: "Crossword", page: "./crossword.html" },
   acrostic: { name: "Acrostic", page: "./acrostic.html" },
+  calcudoku: { name: "Calcudoku", page: "./calcudoku.html" },
+  kakuro: { name: "Kakuro", page: "./kakuro.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0
