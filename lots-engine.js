@@ -404,16 +404,19 @@ export const reverseRainbow = order => order.length === SIZE && order.every((g, 
 
 // ---------- naming a lot's link (the wall, and the partner's turn in Crossed) ----------
 /**
- * Four links to choose from for lot k: its own and three others from the bank that none of its four words all fit,
- * those of the same kind (another ___ phrase, another hidden word) first. Seeded, so every phone offers the same.
+ * Four links to choose from for lot k: its own and three others from the bank that don't fit all four of its words.
+ * The most tempting come first: links that some of its words do fit (MAMMOTH has a trunk, but HUGE doesn't), then
+ * links of the same kind (another ___ phrase, another hidden word), so naming one asks why its words belong, not
+ * which option is in the right topic. Seeded, so every phone offers the same.
  */
 export function namingOptions(board, k, seed) {
   const rng = seeded((seed ^ Math.imul(k + 1, 2654435761)) >>> 0), own = BY_ID.get(board.g[k].c), words = board.g[k].w;
   const onBoard = new Set(board.g.map(g => g.c));
   const family = c => (c.kind === "after" || c.kind === "before" ? "phrase" : RULED.has(c.kind) ? "rule" : c.kind === "sound" ? "sound" : c.topic);
-  const fair = CATS.filter(c => !onBoard.has(c.id) && words.filter(w => fits(c, w)).length < SIZE && c.name !== own.name);
-  const near = shuffle(fair.filter(c => family(c) === family(own)), rng), far = shuffle(fair.filter(c => family(c) !== family(own)), rng);
-  const picks = [...near, ...far].slice(0, 3).map(c => c.id);
+  const hits = c => words.filter(w => fits(c, w)).length;
+  const fair = shuffle(CATS.filter(c => !onBoard.has(c.id) && c.name !== own.name && hits(c) < SIZE), rng);
+  const rank = c => (hits(c) ? 3 + Math.min(hits(c), 2) : 0) + (family(c) === family(own) ? 2 : 0);
+  const picks = fair.map(c => [c, rank(c) + rng()]).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c]) => c.id);
   return shuffle([own.id, ...picks], rng);
 }
 

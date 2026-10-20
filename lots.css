@@ -1,0 +1,118 @@
+/* Lots: sixteen tiles of paper in a four by four, each lot found taking a row as a bar in its enamel (ochre, verdigris,
+   cobalt, oxblood: plain to devious). The board is as large as its box allows (container units: --t is a tile's width,
+   --r a row's height, squarer on a tall phone), so nothing on it changes size as lots are found. Cobalt is the house
+   colour. */
+:root { --lt-in: #2C5B8A; --lt-in-soft: color-mix(in srgb, var(--lt-in) 15%, var(--sheet)); --lt-logo-tint: #D6DDEA; --lt-logo-edge: var(--logo-edge);
+  --lt-good: #2F7D5B; --lt-bad: #A8382B; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --lt-in: #6FA0D2; --lt-logo-tint: #22344A; --lt-good: #7FC2A8; --lt-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --lt-in: #6FA0D2; --lt-logo-tint: #22344A; --lt-good: #7FC2A8; --lt-bad: #E8806F; }
+
+.lt-mark { display: inline-block; }
+.lt-mark svg { width: 100%; height: 100%; display: block; }
+
+/* what's on the board, and the mistakes left (or the wall's clock and lives) */
+.lt-strip { display: flex; justify-content: space-between; align-items: center; gap: .75rem; margin: .65rem 0 .3rem; min-height: 1.6rem; }
+.lt-what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .78rem; font-weight: 800; font-stretch: var(--wide);
+  letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ink-soft); }
+.lt-count { display: flex; align-items: center; gap: .55rem; flex: none; font-size: .82rem; color: var(--ink-soft); white-space: nowrap; }
+.lt-count b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.lt-count b.low { color: var(--lt-bad); }
+.lt-dots { display: flex; gap: .3rem; }
+.lt-dots i { width: .75rem; height: .75rem; border-radius: 50%; background: var(--ink); }
+.lt-dots i.gone { background: none; box-shadow: inset 0 0 0 1.5px var(--ink-soft); opacity: .7; }
+/* the rival, the others in a race, your partner: one line, the same height whatever it says */
+.lt-rival { margin: 0 0 .25rem; min-height: 1.35rem; font-size: .82rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lt-rival[hidden] { display: none; }
+.lt-rival b { color: var(--ink); font-weight: 750; }
+.lt-rival .lt-sq { display: inline-block; width: .7rem; height: .7rem; margin-right: .15rem; border-radius: 2px; vertical-align: -.05rem; box-shadow: inset 0 0 0 1.5px var(--rule); }
+.lt-rival .lt-sq.l0 { background: var(--c0); box-shadow: none; }
+.lt-rival .lt-sq.l1 { background: var(--c1); box-shadow: none; }
+.lt-rival .lt-sq.l2 { background: var(--c2); box-shadow: none; }
+.lt-rival .lt-sq.l3 { background: var(--c3); box-shadow: none; }
+
+/* the board */
+.lt-stage { margin: .25rem 0; }
+.lt-board { --g: .375rem; --t: min((100cqw - 3 * var(--g)) / 4, (100cqh - 3 * var(--g)) / 3.2);
+  --r: clamp(var(--t) * .8, (100cqh - 3 * var(--g)) / 4, var(--t) * 1.25);
+  display: grid; grid-template-columns: repeat(4, var(--t)); grid-template-rows: repeat(4, var(--r)); gap: var(--g);
+  -webkit-user-select: none; user-select: none; }
+.lt-tile { position: relative; display: grid; place-items: center; min-width: 0; padding: 0 .2rem; border: 1.5px solid var(--tile-edge); border-radius: 5px;
+  background: var(--tile); color: var(--ink); font: inherit; font-weight: 700; font-stretch: 87.5%; line-height: 1.05; letter-spacing: .01em;
+  font-size: min(var(--t) * .19, var(--t) * 1.42 / var(--len, 6)); text-transform: uppercase; cursor: pointer; overflow: hidden;
+  -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background-color .12s, border-color .12s, transform .12s; }
+.lt-word { display: inline-block; white-space: nowrap; }
+.lt-tile[aria-pressed="true"] { border-color: var(--plate); background: var(--plate); color: var(--plate-ink); }
+.lt-tile:active:not(:disabled) { transform: scale(.96); }
+.lt-tile:disabled { cursor: default; }
+.lt-tile.sealed { background: repeating-linear-gradient(135deg, var(--tile) 0 8px, var(--tile-edge) 8px 9px); cursor: default; }
+.lt-tile.theirs { box-shadow: inset 0 0 0 2.5px var(--lt-in); }
+.lt-tile.sealed.theirs { background: repeating-linear-gradient(135deg, var(--lt-in-soft) 0 8px, var(--lt-in) 8px 9px); }
+.lt-tile .lt-who { position: absolute; left: .25rem; bottom: .25rem; width: 1rem; height: 1rem; border-radius: 50%; display: grid; place-items: center;
+  font-size: .6rem; font-weight: 800; background: var(--lt-in); color: var(--sheet); pointer-events: none; }
+.lt-board.shake .lt-word { display: inline-block; white-space: nowrap; }
+.lt-tile[aria-pressed="true"] { animation: lt-shake .35s; }
+@keyframes lt-shake { 25% { transform: translateX(-.3125rem); } 75% { transform: translateX(.3125rem); } }
+
+/* a lot: a row's bar in its enamel, its link in wide capitals and its words under it; a tap shows why in the line */
+.lt-lot { grid-column: 1 / -1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .15rem; min-width: 0;
+  padding: .2rem .7rem; border: 2px solid; border-radius: 5px; color: var(--ink); text-align: center; font: inherit; cursor: pointer; overflow: hidden; }
+.lt-lot.l0 { background: color-mix(in srgb, var(--c0) 30%, var(--sheet)); border-color: var(--c0); }
+.lt-lot.l1 { background: color-mix(in srgb, var(--c1) 24%, var(--sheet)); border-color: var(--c1); }
+.lt-lot.l2 { background: color-mix(in srgb, var(--c2) 24%, var(--sheet)); border-color: var(--c2); }
+.lt-lot.l3 { background: color-mix(in srgb, var(--c3) 22%, var(--sheet)); border-color: var(--c3); }
+.lt-lot.missed { border-style: dashed; opacity: .82; }
+.lt-lot.land { animation: lt-land .3s ease-out; }
+@keyframes lt-land { from { transform: scaleY(.7); opacity: .4; } }
+/* a long link takes two lines rather than an ellipsis (Countries without their first letter) */
+.lt-lot-name { max-width: 100%; font-size: clamp(.85rem, var(--t) * .16, 2rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track));
+  text-transform: var(--caps); line-height: 1.12; text-wrap: balance; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.lt-lot-words { max-width: 100%; font-size: clamp(.78rem, var(--t) * .14, 1.5rem); font-weight: 600; font-stretch: 87.5%; letter-spacing: .02em; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+.lt-lot-by { font-size: clamp(.68rem, var(--t) * .1, 1.1rem); color: var(--ink-soft); font-weight: 650; }
+
+/* the guesses so far: only held sideways, in the side column's room */
+.lt-feed { display: none; }
+
+/* the line: what to do, what a guess came to; two lines at most, always the same height */
+.lt-line { margin: .45rem 0 .5rem; min-height: 2.5em; display: grid; place-items: center; text-align: center; font-size: .92rem; font-weight: 650; line-height: 1.25; color: var(--ink-soft); }
+.lt-line.good { color: var(--lt-good); }
+.lt-line.bad { color: var(--lt-bad); }
+.lt-line.note { font-size: .8rem; font-weight: 550; }
+.lt-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+.lt-controls .btn { min-height: 3rem; padding-inline: .4rem; }
+.lt-controls.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* naming a lot's link: its words, four links to choose from */
+dialog.lt-namer { padding-top: 1rem; }
+.lt-name-head { margin: 0 0 .35rem; font-size: .8rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.lt-name-words { margin: 0 0 .8rem; font-weight: 750; font-size: 1.05rem; }
+.lt-name-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; }
+.lt-name-opts .btn { min-height: 3.25rem; text-transform: none; letter-spacing: normal; font-stretch: 100%; font-size: .92rem; line-height: 1.2; }
+.lt-name-opts .btn.right { border-color: var(--lt-good); background: color-mix(in srgb, var(--lt-good) 18%, var(--sheet)); }
+.lt-name-opts .btn.wrong { border-color: var(--lt-bad); background: color-mix(in srgb, var(--lt-bad) 14%, var(--sheet)); }
+.lt-name-note { margin: .7rem 0 0; min-height: 1.3em; font-size: .85rem; color: var(--ink-soft); }
+
+.lt-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.lt-toast.show { opacity: 1; }
+
+/* held sideways: the board on the left with all the height; what it is, the rival, the line and the buttons beside
+   it, the buttons low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.lots { --beside: 19rem; grid-template-rows: auto auto auto minmax(0, 1fr) auto auto; }
+  #app.lots .lt-stage { grid-column: 1; grid-row: 2 / -1; margin: .8rem 0 0; }
+  #app.lots .lt-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .5rem; margin-top: 1rem; }
+  #app.lots .lt-what { white-space: normal; font-size: .85rem; }
+  #app.lots .lt-rival { grid-column: 2; grid-row: 3; white-space: normal; margin-top: .6rem; }
+  #app.lots .lt-feed { grid-column: 2; grid-row: 4; display: grid; align-content: start; gap: .3rem; margin: .8rem 0 0; padding: 0; list-style: none;
+    min-height: 0; overflow-y: auto; overscroll-behavior: contain; font-size: .8rem; color: var(--ink-soft); }
+  #app.lots .lt-feed li { padding: .35rem .5rem; border-radius: 4px; background: var(--sheet); line-height: 1.3; }
+  #app.lots .lt-feed b { color: var(--ink); font-weight: 750; }
+  #app.lots .lt-line { grid-column: 2; grid-row: 5; text-align: left; place-items: center start; min-height: 3.8em; }
+  #app.lots .lt-controls { grid-column: 2; grid-row: 6; grid-template-columns: minmax(0, 1fr); }
+  #app.lots .lt-controls .btn { min-height: 2.9rem; }
+}

@@ -12,9 +12,9 @@ import { SIZE, MISTAKES, BY_ID, fits, seeded, shuffle, comboKey } from "./lots-e
  * seconds from seeing a lot to putting it in; how long it waits on links that show too many words before guessing.
  */
 export const RIVALS = {
-  novice: { name: "Novice", see: [0.97, 0.85, 0.6, 0.4], secs: [35, 60, 100, 150], think: [6, 12], patience: 50 },
-  club: { name: "Club", see: [0.99, 0.94, 0.8, 0.62], secs: [20, 35, 60, 95], think: [4, 9], patience: 40 },
-  expert: { name: "Expert", see: [1, 0.99, 0.93, 0.85], secs: [10, 18, 32, 55], think: [2, 6], patience: 30 },
+  novice: { name: "Novice", see: [0.97, 0.85, 0.6, 0.4], secs: [40, 70, 115, 170], think: [7, 14], patience: 50 },
+  club: { name: "Club", see: [0.99, 0.94, 0.8, 0.62], secs: [25, 45, 75, 115], think: [5, 10], patience: 40 },
+  expert: { name: "Expert", see: [1, 0.99, 0.93, 0.85], secs: [14, 26, 45, 75], think: [3, 7], patience: 30 },
 };
 const GIVE_UP = 15 * 60 * 1000;     // a person stops thinking at some point: from then on, guesses until it's over
 

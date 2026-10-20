@@ -45,6 +45,7 @@ function newBoard(g, { seed, level, mode }) {
   g.mistakes = 0;
   g.done = false;
   g.won = false;
+  delete g.race;                    // a race the pair went to belongs to the board before
 }
 /** A table as the database gives it back (no empty lists, lists as objects with holes), made whole again. */
 export function tidy(g) {
