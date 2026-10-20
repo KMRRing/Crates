@@ -76,8 +76,9 @@ html[data-mode="night"] { --mn-in: #7FA8D8; --mn-good: #7FC2A8; --mn-bad: #E8806
 /* held sideways: the field on the left with all the height; the strip, the line and the tools beside it, low where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.mines { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
-  #app.mines .mn-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.mines .mn-strip, #app.mines .mn-strip:has(.mn-rival:not([hidden])) { grid-column: 2; grid-row: 2; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
   #app.mines .mn-what { margin-left: 0; text-align: left; white-space: normal; }
+  #app.mines .mn-rival { flex: none; max-width: 100%; white-space: normal; }
   #app.mines .mn-card { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.mines .mn-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
   #app.mines .mn-controls { align-content: end; }
