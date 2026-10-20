@@ -247,8 +247,8 @@ const dealt = Object.fromEntries(LEVELS.map(level => [level, []]));
     g = tx(g, s => room.nameAt(s, { n: 1, slot: 0, pick: k === 1 ? B.g[k].c : p.options.find(o => o !== B.g[k].c) })).g;
   }
   v = room.tidy(roundTrip(g));
-  check(v.done && v.won && v.found.length === 4 && room.pointsOf(v) === points(4, 1, true) + 2 && room.maxPoints(v) === 12 && room.resultOf(v)?.coop && room.resultOf(v).match === "1000-1",
-    "solved together with one mistake and two links named: 9 of 12, the pair's record a team result");
+  check(v.done && v.won && v.found.length === 4 && room.pointsOf(v) === points(4, 1, true) + 2 && room.maxPoints(v) === 12 && room.resultOf(v)?.coop && room.resultOf(v).won && room.resultOf(v).score == null && room.resultOf(v).match === "1000-1",
+    "solved together with one mistake and two links named: 9 of 12, the pair's record a team board solved");
   check(v.tally.boards === 1 && v.tally.solved === 1, "the table's tally");
   const next = tx(g, s => room.nextAt(s, { n: 1, seed: 7, mode: "hidden" }));
   check(next.out && room.tidy(roundTrip(next.g)).n === 2 && room.tidy(roundTrip(next.g)).mode === "hidden" && !tx(next.g, s => room.nextAt(s, { n: 1, seed: 8 })).out,

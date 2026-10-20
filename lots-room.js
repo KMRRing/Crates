@@ -147,9 +147,12 @@ export function nextAt(g, { n, seed, level, mode }) {
   newBoard(g, { seed, level: level || g.level, mode: mode || g.mode });
   return true;
 }
-/** The board as one player saw it once it's over, for the pair's record: a team result. */
+/**
+ * The board once it's over, for the pair's record: a team result, solved or not. No score, as Crates sends none: the
+ * tile then counts boards solved of boards played, where a score would be read in the daily's points-then-time form.
+ */
 export function resultOf(g) {
-  return g?.done ? { match: `${g.created}-${g.n}`, score: pointsOf(g), won: g.won, coop: true } : null;
+  return g?.done ? { match: `${g.created}-${g.n}`, score: null, won: g.won, coop: true } : null;
 }
 
 // ---------- what each player sees ----------

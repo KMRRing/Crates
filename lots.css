@@ -52,8 +52,8 @@ html[data-mode="night"] { --lt-in: #6FA0D2; --lt-logo-tint: #22344A; --lt-good: 
 .lt-tile.sealed.theirs { background: repeating-linear-gradient(135deg, var(--lt-in-soft) 0 8px, var(--lt-in) 8px 9px); }
 .lt-tile .lt-who { position: absolute; left: .25rem; bottom: .25rem; width: 1rem; height: 1rem; border-radius: 50%; display: grid; place-items: center;
   font-size: .6rem; font-weight: 800; background: var(--lt-in); color: var(--sheet); pointer-events: none; }
-.lt-board.shake .lt-word { display: inline-block; white-space: nowrap; }
-.lt-tile[aria-pressed="true"] { animation: lt-shake .35s; }
+/* a wrong guess shakes the picks it was made of, once: the class goes when the shake is over, since every tap redraws the tiles */
+.lt-board.shake .lt-tile[aria-pressed="true"] { animation: lt-shake .35s; }
 @keyframes lt-shake { 25% { transform: translateX(-.3125rem); } 75% { transform: translateX(.3125rem); } }
 
 /* a lot: a row's bar in its enamel, its link in wide capitals and its words under it; a tap shows why in the line */
