@@ -5,7 +5,7 @@
 // guess any word that splits them best, a word that can't be the answer included, and closes on one when it can.
 // Each guess comes after a person's thinking time. A rival's whole game is worked out when the game starts (it
 // doesn't depend on yours), so it is kept with the game and shows the same after a reload and to a partner watching.
-import { packOf, codeAt, codeFor, marksOf, codeOfMarks, marksOfCode, rng, hashOf, humanGame, levelOf, guessesFor, allHit, unhide, dodgeStep, SPRINT_MS, HIT, GREY } from "./assay-engine.js";
+import { packOf, codeAt, marksOf, marksOfCode, rng, hashOf, levelOf, guessesFor, unhide, dodgeStep, SPRINT_MS, HIT, GREY } from "./assay-engine.js";
 import { ENGLISH } from "./assay-words.js";
 
 export const RIVALS = ["novice", "steady", "sharp", "master"];
@@ -187,4 +187,3 @@ export function rivalMarks(g, row, b = 0) {
   const answer = unhide(g.secret[g.mode === "sprint" ? row.word : b]);
   return marksOf(row.guess, answer);
 }
-export { codeOfMarks, codeFor, allHit };

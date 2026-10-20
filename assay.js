@@ -5,7 +5,7 @@
 // assay-table.js's. Together: the pair as a team, each seeing one colour of the marks (together.js), or everyone
 // racing the same word (duel.js), from the partner sheet or a Party.
 import { LENGTHS, LEVELS, BOARDS, DAILY, HIT, NEAR, GREY, UNSEEN, SPRINT_MS, newGame, guessIn, rowsOf, solvedAt, limitOf, guessesFor, answersOf,
-  lettersOf, scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, marksOf, seenAs, hide, unhide, packOf, levelOf, meanGuesses, dodgeCands } from "./assay-engine.js";
+  scoreOf, sprintSolved, guessesUsed, timeUp, dailyWord, seenAs, unhide, packOf, levelOf, meanGuesses } from "./assay-engine.js";
 import { RIVALS, RIVAL_NAMES, rivalPlan, rivalSoFar, rivalMarks } from "./assay-solve.js";
 import { freshTeam, isTeam, tidy, guessAt, rowsOfTable, roleAt, resultOf as teamResult, dealAt, limitOfTable } from "./assay-table.js";
 import { ENGLISH } from "./assay-words.js";
@@ -18,7 +18,6 @@ import { createTogether } from "./together.js";
 import { roomInAddress, joiningWords, openBranch, branchPath } from "./rooms.js";
 import { getSync } from "./net.js";
 import { busy, sextant } from "./loading.js";
-import { sideways } from "./wide.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
