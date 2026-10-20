@@ -71,7 +71,7 @@ const made = [];
       if (!opsFor(c.cells.length).includes(c.op)) problems.push(`${tag}: ${c.op} on ${c.cells.length} cells`);
       if (targetOf(c.op, c.cells.map(i => p.solution[i])) !== c.target) problems.push(`${tag}: a target its digits don't make`);
       if (rules === "products" && c.cells.length > 1 && c.op !== "x") problems.push(`${tag}: a ${c.op} in Products`);
-      if (rules === "classic" && c.op === "x" && c.cells.length > 2 && c.target > 999) problems.push(`${tag}: a product too long for its corner`);
+      if ((rules === "classic" && c.op === "x" && c.cells.length > 2 && c.target > 999) || c.target > 9999) problems.push(`${tag}: a target too long for its corner`);
       if (c.cells.length > 2 && readCage(view.cages[p.cages.indexOf(c)], new Uint16Array(cells).fill(shape.all)).alive > 800) problems.push(`${tag}: a cage too long to weigh`);
     }
     if (seen.size !== cells) problems.push(`${tag}: cells in no cage`);

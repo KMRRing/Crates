@@ -67,6 +67,9 @@ const SINGLES = (rank, n) => (rank === 1 ? Math.ceil(n / 2) : rank === 2 ? (n >=
 const TRIES = 120;                 // cuts tried for a level before the nearest one is taken
 /** The largest product a classic cage is given: past it a cage adds up (a phone's corner can't hold "5184×"). */
 const MOST_PRODUCT = 999;
+/** The largest target any cage has: a 9×9's corner holds four digits and a sign, so a Products cage that would
+ *  multiply past it ("12096×") is split. */
+const MOST_TARGET = 9999;
 /** The most ways a cage may have of making its target: past that it's more than a person weighs (a 9×9's six cells
  *  adding up to 27 have tens of thousands), so it's split, and never made by a join. */
 const MOST_WAYS = 800;
@@ -190,8 +193,9 @@ export function cutOf(n, solution, rules, odds, singles, r) {
   const clueOf = k => { if (!clue.has(k)) clue.set(k, clueFor(cellsOf(k).map(c => solution[c]), rules, r)); return clue.get(k); };
   const cages = () => [...members().entries()].sort((a, b) => a[1][0] - b[1][0]).map(([k, cs]) => ({ cells: cs, ...clueOf(k) }));
   const waysIn = k => { const cs = cellsOf(k); return cagesFor(shape, [{ cells: cs, ...clueOf(k) }], { hidden: rules === "hidden", cache: ways })[0].ways.length / cs.length; };
-  /** A cage with more ways than a person weighs (MOST_WAYS), or -1. */
-  const unwieldy = () => { for (const [k, cs] of members()) if (cs.length > 2 && waysIn(k) > MOST_WAYS) return k; return -1; };
+  /** A cage with more ways than a person weighs (MOST_WAYS), or a target longer than its corner holds; -1 if none. */
+  const tooMuch = k => clueOf(k).target > MOST_TARGET || (sizeOf(k) > 2 && waysIn(k) > MOST_WAYS);
+  const unwieldy = () => { for (const k of members().keys()) if (tooMuch(k)) return k; return -1; };
   /** Another clue for cage k that its own digits make but `other`'s don't: true if there was one. */
   const reclue = (k, other) => {
     const cs = cellsOf(k), ds = cs.map(c => solution[c]), theirs = cs.map(c => other[c]), now = clueOf(k);
@@ -248,7 +252,7 @@ export function cutOf(n, solution, rules, odds, singles, r) {
     for (const c of map.get(kb)) cageOf[c] = ka;
     clue.delete(ka); clue.delete(kb);
     const undo = () => { cageOf.set(before); clue.clear(); for (const [k, v] of kept) clue.set(k, v); };
-    if (waysIn(ka) > MOST_WAYS) { undo(); return null; }
+    if (tooMuch(ka)) { undo(); return null; }
     return undo;
   };
   return { shape, rules, solution, cageOf, ways, cages, sizeOf, unwieldy, reclue, sharpen, split, join };
