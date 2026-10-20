@@ -8,12 +8,14 @@
 // product.
 //
 // How a grid is made (generate): a random Latin square first (calcudoku-solve.js fills an empty grid at random); then
-// it's cut into cages grown from random cells to sizes drawn from the level's odds, and each cage is given a clue its
-// digits make. The exact solver then counts solutions: wherever a second one appears, a cage where the two differ is
-// given another clue that rules it out, or failing that is split in two, until there's one. Then the human-style
-// solver (calcudoku-logic.js) grades it by the hardest technique it needs: a grid harder than its level is split where
-// the solver first needed more (or got stuck), one easier has neighbouring cages joined while it keeps one solution,
-// and one that still misses is thrown away for the next seed in the same stream, so a seed always makes the same grid.
+// it's cut into cages grown from random cells to sizes drawn from the level's odds, each given a clue its digits make.
+// The human-style solver (calcudoku-logic.js) works on it with the techniques up to the level's hardest. Where it gets
+// stuck, a short search by the exact solver looks for a second solution: if there is one, a cage where the two differ
+// is given another clue that rules it out (or is split in two); if not, the grid is only too hard there, and a cage
+// there is given the sharpest clue its digits make (or is split). Once the solver finishes it, cages are joined while
+// it still does (the lone cells past the level's few first, then, while the grid is easier than its level, the cages
+// that gave the solver its first footholds), and last of all the exact solver counts its solutions, up to two. A try
+// that misses is thrown away for the next seed in the same stream, so a seed always makes the same grid.
 import { shapeOf, rng, mix, below, shuffle, weighted, nearOf, connected, POP } from "./calcudoku-grid.js";
 import { opsFor, targetOf, holds, cagesFor } from "./calcudoku-cage.js";
 import { solver, latinSquare } from "./calcudoku-solve.js";
@@ -58,7 +60,7 @@ const levelAt = (rules, n, rank) => Object.entries(levelsOf(rules, n)).find(([, 
 /**
  * Cage sizes by level, as the odds of each size from one cell up: an Easy grid has small cages, whose few ways of
  * being made give digits away; harder grids have longer cages, and fewer of them. A cage of one cell is a digit given
- * in all but name: an Easy grid keeps up to a third of a line of them, harder ones one or two.
+ * in all but name: an Easy grid keeps up to half a line of them, harder ones one to three, by size.
  */
 const ODDS = { 1: [0, 1, 6, 3, 0.4], 2: [0, 0.4, 5, 4, 1.2], 3: [0, 0.2, 4, 4, 2.2, 0.4], 4: [0, 0.2, 3.5, 4, 2.6, 0.6] };
 const SINGLES = (rank, n) => (rank === 1 ? Math.ceil(n / 2) : rank === 2 ? (n >= 7 ? 3 : 2) : n >= 7 ? 2 : 1);
@@ -141,6 +143,9 @@ function attempt(n, rules, spec, rank, r) {
   }
   const cages = cut.cages();
   if (lone().length > most) return null;
+  // the last word: the exact solver counts its solutions, up to two (on a finished grid it takes milliseconds)
+  const proof = solver(shape, solvable(cut)).solve(new Uint8Array(cells), { limit: 2, maxNodes: 20000 });
+  if (proof.count !== 1 || proof.aborted) return null;
   return { rank: g.rank, solution, cages, uses: g.uses, count: cages.length };
 }
 /** The cut's cages ready to solve, their ways kept between looks. */

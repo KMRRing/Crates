@@ -81,7 +81,7 @@ export function solver(shape, cages = []) {
     const solutions = [];
     const go = (cand, val, stack, dirty) => {
       if (!settle(cand, val, stack, dirty)) return false;
-      if (maxNodes && ++nodes > maxNodes) { aborted = true; return true; }
+      if (++nodes > maxNodes && maxNodes) { aborted = true; return true; }
       let best = -1, fewest = 99;
       for (let i = 0; i < cells; i++) {
         if (val[i]) continue;
