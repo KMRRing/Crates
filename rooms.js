@@ -55,6 +55,8 @@ export const GAMES = {
   yield: { name: "Yield", page: "./yield.html" },
   isomer: { name: "Isomer", page: "./isomer.html" },
   ladder: { name: "Ladder", page: "./ladder.html" },
+  lode: { name: "Lode", page: "./lode.html" },
+  lots: { name: "Lots", page: "./lots.html" },
 };
 
 const CODE_LETTERS = "ABCDEFGHJKLMNPQRSTUVWXYZ";   // no I or O, so codes can't be misread as 1 or 0

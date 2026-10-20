@@ -221,7 +221,7 @@ export function bestOf(app) {
 export const MARKS = { crates: "streak", cartel: "streak", tribute: "streak", glyph: "time", delta: "time", survey: "time", punt: "daily", quote: "daily", origin: "daily",
   order: "daily", chart: "daily", calibre: "stars", harbour: "stars", blend: "stars", refinery: "stars", stow: "stars", deck: "count", parley: "count",
   river: "best", gambit: "best", boast: "streak", bigtwo: "streak", landlord: "streak", banquet: "streak", gammon: "streak", trumps: "streak", quest: "streak", bones: "streak", dandan: "streak",
-  contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", bulls: "guesses", assay: "daily", yield: "daily", isomer: "time", ladder: "time" };
+  contract: "streak", sudoku: "time", mines: "time", nonogram: "time", hitori: "time", bulls: "guesses", assay: "daily", yield: "daily", isomer: "time", ladder: "time", lode: "time", lots: "daily" };
 const keyOf = app => (app === "glyph" ? "slate" : app);                // Slate keeps its things under slate:
 /** A game won or lost, in a game that counts streaks: the current run, and the longest. */
 export function noteStreak(app, won) {
@@ -317,7 +317,7 @@ export async function watchBests(cb) {
 // ---------- the pair: presence, requests, the banner ----------
 /** The games that can be played together (a duo match is the game opened in the pair's room). */
 export const DUO_GAMES = { crates: "crates.html", slate: "slate.html", chart: "chart.html", delta: "delta.html", punt: "punt.html", quote: "quote.html", spot: "spot.html", stow: "stow.html", hong: "hong.html", tribute: "tribute.html",
-  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", brut: "brut.html", blend: "blend.html", arb: "arb.html", survey: "survey.html", manifest: "manifest.html", pipes: "pipes.html", refinery: "refinery.html", sudoku: "sudoku.html", mines: "mines.html", nonogram: "nonogram.html", hitori: "hitori.html", bulls: "bulls.html", assay: "assay.html", yield: "yield.html", isomer: "isomer.html", ladder: "ladder.html" };
+  river: "river.html", gambit: "gambit.html", rush: "rush.html", origin: "origin.html", order: "order.html", brut: "brut.html", blend: "blend.html", arb: "arb.html", survey: "survey.html", manifest: "manifest.html", pipes: "pipes.html", refinery: "refinery.html", sudoku: "sudoku.html", mines: "mines.html", nonogram: "nonogram.html", hitori: "hitori.html", bulls: "bulls.html", assay: "assay.html", yield: "yield.html", isomer: "isomer.html", ladder: "ladder.html", lode: "lode.html", lots: "lots.html" };
 const pageGame = () => (page() === "index" ? "" : page());   // "" at home (index): no game open
 const ASK_FOR = 2 * 60 * 1000;                  // a request stands for two minutes
 const FOLLOW_FOR = 10 * 60 * 1000;              // its yes takes the device that asked to the table this long after (it may have slept through it)

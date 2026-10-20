@@ -30,7 +30,7 @@ export function nextPile(game, pile) {
   return next === undefined ? null : next;
 }
 export const GAMES = { punt: "Punt", quote: "Quote", chart: "Chart", crates: "Crates", rush: "Gambit", slate: "Slate", parley: "Parley", brut: "Brut",
-  nonogram: "Nonogram", isomer: "Isomer" };
+  nonogram: "Nonogram", isomer: "Isomer", lode: "Lode" };
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
