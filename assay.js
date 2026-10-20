@@ -502,9 +502,13 @@ async function defineInto(body, words) {
   const words0 = body.querySelector(".as-words");
   if (box.childElementCount && words0) words0.after(box);
 }
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayText = day => `${day % 100} ${MONTHS[Math.floor(day / 100) % 100 - 1]} ${Math.floor(day / 10000)}`;
 async function copyGrid() {
   const sq = { [HIT]: "🟩", [NEAR]: "🟨", [GREY]: "⬜" }, n = S.mode === "boards" ? S.boards : 1;
-  const head = `Assay ${S.kind === "daily" ? S.day : `${S.len} letters`} ${S.over === "won" ? S.guesses.length : "X"}/${Number.isFinite(limitOf(S)) ? limitOf(S) : "∞"}${S.rules !== "free" ? "*" : ""}`;
+  const what = S.kind === "daily" ? dayText(S.day) : S.mode === "dodge" ? `Dodge, ${S.len} letters` : S.mode === "boards" ? `${NUMBER[S.boards]} boards, ${S.len} letters` : `${S.len} letters`;
+  const score = S.mode === "dodge" ? `in ${S.guesses.length}` : `${S.over === "won" ? S.guesses.length : "X"}/${limitOf(S)}`;
+  const head = `Assay ${what} ${score}${S.rules !== "free" ? "*" : ""}`;
   const grids = Array.from({ length: n }, (_, b) => rowsOf(S, b).map(r => r.marks.map(m => sq[m]).join("")).join("\n"));
   const text = `${head}\n${grids.join("\n\n")}`;
   try { await navigator.clipboard.writeText(text); toast("Grid copied"); } catch { toast(text, 6000); }
@@ -561,6 +565,7 @@ function onTeam(val) {
   seated();
   const was = T;
   T = tidy(structuredClone(val));
+  if (!was && T.players?.[team.room.uid]?.draft) sendDraft("");   // letters half typed before a reload are gone here: so for the others
   if (!was || was.n !== T.n) { myDraft = ""; reveal = null; built = null; message = null; }
   else if (T.guesses.length > was.guesses.length) { reveal = { at: performance.now(), key: `t:${T.n}:${T.guesses.length - 1}` }; if (T.guesses.at(-1).by === team.slot) myDraft = ""; }
   render();
