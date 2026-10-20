@@ -427,6 +427,7 @@ export function makeBoard({ seed, theme, level = "medium", shape = "square", mix
     const key = outside(board.grade, level) * 10 + board.twice;
     if (key < bestKey) { best = board; bestKey = key; }
     if (bestKey === 0 || (attempt >= 1 && bestKey <= 1) || (attempt >= 3 && bestKey < 10)) break;
+    if (attempt >= 5 && bestKey > SLACK * 10) break;          // nothing near the band yet: a deal moves on to another theme
   }
   if (!best) return null;
   best.title = titleOf(r, t, best.words.map(w => w.text), level);

@@ -149,12 +149,12 @@ function onSubmit(cells) {
 }
 /** What a trace came to, in the line under the board. */
 function said(out, ctx, who = null) {
-  const b = ctx.board, by = who ? `${who}: ` : "";
+  const b = ctx.board, by = who ? `${who} found ` : "";
   const w = out.w != null ? b.words[out.w] : null;
   const t = {
     span: () => [`${by}${w?.text}, the mother lode: the theme is ${b.name}.`, "gold"],
     theme: () => [`${by}${w?.text}${out.moved ? " (it runs here)" : ""}: ${lower(w?.hint)}`, "good"],
-    word: () => [out.earned ? `${by}${out.text}: a hint earned.` : `${by}${out.text}: ${plural(PER_HINT - ctx.run.meter, "more word")} for a hint.`, ""],
+    word: () => [out.earned ? `${out.text}: a hint earned.` : `${out.text}: ${plural(PER_HINT - ctx.run.meter, "more word")} for a hint.`, ""],
     had: () => [`${out.text} counted already.`, ""],
     again: () => [`${out.text} is found already.`, ""],
     short: () => ["Four letters or more.", "bad"],
@@ -324,7 +324,8 @@ function recordBest(sc) {
 }
 /** Puts a board on the table: made = { deal, board }. */
 function begin(made, mode, day = null) {
-  S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: settings.clues, rival: settings.rival !== "off" ? settings.rival : null, fresh: false, told: false };
+  // today's board is the same for everyone, shown by its title too (a rival changes nothing of its score)
+  S = { deal: made.deal, mode, day, board: made.board, run: newRun(), clues: mode === "daily" ? "title" : settings.clues, rival: settings.rival !== "off" ? settings.rival : null, fresh: false, told: false };
   lastFound = null; clueAt = 0; message = null; clockFrom = null;
   view.clear();
   if (mode !== "daily") write(SEEN, [...read(SEEN, []).filter(id => id !== made.deal.theme), made.deal.theme].slice(-30));
@@ -340,7 +341,7 @@ const spareKey = s => JSON.stringify([s.level, s.shape, s.pool, s.off, mixOf(s)]
 function dealRandom(set = settings) {
   if (spare?.key === spareKey(set)) { const m = spare.made; spare = null; return m; }
   const deal = { seed: randomSeed(), level: set.level, shape: set.shape, mix: mixOf(set), pool: set.pool, off: set.off, avoid: read(SEEN, []) };
-  return boardFor(deal) || boardFor({ ...deal, pool: "mixed", off: [] });
+  return boardFor(deal) || { ...boardFor({ ...deal, pool: "mixed", off: [] }), fell: true };
 }
 /** The next board, dealt while you play this one, so Another board is at once. */
 function dealSpare() {
@@ -351,8 +352,10 @@ function dealSpare() {
 function start(mode) {
   const done = busy("Dealing a board");
   try {
-    if (mode === "daily") { const d = today(), made = boardFor(dailyDeal(d)); begin(made, "daily", d); }
-    else begin(dealRandom(), "random");
+    if (mode === "daily") { const d = today(), made = boardFor(dailyDeal(d)); begin(made, "daily", d); return; }
+    const made = dealRandom();
+    begin(made, "random");
+    if (made.fell) toast("No theme left in the regions and sectors chosen: this board is from every theme", 3600);
   } finally { done(); }
 }
 function confirmStart(mode) {
@@ -449,7 +452,7 @@ function openWords() {
     const got = r.found.includes(i), shown = r.revealed.includes(i), open = got || shown || over;
     const li = el("li", `${i ? "" : "span "}${got ? "got" : shown ? "shown" : "hidden"}`);
     li.append(el("b", "lo-wtext", open ? w.text : "•".repeat(w.text.length)));
-    const why = !open ? `${w.text.length} letters` : i ? w.hint : `the theme, ${b.name}, from side to side`;
+    const why = !open ? `${w.text.length} letters${i ? "" : ", from side to side: the theme"}` : i ? w.hint : `the theme, ${b.name}, from side to side`;
     const tags = [];
     if (G?.mode === "team" && G.by[`w${i}`] != null) tags.push(nameOfSlot(G.by[`w${i}`]));
     if (r.hinted.includes(i)) tags.push("a hint");
@@ -507,8 +510,8 @@ function contentChoices(box) {
       const now = options.map(([k]) => k).filter(k => !settings.off.includes(k));
       wrap.replaceChildren(ticks(label, options, now, v => { settings.off = [...settings.off.filter(k => !options.some(([o]) => o === k)), ...options.map(([k]) => k).filter(k => !v.includes(k))]; saveSettings(); }));
       const all = el("p", "lo-allnone");
-      const set = keep => { settings.off = [...settings.off.filter(k => !options.some(([o]) => o === k)), ...(keep ? [] : options.slice(1).map(([k]) => k))]; saveSettings(); draw(); };
-      const a = el("button", "link", "All"), n = el("button", "link", "Just the first");
+      const set = keep => { settings.off = [...settings.off.filter(k => !options.some(([o]) => o === k)), ...(keep ? [] : options.map(([k]) => k))]; saveSettings(); draw(); };
+      const a = el("button", "link", "All"), n = el("button", "link", "None");
       a.type = n.type = "button";
       a.addEventListener("click", () => set(true));
       n.addEventListener("click", () => set(false));
