@@ -239,13 +239,22 @@ export function stepLine(p, st, rule = settle, order = null) {
   return null;
 }
 
+/** The open cells, those whose row and column are most settled first: where a supposition is likeliest to clash soon
+ *  (and where a person would look). */
+function constrained(p, st) {
+  const L = linesOf(p.w, p.h), known = L.map(cells => cells.reduce((n, i) => n + (isKnown(st[i]) ? 1 : 0), 0) / cells.length);
+  const open = [];
+  for (let i = 0; i < st.length; i++) if (!isKnown(st[i])) { const [r, c] = linesThrough(p.w, p.h, i); open.push([i, known[r] + known[c]]); }
+  return open.sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([i]) => i);
+}
+
 /**
  * Looking ahead, the contradiction: suppose an open cell is one of its colours and follow the complete line logic; if
  * that ends in a clash, the cell can't be that colour. Returns { cell, colour (struck off) } with `st` changed, or null
  * if no supposition clashes. order: the cells to try, in turn (every open cell by default).
  */
 export function contradiction(p, st, order = null, allow = null) {
-  for (const i of order ?? st.keys()) {
+  for (const i of order ?? constrained(p, st)) {
     const m = st[i];
     if (isKnown(m)) continue;
     for (let c = 0; c <= p.colours; c++) {
@@ -260,6 +269,9 @@ export function contradiction(p, st, order = null, allow = null) {
   return null;
 }
 
+/** The most contradictions a puzzle may need: one that needs more is a slog no one would enjoy, and isn't dealt. */
+export const PROBES = 30;
+
 /**
  * How a person would solve it, the simplest way first: the simple rules on every line until they say no more, then the
  * complete line logic on one line, then a contradiction; each time a harder rule settles something, back to the simple
@@ -269,7 +281,7 @@ export function contradiction(p, st, order = null, allow = null) {
  * settled; line, probes: how many times each harder rule was needed; rounds: how many times the simple rules started
  * again.
  */
-export function grade(p, { probeLimit = 200 } = {}) {
+export function grade(p, { probeLimit = PROBES } = {}) {
   const st = unknownState(p);
   let simple = 0, line = 0, probes = 0, rounds = 0;
   const out = level => ({ solved: level > 0 && level < 4, st, level, simple, line, probes, rounds });
@@ -434,4 +446,18 @@ export const creditFor = (size, hidden) => Math.round((CREDIT[size] ?? CREDIT.me
 export function scoreOf(run) {
   const n = run.name, name = n?.early ? (n.right ? -(n.credit || 0) : WRONG_NAME) : 0;
   return Math.round((run.ms || 0) / 1000) + MISTAKE * (run.mistakes || 0) + HINT * (run.hints || 0) + name;
+}
+
+// ---------- the clues split between players ----------
+/**
+ * Who reads line k when the clues are split between the seats at a table (seats: the seat numbers there, any order):
+ * one alone reads every line; two, the rows to the first and the columns to the second (the classic split, easy to
+ * talk about: "my row 3 is 2 5"); more, the rows dealt round the table and the columns round it one seat on, so each
+ * has some of both. h: the rows the puzzle has.
+ */
+export function ownerOf(k, h, seats) {
+  const s = [...seats].sort((a, b) => a - b);
+  if (s.length < 2) return s[0] ?? 0;
+  if (s.length === 2) return k < h ? s[0] : s[1];
+  return k < h ? s[k % s.length] : s[(k - h + 1) % s.length];
 }

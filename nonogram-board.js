@@ -48,7 +48,8 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
     const colour = P.colours > 1, f = 100;
     ctx.font = `800 ${f}px ${colours.font}`;
     const wOf = n => ctx.measureText(String(n)).width / f * 0.56;      // a number's width, in cells, at the clue size
-    const slot = n => (colour ? Math.max(0.84, wOf(n) + 0.3) : wOf(n) + 0.3);
+    // a gap of half a cell between a row's numbers, so 1 2 3 never reads as 123 (in colour each has its chip)
+    const slot = n => (colour ? Math.max(0.84, wOf(n) + 0.3) : wOf(n) + 0.5);
     const L = linesOf(P.w, P.h);
     let ru = 0, cu = 0;
     for (let k = 0; k < L.length; k++) {
@@ -75,7 +76,9 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
   }
 
   // ---------- drawing ----------
-  const cellColour = c => (P.palette ? P.palette[c] : P.topic === "lakes" ? colours.water : colours.land);
+  // a cell as it's drawn in play (one colour: the ink) and as the finished picture shows it (land green, water blue)
+  const cellColour = c => (P.palette ? P.palette[c] : colours.ink);
+  const finalColour = c => (P.palette ? P.palette[c] : P.topic === "lakes" ? colours.water : colours.land);
   function draw() {
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(paint);
@@ -112,7 +115,7 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
       const v = cellAt(grid, i), lit = done && (r + c) / (P.w + P.h - 1) <= sweep * 1.15;
       if (lit) {                                                   // the picture in its own colours, sweeping in
         const c0 = P.answer[i];
-        const col = c0 ? cellColour(c0) : P.palette?.[0];
+        const col = c0 ? finalColour(c0) : P.palette?.[0];
         if (col) { ctx.fillStyle = col; ctx.fillRect(x, y, s + 0.5, s + 0.5); }
         continue;
       }
@@ -209,7 +212,7 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
     ctx.fillStyle = colours.tile; ctx.fillRect(x0 - 2, y0 - 2, px * P.w + 4, px * P.h + 4);
     for (let i = 0; i < P.answer.length; i++) {
       const v = reveal ? P.answer[i] : Math.max(0, cellAt(grid, i));
-      const col = v ? cellColour(v) : reveal ? P.palette?.[0] : null;
+      const col = v ? (reveal ? finalColour(v) : cellColour(v)) : reveal ? P.palette?.[0] : null;
       if (!col) continue;
       ctx.fillStyle = col; ctx.fillRect(x0 + (i % P.w) * px, y0 + Math.floor(i / P.w) * px, px, px);
     }

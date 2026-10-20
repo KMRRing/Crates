@@ -89,6 +89,21 @@ export function coverage(rings, box, w, h, ss = 6) {
 }
 
 // ---------- from a picture to a puzzle ----------
+/** The cells without their empty rows and columns at the edges (a piece of land in the frame too small to show leaves
+ *  them), with the coverage cut to match: { cells, cov, w, h }. */
+function trimmed(cells, cov, w, h) {
+  const rowEmpty = r => { for (let c = 0; c < w; c++) if (cells[r * w + c]) return false; return true; };
+  let top = 0, bottom = h - 1;
+  while (top < bottom && rowEmpty(top)) top++;
+  while (bottom > top && rowEmpty(bottom)) bottom--;
+  const colEmpty = c => { for (let r = top; r <= bottom; r++) if (cells[r * w + c]) return false; return true; };
+  let left = 0, right = w - 1;
+  while (left < right && colEmpty(left)) left++;
+  while (right > left && colEmpty(right)) right--;
+  const out = [], cv = [];
+  for (let r = top; r <= bottom; r++) for (let c = left; c <= right; c++) { out.push(cells[r * w + c]); cv.push(cov[r * w + c]); }
+  return { cells: out, cov: cv, w: right - left + 1, h: bottom - top + 1 };
+}
 /** The sizes: about this many cells, never longer than `long` on a side nor shorter than `short`. */
 export const SIZES = {
   small: { label: "Small", n: 100, long: 14, short: 5 },
@@ -111,31 +126,32 @@ export function gridFor(ar, sizeId) {
  * a little more and a little less of each cell; then changes cells one at a time, each time one where two answers
  * differ (or that reasoning can't settle), up to `flips`. Returns { cells, clues, grade, flips: [cell…], cut } or null.
  */
-export function puzzleFrom(cov, w, h, { flips = 10, colours = 1, cellsAt = null } = {}) {
+export function puzzleFrom(cov0, w0, h0, { flips = 10, colours = 1, short = 1 } = {}) {
   const tries = [];
   for (const cut of [0.5, 0.45, 0.55, 0.4, 0.6, 0.35, 0.65]) {
-    const cells = cellsAt ? cellsAt(cut) : Array.from(cov, v => (v >= cut ? 1 : 0));
-    const key = cells.join("");
-    if (!tries.some(t => t.key === key)) tries.push({ key, cells, cut });
+    const t = trimmed(Array.from(cov0, v => (v >= cut ? 1 : 0)), cov0, w0, h0);
+    const key = `${t.w}:${t.cells.join("")}`;
+    if (Math.min(t.w, t.h) >= short && !tries.some(x => x.key === key)) tries.push({ key, ...t, cut });
   }
+  if (!tries.length) return null;
   // one answer first (a search that finds a second in a few dozen steps), then whether reasoning reaches it: grading
   // a picture with two answers is the slow part, as the look-ahead gets far before it sticks
-  const judge = cells => {
+  const judge = (cells, w, h) => {
     const clues = cluesOf(w, h, cells), p = { w, h, colours, clues }, n = countSolutions(p, { maxNodes: 3000 });
     if (n.count !== 1 || n.gaveUp) return { clues, p, two: n.count > 1 ? n.found : null };
     const g = grade(p);
     return { clues, p, g: g.solved ? g : null, st: g.st };
   };
   for (const t of tries) {
-    const j = judge(t.cells);
-    if (j.g) return { cells: t.cells, clues: j.clues, grade: j.g, flips: [], cut: t.cut };
+    const j = judge(t.cells, t.w, t.h);
+    if (j.g) return { cells: t.cells, w: t.w, h: t.h, clues: j.clues, grade: j.g, flips: [], cut: t.cut };
   }
   // the even split, with the fewest changes that leave one answer a person can reach
-  const cells = tries[0].cells.slice(), changed = [];
+  const { w, h, cov } = tries[0], cells = tries[0].cells.slice(), changed = [];
   const doubt = i => Math.abs(cov[i] - 0.5);
   for (let n = 0; n <= flips; n++) {
-    const j = judge(cells);
-    if (j.g) return { cells, clues: j.clues, grade: j.g, flips: changed, cut: 0.5 };
+    const j = judge(cells, w, h);
+    if (j.g) return { cells, w, h, clues: j.clues, grade: j.g, flips: changed, cut: 0.5 };
     if (n === flips) break;
     // a cell where two answers differ, else one that reasoning leaves open
     const where = j.two ? [...j.two[0].keys()].filter(i => j.two[0][i] !== j.two[1][i]) : j.st ? [...j.st.keys()].filter(i => j.st[i] & (j.st[i] - 1)) : [];
@@ -165,7 +181,7 @@ const ALIASES = {
   "trinidad-and-tobago": ["Trinidad"], "antigua-and-barbuda": ["Antigua"], "saint-kitts-and-nevis": ["St Kitts", "St Kitts and Nevis", "Saint Kitts"],
   "saint-lucia": ["St Lucia"], "saint-vincent-and-the-grenadines": ["St Vincent", "Saint Vincent"], "papua-new-guinea": ["PNG"],
   micronesia: ["Federated States of Micronesia"], "solomon-islands": ["Solomons"], palestine: ["State of Palestine"], turkey: ["Türkiye"],
-  russia: ["Russian Federation"], "lake-geneva": ["Léman", "Lac Léman", "Lake Leman"], "lake-constance": ["Bodensee"], "the-dead-sea": ["Dead Sea"],
+  russia: ["Russian Federation"], "lake-geneva": ["Léman", "Lac Léman", "Lake Leman"], "lake-constance": ["Bodensee"],
   "lake-ladoga": ["Ladoga"], "lake-onega": ["Onega"],
 };
 /** Flags no one could tell apart at this size: either name is right for both. */
@@ -213,6 +229,10 @@ export function bandOf(level, depth) {
 }
 
 const CACHE = new Map();
+/** Whether a picture's puzzle at a size has been made already this session (making one can take a moment). */
+export const madeAlready = (id, size) => CACHE.has(`${id}@${size}`);
+/** A puzzle made elsewhere (the page's worker), kept as if made here. */
+export function remember(pz) { if (pz?.id && SIZES[pz.size] && pictureOf(pz.id)) CACHE.set(`${pz.id}@${pz.size}`, pz); }
 /**
  * The puzzle a picture makes at a size, or null if it makes none there (too long and thin, too sparse, or nothing the
  * fixes can make unique): { id, topic, size, w, h, colours (besides the blank), answer (a colour index a cell), clues,
@@ -222,28 +242,26 @@ const CACHE = new Map();
  */
 export function puzzleOf(id, size) {
   const key = `${id}@${size}`;
-  if (CACHE.has(key)) return CACHE.get(key);
+  if (!CACHE.has(key)) CACHE.set(key, makePuzzle(id, size));
+  return CACHE.get(key);
+}
+/** The same, made afresh every time (puzzleOf keeps what it makes). */
+export function makePuzzle(id, size) {
   const pic = byId.get(id);
-  let out = null;
-  if (pic && SIZES[size]) {
-    const made = pic.topic === "flags" ? flagPuzzle(FLAGS[pic.about], size) : shapePuzzle(shapes.get(id), size);
-    if (made) {
-      const p = { w: made.w, h: made.h, colours: made.colours, clues: made.clues };
-      const depth = depthOf(p, overlap).depth;
-      out = { id, topic: pic.topic, size, ...made, depth, band: bandOf(made.level, depth) };
-    }
-  }
-  CACHE.set(key, out);
-  return out;
+  if (!pic || !SIZES[size]) return null;
+  const made = pic.topic === "flags" ? flagPuzzle(FLAGS[pic.about], size) : shapePuzzle(shapes.get(id), size);
+  if (!made) return null;
+  const depth = depthOf({ w: made.w, h: made.h, colours: made.colours, clues: made.clues }, overlap).depth;
+  return { id, topic: pic.topic, size, ...made, depth, band: bandOf(made.level, depth) };
 }
 function shapePuzzle(shape, size) {
   const land = landOf(shape), b = land.box, g = gridFor((b.x1 - b.x0) / (b.y1 - b.y0), size);
   if (!g) return null;
   const cov = coverage(land.rings, b, g.w, g.h);
   if (cov.reduce((n, v) => n + (v >= 0.5 ? 1 : 0), 0) < 0.12 * cov.length) return null;   // a scatter of islets, not a picture
-  const made = puzzleFrom(cov, g.w, g.h);
+  const made = puzzleFrom(cov, g.w, g.h, { short: SIZES[size].short });
   if (!made) return null;
-  return { w: g.w, h: g.h, colours: 1, answer: made.cells, clues: made.clues, level: made.grade.level, probes: made.grade.probes, flips: made.flips.length, palette: null, names: null };
+  return { w: made.w, h: made.h, colours: 1, answer: made.cells, clues: made.clues, level: made.grade.level, probes: made.grade.probes, flips: made.flips.length, palette: null, names: null };
 }
 /**
  * A flag's puzzle: the grid near the size's that cuts its colours most cleanly (stripes falling between rows), the
@@ -256,7 +274,7 @@ function flagPuzzle(flag, size) {
   const tries = [];
   for (let dw = -1; dw <= 1; dw++) for (let dh = -1; dh <= 1; dh++) {
     const w = g.w + dw, h = g.h + dh;
-    if (w < 3 || h < 3 || Math.abs(w / h - flag.r) / flag.r > 0.12) continue;
+    if (Math.min(w, h) < SIZES[size].short || Math.max(w, h) > SIZES[size].long || Math.abs(w / h - flag.r) / flag.r > 0.12) continue;
     tries.push({ w, h, ...rasterFlag(flag, w, h) });
   }
   tries.sort((a, b) => b.crisp - Math.abs(b.w * b.h - SIZES[size].n) / SIZES[size].n * 0.1 - (a.crisp - Math.abs(a.w * a.h - SIZES[size].n) / SIZES[size].n * 0.1));

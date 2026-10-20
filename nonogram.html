@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Nonogram</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="nonogram.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="nonogram fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon ng-mark" aria-hidden="true"></span>Nonogram</button></h1>
+    <div class="top-right">
+      <select id="size" class="pool" data-accent="ng" aria-label="Size">
+        <option value="small" data-note="About 10 × 10 cells">Small</option>
+        <option value="medium" data-note="About 15 × 15 cells">Medium</option>
+        <option value="large" data-note="About 20 × 20: zoom in to draw">Large</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div class="ng-strip">
+    <span class="ng-clock"><b id="clock">0:00</b><small id="penalty"></small></span>
+    <span class="ng-what" id="what"></span>
+    <span class="ng-drawn" id="drawn"></span>
+    <span id="rival" class="ng-rival" hidden></span>
+  </div>
+
+  <section class="ng-card fit-grow" aria-label="The puzzle">
+    <canvas id="board" class="ng-board"></canvas>
+    <button id="zoomBtn" class="ng-zoom" type="button" aria-label="Zoom in" hidden></button>
+  </section>
+
+  <section class="ng-side">
+    <p id="line" class="ng-line" aria-live="polite"></p>
+    <div id="controls" class="ng-controls">
+      <div id="tools" class="ng-tools" role="group" aria-label="Draw with"></div>
+      <div class="ng-acts">
+        <button class="ng-act" type="button" id="undoBtn"><b>Undo</b></button>
+        <button class="ng-act" type="button" id="redoBtn"><b>Redo</b></button>
+        <button class="ng-act" type="button" id="hintBtn"><b>Hint</b><small>+30 s</small></button>
+        <button class="ng-act" type="button" id="nameBtn"><b>Name it</b><small id="nameSmall"></small></button>
+      </div>
+    </div>
+    <div id="result" class="ng-result" hidden>
+      <p class="ng-verdict" id="verdict"></p>
+      <button class="ng-go" type="button" id="nextBtn">Next picture</button>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<dialog id="nameDlg" class="sheet menu-sheet ng-name" aria-label="Name it">
+  <div class="pick-head"><h2 id="nameHead">Name it</h2><button class="icon-btn menu-x" type="button" id="nameClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="ng-name-body">
+    <canvas id="namePic" class="ng-name-pic" aria-hidden="true"></canvas>
+    <p id="nameAsk" class="ng-name-ask"></p>
+    <form id="nameForm" class="ng-name-form" autocomplete="off">
+      <input id="nameInput" type="text" enterkeyhint="go" autocapitalize="words" spellcheck="false" aria-label="The name">
+      <button class="btn primary" type="submit" id="nameGo">Name it</button>
+    </form>
+    <ul id="nameList" class="ng-name-list" role="listbox" aria-label="Names"></ul>
+    <p id="nameNote" class="ng-name-note"></p>
+    <button class="link" type="button" id="nameSkip">I don't know</button>
+  </div>
+</dialog>
+
+<p id="toast" class="ng-toast" role="status" aria-live="polite"></p>
+<script type="module" src="nonogram.js"></script>
+</body>
+</html>
