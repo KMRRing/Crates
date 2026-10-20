@@ -14802,7 +14802,833 @@ mummies|Mothers|Embalmed bodies
 mummify|Embalm|Preserve
 munched|Chewed|Chomped
 munches|Chews|Chomps
-murkier|Gloomier|Shadier`],
+murkier|Gloomier|Shadier
+murmurs|Whispers|Mutters
+muscled|Brawny|Pushed, with in
+mushier|Softer|More sentimental
+muskets|Old guns|Firearms
+mussels|Shellfish|Bivalves
+mustang|Wild horse|Bronco
+mustard|Condiment|Yellow
+musters|Gathers|Assembles
+mustier|Mouldier|Staler
+mutants|Freaks|Variants
+mutated|Changed|Transformed
+mutates|Changes|Transforms
+muzzled|Gagged|Silenced
+muzzles|Gags|Snouts
+myriads|Hosts|Countless numbers
+mystics|Seers|Visionaries
+mystify|Baffle|Puzzle
+nabbing|Grabbing|Arresting
+nagging|Pestering|Persistent
+naively|Innocently|Credulously
+naivety|Innocence|Credulity
+napkins|Serviettes|Nappies
+nappies|Diapers|Babies' wraps
+napping|Dozing|Unawares, as in "caught ___"
+narrate|Tell|Recount
+narrows|Strait|Tapers
+nastily|Unpleasantly|Spitefully
+nattier|Smarter|More dapper
+natures|Characters|Temperaments
+nearing|Approaching|Closing in on
+neatest|Tidiest|Smartest
+nebulae|Gas clouds|Star clouds
+necktie|Cravat|Collar accessory
+needier|Poorer|Clingier
+needled|Goaded|Provoked
+negated|Cancelled|Nullified
+negates|Cancels|Nullifies
+neighed|Whinnied|Brayed
+nephews|Brothers' sons|Siblings' sons
+nerving|Steeling|Bracing
+nestled|Snuggled|Settled
+nestles|Snuggles|Settles
+netting|Mesh|Catching
+nettled|Irked|Annoyed
+nettles|Stinging plants|Irks
+neurons|Nerve cells|Brain cells
+neuters|Spays|Castrates
+neutron|Particle|Subatomic particle
+newbies|Novices|Beginners
+newborn|Infant|Baby
+newsier|Chattier|More gossipy
+nibbled|Bit|Snacked
+nibbles|Bites|Snacks
+nickels|Coins|Five cents
+niftier|Neater|Cleverer
+nightly|Every evening|Nocturnal
+nimbler|Quicker|More agile
+ninnies|Fools|Simpletons
+nippier|Chillier|Quicker
+nipping|Pinching|Popping
+nitrate|Fertiliser|Salt
+nitwits|Fools|Idiots
+noblest|Grandest|Most honourable
+nodding|Agreeing|Dozing
+noisier|Louder|Rowdier
+noisily|Loudly|Rowdily
+nomadic|Wandering|Itinerant
+nominee|Candidate|Choice
+nonstop|Continuous|Direct
+noodles|Pasta|Heads
+nosiest|Most curious|Most prying
+nostril|Nasal opening|Nare
+notched|Nicked|Scored
+notches|Nicks|Scores
+nougats|Sweets|Chewy confections
+nourish|Feed|Nurture
+noxious|Harmful|Toxic
+nozzles|Spouts|Noses
+nuances|Shades|Subtleties
+nucleus|Core|Centre
+nudging|Prodding|Elbowing
+nuggets|Lumps|Gems
+nullify|Cancel|Annul
+numbing|Deadening|Stunning
+nuptial|Marital|Wedding
+nursery|Creche|Garden centre
+nursing|Tending|Harbouring
+nurture|Raise|Foster
+nutmegs|Spices|Through-the-legs passes
+nuttier|Crazier|More almondy
+nuzzled|Nestled|Snuggled
+nuzzles|Nestles|Snuggles
+oatmeal|Porridge|Beige
+obelisk|Monument|Dagger mark
+oblique|Slanting|Indirect
+oblongs|Rectangles|Elongated shapes
+oceanic|Marine|Maritime
+octagon|Eight-sided shape|Stop-sign shape
+octaves|Intervals|Eight-line stanzas
+octopus|Cephalopod|Eight-armed creature
+offbeat|Unusual|Quirky
+offload|Unload|Dump
+oiliest|Greasiest|Slickest
+ominous|Threatening|Sinister
+omnibus|Coach|Anthology
+onerous|Burdensome|Taxing
+openers|First games|Tin tools
+operand|Quantity operated on|Input to a sum
+opossum|Marsupial|Feigner of death
+opulent|Luxurious|Wealthy
+oracles|Prophets|Sages
+oranges|Citrus fruits|Ambers
+oration|Speech|Address
+orators|Speakers|Rhetoricians
+oratory|Rhetoric|Chapel
+orbited|Circled|Revolved around
+orchard|Fruit garden|Apple grove
+orchids|Exotic flowers|Hothouse blooms
+ordains|Consecrates|Decrees
+ordeals|Trials|Torments
+orderly|Tidy|Hospital attendant
+orifice|Opening|Hole
+orphans|Waifs|Foundlings
+osmosis|Absorption|Diffusion
+ostrich|Flightless bird|Head-in-sand type
+ousting|Expelling|Deposing
+outcast|Pariah|Exile
+outdoes|Surpasses|Beats
+outdone|Surpassed|Beaten
+outdoor|Open-air|Alfresco
+outfits|Costumes|Teams
+outgrew|Outstripped|Got too big for
+outgrow|Outstrip|Get too big for
+outings|Trips|Exposures
+outlaid|Spent|Expended
+outlast|Outlive|Survive
+outlaws|Bandits|Bans
+outlays|Expenses|Costs
+outlets|Vents|Shops
+outlive|Survive|Outlast
+outpost|Station|Frontier fort
+outruns|Outpaces|Escapes
+outsets|Starts|Beginnings
+outward|External|Outgoing
+outwits|Outsmarts|Outfoxes
+ovaries|Egg producers|Flower parts
+ovation|Applause|Standing cheer
+overate|Gorged|Binged
+overdid|Exaggerated|Overcooked
+overeat|Gorge|Binge
+overlay|Covering|Coat
+overran|Invaded|Exceeded
+overrun|Invade|Infested
+oversaw|Supervised|Managed
+oversee|Supervise|Manage
+overtly|Openly|Blatantly
+overuse|Exhaust|Wear out
+oysters|Bivalves|Pearl makers
+pacific|Peaceful|Calm
+packers|Wrappers|Box fillers
+paddies|Rice fields|Tantrums
+paddled|Rowed|Waded
+paddles|Oars|Wades
+paddock|Field|Enclosure
+padlock|Shackle bolt|Secure
+pageant|Parade|Spectacle
+pagodas|Temples|Towers
+paining|Hurting|Grieving
+painter|Artist|Mooring rope
+pairing|Matching|Coupling
+palaces|Mansions|Castles
+palates|Tastes|Roofs of mouths
+palette|Colour range|Mixing board
+palming|Concealing|Passing, with off
+pampers|Spoils|Indulges
+panacea|Cure-all|Remedy
+pancake|Crepe|Flapjack
+panders|Indulges, with to|Caters, with to
+panicky|Nervous|Jittery
+panning|Criticising|Sweeping, as a camera
+pansies|Flowers|Violas
+panther|Leopard|Big cat
+panting|Gasping|Puffing
+papayas|Pawpaws|Tropical fruits
+papered|Covered|Concealed, with over
+paprika|Spice|Red pepper
+papyrus|Reed|Scroll
+parable|Fable|Allegory
+paraded|Marched|Displayed
+parades|Marches|Displays
+paragon|Model|Ideal
+parasol|Sunshade|Umbrella
+parcels|Packages|Divides, with out
+parched|Dry|Thirsty
+parches|Dries|Scorches
+pardons|Excuses|Amnesties
+parkway|Avenue|Landscaped road
+paroled|Released|Freed early
+paroles|Releases|Words of honour
+parrots|Repeats|Macaws
+parsecs|Units of distance|Astronomical units
+parsley|Herb|Garnish
+parsnip|Root vegetable|Pale root
+parsons|Vicars|Clergymen
+partake|Share|Consume
+partied|Celebrated|Caroused
+parting|Separation|Hair line
+partook|Shared|Consumed
+pastels|Soft colours|Crayons
+pastier|Paler|Wanner
+pasties|Pies|Cornish pies
+pastime|Hobby|Recreation
+pasting|Sticking|Thrashing
+pastors|Ministers|Shepherds
+pasture|Meadow|Grazing land
+patents|Licences|Glossy leathers
+pathway|Trail|Route
+patriot|Nationalist|Loyalist
+patrols|Guards|Beats
+patrons|Sponsors|Customers
+patters|Chatters|Spiels
+patties|Burgers|Small pies
+patting|Tapping|Stroking
+paucity|Scarcity|Dearth
+paunchy|Pot-bellied|Portly
+paupers|Beggars|Poor people
+pawning|Hocking|Pledging
+payable|Due|Owed
+payload|Cargo|Warhead
+payoffs|Rewards|Bribes
+payroll|Wage bill|Staff list
+peaches|Fruits|Beauties
+peacock|Peafowl|Show-off
+peaking|Topping out|Cresting
+pealing|Ringing|Chiming
+pearled|Beaded|Studded with gems
+pebbled|Stony|Cobbled
+pebbles|Stones|Shingle
+pecking|Kissing|Nibbling
+peddled|Sold|Hawked
+peddles|Sells|Hawks
+peeking|Peeping|Glancing
+peeling|Paring|Flaking
+peeping|Peeking|Chirping
+peering|Gazing|Squinting
+peevish|Irritable|Petulant
+pegging|Fixing|Dying, with out
+pelican|Sea bird|Crossing
+pellets|Balls|Shot
+pelting|Bombarding|Pouring
+penance|Atonement|Punishment
+pencils|Crayons|Writes
+pendant|Locket|Hanging lamp
+pennant|Flag|Banner
+penning|Writing|Fencing in
+pension|Retirement income|Boarding house
+pensive|Thoughtful|Wistful
+peonies|Flowers|Garden blooms
+peopled|Populated|Inhabited
+peppers|Capsicums|Pelts
+pepping|Livening, with up|Energising
+perched|Roosted|Sat
+perches|Roosts|Fish
+perfume|Scent|Fragrance
+perjure|Lie under oath|Forswear
+perjury|False testimony|Lying under oath
+perkier|Livelier|Cheerier
+perking|Brightening, with up|Percolating
+perplex|Puzzle|Baffle
+persona|Image|Character
+pertain|Relate|Apply
+perturb|Disturb|Unsettle
+perusal|Reading|Scrutiny
+perused|Read|Scanned
+peruses|Reads|Scans
+pervade|Permeate|Suffuse
+peskier|More annoying|More irritating
+pesters|Nags|Badgers
+petered|Faded, with out|Dwindled, with out
+petites|Small sizes|Dainty women
+petrify|Terrify|Fossilise
+pettier|More trivial|Smaller-minded
+petting|Stroking|Fondling
+petunia|Flower|Bedding plant
+pewters|Alloys|Tankards
+phantom|Ghost|Spectre
+phobias|Fears|Aversions
+phonics|Reading method|Sound-based teaching
+phonier|Faker|More bogus
+photons|Light particles|Quanta
+pianist|Musician|Keyboardist
+piccolo|Small flute|Fife
+pickets|Stakes|Strikers
+pickier|Fussier|Choosier
+pickled|Preserved|Drunk
+pickles|Relishes|Fixes
+pickups|Trucks|Recoveries
+picnics|Outdoor meals|Easy tasks
+piecing|Patching|Assembling
+pierced|Punctured|Stabbed
+pierces|Punctures|Stabs
+pigeons|Doves|Dupes
+piggish|Greedy|Swinish
+pigment|Colour|Dye
+pigpens|Sties|Messes
+pigtail|Plait|Braid
+pilfers|Steals|Pinches
+pilgrim|Traveller|Wayfarer
+pillage|Plunder|Loot
+pillars|Columns|Stalwarts
+pillows|Cushions|Headrests
+piloted|Flew|Steered
+pimples|Spots|Pustules
+pinions|Wings|Shackles
+pinkest|Rosiest|Most flushed
+pinning|Fixing|Trapping
+pioneer|Settler|Trailblazer
+piquing|Arousing|Annoying
+piranha|Fish|Predator
+pirated|Copied illegally|Bootlegged
+pirates|Buccaneers|Bootleggers
+pistols|Handguns|Revolvers
+pistons|Plungers|Engine parts
+pitched|Threw|Sloping
+pitcher|Jug|Thrower
+pitches|Fields|Throws
+piteous|Pathetic|Heart-rending
+pithier|Terser|More concise
+pitiful|Pathetic|Wretched
+pitting|Matching|Pockmarking
+pitying|Sympathising|Compassionate
+pivotal|Crucial|Central
+pivoted|Swivelled|Turned
+placard|Sign|Poster
+placate|Appease|Pacify
+plainer|Simpler|Clearer
+planing|Smoothing|Gliding
+planked|Floored|Boarded
+planner|Organiser|Diary
+planter|Pot|Farmer
+plaques|Tablets|Tartars
+plateau|Tableland|Level
+plating|Coating|Layer
+platoon|Unit|Squad
+platter|Dish|Serving tray
+playful|Frisky|Light-hearted
+playpen|Toddler's enclosure|Crawling area
+pleaded|Begged|Implored
+pleated|Folded|Creased
+pledged|Promised|Vowed
+pledges|Promises|Vows
+pliable|Flexible|Compliant
+plights|Predicaments|Promises
+plodded|Trudged|Lumbered
+plopped|Dropped|Splashed
+plucked|Picked|Brave
+plumage|Feathers|Plumes
+plumbed|Fathomed|Sounded
+plumber|Pipe fitter|Tradesman
+pluming|Preening|Feathering
+plummet|Plunge|Fall
+plumped|Fluffed|Opted, with for
+plumper|Chubbier|Fatter
+plunder|Loot|Pillage
+plunged|Dived|Plummeted
+plunger|Sink unblocker|Piston
+plunges|Dives|Plummets
+plurals|Words for many|Multiple forms
+plusher|More luxurious|Posher
+plywood|Board|Laminate
+poached|Stolen|Simmered
+poacher|Thief|Pan
+poaches|Steals|Simmers
+podiums|Platforms|Stands
+polemic|Diatribe|Argument
+policed|Patrolled|Monitored
+polices|Patrols|Monitors
+politer|More courteous|More civil
+polling|Voting|Surveying
+pollute|Contaminate|Foul
+polygon|Many-sided shape|Figure
+ponchos|Capes|Cloaks
+ponders|Considers|Muses
+pontoon|Floating bridge|Card game
+poodles|Dogs|Lackeys
+pooling|Combining|Sharing
+popcorn|Snack|Cinema snack
+poplars|Trees|Aspens
+poppies|Flowers|Remembrance symbols
+porches|Verandas|Doorways
+portals|Gateways|Doorways
+portend|Foretell|Bode
+portent|Omen|Sign
+portico|Porch|Colonnade
+possums|Marsupials|Feigners of death
+postbox|Mail drop|Red pillar
+postman|Mailman|Letter carrier
+postmen|Mailmen|Letter carriers
+posture|Stance|Bearing
+potency|Strength|Power
+pothole|Road crater|Cave shaft
+potions|Brews|Elixirs
+potters|Ceramicists|Dawdles
+pottery|Ceramics|China
+potting|Planting|Sinking a ball
+pouches|Bags|Pockets
+poultry|Fowl|Chickens
+pounced|Sprang|Swooped
+pounces|Springs|Swoops
+pounded|Beat|Thumped
+pouting|Sulking|Pursing lips
+powders|Dusts|Talcs
+powdery|Dusty|Fine
+powwows|Meetings|Conferences
+prairie|Grassland|Plain
+praised|Lauded|Commended
+praises|Lauds|Commends
+pranced|Capered|Strutted
+prances|Capers|Struts
+prattle|Babble|Chatter
+preempt|Forestall|Anticipate
+preened|Groomed|Primped
+prefabs|Kit houses|Ready-made buildings
+prefect|Monitor|Head boy
+prelude|Introduction|Overture
+premier|Prime minister|Leading
+prepaid|Settled in advance|Advance-funded
+prepays|Settles in advance|Funds ahead
+preside|Chair|Officiate
+pretext|Excuse|Pretence
+pretzel|Knot-shaped snack|Salty twist
+preying|Hunting, with on|Weighing, with on
+pricked|Pierced|Stung
+prickle|Thorn|Tingle
+prickly|Thorny|Touchy
+priding|Congratulating, as oneself|Boasting, with on
+primate|Ape|Archbishop
+primers|Undercoats|Textbooks
+priming|Preparing|Undercoating
+primmer|Prissier|More prudish
+primped|Preened|Groomed
+princes|Royals|Rulers
+prisons|Jails|Penitentiaries
+privies|Outdoor toilets|Latrines
+probing|Investigating|Searching
+procure|Obtain|Acquire
+prodded|Poked|Prompted
+prodigy|Genius|Wunderkind
+profane|Blasphemous|Secular
+profess|Claim|Declare
+proffer|Hold out|Tender
+profuse|Abundant|Copious
+progeny|Offspring|Descendants
+proofed|Treated against water|Checked, as text
+propels|Drives|Pushes
+propped|Supported|Leaned
+prosper|Thrive|Flourish
+protons|Particles|Subatomic particles
+prouder|More dignified|Vainer
+proudly|Haughtily|Gladly
+proverb|Saying|Adage
+proviso|Condition|Stipulation
+prowess|Skill|Valour
+prowled|Stalked|Lurked
+prowler|Lurker|Stalker
+proxies|Substitutes|Stand-ins
+prudent|Wise|Careful
+prudish|Prim|Strait-laced
+pruning|Trimming|Cutting back
+psyched|Prepared mentally, with up|Unnerved, with out
+psyches|Minds|Souls
+psychic|Medium|Telepathic
+puberty|Adolescence|Coming of age
+puckers|Wrinkles|Purses
+puddled|Pooled|Splashed
+puddles|Pools|Plashes
+pudgier|Chubbier|Podgier
+pueblos|Villages|Adobe settlements
+puffier|More swollen|More bloated
+puffing|Panting|Swelling
+pulleys|Hoists|Wheels
+pulping|Mashing|Crushing
+pulpits|Lecterns|Rostrums
+pulsate|Throb|Beat
+pulsing|Throbbing|Beating
+pumices|Volcanic stones|Abrasives
+pummels|Pounds|Batters
+pumpkin|Gourd|Squash
+pundits|Experts|Commentators
+pungent|Sharp|Acrid
+puniest|Weakest|Feeblest
+punning|Quipping|Playing on words
+punters|Gamblers|Customers
+punting|Kicking|Boating
+puppets|Marionettes|Pawns
+puppies|Young dogs|Whelps
+purging|Cleansing|Expelling
+purples|Violets|Lilacs
+purport|Claim|Gist
+purring|Humming|Murmuring
+pursing|Puckering|Pouting
+pushier|More assertive|Bossier
+putters|Golf clubs|Dawdles
+putties|Fillers|Sealants
+pyramid|Tomb|Triangle-faced solid
+pythons|Snakes|Constrictors
+quacked|Squawked|Called, as a duck
+quailed|Cowered|Flinched
+quaking|Trembling|Shaking
+quarrel|Argue|Row
+quartet|Foursome|Group of four
+quashed|Suppressed|Annulled
+quashes|Suppresses|Annuls
+quavers|Trembles|Short notes
+queenly|Regal|Majestic
+quelled|Suppressed|Subdued
+queried|Questioned|Asked
+quicken|Speed up|Hasten
+quieted|Calmed|Hushed
+quilted|Padded|Stitched
+quinine|Malaria drug|Tonic ingredient
+quintet|Fivesome|Group of five
+quipped|Joked|Jested
+quitter|Defeatist|Shirker
+quivers|Trembles|Arrow cases
+quizzed|Questioned|Interrogated
+quizzes|Tests|Questions
+quorums|Required numbers|Minimum attendances
+rabbles|Mobs|Crowds
+raccoon|Masked mammal|Ringtailed animal
+raciest|Most risque|Spiciest
+rackets|Bats|Din
+racking|Torturing|Shelving
+radials|Tyres|Spokes
+radiant|Glowing|Beaming
+radiate|Emit|Spread out
+radioed|Signalled|Called in
+raffled|Drew lots for|Auctioned by ticket
+raffles|Draws|Lotteries
+rafters|Beams|Joists
+rafting|Floating|White-water sport
+ragging|Teasing|Mocking
+ragtime|Jazz style|Syncopated music
+raiders|Attackers|Looters
+raiding|Attacking|Looting
+railing|Fence|Ranting
+rainier|Wetter|More showery
+raisins|Dried grapes|Sultanas
+rallied|Recovered|Gathered
+rallies|Recovers|Demonstrations
+rambled|Hiked|Waffled
+rambler|Hiker|Climbing rose
+rambles|Hikes|Waffles
+ramming|Crashing into|Butting
+rampage|Riot|Run amok
+ramrods|Gun-loading sticks|Very upright figures
+rancher|Cattle farmer|Stockman
+ranches|Farms|Cattle stations
+rangers|Wardens|Forest keepers
+rankest|Foulest|Most utter
+ranking|Rating|Senior
+rankled|Festered|Irked
+rankles|Festers|Irks
+ransack|Plunder|Rifle
+ransoms|Payments for release|Hostage prices
+rapping|Knocking|Rebuking
+rapport|Bond|Understanding
+rapture|Ecstasy|Bliss
+rascals|Rogues|Scamps
+rashest|Most reckless|Hastiest
+rasping|Grating|Croaking
+ratings|Scores|Sailors
+rations|Allowances|Shares
+ratting|Informing, with on|Betraying
+rattler|Snake|Shaker
+raucous|Loud|Rowdy
+ravaged|Devastated|Pillaged
+ravages|Devastates|Damage
+ravines|Gorges|Gullies
+ravings|Rants|Gibberish
+readied|Prepared|Primed
+readier|More prepared|Quicker
+readies|Prepares|Cash, slangily
+realism|Pragmatism|Naturalism
+realist|Pragmatist|Naturalist
+reapers|Harvesters|Scythe wielders
+reaping|Harvesting|Gaining
+rearing|Raising|Bucking
+rebated|Refunded|Discounted
+rebates|Refunds|Discounts
+rebirth|Renaissance|Revival
+rebound|Bounce back|Ricochet
+rebuffs|Snubs|Rejects
+rebuked|Reprimanded|Scolded
+rebukes|Reprimands|Scolds
+recants|Retracts|Takes back
+receded|Retreated|Ebbed
+recedes|Retreats|Ebbs
+recital|Performance|Account
+recited|Declaimed|Recounted
+recites|Declaims|Recounts
+recline|Lean back|Lie down
+recluse|Hermit|Loner
+recoils|Flinches|Kicks
+recount|Narrate|Second tally
+recoups|Recovers|Regains
+rectors|Parsons|Vicars
+reddens|Blushes|Flushes
+reddest|Most flushed|Ruddiest
+redeems|Saves|Cashes in
+redhead|Ginger|Auburn-haired person
+redoing|Repeating|Revamping
+redraft|Rewrite|Revise
+redress|Remedy|Compensation
+reefing|Shortening, as a sail|Furling
+reeking|Stinking|Smelling
+reelect|Vote back in|Return to office
+reeling|Staggering|Spinning
+referee|Umpire|Judge
+refills|Top-ups|Replenishes
+refuels|Tops up|Tanks up
+refugee|Exile|Asylum seeker
+refuges|Shelters|Havens
+refunds|Repayments|Rebates
+refuted|Disproved|Rebutted
+refutes|Disproves|Rebuts
+regains|Recovers|Retrieves
+regaled|Entertained|Treated
+regales|Entertains|Treats
+regalia|Insignia|Finery
+regatta|Boat race|Sailing event
+regents|Rulers|Stand-in monarchs
+regimen|Routine|Diet
+regimes|Governments|Systems
+regress|Revert|Backslide
+reigned|Ruled|Prevailed
+reining|Checking|Curbing
+rejoice|Celebrate|Exult
+rejoins|Replies|Reunites
+relapse|Recurrence|Backslide
+relayed|Passed on|Broadcast
+relents|Yields|Softens
+reliant|Dependent|Hooked
+reliefs|Comforts|Carvings
+relived|Re-experienced|Recalled vividly
+relives|Re-experiences|Recalls vividly
+reloads|Recharges|Rearms
+remakes|Rebuilds|New versions
+remnant|Remainder|Scrap
+remodel|Revamp|Restyle
+remorse|Regret|Contrition
+remoter|Further|Slighter
+remotes|Controllers|Zappers
+reneged|Went back on|Defaulted
+reneges|Goes back on|Defaults
+renewal|Revival|Extension
+rentals|Hires|Leases
+renting|Hiring|Letting
+reopens|Resumes|Unseals
+repeals|Revokes|Annuls
+repents|Atones|Regrets
+replete|Full|Sated
+replica|Copy|Model
+reposed|Rested|Lay
+reposes|Rests|Lies
+repress|Suppress|Stifle
+reprint|New edition|Run again
+reprove|Rebuke|Scold
+reptile|Lizard|Snake
+repulse|Repel|Disgust
+reputed|Supposed|Alleged
+reputes|Considers|Deems
+requiem|Mass|Dirge
+reroute|Divert|Redirect
+rescind|Revoke|Cancel
+rescued|Saved|Freed
+rescuer|Saviour|Lifeguard
+rescues|Saves|Frees
+resents|Begrudges|Dislikes
+resided|Lived|Dwelt
+residue|Remainder|Deposit
+resists|Opposes|Withstands
+resound|Echo|Ring out
+respite|Break|Reprieve
+restful|Relaxing|Calm
+restive|Restless|Fidgety
+retails|Sells|Recounts
+retched|Gagged|Heaved
+retches|Gags|Heaves
+rethink|Reconsider|Revise
+retinas|Eye linings|Light-sensitive layers
+retorts|Ripostes|Flasks
+retrace|Go back over|Repeat
+retreat|Withdraw|Refuge
+retries|Rehears|Attempts again
+reunion|Gathering|Get-together
+reunite|Reconcile|Bring together
+reusing|Recycling|Repurposing
+revamps|Renovates|Overhauls
+revelry|Festivity|Merrymaking
+revered|Venerated|Adored
+reveres|Venerates|Adores
+reverie|Daydream|Trance
+reverts|Returns|Relapses
+reviled|Vilified|Abused
+reviles|Vilifies|Abuses
+revisit|Return to|Reconsider
+revival|Renaissance|Comeback
+revived|Resuscitated|Rekindled
+revives|Resuscitates|Rekindles
+revoked|Cancelled|Rescinded
+revokes|Cancels|Rescinds
+revolve|Rotate|Orbit
+revving|Gunning|Accelerating
+rhubarb|Stalk fruit|Nonsense
+rhyming|Chiming|Versifying
+rhythms|Beats|Cadences
+ribbing|Teasing|Ridges
+ribbons|Bands|Shreds
+rickety|Shaky|Ramshackle
+riddled|Peppered|Permeated
+riddles|Puzzles|Sieves
+ridging|Furrowing|Ribbing
+rifling|Ransacking|Grooving
+rifting|Splitting|Cracking
+rigging|Ropes|Fixing
+righted|Corrected|Straightened
+rigidly|Stiffly|Strictly
+ringlet|Curl|Lock
+rinsing|Washing|Swilling
+rioters|Hooligans|Rebels
+rioting|Rampaging|Rebelling
+riotous|Rowdy|Hilarious
+ripened|Matured|Developed
+riposte|Retort|Comeback
+rippled|Undulated|Ruffled
+ripples|Wavelets|Ruffles
+riskier|More dangerous|Dicier
+rivalry|Competition|Contest
+riveted|Bolted|Enthralled
+roaches|Fish|Kitchen pests, in America
+roaming|Wandering|Roving
+roaring|Bellowing|Thriving
+roasted|Baked|Teased mercilessly
+robbers|Thieves|Burglars
+robbery|Theft|Heist
+robbing|Burgling|Cheating
+rockers|Chairs|Musicians
+rockets|Missiles|Soars
+rockier|Stonier|Shakier
+rocking|Swaying|Shaking
+rodents|Rats|Gnawers
+roguish|Mischievous|Rascally
+rollers|Cylinders|Waves
+romping|Frolicking|Winning easily
+roofing|Tiling|Slates
+rookies|Novices|Beginners
+roomier|More spacious|Larger
+rooming|Lodging|Boarding
+roosted|Perched|Settled
+rooster|Cockerel|Cock
+rooting|Digging about|Cheering, with for
+rosiest|Pinkest|Most optimistic
+rosters|Rotas|Lists
+rostrum|Platform|Podium
+rotting|Decaying|Decomposing
+rotunda|Round building|Domed hall
+roughed|Sketched, with out|Manhandled, with up
+roughen|Coarsen|Abrade
+rougher|Coarser|Harsher
+rounder|Plumper|More circular
+rousing|Stirring|Inspiring
+rowboat|Dinghy|Skiff
+rowdier|Noisier|Unrulier
+rowdies|Hooligans|Louts
+royally|Regally|Splendidly
+royalty|Monarchy|Commission
+rubbers|Erasers|Bridge games
+rubbing|Massaging|Chafing
+rudders|Steering blades|Helms
+ruddier|Redder|Rosier
+ruffian|Thug|Hooligan
+ruffled|Frilled|Flustered
+ruffles|Frills|Flusters
+ruinous|Disastrous|Exorbitant
+rulings|Decisions|Judgements
+rumbled|Thundered|Discovered
+rumbles|Thunders|Discovers
+rummage|Search|Root about
+rumpled|Creased|Tousled
+rumples|Creases|Tousles
+runaway|Fugitive|Easy
+rundown|Summary|Dilapidated
+runners|Racers|Sledge blades
+runnier|Wetter|More watery
+runways|Airstrips|Catwalks
+rupture|Burst|Split
+rustics|Bumpkins|Yokels
+rustier|More corroded|Out of practice
+rusting|Corroding|Oxidising
+rustled|Swished|Stole, as cattle
+rustler|Cattle thief|Horse thief
+rustles|Swishes|Steals, as cattle
+saddest|Unhappiest|Most pitiful
+saddled|Burdened|Harnessed
+saddles|Seats|Burdens
+sadness|Sorrow|Grief
+safaris|Expeditions|Game trips
+saffron|Spice|Orange-yellow
+sagging|Drooping|Sinking
+sailors|Seamen|Mariners
+saintly|Holy|Virtuous
+salamis|Sausages|Charcuterie
+salient|Prominent|Projection
+saloons|Bars|Cars
+saltier|Brinier|More risque
+salting|Curing|Seasoning
+saluted|Greeted|Honoured
+salutes|Greets|Honours
+salvage|Rescue|Save
+salving|Soothing|Easing
+sampler|Embroidery|Selection
+sandals|Open shoes|Flip-flops
+sandbag|Flood barrier|Bludgeon
+sandier|Grittier|Fairer-haired
+sanding|Smoothing|Abrading`],
 8: [
 `absolute|Total|Utter
 academic|Scholarly|Lecturer
