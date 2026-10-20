@@ -122,8 +122,10 @@ dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
 @media (min-width: 28rem) { .yd-words { columns: 3; } }
 .yd-words li { padding: .16rem 0; break-inside: avoid; border-bottom: 1px solid var(--rule); text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); font-weight: 650; }
 .yd-words li.full { color: var(--yd-in); font-weight: 800; }
-.yd-words li.miss { color: var(--ink-soft); font-weight: 500; }
-.yd-words li.miss.full { color: color-mix(in srgb, var(--yd-in) 70%, transparent); }
+/* a word missed, once the words are shown: faint and plain, so what you found stands out */
+.yd-words li.miss { color: color-mix(in srgb, var(--ink) 42%, transparent); font-weight: 450; }
+.yd-words li.miss.full { color: color-mix(in srgb, var(--yd-in) 55%, transparent); font-weight: 600; }
+.yd-words.shown li:not(.miss)::before { content: "✓"; margin-right: .3rem; color: var(--yd-good); font-weight: 800; }
 .yd-words li .who { display: inline-block; width: .5rem; height: .5rem; margin-right: .35rem; border-radius: 50%; background: var(--who); vertical-align: .05rem; }
 .yd-h { margin: .9rem 0 .35rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .yd-note { margin: .3rem 0 .6rem; font-size: .84rem; color: var(--ink-soft); line-height: 1.4; }

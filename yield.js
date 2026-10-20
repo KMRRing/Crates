@@ -27,10 +27,10 @@ const first = name => String(name || "Player").trim().split(/\s+/)[0];
 const up = w => w.toUpperCase();
 
 // ---------- what's kept ----------
-// yield:day today's puzzle as played; yield:run the random one; yield:on which of the two is on the screen;
-// yield:prefs the choices; yield:stats the record; yield:daily today's points by the day, for the games screen;
-// yield:duel a match's run on this device (duel.js keeps it).
-const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily";
+// yield:day today's puzzle as played; yield:last the daily before it (its words shown from the menu); yield:run the
+// random one; yield:on which of the two is on the screen; yield:prefs the choices; yield:stats the record;
+// yield:daily today's points by the day, for the games screen; yield:duel a match's run on this device (duel.js's).
+const DAY = "yield:day", RUN = "yield:run", ON = "yield:on", PREFS = "yield:prefs", STATS = "yield:stats", DAILY_KEY = "yield:daily", LAST = "yield:last";
 const SAVE_EVERY = 5000;                          // ms between saves of the clock while it runs
 const CLOCKS = [[0, "Untimed"], [180, "3 min"], [300, "5 min"]];
 const prefs = { level: "medium", board: "hive", secs: 0, rival: "off", together: "race", raceSecs: 180, ...read(PREFS, {}) };
@@ -202,8 +202,10 @@ async function enter() {
   const nameOf = slot => first(people().find(o => o.slot === slot)?.name);
   switch (r.kind) {
     case "word": {
+      const before = rankOf(pointsNow(), P.total);
       S.found.push(word);
-      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Pangram!") : PRAISE(word), "good", r.points);
+      const after = rankOf(pointsNow(), P.total);
+      say(r.full ? (p.board === "wheel" ? "Every tile!" : "Pangram!") : after > before ? `${RANKS[after][1]}!` : PRAISE(word), "good", r.points);
       found();
       break;
     }
@@ -338,7 +340,7 @@ function rivalsOnGauge() {
   return [];
 }
 function drawClock() {
-  const c = $("clock"), left = S?.kind === "race" ? raceLeft() : sprintLeft();
+  const c = $("clock"), left = S?.kind === "race" ? raceLeft() : S?.kind === "team" ? Infinity : sprintLeft();
   c.hidden = !S || !Number.isFinite(left);
   if (c.hidden) return;
   c.textContent = fmt(Math.max(0, left));
@@ -368,7 +370,7 @@ function drawRival() {
   const sig = `${now.points}/${rank}`;
   if (v.dataset.sig === sig) return;
   v.dataset.sig = sig;
-  v.replaceChildren(el("b", "", RIVALS[S.rival].label), ` ${plural(now.words.length, "word")}, ${now.points} points · ${RANKS[rank][1]}`);
+  v.replaceChildren(el("b", "", RIVALS[S.rival].label), ` ${plural(now.words.length, "word")}, ${plural(now.points, "point")} · ${RANKS[rank][1]}`);
 }
 function render() {
   const p = boardP();
@@ -410,10 +412,29 @@ function show(s) {
   render();
   if (S.kind === "day" && S.found.length) noteDaily(pointsNow());
 }
-/** Today's puzzle, where you left it, or fresh. */
+/** Today's puzzle, where you left it, or fresh: the day before's is kept to show its words (yield:last). */
 function showToday() {
   const kept = read(DAY, null), day = today();
-  show(validRun(kept) && kept.p.day === day ? kept : { kind: "day", p: daily(day), found: [] });
+  if (validRun(kept) && kept.p.day === day) { show(kept); return; }
+  if (validRun(kept) && kept.p.day < day && kept.found.length) write(LAST, { p: kept.p, found: kept.found });
+  show({ kind: "day", p: daily(day), found: [] });
+}
+/** The last daily played before today's: every word, with what you found. */
+function openLast() {
+  const last = read(LAST, null);
+  if (!last?.p) return;
+  const words = yieldOf(last.p), got = new Set(last.found), body = sheet(dayName(last.p.day));
+  body.append(el("p", "yd-sum", `${plural(last.found.length, "word")} of ${words.length}, ${totalOf(last.p, last.found.filter(w => words.includes(w)))} of ${totalOf(last.p, words)} points. The centre was ${up(last.p.centre)}.`));
+  const ul = el("ul", "yd-words shown");
+  for (const w of words) ul.append(el("li", `${isFull(last.p, w) ? "full" : ""}${got.has(w) ? "" : " miss"}`, up(w)));
+  body.append(ul);
+  openSheet();
+}
+/** A daily's name: yesterday's, or its date. */
+function dayName(day) {
+  const y = Math.floor(day / 10000), m = Math.floor(day / 100) % 100, d = day % 100, t = new Date(Date.UTC(y, m - 1, d));
+  const yesterday = new Date(Date.UTC(Math.floor(today() / 10000), Math.floor(today() / 100) % 100 - 1, today() % 100) - 864e5);
+  return t.getTime() === yesterday.getTime() ? "Yesterday's words" : `The words of ${t.toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}`;
 }
 /** A new random puzzle, as the menu has it. */
 function newRandom(level = prefs.level) {
@@ -462,11 +483,12 @@ function openDone() {
     const them = rivalAt(boardP(), P.plan, usedMs() / 1000);
     body.append(el("p", "yd-sum", `${RIVALS[S.rival].label} made ${them.points} points with ${plural(them.words.length, "word")}: ${pts > them.points ? "you win" : pts === them.points ? "a draw" : `${RIVALS[S.rival].label} wins`}.`));
   }
-  body.append(wordList(P.words, map, { missed: S.over || isOver() }));
+  // the way on before the words, which can run long
   if (S.kind === "day" || S.kind === "run") {
     if (dailyDue("yield") && S.kind !== "day") body.append(action("Today's puzzle", () => { closeSheet(); showToday(); }, "primary"));
     body.append(action("Another puzzle", () => { closeSheet(); newRandom(); }, dailyDue("yield") && S.kind !== "day" ? "" : "primary"));
   } else if (S.kind === "team") body.append(action("Another puzzle together", () => { closeSheet(); duel.again(); }, "primary"));
+  body.append(el("h4", "yd-h", "Every word"), wordList(P.words, map, { missed: S.over || isOver() }));
   openSheet();
 }
 const fmtLong = ms => { const s = Math.round(ms / 1000), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60; return h ? `${h}:${String(m).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${m}:${String(s % 60).padStart(2, "0")}`; };
@@ -477,7 +499,7 @@ function stats(items) {
 }
 /** The words, alphabetical, in columns: found ones as they are (a team's in their finder's colour), missed ones faint. */
 function wordList(words, map, { missed = false } = {}) {
-  const ul = el("ul", "yd-words"), p = boardP();
+  const ul = el("ul", `yd-words${missed ? " shown" : ""}`), p = boardP();
   for (const w of [...words].sort()) {
     const got = map.has(w);
     if (!got && !missed) continue;
@@ -596,7 +618,7 @@ function playMatch(m, { begun, kept, done, run, n }) {
   const same = kept && kept.p?.letters === p.letters && kept.n === n, words = run?.words || {};
   S = null;
   show({ ...(same ? kept : {}), kind: m.mode === "team" ? "team" : "race", p, found: same ? kept.found : Object.keys(words), times: same ? kept.times : { ...words },
-    secs: m.secs || 180, begun, n, over: !!done && m.mode !== "team", rival: null });
+    secs: m.mode === "team" ? 0 : m.secs || 180, begun, n, over: !!done && m.mode !== "team", rival: null });
   watchTable();
   if (S.kind === "race" && raceLeft() <= 0 && !S.over) { S.over = true; tell(true); }
 }
@@ -694,7 +716,8 @@ function openMenu() {
       if (S && (S.kind === "day" || S.kind === "run") && !S.over) { S.rival = v === "off" ? null : v; derive(); save(); render(); }
     }));
   part(body, "together").append(choice("A match you deal", [["race", "Race"], ["team", "Team"]], prefs.together, v => { prefs.together = v; keepPrefs(); }));
-  const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {});
+  const st = read(STATS, {}) || {}, sprints = Object.entries(st.sprints || {}), last = read(LAST, null);
+  if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
   part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; Master refiner ${st.master || 0} times, Full yield ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
     line("Words: SCOWL, with wordfreq's frequencies (CC BY-SA 4.0)."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -718,6 +741,8 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("sheetClose").addEventListener("click", closeSheet);
 $("sheetDlg").addEventListener("click", e => { if (e.target === $("sheetDlg")) closeSheet(); });
 $("gauge").addEventListener("click", openRanks);
+// duel.js's line opens its standings, which rank teammates against each other: at a team's table it opens the words
+$("duelLine").addEventListener("click", e => { if (S?.kind === "team") { e.stopImmediatePropagation(); openWords(); } }, true);
 $("foundBtn").addEventListener("click", () => { if (!sidewaysNow()) openWords(); });
 $("chartBtn").addEventListener("click", openChart);
 $("enterBtn").addEventListener("click", enter);
