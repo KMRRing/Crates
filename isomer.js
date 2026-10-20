@@ -391,7 +391,9 @@ function glow(i) { const r = rows[i]?.row; if (!r) return; r.classList.remove("g
 
 // ---------- together: your partner, two jumbles each, the final together (isomer-table.js) ----------
 let G = null;                    // the pair's table as last seen, made whole (null: not at one)
-let joining = null, offset = 0, stopOffset = null, seatedAt = Infinity;
+let joining = null, offset = 0, stopOffset = null, tableSeen = null;
+// when this phone sat down at the pair's table and at the race: a move to the other made since then is followed
+let seatedAt = Infinity, raceSeatedAt = Infinity;
 const serverNow = () => Date.now() + offset;
 const seatedNow = () => { joining?.(); joining = null; };
 const partnerName = () => first(together.others()[0]?.name || "Your partner");
@@ -408,7 +410,7 @@ const together = createTogether({
   onPresence: () => { if (G) { maybeBegin(); render(); } },
   onLeave: () => {
     seatedNow();
-    G = null; stopOffset?.(); stopOffset = null;
+    G = null; stopOffset?.(); stopOffset = null; seatedAt = Infinity;
     if (switching) return;
     solo();
   },
@@ -424,7 +426,8 @@ function onTable(val) {
   const was = G;
   G = tidyTable(structuredClone(val));
   if (!stopOffset) stopOffset = together.room?.sync.serverOffset?.(ms => { offset = ms || 0; }) || (() => {});
-  if (!was) seatedAt = serverNow();
+  if (!was) { seatedAt = serverNow(); atTable("pair"); }
+  tableSeen?.(); tableSeen = null;
   const kept = read(PAIR, null);
   if (!S || S.kind !== "pair" || was?.n !== G.n || was?.created !== G.created) {
     const mine = kept && kept.code === together.room?.code && kept.uid === together.room?.uid && kept.created === G.created && kept.n === G.n ? kept.run : null;
@@ -483,6 +486,7 @@ const duel = createDuel({
   describe: m => `${MODES[m.puzzle?.mode]?.label || "Classic"}, ${(LEVELS[m.puzzle?.level]?.label || "Medium").toLowerCase()}: the same jumbles for everyone, the quickest wins`,
   play: (match, { begun, kept }) => {
     switching = false;
+    atTable("race");
     const same = kept?.puzzle?.seed === match.puzzle.seed;
     show({ kind: "race", puzzle: match.puzzle, run: same ? kept.run : null, begun, rival: match.rival || "off" });
     tell();
@@ -492,8 +496,8 @@ const duel = createDuel({
     return el("p", "duel-note", `The computer (${RIVALS[S.rival].label}) took ${clock(S.plan.end / 1000)}.`);
   },
   extraTitle: "The computer",
-  onLobby: () => { S = null; P = null; lobby(); },
-  onLeave: () => { if (!switching) solo(); },
+  onLobby: () => { S = null; P = null; atTable("race"); lobby(); },
+  onLeave: () => { raceSeatedAt = Infinity; if (!switching) solo(); },
 });
 /** What the table sees of this run: how many are left, and the score once it's done. */
 function tell(done = S?.run.done) {
@@ -519,16 +523,36 @@ async function raceInstead() {
   await together.act(g => { g.race = serverNow(); return true; });
   together.leave();
   if (!(await duel.join(code))) { switching = false; solo(); return; }
+  raceSeatedAt = serverNow();
   if (duel.together.room?.data?.start) duel.again();           // a fresh match, not one the two of you raced before
 }
+/** And back from a pair's race to two jumbles each: both phones go, a new puzzle at the pair's table. */
+async function pairInstead() {
+  const code = duel.together.room?.code;
+  if (!code) return;
+  switching = true;
+  await duel.together.act(g => { g.pair = serverNow(); return true; });
+  duel.leave();
+  if (!(await together.join(code))) { switching = false; solo(); return; }
+  switching = false;
+  await new Promise(res => { if (G) res(); else { tableSeen = res; setTimeout(res, 5000); } });
+  // the table the two of you left for the race: a new puzzle on it
+  if (G && (G.done || G.race)) { const n = G.n, puzzle = await pairPuzzle(); await together.act(g => newGameAt(tidyTable(g), { n, puzzle })); }
+}
+const inParty = () => /[?&]party=/.test(location.search);
+// which of the pair's two tables this phone was last at (a reload in a pair's race sits down at the race again)
+const WHERE = "isomer:where";
+const atTable = kind => { const code = (kind === "race" ? duel.together : together).room?.code; if (code && !inParty()) write(WHERE, { code, kind }); };
 
 // ---------- the menu ----------
 let pick = null;                 // what New puzzle deals: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  if (duel.on) {                                               // a race: the table's own
-    duel.menu(part(body, "together"));
+  if (duel.on) {                                               // a race: the table's own (and, for the pair, back to two each)
+    const t = part(body, "together");
+    duel.menu(t);
+    if (!inParty()) t.insertBefore(action("Two jumbles each instead", pairInstead), t.lastElementChild);
     contentPart(body, false);
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -626,13 +650,20 @@ setInterval(() => {
   drawStrip();
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
 }, 250);
-// a partner's table that moved on to a race since this phone sat down: it follows them there
+// a partner who went from the pair's table to a race, or back, since this phone sat down: it follows them there
 setInterval(() => {
-  if (!G?.race || G.race < seatedAt || !together.room || switching) return;
-  const code = together.room.code;
-  switching = true;
-  together.leave();
-  duel.join(code).then(ok => { if (!ok) { switching = false; solo(); } });
+  if (switching) return;
+  if (G?.race && G.race >= seatedAt && together.room) {
+    const code = together.room.code;
+    switching = true;
+    together.leave();
+    duel.join(code).then(ok => { raceSeatedAt = serverNow(); if (!ok) { switching = false; solo(); } });
+  } else if (duel.on && !inParty() && (duel.together.room?.data?.pair || 0) >= raceSeatedAt) {
+    const code = duel.together.room.code;
+    switching = true;
+    duel.leave();
+    together.join(code).then(ok => { switching = false; if (!ok) solo(); });
+  }
 }, 1000);
 
 // for tests and debugging
@@ -649,10 +680,13 @@ function solo() {
   if (ok) show(kept);
   else if (!IN_FRAME) deal(dailyDue("isomer") ? "daily" : "random");
 }
-// a table in the address (the pair's match, a party's race): the rete until it's drawn, and no solo puzzle under it
-const code = roomInAddress();
-if (code && /[?&]party=/.test(location.search)) duel.join(code).then(ok => { if (!ok) solo(); });
+// a table in the address (the pair's match or their race, a party's race): the rete until it's drawn, and no solo
+// puzzle under it. A request said yes to (&new=) is always the pair's split match; a reload goes back to whichever of
+// the pair's two tables this phone was at.
+const code = roomInAddress(), where = read(WHERE, null);
+const toRace = inParty() || (!new URLSearchParams(location.search).has("new") && where?.code === code && where.kind === "race");
+if (code && toRace) duel.join(code).then(ok => { raceSeatedAt = serverNow(); if (!ok) solo(); });
 else if (code) { joining = busy(joiningWords(), { delay: 0 }); together.join(code).then(ok => { if (!ok) { seatedNow(); solo(); } }); }
 else solo();
 // once the page is up, the solver's model and word lists are made in a quiet moment, so the next deal is quick
-setTimeout(() => { try { makePuzzle(1, { mode: "classic", level: "easy" }); } catch { /* the deal will say */ } }, 1500);
+if (!IN_FRAME) setTimeout(() => { try { makePuzzle(1, { mode: "classic", level: "easy" }); } catch { /* the deal will say */ } }, 1500);
