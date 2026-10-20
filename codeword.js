@@ -636,16 +636,17 @@ function tableDel(n) {
 
 // ---------- coming to a table ----------
 /**
- * A page opened in a room: a party's request (more than two) is a race; a pair's is the split key or a race, whichever
- * the first of the two to arrive prefers (the menu's Playing together), written for that request in the split key's
- * branch so the second goes to the same. A reload, or Join from the partner sheet, goes back to the table you're at.
+ * A page opened in a room: a game started from Party (?party=, however many at the table) is a race, as Party offers
+ * it; a pair's request is the split key or a race, whichever the first of the two to arrive prefers (the menu's A pair
+ * plays), written for that request in the split key's branch so the second goes to the same. A reload, or Join from
+ * the partner sheet, goes back to the table you're at.
  */
 async function arrive(code) {
   const q = new URLSearchParams(location.search), at0 = Number(q.get("new")) || 0;
   try {
     const sync = await getSync(), shared = await openBranch(sync, code, BRANCH), ask = shared?.ask, cur = shared?.[BRANCH] || null;
     const fresh = !!at0 && ask?.at === at0 && ask.answer === "yes";
-    if (fresh && (Number(ask.people) || 2) > 2) return "race";
+    if (fresh && (q.get("party") || (Number(ask.people) || 2) > 2)) return "race";
     if (!fresh) return isTable(cur) ? "split" : "race";
     let mode = cur?.asked === at0 ? (cur.mode === "race" ? "race" : "split") : null;
     if (!mode) {
