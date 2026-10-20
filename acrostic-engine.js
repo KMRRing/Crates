@@ -11,6 +11,24 @@
 export const VERSION = 1;
 export const EMPTY = ".";
 
+// ---------- what a puzzle can be ----------
+// Each level: the text's letters, how many answers and their average length, the rarest words its answers may be
+// (wordlist.js tiers), the clues it starts from, and the skill a person needs (acrostic-solve.js grade). Easy is a
+// short text, common words and plain clues; Hard a long one, rarer words, the harder clues, and somewhere a clue that
+// must be cracked with little help.
+export const LEVELS = {
+  easy: { label: "Easy", letters: [28, 64], answers: [5, 10], avg: [3.6, 6.8], tier: 0, d: 1, grade: 1 },
+  medium: { label: "Medium", letters: [42, 92], answers: [7, 14], avg: [4, 7.4], tier: 1, d: 1, grade: 2 },
+  hard: { label: "Hard", letters: [60, 125], answers: [10, 18], avg: [4.4, 8], tier: 1, d: 2, grade: 3 },
+};
+export const TWISTS = {
+  classic: { label: "Classic", note: "The answers' first letters spell the source." },
+  telestich: { label: "Telestich", note: "The source runs down the answers' last letters." },
+  half: { label: "Half clued", note: "Half the clues are blank: those words come from the text alone." },
+};
+export const DAILY = { level: "medium", twist: "classic" };       // today's: the same for everyone, from every source
+export const SOURCES = [["lit", "Literature"], ["saying", "Sayings"], ["place", "Places"], ["art", "Paintings"], ["term", "Terms"]];
+
 // ---------- letters ----------
 /** Accents and ligatures folded to the 26 letters a square takes (Bären is BAREN, œuvre OEUVRE). */
 export function fold(s) {

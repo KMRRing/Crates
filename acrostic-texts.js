@@ -15,7 +15,7 @@ import { ENTITIES } from "./kb/entities.js";
 import { LINKS } from "./kb/links.js";
 import { fold, lettersOf } from "./acrostic-engine.js";
 
-export const SOURCES = [["lit", "Literature"], ["saying", "Sayings"], ["place", "Places"], ["art", "Paintings"], ["term", "Terms"]];
+export { SOURCES } from "./acrostic-engine.js";
 const LANG = { la: "Latin", de: "German", fr: "French", en: "English", it: "Italian", es: "Spanish", pt: "Portuguese", zh: "Chinese",
   ja: "Japanese", da: "Danish", sv: "Swedish", nl: "Dutch", ru: "Russian", sw: "Swahili", ar: "Arabic", no: "Norwegian", ko: "Korean",
   grc: "Greek", el: "Greek", pl: "Polish", sa: "Sanskrit" };
