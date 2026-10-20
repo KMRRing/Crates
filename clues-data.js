@@ -5128,7 +5128,479 @@ shave|Trim|Close call
 shawl|Wrap|Stole
 sheaf|Bundle|Wad
 shear|Clip|Fleece
-sheen|Gloss|Shine`],
+sheen|Gloss|Shine
+shied|Recoiled|Threw
+shies|Recoils|Fairground stalls
+shins|Lower legs|Climbs, with up
+shire|County|Heavy horse
+shirk|Dodge|Evade
+shoal|School of fish|Sandbank
+shoos|Drives away|Scares off
+shore|Coast|Prop, with up
+showy|Flashy|Ostentatious
+shred|Scrap|Tear up
+shrew|Small mammal|Nag
+shrub|Bush|Hedge plant
+shrug|Shoulder lift|Dismiss, with off
+shuck|Husk|Shell, as oysters
+shuns|Avoids|Ostracises
+shunt|Push aside|Minor car crash
+shyer|More timid|More bashful
+sidle|Edge|Creep
+siege|Blockade|Encirclement
+sieve|Strainer|Riddle
+sifts|Sieves|Sorts through
+sighs|Breathes out|Laments
+silks|Fine fabrics|Jockeys' colours
+sills|Window ledges|Door thresholds
+silos|Grain stores|Missile shafts
+silts|Sediments|Clogs, with up
+sinew|Tendon|Strength
+singe|Scorch|Burn lightly
+sinus|Nasal cavity|Head cavity
+sired|Fathered|Begot
+siren|Alarm|Temptress
+sires|Fathers|Begets
+sited|Located|Placed
+sixes|Big hits at cricket|At ___ and sevens
+skate|Glide on ice|Flatfish
+skein|Hank of wool|Flight of geese
+skews|Distorts|Slants
+skids|Slides|Runners
+skied|Slalomed|Hit high, as a ball
+skies|Heavens|Hits high
+skimp|Scrimp|Stint
+skims|Glides over|Reads quickly
+skins|Hides|Peels
+skits|Sketches|Parodies
+skulk|Lurk|Sneak
+skunk|Striped mammal|Smelly creature
+slabs|Blocks|Slices
+slack|Loose|Lazy
+slain|Killed|Murdered
+slake|Quench|Satisfy
+slams|Bangs|Criticises
+slant|Slope|Bias
+slaps|Smacks|Cuffs
+slate|Roof tile|Criticise
+slats|Strips|Laths
+slays|Kills|Amuses greatly
+sleds|Toboggans|Sleighs
+sleek|Glossy|Streamlined
+sleet|Icy rain|Wintry shower
+slews|Swings round|Lots
+slick|Smooth|Oil spill
+slime|Ooze|Sludge
+slims|Diets|Reduces
+slimy|Oozy|Smarmy
+sling|Throw|Arm support
+slink|Sneak|Creep
+slits|Slots|Cuts
+slobs|Layabouts|Couch potatoes
+slogs|Trudges|Grinds
+slops|Spills|Swill
+slosh|Splash|Hit
+sloth|Laziness|Tree-dwelling mammal
+slugs|Snails without shells|Swigs
+slump|Decline|Slouch
+slums|Hovels|Shanty towns
+slung|Thrown|Hurled
+slunk|Crept|Sneaked
+slurs|Insults|Mumbles
+slush|Melting snow|Sentimentality
+slyly|Cunningly|Furtively
+smack|Slap|Fishing boat
+smear|Smudge|Slander
+smelt|Sniffed|Refine ore
+smirk|Smug grin|Simper
+smite|Strike|Hit hard
+smock|Overall|Loose dress
+smoky|Hazy|Sooty
+smote|Struck|Hit hard
+snags|Problems|Catches
+snake|Serpent|Wind
+snaps|Photos|Breaks
+snare|Trap|Drum
+snarl|Growl|Tangle
+sneer|Scoff|Jeer
+snide|Sarcastic|Sly
+snipe|Wading bird|Shoot from cover
+snips|Cuts|Bargains
+snobs|Elitists|Toffee-noses
+snoop|Pry|Nose about
+snore|Sleep noisily|Bore
+snort|Grunt|Snifter
+snout|Nose|Informer
+snows|Falls as flakes|Overwhelms
+snowy|White|Wintry
+snubs|Slights|Rebuffs
+snuff|Extinguish|Powdered tobacco
+snugs|Pub back rooms|Cosy corners
+soaks|Drenches|Drunkards
+soaps|Washes|TV serials
+soapy|Lathery|Sentimental
+soars|Rises|Glides
+sodas|Fizzy drinks|Mixers
+sofas|Couches|Settees
+soggy|Sodden|Damp
+soils|Earths|Stains
+soled|Mended, as a shoe|Bottomed
+solos|Lone flights|Unaccompanied pieces
+sonic|Of sound|Acoustic
+sooty|Black|Grimy
+sorer|More painful|Angrier
+sores|Ulcers|Wounds
+soups|Broths|Thick fogs
+sours|Turns bad|Spoils
+sowed|Planted|Scattered
+spade|Shovel|Black card
+spank|Smack|Paddle
+spans|Bridges|Extents
+spark|Flash|Ignite
+spars|Masts|Boxes for practice
+spasm|Cramp|Fit
+spate|Flood|Rush
+spats|Quarrels|Shoe covers
+spawn|Eggs|Generate
+spays|Neuters|Sterilises
+spear|Lance|Pierce
+speck|Dot|Particle
+spews|Gushes|Vomits
+spice|Seasoning|Zest
+spicy|Hot|Racy
+spied|Spotted|Snooped
+spine|Backbone|Courage
+spins|Twirls|Slants, as news
+spire|Steeple|Spike
+splat|Squelch|Wet slap
+spook|Ghost|Spy
+spoon|Ladle|Cuddle
+spore|Seed|Fungal cell
+spree|Binge|Fling
+sprig|Twig|Shoot
+spuds|Potatoes|Taters
+spurn|Reject|Scorn
+spurs|Goads|Incentives
+spurt|Squirt|Burst
+squat|Crouch|Stocky
+squid|Cephalopod|Calamari source
+stabs|Jabs|Attempts
+stags|Male deer|Harts
+staid|Sedate|Stuffy
+stain|Blot|Dye
+stalk|Stem|Pursue
+stank|Reeked|Smelt
+stave|Stick|Fend, with off
+steak|Beef cut|Sirloin
+stern|Strict|Rear of a ship
+stews|Casseroles|Frets
+sting|Prick|Con
+stink|Stench|Fuss
+stint|Spell|Skimp
+stoke|Fuel|Stir up
+stomp|Stamp|Tramp
+stony|Rocky|Cold
+stool|Seat|Footrest
+stoop|Bend|Porch, in America
+stork|Wading bird|Baby bringer, in fable
+stout|Burly|Dark beer
+stove|Cooker|Range
+stows|Packs|Stashes
+strap|Belt|Thong
+strew|Scatter|Litter
+strum|Play a guitar|Twang
+strut|Swagger|Brace
+stubs|Butts|Counterfoils
+studs|Rivets|Horse farms
+stump|Baffle|Wicket post
+stung|Smarted|Swindled
+stunk|Reeked|Ponged
+suave|Smooth|Urbane
+sucks|Draws on|Slurps
+suede|Napped leather|Desert-boot material
+sulks|Moods|Pouts
+sulky|Moody|Two-wheeled cart
+sunup|Dawn|Daybreak
+surer|More certain|Steadier
+surfs|Rides waves|Browses
+surge|Rush|Swell
+surly|Grumpy|Churlish
+swabs|Cleans|Cotton pads
+swans|Graceful birds|Idles, with around
+swarm|Throng|Bee colony
+swats|Slaps|Strikes at flies
+sways|Rocks|Influences
+swell|Expand|Wave
+swift|Fast|Bird
+swigs|Gulps|Drinks
+swill|Hog feed|Rinse
+swine|Pigs|Wretch
+swipe|Swing|Steal
+swirl|Twist|Eddy
+swish|Rustle|Posh
+swoon|Faint|Rapture
+swoop|Dive|Raid
+swung|Swayed|Rocked
+syrup|Sweet liquid|Treacle
+tabby|Striped cat|Brindled
+taboo|Forbidden|Banned
+tacit|Unspoken|Implied
+tacky|Tasteless|Sticky
+tacos|Tortillas|Mexican snacks
+taint|Contaminate|Blemish
+tally|Count|Agree
+talon|Claw|Nail
+tamed|Domesticated|Broken in
+tamer|Lion trainer|Milder
+tames|Domesticates|Subdues
+tango|Ballroom dance|Letter T, in radio code
+tangs|Zests|Prongs
+taped|Recorded|Bound
+taper|Narrow|Candle
+tardy|Late|Slow
+tarry|Linger|Like pitch
+tarts|Pastries|Pies
+tasty|Delicious|Appetising
+tatty|Shabby|Scruffy
+taunt|Jeer|Mock
+tawny|Tan|Port style
+taxed|Levied|Strained
+taxis|Cabs|Hackney carriages
+teaks|Hardwoods|Timbers
+tease|Mock|Comb
+teems|Swarms|Pours
+teens|Adolescents|Youths
+tempo|Speed|Pace
+tenet|Belief|Principle
+tenor|Singer|Gist
+tents|Marquees|Shelters
+tepee|Wigwam|Conical tent
+tepid|Lukewarm|Half-hearted
+thaws|Melts|Eases
+theta|Greek letter|Eighth Greek letter
+thigh|Upper leg|Drumstick
+thins|Dilutes|Weeds out
+thong|Flip-flop|Strap
+thorn|Prickle|Bane
+throb|Pulse|Beat
+thuds|Thumps|Bumps
+thugs|Ruffians|Hooligans
+thump|Bang|Punch
+thyme|Herb|Bouquet garni herb
+tiara|Coronet|Diadem
+ticks|Checks|Parasites
+tidal|Ebbing and flowing|Like an estuary
+tided|Helped, with over|Floated
+tides|Ebbs and flows|Currents
+tiers|Layers|Rows
+tiffs|Spats|Squabbles
+tilde|Wavy accent|Spanish mark
+tiled|Paved|Roofed
+tills|Cash registers|Ploughs
+tilts|Tips|Jousts
+timid|Shy|Fearful
+tinge|Tint|Trace
+tings|Chimes|Rings
+tinny|Metallic|Cheap-sounding
+tints|Shades|Dyes
+tipsy|Merry|Squiffy
+toads|Amphibians|Horrid people
+togas|Roman robes|Gowns
+toils|Labours|Snares
+tolls|Rings|Charges
+tombs|Graves|Vaults
+tomes|Volumes|Big books
+tonal|Of pitch|Musical
+toned|Firm|Tinted
+tongs|Pincers|Curling irons
+tonic|Mixer|Pick-me-up
+tonne|Metric weight|Thousand kilos
+toots|Hoots|Honks
+topaz|Gem|Yellow stone
+torch|Flashlight|Set fire to
+torso|Trunk|Body
+toted|Carried|Lugged
+totem|Symbol|Emblem
+totes|Carries|Bags
+tours|Trips|Travels
+touts|Ticket sellers|Promotes
+towed|Pulled|Hauled
+towel|Drying cloth|Rub down
+toxic|Poisonous|Harmful
+toxin|Poison|Venom
+toyed|Trifled|Played
+tract|Area|Pamphlet
+trait|Characteristic|Quirk
+tramp|Vagrant|Trek
+trawl|Search|Fish with a net
+trays|Salvers|Platters
+treed|Cornered|Trapped up high
+treks|Hikes|Journeys
+trill|Warble|Quaver
+trims|Cuts|Edgings
+trios|Threes|Triplets
+tripe|Nonsense|Offal
+trite|Banal|Hackneyed
+troll|Ogre|Online pest
+trots|Jogs|Runs
+trout|River fish|Rainbow, perhaps
+truce|Ceasefire|Armistice
+truer|More accurate|More loyal
+trump|Outdo|Winning card
+tubas|Brass instruments|Big horns
+tubed|Piped|Packaged
+tucks|Folds|Pleats
+tufts|Clumps|Tussocks
+tulip|Flower|Bulb
+tummy|Stomach|Belly
+tunas|Big fish|Albacores
+tuner|Piano fixer|Radio dial
+tunic|Smock|Jacket
+turfs|Sods|Ejects, with out
+tusks|Ivories|Fangs
+twang|Nasal sound|Pluck
+tweak|Adjust|Pinch
+tweed|Wool fabric|Rough cloth
+tweet|Chirp|Post online
+twigs|Sticks|Realises
+twine|String|Twist
+twirl|Spin|Pirouette
+udder|Cow's milk bag|Mammary gland
+ulcer|Sore|Stomach complaint
+ultra|Extreme|Extremist
+uncut|Complete|Unabridged
+undue|Excessive|Unwarranted
+unfit|Out of shape|Unsuitable
+unman|Unnerve|Emasculate
+unsay|Retract|Take back
+untie|Undo|Unknot
+upend|Overturn|Topple
+upped|Raised|Increased
+urine|Waste fluid|Kidney product
+usher|Escort|Doorkeeper
+usurp|Seize|Supplant
+uteri|Wombs|Organs of pregnancy
+valet|Manservant|Car parker
+vanes|Weathercocks|Blades
+vases|Urns|Flower holders
+vault|Leap|Crypt
+veers|Swerves|Turns
+veils|Masks|Covers
+veins|Blood vessels|Streaks
+venom|Poison|Malice
+vents|Outlets|Airs, as feelings
+verge|Edge|Grass strip
+verve|Vigour|Panache
+vests|Singlets|Confers
+vexed|Annoyed|Disputed
+vexes|Annoys|Irks
+vials|Phials|Small bottles
+vices|Sins|Workbench clamps
+vigil|Watch|Wake
+viler|Nastier|More base
+villa|Country house|Holiday home
+vines|Creepers|Climbers
+viola|Instrument|Pansy
+viper|Adder|Snake
+viral|Spreading fast|Infectious
+visas|Permits|Entry stamps
+visor|Peak|Shield
+vista|View|Panorama
+vivid|Bright|Graphic
+vodka|Spirit|Russian drink
+vogue|Fashion|Trend
+voids|Gaps|Annuls
+volts|Units of potential|Electrical units
+vowed|Promised|Swore
+vying|Competing|Rivalling
+wafer|Biscuit|Thin slice
+wafts|Drifts|Floats
+waged|Conducted|Fought
+wager|Bet|Gamble
+wagon|Cart|Rail truck
+waifs|Strays|Urchins
+wails|Howls|Moans
+waist|Middle|Midriff
+waive|Forgo|Relinquish
+waken|Rouse|Stir
+waltz|Dance|Breeze, with through
+wands|Batons|Magic sticks
+waned|Faded|Ebbed
+wanes|Fades|Ebbs
+wards|Hospital rooms|Charges
+warts|Blemishes|___ and all
+wasps|Stinging insects|Yellowjackets
+watts|Power units|Bulb ratings
+waver|Hesitate|Flicker
+waxed|Polished|Grew, as the moon
+waxes|Polishes|Grows, as the moon
+weans|Takes off milk|Breaks of a habit
+weave|Interlace|Zigzag
+wedge|Chock|Golf club
+weeds|Wild plants|Weaklings
+weedy|Puny|Overgrown
+weeps|Cries|Oozes
+welds|Joins|Fuses
+wells|Springs|Rises, with up
+welts|Weals|Ridges
+whack|Hit|Share
+wharf|Quay|Pier
+wheat|Grain|Cereal
+whets|Sharpens|Stimulates
+whiff|Smell|Hint
+whims|Fancies|Caprices
+whine|Whimper|Complain
+whips|Lashes|Party enforcers
+whirl|Spin|Go
+whisk|Beat|Egg beater
+wicks|Candle strings|Draws, as moisture
+widen|Broaden|Expand
+widow|Bereaved wife|Black ___ (spider)
+wield|Brandish|Exercise
+wilds|Outback|Back of beyond
+wilts|Droops|Flags
+wince|Flinch|Grimace
+winch|Hoist|Windlass
+windy|Blustery|Nervous, slangily
+wined|___ and dined|Plied with drink
+winks|Blinks|Naps
+wiper|Windscreen cleaner|Cloth
+wisps|Strands|Puffs
+wispy|Thin|Feathery
+wolfs|Gobbles|Devours
+wombs|Uteri|Origins
+woody|Tree-covered|Like timber
+wooed|Courted|Charmed
+woofs|Barks|Dog sounds
+wordy|Verbose|Long-winded
+woven|Interlaced|Knitted
+wowed|Amazed|Impressed
+wreak|Inflict|Cause
+wrens|Small birds|Tiny songbirds
+wrest|Twist away|Snatch
+wring|Twist|Squeeze
+writs|Summonses|Court orders
+wrung|Twisted|Squeezed
+wryer|Drier|More ironic
+yacht|Sailing boat|Cruiser
+yanks|Jerks|Tugs
+yarns|Threads|Tales
+yawns|Gapes|Bores
+yearn|Long|Pine
+yeast|Raising agent|Leaven
+yells|Shouts|Screams
+yelps|Yaps|Squeals
+yeses|Affirmatives|Approvals
+yodel|Alpine song|Warble
+yoked|Harnessed|Linked
+yokel|Bumpkin|Rustic
+yokes|Harnesses|Collars
+yolks|Egg centres|Yellows
+yowls|Howls|Wails
+zebra|Striped animal|Crossing
+zests|Peels|Relishes
+zoned|Divided into areas|Dazed, with out
+zooms|Speeds|Magnifies`],
 6: [
 `accept|Take|Agree to
 access|Entry|Retrieve, as data
