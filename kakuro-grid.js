@@ -112,6 +112,7 @@ export function combosOf(op, len, value, without = 0) {
 }
 /** The combinations a run can still be: its clue less the digits already in it, over its empty cells. */
 export function combosLeft(op, value, empty, placed) {
+  if (!empty && value == null) return Uint16Array.of(0);           // a full run whose clue isn't known: nothing to check
   if (value == null) return combosOf(op, empty, null, placed);
   const have = total(op, placed), left = op === "product" ? value / have : value - have;
   if (!Number.isInteger(left) || left < (op === "product" ? 1 : 0)) return new Uint16Array(0);

@@ -39,8 +39,9 @@ const gridOf = rows => {
     "sums: 3 in two is 1 2, 23 in three 6 8 9, 45 in nine every digit; 10 in two four ways, 15 in three eight");
   check(c(combosOf("product", 2, 24)).split(" ").sort().join(" ") === "38 46" && c(combosOf("product", 3, 6)) === "123" && combosOf("product", 2, 7).length === 1 && combosOf("product", 2, 11).length === 0,
     "products: 24 in two is 3 8 or 4 6, 6 in three only 1 2 3, a 7 shows itself, 11 can't be made");
-  check(c(combosLeft("sum", 16, 1, bit(7))) === "9" && combosLeft("sum", 16, 1, bit(8)).length === 0 && c(combosLeft("product", 24, 1, bit(3))) === "8" && combosLeft("sum", 5, 0, bit(2) | bit(3)).length === 1,
-    "the ways a run can still be, less the digits in it (16 in two with a 7 needs a 9; with an 8, nothing can)");
+  check(c(combosLeft("sum", 16, 1, bit(7))) === "9" && combosLeft("sum", 16, 1, bit(8)).length === 0 && c(combosLeft("product", 24, 1, bit(3))) === "8" && combosLeft("sum", 5, 0, bit(2) | bit(3)).length === 1
+    && combosLeft("sum", null, 0, bit(2) | bit(3)).length === 1 && combosLeft("sum", null, 2, bit(1)).length === 28,
+    "the ways a run can still be, less the digits in it (16 in two with a 7 needs a 9; with an 8, nothing can; a full run whose clue someone else holds is fine)");
   const f = fitRun(Uint16Array.of(bit(3) | bit(4), 0b1111111110), combosOf("sum", 2, 12));
   check(f.fits.length === 2 && f.allowed[1] === (bit(8) | bit(9)), "the ways that fit: 12 in two with a cell of 3 or 4 leaves the other 8 or 9");
   check(doubt("sum", 2, 3) === 0 && doubt("sum", 2, 10) === 2000 && doubt("sum", 3, 15) === 3000 && doubt("sum", 2, 7) === 1584, "doubt in thousandths of a bit, by integer arithmetic (log2 3 is 1.584)");
@@ -104,6 +105,23 @@ const made = [];
     "an Easy grid needs the ways that fit once for every twelve cells at most; an Expert one a chain, or working out at nearly every other cell");
 }
 
+// ---------- chains: Expert grids that need one ----------
+{
+  const problems = [];
+  let chains = 0;
+  for (const seed of [6011, 6029]) {
+    const p = generate({ seed, rules: "sums", size: 10, level: "expert" }), view = { shape: p.shape, clues: p.clues, op: p.op }, st = stateOf(view, new Uint8Array(p.rows * p.cols));
+    for (let step, k = 0; (step = nextStep(view, st)) && k < 3000; k++) {
+      if (step.tech === "chain") { chains++; if (!/^If this cell were \d/.test(say(view, st, step))) problems.push(`${seed}: a chain without its words`); }
+      if (step.place && p.solution[step.place[0]] !== step.place[1]) problems.push(`${seed}: ${step.tech} placed a wrong digit`);
+      if (step.elim?.some(([c, m]) => m & bit(p.solution[c]))) problems.push(`${seed}: ${step.tech} struck out the right digit`);
+      apply(view, st, step);
+    }
+    if (!p.shape.white.every(c => st.val[c] === p.solution[c])) problems.push(`${seed}: the solver didn't finish`);
+  }
+  check(chains >= 3 && !problems.length, `two Expert grids that need chains (${chains} chains in all): every chain sound and named, the grids finished${problems.length ? `: ${problems.join("; ")}` : ""}`);
+}
+
 // ---------- grading, hints, and what the solver can't do ----------
 {
   const g = gridOf(["####", "#12#", "#349", "##87"]), view = { shape: g.shape, clues: cluesOf(g.shape, g.sol), op: "sum" };
@@ -164,7 +182,18 @@ const made = [];
       const v = viewOf(p, split, q);
       if (solver(v.shape, v.clues, v.op).solve({ maxNodes: 400000 }).count < 2 || alone(p, split, q)) problems.push(`${at}: player ${q} could finish alone`);
     }
-    if (!relay(p, split, 2).done) problems.push(`${at}: the pair can't finish it between them`);
+    const rel = relay(p, split, 2);
+    if (!rel.done) problems.push(`${at}: the pair can't finish it between them`);
+    else if (p.shape.white.some(c => rel.placed[c] !== p.solution[c])) problems.push(`${at}: the relay placed a wrong digit`);
+    // from what each player sees, halfway through, every step the solver (a hint, the computer partner) takes is sound
+    const half = Uint8Array.from(rel.placed, (d, i) => (i % 2 ? d : 0));
+    for (const q of [0, 1]) {
+      const v = viewOf(p, split, q), st = stateOf(v, half);
+      for (let step, k = 0; (step = nextStep(v, st)) && k < 3000; k++) {
+        if ((step.place && p.solution[step.place[0]] !== step.place[1]) || step.elim?.some(([c, m]) => m & bit(p.solution[c]))) { problems.push(`${at}: player ${q}'s ${step.tech} isn't sound`); break; }
+        apply(v, st, step);
+      }
+    }
     if (splitFor(p, 2, p.seed) !== split) problems.push(`${at}: not the same split twice`);
   }
   check(!problems.length, `${pairs.length} pairs' splits: across against down, each player holding clues the other lacks, neither able to finish alone, the relay finishing, the same on every phone${problems.length ? `: ${problems.join("; ")}` : ""}`);

@@ -312,24 +312,28 @@ export function say(view, st, step) {
     return `${cap(runName(view, k))} has ${listOf(have.map(String))} in it: the last cell is ${step.place[1]}.`;
   }
   if (step.tech === "single") {
-    const [c, d] = step.place, [a, b] = step.runs;
+    const [, d] = step.place, [a, b] = step.runs;
     const allows = k => { const { ways, placed } = waysOf(view, st, k); let m = 0; for (const w of ways) m |= w; return m & ~placed; };
     const ma = allows(a), mb = allows(b);
-    if (POP[ma & mb] === 1) return `${cap(runName(view, a))} allows ${comboText(ma)}; ${runName(view, b)} allows ${comboText(mb)}. Only ${d} is in both, so it goes where they cross.`;
+    if (view.clues[a] != null && view.clues[b] != null && POP[ma & mb] === 1) return `${cap(runName(view, a))} allows ${comboText(ma)}; ${runName(view, b)} allows ${comboText(mb)}. Only ${d} is in both, so it goes where they cross.`;
     return `Only ${d} is left for this cell: ${runName(view, a)} and ${runName(view, b)} rule out the rest, with what's been worked out around them.`;
   }
   if (step.tech === "hidden") {
     const k = step.runs[0], { ways } = waysOf(view, st, k);
-    const how = ways.length === 1 ? `can only be ${comboText(ways[0])}` : `has a ${step.digit} whichever way it adds up (${[...ways].map(comboText).join(", ")})`;
-    return `${cap(runName(view, step.runs[0]))} ${how}, and only one of its cells can take the ${step.digit}.`;
+    const how = ways.length === 1 ? `can only be ${comboText(ways[0])}` : `has a ${step.digit} whichever way it ${view.op === "product" ? "multiplies out" : "adds up"}${ways.length <= 4 ? ` (${[...ways].map(comboText).join(", ")})` : ""}`;
+    return `${cap(runName(view, k))} ${how}, and only one of its cells can take the ${step.digit}.`;
   }
   if (step.tech === "fit") {
     const k = step.runs[0], all = step.ways.length, fits = step.fits.map(comboText);
-    const struck = step.elim.map(([c, m]) => `${digitsOf(m).join(" or ")}`);
-    const which = all > step.fits.length
-      ? `can only be ${listOf(fits)} now: the other ${all - step.fits.length === 1 ? "way needs" : "ways need"} a digit its cells can't hold`
-      : `can be ${listOf(fits)}, but not every digit fits every cell`;
-    return `${cap(runName(view, k))} ${which}. So ${step.elim.length === 1 ? `the lit cell can't be ${struck[0]}` : "the lit cells lose some candidates"}.`;
+    const struck = step.elim.length === 1 ? `the lit cell can't be ${digitsOf(step.elim[0][1]).join(" or ")}` : "the lit cells lose some candidates";
+    if (view.clues[k] == null) return `${cap(runName(view, k))} holds different digits (its clue is someone else's), and what its cells can hold leaves only so many ways to fill it: ${struck}.`;
+    const which = fits.length > 5 ? `can still be made ${fits.length} ways, but none of them fits every cell as it stands`
+      : all > fits.length ? `can only be ${listOf(fits)} now: the other ${all - fits.length === 1 ? "way needs" : "ways need"} a digit its cells can't hold`
+        : `can be ${listOf(fits)}, but not every digit fits every cell`;
+    return `${cap(runName(view, k))} ${which}. So ${struck}.`;
+  }
+  if (step.tech === "chain") {
+    return `If this cell were ${step.digit}, follow it: the cells it settles in turn (lit) leave a run that can't ${view.op === "product" ? "multiply out" : "add up"} to its clue. So it isn't ${step.digit}.`;
   }
   if (step.tech === "area") {
     const { P, N, sa, sd } = step.box, prod = view.op === "product";

@@ -138,7 +138,8 @@ async function start(mode = "random") {
   }
   begin(s);
 }
-const startedSolo = () => !!S && !S.done && (S.entries.past.length > 0 || S.hints > 0);
+const started = s => !!s && !s.done && (s.entries.past.length > 0 || s.hints > 0);
+const startedSolo = () => started(S);
 function confirmStart(mode) {
   if (startedSolo() && !confirm("Start a new grid? This one isn't finished.")) return false;
   start(mode);
@@ -846,7 +847,7 @@ window.addEventListener("hashchange", () => {
 });
 setInterval(() => {
   if (M && !M.lobby) { render(); return; }
-  if (!S) return;
+  if (!S || !P || M) return;
   botTick();
   drawStrip();
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
@@ -859,14 +860,14 @@ async function linkStart(k) {
 }
 /** Your own grid: a link's, today's from the games screen's tile while it's to play, the saved one, or a first. */
 async function loadSolo() {
-  S = read(RUN, null);
-  if (!validRun(S)) S = null;
+  // the saved run is only S once it's begun: while today's grid is being made, nothing half-loaded is drawn
+  const saved = read(RUN, null), kept = validRun(saved) ? saved : null;
   const k = hashKind();
-  if (k && !(S && S.grid.seed === k.seed && S.grid.rules === k.rules && S.grid.r === k.size && S.mode === k.mode)) { await linkStart(k); return; }
-  if (forToday && !IN_FRAME && !(S?.mode === "daily" && S.grid.seed === today())) {
-    if (!startedSolo() || confirm("Today's grid is waiting. Leave the one you've started?")) { await start("daily"); return; }
+  if (k && !(kept && kept.grid.seed === k.seed && kept.grid.rules === k.rules && kept.grid.r === k.size && kept.mode === k.mode)) { await linkStart(k); return; }
+  if (forToday && !IN_FRAME && !(kept?.mode === "daily" && kept.grid.seed === today())) {
+    if (!started(kept) || confirm("Today's grid is waiting. Leave the one you've started?")) { await start("daily"); return; }
   }
-  if (S) begin(S);
+  if (kept) begin(kept);
   else if (!IN_FRAME) await start("daily");          // a first visit opens today's grid; a partner's frame shows only theirs
 }
 
