@@ -51,6 +51,10 @@ html[data-mode="night"] { --dg-block: #070C10; --dg-block-ink: #E9C47C; --dg-bad
 .dg-c.wrong .dg-v { text-decoration: line-through; text-decoration-thickness: 2px; }
 .dg-c.lit { background: color-mix(in srgb, var(--dg-hint) 22%, transparent); }
 .dg-c.focus { background: color-mix(in srgb, var(--dg-hint) 38%, transparent); box-shadow: inset 0 0 0 2px var(--dg-hint); z-index: 1; }
+/* at a table: where each of the others is, framed in their colour with their initial in the corner */
+.dg-c.other { box-shadow: inset 0 0 0 2px var(--who); }
+.dg-c.other::before { content: attr(data-who); position: absolute; top: 3%; right: 6%; font-size: calc(var(--cell) * .2); line-height: 1; font-weight: 800; color: var(--who); }
+.dg-c.sel.other { box-shadow: inset 0 0 0 2px var(--brass), inset 0 0 0 4px var(--who); }
 /* together: a given only a partner can see is hatched; one shown while they're away is set in grey */
 .dg-c.sealed { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--brass) 30%, transparent) 0 1.5px, transparent 1.5px 6px); cursor: default; }
 .dg-c.lent .dg-v { color: var(--ink-soft); font-weight: 600; }

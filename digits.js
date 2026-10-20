@@ -32,6 +32,7 @@
 //     marks: { name: Set },       // classes for cells: conflict, wrong, lit (a hint's proof), focus (its target),
 //                                 // sealed (a digit only a partner sees), lent (a partner's, shown while they're away)
 //     selected: cell (-1: none), highlight: value (lit where no cell is selected), notesMode,
+//     cursors: { cell: { seat, initial } },  // where the others at a table are, framed in their colour (--p<seat>)
 //     counts: { value: still to place } (shown on the keys; 0 dims one), off: { undo: true, … } (buttons to grey),
 //     veiled,                     // the game stands still (its menu is open): the digits hidden behind a plate
 //     flash: { key, cells },      // cells swept with light once (a row finished); again only for a new key
@@ -215,17 +216,19 @@ export function createBoard(host, opts = {}) {
     const sel = selected >= 0 && playable(selected) ? selected : -1;
     const peers = new Set(sel >= 0 ? peersOf(sel) : []);
     const lit = sel >= 0 ? values[sel] : view.highlight || 0;
-    const markNames = Object.keys(marks || {});
+    const markNames = Object.keys(marks || {}), cursors = view.cursors || {};
     for (let i = 0; i < cells; i++) {
       if (!playable(i)) continue;
-      const v = values[i] || 0, n = v ? 0 : notes[i] || 0, own = colours?.[i];
+      const v = values[i] || 0, n = v ? 0 : notes[i] || 0, own = colours?.[i], who = cursors[i];
       const cls = ["dg-c", tagged.has(i) ? "tagged" : "", v ? (has(fixed, i) ? "given" : "entered") : "", i === sel ? "sel" : "", peers.has(i) ? "peer" : "", lit && v === lit ? "same" : "",
-        ...markNames.filter(m => has(marks[m], i))].filter(Boolean).join(" ");
-      const sig = `${cls}|${v}|${n}|${own ?? ""}|${lit && n & (1 << lit) ? lit : 0}`;
+        who ? "other" : "", ...markNames.filter(m => has(marks[m], i))].filter(Boolean).join(" ");
+      const sig = `${cls}|${v}|${n}|${own ?? ""}|${lit && n & (1 << lit) ? lit : 0}|${who ? `${who.seat}${who.initial}` : ""}`;
       if (drawn[i] === sig) continue;
       drawn[i] = sig;
       const el = cellEls[i];
       el.className = cls;
+      if (who) { el.style.setProperty("--who", `var(--p${who.seat % 6})`); el.dataset.who = who.initial || ""; }
+      else { el.style.removeProperty("--who"); delete el.dataset.who; }
       el.firstChild.textContent = v ? digits[v - 1] : "";
       if (own != null && v && !has(fixed, i)) el.style.setProperty("--own", `var(--p${own % 6})`); else el.style.removeProperty("--own");
       const marksEl = el.children[1].children;

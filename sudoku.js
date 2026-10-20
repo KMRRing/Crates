@@ -480,6 +480,8 @@ async function playMatch(match, { begun, kept, n }) {
     try { const split = (await ask({ kind: "split", grid: match.grid, k: sh.k, seed: match.seed })).split; if (M !== mine) return; M.split = split; } finally { doneWait(); }
     M.waiting = false;
     coopArrived();
+    sentAt = null;
+    shareCursor();
   }
   matchBoard();
   keepMatch();
@@ -545,7 +547,7 @@ function matchInput(a) {
   if (a.type !== "select" && a.type !== "notes") { hintShown = null; message = null; }
   const split = M.mode === "split";
   switch (a.type) {
-    case "select": M.sel = a.cell; highlight = 0; if (hintShown && !hintShown.cells.includes(a.cell)) hintShown = null; break;
+    case "select": M.sel = a.cell; highlight = 0; if (hintShown && !hintShown.cells.includes(a.cell)) hintShown = null; shareCursor(); break;
     case "notes": M.notes = !M.notes; break;
     case "digit": {
       const i = M.sel;
@@ -566,6 +568,32 @@ function matchInput(a) {
   keepMatch();
   tellSoon();
   render();
+}
+// Where you are on the grid, Together, is written to your seat as you move (at most every 150 ms), so the others see
+// which cell you're on and nobody sets off for the same one; theirs show on yours, in their colour.
+let sentAt = null, cursorTimer = 0;
+function shareCursor() {
+  const room = duel.together.room;
+  if (!room || M?.mode !== "split" || M.lobby || M.waiting) return;
+  const at = M.done ? -1 : M.sel;
+  clearTimeout(cursorTimer);
+  if (at === sentAt) return;
+  cursorTimer = setTimeout(() => {
+    if (!roomVal?.players?.[room.uid]) return;            // not seated (any more): a write would leave a stray entry
+    sentAt = at;
+    room.sync.update(`${branchPath(room.code, "sudoku")}/players/${room.uid}`, { at })?.catch?.(e => console.error(e));
+  }, 150);
+}
+/** The others' cells, those here: { cell: { seat, initial } }. */
+function cursorsOf() {
+  const room = duel.together.room;
+  if (M?.mode !== "split" || !roomVal || !room || M.done) return {};
+  const present = new Set(presentSlots(roomVal, room.here, "sudoku", room.uid)), out = {};
+  for (const [id, p] of Object.entries(roomVal.players || {})) {
+    if (!p || id === room.uid || (room.pid && p.pid === room.pid) || !present.has(p.slot) || !(p.at >= 0)) continue;
+    out[p.at] = { seat: p.slot, initial: first(p.name).slice(0, 1).toUpperCase() };
+  }
+  return out;
 }
 /** Your pencil marks of a digit leave the cells that see it, as they do solo. */
 function tidyNotes(i, d) { if (settings.tidy) for (const p of SH.peers[i]) M.entries.n[p] &= ~bit(d); }
@@ -646,7 +674,7 @@ function renderMatch() {
   if (settings.repeats) marks.conflict = repeats(view.values, unitsForRepeats());
   if (hintShown) { marks.lit = new Set(hintShown.cells); marks.focus = new Set(hintShown.focus); }
   board.draw({
-    values: view.values, fixed: view.fixed, notes: M.entries.n, colours: view.owners, marks,
+    values: view.values, fixed: view.fixed, notes: M.entries.n, colours: view.owners, marks, cursors: cursorsOf(),
     selected: done ? -1 : M.sel, highlight, notesMode: M.notes, counts: split ? null : countsOf(view.values),
     off: { undo: done || !(split ? M.hist.length : M.entries.past.length), redo: done || !(split ? M.future?.length : M.entries.future.length), erase: done, notes: done, hint: done },
     veiled: false, flash,
