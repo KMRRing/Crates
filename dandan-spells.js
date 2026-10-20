@@ -6,13 +6,17 @@ import { CARDS, DECK, BASICS, TOKEN_AT } from "./dandan-cards.js";
 import {
   defOf, nm, isToken, isLand, isCreature, isSpellCard, perm, typesOf, needType, fetchTypes, other,
   draw, mill, fromYard, shuffleLib, say, knSet, knOf, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, bounce,
-  permToLib, ask,
+  permToLib, ask, toLib, toHandOpen, handToLib, BOTH,
 } from "./dandan-core.js";
 
 // ---------- targets ----------
-/** A target: a spell on the stack (s), a permanent (c), a player (p), a card in the graveyard (g). */
-export const T = { s: sid => ({ k: "s", sid }), c: id => ({ k: "c", id }), p: seat => ({ k: "p", seat }), g: id => ({ k: "g", id }) };
+/**
+ * A target: a spell on the stack (s), a permanent (c, with the object it is: oid), a player (p), a card in the
+ * graveyard (g). Two are the same by what they point at; the oid is checked as a spell resolves (stillLegal).
+ */
+export const T = { s: sid => ({ k: "s", sid }), c: (id, oid) => (oid == null ? { k: "c", id } : { k: "c", id, oid }), p: seat => ({ k: "p", seat }), g: id => ({ k: "g", id }) };
 export const same = (a, b) => a.k === b.k && a.sid === b.sid && a.id === b.id && a.seat === b.seat;
+const C = p => T.c(p.id, p.oid);
 
 const spellsOnStack = (s, not) => s.stack.filter(i => i.kind === "spell" && !not.includes(i.sid));
 /** What type a spell on the stack is (the half it was cast as). */
@@ -24,25 +28,28 @@ export function targetLists(s, ctl, name, mode = 0, not = []) {
   switch (name) {
     case "Memory Lapse": return one(spellsOnStack(s, not).map(i => T.s(i.sid)));
     case "Narset's Reversal": return one(spellsOnStack(s, not).filter(i => ["instant", "sorcery"].includes(typeOfItem(i))).map(i => T.s(i.sid)));
-    case "Commit": return one([...spellsOnStack(s, not).map(i => T.s(i.sid)), ...s.bf.filter(p => !isLand(p)).map(p => T.c(p.id))]);
-    case "Mind Bend": return one(s.bf.map(p => T.c(p.id)));
-    case "Gone Missing": return one(s.bf.map(p => T.c(p.id)));
-    case "Repulse": return one(s.bf.filter(isCreature).map(p => T.c(p.id)));
-    case "Metamorphose": return one(s.bf.filter(p => p.ctl !== ctl).map(p => T.c(p.id)));
-    case "Deem Inferior": return one(s.bf.filter(p => !isLand(p)).map(p => T.c(p.id)));
-    case "Mystic Retrieval": return one(s.yard.filter(isSpellCard).map(T.g));
-    case "Piracy Charm": return mode === 2 ? one([T.p(0), T.p(1)]) : one(s.bf.filter(isCreature).map(p => T.c(p.id)));
+    case "Commit": return one([...spellsOnStack(s, not).map(i => T.s(i.sid)), ...s.bf.filter(p => !isLand(p)).map(C)]);
+    case "Mind Bend": return one(s.bf.map(C));
+    case "Gone Missing": return one(s.bf.map(C));
+    case "Repulse": return one(s.bf.filter(isCreature).map(C));
+    case "Metamorphose": return one(s.bf.filter(p => p.ctl !== ctl).map(C));
+    case "Deem Inferior": return one(s.bf.filter(p => !isLand(p)).map(C));
+    case "Mystic Retrieval": case "@sanct": return one(s.yard.filter(isSpellCard).map(T.g));
+    case "Piracy Charm": return mode === 2 ? one([T.p(0), T.p(1)]) : one(s.bf.filter(isCreature).map(C));
     default: return [[]];
   }
 }
 /** How many modes a spell has (Piracy Charm three; the rest one). */
 export const modesOf = name => CARDS[name]?.modes?.length || 1;
 
-/** Whether a spell's targets are still legal as it resolves (a spell with none always is; one whose targets are all gone fizzles). */
+/**
+ * Whether a spell's (or a targeted trigger's) targets are still legal as it resolves: one with none always is; one whose
+ * targets are all gone fizzles. A permanent that left and came back is a new object, and not the one aimed at.
+ */
 export function stillLegal(s, it) {
-  if (it.kind !== "spell" || !it.targets.length) return true;
+  if (!it.targets.length || (it.kind !== "spell" && it.name !== "@sanct")) return true;
   const all = targetLists(s, it.ctl, it.name, it.mode || 0, [it.sid]).flat();
-  return it.targets.some(t => all.some(x => same(x, t)));
+  return it.targets.some(t => all.some(x => same(x, t)) && (t.k !== "c" || t.oid == null || perm(s, t.id)?.oid === t.oid));
 }
 
 // ---------- a Mind Bend's choices ----------
@@ -80,7 +87,7 @@ export const RES = {
   },
   "Memory"(s, it) {
     if (it.step === 0) {
-      for (const seat of [0, 1]) { s.lib.push(...s.hand[seat]); s.hand[seat] = []; }
+      for (const seat of [0, 1]) handToLib(s, seat);
       s.lib.push(...s.yard);
       s.yard = [];
       shuffleLib(s);
@@ -119,8 +126,9 @@ export const RES = {
       say(s, `${x.name} is copied, and the original returns to its owner's hand`);
       leaveStack(s, x, "hand");
       if (c.targets.length) {
+        // new targets for the copy, when there's a choice: another target, or the one legal target in place of a lost one
         const options = targetLists(s, it.ctl, c.name, c.mode, [c.sid, it.sid]).filter(l => l.length);
-        if (options.length > 1) return ask(s, it, { t: "retarget", seat: it.ctl, copy: c.sid, options }, 1);
+        if (options.length > 1 || (options.length === 1 && !same(options[0][0], c.targets[0]))) return ask(s, it, { t: "retarget", seat: it.ctl, copy: c.sid, options }, 1);
       }
     }
     return "done";
@@ -174,7 +182,7 @@ export const RES = {
   "Lórien Revealed"(s, it) { draw(s, it.ctl, 3); return "done"; },
   "Mystic Retrieval"(s, it) {
     const id = it.targets[0].id;
-    if (fromYard(s, id)) { s.hand[it.ctl].push(id); say(s, `${nm(id)} returns from the graveyard to hand`); }
+    if (fromYard(s, id)) { toHandOpen(s, it.ctl, id); say(s, `${nm(id)} returns from the graveyard to hand`); }
     return "done";
   },
   "Take Inventory"(s, it) {
@@ -205,8 +213,9 @@ export const RES = {
   "@cycle"(s, it) { draw(s, it.ctl, 1); return "done"; },
   "@clue"(s, it) { draw(s, it.ctl, 1); return "done"; },
   "@dandan"(s, it) {
+    // the Dandân it triggered for: if that one left (bounced and back is another object), there's nothing to sacrifice
     const p = perm(s, it.src);
-    if (p) { say(s, `{s${p.ctl}}'s Dandân is sacrificed`); toGrave(s, p.id); }
+    if (p && (it.oid == null || p.oid === it.oid)) { say(s, `{s${p.ctl}}'s Dandân is sacrificed`); toGrave(s, p.id); }
     return "done";
   },
 
@@ -234,11 +243,10 @@ export const RES = {
     }
     return "done";
   },
+  // its target was chosen as it triggered (the engine's aim); a target gone from the graveyard has fizzled it already
   "@sanct"(s, it) {
-    if (it.step === 0) {
-      const ids = s.yard.filter(isSpellCard);
-      if (ids.length) return ask(s, it, { t: "pick", seat: it.ctl, ids, for: "sanct", optional: true }, 1);
-    }
+    const t = it.targets[0];
+    if (t && fromYard(s, t.id)) { toLib(s, t.id, "top", BOTH); say(s, `${nm(t.id)} goes on top of the library`); }
     return "done";
   },
 };

@@ -4,16 +4,17 @@
 // could do (see wants): nobody is asked at an upkeep, or to answer a spell they can't answer.
 //
 // The turn: untap, upkeep, draw, main, declare attackers, declare blockers, combat damage, main, end step, cleanup.
-// (The beginning and end of combat have no priority: nothing here acts in them.) A spell or ability goes on the
-// stack; both players pass in turn with it there and the top one resolves; the stack empty, both passing ends the step.
+// (The beginning and end of combat have no stop of their own: what could be done there is as well done at the
+// declarations either side of them.) A spell or ability goes on the stack; both players pass in turn with it there and
+// the top one resolves; the stack empty, both passing ends the step, and the mana left in the pools empties.
 import { CARDS, DECK, HALVES, NAMES, BASICS, parseCost } from "./dandan-cards.js";
 import { shuffle } from "./seats.js";
 import {
   LIFE, HAND, other, list, withRng, say, nm, isLandId, perm, isLand, isCreature, pt, canAttack, unblockable, fetchTypes, typesOf, needType,
   payPlan, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
-  mill, lands, permToLib, bounce,
+  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard,
 } from "./dandan-core.js";
-import { RES, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
+import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
 
 export const STEPS = ["upkeep", "draw", "main1", "attackers", "blockers", "damage", "main2", "end"];
 const isMain = s => s.step === "main1" || s.step === "main2";
@@ -25,7 +26,7 @@ const THEIR_STOPS = new Set(["attackers", "blockers", "end"]);
 function blank() {
   return {
     v: 1, turn: 0, active: 0, first: 0, step: "mull", prio: 0, passes: 0, res: 0,
-    lib: [], yard: [], exile: [], hand: [[], []], bf: [], stack: [], life: [LIFE, LIFE], kn: [], nid: 1, nt: 0,
+    lib: [], yard: [], exile: [], hand: [[], []], bf: [], stack: [], life: [LIFE, LIFE], kn: [], kh: [], pool: ["", ""], nid: 1, nt: 0,
     played: 0, drawn: [0, 0], attacked: false, quick: [false, false], combat: null, pending: null, lost: [false, false],
     over: false, winner: -1, why: "", mull: { n: [0, 0], done: [false, false] }, reveal: null, log: [], ln: 0,
   };
@@ -59,8 +60,7 @@ function askMull(s, seat) {
 function mulligan(s, seat) {
   if (s.pending.free) { s.reveal = { seat, cards: [...s.hand[seat]] }; say(s, `{s${seat}} shows ${s.hand[seat].map(nm).join(", ")} and takes a free mulligan`); }
   else { s.mull.n[seat]++; say(s, `{s${seat}} takes a mulligan`); }
-  s.lib.push(...s.hand[seat]);
-  s.hand[seat] = [];
+  handToLib(s, seat);
   shuffleLib(s);
   draw(s, seat, HAND);
   s.drawn = [0, 0];
@@ -82,6 +82,8 @@ function doneMull(s, seat) {
 }
 
 // ---------- the turn ----------
+/** A step begins: the last one's mana is gone from the pools. */
+function toStep(s, step) { s.step = step; emptyPools(s); }
 function startTurn(s) {
   s.turn++;
   s.active = s.turn === 1 ? s.first : other(s.active);
@@ -91,7 +93,7 @@ function startTurn(s) {
   s.attacked = false;
   s.quick = [false, false];
   s.combat = null;
-  s.step = "upkeep";
+  toStep(s, "upkeep");
   s.prio = s.active;
   s.passes = 0;
   say(s, `Turn ${s.turn}: {s${s.active}}`);
@@ -109,28 +111,28 @@ function cleanup(s) {
 function advance(s) {
   const act = s.active;
   switch (s.step) {
-    case "upkeep": s.step = "draw"; if (s.turn > 1) draw(s, act, 1); break;
-    case "draw": s.step = "main1"; break;
+    case "upkeep": toStep(s, "draw"); if (s.turn > 1) draw(s, act, 1); break;
+    case "draw": toStep(s, "main1"); break;
     case "main1": {
       const ids = s.bf.filter(p => canAttack(s, p)).map(p => p.id);
-      if (ids.length) { s.step = "attackers"; s.pending = { t: "attack", seat: act, ids }; return; }
-      s.step = "main2";
+      if (ids.length) { toStep(s, "attackers"); s.pending = { t: "attack", seat: act, ids }; return; }
+      toStep(s, "main2");
       break;
     }
     case "attackers": {
       const att = (s.combat ? s.combat.att : []).filter(id => perm(s, id));
-      if (!att.length) { s.combat = null; s.step = "main2"; break; }
+      if (!att.length) { s.combat = null; toStep(s, "main2"); break; }
       s.combat.att = att;
-      s.step = "blockers";
+      toStep(s, "blockers");
       const def = other(act);
       const blockers = s.bf.filter(p => p.ctl === def && isCreature(p) && !p.tapped).map(p => p.id);
       const attackers = att.filter(id => !unblockable(s, perm(s, id)));
       if (blockers.length && attackers.length) { s.pending = { t: "block", seat: def, blockers, attackers }; return; }
       break;
     }
-    case "blockers": s.step = "damage"; combatDamage(s); break;
-    case "damage": s.step = "main2"; s.combat = null; break;
-    case "main2": s.step = "end"; break;
+    case "blockers": toStep(s, "damage"); combatDamage(s); break;
+    case "damage": toStep(s, "main2"); s.combat = null; break;
+    case "main2": toStep(s, "end"); break;
     case "end": cleanup(s); return;
   }
   s.prio = s.active;
@@ -191,7 +193,7 @@ export function sba(s) {
     need.sort((a, b) => (b.ctl === s.active) - (a.ctl === s.active));
     for (const p of need) {
       p.trig = true;
-      pushItem(s, { kind: "trigger", name: "@dandan", ctl: p.ctl, src: p.id });
+      pushItem(s, { kind: "trigger", name: "@dandan", ctl: p.ctl, src: p.id, oid: p.oid });
       say(s, `{s${p.ctl}} has no ${needType(p)}: the Dandân will be sacrificed`);
       s.passes = 0;
       changed = true;
@@ -205,9 +207,21 @@ export function sba(s) {
 // ---------- priority ----------
 /** The spells worth stopping a combat step for: the ones that act on a creature. */
 const COMBAT = new Set(["Piracy Charm", "Repulse", "Commit", "Mind Bend", "Metamorphose"]);
-/** Whether a seat holding priority is asked: it could do something, and (on an empty stack) this is a step it stops at. */
+/** The spells worth stopping the other player's upkeep for: the card they are about to draw is the one these choose or mill. */
+const UPKEEP = new Set(["Brainstorm", "Predict"]);
+/**
+ * Whether a seat holding priority is asked: it could do something, and (on an empty stack) this is a step it stops at.
+ * The upkeep is a stop when the coming draw is worth acting on: the seat knows the top card (and could draw it first,
+ * bury it or shuffle it away), or, the other player's, it holds a Brainstorm (two cards of its choosing on top for them)
+ * or a Predict (to mill the card they'd draw). An unknown top card taken first is as good as one taken at the end step.
+ */
 export function wants(s, seat) {
   if (s.stack.length) return hasMove(s, seat);
+  if (s.step === "upkeep") {
+    if (s.turn < 2) return false;
+    if (topKnown(s, seat) != null && hasMove(s, seat)) return true;
+    return seat !== s.active && hasMove(s, seat, UPKEEP);
+  }
   if (!(seat === s.active ? MY_STOPS : THEIR_STOPS).has(s.step)) return false;
   return hasMove(s, seat, s.step === "attackers" || s.step === "blockers" ? COMBAT : null);
 }
@@ -225,10 +239,25 @@ export function settle(s) {
   for (let guard = 0; guard < 3000; guard++) {
     if (s.over || s.pending) return;
     if (sba(s)) continue;
+    if (aim(s)) continue;
     if (wants(s, s.prio)) return;
     passPriority(s);
   }
   throw new Error("dandan: the game didn't settle");
+}
+/**
+ * A trigger that targets has its target chosen as it goes on the stack, before anyone may answer it (Mystic
+ * Sanctuary's: an instant or sorcery card in the graveyard). With none to choose, it leaves the stack. The "may" of
+ * its text is answered with the choice: choosing none is declining.
+ */
+function aim(s) {
+  const it = s.stack.find(i => i.aim);
+  if (!it) return false;
+  const ids = s.yard.filter(isSpellCard);
+  if (ids.length) { s.pending = { t: "pick", seat: it.ctl, ids, for: "sanct", optional: true, aim: it.sid }; return true; }
+  s.stack = s.stack.filter(x => x.sid !== it.sid);
+  say(s, "Mystic Sanctuary finds no instant or sorcery in the graveyard");
+  return true;
 }
 
 // ---------- resolving ----------
@@ -289,8 +318,10 @@ export function checkCast(s, seat, m) {
   if (d.modes && !(Number.isInteger(mode) && mode >= 0 && mode < d.modes.length)) return "Choose what it does";
   const lists = targetLists(s, seat, half, mode), targets = list(m.targets);
   if (!lists.length) return "It has no legal target";
-  if (!lists.some(l => l.length === targets.length && l.every((t, i) => same(t, targets[i])))) return "Choose a legal target";
-  return { id, from, half, d, cost: costOf(s, seat, half, from), plan, mode, targets };
+  const hit = lists.find(l => l.length === targets.length && l.every((t, i) => same(t, targets[i])));
+  if (!hit) return "Choose a legal target";
+  // the targets as the table has them now: a permanent's with the object it is (oid), whatever the move carried
+  return { id, from, half, d, cost: costOf(s, seat, half, from), plan, mode, targets: hit };
 }
 /** A target in words, for the log. */
 export function targetWords(s, t) {
@@ -468,7 +499,7 @@ function answer(s, seat, m) {
       if (id !== null) {
         fromLib(s, id);
         if (p.to === "bf") { enterBf(s, id, seat); say(s, `{s${seat}} fetches ${nm(id)}`); }
-        else { s.hand[seat].push(id); say(s, `{s${seat}} finds ${nm(id)}`); }
+        else { toHandOpen(s, seat, id); say(s, `{s${seat}} finds ${nm(id)}`); }    // islandcycling reveals it
       } else say(s, `{s${seat}} finds nothing`);
       shuffleLib(s);
       resume(s);
@@ -477,10 +508,19 @@ function answer(s, seat, m) {
     case "pick": {
       const id = m.card ?? null;
       if (id === null ? !p.optional : !p.ids.includes(id)) return id === null ? "Choose one" : "That isn't one you can choose";
+      if (p.aim) {
+        // a trigger's target, as it goes on the stack
+        const it = itemOf(s, p.aim);
+        s.pending = null;
+        if (!it) return null;
+        delete it.aim;
+        if (id === null) { s.stack = s.stack.filter(x => x.sid !== it.sid); say(s, `{s${seat}} puts nothing on top`); }
+        else { it.targets = [T.g(id)]; say(s, `Mystic Sanctuary aims at ${nm(id)} in the graveyard`); }
+        return null;
+      }
       if (id !== null) {
         if (p.for === "drop") { fromHand(s, seat, id); enterBf(s, id, seat); say(s, `{s${seat}} puts ${nm(id)} onto the battlefield`); }
         else if (p.for === "boil") { bounce(s, id); say(s, `{s${seat}} returns ${nm(id)} to hand`); }
-        else if (p.for === "sanct") { fromYard(s, id); toLib(s, id, "top", 3); say(s, `${nm(id)} goes on top of the library`); }
       }
       resume(s);
       return null;
@@ -521,15 +561,15 @@ function answer(s, seat, m) {
   return "Not now";
 }
 
-/** A seat's move made on a game (the runner hands in a copy and keeps it if this returns one). */
-export function act(s, seat, m, { rng } = {}) {
+/** A seat's move made on a game (the runner hands in a copy and keeps it if this returns one). quiet: no log (a game played out in the computer's head). */
+export function act(s, seat, m, { rng, quiet = false } = {}) {
   return withRng(rng, () => {
     if (s.over) return "The game is over";
     const err = s.pending ? (s.pending.seat === seat ? answer(s, seat, m) : "It isn't your turn") : (s.prio === seat ? priorityMove(s, seat, m) : "You don't have priority");
     if (err) return err;
     settle(s);
     return s;
-  });
+  }, quiet);
 }
 export const toMove = s => (s.over ? null : s.pending ? s.pending.seat : s.prio);
 
@@ -550,16 +590,17 @@ export function moves(s, seat, firstOnly = false, only = null) {
     if (seen.has(full)) continue;
     seen.add(full);
     const half = HALVES[full] ? HALVES[full][0] : full;
-    if (only && !only.has(half)) continue;
-    if (isLandId(id)) { if (tryMove({ t: "land", card: id })) return out; }
-    else {
+    // only: the card names (and "@cycle", "@ability") a stop is for
+    const plays = !only || only.has(half), cycles = !!CARDS[half].cycling && (!only || only.has("@cycle"));
+    if (plays && isLandId(id)) { if (tryMove({ t: "land", card: id })) return out; }
+    else if (plays) {
       for (let mode = 0; mode < modesOf(half); mode++) {
         for (const targets of targetLists(s, seat, half, mode)) {
           if (tryMove({ t: "cast", card: id, from: "hand", ...(CARDS[half].modes ? { mode } : {}), targets })) return out;
         }
       }
     }
-    if (CARDS[half].cycling && tryMove({ t: "cycle", card: id })) return out;
+    if (cycles && tryMove({ t: "cycle", card: id })) return out;
   }
   const seenY = new Set();
   for (const id of s.yard) {
@@ -568,7 +609,7 @@ export function moves(s, seat, firstOnly = false, only = null) {
     seenY.add(half);
     for (const targets of targetLists(s, seat, half, 0)) if (tryMove({ t: "cast", card: id, from: "yard", targets })) return out;
   }
-  if (!only) {
+  if (!only || only.has("@ability")) {
     for (const p of s.bf) {
       if (p.ctl === seat && (nm(p.id) === "Flood Plain" || nm(p.id) === "Clue") && tryMove({ t: "ability", id: p.id })) return out;
     }
@@ -584,6 +625,8 @@ export function restore(s) {
   lists(s, ["lib", "yard", "exile", "bf", "stack", "log"], true);
   s.hand = [0, 1].map(i => list(s.hand?.[i]));
   s.kn = list(s.kn).map(list);
+  s.kh = list(s.kh).map(list);
+  s.pool = [0, 1].map(i => s.pool?.[i] || "");
   s.life = [0, 1].map(i => s.life?.[i] ?? LIFE);
   s.drawn = [0, 1].map(i => s.drawn?.[i] || 0);
   s.quick = [0, 1].map(i => !!s.quick?.[i]);

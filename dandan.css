@@ -158,12 +158,34 @@ dialog.dd-sheet:has(.pick-head) { padding-top: 0; }
 .dd-opt { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; padding: .55rem .7rem; text-align: left; }
 .dd-opt b { font-size: .92rem; font-stretch: normal; text-transform: none; letter-spacing: 0; white-space: normal; text-align: left; }
 .dd-opt small { font-size: .72rem; font-weight: 600; text-transform: none; letter-spacing: 0; opacity: .8; white-space: nowrap; }
+/* a row of a question's list that is a card: the choice, and beside it a button to read the card first */
+.dd-optrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem; }
+.dd-info { min-width: 2.4rem; padding: 0 .55rem; font-weight: 800; }
+/* a card's name in a line of words, as a chip that opens it */
+.dd-chip.dd-name { padding: .1rem .45rem; font-size: inherit; font-weight: 750; line-height: 1.35; vertical-align: baseline; border-color: color-mix(in srgb, var(--dd-in) 45%, var(--tile-edge)); }
+.dd-float { font-weight: 700; color: var(--ink); white-space: nowrap; }
+.dd-float .dd-pip { margin-right: .1rem; vertical-align: -.1em; }
+
+/* a card read in full, in its own sheet: its name and cost across the top, its text large, what the question asks of it below */
+.dd-cardsheet #cardHead { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.dd-cardsheet #cardHead span { min-width: 0; overflow-wrap: anywhere; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.06em * var(--track)); }
+.dd-cardsheet #cardHead .dd-pip { width: 1.1rem; height: 1.1rem; font-size: .7rem; }
+.dd-cardbody .dd-cd { padding: .1rem 0 .5rem; }
+.dd-cardbody .dd-cd + .dd-cd { padding-top: .6rem; border-top: 1px solid var(--rule); }
+.dd-cardbody .dd-dh b { font-size: .95rem; }
+.dd-cardbody .dd-dt { font-size: .78rem; }
+.dd-cardbody p { margin: .25rem 0 0; font-size: 1rem; line-height: 1.45; }
+.dd-cardbody .dd-state { font-size: .85rem; color: var(--ink-soft); }
+.dd-cardgo { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; margin-top: .9rem; }
+.dd-cardgo[hidden] { display: none; }
+
 .dd-yard, .dd-known { list-style: none; margin: 0; padding: 0; }
 .dd-yard li { display: flex; align-items: center; gap: .6rem; padding: .4rem .1rem; border-bottom: 1px solid var(--rule); }
-.dd-yard li b { flex: 1; }
+.dd-yard li .dd-name { margin-right: auto; }
 .dd-yard .n { color: var(--ink-soft); font-size: .85rem; }
 .dd-sm { padding: .3rem .6rem; min-height: 0; font-size: .8rem; }
-.dd-known li { display: flex; gap: .8rem; padding: .35rem .1rem; border-bottom: 1px solid var(--rule); }
+.dd-known li { display: flex; align-items: center; gap: .8rem; padding: .35rem .1rem; border-bottom: 1px solid var(--rule); }
+.dd-view h4 { margin: 1rem 0 .35rem; }
 .dd-known li span { width: 2rem; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .dd-rules p, .dd-rules li { line-height: 1.45; }
 .dd-rules h3 { margin: 1rem 0 .4rem; font-size: .8rem; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }

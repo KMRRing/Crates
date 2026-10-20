@@ -31,7 +31,7 @@ export function scene(o = {}) {
   // (a game runs on by itself past every point where nobody could act)
   s.hand = [0, 1].map(i => [...(o.hand?.[i] ?? []), ...(o.hold === i ? ["Brainstorm"] : [])].map(take));
   s.bf = [...(o.bf ?? []), ...(o.hold != null ? [[o.hold, "Island"]] : [])].map(([seat, name, x = {}]) => ({
-    id: name === "Clue" ? TOKEN_AT + ++s.nt : take(name), ctl: seat, tapped: !!x.tapped, ent: x.ent ?? 1, ...(x.tc ? { tc: x.tc } : {}),
+    id: name === "Clue" ? TOKEN_AT + ++s.nt : take(name), ctl: seat, tapped: !!x.tapped, ent: x.ent ?? 1, oid: s.nid++, ...(x.tc ? { tc: x.tc } : {}),
   }));
   s.yard = (o.yard ?? []).map(take);
   s.exile = (o.exile ?? []).map(take);

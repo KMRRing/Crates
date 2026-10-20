@@ -6,7 +6,7 @@
 import { DECK, CARDS, HALVES, NAMES, TOKEN_AT, parseCost, total } from "../dandan-cards.js";
 import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable } from "../dandan-engine.js";
 import { RES, T } from "../dandan-spells.js";
-import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack } from "../dandan-core.js";
+import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack, knownIn } from "../dandan-core.js";
 import { rules } from "../dandan-rules.js";
 import { botMove, randomMove, randomAnswer } from "../dandan-bot.js";
 import { newRecord, applyMove, botMove as seatBot, seeded, shuffle } from "../seats.js";
@@ -187,6 +187,87 @@ test("Quicken: the next sorcery this turn can be cast with flash, once", () => {
   return !s.quick[0] && /main phase/.test(refused(s, 0, ti()));
 });
 
+// ---------- the upkeep: the card about to be drawn ----------
+/** A scene at our end step, played on to the other player's turn 6 until someone is asked. */
+const toTheirUpkeep = (mine, bf) => drive(scene({ active: 0, step: "end", prio: 0, passes: 1, hand: [mine, []], bf }), c => c.turn === 6, 40);
+test("the other player's upkeep is a stop for a Brainstorm (two cards of our choosing for them to draw) and a Predict", () => {
+  const bs = toTheirUpkeep(["Brainstorm"], islandsOf(0, 1)), pr = toTheirUpkeep(["Predict"], islandsOf(0, 2));
+  // an unknown top card taken first with a Quicken is as good as one taken at the end step: no stop for that
+  const quick = toTheirUpkeep(["Quicken"], islandsOf(0, 1));
+  const asked = c => c.step === "upkeep" && c.active === 1 && toMove(c) === 0;
+  return asked(bs) && asked(pr) && !asked(quick) || `${bs.step}/${toMove(bs)} ${pr.step}/${toMove(pr)} ${quick.step}`;
+});
+test("…and so is any upkeep where the seat knows the top card and could act on it: it draws the card before its owner can", () => {
+  // our Memory Lapse put their spell on top at our end step: theirs to draw; in their upkeep, a cycling land draws it first
+  let s = scene({ active: 0, step: "end", prio: 1, passes: 1, hand: [["Memory Lapse", "Lonely Sandbar"], ["Take Inventory"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2)] });
+  s.quick[1] = true;                                              // (a Quicken resolved earlier: their sorcery at instant speed)
+  s = cast(s, 1, "Take Inventory");
+  const ti = s.stack[0].card;
+  s = cast(s, 0, "Memory Lapse", [T.s(s.stack[0].sid)]);
+  if (s.lib[0] !== ti || nextDrawer(s) !== 1) return "the countered spell should be on top, theirs to draw";
+  s = drive(s, c => c.turn === 6, 40);
+  if (!(s.step === "upkeep" && toMove(s) === 0)) return `not asked at their upkeep (${s.step} turn ${s.turn})`;
+  s = resolveStack(go(s, 0, { t: "cycle", card: idIn(s, 0, "Lonely Sandbar") }));
+  return s.hand[0].includes(ti) && !s.lib.includes(ti);
+});
+
+// ---------- mana that floats ----------
+test("mana a land makes and a cost doesn't use floats to the end of the step: Izzet Boilerworks pays {U}, its {R} pays the next cost", () => {
+  // with an Island to pay from, the dual is kept for last
+  let s = scene({ hand: [["Brainstorm", "Remote Isle"], []], bf: [[0, "Izzet Boilerworks"], [0, "Island"]] });
+  s = go(s, 0, { t: "cast", card: idIn(s, 0, "Brainstorm"), from: "hand", targets: [] });
+  const kept = !perm(s, onBf(s, 0, "Izzet Boilerworks")).tapped;
+  // with only the dual, its R floats, through Brainstorm's resolving, and pays half of Remote Isle's cycling
+  let t = scene({ hand: [["Brainstorm", "Remote Isle", "Island"], []], bf: [[0, "Izzet Boilerworks"]] });
+  t = go(t, 0, { t: "cast", card: idIn(t, 0, "Brainstorm"), from: "hand", targets: [] });
+  if (t.pool[0] !== "R") return `nothing floats (${JSON.stringify(t.pool)})`;
+  t = answer(t, { t: "putback", cards: t.hand[0].filter(id => !["Remote Isle", "Island"].includes(DECK[id])).slice(0, 2) });
+  if (t.step !== "main1" || t.pool[0] !== "R") return `the R should still float in the same step (${t.step}, ${JSON.stringify(t.pool)})`;
+  t = go(t, 0, { t: "land", card: idIn(t, 0, "Island") });
+  const plan = payPlan(t, 0, parseCost("{2}"));                  // Remote Isle's cycling: the floating R and the new Island
+  const cycled = refused(t, 0, { t: "cycle", card: idIn(t, 0, "Remote Isle") }) === null;
+  const later = drive(t, c => c.step !== "main1", 30);
+  return kept && plan.taps.join() === String(onBf(t, 0, "Island")) && plan.pool === "" && cycled && later.pool[0] === "" || `${kept} ${JSON.stringify(plan)} ${later.pool}`;
+});
+
+// ---------- what each player knows of the other's hand ----------
+test("a card drawn from a top both had seen is known in the hand it went to, until it leaves it; a bounced one is known too", () => {
+  let s = scene({ hand: [["Take Inventory", "Island"], ["Memory Lapse"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2), [1, "Dandân"]] });
+  s = cast(s, 0, "Take Inventory");
+  const ti = s.stack[0].card;
+  s = cast(s, 1, "Memory Lapse", [T.s(s.stack[0].sid)]);
+  s = drive(s, c => c.turn === 6 && c.step === "main1");
+  const known = knownIn(s, 1, 0).includes(ti);
+  let r = scene({ hand: [["Repulse", "Island"], []], bf: [...islandsOf(0, 3), [1, "Island"], [1, "Dandân"]] });
+  const d = onBf(r, 1, "Dandân");
+  r = cast(r, 0, "Repulse", [T.c(d)]);
+  return known && knownIn(r, 1, 0).includes(d) && knownIn(r, 0, 1).length === 0;
+});
+
+// ---------- the objects on the battlefield ----------
+test("a permanent that leaves and comes back is a new object: a spell aimed at the old one fizzles, a trigger of the old one does nothing", () => {
+  let s = scene({ hand: [["Repulse"], []], bf: [...islandsOf(0, 3), [1, "Island"], [1, "Dandân"]], hold: 0 });
+  const d = onBf(s, 1, "Dandân");
+  s = go(s, 0, { t: "cast", card: idIn(s, 0, "Repulse"), from: "hand", targets: [T.c(d)], hold: true });
+  if (!s.stack.length) return "the Repulse didn't wait";
+  const aimed = perm(s, d).oid != null && s.stack[0].targets[0].oid === perm(s, d).oid;
+  perm(s, d).oid += 1000;                                         // as if it had been bounced and put back
+  s = resolveStack(s);
+  const fizzled = !!perm(s, d) && s.log.some(l => l.t.includes("fizzles"));
+  let t = scene({ bf: [[0, "Island"], [0, "Dandân"], [1, "Island"]], hand: [[], []], hold: 1 });
+  const ours = onBf(t, 0, "Dandân");
+  t.stack.push({ kind: "trigger", name: "@dandan", ctl: 0, src: ours, oid: perm(t, ours).oid + 1000, sid: 99, step: 0, d: {}, targets: [] });
+  t = resolveStack(t);
+  return aimed && fizzled && !!perm(t, ours) || `${aimed} ${fizzled} ${!!perm(t, ours)}`;
+});
+test("Narset's Reversal: a copy can take the other legal target", () => {
+  let s = scene({ hand: [["Piracy Charm"], ["Narset's Reversal"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 3), [1, "Dandân"], [0, "Dandân"]] });
+  const theirs = onBf(s, 1, "Dandân"), ours = onBf(s, 0, "Dandân");
+  s = cast(s, 0, "Piracy Charm", [T.c(theirs)], 1);
+  s = cast(s, 1, "Narset's Reversal", [T.s(sidOf(s, "Piracy Charm"))]);
+  return s.pending?.t === "retarget" && s.pending.options.some(o => o[0].id === ours);
+});
+
 // ---------- the spells ----------
 // (a card in hand or a hold keeps the game stopped at the seat; see scene)
 test("Brainstorm: draw three, then put two back, the first on top — known to us alone", () => {
@@ -362,11 +443,29 @@ test("Mystic Sanctuary: an Island, tapped unless we control three other Islands;
   const slow = perm(s, onBf(s, 0, "Mystic Sanctuary")).tapped && !s.pending;
   let t = scene({ hand: [["Mystic Sanctuary"], []], bf: islandsOf(0, 2), yard: ["Memory Lapse", "Dandân"], hold: 0 });
   const lapse = t.yard.find(i => DECK[i] === "Memory Lapse");
-  t = resolveStack(go(t, 0, { t: "land", card: idIn(t, 0, "Mystic Sanctuary") }));
-  if (t.pending?.t !== "pick" || t.pending.for !== "sanct" || t.pending.ids.length !== 1) return "no choice from the graveyard";
+  t = go(t, 0, { t: "land", card: idIn(t, 0, "Mystic Sanctuary") });
+  // the trigger targets: its card is chosen as it goes on the stack, before anyone may answer it
+  if (t.pending?.t !== "pick" || t.pending.for !== "sanct" || !t.pending.aim || t.pending.ids.length !== 1 || t.stack.length !== 1) return "no choice as it triggered";
   t = answer(t, { t: "pick", card: lapse });
+  if (t.stack[0]?.targets[0]?.id !== lapse || t.lib[0] === lapse) return "the target isn't on the trigger, or it acted before resolving";
+  t = resolveStack(t);
   const sanct = perm(t, onBf(t, 0, "Mystic Sanctuary"));
-  return slow && !sanct.tapped && t.lib[0] === lapse && typesOf(sanct).includes("Island");
+  return slow && !sanct.tapped && t.lib[0] === lapse && topKnown(t, 1) === lapse && typesOf(sanct).includes("Island");
+});
+test("…its target gone from the graveyard before it resolves, it does nothing; with none to choose, it leaves the stack", () => {
+  let t = scene({ hand: [["Mystic Sanctuary"], []], bf: islandsOf(0, 2), yard: ["Memory Lapse"], hold: 0 });
+  const lapse = t.yard[0];
+  t = answer(go(t, 0, { t: "land", card: idIn(t, 0, "Mystic Sanctuary") }), { t: "pick", card: lapse });
+  t.yard = [];                                                    // as if flashed back or exiled in answer
+  t = resolveStack(t);
+  const none = go(scene({ hand: [["Mystic Sanctuary"], []], bf: islandsOf(0, 2), yard: ["Dandân"], hold: 0 }), 0, { t: "land", card: idIn(scene({ hand: [["Mystic Sanctuary"], []], bf: islandsOf(0, 2), yard: ["Dandân"], hold: 0 }), 0, "Mystic Sanctuary") });
+  return t.lib[0] !== lapse && !t.stack.length && t.log.some(l => l.t.includes("fizzles")) && !none.pending && !none.stack.length;
+});
+test("…and choosing none is declining: nothing goes on top", () => {
+  let t = scene({ hand: [["Mystic Sanctuary"], []], bf: islandsOf(0, 2), yard: ["Memory Lapse"], hold: 0 });
+  const top = t.lib[0];
+  t = answer(go(t, 0, { t: "land", card: idIn(t, 0, "Mystic Sanctuary") }), { t: "pick", card: null });
+  return !t.stack.length && t.lib[0] === top && t.yard.length === 1;
 });
 test("Thundering Falls: enters tapped, an Island and a Mountain (blue or red), surveil 1", () => {
   let s = scene({ hand: [["Thundering Falls"], []], lib: ["Dandân"], hold: 0 });

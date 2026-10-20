@@ -7,7 +7,7 @@ import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
 import { moves } from "./dandan-engine.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
-import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType } from "./dandan-core.js";
+import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType, poolOf, knownIn } from "./dandan-core.js";
 import { same } from "./dandan-spells.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -82,11 +82,13 @@ page = seatPage({
     V = v;
     const key = v.G ? `${v.G.seq}:${v.G.n}` : "";
     if (key !== uiKey) {
-      // a move was made: the picks it was for are over; a card being read stays up while it's still there
+      // a move was made: the picks it was for are over, and the card sheet opened for them; a card being read in the
+      // middle stays up while it's still there
       const look = ui.look;
       ui = blank();
       uiKey = key;
       if (look && v.state && (v.state.bf.some(p => p.id === look.id) || v.state.hand[v.seat ?? 0]?.includes(look.id))) ui.look = look;
+      closeCard();
     }
     draw();
   },
@@ -129,10 +131,12 @@ function drawZone(box, seat, q) {
   const untapped = lnd.filter(p => !p.tapped).length;
   const turn = s.active === seat && !s.over && s.step !== "mull";
   const them = seat !== (V.seat ?? 0);
+  // what you know is in their hand (seen going there), and mana floating in a pool until the step ends
+  const known = them && V.seat != null ? knownIn(s, seat, V.seat).length : 0, pool = poolOf(s, seat);
   box.className = `dd-zone ${them ? "foe" : "me"}${turn ? " turn" : ""}${V.toMove === seat ? " move" : ""}`;
-  box.innerHTML = `<header class="dd-zh${armed.has(`p:${seat}`) ? " tgt" : ""}" data-tk="p:${seat}">
+  box.innerHTML = `<header class="dd-zh${armed.has(`p:${seat}`) ? " tgt" : ""}" data-tk="p:${seat}"${them ? ' data-act="known"' : ""}>
       <b class="dd-who">${esc(nameOf(seat))}</b>
-      <span class="dd-meta">${them ? `hand ${s.hand[seat].length} · ` : ""}${untapped} of ${lnd.length} lands ready</span>
+      <span class="dd-meta">${them ? `hand ${s.hand[seat].length}${known ? `, ${known} known` : ""} · ` : ""}${untapped} of ${lnd.length} lands ready${pool ? ` · <b class="dd-float">${pool.split("").map(c => `<i class="dd-pip ${c === "U" || c === "R" ? c : "g"}">${c}</i>`).join("")} floating</b>` : ""}</span>
       <span class="dd-life" aria-label="${s.life[seat]} life">${s.life[seat]}</span></header>
     <div class="dd-cres">${cre.map(p => creTile(p, q, armed)).join("")}</div>
     <div class="dd-lands">${[...lnd, ...tok].sort(landOrder).map(p => landChip(p, armed)).join("")}</div>`;
@@ -216,17 +220,23 @@ function miniLog() {
   return `<ol class="dd-minilog">${S().log.slice(-5).map(e => `<li>${esc(words(e.t))}</li>`).join("")}</ol>`;
 }
 
+/** A card's type line in words. */
+const typeLine = d => (d.type === "creature" ? `Creature · ${d.pt[0]}/${d.pt[1]} Fish` : d.type === "land" ? (d.subs.length ? `Land — ${d.subs.join(" ")}` : "Land") : TYPE_WORDS[d.type] + (d.aftermath ? " · aftermath" : ""));
+/** What's been done to a permanent on the table. */
+function stateWords(p) {
+  return [p.tapped ? "Tapped" : "Untapped", isCreature(p) && p.ent >= S().turn && p.ctl === S().active ? "came this turn" : "", p.walk ? "has islandwalk" : "",
+    ...(p.tc || []).map(([a, b]) => `its text now says ${b} for ${a}`), p.pump ? `${p.pump[0] >= 0 ? "+" : ""}${p.pump[0]}/${p.pump[1] >= 0 ? "+" : ""}${p.pump[1]} this turn` : "",
+    `under ${isMe(p.ctl) ? "your" : `${nameOf(p.ctl)}’s`} control`].filter(Boolean).join(" · ");
+}
+/** A card's name as a chip that opens it. */
+const chip = id => `<button type="button" class="dd-chip dd-name" data-look="${id}">${esc(nm(id))}</button>`;
 /** A card read in full: the halves of a split card, the text in our words, and what's been done to it on the table. */
 function detail(id) {
   const full = nm(id), p = perm(S(), id);
-  const state = p ? [p.tapped ? "Tapped" : "Untapped", isCreature(p) && p.ent >= S().turn && p.ctl === S().active ? "came this turn" : "", p.walk ? "has islandwalk" : "",
-    ...(p.tc || []).map(([a, b]) => `its text now says ${b} for ${a}`), p.pump ? `${p.pump[0] >= 0 ? "+" : ""}${p.pump[0]}/${p.pump[1] >= 0 ? "+" : ""}${p.pump[1]} this turn` : "",
-    `under ${isMe(p.ctl) ? "your" : `${esc(nameOf(p.ctl))}’s`} control`].filter(Boolean).join(" · ") : "";
   return (HALVES[full] || [full]).map(h => {
     const d = CARDS[h];
-    const type = d.type === "creature" ? `Creature · ${d.pt[0]}/${d.pt[1]} Fish` : d.type === "land" ? (d.subs.length ? `Land — ${d.subs.join(" ")}` : "Land") : TYPE_WORDS[d.type] + (d.aftermath ? " · aftermath" : "");
-    return `<div class="dd-detail"><div class="dd-dh"><b>${esc(h)}</b>${pips(d.cost)}</div><div class="dd-dt">${esc(type)}</div><p>${esc(d.text)}</p></div>`;
-  }).join("") + (state ? `<p class="dd-state">${esc(state)}</p>` : "");
+    return `<div class="dd-detail"><div class="dd-dh"><b>${esc(h)}</b>${pips(d.cost)}</div><div class="dd-dt">${esc(typeLine(d))}</div><p>${esc(d.text)}</p></div>`;
+  }).join("") + (p ? `<p class="dd-state">${esc(stateWords(p))}</p>` : "");
 }
 
 // ---------- your hand ----------
@@ -263,18 +273,18 @@ function question() {
   const picked = ui.picks.length;
   switch (q.t) {
     case "mull": {
-      const shown = s.reveal && s.reveal.seat !== me ? `<p class="dd-sub">${esc(nameOf(s.reveal.seat))} showed ${s.reveal.cards.map(id => esc(nm(id))).join(", ")} and took a free mulligan.</p>` : "";
+      const shown = s.reveal && s.reveal.seat !== me ? `<p class="dd-sub">${esc(nameOf(s.reveal.seat))} showed ${s.reveal.cards.map(chip).join(" ")} and took a free mulligan.</p>` : "";
       return {
-        say: say("Keep this hand?", q.free ? "Fewer than two lands or two spells: a free mulligan, and the hand is shown." : q.taken ? `After ${q.taken} mulligan${q.taken > 1 ? "s" : ""}: keep it and put ${q.taken} on the bottom.` : "") + shown,
+        say: say("Keep this hand?", `${q.free ? "Fewer than two lands or two spells: a free mulligan, and the hand is shown." : q.taken ? `After ${q.taken} mulligan${q.taken > 1 ? "s" : ""}: keep it and put ${q.taken} on the bottom.` : ""} Tap a card to read it.`.trim()) + shown,
         buttons: [
           { label: "Mulligan", sub: q.free ? "free · shown" : `bottom ${q.taken + 1}`, off: s.mull.n[me] >= 6 && !q.free, fn: () => send({ t: "mull" }) },
           { label: "Keep", kind: "primary", fn: () => send({ t: "keep" }) }],
       };
     }
-    case "bottom": return handPick(q, "bottom", `Put ${q.n} on the bottom of the library`, "Tap the cards to put away.", "Bottom", { t: "bottom", cards: ui.picks });
+    case "bottom": return handPick(q, "bottom", `Put ${q.n} on the bottom of the library`, "Tap a card to read it and put it away.", "Bottom", { t: "bottom", cards: ui.picks });
     case "discard": return handPick(q, "discard", `Discard ${q.n === 1 ? "a card" : `${q.n} cards`}`, q.why ? `${q.why}.` : "", "Discard", { t: "discard", cards: ui.picks });
     case "putback": return {
-      ...handPick(q, "putback", `Put ${q.n} back on top of the library`, q.n > 1 ? "The first you tap goes on top, the second under it." : "", "Put back", { t: "putback", cards: ui.picks }), ordered: true,
+      ...handPick(q, "putback", `Put ${q.n} back on top of the library`, q.n > 1 ? "The first you choose goes on top, the second under it." : "", "Put back", { t: "putback", cards: ui.picks }), ordered: true,
     };
     case "attack": return {
       pick: "attack", say: say("Attack?", "Tap the Dandâns that attack. One that is blocked trades with its blocker: 4 damage each way, and both die."),
@@ -291,18 +301,18 @@ function question() {
     case "order": {
       const ids = q.cards, chosen = ui.order;
       return {
-        say: say("Order the top of the library", "Tap them from the top down.") + `<div class="dd-chips">${ids.map(id => `<button type="button" class="dd-chip${chosen.includes(id) ? " sel" : ""}" data-qc="${id}">${chosen.includes(id) ? `<i>${chosen.indexOf(id) + 1}</i>` : ""}${esc(nm(id))}</button>`).join("")}</div>`,
+        say: say("Order the top of the library", "Tap each to read it and put it next, from the top down.") + `<div class="dd-chips">${ids.map(id => `<button type="button" class="dd-chip${chosen.includes(id) ? " sel" : ""}" data-qc="${id}">${chosen.includes(id) ? `<i>${chosen.indexOf(id) + 1}</i>` : ""}${esc(nm(id))}</button>`).join("")}</div>`,
         buttons: [
           { label: "Keep order", fn: () => send({ t: "order", cards: ids }) },
           { label: "Set order", kind: "primary", off: chosen.length !== ids.length, fn: () => send({ t: "order", cards: chosen }) }],
       };
     }
     case "surveil": return {
-      say: say("Surveil 1", `The top card is <b>${esc(nm(q.card))}</b>. Keep it there, or put it in the graveyard?`),
+      say: say("Surveil 1", `The top card is ${chip(q.card)}. Keep it there, or put it in the graveyard?`),
       buttons: [{ label: "Graveyard", fn: () => send({ t: "surveil", yard: true }) }, { label: "Keep on top", kind: "primary", fn: () => send({ t: "surveil", yard: false }) }],
     };
     case "owner": return {
-      say: say(`${esc(nm(q.target))} goes into the library`, "As its owner you choose where."),
+      say: say(`${chip(q.target)} goes into the library`, "As its owner you choose where."),
       buttons: [{ label: "Bottom", fn: () => send({ t: "owner", bottom: true }) }, { label: "Second from top", kind: "primary", fn: () => send({ t: "owner", bottom: false }) }],
     };
     default: return dialogQuestion(q, send, say);
@@ -326,16 +336,16 @@ function dialogQuestion(q, send, say) {
   const list = (rows, none) => ({ rows, none });
   switch (q.t) {
     case "search": {
-      const rows = group(q.ids).map(([name, ids]) => ({ label: name, sub: ids.length > 1 ? `× ${ids.length}` : "", fn: () => send({ t: "search", card: ids[0] }) }));
+      const rows = group(q.ids).map(([name, ids]) => ({ label: name, sub: ids.length > 1 ? `× ${ids.length}` : "", card: ids[0], fn: () => send({ t: "search", card: ids[0] }) }));
       return { say: say(q.to === "bf" ? "Fetch a land" : "Find an Island"), buttons: [reopen()], dlg: { title: q.to === "bf" ? "Fetch a land" : "Find an Island", ...list(rows, { label: "Find nothing", fn: () => send({ t: "search", card: null }) }) } };
     }
     case "pick": {
       if (q.for === "boil") {
-        const rows = q.ids.map(id => { const p = perm(s, id); return { label: nm(id), sub: p?.tapped ? "tapped" : "untapped", fn: () => send({ t: "pick", card: id }) }; });
+        const rows = q.ids.map(id => { const p = perm(s, id); return { label: nm(id), sub: p?.tapped ? "tapped" : "untapped", card: id, fn: () => send({ t: "pick", card: id }) }; });
         return { say: say("Return a land you control to your hand"), buttons: [reopen()], dlg: { title: "Return a land to your hand", ...list(rows) } };
       }
       const title = q.for === "drop" ? "Put a creature or land from your hand onto the battlefield" : "Put an instant or sorcery from the graveyard on top of the library";
-      const rows = group(q.ids).map(([name, ids]) => ({ label: name, sub: ids.length > 1 ? `× ${ids.length}` : "", fn: () => send({ t: "pick", card: ids[0] }) }));
+      const rows = group(q.ids).map(([name, ids]) => ({ label: name, sub: ids.length > 1 ? `× ${ids.length}` : "", card: ids[0], fn: () => send({ t: "pick", card: ids[0] }) }));
       return { say: say(title), buttons: [reopen()], dlg: { title, ...list(rows, q.optional ? { label: "None", fn: () => send({ t: "pick", card: null }) } : null) } };
     }
     case "bend": {
@@ -350,7 +360,7 @@ function dialogQuestion(q, send, say) {
     case "name": {
       const seen = new Map();
       for (const id of [...s.hand[V.seat], ...s.yard, ...s.exile, ...s.bf.map(p => p.id), ...s.stack.map(i => i.card).filter(c => c != null)]) { const k = DECK[id]; if (k) seen.set(k, (seen.get(k) || 0) + 1); }
-      const rows = NAMES.map(n => ({ label: n, sub: `${DECK.filter(x => x === n).length - (seen.get(n) || 0)} unseen`, fn: () => send({ t: "name", name: n }) }));
+      const rows = NAMES.map(n => ({ label: n, sub: `${DECK.filter(x => x === n).length - (seen.get(n) || 0)} unseen`, card: DECK.indexOf(n), fn: () => send({ t: "name", name: n }) }));
       return { say: say("Name a card"), buttons: [reopen()], dlg: { title: "Name a card", note: "Unseen: not in your hand, the graveyard, exile or on the table. Those are in the library or the other hand.", rows, cols: true } };
     }
     case "retarget": {
@@ -392,6 +402,7 @@ function drawControls(q) {
 function passWords() {
   const s = S();
   if (s.stack.length) return "let it resolve";
+  if (s.step === "upkeep") return isMe(s.active) ? "to your draw" : "let them draw";
   return { main1: "move on", attackers: "no change", blockers: "no change", main2: "to the end step", end: "end turn" }[s.step] || "";
 }
 
@@ -446,7 +457,8 @@ $("board").addEventListener("click", e => {
   if (!el) return;
   if (el.dataset.act === "yard") { openYard(); return; }
   if (el.dataset.act === "lib") { openLibrary(); return; }
-  if (el.dataset.qc) { orderTap(Number(el.dataset.qc)); return; }
+  if (el.dataset.look) { openCard(Number(el.dataset.look)); return; }
+  if (el.dataset.qc) { openCard(Number(el.dataset.qc)); return; }
   const tk = el.dataset.tk;
   if (ui.arm && tk) {
     const hit = ui.arm.moves.find(m => targetKey(m.targets[0]) === tk);
@@ -455,28 +467,24 @@ $("board").addEventListener("click", e => {
     return;
   }
   if (el.dataset.perm != null) { permTap(Number(el.dataset.perm)); return; }
-  if (el.dataset.sid) { const it = S().stack.find(x => x.sid === Number(el.dataset.sid)); if (it) look(it.card ?? it.src); }
+  if (el.dataset.sid) { const it = S().stack.find(x => x.sid === Number(el.dataset.sid)); if (it) look(it.card ?? it.src); return; }
+  if (el.dataset.act === "known") openLibrary();
 });
 $("hand").addEventListener("click", e => {
   const b = e.target.closest("[data-card]");
   if (b) cardTap(Number(b.dataset.card));
 });
 
+/** A card read: in the middle of the table when that's free, else (a question or a target being chosen holds it) in a sheet over it. */
 function look(id) {
   if (id == null) return;
+  if (question() || ui.arm) { openCard(id); return; }
   ui.look = ui.look?.id === id ? null : { id };
   draw();
 }
 function cardTap(id) {
-  const q = question();
-  if (q && ["bottom", "discard", "putback"].includes(q.pick)) {
-    const i = ui.picks.indexOf(id);
-    if (i >= 0) ui.picks.splice(i, 1);
-    else if (q.n === 1) ui.picks = [id];
-    else if (ui.picks.length < q.n) ui.picks.push(id);
-    draw();
-    return;
-  }
+  // a question up (the mulligan, a card to put away): the card is read in its sheet, and chosen there
+  if (question()) { openCard(id); return; }
   // a second tap on a card with exactly one thing to do does it
   if (ui.look?.id === id && canAct()) {
     const a = lookActions();
@@ -507,10 +515,63 @@ function permTap(id) {
   }
   look(id);
 }
-function orderTap(id) {
-  ui.order = ui.order.includes(id) ? ui.order.filter(x => x !== id) : [...ui.order, id];
+/** A pick made from a card's sheet: in or out of the hand's picks (bottom, discard, put back), or the order of the top cards. */
+function pickTap(id) {
+  const q = question();
+  if (q?.pick && ["bottom", "discard", "putback"].includes(q.pick)) {
+    const i = ui.picks.indexOf(id);
+    if (i >= 0) ui.picks.splice(i, 1);
+    else if (q.n === 1) ui.picks = [id];
+    else if (ui.picks.length < q.n) ui.picks.push(id);
+  } else if (S().pending?.t === "order") ui.order = ui.order.includes(id) ? ui.order.filter(x => x !== id) : [...ui.order, id];
+  closeCard();
   draw();
 }
+
+// ---------- a card read in full, in a sheet ----------
+let CARD = null;                                   // the card in the sheet: { id }
+function openCard(id) {
+  if (id == null || !Number.isInteger(id)) return;
+  CARD = { id };
+  fillCard();
+  if (!$("cardDlg").open) $("cardDlg").showModal();
+}
+function closeCard() { CARD = null; if ($("cardDlg").open) $("cardDlg").close(); }
+/** What the card's sheet offers to do with it: the question's pick, when the card is one it picks among. */
+function cardActs(id) {
+  const s = S(), q = question();
+  if (!q) return [];
+  if (q.pick && ["bottom", "discard", "putback"].includes(q.pick) && s.hand[V.seat].includes(id)) {
+    const at = ui.picks.indexOf(id);
+    if (at >= 0) return [{ label: q.pick === "putback" ? "Take it back" : "Keep it", fn: () => pickTap(id) }];
+    const full = q.n > 1 && ui.picks.length >= q.n;
+    const label = q.pick === "bottom" ? "Put on the bottom" : q.pick === "discard" ? "Discard it" : ui.picks.length === 0 ? (q.n > 1 ? "Put back on top" : "Put it back") : "Put back under it";
+    return [{ label, kind: "primary", off: full, sub: full ? `${q.n} chosen` : "", fn: () => pickTap(id) }];
+  }
+  if (s.pending.t === "order" && s.pending.cards.includes(id)) {
+    const at = ui.order.indexOf(id);
+    return [at >= 0 ? { label: "Take it back", fn: () => pickTap(id) } : { label: ui.order.length ? `Put it ${["", "second", "third"][ui.order.length] || "next"}` : "Put it on top", kind: "primary", fn: () => pickTap(id) }];
+  }
+  return [];
+}
+let CARD_GO = [];
+function fillCard() {
+  if (!CARD) return;
+  const id = CARD.id, full = nm(id), halves = HALVES[full] || [full], p = perm(S(), id);
+  $("cardHead").innerHTML = `<span>${esc(full)}</span>${halves.length === 1 ? pips(CARDS[halves[0]].cost) : ""}`;
+  const faces = halves.map(h => {
+    const d = CARDS[h];
+    return `<div class="dd-cd">${halves.length > 1 ? `<div class="dd-dh"><b>${esc(h)}</b>${pips(d.cost)}</div>` : ""}<div class="dd-dt">${esc(typeLine(d))}</div><p>${esc(d.text)}</p></div>`;
+  }).join("");
+  $("cardBody").innerHTML = faces + (p ? `<p class="dd-state">${esc(stateWords(p))}</p>` : "");
+  CARD_GO = cardActs(id);
+  $("cardGo").innerHTML = CARD_GO.map((b, i) => `<button type="button" class="btn dd-btn${b.kind === "primary" ? " primary" : ""}" data-c="${i}" ${b.off ? "disabled" : ""}><b>${esc(b.label)}</b>${b.sub ? `<small>${esc(b.sub)}</small>` : ""}</button>`).join("");
+  $("cardGo").hidden = !CARD_GO.length;
+}
+$("cardGo").addEventListener("click", e => { const b = e.target.closest("[data-c]"); if (b && !b.disabled) CARD_GO[Number(b.dataset.c)]?.fn(); });
+$("cardClose").addEventListener("click", closeCard);
+$("cardDlg").addEventListener("click", e => { if (e.target === $("cardDlg")) closeCard(); });   // a tap outside the sheet
+$("cardDlg").addEventListener("close", () => { CARD = null; });
 
 // ---------- sheets: the question's list, the graveyard, the library ----------
 function syncDialogs(q) {
@@ -519,16 +580,21 @@ function syncDialogs(q) {
     $("askHead").textContent = q.dlg.title;
     const d = q.dlg, rows = d.rows || [];
     ASK = [];
-    const btn = r => `<button type="button" class="btn dd-opt${r.on ? " primary" : ""}" data-d="${ASK.push(r) - 1}"><b>${esc(r.label)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</button>`;
+    // a row that is a card has a second button beside it, to read the card first
+    const opt = r => `<button type="button" class="btn dd-opt${r.on ? " primary" : ""}" data-d="${ASK.push(r) - 1}"><b>${esc(r.label)}</b>${r.sub ? `<small>${esc(r.sub)}</small>` : ""}</button>`;
+    const btn = r => (r.card == null ? opt(r) : `<div class="dd-optrow">${opt(r)}<button type="button" class="btn dd-info" data-look="${r.card}" aria-label="Read ${esc(nm(r.card))}">?</button></div>`);
     const sections = [];                           // a heading starts a new list of options
     for (const r of rows) { if (r.head || !sections.length) sections.push({ head: r.head, rows: [] }); if (!r.head) sections[sections.length - 1].rows.push(r); }
     $("askBody").innerHTML = `${d.note ? `<p class="dd-ask-note">${esc(d.note)}</p>` : ""}${sections.map(sec => `${sec.head ? `<h4>${esc(sec.head)}</h4>` : ""}<div class="dd-opts${d.cols ? " cols" : ""}">${sec.rows.map(btn).join("")}</div>`).join("")}${d.none ? `<div class="dd-opts none">${btn(d.none)}</div>` : ""}`;
     if (!dlg.open) { dlg.showModal(); document.activeElement?.blur?.(); }   // opened by the game, not a tap: no focus ring on its first button
   } else if (dlg.open) dlg.close();
   if ($("viewDlg").open) fillView();
+  if ($("cardDlg").open) fillCard();
 }
 let ASK = [];
 $("askBody").addEventListener("click", e => {
+  const r = e.target.closest("[data-look]");
+  if (r) { openCard(Number(r.dataset.look)); return; }
   const b = e.target.closest("[data-d]");
   if (b) ASK[Number(b.dataset.d)]?.fn();
 });
@@ -547,8 +613,11 @@ function fillView() {
   if (VIEW === "lib") {
     $("viewHead").textContent = `Library · ${s.lib.length}`;
     const me = V.seat ?? 0, known = s.kn.filter(([id, m]) => (m & (1 << me)) && s.lib.includes(id)).map(([id]) => id).sort((a, b) => s.lib.indexOf(a) - s.lib.indexOf(b));
+    const theirs = V.seat != null ? knownIn(s, 1 - me, me) : [];
     body.innerHTML = `<p class="dd-ask-note">One library for both players. It was shuffled at the start; you know a card only if you have seen it go there or looked at it.</p>
-      ${known.length ? `<ol class="dd-known">${known.map(id => `<li><span>${s.lib.indexOf(id) + 1}</span><b>${esc(nm(id))}</b></li>`).join("")}</ol>` : `<p class="dd-sub">You know no card in it.</p>`}`;
+      ${known.length ? `<ol class="dd-known">${known.map(id => `<li><span>${s.lib.indexOf(id) + 1}</span><button type="button" class="dd-chip dd-name" data-look="${id}">${esc(nm(id))}</button></li>`).join("")}</ol>` : `<p class="dd-sub">You know no card in it.</p>`}
+      <h4>${esc(nameOf(1 - me))}’s hand · ${s.hand[1 - me].length}</h4>
+      ${theirs.length ? `<p class="dd-sub">You saw these go there: ${theirs.map(chip).join(" ")}</p>` : `<p class="dd-sub">You know none of its cards.</p>`}`;
     VROWS = [];
     return;
   }
@@ -572,13 +641,15 @@ function fillView() {
       VROWS.push(() => { closeView(); cast(casts.map(m => ({ ...m, card: ids[0] })), half); });
       btn = `<button type="button" class="btn dd-sm primary" data-v="${VROWS.length - 1}">${esc(label)}</button>`;
     }
-    rows.push(`<li><b>${esc(name)}</b>${ids.length > 1 ? `<span class="n">× ${ids.length}</span>` : ""}${btn}</li>`);
+    rows.push(`<li><button type="button" class="dd-chip dd-name" data-look="${ids[0]}">${esc(name)}</button>${ids.length > 1 ? `<span class="n">× ${ids.length}</span>` : ""}${btn}</li>`);
   }
   body.innerHTML = `${rows.length ? `<ol class="dd-yard">${rows.join("")}</ol>` : `<p class="dd-sub">${armG ? "No card here is a legal target." : "Empty."}</p>`}
     ${s.exile.length && !armG ? `<h4>Exiled</h4><p class="dd-sub">${s.exile.map(id => esc(nm(id))).join(", ")}</p>` : ""}`;
 }
 const act2 = m => { closeView(); return act(m); };
 $("viewBody").addEventListener("click", e => {
+  const r = e.target.closest("[data-look]");
+  if (r) { openCard(Number(r.dataset.look)); return; }
   const b = e.target.closest("[data-v]");
   if (b) VROWS[Number(b.dataset.v)]?.();
 });
@@ -624,14 +695,17 @@ function showRules() {
     <p><b>Winning.</b> Each starts on 20 life. The ten Dandâns are the only cards that do damage; the game ends when someone has no life left, or has to draw from an empty library.</p>
     <p><b>The Dandân</b> is a 4/1 for two blue. It can’t attack unless the defending player controls an Island, and is sacrificed as soon as its controller controls none. So the game is about Islands: yours keep your Dandâns alive, theirs let you attack. Take their last Island away (Mind Bend can turn it into a Swamp for good) and their Dandân is gone, and yours can’t reach them.</p>
     <p><b>A turn.</b> Untap, upkeep, draw (the player who goes first doesn’t draw on the first turn), a main phase to play one land and cast anything, attack, blocks, damage, a second main phase, the end step; a hand of more than seven is cut down. Blue instants may be cast any time you hold priority, which is why the game stops for you whenever you could act: the other player’s spell on the stack, their attack, the end of their turn. Where you could do nothing, it moves on by itself.</p>
+    <p><b>Who draws next.</b> The library is shared, so the card on top goes to whoever draws next: on your turn, after your draw, that is the other player; on theirs, you. A card put on top in the open (a countered spell) is known to both, and a cantrip in their upkeep takes it before they draw.</p>
     <p><b>The stack.</b> A spell waits there until both players pass in a row; the last one cast resolves first. Memory Lapse counters it (to the top of the library, so the next draw is known), Narset’s Reversal copies it, Commit puts it second from the top. Menu, <i>Hold priority</i>, lets you cast a second spell before the first can be answered.</p>
-    <p><b>Mulligans.</b> A hand with fewer than two lands or fewer than two spells may be thrown back free, shown to the other player. After that each mulligan draws seven and puts one fewer on the bottom for each taken. The loser of the last game goes first.</p>
+    <p><b>Mana</b> a land makes and a cost doesn’t use (Izzet Boilerworks’ red, paying for a blue spell) floats until the step ends, and pays for the next thing you do in it.</p>
+    <p><b>Owners.</b> A spell or a permanent belongs to the player who cast or played it: Repulse returns a Dandân to its caster’s hand.</p>
+    <p><b>Mulligans.</b> A hand with fewer than two lands or fewer than two spells may be shown and thrown back free, as often as it comes, until you take an ordinary mulligan. That one draws seven and puts one on the bottom for each mulligan taken. The loser of the last game goes first.</p>
     <h3>Where it plays differently from the paper game</h3>
     <ul class="dd-notes">
-      <li>The game moves on by itself where nobody could act. You are asked in your own main phases, at attack and blocks, and at the end step when you hold a card that could be cast, and with anything on the stack. Priority isn’t offered at the start or end of combat, as nothing here acts in them.</li>
+      <li>The game moves on by itself where nobody could act. You are asked in your own main phases, at attack and blocks, at the end step when you hold a card that could be cast, and with anything on the stack; at an upkeep when you know the card about to be drawn and could act on it, or, theirs, when you hold a Brainstorm or a Predict. There is no stop at the start or end of combat or in the draw step: what could be done there is done as well at the declarations or the end step.</li>
       <li>Damage from a blocked attacker is dealt for you: enough to kill each blocker in turn. Two Dandâns blocking one attacker is allowed.</li>
-      <li>Mystic Sanctuary’s card is chosen as it resolves, Predict has no player to name, and Mind Bend changes land types only (the one thing the deck can use it on).</li>
-      <li>Flashback, Mystic Retrieval’s second cast and Memory are open to either player, as the graveyard is shared.</li>
+      <li>Predict mills the one library whichever player it names, so it names none. Mind Bend changes basic land types: no permanent in this deck has a colour word to change.</li>
+      <li>Mystic Sanctuary’s “may” is answered as its card is chosen, when it triggers: choosing none is declining.</li>
     </ul>
     <h3>The cards</h3>
     ${[["Creature", "creature"], ["Instants", "instant"], ["Sorceries", "sorcery"], ["Lands", "land"]].map(([t, k]) => `<h4>${t}</h4><ul class="dd-cards">${byType(k).map(row).join("")}</ul>`).join("")}

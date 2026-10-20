@@ -14,16 +14,19 @@ export const other = seat => 1 - seat;
 export const list = x => (Array.isArray(x) ? x.filter(v => v != null) : x && typeof x === "object" ? Object.values(x) : []);
 
 // ---------- randomness: the move's own stream, set by whoever runs a move ----------
-let rng = Math.random;
-export function withRng(r, fn) {
-  const old = rng;
+// quiet: a game the computer plays out in its head keeps no log (a line is a string built for nobody)
+let rng = Math.random, quiet = false;
+export function withRng(r, fn, hush = false) {
+  const old = rng, was = quiet;
   rng = r || Math.random;
-  try { return fn(); } finally { rng = old; }
+  quiet = hush;
+  try { return fn(); } finally { rng = old; quiet = was; }
 }
 export const random = () => rng();
 
 // ---------- the log: a line for each thing that happens, {s0} for whoever sits in seat 0 ----------
 export function say(s, text) {
+  if (quiet) return;
   s.ln = (s.ln || 0) + 1;
   s.log.push({ n: s.ln, t: text });
   if (s.log.length > 80) s.log.splice(0, s.log.length - 80);
@@ -80,28 +83,42 @@ export function manaAlts(p) {
 }
 /** How much we'd rather keep a land untapped: lands that make more, or either colour, are kept for last. */
 const keepValue = alts => (alts.length > 1 ? 1.3 : alts[0].length > 1 ? 1.6 : 1);
+const countOf = (str, c) => { let n = 0; for (const x of str) if (x === c) n++; return n; };
+/** The mana floating in a seat's pool (a string of colour letters, "R"): what a land made and a cost didn't use, until the step ends. */
+export const poolOf = (s, seat) => s.pool?.[seat] || "";
+/** What's left of some mana once a cost is paid from it: the colours the cost names first, the generic from the least useful (red is kept over the colours nothing here needs, blue over red). */
+function leftover(mana, cost) {
+  const left = [...mana];
+  const take = c => { const i = left.indexOf(c); if (i >= 0) left.splice(i, 1); };
+  for (let i = 0; i < cost.U; i++) take("U");
+  for (let i = 0; i < cost.R; i++) take("R");
+  for (let i = 0; i < cost.g; i++) take(["W", "B", "G", "R", "U"].find(c => left.includes(c)));
+  return left.sort().join("");
+}
 
 /**
- * How to pay a cost ({ g, U, R }) from a seat's untapped lands: { taps: [land ids] }, or null if it can't. Among the
- * ways, the one that leaves the most behind: lands that are worth more (red, two mana) stay untapped, and mana made
- * and not used counts against a way. Deterministic.
+ * How to pay a cost ({ g, U, R }) from a seat's pool and untapped lands: { seat, taps: [land ids], pool (what floats
+ * after) }, or null if it can't. The pool is spent first; among the ways to tap, the one that leaves the most behind:
+ * lands that are worth more (red, two mana) stay untapped, and mana made and not used counts against a way (it floats
+ * only to the end of the step). Deterministic.
  */
 export function payPlan(s, seat, cost, skip = []) {
-  const need = total(cost);
-  if (need === 0) return { taps: [] };
+  const need = total(cost), pool = poolOf(s, seat);
+  if (need === 0) return { seat, taps: [], pool };
   const mine = s.bf.filter(p => p.ctl === seat && !p.tapped && isLand(p) && !skip.includes(p.id))
     .map(p => ({ id: p.id, alts: manaAlts(p) })).filter(l => l.alts.length);
-  if (mine.reduce((n, l) => n + Math.max(...l.alts.map(a => a.length)), 0) < need) return null;
+  if (pool.length + mine.reduce((n, l) => n + Math.max(...l.alts.map(a => a.length)), 0) < need) return null;
   const cap = need + 3, key = (u, r, t) => `${u},${r},${t}`;
-  let states = new Map([[key(0, 0, 0), { u: 0, r: 0, t: 0, pen: 0, taps: [] }]]);
+  const start = { u: Math.min(cost.U, countOf(pool, "U")), r: Math.min(cost.R, countOf(pool, "R")), t: Math.min(cap, pool.length), pen: 0, taps: [], made: "" };
+  let states = new Map([[key(start.u, start.r, start.t), start]]);
   for (const land of mine) {
     const next = new Map(states);
     for (const st of states.values()) {
       for (const alt of land.alts) {
-        const u = Math.min(cost.U, st.u + alt.filter(c => c === "U").length), r = Math.min(cost.R, st.r + alt.filter(c => c === "R").length);
+        const u = Math.min(cost.U, st.u + countOf(alt, "U")), r = Math.min(cost.R, st.r + countOf(alt, "R"));
         const t = Math.min(cap, st.t + alt.length), pen = st.pen + keepValue(land.alts);
         const k = key(u, r, t), old = next.get(k);
-        if (!old || pen < old.pen) next.set(k, { u, r, t, pen, taps: [...st.taps, land.id] });
+        if (!old || pen < old.pen) next.set(k, { u, r, t, pen, taps: [...st.taps, land.id], made: st.made + alt.join("") });
       }
     }
     states = next;
@@ -110,19 +127,37 @@ export function payPlan(s, seat, cost, skip = []) {
   for (const st of states.values()) {
     if (st.u < cost.U || st.r < cost.R || st.t < need) continue;
     const score = st.pen + 0.9 * (st.t - need);
-    if (!best || score < best.score) best = { score, taps: st.taps };
+    if (!best || score < best.score) best = { score, st };
   }
-  return best ? { taps: best.taps } : null;
+  return best ? { seat, taps: best.st.taps, pool: leftover(pool + best.st.made, cost) } : null;
 }
 export const canPay = (s, seat, cost, skip) => !!payPlan(s, seat, cost, skip);
-/** Pays: taps the lands of a plan. */
-export function pay(s, plan) { for (const id of plan.taps) perm(s, id).tapped = true; }
+/** Pays: taps the lands of a plan, and what they made and the cost didn't use floats in the pool. */
+export function pay(s, plan) {
+  for (const id of plan.taps) perm(s, id).tapped = true;
+  (s.pool ||= ["", ""])[plan.seat] = plan.pool;
+}
+/** Every pool empties as a step ends. */
+export function emptyPools(s) { s.pool = ["", ""]; }
 
 // ---------- zones ----------
 export const count = (arr, f) => arr.reduce((n, x) => n + (f(x) ? 1 : 0), 0);
 export const knOf = (s, id) => s.kn.find(e => e[0] === id)?.[1] || 0;
 export function knSet(s, id, mask) { const e = s.kn.find(x => x[0] === id); if (e) e[1] = mask; else s.kn.push([id, mask]); }
 export function knDrop(s, id) { const i = s.kn.findIndex(e => e[0] === id); if (i >= 0) s.kn.splice(i, 1); }
+/**
+ * A card in a hand that the other player knows is there (kh, [id, mask] as kn): one drawn from a top they had seen, one
+ * returned to a hand in the open (bounced, sent back by Narset's Reversal, found by a search that reveals it). It's
+ * forgotten when the card leaves the hand, or the hand is shuffled away.
+ */
+export const khOf = (s, id) => s.kh?.find(e => e[0] === id)?.[1] || 0;
+export function khSet(s, id, mask) { const e = (s.kh ||= []).find(x => x[0] === id); if (e) e[1] = mask; else s.kh.push([id, mask]); }
+export function khDrop(s, id) { const i = s.kh ? s.kh.findIndex(e => e[0] === id) : -1; if (i >= 0) s.kh.splice(i, 1); }
+/** The cards in `holder`'s hand that `seat` knows of. */
+export const knownIn = (s, holder, seat) => s.hand[holder].filter(id => khOf(s, id) & (1 << seat));
+/** A card put into a hand in the open: both players know it's there. */
+export function toHandOpen(s, seat, id) { s.hand[seat].push(id); khSet(s, id, BOTH); }
+
 /** The top card of the library, if this seat knows what it is (a spell put on top in the open, a look at it). */
 export const topKnown = (s, seat) => (s.lib.length && (knOf(s, s.lib[0]) & (1 << seat)) ? s.lib[0] : null);
 export const BOTH = 3;
@@ -138,7 +173,9 @@ export function toLib(s, id, where, mask = 0) {
 export function toYard(s, id) { if (!isToken(id)) s.yard.push(id); }
 export function fromYard(s, id) { const i = s.yard.indexOf(id); if (i >= 0) s.yard.splice(i, 1); return i >= 0; }
 export function fromLib(s, id) { const i = s.lib.indexOf(id); if (i >= 0) { s.lib.splice(i, 1); knDrop(s, id); } return i >= 0; }
-export function fromHand(s, seat, id) { const h = s.hand[seat], i = h.indexOf(id); if (i >= 0) h.splice(i, 1); return i >= 0; }
+export function fromHand(s, seat, id) { const h = s.hand[seat], i = h.indexOf(id); if (i >= 0) { h.splice(i, 1); khDrop(s, id); } return i >= 0; }
+/** A whole hand into the library (a mulligan, Memory): what was known of it goes with it. */
+export function handToLib(s, seat) { for (const id of s.hand[seat]) khDrop(s, id); s.lib.push(...s.hand[seat]); s.hand[seat] = []; }
 export function shuffleLib(s) { s.lib = shuffle(s.lib, rng); s.kn = []; }
 
 /** Draws n cards; a draw from an empty library marks the seat to lose when the game next checks. */
@@ -146,9 +183,10 @@ export function draw(s, seat, n = 1) {
   let got = 0;
   for (let i = 0; i < n; i++) {
     if (!s.lib.length) { s.lost[seat] = true; say(s, `{s${seat}} has to draw from an empty library`); break; }
-    const id = s.lib.shift();
+    const id = s.lib.shift(), mask = knOf(s, id);
     knDrop(s, id);
     s.hand[seat].push(id);
+    if (mask & (1 << other(seat))) khSet(s, id, mask);           // the other player saw it on top: they know where it went
     s.drawn[seat]++;
     got++;
   }
@@ -181,7 +219,7 @@ export function leaveStack(s, it, dest) {
   if (it.kind !== "spell" || it.copy || dest === "none") return;
   if (it.eol) dest = "exile";
   if (dest === "yard") toYard(s, it.card);
-  else if (dest === "hand") { s.hand[it.ctl].push(it.card); }
+  else if (dest === "hand") toHandOpen(s, it.ctl, it.card);
   else if (dest === "libtop") toLib(s, it.card, "top", BOTH);
   else if (dest === "libsecond") toLib(s, it.card, "second", BOTH);
   else s.exile.push(it.card);
@@ -193,11 +231,13 @@ export function enterBf(s, id, ctl, { tapped } = {}) {
   const d = defOf(id);
   let tap = tapped ?? !!d.tapped;
   if (nm(id) === "Mystic Sanctuary") tap = islands(s, ctl).length < 3;
-  const p = { id, ctl, tapped: tap, ent: s.turn };
+  // oid: this object, so a card that leaves and comes back is a new one (a trigger or a target of the old one misses it)
+  const p = { id, ctl, tapped: tap, ent: s.turn, oid: s.nid++ };
   s.bf.push(p);
   const name = nm(id);
   const trig = { "Halimar Depths": "@depths", "Thundering Falls": "@falls", "Izzet Boilerworks": "@boil" }[name] || (name === "Mystic Sanctuary" && !tap ? "@sanct" : null);
-  if (trig) pushItem(s, { kind: "trigger", name: trig, ctl, src: id });
+  // Mystic Sanctuary's trigger targets: its card is chosen as it goes on the stack (aim), before anyone may answer it
+  if (trig) pushItem(s, { kind: "trigger", name: trig, ctl, src: id, oid: p.oid, ...(trig === "@sanct" ? { aim: true } : {}) });
   return p;
 }
 export function leaveBf(s, id) { const i = s.bf.findIndex(p => p.id === id); if (i >= 0) s.bf.splice(i, 1); return i >= 0; }
@@ -208,7 +248,7 @@ export function bounce(s, id) {
   const p = perm(s, id);
   if (!p) return;
   leaveBf(s, id);
-  if (!isToken(id)) s.hand[p.ctl].push(id);
+  if (!isToken(id)) toHandOpen(s, p.ctl, id);
 }
 /** A permanent into the library (a token just goes); where is "top", "second" or "bottom". */
 export function permToLib(s, id, where) {
