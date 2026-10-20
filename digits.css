@@ -1,0 +1,99 @@
+/* The digit grid (digits.js): the board Sudoku, Calcudoku and Kakuro are played on, and its number pad. Paper with
+   hairlines between the cells and heavy ink between regions, framed in ink with a brass rule outside it, the way a
+   printed puzzle sits on an instrument's page; the digits in the house face, given ones in ink, yours in the game's
+   enamel (--dg-in, which each game sets). Every size inside the board is a share of a cell (container units), so it
+   reads the same at any size; the pad's sizes are in rem, growing with the page on a tablet. */
+:root {
+  --dg-in: var(--c2);
+  --dg-soft: color-mix(in srgb, var(--dg-in) 13%, transparent);
+  --dg-block: #1C2A34;          /* Kakuro's black cells: navy by day */
+  --dg-block-ink: #F3E1BA;
+  --dg-bad: #A8382B;
+  --dg-hint: #D49A22;
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --dg-block: #070C10; --dg-block-ink: #E9C47C; --dg-bad: #E8806F; --dg-hint: #E2B865; }
+}
+html[data-mode="night"] { --dg-block: #070C10; --dg-block-ink: #E9C47C; --dg-bad: #E8806F; --dg-hint: #E2B865; }
+
+/* the board: the largest the host's box allows at the grid's proportions; --cell is one cell's width */
+.dg { position: relative; width: min(100cqw, 100cqh * var(--cols) / var(--rows)); aspect-ratio: var(--cols) / var(--rows); container-type: size;
+  --cell: calc(100cqw / var(--cols)); background: var(--sheet); border-radius: 2px;
+  box-shadow: 0 0 0 4px var(--yard), 0 0 0 5px var(--brass); touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dg-under, .dg-lines, .dg-cells, .dg-tags { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dg-under rect { fill: color-mix(in srgb, var(--brass) 14%, transparent); }
+.dg-lines, .dg-tags { pointer-events: none; overflow: visible; }
+.dg-cells { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows), minmax(0, 1fr)); }
+
+.dg-thin { fill: none; stroke: var(--rule); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.dg-heavy { fill: none; stroke: var(--ink); stroke-width: 2.25; stroke-linecap: square; vector-effect: non-scaling-stroke; }
+.dg-frame { fill: none; stroke: var(--ink); stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+.dg-cage { fill: none; stroke: color-mix(in srgb, var(--ink) 70%, transparent); stroke-width: 1.1; stroke-dasharray: 7 5; vector-effect: non-scaling-stroke; }
+.dg-split { stroke: color-mix(in srgb, var(--dg-block-ink) 55%, transparent); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+
+/* a cell: its digit centred, its pencil marks in a small grid, the highlights as washes of the game's enamel */
+.dg-c { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; cursor: pointer; color: var(--ink); }
+.dg-v { font-size: calc(var(--cell) * .62); line-height: 1; font-weight: 560; font-variant-numeric: tabular-nums lining-nums; font-stretch: 100%; }
+.dg-c.given .dg-v { font-weight: 780; color: var(--ink); font-stretch: 104%; }
+.dg-c.entered .dg-v { color: var(--own, var(--dg-in)); }
+.dg-n { position: absolute; inset: 5%; display: grid; grid-template-columns: repeat(var(--nc), minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr);
+  font-size: calc(var(--cell) * .25); line-height: 1; font-weight: 650; color: var(--ink-soft); font-variant-numeric: tabular-nums; pointer-events: none; }
+.dg-n i { display: grid; place-items: center; font-style: normal; border-radius: 50%; }
+/* among Killer's dashes, the marks keep inside them, and below a cage's sum in the cell that has one */
+.dg.caged .dg-n { inset: 13%; font-size: calc(var(--cell) * .22); }
+.dg.caged .dg-c.tagged .dg-n { top: 30%; }
+.dg-n i.same { color: var(--sheet); background: var(--dg-in); }
+.dg-c.peer { background: color-mix(in srgb, var(--dg-in) 7%, transparent); }
+.dg-c.same { background: color-mix(in srgb, var(--dg-in) 20%, transparent); }
+.dg-c.sel { background: color-mix(in srgb, var(--dg-in) 26%, transparent); box-shadow: inset 0 0 0 2px var(--brass); z-index: 1; }
+.dg-c.conflict { background: color-mix(in srgb, var(--dg-bad) 16%, transparent); }
+.dg-c.conflict.entered .dg-v, .dg-c.wrong .dg-v { color: var(--dg-bad); }
+.dg-c.wrong .dg-v { text-decoration: line-through; text-decoration-thickness: 2px; }
+.dg-c.lit { background: color-mix(in srgb, var(--dg-hint) 22%, transparent); }
+.dg-c.focus { background: color-mix(in srgb, var(--dg-hint) 38%, transparent); box-shadow: inset 0 0 0 2px var(--dg-hint); z-index: 1; }
+/* together: a given only a partner can see is hatched; one shown while they're away is set in grey */
+.dg-c.sealed { background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--brass) 30%, transparent) 0 1.5px, transparent 1.5px 6px); cursor: default; }
+.dg-c.lent .dg-v { color: var(--ink-soft); font-weight: 600; }
+.dg-block, .dg-clue { background: var(--dg-block); cursor: default; }
+.dg-across, .dg-down { position: absolute; font-size: calc(var(--cell) * .28); line-height: 1; font-weight: 700; color: var(--dg-block-ink); font-variant-numeric: tabular-nums; }
+.dg-across { top: 9%; right: 10%; }
+.dg-down { bottom: 9%; left: 10%; }
+/* a cage's label sits over its dashes, in the corner of its first cell */
+.dg-l { position: absolute; margin: calc(var(--cell) * .03) 0 0 calc(var(--cell) * .04); padding: 0 calc(var(--cell) * .03); font-size: calc(var(--cell) * .24);
+  line-height: 1.05; font-weight: 750; color: var(--ink); background: var(--sheet); font-variant-numeric: tabular-nums; border-radius: 2px; }
+
+/* a unit finished: a sweep of light along it */
+.dg-c.flash::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--brass) 45%, transparent); opacity: 0; animation: dg-sweep .7s ease-out calc(var(--k, 0) * 40ms) both; pointer-events: none; }
+@keyframes dg-sweep { 30% { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dg-c.flash::after { animation: none; } }
+/* the game stands still: the digits behind a plate, so the stopped clock buys no thinking */
+.dg-veil { position: absolute; inset: 0; display: none; place-items: center; background: var(--sheet); color: var(--brass-lo); font-size: calc(var(--cell) * .42); font-weight: 800;
+  font-stretch: var(--wide); letter-spacing: calc(.16em * var(--track)); text-transform: var(--caps); z-index: 3; }
+.dg.veiled .dg-veil { display: grid; }
+
+/* the pad: a key for each digit (a small count of how many are still to place), and the tools under them */
+.dg-pad { display: grid; gap: .4rem; }
+.dg-keys { display: grid; grid-template-columns: repeat(var(--pad-cols, var(--keys)), minmax(0, 1fr)); gap: .25rem; }
+.dg-key { position: relative; display: grid; place-items: center; min-height: var(--key-h, 3.1rem); padding: 0; border: 1.5px solid var(--tile-edge); border-radius: 5px;
+  background: var(--tile); color: var(--dg-in); font: inherit; cursor: pointer; touch-action: manipulation; }
+.dg-key b { font-size: var(--key-font, 1.55rem); font-weight: 640; line-height: 1; font-variant-numeric: tabular-nums; }
+.dg-key small { position: absolute; right: .2rem; bottom: .12rem; font-size: .6rem; font-weight: 700; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.dg-key.done { opacity: .32; }
+.dg-key.lit { border-color: var(--dg-in); background: color-mix(in srgb, var(--dg-in) 15%, var(--tile)); }
+.dg-key:active { background: color-mix(in srgb, var(--dg-in) 22%, var(--tile)); }
+/* Notes on: the keys write in pencil, so their digits sit small in the corner as a pencil mark does */
+.dg-pad.notes .dg-key b { justify-self: start; align-self: start; margin: .3rem 0 0 .38rem; font-size: calc(var(--key-font, 1.55rem) * .62); color: var(--ink-soft); }
+.dg-tools { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .25rem; }
+.dg-tool { position: relative; display: grid; justify-items: center; align-content: center; gap: .12rem; min-height: var(--tool-h, 2.9rem); padding: .2rem 0 .5rem;
+  border: 1.5px solid transparent; border-radius: 5px; background: none; color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.dg-tool svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.dg-tool span { font-size: .62rem; font-weight: 750; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); }
+/* a tool's cost ("+30 s") under its name, out of the way of the icons' line */
+.dg-tool small { position: absolute; left: 0; right: 0; bottom: .02rem; font-size: .56rem; color: var(--ink-soft); font-weight: 650; line-height: 1; }
+.dg-tool[aria-pressed="true"] { border-color: var(--dg-in); background: color-mix(in srgb, var(--dg-in) 15%, transparent); color: var(--dg-in); }
+.dg-tool:disabled { opacity: .3; cursor: default; }
+
+/* Almanac's double frame is Almanac's own: the other themes have a plain one */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .dg { box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="office"]) .dg { border-radius: 6px; }
+html[data-theme="kontor"] .dg-key, html[data-theme="kontor"] .dg-tool { border-radius: 2px; }

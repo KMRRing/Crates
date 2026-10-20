@@ -32,6 +32,26 @@ export function boxRegions(n) {
  * quick look-up; cages: Killer's [{ cells, sum }] (null otherwise), cageOf: each cell's cage.
  */
 export function shapeOf(n, regions = boxRegions(n), { diagonals = false, cages = null } = {}) {
+  const base = baseOf(n, regions, diagonals), cells = n * n;
+  let { sees, peers } = base;
+  const cageOf = new Int16Array(cells).fill(-1);
+  if (cages) {
+    sees = sees.slice();
+    const touched = new Set();
+    cages.forEach((cage, k) => { for (const a of cage.cells) { cageOf[a] = k; touched.add(a); for (const b of cage.cells) if (a !== b) sees[a * cells + b] = 1; } });
+    peers = peers.slice();
+    for (const a of touched) peers[a] = peersFrom(sees, cells, a);
+  }
+  return { ...base, sees, peers, cages: cages ? cages.map(c => ({ cells: [...c.cells], sum: c.sum })) : null, cageOf };
+}
+const peersFrom = (sees, cells, a) => { const out = []; for (let b = 0; b < cells; b++) if (sees[a * cells + b]) out.push(b); return Int16Array.from(out); };
+/** A grid's units, peers and the rest, without cages: the same for every grid of a size, regions and diagonals, so
+ *  kept (the generator and the relay make thousands of shapes, nearly all alike). Treated as read-only. */
+const BASES = new Map();
+function baseOf(n, regions, diagonals) {
+  const key = `${n}|${regions.join("")}|${diagonals ? 1 : 0}`;
+  const kept = BASES.get(key);
+  if (kept) return kept;
   const cells = n * n, units = [], kinds = [];
   const add = (list, kind) => { units.push(Int16Array.from(list)); kinds.push(kind); };
   for (let r = 0; r < n; r++) add(Array.from({ length: n }, (_, c) => r * n + c), "row");
@@ -46,15 +66,11 @@ export function shapeOf(n, regions = boxRegions(n), { diagonals = false, cages =
   units.forEach((u, k) => u.forEach(c => unitsOf[c].push(k)));
   const sees = new Uint8Array(cells * cells);
   for (const u of units) for (const a of u) for (const b of u) if (a !== b) sees[a * cells + b] = 1;
-  const cageOf = new Int16Array(cells).fill(-1);
-  if (cages) cages.forEach((cage, k) => { for (const a of cage.cells) { cageOf[a] = k; for (const b of cage.cells) if (a !== b) sees[a * cells + b] = 1; } });
-  const peers = Array.from({ length: cells }, (_, a) => {
-    const out = [];
-    for (let b = 0; b < cells; b++) if (sees[a * cells + b]) out.push(b);
-    return Int16Array.from(out);
-  });
-  return { n, cells, all: allOf(n), regions: Int8Array.from(regions), units, kinds, unitsOf, peers, sees,
-    rows: units.slice(0, n), cols: units.slice(n, 2 * n), diagonals, cages: cages ? cages.map(c => ({ cells: [...c.cells], sum: c.sum })) : null, cageOf };
+  const peers = Array.from({ length: cells }, (_, a) => peersFrom(sees, cells, a));
+  const base = { key, n, cells, all: allOf(n), regions: Int8Array.from(regions), units, kinds, unitsOf, peers, sees, rows: units.slice(0, n), cols: units.slice(n, 2 * n), diagonals };
+  if (BASES.size > 64) BASES.delete(BASES.keys().next().value);
+  BASES.set(key, base);
+  return base;
 }
 
 // ---------- seeded random numbers ----------

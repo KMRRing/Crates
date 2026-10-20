@@ -50,7 +50,9 @@ export function levelsOf(rules, n) {
 }
 /** The nearest level a choice of rules and size offers (a 6×6 or Killer has no Expert). */
 export const levelFor = (rules, n, level) => (levelsOf(rules, n)[level] ? level : "hard");
-const TRIES = { killer: 120, other: 400 };        // grids tried for a level before the nearest one is taken
+const TRIES = { killer: 120, jigsaw: 80, other: 400 };   // grids tried for a level before the nearest one is taken
+/** The level a grid of this rank is, for these rules and size. */
+const levelAt = (rules, n, rank) => Object.entries(levelsOf(rules, n)).find(([, s]) => rank >= s.lo && rank <= s.hi)?.[0] || "easy";
 
 /** The grid's shape for its rules: regions (a jigsaw's own), diagonals, cages. */
 export function shapeFor(p) {
@@ -112,12 +114,13 @@ export function generate({ seed, rules = "classic", size = 9, level = "medium" }
     const r = rng(mix(seed, rules, n, level, t));
     const made = rules === "killer" ? killerGrid(n, spec, LEVELS[level].rank, r) : digitGrid(n, rules, spec, r);
     if (!made) continue;
-    const out = { seed, rules, n, level, ...made, tries: t + 1 };
+    const out = { seed, rules, n, level, regions: null, cages: null, ...made, tries: t + 1 };
     if (made.rank >= spec.lo && made.rank <= spec.hi) return out;
     // the nearest yet, if none comes out at the level: under it rather than over it (a hard grid is never dealt as easy)
     if (made.rank < spec.lo && (!nearest || made.rank > nearest.rank)) nearest = out;
   }
-  if (nearest) return nearest;
+  // none at the level: the nearest under it, called by the level it is (a grid never claims a level it hasn't)
+  if (nearest) return { ...nearest, level: levelAt(rules, n, nearest.rank) };
   // nothing at all in every try (a rare run of Killer cuts with no single solution): the level below, from the same seed
   const ids = Object.keys(levelsOf(rules, n)), lower = ids.indexOf(level) - 1;
   return lower >= 0 ? generate({ seed, rules, size: n, level: ids[lower] }) : generate({ seed, rules: "classic", size: n, level: "easy" });
@@ -136,8 +139,10 @@ function digitGrid(n, rules, spec, r) {
   solution ||= S.solve(new Uint8Array(cells), { limit: 1, rng: r }).solution;
   if (!solution) return null;
   const givens = Uint8Array.from(solution);
+  // in mirrored pairs, the convention of a printed grid; a jigsaw's pieces aren't symmetric, so its digits go singly,
+  // which also lets a hard one be given back a digit at a time
   const pairs = [];
-  for (let i = 0; i < cells; i++) { const j = cells - 1 - i; if (i <= j) pairs.push(i === j ? [i] : [i, j]); }
+  for (let i = 0; i < cells; i++) { const j = cells - 1 - i; if (rules === "jigsaw") pairs.push([i]); else if (i <= j) pairs.push(i === j ? [i] : [i, j]); }
   shuffle(r, pairs);
   const gone = [];                                     // pairs taken, in order
   const floor = spec.floor || 0;

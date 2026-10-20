@@ -74,9 +74,11 @@ export function apply(shape, st, step) {
 }
 
 // ---------- what each shape keeps for the techniques ----------
-const EXTRA = new WeakMap();
+// The same for every grid of a size, regions and diagonals (cages aren't units), so kept by those (shapeOf's key).
+const EXTRA = new Map();
 function extra(shape) {
-  let x = EXTRA.get(shape);
+  const id = `${shape.key}|${shape.cages ? 1 : 0}`;
+  let x = EXTRA.get(id);
   if (x) return x;
   const { units, kinds, cells, n } = shape;
   // pairs of units that cross in two cells or more (a box and a row, a jigsaw piece and a column, a diagonal and a
@@ -103,7 +105,8 @@ function extra(shape) {
     }
   }
   x = { inter, hiddenOrder, sets45, cells };
-  EXTRA.set(shape, x);
+  if (EXTRA.size > 64) EXTRA.delete(EXTRA.keys().next().value);
+  EXTRA.set(id, x);
   return x;
 }
 const rankKind = k => ({ box: 0, region: 0, row: 1, col: 2, diag: 3 }[k]);
