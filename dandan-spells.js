@@ -126,8 +126,10 @@ export const RES = {
       say(s, `${x.name} is copied, and the original returns to its owner's hand`);
       leaveStack(s, x, "hand");
       if (c.targets.length) {
-        // new targets for the copy, when there's a choice: another target, or the one legal target in place of a lost one
-        const options = targetLists(s, it.ctl, c.name, c.mode, [c.sid, it.sid]).filter(l => l.length);
+        // new targets for the copy, when there's a choice: another target, or the one legal target in place of a lost one.
+        // The Reversal itself is still on the stack as it resolves, so a copied counter may be aimed at it, to fizzle
+        // when it has gone, rather than at a spell of our own
+        const options = targetLists(s, it.ctl, c.name, c.mode, [c.sid]).filter(l => l.length);
         if (options.length > 1 || (options.length === 1 && !same(options[0][0], c.targets[0]))) return ask(s, it, { t: "retarget", seat: it.ctl, copy: c.sid, options }, 1);
       }
     }

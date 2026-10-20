@@ -71,14 +71,20 @@ export const cardName = id => (id >= TOKEN_AT ? "Clue" : DECK[id]);
 export const def = name => CARDS[name];
 export const isToken = id => id >= TOKEN_AT;
 
-/** A cost string as numbers: "{3}{U}{U}" is { g: 3, U: 2, R: 0 }. */
+/** A cost string as numbers: "{3}{U}{U}" is { g: 3, U: 2, R: 0 } (a fresh object each time, read once per string). */
+const COSTS = new Map();
 export function parseCost(cost) {
-  const c = { g: 0, U: 0, R: 0 };
-  for (const [, x] of String(cost || "").matchAll(/\{(\w)\}/g)) {
-    if (/\d/.test(x)) c.g += Number(x);
-    else c[x] = (c[x] || 0) + 1;
+  const k = String(cost || "");
+  let c = COSTS.get(k);
+  if (!c) {
+    c = { g: 0, U: 0, R: 0 };
+    for (const [, x] of k.matchAll(/\{(\w)\}/g)) {
+      if (/\d/.test(x)) c.g += Number(x);
+      else c[x] = (c[x] || 0) + 1;
+    }
+    COSTS.set(k, c);
   }
-  return c;
+  return { ...c };
 }
 /** The mana value of a cost. */
 export const total = c => c.g + c.U + c.R;

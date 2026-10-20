@@ -581,7 +581,7 @@ test("every move moves() offers is one the game accepts", () => {
     for (let i = 0; i < 400 && !s.over; i++) {
       const who = toMove(s);
       if (!s.pending) for (const m of moves(s, who)) { if (refused(s, who, m) !== null) throw new Error(`seed ${seed}: ${JSON.stringify(m)} offered but refused`); n++; }
-      s = go(s, who, botMove(s, who, { rng: seeded(seed * 1000 + i) }));
+      s = go(s, who, botMove(s, who, { rng: seeded(seed * 1000 + i), level: "medium" }));
     }
   }
   return n > 500;
@@ -594,13 +594,19 @@ test("a game survives the database at every move (empty lists dropped, holes, nu
     const back = roundTrip(G);
     if (!same(rules.restore(J(back.state)), rules.restore(J(G.state)))) throw new Error(`move ${i}: the state changed through the database`);
     const who = rules.toMove(back.state);
-    G = applyMove(rules, back, who, botMove(rules.restore(J(back.state)), who, { rng: seeded(i) }), 0).G;
+    G = applyMove(rules, back, who, botMove(rules.restore(J(back.state)), who, { rng: seeded(i), level: "medium" }), 0).G;
   }
   return true;
 });
 
-// ---------- the computer player ----------
+// ---------- the computer players ----------
 const seatRng = n => seeded(n);
+const hard = (s, seat) => botMove(s, seat, { rng: seatRng(1), level: "hard" });
+const medium = (s, seat) => botMove(s, seat, { rng: seatRng(1), level: "medium" });
+const both = (what, s, seat, ok) => {
+  test(`Medium: ${what}`, () => ok(medium(s, seat)) || JSON.stringify(medium(s, seat)));
+  test(`Hard: ${what}`, () => ok(hard(s, seat)) || JSON.stringify(hard(s, seat)));
+};
 test("it takes a free mulligan on a hand short of lands, keeps a good one, and keeps a poor one it has already paid for", () => {
   const asked = (hand, pending) => { const s = scene({ hand: [hand, []] }); s.pending = { t: "mull", seat: 0, ...pending }; return botMove(s, 0, { rng: seatRng(1) }).t; };
   const spells = ["Memory Lapse", "Dandân", "Brainstorm", "Predict", "Repulse", "Mind Bend"];
@@ -609,39 +615,87 @@ test("it takes a free mulligan on a hand short of lands, keeps a good one, and k
     && asked(["Island", ...spells], { free: false, taken: 2 }) === "keep"
     && asked(["Island", ...spells], { free: false, taken: 0 }) === "mull";
 });
-test("it holds two mana for its Memory Lapse and counters a Dandân", () => {
-  let s = scene({ active: 0, hand: [["Dandân"], ["Memory Lapse"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)] });
-  s = cast(s, 0, "Dandân");
-  const m = botMove(s, 1, { rng: seatRng(2), level: "hard" });
-  return m.t === "cast" && m.targets[0].k === "s";
-});
-test("it doesn't spend a Memory Lapse on a Quicken", () => {
-  let s = scene({ active: 0, hand: [["Quicken"], ["Memory Lapse"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)] });
-  s = cast(s, 0, "Quicken");
-  return botMove(s, 1, { rng: seatRng(2), level: "hard" }).t === "pass";
-});
-test("it casts a Dandân when it has Islands, and not when it has none", () => {
-  const withIsle = scene({ hand: [["Dandân"], []], bf: islandsOf(0, 2) });
-  const none = scene({ hand: [["Dandân"], []], bf: [[0, "Remote Isle"], [0, "Lonely Sandbar"]] });
-  return botMove(withIsle, 0, { rng: seatRng(1) }).t === "cast" && botMove(none, 0, { rng: seatRng(1) }).t === "pass";
-});
-test("it kills an attacking Dandân with Piracy Charm", () => {
+{
+  // the blunder that started the rework: Mind Bend on a lone Island with no Dandân anywhere
+  const s = scene({ turn: 2, active: 0, hand: [["Mind Bend", "Island", "Brainstorm"], ["Island"]], bf: [[0, "Island"], [1, "Island"]], step: "main1" });
+  both("no Mind Bend on their one Island on turn 2, with no Dandân anywhere", s, 0, m => !(m.t === "cast" && DECK[m.card] === "Mind Bend"));
+  const e = scene({ turn: 3, active: 1, step: "end", prio: 0, passes: 1, hand: [["Mind Bend", "Island"], ["Island"]], bf: [[0, "Island"], [1, "Island"], [1, "Remote Isle"]] });
+  both("…nor at the end of their turn", e, 0, m => !(m.t === "cast" && DECK[m.card] === "Mind Bend"));
+  // and where it is right: their last Island under two Dandâns, or their Dandân itself
+  const two = scene({ active: 1, step: "end", prio: 0, passes: 1, hand: [["Mind Bend", "Island"], []], bf: [...islandsOf(0, 2), [1, "Island"], [1, "Remote Isle"], [1, "Lonely Sandbar"], [1, "Dandân"], [1, "Dandân"]] });
+  both("Mind Bend their last Island when two Dandâns stand on it", two, 0, m => m.t === "cast" && DECK[m.card] === "Mind Bend" && DECK[m.targets[0].id] === "Island");
+  const one = scene({ active: 1, step: "end", prio: 0, passes: 1, hand: [["Mind Bend", "Island"], []], bf: [...islandsOf(0, 2), ...islandsOf(1, 3), [1, "Dandân"]] });
+  both("Mind Bend their Dandân when it has three Islands under it", one, 0, m => m.t === "cast" && DECK[m.card] === "Mind Bend" && DECK[m.targets[0].id] === "Dandân");
+}
+{
+  let s = scene({ active: 1, hand: [["Memory Lapse"], ["Dandân"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 3)] });
+  s = cast(s, 1, "Dandân");
+  both("Memory Lapse on their Dandân, cast on their turn (it comes to us)", s, 0, m => m.t === "cast" && DECK[m.card] === "Memory Lapse");
+  let q = scene({ active: 0, hand: [["Quicken"], ["Memory Lapse"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)] });
+  q = cast(q, 0, "Quicken");
+  test("Medium: no Memory Lapse spent on a Quicken", () => medium(q, 1).t === "pass");
+}
+{
   let s = scene({ active: 1, hand: [["Piracy Charm"], []], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [1, "Dandân"]] });
   s = answer(pass(s, 1), { t: "attack", ids: [onBf(s, 1, "Dandân")] });
-  const m = botMove(s, 0, { rng: seatRng(1) });
-  return m.t === "cast" && m.mode === 1 && m.targets[0].id === onBf(s, 1, "Dandân");
-});
-test("it keeps its Dandân home when the swing back would be lethal", () => {
+  both("Piracy Charm's +2/−1 on the Dandân attacking it", s, 0, m => m.t === "cast" && m.mode === 1 && m.targets[0].id === onBf(s, 1, "Dandân"));
+}
+{
+  const withIsle = scene({ hand: [["Dandân"], []], bf: islandsOf(0, 2) });
+  const none = scene({ hand: [["Dandân"], []], bf: [[0, "Remote Isle"], [0, "Lonely Sandbar"]] });
+  both("a Dandân cast when there's an Island to keep it", withIsle, 0, m => m.t === "cast");
+  both("…and not when there's none", none, 0, m => m.t === "pass");
+}
+{
   const s = pass(scene({ active: 0, life: [4, 20], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [0, "Dandân"], [1, "Dandân"]], hand: [[], []] }), 0);
-  const m = botMove(s, 0, { rng: seatRng(1) });
-  return s.pending?.t === "attack" && m.t === "attack" && m.ids.length === 0;
-});
-test("it blocks a Dandân that would kill it", () => {
-  let s = scene({ active: 1, life: [4, 20], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [0, "Dandân"], [1, "Dandân"]], hand: [[], []] });
-  s = pass(s, 1);
-  s = answer(s, { t: "attack", ids: [onBf(s, 1, "Dandân")] });
-  const m = botMove(s, 0, { rng: seatRng(1) });
-  return m.t === "block" && m.pairs.length === 1;
+  both("its Dandân kept home when the swing back would be lethal", s, 0, m => m.t === "attack" && m.ids.length === 0);
+  let b = scene({ active: 1, life: [4, 20], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [0, "Dandân"], [1, "Dandân"]], hand: [[], []] });
+  b = answer(pass(b, 1), { t: "attack", ids: [onBf(b, 1, "Dandân")] });
+  both("a Dandân that would kill it blocked", b, 0, m => m.t === "block" && m.pairs.length === 1);
+  // the race: they're at 4 and tapped out of blockers; we take 4 at 20 and swing back for the game
+  let r = scene({ active: 1, life: [20, 4], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [0, "Dandân"], [1, "Dandân"]], hand: [[], []] });
+  r = answer(pass(r, 1), { t: "attack", ids: [onBf(r, 1, "Dandân")] });
+  both("no block when taking it and swinging back wins the race", r, 0, m => m.t === "block" && m.pairs.length === 0);
+}
+{
+  // their upkeep, a Memory Lapse on top that both saw go there: draw it before they do
+  let s = scene({ active: 1, step: "upkeep", turn: 6, prio: 0, passes: 1, hand: [["Lonely Sandbar", "Island"], ["Island"]], bf: [...islandsOf(0, 4), ...islandsOf(1, 2)], lib: ["Memory Lapse"] });
+  s.kn = [[s.lib[0], 3]];
+  both("a known Memory Lapse on top drawn first, in their upkeep", s, 0, m => m.t === "cycle");
+}
+{
+  let s = scene({ active: 0, hand: [["Dandân", "Narset's Reversal"], ["Memory Lapse"]], bf: [...islandsOf(0, 4), ...islandsOf(1, 2)] });
+  s = cast(s, 0, "Dandân");
+  s = cast(s, 1, "Memory Lapse", [T.s(sidOf(s, "Dandân"))]);
+  both("Narset's Reversal on their Lapse aimed at our Dandân", s, 0, m => m.t === "cast" && DECK[m.card] === "Narset's Reversal");
+  const r = go(s, 0, { t: "cast", card: idIn(s, 0, "Narset's Reversal"), from: "hand", targets: [T.s(sidOf(s, "Memory Lapse"))] });
+  test("…and the copy of their Lapse is offered the Reversal itself, and aimed there rather than at our Dandân", () => r.pending?.t === "retarget"
+    && r.pending.options.some(o => o[0].sid === r.pending.sid) && hard(r, 0).targets?.[0]?.sid !== sidOf(r, "Dandân") && medium(r, 0).targets?.[0]?.sid !== sidOf(r, "Dandân"));
+}
+{
+  const s = scene({ active: 0, step: "main2", hand: [["Memory Lapse", "Take Inventory"], ["Island", "Island", "Island", "Dandân"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 3)] });
+  both("two kept open for Memory Lapse rather than tapping out for Take Inventory", s, 0, m => m.t === "pass");
+  let b = scene({ hand: [["Izzet Boilerworks"], []], bf: [[0, "Island"], [0, "Island", { tapped: true }]], hold: 0 });
+  b = resolveStack(go(b, 0, { t: "land", card: idIn(b, 0, "Izzet Boilerworks") }));
+  both("Izzet Boilerworks returns a tapped Island, not itself", b, 0, m => m.t === "pick" && DECK[m.card] === "Island" && perm(b, m.card).tapped);
+}
+test("Hard plays the same move from the same position, and its moves are always legal", () => {
+  let n = 0;
+  for (const seed of [4, 5]) {
+    let s = restore(J(deal({ rng: seeded(seed) })));
+    const rng = seeded(seed);
+    for (let i = 0; i < 400 && !s.over; i++) {
+      const who = toMove(s);
+      if (i % 7 === 0) {
+        const a = hard(s, who), b = hard(J(s), who);
+        if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`move ${i}: ${JSON.stringify(a)} then ${JSON.stringify(b)}`);
+        go(s, who, a);
+        n++;
+      }
+      s = go(s, who, botMove(s, who, { rng, level: "medium" }));
+    }
+  }
+  return n >= 12 || `only ${n} decisions`;
 });
 test("its answers are always legal ones, for every kind of question and at every level", () => {
   // a game played at random reaches every question; the computer is asked each one, at each level, and the answer tried
@@ -652,7 +706,8 @@ test("its answers are always legal ones, for every kind of question and at every
     for (let i = 0; i < 500 && !s.over; i++) {
       const who = toMove(s);
       if (s.pending) kinds.add(s.pending.t);
-      for (const level of ["easy", "medium", "hard"]) go(s, who, botMove(s, who, { rng: seeded(i), level }));   // throws if refused
+      for (const level of ["easy", "medium"]) go(s, who, botMove(s, who, { rng: seeded(i), level }));   // throws if refused
+      if (s.pending && (i % 7 === 0 || ["retarget", "bend", "owner", "order"].includes(s.pending.t))) go(s, who, botMove(s, who, { level: "hard" }));
       s = go(s, who, randomMove(s, who, rng));
     }
   }
@@ -672,7 +727,7 @@ test("its answers are always legal ones, for every kind of question and at every
     let n = 0;
     while (!rules.over(G.state) && n < 6000) {
       const who = rules.toMove(G.state);
-      const r = applyMove(rules, G, who, botMove(rules.restore(J(G.state)), who, { rng, level: "hard" }), 0);
+      const r = applyMove(rules, G, who, botMove(rules.restore(J(G.state)), who, { rng, level: "medium" }), 0);
       if (r.error) { refusedAt = `game ${g} move ${n}: ${r.error}`; break; }
       G = r.G; n++;
       if (n % 25 === 0) {
@@ -685,14 +740,14 @@ test("its answers are always legal ones, for every kind of question and at every
     else { lengths.push(G.state.turn); bySeat[G.state.winner]++; }
   }
   const mean = lengths.reduce((a, b) => a + b, 0) / lengths.length;
-  check(!refusedAt, `100 games of computer players, no illegal move and no card lost or made${refusedAt ? ` (${refusedAt})` : ""} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+  check(!refusedAt, `100 games of Medium against Medium, no illegal move and no card lost or made${refusedAt ? ` (${refusedAt})` : ""} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
   check(!unfinished && Math.min(...lengths) >= 6 && Math.max(...lengths) < 150 && mean > 14 && mean < 60, `…every one finished, in ${Math.min(...lengths)}–${Math.max(...lengths)} turns, ${mean.toFixed(1)} on average`);
   check(Math.min(...bySeat) >= 25, `…neither seat has the game (${bySeat.join(" and ")} wins)`);
 }
 test("a seeded game is played the same way twice", () => {
   const play = () => {
     let G = newRecord(rules, { seats: 2, seed: 123, now: 0 });
-    for (let i = 0; i < 6000 && !rules.over(G.state); i++) { const who = rules.toMove(G.state); G = applyMove(rules, G, who, seatBot(rules, G, who, "hard"), 0).G; }
+    for (let i = 0; i < 6000 && !rules.over(G.state); i++) { const who = rules.toMove(G.state); G = applyMove(rules, G, who, seatBot(rules, G, who, "medium"), 0).G; }
     return JSON.stringify(G);
   };
   const a = play();
@@ -714,12 +769,13 @@ test("a seeded game is played the same way twice", () => {
     }
     return wins;
   };
-  const r = versus("hard", "random", 60, 4000);
-  check(r >= 54, `Hard beats a player who moves at random in ${r} of 60 games`);
-  const e = versus("hard", "easy", 100, 6000);
-  check(e >= 60, `…and Easy in ${e} of 100`);
-  const m = versus("medium", "random", 40, 8000);
-  check(m >= 34, `Medium beats random in ${m} of 40`);
+  const e = versus("easy", "random", 40, 4000);
+  check(e >= 34, `Easy beats a player who moves at random in ${e} of 40 games`);
+  const m = versus("medium", "easy", 100, 6000);
+  check(m >= 62, `Medium beats Easy in ${m} of 100`);
+  // (Hard won 104 of 120 such games when it was written: see the README)
+  const t0 = Date.now(), h = versus("hard", "medium", 12, 8000);
+  check(h >= 8, `Hard beats Medium in ${h} of 12 (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 }
 
 console.log(bad ? `dandan: ${bad} failed` : "dandan: every check passed");

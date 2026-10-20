@@ -35,6 +35,7 @@
   <section id="side" class="dd-side">
     <ol id="log" class="dd-log" aria-label="What has happened"></ol>
     <div id="hand" class="dd-hand" aria-label="Your hand"></div>
+    <div id="coach" class="dd-coach" aria-live="polite" hidden></div>
     <div id="controls" class="dd-controls"></div>
   </section>
 </div>
@@ -63,6 +64,11 @@
   <div class="pick-head"><h2 id="cardHead"></h2><button class="btn" type="button" id="cardClose">Close</button></div>
   <div id="cardBody" class="dd-cardbody"></div>
   <div id="cardGo" class="dd-cardgo"></div>
+</dialog>
+
+<dialog id="whyDlg" class="sheet dd-sheet" aria-labelledby="whyHead">
+  <div class="pick-head"><h2 id="whyHead">The coach's choices</h2><button class="btn" type="button" id="whyClose">Close</button></div>
+  <div id="whyBody" class="dd-why-body"></div>
 </dialog>
 
 <dialog id="endDlg" class="sheet dd-sheet" aria-labelledby="endHead">

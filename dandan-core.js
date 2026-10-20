@@ -46,8 +46,14 @@ export const perm = (s, id) => s.bf.find(p => p.id === id);
 const tcMap = (tc, word) => { for (const [a, b] of tc || []) if (word === a) word = b; return word; };
 export const isLand = p => defOf(p.id).type === "land";
 export const isCreature = p => defOf(p.id).type === "creature";
-/** The land types a land has now: its own, with Mind Bend's changes. */
+/** The land types a land has now: its own, with Mind Bend's changes. (A card untouched by Mind Bend: read once, the same list each time.) */
+const TYPES = new Map();
 export function typesOf(p) {
+  if (!p.tc) {
+    let t = TYPES.get(p.id);
+    if (!t) { const d = defOf(p.id); t = d.type === "land" ? [...new Set(d.subs)] : []; TYPES.set(p.id, t); }
+    return t;
+  }
   const d = defOf(p.id);
   return d.type === "land" ? [...new Set(d.subs.map(t => tcMap(p.tc, t)))] : [];
 }
@@ -74,7 +80,12 @@ export function canAttack(s, p) {
 
 // ---------- mana ----------
 /** What a land can tap for: alternatives, each a list of colours made together (Boilerworks one of two, Falls two of one). */
+const ALTS = new Map();
 export function manaAlts(p) {
+  if (!p.tc) { let a = ALTS.get(p.id); if (!a) { a = altsOf(p); ALTS.set(p.id, a); } return a; }
+  return altsOf(p);
+}
+function altsOf(p) {
   const d = defOf(p.id), out = [], seen = new Set();
   const add = a => { const k = a.join(""); if (!seen.has(k)) { seen.add(k); out.push(a); } };
   for (const t of typesOf(p)) if (BASIC_MANA[t]) add([BASIC_MANA[t]]);
@@ -83,7 +94,7 @@ export function manaAlts(p) {
 }
 /** How much we'd rather keep a land untapped: lands that make more, or either colour, are kept for last. */
 const keepValue = alts => (alts.length > 1 ? 1.3 : alts[0].length > 1 ? 1.6 : 1);
-const countOf = (str, c) => { let n = 0; for (const x of str) if (x === c) n++; return n; };
+const countOf = (str, c) => { let n = 0; for (let i = 0; i < str.length; i++) if (str[i] === c) n++; return n; };
 /** The mana floating in a seat's pool (a string of colour letters, "R"): what a land made and a cost didn't use, until the step ends. */
 export const poolOf = (s, seat) => s.pool?.[seat] || "";
 /** What's left of some mana once a cost is paid from it: the colours the cost names first, the generic from the least useful (red is kept over the colours nothing here needs, blue over red). */
@@ -103,22 +114,32 @@ function leftover(mana, cost) {
  * only to the end of the step). Deterministic.
  */
 export function payPlan(s, seat, cost, skip = []) {
-  const need = total(cost), pool = poolOf(s, seat);
+  const need = cost.g + cost.U + cost.R, pool = poolOf(s, seat);
   if (need === 0) return { seat, taps: [], pool };
-  const mine = s.bf.filter(p => p.ctl === seat && !p.tapped && isLand(p) && !skip.includes(p.id))
-    .map(p => ({ id: p.id, alts: manaAlts(p) })).filter(l => l.alts.length);
-  if (pool.length + mine.reduce((n, l) => n + Math.max(...l.alts.map(a => a.length)), 0) < need) return null;
-  const cap = need + 3, key = (u, r, t) => `${u},${r},${t}`;
-  const start = { u: Math.min(cost.U, countOf(pool, "U")), r: Math.min(cost.R, countOf(pool, "R")), t: Math.min(cap, pool.length), pen: 0, taps: [], made: "" };
-  let states = new Map([[key(start.u, start.r, start.t), start]]);
+  // the lands that could pay, and a quick bound: enough mana at most, and enough sources of blue and of red
+  const mine = [];
+  let most = pool.length, us = countOf(pool, "U"), rs = countOf(pool, "R");
+  for (const p of s.bf) {
+    if (p.ctl !== seat || p.tapped || !isLand(p) || (skip.length && skip.includes(p.id))) continue;
+    const alts = manaAlts(p);
+    if (!alts.length) continue;
+    let big = 0, u = false, r = false;
+    for (const a of alts) { if (a.length > big) big = a.length; if (a.includes("U")) u = true; if (a.includes("R")) r = true; }
+    most += big; if (u) us++; if (r) rs++;
+    mine.push({ id: p.id, alts, keep: keepValue(alts) });
+  }
+  if (most < need || us < cost.U || rs < cost.R) return null;
+  const cap = need + 3, keyOf = (u, r, t) => (u * 16 + r) * 64 + t;
+  const start = { u: Math.min(cost.U, countOf(pool, "U")), r: Math.min(cost.R, countOf(pool, "R")), t: Math.min(cap, pool.length), pen: 0, land: null, alt: null, prev: null };
+  let states = new Map([[keyOf(start.u, start.r, start.t), start]]);
   for (const land of mine) {
     const next = new Map(states);
     for (const st of states.values()) {
       for (const alt of land.alts) {
         const u = Math.min(cost.U, st.u + countOf(alt, "U")), r = Math.min(cost.R, st.r + countOf(alt, "R"));
-        const t = Math.min(cap, st.t + alt.length), pen = st.pen + keepValue(land.alts);
-        const k = key(u, r, t), old = next.get(k);
-        if (!old || pen < old.pen) next.set(k, { u, r, t, pen, taps: [...st.taps, land.id], made: st.made + alt.join("") });
+        const t = Math.min(cap, st.t + alt.length), pen = st.pen + land.keep;
+        const k = keyOf(u, r, t), old = next.get(k);
+        if (!old || pen < old.pen) next.set(k, { u, r, t, pen, land: land.id, alt, prev: st });
       }
     }
     states = next;
@@ -129,9 +150,32 @@ export function payPlan(s, seat, cost, skip = []) {
     const score = st.pen + 0.9 * (st.t - need);
     if (!best || score < best.score) best = { score, st };
   }
-  return best ? { seat, taps: best.st.taps, pool: leftover(pool + best.st.made, cost) } : null;
+  if (!best) return null;
+  const taps = [];
+  let made = "";
+  for (let st = best.st; st && st.land != null; st = st.prev) { taps.unshift(st.land); made += st.alt.join(""); }
+  return { seat, taps, pool: leftover(pool + made, cost) };
 }
 export const canPay = (s, seat, cost, skip) => !!payPlan(s, seat, cost, skip);
+/**
+ * Whether a seat could pay a cost, without working out how: enough mana at most, enough lands that can make blue and
+ * enough that can make red. For this deck's costs that is exact (no cost asks for both blue and red, and a land that
+ * makes either makes one mana whichever), and much quicker than payPlan, which the game uses to pay.
+ */
+export function affords(s, seat, cost) {
+  const need = cost.g + cost.U + cost.R;
+  if (need === 0) return true;
+  const pool = poolOf(s, seat);
+  let most = pool.length, us = countOf(pool, "U"), rs = countOf(pool, "R");
+  for (const p of s.bf) {
+    if (p.ctl !== seat || p.tapped || !isLand(p)) continue;
+    const alts = manaAlts(p);
+    let big = 0, u = false, r = false;
+    for (const a of alts) { if (a.length > big) big = a.length; if (a.includes("U")) u = true; if (a.includes("R")) r = true; }
+    most += big; if (u) us++; if (r) rs++;
+  }
+  return most >= need && us >= cost.U && rs >= cost.R;
+}
 /** Pays: taps the lands of a plan, and what they made and the cost didn't use floats in the pool. */
 export function pay(s, plan) {
   for (const id of plan.taps) perm(s, id).tapped = true;

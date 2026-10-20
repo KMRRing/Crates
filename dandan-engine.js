@@ -12,7 +12,7 @@ import { shuffle } from "./seats.js";
 import {
   LIFE, HAND, other, list, withRng, say, nm, isLandId, perm, isLand, isCreature, pt, canAttack, unblockable, fetchTypes, typesOf, needType,
   payPlan, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
-  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard,
+  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords,
 } from "./dandan-core.js";
 import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
 
@@ -301,19 +301,27 @@ export function halfOf(id, from = "hand") {
   if (from === "yard") return full === "Commit // Memory" ? "Memory" : CARDS[full]?.flashback ? full : null;
   return HALVES[full] ? HALVES[full][0] : full;
 }
-/** A cast checked: { id, from, half, d, cost, plan, mode, targets } or why not. */
-export function checkCast(s, seat, m) {
-  const from = m.from === "yard" ? "yard" : "hand", id = m.card;
-  if (!Number.isInteger(id) || id < 0 || id >= DECK.length) return "No such card";
-  if (from === "hand" ? !s.hand[seat].includes(id) : !s.yard.includes(id)) return from === "hand" ? "That card isn't in your hand" : "That card isn't in the graveyard";
+/** Whether a card could be cast now, its targets aside: { half, d, cost, plan } or why not (the timing, the mana). quick: whether, not how (no plan). */
+function castable(s, seat, id, from, quick = false) {
   const half = halfOf(id, from), d = half && CARDS[half];
   if (!d) return "That can't be cast from the graveyard";
   if (d.type === "land") return "A land is played, not cast";
   if ((d.type === "sorcery" || d.type === "creature") && !(seat === s.active && isMain(s) && !s.stack.length)) {
     if (!(d.type === "sorcery" && s.quick[seat])) return "Only in your main phase with nothing on the stack";
   }
-  const plan = payPlan(s, seat, costOf(s, seat, half, from));
-  if (!plan) return "Not enough mana";
+  const cost = costOf(s, seat, half, from);
+  if (quick) return affords(s, seat, cost) ? true : "Not enough mana";
+  const plan = payPlan(s, seat, cost);
+  return plan ? { half, d, cost, plan } : "Not enough mana";
+}
+/** A cast checked: { id, from, half, d, cost, plan, mode, targets } or why not. */
+export function checkCast(s, seat, m) {
+  const from = m.from === "yard" ? "yard" : "hand", id = m.card;
+  if (!Number.isInteger(id) || id < 0 || id >= DECK.length) return "No such card";
+  if (from === "hand" ? !s.hand[seat].includes(id) : !s.yard.includes(id)) return from === "hand" ? "That card isn't in your hand" : "That card isn't in the graveyard";
+  const ok = castable(s, seat, id, from);
+  if (typeof ok === "string") return ok;
+  const { half, d, cost, plan } = ok;
   const mode = d.modes ? (m.mode ?? 0) : 0;
   if (d.modes && !(Number.isInteger(mode) && mode >= 0 && mode < d.modes.length)) return "Choose what it does";
   const lists = targetLists(s, seat, half, mode), targets = list(m.targets);
@@ -321,7 +329,7 @@ export function checkCast(s, seat, m) {
   const hit = lists.find(l => l.length === targets.length && l.every((t, i) => same(t, targets[i])));
   if (!hit) return "Choose a legal target";
   // the targets as the table has them now: a permanent's with the object it is (oid), whatever the move carried
-  return { id, from, half, d, cost: costOf(s, seat, half, from), plan, mode, targets: hit };
+  return { id, from, half, d, cost, plan, mode, targets: hit };
 }
 /** A target in words, for the log. */
 export function targetWords(s, t) {
@@ -536,7 +544,9 @@ function answer(s, seat, m) {
       if (!p.froms.includes(m.from) || !BASICS.includes(m.to) || m.to === m.from) return "Choose what to change, and to what";
       const t = perm(s, p.target);
       (t.tc ||= []).push([m.from, m.to]);
-      say(s, `${nm(t.id)}: ${m.from} becomes ${m.to}`);
+      const a = w => (/^[AEIOU]/.test(w) ? "an" : "a");
+      say(s, isCreature(t) ? `{s${t.ctl}}'s Dandân now looks for ${a(m.to)} ${m.to} instead of ${a(m.from)} ${m.from}`
+        : nm(t.id) === m.from ? `{s${t.ctl}}'s ${m.from} becomes ${a(m.to)} ${m.to}` : `{s${t.ctl}}'s ${nm(t.id)}: its ${m.from} becomes ${a(m.to)} ${m.to}`);
       resume(s);
       return null;
     }
@@ -585,6 +595,18 @@ export function moves(s, seat, firstOnly = false, only = null) {
     out.push(m);
     return firstOnly;
   };
+  // a cast: its timing and mana checked once for the card, then one move for each of its modes and targets (each list
+  // targetLists gives is legal as it stands, which is what checkCast would check of it)
+  const casts = (id, from, half) => {
+    if (typeof castable(s, seat, id, from, true) === "string") return false;
+    for (let mode = 0; mode < modesOf(half); mode++) {
+      for (const targets of targetLists(s, seat, half, mode)) {
+        out.push({ t: "cast", card: id, from, ...(CARDS[half].modes ? { mode } : {}), targets });
+        if (firstOnly) return true;
+      }
+    }
+    return false;
+  };
   for (const id of s.hand[seat]) {
     const full = DECK[id];
     if (seen.has(full)) continue;
@@ -593,25 +615,21 @@ export function moves(s, seat, firstOnly = false, only = null) {
     // only: the card names (and "@cycle", "@ability") a stop is for
     const plays = !only || only.has(half), cycles = !!CARDS[half].cycling && (!only || only.has("@cycle"));
     if (plays && isLandId(id)) { if (tryMove({ t: "land", card: id })) return out; }
-    else if (plays) {
-      for (let mode = 0; mode < modesOf(half); mode++) {
-        for (const targets of targetLists(s, seat, half, mode)) {
-          if (tryMove({ t: "cast", card: id, from: "hand", ...(CARDS[half].modes ? { mode } : {}), targets })) return out;
-        }
-      }
-    }
-    if (cycles && tryMove({ t: "cycle", card: id })) return out;
+    else if (plays && casts(id, "hand", half)) return out;
+    if (cycles && affords(s, seat, parseCost(CARDS[half].cycling))) { out.push({ t: "cycle", card: id }); if (firstOnly) return out; }
   }
   const seenY = new Set();
   for (const id of s.yard) {
     const half = halfOf(id, "yard");
     if (!half || seenY.has(half) || (only && !only.has(half))) continue;
     seenY.add(half);
-    for (const targets of targetLists(s, seat, half, 0)) if (tryMove({ t: "cast", card: id, from: "yard", targets })) return out;
+    if (casts(id, "yard", half)) return out;
   }
   if (!only || only.has("@ability")) {
     for (const p of s.bf) {
-      if (p.ctl === seat && (nm(p.id) === "Flood Plain" || nm(p.id) === "Clue") && tryMove({ t: "ability", id: p.id })) return out;
+      if (p.ctl !== seat) continue;
+      const ok = nm(p.id) === "Flood Plain" ? !p.tapped : nm(p.id) === "Clue" && affords(s, seat, parseCost(CARDS.Clue.clue));
+      if (ok) { out.push({ t: "ability", id: p.id }); if (firstOnly) return out; }
     }
   }
   return out;

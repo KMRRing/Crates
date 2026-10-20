@@ -139,6 +139,28 @@ html[data-theme="office"][data-mode="night"] { --dd-in: #479EF5; }
 .dd-status { margin: 0; text-align: center; color: var(--ink-soft); align-self: center; }
 .dd-go { width: 100%; min-height: 3rem; }
 
+/* the coach's line: two lines high whatever it says, so nothing moves when it speaks; a longer word is cut, and a tap on
+   the line opens Why? all the same */
+.dd-coach { flex: none; display: flex; align-items: center; gap: .5rem; height: 2.4rem; padding: 0 .1rem; font-size: .76rem; line-height: 1.22; color: var(--ink-soft); }
+.dd-coach[hidden] { display: none; }
+.dd-says { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.dd-says:has(.dd-why) { cursor: pointer; }
+.dd-says b { color: var(--dd-in); }
+.dd-says b.dd-miss { color: var(--dd-bad); }
+.dd-says .ld { margin-right: .4em; }
+.dd-says .dd-why { margin-left: .25em; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.dd-hint { flex: none; min-height: 2.1rem; padding: .15rem .8rem; }
+/* the coach's move, ringed where it's made: the card, its target, the button, the row */
+.dd-card.advised, .dd-cre.advised, .dd-land.advised, .dd-st.advised, .dd-pile.advised, .dd-chip.advised, .dd-zh.advised { outline: 2px solid var(--dd-in); outline-offset: 2px; }
+.dd-btn.advised:not(:disabled), .dd-opt.advised { outline: 2px solid var(--dd-in); outline-offset: -4px; }
+.dd-choices, .dd-review { margin: .4rem 0; padding-left: 1.2rem; font-size: .9rem; line-height: 1.4; }
+.dd-choices li { margin: .45rem 0; }
+.dd-choices li.best b { color: var(--dd-in); }
+.dd-choices li.mine:not(.best) b { color: var(--dd-bad); }
+.dd-choices .dd-fig { display: block; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.dd-why-note { margin: .6rem 0 0; font-size: .8rem; line-height: 1.4; color: var(--ink-soft); }
+.dd-review li { margin: .4rem 0; }
+
 /* the log in full: beside the table when it's held sideways */
 .dd-log { display: none; list-style: none; margin: 0; padding: 0; font-size: .85rem; }
 .dd-log li { padding: .22rem .1rem; border-bottom: 1px solid var(--rule); line-height: 1.3; }
