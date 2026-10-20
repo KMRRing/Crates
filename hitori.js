@@ -541,7 +541,19 @@ function tellSoon() {   // a report for every tap would be a write for every tap
 const pairOf = g => (g?.pair && g.pair.n === g.n ? g.pair : null);
 const blankPair = (n, cells) => ({ n, k: NONE.repeat(cells), b: NOBODY.repeat(cells), h: 0 });
 let tableSeen = null, tableTimer = 0;
+// your marks on their way to the table, laid over what it says until it has them: a state the partner's mark brought
+// in first would otherwise take your newest mark off the board for a moment
+const pending = new Map();                                        // cell -> the mark sent
+function overlaid(k, b) {
+  let marks = k, by = b;
+  for (const [i, m] of pending) {
+    if (k[i] === m) { pending.delete(i); continue; }
+    marks = withMark(marks, i, m); by = withMark(by, i, String(S.slot));
+  }
+  return { marks, by };
+}
 function playPair(match) {
+  pending.clear();
   const g = tableNow(), p = pairOf(g), slot = mySlot();
   begin({ ...fromPuzzle("pair", match.seed, match, { grid: match.grid, sol: answerOf(match), level: match.came }), rival: null, mode: "pair", slot,
     marks: p?.k || NONE.repeat(match.grid.length), by: p?.b || NOBODY.repeat(match.grid.length), hints: p?.h || 0, begun: g?.start || duel.now(), n: g?.n });
@@ -559,7 +571,8 @@ function watchTable() {
     if (g.n !== S.n) return;                                          // a new match: duel.js deals it
     const p = pairOf(g);
     if (p) {
-      S.marks = p.k; S.by = p.b; S.hints = p.h || 0;
+      ({ marks: S.marks, by: S.by } = p.done ? (pending.clear(), { marks: p.k, by: p.b }) : overlaid(p.k, p.b));
+      S.hints = p.h || 0;
       // the table's solve is the one time for both phones, the one that found it too
       if (p.done) pairSeen(p);
       else if (!S.done && solvedBy(P, S.marks)) finish();
@@ -570,13 +583,14 @@ function watchTable() {
 function stopTable() { clearInterval(tableTimer); tableTimer = 0; tableSeen = null; }
 function pairWrite(i, to) {
   const n = S.n, slot = String(S.slot), cells = cellsOf();
+  pending.set(i, to);
   duel.together.act(g => {
     if (g.n !== n) return false;
     const p = pairOf(g) || blankPair(n, cells);
     if (p.done) return false;
     p.k = withMark(p.k, i, to); p.b = withMark(p.b, i, slot);
     g.pair = p;
-  });
+  }).then(() => { if (pending.get(i) === to) pending.delete(i); });   // landed or refused: from here the table's mark stands
 }
 function pairHint() {
   const n = S.n, cells = cellsOf();
