@@ -14,6 +14,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, topicMix, action, line, onPause, isPaused } from "./menu.js";
 import { today, arrivedForToday, dailyDue, noteDayTime, soloHref, IN_FRAME } from "./suite.js";
 import { createTogether } from "./together.js";
+import { getSync } from "./net.js";
 import { roomInAddress, joiningWords, branchPath } from "./rooms.js";
 import { busy, sextant } from "./loading.js";
 import { scale, sideways } from "./wide.js";
@@ -826,6 +827,22 @@ setInterval(() => {
   if (G?.mode === "race" && R?.play && !R.play.done) { R.play.ms = Math.max(0, serverNow() - R.begun); drawClock(); }
   if (G) drawStrip();
 }, 1000);
+/**
+ * The database's time, for a table's start: every phone's clock is counted from it, so the dealing phone's own clock
+ * being out would put everyone's out. Its offset is asked once (a second at most); the phone's own time if it can't be.
+ */
+async function databaseNow() {
+  try {
+    const sync = await getSync();
+    const off = await new Promise(res => {
+      let stop = null;
+      const t = setTimeout(() => res(0), 1000);
+      stop = sync.serverOffset?.(ms => { clearTimeout(t); res(ms || 0); setTimeout(() => stop?.(), 0); });
+      if (!stop) { clearTimeout(t); res(0); }
+    });
+    return Date.now() + off;
+  } catch { return Date.now(); }
+}
 /** A race's computer player, from the dealer's settings: a rival set to race races at the table too. */
 const raceRival = (mode, p) => (mode === "race" && settings().computer === "rival" ? { level: RIVALS[settings().pace] ? settings().pace : "quick", seed: p.seed } : null);
 /** A new game for the table, in the mode the menu chose: asks first while this one is under way. */
@@ -859,7 +876,7 @@ const together = createTogether({
   slots: g => g?.people || 2,
   fresh: async (players, { ask } = {}) => {
     const p = await makePuzzleOff(randomOptions()), mode = settings().tableMode === "race" ? "race" : "split";
-    return freshTable(players, { app: APP, puzzle: p, mode, people: peopleOf(ask), now: Date.now(), rival: raceRival(mode, p) });
+    return freshTable(players, { app: APP, puzzle: p, mode, people: peopleOf(ask), now: await databaseNow(), rival: raceRival(mode, p) });
   },
   onState,
   onPresence: () => { if (G) { fillList($("list")); paint(); drawStrip(); } },
