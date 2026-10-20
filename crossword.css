@@ -5,15 +5,15 @@
 :root {
   --cw-in: #2C5B8A;                                     /* the game's enamel: cobalt */
   --cw-soft: color-mix(in srgb, var(--cw-in) 15%, var(--sheet));
-  --cw-black: #1C2A34;
+  --cw-black: var(--ink);                               /* a black square: the theme's ink by day, darker than its page at night */
   --cw-cursor: color-mix(in srgb, var(--c0) 52%, var(--tile));
   --cw-word: color-mix(in srgb, var(--cw-in) 17%, var(--tile));
   --cw-good: #2F7D5B; --cw-bad: #A8382B;
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --cw-in: #6FA0D2; --cw-black: #070C11; --cw-cursor: color-mix(in srgb, var(--c0) 42%, var(--tile)); --cw-word: color-mix(in srgb, var(--cw-in) 22%, var(--tile)); --cw-good: #7FC2A8; --cw-bad: #E8806F; }
+  html:not([data-mode="day"]) { --cw-in: #6FA0D2; --cw-black: color-mix(in srgb, var(--yard) 55%, #000); --cw-cursor: color-mix(in srgb, var(--c0) 42%, var(--tile)); --cw-word: color-mix(in srgb, var(--cw-in) 22%, var(--tile)); --cw-good: #7FC2A8; --cw-bad: #E8806F; }
 }
-html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: #070C11; --cw-cursor: color-mix(in srgb, var(--c0) 42%, var(--tile)); --cw-word: color-mix(in srgb, var(--cw-in) 22%, var(--tile)); --cw-good: #7FC2A8; --cw-bad: #E8806F; }
+html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: color-mix(in srgb, var(--yard) 55%, #000); --cw-cursor: color-mix(in srgb, var(--c0) 42%, var(--tile)); --cw-word: color-mix(in srgb, var(--cw-in) 22%, var(--tile)); --cw-good: #7FC2A8; --cw-bad: #E8806F; }
 
 .cw-mark { display: inline-block; }
 .cw-mark svg { width: 100%; height: 100%; display: block; }
@@ -35,8 +35,10 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: #070C11; --cw-cursor: co
 /* the grid: squares on a ruled ground (the ground shows through a one-pixel gap as the lines) */
 .cw-boardbox { display: grid; place-items: center; min-height: 0; }
 #app.crossword > .cw-boardbox.grows { flex: 1 1 auto; }
-.cw-grid { display: grid; gap: 1px; padding: 1px; background: var(--cw-black); box-shadow: 0 0 0 1px var(--brass), 0 0 0 3px var(--yard), 0 0 0 4px var(--brass);
+.cw-grid { display: grid; gap: 1px; padding: 1px; background: var(--cw-black); box-shadow: 0 0 0 1px var(--tile-edge);
   touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+/* Almanac frames the grid in a double brass rule, as it frames a stage; the other themes keep the plain edge */
+html:not([data-theme]) .cw-grid { box-shadow: 0 0 0 1px var(--brass), 0 0 0 3px var(--yard), 0 0 0 4px var(--brass); }
 .cw-cell { position: relative; width: var(--cell, 1.6rem); height: var(--cell, 1.6rem); background: var(--tile); box-sizing: border-box; }
 .cw-cell.black { background: var(--cw-black); }
 .cw-cell.word { background: var(--cw-word); }
@@ -59,7 +61,8 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: #070C11; --cw-cursor: co
 
 /* the clue being solved: step back, the clue (a tap turns across or down), step on */
 .cw-bar { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem; align-items: stretch; height: 3.7rem; margin-top: .5rem; border: 1px solid var(--tile-edge);
-  border-radius: 6px; background: var(--sheet); box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }
+  border-radius: 6px; background: var(--sheet); }
+html:not([data-theme]) .cw-bar { box-shadow: inset 0 0 0 3px var(--sheet), inset 0 0 0 4px var(--rule); }   /* Almanac's inset hairline */
 .cw-step { border: 0; background: none; color: var(--brass-lo); font-size: 1.6rem; font-weight: 700; cursor: pointer; padding: 0; }
 .cw-step:active { background: var(--cw-soft); }
 .cw-cluetext { border: 0; background: none; color: var(--ink); text-align: left; padding: .3rem .2rem; cursor: pointer; overflow: hidden;

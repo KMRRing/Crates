@@ -113,6 +113,19 @@ export function answerNames(cat) {
   };
   return NAMES[cat] || [];
 }
-/** An answer of the bank as a theme: its name and category, and the clues it has, each a reverse entry. */
-export const answerOf = ai => BANK[ai];
+/**
+ * A knowledge entry as a card for the review pile (pile.js): a name to type, Punt's name-it as Deck asks it (`name`,
+ * `prompt`, `answer`), and four options as well, for wherever a card is answered by choosing (the answer and three of
+ * its kind: other countries or commodities for a forward entry, the same answer's other clues for a reverse one).
+ */
+export function reviewCard(e, rnd = Math.random) {
+  const a = BANK[e.a], mixUp = xs => xs.map(x => [rnd(), x]).sort((p, q) => p[0] - q[0]).map(([, x]) => x);
+  const others = e.dir === "fwd" ? BANK.filter(x => x.cat === a.cat && x !== a).map(x => x.name) : a.words.map(w => w.w).filter(w => w !== e.answer);
+  const answer = e.dir === "fwd" ? a.name : e.answer, options = mixUp([answer, ...mixUp(others).slice(0, 3)]);
+  return {
+    name: true, ask: e.dir === "fwd" ? `Crossword · which ${a.cat}` : "Crossword · name it", prompt: `${e.dir === "fwd" ? e.lead : a.name}: ${e.hint}`,
+    answer, note: e.dir === "fwd" ? `${e.lead}: ${e.hint} (${a.name})` : `${e.answer}: ${e.hint} (${a.name})`,
+    options, right: [options.indexOf(answer)], need: 1, about: e.about,
+  };
+}
 export { BANK };

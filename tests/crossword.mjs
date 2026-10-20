@@ -146,6 +146,23 @@ check(E.full(play) && E.solvedBy(play, p1) && !E.wrongCells(play, p1).length, "f
 const back = JSON.parse(JSON.stringify({ puzzle: p1, play }));
 check(same(back.play, play) && E.solvedBy(back.play, back.puzzle) && E.uniquelySolved(back.puzzle), "a puzzle and its play come back whole through JSON (what's saved)");
 
+// ---------- what a grid teaches ----------
+const p3 = ok.find(x => x.p.entries.filter(e => e.kind !== "word").length >= 3).p, play3 = E.freshPlay(p3);
+for (const e of p3.entries) e.cells.forEach((k, i) => E.put(play3, p3, k, e.letters[i]));
+const kb3 = p3.entries.filter(e => e.kind !== "word"), helpedOne = kb3[0];
+play3.revealed.push(helpedOne.cells[0]);
+const taught = E.lessons(p3, play3);
+check(taught.length === kb3.length && taught.find(x => x.e === helpedOne).helped && taught.filter(x => x.e !== helpedOne).every(x => !x.helped),
+  "a knowledge entry with a letter revealed goes back for review; the others, got unaided, move up");
+check(E.lessons(p3, play3, e => e !== helpedOne).length === kb3.length - 1, "at a split table only your own clues teach you");
+const themed = themes[0], keyOnly = E.lessons(themed, E.freshPlay(themed));
+check(!keyOnly.some(x => x.e.kind === "key") && keyOnly.every(x => x.helped), "a theme's keystone teaches nothing of its own; an empty grid's entries all go back");
+const card = K.reviewCard(troll, S.seeded(4)), cardF = K.reviewCard(vikings, S.seeded(4));
+check(card.name && card.answer === "Troll" && card.prompt.startsWith("Norway: ") && card.options.length === 4 && card.options[card.right[0]] === "Troll" && card.need === 1,
+  "a reverse entry's review card: name the clue from its reason and its country (Deck's name-it), with four options");
+check(cardF.answer === "Norway" && cardF.prompt.startsWith("Vikings: ") && cardF.options.every(o => K.BANK.some(a => a.name === o && a.cat === "country")) && cardF.about.includes("norway"),
+  "a forward entry's card names the country, its options other countries, and it carries what it's about");
+
 // ---------- the table ----------
 const people = n => Object.fromEntries(["a", "b", "c", "d", "e", "f"].slice(0, n).map((id, slot) => [id, { name: ["Korbi", "Sarah", "Tom", "Ana", "Bo", "Lin"][slot], slot, online: true }]));
 const p2 = ok[8].p;

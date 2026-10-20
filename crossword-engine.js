@@ -6,7 +6,7 @@
 // it). Everything is seeded and counted in steps, never timed, so a seed makes the same puzzle on every phone.
 import { makeGrid, slotsOf, fillGrid, mix, shuffled } from "./gridfill.js";
 import { cluesOf, cluedWords } from "./clues.js";
-import { kbEntries, says, saysWords, wordsOf, answerNames, BANK } from "./crossword-kb.js";
+import { kbEntries, saysWords, wordsOf, BANK } from "./crossword-kb.js";
 import { seeded, allowed, countSolutions, grade, REVEAL_COST, CHECK_COST } from "./crossword-solve.js";
 
 export { REVEAL_COST, CHECK_COST };
@@ -380,6 +380,13 @@ export const lettersIn = (play, e) => e.cells.map(k => play.letters[k]).join("")
 export const entryRight = (play, e) => lettersIn(play, e) === e.letters;
 /** Whether any of an entry's letters were revealed. */
 export const entryHelped = (play, e) => e.cells.some(k => play.revealed.includes(k));
+/**
+ * What a finished grid teaches: its knowledge entries that `mine` says were yours to solve, each { e, helped }, helped
+ * when a letter of it was revealed or it wasn't filled in right (it goes to the review pile; one got unaided moves up).
+ * A theme's keystone isn't one of its links but what they share, so it teaches nothing of its own.
+ */
+export const lessons = (puzzle, play, mine = () => true) => puzzle.entries.filter(e => e.kind !== "word" && e.kind !== "key" && e.key && mine(e))
+  .map(e => ({ e, helped: entryHelped(play, e) || !entryRight(play, e) }));
 /** The seconds a play is charged: the clock, and the penalties for help. */
 export const charged = play => Math.round(play.ms / 1000) + play.reveals * REVEAL_COST + play.checks * CHECK_COST;
 /** "4:07" (or "1:02:03"). */
@@ -391,4 +398,3 @@ export function clock(secs) {
 export const dailySeed = day => (Number(day) * 7919 + 271) >>> 0;
 /** Today's puzzle: the same for everyone, whatever their settings: Medium, every topic, both ways, classic. */
 export const dailyOptions = day => ({ seed: dailySeed(day), level: "medium", pool: "mixed", asks: "both", mode: "classic", topics: null });
-export { answerNames };

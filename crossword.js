@@ -5,10 +5,10 @@
 // table, the clues split between the players (one grid, nobody can finish alone) or a race on the same grid. The
 // puzzles are crossword-engine.js's (made in crossword-worker.js), the solvers crossword-solve.js's, the table
 // crossword-table.js's; this page draws them and takes the typing.
-import { LEVELS, LEVEL_IDS, ASKS, MODES, POOLS, freshPlay, put, check, reveal, full, solvedBy, wrongCells, lettersIn, entryRight, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
+import { LEVELS, LEVEL_IDS, ASKS, MODES, POOLS, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
 import { rivalRun, rivalAt, RIVALS } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
-import { kbEntry, BANK } from "./crossword-kb.js";
+import { kbEntry, reviewCard, BANK } from "./crossword-kb.js";
 import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, topicMix, action, line, onPause, isPaused } from "./menu.js";
@@ -222,6 +222,8 @@ function paint() {
   });
   drawClue();
   markList();
+  // where you are is part of the run: a reload, your other device or a partner watching shows the same square
+  if (!G && S && (S.at?.k !== cur.k || S.at?.dir !== cur.dir)) { S.at = { ...cur }; saveSoon(); }
 }
 /** The clue as the bar and the list show it: its number and direction, its tag, its bold part, its text and length. */
 function clueParts(e, mine = true) {
@@ -488,30 +490,14 @@ function solvedSolo() {
  * goes into it as a name-it card, for Deck and the other games' learning modes.
  */
 function learnFrom(p, pl, mine) {
-  for (const e of p.entries) {
-    if (e.kind === "word" || !e.key || !mine(e)) continue;
-    const helped = e.cells.some(k => pl.revealed.includes(k)) || !entryRight(pl, e);
+  for (const { e, helped } of lessons(p, pl, mine)) {
     const k = kbEntry(e.key);
     if (!k) continue;
     if (e.kind === "fwd") { if (!helped) known.recognised([e.pair]); }
     else known.named(e.pair, !helped);
-    if (helped) pile.record("crossword", e.key, cardOf(k), "clue");
+    if (helped) pile.record("crossword", e.key, reviewCard(k), "clue");
     else if (pile.has("crossword", e.key)) pile.answer("crossword", e.key, true);
   }
-}
-/** A knowledge entry as a review card: named by typing (Deck's name-it), with options for where it isn't. */
-function cardOf(k) {
-  const a = BANK[k.a], cat = a.cat;
-  if (k.dir === "fwd") {
-    const others = BANK.filter(x => x.cat === cat && x !== a).map(x => x.name).sort(() => Math.random() - 0.5).slice(0, 3);
-    const options = [a.name, ...others].sort(() => Math.random() - 0.5);
-    return { name: true, ask: `Crossword · which ${cat}`, prompt: `${k.lead}: ${k.hint}`, answer: a.name, note: `${k.lead}: ${k.hint} (${a.name})`,
-      options, right: [options.indexOf(a.name)], need: 1, about: k.about };
-  }
-  const others = a.words.map(w => w.w).filter(w => w !== k.answer).sort(() => Math.random() - 0.5).slice(0, 3);
-  const options = [k.answer, ...others].sort(() => Math.random() - 0.5);
-  return { name: true, ask: "Crossword · name it", prompt: `${a.name}: ${k.hint}`, answer: k.answer, note: `${k.answer}: ${k.hint} (${a.name})`,
-    options, right: [options.indexOf(k.answer)], need: 1, about: k.about };
 }
 function showDone() {
   const p = puzzle(), pl = play(), body = $("doneBody");
@@ -532,16 +518,17 @@ function showDone() {
     body.append(el("p", "cw-why", theirs > total ? `You beat ${name} (${clock(theirs)}) by ${clock(theirs - total)}.` : theirs < total ? `${name} won, in ${clock(theirs)}.` : `A dead heat with ${name}.`));
   }
   if (race) body.append(raceRows());
-  // what it was about: the knowledge entries, each with its link, the ones to come back marked
-  const kb = p.entries.filter(e => e.kind !== "word" && canRead(e));
+  // what it was about: every knowledge entry with its link (a partner's too, now it can be read), those of yours
+  // that go to the review pile marked
+  const kb = lessons(p, pl), theme = p.entries.find(e => e.kind === "key");
   if (kb.length) {
     body.append(el("h4", "menu-h", "What it was about"));
     const ul = el("ul", "cw-learnt");
-    for (const e of kb) {
-      const k = kbEntry(e.key), helped = e.cells.some(c => pl.revealed.includes(c)) || !entryRight(pl, e);
-      const li = el("li", helped ? "again" : "");
-      const a = k ? BANK[k.a].name : "";
-      li.append(el("b", "", k?.dir === "fwd" ? `${k.lead} → ${a}` : `${a} → ${e.answer}`), el("small", "", `${k?.hint || e.text}${helped ? " · back for review" : ""}`));
+    if (theme) { const li = el("li"); li.append(el("b", "", `★ ${theme.answer}`), el("small", "", `The ${theme.cat} behind every starred clue`)); ul.append(li); }
+    for (const { e, helped } of kb) {
+      const k = kbEntry(e.key), again = helped && ownClue(e), a = k ? BANK[k.a].name : "";
+      const li = el("li", again ? "again" : "");
+      li.append(el("b", "", k?.dir === "fwd" ? `${k.lead} → ${a}` : `${a} → ${e.answer}`), el("small", "", `${k?.hint || e.text}${again ? " · back for review" : ""}`));
       ul.append(li);
     }
     body.append(ul);
@@ -584,8 +571,9 @@ function afterNewRun() {
   rivalSaid = false;
   drawnFor = null;
   buildBoard();
-  const first = puzzle()?.entries[0];
-  if (first) cur = { k: first.cells[0], dir: first.dir };
+  const p = puzzle(), first = p?.entries[0], at = S?.at;
+  if (at && p && !isBlack(p, at.k) && entriesAt(p, at.k)[at.dir]) cur = { ...at };
+  else if (first) cur = { k: first.cells[0], dir: first.dir };
   paint(); drawStrip(); drawClock();
 }
 let rivalSaid = false;
@@ -628,6 +616,8 @@ function canRead(e) {
   if (G?.mode !== "split") return true;
   return readable(G, together.slot, present())[e.n];
 }
+/** Whether an entry's clue is this player's own: always alone and racing; split, the ones dealt to their seat. */
+const ownClue = e => G?.mode !== "split" || holders(G.puzzle, G.people || 2)[e.n] === together.slot;
 function badge(slot) {
   const p = people().find(x => x.slot === slot), b = el("i", "cw-by", initial(p?.name));
   b.style.setProperty("--who", `var(--p${slot % 6})`);
@@ -741,7 +731,7 @@ function onState(val) {
   const key = `${G.created}-${G.n}`, mine = G.mode === "split" ? !!G.done : !!runOf(G, together.slot)?.done;
   if (mine && shownDone !== key) {
     shownDone = key;
-    if (G.mode === "split") learnFrom(G.puzzle, tablePlay(), e => holders(G.puzzle, G.people || 2)[e.n] === together.slot);
+    if (G.mode === "split") learnFrom(G.puzzle, tablePlay(), ownClue);
     setTimeout(showDone, 400);
   } else if (G.mode === "race" && $("doneDlg").open) showDone();
 }
