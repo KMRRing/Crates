@@ -1,8 +1,9 @@
 // The clue bank (clues.js, README Classics). Every clued word is a common word of wordlist.js, filed under its length
 // and its tier, a word both spellings share, alphabetical and once. Every clue is short plain text starting with a
 // capital, gives away neither its answer nor an obvious stem of it (RUN in a clue for RUNNING, CARRY for CARRIED, GIVE
-// for GAVE) nor a piece of it (HUNK for CHUNK), and differs from its word's other clue. The API finds a word's clues
-// in any case, easy first, and lists a length's clued words commonest first.
+// for GAVE), a piece of it (HUNK for CHUNK) or half of a compound it is (DAYLIGHT for SUNLIGHT), and differs from its
+// word's other clue. The API finds a word's clues in any case, easy first, and lists a length's clued words commonest
+// first.
 import { CLUES } from "../clues-data.js";
 import { MIN, MAX, cluesOf, hasClue, cluedWords } from "../clues.js";
 import { tierOf, isVariant } from "../wordlist.js";
@@ -72,6 +73,30 @@ function showsPiece(answer, text) {
   }
   return null;
 }
+/** Whether a clue word is built on half of a compound answer: SUNLIGHT is SUN and LIGHT, so DAYLIGHT gives it away, as
+ *  PAPERBACK does HARDBACK and RIGHTS does COPYRIGHT, though neither word contains the other. Halves that are only
+ *  endings don't count (the LESS of USELESS, the ABLE of CURABLE): synonyms share those. */
+const ENDING_HALVES = new Set(["less", "ting", "able", "ably", "ions", "ally", "fully", "ship"]);
+const INFLECTED = ["", "s", "es", "ed", "d", "ing", "er", "ers", "ly", "y"];
+const common = w => w.length >= 3 && tierOf(w) >= 0 && tierOf(w) <= 2;
+function sharesHalf(answer, text) {
+  const halves = new Set();
+  for (let i = 3; i <= answer.length - 3; i++) {
+    const a = answer.slice(0, i), b = answer.slice(i);
+    if (!common(a) || !common(b)) continue;
+    for (const h of [a, b]) if (h.length >= 4 && !ENDING_HALVES.has(h)) halves.add(h);
+  }
+  for (const w of text.toLowerCase().match(/[a-z]+/g) || []) {
+    if (w === answer) continue;
+    for (const h of halves) for (const end of INFLECTED) {
+      if (end && !w.endsWith(end)) continue;
+      const core = end ? w.slice(0, -end.length) : w;
+      if (core === h && end) return h;
+      if ((core.endsWith(h) && common(core.slice(0, -h.length))) || (core.startsWith(h) && common(core.slice(h.length)))) return h;
+    }
+  }
+  return null;
+}
 
 // ---------- the data ----------
 const entries = [], malformed = [], misfiled = [], unordered = [];
@@ -113,6 +138,8 @@ const giving = clues.map(c => ({ ...c, stem: givesAway(c.word, c.text) })).filte
 check(!giving.length, "no clue contains its answer or an obvious stem of it", giving.map(c => `${c.word}: "${c.text}" has ${c.stem}`));
 const showing = clues.map(c => ({ ...c, piece: showsPiece(c.word, c.text) })).filter(c => c.piece);
 check(!showing.length, "nor a word that is a piece of its answer", showing.map(c => `${c.word}: "${c.text}" has ${c.piece}`));
+const halving = clues.map(c => ({ ...c, half: sharesHalf(c.word, c.text) })).filter(c => c.half);
+check(!halving.length, "nor a word built on half of a compound answer", halving.map(c => `${c.word}: "${c.text}" has ${c.half}`));
 const twice = entries.filter(e => e.clues.length === 2 && e.clues[0][0].toLowerCase().replace(/[^a-z0-9]/g, "") === e.clues[1][0].toLowerCase().replace(/[^a-z0-9]/g, ""));
 check(!twice.length, "no word has the same clue twice", twice.map(e => `${e.word}: ${e.clues[0][0]}`));
 check(clues.length > entries.length * 1.8, `two clues for nearly every word (${clues.length} clues, ${entries.filter(e => e.clues.length === 2).length} words with both)`);
@@ -123,6 +150,10 @@ check(givesAway("running", "Sprinting") === null && givesAway("running", "Out fo
 check(showsPiece("chunk", "Hunk") === "hunk" && showsPiece("cannot", "May not") === "not" && showsPiece("peanut", "Monkey nut") === "nut"
   && showsPiece("either", "One or the other") === null && showsPiece("peanut", "Goober") === null,
   "and the check for a piece finds HUNK in CHUNK and a short word ending CANNOT or PEANUT, not one in the middle (THE in EITHER)");
+check(sharesHalf("sunlight", "Daylight") === "light" && sharesHalf("hardback", "Not a paperback") === "back"
+  && sharesHalf("copyright", "Rights to a work") === "right" && sharesHalf("useless", "Hopeless") === null
+  && sharesHalf("sunlight", "Solar glow") === null && sharesHalf("batting", "Hitting") === null,
+  "and the check for a compound's half finds LIGHT in DAYLIGHT for SUNLIGHT, not the LESS that USELESS and HOPELESS share");
 
 // ---------- the API ----------
 {

@@ -4460,7 +4460,7 @@ hocks|Pawns|White wines
 hoist|Lift|Crane
 holed|Pierced|Putted in
 holly|Christmas shrub|Berried evergreen
-homed|Zeroed, with in|
+homed|Housed|Zeroed, with in
 honed|Sharpened|Perfected
 hones|Sharpens|Perfects
 honks|Hoots|Geese's calls
@@ -5807,7 +5807,7 @@ famous|Well-known|Celebrated
 faster|Quicker|More rapid
 father|Dad|Priest
 faults|Defects|Blames
-fewest|Least in number|Smallest number of
+fewest|Least in number|Smallest tally of
 fields|Meadows|Areas of study
 figure|Number|Shape
 filing|Storing papers|Smoothing with a rasp
@@ -9239,7 +9239,7 @@ peaked|Topped|Pale
 pealed|Rang|Chimed
 pearls|Gems|Treasures
 pebble|Stone|Shingle piece
-pecans|Nuts|Pie nuts
+pecans|Nuts|Praline ingredients
 pecked|Kissed|Nibbled
 pedals|Treadles|Cycles
 peddle|Sell|Hawk
@@ -11757,7 +11757,7 @@ journey|Trip|Travel
 judging|Assessing|Refereeing
 jumping|Leaping|Lively
 justice|Fairness|Judge
-keyword|Search term|Password
+keyword|Search term|Index entry
 kicking|Booting|Giving up
 kidding|Joking|Teasing
 kidnaps|Abducts|Seizes
@@ -11859,8 +11859,8 @@ nesting|Roosting|Stacking
 neutral|Impartial|Colourless
 nicking|Stealing|Arresting
 nominal|Token|In name only
-notable|Remarkable|Dignitary
-notably|Particularly|Remarkably
+notable|Striking|Dignitary
+notably|Particularly|Especially
 notions|Ideas|Whims
 novelty|Newness|Trinket
 novices|Beginners|Learners
@@ -11907,7 +11907,7 @@ patched|Mended|Repaired
 patches|Mends|Plots of land
 pausing|Stopping|Hesitating
 payment|Remittance|Fee
-peanuts|Groundnuts|Very little money
+peanuts|Goobers|Very little money
 peasant|Farm labourer|Rustic
 pedants|Sticklers|Hair-splitters
 penalty|Fine|Spot kick
@@ -12347,7 +12347,7 @@ agitate|Stir|Disturb
 agonies|Torments|Pains
 aground|Beached|Stranded
 ailment|Illness|Complaint
-aimless|Purposeless|Drifting
+aimless|Without direction|Drifting
 airiest|Breeziest|Most spacious
 airline|Carrier|Flight operator
 airmail|Overseas post|Letters by plane
@@ -12651,7 +12651,7 @@ boasted|Bragged|Crowed
 boating|Sailing|Rowing
 bobbing|Bouncing|Ducking
 bobbins|Spools|Reels
-bobcats|Lynxes|Wildcats
+bobcats|Lynxes|American felines
 bobsled|Toboggan|Sledge
 bodices|Corsets|Tops of dresses
 boggled|Baffled|Amazed
@@ -12694,7 +12694,7 @@ bovines|Cattle|Oxen
 bowling|Delivering|Tenpins
 boxcars|Freight wagons|Railway trucks
 boycott|Shun|Embargo
-boyhood|Childhood|Youth
+boyhood|Youth|Early years
 bracing|Invigorating|Steadying
 bragged|Boasted|Crowed
 braided|Plaited|Interwoven
@@ -13744,7 +13744,7 @@ flunked|Failed|Dropped out
 fluster|Flurry|Agitate
 fluting|Grooving|Ridges
 flutter|Flap|Bet
-flyover|Overpass|Aerial display
+flyover|Raised junction|Aerial display
 foaling|Giving birth, as a mare|Dropping a colt
 foamier|Frothier|Bubblier
 foaming|Frothing|Fuming
@@ -14377,7 +14377,7 @@ jetting|Flying|Spurting
 jiffies|Moments|Instants
 jiggled|Wiggled|Shook
 jiggles|Wiggles|Shakes
-jigsaws|Puzzles|Fretsaws
+jigsaws|Puzzles|Scroll cutters
 jilting|Dumping|Rejecting
 jingled|Tinkled|Clinked
 jingles|Tinkles|Advertising tunes
@@ -14422,7 +14422,7 @@ kennels|Dog houses|Boarding places
 kernels|Seeds|Cores
 ketchup|Tomato sauce|Condiment
 kettles|Boilers|Pots
-keyhole|Lock opening|Peephole
+keyhole|Lock opening|Spy's vantage point
 keynote|Theme|Main speech
 kickoff|Start|Beginning
 kidneys|Organs|Types
@@ -14450,7 +14450,7 @@ laciest|Most delicate|Frilliest
 lacquer|Varnish|Hairspray
 ladders|Steps|Runs in tights
 ladling|Serving|Scooping
-ladybug|Ladybird, in America|Spotted beetle
+ladybug|Spotted beetle|Aphid eater
 laggard|Straggler|Slowcoach
 lagging|Insulation|Trailing
 lagoons|Lakes|Atolls' pools
@@ -14630,7 +14630,7 @@ mangers|Troughs|Cribs
 mangier|Scruffier|Shabbier
 mangoes|Tropical fruits|Chutney fruits
 manhole|Sewer access|Drain cover opening
-manhood|Adulthood|Masculinity
+manhood|Maturity|Masculinity
 maniacs|Madmen|Fanatics
 manlier|More virile|More masculine
 manners|Etiquette|Courtesies
@@ -14951,7 +14951,7 @@ outwits|Outsmarts|Outfoxes
 ovaries|Egg producers|Flower parts
 ovation|Applause|Standing cheer
 overate|Gorged|Binged
-overdid|Exaggerated|Overcooked
+overdid|Exaggerated|Cooked too long
 overeat|Gorge|Binge
 overlay|Covering|Coat
 overran|Invaded|Exceeded
@@ -15159,7 +15159,7 @@ plights|Predicaments|Promises
 plodded|Trudged|Lumbered
 plopped|Dropped|Splashed
 plucked|Picked|Brave
-plumage|Feathers|Plumes
+plumage|Feathers|Bird's finery
 plumbed|Fathomed|Sounded
 plumber|Pipe fitter|Tradesman
 pluming|Preening|Feathering
@@ -15952,7 +15952,7 @@ soloing|Flying alone|Performing alone
 soloist|Performer|Singer
 soluble|Dissolvable|Solvable
 solvent|Thinner|Debt-free
-someday|Eventually|Sometime
+someday|Eventually|One fine morning
 sonatas|Compositions|Pieces for piano
 sonnets|Poems|Fourteen-liners
 soothed|Calmed|Comforted
@@ -16659,7 +16659,7 @@ waviest|Curliest|Most rippled
 waxiest|Palest|Glossiest
 waylaid|Ambushed|Accosted
 waylays|Ambushes|Accosts
-wayside|Roadside|Verge
+wayside|Verge|Edge of the road
 wayward|Wilful|Unruly
 weakens|Saps|Enfeebles
 weakest|Feeblest|Frailest
@@ -17358,7 +17358,7 @@ wherever|In any place|To any spot
 withdraw|Retreat|Take out
 wondered|Marvelled|Pondered
 worrying|Fretting|Alarming
-yourself|Thyself|`,
+yourself|Thee, reflexively|`,
 `aardvark|Anteater|Burrowing African mammal
 abandons|Deserts|Gives up
 abnormal|Unusual|Irregular
@@ -17427,7 +17427,7 @@ automate|Mechanise|Computerise
 awaiting|Expecting|Pending
 awarding|Granting|Presenting
 backbone|Spine|Courage
-backward|Rearward|Shy
+backward|Behind the times|Shy
 bacteria|Germs|Microbes
 baffling|Puzzling|Mystifying
 balanced|Even|Fair
@@ -17435,7 +17435,7 @@ balances|Equalises|Remainders
 bankrupt|Insolvent|Bust
 barriers|Fences|Obstacles
 basement|Cellar|Lowest floor
-bathroom|Washroom|Loo
+bathroom|Lavatory|Loo
 bearding|Confronting|Facing boldly
 beginner|Novice|Learner
 behaving|Acting|Being good
@@ -17444,7 +17444,7 @@ belonged|Fitted in|Was owned
 biblical|Of scripture|Epic in scale
 bicycles|Bikes|Two-wheelers
 billfold|Wallet|Purse
-billions|Thousand millions|Countless numbers
+billions|Huge sums|Countless numbers
 birthday|Anniversary|Cake-and-candles occasion
 biscuits|Cookies|Crackers
 blasting|Exploding|Criticising
@@ -17576,7 +17576,7 @@ cyclists|Riders|Bikers
 cylinder|Tube|Drum
 darkness|Gloom|Night
 daughter|Girl|Offspring
-daylight|Sunlight|Dawn
+daylight|Dawn|Sunshine
 deadline|Time limit|Cut-off
 debating|Discussing|Arguing
 debugged|Fixed, as code|Swept for microphones
@@ -17754,7 +17754,7 @@ founding|Establishing|Original
 fountain|Spring|Jet of water
 fourteen|Two sevens|Lines in a sonnet
 fragment|Piece|Shard
-freeways|Motorways, in America|Highways
+freeways|Interstates|Motor roads
 freezing|Icy|Halting
 friction|Rubbing|Discord
 frighten|Scare|Alarm
@@ -17782,9 +17782,9 @@ guidance|Advice|Direction
 gullible|Naive|Credulous
 handbook|Manual|Guide
 handicap|Disadvantage|Golf rating
-hangover|Morning-after feeling|Holdover
+hangover|Morning-after feeling|Relic
 happiest|Most content|Gladdest
-hardback|Bound book|Not a paperback
+hardback|Bound book|Cased edition
 hardened|Toughened|Set
 hardship|Adversity|Privation
 headache|Migraine|Nuisance
@@ -17855,7 +17855,7 @@ invoking|Calling upon|Citing
 journals|Diaries|Periodicals
 junction|Crossroads|Joint
 juvenile|Young|Childish
-keywords|Search terms|Passwords
+keywords|Search terms|Index entries
 kindness|Goodness|Generosity
 landlord|Innkeeper|Lessor
 laughing|Chuckling|Giggling
@@ -17914,7 +17914,7 @@ monitors|Screens|Watches over
 monopoly|Exclusive control|Board game of property
 monsters|Beasts|Fiends
 morality|Ethics|Virtue
-moreover|Besides|Furthermore
+moreover|Besides|Also
 motivate|Inspire|Drive
 motorway|Highway|Fast road
 mountain|Peak|Heap
@@ -17973,8 +17973,8 @@ overhead|Above|Running cost
 overload|Burden|Swamp
 overlong|Too lengthy|Drawn out
 overlook|Ignore|Command a view of
-override|Overrule|Cancel
-overrode|Overruled|Cancelled
+override|Countermand|Cancel
+overrode|Countermanded|Cancelled
 overseas|Abroad|Foreign
 overtime|Extra hours|Added period
 overtone|Hint|Connotation
@@ -18067,7 +18067,7 @@ pursuing|Chasing|Following
 puzzling|Baffling|Perplexing
 quarters|Fourths|Lodgings
 quietest|Calmest|Softest
-railroad|Railway, in America|Force through
+railroad|Train line, in America|Force through
 rational|Logical|Sane
 rattling|Clattering|Unnerving
 reacting|Responding|Answering
@@ -18225,7 +18225,7 @@ stunning|Gorgeous|Dazing
 subtlety|Nuance|Finesse
 succeeds|Prospers|Follows
 sufferer|Victim|Patient
-sunlight|Daylight|Rays
+sunlight|Rays|Solar glow
 sunshine|Brightness|Fair weather
 supplier|Provider|Vendor
 suppress|Quash|Stifle
@@ -18253,7 +18253,7 @@ tactless|Undiplomatic|Insensitive
 tailored|Made to measure|Adapted
 talented|Gifted|Able
 taxation|Levies|Duty
-taxpayer|Citizen|Ratepayer
+taxpayer|Citizen|Revenue source
 teachers|Tutors|Instructors
 teenager|Adolescent|Youth
 tempting|Alluring|Enticing
@@ -18888,7 +18888,7 @@ converted|Changed|Adapted
 converter|Adaptor|Transformer
 convicted|Found guilty|Sentenced
 cooperate|Collaborate|Work together
-copyright|Rights to a work|Intellectual property
+copyright|Author's protection|Intellectual property
 corporate|Business|Collective
 correlate|Correspond|Connect
 cosmology|Universe study|Astrophysics, broadly
@@ -19206,7 +19206,7 @@ monitored|Watched|Supervised
 mortality|Death rate|Being human
 motivated|Driven|Inspired
 motivates|Drives|Inspires
-motorways|Highways|Fast roads
+motorways|Autobahns|Fast roads
 mountains|Peaks|Heaps
 multiples|Products of a number|Chain stores
 murdering|Killing|Slaying
@@ -19264,7 +19264,7 @@ overloads|Burdens|Swamps
 overlooks|Ignores|Commands a view of
 overnight|Sudden|Until morning
 overprice|Charge too much|Rip off
-overrides|Overrules|Cancels
+overrides|Countermands|Cancels
 overtones|Hints|Connotations
 overwhelm|Overpower|Swamp
 ownership|Possession|Title
@@ -19504,7 +19504,7 @@ syntactic|Grammatical|Structural
 synthesis|Fusion|Combination
 tailoring|Adapting|Dressmaking
 tasteless|Bland|Vulgar
-taxpayers|Citizens|Ratepayers
+taxpayers|Citizens|Revenue sources
 teenagers|Adolescents|Youths
 telescope|Spyglass|Shorten
 tentative|Hesitant|Provisional
@@ -19564,7 +19564,7 @@ varieties|Kinds|Types
 vegetable|Carrot, e.g.|Greens
 verifying|Confirming|Checking
 versatile|Adaptable|All-round
-viewpoint|Perspective|Standpoint
+viewpoint|Perspective|Opinion
 violation|Breach|Infringement
 violently|Fiercely|Brutally
 voluntary|Optional|Unpaid
@@ -19572,7 +19572,7 @@ volunteer|Offer|Helper
 wandering|Roaming|Nomadic
 warehouse|Depot|Store
 whereupon|At which point|After which
-whichever|Any one|Whatever
+whichever|Any one|Either one
 willingly|Gladly|Readily
 windowing|Splitting a screen|
 withdrawn|Shy|Retracted
@@ -19888,7 +19888,7 @@ believable|Credible|Plausible
 beneficial|Helpful|Advantageous
 biological|Natural|Organic
 biologists|Life scientists|Zoologists, e.g.
-blackboard|Chalkboard|Classroom slate
+blackboard|Classroom slate|Chalk surface
 borderline|Marginal|Uncertain
 boundaries|Borders|Limits
 bracketing|Grouping|Enclosing
@@ -20244,8 +20244,8 @@ overloaded|Swamped|Weighed down
 overlooked|Ignored|Missed
 overpriced|Too dear|Exorbitant
 overprices|Charges too much|Rips off
-overridden|Overruled|Cancelled
-overriding|Paramount|Overruling
+overridden|Countermanded|Cancelled
+overriding|Paramount|Countermanding
 overwhelms|Overpowers|Swamps
 paragraphs|Sections of text|Short news items
 parameters|Limits|Variables
@@ -20401,7 +20401,7 @@ soundtrack|Film music|Score
 specialist|Expert|Consultant
 sponsoring|Backing|Funding
 staggering|Astounding|Reeling
-standpoint|Viewpoint|Position
+standpoint|Position|Perspective
 stationary|Still|Motionless
 stereotype|Cliche|Pigeonhole
 stimulated|Stirred|Encouraged
@@ -20485,7 +20485,7 @@ variations|Changes|Versions
 vegetables|Greens|Carrots, e.g.
 vegetarian|Non-meat eater|Veggie
 vertically|Upright|Up and down
-viewpoints|Perspectives|Standpoints
+viewpoints|Perspectives|Opinions
 vigorously|Energetically|Strenuously
 vocabulary|Words|Lexicon
 volunteers|Offers|Helpers
@@ -20786,7 +20786,7 @@ explanatory|Illustrative|Descriptive
 exploration|Investigation|Expedition
 exponential|Rapidly growing|Steeply rising
 expressions|Phrases|Looks
-expressways|Motorways|Highways
+expressways|Autobahns|Fast roads
 extensively|Widely|Thoroughly
 familiarity|Acquaintance|Informality
 fascinating|Enthralling|Captivating
@@ -20804,7 +20804,7 @@ frightening|Scary|Alarming
 frustrating|Thwarting|Annoying
 frustration|Annoyance|Disappointment
 functioning|Working|Operating
-furthermore|Moreover|Besides
+furthermore|Besides|In addition
 generations|Age groups|Productions
 genetically|Hereditarily|By inheritance
 governments|Administrations|Regimes
@@ -20963,7 +20963,7 @@ selectively|Choosily|Discriminatingly
 sensitivity|Delicacy|Touchiness
 sentimental|Nostalgic|Soppy
 seriousness|Gravity|Earnestness
-shareholder|Investor|Stockholder
+shareholder|Investor|Part-owner
 simplifying|Clarifying|Streamlining
 spectacular|Stunning|Dramatic
 speculation|Conjecture|Gamble
@@ -21281,7 +21281,7 @@ resurrection|Revival|Rising again
 ridiculously|Absurdly|Laughably
 satisfaction|Contentment|Fulfilment
 satisfactory|Adequate|Acceptable
-shareholders|Investors|Stockholders
+shareholders|Investors|Part-owners
 similarities|Likenesses|Resemblances
 subscription|Membership fee|Regular payment
 subsequently|Later|Afterwards
