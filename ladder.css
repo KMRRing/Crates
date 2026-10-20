@@ -85,7 +85,7 @@ html[data-mode="night"] { --ld-in: #6FA0D2; --ld-good: #7FC2A8; --ld-bad: #E8806
 /* growing: the gaps between letters take a tap, to add one there */
 .ld-slot { position: absolute; z-index: 2; top: 0; width: 1rem; height: var(--t); margin-left: -.5rem; padding: 0; border: 0; background: none; cursor: pointer; }
 .ld-slot::after { content: ""; position: absolute; left: 50%; top: 15%; bottom: 15%; width: 2px; margin-left: -1px; background: var(--brass); opacity: .35; border-radius: 1px; }
-.ld-slot.cur::after { opacity: 1; width: 4px; margin-left: -2px; background: var(--ink); top: 0; bottom: 0; }
+.ld-slot.cur::after { opacity: 1; width: .25rem; margin-left: -.125rem; background: var(--ink); top: 0; bottom: 0; }
 .ld-rung.bad .ld-t { border-color: var(--ld-bad); color: var(--ld-bad); }
 .ld-rung.bad { animation: ld-shake .32s; }
 @keyframes ld-shake { 25% { transform: translateX(-.3rem); } 75% { transform: translateX(.3rem); } }

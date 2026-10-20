@@ -4,6 +4,9 @@
 import { ACCEPT, COMMON, LENGTHS, LEVELS, LEVEL_ORDER, OVER, HINT, RIVALS, graphFor, isStep, isRung, rarity, analyse, distance, routeFrom, search, effort, fits, levelOf, generate, isEnd, inflected, apart,
   newRun, place, undo, working, words, steps, hintFor, score, rivalPlan, rivalAt, rng } from "../ladder-engine.js";
 import { BOOK, CARROLL, KINBOTE, LINKED, THEMES, linkedFor } from "../ladder-pairs.js";
+import { dealFor, freshTable, isTable, defaultMode, startTable, teamMove, teamUndo, teamHint, teamOn, mustChange, raceReport, raceOrder, raceOver, teamResult } from "../ladder-table.js";
+import { sayReady, noteRun, runOf, standings, resultOf, rematch } from "../duel-core.js";
+import { roundTrip } from "./rtdb.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -185,6 +188,81 @@ function countByHand(P, cap = 50) {
   check(new Set(LINKED.map(p => `${p.a}-${p.b}-${p.rules}`)).size === LINKED.length, "no pair twice");
   const levels = LEVEL_ORDER.map(l => linked.filter(({ P }) => P && levelOf(P) === l).length);
   check(levels.every(n => n >= 15), `linked pairs at every level (${levels.join(", ")})`);
+}
+
+// ---------- together: the table (ladder-table.js), every change through the database's round trip ----------
+{
+  const db = g => roundTrip(JSON.parse(JSON.stringify(g)));
+  const seat = (n) => Object.fromEntries(Array.from({ length: n }, (_, s) => [`u${s}`, { name: `P${s}`, slot: s, pid: `p${s}`, online: true }]));
+  const table = (n, mode, seed = 41) => db(freshTable(seat(n), { people: n, match: dealFor(seed, { n, mode, level: "easy" }), now: 1000 }));
+  const allIn = (g, n, at = 2000) => { let x = g; for (let s = 0; s < n; s++) { sayReady(x, s, [...Array(n).keys()], at); if (x.start) startTable(x, at); x = db(x); } return x; };
+
+  // the split: each player's letters, and the last word each sees, make the whole between them, and nobody climbs alone
+  let covers = true, needed = true, deals = 0;
+  for (const n of [2, 3, 4]) for (let seed = 1; seed <= 12; seed++) {
+    const g = allIn(table(n, "team", seed * 31), n), P = g.match.ladders[0], owners = g.team.owners;
+    deals++;
+    if (owners.length !== P.start.length || new Set(owners).size !== n) covers = false;
+    // every player holds a letter the first and last words differ in: a letter every ladder must change
+    if (!Array.from({ length: n }, (_, s) => s).every(s => mustChange(P).some(p => owners[p] === s))) needed = false;
+  }
+  check(covers, `a team's letters are dealt round everyone at the table (${deals} deals of two, three and four players)`);
+  check(needed, "every player holds a letter the ladder must change, so the whole team is needed");
+  const g0 = allIn(table(2, "team"), 2), P0 = g0.match.ladders[0];
+  const seen = s => [...P0.end].map((c, p) => (g0.team.owners[p] === s ? c : "_")).join("");
+  check([...seen(0)].every((c, p) => c === "_" || c === P0.end[p]) && [...P0.end].every((c, p) => seen(0)[p] === c || seen(1)[p] === c) && seen(0) !== P0.end && seen(1) !== P0.end,
+    `each sees only their own letters of the last word (${seen(0)} and ${seen(1)} make ${P0.end}), neither the whole of it`);
+  // one player alone, climbing the par route with the other at the table: refused at the other's letter
+  let solo = g0, stuck = null;
+  for (let k = 1; k < P0.route.length && !stuck; k++) {
+    const r = teamMove(solo, { n: solo.n, slot: 0, from: k - 1, word: P0.route[k], present: [0, 1], now: 5000 });
+    if (r === "theirs") stuck = P0.route[k]; else solo = db(solo);
+  }
+  check(!!stuck && !solo.team.done, `alone, a player is stopped at their partner's letter (${stuck?.toUpperCase()})`);
+  // together: the par route, each making the rungs whose letter they hold
+  let g = g0;
+  const ownerAt = (a, b) => g.team.owners[[...a].findIndex((c, i) => c !== b[i])];
+  for (let k = 1; k < P0.route.length; k++) {
+    const slot = ownerAt(P0.route[k - 1], P0.route[k]);
+    const r = teamMove(g, { n: g.n, slot, from: k - 1, word: P0.route[k], present: [0, 1], now: 2000 + 1000 * k });
+    if (r !== "placed" && r !== "done") { check(false, `a team rung was refused: ${r}`); break; }
+    g = db(g);
+  }
+  check(g.team.done && g.team.steps === P0.par && g.team.rungs.map(r => r.w).join() === P0.route.join(), `together they climb it at par, through the database at every rung (${P0.route.join(" ")})`);
+  const res = teamResult(g);
+  check(res && res.coop && res.won && res.lower && res.score === Math.round((g.team.at - g.start) / 1000), "the pair's record: a team's score, lower is better");
+  // a rung made on a ladder that has moved on is refused; an away player's letters are anyone's
+  const h = allIn(table(2, "team", 99), 2), Q = h.match.ladders[0], other = h.team.owners[[...Q.route[0]].findIndex((c, i) => c !== Q.route[1][i])] === 0 ? 1 : 0;
+  const hp = db(h);
+  check(teamMove(h, { n: h.n, slot: other, from: 0, word: Q.route[1], present: [0, 1] }) === "theirs" && teamMove(hp, { n: h.n, slot: other, from: 0, word: Q.route[1], present: [other] }) === "placed",
+    "a partner's letter is theirs while they're here, and let go while they're away");
+  const h2 = db(hp);
+  check(teamMove(h2, { n: h2.n, slot: 0, from: 0, word: Q.route[1], present: [0, 1] }) === "moved" && teamMove(h2, { n: h2.n + 1, slot: 0, from: 1, word: "xxxx", present: [] }) === "moved",
+    "a rung made on a ladder that has moved on, or in another game, is refused");
+  check(teamUndo(h2, { n: h2.n, from: 1 }) && db(h2).team.rungs.length === 1 && !teamUndo(db(h2), { n: h2.n, from: 0 }), "anyone may take the last rung off, never the first word");
+  const h3 = db(h2), w = teamHint(h3, { n: h3.n, from: 0 });
+  check(w && isStep(Q.start, w) && db(h3).team.hints === 1 && db(h3).team.rungs[1].hint, "a hint for the team puts the next rung of a route on, whoever's letter it is");
+  // the race: the same ladders for everyone; the lowest score wins
+  // three at the table; two say Ready and race, the third is away and never begins
+  let race = table(3, "race", 7);
+  sayReady(race, 0, [0, 1], 2000); race = db(race);
+  sayReady(race, 1, [0, 1], 2000); startTable(race, 2000); race = db(race);
+  check(race.match.ladders.length === 3 && race.match.ladders.every(P => isLadder(P, P.route)) && !race.team && runOf(race, 0).begun && !runOf(race, 2), "a race deals three ladders, the same for everyone at the table");
+  check(!raceOver(race, [0, 1, 2]), "a race isn't over while someone at the table is still to play it");
+  const runs = [{ at: 3, over: 0, hints: 0, ms: 90000, count: 3, done: true }, { at: 3, over: 1, hints: 0, ms: 50000, count: 3, done: true }];
+  runs.forEach((r, s) => { const rep = raceReport(r); noteRun(race, s, race.n, { ...rep, ms: r.ms }, 2000 + r.ms); race = db(race); });
+  const order = standings(race, raceOrder).map(x => x.slot);
+  check(order.join() === "0,1" && runOf(race, 0).score === 90 && runOf(race, 1).score === 110, `the standings: a minute a step over par counts against the time (90 s at par beats 50 s one over: ${order.join(", ")})`);
+  check(raceOver(race, [0, 1]), "it's over when everyone who began has finished and nobody here is still to begin");
+  const mid = raceReport({ at: 1, over: 0, hints: 0, ms: 20000, count: 3, done: false });
+  check(mid.text === "1 of 3" && !mid.done && raceOrder({ ...mid }, { ...raceReport({ at: 2, over: 0, hints: 0, ms: 1, count: 3, done: false }) }) > 0, "while it's on, a player's progress: the ladders climbed");
+  const won = resultOf(race, 0, [0, 1], raceOrder, true);
+  check(won && won.won && won.lower, "the pair's record: the race's winner");
+  const again = db(Object.assign(race, {}));
+  rematch(again, 1, dealFor(8, { n: 3, mode: "team" }));
+  const T2 = db(again);
+  check(T2.n === 2 && T2.match.mode === "team" && !teamOn(T2) && runOf(T2, 1)?.ready && !runOf(T2, 0), "another game at the table, the other way: the one who asked is ready, the rest say so");
+  check(isTable(T2) && !isTable({ ...T2, match: { ...T2.match, mode: "chess" } }) && defaultMode(2) === "team" && defaultMode(4) === "race", "a pair plays as a team by default, a party races");
 }
 
 // ---------- speed ----------

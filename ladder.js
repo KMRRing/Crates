@@ -51,9 +51,16 @@ let clockFrom = null, savedAt = 0, paused = false;
 let message = null;         // { text, tone } until the next tap, else how to play
 
 const room = createLadderRoom({
-  onState: () => render(), toast, askName,
+  onState: () => { if (G) render(); }, toast, askName, prefs, keepPrefs,
   solo: () => { G = loadSolo(); if (!G) deal(prefs.kind); else { history.replaceState(null, "", hashFor(G)); clockRun(); render(); } },
-  begin: (g, run) => { G = g; cursor = null; typed = ""; message = null; if (run) G.run = run; render(); },
+  // the table's ladder on the page (null: the lobby, where nobody sees a ladder yet)
+  begin: g => {
+    const same = G && g && G.mode === g.mode && G.n === g.n && G.P.start === g.P.start && G.raceI === g.raceI;
+    G = g;
+    if (!same) { cursor = null; typed = ""; message = null; wrong = null; }
+    else if (cursor && !room.mayChange(G, cursor.pos)) cursor = null;
+    if (G) render(true); else drawWaiting();
+  },
 });
 
 // ---------- the clock ----------
@@ -214,7 +221,7 @@ function enter() {
 }
 /** Tries a word as the next rung at the working end: placed, the ladder whole, or refused with the reason. */
 function try_(word) {
-  if (G.mode === "team") { room.teamMove(G, work(), word, outcome); return; }
+  if (G.mode === "team") { room.teamMove(G, word, outcome); return; }
   outcome(place(G.P, G.run, G.side, word), word);
 }
 // every message fits one line on a phone, so the keys never move
@@ -318,8 +325,8 @@ function wordRow(r) {
       b.setAttribute("aria-label", `Change ${CAPS(ch)}`);
       if (changed) b.classList.add(by != null ? "by" : "ch");
       if (cursor && !cursor.gap && cursor.pos === p) b.classList.add("cur");
-      const own = room.ownerClass?.(G, p);
-      if (own) b.classList.add(own);
+      const own = room.owner?.(G, p);
+      if (own) { b.classList.add(own.cls); b.style.setProperty("--who", own.who); }
       b.addEventListener("click", () => tapLetter(p));
       li.append(b);
     } else {
@@ -420,6 +427,7 @@ function drawLine() {
   else if (typed) text = "Typing a word: Enter puts it on the ladder.";
   else if (cursor?.gap) text = "A letter to add here, from the keys.";
   else if (cursor) text = `${CAPS(work()[cursor.pos])} to what? A key changes it${grow() ? "; ⌫ drops it" : ""}.`;
+  else if (G.mode === "team") text = `Tap one of your letters of ${CAPS(work())}, then its new letter.`;
   else text = `Tap a letter of ${CAPS(work())}${grow() ? " or a gap" : ""}, then its new letter.`;
   if (l.textContent !== text) l.textContent = text;
   l.className = `ld-line${message?.tone ? ` ${message.tone}` : ""}`;
@@ -472,6 +480,18 @@ function rivalLine() {
 function render(scroll = false) {
   if (!G) return;
   drawSay(); drawStrip(); drawLadder(scroll); drawLine(); drawTools(); drawResult();
+}
+/** At a table before its game starts: no ladder (a race's would be seen early), the keys asleep. */
+function drawWaiting() {
+  $("ladder").replaceChildren();
+  $("say").replaceChildren("Ladder together");
+  for (const id of ["par", "steps"]) put(id, "–");
+  put("clock", "0:00"); put("penalty", "");
+  $("rival").hidden = true;
+  $("line").textContent = "Waiting for the table: say Ready.";
+  $("line").className = "ld-line";
+  $("side").classList.remove("over");
+  for (const b of [...$("kbd").querySelectorAll("button"), $("undoBtn"), $("hintBtn"), $("flipBtn")]) b.disabled = true;
 }
 
 // ---------- the routes: your ladder, the ones at par, the computer's ----------
