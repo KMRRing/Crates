@@ -161,19 +161,25 @@ function placeKnowledge(grid, slots, pool, count, rnd, { first = null, early = [
 
 // ---------- making a puzzle ----------
 /**
- * A grid for a level: one of gridfill's British grids with no entry longer than the level allows and few of three,
- * with room for entries of the lengths asked for (a theme's keystone, what the review pile has due).
+ * A grid for a level: one of gridfill's British grids with no entry longer than the level allows, few of three
+ * letters and hardly a block of four black squares (a printed grid's blacks stand apart, in the lattice), with room
+ * for entries of the lengths asked for (a theme's keystone, what the review pile has due).
  */
 function gridFor(L, seed, lengths = []) {
-  for (let t = 0; t < 30; t++) {
+  for (let t = 0; t < 40; t++) {
     const g = makeGrid({ size: L.size, style: "british", seed: mix(seed, t), tries: 40, lengths });
     if (!g) continue;
     const s = slotsOf(g);
-    if (Math.max(...s.map(x => x.len)) > L.longest) continue;
-    if (s.filter(x => x.len === 3).length > s.length * 0.3) continue;
+    if (Math.max(...s.map(x => x.len)) > L.longest || s.filter(x => x.len === 3).length > s.length * 0.3 || blocks(g) > 2) continue;
     return g;
   }
   return null;
+}
+/** How many two-by-two blocks of black squares a grid has. */
+function blocks(g) {
+  let n = 0;
+  for (let r = 0; r + 1 < g.length; r++) for (let c = 0; c + 1 < g[r].length; c++) if (g[r][c] === BLACK && g[r + 1][c] === BLACK && g[r][c + 1] === BLACK && g[r + 1][c + 1] === BLACK) n++;
+  return n;
 }
 const ATTEMPTS = 40;
 /**

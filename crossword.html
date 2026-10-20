@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Crossword</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="crossword.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="crossword fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon cw-mark" aria-hidden="true"></span>Crossword</button></h1>
+    <div class="top-right"><span id="clock" class="cw-clock" role="timer" aria-label="Time"></span><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+  </header>
+  <div id="strip" class="cw-strip"><span id="where" class="cw-where"></span><span id="who" class="cw-who"></span></div>
+  <div id="boardBox" class="cw-boardbox">
+    <div id="board" class="cw-grid" role="grid" aria-label="The grid: tap a square to write in it, tap it again to turn across or down"></div>
+  </div>
+  <div class="cw-side fit-half">
+    <div id="clueBar" class="cw-bar">
+      <button type="button" id="prevClue" class="cw-step" aria-label="Previous clue">‹</button>
+      <button type="button" id="clueText" class="cw-cluetext" aria-live="polite"></button>
+      <button type="button" id="nextClue" class="cw-step" aria-label="Next clue">›</button>
+    </div>
+    <div id="list" class="cw-list fit-scroll fit-grow" aria-label="Clues"></div>
+    <div id="kbd" class="cw-kbd" aria-label="Keyboard"></div>
+  </div>
+</div>
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+<dialog id="cluesDlg" class="sheet cw-clues-dlg" aria-label="Clues">
+  <div class="pick-head"><h2>Clues</h2><button class="btn" type="button" id="cluesClose">Close</button></div>
+  <div id="cluesBody" class="cw-list cw-list-full"></div>
+</dialog>
+<dialog id="doneDlg" class="sheet" aria-label="How it went">
+  <div class="pick-head"><h2 id="doneTitle">Solved</h2><button class="btn" type="button" id="doneClose">Close</button></div>
+  <div id="doneBody"></div>
+</dialog>
+<dialog id="nameDlg" class="sheet" aria-label="Your name">
+  <form method="dialog">
+    <label for="nameInput">Your name, so the others know who's playing</label>
+    <input id="nameInput" maxlength="16" autocomplete="nickname" required>
+    <button class="btn primary wide" type="submit">Continue</button>
+  </form>
+</dialog>
+<p id="toast" class="cw-toast" role="status" aria-live="polite"></p>
+<script src="bank.js"></script>
+<script type="module" src="crossword.js"></script>
+</body>
+</html>
