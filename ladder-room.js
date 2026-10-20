@@ -212,7 +212,7 @@ export function createLadderRoom({ onState, toast, askName, solo, begin, prefs, 
       const wait = el("p", "duel-note");
       wait.append(sextant(), waiting.length ? `Waiting for ${list(waiting)}` : "Waiting for someone to join");
       body.append(wait);
-      if (M.mode === "race") body.append(button("Start without waiting", startNow, ""));
+      body.append(button("Start without waiting", startNow, ""));             // a team's absent players' letters are let go to the rest
     }
     body.append(button("Back to solo", () => together.leave(), "link"));
   }
