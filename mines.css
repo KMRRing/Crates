@@ -1,0 +1,87 @@
+/* Mines: Minesweeper on fields that need no guess. The field is a canvas (mines-draw.js) drawn from the page's tokens;
+   these are its frame, the strip over it and the tools under it. Cobalt is the house colour, as Minesweeper's 1. */
+:root { --mn-in: #2C5B8A; --mn-in-soft: color-mix(in srgb, var(--mn-in) 15%, var(--sheet)); --mn-good: #2F7D5B; --mn-bad: #A8382B; --mn-flag: #A8382B;
+  /* the numbers, as Minesweeper's: 1 blue, 2 green, 3 red, 4 navy, and on in the enamels (a triangle's go to 12) */
+  --mn-n1: #2C5B8A; --mn-n2: #2F7D5B; --mn-n3: #A8382B; --mn-n4: #1C2A34; --mn-n5: #7A3B1E; --mn-n6: #1F6E66; --mn-n7: #5C5545; --mn-n8: #7E3F7A;
+  --mn-n9: #8A6A12; --mn-n10: #3F4DAE; --mn-n11: #6B4A2B; --mn-n12: #A8382B; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --mn-in: #7FA8D8; --mn-good: #7FC2A8; --mn-bad: #E8806F; --mn-flag: #E8806F;
+    --mn-n1: #8DB4E2; --mn-n2: #7FC2A8; --mn-n3: #E8806F; --mn-n4: #ECE2CB; --mn-n5: #E0A070; --mn-n6: #6CC4B8; --mn-n7: #A99E86; --mn-n8: #C98BC3;
+    --mn-n9: #D9B45C; --mn-n10: #9AA5F0; --mn-n11: #C9A27A; --mn-n12: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --mn-in: #7FA8D8; --mn-good: #7FC2A8; --mn-bad: #E8806F; --mn-flag: #E8806F;
+  --mn-n1: #8DB4E2; --mn-n2: #7FC2A8; --mn-n3: #E8806F; --mn-n4: #ECE2CB; --mn-n5: #E0A070; --mn-n6: #6CC4B8; --mn-n7: #A99E86; --mn-n8: #C98BC3;
+  --mn-n9: #D9B45C; --mn-n10: #9AA5F0; --mn-n11: #C9A27A; --mn-n12: #E8806F; }
+
+.mn-mark { display: inline-block; }
+.mn-mark svg { width: 100%; height: 100%; display: block; }
+
+/* over the field: the mines still to find, the clock, and what the field is (or the computer's or the others' line) */
+.mn-strip { display: flex; align-items: baseline; gap: .9rem; margin: .6rem 0 .5rem; font-size: .92rem; color: var(--ink-soft); white-space: nowrap; }
+.mn-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.mn-left b, .mn-score b { font-size: 1.4rem; }
+.mn-left { display: inline-flex; align-items: baseline; gap: .3rem; }
+.mn-glyph { display: inline-block; width: .9rem; height: .9rem; align-self: center; border-radius: 50%; background: var(--ink);
+  box-shadow: 0 0 0 .14rem var(--sheet), 0 0 0 .2rem var(--ink); transform: translateY(-.05rem); }
+.mn-score small { margin-left: .35rem; font-size: .78rem; font-weight: 700; color: var(--mn-bad); font-variant-numeric: tabular-nums; }
+.mn-what { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: .8rem; text-align: right; }
+.mn-what b { font-weight: 750; }
+.mn-strip:has(.mn-rival:not([hidden])) { flex-wrap: wrap; row-gap: .1rem; }
+.mn-rival { order: 4; flex: 1 0 100%; min-width: 0; font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn-rival[hidden] { display: none; }
+
+/* the field: as large as its room, a stage for the canvas, which pans and zooms inside it */
+.mn-card { position: relative; overflow: hidden; border-radius: 6px; background: var(--sheet); border: 1px solid var(--tile-edge);
+  box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px color-mix(in srgb, var(--brass) 45%, transparent); }
+.mn-stage { position: absolute; inset: .375rem; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.mn-canvas { position: absolute; left: 0; top: 0; display: block; }
+.mn-zoom { position: absolute; right: .6rem; bottom: .6rem; width: 2.75rem; height: 2.75rem; display: grid; place-items: center; padding: 0;
+  border-radius: 50%; border: 1px solid var(--brass); background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink); cursor: pointer; touch-action: manipulation; }
+.mn-zoom[hidden] { display: none; }
+.mn-zoom svg { width: 1.35rem; height: 1.35rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+/* under the field: a line of what to do or what happened, the tools; at the end, how it went and the way on */
+.mn-side { display: grid; align-content: start; margin-top: .6rem; min-height: 7.4rem; }
+.mn-side > * { grid-area: 1 / 1; }
+.mn-controls { display: grid; gap: .5rem; align-content: start; }
+.mn-controls[hidden], .mn-result[hidden] { display: none; }
+.mn-line { margin: 0; min-height: 2.7em; font-size: .88rem; line-height: 1.35; color: var(--ink-soft); }
+.mn-line b { color: var(--ink); font-weight: 800; }
+.mn-line.bad { color: var(--mn-bad); }
+.mn-line.good { color: var(--mn-good); }
+.mn-tools { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .4rem; }
+.mn-tool { display: grid; gap: .05rem; align-content: center; min-height: 3.25rem; padding: 0 .2rem; border-radius: 5px; border: 2px solid var(--tile-edge); background: var(--yard);
+  color: var(--ink); font: inherit; cursor: pointer; touch-action: manipulation; }
+.mn-tool[hidden] { display: none; }
+.mn-tool b { font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-size: .82rem; }
+.mn-tool small { font-size: .7rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mn-tool[aria-pressed="true"] { border-color: var(--mn-in); background: var(--mn-in-soft); }
+.mn-tool:disabled { opacity: .45; cursor: default; }
+.mn-result { display: grid; gap: .6rem; align-self: start; }
+.mn-verdict { margin: 0; font-size: 1rem; font-weight: 750; line-height: 1.3; }
+.mn-verdict.good { color: var(--mn-good); }
+.mn-verdict.bad { color: var(--mn-bad); }
+.mn-verdict small { display: block; margin-top: .2rem; font-size: .8rem; font-weight: 600; color: var(--ink-soft); }
+.mn-again { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .5rem; }
+.mn-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%;
+  letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.mn-go.quiet { background: var(--yard); color: var(--ink); border: 1px solid var(--brass); outline: 0; }
+.mn-go[hidden] { display: none; }
+.mn-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
+  max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
+  font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.mn-toast.show { opacity: 1; }
+
+/* held sideways: the field on the left with all the height; the strip, the line and the tools beside it, low where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.mines { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.mines .mn-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
+  #app.mines .mn-what { margin-left: 0; text-align: left; white-space: normal; }
+  #app.mines .mn-card { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.mines .mn-side { grid-column: 2; grid-row: 3; align-content: end; margin-top: 0; }
+  #app.mines .mn-controls { align-content: end; }
+  #app.mines .mn-tools { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  #app.mines .mn-tool { min-height: 2.9rem; }
+  #app.mines .mn-again { grid-auto-flow: row; }
+}

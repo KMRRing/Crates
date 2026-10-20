@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8DFC9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#10181F" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Almanac">
+<title>Mines</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
+<link rel="stylesheet" href="duel.css">
+<link rel="stylesheet" href="mines.css">
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app" class="mines fit-screen beside">
+  <header class="top">
+    <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
+      <span class="mark-icon mn-mark" aria-hidden="true"></span>Mines</button></h1>
+    <div class="top-right">
+      <select id="size" class="pool" data-accent="mn" aria-label="Size">
+        <option value="small">Small</option>
+        <option value="medium">Medium</option>
+        <option value="large">Large</option>
+      </select>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
+  </header>
+
+  <div class="mn-strip">
+    <span class="mn-left" title="Mines not yet flagged"><i class="mn-glyph" aria-hidden="true"></i><b id="left">0</b></span>
+    <span class="mn-score">Time <b id="score">0:00</b><small id="penalty"></small></span>
+    <span id="what" class="mn-what"></span>
+    <span id="rival" class="mn-rival" hidden></span>
+  </div>
+
+  <section class="mn-card fit-grow" aria-label="The field">
+    <div id="stage" class="mn-stage"></div>
+    <button id="zoomBtn" class="mn-zoom" type="button" aria-label="See the whole field" hidden></button>
+  </section>
+
+  <section class="mn-side">
+    <div id="controls" class="mn-controls">
+      <p id="line" class="mn-line" aria-live="polite"></p>
+      <div class="mn-tools" id="tools" role="group" aria-label="Tool">
+        <button class="mn-tool" type="button" data-tool="dig" aria-pressed="true"><b>Dig</b><small>hold to flag</small></button>
+        <button class="mn-tool" type="button" data-tool="flag" aria-pressed="false"><b>Flag</b><small>hold to dig</small></button>
+        <button class="mn-tool" type="button" data-tool="point" aria-pressed="false" hidden><b>Point</b><small>show them</small></button>
+        <button class="mn-tool" type="button" id="hintBtn"><b>Hint</b><small>+20 s</small></button>
+      </div>
+    </div>
+    <div id="result" class="mn-result" hidden>
+      <p class="mn-verdict" id="verdict"></p>
+      <div class="mn-again">
+        <button class="mn-go quiet" type="button" id="retryBtn" hidden>The same field</button>
+        <button class="mn-go" type="button" id="nextBtn">Another field</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<dialog id="menuDlg" class="sheet" aria-label="Menu">
+  <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
+  <div id="menuBody"></div>
+</dialog>
+
+<p id="toast" class="mn-toast" role="status" aria-live="polite"></p>
+<script type="module" src="mines.js"></script>
+</body>
+</html>

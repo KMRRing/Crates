@@ -15,6 +15,9 @@ export const PACES = {
   sharp: { label: "Sharp", tap: 0.42, think: [0, 0.22, 1.2, 2.2, 3], most: 4, slip: 0.0007, flags: false },
 };
 export const paceOf = p => (PACES[p] ? p : "quick");
+// how long the field stands still before the partner speaks: a number that would help you, or one of yours it needs;
+// then, if no one number does it, the next of yours on the edge all the same
+export const SPEAK_AFTER = 4000, PRESS_AFTER = 9000;
 const wobble = R => 0.7 + 0.6 * R();       // a person is never exactly as fast twice
 
 /**
@@ -90,22 +93,22 @@ export function partnerMove(f, state, { me = 1, people = 2, pace = "quick", stuc
   }
   // nothing it can prove: after a while, a number of its own you could use (if yours prove nothing either), or one
   // of yours it needs
-  if (stuckMs < 7000) return null;
+  if (stuckMs < SPEAK_AFTER) return null;
   const yoursRead = told => i => !theirs(i) || told.has(i);
   if (!knowing(f, state.cells, { sees: yoursRead(state.told) }).next(4)) {
     for (const c of cellsOf(f, state, i => theirs(i) && !state.told.has(i))) {
       if (asked.has(`tell:${c}`)) continue;
-      if (knowing(f, state.cells, { sees: yoursRead(new Set(state.told).add(c)) }).next(4)) return { kind: "point", cell: c, wait: think(2), level: 2, why: "tell" };
+      if (knowing(f, state.cells, { sees: yoursRead(new Set(state.told).add(c)) }).next(4)) return { kind: "point", cell: c, wait: think(1), level: 1, why: "tell" };
     }
   }
   const wanted = cellsOf(f, state, i => !theirs(i) && !state.told.has(i)).filter(c => !asked.has(`ask:${c}`));
   for (const c of wanted) {
     const told = new Set(state.told).add(c);
-    if (knowing(f, state.cells, { sees: i => theirs(i) || told.has(i), trust: [me] }).next(P.most)) return { kind: "point", cell: c, wait: think(2), level: 2, why: "ask" };
+    if (knowing(f, state.cells, { sees: i => theirs(i) || told.has(i), trust: [me] }).next(P.most)) return { kind: "point", cell: c, wait: think(1), level: 1, why: "ask" };
   }
   // no one number of yours would do it alone (it needs two at once, or more than it can reason with): after longer,
   // it asks for the next of yours on the edge all the same, so the two of you always get there
-  if (stuckMs >= 14000 && wanted.length) return { kind: "point", cell: wanted[0], wait: think(2), level: 2, why: "ask" };
+  if (stuckMs >= PRESS_AFTER && wanted.length) return { kind: "point", cell: wanted[0], wait: think(1), level: 1, why: "ask" };
   return null;
 }
 const countOpen = cells => { let k = 0; for (const ch of cells) if (ch === OPEN) k++; return k; };
