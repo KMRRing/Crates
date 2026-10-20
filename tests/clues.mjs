@@ -89,7 +89,7 @@ check(!unordered.length, "alphabetical within each tier, each word once", unorde
 const seen = new Set(entries.map(e => e.word));
 check(seen.size === entries.length, "no word is clued twice");
 // both raised as the bank grows, so that losing words fails
-const FLOOR = 7200, LONGEST = MAX;
+const FLOOR = 9000, LONGEST = MAX;
 check(entries.length >= FLOOR, `at least ${FLOOR} words clued (${entries.length}, ${entries.filter(e => e.word.length <= 7).length} of them of 3 to 7 letters)`);
 check(Array.from({ length: LONGEST - MIN + 1 }, (_, i) => MIN + i).every(n => entries.some(e => e.word.length === n)), `every length from ${MIN} to ${LONGEST} has clued words`);
 
