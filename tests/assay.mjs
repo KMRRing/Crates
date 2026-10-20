@@ -79,7 +79,7 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   for (const n of LENGTHS) {
     const P = packOf(ENGLISH, n), kept = GRADES.en?.[n];
     check(kept && kept.n === P.N && kept.sum === hashOf(P.words.join(" ")), `${n} letters: the kept grades are for these answers${kept ? "" : " (none: run node assay-grades.mjs)"}`);
-    const g = gradesOf(P), r = rng(n);
+    const g = gradesOf(P) || new Int32Array(P.N).fill(-1), r = rng(n);
     let match = true;
     for (let k = 0; k < 12; k++) { const i = r() % P.N; if (gradeOf(P, i) !== g[i]) match = false; }
     check(match, `${n} letters: a grade worked out now is the one kept (twelve words); rerun node assay-grades.mjs if not`);
@@ -90,6 +90,10 @@ check(marksOf("crane", "crane").every(m => m === HIT) && codeOfMarks(marksOf("cr
   const P = packOf(ENGLISH, 5), hard = new Set(levelOf(P, "hard").map(i => P.words[i])), easy = new Set(levelOf(P, "easy").map(i => P.words[i]));
   check(["hatch", "latch", "mound", "joker", "shave"].every(w => hard.has(w)), "the genre's traps (hatch, latch, mound, joker, shave) are Hard");
   check(["raise", "earth", "heart", "court"].every(w => easy.has(w) && !hard.has(w)), "words that split the field cleanly (raise, earth, heart, court) are Easy");
+  // answers the kept grades aren't for (a changed word list, before assay-grades.mjs is rerun): levels by commonness, at once
+  const other = { ...ENGLISH, id: "stale" }, Q = packOf(other, 5), t1 = Date.now();
+  check(gradesOf(Q) === null && levelOf(Q, "easy").every(i => Q.tier[i] <= 1) && levelOf(Q, "medium").length === Q.N && Number.isNaN(meanGuesses(Q, "hard")) && Date.now() - t1 < 200,
+    "answers without kept grades get levels by commonness at once, never a phone grading thousands of words");
 }
 
 // ---------- the daily ----------

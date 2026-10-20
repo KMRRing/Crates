@@ -309,11 +309,13 @@ function buildKeys() {
       if (k === "ENTER") { b.textContent = "Enter"; b.classList.add("enter"); }
       else if (k === "BACK") { b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11v12H9l-6-6z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>'; b.setAttribute("aria-label", "Delete"); }
       else { b.append(el("span", "as-segs"), el("span", "as-l", k)); b.dataset.key = k; }
-      // a key answers as the finger goes down (no wait for the click), and only once
-      b.addEventListener("pointerdown", e => { e.preventDefault(); if (e.button > 0) return; b.classList.add("down"); keyTap(k); });
+      // a key answers as the finger goes down (no wait for the click), and only once: the click a tap brings after it
+      // is passed over; a click with no press before it is a keyboard's Enter or Space on a focused key
+      let pressed = 0;
+      b.addEventListener("pointerdown", e => { e.preventDefault(); if (e.button > 0) return; pressed = performance.now(); b.classList.add("down"); keyTap(k); });
       b.addEventListener("pointerup", () => b.classList.remove("down"));
       b.addEventListener("pointerleave", () => b.classList.remove("down"));
-      b.addEventListener("click", e => { if (e.detail === 0) keyTap(k); });   // a keyboard's Enter or Space on a focused key
+      b.addEventListener("click", () => { if (performance.now() - pressed > 1000) keyTap(k); });
       row.append(b);
       if (k.length === 1) keyNodes.set(k, b);
     }
@@ -456,7 +458,6 @@ function showDone() {
   if (S.mode !== "sprint") buttons.append(action("Copy the grid", copyGrid, ""));
   body.append(buttons);
   for (const b of body.querySelectorAll(".btn, .link")) b.addEventListener("click", () => $("doneDlg").close());
-  $("doneDlg").classList.toggle("as-contrast", prefs.contrast);
   if (!$("doneDlg").open) $("doneDlg").showModal();
 }
 let shownDone = null;
@@ -755,9 +756,10 @@ function nextChoices(box, note) {
     choice("Letters", LENGTHS.map(n => [n, String(n)]), prefs.len, v => { setPref("len", v); redraw(); }));
   if (prefs.mode === "boards") box.append(choice("Boards", [[2, "Two"], [4, "Four"], [8, "Eight"]], prefs.boards, v => { setPref("boards", v); redraw(); }));
   box.append(choice("Words", LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => { setPref("level", v); redraw(); }));
-  const P = packOf(LEX, prefs.len), g = guessesFor(prefs.len, prefs.mode === "boards" ? prefs.boards : 1);
+  const P = packOf(LEX, prefs.len), g = guessesFor(prefs.len, prefs.mode === "boards" ? prefs.boards : 1), mean = meanGuesses(P, prefs.level);
   const say = prefs.mode === "dodge" ? `${levelOf(P, prefs.level).length} words to dodge with; no limit, the fewest guesses best.`
-    : prefs.mode === "sprint" ? `Three minutes, six guesses a word.` : `${plural(g, "guess", "guesses")}; a player like most needs about ${meanGuesses(P, prefs.level).toFixed(1)} on one board.`;
+    : prefs.mode === "sprint" ? `Three minutes, ${plural(guessesFor(prefs.len), "guess", "guesses")} a word.`
+    : `${plural(g, "guess", "guesses")}${Number.isFinite(mean) ? `; a player like most needs about ${mean.toFixed(1)} on one board` : ""}.`;
   box.append(line(note ? `${note}: ${say}` : say));
 }
 function settingsPart(body, solo) {

@@ -162,18 +162,18 @@ export function gradeOf(P, i) {
   return sum;
 }
 // The grades are worked out ahead (assay-grades.mjs writes assay-grades.js, tests/assay.mjs checks it): grading every
-// word on the phone would take seconds. A pool the file doesn't match (the word list has changed since) is graded as
-// it's asked, word by word.
+// word on the phone would take many seconds. Answers the file doesn't match (the word list has changed since, and the
+// test is failing until it's rerun) have no grades, and the levels go by how common a word is meanwhile.
 const DIGITS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
 export const packGrades = gs => Array.from(gs, g => DIGITS[g >> 6] + DIGITS[g & 63]).join("");
 const unpackGrades = s => Int32Array.from({ length: s.length / 2 }, (_, i) => DIGITS.indexOf(s[2 * i]) * 64 + DIGITS.indexOf(s[2 * i + 1]));
 const gradeTables = new Map();
-/** Every word's grade, in the pack's order (an Int32Array). */
+/** Every word's grade, in the pack's order (an Int32Array), or null when the kept grades are for other answers. */
 export function gradesOf(P) {
   const key = `${P.lex.id}:${P.len}`;
   if (!gradeTables.has(key)) {
     const kept = GRADES?.[P.lex.id]?.[P.len];
-    gradeTables.set(key, kept && kept.n === P.N && kept.sum === hashOf(P.words.join(" ")) ? unpackGrades(kept.g) : Int32Array.from({ length: P.N }, (_, i) => gradeOf(P, i)));
+    gradeTables.set(key, kept && kept.n === P.N && kept.sum === hashOf(P.words.join(" ")) ? unpackGrades(kept.g) : null);
   }
   return gradeTables.get(key);
 }
@@ -188,16 +188,17 @@ const quantile = (sorted, q) => sorted[Math.min(sorted.length - 1, Math.floor(q 
 export function levelOf(P, level) {
   const key = `${P.lex.id}:${P.len}:${level}`;
   if (!levelLists.has(key)) {
-    const g = gradesOf(P), sorted = [...g].sort((a, b) => a - b), q = f => quantile(sorted, f);
-    const keep = level === "easy" ? i => P.tier[i] <= 1 && g[i] <= q(.5) : level === "hard" ? i => g[i] >= q(.75) : i => g[i] >= q(.2) && g[i] <= q(.9);
+    const g = gradesOf(P), sorted = g ? [...g].sort((a, b) => a - b) : [], q = f => quantile(sorted, f);
+    const keep = !g ? (level === "easy" ? i => P.tier[i] <= 1 : level === "hard" ? i => P.tier[i] >= 1 : () => true)
+      : level === "easy" ? i => P.tier[i] <= 1 && g[i] <= q(.5) : level === "hard" ? i => g[i] >= q(.75) : i => g[i] >= q(.2) && g[i] <= q(.9);
     levelLists.set(key, Object.freeze([...P.words.keys()].filter(keep)));
   }
   return levelLists.get(key);
 }
-/** A level's answers' mean grade, as guesses (for the menu's line and the tests). */
+/** A level's answers' mean grade, as guesses (for the menu's line and the tests); NaN without grades. */
 export function meanGuesses(P, level) {
   const g = gradesOf(P), list = levelOf(P, level);
-  return list.reduce((s, i) => s + g[i], 0) / list.length / RUNS;
+  return g ? list.reduce((s, i) => s + g[i], 0) / list.length / RUNS : NaN;
 }
 
 // ---------- dealing ----------
