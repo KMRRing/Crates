@@ -19,7 +19,7 @@ export const EMPTY = ".";
 export const LEVELS = {
   easy: { label: "Easy", letters: [28, 72], answers: [5, 11], avg: [3.6, 6.8], tier: 1, prefer: 0, lean: 1.6, d: 1, grade: 1 },
   medium: { label: "Medium", letters: [42, 92], answers: [7, 14], avg: [4, 7.4], tier: 1, prefer: 0, lean: 0.4, d: 1, grade: 2 },
-  hard: { label: "Hard", letters: [60, 125], answers: [10, 18], avg: [4.4, 8], tier: 1, prefer: 1, lean: 0.4, d: 2, grade: 3 },
+  hard: { label: "Hard", letters: [60, 125], answers: [10, 18], avg: [4.4, 8], tier: 2, prefer: 1, lean: 0.4, d: 2, grade: 3 },
 };
 export const TWISTS = {
   classic: { label: "Classic", note: "The answers' first letters spell the source." },

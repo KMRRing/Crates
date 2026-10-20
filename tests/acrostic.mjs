@@ -8,7 +8,7 @@ import {
   spineCell, step, nextEmpty, rivalAt, rivalDone, holds, validEntry,
 } from "../acrostic-engine.js";
 import { entries, tells } from "../acrostic-texts.js";
-import { makePuzzle, fillAnswers, rng, hash } from "../acrostic-make.js";
+import { makePuzzle, fillAnswers, dayOrder, rng, hash } from "../acrostic-make.js";
 import { fills, solve, grade, rivalPlan, splitFor, clueLevel } from "../acrostic-solve.js";
 import { answers } from "../acrostic-words.js";
 import { cluesOf, hasClue } from "../clues.js";
@@ -161,6 +161,12 @@ check(made.every(P => fills(P).count === 1), "every puzzle fills one way only (t
   check(a && JSON.stringify(a) === JSON.stringify(b), "today's puzzle is the same on every phone");
   check(a && c && a.id !== c.id, "tomorrow's is another");
   check(a.level === "medium" && a.twist === "classic", "today's is Medium, classic");
+  // each day enters the pool a golden step of its length on from the day before: a month's days start far apart
+  const some = list.slice(0, 500), order = dayOrder(some, 20260101).map(e => e.id);    // 1 January enters at the start
+  const at = [];
+  for (let i = 0; i < 30; i++) at.push(order.indexOf(dayOrder(some, today(new Date(Date.UTC(2026, 10, 1 + i, 12))))[0].id));
+  const s = [...at].sort((x, y) => x - y), gap = Math.min(...s.slice(1).map((x, i) => x - s[i]));
+  check(new Set(at).size === 30 && gap >= 5, `a month of days starts at thirty places in the pool, at least ${gap} apart`);
   check(hash("acrostic") === hash("acrostic") && hash("a") !== hash("b") && rng(5)() === rng(5)() && rng(5)() !== rng(6)(), "the seeded generator and the hash");
 }
 

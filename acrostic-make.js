@@ -240,17 +240,36 @@ export function makePuzzle(seed, { level = "medium", twist = "classic", sources 
   const rand = rng(seed);
   let list = pool(sources, stages);
   if (!list.length) list = pool();
-  const skip = new Set(avoid);
-  const fresh = list.filter(e => !skip.has(e.id));
-  list = daily ? [...list].sort((a, b) => hash(`${seed}:${a.id}`) - hash(`${seed}:${b.id}`)) : shuffle(fresh.length ? fresh : [...list], rand);
+  if (daily) list = dayOrder(list.filter(e => formsFor(e, L, at).length), seed);
+  else {
+    const skip = new Set(avoid), fresh = list.filter(e => !skip.has(e.id));
+    list = shuffle(fresh.length ? fresh : [...list], rand);
+  }
   let tried = 0;
   for (const entry of list) {
-    if (!formsFor(entry, L, at).length) continue;
+    if (!daily && !formsFor(entry, L, at).length) continue;
     if (++tried > maxEntries) break;
     const P = fromEntry(entry, seed, { level, twist }, rand);
     if (P) return P;
   }
   return null;
+}
+/**
+ * The texts in the order a day tries them: the pool in a fixed order (by each one's hash, so it moves little as the
+ * knowledge base grows), entered at a point that steps on by the golden ratio of its length each day. Days drawn
+ * independently would bring a text back within weeks; days a golden step apart land far from each other for months,
+ * so today's seldom repeats a recent day's.
+ */
+export function dayOrder(list, day) {
+  const sorted = [...list].sort((a, b) => hash(a.id) - hash(b.id) || (a.id < b.id ? -1 : 1)), n = sorted.length;
+  if (!n) return sorted;
+  const y = Math.floor(day / 10000), m = Math.floor(day / 100) % 100, d = day % 100;
+  const index = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(2026, 0, 1)) / 864e5);
+  let stepBy = Math.max(1, Math.round(n * 0.6180339887));
+  const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+  while (gcd(stepBy, n) !== 1) stepBy++;
+  const start = (((index * stepBy) % n) + n) % n;
+  return [...sorted.slice(start), ...sorted.slice(0, start)];
 }
 /**
  * A puzzle from this entry, or null: its forms that suit the level, the most telling spine first (the knowledge
