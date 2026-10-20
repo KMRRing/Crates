@@ -183,8 +183,9 @@ function gameOver(s, out) {
 export function sba(s) {
   let acted = false;
   for (let g = 0; g < 100; g++) {
-    const out = [0, 1].filter(i => s.life[i] <= 0 || s.lost[i]);
-    if (out.length) { gameOver(s, out); return true; }
+    if (s.life[0] <= 0 || s.lost[0] || s.life[1] <= 0 || s.lost[1]) { gameOver(s, [0, 1].filter(i => s.life[i] <= 0 || s.lost[i])); return true; }
+    // with no creature on the battlefield there is nothing more to check (the usual case, and this runs after every move)
+    if (!s.bf.some(isCreature)) break;
     let changed = false;
     for (const p of [...s.bf]) {
       if (!isCreature(p)) continue;
@@ -336,7 +337,7 @@ export function checkCast(s, seat, m) {
   const { half, d, cost, plan } = ok;
   const mode = d.modes ? (m.mode ?? 0) : 0;
   if (d.modes && !(Number.isInteger(mode) && mode >= 0 && mode < d.modes.length)) return "Choose what it does";
-  const lists = targetLists(s, seat, half, mode), targets = list(m.targets);
+  const lists = targetLists(s, seat, half, mode, [], from === "yard" ? id : null), targets = list(m.targets);
   if (!lists.length) return "It has no legal target";
   const hit = lists.find(l => l.length === targets.length && l.every((t, i) => same(t, targets[i])));
   if (!hit) return "Choose a legal target";
@@ -612,7 +613,7 @@ export function moves(s, seat, firstOnly = false, only = null) {
   const casts = (id, from, half) => {
     if (typeof castable(s, seat, id, from, true) === "string") return false;
     for (let mode = 0; mode < modesOf(half); mode++) {
-      for (const targets of targetLists(s, seat, half, mode)) {
+      for (const targets of targetLists(s, seat, half, mode, [], from === "yard" ? id : null)) {
         out.push({ t: "cast", card: id, from, ...(CARDS[half].modes ? { mode } : {}), targets });
         if (firstOnly) return true;
       }

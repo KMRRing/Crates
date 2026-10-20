@@ -7,7 +7,7 @@
 import { CARDS, DECK, HALVES, total } from "./dandan-cards.js";
 import { nextDrawer, halfOf, costOf } from "./dandan-engine.js";
 import { other, nm, perm, isLand, isCreature, creatures, lands, needType, typesOf, itemOf, pt } from "./dandan-core.js";
-import { facts, counterRisk, holds } from "./dandan-policy.js";
+import { facts, counterRisk, holds, Player, answerWorth } from "./dandan-policy.js";
 
 const pc = x => `${Math.round(100 * x)}%`;
 const plural = (n, one, many) => (n === 1 ? one : many);
@@ -148,6 +148,8 @@ function forMove(s, seat, F, m, good) {
       break;
     }
     case "cast": {
+      const yard = yardWords(s, seat, m, half, good);
+      if (yard) say("yard", yard);
       if (half === "Dandân") {
         if (!F.myIsl) { if (!good) say("islands", "With no Island of yours it would be sacrificed at once."); }
         else if (good && F.noLapse && F.their.n >= 2) say("counter-risk", "They let your last Dandân resolve with a Lapse's mana open, and haven't drawn since: they very likely hold no Memory Lapse.");
@@ -191,6 +193,11 @@ function forMove(s, seat, F, m, good) {
         } else if (isLand(target) && target.ctl !== seat && !good) say("islands", "Taking a land of theirs matters little while no Dandân depends on it.");
         if (half === "Piracy Charm" && m.mode === 0 && good) say("combat", "Islandwalk: they control an Island, so it can't be blocked.");
         break;
+      }
+      // a Retrieval for a removal spell with the mana left to cast it at once (an instant any time, a sorcery in our main phase)
+      if (half === "Mystic Retrieval" && good && t0?.k === "g" && (CARDS[front(t0.id)]?.type === "instant" || (myTurn && !s.stack.length && /main/.test(s.step)))
+        && answerWorth(F, t0.id, seat, F.my.n - total(costOf(s, seat, half, m.from))) > 1) {
+        say("answer", `It brings back the ${nm(t0.id)} with the mana left to cast it: their Dandân is answered ${myTurn ? "this turn" : "before your turn"}.`);
       }
       // the spells that draw: when the mana is free, and when the top card is known
       if (["Brainstorm", "Predict", "Quicken", "Take Inventory", "Chart a Course", "Lórien Revealed", "Mystic Retrieval"].includes(half)) {
@@ -250,6 +257,26 @@ function forMove(s, seat, F, m, good) {
   return out;
 }
 const islandsOfType = (s, seat, type) => s.bf.filter(l => l.ctl === seat && isLand(l) && typesOf(l).includes(type)).length;
+/**
+ * What a cast does to the graveyard both players share, in words, when it matters (Medium's gift): a card it leaves
+ * for their Mystic Retrieval (flashed back with their red, or one in their hand), or one it takes away from it.
+ */
+function yardWords(s, seat, m, half, good) {
+  const P = new Player(s, seat), mana = total(costOf(s, seat, half, m.from));
+  const g = P.giftOf(P.yardAfter(m, half), mana, m.from === "hand" ? m.card : null);
+  const theirs = x => (x.flash ? "their red flashes back the Mystic Retrieval for it" : "a Mystic Retrieval from their hand could take it back");
+  if (!good && g.v >= 0.6 && g.after.id != null) {
+    const what = nm(g.after.id), dies = g.after.kill ? ", and your Dandân dies to it" : "";
+    if (half === "Mystic Retrieval" && m.from === "hand" && g.after.flash) return `The Mystic Retrieval stays in the graveyard: their red flashes it back for the ${what}${dies}.`;
+    if (g.after.id === m.card) return `Your ${what} goes to the graveyard, where ${theirs(g.after)}${dies}.`;
+    return `It leaves the ${what} in the graveyard, where ${theirs(g.after)}${dies}.`;
+  }
+  if (good && g.v <= -0.6 && g.before.id != null) {
+    if (half === "Mystic Retrieval" && m.from === "yard" && g.before.flash) return "Flashed back, the Mystic Retrieval is exiled: their red can't use it any more.";
+    return `It takes the ${nm(g.before.id)} out of the graveyard before ${g.before.flash ? "their red can flash back the Mystic Retrieval for it" : "a Mystic Retrieval of theirs can"}.`;
+  }
+  return null;
+}
 
 // ---------- the coach's lines ----------
 const entry = (r, m) => r.list.find(c => sameMove(c.move, m));
@@ -267,6 +294,34 @@ export function adviceLine(r, s, seat) {
   return [moveSaid(m, s, seat), ...why.slice(0, 1).map(w => w.replace(/\.$/, "")), c && Number.isFinite(c.mean) ? `${pc(c.mean)} to win` : ""].filter(Boolean).join(" · ");
 }
 
+/**
+ * What the deals showed, in words, at most two sentences: the other player's answer that hurt most after move b (the
+ * worse), when it was the same answer in many of the deals and seldom after a; and the biggest difference between
+ * where a and b left the game two turns on, in a's favour, when it's big enough to say (a Dandân of yours on the table
+ * in more of the deals, one of theirs in fewer, your life or theirs, the cards in hand). a and b are entries of a
+ * weighing's list; yours: b is the player's own move, named so.
+ */
+export function evidence(a, b, s, seat, { yours = false } = {}) {
+  const x = a?.seen, y = b?.seen;
+  if (!x || !y || x.d == null || y.d == null) return [];
+  const out = [];
+  // the other player's answer that hurt most after b, when it was the same in many of the deals and seldom after a
+  if (y.a && y.an >= Math.max(4, 0.3 * b.n) && (x.a !== y.a || x.an <= y.an / 2)) {
+    out.push(`Their best answer to ${yours ? "yours" : doing(b.move, s, seat)}, in ${y.an} of the ${b.n} deals: they ${y.a}.`);
+  }
+  const share = v => (v >= 0.995 ? "all" : v <= 0.005 ? "none" : `${Math.round(100 * v)}%`);
+  const A = doing(a.move, s, seat), B = yours ? "yours" : doing(b.move, s, seat), one = v => v.toFixed(1).replace(/\.0$/, "");
+  const cases = [
+    [(x.d - y.d) / 0.12, () => `Two turns on, you have a Dandân on the table in ${share(y.d)} of the deals after ${B}; after ${A}, in ${share(x.d)}.`],
+    [(y.D - x.D) / 0.12, () => `Two turns on, they have a Dandân on the table in ${share(y.D)} of the deals after ${B}; after ${A}, in ${share(x.D)}.`],
+    [(x.l - y.l) / 2.5, () => `Two turns on, you're at ${Math.round(y.l)} life on average after ${B}; after ${A}, at ${Math.round(x.l)}.`],
+    [(y.L - x.L) / 2.5, () => `Two turns on, they're at ${Math.round(y.L)} life on average after ${B}; after ${A}, at ${Math.round(x.L)}.`],
+    [((x.h - x.H) - (y.h - y.H)) / 0.8, () => `Two turns on, you hold ${one(y.h)} cards to their ${one(y.H)} on average after ${B}; after ${A}, ${one(x.h)} to ${one(x.H)}.`],
+  ].filter(([v]) => v >= 1).sort((p, q) => q[0] - p[0]);
+  if (cases.length) out.push(cases[0][1]());
+  return out;
+}
+
 /** Below this a move is as good as the coach's (a share of the chance of winning), and it must be clear of it by twice the gap's standard error. */
 export const MARGIN = 0.03;
 /**
@@ -278,8 +333,9 @@ export function verdict(r, mine, s, seat) {
   if (!m || r.only || sameMove(best.move, mine)) return null;
   const gap = best.mean - m.mean, se = Math.hypot(best.se, m.se);
   if (!(gap > MARGIN && gap > 2 * se)) return null;
-  // what tells against yours first: it's your move the word is about; with no rule of thumb to say, the deals do
-  const why = reasons(s, seat, best.move, mine, { againstFirst: true });
+  // what tells against yours first: it's your move the word is about; then what the deals showed, or with nothing
+  // to show, how often each came out ahead
+  const why = [...reasons(s, seat, best.move, mine, { againstFirst: true }), ...evidence(best, m, s, seat, { yours: true })].slice(0, 3);
   if (!why.length && m.vs) why.push(`Played out, ${doing(best.move, s, seat)} came out ahead in ${m.better} of the ${m.vs} deals and behind in ${m.worse}.`);
   return { gap, se, best: best.move, words: `${cap(doing(mine, s, seat))}: about ${Math.round(100 * gap)} points worse than ${doing(best.move, s, seat)} (${pc(m.mean)} to win against ${pc(best.mean)}).${why.length ? ` ${why.join(" ")}` : ""}` };
 }
@@ -293,6 +349,6 @@ function doing(m, s, seat) {
 
 /** The note under Why?: how the figures were come by. */
 export function whyNote(r) {
-  return `Each move was played out to the start of the turn after next in the same ${r.deals} deals of the cards you can't see (their hand and the library dealt from what you haven't seen), both sides by Medium's habits; the figure is the chance of winning from where it lands, judged as Medium against Medium would play it on.`;
+  return `Each move was played out to the start of the turn after next in the same ${r.deals} deals of the cards you can't see (their hand and the library dealt from what you haven't seen), both sides by Medium's habits, except that at their next main phase each of their likeliest moves was tried and the one worst for you counted; the figure is the chance of winning from where it lands, as a network trained on thousands of games between Medium players judges it.`;
 }
 

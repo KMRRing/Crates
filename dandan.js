@@ -9,7 +9,7 @@ import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
 import { moves } from "./dandan-engine.js";
 import { think, BUDGET } from "./dandan-think.js";
-import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons } from "./dandan-coach.js";
+import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence } from "./dandan-coach.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
 import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType, poolOf, knownIn } from "./dandan-core.js";
 import { same } from "./dandan-spells.js";
@@ -875,7 +875,10 @@ function showWhy(which) {
     }).join("");
     const extra = mine && !r.list.slice(0, 8).some(c => sameMove(c.move, mine)) ? r.list.find(c => sameMove(c.move, mine)) : null;
     const yours = extra ? `<li class="mine"><b>${esc(moveSaid(extra.move, st, seat))}</b> · yours<span class="dd-fig">${pc(extra.mean)} to win · ${extra.n} deals</span></li>` : "";
-    const why = reasons(st, seat, r.best, mine && !sameMove(mine, r.best) ? mine : r.list.find(c => !sameMove(c.move, r.best))?.move);
+    // the rule of thumb for the coach's move against yours (or the next best), then what the deals showed
+    const yoursToo = mine && !sameMove(mine, r.best);
+    const vs = yoursToo ? r.list.find(c => sameMove(c.move, mine)) : r.list.find(c => !sameMove(c.move, r.best));
+    const why = [...reasons(st, seat, r.best, yoursToo ? mine : vs?.move), ...(vs ? evidence(r.list[0], vs, st, seat, { yours: yoursToo }) : [])].slice(0, 3);
     return `${why.length ? `<p>${esc(why.join(" "))}</p>` : ""}<ol class="dd-choices">${rows}${yours}</ol><p class="dd-why-note">${esc(whyNote(r))}</p>`;
   };
   if (which === "review") {

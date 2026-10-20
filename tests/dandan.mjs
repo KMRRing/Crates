@@ -9,6 +9,7 @@ import { RES, T } from "../dandan-spells.js";
 import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack, knownIn } from "../dandan-core.js";
 import { rules } from "../dandan-rules.js";
 import { botMove, randomMove, randomAnswer } from "../dandan-bot.js";
+import { thinkMove, BUDGET } from "../dandan-think.js";
 import { newRecord, applyMove, botMove as seatBot, seeded, shuffle } from "../seats.js";
 import { roundTrip, same } from "./rtdb.js";
 import { J, scene, islandsOf, go, refused, idIn, onBf, names, cast, pass, answer, drive, resolveStack, stackNames, sidOf } from "./dandan-scene.js";
@@ -396,7 +397,11 @@ test("Mystic Retrieval: an instant or sorcery card back from the graveyard; flas
   let f = scene({ yard: ["Mystic Retrieval", "Brainstorm"], bf: [...islandsOf(0, 2), [0, "Thundering Falls"]], hand: [["Island"], []] });
   const mr = f.yard.find(i => DECK[i] === "Mystic Retrieval"), bs = f.yard.find(i => DECK[i] === "Brainstorm");
   f = go(f, 0, { t: "cast", card: mr, from: "yard", targets: [T.g(bs)] });
-  return got && f.hand[0].includes(bs) && f.exile.includes(mr) && !f.yard.includes(mr);
+  // flashed back, it's on the stack by the time its target is chosen: never its own, though another Retrieval may be
+  const two = scene({ yard: ["Mystic Retrieval", "Mystic Retrieval"], bf: [...islandsOf(0, 2), [0, "Thundering Falls"]], hand: [["Island"], []] });
+  const [r1, r2] = two.yard, aims = moves(two, 0).filter(m => m.from === "yard").map(m => m.targets[0].id);
+  const self = refused(two, 0, { t: "cast", card: r1, from: "yard", targets: [T.g(r1)] });
+  return got && f.hand[0].includes(bs) && f.exile.includes(mr) && !f.yard.includes(mr) && aims.length === 1 && aims[0] === r2 && !!self;
 });
 test("Take Inventory: draws one, and one more for each in the graveyard", () => {
   const s = cast(scene({ hand: [["Take Inventory", "Island"], []], yard: ["Take Inventory", "Take Inventory"], bf: islandsOf(0, 2) }), 0, "Take Inventory");
@@ -689,6 +694,31 @@ test("it takes a free mulligan on a hand short of lands, keeps a good one, and k
   b = resolveStack(go(b, 0, { t: "land", card: idIn(b, 0, "Izzet Boilerworks") }));
   both("Izzet Boilerworks returns a tapped Island, not itself", b, 0, m => m.t === "pick" && DECK[m.card] === "Island" && perm(b, m.card).tapped);
 }
+{
+  // the shared graveyard: a Mystic Retrieval cast from the hand stays there, for anyone with red to flash back
+  const gift = scene({ turn: 9, active: 0, step: "main1", hand: [["Mystic Retrieval", "Island", "Brainstorm"], ["Island", "Island", "Predict", "Quicken", "Take Inventory"]],
+    bf: [...islandsOf(0, 4), [0, "Dandân"], [1, "Thundering Falls"], ...islandsOf(1, 3)], yard: ["Piracy Charm", "Memory Lapse", "Chart a Course"] });
+  both("no Mystic Retrieval from the hand while they have red and a Piracy Charm waits in the graveyard for our Dandân", gift, 0, m => !(m.t === "cast" && DECK[m.card] === "Mystic Retrieval"));
+  /** The computer moving both seats until the turn is over. */
+  const playTurn = (s, level) => {
+    let c = s;
+    for (let i = 0; i < 300 && c.turn === s.turn && !c.over; i++) { const who = toMove(c); c = go(c, who, botMove(c, who, { rng: seeded(i), level })); }
+    return c;
+  };
+  const dandans = (s, seat) => s.bf.filter(p => p.ctl === seat && nm(p.id) === "Dandân").length;
+  // and the other side of it: flashed back for the Charm, which kills the Dandân, the same turn
+  const tapped = (seat, n) => Array.from({ length: n }, () => [seat, "Island", { tapped: true }]);
+  const punish = scene({ turn: 10, active: 1, step: "main1", hand: [["Brainstorm", "Island"], ["Island", "Lórien Revealed", "Predict"]],
+    bf: [...tapped(0, 5), [0, "Dandân", { ent: 7 }], [1, "Thundering Falls"], ...islandsOf(1, 3)], yard: ["Mystic Retrieval", "Piracy Charm", "Chart a Course"], life: [20, 16] });
+  // our own red: the Charm taken back before they can, and their Dandân killed with it
+  const deny = scene({ turn: 9, active: 0, step: "main1", hand: [["Island"], ["Island", "Predict", "Quicken"]],
+    bf: [...islandsOf(0, 3), [0, "Thundering Falls"], ...islandsOf(1, 3), [1, "Dandân", { ent: 6 }]], yard: ["Mystic Retrieval", "Piracy Charm", "Take Inventory"] });
+  for (const level of ["medium", "hard"]) {
+    const name = level === "hard" ? "Hard" : "Medium";
+    test(`${name}: flashes back the Mystic Retrieval left in the graveyard for the Piracy Charm, and kills the Dandân with it`, () => dandans(playTurn(punish, level), 0) === 0 || "the Dandân lives");
+    test(`${name}: with red of its own, takes the Charm first and kills their Dandân with it`, () => dandans(playTurn(deny, level), 1) === 0 || "their Dandân lives");
+  }
+}
 test("Hard plays the same move from the same position, and its moves are always legal", () => {
   let n = 0;
   for (const seed of [4, 5]) {
@@ -697,7 +727,9 @@ test("Hard plays the same move from the same position, and its moves are always 
     for (let i = 0; i < 400 && !s.over; i++) {
       const who = toMove(s);
       if (i % 7 === 0) {
-        const a = hard(s, who), b = hard(J(s), who);
+        // (with no time backstop: the move must come from the deals alone, not from how busy the machine is)
+        const sure = (x, w) => thinkMove(x, w, { ...BUDGET.move, ms: Infinity });
+        const a = sure(s, who), b = sure(J(s), who);
         if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`move ${i}: ${JSON.stringify(a)} then ${JSON.stringify(b)}`);
         go(s, who, a);
         n++;
@@ -783,7 +815,7 @@ test("a seeded game is played the same way twice", () => {
   check(e >= 34, `Easy beats a player who moves at random in ${e} of 40 games`);
   const m = versus("medium", "easy", 100, 6000);
   check(m >= 62, `Medium beats Easy in ${m} of 100`);
-  // (Hard won 104 of 120 such games when it was written: see the README)
+  // (Hard won 104 of 120 such games when it was written, and 36 of 40 once it tried the other player's answers: see the README)
   const t0 = Date.now(), h = versus("hard", "medium", 12, 8000);
   check(h >= 8, `Hard beats Medium in ${h} of 12 (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
 }

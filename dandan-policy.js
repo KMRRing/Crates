@@ -12,11 +12,13 @@
 //    turn is free. So it holds two open for a Memory Lapse on its own turn, and spends the rest at the end of theirs.
 //  · A Dandân dies to anything that takes a point of toughness or its last Island, and can only attack a player who
 //    controls an Island. Islands are double-edged: yours keep your Dandâns, and let theirs attack you.
+//  · The graveyard is shared too, and a Mystic Retrieval in it is anyone's with red: a spell cast leaves its card there
+//    for the other player to take back, and a Retrieval cast from the hand leaves itself (gift).
 import { CARDS, DECK, NAMES, BASICS, HALVES, TOKEN_AT, total } from "./dandan-cards.js";
 import { moves, halfOf, nextDrawer, costOf } from "./dandan-engine.js";
 import {
   other, nm, isLandId, perm, isLand, isCreature, isToken, pt, lands, islands, creatures, typesOf, needType, manaAlts, topKnown, itemOf,
-  knownIn, poolOf,
+  knownIn, poolOf, isSpellCard,
 } from "./dandan-core.js";
 import { shuffle } from "./seats.js";
 
@@ -36,16 +38,21 @@ export const WORTH = {
 const KEEP = 0.75;
 
 // ---------- what the seat knows ----------
+/** Each card's name as a number (its place in NAMES), and how many copies of each the deck has: counted once. */
+const NAME_AT = new Map(NAMES.map((n, i) => [n, i]));
+const NAME_OF = Uint8Array.from(DECK, n => NAME_AT.get(n));
+const COPIES = (() => { const c = new Int16Array(NAMES.length); for (const i of NAME_OF) c[i]++; return c; })();
+/** How many copies of a name a seat hasn't seen (facts' left, by name). */
+export const unseenOf = (F, name) => F.left[NAME_AT.get(name)];
 /**
- * The facts a seat plays from: the table, and the odds on the cards it can't see. unseen: for each name, the copies
- * not in its hand, on the table, in the graveyard or exile, on the stack, seen in the library or known to be in the
- * other hand; those are in the other hand or the library, at random as far as it knows.
+ * The facts a seat plays from: the table, and the odds on the cards it can't see. left: for each name (by its place in
+ * NAMES; unseenOf reads it by name), the copies not in its hand, on the table, in the graveyard or exile, on the stack,
+ * seen in the library or known to be in the other hand; those are in the other hand or the library, at random as far
+ * as it knows. (Numbers in a typed array: this is worked out at every decision of every game Hard plays in its head.)
  */
 export function facts(s, me) {
-  const opp = other(me), unseen = {};
-  for (const n of NAMES) unseen[n] = 0;
-  for (const n of DECK) unseen[n]++;
-  const see = id => { if (id < TOKEN_AT) unseen[DECK[id]]--; };
+  const opp = other(me), left = COPIES.slice();
+  const see = id => { if (id < TOKEN_AT) left[NAME_OF[id]]--; };
   for (const id of s.hand[me]) see(id);
   for (const id of s.yard) see(id);
   for (const id of s.exile) see(id);
@@ -55,9 +62,9 @@ export function facts(s, me) {
   const theirKnown = knownIn(s, opp, me);
   for (const id of theirKnown) see(id);
   let unknown = 0;
-  for (const n of NAMES) unknown += Math.max(0, unseen[n]);
+  for (let i = 0; i < left.length; i++) if (left[i] > 0) unknown += left[i];
   return {
-    s, me, opp, unseen, unknown, theirKnown, hidden: Math.max(0, s.hand[opp].length - theirKnown.length), noLapse: noLapse(s, opp),
+    s, me, opp, left, unknown, theirKnown, hidden: Math.max(0, s.hand[opp].length - theirKnown.length), noLapse: noLapse(s, opp),
     known: topKnown(s, me), next: nextDrawer(s), myTurn: s.active === me,
     my: openMana(s, me), their: openMana(s, opp),
     mine: creatures(s, me), theirs: creatures(s, opp), myIsl: islands(s, me).length, theirIsl: islands(s, opp).length,
@@ -89,7 +96,7 @@ export function holds(F, name) {
   return holdsAtRandom(F, name);
 }
 function holdsAtRandom(F, name) {
-  const k = Math.max(0, F.unseen[name]), n = F.hidden, U = F.unknown;
+  const k = Math.max(0, unseenOf(F, name)), n = F.hidden, U = F.unknown;
   if (k <= 0 || n <= 0 || U <= 0) return 0;
   let none = 1;
   for (let i = 0; i < n; i++) none *= Math.max(0, U - k - i) / (U - i);
@@ -174,6 +181,74 @@ function landHit(s, p, keepsMana = false) {
     if (!rest) v -= 0.9;
   }
   return v;
+}
+
+// ---------- the shared graveyard ----------
+/** How much of a removal spell's hit on a Dandân stays: a kill is for good; a bounce or a trip to the library is a delay. */
+const STAYS = { "Piracy Charm": 1, "Mind Bend": 1, "Deem Inferior": 0.95, "Repulse": 0.5, "Commit": 0.7, "Gone Missing": 0.75, "Metamorphose": 0.7 };
+/** Whether a land can make red. */
+const makesRed = l => manaAlts(l).some(a => a.includes("R"));
+/** Whether a seat controls a land that makes red: what a Mystic Retrieval's flashback ({2}{R}) needs. */
+export const hasRed = (s, seat) => s.bf.some(l => l.ctl === seat && isLand(l) && makesRed(l));
+/** The mana a seat's lands make with all of them untapped, as on its own turn (Izzet Boilerworks makes two). */
+export function landMana(s, seat) {
+  let n = 0;
+  for (const l of s.bf) {
+    if (l.ctl !== seat || !isLand(l)) continue;
+    let big = 0;
+    for (const a of manaAlts(l)) if (a.length > big) big = a.length;
+    n += big;
+  }
+  return n;
+}
+/**
+ * What a removal card would do for `seat` cast this turn with `mana` to spare, against the other's best Dandân, in
+ * cards: the Dandân's worth for as long as the answer lasts, and the attack it won't make. 0 without the mana or a
+ * Dandân worth it.
+ */
+export function answerWorth(F, id, seat, mana) {
+  const s = F.s, half = front(id), stays = STAYS[half];
+  if (stays == null || mana < total(costOf(s, seat, half, "hand"))) return 0;
+  let best = 0;
+  for (const d of creatures(s, other(seat))) {
+    const v = dandanWorth(s, d) * stays + (islandsOfType(s, seat, needType(d)) ? 0.5 * hitValue(s.life[seat]) : 0);
+    if (v > best) best = v;
+  }
+  return best;
+}
+/**
+ * What the graveyard is worth to `seat` on its next turn through a Mystic Retrieval, in cards: the best instant or
+ * sorcery there (a removal spell it could cast the same turn counts what it would do to a Dandân), when it could cast
+ * the Retrieval: flashed back from the graveyard (a red source and three mana) or from its hand (four mana; `inHand`
+ * the chance it holds one). `mana`: what it will have.
+ */
+export const yardWorth = (F, yard, seat, mana, inHand = 0) => yardPick(F, yard, seat, mana, inHand).v;
+/** yardWorth's working: { v, id (the card it would find), kill (it would answer a Dandân the same turn), flash (by flashback) }. */
+export function yardPick(F, yard, seat, mana, inHand = 0) {
+  const pull = (ids, left) => {
+    let best = { v: 0, id: null, kill: false };
+    for (const id of ids) {
+      if (!isSpellCard(id)) continue;
+      const card = cardWorth(F, id, seat), kill = answerWorth(F, id, seat, left);
+      const v = Math.max(card, kill);
+      if (v > best.v) best = { v, id, kill: kill > card };
+    }
+    return best;
+  };
+  let out = { v: 0, id: null, kill: false, flash: false };
+  const flash = yard.findIndex(id => DECK[id] === "Mystic Retrieval");
+  // flashed back it's exiled: worth what it finds, less the turn's mana (a little)
+  if (flash >= 0 && mana >= 3 && hasRed(F.s, seat)) {
+    const p = pull(yard.filter((_, i) => i !== flash), mana - 3);
+    out = { ...p, v: p.v - 0.2, flash: true };
+  }
+  // from the hand it's a card spent on the one it finds
+  if (inHand > 0 && mana >= 4) {
+    const p = pull(yard, mana - 4), v = inHand * (p.v - 0.6);
+    if (v > out.v) out = { ...p, v, flash: false };
+  }
+  if (out.v < 0) out = { v: 0, id: null, kill: false, flash: false };
+  return out;
 }
 
 /** What a spell or ability on the stack does for its controller if it resolves, in cards. */
@@ -368,7 +443,7 @@ export class Player {
   nameCard() {
     const F = this.F;
     if (F.known != null) return DECK[F.known];
-    return NAMES.reduce((best, n) => (F.unseen[n] > F.unseen[best] ? n : best), NAMES[0]);
+    return NAMES.reduce((best, n) => (unseenOf(F, n) > unseenOf(F, best) ? n : best), NAMES[0]);
   }
   retarget(p) {
     const s = this.s, F = this.F, me = this.me, copy = itemOf(s, p.copy);
@@ -498,13 +573,18 @@ export class Player {
     if (n === "Izzet Boilerworks" && have < 1) return 0.2;          // it would return itself
     if (d.cycling && landCount(F, me) >= 6) v -= 1.6;                // flooded: cycle it instead
     const tapped = d.tapped && !(n === "Mystic Sanctuary" && F.myIsl >= 3);
-    // a land that comes in untapped lets us cast what we couldn't; a tapped one is best played when we don't need it
+    // the mana this turn, and through their turn (lands untap only on ours): what we'd cast now (a spell one more would
+    // pay for) or keep open (reserve). A land that comes in untapped adds one, a tapped one none (best played when we
+    // don't need it), and Izzet Boilerworks returning an untapped land (none of ours tapped) takes one away
     const needNow = s.hand[me].some(id => {
       if (isLandId(id)) return false;
       const c = total(costOf(s, me, front(id), "hand"));
       return c === F.my.n + 1;
     });
-    v += tapped ? (needNow ? -0.3 : 0.15) : (needNow ? 0.3 : 0);
+    const want = Math.max(this.reserve(), needNow ? F.my.n + 1 : 0);
+    const after = F.my.n + (tapped ? 0 : 1) - (n === "Izzet Boilerworks" && !lands(s, me).some(l => l.tapped) ? 1 : 0);
+    v += 0.35 * (Math.min(want, after) - Math.min(want, F.my.n));
+    if (tapped && want <= F.my.n) v += 0.15;
     const isl = (d.subs || []).includes("Island");
     const ownDandans = F.mine.length + s.hand[me].filter(id => DECK[id] === "Dandân").length;
     if (isl) {
@@ -573,10 +653,16 @@ export class Player {
     return 0;
   }
 
+  /** A cast: what the spell does for us, less what it leaves the other player in the graveyard. */
   scoreCast(m) {
-    const s = this.s, F = this.F, me = this.me;
+    const s = this.s, me = this.me;
     const half = m.from === "yard" ? halfOf(m.card, "yard") : front(m.card);
     const mana = total(costOf(s, me, half, m.from));
+    const v = this.castWorth(m, half, mana);
+    return v > -0.9 ? v - this.gift(this.yardAfter(m, half), mana, m.from === "hand" ? m.card : null) : v;
+  }
+  castWorth(m, half, mana) {
+    const s = this.s, F = this.F, me = this.me;
     const t0 = m.targets[0];
     const keep = m.from === "yard" ? 0 : KEEP * cardWorth(F, m.card);
     const pay = this.manaCost(mana, m.from === "hand" ? m.card : null);
@@ -624,8 +710,13 @@ export class Player {
       }
       case "Mystic Retrieval": {
         if (!t0) return -1;
-        const w = cardWorth(F, t0.id);
-        return w - 0.35 - keep - pay + (m.from === "yard" ? 0.15 : 0);
+        // what it finds: the card, or what it does cast at once with the mana left (a Piracy Charm on their Dandân): an
+        // instant any time, a sorcery in our own main phase
+        const w = cardWorth(F, t0.id), flash = m.from === "yard" ? 0.15 : 0;
+        const at = CARDS[front(t0.id)]?.type === "instant" || this.myMain;
+        const now = at ? answerWorth(F, t0.id, me, F.my.n - mana) * (1 - 0.6 * counterRisk(F, front(t0.id))) : 0;
+        if (now > w) return now - 0.35 - keep - this.manaCost(mana + total(costOf(s, me, front(t0.id), "hand")), m.from === "hand" ? m.card : null) + flash;
+        return w - 0.35 - keep - pay + flash;
       }
       case "Memory": {
         const a = s.hand[me].length, b = s.hand[this.opp].length;
@@ -633,6 +724,43 @@ export class Player {
       }
     }
     return -1;
+  }
+
+  // ----- the graveyard both players share -----
+  /** The graveyard once a spell of ours has resolved: an instant or sorcery from the hand in it, a flashback exiled, a Retrieval's card gone, Memory's all of it. */
+  yardAfter(m, half) {
+    const s = this.s, t0 = m.targets[0], type = CARDS[half]?.type;
+    if (half === "Memory") return [];
+    let y = s.yard;
+    if (m.from === "yard") y = y.filter(id => id !== m.card);
+    if (half === "Mystic Retrieval" && t0?.k === "g") y = y.filter(id => id !== t0.id);
+    if (m.from === "hand" && (type === "instant" || type === "sorcery")) y = [...y, m.card];
+    return y;
+  }
+  /**
+   * What a move leaving the graveyard as `after` gives the other player there, against what it has for them now, in
+   * cards: the best card their Mystic Retrieval would find (a Piracy Charm with the mana to cast it on our Dandân, a
+   * Dandân's worth), flashed back with their red or cast from their hand. Negative when we take away what they'd find.
+   * Our Memory Lapse with two left open on their turn may counter the Retrieval; spent on their turn, ours comes first.
+   */
+  gift(after, spend = 0, exclude = null) {
+    return this.easy ? 0 : this.giftOf(after, spend, exclude).v;
+  }
+  /** gift's working: { v, after, before } (after and before: yardPick's for them). */
+  giftOf(after, spend = 0, exclude = null) {
+    const s = this.s, F = this.F, opp = this.opp;
+    // what they could find now, worked out once for the decision; after a move, only when they could find anything
+    this.yardNow ??= (() => {
+      const mana = landMana(s, opp) + (s.hand[opp].length >= 2 ? 1 : 0), inHand = holds(F, "Mystic Retrieval");
+      return { mana, inHand, red: hasRed(s, opp), pick: yardPick(F, s.yard, opp, mana, inHand) };
+    })();
+    const { mana, inHand, red, pick: b } = this.yardNow;
+    const could = (red && mana >= 3 && after.some(id => DECK[id] === "Mystic Retrieval")) || (inHand > 0.01 && mana >= 4);
+    const a = could ? yardPick(F, after, opp, mana, inHand) : { v: 0, id: null, kill: false, flash: false }, g = a.v - b.v;
+    if (Math.abs(g) < 0.05) return { v: 0, after: a, before: b };
+    const lapse = s.hand[this.me].some(id => id !== exclude && DECK[id] === "Memory Lapse");
+    const guard = lapse && (F.myTurn ? F.my.n - spend : 2) >= 2 ? 0.5 : 1;
+    return { v: g * guard * (F.myTurn ? 1 : 0.6), after: a, before: b };
   }
 
   /** A Dandân cast now: what it's worth in against the chance it's countered and goes on top for them to draw. */
@@ -707,8 +835,6 @@ export class Player {
     let hit;
     if (half === "Mind Bend") hit = isCreature(p) ? hitWorth(F, p, me) : landHit(s, p, true);
     else hit = hitWorth(F, p, me);
-    // how much of the hit stays: a kill is for good; a bounce or a trip to the library is a delay
-    const STAYS = { "Piracy Charm": 1, "Mind Bend": 1, "Deem Inferior": 0.95, "Repulse": 0.5, "Commit": 0.7, "Gone Missing": 0.75, "Metamorphose": 0.7 };
     let v = hit * (STAYS[half] ?? 0.7);
     if (this.easy) return isCreature(p) || hit > 0 ? v - 0.3 : -1;
     if (hit <= 0.2 && !["Gone Missing", "Metamorphose"].includes(half)) return -1;
@@ -732,7 +858,8 @@ export class Player {
       else if (this.theirEnd) v += 0.1;
       else if (F.myTurn && s.step === "attackers" && s.combat?.att.length) v += 0.2;
       else if (F.myTurn && riskLater - riskNow > 0.2) v += 0.3 * (riskLater - riskNow) * v;   // they're tapped out now; on their turn they won't be
-      else v -= 0.35;
+      // an instant waits for its moment (their attack, the end of their turn); a sorcery's next is our next turn, after their attack
+      else if (CARDS[half].type !== "sorcery") v -= 0.35;
     } else if (!this.theirEnd && !(F.myTurn && this.myMain)) v -= 0.2;
     // casting into open mana invites a counter (on our turn the card then goes to them)
     if (!this.stack) v -= counterRisk(F, half) * (0.6 * v + (F.myTurn ? 0.4 : 0));

@@ -33,8 +33,9 @@ export function say(s, text) {
 }
 
 // ---------- cards ----------
-/** The entry of what a card id is on its front face (a split card's front is Commit). */
-export const defOf = id => CARDS[id >= TOKEN_AT ? "Clue" : (HALVES[DECK[id]] ? HALVES[DECK[id]][0] : DECK[id])];
+/** The entry of what a card id is on its front face (a split card's front is Commit). (Looked up once for each card: it's asked everywhere.) */
+const DEFS = DECK.map(n => CARDS[HALVES[n] ? HALVES[n][0] : n]);
+export const defOf = id => (id >= TOKEN_AT ? CARDS.Clue : DEFS[id]);
 export const isLandId = id => defOf(id).type === "land";
 /** A card's name for the log. */
 export const nm = id => (id >= TOKEN_AT ? "Clue" : DECK[id]);

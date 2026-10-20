@@ -22,8 +22,12 @@ const spellsOnStack = (s, not) => s.stack.filter(i => i.kind === "spell" && !not
 /** What type a spell on the stack is (the half it was cast as). */
 const typeOfItem = i => CARDS[i.name]?.type;
 
-/** The legal targets of a spell as lists (one list of one target each, or [[]] for a spell with none); [] if it can't be cast. */
-export function targetLists(s, ctl, name, mode = 0, not = []) {
+/**
+ * The legal targets of a spell as lists (one list of one target each, or [[]] for a spell with none); [] if it can't be
+ * cast. self: the card being cast from the graveyard, which is on the stack by the time its targets are chosen (a
+ * Mystic Retrieval flashed back can't return itself).
+ */
+export function targetLists(s, ctl, name, mode = 0, not = [], self = null) {
   const one = ts => ts.map(t => [t]);
   switch (name) {
     case "Memory Lapse": return one(spellsOnStack(s, not).map(i => T.s(i.sid)));
@@ -34,7 +38,7 @@ export function targetLists(s, ctl, name, mode = 0, not = []) {
     case "Repulse": return one(s.bf.filter(isCreature).map(C));
     case "Metamorphose": return one(s.bf.filter(p => p.ctl !== ctl).map(C));
     case "Deem Inferior": return one(s.bf.filter(p => !isLand(p)).map(C));
-    case "Mystic Retrieval": case "@sanct": return one(s.yard.filter(isSpellCard).map(T.g));
+    case "Mystic Retrieval": case "@sanct": return one(s.yard.filter(id => id !== self && isSpellCard(id)).map(T.g));
     case "Piracy Charm": return mode === 2 ? one([T.p(0), T.p(1)]) : one(s.bf.filter(isCreature).map(C));
     default: return [[]];
   }

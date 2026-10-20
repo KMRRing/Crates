@@ -1,11 +1,13 @@
-// Dandan's coach (dandan-coach.js, on dandan-think.js's weighing): its words for every kind of move, its advice legal
-// and the same each time, nothing it can't see changing it, the verdict's margin, and its reasons on positions with
-// one right answer.
+// Dandan's coach (dandan-coach.js, on dandan-think.js's weighing and dandan-eval.js's judge): its words for every kind
+// of move, its advice legal and the same each time, nothing it can't see changing it, the judge's chances, the
+// verdict's margin, its reasons on positions with one right answer, and what the deals showed.
 import { DECK } from "../dandan-cards.js";
-import { toMove } from "../dandan-engine.js";
+import { toMove, deal, restore } from "../dandan-engine.js";
 import { T } from "../dandan-spells.js";
 import { think, determinize, seedOf } from "../dandan-think.js";
-import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN } from "../dandan-coach.js";
+import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN, evidence } from "../dandan-coach.js";
+import { winChance, features, FEATURES } from "../dandan-eval.js";
+import { botMove } from "../dandan-bot.js";
 import { seeded } from "../seats.js";
 import { J, scene, islandsOf, go, refused, idIn, onBf, cast, pass, answer, resolveStack, sidOf } from "./dandan-scene.js";
 
@@ -80,7 +82,8 @@ test("what the seat can't see (the other hand, the library's order) changes noth
   [t.hand[1][0], t.lib[k]] = [t.lib[k], t.hand[1][0]];
   t.lib = t.lib.reverse();
   if (seedOf(s, seat) !== seedOf(t, seat)) return "the seed saw it";
-  const a = think(s, seat, BUDGET), b = think(t, seat, BUDGET);
+  // (with the other player's answers tried, as the page asks: they're tried in the deals, never in the real hand)
+  const a = think(s, seat, { ...BUDGET, reply: 4 }), b = think(t, seat, { ...BUDGET, reply: 4 });
   const d1 = determinize(s, seat, seeded(3)), d2 = determinize(t, seat, seeded(3));
   return sameMove(a.best, b.best) && a.list.map(c => c.mean.toFixed(6)).join() === b.list.map(c => c.mean.toFixed(6)).join()
     && JSON.stringify(d1.hand[1]) === JSON.stringify(d2.hand[1]) && JSON.stringify(d1.lib) === JSON.stringify(d2.lib) || "the deals or the advice differ";
@@ -107,6 +110,25 @@ test("a player who let our Dandân resolve with a Lapse's mana open is mostly de
   t.ev[1] = t.draws[1];
   const after = lapses(t);
   return before > 60 && after < before / 3 || `${before} then ${after} of 200 deals`;
+});
+
+// ---------- the judge ----------
+test("the judge: the two seats' chances add up to one, a Dandân on the table counts, a finished game is certain", () => {
+  let worst = 0;
+  for (const seed of [1, 2]) {
+    let s = restore(J(deal({ rng: seeded(seed) })));
+    const rng = seeded(seed);
+    for (let i = 0; i < 300 && !s.over; i++) {
+      const x = features(s, 0);
+      if (x.length !== FEATURES.length || ![...x].every(Number.isFinite)) return `move ${i}: the features`;
+      worst = Math.max(worst, Math.abs(winChance(s, 0) + winChance(s, 1) - 1));
+      s = go(s, toMove(s), botMove(s, toMove(s), { rng, level: "medium" }));
+    }
+  }
+  const base = { turn: 8, hand: [["Island", "Brainstorm", "Memory Lapse"], ["Island", "Predict", "Memory Lapse"]], bf: [...islandsOf(0, 4), ...islandsOf(1, 4)] };
+  const even = winChance(scene(base), 0), ours = winChance(scene({ ...base, bf: [...base.bf, [0, "Dandân"]] }), 0), theirs = winChance(scene({ ...base, bf: [...base.bf, [1, "Dandân"]] }), 0);
+  const won = scene(base); Object.assign(won, { over: true, winner: 0 });
+  return worst < 1e-6 && ours > even + 0.1 && theirs < even - 0.1 && winChance(won, 0) === 1 && winChance(won, 1) === 0 || `${worst} ${even} ${ours} ${theirs}`;
 });
 
 // ---------- the verdict ----------
@@ -141,6 +163,27 @@ test("its reasons on positions with one right answer", () => {
 test("the advice line: the move, why, and its chance of winning", () => {
   const s = theirDandan(), r = think(s, 0, BUDGET), line = adviceLine(r, s, 0);
   return /^Cast Memory Lapse on their Dandân · .* · \d+% to win$/.test(line) || line;
+});
+test("what the deals showed: where each move left the game, and the biggest difference in the better one's favour in words", () => {
+  const s = theirDandan(), r = think(s, 0, { ...BUDGET, must: { t: "pass" } });
+  const lapse = r.list.find(c => c.move.t === "cast"), pass_ = r.list.find(c => c.move.t === "pass");
+  const keys = Object.keys(lapse.seen).sort().join();
+  // countered, their Dandân is gone two turns on far more often than let through
+  const said = evidence(lapse, pass_, s, 0).join(" ");
+  const made = { seen: { d: 0.5, D: 0.2, l: 20, L: 20, h: 4, H: 4 }, move: { t: "pass" } }, other = { seen: { d: 0.5, D: 0.2, l: 12, L: 20, h: 4, H: 4 }, move: { t: "land", card: idIn(lone(), 0, "Island") } };
+  const life = evidence(made, other, lone(), 0).join(" "), none = evidence(made, made, lone(), 0), yours = evidence(made, other, lone(), 0, { yours: true }).join(" ");
+  return keys === "D,H,L,a,an,d,h,l" && /they have a Dandân on the table in .* after letting it resolve; after casting Memory Lapse on their Dandân, in/.test(said)
+    && /you're at 12 life on average after playing Island; after passing, at 20/.test(life) && /after yours; after passing/.test(yours) && !none.length || `${keys} | ${said} | ${life}`;
+});
+test("the shared graveyard: a Mystic Retrieval cast from the hand while they have red and a Piracy Charm lies there is called out, and why", () => {
+  const s = scene({ turn: 9, active: 0, step: "main1", hand: [["Mystic Retrieval", "Island", "Brainstorm"], ["Island", "Predict"]],
+    bf: [...islandsOf(0, 4), [0, "Dandân"], [1, "Thundering Falls"], ...islandsOf(1, 3)], yard: ["Piracy Charm", "Memory Lapse", "Chart a Course"] });
+  const lapse = s.yard.find(id => DECK[id] === "Memory Lapse");
+  const mine = { t: "cast", card: idIn(s, 0, "Mystic Retrieval"), from: "hand", targets: [T.g(lapse)] };
+  // (the other player's answers tried, as the page asks)
+  const v = verdict(think(s, 0, { ...BUDGET, reply: 4, must: mine }), mine, s, 0);
+  return !!v && /flashes it back for the Piracy Charm, and your Dandân dies/.test(v.words) && /Their best answer to yours, in \d+ of the \d+ deals: they cast Mystic Retrieval for Piracy Charm with flashback/.test(v.words)
+    && /you have a Dandân on the table in .* after yours/.test(v.words) || v?.words || "no word";
 });
 test("a move the coach's weighing never saw (a refused one) has no verdict rather than a wrong one", () => {
   const s = lone(), r = think(s, 0, BUDGET);
