@@ -490,8 +490,10 @@ function openDone() {
     body.append(el("p", "yd-sum", S.fresh ? "A new best for this sprint." : best != null ? `Your best at ${S.secs / 60} minutes, ${BOARDS[S.p.board].toLowerCase()} ${LEVELS[S.p.level].toLowerCase()}: ${best}.` : ""));
   }
   if (P.plan.length) {
-    const them = rivalAt(boardP(), P.plan, usedMs() / 1000);
-    body.append(el("p", "yd-sum", `${RIVALS[S.rival].label} made ${them.points} points with ${plural(them.words.length, "word")}: ${pts > them.points ? "you win" : pts === them.points ? "a draw" : `${RIVALS[S.rival].label} wins`}.`));
+    const them = rivalAt(boardP(), P.plan, usedMs() / 1000), name = RIVALS[S.rival].label, mine = new Set(S.found);
+    body.append(el("p", "yd-sum", `${name} made ${them.points} points with ${plural(them.words.length, "word")}: ${pts > them.points ? "you win" : pts === them.points ? "a draw" : `${name} wins`}.`));
+    // its words, those you didn't find first: what a player of its level saw that you didn't
+    if (them.words.length) body.append(el("p", "yd-note", `${name}'s words: ${[...them.words].sort((a, b) => mine.has(a) - mine.has(b) || (a < b ? -1 : 1)).map(w => (mine.has(w) ? up(w) : `${up(w)}*`)).join(", ")}. * you didn't find it.`));
   }
   // the way on before the words, which can run long
   if (S.kind === "day" || S.kind === "run") {
