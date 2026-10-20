@@ -3,7 +3,7 @@
 // puzzles and the computer player are yield-engine.js's; this file keeps the runs, draws the board and takes the taps.
 // Today's puzzle and a random one are kept apart, so switching between them loses neither. Together (duel.js): a race,
 // the same letters for everyone against the clock, or a team, the same letters with a centre letter each.
-import { BOARDS, LEVELS, RANKS, RIVALS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
+import { BOARDS, LEVELS, RANKS, MASTER, TOP, RIVALS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
   planFor, rivalAt, outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -252,8 +252,8 @@ function noteDaily(pts) {
 function noteRank(from, to) {
   if (S.kind === "race" || S.kind === "team") return;
   const st = read(STATS, {}) || {};
-  if (from < 8 && to >= 8) st.master = (st.master || 0) + 1;
-  if (from < 9 && to >= 9) st.full = (st.full || 0) + 1;
+  if (from < MASTER && to >= MASTER) st.master = (st.master || 0) + 1;
+  if (from < TOP && to >= TOP) st.full = (st.full || 0) + 1;
   write(STATS, st);
 }
 
@@ -314,7 +314,7 @@ function drawLine() {
   l.replaceChildren(idle);
 }
 // the scale is built once: a tick for each rank, your index over it, and a layer under it for the others' indexes
-const scale = $("scale"), scaleTicks = RANKS.map((_, i) => { const t = el("i", `yd-tick${i === RANKS.length - 1 ? " top" : ""}`); t.style.left = `${(i / (RANKS.length - 1)) * 100}%`; return t; });
+const scale = $("scale"), scaleTicks = RANKS.map((_, i) => { const t = el("i", `yd-tick${i === TOP ? " top" : ""}`); t.style.left = `${(i / TOP) * 100}%`; return t; });
 const myIndex = el("i", "yd-index"), theirIndexes = el("span", "yd-them");
 scale.replaceChildren(...scaleTicks, myIndex, theirIndexes);
 function drawGauge() {
@@ -681,7 +681,7 @@ function onTable(g) {
   if (team.over && teamReported !== `${g.created}-${g.n}`) {
     teamReported = `${g.created}-${g.n}`;
     const pts = pointsNow(), pct = Math.round((100 * pts) / Math.max(1, P.total));
-    reportDuo("yield", `${g.created}-${g.n}`, { score: pct, won: rankOf(pts, P.total) >= 8, coop: true }).catch(e => console.error(e));
+    reportDuo("yield", `${g.created}-${g.n}`, { score: pct, won: rankOf(pts, P.total) >= MASTER, coop: true }).catch(e => console.error(e));
     openDone();
   }
 }

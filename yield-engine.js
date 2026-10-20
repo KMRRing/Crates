@@ -27,8 +27,9 @@ const BANDS = {
     heavy: { words: [22, 55], depth: [0, 2.35], full: 0 },
   },
 };
-// two centres or more, the team's yield is every word with any player's letter: larger, so a band of its own
-const TEAM_WORDS = { light: [30, 64], medium: [38, 80], heavy: [45, 96] };
+// two centres or more, the team's yield is every word with any player's letter: larger, so a band of its own; and
+// the pair's words that only one of them can enter at least this share of it each, so neither can carry the other
+const TEAM_WORDS = { light: [30, 64], medium: [38, 80], heavy: [45, 96] }, EVEN = 0.22;
 const MAX_ING = 0.3, MAX_ED = 0.45;     // a yield that is mostly -ing or -ed forms is one trick, not a puzzle
 
 // ---------- randomness that is the same on every device ----------
@@ -117,7 +118,7 @@ export const totalOf = (p, words) => words.reduce((s, w) => s + pointsOf(p, w), 
 export function depthOf(p, words) {
   const total = totalOf(p, words), sorted = [...words].sort((a, b) => ease(b) - ease(a) || (a < b ? -1 : 1));
   let acc = 0;
-  for (const w of sorted) { acc += pointsOf(p, w); if (acc >= RANKS[8][0] * total) return ease(w); }
+  for (const w of sorted) { acc += pointsOf(p, w); if (acc >= RANKS[MASTER][0] * total) return ease(w); }
   return 0;
 }
 /** What a puzzle is like: its size, points, depth, its pangrams' commonness, and how much of it is one ending. */
@@ -199,7 +200,7 @@ export function daily(day) {
  * pair whose words only one of them can enter are the most even; the rest follow for a party's further seats.
  */
 export function dealTeam({ seed, level = "medium", board = "hive" }) {
-  const r = rng(seed ^ 0x5eed), b = BANDS[board][level];
+  const r = rng(seed ^ 0x5eed);
   let best = null, tried = 0;
   for (const [letters] of candidates(board, r)) {
     if (++tried > TRIES) break;
@@ -217,8 +218,8 @@ export function dealTeam({ seed, level = "medium", board = "hive" }) {
     const words = [...pick.union].sort(), s = statsOf(p, words);
     // the rest of the letters for more seats, those that add the most words of their own first
     p.centres.push(...[...own.keys()].filter(c => !p.centres.includes(c)).sort((x, y) => own.get(y).size - own.get(x).size || (x < y ? -1 : 1)));
-    const fit = suits(board, level, s, true) && pick.even >= 0.22;
-    const d = distance(board, level, s, true) + Math.max(0, 0.22 - pick.even) * 20;
+    const fit = suits(board, level, s, true) && pick.even >= EVEN;
+    const d = distance(board, level, s, true) + Math.max(0, EVEN - pick.even) * 20;
     if (fit) return p;
     if (!best || d < best.d) best = { p, d };
   }
@@ -256,8 +257,10 @@ export const centresIn = (p, people) => (p.centres?.length ? p.centres.slice(0, 
 // every word; Master refiner, the one to aim for, 70%.
 export const RANKS = [[0, "Crude"], [0.02, "Warming up"], [0.05, "On stream"], [0.08, "On spec"], [0.15, "Steady"], [0.25, "Full rate"],
   [0.4, "Cracking"], [0.5, "Record run"], [0.7, "Master refiner"], [1, "Full yield"]];
+/** Where Master refiner (the rank to aim for) and Full yield (every word) are in RANKS. */
+export const MASTER = 8, TOP = RANKS.length - 1;
 /** The points each rank needs, for a puzzle of `total` points (rounded, as players count them; Full yield is all). */
-export const needed = total => RANKS.map(([f], i) => (i === RANKS.length - 1 ? total : Math.round(f * total)));
+export const needed = total => RANKS.map(([f], i) => (i === TOP ? total : Math.round(f * total)));
 /** The rank reached with `points` of `total`: its index in RANKS. */
 export function rankOf(points, total) {
   const need = needed(total);
@@ -320,7 +323,7 @@ export function chartOf(words, found = new Set()) {
 // from the seed at the start, a time for every word it will find, so it plays the same on a reload and every phone.
 // Fitted to how people play (tests/yield.mjs holds them to it): on a Medium hive, Novice finds about half the points
 // in half an hour and never reaches Master refiner; Steady reaches it in thirty-odd minutes, Sharp in about fifteen,
-// Master in ten; in a three-minute sprint they make about 30, 40, 55 and 65 points.
+// Master in ten; in a three-minute sprint they make about 35, 45, 60 and 70 points.
 export const RIVALS = {
   novice: { label: "Novice", vocab: 3.05, think: 19, luck: 0.6 },
   steady: { label: "Steady", vocab: 2.5, think: 13, luck: 0.5 },

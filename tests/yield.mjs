@@ -3,7 +3,7 @@
 // daily the same everywhere and never a letter set twice in its walk, the computer player at its three levels, the
 // chart, a team's split (the parts make the whole, neither alone does) through the database's round trip, and a run
 // kept through JSON.
-import { BOARDS, LEVELS, DAILY, RANKS, RIVALS, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
+import { BOARDS, LEVELS, DAILY, RANKS, MASTER, TOP, RIVALS, FULL_BONUS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge,
   chartOf, planFor, rivalAt, outerOf, statsOf, depthOf, centreFor, centresIn, teamFound, onlyMine, counts, zipfOf, hiveSets, makesDaily,
   maskOf, FIRST_DAY } from "../yield-engine.js";
 import { WORDS, DAYS, BLOCKED } from "../yield-words.js";
@@ -55,7 +55,8 @@ check(all.every(w => zipfOf(w) >= 1.5) && zipfOf("the") === 0, "every counted wo
 }
 
 // ---------- ranks ----------
-check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[8][1] === "Master refiner" && RANKS[9][1] === "Full yield" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]), "ten ranks from Crude to Full yield, rising");
+check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[MASTER][1] === "Master refiner" && RANKS[MASTER][0] === 0.7 && RANKS[TOP][1] === "Full yield" && RANKS.every(([f], i) => !i || f > RANKS[i - 1][0]),
+  "ten ranks from Crude to Full yield, rising, Master refiner at 70%");
 {
   const need = needed(200);
   check(need[8] === 140 && need[9] === 200 && need[1] === 4, "the points each rank needs, rounded (70% of 200 is 140)");
