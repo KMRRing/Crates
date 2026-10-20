@@ -181,7 +181,8 @@ export function makesDaily(letters) {
  * takes the first of its set's centres, in an order the day's seed sets, that makes a Medium puzzle.
  */
 export function daily(day) {
-  const n = DAYS.length / 7, k = (((dayNumber(day) - dayNumber(FIRST_DAY)) % n) + n) % n, letters = DAYS.slice(k * 7, k * 7 + 7);
+  const n = DAYS.length / 7, at = (((dayNumber(day) - dayNumber(FIRST_DAY)) % n) + n) % n, k = Number.isInteger(at) ? at : 0;
+  const letters = DAYS.slice(k * 7, k * 7 + 7);
   let best = null;
   for (const c of shuffled([...letters], rng(day))) {
     const p = { board: DAILY.board, letters, centre: c, level: DAILY.level, seed: day, day }, s = statsOf(p);
@@ -222,6 +223,28 @@ export function dealTeam({ seed, level = "medium", board = "hive" }) {
     if (!best || d < best.d) best = { p, d };
   }
   return best?.p || { ...deal({ seed, level, board }), centres: null };
+}
+/**
+ * A team's words, from every seat's run at the table (duel.js keeps each seat's run, s<slot>, and Yield puts in it
+ * words: { word: ms into the match }): Map(word -> the seat that found it first, the lower seat on a tie). Each phone
+ * writes only its own run, so two finds at once never collide; the team's yield is all of them together.
+ */
+export function teamFound(g) {
+  const all = new Map();
+  for (const x of Object.values(g?.players || {})) {
+    if (!x || x.slot == null) continue;
+    for (const [w, t] of Object.entries(g.runs?.[`s${x.slot}`]?.words || {})) {
+      const had = all.get(w);
+      if (!had || t < had.t || (t === had.t && x.slot < had.slot)) all.set(w, { t, slot: x.slot });
+    }
+  }
+  return new Map([...all].map(([w, x]) => [w, x.slot]));
+}
+/** The words a seat found that nobody else at the table did (a race's result stars them). */
+export function onlyMine(g, slot) {
+  const others = new Set(), mine = Object.keys(g?.runs?.[`s${slot}`]?.words || {});
+  for (const [k, r] of Object.entries(g?.runs || {})) if (k !== `s${slot}`) for (const w of Object.keys(r?.words || {})) others.add(w);
+  return new Set(mine.filter(w => !others.has(w)));
 }
 /** The centre of the player in seat `slot` at a team's table (seats past the letters share them round). */
 export const centreFor = (p, slot) => (p.centres?.length ? p.centres[(slot ?? 0) % p.centres.length] : p.centre);

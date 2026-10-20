@@ -1,0 +1,177 @@
+/* Yield: seven letters in a hive (or nine tiles in a wheel), a gauge of the run's ranks across the top, the words
+   found under it. Its enamel is honey ochre, Spelling Bee's colour and the suite's first enamel: the centre hex is
+   filled with it, lettered in the dark ink the ochre crates take. */
+:root {
+  --yd-in: #9A6A10;                     /* lines and words in the game's colour, dark enough to read on the page */
+  --yd-hive: #D49A22;                   /* the centre's enamel */
+  --yd-on-hive: #2A2005;
+  --yd-in-soft: color-mix(in srgb, var(--yd-hive) 18%, var(--sheet));
+  --yd-good: #2F7D5B; --yd-bad: #A8382B;
+  --yd-logo-tint: #F1DDAE; --yd-logo-edge: var(--logo-edge);   /* the header dropdown wears the logo's colours */
+}
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --yd-in: #E2B24E; --yd-hive: #D9A53A; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #574115; }
+}
+html[data-mode="night"] { --yd-in: #E2B24E; --yd-hive: #D9A53A; --yd-good: #7FC2A8; --yd-bad: #E8806F; --yd-logo-tint: #574115; }
+html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
+
+.yd-mark { display: inline-block; }
+.yd-mark svg { width: 100%; height: 100%; display: block; }
+#app.yield button { -webkit-tap-highlight-color: transparent; }
+
+/* ---------- the gauge: the run's ranks as an instrument's scale, the index at your points ---------- */
+.yd-gauge { display: grid; gap: .3rem; width: 100%; margin: .55rem 0 .35rem; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.yd-rank { display: flex; align-items: baseline; gap: .6rem; min-width: 0; }
+.yd-rank b { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 1.02rem; font-weight: 800;
+  font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+.yd-points { flex: none; font-weight: 800; font-size: 1.02rem; font-variant-numeric: tabular-nums; }
+.yd-points small { font-weight: 650; color: var(--ink-soft); font-size: .8rem; }
+.yd-clock { flex: none; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--yd-in); }
+.yd-clock.low { color: var(--yd-bad); }
+.yd-clock[hidden] { display: none; }
+.yd-scale { position: relative; display: block; height: 1.15rem; margin: 0 .45rem; }
+.yd-scale::before { content: ""; position: absolute; left: 0; right: 0; top: .5rem; height: 1px; background: var(--brass); }
+.yd-tick { position: absolute; top: .2rem; width: 0; height: .6rem; border-left: 1px solid var(--brass); }
+.yd-tick::after { content: ""; position: absolute; left: -.28rem; top: .16rem; width: .5rem; height: .5rem; border-radius: 50%; box-sizing: border-box;
+  border: 1px solid var(--brass); background: var(--sheet); }
+.yd-tick.on::after { background: var(--yd-hive); border-color: var(--yd-in); }
+.yd-tick.top::after { border-radius: 1px; transform: rotate(45deg); }
+.yd-index { position: absolute; top: -.05rem; width: 0; height: 0; transition: left .35s ease; }
+.yd-index::before { content: ""; position: absolute; left: -.4rem; top: 0; border-style: solid; border-width: .5rem .4rem 0; border-color: var(--ink) transparent transparent; }
+.yd-index.them::before { border-top-color: var(--who, var(--p1)); top: .62rem; border-width: 0 .32rem .42rem; border-color: transparent transparent var(--who, var(--p1)); left: -.32rem; }
+@media (prefers-reduced-motion: reduce) { .yd-index { transition: none; } }
+
+/* ---------- what's found: one line under the gauge (tap for them all), and the chart beside it ---------- */
+.yd-found-row { display: flex; gap: .45rem; }
+.yd-found { flex: 1 1 auto; min-width: 0; display: grid; gap: .1rem; align-content: center; min-height: 2.75rem; padding: .3rem .65rem; border-radius: 5px;
+  border: 1px solid var(--tile-edge); background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; outline: 1px solid var(--rule); outline-offset: -4px; }
+.yd-found-head { display: flex; justify-content: space-between; gap: .5rem; font-size: .74rem; color: var(--ink-soft); }
+.yd-found-head b { font-weight: 800; color: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); }
+.yd-found-list { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .86rem; font-weight: 650; letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); }
+.yd-found-list:empty::before { content: "None yet"; color: var(--ink-soft); font-weight: 500; text-transform: none; letter-spacing: normal; }
+.yd-found-list .full { color: var(--yd-in); font-weight: 800; }
+.yd-found-list .new { color: var(--yd-in); }
+.yd-found-list .by { color: var(--who); }
+.yd-chart-btn { flex: none; display: grid; justify-items: center; align-content: center; gap: .05rem; width: 3.4rem; min-height: 2.75rem; padding: 0; border-radius: 5px;
+  border: 1.5px solid var(--brass); background: none; color: var(--ink); font: inherit; font-size: .62rem; font-weight: 800; font-stretch: var(--wide);
+  text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+.yd-chart-btn svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.yd-rival { margin: .35rem 0 0; min-height: 1.3em; font-size: .8rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yd-rival[hidden] { display: none; }
+.yd-rival b { color: var(--ink); font-weight: 800; }
+.yd-rival .who { color: var(--who); font-weight: 800; }
+
+/* ---------- the word being made, what it got, the board and its keys ---------- */
+.yd-play { min-height: 0; }
+.yd-word { display: flex; justify-content: center; align-items: center; height: 3rem; margin: .45rem 0 0; overflow: hidden; white-space: nowrap;
+  font-size: var(--word-size, 1.9rem); font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: uppercase; }
+.yd-word .c { color: var(--yd-in); }
+.yd-word .x { color: color-mix(in srgb, var(--ink) 30%, transparent); }
+.yd-word::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: .08em; background: var(--yd-hive); animation: yd-caret 1.1s steps(1) infinite; }
+.yd-word.off::after { display: none; }
+@keyframes yd-caret { 50% { opacity: 0; } }
+.yd-word.shake { animation: yd-shake .32s ease; }
+@keyframes yd-shake { 20% { transform: translateX(-.5rem); } 45% { transform: translateX(.45rem); } 70% { transform: translateX(-.25rem); } }
+@media (prefers-reduced-motion: reduce) { .yd-word.shake, .yd-word::after { animation: none; } }
+.yd-line { display: flex; justify-content: center; align-items: center; gap: .4rem; height: 1.6rem; margin: 0; font-size: .86rem; font-weight: 700; color: var(--ink-soft);
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.yd-line.good { color: var(--yd-good); }
+.yd-line.bad { color: var(--yd-bad); }
+.yd-line .pts { display: inline-grid; place-items: center; min-width: 1.6rem; height: 1.3rem; padding: 0 .35rem; border-radius: 4px; background: var(--yd-hive); color: var(--yd-on-hive); font-size: .78rem; font-weight: 800; }
+.yd-line .ld { width: 1rem; height: 1rem; }
+
+.yd-board { position: relative; min-height: 8rem; touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+.yd-board * { -webkit-tap-highlight-color: transparent; }
+.yd-board svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; overflow: visible; }
+.yd-cell { cursor: pointer; }
+.yd-cell .face { fill: var(--tile); stroke: var(--tile-edge); stroke-width: 1.5px; transition: fill .08s; }
+.yd-cell .inlay { fill: none; stroke: var(--rule); stroke-width: 1px; }
+.yd-cell text { fill: var(--ink); font-family: var(--font); font-weight: 800; font-stretch: var(--wide); text-anchor: middle; dominant-baseline: central; pointer-events: none; text-transform: uppercase; }
+.yd-cell.centre .face { fill: var(--yd-hive); stroke: var(--yd-in); }
+.yd-cell.centre .inlay { stroke: color-mix(in srgb, var(--yd-on-hive) 35%, transparent); }
+.yd-cell.centre text { fill: var(--yd-on-hive); }
+.yd-cell.down .face { fill: color-mix(in srgb, var(--ink) 14%, var(--tile)); }
+.yd-cell.centre.down .face { fill: color-mix(in srgb, var(--yd-on-hive) 22%, var(--yd-hive)); }
+.yd-cell.used .face { fill: color-mix(in srgb, var(--ink) 8%, var(--yard)); stroke: var(--rule); }
+.yd-cell.used text { fill: color-mix(in srgb, var(--ink) 28%, transparent); }
+.yd-cell.centre.used .face { fill: color-mix(in srgb, var(--yd-hive) 38%, var(--yard)); stroke: var(--yd-in); }
+.yd-cell.centre.used text { fill: color-mix(in srgb, var(--yd-on-hive) 40%, transparent); }
+.yd-cell .ring { fill: none; stroke: var(--who, var(--p1)); stroke-width: 4px; }
+.yd-cell text.tag { fill: var(--who, var(--p1)); font-size: 15px; font-weight: 800; font-stretch: 100%; }
+.yd-board.mixing text { opacity: 0; transition: opacity .09s; }
+.yd-board text { transition: opacity .12s; }
+.yd-board.off .yd-cell { cursor: default; }
+.yd-board.off .yd-cell text { fill: color-mix(in srgb, var(--ink) 45%, transparent); }
+.yd-board.off .yd-cell.centre text { fill: color-mix(in srgb, var(--yd-on-hive) 60%, transparent); }
+
+.yd-keys { display: grid; grid-template-columns: 1fr auto 1fr; gap: .6rem; align-items: center; margin-top: .5rem; }
+.yd-key { min-height: 3.1rem; border-radius: 5px; border: 1.5px solid var(--brass); background: var(--sheet); color: var(--ink); font: inherit; font-size: .84rem;
+  font-weight: 800; font-stretch: var(--stretch-btn); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); cursor: pointer; touch-action: manipulation; }
+.yd-key:disabled { opacity: .4; cursor: default; }
+.yd-mix { width: 3.1rem; height: 3.1rem; padding: 0; display: grid; place-items: center; border-radius: 50%; }
+.yd-mix svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.yd-enter { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; }
+
+/* ---------- the sheets: the words, the chart, the ranks, the end of a puzzle ---------- */
+dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscroll-behavior: contain; }
+.yd-sheet .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); }
+.yd-sheet-body { padding-bottom: .4rem; }
+.yd-sum { margin: .2rem 0 .7rem; color: var(--ink-soft); font-size: .92rem; line-height: 1.4; }
+.yd-sum b { color: var(--ink); }
+.yd-words { columns: 2; column-gap: 1.2rem; list-style: none; margin: 0 0 .8rem; padding: 0; font-size: .9rem; }
+@media (min-width: 28rem) { .yd-words { columns: 3; } }
+.yd-words li { padding: .16rem 0; break-inside: avoid; border-bottom: 1px solid var(--rule); text-transform: var(--caps); letter-spacing: calc(.05em * var(--track)); font-weight: 650; }
+.yd-words li.full { color: var(--yd-in); font-weight: 800; }
+.yd-words li.miss { color: var(--ink-soft); font-weight: 500; }
+.yd-words li.miss.full { color: color-mix(in srgb, var(--yd-in) 70%, transparent); }
+.yd-words li .who { display: inline-block; width: .5rem; height: .5rem; margin-right: .35rem; border-radius: 50%; background: var(--who); vertical-align: .05rem; }
+.yd-h { margin: .9rem 0 .35rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.yd-note { margin: .3rem 0 .6rem; font-size: .84rem; color: var(--ink-soft); line-height: 1.4; }
+.yd-grid { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .92rem; }
+.yd-grid th, .yd-grid td { padding: .3rem .2rem; text-align: center; border-bottom: 1px solid var(--rule); }
+.yd-grid th { font-size: .72rem; color: var(--ink-soft); font-weight: 800; }
+.yd-grid th[scope="row"] { text-align: left; font-size: .92rem; color: var(--ink); text-transform: uppercase; letter-spacing: calc(.08em * var(--track)); }
+.yd-grid td.z { color: color-mix(in srgb, var(--ink) 25%, transparent); }
+.yd-grid tr.sum td, .yd-grid tr.sum th { font-weight: 800; border-bottom: 0; }
+.yd-starts { display: flex; flex-wrap: wrap; gap: .3rem .9rem; margin: 0 0 .6rem; padding: 0; list-style: none; font-size: .9rem; font-variant-numeric: tabular-nums; }
+.yd-starts b { text-transform: uppercase; letter-spacing: calc(.06em * var(--track)); }
+.yd-ranks { list-style: none; margin: 0 0 .6rem; padding: 0; display: grid; gap: .25rem; }
+.yd-ranks li { display: flex; justify-content: space-between; gap: .6rem; padding: .45rem .65rem; border-radius: 5px; background: var(--yard); }
+.yd-ranks li b { font-weight: 800; font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-size: .86rem; }
+.yd-ranks li span { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.yd-ranks li.on { background: var(--yd-in-soft); box-shadow: inset 0 0 0 1.5px var(--yd-in); }
+.yd-ranks li.done b { color: var(--yd-in); }
+.yd-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; margin: .2rem 0 .8rem; }
+.yd-stats div { display: grid; gap: .1rem; padding: .5rem; border-radius: 5px; background: var(--yard); text-align: center; }
+.yd-stats b { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.yd-stats span { font-size: .72rem; color: var(--ink-soft); }
+.yd-sheet .btn.wide + .btn.wide { margin-top: .3rem; }
+.yd-toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%); z-index: 20; max-width: min(92vw, 30rem); margin: 0;
+  padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .92rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.yd-toast.show { opacity: 1; }
+
+/* ---------- held sideways: the board, the word and the keys on the left; the gauge and every word found beside them ---------- */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.yield { --beside: 21rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.yield .yd-gauge { grid-column: 2; grid-row: 2; margin-top: .9rem; }
+  #app.yield .yd-play { grid-column: 1; grid-row: 2 / span 2; display: flex; flex-direction: column; min-height: 0; padding-top: .4rem; }
+  #app.yield .yd-side { grid-column: 2; grid-row: 3; display: flex; flex-direction: column; min-height: 0; padding-bottom: .1rem; }
+  #app.yield .yd-found-row { flex: 1 1 auto; min-height: 0; flex-direction: column; }
+  #app.yield .yd-found { flex: 1 1 auto; min-height: 0; align-content: start; overflow-y: auto; overscroll-behavior: contain; cursor: default; }
+  #app.yield .yd-found-list { white-space: normal; display: flex; flex-wrap: wrap; gap: .25rem .7rem; font-size: .9rem; }
+  #app.yield .yd-chart-btn { width: auto; min-height: 2.9rem; display: flex; justify-content: center; align-items: center; gap: .5rem; font-size: .76rem; }
+  #app.yield .yd-keys { max-width: 30rem; width: 100%; margin: .6rem auto 0; }
+}
+
+/* ---------- Almanac's ornaments, undone for the other themes ---------- */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-found { border-radius: 12px; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-chart-btn { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-key { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-mix { border-radius: 50%; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-enter { border-radius: 14px; outline: none; }
+html:is([data-theme="modern"], [data-theme="kontor"]) .yd-enter { background: var(--yd-hive); color: var(--yd-on-hive); border-color: var(--yd-hive); }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-cell .inlay { display: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-ranks li, html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-stats div { border-radius: 10px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .yd-toast { border-radius: 10px; }
+html[data-theme="office"] .yd-key, html[data-theme="office"] .yd-found, html[data-theme="office"] .yd-chart-btn { border-radius: 4px; }
+html[data-theme="office"] .yd-enter { border-radius: 4px; }
