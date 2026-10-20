@@ -148,8 +148,8 @@ check(RANKS.length === 10 && RANKS[0][1] === "Crude" && RANKS[8][1] === "Master 
     for (let s = 1; s <= 60; s++) { const q = deal({ seed: s * 31 + 5, level: "medium", board: "hive" }), ws = yieldOf(q); pts.push(rivalAt(q, planFor(q, ws, level, s), 180).points); }
     sprint[level] = median(pts);
   }
-  check(sprint.novice < sprint.steady && sprint.steady < sprint.sharp && sprint.novice >= 15 && sprint.sharp <= 110,
-    `in a three-minute sprint, Novice < Steady < Sharp, at a person's pace (median points ${Object.entries(sprint).map(([k, v]) => `${k} ${v}`).join(", ")})`);
+  check(sprint.novice < sprint.steady && sprint.steady < sprint.sharp && sprint.sharp < sprint.master && sprint.novice >= 15 && sprint.master <= 110,
+    `in a three-minute sprint, Novice < Steady < Sharp < Master, at a person's pace (median points ${Object.entries(sprint).map(([k, v]) => `${k} ${v}`).join(", ")})`);
 }
 
 // ---------- the chart ----------

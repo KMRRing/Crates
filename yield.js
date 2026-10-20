@@ -426,7 +426,7 @@ function openLast() {
   const words = yieldOf(last.p), got = new Set(last.found), body = sheet(dayName(last.p.day));
   body.append(el("p", "yd-sum", `${plural(last.found.length, "word")} of ${words.length}, ${totalOf(last.p, last.found.filter(w => words.includes(w)))} of ${totalOf(last.p, words)} points. The centre was ${up(last.p.centre)}.`));
   const ul = el("ul", "yd-words shown");
-  for (const w of words) ul.append(el("li", `${isFull(last.p, w) ? "full" : ""}${got.has(w) ? "" : " miss"}`, up(w)));
+  for (const w of words) { const li = el("li", `${isFull(last.p, w) ? "full" : ""}${got.has(w) ? "" : " miss"}`, up(w)); li.dataset.w = w; ul.append(li); }
   body.append(ul);
   openSheet();
 }
@@ -504,12 +504,24 @@ function wordList(words, map, { missed = false } = {}) {
     const got = map.has(w);
     if (!got && !missed) continue;
     const li = el("li", `${isFull(p, w) ? "full" : ""}${got ? "" : " miss"}`);
+    li.dataset.w = w;
     const by = map.get(w);
     if (S.kind === "team" && got && by != null) { const dot = el("i", "who"); dot.style.setProperty("--who", `var(--p${by % 6})`); li.append(dot); }
     li.append(up(w));
     ul.append(li);
   }
   return ul;
+}
+
+// ---------- what a word means: the clue bank's plain clue (clues.js, Crossword's and Acrostic's), when it has one ----------
+let glossary = null;
+const loadGlossary = () => (glossary ??= import("./clues.js").catch(e => { console.error(e); glossary = null; return null; }));
+/** A word tapped in a list: its plain clue under it (inside its line, so a column never parts them), or that the bank has none; tapped again, it goes. */
+async function gloss(li) {
+  const had = li.querySelector(".gloss");
+  if (had) { had.remove(); return; }
+  const bank = await loadGlossary(), clue = bank?.cluesOf(li.dataset.w)?.[0]?.text;
+  li.append(el("small", "gloss", clue || "No gloss for this one"));
 }
 
 // ---------- the sheets: words, chart, ranks ----------
@@ -525,7 +537,7 @@ function openWords() {
   if (!S || !P) return;
   const map = foundMap(), got = [...map.keys()].filter(w => P.set.has(w));
   const body = sheet(S.kind === "team" ? "The team's words" : "Your words");
-  body.append(el("p", "yd-sum", `${plural(got.length, "word")} of ${P.words.length}, ${pointsNow()} of ${P.total} points.`));
+  body.append(el("p", "yd-sum", `${plural(got.length, "word")} of ${P.words.length}, ${pointsNow()} of ${P.total} points. Tap a word for what it means.`));
   if (S.kind === "team") body.append(teamKey());
   body.append(wordList(P.words, map, { missed: isOver() }));
   if (S.extra.length) body.append(el("h4", "yd-h", "Also words, not counted"), el("p", "yd-note", S.extra.map(up).join(", ")));
@@ -739,7 +751,11 @@ document.querySelector(".yd-mark").innerHTML = APPS.find(a => a.id === "yield")?
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("sheetClose").addEventListener("click", closeSheet);
-$("sheetDlg").addEventListener("click", e => { if (e.target === $("sheetDlg")) closeSheet(); });
+$("sheetDlg").addEventListener("click", e => {
+  if (e.target === $("sheetDlg")) { closeSheet(); return; }
+  const li = e.target.closest?.(".yd-words li[data-w]");
+  if (li) gloss(li);
+});
 $("gauge").addEventListener("click", openRanks);
 // duel.js's line opens its standings, which rank teammates against each other: at a team's table it opens the words
 $("duelLine").addEventListener("click", e => { if (S?.kind === "team") { e.stopImmediatePropagation(); openWords(); } }, true);

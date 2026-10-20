@@ -319,12 +319,13 @@ export function chartOf(words, found = new Set()) {
 // of, longer for rarer words and longer as the easy ones run out, and a moment to tap in. Its whole game is planned
 // from the seed at the start, a time for every word it will find, so it plays the same on a reload and every phone.
 // Fitted to how people play (tests/yield.mjs holds them to it): on a Medium hive, Novice finds about half the points
-// in half an hour and never reaches Master refiner; Steady reaches it in thirty-odd minutes, Sharp in about fifteen;
-// in a three-minute sprint they make about 30, 40 and 55 points.
+// in half an hour and never reaches Master refiner; Steady reaches it in thirty-odd minutes, Sharp in about fifteen,
+// Master in ten; in a three-minute sprint they make about 30, 40, 55 and 65 points.
 export const RIVALS = {
   novice: { label: "Novice", vocab: 3.05, think: 19, luck: 0.6 },
   steady: { label: "Steady", vocab: 2.5, think: 13, luck: 0.5 },
   sharp: { label: "Sharp", vocab: 2.05, think: 7.5, luck: 0.4 },
+  master: { label: "Master", vocab: 1.7, think: 5.5, luck: 0.35 },
 };
 /** The rival's game on a puzzle: [{ w, t }], t its seconds from the start, in the order it finds them. */
 export function planFor(p, words, level, seed = p.seed) {

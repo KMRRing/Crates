@@ -126,6 +126,9 @@ dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscr
 .yd-words li.miss { color: color-mix(in srgb, var(--ink) 42%, transparent); font-weight: 450; }
 .yd-words li.miss.full { color: color-mix(in srgb, var(--yd-in) 55%, transparent); font-weight: 600; }
 .yd-words.shown li:not(.miss)::before { content: "✓"; margin-right: .3rem; color: var(--yd-good); font-weight: 800; }
+.yd-words li[data-w] { cursor: pointer; }
+/* a word's gloss, under it in the list: the clue bank's plain clue */
+.yd-words .gloss { display: block; padding: .1rem 0 .15rem; font-size: .8rem; font-weight: 500; color: var(--ink-soft); text-transform: none; letter-spacing: normal; }
 .yd-words li .who { display: inline-block; width: .5rem; height: .5rem; margin-right: .35rem; border-radius: 50%; background: var(--who); vertical-align: .05rem; }
 .yd-h { margin: .9rem 0 .35rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .yd-note { margin: .3rem 0 .6rem; font-size: .84rem; color: var(--ink-soft); line-height: 1.4; }
