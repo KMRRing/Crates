@@ -3,7 +3,7 @@
 // is the puzzle and the run, pure (isomer.js draws them; tests/isomer.mjs runs them): the modes and levels, the
 // generator and its proof that every puzzle has one answer, a run's moves (placing letters, hints, the checks), the
 // score, and the solver that grades every puzzle and plays as the computer rival.
-import { pool, depthOf, holds, jumble, jumbleLong, spellings } from "./isomer-words.js";
+import { pool, depthOf, holds, jumble, jumbleLong, spellings, canHide } from "./isomer-words.js";
 import { finalsAll, themesAll, weightOf, clueOf, halvesOf, partnerOf, pairedClue, pairable, cardOf, pairOf, pileKey, lettersOf, TOPIC, NOUN } from "./isomer-kb.js";
 import { isWord } from "./wordlist.js";
 import { BANK } from "./core.js";
@@ -104,7 +104,7 @@ function fitWords(letters, lengths, L, r, finals) {
     for (const s of order) {
       const g = groups[s], [lo, hi] = bands[s];
       const cands = shuffle(r, pool(lengths[s], L.tier).filter(x => !used.has(x.w) && holds(x.counts, g)));
-      const hit = cands.slice(0, 60).find(x => { const d = depthOf(x.w); return d >= lo && d <= hi && !finals.some(f => echoes(x.w, f)); });
+      const hit = cands.slice(0, 60).find(x => { const d = depthOf(x.w); return d >= lo && d <= hi && !finals.some(f => echoes(x.w, f)) && canHide(x.w); });
       if (!hit) { ok = false; break; }
       used.add(hit.w);
       const circles = [];
@@ -190,7 +190,7 @@ function themePuzzle(r, M, L, level, cats, mix) {
   for (let tries = 0; tries < 40; tries++) {
     const t = all[Math.floor(r() * all.length)];
     if (!t) return null;
-    const clues = t.clues.filter(c => weightOf(c.topics, mix) > 0 && L.themeD[c.d - 1] > 0);
+    const clues = t.clues.filter(c => weightOf(c.topics, mix) > 0 && L.themeD[c.d - 1] > 0 && canHide(c.letters));
     if (clues.length < 4) continue;
     let best = null;
     for (let pick = 0; pick < 30 && !(best?.only); pick++) {

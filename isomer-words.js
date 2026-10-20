@@ -146,6 +146,27 @@ export function hides(jumble, answer) {
   for (let i = 1; i < jumble.length; i++) if (pairs.has(jumble[i - 1] + jumble[i])) return false;
   return true;
 }
+const hideable = new Map();
+/** Whether any jumble of a word hides it (BANANA's and KNOCK's letters can't help keeping a pair of neighbours): a
+ *  word that can't be hidden isn't dealt. */
+export function canHide(word) {
+  if (hideable.has(word)) return hideable.get(word);
+  let found = false;
+  const counts = new Array(A).fill(0), cur = [], n = word.length, pairs = pairsOf(word);
+  for (const ch of word) counts[code(ch)]++;
+  // built a letter at a time, leaving out at once a letter in its own place or a pair the word has
+  const go = () => {
+    if (found) return;
+    if (cur.length === n) { found = hides(String.fromCharCode(...cur.map(c => c + 97)), word); return; }
+    for (let c = 0; c < 26 && !found; c++) {
+      if (!counts[c] || code(word[cur.length]) === c || (cur.length && pairs.has(String.fromCharCode(cur.at(-1) + 97, c + 97)))) continue;
+      counts[c]--; cur.push(c); go(); cur.pop(); counts[c]++;
+    }
+  };
+  go();
+  hideable.set(word, found);
+  return found;
+}
 /**
  * The jumble a word is shown as, by `style`: "plain" (a jumble that looks like no word: the eye isn't led astray),
  * "lure" (the most word-like jumble that still hides the answer: a reader fixes on a wrong reading, as solvers are known

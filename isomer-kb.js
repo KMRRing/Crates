@@ -34,7 +34,8 @@ const sorted = s => [...s].sort().join("");
 const plain = s => ` ${String(s || "").normalize("NFD").replace(/[^ -~]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()} `;
 const NAMES = BANK.map(a => [a.name, ...(a.aliases || [])].filter(n => n.length > 3).map(n => plain(n).trim()));
 const names = (text, a) => { const t = plain(text); return NAMES[a].some(n => t.includes(n)); };
-const says = (hint, w) => plain(hint).includes(plain(w));
+// inside another word too: SAUNA in "saunas", COPPER in "Copperbelt", VOLTA in "voltaic"
+const says = (hint, w) => plain(hint).replace(/ /g, "").includes(plain(w).replace(/ /g, ""));
 
 /** The answer's name as letters, if a final can be it (not UK, UAE or HVO: acronyms). */
 const ANSWER = BANK.map(a => lettersOf(a.name));
@@ -88,8 +89,15 @@ export function partnerOf(f) {
   return { kind: "behind", a: f.a, i: f.i, cat: a.cat, d: f.d, topics: f.topics, hint: f.hint, clue: f.clue, text: a.name, ...ANSWER[f.a], context: f.clue };
 }
 export const pairedClue = f => ({ tag: `Its ${NOUN[f.cat]}${GROUP[BANK[f.a].group] ? ` · ${GROUP[BANK[f.a].group]}` : ""}`, text: `The ${NOUN[f.cat]} the first answer points to` });
-/** Whether a "name" final's answer can stand beside it in Double (UK and HVO can't: acronyms). */
-export const pairable = f => f.kind === "name" && !!ANSWER[f.a] && ANSWER[f.a].letters.length >= 4;
+let hintCounts = null;
+/** How many clues in the bank have this hint word for word ("The second-biggest producer" has seventeen). */
+const sharedHint = hint => (hintCounts ||= BANK.flatMap(a => a.words).reduce((m, w) => m.set(w.hint, (m.get(w.hint) || 0) + 1), new Map())).get(hint) || 0;
+/**
+ * Whether a "name" final can stand beside its country or commodity in Double: the answer can be a final (UK and HVO
+ * can't: acronyms), and the hint is the clue's own: one shared ("The second-biggest producer", under India for Sugar
+ * and under Sugar for India) would let the two answers trade places.
+ */
+export const pairable = f => f.kind === "name" && !!ANSWER[f.a] && ANSWER[f.a].letters.length >= 4 && sharedHint(f.hint) === 1;
 
 // ---------- themes ----------
 /** A theme's clue can be a jumble: one word of four to eight letters whose letters spell no English word but itself
