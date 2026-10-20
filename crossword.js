@@ -6,7 +6,7 @@
 // puzzles are crossword-engine.js's (made in crossword-worker.js), the solvers crossword-solve.js's, the table
 // crossword-table.js's; this page draws them and takes the typing.
 import { LEVELS, LEVEL_IDS, ASKS, MODES, POOLS, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
-import { rivalRun, rivalAt, RIVALS } from "./crossword-solve.js";
+import { rivalRun, rivalAt, partnerMove, seeded, RIVALS } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
 import { kbEntry, reviewCard, BANK } from "./crossword-kb.js";
 import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
@@ -30,8 +30,11 @@ const APP = 1;                 // the table's version
 
 // ---------- settings ----------
 // Your own choices for a random grid; today's is the same for everyone whatever they are (dailyOptions)
-const DEFAULTS = { level: "medium", pool: "mixed", asks: "both", mode: "classic", rival: "off", autocheck: false, tableMode: "split" };
+// computer: off, a rival racing you, or a partner holding the Down clues of a split grid; pace: how well and how fast it plays
+const DEFAULTS = { level: "medium", pool: "mixed", asks: "both", mode: "classic", computer: "off", pace: "quick", autocheck: false, tableMode: "split" };
 const settings = () => ({ ...DEFAULTS, ...read(SETTINGS, {}) });
+/** The computer player a new grid of yours gets: { kind, level } or null (never on today's, which is the same for everyone). */
+const computerFor = daily => (daily || settings().computer === "off" ? null : { kind: settings().computer, level: RIVALS[settings().pace] ? settings().pace : "quick" });
 const setSetting = (k, v) => write(SETTINGS, { ...settings(), [k]: v });
 // a mix of Crates' topics, both lists in one (a country's and a commodity's), as every knowledge game deals them
 const TOPIC_LIST = [...KB_TOPICS.country, ...KB_TOPICS.commodity];
@@ -93,7 +96,8 @@ function tick() {
   }
   lastTick = now;
   drawClock();
-  if (rivalPlan && !G) drawStrip();
+  partnerTick();
+  if ((rivalPlan || partner) && !G) drawStrip();
 }
 function startClock() { lastTick = performance.now(); clearInterval(ticking); ticking = setInterval(tick, 500); }
 /** The seconds on the clock now (before any penalty). */
@@ -123,8 +127,8 @@ function fitLayout() {
   const vh = window.visualViewport?.height || window.innerHeight;
   const width = app.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
   document.documentElement.style.setProperty("--key", `${Math.round(Math.max(MIN_KEY, Math.min(MAX_KEY, vh / 17.5)) * k)}px`);
-  // a short phone's strip is the grid's room: it shows only with something live in it (a table, a rival)
-  $("strip").hidden = !side && vh / k < 700 && !G && !rivalPlan;
+  // a short phone's strip is the grid's room: it shows only with something live in it (a table, a rival, a partner)
+  $("strip").hidden = !side && vh / k < 700 && !G && !rivalPlan && !S?.partner;
   // a grid of C squares is C squares and C + 1 hairlines across (its ruled ground shows through a pixel round each)
   const fits = (w, h) => Math.floor(Math.min((w - (C + 1)) / C, (h - (R0 + 1)) / R0));
   let cell;
@@ -199,7 +203,8 @@ function paint() {
   const p = puzzle(), pl = play();
   if (!p || !pl) return;
   const e = current(), word = new Set(e ? e.cells : []), wrong = new Set(pl.wrong), shown = new Set(pl.revealed);
-  const by = G?.mode === "split" ? writers(G) : null;
+  // who wrote each letter: at a split table everyone's colour; alone with a partner, the computer's letters in its own
+  const by = G?.mode === "split" ? writers(G) : !G && S?.partner ? pl.by || {} : null;
   const peers = G?.mode === "split" ? peerCells() : new Map();
   const solved = finished() && solvedBy(pl, p);
   cells.forEach((c, k) => {
@@ -336,6 +341,12 @@ function drawStrip() {
     const at = rivalAt(rivalPlan, S.play.ms / 1000), span = el("span", "cw-race");
     span.append(el("b", "", RIVALS[S.rival.level]?.name || "Rival"), ` ${at.done ? `✓ ${clock(rivalPlan.done + rivalPlan.penalty)}` : `${at.solved}/${p.entries.length}`}`);
     who.append(span);
+  } else if (S?.partner) {
+    // the partner's badge in its colour, and how many of its Down clues it has right
+    const { right, of } = partnerScore(), span = el("span", "cw-race"), b = el("i", "cw-by", (RIVALS[S.partner.level]?.name || "P")[0]);
+    b.style.setProperty("--who", "var(--p1)");
+    span.append(b, ` ${right}/${of} down`);
+    who.append(span);
   }
 }
 
@@ -409,7 +420,8 @@ function backspace() {
 /** A letter into a square: your play's, or the table's (sent a moment later, shown at once). */
 function setLetter(k, ch) {
   if (G?.mode === "split") { pending[k] = ch; flushSoon(); return; }
-  put(play(), puzzle(), k, ch);
+  const pl = play();
+  if (put(pl, puzzle(), k, ch) && pl.by) delete pl.by[k];       // over a partner's letter: yours now
 }
 /** After every change: draw, keep, and see whether the grid is done. */
 function changed() {
@@ -479,7 +491,7 @@ function solvedSolo() {
     t[p.level] = lv;
     write(TIMES, t);
   }
-  learnFrom(p, pl, () => true);
+  learnFrom(p, pl, ownClue);
   save();
   paint(); drawClock();
   setTimeout(() => showDone(), 500);
@@ -506,7 +518,8 @@ function showDone() {
   const secs = team ? G.done?.secs ?? secsNow() : race ? Math.round(pl.ms / 1000) : pl.done?.secs ?? secsNow();
   const total = team ? G.done?.total ?? secs : race ? secs + pl.reveals * REVEAL_COST + pl.checks * CHECK_COST : pl.done?.total ?? charged(pl);
   const reveals = team ? G.reveals : pl.reveals, checks = team ? G.checks : pl.checks, gaveUp = !team && pl.gaveUp;
-  $("doneTitle").textContent = gaveUp ? "Revealed" : team ? "Solved together" : race ? (raceOver(G, present()) ? raceVerdict() : "You've finished") : "Solved";
+  $("doneTitle").textContent = gaveUp ? "Revealed" : team ? "Solved together" : race ? (raceOver(G, present()) ? raceVerdict() : "You've finished")
+    : S?.partner ? `Solved with ${RIVALS[S.partner.level]?.name || "your partner"}` : "Solved";
   body.replaceChildren();
   const sum = el("p", "cw-sum");
   sum.append(gaveUp ? "Given up after " : "", el("b", "", clock(gaveUp ? secs : total)));
@@ -557,10 +570,12 @@ async function newGrid(daily, { ask = true } = {}) {
     let p = await makePuzzleOff(opts);
     if (!p && !daily) { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
     if (!p) { toast("Couldn't set a grid: try again"); return; }
-    const s = settings();
+    const comp = computerFor(daily);
     S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, pool: opts.pool, asks: opts.asks, mode: opts.mode },
-      ranked: daily || (!narrow && presetNow() !== "custom" && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed"),
-      rival: !daily && s.rival !== "off" ? { level: s.rival, seed: p.seed } : null };
+      // a best is a grid you played alone, today's or one on a preset that's both ways, mixed answers, the classic grid
+      ranked: comp?.kind !== "partner" && (daily || (!narrow && presetNow() !== "custom" && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed")),
+      rival: comp?.kind === "rival" ? { level: comp.level, seed: p.seed } : null,
+      partner: comp?.kind === "partner" ? { level: comp.level, seed: p.seed } : null };
     if (narrow) setTimeout(() => toast("Your choices were too narrow for a grid: this one has every topic"), 300);
     afterNewRun();
     save();
@@ -569,6 +584,7 @@ async function newGrid(daily, { ask = true } = {}) {
 function afterNewRun() {
   rivalPlan = S?.rival ? rivalRun(S.puzzle, S.rival.level, S.rival.seed) : null;
   rivalSaid = false;
+  partner = S?.partner && !S.play.done ? { rnd: seeded(S.partner.seed ^ Math.floor(S.play.ms)), tried: new Map(), plan: null, idle: 0 } : null;
   drawnFor = null;
   buildBoard();
   const p = puzzle(), first = p?.entries[0], at = S?.at;
@@ -577,6 +593,36 @@ function afterNewRun() {
   paint(); drawStrip(); drawClock();
 }
 let rivalSaid = false;
+
+// ---------- the computer as your partner ----------
+// A split grid played alone: you hold the Across clues, the computer the Down ones, which you see as its, and it
+// writes its answers in its colour at a person's pace: the grading solver at its level, reading a clue, getting it
+// from the clue or the letters in, and when it can't get any, waiting for your crossings (crossword-solve.js).
+let partner = null;            // { rnd, tried, plan: { n, at } (an answer it's writing, done at `at` ms on the clock), idle }
+const partnerHolds = () => puzzle().entries.map(e => e.dir === "down");
+function partnerTick() {
+  if (!partner || G || !S?.partner || S.play.done || IN_FRAME) return;
+  const pl = S.play, p = S.puzzle;
+  if (partner.plan) {
+    if (pl.ms < partner.plan.at) return;
+    const e = p.entries[partner.plan.n];
+    partner.plan = null;
+    pl.by ||= {};
+    e.cells.forEach((k, i) => { if (!pl.revealed.includes(k) && pl.letters[k] !== e.letters[i]) { put(pl, p, k, e.letters[i]); pl.by[k] = 1; } });
+    changed();
+    return;
+  }
+  if (pl.ms < partner.idle) return;
+  const move = partnerMove(p, pl.letters, partnerHolds(), S.partner.level, partner.rnd, partner.tried);
+  if (move) partner.plan = { n: move.n, at: pl.ms + move.at * 1000 };
+  else partner.idle = pl.ms + 3000;           // nothing it can get: it looks again in a moment, and as your letters come
+}
+/** How many of its clues the partner has right: { right, of }. */
+function partnerScore() {
+  const pl = S.play, hold = partnerHolds();
+  const its = S.puzzle.entries.filter((_, n) => hold[n]);
+  return { right: its.filter(e => entryRight(pl, e)).length, of: its.length };
+}
 /** Today's grid, still to play: asks before leaving one you've started. */
 function openToday() {
   if (S?.daily === today()) { afterNewRun(); return; }
@@ -607,17 +653,20 @@ function people() {
 const present = () => people().filter(p => p.here).map(p => p.slot);
 const nameOfSlot = slot => { const p = people().find(x => x.slot === slot); return p?.me ? "You" : first(p?.name || `Seat ${slot + 1}`); };
 function holderName(e) {
-  if (!G) return "";
+  if (!G) return RIVALS[S?.partner?.level]?.name || "Your partner";
   const s = holders(G.puzzle, G.people || 2)[e.n];
   return nameOfSlot(s);
 }
-/** Whether this phone can read an entry's clue: always alone and racing; split, its own and those of seats not here. */
+/** Whether this phone can read an entry's clue: alone, all but a computer partner's; racing, all; split, its own and
+ *  those of seats nobody's in. */
 function canRead(e) {
-  if (G?.mode !== "split") return true;
+  if (!G) return !S?.partner || e.dir === "across";
+  if (G.mode !== "split") return true;
   return readable(G, together.slot, present())[e.n];
 }
-/** Whether an entry's clue is this player's own: always alone and racing; split, the ones dealt to their seat. */
-const ownClue = e => G?.mode !== "split" || holders(G.puzzle, G.people || 2)[e.n] === together.slot;
+/** Whether an entry's clue is this player's own: alone, all but a computer partner's; racing, all; split, the ones
+ *  dealt to their seat. */
+const ownClue = e => (!G ? !S?.partner || e.dir === "across" : G.mode !== "split" || holders(G.puzzle, G.people || 2)[e.n] === together.slot);
 function badge(slot) {
   const p = people().find(x => x.slot === slot), b = el("i", "cw-by", initial(p?.name));
   b.style.setProperty("--who", `var(--p${slot % 6})`);
@@ -777,6 +826,8 @@ setInterval(() => {
   if (G?.mode === "race" && R?.play && !R.play.done) { R.play.ms = Math.max(0, serverNow() - R.begun); drawClock(); }
   if (G) drawStrip();
 }, 1000);
+/** A race's computer player, from the dealer's settings: a rival set to race races at the table too. */
+const raceRival = (mode, p) => (mode === "race" && settings().computer === "rival" ? { level: RIVALS[settings().pace] ? settings().pace : "quick", seed: p.seed } : null);
 /** A new game for the table, in the mode the menu chose: asks first while this one is under way. */
 async function dealAgain(mode = settings().tableMode) {
   if (!G) return;
@@ -786,7 +837,7 @@ async function dealAgain(mode = settings().tableMode) {
   try {
     const p = await makePuzzleOff(randomOptions());
     if (!p) { toast("Couldn't set a grid: try again"); return; }
-    const s = settings(), rival = mode === "race" && s.rival !== "off" ? { level: s.rival, seed: p.seed } : null;
+    const rival = raceRival(mode, p);
     await together.act(g => newGameAt(tidy(g), { n, puzzle: p, mode, now: serverNow(), rival }));
   } finally { done(); }
 }
@@ -807,9 +858,8 @@ const together = createTogether({
   valid: isTable,
   slots: g => g?.people || 2,
   fresh: async (players, { ask } = {}) => {
-    const p = await makePuzzleOff(randomOptions());
-    const s = settings(), mode = s.tableMode === "race" ? "race" : "split";
-    return freshTable(players, { app: APP, puzzle: p, mode, people: peopleOf(ask), now: Date.now(), rival: mode === "race" && s.rival !== "off" ? { level: s.rival, seed: p.seed } : null });
+    const p = await makePuzzleOff(randomOptions()), mode = settings().tableMode === "race" ? "race" : "split";
+    return freshTable(players, { app: APP, puzzle: p, mode, people: peopleOf(ask), now: Date.now(), rival: raceRival(mode, p) });
   },
   onState,
   onPresence: () => { if (G) { fillList($("list")); paint(); drawStrip(); } },
@@ -866,8 +916,10 @@ function openMenu() {
     );
   }
   const set = part(body, "settings");
-  set.append(choice("Rival", [["off", "Off"], ...Object.entries(RIVALS).map(([k, r]) => [k, r.name])], s.rival, v => setSetting("rival", v)),
-    toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)),
+  // the computer: a rival racing your grid, or a partner holding its Down clues; from the next grid
+  set.append(choice("Computer", [["off", "Off"], ["rival", "Rival"], ["partner", "Partner"]], s.computer, v => { setSetting("computer", v); openMenu(); }));
+  if (s.computer !== "off") set.append(choice("Its pace", Object.entries(RIVALS).map(([k, r]) => [k, r.name]), s.pace, v => setSetting("pace", v)));
+  set.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)),
     toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);

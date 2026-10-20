@@ -225,6 +225,28 @@ export function rivalRun(puzzle, level = "quick", seed = 1) {
   }
   return { events, done: Math.round(t), penalty };
 }
+/**
+ * The computer as a partner on a split grid (README, Crossword): its next answer among the entries it holds
+ * (`holds[n]`), the first in clue order it gets now, from its clue or the letters in the grid, as the grading solver
+ * would, at its level; null while it can't get any (it waits for your crossings). Only right letters help it (a wrong
+ * one is no clue), and it tries an entry again only once its letters have changed (`tried`: entry index → the
+ * pattern it last tried). Returns { n, at } (the entry, and the seconds it took to read and write it).
+ */
+export function partnerMove(puzzle, letters, holds, level, rnd, tried) {
+  const R = RIVALS[level] || RIVALS.quick, model = lifted(R.lift);
+  for (let n = 0; n < puzzle.entries.length; n++) {
+    const e = puzzle.entries[n];
+    if (!holds[n]) continue;
+    const pat = e.cells.map((k, i) => (letters[k] === e.letters[i] ? e.letters[i] : ".")).join("");
+    if (pat === e.letters || tried.get(n) === pat) continue;
+    tried.set(n, pat);
+    const known = pat.replace(/\./g, "").length, p = chanceOf(model, e, false);
+    if (certain(e, pat) || rnd() < (known ? withLetters(p, e, known / e.len) : p)) {
+      return { n, at: R.read * (0.6 + Math.min(1.2, (e.text || "").length / 60)) * (0.7 + 0.6 * rnd()) + R.letter * (e.len - known) };
+    }
+  }
+  return null;
+}
 /** How far the computer player has got by `secs`: { solved (entries), revealed (letters), done }. */
 export function rivalAt(run, secs) {
   let solved = 0, revealed = 0;

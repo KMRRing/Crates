@@ -85,7 +85,7 @@ html:not([data-theme]) .cw-bar { box-shadow: inset 0 0 0 3px var(--sheet), inset
   font-stretch: var(--wide); letter-spacing: calc(.14em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
 .cw-clues-dlg .cw-list h3 { background: var(--sheet); }
 .cw-item { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); gap: .3rem; width: 100%; padding: .32rem .35rem; border: 0; border-radius: 4px; background: none;
-  color: var(--ink); text-align: left; cursor: pointer; font-size: inherit; }
+  color: var(--ink); text-align: left; cursor: pointer; font-size: inherit; scroll-margin-top: 1.7rem; }   /* scrolled to, it clears the sticky heading */
 .cw-item .n { font-weight: 800; color: var(--ink-soft); text-align: right; }
 .cw-item.on { background: var(--cw-word); }
 .cw-item.cross { box-shadow: inset 3px 0 0 var(--cw-in); }
