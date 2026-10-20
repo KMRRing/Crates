@@ -1,0 +1,130 @@
+/* Isomer: the jumbles in rows on a stage, each its jumbled letters beside its squares (some circled, as the newspaper
+   circles them), the final's squares under them; the clue, the rack of letters and the tools at the bottom, under the
+   thumb. Cobalt is the house enamel. Squares and tiles are sized from their boxes (container units), so nothing in a
+   puzzle changes size while it's played. */
+:root { --is-in: #2C5B8A; --is-in-soft: color-mix(in srgb, var(--is-in) 15%, var(--sheet)); --is-good: #2F7D5B; --is-bad: #A8382B; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-mode="day"]) { --is-in: #6FA0D2; --is-good: #7FC2A8; --is-bad: #E8806F; }
+}
+/* night, set in Settings */
+html[data-mode="night"] { --is-in: #6FA0D2; --is-good: #7FC2A8; --is-bad: #E8806F; }
+
+.is-mark { display: inline-block; }
+.is-mark svg { width: 100%; height: 100%; display: block; }
+
+/* the strip: the clock and the hinted letters' cost, where you are, the computer rival, the others in a race */
+.is-strip { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .8rem; margin: .55rem 0 .45rem; font-size: .9rem; color: var(--ink-soft); white-space: nowrap; }
+.is-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.is-time { flex: none; }
+.is-time b { font-size: 1.35rem; }
+.is-time small { margin-left: .35rem; font-size: .78rem; font-weight: 700; color: var(--is-bad); font-variant-numeric: tabular-nums; }
+.is-where { flex: 1 1 0; order: 2; min-width: 0; text-align: right; font-size: .7rem; font-weight: 700; font-stretch: var(--wide); letter-spacing: calc(.05em * var(--track)); text-transform: var(--caps); overflow: hidden; text-overflow: ellipsis; }
+/* the computer rival, on the clock's line */
+.is-ghost { flex: none; order: 1; font-size: .8rem; font-weight: 700; color: var(--is-in); font-variant-numeric: tabular-nums; }
+.is-rival { flex: 1 0 100%; order: 4; min-width: 0; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; }
+.is-rival[hidden], .is-ghost[hidden] { display: none; }
+
+/* the stage: a panel in a double rule, its rows sharing its height */
+.is-board { container-type: size; position: relative; display: flex; flex-direction: column; justify-content: center; gap: .55rem; padding: .7rem .6rem;
+  border-radius: 6px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); overflow: hidden; }
+/* a square's size: as large as the widest row lets it be (its jumble beside it), and the final's, and the height for every row */
+/* (the stage's content box is 100cqh high: each row is its square and .24rem of padding, and --over, set by the script,
+   is the gaps between rows and the rule over the answers) */
+.is-rows, .is-answers { --gapx: .3rem;
+  --sq: min(3.6rem, calc((100cqw - 2.4rem - (var(--n) - 1) * var(--gapx)) / (var(--n) + var(--lab) * .34)), calc((100cqw - 1.4rem - (var(--fn) - 1) * var(--gapx)) / var(--fn)), calc((100cqh - var(--over, 2rem)) / var(--rows) - .24rem)); }
+.is-rows { display: grid; gap: .3rem; }
+.is-answers { display: grid; gap: .3rem; padding-top: .45rem; border-top: 1px solid var(--rule); }
+.is-row { display: grid; grid-template-columns: calc(var(--lab) * .34 * var(--sq)) auto 1rem; align-items: center; column-gap: .4rem; justify-content: center;
+  border-radius: 5px; padding: .12rem .25rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.is-final { grid-template-columns: auto; }
+/* the row in hand wears a brass frame, as a picked tile does */
+.is-row.on { background: color-mix(in srgb, var(--brass) 13%, var(--sheet)); box-shadow: inset 0 0 0 2px var(--brass); }
+/* the jumble itself, in plain capitals beside its squares: its column as wide as its letters, so the squares keep the width */
+.is-jumble { justify-self: end; font-size: calc(var(--sq) * .44); font-weight: 800; letter-spacing: .04em; color: var(--ink-soft); white-space: nowrap; }
+.is-row.on .is-jumble { color: var(--ink); }
+.is-row.done .is-jumble { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-soft) 50%, transparent); }
+.is-squares { display: flex; gap: var(--gapx); align-items: center; }
+.is-gap { width: calc(var(--sq) * .6 - var(--gapx)); }
+.is-sq { position: relative; display: grid; place-items: center; width: var(--sq); height: var(--sq); padding: 0; border: 1.5px solid var(--tile-edge); border-radius: 4px;
+  background: var(--tile); color: var(--ink); font: inherit; font-size: calc(var(--sq) * .52); font-weight: 800; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+/* a circled square: its letter goes to the final */
+.is-sq.ring::after { content: ""; position: absolute; inset: 9%; border-radius: 50%; border: 1.5px solid var(--brass); pointer-events: none; }
+.is-sq.hinted { color: var(--is-in); }
+.is-sq.hinted::before { content: ""; position: absolute; right: 9%; top: 9%; width: .3rem; height: .3rem; border-radius: 50%; background: var(--is-in); }
+.is-row.done .is-sq { background: color-mix(in srgb, var(--is-good) 12%, var(--tile)); border-color: color-mix(in srgb, var(--is-good) 55%, var(--tile-edge)); }
+.is-row.done .is-sq.ring { color: var(--is-in); }
+.is-row.done .is-sq.ring::after { border-color: var(--is-in); }
+.is-sq:disabled { cursor: default; }
+/* your partner's jumble: sealed, its circles showing */
+.is-row.sealed .is-sq { background: repeating-linear-gradient(135deg, var(--tile) 0 6px, var(--tile-edge) 6px 7px); }
+.is-tick { justify-self: start; font-size: 1rem; font-weight: 800; color: var(--is-good); }
+.is-tick.who { display: grid; place-items: center; width: 1.2rem; height: 1.2rem; border-radius: 50%; background: var(--who, var(--p1)); color: var(--sheet); font-size: .66rem; }
+.is-tick.who:empty { display: none; }
+.is-wait { margin: 0; text-align: center; color: var(--ink-soft); font-weight: 650; }
+.is-row.shake { animation: is-shake .36s; }
+@keyframes is-shake { 25% { transform: translateX(-.35rem); } 75% { transform: translateX(.35rem); } }
+.is-row.glow .is-sq { animation: is-glow .7s ease-out; }
+@keyframes is-glow { 30% { background: color-mix(in srgb, var(--is-good) 35%, var(--tile)); transform: scale(1.06); } }
+
+/* the side: the clue, the rack and the tools; at the end, how it went and the way on, in the same room */
+.is-side { display: grid; margin-top: .55rem; }
+.is-side > .is-work, .is-side > .is-result { grid-area: 2 / 1; }
+.is-clue { grid-area: 1 / 1; height: 4.6rem; margin-bottom: .45rem; padding: .4rem .7rem; overflow-y: auto; overscroll-behavior: contain; border-radius: 6px;
+  background: var(--sheet); border-left: 5px solid var(--is-in); font-size: .9rem; line-height: 1.28; }
+.is-tall-clue .is-clue { height: 5.5rem; }
+.is-clue p { margin: .1rem 0 0; }
+.is-clue.bad { border-left-color: var(--is-bad); }
+.is-tag { display: inline-block; margin-right: .15rem; padding: .02rem .35rem; border-radius: 3px; background: var(--is-in); color: var(--sheet); vertical-align: .08rem;
+  font-size: .6rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); line-height: 1.5; }
+.is-hint { font-weight: 650; }
+.is-half { color: var(--ink-soft); font-size: .8rem; font-style: italic; }
+.is-say { color: var(--ink-soft); font-weight: 600; }
+.is-clue.bad .is-say { color: var(--is-bad); }
+.is-note { font-size: .82rem; color: var(--ink-soft); }
+.is-work { display: grid; gap: .45rem; }
+.is-work[hidden], .is-result[hidden] { display: none; }
+/* the rack: the letters of the row in hand, large, a tap puts one in the next empty square */
+/* a long final's letters stand in two lines of slightly smaller tiles (still a thumb's width) */
+.is-rack { container-type: inline-size; --most: calc(3rem - (var(--lines) - 1) * .45rem); --t: min(var(--most), calc((100cqw - (var(--per) - 1) * .35rem) / var(--per)));
+  display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: .3rem .35rem; height: calc(var(--lines) * var(--most) + (var(--lines) - 1) * .3rem); }
+.is-tile { width: var(--t); height: var(--t); padding: 0; border: 1.5px solid var(--tile-edge); border-radius: 5px; background: var(--tile); color: var(--ink);
+  font: inherit; font-size: calc(var(--t) * .5); font-weight: 800; line-height: 1; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--tile-edge) 70%, transparent); }
+.is-tile:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+.is-tile.used { opacity: .28; }
+.is-rack.final .is-tile { border-radius: 50%; border-color: var(--brass); }
+.is-tile.shut { background: none; border-style: dashed; box-shadow: none; }
+.is-tile:disabled { cursor: default; }
+.is-tools { display: grid; grid-template-columns: 1fr 1fr 1fr 1.25fr; gap: .4rem; }
+.is-tool { display: grid; align-content: center; gap: .05rem; min-height: 2.75rem; border-radius: 5px; border: 1.5px solid var(--brass); background: var(--yard); color: var(--ink);
+  font: inherit; font-size: .8rem; cursor: pointer; touch-action: manipulation; }
+.is-tool b { font-weight: 800; font-stretch: var(--stretch-btn); letter-spacing: calc(.06em * var(--track)); text-transform: var(--caps); }
+.is-tool small { font-size: .68rem; color: var(--ink-soft); }
+.is-tool:disabled { opacity: .4; cursor: default; }
+.is-result { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
+.is-verdict { display: grid; gap: .15rem; margin: 0; line-height: 1.3; }
+.is-verdict b { font-size: 1.15rem; font-weight: 800; color: var(--is-good); }
+.is-verdict small { font-size: .82rem; font-weight: 600; color: var(--ink-soft); }
+.is-go { min-height: 3.1rem; padding: 0 1.2rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .84rem; font-weight: 800;
+  font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
+.is-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20; max-width: min(92vw, 30rem); margin: 0;
+  padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
+.is-toast.show { opacity: 1; }
+
+/* held sideways: the stage on the left with all the height; beside it the clock and the clue at the top, where they're
+   read, and the rack and the tools at the bottom, where a thumb is */
+@media (orientation: landscape) and (min-width: 700px) {
+  #app.isomer { --beside: 21rem; grid-template-rows: auto auto minmax(0, 1fr); }
+  #app.isomer .is-strip { grid-column: 2; grid-row: 2; margin-top: 1rem; }
+  #app.isomer .is-board { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
+  #app.isomer .is-side { grid-column: 2; grid-row: 3; grid-template-rows: auto minmax(0, 1fr); }
+  #app.isomer .is-clue { height: auto; min-height: 5rem; max-height: 14rem; }
+  #app.isomer .is-side > .is-work, #app.isomer .is-side > .is-result { align-self: end; }
+  #app.isomer .is-result { grid-template-columns: 1fr; }
+}
+
+/* Modern, Kontor and Office: no inset frame on the stage, rounder corners, the way on in the house enamel */
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .is-board { border-radius: 20px; box-shadow: none; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) :is(.is-tool, .is-tile, .is-clue) { border-radius: 12px; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .is-go { border-radius: 14px; background: var(--is-in); color: #fff; font-size: 1.02rem; font-stretch: 100%; letter-spacing: normal; text-transform: none; outline: none; outline-offset: 0; }
+html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .is-toast { border-radius: 10px; }

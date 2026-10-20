@@ -88,7 +88,8 @@ export function partnerOf(f) {
   const a = BANK[f.a];
   return { kind: "behind", a: f.a, i: f.i, cat: a.cat, d: f.d, topics: f.topics, hint: f.hint, clue: f.clue, text: a.name, ...ANSWER[f.a], context: f.clue };
 }
-export const pairedClue = f => ({ tag: `Its ${NOUN[f.cat]}${GROUP[BANK[f.a].group] ? ` · ${GROUP[BANK[f.a].group]}` : ""}`, text: `The ${NOUN[f.cat]} the first answer points to` });
+/** Double's second final, the first one's country or commodity: what kind it is, and where or what sector. */
+export const pairedClue = f => ({ tag: `Its ${NOUN[f.cat]}`, text: GROUP[BANK[f.a].group] || "" });
 let hintCounts = null;
 /** How many clues in the bank have this hint word for word ("The second-biggest producer" has seventeen). */
 const sharedHint = hint => (hintCounts ||= BANK.flatMap(a => a.words).reduce((m, w) => m.set(w.hint, (m.get(w.hint) || 0) + 1), new Map())).get(hint) || 0;

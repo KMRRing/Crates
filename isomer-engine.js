@@ -138,7 +138,9 @@ function drawFinal(r, cands, L, mix, avoid) {
 
 /** A final as the puzzle carries it: its letters, its words' lengths, its clue (and halves of it, for a pair). */
 function finalOf(f, r, clue = clueOf(f), halves = halvesOf(f)) {
-  return { kind: f.kind, a: f.a, i: f.i, cat: f.cat, answer: f.letters, parts: f.parts, text: f.text, clueName: f.clue, d: f.d, clue, halves,
+  // told: what it was, in a line, once found (Pisco · Peru: a grape brandy…; Egypt · Pharaohs: ancient god-kings)
+  const told = f.kind === "name" ? `${BANK[f.a].name}: ${f.hint}` : `${f.clue}: ${f.hint}`;
+  return { kind: f.kind, a: f.a, i: f.i, cat: f.cat, answer: f.letters, parts: f.parts, text: f.text, clueName: f.clue, d: f.d, clue, halves, told,
     key: pileKey(f), pair: pairOf(f), card: cardOf(f, r) };
 }
 
@@ -442,10 +444,19 @@ export function reshuffle(run, i, r) { run.order[i] = shuffle(r, run.order[i]); 
  */
 export function hint(p, run, i) {
   if (run.done || run.solved[i]) return "no";
-  const it = itemsOf(p)[i], sq = run.squares[i];
-  const s = sq.findIndex((k, j) => k < 0 || it.letters[k] !== it.answer[j]);
-  if (s < 0) return "no";
-  const ch = it.answer[s];
+  const it = itemsOf(p)[i];
+  const s = run.squares[i].findIndex((k, j) => k < 0 || it.letters[k] !== it.answer[j]);
+  if (s < 0 || !lockAt(p, run, i, s)) return "no";
+  run.hints[i]++;
+  return settle(p, run, i) === "solved" ? "solved" : "hinted";
+}
+/**
+ * The right letter put in square s of item i and locked there: a tile with it that's free (a tray letter you have
+ * first, else one lent), or one taken back from a square where it's wrong. Whether it could.
+ */
+function lockAt(p, run, i, s) {
+  const it = itemsOf(p)[i], sq = run.squares[i], ch = it.answer[s];
+  if (sq[s] >= 0 && it.letters[sq[s]] === ch) { if (!run.locked[i].includes(s)) run.locked[i].push(s); return true; }
   if (sq[s] >= 0) sq[s] = -1;                                   // a wrong letter there goes back to the rack
   const used = usedTiles(p, run, i);
   let k = it.letters.findIndex((c, x) => c === ch && !used.has(x) && (!isFinal(p, i) || trayOpen(p, run, x)));
@@ -454,15 +465,24 @@ export function hint(p, run, i) {
     const from = isFinal(p, i) ? p.finals.map((_, f) => p.words.length + f) : [i];
     for (const j of from) for (let t = 0; t < run.squares[j].length && k < 0; t++) {
       const x = run.squares[j][t];
-      if (x >= 0 && it.letters[x] === ch && !run.locked[j].includes(t) && !(j === i && t < s)) { run.squares[j][t] = -1; k = x; }
+      if (x >= 0 && it.letters[x] === ch && !run.locked[j].includes(t) && !(j === i && it.letters[x] === it.answer[t])) { run.squares[j][t] = -1; k = x; }
     }
   }
-  if (k < 0) return "no";
+  if (k < 0) return false;
   if (isFinal(p, i) && !trayOpen(p, run, k)) run.lent.push(k);
   sq[s] = k;
   run.locked[i].push(s);
-  run.hints[i]++;
-  return settle(p, run, i) === "solved" ? "solved" : "hinted";
+  return true;
+}
+/** Item i's first h letters shown, locked in place (a pair's final: what a hint showed on both phones). */
+export function revealTo(p, run, i, h) {
+  if (run.solved[i]) return false;
+  const n = Math.min(h, itemsOf(p)[i].n);
+  let any = false;
+  for (let s = 0; s < n; s++) if (!run.locked[i].includes(s) && lockAt(p, run, i, s)) any = true;
+  run.hints[i] = Math.max(run.hints[i], n);
+  if (any) settle(p, run, i);
+  return any;
 }
 /** Marks item i solved from outside (a partner solved it at the table): its squares spelled right. */
 export function solveFrom(p, run, i) {
