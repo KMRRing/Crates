@@ -209,6 +209,15 @@ export const ELSEWHERE = [
   { id: "survey", name: "Survey", kind: "duo", duo: "survey", page: "survey.html", max: 6, race: true, blurb: "The same block of rock for everyone: chip away the waste, the fastest clear wins." },
   { id: "manifest", name: "Manifest", kind: "duo", duo: "manifest", page: "manifest.html", max: 6, blurb: "The same stack at the same moment: against each other, or one team pooling what each saw." },
   { id: "pipes", name: "Pipes", kind: "duo", duo: "pipes", page: "pipes.html", max: 6, race: true, blurb: "The same seeded run for everyone, an act or more: the most delivered wins." },
+  { id: "sudoku", name: "Sudoku", kind: "duo", duo: "sudoku", page: "sudoku.html", max: 6, race: true, blurb: "The same grid for everyone, the fastest solve wins; or Together, one grid and a share of the givens each." },
+  { id: "mines", name: "Mines", kind: "duo", duo: "mines", page: "mines.html", max: 6, race: true, blurb: "Minesweeper on a field that needs no guess: race it, or play it as one team, each reading part of its numbers." },
+  { id: "nonogram", name: "Nonogram", kind: "duo", duo: "nonogram", page: "nonogram.html", max: 6, race: true, blurb: "A picture in a grid, a clue on every line: race to draw the same one, or split the clues and draw it together." },
+  { id: "hitori", name: "Hitori", kind: "duo", duo: "hitori", page: "hitori.html", max: 6, race: true, blurb: "The same grid of numbers for everyone: shade the repeats, the fastest solve wins." },
+  { id: "bulls", name: "Bulls", kind: "duo", duo: "bulls", page: "bulls.html", max: 6, blurb: "Mastermind round the table: one board with your keys on the others' screens, a race on one code, or codes set for each other." },
+  { id: "assay", name: "Assay", kind: "duo", duo: "assay", page: "assay.html", max: 6, race: true, blurb: "The same hidden word for everyone, each on their own phone: the fewest guesses win, then the quicker." },
+  { id: "yield", name: "Yield", kind: "duo", duo: "yield", page: "yield.html", max: 6, race: true, blurb: "The same seven letters for everyone: a sprint, the most points wins, or one team with a centre letter each." },
+  { id: "isomer", name: "Isomer", kind: "duo", duo: "isomer:race", page: "isomer.html", max: 6, race: true, blurb: "Jumbled words, their circled letters the final answer: the same jumbles for everyone, the quickest wins." },
+  { id: "ladder", name: "Ladder", kind: "duo", duo: "ladder", page: "ladder.html", max: 6, race: true, blurb: "Carroll's word ladders: the same three for everyone, lowest score wins, or one ladder for the team, each holding some of its letters." },
 ];
 /** Anything a party can play, by id: { id, name, kind ("party", "table", "duo"), min, max, blurb, … }, or null. */
 export function playable(id) {
