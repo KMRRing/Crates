@@ -1,8 +1,8 @@
 // The clue bank (clues.js, README Classics). Every clued word is a common word of wordlist.js, filed under its length
 // and its tier, a word both spellings share, alphabetical and once. Every clue is short plain text starting with a
 // capital, gives away neither its answer nor an obvious stem of it (RUN in a clue for RUNNING, CARRY for CARRIED, GIVE
-// for GAVE), and differs from its word's other clue. The API finds a word's clues in any case, easy first, and lists a
-// length's clued words commonest first.
+// for GAVE) nor a piece of it (HUNK for CHUNK), and differs from its word's other clue. The API finds a word's clues
+// in any case, easy first, and lists a length's clued words commonest first.
 import { CLUES } from "../clues-data.js";
 import { MIN, MAX, cluesOf, hasClue, cluedWords } from "../clues.js";
 import { tierOf, isVariant } from "../wordlist.js";
@@ -64,6 +64,14 @@ function givesAway(answer, text) {
   }
   return null;
 }
+/** Whether a clue shows a piece of its answer the other way round: one of its words, of four letters or more, inside
+ *  the answer (HUNK in a clue for CHUNK), or one of three at the answer's start or end (NOT for CANNOT, NUT for PEANUT). */
+function showsPiece(answer, text) {
+  for (const w of text.toLowerCase().match(/[a-z]+/g) || []) {
+    if (w.length >= 3 && w !== answer && (w.length >= 4 ? answer.includes(w) : answer.startsWith(w) || answer.endsWith(w))) return w;
+  }
+  return null;
+}
 
 // ---------- the data ----------
 const entries = [], malformed = [], misfiled = [], unordered = [];
@@ -89,7 +97,7 @@ check(!unordered.length, "alphabetical within each tier, each word once", unorde
 const seen = new Set(entries.map(e => e.word));
 check(seen.size === entries.length, "no word is clued twice");
 // both raised as the bank grows, so that losing words fails
-const FLOOR = 10000, LONGEST = MAX;
+const FLOOR = 11000, LONGEST = MAX;
 check(entries.length >= FLOOR, `at least ${FLOOR} words clued (${entries.length}, ${entries.filter(e => e.word.length <= 7).length} of them of 3 to 7 letters)`);
 check(Array.from({ length: LONGEST - MIN + 1 }, (_, i) => MIN + i).every(n => entries.some(e => e.word.length === n)), `every length from ${MIN} to ${LONGEST} has clued words`);
 
@@ -103,6 +111,8 @@ const long = clues.filter(c => c.text.length > 50);
 check(!long.length, `every clue is 50 characters at most (the longest ${Math.max(...clues.map(c => c.text.length))})`, long.map(c => `${c.word}: ${c.text} (${c.text.length})`));
 const giving = clues.map(c => ({ ...c, stem: givesAway(c.word, c.text) })).filter(c => c.stem);
 check(!giving.length, "no clue contains its answer or an obvious stem of it", giving.map(c => `${c.word}: "${c.text}" has ${c.stem}`));
+const showing = clues.map(c => ({ ...c, piece: showsPiece(c.word, c.text) })).filter(c => c.piece);
+check(!showing.length, "nor a word that is a piece of its answer", showing.map(c => `${c.word}: "${c.text}" has ${c.piece}`));
 const twice = entries.filter(e => e.clues.length === 2 && e.clues[0][0].toLowerCase().replace(/[^a-z0-9]/g, "") === e.clues[1][0].toLowerCase().replace(/[^a-z0-9]/g, ""));
 check(!twice.length, "no word has the same clue twice", twice.map(e => `${e.word}: ${e.clues[0][0]}`));
 check(clues.length > entries.length * 1.8, `two clues for nearly every word (${clues.length} clues, ${entries.filter(e => e.clues.length === 2).length} words with both)`);
@@ -110,6 +120,9 @@ check(givesAway("running", "Sprinting") === null && givesAway("running", "Out fo
   && givesAway("gave", "Did give") === "give" && givesAway("cat", "Category") === "cat" && givesAway("art", "Painting, e.g.") === null
   && givesAway("leaves", "Leaf matter") === "leaf" && givesAway("someone", "Some one person") === "someone",
   "the check for a stem finds RUN in RUNNING, CARRY in CARRIED, GIVE in GAVE, a short answer starting a word, and the answer run across words");
+check(showsPiece("chunk", "Hunk") === "hunk" && showsPiece("cannot", "May not") === "not" && showsPiece("peanut", "Monkey nut") === "nut"
+  && showsPiece("either", "One or the other") === null && showsPiece("peanut", "Goober") === null,
+  "and the check for a piece finds HUNK in CHUNK and a short word ending CANNOT or PEANUT, not one in the middle (THE in EITHER)");
 
 // ---------- the API ----------
 {

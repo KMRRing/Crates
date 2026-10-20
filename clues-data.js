@@ -275,7 +275,200 @@ wee|Tiny|Small, in Scotland
 wet|Damp|Feeble
 wit|Humour|Clever person
 wow|Amaze|Gosh!`,
-``],
+`ado|Fuss|Bother
+ads|Commercials|Promotions
+ail|Trouble|Be unwell
+ale|Beer|Bitter, e.g.
+ant|Insect|Worker in a colony
+ape|Gorilla|Mimic
+ark|Noah's boat|Sacred chest
+awe|Wonder|Reverence
+aye|Yes|Vote in favour
+bee|Honey maker|Spelling contest
+bib|Baby's apron|Runner's number
+boa|Snake|Feather scarf
+boo|Jeer|Hoot
+bop|Dance|Hit lightly
+bra|Support garment|Undergarment
+bud|Shoot|Pal
+bun|Roll|Hair knot
+cab|Taxi|Driver's compartment
+cad|Rotter|Bounder
+caw|Crow's call|Croak
+chi|Greek letter|Life force
+cob|Male swan|Loaf
+cod|Fish|Mock
+cog|Gear tooth|Minor part
+coo|Dove's call|Murmur sweetly
+cop|Police officer|Catch
+cot|Baby's bed|Small bed
+cox|Rowing steerer|Steer, as a boat
+coy|Bashful|Evasive
+cub|Young bear|Junior Scout
+cur|Mongrel|Scoundrel
+dab|Pat|Flatfish
+dad|Father|Pa
+dam|Barrier|Mother of a foal
+den|Lair|Study
+dew|Morning moisture|Droplets on grass
+din|Racket|Uproar
+dos|Parties|Hairstyles
+dub|Name|Add a soundtrack
+dud|Failure|Fake
+duo|Pair|Duet
+dye|Colour|Tint
+ebb|Recede|Decline
+eel|Slippery fish|Elver, grown
+eke|Stretch, with out|Scrape, with out
+elf|Sprite|Pixie
+elk|Moose|Large deer
+elm|Tree|Shade tree
+eve|Night before|Day before a festival
+ewe|Female sheep|Lamb's mother
+fad|Craze|Trend
+fen|Marsh|Bog
+fez|Tasselled hat|Red hat
+fib|Lie|White lie
+fig|Fruit|Bit
+fin|Fish's limb|Flipper
+fir|Conifer|Evergreen
+flu|Virus|Bug
+foe|Enemy|Adversary
+fox|Vixen's mate|Baffle
+fro|To and ___|Back, in a phrase
+gab|Chatter|Talk
+gag|Joke|Silence
+gal|Girl|Lass
+gee|Gosh|Urge on
+gel|Hair product|Set
+gem|Jewel|Treasure
+gnu|Wildebeest|Antelope
+goo|Slime|Gunk
+gym|Workout room|PE
+hag|Crone|Witch
+hem|Edge|Border
+hen|Chicken|Female bird
+hew|Chop|Carve
+hoe|Garden tool|Weed
+hop|Jump|Beer flavouring
+hub|Centre|Wheel's middle
+hue|Colour|Shade
+hug|Embrace|Cuddle
+icy|Frozen|Frosty
+ifs|Conditions|Uncertainties
+ilk|Kind|Sort
+imp|Rascal|Devil
+inn|Pub|Tavern
+ins|Connections, informally|
+ire|Anger|Wrath
+irk|Annoy|Vex
+ivy|Climbing plant|Creeper
+jab|Poke|Injection
+jar|Pot|Jolt
+jaw|Chin|Chat
+jay|Bird|Chatterbox
+jig|Dance|Template
+jog|Run|Nudge
+jot|Note|Iota
+jug|Pitcher|Prison
+jut|Protrude|Stick out
+keg|Barrel|Cask
+kin|Family|Relatives
+lap|Circuit|Lick up
+lax|Slack|Loose
+lee|Shelter|Sheltered side
+lob|Toss|High shot
+lop|Cut off|Trim
+lug|Carry|Ear, informally
+lye|Alkali|Caustic solution
+mar|Spoil|Blemish
+mas|Mothers|Mums
+mat|Rug|Dull, as a finish
+mew|Miaow|Gull
+moo|Low|Cow's call
+mop|Swab|Mane
+mow|Cut|Trim
+nab|Grab|Arrest
+nag|Pester|Old horse
+nap|Doze|Pile
+nip|Pinch|Small drink
+nit|Louse egg|Twit
+nod|Assent|Doze
+oaf|Lout|Clumsy fool
+oak|Tree|Timber
+ode|Poem|Lyric
+ohm|Unit of resistance|Resistance measure
+ohs|Gasps|Exclamations
+ore|Mineral|Raw metal
+ova|Eggs|Ovules
+owl|Night bird|Wise one
+pal|Friend|Mate
+pap|Mush|Pulp
+pas|Fathers|Dance steps
+paw|Foot|Handle clumsily
+pea|Legume|Pod seed
+peg|Pin|Fix, as a price
+pep|Vigour|Energy
+pew|Church bench|Seat
+ply|Layer|Thickness
+pod|Shell|Group of whales
+pry|Snoop|Lever
+pup|Young dog|Cub
+qua|As|In the capacity of
+rap|Knock|Blame
+rev|Accelerate|Vicar, informally
+rib|Bone|Tease
+rig|Equipment|Fix, as a vote
+rim|Edge|Lip
+rob|Steal|Burgle
+roe|Fish eggs|Deer
+rue|Regret|Bitter herb
+rug|Mat|Toupee
+rum|Spirit|Odd
+rut|Groove|Routine
+rye|Grain|Whisky
+sac|Pouch|Bag
+sag|Droop|Sink
+sap|Juice|Fool
+sew|Stitch|Tailor
+sip|Taste|Small drink
+ski|Glide on snow|Runner
+sly|Cunning|Crafty
+sob|Cry|Weep
+sop|Concession|Soaked bread
+sow|Plant|Female pig
+spa|Health resort|Mineral spring
+sub|Stand-in|Advance
+sup|Sip|Dine
+tan|Bronze|Thrash
+tar|Pitch|Sailor
+tee|Golf peg|Shirt, informally
+tot|Toddler|Dram
+tow|Pull|Haul
+tub|Bath|Pot
+tug|Pull|Boat
+urn|Vase|Tea dispenser
+vex|Annoy|Irritate
+vie|Compete|Contend
+vow|Pledge|Promise
+wad|Bundle|Plug
+wag|Wit|Wave
+wan|Pale|Pallid
+wax|Polish|Grow, as the moon
+web|Net|Internet
+wig|Hairpiece|Toupee
+wiz|Expert|Genius
+woe|Sorrow|Misery
+wok|Pan|Stir-fry pan
+woo|Court|Charm
+wry|Ironic|Dry
+yak|Ox|Chatter
+yam|Sweet potato|Tuber
+yap|Bark|Yelp
+yen|Longing|Craving
+yew|Tree|Evergreen
+zip|Fastener|Energy
+zoo|Menagerie|Chaos`],
 4: [
 `able|Competent|Up to the job
 acts|Deeds|Performs on stage
@@ -540,7 +733,7 @@ news|Current events|Tidings
 next|Following|Adjacent
 nice|Pleasant|Precise
 nine|Three times three|Lives of a cat
-none|Not any|No one
+none|Not any|Nobody
 note|Memo|Musical sound
 numb|Without feeling|Deadened
 obey|Comply with|Do as told
@@ -664,7 +857,7 @@ test|Exam|Trial
 text|Words|Message
 than|Compared with|In comparison to
 that|Which|The one there
-them|Those people|The others
+them|Those people|That lot
 then|At that time|Next
 they|Those people|People in general
 thin|Slim|Watery
@@ -730,7 +923,7 @@ wore|Had on|Sported
 work|Labour|Function
 worn|Shabby|Frayed
 year|Twelve months|Annum
-your|Belonging to you|Thy
+your|Of the person addressed|Thy
 zero|Nothing|Nil`,
 `acid|Sour|Sharp-tongued
 aged|Old|Matured, as cheese
@@ -1195,7 +1388,912 @@ yawn|Gape|Bore
 yeti|Abominable snowman|Himalayan legend
 zone|Area|Region
 zoom|Speed|Close-up lens`,
-``],
+`abet|Assist|Aid a crime
+ably|Competently|Skilfully
+aced|Served a winner|Passed easily
+aces|Experts|Top cards
+ache|Pain|Long
+acne|Spots|Pimples
+acre|Land measure|Field size
+afar|In the distance|From a long way
+ahoy|Sailor's hail|Hello, at sea
+aide|Assistant|Helper
+ails|Troubles|Afflicts
+airs|Tunes|Affectations
+airy|Breezy|Light
+ajar|Slightly open|Not quite shut
+ales|Beers|Bitters
+alga|Pond plant|Seaweed
+alms|Charity|Handouts
+alto|Low female voice|Singer below soprano
+amen|So be it|Prayer's end
+amid|Among|In the middle of
+amok|Berserk|Wildly
+amps|Speakers|Units of current
+anew|Again|Afresh
+anon|Soon|Shortly
+ants|Insects|Workers
+aped|Mimicked|Imitated
+apes|Gorillas|Mimics
+apex|Peak|Summit
+arcs|Curves|Bows
+ares|Metric land measures|
+aria|Song|Solo
+arid|Dry|Barren
+arks|Chests|Sacred boxes
+aura|Air|Glow
+auto|Car|Motor
+avid|Keen|Eager
+avow|Declare|Affirm
+awed|Amazed|Overwhelmed
+awes|Amazes|Impresses
+awry|Askew|Wrong
+axed|Chopped|Fired
+axle|Shaft|Wheel rod
+ayes|Votes for|Affirmatives
+babe|Infant|Innocent
+bade|Ordered|Bid
+bail|Surety|Scoop out water
+bait|Lure|Tease
+bald|Hairless|Blunt
+bale|Bundle|Jump, with out
+balm|Ointment|Comfort
+barb|Spike|Gibe
+bard|Poet|Minstrel
+barn|Farm building|Byre
+bask|Sunbathe|Wallow
+bats|Flying mammals|Crazy
+bawl|Howl|Cry
+bays|Inlets|Howls
+bead|Bauble|Drop
+beak|Bill|Magistrate, informally
+bees|Workers in a hive|Spelling contests
+beet|Root vegetable|Sugar source
+begs|Pleads|Asks for alms
+bibs|Babies' aprons|Runners' numbers
+bide|Wait|Remain
+bike|Bicycle|Ride
+bile|Bitterness|Gall
+bins|Rubbish containers|Throws away
+blab|Tell secrets|Blurt
+bled|Lost blood|Extorted money from
+blip|Glitch|Radar dot
+bloc|Alliance|Coalition
+blog|Online diary|Web journal
+blot|Stain|Dry with paper
+blur|Smudge|Haze
+boar|Wild pig|Male pig
+boas|Snakes|Feather scarves
+bode|Portend|Augur
+bony|Skinny|Gaunt
+boon|Blessing|Benefit
+boor|Lout|Oaf
+boos|Jeers|Hoots
+bows|Front ends of ships|Ribbon knots
+brag|Boast|Show off
+bran|Husk|Cereal fibre
+bras|Support garments|
+brat|Spoilt child|Little monster
+bray|Donkey's call|Hee-haw
+brew|Tea|Concoct
+brim|Edge|Hat's edge
+brow|Forehead|Hilltop
+buds|Shoots|Pals
+buff|Polish|Enthusiast
+bung|Stopper|Bribe
+bunk|Bed|Nonsense
+buns|Rolls|Hair knots
+buoy|Float|Cheer up
+burp|Belch|Wind
+burr|Prickly seed|Rolled R
+buts|Objections|Reservations
+buzz|Hum|Thrill
+byes|Farewells|Extras in cricket
+cabs|Taxis|Drivers' compartments
+calf|Young cow|Leg muscle
+cane|Stick|Rattan
+cape|Cloak|Headland
+carp|Fish|Complain
+cart|Barrow|Haul
+cask|Barrel|Keg
+caws|Crows' calls|Croaks
+cede|Surrender|Yield
+chef|Cook|Kitchen boss
+chic|Stylish|Elegant
+chin|Jaw|Lower face
+chow|Food|Dog breed
+chug|Puff along|Gulp down
+chum|Pal|Friend
+clad|Dressed|Covered
+clam|Shellfish|Mollusc
+clan|Family|Tribe
+clap|Applaud|Thunder sound
+claw|Talon|Scratch
+clay|Pottery earth|Tennis surface
+clef|Musical sign|Stave symbol
+clod|Lump of earth|Oaf
+clot|Coagulate|Fool
+coax|Persuade|Cajole
+cobs|Male swans|Loaves
+cods|Fish|Mocks
+cogs|Gear teeth|Minor parts
+coil|Spiral|Wind
+colt|Young horse|Novice
+coma|Unconsciousness|Deep sleep
+comb|Groom|Search
+cone|Pine fruit|Ice-cream holder
+cons|Swindles|Disadvantages
+coop|Hen house|Pen
+coos|Murmurs|Doves' calls
+cops|Police|Catches
+cord|String|Rope
+cork|Stopper|Bung
+cots|Babies' beds|Small beds
+coup|Takeover|Triumph
+cove|Bay|Inlet
+crab|Crustacean|Grouch
+crag|Cliff|Rock face
+cram|Stuff|Swot
+crib|Cot|Copy
+crow|Bird|Boast
+crux|Heart|Core
+cubs|Young bears|Junior Scouts
+cued|Prompted|Signalled
+cues|Prompts|Signals
+cuff|Wristband|Slap
+cull|Slaughter|Select
+curb|Restrain|Check
+curd|Cheese base|Lemon spread
+curl|Ringlet|Coil
+curt|Brusque|Terse
+cyst|Sac|Growth
+dabs|Pats|Fingerprints
+dads|Fathers|Pas
+dais|Platform|Stage
+dame|Lady|Pantomime woman
+dams|Barriers|Mothers of foals
+dank|Damp|Musty
+darn|Mend|Drat
+dart|Arrow|Dash
+daub|Smear|Plaster
+daze|Stun|Stupor
+dean|College head|Cathedral official
+deer|Stag|Doe
+deft|Nimble|Skilful
+deli|Sandwich shop|Cold-meat counter
+dens|Lairs|Studies
+dent|Dint|Dampen, as confidence
+dill|Herb|Pickle flavour
+dime|Ten cents|American coin
+dims|Lowers|Fades
+dins|Rackets|Uproars
+dips|Dunks|Sauces
+dock|Wharf|Weed
+dodo|Extinct bird|Old fogey
+doer|Achiever|Go-getter
+doll|Toy|Figure
+dome|Cupola|Head
+dope|Idiot|Inside information
+dote|Adore|Idolise
+dour|Stern|Gloomy
+dove|Pigeon|Peacemaker
+doze|Nap|Snooze
+drab|Dull|Dreary
+dubs|Names|Adds a soundtrack
+duct|Channel|Tube
+dude|Guy|Dandy
+duds|Failures|Clothes
+duel|Fight|Contest
+dues|Fees|Subscription
+duet|Pair|Song for two
+duke|Noble|Fist
+dune|Sand hill|Bank of sand
+dung|Manure|Droppings
+dunk|Dip|Slam, in basketball
+dupe|Trick|Victim
+dusk|Twilight|Nightfall
+dyed|Coloured|Tinted
+dyes|Colours|Tints
+earl|Noble|Count
+eave|Roof edge|Overhang
+ebbs|Recedes|Declines
+eddy|Whirlpool|Swirl
+edgy|Nervous|Avant-garde
+eels|Slippery fish|Elvers, grown
+eked|Stretched, with out|Scraped, with out
+ekes|Stretches, with out|Scrapes, with out
+elks|Moose|Large deer
+elms|Trees|Shade trees
+emir|Ruler|Prince
+eras|Ages|Epochs
+errs|Goes wrong|Slips up
+etch|Engrave|Carve
+eves|Nights before|Days before festivals
+ewes|Female sheep|Lambs' mothers
+eyed|Watched|Ogled
+fade|Dim|Wither
+fads|Crazes|Trends
+fang|Tooth|Canine
+fats|Lards|Oils
+fawn|Young deer|Grovel
+faze|Disconcert|Rattle
+feds|G-men|American agents
+fend|Ward, with off|Provide, with for
+fern|Bracken|Frond plant
+feud|Vendetta|Quarrel
+fibs|Lies|White lies
+figs|Fruits|Bits
+fins|Flippers|Fishes' limbs
+firs|Conifers|Evergreens
+fist|Clenched hand|Handwriting
+fizz|Bubbles|Champagne
+flak|Criticism|Gunfire
+flap|Panic|Flutter
+flea|Insect|Jumper
+fled|Ran away|Escaped
+flee|Run away|Escape
+flex|Bend|Cable
+flit|Dart|Move house
+flog|Whip|Sell
+flop|Failure|Collapse
+flue|Chimney|Duct
+flux|Flow|Change
+foal|Young horse|Give birth, as a mare
+foes|Enemies|Adversaries
+fogs|Mists|Confuses
+foil|Thwart|Fencing sword
+ford|Cross a river|Shallow crossing
+fore|Front|Golfer's cry
+fort|Stronghold|Garrison
+fowl|Poultry|Bird
+foxy|Crafty|Sly
+fray|Fight|Unravel
+fret|Worry|Guitar ridge
+furl|Roll up|Fold
+furs|Pelts|Coats
+fury|Rage|Wrath
+fuzz|Fluff|Police, informally
+gabs|Chatters|Talks
+gags|Jokes|Silences
+gait|Walk|Stride
+gala|Festival|Celebration
+gale|Strong wind|Storm
+gall|Cheek|Bile
+gals|Girls|Lasses
+gape|Stare|Yawn
+garb|Dress|Attire
+gash|Cut|Slash
+gawk|Stare|Gape
+gaze|Stare|Look
+geld|Neuter, as a horse|
+gems|Jewels|Treasures
+gent|Man|Chap
+germ|Microbe|Seed
+gigs|Concerts|Carriages
+gild|Gold-plate|Embellish
+gill|Fish's breathing organ|Quarter-pint
+gilt|Gold leaf|Bond
+gins|Spirits|Traps
+gist|Essence|Drift
+glee|Joy|Delight
+glen|Valley|Dale
+glib|Slick|Facile
+glum|Gloomy|Morose
+glut|Surplus|Excess
+gnat|Midge|Tiny fly
+gnaw|Chew|Nibble
+gnus|Wildebeest|Antelopes
+goad|Prod|Spur
+gong|Bell|Medal, informally
+goof|Blunder|Fool
+goon|Thug|Fool
+gore|Blood|Pierce
+gory|Bloody|Gruesome
+gosh|Golly|Crikey
+gout|Joint disease|Toe trouble
+gram|Metric weight|Small unit of mass
+grin|Smile|Beam
+grit|Sand|Courage
+grub|Food|Larva
+gull|Seabird|Dupe
+gulp|Swallow|Gasp
+gums|Glues|Mouth tissues
+guru|Teacher|Expert
+gush|Spurt|Enthuse
+gust|Blast|Squall
+gyms|Workout rooms|Fitness clubs
+hags|Crones|Witches
+hale|Hearty|Healthy
+halo|Ring of light|Saint's crown
+hams|Over-actors|Cured pork joints
+hare|Long-eared runner|Dash
+hark|Listen|Hear
+harp|Lyre|Go on, with on
+hart|Stag|Male deer
+haul|Drag|Catch
+hawk|Falcon|Peddle
+hays|Dried grasses|Fodders
+haze|Mist|Daze
+heal|Cure|Mend
+heed|Attend to|Notice
+heir|Successor|Inheritor
+helm|Tiller|Command
+hemp|Cannabis plant|Rope fibre
+hems|Edges|Borders
+hens|Chickens|Female birds
+herb|Thyme, e.g.|Seasoning plant
+hers|Not his|That woman's
+hews|Chops|Carves
+hick|Yokel|Bumpkin
+hike|Trek|Rise
+hilt|Handle|Haft
+hind|Back|Female deer
+hips|Haunches|Rose fruits
+hiss|Snake's sound|Boo
+hive|Bees' home|Hub of activity
+hoax|Trick|Prank
+hobo|Tramp|Vagrant
+hock|Pawn|White wine
+hoed|Weeded|Tilled
+hoes|Garden tools|Weeds
+hogs|Pigs|Monopolises
+hone|Sharpen|Perfect
+honk|Hoot|Goose's call
+hood|Cowl|Bonnet
+hoof|Horse's foot|Walk, informally
+hoop|Ring|Basketball target
+hoot|Owl's call|Laugh
+hops|Jumps|Beer flavourings
+hose|Pipe|Stockings
+hove|Came, at sea|Lifted
+howl|Wail|Yowl
+hubs|Centres|Wheel middles
+hued|Coloured|Tinted
+hues|Colours|Shades
+huff|Sulk|Puff
+hugs|Embraces|Cuddles
+hulk|Hull|Giant
+hull|Ship's body|Husk
+hump|Bump|Hunch
+hums|Buzzes|Smells bad, informally
+hunk|Lump|Beefcake
+hurl|Throw|Fling
+hush|Quiet|Silence
+husk|Shell|Pod
+huts|Sheds|Shacks
+hymn|Song of praise|Psalm
+iced|Frozen|Frosted
+ices|Freezes|Sorbets
+idly|Lazily|Aimlessly
+idol|Hero|Icon
+ills|Troubles|Ailments
+imps|Rascals|Devils
+inks|Writing fluids|Signs, as a deal
+inky|Black|Stained
+inns|Pubs|Taverns
+ions|Charged particles|Atoms with a charge
+iota|Jot|Tiny amount
+iris|Flower|Eye part
+irks|Annoys|Vexes
+isle|Atoll, e.g.|Key
+itch|Tingle|Yearn
+jabs|Pokes|Injections
+jade|Green gem|Tire
+jamb|Doorpost|Side of a window frame
+jars|Pots|Jolts
+jaws|Chins|Chats
+jays|Birds|Chatterboxes
+jeer|Mock|Boo
+jell|Set|Take shape
+jets|Aircraft|Spurts
+jibe|Taunt|Agree, informally
+jigs|Dances|Templates
+jilt|Abandon|Dump
+jinx|Curse|Hoodoo
+jogs|Runs|Nudges
+jolt|Jerk|Shock
+jots|Notes|Iotas
+joys|Delights|Pleasures
+judo|Martial art|Wrestling sport
+jugs|Pitchers|Prisons
+jute|Fibre|Sacking material
+juts|Protrudes|Sticks out
+keel|Ship's spine|Topple, with over
+kegs|Barrels|Casks
+kelp|Seaweed|Wrack
+kiln|Oven|Furnace
+kilo|Thousand grams|Weight unit
+kilt|Tartan skirt|Highland dress
+kink|Twist|Quirk
+kite|Glider|Bird of prey
+kiwi|Fruit|Flightless bird
+knit|Weave|Join
+knob|Handle|Lump
+knot|Tie|Nautical speed
+lace|Tie|Fabric
+lacy|Delicate|Openwork
+lade|Load|Burden
+lads|Boys|Young chaps
+lags|Delays|Convicts
+lair|Den|Hideout
+lamb|Young sheep|Gentle soul
+lame|Limping|Feeble
+laps|Circuits|Licks up
+lard|Fat|Pad out
+lash|Whip|Thong
+lass|Girl|Maiden
+lath|Slat|Strip of wood
+laud|Praise|Extol
+lava|Molten rock|Volcano's outflow
+leek|Vegetable|Welsh emblem
+leer|Ogle|Sneer
+levy|Tax|Impose
+liar|Fibber|Perjurer
+lice|Parasites|Nits
+lick|Lap|Thrash
+lids|Covers|Tops
+lieu|In ___ of (instead of)|
+lilt|Cadence|Sing-song accent
+lily|Flower|Pure white
+lime|Citrus fruit|Linden tree
+limp|Hobble|Floppy
+lint|Fluff|Bandage fabric
+loaf|Bread|Idle
+loam|Soil|Rich earth
+lobe|Rounded part|Part of the brain
+lobs|Tosses|High shots
+loft|Attic|Lift high
+loin|Cut of meat|Lower back
+loll|Lounge|Droop
+lone|Single|Solitary
+loom|Weaving frame|Threaten
+loon|Diver bird|Fool
+loot|Plunder|Money, informally
+lope|Stride|Bound
+lops|Cuts off|Trims
+lore|Tradition|Legends
+lows|Moos|Depths
+lugs|Carries|Ears, informally
+lull|Calm|Soothe
+lure|Bait|Entice
+lush|Luxuriant|Drunkard
+lute|Stringed instrument|Medieval guitar
+lyre|Harp|Ancient instrument
+mace|Club|Spice
+maid|Servant|Girl, poetically
+maim|Cripple|Injure
+mall|Shopping centre|Promenade
+malt|Barley|Whisky type
+mama|Mother|Mum
+mane|Horse's hair|Shock of hair
+mare|Female horse|Lunar sea
+mars|Spoils|Blemishes
+mart|Market|Emporium
+mash|Crush|Potato dish
+mast|Pole|Spar
+mats|Rugs|Tangles
+maul|Savage|Rugby scrum
+meek|Humble|Mild
+memo|Note|Reminder
+mesh|Net|Engage
+mete|Dole, with out|Allot
+mews|Stables|Miaows
+mien|Bearing|Air
+mike|Microphone|Recording device
+mime|Charade|Silent act
+mink|Fur|Weasel's relative
+mire|Bog|Mud
+mite|Tiny creature|Small child
+mitt|Glove|Hand
+moat|Ditch|Castle's water
+mobs|Crowds|Surrounds
+monk|Friar|Brother
+moor|Heath|Tie up a boat
+moos|Lows|Cows' calls
+moot|Debatable|Raise
+mope|Sulk|Brood
+mops|Swabs|Manes
+morn|Dawn|Daybreak, poetically
+moss|Lichen|Bog
+moth|Insect|Clothes eater
+mows|Cuts|Trims
+muff|Fumble|Hand warmer
+mule|Hybrid animal|Slipper
+mull|Ponder|Spice and warm
+muse|Ponder|Inspiration
+mush|Pulp|Sentimentality
+musk|Scent|Perfume
+muss|Tousle|Mess
+mute|Silent|Quieten
+mutt|Mongrel|Dog
+nabs|Grabs|Arrests
+nags|Pesters|Old horses
+nape|Back of the neck|Scruff
+naps|Dozes|Piles
+navy|Fleet|Dark blue
+nays|Votes against|Noes
+neon|Gas|Bright light
+newt|Amphibian|Eft
+nigh|Near|Almost
+nips|Pinches|Small drinks
+nits|Louse eggs|Twits
+nods|Assents|Dozes
+noes|Votes against|Refusals
+nook|Corner|Recess
+nosy|Prying|Inquisitive
+nova|Exploding star|New star
+nude|Unclothed|Bare
+oafs|Louts|Clumsy fools
+oaks|Trees|Timbers
+oars|Paddles|Rowers
+oath|Vow|Swear word
+oboe|Woodwind instrument|Reed instrument
+odes|Poems|Lyrics
+ogle|Leer|Eye
+ogre|Monster|Brute
+ohms|Units of resistance|Resistance measures
+oils|Lubricates|Paintings
+oily|Greasy|Smarmy
+okra|Lady's fingers|Gumbo vegetable
+omen|Sign|Portent
+ooze|Seep|Slime
+opal|Gemstone|Milky gem
+ores|Minerals|Raw metals
+ouch|Ow!|Cry of pain
+oust|Expel|Depose
+outs|Exits|Dismissals, in cricket
+oval|Egg-shaped|Ellipse
+oven|Stove|Kiln
+ovum|Egg|Female cell
+owls|Night birds|Wise ones
+oxen|Cattle|Bullocks
+pact|Treaty|Agreement
+pail|Bucket|Milking vessel
+pall|Shroud|Cloud
+palm|Tree|Hand
+pals|Friends|Mates
+pane|Glass|Window
+pang|Twinge|Spasm
+pans|Pots|Criticises
+papa|Father|Dad
+pare|Peel|Trim
+pars|Standards|Golf scores
+pate|Head|Crown
+pats|Taps|Butter portions
+pave|Surface|Prepare, as the way
+pawn|Pledge|Chess piece
+paws|Feet|Handles clumsily
+peal|Ring|Chime
+pear|Fruit|Conference, e.g.
+peas|Legumes|Pod seeds
+peat|Turf|Fuel
+peck|Kiss|Nibble
+peek|Peep|Glance
+peel|Skin|Pare
+peep|Peek|Chirp
+pegs|Pins|Fixes, as prices
+pelt|Hide|Bombard
+peon|Labourer|Drudge
+peps|Livens, with up|
+perk|Bonus|Benefit
+pert|Saucy|Cheeky
+pest|Nuisance|Vermin
+pets|Tame animals|Strokes
+pews|Church benches|Seats
+pier|Jetty|Wharf
+pies|Pastries|Tarts
+pike|Fish|Spear
+pine|Tree|Yearn
+pits|Mines|Fruit stones
+plod|Trudge|Police officer, informally
+plop|Splash|Drop
+plum|Fruit|Choice
+pods|Shells|Groups of whales
+poky|Cramped|Slow
+polo|Horseback game|Neck style
+pomp|Ceremony|Splendour
+pond|Pool|Lake
+pony|Small horse|Twenty-five pounds, in slang
+poop|Ship's raised stern|Tire, informally
+pore|Opening|Study closely
+posy|Bouquet|Nosegay
+pots|Pans|Kitties
+pout|Sulk|Moue
+pram|Baby carriage|Pushchair
+prey|Quarry|Victim
+prim|Prudish|Prissy
+prod|Poke|Prompt
+prom|Seafront walk|School dance
+prop|Support|Stage item
+pros|Experts|Advantages
+prow|Bow|Front of a ship
+puck|Ice-hockey disc|Sprite
+puff|Gust|Pant
+puma|Cougar|Mountain lion
+punk|Rebel|Rock genre
+puny|Feeble|Small
+pups|Young dogs|Whelps
+purr|Cat's sound|Hum
+puss|Cat|Kitty
+pyre|Bonfire|Funeral fire
+quay|Wharf|Dock
+quip|Joke|Witticism
+racy|Risque|Spirited
+raft|Float|Lot
+rags|Tatters|Teases
+rake|Garden tool|Libertine
+ramp|Slope|Incline
+rams|Male sheep|Butts
+raps|Knocks|Rebukes
+rapt|Absorbed|Spellbound
+rasp|File|Grate
+rays|Beams|Flat fish
+raze|Demolish|Flatten
+ream|Paper quantity|Lots
+reap|Harvest|Gain
+redo|Repeat|Revamp
+reds|Communists|Wines
+reed|Rush|Mouthpiece
+reef|Coral ridge|Shorten a sail
+reek|Stink|Smell
+reel|Spool|Stagger
+rein|Strap|Check
+revs|Accelerates|Clergymen
+ribs|Bones|Teases
+rife|Widespread|Rampant
+rift|Split|Crack
+rigs|Equipment|Fixes
+rile|Annoy|Irritate
+rims|Edges|Lips
+rind|Peel|Skin
+rink|Skating floor|Ice arena
+ripe|Mature|Ready
+rite|Ritual|Ceremony
+roam|Wander|Rove
+roar|Bellow|Howl
+robe|Gown|Dress
+robs|Steals|Burgles
+rods|Poles|Bars
+roes|Fish eggs|Deer
+romp|Frolic|Easy win
+rook|Crow|Castle
+rosy|Pink|Optimistic
+rote|Routine|Repetition
+rots|Decays|Nonsense
+rubs|Massages|Polishes
+ruby|Red gem|Fortieth anniversary
+rued|Regretted|Lamented
+rues|Regrets|Laments
+ruff|Frill|Trump
+rugs|Mats|Toupees
+rump|Rear|Remnant
+rums|Spirits|Grogs
+rune|Ancient letter|Magic symbol
+runt|Weakling|Smallest of the litter
+ruse|Trick|Ploy
+rust|Corrosion|Reddish brown
+ruts|Grooves|Routines
+sacs|Pouches|Bags
+sage|Herb|Wise one
+sags|Droops|Sinks
+saps|Drains|Fools
+sari|Indian dress|Draped garment
+sash|Belt|Window frame
+saws|Cutting tools|Sayings
+scab|Crust|Strikebreaker
+scar|Mark|Cliff
+seam|Join|Coal layer
+sear|Scorch|Brown quickly
+seas|Oceans|Mains
+seep|Leak|Ooze
+seer|Prophet|Oracle
+sewn|Stitched|Tailored
+sews|Stitches|Tailors
+sham|Fake|Pretence
+shin|Lower leg|Climb, with up
+shod|Booted|Wearing footwear
+shoo|Go away!|Scat!
+shun|Avoid|Ostracise
+sift|Sieve|Sort
+silk|Fabric|Barrister
+sill|Ledge|Base of a window
+silo|Grain store|Missile shaft
+silt|Sediment|Mud
+sips|Tastes|Small drinks
+sire|Father|Your Majesty
+sirs|Gentlemen|Teachers, to pupils
+skew|Distort|Slant
+skid|Slide|Slip
+skim|Scan|Glide over
+skis|Runners|Glides on snow
+skit|Sketch|Parody
+slab|Slice|Block
+slam|Bang|Criticise
+slap|Smack|Directly
+slat|Strip|Lath
+slay|Kill|Amuse greatly
+sled|Toboggan|Snow runner
+slew|Killed|Lot
+slit|Slash|Cut
+slob|Lout|Sloven
+slog|Toil|Trudge
+slop|Spill|Swill
+slug|Snail|Shot
+slum|Ghetto|Rough it, with it
+slur|Insult|Mumble
+smog|Pollution|Haze
+snap|Break|Photo
+snip|Cut|Bargain
+snob|Elitist|Toff
+snub|Ignore|Cold shoulder
+snug|Cosy|Bar room
+soak|Drench|Drunkard
+soar|Rise|Fly high
+sobs|Cries|Weeps
+soda|Fizzy water|Pop
+sods|Turfs|Clods
+sofa|Settee|Couch
+soot|Grime|Chimney dust
+sops|Concessions|Soaked bread pieces
+sour|Tart|Grumpy
+sown|Planted|Seeded
+sows|Plants|Female pigs
+spar|Box|Pole
+spas|Health resorts|Mineral springs
+spat|Quarrel|Gaiter
+spay|Neuter, as a cat|Sterilise
+spew|Vomit|Gush
+spry|Nimble|Agile
+spud|Potato|Tater
+spun|Twirled|Told, as a yarn
+stab|Pierce|Attempt
+stag|Male deer|Buck
+stew|Casserole|Fret
+stow|Pack|Store
+stub|Butt|Counterfoil
+stud|Boss|Horse farm
+subs|Stand-ins|Fees
+suck|Draw in|Siphon
+suds|Lather|Foam
+sulk|Pout|Mope
+suns|Stars|Basks
+surf|Waves|Browse
+swab|Mop|Cotton pad
+swan|Cygnet's parent|Wander idly, with about
+swat|Hit|Slap
+sway|Rock|Influence
+swig|Gulp|Slug
+taco|Tortilla dish|Mexican snack
+tact|Diplomacy|Discretion
+tags|Labels|Chasing games
+talc|Powder|Mineral
+tang|Zest|Bite
+tans|Bronzes|Thrashes
+taps|Faucets|Pats
+tars|Sailors|Pitches
+tart|Pie|Sharp
+taut|Tight|Tense
+teak|Hardwood|Timber
+teas|Brews|Afternoon meals
+teed|Set up, at golf|Ready, with up
+teem|Swarm|Pour
+teen|Adolescent|Youth
+tees|Golf pegs|Shirts, informally
+tent|Marquee|Shelter
+thaw|Melt|Warm up
+thud|Thump|Bump
+thug|Hooligan|Ruffian
+tide|Flow|Current
+tier|Layer|Row
+tiff|Spat|Quarrel
+tilt|Lean|Joust
+ting|Ring|Chime
+tint|Hue|Dye
+toed|Followed, as the line|
+toga|Roman robe|Senator's garment
+toil|Labour|Graft
+tomb|Grave|Vault
+toot|Hoot|Honk
+tote|Carry|Bag
+tots|Toddlers|Drams
+tout|Ticket seller|Promote
+tows|Pulls|Hauls
+trim|Neat|Cut
+trio|Three|Threesome
+trod|Stepped|Walked
+trot|Jog|Gait
+tuba|Brass instrument|Oompah horn
+tubs|Baths|Pots
+tuck|Fold|Food, at school
+tuft|Clump|Tussock
+tugs|Pulls|Boats
+tuna|Fish|Tunny
+turf|Grass|Territory
+tusk|Ivory tooth|Elephant's tooth
+twee|Cutesy|Sentimental
+twig|Stick|Realise
+twos|Pairs|Couples
+urns|Vases|Tea dispensers
+vane|Weathercock|Blade
+vase|Urn|Flower holder
+vats|Large tanks|Brewing tubs
+veal|Calf meat|Escalope, perhaps
+veer|Swerve|Turn
+veil|Mask|Shroud
+vent|Outlet|Air
+vest|Undershirt|Waistcoat, in America
+veto|Ban|Block
+vets|Animal doctors|Checks out
+vial|Phial|Small bottle
+vied|Competed|Contended
+vies|Competes|Contends
+vine|Grape plant|Creeper
+visa|Travel permit|Entry stamp
+vise|Clamp, in America|
+volt|Electrical unit|Potential unit
+vows|Pledges|Promises
+wads|Bundles|Plugs
+waft|Drift|Float
+wags|Wits|Waves
+waif|Stray|Urchin
+wail|Howl|Moan
+wand|Baton|Magic stick
+wane|Decline|Fade
+wart|Growth|Blemish
+wasp|Stinger|Yellowjacket
+watt|Power unit|Bulb rating
+wavy|Undulating|Curly
+waxy|Pale|Smooth
+wean|Stop breastfeeding|Break of a habit
+webs|Nets|Networks
+weed|Pull out|Wimp
+weep|Cry|Sob
+weld|Join|Fuse
+welt|Weal|Ridge
+wept|Cried|Sobbed
+whet|Sharpen|Stimulate
+whew|Phew|Sigh of relief
+whip|Lash|Beat, as cream
+whoa|Stop!|Steady!
+whys|Reasons|Causes
+wick|Candle string|Get on one's ___ (annoy)
+wigs|Hairpieces|Toupees
+wilt|Droop|Wither
+wily|Cunning|Crafty
+wink|Blink|Flash
+wiry|Lean|Sinewy
+wisp|Strand|Trace of smoke
+wits|Brains|Comedians
+woes|Sorrows|Troubles
+woks|Pans|Stir-fry pans
+womb|Uterus|Birthplace
+woof|Bark|Weft
+wool|Fleece|Yarn
+woos|Courts|Charms
+wove|Interlaced|Zigzagged
+wows|Amazes|Impresses
+writ|Summons|Court order
+yaks|Oxen|Chatters
+yams|Sweet potatoes|Tubers
+yank|Jerk|Pull
+yaps|Barks|Yelps
+yarn|Thread|Tale
+yell|Shout|Scream
+yelp|Yap|Squeal
+yens|Longings|Cravings
+yews|Trees|Evergreens
+yoga|Exercise|Meditation practice
+yoke|Harness|Burden
+yolk|Egg centre|Yellow part
+yowl|Howl|Wail
+yuck|Ugh!|Disgusting!
+zany|Crazy|Wacky
+zeal|Fervour|Passion
+zest|Gusto|Rind
+zeta|Greek letter|Greek Z
+zinc|Metal|Element Zn
+zips|Fasteners|Speeds
+zoos|Menageries|Chaotic places`],
 5: [
 `about|Roughly|Concerning
 above|Overhead|Higher than
@@ -1214,7 +2312,7 @@ album|Long-player|Book for photos
 alias|Assumed name|Otherwise known as
 alive|Living|Teeming
 allow|Permit|Admit as true
-alone|Solitary|On one's own
+alone|Solitary|Unaccompanied
 along|Forward|By the side of
 alter|Change|Take in, as a dress
 amuse|Entertain|Tickle
@@ -1227,7 +2325,7 @@ apply|Put on|Put in for, as a job
 areas|Regions|Zones
 argue|Quarrel|Contend
 arise|Come up|Get up
-aside|To one side|Remark to the audience
+aside|Apart|Remark to the audience
 asked|Enquired|Invited
 avoid|Shun|Steer clear of
 awake|Not asleep|Alert
@@ -1696,7 +2794,7 @@ tests|Exams|Trials
 thank|Express gratitude|Credit
 their|Belonging to them|Of them
 there|In that place|Yonder
-these|This lot|The ones here
+these|This lot|Those close by
 thing|Object|Item
 think|Ponder|Believe
 third|Bronze medal place|Gear after second
@@ -1789,7 +2887,7 @@ wrong|Incorrect|Injustice
 wrote|Penned|Composed
 years|Twelve-month periods|Ages
 young|Youthful|Offspring
-yours|Belonging to you|Not mine`,
+yours|Thine|Not mine`,
 `abide|Tolerate|Dwell
 abort|Call off|Abandon
 acorn|Oak seed|Little nut
@@ -1911,7 +3009,7 @@ choir|Singers|Chorus
 chops|Cuts|Cutlets
 chord|Notes played together|Line across a circle
 chuck|Throw|Drill clamp
-chunk|Lump|Hunk
+chunk|Lump|Block
 cider|Apple drink|Scrumpy, e.g.
 circa|About|Approximately
 cited|Quoted|Mentioned
@@ -2566,7 +3664,7 @@ advice|Guidance|Counsel
 advise|Counsel|Recommend
 affair|Matter|Business
 affect|Influence|Feign
-afford|Have the money for|Provide
+afford|Have the means to buy|Provide
 afraid|Scared|Sorry to say
 agency|Bureau|Office
 agreed|Concurred|Settled
@@ -2643,7 +3741,7 @@ buries|Inters|Hides
 button|Fastener|Switch
 buying|Purchasing|Believing
 called|Phoned|Named
-cannot|Is unable to|May not
+cannot|Is unable to|Is forbidden to
 caught|Captured|Contracted, as a cold
 caused|Brought about|Provoked
 causes|Reasons|Brings about
@@ -2723,7 +3821,7 @@ edited|Revised|Cut
 editor|Reviser|Newspaper chief
 effect|Result|Bring about
 effort|Exertion|Attempt
-either|One or the other|Each
+either|Each of two|Also, after a negative
 elects|Chooses|Votes in
 enable|Allow|Empower
 ending|Conclusion|Finale
@@ -2933,7 +4031,7 @@ oppose|Resist|Counter
 option|Choice|Alternative
 orders|Commands|Sequences
 origin|Source|Root
-others|The rest|Different ones
+others|Remainder|Different ones
 output|Production|Yield
 owners|Possessors|Proprietors
 packet|Parcel|Fortune, informally
@@ -3340,7 +4438,7 @@ chewed|Munched|Pondered
 choral|Sung by many|For voices
 chorus|Refrain|Choir
 chucks|Throws|Ditches
-chunks|Lumps|Hunks
+chunks|Lumps|Blocks
 cinema|Picture house|The movies
 cities|Metropolises|Large towns
 citing|Quoting|Mentioning
@@ -3568,7 +4666,7 @@ gutter|Drain|Slum
 hacked|Chopped|Broke into, as a computer
 hacker|Code breaker|Poor golfer
 halted|Stopped|Ceased
-halves|Bisects|Small beers
+halves|Bisects|Two equal shares
 hammer|Mallet|Defeat heavily
 harden|Set|Toughen
 hassle|Bother|Nag
@@ -3770,7 +4868,7 @@ palace|Mansion|Royal residence
 panels|Boards|Committees
 parade|March|Display
 pardon|Forgive|Excuse me?
-parity|Equality|Par
+parity|Equality|Equivalence
 parked|Left, as a car|Shelved
 parody|Spoof|Send-up
 parrot|Mimic|Talking bird
@@ -3779,7 +4877,7 @@ parses|Analyses|Breaks down
 patent|Obvious|Licence for an invention
 paused|Stopped|Hesitated
 pauses|Breaks|Hesitates
-peanut|Groundnut|Monkey nut
+peanut|Goober|Satay ingredient
 pedant|Stickler|Hair-splitter
 pencil|Lead holder|Sketch lightly
 phased|Staged|Gradual
@@ -3932,7 +5030,7 @@ scotch|Put an end to|Thwart
 scraps|Bits|Fights
 scream|Shriek|Hoot
 screws|Fasteners|Twists
-scroll|Roll of parchment|Move through text
+scroll|Parchment|Move through text
 sealed|Closed|Settled
 sector|Area|Section
 seldom|Rarely|Hardly ever
@@ -4039,7 +5137,7 @@ takers|Buyers|Acceptors
 talent|Gift|Flair
 tasted|Sampled|Savoured
 tastes|Flavours|Samples
-teapot|Brewing pot|Spouted vessel
+teapot|Brewing vessel|Spouted vessel
 temper|Mood|Rage
 temple|Shrine|Side of the head
 tempts|Lures|Entices
@@ -4156,7 +5254,7 @@ whales|Large sea mammals|Big gamblers
 whence|From where?|From which
 whites|Albumens|Cricket clothing
 wholly|Completely|Entirely
-whoops|Oops!|Cheers
+whoops|Butterfingers!|Cheers
 wicked|Evil|Excellent, in slang
 wildly|Madly|Frantically
 winded|Breathless|Puffed
@@ -4247,7 +5345,7 @@ brother|Sibling|Monk
 brought|Fetched|Carried
 burying|Interring|Hiding
 calling|Vocation|Phoning
-capable|Able|Competent
+capable|Competent|Skilled
 capital|Chief city|Funds for investment
 captain|Skipper|Leader
 careful|Cautious|Meticulous
@@ -4556,7 +5654,7 @@ natural|Normal|Innate
 naughty|Mischievous|Badly behaved
 nearest|Closest|Next
 needing|Requiring|Wanting
-neither|Not one or the other|
+neither|Not one of two|
 nervous|Anxious|Jumpy
 network|System|Make contacts
 nothing|Zero|Nil
@@ -4827,7 +5925,7 @@ western|Cowboy film|Occidental
 whereas|While|On the other hand
 whereby|By which|Through which
 whether|If|Whichever
-whoever|Anyone who|Anyone at all
+whoever|No matter which person|Anyone at all
 willing|Ready|Eager
 windows|Panes|Opportunities
 winning|Victorious|Charming
@@ -5103,7 +6201,7 @@ density|Thickness|Compactness
 dentist|Tooth doctor|Filler of cavities
 denying|Refusing|Refuting
 deposit|Down payment|Sediment
-depress|Sadden|Press down
+depress|Sadden|Push down
 deprive|Rob|Deny
 derange|Unbalance|Upset
 descend|Go down|Drop
@@ -5154,7 +6252,7 @@ dripped|Trickled|Leaked
 drowned|Submerged|Swamped
 drunken|Intoxicated|Tipsy
 dumping|Tipping|Jilting
-dustbin|Rubbish bin|Trash can
+dustbin|Rubbish container|Trash can
 dynamic|Energetic|Forceful
 eagerly|Keenly|Avidly
 earning|Making|Deserving
@@ -5698,7 +6796,7 @@ scoring|Notching|Scratching
 screams|Shrieks|Hoots
 screwed|Fastened|Twisted
 scripts|Texts|Handwritings
-scrolls|Rolls of parchment|Moves through text
+scrolls|Parchments|Moves through text
 sealing|Closing|Settling
 secrets|Mysteries|Confidences
 secular|Worldly|Non-religious
@@ -5783,7 +6881,7 @@ summing|Adding|Totalling
 sunrise|Dawn|Daybreak
 supreme|Highest|Ultimate
 surgery|Operation|Doctor's office
-surname|Family name|Last name
+surname|Patronymic|Smith or Jones, e.g.
 surplus|Excess|Extra
 surveys|Polls|Studies
 sustain|Maintain|Suffer
@@ -5887,7 +6985,7 @@ wealthy|Rich|Affluent
 weapons|Arms|Guns
 weasels|Small predators|Sneaks
 wedding|Marriage|Nuptials
-weekday|Working day|Monday, e.g.
+weekday|Monday, e.g.|Thursday, perhaps
 welfare|Wellbeing|Benefits
 wetting|Dampening|Soaking
 whistle|Toot|Referee's tool
@@ -5937,7 +7035,7 @@ annoying|Irritating|Vexing
 answered|Replied|Responded
 anyplace|Wherever|In whatever spot
 anything|Whatever|Aught
-anywhere|Here or there|In whatever place
+anywhere|In whichever spot|In whatever place
 apparent|Obvious|Seeming
 appeared|Seemed|Showed up
 applying|Putting on|Requesting
@@ -6389,7 +7487,7 @@ somebody|A person|VIP
 sometime|Once|One day
 somewhat|Rather|Fairly
 sounding|Ringing|Depth measure
-southern|Austral|Towards the Antarctic
+southern|Austral|Antarctic-facing
 speakers|Orators|Hi-fi parts
 speaking|Talking|Lifelike
 specific|Particular|Precise
@@ -6463,7 +7561,7 @@ wherever|In any place|To any spot
 withdraw|Retreat|Take out
 wondered|Marvelled|Pondered
 worrying|Fretting|Alarming
-yourself|You personally|`,
+yourself|Thyself|`,
 `aardvark|Anteater|Burrowing African mammal
 abandons|Deserts|Gives up
 abnormal|Unusual|Irregular
@@ -6550,7 +7648,7 @@ biblical|Of scripture|Epic in scale
 bicycles|Bikes|Two-wheelers
 billfold|Wallet|Purse
 billions|Thousand millions|Countless numbers
-birthday|Anniversary|Day of candles
+birthday|Anniversary|Cake-and-candles occasion
 biscuits|Cookies|Crackers
 blasting|Exploding|Criticising
 blessing|Benediction|Boon
@@ -7038,7 +8136,7 @@ nastiest|Meanest|Most unpleasant
 needless|Unnecessary|Pointless
 neglects|Ignores|Disregards
 newcomer|Arrival|Novice
-nickname|Moniker|Pet name
+nickname|Moniker|Sobriquet
 nominate|Propose|Name
 northern|Boreal|Up top, on a map
 notation|Symbols|Script
@@ -7081,7 +8179,7 @@ overlook|Ignore|Command a view of
 override|Overrule|Cancel
 overrode|Overruled|Cancelled
 overseas|Abroad|Foreign
-overtime|Extra hours|Extra time
+overtime|Extra hours|Added period
 overtone|Hint|Connotation
 overview|Summary|Survey
 pacifier|Dummy, in America|Peacemaker
@@ -7095,7 +8193,7 @@ particle|Atom|Speck
 partners|Spouses|Colleagues
 passages|Corridors|Excerpts
 passport|Travel document|Key to success
-password|Code word|Login secret
+password|Shibboleth|Login secret
 patching|Mending|Repairing
 pathetic|Pitiful|Feeble
 patience|Tolerance|Card game
@@ -7107,7 +8205,7 @@ peasants|Farm labourers|Rustics
 pedantic|Fussy|Hair-splitting
 pedantry|Nitpicking|Fussiness
 perceive|See|Discern
-percents|Hundredths|Rates per hundred
+percents|Hundredths|Proportions
 periodic|Recurrent|Intermittent
 perverse|Contrary|Wayward
 pharmacy|Chemist's|Dispensary
@@ -7132,7 +8230,7 @@ populate|Inhabit|People
 portable|Movable|Handy
 portions|Shares|Helpings
 portrays|Depicts|Represents
-postcard|Picture card|Message from abroad
+postcard|Holiday greeting|Message from abroad
 postpone|Delay|Put off
 potatoes|Spuds|Tubers
 powering|Driving|Energising
@@ -7247,7 +8345,7 @@ scholars|Academics|Learners
 scrapped|Discarded|Fought
 screamed|Shrieked|Yelled
 screwing|Fastening|Twisting
-scrolled|Moved through text|Rolled
+scrolled|Moved through text|Coiled
 seconded|Supported|Transferred
 secretly|Covertly|Privately
 segments|Sections|Slices
@@ -7455,7 +8553,7 @@ advancing|Progressing|Lending
 advantage|Benefit|Upper hand
 advertise|Promote|Publicise
 affecting|Influencing|Moving
-afternoon|Part of the day after lunch|Matinee time
+afternoon|Post-lunch period|Matinee time
 agreement|Deal|Accord
 algorithm|Procedure|Set of rules
 alternate|Every other|Take turns
@@ -7995,7 +9093,7 @@ convicted|Found guilty|Sentenced
 cooperate|Collaborate|Work together
 copyright|Rights to a work|Intellectual property
 corporate|Business|Collective
-correlate|Correspond|Relate
+correlate|Correspond|Connect
 cosmology|Universe study|Astrophysics, broadly
 countless|Innumerable|Myriad
 countries|Nations|States
@@ -8028,8 +9126,8 @@ demanding|Taxing|Requiring
 democracy|Rule by the people|Republic
 departure|Leaving|Deviation
 dependent|Reliant|Child
-depressed|Low|Pressed down
-depresses|Saddens|Presses down
+depressed|Low|Pushed down
+depresses|Saddens|Pushes down
 depriving|Robbing|Denying
 deranging|Unbalancing|Disordering
 descended|Went down|Dropped
@@ -8175,7 +9273,7 @@ fulfilled|Satisfied|Achieved
 furniture|Chairs and tables|Fittings
 gathering|Meeting|Collecting
 generator|Dynamo|Producer
-gentleman|Chap|Man of honour
+gentleman|Chap|Courteous fellow
 gentlemen|Chaps|Sirs
 genuinely|Truly|Sincerely
 geography|Earth study|Lie of the land
@@ -8273,7 +9371,7 @@ lecturers|Teachers|Dons
 lecturing|Teaching|Scolding
 legendary|Famous|Mythical
 liability|Responsibility|Burden
-liberties|Freedoms|Cheek
+liberties|Freedoms|Impertinences
 librarian|Lender of books|Book keeper
 licensing|Authorising|Permitting
 lifestyle|Mode of living|Habits
@@ -8326,7 +9424,7 @@ negotiate|Bargain|Navigate
 networked|Connected|Made contacts
 newcomers|Arrivals|Novices
 newspaper|Daily|Tabloid
-nicknames|Monikers|Pet names
+nicknames|Monikers|Sobriquets
 nightmare|Bad dream|Ordeal
 nominally|In name only|Theoretically
 nominated|Proposed|Named
@@ -8367,7 +9465,7 @@ overdraft|Bank loan|Red balance
 overheads|Running costs|Projector slides
 overloads|Burdens|Swamps
 overlooks|Ignores|Commands a view of
-overnight|Sudden|During the night
+overnight|Sudden|Until morning
 overprice|Charge too much|Rip off
 overrides|Overrules|Cancels
 overtones|Hints|Connotations
@@ -8383,7 +9481,7 @@ parochial|Narrow-minded|Local
 particles|Atoms|Specks
 partition|Divide|Screen
 passenger|Traveller|Hanger-on
-passwords|Code words|Login secrets
+passwords|Shibboleths|Login secrets
 penalties|Fines|Spot kicks
 perceived|Saw|Discerned
 perceives|Sees|Discerns
@@ -8540,7 +9638,7 @@ scrapping|Discarding|Fighting
 scratched|Scraped|Withdrew
 scratches|Scrapes|Withdraws
 screaming|Shrieking|Yelling
-scrolling|Moving through text|Rolling
+scrolling|Moving through text|Coiling
 seconding|Supporting|Transferring
 seemingly|Apparently|Ostensibly
 selective|Choosy|Discriminating
@@ -9004,7 +10102,7 @@ calculates|Computes|Reckons
 calculator|Adding machine|Abacus, e.g.
 campaigned|Crusaded|Fought
 candidates|Applicants|Nominees
-capability|Ability|Capacity
+capability|Capacity|Competence
 capitalism|Free enterprise|Market economy
 capitalist|Entrepreneur|Investor
 cartridges|Cassettes|Ink holders
@@ -9551,7 +10649,7 @@ terminates|Ends|Stops
 terminator|Ender|Destroyer
 terrifying|Frightening|Petrifying
 thankfully|Gratefully|Luckily
-thereafter|After that|Subsequently
+thereafter|From then on|Subsequently
 threatened|Menaced|Endangered
 throughput|Capacity|Output
 tolerating|Bearing|Standing
@@ -9598,7 +10696,7 @@ vulnerable|Exposed|Defenceless
 weaknesses|Frailties|Soft spots
 withdrawal|Retreat|Removal
 witnessing|Seeing|Attesting
-yourselves|You personally|`,
+yourselves|Ye, emphatically|`,
 ``],
 11: [
 `accordingly|Therefore|Correspondingly
@@ -10227,7 +11325,7 @@ associations|Societies|Links
 asynchronous|Out of step|Not simultaneous
 availability|Access|Supply
 biochemistry|Molecular biology|Science of cell reactions
-capabilities|Abilities|Capacities
+capabilities|Capacities|Competences
 catastrophic|Disastrous|Calamitous
 commandments|Precepts|Decrees
 commentators|Pundits|Narrators
