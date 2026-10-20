@@ -130,8 +130,9 @@ const src = wordSource({ upto: 2 });
 // ---------- every letter (Codeword's cover) ----------
 {
   const ALPHA = "abcdefghijklmnopqrstuvwxyz";
+  // a rate, so over enough seeds that a few words more or less in the list (wordlist.js's clean-up) can't tip it
   let tried = 0, done = 0, all = true;
-  for (let seed = 1; seed <= 12; seed++) {
+  for (let seed = 1; seed <= 36; seed++) {
     const g = makeGrid({ size: 13, style: "dense", seed });
     tried++;
     const f = fillGrid(g, { words: src, seed, budget: 20000, cover: ALPHA });

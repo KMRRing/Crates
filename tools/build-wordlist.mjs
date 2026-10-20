@@ -13,9 +13,21 @@ if (!dir) { console.error("usage: node tools/build-wordlist.mjs <node_modules fo
 const need = createRequire(path.resolve(dir, "wordlist.cjs"));
 // words that list catches in their everyday senses (an escort, a hooker in rugby, a swinger in golf, pegging a currency)
 const ALLOW = new Set(["escort", "snatch", "suck", "sucks", "domination", "scat", "skeet", "grope", "hooker", "swinger", "eunuch", "playboy",
-  "sexual", "sexuality", "sexually", "fingering", "snowballing", "shrimping", "pegging", "bareback", "nude", "nudity", "voyeur", "sadism"]);
+  "sexual", "sexuality", "sexually", "fingering", "snowballing", "shrimping", "pegging", "bareback", "nude", "nudity", "voyeur", "sadism",
+  "monger", "mongers",
+  // and words that only look like an offensive word's forms (butter, a cocker spaniel, to dicker, spiced, a titter, a titer)
+  "butt", "butts", "butted", "butter", "butters", "buttes", "butting", "cocked", "cocker", "cockers", "cocking", "dicker", "dickers",
+  "spiced", "spicer", "spices", "spicing", "titter", "titters", "titer", "titers", "sexes", "smuts"]);
 const LISTS = need("wordlist-english"), BAD = new Set(need("naughty-words").en.map(w => w.toLowerCase()).filter(w => !ALLOW.has(w)));
 const SIZES = [10, 20, 35, 40, 50, 55, 60, 70], MIN = 3, MAX = 15, LETTERS = /^[a-z]+$/;
+// SCOWL files a word's plurals and tenses beside it, so an offensive word's own forms (its -s, -es, -ed, -ing, -er, -ers,
+// a y turned ies or ied, a doubled consonant) are left out with it
+const STEMS = [["", ""], ["s", ""], ["es", ""], ["ed", ""], ["d", ""], ["ing", ""], ["er", ""], ["ers", ""], ["ies", "y"], ["ied", "y"]];
+const blocked = w => !ALLOW.has(w) && STEMS.some(([end, put]) => {
+  if (!w.endsWith(end)) return false;
+  const stem = w.slice(0, w.length - end.length) + put;
+  return BAD.has(stem) || (end && /(.)\1$/.test(stem) && BAD.has(stem.slice(0, -1)));
+});
 const NOTICE = fs.readFileSync(path.join(dir, "wordlist-english", "Copyright"), "utf8").split("\n\n").slice(0, 2).join("\n\n");
 
 // "english/<size>" is the words every spelling shares; "english/american/<size>" and "english/british/<size>" the
@@ -24,7 +36,7 @@ const tier = new Map(), shared = new Set();
 SIZES.forEach((size, t) => {
   for (const [name, common] of [[`english/${size}`, true], [`english/american/${size}`, false], [`english/british/${size}`, false]]) {
     for (const w of LISTS[name] || []) {
-      if (w.length < MIN || w.length > MAX || !LETTERS.test(w) || BAD.has(w)) continue;
+      if (w.length < MIN || w.length > MAX || !LETTERS.test(w) || blocked(w)) continue;
       if (!tier.has(w)) tier.set(w, t);
       if (common) shared.add(w);
     }

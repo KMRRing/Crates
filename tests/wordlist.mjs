@@ -1,7 +1,8 @@
 // The suite's word list (wordlist.js, README Classics): every length from 3 to 15 is there, its words a to z only,
 // sorted, each once, each with a tier; the tiers nest (a common word is in every wider list); a common word is common
 // and a non-word isn't a word; the words only one spelling has are marked; case doesn't matter; and Slate's own common
-// words are all among the commonest here.
+// words are all among the commonest here, but for the two the offensive-terms list takes; and an offensive word's
+// plurals and tenses are left out with it, while words that only look like them (butter, spiced) stay.
 import { TIERS, MIN, MAX, RAREST, wordsOf, tierOf, isWord, isVariant } from "../wordlist.js";
 import { WORDS } from "../wordlist-data.js";
 import { EASY } from "../slate-gen.js";
@@ -36,6 +37,8 @@ check(isVariant("colour") && isVariant("color") && isVariant("theatre") && !isVa
 check(!wordsOf(6, RAREST, { variants: false }).includes("colour") && wordsOf(6).includes("colour"), "and can be left out");
 check(wordsOf(5, 0) === wordsOf(5, 0) && Object.isFrozen(wordsOf(5, 0)), "a list comes back the same each time, and can't be changed");
 check(wordsOf(2).length === 0 && wordsOf(16).length === 0, "no list outside 3 to 15 letters");
+check(!isWord("bastards") && !isWord("orgies"), "an offensive word's plurals and tenses are left out with it");
+check(["butter", "spiced", "titter", "cocked", "dicker", "monger", "sexes"].every(w => isWord(w)), "words that only look like those forms stay");
 {
   // Slate's common words come from SCOWL sizes 10 to 20 too; two it keeps are on the offensive-terms list here
   const missing = Object.values(EASY).flat().map(w => w.toLowerCase()).filter(w => !isWord(w, 1));
