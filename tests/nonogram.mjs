@@ -1,13 +1,15 @@
-// Nonogram (nonogram-engine.js, nonogram-pictures.js, nonogram-flags.js, nonogram-bot.js): the clues, the line solver
-// against every arrangement, the simple rules never claiming more, the grading ladder, pictures that each make a
-// puzzle with one answer reasoning reaches, the same on every device and every day's, the difficulty bands, the split
-// (neither half of the clues finishes alone, both together do), the computer player, scoring, names, and a run saved
-// and opened again.
+// Nonogram (nonogram-engine.js, nonogram-pictures.js, nonogram-flags.js, nonogram-hex.js, nonogram-bot.js): the clues,
+// the line solver against every arrangement, the simple rules never claiming more, the grading ladder, pictures that
+// each make a puzzle with one answer reasoning reaches, the same on every device and every day's, the difficulty
+// bands, the split (neither half of the clues finishes alone, both together do), the computer player, scoring, names,
+// the hexagon (its lines, its cells under a finger, its outlines with one answer, its split), and a run saved and
+// opened again.
 import { execFileSync } from "node:child_process";
-import { runsOf, cluesOf, linesOf, settle, overlap, pushes, grade, depthOf, countSolutions, propagate, unknownState, solved, fullMask, isKnown, colourOf,
+import { runsOf, cluesOf, cluesFor, linesOf, settle, overlap, pushes, grade, depthOf, countSolutions, propagate, unknownState, solved, fullMask, isKnown, colourOf,
   nextStep, knownFrom, emptyGrid, withCell, cellAt, CROSS, EMPTY, agrees, drawn, wrongCells, lineDone, scoreOf, creditFor, ownerOf,
   MISTAKE, HINT, WRONG_NAME, CREDIT, PROBES } from "../nonogram-engine.js";
 import { PICTURES, SIZES, TOPICS, REGIONS, puzzleOf, makePuzzle, pictureOf, dealPicture, dailyPicture, namesOf, poolOf, gridFor, bandOf, rng, DAILY } from "../nonogram-pictures.js";
+import { HEX_SIZES, DIRS, hexGrid, centreOf, cellAtPoint, outlineOf, lineName, hexOwner } from "../nonogram-hex.js";
 import { FLAGS, COLOURS, rasterFlag } from "../nonogram-flags.js";
 import { PACES, createMind, botMove } from "../nonogram-bot.js";
 import { check as typed } from "../typing.js";
@@ -218,6 +220,106 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
   check(name("c-france", "frnace") && !name("c-france", "Germany"), "a slip of a letter is forgiven, another country isn't");
 }
 
+// ---------- the hexagon ----------
+{
+  const g = hexGrid(4), per = 9;
+  check(g.n === 61 && hexGrid(9).n === 271 && g.lines.length === 3 * per && [0, 1, 2].every(d => g.dirs.filter(x => x === d).length === per),
+    "a hexagon of radius R has 3R² + 3R + 1 cells and 2R + 1 lines in each of three directions");
+  const through = g.cells.map(() => []);
+  g.lines.forEach((l, k) => l.forEach(i => through[i].push(k)));
+  check(through.every(ks => ks.length === 3 && new Set(ks.map(k => g.dirs[k])).size === 3), "every cell is on three lines, one of each direction");
+  const at = i => centreOf(...g.cells[i]);
+  let straight = true, starts = true;
+  g.lines.forEach((l, k) => {
+    const D = DIRS[g.dirs[k]];
+    for (let j = 1; j < l.length; j++) { const [q0, r0] = g.cells[l[j - 1]], [q1, r1] = g.cells[l[j]]; if (q1 - q0 !== D.dq || r1 - r0 !== D.dr) straight = false; }
+    const [x0, y0] = at(l[0]), [x1, y1] = at(l.at(-1));
+    if (g.dirs[k] === 0 ? x0 > x1 : g.dirs[k] === 1 ? y0 < y1 || x0 < x1 : y0 > y1 || x0 < x1) starts = false;
+  });
+  check(straight && starts, "each line runs straight from the end its clue stands at: rows from the left, falling slants from the lower right, rising slants from the upper right");
+  const across = d => g.lines.slice(d * per, (d + 1) * per).map(l => l.reduce((a, i) => a + at(i)[0] - at(i)[1] * (d === 1 ? 1 / Math.sqrt(3) : -1 / Math.sqrt(3)), 0) / l.length);
+  const rising = xs => xs.every((x, j) => !j || x > xs[j - 1]);
+  check(rising(across(1)) && rising(across(2)) && lineName(4, 0) === "row 1" && lineName(4, per + 2) === "falling slant 3" && lineName(4, 3 * per - 1) === "rising slant 9",
+    "the slants are counted from the left, and a line is named by its direction and number");
+  // a finger on a cell: its centre and anywhere within its sides is it; past a side, the neighbour across it
+  const SIDES = [[1, -1], [1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1]];
+  let finger = true;
+  g.cells.forEach(([q, r], i) => {
+    const [x, y] = centreOf(q, r);
+    if (cellAtPoint(g, x, y) !== i) finger = false;
+    SIDES.forEach(([dq, dr], k) => {
+      const a = (Math.PI / 3) * k - Math.PI / 3, ux = Math.cos(a), uy = Math.sin(a);
+      if (cellAtPoint(g, x + 0.8 * ux, y + 0.8 * uy) !== i) finger = false;
+      if (cellAtPoint(g, x + 0.95 * ux, y + 0.95 * uy) !== g.index(q + dq, r + dr)) finger = false;
+    });
+  });
+  check(finger && cellAtPoint(g, 40, 0) === -1, "under a finger: a cell from its centre to its sides, the neighbour across a side past it, nothing off the hexagon");
+  const ring = outlineOf(g, Array(g.n).fill(1));
+  const edge = ([q, r]) => Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) === 4;
+  check(ring.filter(Boolean).length === 6 * 4 && ring.every((v, i) => !!v === edge(g.cells[i])), "a shape's outline is its cells with a neighbour outside it: a full hexagon's is its edge, 6R cells");
+}
+{
+  const R = 7, per = 2 * R + 1, lines = [...Array(3 * per).keys()];
+  check(lines.every(k => hexOwner(R, k, [4]) === 4), "alone on hexes, every line is yours");
+  const two = lines.map(k => hexOwner(R, k, [2, 0]));
+  check([0, 2].every(s => [0, 1, 2].every(d => two.slice(d * per, (d + 1) * per).filter(x => x === s).length >= R)), "two on hexes: every other line of each direction each");
+  const three = lines.map(k => hexOwner(R, k, [5, 1, 3]));
+  check([1, 3, 5].every((s, d) => three.slice(d * per, (d + 1) * per).every(x => x === s)), "three on hexes: a direction each");
+  const six = lines.map(k => hexOwner(R, k, [0, 1, 2, 3, 4, 5]));
+  check([0, 1, 2, 3, 4, 5].every(s => [0, 1, 2].every(d => six.slice(d * per, (d + 1) * per).includes(s))), "more: round the table within each direction, so everyone has some of each");
+}
+{
+  const t0 = performance.now(), problems = [], made = { small: 0, medium: 0, large: 0 }, bands = { easy: 0, medium: 0, hard: 0 };
+  const pool = PICTURES.filter(p => p.topic !== "flags");
+  const sample = pool.flatMap((p, i) => Object.keys(HEX_SIZES).filter((s, k) => i % [3, 4, 2][k] === 0).map(s => [p, s]));
+  for (const [p, size] of sample) {
+    const z = puzzleOf(p.id, size, "hex");
+    if (!z) continue;
+    made[size]++;
+    if (size === "large" && p.topic === "countries") bands[z.band]++;
+    const n = countSolutions(z, { maxNodes: 50000 }), gr = grade(z);
+    if (n.count !== 1 || n.gaveUp || !gr.solved || !same(Array.from(gr.st, colourOf), z.answer) || !same(cluesFor(z.lines, z.answer), z.clues)) problems.push(`${p.id}@${size}`);
+    if (z.R !== HEX_SIZES[size].R || z.answer.length !== hexGrid(z.R).n || z.band !== bandOf(z.level, z.depth) || z.answer.some((v, i) => v && !z.land[i])) problems.push(`${p.id}@${size} shape`);
+  }
+  check(!problems.length, `${sample.length} outlines on hexes (a third of the countries and lakes at Small, a quarter at Medium, half at Large) each have exactly one answer, reached by reasoning, the outline inside its land${problems.length ? `: not ${problems.slice(0, 6).join(", ")}` : ""} (${((performance.now() - t0) / 1000).toFixed(1)} s)`);
+  check(made.small >= 55 && made.medium >= 40 && made.large >= 80, `nearly every country and lake makes a hex puzzle (${made.small} small, ${made.medium} medium, ${made.large} large of the sample)`);
+  check(bands.medium >= 20 && bands.hard >= 3, `at Large the outlines reach every band (countries sampled: ${bands.easy} easy, ${bands.medium} medium, ${bands.hard} hard)`);
+  const a = makePuzzle("c-italy", "large", "hex"), b = makePuzzle("c-italy", "large", "hex");
+  check(a && same(a.answer, b.answer) && same(a.clues, b.clues) && !same(a.answer.length, puzzleOf("c-italy", "large").answer.length), "an outline on hexes is the same puzzle every time, and not the square one");
+  check(makePuzzle("f-france", "small", "hex") === null && !poolOf("flags", "world", "hex").length && [...Array(30).keys()].every(k => pictureOf(dealPicture({ topic: "all", size: "small", grid: "hex", rand: rng(k) }).id).topic !== "flags"),
+    "a flag is a rectangle and stays on squares: never dealt on hexes");
+  // the split on hexes: a pair's halves never finish alone; taking turns on one grid, they do
+  let alone = 0, both = 0, tried = 0;
+  for (const p of poolOf("countries", "world").filter((_, i) => i % 12 === 0)) {
+    const z = puzzleOf(p.id, "medium", "hex");
+    if (!z) continue;
+    tried++;
+    const mine = k => hexOwner(z.R, k, [0, 1]) === 0, theirs = k => !mine(k);
+    const s1 = unknownState(z); propagate(z, s1, settle, null, mine);
+    const s2 = unknownState(z); propagate(z, s2, settle, null, theirs);
+    if (solved(s1) || solved(s2)) alone++;
+    let grid = emptyGrid(z);
+    const minds = [createMind(z, mine), createMind(z, theirs)];
+    for (let turn = 0, idle = 0; turn < 5000 && idle < 2; turn++) {
+      const mv = botMove(minds[turn % 2], grid, PACES.hard, () => 0.5);
+      if (!mv) { idle++; continue; }
+      idle = 0;
+      for (const [i, c] of mv.cells) grid = withCell(grid, i, c || CROSS);
+    }
+    if (drawn(grid, z.answer) === 1 && !wrongCells(grid, z.answer).length) both++;
+  }
+  check(tried >= 10 && !alone && both === tried, `on hexes too neither half of a pair's clues finishes alone, and both together finish every one (${tried} countries)`);
+  const z = puzzleOf("c-france", "medium", "hex"), mind = createMind(z);
+  let grid = emptyGrid(z);
+  const step = nextStep(z, knownFrom(z, grid));
+  check(step && step.cells.every(([i, c]) => z.answer[i] === c), "a hint on hexes is right");
+  for (let mv; (mv = botMove(mind, grid, PACES.medium, () => 0.5));) for (const [i, c] of mv.cells) grid = withCell(grid, i, c || CROSS);
+  check(drawn(grid, z.answer) === 1 && !wrongCells(grid, z.answer).length && agrees(z, grid), "the computer draws an outline on hexes on its own, never a cell wrong");
+  const run = { v: 1, id: "c-france", size: "medium", hex: true, mode: "random", play: "solo", grid, undo: [], redo: [], ms: 1000, mistakes: 0, hints: 0, name: null, done: false, rules: { mistakes: "shown", nameIt: true, computer: "off", pace: "medium" }, rival: null };
+  const back = JSON.parse(JSON.stringify(run)), again = makePuzzle(back.id, back.size, back.hex ? "hex" : "square");
+  check(same(back, run) && again.hex && drawn(back.grid, again.answer) === 1 && same(again.clues, z.clues), "a run on hexes kept as JSON opens again on hexes, its puzzle made afresh");
+}
+
 // ---------- a run saved and opened again ----------
 {
   const z = puzzleOf("c-japan", "small");
@@ -229,4 +331,4 @@ check(same(runsOf([1, 1, 2, 2, 0, 2]), [[2, 1], [2, 2], [1, 2]]), "in colour two
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("nonogram: clues, the line logic against every arrangement, the ladder, puzzles with one answer, the daily on every device, bands, the split, the computer, hints, scores, names, saving");
+else console.log("nonogram: clues, the line logic against every arrangement, the ladder, puzzles with one answer, the daily on every device, bands, the split, the computer, hints, scores, names, hexes, saving");

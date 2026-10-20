@@ -37,6 +37,26 @@ export function linesOf(w, h) {
 export const cluesOf = (w, h, cells) => linesOf(w, h).map(l => runsOf(l.map(i => cells[i])));
 /** The two lines through a cell: its row and its column. */
 export const linesThrough = (w, h, i) => [Math.floor(i / w), h + (i % w)];
+// A puzzle may carry lines of its own (a hex board's, in three directions: nonogram-hex.js) and how many cells it has;
+// otherwise it is a w×h grid's rows and columns. Everything below takes either.
+/** A puzzle's lines, each its cells in reading order. */
+export const linesFor = p => p.lines || linesOf(p.w, p.h);
+/** How many cells a puzzle has. */
+export const cellCount = p => p.n ?? p.w * p.h;
+/** A puzzle's clues, from its lines and an answer. */
+export const cluesFor = (lines, cells) => lines.map(l => runsOf(l.map(i => cells[i])));
+const THROUGH = new WeakMap();
+/** The lines through cell i. */
+export function throughFor(p, i) {
+  if (!p.lines) return linesThrough(p.w, p.h, i);
+  let t = THROUGH.get(p.lines);
+  if (!t) {
+    t = Array.from({ length: cellCount(p) }, () => []);
+    p.lines.forEach((cells, k) => { for (const c of cells) t[c].push(k); });
+    THROUGH.set(p.lines, t);
+  }
+  return t[i];
+}
 
 export const fullMask = colours => (1 << (colours + 1)) - 1;
 export const isKnown = m => m !== 0 && (m & (m - 1)) === 0;
@@ -179,7 +199,7 @@ export function overlap(a, runs) {
 
 // ---------- the grid ----------
 /** A puzzle as the solver takes it: { w, h, colours (how many besides the blank), clues (cluesOf) }. */
-export const unknownState = p => new Uint8Array(p.w * p.h).fill(fullMask(p.colours));
+export const unknownState = p => new Uint8Array(cellCount(p)).fill(fullMask(p.colours));
 export const solved = st => st.every(isKnown);
 export const knownCount = st => st.reduce((n, m) => n + (isKnown(m) ? 1 : 0), 0);
 /** The cells a solved state shows, as colour indices. */
@@ -195,7 +215,7 @@ const masksOf = (st, cells) => { const a = new Uint8Array(cells.length); for (le
  * allow(k): whether line k's clue may be used (a player who sees only the rows reasons only along them).
  */
 export function propagate(p, st, rule = settle, start = null, allow = null) {
-  const L = linesOf(p.w, p.h), queued = new Uint8Array(L.length), queue = [], settled = [];
+  const L = linesFor(p), queued = new Uint8Array(L.length), queue = [], settled = [];
   for (const k of start ?? L.keys()) if (!queued[k] && (!allow || allow(k))) { queued[k] = 1; queue.push(k); }
   for (let q = 0; q < queue.length; q++) {
     const k = queue[q];
@@ -208,7 +228,7 @@ export function propagate(p, st, rule = settle, start = null, allow = null) {
       const i = cells[x];
       st[i] = got[x];
       if (isKnown(st[i])) settled.push(i);
-      for (const m of linesThrough(p.w, p.h, i)) if (m !== k && !queued[m] && (!allow || allow(m))) { queued[m] = 1; queue.push(m); }
+      for (const m of throughFor(p, i)) if (m !== k && !queued[m] && (!allow || allow(m))) { queued[m] = 1; queue.push(m); }
     }
   }
   return settled;
@@ -221,7 +241,7 @@ export function propagate(p, st, rule = settle, start = null, allow = null) {
  * may then go on.)
  */
 export function stepLine(p, st, rule = settle, order = null) {
-  const L = linesOf(p.w, p.h);
+  const L = linesFor(p);
   for (const k of order ?? L.keys()) {
     const cells = L[k], a = masksOf(st, cells);
     if (a.every(isKnown)) continue;
@@ -242,9 +262,9 @@ export function stepLine(p, st, rule = settle, order = null) {
 /** The open cells, those whose row and column are most settled first: where a supposition is likeliest to clash soon
  *  (and where a person would look). */
 function constrained(p, st) {
-  const L = linesOf(p.w, p.h), known = L.map(cells => cells.reduce((n, i) => n + (isKnown(st[i]) ? 1 : 0), 0) / cells.length);
+  const L = linesFor(p), known = L.map(cells => cells.reduce((n, i) => n + (isKnown(st[i]) ? 1 : 0), 0) / cells.length);
   const open = [];
-  for (let i = 0; i < st.length; i++) if (!isKnown(st[i])) { const [r, c] = linesThrough(p.w, p.h, i); open.push([i, known[r] + known[c]]); }
+  for (let i = 0; i < st.length; i++) if (!isKnown(st[i])) open.push([i, throughFor(p, i).reduce((a, k) => a + known[k], 0)]);
   return open.sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([i]) => i);
 }
 
@@ -261,7 +281,7 @@ export function contradiction(p, st, order = null, allow = null) {
       if (!((m >> c) & 1)) continue;
       const trial = Uint8Array.from(st);
       trial[i] = 1 << c;
-      if (propagate(p, trial, settle, linesThrough(p.w, p.h, i), allow) !== null) continue;
+      if (propagate(p, trial, settle, throughFor(p, i), allow) !== null) continue;
       st[i] = m & ~(1 << c);
       return { cell: i, colour: c };
     }
@@ -307,7 +327,7 @@ export function grade(p, { probeLimit = PROBES } = {}) {
  * { depth, first (the share of cells the clues alone settle), solved }.
  */
 export function depthOf(p, rule = settle) {
-  const st = unknownState(p), L = linesOf(p.w, p.h);
+  const st = unknownState(p), L = linesFor(p);
   let depth = 0, first = 0;
   for (;;) {
     const next = Uint8Array.from(st);
@@ -363,7 +383,7 @@ export function countSolutions(p, { limit = 2, maxNodes = 20000, from = null } =
  * follows from those lines.
  */
 export function nextStep(p, st, allow = null) {
-  const L = linesOf(p.w, p.h);
+  const L = linesFor(p);
   for (let again = 0; again < 50; again++) {
     let narrowed = false;
     for (const [rule, name] of [[overlap, "simple"], [settle, "line"]]) {
@@ -387,7 +407,7 @@ export function nextStep(p, st, allow = null) {
     if (narrowed) continue;                                     // what was struck off may let a line settle a cell
     const hit = contradiction(p, st, null, allow);
     if (!hit) return null;
-    if (isKnown(st[hit.cell])) return { rule: "contradiction", line: linesThrough(p.w, p.h, hit.cell)[0], cells: [[hit.cell, colourOf(st[hit.cell])]] };
+    if (isKnown(st[hit.cell])) return { rule: "contradiction", line: throughFor(p, hit.cell)[0], cells: [[hit.cell, colourOf(st[hit.cell])]] };
   }
   return null;
 }
@@ -395,7 +415,7 @@ export function nextStep(p, st, allow = null) {
 // ---------- a player's grid ----------
 // The grid as the page keeps it: one character a cell, "." empty, "x" crossed out (blank for sure), "1"… a colour.
 export const EMPTY = 0, CROSS = -1;
-export const emptyGrid = p => ".".repeat(p.w * p.h);
+export const emptyGrid = p => ".".repeat(cellCount(p));
 export const cellAt = (grid, i) => (grid[i] === "." ? EMPTY : grid[i] === "x" ? CROSS : Number(grid[i]));
 export const withCell = (grid, i, v) => grid.slice(0, i) + (v === EMPTY ? "." : v === CROSS ? "x" : String(v)) + grid.slice(i + 1);
 
@@ -414,7 +434,7 @@ export function knownFrom(p, grid, answer = null) {
 export const wrongCells = (grid, answer) => [...answer.keys()].filter(i => { const v = cellAt(grid, i); return v !== EMPTY && (v === CROSS ? answer[i] !== 0 : answer[i] !== v); });
 /** Whether every row and column agrees with its clue (crossed cells counting as blank): the puzzle done, by its clues alone. */
 export function agrees(p, grid) {
-  return linesOf(p.w, p.h).every((cells, k) => {
+  return linesFor(p).every((cells, k) => {
     const runs = runsOf(cells.map(i => Math.max(0, cellAt(grid, i)))), clue = p.clues[k];
     return runs.length === clue.length && runs.every((r, j) => r[0] === clue[j][0] && r[1] === clue[j][1]);
   });
@@ -427,7 +447,7 @@ export function drawn(grid, answer) {
 }
 /** Whether a line's filled cells already make its clue (its numbers can be greyed). */
 export function lineDone(p, grid, k) {
-  const cells = linesOf(p.w, p.h)[k], runs = runsOf(cells.map(i => Math.max(0, cellAt(grid, i)))), clue = p.clues[k];
+  const cells = linesFor(p)[k], runs = runsOf(cells.map(i => Math.max(0, cellAt(grid, i)))), clue = p.clues[k];
   return runs.length === clue.length && runs.every((r, j) => r[0] === clue[j][0] && r[1] === clue[j][1]);
 }
 

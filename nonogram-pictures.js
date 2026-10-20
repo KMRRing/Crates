@@ -11,6 +11,7 @@ import { GEO } from "./chart-geo.js";
 import { MATHS as FLAG_QUESTIONS } from "./flags-bank.js";
 import { FLAGS, COLOURS, COLOUR_NAMES, rasterFlag } from "./nonogram-flags.js";
 import { cluesOf, grade, countSolutions, depthOf, overlap } from "./nonogram-engine.js";
+import { HEX_SIZES, hexGrid, hexCoverage, hexPuzzleFrom } from "./nonogram-hex.js";
 
 // ---------- the outline of a country ----------
 const RAD = Math.PI / 180;
@@ -229,30 +230,44 @@ export function bandOf(level, depth) {
 }
 
 const CACHE = new Map();
+const keyOf = (id, size, grid) => `${id}@${size}${grid === "hex" ? "@hex" : ""}`;
 /** Whether a picture's puzzle at a size has been made already this session (making one can take a moment). */
-export const madeAlready = (id, size) => CACHE.has(`${id}@${size}`);
+export const madeAlready = (id, size, grid = "square") => CACHE.has(keyOf(id, size, grid));
 /** A puzzle made elsewhere (the page's worker), kept as if made here. */
-export function remember(pz) { if (pz?.id && SIZES[pz.size] && pictureOf(pz.id)) CACHE.set(`${pz.id}@${pz.size}`, pz); }
+export function remember(pz) { if (pz?.id && SIZES[pz.size] && pictureOf(pz.id)) CACHE.set(keyOf(pz.id, pz.size, pz.hex ? "hex" : "square"), pz); }
 /**
- * The puzzle a picture makes at a size, or null if it makes none there (too long and thin, too sparse, or nothing the
- * fixes can make unique): { id, topic, size, w, h, colours (besides the blank), answer (a colour index a cell), clues,
- * level, depth, probes, band, flips (cells changed from the even split), palette (a colour a colour index: index 0 the
- * blank's, for the flag at the end; null for a one-colour picture, which the page draws in its own ink), names (of the
- * colours) }. Made once a session.
+ * The puzzle a picture makes at a size, on squares or (grid "hex") on hexes, or null if it makes none there (too long
+ * and thin, too sparse, a flag on hexes, or nothing the fixes can make unique): { id, topic, size, w, h, colours
+ * (besides the blank), answer (a colour index a cell), clues, level, depth, probes, band, flips (cells changed from the
+ * even split), palette (a colour a colour index: index 0 the blank's, for the flag at the end; null for a one-colour
+ * picture, which the page draws in its own ink), names (of the colours) }; on hexes also { hex, R (cells from the
+ * centre to a side), n (cells), lines, dirs, land (the shape the outline is of, filled) } and no w or h. Made once a
+ * session.
  */
-export function puzzleOf(id, size) {
-  const key = `${id}@${size}`;
-  if (!CACHE.has(key)) CACHE.set(key, makePuzzle(id, size));
+export function puzzleOf(id, size, grid = "square") {
+  const key = keyOf(id, size, grid);
+  if (!CACHE.has(key)) CACHE.set(key, makePuzzle(id, size, grid));
   return CACHE.get(key);
 }
 /** The same, made afresh every time (puzzleOf keeps what it makes). */
-export function makePuzzle(id, size) {
+export function makePuzzle(id, size, grid = "square") {
   const pic = byId.get(id);
   if (!pic || !SIZES[size]) return null;
-  const made = pic.topic === "flags" ? flagPuzzle(FLAGS[pic.about], size) : shapePuzzle(shapes.get(id), size);
+  const made = grid === "hex" ? (pic.topic === "flags" ? null : hexShapePuzzle(shapes.get(id), size))
+    : pic.topic === "flags" ? flagPuzzle(FLAGS[pic.about], size) : shapePuzzle(shapes.get(id), size);
   if (!made) return null;
-  const depth = depthOf({ w: made.w, h: made.h, colours: made.colours, clues: made.clues }, overlap).depth;
+  const depth = depthOf(made.hex ? made : { w: made.w, h: made.h, colours: made.colours, clues: made.clues }, overlap).depth;
   return { id, topic: pic.topic, size, ...made, depth, band: bandOf(made.level, depth) };
+}
+/** On hexes a country or a lake is its outline (nonogram-hex.js, outlineOf: three clues a cell pin a line one cell wide
+ *  down where two can't), filled in when it's finished; one too thin to fill an eighth of the hexagon makes none. */
+function hexShapePuzzle(shape, size) {
+  const land = landOf(shape), g = hexGrid(HEX_SIZES[size].R), cov = hexCoverage(land.rings, land.box, g);
+  if (cov.reduce((n, v) => n + (v >= 0.5 ? 1 : 0), 0) < 0.12 * g.n) return null;
+  const made = hexPuzzleFrom(cov, g);
+  if (!made) return null;
+  return { hex: true, R: g.R, n: g.n, lines: g.lines, dirs: g.dirs, land: made.land, w: null, h: null, colours: 1, answer: made.cells, clues: made.clues,
+    level: made.grade.level, probes: made.grade.probes, flips: made.flips, palette: null, names: null };
 }
 function shapePuzzle(shape, size) {
   const land = landOf(shape), b = land.box, g = gridFor((b.x1 - b.x0) / (b.y1 - b.y0), size);
@@ -303,16 +318,17 @@ export function rng(seed) {
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 const shuffle = (rand, xs) => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-/** The pictures of a topic ("all" for every kind) in a region ("world" for all of them). */
-export const poolOf = (topic, region) => PICTURES.filter(p => (topic === "all" || p.topic === topic) && (region === "world" || p.regions.includes(region)));
+/** The pictures of a topic ("all" for every kind) in a region ("world" for all of them); on hexes, no flags. */
+export const poolOf = (topic, region, grid = "square") => PICTURES.filter(p => (topic === "all" || p.topic === topic) && (region === "world" || p.regions.includes(region)) && !(grid === "hex" && p.topic === "flags"));
 
 /**
  * The picture for a new game: { id, nearest } or null. From the pool in a random order (by `rand`), those due again
  * or weak elsewhere (`prefer`, in order) first, then those not dealt lately (not in `seen`), then the rest; the first
- * that makes a puzzle at this size of the band asked ("any" for all), or failing that the nearest band (nearest: true).
+ * that makes a puzzle at this size (and grid) of the band asked ("any" for all), or failing that the nearest band
+ * (nearest: true).
  */
-export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", seen = [], prefer = [], rand = Math.random } = {}) {
-  const pool = poolOf(topic, region);
+export function dealPicture({ topic = "countries", region = "world", size = "medium", band = "any", grid = "square", seen = [], prefer = [], rand = Math.random } = {}) {
+  const pool = poolOf(topic, region, grid);
   if (!pool.length) return null;
   const ids = new Set(pool.map(p => p.id)), lately = new Set(seen);
   const fresh = shuffle(rand, pool.filter(p => !lately.has(p.id)).map(p => p.id)), stale = shuffle(rand, pool.filter(p => lately.has(p.id)).map(p => p.id));
@@ -320,7 +336,7 @@ export function dealPicture({ topic = "countries", region = "world", size = "med
   const rank = b => ["easy", "medium", "hard"].indexOf(b);
   let near = null;
   for (const id of order) {
-    const pz = puzzleOf(id, size);
+    const pz = puzzleOf(id, size, grid);
     if (!pz) continue;
     if (band === "any" || pz.band === band) return { id, nearest: false };
     if (!near || Math.abs(rank(pz.band) - rank(band)) < Math.abs(rank(near.band) - rank(band))) near = { id, band: pz.band };
