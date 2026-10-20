@@ -304,8 +304,9 @@ function spansOf(shape, width) {
  * A line's total: its digits add up to n(n+1)/2 and multiply to n!. Take away the digits placed and every cage wholly
  * inside the lines whose cells left make a known total (a sum cage, or one whose every way left comes to the same),
  * and the few cells left over must make the rest between them: read them as a cage of their own. Two or three lines
- * side by side add up to twice or three times as much (a product is taken over two at most: three 9×9 lines'
- * product is too large to count exactly).
+ * side by side hold each digit twice or three times, so they add up to twice or three times as much, and two multiply
+ * to n! twice over (a person counts the factors rather than the product; three 9×9 lines' product is past what a
+ * number holds exactly, so a product is taken over two at most).
  */
 function lineTotal(width) {
   return (v, st, ctx) => {
@@ -497,12 +498,17 @@ const listOf = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", "
 const orList = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} or ${xs.at(-1)}`);
 const digitList = m => listOf(digitsOf(m).map(String));
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+/** "a 5", "an 8". */
+const aDigit = d => `${d === 8 ? "an" : "a"} ${d}`;
+/** A large number grouped in thousands, as it's read: 362,880. */
+const big = x => x.toLocaleString("en-GB");
 /** A cage as a hint names it: "the 12× cage", "the cage of 7" (its operation hidden). */
 export function cageName(cage) {
   if (!cage || cage.target == null) return "the lit cage";
   return cage.op === "?" ? `the cage of ${cage.target}` : cage.cells.length === 1 ? `the one-cell cage of ${cage.target}` : `the ${cage.target}${SIGN[cage.op]} cage`;
 }
-/** The different ways a cage can still be made, as a person writes them ("3 × 4", "6 − 2"), or null past `most`. */
+/** The different ways a cage can still be made, as a person writes them ("3 × 4", "6 − 2"), or null past `most` or
+ *  past what a line under the grid holds. */
 function waysInWords(cage, st, most = 3) {
   const seen = new Map();
   eachAlive(cage, st.cand, (W, w) => {
@@ -512,7 +518,8 @@ function waysInWords(cage, st, most = 3) {
     seen.set(key, (op === "-" || op === "/" ? ds.reverse() : ds).join(` ${SIGN[op]} `));
     return seen.size <= most;
   });
-  return seen.size <= most ? [...seen.values()] : null;
+  const out = [...seen.values()];
+  return seen.size <= most && orList(out).length <= 44 ? out : null;
 }
 /** A step as a hint says it: what to look at, and why it follows. st: the state it was found on (for a cage's ways). */
 export function say(view, step, st = null) {
@@ -521,23 +528,25 @@ export function say(view, step, st = null) {
   switch (step.tech) {
     case "single": return `${cap(cageName(cage))} is a single cell, so it holds its own target: ${step.place[1]}.`;
     case "full": return `${cap(U)} has one empty cell left: it takes the ${step.place[1]} the line is missing.`;
-    case "hidden": return `In ${U}, the ${step.place[1]} fits only one cell: every other is ruled out by its ${step.units[0] < n ? "column" : "row"} or its cage.`;
-    case "naked": return `${cap(cellName(n, step.cells[0]))} can only be ${step.place[1]}: every other digit is ruled out by its row, its column or its cage.`;
+    case "hidden": return `In ${U}, only one cell can still take the ${step.place[1]}: it's ruled out of every other.`;
+    case "naked": return `${cap(cellName(n, step.cells[0]))} can only be ${step.place[1]}: every other digit is ruled out of it.`;
     case "cage": {
       const ways = st ? waysInWords(cage, st) : null;
       return ways ? `${cap(cageName(cage))} can only be made as ${orList(ways)} here, so the lit cells lose every other digit.`
         : `Of the ways to make ${cageName(cage)}, only some still fit its rows and columns: the lit cells lose the digits none of them uses.`;
     }
-    case "cageline": return `Every way of making ${cageName(cage)} puts a ${step.digit} in its lit cells, all in ${U}, so no other cell of ${U} is ${step.digit}.`;
-    case "linecage": return `In ${U}, the ${step.digit} can only go in the lit cells of ${cageName(cage)}, so the cage holds it there, and that narrows its other cells.`;
+    case "cageline": return `Every way to make ${cageName(cage)} puts ${aDigit(step.digit)} in its lit cells, all in ${U}: no other cell there is ${step.digit}.`;
+    case "linecage": return `In ${U}, only the lit cells of ${cageName(cage)} can take the ${step.digit}, so the cage holds it there: its other cells narrow.`;
     case "pair": case "triple": case "quad":
       return `In ${U}, the lit cells hold only ${digitList(step.digits)} between them, so no other cell of ${U} can be ${digitsOf(step.digits).length === 2 ? "either" : "any of them"}.`;
     case "hpair": case "htriple": case "hquad":
       return `In ${U}, ${digitList(step.digits)} can only go in the lit cells, so those cells hold nothing else.`;
     case "linesum": case "linesum2": {
-      const lines = step.units.length > 1 ? `${unitName(shape, step.units[0])} to ${unitName(shape, step.units.at(-1))}` : U;
-      const whole = step.virt.op === "+" ? `add up to ${step.units.length * n * (n + 1) / 2}` : `multiply to ${FACT[n] ** step.units.length}`;
-      return `The digits of ${lines} ${whole}; take away what's placed and the cages wholly inside, and the lit cells must ${step.virt.op === "+" ? "add up to" : "multiply to"} ${step.virt.target}.`;
+      const num = u => (u < n ? u + 1 : u - n + 1), us = step.units;
+      const lines = us.length === 1 ? cap(U) : `${us[0] < n ? "Rows" : "Columns"} ${num(us[0])} ${us.length === 2 ? "and" : "to"} ${num(us.at(-1))}`;
+      const sum = step.virt.op === "+", k = step.units.length;
+      const whole = k > 1 && !sum ? `hold each digit ${k === 2 ? "twice" : "three times"}` : sum ? `add${k > 1 ? "" : "s"} up to ${k * n * (n + 1) / 2}` : `multiplies to ${big(FACT[n])}`;
+      return `${lines} ${whole}; less what's placed and the cages wholly inside, the lit cells ${sum ? "add up to" : "multiply to"} ${big(step.virt.target)}.`;
     }
     case "xwing": case "swordfish":
       return `${TECHNIQUES[step.tech].name} on ${step.digit}: in the lit lines every ${step.digit} falls in the same ${step.tech === "xwing" ? "two" : "three"} crossing lines, so ${step.digit} is struck from the rest of those.`;
