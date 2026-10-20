@@ -155,7 +155,7 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
       ctx.globalAlpha = 1;
       return;
     }
-    if (col) {
+    if (col && n) {                                                // a blank line's 0 is plain text: it has no colour
       const fill = P.palette[colour];
       ctx.fillStyle = fill; ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
       ctx.strokeStyle = colours.edge; ctx.lineWidth = 1; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, h - 3);
@@ -175,11 +175,13 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
       if (y > H || y + s < top + CH) continue;
       if (hot?.row === r) { ctx.fillStyle = colours.accent; ctx.globalAlpha = 0.1; ctx.fillRect(left, y, RW, s); ctx.globalAlpha = 1; }
       const clue = P.clues[r].length ? P.clues[r] : [[0, 0]], faded = lineDone(P, grid, r) && !reveal, hid = show.hidden?.(r);
+      // a partner's clue shows as one shaded mark in their colour, whatever it holds: even how many runs is theirs to say
+      if (hid != null) { chip(left + RW - s * 1.2, y, s, s, 0, 0, false, true, hid); continue; }
       let x = left + RW - s * 0.2;
       for (let j = clue.length - 1; j >= 0; j--) {
         const [n, c] = clue[j], w = col ? Math.max(0.84, m.wOf(n) + 0.3) * s : m.slot(n) * s;
         x -= w;
-        chip(x, y + (col ? s * 0.06 : 0), w, col ? s * 0.88 : s, n, c, faded, hid != null, hid);
+        chip(x, y + (col ? s * 0.06 : 0), w, col ? s * 0.88 : s, n, c, faded);
       }
     }
     ctx.restore();
@@ -195,11 +197,12 @@ export function createBoard(canvas, { onStroke = () => {}, onLine = () => {}, on
       if (x > W || x + s < left + RW) continue;
       if (hot?.col === c) { ctx.fillStyle = colours.accent; ctx.globalAlpha = 0.1; ctx.fillRect(x, top, s, CH); ctx.globalAlpha = 1; }
       const clue = P.clues[k].length ? P.clues[k] : [[0, 0]], faded = lineDone(P, grid, k) && !reveal, hid = show.hidden?.(k);
+      if (hid != null) { chip(x, top + CH - s * 1.15, s, s, 0, 0, false, true, hid); continue; }
       let y = top + CH - s * 0.15;
       for (let j = clue.length - 1; j >= 0; j--) {
         const [n, cc] = clue[j];
         y -= step;
-        chip(x + (col ? s * 0.06 : 0), y, col ? s * 0.88 : s, step, n, cc, faded, hid != null, hid);
+        chip(x + (col ? s * 0.06 : 0), y, col ? s * 0.88 : s, step, n, cc, faded);
       }
     }
     ctx.restore();

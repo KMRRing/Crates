@@ -293,6 +293,7 @@ function useHint() {
     const wrong = wrongCells(S.grid, P.answer);
     if (wrong.length) {
       S.hints++;
+      if (S.mode === "duel" && S.play === "split") split.penalty();
       hintCells = [wrong[0]];
       note(`Hint: the ringed cell is wrong (+${HINT} s).`, "good");
       changed(false);
@@ -305,6 +306,7 @@ function useHint() {
   if (!step) { note("The clues tell no more than you've drawn."); return; }
   const [i, c] = step.cells[0];
   S.hints++;
+  if (S.mode === "duel" && S.play === "split") split.penalty();
   setCell(i, c || CROSS);
   hintCells = [i];
   const where = step.line < P.h ? `row ${step.line + 1}` : `column ${step.line - P.h + 1}`;
@@ -499,7 +501,7 @@ function drawStrip() {
   if (S.mode !== "duel") {                                         // the computer, as rival or partner, in the line under the strip
     const r = $("rival");
     if (S.rules.computer === "rival" && S.rival) { r.hidden = false; r.textContent = S.rival.done ? `Computer: finished in ${fmt(S.rival.ms / 1000)}` : `Computer (${PACES[S.rules.pace].label.toLowerCase()}): ${Math.floor(drawn(S.rival.grid, P.answer) * 100)}%`; }
-    else if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `You have the rows, the computer (${PACES[S.rules.pace].label.toLowerCase()}) the columns${bot?.stuck ? ": it's waiting on you" : ""}`; }
+    else if (S.rules.computer === "partner") { r.hidden = false; r.textContent = `Partner: the computer (${PACES[S.rules.pace].label.toLowerCase()}), reading the columns${bot?.stuck ? ", waiting on you" : ""}`; }
     else r.hidden = true;
   }
 }
@@ -509,7 +511,7 @@ function drawLine() {
   if (!text) {
     if (!S) text = "The same picture for everyone at the table.";
     else if (S.done) text = "";
-    else if (S.play === "split") text = S.mode === "duel" ? split.help() : "Your clues are the rows; the columns are the computer's. Fill what your rows tell you.";
+    else if (S.play === "split") text = S.mode === "duel" ? split.help() : "You read the rows: fill what they tell you, and the computer works its columns from what you draw.";
     else if (P.colours > 1) text = "Pick a colour, then tap a cell or drag along a row or column. Runs of different colours may touch.";
     else text = "Tap a cell to fill it, or drag along a row or column. Cross out what you know is blank.";
   }
@@ -520,16 +522,20 @@ function drawResult() {
   const done = !!S?.done && !$("nameDlg").open;
   $("controls").hidden = done;
   $("result").hidden = !done;
-  if (!done || S.mode === "duel") return;
+  if (!done) return;
+  const v = $("verdict"), head = document.createElement("b");
+  head.textContent = `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}`;
+  v.replaceChildren(head, document.createElement("br"));
+  if (S.mode === "duel") {                                         // a match: the team's time, or the way to the race's result
+    const pen = S.play === "split" ? split.teamPenalty() : S.score - Math.round(S.ms / 1000);
+    v.append(S.play === "split" ? `Drawn together: ${fmt(S.score)}${pen ? ` (${fmt(S.ms / 1000)} on the clock, ${pen > 0 ? "+" : "−"}${Math.abs(pen)} s)` : ""}.` : `Yours: ${fmt(S.score)}.`);
+    $("nextBtn").textContent = S.play === "split" ? "Another together" : "The result";
+    return;
+  }
   const n = S.name, bits = [`${fmt(S.ms / 1000)} on the clock`];
   if (S.mistakes) bits.push(`${plural(S.mistakes, "mistake")} (+${MISTAKE * S.mistakes} s)`);
   if (S.hints) bits.push(`${plural(S.hints, "hint")} (+${HINT * S.hints} s)`);
   if (n?.early) bits.push(n.right ? `named with ${Math.round(n.hidden * 100)}% to draw (−${n.credit} s)` : `named wrong (+${WRONG_NAME} s)`);
-  const v = $("verdict");
-  v.replaceChildren();
-  const head = document.createElement("b");
-  head.textContent = `${pic.flag && pic.topic !== "lakes" ? `${pic.flag} ` : ""}${pic.name}`;
-  v.append(head, document.createElement("br"));
   const best = read(TIMES, {})[bestKey()];
   v.append(`${fmt(S.score)}: ${bits.join(", ")}.`);
   if (S.rules.computer === "rival" && S.rival) {
@@ -608,11 +614,16 @@ function onLine(k) { if (S?.mode === "duel" && S.play === "split") split.point(k
 // dealt out, the rows to one and the columns to the other (at a table of more, every line round the table), so neither
 // can finish alone and each has to say what their lines need; and Race, the same picture for everyone, each on their
 // own grid, the lowest score winning (a party's default). Your own picture, bests and today's stay as they were.
+const inParty = /[?&]party=[A-Za-z]{4}\b/.test(location.search);
+let chosen = false;                                               // Split or Race picked in the menu this time
 function matchDeal() {
   const size = SIZES[$("size").value] ? $("size").value : "medium";
   const got = dealPicture({ topic: settings.topic, region: settings.region, size, band: settings.band, seen: read(SEEN, []) })
     || dealPicture({ topic: "countries", region: "world", size: "medium" });
-  return { seed: Math.floor(Math.random() * 2 ** 31), id: got.id, size: SIZES[size] ? size : "medium", mode: settings.together, mistakes: settings.mistakes, nameIt: settings.nameIt };
+  // a party's first match is a race (a table of friends each with a phone); a pair's is split, and the menu's choice
+  // is the next match's
+  const mode = inParty && !chosen ? "race" : settings.together;
+  return { seed: Math.floor(Math.random() * 2 ** 31), id: got.id, size: SIZES[size] ? size : "medium", mode, mistakes: settings.mistakes, nameIt: settings.nameIt };
 }
 const describeMatch = m => {
   const p = pictureOf(m.id), z = SIZES[m.size]?.label || "Medium";
@@ -713,6 +724,9 @@ const split = (() => {
       stopWatch?.();
       stopWatch = r.sync.watch(base, onData, e => console.error(e));
       if (n > 1) r.sync.update(`${branchPath(r.code, "nonogram")}/split`, { [`m${n - 1}`]: null })?.catch?.(() => {});   // the last match's grid
+      // the others' line says what each reads (everyone's progress is the one grid's, on the strip already)
+      const s = seats(), reads = s.length < 2 ? "every line" : s.length === 2 ? (owner(0) === mySlot() ? "the rows" : "the columns") : "some of each";
+      duel.report({ score: 0, text: `reading ${reads}` });
     },
     stop() { stopWatch?.(); stopWatch = null; base = null; data = {}; },
     write(i, v) { const r = room(); if (base && r) r.sync.update(`${base}/g`, { [`c${i}`]: encode(v) })?.catch?.(e => console.error(e)); },
@@ -754,7 +768,7 @@ function openMenu() {
   const content = () => part(body, "content");
   if (duel.on) {
     duel.menu(part(body, "together"));
-    part(body, "together").append(choice("Next match", [["split", "Split"], ["race", "Race"]], settings.together, v => { settings.together = v; saveSettings(); }));
+    part(body, "together").append(choice("Next match", [["split", "Split"], ["race", "Race"]], inParty && !chosen ? "race" : settings.together, v => { settings.together = v; chosen = true; saveSettings(); }));
     content().append(choice("Pictures", [...Object.entries(TOPICS), ["all", "All"]], settings.topic, v => { settings.topic = v; saveSettings(); }), mirror("Size", $("size")));
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -836,10 +850,12 @@ document.addEventListener("visibilitychange", () => { if (document.hidden) { clo
 window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
 window.addEventListener("pagehide", () => clockPause());
 window.addEventListener("hashchange", () => { const h = hashPicture(); if (!duel.on && h && !(S && S.id === h.id && S.size === h.size && S.mode === h.mode)) begin(h); });
+let ticks = 0;
 setInterval(() => {
   if (!S) return;
   drawStrip();
   if (clockFrom != null && performance.now() - savedAt > SAVE_EVERY) { clockPause(); clockRun(); }
+  if (S.mode === "duel" && S.play === "split" && ++ticks % 4 === 0) board.update(S.grid, boardExtras());   // a line pointed at fades after its seconds
 }, 250);
 
 /** The picture a link names (#p=ID&z=SIZE, or #d=DAY for a day's), or null. */
