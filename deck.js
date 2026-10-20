@@ -153,8 +153,8 @@ function ask() {
   // a typed card after a typed card keeps the field, and with it the focus (and a phone's keyboard)
   if (!(it.game === "quote" && field && box.contains(field.wrap))) box.replaceChildren();
   const r = rng(seedOf(it.id) ^ Date.now());
-  // a name-it card is typed, from whichever game it came (Punt's name-it questions, Isomer's finals)
-  if ((it.game === "punt" || it.game === "isomer") && it.payload?.name) named(it.payload);
+  // a name-it card is typed, from whichever game it came (Punt's name-it questions, Isomer's finals, Crossword's entries)
+  if (["punt", "isomer", "crossword"].includes(it.game) && it.payload?.name) named(it.payload);
   else if (it.game === "punt" || (it.payload?.prompt && it.payload?.options)) {
     const p = it.payload;
     $("ask").textContent = p.ask || "";
