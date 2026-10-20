@@ -31,12 +31,13 @@ html[data-mode="night"] { --ld-in: #6FA0D2; --ld-good: #7FC2A8; --ld-bad: #E8806
   box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); display: flex; align-items: center; min-height: 0; padding: .375rem; }
 /* a tile is as large as the card lets the whole ladder at par be (--rows of them: par and one), across and down, and
    no smaller than a thumb's target; a longer ladder scrolls */
+/* (the width keeps 3.8rem a side for the rail and the FIRST and LAST tags beside it) */
 .ld-ladder {
   --gap: .375rem;
-  --t: clamp(2.2rem, min(calc((100cqw - 4.6rem - (var(--n, 4) - 1) * var(--gap)) / var(--n, 4)), calc((100cqh - 1.8rem - (var(--rows, 6) - 1) * .45rem) / var(--rows, 6))), 3rem);
+  --t: clamp(2.2rem, min(calc((100cqw - 7.6rem - (var(--n, 4) - 1) * var(--gap)) / var(--n, 4)), calc((100cqh - 1.8rem - (var(--rows, 6) - 1) * .45rem) / var(--rows, 6))), 3rem);
   --rail: calc((var(--n, 4) * var(--t) + (var(--n, 4) - 1) * var(--gap)) / 2 + .65rem);
   /* as tall as the ladder, in the middle of the card, scrolling once it's taller than the card */
-  list-style: none; margin: 0; padding: .5rem 0; flex: 0 1 auto; min-height: 0; max-height: 100%; width: 100%;
+  list-style: none; margin: 0; padding: .5rem 0; flex: 0 1 auto; min-height: 0; max-height: 100%; width: 100%; overflow-x: hidden;
   display: flex; flex-direction: column; align-items: center; gap: .45rem;
   /* the rails: brass, the full height of the ladder however far it scrolls */
   background:
@@ -63,6 +64,8 @@ html[data-mode="night"] { --ld-in: #6FA0D2; --ld-good: #7FC2A8; --ld-bad: #E8806
 .ld-rung.end .ld-t { background: var(--ld-soft); border-color: var(--ld-in); }
 .ld-rung.end::after { content: attr(data-tag); position: absolute; left: calc(50% + var(--rail) + .45rem); top: 50%; transform: translateY(-50%);
   font-size: .62rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.1em * var(--track)); text-transform: var(--caps); color: var(--ld-in); }
+/* six letters across leave no room beside the rail on a phone: the tinted, pinned ends say which is which */
+.ld-ladder.wide-words .ld-rung.end::after { content: none; }
 /* the rung you're working from: its letters are what you tap */
 .ld-rung.work .ld-t { cursor: pointer; border-color: var(--brass); border-width: 2px; }
 .ld-rung.work .ld-t.cur { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); box-shadow: 0 0 0 2px var(--sheet), 0 0 0 4px var(--brass); }
@@ -168,7 +171,7 @@ html[data-mode="night"] { --ld-in: #6FA0D2; --ld-good: #7FC2A8; --ld-bad: #E8806
   #app.ladder .ld-strip { grid-column: 2; grid-row: 2; margin-top: 1rem; }
   #app.ladder .ld-say { grid-column: 2; grid-row: 3; text-align: left; white-space: normal; }
   #app.ladder .ld-side { grid-column: 2; grid-row: 5; align-self: end; }
-  #app.ladder .ld-ladder { --t: clamp(2.2rem, min(calc((100cqw - 4.6rem - (var(--n, 4) - 1) * var(--gap)) / var(--n, 4)), calc((100cqh - 1.8rem - (var(--rows, 6) - 1) * .45rem) / var(--rows, 6))), 4.6rem); }
+  #app.ladder .ld-ladder { --t: clamp(2.2rem, min(calc((100cqw - 7.6rem - (var(--n, 4) - 1) * var(--gap)) / var(--n, 4)), calc((100cqh - 1.8rem - (var(--rows, 6) - 1) * .45rem) / var(--rows, 6))), 4.6rem); }
 }
 
 /* the other themes: rounder, flatter, and Kontor's square */

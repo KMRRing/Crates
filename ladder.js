@@ -376,8 +376,10 @@ function gapRow() {
 let drawnKey = "";
 function drawLadder(scroll = false) {
   const ol = $("ladder"), rs = rows();
-  ol.style.setProperty("--n", String(grow() ? LENGTHS.at(-1) : G.P.start.length));
+  const n = grow() ? LENGTHS.at(-1) : G.P.start.length;
+  ol.style.setProperty("--n", String(n));
   ol.style.setProperty("--rows", String(G.P.par + 1));
+  ol.classList.toggle("wide-words", n >= 6);
   ol.classList.toggle("won", !!G.run.done);
   const nodes = rs.map(r => (r.next ? nextRow(r) : r.gap ? gapRow(r) : wordRow(r)));
   // the rung just made slides in; nothing else moves
