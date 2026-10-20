@@ -39,7 +39,7 @@ const DULL = new Set(("THE AND BUT NOR YET FOR ARE WAS WERE HIM HER HIS HERS SHE
  * more H, T and W than a dictionary), keeping the vowels in step and the lengths even; the last two answers are looked
  * up by what's left. Returns the answers' word ids, or null when it finds none within `budget` steps.
  */
-export function fillAnswers(text, spine, { at = "first", tier = 1, rand = Math.random, budget = 1600, width = 10, prefer = 0 } = {}) {
+export function fillAnswers(text, spine, { at = "first", tier = 1, rand = Math.random, budget = 1600, width = 10, prefer = 0, lean = 0.4 } = {}) {
   const W = answers(), rarity = W.rarity;
   const R = new Int16Array(26);
   for (const ch of lettersOf(text)) R[code(ch)]++;
@@ -104,7 +104,7 @@ export function fillAnswers(text, spine, { at = "first", tier = 1, rand = Math.r
       let gain = 0, v = 0;
       for (let j = 0; j < t.length; j += 2) { gain += rarity[t[j]] * t[j + 1] * (R[t[j]] / L) * 10; if (VOWEL.has(t[j])) v += t[j + 1]; }
       const after = (vowels - v) / Math.max(1, L - (x.n - 1));
-      return [-gain + Math.abs(after - 0.4) * 8 + Math.abs(x.n - 1 - target) * 0.5 + rand() * 1.5 + Math.abs(x.tier - prefer) * 0.4 + (DULL.has(x.word) ? 1.2 : 0), id];
+      return [-gain + Math.abs(after - 0.4) * 8 + Math.abs(x.n - 1 - target) * 0.5 + rand() * 1.5 + Math.abs(x.tier - prefer) * lean + (DULL.has(x.word) ? 1.2 : 0), id];
     }).sort((p, q) => p[0] - q[0]);
     const restLeft = left.filter((_, q) => q !== best), restLists = next.filter((_, q) => q !== best);
     for (const [, id] of scored.slice(0, s > 4 ? width : width * 2)) {
@@ -245,17 +245,26 @@ export function makePuzzle(seed, { level = "medium", twist = "classic", sources 
   list = daily ? [...list].sort((a, b) => hash(`${seed}:${a.id}`) - hash(`${seed}:${b.id}`)) : shuffle(fresh.length ? fresh : [...list], rand);
   let tried = 0;
   for (const entry of list) {
-    const forms = formsFor(entry, L, at);
-    if (!forms.length) continue;
+    if (!formsFor(entry, L, at).length) continue;
     if (++tried > maxEntries) break;
-    // the most telling spine first (the knowledge base's order), a form of the text at random among those
-    const rank = new Map(), tie = new Map(forms.map(f => [f, rand()]));
-    entry.forms.forEach(f => f.spines.forEach((s, i) => { if (!rank.has(s.text)) rank.set(s.text, i); }));
-    forms.sort((a, b) => rank.get(a.spine.text) - rank.get(b.spine.text) || tie.get(a) - tie.get(b));
-    for (const form of forms.slice(0, 3)) {
-      const P = build(entry, form, L, level, twist, at, seed, rand);
-      if (P) return P;
-    }
+    const P = fromEntry(entry, seed, { level, twist }, rand);
+    if (P) return P;
+  }
+  return null;
+}
+/**
+ * A puzzle from this entry, or null: its forms that suit the level, the most telling spine first (the knowledge
+ * base's order) and the forms of the text at random among those, each tried in turn.
+ */
+export function fromEntry(entry, seed, { level = "medium", twist = "classic" } = {}, rand = rng(seed)) {
+  const L = LEVELS[level] || LEVELS.medium, at = twist === "telestich" ? "last" : "first";
+  const forms = formsFor(entry, L, at);
+  const rank = new Map(), tie = new Map(forms.map(f => [f, rand()]));
+  entry.forms.forEach(f => f.spines.forEach((s, i) => { if (!rank.has(s.text)) rank.set(s.text, i); }));
+  forms.sort((a, b) => rank.get(a.spine.text) - rank.get(b.spine.text) || tie.get(a) - tie.get(b));
+  for (const form of forms.slice(0, 3)) {
+    const P = build(entry, form, L, level, twist, at, seed, rand);
+    if (P) return P;
   }
   return null;
 }
@@ -265,7 +274,7 @@ function build(entry, form, L, level, twist, at, seed, rand) {
   const W = answers();
   const { cells, layout } = layOut(form.text);
   for (let attempt = 0; attempt < 3; attempt++) {
-    const ids = fillAnswers(form.text, form.spine.text, { at, tier: L.tier, rand, prefer: level === "hard" ? 1 : 0 });
+    const ids = fillAnswers(form.text, form.spine.text, { at, tier: L.tier, rand, prefer: L.prefer, lean: L.lean });
     if (!ids) return null;                                    // the letters don't go into words this way
     const words = ids.map(id => W.list[id].word);
     let avoid = null;

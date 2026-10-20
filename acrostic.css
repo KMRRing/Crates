@@ -78,6 +78,8 @@ html[data-mode="night"] { --ac-in: #79A9D6; --ac-good: #7FC2A8; --ac-bad: #E8806
   background: var(--tile); color: var(--ink); font: inherit; font-size: .92rem; font-weight: 750; line-height: 1; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .ac-bl.spine { border-color: var(--brass); border-width: 1.5px; }
 .ac-clue.sel { background: var(--ac-soft); }
+/* typing runs along this clue's answer: a cobalt bar down its edge (along the text, the text's word is underlined) */
+.ac-clue.sel.way { box-shadow: inset 3px 0 0 var(--ac-in); }
 .ac-bl.cur { border-color: var(--ac-in); box-shadow: 0 0 0 2px var(--ac-in); }
 .ac-clue.hidden .ac-say { color: var(--ink-soft); font-style: italic; }
 .ac-clue.full:not(.sel) .ac-say { color: var(--ink-soft); }

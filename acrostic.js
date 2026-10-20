@@ -26,6 +26,7 @@ const APP = 1;                       // this code's version of a match and a tea
 const HINT = 20, CHECK = 10;         // seconds added: a letter shown; each wrong letter a check finds
 const SAVE_EVERY = 5000;             // ms between saves of a puzzle in play (a partner watching sees it that often)
 const STAGES = { lit: LIT_STAGES, saying: SAYING_STAGES.filter(s => s.id !== "pop") };
+const PACE = ["", "Easy", "Medium", "Hard"];   // the computer rival's paces (acrostic-solve.js RIVALS)
 
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -74,12 +75,12 @@ function prefetch() {
   const seed = randomSeed();
   ahead = { key, seed, promise: makeIn(seed, opts).catch(e => { console.error(e); return null; }) };
 }
+/** The next random puzzle: the one made ahead if it was made for these choices, else one made now. */
 async function nextRandom() {
   const opts = randomOpts(), key = keyOf(opts);
-  const job = ahead?.key === key ? ahead : { seed: randomSeed(), promise: makeIn(randomSeed(), opts) };
+  const job = ahead?.key === key ? ahead : { promise: makeIn(randomSeed(), opts) };
   ahead = null;
-  const P = await job.promise;
-  return P && !opts.avoid.includes(P.id) ? P : P || null;
+  return (await job.promise) || null;
 }
 
 // ---------- the run ----------
@@ -158,7 +159,6 @@ function elapsed() {
   if (S.mode === "team") { const g = team.room?.data; return g?.done ? g.done.ms : g?.begun ? Math.max(0, teamNow() - g.begun) : 0; }
   return S.ms + (clockFrom != null ? performance.now() - clockFrom : 0);
 }
-const score = () => Math.round(elapsed() / 1000) + (S?.pen || 0);
 
 // ---------- the letters ----------
 /** The letters as they stand: a team's are the table's, with this device's last few laid over until the table has them. */
@@ -306,14 +306,16 @@ function recordRival(s) {
 
 // ---------- drawing: the text ----------
 let boxes = [];        // per square: its element
-let wordEls = [];      // per box of the layout, in order: { el, box }
+let wordOf = [];       // per square: which word of the text it's in (the word you type along is underlined)
+let wordEls = [];      // per box of the layout, in order (squares and given characters): { el }
 const board = $("board");
 function buildBoard() {
   board.replaceChildren();
   boxes = new Array(P.cells.length);
+  wordOf = new Array(P.cells.length);
   wordEls = [];
   const tags = P.answers.map((_, a) => labelOf(a));
-  P.layout.forEach((word, w) => word.forEach((box, b) => {
+  P.layout.forEach((word, w) => word.forEach(box => {
     const el = document.createElement(box.c != null ? "button" : "span");
     el.className = box.c != null ? "ac-sq" : "ac-sq ac-given";
     if (box.c != null) {
@@ -321,10 +323,11 @@ function buildBoard() {
       el.dataset.c = box.c;
       el.innerHTML = `<i class="ac-tag">${tags[own[box.c].a]}</i><b class="ac-ch"></b>`;
       boxes[box.c] = el;
+      wordOf[box.c] = w;
     } else el.innerHTML = `<b class="ac-ch">${box.g}</b>`;
     if (box.a) { const m = document.createElement("i"); m.className = "ac-punct after"; m.textContent = box.a.trim(); el.appendChild(m); }
     if (box.b) { const m = document.createElement("i"); m.className = "ac-punct before"; m.textContent = box.b; el.appendChild(m); }
-    wordEls.push({ el, box, w, b, last: b === word.length - 1 });
+    wordEls.push({ el });
     board.appendChild(el);
   }));
 }
@@ -438,8 +441,7 @@ function clueText(a) {
 // ---------- drawing: everything that changes ----------
 function draw() {
   if (!S || !P) return;
-  const e = entryNow(), cur = S.at, a0 = own[cur]?.a, ans = P.answers[a0];
-  const word = new Set(runAt(cur));
+  const e = entryNow(), cur = S.at, a0 = own[cur]?.a;
   const marked = new Set(S.marked), shown = new Set(S.mode === "team" ? shownTeam() : S.shown);
   const by = S.mode === "team" ? (team.room?.data?.by || "") : "";
   const mine = String(team.slot ?? 0);
@@ -449,7 +451,7 @@ function draw() {
     if (t.textContent !== ch) t.textContent = ch;
     el.classList.toggle("sel", own[c].a === a0);
     el.classList.toggle("cur", c === cur);
-    el.classList.toggle("word", S.way === "text" && word.has(c));
+    el.classList.toggle("word", S.way === "text" && wordOf[c] === wordOf[cur]);
     el.classList.toggle("bad", marked.has(c));
     el.classList.toggle("shown", shown.has(c));
     el.classList.toggle("theirs", !!ch && by[c] != null && by[c] !== "." && by[c] !== mine);
@@ -479,16 +481,6 @@ function draw() {
   const off = !playing();
   for (const btn of $("actions").querySelectorAll("button")) btn.disabled = off;
   drawStrip();
-  void ans;
-}
-const runAt = c => { for (const r of runsCache()) if (r.includes(c)) return r; return [c]; };
-let runsMemo = null;
-function runsCache() {
-  if (runsMemo?.P === P) return runsMemo.runs;
-  const runs = [];
-  for (const word of P.layout) { let run = []; word.forEach(box => { if (box.c != null) run.push(box.c); else { if (run.length) runs.push(run); run = []; } }); if (run.length) runs.push(run); }
-  runsMemo = { P, runs };
-  return runs;
 }
 const put0 = {};
 const show = (id, v) => { if (put0[id] !== v) { put0[id] = v; $(id).textContent = v; } };
@@ -560,11 +552,11 @@ function showDone(fresh) {
   const after = S.fresh ? ` A new best at ${LEVELS[P.level].label}.` : best != null ? ` Your best at ${LEVELS[P.level].label}: ${fmt(best)}.` : "";
   box.append(el("p", "ac-score", `${g ? "Solved together" : "Solved"} in ${fmt(secs)}${how}.${after}`));
   if (S.mode === "random" && S.rival) {
-    const at = rivalDone(P, S.rival);
-    box.append(el("p", "ac-line", at == null || S.score * 1000 < at ? `You beat the computer (${LEVELS[["", "easy", "medium", "hard"][S.rival]].label}), which took ${fmt((at || 0) / 1000)}.` : `The computer (${LEVELS[["", "easy", "medium", "hard"][S.rival]].label}) finished first, in ${fmt(at / 1000)}.`));
+    const at = rivalDone(P, S.rival), who = `The computer (${PACE[S.rival]})`;
+    box.append(el("p", "ac-line", at == null || S.score * 1000 < at ? `You beat it: ${who.toLowerCase()} took ${fmt((at || 0) / 1000)}.` : `${who} finished first, in ${fmt(at / 1000)}.`));
   }
   $("doneTitle").textContent = S.mode === "daily" ? "Today's, solved" : "Solved";
-  $("doneNext").textContent = S.mode === "duel" ? "The result" : S.mode === "team" ? "Another together" : "New puzzle";
+  $("doneNext").textContent = S.mode === "team" ? "Another together" : "New puzzle";
   // a moment to see the text whole first; and the tap that typed the last letter mustn't land on the reveal's backdrop
   // (or its button) and close it
   clearTimeout(revealTimer);
@@ -578,9 +570,7 @@ let revealTimer = 0, openedAt = 0;
 const settled = () => performance.now() - openedAt > 450;
 function next() {
   $("doneDlg").close();
-  if (S?.mode === "duel") { duel.open(); return; }
-  if (S?.mode === "team") { teamAgain(); return; }
-  start("random");
+  if (S?.mode === "team") teamAgain(); else start("random");
 }
 
 // ---------- the keyboard ----------
@@ -657,7 +647,7 @@ const duel = createDuel({
   game: "acrostic", name: "Acrostic", app: APP, accent: "--ac-in", line: $("rival"), lower: true, toast,
   extraTitle: "The text", extra: () => (P ? aboutText(el("div", "ac-reveal")) : null),
   deal: async () => {
-    const seed = randomSeed(), P0 = await makeIn(seed, { level: prefs.level, twist: prefs.twist, sources: prefs.sources, stages: prefs.stages });
+    const seed = randomSeed(), P0 = await tableMake(seed, prefs.twist);
     return { seed, level: prefs.level, twist: prefs.twist, P: P0 };
   },
   describe: m => `${LEVELS[m.level]?.label || "Medium"}${m.twist && m.twist !== "classic" ? `, ${TWISTS[m.twist].label.toLowerCase()}` : ""}: the same hidden text for everyone, the fastest solve wins`,
@@ -670,6 +660,16 @@ const duel = createDuel({
   onLobby: () => { $("doneDlg").close(); },
   onLeave: () => { solo(); },
 });
+/**
+ * A puzzle for a table, from the dealer's choices (from every source if those can't make one, so a table is never
+ * left without): a team's is never Half clued, since its split already leaves each of you half the clues.
+ */
+async function tableMake(seed, twist) {
+  const opts = { level: prefs.level, twist, sources: prefs.sources, stages: prefs.stages };
+  const P0 = (await makeIn(seed, opts)) || (await makeIn(seed + 1, { ...opts, sources: null, stages: null }));
+  if (!P0) throw new Error("no puzzle could be made");
+  return P0;
+}
 /** What the table sees of this run: the letters right, and the time once it's solved. */
 function tell(done = false) {
   if (S?.mode !== "duel") return;
@@ -690,9 +690,8 @@ let pending = new Map(), sending = null, readAll = false, teamOffset = 0, stopOf
 const teamNow = () => Date.now() + teamOffset;
 const team = createTogether({
   game: "acrostic", app: APP, toast, askName,
-  fresh: async (players, { ask } = {}) => {
-    const seed = randomSeed(), P0 = await makeIn(seed, { level: prefs.level, twist: prefs.twist === "half" ? "classic" : prefs.twist, sources: prefs.sources, stages: prefs.stages });
-    const now = Date.now();
+  fresh: async players => {
+    const P0 = await tableMake(randomSeed(), prefs.twist === "half" ? "classic" : prefs.twist), now = Date.now();
     return { v: 1, kind: "team", app: APP, created: now, players, n: 1, P: P0, entry: blank(P0), by: blank(P0), pen: 0, shown: [], begun: now, done: null };
   },
   valid: g => g?.v === 1 && g.kind === "team" && !!g.P && typeof g.entry === "string",
@@ -752,12 +751,13 @@ async function teamAgain() {
   if (!team.room) return;
   const g = team.room.data;
   if (g && !g.done && filled(entryNow()) && !confirm("Start another together? This one isn't solved.")) return;
-  const done = busy("Setting an acrostic for two");
+  const done = busy("Setting an acrostic for two"), n = g?.n || 1;
   try {
-    const seed = randomSeed(), P0 = await makeIn(seed, { level: prefs.level, twist: prefs.twist === "half" ? "classic" : prefs.twist, sources: prefs.sources, stages: prefs.stages });
-    if (!P0) { toast("Nothing could be set: try more sources"); return; }
-    await team.act(t => { Object.assign(t, { P: P0, entry: blank(P0), by: blank(P0), pen: 0, shown: [], begun: teamNow(), done: null, n: (t.n || 1) + 1 }); });
-  } finally { done(); }
+    const P0 = await tableMake(randomSeed(), prefs.twist === "half" ? "classic" : prefs.twist);
+    // if you both asked at once, the first one's puzzle stands
+    await team.act(t => ((t.n || 1) !== n ? false : Object.assign(t, { P: P0, entry: blank(P0), by: blank(P0), pen: 0, shown: [], begun: teamNow(), done: null, n: n + 1 })));
+  } catch (e) { console.error(e); toast("Couldn't set a puzzle: try again"); }
+  finally { done(); }
 }
 
 // ---------- menu and messages ----------
@@ -820,7 +820,7 @@ function openMenu() {
       line("From your next puzzle: it solves the same one beside your clock, as fast as a person who knows that much."));
   }
   const times = read(TIMES, {}), bests = Object.keys(LEVELS).map(l => times[`${l}:classic`] != null ? `${LEVELS[l].label} ${fmt(times[`${l}:classic`])}` : null).filter(Boolean);
-  const r = read(RIVALS, {}), vs = Object.entries(r).map(([k, v]) => `${LEVELS[["", "easy", "medium", "hard"][k]]?.label}: ${v.won}–${v.lost}`);
+  const r = read(RIVALS, {}), vs = Object.entries(r).filter(([k]) => PACE[k]).map(([k, v]) => `${PACE[k]}: ${v.won}–${v.lost}`);
   part(body, "about").append(line(bests.length ? `Your bests: ${bests.join(", ")}.` : "Your bests show here once you've solved one."),
     ...(vs.length ? [line(`Against the computer: ${vs.join(", ")}.`)] : []),
     line(`A hint shows a letter, +${HINT} s; a check marks the wrong ones, +${CHECK} s each.`));
