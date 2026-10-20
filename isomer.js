@@ -3,13 +3,12 @@
 // clock, the menu; solo (random or today's, with a computer rival if you like), with your partner (two jumbles each,
 // the final together: isomer-table.js) or a race at a table of up to six (duel.js). The puzzle and the rules are
 // isomer-engine.js's.
-import { MODES, LEVELS, DAILY, PER_HINT, RIVALS, makePuzzle, newRun, tidyRun, itemsOf, rackOf, spelled, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rivalPlan, rivalSolved, rng, revealTo } from "./isomer-engine.js";
+import { MODES, LEVELS, DAILY, PER_HINT, RIVALS, makePuzzle, newRun, tidyRun, itemsOf, rackOf, place, placeLetter, unplace, back, clear, reshuffle, hint, solveFrom, hintsOf, scoreOf, nextOpen, clock, rivalPlan, rivalSolved, rng, revealTo } from "./isomer-engine.js";
 import { isPair, freshPair, tidy as tidyTable, beginAt, solveAt, hintAt, newGameAt, resultOf as pairResult, halfFor, teamScore, itemKey, APP as PAIR_APP } from "./isomer-table.js";
 import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
 import { createTogether } from "./together.js";
 import { createDuel } from "./duel.js";
 import { busy, sextant } from "./loading.js";
-import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { part, choice, topicMix, action, line, onPause, isPaused } from "./menu.js";
@@ -43,7 +42,7 @@ const presetNow = () => presetOf(TOPICS, KB_PRESETS, mix());
 // S: { kind ("random", "daily", "race" or "pair"), puzzle, run (the engine's), day, ranked (a preset or today's: it
 // counts for your best), rival (a computer's pace, or "off"), begun (a race's start, server time), fresh (a new best) }
 let S = null, P = null, items = [];
-let clockFrom = null, savedAt = 0, paused = false;
+let clockFrom = null, savedAt = 0;
 let message = null;                       // { text, tone } the clue panel says until the next move
 const elapsed = () => {
   if (!S) return 0;
@@ -61,7 +60,7 @@ function clockPause() {
   clockFrom = null;
   save();
 }
-onPause(() => { paused = true; clockPause(); }, () => { paused = false; clockRun(); });   // the menu stops a solo clock too
+onPause(clockPause, clockRun);   // the menu stops a solo clock; a race's and a pair's keep the table's time (duo clocks don't stop)
 
 function save() {
   if (IN_FRAME || !S) return;
