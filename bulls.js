@@ -3,7 +3,7 @@
 // Lock, a code to be reasoned out from clues alone. The rules and the computer players are bulls-engine.js's, the locks
 // bulls-lock.js's, playing together bulls-table.js's (Team: your guess's keys show to the others, not you; Race; Versus);
 // this file draws the board and keeps the game. Everything shown is kept under bulls: keys, so a partner watching sees it.
-import { VARIANTS, DAILY_VARIANT, MAKERS, LEVELS, fitting, narrow, symbolsOf, fits, invalid, daySeed, randomSeed, mix, newBreak, guessBreak, revealed,
+import { VARIANTS, DAILY_VARIANT, MAKERS, LEVELS, fitting, narrow, symbolsOf, fits, invalid, daySeed, randomSeed, newBreak, guessBreak, revealed,
   newDuel, setDuelCode, duelGuess, duelReply, duelSecret, noteResult, rng } from "./bulls-engine.js";
 import { LOCK_LEVELS, makeLock, lockSteps, WRONG, HINT } from "./bulls-lock.js";
 import { PLAYS, KINDS, freshTable, isTable, tidy, teamGuess, teamTry, begin, setCode, ownGuess, ownTry, ownHint, keysShown, handOf, targetOf, setterOf, breakerOf,
@@ -102,7 +102,7 @@ function startPicked(how = prefs.play, opts = {}) {
 const dayDone = () => read(TODAY, null)?.key === today();
 
 // ---------- the clock: a lock's time on screen ----------
-let clockFrom = null, savedAt = 0, paused = false;
+let clockFrom = null, savedAt = 0;
 function clockRun() {
   if (IN_FRAME || G || run?.kind !== "lock" || run.done || clockFrom != null || document.hidden || isPaused()) return;
   clockFrom = performance.now();
@@ -130,7 +130,7 @@ function cpuSoon() {
     render();
   }, THINK[run.level] || 1200);
 }
-onPause(() => { paused = true; clockStop(); clearTimeout(cpuTimer); }, () => { paused = false; clockRun(); cpuSoon(); });
+onPause(() => { clockStop(); clearTimeout(cpuTimer); }, () => { clockRun(); cpuSoon(); });
 
 // ---------- the work in hand: the row being entered and the notes, solo or at the table ----------
 let tableWork = null;                          // { key (the table's game), input, sel, notes, view }
@@ -219,7 +219,8 @@ function breakNote() {
   return r?.broken ? `${VARIANTS[run.variant].label}${run.maker === "devious" ? ", devious" : ""}: ${r.broken} of ${r.played} broken, ${(r.guesses / r.broken).toFixed(1)} guesses on average.` : "";
 }
 function duelModel() {
-  const info = boardInfo(run.variant), done = !!run.done, theirs = run.view === "theirs" && !!run.mine;
+  // held sideways both boards show at once, so the main one is always yours; on a phone the other is a tab
+  const info = boardInfo(run.variant), done = !!run.done, side = sideways(), theirs = run.view === "theirs" && !!run.mine && !side;
   const m = { ...info, duel: true };
   if (!run.mine) {
     m.rows = breakRows(info, [], { input: null, now: false });
@@ -235,8 +236,8 @@ function duelModel() {
   m.rows = breakRows(info, rows, { input: run.input, showLeft: (prefs.aid !== "off" && !theirs) || done, now: !done && !theirs });
   m.where = `Duel · ${VARIANTS[run.variant].label} · ${LEVELS[run.level].label}`;
   m.aside = `You <b>${run.rows.length}</b> · Computer <b>${run.cpu.length}</b>`;
-  m.tabs = [["mine", `Your guesses (${run.rows.length})`], ["theirs", `Computer's (${run.cpu.length})`]];
-  m.tab = theirs ? "theirs" : "mine";
+  if (side) m.other = { title: `Computer's guesses: ${run.cpu.length}`, code: run.mine, rows: breakRows(info, run.cpu, { now: false }) };
+  else { m.tabs = [["mine", `Your guesses (${run.rows.length})`], ["theirs", `Computer's (${run.cpu.length})`]]; m.tab = theirs ? "theirs" : "mine"; }
   m.shield = theirs ? { open: true, code: run.mine, label: "Your code", note: "" }
     : { open: done, code: done ? duelSecret(run) : null, label: "Its code", note: prefs.aid !== "off" && !done ? `${fitCount(run.variant, run.rows)} codes fit` : "" };
   m.entry = !done;
@@ -308,8 +309,19 @@ function render() {
   if (!m) return;
   const auto = autoMarks(m);
   $("app").classList.toggle("locking", m.kind === "lock");
-  drawStrip(m); drawRival(m); drawBoard(m, auto); drawEntry(m); drawPad(m, auto); drawActs(m); drawLine(m); drawResult(m);
+  drawStrip(m); drawRival(m); drawBoard(m, auto); drawOther(m); drawEntry(m); drawPad(m, auto); drawActs(m); drawLine(m); drawResult(m);
   requestAnimationFrame(fitRows);
+}
+/** The other board of a duel, held sideways: the opponent's guesses at your code, your code over them. */
+function drawOther(m) {
+  const box = $("other");
+  box.hidden = !m.other;
+  if (!m.other) { box.querySelector(".bu-rows").replaceChildren(); return; }   // nothing of an earlier game left behind
+  const code = el("span", "code");
+  for (const x of m.other.code || []) code.append(pegEl(x, m.digits));
+  box.querySelector(".bu-other-cap").textContent = m.other.title;
+  box.querySelector(".bu-other-head").replaceChildren(el("span", "lab", "Your code"), code);
+  box.querySelector(".bu-rows").replaceChildren(...m.other.rows.map(r => rowEl(r, m, null, false)));
 }
 const shown = {};
 const put = (id, html) => { if (shown[id] !== html) { shown[id] = html; $(id).innerHTML = html; } };
@@ -355,7 +367,7 @@ function drawShield(m) {
 }
 /** Which game is on the board (the shutter turns its pegs over only when that game's code comes out). */
 const gameKey = () => (G ? `${G.created}/${G.n}/${work()?.view}` : run ? `${run.kind}/${run.seed}/${run.view}` : "");
-function rowEl(r, m, auto) {
+function rowEl(r, m, auto, copyable = true) {
   const li = el("li", `bu-row${r.now || r.hot ? " now" : ""}${r.future ? " future" : ""}${r.sealed ? " sealed" : ""}${r.hidden ? " hidden-clue" : ""}`);
   const n = el("span", "n");
   if (r.by != null) n.append(badge(r.by)); else n.textContent = String(r.n);   // at a table: whose guess it was
@@ -380,7 +392,7 @@ function rowEl(r, m, auto) {
   if (r.g && !r.now && !r.future) {
     const words = r.g.map(x => symName(x, m.digits)).join(", ");
     li.setAttribute("aria-label", r.hidden ? `Clue ${r.n}: ${r.hidden}` : `${m.kind === "lock" ? "Clue" : "Guess"} ${r.n}: ${words}${r.sealed ? `: ${r.sealed}` : r.b != null ? `: ${plural(r.b, "bull")}, ${plural(r.c, "cow")}` : ""}`);
-    if (r.copy && m.entry && m.kind === "break") { li.classList.add("copyable"); li.dataset.copy = JSON.stringify(r.g); }
+    if (copyable && r.copy && m.entry && m.kind === "break") { li.classList.add("copyable"); li.dataset.copy = JSON.stringify(r.g); }
   }
   return li;
 }
@@ -393,7 +405,13 @@ function fitRows() {
   const h = Math.floor(Math.max(22 * s, Math.min(most * s, box.clientHeight / n)));
   $("board").style.setProperty("--bu-rowh", `${h.toFixed(1)}px`);
   box.querySelector(".bu-row.now")?.scrollIntoView({ block: "nearest" });
+  const other = $("other"), list = other.querySelector(".bu-rows"), k = list.children.length;
+  if (!other.hidden && k) other.style.setProperty("--bu-rowh", `${Math.floor(Math.max(18 * s, Math.min(36 * s, list.clientHeight / k)))}px`);
 }
+let wasSideways = sideways();
+addEventListener("resize", () => {                             // the screen turned: sideways a duel shows both boards
+  if (sideways() !== wasSideways) { wasSideways = sideways(); render(); } else requestAnimationFrame(fitRows);
+});
 function drawEntry(m) {
   const w = work(), box = $("entry");
   box.classList.toggle("five", m.p >= 5);
@@ -659,11 +677,11 @@ function tableModel() {
     m.visible = [];
     return m;
   }
-  const theirs = T.play === "versus" && w.view === "theirs" && inRing;
+  const side = sideways(), theirs = T.play === "versus" && w.view === "theirs" && inRing && !side;
   if (T.play === "versus" && inRing) {
     const b = breakerOf(T, me), theirRows = T.seats?.[`s${b}`]?.rows || [];
-    m.tabs = [["mine", `Yours (${S?.rows.length || 0})`], ["theirs", `${nameOf(b)}'s on yours (${theirRows.length})`]];
-    m.tab = theirs ? "theirs" : "mine";
+    if (side) m.other = { title: `${nameOf(b)}'s guesses: ${theirRows.length}`, code: T.codes[`s${me}`], rows: breakRows(m, theirRows, { now: false }) };
+    else { m.tabs = [["mine", `Yours (${S?.rows.length || 0})`], ["theirs", `${nameOf(b)}'s on yours (${theirRows.length})`]]; m.tab = theirs ? "theirs" : "mine"; }
   }
   if (theirs) {
     const b = breakerOf(T, me), theirRows = T.seats?.[`s${b}`]?.rows || [];
@@ -998,7 +1016,6 @@ document.addEventListener("keydown", e => {
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockStop(); else { clockRun(); cpuSoon(); together.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 window.addEventListener("pagehide", () => clockStop());
-window.addEventListener("resize", () => requestAnimationFrame(fitRows));
 window.addEventListener("hashchange", () => { const l = linked(); if (!G && l && !sameGame(run, l)) startLinked(l); });
 setInterval(() => {
   const m = model();

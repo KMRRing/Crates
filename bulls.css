@@ -177,14 +177,26 @@ html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806
   .bu-shield { min-height: 2rem; margin-bottom: .3rem; }
 }
 
+/* the other board of a duel, shown only held sideways (on a phone it's the board's second tab) */
+.bu-other { display: none; }
+.bu-other .bu-rows { max-width: none; }
+.bu-other-head { margin-bottom: .35rem; min-height: 2rem; }
+.bu-other-cap { margin: 0 0 .35rem; font-size: .74rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps);
+  color: var(--brass-lo); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.bu-other-head .code { --size: 1.35rem; }
+
 /* held sideways: the board on the left with all the height; the strip, the line, the entry and the pegs beside it,
-   the buttons low where a thumb is */
+   the buttons low where a thumb is, and over them, in a duel, the other player's guesses at your code */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.bulls { --beside: 23rem; grid-template-rows: auto auto auto minmax(0, 1fr); }
   #app.bulls .bu-strip { grid-column: 2; grid-row: 2; margin-top: .9rem; }
   #app.bulls .bu-rival { grid-column: 2; grid-row: 3; }
   #app.bulls .bu-board { grid-column: 1; grid-row: 2 / -1; margin-top: .8rem; }
-  #app.bulls .bu-side { grid-column: 2; grid-row: 4; align-content: end; margin-top: 0; }
+  #app.bulls .bu-side { grid-column: 2; grid-row: 4; grid-template-rows: minmax(0, 1fr) auto auto; grid-template-columns: minmax(0, 1fr); margin-top: 0; min-height: 0; }
+  #app.bulls .bu-other:not([hidden]) { display: flex; flex-direction: column; grid-area: 1 / 1; min-height: 0; min-width: 0; margin: .4rem 0 .7rem; padding: .45rem .55rem;
+    border: 1px solid var(--tile-edge); border-radius: 6px; background: var(--sheet); }
+  #app.bulls .bu-line { grid-area: 2 / 1; }
+  #app.bulls .bu-side > .bu-play, #app.bulls .bu-side > .bu-result { grid-area: 3 / 1; }
   #app.bulls .bu-entry { --size: 3rem; }
 }
 
