@@ -11,6 +11,7 @@ const SQ3 = Math.sqrt(3);
 const COMFORT = { square: 34, hex: 36, tri: 40 };
 const GLYPH = { square: 0.5, hex: 0.78, tri: 0.36 };     // a number's or a flag's room, in cell units
 const MOST = 2.4;                                        // the most it zooms in, times the comfortable size
+const ENOUGH = 0.8;                                      // a field this near a thumb's size whole fits; smaller, it opens close and pans
 
 /** Parses a computed colour (rgb(), rgba(), color(srgb …), #hex) to [r, g, b, a]. */
 function rgba(s) {
@@ -46,11 +47,15 @@ export function createView(host) {
 
   // ---------- the palette ----------
   const token = name => { probe.style.color = `var(${name})`; return rgba(getComputedStyle(probe).color); };
+  const lum = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
   function palette() {
-    const yard = token("--yard"), sheet = token("--sheet"), tile = token("--tile"), ink = token("--ink");
+    const yard = token("--yard"), sheet = token("--sheet"), ink = token("--ink"), edge = token("--tile-edge");
+    // a hidden cell stands up from the field and a dug one sinks into it: by day the paper tile against the page, at
+    // night (when the ink is the light one) the tile lit a little and the dug cell the dial itself
+    const dark = lum(ink) > lum(yard), tile = dark ? mix(token("--tile"), ink, 0.13) : token("--tile");
     P = {
-      yard, sheet, tile, ink, edge: token("--tile-edge"), rule: token("--rule"), brass: token("--brass"), soft: token("--ink-soft"),
-      dug: mix(yard, sheet, 0.35), good: token("--mn-good"), bad: token("--mn-bad"), flag: token("--mn-flag"),
+      yard, sheet, tile, ink, edge: dark ? mix(edge, ink, 0.25) : edge, rule: token("--rule"), brass: token("--brass"), soft: token("--ink-soft"),
+      dug: dark ? mix(yard, sheet, 0.25) : mix(yard, sheet, 0.35), good: token("--mn-good"), bad: token("--mn-bad"), flag: token("--mn-flag"), proof: token("--mn-in"),
       nums: Array.from({ length: 13 }, (_, n) => (n ? token(`--mn-n${n}`) : ink)),
       seats: Array.from({ length: 6 }, (_, s) => token(`--p${s}`)),
       font: getComputedStyle(document.body).fontFamily || "sans-serif",
@@ -92,7 +97,7 @@ export function createView(host) {
     wave.clear();
     resize();
     if (view && typeof view === "object" && Number.isFinite(view.z)) { k = view.z * comfortK(); centreOn(view.cx, view.cy); }
-    else { k = view === "fit" ? fitK() : Math.max(fitK(), comfortK()); centreOn(cells[f.start].cx, cells[f.start].cy); }
+    else { k = view === "fit" || !larger() ? fitK() : comfortK(); centreOn(cells[f.start].cx, cells[f.start].cy); }
     draw();
   }
   function centreOn(cx, cy) { ox = W / 2 - cx * k; oy = H / 2 - cy * k; clamp(); }
@@ -215,9 +220,9 @@ export function createView(host) {
       }
       if (near.has(i)) { path(i, gap * 2); ctx.lineWidth = 2; ctx.strokeStyle = css(P.brass); ctx.stroke(); }
     }
-    // a hint: the cells it names ringed (verdigris safe, oxblood a mine), the numbers that prove it in brass
+    // a hint: the cells it names ringed (green safe, red a mine), the numbers that prove it in the house blue
     if (S.hint) {
-      for (const i of S.hint.from || []) { path(i, gap * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = css(P.brass); ctx.stroke(); }
+      for (const i of S.hint.from || []) { path(i, gap * 2); ctx.lineWidth = 2.5; ctx.strokeStyle = css(P.proof); ctx.stroke(); }
       for (const i of S.hint.cells || []) { path(i, gap * 2); ctx.lineWidth = 3; ctx.strokeStyle = css(S.hint.mine ? P.bad : P.good); ctx.stroke(); }
     }
     // a cell someone pointed at rings in their colour, pulsing, a few seconds
@@ -252,12 +257,12 @@ export function createView(host) {
   }
   function panBy(dx, dy) { ox += dx; oy += dy; clamp(); draw(); }
   /** Whether the field is drawn larger than its box (so it pans, and the zoom button shows). */
-  const larger = () => fitK() < comfortK() * 0.98;
+  const larger = () => fitK() < comfortK() * ENOUGH;
   const zoomed = () => k > fitK() * 1.02;
   /** Between the whole field and a thumb's size, about the middle of the box. */
   function toggleZoom() {
     const r = canvas.getBoundingClientRect();
-    zoomAt((zoomed() ? fitK() : Math.max(fitK(), comfortK())) / k, r.left + W / 2, r.top + H / 2);
+    zoomAt((zoomed() ? fitK() : comfortK()) / k, r.left + W / 2, r.top + H / 2);
   }
   /** The view to keep: the zoom against a thumb's size, and the middle in cell units. */
   const view = () => ({ z: Math.round((k / comfortK()) * 1000) / 1000, cx: Math.round(((W / 2 - ox) / k) * 100) / 100, cy: Math.round(((H / 2 - oy) / k) * 100) / 100 });

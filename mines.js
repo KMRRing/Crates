@@ -3,8 +3,8 @@
 // hexes and triangles (mines-grid.js); drawn on a canvas by mines-draw.js. This file keeps the run, the clock, the
 // fingers and the company: a computer partner or rival (mines-bot.js), and at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
-import { SHAPES, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, dims, deal, daily, weekdayOf, newRun, dig, flag, chord,
-  score, minesLeft, safeLeft, started, hint, readerOf, isFlag, OPEN, HIDDEN, STRUCK } from "./mines-engine.js";
+import { SHAPES, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, newRun, dig, flag, chord,
+  score, minesLeft, safeLeft, started, hint, readerOf, isFlag, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
 import { PACES, paceOf, rivalPlan, rivalAt, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "./mines-bot.js";
 import { teamMove, teamField, teamScore, readers, PING_MS } from "./mines-team.js";
@@ -110,7 +110,7 @@ function save() {
 }
 const valid = s => !!s && Number.isInteger(s.seed) && !!SHAPES[s.shape] && !!SIZES[s.size] && !!LEVELS[s.level] && !!s.run
   && typeof s.run.cells === "string" && Number.isFinite(s.run.ms);
-const begunHere = () => !!G && G.kind === "solo" && !G.run.done && started(G.f, G.run.cells) && safeLeft(G.f, G.run.cells) < G.f.n - G.f.count;
+const begunHere = () => !!G && G.kind === "solo" && !G.run.done && started(G.f, G.run.cells);
 function recordBest(sc) {
   const times = read(TIMES, {}), k = keyOf(G), fresh = times[k] == null || sc < times[k];
   if (fresh) { times[k] = sc; write(TIMES, times); }
@@ -203,7 +203,8 @@ function tapCell(i, alt = false) {
     return;
   }
   if (ch === OPEN) {
-    if (G.f.nums[i] > 0 && !reads(i)) { note(`That's ${nameOf(readerOfCell(i))}'s number: ask, or point at it.`); return; }
+    if (!G.f.nums[i]) return;                                   // an empty cell counts nothing
+    if (!reads(i)) { note(`That's ${nameOf(readerOfCell(i))}'s number: ask, or point at it.`); return; }
     move({ kind: "chord", cell: i });
     return;
   }
@@ -278,10 +279,11 @@ function useHint() {
   }
   const seats = readerSeats(), h = hint(G.f, G.run, { sees: i => reads(i, seats) });
   if (!h) { note(seats ? "Your numbers prove nothing more just now: the others' might. Ask, or point." : "Nothing to prove from what's open: check your flags."); return; }
-  shownHint = h;
+  shownHint = h.level === 4 ? { ...h, from: [] } : h;      // the count is every number at once: none ringed
   const what = h.mine ? (h.cells.length > 1 ? "mines" : "a mine") : "safe";
   const flagged = !h.mine && h.cells.some(c => isFlag(G.run.cells[c]));
-  note(`Hint: the ringed ${h.cells.length > 1 ? "cells are" : "cell is"} ${what}${flagged ? " (a flag there is wrong)" : ""}; the ${h.from.length > 1 ? "numbers" : "number"} in brass ${h.from.length > 1 ? "say" : "says"} so.`, "good");
+  const ring = h.mine ? "red" : "green", by = h.level === 4 ? "the mines left say so" : `the ${h.from.length > 1 ? "numbers" : "number"} ringed blue ${h.from.length > 1 ? "say" : "says"} so`;
+  note(`Hint: the ${h.cells.length > 1 ? "cells" : "cell"} ringed ${ring} ${h.cells.length > 1 ? "are" : "is"} ${what}${flagged ? " (a flag there is wrong)" : ""}; ${by}.`, "good");
   if (G.kind === "team") teamAct({ kind: "hint", cell: -1 }, true);
   else { G.run.hints++; save(); }
   view.reveal(h.cells[0]);
@@ -364,6 +366,7 @@ const duel = createDuel({
         const t = duel.together.room?.data;                 // the table as the room last had it, until the watch answers
         if (t?.n === n) onTable(t);
         watchTable();
+        tell();
       });
       return;
     }
@@ -431,7 +434,9 @@ function teamAct(act, quiet = false) {
     if (!quiet && G.run.strikes > struckBefore) { navigator.vibrate?.(80); note(G.run.lost ? "A mine. The field is lost." : `A mine: it stays shown, and costs the team ${STRIKE} s.`, "bad"); }
     else if (!quiet && act.kind === "tell") note("Your number there is shown to everyone now.");
   } else if (act.kind === "chord") { flash(act.cell); return; }
-  duel.together.act(g => teamMove(g, G.f, mySeat(), act, { now: duel.now(), sudden: G.rule === "sudden" }));
+  // what it was made on, held for the transaction: by the time it runs a rematch may have dealt another field
+  const n = G.n, f = G.f, seat = mySeat(), sudden = G.rule === "sudden";
+  duel.together.act(g => g.n === n && teamMove(g, f, seat, act, { now: duel.now(), sudden }));
   tellSoon();
 }
 const reported = new Set();
@@ -439,7 +444,8 @@ function teamDone(fd) {
   const t = G.table, key = `${t.created}-${t.n}`;
   if (reported.has(key)) return;
   reported.add(key);
-  reportDuo("mines", key, { score: teamScore(t, fd), won: !!fd.end.won, coop: true, lower: true }).catch(e => console.error(e));
+  // a field lost to a mine has no time to count: the pair's best is of fields cleared
+  reportDuo("mines", key, { score: fd.end.won ? teamScore(t, fd) : null, won: !!fd.end.won, coop: true, lower: true }).catch(e => console.error(e));
 }
 
 // ---------- drawing ----------
@@ -448,7 +454,7 @@ const put = (id, v) => { if (shown[id] !== v) { shown[id] = v; $(id).textContent
 function drawStrip() {
   if (!G) { put("left", "0"); put("score", "0:00"); put("penalty", ""); put("what", ""); return; }
   const r = G.run, pen = penalty(r);
-  put("left", String(minesLeft(G.f, r.cells)));
+  put("left", String(r.won ? 0 : minesLeft(G.f, r.cells)));        // a cleared field has every mine found
   put("score", fmt(elapsed() / 1000 + pen));
   put("penalty", pen ? `+${pen} s` : "");
   put("what", whatLine());
