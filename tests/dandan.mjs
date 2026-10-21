@@ -9,7 +9,7 @@ import { RES, T } from "../dandan-spells.js";
 import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack, knownIn } from "../dandan-core.js";
 import { rules } from "../dandan-rules.js";
 import { botMove, randomMove, randomAnswer } from "../dandan-bot.js";
-import { thinkMove, BUDGET } from "../dandan-think.js";
+import { thinkMove, BUDGET, DEPTH } from "../dandan-think.js";
 import { newRecord, applyMove, botMove as seatBot, seeded, shuffle } from "../seats.js";
 import { roundTrip, same } from "./rtdb.js";
 import { J, scene, islandsOf, go, refused, idIn, onBf, names, cast, pass, answer, drive, resolveStack, stackNames, sidOf } from "./dandan-scene.js";
@@ -719,6 +719,11 @@ test("it takes a free mulligan on a hand short of lands, keeps a good one, and k
     && r.pending.options.some(o => o[0].sid === r.pending.sid) && hard(r, 0).targets?.[0]?.sid !== sidOf(r, "Dandân") && medium(r, 0).targets?.[0]?.sid !== sidOf(r, "Dandân"));
 }
 {
+  // the end of its main phases with its land still to play: it goes down, a drop kept back being lost for good
+  const s = scene({ active: 0, step: "main2", turn: 6, hand: [["Island", "Memory Lapse", "Brainstorm"], ["Island", "Dandân"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 3)] });
+  both("its land played at the end of its main phases, not kept back", s, 0, m => m.t === "land");
+}
+{
   const s = scene({ active: 0, step: "main2", hand: [["Memory Lapse", "Take Inventory"], ["Island", "Island", "Island", "Dandân"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 3)] });
   both("two kept open for Memory Lapse rather than tapping out for Take Inventory", s, 0, m => m.t === "pass");
   let b = scene({ hand: [["Izzet Boilerworks"], []], bf: [[0, "Island"], [0, "Island", { tapped: true }]], hold: 0 });
@@ -797,6 +802,28 @@ test("Hard plays the same move from the same position, and its moves are always 
     }
   }
   return n >= 12 || `only ${n} decisions`;
+});
+test("Hard's thinking (the menu's): Quick is the move measured; each deeper setting plays more deals, never a shorter look, with more time for a slow phone", () => {
+  const order = ["quick", "long", "deep", "deepest"], turns = b => b.turns ?? 2;
+  if (Object.keys(DEPTH).join() !== order.join()) return `the settings are ${Object.keys(DEPTH)}`;
+  if (DEPTH.quick !== BUDGET.move) return "Quick isn't the move the tests measure";
+  return order.slice(1).every((k, i) => DEPTH[k].deals > DEPTH[order[i]].deals && DEPTH[k].ms > DEPTH[order[i]].ms && turns(DEPTH[k]) >= turns(DEPTH[order[i]]));
+});
+test("…and a deeper setting's move is legal, and the same from the same position", () => {
+  let s = restore(J(deal({ rng: seeded(6) })));
+  const rng = seeded(6);
+  for (let i = 0; i < 400 && !s.over; i++) {
+    const who = toMove(s);
+    if (!s.pending && s.turn >= 4 && moves(s, who, true).length) {   // something to do besides passing
+      const sure = x => thinkMove(x, who, { ...DEPTH.long, ms: Infinity });
+      const a = sure(s), b = sure(J(s));
+      if (JSON.stringify(a) !== JSON.stringify(b)) return `${JSON.stringify(a)} then ${JSON.stringify(b)}`;
+      go(s, who, a);
+      return true;
+    }
+    s = go(s, who, botMove(s, who, { rng, level: "medium" }));
+  }
+  return "no decision with a choice in it";
 });
 test("its answers are always legal ones, for every kind of question and at every level", () => {
   // a game played at random reaches every question; the computer is asked each one, at each level, and the answer tried

@@ -2,9 +2,10 @@
 // dandan-engine.js's, the cards dandan-cards.js's and dandan-spells.js's, the computer players dandan-bot.js's (Hard's
 // look-ahead, dandan-think.js, runs in dandan-worker.js so the table never stops while it thinks), the coach's words
 // dandan-coach.js's, the running seats.js's (solo, or a table through seats-ui.js). This page draws the table: the
-// other player's side across the top, the stack and the piles between, yours below, then your hand, the coach's line
-// and the buttons. A card is picked by tapping it; what it can do now is a button, and a spell that needs a target
-// lights the legal ones on the table.
+// other player's side across the top, the library, the turn and the graveyard between, yours below, under it the card
+// read (with the stack and any question) beside the log, then your hand, the coach's line and the buttons. A card is
+// read by pointing at it or tapping it; what it can do now is a button, and a spell that needs a target lights the
+// legal ones on the table.
 import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
 import { moves } from "./dandan-engine.js";
@@ -29,9 +30,20 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // the coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
 // otherwise; always, its move at each of your decisions, ringed on the table
 const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
-let opts = { level: "hard", hold: false, coach: "hints", ...read(OPTS, {}) };
+// how long Hard thinks over a move (dandan-think.js's DEPTH), with what that takes on a phone
+const THINKING = [["quick", "Quick"], ["long", "Long"], ["deep", "Deep"], ["deepest", "Deepest"]];
+const THINK_TIME = {
+  quick: "On a phone, under a second a move as a rule.", long: "On a phone, a second or two a move; up to ten.",
+  deep: "On a phone, several seconds a move; up to forty.", deepest: "On a phone, half a minute a move; up to two minutes.",
+};
+// the computer's pace: how long what it does stays on the table before its next move, or until you tap
+const PACES = [["quick", "Quick"], ["steady", "1.5 s"], ["slow", "3 s"], ["tap", "Tap to continue"]];
+const SHOWN_MS = { steady: 1500, slow: 3000 };
+let opts = { level: "hard", hold: false, coach: "hints", think: "quick", pace: "quick", full: true, ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
+if (!THINKING.some(([k]) => k === opts.think)) opts.think = "quick";
+if (!PACES.some(([k]) => k === opts.pace)) opts.pace = "quick";
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -84,6 +96,8 @@ function words(text) {
 // ---------- what's on screen, apart from the game: the pick being made ----------
 const blank = () => ({ look: null, arm: null, picks: [], atk: [], blk: [], blkSel: null, order: [], bend: null, dlgOff: false, yard: false });
 let ui = blank(), uiKey = "";
+let hover = null;                                  // the card a mouse or pen is on, read below your side (a finger taps instead)
+const POINTER = matchMedia("(hover: hover)").matches;
 let MV = [];                                       // the moves the viewer could make now (every card once)
 let CARD = null, CARD_GO = [];                     // the card in its sheet ({ id }), and the sheet's buttons
 // the coach's weighing of your decision now ({ key, r, state, seat }), asked once (a Hint, or Always unasked); the Hint
@@ -115,7 +129,7 @@ function askThink(kind, state, seat, move = null) {
     try { return Promise.resolve({ result: think(state, seat, { ...BUDGET.here, must: kind === "check" ? move : null }) }); }
     catch (err) { return Promise.resolve({ error: String(err) }); }
   }
-  return new Promise(res => { const id = ++wk.n; wk.waiting.set(id, res); wk.w.postMessage({ id, kind, state, seat, move }); });
+  return new Promise(res => { const id = ++wk.n; wk.waiting.set(id, res); wk.w.postMessage({ id, kind, state, seat, move, depth: opts.think }); });
 }
 /** A position's key: the state as the runner hands it to the computer (FNV-1a of its JSON). */
 function keyOf(state) {
@@ -145,11 +159,60 @@ function holdForBot() {
   return true;
 }
 const pageRules = { ...rules, bot: (s, seat, ctx) => (ctx.level === "hard" && botMoves.get(keyOf(s))) || rules.bot(s, seat, ctx) };
+/** Thinking changed in the menu: a move being worked out at the old depth is dropped and asked again at the new one. */
+function rethink() {
+  const wk = workers.bot;
+  if (wk) {
+    wk.w.terminate();
+    workers.bot = undefined;
+    for (const f of wk.waiting.values()) f({});
+  }
+  botMoves.clear();
+  botAsked = "";
+  page.runner.kick();
+}
+
+// ---------- the computer's pace ----------
+// What the computer does stays on the table a while before its next move (1.5 s, 3 s), or until you tap Continue
+// (solo); Quick is the runner's own pace. A move of yours, and what follows from it at once, needs no waiting: you made
+// it. A turn's first line marks the turn and isn't something done.
+// fresh: the newest thing done (n counts them, ln is the log's last line read), when it came, whether your own move did
+// it; tapped: the n Continue was last tapped at
+let fresh = { game: 0, ln: 0, n: 0, at: 0, mine: true }, tapped = 0;
+function noteFresh(prev, v) {
+  const s = v.state;
+  if (!s) return;
+  const ln = s.ln || 0;
+  if (v.G.seq !== fresh.game) { fresh = { game: v.G.seq, ln, n: 0, at: 0, mine: true }; tapped = 0; return; }
+  if (ln <= fresh.ln) return;
+  if (!s.log.some(e => e.n > fresh.ln && !/^Turn \d+:/.test(e.t))) { fresh.ln = ln; return; }
+  const mine = !!prev?.G && prev.G.seq === v.G.seq && prev.seat != null && prev.toMove === prev.seat;
+  fresh = { game: v.G.seq, ln, n: fresh.n + 1, at: Date.now(), mine };
+}
+const BASE_PACE = () => (opts.level === "hard" ? 450 : 1000);
+/**
+ * How long the computer's next move waits: Quick, the runner's pace; else what it last did stays its while, and a move
+ * of its that showed nothing (a pass) doesn't hold up the next, which is the one to see.
+ */
+function paceNow() {
+  const ms = SHOWN_MS[opts.pace];
+  return ms && !fresh.mine ? Math.max(250, fresh.at + ms - Date.now()) : BASE_PACE();
+}
+/** Tap to continue: the computer's next move waits, after something it did, until Continue. */
+const tapHold = () => opts.pace === "tap" && !IN_FRAME && !!V?.G && V.mode === "solo" && !V.over && V.toMove != null
+  && !!V.seats[V.toMove]?.bot && !fresh.mine && fresh.n > tapped;
+function goOn() {
+  tapped = fresh.n;
+  draw();
+  page.runner.kick();
+}
 
 page = seatPage({
-  rules: pageRules, id: "dandan", app: 1, pace: () => (opts.level === "hard" ? 450 : 1000), botName: () => "Gill", level: () => opts.level, voice: () => false,
-  hold: holdForBot,
+  rules: pageRules, id: "dandan", app: 1, pace: paceNow, botName: () => "Gill", level: () => opts.level, voice: () => false,
+  // Hard works its move out while a tap is awaited, so it comes the moment you tap
+  hold: () => { const thinking = holdForBot(); return tapHold() || thinking; },
   onView: v => {
+    noteFresh(V, v);
     V = v;
     const key = v.G ? `${v.G.seq}:${v.G.n}` : "";
     if (key !== uiKey) {
@@ -294,13 +357,13 @@ function draw() {
   const v = V;
   document.body.classList.toggle("dd-watch", !!v?.G && v.seat == null);
   if (!v?.G) {
-    for (const id of ["foe", "me", "hand", "log"]) $(id).replaceChildren();
-    $("mid").innerHTML = `<p class="dd-lead">One deck of eighty cards, one library, one graveyard, shared. Win with Dandâns, which can only attack across an Island.</p>`;
+    for (const id of ["foe", "mid", "me", "hand", "log"]) $(id).replaceChildren();
+    $("read").innerHTML = `<p class="dd-lead">One deck of eighty cards, one library, one graveyard, shared. Win with Dandâns, which can only attack across an Island.</p>`;
     $("controls").innerHTML = `<button class="btn primary dd-go" type="button" data-act="new">New game</button>`;
     return;
   }
   const s = S(), me = v.seat ?? 0;
-  if (v.G.seq !== notesGame) { notesGame = v.G.seq; notes = []; word = null; }
+  if (v.G.seq !== notesGame) { notesGame = v.G.seq; notes = []; word = null; hover = null; }
   if (word && s.turn > word.turn + 1) word = null;
   if (advice && advice.key !== decisionOf(v)) advice = null;
   if (hinted && hinted.key !== decisionOf(v)) hinted = null;
@@ -308,8 +371,9 @@ function draw() {
   RING = myDecision() ? rings(advised(v)) : new Set();
   const q = question();
   drawZone($("foe"), 1 - me, q);
+  drawStrip();
   drawZone($("me"), me, q);
-  drawMid(q);
+  drawRead(q);
   drawHand(q);
   drawLog();
   drawCoach(v);
@@ -367,13 +431,14 @@ function landChip(p, armed) {
   return `<button type="button" class="dd-land ${cls}${p.tapped ? " tapped" : ""}${p.tc ? " bent" : ""}${armed.has(`c:${p.id}`) ? " tgt" : ""}${ui.look?.id === p.id ? " look" : ""}${RING.has(`t:c:${p.id}`) ? " advised" : ""}" data-perm="${p.id}" data-tk="c:${p.id}" aria-label="${esc(nm(p.id))}${p.tapped ? ", tapped" : ""}">${esc(text)}</button>`;
 }
 
-// ---------- the middle: what's happening, the stack, the piles ----------
+// ---------- between the two sides: the library, the turn and who's to move, the graveyard ----------
 function waitLine() {
   const s = S(), tm = V.toMove;
   if (s.over || tm == null) return "";
   if (V.seat == null) return `${nameOf(tm)} to move`;
   if (tm === V.seat) return s.pending ? "Your answer" : s.stack.length ? "Your priority: answer, or let it resolve" : "Your move";
-  return `<span class="dd-thinking">${esc(nameOf(tm))} is ${s.pending ? "choosing" : "thinking"}</span>`;
+  if (tapHold()) return `${esc(nameOf(tm))} waits for your tap`;
+  return `${sextant().outerHTML}${esc(nameOf(tm))} is ${s.pending ? "choosing" : "thinking"}`;
 }
 function headline() {
   const s = S();
@@ -389,34 +454,45 @@ function itemWords(it) {
 }
 const stackName = it => (it ? STACK_WORDS[it.name] || it.name : "a spell");
 
-function drawMid(q) {
-  const s = S(), box = $("mid"), armed = armedKeys();
-  const lib = s.lib.length, known = topKnown(s, V.seat ?? 0);
-  const stack = [...s.stack].reverse().map(it => {
+function drawStrip() {
+  const s = S(), lib = s.lib.length, known = topKnown(s, V.seat ?? 0);
+  $("mid").innerHTML = `<button type="button" class="dd-pile" data-act="lib" aria-label="Library, ${lib} cards"><b>${lib}</b><small class="${known != null ? "known" : ""}">${known != null ? `▲ ${esc(short(nm(known)))}` : "Library"}</small></button>
+    <div class="dd-phase"><b>${headline()}</b><span class="dd-wait">${waitLine()}</span></div>
+    <button type="button" class="dd-pile${RING.has("pile:yard") ? " advised" : ""}" data-act="yard" aria-label="Graveyard, ${s.yard.length} cards"><b>${s.yard.length}</b><small>Graveyard</small></button>`;
+}
+
+// ---------- below your side: the card read, and what has happened ----------
+// The left column: the question put to you or the target being chosen, then the stack, then the card read: the one a
+// mouse or pen is on, else the one tapped, else the stack's top (what's being cast, in full). The right: the log.
+function drawRead(q = question()) {
+  const s = S(), armed = armedKeys();
+  const head = q ? q.say
+    : ui.arm ? `<p class="dd-q">${esc(ui.arm.label)}: choose ${ui.arm.moves[0].targets[0].k === "p" ? "a player" : ui.arm.moves[0].targets[0].k === "g" ? "a card in the graveyard" : "a target"}</p><p class="dd-sub">The lit ones are legal.</p>`
+    : s.over ? `<p class="dd-q">${esc(words(s.log[s.log.length - 1]?.t || ""))}</p>` : "";
+  const stack = s.stack.length ? `<div class="dd-stack" aria-label="The stack, the last cast on top">${[...s.stack].reverse().map(it => {
     const w = itemWords(it);
     return `<button type="button" class="dd-st ${isMe(it.ctl) ? "mine" : "theirs"}${armed.has(`s:${it.sid}`) ? " tgt" : ""}${RING.has(`t:s:${it.sid}`) ? " advised" : ""}" data-tk="s:${it.sid}" data-sid="${it.sid}">
       <b>${esc(w.name)}</b><span>${esc(nameOf(it.ctl))}${w.to ? ` → ${esc(w.to)}` : ""}</span></button>`;
-  }).join("");
-  box.innerHTML = `<div class="dd-mh"><div class="dd-mt"><b>${headline()}</b><span class="dd-wait">${waitLine()}</span></div>
-      <button type="button" class="dd-pile" data-act="lib" aria-label="Library, ${lib} cards"><b>${lib}</b><small class="${known ? "known" : ""}">${known != null ? `▲ ${esc(short(nm(known)))}` : "Library"}</small></button>
-      <button type="button" class="dd-pile${RING.has("pile:yard") ? " advised" : ""}" data-act="yard" aria-label="Graveyard, ${s.yard.length} cards"><b>${s.yard.length}</b><small>Graveyard</small></button></div>
-    ${stack ? `<div class="dd-stack" aria-label="The stack, top first">${stack}</div>` : ""}
-    <div class="dd-mb fit-scroll">${midBody(q)}</div>`;
+  }).join("")}</div>` : "";
+  const top = s.stack[s.stack.length - 1], id = q || ui.arm ? null : hover ?? ui.look?.id ?? top?.card ?? top?.src ?? null;
+  const card = id != null ? detail(id) : head || stack ? "" : `<p class="dd-sub">${POINTER ? "Point at a card to read it here." : "Tap a card to read it here."}</p>`;
+  $("read").innerHTML = head + stack + card;
 }
-
-function midBody(q) {
-  const s = S();
-  if (q) return q.say;
-  if (ui.arm) return `<p class="dd-q">${esc(ui.arm.label)}: choose ${ui.arm.moves[0].targets[0].k === "p" ? "a player" : ui.arm.moves[0].targets[0].k === "g" ? "a card in the graveyard" : "a target"}</p><p class="dd-sub">The lit ones on the table are legal.</p>`;
-  if (ui.look) return detail(ui.look.id);
-  if (s.over) return `<p class="dd-q">${esc(words(s.log[s.log.length - 1]?.t || ""))}</p>`;
-  if (s.pending) return `<p class="dd-sub">${esc(nameOf(s.pending.seat))} is deciding…</p>${miniLog()}`;
-  return miniLog();
+/** The card a pointer or a tap is on: in the hand, on the table, on the stack, named in a line. */
+function cardAt(el) {
+  const c = el.closest?.("[data-card], [data-perm], [data-sid], [data-look], [data-qc]");
+  if (!c) return null;
+  if (c.dataset.sid != null) { const it = S()?.stack.find(x => x.sid === Number(c.dataset.sid)); return it?.card ?? it?.src ?? null; }
+  const n = Number(c.dataset.card ?? c.dataset.perm ?? c.dataset.look ?? c.dataset.qc);
+  return Number.isInteger(n) ? n : null;
 }
-/** The last few lines, under the stack (sideways, the log has its own column). */
-function miniLog() {
-  return `<ol class="dd-minilog">${S().log.slice(-5).map(e => `<li>${esc(words(e.t))}</li>`).join("")}</ol>`;
-}
+$("app").addEventListener("pointerover", e => {
+  if (e.pointerType === "touch" || !V?.G) return;
+  const id = cardAt(e.target);
+  if (id == null || id === hover) return;
+  hover = id;
+  drawRead();
+});
 
 /** A card's type line in words. */
 const typeLine = d => (d.type === "creature" ? `Creature · ${d.pt[0]}/${d.pt[1]} Fish` : d.type === "land" ? (d.subs.length ? `Land — ${d.subs.join(" ")}` : "Land") : TYPE_WORDS[d.type] + (d.aftermath ? " · aftermath" : ""));
@@ -593,6 +669,7 @@ function drawControls(q) {
     list = lookActions();
     list.push({ label: "Pass", sub: passWords(), kind: list.length ? "" : "primary", fn: () => act({ t: "pass" }) });
   }
+  else if (tapHold()) list = [{ label: "Continue", sub: "their next move", kind: "primary", fn: goOn }];
   else list = [{ label: "Wait", sub: s.pending ? "their choice" : "their move", off: true, fn: () => {} }];
   BTN = list;
   box.dataset.n = list.length;
@@ -1041,15 +1118,39 @@ function openMenu() {
   page.menu(play);
   play.append(action("The rules and cards", showRules, "link"));
   play.append(action("Copy log", copyLog, "link"));
+  if (opts.full) play.append(action("All games", () => $("appsBtn").click(), "link"));   // the title that opens them is put away
   const set = part(body, "settings");
-  set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); page.runner.kick(); }));
+  // Hard's thinking, shown while the computer is Hard (at a table the phone that runs it thinks on its own thread, at Quick)
+  const time = line(THINK_TIME[opts.think]);
+  const thinking = [choice("Hard's thinking", THINKING, opts.think, v => { opts.think = v; saveOpts(); time.textContent = THINK_TIME[v]; rethink(); }), time];
+  const showThinking = () => { for (const el of thinking) el.hidden = opts.level !== "hard" || page.atTable; };
+  set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); showThinking(); page.runner.kick(); }), ...thinking);
+  showThinking();
+  set.append(choice("Computer's pace", PACES, opts.pace, v => { opts.pace = v; saveOpts(); draw(); page.runner.kick(); }));
   set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; draw(); }));
+  set.append(toggle("Full screen", opts.full, fullScreen));
   set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); }));
   set.append(line("Holding priority lets you cast again before the other player can answer the first spell."));
   const r = read(RECORD, { played: 0, won: 0 }), st = read("dandan:streak", { now: 0, best: 0 });
   part(body, "about").append(line(r.played ? `Won ${r.won} of ${r.played} games${st.best > 1 ? `; longest run of wins ${st.best}` : ""}.` : "No games finished yet."));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
+
+// ---------- full screen ----------
+// The header gives way to the menu's button, faded at the top right (the title, the partner's pill and Rules go: the
+// rules and the other games are in the menu); turned on from the menu, the browser's own full screen too, where it has
+// one and isn't an app on the home screen already.
+const showFull = () => $("app").classList.toggle("dd-full", !!opts.full);
+function fullScreen(on) {
+  opts.full = on;
+  saveOpts();
+  showFull();
+  try {
+    if (on && document.fullscreenEnabled && !document.fullscreenElement && !matchMedia("(display-mode: standalone)").matches) document.documentElement.requestFullscreen().catch(() => {});
+    else if (!on && document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  } catch { /* no full screen to be had */ }
+}
+showFull();
 
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "dandan");

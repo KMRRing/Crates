@@ -17,7 +17,7 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="dandan fit-screen beside">
+<div id="app" class="dandan fit-screen wide">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon dd-mark" aria-hidden="true"></span>Dandan</button></h1>
@@ -29,11 +29,14 @@
 
   <section id="board" class="dd-board fit-grow" aria-label="The table">
     <div id="foe" class="dd-zone foe"></div>
-    <div id="mid" class="dd-mid" aria-live="polite"></div>
+    <div id="mid" class="dd-strip" aria-live="polite"></div>
     <div id="me" class="dd-zone me"></div>
+    <div class="dd-below">
+      <div id="read" class="dd-read" aria-label="The card"></div>
+      <ol id="log" class="dd-log" aria-label="What has happened"></ol>
+    </div>
   </section>
   <section id="side" class="dd-side">
-    <ol id="log" class="dd-log" aria-label="What has happened"></ol>
     <div id="hand" class="dd-hand" aria-label="Your hand"></div>
     <div id="coach" class="dd-coach" aria-live="polite" hidden></div>
     <div id="controls" class="dd-controls"></div>

@@ -218,8 +218,6 @@ export function playOut(c, seat, to, rng, judge = winChance) {
 // deals where it was there to make), so each side comes to play what is best for it there, not only Medium's habit; a
 // node's choices widen as it's visited, and each deal grows the tree by one decision, Medium playing on from there.
 const WIDTH = 4, EXPLORE = 0.3;
-/** How many turns the tree reaches (its decisions searched; Medium's after): the playing out's own two. */
-const TREE_TURNS = 2;
 /**
  * A move as the seat sees it, so a decision's children are the same in every deal: cards by name, permanents by
  * controller and name, the other player's hidden choices (cards put back, put on the bottom, their order) by kind only.
@@ -269,22 +267,21 @@ function choose(node, ms, c, seat, who, at, explore = EXPLORE) {
   return { k: best, m };
 }
 /**
- * One deal of a move weighed, down its tree: each player's decisions searched (choose) until a new one is reached or
- * the tree's turns are past, Medium moving both seats from there until the turn `to` begins; the seat's chance there
- * (the judge), counted back up the path for each player at its own decisions. seen: where it was left, and the other
- * player's first choice on the way (their answer, for the coach's words).
+ * One deal of a move weighed, down its tree: each player's decisions searched (choose) until a new one is reached,
+ * Medium moving both seats from there until the turn `to` begins; the seat's chance there (the judge), counted back up
+ * the path for each player at its own decisions. The tree may reach as far as the play does: how deep it grows is
+ * the deals'. seen: where it was left, and the other player's first choice on the way (their answer, for the coach's
+ * words).
  */
-export function treePlay(c, seat, root, to, treeTo, rng, judge = winChance, seen = null, explore = EXPLORE) {
+export function treePlay(c, seat, root, to, rng, judge = winChance, seen = null, explore = EXPLORE) {
   const opp = other(seat), path = [];
   let node = root, growing = true;
   for (let i = 0; i < 4000 && !c.over; i++) {
     if (c.turn >= to && !c.stack.length) break;
-    // where it stands at the tree's end (the coach's "two turns on"), however much further it's played
-    if (seen && seen.d == null && c.turn >= treeTo && !c.stack.length) Object.assign(seen, where(c, seat));
     const who = toMove(c);
     if (who == null) break;
     let m = null;
-    if (growing && c.turn < treeTo) {
+    if (growing && c.turn < to) {
       const ms = candidates(c, who, { wide: WIDTH });
       if (ms.length > 1) {
         // a decision's children are keyed by who decides and where, as well as by the move: in other deals the same
@@ -298,7 +295,7 @@ export function treePlay(c, seat, root, to, treeTo, rng, judge = winChance, seen
     } else m = policyMove(c, who, { rng });
     // their answer, for the coach: what they do first in their own main phase (their turn's plan), else first at all
     // (a land is no answer)
-    if (seen && who === opp && m.t !== "pass" && m.t !== "land" && !seen.main && c.turn < treeTo) {
+    if (seen && who === opp && m.t !== "pass" && m.t !== "land" && !seen.main && c.turn < to) {
       const main = c.active === opp && /^main/.test(c.step) && !c.stack.length;
       if (main || seen.a == null) { seen.a = moveName(m, c, seat); seen.main = main; }
     }
@@ -306,7 +303,7 @@ export function treePlay(c, seat, root, to, treeTo, rng, judge = winChance, seen
   }
   const v = judge(c, seat);
   for (const [k, who] of path) { k.n++; k.w += who === seat ? v : 1 - v; }
-  if (seen && seen.d == null) Object.assign(seen, where(c, seat));
+  if (seen) Object.assign(seen, where(c, seat));
   return v;
 }
 
@@ -323,7 +320,7 @@ function where(c, seat) {
  * average, for the coach's words), deals, only }. Each move is played out in the same deals, down its own tree; one
  * clearly behind the best (by the gap's standard error, deal by deal) is dropped as the deals go.
  * opts: deals (most), first (deals before any is dropped), turns (how far ahead: the turn after next, 2; the tree
- * reaches as far), wide (moves weighed), must (a move to keep to the end: the coach's check), ms (a backstop on the
+ * may reach as far), wide (moves weighed), must (a move to keep to the end: the coach's check), ms (a backstop on the
  * time), judge (the chance of winning where a game is left), explore (the tree's: how much benefit of the doubt a
  * choice tried less gets).
  */
@@ -333,7 +330,7 @@ export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, mus
   if (must && !cands.some(m => key(m) === key(must))) cands.push(must);
   const n = cands.length;
   if (n === 1) return { best: cands[0], list: [{ move: cands[0], mean: NaN, se: 0, n: 0 }], deals: 0, only: true };
-  const to = s.turn + turns, treeTo = s.turn + Math.min(turns, TREE_TURNS), seed = seedOf(s, seat);
+  const to = s.turn + turns, seed = seedOf(s, seat);
   const vals = cands.map(() => []), seen = cands.map(() => []), roots = cands.map(newNode);
   let alive = cands.map((_, i) => i), d = 0;
   while (d < deals && alive.length > 1) {
@@ -344,7 +341,7 @@ export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, mus
       const res = act(c, seat, cands[i], { rng: r, quiet: true });
       const at = {};
       if (typeof res === "string") vals[i].push(-1);
-      else vals[i].push(treePlay(c, seat, roots[i], to, treeTo, r, judge, at, explore));
+      else vals[i].push(treePlay(c, seat, roots[i], to, r, judge, at, explore));
       seen[i].push(at);
     }
     d++;
@@ -381,6 +378,11 @@ export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, mus
     const sd = Math.sqrt(diffs.reduce((a, x) => a + (x - m) ** 2, 0) / Math.max(1, k - 1));
     if (m < sd / Math.sqrt(k) + 0.005) best = list[0];
   }
+  // nor does a pass at the end of the main phases outweigh the land Medium would play: it loses the drop for good, which
+  // the look can't see past (the judge counts a land in hand nearly as one down: the search kept one back now and
+  // then, by a point or two in its favour at any depth), and nothing is gained by it, as the reads take it of the other
+  // player (dandan-observe.js). A land kept back at the first main phase may still go down after combat.
+  if (s.step === "main2" && !s.stack.length && best.move.t === "pass" && list[0].move.t === "land") best = list[0];
   // each other move against the chosen one, deal by deal over the deals they share: how often the chosen one came out
   // ahead (better), and behind (worse); what's left were even
   for (const c of list) {
@@ -420,6 +422,18 @@ export const BUDGET = {
   think: { deals: 96, wide: 9, ms: 6000 },
   check: { deals: 96, wide: 9, ms: 7000 },
   here: { deals: 32, wide: 7, ms: 1500 },
+};
+
+/**
+ * How long Hard thinks, chosen in the menu: Quick is its move above (the one the tests measure); each deeper setting
+ * plays four times the deals, and so grows the tree further down the lines that matter (a decision a deal), its time
+ * on a slow phone held by the backstop.
+ */
+export const DEPTH = {
+  quick: BUDGET.move,
+  long: { deals: 256, ms: 12000 },
+  deep: { deals: 1024, ms: 40000 },
+  deepest: { deals: 4096, ms: 120000 },
 };
 
 /** Hard's move: Medium's answer to a question it doesn't weigh (the mulligan, a name), else the look-ahead's best. */
