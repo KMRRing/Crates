@@ -104,11 +104,13 @@ async function listen() {
     audio ??= new AudioContext();
     const resumed = audio.resume();              // in the tap itself: iOS starts a page's sound only from one
     if (!audio.audioWorklet) { say("This browser can't listen: an iPhone needs iOS 14.5 or newer.", "bad"); return false; }
+    R = null;                                    // the last reading is kept already: a stop while asking keeps nothing
     setListening(true, "Asking for the microphone…");
     // the phone's voice processing off: echo cancelling, noise suppression and level control all smear a tick
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: { ideal: 1 } } });
     await resumed;
     if (!workletReady) { await audio.audioWorklet.addModule("timegrapher-worklet.js"); workletReady = true; }
+    if (!listening) { teardown(); return false; }             // stopped while the microphone was being asked for
     source = audio.createMediaStreamSource(stream);
     node = new AudioWorkletNode(audio, "tg-capture", { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [1] });
     node.port.onmessage = e => feed(e.data);
@@ -360,7 +362,7 @@ function show(res) {
   $("amp").textContent = amp ? `≈${Math.round(res.amp)}°` : "—";
   $("ampSub").textContent = s.flexure ? "no balance" : s.coaxial ? "co-axial: none" : amp ? `rough · lift ${s.lift}°` : ok ? "noises unclear" : "°";
   meter(res);
-  if (listening && (!S || S.phase !== "settle")) {
+  if (listening && (!S || S.phase === "measure")) {                // a session's placing and settling keep their own words
     if (!ok) say(whyText(res), res.other ? "bad" : "");
     else if (!S) say(`${n0(res.vph)} vph · ${Math.round(res.secs)} s · ${Math.round(res.kept * 100)}% of beats`);
     else if (S.phase === "measure") say(`${pos().name}: ${Math.max(0, Math.ceil(opts.length - heard()))} s more · ${signed(res.rate)} s/d so far`);
@@ -538,12 +540,13 @@ $("wornList").addEventListener("click", e => {
   drawWorn();
 });
 
-/** A name, asked in a sheet of the page's own (resolves to the trimmed name, or null). */
-function askName(title, value = "") {
+/** A name or a number, asked in a sheet of the page's own (resolves to the trimmed text, or null). */
+function askName(title, value = "", { numeric = false } = {}) {
   return new Promise(resolve => {
     const dlg = $("askDlg"), input = $("askInput");
     $("askHead").textContent = title;
     input.value = value;
+    input.inputMode = numeric ? "decimal" : "text";
     const done = v => { dlg.close(); resolve(v); };
     $("askOk").onclick = () => done(input.value.trim().slice(0, 60) || null);
     $("askCancel").onclick = () => done(null);
@@ -616,10 +619,37 @@ function openMenu() {
   }));
   content.append(line(`${c.id === "auto" ? AUTO.src : `${c.cal}: ${c.src}`}${c.lift && !c.flexure ? ` Lift angle ${SURE[c.sure] ? `(${SURE[c.sure]})` : ""}.` : ""}`));
   if (!c.quartz) {
-    content.append(choice("Beat rate (vph)", [["cal", c.vph ? `${n0(c.vph)} (calibre)` : "By ear"], ...(c.vph ? [["auto", "By ear"]] : []), ...MANUAL.filter(v => v !== c.vph).map(v => [String(v), n0(v)])],
-      w.vph ? String(w.vph) : w.vph === 0 ? "auto" : "cal", v => { w.vph = v === "cal" ? null : v === "auto" ? 0 : Number(v); saveW(); drawWatch(); if (R) R.known = null; }));
-    if (!c.flexure) content.append(choice("Lift angle", [["cal", `${c.lift ?? DEFAULT_LIFT}° (calibre)`], ...[38, 44, 49, 50, 51, 52, 53, 54].filter(v => v !== (c.lift ?? DEFAULT_LIFT)).map(v => [String(v), `${v}°`])],
-      w.lift ? String(w.lift) : "cal", v => { w.lift = v === "cal" ? null : Number(v); saveW(); drawWatch(); }));
+    // the calibre's figure, by ear, the rates a timegrapher offers, the watch's own if it has one, or another typed in
+    // (w.vph 0 is "by ear" over a calibre that has a rate)
+    const ownVph = w.vph && !MANUAL.includes(w.vph) && w.vph !== c.vph ? [[String(w.vph), n0(w.vph)]] : [];
+    content.append(choice("Beat rate (vph)", [["cal", c.vph ? `${n0(c.vph)} (calibre)` : "By ear"], ...(c.vph ? [["auto", "By ear"]] : []), ...MANUAL.filter(v => v !== c.vph).map(v => [String(v), n0(v)]), ...ownVph, ["other", "Other…"]],
+      w.vph ? String(w.vph) : w.vph === 0 ? "auto" : "cal", async v => {
+        if (v === "other") {
+          $("menuDlg").close();
+          const typed = await askName("Beats an hour (vph)", w.vph || "", { numeric: true });
+          if (typed == null) return;
+          const got = Number(typed.replace(/[\s,]/g, ""));
+          if (!(got >= 3600 && got <= 360000)) { say("A beat rate is 3,600 to 360,000 vph.", "bad"); return; }
+          w.vph = Math.round(got);
+        }
+        else w.vph = v === "cal" ? null : v === "auto" ? 0 : Number(v);
+        saveW(); drawWatch(); if (R) R.known = null;
+      }));
+    if (!c.flexure) {
+      const base = c.lift ?? DEFAULT_LIFT, list = [38, 44, 49, 50, 51, 52, 53, 54].filter(v => v !== base), ownLift = w.lift && !list.includes(w.lift) && w.lift !== base ? [[String(w.lift), `${w.lift}°`]] : [];
+      content.append(choice("Lift angle", [["cal", `${base}° (calibre)`], ...list.map(v => [String(v), `${v}°`]), ...ownLift, ["other", "Other…"]], w.lift ? String(w.lift) : "cal", async v => {
+        if (v === "other") {
+          $("menuDlg").close();
+          const typed = await askName("Lift angle (degrees)", w.lift || base, { numeric: true });
+          if (typed == null) return;
+          const got = Number(typed.replace(",", "."));
+          if (!(got >= 20 && got <= 90)) { say("A lift angle is 20 to 90°.", "bad"); return; }
+          w.lift = Math.round(got * 10) / 10;
+        }
+        else w.lift = v === "cal" ? null : Number(v);
+        saveW(); drawWatch();
+      }));
+    }
   }
   content.append(action("Add a watch", addWatch), action("Rename this watch", renameWatch), action("Remove this watch", removeWatch, "link"));
   const settings = part(body, "settings");

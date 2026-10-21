@@ -159,12 +159,12 @@ for (const fs of [44100, 48000]) {
 {
   const ids = new Set([...CALIBRES.map(c => c.id), "auto"]);
   const raw = { current: "x", list: [
-    { id: "x", name: "Grande", cal: "jlc-822", vph: null, lift: 51, readings: [{ at: 1, rate: 2.5, be: 0.3, pos: "DU" }, { bad: 1 }], sessions: [{ at: 2, wind: "full", steps: [{ pos: "DU", rate: 1 }, { pos: "XX", rate: 2 }] }, { at: 3, steps: [] }], log: [{ at: 3, off: 1, set: true }, { at: "x", off: 2 }] },
+    { id: "x", name: "Grande", cal: "jlc-822", vph: null, lift: 51, readings: [{ at: 1, rate: 2.5, be: 0.3, pos: "DU" }, { bad: 1 }], sessions: [{ at: 2, wind: "full", steps: [{ pos: "DU", rate: 1 }, { pos: "XX", rate: 2 }, { pos: "CD", rate: -1 }] }, { at: 3, steps: [{ pos: "DU", rate: 1 }] }], log: [{ at: 3, off: 1, set: true }, { at: "x", off: 2 }] },
     { id: "x", name: "twin" }, null, { id: "y", name: "", cal: "nonsense" } ] };
   const w = cleanWatches(JSON.parse(JSON.stringify(raw)), ids), again = cleanWatches(JSON.parse(JSON.stringify(w)), ids);
   check(JSON.stringify(w) === JSON.stringify(again), "the watches come back through JSON as they went");
-  check(w.list.length === 2 && w.list[0].readings.length === 1 && w.list[0].sessions.length === 1 && w.list[0].sessions[0].steps.length === 1 && w.list[0].log.length === 1,
-    "what isn't a reading, a session, a step or a tap is dropped, and a second watch with the same id");
+  check(w.list.length === 2 && w.list[0].readings.length === 1 && w.list[0].sessions.length === 1 && w.list[0].sessions[0].steps.length === 2 && w.list[0].log.length === 1,
+    "what isn't a reading, a session of two positions, a step or a tap is dropped, and a second watch with the same id");
   check(w.list[1].name === "Watch" && w.list[1].cal === "auto" && w.current === "x" && w.list[0].lift === 51, "a nameless watch is called Watch, an unknown calibre is by ear");
   check(JSON.stringify(cleanWatches(null, ids)) === JSON.stringify({ current: null, list: [] }) && cleanWatches({ current: "z", list: [{ id: "a" }] }, ids).current === "a", "nothing, or a current watch that's gone");
 }

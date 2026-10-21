@@ -163,7 +163,7 @@ export function cleanReading(r) {
 export function cleanSession(s) {
   if (!s || !Number.isFinite(s.at)) return null;
   const steps = list(s.steps).map(x => (x && POSITIONS.some(p => p.id === x.pos) && Number.isFinite(x.rate) ? { pos: x.pos, rate: x.rate, be: num(x.be), amp: num(x.amp), quality: num(x.quality) } : null)).filter(Boolean);
-  return steps.length ? { at: s.at, wind: ["full", "24h"].includes(s.wind) ? s.wind : null, steps } : null;
+  return steps.length >= 2 ? { at: s.at, wind: ["full", "24h"].includes(s.wind) ? s.wind : null, steps } : null;   // as summarise needs
 }
 /** A worn-rate log entry, or null. */
 export function cleanEntry(e) {
