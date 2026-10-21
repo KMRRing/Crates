@@ -94,6 +94,17 @@ export function verdict(sum, { category = 1, small = false } = {}) {
   return { level, title: { chronometer: "Chronometer-grade", good: "Well tuned", regulate: "Worth regulating", service: "Worth a service" }[level], lines, checks };
 }
 
+/**
+ * The isochronism (Witschi's Ie): how the mean rate changes from fully wound to 24 hours later, from a watch's latest
+ * session of each. Returns { full, day, change (full less 24 h, Witschi's sign), ie (its size) } or null.
+ */
+export function isochronism(sessions) {
+  const latest = wind => (sessions || []).filter(s => s?.wind === wind && Array.isArray(s.steps)).sort((a, b) => b.at - a.at)[0];
+  const f = latest("full"), d = latest("24h"), sf = f && summarise(f.steps), sd = d && summarise(d.steps);
+  if (!sf || !sd) return null;
+  return { full: sf.mean, day: sd.mean, change: sf.mean - sd.mean, ie: Math.abs(sf.mean - sd.mean) };
+}
+
 /** One reading's words: how its rate stands in the position it was taken in. */
 export function readingWords(rate, { small = false } = {}) {
   const tol = small ? WITSCHI.rateSmall : WITSCHI.rate;

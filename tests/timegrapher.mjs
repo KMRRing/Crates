@@ -9,7 +9,7 @@ import { synthWatch, synthRoom, synthQuartz } from "./timegrapher-synth.js";
 import { createChain, envelopeOf, BAND } from "../timegrapher-dsp.js";
 import { measure, detect, fitBeats, amplitudeOf, liftTimeOf, STANDARD, MANUAL } from "../timegrapher-measure.js";
 import { CALIBRES, byId, DEFAULT_LIFT, SURE } from "../timegrapher-calibres.js";
-import { POSITIONS, summarise, verdict, readingWords, tapOffset, wornRate, cleanWatches, COSC, WITSCHI } from "../timegrapher-records.js";
+import { POSITIONS, summarise, verdict, isochronism, readingWords, tapOffset, wornRate, cleanWatches, COSC, WITSCHI } from "../timegrapher-records.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -132,6 +132,11 @@ for (const fs of [44100, 48000]) {
   check(two && two.n === 2 && two.hv === 4 && summarise([{ pos: "DU", rate: 3 }]) === null && summarise([{ pos: "XX", rate: 1 }, { pos: "YY", rate: 2 }]) === null,
     "two positions make a session; one, or positions that aren't, don't");
   check(COSC[1].mean[0] === -4 && COSC[1].mean[1] === 6 && COSC[2].hv[1] === 10 && WITSCHI.rate[1] === 15 && WITSCHI.be === 0.5, "the limits as published");
+  const sess = (at, wind, base) => ({ at, wind, steps: steps([base, base + 1, base - 1, base, base + 2, base - 2]) });
+  const iso = isochronism([sess(4, "full", 3), sess(5, "24h", 1), sess(2, "full", 10), sess(3, null, 50)]);
+  check(iso && Math.abs(iso.full - 3) < 1e-9 && Math.abs(iso.day - 1) < 1e-9 && Math.abs(iso.change - 2) < 1e-9 && Math.abs(iso.ie - 2) < 1e-9,
+    "the isochronism: the latest fully wound session's mean less the latest after 24 hours'");
+  check(isochronism([sess(1, "full", 3)]) === null && isochronism(null) === null, "and none without one of each");
   check(/magnetised/.test(readingWords(120)) && /COSC/.test(readingWords(3)) && /Witschi/.test(readingWords(12)) && /Fast/.test(readingWords(30)), "one reading's words");
 }
 

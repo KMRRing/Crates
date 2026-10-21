@@ -9,7 +9,7 @@ import { createChain, bandLevel } from "./timegrapher-dsp.js";
 import { measure, detect, MANUAL, QUARTZ } from "./timegrapher-measure.js";
 import { createTrace } from "./timegrapher-trace.js";
 import { CALIBRES, byId, DEFAULT_LIFT, SURE } from "./timegrapher-calibres.js";
-import { POSITIONS, summarise, verdict, readingWords, tapOffset, wornRate, cleanWatches, cleanReading, cleanSession, signed } from "./timegrapher-records.js";
+import { POSITIONS, summarise, verdict, isochronism, readingWords, tapOffset, wornRate, cleanWatches, cleanReading, cleanSession, signed } from "./timegrapher-records.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { dropdown } from "./dropdown.js";
@@ -119,7 +119,10 @@ async function listen() {
     freshReading(audio.sampleRate, "mic");
     R.processing = got.echoCancellation === true || got.noiseSuppression === true || got.autoGainControl === true;
     awake(true);
-    say(R.processing ? "The phone kept its voice processing on: readings may be poorer." : S ? stepWords() : "Listening: press the case back to the microphone.");
+    // a headset's microphone (Bluetooth earphones) samples at 16 or 24 kHz and filters for speech: no use for ticks
+    const headset = got.sampleRate && got.sampleRate < 32000;
+    say(headset ? "That's a headset's microphone: take the earphones off (or out of Bluetooth) and Listen again."
+      : R.processing ? "The phone kept its voice processing on: readings may be poorer." : S ? stepWords() : "Listening: press the case back to the microphone.", headset ? "bad" : "");
     return true;
   } catch (e) {
     teardown();
@@ -351,7 +354,7 @@ function show(res) {
   const ok = res?.ok, s = setting();
   $("rate").textContent = ok ? signed(res.rate) : "—";
   $("rateSub").textContent = ok ? `s/d ±${Math.max(0.1, res.rateErr).toFixed(1)} · phone ±${PHONE}` : "s/d";
-  $("be").textContent = ok && res.be != null ? res.be.toFixed(1) : "—";
+  $("be").textContent = ok && res.be != null && !s.flexure ? res.be.toFixed(1) : "—";
   $("beSub").textContent = ok && res.be == null ? "tock unheard" : s.flexure ? "no balance" : "ms";
   const amp = ok && res.amp != null;
   $("amp").textContent = amp ? `≈${Math.round(res.amp)}°` : "—";
@@ -455,8 +458,10 @@ function showSession(s, w) {
     const x = byPos(p);
     return `<tr${x ? "" : ' class="off"'}><th>${p.name}</th><td>${x ? signed(x.rate) : "—"}</td><td>${x?.be != null ? x.be.toFixed(1) : "—"}</td><td>${x?.amp != null ? `≈${Math.round(x.amp)}` : "—"}</td></tr>`;
   }).join("")}</tbody>`;
+  const iso = isochronism(w.sessions);
   $("resChecks").innerHTML = v.checks.map(k => `<div class="${k.ok ? "ok" : "no"}"><dt>${k.what}</dt><dd>${k.value}<small>${k.limit}</small></dd></div>`).join("")
-    + `<div><dt>Spread</dt><dd>${sum.delta.toFixed(1)} s/d<small>fastest to slowest</small></dd></div>`;
+    + `<div><dt>Spread</dt><dd>${sum.delta.toFixed(1)} s/d<small>fastest to slowest</small></dd></div>`
+    + (iso ? `<div><dt>Full wind to 24 h</dt><dd>${signed(iso.change)} s/d<small>${signed(iso.full)} then ${signed(iso.day)}</small></dd></div>` : "");
   $("resWords").innerHTML = v.lines.map(l => `<p>${esc(l)}</p>`).join("");
   $("resultDlg").showModal();
 }
