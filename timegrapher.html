@@ -13,6 +13,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <script src="theme.js"></script>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dropdown.css">
 <link rel="stylesheet" href="timegrapher.css">
 <link rel="stylesheet" href="themes.css">
 </head>
@@ -25,7 +26,7 @@
   </header>
 
   <div class="tg-strip">
-    <span class="tg-tags"><b id="vphTag"></b><small id="liftTag"></small></span>
+    <span class="tg-watch"><select id="watchSel" class="pool" data-accent="tg" aria-label="Watch"></select><small id="calTag"></small></span>
     <span class="tg-meter" id="meter" role="img" aria-label="Signal"><small>Signal</small><i></i><i></i><i></i><i></i><i></i></span>
   </div>
   <section id="trace" class="tg-trace fit-grow" aria-label="The trace; tap for the beat"><span class="tg-view" id="viewTag">Trace</span></section>
@@ -34,16 +35,51 @@
     <div class="tg-fig"><small>Beat error</small><b id="be">—</b><span id="beSub">ms</span></div>
     <div class="tg-fig"><small>Amplitude</small><b id="amp">—</b><span id="ampSub">°</span></div>
   </section>
+  <ol id="steps" class="tg-steps" aria-label="The positions" hidden></ol>
   <p id="line" class="tg-line" role="status" aria-live="polite"></p>
-  <div class="tg-acts">
+  <div class="tg-acts" id="acts">
     <button class="btn tg-open" type="button" id="openBtn" aria-label="Open a recording">Open</button>
+    <button class="btn tg-skip" type="button" id="skipBtn" hidden>Skip</button>
     <button class="btn primary tg-listen" type="button" id="listenBtn" aria-pressed="false">Listen</button>
+    <button class="btn tg-end" type="button" id="endBtn" hidden>End</button>
   </div>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="resultDlg" class="sheet tg-sheet" aria-labelledby="resHead">
+  <div class="pick-head"><h2 id="resHead"></h2><button class="icon-btn" type="button" id="resClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <p id="resWhat" class="tg-what"></p>
+  <table id="resTable" class="tg-table"></table>
+  <dl id="resChecks" class="tg-checks"></dl>
+  <div id="resWords" class="tg-words"></div>
+</dialog>
+
+<dialog id="histDlg" class="sheet tg-sheet" aria-labelledby="histHead">
+  <div class="pick-head"><h2 id="histHead"></h2><button class="icon-btn" type="button" id="histClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <p id="histWorn" class="tg-what"></p>
+  <ul id="histList" class="tg-hist"></ul>
+</dialog>
+
+<dialog id="wornDlg" class="sheet tg-sheet" aria-labelledby="wornHead">
+  <div class="pick-head"><h2 id="wornHead"></h2><button class="icon-btn" type="button" id="wornClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="tg-worn">
+    <p class="tg-clock" id="wornClock" aria-label="The phone's clock"></p>
+    <button class="btn primary tg-tap" type="button" id="tapBtn">Tap as its seconds hand reaches 12</button>
+    <div class="tg-last" id="wornLast" hidden><span id="wornOff"></span><button class="btn" type="button" id="minusBtn" aria-label="The watch shows a minute less">−1 min</button><button class="btn" type="button" id="plusBtn" aria-label="The watch shows a minute more">+1 min</button></div>
+    <p class="tg-worn-rate"><small>As worn</small><b id="wornRate">—</b><span id="wornNote"></span></p>
+    <button class="btn tg-set" type="button" id="setBtn" aria-pressed="false">I set the watch: the next tap starts afresh</button>
+    <ul id="wornList" class="tg-log"></ul>
+  </div>
+</dialog>
+
+<dialog id="askDlg" class="sheet tg-sheet" aria-labelledby="askHead">
+  <h2 id="askHead"></h2>
+  <input id="askInput" type="text" maxlength="60" autocomplete="off" aria-labelledby="askHead">
+  <div class="tg-ask"><button class="btn" type="button" id="askCancel">Cancel</button><button class="btn primary" type="button" id="askOk">Keep</button></div>
 </dialog>
 
 <input type="file" id="file" accept="audio/*,video/*,.m4a,.wav,.mp3,.mp4,.mov,.aac,.caf" hidden>

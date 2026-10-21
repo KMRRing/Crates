@@ -7,7 +7,9 @@
 // chunked signal chain must give what one block gives.
 import { synthWatch, synthRoom, synthQuartz } from "./timegrapher-synth.js";
 import { createChain, envelopeOf, BAND } from "../timegrapher-dsp.js";
-import { measure, detect, fitBeats, amplitudeOf, liftTimeOf, STANDARD } from "../timegrapher-measure.js";
+import { measure, detect, fitBeats, amplitudeOf, liftTimeOf, STANDARD, MANUAL } from "../timegrapher-measure.js";
+import { CALIBRES, byId, DEFAULT_LIFT, SURE } from "../timegrapher-calibres.js";
+import { POSITIONS, summarise, verdict, readingWords, tapOffset, wornRate, cleanWatches, COSC, WITSCHI } from "../timegrapher-records.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -99,5 +101,65 @@ for (const fs of [44100, 48000]) {
   check(d.vph === 19800, "detect alone names 19,800");
 }
 
+// ---------- the calibres ----------
+{
+  const ids = new Set(CALIBRES.map(c => c.id));
+  check(ids.size === CALIBRES.length && CALIBRES.every(c => c.name && c.cal && c.src), `every calibre has its own id, a name and a source (${CALIBRES.length})`);
+  check(CALIBRES.every(c => c.quartz ? c.vph == null : MANUAL.includes(c.vph)), "every vph is one the menu offers (quartz has none)");
+  check(CALIBRES.every(c => c.quartz || c.flexure ? c.lift == null : c.lift >= 30 && c.lift <= 70 && SURE[c.sure]), "every lift angle is 30–70° and says how sure it is; the Monolithic and quartz have none");
+  const g = byId("jlc-822"), m = byId("fc-810"), r = byId("rado-r763"), q = byId("quartz");
+  check(g.vph === 21600 && g.mine && m.vph === 288000 && m.flexure && r.vph === 21600 && r.lift === 50 && q.quartz, "Korbi's: the 822 at 21,600, the Monolithic at 288,000 with no balance, the Rado's C07.611 at 21,600 and 50°, the Lady's quartz");
+  check(CALIBRES.findIndex(c => !c.mine) > CALIBRES.findLastIndex(c => c.mine), "his watches come first");
+  check(DEFAULT_LIFT === 52 && byId("eta-2824").lift === 50 && byId("unitas-1").vph === 18000 && byId("omega-8500").coaxial, "52° by default; the 2824-2 at 50°, a 6497-1 at 18,000, the Omega co-axial marked");
+}
+
+// ---------- the positions, and what they say ----------
+{
+  const steps = rates => POSITIONS.map((p, i) => ({ pos: p.id, rate: rates[i], be: 0.3, amp: i < 2 ? 285 : 255 }));
+  const s = summarise(steps([4, 6, -2, 0, -4, 1]));
+  check(Math.abs(s.mean - 5 / 6) < 1e-9 && s.delta === 10 && s.XH === 5 && Math.abs(s.XV - -1.25) < 1e-9 && Math.abs(s.hv - 6.25) < 1e-9 && Math.abs(s.dev - (6 - 5 / 6)) < 1e-9,
+    "a session: the mean, the spread, horizontal and vertical means, H − V and the largest from the mean");
+  check(s.ampH === 285 && s.ampV === 255 && s.ampDrop === 30 && s.beMax === 0.3 && s.n === 6, "and the amplitudes flat and hanging, the worst beat error");
+  check(verdict(s).level === "chronometer", `inside COSC's −4/+6, 10 and −6/+8: ${verdict(s).title}`);
+  const flat = verdict(summarise([{ pos: "DU", rate: 2, be: 0.2 }, { pos: "DD", rate: 3, be: 0.2 }]));
+  check(flat.level === "good" && flat.lines.some(l => /five/.test(l)), "two flat positions inside COSC's limits are well tuned, not chronometer-grade: COSC needs five, flat and hanging");
+  check(verdict(summarise(steps([12, 14, 9, 11, 8, 12]))).level === "good", "+11 s/d, positions close: well tuned (inside Witschi's −5/+15)");
+  check(verdict(summarise(steps([22, 24, 19, 21, 18, 22]))).level === "regulate", "+21 s/d, positions close: worth regulating");
+  check(verdict(summarise(steps([10, 12, -18, 25, -10, 4]))).level === "service", "43 s/d between positions: worth a service");
+  check(verdict(summarise(steps([2, 3, 1, 2, 0, 2]).map(x => ({ ...x, be: 3.4 })))).level === "service", "3.4 ms out of beat: worth a service");
+  check(verdict(summarise(steps([2, 3, 1, 2, 0, 2]).map(x => ({ ...x, amp: 190 })))).level === "service", "190° flat and hanging: worth a service");
+  const two = summarise([{ pos: "DU", rate: 3 }, { pos: "CD", rate: -1 }]);
+  check(two && two.n === 2 && two.hv === 4 && summarise([{ pos: "DU", rate: 3 }]) === null && summarise([{ pos: "XX", rate: 1 }, { pos: "YY", rate: 2 }]) === null,
+    "two positions make a session; one, or positions that aren't, don't");
+  check(COSC[1].mean[0] === -4 && COSC[1].mean[1] === 6 && COSC[2].hv[1] === 10 && WITSCHI.rate[1] === 15 && WITSCHI.be === 0.5, "the limits as published");
+  check(/magnetised/.test(readingWords(120)) && /COSC/.test(readingWords(3)) && /Witschi/.test(readingWords(12)) && /Fast/.test(readingWords(30)), "one reading's words");
+}
+
+// ---------- the worn-rate log ----------
+{
+  const t = Date.UTC(2026, 9, 21, 10, 41, 47, 700);
+  check(Math.abs(tapOffset(t) - 12.3) < 1e-9 && Math.abs(tapOffset(t, -1) + 47.7) < 1e-9, "a tap at 10:41:47.7 with the hand at 12: the watch shows 10:42, 12.3 s ahead (or a minute less)");
+  const day = 86400000, log = [{ at: t, off: 2 }, { at: t + 3 * day, off: 2 + 3 * 3.4 + 0.05 }, { at: t + 7 * day, off: 2 + 7 * 3.4 }];
+  const w = wornRate(log);
+  check(w && Math.abs(w.rate - 3.4) < 0.02 && w.n === 3 && Math.abs(w.days - 7) < 1e-9 && w.err < 0.03, `three taps over a week: ${w?.rate.toFixed(3)} s/d ± ${w?.err.toFixed(3)}`);
+  const set = wornRate([{ at: t - 9 * day, off: -50 }, { at: t, off: 1, set: true }, { at: t + 2 * day, off: 5 }]);
+  check(set && Math.abs(set.rate - 2) < 1e-9 && set.n === 2, "a setting starts the line afresh");
+  check(wornRate([{ at: t, off: 1 }]) === null && wornRate([{ at: t, off: 1 }, { at: t + 60000, off: 1.2 }]) === null && wornRate(null) === null, "one tap, or two a minute apart, give no rate");
+}
+
+// ---------- the saved state ----------
+{
+  const ids = new Set([...CALIBRES.map(c => c.id), "auto"]);
+  const raw = { current: "x", list: [
+    { id: "x", name: "Grande", cal: "jlc-822", vph: null, lift: 51, readings: [{ at: 1, rate: 2.5, be: 0.3, pos: "DU" }, { bad: 1 }], sessions: [{ at: 2, wind: "full", steps: [{ pos: "DU", rate: 1 }, { pos: "XX", rate: 2 }] }, { at: 3, steps: [] }], log: [{ at: 3, off: 1, set: true }, { at: "x", off: 2 }] },
+    { id: "x", name: "twin" }, null, { id: "y", name: "", cal: "nonsense" } ] };
+  const w = cleanWatches(JSON.parse(JSON.stringify(raw)), ids), again = cleanWatches(JSON.parse(JSON.stringify(w)), ids);
+  check(JSON.stringify(w) === JSON.stringify(again), "the watches come back through JSON as they went");
+  check(w.list.length === 2 && w.list[0].readings.length === 1 && w.list[0].sessions.length === 1 && w.list[0].sessions[0].steps.length === 1 && w.list[0].log.length === 1,
+    "what isn't a reading, a session, a step or a tap is dropped, and a second watch with the same id");
+  check(w.list[1].name === "Watch" && w.list[1].cal === "auto" && w.current === "x" && w.list[0].lift === 51, "a nameless watch is called Watch, an unknown calibre is by ear");
+  check(JSON.stringify(cleanWatches(null, ids)) === JSON.stringify({ current: null, list: [] }) && cleanWatches({ current: "z", list: [{ id: "a" }] }, ids).current === "a", "nothing, or a current watch that's gone");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("timegrapher: rate, beat error, amplitude and vph from synthetic watches; nothing from a room");
+else console.log("timegrapher: rate, beat error, amplitude and vph from synthetic watches; nothing from a room; the calibres, the positions, the worn rate and the keeping");
