@@ -77,6 +77,12 @@
   <div class="dd-end-go"><button class="btn" type="button" id="endTable">The table</button><button class="btn primary" type="button" id="endAgain">New game</button></div>
 </dialog>
 
+<dialog id="copyDlg" class="sheet dd-sheet" aria-labelledby="copyHead">
+  <div class="pick-head"><h2 id="copyHead">Copy</h2><button class="btn" type="button" id="copyClose">Close</button></div>
+  <p class="dd-sub">This browser wouldn’t copy it: select it here and copy.</p>
+  <textarea id="copyText" class="dd-copy" readonly></textarea>
+</dialog>
+
 <p id="toast" class="dd-toast" role="status" aria-live="polite"></p>
 <script type="module" src="dandan.js"></script>
 </body>

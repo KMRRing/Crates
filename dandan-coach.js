@@ -6,8 +6,8 @@
 // weighing. Pure, so the tests read it as the page does.
 import { CARDS, DECK, HALVES, total } from "./dandan-cards.js";
 import { nextDrawer, halfOf, costOf } from "./dandan-engine.js";
-import { other, nm, perm, isLand, isCreature, creatures, lands, needType, typesOf, itemOf, pt } from "./dandan-core.js";
-import { facts, counterRisk, holds, Player, answerWorth, freshRead } from "./dandan-policy.js";
+import { other, nm, perm, isLand, isLandId, isCreature, creatures, lands, needType, typesOf, itemOf, pt, manaAlts, knownIn } from "./dandan-core.js";
+import { facts, counterRisk, holds, Player, answerWorth, freshRead, landMana } from "./dandan-policy.js";
 
 const pc = x => `${Math.round(100 * x)}%`;
 const plural = (n, one, many) => (n === 1 ? one : many);
@@ -190,7 +190,17 @@ function forMove(s, seat, F, m, good) {
             if (good && next === seat) say("top", "It goes on top, and you draw it next.");
             if (!good && next !== seat) say("top", "It goes on top, and they draw it straight back.");
           }
-        } else if (isLand(target) && target.ctl !== seat && !good) say("islands", "Taking a land of theirs matters little while no Dandân depends on it.");
+        } else if (isLand(target) && target.ctl !== seat && (half === "Metamorphose" || half === "Gone Missing")) {
+          // their mana: what the land makes, how much they have, and the land Metamorphose lets them put straight back down
+          const mana = landMana(s, opp), two = Math.max(0, ...manaAlts(target).map(a => a.length)) > 1;
+          const back = half === "Metamorphose" ? knownIn(s, opp, seat).find(isLandId) : undefined;
+          const boil = s.stack.some(x => x.name === "@boil" && x.ctl === opp);
+          if (!good && back != null && !two) say("mana", `They hold the ${nm(back)} you know of: Metamorphose lets them put it straight down, so their mana doesn't drop.`);
+          else if (!good && mana >= 9) say("mana", `With ${mana} mana down, a land more or less is no matter to them now.`);
+          else if (good && boil && two) say("mana", "Taken in answer to its trigger, the Boilerworks costs them its two mana and they still return a land for it, one not yet in their hand to put back down.");
+          else if (good && two) say("mana", `${nm(target.id)} makes two mana: taking it slows them the most.`);
+          else if (good && mana <= 6) say("mana", `They have ${mana} mana: a land taken now slows everything they cast${next === seat ? ", and it comes to you" : ""}.`);
+        }
         if (half === "Piracy Charm" && m.mode === 0 && good) say("combat", "Islandwalk: they control an Island, so it can't be blocked.");
         break;
       }

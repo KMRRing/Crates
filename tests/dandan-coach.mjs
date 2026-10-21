@@ -208,6 +208,15 @@ test("its reasons on positions with one right answer", () => {
   const a0 = scene({ active: 1, hand: [["Piracy Charm"], []], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [1, "Dandân"]] });
   const att = answer(pass(a0, 1), { t: "attack", ids: [onBf(a0, 1, "Dandân")] });
   out.push([reasons(att, 0, { t: "cast", card: idIn(att, 0, "Piracy Charm"), from: "hand", mode: 1, targets: [T.c(onBf(att, 1, "Dandân"))] }, { t: "pass" })[0], /attacking you/]);
+  // Korbi's Boilerworks: at the end of that turn the Boilerworks taken, not an Island, with the one it returned in their hand to put straight back down
+  let b = scene({ turn: 5, active: 1, hand: [["Metamorphose", "Island", "Predict", "Dandân"], ["Izzet Boilerworks", "Memory Lapse", "Brainstorm", "Take Inventory"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2)] });
+  b = go(b, 1, { t: "land", card: idIn(b, 1, "Izzet Boilerworks") });
+  for (let i = 0; i < 6 && !b.pending; i++) b = pass(b);
+  b = answer(b, { t: "pick", card: b.pending.ids.find(id => DECK[id] === "Island") });
+  for (let i = 0; i < 20 && !(b.step === "end" && toMove(b) === 0); i++) b = pass(b);
+  const meta = name => ({ t: "cast", card: idIn(b, 0, "Metamorphose"), from: "hand", targets: [T.c(b.bf.find(p => p.ctl === 1 && DECK[p.id] === name).id)] });
+  out.push([reasons(b, 0, meta("Izzet Boilerworks"), meta("Island"))[0], /makes two mana/],
+    [reasons(b, 0, meta("Izzet Boilerworks"), meta("Island"), { againstFirst: true })[0], /put it straight down/]);
   const bad = out.filter(([w, re]) => !re.test(w || ""));
   return !bad.length || bad.map(([w]) => w).join(" | ");
 });

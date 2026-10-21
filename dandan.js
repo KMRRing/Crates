@@ -11,7 +11,7 @@ import { moves } from "./dandan-engine.js";
 import { think, BUDGET } from "./dandan-think.js";
 import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence } from "./dandan-coach.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
-import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType, poolOf, knownIn } from "./dandan-core.js";
+import { nm, defOf, perm, pt, isLand, isCreature, manaAlts, topKnown, needType, poolOf, knownIn, knOf, typesOf } from "./dandan-core.js";
 import { same } from "./dandan-spells.js";
 import { seatPage, fillNames } from "./seats-ui.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -929,6 +929,83 @@ function newGame() {
 $("endAgain").addEventListener("click", newGame);
 $("endTable").addEventListener("click", () => $("endDlg").close());
 
+// ---------- the log, copied (Menu) ----------
+// For checking a game elsewhere (a move of the computer's that looked wrong, the coach's word on one of yours): every
+// line of the log, then the table as your seat sees it now (of the other hand only what you've seen go there), then the
+// coach's verdicts on your decisions this game.
+function logText() {
+  const s = S(), me = V.seat ?? 0, foe = 1 - me, level = LEVEL_NAMES.find(([k]) => k === opts.level)?.[1];
+  // in the log's own words, seats as {s0} and {s1}, so "You" reads as it does there
+  const now = s.over ? (s.winner < 0 ? "Over: a draw." : `Over: {s${s.winner}} won.`)
+    : `{s${s.active}}'s ${STEP_WORDS[s.step] || s.step}, turn ${s.turn}.${V.toMove != null ? ` {s${V.toMove}} to ${s.pending ? "answer" : "move"}.` : ""}`;
+  const head = words(`Dandan (Forgetful Fish), game ${V.G.seq}: {s${me}} against {s${foe}}${V.seats[foe]?.bot ? ` (the computer, ${level})` : ""}.\n${now}`);
+  const gone = (s.log[0]?.n || 1) - 1, lost = gone ? [`(the first ${gone === 1 ? "line wasn't" : `${gone} lines weren't`} kept)`] : [];
+  return [head, "", ...lost, ...s.log.map(e => words(e.t)), "", ...tableWords(s, me), ...coachWords()].join("\n");
+}
+/** The table in words, as `me` sees it. */
+function tableWords(s, me) {
+  const list = a => (a.length ? a.join(", ") : "none");
+  const counted = a => { const c = new Map(); for (const x of a) c.set(x, (c.get(x) || 0) + 1); return [...c].map(([x, k]) => (k > 1 ? `${x} ×${k}` : x)); };
+  const permWords = p => {
+    const tags = [];
+    if (isCreature(p)) {
+      const [a, b] = pt(p), base = defOf(p.id).pt;
+      if (a !== base[0] || b !== base[1]) tags.push(`${a}/${b}`);
+      if (s.combat?.att.includes(p.id)) tags.push("attacking");
+      if (p.walk) tags.push("islandwalk");
+      if (needType(p) !== "Island") tags.push(`wants ${needType(p)}`);
+    }
+    if (p.tc && isLand(p)) tags.push(`now ${typesOf(p).join(" and ") || "of no basic type"}`);
+    if (p.tapped) tags.push("tapped");
+    return `${nm(p.id)}${tags.length ? ` (${tags.join(", ")})` : ""}`;
+  };
+  const side = seat => {
+    const bf = s.bf.filter(p => p.ctl === seat).sort((a, b) => isCreature(b) - isCreature(a) || landOrder(a, b)).map(permWords);
+    const hand = seat === me && V.seat != null ? `hand ${list(s.hand[seat].map(id => DECK[id]).sort())}`
+      : `hand of ${s.hand[seat].length}${V.seat != null && knownIn(s, seat, me).length ? `, known: ${list(knownIn(s, seat, me).map(id => DECK[id]))}` : ""}`;
+    const pool = poolOf(s, seat);
+    return `${nameOf(seat)}: ${s.life[seat]} life; ${list(counted(bf))}; ${hand}${pool ? `; ${pool} floating` : ""}.`;
+  };
+  // the library: how many, and the cards in it you know, by place from the top
+  const known = [];
+  const nth = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
+  if (V.seat != null) s.lib.forEach((id, i) => {
+    if (knOf(s, id) & (1 << me)) known.push(`${DECK[id]} ${i === 0 ? "on top" : i === s.lib.length - 1 ? "at the bottom" : `${nth(i + 1)} from the top`}`);
+  });
+  const stack = s.stack.map(it => `${STACK_WORDS[it.name] || it.name}${it.kind === "trigger" ? ", triggered" : ""} (${nameOf(it.ctl)})${it.targets.length ? ` on ${it.targets.map(t => targetWords(s, t)).join(", ")}` : ""}`);
+  return [
+    "The table now:", side(me), side(1 - me),
+    ...(stack.length ? [`Stack, the last to resolve first: ${stack.reverse().join("; ")}.`] : []),
+    `Graveyard${s.yard.length ? `, the oldest first: ${list(s.yard.map(id => DECK[id]))}` : ": empty"}.`,
+    ...(s.exile.length ? [`Exile: ${list(s.exile.map(id => DECK[id]))}.`] : []),
+    `Library: ${s.lib.length} cards${known.length ? `; known to you: ${known.join(", ")}` : ""}.`,
+  ];
+}
+/** A target in words, for the copied table. */
+function targetWords(s, t) {
+  if (t.k === "p") return nameOf(t.seat);
+  if (t.k === "s") return s.stack.find(x => x.sid === t.sid)?.name || "a spell";
+  const p = perm(s, t.id);
+  if (p) return `${nm(p.id)} (${nameOf(p.ctl)})`;
+  return DECK[t.id] ?? "a card";
+}
+/** The coach's verdicts on your decisions this game, the costliest differences first. */
+function coachWords() {
+  if (!notes.length) return [];
+  const differs = notes.filter(n => !n.agreed).sort((a, b) => b.gap - a.gap);
+  return ["", `The coach agreed with ${notes.length - differs.length} of your ${notes.length} decisions${differs.length ? ". Where it differed:" : "."}`, ...differs.map(n => `- ${n.words}`)];
+}
+function copyLog() {
+  if (!V?.G) { toast("No game to copy yet"); return; }
+  copyOut("Log", logText());
+}
+/** Words to the clipboard within the tap that asked for them; where the browser refuses, a sheet to copy them by hand. */
+function copyOut(what, text) {
+  const sheet = () => { $("copyHead").textContent = what; $("copyText").value = text; $("copyDlg").showModal(); $("copyText").select(); };
+  if (!navigator.clipboard?.writeText) { sheet(); return; }
+  navigator.clipboard.writeText(text).then(() => toast(`${what} copied`), sheet);
+}
+
 // ---------- rules, menu ----------
 function showRules() {
   const byType = t => Object.entries(CARDS).filter(([, d]) => d.type === t);
@@ -963,6 +1040,7 @@ function openMenu() {
   if (page.host) play.append(action("New game", newGame, "primary"));
   page.menu(play);
   play.append(action("The rules and cards", showRules, "link"));
+  play.append(action("Copy log", copyLog, "link"));
   const set = part(body, "settings");
   set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); page.runner.kick(); }));
   set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; draw(); }));
@@ -980,6 +1058,7 @@ $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+$("copyClose").addEventListener("click", () => $("copyDlg").close());
 window.__dandan = { page, get view() { return V; }, get ui() { return ui; }, opts };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();

@@ -726,6 +726,34 @@ test("it takes a free mulligan on a hand short of lands, keeps a good one, and k
   both("Izzet Boilerworks returns a tapped Island, not itself", b, 0, m => m.t === "pick" && DECK[m.card] === "Island" && perm(b, m.card).tapped);
 }
 {
+  // mana: Korbi's game, an Island Metamorphosed just after his Izzet Boilerworks returned one (he put it straight back
+  // down). The Boilerworks is the land to take: two mana, and in answer to its trigger before the land it returns is in
+  // his hand; once it is, never an Island
+  const meta = (m, name) => m.t === "cast" && DECK[m.card] === "Metamorphose" && (!name || nm(m.targets[0].id) === name);
+  let s = scene({ turn: 5, active: 1, hand: [["Metamorphose", "Island", "Predict", "Dandân"], ["Izzet Boilerworks", "Memory Lapse", "Brainstorm", "Take Inventory"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 2)] });
+  s = pass(go(s, 1, { t: "land", card: idIn(s, 1, "Izzet Boilerworks") }), 1);
+  both("Metamorphose on their Izzet Boilerworks in answer to its trigger, not on an Island", s, 0, m => meta(m, "Izzet Boilerworks"));
+  let e = s;
+  for (let i = 0; i < 6 && !e.pending; i++) e = pass(e);
+  e = answer(e, { t: "pick", card: e.pending.ids.find(id => nm(id) === "Island") });
+  for (let i = 0; i < 20 && !(e.step === "end" && toMove(e) === 0); i++) e = pass(e);
+  both("at the end of that turn, the Island it returned in their hand: the Boilerworks, never an Island", e, 0, m => meta(m, "Izzet Boilerworks"));
+  // a land taken at the end of their turn when their play showed none in their hand: it comes to us, and they're a land short
+  const short = scene({ turn: 6, active: 1, step: "end", prio: 0, passes: 1, hand: [["Metamorphose", "Predict", "Dandân"], ["Memory Lapse", "Brainstorm", "Take Inventory"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 3)] });
+  short.draws = [8, 8]; short.tells[1].land = 8;
+  both("their Island taken at the end of their turn, after a turn of theirs with no land played", short, 0, m => meta(m, "Island"));
+  // and once their lands are all down, mana is no matter: no card spent on one
+  const late = scene({ turn: 20, active: 1, step: "end", prio: 0, passes: 1, hand: [["Metamorphose", "Predict", "Dandân"], ["Memory Lapse", "Brainstorm", "Take Inventory"]],
+    bf: [...islandsOf(0, 5), [0, "Remote Isle"], [0, "Remote Isle"], [0, "Lonely Sandbar"], [0, "Lonely Sandbar"], [0, "Halimar Depths"],
+      ...islandsOf(1, 5), [1, "Halimar Depths"], [1, "Thundering Falls"], [1, "Thundering Falls"], [1, "Mystic Sanctuary"], [1, "Mystic Sanctuary"]] });
+  late.draws = [20, 20]; late.tells[1].land = 20;
+  both("…but not when they have ten lands down", late, 0, m => !meta(m));
+  // Metamorphose's offer: a Dandân only where an Island will stand under it, else a land, whatever land it is
+  let d = scene({ active: 0, hand: [["Metamorphose"], ["Dandân", "Remote Isle"]], bf: [...islandsOf(0, 2), [1, "Island"], [1, "Lonely Sandbar"]] });
+  d = resolveStack(cast(d, 0, "Metamorphose", [T.c(onBf(d, 1, "Island"))]));
+  both("offered a land or a creature by Metamorphose with its last Island gone, it puts the land down", d, 1, m => m.t === "pick" && DECK[m.card] === "Remote Isle");
+}
+{
   // the shared graveyard: a Mystic Retrieval cast from the hand stays there, for anyone with red to flash back
   const gift = scene({ turn: 9, active: 0, step: "main1", hand: [["Mystic Retrieval", "Island", "Brainstorm"], ["Island", "Island", "Predict", "Quicken", "Take Inventory"]],
     bf: [...islandsOf(0, 4), [0, "Dandân"], [1, "Thundering Falls"], ...islandsOf(1, 3)], yard: ["Piracy Charm", "Memory Lapse", "Chart a Course"] });

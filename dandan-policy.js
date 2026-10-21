@@ -169,10 +169,128 @@ function hitWorth(F, p, by) {
   if (!isLand(p)) return 0;
   return sign * landHit(s, p);
 }
-/** A land taken away (or made something else), to its controller: the Dandâns that go with their last land of that type, and the mana. */
+/** A land taken away for good (or made something else, keepsMana: Mind Bend), to its controller: the mana, and the Dandâns that go with it. */
 function landHit(s, p, keepsMana = false) {
+  if (keepsMana) return 0.05 + landDandans(s, p);
+  const [n, d] = manaDrop(s, p, false);
+  return manaWorth(n, d) + landDandans(s, p);
+}
+
+// ---------- mana ----------
+// What mana is worth, measured with the judge (dandan-eval.js) over Medium's games: a land taken from the battlefield,
+// or from the hand, against a spell taken from the hand (on the same scale: the judge puts an attacking Dandân at 2.6
+// spells, this player at 2.5). Slowing the other player's mana is worth a great deal until their lands are all down.
+/** The n-th mana of a seat's lands, lost: a card and three quarters while it's short of what the spells cost, a card at six, nothing much past ten. */
+const MANA_LOSS = [1.75, 1.75, 1.75, 1.7, 1.55, 1.35, 1.05, 0.9, 0.7, 0.6, 0.45, 0.25, 0.15];
+/** A land card in hand lost (put down in place of one taken away), by the seat's mana: its only land, or one of several. */
+const LAST_LAND = [1.3, 1.3, 1.3, 1.3, 1.2, 0.9, 0.7, 0.5, 0.4, 0.25, 0.2];
+const SPARE_LAND = [0.9, 0.9, 0.9, 0.75, 0.6, 0.5, 0.45, 0.32, 0.23, 0.2, 0.17];
+const at = (table, n) => table[Math.max(0, Math.min(n, table.length - 1))];
+/** What a card at random is worth to whoever draws it: what a card put on top is weighed against. */
+const FRESH = 0.85;
+/** Their land drawn again in place of a new card, by the judge: about a card whatever the turn (the draw lost), and a little of the mana (played again in place of a new land). */
+const REDRAWN = 0.95, REDRAWN_MANA = 0.15;
+/** A hand's land cards. */
+const landsIn = hand => { let n = 0; for (const id of hand) if (isLandId(id)) n++; return n; };
+/** d mana lost by a seat with n. */
+function manaWorth(n, d) {
+  let v = 0;
+  for (let j = 0; j < d; j++) v += at(MANA_LOSS, n - j);
+  return v;
+}
+/** The mana a land makes at its most (Izzet Boilerworks two; Flood Plain one, the Island it fetches). */
+function manaOf(l) {
+  let big = 0;
+  for (const a of manaAlts(l)) if (a.length > big) big = a.length;
+  return big || (CARDS[nm(l.id)]?.fetch ? 1 : 0);
+}
+/**
+ * The mana a seat's lands will make, and how much less once its land p is gone (dropped: and a land from its hand put
+ * down in its place, as Metamorphose lets it), counting a Boilerworks of its waiting on the stack to return a land: it
+ * returns the one making least, itself only when it's the last. So the Boilerworks taken in answer to its trigger costs
+ * them its two while they still return a land for it, and an Island taken then can leave the Boilerworks to go back itself.
+ */
+function manaDrop(s, p, dropped) {
+  const owner = p.ctl, boil = s.stack.find(x => x.name === "@boil" && x.ctl === owner);
+  const left = ls => {
+    let n = 0;
+    for (const l of ls) n += l.m;
+    if (!boil || !ls.length) return n;
+    let back = null;
+    for (const l of ls) if (l.id !== boil.src && (!back || l.m < back.m)) back = l;
+    return n - (back || ls[0]).m;
+  };
+  const ls = [];
+  for (const l of s.bf) if (l.ctl === owner && isLand(l)) ls.push({ id: l.id, m: manaOf(l) });
+  const before = left(ls), rest = ls.filter(l => l.id !== p.id);
+  if (dropped) rest.push({ id: -1, m: 1 });
+  return [before, Math.max(0, before - left(rest))];
+}
+const LAND_NAMES = NAMES.filter(n => CARDS[n]?.type === "land");
+const LN_FACT = (() => { const a = [0]; for (let i = 1; i <= 100; i++) a[i] = a[i - 1] + Math.log(i); return a; })();
+const lnC = (n, k) => (k < 0 || k > n ? -Infinity : LN_FACT[n] - LN_FACT[k] - LN_FACT[n - k]);
+/** The chance that h cards at random from `all`, `good` of them of a kind, include at least k of it. */
+function atLeast(k, h, good, all) {
+  if (k <= 0) return 1;
+  h = Math.min(h, all);
+  let below = 0;
+  for (let x = 0; x < k; x++) below += Math.exp(lnC(good, x) + lnC(all - good, h - x) - lnC(all, h));
+  return Math.max(0, 1 - below);
+}
+/**
+ * The chance the other hand holds at least k lands: those known to be there, then the hidden cards at random, unless a
+ * turn of theirs ended with no land played (a read): then only the cards drawn since, or a land they kept back anyway.
+ */
+export function landOdds(F, k = 1) {
+  let known = 0;
+  for (const id of F.theirKnown) if (isLandId(id)) known++;
+  if (known >= k) return 1;
+  let good = 0;
+  for (const n of LAND_NAMES) good += Math.max(0, unseenOf(F, n));
+  const p = h => atLeast(k - known, h, good, F.unknown);
+  const r = F.reads.find(x => x.kind === "land");
+  return r ? r.slip * p(F.hidden) + (1 - r.slip) * p(Math.min(r.since, F.hidden)) : p(F.hidden);
+}
+/**
+ * A land put on top of the library (Metamorphose, Gone Missing), to `by`, in cards. Drawn next by `by`, it's gone from
+ * its owner for good, and `by`'s in place of a card at random (worth less to a hand that holds a land already); drawn
+ * by its owner, they play it again in place of a new land, and the card they'd have drawn is lost: a turn's land and a
+ * card. Metamorphose lets them put a land from their hand straight down (a Dandân rather, when an Island stands for it,
+ * priced by the caller): then they lose only the mana the land put down doesn't make up, and the land from their hand,
+ * which costs less when they hold others. So Metamorphose on an Island while they hold the land their Boilerworks just
+ * returned does nothing to their mana; on the Boilerworks, it takes a mana away for good.
+ */
+function landAway(F, p, half, by) {
+  const s = F.s, owner = p.ctl, ours = owner === F.me;
+  let drop = 0, more = 0;
+  if (half === "Metamorphose") {
+    if (ours) {
+      const n = landsIn(s.hand[owner]);
+      drop = n ? 1 : 0;
+      more = n > 1 ? 1 : 0;
+    } else {
+      drop = landOdds(F, 1);
+      more = drop > 0 ? landOdds(F, 2) / drop : 0;
+    }
+    // a Dandân goes down rather, where an Island will stand under it
+    if (islands(s, owner).some(l => l.id !== p.id)) drop *= 1 - (ours ? +s.hand[owner].some(id => DECK[id] === "Dandân") : holds(F, "Dandân"));
+  }
+  const [n, d0] = manaDrop(s, p, false), d1 = drop ? manaDrop(s, p, true)[1] : 0;
+  let loss;
+  if (F.next === owner) loss = REDRAWN + REDRAWN_MANA * ((1 - drop) * manaWorth(n, d0) + drop * manaWorth(n, d1));
+  else loss = (1 - drop) * manaWorth(n, d0) + drop * (manaWorth(n, d1) + (1 - more) * at(LAST_LAND, n) + more * at(SPARE_LAND, n));
+  loss += (1 - drop) * landDandans(s, p);
+  let gain = 0;
+  if (F.next === by && by !== owner) {
+    const held = by === F.me ? landsIn(s.hand[by]) > 0 : landOdds(F, 1) > 0.5;
+    gain = at(held ? SPARE_LAND : LAST_LAND, landMana(s, by)) - FRESH;
+  }
+  return (owner === by ? -loss : loss) + gain;
+}
+/** The Dandâns that go with a land, to its controller: theirs on their last land of that type, and the attacks it ends for the other player's. */
+function landDandans(s, p) {
   const types = typesOf(p);
-  let v = keepsMana ? 0.05 : 0.45;
+  let v = 0;
   for (const d of creatures(s, p.ctl)) {
     const need = needType(d);
     if (!types.includes(need)) continue;
@@ -288,8 +406,10 @@ export function spellWorth(F, it) {
       if (!target) return 0;
       return isCreature(target) ? hitWorth(F, target, ctl) : (target.ctl === ctl ? -1 : 1) * landHit(s, target, true);
     case "Repulse": return (target ? 0.55 * hitWorth(F, target, ctl) : 0) + 0.9;
-    case "Metamorphose": case "Gone Missing": case "Deem Inferior":
-      return (target ? 0.8 * hitWorth(F, target, ctl) : 0) + (it.name === "Gone Missing" ? 0.5 : 0);
+    case "Metamorphose": case "Gone Missing": case "Deem Inferior": {
+      const hit = !target ? 0 : isLand(target) && it.name !== "Deem Inferior" ? landAway(F, target, it.name, ctl) : 0.8 * hitWorth(F, target, ctl);
+      return hit + (it.name === "Gone Missing" ? 0.5 : 0);
+    }
     case "@cycle": case "@clue": return 0.9;
     case "@isle": return 0.9;
     case "@fetch": return 0.4;
@@ -416,7 +536,7 @@ export class Player {
       const hand = p.ids, isl = hand.find(id => (CARDS[DECK[id]].subs || []).includes("Island"));
       const d = hand.find(id => DECK[id] === "Dandân");
       if (d != null && islands(s, me).length > 0) return d;
-      return isl ?? (d != null ? null : hand.find(isLandId) ?? null);
+      return isl ?? hand.find(isLandId) ?? null;
     }
     // Mystic Sanctuary: a spell on top for us if we draw next; for them, the one they'd least like (in place of a card at random)
     const ids = p.ids;
@@ -839,9 +959,10 @@ export class Player {
     }
     if (half === "Repulse" && p.ctl === me) return this.saveOwn(p, keep, pay);
     if (p.ctl === me) return -3;
+    if (isLand(p) && (half === "Metamorphose" || half === "Gone Missing") && !this.easy) return this.landRemoval(half, p, keep, pay);
     let hit;
     if (half === "Mind Bend") hit = isCreature(p) ? hitWorth(F, p, me) : landHit(s, p, true);
-    else hit = hitWorth(F, p, me);
+    else hit = isLand(p) ? 0.45 + landDandans(s, p) : hitWorth(F, p, me);    // Easy: a land is a land, whatever their mana
     let v = hit * (STAYS[half] ?? 0.7);
     if (this.easy) return isCreature(p) || hit > 0 ? v - 0.3 : -1;
     if (hit <= 0.2 && !["Gone Missing", "Metamorphose"].includes(half)) return -1;
@@ -870,6 +991,23 @@ export class Player {
     } else if (!this.theirEnd && !(F.myTurn && this.myMain)) v -= 0.2;
     // casting into open mana invites a counter (on our turn the card then goes to them)
     if (!this.stack) v -= counterRisk(F, half) * (0.6 * v + (F.myTurn ? 0.4 : 0));
+    return v - keep - pay;
+  }
+  /**
+   * Metamorphose or Gone Missing on a land of theirs: what it does to their mana and who gets the card (landAway), less
+   * a Dandân Metamorphose would let them put down free. Its moment: the end of their turn (we draw it), our main phase,
+   * or now, before a Boilerworks of theirs on the stack brings the land it returns to their hand, from where Metamorphose
+   * would let them put it straight back down.
+   */
+  landRemoval(half, p, keep, pay) {
+    const s = this.s, F = this.F;
+    let v = landAway(F, p, half, this.me);
+    if (half === "Metamorphose") v -= 0.6 * holds(F, "Dandân") * (islands(s, p.ctl).some(l => l.id !== p.id) ? 1 : 0.3);
+    else v += 0.5;                                                     // Gone Missing's Clue
+    const boil = s.stack.some(x => x.name === "@boil" && x.ctl === p.ctl);
+    if (!boil && !this.theirEnd && !(F.myTurn && this.myMain)) v -= 0.2;
+    // casting into open mana invites a counter (a land's trigger on the stack leaves their mana as it was)
+    if (s.stack.every(x => x.kind === "trigger")) v -= counterRisk(F, half) * (0.6 * Math.max(0, v) + (F.myTurn ? 0.4 : 0));
     return v - keep - pay;
   }
   /** Repulse on our own Dandân in answer to something aimed at it: it's saved to our hand, and we draw. */

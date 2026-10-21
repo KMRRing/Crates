@@ -25,11 +25,13 @@ export function withRng(r, fn, hush = false) {
 export const random = () => rng();
 
 // ---------- the log: a line for each thing that happens, {s0} for whoever sits in seat 0 ----------
+// The whole game is kept, for Copy log (a game runs to two or three hundred lines); the bound is against one that never ends.
+const LOG_LINES = 1000;
 export function say(s, text) {
   if (quiet) return;
   s.ln = (s.ln || 0) + 1;
   s.log.push({ n: s.ln, t: text });
-  if (s.log.length > 80) s.log.splice(0, s.log.length - 80);
+  if (s.log.length > LOG_LINES) s.log.splice(0, s.log.length - LOG_LINES);
 }
 
 // ---------- cards ----------
