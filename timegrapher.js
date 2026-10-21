@@ -6,7 +6,7 @@
 // timegrapher-calibres.js's, the microphone's tap timegrapher-worklet.js on the audio thread, the drawing
 // timegrapher-trace.js's; this file listens and draws the page.
 import { createChain, bandLevel } from "./timegrapher-dsp.js";
-import { measure, detect, MANUAL } from "./timegrapher-measure.js";
+import { measure, detect, MANUAL, QUARTZ } from "./timegrapher-measure.js";
 import { createTrace } from "./timegrapher-trace.js";
 import { CALIBRES, byId, DEFAULT_LIFT, SURE } from "./timegrapher-calibres.js";
 import { POSITIONS, summarise, verdict, readingWords, tapOffset, wornRate, cleanWatches, cleanReading, cleanSession, signed } from "./timegrapher-records.js";
@@ -188,21 +188,24 @@ function liveMeasure() {
     res.from = from / R.fe;
     R.result = res;
     if (res.ok) R.known = res.found; else if (res.why === "nothing") R.known = null;
-    // a calibre's vph that nothing beats: is it another watch? (asked by ear every few seconds)
-    if (!res.ok && o.vph && env.length > 8 * R.fe && heard() - R.asked > 4) {
-      R.asked = heard();
-      const other = detect(env.subarray(Math.max(0, env.length - 10 * R.fe)), R.fe);
-      res.other = other.vph && other.vph !== o.vph ? other.vph : null;
-    }
+    if (heard() - R.asked > 4) { R.asked = heard(); askOther(res, env, o); }      // asked every few seconds
     show(res);
   } catch (e) { console.error(e); }
   R.busy = false;
 }
 function finalMeasure() {
-  const { env, from } = envelope(KEEP);
-  const res = measure(env, R.fe, measureOpts());
+  const { env, from } = envelope(KEEP), o = measureOpts();
+  const res = measure(env, R.fe, o);
   res.from = from / R.fe;
+  askOther(res, env, o);
   return res;
+}
+/** A calibre's vph that nothing beats, over eight seconds of sound: is it another watch? By ear, the rate it does beat. */
+function askOther(res, env, o) {
+  if (res.ok || !o.vph || env.length < 8 * R.fe) return;
+  const other = detect(env.subarray(Math.max(0, env.length - 10 * R.fe)), R.fe);
+  if (other.vph === QUARTZ) res.why = "quartz";
+  else res.other = other.vph && other.vph !== o.vph ? other.vph : null;
 }
 
 // ---------- the positions session ----------
@@ -339,7 +342,7 @@ const round = (v, d) => (v == null || !Number.isFinite(v) ? null : Math.round(v 
 function whyText(res) {
   if (res.why === "quartz") return "A step a second: a quartz watch. A timegrapher has nothing to hear in one.";
   if (res.why === "short") return "Listening: a few seconds more.";
-  if (res.other) return `It beats ${n0(res.other)}, not this calibre's ${n0(setting().vph)}: another watch? Choose it, or set the vph by ear in the menu.`;
+  if (res.other) return `It beats ${n0(res.other)}, not ${n0(setting().vph)}: another watch? Choose it in the menu.`;
   if (res.why === "nothing") return "No beat heard yet: press the case back to the microphone, in a quiet room.";
   return "Not enough signal: closer to the microphone, or quieter round it.";
 }
@@ -390,6 +393,11 @@ function plot(res) {
     const n = Math.round((b.abs - R.anchor.t) / P);
     return { x: b.abs, y: -(b.abs - R.anchor.t - n * Tn) * 1000, tock: (n & 1) === 1, faint: b.c < 0.5 };
   });
+  // the window shown is centred on its own dots, as a timegrapher's screen is: a watch within a few s/d draws two
+  // clean sloped lines, and only one far off wraps round into stripes
+  const shown = points.filter(p => p.x >= heard() - SPAN).map(p => p.y).sort((a, b) => a - b);
+  const mid = shown.length ? shown[shown.length >> 1] : 0;
+  for (const p of points) p.y -= mid;
   const half = [1, 2, 5, 10, 20].find(v => v >= 2.5 * ((res.be ?? 0) + 4 * res.sigma)) ?? 20;
   trace.lastPoints = points;
   trace.lastHalf = half;
