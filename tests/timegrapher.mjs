@@ -74,6 +74,9 @@ for (const fs of [44100, 48000]) {
   check(knock.ok && Math.abs(knock.rate - 7) < 0.25, `six knocks on the table: ${f2(knock.rate)} s/d`);
   const wander = run(synthWatch({ vph: 21600, rate: 10, be: 0.5, secs: 30, seed: 15, wander: 1.5, jitter: 3e-5 }), 48000, { lift: 52 });
   check(wander.ok && Math.abs(wander.rate - 10) < 4 * wander.rateErr + 0.3, `a rate that wanders ±1.5 s/d: ${f2(wander.rate)} ± ${f2(wander.rateErr)}, the truth inside its uncertainty`);
+  const before = synthRoom({ secs: 10, seed: 17, knocks: 2 }).x, on = synthWatch({ vph: 21600, rate: -5, be: 0.3, secs: 15, seed: 18 }).x;
+  const late = run({ x: Float32Array.from([...before, ...on]) }, 48000, { lift: 52 });
+  check(late.ok && Math.abs(late.rate + 5) < 0.25, `a watch put on the microphone ten seconds into the reading: ${f2(late.rate)} s/d, ${Math.round((late.kept ?? 0) * 100)}% of its beats`);
   const fast = run(synthWatch({ vph: 28800, rate: 240, be: 1.2, secs: 20, seed: 16 }), 48000, { lift: 52 });
   check(fast.ok && Math.abs(fast.rate - 240) < 0.5 && Math.abs(fast.be - 1.2) < 0.1, `a magnetised watch, +240 s/d and 1.2 ms out of beat: ${f2(fast.rate)}, ${fast.be?.toFixed(2)} ms`);
 }

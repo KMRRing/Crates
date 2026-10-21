@@ -359,9 +359,14 @@ export function measure(raw, fe, opts = {}) {
       : track(normalised(rawA), normalised(rawB), pass.fit.c, pass.fit.P, pass.fit.d, Math.round(0.05 * P));
     if (again.fit && again.beats.length >= pass.beats.length * 0.8) pass = again;
   }
+  // a beat matching far worse than the reading's own typical beat is the room's chance resemblance (before the watch
+  // was put on the microphone, say), not the watch: dropped before the last fit
+  const typical = median(pass.beats.map(b => b.c)), clear = pass.beats.filter(b => b.c >= Math.max(0.3, 0.55 * typical));
+  if (clear.length < pass.beats.length && clear.length >= 8) { const f = fitBeats(clear); if (f) pass = { beats: clear, fit: f }; }
   const fit = pass.fit;
   if (!fit) return { ok: false, why: "weak", secs, found };
-  const expected = Math.max(1, Math.floor((env.length - 2 * W) / fit.P / step)), kept = fit.used / expected;
+  // the share of beats heard, over the stretch the watch was heard in (a reading may begin before it's on the mic)
+  const ks = pass.beats.map(b => b.k), expected = Math.max(1, Math.floor((Math.max(...ks) - Math.min(...ks)) / step) + 1), kept = fit.used / expected;
   const quality = median(pass.beats.map(b => b.c));
   // 5. the templates' noises: the first is where each beat is timed from (Witschi times rate and beat error from the
   //    first noise), and the first to the last gives the amplitude

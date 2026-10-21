@@ -24,7 +24,7 @@ const write = (k, v) => { if (!IN_FRAME) try { if (v == null) localStorage.remov
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const n0 = v => v.toLocaleString("en-GB");
 
-const WINDOW = 60;            // s: the live figures come from the last minute heard
+const WINDOW = 30;            // s: the live figures come from the last half minute heard (±0.05 s/d, a phone's work kept light)
 const KEEP = 120;             // s: the most of a reading kept (a stop measures all of it)
 const EVERY = 1;              // s of sound between live measurings
 const SPAN = 20;              // s across the trace
