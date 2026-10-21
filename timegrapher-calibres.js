@@ -12,19 +12,19 @@ export const DEFAULT_LIFT = 52;
 
 export const CALIBRES = [
   // ---------- Korbi's ----------
-  { id: "jlc-822", name: "Grande Reverso Ultra Thin", cal: "Jaeger-LeCoultre 822", vph: 21600, lift: 52, sure: "assumed", mine: true,
+  { id: "jlc-822", name: "Grande Reverso Ultra Thin", short: "JLC 822", cal: "Jaeger-LeCoultre 822", vph: 21600, lift: 52, sure: "assumed", mine: true,
     src: "watchbase: cal. 822, hand-wound, 21,600 vph, 45 h. No lift angle published: the timegraphers' 52°." },
-  { id: "jlc-858", name: "Reverso Géographique", cal: "Jaeger-LeCoultre 858", vph: 21600, lift: 52, sure: "assumed", vphSure: "family", mine: true,
+  { id: "jlc-858", name: "Reverso Géographique", short: "JLC 858", cal: "Jaeger-LeCoultre 858", vph: 21600, lift: 52, sure: "assumed", vphSure: "family", mine: true,
     src: "Europa Star: cal. 858, hand-wound, 206 parts, 1998 (Phillips: 22 jewels). 21,600 vph as its 8xx siblings (822, 854); the trace confirms it. No lift angle published." },
-  { id: "fc-810", name: "Slimline Monolithic", cal: "Frederique Constant FC-810", vph: 288000, lift: null, flexure: true, sure: "checked", mine: true,
+  { id: "fc-810", name: "Slimline Monolithic", short: "FC-810", cal: "Frederique Constant FC-810", vph: 288000, lift: null, flexure: true, sure: "checked", mine: true,
     src: "Frederique Constant: 40 Hz, 288,000 vph, a monocrystalline silicon oscillator with its anchor in the flexures, swinging 6°; 80 h. No balance and no lift: rate only." },
-  { id: "rado-r763", name: "Rado True Square", cal: "Rado R763 (ETA C07.611)", vph: 21600, lift: 50, sure: "family", mine: true,
+  { id: "rado-r763", name: "Rado True Square", short: "Rado R763", cal: "Rado R763 (ETA C07.611)", vph: 21600, lift: 50, sure: "family", mine: true,
     src: "Rado (R27077312, green): R763, 80 h, Nivachron; Caliber Corner: R763 is the ETA C07.611, 21,600 vph. 50°: watchguy's for the C07.661 and C07.811, the same Powermatic 80 escapement." },
-  { id: "fc-310", name: "Heart Beat Automatic", cal: "Frederique Constant FC-310 (Sellita SW200-1)", vph: 28800, lift: 50, sure: "checked", mine: true,
+  { id: "fc-310", name: "Heart Beat Automatic", short: "FC-310", cal: "Frederique Constant FC-310 (Sellita SW200-1)", vph: 28800, lift: 50, sure: "checked", mine: true,
     src: "Caliber Corner: FC-310 is a Sellita SW200-1, 28,800 vph, 50°." },
-  { id: "fc-910", name: "Heart Beat Manufacture", cal: "Frederique Constant FC-910, 930, 935, 945", vph: 28800, lift: 52, sure: "assumed", mine: true,
+  { id: "fc-910", name: "Heart Beat Manufacture", short: "FC-910 family", cal: "Frederique Constant FC-910, 930, 935, 945", vph: 28800, lift: 52, sure: "assumed", mine: true,
     src: "Grail Watch: FC-910, 28,800 A/h, 48 h (its successors keep the rate). No lift angle published." },
-  { id: "quartz", name: "Reverso Lady", cal: "Quartz", quartz: true, mine: true,
+  { id: "quartz", name: "Reverso Lady", short: "Quartz", cal: "Quartz", quartz: true, mine: true,
     src: "A quartz movement steps once a second from a crystal: there's no escapement for a timegrapher to hear." },
   // ---------- movements ----------
   { id: "eta-2824", name: "ETA 2824-2", cal: "ETA 2824-2", vph: 28800, lift: 50, sure: "checked",

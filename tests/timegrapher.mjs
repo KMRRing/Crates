@@ -112,7 +112,7 @@ for (const fs of [44100, 48000]) {
   check(CALIBRES.every(c => c.quartz || c.flexure ? c.lift == null : c.lift >= 30 && c.lift <= 70 && SURE[c.sure]), "every lift angle is 30–70° and says how sure it is; the Monolithic and quartz have none");
   const g = byId("jlc-822"), m = byId("fc-810"), r = byId("rado-r763"), q = byId("quartz");
   check(g.vph === 21600 && g.mine && m.vph === 288000 && m.flexure && r.vph === 21600 && r.lift === 50 && q.quartz, "Korbi's: the 822 at 21,600, the Monolithic at 288,000 with no balance, the Rado's C07.611 at 21,600 and 50°, the Lady's quartz");
-  check(CALIBRES.findIndex(c => !c.mine) > CALIBRES.findLastIndex(c => c.mine), "his watches come first");
+  check(CALIBRES.findIndex(c => !c.mine) > CALIBRES.findLastIndex(c => c.mine) && CALIBRES.filter(c => c.mine).every(c => c.short), "his watches come first, each with its movement's short name for the menu");
   check(DEFAULT_LIFT === 52 && byId("eta-2824").lift === 50 && byId("unitas-1").vph === 18000 && byId("omega-8500").coaxial, "52° by default; the 2824-2 at 50°, a 6497-1 at 18,000, the Omega co-axial marked");
 }
 

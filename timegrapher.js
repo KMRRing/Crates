@@ -614,7 +614,7 @@ function openMenu() {
     action("Worn rate", openWorn), action("Open a recording", () => $("file").click()));
   const content = part(body, "content");
   content.append(mirror("Watch", $("watchSel")));
-  content.append(choice("Calibre", [["auto", "By ear"], ...CALIBRES.map(x => [x.id, x.mine ? x.name : x.name])], c.id, v => {
+  content.append(choice("Calibre", [["auto", "By ear"], ...CALIBRES.map(x => [x.id, x.short || x.name])], c.id, v => {
     w.cal = v; w.vph = null; w.lift = null; saveW(); drawWatch(); if (R) R.known = null; openMenu();
   }));
   content.append(line(`${c.id === "auto" ? AUTO.src : `${c.cal}: ${c.src}`}${c.lift && !c.flexure ? ` Lift angle ${SURE[c.sure] ? `(${SURE[c.sure]})` : ""}.` : ""}`));
