@@ -23,6 +23,8 @@ export function withRng(r, fn, hush = false) {
   try { return fn(); } finally { rng = old; quiet = was; }
 }
 export const random = () => rng();
+/** Whether the move being made is one played out in the head (no log, nothing noted for the table). */
+export const hushed = () => quiet;
 
 // ---------- the log: a line for each thing that happens, {s0} for whoever sits in seat 0 ----------
 // The whole game is kept, for Copy log (a game runs to two or three hundred lines); the bound is against one that never ends.

@@ -268,8 +268,14 @@ function forMove(s, seat, F, m, good) {
   return out;
 }
 const islandsOfType = (s, seat, type) => s.bf.filter(l => l.ctl === seat && isLand(l) && typesOf(l).includes(type)).length;
-/** The spell of ours they last let through with a Lapse's mana open, as the reason names it: "last Dandân", "Piracy Charm on their Dandân". */
-const lastOn = (s, seat) => { const on = s.tells?.[other(seat)]?.on || "Dandân"; return on === "Dandân" ? "last Dandân" : `${on} on their Dandân`; };
+/** The spell of ours they last let through with a Lapse's mana open, as the reason names it: "last Dandân", or the spell. */
+const lastOn = (s, seat) => {
+  const read = freshRead(facts(s, seat), "lapse");
+  if (read?.on) return read.on === "Dandân" ? "last Dandân" : read.on;
+  // a game from before the reads of passes: its tell was only ever for a Dandân, or a spell aimed at theirs
+  const on = s.tells?.[other(seat)]?.on || "Dandân";
+  return on === "Dandân" ? "last Dandân" : `${on} on their Dandân`;
+};
 /**
  * What a cast does to the graveyard both players share, in words, when it matters (Medium's gift): a card it leaves
  * for their Mystic Retrieval (flashed back with their red, or one in their hand), or one it takes away from it.

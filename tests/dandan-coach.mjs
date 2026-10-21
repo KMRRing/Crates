@@ -2,7 +2,8 @@
 // of move, its advice legal and the same each time, nothing it can't see changing it, the judge's chances, the
 // verdict's margin, its reasons on positions with one right answer, and what the deals showed.
 import { DECK } from "../dandan-cards.js";
-import { toMove, deal, restore } from "../dandan-engine.js";
+import { toMove, deal, restore, act, passPoints } from "../dandan-engine.js";
+import { readPass, notePasses } from "../dandan-observe.js";
 import { T } from "../dandan-spells.js";
 import { think, determinize, seedOf } from "../dandan-think.js";
 import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN, evidence } from "../dandan-coach.js";
@@ -80,7 +81,7 @@ test("the advice is legal, and the same every time it is asked", () => {
 test("the weighing leaves the game it weighs as it was, every count and tell included", () => {
   for (const make of [lone, theirDandan, keepOpen]) {
     const s = make(), seat = toMove(s), was = JSON.stringify(s);
-    think(s, seat, { ...BUDGET, reply: 4 });
+    think(s, seat, BUDGET);
     if (JSON.stringify(s) !== was) return `${make.name}: the game changed`;
   }
   return true;
@@ -93,8 +94,8 @@ test("what the seat can't see (the other hand, the library's order) changes noth
   [t.hand[1][0], t.lib[k]] = [t.lib[k], t.hand[1][0]];
   t.lib = t.lib.reverse();
   if (seedOf(s, seat) !== seedOf(t, seat)) return "the seed saw it";
-  // (with the other player's answers tried, as the page asks: they're tried in the deals, never in the real hand)
-  const a = think(s, seat, { ...BUDGET, reply: 4 }), b = think(t, seat, { ...BUDGET, reply: 4 });
+  // (both players' choices searched, as the page asks: in the deals, never in the real hand)
+  const a = think(s, seat, BUDGET), b = think(t, seat, BUDGET);
   const d1 = determinize(s, seat, seeded(3)), d2 = determinize(t, seat, seeded(3));
   return sameMove(a.best, b.best) && a.list.map(c => c.mean.toFixed(6)).join() === b.list.map(c => c.mean.toFixed(6)).join()
     && JSON.stringify(d1.hand[1]) === JSON.stringify(d2.hand[1]) && JSON.stringify(d1.lib) === JSON.stringify(d2.lib) || "the deals or the advice differ";
@@ -158,6 +159,78 @@ test("Medium's odds read the same: a Lapse after the pass, and an answer after t
   const p2 = holds(facts(t, 0), "Memory Lapse");
   return p1 < p0 / 3 && c1 < c0 / 2 && p2 > p1 * 2 && p2 < p0 || [p0, p1, p2, c0, c1].map(x => x.toFixed(3)).join(" ");
 });
+// ---------- reading every pass (dandan-observe.js) ----------
+/** The passes a move by `seat` led to, each read: [{ seat, on, out }] (a real table's move: the engine's passPoints). */
+const readsAfter = (s, seat, m) => {
+  const c = J(s);
+  if (typeof act(c, seat, m, { rng: seeded(5) }) === "string") throw new Error("refused");
+  return passPoints.splice(0).map(p => ({ seat: p.seat, step: p.s.step, top: p.s.stack.at(-1)?.name, out: readPass(p.s, p.seat) }));
+};
+const blank = () => scene({ active: 1, hand: [["Brainstorm", "Island"], ["Dandân", "Island"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 3)] });
+test("every pass is read: their Dandân let resolve with a Lapse's mana open rules out Memory Lapse", () => {
+  const s = cast(blank(), 1, "Dandân");
+  const r = readsAfter(s, 0, { t: "pass" }).find(x => x.seat === 0 && x.top === "Dandân");
+  return !!r && r.out.includes("Memory Lapse") || JSON.stringify(r);
+});
+test("…the end of a turn's main phases with no land played rules out every land; with one played, nothing about lands", () => {
+  const s = scene({ active: 0, step: "main2", hand: [["Brainstorm"], ["Island"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)] });
+  const r = readsAfter(s, 0, { t: "pass" }).find(x => x.seat === 0 && x.step === "main2");
+  const played = J(s); played.played = 1;
+  const q = readsAfter(played, 0, { t: "pass" }).find(x => x.seat === 0 && x.step === "main2");
+  return !!r && r.out.includes("Island") && r.out.includes("Izzet Boilerworks") && !(q?.out || []).includes("Island") || JSON.stringify([r, q]);
+});
+test("…an attack let through with one blue open rules out what one blue answers it with, and not what needs more", () => {
+  const a0 = scene({ active: 1, hand: [["Island"], []], bf: [[0, "Island"], [0, "Island", { tapped: true }], ...islandsOf(1, 2), [1, "Dandân"]] });
+  const att = answer(pass(a0, 1), { t: "attack", ids: [onBf(a0, 1, "Dandân")] });
+  const r = readsAfter(att, toMove(att), { t: "pass" }).find(x => x.seat === 0 && x.step === "blockers");
+  return !!r && r.out.includes("Piracy Charm") && !r.out.includes("Repulse") || JSON.stringify(r);
+});
+test("…a read doesn't depend on the cards really in the passing hand (only on what the reader could know)", () => {
+  const s = cast(blank(), 1, "Dandân"), t = J(s);
+  // a hidden card of seat 0's swapped with one in the library: seat 1 can't tell the two apart
+  const j = t.lib.findIndex(id => DECK[id] === "Predict");
+  [t.hand[0][0], t.lib[j]] = [t.lib[j], t.hand[0][0]];
+  const a = readsAfter(s, 0, { t: "pass" }), b = readsAfter(t, 0, { t: "pass" });
+  return JSON.stringify(a) === JSON.stringify(b) || `${JSON.stringify(a)} | ${JSON.stringify(b)}`;
+});
+test("…and the deals read it: after the pass on their Dandân, the passing hand is mostly dealt no Memory Lapse", () => {
+  const s = cast(blank(), 1, "Dandân");
+  const c = J(s);
+  Object.assign(c, { reading: 1, obs: [] });
+  act(c, 0, { t: "pass" }, { rng: seeded(5) });
+  notePasses(c, passPoints.splice(0));
+  const lapse = id => DECK[id] === "Memory Lapse";
+  const dealt = x => { let n = 0; for (let i = 0; i < 200; i++) if (determinize(x, 1, seeded(i)).hand[0].some(lapse)) n++; return n; };
+  const before = J(c);
+  before.obs = [];
+  const [b, a] = [dealt(before), dealt(c)];
+  return c.obs.some(o => o.s === 0 && o.out.includes("Memory Lapse")) && a < b / 3 || `${b} then ${a} of 200 deals; ${JSON.stringify(c.obs)}`;
+});
+test("…and the coach says so: after their pass on our Dandân, casting the next is advised for the Lapse they very likely lack", () => {
+  const s = cast(Object.assign(scene({ active: 0, hand: [["Dandân", "Dandân", "Island"], ["Brainstorm", "Island"]], bf: [...islandsOf(0, 3), ...islandsOf(1, 3)] }), { reading: 1, obs: [] }), 0, "Dandân");
+  const c = J(s);
+  act(c, 1, { t: "pass" }, { rng: seeded(5) });
+  notePasses(c, passPoints.splice(0));
+  const r = resolveStack(c);
+  const why = reasons(r, 0, { t: "cast", card: idIn(r, 0, "Dandân"), from: "hand", targets: [] }, { t: "pass" });
+  return why.some(w => /They let your last Dandân resolve with a Lapse's mana open, and haven't drawn since: they very likely hold no Memory Lapse/.test(w)) || JSON.stringify([why, r.obs]);
+});
+test("Medium never holds what its passes are read to rule out (a game of it against itself, every pass read)", () => {
+  let s = { ...deal({ rng: seeded(4501) }), reading: 1, obs: [] }, ruled = 0, held = 0;
+  const rng = seeded(9);
+  for (let i = 0; i < 4000 && !s.over; i++) {
+    const who = toMove(s);
+    act(s, who, botMove(J(s), who, { rng, level: "medium" }), { rng });
+    for (const p of passPoints.splice(0)) {
+      const out = readPass(p.s, p.seat), hand = new Set(p.s.hand[p.seat].map(id => DECK[id]));
+      if (!out.length) continue;
+      ruled++;
+      if (out.some(n => hand.has(n))) held++;
+    }
+  }
+  return ruled >= 3 && held === 0 || `${held} of ${ruled} reads held`;
+});
+
 test("a hand's chance under the reads: what a read rules out is only likely among the cards drawn since", () => {
   const close = (a, b) => Math.abs(a - b) < 1e-9;
   return close(allAmong(0, 5, 0), 1) && close(allAmong(1, 5, 0), 0) && close(allAmong(1, 5, 2), 2 / 5) && close(allAmong(2, 5, 2), 1 / 10) && close(allAmong(2, 5, 9), 1);
@@ -228,11 +301,11 @@ test("what the deals showed: where each move left the game, and the biggest diff
   const s = theirDandan(), r = think(s, 0, { ...BUDGET, must: { t: "pass" } });
   const lapse = r.list.find(c => c.move.t === "cast"), pass_ = r.list.find(c => c.move.t === "pass");
   const keys = Object.keys(lapse.seen).sort().join();
-  // countered, their Dandân is gone two turns on far more often than let through
+  // countered, their Dandân goes on top for us to draw: two turns on it's ours on the table, not theirs, far more often
   const said = evidence(lapse, pass_, s, 0).join(" ");
   const made = { seen: { d: 0.5, D: 0.2, l: 20, L: 20, h: 4, H: 4 }, move: { t: "pass" } }, other = { seen: { d: 0.5, D: 0.2, l: 12, L: 20, h: 4, H: 4 }, move: { t: "land", card: idIn(lone(), 0, "Island") } };
   const life = evidence(made, other, lone(), 0).join(" "), none = evidence(made, made, lone(), 0), yours = evidence(made, other, lone(), 0, { yours: true }).join(" ");
-  return keys === "D,H,L,a,an,d,h,l" && /they have a Dandân on the table in .* after letting it resolve; after casting Memory Lapse on their Dandân, in/.test(said)
+  return keys === "D,H,L,a,an,d,h,l" && /(you|they) have a Dandân on the table in .* after letting it resolve; after casting Memory Lapse on their Dandân, in/.test(said)
     && /you're at 12 life on average after playing Island; after passing, at 20/.test(life) && /after yours; after passing/.test(yours) && !none.length || `${keys} | ${said} | ${life}`;
 });
 test("the shared graveyard: a Mystic Retrieval cast from the hand while they have red and a Piracy Charm lies there is called out, and why", () => {
@@ -240,8 +313,8 @@ test("the shared graveyard: a Mystic Retrieval cast from the hand while they hav
     bf: [...islandsOf(0, 4), [0, "Dandân"], [1, "Thundering Falls"], ...islandsOf(1, 3)], yard: ["Piracy Charm", "Memory Lapse", "Chart a Course"] });
   const lapse = s.yard.find(id => DECK[id] === "Memory Lapse");
   const mine = { t: "cast", card: idIn(s, 0, "Mystic Retrieval"), from: "hand", targets: [T.g(lapse)] };
-  // (the other player's answers tried, as the page asks)
-  const v = verdict(think(s, 0, { ...BUDGET, reply: 4, must: mine }), mine, s, 0);
+  // (as the page's check weighs it: in 96 deals)
+  const v = verdict(think(s, 0, { deals: 96, wide: 9, must: mine }), mine, s, 0);
   return !!v && /flashes it back for the Piracy Charm, and your Dandân dies/.test(v.words) && /Their best answer to yours, in \d+ of the \d+ deals: they cast Mystic Retrieval for Piracy Charm with flashback/.test(v.words)
     && /you have a Dandân on the table in .* after yours/.test(v.words) || v?.words || "no word";
 });

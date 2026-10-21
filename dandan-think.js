@@ -1,17 +1,17 @@
 // Dandan's look-ahead: Hard's player and the coach's judgement. At a decision it takes each move worth considering
-// (the ones Medium, dandan-policy.js, would weigh, and passing), plays each out a turn ahead in many deals of the cards
-// the seat can't see, with Medium moving both seats there except at the other player's next main phase, where each of
-// their likeliest moves is tried and the one worst for the seat counts (their best answer, not only Medium's habit),
-// and judges where each lands by dandan-eval.js's chance of winning; the move with the best average is played. The
-// deals are the same for every move (and so is the rest of the game's luck), so the moves are set against each other
-// on the same footing, and a move clearly behind the best stops being played out early (a race). Pure functions; the
-// coach runs them in dandan-worker.js.
+// (the ones Medium, dandan-policy.js, would weigh, and passing) and plays each out to the start of the turn after next
+// in many deals of the cards the seat can't see. Below each move the decisions that follow are searched for both
+// players (the tree: each picks what has done best for it there, over the deals), and where each line lands is judged by
+// dandan-eval.js's chance of winning, which is the rest of the game as these players would play it; the move with the
+// best average is played. The deals are the same for every move (and so is the rest of the game's luck), so the moves
+// are set against each other on the same footing, and a move clearly behind the best stops being played out early (a
+// race). Pure functions; the coach runs them in dandan-worker.js.
 //
 // A deal (determinize) keeps everything the seat knows where it is: its hand, the table, the graveyard and exile, the
 // stack, the library cards it has seen, the cards it knows are in the other hand; the rest of the other hand and of
 // the library are the remaining cards in a random order, the other hand weighed by what their play has shown (the hand
-// they kept, a land drop missed, a counter or an answer not cast: dandan-reads.js). What the other player knew of the
-// library stays with the places they knew, whatever card is there now.
+// they kept, and every pass they made where a card would clearly have been played: dandan-reads.js, dandan-observe.js).
+// What the other player knew of the library stays with the places they knew, whatever card is there now.
 import { act, toMove, moves } from "./dandan-engine.js";
 import { DECK, NAMES } from "./dandan-cards.js";
 import { other, knownIn, knOf } from "./dandan-core.js";
@@ -26,8 +26,11 @@ const J = x => JSON.parse(JSON.stringify(x));
 const REDEALS = 24;
 
 // ---------- the cards the seat can't see, dealt ----------
-/** The seat's view of the game, with the cards it can't see dealt at random (a copy; the log left behind). */
-export function determinize(s, seat, rng) {
+/**
+ * The seat's view of the game, with the cards it can't see dealt at random (a copy; the log left behind); weigh: the
+ * other hand dealt by what their play has shown (a reading of a pass deals plainly, for speed: dandan-observe.js).
+ */
+export function determinize(s, seat, rng, weigh = true) {
   const c = { ...s, log: [] };
   c.hand = s.hand.map(h => h.slice());
   c.lib = s.lib.slice();
@@ -60,7 +63,7 @@ export function determinize(s, seat, rng) {
   // of the tries when none is kept)
   pool.sort((x, y) => x - y);
   let dealt = shuffle(pool, rng);
-  const reads = readsOf(s, opp);
+  const reads = weigh ? readsOf(s, opp) : [];
   if (reads.length && handSlots.length) {
     const known = c.hand[opp].filter(id => pinned.has(id));
     let best = dealt, top = -1;
@@ -81,7 +84,7 @@ export function determinize(s, seat, rng) {
 }
 
 /** A copy of a dealt game to play a move out on. */
-function fork(c) {
+export function fork(c) {
   return {
     ...c, log: [], hand: c.hand.map(h => h.slice()), lib: c.lib.slice(), yard: c.yard.slice(), exile: c.exile.slice(),
     bf: c.bf.map(p => ({ ...p, ...(p.tc ? { tc: p.tc.map(x => x.slice()) } : {}), ...(p.pump ? { pump: p.pump.slice() } : {}) })),
@@ -198,38 +201,115 @@ export function candidates(s, seat, { wide = 7 } = {}) {
 }
 
 // ---------- playing a move out ----------
-/**
- * Plays a dealt game on with Medium moving both seats until the turn `to` begins (or the game ends); the seat's chance
- * there. reply: at the other seat's first main phase of its own turn, its `reply` best-scored moves are each played out
- * and the one worst for the seat counts (the other player finding their best answer, not only Medium's habit).
- */
-export function playOut(c, seat, to, rng, reply = 0, seed = 0, judge = winChance, seen = null) {
-  const opp = other(seat);
+/** Plays a dealt game on with Medium moving both seats until the turn `to` begins (or the game ends); the seat's chance there. */
+export function playOut(c, seat, to, rng, judge = winChance) {
   for (let i = 0; i < 4000 && !c.over; i++) {
     if (c.turn >= to && !c.stack.length) break;
     const who = toMove(c);
     if (who == null) break;
-    if (reply > 1 && who === opp && c.active === opp && !c.pending && !c.stack.length && (c.step === "main1" || c.step === "main2")) {
-      const answers = candidates(c, opp, { wide: reply });
-      if (answers.length > 1) {
-        let worst = 2;
-        const here = seen ? {} : null;
-        for (const m of answers) {
-          const b = fork(c), r = seeded(seed);
-          if (typeof act(b, opp, m, { rng: r, quiet: true }) === "string") continue;
-          const v = playOut(b, seat, to, r, 0, 0, judge, here);
-          // the answer that did it, in the seat's words (for the coach: "they cast Piracy Charm for +2/−1 on your Dandân")
-          if (v < worst) { worst = v; if (seen) Object.assign(seen, here, { a: m.t === "pass" ? "" : moveName(m, c, seat) }); }
-        }
-        if (worst <= 1) return worst;
-      }
-    }
-    const r = act(c, who, policyMove(c, who, { rng }), { rng, quiet: true });
-    if (typeof r === "string") break;
+    if (typeof act(c, who, policyMove(c, who, { rng }), { rng, quiet: true }) === "string") break;
   }
-  if (seen) Object.assign(seen, where(c, seat));
   return judge(c, seat);
 }
+// ---------- the tree: each player's choices searched ----------
+// Below a move weighed, the decisions that follow it in the next turns are a tree shared by all its deals (information-
+// set Monte Carlo tree search): at each, the player to move picks among its likeliest moves (Medium's own first, then
+// passing and the best-scored others) by how they have done for that player so far (UCB, counting a move only in the
+// deals where it was there to make), so each side comes to play what is best for it there, not only Medium's habit; a
+// node's choices widen as it's visited, and each deal grows the tree by one decision, Medium playing on from there.
+const WIDTH = 4, EXPLORE = 0.3;
+/** How many turns the tree reaches (its decisions searched; Medium's after): the playing out's own two. */
+const TREE_TURNS = 2;
+/**
+ * A move as the seat sees it, so a decision's children are the same in every deal: cards by name, permanents by
+ * controller and name, the other player's hidden choices (cards put back, put on the bottom, their order) by kind only.
+ */
+function sigOf(m, c, seat, who) {
+  const mine = who === seat;
+  const card = id => (id == null ? "-" : DECK[id] ?? id);
+  const tgt = t => {
+    if (t.k === "c") { const p = c.bf.find(x => x.id === t.id); return `c${p ? p.ctl : "?"}${p ? DECK[p.id] ?? "Clue" : t.id}${p?.tapped ? "t" : ""}`; }
+    if (t.k === "s") { const x = c.stack.find(y => y.sid === t.sid); return `s${x ? x.ctl + x.name : t.sid}`; }
+    if (t.k === "g") return `g${card(t.id)}`;
+    return `p${t.seat}`;
+  };
+  switch (m.t) {
+    case "pass": return "p";
+    case "land": return `l${card(m.card)}`;
+    case "cast": return `c${card(m.card)}${m.from}${m.mode ?? ""}:${(m.targets || []).map(tgt).join(",")}`;
+    case "cycle": return `y${card(m.card)}`;
+    case "ability": { const p = c.bf.find(x => x.id === m.id); return `a${p ? DECK[p.id] ?? "Clue" : m.id}`; }
+    case "attack": return `A${m.ids.length}`;
+    case "block": return `B${m.pairs.length}`;
+    case "discard": return `D${m.cards.map(card).sort().join(",")}`;
+    case "putback": case "order": return mine ? `${m.t}${m.cards.map(card).join(",")}` : m.t;
+    case "bottom": return mine ? `bottom${m.cards.map(card).sort().join(",")}` : "bottom";
+    case "search": return `F${card(m.card)}`;
+    case "pick": return `P${card(m.card)}`;
+    case "name": return `N${m.name}`;
+    case "bend": return `b${m.from}${m.to}`;
+    case "retarget": return `R${(m.targets || []).map(tgt).join(",")}`;
+    default: return JSON.stringify(m);
+  }
+}
+const newNode = () => ({ n: 0, kids: new Map() });
+/** The child to follow at a node: unvisited ones in Medium's order, then by UCB over the deals each was there; returns { k, m }. */
+function choose(node, ms, c, seat, who, at, explore = EXPLORE) {
+  node.n++;
+  const allow = Math.min(ms.length, 1 + Math.floor(Math.sqrt(node.n - 1)));
+  let best = null, m = null, top = -Infinity;
+  for (let i = 0; i < allow; i++) {
+    const sig = at + sigOf(ms[i], c, seat, who);
+    let k = node.kids.get(sig);
+    if (!k) { k = { n: 0, w: 0, avail: 0, node: null }; node.kids.set(sig, k); }
+    k.avail++;
+    const v = k.n ? k.w / k.n + explore * Math.sqrt(Math.log(k.avail) / k.n) : 2 - i / 100;
+    if (v > top) { top = v; best = k; m = ms[i]; }
+  }
+  return { k: best, m };
+}
+/**
+ * One deal of a move weighed, down its tree: each player's decisions searched (choose) until a new one is reached or
+ * the tree's turns are past, Medium moving both seats from there until the turn `to` begins; the seat's chance there
+ * (the judge), counted back up the path for each player at its own decisions. seen: where it was left, and the other
+ * player's first choice on the way (their answer, for the coach's words).
+ */
+export function treePlay(c, seat, root, to, treeTo, rng, judge = winChance, seen = null, explore = EXPLORE) {
+  const opp = other(seat), path = [];
+  let node = root, growing = true;
+  for (let i = 0; i < 4000 && !c.over; i++) {
+    if (c.turn >= to && !c.stack.length) break;
+    // where it stands at the tree's end (the coach's "two turns on"), however much further it's played
+    if (seen && seen.d == null && c.turn >= treeTo && !c.stack.length) Object.assign(seen, where(c, seat));
+    const who = toMove(c);
+    if (who == null) break;
+    let m = null;
+    if (growing && c.turn < treeTo) {
+      const ms = candidates(c, who, { wide: WIDTH });
+      if (ms.length > 1) {
+        // a decision's children are keyed by who decides and where, as well as by the move: in other deals the same
+        // line can reach another seat's decision first (a hand with nothing to do there is passed over)
+        const pick = choose(node, ms, c, seat, who, `${who}${c.step}${c.stack.length}${c.pending?.t ?? ""}:`, explore);
+        m = pick.m;
+        path.push([pick.k, who]);
+        if (pick.k.node) node = pick.k.node;
+        else { pick.k.node = newNode(); growing = false; }
+      } else m = ms[0];
+    } else m = policyMove(c, who, { rng });
+    // their answer, for the coach: what they do first in their own main phase (their turn's plan), else first at all
+    // (a land is no answer)
+    if (seen && who === opp && m.t !== "pass" && m.t !== "land" && !seen.main && c.turn < treeTo) {
+      const main = c.active === opp && /^main/.test(c.step) && !c.stack.length;
+      if (main || seen.a == null) { seen.a = moveName(m, c, seat); seen.main = main; }
+    }
+    if (typeof act(c, who, m, { rng, quiet: true }) === "string") break;
+  }
+  const v = judge(c, seat);
+  for (const [k, who] of path) { k.n++; k.w += who === seat ? v : 1 - v; }
+  if (seen && seen.d == null) Object.assign(seen, where(c, seat));
+  return v;
+}
+
 /** What the coach can say of where a game was left, for the seat: a Dandân of its own on the table and one of theirs, both lives and hands. */
 function where(c, seat) {
   const opp = other(seat);
@@ -240,20 +320,21 @@ function where(c, seat) {
 
 /**
  * Weighs a decision: { best, list: [{ move, mean, se, n, seen }] (the best first; seen: where its deals left the game, on
- * average, for the coach's words), deals, only }. Each move is played out in the same deals; one clearly behind the
- * best (by the gap's standard error, deal by deal) is dropped as the deals go.
- * opts: deals (most), first (deals before any is dropped), turns (how far ahead: the turn after next, 2), wide
- * (moves weighed), must (a move to keep to the end: the coach's check), ms (a backstop on the time), reply (the other
- * player's answers tried at their next main phase, playOut's), judge (the chance of winning where a game is left).
+ * average, for the coach's words), deals, only }. Each move is played out in the same deals, down its own tree; one
+ * clearly behind the best (by the gap's standard error, deal by deal) is dropped as the deals go.
+ * opts: deals (most), first (deals before any is dropped), turns (how far ahead: the turn after next, 2; the tree
+ * reaches as far), wide (moves weighed), must (a move to keep to the end: the coach's check), ms (a backstop on the
+ * time), judge (the chance of winning where a game is left), explore (the tree's: how much benefit of the doubt a
+ * choice tried less gets).
  */
-export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, must = null, ms = 4000, reply = 0, judge = winChance } = {}) {
+export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, must = null, ms = 4000, judge = winChance, explore = EXPLORE } = {}) {
   const t0 = Date.now();
   const cands = candidates(s, seat, { wide });
   if (must && !cands.some(m => key(m) === key(must))) cands.push(must);
   const n = cands.length;
   if (n === 1) return { best: cands[0], list: [{ move: cands[0], mean: NaN, se: 0, n: 0 }], deals: 0, only: true };
-  const to = s.turn + turns, seed = seedOf(s, seat);
-  const vals = cands.map(() => []), seen = cands.map(() => []);
+  const to = s.turn + turns, treeTo = s.turn + Math.min(turns, TREE_TURNS), seed = seedOf(s, seat);
+  const vals = cands.map(() => []), seen = cands.map(() => []), roots = cands.map(newNode);
   let alive = cands.map((_, i) => i), d = 0;
   while (d < deals && alive.length > 1) {
     const rng = seeded(mix(seed, d + 1));
@@ -262,7 +343,8 @@ export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, mus
       const c = fork(base), r = seeded(runSeed);
       const res = act(c, seat, cands[i], { rng: r, quiet: true });
       const at = {};
-      vals[i].push(typeof res === "string" ? -1 : playOut(c, seat, to, r, reply, mix(runSeed, 99), judge, at));
+      if (typeof res === "string") vals[i].push(-1);
+      else vals[i].push(treePlay(c, seat, roots[i], to, treeTo, r, judge, at, explore));
       seen[i].push(at);
     }
     d++;
@@ -286,8 +368,8 @@ export function think(s, seat, { deals = 48, first = 6, turns = 2, wide = 7, mus
   // the best of the moves still in the race, by their average over the same deals (a move dropped on a few deals keeps
   // the average of those, which may be lucky: it was clearly behind when it went, and stays behind). Medium's own move
   // stands unless another beats it by more than the deals can explain (a standard error of the gap, deal by deal, and
-  // half a point): two turns ahead is not far, and Medium's habits (what to keep for later) are worth more than a gap
-  // that is mostly chance
+  // half a point): what two turns can't show, a land drop kept for nothing above all (the judge counts a land in hand
+  // nearly as one down), is in Medium's habits, and a gap that is mostly chance would otherwise decide it
   const byMean = (a, b) => b.mean - a.mean;
   const ranked = [...list.filter(c => alive.includes(c.i)).sort(byMean), ...list.filter(c => !alive.includes(c.i)).sort(byMean)];
   for (const c of list) c.out = !alive.includes(c.i);
@@ -331,14 +413,13 @@ function prune(alive, vals, cands, must) {
 
 /**
  * How much weighing each use gets: Hard's move; the coach's weighing (a Hint, Always) and its check of a move of
- * yours, wider and in more deals; and the same on the page's own thread, where a browser has no worker. Each tries the
- * other player's four likeliest answers (three on the page's thread).
+ * yours, wider and in more deals; and the same on the page's own thread, where a browser has no worker.
  */
 export const BUDGET = {
-  move: { deals: 32, reply: 4, ms: 2500 },
-  think: { deals: 64, wide: 9, reply: 4, ms: 6000 },
-  check: { deals: 64, wide: 9, reply: 4, ms: 7000 },
-  here: { deals: 24, wide: 7, reply: 3, ms: 1500 },
+  move: { deals: 64, ms: 2500 },
+  think: { deals: 96, wide: 9, ms: 6000 },
+  check: { deals: 96, wide: 9, ms: 7000 },
+  here: { deals: 32, wide: 7, ms: 1500 },
 };
 
 /** Hard's move: Medium's answer to a question it doesn't weigh (the mulligan, a name), else the look-ahead's best. */

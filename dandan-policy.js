@@ -86,8 +86,13 @@ export function openMana(s, seat) {
   }
   return { n, u, r };
 }
-/** A read of the other player (dandan-reads.js) of a kind, when nothing has been drawn since: what their play has just shown. */
-export const freshRead = (F, kind) => F.reads.find(r => r.kind === kind && r.since === 0) || null;
+/**
+ * A read of the other player (dandan-reads.js) of a kind, when nothing has been drawn since: what their play has just
+ * shown. "land": no land; "lapse": no Memory Lapse, at a spell of ours let through; "kill": no answer, at our attack.
+ */
+export const freshRead = (F, kind) => F.reads.find(r => r.since === 0 && (r.kind === kind
+  || (kind === "lapse" && r.at === "stack" && r.names?.has("Memory Lapse"))
+  || (kind === "kill" && r.at === "attack"))) || null;
 /**
  * The chance the other hand holds at least one card of a name: one known to be there, certainly; else at random among
  * the cards not seen, unless their play ruled it out of the hand they held then (a read): then only the cards drawn

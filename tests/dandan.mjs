@@ -819,16 +819,19 @@ test("its answers are always legal ones, for every kind of question and at every
 });
 
 // ---------- whole games ----------
+// played with no log and nothing read of the passes (quiet), as the computer plays games out in its head: reading every
+// pass of hundreds of games would take minutes (one game read in full is dandan-coach.mjs's)
+const bulk = { ...rules, act: (s, seat, m, ctx) => rules.act(s, seat, m, { ...ctx, quiet: true }) };
 {
   let refusedAt = null, unfinished = 0, lengths = [], bySeat = [0, 0];
   const t0 = Date.now();
   for (let g = 0; g < 100; g++) {
-    let G = newRecord(rules, { seats: 2, seed: 9000 + g, now: 0 });
+    let G = newRecord(bulk, { seats: 2, seed: 9000 + g, now: 0 });
     const rng = seeded(31 + g);
     let n = 0;
     while (!rules.over(G.state) && n < 6000) {
       const who = rules.toMove(G.state);
-      const r = applyMove(rules, G, who, botMove(rules.restore(J(G.state)), who, { rng, level: "medium" }), 0);
+      const r = applyMove(bulk, G, who, botMove(rules.restore(J(G.state)), who, { rng, level: "medium" }), 0);
       if (r.error) { refusedAt = `game ${g} move ${n}: ${r.error}`; break; }
       G = r.G; n++;
       if (n % 25 === 0) {
@@ -847,8 +850,8 @@ test("its answers are always legal ones, for every kind of question and at every
 }
 test("a seeded game is played the same way twice", () => {
   const play = () => {
-    let G = newRecord(rules, { seats: 2, seed: 123, now: 0 });
-    for (let i = 0; i < 6000 && !rules.over(G.state); i++) { const who = rules.toMove(G.state); G = applyMove(rules, G, who, seatBot(rules, G, who, "medium"), 0).G; }
+    let G = newRecord(bulk, { seats: 2, seed: 123, now: 0 });
+    for (let i = 0; i < 6000 && !rules.over(G.state); i++) { const who = rules.toMove(G.state); G = applyMove(bulk, G, who, seatBot(bulk, G, who, "medium"), 0).G; }
     return JSON.stringify(G);
   };
   const a = play();
@@ -859,12 +862,12 @@ test("a seeded game is played the same way twice", () => {
   const versus = (a, b, n, from) => {
     let wins = 0;
     for (let g = 0; g < n; g++) {
-      let G = newRecord(rules, { seats: 2, seed: from + g, now: 0 });
+      let G = newRecord(bulk, { seats: 2, seed: from + g, now: 0 });
       const rng = seeded(7 + g), mine = g % 2;
       const pick = (lvl, s, who) => (lvl === "random" ? randomMove(s, who, rng) : botMove(s, who, { rng, level: lvl }));
       for (let i = 0; i < 6000 && !rules.over(G.state); i++) {
         const who = rules.toMove(G.state);
-        G = applyMove(rules, G, who, pick(who === mine ? a : b, rules.restore(J(G.state)), who), 0).G;
+        G = applyMove(bulk, G, who, pick(who === mine ? a : b, rules.restore(J(G.state)), who), 0).G;
       }
       if (G.state.winner === mine) wins++;
     }

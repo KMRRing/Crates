@@ -12,7 +12,7 @@ import { shuffle } from "./seats.js";
 import {
   LIFE, HAND, other, list, withRng, say, nm, isLandId, perm, isLand, isCreature, pt, canAttack, unblockable, fetchTypes, typesOf, needType,
   payPlan, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
-  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords, tellsOf, freshTells,
+  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords, tellsOf, freshTells, hushed,
 } from "./dandan-core.js";
 import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
 
@@ -260,7 +260,23 @@ function mustCounter(s, it, seat) {
   if (!KILLERS.has(it.name) || (it.name === "Piracy Charm" && it.mode !== 1)) return false;
   return it.targets.some(t => { const p = t.k === "c" ? perm(s, t.id) : null; return !!p && p.ctl === seat && isCreature(p); });
 }
+/**
+ * The passes of a real game (not one played out in the head) at the moments a pass can show what a hand lacks: an
+ * opposing spell on the stack, the last main phase of one's own turn, the end of the other player's, an attack about
+ * to be damaged. Each is kept with a copy of the game as it stood, for dandan-rules.js to read once the move that led to
+ * it is made (dandan-observe.js), whether the seat was asked there or had nothing to do.
+ */
+export const passPoints = [];
+function notePassPoint(s) {
+  const seat = s.prio, top = s.stack[s.stack.length - 1];
+  const telling = top ? top.kind === "spell" && top.ctl !== seat
+    : s.step === "main2" ? seat === s.active
+    : s.step === "end" ? seat !== s.active
+    : s.step === "blockers" && seat !== s.active && !!s.combat?.att.length;
+  if (telling) passPoints.push({ seat, s: JSON.parse(JSON.stringify({ ...s, log: [] })) });
+}
 function passPriority(s) {
+  if (!hushed()) notePassPoint(s);
   notePass(s);
   s.passes++;
   if (s.passes < 2) { s.prio = other(s.prio); return; }
@@ -608,6 +624,7 @@ function answer(s, seat, m) {
 
 /** A seat's move made on a game (the runner hands in a copy and keeps it if this returns one). quiet: no log (a game played out in the computer's head). */
 export function act(s, seat, m, { rng, quiet = false } = {}) {
+  if (!quiet) passPoints.length = 0;
   return withRng(rng, () => {
     if (s.over) return "The game is over";
     const err = s.pending ? (s.pending.seat === seat ? answer(s, seat, m) : "It isn't your turn") : (s.prio === seat ? priorityMove(s, seat, m) : "You don't have priority");
@@ -684,6 +701,7 @@ export function restore(s) {
   // the tells (a game saved before them had only the lapse one, as ev)
   s.tells = [0, 1].map(i => ({ ...freshTells(), ...(s.ev?.[i] >= 0 ? { lapse: s.ev[i], on: "Dandân" } : {}), ...(s.tells?.[i] || {}) }));
   delete s.ev;
+  if (s.reading) s.obs = list(s.obs).map(o => ({ ...o, out: list(o.out) }));
   s.life = [0, 1].map(i => s.life?.[i] ?? LIFE);
   s.drawn = [0, 1].map(i => s.drawn?.[i] || 0);
   s.quick = [0, 1].map(i => !!s.quick?.[i]);
