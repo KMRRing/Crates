@@ -5,7 +5,7 @@ import { DECK } from "../dandan-cards.js";
 import { toMove, deal, restore, act, passPoints } from "../dandan-engine.js";
 import { readPass, notePasses } from "../dandan-observe.js";
 import { T } from "../dandan-spells.js";
-import { think, determinize, seedOf } from "../dandan-think.js";
+import { think, determinize, seedOf, coachBudget, DEPTH } from "../dandan-think.js";
 import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN, evidence } from "../dandan-coach.js";
 import { winChance, features, FEATURES } from "../dandan-eval.js";
 import { allAmong } from "../dandan-reads.js";
@@ -22,6 +22,14 @@ const test = (what, fn) => {
   catch (e) { console.log(`FAIL ${what}: ${e.message}`); bad++; }
 };
 const BUDGET = { deals: 32, wide: 9 };
+
+// ---------- how deep it thinks ----------
+test("the coach thinks as deep and as long as the menu's Thinking has Hard think, never less than its own, and wider", () => {
+  const q = coachBudget("think", "quick"), d = coachBudget("check", "deepest"), l = coachBudget("think", "long");
+  return q.deals === 96 && q.ms === 6000 && l.deals === DEPTH.long.deals && l.ms === DEPTH.long.ms
+    && d.deals === DEPTH.deepest.deals && d.ms === DEPTH.deepest.ms && [q, d, l].every(b => b.wide === 9)
+    && coachBudget("think", "none").deals === 96;
+});
 
 // ---------- the positions ----------
 const lone = () => scene({ turn: 2, active: 0, hand: [["Mind Bend", "Island", "Brainstorm"], ["Island"]], bf: [[0, "Island"], [1, "Island"]], step: "main1" });

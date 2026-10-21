@@ -425,9 +425,9 @@ export const BUDGET = {
 };
 
 /**
- * How long Hard thinks, chosen in the menu: Quick is its move above (the one the tests measure); each deeper setting
- * plays four times the deals, and so grows the tree further down the lines that matter (a decision a deal), its time
- * on a slow phone held by the backstop.
+ * How long Hard and the coach think, chosen in the menu: Quick is Hard's move above (the one the tests measure); each
+ * deeper setting plays four times the deals, and so grows the tree further down the lines that matter (a decision a
+ * deal), its time on a slow phone held by the backstop.
  */
 export const DEPTH = {
   quick: BUDGET.move,
@@ -435,6 +435,14 @@ export const DEPTH = {
   deep: { deals: 1024, ms: 40000 },
   deepest: { deals: 4096, ms: 120000 },
 };
+/**
+ * The coach's weighing ("think", "check") at a thinking setting: as deep and as long as Hard's there, never less than
+ * its own (at Quick its 96 deals stand, so it is never the weaker), and wider, nine moves, for the list Why? shows.
+ */
+export function coachBudget(kind, depth) {
+  const own = BUDGET[kind === "check" ? "check" : "think"], d = DEPTH[depth] || DEPTH.quick;
+  return { ...own, ...(d.turns ? { turns: d.turns } : {}), deals: Math.max(own.deals, d.deals), ms: Math.max(own.ms, d.ms) };
+}
 
 /** Hard's move: Medium's answer to a question it doesn't weigh (the mulligan, a name), else the look-ahead's best. */
 export function thinkMove(s, seat, budget = BUDGET.move) {

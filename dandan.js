@@ -30,11 +30,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // the coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
 // otherwise; always, its move at each of your decisions, ringed on the table
 const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
-// how long Hard thinks over a move (dandan-think.js's DEPTH), with what that takes on a phone
+// how long Hard and the coach think over a move (dandan-think.js's DEPTH, coachBudget), with what that takes on a phone
 const THINKING = [["quick", "Quick"], ["long", "Long"], ["deep", "Deep"], ["deepest", "Deepest"]];
 const THINK_TIME = {
-  quick: "On a phone, under a second a move as a rule.", long: "On a phone, a second or two a move; up to ten.",
-  deep: "On a phone, several seconds a move; up to forty.", deepest: "On a phone, half a minute a move; up to two minutes.",
+  quick: "on a phone, under a second a move as a rule.", long: "on a phone, a second or two a move; up to ten.",
+  deep: "on a phone, several seconds a move; up to forty.", deepest: "on a phone, half a minute a move; up to two minutes.",
 };
 // the computer's pace: how long what it does stays on the table before its next move, or until you tap
 const PACES = [["quick", "Quick"], ["steady", "1.5 s"], ["slow", "3 s"], ["tap", "Tap to continue"]];
@@ -159,16 +159,23 @@ function holdForBot() {
   return true;
 }
 const pageRules = { ...rules, bot: (s, seat, ctx) => (ctx.level === "hard" && botMoves.get(keyOf(s))) || rules.bot(s, seat, ctx) };
-/** Thinking changed in the menu: a move being worked out at the old depth is dropped and asked again at the new one. */
+/**
+ * Thinking changed in the menu: what Hard and the coach were working out at the old depth is dropped (their workers
+ * stopped, what they owed answered as stale) and asked again at the new one: Hard's move, a Hint asked for, Always's.
+ */
 function rethink() {
-  const wk = workers.bot;
-  if (wk) {
+  for (const k of ["bot", "coach"]) {
+    const wk = workers[k];
+    if (!wk) continue;
     wk.w.terminate();
-    workers.bot = undefined;
-    for (const f of wk.waiting.values()) f({});
+    workers[k] = undefined;
+    for (const f of wk.waiting.values()) f({ stale: true });
   }
   botMoves.clear();
   botAsked = "";
+  const asked = !!V?.G && hintAsked === decisionOf(V) && !hinted;
+  advice = weighing = hinted = hintAsked = failed = null;
+  if (asked) hint(); else draw();
   page.runner.kick();
 }
 
@@ -243,7 +250,8 @@ function weigh(v) {
   if (advice?.key === key) return Promise.resolve(advice);
   if (weighing?.key === key) return weighing.promise;
   const state = structuredClone(v.state), seat = v.seat;
-  const promise = askThink("think", state, seat).then(({ result }) => {
+  const promise = askThink("think", state, seat).then(({ result, stale }) => {
+    if (stale) return null;                        // asked again at another depth (rethink)
     if (weighing?.key === key) weighing = null;
     if (!result) { failed = key; return null; }
     const a = { key, r: result, state, seat };
@@ -1121,14 +1129,20 @@ function openMenu() {
   play.append(action("Copy log", copyLog, "link"));
   if (opts.full) play.append(action("All games", () => $("appsBtn").click(), "link"));   // the title that opens them is put away
   const set = part(body, "settings");
-  // Hard's thinking, shown while the computer is Hard (at a table the phone that runs it thinks on its own thread, at Quick)
-  const time = line(THINK_TIME[opts.think]);
-  const thinking = [choice("Hard's thinking", THINKING, opts.think, v => { opts.think = v; saveOpts(); time.textContent = THINK_TIME[v]; rethink(); }), time];
-  const showThinking = () => { for (const el of thinking) el.hidden = opts.level !== "hard" || page.atTable; };
+  // Thinking: Hard's and the coach's, shown while either is there (at a table the phone that runs the computer thinks
+  // on its own thread, at Quick; each phone's coach at its own setting)
+  const time = line("");
+  const thinkers = () => [opts.level === "hard" && !page.atTable ? "Hard" : "", opts.coach !== "off" ? "the coach" : ""].filter(Boolean);
+  const showThinking = () => {
+    const who = thinkers();
+    for (const el of thinking) el.hidden = !who.length;
+    time.textContent = `${who.join(" and ").replace(/^t/, "T")}: ${THINK_TIME[opts.think]}`;
+  };
+  const thinking = [choice("Thinking", THINKING, opts.think, v => { opts.think = v; saveOpts(); showThinking(); rethink(); }), time];
   set.append(choice("Computer player", LEVEL_NAMES, opts.level, v => { opts.level = v; saveOpts(); showThinking(); page.runner.kick(); }), ...thinking);
   showThinking();
   set.append(choice("Computer's pace", PACES, opts.pace, v => { opts.pace = v; saveOpts(); draw(); page.runner.kick(); }));
-  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; draw(); }));
+  set.append(choice("Coach", COACH, opts.coach, v => { opts.coach = v; saveOpts(); word = null; hinted = null; showThinking(); draw(); }));
   set.append(toggle("Full screen", opts.full, fullScreen));
   set.append(toggle("Hold priority when I cast", opts.hold, on => { opts.hold = on; saveOpts(); }));
   set.append(line("Holding priority lets you cast again before the other player can answer the first spell."));
