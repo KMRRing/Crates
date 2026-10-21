@@ -462,8 +462,9 @@ function drawStrip() {
 }
 
 // ---------- below your side: the card read, and what has happened ----------
-// The left column: the question put to you or the target being chosen, then the stack, then the card read: the one a
-// mouse or pen is on, else the one tapped, else the stack's top (what's being cast, in full). The right: the log.
+// The left column: the question put to you or the target being chosen, then the stack, then the card read: the one
+// tapped (the buttons below act on it), else the one a mouse or pen is on, else the stack's top (what's being cast, in
+// full). The right: the log.
 function drawRead(q = question()) {
   const s = S(), armed = armedKeys();
   const head = q ? q.say
@@ -474,7 +475,7 @@ function drawRead(q = question()) {
     return `<button type="button" class="dd-st ${isMe(it.ctl) ? "mine" : "theirs"}${armed.has(`s:${it.sid}`) ? " tgt" : ""}${RING.has(`t:s:${it.sid}`) ? " advised" : ""}" data-tk="s:${it.sid}" data-sid="${it.sid}">
       <b>${esc(w.name)}</b><span>${esc(nameOf(it.ctl))}${w.to ? ` → ${esc(w.to)}` : ""}</span></button>`;
   }).join("")}</div>` : "";
-  const top = s.stack[s.stack.length - 1], id = q || ui.arm ? null : hover ?? ui.look?.id ?? top?.card ?? top?.src ?? null;
+  const top = s.stack[s.stack.length - 1], id = q || ui.arm ? null : ui.look?.id ?? hover ?? top?.card ?? top?.src ?? null;
   const card = id != null ? detail(id) : head || stack ? "" : `<p class="dd-sub">${POINTER ? "Point at a card to read it here." : "Tap a card to read it here."}</p>`;
   $("read").innerHTML = head + stack + card;
 }
