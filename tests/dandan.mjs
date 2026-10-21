@@ -245,14 +245,45 @@ test("a card drawn from a top both had seen is known in the hand it went to, unt
   return known && knownIn(r, 1, 0).includes(d) && knownIn(r, 0, 1).length === 0;
 });
 
-// ---------- what a pass shows ----------
+// ---------- what play shows (tells) ----------
 test("letting an opposing Dandân resolve with a Lapse's mana open is noted for the other player, until the passer draws", () => {
   let s = scene({ active: 0, hand: [["Dandân"], ["Island"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)], hold: 0 });
   s = cast(s, 0, "Dandân");
-  const noted = s.ev[1] === s.draws[1] && s.ev[0] === -1;
+  const noted = s.tells[1].lapse === s.draws[1] && s.tells[1].on === "Dandân" && s.tells[0].lapse === -1;
   const tapped = cast(scene({ active: 0, hand: [["Dandân"], ["Island"]], bf: [...islandsOf(0, 2), [1, "Island", { tapped: true }], [1, "Island"]], hold: 0 }), 0, "Dandân");
   const later = drive(s, c => c.turn === 6 && c.step === "main1");
-  return noted && tapped.ev[1] === -1 && later.draws[1] > s.draws[1] && later.ev[1] !== later.draws[1];
+  return noted && tapped.tells[1].lapse === -1 && later.draws[1] > s.draws[1] && later.tells[1].lapse !== later.draws[1];
+});
+test("…and so is a removal spell aimed at their own Dandân let through, but not a Charm's islandwalk", () => {
+  const at = () => scene({ active: 0, hand: [["Piracy Charm"], ["Island"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2), [1, "Dandân"]], hold: 0 });
+  const kill = at(), walk = at();
+  const k = cast(kill, 0, "Piracy Charm", [T.c(onBf(kill, 1, "Dandân"))], 1), w = cast(walk, 0, "Piracy Charm", [T.c(onBf(walk, 1, "Dandân"))], 0);
+  return k.tells[1].lapse === k.draws[1] && k.tells[1].on === "Piracy Charm" && w.tells[1].lapse === -1;
+});
+test("a turn ended with no land played is noted, with the cards drawn by then; a land played is counted", () => {
+  const s = scene({ active: 0, turn: 5, hand: [["Brainstorm"], ["Island"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)], hold: 1 });
+  const next = drive(s, c => c.turn === 6);
+  const t = scene({ active: 0, turn: 5, hand: [["Island", "Brainstorm"], ["Island"]], bf: [...islandsOf(0, 2), ...islandsOf(1, 2)], hold: 1 });
+  const played = drive(go(t, 0, { t: "land", card: idIn(t, 0, "Island") }), c => c.turn === 6);
+  return next.tells[0].land === s.draws[0] && played.tells[0].land === -1 && played.tells[0].lands === 1;
+});
+test("an unblocked Dandân let hit a player with blue open is noted, with how much was open", () => {
+  let s = scene({ active: 1, hand: [["Island"], []], bf: [...islandsOf(0, 2), [0, "Island", { tapped: true }], ...islandsOf(1, 2), [1, "Dandân"]], hold: 1 });
+  s = answer(pass(s, 1), { t: "attack", ids: [onBf(s, 1, "Dandân")] });
+  const hit = drive(s, c => c.step === "main2" || c.turn > s.turn);
+  let none = scene({ active: 1, hand: [["Island"], []], bf: [[0, "Island", { tapped: true }], ...islandsOf(1, 2), [1, "Dandân"]], hold: 1 });
+  none = drive(answer(pass(none, 1), { t: "attack", ids: [onBf(none, 1, "Dandân")] }), c => c.step === "main2" || c.turn > none.turn);
+  return hit.life[0] === 16 && hit.tells[0].kill === hit.draws[0] && hit.tells[0].mana === 2 && none.life[0] === 16 && none.tells[0].kill === -1;
+});
+test("the opening hand's keep is noted, and a game saved before the tells reads its old pass note", () => {
+  let s = restore(J(deal({ rng: seeded(31) })));
+  for (let i = 0; i < 10 && s.pending?.t === "mull"; i++) s = go(s, s.pending.seat, { t: "keep" });
+  const kept = s.tells.every((t, i) => t.keep === s.draws[i] && s.draws[i] >= 7);
+  const old = J(s);
+  delete old.tells;
+  old.ev = [-1, 9];
+  const back = restore(old);
+  return kept && back.tells[1].lapse === 9 && back.tells[1].on === "Dandân" && back.tells[0].lapse === -1 && back.tells[0].keep === -1 && !("ev" in back);
 });
 
 // ---------- the objects on the battlefield ----------

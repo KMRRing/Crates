@@ -203,6 +203,16 @@ export const knownIn = (s, holder, seat) => s.hand[holder].filter(id => khOf(s, 
 /** A card put into a hand in the open: both players know it's there. */
 export function toHandOpen(s, seat, id) { s.hand[seat].push(id); khSet(s, id, BOTH); }
 
+// ---------- tells: what a player's play has shown the table ----------
+/**
+ * A seat's tells, each the count of cards it had drawn when the table saw it (-1: never): keep, its opening hand kept;
+ * land, a turn of its own ended with no land played; lapse, an opposing spell it would surely have countered (on: its
+ * name) let resolve with a Memory Lapse's mana open; kill, an unblocked Dandân let hit it with blue open (mana: how
+ * much it had open). lands: the lands it has played. All public: anyone at the table saw them (dandan-reads.js reads them).
+ */
+export const freshTells = () => ({ keep: -1, land: -1, lapse: -1, on: "", kill: -1, mana: 0, lands: 0 });
+export const tellsOf = (s, seat) => (s.tells ||= [freshTells(), freshTells()])[seat];
+
 /** The top card of the library, if this seat knows what it is (a spell put on top in the open, a look at it). */
 export const topKnown = (s, seat) => (s.lib.length && (knOf(s, s.lib[0]) & (1 << seat)) ? s.lib[0] : null);
 export const BOTH = 3;

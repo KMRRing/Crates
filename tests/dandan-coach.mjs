@@ -7,6 +7,9 @@ import { T } from "../dandan-spells.js";
 import { think, determinize, seedOf } from "../dandan-think.js";
 import { moveSaid, moveName, adviceLine, verdict, reasons, sameMove, MARGIN, evidence } from "../dandan-coach.js";
 import { winChance, features, FEATURES } from "../dandan-eval.js";
+import { allAmong } from "../dandan-reads.js";
+import { facts, holds } from "../dandan-policy.js";
+import { isLandId } from "../dandan-core.js";
 import { botMove } from "../dandan-bot.js";
 import { seeded } from "../seats.js";
 import { J, scene, islandsOf, go, refused, idIn, onBf, cast, pass, answer, resolveStack, sidOf } from "./dandan-scene.js";
@@ -74,6 +77,14 @@ test("the advice is legal, and the same every time it is asked", () => {
   }
   return true;
 });
+test("the weighing leaves the game it weighs as it was, every count and tell included", () => {
+  for (const make of [lone, theirDandan, keepOpen]) {
+    const s = make(), seat = toMove(s), was = JSON.stringify(s);
+    think(s, seat, { ...BUDGET, reply: 4 });
+    if (JSON.stringify(s) !== was) return `${make.name}: the game changed`;
+  }
+  return true;
+});
 test("what the seat can't see (the other hand, the library's order) changes nothing", () => {
   const s = keepOpen(), seat = 0;
   const t = J(s);
@@ -103,13 +114,53 @@ test("a deal keeps what the seat knows where it is: its hand, the table, a top c
   return true;
 });
 
-test("a player who let our Dandân resolve with a Lapse's mana open is mostly dealt no Memory Lapse", () => {
-  const s = keepOpen(), lapses = t => { let n = 0; for (let i = 0; i < 200; i++) if (determinize(t, 0, seeded(i)).hand[1].some(id => DECK[id] === "Memory Lapse")) n++; return n; };
-  const before = lapses(s);
+// ---------- what their play has shown ----------
+/** In how many of 200 deals for seat 0 the other hand holds a card that passes `is`. */
+const dealtWith = (t, is) => { let n = 0; for (let i = 0; i < 200; i++) if (determinize(t, 0, seeded(i)).hand[1].some(is)) n++; return n; };
+const named = (...ns) => id => ns.includes(DECK[id]);
+test("a player who let our Dandân resolve with a Lapse's mana open is mostly dealt no Memory Lapse, until they draw", () => {
+  const s = keepOpen(), before = dealtWith(s, named("Memory Lapse"));
   const t = J(s);
-  t.ev[1] = t.draws[1];
-  const after = lapses(t);
-  return before > 60 && after < before / 3 || `${before} then ${after} of 200 deals`;
+  t.tells[1].lapse = t.draws[1];
+  const after = dealtWith(t, named("Memory Lapse"));
+  t.draws[1] += 2;
+  const drawn = dealtWith(t, named("Memory Lapse"));
+  return before > 60 && after < before / 3 && drawn > after * 1.5 || `${before}, then ${after}, then ${drawn} of 200 deals`;
+});
+test("a player who just ended a turn with no land played is mostly dealt no land", () => {
+  const s = keepOpen(), before = dealtWith(s, isLandId), t = J(s);
+  t.tells[1].land = t.draws[1];
+  const after = dealtWith(t, isLandId);
+  return before > 150 && after < before * 0.45 || `${before} then ${after} of 200 deals`;
+});
+test("a player who let our Dandân hit them with one blue open is mostly dealt no Piracy Charm or Mind Bend, though a Repulse still", () => {
+  const s = keepOpen(), t = J(s);
+  t.tells[1].kill = t.draws[1];
+  t.tells[1].mana = 1;
+  const one = named("Piracy Charm", "Mind Bend"), rep = named("Repulse");
+  const [b1, a1, b2, a2] = [dealtWith(s, one), dealtWith(t, one), dealtWith(s, rep), dealtWith(t, rep)];
+  return a1 < b1 / 2 && a2 > b2 * 0.7 || `charm and bend ${b1} then ${a1}; repulse ${b2} then ${a2}`;
+});
+test("early on, the other hand fits the seven they kept: with no land played, two or more lands in it", () => {
+  const s = keepOpen(), t = J(s);
+  Object.assign(t.tells[1], { keep: t.draws[1], lands: 0 });
+  t.turn = 1;
+  const short = (x) => { let n = 0; for (let i = 0; i < 200; i++) if (determinize(x, 0, seeded(i)).hand[1].filter(isLandId).length < 2) n++; return n; };
+  const [before, after] = [short(s), short(t)];
+  return after < before / 3 || `${before} then ${after} of 200 deals short of lands`;
+});
+test("Medium's odds read the same: a Lapse after the pass, and an answer after the unanswered attack, come back with the draws", () => {
+  const s = keepOpen(), t = J(s);
+  Object.assign(t.tells[1], { lapse: t.draws[1], kill: t.draws[1], mana: 1 });
+  const [p0, p1] = [holds(facts(s, 0), "Memory Lapse"), holds(facts(t, 0), "Memory Lapse")];
+  const [c0, c1] = [holds(facts(s, 0), "Piracy Charm"), holds(facts(t, 0), "Piracy Charm")];
+  t.draws[1] += 3;
+  const p2 = holds(facts(t, 0), "Memory Lapse");
+  return p1 < p0 / 3 && c1 < c0 / 2 && p2 > p1 * 2 && p2 < p0 || [p0, p1, p2, c0, c1].map(x => x.toFixed(3)).join(" ");
+});
+test("a hand's chance under the reads: what a read rules out is only likely among the cards drawn since", () => {
+  const close = (a, b) => Math.abs(a - b) < 1e-9;
+  return close(allAmong(0, 5, 0), 1) && close(allAmong(1, 5, 0), 0) && close(allAmong(1, 5, 2), 2 / 5) && close(allAmong(2, 5, 2), 1 / 10) && close(allAmong(2, 5, 9), 1);
 });
 
 // ---------- the judge ----------

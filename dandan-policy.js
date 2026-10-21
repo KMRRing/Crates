@@ -21,6 +21,7 @@ import {
   knownIn, poolOf, isSpellCard,
 } from "./dandan-core.js";
 import { shuffle } from "./seats.js";
+import { readsOf } from "./dandan-reads.js";
 
 export const PASS = { t: "pass" };
 const pickOne = (a, rng) => a[Math.floor(rng() * a.length)];
@@ -64,7 +65,7 @@ export function facts(s, me) {
   let unknown = 0;
   for (let i = 0; i < left.length; i++) if (left[i] > 0) unknown += left[i];
   return {
-    s, me, opp, left, unknown, theirKnown, hidden: Math.max(0, s.hand[opp].length - theirKnown.length), noLapse: noLapse(s, opp),
+    s, me, opp, left, unknown, theirKnown, hidden: Math.max(0, s.hand[opp].length - theirKnown.length), reads: readsOf(s, opp),
     known: topKnown(s, me), next: nextDrawer(s), myTurn: s.active === me,
     my: openMana(s, me), their: openMana(s, opp),
     mine: creatures(s, me), theirs: creatures(s, opp), myIsl: islands(s, me).length, theirIsl: islands(s, opp).length,
@@ -85,18 +86,23 @@ export function openMana(s, seat) {
   }
   return { n, u, r };
 }
-/** Whether a seat let a Dandân of ours resolve with a Lapse's mana open, and has drawn nothing since (the engine's ev). */
-export const noLapse = (s, seat) => (s.ev?.[seat] ?? -1) >= 0 && s.ev[seat] === (s.draws?.[seat] ?? 0);
-/** How far a pass on our Dandân is taken as read: a player holding a Memory Lapse lets one through this seldom. */
-export const PASSED_LAPSE = 0.15;
-/** The chance the other hand holds at least one card of a name (one known to be there, certainly; a Lapse after a pass on our Dandân, seldom). */
+/** A read of the other player (dandan-reads.js) of a kind, when nothing has been drawn since: what their play has just shown. */
+export const freshRead = (F, kind) => F.reads.find(r => r.kind === kind && r.since === 0) || null;
+/**
+ * The chance the other hand holds at least one card of a name: one known to be there, certainly; else at random among
+ * the cards not seen, unless their play ruled it out of the hand they held then (a read): then only the cards drawn
+ * since may have brought one, or they held it back anyway (the read's slip).
+ */
 export function holds(F, name) {
   if (F.theirKnown.some(id => DECK[id] === name)) return 1;
-  if (name === "Memory Lapse" && F.noLapse) return PASSED_LAPSE * holdsAtRandom(F, name);
-  return holdsAtRandom(F, name);
+  const p = holdsAtRandom(F, name);
+  let q = p;
+  for (const r of F.reads) if (r.names?.has(name)) q = Math.min(q, r.slip * p + (1 - r.slip) * holdsAtRandom(F, name, Math.min(r.since, F.hidden)));
+  return q;
 }
-function holdsAtRandom(F, name) {
-  const k = Math.max(0, unseenOf(F, name)), n = F.hidden, U = F.unknown;
+/** The chance n cards at random from those not seen (F.hidden of them by default, the other hand) include one of a name. */
+function holdsAtRandom(F, name, n = F.hidden) {
+  const k = Math.max(0, unseenOf(F, name)), U = F.unknown;
   if (k <= 0 || n <= 0 || U <= 0) return 0;
   let none = 1;
   for (let i = 0; i < n; i++) none *= Math.max(0, U - k - i) / (U - i);
@@ -134,7 +140,8 @@ function newDandanWorth(s, seat) {
 /** How many lands a seat has, counting those it holds when the seat is the one asking (the other's hand: one, as a guess). */
 function landCount(F, seat, except = null) {
   const s = F.s, onBf = lands(s, seat).length;
-  if (seat !== F.me) return onBf + 1;
+  // theirs: one in hand, as a guess, none when they've just missed a land drop
+  if (seat !== F.me) return onBf + (freshRead(F, "land") ? 0 : 1);
   return onBf + s.hand[seat].filter(id => id !== except && isLandId(id)).length;
 }
 /** What a card is worth to a seat holding or drawing it: lands by how many it has, the rest by WORTH and the table. */

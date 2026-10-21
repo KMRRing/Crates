@@ -7,7 +7,7 @@
 import { CARDS, DECK, HALVES, total } from "./dandan-cards.js";
 import { nextDrawer, halfOf, costOf } from "./dandan-engine.js";
 import { other, nm, perm, isLand, isCreature, creatures, lands, needType, typesOf, itemOf, pt } from "./dandan-core.js";
-import { facts, counterRisk, holds, Player, answerWorth } from "./dandan-policy.js";
+import { facts, counterRisk, holds, Player, answerWorth, freshRead } from "./dandan-policy.js";
 
 const pc = x => `${Math.round(100 * x)}%`;
 const plural = (n, one, many) => (n === 1 ? one : many);
@@ -152,7 +152,7 @@ function forMove(s, seat, F, m, good) {
       if (yard) say("yard", yard);
       if (half === "Dandân") {
         if (!F.myIsl) { if (!good) say("islands", "With no Island of yours it would be sacrificed at once."); }
-        else if (good && F.noLapse && F.their.n >= 2) say("counter-risk", "They let your last Dandân resolve with a Lapse's mana open, and haven't drawn since: they very likely hold no Memory Lapse.");
+        else if (good && freshRead(F, "lapse") && F.their.n >= 2) say("counter-risk", `They let your ${lastOn(s, seat)} resolve with a Lapse's mana open, and haven't drawn since: they very likely hold no Memory Lapse.`);
         else if (good && risk < 0.15) say("counter-risk", F.their.n < 2 ? "They are tapped out: nothing can counter it now." : "Little chance they can counter it now.");
         else if (!good && risk >= 0.25) say("counter-risk", `They have ${F.their.n} open: a Memory Lapse (they hold one about ${pc(holds(F, "Memory Lapse"))} of the time) puts it on top for them to draw.`);
         if (good && F.theirIsl) say("clock", "Once it's in, it attacks for 4 a turn: they control an Island.");
@@ -222,6 +222,7 @@ function forMove(s, seat, F, m, good) {
       const n = (m.ids || []).length;
       const back = F.theirs.filter(d => islandsOfType(s, seat, needType(d)) > 0).length, blockers = F.theirs.filter(d => !d.tapped).length;
       if (good && n && n > blockers) say("combat", `They have ${blockers ? `only ${blockers} to block with` : "nothing to block with"}.`);
+      if (good && n && freshRead(F, "kill")) say("read", "Your last attack got through with their blue open, and they haven't drawn since: they very likely hold no answer to it.");
       if (!good && n && back * 4 >= s.life[seat]) say("combat", `Their Dandâns could swing back for ${4 * back}: you're at ${s.life[seat]}, and an attacker can't block.`);
       if (good && !n && back * 4 >= s.life[seat]) say("combat", `Keep them home: their swing back could be ${4 * back}, and you're at ${s.life[seat]}.`);
       break;
@@ -257,6 +258,8 @@ function forMove(s, seat, F, m, good) {
   return out;
 }
 const islandsOfType = (s, seat, type) => s.bf.filter(l => l.ctl === seat && isLand(l) && typesOf(l).includes(type)).length;
+/** The spell of ours they last let through with a Lapse's mana open, as the reason names it: "last Dandân", "Piracy Charm on their Dandân". */
+const lastOn = (s, seat) => { const on = s.tells?.[other(seat)]?.on || "Dandân"; return on === "Dandân" ? "last Dandân" : `${on} on their Dandân`; };
 /**
  * What a cast does to the graveyard both players share, in words, when it matters (Medium's gift): a card it leaves
  * for their Mystic Retrieval (flashed back with their red, or one in their hand), or one it takes away from it.
@@ -349,6 +352,6 @@ function doing(m, s, seat) {
 
 /** The note under Why?: how the figures were come by. */
 export function whyNote(r) {
-  return `Each move was played out to the start of the turn after next in the same ${r.deals} deals of the cards you can't see (their hand and the library dealt from what you haven't seen), both sides by Medium's habits, except that at their next main phase each of their likeliest moves was tried and the one worst for you counted; the figure is the chance of winning from where it lands, as a network trained on thousands of games between Medium players judges it.`;
+  return `Each move was played out to the start of the turn after next in the same ${r.deals} deals of the cards you can't see (their hand and the library dealt from what you haven't seen, the hand to fit what their play has shown: the hand they kept, a land drop missed, a counter or an answer not cast), both sides by Medium's habits, except that at their next main phase each of their likeliest moves was tried and the one worst for you counted; the figure is the chance of winning from where it lands, as a network trained on thousands of games between Medium players judges it.`;
 }
 

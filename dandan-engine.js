@@ -12,7 +12,7 @@ import { shuffle } from "./seats.js";
 import {
   LIFE, HAND, other, list, withRng, say, nm, isLandId, perm, isLand, isCreature, pt, canAttack, unblockable, fetchTypes, typesOf, needType,
   payPlan, pay, draw, shuffleLib, pushItem, itemOf, leaveStack, enterBf, leaveBf, toGrave, toLib, toYard, fromYard, fromLib, fromHand,
-  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords,
+  mill, lands, permToLib, bounce, emptyPools, handToLib, toHandOpen, topKnown, isSpellCard, affords, tellsOf, freshTells,
 } from "./dandan-core.js";
 import { RES, T, same, targetLists, stillLegal, modesOf } from "./dandan-spells.js";
 
@@ -27,7 +27,7 @@ function blank() {
   return {
     v: 1, turn: 0, active: 0, first: 0, step: "mull", prio: 0, passes: 0, res: 0,
     lib: [], yard: [], exile: [], hand: [[], []], bf: [], stack: [], life: [LIFE, LIFE], kn: [], kh: [], pool: ["", ""], nid: 1, nt: 0,
-    draws: [0, 0], ev: [-1, -1],
+    draws: [0, 0], tells: [freshTells(), freshTells()],
     played: 0, drawn: [0, 0], attacked: false, quick: [false, false], combat: null, pending: null, lost: [false, false],
     over: false, winner: -1, why: "", mull: { n: [0, 0], done: [false, false] }, reveal: null, log: [], ln: 0,
   };
@@ -75,6 +75,7 @@ function keepHand(s, seat) {
 function doneMull(s, seat) {
   s.mull.done[seat] = true;
   s.pending = null;
+  tellsOf(s, seat).keep = s.draws[seat];
   say(s, `{s${seat}} keeps ${s.hand[seat].length}`);
   const next = other(seat);
   if (!s.mull.done[next]) { askMull(s, next); return; }
@@ -104,6 +105,7 @@ function endTurn(s) {
   startTurn(s);
 }
 function cleanup(s) {
+  if (!s.played) tellsOf(s, s.active).land = s.draws[s.active];
   const over = s.hand[s.active].length - HAND;
   if (over > 0) { s.pending = { t: "discard", seat: s.active, n: over, why: "hand size", cleanup: true }; return; }
   endTurn(s);
@@ -163,7 +165,15 @@ function combatDamage(s) {
     for (const b of blockers) if (pt(b)[0] > 0) add(aid, pt(b)[0]);
   }
   for (const [id, n] of hurt) { const p = perm(s, id); p.dmg = (p.dmg || 0) + n; }
-  for (const seat of [0, 1]) if (loss[seat]) { s.life[seat] -= loss[seat]; say(s, `{s${seat}} takes ${loss[seat]}: ${s.life[seat]} left`); }
+  for (const seat of [0, 1]) {
+    if (!loss[seat]) continue;
+    // let through with blue open: the most it could have paid for an instant answer ({U} to {3}{U}) is a tell
+    let open = 0;
+    while (open < 4 && affords(s, seat, { g: open, U: 1, R: 0 })) open++;
+    if (open) { const t = tellsOf(s, seat); t.kill = s.draws[seat]; t.mana = open; }
+    s.life[seat] -= loss[seat];
+    say(s, `{s${seat}} takes ${loss[seat]}: ${s.life[seat]} left`);
+  }
 }
 
 // ---------- state-based checks ----------
@@ -230,14 +240,25 @@ export function wants(s, seat) {
 /** Who draws next if nothing else is drawn first: the player whose draw step is next. */
 export const nextDrawer = s => (s.step === "upkeep" && s.turn > 1 ? s.active : other(s.active));
 /**
- * What a pass shows: a seat that lets an opposing Dandân resolve with the mana for a Memory Lapse open very likely holds
- * none. ev[seat] is its count of cards drawn when it last did; until it draws again, the computer players read its hand
- * as holding no Lapse, mostly (dandan-think.js's deals, dandan-policy.js's odds). It is public: anyone at the table saw
- * the pass.
+ * What a pass shows: a seat that lets an opposing spell it would surely have countered resolve (a Dandân, or one that
+ * takes away a Dandân of its own) with the mana for a Memory Lapse open very likely holds none: its lapse tell, the
+ * count of cards it had drawn then. Until it draws again the computer players read its hand as holding no Lapse,
+ * mostly (dandan-reads.js). It is public: anyone at the table saw the pass.
  */
 function notePass(s) {
   const top = s.stack[s.stack.length - 1], seat = s.prio;
-  if (top && top.kind === "spell" && top.name === "Dandân" && top.ctl !== seat && affords(s, seat, parseCost("{1}{U}"))) (s.ev ||= [-1, -1])[seat] = s.draws?.[seat] ?? 0;
+  if (!top || top.kind !== "spell" || top.ctl === seat || !mustCounter(s, top, seat) || !affords(s, seat, parseCost("{1}{U}"))) return;
+  const t = tellsOf(s, seat);
+  t.lapse = s.draws[seat];
+  t.on = top.name;
+}
+/** The spells that take away a Dandân (Piracy Charm as +2/−1). */
+const KILLERS = new Set(["Piracy Charm", "Mind Bend", "Repulse", "Commit", "Metamorphose", "Gone Missing", "Deem Inferior"]);
+/** An opposing spell any player holding a Memory Lapse would counter: a Dandân, or one aimed at a Dandân of theirs. */
+function mustCounter(s, it, seat) {
+  if (it.name === "Dandân") return true;
+  if (!KILLERS.has(it.name) || (it.name === "Piracy Charm" && it.mode !== 1)) return false;
+  return it.targets.some(t => { const p = t.k === "c" ? perm(s, t.id) : null; return !!p && p.ctl === seat && isCreature(p); });
 }
 function passPriority(s) {
   notePass(s);
@@ -410,6 +431,7 @@ function priorityMove(s, seat, m) {
       fromHand(s, seat, r.id);
       enterBf(s, r.id, seat);
       s.played++;
+      tellsOf(s, seat).lands++;
       s.passes = 0;
       say(s, `{s${seat}} plays ${nm(r.id)}`);
       break;
@@ -659,7 +681,9 @@ export function restore(s) {
   s.kh = list(s.kh).map(list);
   s.pool = [0, 1].map(i => s.pool?.[i] || "");
   s.draws = [0, 1].map(i => s.draws?.[i] || 0);
-  s.ev = [0, 1].map(i => s.ev?.[i] ?? -1);
+  // the tells (a game saved before them had only the lapse one, as ev)
+  s.tells = [0, 1].map(i => ({ ...freshTells(), ...(s.ev?.[i] >= 0 ? { lapse: s.ev[i], on: "Dandân" } : {}), ...(s.tells?.[i] || {}) }));
+  delete s.ev;
   s.life = [0, 1].map(i => s.life?.[i] ?? LIFE);
   s.drawn = [0, 1].map(i => s.drawn?.[i] || 0);
   s.quick = [0, 1].map(i => !!s.quick?.[i]);

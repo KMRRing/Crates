@@ -9,17 +9,21 @@
 //
 // A deal (determinize) keeps everything the seat knows where it is: its hand, the table, the graveyard and exile, the
 // stack, the library cards it has seen, the cards it knows are in the other hand; the rest of the other hand and of
-// the library are the remaining cards in a random order. What the other player knew of the library stays with the
-// places they knew, whatever card is there now.
+// the library are the remaining cards in a random order, the other hand weighed by what their play has shown (the hand
+// they kept, a land drop missed, a counter or an answer not cast: dandan-reads.js). What the other player knew of the
+// library stays with the places they knew, whatever card is there now.
 import { act, toMove, moves } from "./dandan-engine.js";
 import { DECK, NAMES } from "./dandan-cards.js";
 import { other, knownIn, knOf } from "./dandan-core.js";
-import { Player, policyMove, PASS, noLapse, PASSED_LAPSE, unseenOf } from "./dandan-policy.js";
+import { Player, policyMove, PASS, unseenOf } from "./dandan-policy.js";
+import { readsOf, likelihood } from "./dandan-reads.js";
 import { winChance } from "./dandan-eval.js";
 import { moveName } from "./dandan-coach.js";
 import { seeded, mix, shuffle } from "./seats.js";
 
 const J = x => JSON.parse(JSON.stringify(x));
+/** How many times a deal is dealt again before the likeliest so far is taken (a hand their play makes unlikely). */
+const REDEALS = 24;
 
 // ---------- the cards the seat can't see, dealt ----------
 /** The seat's view of the game, with the cards it can't see dealt at random (a copy; the log left behind). */
@@ -36,6 +40,9 @@ export function determinize(s, seat, rng) {
   c.pending = s.pending ? J(s.pending) : null;
   c.life = s.life.slice(); c.drawn = s.drawn.slice(); c.quick = s.quick.slice(); c.lost = s.lost.slice(); c.pool = (s.pool || ["", ""]).slice();
   c.mull = { n: s.mull.n.slice(), done: s.mull.done.slice() };
+  // what the engine counts as it goes (the draws, the tells) is the deal's own: the game weighed is never touched
+  c.draws = (s.draws || [0, 0]).slice();
+  c.tells = (s.tells || []).map(t => ({ ...t }));
   const opp = other(seat), bit = 1 << seat;
   // what each place in the library is known to be, by whom
   const placeMask = c.lib.map(id => knOf(s, id));
@@ -48,13 +55,22 @@ export function determinize(s, seat, rng) {
   c.hand[opp].forEach((id, i) => { if (!pinned.has(id)) { pool.push(id); handSlots.push(i); } });
   c.lib.forEach((id, i) => { if (!pinned.has(id)) { pool.push(id); libSlots.push(i); } });
   // dealt from the cards in a fixed order, so the deal depends on what the seat knows and the seed, not on where the
-  // unseen cards really are (which hand, which place in the library); a player who let our Dandân resolve with a
-  // Lapse's mana open is dealt a hand without one, mostly (dealt again, a few times at most)
+  // unseen cards really are (which hand, which place in the library); and by what the other player's play has shown
+  // (dandan-reads.js): a deal is kept with the chance its hand would have shown the same, else dealt again (the likeliest
+  // of the tries when none is kept)
   pool.sort((x, y) => x - y);
   let dealt = shuffle(pool, rng);
-  if (noLapse(s, opp)) {
-    const lapse = d => d.slice(0, handSlots.length).some(id => DECK[id] === "Memory Lapse");
-    for (let tries = 0; tries < 12 && lapse(dealt) && rng() > PASSED_LAPSE; tries++) dealt = shuffle(pool, rng);
+  const reads = readsOf(s, opp);
+  if (reads.length && handSlots.length) {
+    const known = c.hand[opp].filter(id => pinned.has(id));
+    let best = dealt, top = -1;
+    for (let tries = 0; tries < REDEALS; tries++) {
+      const d = tries ? shuffle(pool, rng) : dealt;
+      const L = likelihood(reads, d.slice(0, handSlots.length), known);
+      if (rng() < L) { best = d; break; }
+      if (L > top) { top = L; best = d; }
+    }
+    dealt = best;
   }
   let k = 0;
   for (const i of handSlots) c.hand[opp][i] = dealt[k++];
@@ -74,6 +90,7 @@ function fork(c) {
     combat: c.combat ? { att: c.combat.att.slice(), blk: c.combat.blk.map(x => x.slice()) } : null,
     pending: c.pending ? J(c.pending) : null, life: c.life.slice(), drawn: c.drawn.slice(), quick: c.quick.slice(), lost: c.lost.slice(),
     pool: (c.pool || ["", ""]).slice(), mull: { n: c.mull.n.slice(), done: c.mull.done.slice() },
+    draws: (c.draws || [0, 0]).slice(), tells: (c.tells || []).map(t => ({ ...t })),
   };
 }
 
