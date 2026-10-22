@@ -37,13 +37,15 @@ const KEYWORDS = ["PLANET", "STORM", "BRIGHT", "FOLDER", "CANDLE", "MOUSE", "THI
 
 // ---------- the rule catalogue ----------
 // level 1 = easy to spot, 2 = medium, 3 = hard. Singles judge each letter alone; pairs judge neighbouring
-// letters read left to right and top to bottom; wholes judge the field's letters as a set once it's full.
+// letters read left to right and top to bottom; wholes judge the field's letters once it's full, as a multiset
+// (which letters, repeats counted) and never their order, which the keyboard's colours rely on (keyVerdicts;
+// tests/slate.mjs holds every whole rule to it).
 const single = (id, level, text, test) => ({ id, type: "single", level, text, test });
 const pair = (id, level, text, test) => ({ id, type: "pair", level, text, test });
 const whole = (id, level, text, test) => ({ id, type: "whole", level, text, test });
 const inSet = s => c => s.includes(c);
 
-const BASE_RULES = [
+export const BASE_RULES = [
   single("vowel", 1, "Vowels only (A E I O U)", isVowel),
   single("consonant", 1, "Consonants only", c => !isVowel(c)),
   single("firstHalf", 1, "First half of the alphabet (A to M)", c => c <= "M"),
@@ -449,6 +451,44 @@ export function notesFrom(board, log) {
     record(new Set(slot.cells));
   }
   return notes;
+}
+
+/**
+ * The keyboard's colours: what each letter would do typed into one cell (at) of a field, as far as the player can
+ * know, from what the field has told them (its notes) or from its rule once revealed. Every judgement of the field
+ * that takes this cell and has a letter in each of its other cells (letters: placed and typed) is a test: a single
+ * field judges the letter alone; a pair field each pair with a lettered neighbour, read in reading order; a whole
+ * field its letters, once every other cell has one. A letter is true (green) when it's known to pass every test,
+ * false (red) when it's known to fail one, otherwise null. Null in place of the function when there's nothing to
+ * test: a pair cell with no lettered neighbour, a whole field with another cell empty (its letter could change the
+ * verdict).
+ */
+export function keyVerdicts(field, note, letters, at, revealed = false) {
+  const { rule, cells } = field;
+  let tests;                // each: the letters it judges, given the letter c in this cell, in the order the rule reads them
+  if (rule.type === "single") tests = [c => [c]];
+  else if (rule.type === "pair") tests = jointsOf(cells).filter(([a, b]) => (a === at && letters[b]) || (b === at && letters[a]))
+    .map(([a, b]) => (a === at ? c => [c, letters[b]] : c => [letters[a], c]));
+  else tests = cells.every(k => k === at || letters[k]) ? [c => cells.map(k => (k === at ? c : letters[k]))] : [];
+  if (!tests.length) return null;
+  // the notes name a letter, a pair (A→B), or a whole field by its letters in reading order; since a whole rule never
+  // reads order, a whole field is matched by its letters sorted, so ABC failing fails BCA too
+  const named = rule.type === "whole" ? s => [...s].sort().join("") : s => s;
+  const passed = new Set([...note.ok].map(named)), failed = new Set([...note.no].map(named));
+  const known = ls => {
+    if (revealed) return rule.type === "whole" ? rule.test(ls) : rule.test(...ls);
+    const name = named(ls.join(rule.type === "pair" ? "→" : ""));
+    return passed.has(name) ? true : failed.has(name) ? false : null;
+  };
+  return c => {
+    let all = true;
+    for (const test of tests) {
+      const ok = known(test(c));
+      if (ok === false) return false;
+      if (ok !== true) all = false;
+    }
+    return all || null;
+  };
 }
 
 /** The letters on the board after a list of placements. */

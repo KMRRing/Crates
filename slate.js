@@ -1,7 +1,7 @@
 // Slate: solo and together play. Boards and rules come from slate-gen.js. Together games live in the app's
 // shared rooms (rooms.js): the room's glyph branch holds this game's state (slate-room.js), a pair's or a party's of
 // up to six; everyone fills the one board and sees everything, each player's letters and cursor in their own colour.
-import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt } from "./slate-gen.js";
+import { generate, gridOf, rowsOf, VALID, fieldsOf, judge, notesFrom, lettersFrom, isSolved, jointsOf, key, unkey, clearable, eligibleCells, wordAt, keyVerdicts } from "./slate-gen.js";
 import { branchPath, openBranch, enterRoom, leaveRoom, sitDown, seatsOf, pickSeat, otherHere, gameHref, GAMES, joiningWords } from "./rooms.js";
 import { askedFor, freshTable, seatsFor, logOf, ownersFrom, placedBy, presentSlots, cursorsOf, storable } from "./slate-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -784,43 +784,22 @@ function cursorField(fs) {
   return i >= 0 ? i : null;
 }
 
-/**
- * What a letter would do in the clicked cell of a pair field, against every neighbour in the field that has a
- * letter (placed or typed), each pair read in the field's direction: true if it's known to pass with all of them,
- * false if known to fail with one, null if not known. Known from the pairs tried so far, or from the rule once
- * revealed. Null altogether while no neighbour in the field has a letter.
- */
-function pairVerdicts(fs, notes, i) {
-  const f = fs[i], letters = { ...lettersFrom(S.board, S.log), ...pending };
-  const ends = jointsOf(f.cells).filter(([a, b]) => a === cursor || b === cursor)
-    .map(([a, b]) => (a === cursor ? { other: b, before: false } : { other: a, before: true }))
-    .filter(e => letters[e.other]);
-  if (!ends.length) return null;
-  const rule = revealed().has(i) ? f.rule : null;
-  return c => {
-    let all = true;
-    for (const { other, before } of ends) {
-      const [x, y] = before ? [letters[other], c] : [c, letters[other]], pair = `${x}→${y}`;
-      const ok = rule ? rule.test(x, y) : notes[i].ok.has(pair) ? true : notes[i].no.has(pair) ? false : null;
-      if (ok === false) return false;
-      if (ok !== true) all = false;
-    }
-    return all ? true : null;
-  };
-}
+// What the keyboard's colours mean, by the type of the cursor's field (its title, for a pointer or a screen reader).
+const KEYS_MEAN = {
+  single: name => `Letters the ${name} field has taken (green) and rejected (red)`,
+  pair: name => `Letters known to go with the ${name} field's letters beside this cell (green) and known not to (red)`,
+  whole: name => `Letters known to complete the ${name} field with the letters in its other cells (green) and known not to (red)`,
+};
 
 /**
- * Colours the keyboard for the clicked cell. In a single-letter field: the letters the field has taken (green) and
- * rejected (red). In a pair field with a lettered neighbour: the letters known to go with it (green) and known not
- * to (red), from the pairs tried so far. With the rule revealed, every letter.
+ * Colours the keyboard for the cursor's cell: green for a letter known to pass there, red for one known to fail, from
+ * what its field has told you or its rule once revealed (keyVerdicts in slate-gen.js): a single field's letters, a
+ * pair field's pairs with the lettered neighbours, a whole field's letters once its other cells are all filled.
  */
 function drawKeys(fs, notes) {
-  const i = cursorField(fs), type = i != null ? fs[i].rule.type : null;
-  const known = type === "single" && revealed().has(i) ? fs[i].rule : null;
-  const verdict = type === "pair" ? pairVerdicts(fs, notes, i) : type === "single"
-    ? c => (known ? known.test(c) : notes[i].ok.has(c) ? true : notes[i].no.has(c) ? false : null) : null;
-  $("kbd").title = !verdict ? "" : type === "single" ? `Letters the ${styleOf(i).name} field has taken (green) and rejected (red)`
-    : `Letters known to go with the ${styleOf(i).name} field's letters beside this cell (green) and known not to (red)`;
+  const i = cursorField(fs);
+  const verdict = i == null ? null : keyVerdicts(fs[i], notes[i], enteredLetters(), cursor, revealed().has(i));
+  $("kbd").title = verdict ? KEYS_MEAN[fs[i].rule.type](styleOf(i).name) : "";
   const mustGo = (!S.done && cursor && lastCheck()[cursor]) || null;   // the last check said this letter has to change here
   document.querySelectorAll("#kbd button[data-key]").forEach(b => {
     const ch = b.dataset.key, v = verdict ? verdict(ch) : null;
