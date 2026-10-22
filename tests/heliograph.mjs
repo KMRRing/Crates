@@ -2,9 +2,9 @@
 // of reflection, coloured by each colour crystal it passes, through the cluster's crystals of its colours, stopped by
 // another, white light doing nothing), what a shot shatters and what falls from the strings, the points, the colour
 // crystals spent and replaced, where a mirror may stand, the cluster coming down (a new layer, mirrors under it back in
-// hand, the end), the moves a shot (three on the first), a turn skipped, a game saved and opened again, and whole games
-// by simple players.
-import { R, H, PR, MR, PORT, LY, LOSE_Y, SKIRT_R, SKIRT_Y, SKIRT_LAYERS, worth, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, FIRST_MOVES, movesFor, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, skip, pieces, lowest, layerY,
+// hand, the end), the moves a shot (three on the first), a shot turned away from the colour crystals, a game saved and
+// opened again, and whole games by simple players.
+import { R, H, PR, MR, PORT, LY, LOSE_Y, SKIRT_R, SKIRT_Y, SKIRT_LAYERS, worth, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, FIRST_MOVES, movesFor, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
   addMirror, moveMirror, turnMirror, takeMirror, pointMirror, cantPlace, clampInside, reflect, anglesOf, fromAngles, crystalsAt, plan } from "../heliograph-engine.js";
 
 let bad = 0;
@@ -164,23 +164,14 @@ function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to =
   check(n.mirrors.length === 1, "and no mirror can be set until the next shot");
 }
 
-// ---------- a turn skipped ----------
+// ---------- a shot turned away ----------
 {
-  // the colour crystals where setUp puts them, a mirror well clear of both
-  const s = addMirror(setUp(), [3, 2, 0]), before = copy(s), k = skip(s), t = k.state;
-  check(JSON.stringify(s) === JSON.stringify(before), "skipping leaves the game passed in as it was");
-  check(k.skipped && !k.path.legs.length && t.shots === 1 && t.score === 0 && k.gain === 0 && t.moves === MOVES && !t.touched.length && t.untilDrop === s.untilDrop - 1,
-    "a skip is a turn without the light: a shot counted, nothing scored, the moves back, the chandelier's count going on");
-  check(pieces(t).length === pieces(s).length && JSON.stringify(t.crystals) === JSON.stringify(s.crystals) && JSON.stringify(t.mirrors) === JSON.stringify(s.mirrors),
-    "nothing shatters, the colour crystals stay unspent where they were, and so do the mirrors");
-  const due = setUp();
-  due.untilDrop = 1;
-  const d = skip(due);
-  check(d.dropped && d.state.layers.length === START_LAYERS + 1 && d.state.untilDrop === dropEvery(1), "a skip when the chandelier is due brings it down a layer");
-  const deep = setUp({ layers: 1 + Math.floor((layerY(0) - LOSE_Y - PR) / LY) });
-  deep.untilDrop = 1;
-  const end = skip(deep).state;
-  check(end.over && skip(end).state.shots === end.shots && fire(end).state.shots === end.shots, "and may end the game, after which nothing more is played");
+  // a mirror over the colour crystal under the port, turned to send the light level to the glass: turning is free, so a
+  // shot can always be passed like this, which is why there's no Skip
+  const s = addMirror(setUp(), [PORT[0], 6, PORT[2]], [0, Math.SQRT1_2, -Math.SQRT1_2]), f = fire(s), t = f.state;
+  check(!f.path.crossed.length && !f.shattered.length && !f.gain && JSON.stringify(t.crystals) === JSON.stringify(s.crystals) && pieces(t).length === pieces(s).length,
+    "light turned away from the colour crystals shatters nothing and spends no colour crystal");
+  check(t.shots === 1 && t.moves === MOVES && t.untilDrop === s.untilDrop - 1, "and the shot is a turn passed: the moves back, the chandelier's count going on");
 }
 
 // ---------- kept and opened again ----------

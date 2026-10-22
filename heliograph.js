@@ -1,11 +1,11 @@
 // Heliograph: white light falls from a port in the top of a glass tube; set mirrors in it to carry the light through a
 // colour crystal, which colours it, and on into the chandelier of crystals hanging in the middle, where it shatters
 // every crystal of its colour it meets until one of another colour stops it, and everything below on those strings
-// falls; through both colour crystals it carries both colours. Fire takes a turn, and Skip takes one without the light;
-// setting the mirrors doesn't. The rules are heliograph-engine.js's; this file handles the hand (turning round the tube,
-// choosing, setting, moving and turning mirrors, the light's way drawn as they move) and keeps the game. The tube is drawn
-// by heliograph-3d.js, or heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
-import { MIRRORS, MR, FIRST_MOVES, movesFor, canMove, newGame, trace, fire, skip, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery } from "./heliograph-engine.js";
+// falls; through both colour crystals it carries both colours. Fire takes a turn; setting the mirrors doesn't. The rules
+// are heliograph-engine.js's; this file handles the hand (turning round the tube, choosing, setting, moving and turning
+// mirrors, the light's way drawn as they move) and keeps the game. The tube is drawn by heliograph-3d.js, or
+// heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
+import { MIRRORS, MR, FIRST_MOVES, movesFor, canMove, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery } from "./heliograph-engine.js";
 import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
 import { createFlat } from "./heliograph-flat.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -94,7 +94,7 @@ function drawTray() {
   mv.setAttribute("aria-label", `${S.moves} move${S.moves === 1 ? "" : "s"} left this shot`);
   b.classList.toggle("lifted", hand?.kind === "new" && hand.moved);
   $("takeBtn").disabled = S.over || playing || sel == null || !(S.placed.includes(sel) || canMove(S, sel));
-  $("fireBtn").disabled = $("skipBtn").disabled = S.over || playing;
+  $("fireBtn").disabled = S.over || playing;
   $("tray").hidden = S.over;
   $("result").hidden = !S.over;
   if (S.over) {
@@ -275,10 +275,10 @@ function autoPlace() {
   toast("There's no room in the light for a mirror");
 }
 
-// ---------- a turn: a shot, or a skip ----------
-async function takeTurn(act) {
+// ---------- a shot ----------
+async function shoot() {
   if (playing || S.over) return;
-  const before = S, r = act(S);
+  const before = S, r = fire(S);
   playing = true;
   sel = null;
   render();
@@ -292,9 +292,8 @@ async function takeTurn(act) {
   if (r.gain) pop(r, before);
   if (r.cleared) toast(`The chandelier is cleared: ${fmt(1000)} more`);
   else if (r.crushed.length) toast(r.crushed.length === 1 ? "The cluster came down on a mirror: it's back in hand" : `The cluster came down on ${r.crushed.length} mirrors: they're back in hand`);
-  else if (!r.skipped && !r.path.crossed.length && !r.gain) toast("The light never reached a colour crystal");
+  else if (!r.path.crossed.length && !r.gain) toast("The light never reached a colour crystal");
 }
-const shoot = () => takeTurn(fire);
 /** What the shot brought in, rising from where it did most. */
 function pop(r, before) {
   const by = new Map(pieces(before).map(p => [p.id, p])), at = [...r.shattered, ...r.fallen].map(id => by.get(id)).filter(Boolean);
@@ -340,7 +339,6 @@ $("mirrorBtn").addEventListener("pointerup", e => { if (hand?.kind === "new" && 
 $("mirrorBtn").addEventListener("pointercancel", cancel);
 $("takeBtn").addEventListener("click", () => { if (sel == null) return; S = takeMirror(S, sel); sel = null; save(); render(); });
 $("fireBtn").addEventListener("click", shoot);
-$("skipBtn").addEventListener("click", () => takeTurn(skip));
 $("againBtn").addEventListener("click", newRun);
 
 // for tests and debugging

@@ -11,8 +11,7 @@
 //
 // Space: y up from the floor (0) to the ceiling (H), the tube's axis at x = z = 0. A mirror is a disc silvered both
 // sides, where it stands and the way it faces: the player turns them freely, but may set, move or take back only two each
-// shot (MOVES; three on the first, FIRST_MOVES), the light's way drawn as they do. A turn ends with a shot (fire) or
-// without one (skip).
+// shot (MOVES; three on the first, FIRST_MOVES), the light's way drawn as they do.
 //
 // A game is one object, as saved: { v, seed, n (draws made from the seed), layers [{ s (a serial), c (a colour 0–3 or
 // -1 for each of the CELLS) }] top first, shape (its name) and depth (each place's string when new), serial, crystals
@@ -393,43 +392,28 @@ export function fire(state) {
   const fallen = unsupported(s);
   removeIds(s, fallen);
   let gain = worth(path.shattered.length, fallen.length);
+  s.shots++;
+  s.moves = movesFor(s.shots); s.touched = []; s.placed = [];
   for (const k of path.crossed) spawnCrystal(s, k);
   const cleared = !pieces(s).length;
   if (cleared) {
     gain += CLEAR_BONUS;
     fill(s);
+    s.untilDrop = dropEvery(s.shots);
   }
   s.score += gain;
-  return { state: s, path, shattered: path.shattered, fallen, gain, cleared, ...endTurn(s, cleared) };
-}
-/**
- * The turn passed without the light: nothing shatters and the colour crystals stay where they are, but the moves come
- * back and the chandelier's count goes on, so a way that needs more than a shot's moves to build can be built, at the
- * cost of a turn. Returns what fire() does (an unlit path), with `skipped`; the game passed in is left as it was.
- */
-export function skip(state) {
-  const s = copy(state), path = { legs: [], shattered: [], crossed: [], stop: null, ins: {}, outs: {}, lit: [] };
-  const none = { state: s, path, shattered: [], fallen: [], gain: 0, cleared: false, skipped: true };
-  return s.over ? { ...none, dropped: false, crushed: [] } : { ...none, ...endTurn(s, false) };
-}
-/** A turn's end, fired or skipped: the moves come back, and the chandelier comes down a layer when it's due (one new after
- *  a clear starts the count again); a mirror it comes down on goes back to hand, a colour crystal in its way moves, and a
- *  crystal reaching the line ends the game. { dropped, crushed (ids of the mirrors it came down on) }. */
-function endTurn(s, cleared) {
-  s.shots++;
-  s.moves = movesFor(s.shots); s.touched = []; s.placed = [];
   let dropped = false;
-  if (cleared) s.untilDrop = dropEvery(s.shots);
-  else if (--s.untilDrop <= 0) {
+  if (!cleared && --s.untilDrop <= 0) {
     s.layers.unshift(newLayer(s, s.layers[0]?.c));        // a crystal more on every string of the shape
     s.untilDrop = dropEvery(s.shots);
     dropped = true;
   }
+  // what the cluster now reaches: mirrors under it go back to hand, colour crystals move
   const cluster = pieces(s), crushed = s.mirrors.filter(m => cluster.some(q => dist(q.p, m.p) < PR + MR * 0.9)).map(m => m.id);
   s.mirrors = s.mirrors.filter(m => !crushed.includes(m.id));
   s.crystals.forEach((c, k) => { if (!crystalFits(s, at(c), k)) spawnCrystal(s, k); });
   if (lowest(s) - PR < LOSE_Y) s.over = true;
-  return { dropped, crushed };
+  return { state: s, path, shattered: path.shattered, fallen, gain, cleared, dropped, crushed };
 }
 
 // ---------- players, for the tests and the tuning ----------
