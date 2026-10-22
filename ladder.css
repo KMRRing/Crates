@@ -135,6 +135,12 @@ html[data-mode="night"] { --ld-in: #6FA0D2; --ld-good: #7FC2A8; --ld-bad: #E8806
 .ld-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800; font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps);
   outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; padding: 0 1rem; }
 
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.ld-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.ld-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.ld-sheet .pick-head h2 { font-size: 1rem; }
+.ld-rules p { line-height: 1.45; }
+
 /* the routes sheet: the ladder you climbed, the ones at par, the computer's */
 .ld-done { display: grid; gap: .8rem; }
 .ld-done h4 { margin: 0 0 .25rem; font-size: .72rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }

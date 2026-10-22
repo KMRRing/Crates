@@ -5,7 +5,7 @@
 // lode-engine.js's, the table lode-table.js's, the drawing and the finger lode-board.js's; this file keeps the run, the
 // clock, the menu and the table. Together (together.js): one board for the table, as a team with the letters shared out
 // (each sees only theirs) or as a race, everyone on their own phone.
-import { CELLS, LEVELS, SHAPES, RIVALS, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
+import { CELLS, MIN_WORD, LEVELS, SHAPES, RIVALS, PER_HINT, HINT_COST, SHOW_COST, POOLS, GROUPS, THEMES, themeById, boardFor, dailyDeal, newRun, tidyRun, submit, useHint, giveUp,
   scoreOf, missesOf, lockedCells, rivalPlan, rivalAt } from "./lode-engine.js";
 import { MODES, isTable, tidy, tidyBoard, freshTable, readable, presentSlots, traceText, tracesOf, submitAt, hintAt, giveUpAt, runOf, beginAt, reportAt,
   botAt, standingsOf, raceOver, newGameAt, resultOf } from "./lode-table.js";
@@ -34,6 +34,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), m = Math.floor(s / 60), p = n => String(n).padStart(2, "0"); return m >= 60 ? `${Math.floor(m / 60)}:${p(m % 60)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] ?? String(n);
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const first = name => String(name || "Player").trim().split(/\s+/)[0];
 
@@ -475,6 +476,7 @@ function openMenu() {
   body.replaceChildren();
   if (G || joining) menuTable(body);
   else menuSolo(body);
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function menuSolo(body) {
@@ -544,6 +546,24 @@ function menuTable(body) {
   content.append(choice("Clues", Object.entries(CLUES), settings.clues, v => { settings.clues = v; saveSettings(); }));
   if (!context()?.run.done) part(body, "settings").append(action("Show the words still hidden", giveUpNow, "link"));
   part(body, "together").append(action("Back to solo", () => together.leave(), "link"));
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Lode as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. A solo clock and the rival stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const paces = Object.values(RIVALS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
+  $("rulesBody").innerHTML = `
+    <p>A board of ${CELLS} letters hides a theme's words. Each word is a path of touching letters (sideways, up and down, or diagonally), no letter used twice, and between them the words use every letter on the board exactly once. One of them, the mother lode, names the theme and spans the board, touching two opposite sides.</p>
+    <p><b>The theme.</b> A country or a commodity from the knowledge base, and its words are its own clues: a city, a dish, a person, a firm. The title over the board is a clue to the theme; Easy and Medium say whether it's a country or a commodity.</p>
+    <p><b>Playing.</b> Drag a finger through a word's letters, or tap them one at a time and tap the last again; slide back to take a letter off, and tap away from the letters to clear. A theme word found turns blue, the mother lode gold, and the line under the board says what links it to the theme. Words lists what you've found, and how long the rest are.</p>
+    <p><b>Hints.</b> Any other English word of ${inWords(MIN_WORD)} letters or more counts towards a hint, ${inWords(PER_HINT)} words to a hint, as in Strands: the dots on the Hint button fill as they come. A hint rings the letters of the hardest word still hidden; a second while they're ringed numbers them in order. Each hint adds ${HINT_COST} seconds.</p>
+    <p><b>Score.</b> Your time plus the hints' seconds, lower being better. Show the words still hidden, in the menu, ends the board at ${SHOW_COST} seconds a word, more than a hint ever costs. Playing alone, the clock stands still while the menu or these rules are open.</p>
+    <p><b>Levels.</b> Easy deals well-known links whose paths run straight and read rightwards or down; Hard leans on specialists' links, turns its paths and runs them backwards, and doesn't say if the theme is a country or a commodity. The menu also chooses the themes (countries, commodities or both), the topics, and the regions and sectors they come from.</p>
+    <p><b>Settings.</b> Board: ${SHAPES.square}, or ${SHAPES.hex}, a honeycomb where each letter touches six. Clues: ${CLUES.title}, or ${CLUES.every}, each word's clue with its length in place of the title, one at a time with the arrows, the mother lode's last. Rival: ${paces} finds the words beside you at a person's pace. They apply from the next board.</p>
+    <p><b>Today's board.</b> Medium and square, from every theme, the same for everyone, and a new one at midnight UTC. It counts the moment its last word is found.</p>
+    <p><b>Together.</b> As a team, one board with its letters shared out: you see only yours, and a sealed letter is a team mate's, marked with where it is (C4, the third column's fourth letter) so you can ask for it. Anyone traces through any letters, and what you trace shows on the others' boards as it grows. Or a race: the same board on every phone from the same moment, the lowest score winning.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
 // ---------- together: one board for the table (together.js) ----------
@@ -697,6 +717,8 @@ const logo = APPS.find(a => a.id === "lode")?.logo;
 if (logo) document.querySelector(".lo-mark").innerHTML = logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("wordsClose").addEventListener("click", () => $("wordsDlg").close());
 $("wordsDlg").addEventListener("click", e => { if (e.target === $("wordsDlg")) $("wordsDlg").close(); });
 $("raceClose").addEventListener("click", closeRace);

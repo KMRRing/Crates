@@ -112,9 +112,13 @@ html[data-theme="modern"] { --yd-logo-tint: #F6E6C2; --yd-logo-edge: #A2690F; }
 .yd-mix svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .yd-enter { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; }
 
-/* ---------- the sheets: the words, the chart, the ranks, the end of a puzzle ---------- */
-dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscroll-behavior: contain; }
-.yd-sheet .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); }
+/* ---------- the sheets: the rules, the words, the chart, the ranks, the end of a puzzle ---------- */
+/* each scrolls as one piece, its head (with Close) staying at the top; the menu-like ones keep the menu sheet's own
+   head padding (style.css's, which outranks this one), the rules a plain sheet's */
+dialog.yd-sheet { max-height: 86vh; max-height: 86svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.yd-sheet .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.yd-sheet .pick-head h2 { font-size: 1rem; }
+.yd-rules p { line-height: 1.45; }
 .yd-sheet-body { padding-bottom: .4rem; }
 .yd-sum { margin: .2rem 0 .7rem; color: var(--ink-soft); font-size: .92rem; line-height: 1.4; }
 .yd-sum b { color: var(--ink); }

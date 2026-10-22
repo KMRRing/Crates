@@ -125,6 +125,11 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-go-ink: #0E1A26; --cw-good: #7F
 .cw-toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.2rem); transform: translateX(-50%); z-index: 20; max-width: min(92vw, 30rem); margin: 0;
   padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .cw-toast.show { opacity: 1; }
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.cw-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.cw-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.cw-sheet .pick-head h2 { font-size: 1rem; }
+.cw-rules p { line-height: 1.45; }
 
 /* the other themes' corners and buttons */
 html:is([data-theme="modern"], [data-theme="kontor"], [data-theme="office"]) .cw-tool { border-radius: 10px; }

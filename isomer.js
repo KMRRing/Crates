@@ -553,7 +553,7 @@ function openMenu() {
     duel.menu(t);
     if (!inParty()) t.insertBefore(action("Two jumbles each instead", pairInstead), t.lastElementChild);
     contentPart(body, false);
-    if (!$("menuDlg").open) $("menuDlg").showModal();
+    showMenu(body);
     return;
   }
   if (together.room || joining) {                              // the pair's match: a new puzzle, a race, back to solo
@@ -562,7 +562,7 @@ function openMenu() {
     else { const wait = line(joiningWords()); wait.prepend(sextant()); t.append(wait); }
     t.append(action("Back to solo", backToSolo, "link"));
     contentPart(body, false);
-    if (!$("menuDlg").open) $("menuDlg").showModal();
+    showMenu(body);
     return;
   }
   pick ??= (S?.kind === "daily" && !S.run.done) || dailyDue("isomer") ? "daily" : "random";
@@ -576,7 +576,31 @@ function openMenu() {
   const best = S ? times[`${S.puzzle.mode}/${S.puzzle.level}`] : null;
   const vs = Object.entries(rec).filter(([k, v]) => RIVALS[k] && v.won + v.lost).map(([k, v]) => `${RIVALS[k].label} ${v.won}–${v.lost}`);
   part(body, "about").append(line(`${S ? `${MODES[S.puzzle.mode].label}, ${LEVELS[S.puzzle.level].label.toLowerCase()}: ${best != null ? `best ${clock(best)}` : "not solved yet"}. ` : ""}A hinted letter is ${PER_HINT} s.${vs.length ? ` Against the computer: ${vs.join(", ")}.` : ""}`));
+  showMenu(body);
+}
+/** Opens the menu as built, the rules at the foot of its play part. */
+function showMenu(body) {
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Isomer as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. A solo clock and the rival stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const paces = Object.values(RIVALS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
+  $("rulesBody").innerHTML = `
+    <p>Put the jumbled words right, one letter to a square. Some squares are circled; the circled letters, put in order, spell the final answer, clued under the jumbles.</p>
+    <p><b>The final.</b> A thing from the knowledge base, asked one of two ways: the thing from its clue, with its country or commodity and topic (“Peru · Food &amp; drink: a grape brandy it claims as its own” is PISCO), or a country or commodity from one of its clues (“A country · History: Pharaohs: ancient god-kings” is EGYPT). Its squares show the answer's words and their lengths.</p>
+    <p><b>The jumbles.</b> Each has exactly one answer: an everyday word, never a plural, a past tense or an -ing form (in Theme, a name). No letter starts in its own square, and no two stand side by side as they do in the answer.</p>
+    <p><b>Playing.</b> Tap a row and its letters stand in the rack at the bottom; tap them in order and each goes to the next empty square. A tap on a placed letter, ⌫ or Clear takes letters back, and Shuffle puts the rack in another order. A full row that's right turns green and the next comes up; a wrong one shakes, its letters left to be moved, and costs nothing. The final's rack is the tray of circled letters, each blank until its jumble is solved. On a keyboard: letters, Backspace, Enter for the next row, and the arrows.</p>
+    <p><b>Hint.</b> Puts the right letter in the first square that lacks it, locked there and marked with a dot, for ${PER_HINT} seconds. On the final it can lend a letter whose jumble isn't solved yet.</p>
+    <p><b>Score.</b> Your time plus ${PER_HINT} seconds a hinted letter, lower being better; the end shows par too, the standard solver's time. Playing alone, the clock stands still while the menu or these rules are open.</p>
+    <p><b>Modes.</b> In the menu: <b>Classic</b>, two words of five letters and two of six; <b>Theme</b>, the four jumbles a country's or a commodity's own clues, each with its hint, the circled letters naming what all four point to; <b>Double</b>, two finals from one tray, a thing and its country or commodity, the tray's letters yours to split between them; <b>Jumbo</b>, six words of five to seven letters and a longer final. The levels, Easy to Hard, go by how deep each jumble hides its word: how many likelier-looking arrangements of its letters come before it. Answers: Countries, Commodities or Mixed, with the topics as a mix.</p>
+    <p><b>The rival.</b> In Settings: ${paces} plays the same puzzle beside you, its progress in the strip; Sharp is par.</p>
+    <p><b>Today's puzzle.</b> A ${MODES[DAILY.mode].label} at ${LEVELS[DAILY.level].label}, every topic in, the same for everyone, and a new one at midnight UTC. It counts the moment its last answer goes in.</p>
+    <p><b>Together.</b> Two jumbles each (three in Jumbo): your partner's are sealed on your screen and yours on theirs, and each of you holds half the final's clue, so you read them out. The final needs every circled letter, so neither of you can finish alone. Or a race: the same puzzle for everyone, the quickest winning.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 /** The content choices: the mode, the level, what the finals are about (countries, commodities) and the topics. */
 function contentPart(body, topics) {
@@ -616,6 +640,8 @@ document.querySelector(".is-mark").innerHTML = APPS.find(a => a.id === "isomer")
 bindSwitcher($("appsBtn"), "isomer");
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("board").addEventListener("click", e => {
   const row = e.target.closest(".is-row");
   if (!row || !S) return;

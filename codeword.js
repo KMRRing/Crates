@@ -3,7 +3,7 @@
 // every cell of that number takes it. The rules are codeword-rules.js's; making a grid, a hint and a computer rival's
 // pace need the word lists and run in a worker (codeword-worker.js, codeword-engine.js). Together: a race on the same
 // grid (duel.js), or the split key for a pair, each holding half the numbers (codeword-room.js, on together.js).
-import { SIZES, LEVEL_NAMES, DAILY, HINT, CHECK, holderOf, pack, unpack, layoutOf, mysteryNums, newRun, letterOf, isFixed, isGiven, holding, place, erase, undo, filled, isFull, isSolved, rightOf, check, show, score } from "./codeword-rules.js";
+import { SIZES, LEVEL_NAMES, GIVENS, DAILY, HINT, CHECK, holderOf, pack, unpack, layoutOf, mysteryNums, newRun, letterOf, isFixed, isGiven, holding, place, erase, undo, filled, isFull, isSolved, rightOf, check, show, score } from "./codeword-rules.js";
 import { BRANCH, freshTable, isTable, marker, puzzleOf, letterAt, holdingAt, isFixedAt, suggestionFor, filledAt, solvedAt, isMarked, whyNot, writeIn, takeOut, takeBack, suggest, wave, checkAt, hintAt, rightAt, newGrid, resultOf, tableScore } from "./codeword-room.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -28,6 +28,7 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] ?? String(n);
 /** Seconds as 1:05 (or 1:02:05). */
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, p = n => String(n).padStart(2, "0"); return h ? `${h}:${p(m)}:${p(s % 60)}` : `${m}:${p(s % 60)}`; };
 const first = name => String(name || "Your partner").split(" ")[0];
@@ -686,13 +687,13 @@ function openMenu() {
     t.append(line(`The split key with ${partner}: you hold ${mySlot() ? "14 to 26" : "1 to 13"}, ${partner} the rest.`),
       action(T.done ? "A new grid" : "A new grid now", () => tableNewGrid(), T.done ? "primary" : ""), action("Back to solo", () => together.leave(), "link"));
     part(body, "content").append(mirror("Level", $("level")), sizeChoice(), kindChoice());
-    if (!$("menuDlg").open) $("menuDlg").showModal();
+    showMenu(body);
     return;
   }
   if (duel.on) {                                              // a race: the table's own, and what the next one deals
     duel.menu(part(body, "together"));
     part(body, "content").append(mirror("Level", $("level")), sizeChoice(), kindChoice());
-    if (!$("menuDlg").open) $("menuDlg").showModal();
+    showMenu(body);
     return;
   }
   pick ??= S?.mode === "daily" ? "daily" : "random";
@@ -707,7 +708,31 @@ function openMenu() {
   part(body, "about").append(
     line(S ? `${LEVEL_NAMES[S.opts.level]}, ${SIZES[S.opts.size].n} by ${SIZES[S.opts.size].n}: ${best != null ? `best ${fmt(best)}` : "not cracked yet"}. A hint adds ${HINT} s, a check ${CHECK} s.` : "A crossword with no clues."),
     action("Copy a link to this grid", copyLink, "link"));
+  showMenu(body);
+}
+/** Opens the menu as built, the rules at the foot of its play part. */
+function showMenu(body) {
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Codeword as it's played here, its numbers the rules' own, so the sheet
+// can't drift from the game. A solo clock and the computer rival stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const sizes = Object.values(SIZES).map(s => `${s.label} ${s.n} by ${s.n}`).join(", "), day = SIZES[DAILY.size].n;
+  $("rulesBody").innerHTML = `
+    <p>A crossword with no clues. Every white cell holds a number from 1 to 26: the same number is always the same letter, two numbers are never the same letter, and every letter of the alphabet is somewhere in the grid. A few letters are given; crack the rest from the shapes of the words.</p>
+    <p><b>For example.</b> Say 12 is T and 7 is E, and a word of three cells reads 12, 3, 7. T?E is THE, TIE or TOE, never TEE, since 3 isn't 7. Find a 3 in a word that only one of H, I and O fits, and every 3 in the grid takes that letter.</p>
+    <p><b>Playing.</b> Tap a cell, then a letter: every cell of that number takes it, and the cursor moves on to the word's next empty cell. Tap the cell again, or ↔, to turn between across and down. A letter already on another number moves to this one, and that number goes blank, unless the letter is fixed there. ⌫ takes the cursor's letter out, and Undo takes back the last change. The keys show each letter in use with its number; where there's room (a tall phone, or held sideways) the key table lists 1 to 26 with their letters, and a tap on a number goes to it. On a keyboard: letters, Backspace, the arrows, and Space to turn.</p>
+    <p><b>Hint and Check.</b> Hint shows the letter a strong solver would find next, for good: it's fixed like a given, marked with a corner, and the cursor goes to its word. It adds ${HINT} seconds, and nothing before it can be undone. Check strikes through, in red, every letter written in wrong, until it changes, and adds ${CHECK} seconds.</p>
+    <p><b>Score.</b> The time plus the hints' and checks' seconds, lower being better; the clock shows it as it stands, and on a grid of your own it stands still while the menu or these rules are open. A grid counts the moment its last letter is right, and bests are kept for each level and size.</p>
+    <p><b>Levels.</b> In the menu: Easy gives ${inWords(GIVENS.easy)} letters and never asks you to weigh more than four words at once; Medium gives ${inWords(GIVENS.medium)}, and up to eight words; Hard ${inWords(GIVENS.hard)}, and sixteen or more somewhere; Expert ${inWords(GIVENS.expert)}, and thirty or more. Size: ${sizes}. Every grid has exactly one answer.</p>
+    <p><b>Mystery word.</b> In the menu, Country, Commodity or City: a row of numbered boxes under the grid spells a name of that kind, filling in as you crack its letters. Knowing the kind is a way in.</p>
+    <p><b>Race the computer.</b> In Settings: Steady, Sharp or Ace solves the same grid beside you at a person's pace, how many letters it has showing under the clock, and the end says who was quicker. Not on today's grid.</p>
+    <p><b>Today's grid.</b> ${LEVEL_NAMES[DAILY.level]}, ${day} by ${day}, the same for everyone, and a new one at midnight UTC. It counts the moment its last letter is right.</p>
+    <p><b>Together.</b> The split key: one of you holds the numbers 1 to 13, the other 14 to 26. Each sees only their own numbers and writes letters in only for them; tap one of your partner's cells and a letter to suggest it, and they tap it to write it in. Hints and checks are the team's. Or a race: the same grid for everyone, the lowest score winning.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 async function tableNewGrid() {
   if (!T) return;
@@ -766,6 +791,8 @@ bindSwitcher($("appsBtn"), "codeword");
 document.querySelector(".cw-mark").innerHTML = APPS.find(a => a.id === "codeword")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("undoBtn").addEventListener("click", back);
 $("hintBtn").addEventListener("click", useHint);
 $("checkBtn").addEventListener("click", useCheck);

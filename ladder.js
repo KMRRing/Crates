@@ -6,7 +6,7 @@
 import { RULES, LENGTHS, LEVELS, OVER, HINT, RIVALS, analyse, generate, levelOf, newRun, place, undoLast, working,
   words, steps, hintFor, score, rivalPlan, rivalAt, partnerMove } from "./ladder-engine.js";
 import { BOOK, THEMES, linkedFor } from "./ladder-pairs.js";
-import { lettersFor } from "./ladder-table.js";
+import { lettersFor, RACE_LADDERS } from "./ladder-table.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
@@ -28,6 +28,7 @@ const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const fmt = secs => { const s = Math.max(0, Math.round(secs)), m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, "0")}`; };
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] ?? String(n);
 const CAPS = w => String(w).toUpperCase();
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
@@ -616,7 +617,7 @@ let pick = null;            // what New ladder deals: daily, random, linked, boo
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  if (room.on || room.joining) { room.menu(body); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
+  if (room.on || room.joining) { room.menu(body); showMenu(body); return; }
   pick ??= dailyDue("ladder") ? "daily" : G?.kind && G.kind !== "daily" ? G.kind : prefs.kind;
   const startLabel = pick === "book" ? "Play the chapter" : "New ladder";
   part(body, "play").append(action(startLabel, () => { if (confirmLeave()) { if (pick !== "daily") { prefs.kind = pick; keepPrefs(); } deal(pick); } }, "primary"));
@@ -639,7 +640,33 @@ function openMenu() {
     line(`${G ? `${G.kind === "daily" ? "Today's" : LEVELS[G.P.level || levelOf(G.P)].label}: ${best != null ? `best ${fmt(best)}` : "not climbed yet"}. ` : ""}Clean pars in a row ${pars.now}, most ${pars.best}. A step over par adds ${OVER} s, a hint ${HINT} s.`),
     action("The routes", openRoutes, "link"),
     action("Copy a link to this ladder", copyLink, "link"));
+  showMenu(body);
+}
+/** Opens the menu as built, the rules at the foot of its play part. */
+function showMenu(body) {
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Ladder as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. A solo clock and the computer stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const players = Object.values(RIVALS).map(r => r.label).join(", ").replace(/, (\w+)$/, " or $1");
+  $("rulesBody").innerHTML = `
+    <p>Lewis Carroll's Doublets: climb from the first word to the last, changing one letter at a time. Each letter keeps its place, and every rung must be a word.</p>
+    <p><b>For example.</b> Carroll's own, HEAD to TAIL: HEAD, HEAL, TEAL, TELL, TALL, TAIL. Five steps, which is par; the third letter changes twice (A to L, then L to I), a detour, the kind of step that makes a ladder hard to see.</p>
+    <p><b>Par.</b> The fewest steps the ladder can be done in, found by searching every word, so it's proven, not estimated. Between the ends stand the rungs still to go at par: the next, where your word appears, and the rest drawn short with a brass dot. The end shows the commonest route at par, how many there are, and whether yours was it.</p>
+    <p><b>Playing.</b> Tap a letter of the working rung, then its new letter on the keys. If that makes a word it's the next rung; if not, the line says why and the letter stays chosen, so another key can be tried at once. Or type a whole word and press Enter. Work from either end, as on paper: Work up (or a tap on the last word) builds from the bottom, Work down from the top, and the ladder is whole the moment a word made at one end is a word of the other. Undo takes off the last rung made, at no cost; a word already on your ladder can't come back. On a keyboard the arrows move along the letters, and up and down switch ends.</p>
+    <p><b>The words.</b> A rung may be any word of ${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))} letters in a wide word list, British and American spellings both, so a real word is never refused. The ends are everyday words, and a ladder the game makes can be done at par in words people know.</p>
+    <p><b>Hint.</b> Puts on the next rung of the commonest shortest route from where you are, and says how many steps are left, for ${HINT} seconds.</p>
+    <p><b>Score.</b> Your time, plus ${OVER} seconds for every step over par and ${HINT} a hint, lower being better: a step costs more than speed, since par is the point. Playing alone, the clock stands still while the menu or these rules are open.</p>
+    <p><b>Ladders.</b> In the menu: <b>Today's</b>; <b>Random</b>, at a level, from the word lengths you tick; <b>Linked</b>, pairs with a link between them (COLD to WARM, LEAD to GOLD, BULL to BEAR), from the themes you tick; and <b>The book</b>, Carroll's own doublets in his order, each opening once the one before is climbed. Easy has at most one detour at par; Hard has two or more, and exactly one route at par.</p>
+    <p><b>Grow and shrink.</b> The genre's own variant, in Settings' Rules, for random and linked ladders: a step may also add or take away a letter, which opens pairs of different lengths (HOT to COLD in three: HOT, COT, COD, COLD). Tap a gap between letters to add one there; ⌫ on a chosen letter takes it away.</p>
+    <p><b>The computer.</b> In Settings: off, a rival or a partner, at ${players}. A rival climbs the same ladder beside you, the lower score winning; a partner holds every other letter of a random or linked Classic ladder, and you may change only yours, ringed in your colour.</p>
+    <p><b>Today's ladder.</b> ${LEVELS[DAILY.level].label}, ${DAILY.lengths.map(inWords).join(" or ")} letters, ${RULES[DAILY.rules]}, the same for everyone, and a new one at midnight UTC. It counts the moment it's whole.</p>
+    <p><b>Together.</b> As a team, one ladder for the table: each of you holds letters that must change, may change only those, and sees only your own letters of the last word, so you have to talk. Or a race: the same ${inWords(RACE_LADDERS)} ladders for everyone, the lowest score winning.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 /** The book's chapters: climbed (with the steps), the one to play, the ones after it. */
 function bookList() {
@@ -691,6 +718,8 @@ if (logo) document.querySelector(".ld-mark").innerHTML = logo;
 buildKeyboard();
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneDlg").addEventListener("click", e => { if (e.target === $("doneDlg")) $("doneDlg").close(); });
 $("routesBtn").addEventListener("click", openRoutes);

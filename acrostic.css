@@ -103,6 +103,12 @@ html[data-mode="night"] { --ac-in: #79A9D6; --ac-good: #7FC2A8; --ac-bad: #E8806
 .ac-krow button.wide { flex: 1.5 1 0; font-size: .95rem; }
 .ac-krow button.way { font-size: .68rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); color: var(--ac-in); }
 
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.ac-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.ac-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.ac-sheet .pick-head h2 { font-size: 1rem; }
+.ac-rules p { line-height: 1.45; }
+
 /* the reveal, when it's solved */
 #doneDlg { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
 #doneDlg .pick-head { position: sticky; top: 0; background: var(--sheet); padding: 1rem 0 .5rem; z-index: 1; }

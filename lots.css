@@ -94,6 +94,11 @@ dialog.lt-namer { padding-top: 1rem; }
 .lt-name-opts .btn.right { border-color: var(--lt-good); background: color-mix(in srgb, var(--lt-good) 18%, var(--sheet)); }
 .lt-name-opts .btn.wrong { border-color: var(--lt-bad); background: color-mix(in srgb, var(--lt-bad) 14%, var(--sheet)); }
 .lt-name-note { margin: .7rem 0 0; min-height: 1.3em; font-size: .85rem; color: var(--ink-soft); }
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.lt-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.lt-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.lt-sheet .pick-head h2 { font-size: 1rem; }
+.lt-rules p { line-height: 1.45; }
 
 .lt-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);

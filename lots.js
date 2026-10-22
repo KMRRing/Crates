@@ -3,7 +3,7 @@
 // keeps the run, the clock and the taps, and draws. Three ways to play: alone (classic, or Only Connect's wall, against
 // the computer if you like, today's board for everyone), the pair at one board (open, crossed or hidden), and a race on
 // one board through duel.js, for a pair or a party.
-import { SIZE, MISTAKES, LEVELS, LEVEL_NAMES, TOPICS, PRESETS, BY_ID, cleanMix, deal, daily, reason, fits, shuffle } from "./lots-engine.js";
+import { SIZE, MISTAKES, WALL, LEVELS, LEVEL_NAMES, TOPICS, PRESETS, BY_ID, cleanMix, deal, daily, reason, fits, shuffle } from "./lots-engine.js";
 import { RIVALS } from "./lots-bot.js";
 import { newRun, isRun, pick, clearPicks, shuffleLeft, submit, tick, wallLeft, phaseOf, placedOf, toName, namingFor, nameLot, scoreOf, maxScore,
   dayScore, rainbow, rivalNow, versus } from "./lots-run.js";
@@ -29,6 +29,7 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] ?? String(n);
 const clock = ms => { const s = Math.max(0, Math.round(ms / 1000)), m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, "0")}`; };
 const list2 = xs => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const nameOfCat = id => BY_ID.get(id)?.name || "";
@@ -431,7 +432,27 @@ function openMenu() {
     duel.menu(part(body, "together"));
     part(body, "content").append(levelChoice());
   } else soloMenu(body);
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Lots as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. A board's clock and the rival stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const rivals = Object.values(RIVALS).map(r => r.name).join(", ").replace(/, (\w+)$/, " or $1");
+  $("rulesBody").innerHTML = `
+    <p>Sixteen words, four lots of four: find the link that holds each lot together.</p>
+    <p><b>Guessing.</b> Pick four words and Submit. Four of one lot and it's found: a bar in its colour, its link named. Three of one lot is One away, anything else Not a lot; ${inWords(MISTAKES)} mistakes and the board is over. The same four can't be tried twice (trying costs nothing), and with three lots found the fourth falls into place.</p>
+    <p><b>The lots.</b> Ranked from plain to devious and coloured ochre, green, blue and red. A link can be a set or a meaning, things with something (things with keys: PIANO, MAP), a phrase (___&nbsp;JACK: FLAP, CRACKER, LUMBER, APPLE), sounds alike (SEA, GEE, AYE and CUE sound like letters), or wordplay: a word hidden inside, an anagram, a letter added or taken off. Beware red herrings, words that fit two links. A tap on a lot's bar says why its words belong, and once the board is over every lot shows, with its herrings.</p>
+    <p><b>Playing.</b> Tap a word to pick it and again to let it go; Deselect drops every pick, Shuffle reorders the words left, and Enter submits from a keyboard.</p>
+    <p><b>Score.</b> A point a lot, and once all four are found a point for each mistake to spare: ${SIZE + MISTAKES} is perfect. Solving the hardest lot first and the plainest last is a reverse rainbow. Playing alone, the clock stands still while the menu or these rules are open.</p>
+    <p><b>Levels.</b> In the menu, with the topics as a mix: Easy, plain links and no red herrings; Medium, plain to devious, sometimes a herring; Hard, devious links, and always a herring that bites.</p>
+    <p><b>The wall.</b> Settings' Play: Only Connect's connecting wall, against a clock of ${clock(WALL.ms)}. There's no Submit (your fourth pick is the guess, Wrong if it isn't a lot), and guesses are free until ${inWords(WALL.free)} lots are found, with ${inWords(WALL.lives)} lives after. When the clock or the lives run out, or the wall is solved, it freezes and you name each lot's link from four, found or not: a point a lot, a point a link, and ${inWords(WALL.bonus)} more for all eight, ${2 * SIZE + WALL.bonus} in all.</p>
+    <p><b>The rival.</b> Settings' Against the computer: ${rivals} plays your classic board beside you as a person would, four squares under the header filling in as it finds lots. More points win, then the quicker.</p>
+    <p><b>Today's board.</b> Medium, classic, every topic, the same for everyone, and a new one at midnight UTC: one go. It counts the moment it's over, as points then time (7/8 in 1:23), and Share copies your guesses as coloured squares.</p>
+    <p><b>Together.</b> The pair plays one board, one of three ways, chosen in the menu. ${Object.values(room.MODES).map(m => `<b>${m.label}</b>: ${m.blurb.replace(/^./, c => c.toLowerCase())}`).join(" ")} Or a race: the same board for everyone, the most points winning, then the quicker.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 // the header's level, in the menu as everywhere (menu.js mirrors the select; its change handler deals)
 const levelChoice = () => mirror("Level", el.level);
@@ -683,6 +704,8 @@ el.shuffle.addEventListener("click", () => {
 });
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 document.addEventListener("keydown", e => {
   if (document.querySelector("dialog[open]")) return;
   if (e.key === "Enter" && !el.submit.disabled && !el.submit.hidden) el.submit.click();

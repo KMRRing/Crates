@@ -824,7 +824,28 @@ function openMenu() {
   part(body, "about").append(line(bests.length ? `Your bests: ${bests.join(", ")}.` : "Your bests show here once you've solved one."),
     ...(vs.length ? [line(`Against the computer: ${vs.join(", ")}.`)] : []),
     line(`A hint shows a letter, +${HINT} s; a check marks the wrong ones, +${CHECK} s each.`));
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Acrostic as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. A solo clock and the rival stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const listed = (xs, last) => xs.join(", ").replace(/, ([^,]+)$/, ` ${last} $1`);
+  const size = id => `${LEVELS[id].label}, ${LEVELS[id].letters.join(" to ")} letters`;
+  $("rulesBody").innerHTML = `
+    <p>A hidden text in a grid of squares, and clues whose answers hold exactly its letters. Every letter of every answer is numbered to a square of the text, so a letter written on either side appears on the other. The answers' first letters, read down the clues, spell where the text comes from.</p>
+    <p><b>Working it.</b> Go in from both sides: a clue gives letters to the text, and a half-read word of the text gives letters back to its answers. Each square of the text carries its clue's letter in the corner, as on paper. Guess the source early and every answer has its first letter.</p>
+    <p><b>For example.</b> A saying, hidden as what it says and what it means, “Pluck the day: make the most of today”, spells CARPE DIEM down its clues: nine answers, starting C, A, R, P, E, D, I, E and M. Write an answer in and its letters appear in the text's squares marked with its clue's letter; read a word of the text and its letters land in their answers.</p>
+    <p><b>Playing.</b> Tap a square of the text to type along the text, or a square of an answer to type along the answer; tap it again, or the key at the keyboard's corner (it says Text or Clue), to switch. The next square along is the next to type, so a word typed whole lands letter by letter. On a keyboard: letters, Backspace, left and right along the way you're typing, up and down (or Tab) between clues, and Space to switch.</p>
+    <p><b>Undo, Check and Hint.</b> Undo takes your letters back one at a time. Check marks the wrong letters, adding ${CHECK} seconds for each it finds. Hint shows the letter under the cursor, or the next one missing if that one's right already, adding ${HINT} seconds.</p>
+    <p><b>Score.</b> Your time plus those seconds, lower being better. Every puzzle fills one way only, and a digit in the text is shown for you, not a square. Playing alone, the clock stands still while the menu or these rules are open.</p>
+    <p><b>Levels.</b> In the menu: ${size("easy")}, the commonest words and plain clues; ${size("medium")}, with harder clues where the plain ones alone wouldn't finish it; ${size("hard")}, rarer words and the harder clues. Twists: <b>${TWISTS.classic.label}</b>; <b>${TWISTS.telestich.label}</b>, the source running down the answers' last letters; <b>${TWISTS.half.label}</b>, half the clues blank, those answers coming from the text alone. Sources: ${listed(SOURCES.map(([, label]) => label), "and")}, ticked in or out.</p>
+    <p><b>Race the computer.</b> In Settings, from your next puzzle: the computer solves the same puzzle beside your clock, its pace ${listed(PACE.filter(Boolean), "or")}, as fast as a person who knows that much.</p>
+    <p><b>Today's.</b> ${LEVELS[DAILY.level].label}, ${TWISTS[DAILY.twist].label}, from every source, the same for everyone, and a new one at midnight UTC. It counts the moment its last letter is right.</p>
+    <p><b>Together.</b> With your partner, one puzzle with half the clues each, the other half showing as your partner's: read yours aloud, since neither half alone finishes it. Either of you types anywhere, your partner's letters in their colour. At a party, a race: the same puzzle for everyone, the fastest solve winning, hints and checks added.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
 // ---------- wiring ----------
@@ -832,6 +853,8 @@ bindSwitcher($("appsBtn"), "acrostic");
 { const app = APPS.find(a => a.id === "acrostic"); if (app) document.querySelector(".ac-mark").innerHTML = app.logo; }
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 document.addEventListener("visibilitychange", () => { if (document.hidden) clockPause(); else { clockRun(); duel.resync(); team.resync(); } });
 window.addEventListener("pageshow", e => { if (e.persisted) { duel.resync(); team.resync(); } });
 window.addEventListener("pagehide", () => clockPause());

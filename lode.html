@@ -29,6 +29,7 @@
         <option value="countries" data-note="A country's clues: its trade, places, people and culture">Countries</option>
         <option value="commodities" data-note="A commodity's clues: where it's from, who trades it, what it's for">Commodities</option>
       </select>
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
@@ -68,6 +69,11 @@
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet lo-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="lo-rules"></div>
 </dialog>
 
 <dialog id="wordsDlg" class="sheet menu-sheet lo-words-dlg" aria-label="The words">

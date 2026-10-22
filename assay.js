@@ -30,6 +30,7 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] ?? String(n);
 const big = w => w.toUpperCase();
 const clock = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 const NUMBER = { 2: "Two", 4: "Four", 8: "Eight" };
@@ -720,6 +721,27 @@ async function switchTo(kind) {
 }
 const backToSolo = () => { if (team.room) team.leave(); else if (duel.on) duel.leave(); else location.replace(soloHref()); };
 
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Assay as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. The clock stands still while it's open, as for the menu (menu.js).
+function showRules() {
+  // the guesses each length gets, alike lengths together: "six guesses for a word of five, six or seven letters and
+  // seven for one of four letters"
+  const counts = [...new Set(LENGTHS.map(n => guessesFor(n)))].sort((a, b) => a - b).map((g, i) =>
+    `${inWords(g)}${i ? "" : " guesses"} for ${i ? "one" : "a word"} of ${LENGTHS.filter(n => guessesFor(n) === g).map(inWords).join(", ").replace(/, (\w+)$/, " or $1")} letters`);
+  $("rulesBody").innerHTML = `
+    <p>Find the hidden word. Each guess must be a word of the same length, and each of its letters is marked: <b>green</b> if it's in the word in that place, <b>ochre</b> if it's in the word somewhere else, <b>grey</b> if it isn't in the word at all. High contrast, in Settings, makes the green blue.</p>
+    <p><b>For example.</b> The word is CRANE and you guess TRACE: T is grey, R and A green, C ochre, E green. A letter guessed twice is marked as Wordle marks it: the ones in place first, then elsewhere for as many as the word has left, the rest grey. Against THOSE, GEESE gets its S and its last E green and the rest grey, since THOSE has only one E.</p>
+    <p><b>Guesses.</b> You have ${counts.join(" and ")}: four is the hard length, whole families of its words differing in one letter (BAKE, CAKE, FAKE, LAKE, MAKE). Any word of the length in the word list may be guessed; one that isn't, or a guess too short, shakes and costs nothing. The hidden words are everyday words, never a plural, a past tense or another form of a word.</p>
+    <p><b>Playing.</b> Type on the keyboard under the board, Enter at its left and Delete at its right, or on a keyboard of your own. The keys take the colours your guesses have shown, so what's left is plain to see.</p>
+    <p><b>Hard and Strict.</b> Settings' Rules: <b>Free</b> takes any word; <b>Hard</b> is Wordle's hard mode, where a letter found in place stays there and every letter shown is used, as often as shown; <b>Strict</b> asks for a word that could still be the answer, so a letter shown elsewhere also moves and a grey one stays out. A guess they forbid is turned away with the reason. A change takes effect at once on a word not yet guessed at, otherwise from the next. Several boards always play free.</p>
+    <p><b>Modes.</b> In the menu, with the letters (${inWords(LENGTHS[0])} to ${inWords(LENGTHS.at(-1))}) and the level: <b>One word</b>; <b>Boards</b>, two, four or eight words at once, every guess played on each, with ${guessesFor(5, 2)}, ${guessesFor(5, 4)} or ${guessesFor(5, 8)} guesses at five letters; <b>Dodge</b>, where no word is chosen: each guess is marked to keep as many words in play as it can, and you beat it by leaving it one word and guessing that, in as few guesses as you can; <b>Sprint</b>, as many words as you can in ${inWords(SPRINT_MS / 60000)} minutes, a word solved or spent moving on at once. The levels go by how many guesses a player needs, not by how rare the word is.</p>
+    <p><b>The rival.</b> In Settings, the computer plays the same word beside you, at ${RIVALS.map(l => RIVAL_NAMES[l]).join(", ").replace(/, (\w+)$/, " or $1")}; its latest marks show over the board, its words at the end. Fewer guesses win, and equal guesses go to the quicker. It plays on your clock, which stands still while the menu or these rules are open.</p>
+    <p><b>Today's word.</b> The same for everyone: ${inWords(DAILY.len)} letters at ${LEVEL_NAMES[DAILY.level]}, ${inWords(guessesFor(DAILY.len))} guesses, and a new one at midnight UTC. It counts the moment your last guess lands, and your streak is the days solved in a row. Hard or Strict may be on for it; Copy the grid then marks your grid with an asterisk, as Wordle does.</p>
+    <p><b>Together.</b> With your partner, as a team: one word, guesses taken in turns, and the colours split, one of you seeing what's in place and the other what's elsewhere; a letter is out only when neither of you has it lit, so say what you see. Notes strikes letters out on your own keyboard. Or a race, at a party too: the same word on every phone, the fewest guesses winning, then the quicker.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+}
+
 // ---------- the menu ----------
 let pick = null;                          // the next game of yours: "random" or "daily"
 function openMenu() {
@@ -740,7 +762,7 @@ function openMenu() {
         choice("Words", LEVELS.map(l => [l, LEVEL_NAMES[l]]), prefs.level, v => setPref("level", v)), line("For the next word."));
     } else { const wait = line(joiningWords()); wait.prepend(sextant()); together.append(wait, action("Back to solo", backToSolo, "link")); }
     settingsPart(body, false);
-    if (!$("menuDlg").open) $("menuDlg").showModal();
+    showMenu(body);
     return;
   }
   pick ??= (S?.kind === "daily" && !S.over) || dueToday() ? "daily" : "random";
@@ -751,6 +773,11 @@ function openMenu() {
   else content.append(line(`Today's word: five letters, Medium, six guesses, the same for everyone.${dueToday() ? "" : ` You took ${dayResult()}.`}`));
   settingsPart(body, true);
   part(body, "about").append(line(aboutLine()), line("Words from SCOWL (Kevin Atkinson); meanings from Open English WordNet."));
+  showMenu(body);
+}
+/** Opens the menu as built, the rules at the foot of its play part. */
+function showMenu(body) {
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 /** The choices for the next game: mode, length, boards, level. */
@@ -813,6 +840,8 @@ bindSwitcher($("appsBtn"), "assay");
 applyContrast();
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneDlg").addEventListener("click", e => { if (e.target === $("doneDlg")) $("doneDlg").close(); });
 $("rival").addEventListener("click", () => { if (S?.rival) toast(`${RIVAL_NAMES[S.rival.level]} plays the same word: its marks show as it goes, its words at the end`, 3200); });

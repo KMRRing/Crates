@@ -3,7 +3,7 @@
 // puzzles and the computer player are yield-engine.js's; this file keeps the runs, draws the board and takes the taps.
 // Today's puzzle and a random one are kept apart, so switching between them loses neither. Together (duel.js): a race,
 // the same letters for everyone against the clock, or a team, the same letters with a centre letter each.
-import { BOARDS, LEVELS, RANKS, MASTER, TOP, RIVALS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
+import { BOARDS, LEVELS, DAILY, MIN_LEN, FULL_BONUS, RANKS, MASTER, TOP, RIVALS, deal, daily, dealTeam, yieldOf, totalOf, pointsOf, isFull, needed, rankOf, judge, chartOf,
   planFor, rivalAt, outerOf, centreFor, centresIn, teamFound, onlyMine } from "./yield-engine.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
@@ -23,6 +23,7 @@ const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(k
 const write = (key, v) => { if (IN_FRAME) return; try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const inWords = n => ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"][n] ?? String(n);
 const fmt = secs => { const s = Math.max(0, Math.ceil(secs)), m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, "0")}`; };
 const first = name => String(name || "Player").trim().split(/\s+/)[0];
 const up = w => w.toUpperCase();
@@ -728,7 +729,7 @@ function openMenu() {
     t.append(choice("Next match", [["team", "Team"], ["race", "Race"]], togetherMode(), v => { prefs.together = v; keepPrefs(); openMenu(); }));
     if (togetherMode() === "race") t.append(choice("Race clock", [[180, "3 min"], [300, "5 min"]], prefs.raceSecs, v => { prefs.raceSecs = v; keepPrefs(); }));
     part(body, "content").append(mirror("Level", $("pick")), choice("Board", Object.entries(BOARDS), prefs.board, v => { prefs.board = v; keepPrefs(); }));
-    if (!$("menuDlg").open) $("menuDlg").showModal();
+    showMenu(body);
     return;
   }
   const play = part(body, "play");
@@ -746,7 +747,32 @@ function openMenu() {
   if (last?.p) part(body, "about").append(action(dayName(last.p.day), openLast, "link"));
   part(body, "about").append(line(`${plural(st.puzzles || 0, "random puzzle")}; Master refiner ${st.master || 0} times, Full yield ${st.full || 0}${sprints.length ? `. Sprint bests: ${sprints.map(([k, v]) => { const [secs, board, level] = k.split(":"); return `${Number(secs) / 60} min ${BOARDS[board]?.toLowerCase() || ""} ${LEVELS[level]?.toLowerCase() || ""} ${v}`; }).join(", ")}` : ""}.`),
     line("Words: SCOWL, with wordfreq's frequencies (CC BY-SA 4.0)."));
+  showMenu(body);
+}
+/** Opens the menu as built, the rules at the foot of its play part. */
+function showMenu(body) {
+  part(body, "play").append(action("The rules", showRules, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+
+// ---------- the rules ----------
+// The header's Rules and the menu's The rules: Yield as it's played here, its numbers the engine's own, so the sheet
+// can't drift from the game. A sprint's clock and the rival stand still while it's open, as for the menu (menu.js).
+function showRules() {
+  const ranks = RANKS.map(([share, name], i) => (i === 0 ? name : i === TOP ? `${name} (every word)` : `${name} (${Math.round(share * 100)}%)`));
+  const sprints = CLOCKS.filter(([secs]) => secs).map(([secs]) => inWords(secs / 60)).join(" or ");
+  $("rulesBody").innerHTML = `
+    <p>Make as many words as you can from the seven letters in the hive. Every word has ${inWords(MIN_LEN)} letters or more and uses the centre letter; a letter may be used as often as you like. Every puzzle has at least one pangram, a word that uses all seven.</p>
+    <p><b>Points.</b> A word of ${inWords(MIN_LEN)} letters scores 1, a longer word a point a letter, and a pangram ${FULL_BONUS} more: a six-letter word scores 6, a pangram of seven letters ${7 + FULL_BONUS}.</p>
+    <p><b>Ranks.</b> Your points climb a refinery's run, each rank a share of the puzzle's points: ${ranks.slice(0, -1).join(", ")} and ${ranks.at(-1)}. ${RANKS[MASTER][1]} is the one to aim for. Tap the gauge for the points each rank needs in this puzzle.</p>
+    <p><b>The words.</b> Ordinary English, the same on both sides of the Atlantic: the letters never include an S, or every plural would count, and a spelling only one side uses (colour or color) never counts. A word that doesn't count is told apart: a word, but rarer than Yield counts; one side of the Atlantic's spelling only; or not in Yield's list.</p>
+    <p><b>Playing.</b> Tap the letters (each goes in as your finger lands) and Enter. Delete takes a letter off, or the whole word if you hold it, and Shuffle turns the outer letters round. On a keyboard: type, Enter, Backspace, Space to shuffle, Escape to clear. Your words run under the gauge, the newest first; tap them for every one, and a word for what it means. The Chart is the hints grid: what's left by first letter and length, and by the first two letters.</p>
+    <p><b>The Wheel.</b> The menu's Board: nine tiles from one nine-letter word in place of the hive. Every word uses the centre tile and each tile once at most (a letter on two tiles may be used twice), and the nine-letter word scores as a pangram.</p>
+    <p><b>Levels.</b> Light, Medium and Heavy, the menu's Puzzle: how far down the vocabulary ${RANKS[MASTER][1]} takes you. Light gets there on everyday words; Heavy needs words people rarely use.</p>
+    <p><b>Clock and rival.</b> In Settings: untimed, or a sprint of ${sprints} minutes on the next random puzzle, the most points before time is up. The rival plays the same puzzle beside you, at Novice, Steady, Sharp or Master, its index under the gauge. Both stand still while the menu or these rules are open.</p>
+    <p><b>Today's puzzle.</b> A ${LEVELS[DAILY.level]} ${BOARDS[DAILY.board].toLowerCase()}, the same seven letters for everyone, and a new one at midnight UTC. Your points count for the day as each word is found, so you can leave and come back, and today's and a random puzzle are kept apart, so switching loses neither. Show the words, in the menu, ends a puzzle and lists them all; the daily before today's keeps its words in the menu too.</p>
+    <p><b>Together.</b> A race: the same letters for everyone and a clock of ${sprints} minutes, the most points winning. Or a team: the same letters but a centre letter each, so each of you has words only you can enter; the chart on your phone is your partner's, what's left that they can enter, for you to tell them.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
 }
 
 // ---------- messages ----------
@@ -764,6 +790,8 @@ bindSwitcher($("appsBtn"), "yield");
 document.querySelector(".yd-mark").innerHTML = APPS.find(a => a.id === "yield")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("sheetClose").addEventListener("click", closeSheet);
 $("sheetDlg").addEventListener("click", e => {
   if (e.target === $("sheetDlg")) { closeSheet(); return; }

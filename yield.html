@@ -30,6 +30,7 @@
         <option value="medium" data-note="The top needs a few less common words">Medium</option>
         <option value="heavy" data-note="The top needs words people rarely use">Heavy</option>
       </select>
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
@@ -67,6 +68,11 @@
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet yd-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="yd-rules"></div>
 </dialog>
 
 <dialog id="sheetDlg" class="sheet menu-sheet yd-sheet" aria-labelledby="sheetTitle">

@@ -108,6 +108,11 @@ html[data-theme="modern"] { --lo-logo-tint: #D8E0F3; --lo-logo-edge: #34508F; }
 .lo-include { display: grid; }
 .lo-allnone { margin: -.2rem 0 .3rem; font-size: .8rem; color: var(--ink-soft); }
 .lo-allnone .link { font-size: .8rem; }
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.lo-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.lo-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.lo-sheet .pick-head h2 { font-size: 1rem; }
+.lo-rules p { line-height: 1.45; }
 
 .lo-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);

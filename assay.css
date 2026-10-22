@@ -139,6 +139,11 @@ html.as-contrast { --as-hit: var(--c2); --as-hit-ink: var(--on-c); }
 .as-dist .now i { background: var(--as-hit); color: var(--as-hit-ink); }
 .as-buttons .btn.wide + .btn.wide { margin-top: .3rem; }
 #doneDlg { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; }
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.as-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.as-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.as-sheet .pick-head h2 { font-size: 1rem; }
+.as-rules p { line-height: 1.45; }
 
 .as-toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 4.5rem); transform: translateX(-50%); z-index: 50; max-width: 88vw; padding: .5rem .9rem; border-radius: 5px;
   background: var(--ink); color: var(--sheet); font-weight: 700; font-size: .9rem; text-align: center; opacity: 0; transition: opacity .2s; pointer-events: none; }
