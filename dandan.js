@@ -27,8 +27,9 @@ const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; 
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
-// the coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
-// otherwise; always, its move at each of your decisions, ringed on the table
+// the coach: off; hints, when you ask; check, each move of yours weighed the moment it's made, and a word on one it
+// would have made otherwise, with no Hint (22 October 2026: the decision is yours, then set against its); always, its
+// move at each of your decisions, ringed on the table
 const COACH = [["off", "Off"], ["hints", "Hints"], ["check", "Check"], ["on", "Always"]];
 // how long Hard and the coach think over a move (dandan-think.js's DEPTH, coachBudget), with what that takes on a phone
 const THINKING = [["quick", "Quick"], ["long", "Long"], ["deep", "Deep"], ["deepest", "Deepest"]];
@@ -266,9 +267,9 @@ function advise(v) {
   if (opts.coach !== "on" || IN_FRAME || !myDecision() || [advice?.key, weighing?.key, failed].includes(decisionOf(v))) return;
   weigh(v).then(a => { if (a && V?.G && decisionOf(V) === a.key) draw(); });
 }
-/** A Hint: the coach's move for the decision you're at. */
+/** A Hint: the coach's move for the decision you're at (Hints and Always; Check gives none). */
 async function hint() {
-  if (!myDecision()) return;
+  if (!myDecision() || opts.coach === "check") return;
   const key = decisionOf(V);
   hintAsked = key;
   draw();
@@ -314,7 +315,8 @@ function drawCoach(v) {
   const box = $("coach");
   box.hidden = !coaching() || v.seat == null;
   if (box.hidden) return;
-  box.innerHTML = `<span class="dd-says">${coachLine(v)}</span><button type="button" class="btn dd-hint" data-act="hint" ${myDecision() ? "" : "disabled"}>Hint</button>`;
+  const ask = opts.coach === "check" ? "" : `<button type="button" class="btn dd-hint" data-act="hint" ${myDecision() ? "" : "disabled"}>Hint</button>`;
+  box.innerHTML = `<span class="dd-says">${coachLine(v)}</span>${ask}`;
 }
 $("coach").addEventListener("click", e => {
   if (e.target.closest("[data-act=hint]")) { hint(); return; }
