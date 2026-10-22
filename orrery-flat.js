@@ -99,10 +99,10 @@ export function createFlat(host) {
     }
     beamsG.replaceChildren(...lines);
   }
-  function event(e, state) {
+  function event(e) {
     if (e.type !== "lock") return;
     for (const m of e.members) {
-      const [x, y] = seat(state, m.ring, m.place);
+      const [x, y] = place(m.ring, e.seat * STEP);                              // where the line stood: its hoop steps on at the beat that struck it
       const body = el("g", { class: `or-planet k${e.colour}` }), g = el("g", { transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})` }, body);
       body.innerHTML = planetSvg(e.colour, PR[m.ring]);
       fx.append(g);

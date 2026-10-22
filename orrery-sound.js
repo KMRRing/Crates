@@ -102,9 +102,8 @@ const VOICES = {
     click(c, t, { freq: 2100, gain: 0.2 * power, dur: 0.014, pan });
     ping(c, t, { freq: 230 - ring * 14, gain: 0.16 * power, dur: 0.07, pan, drop: 0.8 });
   },
-  /** A button pressed: a tick that climbs with the rhythm (0 is still: a dull knock), a rising whirr for a quicker one. */
+  /** A button pressed: a tick that climbs with the speed (1 slow to 3 fast), a rising whirr for a quicker one. */
   press(c, t, { strength = 1, power = 0.5, pan = 0 }) {
-    if (strength === 0) { click(c, t, { freq: 900, gain: 0.2 * power, dur: 0.02, pan }); ping(c, t, { freq: 120, gain: 0.2 * power, dur: 0.09, pan, drop: 0.7 }); return; }
     click(c, t, { freq: 1500 + strength * 300, gain: 0.14 * power, dur: 0.012, pan });
     ping(c, t, { freq: 300 * semitone(strength * 3), gain: 0.1 * power, dur: 0.1 + strength * 0.05, pan, drop: 1.12 });
   },

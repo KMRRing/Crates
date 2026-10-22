@@ -411,6 +411,8 @@ export function createOrrery(host) {
   const place = new THREE.Vector3(), white = new THREE.Color(0xffffff), black = new THREE.Color(0x000000), hiColor = new THREE.Color(HI), plateColor = new THREE.Color();
   /** The middle of a planet in a place, where it's drawn now: its hoop ticking round and tipping (a scratch vector, to use at once). */
   function worldOf(s, ring, p) { const r = s.rings[ring], d = dirOf(tiltOf(r, s.t), (turnOf(r, s.t) + p) * STEP); return place.set(d[0], d[1], d[2]).multiplyScalar(RADIUS[ring]); }
+  /** Where a planet of a line stood when the beat struck it, at the line's place round (its hoop steps on at that beat): a scratch vector too. */
+  function struckAt(s, ring, seat) { const d = dirOf(tiltOf(s.rings[ring], s.t), seat * STEP); return place.set(d[0], d[1], d[2]).multiplyScalar(RADIUS[ring]); }
   const landT = new Float32Array(RINGS * PLACES).fill(9), pos = Array.from({ length: RINGS * PLACES }, () => new THREE.Vector3());
   let overT = 9, kick = 9, pulse = 9, clock = 0, tick = performance.now();
   const sel = { ring: -1 };
@@ -577,7 +579,7 @@ export function createOrrery(host) {
     } else if (e.type === "lock") {
       kick = 0;
       for (const m of e.members) {
-        const w = worldOf(s, m.ring, m.place), x = exits.find(q => q.t > 0.55);
+        const w = struckAt(s, m.ring, e.seat), x = exits.find(q => q.t > 0.55);
         if (x) { x.t = 0; x.ring = m.ring; x.x = w.x; x.y = w.y; x.z = w.z; x.planet.show(e.colour); x.planet.put(w.x, w.y, w.z, PR[m.ring]); }
         spark(w.x, w.y, w.z, e.colour, 10, 1.1);
       }
