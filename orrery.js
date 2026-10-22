@@ -1,18 +1,17 @@
 // Orrery: four brass hoops on an axle round a sun, planets of four colours strung on them (orrery-3d.js draws it; flat,
 // in orrery-flat.js, where there's no WebGL), every hoop always going, stepping on a beat. Tap a hoop to choose it (tap
 // it again, or anywhere that isn't a hoop or a button, to let it go), and the six buttons under the orrery set it going
-// slow (a place every second beat), medium (a place every beat) or fast (two places every beat), clockwise as the hoop is
+// slow (a place every eighth beat), medium (every fourth) or fast (every second), clockwise as the hoop is
 // seen on the right and anticlockwise on the left. Under them, always there, the four colours: a press of one tips the
 // hoop chosen into that colour's plane, or every hoop at once with none chosen, and each shows the hoops in its plane
 // now. A swipe along a hoop sets it going the way the finger went, quicker by how fast. − and + set the tempo, from 20
-// beats a minute to 60; a metronome swings with it, and a bar of the beats coming shows which hoops step on which, and
-// when each next tips a step by itself (its drift), and which way. Three or four planets of one colour brought together
+// beats a minute to 60; a metronome swings with it. Three or four planets of one colour brought together
 // in one direction from the sun, however their hoops are going, are a line (at twelve or six o'clock any colour at any
 // tips; anywhere else on hoops in the colour's plane), and the next beat strikes it; a new planet lands every few
 // seconds, quicker as the game goes on; when there is no place for one, it is over. The rules are orrery-engine.js's;
 // this file runs the clock, takes the taps, buttons and swipes and keeps the game. The clock starts at the first hoop
 // chosen or button pressed and stops with the menu, with the tab and with the game over.
-import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, newGame, valid, copy, setRing, setPlane, setTempo, step, between, room, multiplier, period, upcoming, turnOf, planeOf } from "./orrery-engine.js";
+import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, newGame, valid, copy, setRing, setPlane, setTempo, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
 import { createOrrery } from "./orrery-3d.js";
 import { createFlat, planetSvg } from "./orrery-flat.js";
 import { sound } from "./orrery-sound.js";
@@ -30,7 +29,6 @@ const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const SAVE_EVERY = 5000;                                    // ms between saves of a game in play (a partner watching sees it that often)
-const AHEAD = 6;                                            // beats the bar shows coming: every rhythm steps at least twice in six
 const FUSE = 5;                                             // seconds before a drift that its hoop's number shows it coming, as a fuse burning down
 const DEG = Math.PI / 180;
 /** The enamels' plain names, as the line says them, in the order of the colours (and of their planes, left to right). */
@@ -48,9 +46,10 @@ let frozen = false;      // for tests: the clock held while a picture is taken
 // Bests from earlier orreries mean nothing here, so they go to keys of their own, by the era they were made in: the
 // turn-based game's to orrery:turns (era 2), the game of set speeds and five hoops (version 3) to orrery:speeds (era 3),
 // the game on a beat whose hoops tipped alike lined up any colour and never drifted (version 4) to orrery:alike (era 4),
-// and the game whose lines stood only on hoops set still (version 5) to orrery:still (era 5). The first games' rules
-// show again.
-const SET_ASIDE = ["orrery:turns", "orrery:turns", "orrery:speeds", "orrery:alike", "orrery:still"];
+// the game whose lines stood only on hoops set still (version 5) to orrery:still (era 5), and the game whose hoops went
+// as fast as a place every beat, or two (version 6), to orrery:brisk (era 6: 23 October 2026, the hoops four times slower
+// at most). The first games' rules show again.
+const SET_ASIDE = ["orrery:turns", "orrery:turns", "orrery:speeds", "orrery:alike", "orrery:still", "orrery:brisk"];
 if (!IN_FRAME && read(ERA, 0) < SET_ASIDE.length) {
   const era = Math.floor(Number(read(ERA, 0))) || 0, old = read(BEST, 0);
   if (old) write(SET_ASIDE[Math.max(0, Math.min(SET_ASIDE.length - 1, era))], old);
@@ -81,7 +80,7 @@ function looks(ring) {
 }
 /**
  * A curled arrow, for a hoop sent round: one to three chevrons (slow, medium, fast) on an arc over the top, clockwise or
- * anticlockwise, and for fast (two places every beat) lines of speed trailing the curl too; drawn in a box 30 by 24 put
+ * anticlockwise; drawn in a box 30 by 24 put
  * at (x, y) and scaled by k. { arc (the curl and its lines, drawn lighter), heads }, path data.
  */
 function curl(n, cw, x = 0, y = 0, k = 1) {
@@ -93,7 +92,6 @@ function curl(n, cw, x = 0, y = 0, k = 1) {
   };
   const r = v => (v * k).toFixed(2);
   let arc = `M${at(-195)}A${r(R)} ${r(R)} 0 0 ${sweep} ${at(HEAD)}`;
-  if (n >= SPIN) arc += `M${at(-200, 0, 2.6)}A${r(R - 2.6)} ${r(R - 2.6)} 0 0 ${sweep} ${at(-150, 0, 2.6)}M${at(-200, 0, -2.6)}A${r(R + 2.6)} ${r(R + 2.6)} 0 0 ${sweep} ${at(-160, 0, -2.6)}`;
   const heads = Array.from({ length: Math.min(3, n) }, (_, i) => { const d = HEAD - APART * i; return `M${at(d, 3.4, 3.2)}L${at(d)}L${at(d, 3.4, -3.2)}`; }).join("");
   return { arc, heads };
 }
@@ -107,7 +105,6 @@ function newRun() {
   save();
   redrawOver();
   drawTempo();
-  roll.reset();
 }
 
 // ---------- over the orrery: what the page says, in the screen's own pixels ----------
@@ -126,10 +123,10 @@ const text = (cls, s, x, y, size) => {
 const numsG = el("g"), plaqueG = el("g"), fxG = el("g");
 over.append(numsG, plaqueG, fxG);
 const nums = Array.from({ length: RINGS }, (_, k) => {
-  const disc = el("circle", { class: "or-badge" }), fuse = el("path", { class: "or-fuse" }), t = el("text", { class: "or-num" }), go = el("path", { class: "or-going" });
+  const disc = el("circle", { class: "or-badge" }), fuse = el("path", { class: "or-fuse" }), t = el("text", { class: "or-num" });
   t.textContent = String(k + 1);
-  numsG.append(disc, fuse, t, go);
-  return { disc, fuse, t, go, at: [0, 0], burning: "" };
+  numsG.append(disc, fuse, t);
+  return { disc, fuse, t, at: [0, 0], burning: "" };
 });
 let numsAt = "";
 /** An arc round (x, y) of radius r from twelve o'clock clockwise, `u` of the way round (0 to 1): a fuse burning down. */
@@ -141,14 +138,14 @@ function arcPath(x, y, r, u) {
 }
 /**
  * The hoops' numbers by their knuckles at six o'clock (a point no tip moves), each on a disc of its colour's enamel while
- * the hoop is in that colour's plane, and beside each its setting as the buttons draw it (curled the way it goes round,
- * as it's seen): how the hoops go against each other is what brings planets together, so all four read on the orrery at
- * once. In the last seconds before a hoop drifts, a fuse burns down round its number. The places are worked out again
- * only when the view or a setting has changed; the fuses every frame they burn.
+ * the hoop is in that colour's plane. In the last seconds before a hoop drifts, a fuse burns down round its number. The
+ * places are worked out again only when the view or a tip has changed; the fuses every frame they burn. (A mark by each
+ * for how its hoop goes was tried and taken away: four small curls round the sun read as clutter, and the six buttons
+ * and the line under the orrery already say it for the hoop chosen.)
  */
 function drawNums() {
-  const u = scale(), at = nums.map((_, k) => view.at(k, Math.PI, 0)), seen = nums.map((_, k) => looks(k));
-  const k = `${at.flat().map(v => v.toFixed(0)).join()}|${seen.join()}|${chosen?.ring ?? -1}|${u}|${S.rings.map(r => `${r.set},${r.tip}`).join()}|${S.over}`;
+  const u = scale(), at = nums.map((_, k) => view.at(k, Math.PI, 0));
+  const k = `${at.flat().map(v => v.toFixed(0)).join()}|${chosen?.ring ?? -1}|${u}|${S.rings.map(r => r.tip).join()}|${S.over}`;
   if (k !== numsAt) {
     numsAt = k;
     nums.forEach((n, ring) => {
@@ -162,8 +159,6 @@ function drawNums() {
       n.disc.setAttribute("cy", n.at[1].toFixed(1));
       n.disc.setAttribute("r", (6.6 * u).toFixed(1));
       n.disc.setAttribute("class", `or-badge${c >= 0 ? ` k${c}` : ""}${ring === chosen?.ring ? " on" : ""}`);
-      const g = curl(Math.abs(r.set), r.set * seen[ring] > 0, x + 9 * u, y - 12.5 * u, 0.55 * u);
-      n.go.setAttribute("d", g.arc + g.heads);
     });
   }
   nums.forEach((n, ring) => {
@@ -171,7 +166,7 @@ function drawNums() {
     if (d !== n.burning) { n.burning = d; n.fuse.setAttribute("d", d); }
   });
 }
-const HINT = ["Every hoop steps round on the beat; tap one, and the top", "row sets it slow, medium or fast. Bring three planets of", "a colour in line with the sun: at twelve or six o'clock", "any colour, elsewhere only on hoops in that colour's", "plane, and the next beat strikes them. A colour below", "tips the hoop chosen into its plane, or every hoop if none", "is; each drifts a tip now and then. − and + set the beat."];
+const HINT = ["Every hoop steps round on the beat; tap one, and the top", "row sets it slow, medium or fast (every 8th, 4th or 2nd", "beat). Bring three planets of a colour in line with the", "sun: at twelve or six o'clock any colour, elsewhere only", "on hoops in that colour's plane, and the next beat", "strikes them. A colour below tips the hoop chosen into", "its plane, or every hoop if none is; each drifts a tip", "now and then. − and + set the beat."];
 /** The words over the orrery while the clock is stopped: the first games' rules, then only how to go on. */
 function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
@@ -222,67 +217,11 @@ function tickArm() {
   arm.style.transform = `rotate(${swing * 24}deg)`;
 }
 function restArm() { arm.style.transitionDuration = "0.3s"; arm.style.transform = "rotate(0deg)"; }
-/**
- * The bar of beats: a row for each hoop and a column for each of the next six beats, a chevron where the hoop steps (and
- * which way; doubled for two places), a dot where it waits a beat. On each beat the bar moves on a column under the brass
- * line, like a music box's barrel past its comb, and the line flashes. At the right, for each hoop, the seconds to its
- * next drift and which way it will tip (up or down, in the enamel of the plane it tips into, if it's one).
- */
-const roll = (() => {
-  const box = $("roll"), track = document.createElement("div"), names = document.createElement("div"), win = document.createElement("div"), drifts = document.createElement("div");
-  names.className = "or-roll-names"; win.className = "or-roll-window"; track.className = "or-roll-track"; drifts.className = "or-roll-drift";
-  for (let k = 0; k < RINGS; k++) { const n = document.createElement("span"); n.textContent = String(k + 1); names.append(n); }
-  const due = Array.from({ length: RINGS }, () => { const d = document.createElement("span"), w = document.createElement("i"), t = document.createElement("b"); d.append(w, t); drifts.append(d); return { d, w, t }; });
-  win.append(track);
-  box.append(names, win, drifts);
-  const cells = Array.from({ length: RINGS * (AHEAD + 1) }, (_, i) => { const c = document.createElement("i"); c.style.gridRow = String(Math.floor(i / (AHEAD + 1)) + 1); c.style.gridColumn = String((i % (AHEAD + 1)) + 1); track.append(c); return c; });
-  let key = "", dueKey = "", played = null;
-  /** Draws the beats: column 0 is the one just played (it slides out past the line), 1 to AHEAD the ones coming. */
-  function draw(slide = false) {
-    const ahead = upcoming(S, AHEAD), cols = [played ?? S.rings.map(() => 0), ...ahead], seen = S.rings.map((_, ring) => looks(ring));
-    const k = JSON.stringify([cols, seen, chosen?.ring ?? -1, S.rings.map(r => [r.set, r.tip])]);
-    if (k !== key || slide) {
-      key = k;
-      cols.forEach((col, c) => col.forEach((d, ring) => {
-        const round = d * seen[ring];                                       // r: clockwise as it's seen, as the right-hand buttons send it
-        cells[ring * (AHEAD + 1) + c].className = round > 0 ? `st r${round > 1 ? " two" : ""}` : round < 0 ? `st l${round < -1 ? " two" : ""}` : c > 0 ? "rest" : "";
-      }));
-      [...names.children].forEach((n, ring) => { const p = planeOf(S.rings[ring].tip); n.className = `${ring === chosen?.ring ? "on" : ""}${p >= 0 ? ` in k${p}` : ""}`; });
-      box.querySelectorAll(".row-on").forEach(n => n.classList.remove("row-on"));
-      if (chosen) for (let c = 0; c <= AHEAD; c++) cells[chosen.ring * (AHEAD + 1) + c].classList.add("row-on");
-    }
-    const dk = S.rings.map(r => `${Math.max(0, Math.ceil(r.driftAt - S.t - 1e-6))},${r.way},${r.tip}`).join("|") + S.over;
-    if (dk !== dueKey) {
-      dueKey = dk;
-      S.rings.forEach((r, ring) => {
-        const left = Math.max(0, Math.ceil(r.driftAt - S.t - 1e-6)), into = planeOf(r.tip + r.way), { d, w, t } = due[ring];
-        t.textContent = S.over ? "" : String(left);
-        w.className = S.over ? "" : `${r.way > 0 ? "up" : "down"}${into >= 0 ? ` k${into}` : ""}`;
-        d.className = !S.over && left <= FUSE ? "soon" : "";
-      });
-    }
-    if (slide) {
-      track.style.transition = "none";
-      track.style.transform = "translateX(0)";
-      void track.offsetWidth;                                       // the start of the slide is drawn before it moves
-      track.style.transition = "";
-      track.style.transform = "";
-      win.classList.remove("beat"); void win.offsetWidth; win.classList.add("beat");
-    }
-  }
-  return {
-    draw,
-    /** A beat: what it stepped becomes the column that slides out, and the rest move on. */
-    beat(ev) { played = S.rings.map((_, ring) => ev.stepped.find(x => x.ring === ring)?.by ?? 0); draw(true); },
-    reset() { played = null; key = ""; dueKey = ""; draw(); },
-  };
-})();
-
 // ---------- the hoop chosen and its speed, and the colours ----------
 /** The six settings, as the buttons stand left to right: fast, medium and slow anticlockwise, then slow, medium and fast clockwise (no still: every hoop is always going). */
 const SPINS = Array.from({ length: 2 * SPIN }, (_, k) => (k < SPIN ? k - SPIN : k - SPIN + 1));
 const SPEED = ["", "slow", "medium", "fast"];
-const RHYTHM = ["", "a place every second beat", "a place every beat", "two places every beat"];
+const RHYTHM = ["", "a place every eighth beat", "a place every fourth beat", "a place every second beat"];
 const SPIN_WORDS = SPINS.map(k => `${SPEED[Math.abs(k)].replace(/^./, c => c.toUpperCase())} ${k > 0 ? "clockwise" : "anticlockwise"}: ${RHYTHM[Math.abs(k)]}`);
 const degrees = tip => (tip ? `${tip > 0 ? "+" : "−"}${Math.abs(tip) * 15}°` : "level");
 /** A speed button's picture: one to three chevrons (slow, medium, fast) curled the way it sends a hoop round (the right-hand ones clockwise), and lines of speed for fast. */
@@ -380,7 +319,6 @@ function handle(ev) {
   if (ev.type === "beat") {
     sound.play("beat", { power: ev.stepped.length ? 0.35 : 0.5 });
     if (ev.stepped.length) sound.play("step", { n: ev.stepped.reduce((n, x) => n + Math.abs(x.by), 0) });
-    roll.beat(ev);
     tickArm();
   } else if (ev.type === "land") sound.play("land", { ring: ev.ring, pan: Math.sin((S.rings[ev.ring].a + ev.place) * STEP) * 0.5 });
   else if (ev.type === "drift") sound.play("drift", { up: Math.sign(ev.tip - ev.from), ring: ev.ring });
@@ -418,7 +356,6 @@ function tick(ts) {
   drawStrip();
   drawSide();
   drawNums();
-  roll.draw();
 }
 function start() {
   if (running || S.over || IN_FRAME) return;
@@ -441,7 +378,6 @@ function choose(ring) {
   if (!IN_FRAME) write(CHOSEN, chosen);
   view.select(ring);
   drawAim(true);
-  roll.draw();
 }
 /** A tap on a hoop: it's chosen; tapped again, it's let go (both rows of buttons are for it already, so a second tap has nothing else to do). */
 function tapHoop(ring) {
@@ -473,7 +409,6 @@ function press(kind, value) {
   }
   drawAim(true);
   drawColours();
-  roll.draw();
 }
 /** − or +: a tempo slower or quicker, kept for the next game too. */
 function nudgeTempo(by) {
@@ -513,7 +448,7 @@ addEventListener("pointermove", e => {
   g.trail.push([e.timeStamp, e.clientX, e.clientY]);
   while (g.trail.length > 2 && (g.trail.length > 8 || e.timeStamp - g.trail[0][0] > 160)) g.trail.shift();      // the last moments: how fast it went as it let go
   if (!g.moved && Math.hypot(e.clientX - g.x0, e.clientY - g.y0) > 10 * scale()) g.moved = true;
-  if (g.ring < 0 && g.moved) view.orbit(-(e.clientX - g.x) * 0.0075, (e.clientY - g.y) * 0.005);                // on the sky a drag turns the view
+  if (g.ring < 0 && g.moved) view.orbit(-(e.clientX - g.x) * 0.0075, (e.clientY - g.y) * 0.0075);               // on the sky a drag turns the view, as freely up and down as round (never below the orrery)
   g.x = e.clientX; g.y = e.clientY;
 });
 function lift(e) {
@@ -570,13 +505,13 @@ onPause(() => { paused = true; sound.hold(); swipes.clear(); save(); }, () => { 
 
 // for tests and debugging
 window.__orrery = {
-  get state() { return S; }, set state(g) { S = g; swipes.clear(); redrawOver(); drawTempo(); roll.reset(); }, view, newRun, start, stop,
+  get state() { return S; }, set state(g) { S = g; swipes.clear(); redrawOver(); drawTempo(); }, view, newRun, start, stop,
   get running() { return running; },
   set frozen(v) { frozen = !!v; },
   get chosen() { return chosen; },
   choose, press, tapHoop, letGo, nudgeTempo, looks,
   /** Plays `seconds` of the game at once (as the clock would), events and all. */
-  advance(seconds) { for (let t = 0; t < seconds - 1e-9 && !S.over; t += 0.05) { for (const ev of step(S, 0.05)) handle(ev); view.frame(S, 0.05, false); } view.frame(S, 0); drawStrip(); drawSide(); drawNums(); roll.draw(); },
+  advance(seconds) { for (let t = 0; t < seconds - 1e-9 && !S.over; t += 0.05) { for (const ev of step(S, 0.05)) handle(ev); view.frame(S, 0.05, false); } view.frame(S, 0); drawStrip(); drawSide(); drawNums(); },
   /** Where a place is on the page, in the client coordinates a pointer event carries (the view's own are the canvas's). */
   seatOf(ring, place = 0) { const [x, y] = view.at(ring, (turnOf(S.rings[ring], S.t) + place) * STEP, 0), r = stage.getBoundingClientRect(); return [x + r.left, y + r.top]; },
   /** Where a hoop's angle is on the page. */
@@ -587,6 +522,6 @@ window.__orrery = {
 best = read(BEST, 0);
 S = read(RUN, null);
 if (!valid(S)) newRun();
-else { redrawOver(); drawTempo(); roll.reset(); }
+else { redrawOver(); drawTempo(); }
 { const c = read(CHOSEN, null); if (c && Number.isInteger(c.ring) && c.ring >= 0 && c.ring < S.rings.length && !S.over) choose(c.ring); else choose(-1); }
 requestAnimationFrame(tick);

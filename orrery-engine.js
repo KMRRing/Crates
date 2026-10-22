@@ -1,7 +1,8 @@
 // Orrery's rules, pure (no page): four brass hoops on a pivot axle round a sun, each with twelve places for planets of
 // four colours, stepping on a beat. The beat is a metronome the player sets, from twenty beats a minute up to sixty (one
-// a second, the fastest). Every hoop is always going, left or right, slow (a place every second beat), medium (a place
-// every beat) or fast (two places every beat), and keeps that until it's set again: none stands still. It rests between
+// a second, the fastest). Every hoop is always going, left or right, slow (a place every eighth beat), medium (every
+// fourth) or fast (every second beat: the fastest a hoop goes, since 23 October 2026, Korbi asking for the whole orrery
+// "much slower", the fastest what the slow had been and the slowest four times slower still), and keeps that until it's set again: none stands still. It rests between
 // its steps, and a place is a twelfth of a turn, so between beats every planet is exactly on one of twelve places, and
 // nothing coasts. Each hoop is tipped about the axle (a rod from twelve o'clock through the sun to six) by 15, 30 or 45
 // degrees either way, or lies level. Each colour has a plane of its own, a tip (PLANE): yellow's at −45 degrees, green's
@@ -30,7 +31,7 @@
 // them, four planets), combo, lastLock (when), over }. Every change happens at an exact time, whatever the steps of time
 // it's played in, so a game goes on the same whether it's played a frame at a time or a minute at once.
 
-export const VERSION = 6;
+export const VERSION = 7;
 export const RINGS = 4, PLACES = 12, COLOURS = 4, START = 10;
 export const TAU = Math.PI * 2, STEP = TAU / PLACES, DEG = Math.PI / 180;
 /** The tempos, in beats a minute, slowest first: the fastest is one beat a second. */
@@ -38,10 +39,8 @@ export const TEMPOS = [20, 30, 45, 60];
 export const FIRST_TEMPO = 2;               // a first game's (the player's last choice after that, which the page keeps)
 /** A hoop's settings go from -SPIN to SPIN, but never 0 (a hoop is always going): slow, medium and fast, by their size. */
 export const SPIN = 3;
-/** Beats between a hoop's steps, by the size of its setting. */
-export const EVERY = [0, 2, 1, 1];
-/** Places a step goes, by the size of its setting: one, or two at the fastest (60 degrees on each beat). */
-export const STRIDE = [0, 1, 1, 2];
+/** Beats between a hoop's steps, by the size of its setting: slow, medium, fast. A step is one place (a twelfth of a turn). */
+export const EVERY = [0, 8, 4, 2];
 /** A new game's setting for every hoop: slow, and all one way, so the whole orrery turns together (anticlockwise seen from above, as the planets go round the sun). */
 export const FIRST_SET = -1;
 export const TIP = 15 * DEG, TIP_MAX = 3;   // a tip is a whole number of fifteen degrees, up to 45 either way
@@ -62,7 +61,7 @@ export const AWARD = [0, 0, 0, 100, 300];
 export const COMBO_WINDOW = 8;              // seconds after one line in which the next counts on the combo
 export const FORETELL = 1.5;                // seconds a planet is shown before it lands
 /** The pace of the planets: seconds between them at first, the quickest they come to, and the seconds in which the gap between the two halves. */
-export const PACE = { first: 6.5, least: 1, half: 170 };
+export const PACE = { first: 7.5, least: 1.1, half: 170 };
 /** Seconds between planets at game time t: quicker and quicker, ever more slowly, towards the quickest. */
 export const gap = t => PACE.least + (PACE.first - PACE.least) * 2 ** (-t / PACE.half);
 /** The score multiplier at a combo (1, then a quarter more for each line in a run, to three times). */
@@ -247,8 +246,8 @@ export const copy = s => structuredClone(s);
 // ---------- the hand ----------
 const clampTempo = k => Math.max(0, Math.min(TEMPOS.length - 1, Math.round(k) || 0));
 /**
- * A hoop set going (k from -3 to 3, never 0: left for negative and right for positive, slow at 1, a place every second
- * beat, medium at 2, a place every beat, fast at 3, two places every beat). Set anew, it steps on the next beat and then
+ * A hoop set going (k from -3 to 3, never 0: left for negative and right for positive, slow at 1, a place every eighth
+ * beat, medium at 2, every fourth, fast at 3, every second). Set anew, it steps on the next beat and then
  * every so many beats, counted from that first step, and keeps that until it's set again; set as it is already, it
  * carries on as it was. There is no setting still (0 is refused): every hoop is always going. A setting moves nothing
  * until the hoop steps, so it makes or breaks no line by itself. Returns whether anything changed.
@@ -295,7 +294,7 @@ export function setTempo(s, k) {
 export function stepsOn(r, b) {
   if (b < r.due) return 0;
   const k = Math.abs(r.set);
-  return (b - r.due) % EVERY[k] === 0 ? Math.sign(r.set) * STRIDE[k] : 0;
+  return (b - r.due) % EVERY[k] === 0 ? Math.sign(r.set) : 0;
 }
 /** The next n beats: for each, how each hoop steps on it (places, signed, or 0). */
 export const upcoming = (s, n) => Array.from({ length: n }, (_, k) => s.rings.map(r => stepsOn(r, s.beat + 1 + k)));

@@ -14,10 +14,10 @@
 // whole games played out by simple players with a person's delays.
 // `node tests/orrery.mjs measure` plays more games for each player instead, at every tempo, and prints what the README's
 // numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2`, `pace=6.5,1,170`, `drift=30,36,42,48` (or
-// `drift=off`), `wind=all` or `wind=moved` (a press winding the drift's clocks), `fast=off` (no two places a beat) and a
+// `drift=off`), `wind=all` or `wind=moved` (a press winding the drift's clocks) and a
 // list of players (`careful,quick`) change it; `trace=100` prints the plans of one game (seed 100) as they're made.
 import {
-  VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, EVERY, STRIDE, FIRST_SET, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW,
+  VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, EVERY, FIRST_SET, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW,
   FORETELL, PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, crowds, newGame, valid, copy, setRing,
   setTempo, stepsOn, upcoming, nextDrift, step, look, strikeAt, setPlane,
 } from "../orrery-engine.js";
@@ -59,7 +59,7 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
 {
   const a = newGame(7), b = newGame(7), c = newGame(8);
   check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.rings) !== JSON.stringify(c.rings), "the same seed deals the same orrery, another seed another");
-  check(a.v === VERSION && VERSION === 6 && RINGS === 4 && a.rings.length === RINGS && a.rings.every(r => r.places.length === PLACES && Number.isInteger(r.a) && r.a >= 0 && r.a < PLACES) && a.t === 0 && a.beat === 0 && a.score === 0 && !a.over && valid(a),
+  check(a.v === VERSION && VERSION === 7 && RINGS === 4 && a.rings.length === RINGS && a.rings.every(r => r.places.length === PLACES && Number.isInteger(r.a) && r.a >= 0 && r.a < PLACES) && a.t === 0 && a.beat === 0 && a.score === 0 && !a.over && valid(a),
     `${RINGS} hoops of ${PLACES} places, each turned to a whole place`);
   check([...Array(40).keys()].every(k => newGame(k).rings.every(r => r.set === FIRST_SET && r.due === 1)) && FIRST_SET === -1,
     "every hoop going slow, all the same way and stepping on the same beats: the whole orrery turning together, anticlockwise seen from above");
@@ -79,8 +79,8 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
   // turning together, the hoops keep which planets are together: with nothing landing and nothing drifting, no line comes
   const quiet = [...Array(40).keys()].map(k => { const g = newGame(k, 3); g.next.due = NEVER; g.rings.forEach(r => { r.driftAt = NEVER; }); return { g, g0: newGame(k, 3), ev: step(g, 125) }; });
   check(quiet.every(({ g, g0, ev }) => !locks(ev).length && g.beat === 125 && ev.filter(e => e.type === "beat").every(e => e.stepped.length === 0 || e.stepped.length === RINGS)
-    && g.rings.every((r, i) => r.a === mod(g0.rings[i].a - 63))),
-  "left alone, the orrery turns together, every hoop a place back on the same beats, and with nothing landing or drifting no step brings a line");
+    && g.rings.every((r, i) => r.a === mod(g0.rings[i].a - 16))),
+  "left alone, the orrery turns together, every hoop a place back on every eighth beat, all together, and with nothing landing or drifting no step brings a line");
 }
 
 // ---------- the beat ----------
@@ -113,32 +113,32 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
 
 // ---------- the hoops step ----------
 {
-  check(SETTINGS.every(k => EVERY[Math.abs(k)] >= 1 && STRIDE[Math.abs(k)] >= 1) && SPIN === 3 && EVERY.join() === "0,2,1,1" && STRIDE.join() === "0,1,1,2",
-    "six settings, none of them still: slow (a place every second beat), medium (a place every beat) and fast (two places every beat), each way");
+  check(SETTINGS.every(k => EVERY[Math.abs(k)] >= 1) && SPIN === 3 && EVERY.join() === "0,8,4,2" && EVERY[1] === 4 * EVERY[3],
+    "six settings, none of them still: slow (a place every eighth beat), medium (every fourth) and fast (every second, the fastest, four times the slow), each way");
   // each setting: set just after a beat, it steps on the next and then every so many, the way it's set
   const rhythm = k => {
     const s = sky([0, 0, 0, 0], 3);
     run(s, 2.5);                                                 // two beats in
     const a0 = s.rings[2].a, beats = [];
     setRing(s, 2, k);
-    for (const e of run(s, 12)) if (e.type === "beat" && e.stepped.some(x => x.ring === 2)) beats.push(e.beat);
+    for (const e of run(s, 36)) if (e.type === "beat" && e.stepped.some(x => x.ring === 2)) beats.push(e.beat);
     return { beats, turn: mod(s.rings[2].a - a0) };
   };
   const all = SETTINGS.map(k => [k, rhythm(k)]);
-  const want = k => { const out = []; for (let b = 3; b <= 14; b += EVERY[Math.abs(k)]) out.push(b); return out; };
-  check(all.every(([k, r]) => r.beats.join() === want(k).join()), "each setting steps on the next beat, then every beat or every second: " + all.map(([k, r]) => `${k > 0 ? "+" : ""}${k} on ${r.beats.slice(0, 4).join(",")}…`).join("; "));
-  check(all.every(([k, r]) => r.turn === mod(Math.sign(k) * STRIDE[Math.abs(k)] * r.beats.length)), "left steps back, right on: exactly a place a step, or two at the fastest");
+  const want = k => { const out = []; for (let b = 3; b <= 38; b += EVERY[Math.abs(k)]) out.push(b); return out; };
+  check(all.every(([k, r]) => r.beats.join() === want(k).join()), "each setting steps on the next beat, then every eighth, fourth or second: " + all.map(([k, r]) => `${k > 0 ? "+" : ""}${k} on ${r.beats.slice(0, 4).join(",")}…`).join("; "));
+  check(all.every(([k, r]) => r.turn === mod(Math.sign(k) * r.beats.length)), "left steps back, right on: exactly a place a step");
   const s = sky([0, 0, 0, 0], 3);
-  setRing(s, 0, 2);
+  setRing(s, 0, 3);
   let whole = true, last = s.rings[0].a;
-  for (let k = 0; k < 40; k++) { step(s, 1); const a = s.rings[0].a; if (!Number.isInteger(a) || mod(a - last) !== 1) whole = false; last = a; }
+  for (let k = 0; k < 40; k++) { step(s, 1); const a = s.rings[0].a; if (!Number.isInteger(a) || ![0, 1].includes(mod(a - last))) whole = false; last = a; }
   check(whole, "a step is a twelfth of a turn, and between steps a hoop is always on a place");
-  // the fastest: two places on every beat, 60 degrees, either way
+  // the fastest: a place on every second beat, 30 degrees, either way: round in 24 beats
   const fast = sky([0, 0, 0, 0], 3), places = [];
   setRing(fast, 0, 3); setRing(fast, 1, -3);
-  for (let k = 0; k < 6; k++) { const e = step(fast, 1).find(x => x.type === "beat"); places.push(`${mod(fast.rings[0].a)}/${mod(fast.rings[1].a)}/${e.stepped.map(x => x.by).join(":")}`); }
-  check(places.join(" ") === "2/10/2:-2 4/8/2:-2 6/6/2:-2 8/4/2:-2 10/2/2:-2 0/0/2:-2" && upcoming(fast, 2).every(col => col[0] === 2 && col[1] === -2),
-    "the fastest steps two places on every beat, 60 degrees, right or left: round in six beats");
+  for (let k = 0; k < 24; k++) { step(fast, 1); places.push(`${mod(fast.rings[0].a)}/${mod(fast.rings[1].a)}`); }
+  check(places.slice(0, 6).join(" ") === "1/11 1/11 2/10 2/10 3/9 3/9" && places[23] === "0/0" && upcoming(fast, 2).every(col => Math.abs(col[0]) + Math.abs(col[1]) <= 2),
+    "the fastest steps a place on every second beat, 30 degrees, right or left: round in 24 beats");
   // none stands still: there is no setting 0, and every hoop of a new game steps within its first two beats
   const z = sky([0, 0, 0, 0], 3);
   setRing(z, 0, 2);
@@ -147,10 +147,10 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
   check(!setRing(z, 0, 0) && !setRing(z, 0, 0.3) && z.rings[0].set === 2 && moved.size === RINGS, "no hoop stands still: a setting of 0 is refused, the hoop going on as it was, and every hoop of a new game steps on its first beat");
   // a new setting answers on the next beat; the setting it has already carries on as it was
   const n = sky([0, 0, 0, 0], 3);
-  setRing(n, 1, 1);                                              // slow right: steps on beat 1, then 3, 5
+  setRing(n, 1, 1);                                              // slow right: steps on beat 1, then 9, 17
   run(n, 1.5);
   const nA = n.rings[1].a;
-  check(!setRing(n, 1, 1) && n.rings[1].due === 3, "set as it is already, a hoop keeps its rhythm");
+  check(!setRing(n, 1, 1) && n.rings[1].due === 9, "set as it is already, a hoop keeps its rhythm");
   setRing(n, 1, -2);
   const e2 = run(n, 1).filter(e => e.type === "beat");
   check(e2.length === 1 && e2[0].stepped.some(x => x.ring === 1 && x.dir === -1) && n.rings[1].a === mod(nA - 1), "set to another, it answers on the next beat");
@@ -160,15 +160,15 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
   [1, -2, 3, -1].forEach((k, ring) => setRing(long, ring, k));
   const count = [0, 0, 0, 0];
   for (const e of step(long, 601)) if (e.type === "beat") for (const x of e.stepped) count[x.ring] += Math.abs(x.by);
-  check(count.join() === "301,601,1202,301" && long.rings.map(r => r.a).join() === `${mod(301)},${mod(-601)},${mod(1202)},${mod(-301)}`, `over 601 beats: ${count.join(", ")} places, and each hoop where that many put it`);
+  check(count.join() === "76,151,301,76" && long.rings.map(r => r.a).join() === `${mod(76)},${mod(-151)},${mod(301)},${mod(-76)}`, `over 601 beats: ${count.join(", ")} places, and each hoop where that many put it`);
   // what's coming is what happens
   const f = newGame(11, 3);
   [2, -1, 3, -2].forEach((k, ring) => setRing(f, ring, k));
   run(f, 1.5);
   const ahead = upcoming(f, 8), seen = [];
   for (const e of run(f, 8)) if (e.type === "beat") seen.push(f.rings.map((r, ring) => e.stepped.find(x => x.ring === ring)?.by ?? 0));
-  check(JSON.stringify(ahead) === JSON.stringify(seen) && stepsOn(f.rings[0], f.beat + 1) === 1 && stepsOn(f.rings[2], f.beat + 1) === 2, "the beats coming (for the bar of beats) are the steps that happen");
-  // a step is drawn as a tick ending on the place; two places drawn as one tick; a tip turning to the tip
+  check(JSON.stringify(ahead) === JSON.stringify(seen) && ahead.some(col => col[2] === 1) && ahead.some(col => col[0] === 0), "the beats coming are the steps that happen");
+  // a step is drawn as a tick ending on the place; a tip turning to the tip
   const d = sky([0, 0, 0, 0], 3);
   setRing(d, 0, 2);
   step(d, 1);
@@ -179,7 +179,7 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
   step(d, 1);
   const r2 = d.rings[1], t2 = r2.moved, path2 = [0, 0.15, 1].map(u => turnOf(r2, t2 + u * TICK) - r2.a);
   const past2 = Math.min(...[...Array(50).keys()].map(k => turnOf(r2, t2 + (k / 50) * TICK) - r2.a));
-  check(near(path2[0], 2) && path2[1] < 1.5 && path2[1] > 0.5 && path2[2] === 0 && past2 > -0.12 && turnOf(r2, t2 + 5) === r2.a, "two places drawn as one tick, from where it was, past by a hair and onto where it's going");
+  check(near(path2[0], 1) && path2[1] < 1 && path2[1] > 0 && path2[2] === 0 && past2 > -0.06 && turnOf(r2, t2 + 5) === r2.a, "a step to the left drawn the same way: from where it was, past by a hair and onto where it's going");
   d.rings.forEach(r => { r.tip = r.tipFrom = -1; r.tipAt = -1e9; });
   setPlane(d, 2);                                                // green's plane to blue's: two steps
   const tr = d.rings[1];
@@ -236,26 +236,28 @@ const SETTINGS = [-3, -2, -1, 1, 2, 3];
 
 // ---------- a line made, and struck ----------
 {
-  // by a beat's steps, on hoops going at three speeds: each brings a blue planet to twelve o'clock on the first beat, one
-  // a place on, one two, one a place back; the line stands from that beat, and the next strikes it before its steps
+  // by a beat's steps, on hoops going at two speeds: each of two brings a blue planet to twelve o'clock on the first beat,
+  // a place on, to meet a third standing there; the line stands from that beat, and the next strikes it before the
+  // third hoop's step
   const s = sky(MIXED, 3);
   s.rings[0].places[3] = 2; s.rings[0].a = mod(11 - 3);          // a place short of twelve
-  s.rings[1].places[7] = 2; s.rings[1].a = mod(10 - 7);          // two places short
-  s.rings[2].places[0] = 2; s.rings[2].a = 1;                     // a place past
+  s.rings[1].places[7] = 2; s.rings[1].a = mod(11 - 7);          // a place short of it too
+  s.rings[2].places[0] = 2; s.rings[2].a = 0;                     // at twelve already, held
   look(s);
-  setRing(s, 0, 2); setRing(s, 1, 3); setRing(s, 2, -2);
-  check(!s.locks.length, "three blue planets on three hoops, apart: no line");
+  setRing(s, 0, 2); setRing(s, 1, 3);
+  check(!s.locks.length, "three blue planets on three hoops, two a place short of the third: no line");
   const first = step(s, 1.05);
   check(first.some(e => e.type === "beat") && !locks(first).length && s.locks.length === 1 && s.locks[0].key === "N" && s.locks[0].members.length === 3 && near(s.locks[0].at, 1),
-    "a beat's steps bring them together at twelve o'clock, on hoops going medium, fast and medium the other way: a line, however they're going");
+    "a beat's steps bring them together at twelve o'clock, on hoops going medium and fast: a line, however they're going");
+  setRing(s, 2, -2);                                              // the third hoop set going in the line's beat: it steps on the next
   const second = step(s, 1), lk = locks(second);
   check(lk.length === 1 && lk[0].n === 3 && lk[0].gain === AWARD[3] && lk[0].seat === 0 && s.score === AWARD[3] && planets(s) === 0 && s.cleared === 3 && s.aligned === 1 && second.findIndex(e => e.type === "lock") < second.findIndex(e => e.type === "beat"),
     `and the next beat strikes it, ${AWARD[3]} for three, where it stood (before that beat's steps)`);
-  check(s.rings[0].a === mod(8 + 2) && s.rings[1].a === mod(3 + 4) && s.rings[2].a === mod(1 - 2), "and its hoops step on, on that beat, as they would have");
+  check(s.rings[0].a === mod(8 + 1) && s.rings[1].a === mod(4 + 1) && s.rings[2].a === mod(-1), "and the hoop set going in that beat steps on it, as it would have, the others not due");
   // one made just before a beat (by a press) isn't struck on it: on hoops the beat steps apart it's gone; on hoops going
   // alike in the colour's plane it goes round with them, and the beat after strikes it
   const B = PLANE[2], late = line(sky([B, B, B + 2, 0]), 2, 4, [0, 2], [1, 5], [2, 9]), alike = line(sky([B, B, B + 2, 0]), 2, 4, [0, 2], [1, 5], [2, 9]);
-  setRing(late, 0, 2); setRing(late, 1, 2); setRing(late, 2, 3);  // two medium, one fast: the beat parts them
+  setRing(late, 0, 2); setRing(late, 1, 2); setRing(late, 2, -3); // two medium on, one fast back: the beat parts them
   [0, 1, 2].forEach(k => setRing(alike, k, 2));                  // all three medium, the same way
   step(late, 0.9); step(alike, 0.9);
   setPlane(late, 2); setPlane(alike, 2);                         // in line a tenth of a second before the beat
@@ -436,11 +438,10 @@ const HANDS = {
   careful: { think: 2.5, tap: 0.8, press: 0.6, react: 0.4, jitter: 0.25 },
   quick: { think: 1.2, tap: 0.55, press: 0.45, react: 0.3, jitter: 0.2 },
 };
-const FASTEST = ARG("fast") === "off" ? 2 : SPIN;              // measuring what two places a beat is worth: `fast=off` plays without it
-const LEVELS = SETTINGS.filter(k => Math.abs(k) <= FASTEST);
+const LEVELS = SETTINGS;
 const LIMIT = Number(ARG("limit") || 3000);                     // seconds a game is played to at most
 const TRACE = MEASURE && ARG("trace") != null;                 // one game's plans, printed as they're made
-const AHEAD = 10;                                              // beats ahead a plan looks for its line: a long wait is worth less than looking again
+const AHEAD = 24;                                              // beats ahead a plan looks for its line (the fastest hoop turns round in 24): a long wait is worth less than looking again
 const MARGIN = 0.3;                                            // seconds before a beat that a setting must be pressed, to count on its steps
 // What a press of a colour does to the drift's clocks: the engine's rule, none wound ("none"); to measure the others,
 // `wind=all` (a press winds the clocks of the hoops it's for) or `wind=moved` (of the hoops it tips).
@@ -470,7 +471,7 @@ function turns(s) {
     for (let h = 1; h <= AHEAD; h++) going.push(mod(going[h - 1] + stepsOn(r, s.beat + h)));
     const anew = [];
     for (const k of LEVELS) if (k !== r.set) for (let f = 1; f <= AHEAD; f++) {
-      const at = new Array(AHEAD + 1).fill(-1), every = EVERY[Math.abs(k)], by = Math.sign(k) * STRIDE[Math.abs(k)];
+      const at = new Array(AHEAD + 1).fill(-1), every = EVERY[Math.abs(k)], by = Math.sign(k);
       let a = going[f - 1];
       for (let h = f; h <= AHEAD; h++) { if ((h - f) % every === 0) a += by; at[h] = mod(a); }
       anew.push({ k, from: s.beat + f, at });
@@ -643,7 +644,7 @@ function spinner() {
     wake: () => next,
     saw() {},
     act(s) {
-      if (!next) [3, -2, 2, -1].forEach((k, ring) => setRing(s, ring, Math.sign(k) * Math.min(FASTEST, Math.abs(k))));
+      if (!next) [3, -2, 2, -1].forEach((k, ring) => setRing(s, ring, k));
       pressColour(s, 3);
       next = s.t + 10;
     },

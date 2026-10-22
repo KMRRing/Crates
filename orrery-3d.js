@@ -21,7 +21,7 @@ const WIRE = 0.055, BEAD = 0.15;                              // a hoop's wire, 
 const SUN_R = 0.85, HORIZON = [6.95, 7.6], FOOT_Y = -6.3;    // the horizon ring's inner and outer edge; where the stand rests
 const QUADRANT = 7.27, Q_WIRE = 0.06, Q_RISE = 50 * DEG, JEWEL = 0.27;  // the quadrants' radius (the horizon ring's middle), their wire, how high they rise, the jewels on them
 const BACK = 1, DOUBLE = 2, ADD = 2, MIX = 1;                 // THREE.BackSide, DoubleSide, AdditiveBlending, NormalBlending (not in the bundle's exports)
-const MIN_EL = 18 * DEG, MAX_EL = 86 * DEG;
+const MIN_EL = 0.5 * DEG, MAX_EL = 89.5 * DEG;      // the camera goes anywhere above the horizon, from level with it to straight overhead (never below it, never quite over, where up is undefined)
 const HI = 0xffe3a0;                                          // what a chosen hoop glows with
 
 // ---------- the skins ----------
