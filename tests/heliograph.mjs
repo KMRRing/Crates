@@ -2,8 +2,9 @@
 // of reflection, coloured by each colour crystal it passes, through the cluster's crystals of its colours, stopped by
 // another, white light doing nothing), what a shot shatters and what falls from the strings, the points, the colour
 // crystals spent and replaced, where a mirror may stand, the cluster coming down (a new layer, mirrors under it back in
-// hand, the end), a game saved and opened again, and whole games by simple players.
-import { R, H, PR, MR, PORT, LY, LOSE_Y, SKIRT_R, SKIRT_Y, SKIRT_LAYERS, worth, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, pieces, lowest, layerY,
+// hand, the end), the moves a shot (three on the first), a turn skipped, a game saved and opened again, and whole games
+// by simple players.
+import { R, H, PR, MR, PORT, LY, LOSE_Y, SKIRT_R, SKIRT_Y, SKIRT_LAYERS, worth, CELLS, CRYSTALS, START_LAYERS, CLEAR_BONUS, MOVES, FIRST_MOVES, movesFor, SHAPES, canMove, dropEvery, newGame, copy, trace, fire, skip, pieces, lowest, layerY,
   addMirror, moveMirror, turnMirror, takeMirror, pointMirror, cantPlace, clampInside, reflect, anglesOf, fromAngles, crystalsAt, plan } from "../heliograph-engine.js";
 
 let bad = 0;
@@ -32,7 +33,7 @@ const row = CELLS.map((c, i) => [c, i]).filter(([c]) => c.r === 0).sort(([a], [b
     `a chandelier in a shape (${a.shape}): under each place of the crown a string as deep as the shape has it`);
   const shapes = new Set(Array.from({ length: 40 }, (_, k) => newGame(k).shape));
   check(shapes.size >= 5 && [...shapes].every(n => CELLS.some(c => SHAPES[n](c) !== SHAPES[n](CELLS[0])) || n === "column"), `games hang chandeliers of different shapes (${[...shapes].join(", ")})`);
-  check(a.moves === MOVES && MOVES === 2, "two moves a shot");
+  check(a.moves === FIRST_MOVES && FIRST_MOVES === 3 && MOVES === 2 && movesFor(0) === 3 && movesFor(1) === 2 && movesFor(40) === 2, "three moves on a game's first shot, two on every shot after");
   const cols = new Set(pieces(a).map(p => p.c));
   check(a.crystals.length === CRYSTALS && a.crystals.every(x => cols.has(x.c)) && a.crystals[0].c !== a.crystals[1].c, "two colour crystals, of two colours the cluster has");
   check(crystalsAt(a).every(p => Math.hypot(p[0], p[2]) < R - 0.8 && p[1] >= 0.9 && p[1] < lowest(a) - 1) && a.untilDrop === dropEvery(0) && cols.has(a.next), "low in the tube, clear of the wall and the cluster; the next colour one the cluster has");
@@ -140,25 +141,46 @@ function across(s, colourCrystal = [0, 3, 3.4, 1], second = [-3, 2, -1, 2], to =
   check(fire(drop).state.layers[0].c.every((c, i) => (i % 2 ? c >= 0 : c < 0)), "coming down, a crystal more at the top of every string of the shape, none where it has none");
 }
 
-// ---------- two moves a shot ----------
+// ---------- the moves a shot: three on the first, two after ----------
 {
   let s = newGame(5);
   s = addMirror(s, [1, 2, 0]);
   s = addMirror(s, [-1, 2, 0]);
-  check(s.moves === 0 && !canMove(s) && addMirror(s, [0, 4, 0]) === s, "two mirrors set: no moves left, and a third can't be set");
-  const a = moveMirror(s, 0, [1, 3, 0]);
+  check(s.moves === 1 && canMove(s), "two mirrors set on the first shot: a move left");
+  const three = addMirror(s, [0, 4, 2]);
+  check(three.moves === 0 && !canMove(three) && addMirror(three, [0, 4, -2]) === three, "three set: no moves left, and a fourth can't be set");
+  const a = moveMirror(three, 0, [1, 3, 0]);
   check(a.mirrors[0].p[1] === 3 && a.moves === 0, "a mirror set this shot moves again free");
-  const turned = turnMirror(s, 1, [1, 1, 0]);
+  const turned = turnMirror(three, 1, [1, 1, 0]);
   check(Math.abs(turned.mirrors[1].n[0] - Math.SQRT1_2) < 1e-9, "turning a mirror is always free");
-  const back = takeMirror(s, 1);
-  check(back.moves === 1 && back.mirrors.length === 1, "taking back a mirror set this shot gives its move back");
-  let n = fire(s).state;
-  check(n.moves === MOVES && n.touched.length === 0 && n.mirrors.length === 2, "after a shot two moves again; the mirrors stay where they are");
+  const back = takeMirror(three, 2);
+  check(back.moves === 1 && back.mirrors.length === 2, "taking back a mirror set this shot gives its move back");
+  let n = fire(back).state;
+  check(n.moves === MOVES && n.touched.length === 0 && n.mirrors.length === 2, "after the first shot two moves a shot; the mirrors stay where they are");
   n = moveMirror(n, 0, [1, 4, 0]);
   n = takeMirror(n, 1);
   check(n.moves === 0 && moveMirror(n, 0, [1, 5, 0]).mirrors[0].p[1] === 5 && n.mirrors.length === 1, "moving one and taking another back spends both; the one moved still moves");
   n = fire(addMirror(n, [2, 2, 2])).state;
   check(n.mirrors.length === 1, "and no mirror can be set until the next shot");
+}
+
+// ---------- a turn skipped ----------
+{
+  // the colour crystals where setUp puts them, a mirror well clear of both
+  const s = addMirror(setUp(), [3, 2, 0]), before = copy(s), k = skip(s), t = k.state;
+  check(JSON.stringify(s) === JSON.stringify(before), "skipping leaves the game passed in as it was");
+  check(k.skipped && !k.path.legs.length && t.shots === 1 && t.score === 0 && k.gain === 0 && t.moves === MOVES && !t.touched.length && t.untilDrop === s.untilDrop - 1,
+    "a skip is a turn without the light: a shot counted, nothing scored, the moves back, the chandelier's count going on");
+  check(pieces(t).length === pieces(s).length && JSON.stringify(t.crystals) === JSON.stringify(s.crystals) && JSON.stringify(t.mirrors) === JSON.stringify(s.mirrors),
+    "nothing shatters, the colour crystals stay unspent where they were, and so do the mirrors");
+  const due = setUp();
+  due.untilDrop = 1;
+  const d = skip(due);
+  check(d.dropped && d.state.layers.length === START_LAYERS + 1 && d.state.untilDrop === dropEvery(1), "a skip when the chandelier is due brings it down a layer");
+  const deep = setUp({ layers: 1 + Math.floor((layerY(0) - LOSE_Y - PR) / LY) });
+  deep.untilDrop = 1;
+  const end = skip(deep).state;
+  check(end.over && skip(end).state.shots === end.shots && fire(end).state.shots === end.shots, "and may end the game, after which nothing more is played");
 }
 
 // ---------- kept and opened again ----------

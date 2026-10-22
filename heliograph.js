@@ -1,11 +1,11 @@
 // Heliograph: white light falls from a port in the top of a glass tube; set mirrors in it to carry the light through a
 // colour crystal, which colours it, and on into the chandelier of crystals hanging in the middle, where it shatters
 // every crystal of its colour it meets until one of another colour stops it, and everything below on those strings
-// falls; through both colour crystals it carries both colours. Fire takes a turn; setting the mirrors doesn't. The rules
-// are heliograph-engine.js's; this file handles the hand (turning round the tube, setting, moving and turning mirrors,
-// the light's way drawn as they move) and keeps the game. The tube is drawn by
-// heliograph-3d.js, or heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
-import { MIRRORS, MOVES, MR, canMove, newGame, trace, fire, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery } from "./heliograph-engine.js";
+// falls; through both colour crystals it carries both colours. Fire takes a turn, and Skip takes one without the light;
+// setting the mirrors doesn't. The rules are heliograph-engine.js's; this file handles the hand (turning round the tube,
+// choosing, setting, moving and turning mirrors, the light's way drawn as they move) and keeps the game. The tube is drawn
+// by heliograph-3d.js, or heliograph-flat.js without WebGL, both through the camera in heliograph-view.js.
+import { MIRRORS, MR, FIRST_MOVES, movesFor, canMove, newGame, trace, fire, skip, pieces, addMirror, moveMirror, turnMirror, takeMirror, cantPlace, clampInside, facing, dropEvery } from "./heliograph-engine.js";
 import { createView, onPlane, nearestOnSegment } from "./heliograph-view.js";
 import { createFlat } from "./heliograph-flat.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -90,11 +90,11 @@ function drawTray() {
   b.disabled = S.over || playing || left <= 0 || !canMove(S);
   // the moves left this shot: a pip each, in the strip
   const mv = $("moves");
-  mv.replaceChildren(...Array.from({ length: MOVES }, (_, i) => { const p = document.createElement("i"); if (i < S.moves) p.className = "on"; return p; }));
+  mv.replaceChildren(...Array.from({ length: movesFor(S.shots) }, (_, i) => { const p = document.createElement("i"); if (i < S.moves) p.className = "on"; return p; }));
   mv.setAttribute("aria-label", `${S.moves} move${S.moves === 1 ? "" : "s"} left this shot`);
   b.classList.toggle("lifted", hand?.kind === "new" && hand.moved);
   $("takeBtn").disabled = S.over || playing || sel == null || !(S.placed.includes(sel) || canMove(S, sel));
-  $("fireBtn").disabled = S.over || playing;
+  $("fireBtn").disabled = $("skipBtn").disabled = S.over || playing;
   $("tray").hidden = S.over;
   $("result").hidden = !S.over;
   if (S.over) {
@@ -114,6 +114,7 @@ function say(s, path) {
   } else if (!S.moves && hand?.kind !== "turn") text = "No moves left this shot: turn the mirrors, then fire";
   else if (path.crossed.length) text = "The light is coloured: turn a mirror to send it into the cluster";
   else if (sel != null) text = "Drag the mirror to move it, its handle to turn it";
+  else if (s.mirrors.length) text = "Tap a mirror to choose it, then drag it or its handle";
   else text = "Set mirrors to carry the light through a colour crystal";
   $("say").textContent = text;
 }
@@ -175,8 +176,11 @@ function down(e) {
   let kind = "empty", id = null, grab = [0, 0];
   if (!playing && !S.over && knob && Math.hypot(knob[0] - x, knob[1] - y) < 26) { kind = "turn"; id = sel; }
   else if (!playing && !S.over) {
+    // only the mirror chosen moves: a drag from another turns round the tube, as from empty space, and a tap chooses it,
+    // so a drag meant to look round the tube can't spend a move
     const m = mirrorAt(x, y);
-    if (m) { kind = "mirror"; id = m.id; const [sx, sy] = view.project(m.p); grab = [sx - x, sy - y]; }
+    if (m && m.id === sel) { kind = "mirror"; id = m.id; const [sx, sy] = view.project(m.p); grab = [sx - x, sy - y]; }
+    else if (m) { kind = "pick"; id = m.id; }
   }
   hand = { kind, id, grab, x0: x, y0: y, x, y, moved: false, draft: null, why: null, pid: e.pointerId };
   try { $("stage").setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
@@ -188,7 +192,7 @@ function move(e) {
   hand.x = x; hand.y = y;
   if (!hand.moved && Math.hypot(x - hand.x0, y - hand.y0) < 7) return;
   hand.moved = true;
-  if (hand.kind === "empty") { view.orbit(-dx * 0.009, dy * 0.006); render(); return; }
+  if (hand.kind === "empty" || hand.kind === "pick") { view.orbit(-dx * 0.009, dy * 0.006); render(); return; }
   if (hand.kind === "mirror") {
     // moving is the scarce thing: two a shot (a mirror set or moved this shot moves again free); turning is free
     if (!canMove(S, hand.id)) { hand.kind = "stuck"; sel = hand.id; toast("Two moves a shot: turn it by its handle, or fire"); render(); return; }
@@ -217,11 +221,10 @@ function up(e) {
   render();
 }
 function cancel(e) { if (hand && e.pointerId === hand.pid) { hand = null; render(); } }
-/** A tap: on a mirror, chooses it (or lets it go); elsewhere, lets the mirror go. */
+/** A tap: on a mirror, chooses it (or, on the one chosen, lets it go); on the handle, keeps it; elsewhere, lets it go. */
 function tap(h) {
   if (playing || S.over) return;
-  if (h.kind === "mirror" || h.kind === "turn") { sel = sel === h.id && h.kind === "mirror" ? null : h.id; return; }
-  sel = null;
+  sel = h.kind === "pick" || h.kind === "turn" ? h.id : null;
 }
 
 // a mirror from the tray: dragged into the tube (onto the light where it's near), or with a tap, set in the light where
@@ -272,10 +275,10 @@ function autoPlace() {
   toast("There's no room in the light for a mirror");
 }
 
-// ---------- a shot ----------
-async function shoot() {
+// ---------- a turn: a shot, or a skip ----------
+async function takeTurn(act) {
   if (playing || S.over) return;
-  const before = S, r = fire(S);
+  const before = S, r = act(S);
   playing = true;
   sel = null;
   render();
@@ -289,8 +292,9 @@ async function shoot() {
   if (r.gain) pop(r, before);
   if (r.cleared) toast(`The chandelier is cleared: ${fmt(1000)} more`);
   else if (r.crushed.length) toast(r.crushed.length === 1 ? "The cluster came down on a mirror: it's back in hand" : `The cluster came down on ${r.crushed.length} mirrors: they're back in hand`);
-  else if (!r.path.crossed.length && !r.gain) toast("The light never reached a colour crystal");
+  else if (!r.skipped && !r.path.crossed.length && !r.gain) toast("The light never reached a colour crystal");
 }
+const shoot = () => takeTurn(fire);
 /** What the shot brought in, rising from where it did most. */
 function pop(r, before) {
   const by = new Map(pieces(before).map(p => [p.id, p])), at = [...r.shattered, ...r.fallen].map(id => by.get(id)).filter(Boolean);
@@ -336,6 +340,7 @@ $("mirrorBtn").addEventListener("pointerup", e => { if (hand?.kind === "new" && 
 $("mirrorBtn").addEventListener("pointercancel", cancel);
 $("takeBtn").addEventListener("click", () => { if (sel == null) return; S = takeMirror(S, sel); sel = null; save(); render(); });
 $("fireBtn").addEventListener("click", shoot);
+$("skipBtn").addEventListener("click", () => takeTurn(skip));
 $("againBtn").addEventListener("click", newRun);
 
 // for tests and debugging
@@ -343,4 +348,9 @@ window.__heliograph = { get state() { return S; }, set state(s) { S = s; sel = n
 
 S = read(RUN, null);
 if (!valid(S)) newRun();
-else render();
+else {
+  // a game kept on its first shot from before that shot had three moves gets the third (every mirror then is new this
+  // shot, so the moves spent are the mirrors touched)
+  if (!S.shots) S.moves = FIRST_MOVES - S.touched.length;
+  render();
+}

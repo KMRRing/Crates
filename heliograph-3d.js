@@ -294,12 +294,14 @@ export function createScene(host, view) {
 
   // ---- the light: legs of a beam, a glow where it strikes ----
   const legGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true);
-  // each leg a core in its colour (blended as paint, so a colour holds on a pale page) and a glow round it (added, as light)
-  const legs = Array.from({ length: MAX_LEGS * 2 }, (_, i) => {
-    const m = new THREE.Mesh(legGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: DOUBLE, ...(i % 2 ? { blending: ADD } : {}) }));
+  // each leg a core in its colour (blended as paint, so a colour holds on a pale page), or two side by side for light of
+  // two colours, and a glow round it (added, as light)
+  const beam = additive => {
+    const m = new THREE.Mesh(legGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: DOUBLE, ...(additive ? { blending: ADD } : {}) }));
     m.visible = false; m.renderOrder = 8; scene.add(m);
     return m;
-  });
+  };
+  const cores = Array.from({ length: MAX_LEGS * CRYSTALS }, () => beam(false)), glows = Array.from({ length: MAX_LEGS }, () => beam(true));
   const sparks = Array.from({ length: 24 }, () => glow(2, 9));
 
   // ---- motes: splinters of a shattered crystal ----
@@ -409,33 +411,52 @@ export function createScene(host, view) {
     });
     for (let k = s.mirrors.length; k < mirrors.length; k++) mirrors[k].g.visible = false;
   }
+  const across = new THREE.Vector3(), lastAcross = new THREE.Vector3(), toEye = new THREE.Vector3(), mix = new THREE.Color();
   /** The legs of a beam, drawn up to `upto` of its length (all of it for the way it would go). */
   function paintLegs(path, upto, strong) {
-    let used = 0, run = 0, nSpark = 0;
+    let nCore = 0, nGlow = 0, run = 0, nSpark = 0, kept = false;
+    const [r, coreOp, glowR, glowOp] = strong ? [0.075, 1, 0.22, 0.3] : [0.035, 0.85, 0.1, 0.18];
     for (const leg of path.legs) {
       const a = new THREE.Vector3(...leg.a), b = new THREE.Vector3(...leg.b), l = a.distanceTo(b);
       if (run >= upto) break;
       const part = Math.min(1, (upto - run) / Math.max(l, 1e-6));
-      const end = a.clone().lerp(b, part);
-      // light of one colour is that colour; of two, the core the last taken, the glow round it the first
-      const cs = leg.cs, col = cs.length ? tint.copy(enamel[cs[cs.length - 1]]).lerp(white, 0.12) : beamWhite, halo = cs.length ? enamel[cs[0]] : beamWhite;
-      for (const [r, op, c] of strong ? [[0.075, 1, col], [0.22, cs.length > 1 ? 0.5 : 0.3, halo]] : [[0.035, 0.85, col], [0.1, cs.length > 1 ? 0.32 : 0.18, halo]]) {
-        const m = legs[used++];
-        if (!m) break;
-        rodTo(m, a, end, r);
-        m.material.color.copy(c);
-        m.material.opacity = op;
-        m.visible = true;
+      const end = a.clone().lerp(b, part), cs = leg.cs;
+      // light of one colour is that colour; of two, two beams side by side, a hair apart, one in each, so both show
+      // whichever way the beam is seen: they lie across it as the eye sees it, each colour kept to its side from leg to leg,
+      // a little thicker and under less glow than one, so neither is washed pale
+      const two = cs.length > 1, cr = two ? r * 1.3 : r, off = two ? cr * 1.15 : 0;
+      if (off) {
+        toEye.copy(camera.position).sub(a).addScaledVector(b.clone().sub(a), -0.5);
+        across.subVectors(b, a).cross(toEye);
+        if (across.lengthSq() < 1e-9) across.subVectors(b, a).cross(Math.abs(b.y - a.y) < 0.9 * l ? UP : toEye.set(1, 0, 0));
+        across.normalize();
+        if (kept && across.dot(lastAcross) < 0) across.negate();
+        lastAcross.copy(across); kept = true;
       }
+      mix.setRGB(0, 0, 0);
+      (cs.length ? cs : [null]).forEach((c, j, all) => {
+        const m = cores[nCore++], col = c == null ? beamWhite : tint.copy(enamel[c]).lerp(white, 0.12), shift = off * (j ? 1 : -1);
+        rodTo(m, a.clone().addScaledVector(across, shift), end.clone().addScaledVector(across, shift), cr);
+        m.material.color.copy(col);
+        m.material.opacity = two ? 1 : coreOp;
+        m.visible = true;
+        mix.r += col.r / all.length; mix.g += col.g / all.length; mix.b += col.b / all.length;
+      });
+      const g = glows[nGlow++];
+      rodTo(g, a, end, glowR + off);
+      g.material.color.copy(mix);
+      g.material.opacity = two ? glowOp * 0.5 : glowOp;
+      g.visible = true;
       if (strong && part < 1 && sparks[nSpark]) {               // the head of the beam, where it has got to
-        const g = sparks[nSpark++];
-        g.visible = true; g.position.copy(end); g.quaternion.copy(face()); g.scale.setScalar(0.55);
-        g.material.color.copy(col);
-        g.material.opacity = 0.9;
+        const s = sparks[nSpark++];
+        s.visible = true; s.position.copy(end); s.quaternion.copy(face()); s.scale.setScalar(0.55);
+        s.material.color.copy(mix);
+        s.material.opacity = 0.9;
       }
       run += l;
     }
-    for (let i = used; i < legs.length; i++) legs[i].visible = false;
+    for (let i = nCore; i < cores.length; i++) cores[i].visible = false;
+    for (let i = nGlow; i < glows.length; i++) glows[i].visible = false;
     for (let i = nSpark; i < sparks.length; i++) sparks[i].visible = false;
   }
   /** The colour crystals, but those in `spent` (by place), which a shot in play has passed through. */

@@ -1,5 +1,5 @@
 /* Heliograph: the tube (drawn in a canvas by heliograph-3d.js, or flat), and under it a line saying what Fire would do,
-   then the colour crystal's colour and the next, the mirrors in hand, Take back and Fire. The crystals wear the four
+   then the colour crystal's colour and the next, the mirrors in hand, Take back and Skip, and Fire. The crystals wear the four
    enamels, each with a cut of its own (round, lozenge, square, hexagon) so they're told apart by shape too. */
 :root {
   --hg-in: var(--c0);
@@ -37,10 +37,10 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 .hg-pop.go { animation: hg-rise 1s ease-out; }
 @keyframes hg-rise { 0% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -160%); } }
 
-/* under the tube: a line, then the colours coming, the mirrors in hand, Take back, Fire; at the end, how it went */
+/* under the tube: a line, then the colours coming, the mirrors in hand, Take back over Skip, Fire; at the end, how it went */
 .hg-side { display: grid; gap: .4rem; }
 .hg-say { margin: .2rem 0 0; height: 1.3rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .9rem; font-weight: 650; color: var(--ink-soft); text-align: center; }
-.hg-tray { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1.4fr; gap: .45rem; height: 4rem; }
+.hg-tray { display: grid; grid-template-columns: 1.35fr 1fr 1fr 1.4fr; gap: .45rem; height: 4.4rem; }
 .hg-tray[hidden] { display: none; }
 .hg-colour { display: grid; grid-template-columns: 1fr 1fr auto; align-items: center; justify-items: center; gap: .15rem; padding: .3rem .35rem; border-radius: 6px; background: var(--hg-soft); }
 .hg-colour svg.now { width: 2.2rem; max-width: 100%; height: 2.2rem; }
@@ -59,7 +59,9 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
 .hg-count { position: absolute; right: .35rem; bottom: .2rem; font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
 .hg-piece.lifted svg { opacity: .25; }
 .hg-piece:disabled { opacity: .45; cursor: default; }
-.hg-take { min-width: 0; padding: .2rem .3rem; font-size: .8rem; line-height: 1.15; white-space: normal; }
+/* the two lesser buttons, one over the other: Take back (the mirror chosen) and Skip (the turn without the light) */
+.hg-acts { display: grid; grid-template-rows: 1fr 1fr; gap: .3rem; min-width: 0; }
+.hg-take { min-width: 0; min-height: 0; padding: .1rem .25rem; font-size: .74rem; line-height: 1; white-space: normal; }
 .hg-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .9rem; font-weight: 800;
   font-stretch: 106%; letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .hg-go:disabled { opacity: .5; cursor: default; }
@@ -84,7 +86,7 @@ html[data-mode="night"] { --hg-danger: #E8806F; }
   #app.heliograph .hg-tray { grid-template-columns: 1fr 1fr; grid-template-rows: 4.2rem 4.6rem 3.4rem; height: auto; }
   #app.heliograph .hg-colour { grid-column: 1 / -1; grid-row: 1; }
   #app.heliograph .hg-colour svg.now { width: 3rem; height: 3rem; }
-  #app.heliograph .hg-piece, #app.heliograph .hg-take { grid-row: 2; }
+  #app.heliograph .hg-piece, #app.heliograph .hg-acts { grid-row: 2; }
   #app.heliograph #fireBtn { grid-column: 1 / -1; grid-row: 3; }
   #app.heliograph .hg-result { grid-template-columns: 1fr; height: auto; }
 }

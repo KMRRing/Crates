@@ -73,11 +73,18 @@ export function createFlat(host, view) {
     for (const m of s.mirrors) items.push({ z: P(m.p)[2], draw: () => mirror(m, m.id === frame.sel) });
     items.sort((a, b) => b.z - a.z).forEach(i => i.draw());
     skirt();
-    // the light
+    // the light: of two colours, two lines side by side, one in each, each colour kept to its side from leg to leg
+    let side = null;
     for (const leg of frame.path.legs) {
-      const [x0, y0] = P(leg.a), [x1, y1] = P(leg.b);
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
-      ctx.strokeStyle = leg.cs.length ? k.enamel[leg.cs[leg.cs.length - 1]] : k.brass; ctx.lineWidth = 2.5; ctx.stroke();
+      const [x0, y0] = P(leg.a), [x1, y1] = P(leg.b), cs = leg.cs.length ? leg.cs : [null];
+      const l = Math.hypot(x1 - x0, y1 - y0) || 1;
+      let nx = (y0 - y1) / l, ny = (x1 - x0) / l;
+      if (cs.length > 1) { if (side && nx * side[0] + ny * side[1] < 0) { nx = -nx; ny = -ny; } side = [nx, ny]; }
+      cs.forEach((c, j) => {
+        const o = cs.length > 1 ? (j ? 1.3 : -1.3) : 0;
+        ctx.beginPath(); ctx.moveTo(x0 + nx * o, y0 + ny * o); ctx.lineTo(x1 + nx * o, y1 + ny * o);
+        ctx.strokeStyle = c == null ? k.brass : k.enamel[c]; ctx.lineWidth = cs.length > 1 ? 2.2 : 2.5; ctx.stroke();
+      });
     }
     const by = new Map(pieces(s).map(p => [p.id, p]));
     for (const id of frame.targets) {
