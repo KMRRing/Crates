@@ -46,14 +46,9 @@
         </div>
         <div id="roll" class="or-roll" aria-hidden="true"></div>
       </div>
-      <div class="or-aim">
-        <p id="line" class="or-line"></p>
-        <div class="or-mode" role="group" aria-label="What the buttons do to the chosen hoop">
-          <button class="or-seg" type="button" id="spinBtn" aria-pressed="true">Spin</button>
-          <button class="or-seg" type="button" id="tiltBtn" aria-pressed="false">Tilt</button>
-        </div>
-      </div>
-      <div id="pad" class="or-pad" role="group" aria-label="Set the chosen hoop"></div>
+      <p id="line" class="or-line" aria-live="polite"></p>
+      <div id="spinPad" class="or-pad or-spins" role="group" aria-label="Set the chosen hoop going"></div>
+      <div id="tipPad" class="or-pad or-tips" role="group" aria-label="Tip the chosen hoop"></div>
     </div>
     <div id="result" class="or-result" hidden>
       <p id="verdict" class="or-verdict"></p>

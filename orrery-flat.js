@@ -1,9 +1,10 @@
 // Orrery drawn flat, in SVG, where there's no WebGL: the same orrery seen from straight above, each hoop an ellipse as
-// narrow as it is tipped, planets as discs with the marks they have in 3D (a ring, bands, a crescent, a cap) so they're
-// told apart without their colour, and the steps ticking and the tips turning as in 3D. It answers to the same calls as
-// the 3D one (orrery-3d.js), so the page doesn't know which it has: frame, event, select, pick, angleAt, at, orbit
-// (which does nothing without a third dimension).
-import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf, turnOf, tiltOf } from "./orrery-engine.js";
+// narrow as it is tipped, its raised half drawn whole and the half tipped down dashed (from above, a tip either way
+// looks the same otherwise), in the enamel of the colour whose plane it's in; planets as discs with the marks they have
+// in 3D (a ring, bands, a crescent, a cap) so they're told apart without their colour, and the steps ticking and the
+// tips turning as in 3D. It answers to the same calls as the 3D one (orrery-3d.js), so the page doesn't know which it
+// has: frame, event, select, pick, angleAt, at, orbit (which does nothing without a third dimension).
+import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf, turnOf, tiltOf, planeOf } from "./orrery-engine.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, ...kids) => {
@@ -30,8 +31,8 @@ export function createFlat(host) {
   host.prepend(svg);
   world.append(el("circle", { class: "or-flat-plate", r: PLATE }));
   world.append(el("line", { class: "or-flat-axle", x1: 0, y1: -(PLATE - 4), x2: 0, y2: PLATE - 4 }));
-  const bands = RADIUS.map(() => el("ellipse", { class: "or-flat-band" }));
-  world.append(...bands);
+  const bands = RADIUS.map(() => [el("path", { class: "or-flat-band" }), el("path", { class: "or-flat-band" })]);     // its three o'clock half and its nine
+  world.append(...bands.flat());
   world.append(el("circle", { class: "or-flat-sun", r: SUN }), el("circle", { class: "or-flat-sun-core", r: SUN * 0.55 }));
   const fx = el("g"), beamsG = el("g"), planetsG = el("g");
   const seats = Array.from({ length: RINGS }, (_, k) => Array.from({ length: PLACES }, () => {
@@ -43,7 +44,7 @@ export function createFlat(host) {
   const ghost = el("circle", { class: "or-foretold", visibility: "hidden" });
   world.append(beamsG, planetsG, ghost, fx);
 
-  let W = 1, H = 1, s = 1, last = null, skin = { name: "flat", night: false }, chosen = { ring: -1, mode: "speed" };
+  let W = 1, H = 1, s = 1, last = null, skin = { name: "flat", night: false }, chosen = -1;
   function resize() {
     const r = host.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
@@ -58,10 +59,13 @@ export function createFlat(host) {
   const seat = (state, ring, p) => place(ring, (turnOf(state.rings[ring], state.t) + p) * STEP);
   function frame(state, dt) {
     last = state;
-    bands.forEach((b, k) => {
-      const t = tiltOf(state.rings[k], state.t);
-      b.setAttribute("rx", (RADIUS[k] * Math.cos(t)).toFixed(2)); b.setAttribute("ry", RADIUS[k]);
-      b.setAttribute("class", `or-flat-band${k === chosen.ring && !state.over ? " on" : ""}${chosen.mode === "tilt" ? " tip" : ""}`);
+    bands.forEach(([east, west], k) => {
+      const r = state.rings[k], t = tiltOf(r, state.t), R = RADIUS[k], rx = (R * Math.cos(t)).toFixed(2), c = planeOf(r.tip);
+      const cls = `or-flat-band${k === chosen && !state.over ? " on" : ""}${c >= 0 ? ` k${c}` : ""}`;
+      east.setAttribute("d", `M0 ${-R}A${rx} ${R} 0 0 1 0 ${R}`);
+      west.setAttribute("d", `M0 ${R}A${rx} ${R} 0 0 1 0 ${-R}`);
+      east.setAttribute("class", `${cls}${t < -1e-3 ? " down" : ""}`);           // the three o'clock half goes down for a tip the negative way
+      west.setAttribute("class", `${cls}${t > 1e-3 ? " down" : ""}`);
     });
     for (let k = 0; k < RINGS; k++) for (let p = 0; p < PLACES; p++) {
       const c = state.rings[k].places[p], chair = seats[k][p];
@@ -133,7 +137,7 @@ export function createFlat(host) {
   resize();
   return {
     canvas: svg, frame, event, pick, angleAt, at, sunAt: () => [W / 2, H / 2], orbit() {}, setView() {}, applySkin() {}, redraw() { if (last) frame(last, 0); },
-    select(ring, mode = "speed") { chosen = { ring, mode }; if (last) frame(last, 0); },
+    select(ring) { chosen = ring; if (last) frame(last, 0); },
     get skin() { return skin; }, get angles() { return [0, Math.PI / 2]; }, get live() { return { motes: 0, exits: fx.children.length, beams: beamsG.children.length }; }, size: () => [W, H],
   };
 }

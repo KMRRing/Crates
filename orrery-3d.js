@@ -1,7 +1,8 @@
 // Orrery in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): an armillary of brass.
 // Four thin hoops pivot on an axle that runs from twelve o'clock to six through a glowing sun, each tipped as the
 // game has it; planets are beads strung on the hoops, lit by the sun at the middle, so the side turned to it is
-// bright. A horizon ring with a scale of degrees (a long mark at each of the twelve places) holds the axle's ends, and
+// bright. A horizon ring with a scale of degrees (a long mark at each of the twelve places) holds the axle's ends, two
+// brass quadrants rise from it at three and nine o'clock with a jewel of each colour's enamel at its plane's tip, and
 // the sun stands on a column. A hoop's step is drawn as a tick and its tip as a turn, both worked out from the game's
 // own time (orrery-engine.js's turnOf and tiltOf), so they stand still with the game. Nothing is a model or a texture:
 // the brass, the scale and the planets' marks are all worked out in shaders, and the shapes are lathed in code. A line
@@ -10,7 +11,7 @@
 // overhead. The page (orrery.js) steps the game and draws it every frame: frame, event, select, pick, angleAt, at,
 // orbit; orrery-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, FORETELL, dirOf, turnOf, tiltOf, strikeAt } from "./orrery-engine.js";
+import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, PLANE, FORETELL, dirOf, turnOf, tiltOf, strikeAt, planeOf } from "./orrery-engine.js";
 
 const DEG = Math.PI / 180;
 // ---------- measures (units of the orrery; the sun is the middle, a place is a twelfth of a hoop) ----------
@@ -18,9 +19,10 @@ export const RADIUS = [2.0, 3.4, 4.8, 6.2];                  // each hoop's radi
 const PR = [0.42, 0.47, 0.52, 0.56];                          // a planet's radius on each (bigger outward, where there's room)
 const WIRE = 0.055, BEAD = 0.15;                              // a hoop's wire, and the brass beads that mark its twelve places
 const SUN_R = 0.85, HORIZON = [6.95, 7.6], FOOT_Y = -6.3;    // the horizon ring's inner and outer edge; where the stand rests
+const QUADRANT = 7.27, Q_WIRE = 0.06, Q_RISE = 50 * DEG, JEWEL = 0.27;  // the quadrants' radius (the horizon ring's middle), their wire, how high they rise, the jewels on them
 const BACK = 1, DOUBLE = 2, ADD = 2, MIX = 1;                 // THREE.BackSide, DoubleSide, AdditiveBlending, NormalBlending (not in the bundle's exports)
 const MIN_EL = 18 * DEG, MAX_EL = 86 * DEG;
-const SPEED_HI = 0xffe3a0, TILT_HI = 0x8fe0cf;                // what a chosen hoop glows with, spinning and tipping
+const HI = 0xffe3a0;                                          // what a chosen hoop glows with
 
 // ---------- the skins ----------
 // The brass, the enamel and the light for each theme and day or night; the planets' enamels come from the theme's own colours.
@@ -106,6 +108,8 @@ const HORIZON_MAIN = `{
   vec3 col = mix(mix(uPlate, uBrass * .95, mark), uBrass, edge);
   outgoingLight = lit(col, N, mix(.25, .9, max(edge, mark)), mix(18., 40., max(edge, mark)), max(edge, mark) * .8);
 }`;
+/** A jewel: an enamel bead, glossy. */
+const JEWEL_MAIN = "outgoingLight = lit(diffuseColor.rgb, normalize(vNw), .9, 70., 0.) + uSky * pow(1. - max(dot(normalize(vNw), normalize(cameraPosition - vW)), 0.), 3.) * .2;";
 /** A planet: its enamel with a mark of its own in the picture's frame (the planet faces the camera): bands, a shaded crescent, a cap; the first has a ring (a mesh). */
 const PLANET_MAIN = `{
   vec3 p = normalize(vL), N = normalize(vNw), V = normalize(cameraPosition - vW), col = diffuseColor.rgb;
@@ -138,11 +142,14 @@ function glowMaterial(power) {
 }
 
 // ---------- shapes ----------
-/** A solid of revolution round the vertical: profile [[radius, height, normal's radial part, normal's upward part]…], joined in turn (a hard edge repeats a point with another normal). */
-function revolve(profile, segs = 96) {
+/**
+ * A solid of revolution round the vertical: profile [[radius, height, normal's radial part, normal's upward part]…], joined
+ * in turn (a hard edge repeats a point with another normal), from angle `from` to `to` (a whole turn unless told).
+ */
+function revolve(profile, segs = 96, from = 0, to = TAU) {
   const pos = [], nor = [], idx = [], m = profile.length;
   for (let s = 0; s <= segs; s++) {
-    const a = (s / segs) * TAU, c = Math.sin(a), n = -Math.cos(a);        // clockwise from twelve o'clock, as the game's angles go
+    const a = from + (s / segs) * (to - from), c = Math.sin(a), n = -Math.cos(a);        // clockwise from twelve o'clock, as the game's angles go
     for (const [r, y, nr, ny] of profile) { pos.push(r * c, y, r * n); nor.push(nr * c, ny, nr * n); }
   }
   for (let s = 0; s < segs; s++) for (let i = 0; i < m - 1; i++) { const a = s * m + i, b = a + m; idx.push(a, b, a + 1, b, b + 1, a + 1); }
@@ -211,10 +218,33 @@ export function createOrrery(host) {
     const halo = new THREE.Mesh(tube(r, 0.15, 128, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: ADD, depthWrite: false, opacity: 0 }));
     halo.visible = false; halo.renderOrder = 3;
     tilt.add(halo);
-    const level = new THREE.Mesh(tube(r, 0.018, 128, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: ADD, depthWrite: false, opacity: 0.5 }));   // where it would lie flat
-    level.visible = false; level.renderOrder = 3;
-    scene.add(tilt, level);
-    return { tilt, spin, u, halo, level, sel: 0 };
+    scene.add(tilt);
+    return { tilt, spin, u, halo, sel: 0, drifted: 9, into: -1 };
+  });
+  // the quadrants: brass arcs rising from the horizon ring at three o'clock (where a hoop tipped up, the positive way,
+  // lifts its side) and at nine (where a hoop tipped the other way does), in the plane square to the axle, a bead at
+  // every tip and a jewel of a colour's enamel at the tip of its plane, so a hoop in a colour's plane points its high side
+  // at the colour's jewel
+  const round = [];
+  for (let i = 0; i <= 8; i++) { const t = (i / 8) * TAU; round.push([QUADRANT + Q_WIRE * Math.cos(t), Q_WIRE * Math.sin(t), Math.cos(t), Math.sin(t)]); }
+  for (const side of [1, -1]) {
+    const from = side > 0 ? Math.PI / 2 - Q_RISE : 1.5 * Math.PI, g = revolve(round, 40, from, from + Q_RISE);
+    g.rotateX(Math.PI / 2);                                                                    // from lying on the horizon to standing over it
+    scene.add(new THREE.Mesh(g, brass));
+    for (let k = 1; k <= TIP_MAX; k++) {
+      if (PLANE.includes(side * k)) continue;
+      const b = new THREE.Mesh(beadGeo, brass), a = k * TIP;
+      b.scale.setScalar(BEAD * 0.8);
+      b.position.set(side * QUADRANT * Math.cos(a), QUADRANT * Math.sin(a), 0);
+      scene.add(b);
+    }
+  }
+  const jewelGeo = new THREE.SphereGeometry(JEWEL, 18, 14);
+  const jewels = PLANE.map(tip => {
+    const m = new THREE.Mesh(jewelGeo, surface({ main: JEWEL_MAIN })), a = Math.abs(tip) * TIP;
+    m.position.set(Math.sign(tip) * QUADRANT * Math.cos(a), QUADRANT * Math.sin(a), 0);
+    scene.add(m);
+    return m;
   });
   // the shadow the instrument throws on the page: a dark disc beneath, clear at its edge. It lies just under the horizon
   // and no wider than it: lower or wider, a screen that fits the orrery by its height cuts the shadow off in a line.
@@ -324,12 +354,14 @@ export function createOrrery(host) {
     LIGHT.uKeyCol.value.set(skin.key).multiplyScalar(skin.keyI);
     LIGHT.uSky.value.set(skin.sky); LIGHT.uGround.value.set(skin.ground); LIGHT.uAmb.value = skin.amb;
     LIGHT.uBrass.value.set(skin.brass); LIGHT.uPlate.value.set(skin.plate);
+    plateColor.set(skin.plate);
     sunU.uCore.value.set(0xffb94d).multiplyScalar(0.95); sunU.uEdge.value.set(0xe8650a);
     halo.material.color.set(skin.halo); halo2.material.color.set(skin.halo);
     for (let c = 0; c < COLOURS; c++) {
       enamel[c].set(skin.enamel[c]);
       planetMat[c].color.set(skin.enamel[c]); ghostMat[c].color.set(skin.enamel[c]);
       marksU[c].uOn.value.set(skin.marks[c]);
+      jewels[c].material.color.set(skin.enamel[c]);
     }
     renderer.toneMappingExposure = skin.exposure;
   }
@@ -340,6 +372,7 @@ export function createOrrery(host) {
   const outline = [];
   RADIUS.forEach(r => { for (const t of [-TIP_MAX * TIP, 0, TIP_MAX * TIP]) for (let k = 0; k < 40; k++) { const d = dirOf(t, (k / 40) * TAU); outline.push([r * d[0], r * d[1], r * d[2]]); } });
   for (let k = 0; k < 48; k++) { const a = (k / 48) * TAU; outline.push([(HORIZON[1] + 0.1) * Math.sin(a), 0, (HORIZON[1] + 0.1) * Math.cos(a)], [1.65 * Math.sin(a), FOOT_Y - 0.12, 1.65 * Math.cos(a)]); }
+  for (let k = 0; k <= 12; k++) { const a = (k / 12) * Q_RISE, r = QUADRANT + JEWEL; for (const side of [1, -1]) outline.push([side * r * Math.cos(a), r * Math.sin(a), 0]); }
   outline.push([0, SUN_R + 0.6, 0]);
   let width = 1, height = 1, az = 0, el = 52 * DEG, auto = true;       // auto: the camera as high as the room asks (a phone held upright is taller than the orrery is wide)
   function pose() {
@@ -375,12 +408,12 @@ export function createOrrery(host) {
   }
 
   // ---------- where things are ----------
-  const place = new THREE.Vector3(), white = new THREE.Color(0xffffff), black = new THREE.Color(0x000000);
+  const place = new THREE.Vector3(), white = new THREE.Color(0xffffff), black = new THREE.Color(0x000000), hiColor = new THREE.Color(HI), plateColor = new THREE.Color();
   /** The middle of a planet in a place, where it's drawn now: its hoop ticking round and tipping (a scratch vector, to use at once). */
   function worldOf(s, ring, p) { const r = s.rings[ring], d = dirOf(tiltOf(r, s.t), (turnOf(r, s.t) + p) * STEP); return place.set(d[0], d[1], d[2]).multiplyScalar(RADIUS[ring]); }
   const landT = new Float32Array(RINGS * PLACES).fill(9), pos = Array.from({ length: RINGS * PLACES }, () => new THREE.Vector3());
   let overT = 9, kick = 9, pulse = 9, clock = 0, tick = performance.now();
-  const sel = { ring: -1, mode: "speed" };
+  const sel = { ring: -1 };
 
   // ---------- beams, glows, sparks ----------
   let nBeams = 0, nGlows = 0;
@@ -440,10 +473,10 @@ export function createOrrery(host) {
   // ---------- one frame ----------
   const ease = u => u * u * (3 - 2 * u), clamp01 = u => Math.max(0, Math.min(1, u));
   /**
-   * Draws the game `s` (orrery-engine.js's), and lets `dt` seconds of the effects (landings, flares, sparks) pass: 0 while
-   * the game stands still, when they stand still too.
+   * Draws the game `s` (orrery-engine.js's), and lets `dt` seconds of the effects (landings, flares, sparks, a drift's
+   * flash) pass: 0 while the game stands still, when they stand still too. `paint` false moves them on without drawing.
    */
-  function frame(s, dt) {
+  function frame(s, dt, paint = true) {
     last = s;
     clock += dt;
     LIGHT.uTime.value = clock;
@@ -516,19 +549,22 @@ export function createOrrery(host) {
     // the hoop chosen glows (the page's clock, not the game's: a hoop is chosen while the game stands still too)
     const now = performance.now(), ui = Math.min(0.1, (now - tick) / 1000);
     tick = now;
-    const tipping = sel.mode === "tilt", pulse2 = 0.5 + 0.5 * Math.sin(now / 280);
+    const pulse2 = 0.5 + 0.5 * Math.sin(now / 280);
     for (let k = 0; k < RINGS; k++) {
       const h = hoops[k], on = k === sel.ring && !s.over;
       h.sel += ((on ? 1 : 0) - h.sel) * Math.min(1, ui * 12);
       h.u.uSel.value = h.sel;
-      h.u.uHi.value.set(tipping ? TILT_HI : SPEED_HI);
-      h.halo.visible = h.sel > 0.02;
-      h.halo.material.color.set(tipping ? TILT_HI : SPEED_HI);
-      h.halo.material.opacity = h.sel * (0.16 + 0.12 * pulse2);
-      h.level.visible = on && tipping;
-      h.level.material.color.set(TILT_HI);
+      h.u.uHi.value.set(HI);
+      // a drift is seen as well as heard: the hoop flashes as it tips, in the enamel of the plane it tips into, if any
+      h.drifted += dt;
+      const flash = h.drifted < 0.7 ? Math.sin((h.drifted / 0.7) * Math.PI) : 0;
+      h.halo.visible = h.sel > 0.02 || flash > 0;
+      if (flash > 0) h.halo.material.color.copy(h.into >= 0 ? enamel[h.into] : skin.night ? white : plateColor);
+      else h.halo.material.color.copy(hiColor);
+      h.halo.material.blending = flash > 0 && !skin.night ? MIX : ADD;
+      h.halo.material.opacity = Math.max(h.sel * (0.16 + 0.12 * pulse2), flash * (skin.night ? 0.7 : 0.6));
     }
-    renderer.render(scene, camera);
+    if (paint) renderer.render(scene, camera);
   }
 
   // ---------- what happened: the page tells the view ----------
@@ -545,7 +581,8 @@ export function createOrrery(host) {
         if (x) { x.t = 0; x.ring = m.ring; x.x = w.x; x.y = w.y; x.z = w.z; x.planet.show(e.colour); x.planet.put(w.x, w.y, w.z, PR[m.ring]); }
         spark(w.x, w.y, w.z, e.colour, 10, 1.1);
       }
-    } else if (e.type === "over") overT = 0;
+    } else if (e.type === "drift") { hoops[e.ring].drifted = 0; hoops[e.ring].into = planeOf(e.tip); }
+    else if (e.type === "over") overT = 0;
   }
 
   // ---------- looking at it ----------
@@ -628,8 +665,8 @@ export function createOrrery(host) {
 
   return {
     canvas, frame, event, pick, angleAt, at, sunAt, orbit, setView, applySkin,
-    /** The hoop chosen (-1: none) and what its buttons do ("speed" or "tilt"): it glows. */
-    select(ring, mode = "speed") { sel.ring = ring; sel.mode = mode; if (last) frame(last, 0); },
+    /** The hoop chosen (-1: none): it glows. */
+    select(ring) { sel.ring = ring; if (last) frame(last, 0); },
     redraw() { if (last) frame(last, 0); },
     get skin() { return skin; },
     get angles() { return [az, el]; },

@@ -10,8 +10,8 @@
 // games played out by simple players with a person's delays.
 // `node tests/orrery.mjs measure` plays more games for each player instead, at every tempo, and prints what the README's
 // numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2`, `pace=6.5,1,200`, `drift=30,36,42,48` (or
-// `drift=off`), `foresight=0.5`, `top=8` and a list of players (`careful,quick`) change it; `trace=100` prints the plans
-// of one game (seed 100) as they're made.
+// `drift=off`), `foresight=0.5`, `top=8`, `fast=off` (no two places a beat) and a list of players (`careful,quick`)
+// change it; `trace=100` prints the plans of one game (seed 100) as they're made.
 import {
   VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, EVERY, STRIDE, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW, FORETELL,
   PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTip, setTempo,
@@ -391,6 +391,7 @@ const HANDS = {
 // time, the share a plan counts as paid for by them (with none, a plan pays for all its tips, and the player keeps to
 // the gates more than a person would)
 const FORESIGHT = Number(ARG("foresight") ?? 0.5);
+const FASTEST = ARG("fast") === "off" ? 3 : SPIN;              // measuring what two places a beat is worth: `fast=off` plays without it
 const LIMIT = Number(ARG("limit") || 3000);                     // seconds a game is played to at most
 const MAX_TIPS = 3;                                              // hoops a plan tips at most
 const TOP = Number(ARG("top") || 8);
@@ -491,8 +492,8 @@ function plan(s, me, hands, tips) {
   for (const { o } of top) {
     const moving = o.members.filter(m => m.d);
     for (const order of perms(moving)) {
-      const tries = [[order.map(() => 3), true], [order.map(m => (fits(m.d, 4) ? 4 : 3)), true]];
-      const lv = order.length > 3 ? [4, 3, 2] : [4, 3, 2, 1];
+      const tries = [[order.map(() => 3), true], [order.map(m => (fits(m.d, FASTEST) ? FASTEST : 3)), true]];
+      const lv = (order.length > 3 ? [4, 3, 2] : [4, 3, 2, 1]).filter(l => l <= FASTEST);
       const grid = order.reduce((acc, m) => acc.flatMap(p => lv.filter(l => fits(m.d, l)).map(l => [...p, l])), [[]]);
       for (const levels of grid) tries.push([levels, false]);
       for (const [levels, one] of tries) {

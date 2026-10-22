@@ -1,8 +1,9 @@
 // Orrery's sounds, made as they play (Web Audio: sine decays and short noise bursts, no files, so they're there offline):
 // the beat (a soft tick, like a metronome's), the hoops stepping on it (an escapement's click: a lock and its drop), a
 // planet landing (a tink, higher on the outer hoops), a hoop chosen, a button pressed (higher for a quicker rhythm), a
-// hoop tipping, a change of tempo, a bell struck up a chord when the beat strikes a line (four planets a longer chord
-// than three, a combo a higher one), and the end. Off, and nothing is made at all.
+// hoop tipping, a hoop drifting a tip by itself (a spring's soft give), a change of tempo, a bell struck up a chord when
+// the beat strikes a line (four planets a longer chord than three, a combo a higher one), and the end. Off, and nothing
+// is made at all.
 let ctx = null, master = null, on = true;
 const pans = typeof StereoPannerNode !== "undefined";
 
@@ -77,6 +78,12 @@ const VOICES = {
     click(c, t, { freq: 3600, gain: 0.16 * g, dur: 0.012, pan });
     click(c, t + 0.028, { freq: 2500, gain: 0.11 * g, dur: 0.016, pan });
     ping(c, t, { freq: 1760, gain: 0.025 * g, dur: 0.06, pan, drop: 0.98 });
+  },
+  /** A hoop drifting a tip by itself: a spring giving a notch, softer than a tip of the hand, gliding the way it goes. */
+  drift(c, t, { up = 1, ring = 0, power = 0.5 }) {
+    click(c, t, { freq: 1100 - ring * 80, gain: 0.09 * power, dur: 0.02 });
+    click(c, t + 0.05, { freq: 800 - ring * 60, gain: 0.06 * power, dur: 0.025 });
+    ping(c, t + 0.02, { freq: up > 0 ? 300 : 360, gain: 0.07 * power, dur: 0.32, drop: up > 0 ? 1.22 : 0.82, type: "triangle", attack: 0.02 });
   },
   /** The tempo changed: a small turn of a key, up or down. */
   tempo(c, t, { up = 1, power = 0.5 }) {
