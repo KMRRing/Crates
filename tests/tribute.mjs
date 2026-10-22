@@ -5,6 +5,7 @@
 // the database keeps it, tests/rtdb.js); and the puzzle rush's bank.
 import * as E from "../tribute-engine.js";
 import * as B from "../tribute-bot.js";
+import { slotOf, arrange, widthOf, fitPlay, STEP, GAP } from "../tribute-3d.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -376,6 +377,29 @@ for (const skill of ["hard", "medium"]) {
   check(!refused, `a duo match's every write is one the database accepts${refused ? ` (refused at ${refused})` : ` (${moves} moves)`}`);
   check(!changed, `and every state comes back from the room as it was written${changed ? ` (not at ${changed})` : ""}`);
 }
+
+// ---------- the 3D view: where each play's cards lie, and how large they're drawn ----------
+check([0, 1, 2, 3].map(q => slotOf(q, 0)).join() === "me,right,top,left" && slotOf(0, 2) === "top" && slotOf(3, 1) === "top",
+  "3D: you at the foot, the next player at your right, your partner across, from whichever seat you take");
+const layouts = (s, level = 2) => E.classify(C(s), level).map(r => ({ r, groups: arrange(C(s), level, r) }));
+const same3 = (a, b) => [...a].sort((x, y) => x - y).join() === [...b].sort((x, y) => x - y).join();
+const hands3 = ["5s 6h 7d 9c 2h", "As 2c 3d 4h 5s", "10s Jc Qd Kh Ah", "9s 9c 9d 4h 4s", "3s 3c 3d SJ SJ'", "4s 4c 5s 5c 6d 6h", "3s 3c 3d 4s 4c 4h",
+  "SJ SJ' BJ BJ'", "7s 8s 9s 10s Js", "5s 5h 5c 5d 2h", "Ks 2h"];
+check(hands3.every(s => layouts(s).length > 0 && layouts(s).every(l => same3(l.groups.flat(), C(s)) && l.groups.every(g => g.length > 0))),
+  "3D: however a play reads, its cards are laid out once each, none dropped or added (wilds, jokers, runs, full houses)");
+const str = layouts("5s 6h 7d 9c 2h").find(l => l.r.type === "straight").groups;
+check(str.length === 5 && str[3].join() === "13" && str.slice(0, 3).flat().join() === C("5s 6h 7d").join() && str[4].join() === C("9c").join(),
+  "3D: a wild stands in the straight's gap, where the hand reads it (5 6 7 wild 9)");
+const low = layouts("As 2c 3d 4h 5s", 7).find(l => l.r.type === "straight")?.groups;
+check(low && low[0].join() === C("As").join() && low[4].join() === C("5s").join(), "3D: an ace-low straight starts with the ace");
+const fh = layouts("9s 9c 9d 4h 4s").find(l => l.r.type === "full").groups;
+check(fh.length === 2 && fh[0].length === 3 && fh[1].length === 2 && fh[0].every(id => E.rankOf(id) === 9), "3D: a full house is its three, then its pair");
+check(layouts("SJ SJ' BJ BJ'").every(l => l.groups.length === 1 && l.groups[0].length === 4), "3D: the four jokers are one bomb in one group");
+const five = [[1], [2], [3], [4], [5]], ten = [Array.from({ length: 10 }, (_, i) => i)];
+const fit5 = fitPlay(five, { w: 300, h: 120 }), fit10 = fitPlay(ten, { w: 120, h: 120 });
+check(fit5.w * widthOf(five, fit5.step, fit5.gap) <= 300.01 && fit5.w <= 120 / 1.4 + 0.01 && fit5.step === STEP && fit5.gap === GAP,
+  "3D: a play fits its room, as large as the room's height lets a card be, the cards at their usual overlap when they can");
+check(fit10.step < STEP && fit10.w * widthOf(ten, fit10.step, fit10.gap) <= 120.01, "3D: a play too long for its room has its cards drawn closer first, and still fits");
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
 else console.log("tribute: the plays and the bomb ladder, the trick and 接风, tribute, the levels and the ace, the computer players' judgement at both strengths, whole matches, the shared room, and the puzzle rush");

@@ -16,12 +16,15 @@ import { MODES, modeOf, clockText, strikeMarks, clockFor, runDown, graceAgain, t
 import { rushMenu } from "./rush-menu.js";
 import { sideways, SIDEWAYS } from "./wide.js";
 import { busy } from "./loading.js";
+import { createTable3d, cardFace, levelHtml } from "./tribute-3d.js";
 
 const $ = id => document.getElementById(id);
 const RUN = "tribute:run", OPTS = "tribute:opts", STATS = "tribute:stats";
 // The coach: off; hints, when you ask; check, a hint when you ask and a word on each move of yours it would have made
 // otherwise; on (Always), its play at every decision as well.
 const COACH = ["off", "hints", "check", "on"];
+// the table as the cloth seen from above, or tipped away in perspective with its seats round it (tribute-3d.js)
+const VIEWS = [["table", "Table"], ["3d", "3D"]];
 // 2: the table's coach and card counter are the table's, kept on every phone (an older page there updates first)
 const APP = 2;
 const BOTS = ["Wei", "Lin", "Fang"];                             // right, across (your partner), left
@@ -34,8 +37,11 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 // ---------- state ----------
 // G: the hand in play (the engine's state, the match's levels in it). S: the table: { names, humans }.
 let G = null, S = null;
-let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, ...read(OPTS, {}) };
+let opts = { mode: "deals", deals: 6, pace: "steady", counter: false, bots: "hard", coach: "hints", full: false, side: null, view: "table", ...read(OPTS, {}) };
 if (!COACH.includes(opts.coach)) opts.coach = "hints";
+if (!VIEWS.some(([k]) => k === opts.view)) opts.view = "table";
+let table3d = null;                                              // the 3D view, once the page is wired (the foot of this file)
+const in3d = () => opts.view === "3d" && !!table3d;
 let me = 0;
 // At a table together the coach and the card counter are the table's, the same on every phone: at a party its host sets
 // them (party-link.js knows who that is), at a pair's table either of you; solo, they're yours.
@@ -105,6 +111,7 @@ function newMatch() {
   G = E.newGame({ mode: opts.mode, deals: opts.deals }, (Math.random() * 2 ** 32) >>> 0);
   write(MATCH_WORDS, []);
   closeDialogs();
+  table3d?.deal();
   afterChange();
 }
 function nextHand() {
@@ -114,6 +121,7 @@ function nextHand() {
   if (G.result.over) { newMatch(); return; }
   keepHand();
   G = E.nextHand(G, (Math.random() * 2 ** 32) >>> 0);
+  table3d?.deal();
   afterChange();
 }
 function save() {
@@ -400,13 +408,17 @@ function drawSeats() {
 function drawStrip() {
   const us = E.teamOf(me), lv = G.levels, r = G.level;
   const decl = G.declarer < 0 ? "" : G.declarer === us ? " (yours)" : " (theirs)";
+  if (in3d()) {                                                  // the brass plate: the level, its wild card, both sides' levels
+    const tail = rush ? rushStatus() : `<span class="t3-hno">${G.opts.mode === "deals" ? `Hand ${G.handNo + 1} of ${G.opts.deals}` : "To the ace"}</span>`;
+    $("strip").innerHTML = levelHtml({ level: r, levels: lv, us, declarer: G.declarer, tail, cardClass });
+    return;
+  }
   if (rush) { $("strip").innerHTML = `<span class="tb-lvl">Level <b>${FACE(r)}</b>${decl} · <span class="tb-wild">♥${FACE(r)}</span> wild</span>${rushStatus()}`; return; }
   const left = G.opts.mode === "deals" ? `hand ${G.handNo + 1} of ${G.opts.deals}` : "to the ace";
   $("strip").innerHTML = `<span class="tb-lvl">Level <b>${FACE(r === 15 ? 15 : r)}</b>${decl} · <span class="tb-wild">♥${FACE(r)}</span> wild</span><span class="tb-score">Us <b>${FACE(lv[us])}</b> · them <b>${FACE(lv[1 - us])}</b> · ${left}</span>`;
 }
 /** The news at a hand's start: who led, who paid tribute and what came back. */
-function drawNews() {
-  const box = $("news");
+function newsLines() {
   const lines = [];
   for (const e of G.log) {
     if (e.e === "lead") lines.push(`${who(e.seat)} ${e.seat === me ? "hold" : "holds"} the turned-up ${E.cardName(e.card)}, and ${e.seat === me ? "lead" : "leads"}.`);
@@ -414,6 +426,10 @@ function drawNews() {
     else if (e.e === "tribute") lines.push(`${who(e.from)} ${e.from === me ? "pay" : "pays"} ${e.to === me ? "you" : nameOf(e.to)} ${E.isJoker(e.card) ? "the " : ""}${E.cardName(e.card)}.`);
     else if (e.e === "return") lines.push(`${who(e.from)} ${e.from === me ? "give" : "gives"} back ${E.cardName(e.card)}.`);
   }
+  return lines;
+}
+function drawNews() {
+  const box = $("news"), lines = newsLines();
   const playing = G.log.some(e => e.e === "play" || e.e === "pass");
   box.hidden = !lines.length || playing;
   box.innerHTML = lines.map(l => `<p>${esc(l)}</p>`).join("");
@@ -482,15 +498,24 @@ function drawHand() {
   const adv = hint?.auto && hint.key === keyNow() ? hint.list?.[0]?.action : null;
   const advised = new Set(adv?.t === "play" ? adv.cards : adv?.t === "return" ? [adv.card] : []);
   let html = "";
-  for (const { id, x, y, z } of lay.at) {
+  const three = in3d(), room = box.clientWidth || 360, tilt = fan ? 6 : 4, drop = (fan ? 0.9 : 0.55) * rem;
+  lay.at.forEach(({ id, x, y, z }, i) => {
     const cls = [cardClass(id, level)];
+    if (three) cls.push("t3f");
+    if (three && (fan ? i === lay.at.length - 1 : lay.at[i + 1]?.x !== x)) cls.push("last");   // the card in front: its middle shows
+    // 3D: the hand is a fan, each card (a column's, stacked) turned a little more the further from the middle, the ends lower
+    const t = three ? (x + lay.W / 2 - room / 2) / (room / 2) : 0, arc = three ? `;--rot:${(t * tilt).toFixed(2)}deg;--ly:${(t * t * drop).toFixed(1)}px` : "";
     if (selected.has(id)) cls.push("sel");
     if (advised.has(id)) cls.push("advised");
     if (shade.has(id)) cls.push("alt");
     if (ok && !ok.has(id)) cls.push("dim");
-    html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;z-index:${z}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${face(id, level)}</button>`;
-  }
+    html += `<button type="button" class="${cls.join(" ")}" data-id="${id}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px;z-index:${z}${arc}" aria-label="${E.cardName(id)}${selected.has(id) ? ", picked" : ""}">${three ? cardFace(id, level) : face(id, level)}</button>`;
+  });
   box.innerHTML = html;
+  // 3D: the picked cards glow green when they make a play that may be made now, ink-red when they don't
+  const made = three && ask === "play" && selected.size ? E.readingFor([...selected], level, G.top?.reading || null) : null;
+  box.classList.toggle("ok", !!made);
+  box.classList.toggle("bad", three && ask === "play" && selected.size > 0 && !made);
   box.classList.toggle("tight", !!lay.tight);
   box.classList.toggle("plan", !!plan);
   box.style.height = `${lay.height.toFixed(0)}px`;
@@ -684,14 +709,14 @@ function fullScreen(on) {
 function render() {
   placeFull();
   if (!G) return;
+  const three = in3d(), was = three ? table3d.before() : null;   // the cards' places before they're drawn again, for their flights
   drawStrip();
-  drawSeats();
-  drawNews();
+  if (!three) { drawSeats(); drawNews(); }
   drawCounter();
   drawHand();
   drawActions();
   drawPartner();
-  fitPlays();
+  if (three) table3d.draw(was); else fitPlays();
   flashGo();
 }
 /** Your go: the table flashes green as a decision comes to you, and fades; once a decision, not at every redraw. */
@@ -706,7 +731,7 @@ function flashGo() {
   t.classList.add("go");
 }
 
-$("table").addEventListener("animationend", e => { if (e.animationName === "tb-go") e.currentTarget.classList.remove("go"); });
+$("table").addEventListener("animationend", e => { if (e.animationName === "tb-go" || e.animationName === "t3-go") $("table").classList.remove("go"); });
 
 // ---------- the plays on the table: as large as your cards, larger where the table has the room ----------
 /**
@@ -1077,6 +1102,7 @@ function openMenu() {
   part(body, "settings").append(
     ...rules,
     choice("Pace", [["quick", "Quick"], ["steady", "Steady"], ["slow", "Slow"]], opts.pace, v => set("pace", v)),
+    choice("View", VIEWS, opts.view, v => { opts.view = v; write(OPTS, opts); showView(); render(); }),
     toggle("Full screen", !!opts.full, v => { fullScreen(v); set("full", v); }),
     choice("Held sideways, your cards", [["row", "In a row"], ["stack", "Stacked"]], sideOf(), v => set("side", v)),
   );
@@ -1300,11 +1326,24 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", nextHand);
 $("tableBtn").addEventListener("click", () => $("resultDlg").close());
 $("rulesDlg").addEventListener("click", e => { if (e.target === $("rulesDlg")) $("rulesDlg").close(); });
-onPause(() => { clearTimeout(timer); render(); }, () => kick(0));
+onPause(() => { clearTimeout(timer); table3d?.hold(true); render(); }, () => { table3d?.hold(false); kick(0); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 let resizeTimer = null;
 addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 60); });
+
+/** The view chosen in Menu: the cloth as it was (#table's seats), or the table tipped away in perspective (#board3d, tribute-3d.js).
+ *  Your cards, the coach's line and the buttons are the same elements in both; so is the table itself, so the header and the
+ *  levels go onto it in full screen as they always have. */
+function showView() {
+  const three = opts.view === "3d" && !!table3d;
+  $("app").classList.toggle("tb3", three);
+  $("board3d").hidden = !three;
+  table3d?.empty();
+  $("table").style.removeProperty("--tb-pf");
+}
+table3d = createTable3d({ G: () => G, me: () => me, nameOf, who, busy: () => busyWith, handId, acts: trickActs, news: newsLines, cardClass, quiet: IN_FRAME });
+showView();
 
 // for tests and debugging
 window.__tribute = { get state() { return G; }, get me() { return me; }, get together() { return together; }, get selected() { return [...selected]; },
