@@ -165,7 +165,7 @@ export function place(L, P, c) {
   P.lockUntil = P.t + BLAST_MS;
   return "blast";
 }
-/** The oil now, before the countdown is out: each whole second of it left pays a little. */
+/** The oil now, before the countdown is out: each whole second of it left pays a little, once the level is cleared. */
 export function release(L, P) {
   if (P.flowing || P.over) return;
   P.pts.early = POINTS.early * Math.floor((L.countdown - P.t) / 1000);
@@ -222,12 +222,13 @@ function onward(L, P, s) {
 }
 /** The level over: won if the oil passed through its quota (and wasn't led into the terminal short of it). On a level
  *  won, pieces of yours it never reached cost points, as in Pipe Dream; the terminal pays its bonus. A spill short of
- *  the quota ends the run, and costs nothing more. */
+ *  the quota ends the run, costs nothing more, and earns nothing for the countdown it cut short. */
 function end(L, P, why, c) {
   const win = why === "terminal" || (why !== "early" && P.count >= L.quota);
   P.over = { win, why, c };
   if (why === "terminal") P.pts.terminal = POINTS.terminal * (P.hurry ? 2 : 1);
   if (win) P.pts.unused = POINTS.unused * P.grid.filter((piece, i) => piece && !oiled(P, i)).length;
+  else P.pts.early = 0;            // the countdown cut short pays only on a level cleared: the oil let go on an empty board isn't a score
 }
 /** A level's points so far (its final score once it's over). */
 export const pointsOf = P => Object.values(P.pts).reduce((a, b) => a + b, 0);

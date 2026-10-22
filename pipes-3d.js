@@ -38,7 +38,9 @@ export function createShaftView(host, { onTap = () => {} } = {}) {
   let yaw = 0.62, pitch = 0.62;              // turned a little east of south, looking down at 35°
   let fz = 2, target = 2, last = 0;          // the depth the camera looks at, and where it's heading
   let pal = null;
-  let held = null, spin = null;              // the piece in hand as last drawn ({ at, q }), and a quarter turn under way
+  let held = null, spin = null;              // the piece in hand as last drawn ({ at, q, turns }), and a quarter turn under way
+  let drawn = null;                          // what the last frame drew, to draw it again when the box changes size
+  const tints = new Map();                   // colours in light, as strings, kept (below)
 
   // ---------- the palette, from the page's tokens (re-read when the theme or the light changes) ----------
   function palette() {
@@ -51,7 +53,7 @@ export function createShaftView(host, { onTap = () => {} } = {}) {
       barrel: get("--c0", "#C8923A"), ink: get("--pi-label", "#C9B892"), font: getComputedStyle(document.body).fontFamily,
     };
     pal.light = mixRgb(pal.pipe, [255, 255, 255], 0.5);
-    tints?.clear();
+    tints.clear();
   }
   new MutationObserver(() => { palette(); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-mode"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => palette());
@@ -67,6 +69,7 @@ export function createShaftView(host, { onTap = () => {} } = {}) {
     F = Math.min(FOV * W, 0.62 * FOV * H) * DIST / half;
     cx = W / 2; cy = H * 0.4;
     palette();
+    if (drawn) draw(...drawn);
   }
   new ResizeObserver(resize).observe(host);
 
@@ -100,7 +103,6 @@ export function createShaftView(host, { onTap = () => {} } = {}) {
   // ---------- drawing ----------
   const shade = (c, t) => (t >= 1 ? mixRgb(c, [255, 255, 255], Math.min(0.5, t - 1)) : mixRgb(c, [0, 0, 0], 1 - t));
   // a colour in light, as a string, kept: a frame asks for the same few hundred (each block's faces) every time
-  const tints = new Map();
   const tint = (c, t, alpha = 1) => {
     const key = `${c}|${Math.round(t * 100)}|${alpha}`;
     let v = tints.get(key);
@@ -299,15 +301,16 @@ export function createShaftView(host, { onTap = () => {} } = {}) {
     return v.map((x, i) => pivot[i] + x * c + k[i] * s + axis[i] * d * (1 - c));
   }
   /** The piece in hand turned since the last frame (the same open end, a new way): it swings a quarter into place. */
-  function noteTurn(ghost, now) {
+  function noteTurn(ghost, now, turns) {
     if (!ghost) { held = null; return; }
     const c = ghost.cells[0], at = `${c.x},${c.y},${c.z},${c.a},${ghost.cells.length}`, q = c.b;
-    if (held && held.at === at && held.q !== q && (c.a >> 1) !== (q >> 1) && (held.q >> 1) !== (c.a >> 1)) {
-      const u = D3[held.q], w = D3[q];
-      spin = { t0: now, axis: [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]], pivot: port(c, c.a) };
+    // only a turn given (not a new piece arriving the same way round), and a quarter one: about the way the pipe goes
+    if (held && held.at === at && held.turns !== turns && held.q !== q) {
+      const u = D3[held.q], w = D3[q], axis = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+      spin = Math.hypot(...axis) > 0.5 ? { t0: now, axis, pivot: port(c, c.a) } : null;
     }
     if (!held || held.at !== at) spin = null;
-    held = { at, q };
+    held = { at, q, turns };
   }
   /** How far a quarter turn under way has still to swing (radians, 0 once it's done), easing out. */
   function spinLeft(now) {
@@ -320,12 +323,15 @@ export function createShaftView(host, { onTap = () => {} } = {}) {
   const swung = (pts, t) => (t ? pts.map(p => turnAbout(p, spin.pivot, spin.axis, t)) : pts);
 
   /**
-   * The frame: S the shaft, D the descent, ghost (the way the piece in hand would be laid, or null), now (for the
-   * boons' glow, the camera easing after the oil, and a piece swinging round as it's turned).
+   * The frame: S the shaft, D the descent; opts: ghost (the way the piece in hand would be laid, or null), now (for
+   * the boons' glow, the camera easing after the oil, and a piece swinging round as it's turned), still (the camera
+   * where it should be at once, nothing swinging), turns (the quarter turns given so far: a new count swings the piece).
    */
-  function draw(S, D, { ghost = null, now = performance.now(), still = false } = {}) {
+  function draw(S, D, opts = {}) {
+    const { ghost = null, now = performance.now(), still = false, turns = 0 } = opts;
+    drawn = [S, D, { ...opts, still: true }];
     if (!pal) palette();
-    noteTurn(still ? null : ghost, now);
+    noteTurn(still ? null : ghost, now, turns);
     const turning = spinLeft(now);
     const oil = D.pipe[D.oil.i], end = openEnd(D);
     target = Math.max(1.5, (oil.z + end.z) / 2 + 1.2);

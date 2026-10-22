@@ -163,6 +163,10 @@ const runOut = (L, P) => { for (let i = 0; i < 100000 && !P.over; i++) B.advance
   lay(Q, at(4, 5), "v");
   runOut(M, Q);
   check(!Q.over.win && Q.pts.unused === 0, "the spill that ends the run takes nothing for unused pieces");
+  const N = bare(1, { quota: 1 }), R = B.newPlay();
+  B.release(N, R);
+  runOut(N, R);
+  check(!R.over.win && R.pts.early === 0 && B.pointsOf(R) === 0, "Oil now on an empty board: spilled, and nothing for the countdown cut short");
 }
 
 // ---------- the board: how hard the levels are, for a bot laying a piece every 1.3 s ----------
@@ -288,7 +292,10 @@ const runOut = (L, P) => { for (let i = 0; i < 100000 && !P.over; i++) B.advance
   }
   check(problems === 0 && slabs > 30, `30 shafts, 120 layers each: repeatable, no rock within three layers of the surface, never a layer all rock (${slabs} slabs with a gap or few), always a way down`);
   check(kinds.barrel > kinds.charge && kinds.charge > 0 && kinds.tank > 0, `boons along the way: ${kinds.barrel} barrels, ${kinds.charge} charges, ${kinds.tank} tanks`);
-  check(G.madeAt(G.shaftOf(1), 0, 0, 40) !== undefined && G.madeAt(G.shaftOf(1), -1, 0, 5) === "wall" && G.madeAt(G.shaftOf(1), 0, 0, -1) === "wall", "outside the shaft (and above the surface) is wall");
+  const one = G.shaftOf(1), made = new Set();
+  for (let z = 0; z < 60; z++) for (let y = 0; y < G.SIDE; y++) for (let x = 0; x < G.SIDE; x++) made.add(G.madeAt(one, x, y, z));
+  check([...made].every(m => [null, "rock", "barrel", "charge", "tank"].includes(m)) && G.madeAt(one, -1, 0, 5) === "wall" && G.madeAt(one, G.SIDE, 2, 5) === "wall" && G.madeAt(one, 0, 0, -1) === "wall",
+    "inside the shaft, open ground, rock or a boon; outside it (and above the surface), wall");
 }
 // the descent's queue: bags of ten
 {
@@ -317,8 +324,12 @@ const put = (S, D, kind, turn = 0) => { D.cur = kind; D.turn = turn; return G.la
     "going down, an elbow turns east, south, west, north as it's turned a quarter at a time; a jog steps a square sideways and on down");
   const across = ways("elbow").length && G.across(0).join() === "2,4,3,5";
   check(across, "going east, a quarter turn takes the elbow's way round south, down, north, up");
-  D.cur = "elbow"; D.turn = G.firstTurn(S, D);
-  check(G.waysOf(D, "elbow")[D.turn].exit.d !== G.UP, "a piece starts turned somewhere other than back up");
+  put(S, D, "elbow", 0);                                  // at (1,1,1), turned east: going sideways now
+  check(G.waysOf(D, "elbow")[G.firstTurn(S, D, "elbow")].exit.d === G.DOWN, "going sideways, an elbow starts turned down");
+  const T = shaftWith({ "2,1,2": "rock" }), E = G.newDescent(1);
+  put(T, E, "elbow", 0);                                  // east to (2,1,1), the square below it rock
+  const w = G.waysOf(E, "elbow")[G.firstTurn(T, E, "elbow")];
+  check(w.exit.d !== G.DOWN && w.exit.d !== G.UP && !G.deadEnd(T, E, w), "with rock below, it starts turned to open ground on the level, not into the rock or back up");
 }
 {
   // laying: the cap ahead of the oil, rock and wall, boons taken
@@ -329,6 +340,9 @@ const put = (S, D, kind, turn = 0) => { D.cur = kind; D.turn = turn; return G.la
   check(put(S, D, "straight") === "laid" && G.contentAt(S, D, 1, 1, 6) === "rock" && put(S, D, "straight") === "blocked", "rock below: blocked");
   check(G.blast(S, D) && D.charges === 0 && G.contentAt(S, D, 1, 1, 6) === null && put(S, D, "straight") === "laid" && put(S, D, "straight") === "wait",
     `a charge blasts the rock the open end faces; ${G.CAP} laid ahead of the oil, the next waits`);
+  const C = shaftWith(), K = G.newDescent(1);
+  for (let i = 0; i < G.CAP - 1; i++) put(C, K, "straight");
+  check(put(C, K, "long") === "wait" && G.lead(K) === G.CAP - 1 && put(C, K, "straight") === "laid", `a piece of two squares waits for room for both: never more than ${G.CAP} ahead`);
   const W = shaftWith(), E = G.newDescent(1);
   put(W, E, "elbow", 2);                                 // at (1,1,1), turned west
   check(put(W, E, "straight") === "laid" && put(W, E, "straight") === "blocked", "the shaft's wall stops a pipe as rock does");
@@ -353,10 +367,14 @@ const put = (S, D, kind, turn = 0) => { D.cur = kind; D.turn = turn; return G.la
   G.advance(S, E, 1 + G.fillTime(0) / 2 + G.fillTime(1) + G.fillTime(2) + 5);
   check(E.over && E.deepest === 2 && Math.abs(E.t - t - (1 + G.fillTime(0) / 2 + G.fillTime(1) + G.fillTime(2))) < 2, "the oil runs a square at a time and catches a pipe left short: over");
   check(G.fillTime(0) === 3200 && G.fillTime(40) < G.fillTime(20) && G.fillTime(400) === 450, `slow at the top (${G.fillTime(0)} ms a square), faster all the way down, to a floor of 450`);
+  const W = G.newDescent(5);
+  for (let i = 0; i < 4; i++) put(S, W, "straight");
+  G.hurry(S, W);
+  check(W.flowing && W.hurry, "Hurry while the oil waits at the wellhead lets it go at once");
   const F = G.newDescent(5);
   for (let i = 0; i < 6; i++) put(S, F, "straight");
   G.release(S, F);
-  const before = F.t; G.hurry(F);
+  const before = F.t; G.hurry(S, F);
   check(F.hurry, "Hurry with pipe laid ahead");
   for (let i = 0; i < 1000 && F.hurry; i++) G.advance(S, F, 10);
   check(!F.hurry && G.lead(F) === G.HURRY_STOP && F.t - before < (G.fillTime(1) * 4) / G.HURRY3 + 200 + G.fillTime(0) / G.HURRY3, `Hurry runs it ${G.HURRY3} times faster until it's ${G.HURRY_STOP} squares behind`);
@@ -414,7 +432,7 @@ const put = (S, D, kind, turn = 0) => { D.cur = kind; D.turn = turn; return G.la
         const E = clone(D);
         if (swap) G.holdPiece(S, E);
         E.turn = t;
-        E.oil = { i: Math.max(E.oil.i, E.pipe.length - G.CAP), p: 0 };
+        E.oil = { i: E.pipe.length - 1, p: 0 };          // looking ahead, the cap doesn't bind
         if (G.lay(S, E) !== "laid") continue;
         let v = value(S, E);
         if (depth > 1) { const [v2] = best(S, E, depth - 1); v = v2 === -Infinity ? v - 150 : Math.max(v * 0.5 + v2 * 0.5, v2 - 5); }

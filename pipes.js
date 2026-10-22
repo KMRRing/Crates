@@ -33,6 +33,7 @@ let F = null, L = null;
 // the descent: { v, kind, seed, D (pipes-deep.js), phase: "play" | "over", at }; S is its shaft
 let R = null, S = null;
 let match = null;            // a match being played here: { mode, seed, length }
+let turns = 0;               // quarter turns given the piece in hand: the 3D view swings the piece round only for these
 let view = null;             // the 3D view, made the first time the shaft shows
 let raf = 0, last = 0, held = false;
 
@@ -118,6 +119,8 @@ function frame(now) {
 }
 /** The game on by dt ms: the board's level or the descent, and what shows of it. */
 function step(dt, now = performance.now()) {
+  // a watching frame holds still while your partner's game does (their menu open, their app out of sight)
+  if (IN_FRAME && (mode === "flat" ? F : R)?.still) dt = 0;
   if (mode === "flat") {
     if (F?.phase === "play" && F.P && !F.P.over) {
       const P = F.P, cells = P.path.length, pts = B.pointsOf(P), flowing = P.flowing;
@@ -137,7 +140,7 @@ function step(dt, now = performance.now()) {
       if (D.over) { descentOver(); showDeep(false); }
       else drawDeepStatus();
     }
-    view?.draw(S, R.D, { ghost: ghostOf(), now });
+    view?.draw(S, R.D, { ghost: ghostOf(), now, turns });
   }
 }
 function run() { cancelAnimationFrame(raf); last = 0; raf = requestAnimationFrame(frame); }
@@ -145,7 +148,7 @@ function run() { cancelAnimationFrame(raf); last = 0; raf = requestAnimationFram
  *  frame picks it up (at most half a minute: an older copy is a player who has gone). The engines walk a long step
  *  piece by piece exactly as short ones, so it's one step, then one drawing. */
 function catchUp(ms) {
-  ms = Math.min(ms, 30000);
+  if (IN_FRAME) ms = Math.min(ms, 30000);
   if (!(ms > 0)) return;
   if (mode === "flat" && F?.phase === "play" && F.P && !F.P.over) {
     B.advance(L, F.P, ms);
@@ -156,6 +159,7 @@ function catchUp(ms) {
     if (R.D.over) descentOver();
     showDeep(false);
   }
+  if (match) save();
 }
 
 // ---------- the board, drawn ----------
@@ -173,72 +177,69 @@ function channel(a, b) {
   const sweep = (ax - cx) * (by - cy) - (ay - cy) * (bx - cx) > 0 ? 1 : 0;
   return { d: `M${ax} ${ay}A${MID} ${MID} 0 0 ${sweep} ${bx} ${by}`, len: Math.PI * MID / 2 };
 }
-/** A piece's pipe in a square: each channel a dark edge and a brass body; a crossing's upright channel bridges the
- *  other. */
-function drawPipe(g, piece) {
+/** A channel's pipe along a line: its dark edge, the brass and a shine; a crossing's upright channel first lays a strip
+ *  of ground, so it bridges the other. */
+function pipeAlong(g, d, bridge = false) {
+  if (bridge) el("path", { d, class: "pipe-edge", "stroke-width": 26, stroke: "var(--pi-ground)" }, g);
+  el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
+  el("path", { d, class: "pipe", "stroke-width": 16 }, g);
+  el("path", { d, class: "pipe-shine", "stroke-width": 4 }, g);
+}
+/** A piece's pipe in a square (and the queue's tiles), channel by channel; oil(i) draws the oil in channel i straight
+ *  after its pipe, so whatever lies over a channel (a crossing's bridge) lies over its oil too. */
+function drawPipe(g, piece, oil = () => {}) {
   const chs = B.PIECES[piece], order = piece === "x" ? [1, 0] : chs.map((_, i) => i);
   for (const i of order) {
-    const { d } = channel(chs[i][0], chs[i][1]);
-    if (piece === "x" && i === 0) el("path", { d, class: "pipe-edge", "stroke-width": 26, stroke: "var(--pi-ground)" }, g);
-    el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
-    el("path", { d, class: "pipe", "stroke-width": 16 }, g);
-    el("path", { d, class: "pipe-shine", "stroke-width": 4 }, g);
+    pipeAlong(g, channel(chs[i][0], chs[i][1]).d, piece === "x" && i === 0);
+    oil(i);
   }
 }
-/** A square of the board drawn afresh: its ground, what's fixed there or laid, and the oil in it. */
+/** A square of the board drawn afresh: its ground, what's fixed there or laid, the oil in it (each channel it has
+ *  passed full, the one it's in now as far as it has come), and over them what stands on the square. */
 function drawCell(c) {
   const g = cellG[c];
   if (!g) return;
   g.replaceChildren();
-  const fixed = L.cells[c], P = F.P;
+  const fixed = L.cells[c], P = F.P, head = P?.path.length ? P.path[P.path.length - 1] : null;
+  const oil = test => () => {
+    for (const s of P?.path || []) {
+      if (s.c !== c || !test(s)) continue;
+      const { d, len } = channel(s.a, s.b), now = s === head && !P.over;
+      const n = el("path", { d, class: "oil", "stroke-width": 9, "stroke-dasharray": `${len} ${len}`, "stroke-dashoffset": now ? len * (1 - P.p) : 0 }, g);
+      if (now) { n.dataset.head = "1"; n.dataset.len = len; }
+    }
+  };
+  const inChannel = piece => i => oil(s => B.channelOf(piece, s.a)?.i === i)();
   el("rect", { x: 2, y: 2, width: T - 4, height: T - 4, rx: 8, fill: fixed?.k === "rock" ? "var(--pi-rock)" : "var(--pi-tile)", stroke: "var(--pi-tile-edge)", "stroke-width": 1 }, g);
   if (fixed?.k === "rock") { for (const [cx, cy, r] of [[20, 24, 9], [38, 36, 11], [24, 42, 6]]) el("circle", { cx, cy, r, fill: "var(--pi-tile-edge)" }, g); return; }
   if (fixed?.k === "source") {
-    const { d } = channel(-1, fixed.d);
-    el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
-    el("path", { d, class: "pipe", "stroke-width": 16 }, g);
+    pipeAlong(g, channel(-1, fixed.d).d);
+    oil(s => s.a < 0)();
     // the wellhead: a derrick over it
     el("path", { d: "M18 46 L30 12 L42 46 M22 35 H38 M25 24 H35", fill: "none", stroke: "var(--pi-in)", "stroke-width": 3.5, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
     el("rect", { x: 13, y: 44, width: 34, height: 5, rx: 2, fill: "var(--pi-in)" }, g);
   } else if (fixed?.k === "terminal") {
-    const { d } = channel(-1, fixed.d);
-    el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
-    el("path", { d, class: "pipe", "stroke-width": 16 }, g);
+    pipeAlong(g, channel(-1, fixed.d).d);
     // the terminal: a tank with its roof, flying a flag
     el("rect", { x: 13, y: 22, width: 34, height: 26, rx: 4, fill: "var(--pi-good)", stroke: "#fff", "stroke-width": 2 }, g);
     el("path", { d: "M13 26 Q30 15 47 26", fill: "var(--pi-good)", stroke: "#fff", "stroke-width": 2 }, g);
     el("path", { d: "M40 18 V6 L50 9 L40 12", fill: "#fff", stroke: "#fff", "stroke-width": 1.5, "stroke-linejoin": "round" }, g);
   } else if (fixed?.k === "pump" || fixed?.k === "tank") {
-    drawPipe(g, fixed.piece);
+    drawPipe(g, fixed.piece, inChannel(fixed.piece));
     if (fixed.k === "pump") {
       el("circle", { cx: MID, cy: MID, r: 13, class: "fixed-mark" }, g);
       el("path", { d: fixed.piece === "h" ? "M25 24 l10 6 l-10 6 z" : "M24 25 l6 10 l6 -10 z", fill: "#fff" }, g);
     } else el("rect", { x: fixed.piece === "h" ? 12 : 17, y: fixed.piece === "h" ? 17 : 12, width: fixed.piece === "h" ? 36 : 26, height: fixed.piece === "h" ? 26 : 36, rx: 8, class: "tank-body" }, g);
-  } else if (P?.grid[c]) drawPipe(g, P.grid[c]);
-  drawOilIn(c);
-}
-/** The oil in a square: each channel it has passed full, the one it's in now as far as it has come. */
-function drawOilIn(c) {
-  const g = cellG[c], P = F.P;
-  if (!g || !P) return;
-  for (const n of g.querySelectorAll(".oil")) n.remove();
-  const head = P.path.length ? P.path[P.path.length - 1] : null;
-  for (const s of P.path) {
-    if (s.c !== c) continue;
-    const { d, len } = channel(s.a, s.b), now = s === head && !P.over;
-    const p = el("path", { d, class: "oil", "stroke-width": 9, "stroke-dasharray": `${len} ${len}`, "stroke-dashoffset": now ? len * (1 - P.p) : 0 }, g);
-    if (now) { p.dataset.head = "1"; p.dataset.len = len; }
-  }
-  // a pump's or tank's mark stays over the oil
-  for (const m of g.querySelectorAll(".fixed-mark, .tank-body")) g.appendChild(m);
-  for (const m of g.querySelectorAll("path[fill='#fff']")) g.appendChild(m);
+  } else if (P?.grid[c]) drawPipe(g, P.grid[c], inChannel(P.grid[c]));
 }
 let cellG = [];
 function buildBoard() {
   const board = $("board");
   const svg = el("svg", { viewBox: `0 0 ${B.COLS * T} ${B.ROWS * T}`, role: "img", "aria-label": "The board" });
   cellG = [];
-  for (let c = 0; c < B.COLS * B.ROWS; c++) { const [x, y] = B.xy(c); cellG.push(el("g", { transform: `translate(${x * T} ${y * T})` }, svg)); }
+  // each square's drawing sits in a group inside the one that puts it in place: a blast's animation transforms the
+  // inner one, which would otherwise replace the placing (the square jumped to the board's corner while it played)
+  for (let c = 0; c < B.COLS * B.ROWS; c++) { const [x, y] = B.xy(c); cellG.push(el("g", {}, el("g", { transform: `translate(${x * T} ${y * T})` }, svg))); }
   el("g", { class: "overlay" }, svg);
   el("g", { class: "pops" }, svg);
   // a square is taken by where the finger lands (a tap on a phone isn't always delivered to the shape under it); at
@@ -408,7 +409,7 @@ function showFlat(fresh) {
   $("flatControls").hidden = false; $("deepControls").hidden = true;
   if (fresh || !cellG.length || $("board").dataset.for !== `${F.seed}/${F.n}`) { buildBoard(); $("board").dataset.for = `${F.seed}/${F.n}`; }
   else for (let c = 0; c < cellG.length; c++) drawCell(c);
-  queueKey = "";
+  queueKey = ""; flatKey = "";
   drawRoute();
   drawQueue();
   drawFlatHud();
@@ -436,18 +437,18 @@ function drawDeepStatus() {
   const D = R?.D;
   if (!D) return;
   const lead = G.lead(D), ghost = ghostOf(), end = G.openEnd(D), facing = G.contentAt(S, D, end.x, end.y, end.z);
-  const fit = ghost && G.fits(S, D, ghost), shut = fit && G.deadEnd(S, D, ghost);
+  const fit = ghost && G.fits(S, D, ghost), shut = fit && G.deadEnd(S, D, ghost), full = !G.room(D, ghost ? ghost.cells.length : 1);
   const blastable = facing === "rock" && D.charges > 0;
   const text = R.phase === "over" ? "The oil caught up"
     : !D.flowing ? `The oil comes in ${Math.ceil((G.START - D.t) / 1000)} s`
     : blastable ? "Rock ahead: blast it with a charge"
     : facing === "rock" || facing === "wall" || facing === "pipe" ? `Shut in by ${facing === "pipe" ? "your own pipe" : facing === "wall" ? "the shaft's wall" : "rock, and no charge"}: the oil will catch up`
-    : lead >= G.CAP ? `${G.CAP} laid ahead: wait for the oil, or hurry it`
+    : full ? (lead >= G.CAP ? `${G.CAP} laid ahead: wait for the oil, or hurry it` : "No room yet for two squares: wait for the oil, or hurry it")
     : !fit ? "That way's blocked: turn it, hold it or scrap it"
     : shut ? "That way leads into a dead end"
     : D.hurry ? "Hurrying the oil on"
     : "Turn the piece, then lay it";
-  const key = `${text}/${lead}/${D.hurry}/${D.held}/${D.charges}/${D.turn}/${D.cur}`;
+  const key = `${text}/${lead}/${full}/${D.hurry}/${D.held}/${D.charges}/${D.turn}/${D.cur}`;
   if (key === statusKey) return;
   statusKey = key;
   $("status").textContent = text;
@@ -460,8 +461,8 @@ function drawDeepStatus() {
   const playing = R.phase === "play" && !D.over && !IN_FRAME;
   const lay = $("layBtn");
   lay.querySelector("b").textContent = blastable ? "Blast" : "Lay";
-  $("layNote").textContent = blastable ? "a charge" : lead >= G.CAP ? "wait" : "it in";
-  lay.disabled = !playing || (!blastable && (lead >= G.CAP || !fit));
+  $("layNote").textContent = blastable ? "a charge" : full ? "wait" : "it in";
+  lay.disabled = !playing || (!blastable && (full || !fit));
   $("turnBtn").disabled = !playing || G.waysOf(D, D.cur).length < 2;
   $("holdBtn").disabled = !playing || D.held;
   $("holdNote").textContent = D.held ? "used" : D.hold ? "swap" : "set aside";
@@ -480,29 +481,29 @@ function showDeep(fresh) {
   queueKey = ""; statusKey = "";
   drawDeepHud();
   drawDeepCard();
-  view.draw(S, R.D, { ghost: ghostOf(), still: fresh });
+  view.draw(S, R.D, { ghost: ghostOf(), still: fresh, turns });
 }
 /** A move in the descent, from its keys, the keyboard or a tap on the shaft. */
 function act(what) {
   if (IN_FRAME || mode !== "deep" || !R || R.phase !== "play" || R.D.over) return;
   const D = R.D;
   let done = false;
-  if (what === "turn") { if (G.waysOf(D, D.cur).length > 1) { G.turnPiece(D); done = true; } }
+  if (what === "turn") { if (G.waysOf(D, D.cur).length > 1) { G.turnPiece(D); turns++; done = true; } }
   else if (what === "lay") {
     const end = G.openEnd(D);
     if (G.contentAt(S, D, end.x, end.y, end.z) === "rock" && D.charges) { done = G.blast(S, D); if (done) { toast("Blasted", 900); navigator.vibrate?.(30); } }
     else {
-      const before = { b: D.barrels, c: D.charges }, r = G.lay(S, D);
+      const before = { b: D.barrels, c: D.charges, n: D.pipe.length }, r = G.lay(S, D);
       done = r === "laid";
       if (done) {
         if (D.barrels > before.b) toast(`A barrel: +${G.BARREL}`, 1100);
         else if (D.charges > before.c) toast("A charge: blast a rock with it", 1600);
-        else if (D.pipe.slice(-2).some(c => c.took === "tank")) toast("A tank: the oil slows there", 1400);
+        else if (D.pipe.slice(before.n).some(c => c.took === "tank")) toast("A tank: the oil slows there", 1400);
       } else if (r === "blocked") toast("That way's blocked");
     }
   } else if (what === "hold") done = G.holdPiece(S, D);
   else if (what === "scrap") { done = G.scrap(S, D); if (done) toast("Scrapped: the oil surges", 1000); }
-  else if (what === "hurry") { G.hurry(D); done = D.hurry; }
+  else if (what === "hurry") { G.hurry(S, D); done = D.hurry; }
   if (!done) return;
   drawDeepHud();
   if (D.over) { descentOver(); showDeep(false); }
@@ -587,12 +588,16 @@ function setMode(m) {
   if (m === "flat") {
     if (!F) { F = loadRun(KEY.flat); if (F) L = B.deal(F.seed, F.n); }
     if (!F) return startFlat("random");
+    delete F.still;
     showFlat(true);
   } else {
     if (!R) { R = loadRun(KEY.deep); if (R) S = G.shaftOf(R.seed); }
     if (!R) return startDeep("random");
+    delete R.still;
     showDeep(true);
   }
+  // kept at once, as it's shown: a partner's watching frame runs it on from now, not from when it was last played
+  if (!match) save();
 }
 /** A run kept here, if it's this version's. */
 function loadRun(key) {
@@ -618,25 +623,27 @@ function showRules() {
       <li><b>The terminal</b> (from level 4): lead the oil into it once the quota is met for ${B.POINTS.terminal} and a clean end to the level. Into it any sooner, it's refused: a spill.</li>
     </ul>
     <p>The dashed line shows where the oil will go as the board stands; the ringed square is where its route needs a piece next, and a red cross is where it would spill.</p>
-    <p><b>Points</b>: ${B.POINTS.pipe} for each piece the oil passes through; on a level cleared, ${-B.POINTS.unused} less for each piece of yours it never reached. Oil now starts it before the countdown is out, ${B.POINTS.early} a second left; once it flows, Hurry runs it ${B.HURRY} times faster to the end of the level, and everything it fills from then scores double.</p>
+    <p><b>Points</b>: ${B.POINTS.pipe} for each piece the oil passes through; on a level cleared, ${-B.POINTS.unused} less for each piece of yours it never reached. Oil now starts it before the countdown is out, ${B.POINTS.early} for each second left (on a level cleared); once it flows, Hurry runs it ${B.HURRY} times faster to the end of the level, and everything it fills from then scores double.</p>
     <p>Every level is faster than the one before, its quota longer and its rock more, until level ${top}: ${last.fill / 1000} seconds a piece, a quota of ${last.quota}, ${last.countdown / 1000} seconds' countdown. From there on they stay as hard.</p>
     <h4>In 3D</h4>
     <p>The menu's 3D switch takes you down a shaft four squares across. The oil waits ${G.START / 1000} seconds at the wellhead, then runs down the pipe, slowly at first (${(G.fillTime(0) / 1000).toFixed(1)} seconds a square) and faster the deeper it gets. It's over when it catches the pipe's open end.</p>
     <ul>
       <li><b>The pieces</b>: a straight, a long straight (two squares), an elbow, and a jog (a square sideways, then on as it was going). The piece in hand shows at the open end in copper, the square it leads into outlined: green if it's open, red if it's shut.</li>
-      <li><b>Turn</b> it a quarter about the way the pipe is going (or tap the shaft), then <b>Lay</b> it. An elbow can go four ways, sideways or back up; a jog steps four ways.</li>
+      <li><b>Turn</b> it a quarter about the way the pipe is going (or tap the shaft), then <b>Lay</b> it. An elbow turns the pipe any of the four ways square to it (going down, the four sideways; going sideways, up, down or to either side), and a jog steps any of four ways.</li>
       <li><b>Hold</b> sets the piece in hand aside for the one held before, once a piece. <b>Scrap</b> throws it away for the next, but the oil surges on a square meanwhile.</li>
-      <li>You can lay ${G.CAP} squares ahead of the oil at most (the dots by the line under the shaft). <b>Hurry</b> runs the oil ${G.HURRY3} times faster until it's ${G.HURRY_STOP} squares behind you.</li>
+      <li>You can lay ${G.CAP} squares ahead of the oil at most (the dots by the line under the shaft). A piece taking two squares waits for room for both. <b>Hurry</b> runs the oil ${G.HURRY3} times faster until it's ${G.HURRY_STOP} squares behind you (and lets it go from the wellhead, if it's still waiting there).</li>
       <li><b>On the way</b>, steer round the rock: scattered blocks, pillars, and slabs across the whole shaft but for a gap or two. Lay pipe through the boons to take them: a barrel is worth ${G.BARREL}, a charge blasts the rock the open end faces (Lay becomes Blast), a tank holds the oil back ${G.TANK3} times as long.</li>
     </ul>
     <p><b>Points</b>: a point for every metre the oil gets down (a layer is ${G.METRES} m), and ${G.BARREL} a barrel. Drag the shaft to look round it.</p>
     <h4>Today's and together</h4>
-    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), each on their own phone: the highest score wins. On the board, Length in the menu sets how many levels the next match runs.</p>`;
+    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), each on their own phone: the highest score wins. On the board, the menu's Match length sets how many levels a match runs: 5, 10, or till the spill.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
 
 // ---------- the menu ----------
+/** How many levels a match on the board runs: the one choice of a match's own, so your menu has it too. */
+const matchLength = () => choice("Match length", [[5, "5 levels"], [10, "10 levels"], [0, "Till the spill"]], prefs.length || 0, v => { prefs.length = v; write(KEY.prefs, prefs); });
 let pick = null;      // the kind of run the menu's New game starts
 function openMenu() {
   const body = $("menuBody");
@@ -647,7 +654,7 @@ function openMenu() {
     part(body, "play").append(action("The rules", showRules, "link"));
     const settings = part(body, "settings");
     settings.append(toggle("3D (the next match)", prefs.mode === "deep", on => { prefs.mode = on ? "deep" : "flat"; write(KEY.prefs, prefs); openMenu(); }));
-    if (prefs.mode === "flat") settings.append(choice("Length (the next match)", [[5, "5 levels"], [10, "10 levels"], [0, "Till the spill"]], prefs.length, v => { prefs.length = v; write(KEY.prefs, prefs); }));
+    if (prefs.mode === "flat") settings.append(matchLength());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
@@ -656,6 +663,7 @@ function openMenu() {
   part(body, "play").append(action("New game", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
   part(body, "content").append(choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
   part(body, "settings").append(toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); }));
+  part(body, "together").append(matchLength());
   const fb = bestOf("flat"), db = bestOf("deep"), ft = todayOf("flat"), dt = todayOf("deep");
   part(body, "about").append(
     line(`The board: ${fb ? `best ${num(fb.score)} (level ${fb.level})` : "no run finished yet"}${ft ? `, today ${num(ft.score)}` : ""}.`),
@@ -731,7 +739,9 @@ function tell(done = false) {
 function lobby() {
   F = R = null;
   $("board").replaceChildren(); cellG = [];
-  $("queue").replaceChildren(); queueKey = "";
+  $("board").hidden = false; $("shaft").hidden = true;
+  $("flatControls").hidden = false; $("deepControls").hidden = true;
+  $("queue").replaceChildren(); queueKey = ""; flatKey = ""; statusKey = "";
   $("card").hidden = true;
   $("goBtn").classList.add("away");
   setStat("stat1", "–"); setStat("score", "0"); setStat("stat3", "–");
@@ -757,16 +767,26 @@ $("goBtn").addEventListener("click", () => {
 for (const [id, what] of [["holdBtn", "hold"], ["scrapBtn", "scrap"], ["turnBtn", "turn"], ["layBtn", "lay"], ["hurryBtn", "hurry"]]) $(id).addEventListener("click", () => act(what));
 document.addEventListener("keydown", e => {
   if (mode !== "deep" || e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]")) return;
+  if (e.target.closest?.("button, a, input, select, textarea, [role=button]")) return;   // a key on a button is the button's
   const what = { " ": "turn", r: "turn", Enter: "lay", h: "hold", x: "scrap", f: "hurry", b: "lay" }[e.key.length === 1 ? e.key.toLowerCase() : e.key];
   if (what) { e.preventDefault(); act(what); }
 });
 // the menu and the rules hold the game where it is (a match's clock runs on)
-onPause(() => { if (!match) { cancelAnimationFrame(raf); held = true; } }, () => { if (held) { held = false; run(); } });
+/** Your game standing still (the menu or the rules open, the app out of sight), marked in its save: a partner's
+ *  watching frame, which knows only what was last kept, then holds the oil where it is instead of running it on. */
+function standStill(on) {
+  const kept = mode === "flat" ? F : R;
+  if (!kept || match || IN_FRAME || !!kept.still === on) return;
+  if (on) kept.still = true; else delete kept.still;
+  save();
+}
+onPause(() => { if (!match) { cancelAnimationFrame(raf); held = true; standStill(true); } }, () => { if (held) { held = false; standStill(false); run(); } });
 // a match's clock runs on while the app is out of sight; your own game waits
 let hiddenAt = 0;
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) { hiddenAt = Date.now(); save(); return; }
+  if (document.hidden) { hiddenAt = Date.now(); save(); standStill(true); return; }
   if (match && hiddenAt) catchUp(Date.now() - hiddenAt);
+  else if (!held) standStill(false);
   hiddenAt = 0;
   duel.resync();
 });
@@ -787,9 +807,10 @@ function solo() {
     if (daily && Object.values(daily).some(v => typeof v?.score === "number")) localStorage.removeItem(KEY.daily);
   }
   F = R = null;
-  setMode(mode);
+  const shown = read(KEY.prefs, {})?.mode;                  // your own mode, whatever a match just played
+  setMode(shown === "deep" ? "deep" : "flat");
   const kept = mode === "flat" ? F : R;
-  if (IN_FRAME && kept?.at) catchUp(Date.now() - kept.at);
+  if (IN_FRAME && kept?.at && !kept.still) catchUp(Date.now() - kept.at);
   run();
 }
 // a match in the address: its run, with no solo one dealt under it

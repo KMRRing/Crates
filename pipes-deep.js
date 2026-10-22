@@ -137,6 +137,8 @@ const blocking = what => what === "wall" || what === "rock" || what === "pipe";
 export function openEnd(D) { const last = D.pipe[D.pipe.length - 1]; return { ...step(last, last.b), d: last.b }; }
 /** The pipe laid ahead of the oil (squares it hasn't entered). */
 export const lead = D => D.pipe.length - 1 - D.oil.i;
+/** Whether a piece taking n squares can be laid now without going more than CAP ahead of the oil. */
+export const room = (D, n = 1) => lead(D) + n <= CAP;
 /**
  * The ways a piece can be laid at the open end, each { cells: [{ x, y, z, a, b }], exit: { x, y, z, d } }: the squares
  * it takes, and the open end it leaves. One way for a straight or a long, four for an elbow or a jog.
@@ -165,15 +167,16 @@ export function firstTurn(S, D, kind = D.cur) {
 export function turnPiece(D) { const n = waysOf(D, D.cur).length; D.turn = (D.turn + 1) % n; return D.turn; }
 function nextPiece(S, D) { D.cur = pieceAt3(D.seed, D.next++); D.held = false; D.turn = firstTurn(S, D); }
 /**
- * Lays the piece in hand as it's turned. Returns "laid", or why not: "wait" (CAP squares laid ahead of the oil
- * already), "blocked", "over". A boon on a square it takes is taken: a barrel's points, a charge to blast with, a tank
- * laid in the pipe.
+ * Lays the piece in hand as it's turned. Returns "laid", or why not: "wait" (it would put more than CAP squares ahead
+ * of the oil), "blocked", "over". A boon on a square it takes is taken: a barrel's points, a charge to blast with, a
+ * tank laid in the pipe.
  */
 export function lay(S, D) {
   if (D.over) return "over";
-  if (lead(D) >= CAP) return "wait";
   const way = waysOf(D, D.cur)[D.turn];
-  if (!way || !fits(S, D, way)) return "blocked";
+  if (!way) return "blocked";
+  if (!room(D, way.cells.length)) return "wait";
+  if (!fits(S, D, way)) return "blocked";
   for (const c of way.cells) {
     const what = contentAt(S, D, c.x, c.y, c.z), cell = { ...c };
     if (what === "barrel" || what === "charge" || what === "tank") {
@@ -213,8 +216,13 @@ export function blast(S, D) {
   D.turn = firstTurn(S, D);
   return true;
 }
-/** Hurry: the oil runs HURRY3 times faster until it's HURRY_STOP squares behind the open end. */
-export function hurry(D) { if (!D.over && lead(D) > HURRY_STOP) D.hurry = true; }
+/** Hurry: the oil runs HURRY3 times faster until it's HURRY_STOP squares behind the open end (let go at once, if it's
+ *  still waiting at the wellhead). */
+export function hurry(S, D) {
+  if (D.over || lead(D) <= HURRY_STOP) return;
+  if (!D.flowing) advance(S, D, START - D.t);
+  D.hurry = true;
+}
 function squareTime(D, c) { return (c.src ? fillTime(0) / 2 : fillTime(c.z) * (c.tank ? TANK3 : 1)) / (D.hurry ? HURRY3 : 1); }
 /** The clock moved on by ms: the wellhead's wait, then the oil square by square; it's over when it reaches the open end. */
 export function advance(S, D, ms) {
