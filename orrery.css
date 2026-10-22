@@ -176,11 +176,19 @@
   #app.orrery { --beside: 21rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.orrery .or-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
   #app.orrery .or-sky { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
-  #app.orrery .or-side { grid-column: 2; grid-row: 3; align-content: end; }
-  #app.orrery .or-controls { align-content: end; }
+  #app.orrery .or-side { grid-column: 2; grid-row: 3; align-content: end; align-content: safe end; }    /* safe: taller than its room, it runs on down (and the app scrolls) rather than up over the score */
+  #app.orrery .or-controls { align-content: end; align-content: safe end; }
   #app.orrery .or-line { white-space: normal; min-height: 2.5rem; }                 /* the room for two lines, so it never jumps */
   /* the side column has the height to spare: the bar of beats goes under the tempo, as wide as the column */
   #app.orrery .or-beat { grid-template-columns: minmax(0, 1fr); grid-template-rows: 2.6rem 3.1rem; height: auto; gap: .45rem; }
   #app.orrery .or-tempo { grid-template-columns: minmax(2.4rem, 1fr) auto minmax(2.4rem, 1fr); }
   #app.orrery .or-result { grid-template-columns: 1fr; align-self: end; }
+}
+/* a phone on its side: too short for the tempo over the bar of beats, so they stand side by side as on a phone held
+   upright, and the line keeps to one line */
+@media (orientation: landscape) and (min-width: 700px) and (max-height: 500px) {
+  #app.orrery .or-strip { margin-top: .5rem; gap: .2rem; }
+  #app.orrery .or-beat { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: none; height: 2.75rem; gap: .5rem; }
+  #app.orrery .or-tempo { grid-template-columns: 2.2rem auto 2.2rem; }
+  #app.orrery .or-line { white-space: nowrap; min-height: 1.25rem; font-size: .8rem; }       /* a touch smaller: the longest fits the column in every theme */
 }
