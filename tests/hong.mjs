@@ -6,6 +6,7 @@
 // shared room (as the database keeps it, tests/rtdb.js); and the puzzle rush's bank.
 import * as E from "../hong-engine.js";
 import * as B from "../hong-bot.js";
+import * as V from "../hong-3d.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -460,6 +461,55 @@ check(B.shanten(E.counts(T("123m 456m 789m 234p 5s")), 0) === 0 && B.shanten(E.c
   }
   check(!refused, `hands together: every write one the database accepts${refused ? ` (refused at ${refused})` : ` (${moves} moves)`}`);
   check(!changed, `and every state comes back from the room as it was written${changed ? ` (not at ${changed})` : ""}`);
+}
+
+{
+  // the 3D view's layout and bookkeeping (hong-3d.js), the parts that are plain functions
+  const inside = (r, o, e = 0.5) => r.x >= o.x - e && r.y >= o.y - e && r.x + r.w <= o.x + o.w + e && r.y + r.h <= o.y + o.h + e;
+  const apart = (a, b) => a.x + a.w <= b.x + 0.5 || b.x + b.w <= a.x + 0.5 || a.y + a.h <= b.y + 0.5 || b.y + b.h <= a.y + 0.5;
+  // the wall: stacks round the table in four sides, and the stacks' tiles are the wall's
+  const ring = V.ring(18, 17);
+  check(ring.length === 70 && [0, 1, 2, 3].every(s => ring.filter(r => r.side === s).length === (s % 2 ? 17 : 18)), "3D: the ring has a stack for each pair of tiles, on four sides");
+  check(V.wallStart(0, 18, 17) === 0 && V.wallStart(1, 18, 17) === 18 && V.wallStart(3, 18, 17) === 53, "3D: the wall begins at the dealer's side");
+  const g = E.deal({ seed: 11, dealer: 2, round: 0, opts: { flowers: true, minFan: 3 } });
+  const held = () => { let n = 0; for (let i = 0; i < g.wall.length / 2; i++) n += V.stackLeft(i, g.head, g.tail); return n; };
+  check(held() === g.tail - g.head, "3D: the stacks hold the tiles still in the wall");
+  // a hand played through: what the log says happened is what the pools and flights show
+  let claims = 0, placed = true;
+  for (let k = 0; k < 3000 && g.phase !== "over"; k++) {
+    const seat = E.waitingOn(g)[0], before = g.log.length;
+    E.act(g, seat, B.decide(g, seat, { seed: seat + 1 }).action);
+    for (const m of V.movesSince(g, before)) {
+      if (m.t === "discard") placed = placed && g.seats[m.seat].river[m.raw]?.k === m.k;
+      if (m.t === "claim") { claims++; placed = placed && m.from !== m.seat && g.seats[m.from].river[m.raw]?.k === m.k && g.seats[m.from].river[m.raw].by === m.seat; }
+    }
+  }
+  check(g.phase === "over", "3D: the hand played through for the log");
+  check(placed, `3D: a discard and a claim on it name the river place the tile is in (${claims} claims)`);
+  check(V.movesSince(g, 0).filter(m => m.t === "discard").length === g.seats.reduce((n, s) => n + s.river.length, 0), "3D: every discard in the log is in a river");
+  check([0, 1, 2, 3].every(s => V.riverOf(g, s).length === g.seats[s].river.filter(d => d.by === undefined).length) && V.riverOf(g, 0).every(d => g.seats[0].river[d.raw].k === d.k), "3D: a pool holds the discards no one has claimed");
+  check(held() === g.tail - g.head, "3D: the stacks follow the wall to the end of the hand");
+  // the layout: for each size of field the plan fits it and nothing lies on anything else
+  let laid = true, why = "";
+  const sizes = [[358, 320], [358, 480], [358, 560], [590, 270], [700, 600], [1000, 800], [620, 400]];
+  for (const [fw, fh] of sizes) {
+    const hp = V.planeHeight(fh), rim = 9, whole = { x: 0, y: 0, w: fw, h: hp }, bad = [];
+    const c = V.compose(V.plan({ w: fw - 2 * rim, h: hp - 2 * rim }, { half: 36, rows: 24, cap: 38 }), { w: fw, h: hp });
+    if (!c.stacks.every(r => inside(r, whole))) bad.push("a stack outside");
+    for (const q of c.pools) {
+      if (!inside(q, whole)) bad.push("a pool outside");
+      if (!apart(q, c.plate)) bad.push("a pool on the plate");
+      for (let i = 0; i < V.RIVER; i++) { const at = q.slot(i); if (!inside({ x: at.x, y: at.y, w: c.d, h: c.d * V.SR }, q, c.d)) { bad.push(`discard ${i} outside its pool`); break; } }
+    }
+    for (const r of [1, 2, 3]) {
+      const st = c.strips[r], near = { x: st.x - c.p, y: st.y - c.p, w: st.w + 2 * c.p, h: st.h + 2 * c.p };
+      const items = V.stripItems(st, r, c.t, { hand: Array(13).fill(-1), melds: [[1, 2, 3], [4, 5, 6], [7, 7, 7]], flowers: [34, 35, 36], show: false, apart: true });
+      if (!items.every(it => inside({ x: it.cx - it.w / 2, y: it.cy - it.h / 2, w: it.w, h: it.h }, near, 1))) bad.push(`a strip's tile outside`);
+    }
+    if (bad.length) { laid = false; why = ` (${fw}x${fh}: ${bad[0]})`; break; }
+  }
+  check(laid, `3D: the layout fits ${sizes.length} sizes of field, the pools clear of the plate and holding their discards, the strips on the table${why}`);
+  check(V.planeHeight(300) > 300 && V.planeHeight(300) < 400, "3D: the plane is a little taller than the field it fills once tipped");
 }
 
 export { T, table };

@@ -2,10 +2,12 @@
 // numeral over 萬, dots and bamboo as the patterns on a real set (the one of bamboo a bird), the winds and dragons in
 // their characters, the flowers and seasons with their number. Colours are CSS variables (hong.css), so a tile follows
 // the theme; each suited tile and wind also carries a small corner index (1–9, E S W N) for players who don't read the
-// characters, hidden by --hk-num: 0.
+// characters, hidden by --hk-num: 0. Each tile is in two builds, from one drawing of its face: flat (hk-12: the face and
+// a green edge under it) and a slab (hk3-12, for the 3D view: a thicker one, its ivory side and green back showing).
 import { tileName, isWind, isDragon } from "./hong-engine.js";
 
 const W = 30, H = 40, FACE = 36.5;                               // the face, then the tile's edge below it
+const SLAB = 46, SIDE = 42;                                      // a slab: its height, and where its green back begins under the ivory side
 const NUM = ["一", "二", "三", "四", "五", "六", "七", "八", "九"];
 const ink = c => `style="fill:var(--hk-${c})"`;
 const CJK = `font-family="'Songti TC','STSong','Noto Serif CJK TC','Noto Serif TC','Hiragino Mincho ProN','PMingLiU','MingLiU',serif"`;
@@ -69,13 +71,26 @@ function face(k) {
   return `${text("梅蘭菊竹春夏秋冬"[k - 34], 15, 22, 16, c)}${sprig}<text x="25.8" y="8.2" font-size="7" font-weight="700" text-anchor="middle" font-family="system-ui,sans-serif" ${ink(c)}>${n}</text>`;
 }
 const blank = `<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="4" style="fill:var(--hk-back);stroke:var(--hk-edge);stroke-width:.8"/><rect x=".5" y=".5" width="${W - 1}" height="${FACE}" rx="3.6" style="fill:var(--hk-face);stroke:var(--hk-edge);stroke-width:.8"/>`;
+// a slab: the face, an ivory side under it (a shade darker), the green back showing at the foot; light along the face's top edge
+const slabBase = `<rect x=".5" y=".5" width="${W - 1}" height="${SLAB - 1}" rx="4" style="fill:var(--hk-back);stroke:var(--hk-edge);stroke-width:.8"/>`
+  + `<rect x=".5" y=".5" width="${W - 1}" height="${SIDE - 0.5}" rx="4" style="fill:color-mix(in srgb, var(--hk-face) 80%, var(--hk-edge));stroke:var(--hk-edge);stroke-width:.8"/>`
+  + `<rect x=".5" y=".5" width="${W - 1}" height="${FACE}" rx="3.6" style="fill:var(--hk-face);stroke:var(--hk-edge);stroke-width:.8"/>`
+  + `<path d="M4 1.7h${W - 8}" style="fill:none;stroke:#FFF;stroke-width:.9;stroke-linecap:round;opacity:.55"/>`;
+// the back of a tile standing in a hand, seen from across the table: its green back, the ivory of its top edge above
+const slabBack = `<rect x=".5" y=".5" width="${W - 1}" height="${SLAB - 1}" rx="4" style="fill:var(--hk-back);stroke:var(--hk-edge);stroke-width:.8"/>`
+  + `<rect x=".5" y=".5" width="${W - 1}" height="9" rx="3.6" style="fill:color-mix(in srgb, var(--hk-face) 80%, var(--hk-edge));stroke:var(--hk-edge);stroke-width:.8"/>`
+  + `<rect x="4" y="13" width="${W - 8}" height="${SLAB - 17}" rx="2.4" style="fill:none;stroke:var(--hk-back-line);stroke-width:.8"/>`;
 const back = `<rect x=".5" y=".5" width="${W - 1}" height="${H - 1}" rx="4" style="fill:var(--hk-back);stroke:var(--hk-edge);stroke-width:.8"/><rect x="3.5" y="3.5" width="${W - 7}" height="${H - 9}" rx="2.4" style="fill:none;stroke:var(--hk-back-line);stroke-width:.8"/>`;
 
 /** The symbols, as one hidden SVG to put in the page once. */
 export const TILE_DEFS = `<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true"><defs>
 <symbol id="hk-blank" viewBox="0 0 ${W} ${H}">${blank}</symbol>
 <symbol id="hk-back" viewBox="0 0 ${W} ${H}">${back}</symbol>
-${Array.from({ length: 42 }, (_, k) => `<symbol id="hk-${k}" viewBox="0 0 ${W} ${H}"><use href="#hk-blank"/>${face(k)}</symbol>`).join("\n")}
+<symbol id="hk3-blank" viewBox="0 0 ${W} ${SLAB}">${slabBase}</symbol>
+<symbol id="hk3-back" viewBox="0 0 ${W} ${SLAB}">${slabBack}</symbol>
+${Array.from({ length: 42 }, (_, k) => `<symbol id="hk-f${k}" viewBox="0 0 ${W} ${H}">${face(k)}</symbol>
+<symbol id="hk-${k}" viewBox="0 0 ${W} ${H}"><use href="#hk-blank"/><use href="#hk-f${k}" width="${W}" height="${H}"/></symbol>
+<symbol id="hk3-${k}" viewBox="0 0 ${W} ${SLAB}"><use href="#hk3-blank"/><use href="#hk-f${k}" width="${W}" height="${H}"/></symbol>`).join("\n")}
 </defs></svg>`;
 let installed = false;
 /** Puts the symbols in the page (once). */
@@ -84,6 +99,8 @@ export function installTiles() {
   installed = true;
   document.body.insertAdjacentHTML("afterbegin", TILE_DEFS);
 }
-/** A tile as markup: an SVG using its symbol (k = -1 for a tile's back). */
-export const tileSvg = (k, cls = "") => `<svg class="hk-t${cls ? ` ${cls}` : ""}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${k < 0 ? "a hidden tile" : tileName(k)}"><use href="#hk-${k < 0 ? "back" : k}"/></svg>`;
-export const TILE_W = W, TILE_H = H;
+/** A tile as markup: an SVG using its symbol (k = -1 for a tile's back); slab: the 3D view's thicker build. */
+export const tileSvg = (k, cls = "", slab = false) => `<svg class="hk-t${slab ? " slab" : ""}${cls ? ` ${cls}` : ""}" viewBox="0 0 ${W} ${slab ? SLAB : H}" role="img" aria-label="${k < 0 ? "a hidden tile" : tileName(k)}"><use href="#hk${slab ? "3" : ""}-${k < 0 ? "back" : k}"/></svg>`;
+/** A slab for the 3D table's own elements (they carry their own labels). */
+export const slabSvg = k => `<svg class="hk3-s" viewBox="0 0 ${W} ${SLAB}" aria-hidden="true"><use href="#hk3-${k < 0 ? "back" : k}"/></svg>`;
+export const TILE_W = W, TILE_H = H, SLAB_H = SLAB;

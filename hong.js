@@ -5,7 +5,8 @@
 // parted from its, by how many points and why; and after each hand, where your play and its parted.
 import * as E from "./hong-engine.js";
 import { routeName, shantenWords, differ, differWords, decide, explainMove } from "./hong-bot.js";
-import { installTiles, tileSvg } from "./hong-tiles.js";
+import { installTiles, tileSvg, SLAB_H, TILE_W } from "./hong-tiles.js";
+import { createTable3d } from "./hong-3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { createTogether, seatsOf, seatOfSlot, peopleSeats, runsElsewhere } from "./together.js";
 import { GAMES, roomInAddress, joiningWords } from "./rooms.js";
@@ -31,7 +32,9 @@ const clone = x => JSON.parse(JSON.stringify(x));
 // G: the hand in play (the engine's state). S: the game around it: { seed, firstDealer, names, humans, results }.
 // R: the coach's notes on your decisions this hand, for the review at its end.
 let G = null, S = null, R = [];
-let opts = { flowers: true, minFan: 3, rounds: 1, scoring: "fan", coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, ...read(OPTS, {}) };
+let opts = { flowers: true, minFan: 3, rounds: 1, scoring: "fan", coach: "on", pace: "steady", numbers: true, bots: "hard", full: false, view: "table", ...read(OPTS, {}) };
+const VIEWS = [["table", "Table"], ["3d", "3D"]];                  // the table drawn flat (hong.js) or seen at an angle (hong-3d.js)
+if (!VIEWS.some(([k]) => k === opts.view)) opts.view = "table";
 // the coach was on or off (with Hint) until October 2026, and "differ" for a day: kept as the way it means now
 const coachWas = opts.coach;
 opts.coach = coachWas === true ? "on" : coachWas === false ? "hints" : coachWas === "differ" ? "check" : COACH.includes(coachWas) ? coachWas : "on";
@@ -46,6 +49,12 @@ const windGlyph = seat => E.WINDS[E.windOf(G, seat)];
 const keyNow = () => (G ? `${G.hand}:${G.log.length}:${G.phase}` : "");
 /** A phone held sideways (hong.css's last query): the table takes the screen, your tiles lie along its edge. */
 const low = () => matchMedia(`${SIDEWAYS} and (max-height: 500px)`).matches;
+/** The view chosen in the menu: the table drawn flat (#board, below) or seen at an angle (#board3d, hong-3d.js). The tiles
+ *  in your hand, your seat's line, the coach and the buttons are the same elements in both, drawn here. */
+const in3d = () => opts.view === "3d" && !!table3d;
+let table3d = null;
+/** The ratio of a tile in your hand's height to its width: the 3D view's slabs are thicker (hong-tiles.js). */
+const tileRatio = () => (in3d() ? SLAB_H / TILE_W : 4 / 3);
 
 // ---------- the computer players, in a worker ----------
 let worker = null, asked = 0, local = null;
@@ -497,9 +506,10 @@ function handSize(melds = G.seats[me].melds) {
   // on a phone on its side the row lies on the table, which leaves room for it at its foot (--hk-reserve): on the
   // shortest phones a little smaller, so the table keeps its share of the height; in full screen the row has the whole
   // width under the console too, and takes a little more of the height
-  const most = opts.full ? Math.min(rem * 2.75, innerHeight * 0.112) : Math.min(rem * 2.3, innerHeight * 0.095);
+  const thick = 4 / 3 / tileRatio();                              // the 3D view's slabs are taller for their width: the heights below are for a flat tile
+  const most = (opts.full ? Math.min(rem * 2.75, innerHeight * 0.112) : Math.min(rem * 2.3, innerHeight * 0.095)) * thick;
   // in rows, no more than about a quarter of the screen's height for them all, so the table keeps its share
-  const tall = rows > 1 ? (innerHeight * 0.24 / rows) * 0.72 : Infinity;
+  const tall = rows > 1 ? (innerHeight * 0.24 / rows) * 0.72 * thick : Infinity;
   return { tw: Math.max(18, Math.min(room / Math.max(units, 9.5), low() ? most : rem * 3.1, tall)), rows };
 }
 function drawHand() {
@@ -516,14 +526,14 @@ function drawHand() {
   box.style.setProperty("--hk-t", `${tw.toFixed(1)}px`);
   box.style.setProperty("--rows", rows);
   box.classList.toggle("grid", rows > 1);
-  if (low()) $("app").style.setProperty("--hk-reserve", `${(tw * 4 / 3 + 1.25 * rem).toFixed(1)}px`);
+  if (low()) $("app").style.setProperty("--hk-reserve", `${(tw * tileRatio() + 1.25 * rem).toFixed(1)}px`);
   const btn = (k, extra = "") => {
     const cls = ["hk-tile"];
     if (picked === k && myTurn) cls.push("picked");
     if (rec === k && myTurn) cls.push("advised");
-    return `<button type="button" class="${cls.join(" ")}${extra}" data-k="${k}" aria-label="${E.tileName(k)}"${myTurn ? "" : " tabindex=\"-1\""}>${tileSvg(k)}</button>`;
+    return `<button type="button" class="${cls.join(" ")}${extra}" data-k="${k}" aria-label="${E.tileName(k)}"${myTurn ? "" : " tabindex=\"-1\""}>${tileSvg(k, "", in3d())}</button>`;
   };
-  const meld = m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k)).join("")}</span>`;
+  const meld = m => `<span class="hk-meld">${meldTiles(m).map(k => tileSvg(k, "", in3d())).join("")}</span>`;
   let html;
   if (rows === 1) {
     html = `<span class="hk-concealed${myTurn ? " live" : ""}">${tiles.map(k => btn(k)).join("")}`;
@@ -806,9 +816,11 @@ function fullScreen(on) {
 function render() {
   placeFull();
   if (!G) return;
-  const box = $("table"), size = () => `${box.clientWidth}x${box.clientHeight}`;
+  const box = $("table"), size = () => `${box.clientWidth}x${box.clientHeight}`, three = in3d();
+  const drawn = () => (three ? table3d.draw() : drawTable());
+  if (three) table3d.snapshot();               // where the tiles were, for the ones that fly (hong-3d.js)
   if (low()) drawHand();                       // on a phone on its side the table leaves your row its room: sized first
-  drawTable();
+  drawn();
   const drawnFor = size();
   drawMine();
   if (!low()) drawHand();
@@ -816,7 +828,8 @@ function render() {
   drawPartner();
   // the rows under the table changed height (a claim's buttons, a verdict, the first draw after a reload): the table's
   // box changed with them, and the drawing takes its proportions
-  if (size() !== drawnFor) drawTable();
+  if (size() !== drawnFor) drawn();
+  if (three) table3d.fly();
 }
 function closeDialogs() { for (const id of ["resultDlg", "whyDlg", "rushDlg", "copyDlg"]) if ($(id).open) $(id).close(); }
 
@@ -1151,6 +1164,7 @@ function openMenu() {
     if (differs) content.append(line("These take effect with a new game."));
   }
   part(body, "settings").append(
+    choice("View", VIEWS, opts.view, v => set("view", v)),
     choice("Computer players", [["medium", "Medium"], ["hard", "Hard"]], together.room ? S?.bots || "hard" : opts.bots, v => {
       set("bots", v);
       if (together.room) together.act(g => { if (!g.session) return false; g.session.bots = v; });
@@ -1167,7 +1181,19 @@ function openMenu() {
   if (rushBests) part(body, "about").append(line(rushBests));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
-function applyLook() { $("app").style.setProperty("--hk-num", opts.numbers ? "1" : "0"); }
+function applyLook() {
+  $("app").style.setProperty("--hk-num", opts.numbers ? "1" : "0");
+  showView();
+}
+/** The view chosen in the menu: the flat table (#board) or the table at an angle (#board3d); the one not shown is emptied
+ *  of what it knew, so a view shown again starts from the table as it is (nothing flies that it didn't see go). */
+function showView() {
+  const three = in3d();
+  $("app").classList.toggle("hk3", three);
+  $("board").toggleAttribute("hidden", three);                   // (an svg has no .hidden)
+  $("board3d").hidden = !three;
+  table3d?.reset();
+}
 
 // ---------- copying it out (Menu) ----------
 // For checking the coach elsewhere. Copy turn: your decision now (between your turns, your last one, while the page is
@@ -1370,6 +1396,12 @@ ${nofan ? `<p><b>No fan.</b> Any complete hand wins, and every win pays alike: s
 
 // ---------- wiring ----------
 installTiles();
+table3d = createTable3d({
+  state: () => G, me: () => me, nameOf, meldTiles, busy: () => busyWith, quiet: IN_FRAME,
+  cap: () => Math.min(handSize([]).tw, 2.4 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)),
+  headerOver, answering: () => !!G && E.legal(G, me).some(a => a.t !== "pass"),
+  hand: () => [...$("hand").querySelectorAll(".hk-tile")], melds: () => [...$("hand").querySelectorAll(".hk-meld")],
+});
 bindSwitcher($("appsBtn"), "hong");
 document.querySelector(".hk-mark").innerHTML = APPS.find(a => a.id === "hong")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
@@ -1383,7 +1415,7 @@ for (const id of ["rulesDlg", "whyDlg"]) $(id).addEventListener("click", e => { 
 $("rushAgain").addEventListener("click", () => startRush());
 $("rushLeave").addEventListener("click", () => leaveRush());
 $("copyClose").addEventListener("click", () => $("copyDlg").close());
-onPause(() => { clearTimeout(timer); render(); }, () => kick(0));
+onPause(() => { clearTimeout(timer); table3d.pause(true); render(); }, () => { table3d.pause(false); kick(0); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) together.resync(); });
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 let resizeTimer = null;
@@ -1392,7 +1424,7 @@ addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setT
 // for tests and debugging
 window.__hong = { get state() { return G; }, get session() { return S; }, get review() { return R; }, get advice() { return advice; }, get me() { return me; }, get together() { return together; },
   get rush() { return rush; }, get words() { return words; }, startRush, nextRush, leaveRush,
-  mine, newGame, nextHand, set(o) { Object.assign(opts, o); write(OPTS, opts); applyLook(); render(); } };
+  mine, newGame, nextHand, get view() { return opts.view; }, set(o) { Object.assign(opts, o); write(OPTS, opts); applyLook(); render(); } };
 
 /** Back to where you were: a puzzle rush left open, else your game as you left it, else a new one. */
 function load() {
