@@ -59,6 +59,7 @@ const RUNTIME = [
   ["pics.js", /^img\.src = tries\[/, "a Wikipedia picture: kept by sw.js once shown, or by Settings' Keep pictures offline"],
   ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
   ["sync.js", /^fetch\(url \+/, "Firebase: playing together, watching and syncing need a connection"],
+  ["timegrapher.js", /^img\.src = url$/, "a photo of a watch chosen on the phone (a blob: URL), read to be made small: nothing from the network"],
   ["lan-ui.js", /^frame\.src = (`party\.html\?table=\$\{partyCode\}`|url)$/, "an offline party's frame: Party and the pages it goes to, every one kept"],
 ];
 const unknown = built.filter(b => !RUNTIME.some(([file, re]) => b.file === file && re.test(b.load)));

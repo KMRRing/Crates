@@ -50,7 +50,7 @@ html[data-mode="night"] { --tg-good: #7FC2A8; --tg-bad: #E8806F; --tg-logo-tint:
 .tg-line.bad { color: var(--tg-bad); font-weight: 700; }
 
 /* the buttons: Listen is the plate */
-.tg-acts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .45rem; }
+.tg-acts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: .45rem; }
 html .tg-acts .btn { min-height: 3.1rem; padding: .2rem .4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 html .tg-acts .tg-listen { font-size: 1rem; }
 body.tg-on .tg-listen::before { content: ""; display: inline-block; width: .55rem; height: .55rem; margin-right: .5rem; border-radius: 50%; background: currentColor; vertical-align: .05em; animation: tg-pulse 1.2s ease-in-out infinite; }
@@ -142,3 +142,52 @@ html .tg-set { min-height: 2.4rem; font-size: .72rem; }
 .tg-log .tg-del { height: 1.9rem; width: 1.9rem; }
 #askDlg input { width: 100%; font-size: 1.1rem; padding: .55rem .7rem; margin: .6rem 0 .8rem; border: 1.5px solid var(--brass); border-radius: 4px; background: var(--yard); color: var(--ink); }
 .tg-ask { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+
+/* the library: each watch with its photo (or its initial on a plate), its name, its reference and calibre, how it's keeping */
+.tg-thumb { flex: none; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; }
+.tg-sthumb, .tg-lthumb { display: grid; place-items: center; overflow: hidden; border-radius: 50%; background: var(--tg-soft); border: 1px solid var(--brass); color: var(--tg-in); font-weight: 800; }
+.tg-sthumb { width: 1.75rem; height: 1.75rem; font-size: .8rem; }
+.tg-lthumb { flex: none; width: 3rem; height: 3rem; font-size: 1.2rem; }
+.tg-sthumb img, .tg-lthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tg-lib { list-style: none; margin: 0 0 .7rem; padding: 0; display: grid; gap: .35rem; }
+.tg-lrow { width: 100%; display: flex; align-items: center; gap: .7rem; padding: .45rem .55rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.tg-lrow.cur { border-color: var(--tg-in); box-shadow: inset 0 0 0 1px var(--tg-in); }
+.tg-ltext { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.tg-ltext b { font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tg-ltext small { font-size: .74rem; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.tg-chip { flex: none; font-style: normal; font-size: .62rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.08em * var(--track)); text-transform: var(--caps); padding: .2rem .4rem; border-radius: 3px; border: 1px solid var(--rule); color: var(--ink-soft); }
+.tg-chip.good { color: var(--tg-good); border-color: var(--tg-good); }
+.tg-chip.watch { color: var(--brass-lo); border-color: var(--brass); }
+.tg-chip.service { color: var(--tg-bad); border-color: var(--tg-bad); }
+.tg-pc { flex: none; font-style: normal; font-weight: 800; font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--tg-in); }
+html .tg-add { width: 100%; min-height: 2.8rem; }
+
+/* a watch: its photo beside its name, reference, calibre and last service; its words; how it's keeping */
+.tg-card { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: .7rem; align-items: start; }
+.tg-photo { width: 7.5rem; aspect-ratio: 1; padding: 0; border: 1px dashed var(--brass); border-radius: 6px; background: var(--tg-soft); color: var(--ink-soft); font: inherit; font-size: .8rem; cursor: pointer; overflow: hidden; }
+.tg-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tg-photo:has(img) { border-style: solid; }
+.tg-fields { display: grid; gap: .35rem; }
+.tg-fields label, .tg-desc { display: grid; gap: .1rem; }
+.tg-fields small, .tg-desc small { font-size: .58rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.tg-fields input, .tg-fields select, .tg-desc textarea { margin: 0; width: 100%; min-width: 0; box-sizing: border-box; padding: .3rem .45rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--yard); color: var(--ink); font: inherit; font-size: .9rem; }
+.tg-desc { margin-top: .6rem; }
+.tg-desc textarea { resize: vertical; min-height: 3.6rem; line-height: 1.35; }
+.tg-health { margin-top: .8rem; padding-top: .6rem; border-top: 1px solid var(--rule); }
+.tg-status { margin: 0 0 .2rem; font-weight: 800; font-size: .95rem; }
+.tg-status.good { color: var(--tg-good); }
+.tg-status.service { color: var(--tg-bad); }
+.tg-status.watch { color: var(--brass-lo); }
+.tg-charts { display: grid; gap: .5rem; margin-top: .5rem; }
+.tg-chart { margin: 0; display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); align-items: center; gap: .6rem; }
+.tg-chart figcaption { display: grid; grid-template-columns: auto auto; justify-content: start; align-items: baseline; gap: 0 .3rem; }
+.tg-chart figcaption small { grid-column: 1 / -1; font-size: .58rem; font-weight: 800; font-stretch: var(--wide); letter-spacing: calc(.12em * var(--track)); text-transform: var(--caps); color: var(--brass-lo); }
+.tg-chart figcaption b { font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.tg-chart figcaption span { font-size: .72rem; color: var(--ink-soft); }
+.tg-chart svg { width: 100%; height: 2.6rem; overflow: visible; }
+.tg-chart polyline { fill: none; stroke: var(--tg-in); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.tg-chart circle { fill: var(--tg-in); }
+.tg-chart line.base { stroke: var(--brass); stroke-width: 1px; stroke-dasharray: 3 3; vector-effect: non-scaling-stroke; }
+.tg-wacts { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .8rem; }
+.tg-wacts .primary { grid-column: 1 / -1; }
+html .tg-wacts .btn { min-height: 2.8rem; }

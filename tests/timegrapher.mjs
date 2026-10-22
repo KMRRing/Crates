@@ -10,6 +10,7 @@ import { createChain, envelopeOf, BAND } from "../timegrapher-dsp.js";
 import { measure, detect, fitBeats, amplitudeOf, liftTimeOf, STANDARD, MANUAL } from "../timegrapher-measure.js";
 import { CALIBRES, byId, DEFAULT_LIFT, SURE } from "../timegrapher-calibres.js";
 import { POSITIONS, summarise, verdict, isochronism, readingWords, tapOffset, wornRate, cleanWatches, COSC, WITSCHI } from "../timegrapher-records.js";
+import { fingerprint, learn, identify, alike, health, cleanPrint, SERVICE_YEARS } from "../timegrapher-library.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -169,5 +170,62 @@ for (const fs of [44100, 48000]) {
   check(JSON.stringify(cleanWatches(null, ids)) === JSON.stringify({ current: null, list: [] }) && cleanWatches({ current: "z", list: [{ id: "a" }] }, ids).current === "a", "nothing, or a current watch that's gone");
 }
 
+// ---------- the library: which watch, and how it's keeping ----------
+{
+  // watches as a microphone hears them: each its own beat error, rate, swing, noises and case; read again and again
+  // with a reading's usual scatter (a position, a wind), in a room
+  const WATCH = {
+    gut1: { vph: 21600, rate: 3, be: 0.2, amp: 290, unlock: 0.45, impulse: 0.3, tock: 0.75, spread: 0.02, caseSeed: 1 },
+    gut2: { vph: 21600, rate: -2, be: 0.6, amp: 275, unlock: 0.5, impulse: 0.28, tock: 0.65, spread: 0.03, caseSeed: 2 },
+    geo: { vph: 21600, rate: 8, be: 1.1, amp: 250, unlock: 0.35, impulse: 0.4, tock: 0.8, spread: 0.01, caseSeed: 3 },
+    rado: { vph: 21600, rate: -5, be: 0.35, amp: 300, unlock: 0.55, impulse: 0.25, tock: 0.6, spread: 0.04, caseSeed: 4 },
+    hb: { vph: 28800, rate: 6, be: 0.4, amp: 285, caseSeed: 5 },
+  };
+  let seed = 500;
+  const jit = () => (((seed * 7919) % 1000) / 1000 - 0.5);
+  const hear = id => { seed++; const o = WATCH[id]; return fingerprint(run(synthWatch({ ...o, rate: o.rate + jit() * 6, amp: o.amp + jit() * 20, be: o.be + jit() * 0.06, secs: 20, seed, noise: 0.006, hiss: 0.001 }), 48000, { lift: 52 })); };
+  const prints = {};
+  for (const id of Object.keys(WATCH)) for (let k = 0; k < 3; k++) prints[id] = learn(prints[id], hear(id));
+  const lib = Object.keys(WATCH).map(id => ({ id, vph: WATCH[id].vph, print: prints[id] }));
+  let right = 0, sure = 0, total = 0;
+  for (const id of Object.keys(WATCH)) for (let k = 0; k < 3; k++) { const r = identify(lib, hear(id)); total++; if (r.ranked[0].id === id) right++; if (r.sure && r.ranked[0].id === id) sure++; if (r.sure && r.ranked[0].id !== id) right -= 99; }
+  check(right === total, `a reading named for the watch it was, ${right} of ${total} (sure of ${sure}), four beating 21,600 parted by their beat error and beat, never sure of the wrong one`);
+  const hb = identify(lib, hear("hb"));
+  check(hb.ranked.length === 1 && hb.sure, "a beat rate only one watch has: that watch, sure");
+  const fresh = identify(lib.map(w => ({ ...w, print: null })), hear("gut1"));
+  check(!fresh.sure && fresh.twins && fresh.ranked.length === 4 && fresh.ranked.every(r => Math.abs(r.p - 0.25) < 1e-9), "nothing learnt yet: the four that beat alike offered alike, and it asks");
+  // two of one calibre and case, regulated alike: no telling them apart, so never sure
+  const twin = { ...WATCH.gut1, caseSeed: 1 }, twinPrint = [0, 1, 2].reduce(p => { seed++; return learn(p, fingerprint(run(synthWatch({ ...twin, secs: 20, seed, noise: 0.006, hiss: 0.001 }), 48000, { lift: 52 }))); }, null);
+  const t2 = identify([{ id: "a", vph: 21600, print: prints.gut1 }, { id: "b", vph: 21600, print: twinPrint }], hear("gut1"));
+  check(!t2.sure, `two watches regulated alike: not sure (${t2.ranked.map(r => `${r.id} ${Math.round(r.p * 100)}%`).join(", ")})`);
+  check(identify([{ id: "q", quartz: true }, { id: "m", vph: 288000 }], hear("gut1")).ranked.length === 0, "a quartz watch and one that beats otherwise aren't candidates");
+  check(alike(prints.gut1.a, prints.gut1.a) > 0.999 && JSON.stringify(cleanPrint(JSON.parse(JSON.stringify(prints.gut1)))) === JSON.stringify(prints.gut1) && cleanPrint({ vph: 1 }) === null, "a print through JSON, a shape like itself");
+
+  // how it's keeping: a baseline after its service, its latest set against it
+  const day = 86400000, now = Date.UTC(2026, 9, 22), at = k => now - (20 - k) * 15 * day;
+  const reads = f => Array.from({ length: 20 }, (_, k) => ({ at: at(k), rate: 2, be: 0.3, amp: 290, ...f(k) }));
+  const ok = health({ readings: reads(() => ({})), sessions: [], served: "2024-01-10" }, now);
+  check(ok.status === "good" && ok.series.amp.length === 20 && ok.baseline.amp === 290 && Math.abs(ok.served - 2.78) < 0.01, `keeping as it did (${ok.lines[0]})`);
+  const dry = health({ readings: reads(k => ({ amp: 300 - k * 3 })), sessions: [] }, now);
+  check(dry.status === "watch" && /Amplitude down/.test(dry.lines[0]), `the swing falling: ${dry.lines[0]}`);
+  const low = health({ readings: reads(k => ({ amp: k > 15 ? 205 : 280 })), sessions: [] }, now);
+  check(low.status === "service" && /low/.test(low.lines[0]), "a swing under 220°: a service");
+  const mag = health({ readings: reads(k => ({ rate: k === 19 ? 160 : 2 })), sessions: [] }, now);
+  check(mag.status === "watch" && /magnetised/.test(mag.lines.join(" ")), "a rate that jumps: magnetised, or knocked");
+  const be = health({ readings: reads(k => ({ be: k > 14 ? 1.1 : 0.3 })), sessions: [] }, now);
+  check(be.status === "watch" && /putting in beat/.test(be.lines.join(" ")), "a beat error grown: wants putting in beat");
+  const old = health({ readings: reads(() => ({})), sessions: [], served: "2019-05-01" }, now);
+  check(old.status === "service" && old.served > SERVICE_YEARS && /years ago/.test(old.lines.join(" ")), "a service longer ago than makers ask for: due");
+  const since = health({ readings: reads(k => ({ amp: k < 10 ? 200 : 290 })), sessions: [], served: new Date(at(10)).toISOString().slice(0, 10) }, now);
+  check(since.status === "good" && since.baseline.amp === 290, "the baseline starts again at a service: the low swing before it doesn't count");
+  check(health({ readings: [], sessions: [] }, now).status === "unknown", "no readings: nothing to say yet");
+
+  // the library's fields kept, garbage dropped
+  const ids = new Set([...CALIBRES.map(c => c.id), "auto"]);
+  const w = cleanWatches({ current: "a", list: [{ id: "a", name: "GRUT", cal: "jlc-822", ref: "Q2788520", desc: "x".repeat(2000), served: "2023-04-01", photo: 123, print: prints.gut1 }, { id: "b", served: "yesterday", photo: "big", print: { bad: 1 } }] }, ids);
+  check(w.list[0].ref === "Q2788520" && w.list[0].desc.length === 1000 && w.list[0].served === "2023-04-01" && w.list[0].photo === 123 && w.list[0].print?.n === 3, "a watch keeps its reference, words, last service, photo and print");
+  check(w.list[1].served === null && w.list[1].photo === null && w.list[1].print === null && w.list[1].ref === "", "a date that isn't one, a photo that isn't one, a print that isn't one: dropped");
+}
+
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("timegrapher: rate, beat error, amplitude and vph from synthetic watches; nothing from a room; the calibres, the positions, the worn rate and the keeping");
+else console.log("timegrapher: rate, beat error, amplitude and vph from synthetic watches; nothing from a room; the calibres, the positions, the worn rate, the keeping, which watch and how it's keeping");

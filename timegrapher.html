@@ -26,7 +26,7 @@
   </header>
 
   <div class="tg-strip">
-    <span class="tg-watch"><select id="watchSel" class="pool" data-accent="tg" aria-label="Watch"></select><small id="calTag"></small></span>
+    <span class="tg-watch"><button id="thumbBtn" class="tg-thumb" type="button" aria-label="This watch in your library"></button><select id="watchSel" class="pool" data-accent="tg" aria-label="Watch"></select><small id="calTag"></small></span>
     <span class="tg-meter" id="meter" role="img" aria-label="Signal"><small>Signal</small><i></i><i></i><i></i><i></i><i></i></span>
   </div>
   <section id="trace" class="tg-trace fit-grow" aria-label="The trace; tap for the beat"><span class="tg-view" id="viewTag">Trace</span></section>
@@ -39,6 +39,7 @@
   <p id="line" class="tg-line" role="status" aria-live="polite"></p>
   <div class="tg-acts" id="acts">
     <button class="btn tg-open" type="button" id="openBtn" aria-label="Open a recording">Open</button>
+    <button class="btn tg-which" type="button" id="whichBtn">Which?</button>
     <button class="btn tg-skip" type="button" id="skipBtn" hidden>Skip</button>
     <button class="btn primary tg-listen" type="button" id="listenBtn" aria-pressed="false">Listen</button>
     <button class="btn tg-end" type="button" id="endBtn" hidden>End</button>
@@ -82,6 +83,44 @@
   <div class="tg-ask"><button class="btn" type="button" id="askCancel">Cancel</button><button class="btn primary" type="button" id="askOk">Keep</button></div>
 </dialog>
 
+<dialog id="libDlg" class="sheet tg-sheet" aria-labelledby="libHead">
+  <div class="pick-head"><h2 id="libHead">Your watches</h2><button class="icon-btn" type="button" id="libClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <ul id="libList" class="tg-lib"></ul>
+  <button class="btn tg-add" type="button" id="libAdd">Add a watch</button>
+</dialog>
+
+<dialog id="watchDlg" class="sheet tg-sheet" aria-labelledby="wName">
+  <div class="pick-head"><h2 class="tg-wtitle">Watch</h2><button class="icon-btn" type="button" id="watchClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="tg-card">
+    <button class="tg-photo" type="button" id="photoBtn" aria-label="Its photo: tap to add or change"></button>
+    <div class="tg-fields">
+      <label><small>Name</small><input id="wName" type="text" maxlength="60" autocomplete="off"></label>
+      <label><small>Reference</small><input id="wRef" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Q2788520"></label>
+      <label><small>Calibre</small><select id="wCal"></select></label>
+      <label><small>Last service</small><input id="wServed" type="date"></label>
+    </div>
+  </div>
+  <label class="tg-desc"><small>Description</small><textarea id="wDesc" maxlength="1000" rows="3" placeholder="Case, dial, strap, where it came from…"></textarea></label>
+  <section class="tg-health" aria-label="How it's keeping">
+    <p class="tg-status" id="wStatus"></p>
+    <div id="wLines" class="tg-words"></div>
+    <div class="tg-charts" id="wCharts"></div>
+  </section>
+  <div class="tg-wacts">
+    <button class="btn primary" type="button" id="wUse">Put it on the microphone</button>
+    <button class="btn" type="button" id="wHist">History</button>
+    <button class="btn link" type="button" id="wRemove">Remove</button>
+  </div>
+</dialog>
+
+<dialog id="idDlg" class="sheet tg-sheet" aria-labelledby="idHead">
+  <div class="pick-head"><h2 id="idHead">Which watch</h2><button class="icon-btn" type="button" id="idClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <p id="idWhat" class="tg-what"></p>
+  <ul id="idList" class="tg-lib"></ul>
+  <button class="btn tg-add" type="button" id="idOther">Another watch</button>
+</dialog>
+
+<input type="file" id="photoFile" accept="image/*" hidden>
 <input type="file" id="file" accept="audio/*,video/*,.m4a,.wav,.mp3,.mp4,.mov,.aac,.caf" hidden>
 <script type="module" src="timegrapher.js"></script>
 </body>

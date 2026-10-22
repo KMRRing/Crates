@@ -58,7 +58,7 @@ function pink(x, rms, r) {
  * loudness against the tick), unlock and impulse (their loudness against the drop), spread (tick and tock lifts apart,
  * as a fraction), jitter (s a beat), wander (s/d, a slow swing of the rate), drift (the level's slow swing, as a
  * fraction), band ([lo, hi] Hz of the case's resonances), noise (pink RMS), hiss (white RMS), hum (50 Hz amplitude),
- * mains (50 or 60), knocks (how many), voices (how many), seed. Returns { x, beats: [first-noise times, s] }.
+ * mains (50 or 60), knocks (how many), voices (how many), seed, caseSeed (the case's resonances, the same watch's each time). Returns { x, beats: [first-noise times, s] }.
  */
 export function synthWatch(o = {}) {
   const fs = o.fs ?? 48000, secs = o.secs ?? 30, vph = o.vph ?? 21600, rate = o.rate ?? 0, be = (o.be ?? 0) / 1000;
@@ -66,7 +66,9 @@ export function synthWatch(o = {}) {
   const unlock = o.unlock ?? 0.45, impulse = o.impulse ?? 0.3, spread = o.spread ?? 0.02, jitter = o.jitter ?? 8e-6;
   const wander = o.wander ?? 0, drift = o.drift ?? 0.25, [lo, hi] = o.band ?? [2800, 11000];
   const r = mulberry32(o.seed ?? 1), x = new Float32Array(Math.round(secs * fs));
-  const modes = [resonances(r, 5, lo, hi), resonances(r, 5, lo, hi)];     // each pallet's noises ring the case a little differently
+  // each pallet's noises ring the case a little differently; a case seed keeps one watch's case the same from one reading to the next
+  const rc = o.caseSeed != null ? mulberry32(o.caseSeed) : r;
+  const modes = [resonances(rc, 5, lo, hi), resonances(rc, 5, lo, hi)];
   const Pn = 3600 / vph;
   const beats = [];
   const gainAt = t => level * (1 + drift * Math.sin(2 * Math.PI * t / 7.3 + 1.1));

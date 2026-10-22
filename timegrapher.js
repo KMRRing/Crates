@@ -1,7 +1,8 @@
 // Timegrapher: a mechanical watch on the phone's microphone, or a recording of one, measured as a watchmaker's
 // timegrapher measures it: its rate (s/d), beat error (ms) and amplitude (degrees, roughly), with the dot trace; a
 // session through the six positions, judged against COSC's and Witschi's limits; and the rate as worn, from taps
-// against the phone's clock days apart. The signal chain is timegrapher-dsp.js's, the measuring
+// against the phone's clock days apart; a library of the watches (a photo, a reference, words, the last service), each
+// learning its own sound so a reading can say which it is (Which?), and how each is keeping over the months. The signal chain is timegrapher-dsp.js's, the measuring
 // timegrapher-measure.js's, the verdicts and the keeping timegrapher-records.js's (all tested in Node), the calibres
 // timegrapher-calibres.js's, the microphone's tap timegrapher-worklet.js on the audio thread, the drawing
 // timegrapher-trace.js's; this file listens and draws the page.
@@ -9,6 +10,7 @@ import { createChain, bandLevel } from "./timegrapher-dsp.js";
 import { measure, detect, MANUAL, QUARTZ } from "./timegrapher-measure.js";
 import { createTrace } from "./timegrapher-trace.js";
 import { CALIBRES, byId, DEFAULT_LIFT, SURE } from "./timegrapher-calibres.js";
+import { fingerprint, learn, identify, health, STATUS } from "./timegrapher-library.js";
 import { POSITIONS, summarise, verdict, isochronism, readingWords, tapOffset, wornRate, cleanWatches, cleanReading, cleanSession, signed } from "./timegrapher-records.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
@@ -18,7 +20,8 @@ import { busy } from "./loading.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
-const WATCHES = "timegrapher:watches", OPTS = "timegrapher:opts", SESSION = "timegrapher:session", OLD = "timegrapher:readings";
+const WATCHES = "timegrapher:watches", OPTS = "timegrapher:opts", SESSION = "timegrapher:session", OLD = "timegrapher:readings", LIB = "timegrapher:lib";
+const photoKey = id => `timegrapher:photo:${id}`;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { if (!IN_FRAME) try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -53,14 +56,39 @@ function loadWatches() {
   if (old) write(OLD, null);
   return w;
 }
+const blank = (id, name, cal = "auto", extra = {}) => ({ id, name, cal, vph: null, lift: null, ref: "", desc: "", served: null, photo: null, print: null, readings: [], sessions: [], log: [], ...extra });
+// The library came in October 2026: Korbi's watches given their references and words as he gave them, and his second
+// Grande Reverso Ultra Thin (the same calibre and case: a photo and a reference tell them apart, and its sound is learnt)
+if (!IN_FRAME && !read(LIB, false)) {
+  const SEED = {
+    "jlc-822": { ref: "Q2788520 (277.8.62)", desc: "Steel, silvered vertical guilloché dial. Cal. 822, hand-wound." },
+    "jlc-858": { ref: "270.2.58", desc: "The 1998 Géographique in rose gold. Cal. 858, hand-wound." },
+    "fc-810": { desc: "Steel. FC-810: a silicon oscillator at 40 Hz, no balance." },
+    "rado-r763": { ref: "R27077312", desc: "Green dial. R763 (ETA C07.611), automatic, 80 hours, Nivachron hairspring." },
+    "fc-310": { desc: "FC-310 (Sellita SW200-1), automatic." },
+  };
+  for (const w of W.list) { const s = SEED[w.id]; if (s) { w.ref ||= s.ref || ""; w.desc ||= s.desc; } }
+  const guts = W.list.filter(w => w.cal === "jlc-822");
+  if (guts.length === 1) W.list.splice(W.list.indexOf(guts[0]) + 1, 0, blank("jlc-822-b", "Grande Reverso Ultra Thin II", "jlc-822", { desc: "The second one: its reference and a photo tell it from the first." }));
+  write(WATCHES, W);
+  write(LIB, true);
+}
 const saveW = () => write(WATCHES, W);
+/** What a watch beats, as far as is known: its own vph, else its calibre's, else null (by ear). */
+const vphOf = w => (w.vph > 0 ? w.vph : w.vph === 0 ? null : calOf(w).vph ?? null);
 const watch = () => W.list.find(w => w.id === W.current) || W.list[0];
 /** What the current watch is listened for: its vph (or null, by ear), its lift angle, and what kind of oscillator. */
 function setting() {
   const w = watch(), c = calOf(w);
   return { vph: w?.vph ?? c.vph ?? null, lift: c.flexure ? null : w?.lift ?? c.lift ?? DEFAULT_LIFT, flexure: !!c.flexure, coaxial: !!c.coaxial, quartz: !!c.quartz, cal: c };
 }
-const measureOpts = () => { const s = setting(); return { vph: s.vph, lift: s.coaxial || s.flexure ? null : s.lift, flexure: s.flexure }; };
+const measureOpts = () => {
+  if (ident) return { vph: null, lift: DEFAULT_LIFT, flexure: false };      // which watch: heard by ear, whatever is chosen
+  const s = setting();
+  return { vph: s.vph, lift: s.coaxial || s.flexure ? null : s.lift, flexure: s.flexure };
+};
+let ident = false;            // listening to say which watch it is (Which?)
+const IDENT_SECS = 20;        // s of the watch heard before it says: enough for its beat error to a few hundredths of a ms
 
 // ---------- the reading in progress ----------
 // The envelope as it comes (the signal chain's output, in chunks), how much of it there has been, and the trace's
@@ -98,7 +126,7 @@ function append(env) {
 let audio = null, stream = null, source = null, node = null, workletReady = false, listening = false, lock = null;
 async function listen() {
   if (IN_FRAME || listening) return listening;
-  if (setting().quartz) { say("A quartz watch steps once a second from its crystal: there's no escapement for a timegrapher to hear.", "bad"); return false; }
+  if (!ident && setting().quartz) { say("A quartz watch steps once a second from its crystal: there's no escapement for a timegrapher to hear.", "bad"); return false; }
   if (!navigator.mediaDevices?.getUserMedia) { say("Listening needs the app opened from its own address (https).", "bad"); return false; }
   try {
     audio ??= new AudioContext();
@@ -146,6 +174,7 @@ function stop(why = "") {
   if (!listening) return;
   teardown();
   setListening(false);
+  if (ident) { endIdentify(why); return; }
   if (S) { if (S.phase !== "place") { S.phase = "place"; saveS(); } drawSession(); say(why ? `${why} stopped.` : stepWords()); return; }
   const res = R?.len ? finalMeasure() : null;
   if (res?.ok && res.secs >= MIN_KEEP) {
@@ -195,6 +224,7 @@ function liveMeasure() {
     if (res.ok) R.known = res.found; else if (res.why === "nothing") R.known = null;
     if (heard() - R.asked > 4) { R.asked = heard(); askOther(res, env, o); }      // asked every few seconds
     show(res);
+    if (ident && res.ok && heard() >= IDENT_SECS) stop();
   } catch (e) { console.error(e); }
   R.busy = false;
 }
@@ -339,9 +369,163 @@ function keep(res, pos = null, name = null) {
   if (!r) return;
   w.readings.unshift(r);
   w.readings = w.readings.slice(0, 100);
+  // every reading teaches the watch its own sound, so Which? can tell it later (one that beats otherwise than it should isn't it)
+  const fp = fingerprint(res), want = vphOf(w);
+  if (fp && (!want || want === fp.vph)) w.print = learn(w.print, fp);
   saveW();
 }
 const round = (v, d) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
+
+// ---------- which watch ----------
+async function whichWatch() {
+  if (IN_FRAME || S) return;
+  if (listening) stop();
+  ident = true;
+  if (!(await listen())) { ident = false; drawButtons(); return; }
+  say(`Listening for which watch it is: about ${IDENT_SECS} seconds, the case back on the microphone.`);
+}
+/** Which? stopped (by itself after IDENT_SECS, or by hand): the reading by ear set against every watch's print. */
+let heardRes = null;
+function endIdentify(why) {
+  const res = R?.len ? finalMeasure() : null;
+  ident = false;
+  drawButtons();
+  if (!res?.ok || res.secs < MIN_KEEP) { say(why ? `${why} stopped.` : res ? whyText(res) : "Stopped.", "bad"); return; }
+  heardRes = res;
+  show(res);
+  const fp = fingerprint(res), r = identify(W.list.map(w => ({ id: w.id, vph: vphOf(w), quartz: !!calOf(w).quartz, print: w.print })), fp);
+  const byId = id => W.list.find(w => w.id === id), top = r.ranked[0] && byId(r.ranked[0].id);
+  $("idHead").textContent = r.sure ? top.name : r.ranked.length ? "Which is it?" : "None of yours";
+  $("idWhat").textContent = `${n0(fp.vph)} vph · ${signed(fp.rate)} s/d${fp.be != null ? ` · ${fp.be.toFixed(1)} ms` : ""}${fp.amp != null ? ` · ≈${Math.round(fp.amp)}°` : ""}. `
+    + (!r.ranked.length ? "Nothing in your library beats so: add it as another watch."
+      : r.sure ? "Tap it to keep the reading with it."
+      : r.ranked[0].learnt && r.ranked.slice(1).some(x => !x.learnt) ? `Most like ${top.name}, but some that beat alike haven't been heard yet: tap the one it is, and it learns.`
+      : r.twins ? "These beat alike and it hasn't learnt them apart yet: tap the one it is, and it learns its sound."
+      : "Not sure: tap the one it is, and it learns.");
+  $("idList").innerHTML = r.ranked.slice(0, 4).map(x => {
+    const w = byId(x.id);
+    return `<li><button type="button" class="tg-lrow" data-id="${esc(w.id)}">${thumb(w)}<span class="tg-ltext"><b>${esc(w.name)}</b><small>${esc([w.ref, x.why[0]].filter(Boolean).join(" · ") || calOf(w).cal)}</small></span><em class="tg-pc">${Math.round(x.p * 100)}%</em></button></li>`;
+  }).join("");
+  $("idDlg").showModal();
+}
+/** The watch it was, by the player's word: the reading measured again as that watch (its own lift angle) and kept with it. */
+function itWas(id) {
+  $("idDlg").close();
+  if (!W.list.some(w => w.id === id)) return;
+  W.current = id;
+  if (R) R.known = null;
+  const res = R?.len ? finalMeasure() : null, use = res?.ok ? res : heardRes;
+  keep(use);
+  drawWatch();
+  show(use);
+  say(`Kept with ${watch().name}: ${signed(use.rate)} s/d${use.be != null ? `, ${use.be.toFixed(1)} ms` : ""}. ${readingWords(use.rate)}`);
+}
+$("idList").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) itWas(b.dataset.id); });
+$("idOther").addEventListener("click", async () => {
+  $("idDlg").close();
+  const name = await askName("This watch's name");
+  if (!name) return;
+  const id = `w${Date.now().toString(36)}`;
+  W.list.push(blank(id, name));
+  itWas(id);
+});
+
+// ---------- the library ----------
+const photoOf = w => (w?.photo ? read(photoKey(w.id), null) : null);
+/** A watch's photo, small, or the plate it has until it has one. */
+function thumb(w, cls = "tg-lthumb") {
+  const src = photoOf(w);
+  return src ? `<span class="${cls}"><img src="${src}" alt=""></span>` : `<span class="${cls} none" aria-hidden="true">${esc((w.name || "?").trim()[0] || "?")}</span>`;
+}
+const CHIP = { good: "Well", watch: "Watch it", service: "Service" };
+function openLibrary() {
+  $("libList").innerHTML = W.list.map(w => {
+    const h = health(w), c = calOf(w);
+    return `<li><button type="button" class="tg-lrow${w.id === W.current ? " cur" : ""}" data-id="${esc(w.id)}">${thumb(w)}<span class="tg-ltext"><b>${esc(w.name)}</b><small>${esc([w.ref, c.id === "auto" ? "" : c.short || c.cal].filter(Boolean).join(" · ") || "Add its reference")}</small></span>${h.status === "unknown" ? "" : `<em class="tg-chip ${h.status}">${CHIP[h.status]}</em>`}</button></li>`;
+  }).join("");
+  if (!$("libDlg").open) $("libDlg").showModal();
+}
+$("libList").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if (b) openWatch(b.dataset.id); });
+$("libAdd").addEventListener("click", async () => {
+  const name = await askName("A watch's name");
+  if (!name) return;
+  const id = `w${Date.now().toString(36)}`;
+  W.list.push(blank(id, name));
+  saveW();
+  drawWatch();
+  openLibrary();
+  openWatch(id);
+});
+let shownW = null;            // the watch the watch sheet shows
+function openWatch(id) {
+  const w = W.list.find(x => x.id === id);
+  if (!w) return;
+  shownW = w;
+  $("wName").value = w.name;
+  $("wRef").value = w.ref || "";
+  $("wDesc").value = w.desc || "";
+  $("wServed").value = w.served || "";
+  $("wServed").max = new Date().toISOString().slice(0, 10);
+  const cal = $("wCal");
+  cal.replaceChildren(new Option("By ear", "auto"), ...CALIBRES.map(c => new Option(c.short ? `${c.name} · ${c.short}` : c.name, c.id)));
+  cal.value = w.cal;
+  $("photoBtn").innerHTML = photoOf(w) ? `<img src="${photoOf(w)}" alt="${esc(w.name)}">` : `<span>Add a photo</span>`;
+  $("wUse").hidden = w.id === W.current;
+  drawHealth(w);
+  if (!$("watchDlg").open) $("watchDlg").showModal();
+}
+/** How the watch is keeping: its status, what tells, and its rate, amplitude and beat error over time. */
+function drawHealth(w) {
+  const h = health(w);
+  $("wStatus").className = `tg-status ${h.status}`;
+  $("wStatus").textContent = `${STATUS[h.status]}${h.served != null ? ` · serviced ${h.served < 1 ? `${Math.max(1, Math.round(h.served * 12))} months` : `${h.served.toFixed(1)} years`} ago` : ""}`;
+  $("wLines").innerHTML = h.lines.map(l => `<p>${esc(l)}</p>`).join("");
+  const chart = (pts, label, unit, digits, base) => {
+    if (pts.length < 2) return "";
+    const t0 = pts[0][0], t1 = pts[pts.length - 1][0] || t0 + 1, vs = pts.map(p => p[1]).concat(base != null ? [base] : []);
+    let lo = Math.min(...vs), hi = Math.max(...vs);
+    if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+    const pad = (hi - lo) * 0.12, X = at => (t1 > t0 ? ((at - t0) / (t1 - t0)) * 100 : 50), Y = v => 28 - ((v - lo + pad) / (hi - lo + 2 * pad)) * 26;
+    const line = pts.map(p => `${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" "), last = pts[pts.length - 1][1];
+    return `<figure class="tg-chart"><figcaption><small>${label}</small><b>${digits ? (unit === "s/d" ? signed(last, digits) : last.toFixed(digits)) : Math.round(last)}</b><span>${unit}</span></figcaption>
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">${base != null ? `<line class="base" x1="0" x2="100" y1="${Y(base).toFixed(1)}" y2="${Y(base).toFixed(1)}"/>` : ""}<polyline points="${line}"/>${pts.map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="1.2"/>`).join("")}</svg></figure>`;
+  };
+  $("wCharts").innerHTML = chart(h.series.rate, "Rate", "s/d", 1, h.baseline?.rate) + chart(h.series.amp, "Amplitude", "°", 0, h.baseline?.amp) + chart(h.series.be, "Beat error", "ms", 1, h.baseline?.be);
+}
+const edited = () => { saveW(); drawWatch(); };
+$("wName").addEventListener("change", e => { if (shownW && e.target.value.trim()) { shownW.name = e.target.value.trim().slice(0, 60); edited(); } });
+$("wRef").addEventListener("change", e => { if (shownW) { shownW.ref = e.target.value.trim().slice(0, 40); edited(); } });
+$("wDesc").addEventListener("change", e => { if (shownW) { shownW.desc = e.target.value.trim().slice(0, 1000); edited(); } });
+$("wServed").addEventListener("change", e => { if (shownW) { shownW.served = /^\d{4}-\d{2}-\d{2}$/.test(e.target.value) ? e.target.value : null; edited(); drawHealth(shownW); } });
+$("wCal").addEventListener("change", e => { if (shownW) { shownW.cal = e.target.value; shownW.vph = null; shownW.lift = null; if (shownW.id === W.current && R) R.known = null; edited(); } });
+$("photoBtn").addEventListener("click", () => { if (!IN_FRAME) $("photoFile").click(); });
+$("photoFile").addEventListener("change", async e => {
+  const f = e.target.files?.[0], w = shownW;
+  e.target.value = "";
+  if (!f || !w) return;
+  const ok = await setPhoto(w, f);
+  if (ok) openWatch(w.id); else say("That photo couldn't be kept: the phone's storage for this app is full, or the picture couldn't be read.", "bad");
+});
+/** A photo made small (480 px on its long side, a JPEG of 30 to 60 kB) and kept under its own key, so the list of
+ *  watches stays light and a photo travels to the other devices only when it changes. */
+async function setPhoto(w, file) {
+  try {
+    const url = URL.createObjectURL(file), img = new Image();
+    await new Promise((ok, no) => { img.onload = ok; img.onerror = no; img.src = url; });
+    URL.revokeObjectURL(url);
+    const k = Math.min(1, 480 / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    localStorage.setItem(photoKey(w.id), JSON.stringify(c.toDataURL("image/jpeg", 0.8)));
+    w.photo = Date.now();
+    edited();
+    return true;
+  } catch { return false; }
+}
+$("wUse").addEventListener("click", () => { if (shownW) { chooseWatch(shownW.id); $("watchDlg").close(); $("libDlg").close(); } });
+$("wHist").addEventListener("click", () => { if (shownW) openHistory(shownW); });
+$("wRemove").addEventListener("click", () => { if (shownW && removeWatch(shownW)) { $("watchDlg").close(); if ($("libDlg").open) openLibrary(); } });
+$("thumbBtn").addEventListener("click", () => openWatch(W.current));
 
 // ---------- drawing ----------
 function whyText(res) {
@@ -362,7 +546,8 @@ function show(res) {
   $("amp").textContent = amp ? `≈${Math.round(res.amp)}°` : "—";
   $("ampSub").textContent = s.flexure ? "no balance" : s.coaxial ? "co-axial: none" : amp ? `rough · lift ${s.lift}°` : ok ? "noises unclear" : "°";
   meter(res);
-  if (listening && (!S || S.phase === "measure")) {                // a session's placing and settling keep their own words
+  if (listening && ident) say(ok ? `Listening for which watch it is: ${Math.max(0, Math.ceil(IDENT_SECS - heard()))} s more · ${n0(res.vph)} vph` : whyText(res));
+  else if (listening && (!S || S.phase === "measure")) {                // a session's placing and settling keep their own words
     if (!ok) say(whyText(res), res.other ? "bad" : "");
     else if (!S) say(`${n0(res.vph)} vph · ${Math.round(res.secs)} s · ${Math.round(res.kept * 100)}% of beats`);
     else if (S.phase === "measure") say(`${pos().name}: ${Math.max(0, Math.ceil(opts.length - heard()))} s more · ${signed(res.rate)} s/d so far`);
@@ -424,12 +609,16 @@ function drawWatch() {
   for (const o of sel.options) if (o.value !== "+") { const c = calOf(W.list.find(w => w.id === o.value)); o.dataset.note = c.id === "auto" ? "vph by ear" : c.cal; }
   sel.value = W.current;
   dd?.sync();
+  $("thumbBtn").innerHTML = thumb(watch(), "tg-sthumb");
   $("calTag").textContent = s.quartz ? "quartz" : `${s.vph ? n0(s.vph) : "by ear"}${s.flexure ? " · rate only" : s.coaxial ? " · co-axial" : ` · ${s.lift}°`}`;
 }
 function drawButtons() {
   const sess = !!S;
   $("acts").classList.toggle("session", sess);
   $("openBtn").hidden = sess;
+  $("whichBtn").hidden = sess;
+  $("whichBtn").disabled = IN_FRAME || (listening && !ident);
+  $("whichBtn").textContent = ident ? "Hearing…" : "Which?";
   $("skipBtn").hidden = !sess;
   $("endBtn").hidden = !sess;
   const main = $("listenBtn");
@@ -467,8 +656,10 @@ function showSession(s, w) {
   $("resWords").innerHTML = v.lines.map(l => `<p>${esc(l)}</p>`).join("");
   $("resultDlg").showModal();
 }
-function openHistory() {
-  const w = watch(), rows = [];
+let histW = null;             // the watch the history shows
+function openHistory(w = watch()) {
+  histW = w;
+  const rows = [];
   const date = t => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   w.sessions.forEach((s, i) => {
     const sum = summarise(s.steps), v = verdict(sum);
@@ -485,11 +676,11 @@ function openHistory() {
   if (!$("histDlg").open) $("histDlg").showModal();
 }
 $("histList").addEventListener("click", e => {
-  const w = watch(), b = e.target.closest("button");
+  const w = histW || watch(), b = e.target.closest("button");
   if (!b || IN_FRAME) return;
   if (b.dataset.session != null) { showSession(w.sessions[+b.dataset.session], w); return; }
-  if (b.dataset.delSession != null && confirm("Delete this session?")) { w.sessions.splice(+b.dataset.delSession, 1); saveW(); openHistory(); }
-  if (b.dataset.delReading != null && confirm("Delete this reading?")) { w.readings.splice(+b.dataset.delReading, 1); saveW(); openHistory(); }
+  if (b.dataset.delSession != null && confirm("Delete this session?")) { w.sessions.splice(+b.dataset.delSession, 1); saveW(); openHistory(w); }
+  if (b.dataset.delReading != null && confirm("Delete this reading?")) { w.readings.splice(+b.dataset.delReading, 1); saveW(); openHistory(w); }
 });
 
 // the worn-rate log: the phone's clock to a tenth, a tap the moment the seconds hand reaches 12
@@ -559,27 +750,22 @@ async function addWatch() {
   const name = await askName("A watch's name");
   if (!name) { drawWatch(); return; }
   const id = `w${Date.now().toString(36)}`;
-  W.list.push({ id, name, cal: "auto", vph: null, lift: null, readings: [], sessions: [], log: [] });
+  W.list.push(blank(id, name));
   W.current = id;
   saveW();
   drawWatch();
-  openMenu();
+  openWatch(id);
 }
-async function renameWatch() {
-  const w = watch(), name = await askName("Rename", w.name);
-  if (!name) return;
-  w.name = name;
-  saveW();
-  drawWatch();
-}
-function removeWatch() {
-  if (W.list.length < 2) { say("The last watch stays: rename it instead."); return; }
-  const w = watch();
-  if (!confirm(`Remove ${w.name}, with its readings, sessions and worn-rate log?`)) return;
+/** Removes a watch with all it has kept, its photo too; the last stays. True if it went. */
+function removeWatch(w = watch()) {
+  if (W.list.length < 2) { say("The last watch stays: rename it instead."); return false; }
+  if (!confirm(`Remove ${w.name}, with its photo, readings, sessions and worn-rate log?`)) return false;
   W.list = W.list.filter(x => x !== w);
-  W.current = W.list[0].id;
+  if (W.current === w.id) W.current = W.list[0].id;
+  write(photoKey(w.id), null);
   saveW();
   drawWatch();
+  return true;
 }
 function chooseWatch(id) {
   if (id === "+") { addWatch(); return; }
@@ -651,7 +837,7 @@ function openMenu() {
       }));
     }
   }
-  content.append(action("Add a watch", addWatch), action("Rename this watch", renameWatch), action("Remove this watch", removeWatch, "link"));
+  content.append(action("Your watches", openLibrary), action("This watch: photo, reference, health", () => openWatch(W.current)), action("Which watch is this? (listen)", whichWatch));
   const settings = part(body, "settings");
   settings.append(choice("Each position", [["20", "20 s"], ["40", "40 s"], ["60", "60 s"]], String(opts.length), v => { opts.length = Number(v); saveOpts(); }));
   settings.append(choice("Settling", [["10", "10 s"], ["15", "15 s"], ["20", "20 s"]], String(opts.settle), v => { opts.settle = Number(v); saveOpts(); }));
@@ -667,8 +853,9 @@ bindSwitcher($("appsBtn"), "timegrapher");
 document.querySelector(".tg-mark").innerHTML = APPS.find(a => a.id === "timegrapher")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-for (const id of ["histClose", "wornClose", "resClose"]) $(id).addEventListener("click", e => e.target.closest("dialog").close());
-for (const d of ["histDlg", "wornDlg", "resultDlg", "askDlg"]) $(d).addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+for (const id of ["histClose", "wornClose", "resClose", "libClose", "watchClose", "idClose"]) $(id).addEventListener("click", e => e.target.closest("dialog").close());
+$("watchDlg").addEventListener("close", () => { if ($("libDlg").open) openLibrary(); });
+for (const d of ["histDlg", "wornDlg", "resultDlg", "askDlg", "libDlg", "watchDlg", "idDlg"]) $(d).addEventListener("click", e => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 $("listenBtn").addEventListener("click", () => {
   if (S) { if (S.phase === "place") stepStart(); else { restart(); S.phase = "place"; drawSession(); say(stepWords()); } return; }
   if (listening) stop(); else listen();
@@ -676,6 +863,7 @@ $("listenBtn").addEventListener("click", () => {
 $("skipBtn").addEventListener("click", stepSkip);
 $("endBtn").addEventListener("click", () => { if (S && (S.steps.length < 2 || confirm("End the session here?"))) endSession(); });
 $("openBtn").addEventListener("click", () => $("file").click());
+$("whichBtn").addEventListener("click", () => (ident ? stop() : whichWatch()));
 $("file").addEventListener("change", e => { const f = e.target.files?.[0]; e.target.value = ""; openFile(f); });
 $("watchSel").addEventListener("change", e => chooseWatch(e.target.value));
 dd = dropdown($("watchSel"));
@@ -686,4 +874,4 @@ drawWatch();
 drawSession();
 show(null);
 say(IN_FRAME ? "Your partner's Timegrapher: the microphone is theirs." : S ? stepWords() : "Listen, with the watch's case back on the microphone.");
-window.__timegrapher = { get R() { return R; }, get S() { return S; }, get W() { return W; }, opts, measure, openFile, listen, stop, beginSession, stepStart, stepSkip, endSession, openWorn, openHistory, openMenu, trace: () => trace };
+window.__timegrapher = { get R() { return R; }, get S() { return S; }, get W() { return W; }, opts, measure, openFile, listen, stop, beginSession, stepStart, stepSkip, endSession, openWorn, openHistory, openMenu, openLibrary, openWatch, whichWatch, setPhoto, trace: () => trace };

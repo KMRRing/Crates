@@ -13,6 +13,7 @@
 //   0.5 ms, about 3 ms needing correction; over 330°, a risk of overbanking.
 // - Witschi's positions and their names: dial up CH, dial down CB, crown down 9H, crown left 6H, crown up 3H, crown
 //   right 12H; XH and XV the horizontal and vertical means, D the greatest difference between positions.
+import { cleanPrint } from "./timegrapher-library.js";
 
 export const POSITIONS = [
   { id: "DU", name: "Dial up", witschi: "CH", h: true },
@@ -169,7 +170,10 @@ export function cleanSession(s) {
 export function cleanEntry(e) {
   return e && Number.isFinite(e.at) && Number.isFinite(e.off) ? { at: e.at, off: e.off, ...(e.set ? { set: true } : {}) } : null;
 }
-/** The watches, made whole from whatever JSON gave back: { current, list: [watch] }, every watch with its arrays. */
+const isoDate = v => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && Number.isFinite(Date.parse(v)) ? v : null);
+/** The watches, made whole from whatever JSON gave back: { current, list: [watch] }, every watch with its arrays. A
+ *  watch's library entry: its name, reference, description, last service (an ISO date) and whether it has a photo (kept
+ *  apart, under timegrapher:photo:<id>, so the list stays small), and the print its readings have taught. */
 export function cleanWatches(raw, calibreIds = null) {
   const ids = new Set();
   const out = list(raw?.list).map(w => {
@@ -178,6 +182,7 @@ export function cleanWatches(raw, calibreIds = null) {
     return {
       id: w.id, name: str(w.name) || "Watch", cal: typeof w.cal === "string" && (!calibreIds || calibreIds.has(w.cal)) ? w.cal : "auto",
       vph: num(w.vph), lift: num(w.lift),
+      ref: str(w.ref, 40), desc: str(w.desc, 1000), served: isoDate(w.served), photo: Number.isFinite(w.photo) ? w.photo : null, print: cleanPrint(w.print),
       readings: list(w.readings).map(cleanReading).filter(Boolean).slice(0, 100),
       sessions: list(w.sessions).map(cleanSession).filter(Boolean).slice(0, 30),
       log: list(w.log).map(cleanEntry).filter(Boolean).slice(-200),
