@@ -876,7 +876,7 @@ async function copyLink() {
 // everyone (the region deals it at once, the mix the next) and the table's own part
 let pick = null;                                              // the set the menu will start: { mode }
 /** Your mix of topics, in the menu: a preset, or each topic tapped out, in or more; alone, with what it counts for. */
-const topicsPart = (box, solo = false) => box.append(topicMix(TOPICS, TOPIC_PRESETS, mix(), keepMix, { note: solo ? w => (presetOf(w) !== "custom" ? null
+const topicsPart = (box, solo = false, changed = () => {}) => box.append(topicMix(TOPICS, TOPIC_PRESETS, mix(), w => { keepMix(w); changed(); }, { note: solo ? w => (presetOf(w) !== "custom" ? null
   : focusOf(w) || oldTopicOf(w) ? "It keeps a best of its own; today's set and the presets count for your best." : "Your own mix doesn't count for your best; today's set and the presets do.") : null }));
 function openMenu() {
   const body = $("menuBody");
@@ -892,8 +892,10 @@ function openMenu() {
     if (S?.done) play.append(action("See how it went", finish));
     const content = part(body, "content");
     content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
-    // today's set is the same for everyone (Balanced, worldwide), so your topics and the region are for random sets
-    if (pick.mode === "random") { topicsPart(content, true); content.append(mirror("Region", $("region"))); }
+    // your topics and the region are for random sets (today's is the same for everyone, Balanced and worldwide), so
+    // they're shown either way, and a topic changed with today's picked turns the next set to a random one
+    topicsPart(content, true, () => { if (pick.mode === "daily") { pick.mode = "random"; openMenu(); } });
+    content.append(mirror("Region", $("region")));
     part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
     const key = selKey(S), best = key && bests()[key], daily = key && dailies()[key], what = selName(selOf(S));
     part(body, "about").append(
@@ -929,12 +931,15 @@ function showSelection() {
   if (!S) return;
   fillRegions(mix(), selOf(S).region);
 }
-/** A new region deals a new set in it, after asking if this one's under way; at a table, a fresh set for everyone. */
+/** A new region deals a new set in it, after asking if this one's under way: a random one (today's is always
+ *  worldwide, so a region chosen there once restarted today's set and kept nothing of it); at a table, a fresh set for
+ *  everyone. */
 function choose() {
   const sel = chosen();
   if (inRoom()) { startRoomSet(sel.region); return; }
   if (S && !S.done && S.index > 0 && !confirm("Start a new set with this? This one isn't finished.")) { showSelection(); return; }
-  start(S?.mode === "daily" ? "daily" : "random", sel);
+  if (pick) pick.mode = "random";
+  start("random", sel);
 }
 fillRegions(mix(), "world");
 $("region").addEventListener("change", choose);

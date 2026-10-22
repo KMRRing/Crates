@@ -476,8 +476,9 @@ function openMenu() {
   part(body, "play").append(action("New run", () => newRun(pick === "daily"), "primary"));
   const content = part(body, "content");
   content.append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  // today's run is the same for everyone, so your topics are for random runs: the clues they bring first, or leave out
-  if (pick === "random") content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), keepMix,
+  // your topics (the clues they bring first, or leave out) are for random runs, today's being the same for everyone:
+  // shown either way, and one changed with today's picked turns the next run to a random one
+  content.append(topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), w => { keepMix(w); if (pick === "daily") { pick = "random"; openMenu(); } },
     { note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null) }));
   const best = read(BEST, 0), day = read(DAILY, {})[today()];
   part(body, "about").append(line(`${best ? `Best ${best}` : "No finished run yet"}${day != null ? `, today ${day}` : ""} · ${ANSWERS.length} countries`));

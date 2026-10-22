@@ -284,10 +284,10 @@ const backToSolo = () => { if (together.room) together.leave(); else location.re
 // ---------- the menu ----------
 let pick = null;
 /** The mix of topics for a mode, in the menu: a preset, or each topic tapped out, in or more (none for the stories);
- *  alone, with what your own mix counts for. */
-function topicsPart(box, mode, solo = false) {
+ *  alone, with what your own mix counts for. changed: after a tap, once the mix is kept. */
+function topicsPart(box, mode, solo = false, changed = () => {}) {
   const list = topicsIn(mode), note = w => (presetOf(list, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's run and the presets do." : null);
-  if (list.length) box.append(topicMix(list, TOPIC_PRESETS, mix(), keepMix, { note: solo ? note : null }));
+  if (list.length) box.append(topicMix(list, TOPIC_PRESETS, mix(), w => { keepMix(w); changed(); }, { note: solo ? note : null }));
 }
 function openMenu() {
   const body = $("menuBody");
@@ -312,8 +312,9 @@ function openMenu() {
   content.append(
     choice("Order", Object.entries(MODES), pick.mode, v => { pick.mode = v; openMenu(); }),
     choice("Run", [[false, "Random"], [true, "Today's"]], pick.daily, v => { pick.daily = v; openMenu(); }));
-  // today's run is the same for everyone, so your topics are for random runs
-  if (!pick.daily) topicsPart(content, pick.mode, true);
+  // your topics are for random runs (today's is the same for everyone), so they're shown either way, and one changed
+  // with today's picked turns the next run to a random one
+  topicsPart(content, pick.mode, true, () => { if (pick.daily) { pick.daily = false; openMenu(); } });
   const best = read(BEST, {});
   part(body, "about").append(line(`Best: dates ${best.dates ?? "–"}${FAMILIES.some(f => best[`q:${f.unit}`] != null) ? `, quantities ${Math.max(...FAMILIES.map(f => best[`q:${f.unit}`] ?? 0))}` : ""} · ${DATES.length} dated cards, ${FAMILIES.length} families of quantities`));
   if (!$("menuDlg").open) $("menuDlg").showModal();

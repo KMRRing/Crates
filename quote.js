@@ -669,7 +669,7 @@ async function copyLink() {
 // fresh set either way) and the table's own part
 let pick = null;                                              // the set the menu will start: { mode }
 /** Your mix of topics, in the menu: a preset, or each topic tapped out, in or more. */
-const topicsPart = (box, solo = false) => box.append(topicMix(TOPICS, TOPIC_PRESETS, mix(), keepMix, { note: solo ? w => (presetOf(w) !== "custom" ? null
+const topicsPart = (box, solo = false, changed = () => {}) => box.append(topicMix(TOPICS, TOPIC_PRESETS, mix(), w => { keepMix(w); changed(); }, { note: solo ? w => (presetOf(w) !== "custom" ? null
   : focusOf(w) ? "A set of one topic keeps a best of its own." : "Your own mix doesn't count for your best; today's set and the presets do.") : null }));
 function openMenu() {
   const body = $("menuBody");
@@ -688,8 +688,9 @@ function openMenu() {
     if (S?.done) play.append(action("See how it went", finish));
     const content = part(body, "content");
     content.append(choice("Set", [["random", "Random"], ["daily", "Today's"]], pick.mode, v => { pick.mode = v; openMenu(); }));
-    // today's set is the same for everyone, so your topics are for random sets
-    if (pick.mode === "random") topicsPart(content, true);
+    // your topics are for random sets (today's is the same for everyone), so they're shown either way, and one changed
+    // with today's picked turns the next set to a random one
+    topicsPart(content, true, () => { if (pick.mode === "daily") { pick.mode = "random"; openMenu(); } });
     part(body, "settings").append(toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
     const best = read(BEST, null), daily = read(DAILY, {})[String(today())], bestRf = read(`${BEST}:refining`, null);
     part(body, "about").append(
