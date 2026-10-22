@@ -1,7 +1,7 @@
 /* Topple: the table (sixty-one hexagons inlaid in birch, in a mahogany frame, drawn by topple-3d.js on a canvas), what's
-   drawn over it (rings, the compass of six arrows, scores), the dominoes standing on it in three enamels, each colour with
-   pips of its own (one, two, three a half) so they're told apart without their colour, and under it the three pieces to
-   drag. The knock's ochre is the house colour. */
+   drawn over it (rings, the two arrows of a push, scores, the chosen domino's brass handle), the dominoes standing on it
+   in three enamels, each colour with pips of its own (one, two, three a half) so they're told apart without their colour,
+   and under it the three pieces to drag. The knock's ochre is the house colour. */
 :root {
   --tp-in: var(--c0);
   --tp-soft: color-mix(in srgb, var(--tp-in) 15%, var(--sheet));
@@ -12,28 +12,28 @@
 .tp-strip { display: flex; justify-content: space-between; align-items: center; gap: .5rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
 .tp-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .tp-score b { font-size: 1.05rem; }
-/* how hard the next knock is, and when it comes; when it's due, lettered on the knock's ochre */
-.tp-knock { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .45rem; border-radius: 4px; font-size: .8rem; font-weight: 700; white-space: nowrap; min-width: 0; }
+/* when the knock comes; when it's due, lettered on the knock's ochre */
+.tp-knock { display: inline-flex; align-items: center; padding: .1rem .45rem; border-radius: 4px; font-size: .8rem; font-weight: 700; white-space: nowrap; min-width: 0; }
 .tp-knock.now { background: var(--tp-in); color: var(--on-c0); font-weight: 800; }
-.tp-bars { display: inline-flex; align-items: flex-end; gap: .1rem; flex: none; }
-.tp-bars i { display: block; width: .2rem; border-radius: 1px; background: currentColor; opacity: .25; }
-.tp-bars i:nth-child(1) { height: .4rem; }
-.tp-bars i:nth-child(2) { height: .65rem; }
-.tp-bars i:nth-child(3) { height: .9rem; }
-.tp-bars.b1 i:nth-child(1), .tp-bars.b2 i:nth-child(-n+2), .tp-bars.b3 i { opacity: 1; }
 
 /* the table: as large as its room allows; the canvas draws it, the svg over it draws what the page says about it */
 .tp-table { position: relative; }
 .tp-stage { position: absolute; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
 .tp-gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.tp-over { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+/* clipped to the table's box: zoomed in, what's drawn over a domino out of view mustn't spill onto the strip */
+.tp-over { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
 .tp-marks { filter: drop-shadow(0 0 1.5px color-mix(in srgb, var(--sheet) 90%, transparent)); }
 /* a ring round what a knock would fell; a faint one round what it would leave standing */
 .tp-ring { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-dasharray: 5 3; stroke-linejoin: round; }
 .tp-stay { fill: none; stroke: var(--ink-soft); stroke-width: 1.1; stroke-dasharray: 2 4; stroke-linejoin: round; opacity: .8; }
-/* the six ways to push a pressed domino, round it; the one slid to filled */
+/* the two ways to push a pressed domino, along its axis; the one slid to filled */
 .tp-arrow { fill: color-mix(in srgb, var(--sheet) 82%, transparent); stroke: var(--ink); stroke-width: 1.4; stroke-linejoin: round; }
 .tp-arrow.on { fill: var(--ink); }
+/* the chosen domino's handle, out along its axis: an arm and a knob to turn it by */
+.tp-handle line { stroke-linecap: round; }
+.tp-handle .under { stroke: var(--ink); stroke-width: 4.8; }
+.tp-handle .arm { stroke: var(--brass); stroke-width: 2.4; }
+.tp-handle circle { fill: var(--brass); stroke: var(--ink); stroke-width: 1.6; }
 .tp-over text { font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 3.2; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
 .tp-over text.tp-hint { font-weight: 650; fill: var(--ink-soft); stroke: none; }
 .tp-plaque { fill: color-mix(in srgb, var(--sheet) 90%, transparent); stroke: var(--brass); stroke-width: 1; }

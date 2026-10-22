@@ -3,14 +3,16 @@
 // slabs with pips. Everything is built in code, no models and no textures: the wood is worked out in the table's
 // shader (birch whose grain turns with each hexagon, mahogany whose grain runs along each side and meets at the
 // mitres, a brass line between them), and a domino is a bevelled slab with a groove across it and its pips.
-// A knock plays out as a fall: each domino turns to face the way it was knocked, tips over its foot like a thing with
-// weight, hits the table, lies a moment and sinks into it; each hit and landing is a sound (topple-sound.js). The table
-// tilts a little under a finger and eases back, as Rosette's dial does. It draws only while something moves. The page
-// (topple.js) drives it: set, fall, project, cellAt, pointAt, tilt.
+// A knock plays out as a fall: each domino tips over its foot along its own axis, the way the engine says, like a thing
+// with weight, hits the table, lies a moment and sinks into it; each hit and landing is a sound (topple-sound.js). A
+// domino turned eases round to its new axis. The table tilts a little under a finger and eases back, as Rosette's dial
+// does, and zooms in (up to ZOOM) by narrowing the camera's window within the whole table's, so whatever the page
+// projects over it follows. It draws only while something moves. The page (topple.js) drives it: set, fall, project,
+// cellAt, pointAt, tilt, zoomAt, panBy, zoomTo.
 import * as THREE from "./vendor/three.js";
-import { CELLS, DIRS, next, at as cellNumber } from "./topple-engine.js";
+import { CELLS, at as cellNumber } from "./topple-engine.js";
 import { sound } from "./topple-sound.js";
-import { ROW, mid, SW, SH, ST, heading, yawOf, hexAt, hull } from "./topple-slab.js";
+import { ROW, mid, SW, SH, ST, ZOOM, heading, yawOf, hexAt, hull } from "./topple-slab.js";
 
 // ---------- measures ----------
 const MID = CELLS.map(([q, r]) => mid(q, r));
@@ -294,22 +296,38 @@ export function createTable(host) {
       this.place.visible = false;
       parent.add(this.place);
     }
-    /** Stood on its hexagon (or another, for a ghost), facing along an axis. */
-    stand(cell, kind, ax) {
-      const [x, z] = MID[cell], jitter = (((cell * 37) % 11) - 5) * 0.4 * DEG;
+    /**
+     * Stood on its hexagon (or another, for a ghost), along an axis. Already standing so it's left be (a drop or a turn
+     * under way goes on); turned where it stands, with `ease`, it eases round the short way (a slab is the same both ways).
+     */
+    stand(cell, kind, ax, ease = false) {
+      const [x, z] = MID[cell], jitter = (((cell * 37) % 11) - 5) * 0.4 * DEG, rest = yawOf(ax) + jitter, key = `${cell}:${kind}:${ax}`;
+      if (this.standing === key && this.place.visible && !this.busy) return;
+      const turning = ease && this.place.visible && !this.busy && this.cell === cell && this.kind === kind, from = this.place.rotation.y;
       this.cell = cell; this.mesh.userData.cell = cell;
       if (kind !== this.kind) { this.kind = kind; this.mesh.geometry = slabGeometry(kind); this.mesh.material = this.ghost ? ghostSet[kind] : [enamels[kind], inks[kind]]; }
-      this.rest = yawOf(ax) + jitter;
+      this.rest = rest;
+      this.standing = key;
       this.place.position.set(x, 0, z);
-      this.place.rotation.set(0, this.rest, 0);
+      this.place.rotation.set(0, rest, 0);
       this.place.scale.setScalar(1);
       this.hinge.position.set(0, 0, 0);
       this.hinge.rotation.set(0, 0, 0);
       this.mesh.position.set(0, 0, 0);
       this.place.visible = true;
       this.busy = false;
+      if (turning) {
+        const d = rest - from - Math.round((rest - from) / Math.PI) * Math.PI, t0 = clock();
+        this.place.rotation.y = from;
+        go(t => {
+          if (this.standing !== key || this.busy) return false;
+          const u = clamp01((t - t0) / 140);
+          this.place.rotation.y = from + d * ease3(u);
+          return u < 1;
+        });
+      }
     }
-    hide() { this.place.visible = false; this.busy = false; }
+    hide() { this.place.visible = false; this.busy = false; this.standing = null; }
   }
   const slabs = CELLS.map((_, i) => new Slab(i, stand, false));
   const ghostSlabs = Array.from({ length: 5 }, () => new Slab(0, ghosts, true));
@@ -395,8 +413,44 @@ export function createTable(host) {
     const cu = (x.u0 + x.u1) / 2, cv = (x.v0 + x.v1) / 2;
     let hu = ((x.u1 - x.u0) / 2) * (1 + pad), hv = ((x.v1 - x.v0) / 2) * (1 + pad);
     if (hu / hv < aspect) hu = hv * aspect; else hv = hu / aspect;
+    whole = { cu, cv, hu, hv };
+    lens();
+  }
+
+  // ---------- zoom: a part of the whole table's window, as large as 1 / zoom and kept inside it ----------
+  let whole = { cu: 0, cv: 0, hu: 1, hv: 1 }, zoom = 1, pu = 0, pv = 0;
+  function lens() {
+    const hu = whole.hu / zoom, hv = whole.hv / zoom;
+    pu = Math.max(hu - whole.hu, Math.min(whole.hu - hu, pu));
+    pv = Math.max(hv - whole.hv, Math.min(whole.hv - hv, pv));
+    const cu = whole.cu + pu, cv = whole.cv + pv;
     camera.projectionMatrix.makePerspective(cu - hu, cu + hu, cv + hv, cv - hv, 1, 200);
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+    invalidate();
+  }
+  /** Zooms to z (1 the whole table, to ZOOM), keeping what's under the screen's point (px, py) where it is. */
+  function zoomAt(z, px, py) {
+    const r = canvas.getBoundingClientRect(), sx = (px - r.left) / (r.width || 1), sy = (py - r.top) / (r.height || 1);
+    const hu = whole.hu / zoom, hv = whole.hv / zoom, u = whole.cu + pu + hu * (2 * sx - 1), v = whole.cv + pv - hv * (2 * sy - 1);
+    zoom = Math.max(1, Math.min(ZOOM, z));
+    pu = u - whole.cu - (whole.hu / zoom) * (2 * sx - 1);
+    pv = v - whole.cv + (whole.hv / zoom) * (2 * sy - 1);
+    lens();
+  }
+  /** Moves the zoomed table with a finger, by (dx, dy) pixels, as far as its edge. */
+  function panBy(dx, dy) {
+    pu -= (dx * 2 * whole.hu) / zoom / (width || 1);
+    pv += (dy * 2 * whole.hv) / zoom / (height || 1);
+    lens();
+  }
+  /** Zooms to z about a point over a moment (a double tap's). */
+  function zoomTo(z, px, py, ms = 220) {
+    const from = zoom, t0 = clock();
+    go(t => {
+      const u = clamp01((t - t0) / ms);
+      zoomAt(from + (z - from) * ease(u), px, py);
+      return u < 1;
+    });
   }
   function resize() {
     const r = host.getBoundingClientRect();
@@ -480,6 +534,8 @@ export function createTable(host) {
   // ---------- setting the table ----------
   /** Eases a value from a to b as time t runs from 0 to 1. */
   const ease = u => u * u * (3 - 2 * u), clamp01 = u => Math.max(0, Math.min(1, u));
+  /** Out of a turn: quick, then settling. */
+  const ease3 = u => 1 - (1 - u) ** 3;
   let bellAt = -1;
   function placeBell(cell, covered) {
     bellAt = cell;
@@ -492,13 +548,14 @@ export function createTable(host) {
   }
   let current = { cells: [], ax: [], bell: -1 };
   /**
-   * The table as the page says: cells (a colour 0–2 a hexagon, -1 empty), ax (how each faces), bell (its hexagon),
-   * fresh (the hexagons just laid: they drop on), ghost ({ laid, colour, ax }: a piece held over the table, shown faint).
+   * The table as the page says: cells (a colour 0–2 a hexagon, -1 empty), ax (each one's axis, 0–5), bell (its hexagon),
+   * fresh (the hexagons just laid: they drop on), ghost ({ laid, colour, ax }: a piece held over the table, shown faint),
+   * ease (a domino turned where it stands eases round to its new axis).
    */
-  function set({ cells, ax, bell: bellCell, fresh = [], ghost = null }) {
+  function set({ cells, ax, bell: bellCell, fresh = [], ghost = null, ease = false }) {
     cancelFall();
     current = { cells, ax, bell: bellCell };
-    cells.forEach((c, i) => { if (c >= 0) slabs[i].stand(i, c, ax[i] >= 0 ? ax[i] : 0); else slabs[i].hide(); });
+    cells.forEach((c, i) => { if (c >= 0) slabs[i].stand(i, c, ax[i] >= 0 ? ax[i] : 0, ease); else slabs[i].hide(); });
     placeBell(bellCell, bellCell >= 0 && cells[bellCell] >= 0);
     ghostSlabs.forEach(g => g.hide());
     if (ghost) ghost.laid.forEach((i, k) => ghostSlabs[k].stand(i, ghost.colour, ghost.ax[k]));
@@ -527,33 +584,32 @@ export function createTable(host) {
 
   // ---------- a fall ----------
   const A = 1800 * DEG;                                                   // how hard gravity pulls a toppling domino over, in radians a second squared
-  const PUSH = [70 * DEG, 130 * DEG, 240 * DEG], HIT = [360 * DEG, 450 * DEG, 540 * DEG];   // how fast the first, and the rest, begin to go, by the push's force
+  const PUSH = 130 * DEG, HIT = 450 * DEG;                                // how fast the first, and the rest, begin to go
   const CONTACT = 53 * DEG;                                              // the lean at which a falling domino reaches the next
   const timeTo = (angle, v0) => (-v0 + Math.sqrt(v0 * v0 + 2 * A * angle)) / A;
   const LINGER = 0.42, SINK = 0.26;
   let falling = null;
   function cancelFall() { if (falling) { const f = falling; falling = null; f.stop(); f.resolve(); } }
   /**
-   * Plays out a knock: `fell` as the engine gives it ([hexagon, step, by]), `dir` the way the first was pushed,
-   * `force` 1–3, and the bell: { rang, to (the hexagon it moves to, -1 if none) }. Resolves when the last has sunk.
+   * Plays out a knock: `fell` as the engine gives it ([hexagon, step, by, way]: each falls along its own axis, the way
+   * given), and the bell: { rang, to (the hexagon it moves to, -1 if none) }. Resolves when the last has sunk.
    */
-  function fall({ fell, dir, force, bell: bellMove = { rang: false, to: -1 } }) {
+  function fall({ fell, bell: bellMove = { rang: false, to: -1 } }) {
     cancelFall();
     return new Promise(resolve => {
       const start = clock() + 30, T = new Map(), plan = [], events = [];
-      for (const [cell, , by] of fell) {
-        const d = by < 0 ? dir : DIRS.findIndex((_, e) => next(by, e) === cell);
-        const v0 = by < 0 ? PUSH[force - 1] : HIT[force - 1];
+      for (const [cell, , by, way] of fell) {
+        const v0 = by < 0 ? PUSH : HIT;
         const jitter = 1 + (((cell * 53) % 13) - 6) * 0.008;
         const t = by < 0 ? 0 : T.get(by) + plan.find(p => p.cell === by).contact * jitter;
         T.set(cell, t);
         const s = slabs[cell];
-        // turn to face the way it goes: by sixty degrees at most, and a half turn is no change in a slab
-        const want = yawOf(d), turn = want - s.rest, k = Math.round(turn / Math.PI), delta = turn - k * Math.PI;
+        // over its foot along its axis, front or back as the way says; the hair it stood off true straightens as it goes
+        const want = yawOf(way), turn = want - s.rest, k = Math.round(turn / Math.PI), delta = turn - k * Math.PI;
         const flip = Math.abs(k) % 2 === 1 ? -1 : 1;
-        plan.push({ cell, s, d, v0, t, contact: timeTo(CONTACT, v0), land: timeTo(Math.PI / 2, v0), delta: Math.atan2(Math.sin(delta), Math.cos(delta)), flip, landed: false, sunk: false });
-        events.push({ kind: by < 0 ? "shove" : "clack", at: 0.03 + t, power: by < 0 ? [0.5, 0.75, 1][force - 1] : [0.5, 0.62, 0.78][force - 1], pitch: 0.92 + (((cell * 11) % 7) * 0.025), pan: MID[cell][0] / 5 });
-        events.push({ kind: "land", at: 0.03 + t + timeTo(Math.PI / 2, v0), power: [0.4, 0.5, 0.62][force - 1], pitch: 0.9 + (((cell * 5) % 7) * 0.03), pan: MID[cell][0] / 5 });
+        plan.push({ cell, s, way, v0, t, contact: timeTo(CONTACT, v0), land: timeTo(Math.PI / 2, v0), delta: Math.atan2(Math.sin(delta), Math.cos(delta)), flip, landed: false, sunk: false });
+        events.push({ kind: by < 0 ? "shove" : "clack", at: 0.03 + t, power: by < 0 ? 0.75 : 0.62, pitch: 0.92 + (((cell * 11) % 7) * 0.025), pan: MID[cell][0] / 5 });
+        events.push({ kind: "land", at: 0.03 + t + timeTo(Math.PI / 2, v0), power: 0.5, pitch: 0.9 + (((cell * 5) % 7) * 0.03), pan: MID[cell][0] / 5 });
         s.busy = true;
       }
       const sunk = Math.max(...plan.map(p => p.t + p.land + LINGER + SINK));
@@ -572,7 +628,7 @@ export function createTable(host) {
         for (const p of plan) {
           const s = p.s, t = e - p.t;
           if (t < 0) continue;
-          // the turn comes with the first lean, over a tenth of a second
+          // the straightening comes with the first lean, over a tenth of a second
           const turned = clamp01(t / 0.11);
           s.place.rotation.y = s.rest + p.delta * (1 - (1 - turned) ** 2);
           s.hinge.position.z = (p.flip * ST) / 2;
@@ -584,9 +640,9 @@ export function createTable(host) {
             th = Math.PI / 2 - 0.1 * Math.sin(Math.PI * b) * (1 - b);
             if (!p.landed) {
               p.landed = true;
-              const [x, z] = MID[p.cell], [hx, hz] = heading(p.d);
-              spark(x + hx * 0.5, 0.04, z + hz * 0.5, skin.enamel[current.cells[p.cell]] || "#ffffff", 2 + force, 0.55 + force * 0.15);
-              thump(x, z, 0.5 + force * 0.3);
+              const [x, z] = MID[p.cell], [hx, hz] = heading(p.way);
+              spark(x + hx * 0.5, 0.04, z + hz * 0.5, skin.enamel[current.cells[p.cell]] || "#ffffff", 4, 0.85);
+              thump(x, z, 1.1);
             }
           }
           s.hinge.rotation.x = p.flip * th;
@@ -699,7 +755,9 @@ export function createTable(host) {
   resize();
 
   return {
-    canvas, set, fall, project, pointAt, cellAt, outlineOf, tilt, level, hold, release, applySkin, cancelFall,
+    canvas, set, fall, project, pointAt, cellAt, outlineOf, tilt, level, hold, release, applySkin, cancelFall, zoomAt, panBy, zoomTo,
+    /** How close the table is drawn: 1 whole, up to ZOOM. */
+    get zoom() { return zoom; },
     get skin() { return skin; },
     /** The table's turn about the vertical (0, or a quarter turn): a piece is drawn in the tray turned the same. */
     get spin() { return spin; },

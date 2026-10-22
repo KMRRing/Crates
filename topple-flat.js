@@ -1,8 +1,9 @@
 // Topple's table drawn flat, in SVG, where there's no WebGL: the same table and the same slabs (topple-slab.js) seen
-// from above and in front without perspective, no tilt, the fall a quicker squash and slide. It answers to the same calls
-// as the 3D table (topple-3d.js), so the page doesn't know which it has.
-import { CELLS, DIRS, next, at as cellNumber } from "./topple-engine.js";
-import { mid, SW, SH, ST, heading, yawOf, hexAt, flat, slabsEl, slabEl, hull } from "./topple-slab.js";
+// from above and in front without perspective, no tilt, the fall a quicker squash and slide along each one's way, the
+// zoom a larger scale kept inside the whole table. It answers to the same calls as the 3D table (topple-3d.js), so the
+// page doesn't know which it has.
+import { CELLS, at as cellNumber } from "./topple-engine.js";
+import { mid, SW, SH, ST, ZOOM, heading, yawOf, hexAt, flat, slabsEl, hull } from "./topple-slab.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, ...kids) => {
@@ -26,16 +27,41 @@ export function createFlat(host) {
     ...CELLS.map((_, i) => hexCell(...MID[i])), standing, bell,
   );
   bell.append(el("path", { d: "M0-.32C-.17-.32-.25-.18-.25 0V.14L-.33.25H.33L.25.14V0C.25-.18.17-.32 0-.32Z", fill: "#e0b04a", stroke: "#7a5a14", "stroke-width": ".02" }));
-  let W = 1, H = 1, s = 1, ox = 0, oy = 0, painted = () => {}, current = null, anims = [], held = false;
+  // the whole table's scale and offset (s0, ox0, oy0), and the zoom's: s = s0 · zoom, the offset kept so the view stays inside the whole
+  let W = 1, H = 1, s0 = 1, ox0 = 0, oy0 = 0, s = 1, ox = 0, oy = 0, zoom = 1, painted = () => {}, current = null, anims = [], held = false;
   function layout() {
     const r = host.getBoundingClientRect();
     W = Math.max(1, r.width); H = Math.max(1, r.height);
     const half = flat(OUTER / (Math.sqrt(3) / 2), 0, 0)[0], top = flat(0, SH, -OUTER)[1], bottom = flat(0, -0.5, OUTER)[1];
-    s = Math.min(W / (2 * half * 1.04), H / ((bottom - top) * 1.06));
-    ox = W / 2; oy = H / 2 - ((top + bottom) / 2) * s;
+    s0 = Math.min(W / (2 * half * 1.04), H / ((bottom - top) * 1.06));
+    const fx = (W / 2 - ox) / s, fy = (H / 2 - oy) / s;              // the point at the middle, to keep there
+    ox0 = W / 2; oy0 = H / 2 - ((top + bottom) / 2) * s0;
+    s = s0 * zoom; ox = W / 2 - fx * s; oy = H / 2 - fy * s;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    place();
+  }
+  function place() {
+    s = s0 * zoom;
+    ox = Math.max(W - (W - ox0) * zoom, Math.min(ox0 * zoom, ox));
+    oy = Math.max(H - (H - oy0) * zoom, Math.min(oy0 * zoom, oy));
     world.setAttribute("transform", `translate(${ox.toFixed(2)} ${oy.toFixed(2)}) scale(${s.toFixed(3)})`);
     painted();
+  }
+  function zoomAt(z, px, py) {
+    const r = host.getBoundingClientRect(), x = px - r.left, y = py - r.top, fx = (x - ox) / s, fy = (y - oy) / s;
+    zoom = Math.max(1, Math.min(ZOOM, z));
+    s = s0 * zoom; ox = x - fx * s; oy = y - fy * s;
+    place();
+  }
+  function panBy(dx, dy) { ox += dx; oy += dy; place(); }
+  function zoomTo(z, px, py, ms = 220) {
+    const from = zoom, t0 = performance.now();
+    const step = () => {
+      const u = Math.min(1, (performance.now() - t0) / ms), e = u * u * (3 - 2 * u);
+      zoomAt(from + (z - from) * e, px, py);
+      if (u < 1) requestAnimationFrame(step);
+    };
+    step();
   }
   const project = (x, y, z) => { const [fx, fy] = flat(x, y, z); return [ox + fx * s, oy + fy * s]; };
   const unflat = (px, py) => [(px - ox) / s, (py - oy) / s];
@@ -54,12 +80,10 @@ export function createFlat(host) {
     painted();
   }
   function cancelFall() { for (const a of anims) a.cancel(); anims = []; }
-  function fall({ fell, dir }) {
+  function fall({ fell }) {
     cancelFall();
-    const t = new Map();
-    for (const [cell, step, by] of fell) {
-      const d = by < 0 ? dir : DIRS.findIndex((_, e) => next(by, e) === cell), [hx, hz] = heading(d), g = axisOf[cell], [dx, dy] = flat(hx * 0.45, 0, hz * 0.45);
-      t.set(cell, step * 85);
+    for (const [cell, step, , way] of fell) {
+      const [hx, hz] = heading(way), g = axisOf[cell], [dx, dy] = flat(hx * 0.45, 0, hz * 0.45);
       if (!g?.animate) continue;
       g.style.transformBox = "fill-box"; g.style.transformOrigin = "50% 100%";
       anims.push(g.animate([{ transform: "translate(0,0) scaleY(1)", opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scaleY(.2)`, opacity: 1, offset: 0.55 }, { transform: `translate(${dx}px,${dy}px) scaleY(.2)`, opacity: 0 }], { duration: 520, delay: step * 85, easing: "ease-in", fill: "both" }));
@@ -92,8 +116,9 @@ export function createFlat(host) {
   new ResizeObserver(layout).observe(host);
   layout();
   return {
-    canvas: svg, set, fall, project, pointAt, cellAt, outlineOf, tilt() {}, level() {}, applySkin() {}, cancelFall,
+    canvas: svg, set, fall, project, pointAt, cellAt, outlineOf, tilt() {}, level() {}, applySkin() {}, cancelFall, zoomAt, panBy, zoomTo,
     hold() { held = true; for (const a of anims) a.pause(); }, release() { held = false; for (const a of anims) a.play(); },
     onPaint(fn) { painted = fn; }, spin: 0, centre: i => MID[i], redraw: layout, tilted: false, busy: false,
+    get zoom() { return zoom; },
   };
 }

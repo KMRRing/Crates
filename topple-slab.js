@@ -6,11 +6,12 @@ export const ROW = Math.sqrt(3) / 2;
 /** Where the hexagon (q, r) stands on the table: x across, z towards the player, a hexagon one across. */
 export const mid = (q, r) => [q + r / 2, ROW * r];
 export const SW = 0.74, SH = 0.92, ST = 0.2;               // a domino: width, height, thickness
+export const ZOOM = 1.8;                                    // the closest look at the table: a domino's facing plain on a phone, and no more
 const DEG = Math.PI / 180;
-/** The way direction d points on the table, as (x, z): east is 0, then up the screen (away) and round. */
-export const heading = d => [Math.cos((-d * Math.PI) / 3), Math.sin((-d * Math.PI) / 3)];
-/** The turn about the vertical that points a slab's face the way axis d runs (and so the way a slab knocked along d falls). */
-export const yawOf = d => { const [x, z] = heading(d); return Math.atan2(x, z); };
+/** The way w (0–11, thirty degrees a step) points on the table, as (x, z): east is 0, then up the screen (away) and round. A direction d of the six is the way 2d. */
+export const heading = w => [Math.cos((-w * Math.PI) / 6), Math.sin((-w * Math.PI) / 6)];
+/** The turn about the vertical that points a slab's broad faces the way w runs: an axis a (0–5) is the way a, and a slab knocked along it falls that way or the opposite. */
+export const yawOf = w => { const [x, z] = heading(w); return Math.atan2(x, z); };
 /** The (q, r) of the hexagon nearest a point of the table (rounded through cube coordinates). */
 export function hexAt(x, z) {
   const fr = z / ROW, fq = x - fr / 2;
