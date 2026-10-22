@@ -5,8 +5,10 @@
 // empty colours nothing. Every whole rule in the catalogue is held to judging letters, never their order, which that
 // matching relies on. Pair and single fields colour as they did before whole fields joined them. And through the
 // board's own notes (notesFrom): a whole field placed failing, then passing, colours the keys; a frame colours nothing.
+// And a whole field's cage (slate-cage.js) is one outline round its cells at any cell size, fractions included.
 // Run: node tests/slate.mjs
 import { BASE_RULES, ruleById, keyVerdicts, notesFrom, fieldsOf, rng32, VALID } from "../slate-gen.js";
+import { cagePath } from "../slate-cage.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -101,6 +103,38 @@ check(is(keys(keyVerdicts(field, notes[0], { "0,0": "K", "0,2": "S" }, "0,1")), 
 const wider = { rows: ["...."], sol: { "0,0": "S", "0,1": "K", "0,2": "Y", "0,3": "S" }, fields: [{ rule: "noVowels", cells: row(3) }] };
 const framed = notesFrom(wider, [{ draft: { "0,0": "S", "0,1": "K", "0,2": "I" } }]);
 check(is(keys(keyVerdicts(fieldsOf(wider)[0], framed[0], { "0,0": "S", "0,1": "K" }, "0,2")), "", ""), "a frame (letters placed short of a word) isn't judged, so it colours nothing");
+
+// ---------- a whole field's cage: one outline at any cell size ----------
+// Traced in pixels, a cell size with a fraction could put a bridge's far edge and the next cell's near edge a last
+// digit apart, and the outline split into loops there (a third of sizes for a row of three; seen on the larger
+// iPhones and on iPads). It's traced on whole numbers now and placed in pixels after: one loop, from the field's
+// outer cells' edges.
+const FIELD_SHAPES = {
+  "a row of three": ["2,2", "2,3", "2,4"],
+  "a column of five": ["0,1", "1,1", "2,1", "3,1", "4,1"],
+  "an L of four": ["0,0", "0,1", "1,0", "2,0"],
+  "a square of four": ["1,1", "1,2", "2,1", "2,2"],
+  "a T of five": ["0,0", "0,1", "0,2", "1,1", "2,1"],
+  "a square and one": ["3,3", "3,4", "4,3", "4,4", "5,4"],
+  "a zigzag of four": ["0,0", "0,1", "1,1", "1,2"],
+};
+/** The points a cage's path passes through: where each rounded corner starts and ends. */
+const pointsOf = d => [...d.matchAll(/[ML]([^,]+),([^A]+)A[^ ]+ 0 0 [01] ([^,]+),([^LZ]+)/g)].flatMap(m => [[+m[1], +m[2]], [+m[3], +m[4]]]);
+const near = (a, b) => Math.abs(a - b) < 1e-9;
+for (const [name, cells] of Object.entries(FIELD_SHAPES)) {
+  const rs = cells.map(k => +k.split(",")[0]), cs = cells.map(k => +k.split(",")[1]);
+  let loops = true, placed = true;
+  for (let size = 30; size <= 110; size += 0.37) {
+    for (const gap of [6, 7.2, 8.76, 9.75]) {
+      const d = cagePath(cells, size, gap, 9), pts = pointsOf(d), edge = n => n * (size + gap);
+      loops &&= (d.match(/M/g) || []).length === 1;
+      placed &&= near(Math.min(...pts.map(p => p[0])), edge(Math.min(...cs))) && near(Math.max(...pts.map(p => p[0])), edge(Math.max(...cs)) + size)
+        && near(Math.min(...pts.map(p => p[1])), edge(Math.min(...rs))) && near(Math.max(...pts.map(p => p[1])), edge(Math.max(...rs)) + size);
+    }
+  }
+  check(loops, `the cage of ${name} is one outline at every cell size from 30 to 110 px, gaps 6 to 9.75`);
+  check(placed, `the cage of ${name} runs along its outer cells' edges`);
+}
 
 console.log(bad ? `\n${bad} FAILED` : "\nall passed");
 process.exit(bad ? 1 : 0);
