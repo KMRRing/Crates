@@ -1,19 +1,19 @@
 // Orrery: four brass hoops on an axle round a sun, planets of four colours strung on them (orrery-3d.js draws it; flat,
 // in orrery-flat.js, where there's no WebGL), stepping on a beat. Tap a hoop to choose it (tap it again to let it go),
-// and the two rows of buttons under the orrery set it, both at once: the nine of the first send it a place round every
-// third beat, every second, every beat or two places every beat, clockwise as the hoop is seen on the right and
-// anticlockwise on the left, or stand it still in the middle; the seven of the second tip its orbit 15, 30 or 45 degrees
-// to the left or the right, or lay it level, each tip that is a colour's plane marked with a dot of the colour. A swipe
-// along a hoop sets it going the way the finger went, quicker by how fast. − and + set the tempo, from 20 beats a minute
-// to 60; a metronome swings with it, and a bar of the beats coming shows which hoops step on which, and when each next
-// tips a step by itself (its drift), and which way. Three or four planets of one colour on hoops standing still, in one
-// direction from the sun, are a line (at twelve or six o'clock any colour at any tips; anywhere else on hoops in the
-// colour's plane), and the next beat strikes it; a new planet lands every few seconds, quicker as the game goes on; when
-// there is no place for one, it is over. The rules are orrery-engine.js's; this file runs the clock, takes the taps,
-// buttons and swipes and keeps the game. The clock starts at the first hoop chosen or button pressed and stops with the
-// menu, with the tab and with the game over.
-import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, TIP_MAX, COMBO_WINDOW, newGame, valid, copy, setRing, setTip, setTempo, step, between, room, multiplier, period, upcoming, turnOf, planeOf } from "./orrery-engine.js";
+// and the nine buttons under the orrery send it a place round every third beat, every second, every beat or two places
+// every beat, clockwise as the hoop is seen on the right and anticlockwise on the left, or stand it still in the middle.
+// Under them, always there, the four colours: a press of one tips every hoop into that colour's plane at once, and each
+// shows the hoops in its plane now. A swipe along a hoop sets it going the way the finger went, quicker by how fast. −
+// and + set the tempo, from 20 beats a minute to 60; a metronome swings with it, and a bar of the beats coming shows
+// which hoops step on which, and when each next tips a step by itself (its drift), and which way. Three or four planets
+// of one colour on hoops standing still, in one direction from the sun, are a line (at twelve or six o'clock any colour
+// at any tips; anywhere else on hoops in the colour's plane), and the next beat strikes it; a new planet lands every few
+// seconds, quicker as the game goes on; when there is no place for one, it is over. The rules are orrery-engine.js's;
+// this file runs the clock, takes the taps, buttons and swipes and keeps the game. The clock starts at the first hoop
+// chosen or button pressed and stops with the menu, with the tab and with the game over.
+import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, newGame, valid, copy, setRing, setPlane, setTempo, step, between, room, multiplier, period, upcoming, turnOf, planeOf } from "./orrery-engine.js";
 import { createOrrery } from "./orrery-3d.js";
+import { createFlat, planetSvg } from "./orrery-flat.js";
 import { sound } from "./orrery-sound.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
@@ -61,7 +61,7 @@ let view;
 try { view = createOrrery(stage); }
 catch (err) {
   console.warn("Orrery: no WebGL here, so the orrery is drawn flat.", err);
-  view = (await import("./orrery-flat.js")).createFlat(stage);
+  view = createFlat(stage);
 }
 { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(v[0], v[1]); }
 
@@ -167,7 +167,7 @@ function drawNums() {
     if (d !== n.burning) { n.burning = d; n.fuse.setAttribute("d", d); }
   });
 }
-const HINT = ["Tap a hoop, then a button: the top row sets it going", "on the beat, every third beat up to two places a beat;", "the bottom row tips it. Stop the hoops with planets of", "a colour in line with the sun: at twelve or six o'clock", "any colour, elsewhere only on hoops in that colour's", "plane (the tip with its dot). Hoops drift a tip by", "themselves now and then. − and + set the beat."];
+const HINT = ["Tap a hoop, then a button of the top row: it steps on", "the beat, every third beat up to two places a beat.", "Stop the hoops with planets of a colour in line with", "the sun: at twelve or six o'clock any colour; elsewhere", "only on hoops in that colour's plane. A colour below tips", "every hoop into its plane; now and then each hoop drifts", "a tip by itself. − and + set the beat."];
 /** The words over the orrery while the clock is stopped: the first games' rules, then only how to go on. */
 function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
@@ -274,12 +274,11 @@ const roll = (() => {
   };
 })();
 
-// ---------- the hoop chosen and its two rows of buttons ----------
-const SPINS = Array.from({ length: 2 * SPIN + 1 }, (_, k) => k - SPIN), TIPS = Array.from({ length: 2 * TIP_MAX + 1 }, (_, k) => k - TIP_MAX);
+// ---------- the hoop chosen and its spin, and the colours ----------
+const SPINS = Array.from({ length: 2 * SPIN + 1 }, (_, k) => k - SPIN);
 const RHYTHM = ["still", "every third beat", "every second beat", "every beat", "two places every beat"];
 const SAID = ["still", "every 3rd beat", "every 2nd beat", "every beat", "2 places a beat"];   // the line's shorter words for them, to fit a phone's width in every theme
 const SPIN_WORDS = SPINS.map(k => (k ? `${RHYTHM[Math.abs(k)].replace(/^./, c => c.toUpperCase())} ${k > 0 ? "clockwise" : "anticlockwise"}` : "Still"));
-const TIP_WORDS = TIPS.map(k => (k ? `Tip ${Math.abs(k) * 15}° ${k > 0 ? "right" : "left"}` : "Level"));
 const degrees = tip => (tip ? `${tip > 0 ? "+" : "−"}${Math.abs(tip) * 15}°` : "level");
 /** A spin button's picture: one to three chevrons curled the way it sends a hoop round (the right-hand ones clockwise), lines of speed for two places a beat, a square for still. */
 function spinGlyph(level) {
@@ -287,8 +286,11 @@ function spinGlyph(level) {
   const { arc, heads } = curl(Math.abs(level), level > 0);
   return `<path class="arc" d="${arc}"/><path d="${heads}"/>`;
 }
-/** A tip button's picture: the hoop seen edge on, tipped so, as it's seen (`lean` -1 when the camera is round behind, where a hoop's three o'clock side is on the left). */
-const tipGlyph = (level, lean = 1) => `<g transform="rotate(${-level * lean * 15} 15 12)"><path d="M3.5 12H26.5"/></g><circle class="fill" cx="15" cy="12" r="2.4"/>`;
+/**
+ * A colour button's picture: the colour's planet, its mark and all, on a hoop seen edge on at the tilt of its plane, as
+ * it's seen (`lean` -1 with the camera round behind, where a hoop's three o'clock side is on the left).
+ */
+const planeGlyph = (c, lean = 1) => `<g transform="rotate(${-PLANE[c] * lean * 15})"><path class="hoop" d="M-17 0H17"/></g><g class="or-planet k${c}">${planetSvg(c, 6.4)}</g>`;
 /** Which side of the sun the hoops' three o'clock (the side a positive tip lifts) is on the screen: 1 the right, -1 the left. */
 let lean = 1;
 function leans() {
@@ -296,29 +298,52 @@ function leans() {
   if (Math.abs(d) > 4) lean = d > 0 ? 1 : -1;                              // seen from the side, it's neither: keep the last
   return lean;
 }
-function makeKey(pad, level, kind) {
+const spinKeys = SPINS.map(level => {
   const b = document.createElement("button");
   b.type = "button";
-  b.className = `or-key${level === 0 && kind === "spin" ? " hold" : ""}`;
-  b.dataset.level = level;
-  const c = kind === "tip" ? planeOf(level) : -1;
-  b.innerHTML = `<svg viewBox="0 0 30 24" aria-hidden="true">${kind === "tip" ? tipGlyph(level) : spinGlyph(level)}</svg>${c >= 0 ? `<span class="plane k${c}" aria-hidden="true"></span>` : ""}${kind === "tip" ? '<span class="alike" aria-hidden="true"></span>' : ""}`;
-  b.addEventListener("click", () => press(kind, level));
-  $(pad).append(b);
+  b.className = `or-key${level === 0 ? " hold" : ""}`;
+  b.innerHTML = `<svg viewBox="0 0 30 24" aria-hidden="true">${spinGlyph(level)}</svg>`;
+  b.addEventListener("click", () => press("spin", level));
+  $("spinPad").append(b);
   return b;
+});
+/** The four colours, under the spin: each with the hoops in its plane now (1 to 4, lit when in). */
+const colourKeys = PLANE.map((_, c) => {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = `or-ckey k${c}`;
+  b.innerHTML = `<svg viewBox="-22 -13 44 26" aria-hidden="true"></svg><span class="slots" aria-hidden="true">${Array.from({ length: RINGS }, (_, k) => `<i>${k + 1}</i>`).join("")}</span>`;
+  b.addEventListener("click", () => press("colour", c));
+  $("colourPad").append(b);
+  return b;
+});
+/** The hoops in a colour's plane now, by number. */
+const inPlane = c => S.rings.flatMap((r, k) => (r.tip === PLANE[c] ? [k + 1] : []));
+const listed = ns => (ns.length > 1 ? `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}` : String(ns[0]));
+/** The colours: each lights the hoops in its plane, and stands pressed while all four are (a drift dims one again). */
+function drawColours() {
+  const side = leans(), k = `${S.rings.map(r => r.tip).join()}|${side}|${S.over}`;
+  if (shown.colours === k) return;
+  shown.colours = k;
+  if (shown.lean !== side) { shown.lean = side; colourKeys.forEach((b, c) => { b.firstElementChild.innerHTML = planeGlyph(c, side); }); }
+  colourKeys.forEach((b, c) => {
+    const ins = inPlane(c), now = ins.length === RINGS ? "every hoop in it now" : ins.length ? `hoop${ins.length > 1 ? "s" : ""} ${listed(ins)} in it now` : "";
+    const words = `${COLOUR[c].replace(/^./, x => x.toUpperCase())}'s plane, ${degrees(PLANE[c])}: tip every hoop into it${now ? ` (${now})` : ""}`;
+    b.disabled = S.over;
+    b.setAttribute("aria-pressed", String(ins.length === RINGS));
+    b.setAttribute("aria-label", words);
+    b.title = words;
+    [...b.lastElementChild.children].forEach((n, ring) => n.classList.toggle("in", ins.includes(ring + 1)));
+  });
 }
-const spinKeys = SPINS.map(level => makeKey("spinPad", level, "spin")), tipKeys = TIPS.map(level => makeKey("tipPad", level, "tip"));
-/** The other hoops at a tip, by number: the ones a hoop tipped so would lie in a plane with. */
-const alikeAt = (ring, tip) => S.rings.flatMap((r, k) => (k !== ring && r.tip === tip ? [k + 1] : []));
+/** The hoop chosen: its spin's buttons, and the line saying how it goes round and how it's tipped. */
 function drawAim(force = false) {
-  const r = chosen && !S.over ? S.rings[chosen.ring] : null, seen = r ? looks(chosen.ring) : 1, side = leans();
-  const k = `${r ? chosen.ring : -1}|${r ? `${r.set},${r.tip},${r.way},${seen}` : ""}|${S.rings.map(q => q.tip).join()}|${S.over}|${side}`;
+  const r = chosen && !S.over ? S.rings[chosen.ring] : null, seen = r ? looks(chosen.ring) : 1;
+  const k = `${r ? chosen.ring : -1}|${r ? `${r.set},${r.tip},${seen}` : ""}|${S.over}`;
   if (!force && shown.aim === k) return;
   shown.aim = k;
-  if (shown.lean !== side) { shown.lean = side; tipKeys.forEach((b, i) => { b.querySelector("svg").innerHTML = tipGlyph(TIPS[i], side); }); }
   $("controls").classList.toggle("gone", S.over);
   $("result").hidden = !S.over;
-  $("controls").classList.toggle("none", !r);
   const spin = r ? r.set * seen : null;                                     // the setting as its button stands for it, round as it's seen
   spinKeys.forEach((b, i) => {
     b.disabled = !r;
@@ -326,22 +351,13 @@ function drawAim(force = false) {
     b.setAttribute("aria-label", SPIN_WORDS[i]);
     b.title = SPIN_WORDS[i];
   });
-  tipKeys.forEach((b, i) => {
-    const tip = TIPS[i], like = r ? alikeAt(chosen.ring, tip) : [], c = planeOf(tip);
-    b.disabled = !r;
-    b.setAttribute("aria-pressed", String(r?.tip === tip));
-    b.classList.toggle("next", !!r && r.tip + r.way === tip);              // where the hoop's drift will tip it next
-    const words = TIP_WORDS[i] + (c >= 0 ? `, ${COLOUR[c]}'s plane` : "") + (like.length ? `, like hoop ${like.join(" and ")}` : "") + (r && r.tip + r.way === tip ? ", where it drifts next" : "");
-    b.setAttribute("aria-label", words);
-    b.title = words;
-    b.querySelector(".alike").textContent = like.join("");
-  });
   if (!r) { $("line").textContent = S.over ? "" : "Tap a hoop to choose it"; return; }
   const c = planeOf(r.tip);
   $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${r.set ? `${spin > 0 ? "↻" : "↺"} ${SAID[Math.abs(r.set)]}` : "still"} · ${c >= 0 ? `${degrees(r.tip)}, <span class="in k${c}">in ${COLOUR[c]}'s plane</span>` : r.tip ? `tipped ${degrees(r.tip)}` : "level"}`;
 }
 function drawSide() {
   drawAim();
+  drawColours();
   const k = `${S.over}|${S.score}`;
   if (shown.side === k) return;
   shown.side = k;
@@ -427,16 +443,21 @@ function tapHoop(ring) {
   choose(again ? -1 : ring);
   sound.play("pick", { ring, power: again ? 0.3 : 0.5 });
 }
-/** A button: the chosen hoop set going at the rhythm it stands for (`spin`), or tipped to its tip (`tip`). */
-function press(kind, level) {
-  if (!chosen || S.over || paused || IN_FRAME) return;
+/** A button: the chosen hoop set going at the rhythm it stands for (`spin`), or every hoop tipped into a colour's plane (`colour`, with or without a hoop chosen). */
+function press(kind, value) {
+  if (S.over || paused || IN_FRAME || (kind === "spin" && !chosen)) return;
   sound.unlock();
   start();
-  const { ring } = chosen;
-  if (kind === "spin") setRing(S, ring, level * looks(ring));               // the right-hand buttons clockwise as the hoop is seen now
-  else if (setTip(S, ring, level)) sound.play("tip", { up: Math.sign(level - S.rings[ring].tipFrom) });
-  sound.play("press", { strength: Math.abs(level) });
+  if (kind === "spin") {
+    setRing(S, chosen.ring, value * looks(chosen.ring));                   // the right-hand buttons clockwise as the hoop is seen now
+    sound.play("press", { strength: Math.abs(value) });
+  } else {
+    const before = S.rings.reduce((n, r) => n + r.tip, 0);
+    if (setPlane(S, value)) sound.play("tip", { up: Math.sign(PLANE[value] * RINGS - before) });
+    sound.play("press", { strength: 2 });
+  }
   drawAim(true);
+  drawColours();
   roll.draw();
 }
 /** − or +: a tempo slower or quicker, kept for the next game too. */

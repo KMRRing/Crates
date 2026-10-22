@@ -15,14 +15,19 @@ const el = (tag, attrs = {}, ...kids) => {
 };
 const RADIUS = [20, 34, 48, 62], PR = [4.2, 4.7, 5.2, 5.6], PLATE = 76, SUN = 8.5;           // tenths of the 3D orrery's units
 const P = 72;                                                                                  // points to a hoop's outline, for picking
-/** A planet's mark, in the picture's frame (as the 3D planets have it) at radius r. */
-function mark(c, r) {
-  return [
-    () => el("ellipse", { class: "or-stroke", rx: r * 1.45, ry: r * 0.4, transform: "rotate(-18)" }),
-    () => el("path", { class: "or-stroke", d: `M${-r * 0.78} ${-r * 0.32}H${r * 0.78}M${-r * 0.78} ${r * 0.34}H${r * 0.78}` }),
-    () => el("path", { class: "or-shade", d: `M0 ${-r}A${r} ${r} 0 0 0 0 ${r}A${r * 0.5} ${r} 0 0 1 0 ${-r}Z` }),
-    () => el("circle", { class: "or-cap", cx: r * 0.32, cy: -r * 0.34, r: r * 0.34 }),
-  ][c]();
+/**
+ * A planet of colour c at (0, 0), radius r, as SVG markup: its enamel's disc and the mark it has in 3D (Saturn's ring,
+ * bands, a crescent, a cap), so it's told apart without its colour; in a group of class `or-planet k<c>`, which gives the
+ * enamel. The flat orrery's planets and the page's colour buttons are drawn with it.
+ */
+export function planetSvg(c, r) {
+  const f = v => +v.toFixed(2);
+  return `<circle class="or-disc" r="${f(r)}"/>${[
+    `<ellipse class="or-stroke" rx="${f(r * 1.45)}" ry="${f(r * 0.4)}" transform="rotate(-18)"/>`,
+    `<path class="or-stroke" d="M${f(-r * 0.78)} ${f(-r * 0.32)}H${f(r * 0.78)}M${f(-r * 0.78)} ${f(r * 0.34)}H${f(r * 0.78)}"/>`,
+    `<path class="or-shade" d="M0 ${f(-r)}A${f(r)} ${f(r)} 0 0 0 0 ${f(r)}A${f(r * 0.5)} ${f(r)} 0 0 1 0 ${f(-r)}Z"/>`,
+    `<circle class="or-cap" cx="${f(r * 0.32)}" cy="${f(-r * 0.34)}" r="${f(r * 0.34)}"/>`,
+  ][c]}`;
 }
 
 export function createFlat(host) {
@@ -72,7 +77,7 @@ export function createFlat(host) {
       if (c < 0) { chair.planet.setAttribute("visibility", "hidden"); continue; }
       if (chair.colour !== c) {
         chair.colour = c;
-        chair.body.replaceChildren(el("circle", { class: "or-disc", r: PR[k] }), mark(c, PR[k]));
+        chair.body.innerHTML = planetSvg(c, PR[k]);
         chair.planet.setAttribute("class", `or-planet k${c}`);
       }
       const [x, y] = seat(state, k, p);
@@ -98,7 +103,8 @@ export function createFlat(host) {
     if (e.type !== "lock") return;
     for (const m of e.members) {
       const [x, y] = seat(state, m.ring, m.place);
-      const g = el("g", { transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})` }, el("g", { class: `or-planet k${e.colour}` }, el("circle", { class: "or-disc", r: PR[m.ring] }), mark(e.colour, PR[m.ring])));
+      const body = el("g", { class: `or-planet k${e.colour}` }), g = el("g", { transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})` }, body);
+      body.innerHTML = planetSvg(e.colour, PR[m.ring]);
       fx.append(g);
       const done = g.animate?.([{ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(1)`, opacity: 1 }, { transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(2.2)`, opacity: 0 }], { duration: 450, easing: "ease-out" }).finished;
       (done ?? Promise.resolve()).catch(() => {}).then(() => g.remove());
