@@ -518,7 +518,7 @@ function careful(hands, seed, { tips = true, flat = false } = {}) {
   let x = (seed * 2654435761 + 977) >>> 0;
   const rnd = () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
   const vary = v => v * Math.exp(hands.jitter * Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(TAU * rnd()));
-  const me = { chosen: -1 }, stats = { plans: 0, tips: 0, misses: 0, broken: 0, stops: 0, drifts: 0, fast: 0, tipAt: [] };
+  const me = { chosen: -1 }, stats = { plans: 0, tips: 0, misses: 0, broken: 0, stops: 0, fast: 0, tipAt: [] };
   let todo = [{ kind: "think" }], busy = null, waiting = null, goal = null, spoilt = false;
   if (flat) todo = [{ kind: "level" }, { kind: "think" }];          // every hoop tipped like the first, before anything else
   const moved = new Map();                                       // a hoop set going: { steps taken since, steps it needs }
@@ -574,7 +574,7 @@ function careful(hands, seed, { tips = true, flat = false } = {}) {
     },
     saw(e) {
       if (e.type === "beat") for (const { ring } of e.stepped) { const m = moved.get(ring); if (m) m.taken++; }
-      if (e.type === "drift") { stats.drifts++; if (goal?.plane && goal.rings.has(e.ring) && todo.length) spoilt = true; }
+      if (e.type === "drift" && goal?.plane && goal.rings.has(e.ring) && todo.length) spoilt = true;     // a hoop of the plan drifted out of its plane
     },
     act(s) {
       if (spoilt) { spoilt = false; busy = null; waiting = null; stats.broken++; todo = [...halt(s), { kind: "think" }]; }
