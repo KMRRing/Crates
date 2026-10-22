@@ -20,8 +20,11 @@ export const METRES = 10;          // a layer of the shaft, in metres
 export const BARREL = 50;          // a barrel's points (a metre is one)
 const CHUNK = 12;                  // layers made at a time
 export const WELL = [1, 1];        // the wellhead's square at the surface
-/** How long the oil takes over a square of pipe at depth z, ms: slow at the top, faster all the way down, to a floor. */
+/** How long the oil takes over a square of pipe at depth z, ms: slow at the top, faster all the way down, to a floor
+ *  (at the Normal pace; a slower one takes that many times as long, the wait at the wellhead too). */
 export const fillTime = z => Math.max(450, Math.round(3200 * 0.98 ** z));
+/** The wait at the wellhead at a descent's pace. */
+export const startOf = D => START * (D.pace || 1);
 
 // ---------- the pieces ----------
 // straight and long (two squares) carry on the way the pipe goes; elbow turns it; jog steps it one square sideways
@@ -106,12 +109,13 @@ export function madeAt(S, x, y, z) {
  * into its ways), next (the queue's place), hold (a piece set aside) and held (set aside already, for the piece in
  * hand), oil ({ i, p }: the square of pipe it's in and how far through), t (ms since the start), flowing, hurry,
  * charges, barrels, blasted and taken (squares of rock blasted and of boons laid through, as keys), deepest (the
- * deepest layer the oil has passed), over ({ why, at } once the oil has caught the open end).
+ * deepest layer the oil has passed), over ({ why, at } once the oil has caught the open end), pace (1, or slower: the
+ * oil's every square and the wait at the wellhead taking that many times as long).
  */
-export function newDescent(seed) {
+export function newDescent(seed, pace = 1) {
   const [x, y] = WELL;
   const D = { seed, pipe: [{ x, y, z: 0, a: UP, b: DOWN, src: true }], cur: pieceAt3(seed, 0), next: 1, hold: null, held: false, turn: 0,
-    oil: { i: 0, p: 0 }, t: 0, flowing: false, hurry: false, charges: 0, barrels: 0, blasted: [], taken: [], deepest: 0, over: null };
+    oil: { i: 0, p: 0 }, t: 0, flowing: false, hurry: false, charges: 0, barrels: 0, blasted: [], taken: [], deepest: 0, over: null, pace };
   return D;
 }
 // the pipe's squares as a set, kept up as it grows (a descent is plain data, saved as it is)
@@ -204,7 +208,7 @@ export function holdPiece(S, D) {
 export function scrap(S, D) {
   if (D.over) return false;
   nextPiece(S, D);
-  advance(S, D, D.flowing ? squareTime(D, D.pipe[D.oil.i]) : fillTime(0));
+  advance(S, D, D.flowing ? squareTime(D, D.pipe[D.oil.i]) : fillTime(0) * (D.pace || 1));
   return true;
 }
 /** A charge blasts the rock the open end faces. */
@@ -220,15 +224,15 @@ export function blast(S, D) {
  *  still waiting at the wellhead). */
 export function hurry(S, D) {
   if (D.over || lead(D) <= HURRY_STOP) return;
-  if (!D.flowing) advance(S, D, START - D.t);
+  if (!D.flowing) advance(S, D, startOf(D) - D.t);
   D.hurry = true;
 }
-function squareTime(D, c) { return (c.src ? fillTime(0) / 2 : fillTime(c.z) * (c.tank ? TANK3 : 1)) / (D.hurry ? HURRY3 : 1); }
+function squareTime(D, c) { return (c.src ? fillTime(0) / 2 : fillTime(c.z) * (c.tank ? TANK3 : 1)) * (D.pace || 1) / (D.hurry ? HURRY3 : 1); }
 /** The clock moved on by ms: the wellhead's wait, then the oil square by square; it's over when it reaches the open end. */
 export function advance(S, D, ms) {
   while (ms > 0 && !D.over) {
     if (!D.flowing) {
-      const wait = START - D.t;
+      const wait = startOf(D) - D.t;
       if (ms < wait) { D.t += ms; return; }
       D.t += wait; ms -= wait; D.flowing = true;
       continue;
@@ -244,7 +248,7 @@ export function advance(S, D, ms) {
   }
 }
 /** The oil's start, before the wellhead's wait is out. */
-export function release(S, D) { if (!D.flowing && !D.over) advance(S, D, START - D.t); }
+export function release(S, D) { if (!D.flowing && !D.over) advance(S, D, startOf(D) - D.t); }
 /** Metres down (the deepest layer the oil has passed) and points: a metre each, and each barrel. */
 export const depthOf = D => D.deepest * METRES;
 export const scoreOf = D => depthOf(D) + BARREL * D.barrels;

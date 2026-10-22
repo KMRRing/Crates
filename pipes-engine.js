@@ -60,13 +60,15 @@ const inside = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS;
 export function beyond(c, d) { const [x, y] = xy(c), nx = x + DIRS[d][0], ny = y + DIRS[d][1]; return inside(nx, ny) ? at(nx, ny) : -1; }
 
 /**
- * Level n of the run on seed: { seed, n, ...levelOf(n), cells, source, terminal }. cells[c] is null for an open
+ * Level n of the run on seed, at a pace (1, or slower: 1.5 or 2, the countdown and the oil's every pipe taking that
+ * many times as long; the board itself is the same at every pace): { seed, n, ...levelOf(n), pace, cells, source,
+ * terminal }. cells[c] is null for an open
  * square, else what's fixed there: { k: "rock" }, { k: "source", d } (the wellhead, its outlet on side d),
  * { k: "terminal", d } (its inlet on side d), { k: "pump" | "tank", piece: "h" | "v" }. The same for everyone on the
  * same seed. Every board is checked: the wellhead's outlet clear for two squares, the terminal's inlet clear, a pump or
  * tank open at both ends, and nearly every open square reachable from the wellhead.
  */
-export function deal(seed, n) {
+export function deal(seed, n, pace = 1) {
   const lv = levelOf(n);
   for (let attempt = 0; ; attempt++) {
     const r = rng(mix(seed, n, attempt, 1)), cells = Array(COLS * ROWS).fill(null);
@@ -113,7 +115,7 @@ export function deal(seed, n) {
     const openCount = cells.filter(x => !x || x.k === "pump" || x.k === "tank").length;
     if (seen.size < openCount && attempt < 50) continue;
     if (terminal && !seen.has(beyond(terminal.c, terminal.d)) && attempt < 50) continue;
-    return { seed, ...lv, cells, source: { c: source, d: sd }, terminal };
+    return { seed, ...lv, fill: Math.round(lv.fill * pace), countdown: Math.round(lv.countdown * pace), pace, cells, source: { c: source, d: sd }, terminal };
   }
 }
 /** The i-th piece of level L's queue: the same for everyone on the same board, whatever they do with it. */

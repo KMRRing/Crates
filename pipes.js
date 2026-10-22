@@ -21,18 +21,23 @@ const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
 const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // ---------- the state ----------
-// prefs: the mode on show ("flat", the board; "deep", the shaft in 3D) and a match's length on the board (levels; 0:
-// till the spill). Each mode keeps its own run, so trying the other leaves yours where it was.
-let prefs = { mode: "flat", length: 0, ...read(KEY.prefs, {}) };
+// prefs: the mode on show ("flat", the board; "deep", the shaft in 3D), the pace (1, Normal; 1.5 or 2, the countdown
+// and the oil taking that many times as long) and a match's length on the board (levels; 0: till the spill). Each mode
+// keeps its own run, so trying the other leaves yours where it was.
+let prefs = { mode: "flat", length: 0, pace: 1, ...read(KEY.prefs, {}) };
+const PACES = [[1, "Normal"], [1.5, "Slower"], [2, "Slowest"]];
+const paceName = p => (PACES.find(([v]) => v === p) || PACES[0])[1];
+/** The pace a new game plays at: a match's own, else yours. */
+const paceNow = () => (match ? match.pace || 1 : PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1);
 let mode = prefs.mode === "deep" ? "deep" : "flat";
-// the board's run: { v, kind: "random" | "daily" | "duel", seed, n (the level), total (the levels' points before
-// this one's, or with it once it's over), phase: "play" | "done" (a level cleared, its card up) | "over", P (the level:
-// pipes-engine.js; kept once it's over, so the card stands over the board as it ended), last (how the level went), at };
-// L is its level
+// the board's run: { v, kind: "random" | "daily" | "duel", seed, pace (as it's played now) and slowest (the slowest it
+// was played at, which its score counts under), n (the level), total (the levels' points before this one's, or with it
+// once it's over), phase: "play" | "done" (a level cleared, its card up) | "over", P (the level: pipes-engine.js; kept
+// once it's over, so the card stands over the board as it ended), last (how the level went), at }; L is its level
 let F = null, L = null;
-// the descent: { v, kind, seed, D (pipes-deep.js), phase: "play" | "over", at }; S is its shaft
+// the descent: { v, kind, seed, slowest, D (pipes-deep.js, its pace in it), phase: "play" | "over", at }; S its shaft
 let R = null, S = null;
-let match = null;            // a match being played here: { mode, seed, length }
+let match = null;            // a match being played here: { mode, seed, length, pace }
 let turns = 0;               // quarter turns given the piece in hand: the 3D view swings the piece round only for these
 let view = null;             // the 3D view, made the first time the shaft shows
 let raf = 0, last = 0, held = false;
@@ -50,8 +55,9 @@ const saveSoon = () => { const now = performance.now(); if (now - savedAt > 1000
 
 // ---------- the board's run ----------
 function startFlat(kind, seed = kind === "daily" ? today() : randomSeed()) {
-  F = { v: 2, kind, seed, n: 1, total: 0, phase: "play", P: B.newPlay(), at: Date.now() };
-  L = B.deal(seed, 1);
+  const pace = paceNow();
+  F = { v: 2, kind, seed, pace, slowest: pace, n: 1, total: 0, phase: "play", P: B.newPlay(), at: Date.now() };
+  L = B.deal(seed, 1, pace);
   showFlat(true);
   save();
 }
@@ -60,7 +66,7 @@ function nextLevel() {
   F.n++;
   F.P = B.newPlay();
   F.phase = "play";
-  L = B.deal(F.seed, F.n);
+  L = B.deal(F.seed, F.n, F.pace || 1);
   showFlat(true);
   save();
 }
@@ -73,14 +79,15 @@ function levelOver() {
   F.total += pts;
   F.phase = P.over.win && !(match?.length && F.n >= match.length) ? "done" : "over";
   if (!P.over.win) navigator.vibrate?.([60, 40, 60]);
-  if (F.phase === "over" && !match) noteBest("flat", { score: F.total, level: F.n });
+  if (F.phase === "over" && !match) noteBest("flat", { score: F.total, level: F.n }, F.slowest || 1);
   save();
   if (F.phase === "over") tell(true);
 }
 
 // ---------- the descent ----------
 function startDeep(kind, seed = kind === "daily" ? today() : randomSeed()) {
-  R = { v: 2, kind, seed, D: G.newDescent(seed), phase: "play", at: Date.now() };
+  const pace = paceNow();
+  R = { v: 2, kind, seed, slowest: pace, D: G.newDescent(seed, pace), phase: "play", at: Date.now() };
   S = G.shaftOf(seed);
   R.D.turn = G.firstTurn(S, R.D);
   view?.reset();
@@ -90,25 +97,41 @@ function startDeep(kind, seed = kind === "daily" ? today() : randomSeed()) {
 function descentOver() {
   R.phase = "over";
   navigator.vibrate?.([60, 40, 60]);
-  if (!match) noteBest("deep", { score: G.scoreOf(R.D), depth: G.depthOf(R.D) });
+  if (!match) noteBest("deep", { score: G.scoreOf(R.D), depth: G.depthOf(R.D) }, R.slowest || 1);
   save();
   tell(true);
 }
 
-// ---------- bests: by mode, and today's ----------
-/** A run's end, against the best of its mode, and today's if it was today's. */
-function noteBest(m, result) {
+// ---------- bests: by mode and pace, and today's ----------
+// kept as { flat, deep, "flat:slower", "deep:slowest", … }: a slower game is an easier one, so it keeps a best of its
+// own (the games screen shows the highest of them)
+const paced = (m, pace) => (pace > 1 ? `${m}:${paceName(pace).toLowerCase()}` : m);
+/** A run's end, against the best of its mode at the slowest pace it was played at, and today's if it was today's. */
+function noteBest(m, result, pace) {
   if (IN_FRAME) return;
-  const best = read(KEY.best, {}) || {};
-  if (!best[m] || result.score > best[m].score) { best[m] = result; write(KEY.best, best); }
+  const k = paced(m, pace), best = read(KEY.best, {}) || {};
+  if (!best[k] || result.score > best[k].score) { best[k] = result; write(KEY.best, best); }
   const run = m === "flat" ? F : R;
   if (run.kind === "daily" && run.seed === today()) {
     const d = read(KEY.daily, {}) || {}, day = d[today()] || {};
-    if (!day[m] || result.score > day[m].score) { day[m] = result; d[today()] = day; write(KEY.daily, d); }
+    if (!day[k] || result.score > day[k].score) { day[k] = result; d[today()] = day; write(KEY.daily, d); }
   }
 }
-const bestOf = m => (read(KEY.best, {}) || {})[m] || null;
-const todayOf = m => ((read(KEY.daily, {}) || {})[today()] || {})[m] || null;
+const bestOf = (m, pace = 1) => (read(KEY.best, {}) || {})[paced(m, pace)] || null;
+const todayOf = (m, pace = 1) => ((read(KEY.daily, {}) || {})[today()] || {})[paced(m, pace)] || null;
+/** The pace changed in the menu: your next game plays at it, and so does the one under way, from now (its score then
+ *  counts under the slowest pace it was played at). In a match the pace is the match's: it's for the next one. */
+function setPace(v) {
+  prefs.pace = v; write(KEY.prefs, prefs);
+  if (match || IN_FRAME) return;
+  if (F && F.phase !== "over") {
+    F.pace = v; F.slowest = Math.max(F.slowest || 1, v);
+    L = B.deal(F.seed, F.n, v);
+  }
+  if (R && R.phase !== "over") { R.D.pace = v; R.slowest = Math.max(R.slowest || 1, v); }
+  save();
+  if (mode === "flat") { flatKey = ""; drawFlatHud(); } else { statusKey = ""; drawDeepStatus(); }
+}
 
 // ---------- the clock ----------
 function frame(now) {
@@ -440,7 +463,7 @@ function drawDeepStatus() {
   const fit = ghost && G.fits(S, D, ghost), shut = fit && G.deadEnd(S, D, ghost), full = !G.room(D, ghost ? ghost.cells.length : 1);
   const blastable = facing === "rock" && D.charges > 0;
   const text = R.phase === "over" ? "The oil caught up"
-    : !D.flowing ? `The oil comes in ${Math.ceil((G.START - D.t) / 1000)} s`
+    : !D.flowing ? `The oil comes in ${Math.ceil((G.startOf(D) - D.t) / 1000)} s`
     : blastable ? "Rock ahead: blast it with a charge"
     : facing === "rock" || facing === "wall" || facing === "pipe" ? `Shut in by ${facing === "pipe" ? "your own pipe" : facing === "wall" ? "the shaft's wall" : "rock, and no charge"}: the oil will catch up`
     : full ? (lead >= G.CAP ? `${G.CAP} laid ahead: wait for the oil, or hurry it` : "No room yet for two squares: wait for the oil, or hurry it")
@@ -551,8 +574,8 @@ function drawFlatCard() {
   const h = make("h3", won ? "good" : "bad", won ? "The match is done" : "Run over");
   const why = make("p", "why", won ? `${match?.length || l.n} levels, the same for everyone.` : `It passed ${l.count} pipes of the ${l.quota} needed, then ${WHY[l.why] || "spilled"}.`);
   const big = make("p", "pi-big", num(F.total));
-  const best = bestOf("flat"), day = todayOf("flat");
-  const stats = statBoxes([[l.n, "level reached"], [best ? num(best.score) : "–", "your best"], [day ? num(day.score) : "–", "today's best"]]);
+  const pace = F.slowest || 1, best = bestOf("flat", pace), day = todayOf("flat", pace), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
+  const stats = statBoxes([[l.n, "level reached"], [best ? num(best.score) : "–", `your best${at}`], [day ? num(day.score) : "–", `today's${at}`]]);
   if (match) { card([h, why, lines(rows), big], ["See the table", () => duel.open()]); return; }
   card([h, why, lines(rows), big, stats], ["Again", () => startFlat("random")], [F.kind === "daily" ? "A random run" : "Today's run", () => startFlat(F.kind === "daily" ? "random" : "daily"), true]);
 }
@@ -572,8 +595,8 @@ function drawDeepCard() {
   rows.push(["Score", num(G.scoreOf(D)), "sum"]);
   const big = make("p", "pi-big", num(G.scoreOf(D)));
   if (match) { card([h, why, lines(rows), big], ["See the table", () => duel.open()]); return; }
-  const best = bestOf("deep"), day = todayOf("deep");
-  const stats = statBoxes([[`${num(depth)} m`, "this time"], [best ? num(best.score) : "–", "your best"], [day ? num(day.score) : "–", "today's best"]]);
+  const pace = R.slowest || 1, best = bestOf("deep", pace), day = todayOf("deep", pace), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
+  const stats = statBoxes([[`${num(depth)} m`, "this time"], [best ? num(best.score) : "–", `your best${at}`], [day ? num(day.score) : "–", `today's${at}`]]);
   card([h, why, lines(rows), big, stats], ["Again", () => startDeep("random")], [R.kind === "daily" ? "A random shaft" : "Today's shaft", () => startDeep(R.kind === "daily" ? "random" : "daily"), true]);
 }
 
@@ -586,7 +609,7 @@ function setMode(m) {
   if (!match) { prefs.mode = m; write(KEY.prefs, prefs); }
   $("app").classList.toggle("deep", m === "deep");
   if (m === "flat") {
-    if (!F) { F = loadRun(KEY.flat); if (F) L = B.deal(F.seed, F.n); }
+    if (!F) { F = loadRun(KEY.flat); if (F) L = B.deal(F.seed, F.n, F.pace || 1); }
     if (!F) return startFlat("random");
     delete F.still;
     showFlat(true);
@@ -635,8 +658,10 @@ function showRules() {
       <li><b>On the way</b>, steer round the rock: scattered blocks, pillars, and slabs across the whole shaft but for a gap or two. Lay pipe through the boons to take them: a barrel is worth ${G.BARREL}, a charge blasts the rock the open end faces (Lay becomes Blast), a tank holds the oil back ${G.TANK3} times as long.</li>
     </ul>
     <p><b>Points</b>: a point for every metre the oil gets down (a layer is ${G.METRES} m), and ${G.BARREL} a barrel. Drag the shaft to look round it.</p>
+    <h4>Pace</h4>
+    <p>The times above are the Normal pace. The menu's Pace slows it down: Slower takes half as long again over everything (the countdown, the oil's every pipe or square, the wait at the wellhead), Slowest twice as long; the boards and the shaft stay the same. It changes the game under way at once. A slower game is an easier one, so it keeps bests of its own, and a game counts under the slowest pace it was played at.</p>
     <h4>Today's and together</h4>
-    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), each on their own phone: the highest score wins. On the board, the menu's Match length sets how many levels a match runs: 5, 10, or till the spill.</p>`;
+    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), at the pace the match was dealt at, each on their own phone: the highest score wins. On the board, the menu's Match length sets how many levels a match runs: 5, 10, or till the spill.</p>`;
   if (!$("rulesDlg").open) $("rulesDlg").showModal();
   $("rulesDlg").scrollTop = 0;
 }
@@ -654,6 +679,7 @@ function openMenu() {
     part(body, "play").append(action("The rules", showRules, "link"));
     const settings = part(body, "settings");
     settings.append(toggle("3D (the next match)", prefs.mode === "deep", on => { prefs.mode = on ? "deep" : "flat"; write(KEY.prefs, prefs); openMenu(); }));
+    settings.append(choice("Pace (the next match)", PACES, PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1, v => { prefs.pace = v; write(KEY.prefs, prefs); }));
     if (prefs.mode === "flat") settings.append(matchLength());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
@@ -662,12 +688,15 @@ function openMenu() {
   pick ??= run?.kind === "daily" ? "daily" : "random";
   part(body, "play").append(action("New game", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
   part(body, "content").append(choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
-  part(body, "settings").append(toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); }));
+  part(body, "settings").append(toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); }),
+    choice("Pace", PACES, paceNow(), v => { setPace(v); openMenu(); }));
   part(body, "together").append(matchLength());
-  const fb = bestOf("flat"), db = bestOf("deep"), ft = todayOf("flat"), dt = todayOf("deep");
+  // the bests at the pace you're playing at (a slower game keeps its own)
+  const pace = paceNow(), at = pace > 1 ? `, ${paceName(pace).toLowerCase()}` : "";
+  const fb = bestOf("flat", pace), db = bestOf("deep", pace), ft = todayOf("flat", pace), dt = todayOf("deep", pace);
   part(body, "about").append(
-    line(`The board: ${fb ? `best ${num(fb.score)} (level ${fb.level})` : "no run finished yet"}${ft ? `, today ${num(ft.score)}` : ""}.`),
-    line(`3D: ${db ? `best ${num(db.score)} (${num(db.depth)} m)` : "no descent yet"}${dt ? `, today ${num(dt.score)}` : ""}.`));
+    line(`The board${at}: ${fb ? `best ${num(fb.score)} (level ${fb.level})` : "no run finished yet"}${ft ? `, today ${num(ft.score)}` : ""}.`),
+    line(`3D${at}: ${db ? `best ${num(db.score)} (${num(db.depth)} m)` : "no descent yet"}${dt ? `, today ${num(dt.score)}` : ""}.`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 function confirmStart(kind) {
@@ -697,16 +726,20 @@ const duel = createDuel({
   // the higher score wins, and equal scores draw: the quicker run isn't the better one here (in 3D it's the one the
   // oil caught first)
   compare: (a, b) => (b.score - a.score) || 0,
-  deal: () => ({ seed: randomSeed(), mode: prefs.mode === "deep" ? "deep" : "flat", length: prefs.mode === "deep" ? 0 : prefs.length || 0 }),
-  describe: m => (m.mode === "deep" ? "The same shaft for everyone: the highest score wins" : `The same boards for everyone, ${m.length ? `${m.length} levels` : "till the spill"}: the highest score wins`),
+  deal: () => ({ seed: randomSeed(), mode: prefs.mode === "deep" ? "deep" : "flat", length: prefs.mode === "deep" ? 0 : prefs.length || 0,
+    pace: PACES.some(([v]) => v === prefs.pace) ? prefs.pace : 1 }),
+  describe: m => {
+    const pace = m.pace > 1 ? `, at the ${paceName(m.pace).toLowerCase()} pace` : "";
+    return m.mode === "deep" ? `The same shaft for everyone${pace}: the highest score wins` : `The same boards for everyone, ${m.length ? `${m.length} levels` : "till the spill"}${pace}: the highest score wins`;
+  },
   extra: () => null,
   play: (m, { kept }) => {
     cancelAnimationFrame(raf);
-    match = { mode: m.mode === "deep" ? "deep" : "flat", seed: m.seed, length: m.length || 0 };
+    match = { mode: m.mode === "deep" ? "deep" : "flat", seed: m.seed, length: m.length || 0, pace: m.pace || 1 };
     $("card").hidden = true;
     if (kept?.match?.seed === m.seed && (kept.F || kept.R)) {
       F = kept.F; R = kept.R;
-      if (F) L = B.deal(F.seed, F.n);
+      if (F) L = B.deal(F.seed, F.n, F.pace || 1);
       if (R) S = G.shaftOf(R.seed);
       mode = match.mode;
       $("app").classList.toggle("deep", mode === "deep");

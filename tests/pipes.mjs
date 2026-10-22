@@ -49,6 +49,15 @@ const at = (x, y) => y * B.COLS + x;
   check(lv[0].fill > lv[1].fill && lv[1].fill > lv[2].fill && lv[2].fill === lv[3].fill && lv[0].quota < lv[2].quota && lv[0].countdown > lv[2].countdown,
     `levels speed up and lengthen to a floor: ${lv.map(l => `${l.fill} ms, quota ${l.quota}`).join("; ")}`);
 }
+// a slower pace: the same board, its countdown and its oil slower
+{
+  const a = B.deal(808, 6), b = B.deal(808, 6, 2), c = B.deal(808, 6, 1.5);
+  check(JSON.stringify(a.cells) === JSON.stringify(b.cells) && b.fill === 2 * a.fill && b.countdown === 2 * a.countdown && c.fill === Math.round(1.5 * a.fill) && b.quota === a.quota,
+    "at a slower pace the board is the same, its countdown and every pipe's time stretched (Slower half as long again, Slowest twice)");
+  const P = B.newPlay(), Q = B.newPlay();
+  B.advance(a, P, 10 * a.fill + a.countdown); B.advance(b, Q, 2 * (10 * a.fill + a.countdown));
+  check(P.t * 2 === Q.t && P.path.length === Q.path.length && Math.abs(P.p - Q.p) < 1e-9, "at the Slowest pace the oil gets where the Normal pace takes it in twice the time");
+}
 // the queue: shuffled bags of thirteen, the same whatever is played
 {
   const L = B.deal(4242, 3), counts = {};
@@ -392,8 +401,18 @@ const put = (S, D, kind, turn = 0) => { D.cur = kind; D.turn = turn; return G.la
   check(Math.abs(M.t - t0 - (G.fillTime(0) / 2 + G.TANK3 * G.fillTime(1) + G.fillTime(2))) < 2, `a tank holds the oil ${G.TANK3} times as long`);
 }
 {
+  // a slower pace: the wait at the wellhead and every square stretched
+  const S = shaftWith(), D = G.newDescent(9, 2);
+  put(S, D, "straight"); put(S, D, "straight");
+  G.advance(S, D, 2 * G.START - 1);
+  check(!D.flowing && G.startOf(D) === 2 * G.START, "Slowest: twice the wait at the wellhead");
+  const t0 = D.t + 1;
+  G.advance(S, D, 1e6);
+  check(Math.abs(D.t - t0 - 2 * (G.fillTime(0) / 2 + G.fillTime(1) + G.fillTime(2))) < 2, "and twice as long over every square");
+}
+{
   // a descent saved and restored plays on the same (the shaft is made again from the seed)
-  const S = G.shaftOf(31337), D = G.newDescent(31337);
+  const S = G.shaftOf(31337), D = G.newDescent(31337, 1.5);
   const move = (S, D, i) => { D.turn = (G.firstTurn(S, D) + (i % 3 === 2 ? 1 : 0)) % G.waysOf(D, D.cur).length; if (G.lay(S, D) !== "laid") { if (!G.holdPiece(S, D)) G.scrap(S, D); } G.advance(S, D, 700); };
   for (let i = 0; i < 20; i++) move(S, D, i);
   const C = JSON.parse(JSON.stringify(D)), S2 = G.shaftOf(31337);
