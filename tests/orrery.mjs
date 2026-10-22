@@ -2,16 +2,18 @@
 // own pace of drift, planets, every colour at least twice, none in line); the beat (the tempos, the cap of one a second,
 // a change of tempo, the beat on the game's own clock); the hoops stepping (each of the nine settings' rhythm left and
 // right, exactly a place a step or two at the fastest, still standing still, a new setting answering on the next beat,
-// the rhythms over a long run, a step and a tip drawn); alignment, exact (at the gates whatever the tips, anywhere in the
-// colour's own plane, not in another's, not otherwise; three and four, mixed colours not, two at once; a step, a landing
-// or a tip completing one); the drift (its pace, its step and its turn at 45 degrees, wound again by a tip, breaking a
-// line, standing still with the game); clearing, the points and the combo; the planets landing on the clock (the pace,
-// foretold, the place, a full orrery ending it); a game saved and opened again; the old version replaced; and whole
-// games played out by simple players with a person's delays.
+// the rhythms over a long run, a step drawn) and a press of a colour (every hoop into its plane at once, drawn turning
+// quickly); alignment, exact (at the gates whatever the tips, anywhere in the colour's own plane, not in another's, not
+// otherwise; three and four, mixed colours not, two at once; a step, a landing or a press completing one); the drift (its
+// pace, its step and its turn at 45 degrees, no clock wound by a press, breaking a line, standing still with the game);
+// clearing, the points and the combo; the planets landing on the clock (the pace, foretold, the place, a full orrery
+// ending it); a game saved and opened again; the old version replaced; and whole games played out by simple players with
+// a person's delays.
 // `node tests/orrery.mjs measure` plays more games for each player instead, at every tempo, and prints what the README's
-// numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2`, `pace=6.5,1,200`, `drift=30,36,42,48` (or
-// `drift=off`), `foresight=0.5`, `top=8`, `fast=off` (no two places a beat) and a list of players (`careful,quick`)
-// change it; `trace=100` prints the plans of one game (seed 100) as they're made.
+// numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2`, `pace=6.5,1,170`, `drift=30,36,42,48` (or
+// `drift=off`), `wind=all` or `wind=moved` (a press winding the drift's clocks), `top=8`, `fast=off` (no two places a
+// beat) and a list of players (`careful,quick`) change it; `trace=100` prints the plans of one game (seed 100) as they're
+// made.
 import {
   VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, EVERY, STRIDE, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW, FORETELL,
   PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTempo,
@@ -677,4 +679,4 @@ function play(seed, tempo, who) {
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("orrery: the deal, the beat, stepping (two places a beat too), alignments at the gates and in the colours' planes, the drift, clearing, the combo, planets landing on the clock, the end, saving, the old version replaced, whole games");
+else console.log("orrery: the deal, the beat, stepping (two places a beat too), a press of a colour, alignments at the gates and in the colours' planes, the drift, clearing, the combo, planets landing on the clock, the end, saving, the old version replaced, whole games");
