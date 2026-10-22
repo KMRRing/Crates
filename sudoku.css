@@ -49,6 +49,15 @@ html[data-mode="night"] { --sudoku-in: #7FA9D6; --su-good: #7FC2A8; --su-bad: #E
   padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .su-toast.show { opacity: 1; }
 
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.su-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.su-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.su-sheet .pick-head h2 { font-size: 1rem; }
+.su-rules p { margin: .5rem 0; line-height: 1.45; }
+.su-rules h4 { margin: 1.1rem 0 .2rem; }
+.su-rules ul { margin: .4rem 0; padding-left: 1.1rem; }
+.su-rules li { margin: .3rem 0; line-height: 1.45; }
+
 /* a short phone: the pad's keys a little lower, so the grid keeps its room; a tall one: the room the grid can't use
    (it's as wide as the screen already) goes to the keys */
 @media (max-height: 640px) and (orientation: portrait) {

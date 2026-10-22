@@ -656,8 +656,29 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-// the menu: Play (a new puzzle, clearing the board), Content (random or today's, the board, its size, the level),
-// Together (in a match: the next match's way of playing), Settings (the computer rival), About (your best, the rules)
+// ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
+function showRules() {
+  $("rulesBody").innerHTML = `
+    <p>Shade cells until no number is left twice in a row or a column. Every puzzle has exactly one answer, reached by reasoning, never by a guess.</p>
+    <h4>The rules</h4>
+    <p>Nikoli's three, unchanged: no number is left unshaded twice in a row or a column; no two shaded cells touch side by side (corner to corner is fine); and the unshaded cells stay joined in one piece, side to side.</p>
+    <p>Two boards (Board, in the menu): <b>Square</b>, 5×5 to 12×12, numbered 1 to its side; and <b>Hex</b>, a hexagon of hexagons 5, 7, 9 or 11 across, numbered 1 to its width, where every cell lies on three lines (its row and two slants) and has up to six neighbours.</p>
+    <p><b>An example.</b> Two 4s side by side in a row: one of them stays (both shaded would touch), so every other 4 in that row is shaded. And a cell between two of the same number always stays: shaded, it would leave both its neighbours unshaded, and the number twice.</p>
+    <h4>Playing</h4>
+    <p>Tap a cell to shade it, again to keep it (a ring, the circle a solver pencils round a number that stays), again to clear it; hold a cell, or right-click it, to keep it at once. Only the shading counts: the puzzle is solved the moment exactly its answer is shaded, so rings are notes for yourself. Undo and Redo step through your marks, and the menu clears the board.</p>
+    <p>A broken rule shows at once, the line under the board saying which: two shaded cells side by side in oxblood, a number kept twice in a line, the cells your shading has cut off tinted. That comes from the rules, never the answer. Hint (+${HINT}&nbsp;s) puts a wrong mark right first; otherwise it makes the next step a person would take and says why, the cells it settled in gilt and the cells that say so dashed.</p>
+    <h4>Levels</h4>
+    <p>A puzzle's level is the hardest step it needs, never how many numbers it shows. <b>Easy</b>: a shaded cell's neighbours kept, a kept number's rivals (the same number elsewhere in its lines) shaded, pairs and sandwiches (above), a number with no rival left kept. <b>Medium</b>: the connection rule as well (a cell whose shading would cut the board in two is kept). <b>Hard</b>: a trial, a cell supposed one way and followed until a rule breaks, within two rounds. <b>Expert</b>: a trial three rounds deep or more. A hex board has no Medium (with six neighbours, the connection rule hardly ever bites), and the widest no Expert. When no puzzle of the level comes of a board, the nearest is dealt and the line says so.</p>
+    <h4>Time</h4>
+    <p>Your score is your time plus ${HINT} seconds a hint; lower is better, and your best is kept for each board, size and level. The clock stops while the menu, these rules or the games screen is open.</p>
+    <h4>Today's puzzle</h4>
+    <p>An 8×8 at Medium, the same for everyone. Its first solve counts the moment the shading is the answer, and is Hitori's figure on the games screen.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
+}
+
+// the menu: Play (a new puzzle, clearing the board, the rules), Content (random or today's, the board, its size, the
+// level), Together (in a match: the next match's way of playing), Settings (the computer rival), About (your best)
 let pick = null;                                              // what New puzzle starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
@@ -670,6 +691,7 @@ function openMenu() {
     content.append(mirror("Level", $("level")));
   };
   if (duel.on) {
+    part(body, "play").append(action("The rules", showRules, "link"));
     const tog = part(body, "together"), m = duel.match, pairOk = !IN_PARTY && (tableNow() ? Object.keys(tableNow().players || {}).length <= 2 : true);
     if (S?.mode === "pair") {
       tog.append(action(S.done ? "Another board" : "A new board", () => { if (S.done || confirm("Start a new board? This one isn't solved.")) duel.again(); }, S.done ? "primary" : ""));
@@ -685,16 +707,16 @@ function openMenu() {
   const play = part(body, "play");
   play.append(action("New puzzle", () => confirmStart(pick), "primary"));
   if (S && !S.done && (S.marks.includes(SHADE) || S.marks.includes(KEEP))) play.append(action("Clear the board", clearBoard));
+  play.append(action("The rules", showRules, "link"));
   content.append(choice("Puzzle", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") boardChoices();
   else content.append(line(`Today's puzzle is ${kindText(DAILY)}: the same for everyone.`));
   part(body, "settings").append(choice("Computer rival", [["off", "Off"], ...Object.entries(RIVALS).map(([id, r]) => [id, r.label])], prefs.rival, v => { prefs.rival = v; savePrefs(); }),
     line(prefs.rival === "off" ? "From the next puzzle, a computer can solve it beside you, at a person's pace." : "It plays from the next puzzle, on your clock."));
   const best = S ? bestOf(S) : null;
-  const rules = Object.assign(document.createElement("p"), { className: "note", textContent: `Shade cells so that no number is left twice in a ${S?.shape === "hex" ? "line (a hex board has three directions of them)" : "row or column"}. Shaded cells never touch side by side, and the cells left unshaded stay joined in one piece. Every puzzle has exactly one answer, found by reasoning alone. A hint costs ${HINT} seconds: it puts a wrong mark right, or makes the next step and says why.` });
   part(body, "about").append(
     line(S ? `${kindText({ shape: S.shape, size: S.size, level: S.came || S.level })}: ${best != null ? `best ${fmt(best)}` : "not solved yet"}.` : "Shade the repeats."),
-    rules, action("Copy a link to this puzzle", copyLink, "link"));
+    action("Copy a link to this puzzle", copyLink, "link"));
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 /** The board or its size changed in the menu: the header's levels follow, and the level moves to one the board offers. */
@@ -736,6 +758,8 @@ bindSwitcher($("appsBtn"), "hitori");
 document.querySelector(".hi-mark").innerHTML = APPS.find(a => a.id === "hitori")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => {
   if (S?.mode === "duel") duel.open();
   else if (S?.mode === "pair") duel.again();

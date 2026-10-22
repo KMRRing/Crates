@@ -106,6 +106,13 @@ html[data-theme="modern"] { --hi-logo-tint: #F1DDEC; --hi-logo-edge: #7A3B73; }
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .hi-toast.show { opacity: 1; }
 
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.hi-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.hi-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.hi-sheet .pick-head h2 { font-size: 1rem; }
+.hi-rules p { margin: .5rem 0; line-height: 1.45; }
+.hi-rules h4 { margin: 1.1rem 0 .2rem; }
+
 /* held sideways: the board on the left with all the height; the strip, the line and the tools beside it, the tools low */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.hitori { --beside: 17rem; grid-template-rows: auto auto minmax(0, 1fr); }

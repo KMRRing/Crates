@@ -62,6 +62,13 @@ html[data-mode="night"] { --kakuro-in: #7FC2A8; --ka-good: #7FC2A8; --ka-bad: #E
   padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .ka-toast.show { opacity: 1; }
 
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.ka-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.ka-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.ka-sheet .pick-head h2 { font-size: 1rem; }
+.ka-rules p { margin: .5rem 0; line-height: 1.45; }
+.ka-rules h4 { margin: 1.1rem 0 .2rem; }
+
 /* a short phone: the pad's keys a little lower, so the grid keeps its room; a tall one: the room the grid can't use
    (it's as wide as the screen already) goes to the keys */
 @media (max-height: 640px) and (orientation: portrait) {

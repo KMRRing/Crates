@@ -97,6 +97,21 @@ dialog.ng-name { margin-top: calc(env(safe-area-inset-top, 0px) + .6rem); margin
 .ng-name-note.bad { color: var(--ng-bad); }
 #nameSkip { justify-self: center; }
 
+/* your partner's pill in the title, on a narrow phone: Nonogram's long name leaves it no room beside Rules and the
+   menu's button, and its margin (the title's own gap spaces it already) pushed the buttons past the header's edge; so
+   there it has none, and the buttons close up a little, as Hong's and Tribute's do */
+@media (max-width: 400px) {
+  #app.nonogram .top .partner-pill { margin-left: 0; }
+  #app.nonogram .top:has(.partner-pill:not(:empty)) .top-right { gap: .3rem; }
+}
+
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.ng-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.ng-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.ng-sheet .pick-head h2 { font-size: 1rem; }
+.ng-rules p { margin: .5rem 0; line-height: 1.45; }
+.ng-rules h4 { margin: 1.1rem 0 .2rem; }
+
 /* held sideways: the board on the left with all the height; the strip, the line and the tools beside it, the tools low
    where a thumb is */
 @media (orientation: landscape) and (min-width: 700px) {

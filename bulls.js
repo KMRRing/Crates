@@ -889,13 +889,39 @@ const together = createTogether({
 });
 const backToSolo = () => { if (together.room) together.leave(); else location.replace(soloHref()); };
 
+// ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
+function showRules() {
+  $("rulesBody").innerHTML = `
+    <p>Break a hidden code from the score each guess earns, in as few guesses as you can.</p>
+    <h4>The rules</h4>
+    <p>Each guess earns a bull ● for every peg of the right colour in the right place, and a cow ○ for every other peg of a colour the code holds elsewhere, counted only as often as both hold it. The key pegs say how many of each, not which.</p>
+    <p><b>An example.</b> Against the code red, yellow, green, blue, the guess red, red, blue, white earns one bull (the first red) and one cow (the blue); the second red earns nothing, as the code holds only one.</p>
+    <p>Four boards (Board, in the menu): <b>Classic</b>, four pegs of six colours, repeats allowed, in ten rows (Mastermind as sold); <b>Super</b>, five pegs of eight colours in twelve rows; <b>Bulls and Cows</b>, four different digits in ten rows, every guess four different digits too; <b>Small</b>, three pegs of six colours in eight rows. Each colour carries a mark of its own, so it reads by its shape too.</p>
+    <h4>Three ways to play</h4>
+    <p><b>Break</b>: the computer hides a code and you break it. A fair codemaker hides one from the start; a devious one (Codemaker, in the menu) hides none and answers each guess so that as many codes as possible still fit, so only a strategy that wins in the worst case beats it, and the code it shows at the end fits every answer.</p>
+    <p><b>Duel</b>: you set a code for the computer (or Random), it hides one for you, and you take turns, your guess then its. Fewer guesses win; the same number, or neither code broken, is a draw. At Easy the computer loses track of older rows, at Medium it guesses any code that fits every row, and at Hard it plays Knuth's minimax, breaking every Classic code within five.</p>
+    <p><b>Lock</b>: nothing to guess. A code of three or four different digits and a few clue rows, each a guess and its score (say, one digit right and in place, one right but misplaced), and exactly one code fits them all: work it out and try it. A wrong code costs ${WRONG} seconds.</p>
+    <h4>Playing</h4>
+    <p>Tap a colour to fill the next empty hole; tap a peg in the row to change it, twice to take it out; tap a played row to have it back; then Guess. On the digit boards a digit already in the row moves rather than repeats. On a computer, 1 to 8 pick the colours (or the digits), Enter guesses and Backspace takes a peg out.</p>
+    <p>Notes are your own: tap Notes, then a colour or digit to rule it out, again to mark it in, again to clear it; in a lock, tap a digit where it stands in a clue. Help (in the menu, off at first): Count shows how many codes still fit what you've seen; Marks also marks colours as out or in where every fitting code agrees, and says when the row you've entered can't be the code. At the end, the codes left after each row show. In a lock, Hint (+${HINT}&nbsp;s) gives the next step, the clue that says most first, and marks its digits in your notes.</p>
+    <h4>Levels</h4>
+    <p>A board is as hard as its codes are many: on Classic a perfect breaker needs five guesses at most, of the ten rows. Locks are graded by the reasoning they need: <b>Easy</b>, three digits, each clue saying something by itself; <b>Medium</b>, three digits, clues read in turn over three rounds or more, or two together; <b>Hard</b>, four digits, two clues read together; <b>Expert</b>, four digits, three together.</p>
+    <h4>Score</h4>
+    <p>A code's score is the guesses it took; each board and codemaker keeps how many you played and broke and the average guesses (not a best: a low one is luck). A lock's is its time plus ${HINT} seconds a hint and ${WRONG} a wrong code, the best kept for each level; its clock stops while the menu, these rules or the games screen is open. A duel counts wins, losses and draws.</p>
+    <h4>Today's code</h4>
+    <p>Classic with the fair codemaker, the same for everyone, opened on the day's first visit. It counts the moment it's broken or its rows run out, the first finish of the day only; the games screen shows the guesses it took (0 for a code not broken). Lock has no daily.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
+}
+
 // ---------- the menu ----------
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (together.room || joining) { tableMenu(body); return; }
   pickDaily ??= run?.kind === "break" && run.daily ? true : !dayDone();         // today's first, while it's still to play
-  part(body, "play").append(action(run && !run.done ? "New game" : "Play again", () => startPicked(prefs.play === "break" && pickDaily ? "daily" : prefs.play), "primary"));
+  part(body, "play").append(action(run && !run.done ? "New game" : "Play again", () => startPicked(prefs.play === "break" && pickDaily ? "daily" : prefs.play), "primary"),
+    action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Play", [["break", "Break"], ["duel", "Duel"], ["lock", "Lock"]], prefs.play, v => { prefs.play = v; keepPrefs(); openMenu(); }));
   if (prefs.play === "break") {
@@ -909,8 +935,6 @@ function openMenu() {
   }
   part(body, "settings").append(choice("Help", [["off", "Off"], ["count", "Count"], ["marks", "Marks"]], prefs.aid, v => { prefs.aid = v; keepPrefs(); render(); }));
   part(body, "about").append(line(aboutLine()), action("Copy a link to this game", copyLink, "link"));
-  const how = el("p", "note", "Mastermind (1970) came from Bulls and Cows, a pencil game older than anyone remembers. Each guess earns a bull for every peg of the right colour in its place and a cow for every other of a colour the code holds. Break: the computer hides a code; Devious hides none and answers to keep the most codes alive, so only skill breaks it. Duel: you and the computer each break the other's code, turn about. Lock: no guessing, the clues alone hold the code. Help counts the codes still possible (Count) and marks the colours ruled out or in (Marks).");
-  body.append(how);
   if (!$("menuDlg").open) $("menuDlg").showModal();
 }
 let pickDaily = null;                           // the menu's Code choice for Break: today's or a random one
@@ -923,6 +947,7 @@ function aboutLine() {
   return `${today_}${(run && breakNote()) || "No codes broken on this board yet."}`;
 }
 function tableMenu(body) {
+  part(body, "play").append(action("The rules", showRules, "link"));
   const table = part(body, "together");
   if (!G) { const wait = line(joiningWords()); wait.prepend(sextant()); table.append(wait, action("Back to solo", backToSolo, "link")); if (!$("menuDlg").open) $("menuDlg").showModal(); return; }
   const t = prefs.table, set = (k, v) => { prefs.table = { ...prefs.table, [k]: v }; if (prefs.table.kind === "lock" && prefs.table.play === "versus") prefs.table.play = "team"; keepPrefs(); openMenu(); };
@@ -981,6 +1006,8 @@ bindSwitcher($("appsBtn"), "bulls");
 document.querySelector(".bu-mark").innerHTML = APPS.find(a => a.id === "bulls")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
 $("doneDlg").addEventListener("click", e => { if (e.target === $("doneDlg")) $("doneDlg").close(); });
 $("pad").addEventListener("click", e => { const b = e.target.closest(".bu-pick"); if (b) tapPick(Number(b.dataset.sym)); });

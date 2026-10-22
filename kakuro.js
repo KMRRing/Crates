@@ -757,12 +757,34 @@ function renderMatch() {
 /** The next match at the table: at once when this one's solved together (nobody's run ends, so duel.js would ask). */
 const nextMatch = () => (M?.mode === "split" && M.done ? duel.again() : duel.newMatch());
 
+// ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
+function showRules() {
+  $("rulesBody").innerHTML = `
+    <p>Fill the white cells with digits 1 to 9 so that every run (an unbroken line of white cells, across or down) adds up to the clue at its head, with no digit twice in a run. Every grid has exactly one solution, reached by reasoning alone.</p>
+    <h4>The rules</h4>
+    <p>A clue cell is black, split by a diagonal: the number in its upper right is the across clue, for the run to its right; the one in its lower left the down clue, for the run below it. No run is shorter than two cells.</p>
+    <p>Two rule sets (Rules, in the menu): <b>Sums</b>, the classic, and <b>Products</b>, where each run's digits multiply to its clue (a 1 changes no product, so it can stand anywhere in its run, and a 5 or a 7 shows in the clue). Three sizes (Size), counted with the clues' row and column: 8×8, 10×10 and 12×12.</p>
+    <p><b>An example.</b> 16 in two cells can only be 7 and 9, and 17 in two only 8 and 9. Where an across 3 in two (1 and 2) crosses a down 4 in two (1 and 3), the cell is 1.</p>
+    <h4>Playing</h4>
+    <p>Tap a cell, then a digit; the same digit again rubs it out. A selected cell lights its two runs, and a digit tapped with no cell selected lights where it stands. Notes writes in pencil: the candidates a solver jots small in a cell. On a keyboard: the arrows (past black cells), the digits (with Shift, in pencil), Backspace, N for Notes, Ctrl+Z and Ctrl+Y.</p>
+    <p>A digit twice in a run, and a run that can no longer make its clue, show in oxblood (Mark mistakes), read from the board, never the solution; a run that's full and adds up has its clue fade, and a digit you write takes its pencil mark from the rest of its runs (Clear pencil marks as you write). Show the ways a run can be (off at first) lists under the grid the ways the selected cell's two runs can still add up and dims the keys neither allows: the combination table a solver keeps beside a printed Kakuro. The grid is solved the moment every digit is right. Hint (+${HINT}&nbsp;s) strikes through a wrong digit first, then pencil marks that leave out their cell's digit; otherwise it names the easiest next step. The menu also fills in every pencil mark, or shows the solution (the grid then doesn't count).</p>
+    <h4>Levels</h4>
+    <p>A grid's level is how much working out it takes, never how many clues it has: the steps beyond a glance for each white cell, and the hardest of them. <b>Easy</b> needs the ways that fit (a run's combinations narrowed to those its cells can hold) about once in twelve cells; <b>Medium</b> up to once in four or five; <b>Hard</b> up to once in two or three, or a block's sums (in a rectangle of the grid, the clues of the across runs wholly inside it, less those of the down runs, give what the one or two cells left over come to); <b>Expert</b> a chain (suppose a cell of two candidates took one: if the plain steps then leave a run that can't be made, it takes the other), or working out at nearly every other cell. Expert is offered in Sums at 10×10 and 12×12.</p>
+    <h4>Time</h4>
+    <p>The clock stops while the menu, these rules or the games screen is open, the grid hidden meanwhile. A hint adds ${HINT} seconds. Your best is the lowest time for each rule set, size and level; a grid solved with the computer is a team's time, not your best.</p>
+    <h4>Today's grid</h4>
+    <p>Sums, 10×10, at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Kakuro's figure on the games screen.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
+}
+
 // ---------- the menu ----------
 let pick = null;                     // what the menu's New grid starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {
+    part(body, "play").append(action("The rules", showRules, "link"));
     const together = part(body, "together"), mode = M?.match?.mode || M?.mode || togetherMode();
     together.append(
       action("Another grid", nextMatch, "primary"),
@@ -781,6 +803,7 @@ function openMenu() {
     play.append(action("Fill in every pencil mark", fillNotes));
     play.append(action("Show the solution", giveUp, "link"));
   }
+  play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") contentPart(body, false);
@@ -856,6 +879,8 @@ bindSwitcher($("appsBtn"), "kakuro");
 document.querySelector(".ka-mark").innerHTML = APPS.find(a => a.id === "kakuro")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (M) { if (M.mode === "split") nextMatch(); else duel.open(); } else start("random"); });
 $("todayBtn").addEventListener("click", () => start("daily"));
 $("level").addEventListener("change", () => {

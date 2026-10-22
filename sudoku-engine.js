@@ -25,8 +25,8 @@ export const RULES = {
 export const SIZES = { 9: { label: "9×9" }, 6: { label: "6×6" } };
 export const LEVELS = {
   easy: { rank: 1, label: "Easy", note: "Singles only" },
-  medium: { rank: 2, label: "Medium", note: "Locked candidates and pairs" },
-  hard: { rank: 3, label: "Hard", note: "Triples, fish and wings" },
+  medium: { rank: 2, label: "Medium", note: "Locked candidates, pairs and triples" },
+  hard: { rank: 3, label: "Hard", note: "Quads, fish, wings and short chains" },
   expert: { rank: 4, label: "Expert", note: "Chains" },
 };
 /** Today's grid, the same for everyone: a classic 9×9 at Medium. */

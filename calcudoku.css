@@ -59,6 +59,23 @@ html[data-mode="night"] { --calcudoku-in: #7FC2A8; --cd-good: #7FC2A8; --cd-bad:
   padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard); font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .cd-toast.show { opacity: 1; }
 
+/* your partner's pill in the title, on a narrow phone: Calcudoku's long name leaves it no room beside Rules and the
+   menu's button, and its margin (the title's own gap spaces it already) pushed the buttons past the header's edge; so
+   there it has none, and the buttons close up a little, as Hong's and Tribute's do */
+@media (max-width: 400px) {
+  #app.calcudoku .top .partner-pill { margin-left: 0; }
+  #app.calcudoku .top:has(.partner-pill:not(:empty)) .top-right { gap: .3rem; }
+}
+
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.cd-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.cd-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.cd-sheet .pick-head h2 { font-size: 1rem; }
+.cd-rules p { margin: .5rem 0; line-height: 1.45; }
+.cd-rules h4 { margin: 1.1rem 0 .2rem; }
+.cd-rules ul { margin: .4rem 0; padding-left: 1.1rem; }
+.cd-rules li { margin: .3rem 0; line-height: 1.45; }
+
 /* a short phone: the pad's keys a little lower, so the grid keeps its room; a tall one: the room the grid can't use
    (it's as wide as the screen already) goes to the keys */
 @media (max-height: 640px) and (orientation: portrait) {

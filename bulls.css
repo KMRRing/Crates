@@ -166,6 +166,13 @@ html[data-mode="night"] { --bu-in: #E8806F; --bu-good: #7FC2A8; --bu-bad: #E8806
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .bu-toast.show { opacity: 1; }
 
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.bu-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.bu-sheet .pick-head { position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.bu-sheet .pick-head h2 { font-size: 1rem; }
+.bu-rules p { margin: .5rem 0; line-height: 1.45; }
+.bu-rules h4 { margin: 1.1rem 0 .2rem; }
+
 /* a short phone: the board gives the controls their room */
 @media (max-height: 620px) and (orientation: portrait) {
   .bu-strip { margin: .3rem 0 .25rem; }

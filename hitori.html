@@ -30,6 +30,7 @@
         <option value="hard" data-note="A short trial: suppose a cell, see it break">Hard</option>
         <option value="expert" data-note="A trial three rounds deep">Expert</option>
       </select>
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
       <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
     </div>
   </header>
@@ -65,6 +66,11 @@
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet hi-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="hi-rules"></div>
 </dialog>
 
 <p id="toast" class="hi-toast" role="status" aria-live="polite"></p>

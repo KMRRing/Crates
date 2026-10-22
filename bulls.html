@@ -33,7 +33,10 @@
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon bu-mark" aria-hidden="true"></span>Bulls</button></h1>
-    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+    <div class="top-right">
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
   </header>
 
   <div class="bu-strip"><span id="where" class="bu-where"></span><span id="team" class="bu-team" hidden></span><span id="aside" class="bu-aside"></span></div>
@@ -73,6 +76,10 @@
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+<dialog id="rulesDlg" class="sheet bu-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="bu-rules"></div>
 </dialog>
 <dialog id="doneDlg" class="sheet menu-sheet bu-done" aria-label="How it went">
   <div class="pick-head"><h2 id="doneTitle">How it went</h2><button class="icon-btn menu-x" type="button" id="doneClose" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>

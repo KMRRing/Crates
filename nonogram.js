@@ -844,6 +844,28 @@ const split = (() => {
   };
 })();
 
+// ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
+function showRules() {
+  $("rulesBody").innerHTML = `
+    <p>Fill the cells the clues ask for and a picture appears: a country's outline, a flag or a lake. Every puzzle has exactly one answer, reached by reasoning.</p>
+    <h4>The rules</h4>
+    <p>Every row and every column has a clue: the lengths of its runs of filled cells, in order. 3 1 2 is three filled cells, a gap, one, a gap, two; a gap is one blank cell or more, and blanks may start and end the line. In a flag each run has its colour too, shown on the clue: runs of different colours may touch, runs of the same colour need a gap.</p>
+    <p><b>An example.</b> In a row of 10 with the clue 8, the run pushed as far left as it goes fills cells 1 to 8, and as far right 3 to 10: cells 3 to 8 are filled whichever way it lies.</p>
+    <p>The menu chooses the pictures (countries, flags, lakes or all), the region and the size (about 100, 225 or 400 cells). On Hexes (Grid, in the menu) the grid is a hexagon of hexagonal cells, each on three lines (its row and two slants), every line with a clue read toward the board; there the picture is a country's or a lake's outline, one cell wide.</p>
+    <h4>Playing</h4>
+    <p>Fill (for a flag, its colours) and Cross are the tools. A tap fills or crosses one cell, and a drag runs along its row or column; the first cell decides what a stroke does: on an empty cell it fills, on one of its colour it clears, and a fill never covers a cell crossed out. Undo and Redo take whole strokes. A Large picture zooms (pinch, the zoom button or a mouse wheel) and pans (two fingers). On a computer, right-click crosses, X picks the cross, 1 to 7 a colour, and Ctrl+Z undoes.</p>
+    <p>A finished line's clue greys, and the lines under your finger light with their clues. Mistakes (in the menu) are Shown at first: a wrong fill or cross is refused, the cell shows what it really is, and it costs ${MISTAKE} seconds. Hidden, as on paper, nothing says you're wrong, and the picture is done when every line agrees with its clue. Hint (+${HINT}&nbsp;s) fills in the next cell the clues force and names the line that says so; with mistakes hidden, it rings a wrong cell first.</p>
+    <p>Name it (on at first): once before the picture is finished you may name it, typed. Right takes off up to ${CREDIT.small}, ${CREDIT.medium} or ${CREDIT.large} seconds (Small, Medium, Large), in proportion to how much was still to draw; wrong adds ${WRONG_NAME}. Not named by the end, it asks then, for nothing off.</p>
+    <h4>Levels</h4>
+    <p>Difficulty is how far the reasoning has to reach, never how many clues there are. <b>Easy</b>: the simple rules alone (push each run as far left and as far right as it goes: a cell inside the same run both ways is filled, a cell no run can reach is blank), in six rounds or fewer. <b>Medium</b>: seven to ten rounds, or the complete line logic somewhere (every way a line's runs can lie that fits what's known: a cell they all agree on is settled). <b>Hard</b>: eleven rounds or more, or a contradiction (suppose a cell filled and follow the lines: if they clash, it's blank). Where a region has nothing of a level at a size, the nearest is dealt and the line says so.</p>
+    <h4>Score</h4>
+    <p>Your score is your seconds on the clock, plus ${MISTAKE} a mistake and ${HINT} a hint, less a right early name's credit or plus ${WRONG_NAME} for a wrong one; lower is better. Your best is kept for each kind of picture and size, hexes apart. The clock stops while the menu, these rules or the games screen is open.</p>
+    <h4>Today's picture</h4>
+    <p>A country's outline at Medium size and Medium difficulty, on squares, with mistakes shown and Name it on: the same for everyone. Its score counts the moment the last cell is right, and is Nonogram's figure on the games screen.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
+}
+
 // ---------- the menu ----------
 let pick = null;                                                   // the picture the menu will start: "random" or "daily"
 function openMenu() {
@@ -851,6 +873,7 @@ function openMenu() {
   body.replaceChildren();
   const content = () => part(body, "content");
   if (duel.on) {
+    part(body, "play").append(action("The rules", showRules, "link"));
     duel.menu(part(body, "together"));
     part(body, "together").append(choice("Next match", [["split", "Split"], ["race", "Race"]], inParty && !chosen ? "race" : settings.together, v => { settings.together = v; chosen = true; saveSettings(); }));
     content().append(choice("Grid", GRIDS, settings.grid, v => { settings.grid = v; saveSettings(); openMenu(); }),
@@ -862,6 +885,7 @@ function openMenu() {
   const play = part(body, "play");
   play.append(action(pick === "daily" ? "Today's picture" : "New picture", () => confirmStart(pick), "primary"));
   if (S && !S.done) play.append(action("Start this one again", restart, "link"));
+  play.append(action("The rules", showRules, "link"));
   const c = content();
   c.append(choice("Picture", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") {
@@ -909,6 +933,8 @@ const logo = APPS.find(a => a.id === "nonogram")?.logo;
 if (logo) document.querySelector(".ng-mark").innerHTML = logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (!duel.on) start("random"); else if (S?.play === "split") duel.again(); else duel.open(); });
 $("size").addEventListener("change", () => {
   if (duel.on) { if (!duel.newMatch()) $("size").value = duel.match?.size || "medium"; return; }

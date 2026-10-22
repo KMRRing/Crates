@@ -706,12 +706,40 @@ function renderMatch() {
 /** The next match at the table: at once when this one's solved together (nobody's run ends, so duel.js would ask). */
 const nextMatch = () => (M?.mode === "split" && M.done ? duel.again() : duel.newMatch());
 
+// ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
+function showRules() {
+  $("rulesBody").innerHTML = `
+    <p>Fill the grid so that every row, every column and every region holds each digit once: 1 to 9 on a 9×9, 1 to 6 on a 6×6. Every grid has exactly one solution, reached by reasoning alone.</p>
+    <h4>The rules</h4>
+    <p>Four rule sets (Rules, in the menu), each at 9×9 or 6×6 (Size):</p>
+    <ul>
+      <li><b>Classic</b>: the regions are the boxes, three by three (on a 6×6, two rows by three columns).</li>
+      <li><b>Diagonals</b>: the two long diagonals, shaded, hold each digit once too.</li>
+      <li><b>Jigsaw</b>: the regions are pieces of any shape, outlined in heavy rules.</li>
+      <li><b>Killer</b>: no digits to start with, only cages outlined in dashes, each with a sum in its corner. A cage's digits add up to its sum and never repeat in it; the boxes are regions as in Classic.</li>
+    </ul>
+    <p><b>An example.</b> If the 7s already in the grid rule 7 out of every empty cell of a box but one, by their rows and columns, that cell is 7. In Killer, a cage of two cells adding up to 3 holds 1 and 2; one adding up to 17, 8 and 9.</p>
+    <h4>Playing</h4>
+    <p>Tap a cell, then a digit; the same digit again rubs it out. Notes writes in pencil: the candidates a solver jots small in a cell. Each key shows how many of its digit are still to place, and a digit tapped with no cell selected lights where it stands. On a keyboard: the arrows, the digits (with Shift, in pencil), Backspace, N for Notes, Ctrl+Z and Ctrl+Y.</p>
+    <p>A digit twice in a row, column, region or cage shows in oxblood (Mark repeats), read from the board, never the solution, and a digit you write takes its pencil mark from the cells that see it (Clear pencil marks as you write). The grid is solved the moment every digit is right. Hint (+${HINT}&nbsp;s) strikes through a wrong digit first, then pencil marks that leave out their cell's digit; otherwise it names and explains the easiest next step. The menu also fills in every pencil mark, or shows the solution (the grid then doesn't count).</p>
+    <h4>Levels</h4>
+    <p>A grid's level is the hardest technique it needs, never how many digits it gives. On a 9×9: <b>Easy</b>, singles only (a cell with one digit left, or a digit with one place left in its row, column or region), with at least 36 digits given; <b>Medium</b>, locked candidates (a digit that within a box can only go in one row, so it leaves the rest of that row) and pairs and triples (two cells of a row that can only hold the same two digits keep them to themselves); <b>Hard</b>, quads, fish (the X-wing: a digit with two places in each of two rows, in the same two columns, so it leaves the rest of those columns), wings and short chains; <b>Expert</b>, long chains, a digit in one cell forcing another's, link by link.</p>
+    <p>A 6×6 has Easy (singles, at least 16 digits given), Medium (singles, with none to spare) and Hard. Killer has Easy (the cages' sums and singles), Medium (the rule of 45: a row, column or box adds up to 45, 21 on a 6×6, so what its whole cages leave over is known) and Hard (several rows at once, fish and wings).</p>
+    <h4>Time</h4>
+    <p>The clock stops while the menu, these rules or the games screen is open, the grid hidden meanwhile. A hint adds ${HINT} seconds. Your best is the lowest time for each rule set, size and level; a grid solved with the computer is a team's time, not your best.</p>
+    <h4>Today's grid</h4>
+    <p>A classic 9×9 at Medium, the same for everyone and always played alone. Its time counts the moment the last digit goes in, and is Sudoku's figure on the games screen.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
+}
+
 // ---------- the menu ----------
 let pick = null;                     // what the menu's New grid starts: "random" or "daily"
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
   if (duel.on) {
+    part(body, "play").append(action("The rules", showRules, "link"));
     const together = part(body, "together"), mode = M?.match?.mode || M?.mode || togetherMode();
     together.append(
       action("Another grid", nextMatch, "primary"),
@@ -730,6 +758,7 @@ function openMenu() {
     play.append(action("Fill in every pencil mark", fillNotes));
     play.append(action("Show the solution", giveUp, "link"));
   }
+  play.append(action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
   if (pick === "random") contentPart(body, false);
@@ -810,6 +839,8 @@ bindSwitcher($("appsBtn"), "sudoku");
 document.querySelector(".su-mark").innerHTML = APPS.find(a => a.id === "sudoku")?.logo || "";
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => { if (M) { if (M.mode === "split") nextMatch(); else duel.open(); } else start("random"); });
 $("todayBtn").addEventListener("click", () => start("daily"));
 $("level").addEventListener("change", () => {
