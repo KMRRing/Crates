@@ -18,40 +18,56 @@
 <link rel="stylesheet" href="themes.css">
 </head>
 <body>
-<div id="app" class="pipes fit-screen wide">
+<div id="app" class="pipes fit-screen beside">
   <header class="top">
     <h1 class="mark"><button id="appsBtn" class="mark-btn" aria-haspopup="dialog">
       <span class="mark-icon pi-mark" aria-hidden="true"></span>Pipes</button></h1>
-    <div class="top-right"><button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button></div>
+    <div class="top-right">
+      <button id="rulesBtn" class="pick" aria-haspopup="dialog">Rules</button>
+      <button id="menuBtn" class="pick" aria-haspopup="dialog">Menu</button>
+    </div>
   </header>
 
   <div class="pi-hud">
-    <div id="boons" class="pi-boons" role="group" aria-label="Your boons"></div>
-    <span class="pi-score"><b id="score">0</b><small id="rival" class="pi-rival" hidden></small></span>
-    <span id="lives" class="pi-lives" aria-label="Lives"></span>
+    <div class="pi-numbers">
+      <span class="pi-stat"><small id="stat1Label">Level</small><b id="stat1">1</b></span>
+      <span class="pi-stat main"><small>Score</small><b id="score">0</b></span>
+      <span class="pi-stat"><small id="stat3Label">To go</small><b id="stat3">0</b></span>
+    </div>
+    <small id="rival" class="pi-rival" hidden></small>
   </div>
-  <div id="gauges" class="pi-gauges"></div>
 
-  <section class="pi-stage fit-col fit-grow">
-    <p class="pi-status"><span id="status"></span><span id="mult" class="pi-mult" hidden></span></p>
-    <div class="pi-fit fit-box fit-grow"><div id="board" class="pi-board"></div>
-      <div id="brief" class="pi-brief" role="group" aria-label="This level's tools" hidden></div>
-      <div id="doors" class="pi-doors" role="group" aria-label="The jobs on offer" hidden></div>
-      <div id="ledger" class="pi-ledger" role="group" aria-label="What the delivery scored" hidden></div></div>
-    <div class="pi-actions">
-      <button class="pi-go quiet" type="button" id="fillBtn" hidden>Fill it now: time bonus at ×4</button>
-      <button class="pi-go quiet" type="button" id="viewBtn" hidden>See the board</button>
-      <button class="pi-go" type="button" id="goBtn" hidden></button>
-    </div>
-    <div id="kit" class="pi-kit">
-    </div>
-    <p class="pi-note" id="note"></p>
+  <div id="queue" class="pi-queue" aria-label="The pieces to come"></div>
+
+  <section class="pi-stage fit-grow" aria-label="The board">
+    <div id="board" class="pi-board"></div>
+    <div id="shaft" class="pi-shaft" hidden></div>
+    <div id="card" class="pi-card" role="group" hidden></div>
   </section>
+
+  <div class="pi-bar">
+    <p class="pi-status"><span id="status"></span><span id="ahead" class="pi-ahead" hidden></span></p>
+    <div id="flatControls" class="pi-controls flat">
+      <button class="pi-go" type="button" id="goBtn">Oil now</button>
+    </div>
+    <div id="deepControls" class="pi-controls deep" hidden>
+      <button class="pi-key" type="button" id="holdBtn"><b>Hold</b><small id="holdNote">set aside</small></button>
+      <button class="pi-key" type="button" id="scrapBtn"><b>Scrap</b><small>oil surges</small></button>
+      <button class="pi-key" type="button" id="turnBtn"><b>Turn</b><small>or tap</small></button>
+      <button class="pi-key lay" type="button" id="layBtn"><b>Lay</b><small id="layNote">it in</small></button>
+      <button class="pi-key" type="button" id="hurryBtn"><b>Hurry</b><small id="hurryNote">×5</small></button>
+    </div>
+  </div>
 </div>
 
 <dialog id="menuDlg" class="sheet" aria-label="Menu">
   <div class="pick-head"><h2>Menu</h2><button class="btn" type="button" id="menuClose">Close</button></div>
   <div id="menuBody"></div>
+</dialog>
+
+<dialog id="rulesDlg" class="sheet pi-sheet" aria-label="Rules">
+  <div class="pick-head"><h2>Rules</h2><button class="btn" type="button" id="rulesClose">Close</button></div>
+  <div id="rulesBody" class="pi-rules"></div>
 </dialog>
 
 <p id="toast" class="pi-toast" role="status" aria-live="polite"></p>

@@ -1,245 +1,451 @@
-// Pipes' engine: levels are repeatable and proven (their routes deliver, their direct lines run dry, a one-product
-// board can't reach its far terminal without a pump), two-terminal boards are priced so either pick can be right,
-// scrambled boards almost never work by luck, and the pressure rule and the netback hold.
-const P = await import("../pipes-engine.js");
+// Pipes: the board (pipes-engine.js, Pipe Dream's rules) and the descent in 3D (pipes-deep.js). The boards are
+// repeatable and fair (the wellhead's outlet clear, the terminal's inlet open, pumps and tanks passable, no corner
+// walled off), the queue comes in bags, the oil runs as the rules say (quota, spills, crossings both ways, pumps,
+// tanks, the terminal, blasts, Hurry, the countdown cut short, unused pieces), the route ahead is where the oil goes,
+// and a bot playing at a person's pace finds the early levels easy and the later ones hard. The shaft is repeatable,
+// always has a way down, keeps rock off the surface and gaps in its slabs; the pieces lay as they're turned, the boons
+// do what they say, the oil speeds up with depth and catches a pipe left short; a descent saved and restored plays on
+// the same; and a bot at a person's pace gets a fair way down before it's caught.
+const B = await import("../pipes-engine.js");
+const G = await import("../pipes-deep.js");
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+const at = (x, y) => y * B.COLS + x;
 
-let problems = 0, built = 0, scrambledWins = 0, detours = 0, lines = 0;
-const kinds = {}, picks = { near: 0, far: 0 };
-for (let seed = 1; seed <= 10; seed++) for (let n = 1; n <= 20; n++) {
-  const lv = P.makeLevel(seed, n), again = P.makeLevel(seed, n);
-  const fail = (...why) => { problems++; console.log(...why, "seed", seed, "level", n); };
-  built++;
-  if (JSON.stringify(lv.tiles) !== JSON.stringify(again.tiles)) fail("not repeatable");
-  if (!P.solved(lv).over?.win) fail("the solution doesn't deliver");
-  for (const route of lv.routes) if (!P.runWith(lv, P.rotsFor(lv.solution, route)).over?.win) fail("a designed route doesn't deliver");
-  for (const d of lv.directs) if (P.runWith(lv, P.rotsFor(lv.solution, d.route)).over?.why !== "pressure") fail("a direct line doesn't run dry");
-  detours += lv.directs.length; lines += lv.level.products + (lv.level.unit ? 2 : 0);
-  if (!lv.directs.length) fail("no pump detour");
-  if (lv.heads.length === 1 && !lv.level.unit && P.reachableDry(lv, lv.heads[0], lv.terminals[0].at)) fail("the far terminal can be reached without a pump");
-  if (lv.terminals.some(t => !(t.price > 0))) fail("a terminal without a price");
-  if (lv.level.terminals === 2) {
-    if (lv.terminals.length !== 2 || !lv.choice) fail("a two-terminal level without its choice");
-    else { picks[lv.choice.better]++; if (lv.terminals[0].price <= lv.terminals[1].price) fail("the far terminal doesn't pay more"); }
+// ---------- the board: the deal ----------
+{
+  let problems = 0, built = 0;
+  const fail = (...why) => { problems++; if (problems < 6) console.log("   ", ...why); };
+  for (let seed = 1; seed <= 40; seed++) for (let n = 1; n <= 15; n++) {
+    const L = B.deal(seed * 7919, n), again = B.deal(seed * 7919, n), lv = B.levelOf(n);
+    built++;
+    if (JSON.stringify(L) !== JSON.stringify(again)) fail("not repeatable", seed, n);
+    const [sx, sy] = B.xy(L.source.c);
+    if (sx < 1 || sy < 1 || sx > B.COLS - 2 || sy > B.ROWS - 2) fail("the wellhead on the edge", seed, n);
+    const a1 = B.beyond(L.source.c, L.source.d), a2 = B.beyond(a1, L.source.d);
+    if (a1 < 0 || a2 < 0 || L.cells[a1] || L.cells[a2]) fail("the wellhead's outlet isn't clear", seed, n);
+    const count = k => L.cells.filter(c => c?.k === k).length;
+    if (count("rock") !== lv.rocks || count("pump") !== lv.pumps || count("tank") !== lv.tanks) fail("the wrong number of rocks, pumps or tanks", seed, n);
+    if (!!L.terminal !== lv.terminal) fail("terminal", seed, n);
+    if (L.terminal) {
+      const f = B.beyond(L.terminal.c, L.terminal.d);
+      if (f < 0 || L.cells[f]) fail("the terminal's inlet isn't open", seed, n);
+      const [tx, ty] = B.xy(L.terminal.c);
+      if (Math.abs(tx - sx) + Math.abs(ty - sy) < 5) fail("the terminal too near the wellhead", seed, n);
+    }
+    for (let c = 0; c < L.cells.length; c++) {
+      const f = L.cells[c];
+      if (f?.k !== "pump" && f?.k !== "tank") continue;
+      for (const s of B.PIECES[f.piece][0]) { const g = B.beyond(c, s); if (g < 0 || (L.cells[g] && L.cells[g].k !== "pump" && L.cells[g].k !== "tank")) fail("a pump or tank shut at an end", seed, n); }
+    }
+    // every open square reachable from the outlet: rock walls off no corner
+    const passable = c => !L.cells[c] || L.cells[c].k === "pump" || L.cells[c].k === "tank";
+    const seen = new Set([a1]), todo = [a1];
+    while (todo.length) { const c = todo.pop(); for (let d = 0; d < 4; d++) { const g = B.beyond(c, d); if (g >= 0 && !seen.has(g) && passable(g)) { seen.add(g); todo.push(g); } } }
+    if (seen.size !== L.cells.filter((_, c) => passable(c)).length) fail("open ground walled off", seed, n);
   }
-  lv.tiles.flat().forEach(t => { kinds[t.kind] = (kinds[t.kind] || 0) + 1; });
-  if (lv.level.products === 2 && !lv.tiles.flat().some(t => t.kind === "cross")) fail("a two-product level without a crossing");
-  if (lv.level.unit && (!lv.tiles.flat().some(t => t.kind === "unit") || lv.terminals.length !== 2)) fail("an HVO unit level without its unit and two terminals");
-  // the trace of the solved board delivers every line; of the scrambled board, it rarely does
-  const solvedTiles = lv.tiles.map((row, y) => row.map((t, x) => ({ ...t, rot: lv.solution[y][x] })));
-  if (!P.trace(lv, solvedTiles).every(l => l.end === "delivered" || l.end === "separated")) fail("the trace of the solution doesn't deliver");
-  if (lv.heads.length !== lv.level.products) fail("heads");
-  // as scrambled, the flow usually spills (the player has to work)
-  const run = P.newRun(lv);
-  for (let i = 0; i < 4000 && !run.over; i++) P.advance(lv, run, 250);
-  if (run.over?.win) scrambledWins++;
-  if (!run.over) fail("a scrambled run never ends");
+  check(problems === 0, `${built} boards: repeatable; the wellhead off the edge, its outlet clear; rock, pumps and tanks as levelOf says; the terminal far off with its inlet open; pumps and tanks passable; no ground walled off`);
+  const lv = [1, 6, 15, 25].map(B.levelOf);
+  check(lv[0].fill > lv[1].fill && lv[1].fill > lv[2].fill && lv[2].fill === lv[3].fill && lv[0].quota < lv[2].quota && lv[0].countdown > lv[2].countdown,
+    `levels speed up and lengthen to a floor: ${lv.map(l => `${l.fill} ms, quota ${l.quota}`).join("; ")}`);
 }
-check(problems === 0, `${built} levels: repeatable; routes deliver; ${detours} detours on ${lines} product lines, every direct line runs dry; one product needs a pump for its far terminal; crossings on two-product levels, HVO units on theirs, the trace of every solution delivering (tiles: ${JSON.stringify(kinds)})`);
-check(picks.near > 0 && picks.far > 0, `two-terminal levels: either terminal can be the better pick (near ${picks.near}, far ${picks.far})`);
-check(scrambledWins < built * 0.05, `scrambled boards almost never work by luck (${scrambledWins} of ${built})`);
+// the queue: shuffled bags of thirteen, the same whatever is played
+{
+  const L = B.deal(4242, 3), counts = {};
+  for (let i = 0; i < 13 * 20; i++) counts[B.pieceAt(L, i)] = (counts[B.pieceAt(L, i)] || 0) + 1;
+  let bags = true;
+  for (let b = 0; b < 20; b++) { const bag = Array.from({ length: 13 }, (_, i) => B.pieceAt(L, b * 13 + i)).sort().join(); if (bag !== "h,h,ne,ne,nw,nw,se,se,sw,sw,v,v,x") bags = false; }
+  const order = Array.from({ length: 26 }, (_, i) => B.pieceAt(L, i)).join();
+  check(bags && counts.x === 20 && counts.h === 40, "the queue comes in bags of thirteen: two of each straight and bend, one crossing");
+  check(order !== Array.from({ length: 26 }, (_, i) => B.pieceAt(B.deal(4243, 3), i)).join() && B.queueOf(L, 5).join() === [5, 6, 7, 8, 9].map(i => B.pieceAt(L, i)).join(), "each board its own queue; the five on show are the next five");
+}
 
-// the netback: price, less 10 a tile and 40 a pump, plus time; nothing for a spill
-{
-  const lv = P.makeLevel(4, 2), run = P.solved(lv), s = P.score(lv, run, 30000);
-  const expected = lv.terminals[run.reached[0]].price - 10 * run.tilesFilled - 40 * run.pumpsFired + 300;
-  check(s.total === Math.max(0, expected) && run.pumpsFired >= 1, `netback: ${s.revenue} − ${s.pipe} pipe − ${s.pumps} pumps + ${s.time} time = ${s.total}`);
-  const spilt = P.newRun(lv);
-  for (let i = 0; i < 4000 && !spilt.over; i++) P.advance(lv, spilt, 250);
-  check(spilt.over?.win || P.score(lv, spilt, 30000).total === 0, "a spill pays nothing");
+// ---------- the board: the rules, on boards laid by hand ----------
+// a bare level to lay on: the wellhead at (1,1) facing east, nothing else, the queue replaced by the pieces asked for
+function bare(n = 1, extra = {}) {
+  const L = { seed: 1, ...B.levelOf(n), cells: Array(B.COLS * B.ROWS).fill(null), source: { c: at(1, 1), d: 1 }, terminal: null, ...extra };
+  L.cells[at(1, 1)] = { k: "source", d: 1 };
+  return L;
 }
-// alone, crude sets off at once; sharing the board with HVO, it waits
+const lay = (P, c, piece) => { P.grid[c] = piece; };
+const runOut = (L, P) => { for (let i = 0; i < 100000 && !P.over; i++) B.advance(L, P, 50); return P; };
 {
-  const one = P.makeLevel(1, 1), r1 = P.newRun(one);
-  P.advance(one, r1, 500);
-  const two = P.makeLevel(1, P.ACT_LENGTH + 1), r2 = P.newRun(two);   // the first level of act 2: two products
-  P.advance(two, r2, 500);
-  check(r1.heads[0].progress > 0 && r2.heads.find(h => h.product === "crude").progress === 0, "crude goes at once alone, and waits behind HVO when they share the board");
+  // a straight run east along row 1: five pipes, then the edge
+  const L = bare(1, { quota: 5 }), P = B.newPlay();
+  for (let x = 2; x <= 6; x++) lay(P, at(x, 1), "h");
+  B.advance(L, P, L.countdown - 1);
+  check(!P.flowing && P.count === 0, "the oil waits out the countdown");
+  runOut(L, P);
+  check(P.over?.win && P.over.why === "edge" && P.count === 5 && P.pts.pipe === 5 * B.POINTS.pipe, `five pipes to the edge: the quota met, ${P.pts.pipe} points`);
+  const short = bare(1, { quota: 6 }), Q = B.newPlay();
+  for (let x = 2; x <= 6; x++) lay(Q, at(x, 1), "h");
+  runOut(short, Q);
+  check(Q.over && !Q.over.win, "the same short of a quota of six: the run is over");
+  // the time it took: half a pipe out of the wellhead, then a pipe each
+  check(Math.abs(P.t - (L.countdown + L.fill / 2 + 5 * L.fill)) < 60, `the oil's pace: a pipe every ${L.fill} ms after the countdown`);
 }
-// turning: a locked or fixed tile won't turn; a pressure stall ends the run
 {
-  const lv = P.makeLevel(2, 1), run = P.newRun(lv);
-  const well = lv.heads[0].at;
-  check(!P.turn(run, well[0], well[1]) && P.turn(run, (well[0] + 1) % lv.w, 3) === !run.tiles[3][(well[0] + 1) % lv.w].fixed, "fixed tiles don't turn, loose ones do");
-  // a straight corridor longer than the pressure budget with no pump stalls
-  const long = { n: 1, w: 1, h: 14, level: { ...P.levelOf(1), pressure: 5 }, heads: [{ product: "crude", at: [0, 0], dir: 2 }], terminals: [{ product: "crude", at: [0, 13], dir: 0, price: 100 }],
-    tiles: Array.from({ length: 14 }, (_, y) => [{ kind: y === 0 ? "well" : y === 13 ? "term" : "straight", rot: 0, fixed: y === 0 || y === 13 }]), solution: Array.from({ length: 14 }, () => [0]) };
-  const stall = P.solved(long);
-  check(stall.over && !stall.over.win && stall.over.why === "pressure", `without a pump, a 14-tile corridor on a budget of 5 stalls (after ${stall.tilesFilled} tiles)`);
-  long.tiles[5][0].kind = "pump"; long.tiles[5][0].shape = "straight"; long.tiles[10][0].kind = "pump"; long.tiles[10][0].shape = "straight";
-  check(P.solved(long).over?.win, "with pumps on the way, it delivers");
+  // spills: into an empty square, a piece that doesn't take it in, rock
+  const why = setup => { const L = bare(1, { quota: 1 }), P = B.newPlay(); setup(L, P); runOut(L, P); return P.over.why; };
+  check(why((L, P) => lay(P, at(2, 1), "h")) === "open", "a spill into an empty square");
+  check(why((L, P) => { lay(P, at(2, 1), "h"); lay(P, at(3, 1), "v"); }) === "shape", "a spill into a piece that doesn't take it in");
+  check(why((L, P) => { lay(P, at(2, 1), "h"); L.cells[at(3, 1)] = { k: "rock" }; }) === "rock", "a spill into rock");
 }
-// Auto-turn: every pipe on a designed route turns to join it, and a board turned that way (the rest left scrambled)
-// delivers; a pipe no route uses has no right way; a route straight a tool made a curve can't join its route; and a
-// pipe already joining its route keeps its turn
 {
-  let routeCells = 0, offCells = 0, curves = 0, picksTurned = 0;
-  const wrongs = [];
-  for (let seed = 1; seed <= 6; seed++) for (let n = 1; n <= 20; n++) {
-    const lv = P.makeLevel(seed, n), on = new Set(lv.routes.flatMap(r => r.slice(1, -1).map(([x, y]) => `${x},${y}`)));
-    const rots = lv.tiles.map(row => row.map(t => t.rot));
-    for (let y = 0; y < lv.h; y++) for (let x = 0; x < lv.w; x++) {
-      const t = lv.tiles[y][x];
-      if (t.fixed) continue;
-      const right = P.rightTurn(lv, t, x, y);
-      if (on.has(`${x},${y}`)) {
-        routeCells++;
-        if (right.rot == null) wrongs.push(`no turn for a route pipe (seed ${seed}, level ${n})`);
-        else {
-          rots[y][x] = right.rot;
-          if (P.rightTurn(lv, { ...t, rot: right.rot }, x, y).rot !== right.rot) wrongs.push(`a right turn doesn't hold (seed ${seed}, level ${n})`);
-        }
-      } else { offCells++; if (right.why !== "off") wrongs.push(`a turn for a pipe no route uses (seed ${seed}, level ${n})`); }
-    }
-    const turned = P.runWith(lv, rots);
-    if (!turned.over?.win) wrongs.push(`a board turned by Auto-turn doesn't deliver (seed ${seed}, level ${n})`);
-    // two terminals: the junction turns towards the better pick (index 0 is the far terminal)
-    else if (lv.choice) { picksTurned++; if (turned.reached[0] !== (lv.choice.better === "far" ? 0 : 1)) wrongs.push(`Auto-turn led to the worse terminal (seed ${seed}, level ${n})`); }
-    const straight = [...on].map(k => k.split(",").map(Number)).find(([x, y]) => lv.tiles[y][x].kind === "straight");
-    if (straight) {
-      curves++;
-      const [x, y] = straight;
-      if (P.rightTurn(lv, { ...lv.tiles[y][x], kind: "bend" }, x, y).why !== "shape") wrongs.push(`a curved route straight still turns (seed ${seed}, level ${n})`);
-    }
-  }
-  check(!wrongs.length, `Auto-turn: ${routeCells} route pipes turn to join their routes, and 120 boards turned that way deliver (the ${picksTurned} with two terminals to the better one); ${offCells} pipes off every route have no right way; ${curves} route straights made curves can't join${wrongs.length ? `: ${wrongs.slice(0, 3).join("; ")}` : ""}`);
+  // a loop through a crossing: east through (3,2), round, and down through it
+  const L = bare(1, { quota: 3, source: { c: at(1, 2), d: 1 } }), P = B.newPlay();
+  L.cells[at(1, 1)] = null; L.cells[at(1, 2)] = { k: "source", d: 1 };
+  // (2,2) h, (3,2) x, (4,2) sw: down to (4,3) nw: west to (3,3)? round: (4,2) sw takes from W out S; (4,3) nw takes N out W;
+  // (3,3) ne takes E out N; up into (3,2) x from S out N; (3,1) h? leaves: (3,1) v out N to (3,0): open
+  lay(P, at(2, 2), "h"); lay(P, at(3, 2), "x"); lay(P, at(4, 2), "sw"); lay(P, at(4, 3), "nw"); lay(P, at(3, 3), "ne"); lay(P, at(3, 1), "v");
+  runOut(L, P);
+  check(P.pts.loop === B.POINTS.loop && P.count === 7 && P.filled[at(3, 2)] === 3, `a crossing passed both ways: a loop, +${B.POINTS.loop}, and both passes count`);
+  const a = bare(1, { quota: 3, source: { c: at(1, 2), d: 1 } }), Q = B.newPlay();
+  a.cells[at(1, 1)] = null; a.cells[at(1, 2)] = { k: "source", d: 1 };
+  lay(Q, at(2, 2), "h"); lay(Q, at(3, 2), "x"); lay(Q, at(4, 2), "sw"); lay(Q, at(4, 3), "nw"); lay(Q, at(3, 3), "ne"); lay(Q, at(3, 1), "v");
+  const route = B.ahead(a, Q);
+  runOut(a, Q);
+  check(route.length === Q.count && route.cells.map(s => s.c).join() === Q.path.slice(1).map(s => s.c).join() && route.end.why === Q.over.why, "the route ahead is the way the oil goes, and its length the pipe it passes");
 }
-// The run as a roguelike (pipes-run.js): the doors, a job's terms, finales' quotas and bosses, boards under every twist
-// and boss, and scoring as netback × mult with every boon doing what its card says
-const J = await import("../pipes-run.js");
 {
-  const wrong = [], ids = Object.keys(J.BOONS), tierOf = id => J.BOONS[id]?.tier;
-  for (let seed = 1; seed <= 30; seed++) {
-    const held = [];
-    for (let n = 1; n <= 16; n++) {
-      const doors = J.doorsFor(seed, n, held), again = J.doorsFor(seed, n, [...held]);
-      if (JSON.stringify(doors) !== JSON.stringify(again)) wrong.push(`doors not repeatable (seed ${seed}, level ${n})`);
-      if (doors.length !== (held.includes("broker") ? 4 : 3)) wrong.push(`${doors.length} doors (seed ${seed}, level ${n})`);
-      const rewards = doors.map(d => d.reward).filter(r => r !== "cargo");
-      if (new Set(rewards).size !== rewards.length) wrong.push(`a reward twice among the doors (seed ${seed}, level ${n})`);
-      if (rewards.some(r => held.includes(r))) wrong.push(`a boon already held on offer (seed ${seed}, level ${n})`);
-      if (n === 1 && !doors.every(d => d.twist === "none" && tierOf(d.reward) === 1)) wrong.push("level 1 isn't three standard jobs for common boons");
-      else if (J.isFinale(n)) {                             // as many rares as are left, up to one a door
-        const rares = ids.filter(id => tierOf(id) === 3 && !held.includes(id)).length;
-        if (!doors.every(d => d.twist === "finale") || doors.filter(d => tierOf(d.reward) === 3).length !== Math.min(doors.length, rares)) wrong.push(`finale ${n} isn't big contracts for the rares left`);
-      } else if (n > 1) {
-        const [plain, ...twisted] = doors;
-        if (plain.twist !== "none" || twisted.some(d => d.twist === "none" || d.twist === "finale") || new Set(twisted.map(d => d.twist)).size !== twisted.length) wrong.push(`level ${n}'s jobs aren't one standard and different twists`);
+  // pumps pay, tanks hold the oil back
+  const L = bare(1, { quota: 3 }), P = B.newPlay();
+  L.cells[at(3, 1)] = { k: "pump", piece: "h" }; L.cells[at(4, 1)] = { k: "tank", piece: "h" };
+  lay(P, at(2, 1), "h"); lay(P, at(5, 1), "h");
+  runOut(L, P);
+  check(P.pts.pump === B.POINTS.pump && P.count === 4, `a pump on the way: +${B.POINTS.pump}`);
+  check(Math.abs(P.t - (L.countdown + L.fill / 2 + 3 * L.fill + B.TANK * L.fill)) < 60, `a tank takes ${B.TANK} times a pipe's time to fill`);
+}
+{
+  // the terminal: into it past the quota, a clean end and its bonus; any sooner, refused
+  const make = quota => { const L = bare(4, { quota, terminal: { c: at(5, 1), d: 3 } }); L.cells[at(5, 1)] = { k: "terminal", d: 3 }; return L; };
+  const P = B.newPlay(), L = make(3);
+  for (let x = 2; x <= 4; x++) lay(P, at(x, 1), "h");
+  runOut(L, P);
+  check(P.over.win && P.over.why === "terminal" && P.pts.terminal === B.POINTS.terminal, `into the terminal past the quota: +${B.POINTS.terminal}`);
+  const Q = B.newPlay(), M = make(4);
+  for (let x = 2; x <= 4; x++) lay(Q, at(x, 1), "h");
+  runOut(M, Q);
+  check(!Q.over.win && Q.over.why === "early" && !Q.pts.terminal, "into the terminal short of the quota: refused, a spill");
+}
+{
+  // laying: over your own piece is a blast (points and a moment), never over the oil or what's fixed
+  const L = B.deal(77, 2), P = B.newPlay();
+  const open = L.cells.findIndex((c, i) => !c && i !== B.beyond(L.source.c, L.source.d));
+  check(B.place(L, P, open) === "laid" && P.next === 1, "a tap lays the next piece on an open square");
+  check(B.place(L, P, open) === "blast" && P.pts.blast === B.POINTS.blast && P.blasts === 1 && P.next === 2, `a tap on your own piece blasts it: the next one in its place, ${B.POINTS.blast} points`);
+  check(B.place(L, P, open) === "busy", "nothing laid while a blast goes off");
+  B.advance(L, P, B.BLAST_MS);
+  check(B.place(L, P, L.cells.findIndex(c => c)) === "fixed" && B.place(L, P, open) === "blast", `${B.BLAST_MS} ms on, laying again; never on what's fixed`);
+  const Q = B.newPlay(), M = bare(1, { quota: 1 });
+  lay(Q, at(2, 1), "h");
+  B.release(M, Q);
+  B.advance(M, Q, M.fill);
+  check(B.place(M, Q, at(2, 1)) === "oil", "never over a piece the oil is in");
+}
+{
+  // Oil now pays for the countdown left; Hurry runs it faster and doubles what it fills; unused pieces cost
+  const L = bare(1, { quota: 2 }), P = B.newPlay();
+  for (let x = 2; x <= 6; x++) lay(P, at(x, 1), "h");
+  lay(P, at(4, 5), "v"); lay(P, at(5, 6), "x");
+  B.advance(L, P, 3500);
+  B.release(L, P);
+  check(P.flowing && P.pts.early === B.POINTS.early * Math.floor((L.countdown - 3500) / 1000), `Oil now: +${B.POINTS.early} for each whole second of the countdown left`);
+  B.advance(L, P, L.fill / 2 + L.fill * 2);
+  const t0 = P.t;
+  B.hurry(L, P);
+  runOut(L, P);
+  check(P.pts.pipe === B.POINTS.pipe * 2 + B.POINTS.pipe * 2 * 3, "Hurry: the pipes it fills from then score double");
+  check(Math.abs(P.t - t0 - 3 * L.fill / B.HURRY) < 60, `Hurry: ${B.HURRY} times faster`);
+  check(P.pts.unused === 2 * B.POINTS.unused, `two pieces the oil never reached: ${2 * B.POINTS.unused}`);
+  const M = bare(1, { quota: 9 }), Q = B.newPlay();
+  for (let x = 2; x <= 6; x++) lay(Q, at(x, 1), "h");
+  lay(Q, at(4, 5), "v");
+  runOut(M, Q);
+  check(!Q.over.win && Q.pts.unused === 0, "the spill that ends the run takes nothing for unused pieces");
+}
+
+// ---------- the board: how hard the levels are, for a bot laying a piece every 1.3 s ----------
+// It keeps a route in mind from where the oil's way ends (through pieces already laid, as they lie), the one of many
+// quick routes the five pieces on show fill furthest before the oil gets there, and lays each piece on the earliest
+// square of it that it fits; a piece that fits nowhere goes far off the route. Once the route is long enough, it hurries.
+{
+  const FIT = {};
+  for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) if (a !== b) FIT[`${a}${b}`] = B.KINDS.filter(k => B.PIECES[k].some(([p, q]) => (p === a && q === b) || (p === b && q === a)));
+  function walk(L, P, c, a, r, used0) {
+    const used = new Set(used0), route = [];
+    for (let g = 0; g < 70; g++) {
+      if (c < 0 || used.has(c)) break;
+      const f = L.cells[c];
+      if (f?.k === "terminal") { if (f.d === a) route.term = true; break; }
+      if (f && f.k !== "pump" && f.k !== "tank") break;
+      const piece = f ? f.piece : P.grid[c];
+      let outs;
+      if (piece && !(route.length === 0 && !f && r() < 0.5)) { const ch = B.channelOf(piece, a); if (!ch || ((P.filled[c] || 0) & (1 << ch.i))) break; outs = [ch.out]; }
+      else outs = [0, 1, 2, 3].filter(d => d !== a);
+      used.add(c);
+      let best = null, bv = Infinity;
+      for (const b of outs) {
+        const n = B.beyond(c, b);
+        if (n < 0) continue;
+        const nf = L.cells[n];
+        if (nf?.k === "terminal") { if (nf.d === B.back(b) && route.length + 1 >= L.quota - P.count - 1) { best = b; bv = -1; break; } continue; }
+        if (used.has(n) || (nf && !((nf.k === "pump" || nf.k === "tank") && B.PIECES[nf.piece][0].includes(B.back(b))))) continue;
+        let deg = 0; for (let d = 0; d < 4; d++) { const m = B.beyond(n, d); if (m >= 0 && !used.has(m) && !L.cells[m]) deg++; }
+        const v = deg + r() * 2.2;
+        if (v < bv) { bv = v; best = b; }
       }
-      const take = doors[(seed + n) % doors.length].reward;    // a run taking doors in turn, swapping the oldest out when full
-      if (take !== "cargo") { if (held.length >= J.SLOTS) held.shift(); held.push(take); }
+      if (best == null) { route.push({ c, a, b: -1 }); break; }
+      route.push({ c, a, b: best });
+      a = B.back(best); c = B.beyond(c, best);
     }
+    return route;
   }
-  if (!J.doorsFor(5, 7, ids).every(d => d.reward === "cargo")) wrong.push("with every boon held, the doors don't offer cargo");
-  check(!wrong.length, `doors: 30 runs of 16 levels, repeatable, three each (four with Broker), never a boon held or twice on offer; level 1 standard for commons, finales big contracts for the rares left, otherwise one standard and the rest twisted; cargo once every boon is held${wrong.length ? `: ${wrong.slice(0, 3).join("; ")}` : ""}`);
-}
-{
-  const n = 7, base = P.levelOf(n), T = (twist, held = [], at = n, seed = 1) => J.termsFor({ twist, reward: "steel" }, held, at, seed), t0 = T("none");
-  const bossAt = boss => { for (let seed = 1; seed < 500; seed++) for (const at of [5, 10, 15, 20, 25, 30]) if (J.bossFor(seed, at) === boss) return { seed, at }; };
-  const fin = boss => { const { seed, at } = bossAt(boss); return { t: J.termsFor({ twist: "finale" }, ["serpent", "survey"], at, seed), b: P.levelOf(at) }; };
-  const expect = [
-    [t0.flow.plan === base.plan && t0.flow.tick === base.tick && t0.flow.pressure === base.pressure && t0.pay === 1 && t0.tile === 10 && t0.tools.count === 3 && t0.spill === 1 && t0.quota === null, "a standard job plays as the level does"],
-    [T("rush").flow.plan === Math.round(base.plan * 0.75) && T("fast").flow.tick === Math.round(base.tick * 0.8), "rush and fast flow"],
-    [T("rocky").build.rock === Math.min(0.24, base.rock * 2) && T("thin").build.pressure === base.pressure - 1 && T("bare").tools === null, "rocky ground, low pressure, no tools"],
-    [T("finale", [], 5).pay === 2 && T("finale", ["contracts"], 5).pay === 3 && T("finale", [], 5).flow.plan === P.levelOf(5).plan && T("finale", [], 5).quota === J.quotaFor(1), "a finale pays double (triple with Big contracts), keeps its planning, and has its act's quota"],
-    [fin("storm").t.flow.tick === Math.round(fin("storm").b.tick * 0.7), "Storm: the oil 30% faster"],
-    [fin("drought").t.build.pressure === fin("drought").b.pressure - 2, "Drought: built and played two tiles shorter"],
-    [fin("strike").t.tools === null && fin("quarry").t.build.rock === Math.min(0.3, fin("quarry").b.rock * 3) && fin("audit").t.tile === 20, "Strike, Quarry, Audit"],
-    [JSON.stringify(fin("regulator").t.boons) === JSON.stringify(["survey"]) && fin("regulator").t.flow.plan === fin("regulator").b.plan + 5000, "the Regulator benches the first boon, and only it"],
-    [T("none", ["survey"]).flow.plan === base.plan + 5000 && T("rush", ["survey"]).flow.plan === Math.round((base.plan + 5000) * 0.75), "Survey team: 5 s more, before a rush's cut"],
-    [T("none", ["pumps"]).flow.pressure === base.pressure + 2 && !T("none", ["pumps"]).build.pressure, "High-pressure pumps: played two tiles longer, built as ever"],
-    [T("none", ["choke"]).flow.tick === Math.round(base.tick * 1.15) && T("none", ["steel"]).tile === 7, "Choke valve, Cheap steel"],
-    [Math.abs(T("finale", ["buyers", "leverage"], 5).pay - 2 * 1.15 * 1.5) < 1e-9 && T("none", ["leverage"]).spill === 2, "Premium buyers, Leverage and a finale multiply; Leverage's spill costs two"],
-    [T("none", ["window"]).bonusWindow === 120000 && T("none", ["fill"]).fillRate === 6 && T("none", ["hedge"]).floor === 1, "Long window, Fast fill, Hedge"],
-    [JSON.stringify(T("none", ["kit", "supplier", "restock", "parts"]).tools) === JSON.stringify({ count: 4, price: 0.7, uses: 1, turn: true }), "the kit's boons"],
-    [T("none", ["insurance", "prelaid", "model"]).insurance && T("none", ["insurance", "prelaid", "model"]).prelaid && T("none", ["model"]).warnDry && !t0.warnDry, "Insurance, Pre-laid, Hydraulic model"],
-    [J.doorsFor(9, 4, ["broker"]).length === 4 && J.interestOn(10000) === 300 && J.interestOn(2000) === 100, "Broker's four doors, Interest's 5% up to 300"],
-    [[1, 2, 3, 4, 5, 6].map(J.quotaFor).every((q, i, a) => !i || q > a[i - 1] * 2), "each act's quota more than doubles the last"],
-  ];
-  const fails = expect.filter(([ok]) => !ok).map(([, what]) => what);
-  // every seed meets all six bosses in six acts
-  for (let seed = 1; seed <= 50; seed++) if (new Set([5, 10, 15, 20, 25, 30].map(at => J.bossFor(seed, at))).size !== 6) { fails.push(`seed ${seed} repeats a boss within six acts`); break; }
-  check(!fails.length, `a job's terms: twists, finales, the six bosses and the rule boons as their cards say; quotas rise; no boss twice in six acts${fails.length ? `: ${fails.join("; ")}` : ""}`);
-}
-{
-  let boards = 0, drier = 0, directs = 0;
-  const wrong = [];
-  for (let seed = 1; seed <= 3; seed++) for (let n = 1; n <= 20; n++) for (const build of [{ rock: Math.min(0.24, P.levelOf(n).rock * 2) }, { pressure: 7 }, { pressure: 6 }, { rock: Math.min(0.3, P.levelOf(n).rock * 3) }]) {
-    let lv;
-    try { lv = P.makeLevel(seed, n, build); } catch (e) { wrong.push(`level ${n} (seed ${seed}) can't be built under ${JSON.stringify(build)}`); continue; }
-    boards++;
-    if (!P.solved(lv).over?.win) wrong.push(`level ${n} (seed ${seed}) under ${JSON.stringify(build)} doesn't deliver`);
-    if (build.rock && build.rock < 0.25) {                       // High-pressure pumps lets some direct lines deliver
-      const strong = { ...lv, level: { ...lv.level, pressure: lv.level.pressure + 2 } };
-      for (const d of lv.directs) { directs++; if (P.runWith(strong, P.rotsFor(lv.solution, d.route)).over?.win) drier++; }
+  function feasible(L, P, route, rate, lead) {
+    const need = route.map(s => (s.b < 0 ? null : L.cells[s.c] ? "fixed" : FIT[`${s.a}${s.b}`]));
+    const doneAt = route.map((s, i) => (need[i] === "fixed" || (need[i] && P.grid[s.c] && need[i].includes(P.grid[s.c])) ? 0 : Infinity));
+    for (let j = 0; j < B.SHOWN; j++) {
+      const kind = B.pieceAt(L, P.next + j), i = route.findIndex((s, i) => doneAt[i] === Infinity && need[i] && need[i] !== "fixed" && need[i].includes(kind));
+      if (i >= 0) doneAt[i] = j * rate;
     }
+    let n = 0;
+    while (n < route.length && need[n] && doneAt[n] <= lead + n * L.fill) n++;
+    return n;
   }
-  check(!wrong.length && drier > 0, `${boards} boards under rocky ground, low pressure, Drought and Quarry build and deliver; with High-pressure pumps ${drier} of ${directs} direct lines stop running dry${wrong.length ? `: ${wrong.slice(0, 3).join("; ")}` : ""}`);
-}
-{
-  // a delivery made to touch every boon: straights back to back, three bends in a row, a pump, a crossing carrying two
-  // products, a ✓-marked bend, a rock beside the path, crude and HVO delivered, crude below list
-  const at = (k, kind, product = "crude", extra = {}) => ({ x: k, y: 1, kind, product, second: false, marked: false, ...extra });
-  const trail = [at(0, "straight"), at(1, "straight"), at(2, "bend"), at(3, "bend"), at(4, "bend"), at(5, "pump"), at(6, "cross"),
-    at(6, "cross", "hvo", { second: true }), at(8, "bend", "crude", { marked: true }), at(9, "term"), at(10, "straight", "hvo"), at(11, "term", "hvo")];
-  const tiles = Array.from({ length: 3 }, (_, y) => Array.from({ length: 12 }, (_, x) => ({ kind: y === 0 && x === 0 ? "rock" : "bend", rot: 0 })));
-  const level = { terminals: [{ product: "crude", price: 500, at: [9, 1] }, { product: "hvo", price: 400, at: [11, 1] }] };
-  const run = { trail, tiles, reached: [0, 1], pumpsFired: 1, tilesFilled: trail.length };
-  const ctx = held => ({ msLeft: 35000, market: { crude: 0.9, hvo: 1 }, terms: { boons: held, pay: 1, tile: 10, pump: 40, twist: "rush" }, grow: { winding: 10, pumpjack: 4 }, streak: 2, toolsUsed: 0, planLeft: 4500 });
-  const one = (id, c = ctx([id])) => { const t = J.tally(level, run, c), b = t.boons[0]; return b ? { chips: b.chips || 0, mult: +b.mult.toFixed(4), xmult: +b.xmult.toFixed(4) } : null; };
-  const want = {
-    serpent: { mult: 0.6 }, elbow: { chips: 80 }, hairpin: { xmult: 1.2 }, winding: { mult: 0.28 }, trunk: { mult: 0.9 }, express: { mult: 1 },
-    junction: { mult: 2 }, spaghetti: { xmult: 1.5 }, booster: { chips: 100 }, compressor: { xmult: 1.2 }, bypass: null, pumpjack: { xmult: 1.25 },
-    haul: { mult: 1 }, golden: null, early: { mult: 0.4 }, clockwork: { mult: 1.2 }, thrift: { mult: 2 }, toolsmith: null, marked: { mult: 0.5 },
-    green: { chips: 400 }, speculator: { mult: 2 }, refinery: { xmult: 1.5 }, wildcat: { mult: 1 }, streak: { mult: 0.9 }, contrarian: { xmult: 2 },
+  function choose(L, P, r, rate) {
+    const ah = B.ahead(L, P), last = ah.cells.length ? ah.cells[ah.cells.length - 1] : P.path.length ? P.path[P.path.length - 1] : { c: L.source.c, b: L.source.d };
+    const end = { c: B.beyond(last.c, last.b), a: B.back(last.b) };
+    const lead = (P.flowing ? (1 - P.p) * L.fill : L.countdown - P.t + L.fill / 2) + ah.cells.length * L.fill;
+    const used = new Set([...P.path.map(s => s.c), ...ah.cells.map(s => s.c)]), want = L.quota + 2 - ah.length;
+    let plan = null, best = -Infinity;
+    for (let i = 0; i < 40; i++) {
+      const route = walk(L, P, end.c, end.a, r, used);
+      if (!route.length) continue;
+      const n = feasible(L, P, route, rate, lead), v = Math.min(n, want + 4) * 10 + (route.term && n >= route.length - 1 ? 60 : 0) + Math.min(route.length, want + 6);
+      if (v > best) { best = v; plan = route; }
+    }
+    const kind = B.pieceAt(L, P.next);
+    if (plan) for (const s of plan) {
+      if (s.b < 0) break;
+      if (L.cells[s.c]) continue;
+      const need = FIT[`${s.a}${s.b}`];
+      if (P.grid[s.c] && need.includes(P.grid[s.c])) continue;
+      if (need.includes(kind)) return s.c;
+    }
+    const on = new Set((plan || []).map(s => s.c)), [ex, ey] = B.xy(end.c >= 0 ? end.c : L.source.c);
+    let far = -1, fd = -1;
+    for (let c = 0; c < B.COLS * B.ROWS; c++) { if (L.cells[c] || P.grid[c] || on.has(c)) continue; const [x, y] = B.xy(c), d = Math.abs(x - ex) + Math.abs(y - ey); if (d > fd) { fd = d; far = c; } }
+    return far;
+  }
+  const play = (seed, n, rate) => {
+    const L = B.deal(seed, n), P = B.newPlay(), r = B.rng(seed ^ 0xABCDEF);
+    let next = 800;
+    while (!P.over && P.t < 900000) {
+      const done = (() => { const a = B.ahead(L, P); return a.length >= L.quota + 2 || a.end.why === "terminal"; })();
+      if (done && P.flowing) B.hurry(L, P);
+      if (!done && P.t >= next && P.t >= P.lockUntil) { const c = choose(L, P, r, rate); if (c >= 0) B.place(L, P, c); next = P.t + rate; }
+      B.advance(L, P, done ? 50 : Math.max(1, Math.max(next, P.lockUntil) - P.t));
+    }
+    return P;
   };
-  const wrong = [];
-  for (const [id, w] of Object.entries(want)) {
-    const got = one(id), exp = w && { chips: w.chips || 0, mult: w.mult || 0, xmult: w.xmult || 1 };
-    if (JSON.stringify(got) !== JSON.stringify(exp)) wrong.push(`${id}: ${JSON.stringify(got)}, not ${JSON.stringify(exp)}`);
-  }
-  const scoring = Object.keys(J.BOONS).filter(id => J.BOONS[id].tile || J.BOONS[id].end);
-  if (scoring.some(id => !(id in want))) wrong.push(`untested: ${scoring.filter(id => !(id in want)).join(", ")}`);
-  // the conditions the delivery above doesn't meet, met
-  const noPump = { ...run, trail: trail.map(t => (t.kind === "pump" ? { ...t, kind: "bend" } : t)), pumpsFired: 0 };
-  if (J.tally(level, noPump, ctx(["bypass"])).boons[0]?.xmult !== 2) wrong.push("Bypass doesn't double with no pump");
-  const long = { ...run, trail: [...trail, ...Array.from({ length: 20 }, (_, k) => at(k, "straight", "crude"))] };
-  if (Math.abs(J.tally(level, long, ctx(["golden"])).boons[0]?.xmult - 1.4) > 1e-9) wrong.push("Golden pipe isn't ×1.4 on 30 tiles");
-  if (one("toolsmith", { ...ctx(["toolsmith"]), toolsUsed: 2 })?.mult !== 2 || one("thrift", { ...ctx(["thrift"]), toolsUsed: 2 }) !== null) wrong.push("Toolsmith and Thrift don't follow the tools used");
-  // the sum: netback 850 at the terminals − 120 pipe − 40 pump + 350 time + 80 Elbow grease; mult (1 + 0.6) × 1.2 × 2
-  const all = J.tally(level, run, ctx(["serpent", "elbow", "compressor", "contrarian"]));
-  if (all.netback !== 1120 || Math.abs(all.mult - 3.84) > 1e-9 || all.total !== Math.round(1120 * 3.84)) wrong.push(`the sum: ${all.netback} × ${all.mult} = ${all.total}`);
-  // with no boons, the tally is the engine's netback
-  const lv = P.makeLevel(4, 8), solved = P.solved(lv), terms = J.termsFor({ twist: "none" }, [], 8, 4);
-  if (J.tally(lv, solved, { msLeft: 40000, market: { crude: 1.1, hvo: 0.9 }, terms }).total !== P.score(lv, solved, 40000, { crude: 1.1, hvo: 0.9 }, terms).total) wrong.push("with no boons, the tally isn't the netback");
-  check(!wrong.length, `scoring: netback × (1 + what boons add) × what they multiply; all ${scoring.length} scoring boons as their cards say, each alone, and together; with none, the netback as ever${wrong.length ? `: ${wrong.slice(0, 4).join("; ")}` : ""}`);
+  const rates = {};
+  for (const n of [1, 3, 6, 10]) { let won = 0; for (let s = 1; s <= 24; s++) if (play(s * 7919, n, 1300).over?.win) won++; rates[n] = won / 24; }
+  check(rates[1] >= 0.9 && rates[3] >= 0.8 && rates[10] <= 0.6 && rates[10] < rates[1], `a bot laying a piece every 1.3 s clears level 1 ${Math.round(rates[1] * 100)}%, 3 ${Math.round(rates[3] * 100)}%, 6 ${Math.round(rates[6] * 100)}%, 10 ${Math.round(rates[10] * 100)}%: easy to start, hard by level 10`);
 }
-// The quotas against simulated runs: every level played on its designed route with 30 s of the bonus left, through five
-// acts. Taking the plain door every time (commons only) gets through act 2's finale and fades by act 5's; taking the
-// boon that multiplies most (and swapping out the least) goes further. Retuning a boon or a quota must keep that shape.
+
+// ---------- the descent: the shaft ----------
 {
-  const WORTH = { contrarian: 4, golden: 4, pumpjack: 4, winding: 4, hairpin: 3, compressor: 3, refinery: 3, serpent: 3, trunk: 3, express: 3, haul: 3, clockwork: 3, streak: 3,
-    junction: 2, spaghetti: 2, bypass: 2, early: 2, thrift: 2, elbow: 1.5 }, worth = id => WORTH[id] ?? 0.2;
-  const passes = { plain: [0, 0, 0, 0, 0], multiplying: [0, 0, 0, 0, 0] }, runs = 12;
-  for (const policy of Object.keys(passes)) for (let seed = 1; seed <= runs; seed++) {
-    const held = [], grow = {};
-    let streak = 0;
-    for (let n = 1; n <= 5 * P.ACT_LENGTH; n++) {
-      const doors = J.doorsFor(seed, n, held), job = policy === "plain" ? doors[0] : doors.reduce((a, d) => (worth(d.reward) > worth(a.reward) ? d : a));
-      const terms = J.termsFor(job, held, n, seed), lv = P.makeLevel(seed, n, terms.build);
-      lv.level = { ...lv.level, ...terms.flow };
-      const t = J.tally(lv, P.solved(lv), { msLeft: 30000, terms, grow, streak: streak++, toolsUsed: 0, planLeft: 0 });
-      for (const id of terms.boons) if (J.BOONS[id].grows) grow[id] = (grow[id] || 0) + t.sum[J.BOONS[id].grows];
-      if (J.isFinale(n) && t.total >= terms.quota) passes[policy][n / P.ACT_LENGTH - 1]++;
-      if (job.reward === "cargo") continue;
-      if (held.length < J.SLOTS) held.push(job.reward);
-      else { const out = held.reduce((a, id, i) => (worth(id) < worth(held[a]) ? i : a), 0); if (worth(job.reward) > worth(held[out])) { delete grow[held[out]]; held[out] = job.reward; } }
+  let problems = 0;
+  const fail = (...why) => { problems++; if (problems < 6) console.log("   ", ...why); };
+  let slabs = 0, kinds = { barrel: 0, charge: 0, tank: 0 };
+  for (let seed = 1; seed <= 30; seed++) {
+    const S = G.shaftOf(seed * 104729), T = G.shaftOf(seed * 104729), DEEP = 120;
+    for (let z = 0; z < DEEP; z++) for (let y = 0; y < G.SIDE; y++) for (let x = 0; x < G.SIDE; x++) {
+      const m = G.madeAt(S, x, y, z);
+      if (m !== G.madeAt(T, x, y, z)) fail("the shaft not repeatable", seed);
+      if (m === "rock" && z < 3) fail("rock near the surface", seed, z);
+      if (m && m !== "rock") kinds[m]++;
     }
+    for (let z = 3; z < DEEP; z++) {
+      let rock = 0;
+      for (let y = 0; y < G.SIDE; y++) for (let x = 0; x < G.SIDE; x++) if (G.madeAt(S, x, y, z) === "rock") rock++;
+      if (rock === G.SIDE * G.SIDE) fail("a layer all rock", seed, z);
+      if (rock >= G.SIDE * G.SIDE - 3) slabs++;
+    }
+    // a way down through open squares from the wellhead's square to the deepest layer
+    const k = (x, y, z) => `${x},${y},${z}`, seen = new Set([k(...G.WELL, 0)]), todo = [[...G.WELL, 0]];
+    let deepest = 0;
+    while (todo.length) {
+      const [x, y, z] = todo.pop();
+      deepest = Math.max(deepest, z);
+      for (const [dx, dy, dz] of G.D3) {
+        const nx = x + dx, ny = y + dy, nz = z + dz, m = G.madeAt(S, nx, ny, nz);
+        if (nz >= DEEP || m === "wall" || m === "rock" || seen.has(k(nx, ny, nz))) continue;
+        seen.add(k(nx, ny, nz)); todo.push([nx, ny, nz]);
+      }
+    }
+    if (deepest < DEEP - 1) fail("no way down", seed, deepest);
   }
-  const { plain, multiplying } = passes;
-  check(plain[1] >= runs * 0.75 && plain[4] <= runs * 0.25 && multiplying.every((m, a) => a < 2 || m > plain[a]) && multiplying[3] >= 2 * plain[3],
-    `quotas: of ${runs} simulated runs, the plain doors' commons pass act finales ${plain.join(", ")}; boons picked for what they multiply ${multiplying.join(", ")}`);
+  check(problems === 0 && slabs > 30, `30 shafts, 120 layers each: repeatable, no rock within three layers of the surface, never a layer all rock (${slabs} slabs with a gap or few), always a way down`);
+  check(kinds.barrel > kinds.charge && kinds.charge > 0 && kinds.tank > 0, `boons along the way: ${kinds.barrel} barrels, ${kinds.charge} charges, ${kinds.tank} tanks`);
+  check(G.madeAt(G.shaftOf(1), 0, 0, 40) !== undefined && G.madeAt(G.shaftOf(1), -1, 0, 5) === "wall" && G.madeAt(G.shaftOf(1), 0, 0, -1) === "wall", "outside the shaft (and above the surface) is wall");
 }
-console.log(bad ? `${bad} problems` : "all checks pass");
-if (bad) process.exitCode = 1;
+// the descent's queue: bags of ten
+{
+  let ok = true;
+  for (let b = 0; b < 30; b++) { const bag = Array.from({ length: 10 }, (_, i) => G.pieceAt3(99, b * 10 + i)).sort().join(); if (bag !== "elbow,elbow,elbow,elbow,jog,jog,long,straight,straight,straight") ok = false; }
+  check(ok, "the descent's pieces come in bags of ten: three straights, four elbows, two jogs, a long one");
+}
+
+// ---------- the descent: laying, turning, the boons, the oil ----------
+// a shaft made to order: no rock unless set, boons where asked
+function shaftWith(set = {}) {
+  const S = G.shaftOf(1);
+  G.madeAt(S, 0, 0, 200);                               // make the chunks, then clear them
+  for (const c of S.chunks) c.at.clear();
+  for (const [k, v] of Object.entries(set)) { const [x, y, z] = k.split(",").map(Number); S.chunks[Math.floor(z / 12)].at.set(G.key3(x, y, z), v); }
+  return S;
+}
+/** The piece in hand made `kind`, turned `turn`, and laid. */
+const put = (S, D, kind, turn = 0) => { D.cur = kind; D.turn = turn; return G.lay(S, D); };
+{
+  const S = shaftWith(), D = G.newDescent(1);
+  const ways = k => G.waysOf(D, k);
+  check(ways("straight").length === 1 && ways("long").length === 1 && ways("elbow").length === 4 && ways("jog").length === 4, "a straight and a long lay one way; an elbow and a jog four");
+  const elbows = ways("elbow").map(w => w.exit.d).join(), jog = ways("jog")[0];
+  check(elbows === "0,2,1,3" && jog.cells.length === 2 && jog.exit.d === G.DOWN && jog.cells[1].x === jog.cells[0].x + 1,
+    "going down, an elbow turns east, south, west, north as it's turned a quarter at a time; a jog steps a square sideways and on down");
+  const across = ways("elbow").length && G.across(0).join() === "2,4,3,5";
+  check(across, "going east, a quarter turn takes the elbow's way round south, down, north, up");
+  D.cur = "elbow"; D.turn = G.firstTurn(S, D);
+  check(G.waysOf(D, "elbow")[D.turn].exit.d !== G.UP, "a piece starts turned somewhere other than back up");
+}
+{
+  // laying: the cap ahead of the oil, rock and wall, boons taken
+  const S = shaftWith({ "1,1,2": "barrel", "1,1,3": "charge", "1,1,4": "tank", "1,1,6": "rock" }), D = G.newDescent(1);
+  check(put(S, D, "straight") === "laid" && G.openEnd(D).z === 2, "a straight laid down from the wellhead");
+  put(S, D, "straight"); put(S, D, "straight"); put(S, D, "straight");
+  check(D.barrels === 1 && D.charges === 1 && D.pipe.some(c => c.tank) && G.scoreOf(D) === G.BARREL, `boons laid through are taken: a barrel (+${G.BARREL}), a charge, a tank in the pipe`);
+  check(put(S, D, "straight") === "laid" && G.contentAt(S, D, 1, 1, 6) === "rock" && put(S, D, "straight") === "blocked", "rock below: blocked");
+  check(G.blast(S, D) && D.charges === 0 && G.contentAt(S, D, 1, 1, 6) === null && put(S, D, "straight") === "laid" && put(S, D, "straight") === "wait",
+    `a charge blasts the rock the open end faces; ${G.CAP} laid ahead of the oil, the next waits`);
+  const W = shaftWith(), E = G.newDescent(1);
+  put(W, E, "elbow", 2);                                 // at (1,1,1), turned west
+  check(put(W, E, "straight") === "laid" && put(W, E, "straight") === "blocked", "the shaft's wall stops a pipe as rock does");
+  const X = shaftWith(), H = G.newDescent(1);
+  put(X, H, "elbow", 0);                                 // at (1,1,1), turned east
+  put(X, H, "elbow", 3);                                 // at (2,1,1): going east, the fourth way is up
+  const upEnd = G.openEnd(H);
+  check(upEnd.z === 0 && upEnd.d === G.UP, "a pipe can turn back up");
+}
+{
+  // hold, scrap, the oil's pace, Hurry, the catch
+  const S = shaftWith(), D = G.newDescent(5);
+  const first = D.cur, second = G.pieceAt3(5, 1), third = G.pieceAt3(5, 2);
+  check(G.holdPiece(S, D) && D.hold === first && D.cur === second && !G.holdPiece(S, D), "Hold sets the piece in hand aside for the next; once a piece");
+  put(S, D, "straight");
+  check(!D.held && D.cur === third && G.holdPiece(S, D) && D.cur === first && D.hold === third, "a piece laid, Hold again: the one set aside comes back");
+  const E = G.newDescent(5);
+  G.advance(S, E, G.START - 1);
+  check(!E.flowing, `the oil waits ${G.START / 1000} s at the wellhead`);
+  put(S, E, "straight"); put(S, E, "straight");
+  const t = E.t;
+  G.advance(S, E, 1 + G.fillTime(0) / 2 + G.fillTime(1) + G.fillTime(2) + 5);
+  check(E.over && E.deepest === 2 && Math.abs(E.t - t - (1 + G.fillTime(0) / 2 + G.fillTime(1) + G.fillTime(2))) < 2, "the oil runs a square at a time and catches a pipe left short: over");
+  check(G.fillTime(0) === 3200 && G.fillTime(40) < G.fillTime(20) && G.fillTime(400) === 450, `slow at the top (${G.fillTime(0)} ms a square), faster all the way down, to a floor of 450`);
+  const F = G.newDescent(5);
+  for (let i = 0; i < 6; i++) put(S, F, "straight");
+  G.release(S, F);
+  const before = F.t; G.hurry(F);
+  check(F.hurry, "Hurry with pipe laid ahead");
+  for (let i = 0; i < 1000 && F.hurry; i++) G.advance(S, F, 10);
+  check(!F.hurry && G.lead(F) === G.HURRY_STOP && F.t - before < (G.fillTime(1) * 4) / G.HURRY3 + 200 + G.fillTime(0) / G.HURRY3, `Hurry runs it ${G.HURRY3} times faster until it's ${G.HURRY_STOP} squares behind`);
+  const T = G.newDescent(5);
+  put(S, T, "straight"); put(S, T, "straight");
+  G.release(S, T);
+  const was = T.oil.i;
+  G.scrap(S, T);
+  check(T.oil.i === was + 1, "Scrap: the next piece, and the oil surges a square");
+  // a tank holds it back
+  const K = shaftWith({ "1,1,1": "tank" }), M = G.newDescent(5);
+  put(K, M, "straight"); put(K, M, "straight");
+  G.release(K, M);
+  const t0 = M.t; G.advance(K, M, 100000);
+  check(Math.abs(M.t - t0 - (G.fillTime(0) / 2 + G.TANK3 * G.fillTime(1) + G.fillTime(2))) < 2, `a tank holds the oil ${G.TANK3} times as long`);
+}
+{
+  // a descent saved and restored plays on the same (the shaft is made again from the seed)
+  const S = G.shaftOf(31337), D = G.newDescent(31337);
+  const move = (S, D, i) => { D.turn = (G.firstTurn(S, D) + (i % 3 === 2 ? 1 : 0)) % G.waysOf(D, D.cur).length; if (G.lay(S, D) !== "laid") { if (!G.holdPiece(S, D)) G.scrap(S, D); } G.advance(S, D, 700); };
+  for (let i = 0; i < 20; i++) move(S, D, i);
+  const C = JSON.parse(JSON.stringify(D)), S2 = G.shaftOf(31337);
+  for (let i = 20; i < 60 && !D.over; i++) { move(S, D, i); move(S2, C, i); }
+  check(JSON.stringify(C) === JSON.stringify(D), "a descent saved and restored plays on exactly the same");
+}
+
+// ---------- the descent: how far a bot gets at a person's pace ----------
+// Every 1.4 s it weighs each way of laying the piece in hand (and the one held), a piece further on, by depth, the open
+// ground below, the ways on and the boons; it blasts rock ahead when it can and scraps when nothing fits.
+{
+  const clone = D => ({ ...D, pipe: D.pipe.slice(), oil: { ...D.oil }, blasted: D.blasted.slice(), taken: D.taken.slice() });
+  const blocked = w => w === "wall" || w === "rock" || w === "pipe";
+  function value(S, D) {
+    const e = G.openEnd(D), w = G.contentAt(S, D, e.x, e.y, e.z);
+    let v = e.z * 10 + D.barrels * 50 + D.charges * 25 - (e.d === G.UP ? 15 : 0);
+    if (blocked(w)) return v - (w === "rock" && D.charges ? 40 : 400);
+    const k = c => `${c.x},${c.y},${c.z}`, seen = new Set([k(e)]), todo = [e];
+    let n = 0, deep = e.z;
+    while (todo.length && n < 60) {
+      const c = todo.shift(); n++; deep = Math.max(deep, c.z);
+      for (const d of G.D3) { const m = { x: c.x + d[0], y: c.y + d[1], z: c.z + d[2] }; if (m.z > e.z + 8 || m.z < e.z - 2 || seen.has(k(m)) || blocked(G.contentAt(S, D, m.x, m.y, m.z))) continue; seen.add(k(m)); todo.push(m); }
+    }
+    v += Math.min(n, 30) * 3 + (deep - e.z) * 12;
+    for (const [kind, p] of [["straight", 0.3], ["elbow", 0.4], ["jog", 0.2], ["long", 0.1]]) if (G.waysOf(D, kind).some(x => G.fits(S, D, x) && !G.deadEnd(S, D, x))) v += p * 60;
+    return v;
+  }
+  function best(S, D, depth) {
+    let top = [-Infinity, null];
+    const kinds = [[D.cur, false]];
+    if (!D.held) kinds.push([D.hold ?? G.pieceAt3(D.seed, D.next), true]);
+    for (const [kind, swap] of kinds) {
+      const ways = G.waysOf(D, kind);
+      for (let t = 0; t < ways.length; t++) {
+        if (!G.fits(S, D, ways[t])) continue;
+        const E = clone(D);
+        if (swap) G.holdPiece(S, E);
+        E.turn = t;
+        E.oil = { i: Math.max(E.oil.i, E.pipe.length - G.CAP), p: 0 };
+        if (G.lay(S, E) !== "laid") continue;
+        let v = value(S, E);
+        if (depth > 1) { const [v2] = best(S, E, depth - 1); v = v2 === -Infinity ? v - 150 : Math.max(v * 0.5 + v2 * 0.5, v2 - 5); }
+        if (v > top[0]) top = [v, { swap, turn: t }];
+      }
+    }
+    return top;
+  }
+  const depths = [];
+  for (let s = 1; s <= 16; s++) {
+    const S = G.shaftOf(s * 104729), D = G.newDescent(s * 104729);
+    let next = 500;
+    while (!D.over && D.t < 3600000) {
+      if (D.t >= next && G.lead(D) < G.CAP) {
+        const e = G.openEnd(D);
+        if (G.contentAt(S, D, e.x, e.y, e.z) === "rock" && D.charges) G.blast(S, D);
+        else {
+          const [, a] = best(S, D, 2);
+          if (!a) G.scrap(S, D);
+          else { if (a.swap) G.holdPiece(S, D); D.turn = a.turn; G.lay(S, D); }
+        }
+        next = D.t + 1400;
+      }
+      G.advance(S, D, Math.max(1, next - D.t));
+    }
+    depths.push(G.depthOf(D));
+  }
+  depths.sort((a, b) => a - b);
+  const median = depths[depths.length >> 1];
+  check(median >= 250 && median <= 900 && depths.every(d => d < 3000), `a bot laying every 1.4 s gets down ${median} m (median of 16; ${depths[0]}–${depths[depths.length - 1]}), and the oil always catches it`);
+}
+
+if (bad) { console.log(`${bad} failed`); process.exit(1); }
+console.log("all passed");

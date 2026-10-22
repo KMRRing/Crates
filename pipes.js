@@ -1,855 +1,676 @@
-// Pipes: turn tiles ahead of the flow. The engine (pipes-engine.js) builds levels and moves the flow; the run's rules
-// (pipes-run.js) deal the jobs and the boons and score a delivery; this file draws the board, takes taps and runs the
-// clock. Together, the same seeded run for everyone at the table, an act or more of it (duel.js).
-import { LIVES, PRODUCTS, DIRS, ACTS, ACT_LENGTH, makeLevel, newRun, turn, advance, openings, levelOf, trace, rightTurn } from "./pipes-engine.js";
+// Pipes: Pipe Dream's game on a board (pipes-engine.js), and the descent in 3D (pipes-deep.js, drawn by
+// pipes-3d.js). This file draws the board and the queue, takes taps and keys, runs the clock, keeps both runs and the
+// bests, and plays a match for everyone at the table on the same seed (duel.js).
+import * as B from "./pipes-engine.js";
+import * as G from "./pipes-deep.js";
+import { createShaftView } from "./pipes-3d.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, choice, action, line, onPause } from "./menu.js";
-import { today, IN_FRAME } from "./suite.js";          // the day, the same for everyone (UTC); a partner watching's frame
-import { BOONS, BOSSES, SLOTS, TIERS, doorsFor, termsFor, describe, cargoFor, isFinale, finaleOf, tileEffects, tally, summarize, interestOn } from "./pipes-run.js";
+import { part, choice, toggle, action, line, onPause } from "./menu.js";
+import { today, IN_FRAME } from "./suite.js";           // the day, the same for everyone (UTC); a partner watching's frame
 import { createDuel } from "./duel.js";
 
 const $ = id => document.getElementById(id);
-const RUN = "pipes:run", BEST = "pipes:best", DAILY = "pipes:daily";
 const SVG = "http://www.w3.org/2000/svg";
-const TILE = 60, PIPE = 18;            // drawing units
-const FILL_SPEED = 80, FILL_STEP = 50;  // Fill it now: flow time runs 80× (a 40 s flow in half a second), in 50 ms steps so
-                                       // the products meet crossings in the same order they would at speed 1; the time
-                                       // bonus (counting down from its window) counts that time at the job's fill rate
-// the act a level is in, counted on past the named acts (the engine's actOf stops at the last of them), as the
-// finales' quotas and Insurance count them
-const actNo = n => 1 + Math.floor((n - 1) / ACT_LENGTH);
-
-// the run: { seed, mode, n, score, lives, maxLives, attempt, phase: "pick" | "plan" | "flow" | "done" | "over", after:
-// "next" | "retry" (once done), boons (ids, in their slots), grow (what each scaling boon has counted since it was
-// taken), streak (levels delivered in a row without a failure), doors (the jobs on offer while picking), pending (a
-// boon earned with the slots full, until you choose what it replaces), job: { twist, reward, paid } (the level under
-// way), insuredAct, offers: [{ id, price, uses }], market: { crude, hvo }, tool, ledger (what the last delivery
-// scored, line by line), top (the run's best delivery), live (below) }
-let S = null;
-let terms = null;    // the level's terms: its job with the run's boons and a finale's boss (pipes-run.js)
-let L = null;        // the level
-let R = null;        // the run
-let clock = { last: 0, brief: false, planLeft: 0, flowing: 0, filling: false };   // brief: the tools on show, the clock waiting; flowing: the time the bonus counts
-let fx = { seen: 0, add: 0, x: 1 };   // the boons as the oil goes: trail entries scored so far, and the mult they make
-let raf = 0;
-const cells = new Map();   // "x,y" -> { g, flows: [] }
-
-const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
-const num = v => Math.round(v).toLocaleString("en-GB");
-const signed = v => `${v < 0 ? "−" : "+"}${num(Math.abs(v))}`;
-/** A mult as the game shows it: ×1, ×1.15, ×12.6, ×340. */
-const multText = m => `×${m >= 100 ? Math.round(m) : m >= 10 ? +m.toFixed(1) : +m.toFixed(2)}`;
-/** A sentence's first letter lowered to follow a colon, unless it starts an acronym (HVO). */
-const lowerFirst = t => (/^[A-Z][a-z]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t);
-// tools bought during the match with points: each map offers three, at its own prices, each a few uses only
-const TOOLS = {
-  clear: { name: "Clear rock", icon: "⛏", price: [80, 160], uses: [1, 2], about: "Tap a rock: it becomes a random pipe." },
-  pump: { name: "Add pump", icon: "⛽", price: [120, 220], uses: [1, 2], about: "Tap a straight or a bend: it becomes a pump." },
-  bend: { name: "Curve", icon: "↱", price: [60, 120], uses: [1, 3], about: "Tap a straight or a crossing: it becomes a curve." },
-  cross: { name: "Crossover", icon: "✚", price: [80, 160], uses: [1, 2], about: "Tap a straight or a curve: it becomes a crossing." },
-  pause: { name: "5 s pause", icon: "⏸", price: [100, 200], uses: [1, 2], about: "Everything waits five seconds: the countdown or the flow." },
-  turn: { name: "Auto-turn", icon: "🧭", price: [20, 40], uses: [2, 4], about: "Tap a pipe: it turns the way the route runs, or shows ✕ if the route doesn't use it." },
-};
-const PAUSE_MS = 5000;
-// A level opens on its tools, and its clock waits until you've taken them in and tap the card: that costs none of the
-// planning, since the board stays covered meanwhile. There's no card when none of them is affordable.
-/** A map's offers: some of the tools at its own prices and uses, the same for everyone on the same board. The run's
- *  boons widen the kit, cut the prices, add a use or keep Auto-turn on offer; a job with no tools has none. */
-function offersFor(seed, tools) {
-  if (!tools) return [];
-  let a = seed >>> 0;
-  const r = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  const ids = Object.keys(TOOLS).map(id => [r(), id]).sort((x, y) => x[0] - y[0]).slice(0, tools.count).map(([, id]) => id);
-  if (tools.turn && !ids.includes("turn")) ids[ids.length - 1] = "turn";
-  return ids.map(id => {
-    const t = TOOLS[id], pick = ([lo, hi], step) => lo + step * Math.floor(r() * ((hi - lo) / step + 1));
-    return { id, price: Math.max(10, Math.round(pick(t.price, 10) * tools.price / 10) * 10), uses: pick(t.uses, 1) + tools.uses };
-  });
-}
-/** Prices drift between levels, a few per cent either way, within 70% and 140% of the list price. */
-const drift = (m, r) => Math.min(1.4, Math.max(0.7, +(m * (1 + (r - 0.5) * 0.24)).toFixed(3)));
+const KEY = { flat: "pipes:flat", deep: "pipes:deep", prefs: "pipes:prefs", best: "pipes:best", daily: "pipes:daily" };
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 const write = (key, v) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
-const save = () => { if (S?.duel) { duel.keep(S); tell(); } else write(RUN, S); };   // a match's run is kept apart from yours
+const num = v => Math.round(v).toLocaleString("en-GB");
+const signed = v => `${v < 0 ? "−" : "+"}${num(Math.abs(v))}`;
+const randomSeed = () => Math.floor(Math.random() * 2 ** 31);
+const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// ---------- the run ----------
-// A run is a string of jobs (pipes-run.js): before each level, three doors, each a job's twist and the boon that
-// delivering it earns; boons sit in five slots and score as the oil passes; a failure retries the same job.
-function start(mode, seed = mode === "daily" ? today() : randomSeed(), match = null) {
-  S = { seed, mode, n: 1, score: 0, lives: LIVES, maxLives: LIVES, attempt: 0, phase: "pick", market: { crude: 1, hvo: 1 }, tool: null,
-    boons: [], grow: {}, streak: 0, job: null, pending: null, ledger: null, top: null, ...(match ? { duel: true, acts: match.acts } : {}) };
-  if (!match) history.replaceState(null, "", mode === "daily" ? `#d=${S.seed}` : `#s=${S.seed}`);
-  L = R = terms = null;
-  offerJobs();
-}
-/** Before every level: the jobs on offer, the same for everyone on this seed who has made the same choices. A boon
- *  waiting for a slot comes first: the doors depend on what's held. */
-function offerJobs() {
-  S.phase = "pick"; S.after = null; S.tool = null; S.attempt = 0; S.ledger = null;
-  S.doors = S.pending ? null : doorsFor(S.seed, S.n, S.boons);
+// ---------- the state ----------
+// prefs: the mode on show ("flat", the board; "deep", the shaft in 3D) and a match's length on the board (levels; 0:
+// till the spill). Each mode keeps its own run, so trying the other leaves yours where it was.
+let prefs = { mode: "flat", length: 0, ...read(KEY.prefs, {}) };
+let mode = prefs.mode === "deep" ? "deep" : "flat";
+// the board's run: { v, kind: "random" | "daily" | "duel", seed, n (the level), total (the levels' points before
+// this one's, or with it once it's over), phase: "play" | "done" (a level cleared, its card up) | "over", P (the level:
+// pipes-engine.js; kept once it's over, so the card stands over the board as it ended), last (how the level went), at };
+// L is its level
+let F = null, L = null;
+// the descent: { v, kind, seed, D (pipes-deep.js), phase: "play" | "over", at }; S is its shaft
+let R = null, S = null;
+let match = null;            // a match being played here: { mode, seed, length }
+let view = null;             // the 3D view, made the first time the shaft shows
+let raf = 0, last = 0, held = false;
+
+const save = () => {
+  const now = Date.now();
+  if (F) F.at = now;
+  if (R) R.at = now;
+  if (match) { duel.keep({ match, F, R }); tell(); return; }
+  if (mode === "flat" && F) write(KEY.flat, F);
+  if (mode === "deep" && R) write(KEY.deep, R);
+};
+let savedAt = 0;
+const saveSoon = () => { const now = performance.now(); if (now - savedAt > 1000) { savedAt = now; save(); } };
+
+// ---------- the board's run ----------
+function startFlat(kind, seed = kind === "daily" ? today() : randomSeed()) {
+  F = { v: 2, kind, seed, n: 1, total: 0, phase: "play", P: B.newPlay(), at: Date.now() };
+  L = B.deal(seed, 1);
+  showFlat(true);
   save();
-  showJobs();
 }
-/** A boon earned with the five slots full takes slot i's place (the one there gone, and what it had counted), or, at
- *  -1, is left behind; then the doors. */
-function settleSwap(i) {
-  if (S.phase !== "pick" || !S.pending || IN_FRAME) return;
-  const id = S.pending, out = S.boons[i];
-  S.pending = null;
-  if (out) { S.boons[i] = id; lose(out); gain(id); toast(`${BOONS[id].name} in, ${BOONS[out].name} out`); }
-  offerJobs();
+function nextLevel() {
+  if (F.phase !== "done") return;
+  F.n++;
+  F.P = B.newPlay();
+  F.phase = "play";
+  L = B.deal(F.seed, F.n);
+  showFlat(true);
+  save();
 }
-/** What taking or losing a boon does at once: Spare crew's life, and its room for four only while it's held. */
-function gain(id) { if (id === "crew") { S.maxLives = LIVES + 1; S.lives = Math.min(S.maxLives, S.lives + 1); } }
-function lose(id) { delete S.grow[id]; if (id === "crew") { S.maxLives = LIVES; S.lives = Math.min(S.lives, LIVES); } }
-/** A job taken: its level begins. */
-function chooseJob(i) {
-  if (S.phase !== "pick" || S.pending || !S.doors?.[i] || IN_FRAME) return;
-  S.job = S.doors[i];
-  S.doors = null;
-  beginLevel();
+/** A level over: its points go to the run; cleared, the next level waits behind the card; spilled short of the quota,
+ *  the run is over (as a match's is after its last level). */
+function levelOver() {
+  const P = F.P, pts = B.pointsOf(P);
+  F.last = { n: F.n, pts: { ...P.pts }, total: pts, win: P.over.win, why: P.over.why, count: P.count, quota: L.quota, blasts: P.blasts,
+    unused: P.pts.unused / B.POINTS.unused };
+  F.total += pts;
+  F.phase = P.over.win && !(match?.length && F.n >= match.length) ? "done" : "over";
+  if (!P.over.win) navigator.vibrate?.([60, 40, 60]);
+  if (F.phase === "over" && !match) noteBest("flat", { score: F.total, level: F.n });
+  save();
+  if (F.phase === "over") tell(true);
 }
-/** The level as its job builds it: the board under the twist's or boss's terms (the engine proves it under them),
- *  then played under the run's (planning, flow speed, pressure). */
-function buildLevel() {
-  terms = termsFor(S.job, S.boons, S.n, S.seed);
-  const lv = makeLevel(S.seed + 7919 * S.attempt, S.n, terms.build);
-  lv.level = { ...lv.level, ...terms.flow };
-  return lv;
+
+// ---------- the descent ----------
+function startDeep(kind, seed = kind === "daily" ? today() : randomSeed()) {
+  R = { v: 2, kind, seed, D: G.newDescent(seed), phase: "play", at: Date.now() };
+  S = G.shaftOf(seed);
+  R.D.turn = G.firstTurn(S, R.D);
+  view?.reset();
+  showDeep(true);
+  save();
 }
-/** A level begins: the board, a planning countdown, then the flow. A retry after a failure gets a fresh board. */
-function beginLevel() {
-  S.job ??= { twist: "none", reward: null };             // a run saved before jobs carries on with a plain one
-  $("doors").hidden = true;
-  S.ledger = null;
-  L = buildLevel();
-  R = newRun(L);
-  if (terms.prelaid) prelay();
-  S.phase = "plan";
-  S.after = null;
-  const m = S.market || {};
-  S.market = { crude: Math.max(terms.floor, m.crude ?? 1), hvo: Math.max(terms.floor, m.hvo ?? 1) }; S.tool = null;
-  S.offers = offersFor(S.seed + 7919 * S.attempt + 104729 * S.n, terms.tools);
-  const affordable = S.offers.some(o => o.uses && S.score >= o.price);
-  clock = { last: performance.now(), brief: affordable, planLeft: L.level.plan, flowing: 0, filling: false, paused: 0 };
-  fx = { seen: 0, add: 0, x: 1 };
-  keepLive();
-  drawHud();
-  buildBoard();
-  drawLedger();
-  $("goBtn").hidden = true; $("viewBtn").hidden = true;
-  $("fillBtn").textContent = `Fill it now: time bonus at ×${terms.fillRate}`;
-  $("fillBtn").hidden = clock.brief;             // there from the countdown's first moment: fill as soon as the route is ready
-  $("note").textContent = levelNote();
-  drawTools();
-  drawBrief();
-  drawStatus();
-  cancelAnimationFrame(raf);
-  raf = requestAnimationFrame(frame);
+function descentOver() {
+  R.phase = "over";
+  navigator.vibrate?.([60, 40, 60]);
+  if (!match) noteBest("deep", { score: G.scoreOf(R.D), depth: G.depthOf(R.D) });
+  save();
+  tell(true);
 }
-/** Pre-laid: each designed route's first two pipes start turned the right way, marked as Auto-turn marks them. */
-function prelay() {
-  for (const route of L.routes) for (const [x, y] of route.slice(1, 3)) {
-    const t = R.tiles[y][x], right = t.fixed ? {} : rightTurn(L, t, x, y);
-    if (right.rot != null) { t.rot = right.rot; t.set = true; }
+
+// ---------- bests: by mode, and today's ----------
+/** A run's end, against the best of its mode, and today's if it was today's. */
+function noteBest(m, result) {
+  if (IN_FRAME) return;
+  const best = read(KEY.best, {}) || {};
+  if (!best[m] || result.score > best[m].score) { best[m] = result; write(KEY.best, best); }
+  const run = m === "flat" ? F : R;
+  if (run.kind === "daily" && run.seed === today()) {
+    const d = read(KEY.daily, {}) || {}, day = d[today()] || {};
+    if (!day[m] || result.score > day[m].score) { day[m] = result; d[today()] = day; write(KEY.daily, d); }
   }
 }
-/** The level's news under the board while it's played, or, on a level with none, the job under way. The note has
- *  three lines: each level's news must fit them. */
-function levelNote() {
-  const a = actNo(L.n);
-  if (L.n === 1) return `Tap a tile to turn it, hold to turn it back. Pressure lasts ${L.level.pressure} tiles and only a pump refills it. Pipe costs ${terms.tile} a tile, a pump ${terms.pump}.`;
-  if (terms.quota != null) return `${BOSSES[terms.boss].name}: ${lowerFirst(BOSSES[terms.boss].about)} Score ${num(terms.quota)} to pass, or the buyer pays nothing and it costs a life.`;
-  if (L.n === 3) return "Two terminals: the far one pays more but costs more pipe and pumps. Take the one that nets more.";
-  if (L.level.place === 0 && a > 1) return a <= ACTS.length ? `Act ${a}, ${ACTS[a - 1].name}. ${ACTS[a - 1].news}` : `Act ${a}: the open field again, and a steeper quota at its finale.`;
-  return jobNote();
-}
-function jobNote() {
-  if (!S.job?.reward || S.job.paid) return "";
-  const d = describe(S.job, S.n, S.boons, S.seed), r = d.reward;
-  if (!r.tier) return `Delivering this ${d.job.toLowerCase()} earns a bonus cargo: ${r.about}`;
-  return `Delivering this ${d.job.toLowerCase()} earns ${r.icon} ${r.name}. ${r.about}${S.boons.length >= SLOTS ? " Your slots are full: it would replace one." : ""}`;
-}
+const bestOf = m => (read(KEY.best, {}) || {})[m] || null;
+const todayOf = m => ((read(KEY.daily, {}) || {})[today()] || {})[m] || null;
+
+// ---------- the clock ----------
 function frame(now) {
   raf = requestAnimationFrame(frame);
-  const dt = Math.min(100, now - clock.last);
-  clock.last = now;
-  if (!S || (S.phase !== "plan" && S.phase !== "flow")) return;
-  const was = S.phase, filled = R.tilesFilled;
-  step(dt);
-  if (R.trail.length > fx.seen) fire(true);
-  drawStatus();
-  if (S.phase === "flow" && clock.paused <= 0) { drawFlow(); drawGauges(); }
-  // kept as the oil enters each tile (Fill it now enters several a frame: a few times a second is plenty to watch)
-  if (S.phase !== was || (R.tilesFilled !== filled && now - keptAt > 250)) keepLive();
-  if (R.over) endLevel();
+  const dt = last ? Math.min(100, now - last) : 0;
+  last = now;
+  step(dt, now);
 }
-/** The level's clock moved on by dt ms: the brief (the tools on show) and a pause hold the countdown and the flow
- *  alike; then the countdown, then the flow (at ×80 while filling, its time counted as if pumped at ×4). */
-function step(dt) {
-  if (clock.brief) return;                            // the tools on show: the clock waits for a tap
-  if (clock.paused > 0) { clock.paused -= dt; return; }
-  if (S.phase === "plan") { clock.planLeft -= dt; if (clock.planLeft <= 0) S.phase = "flow"; return; }
-  if (S.phase !== "flow") return;
-  if (clock.filling) {
-    for (let left = dt * FILL_SPEED; left > 0 && !R.over; left -= FILL_STEP) {
-      const s = Math.min(FILL_STEP, left);
-      advance(L, R, s);
-      clock.flowing += s / terms.fillRate;
+/** The game on by dt ms: the board's level or the descent, and what shows of it. */
+function step(dt, now = performance.now()) {
+  if (mode === "flat") {
+    if (F?.phase === "play" && F.P && !F.P.over) {
+      const P = F.P, cells = P.path.length, pts = B.pointsOf(P), flowing = P.flowing;
+      B.advance(L, P, dt);
+      if (P.path.length !== cells || P.flowing !== flowing) { drawPathCells(cells); drawRoute(); saveSoon(); }
+      if (B.pointsOf(P) !== pts) popPoints(P, pts);
+      drawOil();
+      drawFlatHud();
+      if (P.over) { levelOver(); showFlat(false); }
     }
-  } else {
-    clock.flowing += dt;
-    advance(L, R, dt);
+  } else if (R && S) {
+    if (R.phase === "play" && !R.D.over) {
+      const D = R.D, i = D.oil.i, was = G.depthOf(D);
+      G.advance(S, D, dt);
+      if (D.oil.i !== i) { drawDeepHud(); saveSoon(); }
+      if (Math.floor(G.depthOf(D) / 100) > Math.floor(was / 100) && !IN_FRAME) toast(`${num(G.depthOf(D))} m down`, 1200);
+      if (D.over) { descentOver(); showDeep(false); }
+      else drawDeepStatus();
+    }
+    view?.draw(S, R.D, { ghost: ghostOf(), now });
   }
 }
-function drawStatus() {
-  const where = terms.quota != null ? `${num(terms.quota)} to pass` : `level ${L.n}`;
-  $("status").textContent = clock.brief && S.phase === "plan" ? `Ready when you are · ${where}`
-    : clock.paused > 0 ? `Paused · ${Math.max(0, Math.ceil(clock.paused / 1000))} s`
-    : S.phase === "plan" ? `Oil in ${Math.max(0, Math.ceil(clock.planLeft / 1000))} s · ${where}`
-    : `${clock.filling ? `Filling at ×${terms.fillRate}` : "Flowing"} · ${where}`;
-  if (S.phase === "flow" && $("mult").hidden) drawMult();
+function run() { cancelAnimationFrame(raf); last = 0; raf = requestAnimationFrame(frame); }
+/** Time gone by while nobody was looking: a match's clock (which doesn't stop), or a partner's game as a watching
+ *  frame picks it up (at most half a minute: an older copy is a player who has gone). The engines walk a long step
+ *  piece by piece exactly as short ones, so it's one step, then one drawing. */
+function catchUp(ms) {
+  ms = Math.min(ms, 30000);
+  if (!(ms > 0)) return;
+  if (mode === "flat" && F?.phase === "play" && F.P && !F.P.over) {
+    B.advance(L, F.P, ms);
+    if (F.P.over) levelOver();
+    showFlat(false);
+  } else if (mode === "deep" && R?.phase === "play" && !R.D.over) {
+    G.advance(S, R.D, ms);
+    if (R.D.over) descentOver();
+    showDeep(false);
+  }
 }
 
-// ---------- the boons as the oil goes: a pop over each tile one scores on, its slot flashing, the mult climbing ----------
-/** Scores the trail's entries not yet seen: shown as it flows; silently when a level is picked up part-way. */
-function fire(show) {
-  const boons = terms.boons || [];
-  for (; fx.seen < R.trail.length; fx.seen++) {
-    const t = R.trail[fx.seen];
-    tileEffects(R.trail, fx.seen, boons).forEach((e, k) => {
-      fx.add += e.mult || 0;
-      fx.x *= e.xmult || 1;
-      if (show) { pop(t.x, t.y, k, e); flash(e.id); }
-    });
+// ---------- the board, drawn ----------
+const T = 60, MID = 30;
+const el = (tag, attrs = {}, parent = null) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); if (parent) parent.appendChild(n); return n; };
+const edge = d => [MID + B.DIRS[d][0] * MID, MID + B.DIRS[d][1] * MID];
+/** A channel's line through a square, from side a to side b (a < 0: from the middle): straight, or a quarter circle
+ *  round the corner the two sides share. Its length too, for the oil running along it. */
+function channel(a, b) {
+  const [bx, by] = edge(b);
+  if (a < 0) return { d: `M${MID} ${MID}L${bx} ${by}`, len: MID };
+  const [ax, ay] = edge(a);
+  if (a === B.back(b)) return { d: `M${ax} ${ay}L${bx} ${by}`, len: T };
+  const cx = MID + (B.DIRS[a][0] + B.DIRS[b][0]) * MID, cy = MID + (B.DIRS[a][1] + B.DIRS[b][1]) * MID;
+  const sweep = (ax - cx) * (by - cy) - (ay - cy) * (bx - cx) > 0 ? 1 : 0;
+  return { d: `M${ax} ${ay}A${MID} ${MID} 0 0 ${sweep} ${bx} ${by}`, len: Math.PI * MID / 2 };
+}
+/** A piece's pipe in a square: each channel a dark edge and a brass body; a crossing's upright channel bridges the
+ *  other. */
+function drawPipe(g, piece) {
+  const chs = B.PIECES[piece], order = piece === "x" ? [1, 0] : chs.map((_, i) => i);
+  for (const i of order) {
+    const { d } = channel(chs[i][0], chs[i][1]);
+    if (piece === "x" && i === 0) el("path", { d, class: "pipe-edge", "stroke-width": 26, stroke: "var(--pi-ground)" }, g);
+    el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
+    el("path", { d, class: "pipe", "stroke-width": 16 }, g);
+    el("path", { d, class: "pipe-shine", "stroke-width": 4 }, g);
   }
-  drawMult();
 }
-/** A boon's effect rising off its tile: what it adds to the netback (verdigris), adds to the mult (copper) or
- *  multiplies it by (gold); a tile two boons score on stacks them. */
-function pop(x, y, k, e) {
-  const layer = $("board").querySelector(".pi-pops");
-  if (!layer) return;
-  const text = e.xmult ? `×${+e.xmult.toFixed(2)}` : e.mult ? `+${+e.mult.toFixed(2)}` : `+${e.chips}`;
-  const n = el("text", { x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 + 6 - k * 17, "text-anchor": "middle", class: `pi-pop ${e.xmult ? "x" : e.mult ? "m" : "c"}` });
-  n.textContent = text;
-  n.addEventListener("animationend", () => n.remove());
-  layer.appendChild(n);
+/** A square of the board drawn afresh: its ground, what's fixed there or laid, and the oil in it. */
+function drawCell(c) {
+  const g = cellG[c];
+  if (!g) return;
+  g.replaceChildren();
+  const fixed = L.cells[c], P = F.P;
+  el("rect", { x: 2, y: 2, width: T - 4, height: T - 4, rx: 8, fill: fixed?.k === "rock" ? "var(--pi-rock)" : "var(--pi-tile)", stroke: "var(--pi-tile-edge)", "stroke-width": 1 }, g);
+  if (fixed?.k === "rock") { for (const [cx, cy, r] of [[20, 24, 9], [38, 36, 11], [24, 42, 6]]) el("circle", { cx, cy, r, fill: "var(--pi-tile-edge)" }, g); return; }
+  if (fixed?.k === "source") {
+    const { d } = channel(-1, fixed.d);
+    el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
+    el("path", { d, class: "pipe", "stroke-width": 16 }, g);
+    // the wellhead: a derrick over it
+    el("path", { d: "M18 46 L30 12 L42 46 M22 35 H38 M25 24 H35", fill: "none", stroke: "var(--pi-in)", "stroke-width": 3.5, "stroke-linejoin": "round", "stroke-linecap": "round" }, g);
+    el("rect", { x: 13, y: 44, width: 34, height: 5, rx: 2, fill: "var(--pi-in)" }, g);
+  } else if (fixed?.k === "terminal") {
+    const { d } = channel(-1, fixed.d);
+    el("path", { d, class: "pipe-edge", "stroke-width": 22 }, g);
+    el("path", { d, class: "pipe", "stroke-width": 16 }, g);
+    // the terminal: a tank with its roof, flying a flag
+    el("rect", { x: 13, y: 22, width: 34, height: 26, rx: 4, fill: "var(--pi-good)", stroke: "#fff", "stroke-width": 2 }, g);
+    el("path", { d: "M13 26 Q30 15 47 26", fill: "var(--pi-good)", stroke: "#fff", "stroke-width": 2 }, g);
+    el("path", { d: "M40 18 V6 L50 9 L40 12", fill: "#fff", stroke: "#fff", "stroke-width": 1.5, "stroke-linejoin": "round" }, g);
+  } else if (fixed?.k === "pump" || fixed?.k === "tank") {
+    drawPipe(g, fixed.piece);
+    if (fixed.k === "pump") {
+      el("circle", { cx: MID, cy: MID, r: 13, class: "fixed-mark" }, g);
+      el("path", { d: fixed.piece === "h" ? "M25 24 l10 6 l-10 6 z" : "M24 25 l6 10 l6 -10 z", fill: "#fff" }, g);
+    } else el("rect", { x: fixed.piece === "h" ? 12 : 17, y: fixed.piece === "h" ? 17 : 12, width: fixed.piece === "h" ? 36 : 26, height: fixed.piece === "h" ? 26 : 36, rx: 8, class: "tank-body" }, g);
+  } else if (P?.grid[c]) drawPipe(g, P.grid[c]);
+  drawOilIn(c);
 }
-function flash(id) {
-  $("boons").querySelector(`[data-id="${id}"]`)?.animate?.([{ transform: "scale(1)" }, { transform: "scale(1.25)", offset: 0.3 }, { transform: "scale(1)" }], { duration: 360, easing: "ease-out" });
-}
-/** The mult beside the status line: climbing as the oil goes, the delivery's once it's scored. */
-function drawMult() {
-  const m = $("mult"), v = S.ledger ? S.ledger.mult : S.phase === "flow" ? (1 + fx.add) * fx.x : null;
-  m.hidden = v == null;
-  if (v == null) return;
-  const text = multText(v);
-  if (m.lastChild?.textContent === text) return;
-  const cap = document.createElement("span"), b = document.createElement("b");
-  cap.textContent = "mult"; b.textContent = text;
-  m.replaceChildren(cap, b);
-}
-
-// ---------- the level as it stands, for a partner watching ----------
-// Kept in the run's save at every turn of a tile, every tile the oil enters and the level's end: the board, the flow, the
-// clock. A partner's watching frame picks it up and runs on from it. Here a level left mid-way still starts over, fresh
-// (so hiding the app can't buy time to plan); a finished level comes back as it ended, its result and its button.
-let keptAt = 0;
-function keepLive(extra = {}) {
-  keptAt = performance.now();
-  S.live = { n: S.n, attempt: S.attempt, R, brief: clock.brief, planLeft: Math.round(clock.planLeft), flowing: Math.round(clock.flowing), filling: clock.filling,
-    paused: Math.max(0, Math.round(clock.paused)), at: Date.now(), ...extra };
-  save();
-}
-/** The level as it was kept: in a watching frame, run on by the second or two since; here, a finished level's end. */
-function resumeLive() {
-  const v = S.live;
-  L = buildLevel();
-  R = v.R;
-  R.trail ??= [];
-  clock = { last: performance.now(), brief: !!v.brief, planLeft: v.planLeft, flowing: v.flowing, filling: v.filling, paused: v.paused };
-  // in a frame, the clock runs on by the time since it was kept (a player thinking over the board saves nothing for a
-  // while), but not past half a minute: an older copy is a player who has gone, not one still playing
-  if (IN_FRAME && (S.phase === "plan" || S.phase === "flow")) for (let gone = Math.min(30000, Math.max(0, Date.now() - v.at)); gone > 0 && !R.over; gone -= 50) step(Math.min(50, gone));
-  fx = { seen: 0, add: 0, x: 1 };
-  fire(false);
-  drawHud();
-  buildBoard();
-  drawFlow();
-  drawGauges();
-  drawTools();
-  drawBrief();
-  $("fillBtn").textContent = `Fill it now: time bonus at ×${terms.fillRate}`;
-  $("fillBtn").hidden = !(S.phase === "plan" || S.phase === "flow") || clock.filling || clock.brief;
-  $("goBtn").hidden = true; $("viewBtn").hidden = true;
-  if (S.phase === "plan" || S.phase === "flow") { drawStatus(); $("note").textContent = levelNote(); cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); return; }
-  $("status").textContent = v.status || "";
-  $("note").textContent = v.note || "";
-  markSpill();
-  ledgerShown = true;
-  drawLedger();
-  goButton();
-}
-/**
- * The level's end. A delivery is scored by the rules' tally (netback × mult) and paid, with Interest's share and the
- * job's reward; on a finale it must reach the act's quota, and one short of it pays nothing and counts as a failure.
- * A failure (a spill, or a quota missed) costs a life (two with Leverage; none with Insurance, once an act) and breaks
- * the clean record. Scaling boons count what the oil passed either way.
- */
-function endLevel() {
-  const msLeft = Math.max(0, terms.bonusWindow - clock.flowing), won = !!R.over.win;
-  const t = won ? tally(L, R, { msLeft, market: S.market, terms, grow: S.grow, streak: S.streak, toolsUsed: R.used || 0, planLeft: R.fillAt || 0 }) : null;
-  const short = won && terms.quota != null && t.total < terms.quota;
-  const passed = t?.sum ?? summarize(L, R, () => 0);
-  for (const id of terms.boons) if (BOONS[id]?.grows) S.grow[id] = (S.grow[id] || 0) + (passed[BOONS[id].grows] || 0);
-  const before = S.score;
-  ledgerShown = true;
-  $("fillBtn").hidden = true;
-  drawBrief();
-  if (won && !short) {
-    S.phase = "done"; S.after = "next"; S.streak++;
-    S.score += t.total;
-    const interest = terms.boons.includes("interest") ? interestOn(S.score) : 0;
-    S.score += interest;
-    if (!S.top || t.total > S.top.total) S.top = { total: t.total, netback: t.netback, mult: t.mult, n: S.n };
-    const reward = collect();
-    S.ledger = { ...ledgerOf(t), outcome: terms.quota != null ? "met" : "delivered", quota: terms.quota, interest, reward };
-    if (S.duel && S.n >= S.acts * ACT_LENGTH) S.phase = "over";   // a match's last level delivered: its result is final
-    $("status").textContent = `Delivered: +${num(S.score - before)}`;
-    $("note").textContent = pickNote() || (reward?.full ? `Your ${SLOTS} slots are full: next, choose what ${BOONS[reward.id].name} replaces, or leave it.` : "");
-    goButton();
-    drawTools();
-  } else {
-    // Insurance covers the act's first failure; Leverage makes one cost two lives
-    const insured = terms.insurance && S.insuredAct !== actNo(S.n);
-    if (insured) S.insuredAct = actNo(S.n);
-    else { S.lives = Math.max(0, S.lives - terms.spill); S.streak = 0; }
-    if (short) S.ledger = { ...ledgerOf(t), outcome: "short", quota: terms.quota };
-    const why = { "no opening": "a dead end", "the edge": "the edge of the field", "already full": "a pipe that was already full", "wrong product": "the wrong terminal: contamination", pressure: "no pressure left: it needed a pump" }[R.over.why] || R.over.why;
-    $("status").textContent = short ? `Short: ${num(t.total)} of ${num(terms.quota)}` : `Spill: ${why}.`;
-    $("note").textContent = `${insured ? "Insurance paid out: no life lost." : terms.spill > 1 ? "Leverage: that cost two lives." : "A life lost."} ${short ? "The buyer pays nothing short of the quota." : "Nothing delivered, nothing paid."}`;
-    navigator.vibrate?.([60, 40, 60]);
-    markSpill();
-    if (S.lives <= 0) S.phase = "over";
-    else { S.phase = "done"; S.after = "retry"; drawTools(); }
-    goButton();
+/** The oil in a square: each channel it has passed full, the one it's in now as far as it has come. */
+function drawOilIn(c) {
+  const g = cellG[c], P = F.P;
+  if (!g || !P) return;
+  for (const n of g.querySelectorAll(".oil")) n.remove();
+  const head = P.path.length ? P.path[P.path.length - 1] : null;
+  for (const s of P.path) {
+    if (s.c !== c) continue;
+    const { d, len } = channel(s.a, s.b), now = s === head && !P.over;
+    const p = el("path", { d, class: "oil", "stroke-width": 9, "stroke-dasharray": `${len} ${len}`, "stroke-dashoffset": now ? len * (1 - P.p) : 0 }, g);
+    if (now) { p.dataset.head = "1"; p.dataset.len = len; }
   }
-  if (S.phase === "over") tell(true);
-  keepLive({ status: $("status").textContent, note: $("note").textContent });
-  drawHud();
-  drawLedger(true);
-  if (S.score > before) countUp($("score"), before, S.score, 900, 1100);
+  // a pump's or tank's mark stays over the oil
+  for (const m of g.querySelectorAll(".fixed-mark, .tank-body")) g.appendChild(m);
+  for (const m of g.querySelectorAll("path[fill='#fff']")) g.appendChild(m);
 }
-/** A delivery's tally as the ledger shows it (and a reload or a partner's frame shows it again). */
-const ledgerOf = t => ({ n: S.n, netback: t.netback, mult: t.mult, total: t.total, base: t.base, tiles: R.trail.length, pumps: R.pumpsFired,
-  boons: t.boons.map(b => ({ id: b.id, chips: b.chips, mult: +b.mult.toFixed(4), xmult: +b.xmult.toFixed(4) })) });
-/** The buttons under a finished level: the next level, the same one again, or how the run went; beside them, after a
- *  scored delivery, the board or its score in front. */
-function goButton() {
-  const b = $("goBtn"), v = $("viewBtn");
-  b.hidden = false;
-  v.hidden = !S.ledger;
-  v.textContent = ledgerShown ? "See the board" : "See the score";
-  if (S.phase === "over") { b.textContent = "See how it went"; b.onclick = over; return; }
-  b.textContent = S.after === "next" ? "Choose the next job" : `Try level ${S.n} again`;
-  b.onclick = S.after === "next" ? nextLevel : retryLevel;
-}
-/** Delivered: the job's reward. A boon goes in a free slot (Spare crew's life at once) or, with all five full, waits
- *  for you to choose what it replaces; a cargo is paid in points. Marked paid, so a reload of the finished level can't
- *  pay it twice. Returns what was earned, for the ledger. */
-function collect() {
-  const id = S.job?.reward;
-  if (!id || S.job.paid) return null;
-  S.job = { ...S.job, paid: true };
-  if (id === "cargo") { const c = cargoFor(S.n); S.score += c; return { id, cargo: c }; }
-  if (S.boons.length < SLOTS) { S.boons.push(id); gain(id); return { id }; }
-  S.pending = id;
-  return { id, full: true };
-}
-/** On to the next level: a new act gives a life back, prices drift, and the next jobs are offered. */
-function nextLevel() {
-  S.n++; S.attempt = 0;
-  if (levelOf(S.n).place === 0 && S.lives < (S.maxLives ?? LIVES)) { S.lives++; toast(`Act ${actNo(S.n)}: a life back`); }
-  const r = S.duel ? seeded(S.seed * 31 + S.n) : Math.random, m = S.market;   // a match's prices drift alike for everyone
-  S.market = { crude: drift(m.crude, r()), hvo: drift(m.hvo, r()) };
-  offerJobs();
-}
-/** The same level again, on a fresh board. */
-function retryLevel() { S.attempt++; beginLevel(); }
-/** On a two-terminal level, a word on the pick: the board was priced so one nets more. */
-function pickNote() {
-  if (!L.choice) return "";
-  const took = R.reached[0] === 0 ? "far" : "near";
-  return took === L.choice.better ? `The ${took} terminal was the better pick here.` : `The ${L.choice.better} terminal would have netted about ${L.choice.by} more.`;
-}
-function over() {
-  if (S.duel) { tell(true); duel.open(); return; }          // the table's result, not your best or today's
-  const best = S.mode === "daily" ? bestDaily() : bestEver();
-  const body = $("menuBody");
-  body.replaceChildren();
-  $("menuDlg").querySelector("h2").textContent = "Out of lives";
-  const add = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; body.appendChild(n); return n; };
-  add("p", "pi-big", num(S.score));
-  const stats = add("div", "pi-stats");
-  for (const [v, label] of [[S.n, "level reached"], [num(best.score), S.mode === "daily" ? "today's best" : "your best"], [best.n, "best level"]]) {
-    const box = document.createElement("div"), b = document.createElement("b"), s = document.createElement("span");
-    b.textContent = v; s.textContent = label; box.append(b, s); stats.appendChild(box);
-  }
-  if (S.boons?.length) {                             // the build: the boons held at the end, edged by tier
-    add("p", "pi-build-head", "Your build");
-    const list = add("p", "pi-build");
-    for (const id of S.boons) { const u = document.createElement("span"); u.className = `t${BOONS[id].tier}`; u.textContent = `${BOONS[id].icon} ${BOONS[id].name}`; list.append(u); }
-  }
-  if (S.top) add("p", "pi-top", `Best delivery: ${num(S.top.total)}, ${num(S.top.netback)} ${multText(S.top.mult)}, on level ${S.top.n}.`);
-  const again = add("button", "btn primary wide", "Again");
-  again.type = "button"; again.addEventListener("click", () => { $("menuDlg").close(); start("random"); });
-  const daily = add("button", "btn wide", S.mode === "daily" ? "A random run" : "Today's run");
-  daily.type = "button"; daily.addEventListener("click", () => { $("menuDlg").close(); start(S.mode === "daily" ? "random" : "daily"); });
-  if (!$("menuDlg").open) $("menuDlg").showModal();
-}
-function bestEver() { const b = read(BEST, { score: 0, n: 0 }); const nb = { score: Math.max(b.score, S.score), n: Math.max(b.n, S.n) }; write(BEST, nb); return nb; }
-function bestDaily() { const d = read(DAILY, {}); const b = d[today()] || { score: 0, n: 0 }; const nb = { score: Math.max(b.score, S.score), n: Math.max(b.n, S.n) }; d[today()] = nb; write(DAILY, d); return nb; }
-
-// ---------- the board ----------
-const el = (tag, attrs = {}) => { const n = document.createElementNS(SVG, tag); for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
-/** The point on a tile's edge for a direction, in tile units. */
-const edge = d => [TILE / 2 + DIRS[d][0] * TILE / 2, TILE / 2 + DIRS[d][1] * TILE / 2];
-const centre = [TILE / 2, TILE / 2];
-
+let cellG = [];
 function buildBoard() {
-  cells.clear();
   const board = $("board");
-  board.replaceChildren();
-  const svg = el("svg", { viewBox: `0 0 ${L.w * TILE} ${L.h * TILE}` });
-  board.style.setProperty("--aspect", String(L.w / L.h));           // the board fits the room left, keeping this shape
-  for (let y = 0; y < L.h; y++) for (let x = 0; x < L.w; x++) {
-    const g = el("g", { transform: `translate(${x * TILE} ${y * TILE})` });
-    svg.appendChild(g);
-    cells.set(`${x},${y}`, { g });
-    drawTile(x, y);
-  }
-  // taps are taken on the board itself and mapped to a tile by position: phones are unreliable about taps on
-  // the SVG groups, and a finger that moved (a scroll) isn't a tap
-  // a tap turns a tile clockwise; holding it (or a right-click) turns it back anticlockwise
-  let down = null;
-  const cellAt = e => { const r = svg.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) / r.width * L.w), y = Math.floor((e.clientY - r.top) / r.height * L.h); return x >= 0 && y >= 0 && x < L.w && y < L.h ? [x, y] : null; };
+  const svg = el("svg", { viewBox: `0 0 ${B.COLS * T} ${B.ROWS * T}`, role: "img", "aria-label": "The board" });
+  cellG = [];
+  for (let c = 0; c < B.COLS * B.ROWS; c++) { const [x, y] = B.xy(c); cellG.push(el("g", { transform: `translate(${x * T} ${y * T})` }, svg)); }
+  el("g", { class: "overlay" }, svg);
+  el("g", { class: "pops" }, svg);
+  // a square is taken by where the finger lands (a tap on a phone isn't always delivered to the shape under it); at
+  // once, on the finger going down, as an arcade game must
   svg.addEventListener("pointerdown", e => {
     if (e.button === 2) return;
-    down = { x: e.clientX, y: e.clientY, id: e.pointerId, held: false };
-    const c = cellAt(e), mine = down;
-    down.timer = setTimeout(() => { if (down === mine && c) { mine.held = true; tap(...c, -1); navigator.vibrate?.(15); } }, 380);
+    const r = svg.getBoundingClientRect(), x = Math.floor((e.clientX - r.left) / r.width * B.COLS), y = Math.floor((e.clientY - r.top) / r.height * B.ROWS);
+    if (x >= 0 && y >= 0 && x < B.COLS && y < B.ROWS) tapSquare(y * B.COLS + x);
   });
-  svg.addEventListener("pointerup", e => {
-    if (!down || e.pointerId !== down.id) return;
-    clearTimeout(down.timer);
-    const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y), held = down.held;
-    down = null;
-    if (moved > 12 || held) return;
-    const c = cellAt(e);
-    if (c) tap(...c);
-  });
-  svg.addEventListener("pointercancel", () => { if (down) clearTimeout(down.timer); down = null; });
-  svg.addEventListener("contextmenu", e => { e.preventDefault(); const c = cellAt(e); if (c) tap(...c, -1); });
-  svg.appendChild(el("g", { class: "pi-trace" }));          // the trace lies over the tiles
-  svg.appendChild(el("g", { class: "pi-pops" }));           // and the boons' pops over everything
-  board.appendChild(svg);
-  drawTrace();
+  svg.addEventListener("contextmenu", e => e.preventDefault());
+  board.replaceChildren(svg);
+  for (let c = 0; c < cellG.length; c++) drawCell(c);
 }
-/** Draws a tile from scratch: ground, the pipe shape at its rotation, and any flow in it. */
-function drawTile(x, y) {
-  const t = R.tiles[y][x], c = cells.get(`${x},${y}`), g = c.g;
-  g.replaceChildren();
-  g.setAttribute("class", `pi-tile${t.fixed ? " fixed" : ""}${t.locked ? " locked" : ""}`);
-  g.appendChild(el("rect", { x: 2, y: 2, width: TILE - 4, height: TILE - 4, rx: 8, fill: t.kind === "rock" ? "var(--pi-rock)" : "var(--pi-tile)", stroke: "var(--pi-tile-edge)", "stroke-width": 1 }));
-  if (t.kind === "rock") {
-    for (const [cx, cy, r] of [[20, 24, 9], [38, 36, 11], [24, 42, 6]]) g.appendChild(el("circle", { cx, cy, r, fill: "var(--pi-tile-edge)" }));
-    return;
-  }
-  const o = openings(t);
-  const stub = d => { const [ex, ey] = edge(d); return el("line", { x1: centre[0], y1: centre[1], x2: ex, y2: ey, class: "pipe", "stroke-width": PIPE }); };
-  if (t.kind === "well" || t.kind === "term") {
-    g.appendChild(stub(o[0]));
-    const end = L[t.kind === "well" ? "heads" : "terminals"].find(h => h.at[0] === x && h.at[1] === y);
-    const colour = PRODUCTS[end?.product]?.colour || "#888";
-    if (t.kind === "well" && end?.product === "crude") {                   // a wellhead's derrick
-      g.appendChild(el("path", { d: "M18 46 L30 14 L42 46 Z M22 36 H38", fill: "none", stroke: colour, "stroke-width": 3.5, "stroke-linejoin": "round" }));
-      g.appendChild(el("rect", { x: 14, y: 44, width: 32, height: 5, rx: 2, fill: colour }));
-    } else if (t.kind === "well" && end?.product === "hvo") {               // the HVO plant: a column and its leaf
-      g.appendChild(el("rect", { x: 20, y: 14, width: 14, height: 32, rx: 5, fill: colour, stroke: "#fff", "stroke-width": 2 }));
-      g.appendChild(el("path", { d: "M36 30 C36 20 46 16 50 16 C50 24 46 30 36 30 Z", fill: colour, stroke: "#fff", "stroke-width": 1.5 }));
-    } else if (t.kind === "well") {                                          // the used-cooking-oil tank
-      g.appendChild(el("rect", { x: 15, y: 18, width: 30, height: 28, rx: 4, fill: colour, stroke: "#fff", "stroke-width": 2 }));
-      g.appendChild(el("path", { d: "M15 26 H45 M15 38 H45", stroke: "#fff", "stroke-width": 1.5, opacity: 0.7 }));
-    } else {
-      // a terminal shows what it pays, so a route can be weighed against what it costs
-      g.appendChild(el("rect", { x: 7, y: 17, width: 46, height: 27, rx: 6, fill: colour, stroke: "#fff", "stroke-width": 2, class: "term-face" }));
-      const price = el("text", { x: 30, y: 35.5, "text-anchor": "middle", "font-size": 14, "font-weight": 800, fill: "#fff", class: "term-face" });
-      price.textContent = String(end?.price ?? "");
-      g.appendChild(price);
-    }
-    return;
-  }
-  if (t.kind === "unit") {
-    for (const d of o) g.appendChild(stub(d));
-    // the HVO unit: a reactor fed with used cooking oil at the top; HVO leaves one side, bio-naphtha the other
-    const v = el("g", { transform: `rotate(${t.rot * 90} 30 30)` });
-    v.appendChild(el("rect", { x: 15, y: 11, width: 30, height: 38, rx: 10, fill: PRODUCTS.uco.colour, stroke: "#fff", "stroke-width": 2 }));
-    v.appendChild(el("path", { d: "M20 22 h20 M20 30 h20 M20 38 h20", stroke: "#fff", "stroke-width": 1.4, "stroke-dasharray": "2 2" }));
-    v.appendChild(el("circle", { cx: 12, cy: 30, r: 4.5, fill: PRODUCTS.hvo.colour, stroke: "#fff", "stroke-width": 1.5 }));
-    v.appendChild(el("circle", { cx: 48, cy: 30, r: 4.5, fill: PRODUCTS.naphtha.colour, stroke: "#fff", "stroke-width": 1.5 }));
-    g.appendChild(v);
-    return;
-  }
-  if (t.kind === "cross") {
-    g.appendChild(el("line", { x1: 0, y1: TILE / 2, x2: TILE, y2: TILE / 2, class: "pipe", "stroke-width": PIPE }));
-    g.appendChild(el("line", { x1: TILE / 2, y1: 0, x2: TILE / 2, y2: TILE, class: "pipe-dark", "stroke-width": PIPE + 4 }));
-    g.appendChild(el("line", { x1: TILE / 2, y1: 0, x2: TILE / 2, y2: TILE, class: "pipe", "stroke-width": PIPE }));
-  } else {
-    const [a, b] = o;
-    const [ax, ay] = edge(a), [bx, by] = edge(b);
-    g.appendChild(el("path", { d: `M${ax} ${ay} L${centre[0]} ${centre[1]} L${bx} ${by}`, class: "pipe", "stroke-width": PIPE, "stroke-linejoin": "round" }));
-    if (t.kind === "pump") {
-      g.appendChild(el("circle", { cx: centre[0], cy: centre[1], r: 13, fill: "var(--pi-in)", stroke: "#fff", "stroke-width": 2 }));
-      g.appendChild(el("path", { d: "M25 30 l10 -6 v12 z", fill: "#fff" }));
-    }
-  }
-  // the corner: a dot for a tile that turns; Auto-turn's mark in its place, ✓ turned the right way (until turned by
-  // hand), ✕ a pipe the route doesn't use
-  if (!t.fixed && !t.locked) {
-    if (t.off) g.appendChild(el("path", { d: "M45 4 l11 11 M56 4 l-11 11", class: "pi-off" }));
-    else if (t.set) g.appendChild(el("path", { d: "M44 10 l4.5 4.5 l8.5 -9", class: "pi-set" }));
-    else g.appendChild(el("circle", { cx: TILE - 9, cy: 9, r: 2.5, fill: "var(--pi-tile-edge)" }));
-  }
-  drawFlowIn(x, y);
+/** The squares the oil has moved into since `from` (and the one it left), drawn afresh. */
+function drawPathCells(from) {
+  const P = F.P;
+  for (let i = Math.max(0, from - 1); i < P.path.length; i++) drawCell(P.path[i].c);
 }
-/** The flow in one tile: full for filled tiles, partial for a head's tile, along the pipe it took. */
-function drawFlowIn(x, y) {
-  const c = cells.get(`${x},${y}`), g = c.g, t = R.tiles[y][x];
-  for (const old of g.querySelectorAll(".flow")) old.remove();
-  const fills = R.fill[`${x},${y}`] || [];
-  const heads = R.heads.filter(h => h.x === x && h.y === y && !h.done);
-  const isWell = t.kind === "well";
-  const entries = isWell && heads.length ? [{ product: heads[0].product, into: null, out: openings(t)[0] }] : fills;
-  for (const f of entries) {
-    const head = heads.find(h => h.product === f.product);
-    const progress = head ? head.progress : 1;
-    const from = f.into == null ? centre : edge(f.into), to = f.out == null ? centre : edge(f.out);
-    const d = `M${from[0]} ${from[1]} L${centre[0]} ${centre[1]} L${to[0]} ${to[1]}`;
-    const len = (f.into == null ? 0 : TILE / 2) + (f.out == null ? 0 : TILE / 2);
-    const path = el("path", { d, class: "flow", stroke: PRODUCTS[f.product].colour, "stroke-width": PIPE - 6, "stroke-dasharray": len, "stroke-dashoffset": len * (1 - progress), "stroke-linejoin": "round" });
-    g.appendChild(path);
-  }
-  for (const face of g.querySelectorAll(".term-face")) g.appendChild(face);   // a terminal's price stays readable over the flow
+/** Each frame: the oil in the square it's filling, a little further on. */
+function drawOil() {
+  const P = F.P;
+  if (!P?.flowing) return;
+  const n = $("board").querySelector("path[data-head]");
+  if (n) n.setAttribute("stroke-dashoffset", Number(n.dataset.len) * (1 - P.p));
 }
-let lastLockedKeys = "";
-function drawFlow() {
-  // redraw tiles whose lock state changed (they lose their turn dot), then the flow in the touched tiles
-  const touched = new Set([...Object.keys(R.fill), ...R.heads.map(h => `${h.x},${h.y}`)]);
-  const lockedKeys = [...touched].join("|");
-  if (lockedKeys !== lastLockedKeys) { for (const k of touched) { const [x, y] = k.split(",").map(Number); drawTile(x, y); } lastLockedKeys = lockedKeys; }
-  for (const k of touched) { const [x, y] = k.split(",").map(Number); drawFlowIn(x, y); }
-}
-function markSpill() {
-  if (!R.spill) return;
-  const c = cells.get(`${R.spill.x},${R.spill.y}`);
-  c.g.appendChild(el("rect", { x: 3, y: 3, width: TILE - 6, height: TILE - 6, rx: 8, fill: "none", stroke: "var(--pi-bad)", "stroke-width": 4 }));
-}
-function tap(x, y, by = 1) {
-  if ((S.phase !== "plan" && S.phase !== "flow") || clock.brief) return;
-  const t = R.tiles[y][x];
-  if (S.tool) {                                       // a tool in hand: it works on the tile, if it's the right kind
-    const offer = S.offers.find(o => o.id === S.tool);
-    if (t.locked) return toast("That tile's full");
-    const ok = { clear: t.kind === "rock", pump: ["straight", "bend"].includes(t.kind), bend: ["straight", "cross"].includes(t.kind), cross: ["straight", "bend"].includes(t.kind), turn: !t.fixed }[S.tool];
-    if (!ok) return toast(TOOLS[S.tool].about);
-    if (S.tool === "turn") {
-      // Auto-turn always charges for what it tells: a pipe it can't turn would otherwise show the route for free, tile
-      // by tile. A pipe already marked has nothing new to tell, so that tap is free.
-      if (t.off || t.set) return toast(t.off ? "The route doesn't use that pipe: it's marked" : "Already turned the right way");
-      const right = rightTurn(L, t, x, y);
-      if (right.rot != null) { toast(right.rot === t.rot ? "Already the right way" : "Turned the right way"); t.rot = right.rot; t.set = true; }
-      else if (right.why === "off") { t.off = true; toast("The route doesn't use this pipe"); }
-      else toast("The route runs here, but needs another shape");
-    } else {
-      if (S.tool === "clear") Object.assign(t, { kind: ["straight", "bend", "bend", "cross"][Math.floor(Math.random() * 4)], rot: Math.floor(Math.random() * 4), fixed: false, shape: undefined });
-      else if (S.tool === "pump") Object.assign(t, { kind: "pump", shape: t.kind });
-      else Object.assign(t, { kind: S.tool, shape: undefined });
-      delete t.set;                                    // a new shape: its right turn may be another
-    }
-    S.score -= offer.price; offer.uses--; S.tool = null;
-    R.used = (R.used || 0) + 1;                        // for Thrift and Toolsmith
-    keepLive(); drawHud(); drawTile(x, y); drawTrace(); drawTools();
-    return;
-  }
-  if (turn(R, x, y, by)) { delete t.set; drawTile(x, y); drawTrace(); keepLive(); }   // turned by hand: no longer vouched for
-  else if (t.locked) toast("That tile's full");
-}
-
-// ---------- the warning: where a line, as the board stands, will run out of pressure (Hydraulic model's) ----------
-function drawTrace() {
-  const layer = $("board").querySelector(".pi-trace");
+/** The way the oil will go as the board stands, dashed, and where it would spill: the square to fill next ringed, or a
+ *  red cross where it would run out. */
+function drawRoute() {
+  const layer = $("board").querySelector(".overlay");
   if (!layer) return;
   layer.replaceChildren();
-  if (!terms?.warnDry) return;                         // a rare boon, Hydraulic model, shows it
-  for (const line of trace(L, R.tiles)) {
-    if (line.end !== "dry") continue;
-    const last = line.cells[line.cells.length - 1] || { x: line.from[0], y: line.from[1] };
-    const badge = el("g", { class: "pi-dry", transform: `translate(${last.x * TILE + TILE / 2} ${last.y * TILE + TILE / 2})` });
-    badge.appendChild(el("circle", { r: 15 }));
-    const t = el("text", { y: 4, "text-anchor": "middle" }); t.textContent = "dry"; badge.appendChild(t);
-    layer.appendChild(badge);
+  const P = F.P;
+  if (!P || P.over || F.phase !== "play") return;
+  const a = B.ahead(L, P);
+  for (const s of a.cells) {
+    const [x, y] = B.xy(s.c);
+    el("path", { d: channel(s.a, s.b).d, class: "route", transform: `translate(${x * T} ${y * T})` }, layer);
   }
+  const at = a.end.c, [x, y] = B.xy(at);
+  if (a.end.why === "open") el("rect", { x: x * T + 4, y: y * T + 4, width: T - 8, height: T - 8, rx: 8, class: "next" }, layer);
+  else if (a.end.why === "terminal") el("rect", { x: x * T + 3, y: y * T + 3, width: T - 6, height: T - 6, rx: 8, class: "next", style: "stroke: var(--pi-good)" }, layer);
+  else {
+    // the edge: a cross on the board's rim past the last square; otherwise on the square that stops it
+    let cx = x * T + MID, cy = y * T + MID;
+    if (a.end.why === "edge") { const lastS = a.cells.length ? a.cells[a.cells.length - 1] : P.path.length ? P.path[P.path.length - 1] : { c: L.source.c, b: L.source.d }; cx += B.DIRS[lastS.b][0] * (MID - 6); cy += B.DIRS[lastS.b][1] * (MID - 6); }
+    el("path", { d: `M${cx - 8} ${cy - 8}L${cx + 8} ${cy + 8}M${cx + 8} ${cy - 8}L${cx - 8} ${cy + 8}`, class: "spill-x" }, layer);
+  }
+  routeLength = a.length;
+}
+let routeLength = 0;
+/** Points rising off the square they were made in: a crossing passed both ways, a pump, the terminal. */
+function popPoints(P, before) {
+  const layer = $("board").querySelector(".pops"), gained = B.pointsOf(P) - before;
+  const s = P.path[P.path.length - (P.over ? 1 : 2)] || P.path[P.path.length - 1];
+  if (!layer || !s || gained <= B.POINTS.pipe * 2) return;
+  const [x, y] = B.xy(P.over?.why === "terminal" ? P.over.c : s.c);
+  const t = el("text", { x: x * T + MID, y: y * T + MID + 5, "text-anchor": "middle", "font-size": 15, class: "pop" }, layer);
+  t.textContent = signed(gained);
+  t.addEventListener("animationend", () => t.remove());
+}
+/** A tap on a square: the next piece laid there (or over a piece of yours, a blast). */
+function tapSquare(c) {
+  if (IN_FRAME || mode !== "flat" || F?.phase !== "play" || !F.P || F.P.over) return;
+  const P = F.P, r = B.place(L, P, c);
+  if (r === "laid" || r === "blast") {
+    drawCell(c);
+    if (r === "blast") {
+      cellG[c].classList.remove("blast"); void cellG[c].getBBox(); cellG[c].classList.add("blast");
+      toast(`Blasted: ${signed(B.POINTS.blast)}`, 1200);
+      navigator.vibrate?.(25);
+    }
+    drawQueue(true);
+    drawRoute();
+    drawFlatHud();
+    save();
+  } else if (r === "oil") toast("The oil's in that one");
+  else if (r === "busy") toast("A blast going off: a moment");
 }
 
-// ---------- the tools: this map's offers, bought with points as you go ----------
-function drawTools() {
-  const box = $("kit");
-  box.replaceChildren();
-  if (S.phase !== "plan" && S.phase !== "flow") return;
-  if (!terms.tools) { const none = document.createElement("p"); none.className = "pi-kit-none"; none.textContent = terms.boss === "strike" ? "Strike: no tools on this job" : "No tools on this job"; box.append(none); return; }
-  box.classList.toggle("four", (S.offers || []).length > 3);       // Wide kit: four to a row, names without icons
-  for (const o of S.offers || []) {
-    const t = TOOLS[o.id], b = document.createElement("button");
-    b.type = "button"; b.className = `pi-tool${S.tool === o.id ? " on" : ""}`;
-    b.innerHTML = `<span class="ic"></span><span class="nm"></span><span class="pr"></span>`;
-    b.querySelector(".ic").textContent = t.icon; b.querySelector(".nm").textContent = t.name; b.querySelector(".pr").textContent = `${o.price} · ×${o.uses}`;
-    b.title = t.about;
-    b.disabled = !o.uses || S.score < o.price || clock.brief;    // bought once the clock starts
-    b.addEventListener("click", () => {
-      if (o.id === "pause") {                          // the pause works at once
-        if (!o.uses || S.score < o.price) return;
-        S.score -= o.price; o.uses--; clock.paused = PAUSE_MS; R.used = (R.used || 0) + 1; keepLive(); drawHud(); drawTools();
-        return;
-      }
-      S.tool = S.tool === o.id ? null : o.id;
-      if (S.tool) toast(t.about);
-      drawTools();
-    });
-    box.append(b);
+// ---------- the queue ----------
+/** A board piece as a small tile, for the queue. */
+function pieceTile(piece, first) {
+  const box = document.createElement("span");
+  box.className = `pi-q${first ? " first" : ""}`;
+  const svg = el("svg", { viewBox: "0 0 60 60", "aria-hidden": "true" });
+  drawPipe(svg, piece);
+  box.append(svg);
+  box.setAttribute("aria-label", { h: "straight across", v: "straight up and down", ne: "bend up and right", nw: "bend up and left", se: "bend down and right", sw: "bend down and left", x: "crossing" }[piece]);
+  return box;
+}
+// a 3D piece in the queue: its shape as it would go down the shaft
+const SHAPES3 = { straight: "M20 3V37", long: "M20 1V39M14 20H26", elbow: "M20 3V16Q20 26 30 26H38", jog: "M13 2V13Q13 20 20 20Q27 20 27 27V38" };
+function piece3Tile(kind, first, label) {
+  const box = document.createElement("span");
+  box.className = `pi-q${first ? " first" : ""}${kind ? "" : " empty"}`;
+  if (kind) {
+    const svg = el("svg", { viewBox: "0 0 40 40", "aria-hidden": "true" });
+    const d = SHAPES3[kind];
+    el("path", { d, fill: "none", stroke: "var(--pi-pipe-dark)", "stroke-width": 11, "stroke-linecap": "round", "stroke-linejoin": "round" }, svg);
+    el("path", { d, fill: "none", stroke: "var(--pi-pipe)", "stroke-width": 7.5, "stroke-linecap": "round", "stroke-linejoin": "round" }, svg);
+    box.append(svg);
   }
+  box.setAttribute("aria-label", label || kind || "empty");
+  return box;
+}
+const qLabel = text => { const s = document.createElement("span"); s.className = "pi-q-label"; s.textContent = text; return s; };
+let queueKey = "";
+function drawQueue(moved = false) {
+  const q = $("queue");
+  if (mode === "flat") {
+    if (!F?.P || F.phase !== "play") { q.replaceChildren(); queueKey = ""; return; }
+    const pieces = B.queueOf(L, F.P.next), key = `f${F.n}/${F.P.next}`;
+    if (key === queueKey) return;
+    queueKey = key;
+    q.replaceChildren(qLabel("Next"), ...pieces.map((p, i) => { const t = pieceTile(p, i === 0); if (moved && !reduced()) t.classList.add("slide"); return t; }));
+    return;
+  }
+  if (!R) { q.replaceChildren(); return; }
+  const D = R.D, key = `d${D.next}/${D.cur}/${D.hold}/${R.phase}`;
+  if (key === queueKey) return;
+  queueKey = key;
+  const hand = document.createElement("span"), next = document.createElement("span"), hold = document.createElement("span");
+  hand.className = "pi-q-group"; next.className = "pi-q-group"; hold.className = "pi-q-group pi-q-hold";
+  hand.append(qLabel("In hand"), piece3Tile(R.phase === "play" ? D.cur : null, true, `In hand: ${D.cur}`));
+  next.append(qLabel("Next"), ...[0, 1, 2].map(k => piece3Tile(G.pieceAt3(D.seed, D.next + k), false)));
+  hold.append(qLabel("Held"), piece3Tile(D.hold, false, D.hold ? `Held: ${D.hold}` : "Nothing held"));
+  q.replaceChildren(hand, next, hold);
 }
 
-// ---------- the brief: the level's tools, over the board before its clock starts ----------
-let briefFor = "";
-/** The card over the board while the clock waits: each tool on offer with its price, uses and what it does (one
- *  that costs more than the points in hand dimmed), and the button that starts the clock. */
-function drawBrief() {
-  const box = $("brief"), on = S.phase === "plan" && !!clock.brief;
-  box.hidden = !on;
-  if (!on) return;
-  const key = `${S.seed}/${S.n}/${S.attempt}`;
-  if (briefFor !== key) {
-    briefFor = key;
-    const make = (tag, cls, text) => { const n = document.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
-    const rows = (S.offers || []).map(o => {
-      const t = TOOLS[o.id], row = make("div", `pi-brief-row${!o.uses || S.score < o.price ? " dear" : ""}`);
-      row.append(make("span", "ic", t.icon), make("b", "nm", t.name), make("span", "pr", `${o.price} · ×${o.uses}`), make("span", "ab", t.about));
-      return row;
-    });
-    const foot = make("div", "pi-brief-foot"), go = make("button", "pi-brief-go", "Start the clock");
-    go.type = "button";
-    foot.append(go);
-    box.replaceChildren(make("p", "pi-brief-head", "Tools on offer"), ...rows, foot);
-    box.classList.toggle("four", rows.length > 3);
-  }
+// ---------- what's shown round the board ----------
+function setStat(id, text, cls = null) { const n = $(id); if (n.textContent !== text) n.textContent = text; if (cls != null) n.className = cls; }
+function drawFlatHud() {
+  if (!F) return;
+  const P = F.phase === "play" ? F.P : null, live = F.total + (P ? B.pointsOf(P) : 0);
+  $("stat1Label").textContent = "Level"; setStat("stat1", String(F.n));
+  setStat("score", num(live));
+  $("stat3Label").textContent = "To go";
+  const left = P ? Math.max(0, L.quota - P.count) : 0;
+  setStat("stat3", P ? (left ? String(left) : "✓") : "–", left || !P ? "" : "met");
+  drawFlatStatus();
 }
-/** The tools taken in, a tap on their card: the board shows, the countdown starts, the kit opens. */
-function endBrief() {
-  clock.brief = false;
-  drawBrief();
-  $("fillBtn").hidden = (S.phase !== "plan" && S.phase !== "flow") || clock.filling;
-  drawTools();
-  drawStatus();
-  keepLive();
+function drawFlatStatus() {
+  const P = F?.P, go = $("goBtn");
+  $("ahead").hidden = true;
+  // what the line and the button say: text, the button's words, whether it's quiet, pressable, or away (it keeps its
+  // room when there's nothing to press, so the board never changes size); written only when it changes
+  let text, label = "", quiet = true, off = false, away = false;
+  if (!P || F.phase !== "play") { text = F?.phase === "done" ? `Level ${F.n} cleared` : F ? "The run is over" : ""; away = true; }
+  else {
+    const route = `route ${routeLength} of ${L.quota}`;
+    if (!P.flowing) { text = `Oil in ${Math.ceil((L.countdown - P.t) / 1000)} s · ${route}`; label = `Oil now · +${B.POINTS.early} a second`; }
+    else if (P.hurry) { text = `Hurrying: double points · ${route}`; label = "Hurrying"; off = true; }
+    else { text = `${P.count >= L.quota ? "Quota met" : "Flowing"} · ${route}`; label = `Hurry · ×${B.HURRY}, double points`; quiet = routeLength < L.quota; }
+  }
+  const key = `${text}|${label}|${quiet}|${off}|${away}`;
+  if (key === flatKey) return;
+  flatKey = key;
+  $("status").textContent = text;
+  go.classList.toggle("away", away);
+  if (away) return;
+  go.textContent = label; go.disabled = off; go.classList.toggle("quiet", quiet);
+}
+let flatKey = "";
+/** The board's run on show: the board, the queue, the numbers, and a level's card when it's over. */
+function showFlat(fresh) {
+  $("board").hidden = false; $("shaft").hidden = true;
+  $("flatControls").hidden = false; $("deepControls").hidden = true;
+  if (fresh || !cellG.length || $("board").dataset.for !== `${F.seed}/${F.n}`) { buildBoard(); $("board").dataset.for = `${F.seed}/${F.n}`; }
+  else for (let c = 0; c < cellG.length; c++) drawCell(c);
+  queueKey = "";
+  drawRoute();
+  drawQueue();
+  drawFlatHud();
+  drawFlatCard();
 }
 
-// ---------- the ledger: what a delivery scored, line by line ----------
-let ledgerShown = true;              // the ledger in front of the board (See the board puts it behind)
-/** Over the board once a delivery is scored (or a finale falls short): the netback's lines and the boons that added to
- *  it, the mult's and the boons that made it (on 1), their product, then the quota, Interest, a cargo and the boon
- *  earned (the status line above says how it went). Fresh from a delivery, its lines come in one by one and the total
- *  counts up once they're in. A box too short for it tightens, measured here rather than by a container query: in
- *  Chromium a delayed animation on an element styled by one restarts at every layout of the page, and the score
- *  counting up lays it out every frame. */
-function drawLedger(fresh = false) {
-  const box = $("ledger"), d = S.ledger, on = !!d && (S.phase === "done" || S.phase === "over") && ledgerShown;
-  box.hidden = !on;
-  if (!on) return;
-  const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-  const row = (label, value, cls = "") => { const p = make("p", `pi-l${cls ? ` ${cls}` : ""}`); p.append(make("span", "lb", label), make("b", "vl", value)); return p; };
-  const named = id => `${BOONS[id].icon} ${BOONS[id].name}`;
-  const net = make("div", "pi-ledger-col");
-  net.append(row("Netback", num(d.netback), "hd"), row("Terminals", signed(d.base.revenue)), row(`Pipe ×${d.tiles}`, signed(-d.base.pipe)));
-  if (d.pumps) net.append(row(`Pump${d.pumps === 1 ? "" : "s"} ×${d.pumps}`, signed(-d.base.pumps)));
-  net.append(row("Time", signed(d.base.time)));
-  for (const b of d.boons) if (b.chips) net.append(row(named(b.id), signed(b.chips), "bn"));
-  const mul = make("div", "pi-ledger-col");
-  mul.append(row("Mult", multText(d.mult), "hd"));
-  for (const b of d.boons) if (b.mult) mul.append(row(named(b.id), `+${+b.mult.toFixed(2)}`, "bn"));
-  for (const b of d.boons) if (b.xmult !== 1) mul.append(row(named(b.id), `×${+b.xmult.toFixed(2)}`, "bn x"));
-  if (mul.children.length === 1) mul.append(make("p", "pi-l pi-l-none", "No boon scored"));
-  const cols = make("div", "pi-ledger-cols");
-  cols.append(net, mul);
-  const total = make("p", "pi-ledger-total"), sum = make("b", null, num(d.total));
-  total.append(make("span", null, `${num(d.netback)} ${multText(d.mult)}`), sum);
-  const parts = [cols, total], more = [];
-  if (d.quota != null) more.push(d.outcome === "short" ? `Quota ${num(d.quota)}: short by ${num(d.quota - d.total)}` : `Quota ${num(d.quota)} ✓`);
-  if (d.interest) more.push(`${BOONS.interest.icon} Interest +${num(d.interest)}`);
-  if (d.reward?.cargo) more.push(`🚢 Bonus cargo +${num(d.reward.cargo)}`);
-  if (more.length) parts.push(make("p", "pi-ledger-more", more.join(" · ")));
-  if (d.reward && !d.reward.cargo) {
-    const b = BOONS[d.reward.id], p = make("p", `pi-ledger-reward t${b.tier}`);
-    p.append("Earned ", make("b", null, named(d.reward.id)), make("span", "ab", d.reward.full ? `: your ${SLOTS} slots are full, so next you choose what it replaces.` : `: ${lowerFirst(b.about)}`));
-    parts.push(p);
-  }
-  box.replaceChildren(...parts);
-  box.classList.remove("tight");
-  if (box.scrollHeight > box.clientHeight + 1) box.classList.add("tight");
-  box.classList.toggle("fresh", fresh);
-  if (fresh) {
-    const lines = [...box.querySelectorAll(".pi-l, .pi-ledger-total, .pi-ledger-more, .pi-ledger-reward")];
-    lines.forEach((n, i) => n.style.setProperty("--i", i));
-    countUp(sum, 0, d.total, 600, 350 + 70 * lines.indexOf(total) + 280);
-  }
+// ---------- the descent, shown ----------
+/** The way the piece in hand would be laid as it's turned now, while it can be. */
+function ghostOf() {
+  if (!R || R.phase !== "play" || R.D.over) return null;
+  const D = R.D, ways = G.waysOf(D, D.cur);
+  return ways[D.turn % ways.length] || null;
 }
-/** A number counting up to its value after a delay (the ledger's total, the score), unless motion is reduced. It stops
- *  if the number is redrawn meanwhile (a tool bought on the next level): the new figure stands. */
-function countUp(node, from, to, ms, delay = 0) {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { node.textContent = num(to); return; }
-  const t0 = performance.now() + delay;
-  let shown = node.textContent = num(from);
-  const tick = now => {
-    if (node.textContent !== shown) return;
-    const k = Math.min(1, Math.max(0, (now - t0) / ms));
-    shown = node.textContent = num(from + (to - from) * (1 - (1 - k) ** 3));
-    if (k < 1 && node.isConnected) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
+function drawDeepHud() {
+  if (!R) return;
+  const D = R.D;
+  $("stat1Label").textContent = "Depth"; setStat("stat1", `${num(G.depthOf(D))} m`);
+  setStat("score", num(G.scoreOf(D)));
+  $("stat3Label").textContent = "Charges"; setStat("stat3", D.charges ? `✷ ${D.charges}` : "–");
+  drawQueue();
+  drawDeepStatus();
 }
-
-// ---------- the doors: the jobs on offer before a level ----------
-/** Between levels: no clock, no board to play; the doors over the board's box, the market and the act's finale in the
- *  note. */
-function showJobs() {
-  if (!S.pending) S.doors ??= doorsFor(S.seed, S.n, S.boons);   // the same doors again, from the seed, if the save lost them
-  cancelAnimationFrame(raf);
-  if (!L) $("board").replaceChildren();                // a run's first jobs: no board yet
-  $("brief").hidden = true; $("fillBtn").hidden = true; $("goBtn").hidden = true; $("viewBtn").hidden = true;
-  drawLedger();
-  $("kit").replaceChildren();
-  drawHud();
-  const m = S.market || { crude: 1, hvo: 1 }, pct = v => { const p = Math.round((v - 1) * 100); return p ? `${p < 0 ? "−" : "+"}${Math.abs(p)}% on list` : "at list"; };
-  $("status").textContent = S.pending ? `Your slots are full · level ${S.n}` : isFinale(S.n) ? `Act ${actNo(S.n)} finale · level ${S.n}` : `Choose your ${S.n === 1 ? "first" : "next"} job · level ${S.n}`;
-  const at = ACT_LENGTH * actNo(S.n), fin = finaleOf(S.seed, at);
-  $("note").textContent = [S.n > 1 ? `Prices: crude ${pct(m.crude)}, HVO ${pct(m.hvo)}.` : `Deliver a job to earn its boon: ${SLOTS} slots, kept for the run.`,
-    at !== S.n ? `Act ${actNo(S.n)}'s finale, level ${at}: ${BOSSES[fin.boss].name}, ${num(fin.quota)} to pass.` : ""].filter(Boolean).join(" ");
-  drawDoors();
+let statusKey = "";
+function drawDeepStatus() {
+  const D = R?.D;
+  if (!D) return;
+  const lead = G.lead(D), ghost = ghostOf(), end = G.openEnd(D), facing = G.contentAt(S, D, end.x, end.y, end.z);
+  const fit = ghost && G.fits(S, D, ghost), shut = fit && G.deadEnd(S, D, ghost);
+  const blastable = facing === "rock" && D.charges > 0;
+  const text = R.phase === "over" ? "The oil caught up"
+    : !D.flowing ? `The oil comes in ${Math.ceil((G.START - D.t) / 1000)} s`
+    : blastable ? "Rock ahead: blast it with a charge"
+    : facing === "rock" || facing === "wall" || facing === "pipe" ? `Shut in by ${facing === "pipe" ? "your own pipe" : facing === "wall" ? "the shaft's wall" : "rock, and no charge"}: the oil will catch up`
+    : lead >= G.CAP ? `${G.CAP} laid ahead: wait for the oil, or hurry it`
+    : !fit ? "That way's blocked: turn it, hold it or scrap it"
+    : shut ? "That way leads into a dead end"
+    : D.hurry ? "Hurrying the oil on"
+    : "Turn the piece, then lay it";
+  const key = `${text}/${lead}/${D.hurry}/${D.held}/${D.charges}/${D.turn}/${D.cur}`;
+  if (key === statusKey) return;
+  statusKey = key;
+  $("status").textContent = text;
+  const pips = $("ahead");
+  pips.hidden = R.phase !== "play";
+  if (pips.children.length !== G.CAP) pips.replaceChildren(...Array.from({ length: G.CAP }, () => document.createElement("i")));
+  [...pips.children].forEach((n, i) => n.classList.toggle("on", i < lead));
+  pips.classList.toggle("low", D.flowing && lead <= 1 && R.phase === "play");     // the oil about to catch up
+  pips.title = `${lead} of ${G.CAP} laid ahead of the oil`;
+  const playing = R.phase === "play" && !D.over && !IN_FRAME;
+  const lay = $("layBtn");
+  lay.querySelector("b").textContent = blastable ? "Blast" : "Lay";
+  $("layNote").textContent = blastable ? "a charge" : lead >= G.CAP ? "wait" : "it in";
+  lay.disabled = !playing || (!blastable && (lead >= G.CAP || !fit));
+  $("turnBtn").disabled = !playing || G.waysOf(D, D.cur).length < 2;
+  $("holdBtn").disabled = !playing || D.held;
+  $("holdNote").textContent = D.held ? "used" : D.hold ? "swap" : "set aside";
+  $("scrapBtn").disabled = !playing;
+  const hurry = $("hurryBtn");
+  hurry.disabled = !playing || (!D.hurry && lead <= G.HURRY_STOP);
+  hurry.classList.toggle("on", D.hurry);
+  $("hurryNote").textContent = D.hurry ? "on" : `×${G.HURRY3}`;
 }
-/** The doors: each its job's twist and the boon delivering it earns, edged in its tier's colour. A finale's are the
- *  same big contract, so its terms (the boss, the quota) go once at the top and the doors are its rewards. A boon
- *  earned with the slots full comes first, as the choice of what it replaces. */
-function drawDoors() {
-  const box = $("doors");
-  box.hidden = S.phase !== "pick" || (!S.doors && !S.pending);
-  if (box.hidden) return;
-  box.classList.toggle("swap", !!S.pending);
-  if (S.pending) return drawSwap(box);
-  const make = (tag, cls, text) => { const n = document.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
-  const finale = isFinale(S.n), head = [];
-  if (finale) {
-    const d = describe(S.doors[0], S.n, S.boons, S.seed), p = make("p", "pi-doors-terms");
-    p.append(make("b", "boss", d.boss.name), `: ${lowerFirst(d.boss.about)} ${d.job}, ${lowerFirst(d.twist)}: score ${num(d.quota)} to pass. Pick what it earns.`);
-    head.push(p);
-  }
-  const doors = S.doors.map((door, i) => {
-    const d = describe(door, S.n, S.boons, S.seed), b = make("button", `pi-door t${d.reward.tier}`), top = make("span", "pi-door-head"), name = make("b", "rw");
-    name.append(make("span", "bi", d.reward.icon), d.reward.name);
-    b.type = "button";
-    // a finale's doors share their job, so the reward's name heads each one; otherwise the job does, over its reward
-    if (finale) top.append(name);
-    else top.append(make("b", "job", d.job), ...(d.twist ? [make("span", "tw", d.twist)] : []));
-    top.append(make("span", "tier", TIERS[d.reward.tier]));
-    b.append(top, ...(finale ? [] : [name]), make("span", "ab", d.reward.about));
-    b.addEventListener("click", () => chooseJob(i));
-    return b;
-  });
-  box.replaceChildren(...head, ...doors);
-  box.classList.toggle("four", doors.length > 3);          // Broker's fourth door
+function showDeep(fresh) {
+  $("board").hidden = true; $("shaft").hidden = false;
+  $("flatControls").hidden = true; $("deepControls").hidden = false;
+  if (!view) view = createShaftView($("shaft"), { onTap: () => act("turn") });
+  if (fresh) view.reset();
+  view.resize();
+  queueKey = ""; statusKey = "";
+  drawDeepHud();
+  drawDeepCard();
+  view.draw(S, R.D, { ghost: ghostOf(), still: fresh });
 }
-/** The boon just earned, and the five held as doors (two to a row in a short box, without what they do: their slots
- *  above say it at a tap): tap the one it replaces, or leave it behind. */
-function drawSwap(box) {
-  const make = (tag, cls, text) => { const n = document.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
-  const card = (id, tag) => {
-    const b = BOONS[id], n = make(tag, `pi-door t${b.tier}`), top = make("span", "pi-door-head"), name = make("b", "rw");
-    name.append(make("span", "bi", b.icon), b.name);
-    top.append(name, make("span", "tier", TIERS[b.tier]));
-    n.append(top, make("span", "ab", `${b.about}${nowOf(id)}`));
-    return n;
-  };
-  const earned = card(S.pending, "div");
-  earned.classList.add("pi-earned");
-  const ask = make("p", "pi-doors-terms", "Tap the boon it replaces, or leave it.");
-  const grid = make("div", "pi-swap");
-  grid.append(...S.boons.map((id, i) => { const b = card(id, "button"); b.type = "button"; b.addEventListener("click", () => settleSwap(i)); return b; }));
-  const leave = make("button", "pi-door pi-leave", "Leave it");
-  leave.type = "button";
-  leave.addEventListener("click", () => settleSwap(-1));
-  grid.append(leave);
-  box.replaceChildren(earned, ask, grid);
-  box.classList.remove("four");
-}
-/** What a boon that counts up has come to so far, for its card and its slot. */
-const nowOf = id => (id === "winding" ? ` Now +${+(0.02 * (S.grow.winding || 0)).toFixed(2)}.` : id === "pumpjack" ? ` Now ×${+(1 + 0.05 * (S.grow.pumpjack || 0)).toFixed(2)}.`
-  : id === "streak" ? ` ${S.streak} in a row now.` : "");
-
-// ---------- hud ----------
-function drawHud() {
-  const score = $("score"), text = num(S.score);
-  score.textContent = text;
-  score.classList.toggle("long", text.length >= 8 && text.length < 10);   // the row it shares with the boons and lives
-  score.classList.toggle("longer", text.length >= 10);
-  $("lives").classList.toggle("four", (S.maxLives ?? LIVES) > 3);
-  $("lives").replaceChildren(...Array.from({ length: S.maxLives ?? LIVES }, (_, k) => { const i = document.createElement("i"); i.className = `pi-life${k >= S.lives ? " gone" : ""}`; return i; }));
-  drawBoons();
-  drawMult();
-  drawGauges();
-}
-/** The five slots: each boon's icon edged in its tier (a tap says what it does), empty ones dashed. Under the
- *  Regulator the first sits its finale out, greyed, from the finale's doors on. */
-function drawBoons() {
-  const box = $("boons");
-  const boss = S.phase === "pick" ? (isFinale(S.n) ? finaleOf(S.seed, S.n).boss : null) : terms?.boss;
-  box.replaceChildren(...Array.from({ length: SLOTS }, (_, i) => {
-    const id = S.boons[i], b = BOONS[id];
-    if (!b) { const s = document.createElement("span"); s.className = "pi-boon empty"; return s; }
-    const benched = boss === "regulator" && i === 0, s = document.createElement("button");
-    s.type = "button"; s.className = `pi-boon t${b.tier}${benched ? " benched" : ""}`; s.dataset.id = id;
-    s.textContent = b.icon;
-    s.setAttribute("aria-label", `${b.name}: ${b.about}`);
-    s.addEventListener("click", () => toast(`${b.icon} ${b.name}: ${b.about}${nowOf(id)}${benched ? " It sits this finale out." : ""}`, 3500));
-    return s;
-  }));
-}
-function drawGauges() {
-  const box = $("gauges");
-  box.replaceChildren();
-  if (!R || S.phase === "pick") return;                // between levels: no board in play
-  for (const h of R.heads) {
-    const g = document.createElement("span");
-    g.className = "pi-gauge";
-    const dot = document.createElement("i"); dot.style.background = PRODUCTS[h.product].colour;
-    const bar = document.createElement("span"); bar.className = "bar";
-    const fill = document.createElement("i"); fill.style.background = PRODUCTS[h.product].colour; fill.style.width = `${h.done ? 100 : Math.round(100 * h.pressure / L.level.pressure)}%`;
-    bar.appendChild(fill);
-    g.append(dot, `${PRODUCTS[h.product].name}${h.done ? " ✓" : ""}`, bar);
-    box.appendChild(g);
-  }
+/** A move in the descent, from its keys, the keyboard or a tap on the shaft. */
+function act(what) {
+  if (IN_FRAME || mode !== "deep" || !R || R.phase !== "play" || R.D.over) return;
+  const D = R.D;
+  let done = false;
+  if (what === "turn") { if (G.waysOf(D, D.cur).length > 1) { G.turnPiece(D); done = true; } }
+  else if (what === "lay") {
+    const end = G.openEnd(D);
+    if (G.contentAt(S, D, end.x, end.y, end.z) === "rock" && D.charges) { done = G.blast(S, D); if (done) { toast("Blasted", 900); navigator.vibrate?.(30); } }
+    else {
+      const before = { b: D.barrels, c: D.charges }, r = G.lay(S, D);
+      done = r === "laid";
+      if (done) {
+        if (D.barrels > before.b) toast(`A barrel: +${G.BARREL}`, 1100);
+        else if (D.charges > before.c) toast("A charge: blast a rock with it", 1600);
+        else if (D.pipe.slice(-2).some(c => c.took === "tank")) toast("A tank: the oil slows there", 1400);
+      } else if (r === "blocked") toast("That way's blocked");
+    }
+  } else if (what === "hold") done = G.holdPiece(S, D);
+  else if (what === "scrap") { done = G.scrap(S, D); if (done) toast("Scrapped: the oil surges", 1000); }
+  else if (what === "hurry") { G.hurry(D); done = D.hurry; }
+  if (!done) return;
+  drawDeepHud();
+  if (D.over) { descentOver(); showDeep(false); }
+  save();
 }
 
-// ---------- menu and messages ----------
+// ---------- the cards: a level's result, the run's end ----------
+function card(nodes, ...buttons) {
+  const box = $("card");
+  box.replaceChildren(...nodes);
+  if (buttons.length) {
+    const row = document.createElement("div");
+    row.className = "pi-card-buttons";
+    for (const [text, fn, quiet] of buttons) { const b = document.createElement("button"); b.type = "button"; b.className = `pi-go${quiet ? " quiet" : ""}`; b.textContent = text; b.addEventListener("click", fn); row.append(b); }
+    box.append(row);
+  }
+  box.hidden = false;
+}
+const make = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+function lines(rows) {
+  const box = make("div", "pi-lines");
+  for (const [label, v, cls] of rows) { const p = make("p", cls || (v < 0 ? "neg" : "")); p.append(make("span", null, label), make("b", null, typeof v === "number" ? signed(v) : v)); box.append(p); }
+  return box;
+}
+const WHY = { edge: "ran off the edge of the board", rock: "ran into rock", open: "reached a square with no pipe", shape: "met a piece that doesn't take it in", full: "met pipe it had already filled",
+  early: "reached the terminal before the quota" };
+function drawFlatCard() {
+  const box = $("card");
+  if (!F || F.phase === "play" || !F.last) { box.hidden = true; return; }
+  const l = F.last, p = l.pts, rows = l.count ? [[`Pipe ×${l.count}`, p.pipe]] : [];
+  if (p.loop) rows.push(["Crossings both ways", p.loop]);
+  if (p.pump) rows.push(["Pumps", p.pump]);
+  if (p.terminal) rows.push(["The terminal", p.terminal]);
+  if (p.early) rows.push(["Oil early", p.early]);
+  if (p.unused) rows.push([`Unused ×${l.unused}`, p.unused]);
+  if (p.blast) rows.push([`Blasts ×${l.blasts}`, p.blast]);
+  rows.push([`Level ${l.n}`, signed(l.total), "sum"]);
+  if (F.phase === "done") {
+    const h = make("h3", "good", `Level ${l.n} cleared`);
+    const why = make("p", "why", l.why === "terminal" ? `It passed ${l.count} pipes, ${l.quota} needed, and into the terminal.` : `It passed ${l.count} pipes, ${l.quota} needed, then ${WHY[l.why] || "spilled"}.`);
+    card([h, why, lines(rows), lines([["Run", num(F.total)]])], [`Level ${l.n + 1}`, () => { if (!IN_FRAME) nextLevel(); }]);
+    return;
+  }
+  const won = l.win;
+  const h = make("h3", won ? "good" : "bad", won ? "The match is done" : "Run over");
+  const why = make("p", "why", won ? `${match?.length || l.n} levels, the same for everyone.` : `It passed ${l.count} pipes of the ${l.quota} needed, then ${WHY[l.why] || "spilled"}.`);
+  const big = make("p", "pi-big", num(F.total));
+  const best = bestOf("flat"), day = todayOf("flat");
+  const stats = statBoxes([[l.n, "level reached"], [best ? num(best.score) : "–", "your best"], [day ? num(day.score) : "–", "today's best"]]);
+  if (match) { card([h, why, lines(rows), big], ["See the table", () => duel.open()]); return; }
+  card([h, why, lines(rows), big, stats], ["Again", () => startFlat("random")], [F.kind === "daily" ? "A random run" : "Today's run", () => startFlat(F.kind === "daily" ? "random" : "daily"), true]);
+}
+function statBoxes(items) {
+  const box = make("div", "pi-stats");
+  for (const [v, label] of items) { const d = make("div"); d.append(make("b", null, String(v)), make("span", null, label)); box.append(d); }
+  return box;
+}
+function drawDeepCard() {
+  const box = $("card");
+  if (!R || R.phase !== "over") { box.hidden = true; return; }
+  const D = R.D, depth = G.depthOf(D);
+  const h = make("h3", "bad", `The oil caught up at ${num(depth)} m`);
+  const why = make("p", "why", "It reached the open end before the next piece was laid.");
+  const rows = [[`Depth ${num(depth)} m`, depth]];
+  if (D.barrels) rows.push([`Barrels ×${D.barrels}`, G.BARREL * D.barrels]);
+  rows.push(["Score", num(G.scoreOf(D)), "sum"]);
+  const big = make("p", "pi-big", num(G.scoreOf(D)));
+  if (match) { card([h, why, lines(rows), big], ["See the table", () => duel.open()]); return; }
+  const best = bestOf("deep"), day = todayOf("deep");
+  const stats = statBoxes([[`${num(depth)} m`, "this time"], [best ? num(best.score) : "–", "your best"], [day ? num(day.score) : "–", "today's best"]]);
+  card([h, why, lines(rows), big, stats], ["Again", () => startDeep("random")], [R.kind === "daily" ? "A random shaft" : "Today's shaft", () => startDeep(R.kind === "daily" ? "random" : "daily"), true]);
+}
+
+// ---------- switching between the board and the shaft ----------
+/** Shows a mode: its run where it was left (or a fresh one), the other kept as it is. */
+function setMode(m) {
+  if (m !== "flat" && m !== "deep") m = "flat";
+  if (mode !== m && !match) save();
+  mode = m;
+  if (!match) { prefs.mode = m; write(KEY.prefs, prefs); }
+  $("app").classList.toggle("deep", m === "deep");
+  if (m === "flat") {
+    if (!F) { F = loadRun(KEY.flat); if (F) L = B.deal(F.seed, F.n); }
+    if (!F) return startFlat("random");
+    showFlat(true);
+  } else {
+    if (!R) { R = loadRun(KEY.deep); if (R) S = G.shaftOf(R.seed); }
+    if (!R) return startDeep("random");
+    showDeep(true);
+  }
+}
+/** A run kept here, if it's this version's. */
+function loadRun(key) {
+  const v = read(key, null);
+  return v?.v === 2 ? v : null;
+}
+
+// ---------- the rules ----------
+function showRules() {
+  const lv = B.levelOf(1);
+  let top = 1;                                          // the first level as hard as any after it
+  while (top < 60 && JSON.stringify({ ...B.levelOf(top), n: 0 }) !== JSON.stringify({ ...B.levelOf(top + 1), n: 0 })) top++;
+  const last = B.levelOf(top);
+  $("rulesBody").innerHTML = `
+    <p>Lay pipe ahead of the oil. On the board, the pieces come off a queue and go wherever you tap; in 3D, the oil comes down a shaft and you lay its pipe at the open end, a segment at a time.</p>
+    <h4>The board</h4>
+    <p>The next piece is the large one at the left of the queue; tap a square and it goes there. Pieces can't be turned: straights, bends and crossings come as they are, in bags of thirteen, so no shape stays away long.</p>
+    <p>After a countdown (${lv.countdown / 1000} seconds on level 1) the oil leaves the wellhead and runs from piece to piece, a piece every ${lv.fill / 1000} seconds at first. It must pass through the level's quota of pipe (${lv.quota} on level 1) before it spills: off the edge, into rock, into an empty square or a piece that doesn't take it in. Short of the quota, the spill ends the run; past it, the level is cleared.</p>
+    <ul>
+      <li><b>Blasting</b>: tap one of your pieces the oil hasn't reached and the next piece replaces it. It costs ${-B.POINTS.blast} points and a moment before you can lay again.</li>
+      <li><b>Crossings</b> carry the oil straight across either way, and it may pass through one twice, once each way: a loop, worth ${B.POINTS.loop} more.</li>
+      <li><b>Pumps</b> (from level 3) are fixed straights: ${B.POINTS.pump} when the oil goes through one. <b>Tanks</b> (from level 5) take ${B.TANK} times as long to fill: time in hand.</li>
+      <li><b>The terminal</b> (from level 4): lead the oil into it once the quota is met for ${B.POINTS.terminal} and a clean end to the level. Into it any sooner, it's refused: a spill.</li>
+    </ul>
+    <p>The dashed line shows where the oil will go as the board stands; the ringed square is where its route needs a piece next, and a red cross is where it would spill.</p>
+    <p><b>Points</b>: ${B.POINTS.pipe} for each piece the oil passes through; on a level cleared, ${-B.POINTS.unused} less for each piece of yours it never reached. Oil now starts it before the countdown is out, ${B.POINTS.early} a second left; once it flows, Hurry runs it ${B.HURRY} times faster to the end of the level, and everything it fills from then scores double.</p>
+    <p>Every level is faster than the one before, its quota longer and its rock more, until level ${top}: ${last.fill / 1000} seconds a piece, a quota of ${last.quota}, ${last.countdown / 1000} seconds' countdown. From there on they stay as hard.</p>
+    <h4>In 3D</h4>
+    <p>The menu's 3D switch takes you down a shaft four squares across. The oil waits ${G.START / 1000} seconds at the wellhead, then runs down the pipe, slowly at first (${(G.fillTime(0) / 1000).toFixed(1)} seconds a square) and faster the deeper it gets. It's over when it catches the pipe's open end.</p>
+    <ul>
+      <li><b>The pieces</b>: a straight, a long straight (two squares), an elbow, and a jog (a square sideways, then on as it was going). The piece in hand shows at the open end in copper, the square it leads into outlined: green if it's open, red if it's shut.</li>
+      <li><b>Turn</b> it a quarter about the way the pipe is going (or tap the shaft), then <b>Lay</b> it. An elbow can go four ways, sideways or back up; a jog steps four ways.</li>
+      <li><b>Hold</b> sets the piece in hand aside for the one held before, once a piece. <b>Scrap</b> throws it away for the next, but the oil surges on a square meanwhile.</li>
+      <li>You can lay ${G.CAP} squares ahead of the oil at most (the dots by the line under the shaft). <b>Hurry</b> runs the oil ${G.HURRY3} times faster until it's ${G.HURRY_STOP} squares behind you.</li>
+      <li><b>On the way</b>, steer round the rock: scattered blocks, pillars, and slabs across the whole shaft but for a gap or two. Lay pipe through the boons to take them: a barrel is worth ${G.BARREL}, a charge blasts the rock the open end faces (Lay becomes Blast), a tank holds the oil back ${G.TANK3} times as long.</li>
+    </ul>
+    <p><b>Points</b>: a point for every metre the oil gets down (a layer is ${G.METRES} m), and ${G.BARREL} a barrel. Drag the shaft to look round it.</p>
+    <h4>Today's and together</h4>
+    <p>Today's run and today's shaft are the same for everyone, dealt from the day. In a match, everyone at the table gets the same boards and pieces (or the same shaft), each on their own phone: the highest score wins. On the board, Length in the menu sets how many levels the next match runs.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;
+}
+
+// ---------- the menu ----------
+let pick = null;      // the kind of run the menu's New game starts
+function openMenu() {
+  const body = $("menuBody");
+  body.replaceChildren();
+  $("menuDlg").querySelector("h2").textContent = "Menu";
+  if (duel.on) {
+    duel.menu(part(body, "together"));
+    part(body, "play").append(action("The rules", showRules, "link"));
+    const settings = part(body, "settings");
+    settings.append(toggle("3D (the next match)", prefs.mode === "deep", on => { prefs.mode = on ? "deep" : "flat"; write(KEY.prefs, prefs); openMenu(); }));
+    if (prefs.mode === "flat") settings.append(choice("Length (the next match)", [[5, "5 levels"], [10, "10 levels"], [0, "Till the spill"]], prefs.length, v => { prefs.length = v; write(KEY.prefs, prefs); }));
+    if (!$("menuDlg").open) $("menuDlg").showModal();
+    return;
+  }
+  const run = mode === "flat" ? F : R;
+  pick ??= run?.kind === "daily" ? "daily" : "random";
+  part(body, "play").append(action("New game", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
+  part(body, "content").append(choice(mode === "flat" ? "Run" : "Shaft", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
+  part(body, "settings").append(toggle("3D", mode === "deep", on => { $("menuDlg").close(); setMode(on ? "deep" : "flat"); }));
+  const fb = bestOf("flat"), db = bestOf("deep"), ft = todayOf("flat"), dt = todayOf("deep");
+  part(body, "about").append(
+    line(`The board: ${fb ? `best ${num(fb.score)} (level ${fb.level})` : "no run finished yet"}${ft ? `, today ${num(ft.score)}` : ""}.`),
+    line(`3D: ${db ? `best ${num(db.score)} (${num(db.depth)} m)` : "no descent yet"}${dt ? `, today ${num(dt.score)}` : ""}.`));
+  if (!$("menuDlg").open) $("menuDlg").showModal();
+}
+function confirmStart(kind) {
+  const run = mode === "flat" ? F : R;
+  const begun = run && run.phase !== "over" && (mode === "flat" ? run.n > 1 || run.P?.next > 0 : run.D.pipe.length > 1);
+  if (begun && !confirm("Start a new game? This one isn't finished.")) return;
+  pick = null;
+  if (mode === "flat") startFlat(kind); else startDeep(kind);
+}
+
+// ---------- messages ----------
 let toastTimer = null;
 function toast(msg, ms = 2000) {
   const t = $("toast");
@@ -858,89 +679,64 @@ function toast(msg, ms = 2000) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), ms);
 }
-// ---------- together: the same run for everyone at the table (duel.js) ----------
-// Everyone at the table plays the match's seed for an act or more (the menu's Length): the same first doors, the same
-// boards and bosses for the same choices, and the same prices, which drift between levels alike for everyone. Each
-// builds their own run on their own phone, and the others' scores and levels show under yours. A match's clock doesn't
-// stop for the menu. The highest score once the last level is delivered (or the lives are gone) wins, then the
-// quicker. Your own run, bests and today's stay as they were.
-const LENGTHS = [[1, "One act"], [2, "Two acts"], [3, "Three acts"]];
-let duelActs = read("pipes:acts", 2);
+
+// ---------- together: the same seed for everyone at the table (duel.js) ----------
+// A match deals one seed: on the board, the same levels and the same queues for everyone, for the menu's Length (or
+// till the spill); in 3D, the same shaft and pieces. Each plays it on their own phone and the others' scores show under
+// yours. A match's clock doesn't stop for the menu. Your own runs, bests and today's stay as they were.
 const duel = createDuel({
   game: "pipes", name: "Pipes", accent: "--pi-in", line: $("rival"), toast,
-  deal: () => ({ seed: randomSeed(), acts: [1, 2, 3].includes(duelActs) ? duelActs : 2 }),
-  describe: m => `${LENGTHS.find(([n]) => n === m.acts)?.[1] || "Two acts"}, ${m.acts * ACT_LENGTH} levels: the same run for everyone`,
-  extra: () => (S?.duel ? buildOf() : null), extraTitle: "Your build",
-  play: (match, { kept }) => {
+  // the higher score wins, and equal scores draw: the quicker run isn't the better one here (in 3D it's the one the
+  // oil caught first)
+  compare: (a, b) => (b.score - a.score) || 0,
+  deal: () => ({ seed: randomSeed(), mode: prefs.mode === "deep" ? "deep" : "flat", length: prefs.mode === "deep" ? 0 : prefs.length || 0 }),
+  describe: m => (m.mode === "deep" ? "The same shaft for everyone: the highest score wins" : `The same boards for everyone, ${m.length ? `${m.length} levels` : "till the spill"}: the highest score wins`),
+  extra: () => null,
+  play: (m, { kept }) => {
     cancelAnimationFrame(raf);
-    if (kept?.seed === match.seed && kept.phase) {           // picked up where it was, as a reload of your own run is
-      S = kept;
-      const live = S.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
-      if (S.phase === "pick") showJobs();
-      else if ((S.phase === "done" || S.phase === "over") && live) resumeLive();
-      else if (S.phase === "over") { lobby(); $("status").textContent = `Run over: ${num(S.score)}`; }
-      else beginLevel();
-    } else start("duel", match.seed, match);
-    tell(S.phase === "over");
+    match = { mode: m.mode === "deep" ? "deep" : "flat", seed: m.seed, length: m.length || 0 };
+    $("card").hidden = true;
+    if (kept?.match?.seed === m.seed && (kept.F || kept.R)) {
+      F = kept.F; R = kept.R;
+      if (F) L = B.deal(F.seed, F.n);
+      if (R) S = G.shaftOf(R.seed);
+      mode = match.mode;
+      $("app").classList.toggle("deep", mode === "deep");
+      if (mode === "flat") showFlat(true); else showDeep(true);
+      catchUp(Date.now() - ((mode === "flat" ? F : R)?.at || Date.now()));
+    } else {
+      F = R = null;
+      mode = match.mode;
+      $("app").classList.toggle("deep", mode === "deep");
+      if (mode === "flat") startFlat("duel", m.seed); else startDeep("duel", m.seed);
+    }
+    tell();
+    run();
   },
-  onLobby: () => { cancelAnimationFrame(raf); S = null; lobby(); },
-  onLeave: () => { cancelAnimationFrame(raf); solo(); },
+  onLobby: () => { cancelAnimationFrame(raf); match = null; lobby(); },
+  onLeave: () => { cancelAnimationFrame(raf); match = null; F = R = null; solo(); },
 });
-const seeded = seed => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
-/** What the table sees of this run: the score, and the level. */
+/** What the table sees of this run: the score, and the level or the depth. */
 function tell(done = false) {
-  if (!S?.duel) return;
-  duel.report({ score: S.score, text: done ? num(S.score) : `${num(S.score)} · level ${S.n}`, ...(done ? { done: true } : {}) });
-}
-/** The boons held and the best delivery, for the match's result. */
-function buildOf() {
-  const box = document.createElement("div");
-  if (S.boons?.length) {
-    const list = document.createElement("p");
-    list.className = "pi-build";
-    for (const id of S.boons) { const u = document.createElement("span"); u.className = `t${BOONS[id].tier}`; u.textContent = `${BOONS[id].icon} ${BOONS[id].name}`; list.append(u); }
-    box.append(list);
+  if (!match) return;
+  if (match.mode === "flat" && F) {
+    const live = F.total + (F.phase === "play" && F.P ? B.pointsOf(F.P) : 0), over = F.phase === "over";
+    duel.report({ score: live, text: over ? num(live) : `${num(live)} · level ${F.n}`, ...(done || over ? { done: true } : {}) });
+  } else if (R) {
+    const D = R.D, over = R.phase === "over";
+    duel.report({ score: G.scoreOf(D), text: over ? `${num(G.scoreOf(D))} · ${num(G.depthOf(D))} m` : `${num(G.depthOf(D))} m`, ...(done || over ? { done: true } : {}) });
   }
-  if (S.top) { const p = document.createElement("p"); p.className = "pi-top"; p.textContent = `Best delivery: ${num(S.top.total)}, ${num(S.top.netback)} ${multText(S.top.mult)}, on level ${S.top.n}.`; box.append(p); }
-  return box.childElementCount ? box : null;
 }
-/** The board before a match: empty. */
+/** The board before a match: nothing in play. */
 function lobby() {
-  $("boons").replaceChildren();
-  $("score").textContent = "0";
-  $("lives").replaceChildren();
-  $("gauges").replaceChildren();
-  $("board").replaceChildren();
-  for (const id of ["brief", "doors", "ledger", "fillBtn", "viewBtn", "goBtn"]) $(id).hidden = true;
-  $("kit").replaceChildren();
-  $("status").textContent = "The same run for everyone";
-  $("note").textContent = "";
-}
-
-// the menu: Play (start the run you've chosen), Content (random or today's), About (your bests)
-let pick = null;                                              // the run the menu will start: "random" or "daily"
-function openMenu() {
-  const body = $("menuBody");
-  body.replaceChildren();
-  $("menuDlg").querySelector("h2").textContent = "Menu";
-  if (duel.on) {                                              // a match: the table's own, and how long the next one runs
-    duel.menu(part(body, "together"));
-    part(body, "settings").append(choice("Length (the next match)", LENGTHS, duelActs, v => { duelActs = v; write("pipes:acts", v); }));
-    if (S?.boons?.length && S.phase !== "over") part(body, "about").append(line(`This run: ${S.boons.map(id => `${BOONS[id].icon} ${BOONS[id].name}`).join(", ")}.`));
-    if (!$("menuDlg").open) $("menuDlg").showModal();
-    return;
-  }
-  pick ??= S?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("Start a run", () => confirmStart(pick), "primary"));
-  part(body, "content").append(choice("Run", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; }));
-  const best = read(BEST, null), daily = read(DAILY, {})[today()];
-  part(body, "about").append(line(`${best ? `Best ${num(best.score)}, level ${best.n}` : "No finished run yet"}${daily ? `, today ${num(daily.score)}` : ""}`));
-  if (S?.boons?.length && S.phase !== "over") part(body, "about").append(line(`This run: ${S.boons.map(id => `${BOONS[id].icon} ${BOONS[id].name}`).join(", ")}.`));
-  if (!$("menuDlg").open) $("menuDlg").showModal();
-}
-function confirmStart(mode) {
-  if (S && S.phase !== "over" && S.n > 1 && !confirm("Start a new run? This one isn't finished.")) return;
-  start(mode);
+  F = R = null;
+  $("board").replaceChildren(); cellG = [];
+  $("queue").replaceChildren(); queueKey = "";
+  $("card").hidden = true;
+  $("goBtn").classList.add("away");
+  setStat("stat1", "–"); setStat("score", "0"); setStat("stat3", "–");
+  $("status").textContent = "The same game for everyone";
+  $("ahead").hidden = true;
 }
 
 // ---------- wiring ----------
@@ -948,54 +744,54 @@ bindSwitcher($("appsBtn"), "pipes");
 document.querySelector(".pi-mark").innerHTML = APPS.find(a => a.id === "pipes").logo;
 $("menuBtn").addEventListener("click", openMenu);
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
-// a tap anywhere on the tools' card starts the clock (its button is the way in from a keyboard); never in a frame
-$("brief").addEventListener("click", () => { if (!IN_FRAME && clock.brief) endBrief(); });
-// the ledger or the board in front, after a delivery
-$("viewBtn").addEventListener("click", () => { ledgerShown = !ledgerShown; drawLedger(); goButton(); });
-/** Fill it now: the oil goes at once (planning ends there), the whole route fills in a moment, and the time it would
- *  have taken counts as if pumped at ×4 (×6 with Fast fill). The planning it leaves is kept for Early bird. A route
- *  that isn't ready spills just the same. */
-$("fillBtn").addEventListener("click", () => {
-  if ((S.phase !== "plan" && S.phase !== "flow") || clock.brief) return;
-  if (S.phase === "plan") R.fillAt = Math.max(0, Math.round(clock.planLeft));
-  S.phase = "flow";
-  clock.planLeft = 0;
-  clock.filling = true;
-  $("fillBtn").hidden = true;
-  keepLive();
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
+$("goBtn").addEventListener("click", () => {
+  if (IN_FRAME || mode !== "flat" || F?.phase !== "play" || !F.P) return;
+  const P = F.P;
+  if (!P.flowing) { B.release(L, P); drawPathCells(0); drawRoute(); }
+  else B.hurry(L, P);
+  drawFlatHud();
+  save();
 });
-// the menu holds the oil where it is: no frames while it's open, and no catching up after
-let heldFrame = false;
-onPause(() => { if ((S?.phase === "plan" || S?.phase === "flow") && !S.duel) { cancelAnimationFrame(raf); heldFrame = true; } },   // a match's clock runs on
-  () => { if (!heldFrame) return; heldFrame = false; clock.last = performance.now(); raf = requestAnimationFrame(frame); });
-// a level left mid-way starts over, fresh; not while the tools' card covers the board (no clock runs, nothing is seen)
-document.addEventListener("visibilitychange", () => { if (document.hidden && !IN_FRAME && (S?.phase === "plan" || S?.phase === "flow") && !clock.brief) retryLevel(); });
+for (const [id, what] of [["holdBtn", "hold"], ["scrapBtn", "scrap"], ["turnBtn", "turn"], ["layBtn", "lay"], ["hurryBtn", "hurry"]]) $(id).addEventListener("click", () => act(what));
+document.addEventListener("keydown", e => {
+  if (mode !== "deep" || e.metaKey || e.ctrlKey || e.altKey || document.querySelector("dialog[open]")) return;
+  const what = { " ": "turn", r: "turn", Enter: "lay", h: "hold", x: "scrap", f: "hurry", b: "lay" }[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+  if (what) { e.preventDefault(); act(what); }
+});
+// the menu and the rules hold the game where it is (a match's clock runs on)
+onPause(() => { if (!match) { cancelAnimationFrame(raf); held = true; } }, () => { if (held) { held = false; run(); } });
+// a match's clock runs on while the app is out of sight; your own game waits
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); save(); return; }
+  if (match && hiddenAt) catchUp(Date.now() - hiddenAt);
+  hiddenAt = 0;
+  duel.resync();
+});
+window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
+window.addEventListener("resize", () => { if (mode === "deep") view?.resize(); });
 
 // for tests and debugging
-window.__pipes = { get state() { return S; }, get level() { return L; }, get run() { return R; }, get clock() { return clock; }, get terms() { return terms; }, get fx() { return fx; }, tap, start, choose: chooseJob, swap: settleSwap, over, duel,
-  skipBrief: () => { if (clock.brief) endBrief(); }, skipPlanning: () => { if (clock.brief) endBrief(); clock.planLeft = 0; },
-  applySolution: () => { R.tiles.forEach((row, y) => row.forEach((t, x) => { if (!t.locked && !t.fixed) t.rot = L.solution[y][x]; drawTile(x, y); })); } };
+window.__pipes = { get F() { return F; }, get L() { return L; }, get R() { return R; }, get S() { return S; }, get mode() { return mode; }, B, G, step, tapSquare, act, setMode, startFlat, startDeep, duel };
 
+/** Your own game: the old Pipes' saves cleared away (its runs and bests were another game's), then the mode you were
+ *  in, where you left it. A watching frame picks it up and runs it on by the time since it was kept. */
 function solo() {
-  S = read(RUN, null);
-  if (S) {
-    // a run saved before boons: its upgrades become boons, the last five taken in the slots
-    if (!S.boons) { S.boons = (S.upgrades || []).filter(id => BOONS[id]).slice(-SLOTS); delete S.upgrades; S.maxLives = LIVES + (S.boons.includes("crew") ? 1 : 0); S.lives = Math.min(S.lives, S.maxLives); }
-    S.grow ??= {}; S.streak ??= 0; S.maxLives ??= LIVES;
+  if (!IN_FRAME) {
+    for (const k of ["pipes:run", "pipes:acts"]) localStorage.removeItem(k);
+    const best = read(KEY.best, null);
+    if (best && ("n" in best || typeof best.score === "number")) localStorage.removeItem(KEY.best);
+    const daily = read(KEY.daily, null);
+    if (daily && Object.values(daily).some(v => typeof v?.score === "number")) localStorage.removeItem(KEY.daily);
   }
-  const hash = new URLSearchParams(location.hash.slice(1));
-  const linked = Number(hash.get("d") || hash.get("s")), mode = hash.get("d") ? "daily" : "random";
-  const kept = S?.live && S.live.n === S.n && S.live.attempt === S.attempt && S.live.R;
-  if (IN_FRAME && S?.phase === "pick") showJobs();
-  else if (IN_FRAME && kept) resumeLive();
-  else if (linked && !(S && S.seed === linked && S.mode === mode)) start(mode, linked);
-  else if (!S || S.phase === "over" || S.duel) start("random");
-  else if (S.phase === "pick") showJobs();
-  else if (S.phase === "done" && kept && S.after) resumeLive();
-  else beginLevel();
+  F = R = null;
+  setMode(mode);
+  const kept = mode === "flat" ? F : R;
+  if (IN_FRAME && kept?.at) catchUp(Date.now() - kept.at);
+  run();
 }
 // a match in the address: its run, with no solo one dealt under it
 if (duel.inAddress) duel.join().then(ok => { if (!ok) solo(); });
 else solo();
-document.addEventListener("visibilitychange", () => { if (!document.hidden) duel.resync(); });
-window.addEventListener("pageshow", e => { if (e.persisted) duel.resync(); });
