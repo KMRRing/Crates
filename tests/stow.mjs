@@ -233,8 +233,15 @@ check(LEVELS.every(l => E.starsFor(l.par, l.par) === 3 && E.starsFor(l.par + 1, 
   const byCh = c => MANIFESTS.filter(l => l.chapter === c);
   check(byCh(2).every(l => l.hold.decks) && byCh(3).every(l => l.hold.decks && l.pieces.every(p => p.port)) && byCh(4).every(l => l.pieces.some(p => p.reefer)) && byCh(5).every(l => l.pieces.some(p => p.dg)) && byCh(6).every(l => l.keel),
     "each chapter's rule: below decks in decks, the discharge order's ports, reefers, dangerous goods, an even keel");
-  check(MANIFESTS.filter(l => l.keel).every(l => { const F = M.fieldOf(l), xs = F.cells.map(c => c.c[0]); return (Math.max(...xs) - Math.min(...xs)) % 2 === 1 && F.cells.every(c => F.index.has(`${Math.max(...xs) + Math.min(...xs) - c.c[0]},${c.c[1]}`)); }),
+  check(MANIFESTS.filter(l => l.keel).every(l => { const F = M.fieldOf(l), xs = F.cells.map(c => c.c[0]); return (Math.max(...xs) - Math.min(...xs)) % 2 === 1 && F.cells.every(c => F.index.has([Math.max(...xs) + Math.min(...xs) - c.c[0], ...c.c.slice(1)].join(","))); }),
     "an even keel's hold is the same either side of its centreline, an even number of cells across");
+  // progress is kept by id, so the campaign only grows at the end: what was published stays as it was, and a level
+  // added to a chapter later is numbered on in it
+  let h = 2166136261;
+  for (const ch of JSON.stringify(MANIFESTS.slice(0, 58))) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  check(h.toString(36) === "1p90yir" && PLAN_CHAPTERS.every(c => byCh(c.id).every((l, k) => l.n === k + 1)), "the 58 manifests first published are as they were, and each chapter's are numbered on in the order they were added");
+  check([4, 5, 6, 7].every(c => byCh(c).some(l => l.hold.decks)) && MANIFESTS.filter(l => l.hold.decks && l.plugs).every(l => l.plugs.every(i => i < M.fieldOf(l).n2)),
+    "every rule has holds in decks too, a reefer's sockets on the floor there");
   const easy = l => l.n === 1 || (l.chapter === 1 && l.n === 2);
   let stowed = 0, single = 0, ruled = 0;
   const t0 = Date.now();

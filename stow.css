@@ -146,6 +146,9 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806
 .sw-row button.done { background: var(--sw-in-soft); }
 .sw-row button[aria-current] { border-color: var(--sw-in); box-shadow: inset 0 0 0 1.5px var(--sw-in); }
 .sw-row button:disabled { opacity: .38; cursor: default; }
+.sw-row button { position: relative; }
+/* a hold in decks: a cube in the button's corner */
+.sw-cube { position: absolute; right: .25rem; top: .25rem; width: .6rem; height: .6rem; fill: none; stroke: var(--brass); stroke-width: 1; stroke-linejoin: round; }
 
 .sw-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 40;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
@@ -228,6 +231,21 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806
 [data-kind="deck"] .cr.bad polygon { stroke: var(--sw-bad); stroke-width: 2.2px; }
 [data-kind="deck"] .cr.seat polygon { stroke: var(--brass-hi); stroke-width: 2.2px; }
 [data-kind="deck"] .hatch .stamp { font-size: 1px; }
+/* in decks the rules are painted on the crates: a dangerous good's placard on every face it shows, in its class's
+   colour; a reefer's snowflake; heavy crates shaded darker. A reefer's socket is on the floor, seen through what's in
+   front; port and starboard are lettered at the floor's sides and the bow marked, whichever way the hold is turned */
+[data-kind="deck"] .stamp.dg3 { fill: #C8321F; stroke: #FFFFFF; }
+[data-kind="deck"] .stamp.dg5 { fill: #E5B419; stroke: #FFFFFF; }
+[data-kind="deck"] .flake { fill: none; stroke: #FFFFFF; stroke-width: 1.3px; stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+[data-kind="deck"] .cr.heavy .ft { fill: color-mix(in srgb, var(--f) 70%, var(--ink)); }
+[data-kind="deck"] .cr.heavy .fl { fill: color-mix(in srgb, var(--f) 56%, var(--ink)); }
+[data-kind="deck"] .cr.heavy .fr { fill: color-mix(in srgb, var(--f) 45%, var(--ink)); }
+[data-kind="deck"] .plug3 polygon { fill: color-mix(in srgb, var(--sheet) 72%, transparent); stroke: var(--brass); stroke-width: 1.4px; vector-effect: non-scaling-stroke; }
+[data-kind="deck"] .plug3 .pin { fill: var(--brass); }
+[data-kind="deck"] .xray.plug { fill: none; stroke: var(--brass); stroke-width: 1.4px; stroke-dasharray: 3 2; }
+[data-kind="deck"] .side3 { font-size: .5px; font-weight: 850; fill: var(--ink-soft); text-anchor: middle; dominant-baseline: central; pointer-events: none;
+  paint-order: stroke; stroke: var(--sheet); stroke-width: .09; stroke-linejoin: round; }   /* a halo, in the drawing's units */
+[data-kind="deck"] .bow3 { fill: var(--brass); pointer-events: none; }
 
 /* the manifest: every piece at once, on one scale, a tap turning one; Undo last */
 .sw-tray.plan { grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 2), minmax(0, 1fr)); grid-auto-rows: auto; gap: .375rem; height: 9.4rem; }

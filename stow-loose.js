@@ -387,25 +387,27 @@ export function createLoose(ctx) {
         const h = document.createElement("p"), row = document.createElement("div");
         h.className = "sw-chapter"; h.textContent = ch.title;
         row.className = "sw-row";
-        for (const lv of LEVELS.filter(l => l.chapter === ch.id)) row.appendChild(levelButton(lv, ch, progress[lv.id]?.stars || 0, L && lv.id === L.id, !isOpen(lv), () => { close(); play(lv); }));
+        for (const lv of LEVELS.filter(l => l.chapter === ch.id)) row.appendChild(levelButton(lv, ch, progress[lv.id]?.stars || 0, L && lv.id === L.id, !isOpen(lv), () => { close(); play(lv); }, !!lv.field.decks));
         list.append(h, row);
       }
       part(body, "content").append(list);
     },
   };
 }
-/** A level's button in the menu's campaign: its number and stars, the one in play marked, a locked one greyed. */
-export function levelButton(lv, ch, stars, current, locked, go) {
+/** A level's button in the menu's campaign: its number and stars, the one in play marked, a locked one greyed, a hold
+ *  in decks with a cube in its corner. */
+export function levelButton(lv, ch, stars, current, locked, go, deep = false) {
   const b = document.createElement("button");
   b.type = "button";
-  b.className = stars ? "done" : "";
+  b.className = `${stars ? "done" : ""}${deep ? " deep" : ""}`;
   if (current) b.setAttribute("aria-current", "true");
   b.disabled = locked;
   const n = document.createElement("b"), s = document.createElement("span");
   n.textContent = String(lv.n);
   s.textContent = stars ? "★".repeat(stars) : "";
   b.append(n, s);
-  b.setAttribute("aria-label", `${ch.title} ${lv.n}${stars ? `, ${stars} stars` : ""}${locked ? ", locked" : ""}`);
+  if (deep) b.insertAdjacentHTML("beforeend", '<svg class="sw-cube" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5L10.5 4V8.5L6 11L1.5 8.5V4Z M1.5 4L6 6.5L10.5 4 M6 6.5V11"/></svg>');
+  b.setAttribute("aria-label", `${ch.title} ${lv.n}${deep ? ", in decks" : ""}${stars ? `, ${stars} stars` : ""}${locked ? ", locked" : ""}`);
   b.addEventListener("click", go);
   return b;
 }

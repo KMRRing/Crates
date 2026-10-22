@@ -91,6 +91,20 @@ const RECIPES = [
   R(7, sq(8, 6), 3, BIG, [9, 10], [2000, 50000], { rules: { reefers: 2, dg: [1, 2], keel: 2 } }),
   R(7, sq(5, 3, 3), 6, BIGCUBES, [9, 12], [1500, 200000], { rules: { ports: 3 }, limit: 3e6 }),
   R(7, bow(FORE7), 4, BIG, [11, 12], [5000, 150000], { rules: { reefers: 3, dg: [2, 2], keel: 2 }, limit: 3e6 }),
+  // Progress is kept by a manifest's id, its place in this list, so the campaign only grows at the end: a new level
+  // goes last here, whatever its chapter, and is numbered on in its chapter. In decks (October 2026): reefers on the
+  // floor's sockets, dangerous goods kept apart in all three directions, an even keel with the heavy cargo stacked.
+  R(4, sq(3, 3, 2), 2, CUBES, [5, 6], [20, 600], { rules: { reefers: 2 } }),
+  R(4, sq(4, 3, 2), 3, CUBES, [6, 7], [60, 2000], { rules: { reefers: 2 } }),
+  R(4, sq(4, 3, 3), 4, BIGCUBES, [8, 10], [300, 20000], { rules: { reefers: 3 } }),
+  R(5, sq(3, 3, 2), 2, CUBES, [5, 6], [20, 800], { rules: { dg: [1, 1] } }),
+  R(5, sq(4, 3, 2), 2, CUBES, [6, 8], [80, 3000], { rules: { dg: [1, 2] } }),
+  R(5, sq(4, 4, 2), 4, BIGCUBES, [7, 9], [300, 20000], { rules: { dg: [2, 2] } }),
+  R(6, sq(4, 2, 2), 0, CUBES, [4, 6], [10, 600], { rules: { keel: 2 } }),
+  R(6, sq(4, 3, 2), 2, CUBES, [6, 8], [60, 3000], { rules: { keel: 2 } }),
+  R(6, sq(4, 4, 2), 3, BIGCUBES, [7, 9], [300, 20000], { rules: { keel: 3 } }),
+  R(7, sq(4, 3, 3), 3, BIGCUBES, [8, 10], [800, 60000], { rules: { reefers: 2, ports: 3 } }),
+  R(7, sq(4, 4, 2), 3, BIGCUBES, [8, 10], [800, 60000], { rules: { dg: [1, 2], keel: 2 } }),
 ];
 
 const levels = [], t0 = Date.now();

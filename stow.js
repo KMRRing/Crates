@@ -23,6 +23,11 @@ const APP = 3;                    // this code's version of the together state (
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private mode */ } };
 const byId = new Map(MANIFESTS.map(l => [l.id, l]));
+// the campaign in the order it's played: chapter by chapter, each in its own order (a level added later to a chapter
+// comes last in the list of manifests, numbered on in its chapter)
+const ORDER = [...MANIFESTS].sort((a, b) => a.chapter - b.chapter || a.n - b.n);
+const after = lv => (lv && !lv.day ? ORDER[ORDER.indexOf(byId.get(lv.id)) + 1] || null : null);
+const before = lv => ORDER.find(l => l.chapter === lv.chapter && l.n === lv.n - 1);
 // until October 2026 today's hold (Loose cargo's) was kept whole here; today's manifest is kept under stow:dayplan
 try { localStorage.removeItem("stow:day"); } catch { /* private mode */ }
 
@@ -65,7 +70,7 @@ const plan = createPlan({
   turned: turns => { if (!inRoom() && run) { run.turns = [...turns]; saveRun(); } },
   // the result's buttons: Next only where there's a next
   result: () => {
-    const n = inRoom() ? MANIFESTS.find(l => l.id === roomLevel(S()).id + 1) : nextPlan();
+    const n = inRoom() ? after(roomLevel(S())) : nextPlan();
     $("nextBtn").hidden = !n;
     $("retryBtn").textContent = "Again";
     $("retryBtn").className = n ? "sw-go quiet" : "sw-go";
@@ -84,7 +89,7 @@ function enter(m) {
 function startPlan() {
   const saved = read(RUN, null), lv = saved && levelFor(saved.id);
   if (lv && saved.plan && saved.sig === sigOf(lv)) { run = saved; plan.show(lv, run.plan, run.turns); return; }
-  openPlan(lv || MANIFESTS.find(l => !progress[l.id]?.stars) || MANIFESTS[0]);
+  openPlan(lv || ORDER.find(l => !progress[l.id]?.stars) || ORDER[0]);
 }
 /** What a manifest is (its hold, cargo and pieces), short: a run kept for one that has since changed starts afresh. */
 const sigOf = lv => { let h = 2166136261; for (const ch of JSON.stringify([lv.hold, lv.cargo, lv.plugs, lv.pieces])) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h.toString(36); };
@@ -113,9 +118,9 @@ function stowed(L, done) {
   write(PLANS, progress);
   noteStars("stow", starsAll());
 }
-const nextPlan = () => { const L = plan.level; return L && !L.day ? MANIFESTS.find(l => l.id === L.id + 1) || null : null; };
-/** Manifests you can open: every one up to the one after your furthest stowed, and each chapter's first. */
-const isOpen = lv => lv.n === 1 || progress[lv.id - 1]?.stars > 0 || progress[lv.id]?.stars > 0;
+const nextPlan = () => after(plan.level);
+/** Manifests you can open: each chapter's first, and every one after one you've stowed. */
+const isOpen = lv => lv.n === 1 || progress[before(lv)?.id]?.stars > 0 || progress[lv.id]?.stars > 0;
 
 // ---------- today's manifest: made on the device (the worker proves it has one stow), the same everywhere ----------
 async function daily() {
@@ -215,7 +220,7 @@ async function askName() {
   return name;
 }
 // a new table starts at your manifest (today's is yours alone: the first you haven't stowed, then)
-const tableLevel = () => (plan.level && !plan.level.day ? plan.level : MANIFESTS.find(l => !progress[l.id]?.stars) || MANIFESTS[0]);
+const tableLevel = () => (plan.level && !plan.level.day ? plan.level : ORDER.find(l => !progress[l.id]?.stars) || ORDER[0]);
 const together = createTogether({
   game: "stow",
   app: APP,
@@ -274,7 +279,7 @@ function campaign(go, locked) {
     const h = document.createElement("p"), row = document.createElement("div");
     h.className = "sw-chapter"; h.textContent = ch.title;
     row.className = "sw-row";
-    for (const lv of MANIFESTS.filter(l => l.chapter === ch.id)) row.appendChild(levelButton(lv, ch, progress[lv.id]?.stars || 0, plan.level && lv.id === plan.level.id, locked(lv), () => go(lv)));
+    for (const lv of ORDER.filter(l => l.chapter === ch.id)) row.appendChild(levelButton(lv, ch, progress[lv.id]?.stars || 0, plan.level && lv.id === plan.level.id, locked(lv), () => go(lv), !!lv.hold.decks));
     list.append(h, row);
   }
   return list;
@@ -292,7 +297,7 @@ $("retryBtn").addEventListener("click", () => {
 });
 $("nextBtn").addEventListener("click", () => {
   if (showing() === "loose") { loose.next(); return; }
-  const n = inRoom() ? MANIFESTS.find(l => l.id === roomLevel(S()).id + 1) : nextPlan();
+  const n = inRoom() ? after(roomLevel(S())) : nextPlan();
   if (!n) return;
   if (inRoom()) together.act(g => restart(g, n)); else openPlan(n);
 });

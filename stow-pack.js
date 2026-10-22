@@ -128,7 +128,8 @@ function sideOf(F) {
 
 /**
  * What a stow (placed: per piece, null or { o, at }) does and breaks, for the page and the tests: the pieces still to
- * stow; reefers off their plugs; class 3 and 5.1 touching (the pairs); cargo stowed over cargo for an earlier port (the
+ * stow; reefers off their plugs, and plugs taken by something else (blocked: with a plug a reefer, one will go
+ * without); class 3 and 5.1 touching (the pairs); cargo stowed over cargo for an earlier port (the
  * pairs, upper first: a restow at the first port); port and starboard's tonnes; dead space, cells no piece left could
  * ever fill (a pocket too small, or too oddly sized, for what's left; in a hold, a cell under a crate: hollow, how
  * many); and won.
@@ -136,7 +137,8 @@ function sideOf(F) {
 export function audit(level, placed, F = fieldOf(level)) {
   const occ = occupancy(level, placed, F), ps = level.pieces, left = ps.filter((_, j) => !placed[j]);
   const plug = new Set(level.plugs || []), near = nearOf(F), side = sideOf(F);
-  const out = { left: left.length, unplugged: [], clash: [], over: [], keel: null, dead: [], hollow: 0, won: false };
+  const out = { left: left.length, unplugged: [], blocked: 0, clash: [], over: [], keel: null, dead: [], hollow: 0, won: false };
+  for (const i of plug) if (occ[i] >= 0 && !ps[occ[i]].reefer) out.blocked++;
   ps.forEach((p, j) => {
     if (!placed[j]) return;
     const cells = [];
@@ -554,14 +556,17 @@ function lowerable(under) {
 const shuffle = (xs, r) => { for (let i = xs.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [xs[i], xs[j]] = [xs[j], xs[i]]; } return xs; };
 /**
  * The tags a recipe asks for, on a cut that keeps them (it's the stow the level is made from): reefers, each with a
- * plug under one of its cells; class 3 and 5.1 pieces that don't touch; ports, nothing over cargo for an earlier
+ * plug under one of its cells (in decks, on the floor); class 3 and 5.1 pieces that don't touch; ports, nothing over cargo for an earlier
  * port; heavy pieces (2 or 3 t a crate) placed so port and starboard weigh the same. Mutates the tags; false when the
  * cut can't carry them.
  */
 function tag(F, parts, tags, rules, r, plugs) {
   if (rules.reefers) {
-    const order = shuffle(parts.map((_, k) => k), r);
-    for (const k of order.slice(0, rules.reefers)) { tags[k].reefer = 1; plugs.push(parts[k][Math.floor(r() * parts[k].length)]); }
+    // in decks the sockets are on the floor, so a reefer is one with a crate there
+    const floor = k => (F.decks ? parts[k].filter(i => i < F.n2) : parts[k]);
+    const order = shuffle(parts.map((_, k) => k).filter(k => floor(k).length), r);
+    if (order.length < rules.reefers) return false;
+    for (const k of order.slice(0, rules.reefers)) { const at = floor(k); tags[k].reefer = 1; plugs.push(at[Math.floor(r() * at.length)]); }
   }
   if (rules.dg) {
     const [a, b] = rules.dg, near = nearOf(F), owner = new Int16Array(F.n).fill(-1);

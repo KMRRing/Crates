@@ -29,6 +29,9 @@ const HINTS = {
   "4/1": "Every reefer goes on a plug.",
   "5/1": "Class 3 and class 5.1 never touch, not even at a corner.",
   "6/1": "Port and starboard must weigh the same.",
+  "4/9": "In a hold in decks the plugs are on the floor.",
+  "5/9": "In decks they mustn't touch above or below either.",
+  "6/9": "Port and starboard are lettered at the hold's sides, the bow marked.",
   "7/1": "Every rule at once.",
 };
 
@@ -178,16 +181,26 @@ export function createPlan(ctx) {
   // ---------- a hold in decks ----------
   function drawDeep(au, ghost) {
     const occ = occupancy(L, placed(), F), board = new Array(F.n).fill(0), tint = new Array(F.n).fill(0);
-    for (let i = 0; i < F.n; i++) if (occ[i] !== -1) { board[i] = 1; if (occ[i] >= 0) tint[i] = colour[occ[i]]; }
-    const bad = new Set();
-    for (const [j] of au.over) for (let i = 0; i < F.n; i++) if (occ[i] === j) bad.add(i);
+    const marks = new Map(), heavy = new Set(), bad = new Set(), wrong = new Set([...au.over.map(([j]) => j), ...au.unplugged, ...au.clash.flat()]);
+    const tag = (i, j) => { const m = markOf(L.pieces[j]); if (m) marks.set(i, m); if (tonnes(L.pieces[j]) > 1) heavy.add(i); };
+    for (let i = 0; i < F.n; i++) if (occ[i] !== -1) {
+      board[i] = 1;
+      if (occ[i] < 0) continue;
+      tint[i] = colour[occ[i]];
+      tag(i, occ[i]);
+      if (wrong.has(occ[i])) bad.add(i);
+    }
+    if (ghost) for (const i of ghost) tag(i, drag.j);
     scene.px = unitsPer() / scale();
-    const o = { board, tint, ghost, ghostTint: drag ? colour[drag.j] : 1, bad };
+    const o = { board, tint, ghost, ghostTint: drag ? colour[drag.j] : 1, bad, marks, heavy, plugs: L.plugs, sides: !!L.keel };
     if (anim) Object.assign(o, anim.frame());
     if (fx?.cells) o.seat = fx.cells;
     scene.draw(o);
     $("board").insertAdjacentHTML("beforeend", hatchMarkup(scene.frame, false));
   }
+
+  /** What a piece wears on its crates in 3D: a dangerous good's placard, a reefer's snowflake. */
+  const markOf = p => (p.dg === "3" ? "dg3" : p.dg ? "dg5" : p.reefer ? "flake" : null);
 
   // ---------- the tray: the manifest ----------
   function drawTray() {
@@ -242,7 +255,7 @@ export function createPlan(ctx) {
     if (F.decks) {
       svg.setAttribute("class", "sw-piece deck");
       svg.dataset.kind = "deck";
-      svg.shape = drawPiece(svg, F, pieceFor(cellsAt(j, o), true), ctx.view(), { fit, tint: colour[j], reach });
+      svg.shape = drawPiece(svg, F, pieceFor(cellsAt(j, o), true), ctx.view(), { fit, tint: colour[j], reach, mark: markOf(L.pieces[j]), heavy: tonnes(L.pieces[j]) > 1 });
       return svg;
     }
     const xy = cellsAt(j, o), [w, h] = extent(xy);
@@ -476,6 +489,7 @@ export function createPlan(ctx) {
     else if (au.clash.length) { say = "Class 3 is touching 5.1: restow one of them"; tone = "bad"; }
     else if (au.over.length) { const [a, b] = au.over[0]; say = `${PORTS[L.pieces[a].port - 1]} cargo over ${PORTS[L.pieces[b].port - 1]}'s: a restow at ${PORTS[L.pieces[b].port - 1]}`; tone = "bad"; }
     else if (au.unplugged.length) { say = "A reefer off its plug: it needs the power"; tone = "bad"; }
+    else if (au.blocked) { say = "A plug under cargo that isn't a reefer: a reefer will go without"; tone = "bad"; }
     else if (!au.left && au.keel && au.keel.port !== au.keel.star) { const d = au.keel.port - au.keel.star; say = `Listing ${Math.abs(d)} t to ${d > 0 ? "port" : "starboard"}: shift the heavy cargo`; tone = "bad"; }
     else say = !P.restows && !Object.keys(P.placed || {}).length ? HINTS[`${L.chapter}/${L.n}`] || "" : "";
     const el = $("say");
