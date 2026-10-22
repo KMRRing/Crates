@@ -1,8 +1,9 @@
-/* Orrery: a brass armillary instrument (five hoops on an axle round a sun, planets on their wires, a horizon ring below),
+/* Orrery: a brass armillary instrument (four hoops on an axle round a sun, planets on their wires, a horizon ring below),
    drawn by orrery-3d.js on a canvas (flat, by orrery-flat.js, where there is no WebGL), with what the page says over it in
-   the screen's own pixels (score pops, the first game's words) and the seven buttons that set the hoop chosen under it. The
-   planets are in the four enamels, each with a mark of its own (a ring, bands, a crescent, a cap) so they're told apart
-   without their colour. Gilt is the house colour. */
+   the screen's own pixels (score pops, the first game's words); under it the beat (the tempo between − and +, a
+   metronome swinging with it, and a bar of the beats coming, a row for each hoop) and the seven buttons that set the hoop
+   chosen. The planets are in the four enamels, each with a mark of its own (a ring, bands, a crescent, a cap) so they're
+   told apart without their colour. Gilt is the house colour. */
 :root {
   --or-in: var(--c0);
   --or-soft: color-mix(in srgb, var(--or-in) 15%, var(--sheet));
@@ -25,6 +26,9 @@
 .or-over text { font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 3.2; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
 .or-over text.or-hint { font-weight: 650; fill: var(--ink-soft); stroke: none; }
 .or-over text.or-hint.head { font-weight: 800; fill: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
+/* each hoop's number, by its knuckle where it crosses the axle at six o'clock (which no tip moves): the rows of the bar of beats */
+.or-over text.or-num { font-weight: 800; fill: var(--ink-soft); stroke-width: 2.6; text-anchor: start; }
+.or-over text.or-num.on { fill: var(--ink); }
 .or-plaque { fill: color-mix(in srgb, var(--sheet) 92%, transparent); stroke: var(--brass); stroke-width: 1; }
 
 /* the flat orrery, where there's no WebGL: a navy dial, bands of brass, the sun */
@@ -41,6 +45,11 @@
 .or-flat-beam.k1 { stroke: var(--c1); }
 .or-flat-beam.k2 { stroke: var(--c2); }
 .or-flat-beam.k3 { stroke: var(--c3); }
+.or-flat-ring { fill: none; stroke-width: 1.1; }
+.or-flat-ring.k0 { stroke: color-mix(in srgb, var(--c0) 70%, #fff); }               /* lighter than the enamel: the flat dial is navy by day too */
+.or-flat-ring.k1 { stroke: color-mix(in srgb, var(--c1) 60%, #fff); }
+.or-flat-ring.k2 { stroke: color-mix(in srgb, var(--c2) 55%, #fff); }
+.or-flat-ring.k3 { stroke: color-mix(in srgb, var(--c3) 60%, #fff); }
 .or-disc { stroke: color-mix(in srgb, #000 45%, transparent); stroke-width: .35; }
 .or-planet.k0 .or-disc { fill: var(--c0); }
 .or-planet.k1 .or-disc { fill: var(--c1); }
@@ -57,11 +66,46 @@
 .or-foretold.k3 { stroke: var(--c3); }
 @keyframes or-fore { to { opacity: .45; } }
 
-/* under the orrery: which ring is chosen and what its buttons do, the seven buttons; at the end, how it went and New game, in the same room */
-.or-side { display: grid; align-content: start; min-height: 6.6rem; }
+/* under the orrery: the beat, which hoop is chosen and what its buttons do, the seven buttons; at the end, how it went
+   and New game, in the same room (the controls' height, so the orrery doesn't grow when the game ends) */
+.or-side { display: grid; align-content: start; }
 .or-side > * { grid-area: 1 / 1; }
 .or-controls { display: grid; gap: .45rem; align-content: start; }
-.or-controls[hidden], .or-result[hidden] { display: none; }
+
+/* the beat: − and + either side of the tempo and its metronome, and the bar of the beats coming beside them */
+.or-beat { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: stretch; gap: .6rem; height: 2.75rem; }
+.or-tempo { display: grid; grid-template-columns: 2.4rem auto 2.4rem; border: 1px solid var(--tile-edge); border-radius: 4px; overflow: hidden; background: var(--tile); }
+.or-nudge { border: 0; padding: 0; background: var(--tile); color: var(--ink); font: inherit; font-size: 1.3rem; font-weight: 700; line-height: 1; cursor: pointer; touch-action: manipulation; }
+.or-nudge:disabled { color: color-mix(in srgb, var(--ink-soft) 45%, transparent); cursor: default; }
+.or-metro { display: flex; align-items: center; justify-content: center; gap: .3rem; min-width: 3.6rem; padding: 0 .4rem; border-inline: 1px solid var(--tile-edge); background: var(--sheet); }
+.or-metro svg { width: .95rem; height: 1.2rem; flex: none; overflow: visible; }
+.or-metro-case { fill: color-mix(in srgb, var(--brass) 18%, transparent); stroke: var(--brass); stroke-width: 1.3; stroke-linejoin: round; }
+.or-metro-scale { stroke: var(--brass); stroke-width: .8; stroke-dasharray: 1 1.2; }
+.or-metro-foot { stroke: var(--brass); stroke-width: 1.6; stroke-linecap: round; }
+.or-metro-arm { transform-box: view-box; transform-origin: 10px 19.6px; transition: transform .3s cubic-bezier(.45, 0, .55, 1); }
+.or-metro-arm path { stroke: var(--ink); stroke-width: 1.4; stroke-linecap: round; }
+.or-metro-arm rect { fill: var(--ink); }
+.or-metro b { min-width: 1.35rem; font-size: 1.08rem; font-weight: 800; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* the bar of beats: a row for each hoop (its number at the left) and a column for each of the next six beats, read at the
+   brass line at the left as each beat comes, like a music box's barrel passing its comb */
+.or-roll { display: grid; grid-template-columns: 1rem minmax(0, 1fr); min-width: 0; padding-block: .1rem; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--sheet); overflow: hidden; }
+.or-roll-names { display: grid; grid-template-rows: repeat(4, 1fr); align-items: center; justify-items: center; font-size: .6rem; font-weight: 800; color: var(--ink-soft); font-variant-numeric: tabular-nums; line-height: 1; }
+.or-roll-names .on { color: var(--ink); }
+.or-roll-window { position: relative; overflow: hidden; }
+.or-roll-window::before { content: ""; position: absolute; z-index: 1; top: 0; bottom: 0; left: 0; width: 2px; background: var(--brass); }
+.or-roll-window.beat::before { animation: or-lamp .45s ease-out; }
+@keyframes or-lamp { from { background: var(--or-in); box-shadow: 0 0 .5rem .1rem color-mix(in srgb, var(--or-in) 70%, transparent); } }
+.or-roll-track { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(4, 1fr); width: calc(700% / 6); height: 100%;
+  transform: translateX(calc(-100% / 7)); transition: transform .28s cubic-bezier(.2, .7, .3, 1); }
+.or-roll-track i { display: grid; place-items: center; min-width: 0; color: var(--ink); border-left: 1px solid color-mix(in srgb, var(--rule) 55%, transparent); }
+.or-roll-track i.row-on { background: var(--or-soft); }
+.or-roll-track i.st::before { content: ""; width: .34rem; height: .34rem; border-top: 2px solid currentColor; border-right: 2px solid currentColor; }
+.or-roll-track i.st.r::before { transform: translateX(-12%) rotate(45deg); }
+.or-roll-track i.st.l::before { transform: translateX(12%) rotate(-135deg); }
+.or-roll-track i.rest::before { content: ""; width: .18rem; height: .18rem; border-radius: 50%; background: var(--ink-soft); opacity: .55; }
+.or-controls.gone { visibility: hidden; }                            /* gone at the end, but keeping its room, so the orrery doesn't grow */
+.or-result[hidden] { display: none; }
 .or-aim { display: flex; align-items: center; justify-content: space-between; gap: .6rem; min-height: 1.9rem; }
 .or-line { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; line-height: 1.3; color: var(--ink-soft); }
 .or-line b { color: var(--ink); font-weight: 800; }
@@ -72,7 +116,10 @@
 .or-seg[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); }
 .or-controls.none .or-mode { visibility: hidden; }
 .or-pad { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .3rem; }
-.or-key { display: grid; place-items: center; min-height: 3.2rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; }
+.or-key { position: relative; display: grid; place-items: center; min-height: 3.2rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; }
+/* on a tip's button, the other hoops already at that tip: tipped there, the hoop lies in their plane */
+.or-key .alike { position: absolute; top: .18rem; right: .26rem; font-size: .6rem; font-weight: 800; line-height: 1; letter-spacing: .04em; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.or-key[aria-pressed="true"] .alike { color: var(--plate-ink); }
 .or-key svg { width: 2.1rem; height: 1.5rem; display: block; }
 .or-key svg * { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .or-key svg .fill { fill: currentColor; stroke: none; }
@@ -93,5 +140,8 @@
   #app.orrery .or-side { grid-column: 2; grid-row: 3; align-content: end; }
   #app.orrery .or-controls { align-content: end; }
   #app.orrery .or-aim { flex-wrap: wrap; }
+  /* the side column has the height to spare: the bar of beats goes under the tempo, as wide as the column */
+  #app.orrery .or-beat { grid-template-columns: minmax(0, 1fr); grid-template-rows: 2.6rem 3.1rem; height: auto; gap: .45rem; }
+  #app.orrery .or-tempo { grid-template-columns: minmax(2.4rem, 1fr) auto minmax(2.4rem, 1fr); }
   #app.orrery .or-result { grid-template-columns: 1fr; align-self: end; }
 }

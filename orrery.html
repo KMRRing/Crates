@@ -38,14 +38,22 @@
 
   <section class="or-side">
     <div id="controls" class="or-controls">
+      <div class="or-beat">
+        <div id="tempoBox" class="or-tempo" role="group" aria-label="Tempo">
+          <button class="or-nudge" type="button" id="slowerBtn" aria-label="Slower">−</button>
+          <span class="or-metro"><svg viewBox="0 0 20 24" aria-hidden="true"><path class="or-metro-case" d="M6.6 2.2H13.4L17.6 21.8H2.4Z"/><path class="or-metro-scale" d="M10 5.5V15"/><g class="or-metro-arm"><path d="M10 19.6V3.6"/><rect x="8.2" y="7" width="3.6" height="2.8" rx=".6"/></g><path class="or-metro-foot" d="M1.6 21.8H18.4"/></svg><b id="tempo">45</b></span>
+          <button class="or-nudge" type="button" id="fasterBtn" aria-label="Faster">+</button>
+        </div>
+        <div id="roll" class="or-roll" aria-hidden="true"></div>
+      </div>
       <div class="or-aim">
         <p id="line" class="or-line"></p>
-        <div class="or-mode" role="group" aria-label="What the buttons do to the chosen ring">
+        <div class="or-mode" role="group" aria-label="What the buttons do to the chosen hoop">
           <button class="or-seg" type="button" id="spinBtn" aria-pressed="true">Spin</button>
           <button class="or-seg" type="button" id="tiltBtn" aria-pressed="false">Tilt</button>
         </div>
       </div>
-      <div id="pad" class="or-pad" role="group" aria-label="Set the chosen ring"></div>
+      <div id="pad" class="or-pad" role="group" aria-label="Set the chosen hoop"></div>
     </div>
     <div id="result" class="or-result" hidden>
       <p id="verdict" class="or-verdict"></p>

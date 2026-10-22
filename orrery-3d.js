@@ -1,22 +1,24 @@
 // Orrery in 3D, drawn with three.js (vendor/three.js, kept on the device, so it plays offline): an armillary of brass.
-// Five thin hoops pivot on an axle that runs from twelve o'clock to six through a glowing sun, each tipped as the
+// Four thin hoops pivot on an axle that runs from twelve o'clock to six through a glowing sun, each tipped as the
 // game has it; planets are beads strung on the hoops, lit by the sun at the middle, so the side turned to it is
-// bright. A horizon ring with a scale of degrees holds the axle's ends, and the sun stands on a column. Nothing is a
-// model or a texture: the brass, the scale and the planets' marks are all worked out in shaders, and the shapes are
-// lathed in code. A line of planets that clears is drawn as beams from the sun, flares, bursts into sparks and is gone.
-// The camera goes round the orrery under a finger on the empty sky and tips from low to nearly overhead. The page
-// (orrery.js) steps the game and draws it every frame: frame, event, select, pick, angleAt, at, orbit; orrery-flat.js
-// answers to the same calls where there is no WebGL.
+// bright. A horizon ring with a scale of degrees (a long mark at each of the twelve places) holds the axle's ends, and
+// the sun stands on a column. A hoop's step is drawn as a tick and its tip as a turn, both worked out from the game's
+// own time (orrery-engine.js's turnOf and tiltOf), so they stand still with the game. Nothing is a model or a texture:
+// the brass, the scale and the planets' marks are all worked out in shaders, and the shapes are lathed in code. A line
+// standing has beams from the sun to its planets, brightening until the beat strikes it; then it flares, bursts into
+// sparks and is gone. The camera goes round the orrery under a finger on the empty sky and tips from low to nearly
+// overhead. The page (orrery.js) steps the game and draws it every frame: frame, event, select, pick, angleAt, at,
+// orbit; orrery-flat.js answers to the same calls where there is no WebGL.
 import * as THREE from "./vendor/three.js";
-import { RINGS, PLACES, COLOURS, STEP, TAU, TILT_MAX, FORETELL, dirOf } from "./orrery-engine.js";
+import { RINGS, PLACES, COLOURS, STEP, TAU, TIP, TIP_MAX, FORETELL, dirOf, turnOf, tiltOf, strikeAt } from "./orrery-engine.js";
 
 const DEG = Math.PI / 180;
 // ---------- measures (units of the orrery; the sun is the middle, a place is a twelfth of a hoop) ----------
-export const RADIUS = [1.9, 3.0, 4.1, 5.2, 6.3];             // each hoop's radius
-const PR = [0.36, 0.4, 0.44, 0.47, 0.5];                      // a planet's radius on each (bigger outward, where there's room)
+export const RADIUS = [2.0, 3.4, 4.8, 6.2];                  // each hoop's radius: four, wider apart than five were, so each reads on its own
+const PR = [0.42, 0.47, 0.52, 0.56];                          // a planet's radius on each (bigger outward, where there's room)
 const WIRE = 0.055, BEAD = 0.15;                              // a hoop's wire, and the brass beads that mark its twelve places
 const SUN_R = 0.85, HORIZON = [6.95, 7.6], FOOT_Y = -6.3;    // the horizon ring's inner and outer edge; where the stand rests
-const BACK = 1, DOUBLE = 2, ADD = 2;                          // THREE.BackSide, DoubleSide, AdditiveBlending (not in the bundle's exports)
+const BACK = 1, DOUBLE = 2, ADD = 2, MIX = 1;                 // THREE.BackSide, DoubleSide, AdditiveBlending, NormalBlending (not in the bundle's exports)
 const MIN_EL = 18 * DEG, MAX_EL = 86 * DEG;
 const SPEED_HI = 0xffe3a0, TILT_HI = 0x8fe0cf;                // what a chosen hoop glows with, spinning and tipping
 
@@ -285,6 +287,24 @@ export function createOrrery(host) {
   const ghost = new Planet(), ghostRing = new THREE.Mesh(annulus(0.8, 1.05, 40), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: ADD, depthWrite: false }));
   ghostRing.visible = false; ghostRing.renderOrder = 3;
   scene.add(ghostRing);
+  // a ring round each planet of a line standing, in its enamel and drawn over everything: light added to a page by day
+  // is lost on it, and a line stands for as long as a beat now, so it has to read plainly that it's made
+  const ringGeo2 = annulus(1.3, 1.56, 48);
+  const marks = Array.from({ length: 16 }, () => {
+    const m = new THREE.Mesh(ringGeo2, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: MIX, depthWrite: false, depthTest: false, side: DOUBLE }));
+    m.visible = false; m.renderOrder = 6;
+    scene.add(m);
+    return m;
+  });
+  let nMarks = 0;
+  function mark(at, radius, colour, opacity) {
+    const m = marks[nMarks++];
+    if (!m) return;
+    m.position.copy(at); m.quaternion.copy(camera.quaternion); m.rotateX(Math.PI / 2); m.scale.setScalar(radius);
+    m.material.color.copy(enamel[colour]).lerp(skin.night ? white : black, skin.night ? 0.12 : 0.15);
+    m.material.opacity = opacity;
+    m.visible = true;
+  }
 
   // sparks
   const MOTES = 200, motes = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(0.05, 0), new THREE.MeshBasicMaterial({ color: 0xffffff }), MOTES);
@@ -318,7 +338,7 @@ export function createOrrery(host) {
   const LOOK = new THREE.Vector3(0, -0.4, 0), DIST = 40;
   // what must stay in view whatever the tips: each hoop level and tipped both ways, the horizon ring, the stand, the sun's glow
   const outline = [];
-  RADIUS.forEach(r => { for (const t of [-TILT_MAX, 0, TILT_MAX]) for (let k = 0; k < 40; k++) { const d = dirOf(t, (k / 40) * TAU); outline.push([r * d[0], r * d[1], r * d[2]]); } });
+  RADIUS.forEach(r => { for (const t of [-TIP_MAX * TIP, 0, TIP_MAX * TIP]) for (let k = 0; k < 40; k++) { const d = dirOf(t, (k / 40) * TAU); outline.push([r * d[0], r * d[1], r * d[2]]); } });
   for (let k = 0; k < 48; k++) { const a = (k / 48) * TAU; outline.push([(HORIZON[1] + 0.1) * Math.sin(a), 0, (HORIZON[1] + 0.1) * Math.cos(a)], [1.65 * Math.sin(a), FOOT_Y - 0.12, 1.65 * Math.cos(a)]); }
   outline.push([0, SUN_R + 0.6, 0]);
   let width = 1, height = 1, az = 0, el = 52 * DEG, auto = true;       // auto: the camera as high as the room asks (a phone held upright is taller than the orrery is wide)
@@ -355,11 +375,11 @@ export function createOrrery(host) {
   }
 
   // ---------- where things are ----------
-  const place = new THREE.Vector3(), white = new THREE.Color(0xffffff);
-  /** The middle of a planet in a place (a scratch vector, to use at once). */
-  function worldOf(s, ring, p) { const r = s.rings[ring], d = dirOf(r.tilt, r.a + p * STEP); return place.set(d[0], d[1], d[2]).multiplyScalar(RADIUS[ring]); }
+  const place = new THREE.Vector3(), white = new THREE.Color(0xffffff), black = new THREE.Color(0x000000);
+  /** The middle of a planet in a place, where it's drawn now: its hoop ticking round and tipping (a scratch vector, to use at once). */
+  function worldOf(s, ring, p) { const r = s.rings[ring], d = dirOf(tiltOf(r, s.t), (turnOf(r, s.t) + p) * STEP); return place.set(d[0], d[1], d[2]).multiplyScalar(RADIUS[ring]); }
   const landT = new Float32Array(RINGS * PLACES).fill(9), pos = Array.from({ length: RINGS * PLACES }, () => new THREE.Vector3());
-  let overT = 9, kick = 9, clock = 0, tick = performance.now();
+  let overT = 9, kick = 9, pulse = 9, clock = 0, tick = performance.now();
   const sel = { ring: -1, mode: "speed" };
 
   // ---------- beams, glows, sparks ----------
@@ -374,8 +394,9 @@ export function createOrrery(host) {
     b.position.copy(sun.position);
     b.quaternion.setFromUnitVectors(UP, dir);
     b.scale.set(width, len, width);
-    b.material.color.copy(enamel[colour]).lerp(white, 0.45);
-    b.material.opacity = opacity;
+    b.material.color.copy(enamel[colour]).lerp(white, skin.night ? 0.45 : 0.1);
+    b.material.blending = skin.night ? ADD : MIX;                              // light added to a light page is lost, so by day the beam is laid on it
+    b.material.opacity = skin.night ? opacity : opacity * 0.75;
     b.visible = true;
   }
   function glow(at, radius, colour, opacity) {
@@ -426,16 +447,16 @@ export function createOrrery(host) {
     last = s;
     clock += dt;
     LIGHT.uTime.value = clock;
-    nBeams = 0; nGlows = 0;
+    nBeams = 0; nGlows = 0; nMarks = 0;
     for (let k = 0; k < RINGS; k++) {
-      hoops[k].tilt.rotation.z = s.rings[k].tilt;                              // the three o'clock side up for a positive tip
-      hoops[k].spin.rotation.y = -s.rings[k].a;                                // our angles go clockwise, a positive turn about the vertical the other way
+      hoops[k].tilt.rotation.z = tiltOf(s.rings[k], s.t);                      // the three o'clock side up for a positive tip
+      hoops[k].spin.rotation.y = -turnOf(s.rings[k], s.t) * STEP;              // our angles go clockwise, a positive turn about the vertical the other way
     }
     for (let k = 0; k < RINGS; k++) for (let p = 0; p < PLACES; p++) {
       const i = k * PLACES + p, c = s.rings[k].places[p], pl = seats[k][p];
       landT[i] += dt;
       if (c < 0) { pl.hide(); continue; }
-      const u = clamp01(landT[i] / 0.5), w = worldOf(s, k, p);
+      const u = clamp01(landT[i] / 0.35), w = worldOf(s, k, p);
       pos[i].copy(w);
       pl.show(c);
       // a planet that has landed slides in from outside and swells onto its wire
@@ -451,17 +472,20 @@ export function createOrrery(host) {
       ghostRing.visible = true;
       ghostRing.position.copy(w);
       ghostRing.quaternion.copy(camera.quaternion);
+      ghostRing.rotateX(Math.PI / 2);                                          // the ring lies flat in its own frame: turned to face the camera
+      ghostRing.material.blending = skin.night ? ADD : MIX;
       ghostRing.scale.setScalar(PR[nx.ring] * (1.5 + 0.5 * (1 - u)) * pulse);
       ghostRing.material.color.copy(enamel[nx.colour]).lerp(white, 0.2);
       ghostRing.material.opacity = 0.35 + 0.5 * u;
     } else { ghost.hide(); ghostRing.visible = false; }
-    // alignments charging: beams from the sun to each planet in line, the glow growing with the charge
-    for (const c of s.live?.clusters ?? []) {
-      const pulse = 0.85 + 0.15 * Math.sin(clock * 16);
+    // lines standing: beams from the sun to each planet in line, brightening until the beat strikes them
+    for (const c of s.locks ?? []) {
+      const due = strikeAt(s, c.at), progress = clamp01((s.t - c.at) / Math.max(0.05, due - c.at)), shimmer = 0.85 + 0.15 * Math.sin(clock * 16);
       for (const m of c.members) {
         const w = pos[m.ring * PLACES + m.place];
-        beam(w, c.colour, (0.18 + 0.6 * c.progress) * pulse, 0.03 + 0.05 * c.progress);
-        glow(w, PR[m.ring] * (1.9 + 1.4 * c.progress), c.colour, (0.28 + 0.5 * c.progress) * pulse);
+        beam(w, c.colour, (0.25 + 0.55 * progress) * shimmer, 0.035 + 0.045 * progress);
+        glow(w, PR[m.ring] * (1.9 + 1.3 * progress), c.colour, (0.3 + 0.45 * progress) * shimmer);
+        mark(w, PR[m.ring] * (1.12 - 0.14 * progress), c.colour, 0.75 + 0.25 * shimmer);
       }
     }
     // planets cleared: they swell, rise and go, their beams flaring
@@ -477,10 +501,11 @@ export function createOrrery(host) {
       glow(vec, PR[e.ring] * (2.2 + 3 * u), e.planet.colour, 0.9 * (1 - u));
     }
     for (let i = nBeams; i < beams.length; i++) beams[i].visible = false;
+    for (let i = nMarks; i < marks.length; i++) marks[i].visible = false;
     for (let i = nGlows; i < glows.length; i++) glows[i].visible = false;
-    // the sun: it kicks when an alignment clears
-    kick += dt; overT += dt;
-    const swell = 1 + (kick < 0.4 ? 0.22 * Math.sin((kick / 0.4) * Math.PI) : 0);
+    // the sun: it beats a little with the beat, and kicks when a line is struck
+    kick += dt; overT += dt; pulse += dt;
+    const swell = 1 + (kick < 0.4 ? 0.22 * Math.sin((kick / 0.4) * Math.PI) : 0) + (pulse < 0.22 ? 0.045 * Math.sin((pulse / 0.22) * Math.PI) : 0);
     sun.scale.setScalar(swell);
     const dim = s.over ? 1 - 0.55 * clamp01(overT / 1.2) : 1;
     halo.visible = halo2.visible = true;
@@ -508,7 +533,8 @@ export function createOrrery(host) {
 
   // ---------- what happened: the page tells the view ----------
   function event(e, s) {
-    if (e.type === "land") {
+    if (e.type === "beat") pulse = 0;
+    else if (e.type === "land") {
       landT[e.ring * PLACES + e.place] = 0;
       const w = worldOf(s, e.ring, e.place);
       spark(w.x, w.y, w.z, e.colour, 5, 0.6);
@@ -545,7 +571,7 @@ export function createOrrery(host) {
     const r = canvas.getBoundingClientRect(), x = px - r.left, y = py - r.top;
     let best = reach, ring = -1;
     for (let k = 0; k < RINGS; k++) {
-      const tilt = last ? last.rings[k].tilt : 0, R = RADIUS[k], at0 = dirOf(tilt, 0);
+      const tilt = last ? tiltOf(last.rings[k], last.t) : 0, R = RADIUS[k], at0 = dirOf(tilt, 0);
       let [ax, ay] = screenOf(R * at0[0], R * at0[1], R * at0[2]);
       for (let i = 1; i <= 72; i++) {
         const d = dirOf(tilt, (i / 72) * TAU), [bx, by] = screenOf(R * d[0], R * d[1], R * d[2]), dist = onSegment(x, y, ax, ay, bx, by);
@@ -563,7 +589,7 @@ export function createOrrery(host) {
   }
   /** Where a point of the screen lies round the sun, in the plane of a hoop: clockwise from twelve o'clock round the hoop, or null. */
   function angleAt(ring, px, py) {
-    const { o, d } = rayAt(px, py), t = last ? last.rings[ring].tilt : 0, c = Math.cos(t), sn = Math.sin(t);
+    const { o, d } = rayAt(px, py), t = last ? tiltOf(last.rings[ring], last.t) : 0, c = Math.cos(t), sn = Math.sin(t);
     const den = -sn * d.x + c * d.y;                       // the hoop's plane holds the axle and (cos t, sin t, 0): its normal is (-sin t, cos t, 0)
     if (Math.abs(den) < 1e-5) return null;
     const k = (sn * o.x - c * o.y) / den;
@@ -572,7 +598,7 @@ export function createOrrery(host) {
   }
   /** A point on a hoop at an angle (and a height above it) on the canvas, in pixels from its top left. */
   function at(ring, angle, lift = 0) {
-    const d = dirOf(last ? last.rings[ring].tilt : 0, angle), R = RADIUS[ring];
+    const d = dirOf(last ? tiltOf(last.rings[ring], last.t) : 0, angle), R = RADIUS[ring];
     return screenOf(R * d[0], R * d[1] + lift, R * d[2]);
   }
   /** The sun's place on the canvas. */

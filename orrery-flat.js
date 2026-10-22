@@ -1,8 +1,9 @@
 // Orrery drawn flat, in SVG, where there's no WebGL: the same orrery seen from straight above, each hoop an ellipse as
 // narrow as it is tipped, planets as discs with the marks they have in 3D (a ring, bands, a crescent, a cap) so they're
-// told apart without their colour. It answers to the same calls as the 3D one (orrery-3d.js), so the page doesn't know
-// which it has: frame, event, select, pick, angleAt, at, orbit (which does nothing without a third dimension).
-import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf } from "./orrery-engine.js";
+// told apart without their colour, and the steps ticking and the tips turning as in 3D. It answers to the same calls as
+// the 3D one (orrery-3d.js), so the page doesn't know which it has: frame, event, select, pick, angleAt, at, orbit
+// (which does nothing without a third dimension).
+import { RINGS, PLACES, STEP, TAU, FORETELL, dirOf, turnOf, tiltOf } from "./orrery-engine.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 const el = (tag, attrs = {}, ...kids) => {
@@ -11,7 +12,7 @@ const el = (tag, attrs = {}, ...kids) => {
   n.append(...kids);
   return n;
 };
-const RADIUS = [19, 30, 41, 52, 63], PR = [3.6, 4, 4.4, 4.7, 5], PLATE = 76, SUN = 8.5;       // tenths of the 3D orrery's units
+const RADIUS = [20, 34, 48, 62], PR = [4.2, 4.7, 5.2, 5.6], PLATE = 76, SUN = 8.5;           // tenths of the 3D orrery's units
 const P = 72;                                                                                  // points to a hoop's outline, for picking
 /** A planet's mark, in the picture's frame (as the 3D planets have it) at radius r. */
 function mark(c, r) {
@@ -50,46 +51,49 @@ export function createFlat(host) {
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     world.setAttribute("transform", `translate(${(W / 2).toFixed(2)} ${(H / 2).toFixed(2)}) scale(${s.toFixed(4)})`);
   }
-  const tiltOf = ring => (last ? last.rings[ring].tilt : 0);
+  const tipOf = ring => (last ? tiltOf(last.rings[ring], last.t) : 0);
   /** Where a place is, seen from above: the world's x and z. */
-  const place = (ring, angle) => { const d = dirOf(tiltOf(ring), angle); return [RADIUS[ring] * d[0], RADIUS[ring] * d[2]]; };
+  const place = (ring, angle) => { const d = dirOf(tipOf(ring), angle); return [RADIUS[ring] * d[0], RADIUS[ring] * d[2]]; };
+  /** Where a hoop's own place is drawn now, round the sun: its hoop ticking round. */
+  const seat = (state, ring, p) => place(ring, (turnOf(state.rings[ring], state.t) + p) * STEP);
   function frame(state, dt) {
     last = state;
     bands.forEach((b, k) => {
-      const t = state.rings[k].tilt;
+      const t = tiltOf(state.rings[k], state.t);
       b.setAttribute("rx", (RADIUS[k] * Math.cos(t)).toFixed(2)); b.setAttribute("ry", RADIUS[k]);
       b.setAttribute("class", `or-flat-band${k === chosen.ring && !state.over ? " on" : ""}${chosen.mode === "tilt" ? " tip" : ""}`);
     });
     for (let k = 0; k < RINGS; k++) for (let p = 0; p < PLACES; p++) {
-      const c = state.rings[k].places[p], seat = seats[k][p];
-      if (c < 0) { seat.planet.setAttribute("visibility", "hidden"); continue; }
-      if (seat.colour !== c) {
-        seat.colour = c;
-        seat.body.replaceChildren(el("circle", { class: "or-disc", r: PR[k] }), mark(c, PR[k]));
-        seat.planet.setAttribute("class", `or-planet k${c}`);
+      const c = state.rings[k].places[p], chair = seats[k][p];
+      if (c < 0) { chair.planet.setAttribute("visibility", "hidden"); continue; }
+      if (chair.colour !== c) {
+        chair.colour = c;
+        chair.body.replaceChildren(el("circle", { class: "or-disc", r: PR[k] }), mark(c, PR[k]));
+        chair.planet.setAttribute("class", `or-planet k${c}`);
       }
-      const [x, y] = place(k, state.rings[k].a + p * STEP);
-      seat.planet.setAttribute("transform", `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
-      seat.planet.setAttribute("visibility", "visible");
+      const [x, y] = seat(state, k, p);
+      chair.planet.setAttribute("transform", `translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+      chair.planet.setAttribute("visibility", "visible");
     }
     const nx = state.next, due = nx.due - state.t;
     if (!state.over && nx.ring >= 0 && due < FORETELL && state.rings[nx.ring].places[nx.place] < 0) {
-      const [x, y] = place(nx.ring, state.rings[nx.ring].a + nx.place * STEP);
+      const [x, y] = seat(state, nx.ring, nx.place);
       ghost.setAttribute("class", `or-foretold k${nx.colour}`);
       ghost.setAttribute("cx", x.toFixed(2)); ghost.setAttribute("cy", y.toFixed(2)); ghost.setAttribute("r", (PR[nx.ring] + 0.6).toFixed(2));
       ghost.setAttribute("visibility", "visible");
     } else ghost.setAttribute("visibility", "hidden");
     const lines = [];
-    for (const c of state.live?.clusters ?? []) for (const m of c.members) {
-      const [x, y] = place(m.ring, state.rings[m.ring].a + m.place * STEP);
+    for (const c of state.locks ?? []) for (const m of c.members) {
+      const [x, y] = seat(state, m.ring, m.place);
       lines.push(el("line", { class: `or-flat-beam k${c.colour}`, x1: 0, y1: 0, x2: x.toFixed(2), y2: y.toFixed(2), "stroke-width": 1.6, opacity: 0.8 }));
+      lines.push(el("circle", { class: `or-flat-ring k${c.colour}`, cx: x.toFixed(2), cy: y.toFixed(2), r: (PR[m.ring] * 1.45).toFixed(2) }));     // a line standing, until the beat strikes it
     }
     beamsG.replaceChildren(...lines);
   }
   function event(e, state) {
     if (e.type !== "lock") return;
     for (const m of e.members) {
-      const [x, y] = place(m.ring, state.rings[m.ring].a + m.place * STEP);
+      const [x, y] = seat(state, m.ring, m.place);
       const g = el("g", { transform: `translate(${x.toFixed(2)} ${y.toFixed(2)})` }, el("g", { class: `or-planet k${e.colour}` }, el("circle", { class: "or-disc", r: PR[m.ring] }), mark(e.colour, PR[m.ring])));
       fx.append(g);
       const done = g.animate?.([{ transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(1)`, opacity: 1 }, { transform: `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(2.2)`, opacity: 0 }], { duration: 450, easing: "ease-out" }).finished;
@@ -115,14 +119,14 @@ export function createFlat(host) {
       if (!last) continue;
       for (let p = 0; p < PLACES; p++) {
         if (last.rings[k].places[p] < 0) continue;
-        const [cx, cy] = place(k, last.rings[k].a + p * STEP), d = Math.hypot(x - cx, y - cy) - PR[k];
+        const [cx, cy] = seat(last, k, p), d = Math.hypot(x - cx, y - cy) - PR[k];
         if (d < best) { best = d; ring = k; }
       }
     }
     return ring;
   }
   /** Where a point of the screen lies round the sun, in the plane of a hoop: clockwise from twelve o'clock round the hoop. */
-  const angleAt = (ring, px, py) => { const [x, y] = toLocal(px, py); return (Math.atan2(x / Math.max(0.2, Math.cos(tiltOf(ring))), -y) + TAU) % TAU; };
+  const angleAt = (ring, px, py) => { const [x, y] = toLocal(px, py); return (Math.atan2(x / Math.max(0.2, Math.cos(tipOf(ring))), -y) + TAU) % TAU; };
   const at = (ring, angle) => { const [x, y] = place(ring, angle); return [W / 2 + x * s, H / 2 + y * s]; };
 
   new ResizeObserver(() => { resize(); if (last) frame(last, 0); }).observe(host);
