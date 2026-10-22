@@ -266,6 +266,11 @@ export function createTable3d(c) {
   function place() {
     const fr = field.getBoundingClientRect();
     if (!fr.height) return;
+    // the field's size, measured, for what's sized by it (the eye's distance, the card read, the question): container
+    // units resolve as nothing in a container laid out late, a phone on its side with the page scrolling, and a plane
+    // seen from no distance is a line
+    field.style.setProperty("--fw", `${fr.width.toFixed(0)}px`);
+    field.style.setProperty("--fh", `${fr.height.toFixed(0)}px`);
     const mr = $("d3mid").getBoundingClientRect(), lr = $("d3lib").getBoundingClientRect(), yr = $("d3yard").getBoundingClientRect();
     field.style.setProperty("--mid-y", `${(mr.top + mr.height / 2 - fr.top).toFixed(1)}px`);
     field.style.setProperty("--mid-l", `${Math.max(0, lr.right - fr.left).toFixed(1)}px`);
