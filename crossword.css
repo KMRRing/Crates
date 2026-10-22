@@ -20,9 +20,15 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: color-mix(in srgb, var(-
 .cw-clock { font-variant-numeric: tabular-nums; font-weight: 700; font-size: .95rem; color: var(--ink-soft); min-width: 3.2rem; text-align: right; }
 .cw-clock.paused { opacity: .45; }
 
-/* where you are, and who else is playing */
+/* where you are, who else is playing, and the magnifier */
 .cw-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; min-height: 1.4rem; margin: .25rem 0 .3rem; color: var(--ink-soft); font-size: .82rem; }
-.cw-where { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cw-where { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* as tall as the strip's line (its margins give the finger more), so having it or not moves nothing */
+.cw-zoom { flex: none; display: grid; place-items: center; width: 2.4rem; height: 1.9rem; margin: -.25rem -.3rem -.25rem 0; padding: 0; border: 0; border-radius: 4px;
+  background: none; color: var(--ink-soft); cursor: pointer; }
+.cw-zoom[hidden] { display: none; }
+.cw-zoom:active { background: var(--cw-soft); }
+.cw-zoom svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; }
 .cw-who { flex: none; display: flex; align-items: center; gap: .35rem; font-variant-numeric: tabular-nums; }
 .cw-who:empty { display: none; }
 .cw-by { flex: none; display: inline-grid; place-items: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: var(--who, var(--p0));
@@ -32,13 +38,20 @@ html[data-mode="night"] { --cw-in: #6FA0D2; --cw-black: color-mix(in srgb, var(-
 .cw-race { display: inline-flex; align-items: center; gap: .25rem; }
 .cw-race b { color: var(--ink); }
 
-/* the grid: squares on a ruled ground (the ground shows through a one-pixel gap as the lines) */
-.cw-boardbox { display: grid; place-items: center; min-height: 0; }
+/* the grid: squares on a ruled ground (the ground shows through a one-pixel gap as the lines). The fingers are read on
+   the whole box, the browser's own panning and zooming kept off it */
+.cw-boardbox { display: grid; place-items: center; min-height: 0; touch-action: none; -webkit-user-select: none; user-select: none; }
 #app.crossword > .cw-boardbox.grows { flex: 1 1 auto; }
-.cw-grid { display: grid; gap: 1px; padding: 1px; background: var(--cw-black); box-shadow: 0 0 0 1px var(--tile-edge);
-  touch-action: none; -webkit-user-select: none; user-select: none; cursor: pointer; }
+.cw-grid { display: grid; gap: 1px; padding: 1px; background: var(--cw-black); box-shadow: 0 0 0 1px var(--tile-edge); cursor: pointer; }
 /* Almanac frames the grid in a double brass rule, as it frames a stage; the other themes keep the plain edge */
 html:not([data-theme]) .cw-grid { box-shadow: 0 0 0 1px var(--brass), 0 0 0 3px var(--yard), 0 0 0 4px var(--brass); }
+/* zoomed, the grid is larger than its window, which keeps the size and the frame it has whole, and moves inside it */
+.cw-win { position: relative; }
+.cw-win.zoomed { overflow: hidden; background: var(--cw-black); box-shadow: 0 0 0 1px var(--tile-edge); }
+html:not([data-theme]) .cw-win.zoomed { box-shadow: 0 0 0 1px var(--brass), 0 0 0 3px var(--yard), 0 0 0 4px var(--brass); }
+.cw-win.zoomed > .cw-grid { position: absolute; left: 0; top: 0; box-shadow: none; }
+.cw-grid.glide { transition: transform .18s ease-out; }
+@media (prefers-reduced-motion: reduce) { .cw-grid.glide { transition: none; } }
 .cw-cell { position: relative; width: var(--cell, 1.6rem); height: var(--cell, 1.6rem); background: var(--tile); box-sizing: border-box; }
 .cw-cell.black { background: var(--cw-black); }
 .cw-cell.word { background: var(--cw-word); }
@@ -103,6 +116,9 @@ html:not([data-theme]) .cw-bar { box-shadow: inset 0 0 0 3px var(--sheet), inset
 .cw-krow .half { flex: .5 1 0; }
 .cw-krow button.wide { flex: 1.5 1 0; font-size: .8rem; font-weight: 750; letter-spacing: .02em; }
 .cw-krow button.wide.del { font-size: 1.15rem; }
+
+/* the menu's Size: its four grids in one row, as short as the Level's three */
+#menuBody [data-key="size"] .menu-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
 .cw-toast { position: fixed; left: 50%; top: var(--toast-at, 4.2rem); transform: translateX(-50%); max-width: min(90vw, 24rem); background: var(--ink); color: var(--sheet); padding: .5rem .9rem;
   border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; text-align: center; font-size: .92rem; }

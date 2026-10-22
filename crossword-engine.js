@@ -12,24 +12,47 @@ import { seeded, allowed, countSolutions, grade, REVEAL_COST, CHECK_COST } from 
 export { REVEAL_COST, CHECK_COST };
 export const BLACK = "#", EMPTY = ".";
 
-// ---------- levels ----------
+// ---------- levels, sizes and kinds ----------
 /**
- * size: the grid; longest: the longest entry it may have (the clue bank's long words are few, so a grid's long runs
- * are cut); kb: its knowledge entries; rev: the share of them named the other way round (the clue from its reason:
- * recall, the harder way); kbD: how a link's difficulty is weighted (easy, medium, hard links); hardClue: the share of
- * ordinary words given their harder clue; finish and share: what a deal is held to, as typical solvers fare on it
- * (crossword-solve.js: grade), the share of them who finish it unaided and how much of it the average one fills.
+ * size: the level's own grid, unless one is chosen; more: knowledge entries it adds to its size's; rev: the share of
+ * them named the other way round (the clue from its reason: recall, the harder way); kbD: how a link's difficulty is
+ * weighted (easy, medium, hard links); hardClue: the share of ordinary words given their harder clue, and
+ * hardClassic in a grid of ordinary words alone, where the harder clues are all there is to make it hard (measured:
+ * so a Classic grid's figures sit in its level's bands as a mixed one's do); finish and share: what a deal is held
+ * to, as typical solvers fare on it (crossword-solve.js: grade), the share of them who finish it unaided and how much
+ * of it the average one fills.
  */
 export const LEVELS = {
-  easy: { name: "Easy", size: 11, longest: 9, kb: 5, rev: 0.1, kbD: [3, 1, 0.1], hardClue: 0, finish: [0.25, 1], share: [0.93, 1] },
-  medium: { name: "Medium", size: 13, longest: 11, kb: 6, rev: 0.25, kbD: [1.5, 1, 0.4], hardClue: 0.2, finish: [0.04, 0.5], share: [0.88, 0.97] },
-  hard: { name: "Hard", size: 13, longest: 11, kb: 7, rev: 0.5, kbD: [0.3, 1, 2], hardClue: 0.6, finish: [0, 0.15], share: [0.74, 0.9] },
+  easy: { name: "Easy", size: 11, more: 0, rev: 0.1, kbD: [3, 1, 0.1], hardClue: 0, hardClassic: 0, finish: [0.25, 1], share: [0.93, 1] },
+  medium: { name: "Medium", size: 13, more: 0, rev: 0.25, kbD: [1.5, 1, 0.4], hardClue: 0.2, hardClassic: 0.35, finish: [0.04, 0.5], share: [0.88, 0.97] },
+  hard: { name: "Hard", size: 13, more: 1, rev: 0.5, kbD: [0.3, 1, 2], hardClue: 0.6, hardClassic: 1, finish: [0, 0.15], share: [0.74, 0.9] },
 };
 export const LEVEL_IDS = Object.keys(LEVELS);
+/**
+ * The grids, by squares across. longest: the longest entry (the clue bank's long words are few, so a grid's long runs
+ * are cut); cut: where gridfill cuts the runs itself, rather than its grids with longer ones being passed over (at 15
+ * by 15 nearly half of them were, and a good grid took three times as long; 11 and 13 by 13 keep passing over, so
+ * their grids, today's among them, are the ones they always were); kb: its knowledge entries when they're mixed with
+ * ordinary words (Both); learn: when they're the point (Learning), about as many as its grids take, since they never
+ * cross each other (measured: a median of 3, 5, 7 and 9 when asked for all they'd take); entries: about how many
+ * entries its grids have, which the levels' share of solvers who finish is scaled by (below); budget: the fill's
+ * search steps, if not 24,000 (a 9 by 9 fill that works takes a few hundred at most, and one that won't spent all
+ * 24,000, two seconds here).
+ */
+export const SIZES = {
+  9: { longest: 9, kb: 3, learn: 4, entries: 13, budget: 4000 },
+  11: { longest: 9, kb: 5, learn: 7, entries: 20 },
+  13: { longest: 11, kb: 6, learn: 9, entries: 28 },
+  15: { longest: 12, cut: 12, kb: 8, learn: 11, entries: 35 },
+};
+export const SIZE_IDS = Object.keys(SIZES).map(Number);
+/** What a grid's entries are: ordinary words alone (Classic), knowledge as much as it takes (Learning), or a mix. */
+export const KINDS = { classic: "Classic", learning: "Learning", both: "Both" };
 /** What the knowledge entries ask: both ways (the level's mix), or only one. */
 export const ASKS = { both: "Both ways", fwd: "Name the answer", rev: "Name the clue" };
-/** The twists: a classic grid, or a theme, its starred clues all one hidden answer's, the keystone naming it. */
-export const MODES = { classic: "Classic", theme: "Theme" };
+/** The twists: none, or a theme, its starred clues all one hidden answer's, the keystone naming it. ("classic" is the
+ *  saved name for none, from before Classic meant a grid of ordinary words alone.) */
+export const MODES = { classic: "None", theme: "Theme" };
 export const POOLS = { mixed: "Mixed", country: "Countries", commodity: "Commodities" };
 
 // ---------- the ordinary words ----------
@@ -90,8 +113,8 @@ const popcount = x => { x -= (x >>> 1) & 0x55555555; x = (x & 0x33333333) + ((x 
  * aspects, as Crates weighs a clue) times its difficulty's at the level, times more for one the review pile has due
  * (`due`, keys) or one about something another game found you weak on (`weak`, entity ids).
  */
-function candidates({ level, pool = "mixed", asks = "both", topics = null, due = [], weak = null }) {
-  const L = LEVELS[level], dueSet = new Set(due);
+function candidates(L, { pool = "mixed", asks = "both", topics = null, due = [], weak = null }) {
+  const dueSet = new Set(due);
   return kbEntries().filter(e => (pool === "mixed" || e.cat === pool) && (asks === "both" || e.dir === asks) && e.letters.length <= L.longest)
     .map(e => {
       const topic = topics ? Math.max(0, ...e.topics.map(t => topics[t] ?? 1)) : 1;
@@ -180,7 +203,7 @@ function placeKnowledge(grid, slots, pool, count, rnd, { first = null, early = [
  */
 function gridFor(L, seed, lengths = []) {
   for (let t = 0; t < 40; t++) {
-    const g = makeGrid({ size: L.size, style: "british", seed: mix(seed, t), tries: 40, lengths });
+    const g = makeGrid({ size: L.size, style: "british", seed: mix(seed, t), tries: 40, lengths, maxLen: L.cut });
     if (!g) continue;
     const s = slotsOf(g);
     if (Math.max(...s.map(x => x.len)) > L.longest || s.filter(x => x.len === 3).length > s.length * 0.3 || blocks(g) > 2) continue;
@@ -195,16 +218,42 @@ function blocks(g) {
   return n;
 }
 const ATTEMPTS = 40;
+/** The knowledge entries a theme needs room for, its keystone and four starred clues: no 9 by 9 grid takes them, and
+ *  Classic has none. */
+const THEMED = 5;
+/** Whether a grid of these options can have the theme twist ({ level, size, kind }, as makePuzzle takes them). */
+export const themeFits = ({ level, size, kind = "both" }) => spec(level, size, kind).kb >= THEMED;
 /**
- * A puzzle, or null when none came within the attempts: { v, seed, level, mode, pool, rows (the solution, "#" for a
- * black square), entries (see entriesOf), theme ({ answer, cat } or null), grade (crossword-solve.js) }. Options:
- * level, pool (mixed, country, commodity), asks (both, fwd, rev), mode (classic, theme), topics (a mix: { aspect:
- * 0 | 1 | 2 }, null for every topic in), due and weak (learning mode's: pile keys, and entities other games found
- * you weak on), upto (the clue bank's tier it draws on: WHOLE_BANK, or today's DAILY_BANK).
+ * What a deal is made to: the level's figures at a size (its own unless one is chosen) and of a kind, with the size's
+ * longest entry, cut and fill budget, its knowledge entries (kb) and the fewest it may come with (least). Finishing a
+ * grid unaided takes getting every entry, so the share who finish falls as a power of how many there are: a level's
+ * finish band, set at its own size, is raised to the ratio of the entries (a 9 by 9 grid's Medium asks more of its
+ * thirteen entries than a 13 by 13's of twenty-eight). How much of a grid the average solver fills doesn't depend on
+ * its size, so the share band stands. A Learning grid is held to the share alone, set a little lower, as a theme is:
+ * half again as many names to recall leave few solvers finishing unaided at any level.
  */
-export function makePuzzle({ seed = 1, level = "medium", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, upto = WHOLE_BANK } = {}) {
-  const L = LEVELS[level] || LEVELS.medium, rnd = seeded(mix(seed, 0xC205)), bank = bankTo(upto);
-  const all = candidates({ level, pool, asks: mode === "theme" ? "rev" : asks, topics, due, weak });
+function spec(level, size, kind) {
+  const lv = LEVELS[level] || LEVELS.medium, n = SIZES[size] ? Number(size) : lv.size, Z = SIZES[n];
+  const kb = kind === "classic" ? 0 : kind === "learning" ? Z.learn : Z.kb + lv.more;
+  const finish = kind === "learning" ? [0, 1] : n === lv.size ? lv.finish : lv.finish.map(x => x ** (Z.entries / SIZES[lv.size].entries));
+  const share = kind === "learning" ? [lv.share[0] - 0.03, lv.share[1]] : lv.share;
+  return { ...lv, size: n, longest: Z.longest, cut: Z.cut, budget: Z.budget || 24000, kb, least: kb && Math.max(Math.min(3, kb - 1), kb - 2),
+    hardClue: kind === "classic" ? lv.hardClassic : lv.hardClue, finish, share };
+}
+/**
+ * A puzzle, or null when none came within the attempts: { v, seed, level, kind, mode, pool, rows (the solution, "#"
+ * for a black square), entries (see entriesOf), theme ({ answer, cat } or null), grade (crossword-solve.js) }.
+ * Options: level; size (squares across, SIZES: the level's own if not given); kind (classic, learning, both: KINDS);
+ * pool (mixed, country, commodity), asks (both, fwd, rev), mode (classic, theme), topics (a mix: { aspect: 0 | 1 | 2 },
+ * null for every topic in), due and weak (learning mode's: pile keys, and entities other games found you weak on),
+ * upto (the clue bank's tier it draws on: WHOLE_BANK, or today's DAILY_BANK).
+ */
+export function makePuzzle({ seed = 1, level = "medium", size = null, kind = "both", pool = "mixed", asks = "both", mode = "classic", topics = null, due = [], weak = null, upto = WHOLE_BANK } = {}) {
+  // a theme's starred clues are all one answer's, and an answer has only so many that fit a grid: a theme takes what
+  // a mixed grid does, Learning or not
+  const L = spec(level, size, mode === "theme" && kind === "learning" ? "both" : kind), rnd = seeded(mix(seed, 0xC205)), bank = bankTo(upto);
+  if (L.kb < THEMED) mode = "classic";
+  const all = L.kb ? candidates(L, { pool, asks: mode === "theme" ? "rev" : asks, topics, due, weak }) : [];
   // learning mode: what the review pile has due goes in first, up to half the grid's knowledge entries, the pile's
   // order kept (the most revised first)
   const inPool = new Map(all.map(c => [c.e.key, c.e]));
@@ -223,15 +272,15 @@ export function makePuzzle({ seed = 1, level = "medium", pool = "mixed", asks = 
     let drawFrom = all, keystone = null;
     if (theme) ({ key: keystone, stars: drawFrom } = theme);
     // the level's share named the other way round, rounded up or down at random so it averages out right
-    const rev = !themes && asks === "both" ? Math.round(L.kb * L.rev + rnd() - 0.5) : null;
-    const placed = placeKnowledge(grid, slotsOf(grid), drawFrom, L.kb - (keystone ? 1 : 0), rnd, { first: keystone, early, maxLen: L.longest, rev, bank });
-    if (!placed || placed.length < (keystone ? 5 : Math.max(3, L.kb - 2))) continue;
+    const rev = L.kb && !themes && asks === "both" ? Math.round(L.kb * L.rev + rnd() - 0.5) : null;
+    const placed = L.kb ? placeKnowledge(grid, slotsOf(grid), drawFrom, L.kb - (keystone ? 1 : 0), rnd, { first: keystone, early, maxLen: L.longest, rev, bank }) : [];
+    if (!placed || placed.length < (keystone ? Math.max(5, L.least) : L.least)) continue;
     // an ordinary word a knowledge clue says is kept out of the grid, or the clue would give it away
     const said = new Set(placed.flatMap(p => textOf(p.e).toLowerCase().replace(/[^a-z]+/g, " ").split(" ").filter(w => w.length >= 3)));
     const words = len => bank.bands(len).map(b => b.filter(w => !said.has(w)));
-    const fill = fillGrid(grid, { words, fixed: placed.map(p => ({ word: p.e.letters.toLowerCase(), slot: p.slot.id })), seed: mix(seed, 0xF111 + attempt), budget: 24000, starts: 8 });
+    const fill = fillGrid(grid, { words, fixed: placed.map(p => ({ word: p.e.letters.toLowerCase(), slot: p.slot.id })), seed: mix(seed, 0xF111 + attempt), budget: L.budget, starts: 8 });
     if (!fill) continue;
-    const puzzle = assemble(fill, placed, { seed, level, mode, pool, rnd, L, bank });
+    const puzzle = assemble(fill, placed, { seed, level, kind, mode, pool, rnd, L, bank });
     if (!puzzle) continue;
     puzzle.grade = grade(puzzle, { seed: mix(seed, attempt) });
     // a theme's starred clues are recall without their country, so a theme is held to the share alone, set lower
@@ -275,7 +324,7 @@ const TAGS = { fwd: e => (e.cat === "country" ? "Country" : "Commodity"), rev: (
  * with one of theirs (the harder one at the level's share), checked so no clue gives another entry away and exactly
  * one fill fits the clues. Null if that can't be had.
  */
-function assemble(fill, placed, { seed, level, mode, pool, rnd, L, bank }) {
+function assemble(fill, placed, { seed, level, kind, mode, pool, rnd, L, bank }) {
   const kbAt = new Map(placed.map(p => [p.slot.id, p.e]));
   const entries = fill.slots.map(s => {
     const base = { num: s.num, dir: s.dir, row: s.row, col: s.col, len: s.len, cells: s.cells, letters: s.word.toUpperCase() };
@@ -301,7 +350,7 @@ function assemble(fill, placed, { seed, level, mode, pool, rnd, L, bank }) {
     e.d = cluesOf(e.letters).find(c => c.text === e.text)?.d || e.d;
     if (bad(e)) return null;
   }
-  const puzzle = { v: 1, seed, level, mode, pool, upto: bank.upto, rows: fill.grid.map(r => r.toUpperCase()), entries, theme: null, grade: null };
+  const puzzle = { v: 1, seed, level, kind, mode, pool, upto: bank.upto, rows: fill.grid.map(r => r.toUpperCase()), entries, theme: null, grade: null };
   if (mode === "theme") { const k = entries.find(e => e.kind === "key"); puzzle.theme = k ? { answer: k.answer, cat: k.cat } : null; }
   // exactly one fill: where an ordinary clue is shared with another word that the crossings allow, its other clue
   const sameClue = e => bank.sameClue(e.len, e.text);
@@ -413,5 +462,6 @@ export function clock(secs) {
 }
 /** The seed today's puzzle is dealt from (the day is the suite's: today() in suite.js). */
 export const dailySeed = day => (Number(day) * 7919 + 271) >>> 0;
-/** Today's puzzle: the same for everyone, whatever their settings: Medium, every topic, both ways, classic. */
-export const dailyOptions = day => ({ seed: dailySeed(day), level: "medium", pool: "mixed", asks: "both", mode: "classic", topics: null, upto: DAILY_BANK });
+/** Today's puzzle: the same for everyone, whatever their settings: Medium, 13 by 13, knowledge mixed with ordinary
+ *  words, every topic, both ways, no twist. */
+export const dailyOptions = day => ({ seed: dailySeed(day), level: "medium", size: 13, kind: "both", pool: "mixed", asks: "both", mode: "classic", topics: null, upto: DAILY_BANK });

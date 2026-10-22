@@ -5,7 +5,8 @@
 // table, the clues split between the players (one grid, nobody can finish alone) or a race on the same grid. The
 // puzzles are crossword-engine.js's (made in crossword-worker.js), the solvers crossword-solve.js's, the table
 // crossword-table.js's; this page draws them and takes the typing.
-import { LEVELS, LEVEL_IDS, ASKS, MODES, POOLS, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
+import { LEVELS, LEVEL_IDS, SIZE_IDS, KINDS, ASKS, MODES, POOLS, themeFits, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
+import { span, clamp, zoomTo, squareAt, rectOf, show, fingers } from "./crossword-zoom.js";
 import { rivalRun, rivalAt, partnerMove, seeded, RIVALS } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
 import { kbEntry, reviewCard, BANK } from "./crossword-kb.js";
@@ -31,9 +32,12 @@ const APP = 1;                 // the table's version
 
 // ---------- settings ----------
 // Your own choices for a random grid; today's is the same for everyone whatever they are (dailyOptions)
+// size: squares across, or null for the level's own until one is chosen; kind: classic, learning or both (KINDS)
 // computer: off, a rival racing you, or a partner holding the Down clues of a split grid; pace: how well and how fast it plays
-const DEFAULTS = { level: "medium", pool: "mixed", asks: "both", mode: "classic", computer: "off", pace: "quick", autocheck: false, tableMode: "split" };
+const DEFAULTS = { level: "medium", size: null, kind: "both", pool: "mixed", asks: "both", mode: "classic", computer: "off", pace: "quick", autocheck: false, tableMode: "split" };
 const settings = () => ({ ...DEFAULTS, ...read(SETTINGS, {}) });
+/** The squares across a random grid of yours will have: the size you chose, or your level's own. */
+const sizeOf = s => (SIZE_IDS.includes(Number(s.size)) ? Number(s.size) : LEVELS[s.level]?.size || 13);
 /** The computer player a new grid of yours gets: { kind, level } or null (never on today's, which is the same for everyone). */
 const computerFor = daily => (daily || settings().computer === "off" ? null : { kind: settings().computer, level: RIVALS[settings().pace] ? settings().pace : "quick" });
 const setSetting = (k, v) => write(SETTINGS, { ...settings(), [k]: v });
@@ -56,11 +60,16 @@ function makePuzzleOff(opts) {
   const id = ++asked;
   return new Promise(res => { waiting.set(id, res); worker.postMessage({ id, opts }); });
 }
-/** The options for a random grid now: your settings and topics, and in learning mode what the review pile has due. */
+/**
+ * The options for a random grid now: your settings and topics, and in learning mode what the review pile has due,
+ * only what one of your topics covers (the engine keeps to the mix as well; this keeps a grid made with every topic,
+ * when your mix is too narrow for one, to it too). A grid of ordinary words alone has no room for any of it.
+ */
 function randomOptions(seed = Math.floor(Math.random() * 2 ** 31)) {
-  const s = settings(), learning = pile.learning();
-  return { seed, level: s.level, pool: s.pool, asks: s.asks, mode: s.mode, topics: mix(),
-    due: learning ? pile.due("crossword").map(it => it.key) : [], weak: learning ? pile.weakElsewhere("crossword") : null };
+  const s = settings(), w = mix(), learning = pile.learning() && s.kind !== "classic";
+  const inMix = key => kbEntry(key)?.topics.some(t => (w[t] ?? 1) > 0);
+  return { seed, level: s.level, size: sizeOf(s), kind: s.kind, pool: s.pool, asks: s.asks, mode: s.mode, topics: w,
+    due: learning ? pile.due("crossword").map(it => it.key).filter(inMix) : [], weak: learning ? pile.weakElsewhere("crossword") : null };
 }
 
 // ---------- the run: your own grid, or the table's ----------
@@ -157,11 +166,193 @@ function fitLayout() {
     $("list").hidden = !shown;
     $("boardBox").classList.toggle("grows", !shown);
   }
-  document.documentElement.style.setProperty("--cell", `${Math.max(14, cell)}px`);
+  fit = Math.max(14, cell);
+  document.documentElement.style.setProperty("--cell", `${fit}px`);
   fitClue();
+  fitView();
 }
 addEventListener("resize", () => { fitLayout(); scrollList(); });
 window.visualViewport?.addEventListener("resize", () => fitLayout());
+
+// ---------- zoom ----------
+// A 13 by 13 grid's squares are 22 to 26 px on a phone, so the grid zooms: a pinch, the strip's magnifier, the menu,
+// + and − on a keyboard, Ctrl and the wheel on a computer. It zooms inside its own window, the size it is whole, so
+// nothing else on the screen changes size; a finger drags it about, and it moves along to keep the square being typed
+// in in sight (crossword-zoom.js does the arithmetic). How close you like it is kept on this device only, where suite:
+// keys stay: a phone's close-up isn't a tablet's.
+const ZOOM = "suite:crossword-zoom";
+// px a square: under ZOOM_FROM the grid offers to zoom (a thumb's square, as Mines finds); CLOSE, a close-up until you
+// pinch one of your own; CLOSEST, the most it zooms. Plain px, not grown with a tablet's layout (wide.js): a pixel is
+// about the same size under a finger on either, and an upright iPad's 48 px squares need no zooming
+const ZOOM_FROM = 34, CLOSE = 40, CLOSEST = 60;
+let fit = 0;                   // px a square, the grid whole (fitLayout)
+let view = null;               // zoomed in: { cell, x, y } (crossword-zoom.js); the whole grid: null
+let followed = null;           // the square and direction the view last moved along with
+const zoomPref = () => ({ on: false, cell: CLOSE, ...read(ZOOM, {}) });
+const keepZoom = () => { if (!IN_FRAME) write(ZOOM, { on: !!view, cell: view ? view.cell : zoomPref().cell }); };
+const sizeNow = () => { const p = puzzle(); return { C: p.rows[0].length, R: p.rows.length }; };
+const windowNow = () => { const { C, R } = sizeNow(); return { w: span(C, fit), h: span(R, fit) }; };
+/** Whether the grid's squares are small enough to be worth zooming (the magnifier and the menu offer it then). */
+const zoomable = () => !!puzzle() && fit > 0 && fit < ZOOM_FROM;
+const closest = () => Math.max(fit, CLOSEST);
+/** A close-up's squares: the size you last zoomed to, at least a quarter larger than whole. */
+const closeUp = () => Math.min(closest(), Math.max(Math.round(zoomPref().cell), Math.round(fit * 1.25)));
+/** The view as it is, or the whole grid as one (for a pinch or a step that starts from it). */
+const viewNow = () => view || { cell: fit, x: 0, y: 0 };
+/** Zoomed to `v` (no larger than whole: the whole grid), drawn at once or gliding there. */
+function setView(v, glide = false) {
+  view = v && v.cell > fit ? v : null;
+  drawView(glide);
+}
+function drawView(glide = false) {
+  const p = puzzle(), win = $("boardWin"), board = $("board"), on = !!(view && p);
+  win.classList.toggle("zoomed", on);
+  board.classList.toggle("glide", on && glide);
+  if (on) {
+    const { w, h } = windowNow();
+    win.style.width = `${w}px`;
+    win.style.height = `${h}px`;
+    board.style.setProperty("--cell", `${view.cell}px`);
+    board.style.transform = `translate(${Math.round(view.x)}px, ${Math.round(view.y)}px)`;
+  } else {
+    win.style.width = win.style.height = "";
+    board.style.removeProperty("--cell");
+    board.style.transform = "";
+  }
+  drawZoomButton();
+}
+/** After the layout changes (a new grid, the screen turned): the view held to the new window, or a new grid opened
+ *  close up if that's how you left it. */
+function fitView() {
+  if (!puzzle()) return;
+  const { C, R } = sizeNow();
+  if (zoomFor !== drawnFor) {                 // a new grid: its cursor is placed after this, and the view snaps to it
+    zoomFor = drawnFor;
+    view = zoomPref().on && !IN_FRAME && zoomable() ? { cell: closeUp(), x: 0, y: 0 } : null;
+    followed = null;
+    snap = true;
+  }
+  if (view) view = clamp({ ...view, cell: Math.min(view.cell, closest()) }, windowNow(), C, R);
+  setView(view);
+}
+let zoomFor = null;            // the grid the view was set up for
+let snap = false;              // the next follow jumps rather than glides (a new grid)
+/** Close up or whole, as the magnifier and the menu switch it; remembered for the next grid. */
+function setZoom(on) {
+  if (!puzzle() || on === !!view) return;
+  followed = null;
+  setView(on ? { cell: closeUp(), x: 0, y: 0 } : null);
+  follow({ glide: false });
+  keepZoom();
+}
+/** A step closer or further (+ and − on a keyboard), the square being typed in kept in sight. */
+function zoomStep(by) {
+  if (!puzzle()) return;
+  if (!view && by > 0) { setZoom(true); return; }
+  if (!view) return;
+  const { C, R } = sizeNow(), cell = Math.min(closest(), Math.round(view.cell * (by > 0 ? 1.25 : 0.8)));
+  followed = null;
+  setView(clamp({ ...view, cell }, windowNow(), C, R));
+  follow({ glide: false });
+  keepZoom();
+}
+/**
+ * Keeps the square being typed in in sight as the cursor moves: its whole word where the window has room for it,
+ * else the square and the next along. A tapped square is in sight already, and the grid moving under the finger
+ * would send a second tap astray, so a tap only brings in a square the window's edge cut; a view you've dragged
+ * stays put until the cursor moves.
+ */
+function follow({ tap = false, glide = true } = {}) {
+  const p = puzzle();
+  if (!view || !p) return;
+  const key = `${cur.k}:${cur.dir}`;
+  if (key === followed) return;
+  followed = key;
+  if (snap) { snap = false; glide = false; }
+  const { C, R } = sizeNow(), win = windowNow(), e = current(), margin = tap ? 0 : Math.round(4 * scale());
+  const at = e ? e.cells.indexOf(cur.k) : -1, near = tap || at < 0 ? [cur.k] : e.cells.slice(at, at + 2);
+  const word = e && !tap ? rectOf(e.cells, C, view.cell) : null;
+  const room = word && word.x1 - word.x0 + 2 * margin <= win.w && word.y1 - word.y0 + 2 * margin <= win.h;
+  const next = show(view, room ? word : rectOf(near, C, view.cell), win, C, R, margin);
+  if (Math.round(next.x) !== Math.round(view.x) || Math.round(next.y) !== Math.round(view.y)) setView(next, glide);
+}
+const MAGNIFIER = sign => `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M7.5 10.5h6${sign === "+" ? "M10.5 7.5v6" : ""}"/></svg>`;
+let zoomDrawn = "";
+function drawZoomButton() {
+  const b = $("zoomBtn"), want = zoomable() || view ? (view ? "-" : "+") : "";
+  if (want === zoomDrawn) return;
+  zoomDrawn = want;
+  b.hidden = !want;
+  b.innerHTML = want ? MAGNIFIER(want) : "";
+  b.setAttribute("aria-label", want === "-" ? "See the whole grid" : "Zoom in");
+}
+
+// The grid's fingers: a tap writes in a square (read from where it lands, so a finger between two squares still picks
+// one, and acted on as it lifts, since a finger that moves is dragging and a second one makes a pinch); one finger
+// drags a zoomed grid, two pinch it about their middle. Pointer events alone, as Chart's map: touch-action: none keeps
+// the browser's own pinch off the grid, and Safari's gesture events are refused, so a pinch here never zooms the page.
+const touch = fingers(8);
+let pinch = null;              // { from (the view as it began), d (the fingers' spread), mid (their middle) }
+let tapAt = null;              // the square a finger landed on, if it's still a tap
+let wheelCell = null;          // the wheel's zoom, unrounded, so small steps add up
+const inWindow = e => { const r = $("boardWin").getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, inside: e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom }; };
+/** A glide to the cursor still under way stops where it is, so a finger acts on the grid as it's seen. */
+function settle() {
+  if (!view || !$("board").classList.contains("glide")) return;
+  const b = $("board").getBoundingClientRect(), w = $("boardWin").getBoundingClientRect();
+  setView({ ...view, x: b.left - w.left, y: b.top - w.top });
+}
+/** The square under a finger, whatever the zoom; null off the grid's window (a zoomed grid runs on, unseen, past it). */
+function squareUnder(e) {
+  const at = inWindow(e);
+  if (!puzzle() || !at.inside) return null;
+  const { C, R } = sizeNow(), k = squareAt(viewNow(), at.x, at.y, C, R);
+  return k < 0 ? null : k;
+}
+const boardBox = $("boardBox");
+boardBox.addEventListener("pointerdown", e => {
+  if (!puzzle()) return;
+  e.preventDefault();
+  try { boardBox.setPointerCapture(e.pointerId); } catch { /* a synthetic pointer */ }
+  settle();
+  const at = inWindow(e), g = touch.down(e.pointerId, at.x, at.y, e.isPrimary);
+  tapAt = touch.count === 1 ? squareUnder(e) : null;
+  if (g?.pinch) { pinch = { from: viewNow(), ...g.pinch }; wheelCell = null; }
+});
+boardBox.addEventListener("pointermove", e => {
+  if (!puzzle()) return;
+  const at = inWindow(e), g = touch.move(e.pointerId, at.x, at.y), { C, R } = sizeNow();
+  if (g?.pinch && pinch) {
+    const cell = Math.max(fit, Math.min(closest(), Math.round(pinch.from.cell * g.pinch.d / Math.max(1, pinch.d))));
+    setView(zoomTo(pinch.from, cell, pinch.mid, g.pinch.mid, windowNow(), C, R));
+  } else if (g?.drag && view) setView(clamp({ ...view, x: view.x + g.drag[0], y: view.y + g.drag[1] }, windowNow(), C, R));
+});
+function lift(e) {
+  const t = touch.up(e.pointerId, e.type !== "pointerup");
+  if (pinch && touch.count < 2) { pinch = null; keepZoom(); }
+  if (t?.tap && tapAt != null) { tapCell(tapAt, { tap: true }); tapAt = null; }
+}
+boardBox.addEventListener("pointerup", lift);
+boardBox.addEventListener("pointercancel", lift);
+boardBox.addEventListener("lostpointercapture", lift);      // after a pointerup, nothing; a finger the browser lost, gone
+for (const type of ["gesturestart", "gesturechange", "gestureend"]) boardBox.addEventListener(type, e => e.preventDefault(), { passive: false });
+// a computer: Ctrl (or a trackpad's pinch, which arrives as one) and the wheel zoom about the pointer; the wheel alone
+// moves a zoomed grid
+boardBox.addEventListener("wheel", e => {
+  if (!puzzle()) return;
+  settle();
+  const { C, R } = sizeNow(), at = inWindow(e);
+  if (e.ctrlKey || e.metaKey) {
+    e.preventDefault();
+    const from = viewNow();
+    wheelCell = Math.max(fit, Math.min(closest(), (wheelCell ?? from.cell) * Math.exp(-e.deltaY * 0.01)));
+    setView(zoomTo(from, Math.round(wheelCell), at, at, windowNow(), C, R));
+    keepZoom();
+  } else if (view) {
+    e.preventDefault();
+    setView(clamp({ ...view, x: view.x - e.deltaX, y: view.y - e.deltaY }, windowNow(), C, R));
+  }
+}, { passive: false });
 
 // ---------- drawing ----------
 let cells = [];                // the squares' elements, by cell
@@ -228,6 +419,7 @@ function paint() {
   });
   drawClue();
   markList();
+  follow({ tap: tapped });
   // where you are is part of the run: a reload, your other device or a partner watching shows the same square
   if (!G && S && (S.at?.k !== cur.k || S.at?.dir !== cur.dir)) { S.at = { ...cur }; saveSoon(); }
 }
@@ -332,9 +524,9 @@ function openClues() {
 function drawStrip() {
   const p = puzzle(), where = $("where"), who = $("who");
   if (!p) { where.textContent = ""; who.replaceChildren(); return; }
-  const L = LEVELS[p.level]?.name || "";
-  const bits = [G ? (G.mode === "split" ? "Clues split" : "Race") : S?.daily ? "Today's" : null, L, p.mode === "theme" ? "Theme" : null,
-    p.pool !== "mixed" ? POOLS[p.pool] : null].filter(Boolean);
+  const L = LEVELS[p.level], n = p.rows.length;
+  const bits = [G ? (G.mode === "split" ? "Clues split" : "Race") : S?.daily ? "Today's" : null, L?.name, n !== L?.size ? `${n}×${n}` : null,
+    p.kind && p.kind !== "both" ? KINDS[p.kind] : null, p.mode === "theme" ? "Theme" : null, p.pool !== "mixed" && p.kind !== "classic" ? POOLS[p.pool] : null].filter(Boolean);
   where.textContent = bits.join(" · ");
   who.replaceChildren();
   if (G) drawTable(who);
@@ -357,14 +549,17 @@ function goTo(e, k = null) {
   cur = { dir: e.dir, k: k ?? e.cells.find(c => pl?.letters[c] === ".") ?? e.cells[0] };
   paint(); sayWhere();
 }
-function tapCell(k) {
+function tapCell(k, { tap = false } = {}) {
   const p = puzzle();
   if (!p || isBlack(p, k)) return;
   const at = entriesAt(p, k);
   if (k === cur.k) { const other = cur.dir === "across" ? "down" : "across"; if (at[other]) cur.dir = other; }
   else { cur.k = k; if (!at[cur.dir]) cur.dir = at.across ? "across" : "down"; }
+  tapped = tap;
   paint(); sayWhere();
+  tapped = false;
 }
+let tapped = false;            // the cursor moved to where a finger landed (the zoom keeps only the next square in sight)
 function toggleDir() {
   const at = entriesAt(puzzle(), cur.k), other = cur.dir === "across" ? "down" : "across";
   if (at[other]) { cur.dir = other; paint(); sayWhere(); }
@@ -569,12 +764,14 @@ async function newGrid(daily, { ask = true } = {}) {
     const day = today();
     let opts = daily ? dailyOptions(day) : randomOptions(), narrow = false;
     let p = await makePuzzleOff(opts);
-    if (!p && !daily) { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
+    if (!p && !daily && opts.kind !== "classic") { narrow = true; p = await makePuzzleOff({ ...opts, topics: null, pool: "mixed", asks: "both" }); }   // too narrow a choice: every topic
     if (!p) { toast("Couldn't set a grid: try again"); return; }
     const comp = computerFor(daily);
-    S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, pool: opts.pool, asks: opts.asks, mode: opts.mode },
-      // a best is a grid you played alone, today's or one on a preset that's both ways, mixed answers, the classic grid
-      ranked: comp?.kind !== "partner" && (daily || (!narrow && presetNow() !== "custom" && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed")),
+    S = { v: 1, puzzle: p, play: freshPlay(p), daily: daily ? day : null, opts: daily ? null : { level: opts.level, size: opts.size, kind: opts.kind, pool: opts.pool, asks: opts.asks, mode: opts.mode },
+      // a best is a grid you played alone, today's or one like it: the level's own size, both kinds of entry, on a
+      // preset, both ways, mixed answers, no twist
+      ranked: comp?.kind !== "partner" && (daily || (!narrow && presetNow() !== "custom" && opts.size === LEVELS[opts.level]?.size && opts.kind === "both"
+        && opts.mode === "classic" && opts.asks === "both" && opts.pool === "mixed")),
       rival: comp?.kind === "rival" ? { level: comp.level, seed: p.seed } : null,
       partner: comp?.kind === "partner" ? { level: comp.level, seed: p.seed } : null };
     if (narrow) setTimeout(() => toast("Your choices were too narrow for a grid: this one has every topic"), 300);
@@ -896,14 +1093,15 @@ const backToSolo = () => { if (together.room) together.leave(); else location.re
 // ---------- the menu ----------
 let pick = null;
 function openMenu() {
-  const body = $("menuBody");
+  const body = $("menuBody"), dlg = $("menuDlg"), top = dlg.open ? dlg.scrollTop : 0;
   body.replaceChildren();
   const s = settings();
   const play_ = part(body, "play");
   if (puzzle() && !finished()) {
-    const help = (label, fn) => choice(label, [["letter", "Letter"], ["word", "Word"], ["grid", "Grid"]], null, v => { $("menuDlg").close(); fn(v); });
+    const help = (label, fn) => choice(label, [["letter", "Letter"], ["word", "Word"], ["grid", "Grid"]], null, v => { dlg.close(); fn(v); });
     play_.append(help("Check", helpCheck), help("Reveal", helpReveal));
   }
+  if (zoomable() || view) play_.append(choice("Zoom", [["whole", "Whole grid"], ["close", "Close up"]], view ? "close" : "whole", v => { dlg.close(); setZoom(v === "close"); }));
   if (together.room || joining) {
     const table = part(body, "together");
     if (G) {
@@ -921,28 +1119,48 @@ function openMenu() {
   const onToday = S?.daily === today();
   play_.prepend(action(pick === "random" ? "New grid" : onToday ? "Start today's again" : "Today's grid", () => (pick === "random" ? newGrid(false) : onToday ? restartToday() : openToday()), "primary"));
   const content = part(body, "content");
-  content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") {
-    content.append(
-      choice("Level", LEVEL_IDS.map(id => [id, LEVELS[id].name]), s.level, v => setSetting("level", v)),
-      choice("Answers", Object.entries(POOLS), s.pool, v => setSetting("pool", v)),
-      choice("Knowledge", Object.entries(ASKS), s.asks, v => setSetting("asks", v)),
-      choice("Twist", Object.entries(MODES), s.mode, v => setSetting("mode", v)),
-      topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), w => write(TOPICS, w), { groups: [["Country topics", KB_TOPICS.country], ["Commodity topics", KB_TOPICS.commodity]],
-        note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's grid and the presets do." : null) }),
-    );
-  }
-  const set = part(body, "settings");
+  // what today's is, whichever is picked: a line that came and went would move every choice under it
+  content.append(choice("Grid", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }),
+    line("Today's is Medium, 13×13, every topic: the same for everyone."));
+  // the rest is your random grid's, shown with today's picked too: changing any of it picks Random for the next grid
+  // (today's stays as it is), and a change that shows or hides another choice draws the menu again
+  const set = (key, again = false) => v => { setSetting(key, v); if (again || pick !== "random") { pick = "random"; redrawMenu(key); } };
+  const knowledge = s.kind !== "classic";
+  content.append(
+    keyed("kind", choice("Clues", Object.entries(KINDS), s.kind, set("kind", true))),
+    keyed("size", choice("Size", SIZE_IDS.map(n => [n, `${n}×${n}`]), sizeOf(s), set("size", true))),
+    keyed("level", choice("Level", LEVEL_IDS.map(id => [id, LEVELS[id].name]), s.level, set("level", true))),
+    ...(knowledge ? [
+      keyed("pool", choice("Answers", Object.entries(POOLS), s.pool, set("pool"))),
+      keyed("asks", choice("Knowledge", Object.entries(ASKS), s.asks, set("asks"))),
+      ...(themeFits({ level: s.level, size: sizeOf(s), kind: s.kind }) ? [keyed("mode", choice("Twist", Object.entries(MODES), s.mode, set("mode")))] : []),
+      keyed("topics", topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), w => { write(TOPICS, w); if (pick !== "random") { pick = "random"; redrawMenu("topics"); } },
+        { groups: [["Country topics", KB_TOPICS.country], ["Commodity topics", KB_TOPICS.commodity]],
+          note: w => (presetOf(TOPIC_LIST, TOPIC_PRESETS, w) === "custom" ? "Your own mix doesn't count for your best; today's grid and the presets do." : null) })),
+    ] : []),
+  );
+  const settingsPart = part(body, "settings");
   // the computer: a rival racing your grid, or a partner holding its Down clues; from the next grid
-  set.append(choice("Computer", [["off", "Off"], ["rival", "Rival"], ["partner", "Partner"]], s.computer, v => { setSetting("computer", v); openMenu(); }));
-  if (s.computer !== "off") set.append(choice("Its pace", Object.entries(RIVALS).map(([k, r]) => [k, r.name]), s.pace, v => setSetting("pace", v)));
-  set.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)),
+  settingsPart.append(choice("Computer", [["off", "Off"], ["rival", "Rival"], ["partner", "Partner"]], s.computer, v => { setSetting("computer", v); openMenu(); }));
+  if (s.computer !== "off") settingsPart.append(choice("Its pace", Object.entries(RIVALS).map(([k, r]) => [k, r.name]), s.pace, v => setSetting("pace", v)));
+  settingsPart.append(toggle("Check as you go", s.autocheck, on => setSetting("autocheck", on)),
     toggle("Learning mode", pile.learning(), on => pile.setLearning(on)));
   const t = read(TIMES, {}), bests = LEVEL_IDS.filter(id => t[id]?.best != null).map(id => `${LEVELS[id].name} ${clock(t[id].best)}`);
   const solvedN = LEVEL_IDS.reduce((n, id) => n + (t[id]?.solved || 0), 0);
   part(body, "about").append(line(bests.length ? `Best: ${bests.join(" · ")} · ${solvedN} solved` : "No grid solved yet"),
     line(`A revealed letter adds ${REVEAL_COST} s, a wrong letter a check finds ${CHECK_COST} s.`));
-  if (!$("menuDlg").open) $("menuDlg").showModal();
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = top;
+}
+/** A menu control marked with what it sets, so the menu drawn again can be scrolled to keep it where it was. */
+const keyed = (key, node) => { node.dataset.key = key; return node; };
+/** The menu drawn again with the control just changed (`key`) under the finger where it was. */
+function redrawMenu(key) {
+  const dlg = $("menuDlg"), at = () => dlg.querySelector(`[data-key="${key}"]`)?.getBoundingClientRect().top;
+  const was = at();
+  openMenu();
+  const now = at();
+  if (was != null && now != null) dlg.scrollTop += now - was;
 }
 
 // ---------- the keyboard ----------
@@ -983,21 +1201,10 @@ document.addEventListener("keydown", e => {
   else if (k === "ArrowDown") arrow(1, 0);
   else if (k === "Tab" || k === "Enter") step(e.shiftKey ? -1 : 1);
   else if (k === " ") toggleDir();
+  else if (k === "+" || k === "=") zoomStep(1);
+  else if (k === "-") zoomStep(-1);
   else return;
   e.preventDefault();
-});
-
-// ---------- the grid's taps ----------
-// A tap is read from where it lands on the grid, not from the square under it, so a finger between two squares still
-// picks one; a tap on the cursor's square turns across or down.
-$("board").addEventListener("pointerdown", e => {
-  const p = puzzle();
-  if (!p) return;
-  e.preventDefault();
-  const box = $("board").getBoundingClientRect(), C = p.rows[0].length, R0 = p.rows.length;
-  const c = Math.floor((e.clientX - box.left) / box.width * C), r = Math.floor((e.clientY - box.top) / box.height * R0);
-  if (r < 0 || c < 0 || r >= R0 || c >= C) return;
-  tapCell(r * C + c);
 });
 
 let toastTimer = 0;
@@ -1023,6 +1230,7 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("cluesClose").addEventListener("click", () => $("cluesDlg").close());
 $("cluesDlg").addEventListener("click", e => { if (e.target === $("cluesDlg")) $("cluesDlg").close(); });
 $("doneClose").addEventListener("click", () => $("doneDlg").close());
+$("zoomBtn").addEventListener("click", () => setZoom(!view));
 startClock();
 // the rival finishing while you're still at it is news
 setInterval(() => {
@@ -1043,4 +1251,5 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) toge
 window.addEventListener("pageshow", e => { if (e.persisted) together.resync(); });
 
 // for tests and debugging
-window.__crossword = { get state() { return S; }, get table() { return G; }, get cursor() { return cur; }, typeLetter, backspace, tapCell, step, helpCheck, helpReveal, newGrid, together };
+window.__crossword = { get state() { return S; }, get table() { return G; }, get cursor() { return cur; }, get view() { return view; }, get fit() { return fit; },
+  typeLetter, backspace, tapCell, step, helpCheck, helpReveal, newGrid, setZoom, zoomStep, together };

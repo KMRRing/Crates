@@ -12,6 +12,7 @@ const K = await import("../crossword-kb.js");
 const E = await import("../crossword-engine.js");
 const S = await import("../crossword-solve.js");
 const T = await import("../crossword-table.js");
+const Z = await import("../crossword-zoom.js");
 const { gridProblems, slotsOf, halfCrossed } = await import("../gridfill.js");
 const { cluesOf, cluedWords } = await import("../clues.js");
 const { roundTrip } = await import("./rtdb.js");
@@ -71,8 +72,9 @@ const giveaway = p => p.entries.some(x => p.entries.some(y => y !== x && K.says(
 check(ok.every(({ p }) => !giveaway(p)), "no clue says another entry's answer");
 const kbApart = p => { const kb = p.entries.filter(e => e.kind !== "word"); return kb.every(a => kb.every(b => a === b || !a.cells.some(k => b.cells.includes(k)))); };
 check(ok.every(({ p }) => kbApart(p)), "no two knowledge entries cross");
-check(ok.every(({ p, level }) => { const n = p.entries.filter(e => e.kind !== "word").length; return n >= Math.max(3, E.LEVELS[level].kb - 2) && n <= E.LEVELS[level].kb; }),
-  "every puzzle has its level's knowledge entries, or one or two fewer");
+const kbWant = level => E.SIZES[E.LEVELS[level].size].kb + E.LEVELS[level].more;
+check(ok.every(({ p, level }) => { const n = p.entries.filter(e => e.kind !== "word").length; return n >= Math.max(3, kbWant(level) - 2) && n <= kbWant(level); }),
+  "every puzzle has its level's knowledge entries (its size's, Hard one more), or one or two fewer");
 check(ok.every(({ p }) => { const kb = p.entries.filter(e => e.kind !== "word"); return kb.some(e => e.dir === "across") && kb.some(e => e.dir === "down"); }),
   "knowledge entries both across and down (a pair's split gives each some)");
 check(same(E.makePuzzle({ seed: 4242, level: "easy" }), E.makePuzzle({ seed: 4242, level: "easy" })), "the same seed makes the same puzzle");
@@ -93,6 +95,54 @@ check(energy && energy.entries.filter(e => e.kind !== "word").every(e => K.kbEnt
 const dueKey = fwd.find(e => e.answer === "Norway" && e.lead === "Troll").key;
 const learned = [0, 1, 2, 3].map(i => E.makePuzzle({ seed: 300 + i, level: "medium", due: [dueKey] }));
 check(learned.filter(p => p.entries.some(e => e.key === dueKey)).length >= 2, "learning mode deals what the review pile has due");
+// what's due keeps to your topics: Troll with every one of its link's topics out never comes, whatever is due
+const trollOut = Object.fromEntries(K.kbEntry(dueKey).topics.map(t => [t, 0]));
+check([0, 1, 2, 3].every(i => !E.makePuzzle({ seed: 300 + i, level: "medium", due: [dueKey], topics: trollOut }).entries.some(e => e.key === dueKey)),
+  "learning mode's due cards keep to the topics: one whose topics are all out is never dealt");
+check([0, 1].every(i => E.makePuzzle({ seed: 300 + i, level: "medium", kind: "classic", due: [dueKey] }).entries.every(e => e.kind === "word")),
+  "a Classic grid deals nothing due: it has no knowledge entries");
+
+// ---------- sizes and kinds ----------
+// every size with every kind, a level each in turn: a valid grid of its size, its entries no longer than the size
+// allows, one fill, nothing given away, the knowledge entries apart and as many as the kind asks
+const sized = [];
+E.SIZE_IDS.forEach((size, i) => ["both", "classic", "learning"].forEach((kind, j) => [0, 1].forEach(n => {
+  const level = E.LEVEL_IDS[(i + j + n) % 3], seed = 700 + i * 31 + j * 7 + n;
+  sized.push({ size, kind, level, p: E.makePuzzle({ seed, level, size, kind }) });
+})));
+check(sized.every(x => x.p), `a puzzle at every size (${E.SIZE_IDS.join(", ")}) of every kind`);
+const sizedOk = sized.filter(x => x.p), kbOf = p => p.entries.filter(e => e.kind !== "word").length;
+check(sizedOk.every(({ p, size }) => p.rows.length === size && p.rows.every(r => r.length === size) && !gridProblems(p.rows.map(r => r.replace(/[A-Z]/g, "."))).length
+  && halfCrossed(slotsOf(p.rows.map(r => r.replace(/[A-Z]/g, "."))))), "each is a valid British grid of its size, every entry half crossed");
+check(sizedOk.every(({ p, size }) => p.entries.every(e => e.len <= E.SIZES[size].longest)), "no entry is longer than its size allows (15 by 15: twelve letters, the clue bank's longest)");
+check(sizedOk.every(({ p }) => E.uniquelySolved(p) && !giveaway(p) && kbApart(p)), "each has exactly one fill, no clue giving another away, its knowledge entries apart");
+const want = (size, level, kind) => (kind === "classic" ? 0 : kind === "learning" ? E.SIZES[size].learn : E.SIZES[size].kb + E.LEVELS[level].more);
+check(sizedOk.every(({ p, size, level, kind }) => { const n = kbOf(p), w = want(size, level, kind); return kind === "classic" ? n === 0 : n <= w && n >= Math.max(Math.min(3, w - 1), w - 2); }),
+  "each has the knowledge entries its kind asks for: none in Classic, its size's in Both, as many as it takes in Learning");
+check(sizedOk.every(({ p, kind }) => p.kind === kind), "a puzzle says what kind it is");
+check(sizedOk.filter(x => x.kind === "classic").every(({ p }) => p.entries.every(e => e.kind === "word" && cluesOf(e.letters).some(c => c.text === e.text))),
+  "a Classic grid is ordinary words alone, each with one of the clue bank's clues");
+// (at 11 by 11 Learning's fewest, five, is Both's most, so the larger grids show it whatever the bank deals)
+const meanKb = (size, kind) => { const xs = [0, 1, 2].map(i => kbOf(E.makePuzzle({ seed: 800 + i, level: "medium", size, kind }))); return xs.reduce((a, b) => a + b) / xs.length; };
+const moreKb = [13, 15].map(size => [size, meanKb(size, "both"), meanKb(size, "learning")]);
+check(moreKb.every(([, b, l]) => l > b), `Learning puts in more knowledge entries than Both (${moreKb.map(([s, b, l]) => `${s}×${s}: ${l.toFixed(1)} to ${b.toFixed(1)}`).join("; ")})`);
+// Classic's levels lean on the harder clues, its only way to be harder: Easy gives the plain ones, Hard the harder ones
+const harder = level => { const ws = [0, 1].flatMap(i => E.makePuzzle({ seed: 820 + i, level, size: 11, kind: "classic" }).entries).filter(e => cluesOf(e.letters).length === 2);
+  return ws.filter(e => cluesOf(e.letters).find(c => c.text === e.text)?.d === 2).length / ws.length; };
+const [hEasy, hHard] = [harder("easy"), harder("hard")];
+check(hEasy < 0.15 && hHard > 0.8, `a Classic grid's level is its harder clues: Easy ${Math.round(hEasy * 100)}%, Hard ${Math.round(hHard * 100)}%`);
+// today's grid is untouched: Medium, 13 by 13, Both, made the way it always was; a grid asked for without a size or a
+// kind is its level's own size and Both
+check(E.dailyOptions(day).size === 13 && E.dailyOptions(day).kind === "both" && d1.rows.length === 13 && d1.kind === "both", "today's grid is Medium, 13 by 13, Both");
+check(E.LEVEL_IDS.every(level => same(E.makePuzzle({ seed: 31, level }), E.makePuzzle({ seed: 31, level, size: E.LEVELS[level].size, kind: "both" }))),
+  "a grid with no size or kind asked for is its level's own size, Both");
+// the theme: room for a keystone and four starred clues, which no 9 by 9 grid has and Classic never
+check(E.SIZE_IDS.every(size => E.themeFits({ level: "medium", size, kind: "both" }) === (size >= 11) && E.themeFits({ level: "hard", size, kind: "learning" }) === (size >= 11)
+  && !E.themeFits({ level: "medium", size, kind: "classic" })), "the theme fits every size from 11 by 11, Both or Learning, never Classic");
+const theme9 = E.makePuzzle({ seed: 41, level: "medium", size: 9, mode: "theme" });
+check(theme9 && theme9.mode === "classic" && !theme9.theme && !theme9.entries.some(e => e.kind === "key"), "a theme asked of a 9 by 9 grid deals it without the twist");
+const learnTheme = E.makePuzzle({ seed: 42, level: "medium", size: 13, kind: "learning", mode: "theme" });
+check(learnTheme?.theme && kbOf(learnTheme) <= E.SIZES[13].kb && E.uniquelySolved(learnTheme), "a Learning theme takes what a mixed grid's does (an answer has only so many clues that fit)");
 
 // ---------- the theme ----------
 const themes = [0, 1, 2].map(i => E.makePuzzle({ seed: 900 + i, level: "medium", mode: "theme" }));
@@ -150,6 +200,57 @@ check(mid.solved > 0 && mid.solved < p0.entries.length && end.done && end.solved
   check(S.partnerMove(pp, pp.rows.join(""), holds, "quick", S.seeded(1), new Map()) === null, "with its half right it has nothing more to do");
   const avg = lv => [1, 2, 3, 4, 5, 6, 7, 8].reduce((s, seed) => s + run(lv, seed).alone, 0) / 8;
   check(avg("sharp") > avg("steady"), "a sharper partner knows more of its clues on its own");
+}
+
+// ---------- the zoom (crossword-zoom.js) ----------
+{
+  const C = 13, R = 13, fit = 26, win = { w: Z.span(C, fit), h: Z.span(R, fit) };
+  check(win.w === 352 && Z.span(C, 40) === 534, "a board's span is its squares and a rule round each (13 of 26 px: 352 px)");
+  const whole = Z.clamp({ cell: fit, x: 37, y: -12 }, win, C, R);
+  check(whole.x === 0 && whole.y === 0, "the whole grid fills its window exactly and can't be moved");
+  const far = Z.clamp({ cell: 40, x: 50, y: -9999 }, win, C, R);
+  check(far.x === 0 && far.y === win.h - Z.span(R, 40), "a zoomed grid always covers its window: dragged past an edge, it stops there");
+  // a pinch: the point of the board under the fingers' middle stays under it, and follows it as it moves
+  const v0 = { cell: fit, x: 0, y: 0 }, mid = { x: 200, y: 120 }, boardAt = (v, p) => [(p.x - v.x - 1) / (v.cell + 1), (p.y - v.y - 1) / (v.cell + 1)];
+  const v1 = Z.zoomTo(v0, 52, mid, mid, win, C, R), moved = { x: 150, y: 160 }, v2 = Z.zoomTo(v0, 52, mid, moved, win, C, R);
+  const near = (a, b) => Math.abs(a[0] - b[0]) < 1e-9 && Math.abs(a[1] - b[1]) < 1e-9;
+  check(near(boardAt(v1, mid), boardAt(v0, mid)) && near(boardAt(v2, moved), boardAt(v0, mid)), "a pinch zooms about the fingers: what's under them stays under them as they move");
+  // a tap is the square under it, at any zoom and wherever the grid has been dragged
+  const views = [v0, v1, Z.clamp({ cell: 40, x: -100, y: -77 }, win, C, R), Z.clamp({ cell: 60, x: -500, y: -300 }, win, C, R)];
+  let right = 0, tried = 0;
+  for (const v of views) for (let k = 0; k < C * R; k++) {
+    const x = v.x + 1 + (k % C) * (v.cell + 1) + v.cell / 2, y = v.y + 1 + Math.floor(k / C) * (v.cell + 1) + v.cell / 2;
+    if (x < 0 || y < 0 || x >= win.w || y >= win.h) continue;
+    tried++;
+    if (Z.squareAt(v, x, y, C, R) === k) right++;
+  }
+  check(tried > C * R && right === tried, `a tap is read as the square under it at any zoom (${right} of ${tried} squares' middles)`);
+  const onRule = Z.squareAt(v1, v1.x + 1 + 52 + 0.5, v1.y + 1 + 26, C, R);
+  check(onRule === 0 || onRule === 1, "a finger on the rule between two squares picks one of them");
+  check(Z.squareAt(v0, -1, 5, C, R) === -1 && Z.squareAt(v0, 5, win.h, C, R) === -1, "off the board, no square");
+  // following the cursor: a word in sight moves nothing; one out of sight comes in; one wider than the window, its start
+  const vz = Z.clamp({ cell: 40, x: 0, y: 0 }, win, C, R), inSight = (r, v) => r.x0 + v.x >= 0 && r.x1 + v.x <= win.w && r.y0 + v.y >= 0 && r.y1 + v.y <= win.h;
+  check(same(Z.show(vz, Z.rectOf([0, 1, 2], C, 40), win, C, R, 4), vz), "a word in sight: the view stays put");
+  const corner = Z.rectOf([C * 12 + 10, C * 12 + 11, C * 12 + 12], C, 40), brought = Z.show(vz, corner, win, C, R, 4);
+  check(!inSight(corner, vz) && inSight(corner, brought), "a word out of sight is brought into it");
+  check(Z.show(Z.clamp({ cell: 40, x: -150, y: 0 }, win, C, R), Z.rectOf([...Array(C).keys()], C, 40), win, C, R, 4).x === 0, "a word wider than the window shows from its start");
+}
+{
+  const f = Z.fingers(8);
+  f.down(1, 100, 100, true);
+  check(f.move(1, 103, 102) === null && same(f.up(1), { tap: { x: 100, y: 100 } }), "a finger that barely moves is a tap, read where it landed");
+  f.down(2, 100, 100, true);
+  const d1 = f.move(2, 120, 100), d2 = f.move(2, 130, 105);
+  check(same(d1, { drag: [20, 0] }) && same(d2, { drag: [10, 5] }) && f.up(2) === null, "one that travels drags, each move by what it moved, and is no tap");
+  f.down(3, 100, 100, true);
+  const p0 = f.down(4, 200, 100), pm = f.move(4, 300, 100);
+  check(p0?.pinch.d === 100 && p0.pinch.mid.x === 150 && pm?.pinch.d === 200 && pm.pinch.mid.x === 200, "two fingers pinch: how far apart they are, and their middle");
+  check(f.up(4) === null && same(f.move(3, 90, 100), { drag: [-10, 0] }) && f.up(3) === null, "after a pinch the finger left drags on, and never taps");
+  f.down(5, 50, 50, true); f.down(6, 60, 60); f.up(5);                  // finger 6's lift is lost
+  f.down(7, 10, 10, true);
+  check(f.count === 1 && same(f.up(7), { tap: { x: 10, y: 10 } }), "a new touch forgets a finger whose lift was lost, so nothing pinches against it");
+  f.down(8, 10, 10, true);
+  check(f.up(8, true) === null, "a cancelled touch is no tap");
 }
 
 // ---------- playing one ----------

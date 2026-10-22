@@ -7,14 +7,16 @@
 // cell already lettered. Every across and down run of two or more white cells is a slot; a run of exactly two is
 // refused (wordlist.js has no two-letter words), and so is a white cell in no slot.
 //
-//   makeGrid({ size, style, seed, lengths, tries })
+//   makeGrid({ size, style, seed, lengths, tries, maxLen })
 //                                              a grid symmetric under a half turn, made from the seed, or null:
 //                                              style "dense" (most letters crossed, as a codeword wants: about a quarter
 //                                              black, never four blacks in a square or three in a row, words of 3 to 8
 //                                              letters, 9 from 13 across) or "british" (a blocked crossword's: the
 //                                              lattice of black squares with more added, every word at least half
 //                                              crossed); lengths: slot lengths it must have room for, a slot each
-//                                              ([6, 6] wants two slots of six: a crossword's answers)
+//                                              ([6, 6] wants two slots of six: a crossword's answers); maxLen: the
+//                                              longest run it may leave, if not the style's (Crossword's 15 by 15
+//                                              grids, whose words stop at 12 letters)
 //   slotsOf(grid)                              its slots, across then down: { id, dir, row, col, len, cells, num },
 //                                              cells as indices (row × columns + column), num the clue number a
 //                                              printed crossword gives it
@@ -162,10 +164,10 @@ const STYLES = {
 export const STYLE_NAMES = Object.keys(STYLES);
 /**
  * A grid of the given size (odd sizes suit the British lattice): style "dense" or "british", made from the seed;
- * lengths, slot lengths it must have room for, one slot each ([6, 6] wants two slots of six). Tries up to `tries`
- * patterns; null if none would do.
+ * lengths, slot lengths it must have room for, one slot each ([6, 6] wants two slots of six); maxLen, the longest run
+ * it may leave (the style's own if not given). Tries up to `tries` patterns; null if none would do.
  */
-export function makeGrid({ size = 13, rows = size, cols = size, style = "dense", seed = 1, lengths = [], tries = 400 } = {}) {
+export function makeGrid({ size = 13, rows = size, cols = size, style = "dense", seed = 1, lengths = [], tries = 400, maxLen = null } = {}) {
   const S = STYLES[style];
   if (!S) throw new Error(`gridfill: no grid style ${style}`);
   const rnd = seeded(mix(seed, 0x6A11)), mid = (S.black[0] + S.black[1]) / 2;
@@ -173,7 +175,7 @@ export function makeGrid({ size = 13, rows = size, cols = size, style = "dense",
   for (let t = 0; t < tries && good < S.pick; t++) {
     const g = S.start === "lattice" ? lattice(rows, cols) : open(rows, cols);
     const target = S.black[0] + rnd() * (S.black[1] - S.black[0]);
-    if (!grow(g, rows, cols, target, S.maxLen(Math.max(rows, cols)), rnd, S)) continue;
+    if (!grow(g, rows, cols, target, maxLen ?? S.maxLen(Math.max(rows, cols)), rnd, S)) continue;
     const grid = g.map(row => row.join(""));
     if (gridProblems(grid).length) continue;
     const slots = slotsOf(grid), lens = slots.map(s => s.len);
