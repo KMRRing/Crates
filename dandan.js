@@ -19,6 +19,7 @@ import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { IN_FRAME, noteStreak } from "./suite.js";
 import { sextant } from "./loading.js";
+import { createTable3d } from "./dandan-3d.js";
 import "./pwa.js";
 
 const $ = id => document.getElementById(id);
@@ -40,11 +41,16 @@ const THINK_TIME = {
 // the computer's pace: how long what it does stays on the table before its next move, or until you tap
 const PACES = [["quick", "Quick"], ["steady", "1.5 s"], ["slow", "3 s"], ["tap", "Tap to continue"]];
 const SHOWN_MS = { steady: 1500, slow: 3000 };
-let opts = { level: "hard", hold: false, coach: "hints", think: "quick", pace: "quick", full: true, ...read(OPTS, {}) };
+// the table as tiles, or as a battlefield seen at an angle, its cards illustrated and moving (dandan-3d.js)
+const VIEWS = [["table", "Table"], ["3d", "3D"]];
+let opts = { level: "hard", hold: false, coach: "hints", think: "quick", pace: "quick", full: true, view: "table", ...read(OPTS, {}) };
 if (!LEVEL_NAMES.some(([k]) => k === opts.level)) opts.level = "hard";
 if (!COACH.some(([k]) => k === opts.coach)) opts.coach = "hints";
 if (!THINKING.some(([k]) => k === opts.think)) opts.think = "quick";
 if (!PACES.some(([k]) => k === opts.pace)) opts.pace = "quick";
+if (!VIEWS.some(([k]) => k === opts.view)) opts.view = "table";
+let table3d = null;                                // the 3D view, once the page is wired (the foot of this file)
+const in3d = () => opts.view === "3d" && !!table3d;
 const saveOpts = () => write(OPTS, opts);
 
 let toastTimer = 0;
@@ -229,7 +235,9 @@ page = seatPage({
       const look = ui.look;
       ui = blank();
       uiKey = key;
-      if (look && v.state && (v.state.bf.some(p => p.id === look.id) || v.state.hand[v.seat ?? 0]?.includes(look.id))) ui.look = look;
+      // (in 3D the card read stands over the table: there it goes once the card has gone somewhere else, played or cast)
+      const at = look && v.state ? placeOf(v.state, look.id) : "";
+      if (at && (!in3d() || at === look.at)) ui.look = look;
       closeCard();
     }
     draw();
@@ -367,8 +375,11 @@ function draw() {
   const v = V;
   document.body.classList.toggle("dd-watch", !!v?.G && v.seat == null);
   if (!v?.G) {
-    for (const id of ["foe", "mid", "me", "hand", "log"]) $(id).replaceChildren();
-    $("read").innerHTML = `<p class="dd-lead">One deck of eighty cards, one library, one graveyard, shared. Win with Dandâns, which can only attack across an Island.</p>`;
+    if (in3d()) table3d.empty();
+    else {
+      for (const id of ["foe", "mid", "me", "hand", "log"]) $(id).replaceChildren();
+      $("read").innerHTML = `<p class="dd-lead">One deck of eighty cards, one library, one graveyard, shared. Win with Dandâns, which can only attack across an Island.</p>`;
+    }
     $("controls").innerHTML = `<button class="btn primary dd-go" type="button" data-act="new">New game</button>`;
     return;
   }
@@ -380,12 +391,15 @@ function draw() {
   MV = canAct() ? moves(s, v.seat) : [];
   RING = myDecision() ? rings(advised(v)) : new Set();
   const q = question();
-  drawZone($("foe"), 1 - me, q);
-  drawStrip();
-  drawZone($("me"), me, q);
-  drawRead(q);
-  drawHand(q);
-  drawLog();
+  if (in3d()) table3d.draw(q);
+  else {
+    drawZone($("foe"), 1 - me, q);
+    drawStrip();
+    drawZone($("me"), me, q);
+    drawRead(q);
+    drawHand(q);
+    drawLog();
+  }
   drawCoach(v);
   drawControls(q);
   syncDialogs(q);
@@ -475,11 +489,15 @@ function drawStrip() {
 // The left column: the question put to you or the target being chosen, then the stack, then the card read: the one
 // tapped (the buttons below act on it), else the one a mouse or pen is on, else the stack's top (what's being cast, in
 // full). The right: the log.
-function drawRead(q = question()) {
-  const s = S(), armed = armedKeys();
-  const head = q ? q.say
+/** What's said above the stack: the question put to you, the target being chosen, or how the game ended (both views). */
+function readHead(q = question()) {
+  const s = S();
+  return q ? q.say
     : ui.arm ? `<p class="dd-q">${esc(ui.arm.label)}: choose ${ui.arm.moves[0].targets[0].k === "p" ? "a player" : ui.arm.moves[0].targets[0].k === "g" ? "a card in the graveyard" : "a target"}</p><p class="dd-sub">The lit ones are legal.</p>`
     : s.over ? `<p class="dd-q">${esc(words(s.log[s.log.length - 1]?.t || ""))}</p>` : "";
+}
+function drawRead(q = question()) {
+  const s = S(), armed = armedKeys(), head = readHead(q);
   const stack = s.stack.length ? `<div class="dd-stack" aria-label="The stack, the last cast on top">${[...s.stack].reverse().map(it => {
     const w = itemWords(it);
     return `<button type="button" class="dd-st ${isMe(it.ctl) ? "mine" : "theirs"}${armed.has(`s:${it.sid}`) ? " tgt" : ""}${RING.has(`t:s:${it.sid}`) ? " advised" : ""}" data-tk="s:${it.sid}" data-sid="${it.sid}">
@@ -502,7 +520,7 @@ $("app").addEventListener("pointerover", e => {
   const id = cardAt(e.target);
   if (id == null || id === hover) return;
   hover = id;
-  drawRead();
+  if (in3d()) table3d.read(); else drawRead();
 });
 
 /** A card's type line in words. */
@@ -525,10 +543,13 @@ function detail(id) {
 }
 
 // ---------- your hand ----------
+/** A hand in the order it's held: lands, the Dandân, instants, sorceries, each by cost (both views). */
+const handOrder = hand => [...hand].sort((a, b) => TYPE_ORDER[defOf(a).type] - TYPE_ORDER[defOf(b).type] || total(parseCost(defOf(a).cost)) - total(parseCost(defOf(b).cost)) || a - b);
 function drawHand(q) {
   const box = $("hand"), s = S();
+  box.className = "dd-hand";
   if (V.seat == null) { box.innerHTML = `<p class="dd-watching">Watching: you sit down at the next game.</p>`; return; }
-  const ids = [...s.hand[V.seat]].sort((a, b) => TYPE_ORDER[defOf(a).type] - TYPE_ORDER[defOf(b).type] || total(parseCost(defOf(a).cost)) - total(parseCost(defOf(b).cost)) || a - b);
+  const ids = handOrder(s.hand[V.seat]);
   const usable = new Set(MV.filter(m => m.from !== "yard").map(m => DECK[m.card]));
   box.dataset.n = ids.length;
   box.className = `dd-hand${canAct() ? " act" : ""}`;
@@ -747,11 +768,14 @@ $("controls").addEventListener("click", e => {
   if (b.dataset.act === "new") { newGame(); return; }
   BTN[Number(b.dataset.b)]?.fn();
 });
-$("board").addEventListener("click", e => {
+/** A tap on the table, in either view: they mark their cards, piles and players alike. */
+function boardTap(e) {
   const el = e.target.closest("button, [data-tk]");
   if (!el) return;
   if (el.dataset.act === "yard") { openYard(); return; }
   if (el.dataset.act === "lib") { openLibrary(); return; }
+  if (el.dataset.act === "log") { openLog(); return; }
+  if (el.dataset.act === "unlook") { ui.look = null; draw(); return; }
   if (el.dataset.look) { openCard(Number(el.dataset.look)); return; }
   if (el.dataset.qc) { openCard(Number(el.dataset.qc)); return; }
   const tk = el.dataset.tk;
@@ -764,7 +788,9 @@ $("board").addEventListener("click", e => {
   if (el.dataset.perm != null) { permTap(Number(el.dataset.perm)); return; }
   if (el.dataset.sid) { const it = S().stack.find(x => x.sid === Number(el.dataset.sid)); if (it) look(it.card ?? it.src); return; }
   if (el.dataset.act === "known") openLibrary();
-});
+}
+$("board").addEventListener("click", boardTap);
+$("board3d").addEventListener("click", boardTap);
 $("hand").addEventListener("click", e => {
   const b = e.target.closest("[data-card]");
   if (b) cardTap(Number(b.dataset.card));
@@ -774,9 +800,11 @@ $("hand").addEventListener("click", e => {
 function look(id) {
   if (id == null) return;
   if (question() || ui.arm) { openCard(id); return; }
-  ui.look = ui.look?.id === id ? null : { id };
+  ui.look = ui.look?.id === id ? null : { id, at: placeOf(S(), id) };
   draw();
 }
+/** Where a card read is: on the table or in your hand (else nowhere it's read from). */
+const placeOf = (s, id) => (s?.bf.some(p => p.id === id) ? "bf" : s?.hand[V?.seat ?? 0]?.includes(id) ? "hand" : "");
 function cardTap(id) {
   // a question up (the mulligan, a card to put away): the card is read in its sheet, and chosen there
   if (question()) { openCard(id); return; }
@@ -895,14 +923,30 @@ $("askBody").addEventListener("click", e => {
 $("askLook").addEventListener("click", () => { ui.dlgOff = true; draw(); });
 $("askDlg").addEventListener("cancel", e => { e.preventDefault(); ui.dlgOff = true; draw(); });
 
-let VIEW = "";                                     // "yard" | "lib" while that sheet is open
+let VIEW = "";                                     // "yard" | "lib" | "log" while that sheet is open
 function openYard() { VIEW = "yard"; fillView(); if (!$("viewDlg").open) $("viewDlg").showModal(); }
 function openLibrary() { VIEW = "lib"; fillView(); if (!$("viewDlg").open) $("viewDlg").showModal(); }
+/** The whole log (the 3D view shows its latest line), opened at its foot, the newest. */
+function openLog() {
+  VIEW = "log";
+  fillView();
+  const dlg = $("viewDlg");
+  if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = dlg.scrollHeight;
+}
 function closeView() { if ($("viewDlg").open) $("viewDlg").close(); }
 let VROWS = [];
 function fillView() {
   const s = S(), body = $("viewBody");
   if (!s) return;
+  if (VIEW === "log") {
+    const dlg = $("viewDlg"), atFoot = dlg.scrollTop + dlg.clientHeight >= dlg.scrollHeight - 4;
+    $("viewHead").textContent = "Log";
+    body.innerHTML = `<ol class="dd-logsheet">${s.log.map(e => `<li>${esc(words(e.t))}</li>`).join("")}</ol>`;
+    if (atFoot) dlg.scrollTop = dlg.scrollHeight;   // following the game, unless you've scrolled back to read
+    VROWS = [];
+    return;
+  }
   if (VIEW === "lib") {
     $("viewHead").textContent = `Library · ${s.lib.length}`;
     const me = V.seat ?? 0, known = s.kn.filter(([id, m]) => (m & (1 << me)) && s.lib.includes(id)).map(([id]) => id).sort((a, b) => s.lib.indexOf(a) - s.lib.indexOf(b));
@@ -1131,6 +1175,7 @@ function openMenu() {
   play.append(action("Copy log", copyLog, "link"));
   if (opts.full) play.append(action("All games", () => $("appsBtn").click(), "link"));   // the title that opens them is put away
   const set = part(body, "settings");
+  set.append(choice("View", VIEWS, opts.view, v => { opts.view = v; saveOpts(); showView(); draw(); }));
   // Thinking: Hard's and the coach's, shown while either is there (at a table the phone that runs the computer thinks
   // on its own thread, at Quick; each phone's coach at its own setting)
   const time = line("");
@@ -1169,6 +1214,16 @@ function fullScreen(on) {
 }
 showFull();
 
+/** The view chosen in the menu: the table as tiles (#board), or the battlefield in 3D (#board3d, dandan-3d.js). The
+ *  hand, the coach's line and the buttons are the same elements in both, drawn by whichever view is showing. */
+function showView() {
+  const three = opts.view === "3d";
+  $("app").classList.toggle("dd3", three);
+  $("board").hidden = three;
+  $("board3d").hidden = !three;
+  table3d?.reset();
+}
+
 // ---------- wiring ----------
 bindSwitcher($("appsBtn"), "dandan");
 document.querySelector(".dd-mark").innerHTML = APPS.find(a => a.id === "dandan")?.logo || "";
@@ -1177,6 +1232,12 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("rulesBtn").addEventListener("click", showRules);
 $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("copyClose").addEventListener("click", () => $("copyDlg").close());
+table3d = createTable3d({
+  view: () => V, ui: () => ui, moves: () => MV, rings: () => RING, hover: () => hover, POINTER, LAND_CODE, quiet: IN_FRAME,
+  esc, pips, nameOf, isMe, short, soft: n => SOFT[n] || n, words, typeLine, stateWords, itemWords, armedKeys, targetKey,
+  headline, waitLine, readHead, canAct, handOrder,
+});
+showView();
 window.__dandan = { page, get view() { return V; }, get ui() { return ui; }, opts };
 // the first time, a game is dealt at once: the table is the menu
 if (!page.view.G && !page.atTable && !IN_FRAME && !new URLSearchParams(location.search).get("table")) newGame();

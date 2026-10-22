@@ -13,6 +13,8 @@ import { thinkMove, BUDGET, DEPTH } from "../dandan-think.js";
 import { newRecord, applyMove, botMove as seatBot, seeded, shuffle } from "../seats.js";
 import { roundTrip, same } from "./rtdb.js";
 import { J, scene, islandsOf, go, refused, idIn, onBf, names, cast, pass, answer, drive, resolveStack, stackNames, sidOf } from "./dandan-scene.js";
+import { zonesOf, moved, piles, STEPS } from "../dandan-3d.js";
+import { PICTURED, SPRITE, art } from "../dandan-art.js";
 
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
@@ -844,6 +846,30 @@ test("its answers are always legal ones, for every kind of question and at every
   if (missing.length) throw new Error(`never asked: ${missing}`);
   return true;
 });
+
+// ---------- the 3D view (dandan-3d.js, dandan-art.js): what it draws from, without a page ----------
+{
+  check([...NAMES, "Clue"].every(n => PICTURED.includes(n)) && PICTURED.length === NAMES.length + 1, "every card in the list, and the Clue, has its picture");
+  check((SPRITE.match(/<symbol /g) || []).length === PICTURED.length + 1 && Object.values(HALVES).flat().every(h => art(h).includes("#dda-commit-memory")),
+    "the sprite holds every picture and the back, and a split card's halves show the card's");
+  const s = restore(J(deal({ rng: seeded(11) }))), z = zonesOf(s);
+  const count = k => [...z.values()].filter(v => v === k).length;
+  check(z.size === 80 && count("h0") === 7 && count("h1") === 7 && count("l") === 66, "a dealt game: every card in one place, seven in each hand, the rest in the library");
+  // a land played, a spell cast at a spell, a Clue cracked: each card's change of place, and nothing else's
+  let t = scene({ hand: [["Island", "Brainstorm", "Memory Lapse"], ["Memory Lapse"]], bf: [...islandsOf(0, 3), [0, "Clue"], ...islandsOf(1, 2)], hold: 1 });
+  const land = idIn(t, 0, "Island"), t2 = go(t, 0, { t: "land", card: land });
+  const m1 = moved(zonesOf(t), zonesOf(t2));
+  check(m1.length === 1 && m1[0].id === land && m1[0].from === "h0" && m1[0].to === "bf", "a land played moves from the hand to the battlefield, alone");
+  const t3 = cast(t2, 0, "Brainstorm"), bs = idIn(t2, 0, "Brainstorm");
+  check(moved(zonesOf(t2), zonesOf(t3)).some(m => m.id === bs && m.from === "h0" && m.to === "st"), "a spell cast goes from the hand to the stack");
+  const clue = t.bf.find(p => nm(p.id) === "Clue").id;
+  check(moved(new Map([[clue, "bf"]]), new Map()).some(m => m.id === clue && m.from === "bf" && m.to === null), "a token gone has nowhere to go (it fades where it was)");
+  // the lands as they lie: Islands first, alike ones a pile (tapped and untapped apart, a Mind Bent one alone), Clues last
+  const u = scene({ bf: [[0, "Clue"], [0, "Remote Isle"], [0, "Island"], [0, "Island", { tapped: true }], [0, "Island"], [0, "Island", { tc: [["Island", "Swamp"]] }], [0, "Island"]] });
+  const lay = piles(u.bf), pile = lay.map(x => `${nm(x.p.id)}${x.p.tapped ? "*" : ""}${x.p.tc ? "~" : ""}:${x.first ? "f" : ""}${x.last ? `l${x.n}` : ""}`);
+  check(pile.join(" ") === "Island:f Island: Island:l3 Island*:fl1 Island~:fl1 Remote Isle:fl1 Clue:fl1", `the lands lie Islands first, alike ones piled, Clues last: ${pile.join(" ")}`);
+  check(STEPS.length === 8 && STEPS[0] === "upkeep" && STEPS.at(-1) === "end", "the turn's steps, as the track marks them");
+}
 
 // ---------- whole games ----------
 // played with no log and nothing read of the passes (quiet), as the computer plays games out in its head: reading every
