@@ -110,7 +110,8 @@ function crate(g, L, col, z, has, stamp) {
  * centre on the drawing), px (set by the page: its pixels, as a phone counts them, to the drawing's unit, which sizes
  * the turning arrows), and draw(o), o: { board, tint (each crate's enamel, 0 for cargo), ghost (the cells a piece would
  * take), ghostTint (its enamel), lit (the cells a move would clear), gone (cells going out), lift (cell → how many decks
- * over its place it's drawn, as it falls) }.
+ * over its place it's drawn, as it falls), bad (crates breaking a rule, edged in oxblood), seat (crates just seated,
+ * edged in gilt a moment) }.
  */
 export function holdScene(svg, field, cam) {
   const g = geometry(field), n2 = field.n2;
@@ -120,7 +121,7 @@ export function holdScene(svg, field, cam) {
     setCam(c) { cam = c; L = lens(g, cam); svg.setAttribute("viewBox", scene.frame.map(f3).join(" ")); },
     centre(i) { const c = g.cells[i % n2]; return L.p(c.x, c.y, (Math.floor(i / n2) + 0.5) * g.dh); },
     draw(o) {
-      const { board, tint = [], ghost = null, lit = null, gone = null, lift = null } = o, out = [];
+      const { board, tint = [], ghost = null, lit = null, gone = null, lift = null, bad = null, seat = null } = o, out = [];
       const mine = new Set(ghost || []);
       // the floor's grid; the far walls, the decks marked on them
       out.push(`<g class="hold">`);
@@ -150,6 +151,8 @@ export function holdScene(svg, field, cam) {
         let cls = isGhost ? `cr ghost t${o.ghostTint || 1}` : v === 2 ? "cr mark" : tint[it.i] ? `cr t${tint[it.i]}` : "cr cargo";
         if (isLit) cls += ` lit l${o.ghostTint || 1}`;
         if (gone?.has(it.i)) cls += " gone";
+        if (bad?.has(it.i)) cls += " bad";
+        if (seat?.has(it.i)) cls += " seat";
         out.push(`<g class="${cls}">`);
         for (const f of k.faces) out.push(`<polygon class="${f.k}" points="${pts(f.pts)}"/>`);
         for (const s of k.stamps) out.push(`<polygon class="stamp" points="${pts(s.pts)}"/>`);
@@ -197,29 +200,29 @@ function cellsOf(field, piece) {
   if (!d) { f = bigHold(field.kind, 4); d = drops(f, piece)[0]; }
   return { f, cells: [...d.col].map((col, j) => ({ col, z: d.dz[j] })) };
 }
-/** The reach of a hold's pieces from their middles to their farthest corners, which no turn of the view can draw any
- *  farther off: the tray draws them all on this one scale. */
+/** The reach of some pieces from their middles to their farthest corners, which no turn of the view can draw any
+ *  farther off: a tray draws them all on this one scale. Without pieces, every piece the hold deals. */
 const reaches = new Map();
-function reachOfPieces(field) {
-  const key = JSON.stringify(field.spec);
-  if (!reaches.has(key)) {
-    let r = 1;
-    for (const p of poolFor(field.spec)) {
-      const { f, cells } = cellsOf(field, p), g = geometry(f);
-      const m = cells.map(c => [g.cells[c.col].x, g.cells[c.col].y, (c.z + 0.5) * g.dh]).reduce((s, q) => s.map((v, k) => v + q[k] / cells.length), [0, 0, 0]);
-      for (const c of cells) for (const q of g.cells[c.col].pts) for (const z of [c.z, c.z + 1]) r = Math.max(r, Math.hypot(q[0] - m[0], q[1] - m[1], z * g.dh - m[2]));
-    }
-    r += 0.15;
-    reaches.set(key, r);
+export function reachFor(field, pieces = null) {
+  const key = pieces ? null : JSON.stringify(field.spec);
+  if (key && reaches.has(key)) return reaches.get(key);
+  let r = 1;
+  for (const p of pieces || poolFor(field.spec)) {
+    const { f, cells } = cellsOf(field, p), g = geometry(f);
+    const m = cells.map(c => [g.cells[c.col].x, g.cells[c.col].y, (c.z + 0.5) * g.dh]).reduce((s, q) => s.map((v, k) => v + q[k] / cells.length), [0, 0, 0]);
+    for (const c of cells) for (const q of g.cells[c.col].pts) for (const z of [c.z, c.z + 1]) r = Math.max(r, Math.hypot(q[0] - m[0], q[1] - m[1], z * g.dh - m[2]));
   }
-  return reaches.get(key);
+  r += 0.15;
+  if (key) reaches.set(key, r);
+  return r;
 }
 /**
  * A piece drawn on its own in the hold's view: into svg, its crates in its enamel. With fit, on the tray's scale (every
- * piece of the hold the same, centred, the same whichever way the view is turned); without, tight round it. Returns
+ * piece of the hold the same, centred, the same whichever way the view is turned: `reach`, else reachFor's for every
+ * piece the hold deals); without, tight round it. Returns
  * { box, cx, cy } (its frame, and the middle of its crates, in the drawing's units, the hold's scale).
  */
-export function drawPiece(svg, field, piece, cam, { fit = false, tint = 1 } = {}) {
+export function drawPiece(svg, field, piece, cam, { fit = false, tint = 1, reach = null } = {}) {
   const { f, cells } = cellsOf(field, piece), g = geometry(f), L = lens(g, cam), n2 = f.n2;
   const at = new Set(cells.map(c => c.z * n2 + c.col)), has = (col, z) => at.has(z * n2 + col);
   const list = cells.map(c => ({ ...c, d: L.depth(g.cells[c.col].x, g.cells[c.col].y, (c.z + 0.5) * g.dh) })).sort((p, q) => p.d - q.d);
@@ -234,7 +237,7 @@ export function drawPiece(svg, field, piece, cam, { fit = false, tint = 1 } = {}
   svg.innerHTML = out.join("");
   const xs = all.map(p => p[0]), ys = all.map(p => p[1]);
   const box = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
-  if (fit) { const r = reachOfPieces(field); svg.setAttribute("viewBox", [mx - r, my - r, 2 * r, 2 * r].map(f3).join(" ")); }
+  if (fit) { const r = reach || reachFor(field); svg.setAttribute("viewBox", [mx - r, my - r, 2 * r, 2 * r].map(f3).join(" ")); }
   else svg.setAttribute("viewBox", [box.x, box.y, box.w, box.h].map(f3).join(" "));
   return { box, cx: mx, cy: my };
 }

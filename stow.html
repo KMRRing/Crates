@@ -27,12 +27,14 @@
   <div class="sw-strip"><span id="where"></span><span id="tally" class="sw-tally"></span></div>
   <section id="hold" class="sw-hold fit-grow fit-box" aria-label="The hold">
     <svg id="board" class="sw-board" xmlns="http://www.w3.org/2000/svg"></svg>
+    <p id="pop" class="sw-pop" aria-hidden="true"></p>
   </section>
 
   <section class="sw-side">
     <p id="partner" class="sw-partner" hidden></p>
-    <div id="tray" class="sw-tray" aria-label="Your pieces: drag one into the hold"></div>
-    <div id="theirs" class="sw-theirs" aria-label="The others' pieces, face down, in turn order" hidden></div>
+    <p id="say" class="sw-say" role="status" aria-live="polite"></p>
+    <div id="orders" class="sw-orders" aria-label="The stowage rules, and how they stand" hidden></div>
+    <div id="tray" class="sw-tray" aria-label="The manifest: tap a piece to turn it, drag it into the hold"></div>
     <div id="result" class="sw-result" hidden>
       <p id="verdict" class="sw-verdict"></p>
       <p id="stars" class="sw-stars" aria-hidden="true"></p>

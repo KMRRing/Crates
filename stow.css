@@ -1,7 +1,10 @@
-/* Stow: the hold, and three pieces at a time to drag into it. A hull's anti-fouling red is the house colour; the
-   pieces wear the four enamels, the cargo already aboard is crate-wood, a consignment carries a brass stamp. */
+/* Stow: the hold, and the manifest to stow in it (or Loose cargo's three pieces at a time). A hull's anti-fouling red
+   is the house colour; the pieces wear the four enamels and their lighter tones, the cargo already aboard is
+   crate-wood, a consignment carries a brass stamp, a hold stowed is shut under navy hatch covers. */
 :root {
   --sw-in: #8A3B24;
+  --sw-good: #2F7D5B;
+  --sw-bad: #A8382B;
   --sw-in-soft: color-mix(in srgb, var(--sw-in) 15%, var(--sheet));
   --sw-cell: color-mix(in srgb, var(--yard) 84%, var(--brass));
   --sw-cargo: color-mix(in srgb, var(--brass) 62%, var(--sheet));
@@ -10,20 +13,21 @@
   --sw-gap: var(--sheet);
 }
 @media (prefers-color-scheme: dark) {
-  html:not([data-mode="day"]) { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--yard) 80%, var(--brass)); --sw-cargo: color-mix(in srgb, var(--brass) 52%, var(--tile)); }
+  html:not([data-mode="day"]) { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806F; --sw-cell: color-mix(in srgb, var(--yard) 80%, var(--brass)); --sw-cargo: color-mix(in srgb, var(--brass) 52%, var(--tile)); }
 }
 /* night, set in Settings */
-html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--yard) 80%, var(--brass)); --sw-cargo: color-mix(in srgb, var(--brass) 52%, var(--tile)); }
+html[data-mode="night"] { --sw-in: #E08A6A; --sw-good: #7FC2A8; --sw-bad: #E8806F; --sw-cell: color-mix(in srgb, var(--yard) 80%, var(--brass)); --sw-cargo: color-mix(in srgb, var(--brass) 52%, var(--tile)); }
 
 .sw-mark { display: inline-block; }
 .sw-mark svg { width: 100%; height: 100%; display: block; }
 .sw-strip { display: flex; justify-content: space-between; align-items: baseline; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
-.sw-strip #where { font-weight: 800; color: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-size: .82rem; }
-.sw-tally { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sw-strip #where { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 800; color: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); font-size: .82rem; }
+.sw-tally { flex: none; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sw-left { color: var(--sw-in); font-weight: 800; }
 
 /* the hold: as large as its room allows at its own proportions (--ar, set by stow.js), a sheet in a brass frame */
 .sw-hold { position: relative; place-items: start center; }   /* under the tally; the room below is the finger's */
+#app[data-mode="plan"] .sw-hold { place-items: center; }      /* a manifest's tray is below it whatever its shape */
 .sw-board { width: min(100cqw, 100cqh * var(--ar, 1)); height: min(100cqh, 100cqw / var(--ar, 1)); display: block; box-sizing: border-box; touch-action: none; overflow: visible;
   border-radius: 6px; background: var(--sheet); border: 1px solid var(--tile-edge); box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px var(--rule); }
 .sw-board .c { fill: var(--sw-cell); stroke: var(--sw-gap); stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; transition: fill .12s; }
@@ -113,19 +117,6 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--
 .sw-piece polygon { stroke: var(--sw-gap); stroke-width: 1.5px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 /* the piece in your hand, over everything, at the hold's scale */
 .sw-float { position: fixed; z-index: 30; pointer-events: none; overflow: visible; filter: drop-shadow(0 6px 8px rgba(28, 42, 52, .28)); }
-/* together: everyone else's hand, face down, in turn order from yours: a name in their colour and a card back for each
-   piece still in hand; whose turn it is outlined in their colour, anyone away dimmed. Three to a row (two beside the
-   hold), as many rows as the table seats people for (--cols, --rows: stow.js), so nothing moves as people sit down. */
-.sw-theirs { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); grid-auto-rows: 1.6rem; gap: .4rem;
-  height: calc(var(--rows, 1) * 1.6rem + (var(--rows, 1) - 1) * .4rem); }
-.sw-theirs[hidden] { display: none; }
-.sw-hand { display: flex; align-items: center; gap: .1875rem; min-width: 0; padding: 0 .4375rem 0 .375rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); }
-.sw-hand::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--seat); flex: none; margin-right: .125rem; }
-.sw-hand b { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .82rem; font-weight: 750; margin-right: .1875rem; }
-.sw-hand i { flex: none; width: .5rem; height: .875rem; border-radius: 2px; background: repeating-linear-gradient(45deg, var(--sw-in-soft) 0 2px, color-mix(in srgb, var(--sw-in) 40%, var(--sheet)) 2px 4px); }
-.sw-hand i.used { background: transparent; box-shadow: inset 0 0 0 1px var(--rule); }
-.sw-hand.turn { border-color: var(--seat); box-shadow: inset 0 0 0 1.5px var(--seat); }
-.sw-hand.away { opacity: .5; }
 /* the turn: one line (the hold never moves for it), the one to play in their colour */
 .sw-partner { margin: 0; font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sw-partner b { color: var(--sw-in); }
@@ -161,13 +152,145 @@ html[data-mode="night"] { --sw-in: #E08A6A; --sw-cell: color-mix(in srgb, var(--
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }
 .sw-toast.show { opacity: 1; }
 
+/* ---------- manifests ---------- */
+/* the flat hold: the floor's cells, the crates already aboard in wood with their lids and braces, the pieces in their
+   enamels (one fill a piece, so its crates join; faint seams between them; an ink outline) */
+.sw-board[data-kind="plan"] .fl { fill: var(--sw-cell); stroke: var(--sw-gap); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.sw-board[data-kind="plan"] .crate rect { fill: var(--sw-cargo); stroke: var(--sw-gap); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.sw-board[data-kind="plan"] .crate .lid, .sw-board[data-kind="plan"] .crate path { fill: none; stroke: color-mix(in srgb, var(--ink) 24%, transparent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.pc { --f: var(--c2); }
+.pc.k1 { --f: var(--c2); }
+.pc.k2 { --f: var(--c1); }
+.pc.k3 { --f: var(--c0); }
+.pc.k4 { --f: var(--c3); }
+.pc.k5 { --f: color-mix(in srgb, var(--c2) 52%, var(--sheet)); }
+.pc.k6 { --f: color-mix(in srgb, var(--c1) 52%, var(--sheet)); }
+.pc.k7 { --f: color-mix(in srgb, var(--c0) 52%, var(--sheet)); }
+.pc.k8 { --f: color-mix(in srgb, var(--c3) 52%, var(--sheet)); }
+.pc .f { fill: var(--f); }
+.pc.heavy .f { fill: color-mix(in srgb, var(--f) 70%, var(--ink)); }
+.pc .s { fill: none; stroke: color-mix(in srgb, var(--f) 62%, var(--sheet)); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.pc .o { fill: none; stroke: var(--ink); stroke-width: 1.6px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.pc.ghost .f { fill-opacity: .45; }
+.pc.ghost .o { stroke-dasharray: 4 3; }
+.pc.ghost .gl { opacity: .6; }
+.pc.bad .o { stroke: var(--sw-bad); stroke-width: 2.8px; }
+/* seated: a quick settle; tight (a pocket filled exactly): the piece glows gilt a moment */
+.pc.seat { animation: sw-seat .22s ease-out; transform-box: fill-box; transform-origin: center; }
+@keyframes sw-seat { from { transform: scale(1.06); } }
+.pc.tight .f { animation: sw-tight .75s ease-out; }
+@keyframes sw-tight { 0%, 30% { fill: color-mix(in srgb, var(--f) 40%, var(--brass-hi)); } }
+/* the sides a piece seated flush against */
+.sw-board .flush { fill: none; stroke: var(--brass-hi); stroke-width: 4px; stroke-linecap: round; vector-effect: non-scaling-stroke; animation: sw-flush .7s ease-out forwards; pointer-events: none; }
+@keyframes sw-flush { to { stroke-opacity: 0; } }
+/* the tags: a reefer's snowflake; the dangerous goods' placards in their own colours (class 3's red, 5.1's yellow); a
+   heavy piece's tonnes */
+.gl { pointer-events: none; }
+.gl.flake { fill: none; stroke: var(--sheet); stroke-width: 1.6px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.gl text { font-weight: 850; text-anchor: middle; dominant-baseline: central; font-variant-numeric: tabular-nums; }
+.gl.dg path { stroke: #FFFFFF; stroke-width: 1.2px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.gl.dg.d3 path { fill: #C8321F; }
+.gl.dg.d5 path { fill: #E5B419; }
+.gl.dg.d3 text { font-size: .27px; fill: #FFFFFF; }
+.gl.dg.d5 text { font-size: .19px; fill: #1C2A34; }
+.gl.wt rect { fill: var(--sheet); stroke: var(--ink); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.gl.wt text { font-size: .22px; fill: var(--ink); }
+/* a reefer's plug: a brass socket, lit under a reefer, struck in oxblood under anything else */
+.plug { pointer-events: none; }
+.plug circle { fill: color-mix(in srgb, var(--sheet) 70%, transparent); stroke: var(--brass); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.plug .pin { fill: var(--brass); stroke: none; }
+.plug.live circle:first-child { fill: var(--brass-hi); stroke: var(--ink); }
+.plug.live .pin { fill: var(--ink); }
+.plug.blocked circle:first-child { stroke: var(--sw-bad); stroke-width: 2.4px; }
+/* dead space: hatched, no piece left can fill it */
+.sw-board .dead { fill: url(#sw-hatch); pointer-events: none; }
+.sw-board .hatch-bg { fill: color-mix(in srgb, var(--sw-bad) 12%, transparent); }
+.sw-board .hatch-ln { stroke: var(--sw-bad); stroke-width: .07; }
+.sw-board .side-mark { font-size: .24px; font-weight: 850; fill: var(--ink-soft); text-anchor: middle; dominant-baseline: central; }
+/* the hatch, shut over a hold stowed: two navy covers (brass by night) sliding in from the sides, ribbed, lettered */
+.hatch { pointer-events: none; }
+.hatch .cover { transform-box: fill-box; }
+.hatch .cover rect { fill: var(--plate); }
+.hatch .cover path { stroke: color-mix(in srgb, var(--plate-ink) 30%, transparent); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.hatch .seam { stroke: var(--plate-ink); stroke-width: 1.4px; vector-effect: non-scaling-stroke; stroke-opacity: .6; }
+.hatch .stamp { fill: var(--plate-ink); font-weight: 850; text-anchor: middle; dominant-baseline: central; text-transform: var(--caps); letter-spacing: calc(.16em * var(--track)); font-stretch: var(--wide); }
+.hatch.closing .cover.l { animation: sw-cover-l .6s cubic-bezier(.3, .8, .25, 1) both; }
+.hatch.closing .cover.r { animation: sw-cover-r .6s cubic-bezier(.3, .8, .25, 1) both; }
+.hatch.closing .stamp, .hatch.closing .seam { animation: sw-lettered .35s .5s both; }
+@keyframes sw-cover-l { from { transform: translateX(-100%); } }
+@keyframes sw-cover-r { from { transform: translateX(100%); } }
+@keyframes sw-lettered { from { opacity: 0; } }
+/* in decks: the lighter tones; crates breaking the discharge order edged in oxblood; a piece just seated, in gilt */
+[data-kind="deck"] .cr.t5 { --f: color-mix(in srgb, var(--c2) 52%, var(--sheet)); }
+[data-kind="deck"] .cr.t6 { --f: color-mix(in srgb, var(--c1) 52%, var(--sheet)); }
+[data-kind="deck"] .cr.t7 { --f: color-mix(in srgb, var(--c0) 52%, var(--sheet)); }
+[data-kind="deck"] .cr.t8 { --f: color-mix(in srgb, var(--c3) 52%, var(--sheet)); }
+[data-kind="deck"] .cr.bad polygon { stroke: var(--sw-bad); stroke-width: 2.2px; }
+[data-kind="deck"] .cr.seat polygon { stroke: var(--brass-hi); stroke-width: 2.2px; }
+[data-kind="deck"] .hatch .stamp { font-size: 1px; }
+
+/* the manifest: every piece at once, on one scale, a tap turning one; Undo last */
+.sw-tray.plan { grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); grid-template-rows: repeat(var(--rows, 2), minmax(0, 1fr)); grid-auto-rows: auto; gap: .375rem; height: 9.4rem; }
+.sw-mf { position: relative; display: grid; place-items: center; min-width: 0; min-height: 0; padding: .15rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet);
+  touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
+.sw-mf svg { position: absolute; inset: .2rem; width: calc(100% - .4rem); height: calc(100% - .4rem); display: block; pointer-events: none; overflow: visible; }
+.sw-mf svg.turning { transition: transform .15s ease-in; transform: rotate(90deg); }
+.sw-mf.stowed { background: transparent; border-style: dashed; cursor: default; }
+.sw-mf.stowed svg { opacity: .2; filter: grayscale(1); }
+.sw-mf.lifted svg { opacity: .2; }
+.sw-tag { position: absolute; left: .25rem; top: .15rem; display: inline-flex; align-items: center; font-size: .62rem; font-weight: 850; letter-spacing: calc(.06em * var(--track)); color: var(--ink); pointer-events: none; }
+.sw-tag.flake svg { width: .85rem; height: .85rem; fill: none; stroke: var(--c2); stroke-width: .26; stroke-linecap: round; }
+.sw-tag .dgi { width: .95rem; height: .95rem; }
+.sw-tag.wt { padding: 0 .2rem; border: 1px solid var(--ink); border-radius: 3px; background: var(--sheet); line-height: 1.25; }
+.sw-mf.stowed .sw-tag { opacity: .35; }
+.sw-port.p1, .pt.p1 { --pt: var(--c2); }
+.sw-port.p2, .pt.p2 { --pt: var(--c3); }
+.sw-port.p3, .pt.p3 { --pt: var(--c1); }
+.sw-port { color: var(--pt); }
+.sw-undo { display: grid; place-items: center; align-content: center; gap: .1rem; min-width: 0; min-height: 0; padding: .15rem; border: 1px solid var(--rule); border-radius: 6px; background: transparent; color: var(--ink);
+  font: inherit; font-size: .7rem; font-weight: 800; text-transform: var(--caps); letter-spacing: calc(.08em * var(--track)); cursor: pointer; }
+.sw-undo svg { width: 1.4rem; height: 1.4rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sw-undo:disabled { opacity: .35; cursor: default; }
+
+/* a line: what matters now (a hint, dead space, a rule broken); and the orders, each rule with how it stands */
+.sw-say { margin: 0; height: 1.3rem; font-size: .88rem; font-weight: 650; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sw-say.bad { color: var(--sw-bad); }
+.sw-orders { display: flex; flex-wrap: wrap; gap: .3rem .375rem; }
+.sw-orders[hidden] { display: none; }
+.sw-order { display: inline-flex; align-items: center; gap: .3rem; height: 1.75rem; padding: 0 .5rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet);
+  font-size: .78rem; font-weight: 650; color: var(--ink-soft); white-space: nowrap; }
+.sw-order b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
+.sw-order.ok { border-color: var(--sw-good); color: var(--sw-good); }
+.sw-order.bad { border-color: var(--sw-bad); color: var(--sw-bad); background: color-mix(in srgb, var(--sw-bad) 8%, var(--sheet)); }
+.sw-order > svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: .22; stroke-linecap: round; }
+.sw-order > svg.clino { width: 1.6rem; height: .95rem; stroke-width: 1.4; }
+.clino .arc { stroke: var(--brass); }
+.clino .tick { stroke: var(--brass); stroke-width: 1; }
+.clino .needle { stroke: var(--ink); stroke-width: 1.6; transition: transform .3s ease-out; }
+.clino circle { fill: var(--brass); stroke: none; }
+.dgi { display: inline-grid; place-items: center; width: 1.05rem; height: 1.05rem; font-style: normal; font-size: .5rem; font-weight: 850; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.dgi.d3 { background: #C8321F; color: #FFFFFF; font-size: .6rem; }
+.dgi.d5 { background: #E5B419; color: #1C2A34; }
+.pt { font-style: normal; font-size: .62rem; font-weight: 850; color: var(--sheet); background: var(--pt); padding: .05rem .2rem; border-radius: 2px; letter-spacing: calc(.04em * var(--track)); }
+#app[data-mode="loose"] .sw-say, #app[data-mode="loose"] .sw-orders { display: none; }
+
+/* a word rising from where a piece seated tight */
+.sw-pop { position: absolute; margin: 0; transform: translate(-50%, -50%); font-weight: 850; font-size: 1.05rem; color: var(--ink); pointer-events: none; opacity: 0; z-index: 2;
+  text-transform: var(--caps); letter-spacing: calc(.12em * var(--track)); font-stretch: var(--wide); text-shadow: 0 0 3px var(--sheet), 0 0 7px var(--sheet); }
+.sw-pop.go { animation: sw-rise .9s ease-out; }
+@keyframes sw-rise { 0% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; transform: translate(-50%, -190%); } }
+/* the iPhone's tap of the phone: a switch nobody sees */
+.sw-tick { position: fixed; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+
 /* held sideways: the hold on the left with all the height, the tally and the tray beside it, the pieces stacked */
 @media (orientation: landscape) and (min-width: 700px) {
   #app.stow { --beside: 19rem; grid-template-rows: auto auto minmax(0, 1fr); }
   #app.stow .sw-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .2rem; margin-top: 1rem; }
   #app.stow .sw-hold { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; place-items: center; }
   #app.stow .sw-side { grid-column: 2; grid-row: 3; justify-content: flex-end; min-height: 0; }
-  #app.stow .sw-tray:not(.sw-theirs) { grid-template-columns: 1fr; grid-auto-rows: minmax(0, 1fr); height: auto; flex: 1 1 auto; max-height: 26rem; min-height: 0; }
+  #app.stow .sw-tray:not(.plan) { grid-template-columns: 1fr; grid-auto-rows: minmax(0, 1fr); height: auto; flex: 1 1 auto; max-height: 26rem; min-height: 0; }
+  #app.stow .sw-tray.plan { height: auto; flex: 1 1 0; max-height: 34rem; min-height: 0; }
+  #app.stow .sw-say { height: auto; min-height: 2.4rem; white-space: normal; }
   #app.stow .sw-result { min-height: 0; }
   #app.stow .sw-partner { white-space: normal; }   /* a column of its own: the turn may take two lines */
 }

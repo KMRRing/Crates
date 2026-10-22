@@ -1,8 +1,8 @@
-// Stow: drag the shapes into the hold; a line full from end to end clears. This is everything but the page: the fields
-// (squares, hexagons, triangles, cut to any outline, flat or in decks), their lines, the pieces that fit each, placing
-// and clearing, the deals, the levels and the solver that proves every level can be won and sets its par. Pure,
-// integer-only where it decides anything, so the page, the worker, the build of the levels and the tests all reach the
-// same answers.
+// Stow's Loose cargo: drag the shapes into the hold; a line full from end to end clears. This is everything but the
+// page: the fields (squares, hexagons, triangles, cut to any outline, flat or in decks), their lines, the pieces that
+// fit each, placing and clearing, the deals, the levels and the solver that proves every level can be won and sets its
+// par; the fields and the crane's drops serve the manifests too (stow-pack.js). Pure, integer-only where it decides
+// anything, so the page, the build of the levels and the tests all reach the same answers.
 //
 // A hold in decks is a flat field stacked: the crane lowers each piece over the hold and it goes down as one until a
 // crate stops it, so cargo can't be slid in under cargo. A line along a deck clears; then the hold settles, every crate
@@ -631,19 +631,3 @@ export function makeLevel(recipe, seed, { tries = 30, width = 60 } = {}) {
 // ---------- stars ----------
 /** Stars for a level won in `used` pieces: three at par or better, two within a third over it, one for any win. */
 export const starsFor = (used, par) => (used <= par ? 3 : used <= par + Math.max(2, Math.ceil(par / 3)) ? 2 : 1);
-
-// ---------- the daily: a level for the day, the same everywhere ----------
-// Today's hold comes round the kinds of field in turn, a hold in decks among them.
-export const DAILY_RECIPES = [
-  { field: { kind: "square", w: 8, h: 8 }, fill: 0.34, marks: 5, weights: [2, 3, 4, 4, 3], par: [9, 16], clump: 4 },
-  { field: { kind: "hex", radius: 4 }, fill: 0.32, marks: 5, weights: [2, 3, 4, 4], par: [9, 16], clump: 4 },
-  { field: { kind: "tri", size: 3 }, fill: 0.3, marks: 4, weights: [2, 3, 4, 4, 3, 2], par: [8, 15], clump: 4 },
-  { field: { kind: "square", w: 9, h: 9, bays: 3 }, fill: 0.34, marks: 6, weights: [2, 3, 4, 4, 3], par: [10, 18], clump: 4 },
-  { field: { kind: "square", w: 6, h: 6, decks: 3 }, fill: 0.27, marks: 5, weights: [2, 3, 4, 3, 0, 0, 0, 1], par: [6, 10], clump: 3 },
-];
-/** The day's level (day: YYYYMMDD). Slow-ish (it proves itself): the page asks the worker. */
-export function dailyLevel(day) {
-  const r = DAILY_RECIPES[day % DAILY_RECIPES.length];
-  const lv = makeLevel(r, mix(day, 0xDA11), { tries: 12, width: 40 });
-  return { ...lv, id: `d${day}`, day, title: "Today's hold" };
-}

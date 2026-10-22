@@ -727,12 +727,12 @@ function bindCodes(dlg) {
       // a game whose daily you haven't played today opens on it: the tile's the way in to today's puzzle or run
       if (a && app && a.getAttribute("aria-current") !== "page") a.setAttribute("href", dailyDue(id) ? `${app.href}#today` : app.href);
       // three scores: your solo best, your partner's (by initial), and the pair's duo record (duo-records.js), a team's
-      // best in the game's own terms: a time (Slate, Delta), pieces (Stow, the fewest), else points or the pot (Punt's
+      // best in the game's own terms: a time (Slate, Delta), restows (Stow, the fewest), else points or the pot (Punt's
       // solo best is a return, which its pot isn't: 1,240 showed as +124000%)
       const time = n => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, "0")}`;
       // a pair's best together, as the game counts it (an entry's team: a time, a share of everything to find, or as its score)
       const team = APPS.find(a => a.id === id)?.team;
-      const teamBest = n => (id === "stow" ? `${n} pieces` : id === "glyph" || id === "delta" || team === "time" ? time(n) : team === "pct" ? `${n}%` : id === "punt" ? short(n) : scoreText(id, n));
+      const teamBest = n => (id === "stow" ? `${n} restow${n === 1 ? "" : "s"}` : id === "glyph" || id === "delta" || team === "time" ? time(n) : team === "pct" ? `${n}%` : id === "punt" ? short(n) : scoreText(id, n));
       const duoText = duo ? duoLine(duoRecords[id === "glyph" ? "slate" : id], teamBest) : "";
       // your figure and your partner's (a partner on an older version sends only a best)
       const theirMark = duo ? theirMarks[id] || (them != null ? { kind: MARKS[id] === "daily" ? "daily" : "best", v: them, best: them } : null) : null;
