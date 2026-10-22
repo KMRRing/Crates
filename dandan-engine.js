@@ -687,6 +687,25 @@ export function moves(s, seat, firstOnly = false, only = null) {
   return out;
 }
 export const hasMove = (s, seat, only = null) => moves(s, seat, true, only).length > 0;
+/**
+ * The cards in a seat's hand it could cast or cycle once its untapped Flood Plains had fetched Islands, and can't now:
+ * name → the Flood Plain to fetch with. A fetch isn't mana (it goes on the stack and resolves first), so moves() rightly
+ * leaves that mana out, and a spell it would pay for looked unplayable (22 October 2026: Korbi, holding Memory Lapse
+ * with an Island and a Flood Plain untapped as the computer's Lapse came at his spell). The page offers "Fetch first".
+ */
+export function afterFetch(s, seat) {
+  const plains = s.bf.filter(p => p.ctl === seat && !p.tapped && nm(p.id) === "Flood Plain");
+  const isles = s.lib.filter(id => DECK[id] === "Island").slice(0, plains.length);
+  const out = new Map();
+  if (!isles.length) return out;
+  // the table as it would be: each Flood Plain gone, an untapped Island of the library in its place
+  const t = { ...s, bf: [...s.bf.filter(p => !plains.includes(p)), ...isles.map((id, i) => ({ id, ctl: seat, tapped: false, ent: s.turn, oid: -1 - i }))], lib: s.lib.filter(id => !isles.includes(id)) };
+  const now = new Set(moves(s, seat).filter(m => m.t === "cast" || m.t === "cycle").map(m => `${m.t}:${DECK[m.card]}`));
+  for (const m of moves(t, seat)) {
+    if ((m.t === "cast" && m.from === "hand") || m.t === "cycle") if (!now.has(`${m.t}:${DECK[m.card]}`)) out.set(DECK[m.card], plains[0].id);
+  }
+  return out;
+}
 
 // ---------- the game made whole after the database ----------
 const lists = (o, keys, always = false) => { for (const k of keys) if (always || o[k] != null) o[k] = list(o[k]); };

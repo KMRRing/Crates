@@ -8,7 +8,7 @@
 // legal ones on the table.
 import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
-import { moves } from "./dandan-engine.js";
+import { moves, afterFetch } from "./dandan-engine.js";
 import { think, BUDGET } from "./dandan-think.js";
 import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence } from "./dandan-coach.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
@@ -106,6 +106,9 @@ let ui = blank(), uiKey = "";
 let hover = null;                                  // the card a mouse or pen is on, read below your side (a finger taps instead)
 const POINTER = matchMedia("(hover: hover)").matches;
 let MV = [];                                       // the moves the viewer could make now (every card once)
+// the cards in your hand a Flood Plain's Island would pay for (name → the Flood Plain), worked out once a decision; and
+// the card a "Fetch first" was for, read again with its Cast button once the Island is in
+let FETCH = new Map(), fetchKey = "", fetchFor = null;
 let CARD = null, CARD_GO = [];                     // the card in its sheet ({ id }), and the sheet's buttons
 // the coach's weighing of your decision now ({ key, r, state, seat }), asked once (a Hint, or Always unasked); the Hint
 // asked for and its answer; a decision it couldn't weigh (no answer came); its word on your last move it would have
@@ -389,6 +392,10 @@ function draw() {
   if (advice && advice.key !== decisionOf(v)) advice = null;
   if (hinted && hinted.key !== decisionOf(v)) hinted = null;
   MV = canAct() ? moves(s, v.seat) : [];
+  if (!canAct()) FETCH = new Map();
+  else if (fetchKey !== decisionOf(v)) { fetchKey = decisionOf(v); FETCH = afterFetch(s, v.seat); }
+  if (fetchFor && (fetchFor.game !== v.G.seq || fetchFor.turn !== s.turn || !s.hand[me].includes(fetchFor.id))) fetchFor = null;
+  if (fetchFor && MV.some(m => m.t === "cast" && m.from === "hand" && DECK[m.card] === DECK[fetchFor.id])) { ui.look = { id: fetchFor.id, at: "hand" }; fetchFor = null; }
   RING = myDecision() ? rings(advised(v)) : new Set();
   const q = question();
   if (in3d()) table3d.draw(q);
@@ -555,7 +562,7 @@ function drawHand(q) {
   box.className = `dd-hand${canAct() ? " act" : ""}`;
   box.innerHTML = ids.map(id => {
     const d = defOf(id), pick = ui.picks.indexOf(id);
-    return `<button type="button" class="dd-card ${d.type}${usable.has(DECK[id]) ? " can" : ""}${ui.look?.id === id ? " look" : ""}${pick >= 0 ? " sel" : ""}${RING.has(`c:${id}`) ? " advised" : ""}" data-card="${id}" aria-label="${esc(DECK[id])}">
+    return `<button type="button" class="dd-card ${d.type}${usable.has(DECK[id]) ? " can" : FETCH.has(DECK[id]) ? " fetch" : ""}${ui.look?.id === id ? " look" : ""}${pick >= 0 ? " sel" : ""}${RING.has(`c:${id}`) ? " advised" : ""}" data-card="${id}" aria-label="${esc(DECK[id])}">
       ${pips(d.cost)}<span class="dd-cn">${esc(SOFT[short(DECK[id])] || short(DECK[id]))}</span><span class="dd-ct">${TYPE_WORDS[d.type]}</span>${pick >= 0 ? `<i class="dd-link">${q?.ordered ? pick + 1 : "✓"}</i>` : ""}</button>`;
   }).join("");
 }
@@ -734,6 +741,8 @@ function lookActions() {
     }
     const cyc = mine.find(m => m.t === "cycle");
     if (cyc) out.push({ label: "Cycle", sub: esc(costWords(defOf(id).cycling)), fn: () => act({ ...cyc, card: id }) });
+    // its mana only after a Flood Plain's fetch (which resolves first): the fetch, and the card read again once it's in
+    if (!out.length && FETCH.has(name)) out.push({ label: "Fetch first", sub: "an Island, to pay", fn: () => { fetchFor = { id, game: V.G.seq, turn: S().turn }; act({ t: "ability", id: FETCH.get(name) }); } });
   } else {
     const ab = MV.find(m => m.t === "ability" && m.id === id);
     if (ab) out.push({ label: nm(id) === "Clue" ? "Crack" : "Fetch", sub: nm(id) === "Clue" ? "2 · draw" : "sacrifice", fn: () => act(ab) });
@@ -1235,7 +1244,7 @@ $("copyClose").addEventListener("click", () => $("copyDlg").close());
 table3d = createTable3d({
   view: () => V, ui: () => ui, moves: () => MV, rings: () => RING, hover: () => hover, POINTER, LAND_CODE, quiet: IN_FRAME,
   esc, pips, nameOf, isMe, short, soft: n => SOFT[n] || n, words, typeLine, stateWords, itemWords, armedKeys, targetKey,
-  headline, waitLine, readHead, canAct, handOrder,
+  headline, waitLine, readHead, canAct, handOrder, fetchable: () => FETCH,
 });
 showView();
 window.__dandan = { page, get view() { return V; }, get ui() { return ui; }, opts };

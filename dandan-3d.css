@@ -252,6 +252,7 @@ html[data-theme="modern"] #app.dandan.dd-full .d3-bar.foe { padding-right: 4rem;
 .d3-slot.hand.look > .d3-face { translate: 0 -.75rem; box-shadow: 0 0 0 2px var(--brass), 0 .7rem 1.2rem rgba(0, 0, 0, .4); }
 .d3-slot.hand.sel > .d3-face { translate: 0 -.45rem; box-shadow: 0 0 0 2.5px var(--dd-in), 0 .4rem .8rem rgba(0, 0, 0, .3); }
 .d3-slot.hand.can > .d3-face { box-shadow: 0 0 0 2px var(--dd-in), 0 0 .75rem color-mix(in srgb, var(--dd-in) 75%, transparent), 0 .2rem .4rem rgba(0, 0, 0, .3); }
+.d3-slot.hand.fetch > .d3-face { outline: 2px dashed var(--dd-in); outline-offset: 2px; }
 .d3-slot.hand.can.look > .d3-face { box-shadow: 0 0 0 2px var(--dd-in), 0 0 .9rem var(--dd-in), 0 .7rem 1.2rem rgba(0, 0, 0, .4); }
 .d3-face.held { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: .12rem; padding: .16rem .16rem .12rem; border-top-width: .22rem; }
 .d3-hh { display: flex; align-items: flex-start; justify-content: space-between; gap: .1rem; min-height: 1.3em; }

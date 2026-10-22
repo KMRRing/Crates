@@ -4,7 +4,7 @@
 // sacrificed with none, dies to +2/−1; Mind Bend changing what it looks for), the ends of a game (life, an empty
 // library), the state through the database, the computer player's choices, and whole games of computer players.
 import { DECK, CARDS, HALVES, NAMES, TOKEN_AT, parseCost, total } from "../dandan-cards.js";
-import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable } from "../dandan-engine.js";
+import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable, afterFetch } from "../dandan-engine.js";
 import { RES, T } from "../dandan-spells.js";
 import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack, knownIn } from "../dandan-core.js";
 import { rules } from "../dandan-rules.js";
@@ -634,6 +634,24 @@ test("every move moves() offers is one the game accepts", () => {
   }
   return n > 500;
 });
+
+// ---------- a Flood Plain's Island, to pay for a spell (Korbi's game, 22 October 2026) ----------
+{
+  // an Island and a Flood Plain untapped, Memory Lapse in hand, the computer's Memory Lapse at his Brainstorm
+  let s = scene({ turn: 6, hand: [["Memory Lapse", "Brainstorm"], ["Memory Lapse"]], bf: [...islandsOf(0, 2), [0, "Flood Plain"], ...islandsOf(1, 3)] });
+  s = cast(s, 0, "Brainstorm");
+  s = cast(s, 1, "Memory Lapse", [{ k: "s", sid: sidOf(s, "Brainstorm") }]);
+  const plain = onBf(s, 0, "Flood Plain"), f = afterFetch(s, 0);
+  check(!moves(s, 0).some(m => m.t === "cast") && moves(s, 0).some(m => m.t === "ability" && m.id === plain), "the fetch isn't mana: the Lapse can't be cast yet, the fetch can be made");
+  check(f.size === 1 && f.get("Memory Lapse") === plain, "…and the Lapse is the card a fetch would pay for, with that Flood Plain");
+  let t = go(s, 0, { t: "ability", id: plain });
+  if (t.pending?.t === "search") t = go(t, 0, { t: "search", card: t.pending.ids.find(id => nm(id) === "Island") });
+  check(moves(t, 0).some(m => m.t === "cast" && nm(m.card) === "Memory Lapse" && m.targets[0]?.k === "s" && sidOf(t, "Memory Lapse") === m.targets[0].sid),
+    "…the Island fetched, Memory Lapse is cast at their Lapse");
+  const tapped = J(s);
+  tapped.bf.find(p => p.id === plain).tapped = true;
+  check(afterFetch(tapped, 0).size === 0, "a tapped Flood Plain offers nothing");
+}
 
 // ---------- the state through the database ----------
 test("a game survives the database at every move (empty lists dropped, holes, nulls)", () => {

@@ -131,7 +131,9 @@ html[data-theme="office"][data-mode="night"] { --dd-in: #479EF5; }
 .dd-card.can { box-shadow: 0 0 0 1.5px var(--brass); }
 .dd-card.look { transform: translateY(-.3rem); border-color: var(--dd-in); }
 .dd-card.sel { background: var(--dd-soft); border-color: var(--dd-in); box-shadow: 0 0 0 1.5px var(--dd-in); }
-.dd-hand.act .dd-card:not(.can):not(.sel) { opacity: .62; }
+/* a card a Flood Plain's Island would pay for: dashed, its read offering Fetch first */
+.dd-card.fetch { outline: 1.5px dashed var(--dd-in); outline-offset: 1px; }
+.dd-hand.act .dd-card:not(.can):not(.sel):not(.fetch) { opacity: .62; }
 .dd-watching { margin: 0; color: var(--ink-soft); text-align: center; align-self: center; width: 100%; }
 .dd-controls { flex: none; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: .4rem; align-items: stretch; }
 .dd-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: .3rem .4rem; line-height: 1.15; min-height: 3.2rem; }

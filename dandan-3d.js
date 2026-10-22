@@ -67,7 +67,8 @@ const still = typeof matchMedia === "function" ? matchMedia("(prefers-reduced-mo
  * The view, given what it reads of dandan.js: the view and state on screen (view(), S()), the picks being made (ui()),
  * the moves you could make now (moves()), the coach's rings (rings()), the card a pointer is on (hover()), and its
  * words and helpers (esc, pips, nameOf, isMe, short, soft, words, typeLine, stateWords, itemWords, armedKeys, targetKey,
- * headline, waitLine, readHead, canAct, handOrder, POINTER, LAND_CODE, quiet: a watching frame, which shows no motion).
+ * headline, waitLine, readHead, canAct, handOrder, POINTER, LAND_CODE, quiet: a watching frame, which shows no motion),
+ * and fetchable(): the cards in your hand a Flood Plain's Island would pay for.
  */
 export function createTable3d(c) {
   const $ = id => document.getElementById(id);
@@ -297,7 +298,7 @@ export function createTable3d(c) {
       const pick = u.picks.indexOf(id), off = i - (n - 1) / 2;
       return {
         key: `h${id}`,
-        cls: `d3-slot hand ${defOf(id).type}${usable.has(DECK[id]) ? " can" : ""}${u.look?.id === id ? " look" : ""}${pick >= 0 ? " sel" : ""}${ring.has(`c:${id}`) ? " advised" : ""}`,
+        cls: `d3-slot hand ${defOf(id).type}${usable.has(DECK[id]) ? " can" : c.fetchable().has(DECK[id]) ? " fetch" : ""}${u.look?.id === id ? " look" : ""}${pick >= 0 ? " sel" : ""}${ring.has(`c:${id}`) ? " advised" : ""}`,
         attrs: { "data-card": id, "aria-label": DECK[id] },
         vars: { "--r": `${(off * step).toFixed(2)}deg`, "--y": `${(off * off * 0.05).toFixed(3)}rem` },
         html: heldFace(id, pick >= 0 ? (q?.ordered ? pick + 1 : "✓") : ""),
