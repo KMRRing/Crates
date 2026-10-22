@@ -36,6 +36,7 @@ html[data-mode="night"] { --mn-in: #7FA8D8; --mn-good: #7FC2A8; --mn-bad: #E8806
   box-shadow: inset 0 0 0 4px var(--sheet), inset 0 0 0 5px color-mix(in srgb, var(--brass) 45%, transparent); }
 .mn-stage { position: absolute; inset: .375rem; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 .mn-canvas { position: absolute; left: 0; top: 0; display: block; }
+.mn-canvas[hidden] { display: none; }
 .mn-zoom { position: absolute; right: .6rem; bottom: .6rem; width: 2.75rem; height: 2.75rem; display: grid; place-items: center; padding: 0;
   border-radius: 50%; border: 1px solid var(--brass); background: color-mix(in srgb, var(--sheet) 88%, transparent); color: var(--ink); cursor: pointer; touch-action: manipulation; }
 .mn-zoom[hidden] { display: none; }
@@ -68,6 +69,14 @@ html[data-mode="night"] { --mn-in: #7FA8D8; --mn-good: #7FC2A8; --mn-bad: #E8806
   letter-spacing: calc(.07em * var(--track)); text-transform: var(--caps); outline: 1px solid color-mix(in srgb, var(--plate-ink) 55%, transparent); outline-offset: -5px; cursor: pointer; }
 .mn-go.quiet { background: var(--yard); color: var(--ink); border: 1px solid var(--brass); outline: 0; }
 .mn-go[hidden] { display: none; }
+/* the rules: a sheet that scrolls as one piece, its head (with Close) staying at the top, as the menu's does */
+dialog.mn-sheet { max-height: 88vh; max-height: 88svh; overflow-y: auto; overscroll-behavior: contain; padding-top: 0; }
+.mn-sheet .pick-head { position: -webkit-sticky; position: sticky; top: 0; z-index: 1; background: var(--sheet); padding: 1.1rem 0 .5rem; }
+.mn-sheet .pick-head h2 { font-size: 1rem; }
+.mn-rules p { margin: .5rem 0; line-height: 1.45; }
+.mn-rules h4 { margin: 1.1rem 0 .2rem; }
+.mn-rules ul { margin: .4rem 0; padding-left: 1.1rem; }
+.mn-rules li { margin: .3rem 0; line-height: 1.45; }
 .mn-toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 1.2rem); transform: translateX(-50%); z-index: 20;
   max-width: min(92vw, 30rem); margin: 0; padding: .55rem .9rem; border-radius: 4px; background: var(--ink); color: var(--yard);
   font-weight: 650; font-size: .95rem; text-align: center; opacity: 0; pointer-events: none; transition: opacity .18s; }

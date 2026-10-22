@@ -1,18 +1,20 @@
 // Mines: Minesweeper on fields that need no guess (October 2026). Every field is dealt by mines-engine.js and proven
 // by its solver (mines-solve.js) to clear from its marked start by reasoning alone, at the level asked; squares,
-// hexes and triangles (mines-grid.js); drawn on a canvas by mines-draw.js. This file keeps the run, the clock, the
+// hexes and triangles (mines-grid.js), flat or wrapped round a solid (mines-solid.js: a cube, a sphere, a geodesic
+// sphere); drawn on a canvas by mines-draw.js, or turned in 3D by mines-3d.js. This file keeps the run, the clock, the
 // fingers and the company: a computer partner or rival (mines-bot.js), and at a table (duel.js) a race on one field
 // or one field for a team whose numbers are shared out among its players (mines-team.js).
-import { SHAPES, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, newRun, dig, flag, chord,
-  score, minesLeft, safeLeft, started, hint, readerOf, isFlag, OPEN, STRUCK } from "./mines-engine.js";
+import { SHAPES, TILINGS, SIZES, LEVELS, STRIKE, HINT, settingsOf, describe, deal, daily, weekdayOf, WEEK, WEEKDAYS, newRun, dig, flag,
+  chord, score, minesLeft, safeLeft, started, hint, readerOf, isFlag, isSolid, shapeOf, OPEN, STRUCK } from "./mines-engine.js";
 import { createView } from "./mines-draw.js";
+import { createSolidView } from "./mines-3d.js";
 import { PACES, paceOf, rivalPlan, rivalAt, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "./mines-bot.js";
 import { teamMove, teamField, teamScore, readers, PING_MS } from "./mines-team.js";
 import { scale } from "./wide.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
 import { dropdown } from "./dropdown.js";
-import { part, choice, action, line, mirror, onPause, isPaused } from "./menu.js";
+import { part, choice, toggle, action, line, mirror, onPause, isPaused } from "./menu.js";
 import { today, noteDayTime, arrivedForToday, IN_FRAME, reportDuo } from "./suite.js";
 import { createDuel } from "./duel.js";
 import { branchPath } from "./rooms.js";
@@ -37,9 +39,13 @@ const fmt = secs => { const s = Math.max(0, Math.round(secs)), h = Math.floor(s 
 const COMPUTER = { off: "Off", partner: "Partner", rival: "Rival" };
 const RULES = { strike: "Costs 60 s", sudden: "Ends the field" };
 const MODES = { race: "Race", team: "One team" };
-const prefs = { tool: "dig", shape: "square", size: "small", level: "medium", rule: "strike", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
+// shape is the tiling (squares, hexes, triangles) and solid the 3D switch: each is chosen on its own, and together
+// they make the field's shape (shapeOf: squares in 3D are the cube)
+const prefs = { tool: "dig", shape: "square", solid: false, size: "small", level: "medium", rule: "strike", computer: "off", pace: "quick", together: "team", ...read(PREFS, {}) };
 const savePrefs = () => write(PREFS, prefs);
-if (!SHAPES[prefs.shape]) prefs.shape = "square";
+const chosenShape = () => shapeOf(prefs.shape, prefs.solid);
+if (!TILINGS.includes(prefs.shape)) prefs.shape = "square";
+prefs.solid = prefs.solid === true;
 if (!SIZES[prefs.size]) prefs.size = "small";
 if (!LEVELS[prefs.level]) prefs.level = "medium";
 if (!RULES[prefs.rule]) prefs.rule = "strike";
@@ -59,7 +65,19 @@ let focus = -1;                     // a number held down: its neighbours ringed
 let clockFrom = null;               // when the solo clock last started running (performance.now), or null while it is stopped
 let paused = false, savedAt = 0;
 const fields = new Map();           // fields dealt this visit, by what they were dealt from
-const stage = $("stage"), view = createView(stage);
+// two views on the one stage, the flat field and the solid turned in 3D; the field on the table picks which shows
+const stage = $("stage"), flatView = createView(stage);
+let solidView = null, view = flatView;
+/** The view for a field of this shape, shown, the other put away (the solid's made the first time it's needed). */
+function useView(shape) {
+  let next = flatView;
+  if (isSolid(shape)) {
+    if (!solidView) { solidView = createSolidView(stage); solidView.settled = keepView; }
+    next = solidView;
+  }
+  if (next !== view) { view.clear(); view.canvas.hidden = true; view = next; }
+  view.canvas.hidden = false;
+}
 
 /** The field for these settings, dealt once a visit (dealing a large hard one can take a moment). */
 async function fieldFor(o) {
@@ -137,6 +155,7 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
   message = null; shownHint = null; focus = -1;
   $("size").value = G.size;
   const saved = read(VIEW, null);
+  useView(f.shape);
   view.setField(f, saved?.key === fieldKey() ? saved : "comfort");
   if (kind === "solo" && !IN_FRAME) history.replaceState(null, "", hashFor(G));
   setTools();
@@ -147,7 +166,7 @@ async function begin(s, kept = null, { kind = "solo", begun = null, n = null } =
 }
 const fieldKey = () => (G ? `${G.kind}|${G.seed}|${G.shape}|${G.size}|${G.level}` : "");
 function start(mode, o = {}) {
-  const d = mode === "daily" ? { ...daily(today()), seed: today() } : { shape: prefs.shape, size: $("size").value, level: prefs.level, seed: randomSeed() };
+  const d = mode === "daily" ? { ...daily(today()), seed: today() } : { shape: chosenShape(), size: $("size").value, level: prefs.level, seed: randomSeed() };
   return begin({ ...d, mode, rule: prefs.rule, computer: prefs.computer, pace: prefs.pace, ...o });
 }
 /** The same field again, from nothing (after a field lost to a mine). */
@@ -357,7 +376,7 @@ const bot = (() => {
 const byResult = (a, b) => (!!a.lost - !!b.lost) || (a.done && b.done ? a.score - b.score : (b.done ? 1 : 0) - (a.done ? 1 : 0)) || ((a.ms ?? Infinity) - (b.ms ?? Infinity)) || 0;
 const duel = createDuel({
   game: "mines", name: "Mines", accent: "--mn-in", line: $("rival"), toast, lower: true, compare: byResult,
-  deal: () => ({ seed: randomSeed(), shape: prefs.shape, size: SIZES[$("size").value] ? $("size").value : "small", level: prefs.level, rule: prefs.rule, mode: prefs.together }),
+  deal: () => ({ seed: randomSeed(), shape: chosenShape(), size: SIZES[$("size").value] ? $("size").value : "small", level: prefs.level, rule: prefs.rule, mode: prefs.together }),
   describe: m => `${describe(m)}${m.rule === "sudden" ? ", a mine ends it" : ""}: ${m.mode === "team" ? "one field for the table, each of you reading part of its numbers" : "the same field for everyone, the fastest clear wins"}`,
   play: (match, { begun, kept, n }) => {
     const s = { ...settingsOf(match), seed: match.seed, rule: match.rule, mode: "random" };
@@ -468,6 +487,7 @@ function whatLine() {
   if (G.mode === "daily" && solo()) return `Today's: ${weekdayOf(G.seed)}'s`;
   return describe(G);
 }
+const SOLID_NOUN = { cube: "the cube", sphere: "the sphere", geodesic: "the sphere" };
 function drawLine() {
   const l = $("line"), seats = readerSeats();
   let text;
@@ -476,6 +496,7 @@ function drawLine() {
   else if (!started(G.f, G.run.cells)) text = "Dig the ringed cell to start: it's empty, and opens the field round it. Every cell after that can be worked out.";
   else if (prefs.tool === "point" && pointing()) text = "Tap a cell to point at it for the others. Point at one of your own numbers to show it to them.";
   else if (seats) text = `You read the numbers on your cells; on the others' a dot in their colour stands for it. ${prefs.tool === "flag" ? "Tap to flag, hold to dig." : "Tap to dig, hold to flag."}`;
+  else if (isSolid(G.shape)) text = `Drag to turn ${SOLID_NOUN[G.shape]}; tap a cell to ${prefs.tool === "flag" ? "flag it, hold to dig" : "dig, hold to flag"}. A cell seen edge-on turns to face you first.`;
   else text = prefs.tool === "flag" ? "Tap a cell to flag it as a mine; hold to dig. Tap a number to flag round it when it must." : "Tap a cell to dig; hold to flag. Tap a number whose mines are all flagged to dig round it.";
   if (l.textContent !== text) l.textContent = text;
   l.className = `mn-line${message?.tone ? ` ${message.tone}` : ""}`;
@@ -593,7 +614,9 @@ function openMenu() {
   };
   const settingsNote = line(menuNote);
   settingsNote.hidden = !menuNote;
-  const shapeChoice = () => choice("Shape", Object.entries(SHAPES).map(([k, v]) => [k, v.label]), prefs.shape, v => chosen("shape", v));
+  // the field's shape is two choices, each made on its own: the tiling, and whether it's wrapped round a solid
+  const shapeChoices = () => [choice("Shape", TILINGS.map(k => [k, SHAPES[k].label]), prefs.shape, v => chosen("shape", v)),
+    toggle("3D", prefs.solid, on => chosen("solid", on))];
   const levelChoice = () => choice("Level", Object.entries(LEVELS).map(([k, v]) => [k, v.label]), prefs.level, v => chosen("level", v));
   const ruleChoice = () => choice("A mine", Object.entries(RULES), prefs.rule, v => setting("rule", v));
   if (duel.on) {                    // a match: the table's own, and what the next one deals
@@ -606,16 +629,17 @@ function openMenu() {
     } else duel.menu(together);
     together.append(choice("Next", Object.entries(MODES), prefs.together, v => { prefs.together = v; savePrefs(); }),
       line(prefs.together === "team" ? "One field for the table: each of you reads the numbers on your own cells." : "The same field for everyone: the fastest clear wins."));
-    part(body, "content").append(shapeChoice(), mirror("Size", $("size")), levelChoice());
+    part(body, "play").append(action("The rules", showRules, "link"));
+    part(body, "content").append(...shapeChoices(), mirror("Size", $("size")), levelChoice());
     part(body, "settings").append(ruleChoice());
     if (!$("menuDlg").open) $("menuDlg").showModal();
     return;
   }
   pick ??= G?.mode === "daily" ? "daily" : "random";
-  part(body, "play").append(action("New field", () => confirmStart(pick), "primary"));
+  part(body, "play").append(action("New field", () => confirmStart(pick), "primary"), action("The rules", showRules, "link"));
   const content = part(body, "content");
   content.append(choice("Field", [["random", "Random"], ["daily", "Today's"]], pick, v => { pick = v; openMenu(); }));
-  if (pick === "random") content.append(shapeChoice(), mirror("Size", $("size")), levelChoice());
+  if (pick === "random") content.append(...shapeChoices(), mirror("Size", $("size")), levelChoice());
   else { const d = daily(today()); content.append(line(`Today's is ${weekdayOf(today())}'s: ${describe(d).toLowerCase()}, the same for everyone.`)); }
   const settings = part(body, "settings");
   settings.append(choice("Computer", Object.entries(COMPUTER), prefs.computer, v => setting("computer", v)));
@@ -634,26 +658,63 @@ function confirmStart(mode) {
   start(mode);
   return true;
 }
+
+// ---------- the rules: a sheet of their own, from the header's Rules and the menu ----------
+/** The rules in plain words; the costs and the week's fields are read from the engine, so the two never disagree. */
+function showRules() {
+  const week = [1, 2, 3, 4, 5, 6, 0].map(d => `${WEEKDAYS[d]} ${describe(WEEK[d]).toLowerCase()}`).join("; ");
+  $("rulesBody").innerHTML = `
+    <p>Open every cell of the field that hides no mine. The field is cleared the moment the last safe cell is open: you never have to mark the mines themselves. Every field can be cleared by reasoning alone, without a guess.</p>
+    <h4>The rules</h4>
+    <p>A cell you dig shows how many of the cells touching it hide a mine. A cell with none round it shows nothing and opens its neighbours by itself, and theirs, so one dig can open a whole patch. Which cells touch depends on the shape (Shape, in the menu):</p>
+    <ul>
+      <li><b>Squares</b>: the eight round a cell, along its sides and at its corners.</li>
+      <li><b>Hexes</b>: the six round a hexagon.</li>
+      <li><b>Triangles</b>: twelve, the three along a triangle's sides and nine more at its corners, so a number can be as high as 12.</li>
+    </ul>
+    <p><b>An example.</b> A 1 with a single hidden cell next to it: that cell is the mine. A 1 whose mine is already found: every other hidden cell round it is safe. Along a wall of hidden cells, 1 2 1: the cells facing the two 1s are mines, the one facing the 2 is safe.</p>
+    <h4>In 3D</h4>
+    <p>The menu's 3D switch wraps the field round a solid, so it has no edge: squares cover a cube made of little cubes, hexes a sphere, triangles a geodesic sphere. Drag to turn it, flick it and it spins on, pinch to come closer.</p>
+    <ul>
+      <li><b>The cube</b>: a square touches every square it meets, across the cube's edges too, as if the next face were laid flat beside its own. At the cube's eight corners only three faces meet, so a corner cell touches seven: three on its own face and two on each of the others.</li>
+      <li><b>The sphere</b>: no sphere can be covered with hexagons alone, so it has exactly twelve pentagons among them. A hexagon touches six cells, a pentagon five.</li>
+      <li><b>The geodesic sphere</b>: a triangle touches the twelve it meets at its sides and corners, or eleven beside one of the twelve points where five triangles meet.</li>
+    </ul>
+    <h4>Playing</h4>
+    <p>Every field starts at the cell ringed in brass: it's empty, with no mine round it, so digging it opens a patch, and nothing else can be dug before it. Tap a cell to dig it; hold a finger on it to flag it as a mine (Flag, under the field, swaps the two; a right click flags with a mouse). A flag keeps its cell from your own dig and comes off the way it went on; the count at the top is the mines not yet flagged.</p>
+    <p>Tap an open number to work it at once (Minesweeper's chording): if as many flags stand round it as its number, the rest of its neighbours are dug; if its hidden neighbours are exactly the mines it still lacks, they're flagged. A wrong flag under it means a mine dug. Hold a number to see which cells it counts. On a solid, a cell turned far from you is a slanted sliver, so a tap on it first turns it to face you; then tap it again.</p>
+    <p>Hint (+${HINT}&nbsp;s) rings what the open numbers prove next, green a safe cell and red a mine, and in blue the numbers that prove it; it never trusts your flags, so it also finds a wrong one. A mine dug stays on the field, shown, and costs ${STRIKE} seconds; the menu's A mine: Ends the field is the classic rule instead, the field lost at the first mine.</p>
+    <h4>Levels</h4>
+    <p>Small, Medium and Large are the field's size. Easy, Medium and Hard are how much reasoning it takes, as Almanac's solver measures it, with more mines as it rises: an Easy field never needs more than one number at a time (on triangles, hardly ever), a Hard one often needs two or more numbers taken together. A flat field is hardest at its edges and corners, where mines hide behind the border; a solid has none, so it carries more mines for the same level.</p>
+    <h4>Score</h4>
+    <p>Your time, plus ${STRIKE} seconds for every mine dug and ${HINT} for every hint; lower is better. The clock starts with your first dig and stops while the menu, these rules or the games screen is open. Every kind of field keeps its own best, flat or 3D.</p>
+    <h4>Today's field</h4>
+    <p>One field a day, the same for everyone, always flat and always played alone (the computer may race it), harder as the week goes on: ${week}. Its score counts the moment the last safe cell opens, and is Mines' figure on the games screen.</p>`;
+  if (!$("rulesDlg").open) $("rulesDlg").showModal();
+  $("rulesDlg").scrollTop = 0;                       // from the top each time, not where it was last left
+}
 async function copyLink() {
   const link = `${location.origin}${location.pathname}${location.hash}`;
   try { await navigator.clipboard.writeText(link); toast("Link copied"); } catch { toast(link, 6000); }
 }
 
-// ---------- fingers: a tap digs or flags, a held finger the other, a drag pans, two fingers zoom ----------
+// ---------- fingers: a tap digs or flags, a held finger the other, a drag pans or turns, two fingers zoom ----------
 const fingers = new Map();          // pointer id -> { x0, y0, x, y, cell, moved, held, timer, mouse }
 let pinch = null;                   // { d (the fingers' distance), x, y (their middle) }
-function dropFingers() { for (const g of fingers.values()) clearTimeout(g.timer); fingers.clear(); pinch = null; if (focus >= 0) { focus = -1; drawField(); } }
+let pinched = false;                // the fingers down now began a pinch (so lifting them doesn't fling a solid)
+function dropFingers() { for (const g of fingers.values()) clearTimeout(g.timer); fingers.clear(); pinch = null; pinched = false; if (focus >= 0) { focus = -1; drawField(); } }
 const spread = () => { const [a, b] = [...fingers.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
 stage.addEventListener("pointerdown", e => {
   if (!G || e.button > 2 || e.button === 1) return;
   e.preventDefault();
   try { stage.setPointerCapture(e.pointerId); } catch { /* a synthetic event */ }
+  view.grab?.();                                                                // a solid spinning stops under the finger
   const cell = view.cellAt(e.clientX, e.clientY);
-  if (e.button === 2) { tapCell(cell, true); return; }                         // a right click: the other tool
+  if (e.button === 2) { fingerOn(cell, true); return; }                         // a right click: the other tool
   for (const g of fingers.values()) { g.moved = true; clearTimeout(g.timer); }  // a second finger is a pinch, not a tap
   const g = { x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, cell, moved: fingers.size > 0, held: false, timer: 0 };
   fingers.set(e.pointerId, g);
-  if (fingers.size === 2) pinch = spread();
+  if (fingers.size === 2) { pinch = spread(); pinched = true; }
   if (!g.moved && cell >= 0) g.timer = setTimeout(() => hold(g), HOLD);
 });
 function hold(g) {
@@ -661,7 +722,19 @@ function hold(g) {
   g.held = true;
   if (G.run.cells[g.cell] === OPEN && G.f.nums[g.cell] > 0) { focus = g.cell; drawField(); navigator.vibrate?.(8); return; }   // a number: its neighbours ring
   navigator.vibrate?.(25);
-  tapCell(g.cell, true);
+  fingerOn(g.cell, true);
+}
+/**
+ * A tap or a held finger on cell i. On a solid, a cell seen edge-on is a slanted sliver, and a finger on it may have
+ * been meant for its neighbour: so it's turned to face you, and only a tap on it then counts.
+ */
+function fingerOn(i, alt = false) {
+  if (i >= 0 && view.solid && G && !G.run.done && !view.fair(i)) {
+    view.face(i);
+    note(`Turned to face you: ${alt ? "hold" : "tap"} it again.`);
+    return;
+  }
+  tapCell(i, alt);
 }
 addEventListener("pointermove", e => {
   const g = fingers.get(e.pointerId);
@@ -672,7 +745,7 @@ addEventListener("pointermove", e => {
   if (fingers.size === 2 && pinch) {
     const now = spread();
     if (pinch.d > 0) view.zoomAt(now.d / pinch.d, now.x, now.y);
-    view.panBy(now.x - pinch.x, now.y - pinch.y);
+    (view.shiftBy ?? view.panBy)(now.x - pinch.x, now.y - pinch.y);     // two fingers slide a solid (one turns it)
     pinch = now;
   } else if (g.moved && fingers.size === 1 && !g.held) view.panBy(dx, dy);
 });
@@ -683,8 +756,15 @@ function lift(e) {
   fingers.delete(e.pointerId);
   if (fingers.size < 2) pinch = null;
   if (g.held && focus >= 0) { focus = -1; drawField(); }
-  if (g.moved || g.held || e.type === "pointercancel") { if (!fingers.size) keepView(); return; }
-  tapCell(g.cell);
+  if (g.moved || g.held || e.type === "pointercancel") {
+    if (!fingers.size) {
+      if (g.moved && !pinched && e.type !== "pointercancel") view.release?.();   // a flick spins a solid on (a pinch's end doesn't)
+      pinched = false;
+      keepView();
+    }
+    return;
+  }
+  fingerOn(g.cell);
 }
 addEventListener("pointerup", lift);
 addEventListener("pointercancel", lift);
@@ -705,6 +785,8 @@ const logo = APPS.find(a => a.id === "mines")?.logo;
 if (logo) document.querySelector(".mn-mark").innerHTML = logo;
 $("menuBtn").addEventListener("click", () => { menuNote = ""; openMenu(); });
 $("menuClose").addEventListener("click", () => $("menuDlg").close());
+$("rulesBtn").addEventListener("click", showRules);
+$("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 $("nextBtn").addEventListener("click", () => {
   if (G?.kind === "team") duel.again();
   else if (G?.kind === "race") duel.open();

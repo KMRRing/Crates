@@ -1,13 +1,16 @@
-// Mines (mines-grid.js, mines-solve.js, mines-engine.js, mines-bot.js, mines-team.js): the three tilings and who
-// touches whom; the rules of a field (digging, the flood, flags, chording, strikes, the end); the solver, every
-// deduction it makes checked against every way the mines could lie; fields dealt that clear without a guess, at the
-// reasoning their level asks; hints; the computer rival and partner; the split of a team's numbers (the shares make
-// the whole and neither clears the field alone); the team's field through the database's own round trip; a run kept
-// as JSON; and today's field, the same for everyone.
+// Mines (mines-grid.js, mines-solid.js, mines-solve.js, mines-engine.js, mines-bot.js, mines-team.js): the three
+// tilings and the three solids, and who touches whom on each (the cube's edges and corners, the Goldberg sphere's
+// twelve pentagons); the rules of a field (digging, the flood, flags, chording, strikes, the end); the solver, every
+// deduction it makes checked against every way the mines could lie, flat and round a solid; fields dealt that clear
+// without a guess, at the reasoning their level asks, on every shape; hints; the computer rival and partner; the
+// split of a team's numbers (the shares make the whole and neither clears the field alone); the team's field through
+// the database's own round trip; a run kept as JSON; and today's field, the same for everyone.
 import { SHAPES, neighbours, outline, cellAt, shareOf, extent } from "../mines-grid.js";
+import { SOLIDS, solidBoard, solidShares } from "../mines-solid.js";
 import { solve, createSolver, placements } from "../mines-solve.js";
 import { FIELDS, MINES, TARGET, SIZES, LEVELS, STRIKE, HINT, dims, deal, fieldOf, bbbv, newRun, dig, flag, chord, score, minesLeft, safeLeft,
-  started, hint, needsBoth, readerOf, daily, WEEK, weekdayOf, describe, settingsOf, rng } from "../mines-engine.js";
+  started, hint, needsBoth, readerOf, daily, WEEK, weekdayOf, describe, settingsOf, rng, graphOf, isSolid, tilingOf, shapeOf,
+  SHAPES as EVERY } from "../mines-engine.js";
 import { PACES, rivalPlan, rivalAt, partnerMove, SPEAK_AFTER, PRESS_AFTER } from "../mines-bot.js";
 import { teamMove, teamField, teamScore, readers, freshField } from "../mines-team.js";
 import { freshDuel, sayReady, startAll, rematch } from "../duel-core.js";
@@ -16,7 +19,7 @@ import { roundTrip } from "./rtdb.js";
 let bad = 0;
 const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
 const db = g => roundTrip(JSON.parse(JSON.stringify(g)));
-const shapes = Object.keys(SHAPES);
+const shapes = Object.keys(SHAPES), solids = Object.keys(SOLIDS), every = Object.keys(EVERY);
 
 // ---------- the tilings ----------
 for (const [shape, w, h] of [["square", 7, 6], ["hex", 7, 6], ["tri", 9, 6]]) {
@@ -42,6 +45,76 @@ for (const [shape, w, h] of [["square", 7, 6], ["hex", 7, 6], ["tri", 9, 6]]) {
   const nb = neighbours("square", 6, 6);
   const chess = [...Array(36).keys()].every(i => nb[i].filter(j => Math.abs(j - i) === 1 || Math.abs(j - i) === 6).every(j => shareOf("square", 6, j, 2) !== shareOf("square", 6, i, 2)));
   check(chess, "squares for two: a chessboard, every cell's four edge neighbours the other player's");
+}
+
+// ---------- the solids: who touches whom, against the geometry itself ----------
+/** How many outline points two cells share, in 3D (corners are worked out once per cell, so a point is a point). */
+const sharedPoints = (a, b) => a.pts.filter(p => b.pts.some(q => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) < 1e-9)).length;
+const symmetric = nb => nb.every((l, i) => l.every(j => nb[j].includes(i)) && !l.includes(i) && new Set(l).size === l.length);
+const tally = list => { const t = {}; for (const x of list) t[x] = (t[x] || 0) + 1; return t; };
+{
+  for (const k of [2, 3, 4, 7]) {
+    const b = solidBoard("cube", k), deg = tally(b.nb.map(l => l.length));
+    check(b.n === 6 * k * k && symmetric(b.nb) && deg[7] === 24 && (deg[8] || 0) === b.n - 24,
+      `the cube ${k}×${k}: ${b.n} cells, neighbours both ways, the 24 corner cells touching seven and every other eight`);
+    let geo = 0;
+    for (let i = 0; i < b.n; i++) for (let j = 0; j < b.n; j++) if (i !== j && (sharedPoints(b.cells[i], b.cells[j]) > 0) !== b.nb[i].includes(j)) geo++;
+    check(!geo, `the cube ${k}×${k}: a cell's neighbours are exactly the cells its square shares a point with, across the cube's edges too`);
+    // by where a cell lies on its face: in the middle all eight on its face; on an edge five on its face and the three
+    // beyond the edge; at a corner three on its face and two on each of the other two faces, which touch each other
+    let shapesRight = true;
+    for (let i = 0; i < b.n; i++) {
+      const c = b.cells[i], here = b.nb[i].filter(j => b.cells[j].face === c.face).length, away = tally(b.nb[i].filter(j => b.cells[j].face !== c.face).map(j => b.cells[j].face));
+      const awayCounts = Object.values(away).sort().join(",");
+      if (b.nb[i].length === 7) shapesRight &&= here === 3 && awayCounts === "2,2";
+      else if (here === 8) shapesRight &&= awayCounts === "";
+      else shapesRight &&= here === 5 && awayCounts === "3";
+    }
+    // the three cells round one of the cube's corners each touch seven, and one another
+    const a = 1 / Math.sqrt(3), round = [...Array(b.n).keys()].filter(i => b.cells[i].pts.some(p => Math.hypot(p[0] - a, p[1] - a, p[2] - a) < 1e-9));
+    check(shapesRight && round.length === 3 && round.every(i => b.nb[i].length === 7 && round.every(j => j === i || b.nb[i].includes(j))),
+      `the cube ${k}×${k}: a middle cell touches eight on its face, an edge cell five and the three beyond the edge, a corner cell three and two on each other face (the three corner cells touching)`);
+  }
+  for (const k of [1, 2, 3, 5, 7]) {
+    const b = solidBoard("sphere", k), deg = tally(b.nb.map(l => l.length));
+    const pentagons = b.cells.filter((c, i) => b.nb[i].length === 5 && c.pts.length === 5).length;
+    const hexagons = b.cells.filter((c, i) => b.nb[i].length === 6 && c.pts.length === 6).length;
+    check(b.n === 10 * k * k + 2 && pentagons === 12 && hexagons === 10 * (k * k - 1) && symmetric(b.nb) && deg[5] === 12,
+      `the sphere, Goldberg GP(${k},0): ${b.n} cells, exactly 12 pentagons touching five and ${hexagons} hexagons touching six, neighbours both ways`);
+    let geo = 0;
+    for (let i = 0; i < b.n; i++) for (let j = 0; j < b.n; j++) if (i !== j && (sharedPoints(b.cells[i], b.cells[j]) === 2) !== b.nb[i].includes(j)) geo++;
+    const corners = new Set(b.cells.flatMap(c => c.pts.map(p => p.map(x => x.toFixed(9)).join(","))));
+    const edges = b.nb.reduce((s, l) => s + l.length, 0) / 2;
+    const onSphere = b.cells.every(c => Math.abs(Math.hypot(...c.c) - 1) < 1e-9 && c.pts.every(p => Math.abs(Math.hypot(...p) - 1) < 1e-9));
+    check(!geo && corners.size - edges + b.n === 2 && corners.size === 20 * k * k && onSphere,
+      `the sphere GP(${k},0): cells touch exactly when their outlines share an edge, the outlines' corners lie on the sphere, and corners − edges + cells = 2 (Euler's)`);
+  }
+  for (const k of [1, 2, 4]) {
+    const b = solidBoard("geodesic", k), deg = tally(b.nb.map(l => l.length));
+    let geo = 0;
+    for (let i = 0; i < b.n; i++) for (let j = 0; j < b.n; j++) if (i !== j && (sharedPoints(b.cells[i], b.cells[j]) > 0) !== b.nb[i].includes(j)) geo++;
+    const counts = k === 1 ? deg[9] === 20 : deg[11] === 60 && deg[12] === b.n - 60;
+    check(b.n === 20 * k * k && symmetric(b.nb) && counts && !geo && b.side.every(l => l.length === 3),
+      `the geodesic sphere ${k}: ${b.n} triangles, each touching every triangle it shares a point with (twelve, or eleven beside the twelve five-fold corners), three along its sides`);
+  }
+  // the shares of a solid field: every cell in one, about evenly, and for two the side neighbours mostly the other's
+  for (const [shape, k, fine] of [["cube", 7, 0.9], ["sphere", 5, 0.62], ["geodesic", 4, 0.9]]) {
+    const b = solidBoard(shape, k);
+    for (const people of [2, 3, 4, 6]) {
+      const share = solidShares(shape, k, people), sizes = Array.from({ length: people }, (_, s) => share.filter(x => x === s).length);
+      check(share.length === b.n && share.every(s => s >= 0 && s < people) && Math.max(...sizes) - Math.min(...sizes) <= Math.ceil(b.n / people / 2) + 1,
+        `${shape} ${k}: ${people} players' shares cover every cell, about evenly (${sizes.join("/")})`);
+    }
+    const two = solidShares(shape, k, 2);
+    let apart = 0, pairs = 0;
+    b.side.forEach((l, i) => l.forEach(j => { pairs++; if (two[i] !== two[j]) apart++; }));
+    check(apart / pairs >= fine && solidShares(shape, k, 2) === two, `${shape} ${k} for two: ${Math.round(100 * apart / pairs)}% of side neighbours read by the other player (as fine as the solid allows), the same split each time`);
+  }
+  check(shapeOf("square", true) === "cube" && shapeOf("hex", true) === "sphere" && shapeOf("tri", true) === "geodesic" && shapeOf("hex", false) === "hex"
+    && tilingOf("geodesic") === "tri" && tilingOf("square") === "square" && isSolid("cube") && !isSolid("hex"),
+    "a tiling and the 3D switch make the field's shape, each chosen on its own");
+  check(describe({ shape: "cube", size: "small", level: "easy" }) === "Small cube, easy" && describe({ shape: "sphere", size: "large", level: "hard" }) === "Large sphere, hard"
+    && settingsOf({ shape: "geodesic" }).shape === "geodesic", "a solid field's name, and its settings kept");
 }
 
 // ---------- the rules ----------
@@ -96,32 +169,64 @@ const M = (w, h, list, shape = "square") => { const m = new Uint8Array(w * h); f
 }
 
 // ---------- the solver, checked against every way the mines could lie ----------
-/** Every way of laying the mines left on the hidden cells that agrees with what's open: as arrays of 0/1 per hidden cell. */
+/**
+ * Every way the mines could lie that agrees with what's open (st: -1 hidden, 0 open, 1 a known mine), exactly: each
+ * placement of mines on the frontier (the hidden cells next to an open number) that every number allows, with the
+ * mines it leaves for the other hidden cells, which no number touches and so are all alike (a placement is possible
+ * when those mines fit there). Returns { front, rest (how many other hidden cells), out: [{ at (0/1 per frontier
+ * cell), left (mines for the rest) }] }.
+ */
 function layouts(f, st) {
-  const hidden = [], open = [];
-  for (let i = 0; i < f.n; i++) { if (st[i] === -1) hidden.push(i); else if (st[i] === 0) open.push(i); }
-  const known = [...st].filter(v => v === 1).length, left = f.count - known, out = [];
-  const pick = new Int8Array(f.n);
-  for (let i = 0; i < f.n; i++) if (st[i] === 1) pick[i] = 1;
-  const ok = () => open.every(i => f.nb[i].reduce((m, j) => m + pick[j], 0) === f.nums[i]);
+  const known = [...st].filter(v => v === 1).length, left = f.count - known;
+  const front = [], at = new Map();
+  let rest = 0;
+  for (let i = 0; i < f.n; i++) {
+    if (st[i] !== -1) continue;
+    if (f.nb[i].some(j => st[j] === 0)) { at.set(i, front.length); front.push(i); } else rest++;
+  }
+  // each open number: the mines it still needs, and its frontier cells; and the numbers each frontier cell is under
+  const rules = [];
+  for (let i = 0; i < f.n; i++) {
+    if (st[i] !== 0) continue;
+    const cells = f.nb[i].filter(j => st[j] === -1).map(j => at.get(j));
+    if (cells.length) rules.push({ need: f.nums[i] - f.nb[i].filter(j => st[j] === 1).length, cells, mines: 0, open: cells.length });
+  }
+  const under = front.map(() => []);
+  for (const r of rules) for (const k of r.cells) under[k].push(r);
+  const pick = new Uint8Array(front.length), out = [];
   const go = (k, m) => {
-    if (m > left || m + (hidden.length - k) < left) return;
-    if (k === hidden.length) { if (ok()) out.push(hidden.map(i => pick[i])); return; }
-    pick[hidden[k]] = 1; go(k + 1, m + 1); pick[hidden[k]] = 0; go(k + 1, m);
+    if (m > left) return;
+    if (k === front.length) { if (left - m <= rest) out.push({ at: pick.slice(), left: left - m }); return; }
+    for (const v of [0, 1]) {
+      pick[k] = v;
+      let ok = true;
+      for (const r of under[k]) { r.mines += v; r.open--; if (r.mines > r.need || r.mines + r.open < r.need) ok = false; }
+      if (ok) go(k + 1, m + v);
+      for (const r of under[k]) { r.mines -= v; r.open++; }
+    }
   };
   go(0, 0);
-  return { hidden, out };
+  return { front, rest, out };
+}
+/** Whether cell c is a mine (or safe) in every way the mines could lie. */
+function sure(ways, c, mine) {
+  const k = ways.front.indexOf(c);
+  if (k >= 0) return ways.out.every(w => w.at[k] === (mine ? 1 : 0));
+  return ways.out.every(w => (mine ? w.left === ways.rest : w.left === 0));
 }
 {
   let steps = 0, wrong = 0, cleared = 0, checkedLevels = 0, levelBad = 0;
+  const solidSteps = { cube: 0, sphere: 0, geodesic: 0 };
   const R = rng(99);
-  for (const [shape, w, h, count] of [["square", 5, 5, 5], ["hex", 5, 5, 5], ["tri", 7, 4, 4], ["square", 6, 4, 5]]) {
+  for (const [shape, w, h, count] of [["square", 5, 5, 5], ["hex", 5, 5, 5], ["tri", 7, 4, 4], ["square", 6, 4, 5],
+    ["cube", 3, 3, 9], ["sphere", 2, 2, 7], ["geodesic", 2, 2, 10]]) {
     for (let t = 0; t < 14; t++) {
-      const nb = neighbours(shape, w, h), inner = [...Array(w * h).keys()].filter(i => nb[i].length === SHAPES[shape].most);
+      const { n, nb } = graphOf(shape, w, h), most = Math.max(...nb.map(l => l.length));
+      const inner = [...Array(n).keys()].filter(i => nb[i].length === most);
       const start = inner[Math.floor(R() * inner.length)], banned = new Set([start, ...nb[start]]);
-      const free = [...Array(w * h).keys()].filter(i => !banned.has(i));
+      const free = [...Array(n).keys()].filter(i => !banned.has(i));
       for (let i = free.length - 1; i > 0; i--) { const j = Math.floor(R() * (i + 1)); [free[i], free[j]] = [free[j], free[i]]; }
-      const mine = new Uint8Array(w * h);
+      const mine = new Uint8Array(n);
       free.slice(0, count).forEach(i => { mine[i] = 1; });
       const f = fieldOf(shape, w, h, mine, start);
       const s = createSolver(f);
@@ -129,8 +234,9 @@ function layouts(f, st) {
       for (let guard = 0; guard < 200 && !s.done; guard++) {
         const d = s.next(4);
         if (!d) break;
-        const { hidden, out } = layouts(f, s.st);
-        for (const c of d.cells) { const k = hidden.indexOf(c); if (out.some(l => l[k] !== (d.mine ? 1 : 0))) wrong++; }
+        const ways = layouts(f, s.st);
+        for (const c of d.cells) if (!sure(ways, c, d.mine)) wrong++;
+        if (isSolid(shape)) solidSteps[shape]++;
         // a deduction of one number or two is provable from those numbers alone
         if (d.level <= 2) {
           checkedLevels++;
@@ -144,8 +250,16 @@ function layouts(f, st) {
       if (s.done) cleared++;
     }
   }
-  check(steps > 150 && !wrong, `every deduction (${steps}, on ${cleared} small fields cleared) agrees with every way the mines could lie`);
+  check(steps > 300 && !wrong && Object.values(solidSteps).every(x => x > 20),
+    `every deduction (${steps}, on ${cleared} small fields cleared; on the cube, the sphere and the geodesic sphere ${Object.values(solidSteps).join(", ")}) agrees with every way the mines could lie`);
   check(checkedLevels > 50 && !levelBad, `a deduction graded one number or two follows from those numbers alone (${checkedLevels})`);
+  // the check itself: a lone 1 in a 2×2 field could have its mine in any of the other three cells, so none is sure;
+  // in a 3×2 field with the 0 beside it open as well, the cell by the 0 is safe and the corner the mine
+  const free = layouts(fieldOf("square", 2, 2, M(2, 2, [[0, 0]]), 3), Int8Array.from([-1, -1, -1, 0]));
+  const forced = layouts(fieldOf("square", 3, 2, M(3, 2, [[0, 0]]), 5), Int8Array.from([-1, -1, 0, 0, 0, 0]));
+  check(free.out.length === 3 && [0, 1, 2].every(c => !sure(free, c, true) && !sure(free, c, false))
+    && forced.out.length === 1 && sure(forced, 0, true) && sure(forced, 1, false) && !sure(forced, 1, true),
+    "the check of every way the mines could lie tells a forced cell from a free one");
 }
 {
   // the patterns a person knows, each found at its level: a 1 with one hidden neighbour; the 1-2-1 on a wall
@@ -169,30 +283,39 @@ function layouts(f, st) {
 // ---------- fields dealt without a guess, at their level ----------
 {
   const grades = {};
-  let solved = 0, total = 0, startClear = 0, counts = 0, fit = 0, easyTop = 0, easyTotal = 0;
-  for (const shape of shapes) for (const size of Object.keys(SIZES)) for (const level of Object.keys(LEVELS)) {
+  let solved = 0, total = 0, startClear = 0, counts = 0, fit = 0, easyTop = 0, easyTotal = 0, solidTotal = 0;
+  for (const shape of every) for (const size of Object.keys(SIZES)) for (const level of Object.keys(LEVELS)) {
     const xs = [];
     for (let k = 1; k <= 3; k++) {
       const f = deal({ seed: k * 7717 + 3, shape, size, level });
       total++;
+      if (isSolid(shape)) solidTotal++;
       if (solve(f).solved) solved++;
-      if (!f.mine[f.start] && f.nb[f.start].every(j => !f.mine[j]) && f.nums[f.start] === 0) startClear++;
-      if (f.count === dims({ shape, size, level }).count) counts++;
+      // the start: empty, nothing round it, and a whole neighbourhood (not one of a solid's odd cells, so it opens
+      // as wide a patch as anywhere)
+      if (!f.mine[f.start] && f.nb[f.start].every(j => !f.mine[j]) && f.nums[f.start] === 0 && f.nb[f.start].length === EVERY[shape].most) startClear++;
+      if (f.count === dims({ shape, size, level }).count && f.n === dims({ shape, size, level }).n) counts++;
       const [lo, hi] = TARGET[shape][size][level].hard;
       if (f.grade.hard >= lo && f.grade.hard <= hi) fit++;
-      if (level === "easy" && shape !== "tri") { easyTotal++; if (f.grade.top <= 1) easyTop++; }
+      if (level === "easy" && tilingOf(shape) !== "tri") { easyTotal++; if (f.grade.top <= 1) easyTop++; }
       xs.push(f.grade.hard);
     }
     grades[`${shape}:${size}:${level}`] = xs.reduce((a, b) => a + b, 0) / xs.length;
   }
-  check(solved === total, `every field dealt clears from its start by reasoning alone (${solved}/${total})`);
+  check(solved === total && solidTotal === 81, `every field dealt clears from its start by reasoning alone, flat or round a solid (${solved}/${total})`);
   check(startClear === total && counts === total, "every start is empty, with no mine round it, and every field has its level's mines");
   check(fit >= total * 0.9, `fields meet their level's reasoning (${fit}/${total}; the rest the closest of ${400} tried)`);
-  check(easyTop === easyTotal, "an easy field of squares or hexes never needs more than one number at a time");
-  const ordered = shapes.every(sh => Object.keys(SIZES).every(sz => grades[`${sh}:${sz}:easy`] <= grades[`${sh}:${sz}:medium`] && grades[`${sh}:${sz}:medium`] <= grades[`${sh}:${sz}:hard`]));
+  check(easyTop === easyTotal, "an easy field of squares or hexes, flat or on the cube or the sphere, never needs more than one number at a time");
+  const ordered = every.every(sh => Object.keys(SIZES).every(sz => grades[`${sh}:${sz}:easy`] <= grades[`${sh}:${sz}:medium`] && grades[`${sh}:${sz}:medium`] <= grades[`${sh}:${sz}:hard`]));
   check(ordered, "every shape and size: hard fields need more than medium, medium more than easy");
-  const a = deal({ seed: 42, shape: "hex", size: "medium", level: "hard" }), b = deal({ seed: 42, shape: "hex", size: "medium", level: "hard" }), c = deal({ seed: 43, shape: "hex", size: "medium", level: "hard" });
-  check(a.mine.join("") === b.mine.join("") && a.start === b.start && a.mine.join("") !== c.mine.join(""), "a seed deals the same field every time, another seed another");
+  // a solid's levels take more mines than its flat tiling's, a share of the field: it has no edge to stick at
+  const share = (shape, size, l) => dims({ shape, size, level: l }).count / dims({ shape, size, level: l }).n;
+  check(solids.every(sh => Object.keys(SIZES).every(sz => Object.keys(LEVELS).every(l => share(sh, sz, l) > share(tilingOf(sh), sz, l)))),
+    "a solid carries more mines for its size than the flat field of its tiling, level for level");
+  for (const shape of ["hex", "cube", "geodesic"]) {
+    const a = deal({ seed: 42, shape, size: "medium", level: "hard" }), b = deal({ seed: 42, shape, size: "medium", level: "hard" }), c = deal({ seed: 43, shape, size: "medium", level: "hard" });
+    check(a.mine.join("") === b.mine.join("") && a.start === b.start && a.mine.join("") !== c.mine.join(""), `${shape}: a seed deals the same field every time, another seed another`);
+  }
   check(describe({ shape: "tri", size: "large", level: "easy" }) === "Large triangles, easy" && settingsOf({ shape: "x" }).shape === "square", "a field's name, and settings checked");
   check(Object.values(FIELDS).every(s => Object.keys(s).length === 3) && Object.values(MINES).every(s => Object.values(s).every(l => l.length === 3)), "three sizes of each shape, three levels' mines each");
 }
@@ -242,22 +365,28 @@ function layouts(f, st) {
   }
   check(whole && rising, "the rival clears its copy of the field, a cell at a time, the same way each time for a field");
   check(ends.sharp < ends.quick && ends.quick < ends.steady, `sharp is quicker than quick, quick than steady (${Object.values(ends).map(e => Math.round(e / 4000)).join(" / ")} s a medium field)`);
+  let round = true;
+  for (const shape of solids) {
+    const f = deal({ seed: 64, shape, size: "medium", level: "medium" }), p = rivalPlan(f, "quick");
+    round &&= p.open.at(-1) === f.n - f.count && rivalAt(p, p.end).done && rivalPlan(f, "quick").end === p.end;
+  }
+  check(round, "the rival clears a solid field too, the same way each time");
 }
 
 // ---------- the split, and the computer partner ----------
 {
   let both = 0, total = 0, alone = 0, whole = 0;
-  for (const shape of shapes) for (const level of ["easy", "hard"]) for (let k = 1; k <= 2; k++) {
+  for (const shape of every) for (const level of ["easy", "hard"]) for (let k = 1; k <= 2; k++) {
     const f = deal({ seed: k * 101, shape, size: "small", level, team: true });
     total++;
     if (needsBoth(f)) both++;
     if (solve(f, { sees: i => readerOf(f, i, 2) === 0 }).solved || solve(f, { sees: i => readerOf(f, i, 2) === 1 }).solved) alone++;
     if (solve(f, { sees: i => readerOf(f, i, 2) === 0 || readerOf(f, i, 2) === 1 }).solved) whole++;
   }
-  check(both === total && !alone && whole === total, `a team's field: the two shares together clear it, neither alone does (${total} fields)`);
+  check(both === total && !alone && whole === total, `a team's field, flat or round a solid: the two shares together clear it, neither alone does (${total} fields)`);
   // two computer partners, each reading its half, clear fields together, asking and telling when stuck
   let cleared = 0, games = 0, mineDug = 0, talked = 0;
-  for (const [shape, size] of [["square", "small"], ["hex", "small"], ["tri", "small"]]) for (let k = 1; k <= 2; k++) {
+  for (const [shape, size] of [["square", "small"], ["hex", "small"], ["tri", "small"], ["cube", "small"], ["sphere", "small"], ["geodesic", "small"]]) for (let k = 1; k <= 2; k++) {
     const f = deal({ seed: k * 557, shape, size, level: "medium", team: true }), run = newRun(f), told = new Set(), asked = [new Set(), new Set()];
     dig(f, run, f.start);
     games++;
@@ -334,17 +463,21 @@ function layouts(f, st) {
 
 // ---------- a run kept as JSON, and today's field ----------
 {
-  const f = deal({ seed: 1234, shape: "hex", size: "small", level: "medium" });
-  let run = newRun(f);
-  dig(f, run, f.start);
-  run = JSON.parse(JSON.stringify({ ...run, ms: 12345 }));
-  for (let guard = 0; guard < 300 && !run.done; guard++) {
-    const h = hint(f, run);
-    if (!h) break;
-    for (const c of h.cells) { if (h.mine) { if (run.cells[c] === ".") flag(f, run, c); } else dig(f, run, c); }
-    run = JSON.parse(JSON.stringify(run));
+  let carried = true;
+  for (const shape of ["hex", "cube", "sphere", "geodesic"]) {
+    const f = deal({ seed: 1234, shape, size: "small", level: "medium" });
+    let run = newRun(f);
+    dig(f, run, f.start);
+    run = JSON.parse(JSON.stringify({ ...run, ms: 12345 }));
+    for (let guard = 0; guard < 300 && !run.done; guard++) {
+      const h = hint(f, run);
+      if (!h) break;
+      for (const c of h.cells) { if (h.mine) { if (run.cells[c] === ".") flag(f, run, c); } else dig(f, run, c); }
+      run = JSON.parse(JSON.stringify(run));
+    }
+    carried &&= run.won && run.ms === 12345 && safeLeft(f, run.cells) === 0 && !run.strikes;
   }
-  check(run.won && run.ms === 12345 && safeLeft(f, run.cells) === 0, "a run kept as JSON at every move carries on to the end");
+  check(carried, "a run kept as JSON at every move carries on to the end, flat or round a solid, hints alone clearing it");
   check(WEEK.length === 7 && WEEK.every(d => SHAPES[d.shape] && SIZES[d.size] && LEVELS[d.level]), "a field for each day of the week");
   check(weekdayOf(20261019) === "Monday" && daily(20261019).size === "small" && daily(20261019).level === "easy" && daily(20261024).size === "large", "Monday's field is small and easy, Saturday's large");
   const day = 20261020, d1 = deal({ seed: day, ...daily(day) }), d2 = deal({ seed: day, ...daily(day) }), d3 = deal({ seed: day + 1, ...daily(day + 1) });

@@ -1,7 +1,8 @@
-// Mines' field on the page: one canvas, any of the three tilings (mines-grid.js), drawn from the theme's own tokens
+// Mines' flat field on the page: one canvas, any of the three tilings (mines-grid.js), drawn from the theme's own tokens
 // (tiles of paper with a brass edge, dug cells sunk into the page, numbers in the enamels) so every theme, by day and
 // by night, draws it in its own colours. A big field is drawn larger than its box, which pans under a finger and zooms
 // with two; a small one fits. The page tells it what to show (set) and asks it which cell is under a finger (cellAt).
+// The palette and what's drawn on a cell (a flag, a mine, the start) are shared with the solids' view, mines-3d.js.
 import { outline, extent, cellAt as hit } from "./mines-grid.js";
 import { scale } from "./wide.js";
 
@@ -24,9 +25,64 @@ function rgba(s) {
   if (m) { const h = m[1].length < 6 ? [...m[1]].map(c => c + c).join("") : m[1]; return [0, 2, 4].map(k => parseInt(h.slice(k, k + 2), 16)).concat(1); }
   return [128, 128, 128, 1];
 }
-const css = ([r, g, b, a = 1]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${a})`;
-const mix = (a, b, t) => [0, 1, 2].map(k => a[k] * (1 - t) + b[k] * t).concat(1);
-const alpha = (c, a) => css([c[0], c[1], c[2], a]);
+export const css = ([r, g, b, a = 1]) => `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${a})`;
+export const mix = (a, b, t) => [0, 1, 2].map(k => a[k] * (1 - t) + b[k] * t).concat(1);
+export const alpha = (c, a) => css([c[0], c[1], c[2], a]);
+const lum = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+/** An element to read the page's colour tokens through (each view keeps one in its host). */
+export function probeIn(host) {
+  const probe = document.createElement("i");
+  probe.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;visibility:hidden";
+  host.append(probe);
+  return probe;
+}
+/**
+ * The field's palette, from the page's tokens, so every theme by day and by night draws it in its own colours: a
+ * hidden cell stands up from the field and a dug one sinks into it: by day the paper tile against the page, at night
+ * (when the ink is the light one) the tile lit a little and the dug cell the dial itself.
+ */
+export function readPalette(probe) {
+  const token = name => { probe.style.color = `var(${name})`; return rgba(getComputedStyle(probe).color); };
+  const yard = token("--yard"), sheet = token("--sheet"), ink = token("--ink"), edge = token("--tile-edge");
+  const dark = lum(ink) > lum(yard), tile = dark ? mix(token("--tile"), ink, 0.13) : token("--tile");
+  return {
+    dark, yard, sheet, tile, ink, edge: dark ? mix(edge, ink, 0.25) : edge, rule: token("--rule"), brass: token("--brass"), soft: token("--ink-soft"),
+    dug: dark ? mix(yard, sheet, 0.25) : mix(yard, sheet, 0.35), good: token("--mn-good"), bad: token("--mn-bad"), flag: token("--mn-flag"), proof: token("--mn-in"),
+    nums: Array.from({ length: 13 }, (_, n) => (n ? token(`--mn-n${n}`) : ink)),
+    seats: Array.from({ length: 6 }, (_, s) => token(`--p${s}`)),
+    font: getComputedStyle(document.body).fontFamily || "sans-serif",
+  };
+}
+
+// ---------- what's drawn on a cell, the same flat or round a solid: s is the room it has, in px ----------
+export function flagGlyph(ctx, P, cx, cy, s, colour) {
+  ctx.lineCap = "round";
+  ctx.strokeStyle = css(P.ink);
+  ctx.lineWidth = Math.max(1.2, s * 0.09);
+  ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy - s * 0.52); ctx.lineTo(cx - s * 0.18, cy + s * 0.46); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - s * 0.42, cy + s * 0.48); ctx.lineTo(cx + s * 0.1, cy + s * 0.48); ctx.stroke();
+  ctx.fillStyle = css(colour);
+  ctx.beginPath(); ctx.moveTo(cx - s * 0.16, cy - s * 0.52); ctx.lineTo(cx + s * 0.5, cy - s * 0.26); ctx.lineTo(cx - s * 0.16, cy + s * 0.02); ctx.closePath(); ctx.fill();
+}
+export function mineGlyph(ctx, P, cx, cy, s, colour) {
+  ctx.strokeStyle = css(colour); ctx.fillStyle = css(colour);
+  ctx.lineWidth = Math.max(1.2, s * 0.1); ctx.lineCap = "round";
+  for (let a = 0; a < 8; a++) {
+    const t = (a * Math.PI) / 4;
+    ctx.beginPath(); ctx.moveTo(cx + Math.cos(t) * s * 0.2, cy + Math.sin(t) * s * 0.2); ctx.lineTo(cx + Math.cos(t) * s * 0.52, cy + Math.sin(t) * s * 0.52); ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, s * 0.34, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = alpha(P.sheet, 0.85);
+  ctx.beginPath(); ctx.arc(cx - s * 0.11, cy - s * 0.11, s * 0.08, 0, Math.PI * 2); ctx.fill();
+}
+/** The marked start: open the field here (a brass ring round a brass diamond). */
+export function startGlyph(ctx, P, cx, cy, s) {
+  ctx.strokeStyle = css(P.brass); ctx.lineWidth = Math.max(2, s * 0.16);
+  ctx.beginPath(); ctx.arc(cx, cy, s * 0.62, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = css(P.brass);
+  ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.3); ctx.lineTo(cx + s * 0.3, cy); ctx.lineTo(cx, cy + s * 0.3); ctx.lineTo(cx - s * 0.3, cy); ctx.closePath(); ctx.fill();
+}
 
 export function createView(host) {
   const canvas = document.createElement("canvas");
@@ -34,9 +90,7 @@ export function createView(host) {
   canvas.setAttribute("role", "img");
   host.append(canvas);
   const ctx = canvas.getContext("2d");
-  const probe = document.createElement("i");
-  probe.style.cssText = "position:absolute;width:0;height:0;overflow:hidden;visibility:hidden";
-  host.append(probe);
+  const probe = probeIn(host);
 
   let f = null, cells = [], ext = { w: 1, h: 1 };
   let W = 1, H = 1, dpr = 1, k = 1, ox = 0, oy = 0;
@@ -44,23 +98,7 @@ export function createView(host) {
   let P = null;                     // the palette, read from the page's tokens
   const wave = new Map();           // cell -> when it opens on screen (a flood opens as a wave from the cell dug)
   let frame = 0;
-
-  // ---------- the palette ----------
-  const token = name => { probe.style.color = `var(${name})`; return rgba(getComputedStyle(probe).color); };
-  const lum = ([r, g, b]) => 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  function palette() {
-    const yard = token("--yard"), sheet = token("--sheet"), ink = token("--ink"), edge = token("--tile-edge");
-    // a hidden cell stands up from the field and a dug one sinks into it: by day the paper tile against the page, at
-    // night (when the ink is the light one) the tile lit a little and the dug cell the dial itself
-    const dark = lum(ink) > lum(yard), tile = dark ? mix(token("--tile"), ink, 0.13) : token("--tile");
-    P = {
-      yard, sheet, tile, ink, edge: dark ? mix(edge, ink, 0.25) : edge, rule: token("--rule"), brass: token("--brass"), soft: token("--ink-soft"),
-      dug: dark ? mix(yard, sheet, 0.25) : mix(yard, sheet, 0.35), good: token("--mn-good"), bad: token("--mn-bad"), flag: token("--mn-flag"), proof: token("--mn-in"),
-      nums: Array.from({ length: 13 }, (_, n) => (n ? token(`--mn-n${n}`) : ink)),
-      seats: Array.from({ length: 6 }, (_, s) => token(`--p${s}`)),
-      font: getComputedStyle(document.body).fontFamily || "sans-serif",
-    };
-  }
+  const palette = () => { P = readPalette(probe); };
 
   // ---------- the view: how large, and where ----------
   const fitK = () => Math.max(1, Math.min((W - 8) / ext.w, (H - 8) / ext.h));
@@ -129,26 +167,6 @@ export function createView(host) {
     });
     ctx.closePath();
   }
-  function flagGlyph(cx, cy, s, colour) {
-    ctx.lineCap = "round";
-    ctx.strokeStyle = css(P.ink);
-    ctx.lineWidth = Math.max(1.2, s * 0.09);
-    ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy - s * 0.52); ctx.lineTo(cx - s * 0.18, cy + s * 0.46); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx - s * 0.42, cy + s * 0.48); ctx.lineTo(cx + s * 0.1, cy + s * 0.48); ctx.stroke();
-    ctx.fillStyle = css(colour);
-    ctx.beginPath(); ctx.moveTo(cx - s * 0.16, cy - s * 0.52); ctx.lineTo(cx + s * 0.5, cy - s * 0.26); ctx.lineTo(cx - s * 0.16, cy + s * 0.02); ctx.closePath(); ctx.fill();
-  }
-  function mineGlyph(cx, cy, s, colour) {
-    ctx.strokeStyle = css(colour); ctx.fillStyle = css(colour);
-    ctx.lineWidth = Math.max(1.2, s * 0.1); ctx.lineCap = "round";
-    for (let a = 0; a < 8; a++) {
-      const t = (a * Math.PI) / 4;
-      ctx.beginPath(); ctx.moveTo(cx + Math.cos(t) * s * 0.2, cy + Math.sin(t) * s * 0.2); ctx.lineTo(cx + Math.cos(t) * s * 0.52, cy + Math.sin(t) * s * 0.52); ctx.stroke();
-    }
-    ctx.beginPath(); ctx.arc(cx, cy, s * 0.34, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = alpha(P.sheet, 0.85);
-    ctx.beginPath(); ctx.arc(cx - s * 0.11, cy - s * 0.11, s * 0.08, 0, Math.PI * 2); ctx.fill();
-  }
   function number(i, cx, cy, s, colour) {
     const v = f.nums[i], two = v >= 10;
     ctx.fillStyle = css(colour);
@@ -193,7 +211,7 @@ export function createView(host) {
         path(i);
         ctx.fillStyle = css(ch === "x" ? mix(P.dug, P.bad, 0.3) : P.dug); ctx.fill();
         ctx.lineWidth = 1; ctx.strokeStyle = css(mix(P.dug, P.rule, 0.8)); ctx.stroke();
-        if (ch === "x") mineGlyph(cx, cy, s0 * 1.5, P.bad);
+        if (ch === "x") mineGlyph(ctx, P, cx, cy, s0 * 1.5, P.bad);
         else if (f.nums[i] > 0) {
           const reader = S.reader ? S.reader(i) : null, mine = reader == null || reader === S.me, told = S.told?.[i] === "1";
           if (mine || told || over) number(i, cx, cy, s0, P.nums[Math.min(12, f.nums[i])]);
@@ -204,20 +222,15 @@ export function createView(host) {
       }
       if (ch >= "0" && ch <= "5") {
         const seat = Number(ch), wrong = over && !f.mine[i];
-        flagGlyph(cx, cy, s0 * 1.5, S.reader ? P.seats[S.colour(seat) % 6] : P.flag);
+        flagGlyph(ctx, P, cx, cy, s0 * 1.5, S.reader ? P.seats[S.colour(seat) % 6] : P.flag);
         if (wrong) {
           ctx.strokeStyle = css(P.bad); ctx.lineWidth = Math.max(1.5, s0 * 0.14);
           ctx.beginPath(); ctx.moveTo(cx - s0 * 0.6, cy - s0 * 0.6); ctx.lineTo(cx + s0 * 0.6, cy + s0 * 0.6); ctx.stroke();
         }
       } else if (over && ch === "." && f.mine[i]) {
-        if (S.end.won) flagGlyph(cx, cy, s0 * 1.5, P.brass); else mineGlyph(cx, cy, s0 * 1.5, P.ink);
+        if (S.end.won) flagGlyph(ctx, P, cx, cy, s0 * 1.5, P.brass); else mineGlyph(ctx, P, cx, cy, s0 * 1.5, P.ink);
       }
-      if (i === f.start && ch === "." && !over) {       // the marked start: open the field here
-        ctx.strokeStyle = css(P.brass); ctx.lineWidth = Math.max(2, s0 * 0.16);
-        ctx.beginPath(); ctx.arc(cx, cy, s0 * 0.62, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = css(P.brass);
-        ctx.beginPath(); ctx.moveTo(cx, cy - s0 * 0.3); ctx.lineTo(cx + s0 * 0.3, cy); ctx.lineTo(cx, cy + s0 * 0.3); ctx.lineTo(cx - s0 * 0.3, cy); ctx.closePath(); ctx.fill();
-      }
+      if (i === f.start && ch === "." && !over) startGlyph(ctx, P, cx, cy, s0);
       if (near.has(i)) { path(i, gap * 2); ctx.lineWidth = 2; ctx.strokeStyle = css(P.brass); ctx.stroke(); }
     }
     // a hint: the cells it names ringed (green safe, red a mine), the numbers that prove it in the house blue
