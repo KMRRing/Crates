@@ -460,11 +460,16 @@ export class Player {
     if (p.free) return { t: "mull" };
     const h = this.s.hand[this.me], n = h.filter(isLandId).length;
     if (this.easy) return n >= 1 && n <= 6 || p.taken >= 1 ? { t: "keep" } : { t: "mull" };
-    if (p.taken >= 2) return { t: "keep" };
-    if (p.taken === 1) return n >= 2 && n <= 5 ? { t: "keep" } : { t: "mull" };
-    // seven cards: two to five lands, and something to do with them
     const good = h.filter(id => !isLandId(id) && ["Memory Lapse", "Dandân", "Piracy Charm", "Mind Bend", "Brainstorm", "Predict"].includes(DECK[id])).length;
-    return n >= 2 && n <= 5 && (good >= 1 || n >= 3) ? { t: "keep" } : { t: "mull" };
+    // the first mulligan costs nothing (p.taken counts it), so each keep is one step pickier than when every mulligan
+    // cost a card: after two, anything; after one, a seven that will be a six, two to five lands
+    if (p.taken >= 3) return { t: "keep" };
+    if (p.taken === 2) return n >= 2 && n <= 5 ? { t: "keep" } : { t: "mull" };
+    // after the free one: two to five lands, and something to do with them
+    if (p.taken === 1) return n >= 2 && n <= 5 && (good >= 1 || n >= 3) ? { t: "keep" } : { t: "mull" };
+    // the first seven, a free mulligan to be had: three or four lands and something to do with them, or two or five
+    // and two such spells
+    return ((n === 3 || n === 4) && good >= 1) || ((n === 2 || n === 5) && good >= 2) ? { t: "keep" } : { t: "mull" };
   }
   /** The n cards of a hand we'd miss least: by worth, the lands weighed by how many we have. */
   worst(ids, n) {

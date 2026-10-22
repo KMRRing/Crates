@@ -8,7 +8,7 @@
 // legal ones on the table.
 import { rules } from "./dandan-rules.js";
 import { LEVEL_NAMES } from "./dandan-bot.js";
-import { moves, afterFetch } from "./dandan-engine.js";
+import { moves, afterFetch, bottomFor, MOST_MULLS } from "./dandan-engine.js";
 import { think, BUDGET } from "./dandan-think.js";
 import { adviceLine, verdict, moveSaid, sameMove, whyNote, reasons, evidence } from "./dandan-coach.js";
 import { CARDS, DECK, HALVES, NAMES, BASICS, costWords, total, parseCost } from "./dandan-cards.js";
@@ -587,11 +587,15 @@ function question() {
   switch (q.t) {
     case "mull": {
       const shown = s.reveal && s.reveal.seat !== me ? `<p class="dd-sub">${esc(nameOf(s.reveal.seat))} showed ${s.reveal.cards.map(chip).join(" ")} and took a free mulligan.</p>` : "";
+      // the first mulligan is free, and so is one of a hand short of lands or spells (shown); bottomFor counts the rest
+      const put = bottomFor(q.taken), next = bottomFor(q.taken + 1);
+      const why = q.free ? "Fewer than two lands or two spells: a free mulligan, and the hand is shown."
+        : q.first ? "The first mulligan is free." : put ? `Keep it and put ${put} on the bottom; another mulligan, ${next}.` : "The free mulligan is taken: another puts one on the bottom.";
       return {
-        say: say("Keep this hand?", `${q.free ? "Fewer than two lands or two spells: a free mulligan, and the hand is shown." : q.taken ? `After ${q.taken} mulligan${q.taken > 1 ? "s" : ""}: keep it and put ${q.taken} on the bottom.` : ""} Tap a card to read it.`.trim()) + shown,
+        say: say("Keep this hand?", `${why} Tap a card to read it.`) + shown,
         buttons: [
-          { label: "Mulligan", sub: q.free ? "free · shown" : `bottom ${q.taken + 1}`, off: s.mull.n[me] >= 6 && !q.free, fn: () => send({ t: "mull" }) },
-          { label: "Keep", kind: "primary", fn: () => send({ t: "keep" }) }],
+          { label: "Mulligan", sub: q.free ? "free · shown" : next ? `bottom ${next}` : "free", off: s.mull.n[me] >= MOST_MULLS && !q.free, fn: () => send({ t: "mull" }) },
+          { label: "Keep", kind: "primary", sub: put ? `bottom ${put}` : "", fn: () => send({ t: "keep" }) }],
       };
     }
     case "bottom": return handPick(q, "bottom", `Put ${q.n} on the bottom of the library`, "Tap a card to read it and put it away.", "Bottom", { t: "bottom", cards: ui.picks });
@@ -1161,7 +1165,7 @@ function showRules() {
     <p><b>The stack.</b> A spell waits there until both players pass in a row; the last one cast resolves first. Memory Lapse counters it (to the top of the library, so the next draw is known), Narset’s Reversal copies it, Commit puts it second from the top. Menu, <i>Hold priority</i>, lets you cast a second spell before the first can be answered.</p>
     <p><b>Mana</b> a land makes and a cost doesn’t use (Izzet Boilerworks’ red, paying for a blue spell) floats until the step ends, and pays for the next thing you do in it.</p>
     <p><b>Owners.</b> A spell or a permanent belongs to the player who cast or played it: Repulse returns a Dandân to its caster’s hand.</p>
-    <p><b>Mulligans.</b> A hand with fewer than two lands or fewer than two spells may be shown and thrown back free, as often as it comes, until you take an ordinary mulligan. That one draws seven and puts one on the bottom for each mulligan taken. The loser of the last game goes first.</p>
+    <p><b>Mulligans.</b> Your first mulligan is free: seven new cards, none put on the bottom. A hand with fewer than two lands or fewer than two spells may also be shown and thrown back free, as often as it comes, and doesn't count. Every other mulligan draws seven and, when you keep, puts one on the bottom for each mulligan after the free first. The loser of the last game goes first.</p>
     <h3>Where it plays differently from the paper game</h3>
     <ul class="dd-notes">
       <li>The game moves on by itself where nobody could act. You are asked in your own main phases, at attack and blocks, at the end step when you hold a card that could be cast, and with anything on the stack; at an upkeep when you know the card about to be drawn and could act on it, or, theirs, when you hold a Brainstorm or a Predict. There is no stop at the start or end of combat or in the draw step: what could be done there is done as well at the declarations or the end step.</li>

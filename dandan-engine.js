@@ -50,17 +50,28 @@ export function deal({ rng, prev = null }) {
 }
 
 // ---------- the opening hand ----------
+// Mulligans (23 October 2026, Korbi: "first mulligan is always free. If it's only one land or only one non land then can
+// also mulligan for free"): a hand with fewer than two lands or fewer than two spells may be shown and thrown back for
+// nothing, as often as it comes, and doesn't count; of the others, the first is free too, and each after it puts one
+// more on the bottom at the keep (mull.n counts them, the free first among them). Until then the short hand's free
+// mulligan was there only before the first ordinary one, and every ordinary one cost a card.
 /** A hand with fewer than two lands or fewer than two spells may be thrown back for nothing, shown to the other player. */
 export const unplayable = (s, seat) => {
   const h = s.hand[seat], n = h.filter(isLandId).length;
   return n < 2 || h.length - n < 2;
 };
+/** The most mulligans counted: six cards to the bottom, one kept. */
+export const MOST_MULLS = 7;
+/** The cards put on the bottom at the keep after n mulligans counted: the first is free. */
+export const bottomFor = n => Math.max(0, n - 1);
 function askMull(s, seat) {
-  s.pending = { t: "mull", seat, free: s.mull.n[seat] === 0 && s.hand[seat].length === HAND && unplayable(s, seat), taken: s.mull.n[seat] };
+  const n = s.mull.n[seat];
+  // free: the short hand's, shown; first: none counted yet, so this one costs nothing either
+  s.pending = { t: "mull", seat, free: s.hand[seat].length === HAND && unplayable(s, seat), first: n === 0, taken: n };
 }
 function mulligan(s, seat) {
   if (s.pending.free) { s.reveal = { seat, cards: [...s.hand[seat]] }; say(s, `{s${seat}} shows ${s.hand[seat].map(nm).join(", ")} and takes a free mulligan`); }
-  else { s.mull.n[seat]++; say(s, `{s${seat}} takes a mulligan`); }
+  else { s.mull.n[seat]++; say(s, s.mull.n[seat] === 1 ? `{s${seat}} takes the free first mulligan` : `{s${seat}} takes a mulligan`); }
   handToLib(s, seat);
   shuffleLib(s);
   draw(s, seat, HAND);
@@ -68,7 +79,7 @@ function mulligan(s, seat) {
   askMull(s, seat);
 }
 function keepHand(s, seat) {
-  const n = s.mull.n[seat];
+  const n = bottomFor(s.mull.n[seat]);
   if (n > 0) { s.pending = { t: "bottom", seat, n }; return; }
   doneMull(s, seat);
 }
@@ -493,7 +504,7 @@ function answer(s, seat, m) {
   switch (p.t) {
     case "mull":
       if (m.t === "keep") { keepHand(s, seat); return null; }
-      if (s.mull.n[seat] >= 6 && !p.free) return "Keep this hand";
+      if (s.mull.n[seat] >= MOST_MULLS && !p.free) return "Keep this hand";
       mulligan(s, seat);
       return null;
     case "bottom": {

@@ -12,7 +12,7 @@
 // the library are the remaining cards in a random order, the other hand weighed by what their play has shown (the hand
 // they kept, and every pass they made where a card would clearly have been played: dandan-reads.js, dandan-observe.js).
 // What the other player knew of the library stays with the places they knew, whatever card is there now.
-import { act, toMove, moves } from "./dandan-engine.js";
+import { act, toMove, moves, MOST_MULLS } from "./dandan-engine.js";
 import { DECK, NAMES } from "./dandan-cards.js";
 import { other, knownIn, knOf } from "./dandan-core.js";
 import { Player, policyMove, PASS, unseenOf } from "./dandan-policy.js";
@@ -180,7 +180,7 @@ export function candidates(s, seat, { wide = 7 } = {}) {
     }
     case "mull":
       add({ t: "keep" });
-      if (p.free || p.taken < 6) add({ t: "mull" });
+      if (p.free || p.taken < MOST_MULLS) add({ t: "mull" });
       break;
     case "bottom": {
       const ranked = P.worst(s.hand[seat], Math.min(s.hand[seat].length, p.n + 2));

@@ -59,7 +59,7 @@ export function moveName(m, s, seat) {
     case "cycle": return `${CARDS[front(m.card)]?.islandcycling ? "islandcycle" : "cycle"} ${nm(m.card)}`;
     case "ability": return nm(m.id) === "Clue" ? "crack the Clue" : "sacrifice Flood Plain for an Island";
     case "keep": return "keep this hand";
-    case "mull": return s.pending?.free ? "take the free mulligan" : "take a mulligan";
+    case "mull": return s.pending?.free || s.pending?.first ? "take the free mulligan" : "take a mulligan";
     case "bottom": return `put ${handNames(m.cards || [])} on the bottom`;
     case "discard": return `discard ${handNames(m.cards || [])}`;
     case "putback": return (m.cards || []).length > 1 ? `put back ${nm(m.cards[0])} on top and ${nm(m.cards[1])} under it` : `put back ${handNames(m.cards || [])}`;
@@ -250,7 +250,8 @@ function forMove(s, seat, F, m, good) {
     case "keep": case "mull": {
       const h = s.hand[seat], n = h.filter(id => CARDS[front(id)]?.type === "land").length;
       if (m.t === "keep" && good) say("hand", `${n} ${plural(n, "land", "lands")} and ${h.length - n} spells: enough to play.`);
-      if (m.t === "mull" && good) say("hand", s.pending?.free ? "It's free: a hand short of lands or spells is shown and dealt again." : `${n} ${plural(n, "land", "lands")} in seven is too ${n < 2 ? "few" : "many"}.`);
+      if (m.t === "mull" && good) say("hand", s.pending?.free ? "It's free: a hand short of lands or spells is shown and dealt again."
+        : s.pending?.first ? "The first mulligan is free: seven again, none to the bottom." : `${n} ${plural(n, "land", "lands")} in seven is too ${n < 2 ? "few" : "many"}.`);
       break;
     }
     case "pick":

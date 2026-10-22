@@ -4,7 +4,7 @@
 // sacrificed with none, dies to +2/−1; Mind Bend changing what it looks for), the ends of a game (life, an empty
 // library), the state through the database, the computer player's choices, and whole games of computer players.
 import { DECK, CARDS, HALVES, NAMES, TOKEN_AT, parseCost, total } from "../dandan-cards.js";
-import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable, afterFetch } from "../dandan-engine.js";
+import { deal, act, settle, restore, moves, toMove, nextDrawer, costOf, halfOf, unplayable, afterFetch, MOST_MULLS } from "../dandan-engine.js";
 import { RES, T } from "../dandan-spells.js";
 import { nm, perm, islands, typesOf, topKnown, payPlan, canPay, canAttack, knownIn } from "../dandan-core.js";
 import { rules } from "../dandan-rules.js";
@@ -58,21 +58,36 @@ const test = (what, fn) => {
   check(unplayable(f, f.pending.seat) && f.pending.free, `a hand short of lands or spells is offered a free mulligan (seed ${free})`);
   const after = answer(f, { t: "mull" });
   check(after.reveal?.seat === f.pending.seat && after.reveal.cards.length === 7 && after.mull.n[f.pending.seat] === 0 && after.hand[f.pending.seat].length === 7, "a free one shows the hand to the other player, costs no card, and deals seven again");
-  const g = restore(J(deal({ rng: seeded(fine) })));
-  check(!g.pending.free && refused(g, g.pending.seat, { t: "keep", extra: 1 }) === null, "a playable hand has no free mulligan");
+  const g = restore(J(deal({ rng: seeded(fine) }))), seat = g.pending.seat;
+  check(!g.pending.free && g.pending.first && refused(g, seat, { t: "keep", extra: 1 }) === null, "a playable hand isn't shown, but its first mulligan is free (23 October 2026)");
   const m1 = answer(g, { t: "mull" });
-  check(m1.mull.n[g.pending.seat] === 1 && m1.reveal === null && m1.hand[g.pending.seat].length === 7, "a paid mulligan is dealt seven again and counted");
+  check(m1.mull.n[seat] === 1 && m1.reveal === null && m1.hand[seat].length === 7 && !m1.pending.first, "the first mulligan is dealt seven again and counted, not shown");
   const k1 = answer(m1, { t: "keep" });
-  check(k1.pending?.t === "bottom" && k1.pending.n === 1, "keeping after one mulligan puts one card on the bottom");
-  check(refused(k1, k1.pending.seat, { t: "bottom", cards: [] }) !== null, "…and it must be one");
-  const seat = k1.pending.seat, put = k1.hand[seat][0];
-  const k2 = answer(k1, { t: "bottom", cards: [put] });
-  check(k2.hand[seat].length === 6 && k2.lib[k2.lib.length - 1] === put && topKnown(k2, seat) === null && k2.pending.seat !== seat, "the bottomed card is last in the library, and the other player is asked");
-  const both = answer(k2, { t: "keep" });
+  check(k1.pending?.t !== "bottom" && k1.hand[seat].length === 7 && k1.pending?.seat !== seat, "keeping after the free first mulligan puts nothing on the bottom");
+  // a second (a short hand dealt meanwhile is free and shown, and doesn't count)
+  let m2 = m1;
+  for (let i = 0; i < 40 && m2.mull.n[seat] < 2; i++) m2 = answer(m2, { t: "mull" });
+  const k2 = answer(m2, { t: "keep" });
+  check(m2.mull.n[seat] === 2 && k2.pending?.t === "bottom" && k2.pending.n === 1, "keeping after a second mulligan puts one card on the bottom");
+  check(refused(k2, seat, { t: "bottom", cards: [] }) !== null, "…and it must be one");
+  const put = k2.hand[seat][0];
+  const k3 = answer(k2, { t: "bottom", cards: [put] });
+  check(k3.hand[seat].length === 6 && k3.lib[k3.lib.length - 1] === put && topKnown(k3, seat) === null && k3.pending.seat !== seat, "the bottomed card is last in the library, and the other player is asked");
+  const both = answer(k3, { t: "keep" });
   check(both.turn === 1 && both.active === both.first && both.step === "main1" && both.hand[both.first].length === (both.first === seat ? 6 : 7), "both kept: turn 1, the first player on the play with no draw");
   let h = g;
-  for (let i = 0; i < 6; i++) h = h.pending.seat === g.pending.seat && h.pending.t === "mull" ? answer(h, { t: "mull" }) : h;
-  check(h.mull.n[g.pending.seat] === 6 && refused(h, g.pending.seat, { t: "mull" }) === "Keep this hand", "no mulligan past the sixth");
+  for (let i = 0; i < 80 && (h.mull.n[seat] < MOST_MULLS || h.pending.free); i++) h = answer(h, { t: "mull" });
+  check(h.mull.n[seat] === MOST_MULLS && refused(h, seat, { t: "mull" }) === "Keep this hand" && answer(h, { t: "keep" }).pending.n === 6, "no mulligan past the seventh, the first free: six to the bottom, one kept");
+  // a hand short of lands or spells is free and shown after the free first mulligan too
+  let short = null;
+  for (let seed = 1; seed < 400 && !short; seed++) {
+    const d = restore(J(deal({ rng: seeded(seed) })));
+    if (d.pending.free) continue;
+    const e = answer(d, { t: "mull" });
+    if (e.pending.free) short = e;
+  }
+  const sv = short?.pending.seat, s2 = short && answer(short, { t: "mull" });
+  check(!!short && s2.mull.n[sv] === 1 && s2.reveal?.seat === sv, "a short hand after the free first mulligan is shown and thrown back free, uncounted");
 }
 
 // ---------- a turn ----------
@@ -673,13 +688,16 @@ const both = (what, s, seat, ok) => {
   test(`Medium: ${what}`, () => ok(medium(s, seat)) || JSON.stringify(medium(s, seat)));
   test(`Hard: ${what}`, () => ok(hard(s, seat)) || JSON.stringify(hard(s, seat)));
 };
-test("it takes a free mulligan on a hand short of lands, keeps a good one, and keeps a poor one it has already paid for", () => {
+test("it takes a free mulligan on a hand short of lands, keeps a good one, throws back a middling first seven while the first mulligan is free, and keeps a poor one it has already paid for", () => {
   const asked = (hand, pending) => { const s = scene({ hand: [hand, []] }); s.pending = { t: "mull", seat: 0, ...pending }; return botMove(s, 0, { rng: seatRng(1) }).t; };
   const spells = ["Memory Lapse", "Dandân", "Brainstorm", "Predict", "Repulse", "Mind Bend"];
+  const middling = ["Island", "Island", "Memory Lapse", "Repulse", "Take Inventory", "Chart a Course", "Gone Missing"];   // two lands, one spell worth the mana
   return asked(["Island", ...spells], { free: true, taken: 0 }) === "mull"
-    && asked(["Island", "Remote Isle", "Island", ...spells.slice(0, 4)], { free: false, taken: 0 }) === "keep"
-    && asked(["Island", ...spells], { free: false, taken: 2 }) === "keep"
-    && asked(["Island", ...spells], { free: false, taken: 0 }) === "mull";
+    && asked(["Island", "Remote Isle", "Island", ...spells.slice(0, 4)], { free: false, first: true, taken: 0 }) === "keep"
+    && asked(middling, { free: false, first: true, taken: 0 }) === "mull"
+    && asked(middling, { free: false, taken: 1 }) === "keep"
+    && asked(["Island", ...spells], { free: false, taken: 3 }) === "keep"
+    && asked(["Island", ...spells], { free: false, first: true, taken: 0 }) === "mull";
 });
 {
   // the blunder that started the rework: Mind Bend on a lone Island with no Dandân anywhere

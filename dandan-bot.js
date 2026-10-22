@@ -3,7 +3,7 @@
 // what its seat may know: its hand, the table, the graveyard, the library cards and the cards in the other hand it has
 // seen go there; the rest it takes as odds (Medium) or deals at random many times over (Hard).
 import { BASICS, NAMES } from "./dandan-cards.js";
-import { moves } from "./dandan-engine.js";
+import { moves, MOST_MULLS } from "./dandan-engine.js";
 import { policyMove, PASS } from "./dandan-policy.js";
 import { thinkMove } from "./dandan-think.js";
 import { shuffle } from "./seats.js";
@@ -16,7 +16,7 @@ const pickOne = (a, rng) => a[Math.floor(rng() * a.length)];
 export function randomAnswer(s, rng) {
   const p = s.pending, seat = p.seat;
   switch (p.t) {
-    case "mull": return p.taken < 6 && rng() < (p.free ? 0.6 : 0.12) ? { t: "mull" } : { t: "keep" };
+    case "mull": return (p.free || p.taken < MOST_MULLS) && rng() < (p.free ? 0.6 : 0.12) ? { t: "mull" } : { t: "keep" };
     case "bottom": return { t: "bottom", cards: shuffle(s.hand[seat], rng).slice(0, p.n) };
     case "attack": return { t: "attack", ids: p.ids.filter(() => rng() < 0.7) };
     case "block": return { t: "block", pairs: p.blockers.filter(() => rng() < 0.6).map(b => [b, pickOne(p.attackers, rng)]) };

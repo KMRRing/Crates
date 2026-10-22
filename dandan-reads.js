@@ -25,8 +25,9 @@ const LANDS = new Set(Object.keys(CARDS).filter(n => CARDS[n].type === "land"));
 const ANSWERS = [["Piracy Charm", 1], ["Mind Bend", 1], ["Metamorphose", 2], ["Repulse", 3], ["Commit // Memory", 4]];
 /** The answers a kill tell rules out: those castable with the mana they had open. */
 export const answersWith = mana => ANSWERS.filter(([, c]) => c <= mana).map(([n]) => n);
-/** The lands a hand held at the keep must have had: two to five of seven, at least one of six after a mulligan; after two, anything. */
-const KEPT = [[2, 5], [1, 5]];
+/** The lands a hand held at the keep must have had: two to five of seven, before the free first mulligan and after it;
+ *  at least one of six after the next (one to the bottom); after three, anything. */
+const KEPT = [[2, 5], [2, 5], [1, 5]];
 
 /**
  * The reads of `seat` that still say something about its hand: [{ kind, names (a Set) or lands, since (cards drawn
