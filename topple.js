@@ -244,7 +244,9 @@ function onKnob(e) {
  */
 function turnTo(h, e) {
   const p = view.pointAt(e.clientX, e.clientY), [cx, cz] = h.onKnob ? view.centre(sel) : h.p0 || [];
-  if (!p || cx == null || Math.hypot(p[0] - cx, p[1] - cz) < (h.onKnob ? 0.3 : 0.34)) return;
+  if (!p || cx == null) return;
+  h.far = Math.max(h.far || 0, Math.hypot(p[0] - cx, p[1] - cz));
+  if (Math.hypot(p[0] - cx, p[1] - cz) < (h.onKnob ? 0.3 : 0.34)) return;
   const way = ((Math.round(-Math.atan2(p[1] - cz, p[0] - cx) / (Math.PI / 6)) % WAYS) + WAYS) % WAYS;
   if (way === knob) return;
   knob = way;
@@ -453,9 +455,12 @@ function lift(e, cancelled = false) {
   if (h.kind === "table") { if (h.moved || cancelled) view.level(); else tapTable(e); return; }
   if (h.kind === "spent" || cancelled || playing || S.over) { if (h.kind === "turn") knob = h.knob0; redraw(); return; }
   if (h.kind === "turn") {
+    // slid along its own axis with the knock due, it was most likely meant as a push: say how
+    const meant = h.moved && !h.onKnob && h.far >= DEAD && h.axis === S.ax[sel] && S.due;
     if (h.moved && h.axis !== S.ax[sel]) { S = turnDomino(S, sel, h.axis); save(); }
     if (!h.moved && !h.onKnob) step();
     else showChosen();
+    if (meant) toast("A chosen domino turns: tap the table to let it go, then push it");
   } else if (h.kind === "press") {
     if (!h.moved) choose(h.at);
     else if (h.way >= 0 && S.due) commitKnock(h.at, h.way);
