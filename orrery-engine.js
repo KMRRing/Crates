@@ -2,13 +2,14 @@
 // four colours, stepping on a beat. The beat is a metronome the player sets, from twenty beats a minute up to sixty (one
 // a second, the fastest). A hoop is set to stand still or to step left or right every third beat, every second, every
 // beat, or two places every beat, and keeps that until it's set again; a place is a twelfth of a turn, so between steps
-// every planet is exactly on one of twelve places, and nothing coasts. A hoop is tipped about the axle (a rod from twelve
-// o'clock through the sun to six) by 15, 30 or 45 degrees either way, or lies level, and every so often it tips a step
-// further by itself (its drift), one way until it reaches 45 degrees and then back, each hoop at its own steady pace.
-// Three or four planets of one colour on hoops standing still, one to a hoop, in one direction from the sun, are a line,
-// and the next beat strikes it: they clear and score. One direction is at twelve o'clock or at six (on the axle, which
-// every hoop crosses however it's tipped), for any colour at any tips; or one place round hoops tipped to that colour's
-// plane, a tip of its own (PLANE): yellow's at −45 degrees, green's −15, blue's 15 and red's 45. Only hoops standing still
+// every planet is exactly on one of twelve places, and nothing coasts. Each hoop is tipped about the axle (a rod from
+// twelve o'clock through the sun to six) by 15, 30 or 45 degrees either way, or lies level. Each colour has a plane of its
+// own, a tip (PLANE): yellow's at −45 degrees, green's −15, blue's 15 and red's 45; a press of a colour tips every hoop
+// into its plane at once, and every so often each hoop tips a step further by itself (its drift), one way until it reaches
+// 45 degrees and then back, at its own steady pace. Three or four planets of one colour on hoops standing still, one to a
+// hoop, in one direction from the sun, are a line, and the next beat strikes it: they clear and score. One direction is at
+// twelve o'clock or at six (on the axle, which every hoop crosses however it's tipped), for any colour at any tips; or one
+// place round hoops in that colour's plane. Only hoops standing still
 // make a line, so nothing lines up by chance as hoops go round: you stop them there. Every few seconds, on the clock and
 // not the beat, a new planet lands, foretold a moment before, more often as the game goes on; an orrery with no place
 // left for one ends the game. The page (orrery.js) draws it and takes the hand; tests/orrery.mjs checks this.
@@ -42,8 +43,7 @@ export const STRIDE = [0, 1, 1, 1, 2];
 export const TIP = 15 * DEG, TIP_MAX = 3;   // a tip is a whole number of fifteen degrees, up to 45 either way
 /**
  * Each colour's plane: the tip (in fifteen degrees) on which its planets line up away from the gates. Fixed, so a player
- * learns them; every other tip, so one drift always takes a hoop out of its plane and one press puts it back, and level
- * is no colour's.
+ * learns them; every other tip, so one drift always takes a hoop out of its plane, and level is no colour's.
  */
 export const PLANE = [-3, -1, 1, 3];
 /** The colour whose plane a tip is, or -1. */
@@ -51,14 +51,14 @@ export const planeOf = tip => PLANE.indexOf(tip);
 /** The hoops' paces of drift, in seconds between one and the next: dealt to the four from the seed, so each has its own. */
 export const DRIFT = [30, 36, 42, 48];
 export const TICK = 0.25;                   // seconds a step is drawn over: a short tick, like a wheel let go by an escapement
-export const TIP_TIME = 0.35;               // and a tip
+export const TIP_TIME = 0.2;                // and a tip: quick, so a press reads as immediate
 export const DWELL = 0.3;                   // seconds a line shows at least before a beat strikes it: what made it (a stop, a tip, a landing) has been drawn by then
 /** What a line of 3 or 4 planets is worth, before the combo. */
 export const AWARD = [0, 0, 0, 100, 300];
 export const COMBO_WINDOW = 8;              // seconds after one line in which the next counts on the combo
 export const FORETELL = 1.5;                // seconds a planet is shown before it lands
 /** The pace of the planets: seconds between them at first, the quickest they come to, and the seconds in which the gap between the two halves. */
-export const PACE = { first: 6.5, least: 1, half: 200 };
+export const PACE = { first: 6.5, least: 1, half: 170 };
 /** Seconds between planets at game time t: quicker and quicker, ever more slowly, towards the quickest. */
 export const gap = t => PACE.least + (PACE.first - PACE.least) * 2 ** (-t / PACE.half);
 /** The score multiplier at a combo (1, then a quarter more for each line in a run, to three times). */
@@ -249,17 +249,18 @@ function tipTo(s, r, k) {
   r.way = turned(k, r.way);
 }
 /**
- * A hoop tipped by the player (k from -3 to 3, fifteen degrees each, the three o'clock side up for positive): at once by
- * the rules, drawn turning over a moment. It winds the hoop's drift again: its next is a whole pace from now.
+ * A press of a colour: every hoop tipped into its plane at once, each drawn turning quickly from where it's drawn now.
+ * It winds no hoop's drift: each drifts on its own steady clock whatever is pressed (a press that wound them, every
+ * hoop's or only those it tipped, made the drift never touch a careful player, who presses often: tests/orrery.mjs
+ * measures it). Returns whether any hoop was tipped (none is, pressing the colour the hoops are all in).
  */
-export function setTip(s, ring, k) {
-  const r = s.rings[ring];
-  k = Math.max(-TIP_MAX, Math.min(TIP_MAX, Math.round(k)));
-  if (s.over || k === r.tip) return false;
-  tipTo(s, r, k);
-  r.driftAt = s.t + r.drift;
-  look(s);
-  return true;
+export function setPlane(s, colour) {
+  const T = PLANE[colour];
+  if (s.over || T == null) return false;
+  const moving = s.rings.filter(r => r.tip !== T);
+  for (const r of moving) tipTo(s, r, T);
+  if (moving.length) look(s);
+  return moving.length > 0;
 }
 /** The tempo set (an index into TEMPOS): the next beat comes a beat of the new tempo after the last, or at once if that's gone by. */
 export function setTempo(s, k) {

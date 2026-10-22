@@ -14,8 +14,8 @@
 // change it; `trace=100` prints the plans of one game (seed 100) as they're made.
 import {
   VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, EVERY, STRIDE, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW, FORETELL,
-  PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTip, setTempo,
-  stepsOn, upcoming, nextDrift, step, look, strikeAt,
+  PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTempo,
+  stepsOn, upcoming, nextDrift, step, look, strikeAt, setPlane,
 } from "../orrery-engine.js";
 
 let bad = 0;
@@ -162,10 +162,12 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
   const r2 = d.rings[1], t2 = r2.moved, path2 = [0, 0.15, 1].map(u => turnOf(r2, t2 + u * TICK) - r2.a);
   const past2 = Math.min(...[...Array(50).keys()].map(k => turnOf(r2, t2 + (k / 50) * TICK) - r2.a));
   check(near(path2[0], 2) && path2[1] < 1.5 && path2[1] > 0.5 && path2[2] === 0 && past2 > -0.12 && turnOf(r2, t2 + 5) === r2.a, "two places drawn as one tick, from where it was, past by a hair and onto where it's going");
-  setTip(d, 1, 2);
+  d.rings.forEach(r => { r.tip = r.tipFrom = -1; r.tipAt = -1e9; });
+  setPlane(d, 2);                                                // green's plane to blue's: two steps
   const tr = d.rings[1];
-  check(near(tiltOf(tr, d.t), 0) && near(tiltOf(tr, d.t + TIP_TIME / 2), TIP) && tiltOf(tr, d.t + TIP_TIME) === 2 * TIP && (setTip(d, 1, 9), tr.tip === TIP_MAX) && (setTip(d, 1, -9), tr.tip === -TIP_MAX) && near(TIP_MAX * TIP, 45 * DEG),
-    `a tip drawn turning over ${TIP_TIME} s; no more than 45 degrees either way`);
+  check(d.rings.every(r => r.tip === PLANE[2]) && near(tiltOf(tr, d.t), -TIP) && near(tiltOf(tr, d.t + TIP_TIME / 2), 0) && tiltOf(tr, d.t + TIP_TIME) === TIP && TIP_TIME <= 0.25 && PLANE.every(p => Math.abs(p) <= TIP_MAX) && near(TIP_MAX * TIP, 45 * DEG),
+    `a press tips every hoop at once, each drawn turning quickly (over ${TIP_TIME} s) to the colour's plane; no tip past 45 degrees`);
+  check(!setPlane(d, 2) && d.rings.every(r => r.tip === PLANE[2]) && !setPlane(d, 9), "pressing the colour every hoop is in already does nothing (nor a colour there isn't)");
 }
 
 // ---------- directions and alignments ----------
@@ -240,17 +242,17 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
   l.next = { due: 0.5, ring: 3, place: 7, colour: 2 };
   const le = step(l, 1.05);
   check(le.some(e => e.type === "land" && e.ring === 3) && locks(le).length === 1 && locks(le)[0].members.some(m => m.ring === 3), "a planet landing completes one");
-  // by a tip: three blue at four o'clock, two hoops in blue's plane, the third tipped into it
+  // by a press: three blue at four o'clock, two hoops in blue's plane, the press of blue tipping the rest into it
   const B = PLANE[2], tp = line(sky([B, B, B + 2, -1]), 2, 4, [0, 2], [1, 5], [2, 9]);
-  check(!clusters(tp).length && setTip(tp, 2, B) && tp.locks.length === 1 && locks(step(tp, 1.05)).length === 1 && planets(tp) === 0, "a tip into the colour's plane completes one, and the beat strikes it");
+  check(!clusters(tp).length && setPlane(tp, 2) && tp.rings.every(r => r.tip === B) && tp.locks.length === 1 && locks(step(tp, 1.05)).length === 1 && planets(tp) === 0, "a press of blue tips every hoop into blue's plane and completes one, and the beat strikes it");
   // one that breaks before the beat strikes it is gone
   const br = line(sky([B, B, B, -1]), 2, 4, [0, 2], [1, 5], [2, 9]);
   step(br, 0.5);
-  setTip(br, 2, B + 1);
+  setPlane(br, 3);                                               // every hoop to red's plane: out of blue's
   const br2 = line(sky([B, B, B, -1]), 2, 4, [0, 2], [1, 5], [2, 9]);
   step(br2, 0.5);
   setRing(br2, 0, -1);
-  check(!br.locks.length && !locks(step(br, 2)).length && planets(br) === 3 && !br2.locks.length && !locks(step(br2, 0.6)).length, "one broken before the beat (a hoop tipped out of the plane, or set going) isn't struck");
+  check(!br.locks.length && !locks(step(br, 2)).length && planets(br) === 3 && !br2.locks.length && !locks(step(br2, 0.6)).length, "one broken before the beat (the hoops pressed into another colour's plane, or one set going) isn't struck");
   // a fourth landing in it while it shows keeps its time, and all four are struck
   const g = line(sky(MIXED), 0, 6, [0, 1], [1, 2], [2, 3]);
   g.rings[3].a = 2;
@@ -274,18 +276,18 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
   // its pace on the clock, not the beat: the same drifts at every tempo
   const byTempo = TEMPOS.map((_, k) => { const g = newGame(31, k); return drifts(run(g, 200, 0.1)).map(e => `${e.ring}${e.tip}`).join(); });
   check(byTempo.every(x => x === byTempo[0]) && byTempo[0].split(",").length >= 15, "the drift keeps the clock, not the beat: the same drifts at every tempo, so a slow tempo isn't spared it");
-  // a tip of the hand winds the drift again
+  // a press winds no clock: each hoop drifts on its own, whatever is pressed
   const w = sky([1, 1, 1, 1]);
-  w.rings.forEach(r => { r.drift = 20; r.driftAt = 20; });
+  w.rings.forEach((r, k) => { r.drift = 20 + k; r.driftAt = 20 + k; });
   run(w, 15);
-  setTip(w, 1, 2);
-  check(near(w.rings[1].driftAt, 35) && w.rings[0].driftAt === 20 && !setTip(w, 0, 1) && w.rings[0].driftAt === 20, "a tip of your own winds its drift again (the next a whole pace on); a press at the tip it has isn't a tip, and winds nothing");
-  const dw = drifts(run(w, 30));
-  check(dw.filter(e => e.ring === 1).length === 1 && dw.filter(e => e.ring === 0).length === 2 && near(w.rings[1].driftAt, 55), "so the hoop tipped drifts a whole pace after it, the others on their own clocks");
+  setPlane(w, 3);                                                // every hoop to red's plane, 5 to 8 seconds before it drifts
+  check(w.rings.every((r, k) => r.tip === 3 && r.driftAt === 20 + k), "a press winds no hoop's drift: each keeps its own clock, whatever is pressed");
+  const dw = drifts(run(w, 10));
+  check(dw.map(e => `${e.ring}:${e.from}>${e.tip}`).join() === "0:3>2,1:3>2,2:3>2,3:3>2" && w.rings.every((r, k) => r.driftAt === 40 + 2 * k), "so the hoops drift out of the plane one by one, each at its own time, until pressed again");
   const end = sky([0, 0, 0, 0]);
-  end.rings[0].way = 1; end.rings[1].way = -1;
-  setTip(end, 0, 3); setTip(end, 1, -3);
-  check(end.rings[0].way === -1 && end.rings[1].way === 1 && (setTip(end, 0, 1), end.rings[0].way === -1), "tipped to 45 degrees by hand, it drifts back from there (and keeps its way, tipped between)");
+  end.rings.forEach((r, k) => { r.way = k % 2 ? 1 : -1; });
+  setPlane(end, 0);
+  check(end.rings.every(r => r.tip === -3 && r.way === 1) && (setPlane(end, 3), end.rings.every(r => r.tip === 3 && r.way === -1)), "pressed to 45 degrees either way, every hoop drifts back from there");
   // a drift that tips a hoop out of a standing line breaks it; one into its colour's plane can complete one
   const B = PLANE[2], br = line(sky([B, B, B, 0]), 2, 4, [0, 2], [1, 5], [2, 9]);
   br.rings[1].driftAt = 0.2; br.rings[1].drift = 30; br.rings[1].way = 1;
@@ -307,7 +309,7 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
   ov.next.due = 0.1;
   run(ov, 0.5);
   const tipsOver = ov.rings.map(r => r.tip).join();
-  check(st.rings.map(r => `${r.tip}@${r.driftAt}`).join() === before && ov.over && !drifts(run(ov, 100)).length && ov.rings.map(r => r.tip).join() === tipsOver && !setTip(ov, 0, 0), "the drift stands still with the game (the menu open, the tab hidden) and stops with the end");
+  check(st.rings.map(r => `${r.tip}@${r.driftAt}`).join() === before && ov.over && !drifts(run(ov, 100)).length && ov.rings.map(r => r.tip).join() === tipsOver && !setPlane(ov, 1), "the drift stands still with the game (the menu open, the tab hidden) and stops with the end");
   check(nextDrift(newGame(43, 2)) === newGame(43, 2).rings.findIndex(r => r.drift === Math.min(...DRIFT)), "the hoop that drifts next is the one whose time comes first (for the page to show)");
 }
 
@@ -349,7 +351,7 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
   const e4 = run(full, 0.3);
   check(e4.some(e => e.type === "over") && full.over && room(full) === 0, "no place for the next planet ends the game");
   const t0 = full.t;
-  check(step(full, 1).length === 0 && full.t === t0 && !setRing(full, 0, 3) && !setTip(full, 0, 1) && !setTempo(full, 0), "and nothing goes on after");
+  check(step(full, 1).length === 0 && full.t === t0 && !setRing(full, 0, 3) && !setPlane(full, 0) && !setTempo(full, 0), "and nothing goes on after");
   // a full orrery with an alignment showing: it clears first, and the planet lands in the room it leaves
   const last = sky(MIXED);
   last.rings.forEach((r, k) => r.places.forEach((_, p) => { r.places[p] = (k + p) % 2 ? 1 : 3; }));
@@ -363,7 +365,7 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
 {
   const s = newGame(21, 2);
   run(s, 3.3, 1 / 60);
-  setRing(s, 1, 2); setRing(s, 3, -4); setTip(s, 2, 1); setTempo(s, 3);
+  setRing(s, 1, 2); setRing(s, 3, -4); setPlane(s, 2); setTempo(s, 3);
   run(s, 4.1, 1 / 60);
   const saved = JSON.parse(JSON.stringify(s)), a = copy(s), b = JSON.parse(JSON.stringify(saved));
   const da = drifts(run(a, 60, 1 / 60)).map(e => `${e.ring}${e.tip}`).join(), db = drifts(run(b, 60, 0.5)).map(e => `${e.ring}${e.tip}`).join();
@@ -379,23 +381,22 @@ const SETTINGS = [...Array(2 * SPIN + 1).keys()].map(k => k - SPIN);
 }
 
 // ---------- whole games ----------
-// Players with a person's hands (the harness): how long each one takes to look and decide what to line up, to tap a hoop
-// (both its rows of buttons are there at once), to press a button, and to see a hoop arrive and press still, and how
-// much longer that takes for each other hoop it's keeping count of at the same time (`juggle`); each varies as a
-// person's would (a spread of about `jitter` of itself, now and then much slower), game by game the same from the seed.
+// Players with a person's hands (the harness): how long each one takes to look and decide what to line up, to tap a hoop,
+// to press a button (the four colours are always there, so pressing one needs no hoop chosen), and to see a hoop arrive
+// and press still, and how much longer that takes for each other hoop it's keeping count of at the same time (`juggle`);
+// each varies as a person's would (a spread of about `jitter` of itself, now and then much slower), game by game the same
+// from the seed.
 const HANDS = {
   careful: { think: 2.5, tap: 0.8, press: 0.6, react: 0.4, juggle: 0.3, jitter: 0.25 },
   quick: { think: 1.2, tap: 0.55, press: 0.45, react: 0.3, juggle: 0.2, jitter: 0.2 },
 };
-// and the foresight to see a hoop tipped into a colour's plane as set up for the lines after this one too: of a tip's
-// time, the share a plan counts as paid for by them (with none, a plan pays for all its tips, and the player keeps to
-// the gates more than a person would)
-const FORESIGHT = Number(ARG("foresight") ?? 0.5);
 const FASTEST = ARG("fast") === "off" ? 3 : SPIN;              // measuring what two places a beat is worth: `fast=off` plays without it
 const LIMIT = Number(ARG("limit") || 3000);                     // seconds a game is played to at most
-const MAX_TIPS = 3;                                              // hoops a plan tips at most
-const TOP = Number(ARG("top") || 8);
-const TRACE = MEASURE && ARG("trace") != null;                 // one game's plans, printed as they're made                             // the plans it rehearses, of those that look cheapest
+const TOP = Number(ARG("top") || 8);                             // the plans it rehearses, of those that look cheapest
+const TRACE = MEASURE && ARG("trace") != null;                 // one game's plans, printed as they're made
+// What a press of a colour does to the drift's clocks: the engine's rule, none wound ("none"); to measure the others,
+// `wind=all` (any press winds every hoop's clock again) or `wind=moved` (it winds the hoops it tips).
+const WIND = (MEASURE && ARG("wind")) || "none";
 if (MEASURE && ARG("pace")) { const [first, least, half] = ARG("pace").split(",").map(Number); Object.assign(PACE, { first, least, half }); }
 if (MEASURE && ARG("drift")) DRIFT.splice(0, RINGS, ...(ARG("drift") === "off" ? [1e7, 1e7 + 1, 1e7 + 2, 1e7 + 3] : ARG("drift").split(",").map(Number)));
 const shortest = (from, to) => { const d = mod(to - from); return d > 6 ? d - 12 : d; };
@@ -406,16 +407,25 @@ const beatAfter = (s, t) => (t < s.beatAt ? s.beat + 1 : s.beat + 2 + Math.floor
 const atGate = key => key === "N" || key === "S";
 /** The settings that bring a hoop `d` places in whole steps: two a beat only for an even distance. */
 const fits = (d, k) => Math.abs(d) % STRIDE[k] === 0;
+/** A press of a colour's button, the drift's clocks wound as WIND says (the engine winds none). */
+function pressColour(s, colour) {
+  const tipped = s.rings.map(r => r.tip !== PLANE[colour]), moved = setPlane(s, colour);
+  if (WIND !== "none") s.rings.forEach((r, k) => { if (WIND === "all" || tipped[k]) r.driftAt = s.t + r.drift; });
+  return moved;
+}
+/** Each hoop's next drift after a press at time t that tips the hoops not at tip T, as WIND has it. */
+const windAt = (s, next, t, T) => next.map((at, k) => (WIND === "all" || (WIND === "moved" && s.rings[k].tip !== T) ? t + s.rings[k].drift : at));
 
 /**
- * The alignments worth trying: for each colour, at either gate (any tips) or at any other place in its plane (tipping up
- * to MAX_TIPS hoops into it, if `tips`), three or four hoops each bringing its planet of that colour nearest the place:
- * [{ colour, key, n, members: [{ ring, place, d (places, signed), tip (to tip it to, or null) }] }].
+ * The alignments worth trying: for each colour, at either gate (any tips) or at any other place in its plane (every hoop
+ * put there by a press of the colour, if `presses`), three or four hoops each bringing its planet of that colour nearest
+ * the place: [{ colour, key, n, press (whether the plan starts with a press of the colour), members: [{ ring, place, d
+ * (places, signed) }] }].
  */
-function options(s, tips) {
+function options(s, presses) {
   const out = [];
   for (let c = 0; c < COLOURS; c++) {
-    const nearest = s.rings.map(r => {
+    const T = PLANE[c], nearest = s.rings.map(r => {
       const best = new Array(PLACES).fill(null);
       r.places.forEach((col, p) => {
         if (col !== c) return;
@@ -423,71 +433,71 @@ function options(s, tips) {
       });
       return best;
     });
-    const add = (key, members) => {
+    const add = (key, members, plane) => {
       const can = members.filter(Boolean);
-      for (const k of [3, 4]) for (const set of subsets(can, k)) if (set.filter(m => m.tip != null).length <= MAX_TIPS) out.push({ colour: c, key, n: k, members: set });
+      for (const k of [3, 4]) for (const set of subsets(can, k)) out.push({ colour: c, key, n: k, members: set, press: plane && set.some(m => s.rings[m.ring].tip !== T) });
     };
-    for (const q of [0, 6]) add(q ? "S" : "N", nearest.map((b, ring) => b[q] && { ring, ...b[q], tip: null }));
-    const T = PLANE[c];
-    if (!tips && s.rings.filter(r => r.tip === T).length < 3) continue;
-    for (let q = 1; q < PLACES; q++) {
-      if (q === 6) continue;
-      add(`${T}@${q}`, nearest.map((b, ring) => b[q] && (s.rings[ring].tip === T || tips) && { ring, ...b[q], tip: s.rings[ring].tip === T ? null : T }));
-    }
+    for (const q of [0, 6]) add(q ? "S" : "N", nearest.map((b, ring) => b[q] && { ring, ...b[q] }), false);
+    for (let q = 1; q < PLACES; q++) if (q !== 6) add(`${T}@${q}`, nearest.map((b, ring) => b[q] && (presses || s.rings[ring].tip === T) && { ring, ...b[q] }), true);
   }
   return out;
 }
 /**
- * How a plan would go, played with a person's usual delays: the tips first, then the hoops set going in `order` at their
- * settings; one at a time (`one`: each stopped as it arrives before the next is set) or all at once (then each stopped
- * as it arrives, a moment later for each other hoop still going). When the beat would strike the line, or null if the
- * hand couldn't stop a hoop before its next step, a fourth wouldn't stand before the beat struck the first three, or a
- * hoop of a line in a colour's plane would drift out of it first (a hoop the plan tips is wound again as it's tipped).
+ * How a plan would go, played with a person's usual delays: the colour pressed first if the plan needs it, then the hoops
+ * set going in `order` at their settings; one at a time (`one`: each stopped as it arrives before the next is set) or all
+ * at once (then each stopped as it arrives, a moment later for each other hoop still going). A hoop of a line in a plane
+ * that drifts out before the strike is pressed back the moment it's seen to go, and stands again from then. When the beat
+ * would strike the line, or null if the hand couldn't stop a hoop before its next step, or a fourth wouldn't stand before
+ * the beat struck the first three.
  */
 function rehearse(s, me, hands, opt, order, levels, one) {
-  const margin = 0.3;
-  let t = s.t, chosen = me.chosen;
+  const margin = 0.3, T = PLANE[opt.colour], plane = !atGate(opt.key);
+  let t = s.t, chosen = me.chosen, next = s.rings.map(r => r.driftAt);
   const to = ring => { if (chosen !== ring) t += hands.tap; chosen = ring; };
-  const ready = opt.members.filter(m => !m.d && m.tip == null).map(() => s.t);     // in place already, and standing
-  const wound = new Map(), tip = m => { if (m.tip == null) return; to(m.ring); t += hands.press; wound.set(m.ring, t); };
-  for (const m of opt.members) if (!m.d && m.tip != null) { tip(m); ready.push(t); }  // in place, tipped into the plane
-  const arrive = [], next = [];
+  if (opt.press) { t += hands.press; next = windAt(s, next, t, T); }
+  const ready = new Map(opt.members.filter(m => !m.d).map(m => [m.ring, t]));     // in place already, and standing (after the press)
+  const arrive = [], after = [];
   order.forEach((m, i) => {
-    tip(m);                                                      // tipped and set going on one choosing of the hoop
     to(m.ring);
     t += hands.press;
     const k = levels[i];
     arrive[i] = beatAfter(s, t) + (Math.abs(m.d) / STRIDE[k] - 1) * EVERY[k];
-    next[i] = arrive[i] + EVERY[k];
-    if (one) { t = Math.max(t, beatTime(s, arrive[i]) + hands.react); ready.push(t); }
+    after[i] = arrive[i] + EVERY[k];
+    if (one) { t = Math.max(t, beatTime(s, arrive[i]) + hands.react); ready.set(m.ring, t); }
   });
   const stops = [];
   if (!one) {
     for (const i of order.map((_, i) => i).sort((i, j) => arrive[i] - arrive[j])) {
       to(order[i].ring);
       t = Math.max(t, beatTime(s, arrive[i]) + hands.react + hands.juggle * (order.length - stops.length - 1));
-      if (t > beatTime(s, next[i]) - margin) return null;
+      if (t > beatTime(s, after[i]) - margin) return null;
       stops.push(i);
-      ready.push(t);
+      ready.set(order[i].ring, t);
     }
   }
-  ready.sort((a, b) => a - b);
-  const done = strikeAt(s, ready[2]);
-  if (opt.n === 4 && !(ready[3] < done - 0.05)) return null;
-  if (!atGate(opt.key)) for (const m of opt.members) { const r = s.rings[m.ring]; if ((wound.has(m.ring) ? wound.get(m.ring) + r.drift : r.driftAt) < done + 0.1) return null; }
+  let done = 0;
+  for (let pass = 0; pass < RINGS; pass++) {
+    const times = [...ready.values()].sort((a, b) => a - b);
+    done = strikeAt(s, times[2]);
+    if (opt.n === 4 && !(times[3] < done - 0.05)) return null;
+    if (!plane) break;
+    const out = opt.members.find(m => next[m.ring] < done + 0.1 && ready.get(m.ring) < next[m.ring] + hands.react + hands.press);
+    if (!out) break;
+    const back = next[out.ring] + hands.react + hands.press;   // it drifts out, and a press puts it back
+    ready.set(out.ring, back);
+    next = next.map((at, k) => (WIND === "all" || (WIND === "moved" && k === out.ring) ? back + s.rings[k].drift : k === out.ring ? at + s.rings[k].drift : at));
+  }
   return { done, order, levels, one, stops };
 }
-/** The plan for the cheapest alignment worth most for its time: what to tip, which hoops to set which way at which setting and in what order, and which to stop. */
-function plan(s, me, hands, tips) {
-  const P = period(s), opts = options(s, tips);
+/** The plan for the cheapest alignment worth most for its time: which colour to press, which hoops to set which way at which setting and in what order. */
+function plan(s, me, hands, presses) {
+  const P = period(s), opts = options(s, presses);
   const worth = o => (o.n + AWARD[o.n] / 100);
   const rough = o => {
-    const moving = o.members.filter(m => m.d), tipped = o.members.filter(m => m.tip != null), touched = new Set([...moving, ...tipped].map(m => m.ring)).size;
-    return touched * hands.tap + (tipped.length + moving.length) * hands.press + moving.length * (hands.tap + hands.press) + Math.max(0, ...moving.map(m => Math.abs(m.d) / (fits(m.d, 4) ? 2 : 1) - 1)) * P + P;
+    const moving = o.members.filter(m => m.d);
+    return (o.press ? hands.press : 0) + moving.length * 2 * (hands.tap + hands.press) + Math.max(0, ...moving.map(m => Math.abs(m.d) / (fits(m.d, 4) ? 2 : 1) - 1)) * P + P;
   };
-  // a line in a plane is no use if a hoop of it left alone will drift out before it can be struck
-  const lasts = o => atGate(o.key) || o.members.every(m => m.tip != null || s.rings[m.ring].driftAt > s.t + rough(o) + 0.5);
-  const top = opts.filter(lasts).map(o => ({ o, r: worth(o) / (rough(o) + hands.think) })).sort((a, b) => b.r - a.r).slice(0, TOP);
+  const top = opts.map(o => ({ o, r: worth(o) / (rough(o) + hands.think) })).sort((a, b) => b.r - a.r).slice(0, TOP);
   let best = null;
   for (const { o } of top) {
     const moving = o.members.filter(m => m.d);
@@ -499,7 +509,7 @@ function plan(s, me, hands, tips) {
       for (const [levels, one] of tries) {
         const r = rehearse(s, me, hands, o, order, levels, one);
         if (!r) continue;
-        const rate = worth(o) / (r.done - s.t + hands.think - FORESIGHT * o.members.filter(m => m.tip != null).length * (hands.tap + hands.press));
+        const rate = worth(o) / (r.done - s.t + hands.think);
         if (!best || rate > best.rate) best = { ...r, opt: o, rate };
       }
     }
@@ -508,42 +518,43 @@ function plan(s, me, hands, tips) {
 }
 
 /**
- * A person playing: looks (thinks), plans the alignment worth most for its time, does it with the hands it has (a tap to
- * choose a hoop, a press for each button, a moment to see a hoop arrive and stop it), watches for it to clear, stops
- * whatever is still going, and looks again. A hoop that steps on past its place (a stop too late) spoils the plan, and so
- * does a hoop of it drifting out of the plane; it looks again. `tips: false` never tips a hoop; `flat` tips every hoop
- * alike before anything else.
+ * A person playing: looks (thinks), plans the alignment worth most for its time, does it with the hands it has (a press
+ * of the colour if the plan is in a plane the hoops aren't all in, a tap to choose a hoop and a press to set it going,
+ * a moment to see a hoop arrive and stop it), watches for it to clear, stops whatever is still going, and looks again. A
+ * hoop that steps on past its place (a stop too late) spoils the plan, and it looks again; a hoop of the plan drifting out
+ * of its plane is pressed back. `presses: false` never presses a colour; `once` presses the first hoop's colour at the
+ * start and never again.
  */
-function careful(hands, seed, { tips = true, flat = false } = {}) {
+function careful(hands, seed, { presses = true, once = false } = {}) {
   let x = (seed * 2654435761 + 977) >>> 0;
   const rnd = () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
   const vary = v => v * Math.exp(hands.jitter * Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(TAU * rnd()));
-  const me = { chosen: -1 }, stats = { plans: 0, tips: 0, misses: 0, broken: 0, stops: 0, fast: 0, tipAt: [] };
-  let todo = [{ kind: "think" }], busy = null, waiting = null, goal = null, spoilt = false;
-  if (flat) todo = [{ kind: "level" }, { kind: "think" }];          // every hoop tipped like the first, before anything else
+  const me = { chosen: -1 }, stats = { plans: 0, presses: 0, represses: 0, misses: 0, stops: 0, fast: 0, pressAt: [] };
+  let todo = [{ kind: "think" }], busy = null, waiting = null, goal = null, drifted = false;
+  if (once) todo = [{ kind: "first" }, { kind: "think" }];
   const moved = new Map();                                       // a hoop set going: { steps taken since, steps it needs }
   const halt = s => s.rings.flatMap((r, ring) => (r.set ? [ring] : [])).sort((a, b) => (b === me.chosen) - (a === me.chosen)).flatMap(ring => [{ kind: "pick", ring }, { kind: "set", ring, k: 0 }]);
+  const tap = (s, colour, again = false) => { if (pressColour(s, colour)) { stats.presses++; stats.pressAt.push(s.t); if (again) stats.represses++; } };
   function start(s, job) {
     const t = s.t;
     if (job.kind === "think") return { at: t + vary(hands.think), then: () => {
-      const p = plan(s, me, hands, tips);
+      const p = plan(s, me, hands, presses && !once);
       stats.plans++;
-      if (TRACE) console.log(`${s.t.toFixed(1)} s, ${planets(s)} planets, tips ${s.rings.map(r => r.tip).join(" ")}: ${p ? `${"YGBR"[p.opt.colour]} ${p.opt.key} ×${p.opt.n}, ${p.opt.members.map(m => `${m.ring + 1}${m.tip != null ? `↷${m.tip}` : ""}${m.d ? `${m.d > 0 ? "+" : ""}${m.d}` : ""}`).join(" ")}, struck at ${p.done.toFixed(1)}` : "nothing"}`);
+      if (TRACE) console.log(`${s.t.toFixed(1)} s, ${planets(s)} planets, tips ${s.rings.map(r => r.tip).join(" ")}: ${p ? `${"YGBR"[p.opt.colour]} ${p.opt.key}${p.opt.press ? " (pressed)" : ""} ×${p.opt.n}, ${p.opt.members.map(m => `${m.ring + 1}${m.d ? `${m.d > 0 ? "+" : ""}${m.d}` : ""}`).join(" ")}, struck at ${p.done.toFixed(1)}` : "nothing"}`);
       if (!p) { todo.push({ kind: "think" }); return; }
-      goal = { ids: p.opt.members.map(m => id(m.ring, m.place)), rings: new Set(p.opt.members.map(m => m.ring)), plane: !atGate(p.opt.key), until: p.done + 1.5 + (p.done - s.t) * 0.3 };
-      for (const m of p.opt.members) if (!m.d && m.tip != null) todo.push({ kind: "pick", ring: m.ring }, { kind: "tip", ring: m.ring, k: m.tip });
+      goal = { ids: p.opt.members.map(m => id(m.ring, m.place)), rings: new Set(p.opt.members.map(m => m.ring)), plane: !atGate(p.opt.key), colour: p.opt.colour, until: p.done + 1.5 + (p.done - s.t) * 0.3 };
+      if (p.opt.press) todo.push({ kind: "press", colour: p.opt.colour });
       p.order.forEach((m, i) => {
-        if (m.tip != null) todo.push({ kind: "pick", ring: m.ring }, { kind: "tip", ring: m.ring, k: m.tip });
         todo.push({ kind: "pick", ring: m.ring }, { kind: "set", ring: m.ring, k: Math.sign(m.d) * p.levels[i], steps: Math.abs(m.d) / STRIDE[p.levels[i]] });
         if (p.one) todo.push({ kind: "stop", ring: m.ring });
       });
       for (const i of p.stops) todo.push({ kind: "pick", ring: p.order[i].ring }, { kind: "stop", ring: p.order[i].ring });
       todo.push({ kind: "watch" });
     } };
-    if (job.kind === "level") return { at: t, then: () => { const T = s.rings[0].tip; todo.unshift(...s.rings.flatMap((r, ring) => (r.tip === T ? [] : [{ kind: "pick", ring }, { kind: "tip", ring, k: T }]))); } };
+    if (job.kind === "first") return { at: t + vary(hands.press), then: () => tap(s, planeOf(s.rings[0].tip)) };
+    if (job.kind === "press") return { at: t + vary(job.again ? hands.react + hands.press : hands.press), then: () => tap(s, job.colour, job.again) };
     if (job.kind === "pick") return { at: t + (me.chosen === job.ring ? 0 : vary(hands.tap)), then: () => { me.chosen = job.ring; } };
     if (job.kind === "set") return { at: t + vary(hands.press), then: () => { if (setRing(s, job.ring, job.k) && job.steps) { moved.set(job.ring, { taken: 0, need: job.steps }); if (Math.abs(job.k) === SPIN) stats.fast++; } } };
-    if (job.kind === "tip") return { at: t + vary(hands.press), then: () => { if (setTip(s, job.ring, job.k)) { stats.tips++; stats.tipAt.push(s.t); } } };
     if (job.kind === "stop") {
       const m = moved.get(job.ring);
       if (!m || !s.rings[job.ring].set) return { at: t, then: () => {} };
@@ -566,18 +577,18 @@ function careful(hands, seed, { tips = true, flat = false } = {}) {
     stats,
     /** When it next does something: its hand free again, or the next beat or landing if it's waiting to see what they do. */
     wake: s => {
-      if (spoilt) return s.t;
+      if (drifted || !waiting) return busy ? (drifted ? s.t : busy.at) : s.t;
       if (busy) return busy.at;
-      if (!waiting) return s.t;
       if (waiting.kind === "stop") return s.beatAt;
       return Math.max(s.t + 1e-6, Math.min(s.beatAt, s.next.due, goal.until));
     },
-    saw(e) {
+    saw(e, s) {
       if (e.type === "beat") for (const { ring } of e.stepped) { const m = moved.get(ring); if (m) m.taken++; }
-      if (e.type === "drift" && goal?.plane && goal.rings.has(e.ring) && todo.length) spoilt = true;     // a hoop of the plan drifted out of its plane
+      // a hoop of the plan drifted out of its plane: press the colour again (no colour pressed in a plan of `once`'s)
+      if (e.type === "drift" && goal?.plane && goal.rings.has(e.ring) && todo.length && presses && !once && s.rings[e.ring].tip !== PLANE[goal.colour]) drifted = true;
     },
     act(s) {
-      if (spoilt) { spoilt = false; busy = null; waiting = null; stats.broken++; todo = [...halt(s), { kind: "think" }]; }
+      if (drifted) { drifted = false; if (!todo.some(j => j.kind === "press")) todo.unshift({ kind: "press", colour: goal.colour, again: true }); }
       if (busy && s.t >= busy.at - 1e-9) { const b = busy; busy = null; b.then(); }
       while (!busy && todo.length) {
         const job = todo[0], b = start(s, job);
@@ -589,31 +600,30 @@ function careful(hands, seed, { tips = true, flat = false } = {}) {
     },
   };
 }
-/** A person pressing at random, as fast as a careful hand goes: every hoop tipped alike first, then a hoop picked and one of the nine spin buttons or the seven tips, again and again. */
+/** A person pressing at random, as fast as a careful hand goes: a hoop picked and one of the nine spin buttons, or one of the four colours, again and again. */
 function masher(hands, seed) {
-  let x = (seed * 2246822519 + 3) >>> 0, at = 0, first = true;
+  let x = (seed * 2246822519 + 3) >>> 0, at = 0;
   const rnd = () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
   return {
     stats: {},
     wake: () => at,
     saw() {},
     act(s) {
-      if (first) { s.rings.forEach((r, ring) => setTip(s, ring, s.rings[0].tip)); first = false; }
-      const ring = Math.floor(rnd() * RINGS), k = Math.floor(rnd() * 16);
-      if (k < 9) setRing(s, ring, k - SPIN); else setTip(s, ring, k - 9 - TIP_MAX);
+      const ring = Math.floor(rnd() * RINGS), k = Math.floor(rnd() * 13);
+      if (k < 9) setRing(s, ring, k - SPIN); else pressColour(s, k - 9);
       at = s.t + hands.tap + hands.press;
     },
   };
 }
 const PLAYERS = {
   idle: { name: "touching nothing", make: () => ({ stats: {}, wake: () => Infinity, saw() {}, act() {} }) },
-  spinner: { name: "setting every hoop going and waiting", make: () => { let done = false; return { stats: {}, wake: s => (done ? Infinity : s.t), saw() {}, act(s) { if (!done) { s.rings.forEach((r, ring) => setTip(s, ring, s.rings[0].tip)); [3, -2, 4, -1].forEach((k, ring) => setRing(s, ring, k)); done = true; } } }; } },
-  masher: { name: "pressing buttons on hoops at random", make: seed => masher(HANDS.careful, seed) },
+  spinner: { name: "pressing a colour, setting every hoop going and waiting", make: () => { let done = false; return { stats: {}, wake: s => (done ? Infinity : s.t), saw() {}, act(s) { if (!done) { pressColour(s, 3); [3, -2, 4, -1].forEach((k, ring) => setRing(s, ring, k)); done = true; } } }; } },
+  masher: { name: "pressing buttons at random", make: seed => masher(HANDS.careful, seed) },
   careful: { name: "a careful player", make: seed => careful(HANDS.careful, seed) },
-  gates: { name: "a careful player who never tips", make: seed => careful(HANDS.careful, seed, { tips: false }) },
-  flat: { name: "a careful player who tips every hoop alike first", make: seed => careful(HANDS.careful, seed, { flat: true }) },
+  gates: { name: "a careful player who never presses a colour", make: seed => careful(HANDS.careful, seed, { presses: false }) },
+  once: { name: "a careful player who presses a colour once, at the start", make: seed => careful(HANDS.careful, seed, { once: true }) },
   quick: { name: "a quick player", make: seed => careful(HANDS.quick, seed) },
-  quickgates: { name: "a quick player who never tips", make: seed => careful(HANDS.quick, seed, { tips: false }) },
+  quickgates: { name: "a quick player who never presses a colour", make: seed => careful(HANDS.quick, seed, { presses: false }) },
 };
 /** A game played out to its end (or LIMIT seconds) by a player at a tempo: what it came to. */
 function play(seed, tempo, who) {
@@ -625,15 +635,15 @@ function play(seed, tempo, who) {
     if (!s.over) p.act(s);
     if (!s.rings.every(r => Number.isInteger(r.a) && r.a >= 0 && r.a < PLACES && Math.abs(r.tip) <= TIP_MAX && Math.abs(r.set) <= SPIN)) sane = false;
   }
-  const st = p.stats, late = (st.tipAt || []).filter(t => t > s.t / 2).length;
-  return { t: s.t, score: s.score, aligned: s.aligned, fours: s.fours, over: s.over, sane, gates, spokes, drifted, late, alike: Math.max(...[-3, -2, -1, 0, 1, 2, 3].map(T => s.rings.filter(r => r.tip === T).length)), ...st };
+  const st = p.stats, late = (st.pressAt || []).filter(t => t > s.t / 2).length;
+  return { t: s.t, score: s.score, aligned: s.aligned, fours: s.fours, over: s.over, sane, gates, spokes, drifted, late, ...st };
 }
 {
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
   const games = MEASURE ? Number(ARG("games") || 30) : 6;
   if (TRACE) {
     const who = process.argv.find(x => PLAYERS[x]) || "careful", r = play(Number(ARG("trace")), ARG("tempo") != null ? Number(ARG("tempo")) : FIRST_TEMPO, who);
-    console.log(`${PLAYERS[who].name}: ${r.t.toFixed(0)} s, ${r.score} points, ${r.aligned} lines (${r.gates} at the gates, ${r.spokes} in planes), ${r.tips} tips, ${r.drifted} drifts, ${r.broken} broken`);
+    console.log(`${PLAYERS[who].name}: ${r.t.toFixed(0)} s, ${r.score} points, ${r.aligned} lines (${r.gates} at the gates, ${r.spokes} in planes), ${r.presses} presses (${r.represses} putting a drifted hoop back), ${r.drifted} drifts`);
     process.exit(0);
   }
   if (MEASURE) {
@@ -643,25 +653,25 @@ function play(seed, tempo, who) {
     for (const w of who) for (const k of tempos) {
       const list = Array.from({ length: games }, (_, g) => play(100 + g, k, w));
       const ts = list.map(r => r.t), sc = list.map(r => r.score), sum = f => list.reduce((a, r) => a + (r[f] || 0), 0), per = f => (sum(f) / games).toFixed(1);
-      const perMin = (sum("tips") / (ts.reduce((a, b) => a + b, 0) / 60)).toFixed(2);
+      const perMin = (sum("presses") / (ts.reduce((a, b) => a + b, 0) / 60)).toFixed(2);
       console.log(`${PLAYERS[w].name} at ${TEMPOS[k]}: ${median(ts).toFixed(0)} s (${Math.min(...ts).toFixed(0)} to ${Math.max(...ts).toFixed(0)}), scoring ${median(sc)}, ${per("aligned")} lines (${per("fours")} fours; ${per("gates")} at the gates, ${per("spokes")} in planes), `
-        + `${per("tips")} tips (${perMin} a minute, ${per("late")} in the game's second half), ${per("drifted")} drifts, ${per("broken")} plans broken by one, ${per("fast")} hoops set two a beat, ${per("misses")} stops missed, ${per("alike")} hoops alike at the end; ${list.filter(r => !r.over).length} not over`);
+        + `${per("presses")} presses (${perMin} a minute, ${per("late")} in the game's second half, ${per("represses")} putting a drifted hoop back), ${per("drifted")} drifts, ${per("fast")} hoops set two a beat, ${per("misses")} stops missed; ${list.filter(r => !r.over).length} not over`);
     }
-    console.log(`(pace ${PACE.first}, ${PACE.least}, ${PACE.half}; drift ${DRIFT.join(", ")}; ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+    console.log(`(pace ${PACE.first}, ${PACE.least}, ${PACE.half}; drift ${DRIFT.join(", ")}; a press winds ${WIND}; ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
     process.exit(0);
   }
   const at = FIRST_TEMPO, games6 = who => Array.from({ length: games }, (_, g) => play(100 + g, at, who));
   const idle = games6("idle"), spin = games6("spinner"), done = games6("careful"), gates = games6("gates"), quick = games6("quick"), quickGates = games6("quickgates");
   const med = (list, k) => median(list.map(r => r[k]));
   check(idle.every(r => r.over) && med(idle, "aligned") <= 1, `touching nothing, the hoops stand still (and drift): full after about ${med(idle, "t").toFixed(0)} seconds, with ${med(idle, "aligned")} lines`);
-  check(spin.every(r => r.aligned === 0 && r.over), "tipping every hoop alike, setting them all going and waiting: not one line, since a hoop going round is in none");
+  check(spin.every(r => r.aligned === 0 && r.over), "pressing a colour, setting every hoop going and waiting: not one line, since a hoop going round is in none");
   check(med(done, "t") > 2.5 * med(idle, "t") && med(done, "score") > 50 * Math.max(100, med(idle, "score")),
     `a careful player lasts far longer (about ${med(done, "t").toFixed(0)} seconds at ${TEMPOS[at]} a minute, ${med(done, "score").toLocaleString("en-GB")} points)`);
-  check(done.every(r => r.tips >= 20 && r.late >= 8 && r.spokes >= r.gates / 2),
-    `tipping into the planes all game long: about ${med(done, "tips")} tips a game, ${med(done, "late")} in its second half, and ${med(done, "spokes")} lines in planes to ${med(done, "gates")} at the gates`);
-  check(med(done, "score") > 1.12 * med(gates, "score") && med(done, "t") > med(gates, "t") && med(quick, "score") > 1.4 * med(quickGates, "score") && med(quick, "t") > med(quickGates, "t"),
-    `worth more than never tipping (${med(done, "score").toLocaleString("en-GB")} points to ${med(gates, "score").toLocaleString("en-GB")}), and the more the quicker the hand (${med(quick, "score").toLocaleString("en-GB")} to ${med(quickGates, "score").toLocaleString("en-GB")})`);
-  check(done.every(r => r.drifted >= 5) && done.some(r => r.broken > 0) && done.every(r => r.fast > 0), "the hoops drift under it all game, now and then spoiling a plan, and it sets hoops going two places a beat");
+  check(done.every(r => r.presses >= 10 && r.late >= 4 && r.spokes >= r.gates),
+    `pressing the colours all game long: about ${med(done, "presses")} presses a game, ${med(done, "late")} in its second half, and ${med(done, "spokes")} lines in planes to ${med(done, "gates")} at the gates`);
+  check(med(done, "score") > 1.3 * med(gates, "score") && med(done, "t") > med(gates, "t") && med(quick, "score") > 1.4 * med(quickGates, "score") && med(quick, "t") > med(quickGates, "t"),
+    `worth far more than never pressing (${med(done, "score").toLocaleString("en-GB")} points to ${med(gates, "score").toLocaleString("en-GB")}; quick, ${med(quick, "score").toLocaleString("en-GB")} to ${med(quickGates, "score").toLocaleString("en-GB")})`);
+  check(done.every(r => r.drifted >= 5 && r.fast > 0) && done.some(r => r.represses > 0), "the hoops drift under it all game, now and then out of a line it's making (pressed back), and it sets hoops going two places a beat");
   check(med(quick, "t") > med(done, "t") && med(quick, "score") > med(done, "score"), `a quicker one longer still (about ${med(quick, "t").toFixed(0)} seconds, ${med(quick, "score").toLocaleString("en-GB")} points)`);
   check([...idle, ...spin, ...done, ...gates, ...quick, ...quickGates].every(r => r.over && r.sane), "and every game ends, the hoops on whole places, tips and settings throughout");
 }
