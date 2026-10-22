@@ -1,6 +1,7 @@
 // Orrery: four brass hoops on an axle round a sun, planets of four colours strung on them (orrery-3d.js draws it; flat,
 // in orrery-flat.js, where there's no WebGL), stepping on a beat. Tap a hoop to choose it, and the seven buttons under the
-// orrery set it: a place left or right every beat, every second beat or every third, or still in the middle. Tap the
+// orrery set it: a place round every beat, every second beat or every third, clockwise as the hoop is seen on the right
+// and anticlockwise on the left, or still in the middle. Tap the
 // same hoop again and the same buttons tip its orbit instead, to the left or the right by 15, 30 or 45 degrees, the
 // middle one making it level. A swipe along a hoop sets it going the way the finger went, every third, second or every
 // beat by how fast; across a hoop being tipped, it tips it. − and + set the tempo, from 20 beats a minute to 60; a
@@ -27,6 +28,7 @@ const fmt = n => n.toLocaleString("en-GB");
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const SAVE_EVERY = 5000;                                    // ms between saves of a game in play (a partner watching sees it that often)
 const AHEAD = 6;                                            // beats the bar shows coming: every rhythm steps at least twice in six
+const DEG = Math.PI / 180;
 
 let S = null;            // the game (orrery-engine.js's), as saved
 let running = false;     // the clock going: from the first hoop chosen or button pressed
@@ -56,6 +58,32 @@ catch (err) {
   view = (await import("./orrery-flat.js")).createFlat(stage);
 }
 { const v = read(VIEW, null); if (Array.isArray(v)) view.setView(v[0], v[1]); }
+
+/**
+ * Which way a hoop's own turn (its places counted on: what the engine calls a step right) looks on the screen now: 1
+ * clockwise, -1 anticlockwise, from its twelve and three o'clock round the sun crossed (screen y runs down, so positive
+ * is clockwise). The camera goes round the orrery and the hoops tip, so it's asked each time: the buttons and arrows
+ * mean round as the hoop is seen, the right-hand ones clockwise, from wherever it's seen.
+ */
+function looks(ring) {
+  const [cx, cy] = view.sunAt(), [x1, y1] = view.at(ring, 0), [x2, y2] = view.at(ring, Math.PI / 2);
+  return (x1 - cx) * (y2 - cy) - (y1 - cy) * (x2 - cx) >= 0 ? 1 : -1;
+}
+/**
+ * A curled arrow, for a hoop sent round: one to three chevrons (the rhythm, three for every beat) on an arc over the top,
+ * clockwise or anticlockwise, drawn in a box 30 by 24 put at (x, y) and scaled by k. { arc, heads }, path data.
+ */
+function curl(n, cw, x = 0, y = 0, k = 1) {
+  const R = 10, cx = 15, cy = 16, f = cw ? 1 : -1, HEAD = -20, APART = 42;  // degrees, from three o'clock; the chevrons this far apart stand clear of each other
+  const at = (deg, back = 0, side = 0) => {
+    const a = deg * DEG, tx = -Math.sin(a), ty = Math.cos(a);
+    const px = cx + R * Math.cos(a) - back * tx - side * ty, py = cy + R * Math.sin(a) - back * ty + side * tx;
+    return `${(x + k * (15 + f * (px - 15))).toFixed(2)} ${(y + k * py).toFixed(2)}`;
+  };
+  const arc = `M${at(-195)}A${(R * k).toFixed(2)} ${(R * k).toFixed(2)} 0 0 ${cw ? 1 : 0} ${at(HEAD)}`;
+  const heads = Array.from({ length: n }, (_, i) => { const d = HEAD - APART * i; return `M${at(d, 3.4, 3.2)}L${at(d)}L${at(d, 3.4, -3.2)}`; }).join("");
+  return { arc, heads };
+}
 
 function save() { if (IN_FRAME) return; write(RUN, copy(S)); savedAt = performance.now(); }
 function newRun() {
@@ -88,11 +116,13 @@ const nums = Array.from({ length: RINGS }, (_, k) => { const t = el("text", { cl
 let numsAt = "";
 /**
  * The hoops' numbers by their knuckles at six o'clock (a point no tip moves), and beside each hoop set going its setting
- * as the buttons draw it (one to three chevrons, the way it goes): a hoop set going makes no line, even standing on its
- * place between steps, so it shows on the orrery. Redrawn only when the view or a setting has changed.
+ * as the buttons draw it (one to three chevrons curled the way it goes round, as it's seen): a hoop set going makes no
+ * line, even standing on its place between steps, so it shows on the orrery. Redrawn only when the view or a setting
+ * has changed.
  */
 function drawNums() {
-  const u = scale(), at = nums.map((_, k) => view.at(k, Math.PI, 0)), k = `${at.flat().map(v => v.toFixed(0)).join()}|${chosen?.ring ?? -1}|${u}|${S.rings.map(r => r.set).join()}`;
+  const u = scale(), at = nums.map((_, k) => view.at(k, Math.PI, 0)), seen = nums.map((_, k) => looks(k));
+  const k = `${at.flat().map(v => v.toFixed(0)).join()}|${seen.join()}|${chosen?.ring ?? -1}|${u}|${S.rings.map(r => r.set).join()}`;
   if (k === numsAt) return;
   numsAt = k;
   nums.forEach(({ t, go }, ring) => {
@@ -101,11 +131,11 @@ function drawNums() {
     t.setAttribute("y", y.toFixed(1));
     t.setAttribute("font-size", (9.5 * u).toFixed(1));
     t.classList.toggle("on", ring === chosen?.ring);
-    const n = Math.abs(set), d = Math.sign(set), w = 3 * u, hh = 3.2 * u, x0 = x + 9 * u, y0 = y - 3.4 * u;
-    go.setAttribute("d", Array.from({ length: n }, (_, i) => { const cx = x0 + i * 3.6 * u; return d > 0 ? `M${cx} ${y0 - hh}L${cx + w} ${y0}L${cx} ${y0 + hh}` : `M${cx + w} ${y0 - hh}L${cx} ${y0}L${cx + w} ${y0 + hh}`; }).join(""));
+    const c = set && curl(Math.abs(set), set * seen[ring] > 0, x + 7 * u, y - 12.5 * u, 0.55 * u);
+    go.setAttribute("d", c ? c.arc + c.heads : "");
   });
 }
-const HINT = ["Tap a hoop, then a button: it steps on the beat,", "left or right, every beat, every second or third.", "Stop the hoops with planets of a colour in line", "with the sun: at twelve or six o'clock, or anywhere", "on hoops tipped alike (tap a hoop again to tip it).", "The next beat strikes them. − and + set the beat."];
+const HINT = ["Tap a hoop, then a button: it steps on the beat,", "either way round, every beat, every second or third.", "Stop the hoops with planets of a colour in line", "with the sun: at twelve or six o'clock, or anywhere", "on hoops tipped alike (tap a hoop again to tip it).", "The next beat strikes them. − and + set the beat."];
 /** The words over the orrery while the clock is stopped: the first games' rules, then only how to go on. */
 function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
@@ -171,13 +201,13 @@ const roll = (() => {
   let key = "", played = null;
   /** Draws the beats: column 0 is the one just played (it slides out past the line), 1 to AHEAD the ones coming. */
   function draw(slide = false) {
-    const ahead = upcoming(S, AHEAD), cols = [played ?? S.rings.map(() => 0), ...ahead];
-    const k = JSON.stringify([cols, chosen?.ring ?? -1, S.rings.map(r => r.set)]);
+    const ahead = upcoming(S, AHEAD), cols = [played ?? S.rings.map(() => 0), ...ahead], seen = S.rings.map((_, ring) => looks(ring));
+    const k = JSON.stringify([cols, seen, chosen?.ring ?? -1, S.rings.map(r => r.set)]);
     if (k !== key || slide) {
       key = k;
       cols.forEach((col, c) => col.forEach((d, ring) => {
-        const going = S.rings[ring].set !== 0;
-        cells[ring * (AHEAD + 1) + c].className = d > 0 ? "st r" : d < 0 ? "st l" : going && c > 0 ? "rest" : "";
+        const going = S.rings[ring].set !== 0, round = d * seen[ring];          // r: clockwise as it's seen, as the right-hand buttons send it
+        cells[ring * (AHEAD + 1) + c].className = round > 0 ? "st r" : round < 0 ? "st l" : going && c > 0 ? "rest" : "";
       }));
       [...names.children].forEach((n, ring) => n.classList.toggle("on", ring === chosen?.ring));
       box.querySelectorAll(".row-on").forEach(n => n.classList.remove("row-on"));
@@ -202,15 +232,16 @@ const roll = (() => {
 
 // ---------- the hoop chosen and its buttons ----------
 const KEYS = [-3, -2, -1, 0, 1, 2, 3];
-const SPIN_WORDS = ["Every beat left", "Every second beat left", "Every third beat left", "Still", "Every third beat right", "Every second beat right", "Every beat right"];
+const SPIN_WORDS = ["Every beat anticlockwise", "Every second beat anticlockwise", "Every third beat anticlockwise", "Still", "Every third beat clockwise", "Every second beat clockwise", "Every beat clockwise"];
 const TIP_WORDS = ["Tip 45° left", "Tip 30° left", "Tip 15° left", "Level", "Tip 15° right", "Tip 30° right", "Tip 45° right"];
 const RHYTHM = ["", "every third beat", "every second beat", "every beat"];
-/** A button's picture: one to three chevrons for a rhythm (three, every beat), a square for still; for a tip, the hoop seen edge on, tipped so. */
+/** A button's picture: one to three chevrons curled the way it sends a hoop round (three, every beat; the right-hand
+ *  ones clockwise), a square for still; for a tip, the hoop seen edge on, tipped so. */
 function glyph(level, mode) {
   if (mode === "tilt") return `<g transform="rotate(${-level * 15} 15 12)"><path d="M3.5 12H26.5"/></g><circle class="fill" cx="15" cy="12" r="2.4"/>`;
   if (level === 0) return '<rect class="fill" x="9" y="6" width="12" height="12" rx="1.5"/>';
-  const n = Math.abs(level), d = Math.sign(level), x0 = 15 - 3 * n;
-  return Array.from({ length: n }, (_, i) => { const x = x0 + 6 * i; return d < 0 ? `<path d="M${x + 6} 4L${x} 12L${x + 6} 20"/>` : `<path d="M${x} 4L${x + 6} 12L${x} 20"/>`; }).join("");
+  const { arc, heads } = curl(Math.abs(level), level > 0);
+  return `<path class="arc" d="${arc}"/><path d="${heads}"/>`;
 }
 const keys = KEYS.map(level => {
   const b = document.createElement("button");
@@ -225,8 +256,8 @@ const keys = KEYS.map(level => {
 /** The other hoops at a tip, by number: the ones a hoop tipped so would lie in a plane with. */
 const alikeAt = (ring, tip) => S.rings.flatMap((r, k) => (k !== ring && r.tip === tip ? [k + 1] : []));
 function drawAim(force = false) {
-  const r = chosen && !S.over ? S.rings[chosen.ring] : null, mode = chosen?.mode ?? "speed";
-  const k = `${r ? chosen.ring : -1}|${mode}|${r ? `${r.set},${r.tip}` : ""}|${S.rings.map(q => q.tip).join()}|${S.over}`;
+  const r = chosen && !S.over ? S.rings[chosen.ring] : null, mode = chosen?.mode ?? "speed", seen = r ? looks(chosen.ring) : 1;
+  const k = `${r ? chosen.ring : -1}|${mode}|${r ? `${r.set},${r.tip},${seen}` : ""}|${S.rings.map(q => q.tip).join()}|${S.over}`;
   if (!force && shown.aim === k) return;
   shown.aim = k;
   $("controls").classList.toggle("gone", S.over);
@@ -234,7 +265,7 @@ function drawAim(force = false) {
   $("controls").classList.toggle("none", !r);
   $("spinBtn").setAttribute("aria-pressed", String(mode === "speed"));
   $("tiltBtn").setAttribute("aria-pressed", String(mode === "tilt"));
-  const now = r ? (mode === "speed" ? r.set : r.tip) : null;
+  const now = r ? (mode === "speed" ? r.set * seen : r.tip) : null;          // a setting as its button stands for it, round as it's seen
   keys.forEach((b, i) => {
     b.disabled = !r;
     b.setAttribute("aria-pressed", String(now === KEYS[i]));
@@ -245,7 +276,7 @@ function drawAim(force = false) {
     b.lastElementChild.textContent = like.join("");
   });
   if (!r) $("line").textContent = S.over ? "" : "Tap a hoop to choose it";
-  else if (mode === "speed") $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${r.set ? `${r.set > 0 ? "▶" : "◀"} ${RHYTHM[Math.abs(r.set)]}` : "still"}`;
+  else if (mode === "speed") $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${r.set ? `${now > 0 ? "↻ clockwise" : "↺ anticlockwise"}, ${RHYTHM[Math.abs(r.set)]}` : "still"}`;
   else {
     const like = alikeAt(chosen.ring, r.tip);
     $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${r.tip ? `tipped ${r.tip > 0 ? "+" : "−"}${Math.abs(r.tip) * 15}°` : "level"}${like.length ? `, like ${like.join(" and ")}` : ""}`;
@@ -342,7 +373,7 @@ function press(level) {
   sound.unlock();
   start();
   const { ring, mode } = chosen;
-  if (mode === "speed") setRing(S, ring, level);
+  if (mode === "speed") setRing(S, ring, level * looks(ring));             // the right-hand buttons clockwise as the hoop is seen now
   else if (setTip(S, ring, level)) sound.play("tip", { up: Math.sign(level - S.rings[ring].tipFrom) });
   sound.play("press", { strength: Math.abs(level) });
   drawAim(true);
