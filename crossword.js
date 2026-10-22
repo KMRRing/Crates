@@ -1,15 +1,15 @@
 // Crossword (README, Crossword): a British blocked crossword on the knowledge base, in Learning. A few of its entries
 // are the knowledge base's clue links, a country or commodity named from its clue or the clue named from its reason,
-// the rest ordinary words with the clue bank's clues; the crossings settle what a clue alone can't. Random grids by
-// level, pool, direction, topics and twist, or today's, the same for everyone; a computer rival to race; and at a
-// table, the clues split between the players (one grid, nobody can finish alone) or a race on the same grid. The
-// puzzles are crossword-engine.js's (made in crossword-worker.js), the solvers crossword-solve.js's, the table
-// crossword-table.js's; this page draws them and takes the typing.
-import { LEVELS, LEVEL_IDS, SIZE_IDS, KINDS, ASKS, MODES, POOLS, themeFits, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
+// the rest ordinary words with the clue bank's clues (or, in a Lexicon grid, every entry a clue link); the crossings
+// settle what a clue alone can't. Random grids by kind, size, level, pool, direction, topics and twist, or today's, the
+// same for everyone; a computer rival to race; and at a table, the clues split between the players (one grid, nobody
+// can finish alone) or a race on the same grid. The puzzles are crossword-engine.js's (made in crossword-worker.js),
+// the solvers crossword-solve.js's, the table crossword-table.js's; this page draws them and takes the typing.
+import { LEVELS, LEVEL_IDS, SIZES, SIZE_IDS, KINDS, kindOf, ASKS, MODES, POOLS, themeFits, freshPlay, put, check, reveal, full, solvedBy, lettersIn, entryRight, lessons, charged, clock, dailyOptions, entriesAt, numbers, isBlack, solutionAt, clueLine, REVEAL_COST, CHECK_COST } from "./crossword-engine.js";
 import { span, clamp, zoomTo, squareAt, rectOf, show, fingers } from "./crossword-zoom.js";
 import { rivalRun, rivalAt, partnerMove, seeded, RIVALS } from "./crossword-solve.js";
 import { TABLE_MODES, peopleOf, isTable, freshTable, tidy, newGameAt, readable, holders, lettersOf, writers, writeAt, checkAt, revealAt, runOf, reportAt, runTotal, standings, raceOver, resultOf } from "./crossword-table.js";
-import { kbEntry, reviewCard, BANK } from "./crossword-kb.js";
+import { kbEntry, entriesAbout, reviewCard, BANK } from "./crossword-kb.js";
 import { KB_TOPICS, KB_PRESETS, cleanMix, presetOf } from "./topics.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import { part, choice, toggle, topicMix, action, line, onPause, isPaused } from "./menu.js";
@@ -32,10 +32,10 @@ const APP = 1;                 // the table's version
 
 // ---------- settings ----------
 // Your own choices for a random grid; today's is the same for everyone whatever they are (dailyOptions)
-// size: squares across, or null for the level's own until one is chosen; kind: classic, learning or both (KINDS)
+// size: squares across, or null for the level's own until one is chosen; kind: classic, lexicon or both (KINDS)
 // computer: off, a rival racing you, or a partner holding the Down clues of a split grid; pace: how well and how fast it plays
 const DEFAULTS = { level: "medium", size: null, kind: "both", pool: "mixed", asks: "both", mode: "classic", computer: "off", pace: "quick", autocheck: false, tableMode: "split" };
-const settings = () => ({ ...DEFAULTS, ...read(SETTINGS, {}) });
+const settings = () => { const s = { ...DEFAULTS, ...read(SETTINGS, {}) }; return { ...s, kind: kindOf(s.kind) }; };
 /** The squares across a random grid of yours will have: the size you chose, or your level's own. */
 const sizeOf = s => (SIZE_IDS.includes(Number(s.size)) ? Number(s.size) : LEVELS[s.level]?.size || 13);
 /** The computer player a new grid of yours gets: { kind, level } or null (never on today's, which is the same for everyone). */
@@ -61,15 +61,38 @@ function makePuzzleOff(opts) {
   return new Promise(res => { waiting.set(id, res); worker.postMessage({ id, opts }); });
 }
 /**
- * The options for a random grid now: your settings and topics, and in learning mode what the review pile has due,
- * only what one of your topics covers (the engine keeps to the mix as well; this keeps a grid made with every topic,
- * when your mix is too narrow for one, to it too). A grid of ordinary words alone has no room for any of it.
+ * The options for a random grid now: your settings and topics, and in learning mode what the review pile has due
+ * (dueEntries). A grid of ordinary words alone has no room for any of it.
  */
 function randomOptions(seed = Math.floor(Math.random() * 2 ** 31)) {
   const s = settings(), w = mix(), learning = pile.learning() && s.kind !== "classic";
-  const inMix = key => kbEntry(key)?.topics.some(t => (w[t] ?? 1) > 0);
   return { seed, level: s.level, size: sizeOf(s), kind: s.kind, pool: s.pool, asks: s.asks, mode: s.mode, topics: w,
-    due: learning ? pile.due("crossword").map(it => it.key).filter(inMix) : [], weak: learning ? pile.weakElsewhere("crossword") : null };
+    due: learning ? dueEntries(s, w) : [], weak: learning ? pile.weakElsewhere("crossword") : null };
+}
+// more than any grid takes (the engine takes up to half its knowledge entries: eighteen in a Lexicon 15 by 15)
+const DUE_MAX = 30;
+/**
+ * Learning mode's due entries for a random grid, the most revised first: Crossword's own cards, then, for each card
+ * another game has due in the review pile (Deck's: Crates' clues, Punt's questions, Chart's places, Quote's numbers…),
+ * an entry that revises it, if the clue links have one (entriesAbout: its link where it is one, else one naming what
+ * it's about, picked at random). Only entries your choices take: one of your topics in (so a grid made with every
+ * topic, when your mix is too narrow for one, keeps to it too), the answers and direction asked for, and a length the
+ * grid's size takes.
+ */
+function dueEntries(s, w) {
+  const asks = s.kind === "lexicon" && s.asks === "fwd" ? "both" : s.asks, longest = SIZES[sizeOf(s)].longest;
+  const takes = e => !!e && e.topics.some(t => (w[t] ?? 1) > 0) && (s.pool === "mixed" || e.cat === s.pool) && (asks === "both" || e.dir === asks) && e.letters.length <= longest;
+  const out = pile.due("crossword").map(it => it.key).filter(k => takes(kbEntry(k))).slice(0, DUE_MAX), taken = new Set(out);
+  for (const it of pile.due()) {
+    if (out.length >= DUE_MAX) break;
+    if (it.game === "crossword" || !it.about?.length) continue;
+    const can = entriesAbout(it.about).filter(e => takes(e) && !taken.has(e.key));
+    if (!can.length) continue;
+    const e = can[Math.floor(Math.random() * can.length)];
+    out.push(e.key);
+    taken.add(e.key);
+  }
+  return out;
 }
 
 // ---------- the run: your own grid, or the table's ----------
@@ -1132,7 +1155,8 @@ function openMenu() {
     keyed("level", choice("Level", LEVEL_IDS.map(id => [id, LEVELS[id].name]), s.level, set("level", true))),
     ...(knowledge ? [
       keyed("pool", choice("Answers", Object.entries(POOLS), s.pool, set("pool"))),
-      keyed("asks", choice("Knowledge", Object.entries(ASKS), s.asks, set("asks"))),
+      // a Lexicon grid of country and commodity names alone can't be filled: there are too few of them
+      keyed("asks", choice("Knowledge", Object.entries(ASKS).filter(([k]) => s.kind !== "lexicon" || k !== "fwd"), s.kind === "lexicon" && s.asks === "fwd" ? "both" : s.asks, set("asks"))),
       ...(themeFits({ level: s.level, size: sizeOf(s), kind: s.kind }) ? [keyed("mode", choice("Twist", Object.entries(MODES), s.mode, set("mode")))] : []),
       keyed("topics", topicMix(TOPIC_LIST, TOPIC_PRESETS, mix(), w => { write(TOPICS, w); if (pick !== "random") { pick = "random"; redrawMenu("topics"); } },
         { groups: [["Country topics", KB_TOPICS.country], ["Commodity topics", KB_TOPICS.commodity]],

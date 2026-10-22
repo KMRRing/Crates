@@ -103,6 +103,28 @@ export function kbEntry(key) {
 }
 let byKey = null;
 
+let byPair = null, byAnswer = null;
+/**
+ * The entries that can revise a review card about these things (the knowledge base's entities, as the pile keeps what
+ * a card is `about`): the same link's, both ways round, where two of them are one (a Crates clue and its answer); else
+ * every entry whose answer is one of them (a country or commodity named from one of its clues, or the thing itself
+ * named from its country and reason). None for a card about nothing the clue links know.
+ */
+export function entriesAbout(ids) {
+  if (!byPair) {
+    byPair = new Map();
+    byAnswer = new Map();
+    const add = (m, k, e) => { if (!m.has(k)) m.set(k, []); m.get(k).push(e); };
+    for (const e of kbEntries()) {
+      add(byPair, e.pair, e);
+      const named = e.dir === "fwd" ? e.about[0] : e.about[1];
+      if (named) add(byAnswer, named, e);
+    }
+  }
+  const link = ids.flatMap(x => ids.filter(y => y !== x).flatMap(y => byPair.get(`${x}>${y}`) || []));
+  return link.length ? link : [...new Set(ids.flatMap(id => byAnswer.get(id) || []))];
+}
+
 /** Every country's or commodity's name as a grid writes it, by category: the words a forward clue's answer is among
  *  (a solver who doesn't know it still knows it's one of these). */
 let NAMES = null;

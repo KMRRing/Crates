@@ -104,9 +104,10 @@ check([0, 1].every(i => E.makePuzzle({ seed: 300 + i, level: "medium", kind: "cl
 
 // ---------- sizes and kinds ----------
 // every size with every kind, a level each in turn: a valid grid of its size, its entries no longer than the size
-// allows, one fill, nothing given away, the knowledge entries apart and as many as the kind asks
+// allows, one fill, nothing given away, the knowledge entries apart (but in a Lexicon grid, all knowledge) and as many
+// as the kind asks
 const sized = [];
-E.SIZE_IDS.forEach((size, i) => ["both", "classic", "learning"].forEach((kind, j) => [0, 1].forEach(n => {
+E.SIZE_IDS.forEach((size, i) => ["both", "classic", "lexicon"].forEach((kind, j) => [0, 1].forEach(n => {
   const level = E.LEVEL_IDS[(i + j + n) % 3], seed = 700 + i * 31 + j * 7 + n;
   sized.push({ size, kind, level, p: E.makePuzzle({ seed, level, size, kind }) });
 })));
@@ -115,17 +116,16 @@ const sizedOk = sized.filter(x => x.p), kbOf = p => p.entries.filter(e => e.kind
 check(sizedOk.every(({ p, size }) => p.rows.length === size && p.rows.every(r => r.length === size) && !gridProblems(p.rows.map(r => r.replace(/[A-Z]/g, "."))).length
   && halfCrossed(slotsOf(p.rows.map(r => r.replace(/[A-Z]/g, "."))))), "each is a valid British grid of its size, every entry half crossed");
 check(sizedOk.every(({ p, size }) => p.entries.every(e => e.len <= E.SIZES[size].longest)), "no entry is longer than its size allows (15 by 15: twelve letters, the clue bank's longest)");
-check(sizedOk.every(({ p }) => E.uniquelySolved(p) && !giveaway(p) && kbApart(p)), "each has exactly one fill, no clue giving another away, its knowledge entries apart");
-const want = (size, level, kind) => (kind === "classic" ? 0 : kind === "learning" ? E.SIZES[size].learn : E.SIZES[size].kb + E.LEVELS[level].more);
-check(sizedOk.every(({ p, size, level, kind }) => { const n = kbOf(p), w = want(size, level, kind); return kind === "classic" ? n === 0 : n <= w && n >= Math.max(Math.min(3, w - 1), w - 2); }),
-  "each has the knowledge entries its kind asks for: none in Classic, its size's in Both, as many as it takes in Learning");
+check(sizedOk.every(({ p, kind }) => E.uniquelySolved(p) && !giveaway(p) && (kind === "lexicon" || kbApart(p))),
+  "each has exactly one fill, no clue giving another away, a mixed grid's knowledge entries apart");
+const want = (size, level) => E.SIZES[size].kb + E.LEVELS[level].more;
+check(sizedOk.every(({ p, size, level, kind }) => { const n = kbOf(p), w = want(size, level); return kind === "classic" ? n === 0 : kind === "lexicon" ? n === p.entries.length : n <= w && n >= Math.max(Math.min(3, w - 1), w - 2); }),
+  "each has the knowledge entries its kind asks for: none in Classic, its size's in Both, every entry in Lexicon");
 check(sizedOk.every(({ p, kind }) => p.kind === kind), "a puzzle says what kind it is");
 check(sizedOk.filter(x => x.kind === "classic").every(({ p }) => p.entries.every(e => e.kind === "word" && cluesOf(e.letters).some(c => c.text === e.text))),
   "a Classic grid is ordinary words alone, each with one of the clue bank's clues");
-// (at 11 by 11 Learning's fewest, five, is Both's most, so the larger grids show it whatever the bank deals)
-const meanKb = (size, kind) => { const xs = [0, 1, 2].map(i => kbOf(E.makePuzzle({ seed: 800 + i, level: "medium", size, kind }))); return xs.reduce((a, b) => a + b) / xs.length; };
-const moreKb = [13, 15].map(size => [size, meanKb(size, "both"), meanKb(size, "learning")]);
-check(moreKb.every(([, b, l]) => l > b), `Learning puts in more knowledge entries than Both (${moreKb.map(([s, b, l]) => `${s}×${s}: ${l.toFixed(1)} to ${b.toFixed(1)}`).join("; ")})`);
+check(sizedOk.filter(x => x.kind === "lexicon").every(({ p }) => p.entries.every(e => (e.kind === "fwd" || e.kind === "rev") && K.kbEntry(e.key)?.letters === e.letters && K.kbEntry(e.key).about.length === 2)),
+  "a Lexicon grid is the knowledge base's alone: every entry one of its clue links, its answer a thing Lexicon knows");
 // Classic's levels lean on the harder clues, its only way to be harder: Easy gives the plain ones, Hard the harder ones
 const harder = level => { const ws = [0, 1].flatMap(i => E.makePuzzle({ seed: 820 + i, level, size: 11, kind: "classic" }).entries).filter(e => cluesOf(e.letters).length === 2);
   return ws.filter(e => cluesOf(e.letters).find(c => c.text === e.text)?.d === 2).length / ws.length; };
@@ -137,12 +137,42 @@ check(E.dailyOptions(day).size === 13 && E.dailyOptions(day).kind === "both" && 
 check(E.LEVEL_IDS.every(level => same(E.makePuzzle({ seed: 31, level }), E.makePuzzle({ seed: 31, level, size: E.LEVELS[level].size, kind: "both" }))),
   "a grid with no size or kind asked for is its level's own size, Both");
 // the theme: room for a keystone and four starred clues, which no 9 by 9 grid has and Classic never
-check(E.SIZE_IDS.every(size => E.themeFits({ level: "medium", size, kind: "both" }) === (size >= 11) && E.themeFits({ level: "hard", size, kind: "learning" }) === (size >= 11)
-  && !E.themeFits({ level: "medium", size, kind: "classic" })), "the theme fits every size from 11 by 11, Both or Learning, never Classic");
+check(E.SIZE_IDS.every(size => E.themeFits({ level: "medium", size, kind: "both" }) === (size >= 11) && E.themeFits({ level: "hard", size, kind: "lexicon" }) === (size >= 11)
+  && !E.themeFits({ level: "medium", size, kind: "classic" })), "the theme fits every size from 11 by 11, Both or Lexicon, never Classic");
 const theme9 = E.makePuzzle({ seed: 41, level: "medium", size: 9, mode: "theme" });
 check(theme9 && theme9.mode === "classic" && !theme9.theme && !theme9.entries.some(e => e.kind === "key"), "a theme asked of a 9 by 9 grid deals it without the twist");
-const learnTheme = E.makePuzzle({ seed: 42, level: "medium", size: 13, kind: "learning", mode: "theme" });
-check(learnTheme?.theme && kbOf(learnTheme) <= E.SIZES[13].kb && E.uniquelySolved(learnTheme), "a Learning theme takes what a mixed grid's does (an answer has only so many clues that fit)");
+const lexThemes = [11, 13, 15].map(size => E.makePuzzle({ seed: 42 + size, level: "medium", size, kind: "lexicon", mode: "theme" }));
+check(lexThemes.every(p => p?.theme && kbOf(p) === p.entries.length && p.entries.filter(e => e.kind === "key").length === 1 && p.entries.filter(e => e.kind === "star").length >= 4
+  && E.uniquelySolved(p) && !giveaway(p)), "a Lexicon grid takes the theme too: its keystone and four starred clues or more, every other entry the knowledge base's, none naming it");
+
+// ---------- Lexicon ----------
+// what it was before it was asked for as Lexicon (as many knowledge entries as fit, apart, among ordinary words) comes
+// back as Lexicon from saved settings
+check(E.kindOf("learning") === "lexicon" && E.kindOf("both") === "both" && E.kindOf("classic") === "classic" && E.kindOf(undefined) === "both", "a saved Learning kind is Lexicon now");
+const lexGraded = E.LEVEL_IDS.map(level => [0, 1, 2, 3].map(i => E.makePuzzle({ seed: 1300 + i * 11, level, size: [9, 11, 13, 15][i], kind: "lexicon" })));
+check(lexGraded.flat().every(p => p && E.uniquelySolved(p)), "a Lexicon grid at every level and size, one fill only");
+const lexShare = lexGraded.map(ps => ps.reduce((n, p) => n + p.grade.share, 0) / ps.length);
+check(lexShare[0] > lexShare[1] && lexShare[1] > lexShare[2] && lexGraded.every((ps, i) => ps.every(p => p.grade.share >= E.LEVELS[E.LEVEL_IDS[i]].lexShare[0] - 0.03 && p.grade.share <= E.LEVELS[E.LEVEL_IDS[i]].lexShare[1] + 0.03)),
+  `a Lexicon grid's level is its links' difficulty: the average solver fills ${lexShare.map(x => `${Math.round(x * 100)}%`).join(", ")} (Easy, Medium, Hard), each in its band`);
+const lexCountry = E.makePuzzle({ seed: 1400, level: "medium", size: 13, kind: "lexicon", pool: "country" }), lexRev = E.makePuzzle({ seed: 1401, level: "medium", size: 13, kind: "lexicon", asks: "rev" });
+const lexFwd = E.makePuzzle({ seed: 1402, level: "medium", size: 13, kind: "lexicon", asks: "fwd" });
+check(lexCountry.entries.every(e => e.cat === "country") && lexRev.entries.every(e => e.kind === "rev") && lexFwd && lexFwd.entries.some(e => e.kind === "rev"),
+  "a Lexicon grid keeps to the answers and direction asked for, but names both ways when asked only for countries and commodities (too few to fill a grid)");
+// learning mode in a Lexicon grid: what's due goes in, up to half of all its entries, and a list that can't all fit
+// (some lengths no slot has) still deals a grid
+// twelve of five and seven letters, each its own answer (several of one answer's links would be one word in a grid)
+const ofLength = n => [...new Map(all.filter(e => e.letters.length === n && e.dir === "rev").map(e => [e.letters, e])).values()].filter((e, i) => i % 97 === 0);
+const dueSix = [...ofLength(5).slice(0, 6), ...ofLength(7).slice(0, 6)].map(e => e.key);
+const lexLearned = [0, 1].map(i => E.makePuzzle({ seed: 1500 + i, level: "medium", size: 13, kind: "lexicon", due: dueSix }));
+check(lexLearned.every(p => p && p.entries.filter(e => dueSix.includes(e.key)).length >= 3), `a Lexicon grid deals what's due (${lexLearned.map(p => p.entries.filter(e => dueSix.includes(e.key)).length).join(" and ")} of twelve)`);
+const tooLong = all.filter(e => e.letters.length > E.SIZES[9].longest).slice(0, 5).map(e => e.key);
+check(E.makePuzzle({ seed: 1510, level: "medium", size: 9, kind: "lexicon", due: [...tooLong, dueSix[0]] }), "what's due that a grid can't take doesn't stop one being dealt");
+// the review pile's cards from every game, by what they're about, as the entries that revise them
+const trollLink = K.kbEntry(dueKey), [norway, trollId] = trollLink.about;
+const byLink = K.entriesAbout([trollId, norway]), byThing = K.entriesAbout([trollId]), byCountry = K.entriesAbout([norway]);
+check(byLink.length === 2 && byLink.every(e => e.pair === trollLink.pair) && byThing.every(e => e.dir === "rev" && e.letters === "TROLL")
+  && byCountry.length > 10 && byCountry.every(e => e.letters === "NORWAY") && byCountry.some(e => e.dir === "rev") && !K.entriesAbout(["no-such-thing"]).length,
+  "a card from another game is revised by its link both ways (a Crates clue), or by an entry naming what it's about (a place; a country, from its own clues or as a commodity's)");
 
 // ---------- the theme ----------
 const themes = [0, 1, 2].map(i => E.makePuzzle({ seed: 900 + i, level: "medium", mode: "theme" }));
