@@ -7,7 +7,8 @@
 // pace, foretold, the place, a full orrery ending it); a game saved and opened again; the old version replaced; and
 // whole games played out by simple players with a person's delays.
 // `node tests/orrery.mjs measure` plays more games for each player instead, at every tempo, and prints what the README's
-// numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2` and a list of players (`careful,quick`) narrow it.
+// numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2`, `pace=6.5,0.8,150` and a list of players
+// (`careful,quick`) change it.
 import {
   RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, EVERY, TIP, TIP_MAX, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW, FORETELL,
   PACE, gap, multiplier, period, norm, id, seatOf, angleOf, room, planets, dirOf, keyOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTip, setTempo,
@@ -294,7 +295,7 @@ const HANDS = {
   careful: { think: 2.5, tap: 0.8, press: 0.6, react: 0.4, juggle: 0.3, jitter: 0.25 },
   quick: { think: 1.2, tap: 0.55, press: 0.45, react: 0.3, juggle: 0.2, jitter: 0.2 },
 };
-const LIMIT = Number(ARG("limit") || 1500);                     // seconds a game is played to at most
+const LIMIT = Number(ARG("limit") || 3000);                     // seconds a game is played to at most
 if (MEASURE && ARG("pace")) { const [first, least, half] = ARG("pace").split(",").map(Number); Object.assign(PACE, { first, least, half }); }
 const shortest = (from, to) => { const d = mod(to - from); return d > 6 ? d - 12 : d; };
 const perms = a => (a.length < 2 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p])));
