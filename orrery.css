@@ -29,6 +29,7 @@
 /* each hoop's number, by its knuckle where it crosses the axle at six o'clock (which no tip moves): the rows of the bar of beats */
 .or-over text.or-num { font-weight: 800; fill: var(--ink-soft); stroke-width: 2.6; text-anchor: start; }
 .or-over text.or-num.on { fill: var(--ink); }
+.or-over .or-going { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; paint-order: stroke; }
 .or-plaque { fill: color-mix(in srgb, var(--sheet) 92%, transparent); stroke: var(--brass); stroke-width: 1; }
 
 /* the flat orrery, where there's no WebGL: a navy dial, bands of brass, the sun */

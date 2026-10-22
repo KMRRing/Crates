@@ -84,18 +84,25 @@ const text = (cls, s, x, y, size) => {
 };
 const numsG = el("g"), plaqueG = el("g"), fxG = el("g");
 over.append(numsG, plaqueG, fxG);
-const nums = Array.from({ length: RINGS }, (_, k) => { const t = el("text", { class: "or-num" }); t.textContent = String(k + 1); numsG.append(t); return t; });
+const nums = Array.from({ length: RINGS }, (_, k) => { const t = el("text", { class: "or-num" }), go = el("path", { class: "or-going" }); t.textContent = String(k + 1); numsG.append(t, go); return { t, go }; });
 let numsAt = "";
-/** The hoops' numbers by their knuckles at six o'clock, moved only when the view has (a turn of the camera, a new size). */
+/**
+ * The hoops' numbers by their knuckles at six o'clock (a point no tip moves), and beside each hoop set going its setting
+ * as the buttons draw it (one to three chevrons, the way it goes): a hoop set going makes no line, even standing on its
+ * place between steps, so it shows on the orrery. Redrawn only when the view or a setting has changed.
+ */
 function drawNums() {
-  const u = scale(), at = nums.map((_, k) => view.at(k, Math.PI, 0)), k = `${at.flat().map(v => v.toFixed(0)).join()}|${chosen?.ring ?? -1}|${u}`;
+  const u = scale(), at = nums.map((_, k) => view.at(k, Math.PI, 0)), k = `${at.flat().map(v => v.toFixed(0)).join()}|${chosen?.ring ?? -1}|${u}|${S.rings.map(r => r.set).join()}`;
   if (k === numsAt) return;
   numsAt = k;
-  nums.forEach((t, ring) => {
-    t.setAttribute("x", (at[ring][0] + 15 * u).toFixed(1));             // clear of a planet standing at six o'clock
-    t.setAttribute("y", (at[ring][1] + 13 * u).toFixed(1));
+  nums.forEach(({ t, go }, ring) => {
+    const x = at[ring][0] + 15 * u, y = at[ring][1] + 13 * u, set = S.rings[ring].set;    // clear of a planet standing at six o'clock
+    t.setAttribute("x", x.toFixed(1));
+    t.setAttribute("y", y.toFixed(1));
     t.setAttribute("font-size", (9.5 * u).toFixed(1));
     t.classList.toggle("on", ring === chosen?.ring);
+    const n = Math.abs(set), d = Math.sign(set), w = 3 * u, hh = 3.2 * u, x0 = x + 9 * u, y0 = y - 3.4 * u;
+    go.setAttribute("d", Array.from({ length: n }, (_, i) => { const cx = x0 + i * 3.6 * u; return d > 0 ? `M${cx} ${y0 - hh}L${cx + w} ${y0}L${cx} ${y0 + hh}` : `M${cx + w} ${y0 - hh}L${cx} ${y0}L${cx + w} ${y0 + hh}`; }).join(""));
   });
 }
 const HINT = ["Tap a hoop, then a button: it steps on the beat,", "left or right, every beat, every second or third.", "Stop the hoops with planets of a colour in line", "with the sun: at twelve or six o'clock, or anywhere", "on hoops tipped alike (tap a hoop again to tip it).", "The next beat strikes them. − and + set the beat."];
