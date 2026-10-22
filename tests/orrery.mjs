@@ -11,7 +11,7 @@
 // (`careful,quick`) change it.
 import {
   RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, EVERY, TIP, TIP_MAX, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW, FORETELL,
-  PACE, gap, multiplier, period, norm, id, seatOf, angleOf, room, planets, dirOf, keyOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTip, setTempo,
+  PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTip, setTempo,
   stepsOn, upcoming, step, look, strikeAt,
 } from "../orrery-engine.js";
 
@@ -141,6 +141,7 @@ const MIXED = [-3, 0, 2, 1];                                    // four differen
 // ---------- directions and alignments ----------
 {
   const is = (v, x, y, z) => near(v[0], x) && near(v[1], y) && near(v[2], z);
+  check(near(between(0.1, TAU - 0.1), -0.2) && near(between(TAU - 0.1, 0.1), 0.2) && near(between(1, 1), 0) && near(between(0, 3), 3), "the way round between two angles is the short way (a swipe's way round the sun)");
   check([-45, -15, 0, 30].every(t => is(dirOf(t * DEG, 0), 0, 0, -1) && is(dirOf(t * DEG, Math.PI), 0, 0, 1)) && is(dirOf(30 * DEG, Math.PI / 2), Math.cos(30 * DEG), Math.sin(30 * DEG), 0), "every hoop, however tipped, meets the axle at twelve and at six; tipped, it lifts its three o'clock side");
   const s = sky();
   s.rings[2].a = 5;

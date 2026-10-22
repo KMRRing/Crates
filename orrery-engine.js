@@ -47,7 +47,6 @@ export const multiplier = combo => Math.min(3, 1 + 0.25 * Math.max(0, combo - 1)
 /** Seconds between beats at a game's tempo. */
 export const period = s => 60 / TEMPOS[s.tempo];
 
-export const norm = a => ((a % TAU) + TAU) % TAU;
 /** The shortest turn from angle a to angle b (-π to π): which way, and how far, a finger went round the sun. */
 export const between = (a, b) => ((((b - a) % TAU) + 3 * Math.PI) % TAU) - Math.PI;
 const mod = q => ((q % PLACES) + PLACES) % PLACES;
