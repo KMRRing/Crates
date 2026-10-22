@@ -92,7 +92,9 @@ night), the enamels `--c0`..`--c3`, `--learn`. A game's own accent is one enamel
 `#A8382B`/`#E8806F`. No cool greys, no pills: corners are square-ish (4–6px), the main action is the plate, names of
 things are wide spaced capitals (`font-stretch: var(--wide); text-transform: uppercase; letter-spacing: .08em+`).
 **Loading:** `busy(label)` from `loading.js` for any wait that holds up the screen (the rete, large, mid-screen);
-`sextant()` before the words of a short wait in a line or a box. Never a spinner of your own, never "Loading…" alone.
+a wait with stages says each as it begins with `progress(words, at)` (a bar under the label, `at` 0 to 1 for the whole
+wait; joining, the connection and updates already do); `sextant()` before the words of a short wait in a line or a box.
+Never a spinner of your own, never "Loading…" alone.
 
 ## Saved state syncs
 

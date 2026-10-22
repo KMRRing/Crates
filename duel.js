@@ -5,7 +5,8 @@
 // Rematch and Back to solo; the pair's record gets the result (reportDuo, through together.js). A game supplies how to
 // deal a match and how to play one, reports its score as it goes, and keeps its solo run out of it; the rest is here.
 import { createTogether } from "./together.js";
-import { busy, sextant } from "./loading.js";
+import { joiningWords } from "./rooms.js";
+import { busy, sextant, progress } from "./loading.js";
 import { COUNTDOWN, freshDuel, isDuel, seated, slotOf, runOf, presentSlots, allReady, startAll, sayReady, noteRun, rematch, byScore, standings, isOver, resultOf } from "./duel-core.js";
 
 export { COUNTDOWN, byScore, standings, runOf };
@@ -329,10 +330,11 @@ export function createDuel({ game, name, app = 1, deal, play, describe = () => "
   /** Joins the match in the address (or `code`); resolves true once its table is drawn, false (solo) otherwise. */
   async function join(code = roomInAddress()) {
     if (code.length !== 4) return false;
-    const done = busy("Joining the match");
+    const done = busy(joiningWords(), { delay: 0 });            // the words the page said while it loaded (theme.js)
     try {
       const drawn = new Promise(res => { firstDrawn = res; setTimeout(res, 8000); });
       if (!(await together.join(code))) return false;
+      progress("Setting out the match", 0.9);
       await drawn;
       return true;
     } finally { firstDrawn = null; done(); }

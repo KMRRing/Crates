@@ -698,6 +698,29 @@ html:not(.ready) body::after { pointer-events: none; }
 html.busy body::after { animation-delay: 0s; }
 @keyframes busy-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { html:not(.ready) body::after { display: none; } }   /* without its fade-in delay it would flash on every page */
+/* A task with stages (loading.js, progress): under the rete's words, a bar filling as it goes, a glint running along
+   it so a long stage never looks stuck, and the stage's words under the bar; the bar in the brass that reads as text
+   (Modern's --brass is a hairline grey). A page opened to join others (a party, a table, a partner's match) shows its
+   words and a bar from its first moment, while its own files load (theme.js sets html.joining and the words, before
+   anything of the page has run); the page's own take over once it runs. */
+html.joining:not(.ready) body::after { content: var(--busy-say, ""); }
+html.busy body[data-busy-step]::before, html.joining:not(.ready) body::before {
+  content: attr(data-busy-step); position: fixed; z-index: 2147483001; left: 50%; top: calc(50vh + min(23vw, 6.5rem) + 2.6rem);
+  transform: translateX(-50%); width: min(72vw, 17rem); box-sizing: border-box; padding-top: 1rem;
+  color: var(--ink-soft); font: 650 .84rem/1.35 var(--font); text-align: center; letter-spacing: normal; text-transform: none;
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--yard) 75%, transparent), transparent) -67% 0 / 40% .3rem no-repeat,
+    linear-gradient(var(--brass-lo), var(--brass-lo)) 0 0 / var(--busy-at, 0%) .3rem no-repeat,
+    linear-gradient(color-mix(in srgb, var(--brass-lo) 20%, transparent), color-mix(in srgb, var(--brass-lo) 20%, transparent)) 0 0 / 100% .3rem no-repeat;
+  transition: background-size .5s ease-out;
+  animation: busy-glint 1.8s linear infinite;
+}
+html.joining:not(.ready) body::before { content: var(--busy-step, ""); pointer-events: none; animation: busy-in .2s .35s both, busy-glint 1.8s .35s linear infinite; }
+@keyframes busy-glint { from { background-position: -67% 0, 0 0, 0 0; } to { background-position: 167% 0, 0 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  html:not(.ready) body::before { display: none; }
+  html.busy body::before { animation: none; transition: none; }
+}
 /* a picture on its way (pics.js): the sextant turns where it will appear, until the painting covers it */
 img.pic { background: url("sextant.svg") center / 2.2rem no-repeat; }
 /* the small sextant, before the words of a short wait */

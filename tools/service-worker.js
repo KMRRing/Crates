@@ -28,6 +28,15 @@ async function hashOf(bytes) {
 /** A file's bytes as a response of their own: only the type comes along (not a redirect, not an encoding). */
 const stored = (bytes, type) => new Response(bytes, { headers: { "Content-Type": type } });
 
+/** Tells the app's pages how far the copy has got, a few times a second: pwa.js shows it under the rete while an update
+ *  someone is waiting for downloads (a page that isn't waiting ignores it). */
+let toldAt = 0;
+async function tell(done, total, last = false) {
+  if (!last && Date.now() - toldAt < 150) return;
+  toldAt = Date.now();
+  try { for (const page of await self.clients.matchAll({ type: "window", includeUncontrolled: true })) page.postMessage({ type: "filling", version: VERSION, done, total }); }
+  catch { /* no pages to tell */ }
+}
 /**
  * Makes this version's copy whole: each file already there with the right bytes is left, one held with the right
  * bytes by an older copy is copied across, and the rest is fetched, six at a time. Throws if a fetch fails.
@@ -52,9 +61,10 @@ async function fill() {
     // finding them wrong, fetches it again rather than copying it
     await cache.put(key, stored(await res.arrayBuffer(), typeOf(file, res)));
   };
-  let next = 0;
-  const lane = async () => { while (next < want.length) await one(want[next++]); };
+  let next = 0, done = 0;
+  const lane = async () => { while (next < want.length) { await one(want[next++]); tell(++done, want.length); } };
   await Promise.all(Array.from({ length: 6 }, lane));
+  tell(want.length, want.length, true);
 }
 /** True when this version's copy holds every file. */
 async function whole() {

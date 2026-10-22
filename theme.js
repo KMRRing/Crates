@@ -15,4 +15,13 @@
 // The page's own modules get the same connection (net.js keeps it). Not in the frames that watch a partner's game.
 if (/[?&](?:table|room|party)=/.test(location.search) && !/[?&]frame\b/.test(location.search)) {
   import("./net.js").then(function (m) { return m.getSync(); }).catch(function () { /* the game reports it when it asks */ });
+  // and it says what it's doing from its first moment, while its own files load, before anything of it has run: the
+  // rete's words and a bar (style.css, html.joining), the page's own words taking over once it runs (loading.js)
+  (function () {
+    var root = document.documentElement, q = location.search, page = (location.pathname.split("/").pop() || "").replace(/\.html$/, "");
+    var say = page === "party" ? "Joining the party" : /[?&]party=/.test(q) ? "Joining the table" : "Joining your partner";
+    root.classList.add("joining");
+    root.style.setProperty("--busy-say", JSON.stringify(say));
+    root.style.setProperty("--busy-step", JSON.stringify(page === "party" ? "Loading the party" : "Loading the game"));
+  })();
 }

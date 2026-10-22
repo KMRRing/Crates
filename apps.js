@@ -864,7 +864,7 @@ export function bindSwitcher(button, current) {
   update.addEventListener("click", async () => {
     update.disabled = true;
     update.classList.add("spin");                      // turning while it fetches
-    if (await hardUpdate()) return;                    // the page reloads
+    if (await hardUpdate({ before: () => dlg.close() })) return;   // the page reloads; the rete shows the download, over the page
     update.classList.remove("spin");
     update.title = "Offline: try later";
     setTimeout(() => { update.title = "Load the newest version (keeps your progress)"; update.disabled = false; }, 2500);

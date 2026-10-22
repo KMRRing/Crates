@@ -4,6 +4,7 @@
 import { createTable } from "./table.js";
 import { getSync, lan } from "./net.js";
 import { reloadFresh } from "./pwa.js";
+import { progress } from "./loading.js";
 import { playerId } from "./suite.js";
 import { qrSvg } from "./qr.js";
 import "./voice.js";             // the first touch anywhere lets the page speak (a browser speaks only after one)
@@ -195,9 +196,13 @@ export function inviteSheet(table, { title = "Invite players", note = "", deal =
  */
 export function openTable({ game, app, max, onState, onLeave = () => {}, toast = () => {} }) {
   let updating = false;
+  // what each stage of opening or joining says under the rete (loading.js), and how far along it puts the bar
+  const what = game === "party" ? "the party" : "the table";
+  const STAGES = { open: ["Reserving a room for it", 0.6], find: [`Finding ${what}`, 0.55], seat: ["Taking your seat", 0.75], in: [`Setting out ${what}`, 0.88] };
   const table = createTable({
     game, app, max,
     connect: getSync,
+    onStep: stage => { const [words, at] = STAGES[stage] || []; if (words) progress(words, at); },
     onState: (branch, me) => { keepAwake(me?.driver); onState(branch, me); },
     onLeave: why => {
       keepAwake(false);

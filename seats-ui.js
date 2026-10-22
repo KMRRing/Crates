@@ -68,7 +68,7 @@ export function seatPage({ rules, id, app = 1, pace = 900, botName, level = () =
   // not whichever phone runs the table: a guest's may get there first), once the table's first state is in
   const party = /[?&]party=[A-Za-z]{4}\b/.test(location.search);
   if (tableInAddress() && !IN_FRAME) {
-    const done = busy("Joining the table");
+    const done = busy("Joining the table", { delay: 0 });
     remote.joinAddress().then(ok => {
       if (!ok) return;
       narrator = createNarrator();

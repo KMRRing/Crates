@@ -102,9 +102,11 @@ export function storable(state, game = "table") {
  * code is asked to update, onNewer); max: seats for people; sync: the database connection, or connect() to get one
  * when it's first needed; onState(branch, me): draw it (me: { uid, seat, name, host, driver, backup }); onLeave(why):
  * the table is behind this page ("left", "removed", "gone"); onNewer(): another device runs newer code; onError(e);
- * backupMs: how long the next in line waits (the tests shorten it).
+ * backupMs: how long the next in line waits (the tests shorten it); onStep(stage): each stage of opening or joining as
+ * it begins ("open": the table being opened; "find": the table being read; "seat": the seat being taken; "in": sat
+ * down, its first state on the way), for the page to say where it has got to.
  */
-export function createTable({ game, app = 1, max = 4, sync: given = null, connect = null, onState = () => {}, onLeave = () => {}, onNewer = () => {}, onError = e => console.error(e), backupMs = BACKUP_MS }) {
+export function createTable({ game, app = 1, max = 4, sync: given = null, connect = null, onState = () => {}, onLeave = () => {}, onNewer = () => {}, onError = e => console.error(e), backupMs = BACKUP_MS, onStep = () => {} }) {
   let t = null;   // { code, sync, uid, data, offset, online, stop: [], unwatch }
   const path = code => branchPath(code, game);
 
@@ -124,6 +126,7 @@ export function createTable({ game, app = 1, max = 4, sync: given = null, connec
   /** Opens a new table with this device as its host, in seat 0; resolves with its code, or null if it couldn't. */
   async function open({ name, pid = null, extra = {} }) {
     const sync = await link();
+    onStep("open");
     const now = Date.now();
     const branch = storable({ v: 1, app, created: now, host: sync.uid, rev: 0, players: { [sync.uid]: { name, ...(pid ? { pid } : {}), seat: 0, joined: now, online: true } }, ...extra }, game);
     const code = await createRoom(sync, game, branch);
@@ -140,6 +143,7 @@ export function createTable({ game, app = 1, max = 4, sync: given = null, connec
    */
   async function join(code, { name, pid = null }) {
     const sync = await link();
+    onStep("find");
     let hold = null;
     const first = await new Promise((resolve, reject) => { hold = sync.watch(path(code), resolve, reject); });
     try {
@@ -152,6 +156,7 @@ export function createTable({ game, app = 1, max = 4, sync: given = null, connec
         return "ok";
       }
       let newer = false, full = false;
+      onStep("seat");
       const r = await sync.tx(path(code), cur => {
         newer = full = false;
         if (cur === null) return null;                     // a cold cache: null makes the database answer with the real one
@@ -169,6 +174,7 @@ export function createTable({ game, app = 1, max = 4, sync: given = null, connec
   }
 
   function enter(code, sync) {
+    onStep("in");
     leaveQuietly();
     t = { code, sync, uid: sync.uid, data: null, offset: 0, online: true, stop: [], unwatch: null };
     watch();

@@ -1,4 +1,5 @@
 // Firebase Realtime Database adapter for playing together (loaded only when needed).
+import { connecting } from "./net.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
 import { getDatabase, ref, onValue, runTransaction, update, set, remove, onDisconnect, goOffline, goOnline }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
@@ -52,8 +53,11 @@ addEventListener("pagehide", () => { hiddenAt = Date.now(); });
 
 export async function connect() {
   try { localStorage.removeItem(FAILED); } catch { /* private mode */ }
+  // Firebase's code has loaded by now (this module's imports): the stages from here, for the rete's bar (net.js)
+  connecting("Finding the game server", 0.25);
   const app = initializeApp(CONFIG, "crates");
   const db = getDatabase(app, await resolveDbUrl());
+  connecting("Signing in", 0.33);
   // the connection opened now, while the sign-in is read back (it waits only for the sign-in's token), not once the
   // first read or write asks for it
   let live = false;
@@ -63,6 +67,7 @@ export async function connect() {
     const off = onAuthStateChanged(auth, u => { if (u) { off(); resolve(u); } });
     signInAnonymously(auth).catch(reject);
   });
+  connecting("Connected", 0.45);
 
   return {
     uid: user.uid,

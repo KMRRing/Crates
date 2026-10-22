@@ -15,7 +15,7 @@ import { h, button, names } from "./party-kit.js";
 import { part, choice, toggle, action, line } from "./menu.js";
 import { bindSwitcher, APPS, nameClass } from "./apps.js";
 import { IN_FRAME, playerId } from "./suite.js";
-import { busy } from "./loading.js";
+import { busy, progress } from "./loading.js";
 import "./pwa.js";
 
 // this code's version at a table: a device with older code updates (2: the host chooses any game, and the phones
@@ -120,6 +120,10 @@ function follow() {
   const p = branch?.playing;
   if (!p || IN_FRAME || moving || !joins(p, table.uid)) return moving;
   moving = true;
+  // the page stays as it is until the game's has loaded: the rete says where this phone is going meanwhile
+  const name = playable(p.id)?.name || "the game";
+  busy(`Opening ${name}`, { delay: 0 });
+  progress("The host has started it: loading the game", 0.5);
   location.replace(playHref(p, table.code));
   return true;
 }
@@ -292,9 +296,10 @@ async function rejoin(code) {
 async function startElsewhere(entry) {
   if (moving) return;
   moving = true;
-  const done = busy(`Starting ${entry.name}`);
+  const done = busy(`Starting ${entry.name}`, { delay: 0 });
   try {
     const sync = await getSync(), code = table.code, at = Math.round(table.now());
+    progress(`Setting up ${entry.name} for everyone`, 0.35);
     const who = playersOf(branch).map(p => p.uid);
     const playing = { id: entry.id, kind: entry.kind, page: entry.page, at, who, max: entry.max };
     // the game's table (or the request a duo game answers) and the party's choice leave together, in that order: the
@@ -306,6 +311,7 @@ async function startElsewhere(entry) {
       table.act(b => { b.playing = playing; delete b.game; delete b.inputs; }),
     ]);
     if (!took) throw new Error("the party didn't take the choice");
+    progress(`Opening ${entry.name}`, 0.7);
     location.replace(playHref(playing, code));
   } catch (e) {
     console.error(e);
@@ -499,6 +505,6 @@ $("rulesClose").addEventListener("click", () => $("rulesDlg").close());
 window.__party = { table, get branch() { return branch; }, get me() { return me; }, drive };
 draw();
 if (tableInAddress() && !IN_FRAME) {
-  const done = busy("Joining the party");
+  const done = busy("Joining the party", { delay: 0 });
   table.joinAddress().finally(done).then(() => draw());
 } else if ((inviting || lan?.host) && !IN_FRAME) openTableHere();

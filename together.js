@@ -7,6 +7,7 @@ import { getSync } from "./net.js";
 import { branchPath, openBranch, createRoom, enterRoom, leaveRoom, pickSeat, otherHere, seatsOf, sitDown, seatOfSlot, peopleSeats, runsElsewhere } from "./rooms.js";
 import { reloadFresh } from "./pwa.js";
 import { reportDuo, playerId, sayWhere } from "./suite.js";
+import { progress } from "./loading.js";
 
 export { seatsOf, seatOfSlot, peopleSeats, runsElsewhere };
 
@@ -61,7 +62,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     return JSON.parse(json);
   }
 
-  /** Starts a new room with a fresh game in it. */
+  /** Starts a new room with a fresh game in it. Says its stages to the rete's bar (loading.js), as joining does. */
   async function start() {
     const name = await askName();
     if (!name) return false;
@@ -69,7 +70,10 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     if (!sync) return false;
     try {
       const pid = playerId();
-      const code = await createRoom(sync, game, storable(await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } })));
+      progress("Dealing a new game", 0.6);
+      const state = storable(await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } }));
+      progress("Opening a room", 0.72);
+      const code = await createRoom(sync, game, state);
       if (!code) { toast("Couldn't start a game, try again"); return false; }
       enter(code, sync, name, pid);
       return true;
@@ -92,6 +96,8 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
     // the branch held in this page's cache while joining, so the joining transaction takes one round trip, not two
     const warm = sync.watch(path(code), () => {}, () => {});
     try {
+      // each stage said to the rete's bar as it begins (loading.js): every game's joining shows them
+      progress("Finding the game", 0.55);
       const shared = await openBranch(sync, code, game);
       if (!shared) return solo("No game with that code");
       const before = shared[game] || null, seats = seatsOf(before), pid = playerId(), asked = askedFor(shared);
@@ -105,7 +111,9 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
       const name = takeover ? seats.find(([id]) => id === takeover)[1].name : await askName();
       if (!name) return solo();
       // a new table is dealt before the transaction (dealing can take a moment), marked with the request it's for
+      if (anew) progress("Dealing a new game", 0.65);
       const initial = anew ? { ...(await fresh({ [sync.uid]: { name, slot: 0, pid, online: true } }, { ask: asked ? shared.ask : null })), ...(asked ? { asked } : {}) } : null;
+      progress("Taking your seat", 0.75);
       let newer = false;
       const r = await sync.tx(path(code), cur => {
         newer = !!cur && (cur.app || 0) > app;
@@ -121,6 +129,7 @@ export function createTogether({ game, app, fresh, valid, onState, onPresence, o
   }
 
   function enter(code, sync, name, pid) {
+    progress("Setting out the game", 0.88);           // until the game draws the first state and takes the rete down
     room = { code, sync, uid: sync.uid, pid, name, data: null, here: {}, online: true, stop: [] };
     setRoomParam(code);
     watch();

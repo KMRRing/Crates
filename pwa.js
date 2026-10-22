@@ -6,7 +6,7 @@
 import "./suite.js";   // the solo code's sync runs on every page
 import "./menu.js";    // every game's menu: one popup, laid out the same
 import "./flags.js";   // flags drawn as flags where the system shows only their letters
-import { busy } from "./loading.js";
+import { busy, progress } from "./loading.js";
 
 // The page is drawn: the rete style.css shows while a page loads (html:not(.ready)) goes. Module scripts have all
 // run by DOMContentLoaded, so the game's first render is in.
@@ -14,6 +14,7 @@ const drawn = () => document.documentElement.classList.add("ready");
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", drawn, { once: true }); else drawn();
 const supported = "serviceWorker" in navigator;
 const ready = supported ? navigator.serviceWorker.register("./sw.js").catch(() => null) : Promise.resolve(null);
+let awaiting = false;   // an update someone is waiting for (reloadFresh): the worker's count of its download is shown
 
 if (supported) {
   let swapped = false;
@@ -31,24 +32,44 @@ if (supported) {
  */
 export async function reloadFresh() {
   busy("Updating Almanac", { delay: 0 });   // until the reload replaces the page
+  awaiting = true;
+  progress("Looking for the new version", 0.05);
   const reg = await ready;
   if (!reg) {
     const own = performance.getEntriesByType("resource").map(e => e.name).filter(u => u.startsWith(location.origin));
-    await Promise.all([location.href, ...own].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
+    await fetchAll([location.href, ...own]);
     location.reload();
     return;
   }
   try { await reg.update(); } catch { /* offline: carry on with what we have */ }
   const next = reg.installing || reg.waiting;
   if (!next) { location.reload(); return; }
+  progress("Downloading the new version", 0.1);      // the worker says how far it has got as it goes (below)
   await new Promise(resolve => {
     const settled = () => ["installed", "activated", "redundant"].includes(next.state);
     if (settled()) resolve(); else next.addEventListener("statechange", () => { if (settled()) resolve(); });
   });
+  progress("Switching to the new version", 0.95);
   navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
   (reg.waiting || next).postMessage("take-over");
   setTimeout(() => location.reload(), 4000);   // in case the switch is never announced
 }
+
+/** Fetches each of the app's files past the browser's own copies, saying how many are in so far under the rete. */
+async function fetchAll(urls) {
+  let n = 0;
+  await Promise.all(urls.map(u => fetch(u, { cache: "reload" }).catch(() => null).finally(() => {
+    n++;
+    progress(`Downloading ${n} of ${urls.length} files`, 0.05 + 0.9 * n / urls.length);
+  })));
+}
+// the worker's word on its copy as it fills (tools/service-worker.js), shown only while an update someone is waiting
+// for downloads: a new version also fills in the background as a page opens, often while it joins a table, and its
+// count would take over that join's words
+navigator.serviceWorker?.addEventListener("message", e => {
+  const m = e.data;
+  if (awaiting && m?.type === "filling" && m.total) progress(`Downloading ${m.done} of ${m.total} files`, 0.1 + 0.8 * m.done / m.total);
+});
 
 /**
  * The Update button: throws away every stored copy of the app and loads it fresh from the network. Saves,
@@ -56,10 +77,13 @@ export async function reloadFresh() {
  * on purpose). Checks the connection first, since without one, emptying the store would leave no app at all;
  * returns false (and changes nothing) when offline.
  */
-export async function hardUpdate() {
+export async function hardUpdate({ before = () => {} } = {}) {
   // the device says whether it's offline; sw.js is never stored, so this request also proves the site answers
   const online = navigator.onLine && await fetch(`./sw.js?check=${Date.now()}`, { cache: "no-store" }).then(r => r.ok, () => false);
   if (!online) return false;
+  before();
+  busy("Updating Almanac", { delay: 0 });            // until the reload replaces the page
+  progress("Clearing the stored copy", 0.03);
   const urls = new Set([location.href.split("#")[0]]);
   if ("caches" in window) {
     for (const key of await caches.keys()) {
@@ -70,7 +94,8 @@ export async function hardUpdate() {
     }
   }
   // with the store empty, these go to the network and refresh the browser's own copies on the way
-  await Promise.all([...urls].map(u => fetch(u, { cache: "reload" }).catch(() => null)));
+  await fetchAll([...urls]);
+  progress("Starting the new version", 0.97);
   for (const reg of (await navigator.serviceWorker?.getRegistrations?.()) || []) await reg.unregister();
   try { sessionStorage.setItem("crates:games", "1"); } catch { /* private mode */ }   // come back to the games screen
   location.reload();
