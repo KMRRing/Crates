@@ -104,6 +104,9 @@ export function createTable3d(c) {
   let last = null, lastKey = "", pointerX = 0, overCard = false, asked = false;
   let fresh = [];                                  // the stack's items new in this draw (a trigger rises; a spell is flown in)
 
+  /** An element's contents, set only when they change (the pulse round the avatar to move runs on rather than restarts). */
+  const fill = (el, html) => { if (el._h !== html) { el.innerHTML = html; el._h = html; } };
+
   // ---------- keyed drawing: an element stays from one draw to the next while its card does ----------
   /** The parent's children as these items, in order: each kept from the last draw where it was (so it can slide or turn
    *  rather than be drawn afresh), made where it's new, with its class, marks and contents; the rest taken out. */
@@ -178,7 +181,7 @@ export function createTable3d(c) {
     const shown = [...known.slice(0, n), ...Array(Math.max(0, n - known.length)).fill(null)].slice(0, 12);
     const fan = `<button type="button" class="d3-fan" data-act="known" aria-label="${esc(c.nameOf(foe))}’s hand: ${n} card${n === 1 ? "" : "s"}${known.length ? `, ${known.length} known` : ""}" style="--n:${Math.max(1, shown.length)}">
       ${shown.map((id, j) => `<span class="d3-fc${id != null ? " known" : ""}" style="--j:${j - (shown.length - 1) / 2}"${id != null ? ` data-id="${id}"` : ""}>${id != null ? art(nm(id)) : back()}</span>`).join("")}<b class="d3-fn2">${n}</b></button>`;
-    $("d3foe").innerHTML = `${avatar(foe)}<span class="d3-who"><span class="d3-l1"><b class="d3-name">${esc(c.nameOf(foe))}</b></span><span class="d3-meta">${landsWords(foe)}${known.length ? ` · ${known.length} known` : ""}${floating(foe)}</span></span>${fan}`;
+    fill($("d3foe"), `${avatar(foe)}<span class="d3-who"><span class="d3-l1"><b class="d3-name">${esc(c.nameOf(foe))}</b></span><span class="d3-meta">${landsWords(foe)}${known.length ? ` · ${known.length} known` : ""}${floating(foe)}</span></span>${fan}`);
     // yours: the avatar, the latest line of the log (tapped for all of it), the track of the turn's steps
     const at = STEPS.indexOf(s.step), line = s.log[s.log.length - 1];
     const track = `<span class="d3-track ${c.isMe(s.active) ? "mine" : "theirs"}" aria-label="Turn ${s.turn}, ${STEP_SHORT[s.step] || s.step}">
@@ -186,8 +189,8 @@ export function createTable3d(c) {
     // while a target is chosen, the line says so (the lit ones are on the table: the middle stays clear of them)
     const arm = c.ui().arm, k = arm?.moves[0].targets[0].k;
     const said = arm ? `<b>${esc(arm.label)}</b>: choose ${k === "p" ? "a player" : k === "g" ? "a card in the graveyard" : "a target"}` : line ? esc(c.words(line.t)) : "";
-    $("d3me").innerHTML = `${avatar(me)}<span class="d3-who"><span class="d3-l1"><b class="d3-name">${esc(c.nameOf(me))}</b><span class="d3-meta">${landsWords(me)}${floating(me)}</span></span>
-      <button type="button" class="d3-tick${arm ? " arm" : ""}" data-act="log" aria-label="The log">${said}</button></span>${track}`;
+    fill($("d3me"), `${avatar(me)}<span class="d3-who"><span class="d3-l1"><b class="d3-name">${esc(c.nameOf(me))}</b><span class="d3-meta">${landsWords(me)}${floating(me)}</span></span>
+      <button type="button" class="d3-tick${arm ? " arm" : ""}" data-act="log" aria-label="The log">${said}</button></span>${track}`);
   }
 
   // ---------- the battlefield: each side's lands and Dandâns ----------
@@ -216,17 +219,18 @@ export function createTable3d(c) {
       html: landFace(p, top ? n : 0),
     }));
   }
-  function piles2() {
+  /** The library and the graveyard on the line between the halves. */
+  function drawPiles() {
     const s = S(), v = c.view(), lib = s.lib.length, known = topKnown(s, v.seat ?? 0), top = s.yard[s.yard.length - 1];
     const deep = n => Math.min(5, Math.ceil(n / 14));
     const libEl = $("d3lib"), yardEl = $("d3yard");
     libEl.className = `d3-pile lib deep${deep(lib)}`;
     libEl.setAttribute("aria-label", `Library, ${lib} cards${known != null ? `; the top is ${nm(known)}` : ""}`);
-    libEl.innerHTML = `<span class="d3-pc">${lib ? (known != null ? `<span class="d3-face land known">${art(nm(known))}<span class="d3-code">▲ ${esc(c.short(nm(known)))}</span></span>` : back()) : ""}</span><b class="d3-n">${lib}</b><small>Library</small>`;
+    fill(libEl, `<span class="d3-pc">${lib ? (known != null ? `<span class="d3-face land known">${art(nm(known))}<span class="d3-code">▲ ${esc(c.short(nm(known)))}</span></span>` : back()) : ""}</span><b class="d3-n">${lib}</b><small>Library</small>`);
     const casts = c.moves().some(m => m.from === "yard");
     yardEl.className = `d3-pile yard deep${deep(s.yard.length)}${casts ? " can" : ""}${c.rings().has("pile:yard") ? " advised" : ""}`;
     yardEl.setAttribute("aria-label", `Graveyard, ${s.yard.length} cards`);
-    yardEl.innerHTML = `<span class="d3-pc">${top != null ? `<span class="d3-face ${defOf(top).type}">${art(nm(top))}<span class="d3-code">${esc(c.short(nm(top)))}</span></span>` : ""}</span><b class="d3-n">${s.yard.length}</b><small>Graveyard</small>`;
+    fill(yardEl, `<span class="d3-pc">${top != null ? `<span class="d3-face ${defOf(top).type}">${art(nm(top))}<span class="d3-code">${esc(c.short(nm(top)))}</span></span>` : ""}</span><b class="d3-n">${s.yard.length}</b><small>Graveyard</small>`);
   }
 
   // ---------- over the line between the halves: the question, the stack, the turn ----------
@@ -254,7 +258,7 @@ export function createTable3d(c) {
     st.style.setProperty("--under", Math.max(0, items.length - 1));   // the spells under the top one, each a picture's width
     st.classList.toggle("flat", arming);                               // choosing a target: every spell just its picture
     ph.hidden = !!head || !!items.length || arming;
-    if (!ph.hidden) ph.innerHTML = `<b>${phaseWords()}</b><span class="d3-wait">${c.waitLine()}</span>`;
+    if (!ph.hidden) fill(ph, `<b>${phaseWords()}</b><span class="d3-wait">${c.waitLine()}</span>`);
   }
   /** The step of the turn, whose (your bar has the turn's number). */
   function phaseWords() {
@@ -466,9 +470,10 @@ export function createTable3d(c) {
   // ---------- the whole ----------
   function empty() {
     for (const r of Object.values(rows)) r.replaceChildren();
-    $("d3foe").innerHTML = $("d3me").innerHTML = "";
-    $("d3lib").innerHTML = `<span class="d3-pc">${back()}</span><b class="d3-n">80</b><small>Library</small>`;
-    $("d3yard").innerHTML = `<span class="d3-pc"></span><b class="d3-n">0</b><small>Graveyard</small>`;
+    fill($("d3foe"), "");
+    fill($("d3me"), "");
+    fill($("d3lib"), `<span class="d3-pc">${back()}</span><b class="d3-n">80</b><small>Library</small>`);
+    fill($("d3yard"), `<span class="d3-pc"></span><b class="d3-n">0</b><small>Graveyard</small>`);
     $("d3stack").replaceChildren();
     $("d3stack").hidden = true;
     $("d3prompt").hidden = false;
@@ -497,7 +502,7 @@ export function createTable3d(c) {
     const me = v.seat ?? 0;
     sync(rows.fl, landItems(1 - me));
     sync(rows.fc, creItems(1 - me, q));
-    piles2();
+    drawPiles();
     sync(rows.mc, creItems(me, q));
     sync(rows.ml, landItems(me));
     centre(q);
