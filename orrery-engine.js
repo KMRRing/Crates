@@ -1,46 +1,46 @@
 // Orrery's rules, pure (no page): four brass hoops on a pivot axle round a sun, each with twelve places for planets of
-// four colours, stepping on a beat. The beat is a metronome the player sets, from twenty beats a minute up to sixty (one
-// a second, the fastest). Every hoop is always going, left or right, slow (a place every eighth beat), medium (every
-// fourth) or fast (every second beat: the fastest a hoop goes, since 23 October 2026, Korbi asking for the whole orrery
-// "much slower", the fastest what the slow had been and the slowest four times slower still), and keeps that until it's set again: none stands still. It rests between
-// its steps, and a place is a twelfth of a turn, so between beats every planet is exactly on one of twelve places, and
-// nothing coasts. Each hoop is tipped about the axle (a rod from twelve o'clock through the sun to six) by 15, 30 or 45
+// four colours, stepping on a beat. The beat is a metronome the player sets, at 1, 2, 4, 6, 12 or 20 beats a minute (20,
+// one every three seconds, the fastest: Korbi, 23 October 2026). Every hoop is always going, left or right, at one of two
+// speeds, a place on every beat or two (slots, he calls them), and keeps that until it's set again: none stands still. It
+// rests between its steps, and a place is a twelfth of a turn, so between beats every planet is exactly on one of twelve
+// places, and nothing coasts. Everything the game does that isn't a picture is counted in beats, so the tempo is the
+// speed of the whole game: planets land and hoops drift a number of beats apart, and a quicker tempo brings both quicker.
+// Each hoop is tipped about the axle (a rod from twelve o'clock through the sun to six) by 15, 30 or 45
 // degrees either way, or lies level. Each colour has a plane of its own, a tip (PLANE): yellow's at −45 degrees, green's
 // −15, blue's 15 and red's 45; a press of a colour tips one hoop into its plane, or every hoop at once, and every so often
 // each hoop tips a step further by itself (its drift), one way until it reaches 45 degrees and then back, at its own
 // steady pace. Three or four planets of one colour, one to a hoop, in one direction from the sun, are a line however
 // their hoops are going, and the next beat strikes it before it steps them on: they clear and score. One direction is at
 // twelve o'clock or at six (on the axle, which every hoop crosses however it's tipped), for any colour at any tips; or one
-// place round hoops in that colour's plane. So lines are made by the hoops' speeds (a beat's steps bring planets
-// together) and their planes, as well as by a tip or a planet landing. A game begins with the whole orrery turning
+// place round hoops in that colour's plane. So lines are made by the hoops' speeds and directions (a beat's steps bring
+// planets together) and their planes, as well as by a tip or a planet landing. A game begins with the whole orrery turning
 // together (every hoop slow, the same way); while it does, no step changes which planets are together, so none makes a
-// line. Every few seconds, on the clock and not the beat, a new planet lands, foretold a moment before, more often as the
-// game goes on; an orrery with no place left for one ends the game. The page (orrery.js) draws it and takes the hand;
-// tests/orrery.mjs checks this.
+// line. Every few beats a new planet lands, foretold a moment before, more often as the game goes on; an orrery with no
+// place left for one ends the game. The page (orrery.js) draws it and takes the hand; tests/orrery.mjs checks this.
 //
 // A game is one object, as saved: { v, seed, n (draws made), t (seconds played), tempo (an index into TEMPOS), beat (beats
 // so far), lastBeat and beatAt (the time of the last beat and of the next), rings ([{ a (the hoop's turn, in places,
-// 0–11: where its own twelve o'clock place is now, clockwise), set (-3 to 3, never 0: stepping left (negative) or right,
-// slow, medium or fast by its size), due (the beat on which it steps next), tip (-3 to 3, in fifteen degrees: the three
+// 0–11: where its own twelve o'clock place is now, clockwise), set (-2 to 2, never 0: stepping left (negative) or right,
+// slow or fast by its size: a place a beat or two), tip (-3 to 3, in fifteen degrees: the three
 // o'clock side up for positive), places (twelve colours 0–3 or -1 empty, from the hoop's own twelve o'clock clockwise),
 // moved and dir (when it last stepped, and how many places which way: for drawing the step), tipFrom and tipAt (the tip
-// it was turning from, and when: for drawing the tip), drift (its pace: seconds between drifts), driftAt (when it drifts
+// it was turning from, and when: for drawing the tip), drift (its pace: beats between drifts), driftAt (when it drifts
 // next), way (which way it drifts next: 1 up, -1 down) }]), next ({ due (when it lands), ring, place, colour }: the
 // planet foretold; ring -1 where no place was free then), locks ([{ colour, key, seat, ids, members, dir, at }]: the
 // lines standing, each since `at`, to be struck on the beat), score, cleared (planets), aligned (lines struck), fours (of
 // them, four planets), combo, lastLock (when), over }. Every change happens at an exact time, whatever the steps of time
 // it's played in, so a game goes on the same whether it's played a frame at a time or a minute at once.
 
-export const VERSION = 7;
+export const VERSION = 8;
 export const RINGS = 4, PLACES = 12, COLOURS = 4, START = 10;
 export const TAU = Math.PI * 2, STEP = TAU / PLACES, DEG = Math.PI / 180;
-/** The tempos, in beats a minute, slowest first: the fastest is one beat a second. */
-export const TEMPOS = [20, 30, 45, 60];
-export const FIRST_TEMPO = 2;               // a first game's (the player's last choice after that, which the page keeps)
-/** A hoop's settings go from -SPIN to SPIN, but never 0 (a hoop is always going): slow, medium and fast, by their size. */
-export const SPIN = 3;
-/** Beats between a hoop's steps, by the size of its setting: slow, medium, fast. A step is one place (a twelfth of a turn). */
-export const EVERY = [0, 8, 4, 2];
+/** The tempos, in beats a minute, slowest first: the fastest is twenty, a beat every three seconds. */
+export const TEMPOS = [1, 2, 4, 6, 12, 20];
+export const FIRST_TEMPO = 4;               // a first game's, twelve a minute (the player's last choice after that, which the page keeps)
+/** The seconds a beat took at the tempo the game's pace was first set at, twelve a minute: the numbers below in seconds. */
+export const REFERENCE = 5;
+/** A hoop's settings go from -SPIN to SPIN, but never 0 (a hoop is always going): the places it steps on every beat, slow at 1 and fast at 2. */
+export const SPIN = 2;
 /** A new game's setting for every hoop: slow, and all one way, so the whole orrery turns together (anticlockwise seen from above, as the planets go round the sun). */
 export const FIRST_SET = -1;
 export const TIP = 15 * DEG, TIP_MAX = 3;   // a tip is a whole number of fifteen degrees, up to 45 either way
@@ -51,19 +51,19 @@ export const TIP = 15 * DEG, TIP_MAX = 3;   // a tip is a whole number of fiftee
 export const PLANE = [-3, -1, 1, 3];
 /** The colour whose plane a tip is, or -1. */
 export const planeOf = tip => PLANE.indexOf(tip);
-/** The hoops' paces of drift, in seconds between one and the next: dealt to the four from the seed, so each has its own. */
-export const DRIFT = [30, 36, 42, 48];
+/** The hoops' paces of drift, in beats between one and the next: dealt to the four from the seed, so each has its own. */
+export const DRIFT = [6, 7, 8, 10];
 export const TICK = 0.25;                   // seconds a step is drawn over: a short tick, like a wheel let go by an escapement
 export const TIP_TIME = 0.2;                // and a tip: quick, so a press reads as immediate
 export const DWELL = 0.3;                   // seconds a line shows at least before a beat strikes it: what made it (a step, a tip, a landing) has been drawn by then
 /** What a line of 3 or 4 planets is worth, before the combo. */
 export const AWARD = [0, 0, 0, 100, 300];
-export const COMBO_WINDOW = 8;              // seconds after one line in which the next counts on the combo
+export const COMBO_WINDOW = 2;              // beats after one line in which the next counts on the combo
 export const FORETELL = 1.5;                // seconds a planet is shown before it lands
-/** The pace of the planets: seconds between them at first, the quickest they come to, and the seconds in which the gap between the two halves. */
-export const PACE = { first: 7.5, least: 1.1, half: 170 };
-/** Seconds between planets at game time t: quicker and quicker, ever more slowly, towards the quickest. */
-export const gap = t => PACE.least + (PACE.first - PACE.least) * 2 ** (-t / PACE.half);
+/** The pace of the planets, in beats: between them at first, the quickest they come to, and the beats in which the gap between the two halves. */
+export const PACE = { first: 1.8, least: 0.28, half: 40 };
+/** Beats between planets, after b beats of the game: quicker and quicker, ever more slowly, towards the quickest. */
+export const gap = b => PACE.least + (PACE.first - PACE.least) * 2 ** (-b / PACE.half);
 /** The score multiplier at a combo (1, then a quarter more for each line in a run, to three times). */
 export const multiplier = combo => Math.min(3, 1 + 0.25 * Math.max(0, combo - 1));
 /** Seconds between beats at a game's tempo. */
@@ -186,7 +186,7 @@ function colourFor(s) {
 /** Foretells the next planet, to land a gap after now. */
 function foretell(s) {
   const at = spot(s) ?? { ring: -1, place: -1 };
-  s.next = { due: s.t + gap(s.t), ring: at.ring, place: at.place, colour: colourFor(s) };
+  s.next = { due: s.t + gap(s.beat) * period(s), ring: at.ring, place: at.place, colour: colourFor(s) };
 }
 /** The way a hoop at a tip drifts next: on as it was going, or back from 45 degrees. */
 const turned = (tip, way) => (Math.abs(tip + way) > TIP_MAX ? -way : way);
@@ -216,8 +216,8 @@ export function newGame(seed, tempo = FIRST_TEMPO) {
   s.beatAt = period(s);
   const tips = shuffle(s, [...PLANE]), paces = shuffle(s, [...DRIFT]);
   for (let r = 0; r < RINGS; r++) {
-    s.rings.push({ a: pick(s, PLACES), set: FIRST_SET, due: 1, tip: tips[r], places: new Array(PLACES).fill(-1), moved: -1e9, dir: 1, tipFrom: tips[r], tipAt: -1e9,
-      drift: paces[r], driftAt: paces[r], way: turned(tips[r], pick(s, 2) ? 1 : -1) });
+    s.rings.push({ a: pick(s, PLACES), set: FIRST_SET, tip: tips[r], places: new Array(PLACES).fill(-1), moved: -1e9, dir: 1, tipFrom: tips[r], tipAt: -1e9,
+      drift: paces[r], driftAt: paces[r] * period(s), way: turned(tips[r], pick(s, 2) ? 1 : -1) });
   }
   // the colours in turn, so each is dealt as often as the others (to within one)
   for (let k = 0; k < START; k++) {
@@ -237,7 +237,7 @@ export function newGame(seed, tempo = FIRST_TEMPO) {
 }
 const isInt = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi;
 export const valid = g => !!g && g.v === VERSION && isInt(g.tempo, 0, TEMPOS.length - 1) && [g.t, g.beatAt, g.lastBeat].every(Number.isFinite) && Number.isInteger(g.beat)
-  && Array.isArray(g.rings) && g.rings.length === RINGS && g.rings.every(r => Array.isArray(r.places) && r.places.length === PLACES && isInt(r.a, 0, PLACES - 1) && isInt(r.set, -SPIN, SPIN) && r.set !== 0 && Number.isInteger(r.due)
+  && Array.isArray(g.rings) && g.rings.length === RINGS && g.rings.every(r => Array.isArray(r.places) && r.places.length === PLACES && isInt(r.a, 0, PLACES - 1) && isInt(r.set, -SPIN, SPIN) && r.set !== 0
     && isInt(r.tip, -TIP_MAX, TIP_MAX) && [r.moved, r.tipFrom, r.tipAt, r.driftAt].every(Number.isFinite) && r.drift > 0 && Math.abs(r.way) === 1)
   && !!g.next && Number.isFinite(g.next.due) && Array.isArray(g.locks);
 /** A copy of a game, to try something on. */
@@ -246,18 +246,16 @@ export const copy = s => structuredClone(s);
 // ---------- the hand ----------
 const clampTempo = k => Math.max(0, Math.min(TEMPOS.length - 1, Math.round(k) || 0));
 /**
- * A hoop set going (k from -3 to 3, never 0: left for negative and right for positive, slow at 1, a place every eighth
- * beat, medium at 2, every fourth, fast at 3, every second). Set anew, it steps on the next beat and then
- * every so many beats, counted from that first step, and keeps that until it's set again; set as it is already, it
- * carries on as it was. There is no setting still (0 is refused): every hoop is always going. A setting moves nothing
- * until the hoop steps, so it makes or breaks no line by itself. Returns whether anything changed.
+ * A hoop set going (k from -2 to 2, never 0: left for negative and right for positive, slow at 1, a place on every beat,
+ * fast at 2, two places on every beat). It steps on the next beat and every beat after, so a setting answers at once;
+ * set as it is already, nothing changes. There is no setting still (0 is refused): every hoop is always going. A setting
+ * moves nothing until the hoop steps, so it makes or breaks no line by itself. Returns whether anything changed.
  */
 export function setRing(s, ring, k) {
   const r = s.rings[ring];
   k = Math.max(-SPIN, Math.min(SPIN, Math.round(k) || 0));
   if (s.over || !k || k === r.set) return false;
   r.set = k;
-  r.due = s.beat + 1;
   return true;
 }
 /** Tips a hoop to k (whole fifteens): at once by the rules, drawn turning from where it's drawn now. */
@@ -286,18 +284,15 @@ export function setPlane(s, colour, ring = -1) {
 export function setTempo(s, k) {
   k = clampTempo(k);
   if (s.over || k === s.tempo) return false;
+  const was = period(s);
   s.tempo = k;
+  // what's counted in beats keeps its place in them: the time left to the planet and to each drift stretches or shrinks with the beat
+  const by = period(s) / was;
+  s.next.due = s.t + (s.next.due - s.t) * by;
+  for (const r of s.rings) r.driftAt = s.t + (r.driftAt - s.t) * by;
   s.beatAt = Math.max(s.t, s.lastBeat + period(s));
   return true;
 }
-/** How a hoop steps on beat b (one still to come): the places it goes, positive right, negative left, 0 if it doesn't. */
-export function stepsOn(r, b) {
-  if (b < r.due) return 0;
-  const k = Math.abs(r.set);
-  return (b - r.due) % EVERY[k] === 0 ? Math.sign(r.set) : 0;
-}
-/** The next n beats: for each, how each hoop steps on it (places, signed, or 0). */
-export const upcoming = (s, n) => Array.from({ length: n }, (_, k) => s.rings.map(r => stepsOn(r, s.beat + 1 + k)));
 /** The hoop that drifts next. */
 export const nextDrift = s => s.rings.reduce((best, r, ring) => (r.driftAt < s.rings[best].driftAt ? ring : best), 0);
 
@@ -314,7 +309,7 @@ function beat(s, events) {
   const due = s.locks.filter(l => l.at + DWELL <= s.t + 1e-9);
   s.locks = s.locks.filter(l => !due.includes(l));
   for (const c of due) {
-    s.combo = s.t - s.lastLock <= COMBO_WINDOW ? s.combo + 1 : 1;
+    s.combo = s.t - s.lastLock <= COMBO_WINDOW * period(s) ? s.combo + 1 : 1;
     s.lastLock = s.t;
     const n = c.members.length, gain = Math.round(AWARD[n] * multiplier(s.combo));
     for (const m of c.members) s.rings[m.ring].places[m.place] = -1;
@@ -326,10 +321,9 @@ function beat(s, events) {
   }
   const stepped = [];
   s.rings.forEach((r, ring) => {
-    const by = stepsOn(r, s.beat);
-    if (!by) return;
+    const by = r.set;
+    if (!by) return;                                       // (a hoop held by a test that built the orrery by hand)
     r.a = mod(r.a + by);
-    r.due = s.beat + EVERY[Math.abs(r.set)];
     r.moved = s.t;
     r.dir = by;
     stepped.push({ ring, dir: Math.sign(by), by });
@@ -360,7 +354,7 @@ function land(s, events) {
 function drift(s, ring, events) {
   const r = s.rings[ring], from = r.tip;
   tipTo(s, r, r.tip + r.way);
-  r.driftAt = s.t + r.drift;
+  r.driftAt = s.t + r.drift * period(s);
   events.push({ type: "drift", ring, from, tip: r.tip });
   look(s);
 }

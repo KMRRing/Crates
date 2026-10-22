@@ -114,7 +114,7 @@
    four colours, larger and always there (for the hoop chosen, or with none chosen for every hoop): each its planet on a
    hoop at its plane's tilt, the hoops in its plane now lit under it, pressed while what it's for is in that plane */
 .or-pad { display: grid; gap: .3rem; }
-.or-spins { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: .25rem; }
+.or-spins { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .25rem; }
 .or-colours { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .35rem; }
 .or-key { position: relative; display: grid; place-items: center; min-width: 0; min-height: 2.6rem; padding: 0; border: 1px solid var(--tile-edge); border-radius: 4px; background: var(--tile); color: var(--ink); cursor: pointer; touch-action: manipulation; }
 .or-key svg { width: 2.1rem; max-width: 100%; height: 1.5rem; display: block; }
