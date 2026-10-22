@@ -1,280 +1,540 @@
-// Orrery's rules (orrery-engine.js): the deal from a seed (hoops, tips, planets, none in line, the first planet foretold),
-// angles and directions from the sun, what an alignment is (three to five planets of a colour, one to a hoop, in one
-// direction from the sun: along the axle, or on hoops tipped alike), the hoops turning at the speed they are set to and
-// holding still, tipping, an alignment clearing after a blink, its points and the combo, the planets landing every few
-// seconds (foretold, quicker as the game goes on), the end when there's no room, a game saved and opened again, and whole
-// games played out.
-import { RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, SPEED, VMAX, TILT, TILT_MAX, START_SPEEDS, ACCEL, TILT_EASE, TOL, DWELL, AWARD, COMBO_WINDOW, FORETELL, gap, multiplier, norm, between, id, angleOf, room, planets, dirOf, sep, clusters, newGame, valid, copy, grab, turnTo, release, setSpeed, setTilt, step } from "../orrery-engine.js";
+// Orrery's rules (orrery-engine.js): the deal from a seed (four hoops, whole places, tips, planets, every colour at least
+// twice, none in line); the beat (the tempos, the cap of one a second, a change of tempo, the beat on the game's own
+// clock); the hoops stepping (each setting's rhythm left and right, exactly a place a step, still standing still, a new
+// setting answering on the next beat, the rhythms over a long run, a step and a tip drawn); alignment, exact (at the
+// gates whatever the tips, anywhere on hoops tipped alike, not otherwise; three and four, mixed colours not, two at once;
+// a step, a landing or a tip completing one); clearing, the points and the combo; the planets landing on the clock (the
+// pace, foretold, the place, a full orrery ending it); a game saved and opened again; the old version replaced; and
+// whole games played out by simple players with a person's delays.
+// `node tests/orrery.mjs measure` plays more games for each player instead, at every tempo, and prints what the README's
+// numbers come from; `games=40`, `limit=1500` (seconds), `tempo=2` and a list of players (`careful,quick`) narrow it.
+import {
+  RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, EVERY, TIP, TIP_MAX, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW, FORETELL,
+  PACE, gap, multiplier, period, norm, id, seatOf, angleOf, room, planets, dirOf, keyOf, turnOf, tiltOf, clusters, newGame, valid, copy, setRing, setTip, setTempo,
+  stepsOn, upcoming, step, look, strikeAt,
+} from "../orrery-engine.js";
 
 let bad = 0;
-const check = (ok, what) => { console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+const check = (ok, what) => { if (!MEASURE || !ok) console.log(`${ok ? "ok  " : "FAIL"} ${what}`); if (!ok) bad++; };
+const MEASURE = process.argv.includes("measure"), ARG = k => process.argv.find(x => x.startsWith(`${k}=`))?.slice(k.length + 1);
 const near = (a, b, e = 1e-9) => Math.abs(a - b) < e;
-/** The sky drawn by hand: every hoop level, still, and at angle 0, nothing landing; then put planets on it. */
-function sky(tilts = [0, 0, 0, 0, 0]) {
-  const s = newGame(1);
-  s.rings.forEach((r, k) => { r.places.fill(-1); r.a = 0; r.w = r.v = 0; r.held = false; r.tilt = r.tiltTo = tilts[k]; });
+const mod = q => ((q % PLACES) + PLACES) % PLACES;
+/** An orrery drawn by hand: every hoop still, at turn 0 and at the tips given, no planets, nothing landing; then put planets on it. */
+function sky(tips = [0, 0, 0, 0], tempo = 3) {
+  const s = newGame(1, tempo);
+  s.rings.forEach((r, k) => { r.places.fill(-1); r.a = 0; r.set = 0; r.tip = r.tipFrom = tips[k]; r.tipAt = -1e9; });
   s.next.due = 1e9;
   s.locks = [];
   return s;
 }
-/** Planets of a colour in line at angle `at` (a hoop's place `place` turned to it, off by `off`): [[ring, place, off?]…]. */
-function line(s, colour, at, ...marks) {
-  for (const [ring, place, off = 0] of marks) { s.rings[ring].places[place] = colour; s.rings[ring].a = norm(at - place * STEP + off); }
+/** Planets of a colour put where they're at seat `seat` round the sun: [[ring, place]…], each hoop turned to bring its place there. */
+function line(s, colour, seat, ...marks) {
+  for (const [ring, place] of marks) { s.rings[ring].places[place] = colour; s.rings[ring].a = mod(seat - place); }
+  look(s);
   return s;
 }
-const run = (s, seconds, dt = 0.05) => { const ev = []; for (let t = 0; t < seconds - 1e-9; t += dt) ev.push(...step(s, dt)); return ev; };
-const MIXED = [-30 * DEG, 0, 45 * DEG, 15 * DEG, -45 * DEG];     // five different tips
+const run = (s, seconds, dt = 0.05) => { const ev = []; for (let t = 0; t < seconds - 1e-9; t += dt) ev.push(...step(s, Math.min(dt, seconds - t))); return ev; };
+const locks = ev => ev.filter(e => e.type === "lock");
+const MIXED = [-3, 0, 2, 1];                                    // four different tips
 
 // ---------- the deal ----------
 {
   const a = newGame(7), b = newGame(7), c = newGame(8);
   check(JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a.rings) !== JSON.stringify(c.rings), "the same seed deals the same orrery, another seed another");
-  check(a.v === 3 && a.rings.length === RINGS && a.rings.every((r, k) => r.places.length === PLACES && r.w === START_SPEEDS[k] && r.v === r.w && !r.held && r.a >= 0 && r.a < TAU) && a.t === 0 && a.score === 0 && !a.over && valid(a), `${RINGS} hoops of ${PLACES} places, each at its own speed and anywhere round`);
-  check([...Array(40).keys()].every(k => { const t = newGame(k).rings.map(r => Math.round(r.tilt / DEG)).sort((x, y) => x - y); return t.join() === "-30,-15,0,15,30"; }) && newGame(3).rings.every(r => r.tilt === r.tiltTo), "each hoop begins tipped differently: -30, -15, level, 15 and 30 degrees, in some order");
-  check(planets(a) === START && room(a) === RINGS * PLACES - START && [...Array(40).keys()].every(k => planets(newGame(k)) === START && clusters(newGame(k)).length === 0), `${START} planets in places, none in line to begin with`);
+  check(a.v === 4 && RINGS === 4 && a.rings.length === RINGS && a.rings.every(r => r.places.length === PLACES && r.set === 0 && Number.isInteger(r.a) && r.a >= 0 && r.a < PLACES) && a.t === 0 && a.beat === 0 && a.score === 0 && !a.over && valid(a),
+    `${RINGS} hoops of ${PLACES} places, standing still, each turned to a whole place`);
+  check([...Array(40).keys()].every(k => newGame(k).rings.map(r => r.tip * 15).sort((x, y) => x - y).join() === "-30,-15,15,30"), "each hoop tipped differently to begin with: -30, -15, 15 and 30 degrees, in some order");
+  check([...Array(60).keys()].every(k => planets(newGame(k)) === START && clusters(newGame(k)).length === 0) && room(a) === RINGS * PLACES - START, `${START} planets in places, none in line to begin with`);
   check([...Array(200).keys()].every(k => { const n = Array(COLOURS).fill(0); for (const r of newGame(k).rings) for (const x of r.places) if (x >= 0) n[x]++; return Math.min(...n) >= 2; }), "every colour dealt at least twice, so each can line up");
   check(a.next.ring >= 0 && a.rings[a.next.ring].places[a.next.place] === -1 && a.next.colour >= 0 && a.next.colour < COLOURS && near(a.next.due, gap(0)), "the first planet foretold, for an empty place, to land a gap in");
-  check(SPEED.every((w, k) => k === 0 ? w === 0 : w > SPEED[k - 1]) && VMAX === SPEED[3] && TAU / SPEED[3] > 20 && TAU / SPEED[1] > 100 && START_SPEEDS.every(w => w !== 0 && Math.abs(w) <= VMAX) && new Set(START_SPEEDS).size === RINGS, `speeds from a turn in ${(TAU / SPEED[1]).toFixed(0)} seconds to one in ${(TAU / SPEED[3]).toFixed(0)}: slow, each hoop starting at its own`);
-  check(TILT.every((t, k) => k === 0 ? t === 0 : t > TILT[k - 1]) && TILT_MAX === 45 * DEG, "tips of 15, 30 and 45 degrees");
+  check(a.tempo === FIRST_TEMPO && newGame(7, 0).tempo === 0 && newGame(7, 9).tempo === TEMPOS.length - 1 && JSON.stringify(newGame(7, 0).rings) === JSON.stringify(a.rings), "a new game at the tempo asked for (the same orrery at any tempo)");
 }
 
-// ---------- angles and directions ----------
+// ---------- the beat ----------
 {
-  check(near(norm(-0.5), TAU - 0.5) && near(norm(TAU + 1), 1) && norm(0) === 0 && near(between(0.1, TAU - 0.1), -0.2) && near(between(TAU - 0.1, 0.1), 0.2) && near(between(1, 1), 0), "angles wrap round twelve o'clock; the turn between two is the short way");
+  check(TEMPOS.every((b, k) => k === 0 || b > TEMPOS[k - 1]) && TEMPOS[TEMPOS.length - 1] === 60 && TEMPOS[0] >= 15, `tempos of ${TEMPOS.join(", ")} beats a minute: the fastest one a second`);
+  const counts = TEMPOS.map((b, k) => { const s = sky([0, 0, 0, 0], k); const n = step(s, 60 + 1e-6).filter(e => e.type === "beat").length; return [n, b, s.beat]; });
+  check(counts.every(([n, b, at]) => n === b && at === b), `a minute's beats at each tempo: ${counts.map(c => c[0]).join(", ")}`);
+  const s = sky([0, 0, 0, 0], 3);
+  check(!setTempo(s, 3) && setTempo(s, 7) === false && s.tempo === 3 && (setTempo(s, -4), s.tempo === 0) && (setTempo(s, 99), s.tempo === TEMPOS.length - 1) && 60 / period(s) === 60, "no faster than one a second, no slower than the slowest");
+  // a change of tempo: the next beat a beat of the new tempo after the last, or at once if that has gone by
+  const t = sky([0, 0, 0, 0], 0);
+  run(t, 3.5);                                                   // a beat at 3 s, the next due at 6
+  setTempo(t, 3);                                                // one a second: the next is a second after the last, at 4
+  const ev = run(t, 0.6);
+  setTempo(t, 0);
+  const at = t.beatAt;
+  const u = sky([0, 0, 0, 0], 0);
+  run(u, 5.5);                                                   // last beat at 3 s; at 30 a minute the next would be at 5, gone by
+  setTempo(u, 1);
+  const now = run(u, 0.001).filter(e => e.type === "beat").length;
+  check(ev.some(e => e.type === "beat") && near(t.lastBeat, 4) && near(at, 4 + 3) && now === 1 && near(u.lastBeat, 5.5) && near(u.beatAt, 7.5), "a change of tempo: the next beat comes a beat of the new tempo after the last, or at once if that's gone by");
+  // the beat is the game's: stepped in frames or all at once, the same beats; not stepped (the page's pause), nothing happens
+  const f = newGame(5, 2), g = newGame(5, 2);
+  setRing(f, 1, 3); setRing(g, 1, 3);
+  const fe = run(f, 30, 1 / 60).filter(e => e.type === "beat").length, ge = step(g, 30).filter(e => e.type === "beat").length;
+  const held = copy(f);
+  step(f, 0);
+  check(fe === ge && fe === Math.floor(30 / period(f)) && JSON.stringify(f.rings) === JSON.stringify(g.rings) && JSON.stringify(f) === JSON.stringify(held), "the beat keeps the game's own time: played in frames or at once, the same beats; while the game stands (the menu open), none");
+}
+
+// ---------- the hoops step ----------
+{
+  // each setting: set just after a beat, it steps on the next and then every so many, the way it's set
+  const rhythm = k => {
+    const s = sky([0, 0, 0, 0], 3);
+    run(s, 2.5);                                                 // two beats in
+    const a0 = s.rings[2].a, beats = [];
+    setRing(s, 2, k);
+    for (const e of run(s, 12)) if (e.type === "beat" && e.stepped.some(x => x.ring === 2)) beats.push(e.beat);
+    return { beats, turn: mod(s.rings[2].a - a0) };
+  };
+  const all = [-3, -2, -1, 1, 2, 3].map(k => [k, rhythm(k)]);
+  const want = k => { const out = []; for (let b = 3; b <= 14; b += EVERY[Math.abs(k)]) out.push(b); return out; };
+  check(all.every(([k, r]) => r.beats.join() === want(k).join()), "each setting steps on the next beat, then every beat, every second or every third: " + all.map(([k, r]) => `${k > 0 ? "+" : ""}${k} on ${r.beats.slice(0, 4).join(",")}…`).join("; "));
+  check(all.every(([k, r]) => r.turn === mod(Math.sign(k) * r.beats.length)), "left steps back a place, right on a place: exactly one a step");
+  const s = sky([0, 0, 0, 0], 3);
+  setRing(s, 0, 3);
+  let whole = true, last = s.rings[0].a;
+  for (let k = 0; k < 40; k++) { step(s, 1); const a = s.rings[0].a; if (!Number.isInteger(a) || mod(a - last) !== 1) whole = false; last = a; }
+  check(whole, "a step is a twelfth of a turn, and between steps a hoop is always on a place");
+  const still = sky([0, 0, 0, 0], 3), a0 = still.rings.map(r => r.a);
+  check(run(still, 30).filter(e => e.type === "beat").every(e => !e.stepped.length) && still.rings.every((r, k) => r.a === a0[k]), "a hoop set still stands still, beat after beat");
+  // a new setting answers on the next beat; the setting it has already carries on as it was
+  const n = sky([0, 0, 0, 0], 3);
+  setRing(n, 1, 1);                                              // every third right: steps on beat 1, then 4, 7
+  run(n, 1.5);
+  const nA = n.rings[1].a;
+  check(!setRing(n, 1, 1) && n.rings[1].due === 4, "set as it is already, a hoop keeps its rhythm");
+  setRing(n, 1, -3);
+  const e2 = run(n, 1).filter(e => e.type === "beat");
+  check(e2.length === 1 && e2[0].stepped.some(x => x.ring === 1 && x.dir === -1) && n.rings[1].a === mod(nA - 1), "set to another, it answers on the next beat");
+  setRing(n, 1, 0);
+  check(run(n, 5).every(e => e.type !== "beat" || !e.stepped.length), "and set still, it stops at once");
+  // over a long run, the rhythms keep exactly
+  const long = sky([0, 0, 0, 0], 3);
+  [1, -2, 3, 0].forEach((k, ring) => setRing(long, ring, k));
+  const count = [0, 0, 0, 0];
+  for (const e of step(long, 600)) if (e.type === "beat") for (const x of e.stepped) count[x.ring]++;
+  check(count.join() === "200,300,600,0" && long.rings.map(r => r.a).join() === `${mod(200)},${mod(-300)},${mod(600)},0`, `over 600 beats: ${count.join(", ")} steps, and each hoop where that many steps put it`);
+  // what's coming is what happens
+  const f = newGame(11, 3);
+  [3, -1, 2, -2].forEach((k, ring) => setRing(f, ring, k));
+  run(f, 1.5);
+  const ahead = upcoming(f, 8), seen = [];
+  for (const e of run(f, 8)) if (e.type === "beat") seen.push(f.rings.map((r, ring) => e.stepped.find(x => x.ring === ring)?.dir ?? 0));
+  check(JSON.stringify(ahead) === JSON.stringify(seen) && stepsOn(f.rings[0], f.beat + 1) === 1, "the beats coming (for the bar of beats) are the steps that happen");
+  // a step is drawn as a tick ending on the place; a tip turning to the tip
+  const d = sky([0, 0, 0, 0], 3);
+  setRing(d, 0, 3);
+  step(d, 1);
+  const r = d.rings[0], t0 = r.moved, path = [0, 0.25, 0.5, 0.75, 1].map(u => turnOf(r, t0 + u * TICK) - (r.a - 1));
+  check(near(path[0], 0) && path[4] === 1 && path.slice(1, 4).every((x, k) => x > path[k]) && Math.max(...[...Array(50).keys()].map(k => turnOf(r, t0 + (k / 50) * TICK) - (r.a - 1))) < 1.06 && turnOf(r, t0 + 5) === r.a,
+    `a step drawn as a tick over ${TICK} s, past the place by a hair and onto it exactly`);
+  setTip(d, 1, 2);
+  const tr = d.rings[1];
+  check(near(tiltOf(tr, d.t), 0) && near(tiltOf(tr, d.t + TIP_TIME / 2), TIP) && tiltOf(tr, d.t + TIP_TIME) === 2 * TIP && (setTip(d, 1, 9), tr.tip === TIP_MAX) && (setTip(d, 1, -9), tr.tip === -TIP_MAX) && near(TIP_MAX * TIP, 45 * DEG),
+    `a tip drawn turning over ${TIP_TIME} s; no more than 45 degrees either way`);
+}
+
+// ---------- directions and alignments ----------
+{
+  const is = (v, x, y, z) => near(v[0], x) && near(v[1], y) && near(v[2], z);
+  check([-45, -15, 0, 30].every(t => is(dirOf(t * DEG, 0), 0, 0, -1) && is(dirOf(t * DEG, Math.PI), 0, 0, 1)) && is(dirOf(30 * DEG, Math.PI / 2), Math.cos(30 * DEG), Math.sin(30 * DEG), 0), "every hoop, however tipped, meets the axle at twelve and at six; tipped, it lifts its three o'clock side");
   const s = sky();
-  s.rings[2].a = 1;
-  check(near(angleOf(s, 2, 3), 1 + 3 * STEP) && near(angleOf(s, 2, 11), norm(1 + 11 * STEP)) && id(2, 3) === 2 * PLACES + 3, "a place is a twelfth of a turn on from the last, from the hoop's own twelve o'clock");
-  const is = (d, x, y, z) => near(d[0], x, 1e-9) && near(d[1], y, 1e-9) && near(d[2], z, 1e-9);
-  check(MIXED.every(t => is(dirOf(t, 0), 0, 0, -1) && is(dirOf(t, Math.PI), 0, 0, 1)), "every hoop, however it is tipped, is at the same point at twelve o'clock and at six: the axle");
-  check(is(dirOf(0, Math.PI / 2), 1, 0, 0) && is(dirOf(30 * DEG, Math.PI / 2), Math.cos(30 * DEG), Math.sin(30 * DEG), 0) && dirOf(30 * DEG, Math.PI / 2)[1] > 0 && dirOf(-30 * DEG, Math.PI / 2)[1] < 0, "tipped, a hoop lifts its three o'clock side (and lowers its nine)");
-  check([0.3, 1.7, 4].every(a => MIXED.every(t => near(Math.hypot(...dirOf(t, a)), 1))) && near(sep([1, 0, 0], [0, 1, 0]), Math.PI / 2) && near(sep([0, 0, 1], [0, 0, -1]), Math.PI) && sep([0, 1, 0], [0, 1, 0]) === 0, "a direction is a unit vector, and the angle between two is the angle at the sun");
-  check(near(sep(dirOf(0.3, 1), dirOf(-0.3, 1)), sep(dirOf(-0.3, 1), dirOf(0.3, 1))) && sep(dirOf(0.3, 1), dirOf(-0.3, 1)) > 0.3, "hoops tipped differently are apart away from the axle");
-}
-
-// ---------- alignments ----------
-{
-  const gate = a => { const s = sky(MIXED); return line(s, 2, a, [0, 3], [1, 7], [2, 0]); };
-  const c = clusters(gate(0));
-  check(c.length === 1 && c[0].colour === 2 && c[0].ids.join() === [id(0, 3), id(1, 7), id(2, 0)].join() && near(c[0].dir[2], -1, 1e-9) && c[0].spread < 1e-9, "three of a colour at twelve o'clock, from three hoops tipped differently: in line along the axle");
-  const c6 = clusters(gate(Math.PI));
-  check(c6.length === 1 && near(c6[0].dir[2], 1, 1e-9), "and at six o'clock");
-  check(clusters(gate(1.1)).length === 0 && clusters(gate(Math.PI / 2)).length === 0, "away from the axle, hoops tipped differently are not in line");
-  const flat = line(sky([0.3, 0.3, 0.3, 0, 0]), 1, 1.1, [0, 2], [1, 5], [2, 9]);
-  check(clusters(flat).length === 1 && clusters(flat)[0].spread < 1e-9, "hoops tipped alike are in line anywhere round");
-  const nearly = line(sky([0.3, 0.3 + 0.03, 0.3 - 0.03, 0, 0]), 1, 1.1, [0, 2], [1, 5], [2, 9]);
-  check(clusters(nearly).length === 1 && clusters(line(sky([0.3, 0.3 + 0.4, 0.3, 0, 0]), 1, 1.1, [0, 2], [1, 5], [2, 9])).length === 0, "hoops tipped nearly alike are too, but a few degrees more and they aren't");
-  check(clusters(line(sky(), 0, 1, [0, 3], [1, 7], [2, 0], [3, 9])).length === 1 && clusters(line(sky(), 0, 1, [0, 3], [1, 7], [2, 0], [3, 9], [4, 4]))[0].ids.length === 5 && clusters(line(sky(), 0, 1, [1, 2], [2, 2], [4, 9])).length === 1, "any hoops: four of them, or all five");
-  check(clusters(line(sky(MIXED), 3, 0, [0, 3], [1, 7], [2, 0], [3, 1], [4, 11]))[0].ids.length === 5, "all five along the axle");
-  check(clusters(line(sky(), 1, 1, [0, 3], [1, 7])).length === 0, "two are not an alignment");
-  const mixed = line(sky(), 1, 1, [0, 3], [1, 7]);
-  line(mixed, 3, 1, [2, 0]);
-  check(clusters(mixed).length === 0, "three of different colours aren't");
-  // on one tip the places lie on one circle, so the angle between planets is the turn between them
-  const level = off => line(sky(), 0, 1, [0, 3, off[0] * TOL], [1, 7, off[1] * TOL], [2, 0, off[2] * TOL]);
-  check(clusters(level([-0.9, 0, 0.9])).length === 1 && clusters(level([-1.2, 0, 1.2])).length === 0, `in line means within ${(TOL / DEG).toFixed(1)} degrees of the middle: just in, and just out`);
-  check(clusters(level([0.5, 0, -0.5])).length === 1 && clusters(level([0, 0, 0])).length === 1, "and a ragged line is one");
-  check(clusters(line(sky(), 0, 0, [0, 0, TAU - TOL * 0.9], [1, 0, TOL * 0.9], [2, 0])).length === 1, "across twelve o'clock too");
-  check(!clusters(line(line(sky(), 0, 1, [0, 3], [1, 7]), 0, 1 + 0.5, [2, 0])).length, "the third a long way off, no alignment");
-  const far = line(sky(), 0, 1, [0, 3], [1, 7], [2, 0]);
-  far.rings[3].places[2] = 0; far.rings[3].a = 1 + 0.12 - 2 * STEP;     // a fourth, too far from the middle of the three
-  check(clusters(far).length === 1 && clusters(far)[0].ids.length === 3, "a planet too far off is left out, and the others still count");
-  // a second colour on the same hoops, three places on (so the hoops needn't move), and on two more hoops
-  const two = line(sky(), 0, 1, [0, 3], [1, 7], [2, 0]);
-  two.rings[0].places[6] = 3;
-  two.rings[1].places[10] = 3;
-  line(two, 3, 1 + 3 * STEP, [3, 2], [4, 5]);
+  s.rings[2].a = 5;
+  check(seatOf(s, 2, 3) === 8 && seatOf(s, 2, 9) === 2 && near(angleOf(s, 2, 9), 2 * STEP) && keyOf(s.rings[2], 7) === "N" && keyOf(s.rings[2], 1) === "S" && keyOf(s.rings[2], 3) === "0@8", "a place is a twelfth of a turn on from the last, from the hoop's own twelve o'clock; its direction a name");
+  // at the gates, whatever the tips
+  const gate = seat => line(sky(MIXED), 2, seat, [0, 3], [1, 7], [3, 0]);
+  const n = clusters(gate(0)), sth = clusters(gate(6));
+  check(n.length === 1 && n[0].colour === 2 && n[0].key === "N" && n[0].ids.join() === [id(0, 3), id(1, 7), id(3, 0)].join() && is(n[0].dir, 0, 0, -1) && sth.length === 1 && sth[0].key === "S" && is(sth[0].dir, 0, 0, 1),
+    "three of a colour at twelve o'clock on hoops tipped every way are in line, along the axle; and at six");
+  const split = line(line(sky(MIXED), 2, 0, [0, 3], [1, 7]), 2, 6, [3, 0]);
+  check(!clusters(split).length, "two at twelve and one at six are not: they're on opposite sides of the sun");
+  check([1, 2, 3, 4, 5, 7, 8, 9, 10, 11].every(q => !clusters(gate(q)).length), "away from the axle, hoops tipped differently are never in line");
+  // on hoops tipped alike, anywhere
+  check([1, 2, 3, 4, 5, 7, 8, 9, 10, 11].every(q => clusters(line(sky([1, 1, -2, 1]), 0, q, [0, 2], [1, 5], [3, 9])).length === 1), "on hoops tipped alike, at every place round");
+  check(!clusters(line(sky([1, 1, 2, 3]), 0, 4, [0, 2], [1, 5], [2, 9])).length && !clusters(line(line(sky([1, 1, 1, 0]), 0, 4, [0, 2], [1, 5]), 0, 5, [2, 9])).length, "not on hoops a tip apart, nor a place apart: exactly, or not at all");
+  check(clusters(line(sky(MIXED), 1, 0, [0, 1], [1, 2], [2, 3], [3, 4]))[0].members.length === 4 && clusters(line(sky([2, 2, 2, 2]), 1, 9, [0, 1], [1, 2], [2, 3], [3, 4]))[0].members.length === 4, "four: at a gate, or on hoops all tipped alike");
+  check(!clusters(line(sky(), 1, 3, [0, 3], [1, 7])).length, "two are not an alignment");
+  const mixed = line(line(sky(), 1, 3, [0, 3], [1, 7]), 3, 3, [2, 0]);
+  check(!clusters(mixed).length, "three of different colours aren't");
+  const two = line(line(sky(MIXED), 0, 0, [0, 1], [1, 2], [2, 3]), 3, 6, [0, 7], [1, 8], [3, 4]);
   const cs = clusters(two);
-  check(cs.length === 2 && cs[0].ids.length === 4 && cs[0].colour === 3 && cs[1].ids.length === 3 && cs[1].colour === 0 && !cs[0].ids.some(x => cs[1].ids.includes(x)), "two at once, the larger first, sharing no planet");
+  check(cs.length === 2 && cs[0].colour === 0 && cs[0].key === "N" && cs[1].colour === 3 && cs[1].key === "S" && !cs[0].ids.some(x => cs[1].ids.includes(x)), "two at once, sharing no planet");
 }
 
-// ---------- the hoops turn and tip ----------
+// ---------- a line made, and struck ----------
 {
-  const s = newGame(3), a0 = s.rings.map(r => r.a);
-  step(s, 1);
-  check(s.rings.every((r, k) => near(norm(a0[k] + START_SPEEDS[k]), r.a, 1e-9)) && near(s.t, 1), "each hoop turns at the speed it is set to, clockwise where it's positive");
-  const h = sky(), w0 = h.rings[1].a;
-  h.rings[1].w = h.rings[1].v = 1;
-  h.rings[1].held = true;
-  run(h, 3);
-  check(h.rings[1].a === w0, "a hoop with a finger on it is the finger's: it doesn't turn by itself");
-  const t = sky();
-  t.rings[0].w = t.rings[0].v = 0.1;
-  setSpeed(t, 0, 0);
-  const a1 = t.rings[0].a;
-  run(t, ACCEL, 0.01);
-  check(near(t.rings[0].v, 0.1 * Math.exp(-1), 0.002) && near(t.rings[0].a - a1, 0.1 * ACCEL * (1 - Math.exp(-1)), 0.002), `set to a new speed, a hoop eases to it: 63% of the way after ${ACCEL} seconds`);
-  run(t, 4, 0.05);
-  const rest = t.rings[0].a, drift = rest - a1;
-  run(t, 6, 0.05);
-  check(t.rings[0].v === 0 && t.rings[0].a === rest && drift > 0 && drift < 0.1 * ACCEL * 1.01, `held, it stands still (after coasting ${(drift / DEG).toFixed(1)} degrees), and stays where it is however long`);
-  const u = sky();
-  setSpeed(u, 1, 5); setSpeed(u, 2, -5);
-  check(u.rings[1].w === VMAX && u.rings[2].w === -VMAX, "no faster than the most a hoop can be sent");
-  const g = sky();
-  grab(g, 1);
-  turnTo(g, 1, TAU + 0.25);
-  check(g.rings[1].held && g.rings[1].v === 0 && near(g.rings[1].a, 0.25) && (release(g, 1, 0.2), !g.rings[1].held && g.rings[1].w === 0.2 && g.rings[1].v === 0.2) && (release(g, 1, 9), g.rings[1].w === VMAX), "a finger grabs, turns to an angle (wrapped), and lets go at a speed");
-  const big = newGame(3);
-  run(big, 20);
-  check(big.rings.every(r => r.a >= 0 && r.a < TAU), "angles stay within one turn");
-  const tip = sky();
-  setTilt(tip, 2, 20 * DEG);
-  run(tip, TILT_EASE, 0.01);
-  check(near(tip.rings[2].tilt, 20 * DEG * (1 - Math.exp(-1)), 0.002) && tip.rings[2].tiltTo === 20 * DEG, `a hoop tips to the angle it is set to, 63% of the way after ${TILT_EASE} seconds`);
-  run(tip, 4);
-  check(tip.rings[2].tilt === 20 * DEG && (setTilt(tip, 2, 2), tip.rings[2].tiltTo === TILT_MAX) && (setTilt(tip, 2, -2), tip.rings[2].tiltTo === -TILT_MAX), "and gets there; no more than 45 degrees either way");
-  const stay = line(sky(MIXED), 0, 0, [0, 3], [1, 7], [2, 0]);
-  setTilt(stay, 0, 45 * DEG); setTilt(stay, 1, -45 * DEG);
-  const dir0 = clusters(stay)[0].dir;
-  run(stay, 0.1 + 0.0, 0.01);
-  const during = clusters(stay);
-  check(during.length === 1 && sep(during[0].dir, dir0) < 1e-9, "tipping a hoop doesn't move a planet at twelve or six: an alignment on the axle stands while its hoops tip");
-}
-
-// ---------- an alignment clears ----------
-{
-  const s = line(sky(), 1, 2, [0, 3], [1, 7], [2, 0]);
-  step(s, DWELL / 2);
-  check(s.live.clusters.length === 1 && near(s.live.clusters[0].progress, 0.5, 0.02) && s.live.clusters[0].n === 3 && s.score === 0 && planets(s) === 3, "an alignment charges for a blink: half way after half of it");
-  const ev = run(s, DWELL * 2, 0.05);
-  const lock = ev.find(e => e.type === "lock");
-  check(DWELL <= 0.15 && lock && lock.n === 3 && lock.colour === 1 && lock.gain === AWARD[3] && lock.combo === 1 && sep(lock.dir, dirOf(0, 2)) < 1e-9 && lock.members.length === 3 && planets(s) === 0 && s.score === AWARD[3] && s.cleared === 3 && s.aligned === 1 && !s.live.clusters.length,
-    `held for ${DWELL} seconds it clears: ${AWARD[3]} for three`);
-  const four = run(line(sky(), 0, 1, [0, 1], [1, 2], [2, 3], [3, 4]), 1).find(e => e.type === "lock"), five = run(line(sky(), 0, 1, [0, 1], [1, 2], [2, 3], [3, 4], [4, 5]), 1).find(e => e.type === "lock");
-  check(four.n === 4 && four.gain === AWARD[4] && five.n === 5 && five.gain === AWARD[5] && AWARD[5] > 2 * AWARD[4] && AWARD[4] > 2 * AWARD[3], `four ${AWARD[4]}, five ${AWARD[5]}: each worth well more than the one before`);
-  const broken = line(sky(), 1, 2, [0, 3], [1, 7], [2, 0]);
-  step(broken, 0.05);
-  broken.rings[2].a += 0.3;                                   // a hoop is moved away
-  step(broken, 0.05);
-  broken.rings[2].a -= 0.3;                                   // and back: starting again
-  step(broken, 0.05);
-  check(broken.live.clusters.length === 1 && broken.live.clusters[0].progress < 0.6 && broken.score === 0 && planets(broken) === 3 && run(broken, DWELL * 2).some(e => e.type === "lock"), "an alignment that breaks has to start again");
-  const grows = line(sky(), 1, 2, [0, 3], [1, 7], [2, 0]);
-  step(grows, DWELL * 0.6);
-  grows.rings[3].places[5] = 1;
-  grows.rings[3].a = norm(2 - 5 * STEP);
-  step(grows, DWELL * 0.3);
-  check(grows.live.clusters.length === 1 && grows.live.clusters[0].n === 4 && grows.live.clusters[0].progress > 0.6, "a fourth joining keeps what it had charged");
-  const ends = run(grows, 0.5).find(e => e.type === "lock");
-  check(ends.n === 4 && planets(grows) === 0, "and all four clear together");
-}
-
-// ---------- very fast, opposite ways ----------
-{
-  // three hoops tipped alike meet at one angle after two seconds: two going very fast one way, one very fast the other
-  const s = sky([0.2, 0.2, 0.2, 0, 0]), meet = 1.3, T = 2;
-  const marks = [[0, 3, 1], [1, 7, -1], [2, 0, 1]];
-  for (const [ring, place, dir] of marks) {
-    s.rings[ring].places[place] = 0;
-    s.rings[ring].a = norm(meet - place * STEP - dir * VMAX * T);
-    s.rings[ring].w = s.rings[ring].v = dir * VMAX;
-  }
-  const ev = run(s, 4, 0.02), lock = ev.find(e => e.type === "lock");
-  check(lock && lock.n === 3 && s.score === AWARD[3] && s.t > T - 0.5 && s.t < T + 0.5 + 4, "one hoop going very fast one way and two the other clear on passing: no stopping, no hand to place them");
-  const slow = sky([0.2, 0.2, 0.2, 0, 0]);
-  for (const [ring, place, dir] of marks) {
-    slow.rings[ring].places[place] = 0;
-    slow.rings[ring].a = norm(meet - place * STEP - dir * SPEED[1] * T);
-    slow.rings[ring].w = slow.rings[ring].v = dir * SPEED[1];
-  }
-  check(run(slow, 4, 0.02).some(e => e.type === "lock"), "slow ones do too: they stay in line longer");
+  // by a stop: two standing at twelve o'clock, the third a place short, set going: the beat takes it there, but a hoop
+  // set going makes no line; stopped there, it does, and the next beat strikes it
+  const s = line(sky(MIXED), 1, 0, [0, 3], [1, 7]);
+  s.rings[2].places[4] = 1; s.rings[2].a = mod(0 - 4 - 1);    // a place short of twelve
+  setRing(s, 2, 3);
+  const passing = step(s, 1.05);
+  check(seatOf(s, 2, 4) === 0 && passing.some(e => e.type === "beat") && !s.locks.length && !clusters(s).length && !locks(step(s, 0.5)).length, "a hoop going round makes no line, even standing in one between its steps: nothing lines up by chance");
+  setRing(s, 2, 0);
+  check(s.locks.length === 1 && s.locks[0].key === "N" && near(s.locks[0].at, s.t), "stopped there, it stands in line");
+  const ev = step(s, 1), lk = locks(ev);
+  check(lk.length === 1 && lk[0].n === 3 && lk[0].gain === AWARD[3] && lk[0].key === "N" && s.score === AWARD[3] && planets(s) === 0 && s.cleared === 3 && s.aligned === 1 && !s.locks.length && ev[0].type === "beat",
+    `and the next beat strikes it: ${AWARD[3]} for three`);
+  const late = line(sky(MIXED), 1, 0, [0, 3], [1, 7]);
+  late.rings[2].places[4] = 1;
+  step(late, 0.9);
+  line(late, 1, 0, [2, 4]);                                      // in line a tenth of a second before a beat
+  check(!locks(step(late, 0.2)).length && late.locks.length === 1 && locks(step(late, 1)).length === 1, `one made less than ${DWELL} s before a beat waits for the one after, so what made it has been drawn`);
+  const four = locks(step(line(sky(), 0, 4, [0, 1], [1, 2], [2, 3], [3, 4]), 1.05));
+  check(four.length === 1 && four[0].n === 4 && four[0].gain === AWARD[4] && AWARD[4] >= 3 * AWARD[3], `four ${AWARD[4]}: better than three lines of three`);
+  // a fourth stopped in line before the beat joins the three, and all four are struck together
+  const join = line(sky(MIXED), 2, 6, [0, 1], [1, 2], [2, 3]);
+  join.rings[3].places[8] = 2; join.rings[3].a = mod(6 - 8);
+  setRing(join, 3, 2);                                           // going, so not in line yet
+  step(join, 0.4);
+  setRing(join, 3, 0);
+  const jl = locks(step(join, 1));
+  check(jl.length === 1 && jl[0].n === 4 && near(join.lastLock, 1), "a fourth hoop stopped in line before the beat joins the three: all four are struck together");
+  // by a landing: two in place, the third foretold onto the place that's at twelve on its hoop
+  const l = line(sky(MIXED), 2, 0, [0, 3], [1, 7]);
+  l.rings[3].a = 5;
+  l.next = { due: 0.5, ring: 3, place: 7, colour: 2 };
+  const le = step(l, 1.05);
+  check(le.some(e => e.type === "land" && e.ring === 3) && locks(le).length === 1 && locks(le)[0].members.some(m => m.ring === 3), "a planet landing completes one");
+  // by a tip: three at four o'clock, two hoops tipped alike, the third tipped to them
+  const tp = line(sky([1, 1, 3, -1]), 0, 4, [0, 2], [1, 5], [2, 9]);
+  check(!clusters(tp).length && setTip(tp, 2, 1) && tp.locks.length === 1 && locks(step(tp, 1.05)).length === 1 && planets(tp) === 0, "a tip completes one: tipped alike, they're in line at once, and the beat strikes them");
+  // one that breaks before the beat strikes it is gone
+  const br = line(sky([1, 1, 1, -1]), 0, 4, [0, 2], [1, 5], [2, 9]);
+  step(br, 0.5);
+  setTip(br, 2, 2);
+  const br2 = line(sky([1, 1, 1, -1]), 0, 4, [0, 2], [1, 5], [2, 9]);
+  step(br2, 0.5);
+  setRing(br2, 0, -1);
+  check(!br.locks.length && !locks(step(br, 2)).length && planets(br) === 3 && !br2.locks.length && !locks(step(br2, 0.6)).length, "one broken before the beat (a hoop tipped away, or set going) isn't struck");
+  // a fourth landing in it while it shows keeps its time, and all four are struck
+  const g = line(sky(MIXED), 0, 6, [0, 1], [1, 2], [2, 3]);
+  g.rings[3].a = 2;
+  g.next = { due: DWELL / 2, ring: 3, place: 4, colour: 0 };
+  const gl = locks(step(g, 1.05));
+  check(gl.length === 1 && gl[0].n === 4 && gl[0].gain === AWARD[4] && near(g.lastLock, 1), "a fourth landing in it while it stands: all four are struck together");
 }
 
 // ---------- the score and the combo ----------
 {
   check(multiplier(0) === 1 && multiplier(1) === 1 && multiplier(2) === 1.25 && multiplier(3) === 1.5 && multiplier(30) === 3, "the multiplier: none for the first, a quarter more for each in a run, three times at most");
-  const s = line(sky(), 0, 1, [0, 1], [1, 2], [2, 3]);
-  s.rings[0].places[7] = 2; s.rings[1].places[8] = 2; s.rings[2].places[9] = 2;    // half a turn on from the first three: another alignment, opposite
-  const ev = run(s, 1).filter(e => e.type === "lock");
-  const [first, second] = ev;
-  check(ev.length === 2 && first.combo === 1 && second.combo === 2 && first.gain === AWARD[3] && second.gain === Math.round(AWARD[3] * 1.25) && s.score === first.gain + second.gain, "two in a run: the second a quarter better");
+  const two = line(line(sky(MIXED), 0, 0, [0, 1], [1, 2], [2, 3]), 3, 6, [0, 7], [1, 8], [3, 4]);
+  const [first, second] = locks(step(two, 1.05));
+  check(first.combo === 1 && second.combo === 2 && first.gain === AWARD[3] && second.gain === Math.round(AWARD[3] * 1.25) && two.score === first.gain + second.gain, "two at once: the second counts on the first's combo");
   const late = line(sky(), 0, 1, [0, 1], [1, 2], [2, 3]);
-  run(late, 1);
-  late.t += COMBO_WINDOW + 1;
+  step(late, 1.05);
+  step(late, COMBO_WINDOW);
   line(late, 2, 4, [0, 5], [1, 6], [2, 7]);
-  const again = run(late, 1).find(e => e.type === "lock");
-  check(again.combo === 1 && again.gain === AWARD[3], `after ${COMBO_WINDOW} seconds the run is over`);
+  const again = locks(step(late, 1))[0];
+  check(again && again.combo === 1 && again.gain === AWARD[3], `after ${COMBO_WINDOW} seconds the run is over`);
 }
 
-// ---------- the planets land ----------
+// ---------- the planets land, on the clock ----------
 {
-  check(gap(0) === 6.5 && near(gap(80), 5.5) && gap(10000) === 2.4 && [0, 30, 60, 120, 240, 300, 400].every((t, k, a) => k === 0 || gap(t) <= gap(a[k - 1])), "a planet every six and a half seconds at first, quicker as the game goes on, to a floor of 2.4");
+  check(gap(0) === 6.5 && [0, 30, 60, 120, 240, 300, 400, 600].every((t, k, a) => k === 0 || gap(t) <= gap(a[k - 1])) && gap(1e5) > 0, `a planet every ${gap(0)} seconds at first, quicker as the game goes on (${gap(300).toFixed(1)} at five minutes)`);
   const s = newGame(9), due = s.next.due, { ring, place, colour } = s.next, before = planets(s);
-  s.rings.forEach(r => { r.held = true; });
-  const ev = run(s, due - 0.05, 0.05);
+  const ev = run(s, due - 0.05);
   check(!ev.some(e => e.type === "land") && planets(s) === before, "not before it's due");
-  const ev2 = run(s, 0.2, 0.05), landed = ev2.find(e => e.type === "land");
-  check(landed && landed.ring === ring && landed.place === place && landed.colour === colour && s.rings[ring].places[place] === colour && planets(s) === before + 1, "it lands in the place foretold, in its hoop's own frame (so it turns with it)");
-  check(s.next.due > due && s.next.due - s.t <= gap(s.t) && s.next.due - s.t > gap(s.t) - 0.25 && s.rings[s.next.ring].places[s.next.place] === -1, "and the next is foretold, for an empty place");
-  check(FORETELL > 0 && FORETELL < gap(0), "the planet foretold is shown a moment ahead: not for the whole of the first, easy gaps");
-  // on a full hoop the newcomer finds another
+  setRing(s, ring, 3);
+  const l = run(s, 0.2).find(e => e.type === "land");
+  check(l && l.ring === ring && l.place === place && l.colour === colour && s.rings[ring].places[place] === colour && planets(s) === before + 1, "it lands in the place foretold, on its hoop (so it travels with it)");
+  check(s.next.due > due && near(s.next.due - due, gap(due)) && s.rings[s.next.ring].places[s.next.place] === -1 && FORETELL > 0 && FORETELL < gap(0), "and the next is foretold, for an empty place, shown a moment ahead");
+  // on the clock: the same landings at every tempo
+  const at = tempo => { const g = newGame(13, tempo); return run(g, 120, 0.1).filter(e => e.type === "land").map(e => `${e.ring}.${e.place}`).join(); };
+  check(TEMPOS.every((_, k) => at(k) === at(0)) && at(0).split(",").length >= 18, "landings keep the clock, not the beat: the same at every tempo");
   const f = sky();
   f.rings[0].places.fill(0);
   f.next = { due: 0.1, ring: 0, place: 4, colour: 1 };
-  const ev3 = run(f, 0.2, 0.05), l = ev3.find(e => e.type === "land");
-  check(l && l.ring !== 0 && f.rings[l.ring].places[l.place] === 1, "a place taken in the meantime sends it to a free one");
-  // no room
+  const l3 = run(f, 0.2).find(e => e.type === "land");
+  check(l3 && l3.ring !== 0 && f.rings[l3.ring].places[l3.place] === 1, "a place taken in the meantime sends it to a free one");
   const full = newGame(5);
-  full.rings.forEach(r => { r.places.fill(0); r.held = true; });
+  full.rings.forEach(r => r.places.fill(0));
   full.next.due = 0.1;
-  const ev4 = run(full, 0.3, 0.05);
-  check(ev4.some(e => e.type === "over") && full.over && room(full) === 0, "no place for the next planet ends the game");
+  const e4 = run(full, 0.3);
+  check(e4.some(e => e.type === "over") && full.over && room(full) === 0, "no place for the next planet ends the game");
   const t0 = full.t;
-  check(step(full, 1).length === 0 && full.t === t0, "and nothing goes on after");
-  const keep = newGame(6);
-  keep.rings.forEach(r => { r.held = true; });
-  let lands = 0, last = 0, gapsOk = true;
-  for (let t = 0; t < 120; t += 0.05) { for (const e of step(keep, 0.05)) if (e.type === "land") { if (lands && keep.t - last > gap(keep.t) + 0.3) gapsOk = false; last = keep.t; lands++; } if (keep.over) break; }
-  check(lands >= 18 && gapsOk, `${lands} planets in two minutes, one every few seconds`);
+  check(step(full, 1).length === 0 && full.t === t0 && !setRing(full, 0, 3) && !setTip(full, 0, 1) && !setTempo(full, 0), "and nothing goes on after");
+  // a full orrery with an alignment showing: it clears first, and the planet lands in the room it leaves
+  const last = sky(MIXED);
+  last.rings.forEach((r, k) => r.places.forEach((_, p) => { r.places[p] = (k + p) % 2 ? 1 : 3; }));
+  line(last, 2, 0, [0, 0], [1, 0], [2, 0]);
+  last.next = { due: 0.05, ring: 3, place: 5, colour: 0 };
+  const e5 = run(last, 1.1, 0.01);
+  check(!last.over && locks(e5).length >= 1 && e5.findIndex(e => e.type === "lock") < e5.findIndex(e => e.type === "land"), "a full orrery with a line standing: the beat strikes it first, and the planet lands in its room");
 }
 
 // ---------- saved and opened again ----------
 {
-  const s = newGame(21);
-  turnTo(s, 1, 1);
-  setSpeed(s, 1, SPEED[2]);
-  setTilt(s, 3, 30 * DEG);
-  s.rings[1].held = false;
-  run(s, 7);
+  const s = newGame(21, 2);
+  run(s, 3.3, 1 / 60);
+  setRing(s, 1, 2); setRing(s, 3, -3); setTip(s, 2, 1); setTempo(s, 3);
+  run(s, 4.1, 1 / 60);
   const saved = JSON.parse(JSON.stringify(s)), a = copy(s), b = JSON.parse(JSON.stringify(saved));
-  run(a, 10);
-  run(b, 10);
-  check(valid(saved) && JSON.stringify(a) === JSON.stringify(b) && !("live" in copy(s) && copy(s).live), "a game saved and opened again goes on as it would have");
+  run(a, 20, 1 / 60);
+  run(b, 20, 0.5);
+  const same = (x, y) => JSON.stringify({ ...x, t: x.t.toFixed(6) }) === JSON.stringify({ ...y, t: y.t.toFixed(6) });
+  check(valid(saved) && same(a, b), "a game saved and opened again goes on as it would have, frame by frame or half a second at a time");
   const keep = JSON.stringify(s);
   run(copy(s), 5);
   check(JSON.stringify(s) === keep, "a copy to try things on leaves the game as it was");
-  check(!valid(null) && !valid({ v: 1, places: [] }) && !valid({ ...saved, v: 2 }) && !valid({ ...saved, rings: saved.rings.slice(1) }) && !valid({ ...saved, next: null }) && !valid({ ...saved, rings: saved.rings.map(r => ({ ...r, tiltTo: undefined })) }), "a game from the earlier orrery, or a broken one, isn't taken");
+  const v3 = { v: 3, seed: 1, n: 0, t: 12, rings: Array.from({ length: 5 }, () => ({ a: 1.2, w: 0.05, v: 0.05, tilt: 0, tiltTo: 0, held: false, places: new Array(12).fill(-1) })), next: { due: 3, ring: 0, place: 0, colour: 0 }, locks: [], score: 400 };
+  check(!valid(v3) && !valid({ ...saved, v: 3 }) && !valid(null) && !valid({ ...saved, rings: saved.rings.slice(1) }) && !valid({ ...saved, rings: saved.rings.map(r => ({ ...r, a: 1.5 })) }) && !valid({ ...saved, next: null }) && !valid({ ...saved, tempo: 9 }),
+    "a game saved by the earlier orrery (version 3), or a broken one, isn't taken: it's replaced by a new game");
 }
 
 // ---------- whole games ----------
+// Players with a person's hands (the harness): how long each one takes to look and decide what to line up, to tap a hoop
+// (twice to tip it), to press a button, and to see a hoop arrive and press still, and how much longer that takes for
+// each other hoop it's keeping count of at the same time (`juggle`); each varies as a person's would (a spread of about
+// `jitter` of itself, now and then much slower), game by game the same from the seed.
+const HANDS = {
+  careful: { think: 2.5, tap: 0.8, press: 0.6, react: 0.4, juggle: 0.3, jitter: 0.25 },
+  quick: { think: 1.2, tap: 0.55, press: 0.45, react: 0.3, juggle: 0.2, jitter: 0.2 },
+};
+const LIMIT = Number(ARG("limit") || 1500);                     // seconds a game is played to at most
+if (MEASURE && ARG("pace")) { const [first, least, half] = ARG("pace").split(",").map(Number); Object.assign(PACE, { first, least, half }); }
+const shortest = (from, to) => { const d = mod(to - from); return d > 6 ? d - 12 : d; };
+const perms = a => (a.length < 2 ? [a] : a.flatMap((x, i) => perms([...a.slice(0, i), ...a.slice(i + 1)]).map(p => [x, ...p])));
+const subsets = (a, k) => (k === 0 ? [[]] : a.length < k ? [] : [...subsets(a.slice(1), k - 1).map(p => [a[0], ...p]), ...subsets(a.slice(1), k)]);
+const beatTime = (s, b) => (b <= s.beat ? s.lastBeat : s.beatAt + (b - s.beat - 1) * period(s));
+const beatAfter = (s, t) => (t < s.beatAt ? s.beat + 1 : s.beat + 2 + Math.floor((t - s.beatAt) / period(s)));
+
+/**
+ * The alignments worth trying: for each colour, at either gate (any tips) or at any other place on hoops tipped alike
+ * (tipping up to two hoops to match, if `tips`), three or four hoops each bringing its planet of that colour nearest
+ * the place: [{ colour, key, n, members: [{ ring, place, d (steps, signed), tip (to tip it to, or null) }] }].
+ */
+function options(s, tips) {
+  const out = [];
+  for (let c = 0; c < COLOURS; c++) {
+    const nearest = s.rings.map(r => {
+      const best = new Array(PLACES).fill(null);
+      r.places.forEach((col, p) => {
+        if (col !== c) return;
+        for (let q = 0; q < PLACES; q++) { const d = shortest(mod(r.a + p), q); if (!best[q] || Math.abs(d) < Math.abs(best[q].d)) best[q] = { place: p, d }; }
+      });
+      return best;
+    });
+    const add = (key, members) => {
+      const can = members.filter(Boolean);
+      for (const k of [3, 4]) for (const set of subsets(can, k)) if (set.filter(m => m.tip != null).length <= 2) out.push({ colour: c, key, n: k, members: set });
+    };
+    for (const q of [0, 6]) add(q ? "S" : "N", nearest.map((b, ring) => b[q] && { ring, ...b[q], tip: null }));
+    for (let T = -TIP_MAX; T <= TIP_MAX; T++) {
+      if (!tips && !s.rings.some(r => r.tip === T)) continue;
+      for (let q = 1; q < PLACES; q++) {
+        if (q === 6) continue;
+        add(`${T}@${q}`, nearest.map((b, ring) => b[q] && (s.rings[ring].tip === T || tips) && { ring, ...b[q], tip: s.rings[ring].tip === T ? null : T }));
+      }
+    }
+  }
+  return out;
+}
+/**
+ * How a plan would go, played with a person's usual delays: the tips first, then the hoops set going in `order` at their
+ * rhythms; one at a time (`one`: each stopped as it arrives before the next is set) or all at once (then each stopped as
+ * it arrives, a moment later for each other hoop still going). When the beat would strike the line, or null if the hand
+ * couldn't stop a hoop before its next step, or a fourth wouldn't stand before the beat struck the first three.
+ */
+function rehearse(s, me, hands, opt, order, levels, one) {
+  const margin = 0.3;
+  let t = s.t, chosen = me.chosen, mode = me.mode;
+  const taps = (ring, m) => (chosen === ring ? (mode === m ? 0 : 1) : m === "tilt" ? 2 : 1);
+  const to = (ring, m) => { t += taps(ring, m) * hands.tap; chosen = ring; mode = m; };
+  const ready = opt.members.filter(m => !m.d && m.tip == null).map(() => s.t);     // in place already, and standing
+  for (const m of opt.members) if (m.tip != null) { to(m.ring, "tilt"); t += hands.press; if (!m.d) ready.push(t); }
+  const arrive = [], next = [];
+  order.forEach((m, i) => {
+    to(m.ring, "speed");
+    t += hands.press;
+    arrive[i] = beatAfter(s, t) + (Math.abs(m.d) - 1) * EVERY[levels[i]];
+    next[i] = arrive[i] + EVERY[levels[i]];
+    if (one) { t = Math.max(t, beatTime(s, arrive[i]) + hands.react); ready.push(t); }
+  });
+  const stops = [];
+  if (!one) {
+    for (const i of order.map((_, i) => i).sort((i, j) => arrive[i] - arrive[j])) {
+      to(order[i].ring, "speed");
+      t = Math.max(t, beatTime(s, arrive[i]) + hands.react + hands.juggle * (order.length - stops.length - 1));
+      if (t > beatTime(s, next[i]) - margin) return null;
+      stops.push(i);
+      ready.push(t);
+    }
+  }
+  ready.sort((a, b) => a - b);
+  const done = strikeAt(s, ready[2]);
+  if (opt.n === 4 && !(ready[3] < done - 0.05)) return null;
+  return { done, order, levels, one, stops };
+}
+/** The plan for the cheapest alignment worth most for its time: what to tip, which hoops to set which way at which rhythm and in what order, and which to stop. */
+function plan(s, me, hands, tips) {
+  const P = period(s), opts = options(s, tips);
+  const worth = o => (o.n + AWARD[o.n] / 100);
+  const rough = o => {
+    const moving = o.members.filter(m => m.d), tipped = o.members.filter(m => m.tip != null).length;
+    return tipped * (3 * hands.tap + hands.press) + moving.length * 2 * (hands.tap + hands.press) + Math.max(0, ...moving.map(m => Math.abs(m.d) - 1)) * P + P;
+  };
+  const top = opts.map(o => ({ o, r: worth(o) / (rough(o) + hands.think) })).sort((a, b) => b.r - a.r).slice(0, 6);
+  let best = null;
+  for (const { o } of top) {
+    const moving = o.members.filter(m => m.d);
+    for (const order of perms(moving)) {
+      const tries = [[order.map(() => 3), true]];
+      const lv = order.length > 3 ? [3, 2] : [3, 2, 1];
+      const grid = order.reduce((acc) => acc.flatMap(p => lv.map(l => [...p, l])), [[]]);
+      for (const levels of grid) tries.push([levels, false]);
+      for (const [levels, one] of tries) {
+        const r = rehearse(s, me, hands, o, order, levels, one);
+        if (!r) continue;
+        const rate = worth(o) / (r.done - s.t + hands.think);
+        if (!best || rate > best.rate) best = { ...r, opt: o, rate };
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * A person playing: looks (thinks), plans the alignment worth most for its time, does it with the hands it has (a tap to
+ * choose a hoop, two to tip it, a press for each button, a moment to see a hoop arrive and stop it), watches for it to
+ * clear, stops whatever is still going, and looks again. A hoop that steps on past its place (a stop too late) spoils
+ * the plan, and it looks again. `tips: false` never tips a hoop.
+ */
+function careful(hands, seed, { tips = true, flat = false } = {}) {
+  let x = (seed * 2654435761 + 977) >>> 0;
+  const rnd = () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const vary = v => v * Math.exp(hands.jitter * Math.sqrt(-2 * Math.log(1 - rnd())) * Math.cos(TAU * rnd()));
+  const me = { chosen: -1, mode: "speed" }, stats = { plans: 0, tips: 0, misses: 0, stops: 0 };
+  let todo = [{ kind: "think" }], busy = null, waiting = null, goal = null;
+  if (flat) todo = [{ kind: "level" }, { kind: "think" }];          // every hoop tipped like the first, before anything else
+  const moved = new Map();                                       // a hoop set going: { steps taken since, steps it needs }
+  const halt = s => s.rings.flatMap((r, ring) => (r.set ? [ring] : [])).sort((a, b) => (b === me.chosen) - (a === me.chosen)).flatMap(ring => [{ kind: "pick", ring, mode: "speed" }, { kind: "set", ring, k: 0 }]);
+  function start(s, job) {
+    const t = s.t;
+    if (job.kind === "think") return { at: t + vary(hands.think), then: () => {
+      const p = plan(s, me, hands, tips);
+      stats.plans++;
+      if (!p) { todo.push({ kind: "think" }); return; }
+      goal = { ids: p.opt.members.map(m => id(m.ring, m.place)), until: p.done + 1.5 + (p.done - s.t) * 0.3 };
+      for (const m of p.opt.members) if (m.tip != null) todo.push({ kind: "pick", ring: m.ring, mode: "tilt" }, { kind: "tip", ring: m.ring, k: m.tip });
+      p.order.forEach((m, i) => {
+        todo.push({ kind: "pick", ring: m.ring, mode: "speed" }, { kind: "set", ring: m.ring, k: Math.sign(m.d) * p.levels[i], steps: Math.abs(m.d) });
+        if (p.one) todo.push({ kind: "stop", ring: m.ring });
+      });
+      for (const i of p.stops) todo.push({ kind: "pick", ring: p.order[i].ring, mode: "speed" }, { kind: "stop", ring: p.order[i].ring });
+      todo.push({ kind: "watch" });
+    } };
+    if (job.kind === "level") return { at: t, then: () => { const T = s.rings[0].tip; todo.unshift(...s.rings.flatMap((r, ring) => (r.tip === T ? [] : [{ kind: "pick", ring, mode: "tilt" }, { kind: "tip", ring, k: T }]))); } };
+    if (job.kind === "pick") {
+      const n = me.chosen === job.ring ? (me.mode === job.mode ? 0 : 1) : job.mode === "tilt" ? 2 : 1;
+      return { at: t + n * vary(hands.tap), then: () => { me.chosen = job.ring; me.mode = job.mode; } };
+    }
+    if (job.kind === "set") return { at: t + vary(hands.press), then: () => { if (setRing(s, job.ring, job.k) && job.steps) moved.set(job.ring, { taken: 0, need: job.steps }); } };
+    if (job.kind === "tip") return { at: t + vary(hands.press), then: () => { if (setTip(s, job.ring, job.k)) stats.tips++; } };
+    if (job.kind === "stop") {
+      const m = moved.get(job.ring);
+      if (!m || !s.rings[job.ring].set) return { at: t, then: () => {} };
+      if (m.taken < m.need) return null;                         // not there yet: wait for the next beat
+      if (m.taken > m.need) return { at: t, then: () => { stats.misses++; todo = [...halt(s), { kind: "think" }]; } };
+      const others = s.rings.filter((r, ring) => ring !== job.ring && r.set).length;
+      return { at: Math.max(t, s.rings[job.ring].moved + vary(hands.react + hands.juggle * others)), then: () => {
+        if (moved.get(job.ring).taken === m.need) { setRing(s, job.ring, 0); stats.stops++; }
+        else { stats.misses++; todo = [...halt(s), { kind: "think" }]; }
+      } };
+    }
+    if (job.kind === "watch") {
+      const gone = goal.ids.every(i => s.rings[Math.floor(i / PLACES)].places[i % PLACES] < 0);
+      if (!gone && s.t < goal.until) return null;
+      return { at: t, then: () => { todo.push(...halt(s), { kind: "think" }); } };
+    }
+    throw new Error(job.kind);
+  }
+  return {
+    stats,
+    /** When it next does something: its hand free again, or the next beat or landing if it's waiting to see what they do. */
+    wake: s => {
+      if (busy) return busy.at;
+      if (!waiting) return s.t;
+      if (waiting.kind === "stop") return s.beatAt;
+      return Math.max(s.t + 1e-6, Math.min(s.beatAt, s.next.due, goal.until));
+    },
+    saw(e) { if (e.type === "beat") for (const { ring } of e.stepped) { const m = moved.get(ring); if (m) m.taken++; } },
+    act(s) {
+      if (busy && s.t >= busy.at - 1e-9) { const b = busy; busy = null; b.then(); }
+      while (!busy && todo.length) {
+        const job = todo[0], b = start(s, job);
+        if (!b) { waiting = job; return; }
+        waiting = null;
+        todo.shift();
+        if (b.at <= s.t + 1e-9) b.then(); else { busy = b; return; }
+      }
+    },
+  };
+}
+/** A person pressing at random, as fast as a careful hand goes: every hoop tipped alike first, then a hoop picked and one of the seven buttons, again and again. */
+function masher(hands, seed) {
+  let x = (seed * 2246822519 + 3) >>> 0, at = 0, first = true;
+  const rnd = () => ((x = (Math.imul(x, 1664525) + 1013904223) >>> 0) / 4294967296);
+  return {
+    stats: {},
+    wake: () => at,
+    saw() {},
+    act(s) {
+      if (first) { s.rings.forEach((r, ring) => setTip(s, ring, s.rings[0].tip)); first = false; }
+      setRing(s, Math.floor(rnd() * RINGS), Math.floor(rnd() * 7) - 3);
+      at = s.t + hands.tap + hands.press;
+    },
+  };
+}
+const PLAYERS = {
+  idle: { name: "touching nothing", make: () => ({ stats: {}, wake: () => Infinity, saw() {}, act() {} }) },
+  spinner: { name: "setting every hoop going and waiting", make: () => { let done = false; return { stats: {}, wake: s => (done ? Infinity : s.t), saw() {}, act(s) { if (!done) { s.rings.forEach((r, ring) => setTip(s, ring, s.rings[0].tip)); [3, -2, 1, -1].forEach((k, ring) => setRing(s, ring, k)); done = true; } } }; } },
+  masher: { name: "pressing buttons on hoops at random", make: seed => masher(HANDS.careful, seed) },
+  careful: { name: "a careful player", make: seed => careful(HANDS.careful, seed) },
+  gates: { name: "a careful player who never tips", make: seed => careful(HANDS.careful, seed, { tips: false }) },
+  flat: { name: "a careful player who tips every hoop alike first", make: seed => careful(HANDS.careful, seed, { flat: true }) },
+  quick: { name: "a quick player", make: seed => careful(HANDS.quick, seed) },
+};
+/** A game played out to its end (or LIMIT seconds) by a player at a tempo: what it came to. */
+function play(seed, tempo, who) {
+  const s = newGame(seed, tempo), p = PLAYERS[who].make(seed);
+  let guard = 0, sane = true, gates = 0, spokes = 0;
+  while (!s.over && s.t < LIMIT && guard++ < 1e6) {
+    const at = Math.min(LIMIT, Math.max(s.t, p.wake(s)));
+    if (at > s.t) for (const e of step(s, at - s.t)) { p.saw(e, s); if (e.type === "lock") { if (e.key === "N" || e.key === "S") gates++; else spokes++; } }
+    if (!s.over) p.act(s);
+    if (!s.rings.every(r => Number.isInteger(r.a) && r.a >= 0 && r.a < PLACES && Math.abs(r.tip) <= TIP_MAX)) sane = false;
+  }
+  return { t: s.t, score: s.score, aligned: s.aligned, fours: s.fours, over: s.over, sane, gates, spokes, alike: Math.max(...[-3, -2, -1, 0, 1, 2, 3].map(T => s.rings.filter(r => r.tip === T).length)), ...p.stats };
+}
 {
   const median = a => [...a].sort((x, y) => x - y)[a.length >> 1];
-  const idle = seed => { const s = newGame(seed); while (!s.over && s.t < 900) step(s, 1 / 20); return s; };
-  // a player with perfect hands, one alignment at a time: every `look` seconds finds the colour with most hoops and sets
-  // each one's nearest planet to twelve o'clock, held there (what the buttons do, only quicker); everything else is left going
-  const player = (look, seed) => {
-    const s = newGame(seed);
-    let next = 1;
-    while (!s.over && s.t < 900) {
-      if (s.t >= next) {
-        next = s.t + look;
-        let best = null;
-        for (let c = 0; c < COLOURS; c++) {
-          const per = s.rings.map((r, ring) => ({ ring, place: r.places.indexOf(c) })).filter(x => x.place >= 0);
-          if (per.length >= 3 && (!best || per.length > best.length)) best = per;
-        }
-        if (best) for (const { ring, place } of best) { grab(s, ring); turnTo(s, ring, -place * STEP); release(s, ring, 0); }
-      }
-      step(s, 1 / 20);
+  const games = MEASURE ? Number(ARG("games") || 30) : 6;
+  if (MEASURE) {
+    const named = process.argv.find(x => x.split(",").every(k => PLAYERS[k])), who = named ? named.split(",") : Object.keys(PLAYERS);
+    const tempos = ARG("tempo") != null ? ARG("tempo").split(",").map(Number) : TEMPOS.map((_, k) => k);
+    const t0 = Date.now();
+    for (const w of who) for (const k of tempos) {
+      const list = Array.from({ length: games }, (_, g) => play(100 + g, k, w));
+      const ts = list.map(r => r.t), sc = list.map(r => r.score), sum = f => list.reduce((a, r) => a + (r[f] || 0), 0);
+      console.log(`${PLAYERS[w].name} at ${TEMPOS[k]}: ${median(ts).toFixed(0)} s (${Math.min(...ts).toFixed(0)} to ${Math.max(...ts).toFixed(0)}), scoring ${median(sc)}, ${(sum("aligned") / games).toFixed(1)} alignments (${(sum("fours") / games).toFixed(1)} fours; ${(sum("gates") / games).toFixed(1)} at the gates, ${(sum("spokes") / games).toFixed(1)} on hoops alike, ${(sum("alike") / games).toFixed(1)} hoops alike at the end), ${(sum("tips") / games).toFixed(1)} tips, ${(sum("misses") / games).toFixed(1)} stops missed; ${list.filter(r => !r.over).length} not over`);
     }
-    return s;
-  };
-  const idles = [...Array(6).keys()].map(k => idle(40 + k));
-  check(idles.every(s => s.over) && median(idles.map(s => s.t)) > 150 && median(idles.map(s => s.t)) < 450 && median(idles.map(s => s.score)) <= 2000, `turning nothing: full after about ${median(idles.map(s => s.t)).toFixed(0)} seconds, a few points by chance`);
-  const played = [...Array(6).keys()].map(k => player(4, 40 + k));
-  check(median(played.map(s => s.t)) > 2 * median(idles.map(s => s.t)) && median(played.map(s => s.score)) > 5000, `setting hoops to a place every few seconds lasts much longer (${median(played.map(s => s.t)).toFixed(0)} seconds, ${median(played.map(s => s.score)).toLocaleString("en-GB")} points)`);
-  check(played.every(s => s.rings.every(r => r.a >= 0 && r.a < TAU && Math.abs(r.tilt) <= TILT_MAX + 1e-9 && Math.abs(r.v) <= VMAX + 1e-9)), "through whole games the hoops stay within a turn, a tip and a speed");
+    console.log(`(pace ${PACE.first}, ${PACE.least}, ${PACE.half}; ${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+    process.exit(0);
+  }
+  const at = FIRST_TEMPO, games6 = who => Array.from({ length: games }, (_, g) => play(100 + g, at, who));
+  const idle = games6("idle"), spin = games6("spinner"), done = games6("careful"), quick = games6("quick");
+  const med = (list, k) => median(list.map(r => r[k]));
+  check(idle.every(r => r.over) && med(idle, "aligned") <= 1, `touching nothing, the hoops stand still: full after about ${med(idle, "t").toFixed(0)} seconds, with ${med(idle, "aligned")} lines (a planet landing in one)`);
+  check(spin.every(r => r.aligned === 0 && r.over), "tipping every hoop alike, setting them all going and waiting: not one line, since a hoop going round is in none");
+  check(med(done, "t") > 2.5 * med(idle, "t") && med(done, "score") > 50 * Math.max(100, med(idle, "score")) && done.every(r => r.tips > 0),
+    `a careful player lasts far longer (about ${med(done, "t").toFixed(0)} seconds at ${TEMPOS[at]} a minute, ${med(done, "score").toLocaleString("en-GB")} points), tipping hoops alike along the way`);
+  check(med(quick, "t") > med(done, "t") && med(quick, "score") > med(done, "score"), `a quicker one longer still (about ${med(quick, "t").toFixed(0)} seconds, ${med(quick, "score").toLocaleString("en-GB")} points)`);
+  check([...idle, ...spin, ...done, ...quick].every(r => r.over && r.sane), "and every game ends, the hoops on whole places and tips throughout");
 }
 
 if (bad) { console.log(`${bad} problems`); process.exitCode = 1; }
-else console.log("orrery: the deal, directions, alignments on the axle and on hoops tipped alike, hoops turning, holding and tipping, clearing, the combo, planets landing, the end, saving, whole games");
+else console.log("orrery: the deal, the beat, stepping, alignments at the gates and on hoops tipped alike, clearing, the combo, planets landing on the clock, the end, saving, the old version replaced, whole games");
