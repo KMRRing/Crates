@@ -1,6 +1,7 @@
 // Orrery: four brass hoops on an axle round a sun, planets of four colours strung on them (orrery-3d.js draws it; flat,
 // in orrery-flat.js, where there's no WebGL), every hoop always going, stepping on a beat. Tap a hoop to choose it (tap
-// it again, or anywhere that isn't a hoop or a button, to let it go), and the six buttons under the orrery set it going
+// it again, or anywhere that isn't a hoop or a button, to let it go), and the six buttons under the orrery set it (or,
+// with none chosen, every hoop) going
 // slow (a place every eighth beat), medium (every fourth) or fast (every second), clockwise as the hoop is
 // seen on the right and anticlockwise on the left. Under them, always there, the four colours: a press of one tips the
 // hoop chosen into that colour's plane, or every hoop at once with none chosen, and each shows the hoops in its plane
@@ -166,7 +167,7 @@ function drawNums() {
     if (d !== n.burning) { n.burning = d; n.fuse.setAttribute("d", d); }
   });
 }
-const HINT = ["Every hoop steps round on the beat; tap one, and the top", "row sets it slow, medium or fast (every 8th, 4th or 2nd", "beat). Bring three planets of a colour in line with the", "sun: at twelve or six o'clock any colour, elsewhere only", "on hoops in that colour's plane, and the next beat", "strikes them. A colour below tips the hoop chosen into", "its plane, or every hoop if none is; each drifts a tip", "now and then. − and + set the beat."];
+const HINT = ["Every hoop steps round on the beat. Tap one, and the", "top row sets it slow, medium or fast (a place every", "8th, 4th or 2nd beat); with none chosen, all four.", "Bring three planets of a colour in line with the sun:", "at twelve or six o'clock any colour, elsewhere only on", "hoops in that colour's plane. The next beat strikes", "them. A colour below tips the hoop chosen into its", "plane, or every hoop if none is; each drifts a tip now", "and then. − and + set the beat."];
 /** The words over the orrery while the clock is stopped: the first games' rules, then only how to go on. */
 function redrawOver() {
   const w = over.clientWidth || stage.clientWidth, h = over.clientHeight || stage.clientHeight;
@@ -286,19 +287,21 @@ function drawColours() {
 /** The hoop chosen: its speed's buttons, and the line saying how it goes round and how it's tipped. */
 function drawAim(force = false) {
   const r = chosen && !S.over ? S.rings[chosen.ring] : null, seen = r ? looks(chosen.ring) : 1;
-  const k = `${r ? chosen.ring : -1}|${r ? `${r.set},${r.tip},${seen}` : ""}|${S.over}`;
+  const all = S.rings.map((x, ring) => x.set * looks(ring));                // none chosen: the buttons show the setting all four share, if they do
+  const k = `${r ? chosen.ring : -1}|${r ? `${r.set},${r.tip},${seen}` : all.join()}|${S.over}`;
   if (!force && shown.aim === k) return;
   shown.aim = k;
   $("controls").classList.toggle("gone", S.over);
   $("result").hidden = !S.over;
-  const spin = r ? r.set * seen : null;                                     // the setting as its button stands for it, round as it's seen
+  const spin = r ? r.set * seen : all.every(v => v === all[0]) ? all[0] : null;   // the setting as its button stands for it, round as it's seen
   spinKeys.forEach((b, i) => {
-    b.disabled = !r;
+    const words = `${SPIN_WORDS[i]}${r ? "" : " (every hoop)"}`;
+    b.disabled = S.over;
     b.setAttribute("aria-pressed", String(spin === SPINS[i]));
-    b.setAttribute("aria-label", SPIN_WORDS[i]);
-    b.title = SPIN_WORDS[i];
+    b.setAttribute("aria-label", words);
+    b.title = words;
   });
-  if (!r) { $("line").textContent = S.over ? "" : "Tap a hoop to choose it, or a colour to tip all four"; return; }
+  if (!r) { $("line").textContent = S.over ? "" : "Tap a hoop to choose it, or a speed or colour for all four"; return; }
   const c = planeOf(r.tip);
   $("line").innerHTML = `Hoop <b>${chosen.ring + 1}</b> · ${spin > 0 ? "↻" : "↺"} ${SPEED[Math.abs(r.set)]} · ${c >= 0 ? `${degrees(r.tip)}, <span class="in k${c}">in ${COLOUR[c]}'s plane</span>` : r.tip ? `tipped ${degrees(r.tip)}` : "level"}`;
 }
@@ -396,11 +399,12 @@ function letGo() {
 }
 /** A button: the chosen hoop set going at the speed it stands for (`spin`), or tipped into a colour's plane (`colour`): the hoop chosen alone, or every hoop with none chosen. */
 function press(kind, value) {
-  if (S.over || paused || IN_FRAME || (kind === "spin" && !chosen)) return;
+  if (S.over || paused || IN_FRAME) return;
   sound.unlock();
   start();
   if (kind === "spin") {
-    setRing(S, chosen.ring, value * looks(chosen.ring));                   // the right-hand buttons clockwise as the hoop is seen now
+    // the right-hand buttons clockwise as each hoop is seen now; with none chosen, for every hoop, as the colours are
+    for (const ring of chosen ? [chosen.ring] : S.rings.keys()) setRing(S, ring, value * looks(ring));
     sound.play("press", { strength: Math.abs(value) });
   } else {
     const ring = chosen ? chosen.ring : -1, hoops = S.rings.filter((_, k) => ring < 0 || k === ring), before = hoops.reduce((n, r) => n + r.tip, 0);
