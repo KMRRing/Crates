@@ -53,8 +53,8 @@ const RUNTIME = [
   ["punt.js", /^import\(LEVELS\[/, "the same banks"],
   ["rush.js", /^fetch\(`\.\/puzzles\/band-/, "a puzzle band: every file in puzzles/ is kept"],
   ["suite.js", /^f\.src = u\.toString\(\)/, "the watching frame: a page of the app, every one kept (watching needs a connection anyway)"],
-  ["pwa.js", /^fetch\(u, \{ cache: "reload" \}/, "Update: refreshes every kept file from the network, online only"],
-  ["pwa.js", /^fetch\(`\.\/sw\.js\?check=/, "Update's check that the site answers: the network, on purpose"],
+  ["pwa.js", /^fetch\(u, \{ cache: "reload"/, "Update's full refresh, when the worker's own update fails: the page's files from the network, online only"],
+  ["pwa.js", /^fetch\(`\.\/sw\.js\?check=/, "Update's check of the site's version: the network, on purpose"],
   ["pics.js", /^fetch\(file \?/, "Wikipedia's answer naming a picture: remembered by pics.js once seen"],
   ["pics.js", /^img\.src = tries\[/, "a Wikipedia picture: kept by sw.js once shown, or by Settings' Keep pictures offline"],
   ["pics.js", /^fetch\(url, \{ mode: "(?:no-)?cors"/, "Keep pictures offline: Wikipedia's pictures, kept in the pictures cache"],
@@ -96,17 +96,24 @@ function browser(site) {
     const file = url.pathname.replace("/Crates/", "") || "index.html";
     return net.site[file] == null ? new Response("not here", { status: 404 }) : new Response(net.site[file], { headers: { "Content-Type": "text/plain" } });
   }
-  const handlers = {};
-  const self = { location: new URL("sw.js", BASE), addEventListener: (t, f) => { handlers[t] = f; }, skipWaiting() {}, clients: { claim: async () => {} } };
+  const handlers = {}, told = [];                                    // told: what the app's one page has heard from the worker
+  const page = { postMessage: m => told.push(m) };
+  const self = { location: new URL("sw.js", BASE), addEventListener: (t, f) => { handlers[t] = f; }, skipWaiting() {}, clients: { claim: async () => {}, matchAll: async () => [page] } };
   class Req extends Request { constructor(input, init) { super(typeof input === "string" ? new URL(input, BASE).href : input, init); } }
-  return { store, net, caches, fetch, self, handlers, Request: Req };
+  return { store, net, caches, fetch, self, handlers, told, Request: Req };
+}
+/** Asks a worker something as pwa.js does (a message with a port to answer on); resolves with its answer. */
+async function ask(h, type) {
+  let answer = null;
+  await run(h, "message", { data: { type }, ports: [{ postMessage: m => { answer = m; } }] });
+  return answer;
 }
 /** Runs a version of the worker, built from `site` (file -> text), in `b`; returns its event handlers. */
 function worker(b, site, version) {
   const files = { "./": hashOf(site["index.html"]) };
   for (const [f, text] of Object.entries(site)) files[f] = hashOf(text);
   const logic = fs.readFileSync(new URL("../tools/service-worker.js", import.meta.url), "utf8");
-  const context = vm.createContext({ self: b.self, caches: b.caches, fetch: b.fetch, Request: b.Request, Response, Headers, URL, crypto: globalThis.crypto, console });
+  const context = vm.createContext({ self: b.self, caches: b.caches, fetch: b.fetch, Request: b.Request, Response, Headers, URL, crypto: globalThis.crypto, console, setTimeout, clearTimeout });
   vm.runInContext(`const VERSION = "${version}"; const FILES = ${JSON.stringify(files)};\n${logic}`, context);
   return { ...b.handlers };
 }
@@ -126,8 +133,16 @@ const text = async res => (res ? new TextDecoder().decode(await res.arrayBuffer(
   h = worker(b, v2, "two");
   await run(h, "install");
   check(same(b.net.log, [`app.js?v=${hashOf(v2["app.js"])}`, `kb/entities.js?v=${hashOf(v2["kb/entities.js"])}`]), "an update fetches only what changed or is new; the rest is copied from the copy already there");
+  // what a page waiting for it hears (pwa.js shows it): the files found on the device, then the changed ones coming in
+  const heard = b.told.filter(m => m.type === "filling" && m.version === "two"), end = heard.at(-1);
+  const between = heard.find(m => m.checked === m.total && m.fetched === 0);
+  check(between?.fetch === 2 && between.copied === 4 && end.fetched === 2 && end.done === end.total && end.total === 6
+    && end.bytes === v2["app.js"].length + v2["kb/entities.js"].length,
+    "the page waiting is told how many files are already on the device (4) and how many must download (2) before any does, then the bytes as they come");
   await run(h, "activate");
   check(same(b.store.keys(), ["crates-two"]), "once the new copy is whole, the old one goes");
+  const said = await ask(h, "version");
+  check(said?.version === "two" && said.whole === true && said.files["app.js"] === hashOf(v2["app.js"]), "asked, the worker says its version, its files and that its copy is whole");
 
   // offline: files answered whatever their ?query, an unknown page opens the games screen, other sites are left alone
   b.net.down = true;
@@ -154,6 +169,7 @@ const text = async res => (res ? new TextDecoder().decode(await res.arrayBuffer(
   h = worker(b, v4, "four");
   const failedInstall = await run(h, "install").then(() => false, () => true);
   check(failedInstall && b.store.has("crates-two"), "a file that won't download fails the install: the version before stays, whole");
+  check(b.told.some(m => m.type === "failed" && m.version === "four" && /^app\.js: HTTP 404$/.test(m.error)), "and the pages are told why: the file, and what the site answered");
 
   // an older version taking over mid-fill can delete the new copy: it's refilled at activation (from the older
   // copy, then the network), and the older copy goes only once the new one is whole
@@ -167,6 +183,17 @@ const text = async res => (res ? new TextDecoder().decode(await res.arrayBuffer(
   b.net.down = false;
   await run(h, "activate");
   check(same(b.store.keys(), ["crates-four"]) && b.store.get("crates-four").size === 6, "back online, the copy is made whole and only then do the older ones go");
+
+  // the version in use, missing a file (Update finds it's the site's version, but not whole): that file alone is fetched
+  b.store.get("crates-four").delete(BASE + "kb/links.js"); b.net.log = [];
+  check((await ask(h, "version"))?.whole === false, "asked, a copy missing a file says it isn't whole");
+  const filled = await ask(h, "fill");
+  check(filled?.ok === true && same(b.net.log, [`kb/links.js?v=${hashOf(v4["kb/links.js"])}`]) && (await ask(h, "version")).whole,
+    "asked to fill, it fetches only what's missing, and answers once it's whole");
+  b.store.get("crates-four").delete(BASE + "kb/links.js"); b.net.site["kb/links.js"] = null; b.told.length = 0;
+  const refused = await ask(h, "fill");
+  check(refused?.ok === false && refused.error === "kb/links.js: HTTP 404" && b.told.some(m => m.type === "failed" && m.error === refused.error),
+    "a file the site won't give fails the fill, and the pages are told why, as for an install");
 }
 
 // ---------- sw.js as the workflow writes it ----------

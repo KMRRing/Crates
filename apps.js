@@ -1,7 +1,8 @@
 // The game switcher: tapping a game's title opens a full screen of every game in the app, with an Update button
-// that reloads the newest version (pwa.js). Going to another game carries the room code, so you stay in the same
-// room (rooms.js).
+// that checks for a newer version and loads it (pwa.js). Going to another game carries the room code, so you stay
+// in the same room (rooms.js).
 import { hardUpdate } from "./pwa.js";
+import { sextant } from "./loading.js";
 import { soloCode, duoCode, startSolo, chooseSolo, codesLink, link, unlink, cleanCode, bestOf, comparableOf, RANKED, MARKS, markOf, dailyDue, today, shareBests, watchBests, watchPartner, watchDuoRecords, ask, duoHref, soloHref, watchHref, DUO_GAMES, IN_FRAME, resetGame } from "./suite.js";
 import { duoLine } from "./duo-records.js";
 import { choice, toggle, line, RETE } from "./menu.js";
@@ -843,6 +844,7 @@ export function bindSwitcher(button, current) {
       <button class="icon-btn" type="button" data-settings title="Settings" aria-label="Settings" aria-haspopup="dialog">${theme() === "deco" ? RETE : ICON.settings}</button>
       <button class="icon-btn" type="button" data-update title="Load the newest version (keeps your progress)" aria-label="Update">${ICON.update}</button>
       <button class="icon-btn" type="button" data-close aria-label="Close">${ICON.close}</button></span></div>
+    <p class="menu-line apps-note" role="status" hidden></p>
     <ul class="apps-list">${tiles(APPS, current)}</ul></div>`;
   document.body.appendChild(dlg);
   dlg.querySelector("[data-close]").addEventListener("click", () => dlg.close());
@@ -860,14 +862,18 @@ export function bindSwitcher(button, current) {
     .observe(dlg, { attributes: true, attributeFilter: ["open"] });
   // after an update the app reloads: open the games screen again, where Update was pressed
   try { if (sessionStorage.getItem("crates:games")) { sessionStorage.removeItem("crates:games"); dlg.showModal(); } } catch { /* private mode */ }
-  const update = dlg.querySelector("[data-update]");
+  // Update says what it finds in a line under the head (up to date, offline); a newer version downloads under the
+  // rete, over the page, which then reloads onto it (pwa.js)
+  const update = dlg.querySelector("[data-update]"), note = dlg.querySelector(".apps-note");
+  const tell = (words, waiting = false) => { note.replaceChildren(...(waiting ? [sextant()] : []), words); note.hidden = false; };
+  dlg.addEventListener("close", () => { note.hidden = true; });
   update.addEventListener("click", async () => {
     update.disabled = true;
-    update.classList.add("spin");                      // turning while it fetches
-    if (await hardUpdate({ before: () => dlg.close() })) return;   // the page reloads; the rete shows the download, over the page
+    update.classList.add("spin");                      // turning while it checks
+    if (await hardUpdate({ tell, before: () => dlg.close() })) return;
     update.classList.remove("spin");
-    update.title = "Offline: try later";
-    setTimeout(() => { update.title = "Load the newest version (keeps your progress)"; update.disabled = false; }, 2500);
+    update.disabled = false;
+    if (!dlg.open) dlg.showModal();                    // a download that came to nothing: back where Update was pressed, the line saying why
   });
   // the game you're in: its tile just closes the screen of games
   dlg.querySelectorAll("a.app-row.cur").forEach(row => row.addEventListener("click", e => { e.preventDefault(); dlg.close(); }));
