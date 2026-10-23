@@ -3,14 +3,15 @@
 // it builds dotted, what it would score); let go on it to lay it. Fire sets the lot off as one avalanche. Then night
 // falls: snow lands at random, and what it sets off runs where it runs; three layers on the road in one night bury it.
 // The rules are avalanche-engine.js's; this file draws the slope, plays each day and night out and keeps the game.
-import { W, H, CAP, CHARGES, LIVES, BURY, WINDS, newGame, upgrade, fire, lay, lift, laid, foresee, snowfall, rocksOf } from "./avalanche-engine.js";
+import { W, H, CAP, CHARGES, LIVES, BURY, WINDS, newGame, upgrade, fire, lay, lift, laid, foresee, danger, snowfall, rocksOf } from "./avalanche-engine.js";
+import { lessonGame, lessonOf, nightOf, ready, instruction, told, LESSON_DAYS } from "./avalanche-lesson.js";
 import { bindSwitcher, APPS } from "./apps.js";
 import "./pwa.js";
-import { part, action, line, choice } from "./menu.js";
+import { part, action, line, choice, toggle } from "./menu.js";
 
 const $ = id => document.getElementById(id);
 const SVG = "http://www.w3.org/2000/svg";
-const RUN = "avalanche:run", BEST = "avalanche:best", ROCKY_BEST = "avalanche:rocky-best", SEEN = "avalanche:seen", OPTS = "avalanche:opts";
+const RUN = "avalanche:run", BEST = "avalanche:best", ROCKY_BEST = "avalanche:rocky-best", SEEN = "avalanche:seen", OPTS = "avalanche:opts", TAUGHT = "avalanche:taught", HELD = "avalanche:held";
 const CELL = 10, ROAD_Y = H * CELL + 1;
 const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 /** The key of this game's best: `avalanche:best` is for the open slope (the games screen shows it), rocks being easier to last on. */
@@ -27,6 +28,37 @@ const valid = g => g && g.v === 1 && Array.isArray(g.cells) && g.cells.length ==
 function save() { write(RUN, S); }
 const slope = () => read(OPTS, {}).rocky === true;   // the next game's slope: open, or with bare rock on it
 function newRun() { S = newGame(Math.floor(Math.random() * 2 ** 31), slope()); aim = -1; save(); render(); }
+/** Squares that would bury the road tonight are hatched unless the player has turned that off; the lesson's third day needs them, and the first two have none. */
+const dangerOn = (g = S) => { const k = lessonOf(g); return k != null ? k === 2 : read(OPTS, {}).danger !== false; };
+
+// ---------- the lesson ----------
+// The first three days on slopes laid out by hand (avalanche-lesson.js), kept in the game itself (`lesson`, the day; `told`,
+// what the day came to, once it is fired and the page waits on Next), so a reload or a partner's screen finds it where it is.
+// A game interrupted for the lesson is held under `avalanche:held` and comes back when the lesson ends or is skipped.
+function startLesson() {
+  if (lessonOf(S) == null && S && (S.days > 0 || S.plan.length)) write(HELD, S);
+  S = lessonGame(0);
+  aim = -1;
+  save();
+  render();
+}
+/** The lesson over, finished or skipped: it is taught, and the game it interrupted (or a new one) goes on. */
+function endLesson() {
+  write(TAUGHT, true);
+  const held = read(HELD, null);
+  try { localStorage.removeItem(HELD); } catch { /* private mode */ }
+  if (valid(held)) { S = upgrade(held); aim = -1; save(); render(); } else newRun();
+}
+/** Next on a lesson's told day: the next day's slope, or the end. */
+function nextDay() {
+  const k = lessonOf(S);
+  if (k == null || !S.told || playing) return;
+  if (k + 1 >= LESSON_DAYS) { endLesson(); return; }
+  S = lessonGame(k + 1, S.score);
+  aim = -1;
+  save();
+  render();
+}
 
 // ---------- drawing ----------
 const el = (tag, attrs = {}, ...kids) => {
@@ -76,12 +108,15 @@ function windEl(wind) {
 /**
  * The slope: these depths, with extra: { ring (squares the charges would set sliding), relays (the bridges among
  * them, [{ at, extra }]), tag ([text, square]), charges (the squares of the charges laid), sliding (squares sliding
- * now), natural (it's the night's), night, road (layers on the road), flake (where snow just fell), chalets (their
+ * now), danger (squares a layer would bury the road from), natural (it's the night's), night, road (layers on the road), flake (where snow just fell), chalets (their
  * squares, else the game's), struck (chalets a slide would carry away), wind (else tonight's) }.
  */
 function drawBoard(cells, extra = {}) {
   const sq = el("g", {}), laidAt = i => (extra.charges || []).filter(c => c === i).length;
   cells.forEach((d, i) => sq.append(squareEl(d, i, extra.sliding?.includes(i) ? (extra.natural ? "sliding natural" : "sliding") : "", laidAt(i))));
+  // hatching where one layer of snow tonight would bury the road: a pattern, so it reads without its colour
+  const risk = el("g", { class: "av-risk-sq" }, el("defs", {}, el("pattern", { id: "avHatch", width: 2.2, height: 2.2, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, el("rect", { width: 2.2, height: 2.2, class: "av-hatch-bg" }), el("path", { d: "M0 0V2.2", class: "av-hatch" }))));
+  for (const i of extra.danger || []) { const [x, y] = at(i); risk.append(el("rect", { x: x + .35, y: y + .35, width: 9.3, height: 9.3, rx: 1.4, fill: "url(#avHatch)", class: "av-danger" })); }
   const chalets = el("g", {}, ...(extra.chalets || S.chalets).map(c => chaletEl(c, extra.struck?.includes(c) ? "struck" : "")));
   const marks = el("g", {});
   for (const i of extra.ring || []) { const [x, y] = at(i); marks.append(el("rect", { class: "av-ring", x: x + .2, y: y + .2, width: 9.6, height: 9.6, rx: 1.6 })); }
@@ -93,7 +128,7 @@ function drawBoard(cells, extra = {}) {
     marks.append(t);
   }
   if (extra.flake >= 0) { const [x, y] = at(extra.flake); marks.append(el("circle", { class: "av-flake", cx: x + CELL / 2, cy: y + CELL / 2, r: 1.6 })); }
-  const kids = [el("rect", { class: "av-bed", x: -2, y: -2, width: 74, height: H * CELL + 3, rx: 2 }), sq, chalets, windEl(extra.wind ?? S.wind), roadEl(extra.road || 0), marks];
+  const kids = [el("rect", { class: "av-bed", x: -2, y: -2, width: 74, height: H * CELL + 3, rx: 2 }), sq, risk, chalets, windEl(extra.wind ?? S.wind), roadEl(extra.road || 0), marks];
   if (extra.night) kids.push(el("rect", { class: "av-night", x: -2, y: -2, width: 74, height: 91, rx: 2 }));
   kids.push(el("g", { id: "fx" }));
   $("board").replaceChildren(...kids);
@@ -101,6 +136,9 @@ function drawBoard(cells, extra = {}) {
 function drawStrip() {
   $("score").textContent = fmt(S.score);
   $("best").textContent = fmt(Math.max(read(bestKey(), 0), S.score));
+  const lesson = lessonOf(S) != null;
+  document.querySelector(".av-best").hidden = lesson;      // a lesson's points count for nothing: no best beside them
+  $("skipBtn").hidden = !lesson;
   const lives = $("lives");
   lives.replaceChildren(...Array.from({ length: LIVES }, (_, k) => { const p = document.createElement("i"); if (k < S.lives) p.className = "on"; return p; }));
   lives.setAttribute("aria-label", `${S.lives} of ${LIVES} lives`);
@@ -118,9 +156,14 @@ function drawSide(text) {
   const n = S.plan.length;
   $("charges").replaceChildren(...Array.from({ length: CHARGES }, (_, k) => { const p = document.createElement("i"); if (k < n) p.className = "on"; return p; }));
   $("charges").setAttribute("aria-label", `${n} of ${CHARGES} charges laid`);
-  $("fireBtn").disabled = playing || !n;
-  $("undoBtn").disabled = playing || !n;
-  $("line").textContent = text ?? (first && !n ? `Lay up to ${CHARGES} charges, then fire: they go off together, and a charge that sets nothing off alone can be the bridge`
+  const k = lessonOf(S);
+  $("tray").classList.toggle("lesson", k != null);
+  // a lesson's Fire waits for the step to be done, and once the day is told it is the way on
+  $("fireBtn").textContent = S.told ? (k + 1 >= LESSON_DAYS ? "Play" : "Next") : "Fire";
+  $("fireBtn").disabled = playing || (S.told ? false : k != null ? !ready(S) : !n);
+  $("undoBtn").disabled = playing || !n || !!S.told;
+  const lesson = k == null ? null : S.told ? S.told : ready(S) ? `${summary(foresee(S))}. Fire!` : instruction(S);
+  $("line").textContent = text ?? lesson ?? (first && !n ? `Lay up to ${CHARGES} charges, then fire: they go off together, and a charge that sets nothing off alone can be the bridge`
     : n ? summary(foresee(S), n < CHARGES ? "" : "; tap a charge to lift it")
     : `Tonight ${snowfall(S.days)} layers of snow${wind}${loaded ? `; ${loaded} square${loaded === 1 ? "" : "s"} above the road full` : ""}`);
 }
@@ -133,21 +176,35 @@ function summary(f, tail = "") {
 }
 /** The slope with the day's charges on it and what they would set off. */
 function render() {
-  drawBoard(laid(S), planView(S));
+  const view = planView(S);
+  drawBoard(laid(S), view);
   drawStrip();
+  drawRisk(S, view.danger);
   drawSide();
+}
+/** The legend under the slope: how many squares the hatching covers (what tonight's snow could bury the road from). */
+function drawRisk(game, squares) {
+  const k = lessonOf(game), box = $("risk");
+  box.hidden = k == null && !dangerOn(game);    // a lesson keeps the row so its days are the same height
+  box.classList.toggle("none", !squares.length || !!game.told);
+  $("riskText").textContent = game.over || game.told || (k != null && !dangerOn(game)) ? ""
+    : squares.length ? `${plural(squares.length, "square")} would bury the road tonight`
+    : "No single flake would bury the road tonight";
 }
 /** How a game's laid charges and the avalanche they would set off are drawn: the extras for drawBoard. */
 function planView(game) {
   const f = foresee(game);
-  return { charges: game.plan, ring: [...new Set(f.slide.waves.flat())], relays: f.relays, struck: f.carried, tag: f.slide.size ? [`+${fmt(f.gain)}`, game.plan[game.plan.length - 1]] : null };
+  return { charges: game.plan, danger: dangerOn(game) ? danger(game) : [], ring: [...new Set(f.slide.waves.flat())], relays: f.relays, struck: f.carried, tag: f.slide.size ? [`+${fmt(f.gain)}`, game.plan[game.plan.length - 1]] : null };
 }
 /** What one more charge on a square (or one fewer, if the day's three are laid and it holds one) would set off, shown. */
 function show(i) {
+  if (S.told) return;
   const full = S.plan.length >= CHARGES;
   if (full && !S.plan.includes(i)) { render(); return; }
   const g = full ? lift(S, i) : lay(S, i), f = foresee(g);
-  drawBoard(laid(g), planView(g));
+  const view = planView(g);
+  drawBoard(laid(g), view);
+  drawRisk(g, view.danger);
   drawSide(`${full ? "Lift this charge: " : ""}${summary(f)}`);
 }
 
@@ -170,13 +227,18 @@ function step(cells, wave) {
 }
 async function commit() {
   if (playing || S.over || !S.plan.length) return;
+  const k = lessonOf(S);
+  if (S.told || (k != null && !ready(S))) return;
   playing = true;
   aim = -1;
-  const before = S, r = fire(S);
+  const before = S, r = fire(S, k != null ? nightOf(k) : null);
   S = r.state;
+  if (k != null) S.told = told(before, r);      // the lesson's day, said once it is done
+  else {
+    if (S.score > read(bestKey(), 0)) write(bestKey(), S.score);
+    if (S.days >= 3) write(SEEN, true);
+  }
   save();
-  if (S.score > read(bestKey(), 0)) write(bestKey(), S.score);
-  if (S.days >= 3) write(SEEN, true);
   drawSide(" ");
   // the day: the charges laid, and the avalanche they set off wave by wave, the bridges dotted as they slide
   let cells = r.laid.slice(), chalets = before.chalets.slice();
@@ -192,7 +254,7 @@ async function commit() {
   if (r.carried.length) { await carry(r.carried); chalets = chalets.filter(c => !r.carried.includes(c)); }
   drawStrip();
   if (r.gain) { popup(r.slide.waves.flat(), r.gain); await wait(500); }
-  // the night: the snow, layer by layer on the wind, and whatever it sets off
+  // the night: the snow, layer by layer on the wind, and whatever it sets off (a lesson's first days have none)
   let road = 0;
   const night = { night: true, wind: r.wind };
   drawBoard(cells, { ...night, chalets });
@@ -246,7 +308,7 @@ function aimAt(e) {
   else render();
 }
 $("board").addEventListener("pointerdown", e => {
-  if (playing || S.over || e.button > 0 || cellAt(e.clientX, e.clientY) < 0) return;
+  if (playing || S.over || S.told || e.button > 0 || cellAt(e.clientX, e.clientY) < 0) return;
   e.preventDefault();
   press = e.pointerId;
   aim = -2;
@@ -254,7 +316,7 @@ $("board").addEventListener("pointerdown", e => {
 });
 addEventListener("pointermove", e => {
   if (press === e.pointerId) aimAt(e);
-  else if (press == null && !playing && !S.over && e.pointerType === "mouse" && e.target.closest?.("#board")) aimAt(e);   // a mouse shows a charge as it passes
+  else if (press == null && !playing && !S.over && !S.told && e.pointerType === "mouse" && e.target.closest?.("#board")) aimAt(e);   // a mouse shows a charge as it passes
 });
 addEventListener("pointerup", e => {
   if (press !== e.pointerId) return;
@@ -265,8 +327,9 @@ addEventListener("pointerup", e => {
   render();
 });
 addEventListener("pointercancel", e => { if (press === e.pointerId) { press = null; aim = -1; render(); } });
-$("fireBtn").addEventListener("click", commit);
-$("undoBtn").addEventListener("click", () => { if (playing || S.over || !S.plan.length) return; S = lift(S); save(); render(); });
+$("fireBtn").addEventListener("click", () => (S.told ? nextDay() : commit()));
+$("skipBtn").addEventListener("click", () => { if (!playing) endLesson(); });
+$("undoBtn").addEventListener("click", () => { if (playing || S.over || S.told || !S.plan.length) return; S = lift(S); save(); render(); });
 $("board").addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && press == null && aim >= 0 && !playing) { aim = -1; render(); } });
 
 // ---------- messages, the menu ----------
@@ -281,9 +344,14 @@ function toast(msg) {
 function openMenu() {
   const body = $("menuBody");
   body.replaceChildren();
-  part(body, "play").append(action("New game", newRun, "primary"));
+  const lesson = lessonOf(S) != null;
+  part(body, "play").append(lesson ? action("Skip the lesson", endLesson, "primary") : action("New game", newRun, "primary"));
   part(body, "content").append(choice("Slope", [[false, "Open"], [true, "Rocky"]], slope(), rocky => { write(OPTS, { ...read(OPTS, {}), rocky }); openMenu(); }),
     line(slope() ? "Four squares of bare rock hold no snow and turn aside what slides onto them. From the next game." : "Snow all the way across. Rocky puts four bare squares on the slope, from the next game."));
+  part(body, "settings").append(
+    toggle("Danger shading", read(OPTS, {}).danger !== false, on => { write(OPTS, { ...read(OPTS, {}), danger: on }); render(); }),
+    line("Hatches the squares where one more layer of snow tonight would bury the road, as the charges stand."),
+    ...(lesson ? [] : [action("Replay the lesson", startLesson, "link")]));
   const best = read(bestKey(), 0);
   part(body, "about").append(line(`This game: ${fmt(S.score)} in ${S.days} day${S.days === 1 ? "" : "s"}${best ? `; your best ${fmt(best)}` : ""}`));
   if (!$("menuDlg").open) $("menuDlg").showModal();
@@ -297,8 +365,9 @@ $("menuClose").addEventListener("click", () => $("menuDlg").close());
 $("againBtn").addEventListener("click", newRun);
 
 // for tests and debugging
-window.__avalanche = { get state() { return S; }, commit, cellAt, newRun, put: i => { S = lay(S, i); save(); render(); } };
+window.__avalanche = { get state() { return S; }, commit, cellAt, newRun, startLesson, nextDay, endLesson, put: i => { S = lay(S, i); save(); render(); } };
 
 S = read(RUN, null);
-if (!valid(S)) newRun();
+// a first visit, with no game and none ever played, opens on the lesson
+if (!valid(S)) { if (!read(TAUGHT, false) && !read(SEEN, false)) startLesson(); else newRun(); }
 else { S = upgrade(S); render(); }

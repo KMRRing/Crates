@@ -175,8 +175,9 @@ export function foresee(game, plan = game.plan) {
  * with the charges on it), slide (the controlled avalanche, as settle gives it), relays, reach, carried (the chalets it
  * carried away), gain, wind (the night's), night ([{ at, slide, carried }]: each layer that fell, the avalanche it set
  * off if any, the chalets that carried away), road (the layers the night's slides sent onto the road), buried, over. Pure.
+ * A game saved with a `lesson` (avalanche-lesson.js) carries it through unchanged.
  */
-export function fire(game) {
+export function fire(game, script = null) {
   const s = structuredClone(game);
   if (s.over) return { state: s, laid: s.cells, slide: settle(s.cells, rocksOf(s)), relays: [], reach: 0, carried: [], gain: 0, wind: s.wind, night: [], road: 0, buried: false, over: true };
   const day = foresee(s);
@@ -187,8 +188,9 @@ export function fire(game) {
   // the night: layer by layer on the wind, each avalanche settling before the next layer falls
   const night = [], wind = s.wind;
   let road = 0;
-  for (let k = snowfall(s.days); k > 0; k--) {
-    const at = flake(s);
+  // `script`, if given, is the squares the night's layers land on (the lesson's: nothing left to chance)
+  for (let k = script ? script.length : snowfall(s.days); k > 0; k--) {
+    const at = script ? script[script.length - k] : flake(s);
     s.cells[at]++;
     const fall = settle(s.cells, rocksOf(s));
     s.cells = fall.cells.slice();
@@ -203,6 +205,23 @@ export function fire(game) {
   s.wind = nextWind(s);
   s.over = s.lives <= 0;
   return { state: s, ...day, wind, night, road, buried, over: s.over };
+}
+/**
+ * The squares where a single layer of snow tonight would bury the road by itself: on the slope as the day's charges
+ * would leave it (the plan fired), a layer on the square sets off a slide that sends BURY layers or more onto the road.
+ * Exact, by trying every square with the night's own rules; rock takes no snow. Two layers landing in one night can add up
+ * to a burial too, so a slope with none is safer, not safe. Pure; the page shades them so what to clear is seen.
+ */
+export function danger(game, plan = game.plan) {
+  if (game.over) return [];
+  const rocks = rocksOf(game), after = foresee(game, plan).slide.cells, out = [];
+  for (let i = 0; i < W * H; i++) {
+    if (rocks.includes(i)) continue;
+    const c = after.slice();
+    c[i]++;
+    if (settle(c, rocks).foot >= BURY) out.push(i);
+  }
+  return out;
 }
 /** What one more charge on each square would do with the day's laid already (null where the day's three are laid, or on a rock): for the page, the tests and the tuning players. */
 export const options = game => game.plan.length >= CHARGES ? game.cells.map(() => null) : game.cells.map((_, i) => (rocksOf(game).includes(i) ? null : foresee(game, [...game.plan, i])));

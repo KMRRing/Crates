@@ -17,6 +17,8 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
 .av-strip { display: flex; justify-content: space-between; align-items: center; gap: .6rem; margin: .6rem 0 .45rem; font-size: .92rem; color: var(--ink-soft); }
 .av-strip b { color: var(--ink); font-weight: 800; font-variant-numeric: tabular-nums; }
 .av-score b { font-size: 1.05rem; }
+.av-best[hidden], .av-skip[hidden], .av-risk[hidden] { display: none; }
+.av-skip { border: 1px solid var(--rule); border-radius: 4px; background: var(--tile); color: var(--ink); font: inherit; font-size: .8rem; font-weight: 700; padding: .2rem .6rem; cursor: pointer; }
 .av-lives { display: inline-flex; align-items: center; gap: .3rem; }
 .av-lives i { width: .9rem; height: .55rem; border-radius: 2px; box-shadow: inset 0 0 0 1.5px var(--brass-lo); }
 .av-lives i.on { background: var(--brass-lo); }
@@ -62,10 +64,23 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
 .av-night { fill: #12305A; opacity: .26; pointer-events: none; }
 .av-flake { fill: var(--av-snow); stroke: color-mix(in srgb, var(--c2) 60%, transparent); stroke-width: .3; }
 
+/* squares one layer would bury the road from: oblique hatching in the danger enamel, so it reads without the colour */
+.av-danger { pointer-events: none; stroke: var(--av-danger); stroke-width: .5; }
+.av-hatch-bg { fill: color-mix(in srgb, var(--av-danger) 16%, transparent); }
+.av-hatch { stroke: var(--av-danger); stroke-width: .75; }
+.av-risk { display: flex; align-items: center; gap: .45rem; height: 1.25rem; margin: 0; font-size: .8rem; line-height: 1.25rem; color: var(--ink-soft); }
+.av-risk.none .av-swatch { display: none; }
+.av-swatch { flex: none; width: .9rem; height: .9rem; border: 1px solid var(--av-danger); border-radius: 2px;
+  background: repeating-linear-gradient(45deg, var(--av-danger) 0 1.5px, color-mix(in srgb, var(--av-danger) 16%, var(--sheet)) 1.5px 4px); }
+#riskText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* under the slope: what the charge shown would do; at the end, how it went and New game, in the same room */
 .av-side { display: grid; gap: .45rem; }
 .av-tray { display: grid; grid-template-rows: 2.5rem 2.75rem; gap: .35rem; align-items: center; height: 5.6rem; }
 .av-tray[hidden] { display: none; }
+/* a lesson's words need a third line */
+.av-tray.lesson { grid-template-rows: 3.75rem 2.75rem; height: 6.85rem; }
+.av-tray.lesson .av-line { -webkit-line-clamp: 3; line-clamp: 3; }
 .av-line { margin: 0; max-height: 100%; overflow: hidden; font-size: .86rem; line-height: 1.25rem; color: var(--ink-soft); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .av-acts { display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.6fr); align-items: center; gap: .5rem; height: 100%; }
 .av-charges { display: inline-flex; align-items: center; gap: .3rem; padding-right: .3rem; }
@@ -92,7 +107,7 @@ html[data-mode="night"] { --av-rock: color-mix(in srgb, var(--brass) 30%, var(--
   #app.avalanche .av-strip { grid-column: 2; grid-row: 2; flex-direction: column; align-items: flex-start; gap: .35rem; margin-top: 1rem; }
   #app.avalanche .av-slope { grid-column: 1; grid-row: 2 / span 2; margin-top: .8rem; }
   #app.avalanche .av-side { grid-column: 2; grid-row: 3; align-content: end; }
-  #app.avalanche .av-tray { height: auto; grid-template-rows: auto 2.75rem; align-items: end; }
+  #app.avalanche .av-tray, #app.avalanche .av-tray.lesson { height: auto; grid-template-rows: auto 2.75rem; align-items: end; }
   #app.avalanche .av-line { -webkit-line-clamp: 5; line-clamp: 5; }
   #app.avalanche .av-result { grid-template-columns: 1fr; height: auto; }
 }
