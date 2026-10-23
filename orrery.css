@@ -28,18 +28,6 @@
 .or-over text { font-weight: 800; fill: var(--ink); text-anchor: middle; pointer-events: none; paint-order: stroke; stroke: var(--sheet); stroke-width: 3.2; stroke-linejoin: round; font-variant-numeric: tabular-nums; }
 .or-over text.or-hint { font-weight: 650; fill: var(--ink-soft); stroke: none; }
 .or-over text.or-hint.head { font-weight: 800; fill: var(--ink); font-stretch: var(--wide); text-transform: var(--caps); letter-spacing: calc(.1em * var(--track)); }
-/* each hoop's number, by its knuckle where it crosses the axle at six o'clock (which no tip moves).
-   On a disc of its colour's enamel while the hoop lies in that colour's plane; ringed while chosen; in the last
-   seconds before it drifts, a fuse burning down round it */
-.or-over text.or-num { font-weight: 800; fill: var(--ink-soft); stroke-width: 2.6; text-anchor: middle; }
-.or-over text.or-num.on { fill: var(--ink); }
-.or-over text.or-num.in { fill: var(--on-c); stroke: none; }
-.or-over text.or-num.in.k0 { fill: var(--on-c0); }
-.or-over .or-badge { fill: none; stroke: none; }
-.or-over .or-badge.k0 { fill: var(--c0); } .or-over .or-badge.k1 { fill: var(--c1); } .or-over .or-badge.k2 { fill: var(--c2); } .or-over .or-badge.k3 { fill: var(--c3); }
-.or-over .or-badge.on { stroke: var(--ink); stroke-width: 1.4; }
-.or-over .or-badge.on:not([class*=" k"]) { fill: color-mix(in srgb, var(--sheet) 80%, transparent); }
-.or-over .or-fuse { fill: none; stroke: var(--brass-lo); stroke-width: 2.2; stroke-linecap: round; }
 .or-plaque { fill: color-mix(in srgb, var(--sheet) 92%, transparent); stroke: var(--brass); stroke-width: 1; }
 
 /* the flat orrery, where there's no WebGL: a navy dial, bands of brass, the sun */
@@ -127,9 +115,6 @@
 .or-ckey .hoop { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
 .or-ckey .or-disc { stroke-width: .6; }
 .or-ckey .or-stroke { stroke-width: 1.1; }                 /* the planet's mark, as thick at this size as on the flat orrery */
-.or-ckey .slots { display: flex; gap: .34rem; font-size: .6rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.or-ckey .slots i { font-style: normal; color: color-mix(in srgb, currentColor 28%, transparent); }
-.or-ckey .slots i.in { color: currentColor; }
 .or-ckey[aria-pressed="true"] { background: var(--plate); color: var(--plate-ink); border-color: var(--plate); }
 .or-ckey:disabled { opacity: .4; cursor: default; }
 .or-go { min-height: 3.125rem; border: 0; border-radius: 4px; background: var(--plate); color: var(--plate-ink); font: inherit; font-size: .86rem; font-weight: 800;
