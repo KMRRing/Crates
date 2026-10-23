@@ -12,7 +12,7 @@
 // beats, quicker as the game goes on; when there is no place for one, it is over. The rules are orrery-engine.js's;
 // this file runs the clock, takes the taps, buttons and swipes and keeps the game. The clock starts at the first hoop
 // chosen or button pressed and stops with the menu, with the tab and with the game over.
-import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, newGame, valid, copy, setRing, setPlane, setTempo, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
+import { RINGS, STEP, TEMPOS, FIRST_TEMPO, TIP, SPIN, PLANE, COMBO_WINDOW, TICK, driftTime, newGame, valid, copy, setRing, setPlane, setTempo, step, between, room, multiplier, period, turnOf, planeOf } from "./orrery-engine.js";
 import { createOrrery } from "./orrery-3d.js";
 import { createFlat, planetSvg } from "./orrery-flat.js";
 import { sound } from "./orrery-sound.js";
@@ -165,7 +165,7 @@ function drawNums() {
     });
   }
   nums.forEach((n, ring) => {
-    const left = S.rings[ring].driftAt - S.t, d = S.over || left > fuse() ? "" : arcPath(n.at[0], n.at[1], 9 * u, left / fuse());
+    const left = driftTime(S, ring) - S.t, d = S.over || left > fuse() ? "" : arcPath(n.at[0], n.at[1], 9 * u, left / fuse());
     if (d !== n.burning) { n.burning = d; n.fuse.setAttribute("d", d); }
   });
 }
@@ -326,7 +326,7 @@ function handle(ev) {
     if (ev.stepped.length) sound.play("step", { n: ev.stepped.reduce((n, x) => n + Math.abs(x.by), 0) });
     tickArm();
   } else if (ev.type === "land") sound.play("land", { ring: ev.ring, pan: Math.sin((S.rings[ev.ring].a + ev.place) * STEP) * 0.5 });
-  else if (ev.type === "drift") sound.play("drift", { up: Math.sign(ev.tip - ev.from), ring: ev.ring });
+  else if (ev.type === "drift") setTimeout(() => sound.play("drift", { up: Math.sign(ev.tip - ev.from), ring: ev.ring }), TICK * 1000);   // after the hoops' steps, as the tilt is drawn
   else if (ev.type === "lock") {
     sound.play("lock", { n: ev.n, combo: ev.combo });
     popup(ev);

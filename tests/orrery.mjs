@@ -19,7 +19,7 @@
 import {
   VERSION, RINGS, PLACES, COLOURS, START, TAU, STEP, DEG, TEMPOS, FIRST_TEMPO, SPIN, REFERENCE, FIRST_SET, TIP, TIP_MAX, PLANE, DRIFT, TICK, TIP_TIME, DWELL, AWARD, COMBO_WINDOW,
   FORETELL, PACE, gap, multiplier, period, between, id, seatOf, angleOf, room, planets, dirOf, keyOf, planeOf, turnOf, tiltOf, clusters, crowds, newGame, valid, copy, setRing,
-  setTempo, nextDrift, step, look, strikeAt, setPlane,
+  setTempo, nextDrift, driftTime, aims, AIMS, step, look, strikeAt, setPlane,
 } from "../orrery-engine.js";
 
 let bad = 0;
@@ -309,6 +309,31 @@ const inBeats = g => g.rings.map(r => ({ ...r, driftAt: Math.round((r.driftAt / 
   check(gl.length === 1 && gl[0].n === 4 && gl[0].gain === AWARD[4] && near(g.lastLock, 1), "a fourth landing in it while it stands: all four are struck together");
 }
 
+// ---------- something to aim at ----------
+{
+  // a colour can be lined up only with planets on three hoops (a line has one planet to a hoop): the deal and the landings keep one to three
+  const starts = [...Array(300).keys()].map(k => aims(newGame(k)));
+  check(starts.every(n => n >= AIMS.least && n <= AIMS.most) && AIMS.least === 1 && AIMS.most === 3, "every game starts with a colour or two on three hoops to aim for, never none (the start was all different planets on different hoops)");
+  // nothing aimed at: the planet foretold takes the colour on most hoops to one it isn't on
+  const lone = sky();
+  lone.rings[0].places[0] = 0; lone.rings[1].places[3] = 0; lone.rings[2].places[6] = 1; lone.rings[3].places[9] = 2;
+  lone.next = { due: 0.1, ring: 3, place: 5, colour: 2 };
+  run(lone, 0.2);
+  check(aims(lone) === 0 && lone.next.colour === 0 && lone.next.ring >= 2 && lone.rings[lone.next.ring].places[lone.next.place] < 0, "with nothing to aim at, the planet foretold next is the colour that's on two hoops, for a third");
+  // as many to aim at as are wanted: none that makes another
+  const full = sky();
+  [0, 1, 2].forEach(c => [0, 1, 2].forEach(r => { full.rings[r].places[c * 4] = c; }));        // three colours, each on three hoops
+  full.rings[3].places[1] = 3; full.rings[0].places[1] = 3; full.rings[1].places[1] = 3;        // a fourth, on three too: more than wanted
+  [full.rings[3].places[1], full.rings[0].places[1], full.rings[1].places[1]] = [-1, -1, 3];      // … taken back to one hoop
+  let made = 0;
+  for (let k = 0; k < 60; k++) { const g = copy(full); g.n = k * 7; g.next = { due: 0.1, ring: 2, place: 11, colour: 0 }; run(g, 0.2); if (aims(g) > AIMS.most) made++; }
+  check(aims(full) === 3 && made === 0, "with three to aim at, the planets foretold never make a fourth");
+  // played with no hand (nothing cleared) the first thirty planets keep something to aim at nearly always
+  let seen = 0, with0 = 0;
+  for (let k = 1; k <= 60; k++) { const g = newGame(k, 5); for (let t = 0; t < 300 && !g.over && planets(g) < 30; t++) if (step(g, 1).some(e => e.type === "land")) { seen++; if (!aims(g)) with0++; } }
+  check(with0 / seen < 0.01, `after a landing there is almost always a colour to aim at (${with0} of ${seen} with none)`);
+}
+
 // ---------- the drift ----------
 {
   // a step a pace, one way, turning at 45 degrees: a slow pendulum
@@ -337,16 +362,38 @@ const inBeats = g => g.rings.map(r => ({ ...r, driftAt: Math.round((r.driftAt / 
   end.rings.forEach((r, k) => { r.way = k % 2 ? 1 : -1; });
   setPlane(end, 0);
   check(end.rings.every(r => r.tip === -3 && r.way === 1) && (setPlane(end, 3), end.rings.every(r => r.tip === 3 && r.way === -1)), "pressed to 45 degrees either way, every hoop drifts back from there");
-  // a drift that tips a hoop out of a standing line breaks it; one into its colour's plane can complete one
-  const B = PLANE[2], br = line(sky([B, B, B, 0]), 2, 4, [0, 2], [1, 5], [2, 9]);
+  // a drift comes on a beat, after the hoops have stepped (not before them, and not between beats)
+  const B = PLANE[2];
+  const when = sky([B, B, B, 0]);
+  when.rings[1].driftAt = 0.2; when.rings[1].drift = 30; when.rings[1].way = 1;
+  const early = run(when, 0.9), late = run(when, 0.2);
+  check(!drifts(early).length && drifts(late).length === 1 && when.rings[1].tip === B + 1, "a hoop whose drift falls between two beats waits for the next: nothing drifts between beats");
+  const order = sky([B, B, B, 0]);
+  order.rings.forEach(r => { r.set = 1; });
+  order.rings[0].driftAt = 0.5; order.rings[0].drift = 30; order.rings[0].way = 1;
+  const seq = run(order, 1.05).map(e => e.type);
+  check(seq.join() === "beat,drift" && near(order.rings[0].tipAt, 1 + TICK), "in the beat the hoops step first and then the tilt: the event comes after the step's, and the tilt is drawn a tick later, once the step has");
+  check(near(tiltOf(order.rings[0], 1), B * TIP) && near(tiltOf(order.rings[0], 1 + TICK + TIP_TIME), (B + 1) * TIP), "the tilt is drawn standing at the old tip while the hoops step, and turning after");
+  check(near(driftTime(order, 1), order.beatAt + Math.max(0, Math.ceil((order.rings[1].driftAt - order.beatAt) / period(order) - 1e-9)) * period(order)) && driftTime(when, 1) >= when.t, "the page is told when a drift will show: the beat it falls on");
+  // a line standing is struck by the beat before the hoops step or drift, so a drift due with that beat can't break it
+  const br = line(sky([B, B, B, 0]), 2, 4, [0, 2], [1, 5], [2, 9]);
   br.rings[1].driftAt = 0.2; br.rings[1].drift = 30; br.rings[1].way = 1;
   check(br.locks.length === 1, "a line standing in blue's plane …");
   const be = run(br, 1.5);
-  check(drifts(be).length === 1 && !br.locks.length && !locks(be).length && planets(br) === 3 && br.rings[1].tip === B + 1, "… broken by a hoop of it drifting out before the beat: not struck, as if tipped by hand");
-  const mk = line(sky([B, B, B + 1, 0]), 2, 4, [0, 2], [1, 5], [2, 9]);
-  mk.rings[2].driftAt = 0.2; mk.rings[2].drift = 30; mk.rings[2].way = -1;
-  const me = run(mk, 1.5);
-  check(drifts(me).length === 1 && locks(me).length === 1 && planets(mk) === 0, "and a drift into the colour's plane can make one, struck on the next beat");
+  check(drifts(be).length === 1 && locks(be).length === 1 && planets(br) === 0, "… is struck by the beat first, and the hoop that was due to drift out of it drifts after: the drift can't save or break a line the beat strikes");
+  // a drift is looked at after the steps: one that tips a hoop out of the plane a step has just made a line in breaks it, one into the plane makes it
+  const together = (tips, hoop, way) => {
+    const g = line(sky(tips), 2, 4, [0, 2], [1, 5], [2, 9]);
+    g.rings.forEach(r => { r.set = 1; r.a = mod(r.a - 1); });         // one step brings the three to seat 4 together
+    g.locks = [];
+    g.rings[hoop].driftAt = 0.2; g.rings[hoop].drift = 30; g.rings[hoop].way = way;
+    return g;
+  };
+  const mid = together([B, B, B, 0], 1, 1), midEv = run(mid, 1.5);
+  check(drifts(midEv).length === 1 && !mid.locks.length && !locks(midEv).length && planets(mid) === 3 && mid.rings[1].tip === B + 1, "a line the beat's steps make is broken by a hoop of it drifting out in the same beat: not struck, as if tipped by hand");
+  const mk = together([B, B, B + 1, 0], 2, -1), mkEv = run(mk, 1.5);
+  check(drifts(mkEv).length === 1 && mk.locks.length === 1 && planets(mk) === 3, "and a drift into the colour's plane makes one in that beat, standing …");
+  check(locks(run(mk, 1)).length === 1 && planets(mk) === 0, "… and struck on the next beat");
   const gt = line(sky(MIXED), 1, 0, [0, 3], [1, 7], [2, 0]);
   gt.rings.forEach(r => { r.driftAt = 0.1; r.drift = 30; });
   check(locks(run(gt, 1.2)).length === 1, "a line at a gate stands whatever the hoops drift to");

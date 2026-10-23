@@ -9,7 +9,7 @@
 // degrees either way, or lies level. Each colour has a plane of its own, a tip (PLANE): yellow's at −45 degrees, green's
 // −15, blue's 15 and red's 45; a press of a colour tips one hoop into its plane, or every hoop at once, and every so often
 // each hoop tips a step further by itself (its drift), one way until it reaches 45 degrees and then back, at its own
-// steady pace. Three or four planets of one colour, one to a hoop, in one direction from the sun, are a line however
+// steady pace, on a beat and after the hoops have stepped (Korbi, 23 October 2026: not right before them). Three or four planets of one colour, one to a hoop, in one direction from the sun, are a line however
 // their hoops are going, and the next beat strikes it before it steps them on: they clear and score. One direction is at
 // twelve o'clock or at six (on the axle, which every hoop crosses however it's tipped), for any colour at any tips; or one
 // place round hoops in that colour's plane. So lines are made by the hoops' speeds and directions (a beat's steps bring
@@ -174,6 +174,53 @@ function spot(s) {
   const places = s.rings[ring].places.flatMap((c, p) => (c < 0 ? [p] : []));
   return { ring, place: places[pick(s, places.length)] };
 }
+/** The hoops each colour has a planet on, as a set a colour. */
+const spread = s => {
+  const on = Array.from({ length: COLOURS }, () => new Set());
+  s.rings.forEach((r, ring) => r.places.forEach(c => { if (c >= 0) on[c].add(ring); }));
+  return on;
+};
+/**
+ * The colours that could be lined up now, in principle: planets on three hoops or more (a line has one planet to a hoop).
+ * With none, there is nothing to aim at, whatever the hand does; with every colour, nothing to choose between.
+ */
+export const aims = s => spread(s).filter(h => h.size >= 3).length;
+/** How many colours the deal and the landings keep to aim for: at least one, and not all four (Korbi, 23 October 2026). */
+export const AIMS = { least: 1, most: 3 };
+/** The aims there would be with a colour in a place (tried, and taken back). */
+function aimsWith(s, ring, place, colour) {
+  s.rings[ring].places[place] = colour;
+  const n = aims(s);
+  s.rings[ring].places[place] = -1;
+  return n;
+}
+/**
+ * The place and colour of the next planet, steered a little: with nothing to aim at, one that brings a colour nearer to
+ * three hoops (the colour on most hoops, onto a hoop it isn't on); with as many to aim at as are wanted, never one that
+ * makes another. Otherwise as it comes. Hoops' planets only change by landings and lines struck, never by steps, so a
+ * colour's hoops are as the player sees them for as long as it takes to land.
+ */
+function aimed(s) {
+  const now = aims(s), on = spread(s);
+  if (now < AIMS.least) {
+    const reach = [];
+    for (let c = 0; c < COLOURS; c++) if (on[c].size) for (let ring = 0; ring < RINGS; ring++) {
+      if (on[c].has(ring)) continue;
+      const free = s.rings[ring].places.flatMap((x, p) => (x < 0 ? [p] : []));
+      if (free.length) reach.push({ colour: c, ring, free, size: on[c].size });
+    }
+    const top = Math.max(0, ...reach.map(x => x.size)), best = reach.filter(x => x.size === top);
+    if (best.length) { const x = best[pick(s, best.length)]; return { ring: x.ring, place: x.free[pick(s, x.free.length)], colour: x.colour }; }
+  }
+  for (let k = 0; k < 12; k++) {
+    const at = spot(s);
+    if (!at) return null;
+    const colour = colourFor(s);
+    if (now < AIMS.most || aimsWith(s, at.ring, at.place, colour) <= now) return { ...at, colour };
+  }
+  const at = spot(s);
+  return at && { ...at, colour: colourFor(s) };
+}
 /** A colour for a newcomer: any, but the scarcer ones likelier, so every colour stays in play. */
 function colourFor(s) {
   const count = new Array(COLOURS).fill(0);
@@ -185,8 +232,8 @@ function colourFor(s) {
 }
 /** Foretells the next planet, to land a gap after now. */
 function foretell(s) {
-  const at = spot(s) ?? { ring: -1, place: -1 };
-  s.next = { due: s.t + gap(s.beat) * period(s), ring: at.ring, place: at.place, colour: colourFor(s) };
+  const at = aimed(s) ?? { ring: -1, place: -1, colour: colourFor(s) };
+  s.next = { due: s.t + gap(s.beat) * period(s), ring: at.ring, place: at.place, colour: at.colour };
 }
 /** The way a hoop at a tip drifts next: on as it was going, or back from 45 degrees. */
 const turned = (tip, way) => (Math.abs(tip + way) > TIP_MAX ? -way : way);
@@ -219,18 +266,23 @@ export function newGame(seed, tempo = FIRST_TEMPO) {
     s.rings.push({ a: pick(s, PLACES), set: FIRST_SET, tip: tips[r], places: new Array(PLACES).fill(-1), moved: -1e9, dir: 1, tipFrom: tips[r], tipAt: -1e9,
       drift: paces[r], driftAt: paces[r] * period(s), way: turned(tips[r], pick(s, 2) ? 1 : -1) });
   }
-  // the colours in turn, so each is dealt as often as the others (to within one)
-  for (let k = 0; k < START; k++) {
-    const at = spot(s);
-    s.rings[at.ring].places[at.place] = k % COLOURS;
-  }
-  // no three of a colour together at the start: swap colours with another planet until none are, which keeps the count of each
+  // the colours in turn, so each is dealt as often as the others (to within one); dealt again if no colour is on three
+  // hoops, which leaves nothing to do at the start (Korbi: "it's all different planets on different belts")
   const all = () => s.rings.flatMap((r, ring) => r.places.flatMap((c, place) => (c >= 0 ? [{ ring, place, c }] : [])));
-  for (let guard = 0; guard < 500 && crowds(s).length; guard++) {
-    const c = crowds(s)[0], m = c.members[pick(s, c.members.length)], other = all().filter(q => q.c !== c.colour);
-    const o = other[pick(s, other.length)];
-    s.rings[m.ring].places[m.place] = o.c;
-    s.rings[o.ring].places[o.place] = c.colour;
+  for (let tries = 0; tries < 80; tries++) {
+    for (const r of s.rings) r.places.fill(-1);
+    for (let k = 0; k < START; k++) {
+      const at = spot(s);
+      s.rings[at.ring].places[at.place] = k % COLOURS;
+    }
+    // no three of a colour together at the start: swap colours with another planet until none are, which keeps the count of each
+    for (let guard = 0; guard < 500 && crowds(s).length; guard++) {
+      const c = crowds(s)[0], m = c.members[pick(s, c.members.length)], other = all().filter(q => q.c !== c.colour);
+      const o = other[pick(s, other.length)];
+      s.rings[m.ring].places[m.place] = o.c;
+      s.rings[o.ring].places[o.place] = c.colour;
+    }
+    if (!crowds(s).length && aims(s) >= AIMS.least && aims(s) <= AIMS.most) break;
   }
   foretell(s);
   return s;
@@ -294,6 +346,8 @@ export function setTempo(s, k) {
   return true;
 }
 /** The hoop that drifts next. */
+/** When a hoop's drift will show: the beat it falls on (its time, or the first beat after). */
+export const driftTime = (s, ring) => s.beatAt + Math.max(0, Math.ceil((s.rings[ring].driftAt - s.beatAt) / period(s) - 1e-9)) * period(s);
 export const nextDrift = s => s.rings.reduce((best, r, ring) => (r.driftAt < s.rings[best].driftAt ? ring : best), 0);
 
 // ---------- time passing ----------
@@ -330,6 +384,9 @@ function beat(s, events) {
   });
   events.push({ type: "beat", beat: s.beat, stepped });
   if (stepped.length) look(s);
+  // the hoops that are due drift now, once the steps have landed (a line they leave or make is looked for as the steps' are)
+  const drifting = s.rings.flatMap((r, ring) => (r.driftAt <= s.t + 1e-9 ? [ring] : [])).sort((a, b) => s.rings[a].driftAt - s.rings[b].driftAt);
+  for (const ring of drifting) drift(s, ring, events);
 }
 function land(s, events) {
   let { ring, place, colour } = s.next;
@@ -350,18 +407,23 @@ function land(s, events) {
   foretell(s);
   look(s);
 }
-/** A hoop's drift: a step of tip the way it's going, on its own clock, breaking a line it leaves as a tip of the hand would. */
+/**
+ * A hoop's drift: a step of tip the way it's going, on its own clock (counted in beats, and happening on the first beat
+ * at or after its time), breaking a line it leaves as a tip of the hand would. By the rules at once, but drawn once the
+ * hoops' steps have been drawn (a tick), so the eye sees them move and then the tilt.
+ */
 function drift(s, ring, events) {
   const r = s.rings[ring], from = r.tip;
   tipTo(s, r, r.tip + r.way);
+  r.tipAt = s.t + TICK;
   r.driftAt = s.t + r.drift * period(s);
   events.push({ type: "drift", ring, from, tip: r.tip });
   look(s);
 }
 /**
  * Lets `dt` seconds pass, in place: each beat strikes the lines standing and steps the hoops, the planet foretold lands
- * when it's due and each hoop drifts at its time; each at its own time, in order (a beat first, then a landing, then a
- * drift, at one moment). Returns what happened, for the page to show and sound: { type: "lock", colour, key, seat (the
+ * when it's due and each hoop drifts at its time; each at its own time, in order (a beat first, in which the hoops step
+ * and then drift, then a landing, at one moment). Returns what happened, for the page to show and sound: { type: "lock", colour, key, seat (the
  * place round the sun it stood at: its hoops have stepped on since), members, dir, n, gain, combo } before the beat that
  * struck it, | { type: "beat", beat, stepped ([{ ring, dir, by }]) } | { type: "land", ring, place, colour } |
  * { type: "drift", ring, from, tip } | { type: "over" }.
@@ -371,12 +433,11 @@ export function step(s, dt) {
   if (s.over) return events;
   const end = s.t + dt;
   for (;;) {
-    const d = nextDrift(s), at = Math.min(s.beatAt, s.next.due, s.rings[d].driftAt);
+    const at = Math.min(s.beatAt, s.next.due);
     if (at > end) break;
     if (at > s.t) s.t = at;
     if (at === s.beatAt) beat(s, events);
-    else if (at === s.next.due) land(s, events);
-    else drift(s, d, events);
+    else land(s, events);
     if (s.over) return events;
   }
   s.t = end;
